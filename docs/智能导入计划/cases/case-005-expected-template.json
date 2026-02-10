@@ -1,0 +1,22 @@
+{
+  "weeks": 1,
+  "trainingDays": [
+    {
+      "weekIndex": 1,
+      "dayOfWeek": 1,
+      "type": "training",
+      "mustContainActionNames": ["负重引体"]
+    },
+    {
+      "weekIndex": 1,
+      "dayOfWeek": 2,
+      "type": "rest",
+      "mustContainDayNoteSubstrings": ["休息1天", "拉伸", "松解", "低强度有氧", "冷热交替洗澡"]
+    }
+  ],
+  "notes": [
+    "当前设计：休息日的多行内容必须保留到 dayNote，避免信息丢失。",
+    "未来升级（可选）：把休息日里的“拉伸/冷热交替洗澡”解析成 HABIT/CARDIO 动作。"
+  ]
+}
+

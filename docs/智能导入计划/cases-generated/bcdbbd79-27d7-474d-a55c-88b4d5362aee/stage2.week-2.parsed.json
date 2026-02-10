@@ -1,0 +1,140 @@
+{
+  "weeks": 4,
+  "trainingDays": [
+    {
+      "weekIndex": 2,
+      "dayOfWeek": 1,
+      "type": "training",
+      "actions": [
+        {
+          "actionId": "e44ef1d2-374c-4b57-aacb-b1538258f1b9",
+          "sets": 6,
+          "reps": 3,
+          "restSeconds": 180,
+          "intensityConfig": {
+            "fixedWeight": 120,
+            "relativeIntensity": {
+              "type": "percentage",
+              "value": 80
+            }
+          },
+          "note": ""
+        },
+        {
+          "actionId": "9a5cb781-0a0e-4fdd-90c8-e90c06e3e083",
+          "sets": 5,
+          "reps": 5,
+          "restSeconds": 180,
+          "intensityConfig": {
+            "fixedWeight": 82.5,
+            "relativeIntensity": {
+              "type": "percentage",
+              "value": 77
+            }
+          },
+          "note": ""
+        },
+        {
+          "actionId": "274fd83d-0a52-487c-a337-4fe327c513c1",
+          "sets": 5,
+          "reps": null,
+          "restSeconds": 60,
+          "intensityConfig": null,
+          "note": "计时动作，每组40秒"
+        }
+      ],
+      "dayNote": "训练｜绝对重量优先"
+    },
+    {
+      "weekIndex": 2,
+      "dayOfWeek": 2,
+      "type": "rest",
+      "actions": [],
+      "dayNote": "拉伸 15分钟"
+    },
+    {
+      "weekIndex": 2,
+      "dayOfWeek": 3,
+      "type": "training",
+      "actions": [
+        {
+          "actionId": "8f6a4796-de16-4697-886b-92dd8e9045d0",
+          "sets": 5,
+          "reps": null,
+          "restSeconds": 120,
+          "intensityConfig": null,
+          "note": "力竭，每组拉到降速临界点"
+        },
+        {
+          "actionId": "abb7bec4-39ba-4bd5-be59-3efab08e2d94",
+          "sets": 4,
+          "reps": 4,
+          "restSeconds": 210,
+          "intensityConfig": {
+            "relativeIntensity": {
+              "type": "percentage",
+              "value": 85
+            }
+          },
+          "note": "动作质量优先"
+        }
+      ],
+      "dayNote": "训练｜“降速临界点”作为动作注释"
+    },
+    {
+      "weekIndex": 2,
+      "dayOfWeek": 4,
+      "type": "rest",
+      "actions": [],
+      "dayNote": "休息"
+    },
+    {
+      "weekIndex": 2,
+      "dayOfWeek": 5,
+      "type": "training",
+      "actions": [
+        {
+          "actionId": "03e0beda-65ce-4949-aec1-afe881f24cef",
+          "sets": 5,
+          "reps": null,
+          "restSeconds": 180,
+          "intensityConfig": {
+            "fixedWeight": 5
+          },
+          "note": "累积逻辑：极限个数×5，每组RPE9，累积够即可"
+        },
+        {
+          "actionId": "424c6a40-1bc9-4875-934a-e273debb0f11",
+          "sets": null,
+          "reps": null,
+          "restSeconds": 180,
+          "intensityConfig": null,
+          "note": "累积30个（未写组数/每组次数：应提示确认或留空）"
+        },
+        {
+          "actionId": "274fd83d-0a52-487c-a337-4fe327c513c1",
+          "sets": 3,
+          "reps": null,
+          "restSeconds": 60,
+          "intensityConfig": null,
+          "note": "计时动作，每组60秒"
+        }
+      ],
+      "dayNote": "训练｜累积逻辑"
+    },
+    {
+      "weekIndex": 2,
+      "dayOfWeek": 6,
+      "type": "rest",
+      "actions": [],
+      "dayNote": "休息"
+    },
+    {
+      "weekIndex": 2,
+      "dayOfWeek": 7,
+      "type": "rest",
+      "actions": [],
+      "dayNote": "休息"
+    }
+  ]
+}

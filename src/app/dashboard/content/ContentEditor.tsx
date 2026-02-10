@@ -2,17 +2,18 @@
 
 import React, { useState, useEffect } from 'react';
 import {
-    Hash, Type, Users, Lock, Crown, Gem, Eye, Pencil, Send, Save, Star
+    Hash, Type, Users, Lock, Crown, Gem, Eye, Pencil, Send, Save, Star, DollarSign
 } from 'lucide-react';
 
 // PrimeReact imports
 import { Button } from 'primereact/button';
 import { InputText } from 'primereact/inputtext';
-import { InputTextarea } from 'primereact/inputtextarea';
+import { InputNumber } from 'primereact/inputnumber';
 import { Chip } from 'primereact/chip';
 import { Checkbox } from 'primereact/checkbox';
 import { useToastContext } from '@/context/ToastContext';
 import { CoachContentRow } from '@/types';
+import RichTextEditor from '@/components/RichTextEditor';
 
 export enum ContentTier { FREE = 0, BASIC = 1, PREMIUM = 2, VIP = 3 }
 
@@ -21,10 +22,12 @@ interface ContentForm {
     content: string;
     content_type: 'text' | 'video' | 'image' | 'live' | 'plan';
     required_tier: ContentTier;
+    price_cents?: number;
     is_featured: boolean;
     tags: string[];
     media_urls: string[];
     thumbnail_url?: string;
+    notifyAllStudents?: boolean;
 }
 
 interface ContentEditorProps {
@@ -37,7 +40,7 @@ interface ContentEditorProps {
 const ContentEditor: React.FC<ContentEditorProps> = ({ coachId, onPublish, onSaveDraft, initialContent = null }) => {
     const [form, setForm] = useState<ContentForm>({
         title: '', content: '', content_type: 'text', required_tier: ContentTier.FREE,
-        is_featured: false, tags: [], media_urls: []
+        is_featured: false, tags: [], media_urls: [], notifyAllStudents: false, price_cents: 0
     });
     const [currentTag, setCurrentTag] = useState('');
     const [isPreview, setIsPreview] = useState(false);
@@ -58,7 +61,8 @@ const ContentEditor: React.FC<ContentEditorProps> = ({ coachId, onPublish, onSav
                 required_tier: initialContent.required_tier,
                 is_featured: initialContent.is_featured || false,
                 tags: initialContent.tags || [],
-                media_urls: initialContent.media_urls || []
+                media_urls: initialContent.media_urls || [],
+                price_cents: (initialContent as any).price_cents ?? 0
             });
         }
     }, [initialContent]);
@@ -106,6 +110,7 @@ const ContentEditor: React.FC<ContentEditorProps> = ({ coachId, onPublish, onSav
 
     const selectedTier = tierOptions.find(t => t.value === form.required_tier);
     const TierIcon = selectedTier?.icon || Users;
+    const priceYuan = form.price_cents ? (form.price_cents / 100).toFixed(2) : '0.00';
 
     return (
         <div className="bg-transparent space-y-10 py-6">
@@ -138,22 +143,21 @@ const ContentEditor: React.FC<ContentEditorProps> = ({ coachId, onPublish, onSav
                         />
                     </div>
 
-                    {/* Content Editor Area */}
+                    {/* Content Editor Area - Rich Text Editor */}
                     <div className="space-y-2">
                         <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-surface-400 px-1">
                             正文叙述
                         </label>
-                        <InputTextarea
-                            value={form.content}
-                            onChange={(e) => handleInputChange('content', e.target.value)}
+                        <RichTextEditor
+                            content={form.content}
+                            onChange={(content) => handleInputChange('content', content)}
                             placeholder="在这里分享您的训练心得..."
-                            rows={10}
-                            className="w-full border-none bg-surface-50/50 focus:bg-white focus:ring-2 focus:ring-primary-100 rounded-[24px] p-5 transition-all resize-none leading-relaxed"
                         />
                     </div>
 
-                    {/* Tier Selection - Physical Button Logic */}
-                    <div className="space-y-4">
+                    {/* Tier Selection - 已隐藏，代码保留供后续使用 */}
+                    {/**
+                     * <div className="space-y-4">
                         <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-surface-400 px-1">
                             可见范围
                         </label>
@@ -179,6 +183,40 @@ const ContentEditor: React.FC<ContentEditorProps> = ({ coachId, onPublish, onSav
                                 );
                             })}
                         </div>
+                    </div>
+                     */}
+
+                    {/* Price Input */}
+                    <div className="space-y-2">
+                        <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-surface-400 px-1">
+                            <DollarSign size={14} /> 单篇价格（元）
+                        </label>
+                        <div className="flex items-center gap-3">
+                            <InputNumber
+                                value={form.price_cents ? form.price_cents / 100 : 0}
+                                onValueChange={(e) => {
+                                    const yuan = e.value ?? 0;
+                                    handleInputChange('price_cents', Math.max(0, Math.floor(yuan * 100)));
+                                }}
+                                mode="decimal"
+                                min={0}
+                                max={9999.99}
+                                step={0.01}
+                                suffix=" 元"
+                                placeholder="0.00"
+                                className="flex-1 border-none bg-surface-50/50 focus:bg-white focus:ring-2 focus:ring-primary-100 rounded-2xl py-3 transition-all"
+                            />
+                            <div className="text-xs text-surface-500 font-medium">
+                                {form.price_cents && form.price_cents > 0 ? (
+                                    <span className="text-amber-600 font-bold">付费内容 ¥{priceYuan}</span>
+                                ) : (
+                                    <span className="text-green-600 font-bold">免费内容</span>
+                                )}
+                            </div>
+                        </div>
+                        <p className="text-xs text-surface-400 px-1">
+                            设置单篇购买价格。0 元表示免费，用户无需支付即可阅读。已订阅该教练的用户可免费阅读所有内容。
+                        </p>
                     </div>
 
                     {/* Tags & Settings */}
@@ -206,6 +244,24 @@ const ContentEditor: React.FC<ContentEditorProps> = ({ coachId, onPublish, onSav
                                 ))}
                             </div>
                         </div>
+
+                        {/* Featured Checkbox */}
+                        <div className="space-y-4">
+                            <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-surface-400 px-1">
+                                <Star size={14} /> 推荐设置
+                            </label>
+                            <div className="flex items-center gap-3 p-4 bg-amber-50/30 border border-amber-100 rounded-xl">
+                                <Checkbox
+                                    inputId="featured"
+                                    checked={form.is_featured}
+                                    onChange={(e) => handleInputChange('is_featured', e.checked || false)}
+                                />
+                                <label htmlFor="featured" className="flex-1 cursor-pointer select-none">
+                                    <div className="font-bold text-sm text-surface-900">设为精选内容</div>
+                                    <div className="text-xs text-surface-500 mt-0.5">精选内容将在列表顶部展示</div>
+                                </label>
+                            </div>
+                        </div>
                     </div>
                 </div>
             ) : (
@@ -224,9 +280,14 @@ const ContentEditor: React.FC<ContentEditorProps> = ({ coachId, onPublish, onSav
                         <h1 className="text-3xl font-black tracking-tight text-surface-900 mb-6 leading-tight">
                             {form.title || '标题预留位'}
                         </h1>
-                        <div className="text-surface-600 leading-relaxed whitespace-pre-wrap text-lg opacity-90 mb-10">
-                            {form.content || '您还没有输入正文...'}
-                        </div>
+                        {/* 预览模式 - 完整Markdown和表格支持 */}
+                        <div 
+                            className="prose prose-lg max-w-none text-surface-600 leading-relaxed mb-10 prose-headings:tracking-tight prose-h1:text-3xl prose-h2:text-2xl prose-h3:text-xl prose-table:border-collapse prose-table:w-full prose-th:bg-surface-100 prose-th:font-bold prose-th:border prose-th:border-surface-300 prose-th:px-4 prose-th:py-2 prose-td:border prose-td:border-surface-300 prose-td:px-4 prose-td:py-2"
+                            dangerouslySetInnerHTML={{ 
+                                __html: form.content || '<p class="text-surface-400 italic">您还没有输入正文...</p>' 
+                            }}
+                        />
+
                         <div className="flex flex-wrap gap-2 pt-6 border-t border-surface-50">
                             {form.tags.map((tag, i) => (
                                 <span key={i} className="text-primary font-bold text-sm">#{tag}</span>
@@ -238,8 +299,23 @@ const ContentEditor: React.FC<ContentEditorProps> = ({ coachId, onPublish, onSav
 
             {/* Bottom Actions - Floating Visual Style */}
             <footer className="flex items-center justify-between pt-8 border-t border-surface-100/60">
-                <div className="flex items-center gap-2 text-surface-400">
-
+                <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2">
+                        <Checkbox
+                            inputId="notifyAll"
+                            checked={form.notifyAllStudents || false}
+                            onChange={(e) => handleInputChange('notifyAllStudents', e.checked)}
+                            className="border-surface-200"
+                        />
+                        <label 
+                            htmlFor="notifyAll" 
+                            className="text-sm font-medium text-surface-600 cursor-pointer select-none flex items-center gap-1"
+                        >
+                            <Users size={16} className="text-primary-500" />
+                            <span>@全体学员</span>
+                            <span className="text-xs text-surface-400">(发布时推送消息给所有订阅学员)</span>
+                        </label>
+                    </div>
                 </div>
 
                 <div className="flex gap-4">

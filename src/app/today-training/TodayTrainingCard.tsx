@@ -215,7 +215,22 @@ const TodayTrainingCard: React.FC<TodayTrainingCardProps> = ({
                                                                         // load === 0 时不显示重量
                                                                     }
                                                                     
-                                                                    // 只有RM强度，没有计算后的重量
+                                                                    // 只有相对强度，没有计算后的重量
+                                                                    // 需要检查强度类型：RM 还是百分比
+                                                                    const intensityConfig = params.intensityConfig;
+                                                                    const relativeIntensity = intensityConfig?.relativeIntensity;
+                                                                    
+                                                                    if (relativeIntensity?.value && relativeIntensity.value > 0) {
+                                                                        // 根据类型显示正确的后缀
+                                                                        const suffix = relativeIntensity.type === 'percentage' ? '%' : 'RM';
+                                                                        return (
+                                                                            <span className="text-surface-500">
+                                                                                💪 {relativeIntensity.value}{suffix}
+                                                                            </span>
+                                                                        );
+                                                                    }
+                                                                    
+                                                                    // 兼容旧数据：如果没有 intensityConfig 但有 intensity 字段，默认为 RM
                                                                     if (intensity && intensity > 0) {
                                                                         return (
                                                                             <span className="text-surface-500">
@@ -294,6 +309,13 @@ const TodayTrainingCard: React.FC<TodayTrainingCardProps> = ({
                     >
                         收起预览
                     </button>
+                )}
+
+                {/* Why input matters */}
+                {executionStatus !== 'completed' && (
+                    <div className="text-xs text-surface-600 bg-surface-50 border border-surface-100/50 rounded-2xl px-3 py-2">
+                        请输入真实重量/次数：本次后续组会联动校准；系统也会据此更新 e1RM，让下次自动算重量更准。完成后还可分享打卡。
+                    </div>
                 )}
 
                 {/* Button based on status */}

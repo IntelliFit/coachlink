@@ -60,6 +60,22 @@ export async function POST(req: NextRequest) {
             // 移除敏感信息
             const { password_hash, ...userWithoutPassword } = user;
 
+            // 查询是否为教练（小程序端需用于界面切换）
+            const { data: coachRow } = await supabase
+                .from("coaches")
+                .select("id, status")
+                .eq("user_id", user.id)
+                .eq("status", "approved")
+                .maybeSingle();
+            const isCoach = !!coachRow;
+
+            const payload = {
+                ...userWithoutPassword,
+                is_coach: isCoach,
+                primary_role: user.primary_role ?? (isCoach ? "coach" : "student"),
+                is_admin: user.is_admin ?? false,
+            };
+
             // 生成JWT token
             const token = signToken({
                 userId: user.id,
@@ -71,7 +87,7 @@ export async function POST(req: NextRequest) {
                 success: true,
                 message: "登录成功",
                 data: {
-                    user: userWithoutPassword,
+                    user: payload,
                     token: token
                 }
             });
@@ -84,7 +100,20 @@ export async function POST(req: NextRequest) {
             if (isDev && verifyCode === '123456') {
                 const { password_hash, ...userWithoutPassword } = user;
 
-                // 生成JWT token
+                const { data: coachRow } = await supabase
+                    .from("coaches")
+                    .select("id, status")
+                    .eq("user_id", user.id)
+                    .eq("status", "approved")
+                    .maybeSingle();
+                const isCoach = !!coachRow;
+                const payload = {
+                    ...userWithoutPassword,
+                    is_coach: isCoach,
+                    primary_role: user.primary_role ?? (isCoach ? "coach" : "student"),
+                    is_admin: user.is_admin ?? false,
+                };
+
                 const token = signToken({
                     userId: user.id,
                     phone: user.phone,
@@ -95,7 +124,7 @@ export async function POST(req: NextRequest) {
                     success: true,
                     message: "登录成功（开发模式）",
                     data: {
-                        user: userWithoutPassword,
+                        user: payload,
                         token: token
                     }
                 });

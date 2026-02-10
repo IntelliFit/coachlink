@@ -258,18 +258,14 @@ export async function POST(req: Request) {
             timings["5c_rm_records"] = performance.now() - rmRecordsStart;
 
             const rmMap: Record<string, number> = {};
+            // getCurrent1RMRecords 已经返回了每个动作的最新记录（按时间优先级）
+            // 直接使用返回的值，不需要 Math.max
             for (const r of records || []) {
-                if (r.actionId) {
-                    rmMap[r.actionId] = Math.max(
-                        rmMap[r.actionId] || 0,
-                        r.current1RM,
-                    );
+                if (r.actionId && r.current1RM > 0) {
+                    rmMap[r.actionId] = r.current1RM;
                 }
-                if (r.actionName) {
-                    rmMap[r.actionName] = Math.max(
-                        rmMap[r.actionName] || 0,
-                        r.current1RM,
-                    );
+                if (r.actionName && r.current1RM > 0) {
+                    rmMap[r.actionName] = r.current1RM;
                 }
             }
 
@@ -283,8 +279,13 @@ export async function POST(req: Request) {
 
                     const params = set.params || {};
                     const existingLoad = params.load;
+                    // 如果已经有load值，且不是自动计算的，则跳过（保留手动设置的值）
+                    // 如果是自动计算的（loadCalculated === true），则重新计算（因为1RM数据可能已更新）
                     if (existingLoad !== null && existingLoad !== undefined) {
-                        continue; // don't override explicit loads
+                        if (params.loadCalculated !== true && params.loadSource !== "calculated") {
+                            continue; // don't override explicit loads
+                        }
+                        // 如果是自动计算的，继续执行下面的重新计算逻辑
                     }
 
                     const intensityConfig = normalizeIntensityConfig(params);
@@ -532,12 +533,6 @@ export async function POST(req: Request) {
 
     // 计算总耗时
     timings["total"] = performance.now() - startTime;
-
-    // 输出性能日志
-    console.log(
-        "[get-instance] Performance timings:",
-        JSON.stringify(timings, null, 2),
-    );
 
     return NextResponse.json<ApiData<GetInstanceResponseDto>>({
         success: true,

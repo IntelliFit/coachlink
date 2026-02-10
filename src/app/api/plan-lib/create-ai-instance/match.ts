@@ -14,6 +14,7 @@ import {
     calcRecommendedLoad,
     normalizeIntensityConfig,
 } from "@/lib/rmCaculator";
+import { getCurrent1RMRecords } from "@/app/api/student/get-current-1rm/route";
 
 // 自动计算动作的配置类型
 interface AutoComputeAction {
@@ -27,6 +28,8 @@ interface AutoComputeAction {
 export interface FillTemplateOptions {
     studentBodyWeight: number | null;
     autoComputeActions: AutoComputeAction[];
+    studentId?: string; // 学员ID，用于获取最新的PR记录
+    coachId?: string; // 教练ID，用于权限校验
 }
 
 export async function matchPlan(questionare: TrainingItem[]) {
@@ -59,6 +62,18 @@ export async function matchPlan(questionare: TrainingItem[]) {
     const questionNames = optionInfos.map((o) => o.question);
     console.log("匹配条件 - 动作选择问题:", questionNames);
 
+    // 提取学员问卷中 scope='global' 的全局选项问题，用于与模板的 global_answers 匹配
+    const globalOptionInfos = questionare.filter((item) =>
+        item.type === "option" && item.scope === "global"
+    ) as TrainingOptionQuestion[];
+
+    // 构建学员全局选项的映射: { 问题名: 用户选择的索引 }
+    const userGlobalAnswers: Record<string, number> = {};
+    for (const opt of globalOptionInfos) {
+        userGlobalAnswers[opt.question] = opt.userSelection;
+    }
+    console.log("学员全局选项回答:", userGlobalAnswers);
+
     // 先查出满足全局条件的模板
     const { data: planTemplates, error: planTemplatesError } = await query;
 
@@ -69,25 +84,59 @@ export async function matchPlan(questionare: TrainingItem[]) {
 
     console.log(`全局条件匹配到 ${planTemplates?.length || 0} 个模板`);
 
-    // 应用层过滤：检查 contained_options
-    // 规则：如果模板的 contained_options 不为空，则要求学员问卷包含所有这些问题
+    // 应用层过滤：
+    // 1. 检查 contained_options
+    // 2. 检查 global_answers（核心匹配逻辑）
     const filteredTemplates = planTemplates?.filter((template) => {
+        // === 检查 contained_options ===
         const containedOptions = template.contained_options || [];
 
-        // 如果模板没有条件筛选要求，直接匹配
-        if (containedOptions.length === 0) {
-            console.log(`模板 "${template.name}": 无条件筛选要求，匹配成功`);
+        if (containedOptions.length > 0) {
+            // 如果模板有条件筛选要求，检查学员问卷是否包含所有这些问题
+            const allContained = containedOptions.every((opt: string) =>
+                questionNames.includes(opt)
+            );
+            if (!allContained) {
+                console.log(
+                    `模板 "${template.name}": contained_options 不匹配，需要 ${containedOptions}, 学员有 ${questionNames}`,
+                );
+                return false;
+            }
+        }
+
+        // === 检查 global_answers（核心匹配逻辑） ===
+        const templateGlobalAnswers = template.global_answers as Record<string, number> | null;
+
+        if (!templateGlobalAnswers || Object.keys(templateGlobalAnswers).length === 0) {
+            // 模板没有 global_answers 要求，直接通过
+            console.log(`模板 "${template.name}": 无 global_answers 要求，匹配成功`);
             return true;
         }
 
-        // 如果模板有条件筛选要求，检查学员问卷是否包含所有这些问题
-        const allContained = containedOptions.every((opt: string) =>
-            questionNames.includes(opt)
-        );
-        console.log(
-            `模板 "${template.name}": 需要 ${containedOptions}, 学员有 ${questionNames}, 匹配: ${allContained}`,
-        );
-        return allContained;
+        // 检查学员的每个全局选项是否与模板要求一致
+        for (const [question, expectedIndex] of Object.entries(templateGlobalAnswers)) {
+            const userAnswer = userGlobalAnswers[question];
+
+            // 如果学员没有回答这个问题，不匹配
+            if (userAnswer === undefined) {
+                console.log(
+                    `模板 "${template.name}": 学员未回答全局问题 "${question}"，不匹配`,
+                );
+                return false;
+            }
+
+            // 如果学员的回答与模板要求不一致，不匹配
+            if (userAnswer !== expectedIndex) {
+                console.log(
+                    `模板 "${template.name}": 全局问题 "${question}" 不匹配，` +
+                    `模板要求=${expectedIndex}, 学员回答=${userAnswer}`,
+                );
+                return false;
+            }
+        }
+
+        console.log(`模板 "${template.name}": 所有条件匹配成功`);
+        return true;
     }) || [];
 
     console.log(`最终匹配到 ${filteredTemplates.length} 个模板`);
@@ -182,7 +231,7 @@ function computeActionWeight(
     }
 }
 
-export function fillTemplate(
+export async function fillTemplate(
     answers: TrainingItem[],
     template: CoachPlanTemplateRow,
     options?: FillTemplateOptions,
@@ -194,11 +243,62 @@ export function fillTemplate(
             optionInfo.userSelection;
     }
 
-    // 获取学员1RM数据
+    // 获取学员1RM数据：优先使用最新的PR记录，如果没有则使用问卷数据
     const rmData = answers.find((item) => item.type === "rm") as
         | TrainingRmQuestion
         | undefined;
-    const userRmInputs = rmData?.userInputs || {};
+    const questionnaireRmInputs = rmData?.userInputs || {};
+    
+    let userRmInputs: Record<string, number> = questionnaireRmInputs;
+    
+    // 如果有学员ID和教练ID，尝试获取最新的PR记录
+    // getCurrent1RMRecords 已经实现了时间优先级逻辑：
+    // - 优先使用最新的 AUTO_STATE 记录
+    // - 如果没有，使用最新的记录（按 date_achieved desc）
+    // - 如果问卷更新时间更晚，用问卷值覆盖
+    if (options?.studentId && options?.coachId) {
+        try {
+            const records = await getCurrent1RMRecords(options.coachId, {
+                targetUserId: options.studentId,
+            });
+            
+            // 构建1RM映射：直接使用 getCurrent1RMRecords 返回的值
+            // getCurrent1RMRecords 已经按时间优先级处理过了：
+            // - 优先使用最新的 AUTO_STATE 记录
+            // - 如果没有，使用最新的记录（按 date_achieved desc）
+            // - 如果问卷更新时间更晚，用问卷值覆盖
+            const prRmMap: Record<string, number> = {};
+            for (const record of records || []) {
+                // 同时使用 actionId 和 actionName 作为 key，确保能匹配到
+                // getCurrent1RMRecords 返回的数组中，每个动作只有一个记录（最新的）
+                if (record.actionId && record.current1RM > 0) {
+                    prRmMap[record.actionId] = record.current1RM;
+                }
+                // 同时使用 actionName 作为 key（用于匹配没有 actionId 的情况）
+                if (record.actionName && record.current1RM > 0) {
+                    prRmMap[record.actionName] = record.current1RM;
+                }
+            }
+            
+            // 合并数据：PR记录优先（因为它已经按时间优先级处理），问卷数据作为fallback
+            userRmInputs = {
+                ...questionnaireRmInputs,
+                ...prRmMap,
+            };
+            
+            console.log(
+                `✅ 已获取最新PR记录，覆盖了 ${Object.keys(prRmMap).length} 个动作的1RM数据`,
+                `PR记录:`,
+                prRmMap,
+            );
+        } catch (error) {
+            console.warn(
+                `⚠️ 获取PR记录失败，使用问卷数据:`,
+                error,
+            );
+            // 如果获取PR记录失败，继续使用问卷数据
+        }
+    }
 
     // 构建可自动计算的动作Map
     const autoComputeActionMap = new Map<string, AutoComputeAction>(

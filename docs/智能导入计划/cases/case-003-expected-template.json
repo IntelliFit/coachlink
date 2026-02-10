@@ -1,0 +1,29 @@
+{
+  "weeks": 1,
+  "trainingDays": [
+    {
+      "weekIndex": 1,
+      "dayOfWeek": 1,
+      "type": "training",
+      "assertions": [
+        {
+          "actionName": "负重引体",
+          "setsMustBe": 3,
+          "repsMustBeNull": true,
+          "intensityMustBe": { "type": "rm", "value": 10 },
+          "noteMustContain": ["RPE9"]
+        },
+        {
+          "actionName": "锤式弯举",
+          "setsMustBe": 3,
+          "repsMustBeNull": true,
+          "intensityMustBe": { "type": "rm", "value": 10 }
+        }
+      ],
+      "notes": [
+        "关键规则：如果原文只有 10RM + 三组，没有明确写“每组X次 / 3x8 / 8次”，则 reps 必须为 null（不要把 RM 值当次数）。"
+      ]
+    }
+  ]
+}
+

@@ -1,0 +1,59 @@
+{
+  "notes": [
+    "本用例用于验证：计时动作落到 durationSeconds，且不要求 reps；次数型动作正常落 sets×reps。",
+    "actionId 在不同环境不稳定，断言应优先基于动作名与字段形态（durationSeconds / intensityConfig / note）。"
+  ],
+  "expected": {
+    "weeks": 1,
+    "trainingDays": [
+      {
+        "weekIndex": 1,
+        "dayOfWeek": 1,
+        "type": "training",
+        "mustContain": [
+          {
+            "actionName": "卧推",
+            "sets": 4,
+            "reps": 6,
+            "restSeconds": 180,
+            "intensity": { "relativeIntensity.type": "percentage", "relativeIntensity.value": 80 }
+          },
+          {
+            "actionName": "平板支撑",
+            "sets": 4,
+            "durationSeconds": 45,
+            "restSeconds": 60,
+            "noteContains": ["保持核心收紧"]
+          }
+        ]
+      },
+      {
+        "weekIndex": 1,
+        "dayOfWeek": 2,
+        "type": "rest",
+        "dayNoteContains": ["拉伸", "低强度有氧", "20分钟"]
+      },
+      {
+        "weekIndex": 1,
+        "dayOfWeek": 3,
+        "type": "training",
+        "mustContain": [
+          {
+            "actionName": "引体悬挂",
+            "sets": 5,
+            "durationSeconds": 30,
+            "restSeconds": 60
+          },
+          {
+            "actionName": "引体向上",
+            "sets": 4,
+            "reps": null,
+            "restSeconds": 120,
+            "noteContains": ["力竭", "自选"]
+          }
+        ]
+      }
+    ]
+  }
+}
+

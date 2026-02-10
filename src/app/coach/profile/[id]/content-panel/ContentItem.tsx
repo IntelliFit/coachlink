@@ -91,8 +91,13 @@ const CoachContentItem: React.FC<CoachContentItemProps> = ({
                         </h3>
                     </div>
 
+                    {/* 内容预览 - 移除HTML标签显示纯文本 */}
                     <p className="text-surface-500 text-sm leading-relaxed line-clamp-2 mb-4 font-light">
-                        {content.content}
+                        {content.content
+                            .replace(/<[^>]*>/g, ' ')  // 移除HTML标签
+                            .replace(/\s+/g, ' ')       // 合并空格
+                            .trim()
+                            .substring(0, 200)}...
                     </p>
 
                     {/* 标签组 - 极简灰勾勒 */}

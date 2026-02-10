@@ -38,6 +38,9 @@ const RestDayCard: React.FC<RestDayCardProps> = ({ dayIndex }) => {
                     <p className="text-sm sm:text-base text-surface-600 mb-3">
                         休息不是懒惰，而是成长的必经之路
                     </p>
+                    <p className="text-xs sm:text-sm text-surface-500 mb-3">
+                        休息日会自动顺延；到训练日会停住，直到你完成/跳过（确认后才继续推进）。
+                    </p>
                     <p className="text-xs sm:text-sm text-surface-500 italic">
                         "强者懂得何时发力，智者懂得何时休息"
                     </p>

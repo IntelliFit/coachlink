@@ -28,6 +28,13 @@ import { PlanStartConfigDialog, PlanStartConfig } from './components/PlanStartCo
 import { GetStudentResponseDto } from '@/app/api/coach/get-student/entity';
 import { subscriptionService } from '@/app/service/subscriptionService';
 import StudentPlanExecutionView from './components/StudentPlanExecutionView';
+import BatchActionsDialog, { BatchOperation } from '@/app/dashboard/plan-lib/components/BatchActionsDialog';
+import {
+    appendActionToDays,
+    deleteActionInDays,
+    isActionFullyCompatible,
+    replaceActionInDays,
+} from '@/lib/planBatchUtils';
 import QuestionnaireForm from '@/app/coach/profile/[id]/QuestionnaireForm';
 import type { TrainingItem } from '@/types/questionnaires';
 
@@ -64,6 +71,7 @@ const StudentPlanPage = () => {
     const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
     const [instanceId, setInstanceId] = useState<string | null>(null);
     const [rawInstance, setRawInstance] = useState<CoachPlanInstanceRow>(null);
+    const [batchDialogVisible, setBatchDialogVisible] = useState(false);
 
     // Student data
     const [studentData, setStudentData] = useState<GetStudentResponseDto['student'] | null>(null);
@@ -87,7 +95,8 @@ const StudentPlanPage = () => {
     const [customStartDate, setCustomStartDate] = useState<Date | null>(null);
     const [importStartConfig, setImportStartConfig] = useState<PlanStartConfig | null>(null);
     const [importModeDialogVisible, setImportModeDialogVisible] = useState(false);
-    const [importMode, setImportMode] = useState<'new_instance' | 'overwrite'>('new_instance');
+    // 默认应为“覆盖更新”，否则教练在已有进行中计划上点击“更新计划”会误触发“新建阶段”，导致学员进度回到第1天
+    const [importMode, setImportMode] = useState<'new_instance' | 'overwrite'>('overwrite');
 
     // Load instance data
     useEffect(() => {
@@ -605,8 +614,10 @@ const StudentPlanPage = () => {
             }
         }
 
-        // Reset import mode after save
-        setImportMode('new_instance');
+        // Reset import mode after save:
+        // - 已有计划：回到 overwrite，避免下一次误触发新建阶段导致进度重置
+        // - 无计划（首次创建）：保持默认 overwrite（后续再编辑即为覆盖更新）
+        setImportMode('overwrite');
 
         router.push('/dashboard/students');
 
@@ -697,6 +708,62 @@ const StudentPlanPage = () => {
             note: day.note,
             actionSets: day.actionSets
         }));
+
+    const maxWeeks = Math.max(1, Math.ceil(days.length / 7));
+
+    const handleBatchApply = (operation: BatchOperation) => {
+        if (actions.length === 0) {
+            showToast({ severity: 'info', summary: '暂无动作库', detail: '请先加载动作库' });
+            return;
+        }
+
+        if (operation.type === 'replace') {
+            const fromAction = actions.find(action => action.id === operation.fromActionId);
+            const toAction = actions.find(action => action.id === operation.toActionId);
+            if (!isActionFullyCompatible(fromAction, toAction)) {
+                showToast({ severity: 'error', summary: '替换失败', detail: '动作属性不一致，无法替换' });
+                return;
+            }
+            const result = replaceActionInDays(days, operation.fromActionId, operation.toActionId);
+            if (result.affectedSets === 0) {
+                showToast({ severity: 'info', summary: '未替换', detail: '未找到可替换的动作' });
+                return;
+            }
+            setDays(result.days);
+            showToast({ severity: 'success', summary: '替换成功', detail: `共替换 ${result.affectedSets} 个动作` });
+            return;
+        }
+
+        if (operation.type === 'delete') {
+            const result = deleteActionInDays(days, operation.actionId);
+            if (result.affectedSets === 0) {
+                showToast({ severity: 'info', summary: '未删除', detail: '未找到可删除的动作' });
+                return;
+            }
+            setDays(result.days);
+            showToast({ severity: 'success', summary: '删除成功', detail: `共删除 ${result.affectedSets} 个动作` });
+            return;
+        }
+
+        const targetAction = actions.find(action => action.id === operation.actionId);
+        if (!targetAction) {
+            showToast({ severity: 'error', summary: '追加失败', detail: '未找到目标动作' });
+            return;
+        }
+        const result = appendActionToDays(
+            days,
+            targetAction,
+            operation.weekStart,
+            operation.weekEnd,
+            operation.weekdays,
+        );
+        if (result.affectedSets === 0) {
+            showToast({ severity: 'info', summary: '未追加', detail: '未命中符合条件的训练日' });
+            return;
+        }
+        setDays(result.days);
+        showToast({ severity: 'success', summary: '追加成功', detail: `共追加 ${result.affectedSets} 个动作` });
+    };
 
     // 打开问卷编辑对话框
     const handleOpenQuestionnaire = async () => {
@@ -948,24 +1015,40 @@ const StudentPlanPage = () => {
                     saving={saving}
                     onSave={handleSave}
                     extraButton={
-                        <Button
-                            label="从模板创建"
-                            size="small"
-                            icon="pi pi-book"
-                            className="
-                                flex items-center gap-2 px-4 py-2 
-                                bg-surface border border-surface-200 rounded-[14px]
-                                
-                                text-[12px] font-black text-surface-700 tracking-tight
-                                
-                                transition-all duration-200 active:scale-[0.95]
-                                hover:border-primary-300 hover:text-primary-600 hover:shadow-sm
-                                disabled:opacity-40 disabled:cursor-not-allowed
-                            "
-                            text
-                            onClick={() => setSelectTemplateDialogVisible(true)}
-                            disabled={saving}
-                        />
+                        <>
+                            <Button
+                                label="批量操作"
+                                size="small"
+                                icon="pi pi-sliders-h"
+                                className="
+                                    flex items-center gap-2 px-4 py-2
+                                    bg-surface border border-surface-200 rounded-[14px]
+                                    text-[12px] font-black text-surface-700 tracking-tight
+                                    transition-all duration-200 active:scale-[0.95]
+                                    hover:border-primary-300 hover:text-primary-600 hover:shadow-sm
+                                    disabled:opacity-40 disabled:cursor-not-allowed
+                                "
+                                text
+                                onClick={() => setBatchDialogVisible(true)}
+                                disabled={saving}
+                            />
+                            <Button
+                                label="从模板创建"
+                                size="small"
+                                icon="pi pi-book"
+                                className="
+                                    flex items-center gap-2 px-4 py-2
+                                    bg-surface border border-surface-200 rounded-[14px]
+                                    text-[12px] font-black text-surface-700 tracking-tight
+                                    transition-all duration-200 active:scale-[0.95]
+                                    hover:border-primary-300 hover:text-primary-600 hover:shadow-sm
+                                    disabled:opacity-40 disabled:cursor-not-allowed
+                                "
+                                text
+                                onClick={() => setSelectTemplateDialogVisible(true)}
+                                disabled={saving}
+                            />
+                        </>
                     }
                 />
 
@@ -1037,6 +1120,15 @@ const StudentPlanPage = () => {
                         />
                     </div>
                 </Card>
+
+                <BatchActionsDialog
+                    visible={batchDialogVisible}
+                    onHide={() => setBatchDialogVisible(false)}
+                    actions={actions}
+                    maxWeeks={maxWeeks}
+                    onApply={handleBatchApply}
+                    disabled={saving}
+                />
             </div>
 
             {/* 问卷编辑对话框 */}

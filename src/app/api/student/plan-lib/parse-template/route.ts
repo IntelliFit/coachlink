@@ -8,7 +8,8 @@ import { ApiData } from "@/types/api";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 import { callDeepSeek, parseJsonResponse } from "@/lib/deepseek";
 import { splitPlanGlobalPreface } from "@/lib/planImportText";
-import { findFirstLineForAction, lineHasExplicitReps } from "@/lib/planImportText";
+import { findFirstLineForAction, lineHasExplicitReps, normalizeActionNameForMatch } from "@/lib/planImportText";
+import type { ItemType } from "@/types/student";
 
 /**
  * 简单的中文数字转数字（支持到二十内，满足周数场景）
@@ -228,6 +229,15 @@ export async function POST(req: Request) {
         const allTrainingDays: any[] = [];
         let maxWeek = 0;
 
+        const actionIndex = (actions || []).map((a: any) => ({
+            id: a.id,
+            name: a.name,
+            type: normalizeItemType((a as any).type),
+        }));
+        const actionTypeById = new Map<string, ItemType>(
+            actionIndex.map((a) => [a.id, a.type]),
+        );
+
         const parsedSections = await Promise.all(
             sections.map(async (section) => {
                 const prompt = buildParseTemplatePrompt(
@@ -249,21 +259,40 @@ export async function POST(req: Request) {
                         ...day,
                         _idx: idx, // 仅用于周内排序
                         weekIndex: section.weekIndex,
-                        actions: (day.actions || []).map((action) => ({
-                            actionId: action.actionId,
-                            sets: action.sets,
-                            reps: action.reps,
-                            restSeconds: action.restSeconds || 180,
-                            intensityConfig: action.intensityConfig
-                                ? {
-                                    relativeIntensity: action.intensityConfig
-                                        .relativeIntensity,
-                                    fixedWeight:
-                                        action.intensityConfig.fixedWeight,
-                                }
-                                : null,
-                            note: action.note,
-                        })),
+                        actions: expandDietActions(
+                            (day.actions || []).map((action) => {
+                                const actionType =
+                                    actionTypeById.get(action.actionId) || "STRENGTH";
+                                const isStrength = actionType === "STRENGTH";
+                                const isCardio = actionType === "CARDIO";
+                                return {
+                                    actionId: action.actionId,
+                                    sets: isStrength ? action.sets : null,
+                                    reps: isStrength ? action.reps : null,
+                                    durationSeconds: isStrength
+                                        ? (action as any).durationSeconds ?? null
+                                        : null,
+                                    restSeconds: isStrength ? (action.restSeconds || 180) : null,
+                                    intensityConfig: isStrength
+                                        ? (action.intensityConfig
+                                            ? {
+                                                relativeIntensity: action.intensityConfig
+                                                    .relativeIntensity,
+                                                fixedWeight:
+                                                    action.intensityConfig.fixedWeight,
+                                            }
+                                            : null)
+                                        : null,
+                                    note: action.note,
+                                    customData: !isStrength
+                                        ? (isCardio
+                                            ? normalizeCardioCustomData((action as any).customData)
+                                            : ((action as any).customData ?? null))
+                                        : null,
+                                };
+                            }),
+                            actionIndex,
+                        ),
                     }),
                 );
 
@@ -273,6 +302,22 @@ export async function POST(req: Request) {
                 );
                 for (const d of sectionDaysRaw) {
                     for (const a of d.actions || []) {
+                        const remapResult = remapActionByHints({
+                            action: a,
+                            actionIndex,
+                            actionNameById,
+                            sectionText: section.text,
+                        });
+                        if (remapResult) {
+                            a.actionId = remapResult.actionId;
+                            if (remapResult.note !== undefined) a.note = remapResult.note;
+                            if (remapResult.customData !== undefined) {
+                                (a as any).customData = remapResult.customData;
+                            }
+                        }
+
+                        const actionType = actionTypeById.get(a.actionId) || "STRENGTH";
+                        if (actionType !== "STRENGTH") continue;
                         const actionName = actionNameById.get(a.actionId) || "";
                         const sourceLine = actionName
                             ? findFirstLineForAction(section.text, actionName)
@@ -280,7 +325,19 @@ export async function POST(req: Request) {
                         // If we can't locate the source line (name mismatch), do not override model output.
                         // Only apply the "don't guess reps" rule when we found the line.
                         const hasReps = sourceLine ? lineHasExplicitReps(sourceLine) : null;
-                        if (hasReps === false) a.reps = null;
+                        if ((a as any).durationSeconds) {
+                            a.reps = null;
+                        } else if (hasReps === false) {
+                            a.reps = null;
+                        }
+
+                        if ((a.sets == null || a.reps == null) && sourceLine) {
+                            const parsed = parseSetsRepsFromLine(sourceLine);
+                            if (parsed) {
+                                if (a.sets == null && parsed.sets != null) a.sets = parsed.sets;
+                                if (a.reps == null && parsed.reps != null) a.reps = parsed.reps;
+                            }
+                        }
                     }
                 }
 
@@ -330,9 +387,11 @@ function buildParseTemplatePrompt(
     actions: any[],
     fixedWeekIndex?: number,
 ): string {
-    const actionsListStr = actions.map((a) => `- ${a.name} (ID: ${a.id})`).join(
-        "\n",
-    );
+    const actionsListStr = actions.map((a) => {
+        const attrs = Array.isArray((a as any).attrs) ? (a as any).attrs : null;
+        const type = normalizeItemType((a as any).type);
+        return `- ${a.name} (ID: ${a.id}, type: ${type}${attrs ? `, attrs: ${JSON.stringify(attrs)}` : ""})`;
+    }).join("\n");
 
     return `你是一个训练计划解析助手。
 
@@ -341,7 +400,15 @@ function buildParseTemplatePrompt(
 可用动作库：
 ${actionsListStr}
 
-强度识别规则：
+动作类型规则（必须遵守）：
+- 当 type=STRENGTH：输出 sets/reps/restSeconds/intensityConfig/durationSeconds
+- 当 type=CARDIO/DIET/HABIT：sets/reps/restSeconds/intensityConfig 一律为 null，改为输出 customData
+- customData 字段规范：
+  - CARDIO: { distance(米), duration(秒), pace(字符串或数值) }
+  - DIET: { content(食物清单), calories(kcal), image_url }
+  - HABIT: { target_duration(分钟) }
+
+强度识别规则（仅 STRENGTH 使用）：
 - "5RM" 或 "5rm" 或 "5-6RM" → 取较小值，type: "rm"
 - "70%" 或 "70%rm" 或 "80%1RM" → type: "percentage"
 - "50kg" 或 "50公斤" 或 "100lbs" → type: "fixed"（使用 fixedWeight）
@@ -381,13 +448,13 @@ ${actionsListStr}
 - 如果没有任何周线索但出现“周一/周二/…”字样，则这些天按照出现顺序映射为 dayOfWeek=1..7，超过 7 天滚到下一周；缺失的天用 rest 补齐
 - 如果文本说明“本周 X 练”或“每周训练 X 天/练X休Y”，则该周训练日上限为 X，缺口补 rest，超过 X 的训练日仍保留但 dayOfWeek 继续顺延（保证不丢失信息）
 
-组次识别规则：
+组次识别规则（仅 STRENGTH 使用）：
 - "4*4" 或 "4x4" = 4组4次
 - "3组8次" = 3组8次
 - 范围如"8-12次"取较小值
 - 如果只写了 "12RM/5RM/8RM" 但没有写明每组次数（没有 x× / 没有 “每组X个/次” / 没有 “X次”），则 reps 必须输出为 null（不要把 RM 值当成次数）
 
-休息时间规则：
+休息时间规则（仅 STRENGTH 使用）：
 - "组休4-5分钟" → 取平均值转秒（270秒）
 - "组间60s" → 60秒
 - 无描述 → 默认 180 秒
@@ -424,6 +491,7 @@ ${userInput}
           "intensityConfig": {
             "relativeIntensity": { "type": "rm", "value": 5 }
           },
+          "customData": null,
           "note": "备注信息（如 rpe9 等）"
         }
       ],
@@ -431,4 +499,223 @@ ${userInput}
     }
   ]
 }`;
+}
+
+function normalizeItemType(input?: unknown): ItemType {
+    const raw = String(input ?? "").toUpperCase();
+    if (raw === "CARDIO" || raw === "DIET" || raw === "HABIT") return raw;
+    return "STRENGTH";
+}
+
+function remapActionByHints(params: {
+    action: any;
+    actionIndex: Array<{ id: string; name: string; type: ItemType }>;
+    actionNameById: Map<string, string>;
+    sectionText: string;
+}): { actionId: string; note?: string; customData?: any } | null {
+    const { action, actionIndex, actionNameById, sectionText } = params;
+    const currentName = actionNameById.get(action.actionId) || "";
+
+    const note = String(action.note ?? "");
+    const autoMatch = note.match(/自动匹配[:：]\s*([^\s]+)/);
+    if (autoMatch) {
+        const byName = findActionByName(autoMatch[1], actionIndex);
+        if (byName && byName.id !== action.actionId) {
+            return { actionId: byName.id };
+        }
+    }
+
+    const customData = (action as any).customData;
+    if (customData && typeof customData.pace === "string") {
+        const paceText = customData.pace.trim();
+        if (parsePaceMinutes(paceText) === null) {
+            const byName = findActionByName(paceText, actionIndex);
+            if (byName && byName.id !== action.actionId) {
+                return {
+                    actionId: byName.id,
+                    customData: { ...customData, pace: null },
+                };
+            }
+            return {
+                actionId: action.actionId,
+                note: [note, paceText].filter(Boolean).join(" ").trim(),
+                customData: { ...customData, pace: null },
+            };
+        }
+    }
+
+    if (!currentName) return null;
+    const sourceLine = findFirstLineForAction(sectionText, currentName);
+    if (!sourceLine) {
+        const best = findBestActionInLine(sectionText, actionIndex);
+        if (best && best.id !== action.actionId) {
+            return { actionId: best.id };
+        }
+    }
+
+    return null;
+}
+
+function findActionByName(
+    name: string,
+    actionIndex: Array<{ id: string; name: string; type: ItemType }>,
+) {
+    const target = normalizeActionNameForMatch(name);
+    if (!target) return null;
+    return actionIndex.find((a) => normalizeActionNameForMatch(a.name) === target) || null;
+}
+
+function findBestActionInLine(
+    text: string,
+    actionIndex: Array<{ id: string; name: string; type: ItemType }>,
+) {
+    const lines = String(text ?? "").split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+    let best: { id: string; score: number } | null = null;
+    for (const line of lines) {
+        for (const a of actionIndex) {
+            if (!a.name) continue;
+            if (line.includes(a.name)) {
+                const score = a.name.length;
+                if (!best || score > best.score) best = { id: a.id, score };
+            }
+        }
+    }
+    return best ? actionIndex.find((a) => a.id === best.id) || null : null;
+}
+
+function parseSetsRepsFromLine(line: string): { sets: number | null; reps: number | null } | null {
+    const s = String(line ?? "");
+    if (!s) return null;
+    const repFirst = s.match(/(\d+)\s*(次|个)\s*[x×*＊]\s*(\d+)\s*组/);
+    if (repFirst) {
+        return { reps: Number(repFirst[1]), sets: Number(repFirst[3]) };
+    }
+    const setFirst = s.match(/(\d+)\s*组\s*[x×*＊]\s*(\d+)\s*(次|个)?/);
+    if (setFirst) {
+        return { sets: Number(setFirst[1]), reps: Number(setFirst[2]) };
+    }
+    return null;
+}
+
+function normalizeCardioCustomData(input: any): any {
+    if (!input || typeof input !== "object") return input ?? null;
+    const out = { ...input };
+
+    if (typeof out.distance === "string") {
+        const parsed = parseNumberFromText(out.distance);
+        if (parsed !== null) out.distance = parsed;
+    }
+    if (typeof out.duration === "string") {
+        const seconds = parseDurationSeconds(out.duration);
+        if (seconds !== null) out.duration = seconds;
+    }
+    if (typeof out.pace === "string") {
+        const pace = parsePaceMinutes(out.pace);
+        if (pace !== null) out.pace = pace;
+    }
+
+    return out;
+}
+
+function parseNumberFromText(text: string): number | null {
+    const match = String(text ?? "").match(/(\d+(?:\.\d+)?)/);
+    return match ? Number(match[1]) : null;
+}
+
+function parseDurationSeconds(text: string): number | null {
+    const s = String(text ?? "");
+    const minMatch = s.match(/(\d+(?:\.\d+)?)\s*分/);
+    const secMatch = s.match(/(\d+(?:\.\d+)?)\s*秒/);
+    const rawMin = minMatch ? Number(minMatch[1]) : null;
+    const rawSec = secMatch ? Number(secMatch[1]) : null;
+    if (rawMin === null && rawSec === null) return null;
+    return Math.round((rawMin ?? 0) * 60 + (rawSec ?? 0));
+}
+
+function parsePaceMinutes(text: string): number | null {
+    const s = String(text ?? "").trim();
+    if (!s) return null;
+    const mmss = s.match(/(\d+)\s*[:'’]\s*(\d{1,2})/);
+    if (mmss) {
+        const minutes = Number(mmss[1]);
+        const seconds = Number(mmss[2]);
+        if (Number.isFinite(minutes) && Number.isFinite(seconds)) {
+            return Number((minutes + seconds / 60).toFixed(2));
+        }
+    }
+    const cnMatch = s.match(/(\d+(?:\.\d+)?)\s*分(?:\s*(\d+(?:\.\d+)?)\s*秒)?/);
+    if (cnMatch) {
+        const minutes = Number(cnMatch[1]);
+        const seconds = cnMatch[2] ? Number(cnMatch[2]) : 0;
+        if (Number.isFinite(minutes) && Number.isFinite(seconds)) {
+            return Number((minutes + seconds / 60).toFixed(2));
+        }
+    }
+    const asNumber = Number(s);
+    return Number.isFinite(asNumber) ? asNumber : null;
+}
+
+function expandDietActions(
+    actions: any[],
+    actionIndex: Array<{ id: string; name: string; type: ItemType }>,
+): any[] {
+    return (actions || []).flatMap((action) => {
+        const actionType = actionIndex.find((a) => a.id === action.actionId)?.type;
+        if (actionType !== "DIET") return [action];
+        const content = action.customData?.content;
+        if (!content || typeof content !== "string") return [action];
+        const parts = splitDietContent(content);
+        if (parts.length <= 1) return [action];
+        return parts.map((part) => {
+            const { name, amount } = splitFoodNameAndAmount(part);
+            const matched = findDietActionByFragment(name, actionIndex);
+            return {
+                ...action,
+                actionId: matched?.id ?? action.actionId,
+                customData: {
+                    ...action.customData,
+                    content: amount || part.trim(),
+                },
+            };
+        });
+    });
+}
+
+function splitDietContent(content: string): string[] {
+    const cleaned = String(content ?? "").trim();
+    if (!cleaned) return [];
+    let parts = cleaned.split(/[+＋]/).map((p) => p.trim()).filter(Boolean);
+    if (parts.length === 1 && cleaned.includes("、")) {
+        parts = cleaned.split("、").map((p) => p.trim()).filter(Boolean);
+    }
+    return parts;
+}
+
+function splitFoodNameAndAmount(part: string): { name: string; amount: string } {
+    const cleaned = String(part ?? "").trim().replace(/^(早餐|午餐|晚餐|加餐|宵夜)[:：]?\s*/g, "");
+    const match = cleaned.match(/(\d+(?:\.\d+)?\s*(?:g|kg|克|公斤|毫升|ml|mL|L|l|片|个|杯|勺|斤|汤匙|大勺|小勺).*)/i);
+    if (match && match.index !== undefined) {
+        const name = cleaned.slice(0, match.index).trim();
+        const amount = cleaned.slice(match.index).trim();
+        return { name: name || cleaned, amount };
+    }
+    return { name: cleaned, amount: "" };
+}
+
+function findDietActionByFragment(
+    fragment: string,
+    actionIndex: Array<{ id: string; name: string; type: ItemType }>,
+) {
+    const normalized = normalizeFoodNameForMatch(fragment);
+    if (!normalized) return null;
+    return actionIndex.find((a) => normalizeFoodNameForMatch(a.name) === normalized) || null;
+}
+
+function normalizeFoodNameForMatch(input: string): string {
+    let s = String(input ?? "").trim();
+    if (!s) return "";
+    s = s.replace(/[（(][^）)]*[）)]/g, "");
+    s = s.replace(/约/g, "");
+    s = s.replace(/\d+(?:\.\d+)?\s*(?:g|kg|克|公斤|毫升|ml|mL|L|l|片|个|杯|勺|斤|汤匙|大勺|小勺)/gi, "");
+    return normalizeActionNameForMatch(s);
 }

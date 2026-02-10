@@ -409,6 +409,7 @@
 | PWA Push（重点推送） | [查看](#work-pwa-push重点推送) |
 | Private Domain（健身房私域模式） | [查看](#work-private-domain健身房私域模式) |
 | 新手引导系统 | [查看](#work-新手引导系统) |
+| Merchant System（商家入驻与实体商品） | [查看](#work-merchant-system商家系统) |
 
 ---
 
@@ -476,11 +477,11 @@
 ### work: Coach Dashboard（教练端优化）
 
 - **需求**：
-  - `./work/roadmap/features/coach/问卷系统优化-20260127.md`
+  - `./work/roadmap/features/coach/questionnaire-optimization-20260127.md`
   - `./work/roadmap/features/coach/动作库优化-20260127.md`
   - `./work/roadmap/features/coach/模板库优化-20260127.md`
-  - `./work/roadmap/features/coach/学员执行体系优化-20260127.md`
-  - `./work/roadmap/features/coach/长时间不使用自动关闭-20260127.md`
+  - `./work/roadmap/features/coach/student-execution-system-optimization-20260127.md`
+  - `./work/roadmap/features/coach/inactivity-auto-close-20260127.md`
 
 ---
 
@@ -488,7 +489,7 @@
 
 - **需求**：
   - `./work/roadmap/features/growth/提醒签到鼓励活跃度-20260127.md`
-  - `./work/roadmap/features/growth/分享功能升级-20260127.md`
+  - `./work/roadmap/features/growth/sharing-upgrade-20260127.md`
 
 ---
 
@@ -513,4 +514,16 @@
 ### work: 新手引导系统
 
 - **需求文档**：`./work/roadmap/新手引导系统需求文档.md`
+
+---
+
+### work: Merchant System（商家系统）
+
+- **需求文档**：`./work/roadmap/features/merchant/MERCHANT_SYSTEM_PRD.md`
+- **功能范围**：
+  - 商家入驻申请与审核
+  - 商品管理（创建/编辑/上下架）
+  - 商品展示与购买
+  - 订单管理与发货
+  - 商家收入与提现
 

@@ -281,6 +281,7 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
         const userBodyWeight = Number(studentData?.profile?.weight || 0);
 
         // 负数 1RM 是有意义的（表示需要辅助的自重动作）
+        // 1RM = 0 在数学上也是合法的（对于不包含自重的动作，结果就是 0）
         // 只有 null/undefined 才表示未设置
         if (oneRm === null || oneRm === undefined) {
             // console.log('缺少1RM数据，无法计算');
@@ -294,9 +295,11 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
         if (intensityType === 'rm') {
             // RM 模式
             const rmValue = set.params?.['强度'];
-            if (!rmValue || rmValue <= 0) return;
+            // 次数必须在 (0, 37) 区间内，因为 Brzycki 公式要求 r < 37
+            // 同时 Epley 和 Lombardi 要求 r > 0
+            if (!rmValue || rmValue <= 0 || rmValue >= 37) return;
 
-            // 仅“包含自重”的动作需要体重数据才能计算 RM 推荐重量
+            // 仅"包含自重"的动作需要体重数据才能计算 RM 推荐重量
             if (includesBodyWeight && (!userBodyWeight || userBodyWeight <= 0)) return;
 
             const algorithm = set.params?.algorithm || '综合计算';
@@ -437,6 +440,23 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
                                 </div>
                             </div>
                         ))}
+                    </div>
+                </div>
+            )}
+
+            {!hasIntensityAttr && (set.params?.load !== null && set.params?.load !== undefined || set.params?.intensityConfig?.fixedWeight) && (
+                <div className="md:col-span-2 mt-3 rounded-xl border border-orange-200 bg-orange-50/60 p-3 text-xs text-orange-700">
+                    <div className="font-bold">当前动作已设置固定重量</div>
+                    <div className="mt-1">
+                        固定重量：{(() => {
+                            const fixed = set.params?.intensityConfig?.fixedWeight;
+                            const load = set.params?.load;
+                            const value = Number.isFinite(Number(fixed)) ? Number(fixed) : Number(load);
+                            return Number.isFinite(value) ? `${value}kg` : '未识别';
+                        })()}
+                    </div>
+                    <div className="mt-1 text-[11px] text-orange-600">
+                        该动作未包含“强度”属性，但模板中已有固定重量（历史或自动写入）。
                     </div>
                 </div>
             )}

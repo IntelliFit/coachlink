@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, Suspense } from 'react';
+import React, { useState, useEffect, useRef, Suspense } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { Card } from 'primereact/card';
@@ -10,13 +10,15 @@ import { Skeleton } from 'primereact/skeleton';
 import { InputTextarea } from 'primereact/inputtextarea';
 import { InputText } from 'primereact/inputtext';
 import { Dialog } from 'primereact/dialog';
-import { ArrowLeft, Play, Video, Check, Star, ChevronUp, ChevronDown, Timer, Upload } from 'lucide-react';
+import { ArrowLeft, Play, Video, Check, Star, ChevronUp, ChevronDown, Timer, Upload, Plus } from 'lucide-react';
 import { executionService } from '@/app/service/executionService';
 import { planLibService } from '@/app/service/planLibService';
+import { videoService } from '@/app/service/videoService';
 import { useToastContext } from '@/context/ToastContext';
 import ShareCardGenerator from '@/components/share/ShareCardGenerator';
 import { AeroInputNumber } from '@/components/AeroInputNumber';
 import { useAnalytics } from '@/hooks/useAnalytics';
+import ActionPicker from '@/app/today-training/ActionPicker';
 
 interface SetData {
     set_number: number;
@@ -56,6 +58,8 @@ function TrainingExecutionContent() {
     const { data: session } = useSession();
     const { showToast } = useToastContext();
     const { trackEvent } = useAnalytics();
+    const calibrationToastShownRef = useRef(false);
+    const focusHandledRef = useRef(false);
 
     const instanceId = params.instanceId as string;
     const dayIndex = parseInt(searchParams.get('dayIndex') || '1');
@@ -69,10 +73,33 @@ function TrainingExecutionContent() {
     const [currentSetIndex, setCurrentSetIndex] = useState(0);
     const [showOptionalFields, setShowOptionalFields] = useState(false);
     const [expandedSetKey, setExpandedSetKey] = useState<string | null>(null); // 用于已完成组“展开详情”
-     const [completing, setCompleting] = useState(false);
+    const [completing, setCompleting] = useState(false);
     const [restTimer, setRestTimer] = useState(0);
     const [isResting, setIsResting] = useState(false);
     const [sessionNotes, setSessionNotes] = useState('');
+
+    // Query-based focus: used by “去输入并校准”入口
+    useEffect(() => {
+        if (focusHandledRef.current) return;
+        const focus = searchParams?.get('focus');
+        if (focus === 'weight') {
+            focusHandledRef.current = true;
+            setTimeout(() => {
+                const el = document.querySelector('#guide-weight-input') as HTMLElement | null;
+                el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 300);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [searchParams]);
+
+    const parsePlannedWeightKg = (planned?: string | null): number | null => {
+        const s = String(planned || '');
+        if (!s.toLowerCase().includes('kg')) return null;
+        const m = s.match(/-?\d+(\.\d+)?/);
+        if (!m) return null;
+        const n = Number(m[0]);
+        return Number.isFinite(n) ? n : null;
+    };
 
     // 超时未结束提醒（in_progress 挂太久）
     const [staleReminderVisible, setStaleReminderVisible] = useState(false);
@@ -88,6 +115,7 @@ function TrainingExecutionContent() {
     const [markAsPR, setMarkAsPR] = useState(false);
     const [videoFile, setVideoFile] = useState<File | null>(null);
     const [uploading, setUploading] = useState(false);
+    const [uploadProgress, setUploadProgress] = useState<number>(0);
     const fileInputRef = React.useRef<HTMLInputElement>(null);
     
     // Video modal state
@@ -97,14 +125,18 @@ function TrainingExecutionContent() {
     // Share modal state
     const [shareModalVisible, setShareModalVisible] = useState(false);
 
-    // Polymorphic Item State
-    const [dietContent, setDietContent] = useState('');
-    const [dietCalories, setDietCalories] = useState<number | null>(null);
-    const [cardioDistance, setCardioDistance] = useState<number | null>(null); // km
-    const [cardioDuration, setCardioDuration] = useState<number | null>(null); // minutes
+    // Polymorphic Item State - 按动作索引管理，支持多个不同类型的动作
+    const [itemStates, setItemStates] = useState<Record<number, {
+        dietContent?: string;
+        cardioDistance?: number | null;
+        cardioDuration?: number | null;
+    }>>({});
     const [editingSetKey, setEditingSetKey] = useState<string | null>(null);
     const [videoLink, setVideoLink] = useState<string>('');
     const [linkedVideo, setLinkedVideo] = useState<{ id: string; url: string } | null>(null);
+    const [addingExtraSet, setAddingExtraSet] = useState(false);
+    const [addingExtraAction, setAddingExtraAction] = useState(false);
+    const [showActionPicker, setShowActionPicker] = useState(false);
 
     useEffect(() => {
         if (session?.user?.id && instanceId) {
@@ -127,6 +159,33 @@ function TrainingExecutionContent() {
             return () => clearInterval(interval);
         }
     }, [isResting, restTimer]);
+
+    // 当展开非力量训练类型的动作时，回填已完成的数据
+    useEffect(() => {
+        if (!execution || expandedAction === -1) return;
+        const actionExecutions = execution.action_executions || [];
+        const currentAction = actionExecutions[expandedAction];
+        if (!currentAction) return;
+        
+        const action = actions[currentAction.action_id];
+        const actionType = action?.type || 'STRENGTH';
+        
+        // 只处理非力量训练类型
+        if (actionType !== 'STRENGTH' && currentAction.sets && currentAction.sets.length > 0) {
+            const setData = currentAction.sets[0];
+            // 如果已完成，回填数据
+            if (setData.status === 'completed') {
+                setItemStates(prev => ({
+                    ...prev,
+                    [expandedAction]: {
+                        dietContent: setData.diet_content || '',
+                        cardioDistance: setData.actual_distance ? setData.actual_distance / 1000 : null,
+                        cardioDuration: setData.actual_duration ? setData.actual_duration / 60 : null,
+                    }
+                }));
+            }
+        }
+    }, [expandedAction, execution, actions]);
 
     // 预填充推荐值：当切换到新组时自动填入教练计划的重量和次数
     useEffect(() => {
@@ -178,6 +237,35 @@ function TrainingExecutionContent() {
     };
 
     const setKeyOf = (actionIndex: number, setIndex: number) => `${actionIndex}:${setIndex}`;
+
+    const selectAction = (nextActionIndex: number) => {
+        if (nextActionIndex === -1) {
+            setExpandedAction(-1);
+            return;
+        }
+        if (nextActionIndex !== expandedAction) {
+            // 关键保护：切换动作时必须重置输入状态，避免重量/次数串联到下一个动作
+            const actionExecutions = execution?.action_executions || [];
+            const nextAction = actionExecutions[nextActionIndex];
+            const pendingIndex = nextAction?.sets?.findIndex(
+                (setData: SetData) => setData.status === 'pending',
+            );
+            const nextSetIndex = pendingIndex !== undefined && pendingIndex !== -1 ? pendingIndex : 0;
+            setCurrentSetIndex(nextSetIndex);
+            setExpandedSetKey(null);
+            setEditingSetKey(null);
+            setWeight(null);
+            setReps(null);
+            setRpe(null);
+            setSetNotes('');
+            setMarkAsPR(false);
+            setVideoFile(null);
+            setLinkedVideo(null);
+            setVideoLink('');
+            setShowOptionalFields(false);
+        }
+        setExpandedAction(nextActionIndex);
+    };
 
     const startTraining = async () => {
         try {
@@ -271,46 +359,6 @@ function TrainingExecutionContent() {
         }
     };
 
-    const handleQuickFinish = async () => {
-        if (!staleExecutionId) return;
-        try {
-            setCompleting(true);
-            const res = await executionService.finishTraining({ executionId: staleExecutionId });
-            if (res?.success && res.data) {
-                trackEvent('student_training_complete', 'training', { 
-                    planId: execution.plan_id, 
-                    executionId: execution.id,
-                    method: 'quick_finish'
-                });
-                setExecution((prev: any) => ({
-                    ...(prev || {}),
-                    status: 'completed',
-                    completed_at: (res.data as any).completed_at || new Date().toISOString(),
-                }));
-                showToast({
-                    severity: 'success',
-                    summary: '已确认完成',
-                    detail: '训练已标记为完成',
-                });
-                setStaleReminderVisible(false);
-            } else {
-                showToast({
-                    severity: 'warn',
-                    summary: '确认失败',
-                    detail: res?.message || '无法确认完成，请稍后重试',
-                });
-            }
-        } catch (e) {
-            console.error('quick finish failed:', e);
-            showToast({
-                severity: 'error',
-                summary: '确认失败',
-                detail: '无法确认完成，请稍后重试',
-            });
-        } finally {
-            setCompleting(false);
-        }
-    };
 
     const canPlayInlineVideo = (url?: string | null) => {
         if (!url) return false;
@@ -363,6 +411,79 @@ function TrainingExecutionContent() {
         window.open(url, "_blank");
     };
 
+    // 选择文件后立即上传并绑定到当前组（避免“必须点完成才上传”的困惑）
+    const handleSelectAndUploadVideo = async (
+        file: File | null | undefined,
+        actionId: string,
+        setNumber: number,
+    ) => {
+        if (!execution) return;
+        if (!file) return;
+
+        // reset previous state for this set
+        setVideoFile(file);
+        setLinkedVideo(null);
+        setVideoLink("");
+        setUploadProgress(0);
+
+        try {
+            setUploading(true);
+
+            const uploadedVideo = await videoService.uploadVideoFile(
+                file,
+                {
+                    type: "training",
+                    requires_review: false,
+                } as any,
+                (p) => setUploadProgress(p.percentage),
+            );
+
+            const uploadedUrl = (uploadedVideo as any)?.video_url || null;
+            if (!uploadedUrl) {
+                throw new Error("视频上传失败，未返回视频URL");
+            }
+
+            const bindRes = await executionService.addSetVideoLink({
+                executionId: execution.id,
+                actionId,
+                setNumber,
+                videoUrl: uploadedUrl,
+            });
+
+            if (bindRes?.id && bindRes.video_url) {
+                setLinkedVideo({ id: bindRes.id, url: bindRes.video_url });
+                setVideoLink(bindRes.video_url);
+                showToast({
+                    severity: "success",
+                    summary: "上传成功",
+                    detail: "已上传并绑定到本组",
+                });
+
+                // 清理 file input，允许重复选择同一文件
+                setVideoFile(null);
+                if (fileInputRef.current) fileInputRef.current.value = "";
+            } else {
+                setVideoLink(uploadedUrl);
+                showToast({
+                    severity: "warn",
+                    summary: "绑定失败",
+                    detail:
+                        "视频已上传，但未成功绑定到本组；已为你回填到链接框，可点击“绑定链接”重试",
+                });
+            }
+        } catch (err) {
+            console.error("[execution] auto upload video failed:", err);
+            showToast({
+                severity: "error",
+                summary: "视频上传失败",
+                detail: err instanceof Error ? err.message : "请稍后重试",
+            });
+            // keep selected file so user can retry on completion
+        } finally {
+            setUploading(false);
+        }
+    };
+
     const handleCompleteSet = async (actionIndex: number, setIndex: number) => {
         if (!execution) return;
 
@@ -370,6 +491,12 @@ function TrainingExecutionContent() {
             const actionExecution = execution.action_executions[actionIndex];
             const setData = actionExecution.sets[setIndex];
             const isEditing = setData.status === 'completed';
+            const plannedKg = parsePlannedWeightKg(setData.planned_weight);
+            const weightChangedFromPlanned =
+                plannedKg !== null &&
+                weight !== null &&
+                weight !== undefined &&
+                Math.abs(Number(weight) - Number(plannedKg)) >= 0.1;
 
             // 1. Upload video first if selected (so API can retrieve video_url)
             let uploadedVideoUrl: string | undefined;
@@ -409,32 +536,58 @@ function TrainingExecutionContent() {
                 uploadedVideoId = linkedVideo.id;
                 hasVideo = true;
             }
-            if (videoFile) {
+            // 兜底：如果用户选择了文件但未自动上传成功，可在“完成本组”时重试
+            if (videoFile && !linkedVideo?.url) {
                 try {
                     setUploading(true);
-                    const uploadRes = await executionService.uploadSetVideo(
+                    setUploadProgress(0);
+
+                    // 统一上传方案：signed token -> 浏览器直传 Supabase -> 返回 public URL
+                    const uploadedVideo = await videoService.uploadVideoFile(
                         videoFile,
-                        execution.id,
-                        actionExecution.action_id,
-                        setIndex + 1
+                        {
+                            type: 'training',
+                            requires_review: false,
+                        } as any,
+                        (p) => setUploadProgress(p.percentage),
                     );
-                    if (uploadRes?.video_url) {
-                        uploadedVideoUrl = uploadRes.video_url;
-                        uploadedVideoId = uploadRes.id;
+
+                    const uploadedUrl = (uploadedVideo as any)?.video_url || null;
+                    if (!uploadedUrl) {
+                        throw new Error("视频上传失败，未返回视频URL");
+                    }
+
+                    // 绑定到当前 execution/action/set
+                    const bindRes = await executionService.addSetVideoLink({
+                        executionId: execution.id,
+                        actionId: actionExecution.action_id,
+                        setNumber: setIndex + 1,
+                        videoUrl: uploadedUrl,
+                    });
+
+                    if (bindRes?.id && bindRes.video_url) {
+                        setLinkedVideo({ id: bindRes.id, url: bindRes.video_url });
+                        uploadedVideoUrl = bindRes.video_url;
+                        uploadedVideoId = bindRes.id;
                         hasVideo = true;
-                        
+
                         // Track video upload
-                        trackEvent('student_video_upload', 'training', { 
-                            execution_id: execution.id, 
+                        trackEvent('student_video_upload', 'training', {
+                            execution_id: execution.id,
                             action_id: actionExecution.action_id,
-                            set_index: setIndex
+                            set_index: setIndex,
                         });
+
+                        // 清理本地选择，避免重复上传
+                        setVideoFile(null);
+                        if (fileInputRef.current) fileInputRef.current.value = '';
                     } else {
-                        const msg = '视频上传失败';
+                        // 已上传但绑定失败：回填到输入框，允许手动点“绑定链接”
+                        setVideoLink(uploadedUrl);
                         showToast({
                             severity: 'warn',
-                            summary: '视频上传失败',
-                            detail: msg,
+                            summary: '绑定失败',
+                            detail: '视频已上传，但未成功绑定到本组；已为你回填到链接框，可点击“绑定链接”重试',
                         });
                     }
                 } catch (err) {
@@ -442,10 +595,11 @@ function TrainingExecutionContent() {
                     showToast({
                         severity: 'warn',
                         summary: '视频上传失败',
-                        detail: '视频上传失败，但组数据仍会保存'
+                        detail: (err instanceof Error ? err.message : '视频上传失败，但组数据仍会保存')
                     });
                 } finally {
                     setUploading(false);
+                    setUploadProgress(0);
                 }
             }
 
@@ -552,6 +706,20 @@ function TrainingExecutionContent() {
             setLinkedVideo(null);
                 setShowOptionalFields(false);
             setEditingSetKey(null);
+
+            // One-time feedback: explain why input matters (calibration + next-time smarter)
+            if (!calibrationToastShownRef.current && weightChangedFromPlanned) {
+                calibrationToastShownRef.current = true;
+                const e1rmText = res.autoE1RM?.e1rm
+                    ? `已更新 e1RM≈${res.autoE1RM.e1rm}kg，`
+                    : '';
+                showToast({
+                    severity: 'info',
+                    summary: '已完成校准',
+                    detail: `已记录真实重量。${e1rmText}本次后续组会联动；下次同动作自动算重量也会更贴合。`,
+                });
+            }
+
             // Keep details expanded for edited set so user can confirm changes
             setExpandedSetKey(setKeyOf(actionIndex, setIndex));
 
@@ -613,8 +781,14 @@ function TrainingExecutionContent() {
             const actionExecution = execution.action_executions[actionIndex];
             const action = actions[actionExecution.action_id];
             
-            // Determine type
+            // Determine type - 优先使用 action.type，如果没有则默认为 STRENGTH
             const itemType = action?.type || 'STRENGTH';
+            
+            // 获取当前动作的状态
+            const currentState = itemStates[actionIndex] || {};
+            const dietContent = currentState.dietContent || '';
+            const cardioDistance = currentState.cardioDistance;
+            const cardioDuration = currentState.cardioDuration;
             
             // Call API
             const res = await executionService.completeItem({
@@ -646,11 +820,11 @@ function TrainingExecutionContent() {
                 updatedExecution.completed_sets = res.completedSets || execution.completed_sets + 1;
                 setExecution(updatedExecution);
 
-                // Reset forms
-                setDietContent('');
-                setDietCalories(null);
-                setCardioDistance(null);
-                setCardioDuration(null);
+                // Reset form for this action
+                setItemStates(prev => ({
+                    ...prev,
+                    [actionIndex]: {}
+                }));
 
                 showToast({
                     severity: 'success',
@@ -721,6 +895,7 @@ function TrainingExecutionContent() {
         }
     };
 
+
     const handleSkipRest = () => {
         setRestTimer(0);
         setIsResting(false);
@@ -729,6 +904,150 @@ function TrainingExecutionContent() {
     const handleAddTime = (seconds: number) => {
         setRestTimer(prev => prev + seconds);
     };
+
+    // 添加额外组数
+    const handleAddExtraSet = async (actionIndex: number) => {
+        if (!execution || addingExtraSet) return;
+        
+        try {
+            setAddingExtraSet(true);
+            
+            const res = await fetch('/api/execution/extra-content/add-extra-set', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    executionId: execution.id,
+                    actionIndex,
+                }),
+            });
+            
+            const data = await res.json();
+            
+            if (data.success && data.data) {
+                // 更新本地状态
+                const updatedExecution = { ...execution };
+                const newSetIndex = data.data.newSetIndex;
+                const actionExec = updatedExecution.action_executions[actionIndex];
+                
+                // 添加新组到本地状态
+                actionExec.sets.push({
+                    set_number: newSetIndex + 1,
+                    status: 'pending',
+                    planned_weight: '',
+                    planned_reps: '',
+                    source: 'student_extra',
+                });
+                actionExec.total_sets = actionExec.sets.length;
+                updatedExecution.total_sets = data.data.totalSets;
+                
+                setExecution(updatedExecution);
+                setCurrentSetIndex(newSetIndex);
+                
+                showToast({
+                    severity: 'success',
+                    summary: '已添加',
+                    detail: `已添加第 ${newSetIndex + 1} 组`,
+                    life: 2000,
+                });
+            } else {
+                showToast({
+                    severity: 'error',
+                    summary: '添加失败',
+                    detail: data.message || '无法添加额外组',
+                });
+            }
+        } catch (error) {
+            console.error('Add extra set failed:', error);
+            showToast({
+                severity: 'error',
+                summary: '错误',
+                detail: '添加额外组失败',
+            });
+        } finally {
+            setAddingExtraSet(false);
+        }
+    };
+
+    // 添加额外动作
+    const handleAddExtraAction = async (action: any) => {
+        if (!execution || addingExtraAction) return;
+        
+        try {
+            setAddingExtraAction(true);
+            
+            const res = await fetch('/api/execution/extra-content/add-extra-exercise', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    executionId: execution.id,
+                    actionId: action.id,
+                    actionName: action.name,
+                    sets: [{ weight: null, reps: null }], // 默认1组
+                }),
+            });
+            
+            const data = await res.json();
+            
+            if (data.success && data.data) {
+                // 更新本地状态
+                const updatedExecution = { ...execution };
+                const newActionIndex = data.data.newActionIndex;
+                
+                // 添加新动作到本地状态
+                updatedExecution.action_executions.push({
+                    action_id: action.id,
+                    action_name: action.name,
+                    action_order: newActionIndex + 1,
+                    source: 'student_extra',
+                    source_action_id: action.id,
+                    sets: [{
+                        set_number: 1,
+                        status: 'pending',
+                        planned_weight: '',
+                        planned_reps: '',
+                        source: 'student_extra',
+                    }],
+                    total_sets: 1,
+                    completed_sets: 0,
+                });
+                updatedExecution.total_sets = data.data.totalSets || (updatedExecution.total_sets + 1);
+                
+                setExecution(updatedExecution);
+                setExpandedAction(newActionIndex);
+                setCurrentSetIndex(0);
+                
+                showToast({
+                    severity: 'success',
+                    summary: '已添加',
+                    detail: `已添加动作：${action.name}`,
+                    life: 2000,
+                });
+                
+                // Track event
+                trackEvent('student_add_extra_exercise', 'training', {
+                    execution_id: execution.id,
+                    action_id: action.id,
+                    action_name: action.name,
+                });
+            } else {
+                showToast({
+                    severity: 'error',
+                    summary: '添加失败',
+                    detail: data.message || '无法添加动作',
+                });
+            }
+        } catch (error) {
+            console.error('Add extra action failed:', error);
+            showToast({
+                severity: 'error',
+                summary: '错误',
+                detail: '添加动作失败',
+            });
+        } finally {
+            setAddingExtraAction(false);
+        }
+    };
+
 
     if (loading) {
         return (
@@ -787,14 +1106,13 @@ function TrainingExecutionContent() {
                 <div className="space-y-3 text-sm text-surface-700 leading-relaxed">
                     <p>
                         这次训练已经开始 {staleHours} 小时了，但状态仍是 <strong>进行中</strong>。
-                        如果你已经练完但忘记点击“完成训练”，可以在这里快速确认；如果还没练完，就直接继续训练即可。
+                        如果你已经练完但忘记点击“完成训练”，可以回到今日训练页面一键完成；如果还没练完，就直接继续训练即可。
                     </p>
                     <div className="flex flex-col sm:flex-row gap-2 pt-2">
                         <Button
-                            label={completing ? '确认中...' : '我已练完，一键确认完成'}
+                            label="去今日训练一键完成"
                             icon="pi pi-check"
-                            onClick={handleQuickFinish}
-                            disabled={completing}
+                            onClick={() => router.push('/today-training')}
                             className="w-full sm:w-auto"
                         />
                         <Button
@@ -908,7 +1226,7 @@ function TrainingExecutionContent() {
                             {/* Action Header */}
                             <div 
                                 className="flex items-center justify-between cursor-pointer"
-                                onClick={() => setExpandedAction(isExpanded ? -1 : actionIndex)}
+                                onClick={() => selectAction(isExpanded ? -1 : actionIndex)}
                             >
                                 <div className="flex items-center gap-3">
                                     <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-white ${
@@ -976,9 +1294,14 @@ function TrainingExecutionContent() {
                                         </div>
                                     )}
 
-                                    {(!action?.type || action.type === 'STRENGTH') ? (
+                                    {(() => {
+                                        // 确定动作类型：优先使用 action.type，如果没有则默认为 STRENGTH
+                                        const actionType = action?.type || 'STRENGTH';
+                                        return actionType === 'STRENGTH';
+                                    })() ? (
                                         // 力量训练：显示组列表
-                                        actionExec.sets.map((setData: SetData, setIndex: number) => {
+                                        <>
+                                        {actionExec.sets.map((setData: SetData, setIndex: number) => {
                                             const isCurrentSet = setIndex === currentSetIndex && actionIndex === expandedAction;
                                             const isSetCompleted = setData.status === 'completed';
                                             const isSelectedSet = actionIndex === expandedAction && setIndex === currentSetIndex;
@@ -1076,7 +1399,7 @@ function TrainingExecutionContent() {
                                                             {/* 只展示：重量 / 次数 / RPE + 进步组勾选（其余折叠） */}
                                                             {/* iPhone 14 Pro Max 等较宽机型：避免 RPE 被挤到下一行，强制 4 列同排 */}
                                                             <div className="mt-3 grid grid-cols-[minmax(0,1fr)_72px_72px_52px] items-end gap-2">
-                                                                <div className="min-w-0">
+                                                                <div className="min-w-0" id="guide-weight-input">
                                                                     <label className="text-xs text-surface-600 font-bold">
                                                                         {allowNegativeWeight ? '外加重量(kg)' : '重量(kg)'}
                                                                     </label>
@@ -1093,6 +1416,9 @@ function TrainingExecutionContent() {
                                                                                 : (isWeightRequiredForSet(setData) ? '必填' : '可选')
                                                                         }
                                                                     />
+                                                                    <div className="mt-1 text-[11px] text-surface-500 leading-snug">
+                                                                        改成真实重量会联动校准后续组，并更新 e1RM，让下次自动算重量更准。
+                                                                    </div>
                                                                 </div>
                                                                 <div className="min-w-0">
                                                                     <label className="text-xs text-surface-600 font-bold">次数</label>
@@ -1179,6 +1505,7 @@ function TrainingExecutionContent() {
                                                                 <button
                                                                     type="button"
                                                                     onClick={() => setShowOptionalFields(v => !v)}
+                                                                    id="guide-video-upload"
                                                                     className="w-full flex items-center justify-between px-3 py-2 rounded-2xl bg-surface-50 border border-surface-200 text-surface-700 font-medium"
                                                                 >
                                                                     <span className="text-sm">备注 / 视频（可选）</span>
@@ -1200,27 +1527,82 @@ function TrainingExecutionContent() {
                                                                     type="file"
                                                                     ref={fileInputRef}
                                                                     accept="video/*"
-                                                                    onChange={(e) => setVideoFile(e.target.files?.[0] || null)}
+                                                                    disabled={uploading}
+                                                                    onChange={(e) =>
+                                                                        handleSelectAndUploadVideo(
+                                                                            e.target.files?.[0],
+                                                                            actionExec.action_id,
+                                                                            setIndex + 1,
+                                                                        )
+                                                                    }
                                                                     className="hidden"
                                                                 />
-                                                                <Button 
-                                                                    icon={<Upload className="w-4 h-4" />}
-                                                                                label={videoFile ? "已选择视频" : "选择视频"}
-                                                                    outlined
-                                                                    size="small"
-                                                                    onClick={() => fileInputRef.current?.click()}
-                                                                    severity={videoFile ? "success" : "secondary"}
-                                                                />
-                                                                {videoFile && (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        if (!uploading && fileInputRef.current) {
+                                                                            fileInputRef.current.click();
+                                                                        }
+                                                                    }}
+                                                                    disabled={uploading}
+                                                                    className={`inline-flex items-center gap-2 px-3 py-2 rounded-xl border text-sm font-medium select-none transition-colors
+                                                                        ${uploading ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer hover:bg-surface-50'}
+                                                                        ${(linkedVideo?.url || videoFile) ? 'border-green-300 text-green-600 bg-green-50/30' : 'border-surface-200 text-surface-700 bg-surface'}`}
+                                                                >
+                                                                    <Upload className="w-4 h-4" />
+                                                                    <span>
+                                                                        {uploading
+                                                                            ? `上传中... ${uploadProgress}%`
+                                                                            : (linkedVideo?.url
+                                                                                ? "已上传视频"
+                                                                                : (videoFile ? "已选择视频" : "选择视频"))}
+                                                                    </span>
+                                                                </button>
+                                                                {(videoFile || linkedVideo?.url) && (
                                                                     <button 
-                                                                                    type="button"
-                                                                        onClick={() => setVideoFile(null)}
+                                                                        type="button"
+                                                                        onClick={() => {
+                                                                            setVideoFile(null);
+                                                                            setLinkedVideo(null);
+                                                                            setVideoLink("");
+                                                                            setUploadProgress(0);
+                                                                            if (fileInputRef.current) {
+                                                                                fileInputRef.current.value = '';
+                                                                            }
+                                                                        }}
                                                                         className="text-xs text-red-400 hover:text-red-300"
                                                                     >
                                                                         删除
                                                                     </button>
                                                                 )}
                                                                 </div>
+
+                                                            {uploading && uploadProgress < 100 && (
+                                                                <div className="mt-2">
+                                                                    <div className="flex justify-between text-[10px] font-black text-primary-500 uppercase tracking-widest mb-2">
+                                                                        <span>视频上传中...</span>
+                                                                        <span>{uploadProgress}%</span>
+                                                                    </div>
+                                                                    <ProgressBar value={uploadProgress} showValue={false} style={{ height: '6px' }} className="rounded-full overflow-hidden bg-surface-100" />
+                                                                </div>
+                                                            )}
+
+                                                            {/* 已上传/已绑定视频：支持预览 */}
+                                                            {(linkedVideo?.url || videoLink.trim()) && (
+                                                                <div className="mt-2 p-3 rounded-xl bg-surface-50 border border-surface-200 flex items-center justify-between gap-2">
+                                                                    <span className="text-xs text-surface-600 truncate flex-1">
+                                                                        {linkedVideo?.url ? "已绑定本组视频" : "已填写链接"}
+                                                                    </span>
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => openVideo(linkedVideo?.url || videoLink.trim())}
+                                                                        className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-primary-600 bg-primary-50 hover:bg-primary-100 border border-primary-200"
+                                                                    >
+                                                                        <Play className="w-4 h-4" />
+                                                                        查看视频
+                                                                    </button>
+                                                                </div>
+                                                            )}
 
                                                                 <div className="pt-2 border-t border-surface-100">
                                                                     <div className="text-xs text-surface-500 font-medium mb-2">
@@ -1408,7 +1790,19 @@ function TrainingExecutionContent() {
                                                     )}
                                                 </div>
                                             );
-                                        })
+                                        })}
+                                        
+                                        {/* +1组 按钮 */}
+                                        <button
+                                            type="button"
+                                            onClick={() => handleAddExtraSet(actionIndex)}
+                                            disabled={addingExtraSet}
+                                            className="w-full py-3 border-2 border-dashed border-surface-300 rounded-2xl text-surface-500 hover:border-primary-400 hover:text-primary-600 hover:bg-primary-50 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                                        >
+                                            <Plus className="w-4 h-4" />
+                                            <span className="font-medium">{addingExtraSet ? '添加中...' : '+1 组'}</span>
+                                        </button>
+                                        </>
                                     ) : (
                                         // 非力量训练 (饮食/有氧/习惯)
                                         <div className="border rounded-lg p-4 border-purple-500 bg-purple-500/10">
@@ -1428,27 +1822,45 @@ function TrainingExecutionContent() {
                                                 // 未完成 - 填写表单
                                                 <div className="space-y-4">
                                                     <h3 className="font-bold text-surface-900 border-b pb-2">
-                                                        {action.type === 'DIET' ? '🍽️ 饮食打卡' : action.type === 'CARDIO' ? '🏃 有氧打卡' : '✅ 习惯打卡'}
+                                                        {(() => {
+                                                            const actionType = action?.type || 'STRENGTH';
+                                                            return actionType === 'DIET' ? '🍽️ 饮食打卡' : actionType === 'CARDIO' ? '🏃 有氧打卡' : '✅ 习惯打卡';
+                                                        })()}
                                                     </h3>
                                                     
                                                     {/* Plan Detail Reminder */}
                                                     {action?.item_schema && (
                                                         <div className="bg-surface-100 p-3 rounded text-sm text-surface-600">
-                                                             {action.type === 'DIET' && <div>建议: {action.item_schema.calories} kcal</div>}
-                                                             {action.type === 'CARDIO' && (
-                                                                 <div>目标: {(action.item_schema.distance / 1000).toFixed(1)} km / {(action.item_schema.duration / 60).toFixed(0)} 分钟</div>
-                                                             )}
-                                                             {action.type === 'HABIT' && <div>说明: {action.detail}</div>}
+                                                             {(() => {
+                                                                 const actionType = action?.type || 'STRENGTH';
+                                                                 if (actionType === 'DIET') {
+                                                                     return <div>建议: {action.item_schema.calories} kcal</div>;
+                                                                 } else if (actionType === 'CARDIO') {
+                                                                     return <div>目标: {(action.item_schema.distance / 1000).toFixed(1)} km / {(action.item_schema.duration / 60).toFixed(0)} 分钟</div>;
+                                                                 } else if (actionType === 'HABIT') {
+                                                                     return <div>说明: {action.detail}</div>;
+                                                                 }
+                                                                 return null;
+                                                             })()}
                                                         </div>
                                                     )}
                                                     
                                                     {/* Diet Form */}
-                                                    {action.type === 'DIET' && (
+                                                    {(() => {
+                                                        const actionType = action?.type || 'STRENGTH';
+                                                        return actionType === 'DIET';
+                                                    })() && (
                                                         <div className="space-y-3">
                                                             <label className="text-sm font-medium">记录内容 (可选)</label>
                                                             <InputTextarea 
-                                                                value={dietContent}
-                                                                onChange={(e) => setDietContent(e.target.value)}
+                                                                value={itemStates[actionIndex]?.dietContent || ''}
+                                                                onChange={(e) => setItemStates(prev => ({
+                                                                    ...prev,
+                                                                    [actionIndex]: {
+                                                                        ...prev[actionIndex],
+                                                                        dietContent: e.target.value
+                                                                    }
+                                                                }))}
                                                                 rows={3}
                                                                 placeholder="吃了什么？(例如: 鸡胸肉, 西兰花...)"
                                                                 className="w-full"
@@ -1457,13 +1869,22 @@ function TrainingExecutionContent() {
                                                     )}
 
                                                     {/* Cardio Form */}
-                                                    {action.type === 'CARDIO' && (
+                                                    {(() => {
+                                                        const actionType = action?.type || 'STRENGTH';
+                                                        return actionType === 'CARDIO';
+                                                    })() && (
                                                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                                             <div>
                                                                 <label className="text-sm font-medium">距离 (km)</label>
                                                                 <AeroInputNumber 
-                                                                    value={cardioDistance}
-                                                                    onValueChange={(e) => setCardioDistance(e.value ?? null)}
+                                                                    value={itemStates[actionIndex]?.cardioDistance ?? null}
+                                                                    onValueChange={(e) => setItemStates(prev => ({
+                                                                        ...prev,
+                                                                        [actionIndex]: {
+                                                                            ...prev[actionIndex],
+                                                                            cardioDistance: e.value ?? null
+                                                                        }
+                                                                    }))}
                                                                     min={0}
                                                                     max={100}
                                                                     minFractionDigits={1}
@@ -1474,8 +1895,14 @@ function TrainingExecutionContent() {
                                                             <div>
                                                                 <label className="text-sm font-medium">时长 (分钟)</label>
                                                                 <AeroInputNumber 
-                                                                    value={cardioDuration}
-                                                                    onValueChange={(e) => setCardioDuration(e.value ?? null)}
+                                                                    value={itemStates[actionIndex]?.cardioDuration ?? null}
+                                                                    onValueChange={(e) => setItemStates(prev => ({
+                                                                        ...prev,
+                                                                        [actionIndex]: {
+                                                                            ...prev[actionIndex],
+                                                                            cardioDuration: e.value ?? null
+                                                                        }
+                                                                    }))}
                                                                     min={0}
                                                                     max={300}
                                                                     placeholder="0"
@@ -1502,6 +1929,17 @@ function TrainingExecutionContent() {
                         </Card>
                     );
                 })}
+                
+                {/* 添加动作按钮 */}
+                <button
+                    type="button"
+                    onClick={() => setShowActionPicker(true)}
+                    disabled={addingExtraAction}
+                    className="w-full py-4 border-2 border-dashed border-primary-300 rounded-2xl text-primary-600 hover:border-primary-500 hover:bg-primary-50 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                    <Plus className="w-5 h-5" />
+                    <span className="font-bold">{addingExtraAction ? '添加中...' : '+ 添加动作'}</span>
+                </button>
             </div>
 
             {/* Finish Section */}
@@ -1534,6 +1972,7 @@ function TrainingExecutionContent() {
                         <Button 
                             label="完成训练"
                             onClick={handleFinishTraining}
+                            id="guide-finish-training"
                             className="w-full"
                             severity="success"
                             size="large"
@@ -1574,10 +2013,19 @@ function TrainingExecutionContent() {
             visible={shareModalVisible}
             onHide={() => {
                 setShareModalVisible(false);
-                router.push('/today-training');
+                const di = Number(execution?.day_index ?? dayIndex);
+                router.push(`/today-training?justConfirmed=1&dayIndex=${Number.isFinite(di) ? di : ''}`);
             }}
             executionId={execution.id}
         />
+            
+            {/* Action Picker Dialog */}
+            <ActionPicker
+                visible={showActionPicker}
+                onHide={() => setShowActionPicker(false)}
+                onSelect={handleAddExtraAction}
+                userId={session?.user?.id || ''}
+            />
     </div>
 );
 }

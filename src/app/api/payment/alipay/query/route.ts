@@ -2,28 +2,54 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from '@/app/api/auth/[...nextauth]/auth';
 import supabase, { serviceRoleSupabase } from '@/lib/supabaseClient';
 
-import { AlipaySdk } from 'alipay-sdk';
+import { createAlipaySdk } from '@/lib/alipaySdk';
+import {
+    updateTransactionAndWallet,
+    fulfillSubscriptionOnPaid,
+} from '@/app/api/payment/alipay/fulfillPaidOrder';
 
 import type { ApiData } from '@/types/api';
 import type { QueryAlipayOrderDto, QueryAlipayOrderResponseDto, TradeStatus } from './entity';
-import { sendSystemMessage } from '@/lib/chat';
+import { fenToYuan } from '@/lib/moneyUtils';
+import { fulfillContentPurchasePaid } from '../contentPurchaseFulfillment';
 
 // 文档：https://opendocs.alipay.com/open/217dd591_alipay.trade.query?scene=common&pathHash=62ae74aa
+
+const getTraceNoAndStatus = async (orderId: string): Promise<{ traceNo: string | null; tradeStatus: string | null }> => {
+    // if (false) {
+    //     // Mock response for non-production environments
+    //     console.log('[Alipay Query] 开发环境无法调用真实接口，直接认为支付成功');
+    //     return {
+    //         traceNo: 'mock_trace_no_123456',
+    //         tradeStatus: 'TRADE_SUCCESS'
+    //     }
+    // } else {
+        // 使用统一的初始化工具，支持代理配置
+    const alipaySdk = createAlipaySdk();
+
+    const response = await alipaySdk.exec('alipay.trade.query', {
+        bizContent: {
+            out_trade_no: orderId
+        }
+    });
+
+    if (response?.code !== '10000') {
+        console.error(`[Alipay Query] alipay.trade.query failed: ${JSON.stringify(response)}`);
+        throw new Error(`[Alipay Query] alipay.trade.query failed: ${response?.msg}`);
+    }
+    console.log('[Alipay Query] alipay.trade.query response:', response);
+    const traceNo = response?.traceId as string | null || null;
+    const tradeStatus = response?.tradeStatus as string | null || null;
+    return { traceNo, tradeStatus };
+    
+}
+
 export async function POST(req: Request) {
     const session = await getServerSession();
-    if (!session?.user?.id) {
-        return NextResponse.json({
-            success: false,
-            message: '用户未登录',
-            data: null
-        }, { status: 401 });
-    }
-
-    const userId = session.user.id;
+    const userId = session?.user?.id || '';
 
     const body = await req.json() as (QueryAlipayOrderDto & { paymentId?: string });
     const orderId = body.orderId || body.paymentId;
-
     if (!orderId) {
         return NextResponse.json<ApiData<null>>({
             success: false,
@@ -32,56 +58,95 @@ export async function POST(req: Request) {
         }, { status: 400 });
     }
 
-const alipaySdk = new AlipaySdk({
-    appId: process.env.ALIPAY_APP_ID,
-    privateKey: process.env.ALIPAY_PRIVATE_KEY,
-    alipayPublicKey: process.env.ALIPAY_PUBLIC_KEY,
-    gateway: process.env.ALIPAY_GATEWAY
-});
+    // 查询是否已经支付成功
+    const dbClient = userId ? supabase : serviceRoleSupabase;
+    const { data: existOrder, error: existOrderError } = await dbClient
+        .from('alipay_orders')
+        .select()
+        .eq('id', orderId)
+        .single();
 
-const response = await alipaySdk.exec('alipay.trade.query', {
-    bizContent: {
-        out_trade_no: orderId
+    if (existOrderError || !existOrder) {
+        return NextResponse.json<ApiData<null>>({
+            success: false,
+            message: '订单不存在',
+            data: null
+        }, { status: 404 });
     }
-});
-    
-    console.log(response);
+
+    if (!userId && existOrder?.order_type !== 'guest_content_purchase') {
+        return NextResponse.json({
+            success: false,
+            message: '用户未登录',
+            data: null
+        }, { status: 401 });
+    }
+
+    if (!existOrderError && existOrder.status === 'paid') {
+        // 将金额从分转换为元返回给前端
+        const orderWithYuan = {
+            ...existOrder,
+            total_amount: fenToYuan(existOrder.total_amount ?? 0),
+        };
+        return NextResponse.json<ApiData<QueryAlipayOrderResponseDto>>({
+            success: true,
+            message: '订单已支付',
+            data: {
+                order: orderWithYuan,
+                tradeStatus: existOrder.trade_status as TradeStatus
+            }
+        });
+    }
+
+
     /*
-response 成功输出
-{
-    code: '10000',
-    msg: 'Success',
-    buyerLogonId: '135******18',
-    buyerPayAmount: '0.00',
-    invoiceAmount: '0.00',
-    outTradeNo: '7d8711cc-ea1f-42b9-97a6-8293908eaca1',
-    pointAmount: '0.00',
-    receiptAmount: '0.00',
-    sendPayDate: '2026-01-16 22:50:47',
-    totalAmount: '0.01',
-    tradeNo: '2026011622001420201419924360',
-    tradeStatus: 'TRADE_SUCCESS',
-    buyerOpenId: '02055P9mYaqtYOsLTnozQBxheELa2otJrK_rNmTzSXKMfA3',
-    traceId: '21d6638e17685751514775668e7bd0'
-}
+        response 成功输出
+        {
+            code: '10000',
+            msg: 'Success',
+            buyerLogonId: '135******18',
+            buyerPayAmount: '0.00',
+            invoiceAmount: '0.00',
+            outTradeNo: '7d8711cc-ea1f-42b9-97a6-8293908eaca1',
+            pointAmount: '0.00',
+            receiptAmount: '0.00',
+            sendPayDate: '2026-01-16 22:50:47',
+            totalAmount: '0.01',
+            tradeNo: '2026011622001420201419924360',
+            tradeStatus: 'TRADE_SUCCESS',
+            buyerOpenId: '02055P9mYaqtYOsLTnozQBxheELa2otJrK_rNmTzSXKMfA3',
+            traceId: '21d6638e17685751514775668e7bd0'
+        }
 
     */
-    const tradeStatus = response?.tradeStatus as string | undefined;
+    let traceNo: string | null = null;
+    let tradeStatus: string | null = null;
+    try { 
+        const result = await getTraceNoAndStatus(orderId);
+        traceNo = result.traceNo;
+        tradeStatus = result.tradeStatus;
+    } catch (error) {
+        return NextResponse.json<ApiData<null>>({
+            success: false,
+            message: error instanceof Error ? error.message : '获取支付宝订单状态失败',
+            data: null
+        }, { status: 500 });
+    }
 
-    let orderStatus: 'pending' | 'paid' | 'cancelled' = 'pending';
+    let orderStatus: 'pending' | 'paid' | 'closed' = 'pending';
     if (tradeStatus === 'TRADE_SUCCESS' || tradeStatus === 'TRADE_FINISHED') {
         orderStatus = 'paid';
     } else if (tradeStatus === 'TRADE_CLOSED') {
-        orderStatus = 'cancelled';
+        orderStatus = 'closed'; // 数据库约束：pending|paid|failed|closed|refunded
     }
 
     // Update local order status snapshot
-    const { data: order, error: orderError } = await supabase
+    const { data: order, error: orderError } = await dbClient
         .from('alipay_orders')
         .update({
             status: orderStatus,
             trade_status: tradeStatus || null,
-            alipay_trade_no: response?.tradeNo || null,
+            alipay_trade_no: traceNo || null,
             updated_at: new Date().toISOString()
         })
         .eq('id', orderId)
@@ -94,85 +159,43 @@ response 成功输出
             message: orderError.message,
         });
     }
-    
-    // Auto-confirm subscription/renew (useful in dev where notify may not fire)
-    if (
-        orderStatus === 'paid' &&
-        order?.order_type &&
-        (order.order_type === 'subscription' || order.order_type === 'subscription_renew')
-    ) {
-        const orderData: any = order.order_data || {};
-        const subscriptionId = orderData?.subscriptionId as string | undefined;
-        const coachId = orderData?.coachId as string | undefined;
 
-        if (subscriptionId) {
-            const { data: sub } = await serviceRoleSupabase
-                .from('coach_subscriptions')
-                .select('id, student_id, coach_id, status, start_date, end_date, subscribed_weeks, last_payment_order_id')
-                .eq('id', subscriptionId)
-                .single();
+    // 订阅/续费确认 + 钱包入账（与 notify/return 共用逻辑，幂等）
+    if (orderStatus === 'paid' && order && userId) {
+        if (order.order_type === 'subscription' || order.order_type === 'subscription_renew') {
+            await fulfillSubscriptionOnPaid(order, orderId, userId);
+            await updateTransactionAndWallet(order);
+        }
 
-            if (sub && sub.student_id === userId && (!coachId || sub.coach_id === coachId)) {
-                if (sub.last_payment_order_id !== order.id) {
-                    const nowIso = new Date().toISOString();
-                    const update: Record<string, unknown> = {
-                        payment_method: 'platform_alipay',
-                        payment_confirmed_by: 'system',
-                        payment_confirmed_at: nowIso,
-                        coach_seen_at: null,
-                        last_payment_order_id: order.id,
-                        order_id: order.id,
-                    };
-
-                    if (order.order_type === 'subscription') {
-                        update.status = 'active';
-                        // Do not set end_date here. We start counting only when the coach assigns the first plan.
-                    }
-
-                    if (order.order_type === 'subscription_renew') {
-                        const weeks = Number(orderData?.renewAdditionalWeeks || 0);
-                        if (weeks > 0) {
-                            update.subscribed_weeks = Number(sub.subscribed_weeks || 0) + weeks;
-                            if (sub.end_date) {
-                                const base = new Date(sub.end_date);
-                                const now = new Date();
-                                const effectiveBase = base.getTime() < now.getTime() ? now : base;
-                                effectiveBase.setDate(effectiveBase.getDate() + weeks * 7);
-                                update.end_date = effectiveBase.toISOString();
-                            }
-                        }
-                    }
-
-                    await serviceRoleSupabase
-                        .from('coach_subscriptions')
-                        .update(update)
-                        .eq('id', subscriptionId);
-
-                    // best-effort coach notify
-                    try {
-                        const { data: coach } = await serviceRoleSupabase
-                            .from('coaches')
-                            .select('user_id')
-                            .eq('id', sub.coach_id)
-                            .single();
-                        if (coach?.user_id) {
-                            await sendSystemMessage(coach.user_id, {
-                                content: `新的学员订阅通过【平台支付】完成，系统已自动确认。请前往 [我的学员](/dashboard/students) 查看。`,
-                            });
-                        }
-                    } catch (e) {
-                        console.error('[Alipay Query] Failed to send coach system message:', e);
-                    }
+        if (order.order_type === 'content_purchase') {
+            const orderData: any = order.order_data || {};
+            const contentId = orderData?.contentId as string | undefined;
+            if (contentId) {
+                try {
+                    await fulfillContentPurchasePaid({
+                        orderId: order.id,
+                        userId,
+                        contentId,
+                    });
+                } catch (e) {
+                    console.error('[Alipay Query] Content purchase fulfill failed:', e);
                 }
             }
         }
     }
 
+    // 将金额从分转换为元返回给前端
+    const orderWithYuan = order
+        ? {
+            ...order,
+            total_amount: fenToYuan(order.total_amount ?? 0),
+        }
+        : order;
     return NextResponse.json<ApiData<QueryAlipayOrderResponseDto>>({
         success: true,
         message: '支付状态',
         data: {
-            order: order,
+            order: orderWithYuan,
             tradeStatus: tradeStatus as TradeStatus
         }
     });

@@ -1,3 +1,5 @@
+@import '../styles/tiptap.css';
+
 @layer tailwind-base, primereact, tailwind-utilities;
 
 @layer tailwind-base {
@@ -7,6 +9,125 @@
 @layer tailwind-utilities {
     @tailwind components;
     @tailwind utilities;
+}
+
+/* Enhanced prose styles for Markdown content display in all contexts */
+/* Ensure tables, headings, and other Markdown elements render correctly */
+
+/* Table styles for student view and preview */
+.prose table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 1.5rem 0;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.5rem;
+    overflow: hidden;
+}
+
+.prose table td,
+.prose table th {
+    border: 1px solid #e5e7eb;
+    padding: 0.75rem 1rem;
+    vertical-align: top;
+    text-align: left;
+}
+
+.prose table th {
+    font-weight: 600;
+    background-color: #f9fafb;
+    color: #374151;
+}
+
+.prose table tbody tr:hover {
+    background-color: #f9fafb;
+}
+
+/* Enhanced heading styles */
+.prose h1 { font-size: 2.25em; margin-top: 0; margin-bottom: 0.8888889em; font-weight: 800; }
+.prose h2 { font-size: 1.875em; margin-top: 1.5em; margin-bottom: 0.8em; font-weight: 700; }
+.prose h3 { font-size: 1.5em; margin-top: 1.6em; margin-bottom: 0.6em; font-weight: 700; }
+.prose h4 { font-size: 1.25em; margin-top: 1.5em; margin-bottom: 0.5em; font-weight: 600; }
+.prose h5 { font-size: 1.125em; margin-top: 1.5em; margin-bottom: 0.5em; font-weight: 600; }
+.prose h6 { font-size: 1em; margin-top: 1.5em; margin-bottom: 0.5em; font-weight: 600; color: #6b7280; }
+
+/* Code blocks */
+.prose pre {
+    background-color: #1f2937;
+    color: #f9fafb;
+    border-radius: 0.5rem;
+    padding: 1rem;
+    overflow-x: auto;
+    margin: 1rem 0;
+}
+
+.prose code {
+    background-color: #f3f4f6;
+    color: #1f2937;
+    padding: 0.2em 0.4em;
+    border-radius: 0.25rem;
+    font-size: 0.875em;
+}
+
+.prose pre code {
+    background-color: transparent;
+    color: inherit;
+    padding: 0;
+}
+
+/* Blockquotes */
+.prose blockquote {
+    border-left: 4px solid #e5e7eb;
+    padding-left: 1rem;
+    font-style: italic;
+    color: #6b7280;
+    margin: 1rem 0;
+}
+
+/* Lists */
+.prose ul,
+.prose ol {
+    padding-left: 1.5rem;
+    margin: 1rem 0;
+}
+
+.prose li {
+    margin-top: 0.5em;
+    margin-bottom: 0.5em;
+}
+
+/* Links in content */
+.prose a {
+    color: #3b82f6;
+    text-decoration: underline;
+    font-weight: 500;
+}
+
+.prose a:hover {
+    color: #2563eb;
+}
+
+/* Images in content */
+.prose img {
+    border-radius: 0.5rem;
+    max-width: 100%;
+    height: auto;
+    margin: 1rem 0;
+}
+
+/* Videos in content */
+.prose video {
+    border-radius: 0.5rem;
+    max-width: 100%;
+    height: auto;
+    margin: 1.5rem 0;
+    background-color: #000;
+}
+
+/* Horizontal rules */
+.prose hr {
+    border: none;
+    border-top: 2px solid #e5e7eb;
+    margin: 2rem 0;
 }
 
 :root {
@@ -538,4 +659,78 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 
 .aero-input-container input {
     @apply rounded-2xl rounded-2xl py-3 border bg-surface-50/50;
+}
+
+/* Streetlifting Index（Aero-Productivity）— scoped interactions */
+.streetlifting-scope .p-button {
+    transition:
+        transform 120ms ease,
+        box-shadow 200ms ease,
+        background-color 200ms ease,
+        color 200ms ease,
+        border-color 200ms ease !important;
+}
+
+.streetlifting-scope .p-button:active {
+    transform: scale(0.98);
+}
+
+.streetlifting-scope a:active {
+    transform: scale(0.995);
+}
+
+/* Custom Carousel Styles for Discovery Page */
+.custom-carousel .p-carousel-content {
+    overflow: visible;
+}
+
+.custom-carousel .p-carousel-item {
+    padding: 0 0.5rem;
+}
+
+.custom-carousel .p-carousel-prev,
+.custom-carousel .p-carousel-next {
+    @apply w-12 h-12 rounded-2xl bg-surface-0 border border-surface-200;
+    color: var(--surface-700);
+    transition: all 0.2s;
+}
+
+.custom-carousel .p-carousel-prev:hover,
+.custom-carousel .p-carousel-next:hover {
+    @apply bg-surface-50 border-surface-300;
+    color: var(--surface-900);
+    transform: translateY(-1px);
+}
+
+.custom-carousel .p-carousel-prev:active,
+.custom-carousel .p-carousel-next:active {
+    transform: scale(0.95);
+}
+
+.custom-carousel .p-carousel-prev:disabled,
+.custom-carousel .p-carousel-next:disabled {
+    @apply opacity-30;
+}
+
+.custom-carousel .p-carousel-indicators {
+    @apply hidden;
+}
+
+/* 移动端优化 */
+@media (max-width: 768px) {
+    .custom-carousel .p-carousel-prev,
+    .custom-carousel .p-carousel-next {
+        @apply w-10 h-10;
+    }
+    
+    .custom-carousel .p-carousel-item {
+        padding: 0 0.375rem;
+    }
+}
+
+@media (max-width: 640px) {
+    .custom-carousel .p-carousel-prev,
+    .custom-carousel .p-carousel-next {
+        @apply w-9 h-9;
+    }
 }

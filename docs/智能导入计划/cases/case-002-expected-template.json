@@ -1,0 +1,17 @@
+{
+  "weeks": 1,
+  "globalDescriptionMustContain": ["热身部分", "温宁热身法", "10-15分钟", "自重深蹲", "死虫式"],
+  "trainingDays": [
+    {
+      "weekIndex": 1,
+      "dayOfWeek": 1,
+      "type": "training",
+      "mustContainActionNames": ["负重引体", "锤式弯举"],
+      "notes": [
+        "括号内的“底部暂停”等应作为动作名的一部分或被清洗为同一动作的变式（取决于动作库命名策略）。",
+        "全局热身内容不应污染动作提取/模板结构（应进入 globalDescription）。"
+      ]
+    }
+  ]
+}
+

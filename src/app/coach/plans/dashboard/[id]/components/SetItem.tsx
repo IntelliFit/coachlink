@@ -470,6 +470,11 @@ const SetItem: React.FC<SetItemProps> = ({
                         <span className={`text-sm font-medium ${statusStyle.text}`}>
                             组{setIndex + 1}
                         </span>
+                        {(set as any).source === 'student_extra' && (
+                            <span className="text-xs px-1.5 py-0.5 bg-orange-100 text-orange-700 border-round font-medium">
+                                额外
+                            </span>
+                        )}
                         {StatusIcon && (
                             <StatusIcon className={`w-4 h-4 ${statusStyle.iconColor}`} />
                         )}

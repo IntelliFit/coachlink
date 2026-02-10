@@ -14,6 +14,7 @@ export interface UpdateTemplateDto {
     weekDays?: number[];
     globalAnswers?: Record<string, number>; // 新增：全局问题答案
     trainingDays?: CoachPlanTrainingDay[];
+    syncInstances?: boolean;
 }
 
 // 返回参数的接口类型

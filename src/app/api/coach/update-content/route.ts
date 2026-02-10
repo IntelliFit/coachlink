@@ -10,12 +10,15 @@ export async function POST(req: Request) {
         content,
         content_type,
         required_tier,
+        price_cents,
         is_featured,
         tags,
         media_urls = [],
         thumbnail_url,
-        isDraft = false
-    } = await req.json() as UpdateContentDto;
+        isDraft = false,
+        notifyAllStudents = false,
+        knowledge_node_id
+    } = await req.json() as UpdateContentDto & { knowledge_node_id?: string | null };
 
     // 获取当前登录用户
     const session = await getServerSession();
@@ -45,10 +48,12 @@ export async function POST(req: Request) {
     if (content !== undefined) updateData.content = content?.trim();
     if (content_type !== undefined) updateData.content_type = content_type;
     if (required_tier !== undefined) updateData.required_tier = required_tier;
+    if (price_cents !== undefined) updateData.price_cents = Math.max(0, Math.floor(Number(price_cents ?? 0)));
     if (is_featured !== undefined) updateData.is_featured = is_featured;
     if (tags !== undefined) updateData.tags = tags;
     if (media_urls !== undefined) updateData.media_urls = media_urls;
     if (thumbnail_url !== undefined) updateData.thumbnail_url = thumbnail_url;
+    if (knowledge_node_id !== undefined) updateData.knowledge_node_id = knowledge_node_id;
 
     // 验证教练是否有权限更新此内容
     const { data: existingContent, error: contentError } = await supabase
@@ -93,6 +98,122 @@ export async function POST(req: Request) {
             success: false,
             message: '更新失败，请重试'
         }, { status: 500 });
+    }
+
+    // 如果选中了"@全体学员"并且不是草稿，发送通知
+    if (notifyAllStudents && !isDraft && updatedContent) {
+        try {
+            // 使用更新后的内容
+            const notificationTitle = updatedContent.title;
+            const notificationContent = updatedContent.content;
+
+            // 生成内容预览（去除HTML标签，截取前100字）
+            const plainTextContent = notificationContent
+                .replace(/<[^>]*>/g, ' ')
+                .replace(/\s+/g, ' ')
+                .trim();
+            const contentPreview = plainTextContent.length > 100 
+                ? plainTextContent.substring(0, 100) + '...' 
+                : plainTextContent;
+
+            // 构建通知消息
+            const notificationMessage = `${notificationTitle}\n\n${contentPreview}`;
+
+            // 获取教练的 coach_id
+            const { data: coachData } = await supabase
+                .from('coaches')
+                .select('id')
+                .eq('user_id', userId)
+                .single();
+
+            if (coachData) {
+                // 获取所有活跃订阅的学员
+                const { data: subscriptions, error: subsError } = await supabase
+                    .from('coach_subscriptions')
+                    .select('student_id')
+                    .eq('coach_id', coachData.id)
+                    .eq('status', 'active');
+
+                if (!subsError && subscriptions && subscriptions.length > 0) {
+                    const studentUserIds = subscriptions.map((s: any) => s.student_id).filter(Boolean);
+                    const now = new Date().toISOString();
+
+                    // 为每个学员创建聊天室并发送消息
+                    for (const studentUserId of studentUserIds) {
+                        try {
+                            // 获取或创建聊天室
+                            const { data: existingRoom } = await supabase
+                                .from('chat_rooms')
+                                .select('id')
+                                .contains('members', [userId, studentUserId])
+                                .maybeSingle();
+
+                            let roomId = existingRoom?.id;
+
+                            if (!roomId) {
+                                const { data: newRoom, error: roomError } = await supabase
+                                    .from('chat_rooms')
+                                    .insert({
+                                        members: [userId, studentUserId],
+                                        type: 'private',
+                                        unread_members: [],
+                                        is_archived: false,
+                                        created_at: now,
+                                        updated_at: now,
+                                    })
+                                    .select('id')
+                                    .single();
+
+                                if (roomError) {
+                                    console.error('创建聊天室失败:', roomError);
+                                    continue;
+                                }
+                                roomId = newRoom.id;
+                            }
+
+                            // 插入消息，包含内容链接
+                            const { error: messageError } = await supabase
+                                .from('chat_messages')
+                                .insert({
+                                    room_id: roomId,
+                                    sender_id: userId,
+                                    message_type: 'text',
+                                    content: notificationMessage,
+                                    created_at: now,
+                                    content_metadata: {
+                                        broadcast: true,
+                                        contentId: id,
+                                        contentTitle: notificationTitle,
+                                        contentLink: `/coach/content/${id}`
+                                    }
+                                } as any);
+
+                            if (messageError) {
+                                console.error('发送消息失败:', messageError);
+                                continue;
+                            }
+
+                            // 更新聊天室
+                            await supabase
+                                .from('chat_rooms')
+                                .update({
+                                    last_message: notificationMessage,
+                                    last_message_at: now,
+                                    unread_members: [studentUserId],
+                                    updated_at: now,
+                                })
+                                .eq('id', roomId);
+
+                        } catch (error) {
+                            console.error('发送通知给学员失败:', error);
+                        }
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('发送全体学员通知失败:', error);
+            // 不影响更新成功，只记录错误
+        }
     }
 
     return NextResponse.json({
