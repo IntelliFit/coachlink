@@ -12,9 +12,7 @@ RUN npm ci --legacy-peer-deps
 # 复制源码并构建
 COPY . .
 # 前端构建所需的环境变量（从 GitHub Secrets 作为 build-arg 传入）
-ARG NEXT_PUBLIC_SUPABASE_URL
 ARG NEXT_PUBLIC_SUPABASE_ANON_KEY
-ENV NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL
 ENV NEXT_PUBLIC_SUPABASE_ANON_KEY=$NEXT_PUBLIC_SUPABASE_ANON_KEY
 # 清理旧的构建产物，确保每次构建都是全新的
 RUN rm -rf .next

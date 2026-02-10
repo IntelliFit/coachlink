@@ -7,7 +7,6 @@ import { verifyToken } from "./lib/jwt";
 function getSupabaseRestConfig() {
     const supabaseUrl =
         process.env.NEXT_SUPABASE_URL ||
-        process.env.NEXT_PUBLIC_SUPABASE_URL ||
         process.env.SUPABASE_URL ||
         "";
     const serviceKey =

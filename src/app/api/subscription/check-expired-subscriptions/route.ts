@@ -227,7 +227,9 @@ export async function POST(req: Request) {
     timings['total'] = performance.now() - startTime;
 
     // 输出性能日志
-    console.log('[check-expired-subscriptions] Performance timings:', JSON.stringify(timings, null, 2));
+    if (process.env.NODE_ENV === 'development' || timings['total'] > 1000) {
+        console.log('[check-expired-subscriptions] Performance timings:', JSON.stringify(timings, null, 2));
+    }
 
     return NextResponse.json<ApiData<CheckExpiredSubscriptionsResponseDto>>({
         success: true,

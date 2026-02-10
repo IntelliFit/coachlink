@@ -178,7 +178,8 @@ export default function RegisterPage() {
                 }
             }
         } catch (error: any) {
-            showToast({ severity: 'error', summary: '注册失败', detail: error.message });
+            const message = error?.message || '注册失败';
+            showToast({ severity: 'error', summary: message, detail: message === '注册失败' ? '请检查网络或稍后重试' : undefined });
         } finally {
             setLoading(false);
         }
@@ -226,10 +227,10 @@ export default function RegisterPage() {
          */
         <div className="fixed inset-0 z-[100] bg-surface flex flex-col items-center justify-center overflow-y-auto overflow-x-hidden p-6 sm:p-10">
 
-            {/* 背景美化元素 */}
+            {/* 背景美化元素：亮色模式柔和光圈，暗色模式低饱和度微光 */}
             <div className="absolute top-0 left-0 w-full h-full -z-10 pointer-events-none">
-                <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-primary-50 rounded-full blur-[120px]" />
-                <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-blue-50 rounded-full blur-[120px]" />
+                <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-primary-50 rounded-full blur-[120px] dark:bg-primary-500/15 dark:blur-[140px]" />
+                <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-primary-50 rounded-full blur-[120px] dark:bg-primary-800/50 dark:blur-[160px]" />
             </div>
 
             <div className="w-full max-w-[480px] animate-in fade-in slide-in-from-bottom-4 duration-500">
