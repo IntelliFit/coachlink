@@ -1,16 +1,13 @@
 import { Database } from '@/types/database.types';
 import { createClient } from '@supabase/supabase-js';
 
-// Prefer server-safe vars, but fall back to common Supabase env names to avoid
-// "works locally but fails in deployment" due to mismatched env variable names.
+// 仅使用服务端环境变量，避免 NEXT_PUBLIC_* 打进服务端 bundle 或与前端混用
 const NEXT_SUPABASE_URL =
     process.env.NEXT_SUPABASE_URL ||
-    process.env.NEXT_PUBLIC_SUPABASE_URL ||
     process.env.SUPABASE_URL ||
     '';
 const NEXT_SUPABASE_ANON_KEY =
     process.env.NEXT_SUPABASE_ANON_KEY ||
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
     process.env.SUPABASE_ANON_KEY ||
     '';
 const NEXT_SUPABASE_SERVICE_ROLE_KEY =
