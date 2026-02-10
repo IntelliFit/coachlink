@@ -26,11 +26,16 @@ export default function SliderCaptcha({ visible, onHide, onSuccess }: SliderCapt
     const [dragging, setDragging] = useState(false);
     const trackRef = useRef<HTMLDivElement>(null);
     const dragStartRef = useRef({ x: 0, base: 0 });
+    /** 同步标记，防止 pointerUp + pointerLeave 等重复触发导致连续两次 verify（第二次会拿到「验证已过期」） */
+    const verifyInFlightRef = useRef(false);
 
     const loadChallenge = useCallback(async () => {
+        verifyInFlightRef.current = false;
         setLoading(true);
         setId(null);
+        setImageUrl('');
         setPosition(0);
+        setVerifying(false);
         try {
             const data = await captchaService.create();
             setId(data.id);
@@ -76,17 +81,20 @@ export default function SliderCaptcha({ visible, onHide, onSuccess }: SliderCapt
         }
         setDragging(false);
         if (!id || verifying) return;
+        if (verifyInFlightRef.current) return;
+        verifyInFlightRef.current = true;
         setVerifying(true);
         try {
             const token = await captchaService.verify(id, position);
             onSuccess(token);
             onHide();
-        } catch (e: any) {
+        } catch (err: any) {
             setPosition(0);
-            showToast({ severity: 'error', summary: '验证失败', detail: e?.message });
+            showToast({ severity: 'error', summary: '验证失败', detail: err?.message });
             loadChallenge();
         } finally {
             setVerifying(false);
+            verifyInFlightRef.current = false;
         }
     };
 
