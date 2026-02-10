@@ -20,11 +20,11 @@ try {
     execSync(`scp deploy.tar.gz ${SSH_AUTH}:${REMOTE_DIR}/`, { stdio: 'inherit' });
 
     // 3. 远程执行：清理旧静态资源、解压、删除压缩包、重启服务
-    // 注意：这里先删除旧的 .next/static 确保没有残留文件干扰
+    // 注意：这里先删除旧的 .next 目录确保没有残留文件干扰，防止 chunk 文件名不匹配导致的 404
     console.log('🔧 Remote executing: Cleanup and Unpack...');
     const remoteCommands = [
         `cd ${REMOTE_DIR}`,
-        `rm -rf .next/static`, // 删除旧静态资源，防止缓存或Hash混乱
+        `rm -rf .next`, // 删除整个 .next 目录，确保完全清理旧的构建产物
         `tar -xzf deploy.tar.gz`, // 解压
         `rm deploy.tar.gz`, // 删除压缩包
         `pm2 restart coachlink || npm run start`, // 重启项目
