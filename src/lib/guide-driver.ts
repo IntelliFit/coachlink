@@ -1,9 +1,6 @@
 "use client";
 
-import { driver } from "driver.js";
-import "driver.js/dist/driver.css";
-
-// Types
+// Types (no driver.js import here to avoid ESM chunk being loaded as script on refresh)
 export interface GuideStep {
     element?: string;
     popover: {
@@ -21,8 +18,18 @@ export interface GuideConfig {
     onSkip?: () => void;
 }
 
-// Create driver instance with Chinese localization and styling
-export function createGuide(config: GuideConfig) {
+export interface GuideInstance {
+    start: () => void;
+    destroy: () => void;
+    instance: unknown;
+}
+
+// Load driver.js only when a guide is started (dynamic import avoids "import outside module" in some bundles)
+export async function createGuide(config: GuideConfig): Promise<GuideInstance> {
+    const [{ driver }] = await Promise.all([
+        import("driver.js"),
+        import("driver.js/dist/driver.css"),
+    ]);
     const driverInstance = driver({
         showProgress: true,
         animate: true,

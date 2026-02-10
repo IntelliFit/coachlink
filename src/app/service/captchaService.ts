@@ -3,7 +3,8 @@ import { BaseService } from "@/lib/baseService";
 interface SliderCreateRes {
     id: string;
     trackWidth: number;
-    backgroundImage: string;
+    imageUrl: string;
+    backgroundImage?: string;
 }
 
 interface SliderVerifyRes {
@@ -23,6 +24,7 @@ class CaptchaService extends BaseService {
         throw new Error(res.data?.message || "获取验证失败");
     }
 
+    /** @param position 滑块左边缘的 x 坐标（与后端缺口 target 对齐校验） */
     async verify(id: string, position: number) {
         const res = await this.post<SliderVerifyRes>("verify", { id, position });
         if (res.data?.success && res.data?.data?.token) {
