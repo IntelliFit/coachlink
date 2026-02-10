@@ -103,6 +103,7 @@ const PUBLIC_PATHS = new Set([
     "/api/payment/alipay/create", // guest payment create
     "/api/payment/alipay/query", // guest payment query
     "/api/payment/alipay/guest/create", // guest payment create (public)
+    "/api/hello-world", // hello world test endpoint (public)
     "/docs/agreement",
     "/docs/disclaimer",
     "/disclaimer",
