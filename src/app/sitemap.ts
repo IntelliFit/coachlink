@@ -12,9 +12,9 @@ function getSiteUrl(): string {
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const siteUrl = getSiteUrl();
-  const now = new Date();
 
-  // 仅收录公开、无需枚举动态参数的页面；登录态/后台页面不进入 sitemap
+  // 仅收录公开、无需登录即可访问的页面；登录态/后台页面不进入 sitemap
+  // 格式参考可被 Google 抓取的 sitemap 标准（urlset + loc + changefreq）
   const staticPaths = [
     '/',
     '/market',
@@ -33,13 +33,22 @@ export default function sitemap(): MetadataRoute.Sitemap {
     '/generate-plan/waiting',
     '/docs/agreement',
     '/docs/disclaimer',
+    '/privacy',
+    '/coach/discovery',
+    '/streetlifting-index',
+    '/streetlifting-index/calculator',
+    '/streetlifting-index/data',
+    '/streetlifting-index/locations',
+    '/streetlifting-index/methodology',
+    '/streetlifting-index/stories',
+    '/streetlifting-index/submit',
   ];
 
   return staticPaths.map((pathname) => ({
     url: `${siteUrl}${pathname}`,
-    lastModified: now,
-    changeFrequency: pathname === '/' ? 'daily' : 'weekly',
-    priority: pathname === '/' ? 1 : 0.6,
+    lastModified: new Date(),
+    changeFrequency: 'daily' as const,
+    priority: pathname === '/' ? 1 : 0.8,
   }));
 }
 

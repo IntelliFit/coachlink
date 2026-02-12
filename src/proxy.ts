@@ -284,12 +284,16 @@ export async function proxy(request: NextRequest) {
 }
 
 // 配置匹配路径
+// 重要：sitemap.xml、robots.txt 必须排除，否则 Google Search Console 无法抓取
 export const config = {
     matcher: [
         /*
-         * 匹配所有请求路径，除了以特定扩展名结尾的文件和API路由
+         * 匹配所有请求路径，排除：
+         * - 静态资源：_next/static, _next/image, favicon, themes, images
+         * - SEO 文件：robots.txt, sitemap.xml, sitemap/*（Google 抓取必须不被 proxy 处理）
+         * - site.webmanifest
          */
-        "/((?!_next/static|_next/image|favicon.ico|favicon.jpg|themes|images).*)",
+        "/((?!_next/static|_next/image|favicon\\.ico|favicon\\.jpg|themes|images|robots\\.txt|sitemap\\.xml|sitemap/.*|site\\.webmanifest).*)",
     ],
 };
 
