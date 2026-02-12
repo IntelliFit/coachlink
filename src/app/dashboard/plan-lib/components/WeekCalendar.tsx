@@ -19,6 +19,8 @@ interface WeekCalendarProps {
     saving: boolean;
     /** 起始执行天数（可选，用于显示"开始"标记） */
     startExecutionDay?: number;
+    /** 单行横向滚动模式（计划库编辑页使用） */
+    variant?: 'default' | 'singleRow';
 }
 
 const WeekCalendar: React.FC<WeekCalendarProps> = ({
@@ -29,7 +31,8 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
     onAddWeekFromExisting,
     onDeleteWeek,
     saving,
-    startExecutionDay
+    startExecutionDay,
+    variant = 'default'
 }) => {
     const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
     const [pendingDeleteWeekIndex, setPendingDeleteWeekIndex] = useState<number | null>(null);
@@ -191,6 +194,54 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
                 <div className="flex flex-col items-center justify-center min-h-[320px] bg-surface-50/50 rounded-[24px] border border-dashed border-surface-200">
                     <Calendar size={48} className="text-surface-200 mb-4" />
                     <p className="text-[13px] font-bold text-surface-400 tracking-tight">暂无排期，点击上方按钮开始编排</p>
+                </div>
+            ) : variant === 'singleRow' ? (
+                /* 单行横向滚动：仅占一行，多余向右滑动查看 */
+                <div className="flex gap-2 overflow-x-auto pb-2 [-webkit-overflow-scrolling:touch] custom-scrollbar">
+                    {days.map((day) => {
+                        const isSelected = selectedDayIndex === day.dayIndex;
+                        const isTraining = day.type === 'training';
+                        const isStarted = startExecutionDay && day.dayIndex === startExecutionDay;
+                        const isPassed = startExecutionDay && day.dayIndex < startExecutionDay;
+
+                        return (
+                            <button
+                                key={day.dayIndex}
+                                type="button"
+                                disabled={saving}
+                                onClick={() => !saving && onSelectDay(day.dayIndex)}
+                                className={`
+                                    relative shrink-0 w-[88px] h-[64px]
+                                    rounded-2xl border transition-all duration-200
+                                    flex items-center justify-between px-3
+                                    active:scale-[0.98]
+                                    ${isSelected
+                                        ? 'bg-surface border-primary-500 shadow-[0_8px_20px_rgba(59,130,246,0.15)]'
+                                        : 'bg-surface-50/80 border-surface-100 hover:bg-surface hover:border-surface-200'}
+                                    ${isPassed ? 'opacity-50 grayscale' : ''}
+                                `}
+                            >
+                                <div className="flex flex-col items-start leading-none">
+                                    <span className={`text-[10px] font-black ${isSelected ? 'text-primary-500' : 'text-surface-400'}`}>
+                                        第{day.dayIndex}日
+                                    </span>
+                                    <span className={`mt-1 text-[11px] font-black ${isSelected ? 'text-primary-700' : 'text-surface-700'}`}>
+                                        {isTraining ? '训练' : '休息'}
+                                    </span>
+                                </div>
+
+                                <div className={`${isSelected ? 'text-primary-600' : isTraining ? 'text-surface-700' : 'text-surface-300'}`}>
+                                    {isTraining ? <Dumbbell size={18} strokeWidth={2.5} /> : <Coffee size={18} strokeWidth={2.5} />}
+                                </div>
+
+                                {isStarted && (
+                                    <div className="absolute -top-1 -right-1 bg-green-500 text-surface p-1 rounded-full shadow-lg">
+                                        <Check size={8} strokeWidth={4} />
+                                    </div>
+                                )}
+                            </button>
+                        );
+                    })}
                 </div>
             ) : (
                 <ScrollPanel>

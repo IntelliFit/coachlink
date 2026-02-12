@@ -47,11 +47,13 @@ export async function POST(req: Request) {
         }, { status: 200 });
     }
 
-    const threshold = Number(stored);
-    if (position < threshold) {
+    const target = Number(stored);
+    const TOLERANCE = 8; // 滑块左边缘与缺口左边缘允许的像素误差（缺口与滑块同宽，对齐左边缘即可）
+    const distance = Math.abs(position - target);
+    if (distance > TOLERANCE) {
         return NextResponse.json<ApiData<SliderVerifyResponseDto>>({
             success: false,
-            message: "请滑动到最右侧完成验证",
+            message: "请将滑块对齐缺口位置",
             data: undefined,
         }, { status: 200 });
     }

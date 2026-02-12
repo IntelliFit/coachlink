@@ -50,7 +50,8 @@ function crossSpawn(command, args, options = {}) {
 
 // 在你的代码中使用
 // 将环境变量传递给子进程
-const nextDev = crossSpawn('npx', ['next', 'dev'], {
+// Next.js 16 默认用 Turbopack，部分 chunk 可能被当作普通脚本加载导致 "Cannot use import statement outside a module"
+const nextDev = crossSpawn('npx', ['next', 'dev', '--webpack'], {
     env: {
         ...process.env,
         // 确保代理环境变量被传递

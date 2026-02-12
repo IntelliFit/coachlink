@@ -24,10 +24,10 @@ export async function POST(req: NextRequest) {
             loadChineseFont
         ]);
 
-        // 1. 获取教练数据
+        // 1. 获取教练数据（API 路由仅使用服务端环境变量）
         const supabase = createClient(
-            process.env.NEXT_PUBLIC_SUPABASE_URL!,
-            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+            process.env.NEXT_SUPABASE_URL!,
+            process.env.NEXT_SUPABASE_ANON_KEY!
         );
         const { data: coach, error } = await supabase.from('coaches').select('*').eq('id', coachId).single();
         if (error || !coach) throw new Error('Coach not found');

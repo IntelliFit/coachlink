@@ -37,6 +37,8 @@ interface BasicInfoFormProps {
      * 如果不提供，则回退到 training_items 全局表
      */
     availableTrainingTags?: string[];
+    /** 隐藏标题与说明文字，并采用更紧凑的布局 */
+    hideHeader?: boolean;
 }
 
 const BasicInfoForm: React.FC<BasicInfoFormProps> = ({
@@ -57,7 +59,8 @@ const BasicInfoForm: React.FC<BasicInfoFormProps> = ({
     globalQuestions = [],
     globalAnswers = {},
     onGlobalAnswerChange,
-    availableTrainingTags
+    availableTrainingTags,
+    hideHeader = false
 }) => {
 
     const { showToast } = useToastContext();
@@ -99,53 +102,55 @@ const BasicInfoForm: React.FC<BasicInfoFormProps> = ({
     }, [variant, availableTrainingTags]);
 
     return (
-        <div className="flex flex-col gap-6 mb-12">
-            {/* 头部区域：紧凑字间距 + 呼吸感引导 */}
-            <div className='flex justify-between items-end px-1'>
-                <div className="flex flex-col gap-1">
-                    <h2 className="text-2xl font-black text-surface-900 tracking-tighter">
-                        {isStudent ? '计划配置' : '模板定义'}
-                    </h2>
+        <div className={`flex flex-col mb-8 ${hideHeader ? 'gap-0' : 'gap-4'}`}>
+            {/* 头部区域（hideHeader 时隐藏） */}
+            {!hideHeader && (
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-1">
+                    <div>
+                        <h2 className="text-base font-bold tracking-tight text-surface-900">
+                            {isStudent ? '计划配置' : '模板定义'}
+                        </h2>
+                        <p className="text-sm text-surface-500 mt-0.5">
+                            {isStudent ? '配置计划名称与目标' : '设置模板名称、标签、频率与全局问卷'}
+                        </p>
+                    </div>
+                    {extraButton && <div className="flex gap-2">{extraButton}</div>}
                 </div>
-                <div className="flex gap-2">
-                    {extraButton}
-                </div>
-            </div>
+            )}
 
-            {/* 主容器：非线性圆角 + 极浅边框 */}
-            <div className="
-                relative overflow-hidden
-                p-8 bg-surface border border-surface-200/70 
-                rounded-[24px] shadow-[0_4px_20px_rgba(0,0,0,0.02)]
-                flex flex-col lg:flex-row gap-12
-            ">
-                {/* 左侧表单区域：利用层级代替分割线 */}
-                <div className="flex flex-col gap-8 w-full flex-1">
-                    
-                    {/* 第一行：双列布局以节省空间并保持紧凑 */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="flex flex-col gap-2">
-                            <label className="text-[11px] text-surface-400 uppercase px-1">
+            {/* 主容器：AERO 风格，hideHeader 时更紧凑 */}
+            <div className={`
+                relative overflow-hidden bg-surface border border-surface-100
+                rounded-3xl shadow-[0_1px_0_rgba(15,23,42,0.02)]
+                flex flex-col lg:flex-row
+                ${hideHeader ? 'p-4 md:p-5 gap-4 lg:gap-6' : 'p-5 md:p-6 gap-6 lg:gap-8'}
+            `}>
+                {/* 左侧表单区域 */}
+                <div className={`flex flex-col w-full flex-1 ${hideHeader ? 'gap-4' : 'gap-5'}`}>
+                    <div className={`grid grid-cols-1 md:grid-cols-2 ${hideHeader ? 'gap-3' : 'gap-4'}`}>
+                        <div className="flex flex-col gap-1.5">
+                            <label className="text-[11px] font-black text-surface-500 uppercase tracking-widest px-1">
                                 {isStudent ? '计划名称' : '模板名称'} *
                             </label>
                             <InputText
                                 value={name}
                                 onChange={(e) => onNameChange(e.target.value)}
                                 placeholder="e.g. 夏季增肌进阶计划"
-                                className="w-full border-surface-200 bg-surface-50/50 focus:bg-surface focus:border-primary rounded-2xl py-3 transition-all"
+                                className="w-full border-surface-200 bg-surface-50/50 focus:bg-surface focus:border-primary rounded-2xl py-2.5 text-sm transition-all"
                                 disabled={saving}
                             />
                         </div>
 
                         {!isStudent && (
-                            <div className="flex flex-col gap-2">
-                                <label className="text-[11px] font-black text-surface-400 uppercase tracking-widest px-1">训练项目</label>
+                            <div className="flex flex-col gap-1.5">
+                                <label className="text-[11px] font-black text-surface-500 uppercase tracking-widest px-1">训练项目</label>
                                 <MultiSelect
                                     value={tags}
                                     options={templateTypes}
                                     onChange={(e) => onTagsChange(e.value)}
                                     placeholder="选择核心动作库"
-                                    className="aero-multiselect"
+                                    className="aero-multiselect w-full"
+                                    panelClassName="aero-multiselect-panel"
                                     display="chip"
                                     filter
                                 />
@@ -153,72 +158,73 @@ const BasicInfoForm: React.FC<BasicInfoFormProps> = ({
                         )}
                     </div>
 
-                    {/* 描述区域：使用半透明背景块 */}
-                    <div className="flex flex-col gap-2">
-                        <label className="text-[11px] font-black text-surface-400 uppercase tracking-widest px-1">详情描述</label>
+                    {/* 描述区域 */}
+                    <div className="flex flex-col gap-1.5">
+                        <label className="text-[11px] font-black text-surface-500 uppercase tracking-widest px-1">详情描述</label>
                         <InputText
                             value={description}
                             onChange={(e) => onDescriptionChange(e.target.value)}
                             placeholder="简述此计划的核心目标（可选）"
-                            className="w-full border-surface-200 bg-surface-50/50 focus:bg-surface focus:border-primary rounded-2xl py-3 transition-all"
+                            className="w-full border-surface-200 bg-surface-50/50 focus:bg-surface focus:border-primary rounded-2xl py-2.5 text-sm transition-all"
                         />
                     </div>
 
-                    {/* 频率选择：非对称过渡选项 */}
+                    {/* 频率选择 */}
                     {!isStudent && (
-                        <div className="space-y-6">
-                            <div className="flex flex-col gap-3">
+                        <div className={hideHeader ? 'space-y-3' : 'space-y-4'}>
+                            <div className="flex flex-col gap-2">
                                 <div className="flex items-center gap-2">
-                                    <Calendar size={14} className="text-surface-400" />
-                                    <label className="text-[11px] font-black text-surface-400 uppercase tracking-widest">建议每周频率</label>
+                                    <Calendar size={12} className="text-surface-500" />
+                                    <label className="text-[11px] font-black text-surface-500 uppercase tracking-widest">建议每周频率</label>
                                 </div>
                                 <div className="flex flex-wrap gap-2">
                                     {[1, 2, 3, 4, 5, 6, 7].map(n => {
                                         const active = weekDays.includes(n);
                                         return (
-                                            <div 
+                                            <button
                                                 key={n}
+                                                type="button"
                                                 onClick={() => {
                                                     const newDays = active ? weekDays.filter(d => d !== n) : [...weekDays, n];
                                                     onWeekDaysChange?.(newDays);
                                                 }}
                                                 className={`
-                                                    px-5 py-2 rounded-full text-xs font-black transition-all duration-300 cursor-pointer active:scale-[0.95]
-                                                    ${active ? 'bg-primary-500 text-surface shadow-md shadow-primary-500/20' : 'bg-surface-50 text-surface-400 hover:bg-surface-100'}
+                                                    px-4 py-1.5 rounded-full text-[11px] font-black transition-all cursor-pointer active:scale-[0.98]
+                                                    ${active ? 'bg-surface-900 text-surface-0 shadow-sm' : 'bg-surface-50 text-surface-500 hover:bg-surface-100'}
                                                 `}
                                             >
                                                 {n} 次 / 周
-                                            </div>
+                                            </button>
                                         );
                                     })}
                                 </div>
                             </div>
 
-                            {/* 动态全局问题：数值中心化选择 */}
+                            {/* 动态全局问题 */}
                             {globalQuestions.map((question, idx) => (
-                                <div key={idx} className="flex flex-col gap-3">
-                                    <label className="text-[11px] font-black text-surface-400 uppercase tracking-widest px-1">{question.question}</label>
+                                <div key={idx} className="flex flex-col gap-2">
+                                    <label className="text-[11px] font-black text-surface-500 uppercase tracking-widest px-1">{question.question}</label>
                                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                                         {question.options.map((opt, i) => {
                                             const selected = globalAnswers[question.question] === i;
                                             return (
-                                                <div
+                                                <button
                                                     key={i}
+                                                    type="button"
                                                     onClick={() => onGlobalAnswerChange?.(question.question, selected ? null : i)}
                                                     className={`
-                                                        p-3 rounded-[16px] border transition-all duration-300 cursor-pointer text-center
-                                                        ${selected 
-                                                            ? 'border-primary-200 bg-primary-50 text-primary-700 font-bold' 
-                                                            : 'border-surface-100 bg-surface-50/30 text-surface-500 hover:border-surface-200'
-                                                        }
+                                                        p-2.5 rounded-2xl border transition-all cursor-pointer text-center
+                                                        ${selected
+                                                            ? 'border-surface-900 bg-surface-900/5 text-surface-900 font-bold'
+                                                            : 'border-surface-100 bg-surface-50/50 text-surface-500 hover:border-surface-200'}
                                                     `}
                                                 >
                                                     <span className="text-[11px] tracking-tight">{opt}</span>
-                                                </div>
+                                                </button>
                                             );
                                         })}
                                     </div>
-                                    <div className="text-[11px] text-surface-400 px-1">
+                                    <div className="text-[10px] text-surface-400 px-1">
                                         可不选；再次点击已选项可取消。
                                     </div>
                                 </div>
@@ -229,26 +235,23 @@ const BasicInfoForm: React.FC<BasicInfoFormProps> = ({
 
                 {/* 右侧说明文本：转换为“轻量生产力”引导卡片 */}
                 {!isStudent && (
-                    <div className="lg:w-64 flex flex-col gap-4">
-                        <div className="p-6 bg-surface-50/50 rounded-[20px] border border-surface-100/50 space-y-4">
-                            <div className="flex items-center gap-2 text-surface-900 font-black text-xs tracking-tight">
-                                <Info size={14} />
+                    <div className="lg:w-56 flex flex-col gap-3">
+                        <div className="p-4 bg-surface-50/80 rounded-2xl border border-surface-100 space-y-3">
+                            <div className="flex items-center gap-2 text-surface-900 font-black text-[11px] tracking-tight">
+                                <Info size={12} />
                                 <span>设计指南</span>
                             </div>
-                            <div className="space-y-4 text-[11px] text-surface-500 leading-relaxed font-medium">
+                            <div className="space-y-3 text-[11px] text-surface-500 leading-relaxed font-medium">
                                 <div className="flex gap-2">
-                                    <Target size={12} className="shrink-0 text-primary-400" />
-                                    <p>训练项目会直接关联动作库的<span className="text-surface-900 font-bold">自动筛选</span>逻辑。</p>
+                                    <Target size={10} className="shrink-0 text-primary-500 mt-0.5" />
+                                    <p>训练项目关联动作库的<span className="text-surface-900 font-bold">自动筛选</span>逻辑。</p>
                                 </div>
                                 <div className="flex gap-2">
-                                    <div className="w-3 h-3 rounded-full bg-green-100 shrink-0" />
+                                    <div className="w-2 h-2 rounded-full bg-green-500/60 shrink-0 mt-1.5" />
                                     <p>每周次数用于匹配学员问卷，实现<span className="text-surface-900 font-bold">智能分发</span>。</p>
                                 </div>
                             </div>
                         </div>
-                        
-                        {/* 装饰位：体现 Aero 风格的层级 */}
-                        <div className="flex-1 rounded-[20px] bg-gradient-to-br from-primary-50 to-transparent opacity-40 border border-dashed border-primary-200" />
                     </div>
                 )}
             </div>

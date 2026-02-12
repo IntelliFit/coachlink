@@ -103,8 +103,11 @@ export async function GET(request: NextRequest) {
 
         // 4. 格式化数据
         const activities = executions.map((ex: any) => {
-            // 简单计算容量
+            // 计算容量 + 找出亮点动作（最大重量的组）
             let totalVolume = 0;
+            let highlight: { actionName: string; weight: number; reps: number } | null = null;
+            let maxWeight = 0;
+
             if (ex.action_executions && Array.isArray(ex.action_executions)) {
                 ex.action_executions.forEach((action: any) => {
                     if (action.sets && Array.isArray(action.sets)) {
@@ -112,8 +115,19 @@ export async function GET(request: NextRequest) {
                             if (
                                 set.status === "completed" || set.completed_at
                             ) {
-                                totalVolume += (set.actual_weight || 0) *
-                                    (set.actual_reps || 0);
+                                const weight = set.actual_weight || 0;
+                                const reps = set.actual_reps || 0;
+                                totalVolume += weight * reps;
+
+                                // 找最大重量的组作为亮点
+                                if (weight > maxWeight && reps > 0) {
+                                    maxWeight = weight;
+                                    highlight = {
+                                        actionName: action.action_name || action.name || "动作",
+                                        weight: weight,
+                                        reps: reps,
+                                    };
+                                }
                             }
                         });
                     }
@@ -143,6 +157,7 @@ export async function GET(request: NextRequest) {
                     durationMinutes: duration,
                     completedAt: ex.completed_at,
                     shareToken: ex.share_token,
+                    highlight: highlight,
                 },
             };
         });

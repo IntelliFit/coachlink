@@ -114,11 +114,18 @@ export async function POST(req: Request) {
         data: { publicUrl },
     } = supabase.storage.from("videos").getPublicUrl(path);
 
+    const supabaseUrl = (process.env.NEXT_SUPABASE_URL || process.env.SUPABASE_URL || "").replace(/\/+$/, "");
+    const encodedPath = path.split("/").map((seg) => encodeURIComponent(seg)).join("/");
+    const uploadUrl = supabaseUrl
+        ? `${supabaseUrl}/storage/v1/object/upload/sign/videos/${encodedPath}?token=${encodeURIComponent(signed.token)}`
+        : "";
+
     const resp: CreateVideoUploadUrlResponseDto = {
         bucket: "videos",
         path,
         token: signed.token,
         publicUrl,
+        uploadUrl,
     };
 
     return NextResponse.json<ApiData<CreateVideoUploadUrlResponseDto>>({
