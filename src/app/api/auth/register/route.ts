@@ -110,16 +110,17 @@ export async function POST(req: NextRequest) {
             .single();
     }
 
-    const { data: existingUsers, error: existingUserError } = await existingUserQuery;
+    const { data: existingUser, error: existingUserError } = await existingUserQuery;
 
     if (existingUserError) {
         console.warn("[register] failed to check existing user:", existingUserError.message);
     }
 
-    if (existingUsers && existingUsers.length > 0) {
+    // .single() 返回单个对象或 null，不是数组
+    if (existingUser) {
         return NextResponse.json<ApiData<null>>({
             success: false,
-            message: isPhone ? "手机号已注册" : "邮箱已注册",
+            message: isPhone ? "手机号已被注册" : "该邮箱已被注册",
             data: null,
         });
     }
@@ -147,7 +148,7 @@ export async function POST(req: NextRequest) {
         referrerCoachId = coach.id;
     }
 
-    const { data: user } = await supabase
+    const { data: user, error: userError } = await supabase
         .from("users")
         .insert({
             ...(isPhone ? { phone: trimmedPhoneOrEmail } : { email: trimmedPhoneOrEmail }),
@@ -160,9 +161,10 @@ export async function POST(req: NextRequest) {
         .single();
 
     if (!user) {
+        console.error("[register] 创建用户失败:", userError?.message);
         return NextResponse.json<ApiData<null>>({
             success: false,
-            message: "注册失败，无法创建用户",
+            message: "注册失败，请稍后重试",
             data: null,
         });
     }

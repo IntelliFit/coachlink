@@ -14,26 +14,32 @@ interface SliderCaptchaProps {
 
 const TRACK_WIDTH = 280;
 const THUMB_SIZE = 40;
+const IMAGE_HEIGHT = 56;
 
 export default function SliderCaptcha({ visible, onHide, onSuccess }: SliderCaptchaProps) {
     const { showToast } = useToastContext();
     const [loading, setLoading] = useState(false);
     const [verifying, setVerifying] = useState(false);
     const [id, setId] = useState<string | null>(null);
-    const [backgroundImage, setBackgroundImage] = useState<string>('');
+    const [imageUrl, setImageUrl] = useState<string>('');
     const [position, setPosition] = useState(0);
     const [dragging, setDragging] = useState(false);
     const trackRef = useRef<HTMLDivElement>(null);
     const dragStartRef = useRef({ x: 0, base: 0 });
+    /** 同步标记，防止 pointerUp + pointerLeave 等重复触发导致连续两次 verify（第二次会拿到「验证已过期」） */
+    const verifyInFlightRef = useRef(false);
 
     const loadChallenge = useCallback(async () => {
+        verifyInFlightRef.current = false;
         setLoading(true);
         setId(null);
+        setImageUrl('');
         setPosition(0);
+        setVerifying(false);
         try {
             const data = await captchaService.create();
             setId(data.id);
-            setBackgroundImage(data.backgroundImage || '/coachlink.jpg');
+            setImageUrl(data.imageUrl || '');
         } catch (e: any) {
             showToast({ severity: 'error', summary: '加载验证失败', detail: e?.message });
         } finally {
@@ -75,23 +81,21 @@ export default function SliderCaptcha({ visible, onHide, onSuccess }: SliderCapt
         }
         setDragging(false);
         if (!id || verifying) return;
-        const thumbRight = position + THUMB_SIZE;
-        if (thumbRight < 250) {
-            setPosition(0);
-            showToast({ severity: 'warn', summary: '请滑动到最右侧完成验证' });
-            return;
-        }
+        if (verifyInFlightRef.current) return;
+        verifyInFlightRef.current = true;
         setVerifying(true);
         try {
-            const token = await captchaService.verify(id, thumbRight);
+            const token = await captchaService.verify(id, position);
             onSuccess(token);
             onHide();
-        } catch (e: any) {
+        } catch (err: any) {
+            verifyInFlightRef.current = false;
             setPosition(0);
-            showToast({ severity: 'error', summary: '验证失败', detail: e?.message });
+            showToast({ severity: 'error', summary: '验证失败', detail: err?.message });
             loadChallenge();
         } finally {
             setVerifying(false);
+            // 成功时不重置 ref，避免 pointerLeave 等再次触发时二次请求 verify 导致「验证已过期」误报
         }
     };
 
@@ -109,7 +113,7 @@ export default function SliderCaptcha({ visible, onHide, onSuccess }: SliderCapt
             pt={{ root: { className: 'rounded-2xl' }, content: { className: 'rounded-b-2xl' } }}
         >
             <div className="p-6">
-                <p className="text-sm text-surface-500 mb-4">请滑动到最右侧完成验证</p>
+                <p className="text-sm text-surface-500 mb-4">请将滑块滑动到缺口位置完成验证</p>
 
                 {loading ? (
                     <div className="h-[140px] rounded-xl bg-surface-100 flex items-center justify-center">
@@ -117,6 +121,30 @@ export default function SliderCaptcha({ visible, onHide, onSuccess }: SliderCapt
                     </div>
                 ) : id ? (
                     <>
+                        {imageUrl ? (
+                            <div
+                                className="relative rounded-xl overflow-hidden border border-surface-200 mb-3"
+                                style={{ width: TRACK_WIDTH, maxWidth: '100%' }}
+                            >
+                                <img
+                                    src={imageUrl}
+                                    alt="验证缺口"
+                                    width={TRACK_WIDTH}
+                                    height={IMAGE_HEIGHT}
+                                    className="block w-full h-auto pointer-events-none"
+                                />
+                                {/* 与下滑块同步的虚影，方便用户对照缺口对齐 */}
+                                <div
+                                    className="absolute top-0 bottom-0 rounded-lg border-2 border-primary-400/80 bg-primary-500/25 pointer-events-none transition-[left] duration-0"
+                                    style={{
+                                        left: position,
+                                        width: THUMB_SIZE,
+                                        boxShadow: '0 0 0 1px rgba(14, 165, 233, 0.3)',
+                                    }}
+                                    aria-hidden
+                                />
+                            </div>
+                        ) : null}
                         <div
                             ref={trackRef}
                             className="relative w-full h-11 rounded-xl bg-surface-100 border border-surface-200 select-none"

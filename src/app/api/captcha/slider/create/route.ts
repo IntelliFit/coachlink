@@ -5,8 +5,11 @@ import redis from "@/lib/redisClient";
 import { randomUUID } from "crypto";
 
 const TRACK_WIDTH = 280;
-const SLIDE_THRESHOLD = 250; // 滑动超过此位置即通过
+const THUMB_SIZE = 40;
 const CAPTCHA_TTL = 300; // 5 分钟
+// 目标位置范围：缺口在轨道内且与左右边有一定距离，仅后端知晓
+const TARGET_MIN = 50;
+const TARGET_MAX = TRACK_WIDTH - THUMB_SIZE - 50;
 
 export async function POST() {
     if (!redis) {
@@ -18,8 +21,11 @@ export async function POST() {
     }
 
     const id = randomUUID();
+    const target = TARGET_MIN + Math.floor(Math.random() * (TARGET_MAX - TARGET_MIN + 1));
     const key = `captcha:slider:${id}`;
-    await redis.setEx(key, CAPTCHA_TTL, String(SLIDE_THRESHOLD));
+    await redis.setEx(key, CAPTCHA_TTL, String(target));
+
+    const imageUrl = `/api/captcha/slider/image?id=${encodeURIComponent(id)}`;
 
     return NextResponse.json<ApiData<SliderCreateResponseDto>>({
         success: true,
@@ -27,6 +33,7 @@ export async function POST() {
         data: {
             id,
             trackWidth: TRACK_WIDTH,
+            imageUrl,
             backgroundImage: "/coachlink.jpg",
         },
     });

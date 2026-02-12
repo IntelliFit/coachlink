@@ -381,14 +381,8 @@ function TrainingExecutionContent() {
             return true;
         }
 
-        // Supabase Storage public / signed URL 一般可直接播放
-        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-        if (
-            (supabaseUrl && url.includes(supabaseUrl)) ||
-            url.includes("/storage/v1/object/")
-        ) {
-            return true;
-        }
+        // Supabase Storage public / signed URL 一般可直接播放（不依赖前端 env）
+        if (url.includes("/storage/v1/object/")) return true;
 
         return false;
     };
