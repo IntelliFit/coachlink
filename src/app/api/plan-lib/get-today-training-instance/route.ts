@@ -7,6 +7,8 @@ import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 import { calcIntensityDisplay, normalizeIntensityConfig } from "@/lib/rmCaculator";
 import { normalizeToKg } from "@/types/intensity";
 import { getCurrent1RMRecords } from "@/app/api/student/get-current-1rm/route";
+import { isOneRMEligibleAction } from "@/lib/oneRmEligibility";
+import { syncCoachActionsToStudentLibrary } from "../sync-actions";
 
 // 内部辅助函数：获取单个计划实例（复用 get-instance 的核心逻辑）
 async function getSingleInstance(
@@ -126,6 +128,17 @@ async function getSingleInstance(
                 coachActions.forEach((action) => {
                     actionsMap[action.id] = action;
                 });
+
+                // 教练计划涉及的动作自动同步到学员动作库，便于后续按动作维护全局1RM。
+                const syncTargetStudentId =
+                    (instance.student_id as string | null) || subscriptionStudentId;
+                if (syncTargetStudentId && instance.coach_subscription_id) {
+                    await syncCoachActionsToStudentLibrary(
+                        syncTargetStudentId,
+                        coachActions as any[],
+                        actionIds,
+                    );
+                }
             }
 
             // 查询学员动作库
@@ -167,7 +180,11 @@ async function getSingleInstance(
             const bodyWeight = Number(profile?.weight || 0);
 
             // Build a 1RM map (ID + Name) for fast lookup
-            const records = await getCurrent1RMRecords(userId, { targetUserId: targetStudentId });
+            const records = await getCurrent1RMRecords(userId, {
+                targetUserId: targetStudentId,
+                // 教练订阅计划默认按 PR 递增逻辑计算计划负荷，避免状态波动导致自动降重。
+                preferPR: !!instance.coach_subscription_id,
+            });
 
             const rmMap: Record<string, number> = {};
             // getCurrent1RMRecords 已经返回了每个动作的最新记录（按时间优先级）

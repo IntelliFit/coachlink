@@ -3,6 +3,7 @@ export interface GetCurrent1RMDto {
     actionIds?: string[]; // Optional: specific action IDs
     actionNames?: string[]; // Optional: specific action names
     targetUserId?: string; // Optional: fetch for a specific user (if caller is coach)
+    preferPR?: boolean; // Optional: use PR-oriented aggregation (mainly increasing)
 }
 
 // Response DTO

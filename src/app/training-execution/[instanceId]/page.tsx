@@ -14,11 +14,13 @@ import { ArrowLeft, Play, Video, Check, Star, ChevronUp, ChevronDown, Timer, Upl
 import { executionService } from '@/app/service/executionService';
 import { planLibService } from '@/app/service/planLibService';
 import { videoService } from '@/app/service/videoService';
+import { studentActionLibService } from '@/app/service/studentActionLibService';
 import { useToastContext } from '@/context/ToastContext';
 import ShareCardGenerator from '@/components/share/ShareCardGenerator';
 import { AeroInputNumber } from '@/components/AeroInputNumber';
 import { useAnalytics } from '@/hooks/useAnalytics';
 import ActionPicker from '@/app/today-training/ActionPicker';
+import { isOneRMEligibleAction } from '@/lib/oneRmEligibility';
 
 interface SetData {
     set_number: number;
@@ -59,6 +61,7 @@ function TrainingExecutionContent() {
     const { showToast } = useToastContext();
     const { trackEvent } = useAnalytics();
     const calibrationToastShownRef = useRef(false);
+    const underPlanToastShownRef = useRef(false);
     const focusHandledRef = useRef(false);
 
     const instanceId = params.instanceId as string;
@@ -101,6 +104,15 @@ function TrainingExecutionContent() {
         return Number.isFinite(n) ? n : null;
     };
 
+    const parsePlannedReps = (planned?: string | null): number | null => {
+        const s = String(planned || '').trim();
+        if (!s) return null;
+        const m = s.match(/\d+/);
+        if (!m) return null;
+        const n = Number(m[0]);
+        return Number.isFinite(n) ? n : null;
+    };
+
     // 超时未结束提醒（in_progress 挂太久）
     const [staleReminderVisible, setStaleReminderVisible] = useState(false);
     const [staleHours, setStaleHours] = useState<number>(0);
@@ -117,6 +129,10 @@ function TrainingExecutionContent() {
     const [uploading, setUploading] = useState(false);
     const [uploadProgress, setUploadProgress] = useState<number>(0);
     const fileInputRef = React.useRef<HTMLInputElement>(null);
+    const [oneRMDialogVisible, setOneRMDialogVisible] = useState(false);
+    const [oneRMSettingAction, setOneRMSettingAction] = useState<any | null>(null);
+    const [oneRMSettingValue, setOneRMSettingValue] = useState<number | null>(null);
+    const [oneRMSettingSaving, setOneRMSettingSaving] = useState(false);
     
     // Video modal state
     const [videoModalVisible, setVideoModalVisible] = useState(false);
@@ -234,6 +250,91 @@ function TrainingExecutionContent() {
         if (Number.isFinite(numeric) && numeric > 0 && planned.replace(/[^0-9.]/g, '').length > 0) return true;
         // 其他情况（RM / %1RM / RPE 等）先不强制
         return false;
+    };
+
+    const isActionOneRMEligible = (action: any) => {
+        return isOneRMEligibleAction({
+            type: action?.type,
+            attrs: action?.attrs,
+            enableAutoWeightCompute: action?.enableAutoWeightCompute ?? action?.enable_auto_weight_compute,
+        });
+    };
+
+    const shouldPromptOneRM = (action: any, setData: SetData) => {
+        if (!planInstance?.coach_subscription_id) return false;
+        if (!isActionOneRMEligible(action)) return false;
+        const plannedWeightRaw = String(setData?.planned_weight || '').toLowerCase();
+        const usesRelativeIntensity = plannedWeightRaw.includes('rm') || plannedWeightRaw.includes('%');
+        const alreadyHasKgLoad = plannedWeightRaw.includes('kg');
+        const hasReferenceOneRM = typeof action?.reference_1rm === 'number' &&
+            Number.isFinite(action.reference_1rm) &&
+            action.reference_1rm > 0;
+        return usesRelativeIntensity && !alreadyHasKgLoad && !hasReferenceOneRM;
+    };
+
+    const handleSaveQuickOneRM = async () => {
+        if (!oneRMSettingAction || oneRMSettingValue === null || oneRMSettingValue <= 0) {
+            showToast({ severity: 'warn', summary: '请输入有效1RM', detail: '1RM 需大于 0' });
+            return;
+        }
+        try {
+            setOneRMSettingSaving(true);
+            const searchRes = await studentActionLibService.listActions({
+                search: oneRMSettingAction.name,
+                page: 1,
+                limit: 50,
+            });
+            const candidates = searchRes?.actions || [];
+            const matched = candidates.find((a) =>
+                oneRMSettingAction.canonical_action_id &&
+                a.canonical_action_id &&
+                a.canonical_action_id === oneRMSettingAction.canonical_action_id
+            ) || candidates.find((a) => a.name === oneRMSettingAction.name);
+
+            if (matched?.id) {
+                await studentActionLibService.updateAction({
+                    id: matched.id,
+                    reference_1rm: oneRMSettingValue,
+                } as any);
+            } else {
+                await studentActionLibService.addAction({
+                    name: oneRMSettingAction.name,
+                    detail: oneRMSettingAction.detail || null,
+                    url: oneRMSettingAction.url || oneRMSettingAction.video_url || null,
+                    positions: oneRMSettingAction.positions || ['全身'],
+                    attrs: oneRMSettingAction.attrs || ['组数', '次数', '强度', '休息时间'],
+                    type: oneRMSettingAction.type || 'STRENGTH',
+                    enableAutoWeightCompute: !!(oneRMSettingAction.enableAutoWeightCompute ?? oneRMSettingAction.enable_auto_weight_compute),
+                    includesBodyWeight: !!(oneRMSettingAction.includesBodyWeight ?? oneRMSettingAction.includes_body_weight),
+                    canonical_action_id: oneRMSettingAction.canonical_action_id || null,
+                    reference_1rm: oneRMSettingValue,
+                } as any);
+            }
+
+            setActions((prev) => ({
+                ...prev,
+                [oneRMSettingAction.id]: {
+                    ...prev[oneRMSettingAction.id],
+                    reference_1rm: oneRMSettingValue,
+                },
+            }));
+
+            showToast({
+                severity: 'success',
+                summary: '1RM 已保存',
+                detail: `${oneRMSettingAction.name} 已更新全局参考1RM`,
+            });
+            setOneRMDialogVisible(false);
+            await startTraining();
+        } catch (error: any) {
+            showToast({
+                severity: 'error',
+                summary: '保存失败',
+                detail: error?.message || '无法保存动作1RM',
+            });
+        } finally {
+            setOneRMSettingSaving(false);
+        }
     };
 
     const setKeyOf = (actionIndex: number, setIndex: number) => `${actionIndex}:${setIndex}`;
@@ -486,11 +587,23 @@ function TrainingExecutionContent() {
             const setData = actionExecution.sets[setIndex];
             const isEditing = setData.status === 'completed';
             const plannedKg = parsePlannedWeightKg(setData.planned_weight);
+            const plannedReps = parsePlannedReps(setData.planned_reps);
             const weightChangedFromPlanned =
                 plannedKg !== null &&
                 weight !== null &&
                 weight !== undefined &&
                 Math.abs(Number(weight) - Number(plannedKg)) >= 0.1;
+            const isCoachSubscriptionPlan = !!planInstance?.coach_subscription_id;
+            const underPlannedWeight =
+                plannedKg !== null &&
+                weight !== null &&
+                weight !== undefined &&
+                Number(weight) < Number(plannedKg) - 0.1;
+            const underPlannedReps =
+                plannedReps !== null &&
+                reps !== null &&
+                reps !== undefined &&
+                Number(reps) < Number(plannedReps);
 
             // 1. Upload video first if selected (so API can retrieve video_url)
             let uploadedVideoUrl: string | undefined;
@@ -711,6 +824,22 @@ function TrainingExecutionContent() {
                     severity: 'info',
                     summary: '已完成校准',
                     detail: `已记录真实重量。${e1rmText}本次后续组会联动；下次同动作自动算重量也会更贴合。`,
+                });
+            }
+
+            // 教练订阅计划：如果实际完成低于计划目标，提醒学员在问卷中手动下调 1RM。
+            if (
+                isCoachSubscriptionPlan &&
+                !isEditing &&
+                (underPlannedWeight || underPlannedReps) &&
+                !underPlanToastShownRef.current
+            ) {
+                underPlanToastShownRef.current = true;
+                showToast({
+                    severity: 'warn',
+                    summary: '当前状态低于计划目标',
+                    detail: '建议前往“个人档案-需求问卷”下调该动作的 1RM，后续计划重量会按新的极限值计算。',
+                    life: 6000,
                 });
             }
 
@@ -1390,6 +1519,41 @@ function TrainingExecutionContent() {
                                                     {/* 当前组才展示完整表单（减少单组占屏面积） */}
                                                     {showSetForm && (
                                                         <div className="px-4 pb-4">
+                                                            {shouldPromptOneRM(action, setData) && (
+                                                                <div className="mt-3 mb-2 rounded-xl border border-amber-200 bg-amber-50 p-3">
+                                                                    <div className="text-xs font-bold text-amber-700">
+                                                                        当前动作需要1RM
+                                                                    </div>
+                                                                    <div className="mt-1 text-xs text-amber-700/90">
+                                                                        检测到该动作启用了智能计算且使用强度配置，建议先设置全局1RM再继续训练。
+                                                                    </div>
+                                                                    <div className="mt-2 flex gap-2">
+                                                                        <Button
+                                                                            type="button"
+                                                                            label="快捷设置1RM"
+                                                                            icon="pi pi-sliders-h"
+                                                                            className="p-button-sm rounded-xl"
+                                                                            onClick={() => {
+                                                                                setOneRMSettingAction(action);
+                                                                                setOneRMSettingValue(
+                                                                                    typeof action?.reference_1rm === 'number' &&
+                                                                                        Number.isFinite(action.reference_1rm)
+                                                                                        ? action.reference_1rm
+                                                                                        : null
+                                                                                );
+                                                                                setOneRMDialogVisible(true);
+                                                                            }}
+                                                                        />
+                                                                        <Button
+                                                                            type="button"
+                                                                            label="去动作库"
+                                                                            icon="pi pi-arrow-right"
+                                                                            className="p-button-text p-button-sm"
+                                                                            onClick={() => router.push('/me/action-lib')}
+                                                                        />
+                                                                    </div>
+                                                                </div>
+                                                            )}
                                                             {/* 只展示：重量 / 次数 / RPE + 进步组勾选（其余折叠） */}
                                                             {/* iPhone 14 Pro Max 等较宽机型：避免 RPE 被挤到下一行，强制 4 列同排 */}
                                                             <div className="mt-3 grid grid-cols-[minmax(0,1fr)_72px_72px_52px] items-end gap-2">
@@ -2000,6 +2164,51 @@ function TrainingExecutionContent() {
                     </video>
                 </div>
             )}
+        </Dialog>
+
+        <Dialog
+            visible={oneRMDialogVisible}
+            onHide={() => setOneRMDialogVisible(false)}
+            header="设置全局1RM"
+            style={{ width: '92vw', maxWidth: '480px' }}
+            modal
+            dismissableMask
+        >
+            <div className="space-y-3">
+                <div className="text-sm text-surface-700">
+                    动作：<span className="font-bold">{oneRMSettingAction?.name || '-'}</span>
+                </div>
+                <div>
+                    <label className="text-xs font-bold text-surface-600">参考1RM (kg)</label>
+                    <AeroInputNumber
+                        value={oneRMSettingValue}
+                        onValueChange={(e) => setOneRMSettingValue(e.value ?? null)}
+                        min={0}
+                        max={500}
+                        maxFractionDigits={1}
+                        suffix="kg"
+                        className="w-full mt-1"
+                        inputClassName="w-full"
+                    />
+                </div>
+                <div className="text-xs text-surface-500">
+                    保存后会作为该动作的学员全局1RM，后续计划将直接复用。
+                </div>
+                <div className="flex justify-end gap-2 pt-2">
+                    <Button
+                        label="取消"
+                        className="p-button-text"
+                        onClick={() => setOneRMDialogVisible(false)}
+                        disabled={oneRMSettingSaving}
+                    />
+                    <Button
+                        label="保存"
+                        icon="pi pi-check"
+                        onClick={handleSaveQuickOneRM}
+                        loading={oneRMSettingSaving}
+                    />
+                </div>
+            </div>
         </Dialog>
 
         {/* Share Card Modal */}

@@ -9,8 +9,9 @@ export interface DevUser {
 }
 
 export const DEV_USERS: DevUser[] = [
-  { name: "教练(枭马葛助理)", phone: "18115072586", password: "123456" },
+ 
   { name: "学员(沈妈妈)", phone: "13921064643", password: "123456" },
+  { name: "教练(MAX)", phone: "13915850622", password: "123456" },
   { name: "管理员(小马哥)", phone: "13915850621", password: "123456" },
-  { name: "教练(刘三乐)", phone: "17633133621", password: "123456" },
+  { name: "教练(枭马葛助理)", phone: "18115072586", password: "123456" },
 ];

@@ -29,6 +29,7 @@ import { GetStudentResponseDto } from '@/app/api/coach/get-student/entity';
 import { subscriptionService } from '@/app/service/subscriptionService';
 import StudentPlanExecutionView from './components/StudentPlanExecutionView';
 import BatchActionsDialog, { BatchOperation } from '@/app/dashboard/plan-lib/components/BatchActionsDialog';
+import CoachOneRMConfigPanel from './components/CoachOneRMConfigPanel';
 import {
     appendActionToDays,
     deleteActionInDays,
@@ -127,10 +128,8 @@ const StudentPlanPage = () => {
                     executionPromise.catch(e => (console.error('Execution load failed', e), null))
                 ]);
 
-                // 3. 处理 Actions
-                if (actionsRes?.actions) {
-                    setActions(actionsRes.actions);
-                }
+                // 3. 先记录动作库结果，后续会与实例内 actions 映射合并
+                const baseActions: CoachActionRow[] = (actionsRes?.actions || []) as CoachActionRow[];
 
                 // 4. 处理 Student Data
                 if (studentRes?.student) {
@@ -170,6 +169,23 @@ const StudentPlanPage = () => {
                         setSelectedDayIndex(null);
                     }
                 }
+
+                // 5.1 合并动作来源：
+                // - 教练动作库（action-lib/list-actions）
+                // - 当前计划实例返回的 actions 映射（可能包含“非当前教练动作库”的历史动作）
+                // 这样可避免教练页出现“未选定动作”，但学员页正常的分裂表现。
+                const mergedActionMap = new Map<string, CoachActionRow>();
+                baseActions.forEach((a) => {
+                    if (a?.id) mergedActionMap.set(a.id, a);
+                });
+                const instanceActions = (instanceRes?.actions || {}) as Record<string, CoachActionRow>;
+                Object.values(instanceActions).forEach((a) => {
+                    if (!a?.id) return;
+                    if (!mergedActionMap.has(a.id)) {
+                        mergedActionMap.set(a.id, a);
+                    }
+                });
+                setActions(Array.from(mergedActionMap.values()));
 
                 // 6. 处理 Executions (执行记录)
                 if (exeRes?.executions) {
@@ -1052,7 +1068,32 @@ const StudentPlanPage = () => {
                     }
                 />
 
-
+                {/* 1RM设置面板 */}
+                {subscription && studentData && (
+                    <CoachOneRMConfigPanel
+                        days={days}
+                        actions={actions}
+                        studentData={studentData}
+                        subscriptionId={params.id as string}
+                        onSave={() => {
+                            // 刷新学员数据以更新1RM显示
+                            const refreshStudent = async () => {
+                                try {
+                                    const studentRes = await coachService.getStudent({
+                                        subscriptionId: params.id.toString(),
+                                        need1RM: true,
+                                    });
+                                    if (studentRes) {
+                                        setStudentData(studentRes.student);
+                                    }
+                                } catch (error) {
+                                    console.error('刷新学员数据失败:', error);
+                                }
+                            };
+                            refreshStudent();
+                        }}
+                    />
+                )}
 
                 <Card className="shadow-sm mb-6 bg-surface-0 border border-surface-200/70 rounded-[24px]">
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 min-h-[500px]">

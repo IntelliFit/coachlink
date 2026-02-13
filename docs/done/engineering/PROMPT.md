@@ -136,3 +136,19 @@ export async function POST(req: Request) {
 ```
 
 新建立表RLS一定要关闭。
+
+---
+
+## 高频复发 Bug 防线（开发前必看）
+
+为避免同类问题反复出现，开始改动前请先快速阅读：
+
+- `docs/done/engineering/高频复发Bug清单.md`
+- `docs/done/engineering/代码检查清单.md`
+
+尤其是前端列表/表单编辑场景，必须先统一“索引语义”：
+
+- `dayIndex`（业务序号，通常从 1 开始）
+- `arrayIndex`（数组下标，始终从 0 开始）
+
+在同一条数据修改链路（新增/删除/更新）里，不允许混用这两种索引语义。

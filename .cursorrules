@@ -1,0 +1,58 @@
+# CoachLink Cursor Rules
+
+## Language
+- Always respond in Chinese-simplified.
+
+## Preflight (before coding)
+- Read `docs/done/engineering/PROMPT.md` first.
+- Identify affected chain before edits: page/component -> service -> api -> db.
+- If requirement is ambiguous, inspect code first; do not guess and modify blindly.
+
+## Data consistency gate (high frequency regressions)
+- Keep index semantics explicit and consistent in one edit chain:
+  - `dayIndex`: business index (usually 1-based)
+  - `arrayIndex`: array offset (0-based)
+- Keep empty-value semantics consistent across layers: `null` vs `undefined` vs `''`.
+- For list-edit CRUD flows, verify add/delete/update all work after changes.
+
+## Boundary and security gate
+- Frontend must not access database directly; use `@/app/service` -> `@/app/api`.
+- Identity and permission must come from session, not user-provided IDs.
+- Coach/student boundary checks are mandatory in related APIs.
+
+## Recurring bug knowledge capture (team default)
+- Do not rely on personal judgment only. Use the following triggers.
+- When any trigger is met, you MUST append/update docs:
+  1) Same bug pattern appears at least 2 times in different files/modules; or
+  2) A bug belongs to known high-risk classes: index mismatch, async state/persistence mismatch, null/undefined semantics mismatch, permission/session boundary mismatch; or
+  3) The fix involves behavior regression risk in CRUD/list-edit flows.
+
+## Where to update
+- Pattern-level knowledge -> append to `docs/done/engineering/高频复发Bug清单.md`.
+- Checkable guardrails -> append checklist items/examples to `docs/done/engineering/代码检查清单.md`.
+- If coding conventions change, add a short pointer in `docs/done/engineering/PROMPT.md`.
+
+## Append format (keep short)
+- For `高频复发Bug清单.md`, append one compact block:
+  - 现象
+  - 根因
+  - 统一规则
+  - 改动前自检
+- For `代码检查清单.md`, append:
+  - 一个“错误示例 vs 正确示例”
+  - 一个可勾选检查项
+
+## Constraints
+- Do not create long new markdown files unless explicitly requested.
+- Prefer appending to existing docs instead of creating new docs.
+- Keep each new rule minimal and actionable.
+- Never revert unrelated user changes.
+- Never use destructive git commands unless explicitly requested.
+
+## Done criteria (must pass before final reply)
+- Run lints for edited files and fix newly introduced issues when feasible.
+- Ensure key path works for this change (especially CRUD/list-edit operations).
+- In final reply, include:
+  - `是否触发知识沉淀：是/否`
+  - `若是，已更新文件：...`
+
