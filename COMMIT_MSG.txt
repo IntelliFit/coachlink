@@ -1,0 +1,229 @@
+feat: 动作canonical整改 + 1RM系统重构 + 计划自动匹配 + 多教练支持
+
+## 一、动作 Canonical ID 整改（核心）
+
+### 背景问题
+系统中同一业务动作在不同表出现"同名不同ID"：
+- coach_actions、student_actions、personal_records_history 各自存储
+- 导致力量曲线下拉出现同名项但"无数据"
+- 1RM回填命中率低（按ID匹配时漏掉同名异ID）
+- 教练计划动作同步到学员动作库后继续累积重复
+
+### 解决方案
+
+#### 1. 新增 canonical 解析器
+- 文件：src/lib/canonicalActionResolver.ts
+- 功能：
+  - buildCanonicalLookup：构建规范化名称到canonical_action_id的映射
+  - resolveCanonicalActionId：根据动作名解析或自动生成canonical_action_id
+- 策略：
+  - 手动创建动作：若无匹配，自动生成 auto_xxx 格式的canonical_action_id
+  - 外部导入动作：必须匹配到现有canonical，否则拒绝
+
+#### 2. 修改所有动作新增API
+- src/app/api/action-lib/add-action/route.ts（教练动作库）
+- src/app/api/student/action-lib/add-action/route.ts（学员动作库）
+- src/app/api/plan-lib/batch-create-actions/route.ts（教练批量创建）
+- src/app/api/student/action-lib/batch-create/route.ts（学员批量创建）
+- 改动：
+  - 所有动作类型都必须有canonical_action_id
+  - 新增同域唯一性检查：教练库(coach_id, name)唯一，学员库(user_id, name)唯一
+  - 集成canonicalActionResolver自动解析/生成canonical
+
+#### 3. 跨域归并回填
+- 文件：supabase/migrations/20260214_backfill_canonical_action_id_cross_domain.sql
+- 逻辑：
+  - 从coach_actions、student_actions、community_actions三表收集缺失canonical的动作
+  - 按属性签名（name+type+positions+attrs+item_schema+suggested_time+autoWeight+bodyWeight）归并
+  - 属性完全一致的动作分配同一个canonical_action_id
+- 执行结果：
+  - 生成243个独立canonical
+  - 回填coach_actions: 144条、student_actions: 805条、community_actions: 15条
+
+#### 4. 同域同名重复清理
+- 问题：部分用户在3分钟内被批量写入大量同名动作（历史bug）
+- 清理：2个用户，删除77条重复记录，每组同名动作保留最早创建的1条
+
+---
+
+## 二、1RM 系统重构
+
+### 1. 新增全局参考1RM概念
+- 在 student_actions 表新增 reference_1rm 字段
+- 文件：supabase/migrations/20260211_student_actions_reference_1rm.sql
+- 意义：每个动作在学员动作库中有一个"全局参考1RM"，作为所有计划的默认极限值
+
+### 2. 1RM获取逻辑重构
+- 文件：src/app/api/student/get-current-1rm/route.ts (+112行)
+- 数据源优先级：
+  1. PR历史记录（personal_records_history）
+  2. 学员动作库基线（student_actions.reference_1rm）← 新增
+  3. 问卷兜底（subscribe_data中的rm项）← 降级为最后兜底
+- 新增 preferPR 参数：
+  - preferPR=false（默认）：优先最新AUTO_STATE快照
+  - preferPR=true：忽略AUTO_STATE，取最强历史记录
+
+### 3. 1RM资格判定统一
+- 文件：src/lib/oneRmEligibility.ts（新增）
+- 统一判定逻辑：只有满足以下条件的动作才有1RM意义
+  - type === 'STRENGTH'
+  - attrs 包含 '强度'
+  - enableAutoWeightCompute === true
+
+### 4. 学员端1RM设置入口
+- 文件：src/app/me/action-lib/StudentActionEditDialog.tsx (+64行)
+- 在动作编辑对话框中新增"全局参考1RM"输入框
+- 仅对满足1RM资格的动作显示
+
+### 5. 教练端1RM配置面板
+- 文件：src/app/dashboard/students/plan/[id]/components/CoachOneRMConfigPanel.tsx（新增346行）
+- 功能：
+  - 在学员计划页面显示需要1RM的动作列表
+  - 教练可以批量设置学员的动作1RM
+  - 通过canonical/name匹配教练动作与学员动作
+
+### 6. 1RM批量更新API
+- 文件：src/app/api/coach/batch-update-student-1rm/（新增目录）
+- 功能：教练批量更新学员动作的reference_1rm
+
+### 7. 1RM历史回填脚本
+- supabase/migrations/20260214_backfill_student_actions_reference_1rm.sql（v1，有缺陷）
+- supabase/migrations/20260214_backfill_student_actions_reference_1rm_v2.sql（v2，建议执行）
+- v2规则：
+  - 只填reference_1rm is null（不覆盖已有）
+  - 仅资格动作（STRENGTH + 强度 + 自动计算）
+  - 优先非AUTO_STATE记录
+  - 若无非AUTO_STATE，用最新AUTO_STATE兜底
+
+---
+
+## 三、计划自动匹配
+
+### 1. 自动匹配服务
+- 文件：src/app/api/plan-lib/auto-match-plan/service.ts（新增85行）
+- 功能：为新订阅自动匹配并生成AI计划
+- 触发时机：
+  - 订阅创建且状态为active时（异步后台任务）
+  - 教练手动激活订阅时（同步执行并通知结果）
+
+### 2. 订阅创建时触发
+- 文件：src/app/api/subscription/create-subscription/route.ts (+27行)
+- 异步执行，不阻塞响应，失败静默处理
+
+### 3. 订阅激活时触发
+- 文件：src/app/api/subscription/update-subscription/route.ts (+12行)
+- 同步执行，失败时通知教练手动创建计划
+
+### 4. 延迟激活支持
+- 文件：src/app/api/plan-lib/activate-pending-plans/（新增目录）
+- 支持计划创建后延迟2分钟激活，避免学员立即看到计划
+
+---
+
+## 四、多教练支持
+
+### 学员端支持多个教练订阅
+- 文件：src/components/student/StudentProfilePage.tsx (+133行)
+- 改动：
+  - 从单一subscription改为subscriptions数组
+  - 支持显示多个教练的问卷配置
+  - 每个订阅独立显示教练名称
+  - 问卷编辑时记住当前选中的订阅
+
+---
+
+## 五、动作同步链路补齐
+
+### 计划动作自动同步到学员动作库
+- 文件：src/app/api/plan-lib/sync-actions.ts（新增）
+- 触发时机：
+  - create-instance（创建计划实例）
+  - update-instance（更新计划实例）
+  - get-instance（获取计划实例）
+  - get-today-training-instance（获取今日训练）
+- 逻辑：先查已存在再插入缺失，避免重复
+
+### 历史动作补齐脚本
+- 文件：supabase/migrations/20260214_backfill_student_actions_from_coach_plan_instances.sql
+- 把历史教练计划中出现但学员库缺失的动作补齐
+
+---
+
+## 六、力量曲线同名空数据修复
+
+### 前端改动
+- 文件：src/components/student/profile/E1RMProgressChart.tsx
+- 请求历史时同时传 actionId + actionName
+
+### 后端改动
+- 文件：src/app/api/student/get-e1rm-history/route.ts
+- 动作元信息查询增加 coach_actions -> student_actions 双源兜底
+
+### 下拉去重
+- 文件：src/app/api/student/get-available-actions/route.ts
+- 从按action_id去重改为按"归一化动作名"去重
+
+---
+
+## 七、训练执行页面增强
+- 文件：src/app/training-execution/[instanceId]/page.tsx (+209行)
+- 具体增强内容待补充
+
+---
+
+## 八、错误反馈优化
+- 文件：src/lib/baseService.ts (+25行)
+- 正确传递后端错误信息（res.data.message）到前端toast
+- 解决之前前端只显示"操作失败"无法区分具体错误的问题
+
+---
+
+## 九、文档沉淀
+
+### 新增文档
+- docs/done/engineering/动作canonical整改交接文档.md - 完整的背景、问题、方案、核验SQL
+- docs/done/engineering/高频复发Bug清单.md - 新增"新增/导入动作未确定canonical"条目
+
+### 更新文档
+- docs/done/engineering/代码检查清单.md - 新增canonical相关检查项
+- docs/done/engineering/PROMPT.md - 更新编码规范
+
+---
+
+## 涉及文件统计
+
+### 新增文件（17个）
+- src/lib/canonicalActionResolver.ts
+- src/lib/oneRmEligibility.ts
+- src/app/api/plan-lib/sync-actions.ts
+- src/app/api/plan-lib/auto-match-plan/（目录）
+- src/app/api/plan-lib/activate-pending-plans/（目录）
+- src/app/api/coach/batch-update-student-1rm/（目录）
+- src/app/api/coach/get-student-actions/（目录）
+- src/app/api/student/action-lib/batch-update-1rm/（目录）
+- src/app/dashboard/students/plan/[id]/components/CoachOneRMConfigPanel.tsx
+- supabase/migrations/20260211_student_actions_reference_1rm.sql
+- supabase/migrations/20260214_backfill_canonical_action_id_cross_domain.sql
+- supabase/migrations/20260214_backfill_student_actions_from_coach_plan_instances.sql
+- supabase/migrations/20260214_backfill_student_actions_reference_1rm.sql
+- supabase/migrations/20260214_backfill_student_actions_reference_1rm_v2.sql
+- supabase/migrations/20260214_verify_canonical_action_id_cross_domain.sql
+- docs/done/engineering/动作canonical整改交接文档.md
+- docs/done/engineering/高频复发Bug清单.md
+
+### 修改文件（40个）
+- 总计 +1378/-162 行
+
+---
+
+## 后续待办
+1. 考虑加数据库唯一约束（同域normalized_name唯一）彻底防旁路写入
+2. 宽松归并方案（只看name+type+positions，忽略其他属性）
+3. 人工合并工具（处理同名但属性不同的动作）
+
+---
+是否触发知识沉淀：是
+已更新文件：
+- docs/done/engineering/动作canonical整改交接文档.md（新增）
+- docs/done/engineering/高频复发Bug清单.md（新增）
+- docs/done/engineering/代码检查清单.md（更新）

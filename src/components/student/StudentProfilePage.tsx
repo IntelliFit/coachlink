@@ -21,6 +21,7 @@ import { useToastContext } from '@/context/ToastContext';
 import { TabView, TabPanel } from 'primereact/tabview';
 import { BarChart3, FileText, History, Video as VideoIcon } from 'lucide-react';
 import { StrengthProgressSection } from './profile/StrengthProgressSection';
+import type { QueryCoachSubscription } from '@/app/api/subscription/coach-subscriptions/entity';
 
 interface StudentProfilePageProps {
     onBack?: () => void;
@@ -29,9 +30,9 @@ interface StudentProfilePageProps {
 const StudentProfilePage: React.FC<StudentProfilePageProps> = ({ onBack }) => {
     // 独立的数据状态
     const [profileData, setProfileData] = useState<any>(null);
-    const [subscription, setSubscription] = useState<any>(null);
+    const [subscriptions, setSubscriptions] = useState<QueryCoachSubscription[]>([]);
     const [statsData, setStatsData] = useState<any>(null);
-    const [planStatus, setPlanStatus] = useState<string | null>(null);
+    const [planStatusMap, setPlanStatusMap] = useState<Record<string, string>>({});
 
     // 独立的 loading 状态
     const [loadingProfile, setLoadingProfile] = useState(true);
@@ -86,9 +87,18 @@ const StudentProfilePage: React.FC<StudentProfilePageProps> = ({ onBack }) => {
     const [questionnaireVisible, setQuestionnaireVisible] = useState(false);
     const [questionnaireQuestions, setQuestionnaireQuestions] = useState<TrainingItem[]>([]);
     const [questionnaireLoading, setQuestionnaireLoading] = useState(false);
+    const [selectedSubscription, setSelectedSubscription] = useState<QueryCoachSubscription | null>(null);
 
     // 个人信息编辑状态
     const [personalInfoEditing, setPersonalInfoEditing] = useState(false);
+
+    const getCoachDisplayName = React.useCallback((sub: QueryCoachSubscription) => {
+        if (sub.coach?.name) {
+            return sub.coach.name;
+        }
+        const profile = sub.coach?.profile as Record<string, any> | null;
+        return profile?.nickname || '未命名教练';
+    }, []);
 
     // 计算组合后的 data（用于向后兼容）
     const data: ProfileData | null = profileData && session?.user ? {
@@ -116,6 +126,30 @@ const StudentProfilePage: React.FC<StudentProfilePageProps> = ({ onBack }) => {
         notesData: []
     } : null;
 
+    const loadPlanStatuses = React.useCallback(async (subs: QueryCoachSubscription[]) => {
+        if (!subs || subs.length === 0) {
+            setPlanStatusMap({});
+            return;
+        }
+
+        setLoadingPlanStatus(true);
+        try {
+            const statusEntries = await Promise.all(
+                subs.map(async (sub) => {
+                    try {
+                        const instanceRes = await planLibService.getInstance({ subscriptionId: sub.id });
+                        return [sub.id, instanceRes?.instance?.status || 'completed'] as const;
+                    } catch {
+                        return [sub.id, 'completed'] as const;
+                    }
+                }),
+            );
+            setPlanStatusMap(Object.fromEntries(statusEntries));
+        } finally {
+            setLoadingPlanStatus(false);
+        }
+    }, []);
+
     // 刷新数据的函数（用于更新后刷新）
     const fetchData = React.useCallback(async () => {
         if (!session?.user.id) return;
@@ -131,24 +165,16 @@ const StudentProfilePage: React.FC<StudentProfilePageProps> = ({ onBack }) => {
             if (statsRes) setStatsData(statsRes);
 
             if (subsRes && subsRes.subscriptions && subsRes.subscriptions.length > 0) {
-                const activeSub = subsRes.subscriptions[0];
-                setSubscription(activeSub);
-
-                try {
-                    const instanceRes = await planLibService.getInstance({ subscriptionId: activeSub.id });
-                    if (instanceRes?.instance?.status) {
-                        setPlanStatus(instanceRes.instance.status);
-                    } else {
-                        setPlanStatus('completed');
-                    }
-                } catch (e) {
-                    setPlanStatus('completed');
-                }
+                setSubscriptions(subsRes.subscriptions);
+                await loadPlanStatuses(subsRes.subscriptions);
+            } else {
+                setSubscriptions([]);
+                setPlanStatusMap({});
             }
         } catch (e: any) {
             console.error('刷新数据失败:', e);
         }
-    }, [session?.user.id]);
+    }, [session?.user.id, loadPlanStatuses]);
 
     // 并行获取基础数据
     useEffect(() => {
@@ -176,24 +202,11 @@ const StudentProfilePage: React.FC<StudentProfilePageProps> = ({ onBack }) => {
                 setLoadingSubscription(true);
                 const res = await subscriptionService.getCoachSubscriptions({ studentId: session.user.id });
                 if (res && res.subscriptions && res.subscriptions.length > 0) {
-                    const activeSub = res.subscriptions[0];
-                    setSubscription(activeSub);
-
-                    // 获取计划实例状态（依赖订阅数据，但不阻塞其他数据）
-                    setLoadingPlanStatus(true);
-                    try {
-                        const instanceRes = await planLibService.getInstance({ subscriptionId: activeSub.id });
-                        if (instanceRes?.instance?.status) {
-                            setPlanStatus(instanceRes.instance.status);
-                        } else {
-                            setPlanStatus('completed');
-                        }
-                    } catch (e) {
-                        // 没有计划实例，允许编辑
-                        setPlanStatus('completed');
-                    } finally {
-                        setLoadingPlanStatus(false);
-                    }
+                    setSubscriptions(res.subscriptions);
+                    await loadPlanStatuses(res.subscriptions);
+                } else {
+                    setSubscriptions([]);
+                    setPlanStatusMap({});
                 }
             } catch (e: any) {
                 console.error('获取订阅列表失败:', e);
@@ -223,22 +236,25 @@ const StudentProfilePage: React.FC<StudentProfilePageProps> = ({ onBack }) => {
             fetchSubscription(),
             fetchStats()
         ]);
-    }, [session?.user.id]);
+    }, [session?.user.id, loadPlanStatuses]);
 
     // 打开问卷编辑对话框（不跳转）
-    const handleEditQuestionnaire = async () => {
-        if (!subscription?.coach_id) return;
+    const handleEditQuestionnaire = async (subscriptionItem: QueryCoachSubscription) => {
+        if (!subscriptionItem?.coach_id) return;
 
+        setSelectedSubscription(subscriptionItem);
         setQuestionnaireLoading(true);
         try {
-            const qRes = await coachService.getQuestionnaires({ coachId: subscription.coach_id });
+            const qRes = await coachService.getQuestionnaires({ coachId: subscriptionItem.coach_id });
             if (qRes?.questionnaires && qRes.questionnaires.length > 0) {
                 setQuestionnaireQuestions(qRes.questionnaires);
                 setQuestionnaireVisible(true);
             } else {
+                setSelectedSubscription(null);
                 showToast({ severity: 'info', summary: '暂无问卷配置' });
             }
         } catch (error) {
+            setSelectedSubscription(null);
             showToast({ severity: 'error', summary: '获取问卷失败' });
         } finally {
             setQuestionnaireLoading(false);
@@ -247,17 +263,18 @@ const StudentProfilePage: React.FC<StudentProfilePageProps> = ({ onBack }) => {
 
     // 保存问卷
     const handleSaveQuestionnaire = async (answers: TrainingItem[]) => {
-        if (!subscription?.id) return;
+        if (!selectedSubscription?.id) return;
 
         try {
             const res = await subscriptionService.updateSubscription({
-                id: subscription.id,
+                id: selectedSubscription.id,
                 subscribe_data: answers as any
             });
 
             if (res?.subscription) {
                 showToast({ severity: 'success', summary: '问卷更新成功' });
                 setQuestionnaireVisible(false);
+                setSelectedSubscription(null);
                 // 刷新数据
                 fetchData();
             } else {
@@ -334,7 +351,7 @@ const StudentProfilePage: React.FC<StudentProfilePageProps> = ({ onBack }) => {
                     {loadingSubscription ? (
                         <Skeleton height="200px" className="rounded-2xl" />
                     ) : (
-                        <StrengthProgressSection session={session} subscription={subscription} />
+                        <StrengthProgressSection session={session} subscription={subscriptions[0] || null} />
                     )}
                 </div>
 
@@ -370,13 +387,22 @@ const StudentProfilePage: React.FC<StudentProfilePageProps> = ({ onBack }) => {
                             <div className="p-4 sm:p-6">
                                 {loadingSubscription || loadingPlanStatus ? (
                                     <Skeleton height="200px" className="rounded-2xl" />
-                                ) : subscription && subscription.subscribe_data ? (
-                                    <PlanPreferencesDisplay
-                                        subscribeData={subscription.subscribe_data}
-                                        coachId={subscription.coach?.user_id || subscription.coach_id}
-                                        planStatus={planStatus}
-                                        onEditQuestionnaire={handleEditQuestionnaire}
-                                    />
+                                ) : subscriptions.length > 0 ? (
+                                    <div className="space-y-4">
+                                        {subscriptions.map((sub, index) => (
+                                            <div key={sub.id} className="space-y-2">
+                                                <div className="text-sm text-surface-600 font-medium px-1">
+                                                    教练 {index + 1}：{getCoachDisplayName(sub)}
+                                                </div>
+                                                <PlanPreferencesDisplay
+                                                    subscribeData={Array.isArray(sub.subscribe_data) ? sub.subscribe_data : []}
+                                                    coachId={sub.coach?.user_id || sub.coach_id}
+                                                    planStatus={planStatusMap[sub.id]}
+                                                    onEditQuestionnaire={() => handleEditQuestionnaire(sub)}
+                                                />
+                                            </div>
+                                        ))}
+                                    </div>
                                 ) : (
                                     <div className="text-center py-10 text-surface-500">
                                         暂无训练需求问卷数据
@@ -402,15 +428,18 @@ const StudentProfilePage: React.FC<StudentProfilePageProps> = ({ onBack }) => {
             </div>
 
             {/* 问卷编辑对话框 */}
-            {subscription && (
+            {selectedSubscription?.coach && (
                 <QuestionnaireForm
                     visible={questionnaireVisible}
-                    onHide={() => setQuestionnaireVisible(false)}
+                    onHide={() => {
+                        setQuestionnaireVisible(false);
+                        setSelectedSubscription(null);
+                    }}
                     questions={questionnaireQuestions}
-                    coach={subscription.coach}
+                    coach={selectedSubscription.coach}
                     onSubmit={handleSaveQuestionnaire}
                     loading={questionnaireLoading}
-                    existingAnswers={subscription.subscribe_data as any}
+                    existingAnswers={selectedSubscription.subscribe_data as any}
                 />
             )}
         </>

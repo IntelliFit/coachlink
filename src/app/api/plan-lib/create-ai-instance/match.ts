@@ -32,11 +32,14 @@ export interface FillTemplateOptions {
     coachId?: string; // 教练ID，用于权限校验
 }
 
-export async function matchPlan(questionare: TrainingItem[]) {
+export async function matchPlan(questionare: TrainingItem[], coachId?: string) {
     let query = supabase.from("coach_plan_templates")
         .select("*");
 
     console.log("问卷数据:", questionare);
+    if (coachId) {
+        query = query.eq("coach_id", coachId);
+    }
 
     const tagsInfo = questionare.find((item) => item.type === "tags");
     if (

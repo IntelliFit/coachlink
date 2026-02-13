@@ -7,6 +7,7 @@ import { InputText } from 'primereact/inputtext';
 import { InputTextarea } from 'primereact/inputtextarea';
 import { MultiSelect } from 'primereact/multiselect';
 import { InputSwitch } from 'primereact/inputswitch';
+import { AeroInputNumber } from '@/components/AeroInputNumber';
 import { StudentActionRow, ItemType } from '@/types/student';
 
 interface StudentActionEditDialogProps {
@@ -47,6 +48,7 @@ const StudentActionEditDialog: React.FC<StudentActionEditDialogProps> = ({
     // 新增状态：自动计算负重
     const [enableAutoWeightCompute, setEnableAutoWeightCompute] = useState<boolean>(false);
     const [includesBodyWeight, setIncludesBodyWeight] = useState<boolean>(false);
+    const [referenceOneRM, setReferenceOneRM] = useState<number | null>(null);
     
     const [isMobile, setIsMobile] = useState(false);
 
@@ -94,6 +96,11 @@ const StudentActionEditDialog: React.FC<StudentActionEditDialogProps> = ({
             setItemType((action.type as ItemType) || 'STRENGTH');
             setEnableAutoWeightCompute(action.enableAutoWeightCompute || false);
             setIncludesBodyWeight(action.includesBodyWeight || false);
+            setReferenceOneRM(
+                typeof action.reference_1rm === 'number' && Number.isFinite(action.reference_1rm)
+                    ? action.reference_1rm
+                    : null
+            );
             setSuggestedTime(action.suggested_time || '');
             
             // 解析 item_schema 中的类型特定字段
@@ -113,6 +120,7 @@ const StudentActionEditDialog: React.FC<StudentActionEditDialogProps> = ({
             setItemType('STRENGTH');
             setEnableAutoWeightCompute(false);
             setIncludesBodyWeight(false);
+            setReferenceOneRM(null);
             setSuggestedTime('');
             setCalories(null);
             setDistance(null);
@@ -121,6 +129,16 @@ const StudentActionEditDialog: React.FC<StudentActionEditDialogProps> = ({
             setTargetDuration(null);
         }
     }, [action, visible]);
+
+    const isOneRMEligible = itemType === 'STRENGTH' &&
+        enableAutoWeightCompute &&
+        attrs.includes('强度');
+
+    useEffect(() => {
+        if (!isOneRMEligible) {
+            setReferenceOneRM(null);
+        }
+    }, [isOneRMEligible]);
 
     const handleSave = async () => {
         setLoading(true);
@@ -146,6 +164,7 @@ const StudentActionEditDialog: React.FC<StudentActionEditDialogProps> = ({
                 type: itemType,
                 enableAutoWeightCompute: itemType === 'STRENGTH' ? enableAutoWeightCompute : false,
                 includesBodyWeight: itemType === 'STRENGTH' && enableAutoWeightCompute ? includesBodyWeight : false,
+                reference_1rm: isOneRMEligible ? referenceOneRM : null,
                 suggested_time: itemType === 'DIET' ? (suggestedTime || null) : null,
                 item_schema: Object.keys(itemSchema).length > 0 ? itemSchema : null
             };
@@ -342,19 +361,42 @@ const StudentActionEditDialog: React.FC<StudentActionEditDialogProps> = ({
                                 </div>
 
                                 {enableAutoWeightCompute && (
-                                    <div className="flex items-start justify-between gap-4 mt-2 pt-3 border-t border-surface-200">
-                                        <div className="min-w-0 pl-0">
-                                            <div className="font-medium text-sm">包含自重</div>
-                                            <div className="text-xs text-surface-500 mt-1">
-                                                适用于引体向上等动作
+                                    <>
+                                        <div className="flex items-start justify-between gap-4 mt-2 pt-3 border-t border-surface-200">
+                                            <div className="min-w-0 pl-0">
+                                                <div className="font-medium text-sm">包含自重</div>
+                                                <div className="text-xs text-surface-500 mt-1">
+                                                    适用于引体向上等动作
+                                                </div>
                                             </div>
+                                            <InputSwitch
+                                                id="includesBodyWeight"
+                                                checked={includesBodyWeight}
+                                                onChange={(e) => setIncludesBodyWeight(e.value || false)}
+                                            />
                                         </div>
-                                        <InputSwitch
-                                            id="includesBodyWeight"
-                                            checked={includesBodyWeight}
-                                            onChange={(e) => setIncludesBodyWeight(e.value || false)}
-                                        />
-                                    </div>
+                                        {isOneRMEligible && (
+                                            <div className="flex items-center justify-between gap-4 mt-2 pt-3 border-t border-surface-200">
+                                                <div className="min-w-0">
+                                                    <div className="font-medium text-sm">全局参考1RM</div>
+                                                    <div className="text-xs text-surface-500 mt-1">
+                                                        该动作在所有计划中的默认极限值
+                                                    </div>
+                                                </div>
+                                                <div className="w-44">
+                                                    <AeroInputNumber
+                                                        value={referenceOneRM}
+                                                        onValueChange={(e) => setReferenceOneRM(e.value ?? null)}
+                                                        min={0}
+                                                        max={500}
+                                                        maxFractionDigits={1}
+                                                        suffix="kg"
+                                                        placeholder="未设置"
+                                                    />
+                                                </div>
+                                            </div>
+                                        )}
+                                    </>
                                 )}
                             </div>
 

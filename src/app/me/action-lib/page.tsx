@@ -247,6 +247,7 @@ const StudentActionLib = () => {
                     suggested_time: actionData.suggested_time ?? null,
                     enableAutoWeightCompute: actionData.enableAutoWeightCompute,
                     includesBodyWeight: actionData.includesBodyWeight,
+                    reference_1rm: actionData.reference_1rm ?? null,
                 });
                 showToast({ severity: 'success', summary: '更新成功', detail: '动作已更新' });
             } else {
@@ -262,6 +263,7 @@ const StudentActionLib = () => {
                     suggested_time: actionData.suggested_time ?? null,
                     enableAutoWeightCompute: actionData.enableAutoWeightCompute,
                     includesBodyWeight: actionData.includesBodyWeight,
+                    reference_1rm: actionData.reference_1rm ?? null,
                 });
                 showToast({ severity: 'success', summary: '添加成功', detail: '新动作已添加' });
             }

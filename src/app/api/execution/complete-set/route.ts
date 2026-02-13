@@ -23,6 +23,7 @@ async function handleAutoE1RMCheck(params: {
     reps: number;
     executionId: string;
     setNumber: number;
+    isCoachSubscriptionPlan?: boolean;
 }): Promise<{ isPR: boolean; e1rm: number; previousPR?: number } | null> {
     const {
         userId,
@@ -32,6 +33,7 @@ async function handleAutoE1RMCheck(params: {
         reps,
         executionId,
         setNumber,
+        isCoachSubscriptionPlan = false,
     } = params;
 
     // Basic guard: reps must be present; weight may be negative for bodyweight-including actions (assistance)
@@ -90,9 +92,9 @@ async function handleAutoE1RMCheck(params: {
     const { e1rm, epley, brzycki, lombardi } = result;
 
     // ------------------------------------------------------------
-    // 3.5 Update "current state" snapshot (AUTO_STATE) when change >= 2kg
-    // This allows current 1RM to go up OR down based on recent performance,
-    // while PR logic remains "only goes up" for achievements.
+    // 3.5 Update "current state" snapshot (AUTO_STATE)
+    // - 教练订阅计划: 仅当 e1RM 相比上次 AUTO_STATE 提升 >2kg 时更新（递增为主）
+    // - 其他场景: 维持原逻辑，波动绝对值 >=2kg 即更新
     // ------------------------------------------------------------
     try {
         const today = new Date().toISOString().split("T")[0];
@@ -111,7 +113,9 @@ async function handleAutoE1RMCheck(params: {
         const prev = latestState?.e1rm;
         const shouldUpdate = prev === undefined || prev === null
             ? true
-            : Math.abs(Number(e1rm) - Number(prev)) >= PR_THRESHOLD_KG;
+            : isCoachSubscriptionPlan
+                ? (Number(e1rm) - Number(prev)) > PR_THRESHOLD_KG
+                : Math.abs(Number(e1rm) - Number(prev)) >= PR_THRESHOLD_KG;
 
         if (shouldUpdate) {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -388,6 +392,17 @@ export async function POST(request: NextRequest) {
         let autoE1RMResult:
             | { isPR: boolean; e1rm: number; previousPR?: number }
             | null = null;
+        let isCoachSubscriptionPlan = false;
+        if (execution.instance_id) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const { data: instanceRow } = await (supabase as any)
+                .from("plan_instances")
+                .select("coach_subscription_id")
+                .eq("id", execution.instance_id)
+                .maybeSingle();
+            isCoachSubscriptionPlan = !!instanceRow?.coach_subscription_id;
+        }
+
         if (actualWeight && actualReps && actionId) {
             autoE1RMResult = await handleAutoE1RMCheck({
                 userId,
@@ -397,6 +412,7 @@ export async function POST(request: NextRequest) {
                 reps: actualReps,
                 executionId,
                 setNumber: setIndex + 1,
+                isCoachSubscriptionPlan,
             });
         }
 

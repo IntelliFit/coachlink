@@ -9,6 +9,8 @@ import {
 } from "@/lib/rmCaculator";
 import { normalizeToKg } from "@/types/intensity";
 import { getCurrent1RMRecords } from "@/app/api/student/get-current-1rm/route";
+import { isOneRMEligibleAction } from "@/lib/oneRmEligibility";
+import { syncCoachActionsToStudentLibrary } from "../sync-actions";
 
 export async function POST(req: Request) {
     const startTime = performance.now();
@@ -158,6 +160,17 @@ export async function POST(req: Request) {
         }, { status: 403 });
     }
 
+    let syncTargetStudentId: string | null =
+        (instance.student_id as string | null) || null;
+    if (!syncTargetStudentId && instance.coach_subscription_id) {
+        const { data: subForSync } = await supabase
+            .from("coach_subscriptions")
+            .select("student_id")
+            .eq("id", instance.coach_subscription_id)
+            .maybeSingle();
+        syncTargetStudentId = subForSync?.student_id || null;
+    }
+
     // 4. 加载动作详情（教练和学员都需要）
     const actionsStart = performance.now();
     let actionsMap: Record<string, any> = {};
@@ -192,6 +205,15 @@ export async function POST(req: Request) {
                 coachActions.forEach((action) => {
                     actionsMap[action.id] = action;
                 });
+
+                // 教练计划涉及的动作自动同步到学员动作库，便于后续按动作维护全局1RM。
+                if (syncTargetStudentId && instance.coach_subscription_id) {
+                    await syncCoachActionsToStudentLibrary(
+                        syncTargetStudentId,
+                        coachActions as any[],
+                        actionIds,
+                    );
+                }
             }
 
             // 2. 查学员动作库 (如果不全都在教练库里)
@@ -254,6 +276,8 @@ export async function POST(req: Request) {
             const rmRecordsStart = performance.now();
             const records = await getCurrent1RMRecords(userId, {
                 targetUserId: targetStudentId,
+                // 教练订阅计划默认按 PR 递增逻辑计算计划负荷，避免状态波动导致自动降重。
+                preferPR: !!instance.coach_subscription_id,
             });
             timings["5c_rm_records"] = performance.now() - rmRecordsStart;
 
