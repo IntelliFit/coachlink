@@ -110,6 +110,18 @@ export const HabitItemForm: React.FC<HabitItemFormProps> = ({
                     </div>
                 </div>
             </div>
+
+            <div>
+                <label className="block text-900 text-xs mb-1">备注 (可选)</label>
+                <InputTextarea
+                    value={note}
+                    onChange={(e) => updateNote(e.target.value)}
+                    rows={2}
+                    className="w-full"
+                    disabled={saving}
+                    placeholder="例如：日饮水 2L / 阅读 30分钟"
+                />
+            </div>
         </div>
     );
 };
