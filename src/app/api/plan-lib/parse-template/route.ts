@@ -14,6 +14,7 @@ import {
     normalizeActionNameForMatch,
     splitPlanGlobalPreface,
 } from "@/lib/planImportText";
+import { llmSplitPlanToDays, daysToWeekSections } from "@/lib/smartImportDaySplit";
 import type { ItemType } from "@/types";
 import {
     getSmartImportTraceIdFromHeaders,
@@ -260,8 +261,18 @@ export async function POST(req: Request) {
             await writeTraceJson(id, "stage2.splitPreface.json", split);
         });
 
-        // 按周拆分，逐段解析，减少截断风险并加速
-        const sections = splitPlanByWeekSections(planText);
+        // 使用 LLM 按天切分（支持 Day1、周一、W1D1、第1周 等多种写法），再转为按周 sections
+        let sections: Array<{ weekIndex: number; text: string }>;
+        try {
+            const { days } = await llmSplitPlanToDays(planText);
+            await tryTrace(traceEnabled, traceId, async (id) => {
+                await writeTraceJson(id, "stage2.llmSplitDays.json", { days });
+            });
+            sections = daysToWeekSections(days);
+        } catch (err) {
+            console.warn("[parse-template] LLM day split failed, fallback to rule-based:", err);
+            sections = splitPlanByWeekSections(planText);
+        }
         const allTrainingDays: any[] = [];
         let maxWeek = 0;
 

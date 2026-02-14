@@ -9,6 +9,7 @@ import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 import { callDeepSeek, parseJsonResponse } from "@/lib/deepseek";
 import { splitPlanGlobalPreface } from "@/lib/planImportText";
 import { findFirstLineForAction, lineHasExplicitReps, normalizeActionNameForMatch } from "@/lib/planImportText";
+import { llmSplitPlanToDays, daysToWeekSections } from "@/lib/smartImportDaySplit";
 import type { ItemType } from "@/types/student";
 
 /**
@@ -224,8 +225,15 @@ export async function POST(req: Request) {
         const { globalDescription, bodyText } = splitPlanGlobalPreface(text);
         const planText = bodyText.trim() ? bodyText : text;
 
-        // 按周拆分，逐段解析，减少截断风险并加速
-        const sections = splitPlanByWeekSections(planText);
+        // 使用 LLM 按天切分（支持 Day1、周一、W1D1、第1周 等多种写法），再转为按周 sections
+        let sections: Array<{ weekIndex: number; text: string }>;
+        try {
+            const { days } = await llmSplitPlanToDays(planText);
+            sections = daysToWeekSections(days);
+        } catch (err) {
+            console.warn("[student parse-template] LLM day split failed, fallback to rule-based:", err);
+            sections = splitPlanByWeekSections(planText);
+        }
         const allTrainingDays: any[] = [];
         let maxWeek = 0;
 

@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { Card } from 'primereact/card';
 import { Button } from 'primereact/button';
 import { Dialog } from 'primereact/dialog';
+import { Dropdown } from 'primereact/dropdown';
 import { Calendar } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useToastContext } from '@/context/ToastContext';
@@ -14,6 +15,7 @@ import { planLibService } from '@/app/service/planLibService';
 import { CoachActionRow } from '@/types';
 import BasicInfoForm from '../components/BasicInfoForm';
 import PlanDayCard from '../components/PlanDayCard';
+import StickyScheduleBar from '../components/StickyScheduleBar';
 import WeekCalendar from '../components/WeekCalendar';
 import { ListActionsDto } from '@/app/api/action-lib/list-actions/entity';
 import { FormPlanTrainingDay } from '@/app/api/plan-lib/create-template/entity';
@@ -63,6 +65,7 @@ const CreatePlanPage = () => {
     const [showImportDialog, setShowImportDialog] = useState(false);
     // Mobile day picker
     const [dayPickerVisible, setDayPickerVisible] = useState(false);
+    const [actionSearchId, setActionSearchId] = useState<string | null>(null);
 
 
     // Load actions from library
@@ -451,30 +454,132 @@ const CreatePlanPage = () => {
             actionSets: day.actionSets
         }));
 
+    const actionSearchOptions = useMemo(
+        () => actions.map(action => ({ label: action.name, value: action.id })),
+        [actions]
+    );
+
+    const actionSearchResults = useMemo(() => {
+        if (!actionSearchId) return [];
+        return days.filter(day => {
+            if (!day.actionSets || day.actionSets.length === 0) return false;
+            return day.actionSets.some((set: any) => {
+                if (set.type === 'one-filter') {
+                    return (set.actions || []).some((inner: any) => inner.actionId === actionSearchId);
+                }
+                return set.actionId === actionSearchId;
+            });
+        });
+    }, [days, actionSearchId]);
+
     return (
-        <div className="mx-auto">
-            {/* AI 智能导入按钮 - 与 AI 修改器风格一致 */}
-            <div className="mb-4 flex items-center gap-4">
-                <h1 className="text-2xl font-bold text-900">新建计划</h1>
-                <Button
-                    label="AI 智能导入"
-                    icon="pi pi-bolt"
-                    className="
-                        flex items-center gap-2 px-4 py-2
-                        bg-primary-50 border border-primary-200 rounded-[14px]
-                        text-[12px] font-black text-primary-700 tracking-tight
-                        transition-all duration-200 active:scale-[0.95]
-                        hover:border-primary-400 hover:bg-primary-100 hover:shadow-sm
-                        disabled:opacity-40 disabled:cursor-not-allowed
-                    "
-                    text
-                    onClick={() => setShowImportDialog(true)}
-                    disabled={saving || loading}
-                    tooltip="使用 AI 智能导入从文本快速生成训练计划"
-                    tooltipOptions={{ position: 'right' }}
-                />
+        <div className="mx-auto pt-[calc(0.75rem+env(safe-area-inset-top)+3rem)] sm:pt-[calc(0.75rem+env(safe-area-inset-top)+3.25rem)] md:pt-[calc(0.75rem+env(safe-area-inset-top)+3.5rem)]">
+            {/* 页面头部：标题 + 操作工具栏（与编辑页一致） */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+                <div>
+                    <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-surface-900">新建计划</h1>
+                    <p className="text-sm text-surface-500 mt-1">创建新模板并编排每日训练</p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                    <Button
+                        label="AI 智能导入"
+                        icon="pi pi-file-import"
+                        className="
+                            flex items-center gap-2 px-4 py-2 rounded-2xl
+                            bg-surface-0 border border-surface-200
+                            text-[12px] font-bold text-surface-700
+                            hover:bg-surface-50 hover:border-surface-300
+                            active:scale-[0.98] transition-all
+                            disabled:opacity-40 disabled:cursor-not-allowed
+                        "
+                        text
+                        onClick={() => setShowImportDialog(true)}
+                        disabled={saving || loading}
+                        tooltip="从文本智能解析并导入训练计划"
+                        tooltipOptions={{ position: 'bottom' }}
+                    />
+                </div>
             </div>
 
+            {/* 每日定义（与编辑页一致：动作搜索 + PlanDayCard） */}
+            <Card className="shadow-sm mb-6 bg-surface-0 border border-surface-100 rounded-3xl p-0 md:p-4">
+                {/* 动作搜索 */}
+                <div className="mb-3 rounded-xl border border-surface-100 bg-surface-50/50 p-2.5 md:p-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                        <div className="flex items-center gap-2 shrink-0">
+                            <span className="text-sm font-black text-surface-800">动作搜索</span>
+                            {actionSearchId && (
+                                <button
+                                    type="button"
+                                    onClick={() => setActionSearchId(null)}
+                                    className="text-[11px] font-black text-primary-600 hover:text-primary-700 transition-colors"
+                                >
+                                    清除
+                                </button>
+                            )}
+                        </div>
+                        <Dropdown
+                            value={actionSearchId}
+                            options={actionSearchOptions}
+                            onChange={(e) => setActionSearchId(e.value || null)}
+                            placeholder="输入动作名称搜索"
+                            filter
+                            showClear
+                            className="w-full sm:max-w-xs aero-dropdown"
+                            panelClassName="aero-dropdown-panel"
+                            disabled={saving || actions.length === 0}
+                        />
+                        {actionSearchId && actionSearchResults.length > 0 && (
+                            <div className="flex flex-wrap gap-2">
+                                {actionSearchResults.map((day) => {
+                                    const week = Math.ceil(day.dayIndex / 7);
+                                    const dayOfWeek = (day.dayIndex - 1) % 7 + 1;
+                                    return (
+                                        <button
+                                            key={day.dayIndex}
+                                            type="button"
+                                            onClick={() => setSelectedDayIndex(day.dayIndex)}
+                                            className="px-3 py-1.5 rounded-full border border-surface-200 text-[11px] font-black text-surface-600 hover:border-primary-300 hover:text-primary-700 transition-colors"
+                                        >
+                                            第 {day.dayIndex} 天 · W{week}D{dayOfWeek}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </div>
+                    {actionSearchId && actionSearchResults.length === 0 && (
+                        <div className="text-[11px] text-surface-400 mt-2">未找到包含该动作的训练日</div>
+                    )}
+                </div>
+
+                {/* 选中日的详情编辑 */}
+                {selectedDay ? (
+                    <PlanDayCard
+                        day={selectedDay}
+                        dayIndex={days.findIndex(d => d.dayIndex === selectedDay.dayIndex)}
+                        actions={actions}
+                        onDayTypeChange={handleDayTypeChange}
+                        onRemoveDay={handleRemoveDay}
+                        onNoteChange={handleNoteChange}
+                        onAddActionSet={handleAddActionSet}
+                        onRemoveActionSet={handleRemoveActionSet}
+                        onActionSetChange={handleActionSetChange}
+                        saving={saving}
+                        totalDays={days.length}
+                        onCopyFromDay={handleCopyFromDay}
+                        existingTrainingDays={existingTrainingDays}
+                        questions={questions}
+                    />
+                ) : (
+                    <div className="text-center py-12 border-2 border-dashed border-surface-200 rounded-lg">
+                        <i className="pi pi-calendar text-4xl text-surface-300 mb-3"></i>
+                        <p className="text-600">请在上方日历中选择一天进行编辑</p>
+                    </div>
+                )}
+            </Card>
+
+            {/* 模板定义 */}
             <BasicInfoForm
                 name={name}
                 description={description}
@@ -502,74 +607,37 @@ const CreatePlanPage = () => {
                     });
                 }}
                 availableTrainingTags={
-                    // 从问卷配置中提取 tags 问题的选项
                     (questions.find(q => q.type === 'tags') as any)?.options?.filter((o: string) => o.trim()) || []
                 }
+                hideHeader
             />
 
-            <Card className="shadow-sm mb-6 bg-surface-0 border border-surface-200/70 rounded-[24px]">
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 min-h-[500px]">
-                    {/* 左侧：周历视图 */}
-                    <div className="lg:col-span-1 sticky top-20 self-start max-h-[70vh] md:max-h-[75vh] overflow-auto">
-                        <WeekCalendar
-                            days={days}
-                            selectedDayIndex={selectedDayIndex}
-                            onSelectDay={setSelectedDayIndex}
-                            onAddWeek={handleAddWeek}
-                            onDeleteWeek={handleDeleteWeek}
-                            onAddWeekFromExisting={handleAddWeekFromExisting}
-                            saving={saving}
-                        />
-                    </div>
+            <div className="mt-6 flex justify-end gap-2 mb-8">
+                <Button
+                    label="取消"
+                    icon="pi pi-times"
+                    onClick={() => router.back()}
+                    className="p-button-text"
+                    disabled={saving}
+                />
+                <Button
+                    label="保存模板"
+                    icon="pi pi-check"
+                    className="p-button-primary shadow-lg shadow-primary-200 transition-transform active:scale-95 rounded-2xl px-6"
+                    onClick={handleSave}
+                    loading={saving}
+                />
+            </div>
 
-                    {/* 右侧：训练日详情 */}
-                    <div className="lg:col-span-2">
-                        {selectedDay ? (
-                            <PlanDayCard
-                                day={selectedDay}
-                                dayIndex={days.findIndex(d => d.dayIndex === selectedDay.dayIndex)}
-                                actions={actions}
-                                onDayTypeChange={handleDayTypeChange}
-                                onRemoveDay={handleRemoveDay}
-                                onNoteChange={handleNoteChange}
-                                onAddActionSet={handleAddActionSet}
-                                onRemoveActionSet={handleRemoveActionSet}
-                                onActionSetChange={handleActionSetChange}
-                                saving={saving}
-                                totalDays={days.length}
-                                onCopyFromDay={handleCopyFromDay}
-                                existingTrainingDays={existingTrainingDays}
-                                questions={questions}
-                            />
-                        ) : (
-                            <div className="card shadow-sm flex items-center justify-center h-full min-h-20rem">
-                                <div className="text-center p-6">
-                                    <i className="pi pi-info-circle text-600 text-5xl mb-3"></i>
-                                    <p className="text-700 text-lg">请选择一个训练日进行编辑</p>
-                                    <p className="text-600">从左侧日历中选择一个训练日</p>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                </div>
-
-                <div className="mt-6 flex justify-end gap-2">
-                    <Button
-                        label="取消"
-                        icon="pi pi-times"
-                        onClick={() => router.back()}
-                        className="p-button-text"
-                        disabled={saving}
-                    />
-                    <Button
-                        label="保存模板"
-                        icon="pi pi-check"
-                        className="p-button-primary shadow-lg shadow-primary-200 transition-transform active:scale-95 rounded-2xl px-6"
-                        onClick={handleSave}
-                        loading={saving}
-                    />
-                </div>
-            </Card>
+            {/* 悬停在顶部的训练日选择条（与编辑页一致） */}
+            <StickyScheduleBar
+                days={days}
+                selectedDayIndex={selectedDayIndex}
+                onSelectDay={setSelectedDayIndex}
+                onBack={() => router.back()}
+                onAddWeek={handleAddWeek}
+                saving={saving}
+            />
 
             {/* 智能导入对话框 */}
             <SmartImportDialog
@@ -579,7 +647,7 @@ const CreatePlanPage = () => {
                 onImportComplete={handleImportComplete}
             />
 
-            {/* 手机端：随时切换训练日（无需回到顶部） */}
+            {/* 手机端：随时切换训练日 */}
             <div className="lg:hidden fixed right-4 bottom-[calc(env(safe-area-inset-bottom)+5.25rem)] z-40">
                 <button
                     type="button"

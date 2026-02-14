@@ -10,10 +10,9 @@ interface TemplateCardProps {
     onSelect?: (template: CoachPlansPreview) => void;
     onCopy?: (id: string) => void;
     onDelete?: (id: string) => void;
-    onBatchOperation?: (id: string) => void;
 }
 
-const TemplateCard: React.FC<TemplateCardProps> = ({ template, onEdit, onSelect, onCopy, onDelete, onBatchOperation }) => {
+const TemplateCard: React.FC<TemplateCardProps> = ({ template, onEdit, onSelect, onCopy, onDelete }) => {
     // 计算总周数
     const totalWeeks = Math.ceil((template.trainingDaysCount + template.restDaysCount) / 7);
 
@@ -42,7 +41,7 @@ const TemplateCard: React.FC<TemplateCardProps> = ({ template, onEdit, onSelect,
     const timeInfo = formatActionTime(template.createdAt, template.updatedAt);
 
     return (
-        <div className="group relative w-full overflow-hidden flex items-center gap-3 sm:gap-5 p-3 sm:p-4 mb-3 bg-white dark:bg-surface-900 border border-surface-100 dark:border-surface-800 rounded-[20px] transition-all duration-300 hover:shadow-[0_12px_30px_-10px_rgba(0,0,0,0.04)] hover:-translate-y-0.5 hover:border-primary-200">
+        <div className="group relative w-full overflow-hidden flex items-center gap-3 sm:gap-5 p-3 sm:p-4 mb-3 bg-white dark:bg-surface-900 border border-surface-100 dark:border-surface-800 rounded-[20px] transition-all duration-150 hover:shadow-[0_12px_30px_-10px_rgba(0,0,0,0.04)] hover:-translate-y-0.5 hover:border-primary-200">
             
             {/* 左侧：核心指标（对齐动作库 56px 尺寸） */}
             <div className="flex flex-col items-center justify-center min-w-[56px] h-[56px] bg-primary-50 dark:bg-primary-900/20 rounded-[16px] border border-primary-100 dark:border-primary-800/50 shadow-sm shrink-0">
@@ -65,7 +64,7 @@ const TemplateCard: React.FC<TemplateCardProps> = ({ template, onEdit, onSelect,
 
                     {/* 极简时间显示 (对齐动作库) */}
                     {timeInfo && (
-                        <div className="hidden sm:flex items-center gap-2 opacity-40 group-hover:opacity-70 transition-opacity duration-300">
+                        <div className="hidden sm:flex items-center gap-2 opacity-40 group-hover:opacity-70 transition-opacity duration-150">
                             <span className="text-[10px] tracking-tight whitespace-nowrap">
                                 {timeInfo.label}
                             </span>
@@ -115,21 +114,18 @@ const TemplateCard: React.FC<TemplateCardProps> = ({ template, onEdit, onSelect,
             </div>
 
             {/* 右侧交互区 (对齐动作库 Hover 逻辑) */}
-            <div className="flex items-center gap-0.5 sm:gap-1 shrink-0 opacity-100 translate-x-0 pointer-events-auto md:opacity-0 md:translate-x-2 md:pointer-events-none md:group-hover:opacity-100 md:group-hover:translate-x-0 md:group-hover:pointer-events-auto transition-all duration-300">
+            <div className="flex items-center gap-0.5 sm:gap-1 shrink-0 opacity-100 translate-x-0 pointer-events-auto md:opacity-0 md:translate-x-2 md:pointer-events-none md:group-hover:opacity-100 md:group-hover:translate-x-0 md:group-hover:pointer-events-auto transition-all duration-150">
                 {onSelect && (
                     <Button icon="pi pi-check" text rounded severity="success" className="w-8 h-8 sm:w-9 sm:h-9 hover:bg-green-50" onClick={() => onSelect(template)} />
                 )}
-                {onBatchOperation && (
-                    <Button icon="pi pi-bolt" text rounded severity="info" className="w-8 h-8 sm:w-9 sm:h-9 hover:bg-blue-50" onClick={() => onBatchOperation(template.id)} title="批量操作" />
-                )}
                 {onCopy && (
-                    <Button icon="pi pi-copy" text rounded className="w-8 h-8 sm:w-9 sm:h-9 text-surface-400 hover:bg-surface-100" onClick={() => onCopy(template.id)} />
+                    <Button label="复制" text rounded size="small" className="text-surface-500 hover:bg-surface-100 text-xs font-medium py-1.5 px-2" onClick={() => onCopy(template.id)} />
                 )}
                 {onEdit && (
-                    <Button icon="pi pi-pencil" text rounded className="w-8 h-8 sm:w-9 sm:h-9 text-surface-400 hover:bg-surface-100" onClick={() => onEdit(template.id)} />
+                    <Button label="编辑" text rounded size="small" className="text-surface-500 hover:bg-surface-100 text-xs font-medium py-1.5 px-2" onClick={() => onEdit(template.id)} />
                 )}
                 {onDelete && (
-                    <Button icon="pi pi-trash" text rounded severity="danger" className="w-8 h-8 sm:w-9 sm:h-9 hover:bg-red-50" onClick={() => onDelete(template.id)} />
+                    <Button label="删除" text rounded size="small" severity="danger" className="text-xs font-medium py-1.5 px-2 hover:bg-red-50" onClick={() => onDelete(template.id)} />
                 )}
             </div>
         </div>
