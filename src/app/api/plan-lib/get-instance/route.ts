@@ -276,8 +276,9 @@ export async function POST(req: Request) {
             const rmRecordsStart = performance.now();
             const records = await getCurrent1RMRecords(userId, {
                 targetUserId: targetStudentId,
-                // 教练订阅计划默认按 PR 递增逻辑计算计划负荷，避免状态波动导致自动降重。
-                preferPR: !!instance.coach_subscription_id,
+                // 计划负荷统一按 PR 递增逻辑计算，避免状态波动导致自动降重。
+                // 学员若需下调，必须通过手动编辑动作库 reference_1rm。
+                preferPR: true,
             });
             timings["5c_rm_records"] = performance.now() - rmRecordsStart;
 
