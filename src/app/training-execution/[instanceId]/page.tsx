@@ -831,7 +831,7 @@ function TrainingExecutionContent() {
                 });
             }
 
-            // 教练订阅计划：如果实际完成低于计划目标，提醒学员在问卷中手动下调 1RM。
+            // 教练订阅计划：如果实际完成低于计划目标，提醒学员去动作库/当前页快捷更新 1RM。
             if (
                 isCoachSubscriptionPlan &&
                 !isEditing &&
@@ -842,7 +842,7 @@ function TrainingExecutionContent() {
                 showToast({
                     severity: 'warn',
                     summary: '当前状态低于计划目标',
-                    detail: '建议前往“个人档案-需求问卷”下调该动作的 1RM，后续计划重量会按新的极限值计算。',
+                    detail: '建议在当前页快捷设置，或前往“我的-动作库”调整该动作1RM（系统自动只会上调，手动可下调）。',
                     life: 6000,
                 });
             }
