@@ -152,3 +152,70 @@ export async function POST(req: Request) {
 - `arrayIndex`（数组下标，始终从 0 开始）
 
 在同一条数据修改链路（新增/删除/更新）里，不允许混用这两种索引语义。
+
+---
+
+## Git 提交规范（Windows 环境必读）
+
+### 中文 Commit 信息乱码问题
+
+在 Windows PowerShell 中直接使用 `git commit -m "中文信息"` 会导致 GitHub 上显示乱码。
+
+**❌ 错误方式：**
+```powershell
+git commit -m "feat: 新增功能"
+# GitHub 显示为乱码：feat: 鏂板姛鑳�
+```
+
+**✅ 正确方式（使用文件）：**
+```powershell
+# 1. 先用编辑器/代码创建 UTF-8 编码的文件
+# 文件内容：feat: 新增功能
+
+# 2. 使用 -F 参数提交
+git commit -F commit_msg.txt
+
+# 3. 提交后删除临时文件
+Remove-Item commit_msg.txt
+```
+
+**✅ 或者配置 Git 编码（一次性设置）：**
+```powershell
+git config --global i18n.commitEncoding utf-8
+git config --global i18n.logOutputEncoding utf-8
+```
+
+### Commit 信息格式
+
+遵循 Conventional Commits 规范：
+
+```
+<type>: <简短描述>
+
+<详细描述（可选）>
+```
+
+常用 type：
+- `feat`: 新功能
+- `fix`: 修复 bug
+- `refactor`: 重构
+- `chore`: 杂项（构建、配置等）
+- `docs`: 文档
+- `style`: 样式调整
+- `perf`: 性能优化
+
+### 分支管理规范
+
+1. **开发流程**：先提交到 `dev`，测试通过后再合并到 `main`
+2. **双向同步**：如果直接提交到了 `main`，需要双向合并保持同步：
+   ```powershell
+   # 1. main 合并到 dev
+   git checkout dev
+   git merge main -m "merge: 同步main到dev"
+   git push origin dev
+   
+   # 2. dev 合并回 main（如果 dev 有独立提交）
+   git checkout main
+   git merge dev -m "merge: 同步dev到main"
+   git push origin main
+   ```
