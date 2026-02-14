@@ -10,7 +10,7 @@ import { Skeleton } from 'primereact/skeleton';
 import { InputTextarea } from 'primereact/inputtextarea';
 import { InputText } from 'primereact/inputtext';
 import { Dialog } from 'primereact/dialog';
-import { ArrowLeft, Play, Video, Check, Star, ChevronUp, ChevronDown, Timer, Upload, Plus } from 'lucide-react';
+import { ArrowLeft, Play, Video, Check, Star, ChevronUp, ChevronDown, Timer, Upload, Plus, Trash2 } from 'lucide-react';
 import { executionService } from '@/app/service/executionService';
 import { planLibService } from '@/app/service/planLibService';
 import { videoService } from '@/app/service/videoService';
@@ -25,6 +25,7 @@ import { isOneRMEligibleAction } from '@/lib/oneRmEligibility';
 interface SetData {
     set_number: number;
     status: 'pending' | 'completed' | 'skipped';
+    source?: string; // 'student_extra' = 学员自行添加
     planned_reps?: string;
     planned_weight?: string;
     actual_weight?: number;
@@ -48,6 +49,7 @@ interface ActionExecution {
     action_id: string;
     action_name: string;
     action_order: number;
+    source?: string; // 'student_extra' = 学员自行添加
     sets: SetData[];
     total_sets: number;
     completed_sets: number;
@@ -152,6 +154,8 @@ function TrainingExecutionContent() {
     const [linkedVideo, setLinkedVideo] = useState<{ id: string; url: string } | null>(null);
     const [addingExtraSet, setAddingExtraSet] = useState(false);
     const [addingExtraAction, setAddingExtraAction] = useState(false);
+    const [removingSet, setRemovingSet] = useState(false);
+    const [removingAction, setRemovingAction] = useState(false);
     const [showActionPicker, setShowActionPicker] = useState(false);
 
     useEffect(() => {
@@ -1171,6 +1175,107 @@ function TrainingExecutionContent() {
         }
     };
 
+    // 删除学员自行添加的组
+    const handleDeleteExtraSet = async (actionIndex: number, setIndex: number) => {
+        if (!execution || removingSet) return;
+        const actionExec = execution.action_executions[actionIndex];
+        const setData = actionExec?.sets?.[setIndex];
+        if (!setData || setData.source !== 'student_extra') return;
+
+        try {
+            setRemovingSet(true);
+            const res = await fetch('/api/execution/extra-content/delete-extra-set', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    executionId: execution.id,
+                    actionIndex,
+                    setIndex,
+                }),
+            });
+            const data = await res.json();
+
+            if (data.success && data.data) {
+                const updatedExecution = { ...execution };
+                const sets = [...updatedExecution.action_executions[actionIndex].sets];
+                sets.splice(setIndex, 1);
+                sets.forEach((s: any, idx: number) => {
+                    s.set_number = idx + 1;
+                    s.set_index = idx;
+                });
+                updatedExecution.action_executions[actionIndex].sets = sets;
+                updatedExecution.action_executions[actionIndex].total_sets = sets.length;
+                updatedExecution.total_sets = data.data.totalSets;
+
+                setExecution(updatedExecution);
+                if (currentSetIndex >= sets.length && actionIndex === expandedAction) {
+                    setCurrentSetIndex(Math.max(0, sets.length - 1));
+                }
+                showToast({ severity: 'success', summary: '已删除', detail: '已删除该组', life: 2000 });
+            } else {
+                showToast({
+                    severity: 'error',
+                    summary: '删除失败',
+                    detail: data.message || '无法删除',
+                });
+            }
+        } catch (error) {
+            console.error('Delete extra set failed:', error);
+            showToast({ severity: 'error', summary: '错误', detail: '删除失败' });
+        } finally {
+            setRemovingSet(false);
+        }
+    };
+
+    // 删除学员自行添加的动作
+    const handleDeleteExtraAction = async (actionIndex: number) => {
+        if (!execution || removingAction) return;
+        const actionExec = execution.action_executions[actionIndex];
+        if (!actionExec || actionExec.source !== 'student_extra') return;
+
+        try {
+            setRemovingAction(true);
+            const res = await fetch('/api/execution/extra-content/delete-extra-exercise', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    executionId: execution.id,
+                    actionIndex,
+                }),
+            });
+            const data = await res.json();
+
+            if (data.success && data.data) {
+                const updatedExecution = { ...execution };
+                updatedExecution.action_executions.splice(actionIndex, 1);
+                updatedExecution.action_executions.forEach((a: any, idx: number) => {
+                    a.action_order = idx + 1;
+                });
+                updatedExecution.total_sets = data.data.totalSets;
+
+                setExecution(updatedExecution);
+                if (expandedAction === actionIndex) {
+                    setExpandedAction(Math.max(0, actionIndex - 1));
+                } else if (expandedAction > actionIndex) {
+                    setExpandedAction(expandedAction - 1);
+                }
+                setCurrentSetIndex(0);
+                showToast({ severity: 'success', summary: '已删除', detail: '已删除该动作', life: 2000 });
+            } else {
+                showToast({
+                    severity: 'error',
+                    summary: '删除失败',
+                    detail: data.message || '无法删除',
+                });
+            }
+        } catch (error) {
+            console.error('Delete extra action failed:', error);
+            showToast({ severity: 'error', summary: '错误', detail: '删除失败' });
+        } finally {
+            setRemovingAction(false);
+        }
+    };
+
 
     if (loading) {
         return (
@@ -1365,6 +1470,19 @@ function TrainingExecutionContent() {
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-2">
+                                    {actionExec.source === 'student_extra' && (
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleDeleteExtraAction(actionIndex);
+                                            }}
+                                            disabled={removingAction}
+                                            className="p-2 rounded-lg text-red-500 hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
+                                            title="删除此动作"
+                                        >
+                                            <Trash2 className="w-5 h-5" />
+                                        </button>
+                                    )}
                                     {!isExpanded && demoVideoUrl && (
                                         <button 
                                             onClick={(e) => {
@@ -1507,6 +1625,20 @@ function TrainingExecutionContent() {
                                                             </div>
 
                                                         <div className="flex items-center gap-2 shrink-0">
+                                                            {setData.source === 'student_extra' && (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        handleDeleteExtraSet(actionIndex, setIndex);
+                                                                    }}
+                                                                    disabled={removingSet}
+                                                                    className="p-1.5 rounded-lg text-red-500 hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
+                                                                    title="删除此组"
+                                                                >
+                                                                    <Trash2 className="w-4 h-4" />
+                                                                </button>
+                                                            )}
                                                             {setData.has_video && (
                                                                 <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-full">
                                                                     有视频
