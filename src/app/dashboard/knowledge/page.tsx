@@ -3,8 +3,10 @@
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
-import { BookOpen, Search, Zap, ChevronRight, Sparkles, List, GitBranch } from "lucide-react";
+import { BookOpen, Search, ChevronRight, Sparkles, List, GitBranch } from "lucide-react";
 import AIChatPanel from "@/components/knowledge/AIChatPanel";
+import BodyMapCanvas, { BODY_REGION_LABELS, type BodyRegion } from "@/components/knowledge/BodyMap/BodyMapCanvas";
+import BodyMapModeSwitch from "@/components/knowledge/BodyMap/BodyMapModeSwitch";
 
 // Dynamic import for mind map (uses ReactFlow which needs client-side only)
 const KnowledgeMindMap = dynamic(
@@ -21,6 +23,15 @@ type KnowledgePillar = {
 };
 
 type ViewMode = 'list' | 'mindmap';
+type BodyMapMode = 'screening' | 'training';
+
+type KnowledgeNode = {
+    id: string;
+    title: string;
+    description: string | null;
+    difficulty: number;
+    is_free: boolean;
+};
 
 const KnowledgeBaseHomePage = () => {
     const router = useRouter();
@@ -29,6 +40,10 @@ const KnowledgeBaseHomePage = () => {
     const [showAIChat, setShowAIChat] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
     const [viewMode, setViewMode] = useState<ViewMode>('list');
+    const [bodyMapMode, setBodyMapMode] = useState<BodyMapMode>('screening');
+    const [selectedBodyRegion, setSelectedBodyRegion] = useState<BodyRegion | null>(null);
+    const [regionNodes, setRegionNodes] = useState<KnowledgeNode[]>([]);
+    const [loadingRegionNodes, setLoadingRegionNodes] = useState(false);
 
     // Fetch knowledge pillars (tree structure)
     useEffect(() => {
@@ -46,32 +61,47 @@ const KnowledgeBaseHomePage = () => {
         fetchPillars();
     }, []);
 
-    // Scenario quick fixes 
-    const scenarios = [
-        { title: "办公族肩颈救星", icon: "💼", slug: "office-neck" },
-        { title: "久坐腰痛缓解", icon: "🪑", slug: "sitting-back" },
-        { title: "跑步后拉伸", icon: "🏃", slug: "post-run" },
-        { title: "睡前放松", icon: "😴", slug: "bedtime" },
-    ];
+    useEffect(() => {
+        if (!selectedBodyRegion) {
+            setRegionNodes([]);
+            return;
+        }
+
+        const fetchRegionNodes = async () => {
+            setLoadingRegionNodes(true);
+            try {
+                const res = await fetch(`/api/knowledge/nodes?body_region=${selectedBodyRegion}`);
+                const json = await res.json();
+                setRegionNodes(json.nodes || []);
+            } catch (error) {
+                console.error("获取人体地图节点失败:", error);
+                setRegionNodes([]);
+            } finally {
+                setLoadingRegionNodes(false);
+            }
+        };
+
+        fetchRegionNodes();
+    }, [selectedBodyRegion]);
 
     return (
         <div className="pb-32">
             {/* Hero Header with Gradient */}
-            <div className="bg-gradient-to-br from-primary-600 via-primary-500 to-amber-500 text-white px-4 pt-12 pb-8">
+            <div className="bg-gradient-to-br from-primary-600 via-primary-500 to-amber-500 text-white px-4 pt-7 pb-4">
                 <div className="max-w-3xl mx-auto">
-                    <div className="flex items-center gap-3 mb-3">
-                        <div className="p-2 bg-white/20 backdrop-blur rounded-2xl">
-                            <BookOpen size={24} />
+                    <div className="flex items-center gap-2 mb-2">
+                        <div className="p-1.5 bg-white/20 backdrop-blur rounded-xl">
+                            <BookOpen size={20} />
                         </div>
-                        <h1 className="text-2xl font-black">知识库</h1>
+                        <h1 className="text-xl font-black">知识库</h1>
                     </div>
-                    <p className="text-white/80 text-sm">
+                    <p className="text-white/80 text-xs">
                         以最通俗易懂的方式传授运动训练知识
                     </p>
 
                     {/* Search Bar */}
-                    <div className="mt-5 relative">
-                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-surface-400" size={18} />
+                    <div className="mt-3 relative">
+                        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-surface-400" size={16} />
                         <input
                             type="text"
                             value={searchQuery}
@@ -82,55 +112,89 @@ const KnowledgeBaseHomePage = () => {
                                 }
                             }}
                             placeholder="搜索知识点..."
-                            className="w-full pl-11 pr-4 py-2.5 rounded-xl bg-white/95 text-surface-900 placeholder-surface-400 text-sm shadow-lg focus:outline-none focus:ring-2 focus:ring-white/50"
+                            className="w-full pl-10 pr-3 py-2 rounded-xl bg-white/95 text-surface-900 placeholder-surface-400 text-sm shadow-lg focus:outline-none focus:ring-2 focus:ring-white/50"
                         />
                     </div>
                 </div>
             </div>
 
-            {/* Body Map Entry */}
-            <div className="px-4 mt-5">
+            {/* Body Map Inline */}
+            <div className="px-4 mt-3">
                 <div className="max-w-3xl mx-auto">
-                    <button
-                        onClick={() => router.push("/dashboard/knowledge/body-map")}
-                        className="w-full bg-gradient-to-r from-rose-500 to-pink-500 dark:from-rose-600 dark:to-pink-600 text-white p-5 rounded-2xl shadow-md hover:shadow-lg transition-all flex items-center gap-4"
-                    >
-                        <div className="text-4xl">🧍</div>
-                        <div className="text-left flex-1">
-                            <h3 className="font-black text-lg">人体地图</h3>
-                            <p className="text-white/80 text-xs mt-0.5">
-                                按部位查看筛查方案或训练动作
-                            </p>
-                        </div>
-                        <ChevronRight size={20} className="text-white/60" />
-                    </button>
-                </div>
-            </div>
-
-            {/* Scenario Quick Fixes */}
-            <div className="px-4 mt-5">
-                <div className="max-w-3xl mx-auto">
-                    <div className="flex items-center gap-2 text-surface-700 dark:text-surface-200 text-sm font-bold mb-3">
-                        <Zap size={16} className="text-amber-500" />
-                        <span>场景急救箱</span>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                        {scenarios.map((scenario, idx) => (
+                    <div className="rounded-2xl border border-surface-200 bg-white dark:bg-surface-800 p-4 shadow-sm">
+                        <div className="flex items-center justify-between mb-3">
+                            <div>
+                                <h2 className="text-base font-black text-surface-900 dark:text-surface-100">人体地图</h2>
+                                <p className="text-xs text-surface-500 mt-1">
+                                    直接点击部位查看内容，不需要单独跳转
+                                </p>
+                            </div>
                             <button
-                                key={idx}
-                                onClick={() => router.push(`/dashboard/knowledge/scenarios/${scenario.slug}`)}
-                                className="flex items-center gap-3 p-4 bg-white dark:bg-surface-800 rounded-2xl shadow-sm hover:shadow-md transition-shadow text-left"
+                                type="button"
+                                onClick={() => router.push("/dashboard/knowledge/body-map")}
+                                className="text-xs text-primary-600 font-semibold hover:text-primary-500"
                             >
-                                <span className="text-2xl">{scenario.icon}</span>
-                                <span className="text-sm font-bold text-surface-800 dark:text-surface-100">{scenario.title}</span>
+                                全屏查看
                             </button>
-                        ))}
+                        </div>
+                        <BodyMapModeSwitch mode={bodyMapMode} onChange={setBodyMapMode} />
+                        <div className="mt-4">
+                            <BodyMapCanvas
+                                mode={bodyMapMode}
+                                selectedRegion={selectedBodyRegion}
+                                onRegionClick={(region) =>
+                                    setSelectedBodyRegion((prev) => (prev === region ? null : region))
+                                }
+                            />
+                        </div>
+
+                        {selectedBodyRegion && (
+                            <div className="mt-4 space-y-2">
+                                <div className="flex items-center justify-between">
+                                    <h3 className="text-sm font-bold text-surface-700 dark:text-surface-200">
+                                        {BODY_REGION_LABELS[selectedBodyRegion]} 相关内容
+                                    </h3>
+                                    <span className="text-xs text-surface-500">
+                                        {loadingRegionNodes ? "加载中..." : `${regionNodes.length} 条`}
+                                    </span>
+                                </div>
+                                {loadingRegionNodes ? (
+                                    <div className="space-y-2">
+                                        {[1, 2].map((i) => (
+                                            <div key={i} className="h-16 bg-surface-100 dark:bg-surface-700 rounded-xl animate-pulse" />
+                                        ))}
+                                    </div>
+                                ) : regionNodes.length === 0 ? (
+                                    <div className="text-xs text-surface-500 bg-surface-50 dark:bg-surface-700/40 rounded-xl px-3 py-3">
+                                        该部位暂时没有内容，正在补充中。
+                                    </div>
+                                ) : (
+                                    regionNodes.slice(0, 3).map((node) => (
+                                        <button
+                                            key={node.id}
+                                            type="button"
+                                            onClick={() => router.push(`/dashboard/knowledge/nodes/${node.id}`)}
+                                            className="w-full rounded-xl border border-surface-200 bg-surface-0 dark:bg-surface-700/40 px-3 py-3 text-left hover:border-primary-200 transition-colors"
+                                        >
+                                            <div className="text-sm font-semibold text-surface-900 dark:text-surface-100 line-clamp-1">
+                                                {node.title}
+                                            </div>
+                                            {node.description && (
+                                                <div className="text-xs text-surface-500 mt-1 line-clamp-2">
+                                                    {node.description}
+                                                </div>
+                                            )}
+                                        </button>
+                                    ))
+                                )}
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
 
             {/* Knowledge Pillars (Tree) with View Toggle */}
-            <div className="px-4 mt-6">
+            <div className="px-4 mt-4">
                 <div className="max-w-3xl mx-auto">
                     {/* Header with view toggle */}
                     <div className="flex items-center justify-between mb-3">

@@ -322,7 +322,7 @@ const EditPlanPage = () => {
 
     const handleRemoveActionSet = (dayIndex: number, setIndex: number) => {
         const newDays = [...days];
-        const actualDayIndex = newDays.findIndex(d => d.dayIndex === dayIndex);
+        const actualDayIndex = newDays.findIndex(d => d.dayIndex === dayIndex + 1);
         if (actualDayIndex === -1) return;
 
         newDays[actualDayIndex].actionSets.splice(setIndex, 1);
@@ -869,6 +869,8 @@ const EditPlanPage = () => {
                         visible={aiBatchDialogVisible}
                         onHide={() => setAiBatchDialogVisible(false)}
                         templateId={params.id as string}
+                        targetActionType="coach"
+                        existingActions={actions}
                         onSuccess={handleAiBatchOperationSuccess}
                         variant="auto"
                         onPreviewResult={handleAiPreviewResult}

@@ -568,6 +568,12 @@ const TodayTrainingPage: React.FC = () => {
 
                             <div className="flex flex-col sm:flex-row justify-center items-center gap-4">
                                 <Button
+                                    label="即兴锻炼"
+                                    icon="pi pi-bolt"
+                                    onClick={() => router.push('/impromptu-training')}
+                                    className="w-full sm:w-auto px-8 py-3.5 rounded-2xl bg-primary-500 border-none transition-all active:scale-[0.98] duration-200 ease-out"
+                                />
+                                <Button
                                     label="联系教练"
                                     icon="pi pi-comments"
                                     onClick={() => {
@@ -612,22 +618,30 @@ const TodayTrainingPage: React.FC = () => {
                             开启您的训练旅程
                         </h3>
                         <p className="text-surface-500 max-w-sm mx-auto mb-10 leading-relaxed text-balance">
-                            您可以订阅教练获取专业计划，或者在您的私人库中创建专属训练
+                            先完成一次即兴首练，再决定是否进入 AI 长期计划或订阅教练
                         </p>
 
                         {/* 4. 状态反馈：物理缩放与强调色联动 */}
                         <div className="flex flex-col sm:flex-row justify-center items-center gap-4">
                             <Button
-                                label="浏览教练"
-                                icon="pi pi-compass"
-                                onClick={() => router.push('/coach/discovery')}
+                                label="开始即兴首练"
+                                icon="pi pi-play"
+                                onClick={() => router.push('/impromptu-training?from=today-training')}
                                 className="w-full sm:w-auto px-8 py-3.5 rounded-2xl bg-primary-500 border-none transition-all active:scale-[0.98] duration-200 ease-out"
                             />
                             <Button
-                                label="我的计划库"
-                                icon="pi pi-bookmark"
-                                onClick={() => router.push('/me/plan-lib')}
+                                label="AI 长期计划"
+                                icon="pi pi-calendar-plus"
+                                onClick={() => router.push('/me/plan-lib/create')}
                                 className="w-full sm:w-auto px-8 py-3.5 rounded-2xl bg-surface-50 text-surface-700 border border-surface-200 transition-all active:scale-[0.98] duration-200 ease-out hover:bg-surface-100"
+                            />
+                            <Button
+                                label="浏览教练"
+                                icon="pi pi-compass"
+                                severity="secondary"
+                                outlined
+                                onClick={() => router.push('/coach/discovery')}
+                                className="w-full sm:w-auto px-8 py-3.5 rounded-2xl"
                             />
                         </div>
                     </div>
@@ -726,6 +740,12 @@ const TodayTrainingPage: React.FC = () => {
                                 {coachName ? `您的教练「${coachName}」正在为您制定训练计划，请耐心等待。` : '您的教练正在为您制定训练计划，请耐心等待。'}
                             </p>
                             <div className="flex flex-col sm:flex-row justify-center items-center gap-4">
+                                <Button
+                                    label="即兴锻炼"
+                                    icon="pi pi-bolt"
+                                    onClick={() => router.push('/impromptu-training')}
+                                    className="w-full sm:w-auto px-8 py-3.5 rounded-2xl bg-primary-500 border-none transition-all active:scale-[0.98] duration-200 ease-out"
+                                />
                                 <Button
                                     label="联系教练"
                                     icon="pi pi-comments"
@@ -1086,6 +1106,16 @@ const TodayTrainingPage: React.FC = () => {
                             </div>
                             {progressDay && progressDay.type === 'training' ? (
                                 <>
+                                    <div className="mb-3 flex justify-end">
+                                        <Button
+                                            label="即兴锻炼"
+                                            icon="pi pi-bolt"
+                                            severity="secondary"
+                                            outlined
+                                            onClick={() => router.push('/impromptu-training')}
+                                            className="px-4 py-2 rounded-xl"
+                                        />
+                                    </div>
                                     <TodayTrainingCard
                                         day={progressDay}
                                         actions={actions}

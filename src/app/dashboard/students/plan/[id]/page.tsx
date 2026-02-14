@@ -38,6 +38,7 @@ import {
 } from '@/lib/planBatchUtils';
 import QuestionnaireForm from '@/app/coach/profile/[id]/QuestionnaireForm';
 import type { TrainingItem } from '@/types/questionnaires';
+import { BatchOperationDialog } from '@/components/BatchOperationDialog';
 
 const StudentPlanPage = () => {
     const router = useRouter();
@@ -73,6 +74,8 @@ const StudentPlanPage = () => {
     const [instanceId, setInstanceId] = useState<string | null>(null);
     const [rawInstance, setRawInstance] = useState<CoachPlanInstanceRow>(null);
     const [batchDialogVisible, setBatchDialogVisible] = useState(false);
+    const [aiBatchDialogVisible, setAiBatchDialogVisible] = useState(false);
+    const [originalDaysBeforeAi, setOriginalDaysBeforeAi] = useState<FormPlanTrainingDay[] | null>(null);
 
     // Student data
     const [studentData, setStudentData] = useState<GetStudentResponseDto['student'] | null>(null);
@@ -781,6 +784,48 @@ const StudentPlanPage = () => {
         showToast({ severity: 'success', summary: '追加成功', detail: `共追加 ${result.affectedSets} 个动作` });
     };
 
+    const handleAiPreviewResult = (data: { updatedTrainingDays: any[] }) => {
+        setOriginalDaysBeforeAi(JSON.parse(JSON.stringify(days)));
+        const converted: FormPlanTrainingDay[] = (data.updatedTrainingDays || []).map((day: any) => ({
+            id: day.id,
+            dayIndex: day.dayIndex ?? 0,
+            type: day.type || 'rest',
+            note: day.note || '',
+            actionSets: day.actionSets || [],
+        })).sort((a, b) => a.dayIndex - b.dayIndex);
+        setDays(converted);
+    };
+
+    const handleAiRestart = () => {
+        if (originalDaysBeforeAi) {
+            setDays(originalDaysBeforeAi);
+            setOriginalDaysBeforeAi(null);
+        }
+    };
+
+    const handleAiApplyLocal = (updatedTrainingDays: any[]) => {
+        const converted: FormPlanTrainingDay[] = (updatedTrainingDays || []).map((day: any) => ({
+            id: day.id,
+            dayIndex: day.dayIndex ?? 0,
+            type: day.type || 'rest',
+            note: day.note || '',
+            actionSets: day.actionSets || [],
+        })).sort((a, b) => a.dayIndex - b.dayIndex);
+        setDays(converted);
+        if (converted.length > 0) setSelectedDayIndex(converted[0].dayIndex);
+        showToast({ severity: 'success', summary: 'AI 修改器成功', detail: '修改已应用到当前草稿，请点击更新计划保存' });
+    };
+
+    const handleAiBatchOperationSuccess = async () => {
+        setAiBatchDialogVisible(false);
+        setOriginalDaysBeforeAi(null);
+        setActions((prev) => [...prev]);
+        const actionsRes = await actionLibService.listActions({ page: 1, limit: 100 });
+        if (actionsRes?.actions) {
+            setActions(actionsRes.actions as CoachActionRow[]);
+        }
+    };
+
     // 打开问卷编辑对话框
     const handleOpenQuestionnaire = async () => {
         if (!subscription?.coach_id) {
@@ -1049,6 +1094,22 @@ const StudentPlanPage = () => {
                                 disabled={saving}
                             />
                             <Button
+                                label="AI 修改器"
+                                size="small"
+                                icon="pi pi-bolt"
+                                className="
+                                    flex items-center gap-2 px-4 py-2
+                                    bg-primary-50 border border-primary-200 rounded-[14px]
+                                    text-[12px] font-black text-primary-700 tracking-tight
+                                    transition-all duration-200 active:scale-[0.95]
+                                    hover:border-primary-400 hover:bg-primary-100 hover:shadow-sm
+                                    disabled:opacity-40 disabled:cursor-not-allowed
+                                "
+                                text
+                                onClick={() => setAiBatchDialogVisible(true)}
+                                disabled={saving}
+                            />
+                            <Button
                                 label="从模板创建"
                                 size="small"
                                 icon="pi pi-book"
@@ -1169,6 +1230,20 @@ const StudentPlanPage = () => {
                     maxWeeks={maxWeeks}
                     onApply={handleBatchApply}
                     disabled={saving}
+                />
+
+                <BatchOperationDialog
+                    visible={aiBatchDialogVisible}
+                    onHide={() => setAiBatchDialogVisible(false)}
+                    mode="local"
+                    targetActionType="coach"
+                    initialTrainingDays={days}
+                    existingActions={actions}
+                    onApplyLocal={handleAiApplyLocal}
+                    onSuccess={handleAiBatchOperationSuccess}
+                    onPreviewResult={handleAiPreviewResult}
+                    onRestart={handleAiRestart}
+                    onGetDaysToApply={() => days}
                 />
             </div>
 
