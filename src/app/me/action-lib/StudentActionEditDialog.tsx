@@ -51,6 +51,33 @@ const StudentActionEditDialog: React.FC<StudentActionEditDialogProps> = ({
     const [referenceOneRM, setReferenceOneRM] = useState<number | null>(null);
     
     const [isMobile, setIsMobile] = useState(false);
+    const [videoModalVisible, setVideoModalVisible] = useState(false);
+    const [currentVideoUrl, setCurrentVideoUrl] = useState<string | null>(null);
+
+    // 判断 URL 是否可在页面内播放
+    const canPlayInlineVideo = (videoUrl?: string | null) => {
+        if (!videoUrl) return false;
+        if (videoUrl.startsWith("blob:")) return true;
+        const lower = videoUrl.toLowerCase();
+        if (
+            lower.endsWith(".mp4") || lower.endsWith(".webm") || lower.endsWith(".mov") ||
+            lower.endsWith(".m4v") || lower.endsWith(".ogg") ||
+            lower.includes(".mp4?") || lower.includes(".webm?") || lower.includes("/storage/v1/object/")
+        ) {
+            return true;
+        }
+        return false;
+    };
+
+    const openVideo = (videoUrl?: string | null) => {
+        if (!videoUrl) return;
+        if (canPlayInlineVideo(videoUrl)) {
+            setCurrentVideoUrl(videoUrl);
+            setVideoModalVisible(true);
+        } else {
+            window.open(videoUrl, "_blank");
+        }
+    };
 
     useEffect(() => {
         const mql = window.matchMedia('(max-width: 640px)');
@@ -216,6 +243,7 @@ const StudentActionEditDialog: React.FC<StudentActionEditDialogProps> = ({
     }, [isMobile]);
 
     return (
+        <>
         <Dialog
             header={action ? "编辑动作" : "添加动作"}
             visible={visible}
@@ -452,10 +480,93 @@ const StudentActionEditDialog: React.FC<StudentActionEditDialogProps> = ({
                             placeholder="https://example.com/video.mp4"
                             className="rounded-xl border-surface-200"
                         />
+                        {/* 视频预览：有 URL 时展示可播放的视频 */}
+                        {url && url.trim() && (
+                            <div className="mt-3 p-4 bg-surface-50 rounded-xl border border-surface-200">
+                                <div className="flex items-center justify-between mb-2">
+                                    <span className="text-xs font-bold text-surface-600">演示视频</span>
+                                    <Button
+                                        type="button"
+                                        icon="pi pi-play"
+                                        label="查看视频"
+                                        size="small"
+                                        className="p-button-text p-button-sm text-primary-500"
+                                        onClick={() => openVideo(url.trim())}
+                                    />
+                                </div>
+                                {canPlayInlineVideo(url.trim()) ? (
+                                    <div
+                                        className="aspect-video rounded-lg overflow-hidden bg-surface-900 relative group cursor-pointer"
+                                        onClick={() => openVideo(url.trim())}
+                                    >
+                                        <video
+                                            src={url.trim()}
+                                            className="w-full h-full object-cover"
+                                            preload="metadata"
+                                            muted
+                                            playsInline
+                                            onLoadedMetadata={(e) => {
+                                                try { e.currentTarget.currentTime = 0.1; } catch { /* ignore */ }
+                                            }}
+                                            onError={(e) => {
+                                                e.currentTarget.style.display = 'none';
+                                            }}
+                                        />
+                                        <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <i className="pi pi-play-circle text-white text-4xl" />
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="flex items-center gap-2 p-3 bg-surface-100 rounded-lg">
+                                        <i className="pi pi-external-link text-surface-400" />
+                                        <span className="text-xs text-surface-500 flex-1">外部视频链接，点击上方按钮打开观看</span>
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
         </Dialog>
+
+            {/* 视频播放模态框 */}
+            <Dialog
+                visible={videoModalVisible}
+                onHide={() => {
+                    setVideoModalVisible(false);
+                    setCurrentVideoUrl(null);
+                }}
+                header="查看演示视频"
+                style={isMobile ? { width: '100vw', height: '100dvh', margin: 0 } : { width: '90vw', maxWidth: '800px' }}
+                position={isMobile ? 'bottom' : 'center'}
+                modal
+                dismissableMask
+                pt={isMobile ? {
+                    root: { className: 'm-0 p-0 rounded-none overflow-hidden' },
+                    header: { className: 'px-4 py-3 border-b border-surface-200 bg-surface sticky top-0 z-10' },
+                    content: { className: 'px-4 py-4 bg-surface overflow-auto' },
+                } : {
+                    root: { className: 'rounded-2xl overflow-hidden' },
+                    header: { className: 'px-6 py-4 border-b border-surface-200 bg-surface' },
+                    content: { className: 'px-6 py-5 bg-surface' },
+                }}
+            >
+                {currentVideoUrl && (
+                    <div className="flex justify-center">
+                        <video
+                            src={currentVideoUrl}
+                            controls
+                            autoPlay
+                            className="w-full max-h-[70vh] rounded-lg"
+                            style={{ backgroundColor: '#000' }}
+                        >
+                            您的浏览器不支持视频播放
+                        </video>
+                    </div>
+                )}
+            </Dialog>
+
+        </>
     );
 };
 
