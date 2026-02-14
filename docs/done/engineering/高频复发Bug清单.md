@@ -73,3 +73,14 @@
   - 批量导入：同批重复动作不会重复入库；
   - 教练库与学员库两条链路行为一致。
 
+## 7) 动作名匹配多个 canonical_action_id 时阻断（中频）
+
+- **现象**：智能导入/批量创建时报错「动作「xx」匹配到多个 canonical_action_id，请手动指定」，流程中断。
+- **根因**：同一归一化名称对应多条 canonical_actions（如别名重叠、重复录入），`resolveCanonicalActionId` 默认不允许歧义。
+- **统一规则**：
+  - 需要强制唯一匹配的场景（如手动新建、复制）保持 `reason: "ambiguous"` 报错；
+  - 批量/导入等可接受“取首个”的场景，传入 `pickFirstOnAmbiguous: true`。
+- **改动前自检**：
+  - 确认调用方对 ambiguous 的期望（必须手动指定 vs 可自动取首）；
+  - 批量创建类 API 启用 `pickFirstOnAmbiguous` 后，仍保证写入有合法 canonical。
+
