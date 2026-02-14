@@ -12,6 +12,7 @@ import { InputText } from 'primereact/inputtext';
 import { Dialog } from 'primereact/dialog';
 import { ArrowLeft, Play, Video, Check, Star, ChevronUp, ChevronDown, Timer, Upload, Plus, Trash2 } from 'lucide-react';
 import { executionService } from '@/app/service/executionService';
+import { impromptuTrainingService } from '@/app/service/impromptuTrainingService';
 import { planLibService } from '@/app/service/planLibService';
 import { videoService } from '@/app/service/videoService';
 import { studentActionLibService } from '@/app/service/studentActionLibService';
@@ -59,7 +60,7 @@ function TrainingExecutionContent() {
     const params = useParams();
     const router = useRouter();
     const searchParams = useSearchParams();
-    const { data: session } = useSession();
+    const { data: session, update: updateSession } = useSession();
     const { showToast } = useToastContext();
     const { trackEvent } = useAnalytics();
     const calibrationToastShownRef = useRef(false);
@@ -68,6 +69,11 @@ function TrainingExecutionContent() {
 
     const instanceId = params.instanceId as string;
     const dayIndex = parseInt(searchParams.get('dayIndex') || '1');
+    const impromptuId = searchParams.get('impromptuId');
+    const isImpromptuMode = !!impromptuId;
+    const extraContentApiBase = isImpromptuMode
+        ? '/api/impromptu/extra-content'
+        : '/api/execution/extra-content';
 
     const [loading, setLoading] = useState(true);
     const [execution, setExecution] = useState<any>(null);
@@ -162,7 +168,7 @@ function TrainingExecutionContent() {
         if (session?.user?.id && instanceId) {
             startTraining();
         }
-    }, [session?.user?.id, instanceId]);
+    }, [session?.user?.id, instanceId, impromptuId]);
 
     // Rest timer effect
     useEffect(() => {
@@ -225,13 +231,19 @@ function TrainingExecutionContent() {
                 weightStr
             });
             
-            // 只有当包含 "kg" 时才预填充重量（避免把 RM 值填进去）
-            // 注意：支持负数（辅助重量），例如 "-10kg"；也允许 0kg
-            if (weightStr.includes('kg') && weight === null) {
-                const match = weightStr.match(/-?\d+(\.\d+)?/);
-                const numericWeight = match ? parseFloat(match[0]) : NaN;
-                if (Number.isFinite(numericWeight)) {
-                    setWeight(numericWeight);
+            // 预填充重量：
+            // 1) "80kg" / "-10kg" 等显式 kg
+            // 2) 纯数字字符串（例如即兴训练保存的 "80"）
+            // 不把 "5RM" / "80%" 这类相对强度当作重量
+            if (weight === null) {
+                const normalized = weightStr.trim().toLowerCase();
+                const isPureNumber = /^-?\d+(\.\d+)?$/.test(normalized);
+                if (normalized.includes('kg') || isPureNumber) {
+                    const match = normalized.match(/-?\d+(\.\d+)?/);
+                    const numericWeight = match ? parseFloat(match[0]) : NaN;
+                    if (Number.isFinite(numericWeight)) {
+                        setWeight(numericWeight);
+                    }
                 }
             }
             
@@ -375,21 +387,37 @@ function TrainingExecutionContent() {
     const startTraining = async () => {
         try {
             setLoading(true);
-            
-            // Get plan instance for action details
-            const instanceRes = await planLibService.getInstance({ id: instanceId });
-            if (instanceRes?.actions) {
-                setActions(instanceRes.actions);
-            }
-            if (instanceRes?.instance) {
-                setPlanInstance(instanceRes.instance);
-            }
 
-            // Start or resume execution
-            const res = await executionService.startExecution({
-                instanceId,
-                dayIndex
-            });
+            let res: any = null;
+            if (isImpromptuMode && impromptuId) {
+                const impromptuExecution = await impromptuTrainingService.get({
+                    id: impromptuId,
+                });
+                res = impromptuExecution
+                    ? { success: true, data: impromptuExecution, message: "ok" }
+                    : { success: false, data: null, message: "无法加载即兴执行记录" };
+                setPlanInstance({
+                    id: "impromptu",
+                    name: "即兴锻炼",
+                    description: "即兴训练模式（可临时加组/加动作）",
+                    source: "impromptu",
+                });
+            } else {
+                // Get plan instance for action details
+                const instanceRes = await planLibService.getInstance({ id: instanceId });
+                if (instanceRes?.actions) {
+                    setActions(instanceRes.actions);
+                }
+                if (instanceRes?.instance) {
+                    setPlanInstance(instanceRes.instance);
+                }
+
+                // Start or resume execution
+                res = await executionService.startExecution({
+                    instanceId,
+                    dayIndex,
+                });
+            }
 
             if (res.success && res.data) {
                 setExecution(res.data);
@@ -419,6 +447,21 @@ function TrainingExecutionContent() {
                     // best-effort
                 }
                 
+                // 即兴模式下为动作填充最小元信息，避免 UI 因缺少 actions map 退化
+                if (isImpromptuMode) {
+                    const actionMap: Record<string, any> = {};
+                    (res.data.action_executions || []).forEach((item: any) => {
+                        if (!item?.action_id) return;
+                        actionMap[item.action_id] = {
+                            id: item.action_id,
+                            name: item.action_name || "动作",
+                            type: "STRENGTH",
+                            attrs: ["组数", "次数", "强度", "休息时间"],
+                        };
+                    });
+                    setActions(actionMap);
+                }
+
                 // Find first incomplete set
                 const actionExecutions = res.data.action_executions || [];
                 for (let i = 0; i < actionExecutions.length; i++) {
@@ -615,7 +658,7 @@ function TrainingExecutionContent() {
             let hasVideo = false;
 
             // 1.0 If user pasted a link but didn't click "绑定链接", auto-bind on completion.
-            if (!linkedVideo?.url && videoLink.trim()) {
+            if (!isImpromptuMode && !linkedVideo?.url && videoLink.trim()) {
                 try {
                     setUploading(true);
                     const res = await executionService.addSetVideoLink({
@@ -648,7 +691,7 @@ function TrainingExecutionContent() {
                 hasVideo = true;
             }
             // 兜底：如果用户选择了文件但未自动上传成功，可在“完成本组”时重试
-            if (videoFile && !linkedVideo?.url) {
+            if (!isImpromptuMode && videoFile && !linkedVideo?.url) {
                 try {
                     setUploading(true);
                     setUploadProgress(0);
@@ -715,19 +758,28 @@ function TrainingExecutionContent() {
             }
 
             // 2. Complete set via API (with is_pr, has_video, actionId for persistence)
-            const res = await executionService.completeSet({
-                executionId: execution.id,
-                actionIndex,
-                setIndex,
-                actionId: actionExecution.action_id,
-                // NOTE: allow 0kg (e.g. unloaded movements); only treat null/undefined as "not provided"
-                actualWeight: weight ?? undefined,
-                actualReps: reps ?? undefined,
-                rpe: rpe ?? undefined,
-                notes: setNotes || undefined,
-                is_pr: markAsPR,
-                has_video: hasVideo
-            });
+            const res: any = isImpromptuMode
+                ? await impromptuTrainingService.completeSet({
+                    executionId: execution.id,
+                    actionIndex,
+                    setIndex,
+                    actualWeight: weight ?? undefined,
+                    actualReps: reps ?? undefined,
+                    notes: setNotes || undefined,
+                })
+                : await executionService.completeSet({
+                    executionId: execution.id,
+                    actionIndex,
+                    setIndex,
+                    actionId: actionExecution.action_id,
+                    // NOTE: allow 0kg (e.g. unloaded movements); only treat null/undefined as "not provided"
+                    actualWeight: weight ?? undefined,
+                    actualReps: reps ?? undefined,
+                    rpe: rpe ?? undefined,
+                    notes: setNotes || undefined,
+                    is_pr: markAsPR,
+                    has_video: hasVideo
+                });
 
             if (res) {
                 // Track set completion
@@ -759,7 +811,7 @@ function TrainingExecutionContent() {
                 }
 
                 // 3. Create PR record if marked (manual marking)
-                if (markAsPR && weight && reps) {
+                if (!isImpromptuMode && markAsPR && weight && reps) {
                     await executionService.createPR({
                         executionId: execution.id,
                         actionId: actionExecution.action_id,
@@ -985,10 +1037,15 @@ function TrainingExecutionContent() {
         if (!execution) return;
 
         try {
-            const res = await executionService.finishTraining({
-                executionId: execution.id,
-                sessionNotes: sessionNotes || undefined
-            });
+            const res = isImpromptuMode
+                ? await impromptuTrainingService.finish({
+                    executionId: execution.id,
+                    sessionNotes: sessionNotes || undefined,
+                })
+                : await executionService.finishTraining({
+                    executionId: execution.id,
+                    sessionNotes: sessionNotes || undefined
+                });
 
             if (res) {
                 trackEvent('student_training_complete', 'training', { 
@@ -1001,8 +1058,17 @@ function TrainingExecutionContent() {
                     summary: '训练完成',
                     detail: `完成 ${res.completed_sets}/${res.total_sets} 组`
                 });
-                // Instead of immediate redirect, show share card
-                setShareModalVisible(true);
+                if (isImpromptuMode) {
+                    try {
+                        await updateSession();
+                    } catch (sessionError) {
+                        console.warn('[training-execution] updateSession failed after impromptu finish:', sessionError);
+                    }
+                    router.push('/me/training-history');
+                } else {
+                    // Instead of immediate redirect, show share card
+                    setShareModalVisible(true);
+                }
             } else {
                 // Bug 5 fix: 处理 API 返回失败的情况
                 showToast({
@@ -1039,7 +1105,7 @@ function TrainingExecutionContent() {
         try {
             setAddingExtraSet(true);
             
-            const res = await fetch('/api/execution/extra-content/add-extra-set', {
+            const res = await fetch(`${extraContentApiBase}/add-extra-set`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -1102,7 +1168,7 @@ function TrainingExecutionContent() {
         try {
             setAddingExtraAction(true);
             
-            const res = await fetch('/api/execution/extra-content/add-extra-exercise', {
+            const res = await fetch(`${extraContentApiBase}/add-extra-exercise`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -1184,7 +1250,7 @@ function TrainingExecutionContent() {
 
         try {
             setRemovingSet(true);
-            const res = await fetch('/api/execution/extra-content/delete-extra-set', {
+            const res = await fetch(`${extraContentApiBase}/delete-extra-set`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -1235,7 +1301,7 @@ function TrainingExecutionContent() {
 
         try {
             setRemovingAction(true);
-            const res = await fetch('/api/execution/extra-content/delete-extra-exercise', {
+            const res = await fetch(`${extraContentApiBase}/delete-extra-exercise`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

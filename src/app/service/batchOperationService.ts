@@ -75,6 +75,68 @@ export class BatchOperationService {
     }
 
     /**
+     * local 模式：直接基于前端当前 trainingDays 预览批量操作
+     */
+    static async executeBatchOperationLocal(
+        trainingDays: any[],
+        instruction: string,
+        onMessage: (message: SSEMessage) => void,
+        onComplete: () => void,
+        onError: (error: string) => void,
+        conversationHistory?: ConversationTurn[]
+    ): Promise<void> {
+        try {
+            const body: Record<string, unknown> = { trainingDays, instruction };
+            if (conversationHistory && conversationHistory.length > 0) {
+                body.conversationHistory = conversationHistory;
+            }
+            const response = await fetch('/api/plan-lib/batch-operation', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(body),
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(errorText || '请求失败');
+            }
+
+            const reader = response.body?.getReader();
+            if (!reader) {
+                throw new Error('无法读取响应流');
+            }
+
+            const decoder = new TextDecoder();
+            let buffer = '';
+
+            while (true) {
+                const { done, value } = await reader.read();
+
+                if (done) {
+                    if (buffer.trim()) {
+                        this.processBuffer(buffer, onMessage, onError);
+                    }
+                    onComplete();
+                    break;
+                }
+
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split('\n');
+                buffer = lines.pop() || '';
+
+                for (const line of lines) {
+                    this.processLine(line, onMessage, onError);
+                }
+            }
+        } catch (error: any) {
+            console.error('本地批量操作失败:', error);
+            onError(error.message || '操作失败');
+        }
+    }
+
+    /**
      * 处理单行 SSE 数据
      */
     private static processLine(

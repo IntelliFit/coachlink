@@ -3,7 +3,9 @@ import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 import supabase from "@/lib/supabaseClient";
 import OpenAI from "openai";
 import ivm from "isolated-vm";
-import { BatchOperationDto, SSEMessage, ModificationDiff, NewActionDetected } from "./entity";
+import { BatchOperationDto, SSEMessage, ModificationDiff, NewActionDetected, PendingActionCandidate } from "./entity";
+import type { ItemType } from "@/types";
+import { sanitizeActionName } from "@/lib/planImportText";
 
 // 检查是否为开发环境
 const isDevelopment = process.env.NODE_ENV === 'development';
@@ -56,12 +58,27 @@ async function executeCodeInVM(
             const actions = JSON.parse(actionsJSON);
             
             // 辅助函数
+            const normalizeActionName = (name) => String(name || '')
+                .toLowerCase()
+                .replace(/[\\s\\-_()（）【】\\[\\]·,，.。]/g, '');
+
             const findActionByName = (name) => {
-                return actions.find(a => a.name.includes(name) || name.includes(a.name));
+                const target = normalizeActionName(name);
+                if (!target) return null;
+                // 严格匹配：仅允许“规范化后全等”
+                return actions.find(a => normalizeActionName(a.name) === target) || null;
             };
             
             const findActionById = (id) => {
                 return actions.find(a => a.id === id);
+            };
+
+            // 优先命中动作库；未命中则返回待确认的临时 actionId（后续走人工确认创建）
+            const ensureActionIdByName = (name) => {
+                const matched = findActionByName(name);
+                if (matched?.id) return matched.id;
+                const normalized = normalizeActionName(name);
+                return normalized ? ('pending:' + normalized.slice(0, 48)) : 'pending:unnamed';
             };
             
             // 用户代码
@@ -249,6 +266,186 @@ function analyzeModifications(
     return modifications;
 }
 
+const ITEM_TYPES: ItemType[] = ["STRENGTH", "CARDIO", "DIET", "HABIT"];
+
+function normalizeItemType(input?: unknown): ItemType {
+    const raw = String(input ?? "").toUpperCase();
+    if (ITEM_TYPES.includes(raw as ItemType)) return raw as ItemType;
+    return "STRENGTH";
+}
+
+function inferItemTypeFromSet(actionSet: any): ItemType {
+    const rawType = String(actionSet?.itemType || "").toUpperCase();
+    if (rawType === "CARDIO" || rawType === "DIET" || rawType === "HABIT" || rawType === "STRENGTH") {
+        return normalizeItemType(rawType);
+    }
+
+    const params = actionSet?.params || {};
+    const customData = params.custom_data || params.customData || {};
+    const allKeys = new Set<string>([
+        ...Object.keys(params || {}),
+        ...Object.keys(customData || {}),
+    ]);
+
+    if (
+        allKeys.has("distance") || allKeys.has("pace") || allKeys.has("duration") ||
+        allKeys.has("距离") || allKeys.has("配速") || allKeys.has("冲刺时长")
+    ) {
+        return "CARDIO";
+    }
+    if (
+        allKeys.has("calories") || allKeys.has("food_list") || allKeys.has("macro") ||
+        allKeys.has("热量") || allKeys.has("食物清单") || allKeys.has("宏量营养")
+    ) {
+        return "DIET";
+    }
+    if (
+        allKeys.has("habit_name") || allKeys.has("target_duration") ||
+        allKeys.has("目标数值") || allKeys.has("完成状态")
+    ) {
+        return "HABIT";
+    }
+    return "STRENGTH";
+}
+
+function inferSuggestedAttrs(actionSet: any, type: ItemType): string[] {
+    if (type === "CARDIO") return ["距离", "配速", "持续时间"];
+    if (type === "DIET") return ["食物清单", "热量", "宏量营养"];
+    if (type === "HABIT") return ["目标数值", "完成状态"];
+
+    const params = actionSet?.params || {};
+    const hasDuration = typeof params["持续时间"] === "number" ||
+        typeof params.durationSeconds === "number" ||
+        typeof params.duration === "number";
+    if (hasDuration) {
+        return ["组数", "持续时间", "强度", "休息时间"];
+    }
+    return ["组数", "次数", "强度", "休息时间"];
+}
+
+function collectPendingActions(
+    updatedTrainingDays: any[],
+    knownActionIds: Set<string>,
+): PendingActionCandidate[] {
+    const byTempId = new Map<string, PendingActionCandidate>();
+
+    const visitActionSet = (actionSet: any, dayIndex: number) => {
+        const actionId = String(actionSet?.actionId || "").trim();
+        if (!actionId || knownActionIds.has(actionId)) return;
+
+        const existing = byTempId.get(actionId);
+        if (existing) {
+            existing.occurrences += 1;
+            if (!existing.sourceDayIndexes.includes(dayIndex)) {
+                existing.sourceDayIndexes.push(dayIndex);
+            }
+            return;
+        }
+
+        const rawName = String(
+            actionSet?.params?.action_name ||
+            actionSet?.setName ||
+            (actionId.startsWith("pending:") ? actionId.replace(/^pending:/, "") : "") ||
+            "",
+        );
+        const cleaned = sanitizeActionName(rawName);
+        const type = inferItemTypeFromSet(actionSet);
+        byTempId.set(actionId, {
+            tempActionId: actionId,
+            suggestedName: cleaned || `待确认动作-${actionId.slice(0, 6)}`,
+            suggestedType: type,
+            suggestedAttrs: inferSuggestedAttrs(actionSet, type),
+            sourceDayIndexes: [dayIndex],
+            occurrences: 1,
+        });
+    };
+
+    for (const day of updatedTrainingDays || []) {
+        const dayIndex = Number(day?.dayIndex || 0) || 0;
+        for (const set of day?.actionSets || []) {
+            visitActionSet(set, dayIndex);
+            if (set?.type === "one-filter" && Array.isArray(set?.actions)) {
+                for (const inner of set.actions) {
+                    visitActionSet(inner, dayIndex);
+                }
+            }
+        }
+    }
+
+    return Array.from(byTempId.values()).sort((a, b) => a.suggestedName.localeCompare(b.suggestedName, "zh-CN"));
+}
+
+function firstDefinedNumber(...values: any[]): number | null {
+    for (const value of values) {
+        if (value === null || value === undefined || value === "") continue;
+        const n = Number(value);
+        if (!Number.isNaN(n)) return n;
+    }
+    return null;
+}
+
+function normalizeStrengthParamsForEditor(params: any): any {
+    const src = params || {};
+    const next = { ...src };
+
+    const sets = firstDefinedNumber(src["组数"], src.sets);
+    const reps = firstDefinedNumber(src["次数"], src.reps);
+    const duration = firstDefinedNumber(src["持续时间"], src.durationSeconds, src.duration_seconds);
+    const restSeconds = firstDefinedNumber(src["休息时间"], src.rest_seconds, src.restSeconds);
+    const load = firstDefinedNumber(
+        src.load,
+        src.weight,
+        src.fixedWeight,
+        src.intensityConfig?.fixedWeight?.value,
+        src.intensityConfig?.fixedWeight,
+    );
+
+    if (sets !== null) next["组数"] = sets;
+    if (reps !== null) next["次数"] = reps;
+    if (duration !== null) next["持续时间"] = duration;
+    if (restSeconds !== null) next["休息时间"] = restSeconds;
+    if (load !== null) next.load = load;
+    if (src.note !== undefined) next.note = src.note;
+    if (src.action_name !== undefined) next.action_name = src.action_name;
+
+    return next;
+}
+
+function normalizeActionSetForEditor(actionSet: any, actionTypeMap: Map<string, ItemType>): any {
+    if (!actionSet || typeof actionSet !== "object") return actionSet;
+    if (actionSet.type === "one-filter" && Array.isArray(actionSet.actions)) {
+        return {
+            ...actionSet,
+            actions: actionSet.actions.map((inner: any) => normalizeActionSetForEditor(inner, actionTypeMap)),
+        };
+    }
+
+    const actionId = String(actionSet.actionId || "");
+    const inferredType = normalizeItemType(actionSet.itemType || actionTypeMap.get(actionId) || "STRENGTH");
+    const next = {
+        ...actionSet,
+        itemType: inferredType,
+    };
+
+    if (inferredType === "STRENGTH") {
+        next.params = normalizeStrengthParamsForEditor(actionSet.params);
+    }
+    return next;
+}
+
+function normalizeTrainingDaysForEditor(trainingDays: any[], actions: any[]): any[] {
+    const actionTypeMap = new Map<string, ItemType>();
+    for (const action of actions || []) {
+        actionTypeMap.set(action.id, normalizeItemType(action.type));
+    }
+    return (trainingDays || []).map((day) => ({
+        ...day,
+        actionSets: (day?.actionSets || []).map((set: any) =>
+            normalizeActionSetForEditor(set, actionTypeMap),
+        ),
+    }));
+}
+
 /**
  * SSE 流式批量操作接口
  */
@@ -266,7 +463,7 @@ export async function POST(req: NextRequest) {
 
     try {
         const body = await req.json() as BatchOperationDto;
-        const { templateId, instruction, conversationHistory = [] } = body;
+        const { templateId, trainingDays: providedTrainingDays, instruction, conversationHistory = [] } = body;
 
         // 合并多轮对话为模型可见的完整指令（首轮 + 助手追问 + 用户补充）
         const effectiveInstruction =
@@ -292,22 +489,32 @@ export async function POST(req: NextRequest) {
                 try {
                     const startTime = Date.now();
 
-                    // 1. 获取训练计划模板
+                    // 1. 获取训练计划（template 模式）或使用前端传入草稿（local 模式）
                     sendMessage({ type: 'progress', message: '正在加载训练计划' });
-                    
-                    const { data: template, error: templateError } = await supabase
-                        .from('coach_plan_templates')
-                        .select('*')
-                        .eq('id', templateId)
-                        .eq('coach_id', userId)
-                        .single();
+                    let originalTrainingDays: any[] = [];
+                    let trainingDays: any[] = [];
 
-                    if (templateError || !template) {
-                        throw new Error('无法找到训练计划模板');
+                    if (templateId) {
+                        const { data: template, error: templateError } = await supabase
+                            .from('coach_plan_templates')
+                            .select('*')
+                            .eq('id', templateId)
+                            .eq('coach_id', userId)
+                            .single();
+
+                        if (templateError || !template) {
+                            throw new Error('无法找到训练计划模板');
+                        }
+
+                        originalTrainingDays = JSON.parse(JSON.stringify(template.training_days || []));
+                        trainingDays = JSON.parse(JSON.stringify(template.training_days || []));
+                    } else {
+                        if (!Array.isArray(providedTrainingDays)) {
+                            throw new Error('local 模式缺少 trainingDays');
+                        }
+                        originalTrainingDays = JSON.parse(JSON.stringify(providedTrainingDays || []));
+                        trainingDays = JSON.parse(JSON.stringify(providedTrainingDays || []));
                     }
-
-                    const originalTrainingDays = JSON.parse(JSON.stringify(template.training_days || []));
-                    const trainingDays = JSON.parse(JSON.stringify(template.training_days || []));
 
                     // 2. 获取教练的所有动作库
                     sendMessage({ type: 'progress', message: '正在加载动作库' });
@@ -500,7 +707,7 @@ ${effectiveInstruction}
                     const systemPrompt = `你是一个训练计划批量操作助手。
 
 ## 你的任务
-根据用户的自然语言指令，生成 TypeScript 代码来修改训练计划。**只能使用下方「当前可用的动作列表」中的动作 id，禁止编造或使用列表外 actionId。**
+根据用户的自然语言指令，生成 TypeScript 代码来修改训练计划。对于动作 ID，请优先复用动作库；若未命中或用户明确要求“新动作”，必须进入待确认流程（使用 \`pending:\` 临时 ID），禁止把“新动作”硬匹配到相似旧动作。
 
 ## 训练计划数据结构
 
@@ -519,7 +726,7 @@ interface TrainingDay {
 ### ActionSet（单日内的一个动作项）
 \`\`\`typescript
 interface ActionSet {
-    actionId: string;   // 必须来自「当前可用的动作列表」中的 id，禁止使用列表外的 id
+    actionId: string;   // 已有动作使用真实 id；待确认新动作可使用 pending:xxx 临时 id
     itemType?: 'STRENGTH' | 'CARDIO' | 'DIET' | 'HABIT';  // 必须与动作库中该 actionId 的 type 一致，用于前端展示图标和表单
     setName?: string;
     params: {
@@ -545,15 +752,17 @@ interface ActionSet {
 - **DIET / HABIT**：同上，以 customData 或 note 为主
 
 ### 重要约束
-1. **actionId 唯一来源**：只能使用下面「当前可用的动作列表」里给出的 id。不得自造 uuid 或写列表中不存在的 id。
-2. **替换/添加动作时必须设置 itemType**：修改 \`actionSet.actionId\` 时，必须同时设置 \`actionSet.itemType = findActionById(newActionId)?.type || 'STRENGTH'\`，否则前端会错误显示为力量训练。
-3. 直接修改 \`trainingDays\` 数组即可，不要 return。
-4. 代码在沙箱中执行，禁止 \`require\`、\`fetch\`、异步、全局变量等。
-5. 处理边界情况：先判断 \`day.actionSets\` 存在再遍历，避免空引用。
+1. **新动作不能误配**：若找不到“规范化后全等”的已有动作，或用户明确说“新增/新动作/不存在动作库”，必须使用 \`ensureActionIdByName("动作名")\` 获取 actionId（未命中时会返回 \`pending:xxx\`），并在 params 中写 \`action_name\` 原名。
+2. **禁止宽松相似匹配**：不要用“包含关系”把新动作硬匹配到旧动作（例如“单手双力臂”不能自动映射成“单手交替悬挂”）。
+3. **替换/添加动作时必须设置 itemType**：修改 \`actionSet.actionId\` 时，必须同时设置 \`actionSet.itemType = findActionById(newActionId)?.type || 'STRENGTH'\`。若 \`newActionId\` 是 \`pending:\` 前缀，则按用户语义显式设置正确类型。
+4. 直接修改 \`trainingDays\` 数组即可，不要 return。
+5. 代码在沙箱中执行，禁止 \`require\`、\`fetch\`、异步、全局变量等。
+6. 处理边界情况：先判断 \`day.actionSets\` 存在再遍历，避免空引用。
 
 ## 可用的辅助函数
-- \`findActionByName(name: string)\`: 通过名称模糊查找动作，返回 \`actions\` 中的项
+- \`findActionByName(name: string)\`: 仅“规范化后全等”匹配，匹配失败返回 null
 - \`findActionById(id: string)\`: 通过 id 查找动作
+- \`ensureActionIdByName(name: string)\`: 优先返回已存在动作 id；若未命中返回 \`pending:xxx\`（后续会触发人工确认创建）
 
 ## 当前可用的动作列表（仅允许使用以下 id）
 ${actions.map(a => `- ${a.name} (id: ${a.id}, type: ${a.type})`).join('\n')}
@@ -694,19 +903,11 @@ ${effectiveInstruction}
 
                     // 6.1 检测修改计划中是否包含不在动作库中的动作
                     const knownActionIds = new Set(actions.map((a: any) => a.id));
-                    const newActionsDetected: NewActionDetected[] = [];
-                    for (const day of executionResult.result || []) {
-                        const sets = day.actionSets || [];
-                        for (const set of sets) {
-                            const aid = set.actionId;
-                            if (aid && !knownActionIds.has(aid)) {
-                                const suggestedName = set.params?.action_name || undefined;
-                                if (!newActionsDetected.some((x) => x.actionId === aid)) {
-                                    newActionsDetected.push({ actionId: aid, suggestedName });
-                                }
-                            }
-                        }
-                    }
+                    const pendingActions = collectPendingActions(executionResult.result || [], knownActionIds);
+                    const newActionsDetected: NewActionDetected[] = pendingActions.map((p) => ({
+                        actionId: p.tempActionId,
+                        suggestedName: p.suggestedName,
+                    }));
                     if (newActionsDetected.length > 0) {
                         const namesList = newActionsDetected
                             .map((a) => a.suggestedName || a.actionId)
@@ -718,6 +919,11 @@ ${effectiveInstruction}
                         });
                     }
 
+                    const normalizedUpdatedTrainingDays = normalizeTrainingDaysForEditor(
+                        executionResult.result || [],
+                        actions,
+                    );
+
                     const totalDuration = Date.now() - startTime;
 
                     // 7. 发送预览结果(不保存到数据库)
@@ -725,8 +931,9 @@ ${effectiveInstruction}
                         type: 'preview_result',
                         success: true,
                         originalTrainingDays,
-                        updatedTrainingDays: executionResult.result,
+                        updatedTrainingDays: normalizedUpdatedTrainingDays,
                         modifications,
+                        pendingActions,
                         message: `分析完成，共发现 ${modifications.length} 处修改${isDevelopment ? ` (总耗时 ${totalDuration}ms)` : ''}`
                     });
 
