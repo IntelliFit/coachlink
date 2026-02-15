@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import supabase from "@/lib/supabaseClient";
+import { getApiUserId } from "@/lib/getApiUserId";
 import type { ActivityResponseDto } from "../../friends/entity";
 import { differenceInMinutes } from "date-fns";
 
@@ -9,17 +8,16 @@ import { differenceInMinutes } from "date-fns";
  * GET /api/user/friends/activity
  *
  * 获取好友动态（最近完成的训练）
+ * 支持 NextAuth Session（网页）或 Authorization: Bearer JWT（小程序）
  */
 export async function GET(request: NextRequest) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) {
+        const userId = await getApiUserId(request);
+        if (!userId) {
             return NextResponse.json({ success: false, message: "未登录" }, {
                 status: 401,
             });
         }
-
-        const userId = session.user.id;
         const { searchParams } = new URL(request.url);
         const limit = parseInt(searchParams.get("limit") || "20");
 
