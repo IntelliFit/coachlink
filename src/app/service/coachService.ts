@@ -23,6 +23,10 @@ import type {
     GetStudentDto,
     GetStudentResponseDto
 } from '@/app/api/coach/get-student/entity';
+import type {
+    GetStudentFeedbacksDto,
+    GetStudentFeedbacksResponseDto,
+} from '@/app/api/coach/get-student-feedbacks/entity';
 
 // 内容管理相关接口
 import type {
@@ -437,6 +441,16 @@ class CoachService extends BaseService {
     // 获取收入明细
     async getRevenueDetails(reqData?: GetRevenueDetailsDto) {
         const res = await this.post<GetRevenueDetailsResponseDto>('get-revenue-details', reqData || {});
+        if (res.data && res.data.success) {
+            return res.data.data || null;
+        }
+        return null;
+    }
+    /**
+     * 获取学员训练反馈列表
+     */
+    async getStudentFeedbacks(reqData: GetStudentFeedbacksDto) {
+        const res = await this.post<GetStudentFeedbacksResponseDto>('get-student-feedbacks', reqData);
         if (res.data && res.data.success) {
             return res.data.data || null;
         }
