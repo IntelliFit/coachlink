@@ -1,24 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import supabase from "@/lib/supabaseClient";
+import { getApiUserId } from "@/lib/getApiUserId";
 import type { PendingRequestsResponseDto } from "../../../friends/entity";
 
 /**
  * GET /api/user/friends/pending
  *
  * 获取收到的待处理好友请求
+ * 支持 NextAuth Session（网页）或 Authorization: Bearer JWT（小程序）
  */
 export async function GET(request: NextRequest) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) {
+        const userId = await getApiUserId(request);
+        if (!userId) {
             return NextResponse.json({ success: false, message: "未登录" }, {
                 status: 401,
             });
         }
-
-        const userId = session.user.id;
 
         // 1. 查询待处理请求 (只获取 requester_id)
         const { data: requests, error } = await supabase
