@@ -137,6 +137,9 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
         setSliderCaptchaVisible(true);
     };
 
+    // 微信内置浏览器内，登录后使用整页跳转，避免 cookie/客户端路由在 X5 内核下异常导致白屏
+    const isWeChatBrowser = typeof navigator !== 'undefined' && /MicroMessenger/i.test(navigator.userAgent);
+
     const handleLogin = async (e?: React.FormEvent) => {
         e?.preventDefault();
         const trimmedPhoneOrEmail = phoneOrEmail.trim();
@@ -175,6 +178,10 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
             }
             onClose(false);
             if (typeof window !== 'undefined' && window.location.pathname.includes('/login')) {
+                if (isWeChatBrowser) {
+                    window.location.href = '/today-training';
+                    return;
+                }
                 router.push('/today-training');
             } else {
                 router.refresh();
@@ -196,10 +203,12 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                 callbackUrl: '/today-training',
             });
             if (!result?.error) {
-                // Close modal and redirect to dashboard/home after successful login
                 onClose(false);
-                // Check if we're on the login page - if so, redirect to home/dashboard instead of going back
                 if (typeof window !== 'undefined' && window.location.pathname.includes('/login')) {
+                    if (isWeChatBrowser) {
+                        window.location.href = '/';
+                        return;
+                    }
                     router.push('/');
                 } else {
                     router.refresh();
@@ -226,6 +235,10 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
             } else {
                 onClose(false);
                 if (typeof window !== 'undefined' && window.location.pathname.includes('/login')) {
+                    if (isWeChatBrowser) {
+                        window.location.href = '/';
+                        return;
+                    }
                     router.push('/');
                 } else {
                     router.refresh();
