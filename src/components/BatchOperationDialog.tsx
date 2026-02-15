@@ -19,7 +19,13 @@ import { InputText } from 'primereact/inputtext';
 import { Button } from 'primereact/button';
 import { Dropdown } from 'primereact/dropdown';
 import { BatchOperationService } from '@/app/service/batchOperationService';
-import { SSEMessage, ModificationDiff, ConversationTurn, PendingActionCandidate } from '@/app/api/plan-lib/batch-operation/entity';
+import {
+    SSEMessage,
+    ModificationDiff,
+    ConversationTurn,
+    PendingActionCandidate,
+    BatchOperationContextOptions,
+} from '@/app/api/plan-lib/batch-operation/entity';
 import MarkdownIt from 'markdown-it';
 import type { CoachActionRow, ItemType } from '@/types';
 
@@ -46,6 +52,10 @@ interface BatchOperationDialogProps {
     onRestart?: () => void;
     /** 确认应用时，优先使用此函数返回的 days（左侧编辑器的当前数据） */
     onGetDaysToApply?: () => any[] | null;
+    /** 预填写的指令文本（如学员反馈汇总），打开时自动填入 */
+    initialInstruction?: string;
+    /** 传递给后端的上下文增强配置 */
+    contextOptions?: BatchOperationContextOptions;
 }
 
 interface LogEntry {
@@ -91,6 +101,8 @@ export function BatchOperationDialog({
     onPreviewResult,
     onRestart,
     onGetDaysToApply,
+    initialInstruction,
+    contextOptions,
 }: BatchOperationDialogProps) {
     const isDesktop = useIsDesktop();
     const effectiveVariant = variant === 'auto' ? (isDesktop ? 'panel' : 'modal') : variant;
@@ -216,6 +228,13 @@ export function BatchOperationDialog({
     const hasPendingActions = pendingActions.length > 0;
 
     // 自动滚动到日志底部（使用 auto 避免 smooth 滚动视窗，仅滚动对话框内容器）
+    // 当 visible 变为 true 且有预填指令时自动填入
+    useEffect(() => {
+        if (visible && initialInstruction) {
+            setInstruction(initialInstruction);
+        }
+    }, [visible, initialInstruction]);
+
     useEffect(() => {
         logsEndRef.current?.scrollIntoView({ behavior: 'auto', block: 'end' });
     }, [logs]);
@@ -320,7 +339,9 @@ export function BatchOperationDialog({
                     addLog('error', error);
                     setIsProcessing(false);
                 },
-                []
+                [],
+                targetActionType,
+                contextOptions
             );
             return;
         }
@@ -340,7 +361,9 @@ export function BatchOperationDialog({
                 addLog('error', error);
                 setIsProcessing(false);
             },
-            []
+            [],
+            targetActionType,
+            contextOptions
         );
     };
 
@@ -369,7 +392,9 @@ export function BatchOperationDialog({
                     addLog('error', error);
                     setIsProcessing(false);
                 },
-                nextHistory
+                nextHistory,
+                targetActionType,
+                contextOptions
             );
             return;
         }
@@ -389,7 +414,9 @@ export function BatchOperationDialog({
                 addLog('error', error);
                 setIsProcessing(false);
             },
-            nextHistory
+            nextHistory,
+            targetActionType,
+            contextOptions
         );
     };
 
@@ -519,7 +546,8 @@ export function BatchOperationDialog({
                 },
                 body: JSON.stringify({
                     templateId,
-                    updatedTrainingDays: daysToApply
+                    updatedTrainingDays: daysToApply,
+                    targetActionType,
                 }),
             });
 

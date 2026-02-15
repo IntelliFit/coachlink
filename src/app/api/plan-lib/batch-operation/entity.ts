@@ -9,6 +9,19 @@ export interface ConversationTurn {
     content: string;
 }
 
+// 上下文增强选项（用于给 AI 注入更多“计划外”背景信息）
+export interface BatchOperationContextOptions {
+    // 教练给学员改计划时，传订阅ID可读取学员档案/问卷/执行记录
+    subscriptionId?: string;
+    // 各类上下文开关（默认 true）
+    includeProfile?: boolean;
+    includeQuestionnaire?: boolean;
+    includeExecutionHistory?: boolean;
+    includeCoachTemplates?: boolean;
+    includeTemplateMatch?: boolean;
+    includeFeedbacks?: boolean;
+}
+
 // 请求参数
 export interface BatchOperationDto {
     // 训练计划模板ID
@@ -17,6 +30,10 @@ export interface BatchOperationDto {
     trainingDays?: any[];
     // 用户首轮自然语言指令
     instruction: string;
+    // 目标动作库类型：教练/学员
+    targetActionType?: 'coach' | 'student';
+    // 上下文增强选项
+    contextOptions?: BatchOperationContextOptions;
     // 多轮对话历史（助手追问与用户补充），用于 need_clarification 后的续写
     conversationHistory?: ConversationTurn[];
 }

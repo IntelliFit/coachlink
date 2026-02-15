@@ -149,6 +149,12 @@ function TrainingExecutionContent() {
     // Share modal state
     const [shareModalVisible, setShareModalVisible] = useState(false);
 
+    // 训练反馈弹窗 state
+    const [feedbackDialogVisible, setFeedbackDialogVisible] = useState(false);
+    const [feedbackContent, setFeedbackContent] = useState('');
+    const [feedbackDifficulty, setFeedbackDifficulty] = useState<number>(3);
+    const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
+
     // Polymorphic Item State - 按动作索引管理，支持多个不同类型的动作
     const [itemStates, setItemStates] = useState<Record<number, {
         dietContent?: string;
@@ -1066,8 +1072,8 @@ function TrainingExecutionContent() {
                     }
                     router.push('/me/training-history');
                 } else {
-                    // Instead of immediate redirect, show share card
-                    setShareModalVisible(true);
+                    // 先弹反馈弹窗（有教练计划的场景），写完后再弹分享卡片
+                    setFeedbackDialogVisible(true);
                 }
             } else {
                 // Bug 5 fix: 处理 API 返回失败的情况
@@ -1088,6 +1094,41 @@ function TrainingExecutionContent() {
         }
     };
 
+
+    // 提交反馈并跳转分享卡片
+    const handleSubmitFeedback = async () => {
+        if (!execution) return;
+
+        if (feedbackContent.trim()) {
+            setFeedbackSubmitting(true);
+            try {
+                await executionService.submitFeedback({
+                    executionId: execution.id,
+                    content: feedbackContent.trim(),
+                    difficultyRating: feedbackDifficulty,
+                });
+                showToast({
+                    severity: 'success',
+                    summary: '反馈已发送',
+                    detail: '教练会看到你的反馈',
+                });
+            } catch (err) {
+                console.warn('[training-execution] submit feedback failed:', err);
+                // 反馈失败不阻塞主流程
+            } finally {
+                setFeedbackSubmitting(false);
+            }
+        }
+
+        setFeedbackDialogVisible(false);
+        setShareModalVisible(true);
+    };
+
+    // 跳过反馈，直接到分享卡片
+    const handleSkipFeedback = () => {
+        setFeedbackDialogVisible(false);
+        setShareModalVisible(true);
+    };
 
     const handleSkipRest = () => {
         setRestTimer(0);
@@ -2404,6 +2445,87 @@ function TrainingExecutionContent() {
                         icon="pi pi-check"
                         onClick={handleSaveQuickOneRM}
                         loading={oneRMSettingSaving}
+                    />
+                </div>
+            </div>
+        </Dialog>
+
+        {/* 训练反馈弹窗 - 完成训练后第一步 */}
+        <Dialog
+            visible={feedbackDialogVisible}
+            onHide={handleSkipFeedback}
+            header={null}
+            closable={false}
+            modal
+            className="w-[92vw] max-w-md"
+            contentClassName="p-0"
+        >
+            <div className="p-5">
+                <div className="text-center mb-4">
+                    <div className="text-2xl mb-1">💬</div>
+                    <h3 className="text-lg font-bold text-surface-800">训练感受如何？</h3>
+                    <p className="text-sm text-surface-500 mt-1">简短写一句反馈，教练会看到哦</p>
+                </div>
+
+                {/* 难度评分 */}
+                <div className="mb-4">
+                    <label className="block text-sm font-medium text-surface-600 mb-2">今天的训练难度</label>
+                    <div className="flex items-center justify-between gap-1">
+                        {[
+                            { val: 1, label: '太轻松', emoji: '😴' },
+                            { val: 2, label: '轻松', emoji: '😊' },
+                            { val: 3, label: '刚好', emoji: '💪' },
+                            { val: 4, label: '有点难', emoji: '😤' },
+                            { val: 5, label: '太难了', emoji: '🥵' },
+                        ].map((item) => (
+                            <button
+                                key={item.val}
+                                onClick={() => setFeedbackDifficulty(item.val)}
+                                className={`flex-1 flex flex-col items-center gap-0.5 py-2 rounded-xl transition-all text-xs
+                                    ${feedbackDifficulty === item.val
+                                        ? 'bg-primary-100 border-2 border-primary-400 scale-105'
+                                        : 'bg-surface-50 border-2 border-transparent hover:bg-surface-100'
+                                    }`}
+                            >
+                                <span className="text-lg">{item.emoji}</span>
+                                <span className={feedbackDifficulty === item.val ? 'font-bold text-primary-700' : 'text-surface-500'}>
+                                    {item.label}
+                                </span>
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                {/* 反馈输入 */}
+                <InputTextarea
+                    value={feedbackContent}
+                    onChange={(e) => setFeedbackContent(e.target.value)}
+                    placeholder="例如：深蹲感觉重量可以加一点，卧推姿势不太确定..."
+                    rows={3}
+                    maxLength={500}
+                    className="w-full mb-1"
+                    autoResize
+                />
+                <div className="text-right text-xs text-surface-400 mb-4">
+                    {feedbackContent.length}/500
+                </div>
+
+                {/* 操作按钮 */}
+                <div className="flex gap-3">
+                    <Button
+                        label="跳过"
+                        className="flex-1 p-button-text text-surface-500"
+                        onClick={handleSkipFeedback}
+                        disabled={feedbackSubmitting}
+                    />
+                    <Button
+                        label="发送给教练"
+                        icon="pi pi-send"
+                        className="flex-1"
+                        severity="success"
+                        onClick={handleSubmitFeedback}
+                        loading={feedbackSubmitting}
+                        disabled={!feedbackContent.trim()}
                     />
                 </div>
             </div>
