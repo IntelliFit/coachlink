@@ -4,6 +4,26 @@ import * as apiTrace from "@/app/api/middleware/api-trace";
 import { getToken } from "next-auth/jwt";
 import { verifyToken } from "./lib/jwt";
 
+const NEXTAUTH_SECRET = process.env.NEXTAUTH_SECRET!;
+
+// 新登录用无前缀 cookie（微信兼容）；老用户可能仍是 __Secure- 前缀。两边都认，避免老用户掉线。
+const SESSION_COOKIE_NAMES = [
+    "next-auth.session-token",
+    "__Secure-next-auth.session-token",
+] as const;
+
+async function getNextAuthToken(request: NextRequest) {
+    for (const name of SESSION_COOKIE_NAMES) {
+        const token = await getToken({
+            req: request,
+            secret: NEXTAUTH_SECRET,
+            cookieName: name,
+        } as { req: NextRequest; secret: string; cookieName: string });
+        if (token) return token;
+    }
+    return null;
+}
+
 function getSupabaseRestConfig() {
     const supabaseUrl =
         process.env.NEXT_SUPABASE_URL ||
@@ -132,8 +152,6 @@ const ADMIN_BASE_URL = "/admin";
 // 微信网页登录相关页面前缀（如 /wechat-auth/bridge）
 const WECHAT_AUTH_BASE_URL = "/wechat-auth";
 
-const NEXTAUTH_SECRET = process.env.NEXTAUTH_SECRET!;
-
 function handleMiddleware(request: NextRequest) {
     // 运行聚合中间件
     const { pathname, origin } = request.nextUrl;
@@ -172,7 +190,7 @@ export async function proxy(request: NextRequest) {
     // - coach: go to coach dashboard
     // - student: if has active plan instance -> today-training, else discover
     if (pathname === "/") {
-        const token = await getToken({ req: request, secret: NEXTAUTH_SECRET });
+        const token = await getNextAuthToken(request);
         const isAuthenticated = !!token;
         if (!isAuthenticated) {
             return NextResponse.redirect(`${origin}/coach/discovery`);
@@ -237,8 +255,8 @@ export async function proxy(request: NextRequest) {
             }
         }
 
-        // 再尝试 NextAuth session（网页端）
-        const token = await getToken({ req: request, secret: NEXTAUTH_SECRET });
+        // 再尝试 NextAuth session（网页端，新旧 cookie 名都认）
+        const token = await getNextAuthToken(request);
         if (token) {
             // NextAuth session 有效，放行
             return NextResponse.next();
@@ -251,8 +269,8 @@ export async function proxy(request: NextRequest) {
         );
     }
 
-    // 页面路由：仅使用 NextAuth session
-    const token = await getToken({ req: request, secret: NEXTAUTH_SECRET });
+    // 页面路由：仅使用 NextAuth session（新旧 cookie 名都认）
+    const token = await getNextAuthToken(request);
     const isAuthenticated = !!token;
 
     // 未认证访问受保护页面 → 重定向登录

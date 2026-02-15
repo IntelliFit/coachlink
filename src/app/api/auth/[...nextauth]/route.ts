@@ -321,33 +321,35 @@ export const authOptions: AuthOptions = {
         maxAge: 90 * 24 * 60 * 60, // 90 天
         updateAge: 24 * 60 * 60, // 每 24 小时更新一次
     },
+    // 统一用兼容性更好的 Cookie：无 __Secure- / __Host- 前缀（微信 X5 会拒绝带前缀的），SameSite=None 以便微信内能带上。
+    // 老用户可能仍带着旧名 cookie（__Secure-next-auth.session-token），middleware 里会同时认新旧两种名称，不会掉线。
     cookies: {
         sessionToken: {
-            name: `${process.env.NODE_ENV === 'production' ? '__Secure-' : ''}next-auth.session-token`,
+            name: "next-auth.session-token",
             options: {
                 httpOnly: true,
-                sameSite: 'lax',
-                path: '/',
-                secure: process.env.NODE_ENV === 'production' || process.env.NEXTAUTH_URL?.startsWith('https://'),
-                maxAge: 90 * 24 * 60 * 60, // 90 天，与 session.maxAge 一致
+                sameSite: "none",
+                path: "/",
+                secure: true,
+                maxAge: 90 * 24 * 60 * 60,
             },
         },
         callbackUrl: {
-            name: `${process.env.NODE_ENV === 'production' ? '__Secure-' : ''}next-auth.callback-url`,
+            name: "next-auth.callback-url",
             options: {
                 httpOnly: true,
-                sameSite: 'lax',
-                path: '/',
-                secure: process.env.NODE_ENV === 'production' || process.env.NEXTAUTH_URL?.startsWith('https://'),
+                sameSite: "none",
+                path: "/",
+                secure: true,
             },
         },
         csrfToken: {
-            name: `${process.env.NODE_ENV === 'production' ? '__Host-' : ''}next-auth.csrf-token`,
+            name: "next-auth.csrf-token",
             options: {
                 httpOnly: true,
-                sameSite: 'lax',
-                path: '/',
-                secure: process.env.NODE_ENV === 'production' || process.env.NEXTAUTH_URL?.startsWith('https://'),
+                sameSite: "none",
+                path: "/",
+                secure: true,
             },
         },
     },
