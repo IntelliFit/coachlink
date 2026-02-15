@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import supabase from "@/lib/supabaseClient";
+import { getApiUserId } from "@/lib/getApiUserId";
 import type {
     RespondRequestDto,
     RespondRequestResponseDto,
@@ -11,17 +10,16 @@ import type {
  * POST /api/user/friends/respond
  *
  * 响应好友请求 (accept / reject / block)
+ * 支持 NextAuth Session（网页）或 Authorization: Bearer JWT（小程序）
  */
 export async function POST(request: NextRequest) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) {
+        const userId = await getApiUserId(request);
+        if (!userId) {
             return NextResponse.json({ success: false, message: "未登录" }, {
                 status: 401,
             });
         }
-
-        const userId = session.user.id;
         const body = await request.json() as RespondRequestDto;
         const { friendshipId, action } = body;
 

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import supabase from "@/lib/supabaseClient";
+import { getApiUserId } from "@/lib/getApiUserId";
 import type {
     SearchUserRequestDto,
     SearchUserResponseDto,
@@ -11,17 +10,16 @@ import type {
  * GET /api/user/search?query={nickname_or_id}
  *
  * 精确搜索用户（按昵称或搜索ID）
+ * 支持 NextAuth Session（网页）或 Authorization: Bearer JWT（小程序）
  */
 export async function GET(request: NextRequest) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) {
+        const currentUserId = await getApiUserId(request);
+        if (!currentUserId) {
             return NextResponse.json({ success: false, message: "未登录" }, {
                 status: 401,
             });
         }
-
-        const currentUserId = session.user.id;
         const { searchParams } = new URL(request.url);
         const query = searchParams.get("query")?.trim();
 
