@@ -99,7 +99,7 @@ function buildDaySplitPrompt(text: string): string {
 - 若用户写「Day1」「第一天」「周一」等，映射到 dayOfWeek：周一=1，周二=2，…，周日=7
 - 若用户只写「Day1、Day2…」无周信息，默认 weekIndex=1；若出现「第2周」「W2」等则切换 weekIndex
 - 休息日也要输出，content 可为「休息」或用户原文，type 在后续阶段区分
-- 保持原文内容到 content，不要改写、不要删减数字
+- **输出语言**：无论输入是中文还是英文，content 字段中的动作名、备注等文字一律用中文输出；若原文为英文请翻译为中文后填入 content，数字（组数、次数、重量、时间等）保持原样不改写。
 - 同一周内 dayOfWeek 按出现顺序分配，不重复
 - 若文本无法切分（如全文无日/周标记），将整段视为第 1 周第 1 天的 content
 
