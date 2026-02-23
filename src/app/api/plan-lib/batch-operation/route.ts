@@ -773,6 +773,7 @@ export async function POST(req: NextRequest) {
             instruction,
             conversationHistory = [],
             targetActionType = "coach",
+            contextOptions,
         } = body;
 
         if (targetActionType === "coach" && !session.user.is_coach) {
@@ -867,6 +868,14 @@ export async function POST(req: NextRequest) {
 
 用户可从上述动作库中选择，也可创建新动作（需先在动作库中添加）。`;
 
+                    sendMessage({ type: 'progress', message: '正在构建上下文信息' });
+                    const contextPrompt = await buildBatchOperationContext({
+                        userId,
+                        targetActionType,
+                        templateId,
+                        contextOptions,
+                    });
+
                     // 首先让 AI 判断用户意图
                     sendMessage({ type: 'progress', message: '正在分析您的需求' });
 
@@ -885,6 +894,9 @@ ${JSON.stringify(trainingDays, null, 2)}
 ## 可用的动作列表
 ${actions.map(a => `- ${a.name} (type: ${a.type})`).join('\n')}
 ${actionsByTypePrompt}
+
+## 额外上下文（档案/问卷/执行/模板）
+${contextPrompt}
 
 ## 用户指令（含多轮对话时此处为完整上下文）
 ${effectiveInstruction}
@@ -929,6 +941,9 @@ ${actions.map(a => `- ${a.name} (id: ${a.id}, type: ${a.type})`).join('\n')}
 - DIET: 饮食相关
 - HABIT: 习惯养成
 ${actionsByTypePrompt}
+
+## 额外上下文（档案/问卷/执行/模板）
+${contextPrompt}
 
 ## 用户问题（含多轮对话时此处为完整上下文）
 ${effectiveInstruction}
@@ -988,6 +1003,9 @@ ${effectiveInstruction}
 ## 当前动作库（供你判断用户是否可能从库中选）
 ${actions.map(a => `${a.name} (${a.type})`).join('、')}
 ${actionsByTypePrompt}
+
+## 额外上下文（档案/问卷/执行/模板）
+${contextPrompt}
 
 ## 用户指令（含多轮对话时此处为完整上下文，请结合用户补充判断是否已完整）
 ${effectiveInstruction}
@@ -1088,6 +1106,9 @@ interface ActionSet {
 ## 当前可用的动作列表（仅允许使用以下 id）
 ${actions.map(a => `- ${a.name} (id: ${a.id}, type: ${a.type})`).join('\n')}
 ${actionsByTypePrompt}
+
+## 业务上下文（必须参考）
+${contextPrompt}
 
 ## trainingDays 当前内容示例
 ${JSON.stringify(trainingDays.slice(0, 2), null, 2)}
