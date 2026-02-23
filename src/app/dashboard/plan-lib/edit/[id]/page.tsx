@@ -871,6 +871,7 @@ const EditPlanPage = () => {
                         templateId={params.id as string}
                         targetActionType="coach"
                         contextOptions={{
+                            // 默认仅必要：教练动作库+公共动作库；模板库/匹配等由用户自行勾选
                             includeStudentProfile: false,
                             includeStudentQuestionnaire: false,
                             includeExecutionHistory: false,
@@ -878,7 +879,7 @@ const EditPlanPage = () => {
                             includeStudentActionLib: false,
                             includeCoachActionLib: true,
                             includePublicActionLib: true,
-                            includeCoachTemplates: true,
+                            includeCoachTemplates: false,
                             includeTemplateMatch: false,
                         }}
                         existingActions={actions}

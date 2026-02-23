@@ -17,6 +17,39 @@ function safeJsonPreview(input: unknown, maxLen = 800): string {
     }
 }
 
+/**
+ * 将订阅时的 subscribe_data 数组（问卷步骤）转换为 AI 可读的 key-value 摘要对象。
+ */
+function parseSubscribeDataToQuestionnaire(steps: any[]): Record<string, any> {
+    const result: Record<string, any> = {};
+    for (const step of steps) {
+        if (!step) continue;
+        const q = String(step.question || step.type || "");
+        const type = String(step.type || "");
+        if (type === "tags" && Array.isArray(step.userSelections)) {
+            result["训练兴趣标签"] = step.userSelections;
+        } else if (type === "rm") {
+            if (step.userInputs && typeof step.userInputs === "object") {
+                result["RM测试输入"] = step.userInputs;
+            }
+        } else if (type === "option" && q && step.userSelection !== undefined) {
+            const opts = Array.isArray(step.options) ? step.options : [];
+            const selected = opts[step.userSelection];
+            result[q] = selected !== undefined ? selected : step.userSelection;
+        } else if (type === "text" && q && step.userSelection !== undefined) {
+            result[q] = step.userSelection;
+        }
+    }
+    return result;
+}
+
+function normalizeActionNameKey(name: unknown): string {
+    return String(name || "")
+        .toLowerCase()
+        .replace(/[\s\-_()（）【】\[\]·,，.。]/g, "")
+        .trim();
+}
+
 function summarizeExecutionStatus(rows: any[]): string {
     const stats = { total: rows.length, completed: 0, active: 0, skipped: 0 };
     for (const row of rows) {
@@ -95,6 +128,7 @@ export interface BuildContextResult {
  */
 export async function buildBatchOperationContext(params: BuildContextParams): Promise<BuildContextResult> {
     const { userId, targetActionType, templateId, contextOptions, supabase } = params;
+    const hintedSubjectUserId = String(contextOptions?.subjectUserId || "").trim() || null;
     const options: Required<Omit<BatchOperationContextOptions, "subscriptionId">> & { subscriptionId?: string } = {
         includeStudentProfile: contextOptions?.includeStudentProfile ?? true,
         includeStudentQuestionnaire: contextOptions?.includeStudentQuestionnaire ?? true,
@@ -109,6 +143,7 @@ export async function buildBatchOperationContext(params: BuildContextParams): Pr
     };
     const enabled: string[] = [];
     const unavailable: string[] = [];
+    const actionNameSeen = new Set<string>();
 
     let coachId: string | null = null;
     if (
@@ -126,19 +161,59 @@ export async function buildBatchOperationContext(params: BuildContextParams): Pr
     let subjectUserId: string | null = targetActionType === "student" ? userId : null;
     let subscriptionQuestionnaires: Record<string, any> | null = null;
 
-    if (options.subscriptionId && coachId) {
+    // 教练端优先接收前端已解析出的学员 user_id（页面已拿到学员信息），
+    // 但必须通过归属校验，避免越权读取任意学员上下文。
+    if (targetActionType === "coach" && hintedSubjectUserId) {
+        const { data: ownedSub } = await supabase
+            .from("coach_subscriptions")
+            .select("id,student_id,coach_id")
+            .eq("student_id", hintedSubjectUserId)
+            .order("created_at", { ascending: false })
+            .limit(20);
+        const passHintOwnership = (ownedSub || []).some((s: any) =>
+            String(s.student_id) === hintedSubjectUserId &&
+            (
+                (coachId && String((s as any).coach_id || "") === String(coachId)) ||
+                String((s as any).coach_id || "") === String(userId)
+            )
+        );
+        if (passHintOwnership) {
+            subjectUserId = hintedSubjectUserId;
+        }
+    }
+
+    if (options.subscriptionId) {
+        // 兼容口径差异：
+        // - 新口径：coach_subscriptions.coach_id = coaches.id
+        // - 旧口径：coach_subscriptions.coach_id = users.id
         const { data: subRow } = await supabase
             .from("coach_subscriptions")
-            .select("id,student_id,questionnaires")
+            .select("id,student_id,subscribe_data,coach_id")
             .eq("id", options.subscriptionId)
-            .eq("coach_id", coachId)
             .maybeSingle();
-        if (subRow?.student_id) {
+
+        let ownerUserId: string | null = null;
+        const rawCoachOwner = String((subRow as any)?.coach_id || "");
+        if (rawCoachOwner) {
+            const { data: ownerCoach } = await supabase
+                .from("coaches")
+                .select("id,user_id")
+                .eq("id", rawCoachOwner)
+                .maybeSingle();
+            ownerUserId = ownerCoach?.user_id || rawCoachOwner; // 查不到则按旧口径（users.id）处理
+        }
+
+        const passCoachOwnership =
+            !!subRow &&
+            !!ownerUserId &&
+            ownerUserId === String(userId);
+
+        if (subRow?.student_id && passCoachOwnership) {
             subjectUserId = subRow.student_id;
-            subscriptionQuestionnaires =
-                subRow.questionnaires && typeof subRow.questionnaires === "object"
-                    ? (subRow.questionnaires as Record<string, any>)
-                    : null;
+            // subscribe_data 是订阅时填写的问卷步骤数组，转为 key-value 摘要供 AI 使用
+            if (Array.isArray((subRow as any).subscribe_data) && (subRow as any).subscribe_data.length > 0) {
+                subscriptionQuestionnaires = parseSubscribeDataToQuestionnaire((subRow as any).subscribe_data);
+            }
         }
     }
 
@@ -147,7 +222,11 @@ export async function buildBatchOperationContext(params: BuildContextParams): Pr
     if (subjectUserId) sections.push(`- 目标学员 user_id: ${subjectUserId}`);
 
     let profileRow: any = null;
-    if (options.includeStudentProfile && subjectUserId) {
+    if (options.includeStudentProfile && !subjectUserId) {
+        sections.push("## 学员档案");
+        sections.push("- 未定位到目标学员（请检查 subscriptionId 与归属权限）");
+        unavailable.push("学员基本情况");
+    } else if (options.includeStudentProfile && subjectUserId) {
         const { data } = await supabase
             .from("user_profiles")
             .select("*")
@@ -171,7 +250,11 @@ export async function buildBatchOperationContext(params: BuildContextParams): Pr
     }
 
     let onboardingAnswers: Record<string, any> | null = null;
-    if (options.includeStudentQuestionnaire && subjectUserId) {
+    if (options.includeStudentQuestionnaire && !subjectUserId) {
+        sections.push("## 学员问卷");
+        sections.push("- 未定位到目标学员（请检查 subscriptionId 与归属权限）");
+        unavailable.push("学员问卷");
+    } else if (options.includeStudentQuestionnaire && subjectUserId) {
         const { data } = await supabase
             .from("onboarding_questionnaires")
             .select("answers,created_at")
@@ -193,7 +276,10 @@ export async function buildBatchOperationContext(params: BuildContextParams): Pr
 
     let executionRows: any[] = [];
     let instanceIds: string[] = [];
-    if ((options.includeExecutionHistory || options.includeFeedbacks) && subjectUserId) {
+    if ((options.includeExecutionHistory || options.includeFeedbacks) && !subjectUserId) {
+        if (options.includeExecutionHistory) unavailable.push("执行记录");
+        if (options.includeFeedbacks) unavailable.push("学员反馈");
+    } else if ((options.includeExecutionHistory || options.includeFeedbacks) && subjectUserId) {
         const { data: instances } = await supabase
             .from("coach_plan_instances")
             .select("id,name,status,updated_at")
@@ -246,14 +332,22 @@ export async function buildBatchOperationContext(params: BuildContextParams): Pr
             .limit(30);
         if (coachActions && coachActions.length > 0) {
             enabled.push("教练动作库");
-            sections.push(coachActions.slice(0, 20).map((a: any) => `- ${a.name} (${a.type || "STRENGTH"})`).join("\n"));
+            const sampled = coachActions.slice(0, 20);
+            for (const a of sampled as any[]) {
+                actionNameSeen.add(normalizeActionNameKey(a.name));
+            }
+            sections.push(sampled.map((a: any) => `- ${a.name} (${a.type || "STRENGTH"})`).join("\n"));
         } else {
             sections.push("- 教练动作库为空");
             unavailable.push("教练动作库");
         }
     }
 
-    if (options.includeStudentActionLib && subjectUserId) {
+    if (options.includeStudentActionLib && !subjectUserId) {
+        sections.push("## 学员动作库摘要");
+        sections.push("- 未定位到目标学员（请检查 subscriptionId 与归属权限）");
+        unavailable.push("学员动作库");
+    } else if (options.includeStudentActionLib && subjectUserId) {
         sections.push("## 学员动作库摘要");
         const { data: studentActions } = await supabase
             .from("student_actions")
@@ -263,7 +357,11 @@ export async function buildBatchOperationContext(params: BuildContextParams): Pr
             .limit(30);
         if (studentActions && studentActions.length > 0) {
             enabled.push("学员动作库");
-            sections.push(studentActions.slice(0, 20).map((a: any) => `- ${a.name} (${a.type || "STRENGTH"})`).join("\n"));
+            const sampled = studentActions.slice(0, 20);
+            for (const a of sampled as any[]) {
+                actionNameSeen.add(normalizeActionNameKey(a.name));
+            }
+            sections.push(sampled.map((a: any) => `- ${a.name} (${a.type || "STRENGTH"})`).join("\n"));
         } else {
             sections.push("- 学员动作库为空");
             unavailable.push("学员动作库");
@@ -276,12 +374,22 @@ export async function buildBatchOperationContext(params: BuildContextParams): Pr
             .from("community_actions")
             .select("id,name,type,like_count")
             .order("like_count", { ascending: false })
-            .limit(20);
+            .limit(120);
         if (publicActions && publicActions.length > 0) {
             enabled.push("公共动作库");
+            const deduped: any[] = [];
+            for (const a of publicActions as any[]) {
+                const key = normalizeActionNameKey(a.name);
+                if (!key || actionNameSeen.has(key)) continue;
+                actionNameSeen.add(key);
+                deduped.push(a);
+                if (deduped.length >= 20) break;
+            }
+            const sampled = deduped.length > 0 ? deduped : (publicActions as any[]).slice(0, 20);
             sections.push(
-                publicActions.map((a: any) => `- ${a.name} (${a.type || "STRENGTH"}, likes=${a.like_count || 0})`).join("\n"),
+                sampled.map((a: any) => `- ${a.name} (${a.type || "STRENGTH"}, likes=${a.like_count || 0})`).join("\n"),
             );
+            sections.push(`- 公共动作库展示策略：按热度优先，最多展示 20 条（已做跨动作库去重）`);
         } else {
             sections.push("- 暂无可用公共动作");
             unavailable.push("公共动作库");
@@ -293,7 +401,8 @@ export async function buildBatchOperationContext(params: BuildContextParams): Pr
         const { data } = await supabase
             .from("coach_plan_templates")
             .select("id,name,description,tags,suitable_for,training_days_count,week_days,global_answers,updated_at")
-            .eq("coach_id", coachId)
+            // coach_plan_templates 在当前链路以 users.id 作为 owner（与 update-template/get-overview-data 一致）
+            .eq("coach_id", userId)
             .order("updated_at", { ascending: false })
             .limit(12);
         coachTemplates = (data || []).filter((tpl: any) => !templateId || tpl.id !== templateId);

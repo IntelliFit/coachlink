@@ -239,7 +239,7 @@ const ShareCardGenerator: React.FC<ShareCardGeneratorProps> = ({
                     {/* Acquisition hint */}
                     <div className="text-[11px] text-surface-500 space-y-1">
                         <div>
-                            扫描卡片二维码可注册领取：双方 +2 次智能导入 +100MB 存储（24小时内有效，单日上限 10 次）。
+                            扫描卡片二维码可注册领取：双方 +2 次智能导入 +200MB 存储（24小时内有效，单日上限 10 次）。
                         </div>
                         <div className="font-mono text-[10px] text-surface-400 break-all">
                             当前二维码指向：{shareData.acquisitionUrl || '(未生成，已回退为训练明细链接)'}

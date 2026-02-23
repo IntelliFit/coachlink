@@ -141,7 +141,7 @@ const TemplateCalendar: React.FC<TemplateCalendarProps> = ({ data }) => {
                 <div className="max-w-[180px]">
                     <h5 className="text-[10px] font-bold text-slate-800 leading-tight mb-1">训练使我变强。</h5>
                     <p className="text-[9px] text-slate-400 leading-normal">
-                        扫码加入 CoachLink，注册即得 +2 AI 与 +100MB 存储。
+                        扫码加入 CoachLink，注册即得 +2 AI 与 +200MB 存储。
                     </p>
                 </div>
                 <div className="p-1.5 border border-slate-100 rounded-lg bg-white overflow-hidden shrink-0">

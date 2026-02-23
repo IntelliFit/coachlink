@@ -34,7 +34,7 @@ async function getOrInitStudentQuota(userId: string) {
         const tierBenefits = MEMBER_BENEFITS[currentTier] || MEMBER_BENEFITS["free"];
 
         const patch: Record<string, any> = {};
-        // storage_total_mb: should never be null/0 for usable tiers (free should be 50MB)
+        // storage_total_mb: should never be null/0 for usable tiers (free should be 200MB)
         if (
             existing.storage_total_mb === null ||
             existing.storage_total_mb === undefined ||

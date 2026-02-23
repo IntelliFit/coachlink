@@ -12,7 +12,7 @@ export const preferredRegion = "auto";
 
 const BUCKET = "videos";
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // 5MB
-const MAX_VIDEO_BYTES = 50 * 1024 * 1024; // 50MB
+const MAX_VIDEO_BYTES = 200 * 1024 * 1024; // 200MB
 
 export async function POST(req: Request) {
     try {
@@ -73,7 +73,7 @@ export async function POST(req: Request) {
                     success: false,
                     message: isImage
                         ? "图片过大，单张图片请小于 5MB"
-                        : "视频过大，单个视频请小于 50MB",
+                        : "视频过大，单个视频请小于 200MB",
                     data: null,
                 },
                 { status: 413 },

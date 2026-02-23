@@ -20,7 +20,8 @@ export class BatchOperationService {
         onError: (error: string) => void,
         conversationHistory?: ConversationTurn[],
         targetActionType: 'coach' | 'student' = 'coach',
-        contextOptions?: BatchOperationContextOptions
+        contextOptions?: BatchOperationContextOptions,
+        previewInputOnly = false
     ): Promise<void> {
         try {
             const body: Record<string, unknown> = {
@@ -30,6 +31,9 @@ export class BatchOperationService {
             };
             if (contextOptions) {
                 body.contextOptions = contextOptions;
+            }
+            if (previewInputOnly) {
+                body.previewInputOnly = true;
             }
             if (conversationHistory && conversationHistory.length > 0) {
                 body.conversationHistory = conversationHistory;
@@ -98,7 +102,8 @@ export class BatchOperationService {
         onError: (error: string) => void,
         conversationHistory?: ConversationTurn[],
         targetActionType: 'coach' | 'student' = 'coach',
-        contextOptions?: BatchOperationContextOptions
+        contextOptions?: BatchOperationContextOptions,
+        previewInputOnly = false
     ): Promise<void> {
         try {
             const body: Record<string, unknown> = {
@@ -108,6 +113,9 @@ export class BatchOperationService {
             };
             if (contextOptions) {
                 body.contextOptions = contextOptions;
+            }
+            if (previewInputOnly) {
+                body.previewInputOnly = true;
             }
             if (conversationHistory && conversationHistory.length > 0) {
                 body.conversationHistory = conversationHistory;
