@@ -1,22 +1,23 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
+import { MessageCircle, ChevronDown, ChevronUp, Sparkles } from 'lucide-react';
 import { Button } from 'primereact/button';
-import { MessageSquare, Sparkles } from 'lucide-react';
+import { Badge } from 'primereact/badge';
 import type { FeedbackItem } from '@/app/api/coach/get-student-feedbacks/entity';
 
-const DIFFICULTY_MAP: Record<number, string> = {
-    1: '太轻松',
-    2: '轻松',
-    3: '刚好',
-    4: '有点难',
-    5: '太难了',
+const DIFFICULTY_LABELS: Record<number, { label: string; emoji: string; color: string }> = {
+    1: { label: '太轻松', emoji: '😴', color: 'text-blue-500' },
+    2: { label: '轻松', emoji: '😊', color: 'text-green-500' },
+    3: { label: '刚好', emoji: '💪', color: 'text-primary-600' },
+    4: { label: '有点难', emoji: '😤', color: 'text-orange-500' },
+    5: { label: '太难了', emoji: '🥵', color: 'text-red-500' },
 };
 
 interface StudentFeedbackPanelProps {
     feedbacks: FeedbackItem[];
     unreadCount: number;
-    onAiSuggest: () => void;
+    onAiSuggest?: () => void;
 }
 
 export default function StudentFeedbackPanel({
@@ -24,49 +25,95 @@ export default function StudentFeedbackPanel({
     unreadCount,
     onAiSuggest,
 }: StudentFeedbackPanelProps) {
-    const hasFeedbacks = feedbacks.length > 0;
+    const [expanded, setExpanded] = useState(feedbacks.length > 0 && unreadCount > 0);
+
+    if (feedbacks.length === 0) return null;
 
     return (
-        <div className="group relative bg-surface rounded-[24px] p-5 transition-all duration-500 ease-out border border-surface-200/70 hover:border-primary-100 hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] mb-6">
-            <div className="absolute inset-0 bg-gradient-to-r from-primary-500/[0.02] to-transparent opacity-0 group-hover:opacity-100 rounded-[24px] transition-opacity duration-500 pointer-events-none" />
-            <div className="flex flex-col gap-4 relative z-10">
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                        <MessageSquare size={20} className="text-primary-600" strokeWidth={2} />
-                        <span className="font-bold text-surface-900 tracking-tight">学员训练反馈</span>
-                        {unreadCount > 0 && (
-                            <span className="px-2 py-0.5 bg-primary-100 text-primary-700 text-xs font-semibold rounded-full">
-                                {unreadCount} 条未读
-                            </span>
-                        )}
-                    </div>
-                </div>
-                {hasFeedbacks ? (
-                    <>
-                        <ul className="text-sm text-surface-600 space-y-1.5 max-h-32 overflow-y-auto">
-                            {feedbacks.slice(0, 5).map((fb, i) => (
-                                <li key={i} className="flex items-start gap-2">
-                                    <span className="text-primary-600 font-medium shrink-0">第{fb.day_index}天</span>
-                                    {fb.difficulty_rating != null && (
-                                        <span className="text-surface-500 shrink-0">
-                                            （{DIFFICULTY_MAP[fb.difficulty_rating] ?? fb.difficulty_rating}）
-                                        </span>
-                                    )}
-                                    <span className="truncate">{fb.content || '—'}</span>
-                                </li>
-                            ))}
-                        </ul>
-                        <Button
-                            label="根据反馈让 AI 调整计划"
-                            icon={<Sparkles className="w-4 h-4" />}
-                            onClick={onAiSuggest}
-                            className="w-full sm:w-auto"
+        <div className="mb-4 border border-surface-200 rounded-2xl overflow-hidden bg-white shadow-sm">
+            <div
+                className="flex items-center justify-between px-4 py-3 cursor-pointer select-none hover:bg-surface-50 transition-colors"
+                onClick={() => setExpanded(!expanded)}
+            >
+                <div className="flex items-center gap-2">
+                    <MessageCircle className="w-5 h-5 text-primary-500" />
+                    <span className="font-semibold text-surface-800 text-sm">
+                        学员训练反馈
+                    </span>
+                    {unreadCount > 0 && (
+                        <Badge
+                            value={unreadCount}
+                            severity="danger"
+                            className="text-xs"
                         />
-                    </>
-                ) : (
-                    <p className="text-sm text-surface-500">暂无训练反馈，执行计划后学员可填写反馈。</p>
-                )}
+                    )}
+                    <span className="text-surface-400 text-xs ml-1">
+                        共 {feedbacks.length} 条
+                    </span>
+                </div>
+                <div className="flex items-center gap-2">
+                    {onAiSuggest && feedbacks.length > 0 && (
+                        <Button
+                            label="AI 根据反馈调整"
+                            icon={<Sparkles className="w-4 h-4 mr-1" />}
+                            className="p-button-sm p-button-outlined text-xs rounded-xl"
+                            severity="help"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onAiSuggest();
+                            }}
+                        />
+                    )}
+                    {expanded
+                        ? <ChevronUp className="w-4 h-4 text-surface-400" />
+                        : <ChevronDown className="w-4 h-4 text-surface-400" />
+                    }
+                </div>
             </div>
+
+            {expanded && (
+                <div className="px-4 pb-4 space-y-3 animate-fadeIn">
+                    {feedbacks.map((fb) => {
+                        const diff = fb.difficulty_rating != null && fb.difficulty_rating in DIFFICULTY_LABELS
+                            ? DIFFICULTY_LABELS[fb.difficulty_rating]
+                            : null;
+                        return (
+                            <div
+                                key={fb.id}
+                                className={`p-3 rounded-xl border ${
+                                    !fb.coach_read_at
+                                        ? 'border-primary-200 bg-primary-50/50'
+                                        : 'border-surface-100 bg-surface-50'
+                                }`}
+                            >
+                                <div className="flex items-start justify-between gap-2 mb-1">
+                                    <span className="text-xs font-medium text-surface-500">
+                                        第 {fb.day_index} 天
+                                    </span>
+                                    <div className="flex items-center gap-2 text-xs text-surface-400">
+                                        {diff && (
+                                            <span className={diff.color}>
+                                                {diff.emoji} {diff.label}
+                                            </span>
+                                        )}
+                                        <span>
+                                            {new Date(fb.created_at).toLocaleDateString('zh-CN', {
+                                                month: 'short',
+                                                day: 'numeric',
+                                                hour: '2-digit',
+                                                minute: '2-digit',
+                                            })}
+                                        </span>
+                                    </div>
+                                </div>
+                                <p className="text-sm text-surface-700 leading-relaxed">
+                                    {fb.content ?? '—'}
+                                </p>
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
         </div>
     );
 }
