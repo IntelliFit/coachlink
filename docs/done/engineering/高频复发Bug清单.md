@@ -83,4 +83,3 @@
 - **改动前自检**：
   - 确认调用方对 ambiguous 的期望（必须手动指定 vs 可自动取首）；
   - 批量创建类 API 启用 `pickFirstOnAmbiguous` 后，仍保证写入有合法 canonical。
-
