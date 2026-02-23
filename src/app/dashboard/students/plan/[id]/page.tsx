@@ -38,6 +38,8 @@ import {
 } from '@/lib/planBatchUtils';
 import QuestionnaireForm from '@/app/coach/profile/[id]/QuestionnaireForm';
 import type { TrainingItem } from '@/types/questionnaires';
+import type { FeedbackItem } from '@/app/api/coach/get-student-feedbacks/entity';
+import StudentFeedbackPanel from './components/StudentFeedbackPanel';
 import { BatchOperationDialog } from '@/components/BatchOperationDialog';
 
 const StudentPlanPage = () => {
@@ -99,8 +101,13 @@ const StudentPlanPage = () => {
     const [customStartDate, setCustomStartDate] = useState<Date | null>(null);
     const [importStartConfig, setImportStartConfig] = useState<PlanStartConfig | null>(null);
     const [importModeDialogVisible, setImportModeDialogVisible] = useState(false);
-    // 默认应为“覆盖更新”，否则教练在已有进行中计划上点击“更新计划”会误触发“新建阶段”，导致学员进度回到第1天
+    // 默认应为"覆盖更新"，否则教练在已有进行中计划上点击"更新计划"会误触发"新建阶段"，导致学员进度回到第1天
     const [importMode, setImportMode] = useState<'new_instance' | 'overwrite'>('overwrite');
+
+    // 学员训练反馈
+    const [studentFeedbacks, setStudentFeedbacks] = useState<FeedbackItem[]>([]);
+    const [feedbackUnreadCount, setFeedbackUnreadCount] = useState(0);
+    const [aiFeedbackInstruction, setAiFeedbackInstruction] = useState<string | undefined>(undefined);
 
     // Load instance data
     useEffect(() => {
@@ -196,6 +203,19 @@ const StudentPlanPage = () => {
                 }
                 if (exeRes?.actions) {
                     setExecutionActions(exeRes.actions);
+                }
+
+                // 7. 异步加载学员反馈（不阻塞主流程）
+                if (instanceRes?.instance?.id && instanceRes.instance.status === 'active') {
+                    coachService.getStudentFeedbacks({
+                        instanceId: instanceRes.instance.id,
+                        markRead: true,
+                    }).then((fbRes) => {
+                        if (fbRes) {
+                            setStudentFeedbacks(fbRes.feedbacks);
+                            setFeedbackUnreadCount(fbRes.unread_count);
+                        }
+                    }).catch((e) => console.warn('Feedbacks load failed', e));
                 }
 
             } catch (error) {
@@ -826,6 +846,28 @@ const StudentPlanPage = () => {
         }
     };
 
+    // 根据学员反馈自动打开 AI 修改器
+    const handleAiSuggestFromFeedbacks = () => {
+        if (studentFeedbacks.length === 0) return;
+
+        const DIFFICULTY_MAP: Record<number, string> = {
+            1: '太轻松', 2: '轻松', 3: '刚好', 4: '有点难', 5: '太难了',
+        };
+
+        const feedbackSummary = studentFeedbacks
+            .slice(0, 10) // 最多取最近10条
+            .map((fb) => {
+                const diffLabel = fb.difficulty_rating ? `（难度：${DIFFICULTY_MAP[fb.difficulty_rating] || fb.difficulty_rating}）` : '';
+                return `- 第${fb.day_index}天${diffLabel}：${fb.content}`;
+            })
+            .join('\n');
+
+        const instruction = `以下是学员最近的训练反馈，请根据这些反馈对计划进行合理调整：\n\n${feedbackSummary}\n\n请根据以上反馈，适当调整训练计划中的动作、组数、次数或重量，使计划更适合学员当前状态。`;
+
+        setAiFeedbackInstruction(instruction);
+        setAiBatchDialogVisible(true);
+    };
+
     // 打开问卷编辑对话框
     const handleOpenQuestionnaire = async () => {
         if (!subscription?.coach_id) {
@@ -1024,6 +1066,13 @@ const StudentPlanPage = () => {
                         planName={name || '学员训练计划'}
                         planDescription={description}
                         isCompleted={false}
+                    />
+
+                    {/* 学员训练反馈面板 */}
+                    <StudentFeedbackPanel
+                        feedbacks={studentFeedbacks}
+                        unreadCount={feedbackUnreadCount}
+                        onAiSuggest={handleAiSuggestFromFeedbacks}
                     />
                 </div>
 
@@ -1234,7 +1283,10 @@ const StudentPlanPage = () => {
 
                 <BatchOperationDialog
                     visible={aiBatchDialogVisible}
-                    onHide={() => setAiBatchDialogVisible(false)}
+                    onHide={() => {
+                        setAiBatchDialogVisible(false);
+                        setAiFeedbackInstruction(undefined);
+                    }}
                     mode="local"
                     targetActionType="coach"
                     initialTrainingDays={days}
@@ -1244,6 +1296,19 @@ const StudentPlanPage = () => {
                     onPreviewResult={handleAiPreviewResult}
                     onRestart={handleAiRestart}
                     onGetDaysToApply={() => days}
+                    initialInstruction={aiFeedbackInstruction}
+                    contextOptions={{
+                        subscriptionId: params.id as string,
+                        includeStudentProfile: true,
+                        includeStudentQuestionnaire: true,
+                        includeExecutionHistory: true,
+                        includeFeedbacks: true,
+                        includeStudentActionLib: true,
+                        includeCoachActionLib: true,
+                        includePublicActionLib: true,
+                        includeCoachTemplates: true,
+                        includeTemplateMatch: true,
+                    }}
                 />
             </div>
 

@@ -142,16 +142,16 @@
   - 同时验证 `coach` 与 `student` 两条链路写入各自动作库且不越权；
   - 复用后计划中的 `tempActionId -> realActionId` 映射完整且可应用。
 
-## 12) 金额单位混用（元/分）导致展示缩小 100 倍（高风险）
+## 12) 学员端误复用教练 API 导致 AI 编辑器不可用（高风险）
 
-- **现象**：同一套餐在同一页面出现 `199` 与 `1.99` 混杂，线下实付金额明显异常。
-- **根因**：历史数据把 `offline_payment.amount` 以“元”写入，但展示层按“分”格式化（`formatYuanFromFen`）。
+- **现象**：学员端也有 AI 编辑器入口，但发起后直接返回 Unauthorized/Forbidden，无法预览修改。
+- **根因**：前端复用了教练 `batch-operation` 链路，却未显式传递目标类型，后端按教练权限门禁处理。
 - **统一规则**：
-  - 金额内部统一用“分”存储与传递，展示时再转“元”；
-  - 写入线下支付时必须显式 `yuanToFen`；
-  - 历史兼容不要用单阈值猜测（如 `<1000`），优先用业务锚点（如 `monthly_price`）做贴近度判断。
+  - AI 编辑链路必须显式传 `targetActionType`（`coach`/`student`），禁止靠默认值推断；
+  - 后端按 `targetActionType` 做权限与表路由：`coach_actions/coach_plan_templates` 与 `student_actions/student_plan_favorites`；
+  - `coach` 分支必须校验 `is_coach`，`student` 分支只允许访问 `session.user.id` 归属数据。
 - **改动前自检**：
-  - 抽样验证：同套餐的线下实付与月费数量级一致；
-  - 低价场景（几分钱/几块钱）确认不会被误放大 100 倍；
-  - 数据修复脚本先 dry-run，产出审计报告后再 apply。
+  - 学员端 `mode=local` 可完整走通“预览 -> 缺失动作确认 -> 应用到草稿”；
+  - 教练端原链路回归正常，不受学员改造影响；
+  - 抓包确认请求体均包含 `targetActionType`，且后端未跨库查询。
 

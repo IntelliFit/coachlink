@@ -4,6 +4,29 @@ import supabase from "@/lib/supabaseClient";
 import type { ItemType } from "@/types";
 
 const ITEM_TYPES: ItemType[] = ["STRENGTH", "CARDIO", "DIET", "HABIT"];
+type TargetActionType = "coach" | "student";
+
+type ActionOwnerConfig = {
+    table: "coach_actions" | "student_actions";
+    ownerColumn: "coach_id" | "user_id";
+};
+
+type PlanOwnerConfig = {
+    table: "coach_plan_templates" | "student_plan_favorites";
+    ownerColumn: "coach_id" | "user_id";
+};
+
+function getActionOwnerConfig(targetActionType: TargetActionType): ActionOwnerConfig {
+    return targetActionType === "student"
+        ? { table: "student_actions", ownerColumn: "user_id" }
+        : { table: "coach_actions", ownerColumn: "coach_id" };
+}
+
+function getPlanOwnerConfig(targetActionType: TargetActionType): PlanOwnerConfig {
+    return targetActionType === "student"
+        ? { table: "student_plan_favorites", ownerColumn: "user_id" }
+        : { table: "coach_plan_templates", ownerColumn: "coach_id" };
+}
 
 function normalizeItemType(input?: unknown): ItemType {
     const raw = String(input ?? "").toUpperCase();
@@ -44,7 +67,7 @@ export async function POST(req: NextRequest) {
     const session = await getServerSession();
     const userId = session?.user?.id;
 
-    if (!userId || !session.user.is_coach) {
+    if (!userId) {
         return NextResponse.json(
             { success: false, message: "Unauthorized" },
             { status: 401 }
@@ -53,7 +76,22 @@ export async function POST(req: NextRequest) {
 
     try {
         const body = await req.json();
-        const { templateId, updatedTrainingDays } = body;
+        const {
+            templateId,
+            updatedTrainingDays,
+            targetActionType = "coach",
+        } = body as {
+            templateId?: string;
+            updatedTrainingDays?: any[];
+            targetActionType?: TargetActionType;
+        };
+
+        if (targetActionType === "coach" && !session.user.is_coach) {
+            return NextResponse.json(
+                { success: false, message: "Forbidden" },
+                { status: 403 },
+            );
+        }
 
         if (!templateId || !updatedTrainingDays) {
             return NextResponse.json(
@@ -62,14 +100,16 @@ export async function POST(req: NextRequest) {
             );
         }
 
+        const { table: actionTable, ownerColumn: actionOwnerColumn } =
+            getActionOwnerConfig(targetActionType);
         const actionRefs = collectActionRefs(updatedTrainingDays);
         const uniqueActionIds = Array.from(new Set(actionRefs.map((x) => x.actionId)));
         const actionTypeMap = new Map<string, ItemType>();
         if (uniqueActionIds.length > 0) {
             const { data: actionRows, error: actionError } = await supabase
-                .from("coach_actions")
+                .from(actionTable)
                 .select("id,type")
-                .eq("coach_id", userId)
+                .eq(actionOwnerColumn, userId)
                 .in("id", uniqueActionIds);
             if (actionError) {
                 return NextResponse.json(
@@ -103,12 +143,14 @@ export async function POST(req: NextRequest) {
             );
         }
 
+        const { table: planTable, ownerColumn: planOwnerColumn } =
+            getPlanOwnerConfig(targetActionType);
         // 更新数据库（通过动作校验后）
         const { error: updateError } = await supabase
-            .from('coach_plan_templates')
+            .from(planTable)
             .update({ training_days: updatedTrainingDays })
             .eq('id', templateId)
-            .eq('coach_id', userId);
+            .eq(planOwnerColumn, userId);
 
         if (updateError) {
             throw new Error('保存失败: ' + updateError.message);
