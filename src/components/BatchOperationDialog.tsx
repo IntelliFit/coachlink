@@ -1035,7 +1035,7 @@ export function BatchOperationDialog({
                                                                 label={resolution.mode === 'use_existing' ? '使用已有（已选）' : '使用已有'}
                                                                 size="small"
                                                                 text={resolution.mode !== 'use_existing'}
-                                                                severity={resolution.mode === 'use_existing' ? 'primary' : 'secondary'}
+                                                                severity={resolution.mode === 'use_existing' ? 'contrast' : 'secondary'}
                                                                 onClick={() => {
                                                                     setPendingResolutions((prev) => ({
                                                                         ...prev,
@@ -1050,7 +1050,7 @@ export function BatchOperationDialog({
                                                                 label={resolution.mode === 'create_new' ? '新建动作（已选）' : '新建动作'}
                                                                 size="small"
                                                                 text={resolution.mode !== 'create_new'}
-                                                                severity={resolution.mode === 'create_new' ? 'primary' : 'secondary'}
+                                                                severity={resolution.mode === 'create_new' ? 'contrast' : 'secondary'}
                                                                 onClick={() => {
                                                                     setPendingResolutions((prev) => ({
                                                                         ...prev,
