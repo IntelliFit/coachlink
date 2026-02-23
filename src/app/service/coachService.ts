@@ -454,6 +454,16 @@ class CoachService extends BaseService {
         }
         return null;
     }
+    /**
+     * 获取学员训练反馈列表
+     */
+    async getStudentFeedbacks(reqData: GetStudentFeedbacksDto) {
+        const res = await this.post<GetStudentFeedbacksResponseDto>('get-student-feedbacks', reqData);
+        if (res.data && res.data.success) {
+            return res.data.data || null;
+        }
+        return null;
+    }
 }
 
 export const coachService = new CoachService('/api/coach');
