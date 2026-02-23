@@ -640,9 +640,10 @@ const CreatePlanPage = () => {
                 mode="local"
                 targetActionType="student"
                 contextOptions={{
-                    includeStudentProfile: true,
-                    includeStudentQuestionnaire: true,
-                    includeExecutionHistory: true,
+                    // 默认仅必要：学员动作库+公共动作库；档案/问卷/执行记录等由用户自行勾选
+                    includeStudentProfile: false,
+                    includeStudentQuestionnaire: false,
+                    includeExecutionHistory: false,
                     includeFeedbacks: false,
                     includeStudentActionLib: true,
                     includeCoachActionLib: false,

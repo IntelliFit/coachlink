@@ -196,7 +196,7 @@ export async function POST(req: NextRequest) {
     // Rules (per decision):
     // - 24h attribution window (share_card only, via expires_at/cookie)
     // - reward on successful registration
-    // - both sides get +2 AI imports and +100MB storage
+    // - both sides get +2 AI imports and +200MB storage
     // - daily cap: inviter gets max 10 share_card rewards/day
     // - no risk control for v1
     //
@@ -209,9 +209,9 @@ export async function POST(req: NextRequest) {
         }
 
         const now = new Date();
-        // Reward values (current policy): both sides get +2 AI imports and +100MB storage.
+        // Reward values (current policy): both sides get +2 AI imports and +200MB storage.
         const rewardAi = 2;
-        const rewardStorageMb = 100;
+        const rewardStorageMb = 200;
 
         const ensureAndGrantQuota = async (targetUserId: string) => {
             // Ensure quota row exists (init as free tier if missing)

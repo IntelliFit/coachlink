@@ -1299,15 +1299,17 @@ const StudentPlanPage = () => {
                     initialInstruction={aiFeedbackInstruction}
                     contextOptions={{
                         subscriptionId: params.id as string,
+                        subjectUserId: studentData?.student_id,
+                        // 默认仅必要：学员档案+问卷（知道是谁、要什么）；动作库必选以便改计划；其余由用户自行勾选
                         includeStudentProfile: true,
                         includeStudentQuestionnaire: true,
-                        includeExecutionHistory: true,
-                        includeFeedbacks: true,
-                        includeStudentActionLib: true,
+                        includeExecutionHistory: false,
+                        includeFeedbacks: false,
+                        includeStudentActionLib: false,
                         includeCoachActionLib: true,
                         includePublicActionLib: true,
-                        includeCoachTemplates: true,
-                        includeTemplateMatch: true,
+                        includeCoachTemplates: false,
+                        includeTemplateMatch: false,
                     }}
                 />
             </div>

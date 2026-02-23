@@ -645,6 +645,7 @@ const CreatePlanPage = () => {
                 mode="local"
                 targetActionType="coach"
                 contextOptions={{
+                    // 默认仅必要：教练动作库+公共动作库；模板库等由用户自行勾选
                     includeStudentProfile: false,
                     includeStudentQuestionnaire: false,
                     includeExecutionHistory: false,
@@ -652,7 +653,7 @@ const CreatePlanPage = () => {
                     includeStudentActionLib: false,
                     includeCoachActionLib: true,
                     includePublicActionLib: true,
-                    includeCoachTemplates: true,
+                    includeCoachTemplates: false,
                     includeTemplateMatch: false,
                 }}
                 initialTrainingDays={days}

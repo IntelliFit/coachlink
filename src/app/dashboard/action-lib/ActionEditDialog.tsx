@@ -552,7 +552,7 @@ const ActionEditDialog: React.FC<ActionEditDialogProps> = ({
                                 disabled={uploadingDemoVideo}
                             />
                             <span className="text-xs text-surface-500 hidden sm:inline">
-                                支持 MP4/WEBM，≤100MB。上传后会自动回填到 URL。
+                                支持 MP4/WEBM，≤200MB。上传后会自动回填到 URL。
                             </span>
                         </div>
                         {uploadingDemoVideo && (

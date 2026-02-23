@@ -57,7 +57,7 @@ export default function ShareLandingPage() {
             <div className="text-center space-y-2 px-6">
                 <div className="text-surface-900 font-black text-xl">正在跳转注册…</div>
                 <div className="text-surface-500 text-sm">
-                    将为你保留 24 小时归因，用于发放双方 +2 次 AI 导入与 +100MB 存储奖励
+                    将为你保留 24 小时归因，用于发放双方 +2 次 AI 导入与 +200MB 存储奖励
                 </div>
             </div>
         </div>

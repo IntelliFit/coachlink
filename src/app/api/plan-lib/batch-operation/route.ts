@@ -500,6 +500,7 @@ export async function POST(req: NextRequest) {
             conversationHistory = [],
             targetActionType = "coach",
             contextOptions,
+            previewInputOnly = false,
         } = body;
 
         if (targetActionType === "coach" && !session.user.is_coach) {
@@ -594,6 +595,21 @@ export async function POST(req: NextRequest) {
 
 用户可从上述动作库中选择，也可创建新动作（需先在动作库中添加）。`;
 
+                    const includePlanBody = contextOptions?.includePlanBody ?? true;
+                    const includeActionLibrary = contextOptions?.includeActionLibrary ?? true;
+                    const planBodyPrompt = includePlanBody
+                        ? JSON.stringify(trainingDays, null, 2)
+                        : '（已关闭：计划/模板本体上下文）';
+                    const actionLibraryPrompt = includeActionLibrary
+                        ? `${actions.map(a => `- ${a.name} (type: ${a.type})`).join('\n')}\n${actionsByTypePrompt}`
+                        : '（已关闭：动作库与类型说明上下文）';
+                    const actionLibraryCompactPrompt = includeActionLibrary
+                        ? `${actions.map(a => `${a.name} (${a.type})`).join('、')}\n${actionsByTypePrompt}`
+                        : '（已关闭：动作库与类型说明上下文）';
+                    const actionLibraryForSystemPrompt = includeActionLibrary
+                        ? `${actions.map(a => `- ${a.name} (id: ${a.id}, type: ${a.type})`).join('\n')}\n${actionsByTypePrompt}`
+                        : '（已关闭：动作库与类型说明上下文）';
+
                     sendMessage({ type: 'progress', message: '正在构建上下文信息' });
                     const contextBuild = await buildBatchOperationContext({
                         userId,
@@ -602,13 +618,146 @@ export async function POST(req: NextRequest) {
                         contextOptions,
                         supabase,
                     });
+                    const baselineContextBuild = previewInputOnly
+                        ? null
+                        : await buildBatchOperationContext({
+                            userId,
+                            targetActionType,
+                            templateId,
+                            contextOptions: {
+                                subscriptionId: contextOptions?.subscriptionId,
+                                includeStudentProfile: false,
+                                includeStudentQuestionnaire: false,
+                                includeExecutionHistory: false,
+                                includeStudentActionLib: false,
+                                includeCoachActionLib: false,
+                                includePublicActionLib: false,
+                                includeCoachTemplates: false,
+                                includeTemplateMatch: false,
+                                includeFeedbacks: false,
+                            },
+                            supabase,
+                        });
                     const contextPrompt = contextBuild.prompt;
+                    const fixedInjected = [
+                        '用户指令',
+                        ...(includePlanBody ? ['计划/模板本体'] : []),
+                        ...(includeActionLibrary ? ['动作库与类型说明'] : []),
+                    ];
+                    const addedByContextToggle = baselineContextBuild
+                        ? contextBuild.enabled.filter((x) => !baselineContextBuild.enabled.includes(x))
+                        : [];
                     sendMessage({
                         type: 'context_applied',
                         enabled: contextBuild.enabled,
                         unavailable: contextBuild.unavailable,
                         message: `已启用上下文 ${contextBuild.enabled.length} 项`,
                     });
+
+                    if (previewInputOnly) {
+                        const previewIntentPrompt = `你是一个训练计划助手。请分析用户的指令，判断他们是想要：
+1. **查询/分析** - 想了解计划中的某些信息，如统计数据、动作分布、强度分析等（不修改计划）
+2. **修改** - 想要对计划进行更改、替换、添加、删除等操作
+
+## 当前训练计划概览
+- 总天数: ${trainingDays.length} 天
+- 训练天数: ${trainingDays.filter((d: any) => d.type === 'training').length} 天
+- 休息天数: ${trainingDays.filter((d: any) => d.type === 'rest').length} 天
+
+## 计划详情
+${planBodyPrompt}
+
+## 可用的动作列表
+${actionLibraryPrompt}
+
+## 额外上下文（档案/问卷/执行/模板）
+${contextPrompt}
+
+## 用户指令（含多轮对话时此处为完整上下文）
+${effectiveInstruction}
+
+请返回 JSON 格式:
+{
+    "intent": "query" 或 "modify",
+    "reason": "简短说明判断依据"
+}`;
+
+                        const previewQueryPrompt = `你是一个专业的训练计划分析师。请根据用户的问题，分析训练计划并给出详细回答。
+
+## 当前训练计划数据
+\`\`\`json
+${planBodyPrompt}
+\`\`\`
+
+## 可用的动作列表（包含类型）
+${actionLibraryPrompt}
+
+## 动作类型说明
+- STRENGTH: 力量训练
+- CARDIO: 有氧运动
+- DIET: 饮食相关
+- HABIT: 习惯养成
+
+## 额外上下文（档案/问卷/执行/模板）
+${contextPrompt}
+
+## 用户问题（含多轮对话时此处为完整上下文）
+${effectiveInstruction}
+
+请用中文回答，格式要清晰易读。如果涉及统计，请给出具体数字。可以使用 markdown 格式（如列表、加粗等）来增强可读性。`;
+
+                        const previewClarificationPrompt = `你是一个训练计划助手。请判断用户的修改指令是否**信息完整**，能否直接执行。
+
+## 判断规则（以下情况视为信息不完整，需向用户追问）
+- 用户说「改为有氧」「换成有氧」「改成有氧」等，但**没有指定具体是哪种有氧运动**（如跑步、跳绳、骑行等）→ 不完整
+- 用户说「替换为力量动作」「改成力量」等，但**没有指定具体动作名称** → 不完整
+- 用户说「改成 CARDIO」或「改为有氧类」但未说明具体动作 → 不完整
+- 其他：指令中仅提到**类别**（有氧/力量等）而未给出**具体动作名**时 → 不完整
+
+## 当前动作库（供你判断用户是否可能从库中选）
+${actionLibraryCompactPrompt}
+
+## 额外上下文（档案/问卷/执行/模板）
+${contextPrompt}
+
+## 用户指令（含多轮对话时此处为完整上下文，请结合用户补充判断是否已完整）
+${effectiveInstruction}`;
+
+                        const previewSystemPrompt = `你是一个训练计划批量操作助手。
+
+## 你的任务
+根据用户的自然语言指令，生成 TypeScript 代码来修改训练计划。
+
+## 当前可用的动作列表（仅允许使用以下 id）
+${actionLibraryForSystemPrompt}
+
+## 业务上下文（必须参考）
+${contextPrompt}
+
+## trainingDays 当前内容示例
+${includePlanBody ? JSON.stringify(trainingDays.slice(0, 2), null, 2) : '（已关闭：计划/模板本体上下文）'}
+
+## 用户指令（含多轮对话时此处为完整上下文，请按用户最终意图生成代码）
+${effectiveInstruction}`;
+
+                        sendMessage({
+                            type: 'ai_input_snapshot',
+                            message: '仅预览模式：以下为将发送给模型的完整提示词',
+                            fixedInjected,
+                            baselineEnabledContext: baselineContextBuild?.enabled || [],
+                            currentEnabledContext: contextBuild.enabled,
+                            addedByContextToggle,
+                            baselineContextPrompt: baselineContextBuild?.prompt || '',
+                            currentContextPrompt: contextPrompt,
+                            fullPrompts: {
+                                intentPrompt: previewIntentPrompt,
+                                queryPrompt: previewQueryPrompt,
+                                clarificationPrompt: previewClarificationPrompt,
+                                systemPrompt: previewSystemPrompt,
+                            },
+                        });
+                        return;
+                    }
 
                     // 首先让 AI 判断用户意图
                     sendMessage({ type: 'progress', message: '正在分析您的需求' });
@@ -623,11 +772,10 @@ export async function POST(req: NextRequest) {
 - 休息天数: ${trainingDays.filter((d: any) => d.type === 'rest').length} 天
 
 ## 计划详情
-${JSON.stringify(trainingDays, null, 2)}
+${planBodyPrompt}
 
 ## 可用的动作列表
-${actions.map(a => `- ${a.name} (type: ${a.type})`).join('\n')}
-${actionsByTypePrompt}
+${actionLibraryPrompt}
 
 ## 额外上下文（档案/问卷/执行/模板）
 ${contextPrompt}
@@ -663,18 +811,17 @@ ${effectiveInstruction}
 
 ## 当前训练计划数据
 \`\`\`json
-${JSON.stringify(trainingDays, null, 2)}
+${planBodyPrompt}
 \`\`\`
 
 ## 可用的动作列表（包含类型）
-${actions.map(a => `- ${a.name} (id: ${a.id}, type: ${a.type})`).join('\n')}
+${actionLibraryPrompt}
 
 ## 动作类型说明
 - STRENGTH: 力量训练
 - CARDIO: 有氧运动
 - DIET: 饮食相关
 - HABIT: 习惯养成
-${actionsByTypePrompt}
 
 ## 额外上下文（档案/问卷/执行/模板）
 ${contextPrompt}
@@ -735,8 +882,7 @@ ${effectiveInstruction}
 **关键**：只要用户写出了「换成/改为/替换为 + 具体动作名」（如跑步、跳绳、硬拉、高位下拉等），即视为完整，**不要**再追问「请说明要改成哪种有氧运动」。
 
 ## 当前动作库（供你判断用户是否可能从库中选）
-${actions.map(a => `${a.name} (${a.type})`).join('、')}
-${actionsByTypePrompt}
+${actionLibraryCompactPrompt}
 
 ## 额外上下文（档案/问卷/执行/模板）
 ${contextPrompt}
@@ -838,14 +984,13 @@ interface ActionSet {
 - \`ensureActionIdByName(name: string)\`: 优先返回已存在动作 id；若未命中返回 \`pending:xxx\`（后续会触发人工确认创建）
 
 ## 当前可用的动作列表（仅允许使用以下 id）
-${actions.map(a => `- ${a.name} (id: ${a.id}, type: ${a.type})`).join('\n')}
-${actionsByTypePrompt}
+${actionLibraryForSystemPrompt}
 
 ## 业务上下文（必须参考）
 ${contextPrompt}
 
 ## trainingDays 当前内容示例
-${JSON.stringify(trainingDays.slice(0, 2), null, 2)}
+${includePlanBody ? JSON.stringify(trainingDays.slice(0, 2), null, 2) : '（已关闭：计划/模板本体上下文）'}
 
 ## 用户指令（含多轮对话时此处为完整上下文，请按用户最终意图生成代码）
 ${effectiveInstruction}

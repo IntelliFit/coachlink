@@ -86,3 +86,17 @@
 4. 对比 `enabled` / `unavailable` 与预期（如无反馈数据时「学员反馈」应在 unavailable）。
 
 认证与 batch-operation 一致（Session），仅教练可预览 coach 上下文。
+
+---
+
+## 五、命令行一键生成报告（枭马葛 + zhaoccy）
+
+在项目根目录执行（会读 `.env.local` 的 Supabase 配置，并自动查「枭马葛」教练与学员「zhaoccy」的 ID 与订阅）：
+
+```bash
+npm run context-preview-report
+```
+
+- **输出文件**: `docs/work/AI修改器-上下文预览报告.md`
+- **内容**: 三端场景下「已启用 / 不可用」上下文项 + 完整注入给 AI 的上下文文本（可展开的 `<details>`）。
+- **前提**: `.env.local` 中已配置 `NEXT_SUPABASE_URL` 与 `NEXT_SUPABASE_SERVICE_ROLE_KEY`（或 `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY`）。未配置时会写入占位报告并提示上述变量。

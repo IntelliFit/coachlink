@@ -59,6 +59,8 @@ interface BatchOperationDialogProps {
 }
 
 type ContextToggleState = {
+    includePlanBody: boolean;
+    includeActionLibrary: boolean;
     includeStudentProfile: boolean;
     includeStudentQuestionnaire: boolean;
     includeExecutionHistory: boolean;
@@ -76,6 +78,21 @@ interface LogEntry {
     timestamp: Date;
     data?: any;
 }
+
+type AIInputSnapshot = {
+    fixedInjected: string[];
+    baselineEnabledContext: string[];
+    currentEnabledContext: string[];
+    addedByContextToggle: string[];
+    baselineContextPrompt: string;
+    currentContextPrompt: string;
+    fullPrompts?: {
+        intentPrompt: string;
+        queryPrompt: string;
+        clarificationPrompt: string;
+        systemPrompt: string;
+    };
+};
 
 interface PendingActionResolution {
     mode: 'use_existing' | 'create_new';
@@ -138,10 +155,13 @@ export function BatchOperationDialog({
     const [clarificationSuggestions, setClarificationSuggestions] = useState<string[] | null>(null);
     const [contextPanelOpen, setContextPanelOpen] = useState(false);
     const [contextStatusText, setContextStatusText] = useState<string | null>(null);
+    const [aiInputSnapshot, setAiInputSnapshot] = useState<AIInputSnapshot | null>(null);
     const logsEndRef = useRef<HTMLDivElement>(null);
     const textareaRef = useRef<any>(null);
 
     const initialContextState: ContextToggleState = {
+        includePlanBody: contextOptions?.includePlanBody ?? true,
+        includeActionLibrary: contextOptions?.includeActionLibrary ?? true,
         includeStudentProfile: contextOptions?.includeStudentProfile ?? false,
         includeStudentQuestionnaire: contextOptions?.includeStudentQuestionnaire ?? false,
         includeExecutionHistory: contextOptions?.includeExecutionHistory ?? false,
@@ -189,6 +209,8 @@ export function BatchOperationDialog({
     };
 
     const contextItems: Array<{ key: keyof ContextToggleState; label: string }> = [
+        { key: 'includePlanBody', label: '计划/模板本体' },
+        { key: 'includeActionLibrary', label: '动作库与类型说明' },
         { key: 'includeStudentProfile', label: '学员基本情况' },
         { key: 'includeStudentQuestionnaire', label: '学员问卷' },
         { key: 'includeExecutionHistory', label: '执行记录' },
@@ -199,6 +221,34 @@ export function BatchOperationDialog({
         { key: 'includeTemplateMatch', label: '模板匹配建议' },
         { key: 'includeFeedbacks', label: '学员反馈' },
     ];
+
+    const visibleContextItems = useMemo(() => {
+        if (targetActionType === 'student') {
+            const hiddenForStudent = new Set<keyof ContextToggleState>([
+                'includeCoachActionLib',
+                'includeCoachTemplates',
+                'includeTemplateMatch',
+                'includeFeedbacks',
+            ]);
+            return contextItems.filter((item) => !hiddenForStudent.has(item.key));
+        }
+        return contextItems;
+    }, [contextItems, targetActionType]);
+
+    const buildRuntimeContextOptions = (): BatchOperationContextOptions => {
+        const next: BatchOperationContextOptions = {
+            subscriptionId: contextOptions?.subscriptionId,
+            subjectUserId: contextOptions?.subjectUserId,
+            ...contextToggles,
+        };
+        if (targetActionType === 'student') {
+            next.includeCoachActionLib = false;
+            next.includeCoachTemplates = false;
+            next.includeTemplateMatch = false;
+            next.includeFeedbacks = false;
+        }
+        return next;
+    };
 
     const buildDefaultResolution = (pending: PendingActionCandidate): PendingActionResolution => ({
         mode: 'create_new',
@@ -288,7 +338,11 @@ export function BatchOperationDialog({
         switch (message.type) {
             case 'progress':
                 // 不展示「加载训练计划」「加载动作库」等前置步骤，保持界面简洁
-                if (message.message !== '正在加载训练计划' && message.message !== '正在加载动作库') {
+                if (
+                    message.message !== '正在加载训练计划' &&
+                    message.message !== '正在加载动作库' &&
+                    message.message !== '正在构建上下文信息'
+                ) {
                     addLog('progress', message.message);
                 }
                 break;
@@ -305,6 +359,18 @@ export function BatchOperationDialog({
                         message.unavailable?.length ? `；不可用：${message.unavailable.join('、')}` : ''
                     }`,
                 );
+                break;
+
+            case 'ai_input_snapshot':
+                setAiInputSnapshot({
+                    fixedInjected: message.fixedInjected || [],
+                    baselineEnabledContext: message.baselineEnabledContext || [],
+                    currentEnabledContext: message.currentEnabledContext || [],
+                    addedByContextToggle: message.addedByContextToggle || [],
+                    baselineContextPrompt: message.baselineContextPrompt || '',
+                    currentContextPrompt: message.currentContextPrompt || '',
+                    fullPrompts: message.fullPrompts,
+                });
                 break;
 
             case 'need_clarification':
@@ -361,14 +427,11 @@ export function BatchOperationDialog({
         }
     };
 
-    // 执行批量操作（只预览，不保存）
-    const handleExecute = async () => {
-        if (!instruction.trim()) {
-            return;
-        }
-
+    const runFirstRound = async (previewInputOnly: boolean) => {
+        const firstInstruction = instruction.trim() || '（仅预览输入）';
+        if (!firstInstruction && !previewInputOnly) return;
         setHasStarted(true);
-        setSubmittedInstruction(instruction);
+        setSubmittedInstruction(firstInstruction);
         setIsProcessing(true);
         setLogs([]);
         setPreviewData(null);
@@ -377,16 +440,14 @@ export function BatchOperationDialog({
         setPendingResolutions({});
         setConversationHistory([]);
         setClarificationSuggestions(null);
+        setAiInputSnapshot(null);
 
-        const runtimeContextOptions: BatchOperationContextOptions = {
-            subscriptionId: contextOptions?.subscriptionId,
-            ...contextToggles,
-        };
+        const runtimeContextOptions = buildRuntimeContextOptions();
 
         if (mode === 'local') {
             await BatchOperationService.executeBatchOperationLocal(
                 initialTrainingDays,
-                instruction,
+                firstInstruction,
                 handleMessage,
                 () => setIsProcessing(false),
                 (error) => {
@@ -395,7 +456,8 @@ export function BatchOperationDialog({
                 },
                 [],
                 targetActionType,
-                runtimeContextOptions
+                runtimeContextOptions,
+                previewInputOnly
             );
             return;
         }
@@ -408,7 +470,7 @@ export function BatchOperationDialog({
 
         await BatchOperationService.executeBatchOperation(
             templateId,
-            instruction,
+            firstInstruction,
             handleMessage,
             () => setIsProcessing(false),
             (error) => {
@@ -417,8 +479,20 @@ export function BatchOperationDialog({
             },
             [],
             targetActionType,
-            runtimeContextOptions
+            runtimeContextOptions,
+            previewInputOnly
         );
+    };
+
+    // 执行批量操作（含 AI 分析/修改）
+    const handleExecute = async () => {
+        if (!instruction.trim()) return;
+        await runFirstRound(false);
+    };
+
+    // 仅预览 AI 输入（不调用模型）
+    const handlePreviewInputOnly = async () => {
+        await runFirstRound(true);
     };
 
     // 多轮对话：用户收到 need_clarification 后在底部输入框补充信息并发送
@@ -436,10 +510,7 @@ export function BatchOperationDialog({
         setInstruction('');
         setIsProcessing(true);
 
-        const runtimeContextOptions: BatchOperationContextOptions = {
-            subscriptionId: contextOptions?.subscriptionId,
-            ...contextToggles,
-        };
+        const runtimeContextOptions = buildRuntimeContextOptions();
 
         if (mode === 'local') {
             await BatchOperationService.executeBatchOperationLocal(
@@ -644,6 +715,7 @@ export function BatchOperationDialog({
             setConversationHistory([]);
             setClarificationSuggestions(null);
             setContextStatusText(null);
+            setAiInputSnapshot(null);
             onHide();
         }
     };
@@ -662,6 +734,7 @@ export function BatchOperationDialog({
         setConversationHistory([]);
         setClarificationSuggestions(null);
         setContextStatusText(null);
+        setAiInputSnapshot(null);
     };
 
     // 渲染日志条目
@@ -803,7 +876,7 @@ export function BatchOperationDialog({
                                 <div className="rounded-2xl border border-surface-200 bg-surface-50/70 p-3">
                                     <div className="text-xs text-surface-500 mb-2">选择 AI 本次可读取的上下文</div>
                                     <div className="flex flex-wrap gap-2">
-                                        {contextItems.map((item) => {
+                                        {visibleContextItems.map((item) => {
                                             const active = contextToggles[item.key];
                                             return (
                                                 <button
@@ -888,8 +961,17 @@ export function BatchOperationDialog({
                             </div>
                             
                             {/* 提示文字 */}
-                            <div className="text-center text-xs text-surface-400">
-                                按 Enter 发送，Shift + Enter 换行
+                            <div className="flex items-center justify-center gap-3 text-xs">
+                                <span className="text-surface-400">按 Enter 发送，Shift + Enter 换行</span>
+                                <Button
+                                    label="仅预览 AI 输入"
+                                    icon="pi pi-eye"
+                                    text
+                                    size="small"
+                                    className="rounded-xl"
+                                    onClick={handlePreviewInputOnly}
+                                    disabled={isProcessing}
+                                />
                             </div>
                         </div>
                     </div>
@@ -924,6 +1006,15 @@ export function BatchOperationDialog({
                                 <span className="text-xs text-surface-500">
                                     上下文 {Object.values(contextToggles).filter(Boolean).length} 项
                                 </span>
+                                <Button
+                                    label="仅预览输入"
+                                    icon="pi pi-eye"
+                                    text
+                                    size="small"
+                                    className="rounded-xl"
+                                    onClick={handlePreviewInputOnly}
+                                    disabled={isProcessing || isApplying || isResolvingPendingActions}
+                                />
                             </div>
                         </div>
 
@@ -933,7 +1024,7 @@ export function BatchOperationDialog({
                                 <div className="mb-3 rounded-2xl border border-surface-200 bg-surface-50/70 p-3">
                                     <div className="text-xs text-surface-500 mb-2">当前会话上下文开关</div>
                                     <div className="flex flex-wrap gap-2">
-                                        {contextItems.map((item) => {
+                                        {visibleContextItems.map((item) => {
                                             const active = contextToggles[item.key];
                                             return (
                                                 <button
@@ -976,6 +1067,50 @@ export function BatchOperationDialog({
                                 <div className="mb-3 rounded-xl border border-primary-200 bg-primary-50/70 px-3 py-2 text-xs text-primary-700">
                                     {contextStatusText}
                                 </div>
+                            )}
+                            {aiInputSnapshot && (
+                                <details className="mb-3 rounded-xl border border-surface-200 bg-surface-50/60 px-3 py-2">
+                                    <summary className="cursor-pointer text-xs font-medium text-surface-700">
+                                        AI 输入快照（仅结果）
+                                    </summary>
+                                    <div className="mt-2 space-y-2 text-xs">
+                                        {aiInputSnapshot.fullPrompts ? (
+                                            <>
+                                                <details className="rounded-lg bg-surface p-2 border border-surface-200">
+                                                    <summary className="cursor-pointer font-medium text-surface-700">完整提示词：意图判断 Prompt</summary>
+                                                    <pre className="mt-2 max-h-64 overflow-auto custom-scrollbar rounded-md bg-surface-50 p-2 text-[11px] leading-5 whitespace-pre-wrap text-surface-600">{aiInputSnapshot.fullPrompts.intentPrompt}</pre>
+                                                </details>
+                                                <details className="rounded-lg bg-surface p-2 border border-surface-200">
+                                                    <summary className="cursor-pointer font-medium text-surface-700">完整提示词：查询分析 Prompt</summary>
+                                                    <pre className="mt-2 max-h-64 overflow-auto custom-scrollbar rounded-md bg-surface-50 p-2 text-[11px] leading-5 whitespace-pre-wrap text-surface-600">{aiInputSnapshot.fullPrompts.queryPrompt}</pre>
+                                                </details>
+                                                <details className="rounded-lg bg-surface p-2 border border-surface-200">
+                                                    <summary className="cursor-pointer font-medium text-surface-700">完整提示词：补充追问 Prompt</summary>
+                                                    <pre className="mt-2 max-h-64 overflow-auto custom-scrollbar rounded-md bg-surface-50 p-2 text-[11px] leading-5 whitespace-pre-wrap text-surface-600">{aiInputSnapshot.fullPrompts.clarificationPrompt}</pre>
+                                                </details>
+                                                <details className="rounded-lg bg-surface p-2 border border-surface-200">
+                                                    <summary className="cursor-pointer font-medium text-surface-700">完整提示词：代码生成 Prompt</summary>
+                                                    <pre className="mt-2 max-h-64 overflow-auto custom-scrollbar rounded-md bg-surface-50 p-2 text-[11px] leading-5 whitespace-pre-wrap text-surface-600">{aiInputSnapshot.fullPrompts.systemPrompt}</pre>
+                                                </details>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <div className="rounded-lg bg-surface p-2 border border-surface-200">
+                                                    <div className="font-semibold text-surface-700 mb-1">当前开关实际增强上下文</div>
+                                                    <div className="text-surface-600">
+                                                        {(aiInputSnapshot.currentEnabledContext || []).join('、') || '无'}
+                                                    </div>
+                                                </div>
+                                                <details className="rounded-lg bg-surface p-2 border border-surface-200">
+                                                    <summary className="cursor-pointer font-medium text-surface-700">查看：当前开关上下文文本</summary>
+                                                    <pre className="mt-2 max-h-64 overflow-auto custom-scrollbar rounded-md bg-surface-50 p-2 text-[11px] leading-5 whitespace-pre-wrap text-surface-600">
+                                                        {aiInputSnapshot.currentContextPrompt}
+                                                    </pre>
+                                                </details>
+                                            </>
+                                        )}
+                                    </div>
+                                </details>
                             )}
 
                             {/* 内容区域：限制高度，超出部分在此滚动 */}
@@ -1035,7 +1170,7 @@ export function BatchOperationDialog({
                                                                 label={resolution.mode === 'use_existing' ? '使用已有（已选）' : '使用已有'}
                                                                 size="small"
                                                                 text={resolution.mode !== 'use_existing'}
-                                                                severity={resolution.mode === 'use_existing' ? 'contrast' : 'secondary'}
+                                                                severity={resolution.mode === 'use_existing' ? 'success' : 'secondary'}
                                                                 onClick={() => {
                                                                     setPendingResolutions((prev) => ({
                                                                         ...prev,
@@ -1050,7 +1185,7 @@ export function BatchOperationDialog({
                                                                 label={resolution.mode === 'create_new' ? '新建动作（已选）' : '新建动作'}
                                                                 size="small"
                                                                 text={resolution.mode !== 'create_new'}
-                                                                severity={resolution.mode === 'create_new' ? 'contrast' : 'secondary'}
+                                                                severity={resolution.mode === 'create_new' ? 'success' : 'secondary'}
                                                                 onClick={() => {
                                                                     setPendingResolutions((prev) => ({
                                                                         ...prev,
