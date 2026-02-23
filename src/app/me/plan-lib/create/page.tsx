@@ -639,6 +639,17 @@ const CreatePlanPage = () => {
                 onHide={() => setAiBatchDialogVisible(false)}
                 mode="local"
                 targetActionType="student"
+                contextOptions={{
+                    includeStudentProfile: true,
+                    includeStudentQuestionnaire: true,
+                    includeExecutionHistory: true,
+                    includeFeedbacks: false,
+                    includeStudentActionLib: true,
+                    includeCoachActionLib: false,
+                    includePublicActionLib: true,
+                    includeCoachTemplates: false,
+                    includeTemplateMatch: false,
+                }}
                 initialTrainingDays={days}
                 existingActions={actions}
                 onApplyLocal={handleAiApplyLocal}

@@ -3,7 +3,14 @@ import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 import supabase from "@/lib/supabaseClient";
 import OpenAI from "openai";
 import ivm from "isolated-vm";
-import { BatchOperationDto, SSEMessage, ModificationDiff, NewActionDetected, PendingActionCandidate } from "./entity";
+import {
+    BatchOperationDto,
+    SSEMessage,
+    ModificationDiff,
+    NewActionDetected,
+    PendingActionCandidate,
+} from "./entity";
+import { buildBatchOperationContext } from "./context";
 import type { ItemType } from "@/types";
 import { sanitizeActionName } from "@/lib/planImportText";
 
@@ -267,6 +274,29 @@ function analyzeModifications(
 }
 
 const ITEM_TYPES: ItemType[] = ["STRENGTH", "CARDIO", "DIET", "HABIT"];
+type TargetActionType = "coach" | "student";
+
+type ActionOwnerConfig = {
+    table: "coach_actions" | "student_actions";
+    ownerColumn: "coach_id" | "user_id";
+};
+
+type PlanOwnerConfig = {
+    table: "coach_plan_templates" | "student_plan_favorites";
+    ownerColumn: "coach_id" | "user_id";
+};
+
+function getActionOwnerConfig(targetActionType: TargetActionType): ActionOwnerConfig {
+    return targetActionType === "student"
+        ? { table: "student_actions", ownerColumn: "user_id" }
+        : { table: "coach_actions", ownerColumn: "coach_id" };
+}
+
+function getPlanOwnerConfig(targetActionType: TargetActionType): PlanOwnerConfig {
+    return targetActionType === "student"
+        ? { table: "student_plan_favorites", ownerColumn: "user_id" }
+        : { table: "coach_plan_templates", ownerColumn: "coach_id" };
+}
 
 function normalizeItemType(input?: unknown): ItemType {
     const raw = String(input ?? "").toUpperCase();
@@ -454,7 +484,7 @@ export async function POST(req: NextRequest) {
     const session = await getServerSession();
     const userId = session?.user?.id;
 
-    if (!userId || !session.user.is_coach) {
+    if (!userId) {
         return new Response(
             JSON.stringify({ success: false, message: "Unauthorized" }),
             { status: 401 }
@@ -463,7 +493,21 @@ export async function POST(req: NextRequest) {
 
     try {
         const body = await req.json() as BatchOperationDto;
-        const { templateId, trainingDays: providedTrainingDays, instruction, conversationHistory = [] } = body;
+        const {
+            templateId,
+            trainingDays: providedTrainingDays,
+            instruction,
+            conversationHistory = [],
+            targetActionType = "coach",
+            contextOptions,
+        } = body;
+
+        if (targetActionType === "coach" && !session.user.is_coach) {
+            return new Response(
+                JSON.stringify({ success: false, message: "Forbidden" }),
+                { status: 403 },
+            );
+        }
 
         // 合并多轮对话为模型可见的完整指令（首轮 + 助手追问 + 用户补充）
         const effectiveInstruction =
@@ -495,11 +539,13 @@ export async function POST(req: NextRequest) {
                     let trainingDays: any[] = [];
 
                     if (templateId) {
+                        const { table: planTable, ownerColumn: planOwnerColumn } =
+                            getPlanOwnerConfig(targetActionType);
                         const { data: template, error: templateError } = await supabase
-                            .from('coach_plan_templates')
+                            .from(planTable)
                             .select('*')
                             .eq('id', templateId)
-                            .eq('coach_id', userId)
+                            .eq(planOwnerColumn, userId)
                             .single();
 
                         if (templateError || !template) {
@@ -519,10 +565,12 @@ export async function POST(req: NextRequest) {
                     // 2. 获取教练的所有动作库
                     sendMessage({ type: 'progress', message: '正在加载动作库' });
                     
+                    const { table: actionTable, ownerColumn: actionOwnerColumn } =
+                        getActionOwnerConfig(targetActionType);
                     const { data: actionsData, error: actionsError } = await supabase
-                        .from('coach_actions')
+                        .from(actionTable)
                         .select('id, name, type, detail')
-                        .eq('coach_id', userId);
+                        .eq(actionOwnerColumn, userId);
 
                     if (actionsError) {
                         throw new Error('无法加载动作库');
@@ -546,6 +594,22 @@ export async function POST(req: NextRequest) {
 
 用户可从上述动作库中选择，也可创建新动作（需先在动作库中添加）。`;
 
+                    sendMessage({ type: 'progress', message: '正在构建上下文信息' });
+                    const contextBuild = await buildBatchOperationContext({
+                        userId,
+                        targetActionType,
+                        templateId,
+                        contextOptions,
+                        supabase,
+                    });
+                    const contextPrompt = contextBuild.prompt;
+                    sendMessage({
+                        type: 'context_applied',
+                        enabled: contextBuild.enabled,
+                        unavailable: contextBuild.unavailable,
+                        message: `已启用上下文 ${contextBuild.enabled.length} 项`,
+                    });
+
                     // 首先让 AI 判断用户意图
                     sendMessage({ type: 'progress', message: '正在分析您的需求' });
 
@@ -564,6 +628,9 @@ ${JSON.stringify(trainingDays, null, 2)}
 ## 可用的动作列表
 ${actions.map(a => `- ${a.name} (type: ${a.type})`).join('\n')}
 ${actionsByTypePrompt}
+
+## 额外上下文（档案/问卷/执行/模板）
+${contextPrompt}
 
 ## 用户指令（含多轮对话时此处为完整上下文）
 ${effectiveInstruction}
@@ -608,6 +675,9 @@ ${actions.map(a => `- ${a.name} (id: ${a.id}, type: ${a.type})`).join('\n')}
 - DIET: 饮食相关
 - HABIT: 习惯养成
 ${actionsByTypePrompt}
+
+## 额外上下文（档案/问卷/执行/模板）
+${contextPrompt}
 
 ## 用户问题（含多轮对话时此处为完整上下文）
 ${effectiveInstruction}
@@ -667,6 +737,9 @@ ${effectiveInstruction}
 ## 当前动作库（供你判断用户是否可能从库中选）
 ${actions.map(a => `${a.name} (${a.type})`).join('、')}
 ${actionsByTypePrompt}
+
+## 额外上下文（档案/问卷/执行/模板）
+${contextPrompt}
 
 ## 用户指令（含多轮对话时此处为完整上下文，请结合用户补充判断是否已完整）
 ${effectiveInstruction}
@@ -767,6 +840,9 @@ interface ActionSet {
 ## 当前可用的动作列表（仅允许使用以下 id）
 ${actions.map(a => `- ${a.name} (id: ${a.id}, type: ${a.type})`).join('\n')}
 ${actionsByTypePrompt}
+
+## 业务上下文（必须参考）
+${contextPrompt}
 
 ## trainingDays 当前内容示例
 ${JSON.stringify(trainingDays.slice(0, 2), null, 2)}

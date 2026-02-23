@@ -19,7 +19,13 @@ import { InputText } from 'primereact/inputtext';
 import { Button } from 'primereact/button';
 import { Dropdown } from 'primereact/dropdown';
 import { BatchOperationService } from '@/app/service/batchOperationService';
-import { SSEMessage, ModificationDiff, ConversationTurn, PendingActionCandidate } from '@/app/api/plan-lib/batch-operation/entity';
+import {
+    SSEMessage,
+    ModificationDiff,
+    ConversationTurn,
+    PendingActionCandidate,
+    BatchOperationContextOptions,
+} from '@/app/api/plan-lib/batch-operation/entity';
 import MarkdownIt from 'markdown-it';
 import type { CoachActionRow, ItemType } from '@/types';
 
@@ -46,7 +52,23 @@ interface BatchOperationDialogProps {
     onRestart?: () => void;
     /** 确认应用时，优先使用此函数返回的 days（左侧编辑器的当前数据） */
     onGetDaysToApply?: () => any[] | null;
+    /** 预填写的指令文本（如学员反馈汇总），打开时自动填入 */
+    initialInstruction?: string;
+    /** 传递给后端的上下文增强配置 */
+    contextOptions?: BatchOperationContextOptions;
 }
+
+type ContextToggleState = {
+    includeStudentProfile: boolean;
+    includeStudentQuestionnaire: boolean;
+    includeExecutionHistory: boolean;
+    includeStudentActionLib: boolean;
+    includeCoachActionLib: boolean;
+    includePublicActionLib: boolean;
+    includeCoachTemplates: boolean;
+    includeTemplateMatch: boolean;
+    includeFeedbacks: boolean;
+};
 
 interface LogEntry {
     type: 'progress' | 'action_plan' | 'stats' | 'error' | 'success' | 'need_clarification' | 'new_actions';
@@ -91,6 +113,8 @@ export function BatchOperationDialog({
     onPreviewResult,
     onRestart,
     onGetDaysToApply,
+    initialInstruction,
+    contextOptions,
 }: BatchOperationDialogProps) {
     const isDesktop = useIsDesktop();
     const effectiveVariant = variant === 'auto' ? (isDesktop ? 'panel' : 'modal') : variant;
@@ -112,8 +136,23 @@ export function BatchOperationDialog({
     const [pendingResolutions, setPendingResolutions] = useState<Record<string, PendingActionResolution>>({});
     const [conversationHistory, setConversationHistory] = useState<ConversationTurn[]>([]);
     const [clarificationSuggestions, setClarificationSuggestions] = useState<string[] | null>(null);
+    const [contextPanelOpen, setContextPanelOpen] = useState(false);
+    const [contextStatusText, setContextStatusText] = useState<string | null>(null);
     const logsEndRef = useRef<HTMLDivElement>(null);
     const textareaRef = useRef<any>(null);
+
+    const initialContextState: ContextToggleState = {
+        includeStudentProfile: contextOptions?.includeStudentProfile ?? false,
+        includeStudentQuestionnaire: contextOptions?.includeStudentQuestionnaire ?? false,
+        includeExecutionHistory: contextOptions?.includeExecutionHistory ?? false,
+        includeStudentActionLib: contextOptions?.includeStudentActionLib ?? false,
+        includeCoachActionLib: contextOptions?.includeCoachActionLib ?? (targetActionType === 'coach'),
+        includePublicActionLib: contextOptions?.includePublicActionLib ?? true,
+        includeCoachTemplates: contextOptions?.includeCoachTemplates ?? (targetActionType === 'coach'),
+        includeTemplateMatch: contextOptions?.includeTemplateMatch ?? false,
+        includeFeedbacks: contextOptions?.includeFeedbacks ?? false,
+    };
+    const [contextToggles, setContextToggles] = useState<ContextToggleState>(initialContextState);
 
     // Markdown 渲染器
     const md = useMemo(() => new MarkdownIt({ html: true, linkify: true, typographer: true }), []);
@@ -148,6 +187,18 @@ export function BatchOperationDialog({
             { label: '行为型（完成状态）', value: 'HABIT_CHECK', attrs: ['完成状态'] },
         ],
     };
+
+    const contextItems: Array<{ key: keyof ContextToggleState; label: string }> = [
+        { key: 'includeStudentProfile', label: '学员基本情况' },
+        { key: 'includeStudentQuestionnaire', label: '学员问卷' },
+        { key: 'includeExecutionHistory', label: '执行记录' },
+        { key: 'includeStudentActionLib', label: '学员动作库' },
+        { key: 'includeCoachActionLib', label: '教练动作库' },
+        { key: 'includePublicActionLib', label: '公共动作库' },
+        { key: 'includeCoachTemplates', label: '教练模板' },
+        { key: 'includeTemplateMatch', label: '模板匹配建议' },
+        { key: 'includeFeedbacks', label: '学员反馈' },
+    ];
 
     const buildDefaultResolution = (pending: PendingActionCandidate): PendingActionResolution => ({
         mode: 'create_new',
@@ -216,6 +267,13 @@ export function BatchOperationDialog({
     const hasPendingActions = pendingActions.length > 0;
 
     // 自动滚动到日志底部（使用 auto 避免 smooth 滚动视窗，仅滚动对话框内容器）
+    // 当 visible 变为 true 且有预填指令时自动填入
+    useEffect(() => {
+        if (visible && initialInstruction) {
+            setInstruction(initialInstruction);
+        }
+    }, [visible, initialInstruction]);
+
     useEffect(() => {
         logsEndRef.current?.scrollIntoView({ behavior: 'auto', block: 'end' });
     }, [logs]);
@@ -237,6 +295,16 @@ export function BatchOperationDialog({
             
             case 'action_plan':
                 addLog('action_plan', `📋 ${message.plan}`);
+                break;
+
+            case 'context_applied':
+                setContextStatusText(message.message);
+                addLog(
+                    'progress',
+                    `已使用上下文：${(message.enabled || []).join('、') || '无'}${
+                        message.unavailable?.length ? `；不可用：${message.unavailable.join('、')}` : ''
+                    }`,
+                );
                 break;
 
             case 'need_clarification':
@@ -310,6 +378,11 @@ export function BatchOperationDialog({
         setConversationHistory([]);
         setClarificationSuggestions(null);
 
+        const runtimeContextOptions: BatchOperationContextOptions = {
+            subscriptionId: contextOptions?.subscriptionId,
+            ...contextToggles,
+        };
+
         if (mode === 'local') {
             await BatchOperationService.executeBatchOperationLocal(
                 initialTrainingDays,
@@ -320,7 +393,9 @@ export function BatchOperationDialog({
                     addLog('error', error);
                     setIsProcessing(false);
                 },
-                []
+                [],
+                targetActionType,
+                runtimeContextOptions
             );
             return;
         }
@@ -340,7 +415,9 @@ export function BatchOperationDialog({
                 addLog('error', error);
                 setIsProcessing(false);
             },
-            []
+            [],
+            targetActionType,
+            runtimeContextOptions
         );
     };
 
@@ -359,6 +436,11 @@ export function BatchOperationDialog({
         setInstruction('');
         setIsProcessing(true);
 
+        const runtimeContextOptions: BatchOperationContextOptions = {
+            subscriptionId: contextOptions?.subscriptionId,
+            ...contextToggles,
+        };
+
         if (mode === 'local') {
             await BatchOperationService.executeBatchOperationLocal(
                 initialTrainingDays,
@@ -369,7 +451,9 @@ export function BatchOperationDialog({
                     addLog('error', error);
                     setIsProcessing(false);
                 },
-                nextHistory
+                nextHistory,
+                targetActionType,
+                runtimeContextOptions
             );
             return;
         }
@@ -389,7 +473,9 @@ export function BatchOperationDialog({
                 addLog('error', error);
                 setIsProcessing(false);
             },
-            nextHistory
+            nextHistory,
+            targetActionType,
+            runtimeContextOptions
         );
     };
 
@@ -519,7 +605,8 @@ export function BatchOperationDialog({
                 },
                 body: JSON.stringify({
                     templateId,
-                    updatedTrainingDays: daysToApply
+                    updatedTrainingDays: daysToApply,
+                    targetActionType,
                 }),
             });
 
@@ -556,6 +643,7 @@ export function BatchOperationDialog({
             setPendingResolutions({});
             setConversationHistory([]);
             setClarificationSuggestions(null);
+            setContextStatusText(null);
             onHide();
         }
     };
@@ -573,6 +661,7 @@ export function BatchOperationDialog({
         setPendingResolutions({});
         setConversationHistory([]);
         setClarificationSuggestions(null);
+        setContextStatusText(null);
     };
 
     // 渲染日志条目
@@ -695,7 +784,50 @@ export function BatchOperationDialog({
                                 <div className="text-sm text-surface-500 font-medium">
                                     使用自然语言描述批量操作，系统会自动识别并预览修改内容
                                 </div>
+                                <div className="flex items-center justify-center gap-2">
+                                    <span className="text-xs text-surface-500">
+                                        上下文已开启 {Object.values(contextToggles).filter(Boolean).length} 项
+                                    </span>
+                                    <Button
+                                        label={contextPanelOpen ? '收起上下文设置' : '上下文设置'}
+                                        icon="pi pi-sliders-h"
+                                        text
+                                        size="small"
+                                        className="rounded-xl"
+                                        onClick={() => setContextPanelOpen((v) => !v)}
+                                    />
+                                </div>
                             </div>
+
+                            {contextPanelOpen && (
+                                <div className="rounded-2xl border border-surface-200 bg-surface-50/70 p-3">
+                                    <div className="text-xs text-surface-500 mb-2">选择 AI 本次可读取的上下文</div>
+                                    <div className="flex flex-wrap gap-2">
+                                        {contextItems.map((item) => {
+                                            const active = contextToggles[item.key];
+                                            return (
+                                                <button
+                                                    key={item.key}
+                                                    type="button"
+                                                    onClick={() =>
+                                                        setContextToggles((prev) => ({
+                                                            ...prev,
+                                                            [item.key]: !prev[item.key],
+                                                        }))
+                                                    }
+                                                    className={`px-3 py-1.5 rounded-full border text-xs font-medium transition-all ${
+                                                        active
+                                                            ? 'border-primary-300 bg-primary-50 text-primary-700'
+                                                            : 'border-surface-200 bg-surface text-surface-500'
+                                                    }`}
+                                                >
+                                                    {active ? '✓ ' : ''}{item.label}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
 
                             {/* 示例问题 */}
                             <div className="flex flex-wrap justify-center gap-2">
@@ -779,10 +911,53 @@ export function BatchOperationDialog({
                                 tooltip="关闭对话框"
                                 tooltipOptions={{ position: 'right' }}
                             />
+                            <div className="ml-2 flex items-center gap-2">
+                                <Button
+                                    icon="pi pi-sliders-h"
+                                    text
+                                    severity="secondary"
+                                    className="rounded-xl"
+                                    onClick={() => setContextPanelOpen((v) => !v)}
+                                    disabled={isProcessing || isApplying || isResolvingPendingActions}
+                                    aria-label="上下文设置"
+                                />
+                                <span className="text-xs text-surface-500">
+                                    上下文 {Object.values(contextToggles).filter(Boolean).length} 项
+                                </span>
+                            </div>
                         </div>
 
                         {/* 内容容器 */}
                         <div className="flex-1 min-h-0 px-8 pb-1 flex flex-col">
+                            {contextPanelOpen && (
+                                <div className="mb-3 rounded-2xl border border-surface-200 bg-surface-50/70 p-3">
+                                    <div className="text-xs text-surface-500 mb-2">当前会话上下文开关</div>
+                                    <div className="flex flex-wrap gap-2">
+                                        {contextItems.map((item) => {
+                                            const active = contextToggles[item.key];
+                                            return (
+                                                <button
+                                                    key={item.key}
+                                                    type="button"
+                                                    onClick={() =>
+                                                        setContextToggles((prev) => ({
+                                                            ...prev,
+                                                            [item.key]: !prev[item.key],
+                                                        }))
+                                                    }
+                                                    className={`px-3 py-1.5 rounded-full border text-xs font-medium transition-all ${
+                                                        active
+                                                            ? 'border-primary-300 bg-primary-50 text-primary-700'
+                                                            : 'border-surface-200 bg-surface text-surface-500'
+                                                    }`}
+                                                >
+                                                    {active ? '✓ ' : ''}{item.label}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
                             {/* 用户消息 */}
                             <div className="flex-shrink-0 mb-6">
                                 <div className="bg-surface-50 rounded-2xl p-4 border border-surface-100">
@@ -796,6 +971,12 @@ export function BatchOperationDialog({
                                     </div>
                                 </div>
                             </div>
+
+                            {contextStatusText && (
+                                <div className="mb-3 rounded-xl border border-primary-200 bg-primary-50/70 px-3 py-2 text-xs text-primary-700">
+                                    {contextStatusText}
+                                </div>
+                            )}
 
                             {/* 内容区域：限制高度，超出部分在此滚动 */}
                             <div className="flex-1 min-h-0 max-h-[calc(100vh-460px)] overflow-y-auto space-y-4 mb-4 pr-2 custom-scrollbar">

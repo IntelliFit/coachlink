@@ -1,4 +1,8 @@
-import { SSEMessage, ConversationTurn } from '@/app/api/plan-lib/batch-operation/entity';
+import {
+    SSEMessage,
+    ConversationTurn,
+    BatchOperationContextOptions,
+} from '@/app/api/plan-lib/batch-operation/entity';
 
 /**
  * 批量操作服务
@@ -14,10 +18,19 @@ export class BatchOperationService {
         onMessage: (message: SSEMessage) => void,
         onComplete: () => void,
         onError: (error: string) => void,
-        conversationHistory?: ConversationTurn[]
+        conversationHistory?: ConversationTurn[],
+        targetActionType: 'coach' | 'student' = 'coach',
+        contextOptions?: BatchOperationContextOptions
     ): Promise<void> {
         try {
-            const body: Record<string, unknown> = { templateId, instruction };
+            const body: Record<string, unknown> = {
+                templateId,
+                instruction,
+                targetActionType,
+            };
+            if (contextOptions) {
+                body.contextOptions = contextOptions;
+            }
             if (conversationHistory && conversationHistory.length > 0) {
                 body.conversationHistory = conversationHistory;
             }
@@ -83,10 +96,19 @@ export class BatchOperationService {
         onMessage: (message: SSEMessage) => void,
         onComplete: () => void,
         onError: (error: string) => void,
-        conversationHistory?: ConversationTurn[]
+        conversationHistory?: ConversationTurn[],
+        targetActionType: 'coach' | 'student' = 'coach',
+        contextOptions?: BatchOperationContextOptions
     ): Promise<void> {
         try {
-            const body: Record<string, unknown> = { trainingDays, instruction };
+            const body: Record<string, unknown> = {
+                trainingDays,
+                instruction,
+                targetActionType,
+            };
+            if (contextOptions) {
+                body.contextOptions = contextOptions;
+            }
             if (conversationHistory && conversationHistory.length > 0) {
                 body.conversationHistory = conversationHistory;
             }
