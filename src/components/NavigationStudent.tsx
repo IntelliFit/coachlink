@@ -267,6 +267,8 @@ export default function NavigationStudent() {
             { label: '今日训练', icon: PlayCircle, url: '/today-training', command: () => router.push('/today-training'), guideId: 'guide-today-training', template: itemRenderer },
             { label: '好友动态', icon: Activity, url: '/friends/activity', command: () => router.push('/friends/activity'), template: itemRenderer },
             { label: '发现', icon: Search, url: '/coach/discovery', command: () => router.push('/coach/discovery'), guideId: 'guide-find-coach', template: itemRenderer },
+            { label: '知识库', icon: BookOpen, url: '/dashboard/knowledge', command: () => router.push('/dashboard/knowledge'), template: itemRenderer },
+            { label: '我的动作库', icon: ClipboardList, url: '/me/action-lib', command: () => router.push('/me/action-lib'), template: itemRenderer },
             { label: '排行榜', icon: TrendingUp, url: '/ranking', command: () => router.push('/ranking'), template: itemRenderer },
             { label: '个人档案', icon: User, url: '/me/profile', command: () => router.push('/me/profile'), guideId: 'guide-profile', template: itemRenderer },
         ];
@@ -317,6 +319,12 @@ export default function NavigationStudent() {
         { label: '账户设置', icon: 'pi pi-shield', command: () => { router.push('/me/settings'); setVisibleLeft(false); } },
         { label: '退出登录', icon: 'pi pi-sign-out', className: 'text-rose-500', command: () => signOut({ callbackUrl: '/' }) }
     ], [session, profile, openProfileSetupModal, router, updateSession]);
+
+    // 桌面端头像下拉隐藏已上移到顶栏的入口，避免重复显示
+    const desktopUserMenuItems = useMemo(
+        () => userMenuItems.filter((item: any) => item?.label !== '我的动作库' && item?.label !== '知识库'),
+        [userMenuItems]
+    );
 
     const studentTabRoots = useMemo(() => [
         '/today-training', '/coach/discovery', '/me/profile', '/ranking', '/friends/activity',
@@ -638,7 +646,7 @@ export default function NavigationStudent() {
             )}
 
             <Menu
-                model={userMenuItems}
+                model={desktopUserMenuItems}
                 popup
                 ref={menuRef}
                 className="mt-2 border-none shadow-xl rounded-2xl p-2 min-w-48 text-sm"
