@@ -59,6 +59,7 @@ export async function POST(req: Request) {
         orderData = {},
         createMode = "common",
         isMobile = false,
+        returnUrlOnly = false,
     } = (await req.json()) as CreateAlipayOrderDto;
 
     const isGuestOrder = orderType === "guest_content_purchase";
@@ -254,29 +255,30 @@ export async function POST(req: Request) {
         console.error("[Alipay Create] Bind subscription failed:", e);
     }
 
-    // 根据设备类型选择支付方式
+    // 根据设备类型选择支付方式；returnUrlOnly 时传 'GET' 得到跳转 URL，否则得到 form HTML
+    const bizCommon = {
+        notifyUrl,
+        returnUrl,
+    };
     let result: string;
     if (isMobile) {
-        // 移动端使用 wap.pay，可以唤起支付宝APP
-            // 支付宝接口需要元（字符串，保留两位小数）
-            const totalAmountYuanStr = fenToYuan(totalAmountFen).toFixed(2);
-        result = alipaySdk.pageExec("alipay.trade.wap.pay", {
-            notifyUrl,
-            returnUrl,
+        const totalAmountYuanStr = fenToYuan(totalAmountFen).toFixed(2);
+        const bizParams = {
+            ...bizCommon,
             bizContent: {
                 out_trade_no: order.id,
                 total_amount: totalAmountYuanStr,
                 subject: subjectText,
                 product_code: "QUICK_WAP_WAY",
             },
-        });
+        };
+        result = returnUrlOnly
+            ? (alipaySdk.pageExec("alipay.trade.wap.pay", "GET", bizParams) as string)
+            : (alipaySdk.pageExec("alipay.trade.wap.pay", bizParams) as string);
     } else {
-        // PC端使用 page.pay，显示二维码
-        // 支付宝接口需要元（字符串，保留两位小数）
         const totalAmountYuanStr = fenToYuan(totalAmountFen).toFixed(2);
-        result = alipaySdk.pageExec("alipay.trade.page.pay", {
-            notifyUrl,
-            returnUrl,
+        const bizParams = {
+            ...bizCommon,
             bizContent: {
                 out_trade_no: order.id,
                 total_amount: totalAmountYuanStr,
@@ -284,7 +286,10 @@ export async function POST(req: Request) {
                 product_code: "FAST_INSTANT_TRADE_PAY",
                 qr_pay_mode: "0",
             },
-        });
+        };
+        result = returnUrlOnly
+            ? (alipaySdk.pageExec("alipay.trade.page.pay", "GET", bizParams) as string)
+            : (alipaySdk.pageExec("alipay.trade.page.pay", bizParams) as string);
     }
 
     if (!result) {
@@ -313,23 +318,27 @@ export async function POST(req: Request) {
     }
 
     // 返回响应
+    const paymentInfo: CreateAlipayOrderResponseDto["paymentInfo"] = {
+        formHtml: returnUrlOnly ? "" : result,
+        description: "支付宝扫码支付",
+    };
+    if (returnUrlOnly && result) {
+        paymentInfo.paymentUrl = result;
+    }
+
     return NextResponse.json<ApiData<CreateAlipayOrderResponseDto>>({
         success: true,
         message: "订单创建成功",
         data: {
             order: {
                 id: order.id.toString(),
-                // `alipay_orders` table uses `id` as out_trade_no for Alipay tracking
                 out_trade_no: order.id.toString(),
                 subject: order.subject,
-                total_amount: fenToYuan(order.total_amount), // 转换为元返回给前端
+                total_amount: fenToYuan(order.total_amount),
                 status: order.status,
                 created_at: order.created_at,
             },
-            paymentInfo: {
-                formHtml: result,
-                description: "支付宝扫码支付",
-            },
+            paymentInfo,
         },
     });
 }

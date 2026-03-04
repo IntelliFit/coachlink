@@ -17,13 +17,14 @@ import { useToastContext } from '@/context/ToastContext';
 import { useAnalytics } from '@/hooks/useAnalytics';
 import type { CoachSubscriptionRow, CoachesRow } from '@/types';
 import type { GetUserProfileResponseDto } from '@/app/api/user/get-profile/entity';
-import { formatYuanFromFen } from '@/lib/moneyUtils';
+import { formatYuanFromFen, yuanToFen } from '@/lib/moneyUtils';
 
 // 线下支付数据结构
 interface OfflinePaymentData {
     payment_type: 'offline';
     expires_at: string;
     amount?: number;
+    amount_unit?: 'fen' | 'yuan';
     receipt_url?: string;
     note?: string;
 }
@@ -297,6 +298,16 @@ export const PaymentConfirmationDialog: React.FC<PaymentConfirmationDialogProps>
         return paymentData.offline_payment || null;
     };
 
+    // 线上展示只走确定性规则：优先按显式单位解释，默认按“分”
+    const getOfflineAmountFen = (subscription: SubscriptionWithStudentProfile): number | null => {
+        const offlinePayment = getOfflinePayment(subscription);
+        const raw = Number(offlinePayment?.amount ?? 0);
+        if (!Number.isFinite(raw) || raw <= 0) return null;
+        const amountUnit = offlinePayment?.amount_unit;
+        if (amountUnit === 'yuan') return yuanToFen(raw);
+        return Math.round(raw);
+    };
+
     // 支付方式模板
     const paymentTypeTemplate = (subscription: SubscriptionWithStudentProfile) => {
         if (subscription.__kind === 'system') {
@@ -322,6 +333,7 @@ export const PaymentConfirmationDialog: React.FC<PaymentConfirmationDialogProps>
     // 线下支付详情模板
     const offlineDetailsTemplate = (subscription: SubscriptionWithStudentProfile) => {
         const offlinePayment = getOfflinePayment(subscription);
+        const offlineAmountFen = getOfflineAmountFen(subscription);
         if (!offlinePayment) {
             return <span className="text-surface-400">-</span>;
         }
@@ -334,10 +346,10 @@ export const PaymentConfirmationDialog: React.FC<PaymentConfirmationDialogProps>
                         {new Date(offlinePayment.expires_at).toLocaleDateString()}
                     </span>
                 </div>
-                {offlinePayment.amount && (
+                {offlineAmountFen && (
                     <div className="flex items-center gap-2">
                         <span className="text-surface-500">金额:</span>
-                        <span>¥{formatYuanFromFen(offlinePayment.amount)}</span>
+                        <span>¥{formatYuanFromFen(offlineAmountFen)}</span>
                     </div>
                 )}
                 {offlinePayment.receipt_url && (
@@ -399,13 +411,14 @@ export const PaymentConfirmationDialog: React.FC<PaymentConfirmationDialogProps>
 
     const priceTemplate = (subscription: SubscriptionWithStudentProfile) => {
         const offlinePayment = getOfflinePayment(subscription);
+        const offlineAmountFen = getOfflineAmountFen(subscription);
         
         if (offlinePayment) {
             return (
                 <div className="text-right">
-                    {offlinePayment.amount ? (
+                    {offlineAmountFen ? (
                         <>
-                            <div className="font-medium text-green-600">¥{formatYuanFromFen(offlinePayment.amount)}</div>
+                            <div className="font-medium text-green-600">¥{formatYuanFromFen(offlineAmountFen)}</div>
                             <div className="text-xs text-surface-500">线下实付</div>
                         </>
                     ) : (
@@ -524,7 +537,9 @@ export const PaymentConfirmationDialog: React.FC<PaymentConfirmationDialogProps>
             modal
             draggable={false}
             resizable={false}
-            style={{ width: '90%', maxWidth: '900px' }}
+            style={{ width: '96vw', maxWidth: '1360px' }}
+            breakpoints={{ '1400px': '96vw', '992px': '98vw', '768px': '99vw' }}
+            contentStyle={{ maxHeight: '80vh', overflow: 'auto' }}
         >
             <div className="p-4">
                 <TabView activeIndex={activeTab} onTabChange={(e) => setActiveTab(e.index)}>
@@ -545,7 +560,8 @@ export const PaymentConfirmationDialog: React.FC<PaymentConfirmationDialogProps>
                                             value={manualRows}
                                             dataKey="id"
                                             scrollable
-                                            scrollHeight="260px"
+                                            scrollHeight="380px"
+                                            tableStyle={{ minWidth: '1080px' }}
                                             selection={selectedManualRows}
                                             onSelectionChange={(e) => setSelectedManualRows((e.value || []) as SubscriptionWithStudentProfile[])}
                                             selectionMode="checkbox"
@@ -590,7 +606,8 @@ export const PaymentConfirmationDialog: React.FC<PaymentConfirmationDialogProps>
                                             value={systemRows}
                                             dataKey="id"
                                             scrollable
-                                            scrollHeight="220px"
+                                            scrollHeight="300px"
+                                            tableStyle={{ minWidth: '900px' }}
                                         >
                                             <Column field="student" header="学员" body={studentTemplate}></Column>
                                             <Column field="payment_type" header="支付方式" body={paymentTypeTemplate} style={{ width: '140px' }}></Column>
@@ -627,7 +644,8 @@ export const PaymentConfirmationDialog: React.FC<PaymentConfirmationDialogProps>
                                 value={historyWithProfiles}
                                 dataKey="id"
                                 scrollable
-                                scrollHeight="400px"
+                                scrollHeight="460px"
+                                tableStyle={{ minWidth: '1020px' }}
                             >
                                 <Column field="student" header="学员" body={studentTemplate}></Column>
                                 <Column field="confirm_source" header="确认来源" body={confirmSourceTemplate} style={{ width: '110px' }} />

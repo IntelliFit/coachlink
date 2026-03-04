@@ -67,13 +67,13 @@ export async function POST(req: Request) {
         );
     }
 
-    // 统一限制：直传也限制 50MB（可按你业务再调大）
-    const maxSizeBytes = 50 * 1024 * 1024;
+    // 统一限制：直传也限制 200MB（可按你业务再调大）
+    const maxSizeBytes = 200 * 1024 * 1024;
     if (fileSizeBytes > maxSizeBytes) {
         return NextResponse.json<ApiData<null>>(
             {
                 success: false,
-                message: "视频过大，单个视频请小于 50MB",
+                message: "视频过大，单个视频请小于 200MB",
                 data: null,
             },
             { status: 413 },

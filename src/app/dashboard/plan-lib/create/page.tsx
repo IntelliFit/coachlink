@@ -25,6 +25,7 @@ import { coachService } from '@/app/service/coachService';
 import SmartImportDialog from '../components/SmartImportDialog';
 import { ItemType } from '@/types/student';
 import { useAnalytics } from '@/hooks/useAnalytics';
+import { BatchOperationDialog } from '@/components/BatchOperationDialog';
 
 const CreatePlanPage = () => {
     const router = useRouter();
@@ -63,6 +64,8 @@ const CreatePlanPage = () => {
     
     // Smart import dialog
     const [showImportDialog, setShowImportDialog] = useState(false);
+    const [aiBatchDialogVisible, setAiBatchDialogVisible] = useState(false);
+    const [originalDaysBeforeAi, setOriginalDaysBeforeAi] = useState<FormPlanTrainingDay[] | null>(null);
     // Mobile day picker
     const [dayPickerVisible, setDayPickerVisible] = useState(false);
     const [actionSearchId, setActionSearchId] = useState<string | null>(null);
@@ -291,7 +294,7 @@ const CreatePlanPage = () => {
 
     const handleRemoveActionSet = (dayIndex: number, setIndex: number) => {
         const newDays = [...days];
-        const actualDayIndex = newDays.findIndex(d => d.dayIndex === dayIndex);
+        const actualDayIndex = newDays.findIndex(d => d.dayIndex === dayIndex + 1);
         if (actualDayIndex === -1) return;
 
         newDays[actualDayIndex].actionSets.splice(setIndex, 1);
@@ -387,6 +390,46 @@ const CreatePlanPage = () => {
         showToast({ severity: 'success', summary: '导入成功', detail: `成功导入 ${importedDays.length} 天的训练计划` });
         // 重新加载动作库以包含新创建的动作
         loadActions();
+    };
+
+    const handleAiPreviewResult = (data: { originalTrainingDays: any; updatedTrainingDays: any }) => {
+        setOriginalDaysBeforeAi(JSON.parse(JSON.stringify(days)));
+        const converted: FormPlanTrainingDay[] = (data.updatedTrainingDays || []).map((day: any) => ({
+            dayIndex: day.dayIndex ?? 0,
+            type: day.type || 'rest',
+            note: day.note || '',
+            actionSets: day.actionSets || [],
+            actionSetsCount: (day.actionSets || []).length,
+        })).sort((a, b) => a.dayIndex - b.dayIndex);
+        setDays(converted);
+    };
+
+    const handleAiRestart = () => {
+        if (originalDaysBeforeAi) {
+            setDays(originalDaysBeforeAi);
+            setOriginalDaysBeforeAi(null);
+        }
+    };
+
+    const handleAiApplyLocal = (updatedTrainingDays: any[]) => {
+        const converted: FormPlanTrainingDay[] = (updatedTrainingDays || []).map((day: any) => ({
+            dayIndex: day.dayIndex ?? 0,
+            type: day.type || 'rest',
+            note: day.note || '',
+            actionSets: day.actionSets || [],
+            actionSetsCount: (day.actionSets || []).length,
+        })).sort((a, b) => a.dayIndex - b.dayIndex);
+        setDays(converted);
+        if (converted.length > 0) {
+            setSelectedDayIndex(converted[0].dayIndex);
+        }
+        showToast({ severity: 'success', summary: 'AI 修改器成功', detail: '修改已应用到当前草稿（记得点击保存模板）' });
+    };
+
+    const handleAiBatchOperationSuccess = async () => {
+        setAiBatchDialogVisible(false);
+        setOriginalDaysBeforeAi(null);
+        await loadActions();
     };
 
     const handleSave = async () => {
@@ -496,6 +539,23 @@ const CreatePlanPage = () => {
                         onClick={() => setShowImportDialog(true)}
                         disabled={saving || loading}
                         tooltip="从文本智能解析并导入训练计划"
+                        tooltipOptions={{ position: 'bottom' }}
+                    />
+                    <Button
+                        label="AI 修改器"
+                        icon="pi pi-bolt"
+                        className="
+                            flex items-center gap-2 px-4 py-2 rounded-2xl
+                            bg-surface-0 border border-surface-200
+                            text-[12px] font-bold text-surface-700
+                            hover:bg-surface-50 hover:border-surface-300
+                            active:scale-[0.98] transition-all
+                            disabled:opacity-40 disabled:cursor-not-allowed
+                        "
+                        text
+                        onClick={() => setAiBatchDialogVisible(true)}
+                        disabled={saving || loading}
+                        tooltip="使用自然语言批量修改当前草稿"
                         tooltipOptions={{ position: 'bottom' }}
                     />
                 </div>
@@ -645,6 +705,32 @@ const CreatePlanPage = () => {
                 onHide={() => setShowImportDialog(false)}
                 existingActions={actions}
                 onImportComplete={handleImportComplete}
+            />
+
+            <BatchOperationDialog
+                visible={aiBatchDialogVisible}
+                onHide={() => setAiBatchDialogVisible(false)}
+                mode="local"
+                targetActionType="coach"
+                contextOptions={{
+                    // 默认仅必要：教练动作库+公共动作库；模板库等由用户自行勾选
+                    includeStudentProfile: false,
+                    includeStudentQuestionnaire: false,
+                    includeExecutionHistory: false,
+                    includeFeedbacks: false,
+                    includeStudentActionLib: false,
+                    includeCoachActionLib: true,
+                    includePublicActionLib: true,
+                    includeCoachTemplates: false,
+                    includeTemplateMatch: false,
+                }}
+                initialTrainingDays={days}
+                existingActions={actions}
+                onApplyLocal={handleAiApplyLocal}
+                onSuccess={handleAiBatchOperationSuccess}
+                onPreviewResult={handleAiPreviewResult}
+                onRestart={handleAiRestart}
+                onGetDaysToApply={() => days}
             />
 
             {/* 手机端：随时切换训练日 */}

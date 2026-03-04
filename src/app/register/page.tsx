@@ -57,6 +57,17 @@ export default function RegisterPage() {
 
     const { data: session } = useSession();
 
+    const isCoreProfileCompleted = (profile: any) => {
+        if (!profile) return false;
+        const hasNickname = !!profile?.nickname?.trim?.();
+        const hasGender = !!profile?.gender;
+        const hasHeight = typeof profile?.height === 'number' && profile.height > 0;
+        const hasWeight = typeof profile?.weight === 'number' && profile.weight > 0;
+        const hasGoal = !!profile?.fitness_goal;
+        const hasLevel = !!profile?.fitness_level;
+        return hasNickname && hasGender && hasHeight && hasWeight && hasGoal && hasLevel;
+    };
+
     useEffect(() => {
         const share = searchParams.get('share');
         const invitation = invitationCode.trim() || searchParams.get('invite') || undefined;
@@ -169,8 +180,24 @@ export default function RegisterPage() {
                 });
 
                 if (signInResult?.ok) {
-                    // If login succeeds, redirect to home page
-                    router.push('/');
+                    // 登录成功后：如果档案已完善，直接进入首练；否则进入主链路触发首登问卷
+                    try {
+                        const profileRes = await fetch('/api/user/get-profile', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({}),
+                        });
+                        const profileJson = await profileRes.json();
+                        const profile = profileJson?.data?.profile;
+                        const done =
+                            profile?.onboarding_completed === true &&
+                            isCoreProfileCompleted(profile);
+                        router.push(done ? '/impromptu-training?from=register' : '/');
+                    } catch {
+                        router.push('/');
+                    }
                     router.refresh(); // Refresh to update session state
                 } else {
                     // If auto-login fails, redirect to login page

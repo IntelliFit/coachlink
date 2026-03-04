@@ -3,6 +3,7 @@
 import ChangePasswordForm from '@/components/auth/ChangePasswordForm';
 import AccountBindingSection from '@/components/student/profile/AccountBindingSection';
 import NotificationSettingsSection from '@/components/settings/NotificationSettingsSection';
+import DeleteAccountSection from '@/components/settings/DeleteAccountSection';
 
 export default function StudentSettingsPage() {
     return (
@@ -16,6 +17,7 @@ export default function StudentSettingsPage() {
                 <NotificationSettingsSection />
                 <ChangePasswordForm />
                 <AccountBindingSection />
+                <DeleteAccountSection />
             </div>
         </div>
     );

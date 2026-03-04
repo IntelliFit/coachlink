@@ -1,0 +1,57 @@
+feat: 动作canonical整改 + 1RM系统重构 + 计划自动匹配 + 多教练支持
+
+## 一、动作 Canonical ID 整改（核心）
+
+### 背景问题
+系统中同一业务动作在不同表出现同名不同ID，导致力量曲线下拉出现同名项但无数据、1RM回填命中率低、动作重复累积。
+
+### 解决方案
+1. 新增 canonicalActionResolver.ts - 解析/自动生成 canonical_action_id
+2. 修改所有动作新增API - 强制所有动作类型都必须有 canonical_action_id
+3. 同域唯一性检查 - 教练库(coach_id, name)唯一，学员库(user_id, name)唯一
+4. 跨域归并回填 - 生成243个canonical，回填964条历史记录
+5. 同域同名重复清理 - 删除77条重复记录
+
+## 二、1RM 系统重构
+
+1. 新增全局参考1RM - student_actions.reference_1rm 字段
+2. 1RM获取逻辑重构 - PR历史 > 动作库基线 > 问卷兜底
+3. 1RM资格判定统一 - oneRmEligibility.ts
+4. 学员端1RM设置入口 - StudentActionEditDialog
+5. 教练端1RM配置面板 - CoachOneRMConfigPanel（新增346行）
+6. 1RM批量更新API - batch-update-student-1rm
+
+## 三、计划自动匹配
+
+1. auto-match-plan/service.ts - 为新订阅自动匹配AI计划
+2. 订阅创建时异步触发、订阅激活时同步执行
+3. 支持延迟2分钟激活
+
+## 四、多教练支持
+
+StudentProfilePage支持多个教练订阅，问卷独立管理
+
+## 五、动作同步链路补齐
+
+sync-actions.ts - 计划动作自动同步到学员动作库
+
+## 六、力量曲线同名空数据修复
+
+- E1RMProgressChart: 同时传 actionId + actionName
+- get-e1rm-history: 双源兜底
+- get-available-actions: 按归一化动作名去重
+
+## 七、错误反馈优化
+
+baseService.ts 正确传递后端错误信息到前端toast
+
+## 八、文档沉淀
+
+- 动作canonical整改交接文档.md（新增）
+- 高频复发Bug清单.md（新增）
+- 代码检查清单.md（更新）
+
+---
+涉及文件：59个，+3730/-162行
+
+

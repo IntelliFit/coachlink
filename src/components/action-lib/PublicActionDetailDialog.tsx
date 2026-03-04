@@ -11,6 +11,7 @@ import type { PublicActionEditItemDto } from '@/app/api/public-action-lib/list-e
 import type { PublicActionContributorItemDto } from '@/app/api/public-action-lib/list-contributors/entity';
 import ActionEditDialog from '@/app/dashboard/action-lib/ActionEditDialog';
 import StudentActionEditDialog from '@/app/me/action-lib/StudentActionEditDialog';
+import FormattedActionText from '@/components/shared/FormattedActionText';
 import type { CoachActionRow } from '@/types';
 import type { StudentActionRow } from '@/types/student';
 
@@ -158,40 +159,44 @@ export default function PublicActionDetailDialog(props: {
         }
     };
 
+    const withUndefinedFallback = <T,>(next: T | undefined, current: T): T =>
+        next === undefined ? current : next;
+
     const computeChangedFields = (e: PublicActionEditItemDto) => {
         if (!localAction) return [];
+        const proposedAction = buildProposedAction(e);
         const changes: { key: string; label: string }[] = [];
-        if ((e.proposed_name ?? localAction.name) !== localAction.name) {
+        if (proposedAction.name !== localAction.name) {
             changes.push({ key: "name", label: "名称" });
         }
-        if ((e.proposed_detail ?? localAction.detail ?? null) !== (localAction.detail ?? null)) {
+        if ((proposedAction.detail ?? null) !== (localAction.detail ?? null)) {
             changes.push({ key: "detail", label: "描述" });
         }
-        if ((e.proposed_url ?? localAction.url ?? null) !== (localAction.url ?? null)) {
+        if ((proposedAction.url ?? null) !== (localAction.url ?? null)) {
             changes.push({ key: "url", label: "演示视频" });
         }
-        if (JSON.stringify(e.proposed_positions ?? localAction.positions ?? null) !== JSON.stringify(localAction.positions ?? null)) {
+        if (JSON.stringify(proposedAction.positions ?? null) !== JSON.stringify(localAction.positions ?? null)) {
             changes.push({ key: "positions", label: "训练部位" });
         }
-        if (JSON.stringify(e.proposed_attrs ?? localAction.attrs ?? null) !== JSON.stringify(localAction.attrs ?? null)) {
+        if (JSON.stringify(proposedAction.attrs ?? null) !== JSON.stringify(localAction.attrs ?? null)) {
             changes.push({ key: "attrs", label: "动作属性" });
         }
-        if ((e.proposed_type ?? localAction.type ?? null) !== (localAction.type ?? null)) {
+        if ((proposedAction.type ?? null) !== (localAction.type ?? null)) {
             changes.push({ key: "type", label: "类型" });
         }
-        if (JSON.stringify(e.proposed_item_schema ?? localAction.item_schema ?? null) !== JSON.stringify(localAction.item_schema ?? null)) {
+        if (JSON.stringify(proposedAction.item_schema ?? null) !== JSON.stringify(localAction.item_schema ?? null)) {
             changes.push({ key: "item_schema", label: "详细配置" });
         }
-        if ((e.proposed_suggested_time ?? localAction.suggested_time ?? null) !== (localAction.suggested_time ?? null)) {
+        if ((proposedAction.suggested_time ?? null) !== (localAction.suggested_time ?? null)) {
             changes.push({ key: "suggested_time", label: "推荐时间" });
         }
-        if ((e.proposed_enableAutoWeightCompute ?? localAction.enableAutoWeightCompute ?? null) !== (localAction.enableAutoWeightCompute ?? null)) {
+        if ((proposedAction.enableAutoWeightCompute ?? null) !== (localAction.enableAutoWeightCompute ?? null)) {
             changes.push({ key: "enableAutoWeightCompute", label: "智能重量计算" });
         }
-        if ((e.proposed_includesBodyWeight ?? localAction.includesBodyWeight ?? null) !== (localAction.includesBodyWeight ?? null)) {
+        if ((proposedAction.includesBodyWeight ?? null) !== (localAction.includesBodyWeight ?? null)) {
             changes.push({ key: "includesBodyWeight", label: "包含自重" });
         }
-        if ((e.proposed_canonical_action_id ?? localAction.canonical_action_id ?? null) !== (localAction.canonical_action_id ?? null)) {
+        if ((proposedAction.canonical_action_id ?? null) !== (localAction.canonical_action_id ?? null)) {
             changes.push({ key: "canonical_action_id", label: "标准动作关联" });
         }
         return changes;
@@ -201,20 +206,32 @@ export default function PublicActionDetailDialog(props: {
         const base = localAction!;
         return {
             ...base,
-            name: (e.proposed_name ?? base.name) as any,
-            detail: (e.proposed_detail ?? base.detail) ?? null,
-            url: (e.proposed_url ?? base.url) ?? null,
-            positions: (e.proposed_positions ?? base.positions) ?? null,
-            attrs: (e.proposed_attrs ?? base.attrs) ?? null,
-            type: (e.proposed_type ?? base.type) ?? null,
-            item_schema: (e.proposed_item_schema ?? base.item_schema) ?? null,
-            suggested_time: (e.proposed_suggested_time ?? base.suggested_time) ?? null,
+            name: (withUndefinedFallback(e.proposed_name as any, base.name) || base.name) as any,
+            detail: withUndefinedFallback(e.proposed_detail as any, base.detail ?? null),
+            url: withUndefinedFallback(e.proposed_url as any, base.url ?? null),
+            positions: withUndefinedFallback(e.proposed_positions as any, base.positions ?? null),
+            attrs: withUndefinedFallback(e.proposed_attrs as any, base.attrs ?? null),
+            type: withUndefinedFallback(e.proposed_type as any, base.type ?? null),
+            item_schema: withUndefinedFallback(e.proposed_item_schema as any, base.item_schema ?? null),
+            suggested_time: withUndefinedFallback(
+                e.proposed_suggested_time as any,
+                base.suggested_time ?? null,
+            ),
             enableAutoWeightCompute:
-                (e.proposed_enableAutoWeightCompute ?? base.enableAutoWeightCompute) ?? null,
+                withUndefinedFallback(
+                    e.proposed_enableAutoWeightCompute as any,
+                    base.enableAutoWeightCompute ?? null,
+                ),
             includesBodyWeight:
-                (e.proposed_includesBodyWeight ?? base.includesBodyWeight) ?? null,
+                withUndefinedFallback(
+                    e.proposed_includesBodyWeight as any,
+                    base.includesBodyWeight ?? null,
+                ),
             canonical_action_id:
-                (e.proposed_canonical_action_id ?? base.canonical_action_id) ?? null,
+                withUndefinedFallback(
+                    e.proposed_canonical_action_id as any,
+                    base.canonical_action_id ?? null,
+                ),
         };
     };
 
@@ -289,9 +306,10 @@ export default function PublicActionDetailDialog(props: {
                                     点赞 {localAction.like_count || 0}
                                 </span>
                             </div>
-                            <div className="mt-2 text-sm text-surface-700 whitespace-pre-wrap">
-                                {localAction.detail || '暂无描述'}
-                            </div>
+                            <FormattedActionText
+                                text={localAction.detail}
+                                className="mt-2 text-sm text-surface-700 whitespace-pre-wrap"
+                            />
                         </div>
                         <div className="text-right shrink-0 text-xs text-surface-500">
                             <div>贡献者：{localAction.contributor?.nickname || '用户'}</div>
@@ -472,9 +490,11 @@ export default function PublicActionDetailDialog(props: {
                                                 ))
                                             )}
                                         </div>
-                                        <div className="mt-2 text-sm text-surface-700 line-clamp-2">
-                                            {e.proposed_detail || '暂无描述'}
-                                        </div>
+                                        <FormattedActionText
+                                            text={e.proposed_detail}
+                                            className="mt-2 text-sm text-surface-700"
+                                            lineClampClassName="line-clamp-2"
+                                        />
                                         <div className="mt-2">
                                             <Button
                                                 label="查看改动"
@@ -657,23 +677,6 @@ export default function PublicActionDetailDialog(props: {
             </Dialog>
         </>
     );
-}
-
-function serializeForCompare(action: PublicActionItemDto) {
-    const pick = {
-        name: action.name,
-        detail: action.detail,
-        url: action.url,
-        positions: action.positions,
-        attrs: action.attrs,
-        type: action.type,
-        suggested_time: action.suggested_time,
-        enableAutoWeightCompute: action.enableAutoWeightCompute,
-        includesBodyWeight: action.includesBodyWeight,
-        canonical_action_id: action.canonical_action_id,
-        item_schema: action.item_schema,
-    };
-    return JSON.stringify(pick, null, 2);
 }
 
 function formatValueForDisplay(v: any) {

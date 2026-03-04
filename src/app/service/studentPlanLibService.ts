@@ -19,6 +19,10 @@ import type {
     DeleteFavoriteDto,
     DeleteFavoriteResponseDto,
 } from "@/app/api/student/plan-lib/delete-favorite/entity";
+import type {
+    GenerateAiDraftFromProfileDto,
+    GenerateAiDraftFromProfileResponseDto,
+} from "@/app/api/student/plan-lib/generate-ai-draft-from-profile/entity";
 
 export class StudentPlanLibService extends BaseService {
     async listFavorites(reqData: ListFavoritesDto) {
@@ -85,6 +89,19 @@ export class StudentPlanLibService extends BaseService {
         );
         if (!res || !res.data.success) {
             throw new Error(res?.data?.message || "应用计划失败");
+        }
+        return res.data.data;
+    }
+
+    async generateAiDraftFromProfile(
+        reqData: GenerateAiDraftFromProfileDto = {},
+    ) {
+        const res = await this.post<GenerateAiDraftFromProfileResponseDto>(
+            "generate-ai-draft-from-profile",
+            reqData,
+        );
+        if (!res || !res.data.success) {
+            throw new Error(res?.data?.message || "AI 计划草稿生成失败");
         }
         return res.data.data;
     }

@@ -17,6 +17,14 @@ import PlanDayCard from '@/app/dashboard/plan-lib/components/PlanDayCard';
 import WeekCalendar from '@/app/dashboard/plan-lib/components/WeekCalendar';
 import { FormPlanTrainingDay } from '@/app/api/plan-lib/create-template/entity';
 import type { ItemType } from '@/types';
+import { BatchOperationDialog } from '@/components/BatchOperationDialog';
+import BatchActionsDialog, { BatchOperation } from '@/app/dashboard/plan-lib/components/BatchActionsDialog';
+import {
+    appendActionToDays,
+    deleteActionInDays,
+    isActionFullyCompatible,
+    replaceActionInDays,
+} from '@/lib/planBatchUtils';
 
 const EditPlanPage = () => {
     const router = useRouter();
@@ -40,6 +48,9 @@ const EditPlanPage = () => {
     const [loading, setLoading] = useState(true);
     const [actionsLoading, setActionsLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [aiBatchDialogVisible, setAiBatchDialogVisible] = useState(false);
+    const [originalDaysBeforeAi, setOriginalDaysBeforeAi] = useState<FormPlanTrainingDay[] | null>(null);
+    const [batchDialogVisible, setBatchDialogVisible] = useState(false);
 
     useEffect(() => {
         if (id && session?.user?.id) {
@@ -358,6 +369,83 @@ const EditPlanPage = () => {
         }
     };
 
+    const handleAiPreviewResult = (data: { updatedTrainingDays: any[] }) => {
+        setOriginalDaysBeforeAi(JSON.parse(JSON.stringify(days)));
+        const converted: FormPlanTrainingDay[] = (data.updatedTrainingDays || []).map((day: any) => ({
+            dayIndex: day.dayIndex ?? 0,
+            type: day.type || 'rest',
+            note: day.note || '',
+            actionSets: day.actionSets || [],
+            actionSetsCount: (day.actionSets || []).length,
+        })).sort((a, b) => a.dayIndex - b.dayIndex);
+        setDays(converted);
+    };
+
+    const handleAiRestart = () => {
+        if (originalDaysBeforeAi) {
+            setDays(originalDaysBeforeAi);
+            setOriginalDaysBeforeAi(null);
+        }
+    };
+
+    const handleAiApplyLocal = (updatedTrainingDays: any[]) => {
+        const converted: FormPlanTrainingDay[] = (updatedTrainingDays || []).map((day: any) => ({
+            dayIndex: day.dayIndex ?? 0,
+            type: day.type || 'rest',
+            note: day.note || '',
+            actionSets: day.actionSets || [],
+            actionSetsCount: (day.actionSets || []).length,
+        })).sort((a, b) => a.dayIndex - b.dayIndex);
+        setDays(converted);
+        if (converted.length > 0) setSelectedDayIndex(converted[0].dayIndex);
+        showToast({ severity: 'success', summary: 'AI 修改器成功', detail: '修改已应用到当前计划，请点击保存计划' });
+    };
+
+    const handleAiBatchOperationSuccess = async () => {
+        setAiBatchDialogVisible(false);
+        setOriginalDaysBeforeAi(null);
+        await loadActions();
+    };
+
+    const handleBatchApply = (operation: BatchOperation) => {
+        if (operation.type === 'replace') {
+            const fromAction = actions.find(a => a.id === operation.fromActionId);
+            const toAction = actions.find(a => a.id === operation.toActionId);
+            if (!isActionFullyCompatible(fromAction, toAction)) {
+                showToast({ severity: 'error', summary: '替换失败', detail: '动作属性不一致，无法替换' });
+                return;
+            }
+            const result = replaceActionInDays(days, operation.fromActionId, operation.toActionId);
+            if (result.affectedSets === 0) {
+                showToast({ severity: 'info', summary: '未替换', detail: '未找到可替换的动作' });
+                return;
+            }
+            setDays(result.days);
+            showToast({ severity: 'success', summary: '替换成功', detail: `共替换 ${result.affectedSets} 个动作` });
+        } else if (operation.type === 'delete') {
+            const result = deleteActionInDays(days, operation.actionId);
+            if (result.affectedSets === 0) {
+                showToast({ severity: 'info', summary: '未删除', detail: '未找到可删除的动作' });
+                return;
+            }
+            setDays(result.days);
+            showToast({ severity: 'success', summary: '删除成功', detail: `共删除 ${result.affectedSets} 个动作` });
+        } else {
+            const targetAction = actions.find(a => a.id === operation.actionId);
+            if (!targetAction) {
+                showToast({ severity: 'error', summary: '追加失败', detail: '未找到目标动作' });
+                return;
+            }
+            const result = appendActionToDays(days, targetAction, operation.weekStart, operation.weekEnd, operation.weekdays);
+            if (result.affectedSets === 0) {
+                showToast({ severity: 'info', summary: '未追加', detail: '未命中符合条件的训练日' });
+                return;
+            }
+            setDays(result.days);
+            showToast({ severity: 'success', summary: '追加成功', detail: `共追加 ${result.affectedSets} 个动作` });
+        }
+    };
+
     if (loading) {
         return (
             <div className="mx-auto p-4">
@@ -398,6 +486,26 @@ const EditPlanPage = () => {
                             <p className="text-600 mt-1">修改您的训练计划</p>
                         </div>
                         <div className="flex gap-2">
+                            <Button
+                                label="批量操作"
+                                icon="pi pi-sliders-h"
+                                size="small"
+                                className="p-button-outlined"
+                                onClick={() => setBatchDialogVisible(true)}
+                                disabled={saving}
+                            />
+                            <Button
+                                label="AI 修改器"
+                                icon="pi pi-bolt"
+                                className="
+                                    flex items-center gap-2 px-4 py-2 rounded-2xl
+                                    bg-primary-50 border border-primary-200
+                                    text-[12px] font-black text-primary-700 tracking-tight
+                                    transition-all duration-200 active:scale-[0.95]
+                                    hover:border-primary-400 hover:bg-primary-100 hover:shadow-sm
+                                "
+                                onClick={() => setAiBatchDialogVisible(true)}
+                            />
                             <Button
                                 label="取消"
                                 icon="pi pi-times"
@@ -476,6 +584,40 @@ const EditPlanPage = () => {
                     )}
                 </div>
             </Card>
+
+            <BatchActionsDialog
+                visible={batchDialogVisible}
+                onHide={() => setBatchDialogVisible(false)}
+                actions={actions}
+                maxWeeks={Math.max(1, Math.ceil(days.length / 7))}
+                onApply={handleBatchApply}
+                disabled={saving}
+            />
+
+            <BatchOperationDialog
+                visible={aiBatchDialogVisible}
+                onHide={() => setAiBatchDialogVisible(false)}
+                mode="local"
+                targetActionType="student"
+                contextOptions={{
+                    includeStudentProfile: false,
+                    includeStudentQuestionnaire: false,
+                    includeExecutionHistory: false,
+                    includeFeedbacks: false,
+                    includeStudentActionLib: true,
+                    includeCoachActionLib: false,
+                    includePublicActionLib: true,
+                    includeCoachTemplates: false,
+                    includeTemplateMatch: false,
+                }}
+                initialTrainingDays={days}
+                existingActions={actions}
+                onApplyLocal={handleAiApplyLocal}
+                onSuccess={handleAiBatchOperationSuccess}
+                onPreviewResult={handleAiPreviewResult}
+                onRestart={handleAiRestart}
+                onGetDaysToApply={() => days}
+            />
         </div>
     );
 };
