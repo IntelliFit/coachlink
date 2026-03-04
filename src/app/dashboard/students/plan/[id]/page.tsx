@@ -38,6 +38,9 @@ import {
 } from '@/lib/planBatchUtils';
 import QuestionnaireForm from '@/app/coach/profile/[id]/QuestionnaireForm';
 import type { TrainingItem } from '@/types/questionnaires';
+import type { FeedbackItem } from '@/app/api/coach/get-student-feedbacks/entity';
+import StudentFeedbackPanel from './components/StudentFeedbackPanel';
+import { BatchOperationDialog } from '@/components/BatchOperationDialog';
 
 const StudentPlanPage = () => {
     const router = useRouter();
@@ -73,6 +76,8 @@ const StudentPlanPage = () => {
     const [instanceId, setInstanceId] = useState<string | null>(null);
     const [rawInstance, setRawInstance] = useState<CoachPlanInstanceRow>(null);
     const [batchDialogVisible, setBatchDialogVisible] = useState(false);
+    const [aiBatchDialogVisible, setAiBatchDialogVisible] = useState(false);
+    const [originalDaysBeforeAi, setOriginalDaysBeforeAi] = useState<FormPlanTrainingDay[] | null>(null);
 
     // Student data
     const [studentData, setStudentData] = useState<GetStudentResponseDto['student'] | null>(null);
@@ -96,8 +101,13 @@ const StudentPlanPage = () => {
     const [customStartDate, setCustomStartDate] = useState<Date | null>(null);
     const [importStartConfig, setImportStartConfig] = useState<PlanStartConfig | null>(null);
     const [importModeDialogVisible, setImportModeDialogVisible] = useState(false);
-    // 默认应为“覆盖更新”，否则教练在已有进行中计划上点击“更新计划”会误触发“新建阶段”，导致学员进度回到第1天
+    // 默认应为"覆盖更新"，否则教练在已有进行中计划上点击"更新计划"会误触发"新建阶段"，导致学员进度回到第1天
     const [importMode, setImportMode] = useState<'new_instance' | 'overwrite'>('overwrite');
+
+    // 学员训练反馈
+    const [studentFeedbacks, setStudentFeedbacks] = useState<FeedbackItem[]>([]);
+    const [feedbackUnreadCount, setFeedbackUnreadCount] = useState(0);
+    const [aiFeedbackInstruction, setAiFeedbackInstruction] = useState<string | undefined>(undefined);
 
     // Load instance data
     useEffect(() => {
@@ -193,6 +203,19 @@ const StudentPlanPage = () => {
                 }
                 if (exeRes?.actions) {
                     setExecutionActions(exeRes.actions);
+                }
+
+                // 7. 异步加载学员反馈（不阻塞主流程）
+                if (instanceRes?.instance?.id && instanceRes.instance.status === 'active') {
+                    coachService.getStudentFeedbacks({
+                        instanceId: instanceRes.instance.id,
+                        markRead: true,
+                    }).then((fbRes) => {
+                        if (fbRes) {
+                            setStudentFeedbacks(fbRes.feedbacks);
+                            setFeedbackUnreadCount(fbRes.unread_count);
+                        }
+                    }).catch((e) => console.warn('Feedbacks load failed', e));
                 }
 
             } catch (error) {
@@ -781,6 +804,70 @@ const StudentPlanPage = () => {
         showToast({ severity: 'success', summary: '追加成功', detail: `共追加 ${result.affectedSets} 个动作` });
     };
 
+    const handleAiPreviewResult = (data: { updatedTrainingDays: any[] }) => {
+        setOriginalDaysBeforeAi(JSON.parse(JSON.stringify(days)));
+        const converted: FormPlanTrainingDay[] = (data.updatedTrainingDays || []).map((day: any) => ({
+            id: day.id,
+            dayIndex: day.dayIndex ?? 0,
+            type: day.type || 'rest',
+            note: day.note || '',
+            actionSets: day.actionSets || [],
+        })).sort((a, b) => a.dayIndex - b.dayIndex);
+        setDays(converted);
+    };
+
+    const handleAiRestart = () => {
+        if (originalDaysBeforeAi) {
+            setDays(originalDaysBeforeAi);
+            setOriginalDaysBeforeAi(null);
+        }
+    };
+
+    const handleAiApplyLocal = (updatedTrainingDays: any[]) => {
+        const converted: FormPlanTrainingDay[] = (updatedTrainingDays || []).map((day: any) => ({
+            id: day.id,
+            dayIndex: day.dayIndex ?? 0,
+            type: day.type || 'rest',
+            note: day.note || '',
+            actionSets: day.actionSets || [],
+        })).sort((a, b) => a.dayIndex - b.dayIndex);
+        setDays(converted);
+        if (converted.length > 0) setSelectedDayIndex(converted[0].dayIndex);
+        showToast({ severity: 'success', summary: 'AI 修改器成功', detail: '修改已应用到当前草稿，请点击更新计划保存' });
+    };
+
+    const handleAiBatchOperationSuccess = async () => {
+        setAiBatchDialogVisible(false);
+        setOriginalDaysBeforeAi(null);
+        setActions((prev) => [...prev]);
+        const actionsRes = await actionLibService.listActions({ page: 1, limit: 100 });
+        if (actionsRes?.actions) {
+            setActions(actionsRes.actions as CoachActionRow[]);
+        }
+    };
+
+    // 根据学员反馈自动打开 AI 修改器
+    const handleAiSuggestFromFeedbacks = () => {
+        if (studentFeedbacks.length === 0) return;
+
+        const DIFFICULTY_MAP: Record<number, string> = {
+            1: '太轻松', 2: '轻松', 3: '刚好', 4: '有点难', 5: '太难了',
+        };
+
+        const feedbackSummary = studentFeedbacks
+            .slice(0, 10) // 最多取最近10条
+            .map((fb) => {
+                const diffLabel = fb.difficulty_rating ? `（难度：${DIFFICULTY_MAP[fb.difficulty_rating] || fb.difficulty_rating}）` : '';
+                return `- 第${fb.day_index}天${diffLabel}：${fb.content}`;
+            })
+            .join('\n');
+
+        const instruction = `以下是学员最近的训练反馈，请根据这些反馈对计划进行合理调整：\n\n${feedbackSummary}\n\n请根据以上反馈，适当调整训练计划中的动作、组数、次数或重量，使计划更适合学员当前状态。`;
+
+        setAiFeedbackInstruction(instruction);
+        setAiBatchDialogVisible(true);
+    };
+
     // 打开问卷编辑对话框
     const handleOpenQuestionnaire = async () => {
         if (!subscription?.coach_id) {
@@ -980,6 +1067,13 @@ const StudentPlanPage = () => {
                         planDescription={description}
                         isCompleted={false}
                     />
+
+                    {/* 学员训练反馈面板 */}
+                    <StudentFeedbackPanel
+                        feedbacks={studentFeedbacks}
+                        unreadCount={feedbackUnreadCount}
+                        onAiSuggest={handleAiSuggestFromFeedbacks}
+                    />
                 </div>
 
 
@@ -1046,6 +1140,22 @@ const StudentPlanPage = () => {
                                 "
                                 text
                                 onClick={() => setBatchDialogVisible(true)}
+                                disabled={saving}
+                            />
+                            <Button
+                                label="AI 修改器"
+                                size="small"
+                                icon="pi pi-bolt"
+                                className="
+                                    flex items-center gap-2 px-4 py-2
+                                    bg-primary-50 border border-primary-200 rounded-[14px]
+                                    text-[12px] font-black text-primary-700 tracking-tight
+                                    transition-all duration-200 active:scale-[0.95]
+                                    hover:border-primary-400 hover:bg-primary-100 hover:shadow-sm
+                                    disabled:opacity-40 disabled:cursor-not-allowed
+                                "
+                                text
+                                onClick={() => setAiBatchDialogVisible(true)}
                                 disabled={saving}
                             />
                             <Button
@@ -1169,6 +1279,38 @@ const StudentPlanPage = () => {
                     maxWeeks={maxWeeks}
                     onApply={handleBatchApply}
                     disabled={saving}
+                />
+
+                <BatchOperationDialog
+                    visible={aiBatchDialogVisible}
+                    onHide={() => {
+                        setAiBatchDialogVisible(false);
+                        setAiFeedbackInstruction(undefined);
+                    }}
+                    mode="local"
+                    targetActionType="coach"
+                    initialTrainingDays={days}
+                    existingActions={actions}
+                    onApplyLocal={handleAiApplyLocal}
+                    onSuccess={handleAiBatchOperationSuccess}
+                    onPreviewResult={handleAiPreviewResult}
+                    onRestart={handleAiRestart}
+                    onGetDaysToApply={() => days}
+                    initialInstruction={aiFeedbackInstruction}
+                    contextOptions={{
+                        subscriptionId: params.id as string,
+                        subjectUserId: studentData?.student_id,
+                        // 默认仅必要：学员档案+问卷（知道是谁、要什么）；动作库必选以便改计划；其余由用户自行勾选
+                        includeStudentProfile: true,
+                        includeStudentQuestionnaire: true,
+                        includeExecutionHistory: false,
+                        includeFeedbacks: false,
+                        includeStudentActionLib: false,
+                        includeCoachActionLib: true,
+                        includePublicActionLib: true,
+                        includeCoachTemplates: false,
+                        includeTemplateMatch: false,
+                    }}
                 />
             </div>
 

@@ -5,7 +5,6 @@ import { useSession } from 'next-auth/react';
 import { getCoach } from '@/app/dashboard/util';
 import { Button } from 'primereact/button';
 import { InputText } from 'primereact/inputtext';
-import { DataView } from 'primereact/dataview';
 import { Skeleton } from 'primereact/skeleton';
 import { ConfirmDialog, confirmDialog } from 'primereact/confirmdialog';
 import { Dialog } from 'primereact/dialog';
@@ -25,6 +24,7 @@ import { TabView, TabPanel } from 'primereact/tabview';
 import { Paginator } from 'primereact/paginator';
 import type { PublicActionItemDto } from '@/app/api/public-action-lib/list-actions/entity';
 import PublicActionDetailDialog from '@/components/action-lib/PublicActionDetailDialog';
+import FormattedActionText from '@/components/shared/FormattedActionText';
 
 const ActionLib = () => {
     const { data: session } = useSession();
@@ -313,72 +313,75 @@ const ActionLib = () => {
     const renderPublicActionCard = (action: PublicActionItemDto) => {
         const contributorName = action.contributor?.nickname || '贡献者';
         return (
-            <div className="border border-surface-200 rounded-lg p-4 hover:shadow-sm transition-all mb-2 bg-white">
+            <div className="border border-surface-200 rounded-lg p-3 hover:shadow-sm transition-all mb-1.5 bg-white">
                 <div className="flex items-center justify-between gap-3">
                     <div className="min-w-0 flex-1">
                         <div className="flex items-center justify-between gap-3">
-                            <h3 className="text-lg font-semibold text-900 mb-1 line-clamp-1">
+                            <h3 className="text-base font-semibold text-900 mb-0.5 line-clamp-1">
                                 {action.name}
                             </h3>
                             <div className="flex items-center gap-2 shrink-0">
                                 <Button
                                     icon={action.isLiked ? 'pi pi-heart-fill' : 'pi pi-heart'}
-                                    className={`p-button-rounded p-button-text ${action.isLiked ? 'text-red-500' : ''}`}
+                                    className={`p-button-rounded p-button-text w-8 h-8 ${action.isLiked ? 'text-red-500' : ''}`}
                                     tooltip={action.isLiked ? '取消点赞' : '点赞'}
                                     onClick={() => handleTogglePublicLike(action.id)}
                                 />
-                                <span className="text-sm text-surface-600 font-semibold min-w-[2ch] text-right">
+                                <span className="text-xs text-surface-600 font-semibold min-w-[2ch] text-right">
                                     {action.like_count || 0}
                                 </span>
                             </div>
                         </div>
 
-                        <p className="text-600 text-sm mb-3 line-clamp-2">
-                            {action.detail || '暂无描述'}
-                        </p>
+                        <FormattedActionText
+                            text={action.detail}
+                            className="text-600 text-xs mb-2"
+                            lineClampClassName="line-clamp-1"
+                        />
 
-                        <div className="flex flex-wrap items-center gap-2 mb-3">
+                        <div className="flex flex-wrap items-center gap-1.5 mb-2">
                             {action.url ? (
-                                <span className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-700">
+                                <span className="text-[11px] px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700">
                                     包含演示
                                 </span>
                             ) : (
-                                <span className="text-xs px-2 py-1 rounded-full bg-surface-100 text-surface-600">
+                                <span className="text-[11px] px-1.5 py-0.5 rounded-full bg-surface-100 text-surface-600">
                                     无演示视频
                                 </span>
                             )}
                             {action.detail && action.detail.trim().length > 0 ? (
-                                <span className="text-xs px-2 py-1 rounded-full bg-emerald-100 text-emerald-700">
+                                <span className="text-[11px] px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
                                     有描述
                                 </span>
                             ) : (
-                                <span className="text-xs px-2 py-1 rounded-full bg-surface-100 text-surface-600">
+                                <span className="text-[11px] px-1.5 py-0.5 rounded-full bg-surface-100 text-surface-600">
                                     无描述
                                 </span>
                             )}
                         </div>
 
-                        <div className="flex items-center justify-between mt-3">
-                            <div className="flex items-center gap-2 text-xs text-surface-600">
+                        <div className="flex items-center justify-between mt-2">
+                            <div className="flex items-center gap-1.5 text-[11px] text-surface-600">
                                 {action.contributor?.avatarUrl ? (
                                     <img
                                         src={action.contributor.avatarUrl}
                                         alt={contributorName}
-                                        className="w-5 h-5 rounded-full object-cover"
+                                        className="w-4 h-4 rounded-full object-cover"
                                     />
                                 ) : (
-                                    <div className="w-5 h-5 rounded-full bg-surface-200 text-surface-600 flex items-center justify-center text-[10px] font-bold">
+                                    <div className="w-4 h-4 rounded-full bg-surface-200 text-surface-600 flex items-center justify-center text-[9px] font-bold">
                                         {contributorName.charAt(0)}
                                     </div>
                                 )}
                                 <span className="font-medium">贡献者：{contributorName}</span>
                             </div>
 
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-1.5">
                                 <Button
                                     label="详情"
                                     icon="pi pi-eye"
-                                    className="p-button-outlined"
+                                    size="small"
+                                    className="p-button-outlined px-2 py-1 text-xs"
                                     onClick={() => {
                                         setPublicDetailAction(action);
                                         setPublicDetailVisible(true);
@@ -387,7 +390,8 @@ const ActionLib = () => {
                                 <Button
                                     label={action.isAdded ? '已加入' : '加入教练动作库'}
                                     icon={action.isAdded ? 'pi pi-check' : 'pi pi-plus'}
-                                    className={action.isAdded ? 'p-button-outlined' : ''}
+                                    size="small"
+                                    className={action.isAdded ? 'p-button-outlined px-2 py-1 text-xs' : 'px-2 py-1 text-xs'}
                                     disabled={action.isAdded}
                                     onClick={() => handleAddPublicToCoachLib(action.id)}
                                 />
@@ -616,27 +620,21 @@ const ActionLib = () => {
                                         </div>
                                     </div>
                                 )}
-                                <DataView
-                                    lazy
-                                    value={searchTerm ? searchResults : actions}
-                                    itemTemplate={renderActionCard}
-                                    paginator
-                                    rows={itemsPerPage}
-                                    totalRecords={searchTerm ? searchTotalRecords : totalRecords}
-                                    onPage={onPageChange}
-                                    first={(currentPage - 1) * itemsPerPage}
-                                    className="bg-transparent"
-                                    pt={{
-                                        content: { className: 'bg-transparent border-none space-y-1' },
-                                        paginator: {
-                                            pageButton: ({ context }) => ({
-                                                className: context.active
-                                                    ? 'bg-primary text-white rounded-xl shadow-md shadow-primary-100'
-                                                    : 'text-surface-500 rounded-xl hover:bg-surface-100 transition-colors'
-                                            })
-                                        }
-                                    }}
-                                />
+                                <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-3">
+                                    {(searchTerm ? searchResults : actions).map((action) => (
+                                        <div key={action.id} className="h-full">
+                                            {renderActionCard(action)}
+                                        </div>
+                                    ))}
+                                </div>
+                                <div className="mt-4">
+                                    <Paginator
+                                        first={(currentPage - 1) * itemsPerPage}
+                                        rows={itemsPerPage}
+                                        totalRecords={searchTerm ? searchTotalRecords : totalRecords}
+                                        onPageChange={onPageChange}
+                                    />
+                                </div>
                                 {(searchTerm ? searchResults : actions).length === 0 && (
                                     <div className="text-center py-24 border-2 border-dashed border-surface-100 rounded-[32px]">
                                         <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-surface-50 text-surface-400 mb-4">
@@ -712,11 +710,13 @@ const ActionLib = () => {
                             </div>
                         ) : (
                             <>
-                                <DataView
-                                    value={publicActions}
-                                    itemTemplate={renderPublicActionCard}
-                                    emptyMessage="未找到匹配的公共动作"
-                                />
+                                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 3xl:grid-cols-5 gap-3">
+                                    {publicActions.map((action) => (
+                                        <div key={action.id} className="h-full">
+                                            {renderPublicActionCard(action)}
+                                        </div>
+                                    ))}
+                                </div>
                                 <div className="mt-4">
                                     <Paginator
                                         first={(publicCurrentPage - 1) * itemsPerPage}

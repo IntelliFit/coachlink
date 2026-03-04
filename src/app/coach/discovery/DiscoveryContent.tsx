@@ -19,6 +19,7 @@ import { useToastContext } from '@/context/ToastContext';
 import { useCart } from '@/context/CartContext';
 import type { Product, DurationOption } from '@/app/api/coach/get-pricing/entity';
 import type { PublicActionItemDto } from '@/app/api/public-action-lib/list-actions/entity';
+import FormattedActionText from '@/components/shared/FormattedActionText';
 
 // 动态导入，避免首次加载时拉入 dashboard/me 下的重型组件
 const PublicActionDetailDialog = dynamic(
@@ -476,7 +477,11 @@ function DiscoveryContentInner() {
                 <h3 className="text-sm font-black text-surface-900 line-clamp-2 min-h-[2.5em] tracking-tight">{action.name}</h3>
                 {isVideoUrl(action.url) && <span className="shrink-0 px-2 py-0.5 bg-primary-50 text-primary-700 text-[10px] font-black rounded-full border border-primary-100">视频</span>}
             </div>
-            <p className="text-xs text-surface-500 font-medium line-clamp-2 min-h-[2.5em] mb-3">{action.detail || '暂无描述'}</p>
+            <FormattedActionText
+                text={action.detail}
+                className="text-xs text-surface-500 font-medium min-h-[2.5em] mb-3"
+                lineClampClassName="line-clamp-2"
+            />
             <div className="flex items-center justify-between">
                 <span className="text-xs text-surface-500 font-bold">{action.like_count || 0} 赞</span>
                 <Button

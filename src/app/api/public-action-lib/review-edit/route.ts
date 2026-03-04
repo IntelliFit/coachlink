@@ -72,31 +72,20 @@ export async function POST(req: Request) {
         const now = new Date().toISOString();
 
         if (decision === "approve") {
-            const effectiveUrl = edit.proposed_url ?? action.url;
-            if (!effectiveUrl || !String(effectiveUrl).trim()) {
-                return NextResponse.json<ApiData<null>>(
-                    { success: false, message: "演示视频链接必填", data: null },
-                    { status: 400 },
-                );
-            }
             const { data: updatedAction, error: updateActionError } = await supabase
                 .from("community_actions")
                 .update({
-                    name: edit.proposed_name ?? action.name,
-                    detail: edit.proposed_detail ?? action.detail,
-                    positions: edit.proposed_positions ?? action.positions,
-                    attrs: edit.proposed_attrs ?? action.attrs,
-                    url: effectiveUrl,
-                    type: edit.proposed_type ?? action.type,
-                    item_schema: edit.proposed_item_schema ?? action.item_schema,
-                    suggested_time: edit.proposed_suggested_time ?? action.suggested_time,
-                    enableAutoWeightCompute:
-                        edit.proposed_enableAutoWeightCompute ??
-                        action.enableAutoWeightCompute,
-                    includesBodyWeight:
-                        edit.proposed_includesBodyWeight ?? action.includesBodyWeight,
-                    canonical_action_id:
-                        edit.proposed_canonical_action_id ?? action.canonical_action_id,
+                    name: String(edit.proposed_name || action.name).trim(),
+                    detail: edit.proposed_detail,
+                    positions: edit.proposed_positions,
+                    attrs: edit.proposed_attrs,
+                    url: edit.proposed_url,
+                    type: edit.proposed_type,
+                    item_schema: edit.proposed_item_schema,
+                    suggested_time: edit.proposed_suggested_time,
+                    enableAutoWeightCompute: edit.proposed_enableAutoWeightCompute,
+                    includesBodyWeight: edit.proposed_includesBodyWeight,
+                    canonical_action_id: edit.proposed_canonical_action_id,
                     last_approved_edit_id: edit.id,
                     updated_at: now,
                 } as any)

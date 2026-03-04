@@ -1,24 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import supabase from "@/lib/supabaseClient";
+import { getApiUserId } from "@/lib/getApiUserId";
 import type { FriendsListResponseDto } from "../../friends/entity";
 
 /**
  * GET /api/user/friends
  *
  * 获取当前用户的好友列表 (status = 'accepted')
+ * 支持 NextAuth Session（网页）或 Authorization: Bearer JWT（小程序）
  */
 export async function GET(request: NextRequest) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) {
+        const userId = await getApiUserId(request);
+        if (!userId) {
             return NextResponse.json({ success: false, message: "未登录" }, {
                 status: 401,
             });
         }
-
-        const userId = session.user.id;
 
         // 1. 获取所有 accepted 的记录，包含 requester 和 addressee 两个方向
         const { data: friendships, error } = await supabase

@@ -50,12 +50,16 @@ export function GuideManager({ userRole }: GuideManagerProps) {
   const isStudentProfileIncomplete =
     userRole === 'student' && profile?.onboarding_completed !== true;
 
-  // If a guide is已经显示且打开了 Onboarding，强制关闭 guide 避免挡住问卷
+  // 同步 Onboarding 弹窗状态到 GuideStore 的全局暂停机制
+  // 这会阻止所有 startGuide 调用（包括来自 DiscoveryContent 等组件的直接调用）
+  const { pauseGuides, resumeGuides } = useGuideStore();
   useEffect(() => {
-    if (shouldPauseGuides && isGuideActive) {
-      stopActiveGuide();
+    if (shouldPauseGuides || isStudentProfileIncomplete) {
+      pauseGuides();
+    } else {
+      resumeGuides();
     }
-  }, [shouldPauseGuides, isGuideActive, stopActiveGuide]);
+  }, [shouldPauseGuides, isStudentProfileIncomplete, pauseGuides, resumeGuides]);
 
   // Debug logging
   useEffect(() => {

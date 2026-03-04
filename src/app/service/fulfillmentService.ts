@@ -98,7 +98,7 @@ export class FulfillmentService {
 
     private async applyTierQuota(userId: string, tier: string) {
         const tierQuotas: Record<string, { ai: number; storage: number }> = {
-            "free": { ai: 2, storage: 50 }, // 50MB for free? The UI says 3 videos
+            "free": { ai: 2, storage: 200 }, // 200MB for free
             "basic": { ai: 10, storage: 1024 }, // 1GB
             "premium": { ai: 9999, storage: 5120 }, // 5GB
         };

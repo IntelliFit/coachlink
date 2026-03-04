@@ -2,7 +2,6 @@
 
 import React, { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Card } from 'primereact/card';
 import { Button } from 'primereact/button';
 import { Dialog } from 'primereact/dialog';
 import { InputText } from 'primereact/inputtext';
@@ -10,7 +9,7 @@ import { STUDENT_TOOLBOX_LINKS } from '@/config/toolbox';
 import { useToastContext } from '@/context/ToastContext';
 import { QRCodeSVG } from 'qrcode.react';
 import { ExternalLink, Share2, Copy, ArrowLeft, ArrowRight, Sparkles, Calculator, MapPin, Database } from 'lucide-react';
-import { AERO_CARD, AERO_CARD_MUTED, AERO_CONTAINER_6XL, AERO_SUBTITLE, AERO_TITLE } from '@/components/streetlifting-index/aero';
+import { AERO_CONTAINER_6XL, AERO_SUBTITLE } from '@/components/streetlifting-index/aero';
 
 // Icon mapping for tools
 const TOOL_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -18,6 +17,13 @@ const TOOL_ICONS: Record<string, React.ComponentType<{ className?: string }>> = 
   'bar-locations': MapPin,
   'community-data': Database,
 };
+
+const SCENARIO_TOOLBOX_ITEMS = [
+  { key: 'office-neck', title: '办公族肩颈救星', icon: '💼', slug: 'office-neck' },
+  { key: 'sitting-back', title: '久坐腰痛缓解', icon: '🪑', slug: 'sitting-back' },
+  { key: 'post-run', title: '跑步后拉伸', icon: '🏃', slug: 'post-run' },
+  { key: 'bedtime', title: '睡前放松', icon: '😴', slug: 'bedtime' },
+];
 
 export default function StudentToolboxPage() {
   const router = useRouter();
@@ -154,59 +160,72 @@ export default function StudentToolboxPage() {
               </div>
             </div>
 
+            {/* Scene Toolkit */}
+            <div className="mb-8">
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-lg md:text-xl font-black text-surface-900">场景急救箱</h2>
+                <span className="text-xs md:text-sm text-surface-600">从知识库迁移，按场景直接用</span>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {SCENARIO_TOOLBOX_ITEMS.map((item) => (
+                  <button
+                    key={item.key}
+                    type="button"
+                    onClick={() => router.push(`/dashboard/knowledge/scenarios/${item.slug}`)}
+                    className="rounded-2xl border border-surface-200 bg-surface-0 p-4 text-left hover:border-primary-200 hover:shadow-sm transition-all"
+                  >
+                    <div className="text-2xl mb-2">{item.icon}</div>
+                    <div className="text-sm font-bold text-surface-900 leading-5">{item.title}</div>
+                    <div className="text-xs text-surface-500 mt-2">点击查看方案</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
             {/* Tool Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="mb-3 text-sm text-surface-600">进阶工具（适合需要计算或数据分析时使用）</div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {STUDENT_TOOLBOX_LINKS.map((t) => {
                 const IconComponent = TOOL_ICONS[t.key] || Sparkles;
                 return (
                   <div
                     key={t.key}
-                    className="group block rounded-3xl focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-200 focus-visible:ring-offset-2 focus-visible:ring-offset-surface-50"
+                    className="rounded-2xl border border-surface-200 bg-surface-0 p-4 hover:border-primary-200 hover:shadow-sm transition-all"
                   >
-                    <Card
-                      className={`${AERO_CARD} border-surface-100 group-hover:border-surface-200 transform-gpu group-hover:-translate-y-0.5 transition-[box-shadow,transform,border-color] active:scale-[0.98]`}
-                    >
-                      <div className="p-5">
-                        <div className="flex items-start justify-between gap-3 mb-4">
-                          <div className="w-12 h-12 rounded-2xl bg-surface-50 text-surface-700 flex items-center justify-center border border-surface-100 group-hover:bg-surface-0 group-hover:border-primary-200/70 transition-colors shrink-0">
-                            <IconComponent className="h-6 w-6" />
-                          </div>
-                          <div className="mt-1 text-surface-300 group-hover:text-primary-500 transition-colors">
-                            <ArrowRight className="h-4 w-4" />
-                          </div>
-                        </div>
-
-                        <div className="space-y-2 mb-4">
-                          <div className="text-base font-black text-surface-900 leading-snug line-clamp-2">
-                            {t.label}
-                          </div>
-                          {t.description && (
-                            <div className="text-sm text-surface-600 line-clamp-3">
-                              {t.description}
-                            </div>
-                          )}
-                        </div>
-
-                        <div className="flex gap-2">
-                          <Button
-                            label="打开"
-                            icon={<ArrowRight className="w-4 h-4 mr-2" />}
-                            size="small"
-                            className="flex-1 h-10 rounded-2xl bg-surface-900 border-none text-surface-0 text-sm font-black hover:bg-surface-800 shadow-sm shadow-primary-100/60 hover:shadow-primary-100 active:scale-[0.98] transition-all"
-                            onClick={() => router.push(t.url)}
-                          />
-                          <Button
-                            label="分享"
-                            icon={<Share2 className="w-4 h-4 mr-2" />}
-                            size="small"
-                            outlined
-                            severity="secondary"
-                            className="flex-1 h-10 rounded-2xl border-surface-200 text-surface-800 text-sm font-black hover:bg-surface-0 hover:border-primary-200 active:scale-[0.98] transition-all"
-                            onClick={() => tryNativeShare(t.label, t.key)}
-                          />
-                        </div>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="w-10 h-10 rounded-xl bg-surface-50 border border-surface-100 text-surface-700 flex items-center justify-center shrink-0">
+                        <IconComponent className="h-5 w-5" />
                       </div>
-                    </Card>
+                      <button
+                        type="button"
+                        onClick={() => tryNativeShare(t.label, t.key)}
+                        className="w-8 h-8 rounded-lg border border-surface-200 text-surface-600 flex items-center justify-center hover:border-primary-200 hover:text-primary-600 transition-colors"
+                        aria-label={`分享 ${t.label}`}
+                      >
+                        <Share2 className="w-4 h-4" />
+                      </button>
+                    </div>
+
+                    <div className="mt-3">
+                      <div className="text-base font-bold text-surface-900 leading-6 line-clamp-2">
+                        {t.label}
+                      </div>
+                      {t.description && (
+                        <div className="text-sm text-surface-600 mt-1 line-clamp-2">
+                          {t.description}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="mt-3">
+                      <Button
+                        label="打开工具"
+                        icon={<ArrowRight className="w-4 h-4 mr-2" />}
+                        size="small"
+                        className="w-full h-9 rounded-xl bg-surface-900 border-none text-surface-0 text-sm font-bold hover:bg-surface-800 transition-colors"
+                        onClick={() => router.push(t.url)}
+                      />
+                    </div>
                   </div>
                 );
               })}

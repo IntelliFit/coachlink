@@ -140,6 +140,10 @@ import type {
     ResetPasswordDto,
     ResetPasswordResponseDto,
 } from "../api/user/reset-password/entity";
+import type {
+    DeleteAccountDto,
+    DeleteAccountResponseDto,
+} from "../api/user/delete-account/entity";
 
 class UserPlanService extends BaseService {
     /**
@@ -174,6 +178,20 @@ class UserPlanService extends BaseService {
         }
 
         throw new Error(res.data.message || "重置密码失败");
+    }
+
+    /**
+     * @description 注销账号（禁用登录凭据）
+     */
+    async deleteAccount(reqData: DeleteAccountDto) {
+        const res = await this.post<DeleteAccountResponseDto>(
+            "delete-account",
+            reqData,
+        );
+        if (res.data && res.data.success) {
+            return res.data.data;
+        }
+        throw new Error(res.data.message || "注销账号失败");
     }
 
     /**

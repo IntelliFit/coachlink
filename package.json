@@ -17,7 +17,8 @@
         "optimize-favicon": "python scripts/optimize-favicon.py",
         "check-vapid": "tsx scripts/check-vapid.ts",
         "test-push": "tsx scripts/test-push.ts",
-        "pre-deploy-check": "node scripts/pre-deploy-check.js"
+        "pre-deploy-check": "node scripts/pre-deploy-check.js",
+        "context-preview-report": "npx tsx scripts/context-preview-report.ts"
     },
     "dependencies": {
         "@dagrejs/dagre": "^1.1.8",
