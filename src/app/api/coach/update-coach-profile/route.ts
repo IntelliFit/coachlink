@@ -60,7 +60,13 @@ export async function POST(request: Request) {
         bio,
         profile,
         invitationCode,
-        invitationMode
+        invitationMode,
+        province,
+        city,
+        county,
+        address,
+        latitude,
+        longitude
     } = body;
 
     let queryBuilter = supabase
@@ -145,6 +151,12 @@ export async function POST(request: Request) {
     if (profile !== undefined) updateData.profile = mergedProfile;
     if (invitationCode !== undefined) updateData.invitation_code = invitationCode;
     if (invitationMode !== undefined) updateData.invitation_mode = invitationMode;
+    if (province !== undefined) updateData.province = province;
+    if (city !== undefined) updateData.city = city;
+    if (county !== undefined) updateData.county = county;
+    if (address !== undefined) updateData.address = address;
+    if (latitude !== undefined) updateData.latitude = latitude;
+    if (longitude !== undefined) updateData.longitude = longitude;
 
     let updateBuilder = supabase
         .from('coaches')
