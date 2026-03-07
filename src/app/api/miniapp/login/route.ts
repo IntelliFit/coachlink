@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import supabase from "@/lib/supabaseClient";
 import { verifyPassword } from "../../auth/[...nextauth]/verify";
 import { signToken } from "@/lib/jwt";
+import redis from "@/lib/redisClient";
 
 /**
  * 小程序专用登录接口
@@ -95,47 +96,78 @@ export async function POST(req: NextRequest) {
 
         // 方式2：验证码登录
         if (verifyCode && !password) {
-            // 在开发环境中，允许使用 123456 作为万能验证码
-            const isDev = process.env.NODE_ENV === 'development';
-            if (isDev && verifyCode === '123456') {
-                const { password_hash, ...userWithoutPassword } = user;
+            const trimmedVerifyCode = verifyCode.trim();
 
-                const { data: coachRow } = await supabase
-                    .from("coaches")
-                    .select("id, status")
-                    .eq("user_id", user.id)
-                    .eq("status", "approved")
-                    .maybeSingle();
-                const isCoach = !!coachRow;
-                const payload = {
-                    ...userWithoutPassword,
-                    is_coach: isCoach,
-                    primary_role: user.primary_role ?? (isCoach ? "coach" : "student"),
-                    is_admin: user.is_admin ?? false,
-                };
-
-                const token = signToken({
-                    userId: user.id,
-                    phone: user.phone,
-                    email: user.email
-                });
-
+            // 检查 Redis 是否可用
+            if (!redis) {
                 return NextResponse.json({
-                    success: true,
-                    message: "登录成功（开发模式）",
-                    data: {
-                        user: payload,
-                        token: token
-                    }
-                });
+                    success: false,
+                    message: "验证服务不可用"
+                }, { status: 500 });
             }
 
-            // TODO: 实际验证码验证逻辑
-            // 需要从 Redis 中验证验证码
+            // 开发模式下接受模拟验证码 123456
+            const isDev = process.env.NODE_ENV === 'development';
+            const isMockCode = isDev && trimmedVerifyCode === '123456';
+
+            if (!isMockCode) {
+                // 根据是手机号还是邮箱，使用对应的 Redis key
+                const verificationKey = isPhone
+                    ? `sms_verification_code:${phoneOrEmail}`
+                    : `email_verification_code:${phoneOrEmail}`;
+
+                const storedCode = await redis.get(verificationKey);
+
+                if (!storedCode) {
+                    return NextResponse.json({
+                        success: false,
+                        message: "验证码已过期或不存在"
+                    }, { status: 400 });
+                }
+
+                if (storedCode !== trimmedVerifyCode) {
+                    return NextResponse.json({
+                        success: false,
+                        message: "验证码错误"
+                    }, { status: 400 });
+                }
+
+                // 验证成功后删除验证码，防止重复使用
+                await redis.del(verificationKey);
+            }
+
+            // 验证码验证通过，返回登录信息
+            const { password_hash, ...userWithoutPassword } = user;
+
+            const { data: coachRow } = await supabase
+                .from("coaches")
+                .select("id, status")
+                .eq("user_id", user.id)
+                .eq("status", "approved")
+                .maybeSingle();
+            const isCoach = !!coachRow;
+
+            const payload = {
+                ...userWithoutPassword,
+                is_coach: isCoach,
+                primary_role: user.primary_role ?? (isCoach ? "coach" : "student"),
+                is_admin: user.is_admin ?? false,
+            };
+
+            const token = signToken({
+                userId: user.id,
+                phone: user.phone,
+                email: user.email
+            });
+
             return NextResponse.json({
-                success: false,
-                message: "验证码功能暂未实现"
-            }, { status: 501 });
+                success: true,
+                message: isMockCode ? "登录成功（开发模式）" : "登录成功",
+                data: {
+                    user: payload,
+                    token: token
+                }
+            });
         }
 
         return NextResponse.json({
