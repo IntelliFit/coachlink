@@ -24,22 +24,22 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Log in to Tencent Cloud CCR
-        uses: docker/login-action@v3
-        with:
-          registry: ccr.ccs.tencentyun.com
-          username: ${{ secrets.TENCENT_CCR_USERNAME }}
-          password: ${{ secrets.TENCENT_CCR_PASSWORD }}
+
+
+
+
+
+
 
       - name: Determine image tags
         id: meta
         run: |
           SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-7)
           IMAGE="peacesheep/coachlink"
-          CCR_IMAGE="ccr.ccs.tencentyun.com/${{ secrets.TENCENT_CCR_NAMESPACE }}/coachlink"
+
           
           echo "image=$IMAGE" >> $GITHUB_OUTPUT
-          echo "ccr_image=$CCR_IMAGE" >> $GITHUB_OUTPUT
+
           echo "short_sha=$SHORT_SHA" >> $GITHUB_OUTPUT
           
           if [ "${{ github.ref }}" = "refs/heads/main" ]; then
@@ -47,25 +47,25 @@ jobs:
             echo "$IMAGE:latest" >> $GITHUB_OUTPUT
             echo "$IMAGE:production" >> $GITHUB_OUTPUT
             echo "$IMAGE:$SHORT_SHA" >> $GITHUB_OUTPUT
-            echo "$CCR_IMAGE:latest" >> $GITHUB_OUTPUT
-            echo "$CCR_IMAGE:production" >> $GITHUB_OUTPUT
-            echo "$CCR_IMAGE:$SHORT_SHA" >> $GITHUB_OUTPUT
+
+
+
             echo "EOF" >> $GITHUB_OUTPUT
             echo "deploy_env=production" >> $GITHUB_OUTPUT
           elif [ "${{ github.ref }}" = "refs/heads/dev" ]; then
             echo "tags<<EOF" >> $GITHUB_OUTPUT
             echo "$IMAGE:staging" >> $GITHUB_OUTPUT
             echo "$IMAGE:$SHORT_SHA" >> $GITHUB_OUTPUT
-            echo "$CCR_IMAGE:staging" >> $GITHUB_OUTPUT
-            echo "$CCR_IMAGE:$SHORT_SHA" >> $GITHUB_OUTPUT
+
+
             echo "EOF" >> $GITHUB_OUTPUT
             echo "deploy_env=staging" >> $GITHUB_OUTPUT
           elif [ "${{ github.ref }}" = "refs/heads/gray" ]; then
             echo "tags<<EOF" >> $GITHUB_OUTPUT
             echo "$IMAGE:gray" >> $GITHUB_OUTPUT
             echo "$IMAGE:$SHORT_SHA" >> $GITHUB_OUTPUT
-            echo "$CCR_IMAGE:gray" >> $GITHUB_OUTPUT
-            echo "$CCR_IMAGE:$SHORT_SHA" >> $GITHUB_OUTPUT
+
+
             echo "EOF" >> $GITHUB_OUTPUT
             echo "deploy_env=gray" >> $GITHUB_OUTPUT
           fi
@@ -82,6 +82,6 @@ jobs:
       - name: Output summary
         run: |
           echo "### 镜像构建完成" >> $GITHUB_STEP_SUMMARY
-          echo "Docker Hub 镜像: ${{ steps.meta.outputs.image }}" >> $GITHUB_STEP_SUMMARY
-          echo "腾讯云 CCR 镜像: ${{ steps.meta.outputs.ccr_image }}" >> $GITHUB_STEP_SUMMARY
+          echo "镜像: ${{ steps.meta.outputs.image }}" >> $GITHUB_STEP_SUMMARY
+
           echo "标签: ${{ steps.meta.outputs.deploy_env }} (${{ steps.meta.outputs.short_sha }})" >> $GITHUB_STEP_SUMMARY
