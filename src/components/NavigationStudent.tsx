@@ -60,7 +60,19 @@ export default function NavigationStudent() {
     const checkedProfileStateRef = useRef<{
         profileId?: string;
         onboardingCompleted?: boolean;
+        coreCompleted?: boolean;
     } | null>(null);
+
+    const isCoreProfileCompleted = useCallback((p?: Partial<UserProfilesRow> | null) => {
+        if (!p) return false;
+        const hasNickname = !!p.nickname?.trim();
+        const hasGender = !!p.gender;
+        const hasHeight = typeof p.height === 'number' && p.height > 0;
+        const hasWeight = typeof p.weight === 'number' && p.weight > 0;
+        const hasGoal = !!p.fitness_goal;
+        const hasLevel = !!p.fitness_level;
+        return hasNickname && hasGender && hasHeight && hasWeight && hasGoal && hasLevel;
+    }, []);
 
     useEffect(() => {
         setIsClient(true);
@@ -185,15 +197,18 @@ export default function NavigationStudent() {
         
         // 检查是否已经检查过相同的 profile 状态
         // 只有当 profile.id 或 onboarding_completed 发生变化时才重新检查
+        const coreCompleted = isCoreProfileCompleted(profile);
         const currentState = {
             profileId: profile.id,
-            onboardingCompleted: profile.onboarding_completed
+            onboardingCompleted: profile.onboarding_completed,
+            coreCompleted,
         };
         
         const previousState = checkedProfileStateRef.current;
         if (previousState && 
             previousState.profileId === currentState.profileId &&
-            previousState.onboardingCompleted === currentState.onboardingCompleted) {
+            previousState.onboardingCompleted === currentState.onboardingCompleted &&
+            previousState.coreCompleted === currentState.coreCompleted) {
             // 已经检查过相同的状态，不需要重复检查
             return;
         }
@@ -201,18 +216,14 @@ export default function NavigationStudent() {
         // 标记为已检查当前状态
         checkedProfileStateRef.current = currentState;
         
-        // 严格判断：只有明确为 true 时才认为已完成
+        // 已经走完过 onboarding 流程的老用户直接放行，不再反复弹窗
         if (profile.onboarding_completed === true) {
             clearOnboardingSuppression();
             return;
         }
         
-        // 只有在 onboarding_completed 明确不是 true 时才打开弹窗
-        // 注意：这里不判断 null/undefined，因为可能是新用户还没有 profile
-        if (profile.onboarding_completed === false || profile.onboarding_completed === null || profile.onboarding_completed === undefined) {
-            openOnboardingModal();
-        }
-    }, [session?.user?.id, profile?.id, profile?.onboarding_completed, status, isOnboardingModalOpen, clearOnboardingSuppression, openOnboardingModal]);
+        openOnboardingModal(profile);
+    }, [session?.user?.id, profile?.id, profile?.onboarding_completed, status, isOnboardingModalOpen, clearOnboardingSuppression, openOnboardingModal, isCoreProfileCompleted, profile]);
 
     useEffect(() => {
         if (status !== 'authenticated' || !session?.user?.id) return;
@@ -256,14 +267,16 @@ export default function NavigationStudent() {
             { label: '今日训练', icon: PlayCircle, url: '/today-training', command: () => router.push('/today-training'), guideId: 'guide-today-training', template: itemRenderer },
             { label: '好友动态', icon: Activity, url: '/friends/activity', command: () => router.push('/friends/activity'), template: itemRenderer },
             { label: '发现', icon: Search, url: '/coach/discovery', command: () => router.push('/coach/discovery'), guideId: 'guide-find-coach', template: itemRenderer },
+            { label: '知识库', icon: BookOpen, url: '/dashboard/knowledge', command: () => router.push('/dashboard/knowledge'), template: itemRenderer },
+            { label: '我的动作库', icon: ClipboardList, url: '/me/action-lib', command: () => router.push('/me/action-lib'), template: itemRenderer },
             { label: '排行榜', icon: TrendingUp, url: '/ranking', command: () => router.push('/ranking'), template: itemRenderer },
             { label: '个人档案', icon: User, url: '/me/profile', command: () => router.push('/me/profile'), guideId: 'guide-profile', template: itemRenderer },
         ];
     }, [router, pathname]);
 
     const userMenuItems = useMemo(() => [
-        // 统一入口：当前计划（替代"训练计划"）
-        { label: '当前计划', icon: 'pi pi-clipboard', command: () => { router.push('/coach/plans'); setVisibleLeft(false); } },
+        // 统一入口：全部计划（当前 + 历史）
+        { label: '全部计划', icon: 'pi pi-clipboard', command: () => { router.push('/me/plan-history'); setVisibleLeft(false); } },
         { label: '我的教练', icon: 'pi pi-star', command: () => { router.push('/coach/subscription'); setVisibleLeft(false); } },
         { label: '我的会员', icon: 'pi pi-crown', command: () => { router.push('/me/membership'); setVisibleLeft(false); } },
         { label: '工具箱', icon: 'pi pi-info-circle', command: () => { router.push('/me/toolbox'); setVisibleLeft(false); } }, // 使用 info-circle 或 briefcase 如果可用
@@ -272,7 +285,7 @@ export default function NavigationStudent() {
         { label: '我的动作库', icon: 'pi pi-list', command: () => { router.push('/me/action-lib'); setVisibleLeft(false); } },
         { label: '知识库', icon: 'pi pi-book', command: () => { router.push('/dashboard/knowledge'); setVisibleLeft(false); } },
         { label: '我的计划库', icon: 'pi pi-bookmark', command: () => { router.push('/me/plan-lib'); setVisibleLeft(false); } },
-        { label: '训练历史', icon: 'pi pi-history', command: () => { router.push('/me/plan-history'); setVisibleLeft(false); } },
+        { label: '训练记录', icon: 'pi pi-history', command: () => { router.push('/me/training-history'); setVisibleLeft(false); } },
         { label: '购买记录', icon: 'pi pi-receipt', command: () => { router.push('/me/purchase-history'); setVisibleLeft(false); } },
         { label: '购物车', icon: 'pi pi-shopping-cart', command: () => { router.push('/me/cart'); setVisibleLeft(false); } },
         { separator: true },
@@ -306,6 +319,12 @@ export default function NavigationStudent() {
         { label: '账户设置', icon: 'pi pi-shield', command: () => { router.push('/me/settings'); setVisibleLeft(false); } },
         { label: '退出登录', icon: 'pi pi-sign-out', className: 'text-rose-500', command: () => signOut({ callbackUrl: '/' }) }
     ], [session, profile, openProfileSetupModal, router, updateSession]);
+
+    // 桌面端头像下拉隐藏已上移到顶栏的入口，避免重复显示
+    const desktopUserMenuItems = useMemo(
+        () => userMenuItems.filter((item: any) => item?.label !== '我的动作库' && item?.label !== '知识库'),
+        [userMenuItems]
+    );
 
     const studentTabRoots = useMemo(() => [
         '/today-training', '/coach/discovery', '/me/profile', '/ranking', '/friends/activity',
@@ -627,7 +646,7 @@ export default function NavigationStudent() {
             )}
 
             <Menu
-                model={userMenuItems}
+                model={desktopUserMenuItems}
                 popup
                 ref={menuRef}
                 className="mt-2 border-none shadow-xl rounded-2xl p-2 min-w-48 text-sm"

@@ -57,6 +57,10 @@ import type {
     StartExecutionDto,
     StartExecutionResponseDto,
 } from "../api/execution/start/entity";
+import type {
+    SubmitFeedbackDto,
+    SubmitFeedbackResponseDto,
+} from "../api/execution/submit-feedback/entity";
 import type { UploadSetVideoResponseDto } from "../api/execution/upload-set-video/entity";
 
 class ExecutionService extends BaseService {
@@ -254,6 +258,20 @@ class ExecutionService extends BaseService {
     async getPRRecords(reqData: GetPRRecordsDto) {
         const res = await this.post<GetPRRecordsResponseDto>(
             "get-pr-records",
+            reqData,
+        );
+        if (res.data && res.data.success) {
+            return res.data.data || null;
+        }
+        return null;
+    }
+
+    /**
+     * 提交训练反馈（给教练）
+     */
+    async submitFeedback(reqData: SubmitFeedbackDto) {
+        const res = await this.post<SubmitFeedbackResponseDto>(
+            "submit-feedback",
             reqData,
         );
         if (res.data && res.data.success) {

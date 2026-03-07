@@ -17,6 +17,7 @@ import ZhifubaoIcon from '../icons/zhifubao';
 import { AeroInputNumber } from '../AeroInputNumber';
 import PaymentSkeleton from './PaymentSkeleton';
 import TermDialog from './TermDialog';
+import { yuanToFen } from '@/lib/moneyUtils';
 
 // 中文语言包配置
 addLocale('zh-CN', {
@@ -47,6 +48,7 @@ export interface OfflinePaymentData {
     payment_type: 'offline';
     expires_at: string;      // ISO 日期字符串
     amount?: number;
+    amount_unit?: 'fen';
     receipt_url?: string;    // 凭证图片 URL
     note?: string;
 }
@@ -250,7 +252,8 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
         const offlinePaymentData: OfflinePaymentData = {
             payment_type: 'offline',
             expires_at: offlineExpiresAt.toISOString(),
-            amount: offlineAmount || undefined,
+            amount: offlineAmount !== null ? yuanToFen(offlineAmount) : undefined,
+            amount_unit: 'fen',
             receipt_url: offlineReceiptUrl,
             note: offlineNote || undefined,
         };

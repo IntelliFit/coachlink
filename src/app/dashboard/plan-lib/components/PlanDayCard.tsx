@@ -475,7 +475,7 @@ const PlanDayCard: React.FC<PlanDayCardProps> = ({
                                                 </button>
                                             )}
                                             <button
-                                                onClick={() => onRemoveActionSet(day.dayIndex, setIndex)}
+                                                onClick={() => onRemoveActionSet(dayIndex, setIndex)}
                                                 className="p-2 text-surface-300 hover:text-red-500 transition-colors active:scale-[0.9]"
                                             >
                                                 <Trash2 size={16} />

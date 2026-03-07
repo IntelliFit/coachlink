@@ -21,133 +21,27 @@ import type { PublicActionItemDto } from '@/app/api/public-action-lib/list-actio
 import PublicActionDetailDialog from '@/components/action-lib/PublicActionDetailDialog';
 import { useUserLocation } from '@/hooks/useUserLocation';
 import { formatCoachDistance, isSameCounty } from '@/lib/distanceUtils';
+import dynamic from 'next/dynamic';
 
-interface PublicArticleListItem {
-    id: string;
-    coachId: string;
-    coachName: string;
-    coachAvatarUrl: string | null;
-    title: string;
-    summary: string;
-    contentType: string;
-    requiredTier: number;
-    priceCents: number;
-    publishedAt: string | null;
-}
-
-interface VisibilityStatus {
-    focusMode: boolean;
-    focusCoachId: string | null;
-    focusCoachName: string | null;
-    referrerCoachId: string | null;
-    referrerCoachName: string | null;
-}
-
-// 实体商品数据（用于过审展示）
-interface PhysicalProduct {
-    id: string;
-    name: string;
-    description: string;
-    price: number;
-    originalPrice?: number;
-    imageUrl: string;
-    category: string;
-    badge?: string;
-}
-
-const PHYSICAL_PRODUCTS: PhysicalProduct[] = [
-    {
-        id: 'pp-1',
-        name: '核心怪负重腰带',
-        description: '专业力量训练腰带，加厚牛皮材质，稳固支撑腰部',
-        price: 128,
-        originalPrice: 198,
-        imageUrl: '/images/products/weight-belt.png',
-        category: '训练装备',
-        badge: '热销',
-    },
-    {
-        id: 'pp-2',
-        name: '液态镁粉',
-        description: '快干防滑配方，提升抓握力，适用于硬拉/引体等动作',
-        price: 34,
-        originalPrice: 44,
-        imageUrl: '/images/products/liquid-chalk.png',
-        category: '训练辅助',
-    },
-    {
-        id: 'pp-3',
-        name: '康比特乳清蛋白粉',
-        description: '优质乳清蛋白，每份25g蛋白质，助力肌肉恢复',
-        price: 134,
-        originalPrice: 164,
-        imageUrl: '/images/products/protein-powder.png',
-        category: '营养补剂',
-        badge: '推荐',
-    },
-    {
-        id: 'pp-4',
-        name: '深海鱼油软胶囊',
-        description: '高纯度Omega-3，支持心血管健康，减少运动炎症',
-        price: 64,
-        originalPrice: 84,
-        imageUrl: '/images/products/fish-oil.png',
-        category: '营养补剂',
-    },
-];
-
-// 骨架屏卡片组件
-const ProductSkeletonCard = () => (
-    <div className="w-[280px] md:w-[320px] shrink-0 bg-surface-0 rounded-3xl p-5 border border-surface-100">
-        <div className="flex items-start justify-between mb-3">
-            <Skeleton width="80px" height="24px" className="rounded-full" />
-            <Skeleton width="60px" height="28px" />
-        </div>
-        <Skeleton width="80%" height="20px" className="mb-2" />
-        <Skeleton width="100%" height="32px" className="mb-4" />
-        <div className="flex items-center gap-2 mb-4 pt-4 border-t border-surface-100">
-            <Skeleton shape="circle" size="28px" />
-            <Skeleton width="100px" height="16px" />
-        </div>
-        <Skeleton width="100%" height="40px" className="rounded-2xl" />
-    </div>
-);
-
-const CoachSkeletonCard = () => (
-    <div className="w-[180px] md:w-[220px] shrink-0 bg-surface-0 rounded-3xl p-4 md:p-5 border border-surface-100">
-        <Skeleton width="100%" height="180px" className="rounded-2xl mb-3" />
-        <Skeleton width="70%" height="18px" className="mb-1" />
-        <Skeleton width="100%" height="14px" className="mb-3" />
-        <div className="flex items-center gap-1.5 mb-3">
-            <Skeleton width="60px" height="14px" />
-        </div>
-        <div className="flex gap-1.5">
-            <Skeleton width="60px" height="24px" className="rounded-full" />
-            <Skeleton width="50px" height="24px" className="rounded-full" />
+/**
+ * 轻量级 shell：仅包含 minimal 依赖，确保首次编译极快（解决低配置机器卡死）。
+ * 主内容通过动态导入加载，用户会先看到「加载中...」，再展示完整发现页。
+ */
+const DiscoveryContent = dynamic(() => import('./DiscoveryContent'), {
+  ssr: false,
+  loading: () => (
+    <div className="min-h-screen bg-surface-50 flex items-center justify-center px-6">
+      <div className="text-center">
+        <div className="w-10 h-10 border-2 border-surface-300 border-t-surface-900 rounded-full animate-spin mx-auto mb-4" />
+        <div className="text-sm font-black text-surface-900">正在加载发现页…</div>
+        <div className="mt-2 text-xs text-surface-500">首次加载可能需要 30 秒到 1 分钟，请稍候</div>
         </div>
     </div>
-);
+  ),
+});
 
-const ActionSkeletonCard = () => (
-    <div className="w-[220px] shrink-0 bg-surface-0 rounded-3xl p-5 border border-surface-100">
-        <Skeleton width="100%" height="40px" className="mb-4" />
-        <div className="flex items-center justify-between">
-            <Skeleton width="50px" height="16px" />
-            <Skeleton width="80px" height="36px" className="rounded-2xl" />
-        </div>
-    </div>
-);
-
-function isVideoUrl(url: string | null | undefined) {
-    if (!url) return false;
-    const u = url.toLowerCase();
-    return (
-        u.endsWith('.mp4') ||
-        u.endsWith('.webm') ||
-        u.endsWith('.mov') ||
-        u.endsWith('.m4v') ||
-        u.includes('/videos/')
-    );
+export default function DiscoveryPage() {
+  return <DiscoveryContent />;
 }
 
 const ArticleSkeletonCard = () => (

@@ -355,6 +355,13 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
                 return;
             }
 
+            const qRes = await coachService.getQuestionnaires({ coachId: coach.id });
+            if (qRes?.questionnaires?.length > 0) {
+                setQuestionnaireQuestions(qRes.questionnaires);
+                setQuestionnaireVisible(true);
+                return;
+            }
+
             if (!coachSubscription) {
                 const res = await subscriptionService.createSubscription({
                     coachId: coach.id,
@@ -547,9 +554,9 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
                 <div className="min-w-0">
                     <div className="text-xs font-black uppercase tracking-widest text-green-600/80">线下已支付</div>
                     <div className="text-lg font-black text-surface-900 tracking-tight mt-1">
-                        上传凭证直接订阅
+                        上传凭证后订阅
                     </div>
-                    <div className="text-sm text-surface-500 mt-1">线下已付款可直接上传凭证并提交</div>
+                    <div className="text-sm text-surface-500 mt-1">线下已付款需上传凭证，若教练设置了问卷则需先填写</div>
                 </div>
                 <div className="flex gap-2 shrink-0">
                     <Button
@@ -584,16 +591,23 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
                 questions={questionnaireQuestions}
                 coach={coach}
                 onSubmit={async (answers) => {
+                    const isOfflineWithoutProduct = isOfflinePaymentMode && !selectedProduct;
                     const res = await subscriptionService.createSubscription({
                         coachId: coach.id,
-                        tier: selectedProduct?.tier === 'basic' ? 1 : selectedProduct?.tier === 'standard' ? 2 : 3,
-                        monthlyPrice: selectedDuration?.price || 0,
+                        tier: isOfflineWithoutProduct
+                            ? 1
+                            : selectedProduct?.tier === 'basic'
+                                ? 1
+                                : selectedProduct?.tier === 'standard'
+                                    ? 2
+                                    : 3,
+                        monthlyPrice: isOfflineWithoutProduct ? 0 : (selectedDuration?.price || 0),
                         status: 'inactive',
                         subscribeData: answers,
-                        productId: selectedProduct?.id,
-                        productName: selectedProduct?.name,
-                        productTier: selectedProduct?.tier,
-                        subscribedWeeks: (selectedDuration?.months || 1) * 4
+                        productId: isOfflineWithoutProduct ? undefined : selectedProduct?.id,
+                        productName: isOfflineWithoutProduct ? undefined : selectedProduct?.name,
+                        productTier: isOfflineWithoutProduct ? undefined : selectedProduct?.tier,
+                        subscribedWeeks: isOfflineWithoutProduct ? undefined : (selectedDuration?.months || 1) * 4
                     });
                     if (res) {
                         setCoachSubscription(res.subscription);

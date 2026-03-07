@@ -322,7 +322,7 @@ const EditPlanPage = () => {
 
     const handleRemoveActionSet = (dayIndex: number, setIndex: number) => {
         const newDays = [...days];
-        const actualDayIndex = newDays.findIndex(d => d.dayIndex === dayIndex);
+        const actualDayIndex = newDays.findIndex(d => d.dayIndex === dayIndex + 1);
         if (actualDayIndex === -1) return;
 
         newDays[actualDayIndex].actionSets.splice(setIndex, 1);
@@ -869,6 +869,20 @@ const EditPlanPage = () => {
                         visible={aiBatchDialogVisible}
                         onHide={() => setAiBatchDialogVisible(false)}
                         templateId={params.id as string}
+                        targetActionType="coach"
+                        contextOptions={{
+                            // 默认仅必要：教练动作库+公共动作库；模板库/匹配等由用户自行勾选
+                            includeStudentProfile: false,
+                            includeStudentQuestionnaire: false,
+                            includeExecutionHistory: false,
+                            includeFeedbacks: false,
+                            includeStudentActionLib: false,
+                            includeCoachActionLib: true,
+                            includePublicActionLib: true,
+                            includeCoachTemplates: false,
+                            includeTemplateMatch: false,
+                        }}
+                        existingActions={actions}
                         onSuccess={handleAiBatchOperationSuccess}
                         variant="auto"
                         onPreviewResult={handleAiPreviewResult}

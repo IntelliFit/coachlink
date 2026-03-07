@@ -1075,7 +1075,7 @@ const QuestionarePage = () => {
                         uploadHandler={(e) => handleUploadMedia(qIndex, e)}
                     />
                     <div className="mt-1 text-[11px] text-surface-500">
-                        建议：图片 ≤ 5MB；视频建议 ≤ 50MB（用作动作示例/说明）。
+                        建议：图片 ≤ 5MB；视频建议 ≤ 200MB（用作动作示例/说明）。
                     </div>
                 </div>
 

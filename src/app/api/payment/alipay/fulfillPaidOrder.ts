@@ -6,6 +6,7 @@
 import { serviceRoleSupabase } from "@/lib/supabaseClient";
 import { sendSystemMessage } from "@/lib/chat";
 import { addFen } from "@/lib/moneyUtils";
+import { autoMatchPlanForSubscription } from "@/app/api/plan-lib/auto-match-plan/service";
 
 /** 教练钱包入账 + 流水记录，按 alipay_order_id 幂等。同一支付宝订单只允许一条收入流水，先查再插，插入成功后才更新钱包，避免 notify/return/query 并发重复入账。 */
 export async function updateTransactionAndWallet(order: {
@@ -159,6 +160,21 @@ export async function fulfillSubscriptionOnPaid(
             await sendSystemMessage(coach.user_id, {
                 content: `新的学员订阅通过【平台支付】完成，系统已自动确认。请前往 [我的学员](/dashboard/students) 查看。`,
             });
+
+            // 新订阅激活后自动尝试匹配计划；失败时给教练明确提示手动创建。
+            if (order.order_type === "subscription") {
+                const matchRes = await autoMatchPlanForSubscription(
+                    subscriptionId,
+                    coach.user_id,
+                    sub.coach_id,
+                );
+                const matchMsg = matchRes.success
+                    ? "系统已自动匹配训练计划，学员将在约2分钟后看到计划。"
+                    : `自动匹配失败（${matchRes.reason || "未知原因"}），请前往 [我的学员](/dashboard/students) 手动创建计划。`;
+                await sendSystemMessage(coach.user_id, {
+                    content: `该学员订阅的计划分配结果：${matchMsg}`,
+                });
+            }
         }
     } catch (e) {
         console.error(

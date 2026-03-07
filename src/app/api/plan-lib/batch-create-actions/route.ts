@@ -5,6 +5,10 @@ import { ApiData } from "@/types/api";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 import { normalizeActionNameForMatch } from "@/lib/planImportText";
 import { ItemType } from "@/types";
+import {
+    buildCanonicalLookup,
+    resolveCanonicalActionId,
+} from "@/lib/canonicalActionResolver";
 
 /**
  * 批量创建动作
@@ -42,7 +46,7 @@ export async function POST(req: Request) {
         // 防重复：如果动作名称已经存在于该教练动作库，则跳过创建
         const { data: existing, error: existingError } = await supabase
             .from("coach_actions")
-            .select("id,name")
+            .select("id,name,canonical_action_id")
             .eq("coach_id", userId);
 
         if (existingError) {
@@ -53,13 +57,62 @@ export async function POST(req: Request) {
             }, { status: 500 });
         }
 
-        const existingNameSet = new Set<string>(
-            (existing || []).map((a: any) => normalizeActionNameForMatch(a.name)),
-        );
+        const { data: canonicalActions, error: canonicalError } = await supabase
+            .from("canonical_actions")
+            .select("id,name,aliases");
+        if (canonicalError) {
+            return NextResponse.json({
+                success: false,
+                message: "获取 canonical 动作库失败",
+            }, { status: 500 });
+        }
+        const canonicalLookup = buildCanonicalLookup((canonicalActions as any[]) || []);
 
-        const uniqueToCreate = actions.filter((a) => {
-            const key = normalizeActionNameForMatch(a.name);
-            return key && !existingNameSet.has(key);
+        const existingNameSet = new Set<string>();
+        const existingCanonicalSet = new Set<string>();
+        for (const row of existing || []) {
+            existingNameSet.add(normalizeActionNameForMatch((row as any).name || ""));
+            if ((row as any).canonical_action_id) {
+                existingCanonicalSet.add((row as any).canonical_action_id);
+            }
+        }
+
+        const resolvedBatch = actions.map((action) => {
+            const itemType = normalizeItemType((action as any).type);
+            const resolved = resolveCanonicalActionId(canonicalLookup, {
+                actionName: action.name,
+                providedCanonicalId: (action as any).canonical_action_id,
+                requireCanonical: true,
+            });
+            return { action, itemType, resolved };
+        });
+
+        const unresolved = resolvedBatch.find((x) => x.resolved.errorMessage);
+        if (unresolved?.resolved.errorMessage) {
+            return NextResponse.json({
+                success: false,
+                message: unresolved.resolved.errorMessage,
+            }, { status: 400 });
+        }
+
+        const requestNameSet = new Set<string>();
+        const requestCanonicalSet = new Set<string>();
+        const uniqueToCreate = resolvedBatch.filter(({ action, resolved }) => {
+            const key = normalizeActionNameForMatch(action.name);
+            if (!key) return false;
+            const canonicalId = resolved.canonicalActionId || "";
+
+            const duplicatedInDb = existingNameSet.has(key) ||
+                (canonicalId ? existingCanonicalSet.has(canonicalId) : false);
+            if (duplicatedInDb) return false;
+
+            const duplicatedInPayload = requestNameSet.has(key) ||
+                (canonicalId ? requestCanonicalSet.has(canonicalId) : false);
+            if (duplicatedInPayload) return false;
+
+            requestNameSet.add(key);
+            if (canonicalId) requestCanonicalSet.add(canonicalId);
+            return true;
         });
 
         // 批量插入动作
@@ -70,8 +123,7 @@ export async function POST(req: Request) {
             HABIT: ["目标数值", "完成状态"],
         };
 
-        const actionsToInsert = uniqueToCreate.map((action) => {
-            const itemType = normalizeItemType((action as any).type);
+        const actionsToInsert = uniqueToCreate.map(({ action, itemType, resolved }) => {
             const attrs = (action as any).attrs?.length
                 ? (action as any).attrs
                 : defaultAttrsByType[itemType];
@@ -93,6 +145,7 @@ export async function POST(req: Request) {
                 includesBodyWeight: itemType === "STRENGTH"
                     ? action.includesBodyWeight
                     : false,
+                canonical_action_id: resolved.canonicalActionId,
                 created_at: new Date().toISOString(),
                 updated_at: new Date().toISOString(),
             };

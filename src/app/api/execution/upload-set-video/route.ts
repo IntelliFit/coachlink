@@ -62,11 +62,11 @@ export async function POST(req: Request) {
         }
 
         // 防止超大文件导致请求体截断或锁定（Next 默认 10MB）
-        const maxSizeBytes = 50 * 1024 * 1024; // 50MB
+        const maxSizeBytes = 200 * 1024 * 1024; // 200MB
         if (file.size > maxSizeBytes) {
             return NextResponse.json<ApiData<UploadSetVideoResponseDto>>({
                 success: false,
-                message: "视频过大，单个视频请小于 50MB",
+                message: "视频过大，单个视频请小于 200MB",
                 data: null,
             }, { status: 413 });
         }

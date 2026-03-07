@@ -82,6 +82,7 @@ const PUBLIC_PATHS = new Set([
     "/login",
     "/register",
     "/wechat-auth/bridge",
+    "/payment/start",
     "/api/auth",
     "/api/miniapp/login", // 小程序登录接口
     "/api/miniapp/wechat-login", // 小程序微信登录接口
@@ -100,7 +101,6 @@ const PUBLIC_PATHS = new Set([
     '/api/captcha/slider/image',
     "/api/payment/alipay/notify", // Alipay callback - must be public
     "/api/payment/alipay/return", // Alipay return - browser redirect without session
-    "/api/payment/alipay/create", // guest payment create
     "/api/payment/alipay/query", // guest payment query
     "/api/payment/alipay/guest/create", // guest payment create (public)
     "/api/hello-world", // hello world test endpoint (public)
