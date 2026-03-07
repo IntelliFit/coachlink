@@ -5,6 +5,7 @@ export interface StreetliftingLocation {
     address: string | null;
     city: string | null;
     province: string | null;
+    county: string | null;
     image_url: string | null;
     image_urls: string[] | null;
     latitude: number | null;
@@ -18,6 +19,8 @@ export interface StreetliftingListLocationsDto {
     limit?: number; // max 30
     search?: string;
     province?: string; // 'all' means no filter
+    city?: string;
+    county?: string;
 }
 
 export interface StreetliftingListLocationsResponseDto {

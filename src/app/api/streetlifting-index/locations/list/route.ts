@@ -20,6 +20,8 @@ export async function POST(req: Request) {
 
         const search = (body?.search || "").trim();
         const province = (body?.province || "").trim();
+        const city = (body?.city || "").trim();
+        const county = (body?.county || "").trim();
 
         let q = db
             .from("streetlifting_locations")
@@ -28,6 +30,12 @@ export async function POST(req: Request) {
 
         if (province && province !== "all") {
             q = q.eq("province", province);
+        }
+        if (city) {
+            q = q.eq("city", city);
+        }
+        if (county) {
+            q = q.eq("county", county);
         }
 
         if (search) {

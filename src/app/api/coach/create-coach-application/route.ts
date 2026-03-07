@@ -44,6 +44,12 @@ export async function POST(req: Request) {
             resume_url: body.resumeUrl,
             portfolio_url: body.portfolioUrl,
             social_links: body.socialLinks,
+            province: body.province ?? null,
+            city: body.city ?? null,
+            county: body.county ?? null,
+            address: body.address ?? null,
+            latitude: body.latitude ?? null,
+            longitude: body.longitude ?? null,
             applied_at: new Date().toISOString(),
             status: 'pending'
         })

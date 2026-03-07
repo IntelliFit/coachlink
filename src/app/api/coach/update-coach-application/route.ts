@@ -128,6 +128,24 @@ export async function POST(req: Request) {
     if (body.socialLinks !== undefined) {
         updateData.social_links = body.socialLinks;
     }
+    if (body.city !== undefined) {
+        updateData.city = body.city;
+    }
+    if (body.county !== undefined) {
+        updateData.county = body.county;
+    }
+    if (body.address !== undefined) {
+        updateData.address = body.address;
+    }
+    if (body.latitude !== undefined) {
+        updateData.latitude = body.latitude;
+    }
+    if (body.longitude !== undefined) {
+        updateData.longitude = body.longitude;
+    }
+    if (body.province !== undefined) {
+        updateData.province = body.province;
+    }
 
     // 只有管理员才能更新的字段
     if (isAdmin) {
@@ -185,6 +203,12 @@ export async function POST(req: Request) {
                 years_experience: latestApplication.years_experience ?? null,
                 achievements: latestApplication.achievements ?? null,
                 profile: Object.keys(coachProfile).length ? coachProfile : null,
+                province: latestApplication.province ?? null,
+                city: latestApplication.city ?? null,
+                county: latestApplication.county ?? null,
+                address: latestApplication.address ?? null,
+                latitude: latestApplication.latitude ?? null,
+                longitude: latestApplication.longitude ?? null,
                 status: "approved",
                 updated_at: new Date().toISOString(),
             };

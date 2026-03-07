@@ -15,6 +15,9 @@ import CredentialField from './CredentialField';
 import SocialLinkField from './SocialLinkField';
 import SubmitButton from './SubmitButton';
 import ReviewInfoDisplay from './ReviewInfoDisplay';
+import MapLocationPicker from '@/components/MapLocationPicker';
+import { getCurrentLocation, type LocationResult } from '@/lib/locationService';
+import { Button } from 'primereact/button';
 
 // 导入自定义图标组件
 import DouyinIcon from '@/components/icons/douyin';
@@ -71,7 +74,13 @@ const CoachApplicationPage = () => {
         achievements: [] as string[],
         caseStudies: [] as string[],
         credentials: [] as Credential[], // 资质证书
-        socialLinks: [] as SocialLink[] // 社交媒体链接
+        socialLinks: [] as SocialLink[], // 社交媒体链接
+        city: '',                         // 常住城市（市）
+        province: '',                     // 省
+        county: '',                      // 区
+        address: '',                      // 详细地址
+        latitude: null as number | null,  // 纬度
+        longitude: null as number | null  // 经度
     });
 
     // 审核信息状态
@@ -86,6 +95,8 @@ const CoachApplicationPage = () => {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [profile, setProfile] = useState<UserProfilesRow | null>(null);
+    const [locating, setLocating] = useState(false);
+    const [locationAttempted, setLocationAttempted] = useState(false);
 
     // 检查登录状态
     useEffect(() => {
@@ -180,6 +191,66 @@ const CoachApplicationPage = () => {
         );
     };
 
+    // 自动获取当前位置
+    const handleAutoLocation = async (showToasts = true) => {
+        setLocating(true);
+        try {
+            const location = await getCurrentLocation(true);
+            
+            if (location) {
+                const parts = (location.city || '').split('-').map((s) => s.trim());
+                setFormData(prev => ({
+                    ...prev,
+                    province: parts[0] ?? prev.province,
+                    city: parts[1] ?? prev.city,
+                    county: parts[2] ?? prev.county,
+                    address: location.address || prev.address,
+                    latitude: location.latitude,
+                    longitude: location.longitude
+                }));
+
+                if (showToasts) {
+                    showToast({
+                        severity: 'success',
+                        summary: '定位成功',
+                        detail: location.source === 'browser' ? '已使用精确定位' : '已使用IP定位',
+                        life: 3000
+                    });
+                }
+                
+                console.log('自动定位成功:', {
+                    source: location.source,
+                    city: location.city,
+                    latitude: location.latitude,
+                    longitude: location.longitude
+                });
+            } else {
+                if (showToasts) {
+                    showToast({
+                        severity: 'info',
+                        summary: '提示',
+                        detail: '自动定位失败，请手动选择城市',
+                        life: 3000
+                    });
+                }
+                console.log('自动定位失败');
+            }
+        } catch (error) {
+            console.error('自动定位异常:', error);
+            if (showToasts) {
+                showToast({
+                    severity: 'info',
+                    summary: '提示',
+                    detail: '自动定位失败，请手动选择城市',
+                    life: 3000
+                });
+            }
+        } finally {
+            setLocating(false);
+            setLocationAttempted(true);
+        }
+    };
+
     // 检查是否已有申请
     useEffect(() => {
         const fetchExistingApplication = async () => {
@@ -215,7 +286,13 @@ const CoachApplicationPage = () => {
                             };
                             const name = platformMap[key] || key;
                             return { name, url: value as string };
-                        }) : []
+                        }) : [],
+                        city: app.city || '',
+                        province: app.province || '',
+                        county: app.county || '',
+                        address: app.address || '',
+                        latitude: app.latitude || null,
+                        longitude: app.longitude || null
                     });
                     
                     // 设置审核信息
@@ -225,13 +302,26 @@ const CoachApplicationPage = () => {
                         review_notes: app.review_notes || null,
                         status: app.status
                     });
-                } else if (profile) {
-                    // 如果没有申请但有用户信息，则预填姓名
-                    setFormData(prev => ({
-                        ...prev,
-                        name: profile.nickname || '',
-                        contactPhone: profile.phone || ''
-                    }));
+
+                    // 如果已有位置信息，不自动定位
+                    setLocationAttempted(true);
+                } else {
+                    // 如果没有申请，预填用户信息
+                    if (profile) {
+                        setFormData(prev => ({
+                            ...prev,
+                            name: profile.nickname || '',
+                            contactPhone: profile.phone || ''
+                        }));
+                    }
+
+                    // 自动获取位置（仅在首次填写时，静默执行不显示Toast）
+                    if (!locationAttempted) {
+                        // 使用 setTimeout 确保在 UI 渲染后执行，避免阻塞
+                        setTimeout(() => {
+                            handleAutoLocation(false);
+                        }, 500);
+                    }
                 }
             } catch (error) {
                 console.error('获取申请信息失败:', error);
@@ -393,6 +483,16 @@ const CoachApplicationPage = () => {
                 return;
             }
 
+            if (![formData.province, formData.city, formData.county].filter(Boolean).length) {
+                showToast({
+                    severity: 'warn',
+                    summary: '警告',
+                    detail: '请选择常住城市（省/市/区）',
+                    life: 3000
+                });
+                return;
+            }
+
             // 构造社交媒体链接对象
             const socialLinksObj: Record<string, string> = {};
             formData.socialLinks.forEach(link => {
@@ -412,8 +512,11 @@ const CoachApplicationPage = () => {
                 }
             });
 
-            // 如果已有申请ID，则更新，否则创建新申请
+            // 如果已有申请ID，则更新，否则创建新申请（地址平铺：province、city、county）
             const existingApplication = await coachService.getCoachApplication();
+            const province = formData.province?.trim() || null;
+            const cityValue = formData.city?.trim() || null;
+            const county = formData.county?.trim() || null;
 
             if (existingApplication?.application) {
                 // 更新现有申请
@@ -430,7 +533,13 @@ const CoachApplicationPage = () => {
                     achievements: formData.achievements.length > 0 ? formData.achievements : null,
                     caseStudies: formData.caseStudies.length > 0 ? formData.caseStudies : null,
                     credentials: formData.credentials.length > 0 ? formData.credentials : null,
-                    socialLinks: Object.keys(socialLinksObj).length > 0 ? socialLinksObj : null
+                    socialLinks: Object.keys(socialLinksObj).length > 0 ? socialLinksObj : null,
+                    province,
+                    city: cityValue,
+                    county,
+                    address: formData.address || null,
+                    latitude: formData.latitude,
+                    longitude: formData.longitude,
                 });
 
                 showToast({
@@ -453,7 +562,13 @@ const CoachApplicationPage = () => {
                     achievements: formData.achievements.length > 0 ? formData.achievements : null,
                     caseStudies: formData.caseStudies.length > 0 ? formData.caseStudies : null,
                     credentials: formData.credentials.length > 0 ? formData.credentials : null,
-                    socialLinks: Object.keys(socialLinksObj).length > 0 ? socialLinksObj : null
+                    socialLinks: Object.keys(socialLinksObj).length > 0 ? socialLinksObj : null,
+                    province,
+                    city: cityValue,
+                    county,
+                    address: formData.address || null,
+                    latitude: formData.latitude,
+                    longitude: formData.longitude,
                 });
 
                 showToast({
@@ -647,6 +762,45 @@ const CoachApplicationPage = () => {
 
                     {/* 审核信息部分 - 使用新组件 */}
                     <ReviewInfoDisplay reviewInfo={reviewInfo} />
+                </div>
+
+                {/* 位置信息部分 */}
+                <div className="mt-6 pt-6 border-t border-surface-200">
+                    <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-lg font-bold text-surface-900">位置信息</h3>
+                        {locating && (
+                            <div className="flex items-center gap-2 text-sm text-primary-500">
+                                <i className="pi pi-spin pi-spinner"></i>
+                                <span>正在获取位置...</span>
+                            </div>
+                        )}
+                    </div>
+                    <MapLocationPicker
+                        value={{
+                            province: formData.province,
+                            city: formData.city,
+                            county: formData.county,
+                            address: formData.address,
+                            latitude: formData.latitude,
+                            longitude: formData.longitude,
+                        }}
+                        onChange={(v) => setFormData(prev => ({
+                            ...prev,
+                            province: v.province ?? '',
+                            city: v.city ?? '',
+                            county: v.county ?? '',
+                            address: v.address ?? '',
+                            latitude: v.latitude ?? null,
+                            longitude: v.longitude ?? null,
+                        }))}
+                        cityLabel="常住城市 *"
+                        addressLabel="详细地址（选填）"
+                        mapLabel="位置标记"
+                        cityRequired
+                        showRelocateButton
+                        onRelocate={() => handleAutoLocation(true)}
+                        hint="* 系统已自动获取位置并在地图上标记。您可以点击地图、拖动标记调整位置，或点击「重新定位」按钮重新获取当前位置。"
+                    />
                 </div>
 
                 <SubmitButton saving={saving} onClick={handleSubmit} />
