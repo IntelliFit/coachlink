@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Star, Users, Clock, Crown, Eye, Search, ArrowRight, UserCheck, HelpCircle, Filter, ShoppingCart, Package, User, Layers, BookOpen, ShieldCheck, ChevronRight } from 'lucide-react';
+import { Star, Users, Clock, Crown, Eye, Search, ArrowRight, UserCheck, HelpCircle, Filter, ShoppingCart, Package, User, Layers, BookOpen, ShieldCheck, ChevronRight, MapPin } from 'lucide-react';
 import { Paginator } from 'primereact/paginator';
 import { InputText } from 'primereact/inputtext';
 import { Button } from 'primereact/button';
@@ -19,6 +19,8 @@ import { useCart } from '@/context/CartContext';
 import type { Product, DurationOption } from '@/app/api/coach/get-pricing/entity';
 import type { PublicActionItemDto } from '@/app/api/public-action-lib/list-actions/entity';
 import PublicActionDetailDialog from '@/components/action-lib/PublicActionDetailDialog';
+import { useUserLocation } from '@/hooks/useUserLocation';
+import { formatCoachDistance, isSameCounty } from '@/lib/distanceUtils';
 
 interface PublicArticleListItem {
     id: string;
@@ -249,6 +251,7 @@ const CoachDiscoveryPage: React.FC = () => {
     const { data: session } = useSession();
     const { showToast } = useToastContext();
     const { addToCart } = useCart();
+    const { userLocation } = useUserLocation();
 
     const categories = useMemo(
         () => [
@@ -513,12 +516,27 @@ const CoachDiscoveryPage: React.FC = () => {
                 <span className="font-medium">{coach.studentCount || 0} 学员</span>
             </div>
 
-            <div className="flex flex-wrap gap-1.5">
-                {coach.specialties?.slice(0, 2).map((spec, i) => (
-                    <span key={i} className="px-2 py-1 bg-surface-50 text-surface-600 text-[10px] font-bold rounded-full border border-surface-100 truncate max-w-full">
-                        {spec}
-                    </span>
-                ))}
+            <div className="flex items-end justify-between gap-2">
+                <div className="flex flex-wrap gap-1.5 min-w-0">
+                    {coach.specialties?.slice(0, 2).map((spec, i) => (
+                        <span key={i} className="px-2 py-1 bg-surface-50 text-surface-600 text-[10px] font-bold rounded-full border border-surface-100 truncate max-w-full">
+                            {spec}
+                        </span>
+                    ))}
+                </div>
+                {formatCoachDistance(userLocation, coach) && (
+                    <div className="flex items-center gap-1.5 shrink-0">
+                        {isSameCounty(userLocation, coach) && (
+                            <span className="px-2 py-0.5 bg-primary-100 text-primary-700 text-[10px] font-black rounded-full border border-primary-200">
+                                同城
+                            </span>
+                        )}
+                        <span className="flex items-center gap-1 text-[11px] font-bold text-primary-600">
+                            <MapPin size={12} className="text-primary-500 shrink-0" />
+                            {formatCoachDistance(userLocation, coach)}
+                        </span>
+                    </div>
+                )}
             </div>
         </div>
     );

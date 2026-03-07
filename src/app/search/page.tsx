@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Star, Users, Crown, Search, ArrowLeft } from 'lucide-react';
+import { Star, Users, Crown, Search, ArrowLeft, MapPin } from 'lucide-react';
 import { Paginator } from 'primereact/paginator';
 import { InputText } from 'primereact/inputtext';
 import { Dropdown } from 'primereact/dropdown';
@@ -9,6 +9,8 @@ import { coachService } from '@/app/service/coachService';
 import { Skeleton } from 'primereact/skeleton';
 import { CoachesRow } from '@/types';
 import { useRouter } from 'next/navigation';
+import { useUserLocation } from '@/hooks/useUserLocation';
+import { formatCoachDistance, isSameCounty } from '@/lib/distanceUtils';
 
 const CoachSearchPage: React.FC = () => {
     const [coaches, setCoaches] = useState<CoachesRow[]>([]);
@@ -17,10 +19,12 @@ const CoachSearchPage: React.FC = () => {
     const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [selectedSpecialty, setSelectedSpecialty] = useState<string>('all');
+    const [sameCityOnly, setSameCityOnly] = useState(false);
     const [totalCount, setTotalCount] = useState(0);
     const [currentPage, setCurrentPage] = useState(0);
     const coachesPerPage = 12;
     const router = useRouter();
+    const { userLocation } = useUserLocation();
 
     // 搜索防抖
     useEffect(() => {
@@ -40,6 +44,12 @@ const CoachSearchPage: React.FC = () => {
         setCurrentPage(0);
         loadCoaches(1);
     }, [debouncedSearchTerm, selectedSpecialty]);
+
+    // 只看同城：对当前页结果做客户端过滤（区/县与用户一致）
+    const filteredCoaches = useMemo(() => {
+        if (!sameCityOnly) return coaches;
+        return coaches.filter((c) => isSameCounty(userLocation, c));
+    }, [coaches, sameCityOnly, userLocation]);
 
     const loadSpecialties = async () => {
         try {
@@ -127,19 +137,34 @@ const CoachSearchPage: React.FC = () => {
                 <span>{coach.studentCount || 0} 学员</span>
             </div>
 
-            <div className="flex flex-wrap gap-1.5">
-                {coach.specialties?.slice(0, 3).map((spec, i) => (
-                    <span 
-                        key={i} 
-                        className="px-2 py-1 bg-surface-50 text-surface-600 text-xs rounded-md border border-surface-100"
-                    >
-                        {spec}
-                    </span>
-                ))}
-                {coach.specialties && coach.specialties.length > 3 && (
-                    <span className="px-2 py-1 bg-surface-50 text-surface-500 text-xs rounded-md border border-surface-100">
-                        +{coach.specialties.length - 3}
-                    </span>
+            <div className="flex items-end justify-between gap-2">
+                <div className="flex flex-wrap gap-1.5 min-w-0">
+                    {coach.specialties?.slice(0, 3).map((spec, i) => (
+                        <span 
+                            key={i} 
+                            className="px-2 py-1 bg-surface-50 text-surface-600 text-xs rounded-md border border-surface-100"
+                        >
+                            {spec}
+                        </span>
+                    ))}
+                    {coach.specialties && coach.specialties.length > 3 && (
+                        <span className="px-2 py-1 bg-surface-50 text-surface-500 text-xs rounded-md border border-surface-100">
+                            +{coach.specialties.length - 3}
+                        </span>
+                    )}
+                </div>
+                {formatCoachDistance(userLocation, coach) && (
+                    <div className="flex items-center gap-1.5 shrink-0">
+                        {isSameCounty(userLocation, coach) && (
+                            <span className="px-2 py-0.5 bg-primary-100 text-primary-700 text-xs font-black rounded-full border border-primary-200">
+                                同城
+                            </span>
+                        )}
+                        <span className="flex items-center gap-1 text-xs font-bold text-primary-600">
+                            <MapPin size={12} className="text-primary-500 shrink-0" />
+                            {formatCoachDistance(userLocation, coach)}
+                        </span>
+                    </div>
                 )}
             </div>
         </div>
@@ -185,6 +210,18 @@ const CoachSearchPage: React.FC = () => {
                                 panelClassName="rounded-xl"
                             />
                         </div>
+                        <button
+                            type="button"
+                            onClick={() => setSameCityOnly((v) => !v)}
+                            className={`shrink-0 h-10 px-4 rounded-full border text-sm font-bold transition-colors flex items-center gap-1.5 ${
+                                sameCityOnly
+                                    ? 'bg-primary-100 border-primary-300 text-primary-700'
+                                    : 'bg-surface-100 border-surface-200 text-surface-600 hover:bg-surface-200'
+                            }`}
+                        >
+                            <MapPin size={16} className="shrink-0" />
+                            只看同城
+                        </button>
                     </div>
                 </div>
             </div>
@@ -193,7 +230,15 @@ const CoachSearchPage: React.FC = () => {
                 {/* 结果统计 */}
                 {!isLoading && (
                     <div className="mb-4 text-sm text-surface-500">
-                        找到 <span className="font-bold text-surface-700">{totalCount}</span> 位教练
+                        {sameCityOnly ? (
+                            userLocation ? (
+                                <>本页 <span className="font-bold text-primary-600">{filteredCoaches.length}</span> 位同城教练</>
+                            ) : (
+                                <>开启定位后可筛选同城教练 · 共 <span className="font-bold text-surface-700">{totalCount}</span> 位教练</>
+                            )
+                        ) : (
+                            <>找到 <span className="font-bold text-surface-700">{totalCount}</span> 位教练</>
+                        )}
                     </div>
                 )}
 
@@ -212,9 +257,16 @@ const CoachSearchPage: React.FC = () => {
                     </div>
                 ) : coaches.length > 0 ? (
                     <>
-                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-6">
-                            {coaches.map(coach => renderCoachCard(coach as any))}
-                        </div>
+                        {filteredCoaches.length > 0 ? (
+                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-6">
+                                {filteredCoaches.map(coach => renderCoachCard(coach as any))}
+                            </div>
+                        ) : sameCityOnly ? (
+                            <div className="w-full py-12 text-center mb-6">
+                                <p className="text-surface-500 text-sm mb-1">本页暂无同城教练</p>
+                                <p className="text-surface-400 text-xs">试试切换搜索条件或取消「只看同城」</p>
+                            </div>
+                        ) : null}
                         
                         {/* 分页 */}
                         {totalCount > coachesPerPage && (
