@@ -35,29 +35,27 @@ export async function POST(req: Request) {
         // 检查是否使用模拟短信（开发环境）
         const useMockSms = process.env.NEXT_PUBLIC_USE_MOCK_SMS === "true";
 
-        // 生产环境需要验证 captchaToken
-        if (!useMockSms) {
-            if (!captchaToken) {
-                return NextResponse.json<
-                    ApiData<SendVerificationCodeResponseDto>
-                >({
-                    success: false,
-                    message: "请先完成滑块验证",
-                    data: null,
-                }, { status: 400 });
-            }
-            const tokenKey = `captcha:token:${captchaToken}`;
-            const tokenValid = await redis.get(tokenKey);
-            await redis.del(tokenKey);
-            if (!tokenValid) {
-                return NextResponse.json<
-                    ApiData<SendVerificationCodeResponseDto>
-                >({
-                    success: false,
-                    message: "验证已过期，请重新完成滑块验证",
-                    data: null,
-                }, { status: 400 });
-            }
+        // 验证 captchaToken（测试环境和生产环境都需要）
+        if (!captchaToken) {
+            return NextResponse.json<
+                ApiData<SendVerificationCodeResponseDto>
+            >({
+                success: false,
+                message: "请先完成滑块验证",
+                data: null,
+            }, { status: 400 });
+        }
+        const tokenKey = `captcha:token:${captchaToken}`;
+        const tokenValid = await redis.get(tokenKey);
+        await redis.del(tokenKey);
+        if (!tokenValid) {
+            return NextResponse.json<
+                ApiData<SendVerificationCodeResponseDto>
+            >({
+                success: false,
+                message: "验证已过期，请重新完成滑块验证",
+                data: null,
+            }, { status: 400 });
         }
 
         const clientIp = (req.headers.get("x-forwarded-for") ?? "127.0.0.1")
