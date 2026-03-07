@@ -886,4 +886,3 @@ const CoachDiscoveryPage: React.FC = () => {
     );
 };
 
-export default CoachDiscoveryPage;
