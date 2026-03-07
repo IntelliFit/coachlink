@@ -6,6 +6,12 @@ import { Button } from 'primereact/button';
 import { STUDENT_TOOLBOX_LINKS } from '@/config/toolbox';
 import { ExternalLink, LogIn, Share2 } from 'lucide-react';
 
+const NOVICE_FIRST_STEPS = [
+  '先登录并打开「今天练什么」完成一次训练',
+  '如果到场临时想练，直接用「立即开练（不建计划）」',
+  '练完再使用进阶工具做计算、查地图或看社区数据',
+];
+
 export default function PublicToolboxPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -91,6 +97,25 @@ export default function PublicToolboxPage() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="md:col-span-3 rounded-2xl border border-primary-100 bg-primary-50/50 p-4 md:p-5">
+            <div className="text-base font-black text-surface-900">新手先走这 3 步</div>
+            <div className="mt-2 grid grid-cols-1 md:grid-cols-3 gap-2">
+              {NOVICE_FIRST_STEPS.map((step, index) => (
+                <div key={step} className="rounded-xl border border-primary-100 bg-surface-0 px-3 py-2 text-sm text-surface-700">
+                  <span className="text-primary-700 font-semibold mr-1">{index + 1}.</span>
+                  {step}
+                </div>
+              ))}
+            </div>
+            <div className="mt-3">
+              <Button
+                label="登录后开始今天训练"
+                className="bg-surface-900 border-surface-900 hover:bg-surface-800 hover:border-surface-800"
+                onClick={() => router.push('/login')}
+              />
+            </div>
+          </div>
+
           {STUDENT_TOOLBOX_LINKS.map((t) => {
             const isHighlighted = toolKey === t.key;
             return (

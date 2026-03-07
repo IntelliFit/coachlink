@@ -123,7 +123,7 @@ const TemplateDataFlow: React.FC<TemplateDataFlowProps> = ({ data }) => {
                         <span className="text-xs font-black italic tracking-tighter">COACHLINK</span>
                     </div>
                     <p className="text-[8px] text-white/30 lowercase">
-                        Scan to join CoachLink · +2 AI & +100MB
+                        Scan to join CoachLink · +2 AI & +200MB
                     </p>
                 </div>
                 <div className="p-1 bg-white rounded-lg">

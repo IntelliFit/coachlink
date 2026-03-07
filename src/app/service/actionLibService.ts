@@ -139,8 +139,8 @@ export class ActionLibService extends BaseService {
         if (!file) throw new Error("缺少文件");
         if (!file.type?.startsWith("video/")) throw new Error("仅支持上传视频文件");
 
-        const maxSizeBytes = 100 * 1024 * 1024; // 100MB
-        if (file.size > maxSizeBytes) throw new Error("视频过大，单个视频请小于 100MB");
+        const maxSizeBytes = 200 * 1024 * 1024; // 200MB
+        if (file.size > maxSizeBytes) throw new Error("视频过大，单个视频请小于 200MB");
 
         onProgress?.(0);
 

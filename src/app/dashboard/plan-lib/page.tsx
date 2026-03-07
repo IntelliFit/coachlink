@@ -200,6 +200,7 @@ const PlanLib = () => {
                     visible={batchOperationVisible}
                     onHide={() => setBatchOperationVisible(false)}
                     templateId={selectedTemplateId}
+                    targetActionType="coach"
                     onSuccess={handleBatchOperationSuccess}
                 />
             )}

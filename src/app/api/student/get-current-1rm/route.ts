@@ -4,6 +4,7 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import supabase from "@/lib/supabaseClient";
 import type { ApiData } from "@/types/api";
 import { Current1RMRecord, GetCurrent1RMDto, GetCurrent1RMResponseDto } from "./entity";
+import { isOneRMEligibleAction } from "@/lib/oneRmEligibility";
 
 /**
  * 核心业务函数：获取并聚合用户的 1RM 记录
@@ -14,9 +15,10 @@ export async function getCurrent1RMRecords(
         actionIds?: string[];
         actionNames?: string[];
         targetUserId?: string;
+        preferPR?: boolean;
     }
 ) {
-    const { actionIds, actionNames, targetUserId } = params;
+    const { actionIds, actionNames, targetUserId, preferPR = false } = params;
     let queryUserId = currentUserId;
 
     // 1. 权限校验：如果是查询他人数据
@@ -40,7 +42,7 @@ export async function getCurrent1RMRecords(
         }
     }
 
-    // 2. 并行获取 PR 历史和问卷数据
+    // 2. 并行获取 PR 历史、动作库基线和问卷兜底数据
     const prQuery = supabase
         .from("personal_records_history")
         .select("action_id, exercise_name, e1rm, date_achieved, created_at, is_auto_calculated, notes")
@@ -53,8 +55,20 @@ export async function getCurrent1RMRecords(
     if (actionIds?.length) prQuery.in("action_id", actionIds);
     if (actionNames?.length) prQuery.in("exercise_name", actionNames);
 
-    const [prResult, questionnaireResult] = await Promise.all([
+    let studentActionsQuery = supabase
+        .from("student_actions")
+        .select('id, name, reference_1rm, type, attrs, "enableAutoWeightCompute", updated_at')
+        .eq("user_id", queryUserId)
+        .not("reference_1rm", "is", null);
+    if (actionIds?.length) {
+        studentActionsQuery = studentActionsQuery.in("id", actionIds);
+    } else if (actionNames?.length) {
+        studentActionsQuery = studentActionsQuery.in("name", actionNames);
+    }
+
+    const [prResult, studentActionsResult, questionnaireResult] = await Promise.all([
         prQuery,
+        studentActionsQuery,
         supabase
             .from("coach_subscriptions")
             .select("subscribe_data, updated_at")
@@ -65,15 +79,31 @@ export async function getCurrent1RMRecords(
 
     if (prResult.error) throw prResult.error;
 
-    // 3. 解析问卷中的 RM 数据
+    // 3. 解析学员动作库中的全局参考1RM（主来源）
+    const actionLibraryRMMap: Record<string, { value: number; updatedAt?: string }> = {};
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (studentActionsResult.data || []).forEach((action: any) => {
+        const rm = Number(action.reference_1rm);
+        if (!Number.isFinite(rm) || rm <= 0) return;
+        if (!isOneRMEligibleAction({
+            type: action.type,
+            attrs: action.attrs,
+            enableAutoWeightCompute: action.enableAutoWeightCompute,
+        })) {
+            return;
+        }
+
+        const payload = { value: rm, updatedAt: action.updated_at as string | undefined };
+        if (action.id) actionLibraryRMMap[action.id] = payload;
+        if (action.name) actionLibraryRMMap[action.name] = payload;
+    });
+
+    // 4. 解析问卷中的 RM 数据（短期兼容兜底）
     const questionnaireRMMap: Record<string, number> = {};
     const subscribeData = questionnaireResult.data?.subscribe_data as any[];
     const rmItem = subscribeData?.find(item => item.type === "rm");
     const questionnaireUpdatedAtIso =
         (questionnaireResult.data as any)?.updated_at as string | undefined;
-    const questionnaireUpdatedAtMs = questionnaireUpdatedAtIso
-        ? new Date(questionnaireUpdatedAtIso).getTime()
-        : 0;
 
     if (rmItem?.userInputs) {
         Object.entries(rmItem.userInputs).forEach(([id, val]) => {
@@ -81,13 +111,14 @@ export async function getCurrent1RMRecords(
         });
     }
 
-    // 4. 数据聚合 (聚合 PR 历史与问卷)
+    // 5. 数据聚合 (PR/AUTO_STATE + 动作库基线 + 问卷兜底)
     // Strategy:
-    // - Prefer latest "AUTO_STATE" snapshots (notes === "AUTO_STATE") when available.
-    // - Otherwise fallback to latest record (by date_achieved desc).
+    // - preferPR=true: use PR-oriented records (exclude AUTO_STATE, pick strongest historical value).
+    // - preferPR=false: prefer latest AUTO_STATE; fallback to latest non-state record.
     // - If no record exists for an action, initialize from questionnaire RM (if present).
     const stateMap = new Map<string, Current1RMRecord>();
     const latestMap = new Map<string, Current1RMRecord>();
+    const prMap = new Map<string, Current1RMRecord>();
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (prResult.data || []).forEach((record: any) => {
@@ -102,7 +133,24 @@ export async function getCurrent1RMRecords(
             isAutoCalculated: !!record.is_auto_calculated,
         };
 
-        // Prefer latest AUTO_STATE (query is ordered desc, first hit is latest)
+        if (preferPR) {
+            // PR mode: ignore AUTO_STATE snapshots and keep the strongest record.
+            if (record.notes === "AUTO_STATE") return;
+            const existing = prMap.get(key);
+            if (
+                !existing ||
+                Number(item.current1RM) > Number(existing.current1RM) ||
+                (
+                    Number(item.current1RM) === Number(existing.current1RM) &&
+                    new Date(item.lastUpdated).getTime() > new Date(existing.lastUpdated).getTime()
+                )
+            ) {
+                prMap.set(key, item);
+            }
+            return;
+        }
+
+        // State mode: prefer latest AUTO_STATE (query is ordered desc, first hit is latest)
         if (record.notes === "AUTO_STATE") {
             if (!stateMap.has(key)) stateMap.set(key, item);
         } else {
@@ -110,34 +158,36 @@ export async function getCurrent1RMRecords(
         }
     });
 
-    // Merge: state overrides latest for the same key
     const recordsMap = new Map<string, Current1RMRecord>();
-    for (const [k, v] of latestMap.entries()) recordsMap.set(k, v);
-    for (const [k, v] of stateMap.entries()) recordsMap.set(k, v);
+    if (preferPR) {
+        for (const [k, v] of prMap.entries()) recordsMap.set(k, v);
+    } else {
+        // Merge: state overrides latest for the same key
+        for (const [k, v] of latestMap.entries()) recordsMap.set(k, v);
+        for (const [k, v] of stateMap.entries()) recordsMap.set(k, v);
+    }
 
-    // 合并问卷数据
-    // 规则（更符合直觉）：
-    // - 如果该动作没有任何历史记录：用问卷值初始化
-    // - 如果问卷更新时间晚于当前记录的 lastUpdated：用问卷值覆盖当前值（实现“更新问卷立即生效”）
+    // 先合并动作库基线（主来源）：仅在没有历史记录时初始化
+    Object.entries(actionLibraryRMMap).forEach(([key, payload]) => {
+        const existing = recordsMap.get(key);
+        if (!existing) {
+            recordsMap.set(key, {
+                actionId: key,
+                actionName: key,
+                current1RM: payload.value,
+                lastUpdated: payload.updatedAt || new Date().toISOString(),
+                isAutoCalculated: false,
+            });
+        }
+    });
+
+    // 再合并问卷兜底：仅在动作库与历史都缺失时初始化（不再反向覆盖当前值）
     Object.entries(questionnaireRMMap).forEach(([id, rmValue]) => {
         const existing = recordsMap.get(id);
         if (!existing) {
             recordsMap.set(id, {
                 actionId: id,
                 actionName: id,
-                current1RM: rmValue,
-                lastUpdated: questionnaireUpdatedAtIso || new Date().toISOString(),
-                isAutoCalculated: false,
-            });
-            return;
-        }
-
-        const existingUpdatedMs = existing.lastUpdated
-            ? new Date(existing.lastUpdated).getTime()
-            : 0;
-        if (questionnaireUpdatedAtMs && questionnaireUpdatedAtMs > existingUpdatedMs) {
-            recordsMap.set(id, {
-                ...existing,
                 current1RM: rmValue,
                 lastUpdated: questionnaireUpdatedAtIso || new Date().toISOString(),
                 isAutoCalculated: false,

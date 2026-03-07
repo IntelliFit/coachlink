@@ -41,30 +41,78 @@ export async function POST(req: Request) {
             );
         }
 
-        const proposedUrl = (body.url ?? action.url) ?? null;
-        if (!proposedUrl || !String(proposedUrl).trim()) {
+        const hasOwn = <K extends keyof SubmitPublicActionEditDto>(key: K) =>
+            Object.prototype.hasOwnProperty.call(body, key);
+
+        const proposedName = hasOwn("name")
+            ? (body.name ?? "").trim()
+            : String(action.name || "");
+        if (!proposedName) {
             return NextResponse.json<ApiData<null>>(
-                { success: false, message: "演示视频链接必填", data: null },
+                { success: false, message: "名称不能为空", data: null },
                 { status: 400 },
             );
         }
 
+        const proposedUrl = hasOwn("url")
+            ? (body.url ? String(body.url).trim() : null)
+            : (action.url ?? null);
+
         const proposed = {
-            proposed_name: (body.name ?? action.name) as string,
-            proposed_detail: (body.detail ?? action.detail) ?? null,
-            proposed_positions: (body.positions ?? action.positions) ?? null,
-            proposed_attrs: (body.attrs ?? action.attrs) ?? null,
+            proposed_name: proposedName,
+            proposed_detail: hasOwn("detail") ? (body.detail ?? null) : (action.detail ?? null),
+            proposed_positions: hasOwn("positions")
+                ? (body.positions ?? null)
+                : (action.positions ?? null),
+            proposed_attrs: hasOwn("attrs") ? (body.attrs ?? null) : (action.attrs ?? null),
             proposed_url: proposedUrl,
-            proposed_type: (body.type ?? action.type) ?? null,
-            proposed_item_schema: (body.item_schema ?? action.item_schema) ?? null,
-            proposed_suggested_time: (body.suggested_time ?? action.suggested_time) ?? null,
+            proposed_type: hasOwn("type") ? (body.type ?? null) : (action.type ?? null),
+            proposed_item_schema: hasOwn("item_schema")
+                ? (body.item_schema ?? null)
+                : (action.item_schema ?? null),
+            proposed_suggested_time: hasOwn("suggested_time")
+                ? (body.suggested_time ?? null)
+                : (action.suggested_time ?? null),
             proposed_enableAutoWeightCompute:
-                (body.enableAutoWeightCompute ?? action.enableAutoWeightCompute) ?? false,
+                hasOwn("enableAutoWeightCompute")
+                    ? (body.enableAutoWeightCompute ?? null)
+                    : (action.enableAutoWeightCompute ?? false),
             proposed_includesBodyWeight:
-                (body.includesBodyWeight ?? action.includesBodyWeight) ?? false,
+                hasOwn("includesBodyWeight")
+                    ? (body.includesBodyWeight ?? null)
+                    : (action.includesBodyWeight ?? false),
             proposed_canonical_action_id:
-                (body.canonical_action_id ?? action.canonical_action_id) ?? null,
+                hasOwn("canonical_action_id")
+                    ? (body.canonical_action_id ?? null)
+                    : (action.canonical_action_id ?? null),
         };
+
+        const hasChange =
+            proposed.proposed_name !== (action.name ?? "") ||
+            (proposed.proposed_detail ?? null) !== (action.detail ?? null) ||
+            JSON.stringify(proposed.proposed_positions ?? null) !==
+                JSON.stringify(action.positions ?? null) ||
+            JSON.stringify(proposed.proposed_attrs ?? null) !==
+                JSON.stringify(action.attrs ?? null) ||
+            (proposed.proposed_url ?? null) !== (action.url ?? null) ||
+            (proposed.proposed_type ?? null) !== (action.type ?? null) ||
+            JSON.stringify(proposed.proposed_item_schema ?? null) !==
+                JSON.stringify(action.item_schema ?? null) ||
+            (proposed.proposed_suggested_time ?? null) !==
+                (action.suggested_time ?? null) ||
+            (proposed.proposed_enableAutoWeightCompute ?? null) !==
+                (action.enableAutoWeightCompute ?? null) ||
+            (proposed.proposed_includesBodyWeight ?? null) !==
+                (action.includesBodyWeight ?? null) ||
+            (proposed.proposed_canonical_action_id ?? null) !==
+                (action.canonical_action_id ?? null);
+
+        if (!hasChange) {
+            return NextResponse.json<ApiData<null>>(
+                { success: false, message: "未检测到改动，请修改后再提交", data: null },
+                { status: 400 },
+            );
+        }
 
         const { data: edit, error: insertError } = await supabase
             .from("community_action_edits")

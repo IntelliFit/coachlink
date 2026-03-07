@@ -7,7 +7,11 @@ import { InputText } from 'primereact/inputtext';
 import { InputTextarea } from 'primereact/inputtextarea';
 import { MultiSelect } from 'primereact/multiselect';
 import { InputSwitch } from 'primereact/inputswitch';
+import { ProgressBar } from 'primereact/progressbar';
+import { AeroInputNumber } from '@/components/AeroInputNumber';
 import { StudentActionRow, ItemType } from '@/types/student';
+import { useToastContext } from '@/context/ToastContext';
+import { actionLibService } from '@/app/service/actionLibService';
 
 interface StudentActionEditDialogProps {
     visible: boolean;
@@ -16,18 +20,50 @@ interface StudentActionEditDialogProps {
     onCancel: () => void;
 }
 
+type AttrPreset = {
+    key: string;
+    name: string;
+    attrs: string[];
+    examples: string;
+};
+
+const ATTR_PRESETS: Record<ItemType, AttrPreset[]> = {
+    STRENGTH: [
+        { key: "strength_reps", name: "力量-次数型", attrs: ["组数", "次数", "强度", "休息时间"], examples: "俯卧撑/引体向上/深蹲/卧推" },
+        { key: "strength_duration", name: "力量-时长型", attrs: ["组数", "持续时间", "强度", "休息时间"], examples: "平板支撑/L-sit/单手悬垂" },
+        { key: "strength_recovery_rep", name: "力量-恢复型(次数)", attrs: ["组数", "次数", "休息时间"], examples: "康复训练/弹力带激活" },
+        { key: "strength_recovery_duration", name: "力量-恢复型(时长)", attrs: ["组数", "持续时间", "休息时间"], examples: "泡沫轴/拉伸保持" },
+    ],
+    CARDIO: [
+        { key: "cardio_distance", name: "有氧-距离型", attrs: ["距离", "配速", "持续时间"], examples: "跑步/骑行/游泳" },
+        { key: "cardio_interval", name: "有氧-间歇型", attrs: ["冲刺时长", "间歇时长", "循环次数", "强度"], examples: "间歇跑/跳绳 Tabata" },
+    ],
+    DIET: [
+        { key: "diet_combo", name: "饮食-复合摄入", attrs: ["食物清单", "热量", "宏量营养"], examples: "正餐记录/增肌餐" },
+        { key: "diet_single", name: "饮食-单一计量", attrs: ["摄入量", "时间点"], examples: "喝水/蛋白粉/补剂" },
+    ],
+    HABIT: [
+        { key: "habit_stats", name: "习惯-统计型", attrs: ["目标数值", "完成状态"], examples: "步数/冥想时长" },
+        { key: "habit_behavior", name: "习惯-行为型", attrs: ["完成状态"], examples: "早睡/阅读打卡" },
+    ],
+};
+
 const StudentActionEditDialog: React.FC<StudentActionEditDialogProps> = ({
     visible,
     action,
     onSave,
     onCancel
 }) => {
+    const { showToast } = useToastContext();
     const [name, setName] = useState('');
     const [detail, setDetail] = useState('');
     const [url, setUrl] = useState('');
     const [positions, setPositions] = useState<string[]>([]);
     const [attrs, setAttrs] = useState<string[]>([]);
     const [loading, setLoading] = useState(false);
+    const [uploadingDemoVideo, setUploadingDemoVideo] = useState(false);
+    const [demoVideoUploadProgress, setDemoVideoUploadProgress] = useState<number>(0);
+    const demoVideoInputRef = React.useRef<HTMLInputElement>(null);
 
     // 项目类型状态
     const [itemType, setItemType] = useState<ItemType>('STRENGTH');
@@ -47,8 +83,37 @@ const StudentActionEditDialog: React.FC<StudentActionEditDialogProps> = ({
     // 新增状态：自动计算负重
     const [enableAutoWeightCompute, setEnableAutoWeightCompute] = useState<boolean>(false);
     const [includesBodyWeight, setIncludesBodyWeight] = useState<boolean>(false);
+    const [referenceOneRM, setReferenceOneRM] = useState<number | null>(null);
+    const [customAttr, setCustomAttr] = useState('');
     
     const [isMobile, setIsMobile] = useState(false);
+    const [videoModalVisible, setVideoModalVisible] = useState(false);
+    const [currentVideoUrl, setCurrentVideoUrl] = useState<string | null>(null);
+
+    // 判断 URL 是否可在页面内播放
+    const canPlayInlineVideo = (videoUrl?: string | null) => {
+        if (!videoUrl) return false;
+        if (videoUrl.startsWith("blob:")) return true;
+        const lower = videoUrl.toLowerCase();
+        if (
+            lower.endsWith(".mp4") || lower.endsWith(".webm") || lower.endsWith(".mov") ||
+            lower.endsWith(".m4v") || lower.endsWith(".ogg") ||
+            lower.includes(".mp4?") || lower.includes(".webm?") || lower.includes("/storage/v1/object/")
+        ) {
+            return true;
+        }
+        return false;
+    };
+
+    const openVideo = (videoUrl?: string | null) => {
+        if (!videoUrl) return;
+        if (canPlayInlineVideo(videoUrl)) {
+            setCurrentVideoUrl(videoUrl);
+            setVideoModalVisible(true);
+        } else {
+            window.open(videoUrl, "_blank");
+        }
+    };
 
     useEffect(() => {
         const mql = window.matchMedia('(max-width: 640px)');
@@ -68,13 +133,12 @@ const StudentActionEditDialog: React.FC<StudentActionEditDialogProps> = ({
         { label: '其他', value: '其他' }
     ];
 
-    const actionAttrs = [
-        { label: '组数(sets)', value: '组数' },
-        { label: '次数(reps)', value: '次数' },
-        { label: '强度', value: '强度' },
-        { label: '持续时间', value: '持续时间' },
-        { label: '休息时间', value: '休息时间' }
-    ];
+    const currentPresets = ATTR_PRESETS[itemType] || [];
+    const attrOptions = useMemo(() => {
+        const base = currentPresets.flatMap((p) => p.attrs);
+        const merged = Array.from(new Set([...base, ...attrs]));
+        return merged.map((v) => ({ label: v, value: v }));
+    }, [currentPresets, attrs]);
 
     // 项目类型选项（与教练端一致）
     const itemTypeOptions = [
@@ -94,6 +158,11 @@ const StudentActionEditDialog: React.FC<StudentActionEditDialogProps> = ({
             setItemType((action.type as ItemType) || 'STRENGTH');
             setEnableAutoWeightCompute(action.enableAutoWeightCompute || false);
             setIncludesBodyWeight(action.includesBodyWeight || false);
+            setReferenceOneRM(
+                typeof action.reference_1rm === 'number' && Number.isFinite(action.reference_1rm)
+                    ? action.reference_1rm
+                    : null
+            );
             setSuggestedTime(action.suggested_time || '');
             
             // 解析 item_schema 中的类型特定字段
@@ -113,6 +182,7 @@ const StudentActionEditDialog: React.FC<StudentActionEditDialogProps> = ({
             setItemType('STRENGTH');
             setEnableAutoWeightCompute(false);
             setIncludesBodyWeight(false);
+            setReferenceOneRM(null);
             setSuggestedTime('');
             setCalories(null);
             setDistance(null);
@@ -121,6 +191,16 @@ const StudentActionEditDialog: React.FC<StudentActionEditDialogProps> = ({
             setTargetDuration(null);
         }
     }, [action, visible]);
+
+    const isOneRMEligible = itemType === 'STRENGTH' &&
+        enableAutoWeightCompute &&
+        attrs.includes('强度');
+
+    useEffect(() => {
+        if (!isOneRMEligible) {
+            setReferenceOneRM(null);
+        }
+    }, [isOneRMEligible]);
 
     const handleSave = async () => {
         setLoading(true);
@@ -142,10 +222,11 @@ const StudentActionEditDialog: React.FC<StudentActionEditDialogProps> = ({
                 detail,
                 url: url || undefined,
                 positions: itemType === 'STRENGTH' ? positions : null,
-                attrs: itemType === 'STRENGTH' ? attrs : null,
+                attrs: attrs.length ? attrs : null,
                 type: itemType,
                 enableAutoWeightCompute: itemType === 'STRENGTH' ? enableAutoWeightCompute : false,
                 includesBodyWeight: itemType === 'STRENGTH' && enableAutoWeightCompute ? includesBodyWeight : false,
+                reference_1rm: isOneRMEligible ? referenceOneRM : null,
                 suggested_time: itemType === 'DIET' ? (suggestedTime || null) : null,
                 item_schema: Object.keys(itemSchema).length > 0 ? itemSchema : null
             };
@@ -158,6 +239,56 @@ const StudentActionEditDialog: React.FC<StudentActionEditDialogProps> = ({
         } finally {
             setLoading(false);
         }
+    };
+
+    const handleUploadDemoVideo = async (file?: File) => {
+        if (!file) return;
+        try {
+            setUploadingDemoVideo(true);
+            setDemoVideoUploadProgress(0);
+            const res = await actionLibService.uploadDemoVideo(file, (p) => {
+                setDemoVideoUploadProgress(p);
+            });
+            if (res?.url) {
+                setUrl(res.url);
+                showToast({
+                    severity: "success",
+                    summary: "上传成功",
+                    detail: "已自动回填演示视频链接",
+                });
+                if (demoVideoInputRef.current) {
+                    demoVideoInputRef.current.value = "";
+                }
+            } else {
+                showToast({
+                    severity: "error",
+                    summary: "上传失败",
+                    detail: "未获取到视频链接",
+                });
+            }
+        } catch (e: any) {
+            showToast({
+                severity: "error",
+                summary: "上传失败",
+                detail: e?.message || "请稍后再试",
+            });
+        } finally {
+            setUploadingDemoVideo(false);
+            setDemoVideoUploadProgress(0);
+        }
+    };
+
+    const handleApplyPreset = (preset: AttrPreset) => {
+        setAttrs(preset.attrs);
+    };
+
+    const handleAddCustomAttr = () => {
+        const normalized = customAttr.trim();
+        if (!normalized) return;
+        if (!attrs.includes(normalized)) {
+            setAttrs((prev) => [...prev, normalized]);
+        }
+        setCustomAttr('');
     };
 
     const footerContent = (
@@ -197,6 +328,7 @@ const StudentActionEditDialog: React.FC<StudentActionEditDialogProps> = ({
     }, [isMobile]);
 
     return (
+        <>
         <Dialog
             header={action ? "编辑动作" : "添加动作"}
             visible={visible}
@@ -342,19 +474,42 @@ const StudentActionEditDialog: React.FC<StudentActionEditDialogProps> = ({
                                 </div>
 
                                 {enableAutoWeightCompute && (
-                                    <div className="flex items-start justify-between gap-4 mt-2 pt-3 border-t border-surface-200">
-                                        <div className="min-w-0 pl-0">
-                                            <div className="font-medium text-sm">包含自重</div>
-                                            <div className="text-xs text-surface-500 mt-1">
-                                                适用于引体向上等动作
+                                    <>
+                                        <div className="flex items-start justify-between gap-4 mt-2 pt-3 border-t border-surface-200">
+                                            <div className="min-w-0 pl-0">
+                                                <div className="font-medium text-sm">包含自重</div>
+                                                <div className="text-xs text-surface-500 mt-1">
+                                                    适用于引体向上等动作
+                                                </div>
                                             </div>
+                                            <InputSwitch
+                                                id="includesBodyWeight"
+                                                checked={includesBodyWeight}
+                                                onChange={(e) => setIncludesBodyWeight(e.value || false)}
+                                            />
                                         </div>
-                                        <InputSwitch
-                                            id="includesBodyWeight"
-                                            checked={includesBodyWeight}
-                                            onChange={(e) => setIncludesBodyWeight(e.value || false)}
-                                        />
-                                    </div>
+                                        {isOneRMEligible && (
+                                            <div className="flex items-center justify-between gap-4 mt-2 pt-3 border-t border-surface-200">
+                                                <div className="min-w-0">
+                                                    <div className="font-medium text-sm">全局参考1RM</div>
+                                                    <div className="text-xs text-surface-500 mt-1">
+                                                        该动作在所有计划中的默认极限值
+                                                    </div>
+                                                </div>
+                                                <div className="w-44">
+                                                    <AeroInputNumber
+                                                        value={referenceOneRM}
+                                                        onValueChange={(e) => setReferenceOneRM(e.value ?? null)}
+                                                        min={0}
+                                                        max={500}
+                                                        maxFractionDigits={1}
+                                                        suffix="kg"
+                                                        placeholder="未设置"
+                                                    />
+                                                </div>
+                                            </div>
+                                        )}
+                                    </>
                                 )}
                             </div>
 
@@ -371,20 +526,49 @@ const StudentActionEditDialog: React.FC<StudentActionEditDialogProps> = ({
                                 />
                             </div>
 
-                            <div className="flex flex-col gap-2">
-                                <label htmlFor="attrs" className="text-[11px] font-bold text-surface-500 ml-1">动作属性</label>
-                                <MultiSelect
-                                    id="attrs"
-                                    value={attrs}
-                                    options={actionAttrs}
-                                    onChange={(e) => setAttrs(e.value)}
-                                    placeholder="选择动作属性"
-                                    className="w-full"
-                                    display={isMobile ? 'comma' : 'chip'}
-                                />
-                            </div>
                         </div>
                     )}
+
+                    <div className="flex flex-col gap-2">
+                        <label htmlFor="attrs" className="text-[11px] font-bold text-surface-500 ml-1">动作属性（可套用组合，也可自定义）</label>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            {currentPresets.map((preset) => (
+                                <button
+                                    key={preset.key}
+                                    type="button"
+                                    onClick={() => handleApplyPreset(preset)}
+                                    className="text-left rounded-xl border border-surface-200 bg-surface p-2 hover:border-primary-300"
+                                >
+                                    <div className="text-xs font-semibold text-surface-700">{preset.name}</div>
+                                    <div className="text-[11px] text-surface-500 mt-1">{preset.attrs.join(" / ")}</div>
+                                    <div className="text-[11px] text-surface-500">例：{preset.examples}</div>
+                                </button>
+                            ))}
+                        </div>
+                        <MultiSelect
+                            id="attrs"
+                            value={attrs}
+                            options={attrOptions}
+                            onChange={(e) => setAttrs(e.value)}
+                            placeholder="选择动作属性"
+                            className="w-full"
+                            display={isMobile ? 'comma' : 'chip'}
+                        />
+                        <div className="p-inputgroup">
+                            <InputText
+                                value={customAttr}
+                                onChange={(e) => setCustomAttr(e.target.value)}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                        e.preventDefault();
+                                        handleAddCustomAttr();
+                                    }
+                                }}
+                                placeholder="自定义属性，如：节奏控制、离心时长"
+                            />
+                            <Button type="button" label="添加" onClick={handleAddCustomAttr} />
+                        </div>
+                    </div>
                 </div>
 
                 {/* 4) 描述与链接（通用） */}
@@ -403,17 +587,150 @@ const StudentActionEditDialog: React.FC<StudentActionEditDialogProps> = ({
 
                     <div className="flex flex-col gap-2.5">
                         <label htmlFor="url" className="text-[11px] font-black uppercase tracking-widest text-surface-400 ml-1">演示视频 URL</label>
-                        <InputText
-                            id="url"
-                            value={url}
-                            onChange={(e) => setUrl(e.target.value)}
-                            placeholder="https://example.com/video.mp4"
-                            className="rounded-xl border-surface-200"
-                        />
+                        <div className="p-inputgroup flex-1">
+                            <span className="p-inputgroup-addon bg-surface-50 rounded-l-xl border-surface-200">
+                                <i className="pi pi-video text-surface-400" />
+                            </span>
+                            <InputText
+                                id="url"
+                                value={url}
+                                onChange={(e) => setUrl(e.target.value)}
+                                placeholder="https://example.com/video.mp4"
+                                className="rounded-r-xl border-surface-200"
+                            />
+                        </div>
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                            <input
+                                ref={demoVideoInputRef}
+                                type="file"
+                                accept="video/*"
+                                className="hidden"
+                                onChange={(e) => handleUploadDemoVideo(e.target.files?.[0])}
+                            />
+                            <Button
+                                type="button"
+                                icon="pi pi-upload"
+                                label={uploadingDemoVideo ? `上传中... ${demoVideoUploadProgress}%` : "上传视频"}
+                                disabled={uploadingDemoVideo}
+                                loading={uploadingDemoVideo}
+                                className="p-button-outlined rounded-xl"
+                                onClick={() => demoVideoInputRef.current?.click()}
+                            />
+                            <Button
+                                type="button"
+                                icon="pi pi-times"
+                                label="清空"
+                                severity="secondary"
+                                text
+                                className="rounded-xl"
+                                onClick={() => setUrl('')}
+                                disabled={uploadingDemoVideo}
+                            />
+                            <span className="text-xs text-surface-500 hidden sm:inline">
+                                支持 MP4/WEBM，≤200MB。上传后会自动回填到 URL。
+                            </span>
+                        </div>
+                        {uploadingDemoVideo && (
+                            <div className="mt-2">
+                                <div className="flex justify-between text-[10px] font-black text-primary-500 uppercase tracking-widest mb-2">
+                                    <span>视频上传中...</span>
+                                    <span>{demoVideoUploadProgress}%</span>
+                                </div>
+                                <ProgressBar
+                                    value={demoVideoUploadProgress}
+                                    showValue={false}
+                                    style={{ height: '6px' }}
+                                    className="rounded-full overflow-hidden bg-surface-100"
+                                />
+                            </div>
+                        )}
+                        {/* 视频预览：有 URL 时展示可播放的视频 */}
+                        {url && url.trim() && (
+                            <div className="mt-3 p-4 bg-surface-50 rounded-xl border border-surface-200">
+                                <div className="flex items-center justify-between mb-2">
+                                    <span className="text-xs font-bold text-surface-600">演示视频</span>
+                                    <Button
+                                        type="button"
+                                        icon="pi pi-play"
+                                        label="查看视频"
+                                        size="small"
+                                        className="p-button-text p-button-sm text-primary-500"
+                                        onClick={() => openVideo(url.trim())}
+                                    />
+                                </div>
+                                {canPlayInlineVideo(url.trim()) ? (
+                                    <div
+                                        className="aspect-video rounded-lg overflow-hidden bg-surface-900 relative group cursor-pointer"
+                                        onClick={() => openVideo(url.trim())}
+                                    >
+                                        <video
+                                            src={url.trim()}
+                                            className="w-full h-full object-cover"
+                                            preload="metadata"
+                                            muted
+                                            playsInline
+                                            onLoadedMetadata={(e) => {
+                                                try { e.currentTarget.currentTime = 0.1; } catch { /* ignore */ }
+                                            }}
+                                            onError={(e) => {
+                                                e.currentTarget.style.display = 'none';
+                                            }}
+                                        />
+                                        <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <i className="pi pi-play-circle text-white text-4xl" />
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="flex items-center gap-2 p-3 bg-surface-100 rounded-lg">
+                                        <i className="pi pi-external-link text-surface-400" />
+                                        <span className="text-xs text-surface-500 flex-1">外部视频链接，点击上方按钮打开观看</span>
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
         </Dialog>
+
+            {/* 视频播放模态框 */}
+            <Dialog
+                visible={videoModalVisible}
+                onHide={() => {
+                    setVideoModalVisible(false);
+                    setCurrentVideoUrl(null);
+                }}
+                header="查看演示视频"
+                style={isMobile ? { width: '100vw', height: '100dvh', margin: 0 } : { width: '90vw', maxWidth: '800px' }}
+                position={isMobile ? 'bottom' : 'center'}
+                modal
+                dismissableMask
+                pt={isMobile ? {
+                    root: { className: 'm-0 p-0 rounded-none overflow-hidden' },
+                    header: { className: 'px-4 py-3 border-b border-surface-200 bg-surface sticky top-0 z-10' },
+                    content: { className: 'px-4 py-4 bg-surface overflow-auto' },
+                } : {
+                    root: { className: 'rounded-2xl overflow-hidden' },
+                    header: { className: 'px-6 py-4 border-b border-surface-200 bg-surface' },
+                    content: { className: 'px-6 py-5 bg-surface' },
+                }}
+            >
+                {currentVideoUrl && (
+                    <div className="flex justify-center">
+                        <video
+                            src={currentVideoUrl}
+                            controls
+                            autoPlay
+                            className="w-full max-h-[70vh] rounded-lg"
+                            style={{ backgroundColor: '#000' }}
+                        >
+                            您的浏览器不支持视频播放
+                        </video>
+                    </div>
+                )}
+            </Dialog>
+
+        </>
     );
 };
 

@@ -1,12 +1,11 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useSession } from 'next-auth/react';
 import { useSearchParams } from 'next/navigation';
 import { Card } from 'primereact/card';
 import { Button } from 'primereact/button';
 import { InputText } from 'primereact/inputtext';
-import { DataView } from 'primereact/dataview';
 import { Skeleton } from 'primereact/skeleton';
 import { ConfirmDialog, confirmDialog } from 'primereact/confirmdialog';
 import { Dialog } from 'primereact/dialog';
@@ -22,6 +21,7 @@ import { InputIcon } from 'primereact/inputicon';
 import { StudentActionRow } from '@/types/student';
 import type { PublicActionItemDto } from '@/app/api/public-action-lib/list-actions/entity';
 import PublicActionDetailDialog from '@/components/action-lib/PublicActionDetailDialog';
+import FormattedActionText from '@/components/shared/FormattedActionText';
 
 const StudentActionLib = () => {
     const { data: session } = useSession();
@@ -62,6 +62,14 @@ const StudentActionLib = () => {
     const [publicDetailAction, setPublicDetailAction] = useState<PublicActionItemDto | null>(null);
     const [pendingEditsVisible, setPendingEditsVisible] = useState(false);
     const [pendingEdits, setPendingEdits] = useState<{ actionId: string; name: string; pendingCount: number }[]>([]);
+    const [selectedPublicPreset, setSelectedPublicPreset] = useState<'all' | 'recommended' | 'fat-loss' | 'upper-body' | 'core-back'>('all');
+    const [publicOnlyWithDemo, setPublicOnlyWithDemo] = useState(false);
+
+    const PUBLIC_PRESET_SEARCH_MAP: Record<'fat-loss' | 'upper-body' | 'core-back', string> = {
+        'fat-loss': '有氧',
+        'upper-body': '上肢',
+        'core-back': '核心',
+    };
 
     useEffect(() => {
         if (!userId) return;
@@ -247,6 +255,7 @@ const StudentActionLib = () => {
                     suggested_time: actionData.suggested_time ?? null,
                     enableAutoWeightCompute: actionData.enableAutoWeightCompute,
                     includesBodyWeight: actionData.includesBodyWeight,
+                    reference_1rm: actionData.reference_1rm ?? null,
                 });
                 showToast({ severity: 'success', summary: '更新成功', detail: '动作已更新' });
             } else {
@@ -262,6 +271,7 @@ const StudentActionLib = () => {
                     suggested_time: actionData.suggested_time ?? null,
                     enableAutoWeightCompute: actionData.enableAutoWeightCompute,
                     includesBodyWeight: actionData.includesBodyWeight,
+                    reference_1rm: actionData.reference_1rm ?? null,
                 });
                 showToast({ severity: 'success', summary: '添加成功', detail: '新动作已添加' });
             }
@@ -313,8 +323,33 @@ const StudentActionLib = () => {
         if (!userId) return;
         setPublicSearching(true);
         try {
+            setSelectedPublicPreset('all');
             setPublicCurrentPage(1);
             await loadPublicActions({ page: 1, search: publicSearchTerm });
+        } finally {
+            setPublicSearching(false);
+        }
+    };
+
+    const handleSelectPublicPreset = async (
+        preset: 'all' | 'recommended' | 'fat-loss' | 'upper-body' | 'core-back',
+    ) => {
+        if (!userId) return;
+
+        setPublicSearching(true);
+        try {
+            setSelectedPublicPreset(preset);
+            setPublicCurrentPage(1);
+
+            if (preset === 'all' || preset === 'recommended') {
+                setPublicSearchTerm('');
+                await loadPublicActions({ page: 1, search: '' });
+                return;
+            }
+
+            const keyword = PUBLIC_PRESET_SEARCH_MAP[preset];
+            setPublicSearchTerm(keyword);
+            await loadPublicActions({ page: 1, search: keyword });
         } finally {
             setPublicSearching(false);
         }
@@ -377,9 +412,11 @@ const StudentActionLib = () => {
                         </h3>
 
                         {/* 描述 */}
-                        <p className="text-600 text-sm mb-3 line-clamp-2">
-                            {action.detail}
-                        </p>
+                        <FormattedActionText
+                            text={action.detail}
+                            className="text-600 text-sm mb-3"
+                            lineClampClassName="line-clamp-2"
+                        />
 
                         {/* 标签区域 */}
                         <div className="flex flex-wrap gap-2 mt-2">
@@ -456,87 +493,90 @@ const StudentActionLib = () => {
         const contributorName = action.contributor?.nickname || '贡献者';
 
         return (
-            <div className="border border-surface-200 rounded-lg p-4 hover:shadow-sm transition-all mb-2">
+            <div className="border border-surface-200 rounded-lg p-3 hover:shadow-sm transition-all mb-1.5">
                 <div className="flex justify-between gap-3">
                     <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-3">
-                            <h3 className="text-lg font-semibold text-900 mb-1 line-clamp-1">
+                            <h3 className="text-base font-semibold text-900 mb-0.5 line-clamp-1">
                                 {action.name}
                             </h3>
                             <div className="flex items-center gap-2 shrink-0">
                                 <Button
                                     icon={action.isLiked ? 'pi pi-heart-fill' : 'pi pi-heart'}
-                                    className={`p-button-rounded p-button-text ${action.isLiked ? 'text-red-500' : ''}`}
+                                    className={`p-button-rounded p-button-text w-8 h-8 ${action.isLiked ? 'text-red-500' : ''}`}
                                     tooltip={action.isLiked ? '取消点赞' : '点赞'}
                                     onClick={() => handleTogglePublicLike(action.id)}
                                 />
-                                <span className="text-sm text-surface-600 font-semibold min-w-[2ch] text-right">
+                                <span className="text-xs text-surface-600 font-semibold min-w-[2ch] text-right">
                                     {action.like_count || 0}
                                 </span>
                             </div>
                         </div>
 
-                        <p className="text-600 text-sm mb-3 line-clamp-2">
-                            {action.detail || '暂无描述'}
-                        </p>
+                        <FormattedActionText
+                            text={action.detail}
+                            className="text-600 text-xs mb-2"
+                            lineClampClassName="line-clamp-1"
+                        />
 
-                        <div className="flex flex-wrap items-center gap-2 mb-3">
+                        <div className="flex flex-wrap items-center gap-1.5 mb-2">
                             {action.url ? (
-                                <span className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-700">
+                                <span className="text-[11px] px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700">
                                     包含演示
                                 </span>
                             ) : (
-                                <span className="text-xs px-2 py-1 rounded-full bg-surface-100 text-surface-600">
+                                <span className="text-[11px] px-1.5 py-0.5 rounded-full bg-surface-100 text-surface-600">
                                     无演示视频
                                 </span>
                             )}
                             {action.detail && action.detail.trim().length > 0 ? (
-                                <span className="text-xs px-2 py-1 rounded-full bg-emerald-100 text-emerald-700">
+                                <span className="text-[11px] px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
                                     有描述
                                 </span>
                             ) : (
-                                <span className="text-xs px-2 py-1 rounded-full bg-surface-100 text-surface-600">
+                                <span className="text-[11px] px-1.5 py-0.5 rounded-full bg-surface-100 text-surface-600">
                                     无描述
                                 </span>
                             )}
                         </div>
 
-                        <div className="flex flex-wrap gap-2 mt-2">
-                            <span className={`text-xs px-2 py-1 rounded-full font-medium ${meta.className}`}>
-                                <i className={`${meta.icon} text-xs mr-1`} />
+                        <div className="flex flex-wrap gap-1.5 mt-1.5">
+                            <span className={`text-[11px] px-1.5 py-0.5 rounded-full font-medium ${meta.className}`}>
+                                <i className={`${meta.icon} text-[10px] mr-1`} />
                                 {meta.label}
                             </span>
                             {(action.positions || []).slice(0, 3).map((pos, idx) => (
                                 <span
                                     key={idx}
-                                    className="text-xs px-2 py-1 rounded-full bg-surface-100 text-surface-700"
+                                    className="text-[11px] px-1.5 py-0.5 rounded-full bg-surface-100 text-surface-700"
                                 >
                                     {pos}
                                 </span>
                             ))}
                         </div>
 
-                        <div className="flex items-center justify-between mt-4">
-                            <div className="flex items-center gap-2 text-xs text-surface-600">
+                        <div className="flex items-center justify-between mt-2">
+                            <div className="flex items-center gap-1.5 text-[11px] text-surface-600">
                                 {action.contributor?.avatarUrl ? (
                                     <img
                                         src={action.contributor.avatarUrl}
                                         alt={contributorName}
-                                        className="w-5 h-5 rounded-full object-cover"
+                                        className="w-4 h-4 rounded-full object-cover"
                                     />
                                 ) : (
-                                    <div className="w-5 h-5 rounded-full bg-surface-200 text-surface-600 flex items-center justify-center text-[10px] font-bold">
+                                    <div className="w-4 h-4 rounded-full bg-surface-200 text-surface-600 flex items-center justify-center text-[9px] font-bold">
                                         {contributorName.charAt(0)}
                                     </div>
                                 )}
                                 <span className="font-medium">贡献者：{contributorName}</span>
                             </div>
 
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-1.5">
                                 <Button
                                     label="详情"
                                     icon="pi pi-eye"
-                                    className="p-button-outlined"
+                                    size="small"
+                                    className="p-button-outlined px-2 py-1 text-xs"
                                     onClick={() => {
                                         setPublicDetailAction(action);
                                         setPublicDetailVisible(true);
@@ -545,7 +585,8 @@ const StudentActionLib = () => {
                                 <Button
                                     label={action.isAdded ? '已加入' : '加入我的动作库'}
                                     icon={action.isAdded ? 'pi pi-check' : 'pi pi-plus'}
-                                    className={action.isAdded ? 'p-button-outlined' : ''}
+                                    size="small"
+                                    className={action.isAdded ? 'p-button-outlined px-2 py-1 text-xs' : 'px-2 py-1 text-xs'}
                                     disabled={action.isAdded}
                                     onClick={() => handleAddPublicToMyLib(action.id)}
                                 />
@@ -556,6 +597,27 @@ const StudentActionLib = () => {
             </div>
         );
     };
+
+    const displayedPublicActions = useMemo(() => {
+        let next = [...publicActions];
+
+        if (selectedPublicPreset === 'recommended') {
+            const calcScore = (item: PublicActionItemDto) => {
+                const hasVideoScore = item.url ? 30 : 0;
+                const hasDetailScore = item.detail && item.detail.trim().length > 0 ? 15 : 0;
+                const likesScore = Math.min(item.like_count || 0, 20);
+                const hasPositionsScore = (item.positions?.length || 0) > 0 ? 10 : 0;
+                return hasVideoScore + hasDetailScore + likesScore + hasPositionsScore;
+            };
+            next.sort((a, b) => calcScore(b) - calcScore(a));
+        }
+
+        if (publicOnlyWithDemo) {
+            next = next.filter((item) => !!item.url);
+        }
+
+        return next;
+    }, [publicActions, selectedPublicPreset, publicOnlyWithDemo]);
 
     // 确定当前应该显示的数据
     const getCurrentData = () => {
@@ -739,11 +801,13 @@ const StudentActionLib = () => {
                                 </div>
                             ) : (
                                 <>
-                                    <DataView
-                                        value={getCurrentData()}
-                                        itemTemplate={renderActionCard}
-                                        emptyMessage="未找到匹配的动作"
-                                    />
+                                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3">
+                                        {getCurrentData().map((action) => (
+                                            <div key={action.id} className="h-full">
+                                                {renderActionCard(action)}
+                                            </div>
+                                        ))}
+                                    </div>
                                     <div className="mt-4">
                                         <Paginator
                                             first={(currentPage - 1) * itemsPerPage}
@@ -765,13 +829,55 @@ const StudentActionLib = () => {
                             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                                 <div>
                                     <h2 className="text-2xl font-bold text-900">公共动作库</h2>
-                                    <p className="text-600 mt-1">发现好用动作，一键加入你的动作库</p>
+                                    <p className="text-600 mt-1">新手先点「新手推荐」，不知道选啥也能直接开始</p>
                                 </div>
                             </div>
 
                             <div className="mt-4 rounded-xl border border-surface-200 bg-surface-50 p-3 text-sm text-surface-700">
                                 公共动作库由社区共建。所有人都可以提交修改建议，作者审核通过后覆盖更新。
                                 我们希望集中优质资源与训练生态，欢迎完善演示视频与描述信息。
+                            </div>
+
+                            <div className="mt-4">
+                                <div className="text-sm text-surface-700 mb-2">小白快捷入口</div>
+                                <div className="flex flex-wrap gap-2">
+                                    <Button
+                                        label="全部"
+                                        outlined={selectedPublicPreset !== 'all'}
+                                        onClick={() => handleSelectPublicPreset('all')}
+                                        className="h-9"
+                                    />
+                                    <Button
+                                        label="新手推荐（不知道选啥）"
+                                        outlined={selectedPublicPreset !== 'recommended'}
+                                        onClick={() => handleSelectPublicPreset('recommended')}
+                                        className="h-9"
+                                    />
+                                    <Button
+                                        label="减脂有氧"
+                                        outlined={selectedPublicPreset !== 'fat-loss'}
+                                        onClick={() => handleSelectPublicPreset('fat-loss')}
+                                        className="h-9"
+                                    />
+                                    <Button
+                                        label="胸肩手臂"
+                                        outlined={selectedPublicPreset !== 'upper-body'}
+                                        onClick={() => handleSelectPublicPreset('upper-body')}
+                                        className="h-9"
+                                    />
+                                    <Button
+                                        label="腰背核心"
+                                        outlined={selectedPublicPreset !== 'core-back'}
+                                        onClick={() => handleSelectPublicPreset('core-back')}
+                                        className="h-9"
+                                    />
+                                    <Button
+                                        label={publicOnlyWithDemo ? '仅看有演示: 开' : '仅看有演示: 关'}
+                                        outlined={!publicOnlyWithDemo}
+                                        onClick={() => setPublicOnlyWithDemo((prev) => !prev)}
+                                        className="h-9"
+                                    />
+                                </div>
                             </div>
 
                             <div className="flex flex-col md:flex-row gap-4 mt-6">
@@ -821,29 +927,37 @@ const StudentActionLib = () => {
                                         </div>
                                     ))}
                                 </div>
-                            ) : publicActions.length === 0 ? (
+                            ) : displayedPublicActions.length === 0 ? (
                                 <div className="text-center py-12">
                                     <h3 className="text-lg font-semibold text-900 mb-2">暂无公共动作</h3>
-                                    <p className="text-600 mb-6">先在“我的动作库”创建动作，再点击“贡献到公共动作库”按钮发布</p>
+                                    <p className="text-600 mb-6">
+                                        {publicOnlyWithDemo
+                                            ? '当前筛选下没有包含演示视频的动作，先关闭“仅看有演示”试试'
+                                            : '先在“我的动作库”创建动作，再点击“贡献到公共动作库”按钮发布'}
+                                    </p>
                                 </div>
                             ) : (
                                 <>
-                                    <DataView
-                                        value={publicActions}
-                                        itemTemplate={renderPublicActionCard}
-                                        emptyMessage="未找到匹配的公共动作"
-                                    />
-                                    <div className="mt-4">
-                                        <Paginator
-                                            first={(publicCurrentPage - 1) * itemsPerPage}
-                                            rows={itemsPerPage}
-                                            totalRecords={publicTotalRecords}
-                                            onPageChange={(e) => {
-                                                const newPage = (e.first / e.rows) + 1;
-                                                setPublicCurrentPage(newPage);
-                                            }}
-                                        />
+                                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 3xl:grid-cols-5 gap-3">
+                                        {displayedPublicActions.map((action) => (
+                                            <div key={action.id} className="h-full">
+                                                {renderPublicActionCard(action)}
+                                            </div>
+                                        ))}
                                     </div>
+                                    {!publicOnlyWithDemo && (
+                                        <div className="mt-4">
+                                            <Paginator
+                                                first={(publicCurrentPage - 1) * itemsPerPage}
+                                                rows={itemsPerPage}
+                                                totalRecords={publicTotalRecords}
+                                                onPageChange={(e) => {
+                                                    const newPage = (e.first / e.rows) + 1;
+                                                    setPublicCurrentPage(newPage);
+                                                }}
+                                            />
+                                        </div>
+                                    )}
                                 </>
                             )}
                         </div>

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
+import { getAuthUser } from "@/lib/auth";
 import supabase from "@/lib/supabaseClient";
 import type { ApiData } from "@/types/api";
 import type {
@@ -11,26 +12,27 @@ import type {
 
 export async function POST(req: Request) {
     const session = await getServerSession();
+    const authUser = await getAuthUser(req);
 
     let {
         coachId = "",
         userId = "",
-    } = await req.json() as GetPricingDto;
+    } = await req.json().catch(() => ({})) as GetPricingDto;
 
     // 公开读取：允许未登录用户按 coachId 获取定价（用于展示商品/服务列表）
     // 但不允许未登录时使用 userId 反查 coachId（避免枚举/越权）。
-    if (!session?.user?.id && !coachId) {
+    const effectiveUserId = userId || session?.user?.id || authUser?.userId;
+    if (!effectiveUserId && !coachId) {
         return NextResponse.json<ApiData<GetPricingResponseDto>>({
             success: false,
-            message: "缺少 coachId",
+            message: "缺少 coachId 或 userId",
             data: null,
         }, { status: 400 });
     }
 
-    // 如果没有 coachId，尝试从 userId 或 session 中获取
+    // 如果没有 coachId，尝试从 userId、session 或 JWT 中获取
     if (!coachId) {
-        // 优先使用请求体中的 userId，如果没有则使用 session 中的 userId（小程序端）
-        const targetUserId = userId || session?.user?.id;
+        const targetUserId = effectiveUserId;
         
         if (targetUserId) {
             // 查询教练信息（不限制状态，因为用户可能想查看自己的定价信息）
@@ -80,20 +82,23 @@ export async function POST(req: Request) {
     let defaultPricings = [] as Pricing[];
     let defaultProducts = [] as Product[];
 
+    const currentUserId = session?.user?.id || authUser?.userId;
+    const isCoach = session?.user?.is_coach ?? authUser?.user?.is_coach ?? false;
+
     // 只有当 coachId 存在且用户是教练时，才检查是否是本人
-    if (session?.user?.is_coach && coachId) {
+    if (isCoach && coachId && currentUserId) {
         const { data: coach, error: coachError } = await supabase
             .from("coaches")
             .select("user_id")
             .eq("id", coachId)
             .single();
 
-        if (!coachError && session.user.id === coach?.user_id) {
+        if (!coachError && currentUserId === coach?.user_id) {
             // 从数据库获取用户档案
             const { data: profile } = await supabase
                 .from("user_profiles")
                 .select("nickname")
-                .eq("user_id", session.user.id)
+                .eq("user_id", currentUserId)
                 .maybeSingle();
 
             defaultPricings = [

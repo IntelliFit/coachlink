@@ -41,7 +41,7 @@ export interface CreateOrderResponse {
 export const MEMBER_BENEFITS = {
     free: {
         ai_limit_monthly: 2,
-        storage_mb: 50,
+        storage_mb: 200,
         can_access_advanced_report: false,
     },
     basic: {

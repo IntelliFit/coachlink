@@ -21,6 +21,34 @@ interface ActionEditDialogProps {
     onCancel: () => void;
 }
 
+type AttrPreset = {
+    key: string;
+    name: string;
+    attrs: string[];
+    examples: string;
+};
+
+const ATTR_PRESETS: Record<ItemType, AttrPreset[]> = {
+    STRENGTH: [
+        { key: "strength_reps", name: "力量-次数型", attrs: ["组数", "次数", "强度", "休息时间"], examples: "俯卧撑/引体向上/深蹲/卧推" },
+        { key: "strength_duration", name: "力量-时长型", attrs: ["组数", "持续时间", "强度", "休息时间"], examples: "平板支撑/L-sit/单手悬垂" },
+        { key: "strength_recovery_rep", name: "力量-恢复型(次数)", attrs: ["组数", "次数", "休息时间"], examples: "康复训练/弹力带激活" },
+        { key: "strength_recovery_duration", name: "力量-恢复型(时长)", attrs: ["组数", "持续时间", "休息时间"], examples: "泡沫轴/拉伸保持" },
+    ],
+    CARDIO: [
+        { key: "cardio_distance", name: "有氧-距离型", attrs: ["距离", "配速", "持续时间"], examples: "跑步/骑行/游泳" },
+        { key: "cardio_interval", name: "有氧-间歇型", attrs: ["冲刺时长", "间歇时长", "循环次数", "强度"], examples: "间歇跑/跳绳 Tabata" },
+    ],
+    DIET: [
+        { key: "diet_combo", name: "饮食-复合摄入", attrs: ["食物清单", "热量", "宏量营养"], examples: "正餐记录/增肌餐" },
+        { key: "diet_single", name: "饮食-单一计量", attrs: ["摄入量", "时间点"], examples: "喝水/蛋白粉/补剂" },
+    ],
+    HABIT: [
+        { key: "habit_stats", name: "习惯-统计型", attrs: ["目标数值", "完成状态"], examples: "步数/冥想时长" },
+        { key: "habit_behavior", name: "习惯-行为型", attrs: ["完成状态"], examples: "早睡/阅读打卡" },
+    ],
+};
+
 const ActionEditDialog: React.FC<ActionEditDialogProps> = ({
     visible,
     action,
@@ -44,6 +72,7 @@ const ActionEditDialog: React.FC<ActionEditDialogProps> = ({
     const [targetDuration, setTargetDuration] = useState<number | null>(null);
     const [enableAutoWeightCompute, setEnableAutoWeightCompute] = useState<boolean>(false);
     const [includesBodyWeight, setIncludesBodyWeight] = useState<boolean>(false);
+    const [customAttr, setCustomAttr] = useState('');
     const [loading, setLoading] = useState(false);
 
     const [uploadingDemoVideo, setUploadingDemoVideo] = useState(false);
@@ -78,11 +107,12 @@ const ActionEditDialog: React.FC<ActionEditDialogProps> = ({
         { label: '其他', value: '其他' }
     ];
 
-    const actionAttrs = [
-        { label: '组数(sets)', value: '组数' }, { label: '次数(reps)', value: '次数' },
-        { label: '强度(RM)', value: '强度' }, { label: '持续时间', value: '持续时间' },
-        { label: '休息时间', value: '休息时间' }
-    ];
+    const currentPresets = ATTR_PRESETS[itemType] || [];
+    const attrOptions = useMemo(() => {
+        const base = currentPresets.flatMap((p) => p.attrs);
+        const merged = Array.from(new Set([...base, ...attrs]));
+        return merged.map((v) => ({ label: v, value: v }));
+    }, [currentPresets, attrs]);
 
     // 判断URL是否可以在页面内播放
     const canPlayInlineVideo = (url?: string | null) => {
@@ -243,6 +273,19 @@ const ActionEditDialog: React.FC<ActionEditDialogProps> = ({
             setUploadingDemoVideo(false);
             setDemoVideoUploadProgress(0);
         }
+    };
+
+    const handleApplyPreset = (preset: AttrPreset) => {
+        setAttrs(preset.attrs);
+    };
+
+    const handleAddCustomAttr = () => {
+        const normalized = customAttr.trim();
+        if (!normalized) return;
+        if (!attrs.includes(normalized)) {
+            setAttrs((prev) => [...prev, normalized]);
+        }
+        setCustomAttr('');
     };
 
     const footerContent = (
@@ -411,13 +454,48 @@ const ActionEditDialog: React.FC<ActionEditDialogProps> = ({
                                 <MultiSelect value={positions} options={actionTypes} onChange={(e) => setPositions(e.value)}
                                     placeholder="请选择" display={isMobile ? 'comma' : 'chip'} className="rounded-xl w-full" />
                             </div>
-                            <div className="flex flex-col gap-2">
-                                <label className="text-[11px] font-bold text-surface-500">动作属性</label>
-                                <MultiSelect value={attrs} options={actionAttrs} onChange={(e) => setAttrs(e.value)}
-                                    placeholder="请选择" display={isMobile ? 'comma' : 'chip'} className="rounded-xl w-full" />
-                            </div>
                         </div>
                     )}
+
+                    <div className="flex flex-col gap-2">
+                        <label className="text-[11px] font-bold text-surface-500">动作属性（可套用组合，也可自定义）</label>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            {currentPresets.map((preset) => (
+                                <button
+                                    key={preset.key}
+                                    type="button"
+                                    onClick={() => handleApplyPreset(preset)}
+                                    className="text-left rounded-xl border border-surface-200 bg-surface p-2 hover:border-primary-300"
+                                >
+                                    <div className="text-xs font-semibold text-surface-700">{preset.name}</div>
+                                    <div className="text-[11px] text-surface-500 mt-1">{preset.attrs.join(" / ")}</div>
+                                    <div className="text-[11px] text-surface-500">例：{preset.examples}</div>
+                                </button>
+                            ))}
+                        </div>
+                        <MultiSelect
+                            value={attrs}
+                            options={attrOptions}
+                            onChange={(e) => setAttrs(e.value)}
+                            placeholder="选择属性（可多选）"
+                            display={isMobile ? 'comma' : 'chip'}
+                            className="rounded-xl w-full"
+                        />
+                        <div className="p-inputgroup">
+                            <InputText
+                                value={customAttr}
+                                onChange={(e) => setCustomAttr(e.target.value)}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                        e.preventDefault();
+                                        handleAddCustomAttr();
+                                    }
+                                }}
+                                placeholder="自定义属性，如：节奏控制、离心时长"
+                            />
+                            <Button type="button" label="添加" onClick={handleAddCustomAttr} />
+                        </div>
+                    </div>
                 </div>
 
                 {/* 4. 描述与链接 */}
@@ -474,7 +552,7 @@ const ActionEditDialog: React.FC<ActionEditDialogProps> = ({
                                 disabled={uploadingDemoVideo}
                             />
                             <span className="text-xs text-surface-500 hidden sm:inline">
-                                支持 MP4/WEBM，≤100MB。上传后会自动回填到 URL。
+                                支持 MP4/WEBM，≤200MB。上传后会自动回填到 URL。
                             </span>
                         </div>
                         {uploadingDemoVideo && (
