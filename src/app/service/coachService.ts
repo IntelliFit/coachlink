@@ -341,14 +341,24 @@ class CoachService extends BaseService {
 
         const contentType = resp.headers.get("content-type") || "";
         // 兼容：当后端异常返回 HTML 时，避免前端直接 resp.json() 崩溃
+        const text = await resp.text();
         if (!contentType.includes("application/json")) {
-            const text = await resp.text();
             throw new Error(
-                `上传失败（非 JSON 响应，HTTP ${resp.status}）。请检查服务端日志/环境变量。`,
+                `上传失败（非 JSON 响应，HTTP ${resp.status}）。内容：${text.slice(0, 100)}`,
             );
         }
 
-        const data = (await resp.json()) as ApiData<UploadQuestionMediaResponseDto>;
+        if (!text) {
+            throw new Error(`上传失败（HTTP ${resp.status}）：响应体为空`);
+        }
+
+        let data: ApiData<UploadQuestionMediaResponseDto>;
+        try {
+            data = JSON.parse(text);
+        } catch (e) {
+            throw new Error(`上传失败（HTTP ${resp.status}）：无法解析服务器返回的 JSON 数据。内容：${text.slice(0, 100)}`);
+        }
+
         if (data?.success) return data.data || null;
         throw new Error(data?.message || "上传失败");
     }

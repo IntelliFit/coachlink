@@ -1,15 +1,17 @@
 'use client';
 
-import React from 'react';
-import { Award, Star, Quote, Trophy, Link2, Mail, Phone, ExternalLink, ShieldCheck, ArrowUpRight } from 'lucide-react';
+import React, { useState } from 'react';
+import { Award, Star, Trophy, Mail, Phone, ExternalLink, ShieldCheck, ArrowUpRight, MapPin, ChevronDown, ChevronUp } from 'lucide-react';
 import { CoachesRow } from '@/types';
 import { UpdateCoachProfileDto } from '@/app/api/coach/update-coach-profile/entity';
+import TianDiTuMapViewer from '@/components/TianDiTuMapViewer';
 
 interface CoachAboutPanelProps {
     coach: CoachesRow;
 }
 
 const CoachAboutPanel: React.FC<CoachAboutPanelProps> = ({ coach }) => {
+    const [showMap, setShowMap] = useState(false);
     const profile = (coach.profile || {}) as UpdateCoachProfileDto['profile'];
     const achievements = Array.isArray(profile?.achievements) && profile.achievements.length > 0
         ? profile.achievements
@@ -21,6 +23,10 @@ const CoachAboutPanel: React.FC<CoachAboutPanelProps> = ({ coach }) => {
     const socialPlatformLabelMap: Record<string, string> = {
         douyin: '抖音', xiaohongshu: '小红书', zhihu: '知乎', bilibili: 'B站', kuaishou: '快手', other: '其他',
     };
+
+    const hasLocation = coach.province || coach.city || coach.county || coach.address;
+    const locationParts = [coach.province, coach.city, coach.county].filter(Boolean);
+    const locationLine = locationParts.length ? locationParts.join(' ') : '';
 
     return (
         <div className="flex flex-col gap-14 py-6 text-surface-900">
@@ -105,6 +111,42 @@ const CoachAboutPanel: React.FC<CoachAboutPanelProps> = ({ coach }) => {
                     </div>
                 </section>
             </div>
+
+            {/* 地理位置：联系方式下方 */}
+            {hasLocation && (
+                <section className="pt-8 border-t border-surface-100">
+                    <h3 className="text-[11px] font-black text-surface-400 uppercase tracking-[0.2em] mb-4">我的位置</h3>
+                    <div className="flex items-start gap-3">
+                        <MapPin size={14} className="text-surface-300 mt-0.5 flex-shrink-0" />
+                        <div className="space-y-1">
+                            {locationLine && <div className="text-sm font-bold text-surface-700">{locationLine}</div>}
+                            {coach.address && <div className="text-sm text-surface-600">{coach.address}</div>}
+                            {coach.latitude != null && coach.longitude != null && (
+                                <div className="mt-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowMap((v) => !v)}
+                                        className="inline-flex items-center gap-1.5 text-xs text-surface-400 hover:text-primary-600 transition-colors touch-manipulation"
+                                    >
+                                        {showMap ? '收起地图' : '在地图中查看'}
+                                        {showMap ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                                    </button>
+                                    {showMap && (
+                                        <div className="mt-3 w-full max-w-2xl min-w-[320px]">
+                                            <TianDiTuMapViewer
+                                                latitude={coach.latitude}
+                                                longitude={coach.longitude}
+                                                height="min(40vh, 280px)"
+                                                className="sm:min-h-[240px] md:min-h-[280px]"
+                                            />
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </section>
+            )}
         </div>
     );
 };

@@ -10,7 +10,7 @@ export interface SocialLink {
     url?: string;
 }
 
-// 请求参数的接口类型
+// 请求参数的接口类型（地址平铺：省 province、市 city、区 county）
 export interface CreateCoachApplicationDto {
     name: string;
     title?: string | null;
@@ -27,6 +27,12 @@ export interface CreateCoachApplicationDto {
     resumeUrl?: string | null;
     portfolioUrl?: string | null;
     socialLinks?: object | null;
+    province?: string | null;
+    city?: string | null;
+    county?: string | null;
+    address?: string | null;
+    latitude?: number | null;
+    longitude?: number | null;
 }
 
 // 返回参数的接口类型
