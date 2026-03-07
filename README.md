@@ -49,7 +49,7 @@ export CCR_NAMESPACE="coachlink"
 export CCR_IMAGE="ccr.ccs.tencentyun.com/${CCR_NAMESPACE}/coachlink"
 
 # 构建镜像
-docker build -t ${CCR_IMAGE}:production .
+docker build --platform linux/amd64 -t ${CCR_IMAGE}:production .
 
 # 推送到腾讯云 CCR
 docker push ${CCR_IMAGE}:production
