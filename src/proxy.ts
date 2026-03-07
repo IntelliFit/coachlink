@@ -121,7 +121,8 @@ const PUBLIC_PATHS = new Set([
     '/verify_b072dddc83ed42fbd335c928e5dfa002.html',
     '/fonts/AlibabaPuHuiTi-3-85-Bold.ttf',
     '/fonts/AlibabaPuHuiTi-3-55-Regular.ttf',
-    '/84WgJbHMbX.txt'
+    '/84WgJbHMbX.txt',
+    '/api/captcha/slider/create'
 ]);
 
 // 需要仅匹配前缀的路径（如 /api/auth/...）

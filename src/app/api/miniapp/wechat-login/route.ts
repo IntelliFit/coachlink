@@ -180,7 +180,7 @@ export async function POST(req: NextRequest) {
 
         let user;
         if (existingUser) {
-            // 用户已存在，更新手机号（如果获取到了新的手机号且原手机号为 null 或 "null"）
+            // 用户已存在（通过 openid 匹配），更新手机号（如果获取到了新的手机号且原手机号为 null 或 "null"）
             if (phoneNumber && phoneNumber !== 'null' && (!existingUser.phone || existingUser.phone === 'null')) {
                 const { data: updatedUser, error: updateError } = await serviceRoleSupabase
                     .from('users')
@@ -199,44 +199,81 @@ export async function POST(req: NextRequest) {
             } else {
                 user = existingUser;
             }
+            console.log('✅ 用户已存在（通过 openid 匹配）');
         } else {
-            // 用户不存在，创建新用户
-            // password_hash 是 NOT NULL 字段，设置为字符串 "null"
-            // phone 设置为获取到的手机号，如果未获取到则设置为字符串 "null"
-            // 其他可以为空的字段都设置为 null
-            const { data: newUser, error: createError } = await serviceRoleSupabase
-                .from('users')
-                .insert({
-                    wechat_openid: openid,
-                    password_hash: 'null', // NOT NULL 字段，设置为字符串 "null"
-                    phone: phoneNumber, // 设置为获取到的手机号或字符串 "null"
-                    email: null,
-                    has_drawn: null,
-                    last_login_at: null,
-                    subscription_level: null,
-                    subscription_expires_at: null,
-                    is_admin: null,
-                    admin_role: null,
-                    admin_permissions: null,
-                    is_coach: null,
-                    coach_status: null,
-                    primary_role: null,
-                    invitation_coach_id: null,
-                    // created_at 和 updated_at 使用数据库默认值
-                })
-                .select()
-                .single();
+            // 通过 openid 没有找到用户，检查手机号是否已存在
+            // 场景：用户可能通过其他方式注册（如手机号注册），但尚未绑定小程序 openid
+            let userByPhone = null;
+            if (phoneNumber && phoneNumber !== 'null') {
+                const { data: existingUserByPhone, error: phoneQueryError } = await serviceRoleSupabase
+                    .from('users')
+                    .select('*')
+                    .eq('phone', phoneNumber)
+                    .maybeSingle();
 
-            if (createError || !newUser) {
-                console.error('❌ 创建用户失败:', createError);
-                return NextResponse.json({
-                    success: false,
-                    message: '创建用户失败'
-                }, { status: 500 });
+                if (phoneQueryError) {
+                    console.error('⚠️ 通过手机号查询用户失败:', phoneQueryError);
+                } else if (existingUserByPhone) {
+                    userByPhone = existingUserByPhone;
+                    console.log('📱 找到已存在的用户（通过手机号匹配）');
+                }
             }
 
-            user = newUser;
-            console.log('✅ 已创建新用户');
+            if (userByPhone) {
+                // 用户已存在（通过手机号匹配），绑定小程序 openid
+                const { data: updatedUser, error: updateError } = await serviceRoleSupabase
+                    .from('users')
+                    .update({ wechat_openid: openid })
+                    .eq('id', userByPhone.id)
+                    .select()
+                    .single();
+
+                if (updateError) {
+                    console.error('⚠️ 绑定 openid 失败:', updateError);
+                    user = userByPhone; // 更新失败，使用原用户信息
+                } else {
+                    user = updatedUser;
+                    console.log('✅ 已为现有用户绑定小程序 openid');
+                }
+            } else {
+                // 用户确实不存在，创建新用户
+                // password_hash 是 NOT NULL 字段，设置为字符串 "null"
+                // phone 设置为获取到的手机号，如果未获取到则设置为字符串 "null"
+                // 其他可以为空的字段都设置为 null
+                const { data: newUser, error: createError } = await serviceRoleSupabase
+                    .from('users')
+                    .insert({
+                        wechat_openid: openid,
+                        password_hash: 'null', // NOT NULL 字段，设置为字符串 "null"
+                        phone: phoneNumber, // 设置为获取到的手机号或字符串 "null"
+                        email: null,
+                        has_drawn: null,
+                        last_login_at: null,
+                        subscription_level: null,
+                        subscription_expires_at: null,
+                        is_admin: null,
+                        admin_role: null,
+                        admin_permissions: null,
+                        is_coach: null,
+                        coach_status: null,
+                        primary_role: null,
+                        invitation_coach_id: null,
+                        // created_at 和 updated_at 使用数据库默认值
+                    })
+                    .select()
+                    .single();
+
+                if (createError || !newUser) {
+                    console.error('❌ 创建用户失败:', createError);
+                    return NextResponse.json({
+                        success: false,
+                        message: '创建用户失败'
+                    }, { status: 500 });
+                }
+
+                user = newUser;
+                console.log('✅ 已创建新用户');
+            }
         }
 
         // 移除敏感信息
