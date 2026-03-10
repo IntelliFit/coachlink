@@ -10,6 +10,8 @@ export interface GetCurrent1RMDto {
 export interface Current1RMRecord {
     actionId?: string;
     actionName: string;
+    /** 标准动作 ID，用于教练端计划与学员动作的匹配 */
+    canonicalActionId?: string;
     current1RM: number; // This is the e1RM value
     lastUpdated: string;
     isAutoCalculated: boolean;
