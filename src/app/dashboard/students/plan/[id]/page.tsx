@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Card } from 'primereact/card';
 import { Button } from 'primereact/button';
 import { Skeleton } from 'primereact/skeleton';
@@ -750,6 +750,20 @@ const StudentPlanPage = () => {
 
     const maxWeeks = Math.max(1, Math.ceil(days.length / 7));
 
+    // 从 aggregated1RM 构建 planReference1RMs，按教练动作 ID 映射，供 PlanDayCard 计算训练重量
+    const planReference1RMs = useMemo(() => {
+        const map: Record<string, number> = {};
+        const agg = studentData?.aggregated1RM;
+        if (!agg) return map;
+        for (const action of actions) {
+            const val = (action.canonical_action_id ? agg[action.canonical_action_id] : undefined)
+                ?? agg[action.name]
+                ?? agg[action.id];
+            if (val != null) map[action.id] = val;
+        }
+        return map;
+    }, [studentData?.aggregated1RM, actions]);
+
     const handleBatchApply = (operation: BatchOperation) => {
         if (actions.length === 0) {
             showToast({ severity: 'info', summary: '暂无动作库', detail: '请先加载动作库' });
@@ -1241,6 +1255,7 @@ const StudentPlanPage = () => {
                                     studentData={studentData}
                                     subscription={subscription}
                                     execution={executions[selectedDay.dayIndex]}
+                                    planReference1RMs={planReference1RMs}
                                 />
                             ) : (
                                 <div className="card shadow-sm flex items-center justify-center h-full min-h-20rem">
