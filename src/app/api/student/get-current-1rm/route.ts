@@ -57,7 +57,7 @@ export async function getCurrent1RMRecords(
 
     let studentActionsQuery = supabase
         .from("student_actions")
-        .select('id, name, reference_1rm, type, attrs, "enableAutoWeightCompute", updated_at')
+        .select('id, name, canonical_action_id, reference_1rm, type, attrs, "enableAutoWeightCompute", updated_at')
         .eq("user_id", queryUserId)
         .not("reference_1rm", "is", null);
     if (actionIds?.length) {
@@ -79,8 +79,8 @@ export async function getCurrent1RMRecords(
 
     if (prResult.error) throw prResult.error;
 
-    // 3. 解析学员动作库中的全局参考1RM（主来源）
-    const actionLibraryRMMap: Record<string, { value: number; updatedAt?: string }> = {};
+    // 3. 解析学员动作库中的全局参考1RM（主来源，教练/学员手动设置优先于 PR 历史）
+    const actionLibraryRMMap: Record<string, { value: number; updatedAt?: string; canonicalActionId?: string }> = {};
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (studentActionsResult.data || []).forEach((action: any) => {
         const rm = Number(action.reference_1rm);
@@ -93,9 +93,14 @@ export async function getCurrent1RMRecords(
             return;
         }
 
-        const payload = { value: rm, updatedAt: action.updated_at as string | undefined };
+        const payload = {
+            value: rm,
+            updatedAt: action.updated_at as string | undefined,
+            canonicalActionId: action.canonical_action_id as string | undefined,
+        };
         if (action.id) actionLibraryRMMap[action.id] = payload;
         if (action.name) actionLibraryRMMap[action.name] = payload;
+        if (action.canonical_action_id) actionLibraryRMMap[action.canonical_action_id] = payload;
     });
 
     // 4. 解析问卷中的 RM 数据（短期兼容兜底）
@@ -167,18 +172,16 @@ export async function getCurrent1RMRecords(
         for (const [k, v] of stateMap.entries()) recordsMap.set(k, v);
     }
 
-    // 先合并动作库基线（主来源）：仅在没有历史记录时初始化
+    // 合并动作库基线：教练/学员手动设置的 reference_1rm 优先于 PR 历史，覆盖同 key 的已有记录
     Object.entries(actionLibraryRMMap).forEach(([key, payload]) => {
-        const existing = recordsMap.get(key);
-        if (!existing) {
-            recordsMap.set(key, {
-                actionId: key,
-                actionName: key,
-                current1RM: payload.value,
-                lastUpdated: payload.updatedAt || new Date().toISOString(),
-                isAutoCalculated: false,
-            });
-        }
+        recordsMap.set(key, {
+            actionId: key,
+            actionName: key,
+            canonicalActionId: payload.canonicalActionId,
+            current1RM: payload.value,
+            lastUpdated: payload.updatedAt || new Date().toISOString(),
+            isAutoCalculated: false,
+        });
     });
 
     // 再合并问卷兜底：仅在动作库与历史都缺失时初始化（不再反向覆盖当前值）
