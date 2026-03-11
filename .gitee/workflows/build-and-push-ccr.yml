@@ -1,0 +1,71 @@
+name: Build and Push to Tencent Cloud CCR
+
+on:
+  push:
+    branches:
+      - main
+      - dev
+      - gray
+
+gitee:
+  push:
+    branches:
+      - main
+      - dev
+      - gray
+
+job-build:
+  name: Build and Push
+  runs-on: ubuntu-latest
+  steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Log in to Tencent Cloud CCR
+      uses: docker/login-action@v3
+      with:
+        registry: ccr.ccs.tencentyun.com
+        username: ${{ secrets.TENCENT_CCR_USERNAME }}
+        password: ${{ secrets.TENCENT_CCR_PASSWORD }}
+
+    - name: Determine image tags
+      id: meta
+      run: |
+        SHORT_SHA=$(echo ${{ gitee.sha }} | cut -c1-7)
+        CCR_IMAGE="ccr.ccs.tencentyun.com/${{ secrets.TENCENT_CCR_NAMESPACE }}/coachlink"
+        
+        echo "ccr_image=$CCR_IMAGE" >> $GITHUB_OUTPUT
+        echo "short_sha=$SHORT_SHA" >> $GITHUB_OUTPUT
+        
+        if [ "${{ gitee.ref }}" = "refs/heads/main" ]; then
+          echo "tags<<EOF" >> $GITHUB_OUTPUT
+          echo "$CCR_IMAGE:latest" >> $GITHUB_OUTPUT
+          echo "$CCR_IMAGE:production" >> $GITHUB_OUTPUT
+          echo "$CCR_IMAGE:$SHORT_SHA" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          echo "deploy_env=production" >> $GITHUB_OUTPUT
+        elif [ "${{ gitee.ref }}" = "refs/heads/dev" ]; then
+          echo "tags<<EOF" >> $GITHUB_OUTPUT
+          echo "$CCR_IMAGE:staging" >> $GITHUB_OUTPUT
+          echo "$CCR_IMAGE:$SHORT_SHA" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          echo "deploy_env=staging" >> $GITHUB_OUTPUT
+        elif [ "${{ gitee.ref }}" = "refs/heads/gray" ]; then
+          echo "tags<<EOF" >> $GITHUB_OUTPUT
+          echo "$CCR_IMAGE:gray" >> $GITHUB_OUTPUT
+          echo "$CCR_IMAGE:$SHORT_SHA" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          echo "deploy_env=gray" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Build and push to Tencent Cloud CCR
+      uses: docker/build-push-action@v6
+      with:
+        context: .
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
