@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Dialog } from 'primereact/dialog';
 import { useToastContext } from '@/context/ToastContext';
 import { captchaService } from '@/app/service/captchaService';
-import { Loader2, ChevronRight, ChevronsRight } from 'lucide-react';
+import { Loader2, ChevronRight } from 'lucide-react';
 
 interface SliderCaptchaProps {
     visible: boolean;
@@ -14,31 +14,31 @@ interface SliderCaptchaProps {
 
 const TRACK_WIDTH = 280;
 const THUMB_SIZE = 40;
-/** 滑块距右端多少像素以内算"到底" */
-const REACH_END_THRESHOLD = 8;
+const IMAGE_HEIGHT = 56;
 
 export default function SliderCaptcha({ visible, onHide, onSuccess }: SliderCaptchaProps) {
     const { showToast } = useToastContext();
     const [loading, setLoading] = useState(false);
     const [verifying, setVerifying] = useState(false);
     const [id, setId] = useState<string | null>(null);
+    const [imageUrl, setImageUrl] = useState<string>('');
     const [position, setPosition] = useState(0);
     const [dragging, setDragging] = useState(false);
     const trackRef = useRef<HTMLDivElement>(null);
     const dragStartRef = useRef({ x: 0, base: 0 });
     const verifyInFlightRef = useRef(false);
 
-    const MAX_POSITION = TRACK_WIDTH - THUMB_SIZE;
-
     const loadChallenge = useCallback(async () => {
         verifyInFlightRef.current = false;
         setLoading(true);
         setId(null);
+        setImageUrl('');
         setPosition(0);
         setVerifying(false);
         try {
             const data = await captchaService.create();
             setId(data.id);
+            setImageUrl(data.imageUrl || '');
         } catch (e: any) {
             showToast({ severity: 'error', summary: '加载验证失败', detail: e?.message });
         } finally {
@@ -51,24 +51,6 @@ export default function SliderCaptcha({ visible, onHide, onSuccess }: SliderCapt
             loadChallenge();
         }
     }, [visible, loadChallenge]);
-
-    const doVerify = useCallback(async (currentId: string, currentPosition: number) => {
-        if (verifyInFlightRef.current) return;
-        verifyInFlightRef.current = true;
-        setVerifying(true);
-        try {
-            const token = await captchaService.verify(currentId, currentPosition);
-            onSuccess(token);
-            onHide();
-        } catch (err: any) {
-            verifyInFlightRef.current = false;
-            setPosition(0);
-            showToast({ severity: 'error', summary: '验证失败', detail: err?.message });
-            loadChallenge();
-        } finally {
-            setVerifying(false);
-        }
-    }, [onSuccess, onHide, showToast, loadChallenge]);
 
     const handlePointerDown = (e: React.PointerEvent) => {
         if (!id || verifying) return;
@@ -88,25 +70,29 @@ export default function SliderCaptcha({ visible, onHide, onSuccess }: SliderCapt
         const rect = trackRef.current.getBoundingClientRect();
         const delta = e.clientX - rect.left - dragStartRef.current.x;
         let next = dragStartRef.current.base + delta;
-        next = Math.max(0, Math.min(MAX_POSITION, next));
+        next = Math.max(0, Math.min(TRACK_WIDTH - THUMB_SIZE, next));
         setPosition(next);
-        // 滑到底自动触发验证
-        if (id && next >= MAX_POSITION - REACH_END_THRESHOLD) {
-            setDragging(false);
-            doVerify(id, next);
-        }
     };
 
-    const handlePointerUp = (e: React.PointerEvent) => {
+    const handlePointerUp = async (e: React.PointerEvent) => {
         e.preventDefault();
         if (!dragging) return;
         setDragging(false);
-        // 松手时若已到底也触发（兜底）
-        if (id && position >= MAX_POSITION - REACH_END_THRESHOLD) {
-            doVerify(id, position);
-        } else {
-            // 没到底，弹回
+        if (position === 0) return;
+        if (!id || verifying || verifyInFlightRef.current) return;
+        verifyInFlightRef.current = true;
+        setVerifying(true);
+        try {
+            const token = await captchaService.verify(id, position);
+            onSuccess(token);
+            onHide();
+        } catch (err: any) {
+            verifyInFlightRef.current = false;
             setPosition(0);
+            showToast({ severity: 'error', summary: '验证失败', detail: err?.message });
+            loadChallenge();
+        } finally {
+            setVerifying(false);
         }
     };
 
@@ -114,8 +100,6 @@ export default function SliderCaptcha({ visible, onHide, onSuccess }: SliderCapt
         setDragging(false);
         setPosition(0);
     };
-
-    const reachedEnd = position >= MAX_POSITION - REACH_END_THRESHOLD;
 
     return (
         <Dialog
@@ -131,53 +115,65 @@ export default function SliderCaptcha({ visible, onHide, onSuccess }: SliderCapt
             pt={{ root: { className: 'rounded-2xl' }, content: { className: 'rounded-b-2xl' } }}
         >
             <div className="p-6">
-                <p className="text-sm text-surface-500 mb-4">向右滑动滑块到底完成验证</p>
+                <p className="text-sm text-surface-500 mb-4">请将滑块拖动到缺口位置完成验证</p>
 
                 {loading ? (
-                    <div className="h-[60px] rounded-xl bg-surface-100 flex items-center justify-center">
+                    <div className="h-[140px] rounded-xl bg-surface-100 flex items-center justify-center">
                         <Loader2 className="w-8 h-8 text-primary-500 animate-spin" />
                     </div>
                 ) : id ? (
-                    <div
-                        ref={trackRef}
-                        className="relative w-full h-12 rounded-xl bg-surface-100 border border-surface-200 select-none overflow-hidden"
-                        style={{ maxWidth: TRACK_WIDTH, touchAction: 'none' }}
-                    >
-                        {/* 已滑过的进度条 */}
-                        <div
-                            className="absolute inset-y-0 left-0 bg-primary-100 transition-none pointer-events-none"
-                            style={{ width: position + THUMB_SIZE }}
-                        />
-                        {/* 提示文字 */}
-                        {!dragging && position === 0 && (
-                            <div className="absolute inset-0 flex items-center justify-center text-xs text-surface-400 pointer-events-none select-none">
-                                向右滑动 →
+                    <>
+                        {imageUrl ? (
+                            <div
+                                className="relative rounded-xl overflow-hidden border border-surface-200 mb-3"
+                                style={{ width: TRACK_WIDTH, maxWidth: '100%' }}
+                            >
+                                <img
+                                    src={imageUrl}
+                                    alt="验证缺口"
+                                    width={TRACK_WIDTH}
+                                    height={IMAGE_HEIGHT}
+                                    className="block w-full h-auto pointer-events-none"
+                                />
+                                {/* 与滑块同步的虚影，帮助用户对准缺口 */}
+                                <div
+                                    className="absolute top-0 bottom-0 rounded-lg border-2 border-primary-400/80 bg-primary-500/25 pointer-events-none"
+                                    style={{
+                                        left: position,
+                                        width: THUMB_SIZE,
+                                        boxShadow: '0 0 0 1px rgba(14, 165, 233, 0.3)',
+                                    }}
+                                    aria-hidden
+                                />
                             </div>
-                        )}
-                        {/* 滑块 */}
+                        ) : null}
                         <div
-                            className={`absolute top-1 rounded-lg flex items-center justify-center text-white shadow-md cursor-grab active:cursor-grabbing transition-colors ${reachedEnd ? 'bg-green-500' : 'bg-primary-500'}`}
-                            style={{
-                                left: position,
-                                width: THUMB_SIZE,
-                                height: 40,
-                                touchAction: 'none',
-                            }}
-                            onPointerDown={handlePointerDown}
-                            onPointerMove={handlePointerMove}
-                            onPointerUp={handlePointerUp}
-                            onPointerLeave={handlePointerReset}
-                            onPointerCancel={handlePointerReset}
+                            ref={trackRef}
+                            className="relative w-full h-11 rounded-xl bg-surface-100 border border-surface-200 select-none"
+                            style={{ maxWidth: TRACK_WIDTH, touchAction: 'none' }}
                         >
-                            {verifying ? (
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                            ) : reachedEnd ? (
-                                <ChevronsRight className="w-5 h-5" />
-                            ) : (
-                                <ChevronRight className="w-5 h-5" />
-                            )}
+                            <div
+                                className="absolute inset-y-1 rounded-lg bg-primary-500 flex items-center justify-center text-white shadow-md cursor-grab active:cursor-grabbing"
+                                style={{
+                                    left: position,
+                                    width: THUMB_SIZE,
+                                    height: 36,
+                                    touchAction: 'none',
+                                }}
+                                onPointerDown={handlePointerDown}
+                                onPointerMove={handlePointerMove}
+                                onPointerUp={handlePointerUp}
+                                onPointerLeave={handlePointerReset}
+                                onPointerCancel={handlePointerReset}
+                            >
+                                {verifying ? (
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : (
+                                    <ChevronRight className="w-5 h-5" />
+                                )}
+                            </div>
                         </div>
-                    </div>
+                    </>
                 ) : null}
             </div>
         </Dialog>

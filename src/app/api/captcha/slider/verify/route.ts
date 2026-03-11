@@ -26,12 +26,11 @@ export async function POST(req: Request) {
         }, { status: 400 });
     }
 
-    // 兼容 id/position 和旧版 id/percent 两种字段名
-    const id = body?.id;
-    if (!id) {
+    const { id, position } = body;
+    if (!id || typeof position !== "number") {
         return NextResponse.json<ApiData<SliderVerifyResponseDto>>({
             success: false,
-            message: "缺少 id",
+            message: "缺少 id 或 position",
             data: undefined,
         }, { status: 400 });
     }
@@ -48,7 +47,17 @@ export async function POST(req: Request) {
         }, { status: 200 });
     }
 
-    // 滑到底即通过，不校验具体位置
+    const target = Number(stored);
+    const TOLERANCE = 8; // 允许像素误差
+    const distance = Math.abs(position - target);
+    if (distance > TOLERANCE) {
+        return NextResponse.json<ApiData<SliderVerifyResponseDto>>({
+            success: false,
+            message: "请将滑块对齐缺口位置",
+            data: undefined,
+        }, { status: 200 });
+    }
+
     const token = randomUUID();
     await redis.setEx(`captcha:token:${token}`, TOKEN_TTL, "1");
 
