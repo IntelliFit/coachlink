@@ -5,7 +5,7 @@ import redis from "@/lib/redisClient";
 import { randomUUID } from "crypto";
 
 const TOKEN_TTL = 120; // 2 分钟内可用
-const TOLERANCE = 5; // 百分比误差容忍（±5%）
+const TOLERANCE = 10; // 百分比误差容忍（±10%），兼顾触屏与不同屏幕精度
 const TRACK_WIDTH = 280;
 const THUMB_SIZE = 40;
 const GAP_WIDTH = 40; // 与 image 路由一致
