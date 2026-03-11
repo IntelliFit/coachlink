@@ -131,7 +131,7 @@ export default function SliderCaptcha({ visible, onHide, onSuccess }: SliderCapt
             pt={{ root: { className: 'rounded-2xl' }, content: { className: 'rounded-b-2xl' } }}
         >
             <div className="p-6">
-                <p className="text-sm text-surface-500 mb-4">向右滑动滑块完成验证</p>
+                <p className="text-sm text-surface-500 mb-4">向右滑动滑块到底完成验证</p>
 
                 {loading ? (
                     <div className="h-[60px] rounded-xl bg-surface-100 flex items-center justify-center">
