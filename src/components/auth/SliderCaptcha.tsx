@@ -95,14 +95,20 @@ export default function SliderCaptcha({ visible, onHide, onSuccess }: SliderCapt
         const currentId = idRef.current;
 
         if (currentPos === 0) return;
-        if (!currentId || verifying || verifyInFlightRef.current) return;
+        const idToUse = (currentId ?? "").trim();
+        if (!idToUse || verifying || verifyInFlightRef.current) return;
 
         verifyInFlightRef.current = true;
         setVerifying(true);
         try {
             // 滑块中心点百分比
             const percent = Math.round(((currentPos + THUMB_SIZE / 2) / TRACK_WIDTH) * 100);
-            const token = await captchaService.verify(currentId, percent);
+            if (percent < 0 || percent > 100) {
+                verifyInFlightRef.current = false;
+                showToast({ severity: 'error', summary: '验证失败', detail: '滑块位置异常' });
+                return;
+            }
+            const token = await captchaService.verify(idToUse, percent);
             onSuccess(token);
             onHide();
         } catch (err: any) {
