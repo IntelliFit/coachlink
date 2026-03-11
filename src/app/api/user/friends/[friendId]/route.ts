@@ -1,27 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import supabase from "@/lib/supabaseClient";
+import { getApiUserId } from "@/lib/getApiUserId";
 
 /**
  * DELETE /api/user/friends/[friendId]
  *
  * 删除好友（解出关系，或取消已发送的请求）
  * friendId 是用户的 ID，不是 relationship ID
+ * 支持 NextAuth Session（网页）或 Authorization: Bearer JWT（小程序）
  */
 export async function DELETE(
     request: NextRequest,
     context: { params: Promise<{ friendId: string }> },
 ) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) {
+        const userId = await getApiUserId(request);
+        if (!userId) {
             return NextResponse.json({ success: false, message: "未登录" }, {
                 status: 401,
             });
         }
-
-        const userId = session.user.id;
         // Await the params
         const params = await context.params;
         const friendId = params.friendId;

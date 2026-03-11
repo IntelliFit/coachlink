@@ -1,6 +1,7 @@
 'use client';
 
 import ChangePasswordForm from '@/components/auth/ChangePasswordForm';
+import DeleteAccountSection from '@/components/settings/DeleteAccountSection';
 
 export default function CoachSecuritySettingsPage() {
     return (
@@ -11,6 +12,9 @@ export default function CoachSecuritySettingsPage() {
             >
                 <div className="max-w-xl">
                     <ChangePasswordForm />
+                </div>
+                <div className="max-w-xl mt-6">
+                    <DeleteAccountSection />
                 </div>
             </div>
         </div>

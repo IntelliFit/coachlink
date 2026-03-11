@@ -7,7 +7,6 @@ import { verifyToken } from "./lib/jwt";
 function getSupabaseRestConfig() {
     const supabaseUrl =
         process.env.NEXT_SUPABASE_URL ||
-        process.env.NEXT_PUBLIC_SUPABASE_URL ||
         process.env.SUPABASE_URL ||
         "";
     const serviceKey =
@@ -83,6 +82,7 @@ const PUBLIC_PATHS = new Set([
     "/login",
     "/register",
     "/wechat-auth/bridge",
+    "/payment/start",
     "/api/auth",
     "/api/miniapp/login", // 小程序登录接口
     "/api/miniapp/wechat-login", // 小程序微信登录接口
@@ -98,9 +98,9 @@ const PUBLIC_PATHS = new Set([
     '/api/trace',
     '/api/captcha/slider/create',
     '/api/captcha/slider/verify',
+    '/api/captcha/slider/image',
     "/api/payment/alipay/notify", // Alipay callback - must be public
     "/api/payment/alipay/return", // Alipay return - browser redirect without session
-    "/api/payment/alipay/create", // guest payment create
     "/api/payment/alipay/query", // guest payment query
     "/api/payment/alipay/guest/create", // guest payment create (public)
     "/api/hello-world", // hello world test endpoint (public)
@@ -121,7 +121,8 @@ const PUBLIC_PATHS = new Set([
     '/verify_b072dddc83ed42fbd335c928e5dfa002.html',
     '/fonts/AlibabaPuHuiTi-3-85-Bold.ttf',
     '/fonts/AlibabaPuHuiTi-3-55-Regular.ttf',
-    '/84WgJbHMbX.txt'
+    '/84WgJbHMbX.txt',
+    '/api/captcha/slider/create'
 ]);
 
 // 需要仅匹配前缀的路径（如 /api/auth/...）
@@ -284,12 +285,16 @@ export async function proxy(request: NextRequest) {
 }
 
 // 配置匹配路径
+// 重要：sitemap.xml、robots.txt 必须排除，否则 Google Search Console 无法抓取
 export const config = {
     matcher: [
         /*
-         * 匹配所有请求路径，除了以特定扩展名结尾的文件和API路由
+         * 匹配所有请求路径，排除：
+         * - 静态资源：_next/static, _next/image, favicon, themes, images
+         * - SEO 文件：robots.txt, sitemap.xml, sitemap/*（Google 抓取必须不被 proxy 处理）
+         * - site.webmanifest
          */
-        "/((?!_next/static|_next/image|favicon.ico|favicon.jpg|themes|images).*)",
+        "/((?!_next/static|_next/image|favicon\\.ico|favicon\\.jpg|themes|images|robots\\.txt|sitemap\\.xml|sitemap/.*|site\\.webmanifest).*)",
     ],
 };
 

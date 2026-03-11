@@ -4,6 +4,7 @@ import { CreateInstanceDto, CreateInstanceResponseDto } from "./entity";
 import { ApiData } from "@/types/api";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 import { sendDirectMessage } from "@/lib/chat";
+import { syncCoachActionsToStudentLibrary } from "../sync-actions";
 
 export async function POST(req: Request) {
     const {
@@ -129,6 +130,43 @@ export async function POST(req: Request) {
             success: false,
             message: "Failed to create instance",
         }, { status: 500 });
+    }
+
+    // 同步教练计划中的动作到学员动作库
+    try {
+        const studentId = subscription.student_id as string | null;
+        if (studentId && Array.isArray(trainingDays)) {
+            // 提取计划中使用的所有动作ID
+            const actionIds = new Set<string>();
+            trainingDays.forEach((day: any) => {
+                day.actionSets?.forEach((set: any) => {
+                    const actionId = set.action_id || set.actionId;
+                    if (actionId) {
+                        actionIds.add(actionId);
+                    }
+                });
+            });
+
+            if (actionIds.size > 0) {
+                // 查询教练动作库
+                const idsList = Array.from(actionIds);
+                const { data: coachActions } = await supabase
+                    .from("coach_actions")
+                    .select("*")
+                    .in("id", idsList);
+
+                if (coachActions && coachActions.length > 0) {
+                    await syncCoachActionsToStudentLibrary(
+                        studentId,
+                        coachActions as any[],
+                        actionIds,
+                    );
+                }
+            }
+        }
+    } catch (e) {
+        // best-effort; do not block instance creation
+        console.warn("[create-instance] Failed to sync actions to student library:", e);
     }
 
     // best-effort: notify student via chat message

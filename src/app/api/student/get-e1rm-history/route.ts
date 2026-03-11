@@ -100,13 +100,23 @@ export async function POST(request: NextRequest) {
         }
 
         // 1. Fetch Action Details (Name & BodyWeight Prop)
+        // First try coach_actions, then fallback to student_actions.
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const { data: actionData } = await (supabase as any)
+        const { data: coachActionData } = await (supabase as any)
             .from("coach_actions")
             .select('name, "includesBodyWeight"')
             .eq("id", actionId)
-            .single();
+            .maybeSingle();
 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data: studentActionData } = await (supabase as any)
+            .from("student_actions")
+            .select('name, "includesBodyWeight"')
+            .eq("id", actionId)
+            .eq("user_id", userId)
+            .maybeSingle();
+
+        const actionData = coachActionData || studentActionData;
         let actionName = actionData?.name || body.actionName;
         // If we still don't have a name, we can't find it in JSON or Questionnaire
         if (!actionName) {

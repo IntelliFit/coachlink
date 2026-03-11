@@ -1,6 +1,8 @@
 'use client';
 
 import React, { act, useEffect, useState } from 'react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { Button } from 'primereact/button';
 import { InputText } from 'primereact/inputtext';
 import { InputTextarea } from 'primereact/inputtextarea';
@@ -16,9 +18,8 @@ import { PolymorphicItemMenu } from './PolymorphicItemMenu';
 import { DietItemForm } from './DietItemForm';
 import { CardioItemForm } from './CardioItemForm';
 import { HabitItemForm } from './HabitItemForm';
-import { Activity, Calendar, Coffee, Copy, Dumbbell, Filter, Trash2 } from 'lucide-react';
+import { Calendar, Coffee, Copy, Filter, Trash2 } from 'lucide-react';
 import { Dialog } from 'primereact/dialog';
-import { ScrollPanel } from 'primereact/scrollpanel';
 
 // 定义动作选项的接口
 interface ActionOption {
@@ -27,19 +28,37 @@ interface ActionOption {
     action: CoachActionRow;
 }
 
-// 自定义选项模板组件
+/** 动作库为空或筛选无结果时的提示，含跳转动作库链接 */
+export const ActionEmptyMessage: React.FC<{ type: 'empty' | 'filter' }> = ({ type }) => {
+    const pathname = usePathname() || '';
+    const actionLibHref = pathname.startsWith('/me') ? '/me/action-lib' : '/dashboard/action-lib';
+    const text = type === 'empty'
+        ? '暂无可选动作，可'
+        : '未找到匹配的动作，可';
+    return (
+        <div className="py-3 px-3 text-sm text-surface-500 text-center">
+            {text}
+            <Link href={actionLibHref} className="text-primary-600 font-bold underline underline-offset-4 hover:text-primary-700 ml-0.5">
+                前往动作库
+            </Link>
+            添加自定义动作
+        </div>
+    );
+};
+
+// 自定义选项模板组件（紧凑版：减小间距与高度）
 export const ActionOptionTemplate: React.FC<{ action: CoachActionRow }> = ({ action }) => {
     return (
-        <div className="flex items-start gap-2 max-w-full">
+        <div className="flex items-start gap-1.5 max-w-full py-0.5">
             <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2 min-w-0">
-                    <div className="font-black text-surface-900 truncate">{action.name}</div>
+                <div className="flex items-center gap-1.5 min-w-0">
+                    <div className="text-sm font-black text-surface-900 truncate leading-tight">{action.name}</div>
                 </div>
 
-                <div className="mt-1 flex flex-wrap gap-1 max-w-full">
+                <div className="mt-0.5 flex flex-wrap gap-0.5 max-w-full">
                     {(action.positions || []).slice(0, 4).map((position, idx) => (
                         <div
-                            className="bg-blue-100 text-blue-700 text-[10px] font-bold px-2 py-0.5 rounded-lg"
+                            className="bg-blue-100 text-blue-700 text-[9px] font-bold px-1.5 py-px rounded-md leading-tight"
                             key={idx}
                         >
                             {position}
@@ -47,20 +66,20 @@ export const ActionOptionTemplate: React.FC<{ action: CoachActionRow }> = ({ act
                     ))}
 
                     {action.enableAutoWeightCompute && (
-                        <div className="bg-primary-100 text-primary-700 text-[10px] font-bold px-2 py-0.5 rounded-lg">
+                        <div className="bg-primary-100 text-primary-700 text-[9px] font-bold px-1.5 py-px rounded-md leading-tight">
                             自动计算重量
                         </div>
                     )}
 
                     {action.type && action.type !== 'STRENGTH' && (
-                        <div className="bg-purple-100 text-purple-700 text-[10px] font-bold px-2 py-0.5 rounded-lg">
+                        <div className="bg-purple-100 text-purple-700 text-[9px] font-bold px-1.5 py-px rounded-md leading-tight">
                             {action.type}
                         </div>
                     )}
                 </div>
 
                 {action.detail && (
-                    <div className="text-[11px] text-surface-500 mt-1 line-clamp-2 break-words">
+                    <div className="text-[10px] text-surface-500 mt-0.5 line-clamp-1 break-words leading-tight">
                         {action.detail}
                     </div>
                 )}
@@ -69,27 +88,27 @@ export const ActionOptionTemplate: React.FC<{ action: CoachActionRow }> = ({ act
     );
 };
 
-// 自定义选中值模板组件
+// 自定义选中值模板组件（紧凑版）
 export const ActionValueTemplate: React.FC<{ action: CoachActionRow | null }> = ({ action }) => {
     if (!action) {
-        return <span>选择动作</span>;
+        return <span className="text-sm">选择动作</span>;
     }
 
     return (
-        <div className="flex items-center gap-2 min-w-0">
-            <div className="font-black truncate min-w-0">{action.name}</div>
+        <div className="flex items-center gap-1.5 min-w-0">
+            <div className="text-sm font-black truncate min-w-0 leading-tight">{action.name}</div>
             {/* Mobile 只显示少量徽章，避免撑宽输入框 */}
-            <div className="hidden sm:flex flex-wrap gap-1">
+            <div className="hidden sm:flex flex-wrap gap-0.5">
                 {(action.positions || []).slice(0, 2).map((position, idx) => (
                     <div
                         key={idx}
-                        className="bg-blue-100 text-blue-700 text-[10px] font-bold px-2 py-0.5 rounded-lg"
+                        className="bg-blue-100 text-blue-700 text-[9px] font-bold px-1.5 py-px rounded-md leading-tight"
                     >
                         {position}
                     </div>
                 ))}
                 {action.enableAutoWeightCompute && (
-                    <div className="bg-primary-100 text-primary-700 text-[10px] font-bold px-2 py-0.5 rounded-lg">
+                    <div className="bg-primary-100 text-primary-700 text-[9px] font-bold px-1.5 py-px rounded-md leading-tight">
                         自动计算重量
                     </div>
                 )}
@@ -123,6 +142,8 @@ interface PlanDayCardProps {
     subscription?: CoachSubscriptionRow | null;
     execution?: any; // 添加执行数据属性
     planReference1RMs?: Record<string, number>;
+    /** AI 修改器高亮：key 为 dayIndex-actionName 或 dayIndex-day */
+    highlightedModificationKeys?: Set<string> | null;
 }
 
 
@@ -144,7 +165,8 @@ const PlanDayCard: React.FC<PlanDayCardProps> = ({
     questions,
     subscription,
     execution,
-    planReference1RMs
+    planReference1RMs,
+    highlightedModificationKeys = null
 }) => {
     // 添加状态管理
     const [copyDialogVisible, setCopyDialogVisible] = useState(false);
@@ -210,7 +232,12 @@ const PlanDayCard: React.FC<PlanDayCardProps> = ({
             const actionId = (actionSet as any).actionId;
             const itemType = (actionSet as any).itemType;
 
-            // 如果是非动作类型，显示自定义名称
+            // 优先从动作库取名称（含 CARDIO/DIET/HABIT 从库中选的动作）
+            if (actionId) {
+                const label = actionOptions.find(option => option.action.id === actionId)?.label;
+                if (label) return label;
+            }
+            // 无 actionId 时：习惯可输入自定义名，其他用类型占位
             if (itemType && itemType !== 'STRENGTH') {
                 const customName = (actionSet.params?.custom_data?.habit_name) ||
                     (itemType === 'DIET' ? '饮食建议' :
@@ -218,17 +245,20 @@ const PlanDayCard: React.FC<PlanDayCardProps> = ({
                 return customName;
             }
 
-            if (actionId) {
-                return actionOptions.find(option => option.action.id === actionId)?.label || '';
-            }
-
             return '';
         }
     }
 
-    // 获取当前项的 ItemType
+    // 获取当前项的 ItemType（优先用 actionSet.itemType，否则从动作库推断）
     const getItemType = (set: CoachPlanAction | any): ItemType => {
-        return set.itemType || 'STRENGTH';
+        if (set.itemType) return set.itemType as ItemType;
+        const actionId = (set as any).actionId;
+        if (actionId) {
+            const action = actions.find(a => a.id === actionId);
+            const t = action?.type as ItemType | undefined;
+            if (t && ['STRENGTH', 'CARDIO', 'DIET', 'HABIT'].includes(t)) return t;
+        }
+        return 'STRENGTH';
     };
 
     // 获取图标
@@ -248,6 +278,17 @@ const PlanDayCard: React.FC<PlanDayCardProps> = ({
             case 'CARDIO': return 'text-red-500 bg-red-50';
             case 'HABIT': return 'text-green-500 bg-green-50';
             default: return 'text-primary bg-primary-50';
+        }
+    };
+
+    // 获取类型中文名称（与 PolymorphicItemMenu 一致）
+    const getItemTypeLabel = (type: ItemType) => {
+        switch (type) {
+            case 'STRENGTH': return '力量训练';
+            case 'CARDIO': return '有氧运动';
+            case 'DIET': return '饮食建议';
+            case 'HABIT': return '习惯打卡';
+            default: return '力量训练';
         }
     };
 
@@ -314,37 +355,56 @@ const PlanDayCard: React.FC<PlanDayCardProps> = ({
         // 简化起见，这里我们认为 group_title 是 Item 属性，UI 渲染时会自动聚合
     };
 
+    const isDayHighlighted = highlightedModificationKeys?.has(`${day.dayIndex}-day`) ?? false;
     return (
         <div className="flex flex-col gap-5 p-0 sm:p-4 md:p-6">
             {/* 顶部操作区：吸顶（避免每次回到最上面） */}
-            <div className="sticky top-2 z-20 bg-surface/95 backdrop-blur-md rounded-[20px] border border-surface-100/60 p-3 flex flex-col gap-3">
-                {/* 头部：生产力字重与非线性圆角操作区 */}
-                <div className="flex flex-wrap gap-3 items-end justify-between px-1">
-                    <div className="flex flex-col gap-1">
-                        <div className="flex items-baseline gap-3">
-                            <h3 className="text-2xl sm:text-3xl font-black text-surface-900 tracking-tighter">
-                                第 {dayIndex + 1} 天
+            <div className={`sticky top-2 z-20 backdrop-blur-md rounded-[20px] p-3 flex flex-col gap-3 ${
+                isDayHighlighted
+                    ? 'bg-primary-50/70 dark:bg-primary-900/30 border-2 border-primary-300 dark:border-primary-500/60'
+                    : 'bg-surface/95 border border-surface-100/60'
+            }`}>
+                {/* 头部：日序号、周/日、训练项数量 - 更清晰均衡的布局 */}
+                <div className="flex flex-wrap items-stretch gap-3">
+                    {/* 左侧：日序号 + 周/日 */}
+                    <div className="flex items-center gap-3 min-w-0">
+                        <div className="flex flex-col justify-center gap-0.5">
+                            <h3 className="text-base sm:text-lg font-black text-surface-900 tracking-tight leading-tight">
+                                第 {day.dayIndex} 天
                             </h3>
-                            <span className="px-2 py-0.5 bg-surface-100 rounded-full text-[10px] font-black text-surface-500 uppercase">
-                                W{Math.ceil((dayIndex + 1) / 7)} · D{(dayIndex) % 7 + 1}
+                            <span className="text-[11px] font-bold text-surface-500 tabular-nums">
+                                W{Math.ceil(day.dayIndex / 7)} · D{((day.dayIndex - 1) % 7) + 1}
                             </span>
                         </div>
-                        <span className="text-[11px] font-bold text-surface-400">
-                            {day.type === 'training' ? `已排布 ${day.actionSets.length} 个训练项` : '休息日'}
-                        </span>
                     </div>
 
-                    <div className="flex items-center gap-2 p-1 bg-surface-100/50 rounded-[14px]">
+                    {/* 中间：训练项数量或休息日 */}
+                    <div className="flex-1 min-w-[120px] flex items-center">
+                        <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-surface-50/80 border border-surface-100/60">
+                            {day.type === 'training' ? (
+                                <>
+                                    <span className="text-[11px] font-bold text-surface-500">训练项</span>
+                                    <span className="text-sm font-black text-surface-900 tabular-nums">{day.actionSets.length}</span>
+                                    <span className="text-[11px] font-bold text-surface-500">个</span>
+                                </>
+                            ) : (
+                                <span className="text-[12px] font-bold text-surface-500">休息日</span>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* 右侧：训练日/休息日切换 */}
+                    <div className="flex items-center gap-2 p-1 bg-surface-100/50 rounded-[14px] shrink-0">
                         {['training', 'rest'].map((type) => (
                             <button
                                 key={type}
                                 onClick={() => onDayTypeChange(dayIndex, type as any)}
                                 className={`
-                            px-4 py-1.5 rounded-[10px] text-[12px] font-black transition-all active:scale-[0.95]
-                            ${day.type === type
-                                    ? 'bg-surface text-surface-900 shadow-sm'
-                                    : 'text-surface-400 hover:text-surface-600'}
-                        `}
+                                    px-4 py-1.5 rounded-[10px] text-[12px] font-black transition-all active:scale-[0.95]
+                                    ${day.type === type
+                                        ? 'bg-surface text-surface-900 shadow-sm'
+                                        : 'text-surface-400 hover:text-surface-600'}
+                                `}
                             >
                                 {type === 'training' ? '训练日' : '休息日'}
                             </button>
@@ -371,31 +431,36 @@ const PlanDayCard: React.FC<PlanDayCardProps> = ({
             </div>
 
             {day.type === 'training' ? (
-                <ScrollPanel className="flex-grow" style={{ height: 'calc(100vh - 300px)' }}>
-                    <div className="flex flex-col gap-4 p-0 md:p-2">
+                <div className="flex flex-col gap-4 p-0 md:p-2">
                         {day.actionSets.map((set, setIndex) => {
                             const itemType = getItemType(set);
                             const isStrength = itemType === 'STRENGTH';
                             const filteredOptions = getFilteredOptions(itemType);
 
+                        const setName = actionName(setIndex) || '未选定动作';
+                        const isHighlighted = highlightedModificationKeys?.has(`${day.dayIndex}-${setName}`) ?? false;
                         return (
                             <div
                                 key={setIndex}
-                                className="group relative bg-surface border border-surface-100 rounded-[24px] md:p-4 p-0 shadow-[0_4px_20px_rgba(0,0,0,0.02)] transition-all hover:shadow-[0_8px_30px_rgba(0,0,0,0.04)]"
+                                className={`group relative rounded-[24px] md:p-4 p-0 shadow-[0_4px_20px_rgba(0,0,0,0.02)] transition-all hover:shadow-[0_8px_30px_rgba(0,0,0,0.04)] ${
+                                    isHighlighted
+                                        ? 'bg-primary-50/50 border-2 border-primary-300 dark:bg-primary-900/20 dark:border-primary-500/60'
+                                        : 'bg-surface border border-surface-100'
+                                }`}
                             >
                                 {/* 动作头部：数值中心化 */}
                                 <div className="flex justify-between items-start mb-4 md:mb-6">
-                                    <div className="flex gap-4">
-                                        <div className={`w-12 h-12 rounded-[16px] flex flex-col items-center justify-center ${getItemColorClass(itemType)}`}>
-                                            <span className="text-[10px] font-black opacity-60">#{setIndex + 1}</span>
-                                            {isStrength ? <Dumbbell size={18} strokeWidth={2.5} /> : <Activity size={18} strokeWidth={2.5} />}
+                                    <div className="flex gap-3 items-center">
+                                        <span className="text-xs font-black text-surface-400 shrink-0">#{setIndex + 1}</span>
+                                        <div className={`w-12 h-12 rounded-[16px] flex items-center justify-center shrink-0 ${getItemColorClass(itemType)}`}>
+                                            <i className={`pi ${getItemIcon(itemType)} text-lg`} />
                                         </div>
                                         <div className="flex flex-col justify-center gap-1">
                                             <h5 className="text-lg font-black text-surface-900 tracking-tight leading-none">
                                                 {actionName(setIndex) || '未选定动作'}
                                             </h5>
                                             <span className="text-[10px] font-bold text-surface-400 uppercase tracking-widest leading-none">
-                                                {itemType} SESSION
+                                                {getItemTypeLabel(itemType)}
                                             </span>
                                         </div>
                                     </div>
@@ -410,7 +475,7 @@ const PlanDayCard: React.FC<PlanDayCardProps> = ({
                                                 </button>
                                             )}
                                             <button
-                                                onClick={() => onRemoveActionSet(day.dayIndex, setIndex)}
+                                                onClick={() => onRemoveActionSet(dayIndex, setIndex)}
                                                 className="p-2 text-surface-300 hover:text-red-500 transition-colors active:scale-[0.9]"
                                             >
                                                 <Trash2 size={16} />
@@ -523,6 +588,13 @@ const PlanDayCard: React.FC<PlanDayCardProps> = ({
                             );
                         })}
 
+                        {/* 动作列表末尾：窄高添加按钮，与动作卡片同宽 */}
+                        <PolymorphicItemMenu
+                            compact
+                            onAdd={(type) => onAddActionSet(day.dayIndex, type)}
+                            disabled={saving}
+                        />
+
                         {/* 执行详情模块 */}
                         <ExecutionDetails execution={execution} />
 
@@ -612,8 +684,7 @@ const PlanDayCard: React.FC<PlanDayCardProps> = ({
                                 </div>
                             </Dialog>
                         )}
-                    </div>
-                </ScrollPanel>
+                </div>
             ) : (
                 /* 休息日：骨架感占位 */
                 <div className="flex flex-col items-center justify-center py-16 bg-surface-50/40 rounded-[32px] border border-dashed border-surface-200">

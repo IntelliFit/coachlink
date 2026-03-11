@@ -42,3 +42,35 @@ export interface AddExtraExerciseResponseDto {
     };
     message?: string;
 }
+
+// Delete Extra Set (删除学员自行添加的组)
+export interface DeleteExtraSetDto {
+    executionId: string;
+    actionIndex: number;
+    setIndex: number;
+}
+
+export interface DeleteExtraSetResponseDto {
+    success: boolean;
+    data?: {
+        executionId: string;
+        actionIndex: number;
+        totalSets: number;
+    };
+    message?: string;
+}
+
+// Delete Extra Exercise (删除学员自行添加的动作)
+export interface DeleteExtraExerciseDto {
+    executionId: string;
+    actionIndex: number;
+}
+
+export interface DeleteExtraExerciseResponseDto {
+    success: boolean;
+    data?: {
+        executionId: string;
+        totalSets: number;
+    };
+    message?: string;
+}

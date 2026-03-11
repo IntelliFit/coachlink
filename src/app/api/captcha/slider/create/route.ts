@@ -4,8 +4,6 @@ import type { SliderCreateResponseDto } from "./entity";
 import redis from "@/lib/redisClient";
 import { randomUUID } from "crypto";
 
-const TRACK_WIDTH = 280;
-const SLIDE_THRESHOLD = 250; // 滑动超过此位置即通过
 const CAPTCHA_TTL = 300; // 5 分钟
 
 export async function POST() {
@@ -18,16 +16,18 @@ export async function POST() {
     }
 
     const id = randomUUID();
+    // 随机生成目标百分比，范围 30% - 90%（避免太靠左或太靠右）
+    const targetPercent = 30 + Math.floor(Math.random() * 61);
+    
     const key = `captcha:slider:${id}`;
-    await redis.setEx(key, CAPTCHA_TTL, String(SLIDE_THRESHOLD));
+    await redis.setEx(key, CAPTCHA_TTL, String(targetPercent));
 
     return NextResponse.json<ApiData<SliderCreateResponseDto>>({
         success: true,
         message: "ok",
         data: {
             id,
-            trackWidth: TRACK_WIDTH,
-            backgroundImage: "/coachlink.jpg",
+            targetPercent,
         },
     });
 }

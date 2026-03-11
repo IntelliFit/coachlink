@@ -126,6 +126,10 @@ export async function POST(req: Request) {
             if (record.actionName) {
                 rmMap[record.actionName] = Math.max(rmMap[record.actionName] || 0, record.current1RM);
             }
+            // 3. 存入 canonical_action_id 映射 (教练端计划按 canonical 匹配学员动作)
+            if (record.canonicalActionId) {
+                rmMap[record.canonicalActionId] = Math.max(rmMap[record.canonicalActionId] || 0, record.current1RM);
+            }
         }
         student.aggregated1RM = rmMap;
     }

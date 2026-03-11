@@ -12,6 +12,7 @@ import Navigation from '@/components/Navigation';
 import { type APIOptions as PrimeReactOptions, PrimeReactProvider } from 'primereact/api';
 import { ProfileSetupModalProvider } from "@/context/ProfileSetupModalContext";
 import TraceReporter from '@/app/trace/component';
+import { PlanLibEditScrollProvider } from '@/context/PlanLibEditScrollContext';
 
 // 配置 Google Fonts，使用 optional display 模式：如果加载失败，静默使用系统字体，不报错
 const inter = Inter({ 
@@ -158,13 +159,15 @@ export default function RootLayout({
                 <ThemeProvider>
                     <ClientLayout>
                         <PrimeReactProvider value={primereactConfig}>
-                            <ProfileSetupModalProvider>
-                                <Navigation />
-                            </ProfileSetupModalProvider>
+                            <PlanLibEditScrollProvider>
+                                <ProfileSetupModalProvider>
+                                    <Navigation />
+                                </ProfileSetupModalProvider>
 
-                            <TraceReporter />
+                                <TraceReporter />
 
-                            {children}
+                                {children}
+                            </PlanLibEditScrollProvider>
                         </PrimeReactProvider>
                     </ClientLayout>
                 </ThemeProvider>

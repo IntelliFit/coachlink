@@ -16,6 +16,7 @@ export interface StudentActionRow {
     suggested_time?: string | null; // 建议执行时间
     enableAutoWeightCompute?: boolean; // 是否启用自动重量计算
     includesBodyWeight?: boolean; // 动作是否包含自身体重
+    reference_1rm?: number | null; // 学员该动作的全局参考1RM（仅资格动作生效）
     canonical_action_id?: string | null; // 关联的公共动作ID
     created_at: string;
     updated_at: string;
@@ -32,6 +33,7 @@ export interface StudentActionInsert {
     suggested_time?: string | null;
     enableAutoWeightCompute?: boolean;
     includesBodyWeight?: boolean;
+    reference_1rm?: number | null;
     canonical_action_id?: string | null;
 }
 

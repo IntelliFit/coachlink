@@ -10,19 +10,23 @@ import { Skeleton } from 'primereact/skeleton';
 import { InputTextarea } from 'primereact/inputtextarea';
 import { InputText } from 'primereact/inputtext';
 import { Dialog } from 'primereact/dialog';
-import { ArrowLeft, Play, Video, Check, Star, ChevronUp, ChevronDown, Timer, Upload, Plus } from 'lucide-react';
+import { ArrowLeft, Play, Video, Check, Star, ChevronUp, ChevronDown, Timer, Upload, Plus, Trash2 } from 'lucide-react';
 import { executionService } from '@/app/service/executionService';
+import { impromptuTrainingService } from '@/app/service/impromptuTrainingService';
 import { planLibService } from '@/app/service/planLibService';
 import { videoService } from '@/app/service/videoService';
+import { studentActionLibService } from '@/app/service/studentActionLibService';
 import { useToastContext } from '@/context/ToastContext';
 import ShareCardGenerator from '@/components/share/ShareCardGenerator';
 import { AeroInputNumber } from '@/components/AeroInputNumber';
 import { useAnalytics } from '@/hooks/useAnalytics';
 import ActionPicker from '@/app/today-training/ActionPicker';
+import { isOneRMEligibleAction } from '@/lib/oneRmEligibility';
 
 interface SetData {
     set_number: number;
     status: 'pending' | 'completed' | 'skipped';
+    source?: string; // 'student_extra' = 学员自行添加
     planned_reps?: string;
     planned_weight?: string;
     actual_weight?: number;
@@ -46,6 +50,7 @@ interface ActionExecution {
     action_id: string;
     action_name: string;
     action_order: number;
+    source?: string; // 'student_extra' = 学员自行添加
     sets: SetData[];
     total_sets: number;
     completed_sets: number;
@@ -55,14 +60,20 @@ function TrainingExecutionContent() {
     const params = useParams();
     const router = useRouter();
     const searchParams = useSearchParams();
-    const { data: session } = useSession();
+    const { data: session, update: updateSession } = useSession();
     const { showToast } = useToastContext();
     const { trackEvent } = useAnalytics();
     const calibrationToastShownRef = useRef(false);
+    const underPlanToastShownRef = useRef(false);
     const focusHandledRef = useRef(false);
 
     const instanceId = params.instanceId as string;
     const dayIndex = parseInt(searchParams.get('dayIndex') || '1');
+    const impromptuId = searchParams.get('impromptuId');
+    const isImpromptuMode = !!impromptuId;
+    const extraContentApiBase = isImpromptuMode
+        ? '/api/impromptu/extra-content'
+        : '/api/execution/extra-content';
 
     const [loading, setLoading] = useState(true);
     const [execution, setExecution] = useState<any>(null);
@@ -101,6 +112,15 @@ function TrainingExecutionContent() {
         return Number.isFinite(n) ? n : null;
     };
 
+    const parsePlannedReps = (planned?: string | null): number | null => {
+        const s = String(planned || '').trim();
+        if (!s) return null;
+        const m = s.match(/\d+/);
+        if (!m) return null;
+        const n = Number(m[0]);
+        return Number.isFinite(n) ? n : null;
+    };
+
     // 超时未结束提醒（in_progress 挂太久）
     const [staleReminderVisible, setStaleReminderVisible] = useState(false);
     const [staleHours, setStaleHours] = useState<number>(0);
@@ -117,6 +137,10 @@ function TrainingExecutionContent() {
     const [uploading, setUploading] = useState(false);
     const [uploadProgress, setUploadProgress] = useState<number>(0);
     const fileInputRef = React.useRef<HTMLInputElement>(null);
+    const [oneRMDialogVisible, setOneRMDialogVisible] = useState(false);
+    const [oneRMSettingAction, setOneRMSettingAction] = useState<any | null>(null);
+    const [oneRMSettingValue, setOneRMSettingValue] = useState<number | null>(null);
+    const [oneRMSettingSaving, setOneRMSettingSaving] = useState(false);
     
     // Video modal state
     const [videoModalVisible, setVideoModalVisible] = useState(false);
@@ -124,6 +148,12 @@ function TrainingExecutionContent() {
 
     // Share modal state
     const [shareModalVisible, setShareModalVisible] = useState(false);
+
+    // 训练反馈弹窗 state
+    const [feedbackDialogVisible, setFeedbackDialogVisible] = useState(false);
+    const [feedbackContent, setFeedbackContent] = useState('');
+    const [feedbackDifficulty, setFeedbackDifficulty] = useState<number>(3);
+    const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
 
     // Polymorphic Item State - 按动作索引管理，支持多个不同类型的动作
     const [itemStates, setItemStates] = useState<Record<number, {
@@ -136,13 +166,15 @@ function TrainingExecutionContent() {
     const [linkedVideo, setLinkedVideo] = useState<{ id: string; url: string } | null>(null);
     const [addingExtraSet, setAddingExtraSet] = useState(false);
     const [addingExtraAction, setAddingExtraAction] = useState(false);
+    const [removingSet, setRemovingSet] = useState(false);
+    const [removingAction, setRemovingAction] = useState(false);
     const [showActionPicker, setShowActionPicker] = useState(false);
 
     useEffect(() => {
         if (session?.user?.id && instanceId) {
             startTraining();
         }
-    }, [session?.user?.id, instanceId]);
+    }, [session?.user?.id, instanceId, impromptuId]);
 
     // Rest timer effect
     useEffect(() => {
@@ -205,13 +237,19 @@ function TrainingExecutionContent() {
                 weightStr
             });
             
-            // 只有当包含 "kg" 时才预填充重量（避免把 RM 值填进去）
-            // 注意：支持负数（辅助重量），例如 "-10kg"；也允许 0kg
-            if (weightStr.includes('kg') && weight === null) {
-                const match = weightStr.match(/-?\d+(\.\d+)?/);
-                const numericWeight = match ? parseFloat(match[0]) : NaN;
-                if (Number.isFinite(numericWeight)) {
-                    setWeight(numericWeight);
+            // 预填充重量：
+            // 1) "80kg" / "-10kg" 等显式 kg
+            // 2) 纯数字字符串（例如即兴训练保存的 "80"）
+            // 不把 "5RM" / "80%" 这类相对强度当作重量
+            if (weight === null) {
+                const normalized = weightStr.trim().toLowerCase();
+                const isPureNumber = /^-?\d+(\.\d+)?$/.test(normalized);
+                if (normalized.includes('kg') || isPureNumber) {
+                    const match = normalized.match(/-?\d+(\.\d+)?/);
+                    const numericWeight = match ? parseFloat(match[0]) : NaN;
+                    if (Number.isFinite(numericWeight)) {
+                        setWeight(numericWeight);
+                    }
                 }
             }
             
@@ -234,6 +272,91 @@ function TrainingExecutionContent() {
         if (Number.isFinite(numeric) && numeric > 0 && planned.replace(/[^0-9.]/g, '').length > 0) return true;
         // 其他情况（RM / %1RM / RPE 等）先不强制
         return false;
+    };
+
+    const isActionOneRMEligible = (action: any) => {
+        return isOneRMEligibleAction({
+            type: action?.type,
+            attrs: action?.attrs,
+            enableAutoWeightCompute: action?.enableAutoWeightCompute ?? action?.enable_auto_weight_compute,
+        });
+    };
+
+    const shouldPromptOneRM = (action: any, setData: SetData) => {
+        if (!planInstance?.coach_subscription_id) return false;
+        if (!isActionOneRMEligible(action)) return false;
+        const plannedWeightRaw = String(setData?.planned_weight || '').toLowerCase();
+        const usesRelativeIntensity = plannedWeightRaw.includes('rm') || plannedWeightRaw.includes('%');
+        const alreadyHasKgLoad = plannedWeightRaw.includes('kg');
+        const hasReferenceOneRM = typeof action?.reference_1rm === 'number' &&
+            Number.isFinite(action.reference_1rm) &&
+            action.reference_1rm > 0;
+        return usesRelativeIntensity && !alreadyHasKgLoad && !hasReferenceOneRM;
+    };
+
+    const handleSaveQuickOneRM = async () => {
+        if (!oneRMSettingAction || oneRMSettingValue === null || oneRMSettingValue <= 0) {
+            showToast({ severity: 'warn', summary: '请输入有效1RM', detail: '1RM 需大于 0' });
+            return;
+        }
+        try {
+            setOneRMSettingSaving(true);
+            const searchRes = await studentActionLibService.listActions({
+                search: oneRMSettingAction.name,
+                page: 1,
+                limit: 50,
+            });
+            const candidates = searchRes?.actions || [];
+            const matched = candidates.find((a) =>
+                oneRMSettingAction.canonical_action_id &&
+                a.canonical_action_id &&
+                a.canonical_action_id === oneRMSettingAction.canonical_action_id
+            ) || candidates.find((a) => a.name === oneRMSettingAction.name);
+
+            if (matched?.id) {
+                await studentActionLibService.updateAction({
+                    id: matched.id,
+                    reference_1rm: oneRMSettingValue,
+                } as any);
+            } else {
+                await studentActionLibService.addAction({
+                    name: oneRMSettingAction.name,
+                    detail: oneRMSettingAction.detail || null,
+                    url: oneRMSettingAction.url || oneRMSettingAction.video_url || null,
+                    positions: oneRMSettingAction.positions || ['全身'],
+                    attrs: oneRMSettingAction.attrs || ['组数', '次数', '强度', '休息时间'],
+                    type: oneRMSettingAction.type || 'STRENGTH',
+                    enableAutoWeightCompute: !!(oneRMSettingAction.enableAutoWeightCompute ?? oneRMSettingAction.enable_auto_weight_compute),
+                    includesBodyWeight: !!(oneRMSettingAction.includesBodyWeight ?? oneRMSettingAction.includes_body_weight),
+                    canonical_action_id: oneRMSettingAction.canonical_action_id || null,
+                    reference_1rm: oneRMSettingValue,
+                } as any);
+            }
+
+            setActions((prev) => ({
+                ...prev,
+                [oneRMSettingAction.id]: {
+                    ...prev[oneRMSettingAction.id],
+                    reference_1rm: oneRMSettingValue,
+                },
+            }));
+
+            showToast({
+                severity: 'success',
+                summary: '1RM 已保存',
+                detail: `${oneRMSettingAction.name} 已更新全局参考1RM`,
+            });
+            setOneRMDialogVisible(false);
+            await startTraining();
+        } catch (error: any) {
+            showToast({
+                severity: 'error',
+                summary: '保存失败',
+                detail: error?.message || '无法保存动作1RM',
+            });
+        } finally {
+            setOneRMSettingSaving(false);
+        }
     };
 
     const setKeyOf = (actionIndex: number, setIndex: number) => `${actionIndex}:${setIndex}`;
@@ -270,21 +393,37 @@ function TrainingExecutionContent() {
     const startTraining = async () => {
         try {
             setLoading(true);
-            
-            // Get plan instance for action details
-            const instanceRes = await planLibService.getInstance({ id: instanceId });
-            if (instanceRes?.actions) {
-                setActions(instanceRes.actions);
-            }
-            if (instanceRes?.instance) {
-                setPlanInstance(instanceRes.instance);
-            }
 
-            // Start or resume execution
-            const res = await executionService.startExecution({
-                instanceId,
-                dayIndex
-            });
+            let res: any = null;
+            if (isImpromptuMode && impromptuId) {
+                const impromptuExecution = await impromptuTrainingService.get({
+                    id: impromptuId,
+                });
+                res = impromptuExecution
+                    ? { success: true, data: impromptuExecution, message: "ok" }
+                    : { success: false, data: null, message: "无法加载即兴执行记录" };
+                setPlanInstance({
+                    id: "impromptu",
+                    name: "即兴锻炼",
+                    description: "即兴训练模式（可临时加组/加动作）",
+                    source: "impromptu",
+                });
+            } else {
+                // Get plan instance for action details
+                const instanceRes = await planLibService.getInstance({ id: instanceId });
+                if (instanceRes?.actions) {
+                    setActions(instanceRes.actions);
+                }
+                if (instanceRes?.instance) {
+                    setPlanInstance(instanceRes.instance);
+                }
+
+                // Start or resume execution
+                res = await executionService.startExecution({
+                    instanceId,
+                    dayIndex,
+                });
+            }
 
             if (res.success && res.data) {
                 setExecution(res.data);
@@ -314,6 +453,21 @@ function TrainingExecutionContent() {
                     // best-effort
                 }
                 
+                // 即兴模式下为动作填充最小元信息，避免 UI 因缺少 actions map 退化
+                if (isImpromptuMode) {
+                    const actionMap: Record<string, any> = {};
+                    (res.data.action_executions || []).forEach((item: any) => {
+                        if (!item?.action_id) return;
+                        actionMap[item.action_id] = {
+                            id: item.action_id,
+                            name: item.action_name || "动作",
+                            type: "STRENGTH",
+                            attrs: ["组数", "次数", "强度", "休息时间"],
+                        };
+                    });
+                    setActions(actionMap);
+                }
+
                 // Find first incomplete set
                 const actionExecutions = res.data.action_executions || [];
                 for (let i = 0; i < actionExecutions.length; i++) {
@@ -381,14 +535,8 @@ function TrainingExecutionContent() {
             return true;
         }
 
-        // Supabase Storage public / signed URL 一般可直接播放
-        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-        if (
-            (supabaseUrl && url.includes(supabaseUrl)) ||
-            url.includes("/storage/v1/object/")
-        ) {
-            return true;
-        }
+        // Supabase Storage public / signed URL 一般可直接播放（不依赖前端 env）
+        if (url.includes("/storage/v1/object/")) return true;
 
         return false;
     };
@@ -492,11 +640,23 @@ function TrainingExecutionContent() {
             const setData = actionExecution.sets[setIndex];
             const isEditing = setData.status === 'completed';
             const plannedKg = parsePlannedWeightKg(setData.planned_weight);
+            const plannedReps = parsePlannedReps(setData.planned_reps);
             const weightChangedFromPlanned =
                 plannedKg !== null &&
                 weight !== null &&
                 weight !== undefined &&
                 Math.abs(Number(weight) - Number(plannedKg)) >= 0.1;
+            const isCoachSubscriptionPlan = !!planInstance?.coach_subscription_id;
+            const underPlannedWeight =
+                plannedKg !== null &&
+                weight !== null &&
+                weight !== undefined &&
+                Number(weight) < Number(plannedKg) - 0.1;
+            const underPlannedReps =
+                plannedReps !== null &&
+                reps !== null &&
+                reps !== undefined &&
+                Number(reps) < Number(plannedReps);
 
             // 1. Upload video first if selected (so API can retrieve video_url)
             let uploadedVideoUrl: string | undefined;
@@ -504,7 +664,7 @@ function TrainingExecutionContent() {
             let hasVideo = false;
 
             // 1.0 If user pasted a link but didn't click "绑定链接", auto-bind on completion.
-            if (!linkedVideo?.url && videoLink.trim()) {
+            if (!isImpromptuMode && !linkedVideo?.url && videoLink.trim()) {
                 try {
                     setUploading(true);
                     const res = await executionService.addSetVideoLink({
@@ -537,7 +697,7 @@ function TrainingExecutionContent() {
                 hasVideo = true;
             }
             // 兜底：如果用户选择了文件但未自动上传成功，可在“完成本组”时重试
-            if (videoFile && !linkedVideo?.url) {
+            if (!isImpromptuMode && videoFile && !linkedVideo?.url) {
                 try {
                     setUploading(true);
                     setUploadProgress(0);
@@ -604,19 +764,28 @@ function TrainingExecutionContent() {
             }
 
             // 2. Complete set via API (with is_pr, has_video, actionId for persistence)
-            const res = await executionService.completeSet({
-                executionId: execution.id,
-                actionIndex,
-                setIndex,
-                actionId: actionExecution.action_id,
-                // NOTE: allow 0kg (e.g. unloaded movements); only treat null/undefined as "not provided"
-                actualWeight: weight ?? undefined,
-                actualReps: reps ?? undefined,
-                rpe: rpe ?? undefined,
-                notes: setNotes || undefined,
-                is_pr: markAsPR,
-                has_video: hasVideo
-            });
+            const res: any = isImpromptuMode
+                ? await impromptuTrainingService.completeSet({
+                    executionId: execution.id,
+                    actionIndex,
+                    setIndex,
+                    actualWeight: weight ?? undefined,
+                    actualReps: reps ?? undefined,
+                    notes: setNotes || undefined,
+                })
+                : await executionService.completeSet({
+                    executionId: execution.id,
+                    actionIndex,
+                    setIndex,
+                    actionId: actionExecution.action_id,
+                    // NOTE: allow 0kg (e.g. unloaded movements); only treat null/undefined as "not provided"
+                    actualWeight: weight ?? undefined,
+                    actualReps: reps ?? undefined,
+                    rpe: rpe ?? undefined,
+                    notes: setNotes || undefined,
+                    is_pr: markAsPR,
+                    has_video: hasVideo
+                });
 
             if (res) {
                 // Track set completion
@@ -648,7 +817,7 @@ function TrainingExecutionContent() {
                 }
 
                 // 3. Create PR record if marked (manual marking)
-                if (markAsPR && weight && reps) {
+                if (!isImpromptuMode && markAsPR && weight && reps) {
                     await executionService.createPR({
                         executionId: execution.id,
                         actionId: actionExecution.action_id,
@@ -717,6 +886,22 @@ function TrainingExecutionContent() {
                     severity: 'info',
                     summary: '已完成校准',
                     detail: `已记录真实重量。${e1rmText}本次后续组会联动；下次同动作自动算重量也会更贴合。`,
+                });
+            }
+
+            // 教练订阅计划：如果实际完成低于计划目标，提醒学员去动作库/当前页快捷更新 1RM。
+            if (
+                isCoachSubscriptionPlan &&
+                !isEditing &&
+                (underPlannedWeight || underPlannedReps) &&
+                !underPlanToastShownRef.current
+            ) {
+                underPlanToastShownRef.current = true;
+                showToast({
+                    severity: 'warn',
+                    summary: '当前状态低于计划目标',
+                    detail: '建议在当前页快捷设置，或前往“我的-动作库”调整该动作1RM（系统自动只会上调，手动可下调）。',
+                    life: 6000,
                 });
             }
 
@@ -858,10 +1043,15 @@ function TrainingExecutionContent() {
         if (!execution) return;
 
         try {
-            const res = await executionService.finishTraining({
-                executionId: execution.id,
-                sessionNotes: sessionNotes || undefined
-            });
+            const res = isImpromptuMode
+                ? await impromptuTrainingService.finish({
+                    executionId: execution.id,
+                    sessionNotes: sessionNotes || undefined,
+                })
+                : await executionService.finishTraining({
+                    executionId: execution.id,
+                    sessionNotes: sessionNotes || undefined
+                });
 
             if (res) {
                 trackEvent('student_training_complete', 'training', { 
@@ -874,8 +1064,17 @@ function TrainingExecutionContent() {
                     summary: '训练完成',
                     detail: `完成 ${res.completed_sets}/${res.total_sets} 组`
                 });
-                // Instead of immediate redirect, show share card
-                setShareModalVisible(true);
+                if (isImpromptuMode) {
+                    try {
+                        await updateSession();
+                    } catch (sessionError) {
+                        console.warn('[training-execution] updateSession failed after impromptu finish:', sessionError);
+                    }
+                    router.push('/me/training-history');
+                } else {
+                    // 先弹反馈弹窗（有教练计划的场景），写完后再弹分享卡片
+                    setFeedbackDialogVisible(true);
+                }
             } else {
                 // Bug 5 fix: 处理 API 返回失败的情况
                 showToast({
@@ -896,6 +1095,41 @@ function TrainingExecutionContent() {
     };
 
 
+    // 提交反馈并跳转分享卡片
+    const handleSubmitFeedback = async () => {
+        if (!execution) return;
+
+        if (feedbackContent.trim()) {
+            setFeedbackSubmitting(true);
+            try {
+                await executionService.submitFeedback({
+                    executionId: execution.id,
+                    content: feedbackContent.trim(),
+                    difficultyRating: feedbackDifficulty,
+                });
+                showToast({
+                    severity: 'success',
+                    summary: '反馈已发送',
+                    detail: '教练会看到你的反馈',
+                });
+            } catch (err) {
+                console.warn('[training-execution] submit feedback failed:', err);
+                // 反馈失败不阻塞主流程
+            } finally {
+                setFeedbackSubmitting(false);
+            }
+        }
+
+        setFeedbackDialogVisible(false);
+        setShareModalVisible(true);
+    };
+
+    // 跳过反馈，直接到分享卡片
+    const handleSkipFeedback = () => {
+        setFeedbackDialogVisible(false);
+        setShareModalVisible(true);
+    };
+
     const handleSkipRest = () => {
         setRestTimer(0);
         setIsResting(false);
@@ -912,7 +1146,7 @@ function TrainingExecutionContent() {
         try {
             setAddingExtraSet(true);
             
-            const res = await fetch('/api/execution/extra-content/add-extra-set', {
+            const res = await fetch(`${extraContentApiBase}/add-extra-set`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -975,7 +1209,7 @@ function TrainingExecutionContent() {
         try {
             setAddingExtraAction(true);
             
-            const res = await fetch('/api/execution/extra-content/add-extra-exercise', {
+            const res = await fetch(`${extraContentApiBase}/add-extra-exercise`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -1045,6 +1279,107 @@ function TrainingExecutionContent() {
             });
         } finally {
             setAddingExtraAction(false);
+        }
+    };
+
+    // 删除学员自行添加的组
+    const handleDeleteExtraSet = async (actionIndex: number, setIndex: number) => {
+        if (!execution || removingSet) return;
+        const actionExec = execution.action_executions[actionIndex];
+        const setData = actionExec?.sets?.[setIndex];
+        if (!setData || setData.source !== 'student_extra') return;
+
+        try {
+            setRemovingSet(true);
+            const res = await fetch(`${extraContentApiBase}/delete-extra-set`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    executionId: execution.id,
+                    actionIndex,
+                    setIndex,
+                }),
+            });
+            const data = await res.json();
+
+            if (data.success && data.data) {
+                const updatedExecution = { ...execution };
+                const sets = [...updatedExecution.action_executions[actionIndex].sets];
+                sets.splice(setIndex, 1);
+                sets.forEach((s: any, idx: number) => {
+                    s.set_number = idx + 1;
+                    s.set_index = idx;
+                });
+                updatedExecution.action_executions[actionIndex].sets = sets;
+                updatedExecution.action_executions[actionIndex].total_sets = sets.length;
+                updatedExecution.total_sets = data.data.totalSets;
+
+                setExecution(updatedExecution);
+                if (currentSetIndex >= sets.length && actionIndex === expandedAction) {
+                    setCurrentSetIndex(Math.max(0, sets.length - 1));
+                }
+                showToast({ severity: 'success', summary: '已删除', detail: '已删除该组', life: 2000 });
+            } else {
+                showToast({
+                    severity: 'error',
+                    summary: '删除失败',
+                    detail: data.message || '无法删除',
+                });
+            }
+        } catch (error) {
+            console.error('Delete extra set failed:', error);
+            showToast({ severity: 'error', summary: '错误', detail: '删除失败' });
+        } finally {
+            setRemovingSet(false);
+        }
+    };
+
+    // 删除学员自行添加的动作
+    const handleDeleteExtraAction = async (actionIndex: number) => {
+        if (!execution || removingAction) return;
+        const actionExec = execution.action_executions[actionIndex];
+        if (!actionExec || actionExec.source !== 'student_extra') return;
+
+        try {
+            setRemovingAction(true);
+            const res = await fetch(`${extraContentApiBase}/delete-extra-exercise`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    executionId: execution.id,
+                    actionIndex,
+                }),
+            });
+            const data = await res.json();
+
+            if (data.success && data.data) {
+                const updatedExecution = { ...execution };
+                updatedExecution.action_executions.splice(actionIndex, 1);
+                updatedExecution.action_executions.forEach((a: any, idx: number) => {
+                    a.action_order = idx + 1;
+                });
+                updatedExecution.total_sets = data.data.totalSets;
+
+                setExecution(updatedExecution);
+                if (expandedAction === actionIndex) {
+                    setExpandedAction(Math.max(0, actionIndex - 1));
+                } else if (expandedAction > actionIndex) {
+                    setExpandedAction(expandedAction - 1);
+                }
+                setCurrentSetIndex(0);
+                showToast({ severity: 'success', summary: '已删除', detail: '已删除该动作', life: 2000 });
+            } else {
+                showToast({
+                    severity: 'error',
+                    summary: '删除失败',
+                    detail: data.message || '无法删除',
+                });
+            }
+        } catch (error) {
+            console.error('Delete extra action failed:', error);
+            showToast({ severity: 'error', summary: '错误', detail: '删除失败' });
+        } finally {
+            setRemovingAction(false);
         }
     };
 
@@ -1242,6 +1577,19 @@ function TrainingExecutionContent() {
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-2">
+                                    {actionExec.source === 'student_extra' && (
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleDeleteExtraAction(actionIndex);
+                                            }}
+                                            disabled={removingAction}
+                                            className="p-2 rounded-lg text-red-500 hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
+                                            title="删除此动作"
+                                        >
+                                            <Trash2 className="w-5 h-5" />
+                                        </button>
+                                    )}
                                     {!isExpanded && demoVideoUrl && (
                                         <button 
                                             onClick={(e) => {
@@ -1384,6 +1732,20 @@ function TrainingExecutionContent() {
                                                             </div>
 
                                                         <div className="flex items-center gap-2 shrink-0">
+                                                            {setData.source === 'student_extra' && (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        handleDeleteExtraSet(actionIndex, setIndex);
+                                                                    }}
+                                                                    disabled={removingSet}
+                                                                    className="p-1.5 rounded-lg text-red-500 hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
+                                                                    title="删除此组"
+                                                                >
+                                                                    <Trash2 className="w-4 h-4" />
+                                                                </button>
+                                                            )}
                                                             {setData.has_video && (
                                                                 <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-full">
                                                                     有视频
@@ -1396,6 +1758,41 @@ function TrainingExecutionContent() {
                                                     {/* 当前组才展示完整表单（减少单组占屏面积） */}
                                                     {showSetForm && (
                                                         <div className="px-4 pb-4">
+                                                            {shouldPromptOneRM(action, setData) && (
+                                                                <div className="mt-3 mb-2 rounded-xl border border-amber-200 bg-amber-50 p-3">
+                                                                    <div className="text-xs font-bold text-amber-700">
+                                                                        当前动作需要1RM
+                                                                    </div>
+                                                                    <div className="mt-1 text-xs text-amber-700/90">
+                                                                        检测到该动作启用了智能计算且使用强度配置，建议先设置全局1RM再继续训练。
+                                                                    </div>
+                                                                    <div className="mt-2 flex gap-2">
+                                                                        <Button
+                                                                            type="button"
+                                                                            label="快捷设置1RM"
+                                                                            icon="pi pi-sliders-h"
+                                                                            className="p-button-sm rounded-xl"
+                                                                            onClick={() => {
+                                                                                setOneRMSettingAction(action);
+                                                                                setOneRMSettingValue(
+                                                                                    typeof action?.reference_1rm === 'number' &&
+                                                                                        Number.isFinite(action.reference_1rm)
+                                                                                        ? action.reference_1rm
+                                                                                        : null
+                                                                                );
+                                                                                setOneRMDialogVisible(true);
+                                                                            }}
+                                                                        />
+                                                                        <Button
+                                                                            type="button"
+                                                                            label="去动作库"
+                                                                            icon="pi pi-arrow-right"
+                                                                            className="p-button-text p-button-sm"
+                                                                            onClick={() => router.push('/me/action-lib')}
+                                                                        />
+                                                                    </div>
+                                                                </div>
+                                                            )}
                                                             {/* 只展示：重量 / 次数 / RPE + 进步组勾选（其余折叠） */}
                                                             {/* iPhone 14 Pro Max 等较宽机型：避免 RPE 被挤到下一行，强制 4 列同排 */}
                                                             <div className="mt-3 grid grid-cols-[minmax(0,1fr)_72px_72px_52px] items-end gap-2">
@@ -2006,6 +2403,132 @@ function TrainingExecutionContent() {
                     </video>
                 </div>
             )}
+        </Dialog>
+
+        <Dialog
+            visible={oneRMDialogVisible}
+            onHide={() => setOneRMDialogVisible(false)}
+            header="设置全局1RM"
+            style={{ width: '92vw', maxWidth: '480px' }}
+            modal
+            dismissableMask
+        >
+            <div className="space-y-3">
+                <div className="text-sm text-surface-700">
+                    动作：<span className="font-bold">{oneRMSettingAction?.name || '-'}</span>
+                </div>
+                <div>
+                    <label className="text-xs font-bold text-surface-600">参考1RM (kg)</label>
+                    <AeroInputNumber
+                        value={oneRMSettingValue}
+                        onValueChange={(e) => setOneRMSettingValue(e.value ?? null)}
+                        min={0}
+                        max={500}
+                        maxFractionDigits={1}
+                        suffix="kg"
+                        className="w-full mt-1"
+                        inputClassName="w-full"
+                    />
+                </div>
+                <div className="text-xs text-surface-500">
+                    保存后会作为该动作的学员全局1RM，后续计划将直接复用。
+                </div>
+                <div className="flex justify-end gap-2 pt-2">
+                    <Button
+                        label="取消"
+                        className="p-button-text"
+                        onClick={() => setOneRMDialogVisible(false)}
+                        disabled={oneRMSettingSaving}
+                    />
+                    <Button
+                        label="保存"
+                        icon="pi pi-check"
+                        onClick={handleSaveQuickOneRM}
+                        loading={oneRMSettingSaving}
+                    />
+                </div>
+            </div>
+        </Dialog>
+
+        {/* 训练反馈弹窗 - 完成训练后第一步 */}
+        <Dialog
+            visible={feedbackDialogVisible}
+            onHide={handleSkipFeedback}
+            header={null}
+            closable={false}
+            modal
+            className="w-[92vw] max-w-md"
+            contentClassName="p-0"
+        >
+            <div className="p-5">
+                <div className="text-center mb-4">
+                    <div className="text-2xl mb-1">💬</div>
+                    <h3 className="text-lg font-bold text-surface-800">训练感受如何？</h3>
+                    <p className="text-sm text-surface-500 mt-1">简短写一句反馈，教练会看到哦</p>
+                </div>
+
+                {/* 难度评分 */}
+                <div className="mb-4">
+                    <label className="block text-sm font-medium text-surface-600 mb-2">今天的训练难度</label>
+                    <div className="flex items-center justify-between gap-1">
+                        {[
+                            { val: 1, label: '太轻松', emoji: '😴' },
+                            { val: 2, label: '轻松', emoji: '😊' },
+                            { val: 3, label: '刚好', emoji: '💪' },
+                            { val: 4, label: '有点难', emoji: '😤' },
+                            { val: 5, label: '太难了', emoji: '🥵' },
+                        ].map((item) => (
+                            <button
+                                key={item.val}
+                                onClick={() => setFeedbackDifficulty(item.val)}
+                                className={`flex-1 flex flex-col items-center gap-0.5 py-2 rounded-xl transition-all text-xs
+                                    ${feedbackDifficulty === item.val
+                                        ? 'bg-primary-100 border-2 border-primary-400 scale-105'
+                                        : 'bg-surface-50 border-2 border-transparent hover:bg-surface-100'
+                                    }`}
+                            >
+                                <span className="text-lg">{item.emoji}</span>
+                                <span className={feedbackDifficulty === item.val ? 'font-bold text-primary-700' : 'text-surface-500'}>
+                                    {item.label}
+                                </span>
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                {/* 反馈输入 */}
+                <InputTextarea
+                    value={feedbackContent}
+                    onChange={(e) => setFeedbackContent(e.target.value)}
+                    placeholder="例如：深蹲感觉重量可以加一点，卧推姿势不太确定..."
+                    rows={3}
+                    maxLength={500}
+                    className="w-full mb-1"
+                    autoResize
+                />
+                <div className="text-right text-xs text-surface-400 mb-4">
+                    {feedbackContent.length}/500
+                </div>
+
+                {/* 操作按钮 */}
+                <div className="flex gap-3">
+                    <Button
+                        label="跳过"
+                        className="flex-1 p-button-text text-surface-500"
+                        onClick={handleSkipFeedback}
+                        disabled={feedbackSubmitting}
+                    />
+                    <Button
+                        label="发送给教练"
+                        icon="pi pi-send"
+                        className="flex-1"
+                        severity="success"
+                        onClick={handleSubmitFeedback}
+                        loading={feedbackSubmitting}
+                        disabled={!feedbackContent.trim()}
+                    />
+                </div>
+            </div>
         </Dialog>
 
         {/* Share Card Modal */}

@@ -7,6 +7,8 @@ import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 import { calcIntensityDisplay, normalizeIntensityConfig } from "@/lib/rmCaculator";
 import { normalizeToKg } from "@/types/intensity";
 import { getCurrent1RMRecords } from "@/app/api/student/get-current-1rm/route";
+import { isOneRMEligibleAction } from "@/lib/oneRmEligibility";
+import { syncCoachActionsToStudentLibrary } from "../sync-actions";
 
 // 内部辅助函数：获取单个计划实例（复用 get-instance 的核心逻辑）
 async function getSingleInstance(
@@ -126,6 +128,17 @@ async function getSingleInstance(
                 coachActions.forEach((action) => {
                     actionsMap[action.id] = action;
                 });
+
+                // 教练计划涉及的动作自动同步到学员动作库，便于后续按动作维护全局1RM。
+                const syncTargetStudentId =
+                    (instance.student_id as string | null) || subscriptionStudentId;
+                if (syncTargetStudentId && instance.coach_subscription_id) {
+                    await syncCoachActionsToStudentLibrary(
+                        syncTargetStudentId,
+                        coachActions as any[],
+                        actionIds,
+                    );
+                }
             }
 
             // 查询学员动作库
@@ -167,7 +180,12 @@ async function getSingleInstance(
             const bodyWeight = Number(profile?.weight || 0);
 
             // Build a 1RM map (ID + Name) for fast lookup
-            const records = await getCurrent1RMRecords(userId, { targetUserId: targetStudentId });
+            const records = await getCurrent1RMRecords(userId, {
+                targetUserId: targetStudentId,
+                // 计划负荷统一按 PR 递增逻辑计算，避免状态波动导致自动降重。
+                // 学员若需下调，必须通过手动编辑动作库 reference_1rm。
+                preferPR: true,
+            });
 
             const rmMap: Record<string, number> = {};
             // getCurrent1RMRecords 已经返回了每个动作的最新记录（按时间优先级）
@@ -190,13 +208,10 @@ async function getSingleInstance(
 
                     const params = set.params || {};
                     const existingLoad = params.load;
-                    // 如果已经有load值，且不是自动计算的，则跳过（保留手动设置的值）
-                    // 如果是自动计算的（loadCalculated === true），则重新计算（因为1RM数据可能已更新）
+                    // 当 load 已存在时，始终保留 DB 中的值，不再重新计算。
+                    // 与 execution/start 行为一致，避免今日训练与执行页重量显示不一致。
                     if (existingLoad !== null && existingLoad !== undefined) {
-                        if (params.loadCalculated !== true && params.loadSource !== "calculated") {
-                            continue; // don't override explicit loads
-                        }
-                        // 如果是自动计算的，继续执行下面的重新计算逻辑
+                        continue;
                     }
 
                     const intensityConfig = normalizeIntensityConfig(params);

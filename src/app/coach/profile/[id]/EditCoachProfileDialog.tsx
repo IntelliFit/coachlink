@@ -13,6 +13,25 @@ import { Chip } from 'primereact/chip';
 import { ConfirmDialog, confirmDialog } from 'primereact/confirmdialog';
 import { useToastContext } from '@/context/ToastContext';
 import { AeroInputNumber } from '@/components/AeroInputNumber';
+import MapLocationPicker from '@/components/MapLocationPicker';
+import { getCurrentLocation } from '@/lib/locationService';
+
+/** 将接口/网络错误信息转为用户可读的中文提示 */
+function getErrorMessageForUser(raw: string | undefined): string {
+    if (!raw || typeof raw !== 'string') return '保存失败，请稍后重试';
+    const s = raw.trim().toLowerCase();
+    if (/status\s*500|500\s*error|internal\s*server\s*error/.test(s)) return '服务器繁忙，请稍后重试';
+    if (/status\s*404|404\s*not\s*found/.test(s)) return '资源不存在，请刷新后重试';
+    if (/status\s*401|401\s*unauthorized/.test(s)) return '登录已过期，请重新登录';
+    if (/status\s*403|403\s*forbidden/.test(s)) return '没有操作权限';
+    if (/network\s*error|failed\s*to\s*fetch|network\s*request\s*failed|load\s*failed/.test(s)) return '网络异常，请检查网络后重试';
+    if (/timeout|timed\s*out/.test(s)) return '请求超时，请稍后重试';
+    if (/status\s*502|502\s*bad\s*gateway/.test(s)) return '服务暂时不可用，请稍后重试';
+    if (/status\s*503|503\s*service\s*unavailable/.test(s)) return '服务繁忙，请稍后重试';
+    // 若已是中文或简短业务文案，直接返回；否则用通用提示
+    if (/[\u4e00-\u9fa5]/.test(raw) && raw.length <= 60) return raw;
+    return '保存失败，请稍后重试';
+}
 
 interface EditCoachProfileDialogProps {
     visible: boolean;
@@ -24,6 +43,7 @@ interface EditCoachProfileDialogProps {
 const EditCoachProfileDialog: React.FC<EditCoachProfileDialogProps> = ({ visible, onHide, coach, onSave }) => {
     const [loading, setLoading] = useState(false);
     const [uploading, setUploading] = useState(false);
+    const [locating, setLocating] = useState(false);
 
     const { showToast } = useToastContext();
 
@@ -48,6 +68,12 @@ const EditCoachProfileDialog: React.FC<EditCoachProfileDialogProps> = ({ visible
     const [socialLinks, setSocialLinks] = useState<{ name: string; url: string }[]>([]);
     const [newSocialPlatform, setNewSocialPlatform] = useState<string>('');
     const [newSocialUrl, setNewSocialUrl] = useState('');
+    const [province, setProvince] = useState<string>('');
+    const [city, setCity] = useState<string>('');
+    const [county, setCounty] = useState<string>('');
+    const [address, setAddress] = useState<string>('');
+    const [latitude, setLatitude] = useState<number | null>(null);
+    const [longitude, setLongitude] = useState<number | null>(null);
 
     const SOCIAL_MEDIA_OPTIONS: { label: string; value: string }[] = [
         { label: '抖音', value: '抖音' },
@@ -67,6 +93,13 @@ const EditCoachProfileDialog: React.FC<EditCoachProfileDialogProps> = ({ visible
             setSpecialties(Array.isArray(coach.specialties) ? coach.specialties : []);
             setYearsExperience(typeof coach.years_experience === 'number' ? coach.years_experience : 0);
             setBio(coach.bio || '');
+            // 省、市、区平铺存
+            setProvince(coach.province || '');
+            setCity(coach.city || '');
+            setCounty(coach.county || '');
+            setAddress(coach.address || '');
+            setLatitude(coach.latitude || null);
+            setLongitude(coach.longitude || null);
 
             // 从profile字段中提取申请页对应字段
             if (coach.profile) {
@@ -105,8 +138,28 @@ const EditCoachProfileDialog: React.FC<EditCoachProfileDialogProps> = ({ visible
                 setContactPhone(null);
                 setSocialLinks([]);
             }
+
+            // 自动获取位置（仅当没有位置信息时）
+            const hasLocation = coach.province || coach.city || coach.county || coach.latitude != null || coach.longitude != null;
+            if (!hasLocation) {
+                console.log('教练信息中无位置数据，自动获取位置...');
+                // 延迟执行，确保对话框已完全打开
+                setTimeout(() => {
+                    handleAutoLocation(false);
+                }, 800);
+            } else {
+                console.log('教练信息中已有位置数据，跳过自动定位');
+            }
         }
     }, [visible, coach]);
+
+    // 弹窗打开时禁用背景页面滚动
+    useEffect(() => {
+        if (visible) {
+            document.body.style.overflow = 'hidden';
+            return () => { document.body.style.overflow = ''; };
+        }
+    }, [visible]);
 
     const handleAddSpecialty = () => {
         const value = newSpecialty.trim();
@@ -207,68 +260,139 @@ const EditCoachProfileDialog: React.FC<EditCoachProfileDialogProps> = ({ visible
         return true;
     };
 
+    // 自动获取当前位置
+    const handleAutoLocation = async (showToasts = true) => {
+        setLocating(true);
+        try {
+            const location = await getCurrentLocation(true);
+            
+            if (location) {
+                // 更新位置信息
+                setCity(location.city || city);
+                setAddress(location.address || address);
+                setLatitude(location.latitude);
+                setLongitude(location.longitude);
+
+                if (showToasts) {
+                    showToast({
+                        severity: 'success',
+                        summary: '定位成功',
+                        detail: location.source === 'browser' ? '已使用精确定位' : '已使用IP定位',
+                        life: 3000
+                    });
+                }
+
+                console.log('自动定位成功:', {
+                    source: location.source,
+                    city: location.city,
+                    latitude: location.latitude,
+                    longitude: location.longitude
+                });
+            } else {
+                if (showToasts) {
+                    showToast({
+                        severity: 'info',
+                        summary: '提示',
+                        detail: '自动定位失败，请手动选择城市',
+                        life: 3000
+                    });
+                }
+                console.log('自动定位失败');
+            }
+        } catch (error) {
+            console.error('自动定位异常:', error);
+            if (showToasts) {
+                showToast({
+                    severity: 'info',
+                    summary: '提示',
+                    detail: '自动定位失败，请手动选择城市',
+                    life: 3000
+                });
+            }
+        } finally {
+            setLocating(false);
+        }
+    };
+
     const handleSubmit = async () => {
         setLoading(true);
-        // 构造要更新的profile对象
-        const socialLinksObj: Record<string, string> = {};
-        socialLinks.forEach(item => {
-            if (item.name && item.url) {
-                const keyMap: Record<string, string> = {
-                    '抖音': 'douyin',
-                    '小红书': 'xiaohongshu',
-                    '知乎': 'zhihu',
-                    'B站': 'bilibili',
-                    '快手': 'kuaishou',
-                    '其他网站': 'other'
-                };
-                const key = keyMap[item.name] || item.name;
-                socialLinksObj[key] = item.url;
-            }
-        });
-
-        const profile = {
-            teachingPhilosophy,
-            achievements,
-            caseStudies,
-            credentials,
-            contactEmail,
-            contactPhone,
-            // 空对象表示“已清空”，用 null 明确表达，避免被其他来源回填
-            socialLinks: Object.keys(socialLinksObj).length > 0 ? socialLinksObj : null,
-        };
-
-        // 调用服务更新教练信息
-        const res = await coachService.updateCoachProfile({
-            id: coach.id,
-            name,
-            title: title || null,
-            avatarUrl: avatarUrl || null,
-            specialties: specialties.length ? specialties : null,
-            yearsExperience: yearsExperience ?? 0,
-            bio,
-            profile
-        });
-
-        if (res.data.success) {
-            showToast({
-                severity: 'success',
-                summary: '成功',
-                detail: '教练信息已更新'
+        try {
+            // 构造要更新的profile对象
+            const socialLinksObj: Record<string, string> = {};
+            socialLinks.forEach(item => {
+                if (item.name && item.url) {
+                    const keyMap: Record<string, string> = {
+                        '抖音': 'douyin',
+                        '小红书': 'xiaohongshu',
+                        '知乎': 'zhihu',
+                        'B站': 'bilibili',
+                        '快手': 'kuaishou',
+                        '其他网站': 'other'
+                    };
+                    const key = keyMap[item.name] || item.name;
+                    socialLinksObj[key] = item.url;
+                }
             });
 
-            // 保存成功后回调
-            onSave();
-            onHide();
-        } else {
+            const profile = {
+                teachingPhilosophy,
+                achievements,
+                caseStudies,
+                credentials,
+                contactEmail,
+                contactPhone,
+                socialLinks: Object.keys(socialLinksObj).length > 0 ? socialLinksObj : null,
+            };
+
+            const provinceValue = province?.trim() || null;
+            const cityValue = city?.trim() || null;
+            const countyValue = county?.trim() || null;
+
+            // 调用服务更新教练信息（地址平铺：province、city、county）
+            const res = await coachService.updateCoachProfile({
+                id: coach.id,
+                name,
+                title: title || null,
+                avatarUrl: avatarUrl || null,
+                specialties: specialties.length ? specialties : null,
+                yearsExperience: yearsExperience ?? 0,
+                bio,
+                profile,
+                province: provinceValue,
+                city: cityValue,
+                county: countyValue,
+                address: address || null,
+                latitude,
+                longitude
+            });
+
+            if (res.data.success) {
+                showToast({
+                    severity: 'success',
+                    summary: '成功',
+                    detail: '教练信息已更新'
+                });
+
+                // 保存成功后回调
+                onSave();
+                onHide();
+            } else {
+                showToast({
+                    severity: 'error',
+                    summary: '保存失败',
+                    detail: getErrorMessageForUser(res.data.message)
+                });
+            }
+        } catch (error) {
+            const raw = error instanceof Error ? error.message : String(error);
             showToast({
                 severity: 'error',
-                summary: '错误',
-                detail: res.data.message
+                summary: '保存失败',
+                detail: getErrorMessageForUser(raw)
             });
+        } finally {
+            setLoading(false);
         }
-
-        setLoading(false);
-
     };
 
     const footer = (
@@ -636,6 +760,44 @@ const EditCoachProfileDialog: React.FC<EditCoachProfileDialogProps> = ({ visible
                                 disabled={!newSocialPlatform || !newSocialUrl.trim()}
                             />
                         </div>
+                    </div>
+
+                    {/* 位置信息 */}
+                    <div className="col-span-1 md:col-span-2 pt-6 border-t border-surface-200">
+                        <div className="flex items-center justify-between mb-4">
+                            <h4 className="text-base font-bold text-surface-900">位置信息</h4>
+                            {locating && (
+                                <div className="flex items-center gap-2 text-sm text-primary-500">
+                                    <i className="pi pi-spin pi-spinner"></i>
+                                    <span>正在获取位置...</span>
+                                </div>
+                            )}
+                        </div>
+                        <MapLocationPicker
+                            value={{
+                                province,
+                                city,
+                                county,
+                                address,
+                                latitude,
+                                longitude,
+                            }}
+                            onChange={(v) => {
+                                setProvince(v.province ?? '');
+                                setCity(v.city ?? '');
+                                setCounty(v.county ?? '');
+                                setAddress(v.address ?? '');
+                                setLatitude(v.latitude ?? null);
+                                setLongitude(v.longitude ?? null);
+                            }}
+                            cityLabel="常住城市"
+                            addressLabel="详细地址"
+                            mapLabel="位置标记"
+                            mapHeight="350px"
+                            showRelocateButton
+                            onRelocate={() => handleAutoLocation(true)}
+                            hint="* 点击地图、拖动标记调整位置，或点击「重新定位」按钮重新获取当前位置"
+                        />
                     </div>
                 </div>
             </Dialog>

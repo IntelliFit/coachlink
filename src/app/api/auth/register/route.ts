@@ -110,16 +110,17 @@ export async function POST(req: NextRequest) {
             .single();
     }
 
-    const { data: existingUsers, error: existingUserError } = await existingUserQuery;
+    const { data: existingUser, error: existingUserError } = await existingUserQuery;
 
     if (existingUserError) {
         console.warn("[register] failed to check existing user:", existingUserError.message);
     }
 
-    if (existingUsers && existingUsers.length > 0) {
+    // .single() 返回单个对象或 null，不是数组
+    if (existingUser) {
         return NextResponse.json<ApiData<null>>({
             success: false,
-            message: isPhone ? "手机号已注册" : "邮箱已注册",
+            message: isPhone ? "手机号已被注册" : "该邮箱已被注册",
             data: null,
         });
     }
@@ -147,7 +148,7 @@ export async function POST(req: NextRequest) {
         referrerCoachId = coach.id;
     }
 
-    const { data: user } = await supabase
+    const { data: user, error: userError } = await supabase
         .from("users")
         .insert({
             ...(isPhone ? { phone: trimmedPhoneOrEmail } : { email: trimmedPhoneOrEmail }),
@@ -160,9 +161,10 @@ export async function POST(req: NextRequest) {
         .single();
 
     if (!user) {
+        console.error("[register] 创建用户失败:", userError?.message);
         return NextResponse.json<ApiData<null>>({
             success: false,
-            message: "注册失败，无法创建用户",
+            message: "注册失败，请稍后重试",
             data: null,
         });
     }
@@ -194,7 +196,7 @@ export async function POST(req: NextRequest) {
     // Rules (per decision):
     // - 24h attribution window (share_card only, via expires_at/cookie)
     // - reward on successful registration
-    // - both sides get +2 AI imports and +100MB storage
+    // - both sides get +2 AI imports and +200MB storage
     // - daily cap: inviter gets max 10 share_card rewards/day
     // - no risk control for v1
     //
@@ -207,9 +209,9 @@ export async function POST(req: NextRequest) {
         }
 
         const now = new Date();
-        // Reward values (current policy): both sides get +2 AI imports and +100MB storage.
+        // Reward values (current policy): both sides get +2 AI imports and +200MB storage.
         const rewardAi = 2;
-        const rewardStorageMb = 100;
+        const rewardStorageMb = 200;
 
         const ensureAndGrantQuota = async (targetUserId: string) => {
             // Ensure quota row exists (init as free tier if missing)

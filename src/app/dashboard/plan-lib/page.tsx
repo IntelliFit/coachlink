@@ -15,6 +15,7 @@ import { useRouter } from 'next/navigation';
 import { CoachPlansPreview } from '@/app/api/plan-lib/list-templates/entity';
 import TemplateCard from './components/TemplateCard';
 import { ConfirmDialog, confirmDialog } from 'primereact/confirmdialog';
+import { BatchOperationDialog } from '@/components/BatchOperationDialog';
 
 const PlanLib = () => {
     const { data: session } = useSession();
@@ -32,6 +33,8 @@ const PlanLib = () => {
     const [currentPage, setCurrentPage] = useState(1);
     const [totalRecords, setTotalRecords] = useState(0);
     const [searchTotalRecords, setSearchTotalRecords] = useState(0);
+    const [batchOperationVisible, setBatchOperationVisible] = useState(false);
+    const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
 
     const { showToast } = useToastContext();
     const itemsPerPage = 12;
@@ -123,6 +126,22 @@ const PlanLib = () => {
         });
     };
 
+    const handleBatchOperation = (id: string) => {
+        setSelectedTemplateId(id);
+        setBatchOperationVisible(true);
+    };
+
+    const handleBatchOperationSuccess = () => {
+        showToast({ severity: 'success', summary: '批量操作成功', detail: '训练计划已更新' });
+        setBatchOperationVisible(false);
+        // 重新加载列表
+        if (searchTerm) {
+            handleSearch();
+        } else {
+            loadTemplates();
+        }
+    };
+
     const handleSearch = async () => {
         if (!coach?.id) return;
 
@@ -160,6 +179,7 @@ const PlanLib = () => {
                 onEdit={(id) => router.push(`/dashboard/plan-lib/edit/${id}`)}
                 onCopy={handleCopyTemplate}
                 onDelete={handleDeleteTemplate}
+                onBatchOperation={handleBatchOperation}
             />
         );
     };
@@ -173,6 +193,17 @@ const PlanLib = () => {
     return (
         <div className="max-w-5xl mx-auto px-4 py-10 animate-in fade-in slide-in-from-bottom-2 duration-1000">
             <ConfirmDialog />
+
+            {/* 批量操作对话框 */}
+            {selectedTemplateId && (
+                <BatchOperationDialog
+                    visible={batchOperationVisible}
+                    onHide={() => setBatchOperationVisible(false)}
+                    templateId={selectedTemplateId}
+                    targetActionType="coach"
+                    onSuccess={handleBatchOperationSuccess}
+                />
+            )}
 
             {/* Header: 强调数值中心化 */}
             <header className="flex items-center justify-between mb-12 px-2">

@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
-import { createGuide, GUIDE_CONFIGS } from '@/lib/guide-driver';
+import { createGuide, GUIDE_CONFIGS, type GuideInstance } from '@/lib/guide-driver';
 
 // Guide keys type
 export type GuideKey = keyof typeof GUIDE_CONFIGS;
@@ -10,11 +10,15 @@ interface GuideContextType {
     completedGuides: Record<string, boolean>;
     isGuideActive: boolean;
     isLoading: boolean;
+    isInitialized: boolean;
+    isPaused: boolean;
     startGuide: (guideKey: GuideKey, forceShow?: boolean) => void;
     stopActiveGuide: () => void;
     markGuideComplete: (guideKey: string) => Promise<void>;
     hasCompletedGuide: (guideKey: string) => boolean;
     loadCompletedGuides: () => Promise<void>;
+    pauseGuides: () => void;
+    resumeGuides: () => void;
 }
 
 const GuideContext = createContext<GuideContextType | undefined>(undefined);
@@ -28,8 +32,10 @@ export function GuideProvider({ children, userId }: GuideProviderProps) {
     const [completedGuides, setCompletedGuides] = useState<Record<string, boolean>>({});
     const [isGuideActive, setIsGuideActive] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
+    const [isInitialized, setIsInitialized] = useState(false);
+    const [isPaused, setIsPaused] = useState(false);
     const [startedGuides, setStartedGuides] = useState<Record<string, boolean>>({});
-    const [activeDriver, setActiveDriver] = useState<ReturnType<typeof createGuide> | null>(null);
+    const [activeDriver, setActiveDriver] = useState<GuideInstance | null>(null);
 
     const getLocalGuidesKey = useCallback(() => {
         if (!userId) return null;
@@ -91,6 +97,7 @@ export function GuideProvider({ children, userId }: GuideProviderProps) {
             }
         } finally {
             setIsLoading(false);
+            setIsInitialized(true);
         }
     }, [userId, getLocalGuidesKey]);
 
@@ -149,6 +156,20 @@ export function GuideProvider({ children, userId }: GuideProviderProps) {
         [completedGuides]
     );
 
+    const pauseGuides = useCallback(() => {
+        setIsPaused(true);
+        // 如果有正在运行的 guide，也关掉
+        if (activeDriver) {
+            try { activeDriver.destroy(); } catch (_) { /* silent */ }
+        }
+        setIsGuideActive(false);
+        setActiveDriver(null);
+    }, [activeDriver]);
+
+    const resumeGuides = useCallback(() => {
+        setIsPaused(false);
+    }, []);
+
     // Start a guide
     const startGuide = useCallback(
         (guideKey: GuideKey, forceShow: boolean = false) => {
@@ -156,6 +177,12 @@ export function GuideProvider({ children, userId }: GuideProviderProps) {
             // Don't start until completion state is loaded, otherwise the guide can re-trigger repeatedly.
             if (isLoading) {
                 console.log('[GuideStore] Guides still loading, skip start');
+                return;
+            }
+
+            // 全局暂停状态（例如正在弹 Onboarding 问卷）
+            if (isPaused) {
+                console.log('[GuideStore] Guides are paused, skip start');
                 return;
             }
 
@@ -193,36 +220,40 @@ export function GuideProvider({ children, userId }: GuideProviderProps) {
               setStartedGuides((prev) => ({ ...prev, [config.key]: true }));
             }
 
-            const guide = createGuide({
-                key: config.key,
-                steps: config.steps,
-                onComplete: () => {
-                    console.log('[GuideStore] Guide completed:', config.key);
-                    // Only mark as complete if not forced (manual restart should not count as completed again)
-                    if (!forceShow) {
-                      markGuideComplete(config.key);
-                    }
+            void (async () => {
+                try {
+                    const guide = await createGuide({
+                        key: config.key,
+                        steps: config.steps,
+                        onComplete: () => {
+                            console.log('[GuideStore] Guide completed:', config.key);
+                            if (!forceShow) {
+                              markGuideComplete(config.key);
+                            }
+                            setIsGuideActive(false);
+                            setActiveDriver(null);
+                        },
+                        onSkip: () => {
+                            console.log('[GuideStore] Guide skipped:', config.key);
+                            if (!forceShow) {
+                              markGuideComplete(config.key);
+                            }
+                            setIsGuideActive(false);
+                            setActiveDriver(null);
+                        },
+                    });
+                    setActiveDriver(guide);
+                    setTimeout(() => {
+                        guide.start();
+                    }, 500);
+                } catch (e) {
+                    console.warn('[GuideStore] Failed to load or start guide:', e);
                     setIsGuideActive(false);
                     setActiveDriver(null);
-                },
-                onSkip: () => {
-                    console.log('[GuideStore] Guide skipped:', config.key);
-                    // Only mark as complete if not forced
-                    if (!forceShow) {
-                      markGuideComplete(config.key);
-                    }
-                    setIsGuideActive(false);
-                    setActiveDriver(null);
-                },
-            });
-
-            setActiveDriver(guide);
-            // Small delay to ensure DOM is ready
-            setTimeout(() => {
-                guide.start();
-            }, 500);
+                }
+            })();
         },
-        [hasCompletedGuide, isGuideActive, markGuideComplete, isLoading, startedGuides]
+        [hasCompletedGuide, isGuideActive, markGuideComplete, isLoading, isPaused, startedGuides]
     );
 
     const stopActiveGuide = useCallback(() => {
@@ -248,11 +279,15 @@ export function GuideProvider({ children, userId }: GuideProviderProps) {
                 completedGuides,
                 isGuideActive,
                 isLoading,
+                isInitialized,
+                isPaused,
                 startGuide,
                 stopActiveGuide,
                 markGuideComplete,
                 hasCompletedGuide,
                 loadCompletedGuides,
+                pauseGuides,
+                resumeGuides,
             }}
         >
             {children}

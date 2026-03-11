@@ -149,6 +149,33 @@ export async function POST(req: Request) {
         }, { status: 500 });
     }
 
+    // 异步触发自动匹配计划（后台任务，不阻塞响应）
+    // 如果匹配失败，静默处理，教练可以手动创建计划
+    if (subscription.status === "active" && subscribeData) {
+        // 获取教练ID（需要从coachId转换为coaches表的id）
+        const { data: coach } = await supabase
+            .from("coaches")
+            .select("id, user_id")
+            .eq("id", coachId)
+            .single();
+
+        if (coach?.id) {
+            // 异步执行，不等待结果
+            import("@/app/api/plan-lib/auto-match-plan/service").then(({ autoMatchPlanForSubscription }) => {
+                autoMatchPlanForSubscription(
+                    subscription.id,
+                    userId, // actorUserId
+                    coach.id, // actorCoachId
+                ).catch((err) => {
+                    // 静默处理错误，只记录日志
+                    console.error("[create-subscription] 自动匹配计划失败（已静默处理）:", err);
+                });
+            }).catch((err) => {
+                console.error("[create-subscription] 加载自动匹配模块失败:", err);
+            });
+        }
+    }
+
     // 重要！必须申请接口范型位 ApiData<返回参数的接口类型>
     return NextResponse.json<ApiData<CreateSubscriptionResponseDto>>({
         success: true,

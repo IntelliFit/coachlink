@@ -11,6 +11,97 @@ import {
     PR_THRESHOLD_KG,
     requiresBodyWeightFallback,
 } from "@/lib/e1rmCalculator";
+import { isOneRMEligibleAction } from "@/lib/oneRmEligibility";
+
+async function bumpStudentActionReference1RM(params: {
+    userId: string;
+    actionId: string;
+    actionName: string;
+    e1rm: number;
+}) {
+    const { userId, actionId, actionName, e1rm } = params;
+    if (!Number.isFinite(e1rm) || e1rm <= 0) return;
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let targetAction: any = null;
+
+    // 1) 最优先：如果 actionId 本身就是学员动作 ID，直接命中。
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: byId } = await (supabase as any)
+        .from("student_actions")
+        .select('id, name, canonical_action_id, type, attrs, "enableAutoWeightCompute", reference_1rm')
+        .eq("user_id", userId)
+        .eq("id", actionId)
+        .maybeSingle();
+    if (byId) {
+        targetAction = byId;
+    }
+
+    // 2) 若没命中，尝试走教练动作 canonical -> 学员动作 canonical 的映射。
+    if (!targetAction) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data: coachAction } = await (supabase as any)
+            .from("coach_actions")
+            .select("canonical_action_id, name")
+            .eq("id", actionId)
+            .maybeSingle();
+
+        if (coachAction?.canonical_action_id) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const { data: byCanonical } = await (supabase as any)
+                .from("student_actions")
+                .select('id, name, canonical_action_id, type, attrs, "enableAutoWeightCompute", reference_1rm')
+                .eq("user_id", userId)
+                .eq("canonical_action_id", coachAction.canonical_action_id)
+                .limit(1)
+                .maybeSingle();
+            if (byCanonical) {
+                targetAction = byCanonical;
+            }
+        }
+
+        // 3) 兜底按名称匹配（历史同名多 ID 过渡期）。
+        if (!targetAction) {
+            const nameForMatch = coachAction?.name || actionName;
+            if (nameForMatch) {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const { data: byName } = await (supabase as any)
+                    .from("student_actions")
+                    .select('id, name, canonical_action_id, type, attrs, "enableAutoWeightCompute", reference_1rm')
+                    .eq("user_id", userId)
+                    .eq("name", nameForMatch)
+                    .limit(1)
+                    .maybeSingle();
+                if (byName) {
+                    targetAction = byName;
+                }
+            }
+        }
+    }
+
+    if (!targetAction?.id) return;
+
+    const eligible = isOneRMEligibleAction({
+        type: targetAction.type,
+        attrs: targetAction.attrs,
+        enableAutoWeightCompute: targetAction.enableAutoWeightCompute,
+    });
+    if (!eligible) return;
+
+    const current = Number(targetAction.reference_1rm);
+    const shouldIncrease = !Number.isFinite(current) || current <= 0 ||
+        (e1rm - current) > PR_THRESHOLD_KG;
+    if (!shouldIncrease) return;
+
+    await supabase
+        .from("student_actions")
+        .update({
+            reference_1rm: e1rm,
+            updated_at: new Date().toISOString(),
+        })
+        .eq("id", targetAction.id)
+        .eq("user_id", userId);
+}
 
 /**
  * Handle auto e1RM calculation and PR detection
@@ -23,6 +114,7 @@ async function handleAutoE1RMCheck(params: {
     reps: number;
     executionId: string;
     setNumber: number;
+    isCoachSubscriptionPlan?: boolean;
 }): Promise<{ isPR: boolean; e1rm: number; previousPR?: number } | null> {
     const {
         userId,
@@ -32,6 +124,7 @@ async function handleAutoE1RMCheck(params: {
         reps,
         executionId,
         setNumber,
+        isCoachSubscriptionPlan = false,
     } = params;
 
     // Basic guard: reps must be present; weight may be negative for bodyweight-including actions (assistance)
@@ -89,10 +182,24 @@ async function handleAutoE1RMCheck(params: {
 
     const { e1rm, epley, brzycki, lombardi } = result;
 
+    // 3.2 将自动计算出的 e1RM 回写到学员动作库（只升不降，手动编辑可下调）
+    // 这里不覆盖更高的已有值，避免一次状态波动导致全局 1RM 回退。
+    try {
+        await bumpStudentActionReference1RM({
+            userId,
+            actionId,
+            actionName,
+            e1rm,
+        });
+    } catch (e) {
+        // best-effort
+        console.warn("[e1RM] Failed to bump student_actions.reference_1rm:", e);
+    }
+
     // ------------------------------------------------------------
-    // 3.5 Update "current state" snapshot (AUTO_STATE) when change >= 2kg
-    // This allows current 1RM to go up OR down based on recent performance,
-    // while PR logic remains "only goes up" for achievements.
+    // 3.5 Update "current state" snapshot (AUTO_STATE)
+    // - 教练订阅计划: 仅当 e1RM 相比上次 AUTO_STATE 提升 >2kg 时更新（递增为主）
+    // - 其他场景: 维持原逻辑，波动绝对值 >=2kg 即更新
     // ------------------------------------------------------------
     try {
         const today = new Date().toISOString().split("T")[0];
@@ -111,7 +218,9 @@ async function handleAutoE1RMCheck(params: {
         const prev = latestState?.e1rm;
         const shouldUpdate = prev === undefined || prev === null
             ? true
-            : Math.abs(Number(e1rm) - Number(prev)) >= PR_THRESHOLD_KG;
+            : isCoachSubscriptionPlan
+                ? (Number(e1rm) - Number(prev)) > PR_THRESHOLD_KG
+                : Math.abs(Number(e1rm) - Number(prev)) >= PR_THRESHOLD_KG;
 
         if (shouldUpdate) {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -388,6 +497,17 @@ export async function POST(request: NextRequest) {
         let autoE1RMResult:
             | { isPR: boolean; e1rm: number; previousPR?: number }
             | null = null;
+        let isCoachSubscriptionPlan = false;
+        if (execution.instance_id) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const { data: instanceRow } = await (supabase as any)
+                .from("plan_instances")
+                .select("coach_subscription_id")
+                .eq("id", execution.instance_id)
+                .maybeSingle();
+            isCoachSubscriptionPlan = !!instanceRow?.coach_subscription_id;
+        }
+
         if (actualWeight && actualReps && actionId) {
             autoE1RMResult = await handleAutoE1RMCheck({
                 userId,
@@ -397,6 +517,7 @@ export async function POST(request: NextRequest) {
                 reps: actualReps,
                 executionId,
                 setNumber: setIndex + 1,
+                isCoachSubscriptionPlan,
             });
         }
 

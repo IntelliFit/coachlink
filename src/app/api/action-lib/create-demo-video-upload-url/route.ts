@@ -74,13 +74,13 @@ export async function POST(req: Request) {
         );
     }
 
-    // 动作演示视频：和 UI 文案一致，限制 100MB
-    const maxSizeBytes = 100 * 1024 * 1024;
+    // 动作演示视频：和 UI 文案一致，限制 200MB
+    const maxSizeBytes = 200 * 1024 * 1024;
     if (fileSizeBytes > maxSizeBytes) {
         return NextResponse.json<ApiData<null>>(
             {
                 success: false,
-                message: "视频过大，单个视频请小于 100MB",
+                message: "视频过大，单个视频请小于 200MB",
                 data: null,
             },
             { status: 413 },
@@ -111,11 +111,18 @@ export async function POST(req: Request) {
         data: { publicUrl },
     } = supabase.storage.from("videos").getPublicUrl(path);
 
+    const supabaseUrl = (process.env.NEXT_SUPABASE_URL || process.env.SUPABASE_URL || "").replace(/\/+$/, "");
+    const encodedPath = path.split("/").map((seg) => encodeURIComponent(seg)).join("/");
+    const uploadUrl = supabaseUrl
+        ? `${supabaseUrl}/storage/v1/object/upload/sign/videos/${encodedPath}?token=${encodeURIComponent(signed.token)}`
+        : "";
+
     const resp: CreateDemoVideoUploadUrlResponseDto = {
         bucket: "videos",
         path,
         token: signed.token,
         publicUrl,
+        uploadUrl,
     };
 
     return NextResponse.json<ApiData<CreateDemoVideoUploadUrlResponseDto>>({

@@ -74,12 +74,12 @@ export async function POST(req: Request) {
             );
         }
 
-        const maxSizeBytes = 100 * 1024 * 1024; // 100MB
+        const maxSizeBytes = 200 * 1024 * 1024; // 200MB
         if (file.size > maxSizeBytes) {
             return NextResponse.json<ApiData<null>>(
                 {
                     success: false,
-                    message: "视频过大，单个视频请小于 100MB",
+                    message: "视频过大，单个视频请小于 200MB",
                     data: null,
                 },
                 { status: 413 },
