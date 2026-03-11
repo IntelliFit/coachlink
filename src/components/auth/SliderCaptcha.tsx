@@ -24,20 +24,31 @@ export default function SliderCaptcha({ visible, onHide, onSuccess }: SliderCapt
     const [imageUrl, setImageUrl] = useState<string>('');
     const [position, setPosition] = useState(0);
     const [dragging, setDragging] = useState(false);
+
     const trackRef = useRef<HTMLDivElement>(null);
     const dragStartRef = useRef({ x: 0, base: 0 });
     const verifyInFlightRef = useRef(false);
+    // 用 ref 实时记录 position，避免事件处理函数中读到 stale state
+    const positionRef = useRef(0);
+    const idRef = useRef<string | null>(null);
+
+    const updatePosition = (val: number) => {
+        positionRef.current = val;
+        setPosition(val);
+    };
 
     const loadChallenge = useCallback(async () => {
         verifyInFlightRef.current = false;
         setLoading(true);
         setId(null);
+        idRef.current = null;
         setImageUrl('');
-        setPosition(0);
+        updatePosition(0);
         setVerifying(false);
         try {
             const data = await captchaService.create();
             setId(data.id);
+            idRef.current = data.id;
             setImageUrl(data.imageUrl || '');
         } catch (e: any) {
             showToast({ severity: 'error', summary: '加载验证失败', detail: e?.message });
@@ -53,13 +64,13 @@ export default function SliderCaptcha({ visible, onHide, onSuccess }: SliderCapt
     }, [visible, loadChallenge]);
 
     const handlePointerDown = (e: React.PointerEvent) => {
-        if (!id || verifying) return;
+        if (!idRef.current || verifying) return;
         e.preventDefault();
         const track = trackRef.current;
         if (!track) return;
         const rect = track.getBoundingClientRect();
         const x = e.clientX - rect.left;
-        dragStartRef.current = { x, base: position };
+        dragStartRef.current = { x, base: positionRef.current };
         setDragging(true);
         (e.target as HTMLElement).setPointerCapture(e.pointerId);
     };
@@ -71,26 +82,32 @@ export default function SliderCaptcha({ visible, onHide, onSuccess }: SliderCapt
         const delta = e.clientX - rect.left - dragStartRef.current.x;
         let next = dragStartRef.current.base + delta;
         next = Math.max(0, Math.min(TRACK_WIDTH - THUMB_SIZE, next));
-        setPosition(next);
+        updatePosition(next);
     };
 
     const handlePointerUp = async (e: React.PointerEvent) => {
         e.preventDefault();
         if (!dragging) return;
         setDragging(false);
-        if (position === 0) return;
-        if (!id || verifying || verifyInFlightRef.current) return;
+
+        // 从 ref 读取最新 position，避免闭包 stale state
+        const currentPos = positionRef.current;
+        const currentId = idRef.current;
+
+        if (currentPos === 0) return;
+        if (!currentId || verifying || verifyInFlightRef.current) return;
+
         verifyInFlightRef.current = true;
         setVerifying(true);
         try {
-            // 统一用百分比传值：滑块中心点 / 轨道宽度
-            const percent = Math.round(((position + THUMB_SIZE / 2) / TRACK_WIDTH) * 100);
-            const token = await captchaService.verify(id, percent);
+            // 滑块中心点百分比
+            const percent = Math.round(((currentPos + THUMB_SIZE / 2) / TRACK_WIDTH) * 100);
+            const token = await captchaService.verify(currentId, percent);
             onSuccess(token);
             onHide();
         } catch (err: any) {
             verifyInFlightRef.current = false;
-            setPosition(0);
+            updatePosition(0);
             showToast({ severity: 'error', summary: '验证失败', detail: err?.message });
             loadChallenge();
         } finally {
@@ -100,7 +117,7 @@ export default function SliderCaptcha({ visible, onHide, onSuccess }: SliderCapt
 
     const handlePointerReset = () => {
         setDragging(false);
-        setPosition(0);
+        updatePosition(0);
     };
 
     return (
