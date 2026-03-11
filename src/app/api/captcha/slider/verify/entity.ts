@@ -1,6 +1,6 @@
 export interface SliderVerifyDto {
     id: string;
-    position: number;
+    percent: number; // 滑块中心点百分比（0-100）
 }
 
 export interface SliderVerifyResponseDto {

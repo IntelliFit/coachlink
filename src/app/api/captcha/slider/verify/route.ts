@@ -5,7 +5,7 @@ import redis from "@/lib/redisClient";
 import { randomUUID } from "crypto";
 
 const TOKEN_TTL = 120; // 2 分钟内可用
-const TRACK_WIDTH = 280;
+const TOLERANCE = 5; // 百分比误差容忍（±5%）
 
 export async function POST(req: Request) {
     if (!redis) {
@@ -27,11 +27,11 @@ export async function POST(req: Request) {
         }, { status: 400 });
     }
 
-    const { id, position, percent } = body as any;
-    if (!id || (typeof position !== "number" && typeof percent !== "number")) {
+    const { id, percent } = body;
+    if (!id || typeof percent !== "number") {
         return NextResponse.json<ApiData<SliderVerifyResponseDto>>({
             success: false,
-            message: "缺少 id 或位置参数",
+            message: "缺少 id 或 percent",
             data: undefined,
         }, { status: 400 });
     }
@@ -48,18 +48,8 @@ export async function POST(req: Request) {
         }, { status: 200 });
     }
 
-    // stored 是像素值
-    const targetPx = Number(stored);
-
-    // 兼容两种传值方式：
-    // - 网页端传 position（像素）
-    // - 小程序端传 percent（百分比，0-100）
-    const userPx = typeof position === "number"
-        ? position
-        : Math.round((percent / 100) * TRACK_WIDTH);
-
-    const TOLERANCE = 12; // 像素误差容忍
-    const distance = Math.abs(userPx - targetPx);
+    const targetPercent = Number(stored);
+    const distance = Math.abs(percent - targetPercent);
 
     if (distance > TOLERANCE) {
         return NextResponse.json<ApiData<SliderVerifyResponseDto>>({
