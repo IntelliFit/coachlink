@@ -4,7 +4,12 @@ import type { SliderCreateResponseDto } from "./entity";
 import redis from "@/lib/redisClient";
 import { randomUUID } from "crypto";
 
+const TRACK_WIDTH = 280;
+const THUMB_SIZE = 40;
 const CAPTCHA_TTL = 300; // 5 分钟
+// 缺口位置范围（像素），左右留出一定边距
+const TARGET_MIN = 60;
+const TARGET_MAX = TRACK_WIDTH - THUMB_SIZE - 60;
 
 export async function POST() {
     if (!redis) {
@@ -16,18 +21,21 @@ export async function POST() {
     }
 
     const id = randomUUID();
-    // 随机生成目标百分比，范围 30% - 90%（避免太靠左或太靠右）
-    const targetPercent = 30 + Math.floor(Math.random() * 61);
-    
+    // 随机生成缺口目标位置（像素）
+    const target = TARGET_MIN + Math.floor(Math.random() * (TARGET_MAX - TARGET_MIN + 1));
+
     const key = `captcha:slider:${id}`;
-    await redis.setEx(key, CAPTCHA_TTL, String(targetPercent));
+    await redis.setEx(key, CAPTCHA_TTL, String(target));
+
+    const imageUrl = `/api/captcha/slider/image?id=${encodeURIComponent(id)}`;
 
     return NextResponse.json<ApiData<SliderCreateResponseDto>>({
         success: true,
         message: "ok",
         data: {
             id,
-            targetPercent,
+            trackWidth: TRACK_WIDTH,
+            imageUrl,
         },
     });
 }
