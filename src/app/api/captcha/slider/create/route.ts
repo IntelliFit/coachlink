@@ -5,11 +5,10 @@ import redis from "@/lib/redisClient";
 import { randomUUID } from "crypto";
 
 const TRACK_WIDTH = 280;
-const THUMB_SIZE = 40;
 const CAPTCHA_TTL = 300; // 5 分钟
-// 缺口位置范围（像素），左右留出一定边距
-const TARGET_MIN = 60;
-const TARGET_MAX = TRACK_WIDTH - THUMB_SIZE - 60;
+// 缺口位置百分比范围，左右留出边距
+const TARGET_MIN_PCT = 20;
+const TARGET_MAX_PCT = 75;
 
 export async function POST() {
     if (!redis) {
@@ -21,13 +20,11 @@ export async function POST() {
     }
 
     const id = randomUUID();
-    // 随机生成缺口目标位置（像素）
-    const target = TARGET_MIN + Math.floor(Math.random() * (TARGET_MAX - TARGET_MIN + 1));
-    // 同时计算百分比，供小程序端使用
-    const targetPercent = Math.round((target / TRACK_WIDTH) * 100);
+    // 随机生成缺口目标百分比
+    const targetPercent = TARGET_MIN_PCT + Math.floor(Math.random() * (TARGET_MAX_PCT - TARGET_MIN_PCT + 1));
 
     const key = `captcha:slider:${id}`;
-    await redis.setEx(key, CAPTCHA_TTL, String(target));
+    await redis.setEx(key, CAPTCHA_TTL, String(targetPercent));
 
     const imageUrl = `/api/captcha/slider/image?id=${encodeURIComponent(id)}`;
 
@@ -38,7 +35,7 @@ export async function POST() {
             id,
             trackWidth: TRACK_WIDTH,
             imageUrl,
-            targetPercent, // 兼容小程序端（百分比）
+            targetPercent,
         },
     });
 }
