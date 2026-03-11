@@ -19,6 +19,7 @@ export interface CreateAiInstanceParams {
     startWeek?: number;
     startDay?: number;
     keepOriginalIndex?: boolean;
+    delayedActivation?: boolean; // 是否延迟激活（2分钟后才显示给学员）
 }
 
 export async function createAiInstanceForSubscription(params: CreateAiInstanceParams) {
@@ -28,6 +29,7 @@ export async function createAiInstanceForSubscription(params: CreateAiInstancePa
         subscriptionId,
         startWeek = 1,
         startDay = 1,
+        delayedActivation = false,
     } = params;
 
     const { data: subscription, error: subscriptionError } = await supabase
@@ -82,7 +84,7 @@ export async function createAiInstanceForSubscription(params: CreateAiInstancePa
         .select("id, name, enableAutoWeightCompute, includesBodyWeight")
         .eq("enableAutoWeightCompute", true);
 
-    const templates = await matchPlan(answers);
+    const templates = await matchPlan(answers, actorCoachId);
 
     if (!templates || templates.length === 0) {
         throw new ApiError("没有匹配的训练计划", 400);
@@ -117,6 +119,9 @@ export async function createAiInstanceForSubscription(params: CreateAiInstancePa
         ? `${planBaseName}（从第${startWeek}周${startDay > 1 ? `第${startDay}天` : ""}开始）`
         : planBaseName;
 
+    // DB 约束 check_plan_status 不允许 pending，延迟展示使用 scheduled
+    const initialStatus = delayedActivation ? "scheduled" : "active";
+
     const { data: template, error: updateError } = await supabase
         .from("coach_plan_instances")
         .insert({
@@ -133,7 +138,7 @@ export async function createAiInstanceForSubscription(params: CreateAiInstancePa
             tags: selectTemplate.tags,
             type: selectTemplate.type,
             suitable_for: selectTemplate.suitable_for,
-            status: "active",
+            status: initialStatus,
             training_days: trainingDays,
             start_execution_day: startExecutionDay,
         })
@@ -144,7 +149,13 @@ export async function createAiInstanceForSubscription(params: CreateAiInstancePa
         throw new ApiError(updateError.message, 500);
     }
 
-    // best-effort: notify student via chat message
+    // 如果延迟激活，计划已创建为 scheduled 状态
+    // 激活任务由定时任务 /api/plan-lib/activate-pending-plans 处理（每1分钟检查一次）
+    // 这样即使进程被回收，也能可靠地激活计划
+    if (delayedActivation && template) {
+        console.log(`[create-ai-instance] 计划 ${template.id} 已创建为 scheduled 状态，将在2分钟后由定时任务激活`);
+    } else {
+        // 立即激活时，立即通知学员
     try {
         const studentId = subscription.student_id as string | null;
         if (studentId) {
@@ -167,6 +178,7 @@ export async function createAiInstanceForSubscription(params: CreateAiInstancePa
         }
     } catch (e) {
         console.error("[create-ai-instance] Failed to notify student:", e);
+        }
     }
 
     return template;

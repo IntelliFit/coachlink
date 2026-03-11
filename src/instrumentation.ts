@@ -51,4 +51,24 @@ export async function register() {
     console.log(
         `[Alipay SyncPending] 进程内定时同步已启动，首次已立即执行，之后每 ${intervalMs}ms 执行`
     );
+
+    // 激活延迟的计划实例（每1分钟检查一次）
+    const activatePendingPlansIntervalMs = 60 * 1000; // 1分钟
+    const activatePendingPlans = () => {
+        fetch(`${baseUrl}/api/plan-lib/activate-pending-plans`, {
+            method: "POST",
+            headers: {
+                "x-cron-secret": secret,
+            },
+        }).catch((e) => {
+            console.error("[ActivatePendingPlans] background run error:", e);
+        });
+    };
+
+    activatePendingPlans(); // 启动时立即执行一次
+    setInterval(activatePendingPlans, activatePendingPlansIntervalMs);
+
+    console.log(
+        `[ActivatePendingPlans] 定时激活任务已启动，首次已立即执行，之后每 ${activatePendingPlansIntervalMs}ms 执行`
+    );
 }

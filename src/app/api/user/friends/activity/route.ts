@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import supabase from "@/lib/supabaseClient";
+import { getApiUserId } from "@/lib/getApiUserId";
 import type { ActivityResponseDto } from "../../friends/entity";
 import { differenceInMinutes } from "date-fns";
 
@@ -9,17 +8,16 @@ import { differenceInMinutes } from "date-fns";
  * GET /api/user/friends/activity
  *
  * 获取好友动态（最近完成的训练）
+ * 支持 NextAuth Session（网页）或 Authorization: Bearer JWT（小程序）
  */
 export async function GET(request: NextRequest) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) {
+        const userId = await getApiUserId(request);
+        if (!userId) {
             return NextResponse.json({ success: false, message: "未登录" }, {
                 status: 401,
             });
         }
-
-        const userId = session.user.id;
         const { searchParams } = new URL(request.url);
         const limit = parseInt(searchParams.get("limit") || "20");
 
@@ -103,8 +101,11 @@ export async function GET(request: NextRequest) {
 
         // 4. 格式化数据
         const activities = executions.map((ex: any) => {
-            // 简单计算容量
+            // 计算容量 + 找出亮点动作（最大重量的组）
             let totalVolume = 0;
+            let highlight: { actionName: string; weight: number; reps: number } | null = null;
+            let maxWeight = 0;
+
             if (ex.action_executions && Array.isArray(ex.action_executions)) {
                 ex.action_executions.forEach((action: any) => {
                     if (action.sets && Array.isArray(action.sets)) {
@@ -112,8 +113,19 @@ export async function GET(request: NextRequest) {
                             if (
                                 set.status === "completed" || set.completed_at
                             ) {
-                                totalVolume += (set.actual_weight || 0) *
-                                    (set.actual_reps || 0);
+                                const weight = set.actual_weight || 0;
+                                const reps = set.actual_reps || 0;
+                                totalVolume += weight * reps;
+
+                                // 找最大重量的组作为亮点
+                                if (weight > maxWeight && reps > 0) {
+                                    maxWeight = weight;
+                                    highlight = {
+                                        actionName: action.action_name || action.name || "动作",
+                                        weight: weight,
+                                        reps: reps,
+                                    };
+                                }
                             }
                         });
                     }
@@ -143,6 +155,7 @@ export async function GET(request: NextRequest) {
                     durationMinutes: duration,
                     completedAt: ex.completed_at,
                     shareToken: ex.share_token,
+                    highlight: highlight,
                 },
             };
         });

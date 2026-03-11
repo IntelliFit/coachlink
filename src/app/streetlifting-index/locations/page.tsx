@@ -13,6 +13,9 @@ import { InputText } from "primereact/inputtext";
 import { Paginator } from "primereact/paginator";
 import { Skeleton } from "primereact/skeleton";
 
+import MapLocationPicker from "@/components/MapLocationPicker";
+import CityPicker from "@/components/CityPicker";
+import TianDiTuLocationsMap from "@/components/TianDiTuLocationsMap";
 import { useToastContext } from "@/context/ToastContext";
 import { streetliftingIndexService } from "@/app/service/streetliftingIndexService";
 import { AERO_CARD, AERO_CONTAINER_6XL, AERO_SUBTITLE, AERO_TITLE } from "@/components/streetlifting-index/aero";
@@ -20,6 +23,51 @@ import { AERO_CARD, AERO_CONTAINER_6XL, AERO_SUBTITLE, AERO_TITLE } from "@/comp
 import type { StreetliftingLocation } from "@/app/api/streetlifting-index/locations/list/entity";
 
 const MAX_IMAGES = 4;
+
+/**
+ * WGS-84 → BD-09 Mercator，用于构造百度地图 URL 中的坐标段（@mcX,mcY,zoom）。
+ * 步骤：WGS-84 → GCJ-02 → BD-09 → BD-09 Mercator
+ */
+function wgs84ToBd09mc(wgsLon: number, wgsLat: number): [number, number] {
+    const a = 6378245.0;
+    const ee = 0.00669342162296594323;
+
+    const txLat = (x: number, y: number) => {
+        let r = -100 + 2 * x + 3 * y + 0.2 * y * y + 0.1 * x * y + 0.2 * Math.sqrt(Math.abs(x));
+        r += (20 * Math.sin(6 * x * Math.PI) + 20 * Math.sin(2 * x * Math.PI)) * 2 / 3;
+        r += (20 * Math.sin(y * Math.PI) + 40 * Math.sin(y / 3 * Math.PI)) * 2 / 3;
+        r += (160 * Math.sin(y / 12 * Math.PI) + 320 * Math.sin(y * Math.PI / 30)) * 2 / 3;
+        return r;
+    };
+    const txLon = (x: number, y: number) => {
+        let r = 300 + x + 2 * y + 0.1 * x * x + 0.1 * x * y + 0.1 * Math.sqrt(Math.abs(x));
+        r += (20 * Math.sin(6 * x * Math.PI) + 20 * Math.sin(2 * x * Math.PI)) * 2 / 3;
+        r += (20 * Math.sin(x * Math.PI) + 40 * Math.sin(x / 3 * Math.PI)) * 2 / 3;
+        r += (150 * Math.sin(x / 12 * Math.PI) + 300 * Math.sin(x / 30 * Math.PI)) * 2 / 3;
+        return r;
+    };
+
+    let dlat = txLat(wgsLon - 105, wgsLat - 35);
+    let dlng = txLon(wgsLon - 105, wgsLat - 35);
+    const radlat = wgsLat / 180 * Math.PI;
+    let magic = Math.sin(radlat);
+    magic = 1 - ee * magic * magic;
+    const sqrtMagic = Math.sqrt(magic);
+    dlat = (dlat * 180) / ((a * (1 - ee)) / (magic * sqrtMagic) * Math.PI);
+    dlng = (dlng * 180) / (a / sqrtMagic * Math.cos(radlat) * Math.PI);
+    const gcjLat = wgsLat + dlat;
+    const gcjLon = wgsLon + dlng;
+
+    const z = Math.sqrt(gcjLon * gcjLon + gcjLat * gcjLat) + 0.00002 * Math.sin(gcjLat * Math.PI * 3000 / 180);
+    const theta = Math.atan2(gcjLat, gcjLon) + 0.000003 * Math.cos(gcjLon * Math.PI * 3000 / 180);
+    const bdLon = z * Math.cos(theta) + 0.0065;
+    const bdLat = z * Math.sin(theta) + 0.006;
+
+    const mcX = bdLon * 20037508.34 / 180;
+    let mcY = Math.log(Math.tan((90 + bdLat) * Math.PI / 360)) / (Math.PI / 180);
+    mcY = mcY * 20037508.34 / 180;
+    return [mcX, mcY];
+}
 
 function getLocationImages(loc: StreetliftingLocation): string[] {
     if (loc.image_urls && loc.image_urls.length > 0) return loc.image_urls;
@@ -36,10 +84,13 @@ export default function StreetliftingLocationsPage() {
     const [totalCount, setTotalCount] = useState(0);
     const [first, setFirst] = useState(0);
     const rows = 30;
-    const [provinceOptions, setProvinceOptions] = useState<string[]>(["all"]);
 
     const [search, setSearch] = useState("");
-    const [province, setProvince] = useState<string>("all");
+    const [filterProvince, setFilterProvince] = useState("");
+    const [filterCity, setFilterCity] = useState("");
+    const [filterCounty, setFilterCounty] = useState("");
+    // CityPicker 使用的组合值 "省-市-区"
+    const [filterCityPickerValue, setFilterCityPickerValue] = useState("");
 
     const [dialogOpen, setDialogOpen] = useState(false);
     const [editing, setEditing] = useState<StreetliftingLocation | null>(null);
@@ -52,6 +103,9 @@ export default function StreetliftingLocationsPage() {
         address: "",
         city: "",
         province: "",
+        county: "",
+        latitude: null as number | null,
+        longitude: null as number | null,
     });
     const [imagePreviews, setImagePreviews] = useState<string[]>([]);
     const [imageUrls, setImageUrls] = useState<string[]>([]);
@@ -60,6 +114,8 @@ export default function StreetliftingLocationsPage() {
     const [galleryImages, setGalleryImages] = useState<string[]>([]);
     const [galleryIndex, setGalleryIndex] = useState(0);
 
+    const [viewMode, setViewMode] = useState<"list" | "map">("list");
+
     const fetchLocations = async (page: number) => {
         setLoading(true);
         try {
@@ -67,11 +123,12 @@ export default function StreetliftingLocationsPage() {
                 page,
                 limit: rows,
                 search: search.trim() || undefined,
-                province: province || undefined,
+                province: filterProvince || undefined,
+                city: filterCity || undefined,
+                county: filterCounty || undefined,
             });
             setLocations(data?.locations || []);
             setTotalCount(data?.pagination?.total || 0);
-            setProvinceOptions(["all", ...(data?.provinces || [])]);
         } catch (e: any) {
             console.error("[streetlifting-index][locations] list error:", e);
             showToast({ severity: "warn", summary: "提示", detail: "地点加载失败" });
@@ -94,11 +151,20 @@ export default function StreetliftingLocationsPage() {
         }, 250);
         return () => clearTimeout(t);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [search, province]);
+    }, [search, filterProvince, filterCity, filterCounty]);
 
     const resetForm = () => {
         setEditing(null);
-        setForm({ name: "", description: "", address: "", city: "", province: "" });
+        setForm({
+            name: "",
+            description: "",
+            address: "",
+            city: "",
+            province: "",
+            county: "",
+            latitude: null,
+            longitude: null,
+        });
         setImagePreviews([]);
         setImageUrls([]);
         setUploading(false);
@@ -119,6 +185,9 @@ export default function StreetliftingLocationsPage() {
             address: loc.address || "",
             city: loc.city || "",
             province: loc.province || "",
+            county: loc.county || "",
+            latitude: loc.latitude,
+            longitude: loc.longitude,
         });
         setImageUrls(imgs);
         setImagePreviews(imgs);
@@ -167,8 +236,11 @@ export default function StreetliftingLocationsPage() {
         try {
             setSubmitting(true);
             if (!form.name.trim()) throw new Error("请填写地点名称");
+            if (!form.province) throw new Error("请选择省份");
+            if (!form.city) throw new Error("请选择城市");
+            if (!form.county) throw new Error("请选择区/县");
 
-            if (editing) {
+                    if (editing) {
                 await streetliftingIndexService.updateLocation({
                     id: editing.id,
                     name: form.name.trim(),
@@ -176,6 +248,9 @@ export default function StreetliftingLocationsPage() {
                     address: form.address || null,
                     city: form.city || null,
                     province: form.province || null,
+                    county: form.county || null,
+                    latitude: form.latitude,
+                    longitude: form.longitude,
                     image_urls: imageUrls.length ? imageUrls : null,
                 });
                 showToast({ severity: "success", summary: "保存成功", detail: "地点已更新" });
@@ -186,6 +261,9 @@ export default function StreetliftingLocationsPage() {
                     address: form.address || null,
                     city: form.city || null,
                     province: form.province || null,
+                    county: form.county || null,
+                    latitude: form.latitude,
+                    longitude: form.longitude,
                     image_urls: imageUrls.length ? imageUrls : null,
                 });
                 showToast({ severity: "success", summary: "提交成功", detail: "感谢你的分享" });
@@ -202,7 +280,7 @@ export default function StreetliftingLocationsPage() {
     };
 
     const handleShare = async (loc: StreetliftingLocation) => {
-        const addressPart = [loc.province, loc.city, loc.address].filter(Boolean).join(" ");
+        const addressPart = [loc.province, loc.city, loc.county, loc.address].filter(Boolean).join(" ");
         const shareText = `🏋️ 发现单杠训练点：${loc.name}\n📍 地址：${addressPart || "暂无详细地址"}\n${loc.description ? `💬 描述：${loc.description}\n` : ""}🔗 更多：${window.location.origin}/streetlifting-index/locations`;
         try {
             await navigator.clipboard.writeText(shareText);
@@ -210,6 +288,19 @@ export default function StreetliftingLocationsPage() {
         } catch {
             showToast({ severity: "warn", summary: "复制失败", detail: "请手动复制分享内容" });
         }
+    };
+
+    const handleGoToMap = (loc: StreetliftingLocation) => {
+        const addressPart = [loc.province, loc.city, loc.county, loc.address].filter(Boolean).join("");
+        const encodedAddress = encodeURIComponent(addressPart);
+        let url: string;
+        if (loc.latitude != null && loc.longitude != null) {
+            const [mcX, mcY] = wgs84ToBd09mc(loc.longitude, loc.latitude);
+            url = `https://map.baidu.com/search/${encodedAddress}/@${mcX.toFixed(2)},${mcY.toFixed(2)},15z?querytype=s&da_src=shareurl&wd=${encodedAddress}&src=0&pn=0&sug=0&from=webmap`;
+        } else {
+            url = `https://map.baidu.com/search/${encodedAddress}/?querytype=s&da_src=shareurl&wd=${encodedAddress}&src=0&pn=0&sug=0&from=webmap`;
+        }
+        window.open(url, "_blank");
     };
 
     const openGallery = (images: string[], index: number) => {
@@ -262,6 +353,63 @@ export default function StreetliftingLocationsPage() {
     const textareaClassName =
         "w-full rounded-2xl border border-surface-200 bg-surface-0 px-3 py-2 text-sm font-semibold text-surface-800 placeholder:text-surface-400 focus:outline-none focus:border-primary-200";
 
+    // 地图模式：锁定 body 滚动，防止页面出现滚动条
+    useEffect(() => {
+        if (viewMode === "map") {
+            document.body.style.overflow = "hidden";
+        } else {
+            document.body.style.overflow = "";
+        }
+        return () => { document.body.style.overflow = ""; };
+    }, [viewMode]);
+
+    /** 视图切换按钮组（两种模式均复用） */
+    const viewToggle = (
+        <div className="flex items-center rounded-2xl border border-surface-200 bg-surface-50 p-1 gap-1">
+            <button
+                type="button"
+                onClick={() => setViewMode("list")}
+                className={`px-3 py-1.5 rounded-xl text-sm font-bold transition-all ${
+                    viewMode === "list"
+                        ? "bg-surface-900 text-surface-0 shadow-sm"
+                        : "text-surface-500 hover:text-surface-800"
+                }`}
+            >
+                列表
+            </button>
+            <button
+                type="button"
+                onClick={() => setViewMode("map")}
+                className={`px-3 py-1.5 rounded-xl text-sm font-bold transition-all ${
+                    viewMode === "map"
+                        ? "bg-surface-900 text-surface-0 shadow-sm"
+                        : "text-surface-500 hover:text-surface-800"
+                }`}
+            >
+                地图
+            </button>
+        </div>
+    );
+
+    if (viewMode === "map") {
+        return (
+            <div className="fixed inset-0 z-40">
+                {/* 地图铺满全屏 */}
+                <TianDiTuLocationsMap className="h-full" />
+
+                {/* 悬浮在地图上方、导航栏正下方，居中展示；z-[9999] 压过天地图注入的高层级 DOM */}
+                <div className="absolute top-20 left-1/2 -translate-x-1/2 z-[9999] flex items-center gap-2 bg-surface-0/90 backdrop-blur-md rounded-2xl shadow-lg px-3 py-2 border border-surface-100">
+                    <span className="text-sm font-black text-surface-900 whitespace-nowrap">寻找单杠</span>
+                    <div className="w-px h-4 bg-surface-200" />
+                    {viewToggle}
+                </div>
+
+                {/* 对话框仍然需要渲染（分享位置弹窗） */}
+                {renderDialogs()}
+            </div>
+        );
+    }
+
     return (
         <div className={`${AERO_CONTAINER_6XL} py-6 space-y-6`}>
             <Card className={AERO_CARD}>
@@ -271,93 +419,119 @@ export default function StreetliftingLocationsPage() {
                                 <div className={AERO_TITLE}>寻找单杠</div>
                                 <div className={AERO_SUBTITLE}>分享你发现的训练点，帮助更多人找到场地。</div>
                             </div>
-                            <Button
-                                label="分享单杠位置"
-                                icon="pi pi-plus"
-                                onClick={openCreate}
-                                className="h-10 rounded-2xl bg-surface-900 border-none text-surface-0 text-sm font-black hover:bg-surface-800 shadow-sm shadow-primary-100/60 hover:shadow-primary-100 active:scale-[0.98] transition-all"
-                            />
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                            <IconField iconPosition="left" className="w-full group md:col-span-2">
-                                <InputIcon className="z-10 text-surface-400 group-focus-within:text-primary-500 transition-colors">
-                                    <Search size={18} strokeWidth={2.5} />
-                                </InputIcon>
-                                <InputText
-                                    value={search}
-                                    onChange={(e) => setSearch(e.target.value)}
-                                    className={`${textInputClassName} pl-11`}
-                                    placeholder="搜索地点名称/省市/地址/描述…"
+                            <div className="flex items-center gap-3">
+                                {viewToggle}
+                                <Button
+                                    label="分享单杠位置"
+                                    icon="pi pi-plus"
+                                    onClick={openCreate}
+                                    className="h-10 rounded-2xl bg-surface-900 border-none text-surface-0 text-sm font-black hover:bg-surface-800 shadow-sm shadow-primary-100/60 hover:shadow-primary-100 active:scale-[0.98] transition-all"
                                 />
-                            </IconField>
-                            <Dropdown
-                                value={province}
-                                options={provinceOptions.map((p) => ({
-                                    label: p === "all" ? "全部省份" : p,
-                                    value: p,
-                                }))}
-                                optionLabel="label"
-                                optionValue="value"
-                                className={dropdownClassName}
-                                panelClassName={dropdownPanelClassName}
-                                dropdownIcon={dropdownIcon}
-                                pt={dropdownPt}
-                                valueTemplate={renderAeroDropdownValue}
-                                itemTemplate={makeAeroDropdownItemTemplate(province)}
-                                onChange={(e) => setProvince(e.value)}
-                                placeholder="省份"
-                            />
+                            </div>
                         </div>
 
-                        <div className="text-sm text-surface-500">找到 {totalCount} 个地点</div>
+                        {viewMode === "list" && (
+                            <>
+                                <div className="flex flex-col gap-3">
+                                    <CityPicker
+                                        value={filterCityPickerValue}
+                                        onChange={(val) => {
+                                            setFilterCityPickerValue(val);
+                                            const parts = val.split("-").map((s) => s.trim());
+                                            setFilterProvince(parts[0] || "");
+                                            setFilterCity(parts[1] || "");
+                                            setFilterCounty(parts[2] || "");
+                                        }}
+                                    />
+                                    <div className="flex gap-3 items-center">
+                                        <IconField iconPosition="left" className="flex-1 group">
+                                            <InputIcon className="z-10 text-surface-400 group-focus-within:text-primary-500 transition-colors">
+                                                <Search size={18} strokeWidth={2.5} />
+                                            </InputIcon>
+                                            <InputText
+                                                value={search}
+                                                onChange={(e) => setSearch(e.target.value)}
+                                                className={`${textInputClassName} pl-11`}
+                                                placeholder="搜索地点名称/描述…"
+                                            />
+                                        </IconField>
+                                        {(filterCityPickerValue || search) && (
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setSearch("");
+                                                    setFilterCityPickerValue("");
+                                                    setFilterProvince("");
+                                                    setFilterCity("");
+                                                    setFilterCounty("");
+                                                }}
+                                                className="shrink-0 text-xs text-surface-500 hover:text-surface-800 flex items-center gap-1 transition-colors"
+                                            >
+                                                <X size={14} />
+                                                清除
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+
+                                <div className="text-sm text-surface-500">找到 {totalCount} 个地点</div>
+                            </>
+                        )}
                     </div>
             </Card>
 
-                {loading ? (
-                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {Array.from({ length: 6 }).map((_, i) => (
-                            <Card key={i} className={AERO_CARD}>
-                                <div className="p-4 space-y-3">
-                                    <Skeleton width="100%" height="9rem" />
-                                    <Skeleton width="60%" height="1rem" />
-                                    <Skeleton width="90%" height="0.9rem" />
-                                </div>
-                            </Card>
-                        ))}
-                    </div>
-                ) : locations.length === 0 ? (
-                    <div className="rounded-2xl border border-surface-100 bg-surface-0 p-10 text-center text-surface-500">
-                        <div className="text-base font-semibold text-surface-900 mb-2">暂无地点信息</div>
-                        <div className="text-sm">成为第一个分享者吧！</div>
-                    </div>
-                ) : (
-                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {locations.map((loc) => (
-                            <LocationCard
-                                key={loc.id}
-                                loc={loc}
-                                onEdit={openEdit}
-                                onShare={handleShare}
-                                onOpenGallery={openGallery}
+                <>
+                        {loading ? (
+                            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {Array.from({ length: 6 }).map((_, i) => (
+                                    <Card key={i} className={AERO_CARD}>
+                                        <div className="p-4 space-y-3">
+                                            <Skeleton width="100%" height="9rem" />
+                                            <Skeleton width="60%" height="1rem" />
+                                            <Skeleton width="90%" height="0.9rem" />
+                                        </div>
+                                    </Card>
+                                ))}
+                            </div>
+                        ) : locations.length === 0 ? (
+                            <div className="rounded-2xl border border-surface-100 bg-surface-0 p-10 text-center text-surface-500">
+                                <div className="text-base font-semibold text-surface-900 mb-2">暂无地点信息</div>
+                                <div className="text-sm">成为第一个分享者吧！</div>
+                            </div>
+                        ) : (
+                            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {locations.map((loc) => (
+                                    <LocationCard
+                                        key={loc.id}
+                                        loc={loc}
+                                        onEdit={openEdit}
+                                        onShare={handleShare}
+                                        onGoToMap={handleGoToMap}
+                                        onOpenGallery={openGallery}
+                                    />
+                                ))}
+                            </div>
+                        )}
+
+                        <div className="pt-2">
+                            <Paginator
+                                first={first}
+                                rows={rows}
+                                totalRecords={totalCount}
+                                onPageChange={(e) => {
+                                    setFirst(e.first);
+                                    fetchLocations(e.page + 1);
+                                }}
+                                className="bg-transparent border-none py-6"
                             />
-                        ))}
-                    </div>
-                )}
+                        </div>
+                    </>
 
-                <div className="pt-2">
-                    <Paginator
-                        first={first}
-                        rows={rows}
-                        totalRecords={totalCount}
-                        onPageChange={(e) => {
-                            setFirst(e.first);
-                            fetchLocations(e.page + 1);
-                        }}
-                        className="bg-transparent border-none py-6"
-                    />
-                </div>
+            {renderDialogs()}
+        </div>
+    );
 
+    function renderDialogs() { return (<>
             {/* 新增/编辑 */}
             <Dialog
                 header={editing ? "编辑单杠位置" : "分享单杠位置"}
@@ -366,7 +540,8 @@ export default function StreetliftingLocationsPage() {
                     setDialogOpen(false);
                     resetForm();
                 }}
-                className="aero-dialog w-[95vw] md:w-[34rem]"
+                blockScroll
+                className="aero-dialog w-[95vw] md:w-[42rem]"
                 draggable={false}
                 style={{ maxHeight: "90vh" }}
             >
@@ -381,34 +556,34 @@ export default function StreetliftingLocationsPage() {
                         />
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3">
-                        <div>
-                            <div className="text-xs text-surface-500 mb-1.5">省份</div>
-                            <InputText
-                                value={form.province}
-                                onChange={(e) => setForm((p) => ({ ...p, province: e.target.value }))}
-                                className={textInputClassName}
-                                placeholder="例如：北京市"
-                            />
-                        </div>
-                        <div>
-                            <div className="text-xs text-surface-500 mb-1.5">城市/区</div>
-                            <InputText
-                                value={form.city}
-                                onChange={(e) => setForm((p) => ({ ...p, city: e.target.value }))}
-                                className={textInputClassName}
-                                placeholder="例如：朝阳区"
-                            />
-                        </div>
-                    </div>
-
                     <div>
-                        <div className="text-xs text-surface-500 mb-1.5">详细地址</div>
-                        <InputText
-                            value={form.address}
-                            onChange={(e) => setForm((p) => ({ ...p, address: e.target.value }))}
-                            className={textInputClassName}
-                            placeholder="例如：东门进来右手边"
+                        <div className="text-xs text-surface-500 mb-1.5">地理位置 *</div>
+                        <MapLocationPicker
+                            value={{
+                                province: form.province,
+                                city: form.city,
+                                county: form.county,
+                                address: form.address,
+                                latitude: form.latitude,
+                                longitude: form.longitude,
+                            }}
+                            onChange={(val) => {
+                                setForm((p) => ({
+                                    ...p,
+                                    province: val.province || "",
+                                    city: val.city || "",
+                                    county: val.county || "",
+                                    address: val.address || "",
+                                    latitude: val.latitude ?? null,
+                                    longitude: val.longitude ?? null,
+                                }));
+                            }}
+                            cityLabel=""
+                            addressLabel=""
+                            mapLabel=""
+                            requireCityForMap={false}
+                            mapHeight="240px"
+                            className="bg-surface-50 p-4 rounded-2xl border border-surface-100"
                         />
                     </div>
 
@@ -505,6 +680,7 @@ export default function StreetliftingLocationsPage() {
                 header="图片预览"
                 visible={galleryOpen}
                 onHide={() => setGalleryOpen(false)}
+                blockScroll
                 className="aero-dialog w-[95vw] md:w-[48rem]"
                 draggable={false}
             >
@@ -558,19 +734,20 @@ export default function StreetliftingLocationsPage() {
                     </div>
                 )}
             </Dialog>
-        </div>
-    );
+    </>); }
 }
 
 function LocationCard({
     loc,
     onEdit,
     onShare,
+    onGoToMap,
     onOpenGallery,
 }: {
     loc: StreetliftingLocation;
     onEdit: (loc: StreetliftingLocation) => void;
     onShare: (loc: StreetliftingLocation) => void;
+    onGoToMap: (loc: StreetliftingLocation) => void;
     onOpenGallery: (images: string[], index: number) => void;
 }) {
     const [idx, setIdx] = useState(0);
@@ -594,11 +771,12 @@ function LocationCard({
     }, [loc.id, images.length]);
 
     return (
-        <Card className={`${AERO_CARD} overflow-hidden border-surface-100 hover:border-surface-200 active:scale-[0.98] transition-[box-shadow,transform,border-color]`}>
+        <Card className={`${AERO_CARD} h-full flex flex-col overflow-hidden border-surface-100 hover:border-surface-200 active:scale-[0.98] transition-[box-shadow,transform,border-color] [&>.p-card-body]:flex [&>.p-card-body]:flex-col [&>.p-card-body]:flex-1 [&>.p-card-body]:p-0 [&>.p-card-body>.p-card-content]:flex [&>.p-card-body>.p-card-content]:flex-col [&>.p-card-body>.p-card-content]:flex-1 [&>.p-card-body>.p-card-content]:p-0`}>
             <div
-                className="relative aspect-video bg-surface-100 cursor-pointer"
+                className="relative aspect-video bg-surface-100 cursor-pointer shrink-0"
                 onClick={() => (images.length ? onOpenGallery(images, idx) : onEdit(loc))}
             >
+                {/* ... existing image carousel code ... */}
                 {images.length ? (
                     <>
                         {/* 轮播轨道：transform 动画，响应更及时 */}
@@ -663,53 +841,65 @@ function LocationCard({
                 )}
             </div>
 
-            <div className="p-4 space-y-3">
-                <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-center gap-2">
-                        <div className="w-9 h-9 rounded-2xl bg-primary-50 text-primary-700 flex items-center justify-center border border-primary-100">
-                            <MapPin className="h-5 w-5" />
+            <div className="p-4 flex-1 flex flex-col min-h-0">
+                <div className="space-y-3 flex-1">
+                    <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-center gap-2">
+                            <div className="w-9 h-9 rounded-2xl bg-primary-50 text-primary-700 flex items-center justify-center border border-primary-100 shrink-0">
+                                <MapPin className="h-5 w-5" />
+                            </div>
+                            <div className="min-w-0">
+                                <div className="font-semibold text-surface-900 truncate flex items-center gap-2">
+                                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-primary-500 shrink-0" />
+                                    {loc.name}
+                                </div>
+                                <div className="text-xs text-surface-500 truncate">
+                                    {[loc.province, loc.city, loc.county].filter(Boolean).join(" · ")}
+                                </div>
+                            </div>
                         </div>
-                        <div>
-                            <div className="font-semibold text-surface-900 line-clamp-1 flex items-center gap-2">
-                                <span className="inline-block w-1.5 h-1.5 rounded-full bg-primary-500" />
-                                {loc.name}
-                            </div>
-                            <div className="text-xs text-surface-500">
-                                {[loc.province, loc.city].filter(Boolean).join(" · ")}
-                            </div>
+                        <div className="flex items-center gap-1 shrink-0">
+                            <Button
+                                text
+                                severity="secondary"
+                                size="small"
+                                icon="pi pi-pencil"
+                                className="rounded-2xl text-surface-600 hover:text-surface-900 active:scale-[0.98] transition-all"
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    onEdit(loc);
+                                }}
+                            />
+                            <Button
+                                text
+                                severity="secondary"
+                                size="small"
+                                icon="pi pi-share-alt"
+                                className="rounded-2xl text-surface-600 hover:text-surface-900 active:scale-[0.98] transition-all"
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    onShare(loc);
+                                }}
+                            />
                         </div>
                     </div>
-                    <div className="flex items-center gap-1">
-                        <Button
-                            text
-                            severity="secondary"
-                            size="small"
-                            icon="pi pi-pencil"
-                            className="rounded-2xl text-surface-600 hover:text-surface-900 active:scale-[0.98] transition-all"
-                            onClick={(e) => {
-                                e.preventDefault();
-                                onEdit(loc);
-                            }}
-                        />
-                        <Button
-                            text
-                            severity="secondary"
-                            size="small"
-                            icon="pi pi-share-alt"
-                            className="rounded-2xl text-surface-600 hover:text-surface-900 active:scale-[0.98] transition-all"
-                            onClick={(e) => {
-                                e.preventDefault();
-                                onShare(loc);
-                            }}
-                        />
-                    </div>
+
+                    {loc.address && <div className="text-sm text-surface-700 line-clamp-1">{loc.address}</div>}
+                    {loc.description && <div className="text-sm text-surface-600 line-clamp-2">{loc.description}</div>}
                 </div>
 
-                {loc.address && <div className="text-sm text-surface-700">{loc.address}</div>}
-                {loc.description && <div className="text-sm text-surface-600 line-clamp-3">{loc.description}</div>}
-
-                <div className="text-[11px] text-surface-400">
-                    {new Date(loc.created_at).toLocaleDateString("zh-CN")}
+                <div className="flex items-center justify-between gap-3 pt-4 mt-auto">
+                    <div className="text-[11px] text-surface-400">
+                        {new Date(loc.created_at).toLocaleDateString("zh-CN")}
+                    </div>
+                    <button
+                        type="button"
+                        onClick={() => onGoToMap(loc)}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-primary-50 text-primary-700 hover:bg-primary-100 active:scale-[0.98] transition-all"
+                    >
+                        <MapPin size={14} className="text-primary-600" />
+                        <span className="text-xs font-bold">点击前往</span>
+                    </button>
                 </div>
             </div>
         </Card>

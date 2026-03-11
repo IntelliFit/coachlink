@@ -9,6 +9,7 @@ import type {
     GetPRRecordsResponseDto,
     PRRecord,
 } from "./entity";
+import { PR_THRESHOLD_KG } from "@/lib/e1rmCalculator";
 
 export async function POST(req: Request) {
     const session = await getServerSession();
@@ -27,6 +28,7 @@ export async function POST(req: Request) {
         userId: requestedUserId,
         limit = 20,
         offset = 0,
+        includeState = false,
     } = await req.json() as GetPRRecordsDto;
 
     let targetUserId = userId;
@@ -68,14 +70,17 @@ export async function POST(req: Request) {
         targetUserId = requestedUserId;
     }
 
-    // Get PR records using new column names
+    // Load records first, then apply strict PR filtering in-memory.
+    // This ensures timeline semantics remain stable:
+    // - Curve can use rich sources
+    // - Timeline only shows real breakthroughs (PR + 2kg)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: records, error, count } = await (supabase as any)
+    const { data: records, error } = await (supabase as any)
         .from("personal_records_history")
-        .select("*", { count: "exact" })
+        .select("id, exercise_name, weight, reps, e1rm, load_formula, date_achieved, notes, video_url, action_id, execution_id, is_auto_calculated, created_at")
         .eq("user_id", targetUserId)
-        .order("date_achieved", { ascending: false })
-        .range(offset, offset + limit - 1);
+        .order("date_achieved", { ascending: true })
+        .order("created_at", { ascending: true });
 
     if (error) {
         console.error("获取PR记录失败:", error);
@@ -88,7 +93,7 @@ export async function POST(req: Request) {
 
     // Map to response format with new column names
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const prRecords: PRRecord[] = ((records || []) as any[]).map((r) => ({
+    const mappedRecords: PRRecord[] = ((records || []) as any[]).map((r) => ({
         id: r.id,
         exercise_name: r.exercise_name,
         weight: r.weight ?? r.max_weight, // Fallback for pre-migration
@@ -104,14 +109,56 @@ export async function POST(req: Request) {
         created_at: r.created_at,
     }));
 
+    const sourceRecords = includeState
+        ? mappedRecords
+        : mappedRecords.filter((r) => r.notes !== "AUTO_STATE");
+
+    let timelineRecords: PRRecord[] = sourceRecords;
+    if (!includeState) {
+        // Strict timeline rule:
+        // a record is shown only when it beats the previous PR peak by > 2kg.
+        const runningPRMaxByAction = new Map<string, number>();
+        const qualified: PRRecord[] = [];
+
+        for (const record of sourceRecords) {
+            const current = Number(record.e1rm || 0);
+            if (!Number.isFinite(current) || current <= 0) continue;
+
+            const actionKey = String(record.action_id || record.exercise_name || "").trim();
+            if (!actionKey) continue;
+
+            const prev = runningPRMaxByAction.get(actionKey);
+            if (prev === undefined) {
+                // Keep the first positive record as baseline PR.
+                runningPRMaxByAction.set(actionKey, current);
+                qualified.push(record);
+                continue;
+            }
+
+            if ((current - prev) > PR_THRESHOLD_KG) {
+                runningPRMaxByAction.set(actionKey, current);
+                qualified.push(record);
+            }
+        }
+
+        timelineRecords = qualified;
+    }
+
+    const sortedForTimeline = [...timelineRecords].sort((a, b) => {
+        const aTime = new Date(`${a.date_achieved || ""}T00:00:00`).getTime() || new Date(a.created_at || 0).getTime();
+        const bTime = new Date(`${b.date_achieved || ""}T00:00:00`).getTime() || new Date(b.created_at || 0).getTime();
+        return bTime - aTime;
+    });
+    const pagedRecords = sortedForTimeline.slice(offset, offset + limit);
+
     // 重点！必须申请接口范型为 ApiData<返回参数的接口类型>
     return NextResponse.json<ApiData<GetPRRecordsResponseDto>>({
         success: true,
         message: "获取记录成功",
         // GetPRRecordsResponseDto 反应的就是这个地方 data 的数据结构
         data: {
-            records: prRecords,
-            total: count || 0,
+            records: pagedRecords,
+            total: sortedForTimeline.length,
         },
     });
 }

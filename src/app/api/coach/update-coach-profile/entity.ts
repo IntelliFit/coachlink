@@ -19,6 +19,16 @@ export interface UpdateCoachProfileDto {
 
     invitationCode?: string;
     invitationMode?: "exclusive" | "open";
+
+    /** 省 */
+    province?: string | null;
+    /** 市 */
+    city?: string | null;
+    /** 区/县 */
+    county?: string | null;
+    address?: string | null;
+    latitude?: number | null;
+    longitude?: number | null;
 }
 
 export interface UpdateCoachProfileResponseDto {

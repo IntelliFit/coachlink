@@ -9,6 +9,7 @@ import type {
     UpdateSubscriptionResponseDto,
 } from "./entity";
 import { sendSystemMessage } from "@/lib/chat";
+import { autoMatchPlanForSubscription } from "@/app/api/plan-lib/auto-match-plan/service";
 
 export async function POST(req: Request) {
     const session = await getServerSession();
@@ -168,6 +169,17 @@ export async function POST(req: Request) {
                 (updateError?.message || "Unknown error"),
             data: null,
         }, { status: 500 });
+    }
+
+    // 教练手动确认支付并激活后，自动尝试匹配计划；失败时明确提示教练手动创建。
+    if ((updateData as any)?.status === "active" && isCoachOfSubscription) {
+        const matchRes = await autoMatchPlanForSubscription(id, userId, subscription.coach_id);
+        const matchMsg = matchRes.success
+            ? "系统已自动匹配训练计划，学员将在约2分钟后看到计划。"
+            : `自动匹配失败（${matchRes.reason || "未知原因"}），请在学员页手动创建计划。`;
+        await sendSystemMessage(userId, {
+            content: `该学员订阅的计划分配结果：${matchMsg}`,
+        });
     }
 
     // 重要！必须申请接口范型位 ApiData<返回参数的接口类型>

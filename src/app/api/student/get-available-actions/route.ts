@@ -112,16 +112,20 @@ export async function POST(request: Request) {
             }, { status: 500 });
         }
 
-        // Deduplicate strictly by action_id (same action_id = same action)
+        // Deduplicate by normalized action name for dropdown display.
+        // Same name with different action_id often comes from multi-coach/history imports,
+        // and would otherwise create duplicate options (one may appear as empty chart).
         const actionMap = new Map<string, AvailableAction>();
 
         if (prActions) {
             for (const record of prActions) {
                 const id = record.action_id;
-                if (id && !actionMap.has(id)) {
-                    actionMap.set(id, {
+                const label = (record.exercise_name || "未知动作").trim();
+                const key = label.toLowerCase();
+                if (id && !actionMap.has(key)) {
+                    actionMap.set(key, {
                         actionId: id,
-                        actionName: record.exercise_name || "未知动作",
+                        actionName: label,
                     });
                 }
             }

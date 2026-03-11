@@ -152,7 +152,7 @@ export default function PlanHistoryPage() {
         <div className="flex flex-col items-center justify-center py-12 text-center">
             <i className="pi pi-history text-4xl text-gray-300 mb-4" />
             <h3 className="text-xl font-medium text-gray-600 mb-2">暂无计划</h3>
-            <p className="text-gray-400 mb-4">当前和历史计划将显示在这里</p>
+            <p className="text-gray-400 mb-4">全部计划（当前 + 历史）会显示在这里</p>
             <Button
                 label="开始训练"
                 icon="pi pi-play"
@@ -171,7 +171,7 @@ export default function PlanHistoryPage() {
                         text
                         onClick={() => router.back()}
                     />
-                    <h1 className="text-xl font-bold m-0">我的计划</h1>
+                    <h1 className="text-xl font-bold m-0">全部计划</h1>
                 </div>
             </div>
 

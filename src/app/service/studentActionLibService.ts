@@ -32,6 +32,10 @@ import type {
     MergeStudentActionsDto,
     MergeStudentActionsResponseDto,
 } from "@/app/api/student/action-lib/merge-actions/entity";
+import type {
+    BootstrapStudentActionsFromProfileDto,
+    BootstrapStudentActionsFromProfileResponseDto,
+} from "@/app/api/student/action-lib/bootstrap-from-profile/entity";
 
 export class StudentActionLibService extends BaseService {
     async listActions(reqData: ListStudentActionsDto) {
@@ -107,6 +111,17 @@ export class StudentActionLibService extends BaseService {
         );
         if (!res || !res.data.success) {
             throw new Error(res?.data?.message || "批量创建动作失败");
+        }
+        return res.data.data;
+    }
+
+    async bootstrapFromProfile(reqData: BootstrapStudentActionsFromProfileDto = {}) {
+        const res = await this.post<BootstrapStudentActionsFromProfileResponseDto>(
+            "bootstrap-from-profile",
+            reqData,
+        );
+        if (!res || !res.data.success) {
+            throw new Error(res?.data?.message || "初始化新手动作库失败");
         }
         return res.data.data;
     }

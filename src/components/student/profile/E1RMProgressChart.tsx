@@ -78,9 +78,12 @@ export const E1RMProgressChart: React.FC<E1RMProgressChartProps> = ({
         const fetchHistory = async () => {
             setLoading(true);
             try {
-                // Use actionId for strict matching
+                // Pass both actionId and actionName:
+                // some legacy records may share the same display name but carry different action_id.
+                // backend will use name as fallback/merge key to avoid "same action but empty chart".
                 const data = await e1rmService.getHistory({
                     actionId: selectedActionId,
+                    actionName: selectedActionName,
                     limit: 30,
                     targetUserId: studentId
                 });

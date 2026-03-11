@@ -4,6 +4,6 @@ export interface SliderCreateDto {
 
 export interface SliderCreateResponseDto {
     id: string;
-    trackWidth: number;
-    backgroundImage: string;
+    /** 目标位置百分比（30-90），用于前端显示缺口位置 */
+    targetPercent: number;
 }

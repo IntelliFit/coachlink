@@ -11,7 +11,7 @@ import type {
 export async function POST(req: Request) {
     try {
         await getServerSession();
-        const body = await req.json() as StreetliftingCreateLocationDto;
+        const body = (await req.json().catch(() => ({}))) as StreetliftingCreateLocationDto;
 
         if (!body?.name?.trim()) {
             return NextResponse.json<ApiData<StreetliftingCreateLocationResponseDto>>({
@@ -30,6 +30,9 @@ export async function POST(req: Request) {
                 address: body.address || null,
                 city: body.city || null,
                 province: body.province || null,
+                county: body.county || null,
+                latitude: body.latitude ?? null,
+                longitude: body.longitude ?? null,
                 image_urls: body.image_urls?.length ? body.image_urls : null,
                 user_contact: body.user_contact || null,
             }])

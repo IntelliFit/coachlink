@@ -6,6 +6,8 @@ import { spawn } from 'child_process';
 dotenv.config({
     path: `.env.${process.env.NODE_ENV || 'development'}`
 });
+// .env.local 覆盖（gitignore），用于本地配置如 COACHLINK_FAST_DEV
+dotenv.config({ path: '.env.local' });
 
 // 定义橙色系列渐变色
 const orangeGradient = gradient(['#FFA500', '#FF8C00', '#FF6347', '#FF4500']);
@@ -48,16 +50,20 @@ function crossSpawn(command, args, options = {}) {
     );
 }
 
-// 在你的代码中使用
-// 将环境变量传递给子进程
-const nextDev = crossSpawn('npx', ['next', 'dev'], {
-    env: {
-        ...process.env,
-        // 确保代理环境变量被传递
-        HTTPS_PROXY: process.env.HTTPS_PROXY,
-        HTTP_PROXY: process.env.HTTP_PROXY,
-    }
-});
+// COACHLINK_FAST_DEV=1 时：Turbopack + 更大内存，适合低配置机器（在 .env.local 中设置，不提交）
+// 未设置时：保持原有 webpack，团队其他成员无影响
+const useFastDev = process.env.COACHLINK_FAST_DEV === '1';
+const nextArgs = useFastDev ? ['next', 'dev'] : ['next', 'dev', '--webpack'];
+const spawnEnv = {
+    ...process.env,
+    HTTPS_PROXY: process.env.HTTPS_PROXY,
+    HTTP_PROXY: process.env.HTTP_PROXY,
+};
+if (useFastDev) {
+    spawnEnv.NODE_OPTIONS = [process.env.NODE_OPTIONS, '--max-old-space-size=4096'].filter(Boolean).join(' ');
+    console.log(warmGradient('⚡ 快速开发模式已启用 (COACHLINK_FAST_DEV=1)'));
+}
+const nextDev = crossSpawn('npx', nextArgs, { env: spawnEnv });
 
 nextDev.on('close', (code) => {
     const statusMessage = code === 0

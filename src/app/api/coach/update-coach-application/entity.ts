@@ -1,6 +1,6 @@
 import { CoachApplicationRow } from "@/types";
 
-// 请求参数的接口类型
+// 请求参数的接口类型（地址平铺：省 province、市 city、区 county）
 export interface UpdateCoachApplicationDto {
     id: string;
     // 用户可以更新的字段（除了状态和审核相关信息）
@@ -19,6 +19,12 @@ export interface UpdateCoachApplicationDto {
     resumeUrl?: string | null;
     portfolioUrl?: string | null;
     socialLinks?: object | null;
+    province?: string | null;
+    city?: string | null;
+    county?: string | null;
+    address?: string | null;
+    latitude?: number | null;
+    longitude?: number | null;
 
     // 管理员可以更新的字段
     status?: string;

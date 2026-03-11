@@ -552,17 +552,23 @@ export type Database = {
       coach_applications: {
         Row: {
           achievements: string[] | null
+          address: string | null
           applied_at: string
           avatar_url: string | null
           bio: string | null
           case_studies: string[] | null
           contact_email: string | null
           contact_phone: string | null
+          county: string | null
           created_at: string
           credentials: Json[] | null
+          city: string | null
           id: string
+          latitude: number | null
+          longitude: number | null
           name: string
           portfolio_url: string | null
+          province: string | null
           resume_url: string | null
           review_notes: string | null
           reviewed_at: string | null
@@ -578,17 +584,23 @@ export type Database = {
         }
         Insert: {
           achievements?: string[] | null
+          address?: string | null
           applied_at?: string
           avatar_url?: string | null
           bio?: string | null
           case_studies?: string[] | null
           contact_email?: string | null
           contact_phone?: string | null
+          county?: string | null
           created_at?: string
           credentials?: Json[] | null
+          city?: string | null
           id?: string
+          latitude?: number | null
+          longitude?: number | null
           name: string
           portfolio_url?: string | null
+          province?: string | null
           resume_url?: string | null
           review_notes?: string | null
           reviewed_at?: string | null
@@ -604,17 +616,23 @@ export type Database = {
         }
         Update: {
           achievements?: string[] | null
+          address?: string | null
           applied_at?: string
           avatar_url?: string | null
           bio?: string | null
           case_studies?: string[] | null
           contact_email?: string | null
           contact_phone?: string | null
+          county?: string | null
           created_at?: string
           credentials?: Json[] | null
+          city?: string | null
           id?: string
+          latitude?: number | null
+          longitude?: number | null
           name?: string
           portfolio_url?: string | null
+          province?: string | null
           resume_url?: string | null
           review_notes?: string | null
           reviewed_at?: string | null
@@ -1411,18 +1429,24 @@ export type Database = {
       coaches: {
         Row: {
           achievements: string[] | null
+          address: string | null
           allow_personal_qrcode: boolean | null
           avatar_url: string | null
           bio: string | null
+          city: string | null
+          county: string | null
           created_at: string | null
           id: string
           invitation_code: string | null
           invitation_mode: string | null
           is_featured: boolean | null
+          latitude: number | null
+          longitude: number | null
           name: string
           payment_mode: string | null
           payment_qr_codes: Json | null
           profile: Json | null
+          province: string | null
           rating: number | null
           search_vector: unknown
           specialties: string[] | null
@@ -1435,18 +1459,24 @@ export type Database = {
         }
         Insert: {
           achievements?: string[] | null
+          address?: string | null
           allow_personal_qrcode?: boolean | null
           avatar_url?: string | null
           bio?: string | null
+          city?: string | null
+          county?: string | null
           created_at?: string | null
           id?: string
           invitation_code?: string | null
           invitation_mode?: string | null
           is_featured?: boolean | null
+          latitude?: number | null
+          longitude?: number | null
           name: string
           payment_mode?: string | null
           payment_qr_codes?: Json | null
           profile?: Json | null
+          province?: string | null
           rating?: number | null
           search_vector?: unknown
           specialties?: string[] | null
@@ -1459,18 +1489,24 @@ export type Database = {
         }
         Update: {
           achievements?: string[] | null
+          address?: string | null
           allow_personal_qrcode?: boolean | null
           avatar_url?: string | null
           bio?: string | null
+          city?: string | null
+          county?: string | null
           created_at?: string | null
           id?: string
           invitation_code?: string | null
           invitation_mode?: string | null
           is_featured?: boolean | null
+          latitude?: number | null
+          longitude?: number | null
           name?: string
           payment_mode?: string | null
           payment_qr_codes?: Json | null
           profile?: Json | null
+          province?: string | null
           rating?: number | null
           search_vector?: unknown
           specialties?: string[] | null

@@ -107,7 +107,7 @@ export default function ReferralPage() {
         <div className="container mx-auto p-4 max-w-2xl py-10 space-y-8">
             <div className="text-center space-y-2">
                 <h1 className="text-3xl font-bold bg-gradient-to-r from-orange-500 to-red-500 bg-clip-text text-transparent">邀请有礼</h1>
-                <p className="text-surface-500">邀请好友注册，一起变强，双方均获「AI 导入 +2 次」与「存储 +100MB」奖励</p>
+                <p className="text-surface-500">邀请好友注册，一起变强，双方均获「AI 导入 +2 次」与「存储 +200MB」奖励</p>
             </div>
 
             <div className="bg-surface-0 border border-orange-200 shadow-lg rounded-xl overflow-hidden">
@@ -212,7 +212,7 @@ export default function ReferralPage() {
                                 </div>
                             </div>
                             <div className="px-5 pb-5 text-[11px]" style={{ color: '#6b7280' }}>
-                                * 扫码一起训练（注册完成后双方各获 AI 导入 +2 次 & 存储 +100MB）
+                                * 扫码一起训练（注册完成后双方各获 AI 导入 +2 次 & 存储 +200MB）
                             </div>
                         </div>
                     </div>

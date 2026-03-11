@@ -49,7 +49,7 @@ export async function POST(request: Request) {
         const initRow = {
             user_id: targetUserId,
             ai_import_balance: benefits.ai_limit_monthly, // 免费=2次
-            storage_total_mb: benefits.storage_mb, // 免费=50MB
+            storage_total_mb: benefits.storage_mb, // 免费=200MB
             storage_used_mb: 0,
             last_reset_date: now,
             created_at: now,

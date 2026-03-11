@@ -3,6 +3,7 @@ import supabase from "@/lib/supabaseClient";
 import { UpdateInstanceDto, UpdateInstanceResponseDto } from "./entity";
 import { ApiData } from "@/types/api";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
+import { syncCoachActionsToStudentLibrary } from "../sync-actions";
 
 export async function POST(req: Request) {
     const {
@@ -43,7 +44,7 @@ export async function POST(req: Request) {
     // 首先获取现有的计划实例以检查权限 & 用于校验 start_execution_day
     const { data: existingInstance, error: fetchError } = await supabase
         .from("coach_plan_instances")
-        .select("coach_id, student_id, training_days")
+        .select("coach_id, student_id, coach_subscription_id, training_days")
         .eq("id", id)
         .single();
 
@@ -130,6 +131,55 @@ export async function POST(req: Request) {
             success: false,
             message: "Failed to update instance",
         }, { status: 500 });
+    }
+
+    // 如果更新了 trainingDays，同步动作到学员库
+    if (trainingDays !== undefined && Array.isArray(trainingDays)) {
+        try {
+            // 获取学员ID：优先使用 existingInstance.student_id，否则从订阅中获取
+            let studentId = existingInstance.student_id as string | null;
+            if (!studentId && existingInstance.coach_subscription_id) {
+                const { data: subscription } = await supabase
+                    .from("coach_subscriptions")
+                    .select("student_id")
+                    .eq("id", existingInstance.coach_subscription_id)
+                    .single();
+                studentId = subscription?.student_id as string | null;
+            }
+
+            if (studentId) {
+                // 提取计划中使用的所有动作ID
+                const actionIds = new Set<string>();
+                trainingDays.forEach((day: any) => {
+                    day.actionSets?.forEach((set: any) => {
+                        const actionId = set.action_id || set.actionId;
+                        if (actionId) {
+                            actionIds.add(actionId);
+                        }
+                    });
+                });
+
+                if (actionIds.size > 0) {
+                    // 查询教练动作库
+                    const idsList = Array.from(actionIds);
+                    const { data: coachActions } = await supabase
+                        .from("coach_actions")
+                        .select("*")
+                        .in("id", idsList);
+
+                    if (coachActions && coachActions.length > 0) {
+                        await syncCoachActionsToStudentLibrary(
+                            studentId,
+                            coachActions as any[],
+                            actionIds,
+                        );
+                    }
+                }
+            }
+        } catch (e) {
+            // best-effort; do not block instance update
+            console.warn("[update-instance] Failed to sync actions to student library:", e);
+        }
     }
 
     return NextResponse.json<ApiData<UpdateInstanceResponseDto>>({
