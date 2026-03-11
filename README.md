@@ -27,7 +27,16 @@
 
 ## 部署
 
-目前项目配置了自动化部署，只需提交到main分支即可。在特殊情况下可以手动构建镜像：
+> ⚠️ **重要**：项目配置了双平台同步推送（GitHub + Gitee）。如果你在本地克隆了项目，需要配置双 remote：
+
+```bash
+git remote set-url --add --push origin https://gitee.com/coachlink/coachlink.git
+git remote set-url --add --push origin https://github.com/IntelliFit/coachlink
+```
+
+执行完成后可通过 `git remote -v` 确认配置正确（push URL 应有两个）。
+
+目前项目配置了自动化部署，只需提交到main分支即可。
 
 以下是手动构建并推送的步骤：
 

@@ -6,6 +6,12 @@ WORKDIR /app
 # 复制依赖文件
 COPY package.json package-lock.json ./
 
+# 设置 npm 源：先尝试官方源，失败则自动切换到镜像源
+# 通过 npm config set 的 fallback 机制实现
+RUN npm config set registry https://registry.npmjs.org/ && \
+    # 测试官方源是否可用（使用简短超时），如果不可用则切换到镜像源
+    (timeout 5 npm ping > /dev/null 2>&1 || npm config set registry https://registry.npmmirror.com/)
+
 # 安装依赖（使用 legacy-peer-deps 与项目一致）
 RUN npm ci --legacy-peer-deps
 
