@@ -4,6 +4,7 @@ interface SliderCreateRes {
     id: string;
     trackWidth: number;
     imageUrl: string;
+    targetPercent: number;
     backgroundImage?: string;
 }
 
@@ -24,9 +25,9 @@ class CaptchaService extends BaseService {
         throw new Error(res.data?.message || "获取验证失败");
     }
 
-    /** @param position 滑块左边缘的 x 坐标（与后端缺口 target 对齐校验） */
-    async verify(id: string, position: number) {
-        const res = await this.post<SliderVerifyRes>("verify", { id, position });
+    /** @param percent 滑块中心点百分比（0-100），统一百分比传值 */
+    async verify(id: string, percent: number) {
+        const res = await this.post<SliderVerifyRes>("verify", { id, percent });
         if (res.data?.success && res.data?.data?.token) {
             return res.data.data.token;
         }

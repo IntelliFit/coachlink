@@ -83,7 +83,9 @@ export default function SliderCaptcha({ visible, onHide, onSuccess }: SliderCapt
         verifyInFlightRef.current = true;
         setVerifying(true);
         try {
-            const token = await captchaService.verify(id, position);
+            // 统一用百分比传值：滑块中心点 / 轨道宽度
+            const percent = Math.round(((position + THUMB_SIZE / 2) / TRACK_WIDTH) * 100);
+            const token = await captchaService.verify(id, percent);
             onSuccess(token);
             onHide();
         } catch (err: any) {
