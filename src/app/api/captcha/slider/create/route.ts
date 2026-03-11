@@ -23,6 +23,8 @@ export async function POST() {
     const id = randomUUID();
     // 随机生成缺口目标位置（像素）
     const target = TARGET_MIN + Math.floor(Math.random() * (TARGET_MAX - TARGET_MIN + 1));
+    // 同时计算百分比，供小程序端使用
+    const targetPercent = Math.round((target / TRACK_WIDTH) * 100);
 
     const key = `captcha:slider:${id}`;
     await redis.setEx(key, CAPTCHA_TTL, String(target));
@@ -36,6 +38,7 @@ export async function POST() {
             id,
             trackWidth: TRACK_WIDTH,
             imageUrl,
+            targetPercent, // 兼容小程序端（百分比）
         },
     });
 }
