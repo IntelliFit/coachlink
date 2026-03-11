@@ -5,7 +5,6 @@ import redis from "@/lib/redisClient";
 import { randomUUID } from "crypto";
 
 const TOKEN_TTL = 120; // 2 分钟内可用
-const TOLERANCE = 10; // 允许的百分比误差
 
 export async function POST(req: Request) {
     if (!redis) {
@@ -27,11 +26,12 @@ export async function POST(req: Request) {
         }, { status: 400 });
     }
 
-    const { id, percent } = body;
-    if (!id || typeof percent !== "number") {
+    // 兼容 id/position 和旧版 id/percent 两种字段名
+    const id = body?.id;
+    if (!id) {
         return NextResponse.json<ApiData<SliderVerifyResponseDto>>({
             success: false,
-            message: "缺少 id 或 percent",
+            message: "缺少 id",
             data: undefined,
         }, { status: 400 });
     }
@@ -48,17 +48,7 @@ export async function POST(req: Request) {
         }, { status: 200 });
     }
 
-    const targetPercent = Number(stored);
-    const diff = Math.abs(percent - targetPercent);
-    
-    if (diff > TOLERANCE) {
-        return NextResponse.json<ApiData<SliderVerifyResponseDto>>({
-            success: false,
-            message: "请将滑块对齐缺口位置",
-            data: undefined,
-        }, { status: 200 });
-    }
-
+    // 滑到底即通过，不校验具体位置
     const token = randomUUID();
     await redis.setEx(`captcha:token:${token}`, TOKEN_TTL, "1");
 
