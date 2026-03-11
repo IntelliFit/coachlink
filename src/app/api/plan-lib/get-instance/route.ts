@@ -304,13 +304,11 @@ export async function POST(req: Request) {
 
                     const params = set.params || {};
                     const existingLoad = params.load;
-                    // 如果已经有load值，且不是自动计算的，则跳过（保留手动设置的值）
-                    // 如果是自动计算的（loadCalculated === true），则重新计算（因为1RM数据可能已更新）
+                    // 当 load 已存在时，始终保留 DB 中的值，不再重新计算。
+                    // 与 execution/start 行为一致：执行页直接使用 DB 的 load，今日训练也应使用相同值。
+                    // 否则会出现「今日训练显示错误重量、执行页显示正确重量」的 bug。
                     if (existingLoad !== null && existingLoad !== undefined) {
-                        if (params.loadCalculated !== true && params.loadSource !== "calculated") {
-                            continue; // don't override explicit loads
-                        }
-                        // 如果是自动计算的，继续执行下面的重新计算逻辑
+                        continue;
                     }
 
                     const intensityConfig = normalizeIntensityConfig(params);
