@@ -75,13 +75,12 @@ export default function SliderCaptcha({ visible, onHide, onSuccess }: SliderCapt
         setPosition(next);
     };
 
-    const handlePointerUp = async (e?: React.PointerEvent) => {
-        if (e) {
-            e.preventDefault();
-        }
+    const handlePointerUp = async (e: React.PointerEvent) => {
+        e.preventDefault();
+        if (!dragging) return;
         setDragging(false);
-        if (!id || verifying) return;
-        if (verifyInFlightRef.current) return;
+        if (position === 0) return;
+        if (!id || verifying || verifyInFlightRef.current) return;
         verifyInFlightRef.current = true;
         setVerifying(true);
         try {
@@ -95,8 +94,12 @@ export default function SliderCaptcha({ visible, onHide, onSuccess }: SliderCapt
             loadChallenge();
         } finally {
             setVerifying(false);
-            // 成功时不重置 ref，避免 pointerLeave 等再次触发时二次请求 verify 导致「验证已过期」误报
         }
+    };
+
+    const handlePointerReset = () => {
+        setDragging(false);
+        setPosition(0);
     };
 
     return (
@@ -161,8 +164,8 @@ export default function SliderCaptcha({ visible, onHide, onSuccess }: SliderCapt
                                 onPointerDown={handlePointerDown}
                                 onPointerMove={handlePointerMove}
                                 onPointerUp={handlePointerUp}
-                                onPointerLeave={handlePointerUp}
-                                onPointerCancel={handlePointerUp}
+                                onPointerLeave={handlePointerReset}
+                                onPointerCancel={handlePointerReset}
                             >
                                 {verifying ? (
                                     <Loader2 className="w-4 h-4 animate-spin" />
