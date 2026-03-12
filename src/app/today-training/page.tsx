@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Skeleton } from 'primereact/skeleton';
@@ -8,6 +8,8 @@ import { Card } from 'primereact/card';
 import { Button } from 'primereact/button';
 import { ConfirmDialog, confirmDialog } from 'primereact/confirmdialog';
 import { Dialog } from 'primereact/dialog';
+import { InputText } from 'primereact/inputtext';
+import { InputTextarea } from 'primereact/inputtextarea';
 import { Info, Target } from 'lucide-react';
 
 import { subscriptionService } from '@/app/service/subscriptionService';
@@ -19,9 +21,18 @@ import { useGuideStore } from '@/stores/useGuideStore';
 import TodayTrainingCard from './TodayTrainingCard';
 import RestDayCard from './RestDayCard';
 import BrowseSection from './BrowseSection';
+import LightweightTaskSheet from './components/LightweightTaskSheet';
+import ActionPicker from './ActionPicker';
+import {
+    buildDayModuleModel,
+    formatPlanDayLabel,
+    resolvePlanDayDate,
+    type NormalizedDayTask,
+} from './lib/dayModules';
 
 import PlanCompletionModal from '@/components/plan/PlanCompletionModal';
 import { Avatar } from 'primereact/avatar';
+import { AeroInputNumber } from '@/components/AeroInputNumber';
 
 const TodayTrainingPage: React.FC = () => {
     const { data: session } = useSession();
@@ -59,6 +70,21 @@ const TodayTrainingPage: React.FC = () => {
     const [completedPlanInfo, setCompletedPlanInfo] = useState<{ name: string, rate: number } | null>(null);
     const [showExplainDialog, setShowExplainDialog] = useState(false);
     const [quickFinishLoading, setQuickFinishLoading] = useState(false);
+    const [selectedDayIndex, setSelectedDayIndex] = useState(1);
+    const [activeLightweightTask, setActiveLightweightTask] = useState<NormalizedDayTask | null>(null);
+    const [lightweightSheetVisible, setLightweightSheetVisible] = useState(false);
+    const [lightweightPickerVisible, setLightweightPickerVisible] = useState(false);
+    const [addingLightweightTask, setAddingLightweightTask] = useState(false);
+    const [pendingLightweightAction, setPendingLightweightAction] = useState<any | null>(null);
+    const [lightweightConfigVisible, setLightweightConfigVisible] = useState(false);
+    const [newTaskSuggestedTime, setNewTaskSuggestedTime] = useState('');
+    const [newTaskNotes, setNewTaskNotes] = useState('');
+    const [newDietContent, setNewDietContent] = useState('');
+    const [newCardioDistanceKm, setNewCardioDistanceKm] = useState<number | null>(null);
+    const [newCardioDurationMin, setNewCardioDurationMin] = useState<number | null>(null);
+    const [newCardioPace, setNewCardioPace] = useState('');
+    const [newHabitName, setNewHabitName] = useState('');
+    const [newHabitTargetDurationMin, setNewHabitTargetDurationMin] = useState<number | null>(null);
 
     const activeSubscription =
         coachSubscriptions.find((s) => s.id === activeCoachSubscriptionId) ||
@@ -81,6 +107,264 @@ const TodayTrainingPage: React.FC = () => {
     const completionDates = planMode === 'coach' ? coachCompletionDates : selfCompletionDates;
     const executionsByDayIndex = planMode === 'coach' ? coachExecutionsByDayIndex : selfExecutionsByDayIndex;
     const missingDays = planMode === 'coach' ? coachMissingDays : selfMissingDays;
+
+    // 日历日（包含休息日）：必须在所有 early return 之前计算，保证 Hooks 顺序一致
+    const trainingDays = (instance?.training_days || []) as any[];
+    const formatShortDate = (ts?: string | null) => {
+        if (!ts) return '';
+        const dt = new Date(ts);
+        return dt.toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric' });
+    };
+    const calendarDayIndex = (() => {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const execs = executionsByDayIndex || {};
+        const resolved = Object.values(execs).filter((e: any) =>
+            (e?.status === 'completed' || e?.status === 'abandoned') && (e?.completed_at || e?.started_at)
+        ) as any[];
+        if (resolved.length > 0) {
+            const maxResolved = Math.max(...resolved.map((e) => Number(e?.day_index ?? 0)).filter(Boolean));
+            const anchorExec = (execs as any)[maxResolved];
+            const anchorTs = anchorExec?.completed_at || anchorExec?.started_at;
+            if (anchorTs) {
+                const anchor = new Date(anchorTs);
+                anchor.setHours(0, 0, 0, 0);
+                const diffDays = Math.floor((today.getTime() - anchor.getTime()) / (24 * 60 * 60 * 1000));
+                return Math.max(1, Math.min(trainingDays.length || 1, maxResolved + diffDays));
+            }
+        }
+        const effectiveStart = (instance as any)?.start_date || activeSubscription?.start_date;
+        if (effectiveStart) {
+            const start = new Date(effectiveStart);
+            start.setHours(0, 0, 0, 0);
+            const diffDays = Math.floor((today.getTime() - start.getTime()) / (24 * 60 * 60 * 1000));
+            return Math.max(1, Math.min(trainingDays.length || 1, 1 + diffDays));
+        }
+        return todayDayIndex;
+    })();
+    const progressDayIndex = Math.min(calendarDayIndex, todayDayIndex);
+    const progressDay = trainingDays.find(d => d.dayIndex === progressDayIndex);
+    const progressExec = (executionsByDayIndex || {})[progressDayIndex];
+    const progressExecutionStatus: 'none' | 'in_progress' | 'completed' =
+        progressExec?.status === 'completed'
+            ? 'completed'
+            : progressExec?.status === 'in_progress'
+                ? 'in_progress'
+                : 'none';
+
+    const inProgressExec = (() => {
+        const execs = Object.values(executionsByDayIndex || {}) as any[];
+        const inps = execs.filter(e => e?.status === 'in_progress' && Number(e?.day_index ?? 0) > 0);
+        if (inps.length === 0) return null;
+        inps.sort((a, b) => {
+            const at = a?.started_at ? new Date(a.started_at).getTime() : 0;
+            const bt = b?.started_at ? new Date(b.started_at).getTime() : 0;
+            return bt - at;
+        });
+        return inps[0];
+    })();
+
+    useEffect(() => {
+        if (!instance?.id) return;
+        setSelectedDayIndex(progressDayIndex);
+    }, [instance?.id, progressDayIndex]);
+
+    const selectedDay = trainingDays.find((day) => day.dayIndex === selectedDayIndex) || progressDay;
+    const selectedExec = (executionsByDayIndex || {})[selectedDayIndex];
+    const selectedExecutionStatus: 'none' | 'in_progress' | 'completed' =
+        selectedExec?.status === 'completed'
+            ? 'completed'
+            : selectedExec?.status === 'in_progress'
+                ? 'in_progress'
+                : 'none';
+    const selectedModuleModel = useMemo(() => {
+        return buildDayModuleModel({
+            day: selectedDay,
+            actions,
+            execution: selectedExec,
+            executionStatus: selectedExecutionStatus,
+        });
+    }, [selectedDay, actions, selectedExec, selectedExecutionStatus]);
+    const selectedTaskSummary = useMemo(() => {
+        return {
+            totalModules: selectedModuleModel.moduleCount,
+            completedModules: selectedModuleModel.completedModuleCount,
+            remainingModules: Math.max(0, selectedModuleModel.moduleCount - selectedModuleModel.completedModuleCount),
+            strengthModuleCount: selectedModuleModel.strengthTasks.length > 0 ? 1 : 0,
+            lightweightCount: selectedModuleModel.lightweightTasks.length,
+        };
+    }, [selectedModuleModel]);
+    const effectiveCalendarStartDate = instance?.start_date || activeSubscription?.start_date || null;
+    const selectedDateLabel = useMemo(() => {
+        if (!selectedDayIndex) return '';
+        const selectedDate = resolvePlanDayDate({
+            dayIndex: selectedDayIndex,
+            effectiveStartDate: effectiveCalendarStartDate,
+            fallbackAnchorDayIndex: progressDayIndex,
+        });
+        return formatPlanDayLabel(selectedDate);
+    }, [selectedDayIndex, effectiveCalendarStartDate, progressDayIndex]);
+    const selectedHasLightweightTasks = selectedModuleModel.lightweightTasks.length > 0;
+
+    const handleOpenLightweightTask = (task: NormalizedDayTask) => {
+        setActiveLightweightTask(task);
+        setLightweightSheetVisible(true);
+    };
+
+    const handleLightweightTaskCompleted = async () => {
+        await loadData();
+    };
+
+    const handleDeleteLightweightTask = (task: NormalizedDayTask) => {
+        if (!selectedExec?.id || !task.isStudentExtra) return;
+
+        confirmDialog({
+            message: `确认删除轻任务「${task.title}」吗？删除后将移除该任务及其记录。`,
+            header: '删除轻任务',
+            icon: 'pi pi-exclamation-triangle',
+            acceptLabel: addingLightweightTask ? '处理中...' : '确认删除',
+            rejectLabel: '取消',
+            acceptClassName: 'p-button-danger',
+            accept: async () => {
+                try {
+                    setAddingLightweightTask(true);
+                    const res = await executionService.deleteExtraExercise({
+                        executionId: selectedExec.id,
+                        actionIndex: task.executionIndex,
+                    });
+
+                    if (!res) {
+                        throw new Error('删除失败');
+                    }
+
+                    showToast({
+                        severity: 'success',
+                        summary: '已删除',
+                        detail: `${task.title} 已移除`,
+                    });
+                    await loadData();
+                } catch (error: any) {
+                    showToast({
+                        severity: 'error',
+                        summary: '删除失败',
+                        detail: error?.message || '请稍后重试',
+                    });
+                } finally {
+                    setAddingLightweightTask(false);
+                }
+            },
+        });
+    };
+
+    const handleOpenLightweightPicker = () => {
+        if (selectedDay?.type !== 'training') return;
+        setLightweightPickerVisible(true);
+    };
+
+    const handleSelectLightweightAction = (action: any) => {
+        const actionType = String(action?.type || '').toUpperCase();
+        const attrs = action?.attrs || {};
+        const customData = attrs?.custom_data || {};
+
+        setPendingLightweightAction(action);
+        setNewTaskSuggestedTime(String(attrs?.suggested_time || '').trim());
+        setNewTaskNotes(String(attrs?.note || '').trim());
+        setNewDietContent(actionType === 'DIET' ? String(customData?.content || '').trim() : '');
+        setNewCardioDistanceKm(
+            actionType === 'CARDIO' && customData?.distance
+                ? Number(customData.distance) / 1000
+                : null,
+        );
+        setNewCardioDurationMin(
+            actionType === 'CARDIO' && customData?.duration
+                ? Math.round(Number(customData.duration) / 60)
+                : null,
+        );
+        setNewCardioPace(actionType === 'CARDIO' ? String(customData?.pace || '').trim() : '');
+        setNewHabitName(actionType === 'HABIT' ? String(customData?.habit_name || action?.name || '').trim() : '');
+        setNewHabitTargetDurationMin(
+            actionType === 'HABIT' && customData?.target_duration
+                ? Number(customData.target_duration)
+                : null,
+        );
+        setLightweightPickerVisible(false);
+        setLightweightConfigVisible(true);
+    };
+
+    const handleAddLightweightTask = async () => {
+        if (!instance?.id || selectedDay?.type !== 'training' || addingLightweightTask) return;
+        if (!pendingLightweightAction) return;
+
+        try {
+            setAddingLightweightTask(true);
+
+            let executionId = selectedExec?.id as string | undefined;
+            if (!executionId) {
+                const startRes = await executionService.startExecution({
+                    instanceId: instance.id,
+                    dayIndex: selectedDayIndex,
+                });
+                executionId = startRes?.data?.id;
+            }
+
+            if (!executionId) {
+                throw new Error('无法创建当天执行记录');
+            }
+
+            const addRes = await executionService.addExtraExercise({
+                executionId,
+                actionId: pendingLightweightAction.id,
+                actionName: pendingLightweightAction.name,
+                sets: [{ weight: null, reps: null }],
+                suggestedTime: newTaskSuggestedTime.trim() || undefined,
+                notes: newTaskNotes.trim() || undefined,
+                customData: (() => {
+                    const actionType = String(pendingLightweightAction?.type || '').toUpperCase();
+                    if (actionType === 'DIET') {
+                        return {
+                            content: newDietContent.trim() || undefined,
+                        };
+                    }
+                    if (actionType === 'CARDIO') {
+                        return {
+                            distance: newCardioDistanceKm ? Math.round(newCardioDistanceKm * 1000) : undefined,
+                            duration: newCardioDurationMin ? Math.round(newCardioDurationMin * 60) : undefined,
+                            pace: newCardioPace.trim() || undefined,
+                        };
+                    }
+                    if (actionType === 'HABIT') {
+                        return {
+                            habit_name: newHabitName.trim() || pendingLightweightAction.name,
+                            target_duration: newHabitTargetDurationMin || undefined,
+                        };
+                    }
+                    return {};
+                })(),
+            });
+
+            if (!addRes) {
+                throw new Error('新增轻任务失败');
+            }
+
+            showToast({
+                severity: 'success',
+                summary: '已新增',
+                detail: `${pendingLightweightAction.name} 已加入第${selectedDayIndex}天`,
+            });
+
+            setLightweightConfigVisible(false);
+            setPendingLightweightAction(null);
+            await loadData();
+        } catch (error: any) {
+            showToast({
+                severity: 'error',
+                summary: '新增失败',
+                detail: error?.message || '请稍后重试',
+            });
+        } finally {
+            setAddingLightweightTask(false);
+        }
+    };
 
     const handleSkipDay = async (dayIndex: number) => {
         if (!instance?.id || !dayIndex) return;
@@ -772,81 +1056,6 @@ const TodayTrainingPage: React.FC = () => {
         );
     }
 
-    // -----------------------------
-    // 日历日（包含休息日）：
-    // 以“最近一次 resolved（completed/abandoned）训练日”的完成日期为锚点，按自然天数顺延 dayIndex，
-    // 这样当昨天完成 day10 时，今天自然落在 day11（休息），明天落在 day12（训练）。
-    // -----------------------------
-    const trainingDays = (instance.training_days || []) as any[];
-
-    const formatShortDate = (ts?: string | null) => {
-        if (!ts) return '';
-        const dt = new Date(ts);
-        return dt.toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric' });
-    };
-
-    const calendarDayIndex = (() => {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-
-        const execs = executionsByDayIndex || {};
-        const resolved = Object.values(execs).filter((e: any) =>
-            (e?.status === 'completed' || e?.status === 'abandoned') && (e?.completed_at || e?.started_at)
-        ) as any[];
-
-        if (resolved.length > 0) {
-            const maxResolved = Math.max(...resolved.map((e) => Number(e?.day_index ?? 0)).filter(Boolean));
-            const anchorExec = (execs as any)[maxResolved];
-            const anchorTs = anchorExec?.completed_at || anchorExec?.started_at;
-            if (anchorTs) {
-                const anchor = new Date(anchorTs);
-                anchor.setHours(0, 0, 0, 0);
-                const diffDays = Math.floor((today.getTime() - anchor.getTime()) / (24 * 60 * 60 * 1000));
-                return Math.max(1, Math.min(trainingDays.length || 1, maxResolved + diffDays));
-            }
-        }
-
-        // fallback：当没有任何执行记录时，best-effort 用 start_date (或订阅 start_date) 作为计划日历锚点
-        const effectiveStart = (instance as any).start_date || activeSubscription?.start_date;
-        if (effectiveStart) {
-            const start = new Date(effectiveStart);
-            start.setHours(0, 0, 0, 0);
-            const diffDays = Math.floor((today.getTime() - start.getTime()) / (24 * 60 * 60 * 1000));
-            return Math.max(1, Math.min(trainingDays.length || 1, 1 + diffDays));
-        }
-
-        // 再 fallback：保持与进度指针一致
-        return todayDayIndex;
-    })();
-
-    // -----------------------------
-    // 今日推进日（progress day）：
-    // - 休息日：按自然日顺延（calendarDayIndex）
-    // - 到达推荐训练日（todayDayIndex）后：若未确认（completed/abandoned），则指针停住
-    // 口径：progressDayIndex = min(calendarDayIndex, todayDayIndex)
-    // -----------------------------
-    const progressDayIndex = Math.min(calendarDayIndex, todayDayIndex);
-    const progressDay = trainingDays.find(d => d.dayIndex === progressDayIndex);
-    const progressExec = (executionsByDayIndex || {})[progressDayIndex];
-    const progressExecutionStatus: 'none' | 'in_progress' | 'completed' =
-        progressExec?.status === 'completed'
-            ? 'completed'
-            : progressExec?.status === 'in_progress'
-                ? 'in_progress'
-                : 'none';
-
-    const inProgressExec = (() => {
-        const execs = Object.values(executionsByDayIndex || {}) as any[];
-        const inps = execs.filter(e => e?.status === 'in_progress' && Number(e?.day_index ?? 0) > 0);
-        if (inps.length === 0) return null;
-        inps.sort((a, b) => {
-            const at = a?.started_at ? new Date(a.started_at).getTime() : 0;
-            const bt = b?.started_at ? new Date(b.started_at).getTime() : 0;
-            return bt - at;
-        });
-        return inps[0];
-    })();
-
     return (
         <div className="min-h-screen bg-surface pb-12">
             {/* 确认对话框 */}
@@ -1027,11 +1236,11 @@ const TodayTrainingPage: React.FC = () => {
                         <div className="flex items-end justify-between mb-6 px-2">
                             <div>
                                 <h3 className="text-xl sm:text-2xl font-black text-surface-900 tracking-tight">
-                                    今日任务
+                                    今日安排
                                 </h3>
                                 <p id="guide-today-progress" className="text-surface-500 text-sm flex items-center gap-2">
                                     <span>
-                                        今日推进：第{progressDayIndex}天 · {progressDay?.type === 'rest' ? '休息日' : '训练日'}
+                                        当前查看：第{selectedDayIndex}天 · {selectedDay?.type === 'rest' ? '休息日' : '训练日'}
                                     </span>
                                     <button
                                         type="button"
@@ -1041,16 +1250,73 @@ const TodayTrainingPage: React.FC = () => {
                                     >
                                         <Info className="w-4 h-4 text-surface-500" />
                                     </button>
-                                    {progressExecutionStatus === 'in_progress' && progressExec?.started_at ? `（开始于 ${formatShortDate(progressExec.started_at)}）` : ''}
-                                    {progressExecutionStatus === 'completed' && progressExec?.completed_at ? `（完成于 ${formatShortDate(progressExec.completed_at)}）` : ''}
+                                    <span>
+                                        今日推进仍在第{progressDayIndex}天
+                                    </span>
+                                    {selectedExecutionStatus === 'in_progress' && selectedExec?.started_at ? `（开始于 ${formatShortDate(selectedExec.started_at)}）` : ''}
+                                    {selectedExecutionStatus === 'completed' && selectedExec?.completed_at ? `（完成于 ${formatShortDate(selectedExec.completed_at)}）` : ''}
                                 </p>
                             </div>
-                            <div className={`hidden sm:flex items-center gap-2 font-bold text-sm px-3 py-1 rounded-full tracking-tight ${todayCompleted
+                            <div className={`hidden sm:flex items-center gap-2 font-bold text-sm px-3 py-1 rounded-full tracking-tight ${selectedExecutionStatus === 'completed'
                                 ? 'text-green-600 bg-green-50'
-                                : 'text-primary-600 bg-primary-50'
+                                : selectedExecutionStatus === 'in_progress'
+                                    ? 'text-amber-700 bg-amber-50'
+                                    : 'text-primary-600 bg-primary-50'
                                 }`}>
-                                <i className={todayCompleted ? 'pi pi-check' : 'pi pi-clock animate-spin-slow'} />
-                                {todayCompleted ? '已完成' : '进行中'}
+                                <i className={selectedExecutionStatus === 'completed' ? 'pi pi-check' : 'pi pi-clock animate-spin-slow'} />
+                                {selectedExecutionStatus === 'completed' ? '已完成' : selectedExecutionStatus === 'in_progress' ? '进行中' : '待开始'}
+                            </div>
+                        </div>
+
+                        <BrowseSection
+                            instance={instance}
+                            currentDayIndex={todayDayIndex}
+                            selectedDayIndex={selectedDayIndex}
+                            onSelectedDayChange={setSelectedDayIndex}
+                            executionsByDayIndex={executionsByDayIndex}
+                            todayCompleted={todayCompleted}
+                            progressDayIndex={progressDayIndex}
+                            effectiveStartDate={effectiveCalendarStartDate}
+                        />
+
+                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6 px-2">
+                            <div className="rounded-2xl border border-surface-100/60 bg-surface-50 px-4 py-3">
+                                <div className="text-[11px] font-bold uppercase tracking-wider text-surface-500">今日模块</div>
+                                <div className="mt-1 text-2xl font-black text-surface-900">
+                                    {selectedDay?.type === 'training' ? selectedTaskSummary.totalModules : 1}
+                                </div>
+                                <div className="text-xs text-surface-500 mt-1">
+                                    {selectedDay?.type === 'training' ? '力量 + 轻量任务' : '以恢复和浏览为主'}
+                                </div>
+                            </div>
+                            <div className="rounded-2xl border border-green-100/60 bg-green-50 px-4 py-3">
+                                <div className="text-[11px] font-bold uppercase tracking-wider text-green-700">已完成</div>
+                                <div className="mt-1 text-2xl font-black text-green-800">
+                                    {selectedDay?.type === 'training' ? selectedTaskSummary.completedModules : (selectedExecutionStatus === 'completed' ? 1 : 0)}
+                                </div>
+                                <div className="text-xs text-green-700/80 mt-1">
+                                    {selectedDay?.type === 'training' ? '该天已经完成的模块' : '该天的恢复安排'}
+                                </div>
+                            </div>
+                            <div className="rounded-2xl border border-primary-100/60 bg-primary-50 px-4 py-3">
+                                <div className="text-[11px] font-bold uppercase tracking-wider text-primary-700">剩余</div>
+                                <div className="mt-1 text-2xl font-black text-primary-800">
+                                    {selectedDay?.type === 'training' ? selectedTaskSummary.remainingModules : (selectedExecutionStatus === 'completed' ? 0 : 1)}
+                                </div>
+                                <div className="text-xs text-primary-700/80 mt-1">
+                                    {selectedDay?.type === 'training' ? '该天还可以继续完成' : '按节奏休息即可'}
+                                </div>
+                            </div>
+                            <div className="rounded-2xl border border-amber-100/60 bg-amber-50 px-4 py-3">
+                                <div className="text-[11px] font-bold uppercase tracking-wider text-amber-700">当前节奏</div>
+                                <div className="mt-1 text-lg font-black text-amber-800">
+                                    {selectedDay?.type === 'training' ? '训练日' : '恢复日'}
+                                </div>
+                                <div className="text-xs text-amber-700/80 mt-1">
+                                    {selectedDay?.type === 'training'
+                                        ? `${selectedTaskSummary.strengthModuleCount > 0 ? '含训练模块' : '轻任务为主'} · ${selectedTaskSummary.lightweightCount} 个轻任务`
+                                        : '浏览计划或继续未完成训练'}
+                                </div>
                             </div>
                         </div>
 
@@ -1104,28 +1370,35 @@ const TodayTrainingPage: React.FC = () => {
                                     </div>
                                 )}
                             </div>
-                            {progressDay && progressDay.type === 'training' ? (
+                            <div className="mb-3 flex justify-end">
+                                <Button
+                                    label="即兴锻炼"
+                                    icon="pi pi-bolt"
+                                    severity="secondary"
+                                    outlined
+                                    onClick={() => router.push('/impromptu-training')}
+                                    className="px-4 py-2 rounded-xl"
+                                />
+                            </div>
+                            {selectedDay && selectedDay.type === 'training' ? (
                                 <>
-                                    <div className="mb-3 flex justify-end">
-                                        <Button
-                                            label="即兴锻炼"
-                                            icon="pi pi-bolt"
-                                            severity="secondary"
-                                            outlined
-                                            onClick={() => router.push('/impromptu-training')}
-                                            className="px-4 py-2 rounded-xl"
-                                        />
-                                    </div>
                                     <TodayTrainingCard
-                                        day={progressDay}
+                                        day={selectedDay}
                                         actions={actions}
                                         instanceId={instance.id}
-                                        dayIndex={progressDayIndex}
-                                        executionStatus={progressExecutionStatus}
-                                        completedSets={Number(progressExec?.completed_sets || 0)}
-                                        totalSets={Number(progressExec?.total_sets || 0)}
+                                        dayIndex={selectedDayIndex}
+                                        executionStatus={selectedExecutionStatus}
+                                        completedSets={Number(selectedExec?.completed_sets || 0)}
+                                        totalSets={Number(selectedExec?.total_sets || 0)}
+                                        execution={selectedExec}
+                                        heading={selectedDayIndex === progressDayIndex ? '今日安排' : '当天安排'}
+                                        subheading={`第${selectedDayIndex}天 · ${selectedTaskSummary.totalModules} 个模块`}
+                                        dateLabel={selectedDateLabel}
+                                        onOpenLightweightTask={handleOpenLightweightTask}
+                                        onAddLightweightTask={handleOpenLightweightPicker}
+                                        onDeleteLightweightTask={handleDeleteLightweightTask}
                                     />
-                                    {progressExecutionStatus !== 'completed' && (
+                                    {selectedDayIndex === progressDayIndex && !selectedHasLightweightTasks && selectedExecutionStatus !== 'completed' && (
                                         <div className="mt-3 flex justify-end">
                                             <Button
                                                 label={quickFinishLoading ? '快速完成中...' : '一键快速完成'}
@@ -1139,10 +1412,10 @@ const TodayTrainingPage: React.FC = () => {
                                     )}
                                 </>
                             ) : (
-                                <RestDayCard dayIndex={progressDayIndex} />
+                                <RestDayCard dayIndex={selectedDayIndex} />
                             )}
 
-                            {progressDay?.type === 'rest' && inProgressExec && (
+                            {selectedDay?.type === 'rest' && inProgressExec && (
                                 <div className="mt-4 rounded-2xl border border-amber-100/50 bg-amber-50 px-4 py-3 text-amber-900 text-sm">
                                     你有进行中的训练：第{inProgressExec.day_index}天（开始于 {formatShortDate(inProgressExec.started_at)}）。
                                     <button
@@ -1155,32 +1428,168 @@ const TodayTrainingPage: React.FC = () => {
                             )}
                         </div>
                     </section>
-
-                    {/* --- 浏览区域 --- */}
-                    <section className="pt-2 sm:pt-4">
-                        <div className="flex items-center gap-3 mb-6 px-2">
-                            <div className="h-px flex-1 bg-surface-100"></div>
-                            <h4 className="text-surface-400 text-xs font-bold uppercase tracking-widest">
-                                浏览计划
-                            </h4>
-                            <div className="h-px flex-1 bg-surface-100"></div>
-                        </div>
-
-                        <BrowseSection
-                            instance={instance}
-                            actions={actions}
-                            currentDayIndex={todayDayIndex}
-                            todayExecutionStatus={executionStatus}
-                            completionDates={completionDates}
-                            executionsByDayIndex={executionsByDayIndex}
-                            todayCompleted={todayCompleted}
-                            initialSelectedDayIndex={progressDayIndex}
-                            progressDayIndex={progressDayIndex}
-                            effectiveStartDate={instance.start_date || activeSubscription?.start_date}
-                        />
-                    </section>
                 </div>
             </div>
+
+            <LightweightTaskSheet
+                visible={lightweightSheetVisible}
+                task={activeLightweightTask}
+                instanceId={instance?.id || ''}
+                dayIndex={selectedDayIndex}
+                execution={selectedExec}
+                onHide={() => {
+                    setLightweightSheetVisible(false);
+                    setActiveLightweightTask(null);
+                }}
+                onCompleted={handleLightweightTaskCompleted}
+            />
+
+            <ActionPicker
+                visible={lightweightPickerVisible}
+                onHide={() => setLightweightPickerVisible(false)}
+                onSelect={handleSelectLightweightAction}
+                userId={session?.user?.id || ''}
+                allowedTypes={['DIET', 'CARDIO', 'HABIT']}
+                title={addingLightweightTask ? '新增轻任务中...' : '选择轻任务'}
+                emptyText="你的动作库里还没有饮食、有氧或习惯类型动作"
+            />
+
+            <Dialog
+                header={pendingLightweightAction ? `配置任务 · ${pendingLightweightAction.name}` : '配置任务'}
+                visible={lightweightConfigVisible}
+                onHide={() => {
+                    if (addingLightweightTask) return;
+                    setLightweightConfigVisible(false);
+                    setPendingLightweightAction(null);
+                }}
+                draggable={false}
+                resizable={false}
+                className="w-[min(92vw,640px)]"
+            >
+                {!pendingLightweightAction ? null : (
+                    <div className="space-y-4">
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                            <div>
+                                <label className="mb-2 block text-sm font-medium text-surface-700">建议时间（可选）</label>
+                                <InputText
+                                    value={newTaskSuggestedTime}
+                                    onChange={(e) => setNewTaskSuggestedTime(e.target.value)}
+                                    placeholder="例如：07:30 / 晚饭后"
+                                    className="w-full"
+                                />
+                            </div>
+                            <div>
+                                <label className="mb-2 block text-sm font-medium text-surface-700">任务类型</label>
+                                <div className="h-[42px] rounded-xl border border-surface-200 bg-surface-50 px-3 flex items-center text-sm font-medium text-surface-700">
+                                    {String(pendingLightweightAction.type || '').toUpperCase() || 'DIET'}
+                                </div>
+                            </div>
+                        </div>
+
+                        {String(pendingLightweightAction.type || '').toUpperCase() === 'DIET' && (
+                            <div>
+                                <label className="mb-2 block text-sm font-medium text-surface-700">饮食目标/内容</label>
+                                <InputTextarea
+                                    value={newDietContent}
+                                    onChange={(e) => setNewDietContent(e.target.value)}
+                                    rows={3}
+                                    className="w-full"
+                                    placeholder="例如：早餐高蛋白，碳水控制在 60g 以内"
+                                />
+                            </div>
+                        )}
+
+                        {String(pendingLightweightAction.type || '').toUpperCase() === 'CARDIO' && (
+                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                                <div>
+                                    <label className="mb-2 block text-sm font-medium text-surface-700">目标距离（km）</label>
+                                    <AeroInputNumber
+                                        value={newCardioDistanceKm}
+                                        onValueChange={(e) => setNewCardioDistanceKm(e.value ?? null)}
+                                        min={0}
+                                        max={200}
+                                        minFractionDigits={1}
+                                        className="w-full"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="mb-2 block text-sm font-medium text-surface-700">目标时长（分钟）</label>
+                                    <AeroInputNumber
+                                        value={newCardioDurationMin}
+                                        onValueChange={(e) => setNewCardioDurationMin(e.value ?? null)}
+                                        min={0}
+                                        max={600}
+                                        className="w-full"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="mb-2 block text-sm font-medium text-surface-700">目标配速（可选）</label>
+                                    <InputText
+                                        value={newCardioPace}
+                                        onChange={(e) => setNewCardioPace(e.target.value)}
+                                        placeholder="例如：5'30''/km"
+                                        className="w-full"
+                                    />
+                                </div>
+                            </div>
+                        )}
+
+                        {String(pendingLightweightAction.type || '').toUpperCase() === 'HABIT' && (
+                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                                <div>
+                                    <label className="mb-2 block text-sm font-medium text-surface-700">习惯名称</label>
+                                    <InputText
+                                        value={newHabitName}
+                                        onChange={(e) => setNewHabitName(e.target.value)}
+                                        placeholder="例如：23:00 前入睡"
+                                        className="w-full"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="mb-2 block text-sm font-medium text-surface-700">目标时长（分钟，可选）</label>
+                                    <AeroInputNumber
+                                        value={newHabitTargetDurationMin}
+                                        onValueChange={(e) => setNewHabitTargetDurationMin(e.value ?? null)}
+                                        min={0}
+                                        max={600}
+                                        className="w-full"
+                                    />
+                                </div>
+                            </div>
+                        )}
+
+                        <div>
+                            <label className="mb-2 block text-sm font-medium text-surface-700">备注（可选）</label>
+                            <InputTextarea
+                                value={newTaskNotes}
+                                onChange={(e) => setNewTaskNotes(e.target.value)}
+                                rows={2}
+                                className="w-full"
+                                placeholder="补充说明会显示在任务卡片上"
+                            />
+                        </div>
+
+                        <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+                            <Button
+                                label="取消"
+                                severity="secondary"
+                                outlined
+                                onClick={() => {
+                                    setLightweightConfigVisible(false);
+                                    setPendingLightweightAction(null);
+                                }}
+                                disabled={addingLightweightTask}
+                            />
+                            <Button
+                                label={addingLightweightTask ? '创建中...' : '创建任务'}
+                                severity="success"
+                                onClick={handleAddLightweightTask}
+                                disabled={addingLightweightTask}
+                            />
+                        </div>
+                    </div>
+                )}
+            </Dialog>
 
             <Dialog
                 header="为什么要点完成？为什么要输入重量？"
@@ -1223,7 +1632,7 @@ const TodayTrainingPage: React.FC = () => {
                             onClick={() => {
                                 setShowExplainDialog(false);
                                 if (!instance?.id) return;
-                                router.push(`/training-execution/${instance.id}?dayIndex=${todayDayIndex}&focus=weight`);
+                                router.push(`/training-execution/${instance.id}?dayIndex=${selectedDayIndex}&focus=weight`);
                             }}
                         />
                         <Button

@@ -62,6 +62,12 @@ import type {
     SubmitFeedbackResponseDto,
 } from "../api/execution/submit-feedback/entity";
 import type { UploadSetVideoResponseDto } from "../api/execution/upload-set-video/entity";
+import type {
+    AddExtraExerciseDto,
+    AddExtraExerciseResponseDto,
+    DeleteExtraExerciseDto,
+    DeleteExtraExerciseResponseDto,
+} from "../api/execution/extra-content/entity";
 
 class ExecutionService extends BaseService {
     /**
@@ -112,6 +118,34 @@ class ExecutionService extends BaseService {
     async finishTraining(reqData: FinishTrainingDto) {
         const res = await this.post<FinishTrainingResponseDto>(
             "finish",
+            reqData,
+        );
+        if (res.data && res.data.success) {
+            return res.data.data || null;
+        }
+        return null;
+    }
+
+    /**
+     * 添加额外动作/轻任务
+     */
+    async addExtraExercise(reqData: AddExtraExerciseDto) {
+        const res = await this.post<AddExtraExerciseResponseDto>(
+            "extra-content/add-extra-exercise",
+            reqData,
+        );
+        if (res.data && res.data.success) {
+            return res.data.data || null;
+        }
+        return null;
+    }
+
+    /**
+     * 删除学员追加的动作/轻任务
+     */
+    async deleteExtraExercise(reqData: DeleteExtraExerciseDto) {
+        const res = await this.post<DeleteExtraExerciseResponseDto>(
+            "extra-content/delete-extra-exercise",
             reqData,
         );
         if (res.data && res.data.success) {

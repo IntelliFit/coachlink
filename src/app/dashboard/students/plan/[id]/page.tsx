@@ -6,6 +6,7 @@ import { Button } from 'primereact/button';
 import { Skeleton } from 'primereact/skeleton';
 import { ConfirmDialog, confirmDialog } from 'primereact/confirmdialog';
 import { Dialog } from 'primereact/dialog';
+import { Dropdown } from 'primereact/dropdown';
 
 import { useParams, useRouter } from 'next/navigation';
 import { useToastContext } from '@/context/ToastContext';
@@ -78,6 +79,7 @@ const StudentPlanPage = () => {
     const [batchDialogVisible, setBatchDialogVisible] = useState(false);
     const [aiBatchDialogVisible, setAiBatchDialogVisible] = useState(false);
     const [originalDaysBeforeAi, setOriginalDaysBeforeAi] = useState<FormPlanTrainingDay[] | null>(null);
+    const [actionSearchId, setActionSearchId] = useState<string | null>(null);
 
     // Student data
     const [studentData, setStudentData] = useState<GetStudentResponseDto['student'] | null>(null);
@@ -733,6 +735,24 @@ const StudentPlanPage = () => {
         setPendingTemplate(null);
     };
 
+    const actionSearchOptions = useMemo(
+        () => actions.map(action => ({ label: action.name, value: action.id })),
+        [actions]
+    );
+
+    const actionSearchResults = useMemo(() => {
+        if (!actionSearchId) return [];
+        return days.filter(day => {
+            if (!day.actionSets || day.actionSets.length === 0) return false;
+            return day.actionSets.some((set: any) => {
+                if (set.type === 'one-filter') {
+                    return (set.actions || []).some((inner: any) => inner.actionId === actionSearchId);
+                }
+                return set.actionId === actionSearchId;
+            });
+        });
+    }, [days, actionSearchId]);
+
     // 获取选中的训练日
     const selectedDay = selectedDayIndex !== null
         ? days.find(day => day.dayIndex === selectedDayIndex)
@@ -1220,6 +1240,56 @@ const StudentPlanPage = () => {
                 )}
 
                 <Card className="shadow-sm mb-6 bg-surface-0 border border-surface-200/70 rounded-[24px]">
+                    {/* 动作搜索 */}
+                    <div className="mb-3 rounded-xl border border-surface-100 bg-surface-50/50 p-2.5 md:p-3">
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                            <div className="flex items-center gap-2 shrink-0">
+                                <span className="text-sm font-black text-surface-800">动作搜索</span>
+                                {actionSearchId && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setActionSearchId(null)}
+                                        className="text-[11px] font-black text-primary-600 hover:text-primary-700 transition-colors"
+                                    >
+                                        清除
+                                    </button>
+                                )}
+                            </div>
+                            <Dropdown
+                                value={actionSearchId}
+                                options={actionSearchOptions}
+                                onChange={(e) => setActionSearchId(e.value || null)}
+                                placeholder="输入动作名称搜索"
+                                filter
+                                showClear
+                                className="w-full sm:max-w-xs aero-dropdown"
+                                panelClassName="aero-dropdown-panel"
+                                disabled={saving || actions.length === 0}
+                            />
+                            {actionSearchId && actionSearchResults.length > 0 && (
+                                <div className="flex flex-wrap gap-2">
+                                    {actionSearchResults.map((day) => {
+                                        const week = Math.ceil(day.dayIndex / 7);
+                                        const dayOfWeek = (day.dayIndex - 1) % 7 + 1;
+                                        return (
+                                            <button
+                                                key={day.dayIndex}
+                                                type="button"
+                                                onClick={() => setSelectedDayIndex(day.dayIndex)}
+                                                className="px-3 py-1.5 rounded-full border border-surface-200 text-[11px] font-black text-surface-600 hover:border-primary-300 hover:text-primary-700 transition-colors"
+                                            >
+                                                第 {day.dayIndex} 天 · W{week}D{dayOfWeek}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
+                        {actionSearchId && actionSearchResults.length === 0 && (
+                            <div className="text-[11px] text-surface-400 mt-2">未找到包含该动作的训练日</div>
+                        )}
+                    </div>
+
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 min-h-[500px]">
                         {/* 左侧：周历视图 */}
                         <div className="lg:col-span-1">

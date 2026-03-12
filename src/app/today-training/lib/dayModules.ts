@@ -1,0 +1,376 @@
+'use client';
+
+import { formatKgValueForGym } from '@/lib/weightQuantize';
+
+export type ExecutionStatus = 'none' | 'in_progress' | 'completed';
+export type LightweightType = 'DIET' | 'CARDIO' | 'HABIT';
+export type DayItemType = 'STRENGTH' | LightweightType;
+
+export interface NormalizedDayTask {
+    index: number;
+    executionIndex: number;
+    actionId: string;
+    title: string;
+    itemType: DayItemType;
+    params: any;
+    customData: any;
+    noteText: string;
+    detailText: string;
+    demoVideoUrl?: string | null;
+    suggestedTime?: string | null;
+    executionItem?: any;
+    setCount: number;
+    completedSetCount: number;
+    isCompleted: boolean;
+    isStudentExtra?: boolean;
+}
+
+export interface DayModuleModel {
+    normalizedTasks: NormalizedDayTask[];
+    strengthTasks: NormalizedDayTask[];
+    lightweightTasks: NormalizedDayTask[];
+    lightweightGroups: Array<{ slot: string; items: NormalizedDayTask[] }>;
+    moduleCount: number;
+    completedModuleCount: number;
+    strengthCompleted: boolean;
+    strengthCompletedSetCount: number;
+    strengthTotalSetCount: number;
+    lightweightCompletedCount: number;
+}
+
+export const slotOrder = ['早晨', '中午', '下午', '晚上', '任意时间'] as const;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+export const parsePositiveIntOrNull = (value: any) => {
+    if (value === null || value === undefined || value === '') return null;
+    const n = Number(value);
+    if (!Number.isFinite(n) || n <= 0) return null;
+    return Math.floor(n);
+};
+
+export const getTimeSlotLabel = (time?: string | null) => {
+    if (!time) return '任意时间';
+    const match = String(time).match(/(\d{1,2})/);
+    const hour = match ? Number(match[1]) : NaN;
+    if (!Number.isFinite(hour)) return '任意时间';
+    if (hour < 11) return '早晨';
+    if (hour < 14) return '中午';
+    if (hour < 18) return '下午';
+    return '晚上';
+};
+
+export const getTaskItemType = (
+    actionSet: any,
+    action: any,
+    executionItem?: any,
+): DayItemType => {
+    const rawType = String(
+        executionItem?.item_type ||
+        executionItem?.type ||
+        actionSet?.itemType ||
+        action?.type ||
+        'STRENGTH',
+    ).toUpperCase();
+
+    if (rawType === 'DIET' || rawType === 'CARDIO' || rawType === 'HABIT') {
+        return rawType;
+    }
+    return 'STRENGTH';
+};
+
+export const buildStrengthMeta = (task: NormalizedDayTask) => {
+    const params = task.params || {};
+    const sets = task.setCount || 1;
+    const reps = parsePositiveIntOrNull(params['次数']);
+    const durationSeconds = parsePositiveIntOrNull(params['持续时间']);
+    const secondPart = durationSeconds !== null
+        ? `${durationSeconds}秒`
+        : (reps !== null ? `${reps}次` : '自选');
+
+    const load = params.load;
+    const intensity = params['强度'];
+    const intensityConfig = params.intensityConfig;
+    const relativeIntensity = intensityConfig?.relativeIntensity;
+
+    let loadText: string | null = null;
+    if (load !== null && load !== undefined) {
+        const numericLoad = Number(load);
+        if (Number.isFinite(numericLoad)) {
+            if (numericLoad < 0) {
+                loadText = `辅助${formatKgValueForGym(Math.abs(numericLoad))}kg`;
+            } else if (numericLoad > 0) {
+                loadText = `${formatKgValueForGym(numericLoad)}kg`;
+            }
+        }
+    }
+
+    if (!loadText && relativeIntensity?.value && relativeIntensity.value > 0) {
+        const suffix = relativeIntensity.type === 'percentage' ? '%' : 'RM';
+        loadText = `${relativeIntensity.value}${suffix}`;
+    }
+
+    if (!loadText && intensity && intensity > 0) {
+        loadText = `${intensity}RM`;
+    }
+
+    const restSeconds = params['休息时间'] ?? params.rest_seconds;
+    return {
+        summary: `${sets}组 × ${secondPart}`,
+        loadText,
+        restText: restSeconds ? `休息${(Number(restSeconds) / 60).toFixed(1)}分钟` : null,
+    };
+};
+
+export const buildLightweightSummary = (task: NormalizedDayTask) => {
+    const { itemType, customData, detailText, suggestedTime } = task;
+    switch (itemType) {
+        case 'DIET':
+            return {
+                accent: 'text-emerald-700 bg-emerald-50 border-emerald-100/60',
+                icon: '🥗',
+                summary: customData.content || detailText || '按建议饮食执行',
+                extra: suggestedTime ? `建议时间 ${suggestedTime}` : '轻量记录，完成即可打卡',
+                actionLabel: task.isCompleted ? '查看记录' : '记录饮食',
+            };
+        case 'CARDIO':
+            return {
+                accent: 'text-sky-700 bg-sky-50 border-sky-100/60',
+                icon: '🏃',
+                summary: [
+                    customData.duration ? `${(Number(customData.duration) / 60).toFixed(0)}分钟` : null,
+                    customData.distance ? `${(Number(customData.distance) / 1000).toFixed(1)}km` : null,
+                    customData.pace ? `配速 ${customData.pace}` : null,
+                    !customData.duration && !customData.distance ? (detailText || '完成有氧任务') : null,
+                ].filter(Boolean).join(' · '),
+                extra: suggestedTime ? `建议时间 ${suggestedTime}` : '完成后记录距离或时长',
+                actionLabel: task.isCompleted ? '查看记录' : '记录有氧',
+            };
+        case 'HABIT':
+        default:
+            return {
+                accent: 'text-violet-700 bg-violet-50 border-violet-100/60',
+                icon: '✅',
+                summary: customData.habit_name || detailText || '完成习惯打卡',
+                extra: customData.target_duration
+                    ? `目标 ${customData.target_duration} 分钟`
+                    : (suggestedTime ? `建议时间 ${suggestedTime}` : '完成即可打卡'),
+                actionLabel: task.isCompleted ? '查看记录' : '立即打卡',
+            };
+    }
+};
+
+export const buildDayModuleModel = (params: {
+    day: any;
+    actions: Record<string, any>;
+    execution?: any;
+    executionStatus?: ExecutionStatus;
+}): DayModuleModel => {
+    const {
+        day,
+        actions,
+        execution,
+        executionStatus = 'none',
+    } = params;
+
+    const actionSets = (day?.actionSets || []) as any[];
+    const executionActions = Array.isArray(execution?.action_executions)
+        ? execution.action_executions
+        : [];
+    const executionBySourceIndex = new Map<number, any>();
+    const executionIndexBySourceIndex = new Map<number, number>();
+
+    executionActions.forEach((item: any, index: number) => {
+        const sourceIndex = Number.isInteger(item?.source_action_index)
+            ? Number(item.source_action_index)
+            : index;
+        if (!executionBySourceIndex.has(sourceIndex)) {
+            executionBySourceIndex.set(sourceIndex, item);
+            executionIndexBySourceIndex.set(sourceIndex, index);
+        }
+    });
+
+    const isDayCompleted = executionStatus === 'completed';
+    const normalizedTasks: NormalizedDayTask[] = actionSets.map((actionSet: any, index: number) => {
+        const actionId = actionSet.action_id || actionSet.actionId || '';
+        const action = actions[actionId];
+        const executionItem = executionBySourceIndex.get(index) ?? executionActions[index];
+        const executionIndex = executionIndexBySourceIndex.get(index) ?? index;
+        const itemType = getTaskItemType(actionSet, action, executionItem);
+        const paramsData = actionSet.params || {};
+        const customData = paramsData.custom_data || {};
+        const setCount = typeof executionItem?.total_sets === 'number'
+            ? executionItem.total_sets
+            : parsePositiveIntOrNull(paramsData['组数'] ?? actionSet.sets) ?? 1;
+        const completedSetCount = typeof executionItem?.completed_sets === 'number'
+            ? executionItem.completed_sets
+            : (executionItem?.sets || []).filter((set: any) => set?.status === 'completed').length;
+        const isTaskCompleted = executionItem
+            ? (executionItem?.completed_sets === executionItem?.total_sets) ||
+            executionItem?.status === 'completed' ||
+            executionItem?.completed === true
+            : false;
+
+        return {
+            index,
+            executionIndex,
+            actionId,
+            title: action?.name || actionSet.set_name || '未命名任务',
+            itemType,
+            params: paramsData,
+            customData,
+            noteText: String(paramsData.note || actionSet.note || '').trim(),
+            detailText: String(action?.detail || '').trim(),
+            demoVideoUrl: action?.url || action?.video_url,
+            suggestedTime: paramsData.suggested_time || action?.suggested_time || null,
+            executionItem,
+            setCount,
+            completedSetCount,
+            isCompleted: isTaskCompleted || isDayCompleted,
+            isStudentExtra: executionItem?.source === 'student_extra',
+        };
+    });
+
+    const extraExecutionTasks: NormalizedDayTask[] = executionActions
+        .map((executionItem: any, executionIndex: number) => {
+            const hasExplicitSourceIndex = Number.isInteger(executionItem?.source_action_index);
+            const sourceIndex = hasExplicitSourceIndex
+                ? Number(executionItem.source_action_index)
+                : executionIndex;
+            const isExtraItem =
+                executionItem?.source === 'student_extra' ||
+                (hasExplicitSourceIndex
+                    ? !actionSets[sourceIndex]
+                    : executionIndex >= actionSets.length);
+
+            if (!isExtraItem) {
+                return null;
+            }
+
+            const actionId = executionItem?.action_id || executionItem?.source_action_id || '';
+            const action = actions[actionId];
+            const itemType = getTaskItemType(null, action, executionItem);
+            const customData = executionItem?.custom_data || executionItem?.params?.custom_data || {};
+            const setCount = typeof executionItem?.total_sets === 'number'
+                ? executionItem.total_sets
+                : Array.isArray(executionItem?.sets)
+                    ? executionItem.sets.length
+                    : 1;
+            const completedSetCount = typeof executionItem?.completed_sets === 'number'
+                ? executionItem.completed_sets
+                : Array.isArray(executionItem?.sets)
+                    ? executionItem.sets.filter((set: any) => set?.status === 'completed').length
+                    : (executionItem?.completed ? 1 : 0);
+            const isTaskCompleted = executionItem
+                ? (executionItem?.completed_sets === executionItem?.total_sets) ||
+                executionItem?.status === 'completed' ||
+                executionItem?.completed === true
+                : false;
+
+            return {
+                index: executionIndex,
+                executionIndex,
+                actionId,
+                title: action?.name || executionItem?.action_name || '未命名任务',
+                itemType,
+                params: executionItem?.params || {},
+                customData,
+                noteText: String(executionItem?.notes || '').trim(),
+                detailText: String(action?.detail || executionItem?.detail || '').trim(),
+                demoVideoUrl: action?.url || action?.video_url || null,
+                suggestedTime: executionItem?.suggested_time || action?.suggested_time || null,
+                executionItem,
+                setCount,
+                completedSetCount,
+                isCompleted: isTaskCompleted || isDayCompleted,
+                isStudentExtra: executionItem?.source === 'student_extra',
+            };
+        })
+        .filter(Boolean) as NormalizedDayTask[];
+
+    const mergedTasks = [...normalizedTasks, ...extraExecutionTasks];
+
+    const strengthTasks = mergedTasks.filter((task) => task.itemType === 'STRENGTH');
+    const lightweightTasks = mergedTasks.filter((task) => task.itemType !== 'STRENGTH');
+    const strengthCompleted = strengthTasks.length > 0 && strengthTasks.every((task) => task.isCompleted);
+    const strengthCompletedSetCount = strengthTasks.reduce((sum, task) => sum + task.completedSetCount, 0);
+    const strengthTotalSetCount = strengthTasks.reduce((sum, task) => sum + task.setCount, 0);
+    const lightweightCompletedCount = lightweightTasks.filter((task) => task.isCompleted).length;
+
+    const groups = new Map<string, NormalizedDayTask[]>();
+    lightweightTasks.forEach((task) => {
+        const slot = getTimeSlotLabel(task.suggestedTime);
+        if (!groups.has(slot)) groups.set(slot, []);
+        groups.get(slot)?.push(task);
+    });
+
+    const lightweightGroups = slotOrder
+        .map((slot) => ({ slot, items: groups.get(slot) || [] }))
+        .filter((group) => group.items.length > 0);
+
+    return {
+        normalizedTasks: mergedTasks,
+        strengthTasks,
+        lightweightTasks,
+        lightweightGroups,
+        moduleCount: (strengthTasks.length > 0 ? 1 : 0) + lightweightTasks.length,
+        completedModuleCount:
+            (strengthTasks.length > 0 && strengthCompleted ? 1 : 0) +
+            lightweightCompletedCount,
+        strengthCompleted,
+        strengthCompletedSetCount,
+        strengthTotalSetCount,
+        lightweightCompletedCount,
+    };
+};
+
+const normalizeDate = (input: Date) => {
+    const next = new Date(input);
+    next.setHours(0, 0, 0, 0);
+    return next;
+};
+
+export const resolvePlanDayDate = (params: {
+    dayIndex: number;
+    effectiveStartDate?: string | Date | null;
+    fallbackAnchorDayIndex?: number;
+    fallbackAnchorDate?: Date;
+}) => {
+    const {
+        dayIndex,
+        effectiveStartDate,
+        fallbackAnchorDayIndex = 1,
+        fallbackAnchorDate = new Date(),
+    } = params;
+
+    if (effectiveStartDate) {
+        const start = normalizeDate(new Date(effectiveStartDate));
+        start.setDate(start.getDate() + dayIndex - 1);
+        return start;
+    }
+
+    const anchor = normalizeDate(fallbackAnchorDate);
+    anchor.setDate(anchor.getDate() + dayIndex - fallbackAnchorDayIndex);
+    return anchor;
+};
+
+export const toDateKey = (date: Date) => {
+    const yyyy = date.getFullYear();
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    const dd = String(date.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+};
+
+export const formatPlanDayLabel = (date: Date | null) => {
+    if (!date) return '';
+    return date.toLocaleDateString('zh-CN', {
+        month: 'long',
+        day: 'numeric',
+        weekday: 'long',
+    });
+};
+
+export const addDays = (date: Date, offset: number) => {
+    const next = new Date(date);
+    next.setTime(next.getTime() + offset * DAY_MS);
+    return normalizeDate(next);
+};

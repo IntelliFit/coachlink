@@ -155,3 +155,16 @@
   - 教练端原链路回归正常，不受学员改造影响；
   - 抓包确认请求体均包含 `targetActionType`，且后端未跨库查询。
 
+## 13) 展示索引与 execution 索引混用导致“打卡命中错误项目”（高风险）
+
+- **现象**：页面能看到轻任务列表，但点击完成/更新后，状态写回到错误任务，或新增后的轻任务无法正确显示/完成。
+- **根因**：展示层沿用 `day.actionSets` 的数组下标，持久化层实际使用的是 `execution.action_executions` 下标；当存在 `student_extra` 追加项或过滤渲染时，两者不再一一对应。
+- **统一规则**：
+  - 展示模型里同时保存 `source index` 与 `execution index`，提交接口时只用 `execution index`；
+  - 若页面允许追加条目，模块构建必须合并 `execution` 中的 `student_extra` 项，不能只看计划原始 `actionSets`；
+  - `item_type/type/source_action_index` 必须在 execution JSON 中显式保留，前端禁止靠位置猜测。
+- **改动前自检**：
+  - 原计划项与追加项都能分别完成、刷新后状态正确；
+  - 过滤后的列表（如 strength-only）仍能准确定位到原 execution 项；
+  - 新增、完成、回显三条链路都手动点一次。
+

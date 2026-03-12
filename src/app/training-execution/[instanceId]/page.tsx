@@ -10,6 +10,7 @@ import { Skeleton } from 'primereact/skeleton';
 import { InputTextarea } from 'primereact/inputtextarea';
 import { InputText } from 'primereact/inputtext';
 import { Dialog } from 'primereact/dialog';
+import { ConfirmDialog, confirmDialog } from 'primereact/confirmdialog';
 import { ArrowLeft, Play, Video, Check, Star, ChevronUp, ChevronDown, Timer, Upload, Plus, Trash2 } from 'lucide-react';
 import { executionService } from '@/app/service/executionService';
 import { impromptuTrainingService } from '@/app/service/impromptuTrainingService';
@@ -56,6 +57,67 @@ interface ActionExecution {
     completed_sets: number;
 }
 
+/** 可折叠的"动作要点"面板，默认收起，节省手机屏幕空间 */
+function ActionDetailPanel({
+    detail,
+    demoVideoUrl,
+    onOpenVideo,
+}: {
+    detail?: string | null;
+    demoVideoUrl?: string | null;
+    onOpenVideo: (url: string) => void;
+}) {
+    const [expanded, setExpanded] = React.useState(false);
+
+    return (
+        <div className="rounded-xl border border-surface-200 bg-surface-50 overflow-hidden">
+            <button
+                type="button"
+                className="w-full flex items-center justify-between px-4 py-3 text-left gap-2"
+                onClick={() => setExpanded(v => !v)}
+            >
+                <span className="text-xs font-bold uppercase tracking-widest text-surface-500">
+                    动作要点
+                </span>
+                <div className="flex items-center gap-2 shrink-0">
+                    {demoVideoUrl && !expanded && (
+                        <button
+                            type="button"
+                            className="inline-flex items-center gap-1 text-xs font-medium text-primary-600 bg-primary-50 px-2 py-1 rounded-lg border border-primary-200"
+                            onClick={(e) => { e.stopPropagation(); onOpenVideo(demoVideoUrl); }}
+                        >
+                            <Play className="w-3.5 h-3.5" />
+                            演示
+                        </button>
+                    )}
+                    <ChevronDown className={`w-4 h-4 text-surface-400 transition-transform ${expanded ? 'rotate-180' : ''}`} />
+                </div>
+            </button>
+
+            {expanded && (
+                <div className="px-4 pb-4 space-y-3 border-t border-surface-200">
+                    {detail ? (
+                        <p className="mt-3 text-sm text-surface-700 whitespace-pre-wrap leading-relaxed">
+                            {detail}
+                        </p>
+                    ) : (
+                        <p className="mt-3 text-sm text-surface-500">暂无动作备注</p>
+                    )}
+                    {demoVideoUrl && (
+                        <Button
+                            type="button"
+                            icon="pi pi-video"
+                            label="演示视频"
+                            className="p-button-outlined rounded-xl"
+                            onClick={() => onOpenVideo(demoVideoUrl)}
+                        />
+                    )}
+                </div>
+            )}
+        </div>
+    );
+}
+
 function TrainingExecutionContent() {
     const params = useParams();
     const router = useRouter();
@@ -70,6 +132,8 @@ function TrainingExecutionContent() {
     const instanceId = params.instanceId as string;
     const dayIndex = parseInt(searchParams.get('dayIndex') || '1');
     const impromptuId = searchParams.get('impromptuId');
+    const focusActionQuery = searchParams.get('focusAction');
+    const focusActionIndex = focusActionQuery !== null ? Number(focusActionQuery) : NaN;
     const isImpromptuMode = !!impromptuId;
     const extraContentApiBase = isImpromptuMode
         ? '/api/impromptu/extra-content'
@@ -85,6 +149,7 @@ function TrainingExecutionContent() {
     const [showOptionalFields, setShowOptionalFields] = useState(false);
     const [expandedSetKey, setExpandedSetKey] = useState<string | null>(null); // 用于已完成组“展开详情”
     const [completing, setCompleting] = useState(false);
+    const [quickFinishLoading, setQuickFinishLoading] = useState(false);
     const [restTimer, setRestTimer] = useState(0);
     const [isResting, setIsResting] = useState(false);
     const [sessionNotes, setSessionNotes] = useState('');
@@ -119,6 +184,40 @@ function TrainingExecutionContent() {
         if (!m) return null;
         const n = Number(m[0]);
         return Number.isFinite(n) ? n : null;
+    };
+
+    const getExecutionActionType = (actionExec: any) => {
+        const rawType = String(
+            actionExec?.item_type ||
+            actions[actionExec?.action_id]?.type ||
+            'STRENGTH',
+        ).toUpperCase();
+        return rawType === 'DIET' || rawType === 'CARDIO' || rawType === 'HABIT'
+            ? rawType
+            : 'STRENGTH';
+    };
+
+    const isStrengthAction = (actionExec: any) => getExecutionActionType(actionExec) === 'STRENGTH';
+
+    const resolveFocusExecutionIndex = (actionExecutions: any[], rawFocusIndex: number) => {
+        if (!Number.isInteger(rawFocusIndex) || rawFocusIndex < 0) return -1;
+        if (actionExecutions[rawFocusIndex] && isStrengthAction(actionExecutions[rawFocusIndex])) {
+            return rawFocusIndex;
+        }
+        return actionExecutions.findIndex((item) =>
+            Number.isInteger(item?.source_action_index) &&
+            Number(item.source_action_index) === rawFocusIndex &&
+            isStrengthAction(item),
+        );
+    };
+
+    const findNextStrengthActionIndex = (actionExecutions: any[], startIndex: number) => {
+        for (let i = startIndex + 1; i < actionExecutions.length; i += 1) {
+            if (isStrengthAction(actionExecutions[i])) {
+                return i;
+            }
+        }
+        return -1;
     };
 
     // 超时未结束提醒（in_progress 挂太久）
@@ -175,6 +274,19 @@ function TrainingExecutionContent() {
             startTraining();
         }
     }, [session?.user?.id, instanceId, impromptuId]);
+
+    useEffect(() => {
+        if (!execution || !Number.isInteger(focusActionIndex) || focusActionIndex < 0) return;
+        const actionExecutions = execution.action_executions || [];
+        const targetIndex = resolveFocusExecutionIndex(actionExecutions, focusActionIndex);
+        if (targetIndex < 0) return;
+        const frameId = window.requestAnimationFrame(() => {
+            document
+                .getElementById(`execution-action-${targetIndex}`)
+                ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+        return () => window.cancelAnimationFrame(frameId);
+    }, [execution, focusActionIndex]);
 
     // Rest timer effect
     useEffect(() => {
@@ -470,13 +582,24 @@ function TrainingExecutionContent() {
 
                 // Find first incomplete set
                 const actionExecutions = res.data.action_executions || [];
-                for (let i = 0; i < actionExecutions.length; i++) {
-                    const action = actionExecutions[i];
-                    const pendingSetIndex = action.sets.findIndex((s: SetData) => s.status === 'pending');
-                    if (pendingSetIndex !== -1) {
-                        setExpandedAction(i);
-                        setCurrentSetIndex(pendingSetIndex);
-                        break;
+                const resolvedFocusIndex = resolveFocusExecutionIndex(actionExecutions, focusActionIndex);
+                if (resolvedFocusIndex >= 0) {
+                    const focusAction = actionExecutions[resolvedFocusIndex];
+                    const pendingSetIndex = Array.isArray(focusAction?.sets)
+                        ? focusAction.sets.findIndex((s: SetData) => s.status === 'pending')
+                        : -1;
+                    setExpandedAction(resolvedFocusIndex);
+                    setCurrentSetIndex(pendingSetIndex !== -1 ? pendingSetIndex : 0);
+                } else {
+                    for (let i = 0; i < actionExecutions.length; i++) {
+                        const action = actionExecutions[i];
+                        if (!isStrengthAction(action)) continue;
+                        const pendingSetIndex = action.sets.findIndex((s: SetData) => s.status === 'pending');
+                        if (pendingSetIndex !== -1) {
+                            setExpandedAction(i);
+                            setCurrentSetIndex(pendingSetIndex);
+                            break;
+                        }
                     }
                 }
             } else {
@@ -934,9 +1057,8 @@ function TrainingExecutionContent() {
                 if (nextSetIndex < actionExecution.sets.length) {
                     setCurrentSetIndex(nextSetIndex);
                 } else {
-                    // Check for next action
-                    const nextActionIndex = actionIndex + 1;
-                    if (nextActionIndex < execution.action_executions.length) {
+                    const nextActionIndex = findNextStrengthActionIndex(execution.action_executions || [], actionIndex);
+                    if (nextActionIndex !== -1) {
                         setExpandedAction(nextActionIndex);
                         setCurrentSetIndex(0);
                         setShowOptionalFields(false);
@@ -1094,6 +1216,58 @@ function TrainingExecutionContent() {
         }
     };
 
+    const handleQuickFinishTraining = () => {
+        if (!execution || isImpromptuMode) return;
+        if (execution.status === 'completed') return;
+
+        confirmDialog({
+            message: '将按计划默认值（最小值）一键完成所有组，未填写的重量/次数会自动补齐。',
+            header: '确认快速完成',
+            icon: 'pi pi-exclamation-triangle',
+            acceptLabel: quickFinishLoading ? '处理中...' : '确认完成',
+            rejectLabel: '取消',
+            acceptClassName: 'p-button-success',
+            accept: async () => {
+                try {
+                    setQuickFinishLoading(true);
+                    const res = await executionService.finishTraining({
+                        executionId: execution.id,
+                        mode: 'quick',
+                    });
+
+                    if (res) {
+                        trackEvent('student_training_complete', 'training', {
+                            planId: execution.plan_id,
+                            executionId: execution.id,
+                            mode: 'quick',
+                        });
+                        showToast({
+                            severity: 'success',
+                            summary: '已快速完成',
+                            detail: `完成 ${res.completed_sets}/${res.total_sets} 组`,
+                        });
+                        setExecution((prev: any) => prev ? { ...prev, status: 'completed', completed_at: res.completed_at, completed_sets: res.completed_sets, total_sets: res.total_sets } : null);
+                        setFeedbackDialogVisible(true);
+                    } else {
+                        showToast({
+                            severity: 'error',
+                            summary: '快速完成失败',
+                            detail: '请稍后重试',
+                        });
+                    }
+                } catch (error) {
+                    console.error('Quick finish failed:', error);
+                    showToast({
+                        severity: 'error',
+                        summary: '快速完成失败',
+                        detail: '网络错误，请稍后重试',
+                    });
+                } finally {
+                    setQuickFinishLoading(false);
+                }
+            },
+        });
+    };
 
     // 提交反馈并跳转分享卡片
     const handleSubmitFeedback = async () => {
@@ -1417,9 +1591,29 @@ function TrainingExecutionContent() {
     }
 
     const actionExecutions = execution.action_executions || [];
-    const progress = execution.total_sets > 0 
-        ? Math.round((execution.completed_sets / execution.total_sets) * 100) 
+    const strengthActionIndexes = actionExecutions
+        .map((actionExec: ActionExecution, index: number) => ({ actionExec, index }))
+        .filter(({ actionExec }) => isStrengthAction(actionExec));
+    const lightweightActionIndexes = actionExecutions
+        .map((actionExec: ActionExecution, index: number) => ({ actionExec, index }))
+        .filter(({ actionExec }) => !isStrengthAction(actionExec));
+    const strengthCompletedSets = strengthActionIndexes.reduce(
+        (sum, entry) => sum + Number(entry.actionExec.completed_sets || 0),
+        0,
+    );
+    const strengthTotalSets = strengthActionIndexes.reduce(
+        (sum, entry) => sum + Number(entry.actionExec.total_sets || 0),
+        0,
+    );
+    const progress = strengthTotalSets > 0
+        ? Math.round((strengthCompletedSets / strengthTotalSets) * 100)
         : 0;
+    const hasPendingLightweightItems = lightweightActionIndexes.some(({ actionExec }) => {
+        const completed = Number(actionExec.completed_sets || 0);
+        const total = Number(actionExec.total_sets || 0);
+        return completed < total;
+    });
+    const canFinishWholeDay = isImpromptuMode || !hasPendingLightweightItems;
 
     const planDescriptionText = String(planInstance?.description || '').trim();
     const planNameText = String(planInstance?.name || '').trim();
@@ -1482,13 +1676,36 @@ function TrainingExecutionContent() {
                     <button onClick={() => router.back()} className="p-2 hover:bg-white/20 rounded-lg">
                         <ArrowLeft className="w-6 h-6" />
                     </button>
-                    <h1 className="text-lg font-bold text-white">训练执行</h1>
+                    <h1 className="text-lg font-bold text-white">力量训练执行</h1>
                     <div className="text-sm text-white/90">
-                        {execution.completed_sets}/{execution.total_sets} 组
+                        {strengthCompletedSets}/{strengthTotalSets} 组
                     </div>
                 </div>
                 <ProgressBar value={progress} showValue={false} style={{ height: '8px' }} />
             </div>
+
+            {!isImpromptuMode && (
+                <div className="px-4 pt-4">
+                    <div className="rounded-2xl border border-surface-200/70 bg-surface-50 px-4 py-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                            <div className="text-sm font-bold text-surface-900">
+                                这里是力量训练执行页
+                            </div>
+                            <div className="text-xs text-surface-600 mt-1">
+                                这里专门处理力量动作的连续训练与逐组记录。饮食、有氧和习惯任务请回到“今日安排”分别完成。
+                            </div>
+                        </div>
+                        <Button
+                            label="返回今日安排"
+                            icon="pi pi-home"
+                            severity="secondary"
+                            outlined
+                            className="shrink-0"
+                            onClick={() => router.push('/today-training')}
+                        />
+                    </div>
+                </div>
+            )}
 
             {/* Plan global description (template/instance description) */}
             {(planNameText || planDescriptionText) && (
@@ -1547,7 +1764,14 @@ function TrainingExecutionContent() {
 
             {/* Actions List */}
             <div className="p-4 space-y-4">
-                {actionExecutions.map((actionExec: ActionExecution, actionIndex: number) => {
+                {strengthActionIndexes.length === 0 && (
+                    <Card className="rounded-2xl">
+                        <div className="text-center py-6 text-surface-600">
+                            当前这一天没有力量动作，请返回“今日安排”完成饮食、有氧或习惯任务。
+                        </div>
+                    </Card>
+                )}
+                {strengthActionIndexes.map(({ actionExec, index: actionIndex }) => {
                     const action = actions[actionExec.action_id];
                     const demoVideoUrl = action?.url || action?.video_url;
                     const isExpanded = expandedAction === actionIndex;
@@ -1556,6 +1780,7 @@ function TrainingExecutionContent() {
                     return (
                         <Card 
                             key={actionIndex}
+                            id={`execution-action-${actionIndex}`}
                             className={`${isCompleted ? 'opacity-60' : ''} rounded-2xl`}
                         >
                             {/* Action Header */}
@@ -1610,36 +1835,11 @@ function TrainingExecutionContent() {
                             {isExpanded && (
                                 <div className="mt-4 space-y-4">
                                     {(action?.detail || demoVideoUrl) && (
-                                        <div className="border border-surface-200 rounded-xl bg-surface-50 p-4">
-                                            <div className="flex items-start justify-between gap-3">
-                                                <div className="min-w-0">
-                                                    <div className="text-xs font-bold uppercase tracking-widest text-surface-400">
-                                                        动作要点
-                                                    </div>
-                                                    {action?.detail ? (
-                                                        <div className="mt-2 text-sm text-surface-700 whitespace-pre-wrap">
-                                                            {action.detail}
-                                                        </div>
-                                                    ) : (
-                                                        <div className="mt-2 text-sm text-surface-500">
-                                                            暂无动作备注
-                                                        </div>
-                                                    )}
-                                                </div>
-
-                                                {demoVideoUrl && (
-                                                    <Button
-                                                        type="button"
-                                                        icon="pi pi-video"
-                                                        label="演示视频"
-                                                        className="p-button-outlined rounded-xl shrink-0"
-                                                        onClick={() => {
-                                                            openVideo(demoVideoUrl);
-                                                        }}
-                                                    />
-                                                )}
-                                            </div>
-                                        </div>
+                                        <ActionDetailPanel
+                                            detail={action?.detail}
+                                            demoVideoUrl={demoVideoUrl}
+                                            onOpenVideo={openVideo}
+                                        />
                                     )}
 
                                     {(() => {
@@ -1809,13 +2009,10 @@ function TrainingExecutionContent() {
                                                                         inputClassName="w-full text-center font-bold"
                                                                         placeholder={
                                                                             allowNegativeWeight
-                                                                                ? (isWeightRequiredForSet(setData) ? '必填，可填负数=辅助' : '可选，可填负数=辅助')
+                                                                                ? (isWeightRequiredForSet(setData) ? '必填' : '可选')
                                                                                 : (isWeightRequiredForSet(setData) ? '必填' : '可选')
                                                                         }
                                                                     />
-                                                                    <div className="mt-1 text-[11px] text-surface-500 leading-snug">
-                                                                        改成真实重量会联动校准后续组，并更新 e1RM，让下次自动算重量更准。
-                                                                    </div>
                                                                 </div>
                                                                 <div className="min-w-0">
                                                                     <label className="text-xs text-surface-600 font-bold">次数</label>
@@ -2359,21 +2556,49 @@ function TrainingExecutionContent() {
                     </>
                 ) : (
                     <>
+                        {!canFinishWholeDay && !isImpromptuMode && (
+                            <div className="mb-4 rounded-2xl border border-amber-100/70 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                                这一天还有 {lightweightActionIndexes.length} 个轻任务需要在“今日安排”里单独完成。
+                                当前页面只负责力量训练；完成后请返回首页继续处理饮食、有氧和习惯任务。
+                            </div>
+                        )}
                         <InputTextarea 
                             value={sessionNotes}
                             onChange={(e) => setSessionNotes(e.target.value)}
-                            placeholder="训练备注（可选）"
+                            placeholder="力量训练备注（可选）"
                             rows={2}
                             className="w-full mb-4"
                         />
-                        <Button 
-                            label="完成训练"
-                            onClick={handleFinishTraining}
-                            id="guide-finish-training"
-                            className="w-full"
-                            severity="success"
-                            size="large"
-                        />
+                        <div className="flex flex-col gap-2">
+                            {canFinishWholeDay ? (
+                                <Button 
+                                    label="完成训练"
+                                    onClick={handleFinishTraining}
+                                    id="guide-finish-training"
+                                    className="w-full"
+                                    severity="success"
+                                    size="large"
+                                />
+                            ) : (
+                                <Button
+                                    label="返回今日安排继续轻任务"
+                                    onClick={() => router.push('/today-training')}
+                                    className="w-full"
+                                    severity="success"
+                                    size="large"
+                                />
+                            )}
+                            {!isImpromptuMode && canFinishWholeDay && (
+                                <Button
+                                    label={quickFinishLoading ? '快速完成中...' : '一键快速完成'}
+                                    onClick={handleQuickFinishTraining}
+                                    disabled={quickFinishLoading}
+                                    severity="secondary"
+                                    outlined
+                                    className="w-full"
+                                />
+                            )}
+                        </div>
                     </>
                 )}
             </div>
@@ -2549,6 +2774,8 @@ function TrainingExecutionContent() {
                 onSelect={handleAddExtraAction}
                 userId={session?.user?.id || ''}
             />
+
+            <ConfirmDialog />
     </div>
 );
 }
