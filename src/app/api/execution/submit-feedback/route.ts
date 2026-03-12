@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 import supabase from "@/lib/supabaseClient";
+import { sendDirectMessage } from "@/lib/chat";
 
 import type { ApiData } from "@/types/api";
 import type {
@@ -120,6 +121,58 @@ export async function POST(req: Request) {
                 message: "保存反馈失败",
                 data: null,
             }, { status: 500 });
+        }
+
+        // 同步以私信形式发给教练，便于及时查看
+        try {
+            const { data: instance } = await supabase
+                .from("coach_plan_instances")
+                .select("coach_id")
+                .eq("id", execution.instance_id)
+                .single();
+
+            if (instance?.coach_id) {
+                const { data: coach } = await supabase
+                    .from("coaches")
+                    .select("user_id")
+                    .eq("id", instance.coach_id)
+                    .single();
+
+                if (coach?.user_id && coach.user_id !== userId) {
+                    const DIFFICULTY_MAP: Record<number, string> = {
+                        1: "太轻松",
+                        2: "轻松",
+                        3: "刚好",
+                        4: "有点难",
+                        5: "太难了",
+                    };
+                    const difficultyText =
+                        difficultyRating && difficultyRating >= 1 && difficultyRating <= 5
+                            ? DIFFICULTY_MAP[difficultyRating] ?? difficultyRating
+                            : null;
+                    const messageParts = [
+                        `【训练反馈】完成第 ${execution.day_index} 天训练后提交了反馈`,
+                        difficultyText ? `难度：${difficultyText}` : null,
+                        `内容：${content.trim()}`,
+                    ].filter(Boolean);
+                    const messageContent = messageParts.join("\n");
+
+                    await sendDirectMessage({
+                        fromUserId: userId,
+                        toUserId: coach.user_id,
+                        content: messageContent,
+                        contentMetadata: {
+                            type: "training_feedback",
+                            execution_id: executionId,
+                            instance_id: execution.instance_id,
+                            day_index: execution.day_index,
+                        },
+                    });
+                }
+            }
+        } catch (dmErr) {
+            console.warn("[submit-feedback] send direct message to coach failed:", dmErr);
+            // 私信失败不阻塞反馈提交成功
         }
 
         return NextResponse.json<ApiData<SubmitFeedbackResponseDto>>({

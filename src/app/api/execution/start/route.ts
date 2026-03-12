@@ -136,6 +136,10 @@ export async function POST(request: NextRequest) {
 
                             return {
                                 ...actionExec,
+                                item_type: String(masterActionSet.itemType || actionExec?.item_type || "STRENGTH").toUpperCase(),
+                                source_action_index: Number.isInteger(actionExec?.source_action_index)
+                                    ? actionExec.source_action_index
+                                    : actionIdx,
                                 sets: updatedSets,
                                 total_sets: masterSets, // 同步组数
                             };
@@ -275,7 +279,7 @@ export async function POST(request: NextRequest) {
         if (actionIds.length > 0) {
             const { data: actionsData } = await supabase
                 .from("coach_actions")
-                .select('id, name, "includesBodyWeight"')
+                .select('id, name, type, "includesBodyWeight"')
                 .in("id", actionIds);
 
             if (actionsData) {
@@ -336,6 +340,8 @@ export async function POST(request: NextRequest) {
                 action_name: actionsMap[actionId]?.name ||
                     actionSet.actionName || actionSet.set_name || "未知动作",
                 action_order: idx + 1,
+                item_type: String(actionSet.itemType || actionsMap[actionId]?.type || "STRENGTH").toUpperCase(),
+                source_action_index: idx,
                 sets: Array.from({ length: sets }, (_, i) => ({
                     set_number: i + 1,
                     status: "pending",

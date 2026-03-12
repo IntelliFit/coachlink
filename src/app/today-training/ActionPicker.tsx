@@ -5,7 +5,7 @@ import { Dialog } from 'primereact/dialog';
 import { Button } from 'primereact/button';
 import { InputText } from 'primereact/inputtext';
 import { Skeleton } from 'primereact/skeleton';
-import { Search, Dumbbell } from 'lucide-react';
+import { Search, Dumbbell, UtensilsCrossed, Activity, CheckCircle2 } from 'lucide-react';
 
 interface StudentAction {
     id: string;
@@ -15,18 +15,54 @@ interface StudentAction {
     attrs?: any;
 }
 
+const resolveActionVisual = (type?: string) => {
+    const normalizedType = String(type || 'STRENGTH').toUpperCase();
+    if (normalizedType === 'DIET') {
+        return {
+            Icon: UtensilsCrossed,
+            iconClassName: 'text-emerald-600',
+            bgClassName: 'bg-emerald-100',
+        };
+    }
+    if (normalizedType === 'CARDIO') {
+        return {
+            Icon: Activity,
+            iconClassName: 'text-sky-600',
+            bgClassName: 'bg-sky-100',
+        };
+    }
+    if (normalizedType === 'HABIT') {
+        return {
+            Icon: CheckCircle2,
+            iconClassName: 'text-violet-600',
+            bgClassName: 'bg-violet-100',
+        };
+    }
+    return {
+        Icon: Dumbbell,
+        iconClassName: 'text-primary-600',
+        bgClassName: 'bg-primary-100',
+    };
+};
+
 interface ActionPickerProps {
     visible: boolean;
     onHide: () => void;
     onSelect: (action: StudentAction) => void;
     userId: string;
+    allowedTypes?: string[];
+    title?: string;
+    emptyText?: string;
 }
 
 const ActionPicker: React.FC<ActionPickerProps> = ({
     visible,
     onHide,
     onSelect,
-    userId
+    userId,
+    allowedTypes = ['STRENGTH'],
+    title = '选择动作',
+    emptyText = '您的动作库为空',
 }) => {
     const [loading, setLoading] = useState(false);
     const [actions, setActions] = useState<StudentAction[]>([]);
@@ -37,7 +73,7 @@ const ActionPicker: React.FC<ActionPickerProps> = ({
         if (visible && userId) {
             loadActions();
         }
-    }, [visible, userId]);
+    }, [visible, userId, allowedTypes]);
 
     const loadActions = async () => {
         try {
@@ -52,11 +88,12 @@ const ActionPicker: React.FC<ActionPickerProps> = ({
             const data = await res.json();
 
             if (data.success && data.data?.actions) {
-                // 只显示力量训练类型的动作
-                const strengthActions = data.data.actions.filter(
-                    (a: StudentAction) => a.type === 'STRENGTH' || !a.type
-                );
-                setActions(strengthActions);
+                const normalizedAllowedTypes = allowedTypes.map((type) => String(type).toUpperCase());
+                const filteredActions = data.data.actions.filter((a: StudentAction) => {
+                    const actionType = String(a.type || 'STRENGTH').toUpperCase();
+                    return normalizedAllowedTypes.includes(actionType);
+                });
+                setActions(filteredActions);
             } else {
                 setError(data.message || '加载失败');
             }
@@ -82,7 +119,7 @@ const ActionPicker: React.FC<ActionPickerProps> = ({
 
     return (
         <Dialog
-            header="选择动作"
+            header={title}
             visible={visible}
             onHide={() => {
                 onHide();
@@ -123,31 +160,36 @@ const ActionPicker: React.FC<ActionPickerProps> = ({
                         </div>
                     ) : filteredActions.length === 0 ? (
                         <div className="text-center py-8 text-surface-500">
-                            {searchTerm ? '未找到匹配的动作' : '您的动作库为空'}
+                            {searchTerm ? '未找到匹配的动作' : emptyText}
                         </div>
                     ) : (
                         filteredActions.map((action) => (
-                            <button
-                                key={action.id}
-                                onClick={() => handleSelect(action)}
-                                className="w-full p-4 border border-surface-200 rounded-2xl hover:border-primary-400 hover:bg-primary-50 transition-all text-left"
-                            >
-                                <div className="flex items-start gap-3">
-                                    <div className="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center flex-shrink-0">
-                                        <Dumbbell className="w-5 h-5 text-primary-600" />
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <h4 className="font-bold text-surface-900 mb-1">
-                                            {action.name}
-                                        </h4>
-                                        {action.detail && (
-                                            <p className="text-sm text-surface-500 line-clamp-2">
-                                                {action.detail}
-                                            </p>
-                                        )}
-                                    </div>
-                                </div>
-                            </button>
+                            (() => {
+                                const visual = resolveActionVisual(action.type);
+                                return (
+                                    <button
+                                        key={action.id}
+                                        onClick={() => handleSelect(action)}
+                                        className="w-full p-4 border border-surface-200 rounded-2xl hover:border-primary-400 hover:bg-primary-50 transition-all text-left"
+                                    >
+                                        <div className="flex items-start gap-3">
+                                            <div className={`w-10 h-10 ${visual.bgClassName} rounded-full flex items-center justify-center flex-shrink-0`}>
+                                                <visual.Icon className={`w-5 h-5 ${visual.iconClassName}`} />
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <h4 className="font-bold text-surface-900 mb-1">
+                                                    {action.name}
+                                                </h4>
+                                                {action.detail && (
+                                                    <p className="text-sm text-surface-500 line-clamp-2">
+                                                        {action.detail}
+                                                    </p>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </button>
+                                );
+                            })()
                         ))
                     )}
                 </div>

@@ -25,6 +25,9 @@ export interface AddExtraExerciseDto {
     executionId: string;
     actionId: string;        // student_actions 表中的动作ID
     actionName: string;
+    customData?: Record<string, any>;
+    suggestedTime?: string;
+    notes?: string;
     sets: Array<{
         weight?: number;
         reps?: number | string;

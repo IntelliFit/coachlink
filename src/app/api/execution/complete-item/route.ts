@@ -103,9 +103,34 @@ export async function POST(request: NextRequest) {
         }
 
         // 合并到 actionExecutions
+        const currentSets = Array.isArray(actionExecutions[actionIndex]?.sets)
+            ? [...actionExecutions[actionIndex].sets]
+            : null;
+        if (currentSets && currentSets[0]) {
+            currentSets[0] = {
+                ...currentSets[0],
+                status: completed ? "completed" : "pending",
+                completed_at: completed ? new Date().toISOString() : null,
+                notes: notes || "",
+                ...(itemType === "DIET"
+                    ? {
+                        diet_content: actualContent || null,
+                        photo_url: photoUrl || null,
+                    }
+                    : {}),
+                ...(itemType === "CARDIO"
+                    ? {
+                        actual_distance: actualDistance || null,
+                        actual_duration: actualDuration || null,
+                    }
+                    : {}),
+            };
+        }
+
         actionExecutions[actionIndex] = {
             ...actionExecutions[actionIndex],
             ...itemExecution,
+            ...(currentSets ? { sets: currentSets } : {}),
         };
 
         const progress = computeExecutionProgress(actionExecutions as any[]);

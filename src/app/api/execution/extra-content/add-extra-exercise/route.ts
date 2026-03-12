@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
 
         // 2. 解析请求参数
         const body: AddExtraExerciseDto = await request.json();
-        const { executionId, actionId, actionName, sets } = body;
+        const { executionId, actionId, actionName, sets, customData, suggestedTime, notes } = body;
 
         if (!executionId || !actionId || !actionName) {
             return NextResponse.json<ApiData<AddExtraExerciseResponseDto>>({
@@ -100,8 +100,17 @@ export async function POST(request: NextRequest) {
             action_id: actionId,
             action_name: actionName,
             type: studentAction.type || "STRENGTH",
+            item_type: studentAction.type || "STRENGTH",
             source: "student_extra",          // 标记来源
             source_action_id: actionId,       // 关联学员动作库
+            custom_data: customData || {},
+            suggested_time: suggestedTime || null,
+            notes: notes || "",
+            params: {
+                custom_data: customData || {},
+                suggested_time: suggestedTime || null,
+                note: notes || "",
+            },
             sets: newSets,
             total_sets: newSets.length,
             completed_sets: 0,
