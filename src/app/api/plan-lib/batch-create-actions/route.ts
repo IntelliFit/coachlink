@@ -83,24 +83,70 @@ export async function POST(req: Request) {
                 actionName: action.name,
                 providedCanonicalId: (action as any).canonical_action_id,
                 requireCanonical: true,
+                pickFirstOnAmbiguous: true, // 智能导入：多匹配取首项，避免阻断
             });
             return { action, itemType, resolved };
         });
 
-        const unresolved = resolvedBatch.find((x) => x.resolved.errorMessage);
-        if (unresolved?.resolved.errorMessage) {
+        // 未匹配到 canonical 时自动创建（与 add-action 一致），不报错
+        const notFoundByName = new Map<string, string>();
+        for (const { action, resolved } of resolvedBatch) {
+            if (resolved.reason === "not_found") {
+                const key = normalizeActionNameForMatch(action.name);
+                if (key && !notFoundByName.has(key)) {
+                    notFoundByName.set(key, action.name.trim());
+                }
+            }
+        }
+        const createdCanonicalIds = new Map<string, string>();
+        for (const [normKey, actionName] of notFoundByName) {
+            const generatedCanonicalId = `custom_${crypto.randomUUID()}`;
+            const { error: createErr } = await supabase
+                .from("canonical_actions")
+                .insert({
+                    id: generatedCanonicalId,
+                    name: actionName,
+                    aliases: [],
+                    category: null,
+                    created_at: new Date().toISOString(),
+                } as any);
+            if (createErr) {
+                return NextResponse.json({
+                    success: false,
+                    message: `创建 canonical 动作失败: ${createErr.message}`,
+                }, { status: 500 });
+            }
+            createdCanonicalIds.set(normKey, generatedCanonicalId);
+        }
+
+        const enrichedBatch = resolvedBatch.map(({ action, itemType, resolved }) => {
+            let canonicalActionId = resolved.canonicalActionId;
+            if (resolved.reason === "not_found") {
+                const key = normalizeActionNameForMatch(action.name);
+                canonicalActionId = key ? (createdCanonicalIds.get(key) ?? null) : null;
+            }
+            return { action, itemType, canonicalActionId };
+        });
+
+        const hasOtherErrors = resolvedBatch.some(
+            (x) => x.resolved.errorMessage && x.resolved.reason !== "not_found",
+        );
+        if (hasOtherErrors) {
+            const bad = resolvedBatch.find(
+                (x) => x.resolved.errorMessage && x.resolved.reason !== "not_found",
+            );
             return NextResponse.json({
                 success: false,
-                message: unresolved.resolved.errorMessage,
+                message: bad!.resolved.errorMessage,
             }, { status: 400 });
         }
 
         const requestNameSet = new Set<string>();
         const requestCanonicalSet = new Set<string>();
-        const uniqueToCreate = resolvedBatch.filter(({ action, resolved }) => {
+        const uniqueToCreate = enrichedBatch.filter(({ action, canonicalActionId }) => {
             const key = normalizeActionNameForMatch(action.name);
             if (!key) return false;
-            const canonicalId = resolved.canonicalActionId || "";
+            const canonicalId = canonicalActionId || "";
 
             const duplicatedInDb = existingNameSet.has(key) ||
                 (canonicalId ? existingCanonicalSet.has(canonicalId) : false);
@@ -123,7 +169,7 @@ export async function POST(req: Request) {
             HABIT: ["目标数值", "完成状态"],
         };
 
-        const actionsToInsert = uniqueToCreate.map(({ action, itemType, resolved }) => {
+        const actionsToInsert = uniqueToCreate.map(({ action, itemType, canonicalActionId }) => {
             const attrs = (action as any).attrs?.length
                 ? (action as any).attrs
                 : defaultAttrsByType[itemType];
@@ -145,7 +191,7 @@ export async function POST(req: Request) {
                 includesBodyWeight: itemType === "STRENGTH"
                     ? action.includesBodyWeight
                     : false,
-                canonical_action_id: resolved.canonicalActionId,
+                canonical_action_id: canonicalActionId,
                 created_at: new Date().toISOString(),
                 updated_at: new Date().toISOString(),
             };

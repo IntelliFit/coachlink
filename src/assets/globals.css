@@ -1038,6 +1038,18 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     @apply rounded-2xl text-sm font-black;
 }
 
+/* 智能导入第二步：类型/属性下拉与同表单 InputText 等高同风格 */
+.smart-import-dropdown-compact.p-dropdown {
+    @apply min-h-0 rounded-xl border-surface-200;
+}
+.smart-import-dropdown-compact.p-dropdown .p-dropdown-label {
+    @apply text-xs py-1.5 px-2;
+}
+.smart-import-dropdown-compact.p-dropdown:not(.p-disabled):hover,
+.smart-import-dropdown-compact.p-dropdown.p-focus {
+    @apply border-primary bg-surface;
+}
+
 /* Aero MultiSelect - 训练项目，与模板定义表单样式一致（圆角、粗细） */
 .aero-multiselect.p-multiselect {
     @apply rounded-2xl border-surface-200 bg-surface-50/50;
@@ -1061,6 +1073,31 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 }
 .aero-multiselect .p-multiselect-token {
     @apply rounded-xl text-[11px] font-black;
+}
+
+/* 智能导入：部位 MultiSelect 与类型/属性下拉同风格（紧凑、同高） */
+.smart-import-multiselect-compact.p-multiselect {
+    @apply min-h-0 rounded-xl border-surface-200 w-full max-w-[180px];
+}
+.smart-import-multiselect-compact.p-multiselect .p-multiselect-label {
+    @apply text-xs py-1.5 px-2;
+}
+.smart-import-multiselect-compact.p-multiselect .p-multiselect-label.p-placeholder {
+    @apply text-surface-500;
+}
+.smart-import-multiselect-compact.p-multiselect:not(.p-disabled):hover,
+.smart-import-multiselect-compact.p-multiselect.p-multiselect-open {
+    @apply border-primary bg-surface;
+}
+.smart-import-multiselect-compact .p-multiselect-token {
+    @apply rounded-md text-[10px] py-0.5 px-1.5;
+}
+.smart-import-multiselect-compact-panel.p-multiselect-panel {
+    @apply rounded-xl border border-surface-100;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
+.smart-import-multiselect-compact-panel .p-multiselect-items .p-multiselect-item {
+    @apply text-xs py-1.5 px-2;
 }
 
 /* 自定义滚动条样式 - Aero-Productivity 设计 */
@@ -1108,5 +1145,53 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 
 .dark .custom-scrollbar::-webkit-scrollbar-thumb:active {
     background: rgba(148, 163, 184, 0.6);
+}
+
+/* PrimeReact ScrollPanel：内容区高度随内容 */
+.p-scrollpanel-content {
+    height: fit-content;
+}
+
+/* StickyScheduleBar 排期组件：PrimeReact ScrollPanel 横向滚动 */
+.sticky-schedule-scroll.p-scrollpanel {
+    flex: 1;
+    min-width: 0;
+}
+
+.sticky-schedule-scroll .p-scrollpanel-content {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.125rem 0.125rem;
+}
+.sticky-schedule-scroll .p-scrollpanel-bar.p-scrollpanel-bar-y {
+    display: none;
+}
+
+/* 横向滚动条背景色：提高可见度；减小厚度 */
+.sticky-schedule-scroll .p-scrollpanel-bar.p-scrollpanel-bar-x {
+    background: rgba(0, 0, 0, 0.18) !important;
+    border-radius: 4px;
+    height: 5px !important;
+}
+.sticky-schedule-scroll .p-scrollpanel-bar.p-scrollpanel-bar-x:hover {
+    background: rgba(0, 0, 0, 0.28) !important;
+}
+.dark .sticky-schedule-scroll .p-scrollpanel-bar.p-scrollpanel-bar-x {
+    background: rgba(255, 255, 255, 0.18) !important;
+}
+.dark .sticky-schedule-scroll .p-scrollpanel-bar.p-scrollpanel-bar-x:hover {
+    background: rgba(255, 255, 255, 0.28) !important;
+}
+
+/* 智能导入步骤对话框：header 内自定义布局（上一步 + 时间线 + 关闭） */
+.smart-import-steps-dialog.p-dialog .p-dialog-header {
+    display: flex;
+    align-items: center;
+    justify-content: stretch;
+}
+.smart-import-steps-dialog.p-dialog .p-dialog-header .p-dialog-title {
+    flex: 1;
+    min-width: 0;
 }
 
