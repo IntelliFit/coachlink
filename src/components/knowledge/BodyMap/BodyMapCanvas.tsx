@@ -84,10 +84,15 @@ export default function BodyMapCanvas({
   }, [loadState.back]);
 
   useEffect(() => {
+    console.log('[BodyMap] SVG load effect:', { hasSvg: !!currentSvg, isLoading, view });
     if (currentSvg && !isLoading) {
-      const timer = setTimeout(() => setSvgLoaded(true), 50);
+      const timer = setTimeout(() => {
+        console.log('[BodyMap] Setting svgLoaded to true');
+        setSvgLoaded(true);
+      }, 50);
       return () => clearTimeout(timer);
     } else {
+      console.log('[BodyMap] Setting svgLoaded to false');
       setSvgLoaded(false);
     }
   }, [currentSvg, isLoading, view]);
@@ -108,41 +113,106 @@ export default function BodyMapCanvas({
   }, [showJoints, svgLoaded, view]);
 
   // 高亮效果 - 使用CSS类实现平滑动画
+  // FIXME: 已知Bug - 当进入focus mode时，已选中的肌肉高亮会短暂显示后消失
+  // 问题原因：focus mode切换时，CSS transform动画可能导致SVG重新渲染，
+  // 或者CSS类被意外清除。需要进一步调查DOM是否在动画过程中被重置。
+  // 临时解决：用户可以将鼠标移入再移出肌肉区域，高亮会重新应用。
   useEffect(() => {
-    if (!svgContainerRef.current) return;
+    console.log('[BodyMap] Highlight effect triggered:', { 
+      selectedRegion, 
+      hoveredRegion, 
+      svgLoaded, 
+      isFocusMode,
+      hasContainer: !!svgContainerRef.current,
+      timestamp: Date.now()
+    });
+    
+    // 检查 SVG 容器内元素数量（用于判断是否重新渲染）
+    if (svgContainerRef.current) {
+      const svgCount = svgContainerRef.current.querySelectorAll('svg').length;
+      const gCount = svgContainerRef.current.querySelectorAll('g[data-name]').length;
+      console.log('[BodyMap] SVG stats:', { svgCount, gCount });
+    }
+    
+    if (!svgContainerRef.current) {
+      console.log('[BodyMap] No container ref, skipping highlight');
+      return;
+    }
     
     const container = svgContainerRef.current;
     
     // 清除所有高亮类
-    container.querySelectorAll('[data-name]').forEach(el => {
+    const highlightedElements = container.querySelectorAll('.highlight-hovered, .highlight-selected');
+    console.log('[BodyMap] Clearing highlight from', highlightedElements.length, 'elements');
+    highlightedElements.forEach(el => {
       el.classList.remove('highlight-hovered', 'highlight-selected');
     });
     
     // 应用悬停高亮（优先级最高）
     if (hoveredRegion) {
+      console.log('[BodyMap] Applying hover highlight for:', hoveredRegion);
       if (!(JOINTS.includes(hoveredRegion) && !showJoints)) {
         const groups = container.querySelectorAll(`[data-name="${hoveredRegion}"]`);
-        groups.forEach(group => group.classList.add('highlight-hovered'));
+        console.log('[BodyMap] Found', groups.length, 'elements for hover:', hoveredRegion);
+        groups.forEach((group, i) => {
+          console.log(`[BodyMap] Adding highlight-hovered to element ${i}:`, group);
+          group.classList.add('highlight-hovered');
+        });
+      } else {
+        console.log('[BodyMap] Hover blocked - joint hidden:', hoveredRegion);
       }
     }
     // 只有当没有悬停目标时，才显示选中高亮
     else if (selectedRegion) {
+      console.log('[BodyMap] Applying selected highlight for:', selectedRegion);
       if (!(JOINTS.includes(selectedRegion) && !showJoints)) {
         const groups = container.querySelectorAll(`[data-name="${selectedRegion}"]`);
-        groups.forEach(group => group.classList.add('highlight-selected'));
+        console.log('[BodyMap] Found', groups.length, 'elements for selected:', selectedRegion);
+        if (groups.length === 0) {
+          console.log('[BodyMap] WARNING: No elements found for selected region:', selectedRegion);
+          // 列出所有可用的 data-name 供调试
+          const allDataNames = Array.from(container.querySelectorAll('[data-name]')).map(el => el.getAttribute('data-name'));
+          console.log('[BodyMap] Available data-names:', [...new Set(allDataNames)]);
+        }
+        groups.forEach((group, i) => {
+          console.log(`[BodyMap] Adding highlight-selected to element ${i}:`, group);
+          console.log(`[BodyMap] Element ${i} tagName:`, group.tagName);
+          console.log(`[BodyMap] Element ${i} child paths:`, group.querySelectorAll('path').length);
+          group.classList.add('highlight-selected');
+          // 延迟检查类是否被保留
+          setTimeout(() => {
+            const hasClass = group.classList.contains('highlight-selected');
+            console.log(`[BodyMap] Check after 100ms - element ${i} has highlight-selected:`, hasClass);
+          }, 100);
+          setTimeout(() => {
+            const hasClass = group.classList.contains('highlight-selected');
+            console.log(`[BodyMap] Check after 800ms - element ${i} has highlight-selected:`, hasClass);
+          }, 800);
+        });
+      } else {
+        console.log('[BodyMap] Selected blocked - joint hidden:', selectedRegion);
       }
+    } else {
+      console.log('[BodyMap] No region to highlight');
     }
-  }, [selectedRegion, hoveredRegion, showJoints]);
+  }, [selectedRegion, hoveredRegion, showJoints, svgLoaded, isFocusMode]);
 
   const handleSvgClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     const target = e.target as Element;
     const partName = getPartNameFromElement(target);
+    console.log('[BodyMap] Clicked:', { partName, target: target.tagName, hasMetadata: partName ? !!BODY_PART_METADATA[partName] : false });
     
     if (partName && BODY_PART_METADATA[partName]) {
-      if (JOINTS.includes(partName) && !showJoints) return;
+      if (JOINTS.includes(partName) && !showJoints) {
+        console.log('[BodyMap] Click ignored - joint hidden');
+        return;
+      }
       
       const newSelection = partName === selectedRegion ? null : partName;
+      console.log('[BodyMap] New selection:', newSelection, 'previous:', selectedRegion);
       onRegionClick?.(newSelection as BodyRegion);
+    } else {
+      console.log('[BodyMap] Click ignored - no valid partName or metadata');
     }
   }, [onRegionClick, selectedRegion, showJoints]);
 
@@ -174,11 +244,11 @@ export default function BodyMapCanvas({
   };
 
   return (
-    <div className={`relative transition-all duration-700 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${
+    <div className={`transition-all duration-700 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${
       isFocusMode ? 'lg:transform lg:translate-x-0 lg:scale-90 origin-left' : ''
     }`}>
-      {/* 控制按钮 */}
-      <div className={`absolute top-2 right-2 flex items-center gap-3 z-10 transition-opacity duration-500 ${
+      {/* 控制按钮 - 放在身体图上方，右对齐 */}
+      <div className={`flex items-center justify-end gap-3 mb-4 transition-opacity duration-500 ${
         isFocusMode ? 'opacity-0 pointer-events-none lg:opacity-100 lg:pointer-events-auto' : ''
       }`}>
         <button
@@ -243,6 +313,7 @@ export default function BodyMapCanvas({
         
         {currentSvg && (
           <div 
+            key={view}
             className="absolute inset-0 flex items-center justify-center"
             dangerouslySetInnerHTML={{ 
               __html: currentSvg.replace(/<svg/i, '<svg preserveAspectRatio="xMidYMid meet" style="width:100%;height:100%;display:block;"')

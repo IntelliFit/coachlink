@@ -3,10 +3,10 @@
     "version": "0.1.0",
     "private": true,
     "scripts": {
-        "dev": "node scripts/start-dev.mjs",
-        "dev:safe": "CHOKIDAR_USEPOLLING=true node scripts/start-dev.mjs",
+        "dev": "next dev",
         "build": "node scripts/build-prod.js",
         "start": "next start",
+        "dev:custom": "node scripts/start-dev.mjs",
         "lint": "node -e \"console.log('Lint 未配置：Next v16 已移除 next lint，且项目未安装 eslint。可运行 npm run typecheck（当前会暴露历史类型错误）。')\"",
         "typecheck": "tsc --noEmit",
         "check-env": "node scripts/check-env.js",
