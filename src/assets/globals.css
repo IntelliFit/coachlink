@@ -1195,3 +1195,326 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     min-width: 0;
 }
 
+/* Body Map SVG Styles - 人体地图SVG样式 */
+.body-map-svg {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+}
+
+.body-map-svg > svg {
+    max-width: 100%;
+    max-height: 100%;
+    width: auto;
+    height: auto;
+    display: block;
+}
+
+/* 确保SVG内部元素正确显示 */
+.body-map-svg svg {
+    overflow: visible;
+}
+
+/* 关节元素在隐藏状态下的样式 */
+.body-map-svg [data-name="膝关节"],
+.body-map-svg [data-name="踝关节"],
+.body-map-svg [data-name="髋关节"],
+.body-map-svg [data-name="腕关节"],
+.body-map-svg [data-name="肩关节"] {
+    transition: opacity 0.2s ease;
+}
+
+/* 肌肉悬停效果 */
+.body-map-svg [data-name] path {
+    transition: fill 0.15s ease, filter 0.15s ease, opacity 0.15s ease;
+    cursor: pointer;
+}
+
+/* 确保SVG viewBox正确缩放 */
+.body-map-svg svg[viewBox] {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+/* ============================================
+   Body Map CSS Variables - 人体地图CSS变量
+   ============================================ */
+
+/* 默认颜色（浅色模式）- 正常灰黑色系 */
+:root {
+  /* 肌肉颜色 - 深灰色 */
+  --bodymap-muscle-color: #374151; /* gray-700 */
+  
+  /* 关节颜色 - 浅灰色 */
+  --bodymap-joint-color: #d1d5db; /* gray-300 */
+  
+  /* 身体轮廓颜色 - 中灰色 */
+  --bodymap-outline-color: #6b7280; /* gray-500 */
+}
+
+/* 深色模式 */
+.dark {
+  /* 肌肉颜色 - 稍浅的灰色 */
+  --bodymap-muscle-color: #4b5563; /* gray-600 */
+  
+  /* 关节颜色 - 中等灰色 */
+  --bodymap-joint-color: #6b7280; /* gray-500 */
+  
+  /* 身体轮廓颜色 - 较浅的灰色 */
+  --bodymap-outline-color: #9ca3af; /* gray-400 */
+}
+
+/* 如果需要恢复原始颜色，取消下面的注释 */
+/*
+:root {
+  --bodymap-muscle-color: #222222;
+  --bodymap-joint-color: #D3D3D3;
+  --bodymap-outline-color: #808080;
+}
+*/
+
+/* 颜色建议（可根据需要启用）： */
+
+/* 方案1: 蓝灰色调（与 surface 主题协调） */
+/*
+:root {
+  --bodymap-muscle-color: #334155;
+  --bodymap-joint-color: #cbd5e1;
+  --bodymap-outline-color: #94a3b8;
+}
+*/
+
+/* 方案2: 暖色调（与 primary/amber 主题协调） */
+/*
+:root {
+  --bodymap-muscle-color: #451a03;
+  --bodymap-joint-color: #fed7aa;
+  --bodymap-outline-color: #f97316;
+}
+*/
+
+/* 方案3: 医疗专业感（蓝色系） */
+/*
+:root {
+  --bodymap-muscle-color: #1e3a5f;
+  --bodymap-joint-color: #bfdbfe;
+  --bodymap-outline-color: #60a5fa;
+}
+*/
+
+/* 方案4: 高对比度（无障碍设计） */
+/*
+:root {
+  --bodymap-muscle-color: #000000;
+  --bodymap-joint-color: #e5e7eb;
+  --bodymap-outline-color: #6b7280;
+}
+*/
+/* ============================================
+   Body Map Focus Mode Animations - 人体地图焦点模式动画
+   ============================================ */
+
+/* 非线性动画曲线 - 弹性效果 */
+@keyframes elastic-scale {
+  0% { transform: scale(1); }
+  40% { transform: scale(0.95); }
+  60% { transform: scale(1.02); }
+  80% { transform: scale(0.98); }
+  100% { transform: scale(1); }
+}
+
+/* 从中心缩放到左侧的动画 */
+@keyframes focus-mode-enter {
+  0% {
+    transform: scale(1) translateX(0);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(0.85) translateX(-5%);
+    opacity: 1;
+  }
+}
+
+/* 选中肌肉的脉冲发光效果 */
+@keyframes muscle-pulse {
+  0%, 100% {
+    filter: drop-shadow(0 0 8px rgba(249, 115, 22, 0.5));
+  }
+  50% {
+    filter: drop-shadow(0 0 16px rgba(249, 115, 22, 0.8));
+  }
+}
+
+/* 滑入动画 */
+@keyframes slide-in-right {
+  0% {
+    transform: translateX(30px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+/* 文章列表项逐条入场 */
+@keyframes stagger-fade-in {
+  0% {
+    transform: translateY(20px) scale(0.95);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+/* 应用到元素的类 */
+.animate-elastic {
+  animation: elastic-scale 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.animate-muscle-pulse {
+  animation: muscle-pulse 2s ease-in-out infinite;
+}
+
+.animate-stagger-in {
+  animation: stagger-fade-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  opacity: 0;
+}
+
+/* 焦点模式容器过渡 */
+.body-map-focus-container {
+  transition: all 0.7s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.body-map-focus-container.focused {
+  transform: scale(0.85) translateX(-5%);
+}
+
+/* 选中部位的高亮效果 */
+.body-part-selected path {
+  animation: muscle-pulse 2s ease-in-out infinite;
+  transition: fill 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* 结果区域滑入 */
+.results-panel-enter {
+  animation: slide-in-right 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+/* 自定义滚动条样式 */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.3);
+  border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.5);
+}
+
+/* Tailwind animate-in 扩展 */
+@keyframes slide-in-from-right-8 {
+  0% {
+    transform: translateX(2rem);
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.animate-in {
+  animation-fill-mode: both;
+}
+
+.slide-in-from-right-8 {
+  animation-name: slide-in-from-right-8;
+}
+
+.fade-in {
+  animation-name: fade-in;
+}
+
+.zoom-in-95 {
+  animation-name: zoom-in-95;
+}
+
+@keyframes fade-in {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+@keyframes zoom-in-95 {
+  0% {
+    transform: scale(0.95);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* 延迟类 */
+.delay-100 { animation-delay: 100ms; }
+.delay-200 { animation-delay: 200ms; }
+.delay-300 { animation-delay: 300ms; }
+.delay-400 { animation-delay: 400ms; }
+.delay-500 { animation-delay: 500ms; }
+/* ============================================
+   Body Map Hover Highlight Animation - 肌肉悬停高亮动画
+   仅颜色变化，不影响结构
+   ============================================ */
+
+/* 所有肌肉路径默认过渡 - 只过渡颜色，不改变结构 */
+.body-map-container [data-name] path {
+  transition: fill 0.3s ease-out,
+              filter 0.3s ease-out,
+              opacity 0.2s ease-out;
+  transform-origin: center;
+}
+
+/* 高亮状态 - 橙色 */
+.body-map-container .highlight-hovered path {
+  fill: #fb923c !important; /* orange-400 */
+  filter: drop-shadow(0 0 6px rgba(251, 146, 60, 0.4)) !important;
+}
+
+.body-map-container .highlight-selected path {
+  fill: #f97316 !important; /* orange-500 */
+  filter: drop-shadow(0 0 8px rgba(249, 115, 22, 0.5)) !important;
+}
+
+/* 平滑清除高亮 */
+.body-map-container .highlight-clearing path {
+  transition: fill 0.4s ease-out,
+              filter 0.4s ease-out;
+}
+
+/* 悬停提示动画 */
+@keyframes hover-tooltip-fade {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(10px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+.hover-tooltip {
+  animation: hover-tooltip-fade 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}

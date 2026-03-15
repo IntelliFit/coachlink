@@ -1,20 +1,19 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Button } from "primereact/button";
-import { Card } from "primereact/card";
-import { ProgressBar } from "primereact/progressbar";
-import { TabView, TabPanel } from "primereact/tabview";
+import { useRouter } from "next/navigation";
+import { BookOpen, Video, Play, CheckCircle, RotateCcw, BarChart3 } from "lucide-react";
+import KnowledgeHeader from "@/components/knowledge/KnowledgeHeader";
 import { useToastContext } from "@/context/ToastContext";
 
 const MyLearningPage = () => {
-  const [activeTab, setActiveTab] = useState(0);
+  const [activeTab, setActiveTab] = useState<'progress' | 'completed'>('progress');
   const [learningProgress, setLearningProgress] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const router = useRouter();
   const { showToast } = useToastContext();
 
   useEffect(() => {
-    // Simulating API call for learning progress
     setTimeout(() => {
       setLearningProgress([
         {
@@ -43,7 +42,7 @@ const MyLearningPage = () => {
           content_id: "video1",
           title: "核心力量训练",
           progress: 100,
-          last_position: { time: 1200 }, // 20 minutes
+          last_position: { time: 1200 },
           completed_at: new Date().toISOString(),
           cover_image: "/placeholder-video.jpg",
         },
@@ -52,20 +51,15 @@ const MyLearningPage = () => {
     }, 1000);
   }, []);
 
-  const formatProgress = (progress: number) => {
-    return `${Math.round(progress)}%`;
-  };
-
   const handleContinueLearning = (item: any) => {
     if (item.content_type === "book") {
-      window.location.href = `/dashboard/knowledge/books/${item.content_id}`;
+      router.push(`/dashboard/knowledge/books/${item.content_id}`);
     } else if (item.content_type === "video") {
-      window.location.href = `/dashboard/knowledge/videos/${item.content_id}`;
+      router.push(`/dashboard/knowledge/videos/${item.content_id}`);
     }
   };
 
   const handleMarkComplete = (item: any) => {
-    // In a real app, this would call an API to mark as complete
     showToast({
       severity: "success",
       summary: "成功",
@@ -73,182 +67,212 @@ const MyLearningPage = () => {
     });
   };
 
+  const inProgressItems = learningProgress.filter(item => item.progress < 100);
+  const completedItems = learningProgress.filter(item => item.progress === 100);
+
   return (
-    <div className="p-4">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-surface-900 dark:text-surface-0">
-          <i className="pi pi-chart-line mr-2 text-green-500"></i>
-          我的学习进度
-        </h1>
-        <p className="text-surface-600 dark:text-surface-300 mt-2">
-          跟踪您的知识库学习进度和历史记录
-        </p>
-      </div>
+    <div className="min-h-screen bg-surface-50 dark:bg-surface-900 pb-32">
+      <KnowledgeHeader
+        title="我的学习"
+        subtitle="跟踪您的学习进度和历史记录"
+        icon={BarChart3}
+        showBackButton={true}
+      />
 
-      <TabView activeIndex={activeTab} onTabChange={(e) => setActiveTab(e.index)}>
-        <TabPanel header="学习进度">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {loading
-              ? Array.from({ length: 6 }).map((_, index) => (
-                  <Card key={index} className="border-round-xl">
-                    <div className="flex">
-                      <div className="mr-3">
-                        <div className="bg-surface-200 border-round w-16 h-20" />
-                      </div>
-                      <div className="flex-grow">
-                        <div className="h-4 bg-surface-200 rounded mb-2"></div>
-                        <div className="h-3 bg-surface-200 rounded mb-2 w-3/4"></div>
-                        <div className="h-3 bg-surface-200 rounded w-1/2"></div>
-                      </div>
-                    </div>
-                  </Card>
-                ))
-              : learningProgress
-                  .filter(item => item.progress < 100)
-                  .map((item) => (
-                    <Card key={item.id} className="border-round-xl">
-                      <div className="flex">
-                        <div className="mr-3">
-                          {item.cover_image ? (
-                            <img
-                              src={item.cover_image}
-                              alt={item.title}
-                              className="w-16 h-20 object-cover border-round"
-                            />
-                          ) : (
-                            <div className="w-16 h-20 bg-surface-200 border-round flex align-items-center justify-content-center">
-                              <i className={`pi ${item.content_type === "book" ? "pi-book" : "pi-video"} text-xl text-surface-400`}></i>
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex-grow">
-                          <h3 className="font-semibold text-surface-900 dark:text-surface-0 line-clamp-1">
-                            {item.title}
-                          </h3>
-                          <div className="mt-2">
-                            <ProgressBar 
-                              value={item.progress} 
-                              showValue={false}
-                              className="h-2"
-                            />
-                            <div className="flex justify-between mt-1">
-                              <span className="text-xs text-surface-600 dark:text-surface-400">
-                                {formatProgress(item.progress)}
-                              </span>
-                              <span className="text-xs text-surface-600 dark:text-surface-400">
-                                {item.content_type === "book" 
-                                  ? `第${item.last_position.chapter}章` 
-                                  : `${Math.floor(item.last_position.time / 60)}:${(item.last_position.time % 60).toString().padStart(2, "0")}`}
-                              </span>
-                            </div>
-                          </div>
-                          <div className="mt-3 flex gap-2">
-                            <Button
-                              label="继续学习"
-                              icon="pi pi-play"
-                              size="small"
-                              className="p-button-sm p-button-outlined flex-grow"
-                              onClick={() => handleContinueLearning(item)}
-                            />
-                            <Button
-                              label="完成"
-                              icon="pi pi-check"
-                              size="small"
-                              className="p-button-sm p-button-success"
-                              onClick={() => handleMarkComplete(item)}
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    </Card>
-                  ))}
+      <div className="px-4 py-6 max-w-3xl mx-auto">
+        {/* Tab Navigation */}
+        <div className="flex items-center gap-1 bg-surface-100 dark:bg-surface-800 rounded-xl p-1 mb-6">
+          <button
+            onClick={() => setActiveTab('progress')}
+            className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+              activeTab === 'progress'
+                ? 'bg-white dark:bg-surface-700 text-primary-600 shadow-sm'
+                : 'text-surface-500 hover:text-surface-700'
+            }`}
+          >
+            <Play size={14} />
+            学习中 ({inProgressItems.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('completed')}
+            className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+              activeTab === 'completed'
+                ? 'bg-white dark:bg-surface-700 text-primary-600 shadow-sm'
+                : 'text-surface-500 hover:text-surface-700'
+            }`}
+          >
+            <CheckCircle size={14} />
+            已完成 ({completedItems.length})
+          </button>
+        </div>
+
+        {/* Content */}
+        {loading ? (
+          <div className="space-y-4">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="bg-white dark:bg-surface-800 rounded-2xl p-4 shadow-sm">
+                <div className="flex gap-4">
+                  <div className="w-16 h-20 bg-surface-200 dark:bg-surface-700 rounded-xl animate-pulse" />
+                  <div className="flex-1 space-y-2">
+                    <div className="h-5 w-3/4 bg-surface-200 dark:bg-surface-700 rounded animate-pulse" />
+                    <div className="h-4 w-1/2 bg-surface-200 dark:bg-surface-700 rounded animate-pulse" />
+                    <div className="h-3 w-full bg-surface-200 dark:bg-surface-700 rounded animate-pulse" />
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
-
-          {learningProgress.filter(item => item.progress < 100).length === 0 && !loading && (
-            <div className="text-center py-8">
-              <i className="pi pi-check-circle text-4xl text-green-400 mb-3"></i>
-              <h3 className="text-lg font-medium text-surface-600 dark:text-surface-300">
-                暂无进行中的学习
-              </h3>
-              <p className="text-surface-500 dark:text-surface-400 mt-1">
-                您已完成所有已开始的学习内容
-              </p>
-              <Button
-                label="浏览知识库"
-                icon="pi pi-book"
-                className="mt-4"
-                onClick={() => window.location.href = "/dashboard/knowledge"}
-              />
-            </div>
-          )}
-        </TabPanel>
-
-        <TabPanel header="已完��">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {learningProgress
-              .filter(item => item.progress === 100)
-              .map((item) => (
-                <Card key={item.id} className="border-round-xl opacity-80">
-                  <div className="flex">
-                    <div className="mr-3">
-                      {item.cover_image ? (
-                        <img
-                          src={item.cover_image}
-                          alt={item.title}
-                          className="w-16 h-20 object-cover border-round"
-                        />
-                      ) : (
-                        <div className="w-16 h-20 bg-surface-200 border-round flex align-items-center justify-content-center">
-                          <i className={`pi ${item.content_type === "book" ? "pi-book" : "pi-video"} text-xl text-surface-400`}></i>
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex-grow">
-                      <h3 className="font-semibold text-surface-900 dark:text-surface-0 line-clamp-1">
-                        {item.title}
-                      </h3>
-                      <div className="mt-2 flex align-items-center">
-                        <i className="pi pi-check-circle text-green-500 mr-2"></i>
-                        <span className="text-sm text-surface-600 dark:text-surface-400">
-                          已完成
-                        </span>
-                        {item.completed_at && (
-                          <span className="text-xs text-surface-500 dark:text-surface-500 ml-2">
-                            {new Date(item.completed_at).toLocaleDateString()}
-                          </span>
+        ) : activeTab === 'progress' ? (
+          <>
+            {inProgressItems.length === 0 ? (
+              <div className="text-center py-12 bg-white dark:bg-surface-800 rounded-2xl">
+                <CheckCircle size={48} className="mx-auto text-green-400 mb-4" />
+                <h3 className="text-lg font-bold text-surface-600 dark:text-surface-300">
+                  暂无进行中的学习
+                </h3>
+                <p className="text-surface-500 mt-1 text-sm">
+                  您已完成所有已开始的学习内容
+                </p>
+                <button
+                  onClick={() => router.push("/dashboard/knowledge")}
+                  className="mt-4 px-4 py-2 bg-primary-500 text-white rounded-xl text-sm font-bold"
+                >
+                  浏览知识库
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {inProgressItems.map((item) => (
+                  <div key={item.id} className="bg-white dark:bg-surface-800 rounded-2xl p-4 shadow-sm">
+                    <div className="flex gap-4">
+                      <div className="shrink-0">
+                        {item.cover_image ? (
+                          <img
+                            src={item.cover_image}
+                            alt={item.title}
+                            className="w-16 h-20 object-cover rounded-xl"
+                          />
+                        ) : (
+                          <div className="w-16 h-20 bg-surface-100 dark:bg-surface-700 rounded-xl flex items-center justify-center">
+                            {item.content_type === "book" ? (
+                              <BookOpen size={24} className="text-surface-400" />
+                            ) : (
+                              <Video size={24} className="text-surface-400" />
+                            )}
+                          </div>
                         )}
                       </div>
-                      <div className="mt-3">
-                        <Button
-                          label="重新学习"
-                          icon="pi pi-refresh"
-                          size="small"
-                          className="p-button-sm p-button-outlined w-full"
-                          onClick={() => handleContinueLearning(item)}
-                        />
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-bold text-surface-900 dark:text-surface-100 truncate">
+                          {item.title}
+                        </h3>
+                        <div className="mt-2">
+                          <div className="h-2 bg-surface-100 dark:bg-surface-700 rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-primary-500 rounded-full transition-all"
+                              style={{ width: `${item.progress}%` }}
+                            />
+                          </div>
+                          <div className="flex justify-between mt-1">
+                            <span className="text-xs text-surface-500">
+                              {Math.round(item.progress)}%
+                            </span>
+                            <span className="text-xs text-surface-400">
+                              {item.content_type === "book"
+                                ? `第${item.last_position.chapter}章`
+                                : `${Math.floor(item.last_position.time / 60)}:${(item.last_position.time % 60).toString().padStart(2, "0")}`}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="mt-3 flex gap-2">
+                          <button
+                            onClick={() => handleContinueLearning(item)}
+                            className="flex-1 flex items-center justify-center gap-1 px-3 py-2 border border-primary-200 dark:border-primary-800 text-primary-600 text-sm font-semibold rounded-lg hover:bg-primary-50"
+                          >
+                            <Play size={14} />
+                            继续学习
+                          </button>
+                          <button
+                            onClick={() => handleMarkComplete(item)}
+                            className="px-3 py-2 bg-green-500 text-white text-sm font-semibold rounded-lg hover:bg-green-600"
+                          >
+                            <CheckCircle size={14} />
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </Card>
-              ))}
-          </div>
-
-          {learningProgress.filter(item => item.progress === 100).length === 0 && !loading && (
-            <div className="text-center py-8">
-              <i className="pi pi-book text-4xl text-surface-300 mb-3"></i>
-              <h3 className="text-lg font-medium text-surface-600 dark:text-surface-300">
-                暂无完成的学习
-              </h3>
-              <p className="text-surface-500 dark:text-surface-400 mt-1">
-                完成学习内容后会显示在这里
-              </p>
-            </div>
-          )}
-        </TabPanel>
-      </TabView>
+                ))}
+              </div>
+            )}
+          </>
+        ) : (
+          <>
+            {completedItems.length === 0 ? (
+              <div className="text-center py-12 bg-white dark:bg-surface-800 rounded-2xl">
+                <BookOpen size={48} className="mx-auto text-surface-300 mb-4" />
+                <h3 className="text-lg font-bold text-surface-600 dark:text-surface-300">
+                  暂无完成的学习
+                </h3>
+                <p className="text-surface-500 mt-1 text-sm">
+                  完成学习内容后会显示在这里
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {completedItems.map((item) => (
+                  <div key={item.id} className="bg-white dark:bg-surface-800 rounded-2xl p-4 shadow-sm opacity-80">
+                    <div className="flex gap-4">
+                      <div className="shrink-0">
+                        {item.cover_image ? (
+                          <img
+                            src={item.cover_image}
+                            alt={item.title}
+                            className="w-16 h-20 object-cover rounded-xl"
+                          />
+                        ) : (
+                          <div className="w-16 h-20 bg-surface-100 dark:bg-surface-700 rounded-xl flex items-center justify-center">
+                            {item.content_type === "book" ? (
+                              <BookOpen size={24} className="text-surface-400" />
+                            ) : (
+                              <Video size={24} className="text-surface-400" />
+                            )}
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-bold text-surface-900 dark:text-surface-100 truncate">
+                          {item.title}
+                        </h3>
+                        <div className="mt-2 flex items-center gap-2">
+                          <CheckCircle size={16} className="text-green-500" />
+                          <span className="text-sm text-surface-600 dark:text-surface-400">
+                            已完成
+                          </span>
+                          {item.completed_at && (
+                            <span className="text-xs text-surface-400">
+                              {new Date(item.completed_at).toLocaleDateString()}
+                            </span>
+                          )}
+                        </div>
+                        <button
+                          onClick={() => handleContinueLearning(item)}
+                          className="mt-3 w-full flex items-center justify-center gap-1 px-3 py-2 border border-surface-200 dark:border-surface-700 text-surface-600 text-sm font-semibold rounded-lg hover:bg-surface-50"
+                        >
+                          <RotateCcw size={14} />
+                          重新学习
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+      </div>
     </div>
   );
 };
 
 export default MyLearningPage;
-
