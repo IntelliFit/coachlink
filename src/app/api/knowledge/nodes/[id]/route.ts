@@ -1,145 +1,130 @@
 import { NextRequest, NextResponse } from 'next/server';
-import supabase, { serviceRoleSupabase } from '@/lib/supabaseClient';
+import supabase from '@/lib/supabaseClient';
 
 /**
  * GET /api/knowledge/nodes/[id]
- * Get a single knowledge node by ID
+ * Get a single knowledge node with editors
  */
 export async function GET(
-  request: NextRequest,
-  props: { params: Promise<{ id: string }> }
+    request: NextRequest,
+    { params }: { params: { id: string } }
 ) {
-  const params = await props.params;
-  const nodeId = params.id;
+    const { id } = params;
 
-  if (!nodeId) {
-    return NextResponse.json({ error: 'Node ID required' }, { status: 400 });
-  }
+    try {
+        // Fetch node
+        const { data: node, error } = await supabase
+            .from('knowledge_nodes')
+            .select('id, node_type, title, slug, description, icon, body_region, equipment, difficulty, is_free, is_published, is_collaborative, collaboration_enabled, content, created_by, created_at, updated_at')
+            .eq('id', id)
+            .single();
 
-  // Fetch node details and related articles in parallel
-  // Use serviceRoleSupabase for articles to bypass RLS (e.g. required_tier > 0 hidden from anon)
-  const [nodeResult, articlesResult] = await Promise.all([
-    supabase
-      .from('knowledge_nodes')
-      .select('*')
-      .eq('id', nodeId)
-      .single(),
-    serviceRoleSupabase
-      .from('coach_contents')
-      .select(`
-        id, 
-        title, 
-        coach_id, 
-        created_at, 
-        views_count, 
-        likes_count, 
-        thumbnail_url, 
-        coaches (
-          name, 
-          avatar_url
-        )
-      `)
-      .eq('knowledge_node_id', nodeId)
-      .order('created_at', { ascending: false })
-  ]);
+        if (error) {
+            console.error('[GET /api/knowledge/nodes/[id]] Error:', error);
+            return NextResponse.json({ error: error.message }, { status: 500 });
+        }
 
-  const { data: node, error } = nodeResult;
-  const { data: articles, error: articlesError } = articlesResult;
+        if (!node) {
+            return NextResponse.json({ error: 'Not found' }, { status: 404 });
+        }
 
-  if (error) {
-    console.error('Error fetching node:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
+        // Fetch editors if collaborative (with error handling)
+        let editors = [];
+        if (node.is_collaborative) {
+            try {
+                const { data: editorsData, error: editorsError } = await supabase
+                    .from('knowledge_node_editors')
+                    .select(`
+                        user_id,
+                        contributed_at,
+                        contribution_type
+                    `)
+                    .eq('node_id', id)
+                    .order('contributed_at', { ascending: true });
 
-  if (!node) {
-    return NextResponse.json({ error: 'Node not found' }, { status: 404 });
-  }
+                if (!editorsError && editorsData) {
+                    // Fetch user info separately to avoid auth.users join issues
+                    for (const editor of editorsData) {
+                        const { data: userData } = await supabase
+                            .from('users')
+                            .select('name, avatar_url')
+                            .eq('id', editor.user_id)
+                            .single();
+                        
+                        editors.push({
+                            user_id: editor.user_id,
+                            contributed_at: editor.contributed_at,
+                            contribution_type: editor.contribution_type,
+                            user_name: userData?.name || '匿名用户',
+                            user_avatar: userData?.avatar_url,
+                        });
+                    }
+                }
+            } catch (editorError) {
+                console.error('Failed to fetch editors:', editorError);
+                // Non-critical error, continue without editors
+            }
+        }
 
-  return NextResponse.json({ node, articles: articles || [] });
-}
-
-/**
- * PATCH /api/knowledge/nodes/[id]
- * Update a knowledge node (admin/coach only)
- */
-export async function PATCH(
-  request: NextRequest,
-  props: { params: Promise<{ id: string }> }
-) {
-  const params = await props.params;
-  const nodeId = params.id;
-
-  // Check auth
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
-  if (authError || !user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
-  // TODO: Check if user has permission to edit
-
-  const body = await request.json();
-  const { title, description, content, icon, is_published, body_region, metadata } = body;
-
-  const updateData: Record<string, any> = {};
-  if (title !== undefined) updateData.title = title;
-  if (description !== undefined) updateData.description = description;
-  if (content !== undefined) updateData.content = content;
-  if (icon !== undefined) updateData.icon = icon;
-  if (is_published !== undefined) updateData.is_published = is_published;
-  if (body_region !== undefined) updateData.body_region = body_region;
-  if (metadata !== undefined) updateData.metadata = metadata;
-  updateData.updated_at = new Date().toISOString();
-
-  const { data: updatedNode, error } = await supabase
-    .from('knowledge_nodes')
-    .update(updateData)
-    .eq('id', nodeId)
-    .select()
-    .single();
-
-  if (error) {
-    console.error('Error updating node:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-
-  return NextResponse.json({ node: updatedNode });
+        return NextResponse.json({ 
+            node: { 
+                ...node, 
+                editors 
+            } 
+        });
+    } catch (error) {
+        console.error('[GET /api/knowledge/nodes/[id]] Unexpected error:', error);
+        return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    }
 }
 
 /**
  * DELETE /api/knowledge/nodes/[id]
- * Delete a knowledge node (admin only)
+ * Delete a knowledge node (only creator or admin)
  */
 export async function DELETE(
-  request: NextRequest,
-  props: { params: Promise<{ id: string }> }
+    request: NextRequest,
+    { params }: { params: { id: string } }
 ) {
-  const params = await props.params;
-  const nodeId = params.id;
+    const { id } = params;
 
-  // Check auth
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
-  if (authError || !user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+    try {
+        // Check auth
+        const { data: { user }, error: authError } = await supabase.auth.getUser();
+        if (authError || !user) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
 
-  // TODO: Check if user is admin
+        // Check permission (creator or existing editor)
+        const { data: node, error: nodeError } = await supabase
+            .from('knowledge_nodes')
+            .select('created_by')
+            .eq('id', id)
+            .single();
 
-  // Delete closure table entries first
-  await supabase
-    .from('knowledge_node_closures')
-    .delete()
-    .or(`ancestor_id.eq.${nodeId},descendant_id.eq.${nodeId}`);
+        if (nodeError || !node) {
+            return NextResponse.json({ error: 'Not found' }, { status: 404 });
+        }
 
-  // Delete the node
-  const { error } = await supabase
-    .from('knowledge_nodes')
-    .delete()
-    .eq('id', nodeId);
+        // Only creator can delete
+        if (node.created_by !== user.id) {
+            return NextResponse.json({ error: 'Permission denied' }, { status: 403 });
+        }
 
-  if (error) {
-    console.error('Error deleting node:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
+        // Delete node (cascades to closures and editors via FK)
+        const { error } = await supabase
+            .from('knowledge_nodes')
+            .delete()
+            .eq('id', id);
 
-  return NextResponse.json({ success: true });
+        if (error) {
+            console.error('[DELETE /api/knowledge/nodes/[id]] Error:', error);
+            return NextResponse.json({ error: error.message }, { status: 500 });
+        }
+
+        return NextResponse.json({ success: true });
+    } catch (error) {
+        console.error('[DELETE /api/knowledge/nodes/[id]] Unexpected error:', error);
+        return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    }
 }

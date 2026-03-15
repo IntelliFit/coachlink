@@ -3,15 +3,14 @@
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
-import { BookOpen, Search, ChevronRight, Sparkles, List, GitBranch } from "lucide-react";
+import { BookOpen, Search, ChevronRight, Sparkles, List, GitBranch, MapPin, Plus, Edit3, Users } from "lucide-react";
 import AIChatPanel from "@/components/knowledge/AIChatPanel";
 import BodyMapCanvas, { BODY_REGION_LABELS, type BodyRegion } from "@/components/knowledge/BodyMap/BodyMapCanvas";
 import BodyMapModeSwitch from "@/components/knowledge/BodyMap/BodyMapModeSwitch";
 
-// Dynamic import for mind map (uses ReactFlow which needs client-side only)
 const KnowledgeMindMap = dynamic(
     () => import("@/components/knowledge/KnowledgeMindMap"),
-    { ssr: false, loading: () => <div className="h-[500px] bg-surface-100 dark:bg-surface-800 rounded-2xl animate-pulse" /> }
+    { ssr: false, loading: () => <div className="h-[500px] bg-surface-100 dark:bg-surface-800 rounded-3xl animate-pulse" /> }
 );
 
 type KnowledgePillar = {
@@ -25,13 +24,33 @@ type KnowledgePillar = {
 type ViewMode = 'list' | 'mindmap';
 type BodyMapMode = 'screening' | 'training';
 
+type Editor = {
+    user_id: string;
+    user_name: string;
+    user_avatar?: string;
+    contributed_at: string;
+    contribution_type: 'create' | 'edit' | 'review';
+};
+
 type KnowledgeNode = {
     id: string;
     title: string;
     description: string | null;
     difficulty: number;
     is_free: boolean;
+    is_collaborative?: boolean;
+    created_by?: string;
+    editors?: Editor[];
 };
+
+// Aero design system constants
+const AERO_CONTAINER = "max-w-5xl mx-auto px-4";
+const AERO_CARD = "rounded-3xl border border-surface-100 dark:border-surface-800 bg-surface-0 dark:bg-surface-900 shadow-[0_1px_0_rgba(15,23,42,0.02)] hover:shadow-[0_18px_50px_rgba(15,23,42,0.08)] transition-[box-shadow,transform]";
+const AERO_TITLE = "text-xl font-bold tracking-tight text-surface-900 dark:text-surface-0";
+const AERO_SUBTITLE = "text-sm text-surface-600 dark:text-surface-400 mt-1";
+
+// 自定义非线性动画曲线 - 营造丝滑感
+const ANIMATION_CURVE = "cubic-bezier(0.34, 1.56, 0.64, 1)";
 
 const KnowledgeBaseHomePage = () => {
     const router = useRouter();
@@ -44,8 +63,26 @@ const KnowledgeBaseHomePage = () => {
     const [selectedBodyRegion, setSelectedBodyRegion] = useState<BodyRegion | null>(null);
     const [regionNodes, setRegionNodes] = useState<KnowledgeNode[]>([]);
     const [loadingRegionNodes, setLoadingRegionNodes] = useState(false);
+    const [isBodyMapExpanded, setIsBodyMapExpanded] = useState(true);
+    
+    // 结果区域ref，用于自动滚动
+    const resultsRef = React.useRef<HTMLDivElement>(null);
+    
+    // 创建文章相关状态
+    const [showCreateForm, setShowCreateForm] = useState(false);
+    const [newArticleTitle, setNewArticleTitle] = useState("");
+    const [newArticleDescription, setNewArticleDescription] = useState("");
+    const [isCreatingArticle, setIsCreatingArticle] = useState(false);
 
-    // Fetch knowledge pillars (tree structure)
+    // 选择身体部位后自动滚动到结果区域（移动端）
+    useEffect(() => {
+        if (selectedBodyRegion && resultsRef.current && window.innerWidth < 1024) {
+            setTimeout(() => {
+                resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 100);
+        }
+    }, [selectedBodyRegion]);
+
     useEffect(() => {
         const fetchPillars = async () => {
             try {
@@ -84,145 +121,407 @@ const KnowledgeBaseHomePage = () => {
         fetchRegionNodes();
     }, [selectedBodyRegion]);
 
-    return (
-        <div className="pb-32">
-            {/* Hero Header with Gradient */}
-            <div className="bg-gradient-to-br from-primary-600 via-primary-500 to-amber-500 text-white px-4 pt-7 pb-4">
-                <div className="max-w-3xl mx-auto">
-                    <div className="flex items-center gap-2 mb-2">
-                        <div className="p-1.5 bg-white/20 backdrop-blur rounded-xl">
-                            <BookOpen size={20} />
+    const handleSearch = () => {
+        if (searchQuery.trim()) {
+            router.push(`/dashboard/knowledge/search?q=${encodeURIComponent(searchQuery.trim())}`);
+        }
+    };
+
+    // 创建新文章
+    const handleCreateArticle = async () => {
+        if (!newArticleTitle.trim() || !selectedBodyRegion) return;
+        
+        setIsCreatingArticle(true);
+        try {
+            const res = await fetch('/api/knowledge/nodes', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    title: newArticleTitle.trim(),
+                    description: newArticleDescription.trim(),
+                    body_region: [selectedBodyRegion],
+                    node_type: 'article',
+                    is_collaborative: true,
+                    collaboration_enabled: true,
+                }),
+            });
+            
+            if (res.ok) {
+                const data = await res.json();
+                // 刷新列表
+                const refreshRes = await fetch(`/api/knowledge/nodes?body_region=${selectedBodyRegion}`);
+                const refreshJson = await refreshRes.json();
+                setRegionNodes(refreshJson.nodes || []);
+                
+                // 重置表单
+                setNewArticleTitle("");
+                setNewArticleDescription("");
+                setShowCreateForm(false);
+                
+                // 跳转到编辑页面
+                router.push(`/dashboard/knowledge/nodes/${data.node.id}/edit`);
+            }
+        } catch (error) {
+            console.error('创建文章失败:', error);
+        } finally {
+            setIsCreatingArticle(false);
+        }
+    };
+
+    // 渲染编辑者头像
+    const renderEditors = (editors: Editor[]) => {
+        if (!editors || editors.length === 0) return null;
+        
+        const displayEditors = editors.slice(0, 3);
+        const remainingCount = editors.length - 3;
+        
+        return (
+            <div className="flex items-center gap-1 mt-2">
+                <Users className="w-3 h-3 text-surface-400" />
+                <div className="flex -space-x-1.5">
+                    {displayEditors.map((editor, idx) => (
+                        <div
+                            key={editor.user_id}
+                            className="w-5 h-5 rounded-full bg-surface-200 border-2 border-surface-0 dark:border-surface-900 flex items-center justify-center text-[8px] font-medium text-surface-600"
+                            title={`${editor.user_name} (${editor.contribution_type === 'create' ? '创建者' : '编辑者'})`}
+                        >
+                            {editor.user_avatar ? (
+                                <img src={editor.user_avatar} alt="" className="w-full h-full rounded-full object-cover" />
+                            ) : (
+                                editor.user_name?.[0] || '?'
+                            )}
                         </div>
-                        <h1 className="text-xl font-black">知识库</h1>
+                    ))}
+                    {remainingCount > 0 && (
+                        <div className="w-5 h-5 rounded-full bg-surface-100 border-2 border-surface-0 dark:border-surface-900 flex items-center justify-center text-[8px] font-medium text-surface-500">
+                            +{remainingCount}
+                        </div>
+                    )}
+                </div>
+                <span className="text-[10px] text-surface-400 ml-1">
+                    {editors.length} 人共建
+                </span>
+            </div>
+        );
+    };
+
+    return (
+        <div className="min-h-screen bg-surface-50 dark:bg-surface-950 pb-24">
+            {/* 背景装饰 - 上下渐变 */}
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-72 bg-gradient-to-b from-primary-100/30 dark:from-primary-900/20 to-transparent" />
+
+            <div className="relative z-10">
+                {/* Header */}
+                <div className={`${AERO_CONTAINER} pt-6 pb-4`}>
+                    <div className="flex items-center justify-between mb-6">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-2xl bg-primary-50 dark:bg-primary-900/30 flex items-center justify-center">
+                                <BookOpen className="w-5 h-5 text-primary-600 dark:text-primary-400" />
+                            </div>
+                            <div>
+                                <h1 className={AERO_TITLE}>知识库</h1>
+                                <p className={AERO_SUBTITLE}>点击身体部位，共建训练知识</p>
+                            </div>
+                        </div>
                     </div>
-                    <p className="text-white/80 text-xs">
-                        以最通俗易懂的方式传授运动训练知识
-                    </p>
 
                     {/* Search Bar */}
-                    <div className="mt-3 relative">
-                        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-surface-400" size={16} />
-                        <input
-                            type="text"
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            onKeyDown={(e) => {
-                                if (e.key === "Enter" && searchQuery.trim()) {
-                                    router.push(`/dashboard/knowledge/search?q=${encodeURIComponent(searchQuery.trim())}`);
-                                }
-                            }}
-                            placeholder="搜索知识点..."
-                            className="w-full pl-10 pr-3 py-2 rounded-xl bg-white/95 text-surface-900 placeholder-surface-400 text-sm shadow-lg focus:outline-none focus:ring-2 focus:ring-white/50"
-                        />
-                    </div>
-                </div>
-            </div>
-
-            {/* Body Map Inline */}
-            <div className="px-4 mt-3">
-                <div className="max-w-3xl mx-auto">
-                    <div className="rounded-2xl border border-surface-200 bg-white dark:bg-surface-800 p-4 shadow-sm">
-                        <div className="flex items-center justify-between mb-3">
-                            <div>
-                                <h2 className="text-base font-black text-surface-900 dark:text-surface-100">人体地图</h2>
-                                <p className="text-xs text-surface-500 mt-1">
-                                    直接点击部位查看内容，不需要单独跳转
-                                </p>
-                            </div>
+                    <div className="relative">
+                        <div className="flex items-center bg-surface-0 dark:bg-surface-900 rounded-2xl border border-surface-200 dark:border-surface-800 shadow-sm overflow-hidden">
+                            <Search className="ml-4 w-4 h-4 text-surface-400" />
+                            <input
+                                type="text"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+                                placeholder="搜索知识点..."
+                                className="flex-1 px-3 py-3.5 bg-transparent text-surface-900 dark:text-surface-0 placeholder-surface-400 text-sm focus:outline-none"
+                            />
                             <button
-                                type="button"
-                                onClick={() => router.push("/dashboard/knowledge/body-map")}
-                                className="text-xs text-primary-600 font-semibold hover:text-primary-500"
+                                onClick={handleSearch}
+                                disabled={!searchQuery.trim()}
+                                className="mr-1.5 px-4 py-2 bg-surface-900 dark:bg-surface-700 hover:bg-surface-800 disabled:bg-surface-200 dark:disabled:bg-surface-800 disabled:cursor-not-allowed text-surface-0 dark:text-surface-0 text-sm font-semibold rounded-xl transition-all active:scale-[0.98]"
                             >
-                                全屏查看
+                                搜索
                             </button>
                         </div>
-                        <BodyMapModeSwitch mode={bodyMapMode} onChange={setBodyMapMode} />
-                        <div className="mt-4">
-                            <BodyMapCanvas
-                                mode={bodyMapMode}
-                                selectedRegion={selectedBodyRegion}
-                                onRegionClick={(region) =>
-                                    setSelectedBodyRegion((prev) => (prev === region ? null : region))
-                                }
-                            />
-                        </div>
+                    </div>
 
-                        {selectedBodyRegion && (
-                            <div className="mt-4 space-y-2">
-                                <div className="flex items-center justify-between">
-                                    <h3 className="text-sm font-bold text-surface-700 dark:text-surface-200">
-                                        {BODY_REGION_LABELS[selectedBodyRegion]} 相关内容
-                                    </h3>
-                                    <span className="text-xs text-surface-500">
-                                        {loadingRegionNodes ? "加载中..." : `${regionNodes.length} 条`}
+                    {/* Quick Tags */}
+                    <div className="flex flex-wrap gap-2 mt-3">
+                        {['深蹲', '拉伸', '减脂', '增肌'].map((tag) => (
+                            <button
+                                key={tag}
+                                onClick={() => router.push(`/dashboard/knowledge/search?q=${tag}`)}
+                                className="px-3 py-1.5 bg-surface-0 dark:bg-surface-900 border border-surface-200 dark:border-surface-800 hover:border-primary-200 dark:hover:border-primary-800 text-surface-600 dark:text-surface-400 text-xs font-medium rounded-xl transition-all active:scale-[0.98]"
+                            >
+                                {tag}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Quick Actions - 仅保留书籍入口 */}
+                <div className={`${AERO_CONTAINER} mb-4`}>
+                    <button
+                        onClick={() => router.push('/dashboard/knowledge/books')}
+                        className={`${AERO_CARD} w-full flex items-center gap-3 p-4 active:scale-[0.98]`}
+                    >
+                        <div className="w-10 h-10 rounded-2xl bg-amber-50 dark:bg-amber-900/20 flex items-center justify-center">
+                            <BookOpen className="w-5 h-5 text-amber-500" />
+                        </div>
+                        <div className="text-left flex-1">
+                            <h3 className="font-semibold text-surface-900 dark:text-surface-0 text-sm">书籍笔记</h3>
+                            <p className="text-xs text-surface-500">系统化学习资料</p>
+                        </div>
+                        <ChevronRight className="w-4 h-4 text-surface-300" />
+                    </button>
+                </div>
+
+                {/* Body Map - 丝滑动画焦点模式 */}
+                <div className={AERO_CONTAINER}>
+                    <div 
+                        className={`${AERO_CARD} mb-3 overflow-hidden transition-all duration-700 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${
+                            isBodyMapExpanded 
+                                ? selectedBodyRegion 
+                                    ? 'p-4 md:p-6 lg:p-8' 
+                                    : 'p-4 md:p-6'
+                                : 'p-4'
+                        }`}
+                        style={{ transitionTimingFunction: ANIMATION_CURVE }}
+                    >
+                        <div className="flex items-center justify-between mb-4">
+                            <div className="flex items-center gap-2">
+                                <MapPin className="w-4 h-4 text-surface-500 dark:text-surface-400" />
+                                <h2 className="font-semibold text-surface-900 dark:text-surface-0 text-sm">人体地图</h2>
+                                {selectedBodyRegion && (
+                                    <span className="px-2 py-0.5 bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 text-xs font-medium rounded-full animate-in fade-in slide-in-from-left-2 duration-500">
+                                        {BODY_REGION_LABELS[selectedBodyRegion]}
                                     </span>
-                                </div>
-                                {loadingRegionNodes ? (
-                                    <div className="space-y-2">
-                                        {[1, 2].map((i) => (
-                                            <div key={i} className="h-16 bg-surface-100 dark:bg-surface-700 rounded-xl animate-pulse" />
-                                        ))}
-                                    </div>
-                                ) : regionNodes.length === 0 ? (
-                                    <div className="text-xs text-surface-500 bg-surface-50 dark:bg-surface-700/40 rounded-xl px-3 py-3">
-                                        该部位暂时没有内容，正在补充中。
-                                    </div>
-                                ) : (
-                                    regionNodes.slice(0, 3).map((node) => (
-                                        <button
-                                            key={node.id}
-                                            type="button"
-                                            onClick={() => router.push(`/dashboard/knowledge/nodes/${node.id}`)}
-                                            className="w-full rounded-xl border border-surface-200 bg-surface-0 dark:bg-surface-700/40 px-3 py-3 text-left hover:border-primary-200 transition-colors"
-                                        >
-                                            <div className="text-sm font-semibold text-surface-900 dark:text-surface-100 line-clamp-1">
-                                                {node.title}
-                                            </div>
-                                            {node.description && (
-                                                <div className="text-xs text-surface-500 mt-1 line-clamp-2">
-                                                    {node.description}
-                                                </div>
-                                            )}
-                                        </button>
-                                    ))
                                 )}
+                            </div>
+                            <button
+                                onClick={() => setIsBodyMapExpanded(!isBodyMapExpanded)}
+                                className="text-xs text-primary-600 hover:text-primary-700 font-medium flex items-center gap-0.5 transition-all duration-300 hover:scale-105"
+                            >
+                                {isBodyMapExpanded ? '收起' : '展开查看'}
+                                <ChevronRight className={`w-3.5 h-3.5 transition-transform duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${isBodyMapExpanded ? 'rotate-90' : ''}`} />
+                            </button>
+                        </div>
+                        
+                        {isBodyMapExpanded && (
+                            <div 
+                                className={`transition-all duration-700 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${
+                                    selectedBodyRegion 
+                                        ? 'lg:grid lg:grid-cols-12 lg:gap-8' 
+                                        : ''
+                                }`}
+                                style={{ transitionTimingFunction: ANIMATION_CURVE }}
+                            >
+                                {/* 左侧：人体地图 - 焦点模式下缩小并左移 */}
+                                <div 
+                                    className={`transition-all duration-700 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${
+                                        selectedBodyRegion 
+                                            ? 'lg:col-span-5 lg:sticky lg:top-4 lg:self-start' 
+                                            : ''
+                                    }`}
+                                    style={{ transitionTimingFunction: ANIMATION_CURVE }}
+                                >
+                                    <BodyMapModeSwitch mode={bodyMapMode} onChange={setBodyMapMode} />
+                                    <div className="mt-4">
+                                        <BodyMapCanvas
+                                            mode={bodyMapMode}
+                                            selectedRegion={selectedBodyRegion}
+                                            onRegionClick={(region) =>
+                                                setSelectedBodyRegion((prev) => (prev === region ? null : region))
+                                            }
+                                            isFocusMode={!!selectedBodyRegion}
+                                        />
+                                    </div>
+                                    
+                                    {/* 取消选择按钮 */}
+                                    {selectedBodyRegion && (
+                                        <button
+                                            onClick={() => setSelectedBodyRegion(null)}
+                                            className="mt-4 w-full py-2 text-xs text-surface-500 hover:text-surface-700 border border-surface-200 hover:border-surface-300 rounded-xl transition-all duration-300 hover:bg-surface-50"
+                                        >
+                                            重新选择部位
+                                        </button>
+                                    )}
+                                    
+                                    {/* 移动端提示 */}
+                                    {selectedBodyRegion && (
+                                        <div className="lg:hidden mt-4 p-3 bg-primary-50 dark:bg-primary-900/20 rounded-xl text-center animate-pulse">
+                                            <p className="text-xs text-primary-600 dark:text-primary-400">
+                                                ↓ 向下滑动查看 {BODY_REGION_LABELS[selectedBodyRegion]} 的相关内容
+                                            </p>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* 右侧：结果区域 - 丝滑入场动画 */}
+                                {selectedBodyRegion && (
+                                    <div 
+                                        ref={resultsRef} 
+                                        className="mt-6 lg:mt-0 lg:col-span-7 space-y-3 animate-in slide-in-from-right-8 fade-in duration-700 ease-[cubic-bezier(0.34,1.56,0.64,1)]"
+                                        style={{ animationTimingFunction: ANIMATION_CURVE }}
+                                    >
+                                        {/* 头部：标题 + 创建按钮 */}
+                                        <div className="flex items-center justify-between pb-3 border-b border-surface-200 dark:border-surface-700">
+                                            <div>
+                                                <h3 className="text-sm font-semibold text-surface-700 dark:text-surface-200">
+                                                    {BODY_REGION_LABELS[selectedBodyRegion]} 相关知识
+                                                </h3>
+                                                <p className="text-xs text-surface-400 mt-0.5">
+                                                    共 {regionNodes.length} 篇 • 欢迎共建
+                                                </p>
+                                            </div>
+                                            <button
+                                                onClick={() => setShowCreateForm(true)}
+                                                className="flex items-center gap-1 px-3 py-1.5 bg-surface-900 text-surface-0 text-xs font-medium rounded-lg hover:bg-surface-800 transition-all duration-300 hover:scale-105 active:scale-95"
+                                            >
+                                                <Plus className="w-3.5 h-3.5" />
+                                                创建文章
+                                            </button>
+                                        </div>
+
+                                        {/* 创建文章表单 */}
+                                        {showCreateForm && (
+                                            <div className="bg-surface-50 dark:bg-surface-800/50 rounded-2xl p-4 border border-surface-200 dark:border-surface-700">
+                                                <input
+                                                    type="text"
+                                                    placeholder="文章标题"
+                                                    value={newArticleTitle}
+                                                    onChange={(e) => setNewArticleTitle(e.target.value)}
+                                                    className="w-full px-3 py-2 bg-surface-0 dark:bg-surface-900 border border-surface-200 dark:border-surface-700 rounded-xl text-sm focus:outline-none focus:border-primary-400 mb-2"
+                                                />
+                                                <textarea
+                                                    placeholder="简要描述（可选）"
+                                                    value={newArticleDescription}
+                                                    onChange={(e) => setNewArticleDescription(e.target.value)}
+                                                    rows={2}
+                                                    className="w-full px-3 py-2 bg-surface-0 dark:bg-surface-900 border border-surface-200 dark:border-surface-700 rounded-xl text-sm focus:outline-none focus:border-primary-400 mb-3 resize-none"
+                                                />
+                                                <div className="flex gap-2">
+                                                    <button
+                                                        onClick={handleCreateArticle}
+                                                        disabled={!newArticleTitle.trim() || isCreatingArticle}
+                                                        className="flex-1 py-2 bg-primary-500 text-white text-xs font-medium rounded-xl hover:bg-primary-600 disabled:bg-surface-300 disabled:cursor-not-allowed transition-colors"
+                                                    >
+                                                        {isCreatingArticle ? '创建中...' : '确认创建'}
+                                                    </button>
+                                                    <button
+                                                        onClick={() => setShowCreateForm(false)}
+                                                        className="px-4 py-2 border border-surface-200 text-surface-600 text-xs font-medium rounded-xl hover:bg-surface-100 transition-colors"
+                                                    >
+                                                        取消
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* 文章列表 - PC端固定高度可滚动，带逐条入场动画 */}
+                                        <div className="lg:max-h-[500px] lg:overflow-y-auto lg:pr-1 space-y-3">
+                                            {loadingRegionNodes ? (
+                                                <div className="space-y-2">
+                                                    {[1, 2].map((i) => (
+                                                        <div key={i} className="h-20 bg-surface-100 dark:bg-surface-800 rounded-2xl animate-pulse" />
+                                                    ))}
+                                                </div>
+                                            ) : regionNodes.length === 0 ? (
+                                                <div className="text-sm text-surface-500 bg-surface-50 dark:bg-surface-800/50 rounded-2xl px-4 py-6 text-center animate-in fade-in zoom-in-95 duration-500">
+                                                    <p>该部位暂时没有内容</p>
+                                                    <p className="text-xs mt-1">点击"创建文章"成为第一个贡献者</p>
+                                                </div>
+                                            ) : (
+                                                regionNodes.map((node, index) => (
+                                                    <div
+                                                        key={node.id}
+                                                        className="w-full text-left rounded-2xl border border-surface-100 dark:border-surface-800 bg-surface-50 dark:bg-surface-800/50 px-4 py-3 hover:border-primary-200 dark:hover:border-primary-800 hover:bg-primary-50/30 dark:hover:bg-primary-900/20 transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] hover:scale-[1.02] hover:shadow-md group"
+                                                        style={{ 
+                                                            animationDelay: `${index * 80}ms`,
+                                                            animationTimingFunction: ANIMATION_CURVE 
+                                                        }}
+                                                    >
+                                                        <button
+                                                            onClick={() => router.push(`/dashboard/knowledge/nodes/${node.id}`)}
+                                                            className="w-full text-left"
+                                                        >
+                                                            <div className="flex items-start justify-between gap-2">
+                                                                <div className="font-medium text-surface-900 dark:text-surface-0 text-sm line-clamp-1 flex-1 group-hover:text-primary-600 transition-colors duration-300">
+                                                                    {node.title}
+                                                                </div>
+                                                                {node.is_collaborative && (
+                                                                    <span className="shrink-0 px-1.5 py-0.5 bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 text-[10px] font-medium rounded">
+                                                                        共建
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                            {node.description && (
+                                                                <div className="text-xs text-surface-500 mt-1 line-clamp-1">
+                                                                    {node.description}
+                                                                </div>
+                                                            )}
+                                                        </button>
+                                                        
+                                                        {/* 编辑者信息和编辑按钮 */}
+                                                        <div className="flex items-center justify-between mt-2 pt-2 border-t border-surface-200/50 dark:border-surface-700/50">
+                                                            {renderEditors(node.editors || [])}
+                                                            <button
+                                                                onClick={() => router.push(`/dashboard/knowledge/nodes/${node.id}/edit`)}
+                                                                className="flex items-center gap-1 px-2 py-1 text-xs text-primary-600 hover:text-primary-700 hover:bg-primary-50 rounded-lg transition-all duration-300 hover:scale-105"
+                                                            >
+                                                                <Edit3 className="w-3 h-3" />
+                                                                编辑
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                ))
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                        
+                        {!isBodyMapExpanded && (
+                            <div className="text-center py-6 text-surface-400">
+                                <MapPin className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                                <p className="text-xs">点击展开查看人体地图</p>
                             </div>
                         )}
                     </div>
                 </div>
-            </div>
 
-            {/* Knowledge Pillars (Tree) with View Toggle */}
-            <div className="px-4 mt-4">
-                <div className="max-w-3xl mx-auto">
-                    {/* Header with view toggle */}
+                {/* Knowledge Pillars */}
+                <div className={AERO_CONTAINER}>
                     <div className="flex items-center justify-between mb-3">
-                        <h2 className="text-surface-700 dark:text-surface-200 text-sm font-bold">知识体系</h2>
-                        
-                        {/* View Mode Toggle */}
-                        <div className="flex items-center gap-1 bg-surface-100 dark:bg-surface-800 rounded-xl p-1">
+                        <div className="flex items-center gap-2">
+                            <BookOpen className="w-4 h-4 text-primary-500" />
+                            <h2 className="font-semibold text-surface-900 dark:text-surface-0 text-sm">知识体系</h2>
+                        </div>
+                        <div className="flex items-center gap-1 bg-surface-0 dark:bg-surface-900 rounded-xl p-0.5 border border-surface-200 dark:border-surface-800">
                             <button
                                 onClick={() => setViewMode('list')}
-                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                                className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all active:scale-[0.98] ${
                                     viewMode === 'list' 
-                                        ? 'bg-white dark:bg-surface-700 text-primary-600 dark:text-primary-400 shadow-sm' 
-                                        : 'text-surface-500 hover:text-surface-700 dark:hover:text-surface-300'
+                                        ? 'bg-surface-100 dark:bg-surface-800 text-primary-600 shadow-sm' 
+                                        : 'text-surface-500 hover:text-surface-700'
                                 }`}
                             >
-                                <List size={14} />
-                                <span>列表</span>
+                                <List className="w-3.5 h-3.5" />
+                                列表
                             </button>
                             <button
                                 onClick={() => setViewMode('mindmap')}
-                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                                className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all active:scale-[0.98] ${
                                     viewMode === 'mindmap' 
-                                        ? 'bg-white dark:bg-surface-700 text-primary-600 dark:text-primary-400 shadow-sm' 
-                                        : 'text-surface-500 hover:text-surface-700 dark:hover:text-surface-300'
+                                        ? 'bg-surface-100 dark:bg-surface-800 text-primary-600 shadow-sm' 
+                                        : 'text-surface-500 hover:text-surface-700'
                                 }`}
                             >
-                                <GitBranch size={14} />
-                                <span>思维导图</span>
+                                <GitBranch className="w-3.5 h-3.5" />
+                                思维导图
                             </button>
                         </div>
                     </div>
@@ -230,44 +529,42 @@ const KnowledgeBaseHomePage = () => {
                     {loadingPillars ? (
                         <div className="space-y-3">
                             {[1, 2, 3].map((i) => (
-                                <div key={i} className="h-20 bg-surface-100 dark:bg-surface-800 rounded-2xl animate-pulse" />
+                                <div key={i} className="h-16 bg-surface-100 dark:bg-surface-800 rounded-3xl animate-pulse" />
                             ))}
                         </div>
                     ) : pillars.length === 0 ? (
-                        <div className="text-center py-8 text-surface-400">
-                            <BookOpen size={40} className="mx-auto mb-2 opacity-50" />
-                            <p className="text-sm">知识体系构建中...</p>
+                        <div className={`${AERO_CARD} py-8 text-center`}>
+                            <BookOpen className="w-10 h-10 mx-auto mb-2 text-surface-400" />
+                            <p className="text-sm text-surface-500">知识体系构建中...</p>
                         </div>
                     ) : viewMode === 'list' ? (
-                        /* List View */
-                        <div className="space-y-3">
+                        <div className="space-y-2">
                             {pillars.map((domain) => (
                                 <button
                                     key={domain.id}
                                     onClick={() => router.push(`/dashboard/knowledge/pillars/${domain.id}`)}
-                                    className="w-full flex items-center justify-between p-4 bg-white dark:bg-surface-800 rounded-2xl shadow-sm hover:shadow-md transition-all text-left group"
+                                    className={`${AERO_CARD} w-full flex items-center justify-between p-3.5 active:scale-[0.98]`}
                                 >
-                                    <div className="flex items-center gap-4">
-                                        <div className="w-11 h-11 rounded-xl bg-primary-50 dark:bg-primary-900/30 flex items-center justify-center text-primary-600 dark:text-primary-400">
-                                            <BookOpen size={20} />
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-9 h-9 rounded-2xl bg-primary-50 dark:bg-primary-900/20 flex items-center justify-center">
+                                            <BookOpen className="w-4 h-4 text-primary-500" />
                                         </div>
                                         <div>
-                                            <h3 className="font-bold text-surface-900 dark:text-surface-100 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
+                                            <h3 className="font-medium text-surface-900 dark:text-surface-0 text-sm">
                                                 {domain.title}
                                             </h3>
                                             {domain.description && (
-                                                <p className="text-xs text-surface-500 dark:text-surface-400 mt-0.5 line-clamp-1">
+                                                <p className="text-xs text-surface-500 line-clamp-1">
                                                     {domain.description}
                                                 </p>
                                             )}
                                         </div>
                                     </div>
-                                    <ChevronRight size={18} className="text-surface-300 group-hover:text-primary-500 transition-colors" />
+                                    <ChevronRight className="w-4 h-4 text-surface-300" />
                                 </button>
                             ))}
                         </div>
                     ) : (
-                        /* Mind Map View */
                         <KnowledgeMindMap data={pillars} />
                     )}
                 </div>
@@ -276,12 +573,11 @@ const KnowledgeBaseHomePage = () => {
             {/* AI Chat Floating Button */}
             <button
                 onClick={() => setShowAIChat(true)}
-                className="fixed bottom-24 right-4 w-14 h-14 bg-gradient-to-br from-purple-500 to-primary-600 text-white rounded-full shadow-lg flex items-center justify-center hover:scale-110 transition-transform z-30"
+                className="fixed bottom-24 right-4 w-12 h-12 bg-surface-900 dark:bg-surface-700 hover:bg-surface-800 text-surface-0 rounded-full shadow-lg flex items-center justify-center hover:scale-110 active:scale-95 transition-all"
             >
-                <Sparkles size={24} />
+                <Sparkles className="w-5 h-5" />
             </button>
 
-            {/* AI Chat Panel */}
             <AIChatPanel isOpen={showAIChat} onClose={() => setShowAIChat(false)} />
         </div>
     );

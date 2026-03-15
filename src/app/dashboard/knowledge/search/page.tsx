@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ArrowLeft, Search, BookOpen, FileText, Video, Loader2 } from 'lucide-react';
+import { Search, BookOpen, FileText, Video, Loader2 } from 'lucide-react';
+import KnowledgeHeader from '@/components/knowledge/KnowledgeHeader';
 
 type SearchResult = {
   id: string;
@@ -85,37 +86,32 @@ function SearchResultsContent() {
 
   return (
     <div className="min-h-screen bg-surface-50 dark:bg-surface-900 pb-32">
-      {/* Header */}
-      <div className="sticky top-0 z-20 bg-surface-50/80 dark:bg-surface-900/80 backdrop-blur-lg border-b border-surface-200 dark:border-surface-700">
-        <div className="flex items-center gap-3 px-4 py-3 max-w-3xl mx-auto">
-          <button
-            onClick={() => router.back()}
-            className="p-2 -ml-2 text-surface-600 dark:text-surface-400 hover:bg-surface-100 dark:hover:bg-surface-800 rounded-xl transition-colors"
-          >
-            <ArrowLeft size={20} />
-          </button>
-          <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-surface-400" size={16} />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-              placeholder="搜索知识点..."
-              className="w-full pl-9 pr-4 py-2 bg-surface-100 dark:bg-surface-800 text-surface-900 dark:text-surface-100 placeholder-surface-400 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-            />
-          </div>
+      <KnowledgeHeader
+        title="搜索知识"
+        subtitle="搜索文章、视频和知识点"
+        icon={Search}
+        showBackButton={true}
+      />
+
+      <div className="px-4 py-6 max-w-3xl mx-auto">
+        <div className="mb-6 relative">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-surface-400" size={16} />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+            placeholder="输入关键词搜索..."
+            className="w-full pl-10 pr-20 py-3 bg-white dark:bg-surface-800 text-surface-900 dark:text-surface-100 placeholder-surface-400 rounded-xl text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+          />
           <button
             onClick={handleSearch}
-            className="shrink-0 px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white text-sm font-bold rounded-xl transition-colors"
+            className="absolute right-2 top-1/2 -translate-y-1/2 px-4 py-1.5 bg-primary-500 hover:bg-primary-600 text-white text-sm font-bold rounded-lg transition-colors"
           >
             搜索
           </button>
         </div>
-      </div>
 
-      <div className="px-4 py-6 max-w-3xl mx-auto">
-        {/* Loading */}
         {loading && (
           <div className="flex items-center justify-center py-12">
             <Loader2 size={24} className="animate-spin text-primary-500" />
@@ -123,7 +119,6 @@ function SearchResultsContent() {
           </div>
         )}
 
-        {/* Results */}
         {!loading && searched && (
           <div className="space-y-4">
             <p className="text-sm text-surface-500">
@@ -131,7 +126,7 @@ function SearchResultsContent() {
             </p>
 
             {results.length === 0 && (
-              <div className="text-center py-12">
+              <div className="text-center py-12 bg-white dark:bg-surface-800 rounded-xl">
                 <BookOpen size={48} className="mx-auto text-surface-300 mb-4" />
                 <p className="text-surface-600 dark:text-surface-400">
                   试试其他关键词
@@ -145,7 +140,7 @@ function SearchResultsContent() {
                         router.push(`/dashboard/knowledge/search?q=${encodeURIComponent(term)}`);
                         doSearch(term);
                       }}
-                      className="px-3 py-1.5 bg-surface-100 dark:bg-surface-800 text-surface-600 dark:text-surface-400 text-sm rounded-lg hover:bg-primary-50 hover:text-primary-600 transition-colors"
+                      className="px-3 py-1.5 bg-surface-100 dark:bg-surface-700 text-surface-600 dark:text-surface-400 text-sm rounded-lg hover:bg-primary-50 hover:text-primary-600 transition-colors"
                     >
                       {term}
                     </button>
@@ -199,9 +194,8 @@ function SearchResultsContent() {
           </div>
         )}
 
-        {/* Initial state */}
         {!loading && !searched && (
-          <div className="text-center py-12">
+          <div className="text-center py-12 bg-white dark:bg-surface-800 rounded-xl">
             <Search size={48} className="mx-auto text-surface-300 mb-4" />
             <p className="text-surface-500">输入关键词开始搜索</p>
           </div>
