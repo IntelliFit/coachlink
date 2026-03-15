@@ -51,14 +51,6 @@
 - **高亮逻辑**：悬停时只高亮当前肌肉，已选中的不再同时高亮（hover 优先级 > selected）
 - **布局**：控制按钮放在身体图上方，使用 flex justify-end 右对齐
 
-### 已知问题 (Known Issues)
-
-#### BodyMap Focus Mode 高亮消失
-- **症状**：点击肌肉进入focus mode后，已选中的肌肉高亮会短暂显示后消失
-- **位置**：`src/components/knowledge/BodyMap/BodyMapCanvas.tsx`
-- **临时解决**：将鼠标移入再移出肌肉区域，高亮会重新应用
-- **状态**：待修复 - 可能与CSS transform动画期间的DOM重新渲染有关
-
 ### 开发服务器
 
 - 使用 `npm run dev` 启动（已配置自动缓存清理和错误恢复）

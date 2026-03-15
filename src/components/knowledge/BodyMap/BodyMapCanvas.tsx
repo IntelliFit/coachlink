@@ -56,6 +56,12 @@ export default function BodyMapCanvas({
   const svgContainerRef = useRef<HTMLDivElement>(null);
   const isScreeningMode = mode === 'screening';
 
+  // 声明式高亮：关节隐藏时不应用高亮
+  const effectiveSelectedRegion =
+    selectedRegion && !(JOINTS.includes(selectedRegion) && !showJoints) ? selectedRegion : '';
+  const effectiveHoveredRegion =
+    hoveredRegion && !(JOINTS.includes(hoveredRegion) && !showJoints) ? hoveredRegion : '';
+
   const currentSvg = view === 'front' ? frontData?.svg : backData?.svg;
   const currentMetadata = view === 'front' ? frontData?.metadata : backData?.metadata;
   const isLoading = view === 'front' ? loadState.front === 'loading' : loadState.back === 'loading';
@@ -84,15 +90,10 @@ export default function BodyMapCanvas({
   }, [loadState.back]);
 
   useEffect(() => {
-    console.log('[BodyMap] SVG load effect:', { hasSvg: !!currentSvg, isLoading, view });
     if (currentSvg && !isLoading) {
-      const timer = setTimeout(() => {
-        console.log('[BodyMap] Setting svgLoaded to true');
-        setSvgLoaded(true);
-      }, 50);
+      const timer = setTimeout(() => setSvgLoaded(true), 50);
       return () => clearTimeout(timer);
     } else {
-      console.log('[BodyMap] Setting svgLoaded to false');
       setSvgLoaded(false);
     }
   }, [currentSvg, isLoading, view]);
@@ -112,107 +113,13 @@ export default function BodyMapCanvas({
     }
   }, [showJoints, svgLoaded, view]);
 
-  // 高亮效果 - 使用CSS类实现平滑动画
-  // FIXME: 已知Bug - 当进入focus mode时，已选中的肌肉高亮会短暂显示后消失
-  // 问题原因：focus mode切换时，CSS transform动画可能导致SVG重新渲染，
-  // 或者CSS类被意外清除。需要进一步调查DOM是否在动画过程中被重置。
-  // 临时解决：用户可以将鼠标移入再移出肌肉区域，高亮会重新应用。
-  useEffect(() => {
-    console.log('[BodyMap] Highlight effect triggered:', { 
-      selectedRegion, 
-      hoveredRegion, 
-      svgLoaded, 
-      isFocusMode,
-      hasContainer: !!svgContainerRef.current,
-      timestamp: Date.now()
-    });
-    
-    // 检查 SVG 容器内元素数量（用于判断是否重新渲染）
-    if (svgContainerRef.current) {
-      const svgCount = svgContainerRef.current.querySelectorAll('svg').length;
-      const gCount = svgContainerRef.current.querySelectorAll('g[data-name]').length;
-      console.log('[BodyMap] SVG stats:', { svgCount, gCount });
-    }
-    
-    if (!svgContainerRef.current) {
-      console.log('[BodyMap] No container ref, skipping highlight');
-      return;
-    }
-    
-    const container = svgContainerRef.current;
-    
-    // 清除所有高亮类
-    const highlightedElements = container.querySelectorAll('.highlight-hovered, .highlight-selected');
-    console.log('[BodyMap] Clearing highlight from', highlightedElements.length, 'elements');
-    highlightedElements.forEach(el => {
-      el.classList.remove('highlight-hovered', 'highlight-selected');
-    });
-    
-    // 应用悬停高亮（优先级最高）
-    if (hoveredRegion) {
-      console.log('[BodyMap] Applying hover highlight for:', hoveredRegion);
-      if (!(JOINTS.includes(hoveredRegion) && !showJoints)) {
-        const groups = container.querySelectorAll(`[data-name="${hoveredRegion}"]`);
-        console.log('[BodyMap] Found', groups.length, 'elements for hover:', hoveredRegion);
-        groups.forEach((group, i) => {
-          console.log(`[BodyMap] Adding highlight-hovered to element ${i}:`, group);
-          group.classList.add('highlight-hovered');
-        });
-      } else {
-        console.log('[BodyMap] Hover blocked - joint hidden:', hoveredRegion);
-      }
-    }
-    // 只有当没有悬停目标时，才显示选中高亮
-    else if (selectedRegion) {
-      console.log('[BodyMap] Applying selected highlight for:', selectedRegion);
-      if (!(JOINTS.includes(selectedRegion) && !showJoints)) {
-        const groups = container.querySelectorAll(`[data-name="${selectedRegion}"]`);
-        console.log('[BodyMap] Found', groups.length, 'elements for selected:', selectedRegion);
-        if (groups.length === 0) {
-          console.log('[BodyMap] WARNING: No elements found for selected region:', selectedRegion);
-          // 列出所有可用的 data-name 供调试
-          const allDataNames = Array.from(container.querySelectorAll('[data-name]')).map(el => el.getAttribute('data-name'));
-          console.log('[BodyMap] Available data-names:', [...new Set(allDataNames)]);
-        }
-        groups.forEach((group, i) => {
-          console.log(`[BodyMap] Adding highlight-selected to element ${i}:`, group);
-          console.log(`[BodyMap] Element ${i} tagName:`, group.tagName);
-          console.log(`[BodyMap] Element ${i} child paths:`, group.querySelectorAll('path').length);
-          group.classList.add('highlight-selected');
-          // 延迟检查类是否被保留
-          setTimeout(() => {
-            const hasClass = group.classList.contains('highlight-selected');
-            console.log(`[BodyMap] Check after 100ms - element ${i} has highlight-selected:`, hasClass);
-          }, 100);
-          setTimeout(() => {
-            const hasClass = group.classList.contains('highlight-selected');
-            console.log(`[BodyMap] Check after 800ms - element ${i} has highlight-selected:`, hasClass);
-          }, 800);
-        });
-      } else {
-        console.log('[BodyMap] Selected blocked - joint hidden:', selectedRegion);
-      }
-    } else {
-      console.log('[BodyMap] No region to highlight');
-    }
-  }, [selectedRegion, hoveredRegion, showJoints, svgLoaded, isFocusMode]);
-
   const handleSvgClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     const target = e.target as Element;
     const partName = getPartNameFromElement(target);
-    console.log('[BodyMap] Clicked:', { partName, target: target.tagName, hasMetadata: partName ? !!BODY_PART_METADATA[partName] : false });
-    
     if (partName && BODY_PART_METADATA[partName]) {
-      if (JOINTS.includes(partName) && !showJoints) {
-        console.log('[BodyMap] Click ignored - joint hidden');
-        return;
-      }
-      
+      if (JOINTS.includes(partName) && !showJoints) return;
       const newSelection = partName === selectedRegion ? null : partName;
-      console.log('[BodyMap] New selection:', newSelection, 'previous:', selectedRegion);
       onRegionClick?.(newSelection as BodyRegion);
-    } else {
-      console.log('[BodyMap] Click ignored - no valid partName or metadata');
     }
   }, [onRegionClick, selectedRegion, showJoints]);
 
@@ -285,9 +192,11 @@ export default function BodyMapCanvas({
         </div>
       </div>
 
-      {/* SVG 容器 - 使用CSS类控制关节显示 */}
+      {/* SVG 容器 - 使用 data 属性实现声明式高亮，避免 focus 过渡时高亮丢失 */}
       <div
         ref={svgContainerRef}
+        data-selected-region={effectiveSelectedRegion}
+        data-hovered-region={effectiveHoveredRegion}
         className={`body-map-container relative w-full mx-auto select-none transition-all duration-700 ${
           showJoints ? 'show-joints' : 'hide-joints'
         } ${isFocusMode ? 'max-w-[280px]' : 'max-w-[360px]'}`}
@@ -390,7 +299,18 @@ export default function BodyMapCanvas({
         </div>
       )}
 
-      {/* CSS 样式 */}
+      {/* 声明式高亮 - 通过 data 属性 + 动态 CSS，不依赖 DOM 查询，避免 focus 过渡时高亮丢失。hover 优先级 > selected */}
+      <style
+        dangerouslySetInnerHTML={{
+          __html: effectiveHoveredRegion
+            ? `.body-map-container[data-hovered-region="${effectiveHoveredRegion}"] [data-name="${effectiveHoveredRegion}"] path{fill:#fb923c!important;filter:drop-shadow(0 0 6px rgba(251,146,60,.4))!important}`
+            : effectiveSelectedRegion
+              ? `.body-map-container[data-selected-region="${effectiveSelectedRegion}"] [data-name="${effectiveSelectedRegion}"] path{fill:#f97316!important;filter:drop-shadow(0 0 8px rgba(249,115,22,.5))!important}`
+              : '',
+        }}
+      />
+
+      {/* CSS 样式 - 关节显示控制 */}
       <style jsx>{`
         /* 隐藏关节 - 使用 !important 确保优先级 */
         .hide-joints :global([data-name="膝关节"]),
