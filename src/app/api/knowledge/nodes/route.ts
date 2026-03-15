@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
 
     let query = supabase
       .from('knowledge_nodes')
-      .select('id, node_type, title, slug, description, icon, body_region, equipment, difficulty, is_free, view_count, sort_order, created_at, is_collaborative, collaboration_enabled, created_by');
+      .select('id, node_type, title, slug, description, icon, body_region, equipment, difficulty, is_free, view_count, sort_order, created_at, created_by');
 
     // Filter by published status
     if (publishedOnly) {
@@ -160,8 +160,7 @@ export async function POST(request: NextRequest) {
         content,
         created_by: user.id,
         is_published: true,
-        is_collaborative,
-        collaboration_enabled,
+
       })
       .select('id')
       .single();

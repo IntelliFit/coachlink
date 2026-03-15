@@ -7,15 +7,15 @@ import supabase from '@/lib/supabaseClient';
  */
 export async function GET(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
-    const { id } = params;
+    const { id } = await params;
 
     try {
-        // Fetch node
+        // Fetch node (兼容旧表结构，不强制要求 is_collaborative 列)
         const { data: node, error } = await supabase
             .from('knowledge_nodes')
-            .select('id, node_type, title, slug, description, icon, body_region, equipment, difficulty, is_free, is_published, is_collaborative, collaboration_enabled, content, created_by, created_at, updated_at')
+            .select('id, node_type, title, slug, description, icon, body_region, equipment, difficulty, is_free, is_published, content, created_by, created_at, updated_at')
             .eq('id', id)
             .single();
 
@@ -28,47 +28,46 @@ export async function GET(
             return NextResponse.json({ error: 'Not found' }, { status: 404 });
         }
 
-        // Fetch editors if collaborative (with error handling)
+        // Fetch editors (兼容模式，如果表不存在则忽略)
         let editors = [];
-        if (node.is_collaborative) {
-            try {
-                const { data: editorsData, error: editorsError } = await supabase
-                    .from('knowledge_node_editors')
-                    .select(`
-                        user_id,
-                        contributed_at,
-                        contribution_type
-                    `)
-                    .eq('node_id', id)
-                    .order('contributed_at', { ascending: true });
+        try {
+            const { data: editorsData, error: editorsError } = await supabase
+                .from('knowledge_node_editors')
+                .select(`
+                    user_id,
+                    contributed_at,
+                    contribution_type
+                `)
+                .eq('node_id', id)
+                .order('contributed_at', { ascending: true });
 
-                if (!editorsError && editorsData) {
-                    // Fetch user info separately to avoid auth.users join issues
-                    for (const editor of editorsData) {
-                        const { data: userData } = await supabase
-                            .from('users')
-                            .select('name, avatar_url')
-                            .eq('id', editor.user_id)
-                            .single();
-                        
-                        editors.push({
-                            user_id: editor.user_id,
-                            contributed_at: editor.contributed_at,
-                            contribution_type: editor.contribution_type,
-                            user_name: userData?.name || '匿名用户',
-                            user_avatar: userData?.avatar_url,
-                        });
-                    }
+            if (!editorsError && editorsData) {
+                // Fetch user info separately to avoid auth.users join issues
+                for (const editor of editorsData) {
+                    const { data: userData } = await supabase
+                        .from('users')
+                        .select('name, avatar_url')
+                        .eq('id', editor.user_id)
+                        .single();
+                    
+                    editors.push({
+                        user_id: editor.user_id,
+                        contributed_at: editor.contributed_at,
+                        contribution_type: editor.contribution_type,
+                        user_name: userData?.name || '匿名用户',
+                        user_avatar: userData?.avatar_url,
+                    });
                 }
-            } catch (editorError) {
-                console.error('Failed to fetch editors:', editorError);
-                // Non-critical error, continue without editors
             }
+        } catch (editorError) {
+            // 表不存在或查询失败，忽略编辑器信息
+            console.log('Editors fetch skipped (table may not exist)');
         }
 
         return NextResponse.json({ 
             node: { 
-                ...node, 
+                ...node,
+                is_collaborative: editors.length > 0,
                 editors 
             } 
         });
@@ -84,9 +83,9 @@ export async function GET(
  */
 export async function DELETE(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
-    const { id } = params;
+    const { id } = await params;
 
     try {
         // Check auth
