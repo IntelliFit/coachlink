@@ -14,6 +14,7 @@ import {
     normalizeActionNameForMatch,
     splitPlanGlobalPreface,
 } from "@/lib/planImportText";
+import { llmSplitPlanToDays, daysToWeekSections } from "@/lib/smartImportDaySplit";
 import type { ItemType } from "@/types";
 import {
     getSmartImportTraceIdFromHeaders,
@@ -260,8 +261,18 @@ export async function POST(req: Request) {
             await writeTraceJson(id, "stage2.splitPreface.json", split);
         });
 
-        // 按周拆分，逐段解析，减少截断风险并加速
-        const sections = splitPlanByWeekSections(planText);
+        // 使用 LLM 按天切分（支持 Day1、周一、W1D1、第1周 等多种写法），再转为按周 sections
+        let sections: Array<{ weekIndex: number; text: string }>;
+        try {
+            const { days } = await llmSplitPlanToDays(planText);
+            await tryTrace(traceEnabled, traceId, async (id) => {
+                await writeTraceJson(id, "stage2.llmSplitDays.json", { days });
+            });
+            sections = daysToWeekSections(days);
+        } catch (err) {
+            console.warn("[parse-template] LLM day split failed, fallback to rule-based:", err);
+            sections = splitPlanByWeekSections(planText);
+        }
         const allTrainingDays: any[] = [];
         let maxWeek = 0;
 
@@ -511,6 +522,8 @@ function buildParseTemplatePrompt(
     return `你是一个训练计划解析助手。
 
 任务：将以下训练计划解析为结构化的周训练模板。
+
+**输出语言（必须遵守）**：无论用户输入是中文还是英文（包括从 Word/Excel 粘贴的英文），你输出的所有可读文本必须使用中文，包括：dayNote、每个动作的 note、以及 JSON 中任何说明性文字。若原文为英文，请先理解含义再以中文写入对应字段，确保最终展示的训练计划全文为中文。
 
 可用动作库：
 ${actionsListStr}

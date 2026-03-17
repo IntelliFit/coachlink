@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { ScrollPanel } from 'primereact/scrollpanel';
 import { Dumbbell, Coffee, Check, ArrowLeft, Plus } from 'lucide-react';
 import { FormPlanTrainingDay } from '@/app/api/plan-lib/create-template/entity';
 
@@ -67,15 +68,12 @@ const StickyScheduleBar: React.FC<StickyScheduleBarProps> = ({
                     <ArrowLeft size={18} strokeWidth={2.5} />
                 </button>
 
-                {/* 训练日横向滚动列表 */}
-                <div
-                    className="
-                        flex-1 min-w-0
-                        flex gap-1.5 overflow-x-auto
-                        [-webkit-overflow-scrolling:touch] custom-scrollbar
-                        py-0.5 px-0.5
-                    "
+                {/* 训练日横向滚动列表（使用 PrimeReact ScrollPanel） */}
+                <ScrollPanel
+                    style={{ flex: 1, minWidth: 0, height: '52px' }}
+                    className="sticky-schedule-scroll"
                 >
+                <div className="flex gap-1.5 py-0.5 px-0.5 mr-[20px]" style={{ width: 'max-content' }}>
                 {days.map((day) => {
                     const isSelected = selectedDayIndex === day.dayIndex;
                     const isTraining = day.type === 'training';
@@ -143,6 +141,7 @@ const StickyScheduleBar: React.FC<StickyScheduleBarProps> = ({
                         </button>
                     )}
                 </div>
+                </ScrollPanel>
             </div>
         </div>
     );

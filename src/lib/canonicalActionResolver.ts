@@ -14,7 +14,7 @@ interface CanonicalLookup {
 export interface CanonicalResolveResult {
     canonicalActionId: string | null;
     errorMessage: string | null;
-    reason: "invalid_provided" | "missing_name" | "not_found" | "ambiguous" | null;
+    reason: "invalid_provided" | "missing_name" | "not_found" | "ambiguous" | "ambiguous_picked_first" | null;
 }
 
 function appendNameKey(
@@ -57,6 +57,8 @@ export function resolveCanonicalActionId(
         actionName: string;
         providedCanonicalId?: string | null;
         requireCanonical: boolean;
+        /** 多匹配时取首个，避免阻断流程（如智能导入批量创建） */
+        pickFirstOnAmbiguous?: boolean;
     },
 ): CanonicalResolveResult {
     const provided = (params.providedCanonicalId || "").trim();
@@ -94,6 +96,10 @@ export function resolveCanonicalActionId(
     }
 
     if (matched.size > 1) {
+        if (params.pickFirstOnAmbiguous) {
+            const [firstId] = Array.from(matched);
+            return { canonicalActionId: firstId, errorMessage: null, reason: "ambiguous_picked_first" };
+        }
         return {
             canonicalActionId: null,
             errorMessage: `动作「${params.actionName}」匹配到多个 canonical_action_id，请手动指定`,
