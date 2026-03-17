@@ -2,6 +2,7 @@
 
 import React, { useState, useCallback, useRef } from 'react';
 import { Button } from 'primereact/button';
+import { Dialog } from 'primereact/dialog';
 import { InputTextarea } from 'primereact/inputtextarea';
 import { InputText } from 'primereact/inputtext';
 import { Steps } from 'primereact/steps';
@@ -13,6 +14,7 @@ import { MultiSelect } from 'primereact/multiselect';
 import { CoachActionRow, ItemType } from '@/types';
 import { ParsedActionInfo } from '@/app/api/plan-lib/parse-actions/entity';
 import { ParsedTemplateDay } from '@/app/api/plan-lib/parse-template/entity';
+import { AERO_CARD, AERO_CARD_MUTED, AERO_TITLE, AERO_SUBTITLE } from '@/components/streetlifting-index/aero';
 
 // NOTE: Keep this file client-safe. Do NOT import server-only modules (node:fs, etc).
 const SMART_IMPORT_TRACE_HEADER = 'x-smart-import-trace-id';
@@ -287,7 +289,7 @@ export default function SmartImportDialog({
         onHide();
     };
 
-    // 从文件读取文本
+    // 从纯文本文件读取（txt/csv/md）
     const readFileAsText = (file: File): Promise<string> => {
         return new Promise((resolve, reject) => {
             const reader = new FileReader();
@@ -300,17 +302,43 @@ export default function SmartImportDialog({
     const handleFileSelect = async (files: FileList | null) => {
         if (!files || files.length === 0) return;
         const file = files[0];
-        const ext = file.name.toLowerCase().split('.').pop();
-        if (!['txt', 'csv', 'md'].includes(ext || '')) {
-            setError('仅支持 .txt、.csv、.md 格式');
+        const ext = (file.name.toLowerCase().split('.').pop() || '').trim();
+        const textExts = ['txt', 'csv', 'md'];
+        const docExts = ['docx', 'xlsx', 'xls'];
+        if (!textExts.includes(ext) && !docExts.includes(ext)) {
+            setError('仅支持 .txt、.csv、.md、.docx、.xlsx、.xls 格式');
             return;
         }
         try {
-            const text = await readFileAsText(file);
+            let text: string;
+            if (textExts.includes(ext)) {
+                text = await readFileAsText(file);
+            } else {
+                // Word/Excel：调用后端提取文本
+                setIsLoading(true);
+                setError(null);
+                const formData = new FormData();
+                formData.append('file', file);
+                const res = await fetch('/api/plan-lib/extract-file-text', {
+                    method: 'POST',
+                    body: formData,
+                });
+                const data = await res.json();
+                if (!data.success) {
+                    throw new Error(data.message || '解析文件失败');
+                }
+                text = data.data?.text || '';
+                setIsLoading(false);
+            }
             setInputText(text);
             setError(null);
-        } catch {
-            setError('读取文件失败');
+            // 文件解析成功且文本非空时，自动进入后续步骤（解析动作），无需用户再次点击
+            if (text.trim()) {
+                await handleParseActions(text);
+            }
+        } catch (err: any) {
+            setError(err.message || '读取文件失败');
+            setIsLoading(false);
         }
     };
 
@@ -327,23 +355,47 @@ export default function SmartImportDialog({
 
     const handleDragLeave = () => setIsDragging(false);
 
-    // Step 1: 解析动作
-    const handleParseActions = async () => {
-        if (!inputText.trim()) {
+    // Step 1: 解析动作；可选 overrideText 用于文件上传后立即解析（此时 state 尚未更新）
+    const handleParseActions = async (overrideText?: string) => {
+        const textToParse = (overrideText ?? inputText).trim();
+        if (!textToParse) {
             setError('请输入训练计划文本');
             return;
         }
 
+        // 立刻展示对话框并进入加载态，缓解等待焦虑
+        setActiveStep(1);
         setIsLoading(true);
         setError(null);
 
         try {
             const headers: Record<string, string> = { 'Content-Type': 'application/json' };
             if (saveAsCase && traceId) headers[SMART_IMPORT_TRACE_HEADER] = traceId;
+
+            // Stage0: 预检输入完整性，不完整则拦截并提示（预检失败时仍允许继续尝试解析）
+            try {
+                const preflightRes = await fetch('/api/plan-lib/smart-import/preflight', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text: textToParse }),
+                });
+                const preflightData = await parseApiResponse<any>(preflightRes);
+                if (preflightData?.success && preflightData?.data) {
+                    const { isComplete, canProceed, userMessage } = preflightData.data;
+                    if (!isComplete || !canProceed) {
+                        setError(userMessage || '信息不完整，请补充训练计划内容后再试');
+                        setIsLoading(false);
+                        return;
+                    }
+                }
+            } catch (_preflightErr) {
+                // 预检服务异常时不阻断，继续尝试解析
+            }
+
             const response = await fetch('/api/plan-lib/parse-actions', {
                 method: 'POST',
                 headers,
-                body: JSON.stringify({ text: inputText }),
+                body: JSON.stringify({ text: textToParse }),
             });
 
             const result = await parseApiResponse<any>(response);
@@ -594,12 +646,16 @@ export default function SmartImportDialog({
     };
 
     // 渲染步骤内容（仅 step 1、2 及 loading）
+    const isLoadingParsing = isLoading && editableActions.length === 0;
+    const isLoadingGenerating = isLoading && editableActions.length > 0;
     const renderStepContent = () => {
         if (isLoading) {
+            const loadingMessage = isLoadingParsing ? 'AI 正在解析动作...' : '正在生成模板...';
             return (
-                <div className="flex flex-col items-center justify-center py-16">
-                    <ProgressSpinner style={{ width: '50px', height: '50px' }} className="text-primary-500" />
-                    <p className="mt-4 text-sm font-medium text-surface-600">正在处理中...</p>
+                <div className="flex flex-col items-center justify-center py-20">
+                    <ProgressSpinner style={{ width: '56px', height: '56px' }} className="text-primary-500" />
+                    <p className="mt-5 text-sm font-bold text-surface-700 dark:text-surface-300">{loadingMessage}</p>
+                    <p className="mt-1 text-xs text-surface-500 dark:text-surface-400">请稍候，无需重复操作</p>
                 </div>
             );
         }
@@ -610,172 +666,138 @@ export default function SmartImportDialog({
 
             case 1:
                 return (
-                    <div className="flex flex-col gap-4">
-                        <div className="rounded-xl border border-primary-200 bg-primary-50/50 dark:bg-primary-900/10 dark:border-primary-800/30 px-3 py-2.5 text-sm text-surface-700 dark:text-surface-300">
-                            点击动作可编辑属性，点击「使用已有」可切换为选择现有动作
-                        </div>
-                        <div className="max-h-96 overflow-y-auto border border-surface-200 rounded-2xl divide-y divide-surface-100 custom-scrollbar">
+                    <div className="flex flex-col gap-3">
+                        <div className={`divide-y divide-surface-100 p-0`}>
                             {editableActions.map((action, index) => (
                                 <div
                                     key={index}
-                                    className="p-3 hover:bg-surface-50 dark:hover:bg-surface-800/50 smart-import-step-entry"
+                                    className="px-2.5 py-2 smart-import-step-entry"
                                     style={{ animationDelay: `${index * 30}ms` }}
                                 >
-                                    {/* 主行：动作信息 */}
-                                    <div className="flex items-center justify-between gap-2">
-                                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                                    {/* 主行：动作信息（紧凑） */}
+                                    <div className="flex items-center justify-between gap-1.5">
+                                        <div className="flex items-center gap-1.5 flex-1 min-w-0">
                                             {action.useExisting ? (
-                                                <i className="pi pi-link text-primary-500 flex-shrink-0" />
+                                                <i className="pi pi-link text-primary-500 flex-shrink-0 text-xs" />
                                             ) : (
                                                 <Checkbox
                                                     checked={action.shouldCreate}
                                                     onChange={(e) => updateAction(index, { shouldCreate: e.checked || false })}
+                                                    className="[&_.p-checkbox-box]:w-3.5 [&_.p-checkbox-box]:h-3.5"
                                                 />
                                             )}
-                                            
                                             {action.useExisting ? (
-                                                // 使用现有动作：显示下拉选择
                                                 <Dropdown
                                                     value={action.selectedExistingId ?? action.matchedExistingId ?? null}
                                                     options={buildExistingOptions(action)}
                                                     onChange={(e) => selectExistingAction(index, e.value)}
                                                     placeholder={action.name || "选择已有动作"}
-                                                    className="w-full max-w-xs"
+                                                    className="flex-1 min-w-0 max-w-[200px] aero-dropdown [&_.p-dropdown-label]:text-xs [&_.p-dropdown-label]:py-2"
+                                                    panelClassName="aero-dropdown-panel"
                                                     filter
-                                                    filterPlaceholder="搜索动作..."
+                                                    filterPlaceholder="搜索..."
                                                 />
                                             ) : (
-                                                // 创建新动作：显示动作名称（可编辑）
                                                 <InputText
                                                     value={action.name}
                                                     onChange={(e) => updateAction(index, { name: e.target.value })}
-                                                    className="w-full max-w-xs"
+                                                    className="flex-1 min-w-0 max-w-[180px] text-xs py-1.5 px-2 rounded-xl border-surface-200"
                                                     placeholder="动作名称"
                                                 />
                                             )}
-                                            
-                                            {action.useExisting ? (
-                                                <Tag value="使用已有" severity="success" className="flex-shrink-0" />
-                                            ) : (
-                                                <Tag value="新建" severity="warning" className="flex-shrink-0" />
-                                            )}
+                                            <span className={`text-[10px] font-bold px-1.5 py-px rounded-md shrink-0 ${action.useExisting ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'}`}>
+                                                {action.useExisting ? '已有' : '新建'}
+                                            </span>
                                         </div>
-                                        
                                         <Button
-                                            label={action.useExisting ? "新建" : "使用已有"}
+                                            label={action.useExisting ? '新建' : '已有'}
                                             size="small"
                                             severity="secondary"
                                             text
-                                            className="rounded-xl"
+                                            className="rounded-lg text-[11px] font-bold h-7 px-2"
                                             onClick={() => toggleActionMode(index)}
                                         />
                                     </div>
-                                    
-                                    {/* 属性行：仅新建动作显示 */}
+                                    {/* 属性行：仅新建动作显示（紧凑，与描述/URL 等表单项高度、宽度一致） */}
                                     {!action.useExisting && action.shouldCreate && (
-                                        <div className="mt-2 ml-8 text-sm flex flex-col gap-3">
-                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                                <div className="flex flex-col gap-1">
-                                                    <span className="text-xs text-surface-500">动作类型</span>
+                                        <div className="mt-1.5 ml-5 flex flex-col gap-2 text-xs">
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                                <div className="flex flex-col gap-0.5 min-w-0">
+                                                    <span className="text-[10px] text-surface-500">类型</span>
                                                     <Dropdown
                                                         value={(action.type || 'STRENGTH') as ItemType}
                                                         options={itemTypeOptions}
                                                         onChange={(e) => updateActionType(index, e.value)}
-                                                        className="w-full"
+                                                        className="w-full max-w-[180px] aero-dropdown smart-import-dropdown-compact"
+                                                        panelClassName="aero-dropdown-panel"
                                                     />
                                                 </div>
-                                                <div className="flex flex-col gap-1">
-                                                    <span className="text-xs text-surface-500">属性模板</span>
+                                                <div className="flex flex-col gap-0.5 min-w-0">
+                                                    <span className="text-[10px] text-surface-500">属性</span>
                                                     <Dropdown
-                                                        value={getProfileValueForAttrs(
-                                                            action.type as ItemType,
-                                                            action.attrs,
-                                                        )}
-                                                        options={attrProfilesByType[
-                                                            (action.type || 'STRENGTH') as ItemType
-                                                        ]}
+                                                        value={getProfileValueForAttrs(action.type as ItemType, action.attrs)}
+                                                        options={attrProfilesByType[(action.type || 'STRENGTH') as ItemType]}
                                                         onChange={(e) => {
-                                                            const list =
-                                                                attrProfilesByType[
-                                                                    (action.type || 'STRENGTH') as ItemType
-                                                                ] || [];
-                                                            const profile = list.find(
-                                                                (p) => p.value === e.value,
-                                                            );
-                                                            if (profile) {
-                                                                updateAction(index, { attrs: profile.attrs });
-                                                            }
+                                                            const list = attrProfilesByType[(action.type || 'STRENGTH') as ItemType] || [];
+                                                            const profile = list.find((p) => p.value === e.value);
+                                                            if (profile) updateAction(index, { attrs: profile.attrs });
                                                         }}
-                                                        placeholder="选择模板"
-                                                        className="w-full"
+                                                        placeholder="模板"
+                                                        className="w-full max-w-[180px] aero-dropdown smart-import-dropdown-compact"
+                                                        panelClassName="aero-dropdown-panel"
                                                     />
                                                 </div>
                                             </div>
                                             {action.type === 'STRENGTH' && (
-                                                <div className="flex flex-wrap items-center gap-4">
+                                                <div className="flex flex-wrap items-center gap-2">
                                                     <label className="flex items-center gap-1 cursor-pointer">
                                                         <Checkbox
                                                             checked={action.needsAutoCompute}
                                                             onChange={(e) => updateAction(index, { needsAutoCompute: e.checked || false })}
+                                                            className="[&_.p-checkbox-box]:w-3.5 [&_.p-checkbox-box]:h-3.5"
                                                         />
-                                                        <span className="text-surface-700 dark:text-surface-300">自动计算重量</span>
+                                                        <span className="text-[11px] text-surface-600 dark:text-surface-400">自动重量</span>
                                                     </label>
                                                     <label className="flex items-center gap-1 cursor-pointer">
                                                         <Checkbox
                                                             checked={action.includesBodyWeight}
                                                             onChange={(e) => updateAction(index, { includesBodyWeight: e.checked || false })}
+                                                            className="[&_.p-checkbox-box]:w-3.5 [&_.p-checkbox-box]:h-3.5"
                                                         />
-                                                        <span className="text-surface-700 dark:text-surface-300">包含自重</span>
+                                                        <span className="text-[11px] text-surface-600 dark:text-surface-400">自重</span>
                                                     </label>
+                                                    <MultiSelect
+                                                        value={action.positions || ["全身"]}
+                                                        options={actionTypes}
+                                                        onChange={(e) => updateAction(index, { positions: e.value })}
+                                                        placeholder="部位"
+                                                        display="chip"
+                                                        className="smart-import-multiselect-compact"
+                                                        panelClassName="smart-import-multiselect-compact-panel"
+                                                    />
                                                 </div>
                                             )}
-
-                                            {action.type === 'STRENGTH' && (
-                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                                    <div className="flex flex-col gap-1">
-                                                        <span className="text-xs text-surface-500">训练部位</span>
-                                                        <MultiSelect
-                                                            value={action.positions || ["全身"]}
-                                                            options={actionTypes}
-                                                            onChange={(e) => updateAction(index, { positions: e.value })}
-                                                            placeholder="选择部位"
-                                                            display="chip"
-                                                            className="w-full"
-                                                        />
-                                                    </div>
-                                                </div>
-                                            )}
-
-                                            {action.type === 'STRENGTH' && (
-                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                                    <div className="flex flex-col gap-1">
-                                                        <span className="text-xs text-surface-500">描述（可选）</span>
-                                                        <InputTextarea
-                                                            value={action.detail || ''}
-                                                            onChange={(e) => updateAction(index, { detail: e.target.value })}
-                                                            rows={2}
-                                                            className="w-full rounded-xl"
-                                                            placeholder="如：动作要点 / 注意事项"
-                                                        />
-                                                    </div>
-                                                    <div className="flex flex-col gap-1">
-                                                        <span className="text-xs text-surface-500">演示视频 URL（可选）</span>
-                                                        <InputText
-                                                            value={action.url || ''}
-                                                            onChange={(e) => updateAction(index, { url: e.target.value })}
-                                                            className="w-full rounded-xl"
-                                                            placeholder="https://..."
-                                                        />
-                                                    </div>
-                                                </div>
-                                            )}
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                                <InputTextarea
+                                                    value={action.detail || ''}
+                                                    onChange={(e) => updateAction(index, { detail: e.target.value })}
+                                                    rows={1}
+                                                    className="w-full text-xs py-1.5 px-2 rounded-xl resize-none"
+                                                    placeholder="描述（可选）"
+                                                />
+                                                <InputText
+                                                    value={action.url || ''}
+                                                    onChange={(e) => updateAction(index, { url: e.target.value })}
+                                                    className="w-full text-xs py-1.5 px-2 rounded-xl"
+                                                    placeholder="视频 URL（可选）"
+                                                />
+                                            </div>
                                         </div>
                                     )}
                                 </div>
                             ))}
                         </div>
-                        
-                        <div className="text-sm text-surface-500 font-medium">
+                        <div className="text-[11px] text-surface-500 font-bold">
                             将创建 {editableActions.filter(a => !a.useExisting && a.shouldCreate).length} 个新动作
                         </div>
                     </div>
@@ -783,24 +805,26 @@ export default function SmartImportDialog({
 
             case 2:
                 return (
-                    <div className="flex flex-col gap-4">
-                        {parseWarning ? (
-                            <div className="rounded-xl border border-amber-200 bg-amber-50 dark:bg-amber-900/20 dark:border-amber-800/30 px-3 py-2.5 text-sm text-amber-800 dark:text-amber-200">
-                                {parseWarning}
+                    <div className="flex flex-col h-full min-h-0 w-full">
+                        <div className="shrink-0 px-4 pt-3 pb-2 space-y-1.5">
+                            {parseWarning ? (
+                                <div className="text-xs text-amber-800 dark:text-amber-200 leading-relaxed border-l-2 border-amber-500 pl-3 py-0.5">
+                                    {parseWarning}
+                                </div>
+                            ) : null}
+                            {globalDescription?.trim() ? (
+                                <div className="text-xs text-surface-600 dark:text-surface-400 leading-relaxed border-l-2 border-primary-500 pl-3 py-0.5">
+                                    已识别到全局说明（将写入计划「详情描述」）：{globalDescription.trim().slice(0, 60)}{globalDescription.trim().length > 60 ? '…' : ''}
+                                </div>
+                            ) : null}
+                            <div className="flex items-center gap-2">
+                                <Tag value={`${parsedWeeks} 周`} severity="info" className="rounded-lg text-xs" />
+                                <Tag value={`${parsedDays.filter(d => d.type === 'training').length} 个训练日`} className="rounded-lg text-xs" />
                             </div>
-                        ) : null}
-                        {globalDescription?.trim() ? (
-                            <div className="rounded-xl border border-primary-200 bg-primary-50/50 dark:bg-primary-900/10 dark:border-primary-800/30 px-3 py-2.5 text-sm text-surface-700 dark:text-surface-300">
-                                已识别到全局说明（将写入计划「详情描述」）：{globalDescription.trim().slice(0, 60)}{globalDescription.trim().length > 60 ? '…' : ''}
-                            </div>
-                        ) : null}
-                        <div className="flex items-center gap-2">
-                            <Tag value={`${parsedWeeks} 周`} severity="info" className="rounded-lg" />
-                            <Tag value={`${parsedDays.filter(d => d.type === 'training').length} 个训练日`} className="rounded-lg" />
                         </div>
-                        <div className="max-h-80 overflow-y-auto border border-surface-200 rounded-2xl p-3 custom-scrollbar">
+                        <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar bg-surface-50 dark:bg-surface-800/30">
                             {parsedDays.map((day, index) => (
-                                <div key={index} className="mb-3 p-3 bg-surface-50 dark:bg-surface-800/50 rounded-xl smart-import-step-entry">
+                                <div key={index} className="p-3 border-b border-surface-100 dark:border-surface-700 last:border-b-0 smart-import-step-entry bg-surface-0 dark:bg-surface-900">
                                     <div className="flex items-center gap-2 mb-2">
                                         <span className="font-bold">
                                             W{day.weekIndex}D{day.dayOfWeek}
@@ -873,21 +897,27 @@ export default function SmartImportDialog({
 
     if (!visible) return null;
 
+    // 步骤 0：右侧滑入面板（输入/上传）
+    // 步骤 1+：居中宽幅对话框（确认动作、预览模板）
+    const showStep0Panel = activeStep === 0;
+    const showStepsDialog = visible && activeStep >= 1;
+
     return (
         <>
-            {/* 背景遮罩 */}
-            <div
-                className="fixed inset-0 bg-black/30 z-[9998] transition-opacity duration-[250ms] ease-[cubic-bezier(0.25,0.1,0.25,1)]"
-                onClick={handleHide}
-                aria-hidden="true"
-            />
-            {/* 右侧滑入面板：用 keyframes 实现挂载时从右往左滑入（transition 在首次挂载时无起始帧） */}
-            <div
-                className="fixed right-0 top-0 bottom-0 w-full max-w-[480px] bg-white dark:bg-surface-900 shadow-2xl z-[9999] flex flex-col smart-import-panel-enter"
-                role="dialog"
-                aria-modal="true"
-                aria-labelledby="smart-import-title"
-            >
+            {/* 步骤 0：背景遮罩 + 右侧滑入面板 */}
+            {showStep0Panel && (
+                <>
+                    <div
+                        className="fixed inset-0 bg-black/30 z-[9998] transition-opacity duration-[250ms] ease-[cubic-bezier(0.25,0.1,0.25,1)]"
+                        onClick={handleHide}
+                        aria-hidden="true"
+                    />
+                    <div
+                        className="fixed right-0 top-0 bottom-0 w-full max-w-[480px] bg-white dark:bg-surface-900 shadow-2xl z-[9999] flex flex-col smart-import-panel-enter"
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="smart-import-title"
+                    >
                 <div className="flex flex-col h-full overflow-hidden">
                     {/* 覆盖警告（编辑页且现有内容时显示） */}
                     {willOverwriteExisting && (
@@ -937,7 +967,7 @@ export default function SmartImportDialog({
                                 <input
                                     ref={fileInputRef}
                                     type="file"
-                                    accept=".txt,.csv,.md"
+                                    accept=".txt,.csv,.md,.docx,.xlsx,.xls"
                                     className="hidden"
                                     onChange={(e) => { handleFileSelect(e.target.files); e.target.value = ''; }}
                                 />
@@ -957,110 +987,139 @@ export default function SmartImportDialog({
                                         拖拽文件到此处，或点击选择
                                     </span>
                                     <span className="text-xs text-surface-400 dark:text-surface-500">
-                                        支持 .txt、.csv、.md
+                                        支持 .txt、.csv、.md、.docx、.xlsx、.xls
                                     </span>
                                 </div>
                                 {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
                             </div>
 
-                            {traceUiEnabled && (
-                                <div className="shrink-0 mt-3 flex flex-col gap-2 rounded-xl border border-surface-200 p-3 bg-surface-50 dark:bg-surface-800/50">
-                                    <div className="flex items-center gap-2">
-                                        <Checkbox
-                                            checked={saveAsCase}
-                                            onChange={(e) => {
-                                                const next = Boolean(e.checked);
-                                                setSaveAsCase(next);
-                                                if (next) setTraceId(generateTraceId());
-                                                else { setTraceId(null); setCaseDir(''); }
-                                            }}
-                                        />
-                                        <span className="text-sm text-surface-700 dark:text-surface-300">保存为用例</span>
-                                    </div>
-                                    {saveAsCase && traceId && (
-                                        <div className="text-xs text-surface-500 font-mono break-all">traceId: {traceId}</div>
-                                    )}
-                                    {caseDir && (
-                                        <div className="text-xs text-surface-500 font-mono break-all">已生成: {caseDir}</div>
-                                    )}
-                                </div>
-                            )}
-
-                            {/* 解析按钮 */}
+                            {/* 解析按钮（trace 模式下为 ButtonGroup：保存为测试样例 + 运行） */}
                             <div className="shrink-0 pt-4">
-                                <Button
-                                    label={isLoading ? '解析中...' : '解析并导入'}
-                                    icon={isLoading ? 'pi pi-spin pi-spinner' : 'pi pi-arrow-right'}
-                                    iconPos="right"
-                                    className="w-full rounded-xl"
-                                    onClick={handleParseActions}
-                                    disabled={!inputText.trim() || isLoading}
-                                />
+                                {traceUiEnabled ? (
+                                    <>
+                                        <div className="flex w-full rounded-xl overflow-hidden [&>button]:flex-1 [&>button]:rounded-none [&>button:first-child]:rounded-l-xl [&>button:last-child]:rounded-r-xl [&>button:not(:last-child)]:border-r [&>button:not(:last-child)]:border-surface-200 dark:[&>button:not(:last-child)]:border-surface-600">
+                                            <Button
+                                                label="保存为测试样例"
+                                                icon={saveAsCase ? 'pi pi-check' : 'pi pi-save'}
+                                                severity={saveAsCase ? 'success' : 'secondary'}
+                                                outlined={!saveAsCase}
+                                                onClick={() => {
+                                                    const next = !saveAsCase;
+                                                    setSaveAsCase(next);
+                                                    if (next) setTraceId(generateTraceId());
+                                                    else { setTraceId(null); setCaseDir(''); }
+                                                }}
+                                            />
+                                            <Button
+                                                label={isLoading ? '解析中...' : '运行'}
+                                                icon={isLoading ? 'pi pi-spin pi-spinner' : 'pi pi-play'}
+                                                iconPos="right"
+                                                onClick={() => handleParseActions()}
+                                                disabled={!inputText.trim() || isLoading}
+                                            />
+                                        </div>
+                                        {(saveAsCase && traceId) && (
+                                            <div className="text-[10px] text-surface-500 font-mono break-all mt-1.5">traceId: {traceId}</div>
+                                        )}
+                                        {caseDir && (
+                                            <div className="text-[10px] text-surface-500 font-mono break-all mt-0.5">已生成: {caseDir}</div>
+                                        )}
+                                    </>
+                                ) : (
+                                    <Button
+                                        label={isLoading ? '解析中...' : '解析并导入'}
+                                        icon={isLoading ? 'pi pi-spin pi-spinner' : 'pi pi-arrow-right'}
+                                        iconPos="right"
+                                        className="w-full rounded-xl"
+                                        onClick={() => handleParseActions()}
+                                        disabled={!inputText.trim() || isLoading}
+                                    />
+                                )}
                             </div>
                         </div>
                     )}
-
-                {/* Step 1 & 2: 步骤条 + 内容 + 底部操作栏 */}
-                {activeStep >= 1 && (
-                    <>
-                        <div className="flex-shrink-0 px-6 pt-6 pb-4 flex items-center justify-between">
-                            <Button
-                                icon="pi pi-arrow-left"
-                                text
-                                severity="secondary"
-                                className="rounded-2xl text-surface-600 hover:text-surface-900 hover:bg-surface-50 active:scale-[0.98] transition-all -ml-2"
-                                onClick={() => setActiveStep(activeStep - 1)}
-                                disabled={isLoading}
-                                aria-label="上一步"
-                                tooltipOptions={{ position: 'right' }}
-                            />
-                            <Steps model={steps} activeIndex={activeStep} className="flex-1 justify-center [&_.p-steps-item]:flex-1 [&_.p-steps-title]:text-xs [&_.p-steps-number]:rounded-xl" />
-                            <div className="w-10" />
-                        </div>
-                        <div className="flex-1 min-h-0 overflow-y-auto px-6 pb-4 custom-scrollbar">
-                            {error && (
-                                <div className="mb-4 rounded-xl border border-red-200 bg-red-50 dark:bg-red-900/20 dark:border-red-800/30 px-3 py-2.5 text-sm text-red-700 dark:text-red-300">
-                                    {error}
-                                </div>
-                            )}
-                            {renderStepContent()}
-                        </div>
-                        <div className="flex-shrink-0 border-t border-surface-100 dark:border-surface-700 px-6 pt-4 pb-6 flex justify-between items-center">
-                            <Button
-                                label="上一步"
-                                icon="pi pi-arrow-left"
-                                text
-                                severity="secondary"
-                                className="rounded-2xl text-surface-600 hover:text-surface-900 hover:bg-surface-50 active:scale-[0.98] transition-all"
-                                onClick={() => setActiveStep(activeStep - 1)}
-                                disabled={isLoading}
-                            />
-                            <div className="flex gap-2">
-                                {activeStep === 1 && (
-                                    <Button
-                                        label="确认并生成模板"
-                                        icon="pi pi-arrow-right"
-                                        iconPos="right"
-                                        className="rounded-2xl px-5 bg-primary-600 border-none text-white font-bold hover:bg-primary-700 active:scale-[0.98] transition-all shadow-sm shadow-primary-200"
-                                        onClick={handleConfirmActions}
-                                        disabled={isLoading}
-                                        loading={isLoading}
-                                    />
-                                )}
-                                {activeStep === 2 && (
-                                    <Button
-                                        label="导入到模板"
-                                        icon="pi pi-check"
-                                        className="rounded-2xl px-5 bg-primary-600 border-none text-white font-bold hover:bg-primary-700 active:scale-[0.98] transition-all shadow-sm shadow-primary-200"
-                                        onClick={handleImportTemplate}
-                                    />
-                                )}
-                            </div>
-                        </div>
-                    </>
-                )}
                 </div>
             </div>
+                </>
+            )}
+
+            {/* 步骤 1+：居中宽幅对话框（确认动作、预览模板），风格对齐 streetlifting-index */}
+            <Dialog
+                visible={showStepsDialog}
+                onHide={handleHide}
+                header={
+                    <div className="flex items-center justify-between gap-4 w-full">
+                        <Button
+                            icon="pi pi-arrow-left"
+                            text
+                            severity="secondary"
+                            className="rounded-2xl text-surface-600 hover:text-surface-900 hover:bg-surface-50 dark:hover:bg-surface-800 active:scale-[0.98] transition-all -ml-1"
+                            onClick={() => setActiveStep(activeStep - 1)}
+                            disabled={isLoading}
+                            aria-label="上一步"
+                        />
+                        <Steps model={steps} activeIndex={activeStep} className="flex-1 justify-center min-w-0 [&_.p-steps-item]:flex-1 [&_.p-steps-title]:text-xs [&_.p-steps-number]:rounded-xl [&_.p-steps-number]:w-8 [&_.p-steps-number]:h-8" />
+                        <Button
+                            icon="pi pi-times"
+                            text
+                            severity="secondary"
+                            className="w-10 h-10 rounded-2xl text-surface-600 hover:bg-surface-100 dark:hover:bg-surface-800 shrink-0"
+                            onClick={handleHide}
+                            aria-label="关闭"
+                        />
+                    </div>
+                }
+                modal
+                blockScroll
+                dismissableMask
+                closable={false}
+                style={{ width: '92vw', maxWidth: '960px', height: '85vh' }}
+                contentStyle={{ padding: 0 }}
+                className="batch-operation-dialog smart-import-steps-dialog"
+                footer={
+                    <div className="flex justify-between items-center w-full">
+                        <Button
+                            label="上一步"
+                            icon="pi pi-arrow-left"
+                            text
+                            severity="secondary"
+                            className="rounded-2xl text-surface-600 hover:text-surface-900 hover:bg-surface-50 dark:hover:bg-surface-800 active:scale-[0.98] transition-all text-sm font-black"
+                            onClick={() => setActiveStep(activeStep - 1)}
+                            disabled={isLoading}
+                        />
+                        <div className="flex gap-2">
+                            {activeStep === 1 && (
+                                <Button
+                                    label="确认并生成模板"
+                                    icon="pi pi-arrow-right"
+                                    iconPos="right"
+                                    className="rounded-2xl px-5 h-10 bg-surface-900 dark:bg-surface-0 border-none text-surface-0 dark:text-surface-900 text-sm font-black hover:opacity-90 active:scale-[0.98] transition-all shadow-sm"
+                                    onClick={handleConfirmActions}
+                                    disabled={isLoading}
+                                    loading={isLoading}
+                                />
+                            )}
+                            {activeStep === 2 && (
+                                <Button
+                                    label="导入到模板"
+                                    icon="pi pi-check"
+                                    className="rounded-2xl px-5 h-10 bg-surface-900 dark:bg-surface-0 border-none text-surface-0 dark:text-surface-900 text-sm font-black hover:opacity-90 active:scale-[0.98] transition-all shadow-sm"
+                                    onClick={handleImportTemplate}
+                                />
+                            )}
+                        </div>
+                    </div>
+                }
+            >
+                <div className={`max-h-[75vh] p-0`}>
+                    {error && (
+                        <div className="mb-4 rounded-xl border border-red-200 bg-red-50 dark:bg-red-900/20 dark:border-red-800/30 px-3 py-2.5 text-sm text-red-700 dark:text-red-300">
+                            {error}
+                        </div>
+                    )}
+                    {renderStepContent()}
+                </div>
+            </Dialog>
         </>
     );
 }
