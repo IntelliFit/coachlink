@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { Dialog } from 'primereact/dialog';
 import { Button } from 'primereact/button';
 import { InputTextarea } from 'primereact/inputtextarea';
@@ -136,7 +136,9 @@ export default function StudentSmartImportDialog({
     const [activeStep, setActiveStep] = useState(0);
     const [inputText, setInputText] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    const [isDragging, setIsDragging] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
     
     // Step 2: 可编辑的动作列表
     const [editableActions, setEditableActions] = useState<EditableAction[]>([]);
@@ -261,12 +263,75 @@ export default function StudentSmartImportDialog({
         setGlobalDescription('');
         setAllActions([]);
         setParseWarning(null);
+        setIsDragging(false);
     }, []);
 
     const handleHide = () => {
         resetState();
         onHide();
     };
+
+    // 从纯文本文件读取（txt/csv/md）
+    const readFileAsText = (file: File): Promise<string> => {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(String(reader.result || ''));
+            reader.onerror = () => reject(new Error('读取文件失败'));
+            reader.readAsText(file, 'UTF-8');
+        });
+    };
+
+    const handleFileSelect = async (files: FileList | null) => {
+        if (!files || files.length === 0) return;
+        const file = files[0];
+        const ext = (file.name.toLowerCase().split('.').pop() || '').trim();
+        const textExts = ['txt', 'csv', 'md'];
+        const docExts = ['docx', 'xlsx', 'xls'];
+        if (!textExts.includes(ext) && !docExts.includes(ext)) {
+            setError('仅支持 .txt、.csv、.md、.docx、.xlsx、.xls 格式');
+            return;
+        }
+        try {
+            let text: string;
+            if (textExts.includes(ext)) {
+                text = await readFileAsText(file);
+            } else {
+                // Word/Excel：调用后端提取文本
+                setIsLoading(true);
+                setError(null);
+                const formData = new FormData();
+                formData.append('file', file);
+                const res = await fetch('/api/plan-lib/extract-file-text', {
+                    method: 'POST',
+                    body: formData,
+                });
+                const data = await res.json();
+                if (!data.success) {
+                    throw new Error(data.message || '解析文件失败');
+                }
+                text = data.data?.text || '';
+                setIsLoading(false);
+            }
+            setInputText(text);
+            setError(null);
+        } catch (err: any) {
+            setError(err.message || '读取文件失败');
+            setIsLoading(false);
+        }
+    };
+
+    const handleDrop = async (e: React.DragEvent) => {
+        e.preventDefault();
+        setIsDragging(false);
+        handleFileSelect(e.dataTransfer.files);
+    };
+
+    const handleDragOver = (e: React.DragEvent) => {
+        e.preventDefault();
+        setIsDragging(true);
+    };
+
+    const handleDragLeave = () => setIsDragging(false);
 
     // Step 1: 解析动作
     const handleParseActions = async () => {
@@ -279,6 +344,26 @@ export default function StudentSmartImportDialog({
         setError(null);
 
         try {
+            // Stage0: 预检输入完整性，不完整则拦截并提示（预检失败时仍允许继续尝试解析）
+            try {
+                const preflightRes = await fetch('/api/plan-lib/smart-import/preflight', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text: inputText }),
+                });
+                const preflightData = await parseApiResponse<any>(preflightRes);
+                if (preflightData?.success && preflightData?.data) {
+                    const { isComplete, canProceed, userMessage } = preflightData.data;
+                    if (!isComplete || !canProceed) {
+                        setError(userMessage || '信息不完整，请补充训练计划内容后再试');
+                        setIsLoading(false);
+                        return;
+                    }
+                }
+            } catch (_preflightErr) {
+                // 预检服务异常时不阻断，继续尝试解析
+            }
+
             // 使用学员版 API
             const response = await fetch('/api/student/plan-lib/parse-actions', {
                 method: 'POST',
@@ -841,8 +926,8 @@ export default function StudentSmartImportDialog({
                             <div className="relative">
                                 <InputTextarea
                                     value={inputText}
-                                    onChange={(e) => setInputText(e.target.value)}
-                                    rows={10}
+                                    onChange={(e) => { setInputText(e.target.value); setError(null); }}
+                                    rows={8}
                                     placeholder={`示例格式：\nW1 D1\n70%rm 4*4 负重引体 rpe9 组间60s\n\nD2\n反握引体 70% 4*4 rpe8\n\n**休息1天**\n- 拉伸、松解`}
                                     className="w-full font-mono text-sm rounded-2xl border-surface-200 focus:border-primary-300 pr-12 resize-none"
                                 />
@@ -853,6 +938,35 @@ export default function StudentSmartImportDialog({
                                     disabled={!inputText.trim() || isLoading}
                                     aria-label="解析动作"
                                 />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-xs font-medium text-surface-600 dark:text-surface-400">
+                                    或上传文件
+                                </label>
+                                <input
+                                    ref={fileInputRef}
+                                    type="file"
+                                    accept=".txt,.csv,.md,.docx,.xlsx,.xls"
+                                    className="hidden"
+                                    onChange={(e) => { handleFileSelect(e.target.files); e.target.value = ''; }}
+                                />
+                                <div
+                                    className={`min-h-[100px] rounded-xl border-2 border-dashed flex flex-col items-center justify-center gap-2 px-4 py-3 transition-colors cursor-pointer ${
+                                        isDragging
+                                            ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20'
+                                            : 'border-surface-300 hover:border-surface-400 hover:bg-surface-50 dark:border-surface-600 dark:hover:border-surface-500 dark:hover:bg-surface-800/50'
+                                    }`}
+                                    onDrop={handleDrop}
+                                    onDragOver={handleDragOver}
+                                    onDragLeave={handleDragLeave}
+                                    onClick={() => fileInputRef.current?.click()}
+                                >
+                                    <i className="pi pi-cloud-upload text-2xl text-surface-500 dark:text-surface-400" />
+                                    <span className="text-xs text-surface-600 dark:text-surface-400">
+                                        拖拽或点击选择 .txt、.csv、.md、.docx、.xlsx、.xls
+                                    </span>
+                                </div>
+                                {error && <p className="text-xs text-red-500">{error}</p>}
                             </div>
                             <div className="text-center text-xs text-surface-400">推荐格式：周标题 W1/W2，训练日 D1/D2，每周内容之间空一行</div>
                         </div>

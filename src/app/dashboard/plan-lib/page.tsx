@@ -33,9 +33,8 @@ const PlanLib = () => {
     const [currentPage, setCurrentPage] = useState(1);
     const [totalRecords, setTotalRecords] = useState(0);
     const [searchTotalRecords, setSearchTotalRecords] = useState(0);
-    const [batchOperationVisible, setBatchOperationVisible] = useState(false);
     const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
-
+    const [batchOperationVisible, setBatchOperationVisible] = useState(false);
     const { showToast } = useToastContext();
     const itemsPerPage = 12;
 
@@ -100,6 +99,16 @@ const PlanLib = () => {
         }
     };
 
+    const handleBatchOperationSuccess = async () => {
+        setBatchOperationVisible(false);
+        setSelectedTemplateId(null);
+        if (searchTerm) {
+            handleSearch();
+        } else {
+            loadTemplates();
+        }
+    };
+
     const handleDeleteTemplate = (id: string) => {
         confirmDialog({
             message: '确定要删除这个训练计划模板吗？此操作无法撤销。',
@@ -124,22 +133,6 @@ const PlanLib = () => {
                 }
             }
         });
-    };
-
-    const handleBatchOperation = (id: string) => {
-        setSelectedTemplateId(id);
-        setBatchOperationVisible(true);
-    };
-
-    const handleBatchOperationSuccess = () => {
-        showToast({ severity: 'success', summary: '批量操作成功', detail: '训练计划已更新' });
-        setBatchOperationVisible(false);
-        // 重新加载列表
-        if (searchTerm) {
-            handleSearch();
-        } else {
-            loadTemplates();
-        }
     };
 
     const handleSearch = async () => {
@@ -179,7 +172,10 @@ const PlanLib = () => {
                 onEdit={(id) => router.push(`/dashboard/plan-lib/edit/${id}`)}
                 onCopy={handleCopyTemplate}
                 onDelete={handleDeleteTemplate}
-                onBatchOperation={handleBatchOperation}
+                onBatchOperation={(id) => {
+                    setSelectedTemplateId(id);
+                    setBatchOperationVisible(true);
+                }}
             />
         );
     };
@@ -198,7 +194,10 @@ const PlanLib = () => {
             {selectedTemplateId && (
                 <BatchOperationDialog
                     visible={batchOperationVisible}
-                    onHide={() => setBatchOperationVisible(false)}
+                    onHide={() => {
+                        setBatchOperationVisible(false);
+                        setSelectedTemplateId(null);
+                    }}
                     templateId={selectedTemplateId}
                     targetActionType="coach"
                     onSuccess={handleBatchOperationSuccess}
