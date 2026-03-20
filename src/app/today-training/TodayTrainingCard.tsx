@@ -12,6 +12,7 @@ import {
     type ExecutionStatus,
     type NormalizedDayTask,
 } from './lib/dayModules';
+import { formatBeijingDate } from '@/lib/beijingTime';
 
 interface TodayTrainingCardProps {
     day: any;
@@ -98,7 +99,7 @@ const TodayTrainingCard: React.FC<TodayTrainingCardProps> = ({
 
     const headerSubtitle = subheading || `第${dayIndex}天 · ${moduleCount} 个任务模块`;
     const displayDateLabel = dateLabel || (heading === '今日安排'
-        ? new Date().toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'long' })
+        ? formatBeijingDate(new Date(), 'zh-CN', { month: 'long', day: 'numeric', weekday: 'long' })
         : null);
 
     return (

@@ -11,6 +11,7 @@ import { normalizeToKg } from "@/types/intensity";
 import { getCurrent1RMRecords } from "@/app/api/student/get-current-1rm/route";
 import { isOneRMEligibleAction } from "@/lib/oneRmEligibility";
 import { syncCoachActionsToStudentLibrary } from "../sync-actions";
+import { addBeijingDays, getBeijingDayStart } from "@/lib/beijingTime";
 
 export async function POST(req: Request) {
     const startTime = performance.now();
@@ -492,10 +493,8 @@ export async function POST(req: Request) {
     );
 
     // todayCompleted + todayExecutionId
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
+    const today = getBeijingDayStart(new Date());
+    const tomorrow = addBeijingDays(today, 1);
     const todayExecution = completedExecs.find((e) => {
         if (!e?.completed_at) return false;
         const dt = new Date(e.completed_at);
