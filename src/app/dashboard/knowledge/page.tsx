@@ -5,8 +5,9 @@ import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { BookOpen, Search, ChevronRight, Sparkles, List, GitBranch } from "lucide-react";
 import AIChatPanel from "@/components/knowledge/AIChatPanel";
-import BodyMapCanvas, { BODY_REGION_LABELS, type BodyRegion } from "@/components/knowledge/BodyMap/BodyMapCanvas";
+import BodyMapCanvas, { BODY_REGION_LABELS, type BodyMapSelectionDetail, type BodyRegion } from "@/components/knowledge/BodyMap/BodyMapCanvas";
 import BodyMapModeSwitch from "@/components/knowledge/BodyMap/BodyMapModeSwitch";
+import { buildGeneratedBodyMapContent } from "@/lib/bodyMapGeneratedContent";
 
 // Dynamic import for mind map (uses ReactFlow which needs client-side only)
 const KnowledgeMindMap = dynamic(
@@ -33,6 +34,8 @@ type KnowledgeNode = {
     is_free: boolean;
 };
 
+type SelectedAnatomy = BodyMapSelectionDetail & { region: BodyRegion };
+
 const KnowledgeBaseHomePage = () => {
     const router = useRouter();
     const [loadingPillars, setLoadingPillars] = useState(true);
@@ -42,6 +45,7 @@ const KnowledgeBaseHomePage = () => {
     const [viewMode, setViewMode] = useState<ViewMode>('list');
     const [bodyMapMode, setBodyMapMode] = useState<BodyMapMode>('screening');
     const [selectedBodyRegion, setSelectedBodyRegion] = useState<BodyRegion | null>(null);
+    const [selectedAnatomy, setSelectedAnatomy] = useState<SelectedAnatomy | null>(null);
     const [regionNodes, setRegionNodes] = useState<KnowledgeNode[]>([]);
     const [loadingRegionNodes, setLoadingRegionNodes] = useState(false);
 
@@ -83,6 +87,17 @@ const KnowledgeBaseHomePage = () => {
 
         fetchRegionNodes();
     }, [selectedBodyRegion]);
+
+    const fallbackRegionNodes = selectedBodyRegion && selectedAnatomy
+        ? buildGeneratedBodyMapContent({
+            mode: bodyMapMode,
+            anatomyKey: selectedAnatomy.anatomyKey,
+            anatomyLabel: selectedAnatomy.anatomyLabel,
+            regionLabel: BODY_REGION_LABELS[selectedBodyRegion],
+        })
+        : [];
+    const displayRegionNodes = regionNodes.length > 0 ? regionNodes : fallbackRegionNodes;
+    const hasGeneratedNodes = regionNodes.length === 0 && fallbackRegionNodes.length > 0;
 
     return (
         <div className="pb-32">
@@ -142,9 +157,19 @@ const KnowledgeBaseHomePage = () => {
                             <BodyMapCanvas
                                 mode={bodyMapMode}
                                 selectedRegion={selectedBodyRegion}
-                                onRegionClick={(region) =>
-                                    setSelectedBodyRegion((prev) => (prev === region ? null : region))
-                                }
+                                onRegionClick={(region, detail) => {
+                                    const isSameAnatomy =
+                                        region === selectedBodyRegion &&
+                                        detail?.anatomyKey &&
+                                        detail.anatomyKey === selectedAnatomy?.anatomyKey;
+                                    if (isSameAnatomy) {
+                                        setSelectedBodyRegion(null);
+                                        setSelectedAnatomy(null);
+                                        return;
+                                    }
+                                    setSelectedBodyRegion(region);
+                                    setSelectedAnatomy(detail ? { ...detail, region } : null);
+                                }}
                             />
                         </div>
 
@@ -152,10 +177,10 @@ const KnowledgeBaseHomePage = () => {
                             <div className="mt-4 space-y-2">
                                 <div className="flex items-center justify-between">
                                     <h3 className="text-sm font-bold text-surface-700 dark:text-surface-200">
-                                        {BODY_REGION_LABELS[selectedBodyRegion]} 相关内容
+                                        {selectedAnatomy?.anatomyLabel || BODY_REGION_LABELS[selectedBodyRegion]} 相关内容
                                     </h3>
                                     <span className="text-xs text-surface-500">
-                                        {loadingRegionNodes ? "加载中..." : `${regionNodes.length} 条`}
+                                        {loadingRegionNodes ? "加载中..." : `${displayRegionNodes.length} 条`}
                                     </span>
                                 </div>
                                 {loadingRegionNodes ? (
@@ -164,28 +189,38 @@ const KnowledgeBaseHomePage = () => {
                                             <div key={i} className="h-16 bg-surface-100 dark:bg-surface-700 rounded-xl animate-pulse" />
                                         ))}
                                     </div>
-                                ) : regionNodes.length === 0 ? (
+                                ) : displayRegionNodes.length === 0 ? (
                                     <div className="text-xs text-surface-500 bg-surface-50 dark:bg-surface-700/40 rounded-xl px-3 py-3">
                                         该部位暂时没有内容，正在补充中。
                                     </div>
                                 ) : (
-                                    regionNodes.slice(0, 3).map((node) => (
-                                        <button
-                                            key={node.id}
-                                            type="button"
-                                            onClick={() => router.push(`/dashboard/knowledge/nodes/${node.id}`)}
-                                            className="w-full rounded-xl border border-surface-200 bg-surface-0 dark:bg-surface-700/40 px-3 py-3 text-left hover:border-primary-200 transition-colors"
-                                        >
-                                            <div className="text-sm font-semibold text-surface-900 dark:text-surface-100 line-clamp-1">
-                                                {node.title}
+                                    <>
+                                        {hasGeneratedNodes && (
+                                            <div className="text-xs text-amber-700 bg-amber-50 dark:bg-amber-900/20 dark:text-amber-200 rounded-xl px-3 py-3 border border-dashed border-amber-300 dark:border-amber-700/50">
+                                                当前展示的是自动生成的占位内容，后续可替换为正式知识库条目。
                                             </div>
-                                            {node.description && (
-                                                <div className="text-xs text-surface-500 mt-1 line-clamp-2">
-                                                    {node.description}
+                                        )}
+                                        {displayRegionNodes.slice(0, 3).map((node) => (
+                                            <button
+                                                key={node.id}
+                                                type="button"
+                                                onClick={() => {
+                                                    if (String(node.id).startsWith("generated:")) return;
+                                                    router.push(`/dashboard/knowledge/nodes/${node.id}`);
+                                                }}
+                                                className="w-full rounded-xl border border-surface-200 bg-surface-0 dark:bg-surface-700/40 px-3 py-3 text-left hover:border-primary-200 transition-colors"
+                                            >
+                                                <div className="text-sm font-semibold text-surface-900 dark:text-surface-100 line-clamp-1">
+                                                    {node.title}
                                                 </div>
-                                            )}
-                                        </button>
-                                    ))
+                                                {node.description && (
+                                                    <div className="text-xs text-surface-500 mt-1 line-clamp-2">
+                                                        {node.description}
+                                                    </div>
+                                                )}
+                                            </button>
+                                        ))}
+                                    </>
                                 )}
                             </div>
                         )}
