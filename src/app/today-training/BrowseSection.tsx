@@ -4,6 +4,14 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Button } from 'primereact/button';
 import { ChevronLeft, ChevronRight, Check, CalendarDays } from 'lucide-react';
 import { calculateCurrentWeek, formatUnlockDate, getDayWeekNumber, getUnlockDate, isDayUnlocked } from '@/lib/weekUnlock';
+import {
+    formatBeijingDate,
+    getBeijingDateFromParts,
+    getBeijingDateParts,
+    getBeijingMonthDays,
+    getBeijingWeekday,
+    shiftBeijingMonth,
+} from '@/lib/beijingTime';
 import { formatPlanDayLabel, resolvePlanDayDate, toDateKey } from './lib/dayModules';
 
 interface BrowseSectionProps {
@@ -80,12 +88,14 @@ const BrowseSection: React.FC<BrowseSectionProps> = ({
         });
     }, [selectedDayIndex, effectiveStartDate, progressDayIndex, currentDayIndex]);
 
-    const [monthCursor, setMonthCursor] = useState(
-        new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1),
-    );
+    const [monthCursor, setMonthCursor] = useState(() => {
+        const parts = getBeijingDateParts(selectedDate);
+        return { year: parts.year, month: parts.month };
+    });
 
     useEffect(() => {
-        setMonthCursor(new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1));
+        const parts = getBeijingDateParts(selectedDate);
+        setMonthCursor({ year: parts.year, month: parts.month });
     }, [selectedDate]);
 
     const dayIndexByDateKey = useMemo(() => {
@@ -97,13 +107,11 @@ const BrowseSection: React.FC<BrowseSectionProps> = ({
     }, [dayDateEntries]);
 
     const monthGrid = useMemo(() => {
-        const firstDay = new Date(monthCursor.getFullYear(), monthCursor.getMonth(), 1);
-        const lastDay = new Date(monthCursor.getFullYear(), monthCursor.getMonth() + 1, 0);
-        const leadingBlankCount = (firstDay.getDay() + 6) % 7;
-        const totalDays = lastDay.getDate();
+        const leadingBlankCount = (getBeijingWeekday(monthCursor.year, monthCursor.month, 1) + 6) % 7;
+        const totalDays = getBeijingMonthDays(monthCursor.year, monthCursor.month);
         const cells: Array<Date | null> = Array.from({ length: leadingBlankCount }, () => null);
         for (let day = 1; day <= totalDays; day += 1) {
-            cells.push(new Date(monthCursor.getFullYear(), monthCursor.getMonth(), day));
+            cells.push(getBeijingDateFromParts(monthCursor.year, monthCursor.month, day));
         }
         while (cells.length % 7 !== 0) {
             cells.push(null);
@@ -251,15 +259,19 @@ const BrowseSection: React.FC<BrowseSectionProps> = ({
                         <Button
                             icon={<ChevronLeft className="w-4 h-4" />}
                             className="p-button-text p-button-sm"
-                            onClick={() => setMonthCursor((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1))}
+                            onClick={() => setMonthCursor((prev) => shiftBeijingMonth(prev.year, prev.month, -1))}
                         />
                         <div className="text-sm font-bold text-surface-700">
-                            {monthCursor.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long' })}
+                            {formatBeijingDate(
+                                getBeijingDateFromParts(monthCursor.year, monthCursor.month, 1),
+                                'zh-CN',
+                                { year: 'numeric', month: 'long' },
+                            )}
                         </div>
                         <Button
                             icon={<ChevronRight className="w-4 h-4" />}
                             className="p-button-text p-button-sm"
-                            onClick={() => setMonthCursor((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1))}
+                            onClick={() => setMonthCursor((prev) => shiftBeijingMonth(prev.year, prev.month, 1))}
                         />
                     </div>
 
@@ -300,7 +312,7 @@ const BrowseSection: React.FC<BrowseSectionProps> = ({
                                     } ${mappedDayIndex && !dayUnlocked ? 'opacity-40 cursor-not-allowed' : ''}`}
                                 >
                                     <div className="flex h-full flex-col items-center justify-center">
-                                        <div className="font-bold">{dateCell.getDate()}</div>
+                                        <div className="font-bold">{getBeijingDateParts(dateCell).day}</div>
                                         <div className="text-[10px] opacity-80">
                                             {mappedDayIndex ? `D${mappedDayIndex}` : ''}
                                         </div>

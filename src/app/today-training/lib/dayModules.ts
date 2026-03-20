@@ -1,6 +1,12 @@
 'use client';
 
 import { formatKgValueForGym } from '@/lib/weightQuantize';
+import {
+    addBeijingDays,
+    formatBeijingDate,
+    getBeijingDayStart,
+    toBeijingDateKey,
+} from '@/lib/beijingTime';
 
 export type ExecutionStatus = 'none' | 'in_progress' | 'completed';
 export type LightweightType = 'DIET' | 'CARDIO' | 'HABIT';
@@ -39,7 +45,6 @@ export interface DayModuleModel {
 }
 
 export const slotOrder = ['早晨', '中午', '下午', '晚上', '任意时间'] as const;
-const DAY_MS = 24 * 60 * 60 * 1000;
 
 export const parsePositiveIntOrNull = (value: any) => {
     if (value === null || value === undefined || value === '') return null;
@@ -323,12 +328,6 @@ export const buildDayModuleModel = (params: {
     };
 };
 
-const normalizeDate = (input: Date) => {
-    const next = new Date(input);
-    next.setHours(0, 0, 0, 0);
-    return next;
-};
-
 export const resolvePlanDayDate = (params: {
     dayIndex: number;
     effectiveStartDate?: string | Date | null;
@@ -343,26 +342,20 @@ export const resolvePlanDayDate = (params: {
     } = params;
 
     if (effectiveStartDate) {
-        const start = normalizeDate(new Date(effectiveStartDate));
-        start.setDate(start.getDate() + dayIndex - 1);
-        return start;
+        return addBeijingDays(effectiveStartDate, dayIndex - 1);
     }
 
-    const anchor = normalizeDate(fallbackAnchorDate);
-    anchor.setDate(anchor.getDate() + dayIndex - fallbackAnchorDayIndex);
-    return anchor;
+    const anchor = getBeijingDayStart(fallbackAnchorDate);
+    return addBeijingDays(anchor, dayIndex - fallbackAnchorDayIndex);
 };
 
 export const toDateKey = (date: Date) => {
-    const yyyy = date.getFullYear();
-    const mm = String(date.getMonth() + 1).padStart(2, '0');
-    const dd = String(date.getDate()).padStart(2, '0');
-    return `${yyyy}-${mm}-${dd}`;
+    return toBeijingDateKey(date);
 };
 
 export const formatPlanDayLabel = (date: Date | null) => {
     if (!date) return '';
-    return date.toLocaleDateString('zh-CN', {
+    return formatBeijingDate(date, 'zh-CN', {
         month: 'long',
         day: 'numeric',
         weekday: 'long',
@@ -370,7 +363,5 @@ export const formatPlanDayLabel = (date: Date | null) => {
 };
 
 export const addDays = (date: Date, offset: number) => {
-    const next = new Date(date);
-    next.setTime(next.getTime() + offset * DAY_MS);
-    return normalizeDate(next);
+    return addBeijingDays(date, offset);
 };

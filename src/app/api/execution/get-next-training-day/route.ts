@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 import supabase from "@/lib/supabaseClient";
 import { ApiData } from "@/types/api";
+import { addBeijingDays, getBeijingDayStart } from "@/lib/beijingTime";
 
 // 重要！必须以 import type 引入接口类型
 import type {
@@ -77,10 +78,8 @@ export async function POST(req: Request) {
         }
 
         // 4. 检查今天是否已有完成的训练
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const tomorrow = new Date(today);
-        tomorrow.setDate(tomorrow.getDate() + 1);
+        const today = getBeijingDayStart(new Date());
+        const tomorrow = addBeijingDays(today, 1);
 
         const todayExecution = (executions || []).find((e) => {
             if (!e.completed_at) return false;

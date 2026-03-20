@@ -33,6 +33,11 @@ import {
 import PlanCompletionModal from '@/components/plan/PlanCompletionModal';
 import { Avatar } from 'primereact/avatar';
 import { AeroInputNumber } from '@/components/AeroInputNumber';
+import {
+    diffBeijingCalendarDays,
+    formatBeijingDate,
+    getBeijingDayStart,
+} from '@/lib/beijingTime';
 
 const TodayTrainingPage: React.FC = () => {
     const { data: session } = useSession();
@@ -112,12 +117,10 @@ const TodayTrainingPage: React.FC = () => {
     const trainingDays = (instance?.training_days || []) as any[];
     const formatShortDate = (ts?: string | null) => {
         if (!ts) return '';
-        const dt = new Date(ts);
-        return dt.toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric' });
+        return formatBeijingDate(ts, 'zh-CN', { month: 'numeric', day: 'numeric' });
     };
     const calendarDayIndex = (() => {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
+        const today = getBeijingDayStart(new Date());
         const execs = executionsByDayIndex || {};
         const resolved = Object.values(execs).filter((e: any) =>
             (e?.status === 'completed' || e?.status === 'abandoned') && (e?.completed_at || e?.started_at)
@@ -127,17 +130,15 @@ const TodayTrainingPage: React.FC = () => {
             const anchorExec = (execs as any)[maxResolved];
             const anchorTs = anchorExec?.completed_at || anchorExec?.started_at;
             if (anchorTs) {
-                const anchor = new Date(anchorTs);
-                anchor.setHours(0, 0, 0, 0);
-                const diffDays = Math.floor((today.getTime() - anchor.getTime()) / (24 * 60 * 60 * 1000));
+                const anchor = getBeijingDayStart(anchorTs);
+                const diffDays = diffBeijingCalendarDays(today, anchor);
                 return Math.max(1, Math.min(trainingDays.length || 1, maxResolved + diffDays));
             }
         }
         const effectiveStart = (instance as any)?.start_date || activeSubscription?.start_date;
         if (effectiveStart) {
-            const start = new Date(effectiveStart);
-            start.setHours(0, 0, 0, 0);
-            const diffDays = Math.floor((today.getTime() - start.getTime()) / (24 * 60 * 60 * 1000));
+            const start = getBeijingDayStart(effectiveStart);
+            const diffDays = diffBeijingCalendarDays(today, start);
             return Math.max(1, Math.min(trainingDays.length || 1, 1 + diffDays));
         }
         return todayDayIndex;
