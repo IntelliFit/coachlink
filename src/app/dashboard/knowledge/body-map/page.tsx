@@ -3,8 +3,9 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Filter, Search } from 'lucide-react';
-import BodyMapCanvas, { BodyRegion, BODY_REGION_LABELS } from '@/components/knowledge/BodyMap/BodyMapCanvas';
+import BodyMapCanvas, { BodyRegion, BODY_REGION_LABELS, type BodyMapSelectionDetail } from '@/components/knowledge/BodyMap/BodyMapCanvas';
 import BodyMapModeSwitch from '@/components/knowledge/BodyMap/BodyMapModeSwitch';
+import { buildGeneratedBodyMapContent } from '@/lib/bodyMapGeneratedContent';
 
 type BodyMapMode = 'screening' | 'training';
 
@@ -17,10 +18,13 @@ type KnowledgeNode = {
   is_free: boolean;
 };
 
+type SelectedAnatomy = BodyMapSelectionDetail & { region: BodyRegion };
+
 export default function BodyMapPage() {
   const router = useRouter();
   const [mode, setMode] = useState<BodyMapMode>('screening');
   const [selectedRegion, setSelectedRegion] = useState<BodyRegion | null>(null);
+  const [selectedAnatomy, setSelectedAnatomy] = useState<SelectedAnatomy | null>(null);
   const [nodes, setNodes] = useState<KnowledgeNode[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -48,9 +52,32 @@ export default function BodyMapPage() {
     fetchNodes();
   }, [selectedRegion]);
 
-  const handleRegionClick = (region: BodyRegion) => {
-    setSelectedRegion(region === selectedRegion ? null : region);
+  const handleRegionClick = (region: BodyRegion, detail?: BodyMapSelectionDetail) => {
+    const isSameAnatomy =
+      region === selectedRegion &&
+      detail?.anatomyKey &&
+      detail.anatomyKey === selectedAnatomy?.anatomyKey;
+
+    if (isSameAnatomy) {
+      setSelectedRegion(null);
+      setSelectedAnatomy(null);
+      return;
+    }
+    setSelectedRegion(region);
+    setSelectedAnatomy(detail ? { ...detail, region } : null);
   };
+
+  const fallbackNodes = selectedRegion && selectedAnatomy
+    ? buildGeneratedBodyMapContent({
+        mode,
+        anatomyKey: selectedAnatomy.anatomyKey,
+        anatomyLabel: selectedAnatomy.anatomyLabel,
+        regionLabel: BODY_REGION_LABELS[selectedRegion],
+      })
+    : [];
+
+  const displayNodes = nodes.length > 0 ? nodes : fallbackNodes;
+  const hasGeneratedNodes = nodes.length === 0 && fallbackNodes.length > 0;
 
   return (
     <div className="min-h-screen bg-surface-50 dark:bg-surface-900 pb-32">
@@ -87,10 +114,10 @@ export default function BodyMapPage() {
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-bold text-surface-700 dark:text-surface-200">
-                {BODY_REGION_LABELS[selectedRegion]} 相关内容
+                {selectedAnatomy?.anatomyLabel || BODY_REGION_LABELS[selectedRegion]} 相关内容
               </h2>
               <span className="text-xs text-surface-500">
-                {loading ? '加载中...' : `${nodes.length} 个结果`}
+                {loading ? '加载中...' : `${displayNodes.length} 个结果`}
               </span>
             </div>
 
@@ -100,7 +127,7 @@ export default function BodyMapPage() {
                   <div key={i} className="h-20 bg-surface-100 dark:bg-surface-800 rounded-xl animate-pulse" />
                 ))}
               </div>
-            ) : nodes.length === 0 ? (
+            ) : displayNodes.length === 0 ? (
               <div className="text-center py-8 text-surface-400">
                 <Filter size={32} className="mx-auto mb-2 opacity-50" />
                 <p className="text-sm">该部位暂无相关内容</p>
@@ -108,10 +135,18 @@ export default function BodyMapPage() {
               </div>
             ) : (
               <div className="space-y-3">
-                {nodes.map((node) => (
+                {hasGeneratedNodes && (
+                  <div className="rounded-xl border border-dashed border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:border-amber-700/60 dark:bg-amber-900/20 dark:text-amber-200">
+                    当前展示的是自动生成的占位内容，后续可替换为正式知识库条目。
+                  </div>
+                )}
+                {displayNodes.map((node) => (
                   <button
                     key={node.id}
-                    onClick={() => router.push(`/dashboard/knowledge/nodes/${node.id}`)}
+                    onClick={() => {
+                      if (String(node.id).startsWith('generated:')) return;
+                      router.push(`/dashboard/knowledge/nodes/${node.id}`);
+                    }}
                     className="w-full flex items-center gap-4 p-4 bg-white dark:bg-surface-800 rounded-xl shadow-sm hover:shadow-md transition-all text-left"
                   >
                     <div className="flex-1">

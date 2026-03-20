@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 
 // Body regions for click handling
 export type BodyRegion =
@@ -24,140 +24,252 @@ export type BodyRegion =
   | 'ankle_right';
 
 type BodyMapMode = 'screening' | 'training';
+type BodyView = 'front' | 'back';
+
+export interface BodyMapSelectionDetail {
+  anatomyKey: string;
+  anatomyLabel: string;
+  view: BodyView;
+}
 
 interface BodyMapCanvasProps {
   mode?: BodyMapMode;
   selectedRegion?: BodyRegion | null;
-  onRegionClick?: (region: BodyRegion) => void;
+  onRegionClick?: (region: BodyRegion, detail?: BodyMapSelectionDetail) => void;
 }
 
-// SVG path data for body regions (simplified human silhouette)
-const BODY_PATHS: Record<BodyRegion, { d: string; label: string; center: [number, number] }> = {
-  head: {
-    d: 'M45,8 C45,3 55,3 55,8 L55,18 C55,23 45,23 45,18 Z',
-    label: '头部',
-    center: [50, 13],
-  },
-  neck: {
-    d: 'M47,18 L53,18 L53,25 L47,25 Z',
-    label: '颈部',
-    center: [50, 21],
-  },
-  shoulder_left: {
-    d: 'M30,25 L47,25 L47,35 L35,38 L30,35 Z',
-    label: '左肩',
-    center: [38, 31],
-  },
-  shoulder_right: {
-    d: 'M53,25 L70,25 L70,35 L65,38 L53,35 Z',
-    label: '右肩',
-    center: [62, 31],
-  },
-  chest: {
-    d: 'M40,35 L60,35 L60,55 L40,55 Z',
-    label: '胸部',
-    center: [50, 45],
-  },
-  upper_back: {
-    d: 'M42,36 L58,36 L58,50 L42,50 Z',
-    label: '上背',
-    center: [50, 43],
-  },
-  core: {
-    d: 'M42,55 L58,55 L58,72 L42,72 Z',
-    label: '核心',
-    center: [50, 63],
-  },
-  lower_back: {
-    d: 'M44,55 L56,55 L56,70 L44,70 Z',
-    label: '下背',
-    center: [50, 62],
-  },
-  hip_left: {
-    d: 'M35,72 L48,72 L46,82 L33,82 Z',
-    label: '左髋',
-    center: [41, 77],
-  },
-  hip_right: {
-    d: 'M52,72 L65,72 L67,82 L54,82 Z',
-    label: '右髋',
-    center: [59, 77],
-  },
-  elbow_left: {
-    d: 'M22,38 L30,35 L28,55 L20,55 Z',
-    label: '左肘',
-    center: [25, 45],
-  },
-  elbow_right: {
-    d: 'M70,35 L78,38 L80,55 L72,55 Z',
-    label: '右肘',
-    center: [75, 45],
-  },
-  wrist_left: {
-    d: 'M18,55 L26,55 L24,70 L16,70 Z',
-    label: '左腕',
-    center: [21, 62],
-  },
-  wrist_right: {
-    d: 'M74,55 L82,55 L84,70 L76,70 Z',
-    label: '右腕',
-    center: [79, 62],
-  },
-  knee_left: {
-    d: 'M36,95 L46,95 L46,108 L36,108 Z',
-    label: '左膝',
-    center: [41, 101],
-  },
-  knee_right: {
-    d: 'M54,95 L64,95 L64,108 L54,108 Z',
-    label: '右膝',
-    center: [59, 101],
-  },
-  ankle_left: {
-    d: 'M38,125 L46,125 L46,135 L38,135 Z',
-    label: '左踝',
-    center: [42, 130],
-  },
-  ankle_right: {
-    d: 'M54,125 L62,125 L62,135 L54,135 Z',
-    label: '右踝',
-    center: [58, 130],
-  },
+interface HitInfo {
+  region: BodyRegion;
+  anatomyKey: string;
+  anatomyLabel: string;
+}
+
+const BODY_REGION_LABELS_MAP: Record<BodyRegion, string> = {
+  head: '头部',
+  neck: '颈部',
+  shoulder_left: '左肩',
+  shoulder_right: '右肩',
+  chest: '胸部',
+  upper_back: '上背',
+  lower_back: '下背',
+  core: '核心',
+  hip_left: '左髋',
+  hip_right: '右髋',
+  elbow_left: '左肘',
+  elbow_right: '右肘',
+  wrist_left: '左腕',
+  wrist_right: '右腕',
+  knee_left: '左膝',
+  knee_right: '右膝',
+  ankle_left: '左踝',
+  ankle_right: '右踝',
 };
 
-// Limb connections (for displaying body outline)
-const BODY_OUTLINE = `
-  M50,18 
-  C45,25 35,25 30,30 
-  L20,55 L16,70 
-  M30,30 L35,38 L35,72 L33,82 L36,95 L36,108 L38,125 L38,135
-  M50,18 
-  C55,25 65,25 70,30 
-  L80,55 L84,70
-  M70,30 L65,38 L65,72 L67,82 L64,95 L64,108 L62,125 L62,135
-  M35,38 L40,35 L60,35 L65,38
-  M35,72 L42,72 L58,72 L65,72
-`;
+const BILATERAL_GROUPS: Record<string, [BodyRegion, BodyRegion]> = {
+  三角肌: ['shoulder_left', 'shoulder_right'],
+  肩关节: ['shoulder_left', 'shoulder_right'],
+  肱二头肌: ['elbow_left', 'elbow_right'],
+  肱三头肌: ['elbow_left', 'elbow_right'],
+  肱桡肌: ['elbow_left', 'elbow_right'],
+  肱侧腕屈肌: ['wrist_left', 'wrist_right'],
+  腕关节: ['wrist_left', 'wrist_right'],
+  髋关节: ['hip_left', 'hip_right'],
+  内收肌: ['hip_left', 'hip_right'],
+  臀大肌: ['hip_left', 'hip_right'],
+  股四头肌: ['knee_left', 'knee_right'],
+  股二头肌: ['knee_left', 'knee_right'],
+  半腱肌: ['knee_left', 'knee_right'],
+  膝关节: ['knee_left', 'knee_right'],
+  胫骨前肌: ['ankle_left', 'ankle_right'],
+  腓肠肌: ['ankle_left', 'ankle_right'],
+  比目鱼肌: ['ankle_left', 'ankle_right'],
+  踝关节: ['ankle_left', 'ankle_right'],
+};
+
+const SINGLE_GROUPS: Record<string, BodyRegion> = {
+  斜方肌: 'neck',
+  胸大肌: 'chest',
+  腹直肌: 'core',
+  腹外直肌: 'core',
+  背阔肌: 'upper_back',
+  岗下肌: 'upper_back',
+  大圆肌: 'upper_back',
+  竖脊肌: 'lower_back',
+};
+
+function getInteractiveGroupNames(): Set<string> {
+  return new Set([...Object.keys(BILATERAL_GROUPS), ...Object.keys(SINGLE_GROUPS)]);
+}
+
+function regionColor(mode: BodyMapMode, state: 'selected' | 'hover') {
+  const isScreening = mode === 'screening';
+  if (state === 'selected') return isScreening ? '#ef4444' : '#3b82f6';
+  return isScreening ? '#fca5a5' : '#93c5fd';
+}
+
+function resolveRenderedSide(pathEl: SVGPathElement): 'left' | 'right' {
+  const svg = pathEl.ownerSVGElement;
+  if (!svg) return 'left';
+
+  const pathRect = pathEl.getBoundingClientRect();
+  const svgRect = svg.getBoundingClientRect();
+  const pathCenterX = pathRect.left + pathRect.width / 2;
+  const svgCenterX = svgRect.left + svgRect.width / 2;
+  return pathCenterX < svgCenterX ? 'left' : 'right';
+}
 
 export default function BodyMapCanvas({ mode = 'screening', selectedRegion, onRegionClick }: BodyMapCanvasProps) {
-  const [hoveredRegion, setHoveredRegion] = useState<BodyRegion | null>(null);
+  const [hoveredHit, setHoveredHit] = useState<HitInfo | null>(null);
+  const [selectedHit, setSelectedHit] = useState<HitInfo | null>(null);
+  const [view, setView] = useState<BodyView>('front');
+  const [svgMarkup, setSvgMarkup] = useState<string>('');
+  const [loadingSvg, setLoadingSvg] = useState<boolean>(true);
+  const [svgError, setSvgError] = useState<string | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const interactiveGroupNames = useMemo(() => getInteractiveGroupNames(), []);
 
   const isScreeningMode = mode === 'screening';
 
-  // Get fill color based on state
-  const getFillColor = (region: BodyRegion) => {
-    if (selectedRegion === region) {
-      return isScreeningMode ? '#ef4444' : '#3b82f6'; // red for pain, blue for training
+  useEffect(() => {
+    setHoveredHit(null);
+    setSelectedHit(null);
+  }, [view]);
+
+  useEffect(() => {
+    if (!selectedRegion) {
+      setSelectedHit(null);
     }
-    if (hoveredRegion === region) {
-      return isScreeningMode ? '#fca5a5' : '#93c5fd';
+  }, [selectedRegion]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoadingSvg(true);
+    setSvgError(null);
+
+    fetch(`/api/knowledge/body-map-svg?view=${view}`, { cache: 'no-store' })
+      .then(async (res) => {
+        if (!res.ok) throw new Error('加载人体地图素材失败');
+        return res.text();
+      })
+      .then((raw) => {
+        if (cancelled) return;
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(raw, 'image/svg+xml');
+        const svg = doc.querySelector('svg');
+        if (!svg) throw new Error('SVG 结构无效');
+
+        svg.setAttribute('class', 'w-full h-auto');
+        svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+        svg.removeAttribute('width');
+        svg.removeAttribute('height');
+
+        interactiveGroupNames.forEach((name) => {
+          const escaped = window.CSS?.escape ? window.CSS.escape(name) : name;
+          const selector = `g[data-name="${escaped}"] path`;
+          const paths = Array.from(svg.querySelectorAll<SVGPathElement>(selector));
+          for (const path of paths) {
+            path.setAttribute('data-group', name);
+            path.setAttribute('data-original-fill', path.getAttribute('fill') || '#222222');
+            path.style.cursor = 'pointer';
+            path.style.transition = 'fill 120ms ease, stroke 120ms ease';
+          }
+        });
+
+        setSvgMarkup(svg.outerHTML);
+      })
+      .catch((err) => {
+        console.error('[BodyMapCanvas] load svg failed:', err);
+        if (!cancelled) {
+          setSvgMarkup('');
+          setSvgError('人体地图加载失败');
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingSvg(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [interactiveGroupNames, view]);
+
+  function resolveHit(groupName: string, pathEl: SVGPathElement): HitInfo | null {
+    const single = SINGLE_GROUPS[groupName];
+    if (single) {
+      return {
+        region: single,
+        anatomyKey: groupName,
+        anatomyLabel: groupName,
+      };
     }
-    return '#e2e8f0'; // default gray
-  };
+
+    const bilateral = BILATERAL_GROUPS[groupName];
+    if (!bilateral) return null;
+
+    try {
+      const side = resolveRenderedSide(pathEl);
+      const isLeft = side === 'left';
+      return {
+        region: isLeft ? bilateral[0] : bilateral[1],
+        anatomyKey: `${groupName}:${isLeft ? 'left' : 'right'}`,
+        anatomyLabel: `${isLeft ? '左' : '右'}${groupName}`,
+      };
+    } catch {
+      return {
+        region: bilateral[0],
+        anatomyKey: `${groupName}:left`,
+        anatomyLabel: `左${groupName}`,
+      };
+    }
+  }
+
+  function findHitFromEventTarget(target: EventTarget | null): HitInfo | null {
+    if (!(target instanceof Element)) return null;
+    const path = target.closest('path[data-group]') as SVGPathElement | null;
+    if (!path) return null;
+    const group = path.getAttribute('data-group');
+    if (!group) return null;
+    return resolveHit(group, path);
+  }
+
+  useEffect(() => {
+    const root = containerRef.current;
+    if (!root) return;
+    const allPaths = Array.from(root.querySelectorAll<SVGPathElement>('path[data-group]'));
+    for (const path of allPaths) {
+      const group = path.getAttribute('data-group');
+      if (!group) continue;
+      const hit = resolveHit(group, path);
+      if (!hit) continue;
+      const originalFill = path.getAttribute('data-original-fill') || '#222222';
+      const isSelected = selectedHit?.anatomyKey === hit.anatomyKey;
+      const isHovered = hoveredHit?.anatomyKey === hit.anatomyKey;
+
+      if (isSelected) {
+        path.style.fill = regionColor(mode, 'selected');
+        path.style.stroke = mode === 'screening' ? '#dc2626' : '#2563eb';
+        path.style.strokeWidth = '1.8';
+      } else if (isHovered) {
+        path.style.fill = regionColor(mode, 'hover');
+        path.style.stroke = mode === 'screening' ? '#f43f5e' : '#3b82f6';
+        path.style.strokeWidth = '1.4';
+      } else {
+        path.style.fill = originalFill;
+        path.style.stroke = 'transparent';
+        path.style.strokeWidth = '0';
+      }
+    }
+  }, [hoveredHit, mode, selectedHit, svgMarkup]);
+
+  const selectedLabel = selectedHit
+    ? selectedHit.anatomyLabel
+    : (selectedRegion ? BODY_REGION_LABELS_MAP[selectedRegion] : null);
+  const selectedRegionLabel = selectedHit
+    ? BODY_REGION_LABELS_MAP[selectedHit.region]
+    : (selectedRegion ? BODY_REGION_LABELS_MAP[selectedRegion] : null);
 
   return (
     <div className="relative">
-      {/* Mode indicator */}
       <div className="absolute top-2 left-2 flex gap-2 z-10">
         <span
           className={`px-2 py-1 rounded-full text-xs font-bold ${
@@ -170,55 +282,98 @@ export default function BodyMapCanvas({ mode = 'screening', selectedRegion, onRe
         </span>
       </div>
 
-      <svg viewBox="0 0 100 140" className="w-full max-w-xs mx-auto" style={{ maxHeight: '400px' }}>
-        {/* Body outline */}
-        <path
-          d={BODY_OUTLINE}
-          fill="none"
-          stroke="#94a3b8"
-          strokeWidth="0.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
+      <div className="absolute top-2 right-2 z-10 flex gap-1 rounded-lg bg-white/80 dark:bg-surface-800/80 p-1 backdrop-blur">
+        <button
+          type="button"
+          onClick={() => setView('front')}
+          className={`px-2 py-1 text-xs font-semibold rounded ${
+            view === 'front'
+              ? 'bg-primary-500 text-white'
+              : 'text-surface-600 dark:text-surface-300'
+          }`}
+        >
+          正面
+        </button>
+        <button
+          type="button"
+          onClick={() => setView('back')}
+          className={`px-2 py-1 text-xs font-semibold rounded ${
+            view === 'back'
+              ? 'bg-primary-500 text-white'
+              : 'text-surface-600 dark:text-surface-300'
+          }`}
+        >
+          背面
+        </button>
+      </div>
 
-        {/* Clickable body regions */}
-        {Object.entries(BODY_PATHS).map(([key, { d, label }]) => {
-          const region = key as BodyRegion;
-          return (
-            <g key={region}>
-              <path
-                d={d}
-                fill={getFillColor(region)}
-                stroke={selectedRegion === region ? (isScreeningMode ? '#dc2626' : '#2563eb') : '#64748b'}
-                strokeWidth={selectedRegion === region ? '1' : '0.5'}
-                className="cursor-pointer transition-all duration-200"
-                onMouseEnter={() => setHoveredRegion(region)}
-                onMouseLeave={() => setHoveredRegion(null)}
-                onClick={() => onRegionClick?.(region)}
-              />
-              {/* Show label on hover */}
-              {hoveredRegion === region && (
-                <text
-                  x={BODY_PATHS[region].center[0]}
-                  y={BODY_PATHS[region].center[1]}
-                  textAnchor="middle"
-                  dominantBaseline="middle"
-                  className="text-[4px] font-bold fill-surface-800 pointer-events-none"
-                >
-                  {label}
-                </text>
-              )}
-            </g>
-          );
-        })}
-      </svg>
+      <div className="mx-auto w-full max-w-sm pt-8">
+        {loadingSvg && (
+          <div className="h-[520px] rounded-xl bg-surface-100 dark:bg-surface-800 animate-pulse" />
+        )}
 
-      {/* Selected region info */}
+        {!loadingSvg && svgError && (
+          <div className="h-[520px] rounded-xl border border-dashed border-surface-300 dark:border-surface-600 text-xs text-surface-500 flex items-center justify-center">
+            {svgError}
+          </div>
+        )}
+
+        {!loadingSvg && !svgError && svgMarkup && (
+          <div className="relative">
+            <div
+              ref={containerRef}
+              className="relative select-none"
+              onClick={(e) => {
+                const hit = findHitFromEventTarget(e.target);
+                if (!hit) return;
+                setSelectedHit(hit);
+                onRegionClick?.(hit.region, {
+                  anatomyKey: hit.anatomyKey,
+                  anatomyLabel: hit.anatomyLabel,
+                  view,
+                });
+              }}
+              onMouseMove={(e) => {
+                const hit = findHitFromEventTarget(e.target);
+                setHoveredHit(hit);
+              }}
+              onMouseLeave={() => setHoveredHit(null)}
+              dangerouslySetInnerHTML={{ __html: svgMarkup }}
+            />
+            <button
+              type="button"
+              className={`absolute left-1/2 top-6 -translate-x-1/2 h-11 w-11 rounded-full border transition ${
+                selectedHit?.anatomyKey === 'head'
+                  ? 'border-primary-500 bg-primary-100/80 dark:bg-primary-900/40'
+                  : 'border-surface-300 bg-white/50 hover:bg-white/80 dark:border-surface-600 dark:bg-surface-700/50'
+              }`}
+              title="头部"
+              onClick={() => {
+                const headHit: HitInfo = { region: 'head', anatomyKey: 'head', anatomyLabel: '头部' };
+                setSelectedHit(headHit);
+                onRegionClick?.('head', {
+                  anatomyKey: 'head',
+                  anatomyLabel: '头部',
+                  view,
+                });
+              }}
+              onMouseEnter={() => setHoveredHit({ region: 'head', anatomyKey: 'head', anatomyLabel: '头部' })}
+              onMouseLeave={() => setHoveredHit(null)}
+            />
+          </div>
+        )}
+      </div>
+
       {selectedRegion && (
         <div className="mt-4 p-3 bg-surface-100 dark:bg-surface-800 rounded-xl text-center">
           <p className="text-sm font-bold text-surface-700 dark:text-surface-200">
-            已选择: {BODY_PATHS[selectedRegion].label}
+            已选择: {selectedLabel}
           </p>
+          {selectedRegionLabel && (
+            <p className="text-xs text-surface-500 mt-1">
+              归属部位: {selectedRegionLabel}
+            </p>
+          )}
           <p className="text-xs text-surface-500 mt-1">
             {isScreeningMode ? '点击查看相关筛查与缓解方案' : '点击查看相关训练动作'}
           </p>
@@ -229,6 +384,4 @@ export default function BodyMapCanvas({ mode = 'screening', selectedRegion, onRe
 }
 
 // Export body region labels for use elsewhere
-export const BODY_REGION_LABELS = Object.fromEntries(
-  Object.entries(BODY_PATHS).map(([k, v]) => [k, v.label])
-) as Record<BodyRegion, string>;
+export const BODY_REGION_LABELS = BODY_REGION_LABELS_MAP;
