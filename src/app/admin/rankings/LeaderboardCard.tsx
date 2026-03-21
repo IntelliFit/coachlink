@@ -6,6 +6,7 @@ import { useToastContext } from '@/context/ToastContext';
 import { rankingService } from '@/app/service/rankingService';
 import EditLeaderboardForm from './EditLeaderboardForm';
 import { ListLeaderboardItem } from '@/app/api/ranking/list-leaderboard/entity';
+import { formatBeijingDate } from '@/lib/beijingTime';
 
 interface LeaderboardCardProps {
     ranking: ListLeaderboardItem;
@@ -20,7 +21,7 @@ const LeaderboardCard: React.FC<LeaderboardCardProps> = ({ ranking, onRefresh })
 
     const formatDate = (dateString: string | null) => {
         if (!dateString) return '未设置';
-        return new Date(dateString).toLocaleDateString('zh-CN');
+        return formatBeijingDate(dateString, 'zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' });
     };
 
     const renderStatus = (row: ListLeaderboardItem) => {

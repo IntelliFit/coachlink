@@ -14,6 +14,7 @@ import { useToastContext } from '@/context/ToastContext';
 import CoachApplicationDialog from './CoachApplicationDialog';
 import ReviewNotesDialog from './ReviewNotesDialog';
 import type { CoachApplicationRow } from '@/types';
+import { formatBeijingDate } from '@/lib/beijingTime';
 
 const STATUS_OPTIONS = [
     { label: '待审核', value: 'pending', severity: 'warning' },
@@ -232,7 +233,7 @@ export default function AdminCoachApplicationsPage() {
                         />
                     }
                 ></Column>
-                <Column header="申请时间" body={(d) => loading ? <Skeleton /> : new Date(d.applied_at).toLocaleDateString()} style={{ width: '10rem' }}></Column>
+                <Column header="申请时间" body={(d) => loading ? <Skeleton /> : formatBeijingDate(d.applied_at, 'zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' })} style={{ width: '10rem' }}></Column>
                 <Column header="操作" body={actionTemplate} align="right" style={{ width: '12rem' }}></Column>
             </DataTable>
 

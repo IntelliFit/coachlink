@@ -3,6 +3,7 @@ import { Button } from 'primereact/button';
 import { Avatar } from 'primereact/avatar';
 import { Card } from 'primereact/card';
 import { Check, X, Clock } from 'lucide-react';
+import { diffBeijingCalendarDays, formatBeijingDate } from '@/lib/beijingTime';
 
 const AERO_CARD = "rounded-3xl border border-surface-100 bg-surface-0 shadow-[0_1px_0_rgba(15,23,42,0.02)] hover:shadow-[0_18px_50px_rgba(15,23,42,0.08)] transition-[box-shadow,transform]";
 
@@ -34,13 +35,13 @@ export const FriendRequestCard: React.FC<FriendRequestCardProps> = ({
         const diffMs = now.getTime() - date.getTime();
         const diffMins = Math.floor(diffMs / 60000);
         const diffHours = Math.floor(diffMs / 3600000);
-        const diffDays = Math.floor(diffMs / 86400000);
+        const diffDays = diffBeijingCalendarDays(now, date);
 
         if (diffMins < 1) return '刚刚';
         if (diffMins < 60) return `${diffMins} 分钟前`;
         if (diffHours < 24) return `${diffHours} 小时前`;
         if (diffDays < 7) return `${diffDays} 天前`;
-        return date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' });
+        return formatBeijingDate(date, 'zh-CN', { month: 'short', day: 'numeric' });
     };
 
     return (

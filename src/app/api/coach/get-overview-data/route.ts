@@ -38,7 +38,7 @@ export async function POST(req: Request) {
     // 2. 并行执行聚合查询
     const [
         activeStudentCountResult,
-        monthlyIncomeResult,
+        subscriptionRevenueResult,
         pendingReviewResult,
         ratingResult,
         contentCountResult,
@@ -54,15 +54,11 @@ export async function POST(req: Request) {
             .eq("coach_id", coachId)
             .eq("status", "active"),
 
-        // 本月收入：按当月已入账的钱包流水汇总（仅 income）。
-        // 口径说明：只统计当月真实发生的收入，不累计历史月份。
-        serviceRoleSupabase
-            .from("wallet_transactions")
-            .select("amount")
-            .eq("wallet_id", coachId)
-            .eq("type", "income")
-            .gte("created_at", monthStart.toISOString())
-            .lt("created_at", nextMonthStart.toISOString())
+        // 订阅收入：沿用历史口径（active 订阅月费），但按月份过滤到“本月”
+        supabase
+            .from("coach_subscriptions")
+            .select("monthly_price,created_at,payment_confirmed_at,payment_confirmed_by,status")
+            .eq("coach_id", coachId)
             .limit(5000),
 
         // 假设 training_videos 表有 coach_id 或可以通过关联查询
@@ -112,13 +108,80 @@ export async function POST(req: Request) {
     const totalStudentCount = activeStudentCountResult.count || 0;
     const pendingReviewCount = pendingReviewResult.count || 0;
 
-    // amount 在 DB 中为分；求和后转为元返回给前端展示
-    const monthlyRevenueFen = (monthlyIncomeResult.data || []).reduce(
-        (sum, row: any) => sum + (Number(row?.amount) || 0),
+    // monthly_price 在 DB 中为分；按“确认支付时间(优先) / 创建时间(兜底)”过滤到本月
+    const subscriptionRevenueFen = (subscriptionRevenueResult.data || []).reduce(
+        (sum, row: any) => {
+            const isPaidLike = Boolean(
+                row?.payment_confirmed_at ||
+                row?.payment_confirmed_by ||
+                row?.status === "active",
+            );
+            if (!isPaidLike) return sum;
+            const revenueAtRaw = row?.payment_confirmed_at || row?.created_at;
+            if (!revenueAtRaw) return sum;
+            const revenueAtMs = new Date(revenueAtRaw).getTime();
+            if (Number.isNaN(revenueAtMs)) return sum;
+            if (
+                revenueAtMs < monthStart.getTime() ||
+                revenueAtMs >= nextMonthStart.getTime()
+            ) {
+                return sum;
+            }
+            return sum + (Number(row?.monthly_price) || 0);
+        },
         0,
     );
 
-    const monthlyRevenue = fenToYuan(monthlyRevenueFen);
+    // 单篇文章购买收入（按当月已支付订单汇总到“本月收入”）
+    let contentPurchaseRevenueFen = 0;
+    try {
+        // 1) 取该教练的内容 id
+        const { data: contents } = await serviceRoleSupabase
+            .from("coach_contents")
+            .select("id")
+            .eq("coach_id", coachId)
+            .limit(5000);
+
+        const contentIds = (contents || []).map((c: any) => c.id).filter(Boolean);
+        if (contentIds.length > 0) {
+            // 2) 取当月已支付的购买记录（含 order_id）
+            const { data: purchases } = await serviceRoleSupabase
+                .from("content_purchases" as any)
+                .select("order_id,paid_at,status")
+                .in("content_id", contentIds)
+                .eq("status", "paid")
+                .gte("paid_at", monthStart.toISOString())
+                .lt("paid_at", nextMonthStart.toISOString())
+                .limit(5000);
+
+            const orderIds = Array.from(
+                new Set(
+                    (purchases || [])
+                        .map((p: any) => p.order_id)
+                        .filter((id: any) => typeof id === "string" && id.length > 0),
+                ),
+            );
+
+            if (orderIds.length > 0) {
+                const { data: orders } = await serviceRoleSupabase
+                    .from("alipay_orders")
+                    .select("id,total_amount,status,order_type")
+                    .in("id", orderIds)
+                    .eq("status", "paid")
+                    .eq("order_type", "content_purchase");
+
+                contentPurchaseRevenueFen = (orders || []).reduce(
+                    (sum: number, o: any) => sum + (Number(o?.total_amount) || 0),
+                    0,
+                );
+            }
+        }
+    } catch (e) {
+        console.error("[coach/overview] content purchase revenue calc failed:", e);
+    }
+
+    const subscriptionRevenue = fenToYuan(subscriptionRevenueFen);
+    const contentPurchaseRevenue = fenToYuan(contentPurchaseRevenueFen);
     const contentCount = contentCountResult.count || 0;
     const actionCount = actionCountResult.count || 0;
     const planTemplateCount = planTemplateCountResult.count || 0;
@@ -139,7 +202,7 @@ export async function POST(req: Request) {
             totalStudentCount,
             pendingReviewCount,
             averageRating,
-            monthlyRevenue,
+            monthlyRevenue: subscriptionRevenue + contentPurchaseRevenue,
             contentCount,
             actionCount,
             planTemplateCount,

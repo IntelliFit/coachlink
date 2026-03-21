@@ -3,6 +3,8 @@ import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 import supabase from "@/lib/supabaseClient";
 import { ApiData } from "@/types/api";
 import { addBeijingDays, getBeijingDayStart } from "@/lib/beijingTime";
+import { filterTrainingDaysByAccessWindow } from "@/lib/subscriptionAccess";
+import { validateExecutionSubscriptionAccess } from "../_helpers/subscriptionAccess";
 
 // 重要！必须以 import type 引入接口类型
 import type {
@@ -59,15 +61,44 @@ export async function POST(req: Request) {
             }, { status: 404 });
         }
 
+        const accessDecision = await validateExecutionSubscriptionAccess({
+            instanceId,
+            studentId: userId,
+        });
+        if (!accessDecision.allowed) {
+            return NextResponse.json({
+                success: false,
+                message: accessDecision.message || "无权访问此计划",
+                data: null,
+            }, { status: accessDecision.status });
+        }
+
         // 2. 获取所有已完成的执行记录（包含完成日期）
-        const { data: executions } = await supabase
+        let executionsQuery = supabase
             .from("plan_instance_executions")
             .select("id, day_index, status, completed_at")
             .eq("instance_id", instanceId)
             .eq("status", "completed");
+        if (accessDecision.maxAccessibleDayIndex !== null) {
+            executionsQuery = executionsQuery.lte(
+                "day_index",
+                accessDecision.maxAccessibleDayIndex,
+            );
+        }
+        const { data: executions } = await executionsQuery;
 
         // 5. 获取起始执行天数（默认为1）
         const startExecutionDay = (instance as any).start_execution_day || 1;
+        if (
+            accessDecision.maxAccessibleDayIndex !== null &&
+            Number(startExecutionDay) > accessDecision.maxAccessibleDayIndex
+        ) {
+            return NextResponse.json({
+                success: false,
+                message: "当前训练内容不在订阅范围内",
+                data: null,
+            }, { status: 403 });
+        }
 
         // 3. 构建完成日期历史 { dayIndex: ISO日期字符串 }
         const completionDates: Record<number, string> = {};
@@ -92,7 +123,10 @@ export async function POST(req: Request) {
 
         // 6. 解析训练日
         const getDayIndex = (d: any) => Number(d?.dayIndex ?? d?.day_index ?? 0);
-        const trainingDays = (instance.training_days as any[] || [])
+        const trainingDays = filterTrainingDaysByAccessWindow(
+            (instance.training_days as any[] || []),
+            accessDecision.maxAccessibleDayIndex,
+        )
             .sort((a, b) => getDayIndex(a) - getDayIndex(b));
 
         // 7. 找到第一个未完成的训练日（跳过休息日和 start_execution_day 之前的天）

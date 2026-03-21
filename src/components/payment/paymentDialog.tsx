@@ -70,6 +70,8 @@ interface PaymentDialogProps {
     amount?: number;
     /** Default payment method to select when dialog opens */
     defaultPaymentMethod?: 'qrcode' | 'alipay_api' | 'offline';
+    /** Whether offline payment should be available in this dialog */
+    allowOfflinePayment?: boolean;
     onSuccess?: (note?: string, offlinePaymentData?: OfflinePaymentData) => void;
     onCancel?: () => void;
 }
@@ -85,6 +87,7 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
     renewAdditionalWeeks,
     amount,
     defaultPaymentMethod,
+    allowOfflinePayment = true,
     onSuccess,
     onCancel
 }) => {
@@ -110,6 +113,42 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
     const [qrcodeReceiptUrl, setQrcodeReceiptUrl] = useState<string>('');
     const [uploadingQrcodeReceipt, setUploadingQrcodeReceipt] = useState(false);
     const qrcodeFileUploadRef = useRef<FileUpload>(null);
+    const offlineAllowed = allowOfflinePayment !== false;
+
+    const getAvailablePaymentMethods = (info?: PaymentInfo | null): PaymentMethodType[] => {
+        const methods: PaymentMethodType[] = [];
+        const mode = info?.effectivePaymentMode || 'qrcode';
+        const hasQr = Boolean(info?.qrCodes?.length);
+
+        if (hasQr) {
+            methods.push('qrcode');
+        }
+
+        if (mode === 'alipay_api' || mode === 'both') {
+            methods.push('alipay_api');
+        }
+
+        if (offlineAllowed) {
+            methods.push('offline');
+        }
+
+        if (methods.length > 0) {
+            return methods;
+        }
+
+        return offlineAllowed ? ['offline'] : ['qrcode'];
+    };
+
+    const normalizePaymentMethod = (
+        preferredMethod?: PaymentMethodType,
+        info?: PaymentInfo | null,
+    ): PaymentMethodType => {
+        const available = getAvailablePaymentMethods(info);
+        if (preferredMethod && available.includes(preferredMethod)) {
+            return preferredMethod;
+        }
+        return available[0];
+    };
 
     const loadCoach = async () => {
         const res = await coachService.getCoach({
@@ -122,31 +161,13 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
             setCoach(res.coach);
             setPaymentInfo(res.paymentInfo || null);
 
-            // 如果指定了默认支付方式，优先使用它
-            if (defaultPaymentMethod) {
-                setSelectedPaymentMethod(defaultPaymentMethod);
-                // 如果是扫码支付，需要设置二维码
-                if (defaultPaymentMethod === 'qrcode' && res.paymentInfo?.qrCodes?.length > 0) {
-                    setSelectedQrCode(res.paymentInfo.qrCodes[0]);
-                }
-            } else {
-                // 否则根据支付模式设置默认选项
-                const mode = res.paymentInfo?.effectivePaymentMode || 'qrcode';
-                if (mode === 'alipay_api') {
-                    setSelectedPaymentMethod('alipay_api');
-                } else if (mode === 'qrcode') {
-                    setSelectedPaymentMethod('qrcode');
-                    if (res.paymentInfo?.qrCodes?.length > 0) {
-                        setSelectedQrCode(res.paymentInfo.qrCodes[0]);
-                    }
-                } else if (mode === 'both') {
-                    if (res.paymentInfo?.qrCodes?.length > 0) {
-                        setSelectedPaymentMethod('qrcode');
-                        setSelectedQrCode(res.paymentInfo.qrCodes[0]);
-                    } else {
-                        setSelectedPaymentMethod('alipay_api');
-                    }
-                }
+            const normalizedMethod = normalizePaymentMethod(
+                defaultPaymentMethod,
+                res.paymentInfo || null,
+            );
+            setSelectedPaymentMethod(normalizedMethod);
+            if (normalizedMethod === 'qrcode' && res.paymentInfo?.qrCodes?.length > 0) {
+                setSelectedQrCode(res.paymentInfo.qrCodes[0]);
             }
         }
 
@@ -157,8 +178,8 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
         if (visible && coachId) {
             setLoading(true);
             setSelectedQrCode(null);
-            // 如果指定了默认支付方式，使用它；否则默认使用qrcode
-            setSelectedPaymentMethod(defaultPaymentMethod || 'qrcode');
+            // 初始先做一次默认方法兜底（最终会在 loadCoach 后按可用方式校正）
+            setSelectedPaymentMethod(normalizePaymentMethod(defaultPaymentMethod));
             loadCoach();
         } else if (!visible) {
             setCoach(null);
@@ -172,7 +193,17 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
             // 重置扫码支付凭证状态
             setQrcodeReceiptUrl('');
         }
-    }, [visible, coachId, defaultPaymentMethod]);
+    }, [visible, coachId, defaultPaymentMethod, allowOfflinePayment]);
+
+    useEffect(() => {
+        const normalizedMethod = normalizePaymentMethod(selectedPaymentMethod, paymentInfo);
+        if (normalizedMethod !== selectedPaymentMethod) {
+            setSelectedPaymentMethod(normalizedMethod);
+            if (normalizedMethod === 'qrcode' && paymentInfo?.qrCodes?.length) {
+                setSelectedQrCode((prev) => prev || paymentInfo.qrCodes[0]);
+            }
+        }
+    }, [selectedPaymentMethod, paymentInfo, allowOfflinePayment]);
 
     // 上传支付凭证
     const handleReceiptUpload = async (event: FileUploadHandlerEvent) => {
@@ -240,6 +271,10 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
 
     // 提交线下支付
     const handleOfflinePaymentSubmit = () => {
+        if (!offlineAllowed) {
+            showToast({ severity: 'warn', summary: '该教练不支持线下已付', detail: '请使用线上支付方式完成支付' });
+            return;
+        }
         if (!offlineExpiresAt) {
             showToast({ severity: 'warn', summary: '请填写到期日期', detail: '到期日期为必填项' });
             return;
@@ -435,7 +470,14 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
 
     // 渲染支付方式选择（总是显示，包含线下支付选项）
     const renderPaymentMethodSelection = () => {
-        const methods = [
+        const methods: Array<{
+            id: PaymentMethodType;
+            label: string;
+            icon: string | ((isActive: boolean) => React.ReactNode);
+            visible: boolean;
+            activeClass: string;
+            iconClass: string;
+        }> = [
             {
                 id: 'qrcode',
                 label: '扫码支付',
@@ -457,11 +499,18 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
                 id: 'offline',
                 label: '线下已付',
                 icon: 'pi pi-wallet',
-                visible: true,
+                visible: offlineAllowed,
                 activeClass: 'bg-surface-900 border-surface-900 text-surface',
                 iconClass: 'bg-surface-600'
             }
         ];
+        const visibleMethods = methods.filter((m) => m.visible);
+        const gridColsClass =
+            visibleMethods.length >= 3
+                ? 'grid-cols-3'
+                : visibleMethods.length === 2
+                    ? 'grid-cols-2'
+                    : 'grid-cols-1';
 
         return (
             <div className="w-full mb-6">
@@ -471,13 +520,13 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
                     </span>
                 </div>
 
-                <div className="grid grid-cols-3 gap-3">
-                    {methods.filter(m => m.visible).map((method) => {
+                <div className={`grid ${gridColsClass} gap-3`}>
+                    {visibleMethods.map((method) => {
                         const isActive = selectedPaymentMethod === method.id;
                         return (
                             <div
                                 key={method.id}
-                                onClick={() => setSelectedPaymentMethod(method.id as any)}
+                                onClick={() => setSelectedPaymentMethod(method.id)}
                                 className={`
                                 cursor-pointer relative overflow-hidden transition-all duration-300
                                 p-3 rounded-[16px] border flex flex-col items-center gap-2 active:scale-95

@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { serviceRoleSupabase as supabase } from "@/lib/supabaseClient";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 import { ApiData } from "@/types/api";
+import { filterTrainingDaysByAccessWindow } from "@/lib/subscriptionAccess";
+import { validateExecutionSubscriptionAccess } from "../_helpers/subscriptionAccess";
 
 // Minimal "skip" endpoint (spec v1):
 // - Mark a training day as abandoned (treated as "skipped" for progress pointer)
@@ -47,12 +49,34 @@ export async function POST(req: Request) {
         return NextResponse.json({ success: false, message: "权限不足" }, { status: 403 });
     }
 
+    const isStudentOwner = instance.student_id && instance.student_id === userId;
+    let maxAccessibleDayIndex: number | null = null;
+    if (isStudentOwner) {
+        const accessDecision = await validateExecutionSubscriptionAccess({
+            instanceId,
+            studentId: userId,
+            dayIndex,
+        });
+        if (!accessDecision.allowed) {
+            return NextResponse.json(
+                { success: false, message: accessDecision.message || "无权访问此计划" },
+                { status: accessDecision.status },
+            );
+        }
+        maxAccessibleDayIndex = accessDecision.maxAccessibleDayIndex;
+    }
+
     const startExecutionDay = Number((instance as any).start_execution_day || 1);
     if (dayIndex < startExecutionDay) {
         return NextResponse.json({ success: false, message: "Cannot skip offline-completed days" }, { status: 400 });
     }
 
-    const trainingDays = Array.isArray((instance as any).training_days) ? ((instance as any).training_days as any[]) : [];
+    const trainingDays = filterTrainingDaysByAccessWindow(
+        Array.isArray((instance as any).training_days)
+            ? ((instance as any).training_days as any[])
+            : [],
+        maxAccessibleDayIndex,
+    );
     const isTrainingDay = trainingDays.some((d) => Number(d?.dayIndex ?? d?.day_index) === dayIndex && d?.type === "training");
     if (!isTrainingDay) {
         return NextResponse.json({ success: false, message: "Only training days can be skipped" }, { status: 400 });

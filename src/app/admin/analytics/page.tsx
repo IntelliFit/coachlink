@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
+import { addBeijingDays, formatBeijingDate, toBeijingDateKey } from "@/lib/beijingTime";
 
 // --- Types ---
 
@@ -71,7 +72,7 @@ function DashboardView() {
                                     {t.active_users} 人
                                 </div>
                              </div>
-                             <div>{new Date(t.date).toLocaleDateString(undefined, { month: 'numeric', day: 'numeric' })}</div>
+                             <div>{formatBeijingDate(t.date, 'zh-CN', { month: 'numeric', day: 'numeric' })}</div>
                         </div>
                     )) : <div className="flex items-center h-full">暂无趋势数据</div>}
                 </div>
@@ -196,7 +197,7 @@ function ReleasesView() {
     const [showForm, setShowForm] = useState(false);
     
     // Form state
-    const [formData, setFormData] = useState({ name: "", release_date: new Date().toISOString().slice(0, 10), tracked_events: [] as string[] });
+    const [formData, setFormData] = useState({ name: "", release_date: toBeijingDateKey(new Date()), tracked_events: [] as string[] });
 
     const load = () => {
         fetch("/api/admin/analytics/feature-releases")
@@ -274,9 +275,8 @@ function TraceView() {
 
     useEffect(() => {
         const end = new Date();
-        const start = new Date();
-        start.setDate(end.getDate() - 6);
-        setRange({ start: start.toISOString().slice(0, 10), end: end.toISOString().slice(0, 10) });
+        const start = addBeijingDays(end, -6);
+        setRange({ start: toBeijingDateKey(start), end: toBeijingDateKey(end) });
     }, []);
 
     const fetchData = () => {

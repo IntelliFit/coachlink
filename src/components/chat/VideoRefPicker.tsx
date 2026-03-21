@@ -11,6 +11,7 @@ import type { VideoItem } from '@/app/api/chat/list-student-videos/entity';
 import type { VideoReferenceItem } from '@/app/api/chat/send-message/entity';
 import { Search, Trophy, Video, X, Loader2, Check, PlayCircle } from 'lucide-react';
 import { useSession } from 'next-auth/react';
+import { formatBeijingDate } from '@/lib/beijingTime';
 
 interface VideoRefPickerProps {
     visible: boolean;
@@ -111,8 +112,7 @@ export function VideoRefPicker({ visible, onHide, studentId, onSelect }: VideoRe
     };
 
     const formatDate = (dateStr: string) => {
-        const date = new Date(dateStr);
-        return date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' });
+        return formatBeijingDate(dateStr, 'zh-CN', { month: 'short', day: 'numeric' });
     };
 
     const renderHeader = () => (
