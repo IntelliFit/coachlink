@@ -104,10 +104,11 @@ export const PaymentConfirmationDialog: React.FC<PaymentConfirmationDialogProps>
 
             const updatedSubscriptions = await Promise.all(profilePromises);
             // re-attach kind
-            const kindMap = new Map<string, 'manual' | 'system'>([
-                ...manualSubscriptions.map(s => [s.id, 'manual' as const]),
-                ...systemSubscriptions.map(s => [s.id, 'system' as const]),
-            ]);
+            const kindEntries: Array<[string, 'manual' | 'system']> = [
+                ...manualSubscriptions.map((s): [string, 'manual'] => [s.id, 'manual']),
+                ...systemSubscriptions.map((s): [string, 'system'] => [s.id, 'system']),
+            ];
+            const kindMap = new Map<string, 'manual' | 'system'>(kindEntries);
             setSubscriptionsWithProfiles(updatedSubscriptions.map(s => ({ ...(s as any), __kind: kindMap.get((s as any).id) })));
 
         };
@@ -210,11 +211,22 @@ export const PaymentConfirmationDialog: React.FC<PaymentConfirmationDialogProps>
         // 如果是续费待确认：在原 end_date 基础上延长
         const weeks = Number(pendingRenew?.additional_weeks || 0);
         if (weeks > 0) {
+            updateData.subscribed_weeks = Number(subscription.subscribed_weeks || 0) + weeks;
             const base = subscription.end_date ? new Date(subscription.end_date) : new Date();
             const now = new Date();
             const effectiveBase = base.getTime() < now.getTime() ? now : base;
             effectiveBase.setDate(effectiveBase.getDate() + weeks * 7);
             updateData.end_date = effectiveBase.toISOString();
+        }
+
+        // 老订阅重开且没有新到期信息时，避免沿用过期 end_date 导致“确认后仍提示续费”
+        if (
+            weeks <= 0 &&
+            !offlinePayment?.expires_at &&
+            subscription.end_date &&
+            new Date(subscription.end_date).getTime() <= Date.now()
+        ) {
+            updateData.end_date = null;
         }
 
         // 清理 pending_renew，避免重复处理（保留 offline_payment 作为凭证记录）

@@ -12,6 +12,10 @@ import { getCurrent1RMRecords } from "@/app/api/student/get-current-1rm/route";
 import { isOneRMEligibleAction } from "@/lib/oneRmEligibility";
 import { syncCoachActionsToStudentLibrary } from "../sync-actions";
 import { addBeijingDays, getBeijingDayStart } from "@/lib/beijingTime";
+import {
+    evaluateSubscriptionPlanAccess,
+    filterTrainingDaysByAccessWindow,
+} from "@/lib/subscriptionAccess";
 
 export async function POST(req: Request) {
     const startTime = performance.now();
@@ -113,6 +117,8 @@ export async function POST(req: Request) {
     // 3. 检查用户权限（用户可能同时是教练和学员，需要检查两种身份）
     const permissionStart = performance.now();
     let hasPermission = false;
+    let hasCoachPermission = false;
+    let subscriptionForStudentAccess: any = null;
 
     // 1. 检查是否作为教练有权限（如果用户是教练且该计划属于他创建的）
     if (session.user.is_coach && instance.coach_id) {
@@ -126,6 +132,7 @@ export async function POST(req: Request) {
 
         if (coach && coach.user_id === userId) {
             hasPermission = true;
+            hasCoachPermission = true;
         }
     }
 
@@ -141,13 +148,14 @@ export async function POST(req: Request) {
             const studentCheckStart = performance.now();
             const { data: subscription } = await supabase
                 .from("coach_subscriptions")
-                .select("student_id")
+                .select("student_id, status, end_date, subscribed_weeks")
                 .eq("id", instance.coach_subscription_id)
                 .single();
             timings["3b_student_check"] = performance.now() - studentCheckStart;
 
             if (subscription && subscription.student_id === userId) {
                 hasPermission = true;
+                subscriptionForStudentAccess = subscription;
             }
         }
     }
@@ -158,6 +166,56 @@ export async function POST(req: Request) {
         return NextResponse.json({
             success: false,
             message: "权限不足",
+        }, { status: 403 });
+    }
+
+    let maxAccessibleDayIndex: number | null = null;
+    if (!hasCoachPermission && instance.coach_subscription_id) {
+        if (!subscriptionForStudentAccess) {
+            const { data: subForAccess } = await supabase
+                .from("coach_subscriptions")
+                .select("id, student_id, status, end_date, subscribed_weeks")
+                .eq("id", instance.coach_subscription_id)
+                .eq("student_id", userId)
+                .maybeSingle();
+            subscriptionForStudentAccess = subForAccess;
+        }
+        if (!subscriptionForStudentAccess) {
+            return NextResponse.json({
+                success: false,
+                message: "权限不足",
+            }, { status: 403 });
+        }
+
+        const decision = evaluateSubscriptionPlanAccess({
+            subscription: subscriptionForStudentAccess,
+        });
+        if (!decision.allowed) {
+            const message = decision.reason === "SUBSCRIPTION_EXPIRED"
+                ? "订阅已过期，请续费后继续训练"
+                : "当前训练内容不在订阅范围内";
+            return NextResponse.json({
+                success: false,
+                message,
+            }, { status: 403 });
+        }
+        maxAccessibleDayIndex = decision.maxAccessibleDayIndex;
+    }
+
+    if (Array.isArray((instance as any).training_days)) {
+        (instance as any).training_days = filterTrainingDaysByAccessWindow(
+            (instance as any).training_days as any[],
+            maxAccessibleDayIndex,
+        );
+    }
+    if (
+        maxAccessibleDayIndex !== null &&
+        Number((instance as any).start_execution_day || 1) >
+            maxAccessibleDayIndex
+    ) {
+        return NextResponse.json({
+            success: false,
+            message: "当前训练内容不在订阅范围内",
         }, { status: 403 });
     }
 
@@ -366,7 +424,7 @@ export async function POST(req: Request) {
     // NOTE: plan_instance_executions uses `instance_id` (not `plan_instance_id`).
     // Also some environments may not have relational tables for action_executions/execution_sets,
     // so we do a best-effort query with relations, then fallback to a simple select.
-    const { data: executions, error: executionsError } = await supabase
+    let executionsQuery = supabase
         .from("plan_instance_executions")
         .select(`
             *,
@@ -378,19 +436,28 @@ export async function POST(req: Request) {
                 )
             )
         `)
-        .eq("instance_id", instance.id)
+        .eq("instance_id", instance.id);
+    if (maxAccessibleDayIndex !== null) {
+        executionsQuery = executionsQuery.lte("day_index", maxAccessibleDayIndex);
+    }
+    const { data: executions, error: executionsError } = await executionsQuery
         .order("day_index", { ascending: true });
 
     let effectiveExecutions: any[] | null = executions as any[] | null;
     if (executionsError) {
         // Fallback: get minimal fields we need for nextDayIndex/completionDates.
-        const { data: fallbackExecs } = await supabase
+        let fallbackQuery = supabase
             .from("plan_instance_executions")
             .select(
                 "id, instance_id, student_id, day_index, status, started_at, completed_at, action_executions",
             )
-            .eq("instance_id", instance.id)
-            .order("day_index", { ascending: true });
+            .eq("instance_id", instance.id);
+        if (maxAccessibleDayIndex !== null) {
+            fallbackQuery = fallbackQuery.lte("day_index", maxAccessibleDayIndex);
+        }
+        const { data: fallbackExecs } = await fallbackQuery.order("day_index", {
+            ascending: true,
+        });
         effectiveExecutions = (fallbackExecs as any[]) || [];
     }
 

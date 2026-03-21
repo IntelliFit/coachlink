@@ -8,6 +8,7 @@ import { formatKgForGym } from "@/lib/weightQuantize";
 import { calcIntensityDisplay, normalizeIntensityConfig } from "@/lib/rmCaculator";
 import { normalizeToKg } from "@/types/intensity";
 import { getCurrent1RMRecords } from "@/app/api/student/get-current-1rm/route";
+import { validateExecutionSubscriptionAccess } from "../_helpers/subscriptionAccess";
 
 /**
  * POST /api/execution/start
@@ -38,6 +39,19 @@ export async function POST(request: NextRequest) {
                 message: "缺少必填参数",
                 data: null,
             }, { status: 400 });
+        }
+
+        const accessDecision = await validateExecutionSubscriptionAccess({
+            instanceId,
+            studentId: userId,
+            dayIndex,
+        });
+        if (!accessDecision.allowed) {
+            return NextResponse.json<ApiData<StartExecutionResponseDto>>({
+                success: false,
+                message: accessDecision.message || "无权访问此计划",
+                data: null,
+            }, { status: accessDecision.status });
         }
 
         // 3. 检查今天是否已有执行记录

@@ -4,6 +4,7 @@ import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 import { CoachSubscriptionGetDto, QueryCoachSubscription } from './entity';
 import { CoachesRow, CoachSubscriptionRow } from '@/types';
 import { computeCreditsScope, computeUsedCredits, estimateRemainingDays } from '@/lib/subscriptionCredits';
+import { getSubscriptionLifecycle } from '@/lib/subscriptionLifecycle';
 
 async function embeddingCaochesIntoSubscriptions(subscriptions: CoachSubscriptionRow[]) {
     const coachIds = Array.from(
@@ -111,7 +112,188 @@ export async function POST(req: Request) {
     // Also, expose plan assignment info so UI can distinguish:
     // - 制定中: active subscription but no plan assigned yet
     // - 未开始: plan assigned but student hasn't started training yet (start_date is null)
-    const subs = (subscriptions ?? []) as any[];
+    let subs = (subscriptions ?? []) as any[];
+
+    // 历史数据自愈：处理“已激活但 pending_renew 未兑现”的旧记录（只生效一次，随后清空 pending_renew）。
+    const nowForRenewFix = new Date();
+    const toApplyPendingRenew = subs
+        .filter((s) => s?.status === "active")
+        .map((s) => {
+            const paymentData =
+                s?.payment_data &&
+                typeof s.payment_data === "object" &&
+                !Array.isArray(s.payment_data)
+                    ? (s.payment_data as Record<string, any>)
+                    : null;
+            const pendingRenew =
+                paymentData?.pending_renew &&
+                typeof paymentData.pending_renew === "object" &&
+                !Array.isArray(paymentData.pending_renew)
+                    ? paymentData.pending_renew
+                    : null;
+            const weeks = Number(pendingRenew?.additional_weeks || 0);
+            if (!paymentData || !pendingRenew || weeks <= 0) return null;
+            return { sub: s, paymentData, weeks };
+        })
+        .filter(Boolean) as Array<{ sub: any; paymentData: Record<string, any>; weeks: number }>;
+
+    if (toApplyPendingRenew.length > 0) {
+        try {
+            const nextSubById = new Map<string, any>();
+            for (const item of toApplyPendingRenew) {
+                const currentWeeks = Number(item.sub.subscribed_weeks || 0);
+                const nextWeeks = currentWeeks + item.weeks;
+
+                const base = item.sub.end_date ? new Date(item.sub.end_date) : nowForRenewFix;
+                const effectiveBase = base.getTime() < nowForRenewFix.getTime() ? nowForRenewFix : base;
+                effectiveBase.setDate(effectiveBase.getDate() + item.weeks * 7);
+                const nextEndDate = effectiveBase.toISOString();
+
+                const nextPaymentData = {
+                    ...item.paymentData,
+                    pending_renew: null,
+                };
+
+                await supabase
+                    .from("coach_subscriptions")
+                    .update({
+                        subscribed_weeks: nextWeeks,
+                        end_date: nextEndDate,
+                        payment_data: nextPaymentData as any,
+                        updated_at: nowForRenewFix.toISOString(),
+                    })
+                    .eq("id", item.sub.id);
+
+                nextSubById.set(item.sub.id, {
+                    ...item.sub,
+                    subscribed_weeks: nextWeeks,
+                    end_date: nextEndDate,
+                    payment_data: nextPaymentData,
+                    updated_at: nowForRenewFix.toISOString(),
+                });
+            }
+
+            if (nextSubById.size > 0) {
+                subs = subs.map((s) => nextSubById.get(s.id) || s);
+            }
+        } catch (e) {
+            console.error("[coach-subscriptions] Failed to apply pending_renew fixes:", e);
+        }
+    }
+
+    // 历史数据自愈：线下续费可能未写入 pending_renew，导致 weeks 未累加。
+    // 若存在 offline_payment.expires_at 且尚未应用，则按到期日推导补齐周数（仅执行一次并打标）。
+    const DAY_MS = 24 * 60 * 60 * 1000;
+    const nowForOfflineRenewFix = new Date();
+    const toApplyOfflineRenew = subs
+        .filter((s) => s?.status === "active" && String(s?.payment_method || "").toLowerCase() === "offline")
+        .map((s) => {
+            const paymentData =
+                s?.payment_data &&
+                typeof s.payment_data === "object" &&
+                !Array.isArray(s.payment_data)
+                    ? (s.payment_data as Record<string, any>)
+                    : null;
+            if (!paymentData) return null;
+            if (paymentData.offline_renew_applied_at) return null;
+
+            const offlinePayment =
+                paymentData?.offline_payment &&
+                typeof paymentData.offline_payment === "object" &&
+                !Array.isArray(paymentData.offline_payment)
+                    ? paymentData.offline_payment
+                    : null;
+            if (!offlinePayment?.expires_at) return null;
+
+            const expiresAt = new Date(offlinePayment.expires_at);
+            if (Number.isNaN(expiresAt.getTime())) return null;
+            if (expiresAt.getTime() <= nowForOfflineRenewFix.getTime()) return null;
+
+            return { sub: s, paymentData, expiresAt };
+        })
+        .filter(Boolean) as Array<{ sub: any; paymentData: Record<string, any>; expiresAt: Date }>;
+
+    if (toApplyOfflineRenew.length > 0) {
+        try {
+            const nextSubById = new Map<string, any>();
+            for (const item of toApplyOfflineRenew) {
+                const currentWeeks = Number(item.sub.subscribed_weeks || 0);
+                const currentEndDate = item.sub.end_date ? new Date(item.sub.end_date) : null;
+                const baseDate =
+                    currentEndDate && !Number.isNaN(currentEndDate.getTime()) &&
+                        currentEndDate.getTime() > nowForOfflineRenewFix.getTime()
+                        ? currentEndDate
+                        : nowForOfflineRenewFix;
+
+                const diffMs = item.expiresAt.getTime() - baseDate.getTime();
+                const inferredWeeks = diffMs > 0 ? Math.ceil(diffMs / (7 * DAY_MS)) : 0;
+                const nextWeeks = currentWeeks + Math.max(0, inferredWeeks);
+                const nextPaymentData = {
+                    ...item.paymentData,
+                    offline_renew_applied_at: nowForOfflineRenewFix.toISOString(),
+                };
+
+                await supabase
+                    .from("coach_subscriptions")
+                    .update({
+                        subscribed_weeks: nextWeeks,
+                        end_date: item.expiresAt.toISOString(),
+                        payment_data: nextPaymentData as any,
+                        updated_at: nowForOfflineRenewFix.toISOString(),
+                    })
+                    .eq("id", item.sub.id);
+
+                nextSubById.set(item.sub.id, {
+                    ...item.sub,
+                    subscribed_weeks: nextWeeks,
+                    end_date: item.expiresAt.toISOString(),
+                    payment_data: nextPaymentData,
+                    updated_at: nowForOfflineRenewFix.toISOString(),
+                });
+            }
+
+            if (nextSubById.size > 0) {
+                subs = subs.map((s) => nextSubById.get(s.id) || s);
+            }
+        } catch (e) {
+            console.error("[coach-subscriptions] Failed to apply offline renew fixes:", e);
+        }
+    }
+
+    // 数据归一化：未开始训练的 active 订阅不应携带“已过期”的 end_date。
+    // 否则会出现“教练刚确认，学员端仍提示续费”的误判。
+    const nowForNormalization = new Date();
+    const normalizeEndDateIds = subs
+        .filter((s) => {
+            if (s?.status !== "active") return false;
+            if (s?.start_date) return false;
+            if (!s?.end_date) return false;
+            const end = new Date(s.end_date);
+            if (Number.isNaN(end.getTime())) return false;
+            return end.getTime() <= nowForNormalization.getTime();
+        })
+        .map((s) => s.id)
+        .filter(Boolean);
+
+    if (normalizeEndDateIds.length > 0) {
+        try {
+            await supabase
+                .from("coach_subscriptions")
+                .update({
+                    end_date: null,
+                    updated_at: nowForNormalization.toISOString(),
+                })
+                .in("id", normalizeEndDateIds);
+
+            subs = subs.map((s) =>
+                normalizeEndDateIds.includes(s.id)
+                    ? { ...s, end_date: null, updated_at: nowForNormalization.toISOString() }
+                    : s,
+            );
+        } catch (e) {
+            console.error("[coach-subscriptions] Failed to normalize stale end_date:", e);
+        }
+    }
 
     // Attach plan assignment info for ALL active subscriptions (even not started)
     try {
@@ -119,7 +301,7 @@ export async function POST(req: Request) {
         if (activeIds.length > 0) {
             const { data: instRows } = await supabase
                 .from('coach_plan_instances')
-                .select('id, coach_subscription_id, created_at')
+                .select('id, coach_subscription_id, student_id, coach_id, status, created_at')
                 .in('coach_subscription_id', activeIds)
                 .order('created_at', { ascending: false });
 
@@ -128,6 +310,67 @@ export async function POST(req: Request) {
                 const sid = r?.coach_subscription_id;
                 if (!sid || !r?.id) continue;
                 if (!latestInstanceIdBySub.has(sid)) latestInstanceIdBySub.set(sid, r.id);
+            }
+
+            // 自愈：续费/重开后，如果当前 active 订阅未绑定计划，
+            // 但同教练同学员存在未完成旧计划（active/paused），则自动迁移绑定到当前订阅，继续原进度。
+            const activeSubsWithoutPlan = subs.filter((s) =>
+                s?.status === 'active' &&
+                !!s?.id &&
+                !!s?.student_id &&
+                !!s?.coach_id &&
+                !latestInstanceIdBySub.has(s.id)
+            );
+
+            if (activeSubsWithoutPlan.length > 0) {
+                const studentIds = Array.from(
+                    new Set(activeSubsWithoutPlan.map((s) => s.student_id).filter(Boolean)),
+                );
+                const coachIds = Array.from(
+                    new Set(activeSubsWithoutPlan.map((s) => s.coach_id).filter(Boolean)),
+                );
+
+                const { data: fallbackInstances } = await supabase
+                    .from('coach_plan_instances')
+                    .select('id, coach_subscription_id, student_id, coach_id, status, created_at')
+                    .in('status', ['active', 'paused'])
+                    .in('student_id', studentIds)
+                    .in('coach_id', coachIds)
+                    .order('created_at', { ascending: false });
+
+                const usedInstanceIds = new Set<string>(
+                    Array.from(latestInstanceIdBySub.values()),
+                );
+
+                for (const sub of activeSubsWithoutPlan as any[]) {
+                    const matched = (fallbackInstances || []).find((inst: any) => {
+                        if (!inst?.id || usedInstanceIds.has(inst.id)) return false;
+                        if (inst?.student_id !== sub.student_id) return false;
+                        if (inst?.coach_id !== sub.coach_id) return false;
+                        if (inst?.coach_subscription_id === sub.id) return false;
+                        if (inst?.coach_subscription_id && activeIds.includes(inst.coach_subscription_id)) {
+                            return false;
+                        }
+                        return true;
+                    });
+
+                    if (!matched?.id) continue;
+
+                    try {
+                        await supabase
+                            .from('coach_plan_instances')
+                            .update({
+                                coach_subscription_id: sub.id,
+                                updated_at: new Date().toISOString(),
+                            })
+                            .eq('id', matched.id);
+
+                        latestInstanceIdBySub.set(sub.id, matched.id);
+                        usedInstanceIds.add(matched.id);
+                    } catch (e) {
+                        console.error('[coach-subscriptions] Failed to rebind legacy plan instance:', e);
+                    }
+                }
             }
 
             subs.forEach((s) => {
@@ -209,7 +452,7 @@ export async function POST(req: Request) {
 
                     const remainingCredits = Math.max(0, totalCredits - usedCredits);
                     if (remainingCredits === 0) {
-                        // Credits consumed: mark as ended by setting end_date to now; keep status unchanged (DB constraint).
+                        // Credits consumed: mark as ended by setting end_date to now (grace/cancel handled separately).
                         s.end_date = new Date().toISOString();
                         return;
                     }
@@ -229,6 +472,74 @@ export async function POST(req: Request) {
             }
         }
     }
+
+    // 14-day grace policy:
+    // - expired within grace: keep relation, lock plan, prompt renewal
+    // - expired over grace: auto-cancel relation
+    const now = new Date();
+    const toAutoCancel = subs.filter((s) => {
+        if (s?.status !== 'active') return false;
+        const lifecycle = getSubscriptionLifecycle({
+            subscription: s,
+            now,
+        });
+        return lifecycle.lifecycleStatus === 'expired_cancelled';
+    });
+
+    if (toAutoCancel.length > 0) {
+        const toAutoCancelIds = toAutoCancel.map((s) => s.id).filter(Boolean);
+        const toAutoCancelStudentIds = toAutoCancel
+            .map((s) => s.student_id)
+            .filter(Boolean);
+        const nowIso = now.toISOString();
+
+        try {
+            await supabase
+                .from('coach_subscriptions')
+                .update({
+                    status: 'cancelled',
+                    updated_at: nowIso,
+                })
+                .in('id', toAutoCancelIds);
+
+            if (toAutoCancelStudentIds.length > 0) {
+                await supabase
+                    .from('users')
+                    .update({
+                        invitation_coach_id: null,
+                    })
+                    .in('id', toAutoCancelStudentIds);
+            }
+        } catch (e) {
+            console.error('[coach-subscriptions] Failed to auto-cancel over-grace subscriptions:', e);
+        }
+
+        subs = subs.map((s) => (
+            toAutoCancelIds.includes(s.id)
+                ? { ...s, status: 'cancelled', updated_at: nowIso }
+                : s
+        ));
+    }
+
+    // Keep API behavior: onlyActive returns active relations only.
+    if (onlyActive) {
+        subs = subs.filter((s) => s?.status === 'active');
+    }
+
+    // Attach lifecycle fields for UI copy/behavior.
+    subs = subs.map((s) => {
+        const lifecycle = getSubscriptionLifecycle({
+            subscription: s,
+            now,
+        });
+        return {
+            ...s,
+            lifecycle_status: lifecycle.lifecycleStatus,
+            is_in_grace_period: lifecycle.isInGracePeriod,
+            grace_days_left: lifecycle.graceDaysLeft,
+            grace_deadline_at: lifecycle.graceDeadlineAt,
+        };
+    });
 
     return NextResponse.json({
         success: true,

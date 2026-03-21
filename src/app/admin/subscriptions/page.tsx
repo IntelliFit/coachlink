@@ -16,6 +16,7 @@ import { StudentFilterComponent } from '../payments/StudentFilterComponent';
 import { CoachFilterComponent } from '../payments/CoachFilterComponent';
 import { StudentInfoComponent } from '../payments/StudentInfoComponent';
 import { CoachInfoComponent } from '../payments/CoachInfoComponent';
+import { formatBeijingDate } from '@/lib/beijingTime';
 
 interface SubscriptionWithProfiles extends QueryCoachSubscription {
 }
@@ -140,7 +141,14 @@ export default function AdminSubscriptionsPage() {
     );
 
     const dateTemplate = (rowData: SubscriptionWithProfiles) => {
-        return new Date(rowData.created_at).toLocaleString('zh-CN');
+        return formatBeijingDate(rowData.created_at, 'zh-CN', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+        });
     };
 
     const onPage = (event: any) => {

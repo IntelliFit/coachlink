@@ -140,7 +140,8 @@ export function generateRMTable(bodyweightForTotal: number, external1rm: number)
     const total1rm = bodyweightForTotal + external1rm;
     const repsList = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 14, 16];
     return repsList.map((r) => {
-        const factorEpley = (1 + 0.0333) / (1 + 0.0333 * r);
+        // Keep inversion consistent with estimate/invert helpers so input set can map back correctly.
+        const factorEpley = 1 / (1 + 0.0333 * r);
         const factorBrzycki = (37 - r) / 36.0;
         const factorLombardi = 1 / Math.pow(r, 0.1);
         const avgFactor = (factorEpley + factorBrzycki + factorLombardi) / 3.0;

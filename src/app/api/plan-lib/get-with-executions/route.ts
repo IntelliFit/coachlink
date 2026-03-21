@@ -6,6 +6,10 @@ import type {
     GetWithExecutionsDto,
     GetWithExecutionsResponseDto,
 } from "./entity";
+import {
+    evaluateSubscriptionPlanAccess,
+    filterTrainingDaysByAccessWindow,
+} from "@/lib/subscriptionAccess";
 
 /**
  * GET /api/plan-lib/get-with-executions
@@ -30,6 +34,9 @@ export async function POST(req: NextRequest) {
         } = await req.json() as GetWithExecutionsDto;
 
         let instance: any = null;
+        let enforceStudentSubscriptionAccess = false;
+        let subscriptionForStudentAccess: any = null;
+        let maxAccessibleDayIndex: number | null = null;
 
         // 方式1: 直接通过 instanceId 获取（支持自建计划）
         if (instanceId) {
@@ -43,6 +50,9 @@ export async function POST(req: NextRequest) {
                 // 权限检查
                 const isOwner = directInstance.student_id === userId;
                 let isAuthorized = isOwner;
+                if (isOwner) {
+                    enforceStudentSubscriptionAccess = true;
+                }
 
                 if (!isAuthorized && isCoach) {
                     // 如果是教练，检查是否有权查看
@@ -67,6 +77,7 @@ export async function POST(req: NextRequest) {
 
                             if (sub) {
                                 isAuthorized = true;
+                                enforceStudentSubscriptionAccess = false;
                             }
                         }
                     }
@@ -85,13 +96,15 @@ export async function POST(req: NextRequest) {
             // 指定了 subscriptionId，先检查作为学员的订阅
             const { data: studentSub } = await supabase
                 .from("coach_subscriptions")
-                .select("id, coach_id, status")
+                .select("id, coach_id, status, end_date, subscribed_weeks")
                 .eq("id", subscriptionId)
                 .eq("student_id", userId)
                 .single();
 
             if (studentSub) {
                 activeSub = studentSub;
+                enforceStudentSubscriptionAccess = true;
+                subscriptionForStudentAccess = studentSub;
             } else if (isCoach) {
                 // 如果不是学员的订阅，且用户是教练，检查是否是教练的订阅
                 const { data: coach } = await supabase
@@ -108,6 +121,7 @@ export async function POST(req: NextRequest) {
                         .eq("coach_id", coach.id)
                         .single();
                     activeSub = coachSub;
+                    enforceStudentSubscriptionAccess = false;
                 }
             }
 
@@ -131,7 +145,7 @@ export async function POST(req: NextRequest) {
         if (!instance && !subscriptionId && !instanceId) {
             const { data: subs } = await supabase
                 .from("coach_subscriptions")
-                .select("id, coach_id, status")
+                .select("id, coach_id, status, end_date, subscribed_weeks")
                 .eq("student_id", userId)
                 .eq("status", "active")
                 .order("created_at", { ascending: false })
@@ -139,6 +153,8 @@ export async function POST(req: NextRequest) {
 
             const activeSub = subs?.[0];
             if (activeSub) {
+                enforceStudentSubscriptionAccess = true;
+                subscriptionForStudentAccess = activeSub;
                 const { data: defaultInstance } = await supabase
                     .from("coach_plan_instances")
                     .select("*")
@@ -158,12 +174,59 @@ export async function POST(req: NextRequest) {
             );
         }
 
+        if (enforceStudentSubscriptionAccess && instance.coach_subscription_id) {
+            if (
+                !subscriptionForStudentAccess ||
+                subscriptionForStudentAccess.id !== instance.coach_subscription_id
+            ) {
+                const { data: subForAccess } = await supabase
+                    .from("coach_subscriptions")
+                    .select("id, student_id, status, end_date, subscribed_weeks")
+                    .eq("id", instance.coach_subscription_id)
+                    .eq("student_id", userId)
+                    .maybeSingle();
+                subscriptionForStudentAccess = subForAccess;
+            }
+            if (!subscriptionForStudentAccess) {
+                return NextResponse.json<ApiData<GetWithExecutionsResponseDto>>(
+                    { success: false, message: "权限不足", data: null },
+                    { status: 403 },
+                );
+            }
+
+            const decision = evaluateSubscriptionPlanAccess({
+                subscription: subscriptionForStudentAccess,
+            });
+            if (!decision.allowed) {
+                return NextResponse.json<ApiData<GetWithExecutionsResponseDto>>(
+                    {
+                        success: false,
+                        message: decision.reason === "SUBSCRIPTION_EXPIRED"
+                            ? "订阅已过期，请续费后继续训练"
+                            : "当前训练内容不在订阅范围内",
+                        data: null,
+                    },
+                    { status: 403 },
+                );
+            }
+
+            maxAccessibleDayIndex = decision.maxAccessibleDayIndex;
+        }
+
         // 3. Get all executions for this instance
-        const { data: executions } = await supabase
+        let executionsQuery = supabase
             .from("plan_instance_executions")
             .select("*")
-            .eq("instance_id", instance.id)
-            .order("started_at", { ascending: false });
+            .eq("instance_id", instance.id);
+        if (maxAccessibleDayIndex !== null) {
+            executionsQuery = executionsQuery.lte(
+                "day_index",
+                maxAccessibleDayIndex,
+            );
+        }
+        const { data: executions } = await executionsQuery.order("started_at", {
+            ascending: false,
+        });
 
         // Build executions map by dayIndex (most recent execution for each day)
         const executionsMap: Record<number, any> = {};
@@ -224,7 +287,11 @@ export async function POST(req: NextRequest) {
         // 收集来自两个来源的 action IDs:
         // 1. 当前计划的 training_days
         // 2. 执行记录中的 action_executions (用于显示旧执行记录的动作名)
-        const trainingDays = (instance.training_days as any[]) || [];
+        const trainingDays = filterTrainingDaysByAccessWindow(
+            (instance.training_days as any[]) || [],
+            maxAccessibleDayIndex,
+        );
+        instance.training_days = trainingDays;
         const actionIds = new Set<string>();
 
         // 从 training_days 收集

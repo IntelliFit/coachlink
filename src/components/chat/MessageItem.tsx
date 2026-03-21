@@ -8,6 +8,7 @@ import MarkdownIt from 'markdown-it';
 import { useRouter } from 'next/navigation';
 import { useToastContext } from '@/context/ToastContext';
 import { coachService } from '@/app/service/coachService';
+import { formatBeijingDate } from '@/lib/beijingTime';
 let DOMPurify: any;
 if (typeof window !== 'undefined') {
     DOMPurify = require('dompurify').default || require('dompurify');
@@ -25,8 +26,7 @@ export function MessageItem({ message }: MessageItemProps) {
     const md = useMemo(() => new MarkdownIt({ html: true, linkify: true, typographer: true }), []);
 
     const formatTime = (dateStr: string) => {
-        const date = new Date(dateStr);
-        return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+        return formatBeijingDate(dateStr, 'zh-CN', { hour: '2-digit', minute: '2-digit' });
     };
 
     // 检测是否为广播消息

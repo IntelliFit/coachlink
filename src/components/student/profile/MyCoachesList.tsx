@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { subscriptionService } from '@/app/service/subscriptionService';
 import { QueryCoachSubscription } from '@/app/api/subscription/coach-subscriptions/entity';
+import { formatBeijingDate } from '@/lib/beijingTime';
 
 interface MyCoachesListProps {
 }
@@ -185,7 +186,7 @@ export const MyCoachesList: React.FC<MyCoachesListProps> = ({}) => {
                                         if (endDate < now) {
                                             return '已完成';
                                         }
-                                        const dateStr = endDate.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' });
+                                        const dateStr = formatBeijingDate(endDate, 'zh-CN', { month: 'short', day: 'numeric' });
                                         return `预计 ${dateStr} 完成`;
                                     }
                                     return '进行中';

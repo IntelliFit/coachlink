@@ -7,6 +7,7 @@ import type {
     CheckSubscriptionResponseDto,
 } from "./entity";
 import { computeCreditsScope, computeUsedCredits, estimateRemainingDays } from "@/lib/subscriptionCredits";
+import { getSubscriptionLifecycle } from "@/lib/subscriptionLifecycle";
 
 export async function POST(req: Request) {
     const session = await getServerSession();
@@ -280,9 +281,58 @@ export async function PUT(req: Request) {
                 }
             }
 
+            // 9b. 超过宽限期自动取消订阅关系
+            let cancelledCount = 0;
+            try {
+                const { data: activeExpiredRows } = await supabase
+                    .from("coach_subscriptions")
+                    .select("id, student_id, status, end_date")
+                    .eq("status", "active")
+                    .not("end_date", "is", null);
+
+                const toCancel = (activeExpiredRows || []).filter((row: any) => {
+                    const lifecycle = getSubscriptionLifecycle({
+                        subscription: row,
+                        now: new Date(nowIso),
+                    });
+                    return lifecycle.lifecycleStatus === "expired_cancelled";
+                });
+
+                if (toCancel.length > 0) {
+                    const cancelIds = toCancel.map((r: any) => r.id).filter(Boolean);
+                    const cancelStudentIds = toCancel
+                        .map((r: any) => r.student_id)
+                        .filter(Boolean);
+
+                    const { error: cancelError } = await supabase
+                        .from("coach_subscriptions")
+                        .update({
+                            status: "cancelled",
+                            updated_at: nowIso,
+                        })
+                        .in("id", cancelIds);
+
+                    if (!cancelError) {
+                        cancelledCount = cancelIds.length;
+                    }
+
+                    if (cancelStudentIds.length > 0) {
+                        await supabase
+                            .from("users")
+                            .update({
+                                invitation_coach_id: null,
+                            })
+                            .in("id", cancelStudentIds);
+                    }
+                }
+            } catch (e) {
+                console.error("自动取消超宽限订阅失败:", e);
+            }
+
             return NextResponse.json({
                 success: true,
-                message: `成功处理了 ${toExpire.length} 个订阅（结束 ${toExpire.length}，刷新 ${toRefresh.length} 个预计完成日）`,
+                message:
+                    `成功处理了 ${toExpire.length} 个订阅（进入宽限 ${toExpire.length}，刷新 ${toRefresh.length} 个预计完成日，自动取消 ${cancelledCount}）`,
                 data: {
                     expiredCount: toExpire.length,
                     refreshedCount: toRefresh.length,

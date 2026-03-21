@@ -479,7 +479,7 @@ export default function NavigationStudent() {
                                         Student
                                     </span>
                                     <span className="text-[10px] text-surface-400 font-medium">
-                                        ID: {session?.user?.id?.slice(-6).toUpperCase()}
+                                        ID: {session?.user?.id ? session.user.id.slice(-6).toUpperCase() : '--'}
                                     </span>
                                 </div>
                             </div>

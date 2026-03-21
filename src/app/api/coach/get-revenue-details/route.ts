@@ -62,26 +62,45 @@ export async function POST(req: Request) {
     const nextMonthStart = new Date(year, month + 1, 1);
 
     const items: RevenueItem[] = [];
+    let subscriptionRevenueFen = 0;
+    let contentPurchaseRevenueFen = 0;
 
-    // 1. 查询订阅收入（active 订阅）
-    // 注意：订阅是按月计费的，这里简单起见列出所有 active 订阅作为"本月"的预期收入
+    // 1. 查询订阅收入（沿用历史来源：coach_subscriptions.monthly_price）
     const { data: subscriptions } = await supabase
         .from("coach_subscriptions")
         .select(`
             id,
             monthly_price,
             created_at,
+            payment_confirmed_at,
+            payment_confirmed_by,
+            status,
             student_id
         `)
         .eq("coach_id", coachId)
-        .eq("status", "active");
+        .limit(5000);
+
+    const filteredSubscriptions = (subscriptions || []).filter((sub: any) => {
+        const isPaidLike = Boolean(
+            sub?.payment_confirmed_at ||
+            sub?.payment_confirmed_by ||
+            sub?.status === "active",
+        );
+        if (!isPaidLike) return false;
+        const revenueAtRaw = sub?.payment_confirmed_at || sub?.created_at;
+        if (!revenueAtRaw) return false;
+        const revenueAtMs = new Date(revenueAtRaw).getTime();
+        if (Number.isNaN(revenueAtMs)) return false;
+        return revenueAtMs >= monthStart.getTime() &&
+            revenueAtMs < nextMonthStart.getTime();
+    });
 
     // 2. 查询内容购买收入
-    // 先获取 content ids
     const { data: contents } = await serviceRoleSupabase
         .from("coach_contents")
         .select("id, title")
-        .eq("coach_id", coachId);
+        .eq("coach_id", coachId)
+        .limit(5000);
 
     const contentMap = new Map<string, string>();
     const contentIds: string[] = [];
@@ -110,51 +129,47 @@ export async function POST(req: Request) {
         purchases = pData || [];
     }
 
-    // 3. 收集所有涉及的用户 ID，批量查询 user_profiles 获取名字
+    // 3. 读取相关学员昵称
     const userIds = new Set<string>();
-    if (subscriptions) {
-        subscriptions.forEach(sub => sub.student_id && userIds.add(sub.student_id));
-    }
-    purchases.forEach(p => p.user_id && userIds.add(p.user_id));
+    filteredSubscriptions.forEach((sub: any) => sub.student_id && userIds.add(sub.student_id));
+    purchases.forEach((p: any) => p.user_id && userIds.add(p.user_id));
 
     const userProfileMap = new Map<string, string>();
     if (userIds.size > 0) {
         const { data: profiles } = await supabase
             .from("user_profiles")
-            .select("user_id, nickname")
+            .select("user_id, nickname, full_name")
             .in("user_id", Array.from(userIds));
 
         if (profiles) {
             profiles.forEach((p: any) => {
-                if (p.user_id && p.nickname) {
-                    userProfileMap.set(p.user_id, p.nickname);
+                const displayName = (p?.nickname || p?.full_name || "").trim();
+                if (p.user_id && displayName) {
+                    userProfileMap.set(p.user_id, displayName);
                 }
             });
         }
     }
 
-    // 4. 处理订阅收入数据
-    let subscriptionRevenueFen = 0;
-    if (subscriptions) {
-        for (const sub of subscriptions) {
-            const amountFen = Number(sub.monthly_price) || 0;
-            subscriptionRevenueFen += amountFen;
+    // 4. 组装订阅收入明细（按月过滤后）
+    for (const sub of filteredSubscriptions) {
+        const amountFen = Number(sub.monthly_price) || 0;
+        subscriptionRevenueFen += amountFen;
 
-            const studentName = userProfileMap.get(sub.student_id) || "未知学员";
+        const studentName = userProfileMap.get(sub.student_id) || "未知学员";
+        const revenueAt = sub.payment_confirmed_at || sub.created_at || monthStart.toISOString();
 
-            items.push({
-                id: sub.id,
-                type: "subscription",
-                amount: fenToYuan(amountFen),
-                description: `订阅月费 - ${studentName}`,
-                createdAt: sub.created_at,
-                studentName,
-            });
-        }
+        items.push({
+            id: sub.id,
+            type: "subscription",
+            amount: fenToYuan(amountFen),
+            description: `订阅月费 - ${studentName}`,
+            createdAt: revenueAt,
+            studentName,
+        });
     }
 
-    // 5. 处理内容购买数据
-    let contentPurchaseRevenueFen = 0;
+    // 5. 组装文章购买收入明细（保持原有口径）
     if (purchases.length > 0) {
         const orderIds = purchases
             .map((p: any) => p.order_id)
@@ -195,7 +210,7 @@ export async function POST(req: Request) {
         }
     }
 
-    // 6. 排序与汇总
+    // 统一按时间倒序
     items.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
     const subscriptionRevenue = fenToYuan(subscriptionRevenueFen);
