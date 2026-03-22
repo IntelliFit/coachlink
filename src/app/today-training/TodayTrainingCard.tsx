@@ -20,8 +20,6 @@ interface TodayTrainingCardProps {
     instanceId: string;
     dayIndex: number;
     executionStatus?: ExecutionStatus;
-    completedSets?: number;
-    totalSets?: number;
     execution?: any;
     heading?: string;
     subheading?: string;
@@ -37,8 +35,6 @@ const TodayTrainingCard: React.FC<TodayTrainingCardProps> = ({
     instanceId,
     dayIndex,
     executionStatus = 'none',
-    completedSets = 0,
-    totalSets = 0,
     execution,
     heading = '今日安排',
     subheading,
@@ -50,9 +46,6 @@ const TodayTrainingCard: React.FC<TodayTrainingCardProps> = ({
     const router = useRouter();
     const [showAllTasks, setShowAllTasks] = useState(false);
     const [infoDialog, setInfoDialog] = useState<{ title: string; detail: string } | null>(null);
-
-    const isCompleted = executionStatus === 'completed';
-    const isInProgress = executionStatus === 'in_progress';
     const moduleModel = useMemo(() => buildDayModuleModel({
         day,
         actions,
@@ -66,11 +59,16 @@ const TodayTrainingCard: React.FC<TodayTrainingCardProps> = ({
         lightweightGroups,
         moduleCount,
         completedModuleCount,
+        remainingModuleCount,
+        dayCompleted,
         strengthCompleted,
+        trainingCompleted,
+        trainingInProgress,
         strengthCompletedSetCount,
         strengthTotalSetCount,
         lightweightCompletedCount,
     } = moduleModel;
+    const hasStrengthTasks = strengthTasks.length > 0;
 
     const previewGroups = useMemo(() => {
         if (showAllTasks) return lightweightGroups;
@@ -106,7 +104,7 @@ const TodayTrainingCard: React.FC<TodayTrainingCardProps> = ({
         <div
             id="guide-today-card"
             className={`rounded-3xl border bg-surface p-4 sm:p-6 ${
-                isCompleted ? 'border-green-100/60 bg-green-50/20' : 'border-surface-100/60'
+                dayCompleted ? 'border-green-100/60 bg-green-50/20' : 'border-surface-100/60'
             }`}
         >
             <div className="space-y-5 sm:space-y-6">
@@ -126,35 +124,43 @@ const TodayTrainingCard: React.FC<TodayTrainingCardProps> = ({
                             {strengthTasks.length > 0 ? ` · ${strengthTasks.length} 个训练动作` : ''}
                         </p>
                     </div>
-                    <div className="grid grid-cols-3 gap-2 sm:gap-3 lg:min-w-[320px]">
+                    <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:min-w-[420px]">
+                        <div className="rounded-2xl border border-surface-100 bg-surface-50 px-3 py-3">
+                            <div className="text-[11px] font-bold uppercase tracking-wider text-surface-500">训练打卡</div>
+                            <div className="mt-1 text-base font-black text-surface-900">
+                                {!hasStrengthTasks ? '今日无力量训练' : trainingCompleted ? '已完成' : trainingInProgress ? '进行中' : '待开始'}
+                            </div>
+                        </div>
+                        <div className="rounded-2xl border border-green-100 bg-green-50 px-3 py-3">
+                            <div className="text-[11px] font-bold uppercase tracking-wider text-green-700">今日安排</div>
+                            <div className="mt-1 text-base font-black text-green-800">
+                                {moduleCount === 0 ? '暂无任务' : dayCompleted ? '已打卡完成' : `${completedModuleCount}/${moduleCount} 模块`}
+                            </div>
+                        </div>
                         <div className="rounded-2xl border border-surface-100 bg-surface-50 px-3 py-3">
                             <div className="text-[11px] font-bold uppercase tracking-wider text-surface-500">总模块</div>
                             <div className="mt-1 text-xl font-black text-surface-900">{moduleCount}</div>
                         </div>
-                        <div className="rounded-2xl border border-green-100 bg-green-50 px-3 py-3">
-                            <div className="text-[11px] font-bold uppercase tracking-wider text-green-700">已完成</div>
-                            <div className="mt-1 text-xl font-black text-green-800">{completedModuleCount}</div>
-                        </div>
                         <div className="rounded-2xl border border-primary-100 bg-primary-50 px-3 py-3">
                             <div className="text-[11px] font-bold uppercase tracking-wider text-primary-700">剩余</div>
-                            <div className="mt-1 text-xl font-black text-primary-800">{Math.max(0, moduleCount - completedModuleCount)}</div>
+                            <div className="mt-1 text-xl font-black text-primary-800">{remainingModuleCount}</div>
                         </div>
                     </div>
                 </div>
 
-                {isCompleted && (
+                {dayCompleted && (
                     <div className="rounded-2xl border border-green-100/60 bg-green-50 px-4 py-3 text-green-800">
                         <div className="flex items-center gap-2 font-bold tracking-tight">
                             <CheckCircle className="w-5 h-5" />
-                            当天安排已完成
+                            今日安排已完成
                         </div>
                         <div className="mt-1 text-sm text-green-700">
-                            {completedSets}/{totalSets} 项已记录，稍后也可以回看训练和打卡记录。
+                            力量训练与轻量任务都已记录完成，稍后也可以回看训练和打卡记录。
                         </div>
                     </div>
                 )}
 
-                {strengthTasks.length > 0 && (
+                {hasStrengthTasks && (
                     <section className="rounded-3xl border border-primary-100/70 bg-gradient-to-br from-primary-50 to-white p-4 sm:p-5">
                         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                             <div className="min-w-0">
@@ -164,12 +170,12 @@ const TodayTrainingCard: React.FC<TodayTrainingCardProps> = ({
                                 </div>
                                 <div className="mt-3 flex items-center gap-2">
                                     <h3 className="text-xl font-black text-surface-900 tracking-tight">连续力量训练</h3>
-                                    {strengthCompleted ? (
+                                    {trainingCompleted ? (
                                         <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-xs font-bold text-green-700">
                                             <CheckCircle className="w-3.5 h-3.5" />
                                             已完成
                                         </span>
-                                    ) : isInProgress ? (
+                                    ) : trainingInProgress ? (
                                         <span className="inline-flex items-center gap-1 rounded-full bg-orange-100 px-2 py-0.5 text-xs font-bold text-orange-700">
                                             <RotateCcw className="w-3.5 h-3.5" />
                                             进行中
@@ -242,7 +248,7 @@ const TodayTrainingCard: React.FC<TodayTrainingCardProps> = ({
                         </div>
 
                         <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-                            {strengthCompleted ? (
+                            {trainingCompleted ? (
                                 <Button
                                     label="查看训练记录"
                                     icon={<CheckCircle className="w-5 h-5" />}
@@ -251,7 +257,7 @@ const TodayTrainingCard: React.FC<TodayTrainingCardProps> = ({
                                     severity="secondary"
                                     outlined
                                 />
-                            ) : isInProgress ? (
+                            ) : trainingInProgress ? (
                                 <Button
                                     label="继续训练"
                                     icon={<Play className="w-5 h-5" />}
@@ -270,7 +276,7 @@ const TodayTrainingCard: React.FC<TodayTrainingCardProps> = ({
                                 />
                             )}
                             <div className="flex-1 rounded-2xl border border-surface-100 bg-white/80 px-3 py-3 text-xs text-surface-600">
-                                输入真实重量/次数后，系统会在本次训练内联动后续组，并为下次自动算重量做校准。
+                                这里的主按钮只代表力量训练打卡；轻量任务在下方单独记录，但会一起汇总到今日安排进度。
                             </div>
                         </div>
                     </section>
