@@ -190,9 +190,12 @@ const TodayTrainingPage: React.FC = () => {
         return {
             totalModules: selectedModuleModel.moduleCount,
             completedModules: selectedModuleModel.completedModuleCount,
-            remainingModules: Math.max(0, selectedModuleModel.moduleCount - selectedModuleModel.completedModuleCount),
+            remainingModules: selectedModuleModel.remainingModuleCount,
             strengthModuleCount: selectedModuleModel.strengthTasks.length > 0 ? 1 : 0,
             lightweightCount: selectedModuleModel.lightweightTasks.length,
+            trainingCompleted: selectedModuleModel.trainingCompleted,
+            trainingInProgress: selectedModuleModel.trainingInProgress,
+            dayCompleted: selectedModuleModel.dayCompleted,
         };
     }, [selectedModuleModel]);
     const effectiveCalendarStartDate = instance?.start_date || activeSubscription?.start_date || null;
@@ -206,6 +209,18 @@ const TodayTrainingPage: React.FC = () => {
         return formatPlanDayLabel(selectedDate);
     }, [selectedDayIndex, effectiveCalendarStartDate, progressDayIndex]);
     const selectedHasLightweightTasks = selectedModuleModel.lightweightTasks.length > 0;
+    const selectedTrainingStatusLabel = selectedTaskSummary.strengthModuleCount === 0
+        ? '今日无力量训练'
+        : selectedTaskSummary.trainingCompleted
+            ? '已完成'
+            : selectedTaskSummary.trainingInProgress
+                ? '进行中'
+                : '待开始';
+    const selectedDayStatusLabel = selectedTaskSummary.totalModules === 0
+        ? '暂无任务'
+        : selectedTaskSummary.dayCompleted
+            ? '已打卡完成'
+            : `${selectedTaskSummary.completedModules}/${selectedTaskSummary.totalModules} 模块`;
 
     const handleOpenLightweightTask = (task: NormalizedDayTask) => {
         setActiveLightweightTask(task);
@@ -258,7 +273,6 @@ const TodayTrainingPage: React.FC = () => {
     };
 
     const handleOpenLightweightPicker = () => {
-        if (selectedDay?.type !== 'training') return;
         setLightweightPickerVisible(true);
     };
 
@@ -293,7 +307,7 @@ const TodayTrainingPage: React.FC = () => {
     };
 
     const handleAddLightweightTask = async () => {
-        if (!instance?.id || selectedDay?.type !== 'training' || addingLightweightTask) return;
+        if (!instance?.id || !selectedDayIndex || addingLightweightTask) return;
         if (!pendingLightweightAction) return;
 
         try {

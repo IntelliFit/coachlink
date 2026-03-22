@@ -38,7 +38,11 @@ export interface DayModuleModel {
     lightweightGroups: Array<{ slot: string; items: NormalizedDayTask[] }>;
     moduleCount: number;
     completedModuleCount: number;
+    remainingModuleCount: number;
+    dayCompleted: boolean;
     strengthCompleted: boolean;
+    trainingCompleted: boolean;
+    trainingInProgress: boolean;
     strengthCompletedSetCount: number;
     strengthTotalSetCount: number;
     lightweightCompletedCount: number;
@@ -194,7 +198,6 @@ export const buildDayModuleModel = (params: {
         }
     });
 
-    const isDayCompleted = executionStatus === 'completed';
     const normalizedTasks: NormalizedDayTask[] = actionSets.map((actionSet: any, index: number) => {
         const actionId = actionSet.action_id || actionSet.actionId || '';
         const action = actions[actionId];
@@ -230,7 +233,7 @@ export const buildDayModuleModel = (params: {
             executionItem,
             setCount,
             completedSetCount,
-            isCompleted: isTaskCompleted || isDayCompleted,
+            isCompleted: isTaskCompleted,
             isStudentExtra: executionItem?.source === 'student_extra',
         };
     });
@@ -286,7 +289,7 @@ export const buildDayModuleModel = (params: {
                 executionItem,
                 setCount,
                 completedSetCount,
-                isCompleted: isTaskCompleted || isDayCompleted,
+                isCompleted: isTaskCompleted,
                 isStudentExtra: executionItem?.source === 'student_extra',
             };
         })
@@ -297,9 +300,15 @@ export const buildDayModuleModel = (params: {
     const strengthTasks = mergedTasks.filter((task) => task.itemType === 'STRENGTH');
     const lightweightTasks = mergedTasks.filter((task) => task.itemType !== 'STRENGTH');
     const strengthCompleted = strengthTasks.length > 0 && strengthTasks.every((task) => task.isCompleted);
+    const trainingCompleted = strengthTasks.length > 0 && (strengthCompleted || executionStatus === 'completed');
+    const trainingInProgress = strengthTasks.length > 0 && !trainingCompleted && executionStatus === 'in_progress';
     const strengthCompletedSetCount = strengthTasks.reduce((sum, task) => sum + task.completedSetCount, 0);
     const strengthTotalSetCount = strengthTasks.reduce((sum, task) => sum + task.setCount, 0);
     const lightweightCompletedCount = lightweightTasks.filter((task) => task.isCompleted).length;
+    const moduleCount = (strengthTasks.length > 0 ? 1 : 0) + lightweightTasks.length;
+    const completedModuleCount = (trainingCompleted ? 1 : 0) + lightweightCompletedCount;
+    const remainingModuleCount = Math.max(0, moduleCount - completedModuleCount);
+    const dayCompleted = moduleCount > 0 && completedModuleCount >= moduleCount;
 
     const groups = new Map<string, NormalizedDayTask[]>();
     lightweightTasks.forEach((task) => {
@@ -317,11 +326,13 @@ export const buildDayModuleModel = (params: {
         strengthTasks,
         lightweightTasks,
         lightweightGroups,
-        moduleCount: (strengthTasks.length > 0 ? 1 : 0) + lightweightTasks.length,
-        completedModuleCount:
-            (strengthTasks.length > 0 && strengthCompleted ? 1 : 0) +
-            lightweightCompletedCount,
+        moduleCount,
+        completedModuleCount,
+        remainingModuleCount,
+        dayCompleted,
         strengthCompleted,
+        trainingCompleted,
+        trainingInProgress,
         strengthCompletedSetCount,
         strengthTotalSetCount,
         lightweightCompletedCount,
