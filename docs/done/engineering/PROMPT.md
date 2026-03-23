@@ -155,6 +155,12 @@ export async function POST(req: Request) {
 
 ---
 
+## 测试文件修改约定
+
+- 非用户明确要求时，不要随意改动测试文件；细则见仓库根目录 `AGENTS.md`「测试文件修改边界」。
+
+---
+
 ## Git 提交规范（Windows 环境必读）
 
 ### 中文 Commit 信息乱码问题

@@ -68,12 +68,6 @@ const KnowledgeBaseHomePage = () => {
     // 结果区域ref，用于自动滚动
     const resultsRef = React.useRef<HTMLDivElement>(null);
     
-    // 创建文章相关状态
-    const [showCreateForm, setShowCreateForm] = useState(false);
-    const [newArticleTitle, setNewArticleTitle] = useState("");
-    const [newArticleDescription, setNewArticleDescription] = useState("");
-    const [isCreatingArticle, setIsCreatingArticle] = useState(false);
-
     // 选择身体部位后自动滚动到结果区域（移动端）
     useEffect(() => {
         if (selectedBodyRegion && resultsRef.current && window.innerWidth < 1024) {
@@ -124,47 +118,6 @@ const KnowledgeBaseHomePage = () => {
     const handleSearch = () => {
         if (searchQuery.trim()) {
             router.push(`/dashboard/knowledge/search?q=${encodeURIComponent(searchQuery.trim())}`);
-        }
-    };
-
-    // 创建新文章
-    const handleCreateArticle = async () => {
-        if (!newArticleTitle.trim() || !selectedBodyRegion) return;
-        
-        setIsCreatingArticle(true);
-        try {
-            const res = await fetch('/api/knowledge/nodes', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    title: newArticleTitle.trim(),
-                    description: newArticleDescription.trim(),
-                    body_region: [selectedBodyRegion],
-                    node_type: 'article',
-                    is_collaborative: true,
-                    collaboration_enabled: true,
-                }),
-            });
-            
-            if (res.ok) {
-                const data = await res.json();
-                // 刷新列表
-                const refreshRes = await fetch(`/api/knowledge/nodes?body_region=${selectedBodyRegion}`);
-                const refreshJson = await refreshRes.json();
-                setRegionNodes(refreshJson.nodes || []);
-                
-                // 重置表单
-                setNewArticleTitle("");
-                setNewArticleDescription("");
-                setShowCreateForm(false);
-                
-                // 跳转到编辑页面
-                router.push(`/dashboard/knowledge/nodes/${data.node.id}/edit`);
-            }
-        } catch (error) {
-            console.error('创建文章失败:', error);
-        } finally {
-            setIsCreatingArticle(false);
         }
     };
 
@@ -376,49 +329,25 @@ const KnowledgeBaseHomePage = () => {
                                                     共 {regionNodes.length} 篇 • 欢迎共建
                                                 </p>
                                             </div>
-                                            <button
-                                                onClick={() => setShowCreateForm(true)}
-                                                className="flex items-center gap-1 px-3 py-1.5 bg-surface-900 text-surface-0 text-xs font-medium rounded-lg hover:bg-surface-800 transition-all duration-300 hover:scale-105 active:scale-95"
-                                            >
-                                                <Plus className="w-3.5 h-3.5" />
-                                                创建文章
-                                            </button>
+                                            {selectedBodyRegion && (
+                                                <button
+                                                    onClick={() => {
+                                                        const region = selectedBodyRegion;
+                                                        const label = BODY_REGION_LABELS[region];
+                                                        const params = new URLSearchParams();
+                                                        params.set("body_region", region);
+                                                        if (label) {
+                                                            params.set("tag", label);
+                                                        }
+                                                        router.push(`/dashboard/knowledge/write?${params.toString()}`);
+                                                    }}
+                                                    className="flex items-center gap-1 px-3 py-1.5 bg-surface-900 text-surface-0 text-xs font-medium rounded-lg hover:bg-surface-800 transition-all duration-300 hover:scale-105 active:scale-95"
+                                                >
+                                                    <Plus className="w-3.5 h-3.5" />
+                                                    创建文章
+                                                </button>
+                                            )}
                                         </div>
-
-                                        {/* 创建文章表单 */}
-                                        {showCreateForm && (
-                                            <div className="bg-surface-50 dark:bg-surface-800/50 rounded-2xl p-4 border border-surface-200 dark:border-surface-700">
-                                                <input
-                                                    type="text"
-                                                    placeholder="文章标题"
-                                                    value={newArticleTitle}
-                                                    onChange={(e) => setNewArticleTitle(e.target.value)}
-                                                    className="w-full px-3 py-2 bg-surface-0 dark:bg-surface-900 border border-surface-200 dark:border-surface-700 rounded-xl text-sm focus:outline-none focus:border-primary-400 mb-2"
-                                                />
-                                                <textarea
-                                                    placeholder="简要描述（可选）"
-                                                    value={newArticleDescription}
-                                                    onChange={(e) => setNewArticleDescription(e.target.value)}
-                                                    rows={2}
-                                                    className="w-full px-3 py-2 bg-surface-0 dark:bg-surface-900 border border-surface-200 dark:border-surface-700 rounded-xl text-sm focus:outline-none focus:border-primary-400 mb-3 resize-none"
-                                                />
-                                                <div className="flex gap-2">
-                                                    <button
-                                                        onClick={handleCreateArticle}
-                                                        disabled={!newArticleTitle.trim() || isCreatingArticle}
-                                                        className="flex-1 py-2 bg-primary-500 text-white text-xs font-medium rounded-xl hover:bg-primary-600 disabled:bg-surface-300 disabled:cursor-not-allowed transition-colors"
-                                                    >
-                                                        {isCreatingArticle ? '创建中...' : '确认创建'}
-                                                    </button>
-                                                    <button
-                                                        onClick={() => setShowCreateForm(false)}
-                                                        className="px-4 py-2 border border-surface-200 text-surface-600 text-xs font-medium rounded-xl hover:bg-surface-100 transition-colors"
-                                                    >
-                                                        取消
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        )}
 
                                         {/* 文章列表 - PC端固定高度可滚动，带逐条入场动画 */}
                                         <div className="lg:max-h-[500px] lg:overflow-y-auto lg:pr-1 space-y-3">
