@@ -1613,7 +1613,6 @@ function TrainingExecutionContent() {
         const total = Number(actionExec.total_sets || 0);
         return completed < total;
     });
-    const canFinishWholeDay = isImpromptuMode || !hasPendingLightweightItems;
 
     const planDescriptionText = String(planInstance?.description || '').trim();
     const planNameText = String(planInstance?.name || '').trim();
@@ -2556,7 +2555,7 @@ function TrainingExecutionContent() {
                     </>
                 ) : (
                     <>
-                        {!canFinishWholeDay && !isImpromptuMode && (
+                        {hasPendingLightweightItems && !isImpromptuMode && (
                             <div className="mb-4 rounded-2xl border border-amber-100/70 bg-amber-50 px-4 py-3 text-sm text-amber-900">
                                 这一天还有 {lightweightActionIndexes.length} 个轻任务需要在“今日安排”里单独完成。
                                 当前页面只负责力量训练；完成后请返回首页继续处理饮食、有氧和习惯任务。
@@ -2570,25 +2569,15 @@ function TrainingExecutionContent() {
                             className="w-full mb-4"
                         />
                         <div className="flex flex-col gap-2">
-                            {canFinishWholeDay ? (
-                                <Button 
-                                    label="完成训练"
-                                    onClick={handleFinishTraining}
-                                    id="guide-finish-training"
-                                    className="w-full"
-                                    severity="success"
-                                    size="large"
-                                />
-                            ) : (
-                                <Button
-                                    label="返回今日安排继续轻任务"
-                                    onClick={() => router.push('/today-training')}
-                                    className="w-full"
-                                    severity="success"
-                                    size="large"
-                                />
-                            )}
-                            {!isImpromptuMode && canFinishWholeDay && (
+                            <Button 
+                                label="完成训练"
+                                onClick={handleFinishTraining}
+                                id="guide-finish-training"
+                                className="w-full"
+                                severity="success"
+                                size="large"
+                            />
+                            {!isImpromptuMode && (
                                 <Button
                                     label={quickFinishLoading ? '快速完成中...' : '一键快速完成'}
                                     onClick={handleQuickFinishTraining}

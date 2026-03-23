@@ -31,6 +31,7 @@ import {
 } from './lib/dayModules';
 
 import PlanCompletionModal from '@/components/plan/PlanCompletionModal';
+import DayCheckinShareGenerator from '@/components/share/DayCheckinShareGenerator';
 import { Avatar } from 'primereact/avatar';
 import { AeroInputNumber } from '@/components/AeroInputNumber';
 import {
@@ -82,6 +83,7 @@ const TodayTrainingPage: React.FC = () => {
     const [addingLightweightTask, setAddingLightweightTask] = useState(false);
     const [pendingLightweightAction, setPendingLightweightAction] = useState<any | null>(null);
     const [lightweightConfigVisible, setLightweightConfigVisible] = useState(false);
+    const [dayShareVisible, setDayShareVisible] = useState(false);
     const [newTaskSuggestedTime, setNewTaskSuggestedTime] = useState('');
     const [newTaskNotes, setNewTaskNotes] = useState('');
     const [newDietContent, setNewDietContent] = useState('');
@@ -221,6 +223,52 @@ const TodayTrainingPage: React.FC = () => {
         : selectedTaskSummary.dayCompleted
             ? '已打卡完成'
             : `${selectedTaskSummary.completedModules}/${selectedTaskSummary.totalModules} 模块`;
+    const canShareDayCheckin = selectedDay?.type === 'training' && selectedTaskSummary.totalModules > 0;
+    const dayShareData = useMemo(() => {
+        if (!selectedDay || selectedDay.type !== 'training' || !canShareDayCheckin) {
+            return null;
+        }
+
+        return {
+            dateLabel: selectedDateLabel || formatPlanDayLabel(resolvePlanDayDate({
+                dayIndex: selectedDayIndex,
+                effectiveStartDate: effectiveCalendarStartDate,
+                fallbackAnchorDayIndex: progressDayIndex,
+            })),
+            planName: instance?.name || '今日安排',
+            nickname: String(session?.user?.name || session?.user?.email || 'CoachLink 学员'),
+            avatarUrl: null,
+            completedAt: selectedExec?.completed_at || null,
+            dayIndex: selectedDayIndex,
+            moduleCount: selectedTaskSummary.totalModules,
+            completedModuleCount: selectedTaskSummary.completedModules,
+            lightweightCompletedCount: selectedModuleModel.lightweightCompletedCount,
+            lightweightTotalCount: selectedModuleModel.lightweightTasks.length,
+            trainingCompleted: selectedTaskSummary.trainingCompleted,
+            strengthTaskCount: selectedModuleModel.strengthTasks.length,
+            strengthCompletedSetCount: selectedModuleModel.strengthCompletedSetCount,
+            strengthTotalSetCount: selectedModuleModel.strengthTotalSetCount,
+        };
+    }, [
+        canShareDayCheckin,
+        effectiveCalendarStartDate,
+        instance?.name,
+        progressDayIndex,
+        selectedDateLabel,
+        selectedDay,
+        selectedDayIndex,
+        selectedExec?.completed_at,
+        selectedModuleModel.lightweightCompletedCount,
+        selectedModuleModel.lightweightTasks.length,
+        selectedModuleModel.strengthCompletedSetCount,
+        selectedModuleModel.strengthTasks.length,
+        selectedModuleModel.strengthTotalSetCount,
+        selectedTaskSummary.completedModules,
+        selectedTaskSummary.totalModules,
+        selectedTaskSummary.trainingCompleted,
+        session?.user?.email,
+        session?.user?.name,
+    ]);
 
     const handleOpenLightweightTask = (task: NormalizedDayTask) => {
         setActiveLightweightTask(task);
@@ -1517,9 +1565,54 @@ const TodayTrainingPage: React.FC = () => {
                                             />
                                         </div>
                                     )}
+                                    {canShareDayCheckin && (
+                                        <div className="mt-4 rounded-3xl border border-primary-100/70 bg-gradient-to-br from-primary-50 to-white p-4 sm:p-5">
+                                            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                                                <div>
+                                                    <div className="text-[11px] font-bold uppercase tracking-[0.24em] text-primary-700">
+                                                        SHARE CHECK-IN
+                                                    </div>
+                                                    <div className="mt-2 text-xl font-black tracking-tight text-surface-900">
+                                                        现在可以生成整日打卡图
+                                                    </div>
+                                                    <div className="mt-2 text-sm text-surface-600">
+                                                        这里展示的是今天这一天的完成状态快照，不要求你把所有任务都先做完。
+                                                    </div>
+                                                </div>
+                                                <div className="flex flex-col gap-2 sm:flex-row">
+                                                    <Button
+                                                        label="整日打卡图"
+                                                        icon="pi pi-sparkles"
+                                                        onClick={() => setDayShareVisible(true)}
+                                                        className="w-full sm:w-auto"
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
                                 </>
                             ) : (
-                                <RestDayCard dayIndex={selectedDayIndex} />
+                                <>
+                                    <RestDayCard dayIndex={selectedDayIndex} />
+                                    <div className="mt-4">
+                                        <TodayTrainingCard
+                                            day={selectedDay}
+                                            actions={actions}
+                                            instanceId={instance.id}
+                                            dayIndex={selectedDayIndex}
+                                            executionStatus={selectedExecutionStatus}
+                                            completedSets={Number(selectedExec?.completed_sets || 0)}
+                                            totalSets={Number(selectedExec?.total_sets || 0)}
+                                            execution={selectedExec}
+                                            heading="休息日轻任务"
+                                            subheading={`第${selectedDayIndex}天 · ${selectedTaskSummary.lightweightCount} 个轻任务`}
+                                            dateLabel={selectedDateLabel}
+                                            onOpenLightweightTask={handleOpenLightweightTask}
+                                            onAddLightweightTask={handleOpenLightweightPicker}
+                                            onDeleteLightweightTask={handleDeleteLightweightTask}
+                                        />
+                                    </div>
+                                </>
                             )}
 
                             {selectedDay?.type === 'rest' && inProgressExec && (
@@ -1697,6 +1790,12 @@ const TodayTrainingPage: React.FC = () => {
                     </div>
                 )}
             </Dialog>
+
+            <DayCheckinShareGenerator
+                visible={dayShareVisible}
+                onHide={() => setDayShareVisible(false)}
+                data={dayShareData}
+            />
 
             <Dialog
                 header="为什么要点完成？为什么要输入重量？"

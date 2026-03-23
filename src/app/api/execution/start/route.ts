@@ -281,7 +281,11 @@ export async function POST(request: NextRequest) {
         }
 
         try {
-            const records = await getCurrent1RMRecords(userId, { actionIds });
+            const records = await getCurrent1RMRecords(userId, {
+                actionIds,
+                // 与计划页保持一致：按 PR 递增逻辑读取，避免状态波动导致自动降重。
+                preferPR: true,
+            });
             for (const r of records || []) {
                 if (r.actionId) oneRMMap[r.actionId] = Math.max(oneRMMap[r.actionId] || 0, r.current1RM);
                 if (r.actionName) oneRMMap[r.actionName] = Math.max(oneRMMap[r.actionName] || 0, r.current1RM);

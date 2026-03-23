@@ -134,6 +134,10 @@ export class PlanLibService extends BaseService {
 
     // 实例相关方法
 
+    /**
+     * Canonical instance API.
+     * Prefer this in new code paths.
+     */
     async getInstance(reqData: GetInstanceDto) {
         const res = await this.post<GetInstanceResponseDto>(
             "get-instance",
@@ -145,6 +149,15 @@ export class PlanLibService extends BaseService {
         return res.data.data;
     }
 
+    // Alias with clearer intent for new callers.
+    async getPlanInstance(reqData: GetInstanceDto) {
+        return this.getInstance(reqData);
+    }
+
+    /**
+     * Aggregated legacy endpoint (coach plan + self plan).
+     * Internally now delegates to get-instance so core logic stays single-source.
+     */
     async getTodayTrainingInstance(reqData: GetTodayTrainingInstanceDto) {
         const res = await this.post<GetTodayTrainingInstanceResponseDto>(
             "get-today-training-instance",
@@ -154,6 +167,11 @@ export class PlanLibService extends BaseService {
             throw new Error(res.data.message || "Failed to fetch today training instance");
         }
         return res.data.data;
+    }
+
+    // Alias with clearer intent for new callers.
+    async getTodayTrainingBundle(reqData: GetTodayTrainingInstanceDto) {
+        return this.getTodayTrainingInstance(reqData);
     }
 
     async createInstance(reqData: CreateInstanceDto) {

@@ -19,6 +19,8 @@ interface WeekCalendarProps {
     saving: boolean;
     /** 起始执行天数（可选，用于显示"开始"标记） */
     startExecutionDay?: number;
+    /** 当前进度日（可选，用于显示"进度"标记） */
+    currentProgressDay?: number;
     /** 单行横向滚动模式（计划库编辑页使用） */
     variant?: 'default' | 'singleRow';
 }
@@ -32,6 +34,7 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
     onDeleteWeek,
     saving,
     startExecutionDay,
+    currentProgressDay,
     variant = 'default'
 }) => {
     const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
@@ -149,6 +152,22 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
                         <h3 className="text-2xl font-black text-surface-900 tracking-tighter">训练计划排期</h3>
                         <span className="text-xs font-bold text-surface-400">共 {weeks.length} 周</span>
                     </div>
+                    {(startExecutionDay || currentProgressDay) && (
+                        <div className="flex items-center gap-2 text-[10px] font-bold">
+                            {startExecutionDay && (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-50 text-green-700 border border-green-100">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                                    开始日
+                                </span>
+                            )}
+                            {currentProgressDay && (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-100">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                                    进度日
+                                </span>
+                            )}
+                        </div>
+                    )}
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -202,6 +221,7 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
                         const isSelected = selectedDayIndex === day.dayIndex;
                         const isTraining = day.type === 'training';
                         const isStarted = startExecutionDay && day.dayIndex === startExecutionDay;
+                        const isProgressDay = currentProgressDay && day.dayIndex === currentProgressDay;
                         const isPassed = startExecutionDay && day.dayIndex < startExecutionDay;
 
                         return (
@@ -237,6 +257,14 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
                                 {isStarted && (
                                     <div className="absolute -top-1 -right-1 bg-green-500 text-surface p-1 rounded-full shadow-lg">
                                         <Check size={8} strokeWidth={4} />
+                                    </div>
+                                )}
+                                {isProgressDay && (
+                                    <div
+                                        title="当前进度日"
+                                        className="absolute -top-1 -left-1 bg-blue-500 text-surface px-1 py-0.5 rounded-full shadow-lg text-[9px] font-black leading-none"
+                                    >
+                                        进
                                     </div>
                                 )}
                             </button>
@@ -278,6 +306,7 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
                                     const isSelected = selectedDayIndex === day.dayIndex;
                                     const isTraining = day.type === 'training';
                                     const isStarted = startExecutionDay && day.dayIndex === startExecutionDay;
+                                    const isProgressDay = currentProgressDay && day.dayIndex === currentProgressDay;
                                     const isPassed = startExecutionDay && day.dayIndex < startExecutionDay;
 
                                     return (
@@ -313,6 +342,14 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
                                             {isStarted && (
                                                 <div className="absolute -top-1 -right-1 bg-green-500 text-surface p-1 rounded-full shadow-lg">
                                                     <Check size={8} strokeWidth={4} />
+                                                </div>
+                                            )}
+                                            {isProgressDay && (
+                                                <div
+                                                    title="当前进度日"
+                                                    className="absolute -top-1 -left-1 bg-blue-500 text-surface px-1 py-0.5 rounded-full shadow-lg text-[9px] font-black leading-none"
+                                                >
+                                                    进
                                                 </div>
                                             )}
                                         </button>
@@ -351,6 +388,7 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
                                         const isSelected = selectedDayIndex === day.dayIndex;
                                         const isTraining = day.type === 'training';
                                         const isStarted = startExecutionDay && day.dayIndex === startExecutionDay;
+                                        const isProgressDay = currentProgressDay && day.dayIndex === currentProgressDay;
                                         const isPassed = startExecutionDay && day.dayIndex < startExecutionDay;
 
                                         return (
@@ -385,6 +423,14 @@ const WeekCalendar: React.FC<WeekCalendarProps> = ({
                                                 {isStarted && (
                                                     <div className="absolute -top-1.5 -right-1.5 bg-green-500 text-surface p-1 rounded-full shadow-lg">
                                                         <Check size={8} strokeWidth={4} />
+                                                    </div>
+                                                )}
+                                                {isProgressDay && (
+                                                    <div
+                                                        title="当前进度日"
+                                                        className="absolute -top-1.5 -left-1.5 bg-blue-500 text-surface px-1.5 py-0.5 rounded-full shadow-lg text-[9px] font-black leading-none"
+                                                    >
+                                                        进
                                                     </div>
                                                 )}
                                             </div>

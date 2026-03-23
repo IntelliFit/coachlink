@@ -753,6 +753,46 @@ const StudentPlanPage = () => {
         });
     }, [days, actionSearchId]);
 
+    // 基于执行记录推导“当前进度日”
+    // 口径：
+    // 1) 若存在多个 in_progress，取最早开启的那天（最小 dayIndex）作为主进度；
+    // 2) 否则回退到已解决天（completed/abandoned/skipped）里的最大 dayIndex。
+    const currentProgressDay = useMemo(() => {
+        const executionList = Object.values(executions || {});
+        if (executionList.length === 0) return undefined;
+
+        const validDaySet = new Set(
+            days
+                .map((d) => Number(d.dayIndex))
+                .filter((n) => Number.isFinite(n) && n > 0),
+        );
+
+        const extractDayIndex = (execution: any) => Number(execution?.day_index ?? execution?.dayIndex ?? 0);
+        const pickDay = (allowedStatuses: string[], mode: 'min' | 'max' = 'max') => {
+            const target = executionList
+                .filter((execution: any) => allowedStatuses.includes(String(execution?.status || '')))
+                .map(extractDayIndex)
+                .filter((dayIndex) => Number.isFinite(dayIndex) && dayIndex > 0)
+                .filter((dayIndex) => validDaySet.size === 0 || validDaySet.has(dayIndex));
+            if (target.length === 0) return undefined;
+            return mode === 'min' ? Math.min(...target) : Math.max(...target);
+        };
+
+        const inProgressDay = pickDay(['in_progress'], 'min');
+        if (inProgressDay) return inProgressDay;
+
+        const resolvedDay = pickDay(['completed', 'abandoned', 'skipped'], 'max');
+        if (resolvedDay) return resolvedDay;
+
+        // 兜底：存在其它状态时，仍显示最大 dayIndex，避免“有记录但无标记”
+        const fallback = executionList
+            .map(extractDayIndex)
+            .filter((dayIndex) => Number.isFinite(dayIndex) && dayIndex > 0)
+            .filter((dayIndex) => validDaySet.size === 0 || validDaySet.has(dayIndex));
+        if (fallback.length === 0) return undefined;
+        return Math.max(...fallback);
+    }, [executions, days]);
+
     // 获取选中的训练日
     const selectedDay = selectedDayIndex !== null
         ? days.find(day => day.dayIndex === selectedDayIndex)
@@ -1302,6 +1342,7 @@ const StudentPlanPage = () => {
                                 onDeleteWeek={handleDeleteWeek}
                                 saving={saving}
                                 startExecutionDay={startExecutionDay}
+                                currentProgressDay={currentProgressDay}
                             />
                         </div>
 
