@@ -15,24 +15,22 @@ export default function BodyMapModeSwitch({ mode, onChange }: BodyMapModeSwitchP
         onClick={() => onChange('screening')}
         className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${
           mode === 'screening'
-            ? 'bg-rose-500 text-white shadow-md'
+            ? 'bg-surface-900 text-surface-0 shadow-md'
             : 'text-surface-600 dark:text-surface-400 hover:bg-surface-200 dark:hover:bg-surface-700'
         }`}
       >
-        <span>🩺</span>
-        <span>筛查模式</span>
+        筛查模式
       </button>
       <button
         type="button"
         onClick={() => onChange('training')}
         className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${
           mode === 'training'
-            ? 'bg-primary-500 text-white shadow-md'
+            ? 'bg-surface-900 text-surface-0 shadow-md'
             : 'text-surface-600 dark:text-surface-400 hover:bg-surface-200 dark:hover:bg-surface-700'
         }`}
       >
-        <span>💪</span>
-        <span>训练模式</span>
+        训练模式
       </button>
     </div>
   );

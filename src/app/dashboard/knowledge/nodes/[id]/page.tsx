@@ -2,8 +2,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, BookOpen, Video, Clock, Tag, ChevronRight, ExternalLink } from 'lucide-react';
+import { BookOpen, Video, Clock, Tag, ExternalLink } from 'lucide-react';
 import Link from 'next/link';
+import KnowledgeHeader from '@/components/knowledge/KnowledgeHeader';
 import { STUDENT_TOOLBOX_LINKS } from '@/config/toolbox';
 
 type KnowledgeNode = {
@@ -28,7 +29,7 @@ type KnowledgeNode = {
   } | null;
   body_region: string[] | null;
   is_free: boolean;
-  articles?: any[]; // Linked coach articles
+  articles?: any[];
 };
 
 export default function NodeDetailPage() {
@@ -45,7 +46,6 @@ export default function NodeDetailPage() {
         const res = await fetch(`/api/knowledge/nodes/${nodeId}`);
         const json = await res.json();
         if (json.node) {
-          // Combine node data with articles
           setNode({ ...json.node, articles: json.articles || [] });
         }
       } catch (error) {
@@ -60,13 +60,8 @@ export default function NodeDetailPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-surface-50 dark:bg-surface-900 pb-32">
-        <div className="sticky top-0 z-20 bg-surface-50/80 dark:bg-surface-900/80 backdrop-blur-lg border-b border-surface-200 dark:border-surface-700">
-          <div className="flex items-center gap-4 px-4 py-3 max-w-3xl mx-auto">
-            <div className="w-8 h-8 bg-surface-200 dark:bg-surface-700 rounded-lg animate-pulse" />
-            <div className="h-6 w-48 bg-surface-200 dark:bg-surface-700 rounded-lg animate-pulse" />
-          </div>
-        </div>
+      <div className="min-h-screen bg-surface-50 dark:bg-surface-900">
+        <div className="bg-gradient-to-br from-primary-600 via-primary-500 to-amber-500 h-32 animate-pulse" />
         <div className="px-4 py-6 max-w-3xl mx-auto space-y-4">
           <div className="h-48 bg-surface-100 dark:bg-surface-800 rounded-xl animate-pulse" />
           <div className="h-32 bg-surface-100 dark:bg-surface-800 rounded-xl animate-pulse" />
@@ -93,25 +88,18 @@ export default function NodeDetailPage() {
     relatedTools.includes(tool.key)
   );
 
+  const HeaderIcon = node.node_type === 'video' ? Video : BookOpen;
+
   return (
     <div className="min-h-screen bg-surface-50 dark:bg-surface-900 pb-32">
-      {/* Header */}
-      <div className="sticky top-0 z-20 bg-surface-50/80 dark:bg-surface-900/80 backdrop-blur-lg border-b border-surface-200 dark:border-surface-700">
-        <div className="flex items-center gap-4 px-4 py-3 max-w-3xl mx-auto">
-          <button
-            onClick={() => router.back()}
-            className="p-2 -ml-2 text-surface-600 dark:text-surface-400 hover:bg-surface-100 dark:hover:bg-surface-800 rounded-xl transition-colors"
-          >
-            <ArrowLeft size={20} />
-          </button>
-          <h1 className="text-lg font-black text-surface-900 dark:text-surface-100 truncate">
-            {node.title}
-          </h1>
-        </div>
-      </div>
+      <KnowledgeHeader
+        title={node.title}
+        subtitle={node.node_type === 'video' ? '视频课程' : '知识文章'}
+        icon={HeaderIcon}
+        showBackButton={true}
+      />
 
       <div className="px-4 py-6 max-w-3xl mx-auto space-y-6">
-        {/* Video Embed (if video node) */}
         {node.node_type === 'video' && node.content?.video_url && (
           <div className="aspect-video bg-black rounded-xl overflow-hidden">
             <iframe
@@ -123,7 +111,6 @@ export default function NodeDetailPage() {
           </div>
         )}
 
-        {/* Meta Info */}
         <div className="flex flex-wrap items-center gap-3 text-sm text-surface-500">
           {node.node_type === 'video' && (
             <span className="flex items-center gap-1 px-2 py-1 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded-lg">
@@ -155,14 +142,12 @@ export default function NodeDetailPage() {
           )}
         </div>
 
-        {/* Description */}
         {node.description && (
           <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4">
             <p className="text-sm text-amber-800 dark:text-amber-200">{node.description}</p>
           </div>
         )}
 
-        {/* Related Articles (New Section) */}
         {node.articles && node.articles.length > 0 && (
           <div className="space-y-3">
              <div className="flex items-center gap-2 mb-2">
@@ -174,7 +159,7 @@ export default function NodeDetailPage() {
                   <Link
                     key={article.id}
                     href={`/coach/content/${article.id}`}
-                    className="group bg-white dark:bg-surface-800 p-3 rounded-[20px] border border-surface-200 dark:border-surface-700 hover:border-primary-200 dark:hover:border-primary-800 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 flex gap-4 overflow-hidden"
+                    className="group bg-white dark:bg-surface-800 p-3 rounded-2xl border border-surface-200 dark:border-surface-700 hover:border-primary-200 dark:hover:border-primary-800 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 flex gap-4 overflow-hidden"
                   >
                      {article.thumbnail_url && (
                         <div className="w-20 h-20 shrink-0 rounded-xl overflow-hidden bg-surface-100">
@@ -210,7 +195,6 @@ export default function NodeDetailPage() {
           </div>
         )}
 
-        {/* Content Body */}
         {node.content?.body && (
           <div className="bg-white dark:bg-surface-800 rounded-xl p-6 shadow-sm">
             <div 
@@ -220,7 +204,6 @@ export default function NodeDetailPage() {
           </div>
         )}
 
-        {/* Tags */}
         {node.content?.tags && node.content.tags.length > 0 && (
           <div className="flex flex-wrap gap-2">
             {node.content.tags.map((tag, idx) => (
@@ -235,7 +218,6 @@ export default function NodeDetailPage() {
           </div>
         )}
 
-        {/* Related Tools */}
         {matchedTools.length > 0 && (
           <div className="bg-white dark:bg-surface-800 rounded-xl p-4 shadow-sm">
             <h3 className="text-sm font-bold text-surface-700 dark:text-surface-200 mb-3">
@@ -259,7 +241,6 @@ export default function NodeDetailPage() {
           </div>
         )}
 
-        {/* Body Region Links */}
         {node.body_region && node.body_region.length > 0 && (
           <div className="bg-white dark:bg-surface-800 rounded-xl p-4 shadow-sm">
             <h3 className="text-sm font-bold text-surface-700 dark:text-surface-200 mb-3">
@@ -279,7 +260,6 @@ export default function NodeDetailPage() {
           </div>
         )}
 
-        {/* Placeholder for empty content */}
         {!node.content?.body && !node.content?.video_url && (!node.articles || node.articles.length === 0) && (
           <div className="text-center py-12 bg-white dark:bg-surface-800 rounded-xl">
             <BookOpen size={48} className="mx-auto text-surface-300 mb-4" />
