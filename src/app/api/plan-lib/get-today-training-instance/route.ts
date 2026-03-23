@@ -9,6 +9,10 @@ import { normalizeToKg } from "@/types/intensity";
 import { getCurrent1RMRecords } from "@/app/api/student/get-current-1rm/route";
 import { isOneRMEligibleAction } from "@/lib/oneRmEligibility";
 import { syncCoachActionsToStudentLibrary } from "../sync-actions";
+import {
+    evaluateSubscriptionPlanAccess,
+    filterTrainingDaysByAccessWindow,
+} from "@/lib/subscriptionAccess";
 
 // 内部辅助函数：获取单个计划实例（复用 get-instance 的核心逻辑）
 async function getSingleInstance(
@@ -59,7 +63,9 @@ async function getSingleInstance(
     // 检查权限（优化：大部分用户是学员，先检查学员权限）
     const t1 = performance.now();
     let hasPermission = false;
+    let hasCoachPermission = false;
     let subscriptionStudentId: string | null = null;
+    let subscriptionForStudentAccess: any = null;
 
     // 优先检查学员权限（更常见的情况）
     if (instance.student_id) {
@@ -70,13 +76,14 @@ async function getSingleInstance(
         // 如果通过订阅关联，查询订阅信息（同时获取 student_id 供后续使用）
         const { data: subscription } = await supabase
             .from("coach_subscriptions")
-            .select("student_id")
+            .select("student_id, status, end_date, subscribed_weeks")
             .eq("id", instance.coach_subscription_id)
             .single();
 
         subscriptionStudentId = subscription?.student_id || null;
         if (subscription && subscription.student_id === userId) {
             hasPermission = true;
+            subscriptionForStudentAccess = subscription;
         }
     }
 
@@ -90,12 +97,51 @@ async function getSingleInstance(
 
         if (coach && coach.user_id === userId) {
             hasPermission = true;
+            hasCoachPermission = true;
         }
     }
 
     timings['2_check_permission'] = performance.now() - t1;
 
     if (!hasPermission) {
+        return null;
+    }
+
+    let maxAccessibleDayIndex: number | null = null;
+    if (!hasCoachPermission && instance.coach_subscription_id) {
+        if (!subscriptionForStudentAccess) {
+            const { data: subForAccess } = await supabase
+                .from("coach_subscriptions")
+                .select("id, student_id, status, end_date, subscribed_weeks")
+                .eq("id", instance.coach_subscription_id)
+                .eq("student_id", userId)
+                .maybeSingle();
+            subscriptionForStudentAccess = subForAccess;
+        }
+        if (!subscriptionForStudentAccess) {
+            return null;
+        }
+
+        const decision = evaluateSubscriptionPlanAccess({
+            subscription: subscriptionForStudentAccess,
+        });
+        if (!decision.allowed) {
+            return null;
+        }
+        maxAccessibleDayIndex = decision.maxAccessibleDayIndex;
+    }
+
+    if (Array.isArray((instance as any).training_days)) {
+        (instance as any).training_days = filterTrainingDaysByAccessWindow(
+            (instance as any).training_days as any[],
+            maxAccessibleDayIndex,
+        );
+    }
+    if (
+        maxAccessibleDayIndex !== null &&
+        Number((instance as any).start_execution_day || 1) >
+            maxAccessibleDayIndex
+    ) {
         return null;
     }
 
@@ -257,7 +303,7 @@ async function getSingleInstance(
     // 加载执行记录（修复字段名：使用 instance_id 而不是 plan_instance_id）
     const t4 = performance.now();
     let executionsList: any[] = [];
-    const { data: executions } = await supabase
+    let executionsQuery = supabase
         .from("plan_instance_executions")
         .select(`
             *,
@@ -269,8 +315,15 @@ async function getSingleInstance(
                 )
             )
         `)
-        .eq("instance_id", instance.id)
-        .order("day_index", { ascending: true });
+        .eq("instance_id", instance.id);
+
+    if (maxAccessibleDayIndex !== null) {
+        executionsQuery = executionsQuery.lte("day_index", maxAccessibleDayIndex);
+    }
+
+    const { data: executions } = await executionsQuery.order("day_index", {
+        ascending: true,
+    });
 
     if (executions) {
         executionsList = executions.map((exec: any) => ({

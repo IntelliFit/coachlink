@@ -16,6 +16,7 @@ import SliderCaptcha from '@/components/auth/SliderCaptcha';
 import { sesService } from '@/app/service/sesService';
 import WechatIcon from '@/components/icons/wechat';
 import { DEV_USERS, type DevUser } from '@/config/devUsers';
+import { waitForSessionReady } from '@/lib/auth/sessionSync';
 
 interface LoginModalProps {
     isOpen: boolean;
@@ -41,6 +42,30 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
     const [quickUserId, setQuickUserId] = useState(''); // 快速接入：用户 ID 输入
     const [sliderCaptchaVisible, setSliderCaptchaVisible] = useState(false);
 
+    const syncSessionThenNavigate = async (options?: {
+        expectedUserId?: string;
+        redirectOnLoginPage?: string;
+        forceRedirectTo?: string;
+    }) => {
+        await waitForSessionReady({ expectedUserId: options?.expectedUserId });
+
+        if (typeof window === 'undefined') {
+            return;
+        }
+
+        if (options?.forceRedirectTo) {
+            router.push(options.forceRedirectTo);
+            return;
+        }
+
+        const isLoginPage = window.location.pathname.includes('/login');
+        if (isLoginPage) {
+            router.push(options?.redirectOnLoginPage || '/today-training');
+        } else {
+            router.refresh();
+        }
+    };
+
     // 重置视图状态当弹窗关闭
     useEffect(() => {
         if (!isOpen) {
@@ -62,7 +87,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
 
     // 监听微信登录完成（来自 /wechat-auth/bridge）
     useEffect(() => {
-        const handler = (event: MessageEvent) => {
+        const handler = async (event: MessageEvent) => {
             if (event.origin !== window.location.origin) return;
             const data = event.data as any;
             if (data?.type !== 'coachlink:wechat-auth-complete') return;
@@ -72,13 +97,13 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
             setWechatAuthUrl(null);
 
             onClose(false);
-            // 刷新 session（以及页面数据）
-            try {
-                router.refresh();
-            } catch { }
+            await waitForSessionReady();
+
             // 如果需要跳转（如从 /login 打开登录框）
-            if (typeof returnTo === 'string' && returnTo && returnTo !== window.location.pathname) {
+            if (returnTo && returnTo !== window.location.pathname) {
                 router.push(returnTo);
+            } else {
+                router.refresh();
             }
         };
 
@@ -174,11 +199,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                 return;
             }
             onClose(false);
-            if (typeof window !== 'undefined' && window.location.pathname.includes('/login')) {
-                router.push('/today-training');
-            } else {
-                router.refresh();
-            }
+            await syncSessionThenNavigate({ redirectOnLoginPage: '/today-training' });
         } catch (error: any) {
             showToast({ severity: 'error', summary: '登录失败', detail: error?.message });
         } finally {
@@ -198,12 +219,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
             if (!result?.error) {
                 // Close modal and redirect to dashboard/home after successful login
                 onClose(false);
-                // Check if we're on the login page - if so, redirect to home/dashboard instead of going back
-                if (typeof window !== 'undefined' && window.location.pathname.includes('/login')) {
-                    router.push('/');
-                } else {
-                    router.refresh();
-                }
+                await syncSessionThenNavigate({ redirectOnLoginPage: '/' });
             }
         } finally { setLoading(false); }
     };
@@ -225,11 +241,10 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                 showToast({ severity: 'error', summary: '登录失败', detail: result.error });
             } else {
                 onClose(false);
-                if (typeof window !== 'undefined' && window.location.pathname.includes('/login')) {
-                    router.push('/');
-                } else {
-                    router.refresh();
-                }
+                await syncSessionThenNavigate({
+                    expectedUserId: trimmedUserId,
+                    redirectOnLoginPage: '/',
+                });
             }
         } catch (error: any) {
             showToast({ severity: 'error', summary: '登录失败', detail: error.message });

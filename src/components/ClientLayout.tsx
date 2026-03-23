@@ -1,11 +1,11 @@
 'use client';
 
-import { useEffect, ReactNode, useState } from 'react';
+import { useCallback, useEffect, ReactNode, useRef, useState } from 'react';
 import { useTheme } from '@/context/ThemeContext';
 import { ToastContextProvider } from "../context/ToastContext";
 import { LoginModalProvider } from './auth/LoginModalContext';
 import { OnboardingModalProvider } from './auth/OnboardingModalContext';
-import { SessionProvider, useSession } from 'next-auth/react';
+import { SessionProvider, getSession, useSession } from 'next-auth/react';
 import { GuideProvider } from '@/stores/useGuideStore';
 import { GuideManager } from '@/components/guide/GuideManager';
 import { ChatProvider } from '@/context/ChatContext';
@@ -31,6 +31,58 @@ function GuideWrapper({ children }: { children: ReactNode }) {
             {children}
         </GuideProvider>
     );
+}
+
+function SessionBootstrap() {
+    const lastSyncAtRef = useRef(0);
+    const syncingRef = useRef(false);
+
+    const syncSession = useCallback(async () => {
+        if (syncingRef.current) return;
+
+        const now = Date.now();
+        if (now - lastSyncAtRef.current < 4_000) {
+            return;
+        }
+
+        syncingRef.current = true;
+        lastSyncAtRef.current = now;
+        try {
+            await getSession();
+        } catch {
+            // 静默失败：不阻断页面渲染
+        } finally {
+            syncingRef.current = false;
+        }
+    }, []);
+
+    useEffect(() => {
+        void syncSession();
+
+        const onVisibility = () => {
+            if (document.visibilityState === 'visible') {
+                void syncSession();
+            }
+        };
+        const onFocus = () => {
+            void syncSession();
+        };
+        const onPageShow = () => {
+            void syncSession();
+        };
+
+        document.addEventListener('visibilitychange', onVisibility);
+        window.addEventListener('focus', onFocus);
+        window.addEventListener('pageshow', onPageShow);
+
+        return () => {
+            document.removeEventListener('visibilitychange', onVisibility);
+            window.removeEventListener('focus', onFocus);
+            window.removeEventListener('pageshow', onPageShow);
+        };
+    }, [syncSession]);
+
+    return null;
 }
 
 export default function ClientLayout({
@@ -74,6 +126,7 @@ export default function ClientLayout({
             refetchInterval={5 * 60} // 每 5 分钟刷新一次 session（PWA 后台恢复时）
             refetchOnWindowFocus={true} // 窗口聚焦时刷新
         >
+            <SessionBootstrap />
             <ToastContextProvider>
                 <LoginModalProvider>
                     <OnboardingModalProvider>

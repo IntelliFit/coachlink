@@ -2,6 +2,12 @@
  * 周解锁工具函数
  * 用于计算训练计划的当前解锁周次，限制学员只能查看当前周及之前的训练内容
  */
+import {
+    addBeijingDays,
+    diffBeijingCalendarDays,
+    formatBeijingDate,
+    getBeijingDayStart,
+} from "./beijingTime";
 
 /**
  * 计算从计划开始日期到现在的周次
@@ -15,12 +21,8 @@ export function calculateCurrentWeek(
         return 1;
     }
 
-    const start = new Date(startDate);
-    const now = new Date();
-
-    // Normalize to local day boundaries to avoid off-by-one caused by time-of-day (e.g. startDate parsed at 08:00).
-    start.setHours(0, 0, 0, 0);
-    now.setHours(0, 0, 0, 0);
+    const start = getBeijingDayStart(startDate);
+    const now = getBeijingDayStart(new Date());
 
     // 如果开始日期在未来，返回第1周
     if (start > now) {
@@ -28,8 +30,7 @@ export function calculateCurrentWeek(
     }
 
     // 计算天数差
-    const diffTime = now.getTime() - start.getTime();
-    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    const diffDays = diffBeijingCalendarDays(now, start);
 
     // 计算周次（第1天到第7天是第1周，第8天到第14天是第2周...）
     return Math.max(1, Math.ceil((diffDays + 1) / 7));
@@ -82,14 +83,9 @@ export function getUnlockDate(
         return null;
     }
 
-    const start = new Date(startDate);
-    start.setHours(0, 0, 0, 0);
     // 第N周在第 (N-1)*7 天开始解锁
     const unlockOffset = (weekNumber - 1) * 7;
-    const unlockDate = new Date(start);
-    unlockDate.setDate(start.getDate() + unlockOffset);
-
-    return unlockDate;
+    return addBeijingDays(startDate, unlockOffset);
 }
 
 /**
@@ -102,7 +98,7 @@ export function formatUnlockDate(unlockDate: Date | null): string {
         return "";
     }
 
-    return unlockDate.toLocaleDateString("zh-CN", {
+    return formatBeijingDate(unlockDate, "zh-CN", {
         month: "long",
         day: "numeric",
     });
@@ -123,9 +119,8 @@ export function getDaysUntilUnlock(
         return 0;
     }
 
-    const now = new Date();
-    const diffTime = unlockDate.getTime() - now.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    const now = getBeijingDayStart(new Date());
+    const diffDays = Math.ceil((unlockDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
 
     return Math.max(0, diffDays);
 }

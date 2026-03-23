@@ -10,6 +10,7 @@ import type {
 } from "./entity";
 import { sendSystemMessage } from "@/lib/chat";
 import { autoMatchPlanForSubscription } from "@/app/api/plan-lib/auto-match-plan/service";
+import { supportsOfflinePaymentForCoach } from "@/lib/offlinePaymentPolicy";
 
 export async function POST(req: Request) {
     const session = await getServerSession();
@@ -78,6 +79,50 @@ export async function POST(req: Request) {
         }, { status: 403 });
     }
 
+    // 线下支付仅允许白名单教练（枭马葛 / 刘三乐）。
+    const requestedPaymentMethod = String((updateData as any)?.payment_method || "")
+        .trim()
+        .toLowerCase();
+    const paymentData = (updateData as any)?.payment_data;
+    const hasOfflinePaymentPayload = Boolean(
+        requestedPaymentMethod === "offline" ||
+        (
+            paymentData &&
+            typeof paymentData === "object" &&
+            !Array.isArray(paymentData) &&
+            (
+                (paymentData as any)?.offline_payment ||
+                String((paymentData as any)?.payment_type || "").toLowerCase() === "offline"
+            )
+        )
+    );
+
+    if (hasOfflinePaymentPayload) {
+        const { data: coach, error: coachError } = await supabase
+            .from("coaches")
+            .select("name, title")
+            .eq("id", subscription.coach_id)
+            .single();
+
+        if (coachError || !coach) {
+            return NextResponse.json<ApiData<UpdateSubscriptionResponseDto>>({
+                success: false,
+                message: "无法校验教练支付策略，请稍后重试",
+                data: null,
+            }, { status: 500 });
+        }
+
+        const coachName = String((coach as any).name || (coach as any).title || "").trim();
+        const allowOfflinePayment = supportsOfflinePaymentForCoach({ coachName });
+        if (!allowOfflinePayment) {
+            return NextResponse.json<ApiData<UpdateSubscriptionResponseDto>>({
+                success: false,
+                message: "该教练仅支持线上支付，暂不支持线下已付提交",
+                data: null,
+            }, { status: 403 });
+        }
+    }
+
     // 防止管理员后台“手动确认支付”这类不合理流程：管理员不能改订阅状态
     if (isAdmin && typeof (updateData as any)?.status !== "undefined") {
         return NextResponse.json<ApiData<UpdateSubscriptionResponseDto>>({
@@ -117,8 +162,111 @@ export async function POST(req: Request) {
             }
 
             // 教练确认：写入确认元信息（平台支付由系统写入，不走这里）
+            const nowIso = new Date().toISOString();
             (updateData as any).payment_confirmed_by = "coach";
-            (updateData as any).payment_confirmed_at = new Date().toISOString();
+            (updateData as any).payment_confirmed_at = nowIso;
+
+            // 兜底处理续费确认：即使前端未传，也根据 pending_renew 自动生效。
+            const existingPaymentData =
+                (subscription as any)?.payment_data &&
+                typeof (subscription as any).payment_data === "object" &&
+                !Array.isArray((subscription as any).payment_data)
+                    ? ((subscription as any).payment_data as Record<string, any>)
+                    : null;
+
+            const pendingRenew =
+                existingPaymentData &&
+                typeof existingPaymentData.pending_renew === "object" &&
+                !Array.isArray(existingPaymentData.pending_renew)
+                    ? (existingPaymentData.pending_renew as { additional_weeks?: number })
+                    : null;
+
+            const renewWeeks = Number(pendingRenew?.additional_weeks || 0);
+            const now = new Date(nowIso);
+            const DAY_MS = 24 * 60 * 60 * 1000;
+
+            if (renewWeeks > 0) {
+                const currentWeeks = Number(subscription.subscribed_weeks || 0);
+                const expectedWeeks = currentWeeks + renewWeeks;
+                const requestedWeeks = Number((updateData as any).subscribed_weeks || 0);
+                (updateData as any).subscribed_weeks = Math.max(expectedWeeks, requestedWeeks || 0);
+
+                if (typeof (updateData as any).end_date === "undefined") {
+                    const base = subscription.end_date ? new Date(subscription.end_date) : now;
+                    const effectiveBase = base.getTime() < now.getTime() ? now : base;
+                    effectiveBase.setDate(effectiveBase.getDate() + renewWeeks * 7);
+                    (updateData as any).end_date = effectiveBase.toISOString();
+                }
+            }
+
+            // 兼容“老订阅重开”场景：若确认激活但未明确设置 end_date，清理陈旧到期时间，避免刚确认就被判定为过期。
+            if (typeof (updateData as any).end_date === "undefined") {
+                const oldEndDate = subscription.end_date ? new Date(subscription.end_date) : null;
+                const hasStaleEndDate = Boolean(oldEndDate && oldEndDate.getTime() <= now.getTime());
+                if (!subscription.start_date || hasStaleEndDate) {
+                    (updateData as any).end_date = null;
+                }
+            }
+
+            const incomingPaymentData =
+                (updateData as any)?.payment_data &&
+                typeof (updateData as any).payment_data === "object" &&
+                !Array.isArray((updateData as any).payment_data)
+                    ? ((updateData as any).payment_data as Record<string, any>)
+                    : null;
+            let mergedPaymentData = incomingPaymentData || existingPaymentData;
+
+            // 兼容线下续费：如果没有 pending_renew，但有 offline_payment.expires_at，按到期日折算补周数（仅一次）。
+            if (
+                mergedPaymentData &&
+                !mergedPaymentData.offline_renew_applied_at &&
+                renewWeeks <= 0
+            ) {
+                const offlinePayment =
+                    mergedPaymentData.offline_payment &&
+                    typeof mergedPaymentData.offline_payment === "object" &&
+                    !Array.isArray(mergedPaymentData.offline_payment)
+                        ? mergedPaymentData.offline_payment
+                        : null;
+                const offlineExpiresAt = offlinePayment?.expires_at
+                    ? new Date(offlinePayment.expires_at)
+                    : null;
+
+                if (offlineExpiresAt && !Number.isNaN(offlineExpiresAt.getTime()) && offlineExpiresAt.getTime() > now.getTime()) {
+                    const rawEndDate = (updateData as any).end_date || subscription.end_date || null;
+                    const baseDate = rawEndDate ? new Date(rawEndDate) : now;
+                    const effectiveBase = baseDate.getTime() > now.getTime() ? baseDate : now;
+                    const inferredWeeks = Math.max(
+                        0,
+                        Math.ceil((offlineExpiresAt.getTime() - effectiveBase.getTime()) / (7 * DAY_MS)),
+                    );
+
+                    if (inferredWeeks > 0) {
+                        const currentWeeks = Number(subscription.subscribed_weeks || 0);
+                        const requestedWeeks = Number((updateData as any).subscribed_weeks || 0);
+                        (updateData as any).subscribed_weeks = Math.max(
+                            currentWeeks + inferredWeeks,
+                            requestedWeeks || 0,
+                        );
+                    }
+
+                    if (typeof (updateData as any).end_date === "undefined") {
+                        (updateData as any).end_date = offlineExpiresAt.toISOString();
+                    }
+
+                    mergedPaymentData = {
+                        ...mergedPaymentData,
+                        offline_renew_applied_at: nowIso,
+                    };
+                }
+            }
+
+            if (mergedPaymentData) {
+                (updateData as any).payment_data = {
+                    ...mergedPaymentData,
+                    pending_renew: null,
+                };
+            }
         }
     }
 

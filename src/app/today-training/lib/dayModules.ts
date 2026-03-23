@@ -1,6 +1,12 @@
 'use client';
 
 import { formatKgValueForGym } from '@/lib/weightQuantize';
+import {
+    addBeijingDays,
+    formatBeijingDate,
+    getBeijingDayStart,
+    toBeijingDateKey,
+} from '@/lib/beijingTime';
 
 export type ExecutionStatus = 'none' | 'in_progress' | 'completed';
 export type LightweightType = 'DIET' | 'CARDIO' | 'HABIT';
@@ -32,14 +38,17 @@ export interface DayModuleModel {
     lightweightGroups: Array<{ slot: string; items: NormalizedDayTask[] }>;
     moduleCount: number;
     completedModuleCount: number;
+    remainingModuleCount: number;
+    dayCompleted: boolean;
     strengthCompleted: boolean;
+    trainingCompleted: boolean;
+    trainingInProgress: boolean;
     strengthCompletedSetCount: number;
     strengthTotalSetCount: number;
     lightweightCompletedCount: number;
 }
 
 export const slotOrder = ['早晨', '中午', '下午', '晚上', '任意时间'] as const;
-const DAY_MS = 24 * 60 * 60 * 1000;
 
 export const parsePositiveIntOrNull = (value: any) => {
     if (value === null || value === undefined || value === '') return null;
@@ -189,7 +198,6 @@ export const buildDayModuleModel = (params: {
         }
     });
 
-    const isDayCompleted = executionStatus === 'completed';
     const normalizedTasks: NormalizedDayTask[] = actionSets.map((actionSet: any, index: number) => {
         const actionId = actionSet.action_id || actionSet.actionId || '';
         const action = actions[actionId];
@@ -225,7 +233,7 @@ export const buildDayModuleModel = (params: {
             executionItem,
             setCount,
             completedSetCount,
-            isCompleted: isTaskCompleted || isDayCompleted,
+            isCompleted: isTaskCompleted,
             isStudentExtra: executionItem?.source === 'student_extra',
         };
     });
@@ -281,7 +289,7 @@ export const buildDayModuleModel = (params: {
                 executionItem,
                 setCount,
                 completedSetCount,
-                isCompleted: isTaskCompleted || isDayCompleted,
+                isCompleted: isTaskCompleted,
                 isStudentExtra: executionItem?.source === 'student_extra',
             };
         })
@@ -292,9 +300,15 @@ export const buildDayModuleModel = (params: {
     const strengthTasks = mergedTasks.filter((task) => task.itemType === 'STRENGTH');
     const lightweightTasks = mergedTasks.filter((task) => task.itemType !== 'STRENGTH');
     const strengthCompleted = strengthTasks.length > 0 && strengthTasks.every((task) => task.isCompleted);
+    const trainingCompleted = strengthTasks.length > 0 && (strengthCompleted || executionStatus === 'completed');
+    const trainingInProgress = strengthTasks.length > 0 && !trainingCompleted && executionStatus === 'in_progress';
     const strengthCompletedSetCount = strengthTasks.reduce((sum, task) => sum + task.completedSetCount, 0);
     const strengthTotalSetCount = strengthTasks.reduce((sum, task) => sum + task.setCount, 0);
     const lightweightCompletedCount = lightweightTasks.filter((task) => task.isCompleted).length;
+    const moduleCount = (strengthTasks.length > 0 ? 1 : 0) + lightweightTasks.length;
+    const completedModuleCount = (trainingCompleted ? 1 : 0) + lightweightCompletedCount;
+    const remainingModuleCount = Math.max(0, moduleCount - completedModuleCount);
+    const dayCompleted = moduleCount > 0 && completedModuleCount >= moduleCount;
 
     const groups = new Map<string, NormalizedDayTask[]>();
     lightweightTasks.forEach((task) => {
@@ -312,21 +326,17 @@ export const buildDayModuleModel = (params: {
         strengthTasks,
         lightweightTasks,
         lightweightGroups,
-        moduleCount: (strengthTasks.length > 0 ? 1 : 0) + lightweightTasks.length,
-        completedModuleCount:
-            (strengthTasks.length > 0 && strengthCompleted ? 1 : 0) +
-            lightweightCompletedCount,
+        moduleCount,
+        completedModuleCount,
+        remainingModuleCount,
+        dayCompleted,
         strengthCompleted,
+        trainingCompleted,
+        trainingInProgress,
         strengthCompletedSetCount,
         strengthTotalSetCount,
         lightweightCompletedCount,
     };
-};
-
-const normalizeDate = (input: Date) => {
-    const next = new Date(input);
-    next.setHours(0, 0, 0, 0);
-    return next;
 };
 
 export const resolvePlanDayDate = (params: {
@@ -343,26 +353,20 @@ export const resolvePlanDayDate = (params: {
     } = params;
 
     if (effectiveStartDate) {
-        const start = normalizeDate(new Date(effectiveStartDate));
-        start.setDate(start.getDate() + dayIndex - 1);
-        return start;
+        return addBeijingDays(effectiveStartDate, dayIndex - 1);
     }
 
-    const anchor = normalizeDate(fallbackAnchorDate);
-    anchor.setDate(anchor.getDate() + dayIndex - fallbackAnchorDayIndex);
-    return anchor;
+    const anchor = getBeijingDayStart(fallbackAnchorDate);
+    return addBeijingDays(anchor, dayIndex - fallbackAnchorDayIndex);
 };
 
 export const toDateKey = (date: Date) => {
-    const yyyy = date.getFullYear();
-    const mm = String(date.getMonth() + 1).padStart(2, '0');
-    const dd = String(date.getDate()).padStart(2, '0');
-    return `${yyyy}-${mm}-${dd}`;
+    return toBeijingDateKey(date);
 };
 
 export const formatPlanDayLabel = (date: Date | null) => {
     if (!date) return '';
-    return date.toLocaleDateString('zh-CN', {
+    return formatBeijingDate(date, 'zh-CN', {
         month: 'long',
         day: 'numeric',
         weekday: 'long',
@@ -370,7 +374,5 @@ export const formatPlanDayLabel = (date: Date | null) => {
 };
 
 export const addDays = (date: Date, offset: number) => {
-    const next = new Date(date);
-    next.setTime(next.getTime() + offset * DAY_MS);
-    return normalizeDate(next);
+    return addBeijingDays(date, offset);
 };

@@ -14,6 +14,10 @@ import { LeaderboardRule, LeaderboardFormInput } from '@/types/leaderboard';
 import { Tag } from 'primereact/tag';
 import { Clock } from 'lucide-react';
 import { InputSwitch } from 'primereact/inputswitch';
+import {
+    fromISOStringToBeijingWallTimeDate,
+    toBeijingISOStringFromWallTime,
+} from '@/lib/beijingTime';
 
 interface EditLeaderboardFormProps {
     leaderboardId: string;
@@ -59,8 +63,8 @@ export default function EditLeaderboardForm({ leaderboardId, visible, onHide, on
         if (res) {
             setFormData({
                 ...res.leaderboard,
-                start_at: res.leaderboard?.start_at ? new Date(res.leaderboard.start_at) : null,
-                end_at: res.leaderboard?.end_at ? new Date(res.leaderboard.end_at) : null
+                start_at: res.leaderboard?.start_at ? fromISOStringToBeijingWallTimeDate(res.leaderboard.start_at) : null,
+                end_at: res.leaderboard?.end_at ? fromISOStringToBeijingWallTimeDate(res.leaderboard.end_at) : null
             });
         } else {
             showToast({
@@ -90,8 +94,8 @@ export default function EditLeaderboardForm({ leaderboardId, visible, onHide, on
         try {
             const reqData = {
                 ...formData,
-                start_at: formData.start_at?.toISOString(),
-                end_at: formData.end_at?.toISOString()
+                start_at: formData.start_at ? toBeijingISOStringFromWallTime(formData.start_at) : undefined,
+                end_at: formData.end_at ? toBeijingISOStringFromWallTime(formData.end_at) : undefined
             };
             const result = await rankingService.updateLeaderboard(reqData);
             if (result?.success) {

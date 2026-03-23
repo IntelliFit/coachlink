@@ -9,6 +9,7 @@ import type { StudentVideoCollection } from '@/types/videoCollection';
 import VideoUploader from '@/components/video/VideoUploader';
 import { useToastContext } from '@/context/ToastContext';
 import type { VideoUploadContext } from '@/types/video';
+import { formatBeijingDate } from '@/lib/beijingTime';
 
 type AddMode = 'existing' | 'upload';
 
@@ -268,7 +269,14 @@ export const VideoCollectionSection: React.FC = () => {
                                     </div>
                                 )}
                                 <p className="text-xs text-gray-500">
-                                    {new Date(item.created_at).toLocaleString()}
+                                    {formatBeijingDate(item.created_at, 'zh-CN', {
+                                        year: 'numeric',
+                                        month: '2-digit',
+                                        day: '2-digit',
+                                        hour: '2-digit',
+                                        minute: '2-digit',
+                                        second: '2-digit',
+                                    })}
                                 </p>
                             </div>
                         </div>
@@ -350,7 +358,14 @@ export const VideoCollectionSection: React.FC = () => {
                                         {loadingVideos && <option value="">加载中...</option>}
                                         {existingVideos.map(video => (
                                             <option key={video.id} value={video.id}>
-                                                {video.exercise_name || '训练视频'} - {new Date(video.created_at).toLocaleString()}
+                                                {video.exercise_name || '训练视频'} - {formatBeijingDate(video.created_at, 'zh-CN', {
+                                                    year: 'numeric',
+                                                    month: '2-digit',
+                                                    day: '2-digit',
+                                                    hour: '2-digit',
+                                                    minute: '2-digit',
+                                                    second: '2-digit',
+                                                })}
                                             </option>
                                         ))}
                                     </select>

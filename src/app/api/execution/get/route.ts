@@ -8,6 +8,7 @@ import type {
 } from "./entity";
 import { buildShareInfo } from "../share-helper";
 import type { ShareInfoResponseDto } from "../entity";
+import { validateExecutionSubscriptionAccess } from "../_helpers/subscriptionAccess";
 
 /**
  * POST /api/execution/get
@@ -66,6 +67,19 @@ export async function POST(req: Request) {
                 message: "无权限",
                 data: null,
             }, { status: 403 });
+        }
+
+        const accessDecision = await validateExecutionSubscriptionAccess({
+            instanceId: data.instance_id,
+            studentId: userId,
+            dayIndex: data.day_index,
+        });
+        if (!accessDecision.allowed) {
+            return NextResponse.json<ApiData<GetExecutionResponseDto>>({
+                success: false,
+                message: accessDecision.message || "无权访问此计划",
+                data: null,
+            }, { status: accessDecision.status });
         }
 
         return NextResponse.json<ApiData<GetExecutionResponseDto>>({

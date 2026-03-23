@@ -12,6 +12,7 @@ import {
     requiresBodyWeightFallback,
 } from "@/lib/e1rmCalculator";
 import { isOneRMEligibleAction } from "@/lib/oneRmEligibility";
+import { validateExecutionSubscriptionAccess } from "../_helpers/subscriptionAccess";
 
 async function bumpStudentActionReference1RM(params: {
     userId: string;
@@ -449,6 +450,19 @@ export async function POST(request: NextRequest) {
                 message: "无权访问此记录",
                 data: null,
             }, { status: 403 });
+        }
+
+        const accessDecision = await validateExecutionSubscriptionAccess({
+            instanceId: execution.instance_id,
+            studentId: userId,
+            dayIndex: execution.day_index,
+        });
+        if (!accessDecision.allowed) {
+            return NextResponse.json<ApiData<CompleteSetResponseDto>>({
+                success: false,
+                message: accessDecision.message || "无权访问此计划",
+                data: null,
+            }, { status: accessDecision.status });
         }
 
         // 4.5 查询视频URL（如果has_video为true）

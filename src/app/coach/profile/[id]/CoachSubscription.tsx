@@ -23,6 +23,7 @@ import type { TrainingItem } from '@/types/questionnaires';
 import QuestionnaireForm from './QuestionnaireForm';
 import PaymentDialog, { OfflinePaymentData } from '@/components/payment/paymentDialog';
 import { useGuideStore } from '@/stores/useGuideStore';
+import { supportsOfflinePaymentForCoach } from '@/lib/offlinePaymentPolicy';
 
 interface CoachSubscriptionProps {
     coach: CoachesRow;
@@ -107,6 +108,9 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
     const activeSub = mySubscriptions.find(
         (sub) => sub.coach_id === coach?.id && sub.status === 'active',
     );
+    const allowOfflinePayment = supportsOfflinePaymentForCoach({
+        coachName: coach?.name || coach?.title,
+    });
 
     useEffect(() => {
         if (isRenewFromUrl) setRenewMode(true);
@@ -238,7 +242,7 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
         const nextPaymentData: any = {
             ...basePaymentData,
             offline_payment: offlinePaymentData || null,
-            pending_renew: !isOffline && renewMode && selectedDuration
+            pending_renew: renewMode && selectedDuration
                 ? {
                       additional_weeks: additionalWeeks,
                       amount: selectedDuration.price,
@@ -269,6 +273,15 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
 
     // 处理线下支付（直接从套餐选择页面触发）
     const handleOfflinePayment = async (product: Product, duration: DurationOption) => {
+        if (!allowOfflinePayment) {
+            showToast({
+                severity: 'warn',
+                summary: '该教练仅支持线上支付',
+                detail: '请使用扫码或平台支付完成订阅。',
+            });
+            return;
+        }
+
         setSelectedProduct(product);
         setSelectedDuration(duration);
         setIsOfflinePaymentMode(true); // 标记为线下支付模式
@@ -332,6 +345,15 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
     };
 
     const handleOfflineEntry = async () => {
+        if (!allowOfflinePayment) {
+            showToast({
+                severity: 'warn',
+                summary: '该教练仅支持线上支付',
+                detail: '当前教练不支持线下已付续费。',
+            });
+            return;
+        }
+
         setIsOfflinePaymentMode(true);
         setSelectedProduct(null);
         setSelectedDuration(null);
@@ -550,24 +572,36 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
                     onClick={() => startGuide('STUDENT_SUBSCRIBE_FLOW_GUIDE')}
                 />
             </div>
-            <div className="mb-6 rounded-3xl border border-green-200/60 bg-green-50/40 p-5 flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
-                <div className="min-w-0">
-                    <div className="text-xs font-black uppercase tracking-widest text-green-600/80">线下已支付</div>
-                    <div className="text-lg font-black text-surface-900 tracking-tight mt-1">
-                        上传凭证后订阅
+            {allowOfflinePayment ? (
+                <div className="mb-6 rounded-3xl border border-green-200/60 bg-green-50/40 p-5 flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
+                    <div className="min-w-0">
+                        <div className="text-xs font-black uppercase tracking-widest text-green-600/80">线下已支付</div>
+                        <div className="text-lg font-black text-surface-900 tracking-tight mt-1">
+                            上传凭证后订阅
+                        </div>
+                        <div className="text-sm text-surface-500 mt-1">线下已付款需上传凭证，若教练设置了问卷则需先填写</div>
                     </div>
-                    <div className="text-sm text-surface-500 mt-1">线下已付款需上传凭证，若教练设置了问卷则需先填写</div>
+                    <div className="flex gap-2 shrink-0">
+                        <Button
+                            label="线下已支付"
+                            icon="pi pi-wallet"
+                            className="rounded-2xl p-button-success"
+                            onClick={handleOfflineEntry}
+                            disabled={subscribing}
+                        />
+                    </div>
                 </div>
-                <div className="flex gap-2 shrink-0">
-                    <Button
-                        label="线下已支付"
-                        icon="pi pi-wallet"
-                        className="rounded-2xl p-button-success"
-                        onClick={handleOfflineEntry}
-                        disabled={subscribing}
-                    />
+            ) : (
+                <div className="mb-6 rounded-3xl border border-blue-200/60 bg-blue-50/40 p-5">
+                    <div className="text-xs font-black uppercase tracking-widest text-blue-600/80">支付说明</div>
+                    <div className="text-lg font-black text-surface-900 tracking-tight mt-1">
+                        该教练仅支持线上支付
+                    </div>
+                    <div className="text-sm text-surface-500 mt-1">
+                        请在支付弹窗中使用扫码支付或平台支付完成订阅/续费。
+                    </div>
                 </div>
-            </div>
+            )}
             {products.length === 0 ? (
                 <div className="py-20 text-center bg-surface-50 rounded-3xl border-2 border-dashed border-surface-200">
                     <Inbox className="w-16 h-16 text-surface-200 mx-auto mb-4" />
@@ -633,7 +667,8 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
                 }
                 subscriptionFlow={renewMode ? 'renew' : 'subscribe'}
                 renewAdditionalWeeks={renewMode ? (selectedDuration?.months || 1) * 4 : undefined}
-                defaultPaymentMethod={isOfflinePaymentMode ? 'offline' : undefined}
+                defaultPaymentMethod={isOfflinePaymentMode && allowOfflinePayment ? 'offline' : undefined}
+                allowOfflinePayment={allowOfflinePayment}
                 onSuccess={handlePaymentSuccess}
                 onCancel={() => {
                     setPaymentDialogVisible(false);

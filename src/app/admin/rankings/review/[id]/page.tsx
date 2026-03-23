@@ -15,6 +15,7 @@ import { useToastContext } from '@/context/ToastContext';
 import { rankingService } from '@/app/service/rankingService';
 import { LeaderboardEntriesRow } from '@/types';
 import { GetLeaderboardResponseDto } from '@/app/api/ranking/get-leaderboard/entity';
+import { formatBeijingDate } from '@/lib/beijingTime';
 
 interface LeaderboardEntryWithProfile extends LeaderboardEntriesRow {
     userProfile: {
@@ -145,7 +146,7 @@ const ReviewPage = () => {
             >
                 <Column header="申请人" body={userInfoTemplate} />
                 <Column field="score" header={leaderboard?.rank_by_field || '数值'} sortable />
-                <Column header="提交时间" body={(d) => <span className="text-sm text-gray-600">{new Date(d.created_at).toLocaleString()}</span>} />
+                <Column header="提交时间" body={(d) => <span className="text-sm text-gray-600">{formatBeijingDate(d.created_at, 'zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>} />
                 <Column header="操作" body={actionTemplate} />
             </DataTable>
 

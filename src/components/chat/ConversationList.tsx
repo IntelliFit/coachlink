@@ -10,6 +10,7 @@ import ChatDialog from '@/components/chat/ChatDialog';
 import { ChatroomDetail } from '@/app/api/chat/get-chatroom/entity';
 import MarkdownIt from 'markdown-it';
 import { Clock, ChevronRight, MessageSquareText } from 'lucide-react';
+import { diffBeijingCalendarDays, formatBeijingDate } from '@/lib/beijingTime';
 
 export function ConversationList({ chatrooms, loading = false, onConversationClick }: any) {
     const { data: session } = useSession();
@@ -48,12 +49,10 @@ export function ConversationList({ chatrooms, loading = false, onConversationCli
     const formatTime = (dateStr: string | null) => {
         if (!dateStr) return '';
         const date = new Date(dateStr);
-        const now = new Date();
-        const diff = now.getTime() - date.getTime();
-        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-        if (days === 0) return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+        const days = diffBeijingCalendarDays(new Date(), date);
+        if (days === 0) return formatBeijingDate(date, 'zh-CN', { hour: '2-digit', minute: '2-digit' });
         if (days === 1) return '昨天';
-        return days < 7 ? `${days}天前` : date.toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit' });
+        return days < 7 ? `${days}天前` : formatBeijingDate(date, 'zh-CN', { month: '2-digit', day: '2-digit' });
     };
 
     const md = React.useMemo(() => new MarkdownIt({ html: false }), []);

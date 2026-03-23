@@ -12,6 +12,7 @@ import {
   ArrowLeft,
   Eye
 } from 'lucide-react';
+import { formatBeijingDate } from '@/lib/beijingTime';
 
 // 定义待审核记录类型
 interface PendingRecord {
@@ -125,7 +126,14 @@ const AdminReviewPage: React.FC<AdminReviewPageProps> = ({ onNavigate }) => {
 
   // 格式化时间
   const formatDate = (dateString: string): string => {
-    return new Date(dateString).toLocaleString('zh-CN');
+    return formatBeijingDate(dateString, 'zh-CN', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    });
   };
 
   useEffect(() => {

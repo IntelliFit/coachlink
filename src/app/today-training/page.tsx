@@ -33,6 +33,11 @@ import {
 import PlanCompletionModal from '@/components/plan/PlanCompletionModal';
 import { Avatar } from 'primereact/avatar';
 import { AeroInputNumber } from '@/components/AeroInputNumber';
+import {
+    diffBeijingCalendarDays,
+    formatBeijingDate,
+    getBeijingDayStart,
+} from '@/lib/beijingTime';
 
 const TodayTrainingPage: React.FC = () => {
     const { data: session } = useSession();
@@ -112,12 +117,10 @@ const TodayTrainingPage: React.FC = () => {
     const trainingDays = (instance?.training_days || []) as any[];
     const formatShortDate = (ts?: string | null) => {
         if (!ts) return '';
-        const dt = new Date(ts);
-        return dt.toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric' });
+        return formatBeijingDate(ts, 'zh-CN', { month: 'numeric', day: 'numeric' });
     };
     const calendarDayIndex = (() => {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
+        const today = getBeijingDayStart(new Date());
         const execs = executionsByDayIndex || {};
         const resolved = Object.values(execs).filter((e: any) =>
             (e?.status === 'completed' || e?.status === 'abandoned') && (e?.completed_at || e?.started_at)
@@ -127,17 +130,15 @@ const TodayTrainingPage: React.FC = () => {
             const anchorExec = (execs as any)[maxResolved];
             const anchorTs = anchorExec?.completed_at || anchorExec?.started_at;
             if (anchorTs) {
-                const anchor = new Date(anchorTs);
-                anchor.setHours(0, 0, 0, 0);
-                const diffDays = Math.floor((today.getTime() - anchor.getTime()) / (24 * 60 * 60 * 1000));
+                const anchor = getBeijingDayStart(anchorTs);
+                const diffDays = diffBeijingCalendarDays(today, anchor);
                 return Math.max(1, Math.min(trainingDays.length || 1, maxResolved + diffDays));
             }
         }
         const effectiveStart = (instance as any)?.start_date || activeSubscription?.start_date;
         if (effectiveStart) {
-            const start = new Date(effectiveStart);
-            start.setHours(0, 0, 0, 0);
-            const diffDays = Math.floor((today.getTime() - start.getTime()) / (24 * 60 * 60 * 1000));
+            const start = getBeijingDayStart(effectiveStart);
+            const diffDays = diffBeijingCalendarDays(today, start);
             return Math.max(1, Math.min(trainingDays.length || 1, 1 + diffDays));
         }
         return todayDayIndex;
@@ -189,9 +190,12 @@ const TodayTrainingPage: React.FC = () => {
         return {
             totalModules: selectedModuleModel.moduleCount,
             completedModules: selectedModuleModel.completedModuleCount,
-            remainingModules: Math.max(0, selectedModuleModel.moduleCount - selectedModuleModel.completedModuleCount),
+            remainingModules: selectedModuleModel.remainingModuleCount,
             strengthModuleCount: selectedModuleModel.strengthTasks.length > 0 ? 1 : 0,
             lightweightCount: selectedModuleModel.lightweightTasks.length,
+            trainingCompleted: selectedModuleModel.trainingCompleted,
+            trainingInProgress: selectedModuleModel.trainingInProgress,
+            dayCompleted: selectedModuleModel.dayCompleted,
         };
     }, [selectedModuleModel]);
     const effectiveCalendarStartDate = instance?.start_date || activeSubscription?.start_date || null;
@@ -205,6 +209,18 @@ const TodayTrainingPage: React.FC = () => {
         return formatPlanDayLabel(selectedDate);
     }, [selectedDayIndex, effectiveCalendarStartDate, progressDayIndex]);
     const selectedHasLightweightTasks = selectedModuleModel.lightweightTasks.length > 0;
+    const selectedTrainingStatusLabel = selectedTaskSummary.strengthModuleCount === 0
+        ? '今日无力量训练'
+        : selectedTaskSummary.trainingCompleted
+            ? '已完成'
+            : selectedTaskSummary.trainingInProgress
+                ? '进行中'
+                : '待开始';
+    const selectedDayStatusLabel = selectedTaskSummary.totalModules === 0
+        ? '暂无任务'
+        : selectedTaskSummary.dayCompleted
+            ? '已打卡完成'
+            : `${selectedTaskSummary.completedModules}/${selectedTaskSummary.totalModules} 模块`;
 
     const handleOpenLightweightTask = (task: NormalizedDayTask) => {
         setActiveLightweightTask(task);
@@ -257,7 +273,6 @@ const TodayTrainingPage: React.FC = () => {
     };
 
     const handleOpenLightweightPicker = () => {
-        if (selectedDay?.type !== 'training') return;
         setLightweightPickerVisible(true);
     };
 
@@ -292,7 +307,7 @@ const TodayTrainingPage: React.FC = () => {
     };
 
     const handleAddLightweightTask = async () => {
-        if (!instance?.id || selectedDay?.type !== 'training' || addingLightweightTask) return;
+        if (!instance?.id || !selectedDayIndex || addingLightweightTask) return;
         if (!pendingLightweightAction) return;
 
         try {
@@ -440,7 +455,6 @@ const TodayTrainingPage: React.FC = () => {
             // 1. 获取订阅
             const subsResponse = await subscriptionService.getCoachSubscriptions({
                 studentId: session?.user?.id || '',
-                computePauseAwareEndDate: false,
             });
 
             const activeSubs = (subsResponse?.subscriptions || []).filter((s: any) => !!s?.id);
@@ -827,6 +841,13 @@ const TodayTrainingPage: React.FC = () => {
             activeSubscription?.coach_id ||
             '';
         const hasActiveSubscription = !!activeSubscription?.id;
+        const subscriptionLifecycle = String(activeSubscription?.lifecycle_status || 'active');
+        const isExpiredGrace = subscriptionLifecycle === 'expired_grace';
+        const graceDaysLeft = Math.max(0, Number(activeSubscription?.grace_days_left || 0));
+        const graceDeadlineLabel = formatShortDate(activeSubscription?.grace_deadline_at);
+        const renewPath = activeSubscription?.coach_id
+            ? `/coach/profile/${activeSubscription.coach_id}?renew=true`
+            : '/coach/subscription';
 
         // 有订阅但暂无计划：展示“教练制定中”的等待页
         if (hasActiveSubscription) {
@@ -835,28 +856,60 @@ const TodayTrainingPage: React.FC = () => {
                     <Card className="rounded-2xl bg-transparent shadow-none overflow-hidden border border-surface-100/50">
                         <div className="text-center py-16 px-4">
                             <div className="relative inline-block mb-6">
-                                <div className="absolute inset-0 animate-ping opacity-20 bg-primary-400 rounded-full" />
-                                <div className="relative bg-surface-50 p-6 rounded-full border border-surface-100/50">
-                                    <Target className="w-10 h-10 text-primary-500 stroke-[1.5]" />
+                                <div
+                                    className={`absolute inset-0 animate-ping opacity-20 rounded-full ${isExpiredGrace ? 'bg-amber-400' : 'bg-primary-400'
+                                        }`}
+                                />
+                                <div
+                                    className={`relative p-6 rounded-full border ${isExpiredGrace
+                                        ? 'bg-amber-50 border-amber-100/70'
+                                        : 'bg-surface-50 border-surface-100/50'
+                                        }`}
+                                >
+                                    {isExpiredGrace ? (
+                                        <i className="pi pi-exclamation-triangle text-amber-500 text-3xl" />
+                                    ) : (
+                                        <Target className="w-10 h-10 text-primary-500 stroke-[1.5]" />
+                                    )}
                                 </div>
                             </div>
 
                             <h3 className="text-2xl font-bold tracking-tight text-surface-900 mb-3">
-                                计划正在制定中
+                                {isExpiredGrace ? '订阅已到期，请尽快续费' : '计划正在制定中'}
                             </h3>
                             <p className="text-surface-500 max-w-sm mx-auto mb-10 leading-relaxed text-balance">
-                                {subscribedCoachName
-                                    ? `您的教练「${subscribedCoachName}」正在为您制定训练计划，请耐心等待。`
-                                    : '您的教练正在为您制定训练计划，请耐心等待。'}
+                                {isExpiredGrace
+                                    ? subscribedCoachName
+                                        ? `您与教练「${subscribedCoachName}」的订阅已到期。训练计划内容已锁定，请在宽限期内续费后恢复并继续当前进度。`
+                                        : '您的教练订阅已到期。训练计划内容已锁定，请在宽限期内续费后恢复并继续当前进度。'
+                                    : subscribedCoachName
+                                        ? `您的教练「${subscribedCoachName}」正在为您制定训练计划，请耐心等待。`
+                                        : '您的教练正在为您制定训练计划，请耐心等待。'}
                             </p>
 
+                            {isExpiredGrace && (
+                                <div className="mx-auto mb-8 max-w-lg rounded-2xl border border-amber-200/80 bg-amber-50 px-4 py-3 text-amber-900 text-sm">
+                                    宽限期剩余 <b>{graceDaysLeft}</b> 天
+                                    {graceDeadlineLabel ? `（截至 ${graceDeadlineLabel}）` : ''}。逾期将自动取消订阅关系。
+                                </div>
+                            )}
+
                             <div className="flex flex-col sm:flex-row justify-center items-center gap-4">
-                                <Button
-                                    label="即兴锻炼"
-                                    icon="pi pi-bolt"
-                                    onClick={() => router.push('/impromptu-training')}
-                                    className="w-full sm:w-auto px-8 py-3.5 rounded-2xl bg-primary-500 border-none transition-all active:scale-[0.98] duration-200 ease-out"
-                                />
+                                {isExpiredGrace ? (
+                                    <Button
+                                        label="去教练主页续费"
+                                        icon="pi pi-refresh"
+                                        onClick={() => router.push(renewPath)}
+                                        className="w-full sm:w-auto px-8 py-3.5 rounded-2xl bg-amber-500 border-none transition-all active:scale-[0.98] duration-200 ease-out"
+                                    />
+                                ) : (
+                                    <Button
+                                        label="即兴锻炼"
+                                        icon="pi pi-bolt"
+                                        onClick={() => router.push('/impromptu-training')}
+                                        className="w-full sm:w-auto px-8 py-3.5 rounded-2xl bg-primary-500 border-none transition-all active:scale-[0.98] duration-200 ease-out"
+                                    />
+                                )}
                                 <Button
                                     label="联系教练"
                                     icon="pi pi-comments"
@@ -870,12 +923,21 @@ const TodayTrainingPage: React.FC = () => {
                                     }}
                                     className="w-full sm:w-auto px-8 py-3.5 rounded-2xl bg-primary-500 border-none transition-all active:scale-[0.98] duration-200 ease-out"
                                 />
-                                <Button
-                                    label="我的计划库"
-                                    icon="pi pi-bookmark"
-                                    onClick={() => router.push('/me/plan-lib')}
-                                    className="w-full sm:w-auto px-8 py-3.5 rounded-2xl bg-surface-50 text-surface-700 border border-surface-200 transition-all active:scale-[0.98] duration-200 ease-out hover:bg-surface-100"
-                                />
+                                {isExpiredGrace ? (
+                                    <Button
+                                        label="即兴锻炼"
+                                        icon="pi pi-bolt"
+                                        onClick={() => router.push('/impromptu-training')}
+                                        className="w-full sm:w-auto px-8 py-3.5 rounded-2xl bg-surface-50 text-surface-700 border border-surface-200 transition-all active:scale-[0.98] duration-200 ease-out hover:bg-surface-100"
+                                    />
+                                ) : (
+                                    <Button
+                                        label="我的计划库"
+                                        icon="pi pi-bookmark"
+                                        onClick={() => router.push('/me/plan-lib')}
+                                        className="w-full sm:w-auto px-8 py-3.5 rounded-2xl bg-surface-50 text-surface-700 border border-surface-200 transition-all active:scale-[0.98] duration-200 ease-out hover:bg-surface-100"
+                                    />
+                                )}
                             </div>
                         </div>
                     </Card>
@@ -940,26 +1002,27 @@ const TodayTrainingPage: React.FC = () => {
             activeSubscription?.coach?.title ||
             activeSubscription?.coach_id ||
             '教练';
+        const subscriptionLifecycle = String(activeSubscription?.lifecycle_status || 'active');
+        const isExpiredGrace = subscriptionLifecycle === 'expired_grace';
+        const graceDaysLeft = Math.max(0, Number(activeSubscription?.grace_days_left || 0));
+        const graceDeadlineLabel = formatShortDate(activeSubscription?.grace_deadline_at);
+        const renewPath = activeSubscription?.coach_id
+            ? `/coach/profile/${activeSubscription.coach_id}?renew=true`
+            : '/coach/subscription';
         return (
             <div className="min-h-screen bg-surface pb-12">
                 <div className="max-w-6xl mx-auto px-3 sm:px-4 md:px-6 py-3 sm:py-6 md:py-8">
                     {hasBothPlans && (
                         <div className="grid grid-cols-2 gap-2 p-1 bg-surface-50 rounded-2xl mb-6 w-full sm:w-fit border border-surface-100/50">
                             <button
-                                className={`px-4 py-2 rounded-xl text-sm font-medium transition-all active:scale-[0.98] ${planMode === 'coach'
-                                    ? 'bg-surface text-surface-900 shadow-sm'
-                                    : 'text-surface-500 hover:text-surface-700'
-                                    }`}
+                                className="px-4 py-2 rounded-xl text-sm font-medium transition-all active:scale-[0.98] bg-surface text-surface-900 shadow-sm"
                                 onClick={() => setPlanMode('coach')}
                             >
                                 <i className="pi pi-user mr-2" />
                                 教练计划
                             </button>
                             <button
-                                className={`px-4 py-2 rounded-xl text-sm font-medium transition-all active:scale-[0.98] ${planMode === 'self'
-                                    ? 'bg-surface text-surface-900 shadow-sm'
-                                    : 'text-surface-500 hover:text-surface-700'
-                                    }`}
+                                className="px-4 py-2 rounded-xl text-sm font-medium transition-all active:scale-[0.98] text-surface-500 hover:text-surface-700"
                                 onClick={() => setPlanMode('self')}
                             >
                                 <i className="pi pi-star mr-2" />
@@ -1012,24 +1075,59 @@ const TodayTrainingPage: React.FC = () => {
                     <Card className="rounded-2xl bg-transparent shadow-none overflow-hidden border border-surface-100/50">
                         <div className="text-center py-16 px-4">
                             <div className="relative inline-block mb-6">
-                                <div className="absolute inset-0 animate-ping opacity-20 bg-primary-400 rounded-full" />
-                                <div className="relative bg-surface-50 p-6 rounded-full border border-surface-100/50">
-                                    <Target className="w-10 h-10 text-primary-500 stroke-[1.5]" />
+                                <div
+                                    className={`absolute inset-0 animate-ping opacity-20 rounded-full ${isExpiredGrace ? 'bg-amber-400' : 'bg-primary-400'
+                                        }`}
+                                />
+                                <div
+                                    className={`relative p-6 rounded-full border ${isExpiredGrace
+                                        ? 'bg-amber-50 border-amber-100/70'
+                                        : 'bg-surface-50 border-surface-100/50'
+                                        }`}
+                                >
+                                    {isExpiredGrace ? (
+                                        <i className="pi pi-exclamation-triangle text-amber-500 text-3xl" />
+                                    ) : (
+                                        <Target className="w-10 h-10 text-primary-500 stroke-[1.5]" />
+                                    )}
                                 </div>
                             </div>
                             <h3 className="text-2xl font-bold tracking-tight text-surface-900 mb-3">
-                                计划正在制定中
+                                {isExpiredGrace ? '订阅已到期，请尽快续费' : '计划正在制定中'}
                             </h3>
                             <p className="text-surface-500 max-w-sm mx-auto mb-10 leading-relaxed text-balance">
-                                {coachName ? `您的教练「${coachName}」正在为您制定训练计划，请耐心等待。` : '您的教练正在为您制定训练计划，请耐心等待。'}
+                                {isExpiredGrace
+                                    ? coachName
+                                        ? `您与教练「${coachName}」的订阅已到期。训练计划内容已锁定，请在宽限期内续费后恢复并继续当前进度。`
+                                        : '您的教练订阅已到期。训练计划内容已锁定，请在宽限期内续费后恢复并继续当前进度。'
+                                    : coachName
+                                        ? `您的教练「${coachName}」正在为您制定训练计划，请耐心等待。`
+                                        : '您的教练正在为您制定训练计划，请耐心等待。'}
                             </p>
+
+                            {isExpiredGrace && (
+                                <div className="mx-auto mb-8 max-w-lg rounded-2xl border border-amber-200/80 bg-amber-50 px-4 py-3 text-amber-900 text-sm">
+                                    宽限期剩余 <b>{graceDaysLeft}</b> 天
+                                    {graceDeadlineLabel ? `（截至 ${graceDeadlineLabel}）` : ''}。逾期将自动取消订阅关系。
+                                </div>
+                            )}
+
                             <div className="flex flex-col sm:flex-row justify-center items-center gap-4">
-                                <Button
-                                    label="即兴锻炼"
-                                    icon="pi pi-bolt"
-                                    onClick={() => router.push('/impromptu-training')}
-                                    className="w-full sm:w-auto px-8 py-3.5 rounded-2xl bg-primary-500 border-none transition-all active:scale-[0.98] duration-200 ease-out"
-                                />
+                                {isExpiredGrace ? (
+                                    <Button
+                                        label="去教练主页续费"
+                                        icon="pi pi-refresh"
+                                        onClick={() => router.push(renewPath)}
+                                        className="w-full sm:w-auto px-8 py-3.5 rounded-2xl bg-amber-500 border-none transition-all active:scale-[0.98] duration-200 ease-out"
+                                    />
+                                ) : (
+                                    <Button
+                                        label="即兴锻炼"
+                                        icon="pi pi-bolt"
+                                        onClick={() => router.push('/impromptu-training')}
+                                        className="w-full sm:w-auto px-8 py-3.5 rounded-2xl bg-primary-500 border-none transition-all active:scale-[0.98] duration-200 ease-out"
+                                    />
+                                )}
                                 <Button
                                     label="联系教练"
                                     icon="pi pi-comments"
@@ -1042,12 +1140,21 @@ const TodayTrainingPage: React.FC = () => {
                                     }}
                                     className="w-full sm:w-auto px-8 py-3.5 rounded-2xl bg-primary-500 border-none transition-all active:scale-[0.98] duration-200 ease-out"
                                 />
-                                <Button
-                                    label="我的计划库"
-                                    icon="pi pi-bookmark"
-                                    onClick={() => router.push('/me/plan-lib')}
-                                    className="w-full sm:w-auto px-8 py-3.5 rounded-2xl bg-surface-50 text-surface-700 border border-surface-200 transition-all active:scale-[0.98] duration-200 ease-out hover:bg-surface-100"
-                                />
+                                {isExpiredGrace ? (
+                                    <Button
+                                        label="即兴锻炼"
+                                        icon="pi pi-bolt"
+                                        onClick={() => router.push('/impromptu-training')}
+                                        className="w-full sm:w-auto px-8 py-3.5 rounded-2xl bg-surface-50 text-surface-700 border border-surface-200 transition-all active:scale-[0.98] duration-200 ease-out hover:bg-surface-100"
+                                    />
+                                ) : (
+                                    <Button
+                                        label="我的计划库"
+                                        icon="pi pi-bookmark"
+                                        onClick={() => router.push('/me/plan-lib')}
+                                        className="w-full sm:w-auto px-8 py-3.5 rounded-2xl bg-surface-50 text-surface-700 border border-surface-200 transition-all active:scale-[0.98] duration-200 ease-out hover:bg-surface-100"
+                                    />
+                                )}
                             </div>
                         </div>
                     </Card>
