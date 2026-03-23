@@ -178,3 +178,16 @@
   - 原计划项与追加项都能分别完成、刷新后状态正确；
   - 过滤后的列表（如 strength-only）仍能准确定位到原 execution 项；
   - 新增、完成、回显三条链路都手动点一次。
+
+## 14) 覆盖计划后旧 execution 越界项被误显示为轻任务（高风险）
+
+- **现象**：教练已把当天轻任务改成 1 条，但学员端仍显示 2~3 条（常见为旧“入睡/跑步”任务残留）。
+- **根因**：学员端把 `execution.action_executions` 中“source_action_index 越界”的旧计划项也当作 extra 展示；覆盖计划后 `actionSets` 变短时触发该误判。
+- **统一规则**：
+  - `extra` 任务仅认定为“学员自行追加”（`source === "student_extra"`，或历史兼容 `source_action_id` 存在且 `source` 为空）；
+  - 不得仅凭“索引越界”把执行项判定为 extra；
+  - 计划覆盖后展示层必须优先遵循当前 `training_days.actionSets`，避免旧 execution 污染展示。
+- **改动前自检**：
+  - 构造“覆盖前 3 条、覆盖后 1 条”的同一天场景，学员端应只显示当前计划 + 学员手动追加项；
+  - 验证 `student_extra` 仍可正常显示、打卡、删除；
+  - 验证训练模块总数不被旧越界 execution 项抬高。

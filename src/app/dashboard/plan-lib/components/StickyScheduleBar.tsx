@@ -73,7 +73,10 @@ const StickyScheduleBar: React.FC<StickyScheduleBarProps> = ({
                     style={{ flex: 1, minWidth: 0, height: '52px' }}
                     className="sticky-schedule-scroll"
                 >
-                <div className="flex gap-1.5 py-0.5 px-0.5 mr-[20px]" style={{ width: 'max-content' }}>
+                <div
+                    className="flex flex-nowrap justify-center gap-1.5 py-0.5 px-0.5 mr-[20px]"
+                    style={{ minWidth: '100%', width: 'max-content' }}
+                >
                 {days.map((day) => {
                     const isSelected = selectedDayIndex === day.dayIndex;
                     const isTraining = day.type === 'training';

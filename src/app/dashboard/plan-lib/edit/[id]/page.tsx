@@ -610,28 +610,23 @@ const EditPlanPage = () => {
                 </div>
 
                 <Card className="shadow-sm mb-6 p-5">
-                    {/* 垂直布局（仿 /me/plan-lib/create） */}
                     <div className="flex flex-col gap-6">
-                        {/* Week Calendar Skeleton */}
+                        {/* 模板元信息骨架（与加载完成后的顺序一致） */}
+                        <div className="flex flex-col gap-3">
+                            <Skeleton width="100%" height="8rem" borderRadius="16px" />
+                            <div className="flex justify-end gap-2">
+                                <Skeleton width="5rem" height="2.5rem" borderRadius="6px" />
+                                <Skeleton width="8rem" height="2.5rem" borderRadius="6px" />
+                            </div>
+                        </div>
+
+                        {/* 计划编排骨架 */}
                         <div className="flex flex-col gap-3">
                             <Skeleton width="100%" height="2rem" />
-                            <Skeleton width="100%" height="15rem" />
-                            <Skeleton width="100%" height="2rem" />
-                        </div>
-
-                        {/* PlanDayCard Skeleton */}
-                        <div className="flex flex-col gap-4">
-                            <Skeleton width="40%" height="2rem" />
                             <Skeleton width="100%" height="12rem" />
                             <Skeleton width="100%" height="12rem" />
                             <Skeleton width="100%" height="12rem" />
                         </div>
-                    </div>
-
-                    {/* 底部按钮 */}
-                    <div className="mt-6 flex justify-end gap-2">
-                        <Skeleton width="5rem" height="2.5rem" borderRadius="6px" />
-                        <Skeleton width="8rem" height="2.5rem" borderRadius="6px" />
                     </div>
                 </Card>
             </div>
@@ -701,6 +696,55 @@ const EditPlanPage = () => {
                         tooltipOptions={{ position: 'bottom' }}
                     />
                 </div>
+            </div>
+
+            {/* 模板元信息（名称、标签、频率等）放在计划编排之上 */}
+            <BasicInfoForm
+                name={name}
+                description={description}
+                tags={tags}
+                suitableFor={suitableFor}
+                onNameChange={setName}
+                onDescriptionChange={setDescription}
+                onTagsChange={setTags}
+                onSuitableForChange={setSuitableFor}
+                saving={saving}
+                onSave={handleSave}
+                weekDays={weekDays}
+                onWeekDaysChange={setWeekDays}
+                globalQuestions={questions.filter(q => q.type === 'option' && q.scope === 'global') as any[]}
+                globalAnswers={globalAnswers}
+                onGlobalAnswerChange={(question, answerIndex) => {
+                    setGlobalAnswers(prev => {
+                        const next = { ...prev };
+                        if (answerIndex === null) {
+                            delete next[question];
+                            return next;
+                        }
+                        next[question] = answerIndex;
+                        return next;
+                    });
+                }}
+                availableTrainingTags={
+                    (questions.find(q => q.type === 'tags') as any)?.options?.filter((o: string) => o.trim()) || []
+                }
+                hideHeader
+            />
+            <div className="flex justify-end gap-2 mb-6">
+                <Button
+                    label="取消"
+                    icon="pi pi-times"
+                    onClick={() => router.back()}
+                    className="p-button-text"
+                    disabled={saving}
+                />
+                <Button
+                    label="保存模板"
+                    icon="pi pi-check"
+                    className="p-button-primary shadow-lg shadow-primary-200 transition-transform active:scale-95 rounded-2xl px-6"
+                    onClick={handleSave}
+                    loading={saving}
+                />
             </div>
 
             {/* 每日定义 */}
@@ -781,56 +825,6 @@ const EditPlanPage = () => {
                     </div>
                 )}
             </Card>
-
-            {/* 模板定义（含 footer 保存/取消） */}
-            <BasicInfoForm
-                name={name}
-                description={description}
-                tags={tags}
-                suitableFor={suitableFor}
-                onNameChange={setName}
-                onDescriptionChange={setDescription}
-                onTagsChange={setTags}
-                onSuitableForChange={setSuitableFor}
-                saving={saving}
-                onSave={handleSave}
-                weekDays={weekDays}
-                onWeekDaysChange={setWeekDays}
-                globalQuestions={questions.filter(q => q.type === 'option' && q.scope === 'global') as any[]}
-                globalAnswers={globalAnswers}
-                onGlobalAnswerChange={(question, answerIndex) => {
-                    setGlobalAnswers(prev => {
-                        const next = { ...prev };
-                        if (answerIndex === null) {
-                            delete next[question];
-                            return next;
-                        }
-                        next[question] = answerIndex;
-                        return next;
-                    });
-                }}
-                availableTrainingTags={
-                    // 从问卷配置中提取 tags 问题的选项
-                    (questions.find(q => q.type === 'tags') as any)?.options?.filter((o: string) => o.trim()) || []
-                }
-                hideHeader
-            />
-            <div className="mt-6 flex justify-end gap-2 mb-8">
-                <Button
-                    label="取消"
-                    icon="pi pi-times"
-                    onClick={() => router.back()}
-                    className="p-button-text"
-                    disabled={saving}
-                />
-                <Button
-                    label="保存模板"
-                    icon="pi pi-check"
-                    className="p-button-primary shadow-lg shadow-primary-200 transition-transform active:scale-95 rounded-2xl px-6"
-                    onClick={handleSave}
-                    loading={saving}
-                />
-            </div>
 
             {/* 悬停在顶部的训练日选择条（替代原计划排期，当前模式下唯一顶部栏） */}
             <StickyScheduleBar

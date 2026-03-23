@@ -244,11 +244,12 @@ export const buildDayModuleModel = (params: {
             const sourceIndex = hasExplicitSourceIndex
                 ? Number(executionItem.source_action_index)
                 : executionIndex;
-            const isExtraItem =
+            const isStudentExtra =
                 executionItem?.source === 'student_extra' ||
-                (hasExplicitSourceIndex
-                    ? !actionSets[sourceIndex]
-                    : executionIndex >= actionSets.length);
+                (!!executionItem?.source_action_id && !executionItem?.source);
+            // 仅把“学员自行追加”的任务作为 extra 展示，避免教练覆盖计划后
+            // 旧的计划动作因 source_action_index 越界被误识别成额外轻任务。
+            const isExtraItem = isStudentExtra;
 
             if (!isExtraItem) {
                 return null;

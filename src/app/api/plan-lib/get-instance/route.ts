@@ -233,9 +233,9 @@ export async function POST(req: Request) {
     // 4. 加载动作详情（教练和学员都需要）
     const actionsStart = performance.now();
     let actionsMap: Record<string, any> = {};
+    const planActionIds = new Set<string>();
     if (instance.training_days) {
         const trainingDays = instance.training_days as any[];
-        const actionIds = new Set<string>();
 
         // 收集所有 action_id（兼容 actionId 和 action_id 两种字段名）
         trainingDays.forEach((day: any) => {
@@ -243,14 +243,14 @@ export async function POST(req: Request) {
                 // 支持两种字段名: action_id 和 actionId
                 const actionId = set.action_id || set.actionId;
                 if (actionId) {
-                    actionIds.add(actionId);
+                    planActionIds.add(actionId);
                 }
             });
         });
 
         // 批量获取动作详情
-        if (actionIds.size > 0) {
-            const idsList = Array.from(actionIds);
+        if (planActionIds.size > 0) {
+            const idsList = Array.from(planActionIds);
 
             // 1. 查教练动作库
             const coachActionsStart = performance.now();
@@ -270,7 +270,7 @@ export async function POST(req: Request) {
                     await syncCoachActionsToStudentLibrary(
                         syncTargetStudentId,
                         coachActions as any[],
-                        actionIds,
+                        planActionIds,
                     );
                 }
             }
@@ -335,6 +335,7 @@ export async function POST(req: Request) {
             const rmRecordsStart = performance.now();
             const records = await getCurrent1RMRecords(userId, {
                 targetUserId: targetStudentId,
+                actionIds: planActionIds.size > 0 ? Array.from(planActionIds) : undefined,
                 // 计划负荷统一按 PR 递增逻辑计算，避免状态波动导致自动降重。
                 // 学员若需下调，必须通过手动编辑动作库 reference_1rm。
                 preferPR: true,
