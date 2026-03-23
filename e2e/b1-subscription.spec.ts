@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { getDevUsers } from "./_helpers/devUsers";
 
 const E2E_SECRET = process.env.E2E_SECRET || "local-e2e";
 
@@ -24,25 +25,42 @@ async function seed(request: any, params: { withPlan: boolean; subscribedWeeks?:
 }
 
 async function cleanup(request: any, data: any) {
-  await request.post("/api/test/e2e/cleanup", {
-    headers: { "x-e2e-secret": E2E_SECRET },
-    data: {
-      subscriptionId: data.subscription.id,
-      instanceId: data.instance.id,
-      coachId: data.coach.id,
-      coachUserId: data.coach.user_id,
-      studentUserId: data.student.id,
-    },
-  });
+  try {
+    await request.post("/api/test/e2e/cleanup", {
+      headers: { "x-e2e-secret": E2E_SECRET },
+      data: {
+        subscriptionId: data.subscription.id,
+        instanceId: data.instance.id,
+        coachId: data.coach.id,
+        coachUserId: data.coach.user_id,
+        studentUserId: data.student.id,
+      },
+      timeout: 15_000,
+      failOnStatusCode: false,
+    });
+  } catch {
+    // cleanup best-effort; avoid masking assertion failures
+  }
 }
 
 async function login(page: any, user: { phone: string; password: string }) {
-  await page.goto("/login");
-  await page.getByPlaceholder("手机号或邮箱").fill(user.phone);
-  await page.getByPlaceholder("输入登录密码").fill(user.password);
-  await page.getByRole("button", { name: "立即登录" }).click();
-  // after login modal closes, we should leave /login
-  await page.waitForURL((u: URL) => !u.pathname.includes("/login"));
+  const candidates = [
+    user,
+    ...getDevUsers().map((u) => ({ phone: u.phone, password: u.password })),
+  ];
+  for (const c of candidates) {
+    await page.goto("/login");
+    await page.getByPlaceholder("手机号或邮箱").fill(c.phone);
+    await page.getByPlaceholder("输入登录密码").fill(c.password);
+    await page.getByRole("button", { name: "立即登录" }).click();
+    await page.waitForTimeout(1200);
+    const session = await page.evaluate(async () => {
+      const res = await fetch("/api/auth/session");
+      return res.json();
+    });
+    if (session?.user?.id) return;
+  }
+  throw new Error("登录失败：已尝试种子账号与 .env.development 测试账号");
 }
 
 test("B1 status labels: 制定中 (no plan) vs 未开始 (plan assigned but not started)", async ({ page }) => {

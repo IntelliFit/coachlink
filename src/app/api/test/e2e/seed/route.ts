@@ -50,8 +50,10 @@ export async function POST(req: NextRequest) {
   const subscribedWeeks = Number(body.subscribedWeeks || 4);
 
   const ts = Date.now();
-  const studentPhone = `139${String(ts).slice(-8)}`; // valid CN phone format
-  const coachPhone = `138${String(ts).slice(-8)}`;
+  const nonce = Math.floor(Math.random() * 10000);
+  const uniq = String(ts + nonce).slice(-8);
+  const studentPhone = `139${uniq}`; // valid CN phone format
+  const coachPhone = `138${uniq}`;
   const password = "test12345";
   const nowIso = new Date().toISOString();
 
@@ -61,6 +63,7 @@ export async function POST(req: NextRequest) {
     .insert({
       phone: studentPhone,
       password_hash: hashPassword(password),
+      is_coach: false,
       created_at: nowIso,
       last_login_at: nowIso,
       primary_role: "student",
@@ -78,6 +81,7 @@ export async function POST(req: NextRequest) {
     .insert({
       phone: coachPhone,
       password_hash: hashPassword(password),
+      is_coach: true,
       created_at: nowIso,
       last_login_at: nowIso,
       primary_role: "coach",
