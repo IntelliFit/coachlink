@@ -5,6 +5,7 @@ import { ProfileData } from './types';
 import { subscriptionService } from '@/app/service/subscriptionService';
 import { coachService } from '@/app/service/coachService';
 import { CoachReviewRow, CoachesRow } from '@/types';
+import { formatBeijingDate } from '@/lib/beijingTime';
 
 interface CoachNotesSectionProps {
     data: ProfileData;
@@ -74,7 +75,7 @@ export const CoachNotesSection: React.FC<CoachNotesSectionProps> = ({ data, user
         id: review.id,
         coachName: review.coach?.name || '教练',
         coachAvatar: review.coach?.avatar_url || '',
-        date: review.created_at ? new Date(review.created_at).toLocaleString('zh-CN', {
+        date: review.created_at ? formatBeijingDate(review.created_at, 'zh-CN', {
             year: 'numeric',
             month: 'long',
             day: 'numeric',

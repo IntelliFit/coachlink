@@ -6,6 +6,7 @@ import type {
     CheckTodayDto,
     CheckTodayResponseDto,
 } from "./entity";
+import { validateExecutionSubscriptionAccess } from "../_helpers/subscriptionAccess";
 
 /**
  * POST /api/execution/check-today
@@ -33,6 +34,19 @@ export async function POST(req: Request) {
                 message: "缺少参数",
                 data: null,
             }, { status: 400 });
+        }
+
+        const accessDecision = await validateExecutionSubscriptionAccess({
+            instanceId,
+            studentId: userId,
+            dayIndex,
+        });
+        if (!accessDecision.allowed) {
+            return NextResponse.json<ApiData<CheckTodayResponseDto>>({
+                success: false,
+                message: accessDecision.message || "无权访问此计划",
+                data: null,
+            }, { status: accessDecision.status });
         }
 
         // 查询“今天”的执行记录（按 Asia/Shanghai 日界线；避免 UTC toISOString 导致差一天）

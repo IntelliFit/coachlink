@@ -5,6 +5,7 @@ import type { ApiData } from "@/types/api";
 import type { CompleteItemDto, CompleteItemResponseDto } from "./entity";
 import { computeExecutionProgress } from "@/lib/executionProgress";
 import { updateEstimatedEndDateForInstance } from "../updateEstimatedEndDate";
+import { validateExecutionSubscriptionAccess } from "../_helpers/subscriptionAccess";
 
 /**
  * POST /api/execution/complete-item
@@ -69,6 +70,19 @@ export async function POST(request: NextRequest) {
                 message: "无权访问此记录",
                 data: null,
             }, { status: 403 });
+        }
+
+        const accessDecision = await validateExecutionSubscriptionAccess({
+            instanceId: execution.instance_id,
+            studentId: userId,
+            dayIndex: execution.day_index,
+        });
+        if (!accessDecision.allowed) {
+            return NextResponse.json<ApiData<CompleteItemResponseDto>>({
+                success: false,
+                message: accessDecision.message || "无权访问此计划",
+                data: null,
+            }, { status: accessDecision.status });
         }
 
         // 5. 更新 JSONB 数据

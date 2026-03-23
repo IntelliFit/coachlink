@@ -83,8 +83,8 @@ const MODE_OPTIONS: Array<{ label: string; value: CalcMode }> = [
     { label: "做组极限估算（仅引体/臂屈伸）", value: "day_max" },
 ];
 
-const QUALITY_OPTIONS: Array<{ label: string; value: FormState["formQuality"] }> = [
-    { label: "比赛级（标准动作）", value: "Competition" },
+const QUALITY_OPTIONS: Array<{ label: string; value: FormState["formQuality"]; note?: string }> = [
+    { label: "比赛级（标准动作）", value: "Competition", note: "每次重新启动" },
     { label: "轻微借力（2-5kg）", value: "Minor_Cheat" },
     { label: "严重借力（5-20kg）", value: "Major_Cheat" },
     { label: "超严重借力（20-50kg）", value: "Extreme_Cheat" },
@@ -208,7 +208,7 @@ export default function StreetliftingCalculatorPage() {
         dayFirstValue: null,
         dayLastType: "",
         dayLastValue: null,
-        formQuality: "",
+        formQuality: "Minor_Cheat",
         penaltyWeight: 3,
     });
 
@@ -553,6 +553,18 @@ export default function StreetliftingCalculatorPage() {
         );
     };
 
+    const renderQualityDropdownValue = (option: any, props?: any) => {
+        const label = option?.label ?? props?.placeholder ?? "请选择";
+        const note = option?.note;
+        const isPlaceholder = !option;
+        return (
+            <div className="min-w-0">
+                <div className={`truncate text-sm font-semibold ${isPlaceholder ? "text-surface-500" : "text-surface-800"}`}>{label}</div>
+                {note ? <div className="truncate text-[11px] text-surface-500 mt-0.5">{note}</div> : null}
+            </div>
+        );
+    };
+
     const makeAeroDropdownItemTemplate =
         (currentValue: any) =>
         (option: any) => {
@@ -566,6 +578,28 @@ export default function StreetliftingCalculatorPage() {
                     }`}
                 >
                     <span className={`min-w-0 truncate text-sm ${isActive ? "font-bold" : "font-medium"}`}>{label}</span>
+                    <span className={`shrink-0 text-[10px] font-black ${isActive ? "text-primary-600" : "text-surface-300"}`}>●</span>
+                </div>
+            );
+        };
+
+    const makeQualityDropdownItemTemplate =
+        (currentValue: any) =>
+        (option: any) => {
+            const label = option?.label ?? String(option ?? "");
+            const note = option?.note;
+            const value = option?.value ?? option;
+            const isActive = currentValue === value;
+            return (
+                <div
+                    className={`flex items-center justify-between gap-3 px-3 py-2 rounded-xl ${
+                        isActive ? "bg-surface-100 text-surface-900" : "text-surface-700"
+                    }`}
+                >
+                    <div className="min-w-0">
+                        <div className={`truncate text-sm ${isActive ? "font-bold" : "font-medium"}`}>{label}</div>
+                        {note ? <div className="truncate text-[11px] text-surface-500 mt-0.5">{note}</div> : null}
+                    </div>
                     <span className={`shrink-0 text-[10px] font-black ${isActive ? "text-primary-600" : "text-surface-300"}`}>●</span>
                 </div>
             );
@@ -831,8 +865,8 @@ export default function StreetliftingCalculatorPage() {
                                     panelClassName={dropdownPanelClassName}
                                     dropdownIcon={dropdownIcon}
                                     pt={dropdownPt}
-                                    valueTemplate={renderAeroDropdownValue}
-                                    itemTemplate={makeAeroDropdownItemTemplate(form.formQuality)}
+                                    valueTemplate={renderQualityDropdownValue}
+                                    itemTemplate={makeQualityDropdownItemTemplate(form.formQuality)}
                                     onChange={(e) => setForm((p) => ({ ...p, formQuality: e.value }))}
                                 />
                             </div>

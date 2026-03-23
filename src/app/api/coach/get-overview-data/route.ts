@@ -31,11 +31,14 @@ export async function POST(req: Request) {
     const coachId = coach.id;
     // NOTE: start_date is intentionally null until the student actually starts training.
     // Do NOT use start_date as a filter for overview stats.
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1);
 
     // 2. 并行执行聚合查询
     const [
         activeStudentCountResult,
-        activeRevenueResult,
+        subscriptionRevenueResult,
         pendingReviewResult,
         ratingResult,
         contentCountResult,
@@ -51,13 +54,12 @@ export async function POST(req: Request) {
             .eq("coach_id", coachId)
             .eq("status", "active"),
 
-        // 本月收入（当前口径）：active 订阅金额汇总（与教练端“业务概览”历史表现一致）
-        // 关键修复：不要依赖 start_date（新订阅 start_date = null，直到学员真正开始训练）
+        // 订阅收入：沿用历史口径（active 订阅月费），但按月份过滤到“本月”
         supabase
             .from("coach_subscriptions")
-            .select("monthly_price")
+            .select("monthly_price,created_at,payment_confirmed_at,payment_confirmed_by,status")
             .eq("coach_id", coachId)
-            .eq("status", "active"),
+            .limit(5000),
 
         // 假设 training_videos 表有 coach_id 或可以通过关联查询
         supabase
@@ -106,20 +108,33 @@ export async function POST(req: Request) {
     const totalStudentCount = activeStudentCountResult.count || 0;
     const pendingReviewCount = pendingReviewResult.count || 0;
 
-    // monthly_price 在 DB 中为分；求和后转为元返回给前端展示
-    const monthlyRevenueFen = (activeRevenueResult.data || []).reduce(
-        (sum, row: any) => sum + (Number(row?.monthly_price) || 0),
+    // monthly_price 在 DB 中为分；按“确认支付时间(优先) / 创建时间(兜底)”过滤到本月
+    const subscriptionRevenueFen = (subscriptionRevenueResult.data || []).reduce(
+        (sum, row: any) => {
+            const isPaidLike = Boolean(
+                row?.payment_confirmed_at ||
+                row?.payment_confirmed_by ||
+                row?.status === "active",
+            );
+            if (!isPaidLike) return sum;
+            const revenueAtRaw = row?.payment_confirmed_at || row?.created_at;
+            if (!revenueAtRaw) return sum;
+            const revenueAtMs = new Date(revenueAtRaw).getTime();
+            if (Number.isNaN(revenueAtMs)) return sum;
+            if (
+                revenueAtMs < monthStart.getTime() ||
+                revenueAtMs >= nextMonthStart.getTime()
+            ) {
+                return sum;
+            }
+            return sum + (Number(row?.monthly_price) || 0);
+        },
         0,
     );
 
     // 单篇文章购买收入（按当月已支付订单汇总到“本月收入”）
-    // 说明：目前为 GMV 口径（平台收款，后续结算给教练）；展示在概览中更符合业务预期。
     let contentPurchaseRevenueFen = 0;
     try {
-        const now = new Date();
-        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-        const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-
         // 1) 取该教练的内容 id
         const { data: contents } = await serviceRoleSupabase
             .from("coach_contents")
@@ -165,7 +180,7 @@ export async function POST(req: Request) {
         console.error("[coach/overview] content purchase revenue calc failed:", e);
     }
 
-    const monthlyRevenue = fenToYuan(monthlyRevenueFen);
+    const subscriptionRevenue = fenToYuan(subscriptionRevenueFen);
     const contentPurchaseRevenue = fenToYuan(contentPurchaseRevenueFen);
     const contentCount = contentCountResult.count || 0;
     const actionCount = actionCountResult.count || 0;
@@ -187,7 +202,7 @@ export async function POST(req: Request) {
             totalStudentCount,
             pendingReviewCount,
             averageRating,
-            monthlyRevenue: monthlyRevenue + contentPurchaseRevenue,
+            monthlyRevenue: subscriptionRevenue + contentPurchaseRevenue,
             contentCount,
             actionCount,
             planTemplateCount,

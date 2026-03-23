@@ -4,6 +4,7 @@ import { Avatar } from 'primereact/avatar';
 import { Card } from 'primereact/card';
 import { UserMinus, ChevronRight, Calendar } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { formatBeijingDate } from '@/lib/beijingTime';
 
 const AERO_CARD = "px-3 py-5 rounded-3xl border border-surface-100 bg-surface-0 shadow-[0_1px_0_rgba(15,23,42,0.02)] hover:shadow-[0_18px_50px_rgba(15,23,42,0.08)] transition-[box-shadow,transform]";
 
@@ -21,8 +22,7 @@ export const FriendCard: React.FC<FriendCardProps> = ({ friend, onRemove }) => {
     const router = useRouter();
 
     const formatDate = (dateString: string) => {
-        const date = new Date(dateString);
-        return date.toLocaleDateString('zh-CN', { year: 'numeric', month: 'short', day: 'numeric' });
+        return formatBeijingDate(dateString, 'zh-CN', { year: 'numeric', month: 'short', day: 'numeric' });
     };
 
     return (

@@ -61,6 +61,7 @@ nextBuild.on('close', (code) => {
         const standalonePath = path.join(__dirname, '..', '.next', 'standalone');
         const staticPath = path.join(__dirname, '..', '.next', 'static');
         const publicPath = path.join(__dirname, '..', 'public');
+        const bodyMapAssetsPath = path.join(__dirname, '..', 'docs', 'assets');
 
         if (fs.existsSync(standalonePath)) {
             // 1. 拷贝 static 到 .next/standalone/.next/static
@@ -72,6 +73,11 @@ nextBuild.on('close', (code) => {
             const targetPublicPath = path.join(standalonePath, 'public');
             console.log('  - Copying public to standalone...');
             copyFolderSync(publicPath, targetPublicPath);
+
+            // 3. 拷贝人体地图 SVG 素材到 standalone/docs/assets
+            const targetBodyMapAssetsPath = path.join(standalonePath, 'docs', 'assets');
+            console.log('  - Copying docs/assets to standalone...');
+            copyFolderSync(bodyMapAssetsPath, targetBodyMapAssetsPath);
 
             console.log('\n✅ Standalone is ready at: .next/standalone');
             console.log('🚀 Now you can just scp the EVERYTHING inside .next/standalone to your server.');

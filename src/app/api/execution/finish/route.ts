@@ -5,6 +5,7 @@ import type { ApiData } from "@/types/api";
 import type { FinishTrainingDto, FinishTrainingResponseDto } from "./entity";
 import { updateEstimatedEndDateForInstance } from "../updateEstimatedEndDate";
 import { computeExecutionProgress } from "@/lib/executionProgress";
+import { validateExecutionSubscriptionAccess } from "../_helpers/subscriptionAccess";
 
 const parseMinNumber = (value: unknown): number | null => {
     if (value === null || value === undefined) return null;
@@ -59,7 +60,9 @@ export async function POST(request: NextRequest) {
         // 验证权限并获取 instance_id
         const { data: execution } = await supabase
             .from("plan_instance_executions")
-            .select("student_id, completed_sets, total_sets, instance_id, action_executions")
+            .select(
+                "student_id, day_index, completed_sets, total_sets, instance_id, action_executions",
+            )
             .eq("id", executionId)
             .single();
 
@@ -69,6 +72,19 @@ export async function POST(request: NextRequest) {
                 message: "无权限",
                 data: null,
             }, { status: 403 });
+        }
+
+        const accessDecision = await validateExecutionSubscriptionAccess({
+            instanceId: execution.instance_id,
+            studentId: userId,
+            dayIndex: execution.day_index,
+        });
+        if (!accessDecision.allowed) {
+            return NextResponse.json<ApiData<FinishTrainingResponseDto>>({
+                success: false,
+                message: accessDecision.message || "无权访问此计划",
+                data: null,
+            }, { status: accessDecision.status });
         }
 
         const nowIso = new Date().toISOString();

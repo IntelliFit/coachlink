@@ -3,6 +3,7 @@
 import React from 'react';
 import type { VideoReferenceItem } from '@/app/api/chat/send-message/entity';
 import { Trophy, Play, Calendar } from 'lucide-react';
+import { formatBeijingDate } from '@/lib/beijingTime';
 
 interface VideoRefCardProps {
     videos: VideoReferenceItem[];
@@ -13,8 +14,7 @@ export function VideoRefCard({ videos, isMine = false }: VideoRefCardProps) {
     if (!videos || videos.length === 0) return null;
 
     const formatDate = (dateStr: string) => {
-        const date = new Date(dateStr);
-        return date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' });
+        return formatBeijingDate(dateStr, 'zh-CN', { month: 'short', day: 'numeric' });
     };
 
     const formatDayIndex = (dayIndex?: number | null) => {

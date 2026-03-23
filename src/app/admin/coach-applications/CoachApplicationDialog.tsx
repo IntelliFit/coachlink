@@ -5,6 +5,7 @@ import { Dialog } from 'primereact/dialog';
 import { Chip } from 'primereact/chip';
 import { Card } from 'primereact/card';
 import type { CoachApplicationRow } from '@/types';
+import { formatBeijingDate } from '@/lib/beijingTime';
 
 interface CoachApplicationDialogProps {
     visible: boolean;
@@ -27,7 +28,14 @@ const CoachApplicationDialog: React.FC<CoachApplicationDialogProps> = ({
     };
 
     const formatDate = (dateString: string) => {
-        return new Date(dateString).toLocaleString('zh-CN');
+        return formatBeijingDate(dateString, 'zh-CN', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+        });
     };
 
     const renderField = (label: string, value: string | number | null | undefined) => {

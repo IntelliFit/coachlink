@@ -15,6 +15,7 @@ import { Tag } from 'primereact/tag';
 import { Checkbox } from 'primereact/checkbox';
 import { Clock } from 'lucide-react';
 import { InputSwitch } from 'primereact/inputswitch';
+import { toBeijingISOStringFromWallTime } from '@/lib/beijingTime';
 
 // 配置中文语言包
 addLocale('zh-CN', {
@@ -68,8 +69,8 @@ export default function CreateLeaderboardForm({ onSuccess, visible, onHide }: Cr
         try {
             const reqData = {
                 ...formData,
-                start_at: formData.start_at?.toISOString(),
-                end_at: formData.end_at?.toISOString()
+                start_at: formData.start_at ? toBeijingISOStringFromWallTime(formData.start_at) : undefined,
+                end_at: formData.end_at ? toBeijingISOStringFromWallTime(formData.end_at) : undefined
             };
             const result = await rankingService.createLeaderboard(reqData);
             if (result) {

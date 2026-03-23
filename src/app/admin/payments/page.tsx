@@ -13,6 +13,7 @@ import { Tag } from 'primereact/tag';
 import { adminService } from '@/app/service/adminService';
 import { useToastContext } from '@/context/ToastContext';
 import type { PaymentOrderWithUser } from '@/app/api/admin/payment-orders/entity';
+import { formatBeijingDate } from '@/lib/beijingTime';
 
 const STATUS_OPTIONS = [
     { label: '全部状态', value: null },
@@ -149,7 +150,14 @@ export default function AdminPaymentsPage() {
     );
 
     const dateTemplate = (row: PaymentOrderWithUser) =>
-        new Date(row.created_at).toLocaleString('zh-CN');
+        formatBeijingDate(row.created_at, 'zh-CN', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+        });
 
     const actionTemplate = (row: PaymentOrderWithUser) => {
         if (loading) return <Skeleton width="60px" height="1.5rem" />;

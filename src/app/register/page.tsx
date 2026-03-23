@@ -15,6 +15,7 @@ import MarkdownIt from 'markdown-it';
 import { sesService } from '../service/sesService';
 import { signIn, useSession } from 'next-auth/react';
 import SliderCaptcha from '@/components/auth/SliderCaptcha';
+import { waitForSessionReady } from '@/lib/auth/sessionSync';
 
 const fetchMarkdown = async (filename: string) => {
     const md = new MarkdownIt({
@@ -180,6 +181,8 @@ export default function RegisterPage() {
                 });
 
                 if (signInResult?.ok) {
+                    await waitForSessionReady();
+
                     // 登录成功后：如果档案已完善，直接进入首练；否则进入主链路触发首登问卷
                     try {
                         const profileRes = await fetch('/api/user/get-profile', {

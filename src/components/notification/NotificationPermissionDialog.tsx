@@ -25,7 +25,7 @@ export default function NotificationPermissionDialog({
     const isAndroid = typeof window !== 'undefined' && /Android/.test(navigator.userAgent);
     // 检测是否为 PWA（已加主屏）
     const isPWA = typeof window !== 'undefined' && 
-        (window.matchMedia('(display-mode: standalone)').matches || 
+        ((typeof window.matchMedia === 'function' && window.matchMedia('(display-mode: standalone)').matches) || 
          (window.navigator as any).standalone === true);
 
     const handleEnable = async () => {
