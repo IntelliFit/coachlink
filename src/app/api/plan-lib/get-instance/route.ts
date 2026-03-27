@@ -330,12 +330,18 @@ export async function POST(req: Request) {
             timings["5b_profile"] = performance.now() - profileStart;
 
             const bodyWeight = Number(profile?.weight || 0);
+            const planActionNames = new Set<string>();
+            for (const action of Object.values(actionsMap || {})) {
+                const name = String((action as any)?.name || "").trim();
+                if (name) planActionNames.add(name);
+            }
 
             // Build a 1RM map (ID + Name) for fast lookup
             const rmRecordsStart = performance.now();
             const records = await getCurrent1RMRecords(userId, {
                 targetUserId: targetStudentId,
                 actionIds: planActionIds.size > 0 ? Array.from(planActionIds) : undefined,
+                actionNames: planActionNames.size > 0 ? Array.from(planActionNames) : undefined,
                 // 计划负荷统一按 PR 递增逻辑计算，避免状态波动导致自动降重。
                 // 学员若需下调，必须通过手动编辑动作库 reference_1rm。
                 preferPR: true,

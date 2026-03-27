@@ -19,6 +19,9 @@ export async function getCurrent1RMRecords(
     }
 ) {
     const { actionIds, actionNames, targetUserId, preferPR = false } = params;
+    const hasActionIdFilter = Array.isArray(actionIds) && actionIds.length > 0;
+    const hasActionNameFilter =
+        Array.isArray(actionNames) && actionNames.length > 0;
     let queryUserId = currentUserId;
 
     // 1. 权限校验：如果是查询他人数据
@@ -43,46 +46,136 @@ export async function getCurrent1RMRecords(
     }
 
     // 2. 并行获取 PR 历史、动作库基线和问卷兜底数据
-    const prQuery = supabase
-        .from("personal_records_history")
-        .select("action_id, exercise_name, e1rm, date_achieved, created_at, is_auto_calculated, notes")
-        .eq("user_id", queryUserId)
-        .not("e1rm", "is", null)
-        // For "current state", we want the latest record, not the max.
-        .order("date_achieved", { ascending: false })
-        .order("created_at", { ascending: false });
+    const buildPrQuery = () =>
+        supabase
+            .from("personal_records_history")
+            .select(
+                "action_id, exercise_name, e1rm, date_achieved, created_at, is_auto_calculated, notes",
+            )
+            .eq("user_id", queryUserId)
+            .not("e1rm", "is", null)
+            // For "current state", we want the latest record, not the max.
+            .order("date_achieved", { ascending: false })
+            .order("created_at", { ascending: false });
 
-    if (actionIds?.length) prQuery.in("action_id", actionIds);
-    if (actionNames?.length) prQuery.in("exercise_name", actionNames);
+    const buildStudentActionsQuery = () =>
+        supabase
+            .from("student_actions")
+            .select(
+                'id, name, canonical_action_id, reference_1rm, type, attrs, "enableAutoWeightCompute", updated_at',
+            )
+            .eq("user_id", queryUserId)
+            .not("reference_1rm", "is", null);
 
-    let studentActionsQuery = supabase
-        .from("student_actions")
-        .select('id, name, canonical_action_id, reference_1rm, type, attrs, "enableAutoWeightCompute", updated_at')
-        .eq("user_id", queryUserId)
-        .not("reference_1rm", "is", null);
-    if (actionIds?.length) {
-        studentActionsQuery = studentActionsQuery.in("id", actionIds);
-    } else if (actionNames?.length) {
-        studentActionsQuery = studentActionsQuery.in("name", actionNames);
-    }
+    const fetchPrRows = async () => {
+        if (hasActionIdFilter && hasActionNameFilter) {
+            const [byIdResult, byNameResult] = await Promise.all([
+                buildPrQuery().in("action_id", actionIds!),
+                buildPrQuery().in("exercise_name", actionNames!),
+            ]);
+            if (byIdResult.error) throw byIdResult.error;
+            if (byNameResult.error) throw byNameResult.error;
 
-    const [prResult, studentActionsResult, questionnaireResult] = await Promise.all([
-        prQuery,
-        studentActionsQuery,
+            const seen = new Set<string>();
+            const merged: any[] = [];
+            for (const row of [
+                ...(byIdResult.data || []),
+                ...(byNameResult.data || []),
+            ]) {
+                const key = [
+                    row.action_id || "",
+                    row.exercise_name || "",
+                    row.date_achieved || "",
+                    row.created_at || "",
+                    row.notes || "",
+                ].join("|");
+                if (seen.has(key)) continue;
+                seen.add(key);
+                merged.push(row);
+            }
+            return merged;
+        }
+
+        if (hasActionIdFilter) {
+            const result = await buildPrQuery().in("action_id", actionIds!);
+            if (result.error) throw result.error;
+            return result.data || [];
+        }
+
+        if (hasActionNameFilter) {
+            const result = await buildPrQuery().in("exercise_name", actionNames!);
+            if (result.error) throw result.error;
+            return result.data || [];
+        }
+
+        const result = await buildPrQuery();
+        if (result.error) throw result.error;
+        return result.data || [];
+    };
+
+    const fetchStudentActionRows = async () => {
+        if (hasActionIdFilter && hasActionNameFilter) {
+            const [byIdResult, byNameResult] = await Promise.all([
+                buildStudentActionsQuery().in("id", actionIds!),
+                buildStudentActionsQuery().in("name", actionNames!),
+            ]);
+            if (byIdResult.error) {
+                console.warn("[get-current-1rm] student_actions by id failed:", byIdResult.error);
+            }
+            if (byNameResult.error) {
+                console.warn("[get-current-1rm] student_actions by name failed:", byNameResult.error);
+            }
+            const mergedMap = new Map<string, any>();
+            for (const row of [
+                ...(byIdResult.data || []),
+                ...(byNameResult.data || []),
+            ]) {
+                if (row?.id) mergedMap.set(row.id, row);
+            }
+            return Array.from(mergedMap.values());
+        }
+
+        if (hasActionIdFilter) {
+            const result = await buildStudentActionsQuery().in("id", actionIds!);
+            if (result.error) {
+                console.warn("[get-current-1rm] student_actions by id failed:", result.error);
+                return [];
+            }
+            return result.data || [];
+        }
+
+        if (hasActionNameFilter) {
+            const result = await buildStudentActionsQuery().in("name", actionNames!);
+            if (result.error) {
+                console.warn("[get-current-1rm] student_actions by name failed:", result.error);
+                return [];
+            }
+            return result.data || [];
+        }
+
+        const result = await buildStudentActionsQuery();
+        if (result.error) {
+            console.warn("[get-current-1rm] student_actions full scan failed:", result.error);
+            return [];
+        }
+        return result.data || [];
+    };
+
+    const [prRows, studentActionRows, questionnaireResult] = await Promise.all([
+        fetchPrRows(),
+        fetchStudentActionRows(),
         supabase
             .from("coach_subscriptions")
             .select("subscribe_data, updated_at")
             .eq("student_id", queryUserId)
             .eq("status", "active")
-            .maybeSingle()
+            .maybeSingle(),
     ]);
-
-    if (prResult.error) throw prResult.error;
 
     // 3. 解析学员动作库中的全局参考1RM（主来源，教练/学员手动设置优先于 PR 历史）
     const actionLibraryRMMap: Record<string, { value: number; updatedAt?: string; canonicalActionId?: string }> = {};
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (studentActionsResult.data || []).forEach((action: any) => {
+    (studentActionRows || []).forEach((action: any) => {
         const rm = Number(action.reference_1rm);
         if (!Number.isFinite(rm) || rm <= 0) return;
         if (!isOneRMEligibleAction({
@@ -126,7 +219,7 @@ export async function getCurrent1RMRecords(
     const prMap = new Map<string, Current1RMRecord>();
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (prResult.data || []).forEach((record: any) => {
+    (prRows || []).forEach((record: any) => {
         const key = record.action_id || record.exercise_name;
         if (!key) return;
 

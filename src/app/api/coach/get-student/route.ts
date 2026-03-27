@@ -114,7 +114,9 @@ export async function POST(req: Request) {
 
     if (need1RM) {
         const records = await getCurrent1RMRecords(session.user.id, {
-            targetUserId: student.student_id
+            targetUserId: student.student_id,
+            // 与学员侧计划加载口径保持一致，避免同一计划出现不同推荐重量。
+            preferPR: true,
         });
         const rmMap: Record<string, number> = {};
         for (const record of records) {
