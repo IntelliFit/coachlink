@@ -5,6 +5,7 @@ import { ApiData } from "@/types/api";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 import {
     calcIntensityDisplay,
+    hasDynamicIntensityTarget,
     normalizeIntensityConfig,
 } from "@/lib/rmCaculator";
 import { normalizeToKg } from "@/types/intensity";
@@ -370,15 +371,20 @@ export async function POST(req: Request) {
 
                     const params = set.params || {};
                     const existingLoad = params.load;
-                    // 当 load 已存在时，始终保留 DB 中的值，不再重新计算。
-                    // 与 execution/start 行为一致：执行页直接使用 DB 的 load，今日训练也应使用相同值。
-                    // 否则会出现「今日训练显示错误重量、执行页显示正确重量」的 bug。
-                    if (existingLoad !== null && existingLoad !== undefined) {
-                        continue;
-                    }
-
                     const intensityConfig = normalizeIntensityConfig(params);
                     const legacyRm = params["强度"] ?? set.intensity;
+                    const shouldRefreshExistingLoad = hasDynamicIntensityTarget({
+                        intensityConfig,
+                        legacyRm,
+                    });
+                    // 固定重量（无 RM/%）保持原值；动态强度（RM/%）即使已有旧 load 也要重算。
+                    if (
+                        !shouldRefreshExistingLoad &&
+                        existingLoad !== null &&
+                        existingLoad !== undefined
+                    ) {
+                        continue;
+                    }
                     const oneRM = rmMap[actionId] ??
                         rmMap[actionsMap[actionId]?.name] ??
                         rmMap[set.actionName] ?? undefined;
