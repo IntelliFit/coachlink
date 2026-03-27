@@ -1,11 +1,12 @@
 # CURRENT_TASK
 
-- Task: Fix dev compile hang/error on `/dashboard/overview` caused by `next/font/google` in Next.js 16 Turbopack
+- Task: Add deploy version traceability for frontend and backend (`appVersion + gitCommitId + buildTime`)
 - Scope:
-  - removed `Inter` import/config from `src/app/layout.tsx`
-  - switched `<body>` class to `font-sans` (system font stack path)
-  - verified `/dashboard/overview -> /login` navigation in browser automation
+  - injected build metadata in `next.config.ts` with fallback auto-read (package version + `git rev-parse --short HEAD` + ISO build time)
+  - added shared version helper `src/lib/version.ts`
+  - added backend version APIs `GET /api/system/version` and public `GET /api/public/version`
+  - exposed version in global `head` via layout metadata and explicit `<meta>` tags
 - Status: completed
-- Blocker: none for this fix; repository still has historical TypeScript errors unrelated to this change
-- Next step: user can continue normal `npm run dev` flow; if custom branding font is required later, prefer `next/font/local` with checked-in font assets
+- Blocker: none
+- Next step: optional UI entrance can call `/api/public/version` to show a visible version panel for guests
 - Last updated: `2026-03-27`
