@@ -11,6 +11,7 @@ import {
     checkTrainingDays,
     makeContainedOptions,
     makeWeekDays,
+    validateTrainingDaysPresence,
 } from "@/utils/template";
 
 export async function POST(req: Request) {
@@ -69,6 +70,14 @@ export async function POST(req: Request) {
 
     // 将计划日数据存储在training_days字段中
     if (trainingDays) {
+        const presenceInfo = validateTrainingDaysPresence(trainingDays);
+        if (!presenceInfo.valid) {
+            return NextResponse.json({
+                success: false,
+                message: presenceInfo.message,
+            }, { status: 400 });
+        }
+
         const validInfo = checkTrainingDays(trainingDays);
         if (!validInfo.valid) {
             return NextResponse.json({

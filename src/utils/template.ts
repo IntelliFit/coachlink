@@ -6,6 +6,22 @@ interface ValidInfo {
     data: any;
 }
 
+export function validateTrainingDaysPresence(trainingDays: unknown): ValidInfo {
+    if (!Array.isArray(trainingDays) || trainingDays.length === 0) {
+        return {
+            valid: false,
+            message: "训练计划至少需要保留 1 天，已阻止空计划写入",
+            data: null,
+        };
+    }
+
+    return {
+        valid: true,
+        message: "训练计划天数有效",
+        data: null,
+    };
+}
+
 /**
  * 检查训练日数据有效性
  * 对于力量训练类型，需要验证 actionId
@@ -14,12 +30,18 @@ interface ValidInfo {
 export function checkTrainingDays(
     trainingDays: CoachPlanTrainingDay[],
 ): ValidInfo {
+    const presenceInfo = validateTrainingDaysPresence(trainingDays);
+    if (!presenceInfo.valid) {
+        return presenceInfo;
+    }
+
     // 可选类型选项中必须至少含有一个 action_id（仅力量类型）
     for (let i = 0; i < trainingDays.length; i++) {
         const day = trainingDays[i];
         if (day.type === "training") {
-            for (let j = 0; j < day.actionSets.length; j++) {
-                const actionSet = day.actionSets[j];
+            const actionSets = Array.isArray(day.actionSets) ? day.actionSets : [];
+            for (let j = 0; j < actionSets.length; j++) {
+                const actionSet = actionSets[j];
                 if (actionSet.type === "one-filter") {
                     for (let k = 0; k < actionSet.actions.length; k++) {
                         const action = actionSet.actions[k] as any;

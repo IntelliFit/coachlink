@@ -37,6 +37,7 @@ import {
     isActionFullyCompatible,
     replaceActionInDays,
 } from '@/lib/planBatchUtils';
+import { validateTrainingDaysPresence } from '@/utils/template';
 import QuestionnaireForm from '@/app/coach/profile/[id]/QuestionnaireForm';
 import type { TrainingItem } from '@/types/questionnaires';
 import type { FeedbackItem } from '@/app/api/coach/get-student-feedbacks/entity';
@@ -536,6 +537,12 @@ const StudentPlanPage = () => {
             note: day.note || null,
             actionSets: day.actionSets || []
         }));
+        const daysPresence = validateTrainingDaysPresence(daysData);
+        if (!daysPresence.valid) {
+            console.warn('自动保存已阻止空训练计划写入:', { instanceId, daysLength: daysData.length });
+            setAutoSaveStatus('error');
+            return;
+        }
 
         try {
             const res = await planLibService.updateInstance({
@@ -607,6 +614,13 @@ const StudentPlanPage = () => {
             note: day.note || null,
             actionSets: day.actionSets || []
         }));
+        const daysPresence = validateTrainingDaysPresence(daysData);
+
+        if (!daysPresence.valid) {
+            showToast({ severity: 'error', summary: '保存失败', detail: daysPresence.message });
+            setSaving(false);
+            return;
+        }
 
         const shouldCreateNewInstance =
             (!instanceExists || !instanceId) || (instanceExists && instanceId && importMode === 'new_instance');
@@ -887,6 +901,13 @@ const StudentPlanPage = () => {
             note: day.note || '',
             actionSets: day.actionSets || [],
         })).sort((a, b) => a.dayIndex - b.dayIndex);
+
+        const daysPresence = validateTrainingDaysPresence(converted);
+        if (!daysPresence.valid) {
+            showToast({ severity: 'error', summary: 'AI 预览失败', detail: daysPresence.message });
+            return;
+        }
+
         setDays(converted);
     };
 
@@ -905,6 +926,13 @@ const StudentPlanPage = () => {
             note: day.note || '',
             actionSets: day.actionSets || [],
         })).sort((a, b) => a.dayIndex - b.dayIndex);
+
+        const daysPresence = validateTrainingDaysPresence(converted);
+        if (!daysPresence.valid) {
+            showToast({ severity: 'error', summary: 'AI 修改失败', detail: daysPresence.message });
+            return;
+        }
+
         setDays(converted);
         if (converted.length > 0) setSelectedDayIndex(converted[0].dayIndex);
         showToast({ severity: 'success', summary: 'AI 修改器成功', detail: '修改已应用到当前草稿，请点击更新计划保存' });

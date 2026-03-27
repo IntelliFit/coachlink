@@ -4,6 +4,7 @@ import { UpdateInstanceDto, UpdateInstanceResponseDto } from "./entity";
 import { ApiData } from "@/types/api";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 import { syncCoachActionsToStudentLibrary } from "../sync-actions";
+import { validateTrainingDaysPresence } from "@/utils/template";
 
 export async function POST(req: Request) {
     const {
@@ -54,6 +55,16 @@ export async function POST(req: Request) {
             success: false,
             message: "Failed to fetch instance",
         }, { status: 500 });
+    }
+
+    if (trainingDays !== undefined) {
+        const trainingDaysPresence = validateTrainingDaysPresence(trainingDays);
+        if (!trainingDaysPresence.valid) {
+            return NextResponse.json({
+                success: false,
+                message: trainingDaysPresence.message,
+            }, { status: 400 });
+        }
     }
 
     // 获取教练的 user_id（因为 coach_id 是 coaches 表的 id，不是 user_id）

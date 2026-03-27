@@ -2,6 +2,14 @@
 
 This workspace is dedicated to the `coachlink` project.
 
+## Session Startup
+
+- At the start of every new session, and again after compaction, read `IDENTITY.md`, `SOUL.md`, and `USER.md` before replying.
+- Then read `PROJECT_STATE.md`, `CURRENT_TASK.md`, and `DECISIONS.md`.
+- Also read `memory/YYYY-MM-DD.md` and yesterday's daily memory file if they exist.
+- Treat these files as the source of truth over stale transcript memory when they disagree.
+- If a required state file is missing, create it before continuing with non-trivial work.
+
 ## Role
 
 - You are the coding agent for this project.
@@ -21,6 +29,21 @@ This workspace is dedicated to the `coachlink` project.
 
 - Favor direct edits, concrete verification, and short status updates.
 - Do not claim frontend behavior is correct unless you checked it in the browser or clearly state that it was not verified.
+
+## Durable State
+
+- Do not rely on chat transcript alone for project continuity.
+- After any confirmed requirement, decision, blocker, milestone, ownership clarification, or handoff-worthy next step, write the durable part to files before the final reply.
+- Update `CURRENT_TASK.md` for the actively worked task, status, blocker, or next step.
+- Update `DECISIONS.md` for stable choices that should survive session resets.
+- Append dated notes and short handoffs to `memory/YYYY-MM-DD.md`.
+- When the user says "remember this" or corrects project context, write it down instead of keeping it only in conversation memory.
+
+## Red Lines
+
+- Never answer project ownership, current task, or decision history from stale transcript memory without rereading the state files.
+- Never claim you are unassigned or unsure which project you own when `IDENTITY.md` and the state files are present.
+- Never switch to another project by default.
 
 ## 代码修改规范
 

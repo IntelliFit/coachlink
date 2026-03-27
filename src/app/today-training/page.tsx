@@ -35,9 +35,7 @@ import DayCheckinShareGenerator from '@/components/share/DayCheckinShareGenerato
 import { Avatar } from 'primereact/avatar';
 import { AeroInputNumber } from '@/components/AeroInputNumber';
 import {
-    diffBeijingCalendarDays,
     formatBeijingDate,
-    getBeijingDayStart,
 } from '@/lib/beijingTime';
 
 const TodayTrainingPage: React.FC = () => {
@@ -121,31 +119,10 @@ const TodayTrainingPage: React.FC = () => {
         if (!ts) return '';
         return formatBeijingDate(ts, 'zh-CN', { month: 'numeric', day: 'numeric' });
     };
-    const calendarDayIndex = (() => {
-        const today = getBeijingDayStart(new Date());
-        const execs = executionsByDayIndex || {};
-        const resolved = Object.values(execs).filter((e: any) =>
-            (e?.status === 'completed' || e?.status === 'abandoned') && (e?.completed_at || e?.started_at)
-        ) as any[];
-        if (resolved.length > 0) {
-            const maxResolved = Math.max(...resolved.map((e) => Number(e?.day_index ?? 0)).filter(Boolean));
-            const anchorExec = (execs as any)[maxResolved];
-            const anchorTs = anchorExec?.completed_at || anchorExec?.started_at;
-            if (anchorTs) {
-                const anchor = getBeijingDayStart(anchorTs);
-                const diffDays = diffBeijingCalendarDays(today, anchor);
-                return Math.max(1, Math.min(trainingDays.length || 1, maxResolved + diffDays));
-            }
-        }
-        const effectiveStart = (instance as any)?.start_date || activeSubscription?.start_date;
-        if (effectiveStart) {
-            const start = getBeijingDayStart(effectiveStart);
-            const diffDays = diffBeijingCalendarDays(today, start);
-            return Math.max(1, Math.min(trainingDays.length || 1, 1 + diffDays));
-        }
-        return todayDayIndex;
-    })();
-    const progressDayIndex = Math.min(calendarDayIndex, todayDayIndex);
+    // 今日训练页必须以 recommendedDayIndex 为主口径：
+    // 休息日会自动顺延到下一训练日，不能再用“计划日历上的今天”覆盖默认展示，
+    // 否则会出现“教练计划还在，但学员默认看到休息日，误以为训练没了”的问题。
+    const progressDayIndex = todayDayIndex;
     const progressDay = trainingDays.find(d => d.dayIndex === progressDayIndex);
     const progressExec = (executionsByDayIndex || {})[progressDayIndex];
     const progressExecutionStatus: 'none' | 'in_progress' | 'completed' =
