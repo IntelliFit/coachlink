@@ -104,6 +104,7 @@ const PUBLIC_PATHS = new Set([
     "/api/payment/alipay/query", // guest payment query
     "/api/payment/alipay/guest/create", // guest payment create (public)
     "/api/hello-world", // hello world test endpoint (public)
+    "/api/system/version", // deploy version info endpoint (public)
     "/docs/agreement",
     "/docs/disclaimer",
     "/disclaimer",
@@ -209,6 +210,7 @@ export async function proxy(request: NextRequest) {
     // 先检查是否是公共路径（包括登录接口/微信回调桥接页），如果是则直接放行
     if (
         PUBLIC_PATHS.has(pathname) ||
+        pathname.startsWith("/api/system/version") ||
         // 公开 API（分享/公开文章等）
         pathname.startsWith("/api/public/") ||
         // 公共动作库（允许未登录访问）
