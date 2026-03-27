@@ -12,6 +12,7 @@ import { type APIOptions as PrimeReactOptions, PrimeReactProvider } from 'primer
 import { ProfileSetupModalProvider } from "@/context/ProfileSetupModalContext";
 import TraceReporter from '@/app/trace/component';
 import { PlanLibEditScrollProvider } from '@/context/PlanLibEditScrollContext';
+import { getAppVersionInfo } from '@/lib/version';
 
 export async function generateMetadata(): Promise<Metadata> {
     const siteUrl = process.env.NEXTAUTH_URL || 'https://coachlink.fit';
@@ -46,6 +47,7 @@ export async function generateMetadata(): Promise<Metadata> {
         process.env.NEXT_PUBLIC_BING_SITE_VERIFICATION ||
         process.env.BING_SITE_VERIFICATION ||
         undefined;
+    const versionInfo = getAppVersionInfo();
 
     return {
         metadataBase: new URL(siteUrl),
@@ -127,6 +129,7 @@ export default function RootLayout({
     };
 
     const siteUrl = process.env.NEXTAUTH_URL || 'https://coachlink.fit';
+    const versionInfo = getAppVersionInfo();
     const structuredData = {
         '@context': 'https://schema.org',
         '@type': 'WebSite',
@@ -140,6 +143,9 @@ export default function RootLayout({
     return (
         <html lang="zh-CN">
             <head>
+                <meta name="x-app-version" content={versionInfo.appVersion} />
+                <meta name="x-app-commit-id" content={versionInfo.gitCommitId} />
+                <meta name="x-app-build-time" content={versionInfo.buildTime} />
                 <script
                     type="application/ld+json"
                     id="structured-data"
