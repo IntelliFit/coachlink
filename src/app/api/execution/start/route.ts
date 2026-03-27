@@ -263,6 +263,11 @@ export async function POST(request: NextRequest) {
         const actionIds = actionSets
             .map((a: any) => a.action_id || a.actionId)
             .filter((id: string) => id);
+        const actionNames = Array.from(new Set(
+            actionSets
+                .map((a: any) => String(a?.actionName || a?.set_name || "").trim())
+                .filter((name: string) => !!name),
+        ));
 
         let actionsMap: Record<string, any> = {};
         let bodyWeight = 0;
@@ -283,6 +288,7 @@ export async function POST(request: NextRequest) {
         try {
             const records = await getCurrent1RMRecords(userId, {
                 actionIds,
+                actionNames: actionNames.length > 0 ? actionNames : undefined,
                 // 与计划页保持一致：按 PR 递增逻辑读取，避免状态波动导致自动降重。
                 preferPR: true,
             });
