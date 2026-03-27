@@ -5,7 +5,6 @@ import 'primeicons/primeicons.css';
 import 'reactflow/dist/style.css';
 
 import type { Metadata, Viewport } from 'next';
-import { Inter } from 'next/font/google';
 import { ThemeProvider } from '@/context/ThemeContext';
 import ClientLayout from '@/components/ClientLayout';
 import Navigation from '@/components/Navigation';
@@ -13,13 +12,6 @@ import { type APIOptions as PrimeReactOptions, PrimeReactProvider } from 'primer
 import { ProfileSetupModalProvider } from "@/context/ProfileSetupModalContext";
 import TraceReporter from '@/app/trace/component';
 import { PlanLibEditScrollProvider } from '@/context/PlanLibEditScrollContext';
-
-// 配置 Google Fonts，使用 optional display 模式：如果加载失败，静默使用系统字体，不报错
-const inter = Inter({ 
-    subsets: ['latin'],
-    display: 'optional', // 加载失败时不阻塞渲染，使用系统字体
-    fallback: ['system-ui', '-apple-system', 'sans-serif'], // 备用字体
-});
 
 export async function generateMetadata(): Promise<Metadata> {
     const siteUrl = process.env.NEXTAUTH_URL || 'https://coachlink.fit';
@@ -155,7 +147,7 @@ export default function RootLayout({
                     dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
                 />
             </head>
-            <body className={inter.className}>
+            <body className="font-sans">
                 <ThemeProvider>
                     <ClientLayout>
                         <PrimeReactProvider value={primereactConfig}>

@@ -4,7 +4,12 @@ import { AddTemplateDto, AddTemplateResponseDto } from "./entity";
 import { ApiData } from "@/types/api";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 import { Json } from "@/types/database.types";
-import { checkTrainingDays, makeContainedOptions, makeWeekDays } from "@/utils/template";
+import {
+    checkTrainingDays,
+    makeContainedOptions,
+    makeWeekDays,
+    validateTrainingDaysPresence,
+} from "@/utils/template";
 
 export async function POST(req: Request) {
     const {
@@ -37,6 +42,14 @@ export async function POST(req: Request) {
             success: false,
             message: "Forbidden",
         }, { status: 403 });
+    }
+
+    const presenceInfo = validateTrainingDaysPresence(trainingDays);
+    if (!presenceInfo.valid) {
+        return NextResponse.json({
+            success: false,
+            message: presenceInfo.message
+        }, { status: 400 });
     }
 
     const validInfo = checkTrainingDays(trainingDays);
