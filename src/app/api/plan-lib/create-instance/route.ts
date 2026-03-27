@@ -5,6 +5,7 @@ import { ApiData } from "@/types/api";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 import { sendDirectMessage } from "@/lib/chat";
 import { syncCoachActionsToStudentLibrary } from "../sync-actions";
+import { validateTrainingDaysPresence } from "@/utils/template";
 
 export async function POST(req: Request) {
     const {
@@ -38,6 +39,14 @@ export async function POST(req: Request) {
         return NextResponse.json({
             success: false,
             message: "缺少必要参数",
+        }, { status: 400 });
+    }
+
+    const trainingDaysPresence = validateTrainingDaysPresence(trainingDays);
+    if (!trainingDaysPresence.valid) {
+        return NextResponse.json({
+            success: false,
+            message: trainingDaysPresence.message,
         }, { status: 400 });
     }
 
