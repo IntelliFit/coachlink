@@ -8,7 +8,8 @@
   - `src/app/api/execution/start/route.ts` now resolves 1RM in priority order `canonical -> name -> actionId`
   - `src/app/api/plan-lib/create-ai-instance/match.ts` and `service.ts` aligned to the same lookup priority for newly generated plans
   - legacy raw `actionId` lookup is kept only as a last-resort compatibility fallback and must never override canonical/name matches
-- Status: completed (code + checks done, pending user-side verification/refresh)
+  - recent main-branch work also added deploy version traceability (`appVersion + gitCommitId + buildTime`) via build metadata, version helper, APIs, and meta tags
+- Status: completed
 - Blocker: repository still has historical TypeScript errors unrelated to this fix (`npm run typecheck` not fully green baseline)
 - Next step: verify with coach `枭马葛` and student `water` that Day 51 pull-up now resolves to `57.9kg / 50.1kg` instead of the stale `46.5kg / 39.4kg`
 - Last updated: `2026-03-28`
