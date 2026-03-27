@@ -155,6 +155,26 @@ export function normalizeIntensityConfig(
 }
 
 /**
+ * 判断当前动作是否属于“动态强度”口径（RM/%）。
+ * - 动态强度：需要随 1RM 变化重算推荐重量。
+ * - 固定重量：应保留计划中手动设置的 load。
+ */
+export function hasDynamicIntensityTarget(options: {
+    intensityConfig?: IntensityConfig;
+    legacyRm?: number | string | null;
+}): boolean {
+    const { intensityConfig, legacyRm } = options;
+    const ri = intensityConfig?.relativeIntensity;
+    if (ri && (ri.type === "rm" || ri.type === "percentage")) {
+        const v = Number(ri.value);
+        if (Number.isFinite(v) && v > 0) return true;
+    }
+
+    const rm = Number(legacyRm);
+    return Number.isFinite(rm) && rm > 0;
+}
+
+/**
  * 计算并返回强度显示值
  * 这是新的主入口函数，支持多种强度描述方式
  *

@@ -5,7 +5,11 @@ import { serviceRoleSupabase } from "@/lib/supabaseClient";
 import type { ApiData } from "@/types/api";
 import type { StartExecutionDto, StartExecutionResponseDto } from "./entity";
 import { formatKgForGym } from "@/lib/weightQuantize";
-import { calcIntensityDisplay, normalizeIntensityConfig } from "@/lib/rmCaculator";
+import {
+    calcIntensityDisplay,
+    hasDynamicIntensityTarget,
+    normalizeIntensityConfig,
+} from "@/lib/rmCaculator";
 import { normalizeToKg } from "@/types/intensity";
 import { getCurrent1RMRecords } from "@/app/api/student/get-current-1rm/route";
 import { validateExecutionSubscriptionAccess } from "../_helpers/subscriptionAccess";
@@ -328,11 +332,18 @@ export async function POST(request: NextRequest) {
 
             // Compute a concrete load (kg) if not already present
             let load = actionSet.params?.load; // 自动计算的实际重量
-            if (load === null || load === undefined) {
-                const params = actionSet.params || {};
-                const intensityConfig = normalizeIntensityConfig(params);
-                const legacyRm = params["强度"] ?? intensity;
-
+            const params = actionSet.params || {};
+            const intensityConfig = normalizeIntensityConfig(params);
+            const legacyRm = params["强度"] ?? intensity;
+            const shouldRefreshExistingLoad = hasDynamicIntensityTarget({
+                intensityConfig,
+                legacyRm,
+            });
+            if (
+                load === null ||
+                load === undefined ||
+                shouldRefreshExistingLoad
+            ) {
                 const actionIdForLookup = actionId;
                 const actionNameForLookup = actionsMap[actionIdForLookup]?.name || actionSet.actionName || actionSet.set_name;
                 const oneRM = oneRMMap[actionIdForLookup] ?? oneRMMap[actionNameForLookup] ?? undefined;
