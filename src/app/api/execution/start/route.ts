@@ -299,6 +299,7 @@ export async function POST(request: NextRequest) {
             for (const r of records || []) {
                 if (r.actionId) oneRMMap[r.actionId] = Math.max(oneRMMap[r.actionId] || 0, r.current1RM);
                 if (r.actionName) oneRMMap[r.actionName] = Math.max(oneRMMap[r.actionName] || 0, r.current1RM);
+                if (r.canonicalActionId) oneRMMap[r.canonicalActionId] = Math.max(oneRMMap[r.canonicalActionId] || 0, r.current1RM);
             }
         } catch (e) {
             // ignore
@@ -307,7 +308,7 @@ export async function POST(request: NextRequest) {
         if (actionIds.length > 0) {
             const { data: actionsData } = await supabase
                 .from("coach_actions")
-                .select('id, name, type, "includesBodyWeight"')
+                .select('id, name, type, canonical_action_id, "includesBodyWeight"')
                 .in("id", actionIds);
 
             if (actionsData) {
@@ -346,7 +347,8 @@ export async function POST(request: NextRequest) {
             ) {
                 const actionIdForLookup = actionId;
                 const actionNameForLookup = actionsMap[actionIdForLookup]?.name || actionSet.actionName || actionSet.set_name;
-                const oneRM = oneRMMap[actionIdForLookup] ?? oneRMMap[actionNameForLookup] ?? undefined;
+                const canonicalActionId = actionsMap[actionIdForLookup]?.canonical_action_id;
+                const oneRM = oneRMMap[canonicalActionId] ?? oneRMMap[actionNameForLookup] ?? oneRMMap[actionIdForLookup] ?? undefined;
                 const includesBodyWeight = !!(actionsMap[actionIdForLookup]?.includesBodyWeight);
 
                 const result = calcIntensityDisplay({

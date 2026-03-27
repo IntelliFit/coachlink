@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
-import supabase from "@/lib/supabaseClient";
+import { serviceRoleSupabase as supabase } from "@/lib/supabaseClient";
 import type { ApiData } from "@/types/api";
 import { Current1RMRecord, GetCurrent1RMDto, GetCurrent1RMResponseDto } from "./entity";
 import { isOneRMEligibleAction } from "@/lib/oneRmEligibility";
@@ -18,6 +18,11 @@ export async function getCurrent1RMRecords(
         preferPR?: boolean;
     }
 ) {
+    // 这里必须使用 service-role client：
+    // 该函数会被多个服务端路由复用，并且需要在服务端完成显式权限校验后，
+    // 读取目标学员的 student_actions / personal_records_history。
+    // 若走匿名 client，服务端没有附带 Supabase auth context，会退化为只拿到问卷兜底数据，
+    // 造成计划重量整体偏小并回落到旧值。
     const { actionIds, actionNames, targetUserId, preferPR = false } = params;
     const hasActionIdFilter = Array.isArray(actionIds) && actionIds.length > 0;
     const hasActionNameFilter =

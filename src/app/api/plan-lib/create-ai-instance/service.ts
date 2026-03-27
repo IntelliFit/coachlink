@@ -81,7 +81,7 @@ export async function createAiInstanceForSubscription(params: CreateAiInstancePa
     // 获取支持自动计算的动作列表（包含 includesBodyWeight）
     const { data: autoComputeActions } = await supabase
         .from("coach_actions")
-        .select("id, name, enableAutoWeightCompute, includesBodyWeight")
+        .select("id, name, canonical_action_id, enableAutoWeightCompute, includesBodyWeight")
         .eq("enableAutoWeightCompute", true);
 
     const templates = await matchPlan(answers, actorCoachId);
@@ -183,4 +183,3 @@ export async function createAiInstanceForSubscription(params: CreateAiInstancePa
 
     return template;
 }
-

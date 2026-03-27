@@ -359,6 +359,9 @@ export async function POST(req: Request) {
                 if (r.actionName && r.current1RM > 0) {
                     rmMap[r.actionName] = r.current1RM;
                 }
+                if (r.canonicalActionId && r.current1RM > 0) {
+                    rmMap[r.canonicalActionId] = r.current1RM;
+                }
             }
 
             const calcStart = performance.now();
@@ -385,9 +388,12 @@ export async function POST(req: Request) {
                     ) {
                         continue;
                     }
-                    const oneRM = rmMap[actionId] ??
+                    const canonicalActionId = actionsMap[actionId]?.canonical_action_id ??
+                        actionsMap[actionId]?.canonicalActionId;
+                    const oneRM = rmMap[canonicalActionId] ??
                         rmMap[actionsMap[actionId]?.name] ??
-                        rmMap[set.actionName] ?? undefined;
+                        rmMap[set.actionName] ??
+                        rmMap[actionId] ?? undefined;
 
                     // resolve includesBodyWeight from action row if present
                     const includesBodyWeight =

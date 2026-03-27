@@ -20,6 +20,7 @@ import { getCurrent1RMRecords } from "@/app/api/student/get-current-1rm/route";
 interface AutoComputeAction {
     id: string;
     name: string;
+    canonical_action_id?: string | null;
     enableAutoWeightCompute: boolean | null;
     includesBodyWeight: boolean | null; // true=负重动作(alpha=1), false/null=普通(alpha=0)
 }
@@ -170,7 +171,9 @@ function computeActionWeight(
     }
 
     // 获取学员该动作的1RM
-    const oneRM = userRmInputs[action.actionId];
+    const oneRM = userRmInputs[actionConfig.canonical_action_id || ""] ??
+        userRmInputs[actionConfig.name] ??
+        userRmInputs[action.actionId];
 
     // 提取强度配置（支持新旧格式）
     const intensityConfig = normalizeIntensityConfig(action.params);
@@ -280,6 +283,9 @@ export async function fillTemplate(
                 // 同时使用 actionName 作为 key（用于匹配没有 actionId 的情况）
                 if (record.actionName && record.current1RM > 0) {
                     prRmMap[record.actionName] = record.current1RM;
+                }
+                if (record.canonicalActionId && record.current1RM > 0) {
+                    prRmMap[record.canonicalActionId] = record.current1RM;
                 }
             }
             
