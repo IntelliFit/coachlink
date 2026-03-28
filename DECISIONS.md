@@ -9,3 +9,9 @@
 - `2026-03-28`: For coach-plan/student-plan 1RM resolution, do not trust raw `actionId` first. Old questionnaire RM keys can reuse historical coach action IDs and override the real current action 1RM. Resolve in priority order `canonical_action_id -> action name -> actionId`.
 - `2026-03-28`: `getCurrent1RMRecords` is a server-only aggregation helper and must use `serviceRoleSupabase` after explicit permission checks; using the anonymous client can silently fall back to stale questionnaire RM data.
 - `2026-03-28`: Legacy raw `actionId` RM lookup may remain only as a lowest-priority compatibility fallback. It must never outrank `canonical_action_id` or action-name matches, because historical questionnaire keys can reuse old coach action IDs and inject stale 1RM data.
+- `2026-03-29`: `streetlifting` 的单杠贡献榜改为后端聚合表驱动，不再由客户端现场扫描 `streetlifting_locations`：
+  - 新增 `streetlifting_location_contributors` 作为直查排行榜表
+  - `streetlifting_locations` 补 `contributor_user_id` / `contributor_name_snapshot`，用于稳定归属与展示
+  - 贡献分按“上传次数基础分 + 点位详细度分”累计
+  - 位置编辑默认保留原贡献者，不因后来编辑而转移贡献归属
+- `2026-03-29`: `/api/streetlifting-index/stats` 需同时承担移动端单杠总览分析数据源，返回全量点位的覆盖率、分布和近月趋势，避免前端只基于当前页做失真的轻统计。

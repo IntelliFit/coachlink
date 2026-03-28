@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "../../../auth/[...nextauth]/auth";
 import { serviceRoleSupabase } from "@/lib/supabaseClient";
+import { rebuildStreetliftingLocationContributorStats } from "../contributorStats";
 
 import type { ApiData } from "@/types/api";
 import type {
@@ -10,7 +11,7 @@ import type {
 
 export async function POST(req: Request) {
     try {
-        await getServerSession();
+        const session = await getServerSession();
         const body = (await req.json().catch(() => ({}))) as StreetliftingCreateLocationDto;
 
         if (!body?.name?.trim()) {
@@ -22,6 +23,17 @@ export async function POST(req: Request) {
         }
 
         const db = serviceRoleSupabase;
+        const profile = (session as any)?.profile || null;
+        const contributorUserId = session?.user?.id || null;
+        const contributorNameSnapshot = String(
+            profile?.nickname ||
+            profile?.full_name ||
+            session?.user?.name ||
+            body.user_contact ||
+            "",
+        ).trim() || null;
+        const contributorContact = String(body.user_contact || contributorNameSnapshot || "").trim() || null;
+
         const { data, error } = await db
             .from("streetlifting_locations")
             .insert([{
@@ -34,7 +46,9 @@ export async function POST(req: Request) {
                 latitude: body.latitude ?? null,
                 longitude: body.longitude ?? null,
                 image_urls: body.image_urls?.length ? body.image_urls : null,
-                user_contact: body.user_contact || null,
+                user_contact: contributorContact,
+                contributor_user_id: contributorUserId,
+                contributor_name_snapshot: contributorNameSnapshot,
             }])
             .select("*")
             .single();
@@ -46,6 +60,12 @@ export async function POST(req: Request) {
                 message: error?.message || "提交失败",
                 data: null,
             }, { status: 500 });
+        }
+
+        try {
+            await rebuildStreetliftingLocationContributorStats();
+        } catch (rebuildError) {
+            console.error("[streetlifting-index][locations] contributor rebuild after create failed:", rebuildError);
         }
 
         return NextResponse.json<ApiData<StreetliftingCreateLocationResponseDto>>({

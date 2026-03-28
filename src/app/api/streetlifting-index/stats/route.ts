@@ -1,9 +1,30 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "../../auth/[...nextauth]/auth";
-import supabase, { serviceRoleSupabase } from "@/lib/supabaseClient";
+import { serviceRoleSupabase } from "@/lib/supabaseClient";
 
 import type { ApiData } from "@/types/api";
 import type { StreetliftingStatsDto, StreetliftingStatsResponseDto } from "./entity";
+import { getStreetliftingLocationImageCount } from "../locations/contributorStats";
+
+type LocationStatsRow = {
+    created_at: string | null;
+    description: string | null;
+    province: string | null;
+    city: string | null;
+    latitude: number | null;
+    longitude: number | null;
+    image_url: string | null;
+    image_urls: string[] | null;
+};
+
+function normalizeAreaName(value: string | null | undefined, fallback: string): string {
+    const trimmed = String(value || "").trim();
+    return trimmed || fallback;
+}
+
+function formatMonthKey(date: Date): string {
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+}
 
 export async function POST(req: Request) {
     try {
@@ -31,6 +52,10 @@ export async function POST(req: Request) {
             .order("last_updated", { ascending: false })
             .limit(1);
 
+        const { data: locations, error: locationError } = await db
+            .from("streetlifting_locations")
+            .select("created_at, description, province, city, latitude, longitude, image_url, image_urls");
+
         if (formulaError) {
             console.error("[streetlifting-index][stats] formula error:", formulaError);
             return NextResponse.json<ApiData<StreetliftingStatsResponseDto>>({
@@ -40,12 +65,90 @@ export async function POST(req: Request) {
             }, { status: 500 });
         }
 
+        if (locationError) {
+            console.error("[streetlifting-index][stats] location error:", locationError);
+            return NextResponse.json<ApiData<StreetliftingStatsResponseDto>>({
+                success: false,
+                message: locationError.message || "获取地点统计失败",
+                data: null,
+            }, { status: 500 });
+        }
+
+        const { count: contributorCount, error: contributorCountError } = await db
+            .from("streetlifting_location_contributors")
+            .select("*", { count: "exact", head: true });
+
+        if (contributorCountError) {
+            console.warn("[streetlifting-index][stats] contributor table not ready:", contributorCountError.message);
+        }
+
+        const locationRows = (locations || []) as LocationStatsRow[];
+        const totalLocationCount = locationRows.length;
+        const withImagesCount = locationRows.filter((row) => getStreetliftingLocationImageCount(row) > 0).length;
+        const withDescriptionCount = locationRows.filter((row) => String(row.description || "").trim().length > 0).length;
+        const mapReadyCount = locationRows.filter(
+            (row) => typeof row.latitude === "number" && typeof row.longitude === "number",
+        ).length;
+        const imageTotal = locationRows.reduce((sum, row) => sum + getStreetliftingLocationImageCount(row), 0);
+
+        const provinceMap = new Map<string, number>();
+        const cityMap = new Map<string, number>();
+        const monthMap = new Map<string, number>();
+
+        const monthKeys: string[] = [];
+        const now = new Date();
+        for (let i = 5; i >= 0; i -= 1) {
+            const current = new Date(now.getFullYear(), now.getMonth() - i, 1);
+            const key = formatMonthKey(current);
+            monthKeys.push(key);
+            monthMap.set(key, 0);
+        }
+
+        locationRows.forEach((row) => {
+            const province = normalizeAreaName(row.province, "未填写省份");
+            provinceMap.set(province, (provinceMap.get(province) || 0) + 1);
+
+            const city = normalizeAreaName(row.city, province);
+            cityMap.set(city, (cityMap.get(city) || 0) + 1);
+
+            if (row.created_at) {
+                const date = new Date(row.created_at);
+                if (!Number.isNaN(date.getTime())) {
+                    const key = formatMonthKey(date);
+                    if (monthMap.has(key)) {
+                        monthMap.set(key, (monthMap.get(key) || 0) + 1);
+                    }
+                }
+            }
+        });
+
         return NextResponse.json<ApiData<StreetliftingStatsResponseDto>>({
             success: true,
             message: "获取统计成功",
             data: {
                 totalCount: totalCount || 0,
                 lastUpdated: formulas?.[0]?.last_updated || null,
+                locationOverview: {
+                    totalCount: totalLocationCount,
+                    withImagesCount,
+                    withDescriptionCount,
+                    averageImageCount: totalLocationCount > 0 ? Number((imageTotal / totalLocationCount).toFixed(1)) : 0,
+                    provinceCount: provinceMap.size,
+                    mapReadyCount,
+                    contributorCount: contributorCountError ? 0 : (contributorCount || 0),
+                    topProvinces: Array.from(provinceMap.entries())
+                        .sort((a, b) => b[1] - a[1])
+                        .slice(0, 6)
+                        .map(([name, count]) => ({ name, count })),
+                    topCities: Array.from(cityMap.entries())
+                        .sort((a, b) => b[1] - a[1])
+                        .slice(0, 6)
+                        .map(([name, count]) => ({ name, count })),
+                    recentMonths: monthKeys.map((month) => ({
+                        month,
+                        count: monthMap.get(month) || 0,
+                    })),
+                },
             },
         });
     } catch (error) {

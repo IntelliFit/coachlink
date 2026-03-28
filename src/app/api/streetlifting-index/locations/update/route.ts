@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "../../../auth/[...nextauth]/auth";
 import { serviceRoleSupabase } from "@/lib/supabaseClient";
+import { rebuildStreetliftingLocationContributorStats } from "../contributorStats";
 
 import type { ApiData } from "@/types/api";
 import type {
@@ -10,7 +11,7 @@ import type {
 
 export async function POST(req: Request) {
     try {
-        await getServerSession();
+        const session = await getServerSession();
         const body = (await req.json().catch(() => ({}))) as StreetliftingUpdateLocationDto;
 
         if (!body?.id) {
@@ -22,6 +23,44 @@ export async function POST(req: Request) {
         }
 
         const db = serviceRoleSupabase;
+        const { data: existingLocation, error: existingError } = await db
+            .from("streetlifting_locations")
+            .select("id, user_contact, contributor_user_id, contributor_name_snapshot")
+            .eq("id", body.id)
+            .single();
+
+        if (existingError || !existingLocation) {
+            return NextResponse.json<ApiData<StreetliftingUpdateLocationResponseDto>>({
+                success: false,
+                message: existingError?.message || "地点不存在",
+                data: null,
+            }, { status: 404 });
+        }
+
+        const profile = (session as any)?.profile || null;
+        const fallbackUserId = session?.user?.id || null;
+        const fallbackNameSnapshot = String(
+            profile?.nickname ||
+            profile?.full_name ||
+            session?.user?.name ||
+            body.user_contact ||
+            "",
+        ).trim() || null;
+        const hasExistingContributor = !!(
+            existingLocation.contributor_user_id ||
+            String(existingLocation.contributor_name_snapshot || "").trim() ||
+            String(existingLocation.user_contact || "").trim()
+        );
+        const contributorUserId = hasExistingContributor
+            ? existingLocation.contributor_user_id || null
+            : fallbackUserId;
+        const contributorNameSnapshot = hasExistingContributor
+            ? (String(existingLocation.contributor_name_snapshot || "").trim() || null)
+            : fallbackNameSnapshot;
+        const contributorContact = hasExistingContributor
+            ? (String(existingLocation.user_contact || "").trim() || contributorNameSnapshot)
+            : (String(body.user_contact || fallbackNameSnapshot || "").trim() || null);
+
         const { data, error } = await db
             .from("streetlifting_locations")
             .update({
@@ -34,7 +73,9 @@ export async function POST(req: Request) {
                 latitude: body.latitude ?? null,
                 longitude: body.longitude ?? null,
                 image_urls: body.image_urls?.length ? body.image_urls : null,
-                user_contact: body.user_contact ?? null,
+                user_contact: contributorContact,
+                contributor_user_id: contributorUserId,
+                contributor_name_snapshot: contributorNameSnapshot,
             })
             .eq("id", body.id)
             .select("*")
@@ -47,6 +88,12 @@ export async function POST(req: Request) {
                 message: error?.message || "更新失败",
                 data: null,
             }, { status: 500 });
+        }
+
+        try {
+            await rebuildStreetliftingLocationContributorStats();
+        } catch (rebuildError) {
+            console.error("[streetlifting-index][locations] contributor rebuild after update failed:", rebuildError);
         }
 
         return NextResponse.json<ApiData<StreetliftingUpdateLocationResponseDto>>({
