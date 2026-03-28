@@ -12,6 +12,8 @@ export interface StreetliftingLocation {
     longitude: number | null;
     created_at: string;
     user_contact: string | null;
+    contributor_user_id?: string | null;
+    contributor_name_snapshot?: string | null;
 }
 
 export interface StreetliftingListLocationsDto {
