@@ -160,28 +160,6 @@ export default function StudentToolboxPage() {
               </div>
             </div>
 
-            {/* Scene Toolkit */}
-            <div className="mb-8">
-              <div className="flex items-center justify-between mb-3">
-                <h2 className="text-lg md:text-xl font-black text-surface-900">场景急救箱</h2>
-                <span className="text-xs md:text-sm text-surface-600">从知识库迁移，按场景直接用</span>
-              </div>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                {SCENARIO_TOOLBOX_ITEMS.map((item) => (
-                  <button
-                    key={item.key}
-                    type="button"
-                    onClick={() => router.push(`/dashboard/knowledge/scenarios/${item.slug}`)}
-                    className="rounded-2xl border border-surface-200 bg-surface-0 p-4 text-left hover:border-primary-200 hover:shadow-sm transition-all"
-                  >
-                    <div className="text-2xl mb-2">{item.icon}</div>
-                    <div className="text-sm font-bold text-surface-900 leading-5">{item.title}</div>
-                    <div className="text-xs text-surface-500 mt-2">点击查看方案</div>
-                  </button>
-                ))}
-              </div>
-            </div>
-
             {/* Tool Cards */}
             <div className="mb-3 text-sm text-surface-600">进阶工具（适合需要计算或数据分析时使用）</div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -229,6 +207,28 @@ export default function StudentToolboxPage() {
                   </div>
                 );
               })}
+            </div>
+
+            {/* Scene Toolkit — 放在页面底部，避免挤占进阶工具首屏 */}
+            <div className="mt-10 pt-8 border-t border-surface-100">
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-lg md:text-xl font-black text-surface-900">场景急救箱</h2>
+                <span className="text-xs md:text-sm text-surface-600">从知识库迁移，按场景直接用</span>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {SCENARIO_TOOLBOX_ITEMS.map((item) => (
+                  <button
+                    key={item.key}
+                    type="button"
+                    onClick={() => router.push(`/dashboard/knowledge/scenarios/${item.slug}`)}
+                    className="rounded-2xl border border-surface-200 bg-surface-0 p-4 text-left hover:border-primary-200 hover:shadow-sm transition-all"
+                  >
+                    <div className="text-2xl mb-2">{item.icon}</div>
+                    <div className="text-sm font-bold text-surface-900 leading-5">{item.title}</div>
+                    <div className="text-xs text-surface-500 mt-2">点击查看方案</div>
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         </section>

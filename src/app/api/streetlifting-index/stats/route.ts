@@ -138,7 +138,7 @@ export async function POST(req: Request) {
                     contributorCount: contributorCountError ? 0 : (contributorCount || 0),
                     topProvinces: Array.from(provinceMap.entries())
                         .sort((a, b) => b[1] - a[1])
-                        .slice(0, 6)
+                        .slice(0, 8)
                         .map(([name, count]) => ({ name, count })),
                     topCities: Array.from(cityMap.entries())
                         .sort((a, b) => b[1] - a[1])

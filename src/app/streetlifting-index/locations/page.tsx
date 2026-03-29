@@ -19,8 +19,11 @@ import TianDiTuLocationsMap from "@/components/TianDiTuLocationsMap";
 import { useToastContext } from "@/context/ToastContext";
 import { streetliftingIndexService } from "@/app/service/streetliftingIndexService";
 import { AERO_CARD, AERO_CONTAINER_6XL, AERO_SUBTITLE, AERO_TITLE } from "@/components/streetlifting-index/aero";
+import { StreetliftingLocationOverview } from "@/components/streetlifting-index/StreetliftingLocationOverview";
 
 import type { StreetliftingLocation } from "@/app/api/streetlifting-index/locations/list/entity";
+import type { StreetliftingLocationContributorItem } from "@/app/api/streetlifting-index/locations/contributors/entity";
+import type { StreetliftingLocationOverviewStats } from "@/app/api/streetlifting-index/stats/entity";
 
 const MAX_IMAGES = 4;
 
@@ -75,6 +78,25 @@ function getLocationImages(loc: StreetliftingLocation): string[] {
     return [];
 }
 
+function maskPhone(value: string): string {
+    return value.replace(/(\d{3})\d{4}(\d{4})/, "$1****$2");
+}
+
+function maskEmail(value: string): string {
+    const [name, domain] = value.split("@");
+    if (!name || !domain) return value;
+    if (name.length <= 2) return `${name[0] || "*"}*@${domain}`;
+    return `${name.slice(0, 2)}***@${domain}`;
+}
+
+function formatContributorName(value?: string | null): string {
+    const trimmed = String(value || "").trim();
+    if (!trimmed) return "未署名贡献者";
+    if (/^1\d{10}$/.test(trimmed)) return maskPhone(trimmed);
+    if (trimmed.includes("@")) return maskEmail(trimmed);
+    return trimmed;
+}
+
 export default function StreetliftingLocationsPage() {
     const { showToast } = useToastContext();
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -115,6 +137,10 @@ export default function StreetliftingLocationsPage() {
     const [galleryIndex, setGalleryIndex] = useState(0);
 
     const [viewMode, setViewMode] = useState<"list" | "map">("list");
+    const [contributors, setContributors] = useState<StreetliftingLocationContributorItem[]>([]);
+    const [loadingContributors, setLoadingContributors] = useState(true);
+    const [locationOverview, setLocationOverview] = useState<StreetliftingLocationOverviewStats | null>(null);
+    const [loadingLocationOverview, setLoadingLocationOverview] = useState(true);
 
     const fetchLocations = async (page: number) => {
         setLoading(true);
@@ -137,9 +163,37 @@ export default function StreetliftingLocationsPage() {
         }
     };
 
+    const loadContributorLeaderboard = async () => {
+        setLoadingContributors(true);
+        try {
+            const data = await streetliftingIndexService.listLocationContributors({ limit: 8 });
+            setContributors(data?.contributors || []);
+        } catch (e: any) {
+            console.error("[streetlifting-index][locations] contributors error:", e);
+            showToast({ severity: "warn", summary: "提示", detail: "贡献榜加载失败" });
+        } finally {
+            setLoadingContributors(false);
+        }
+    };
+
+    const loadLocationOverview = async () => {
+        setLoadingLocationOverview(true);
+        try {
+            const data = await streetliftingIndexService.getStats();
+            setLocationOverview(data?.locationOverview ?? null);
+        } catch (e: any) {
+            console.error("[streetlifting-index][locations] stats error:", e);
+            setLocationOverview(null);
+        } finally {
+            setLoadingLocationOverview(false);
+        }
+    };
+
     useEffect(() => {
         // 初次加载
         fetchLocations(1);
+        loadContributorLeaderboard();
+        loadLocationOverview();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
@@ -272,6 +326,8 @@ export default function StreetliftingLocationsPage() {
             setDialogOpen(false);
             resetForm();
             await fetchLocations(Math.floor(first / rows) + 1);
+            await loadContributorLeaderboard();
+            await loadLocationOverview();
         } catch (e: any) {
             showToast({ severity: "warn", summary: "操作失败", detail: e?.message || "请稍后重试" });
         } finally {
@@ -352,6 +408,8 @@ export default function StreetliftingLocationsPage() {
         "w-full h-10 rounded-2xl border border-surface-200 bg-surface-0 px-3 text-sm font-semibold text-surface-800 placeholder:text-surface-400 focus:outline-none focus:border-primary-200";
     const textareaClassName =
         "w-full rounded-2xl border border-surface-200 bg-surface-0 px-3 py-2 text-sm font-semibold text-surface-800 placeholder:text-surface-400 focus:outline-none focus:border-primary-200";
+
+    const topContributors = useMemo(() => contributors.slice(0, 5), [contributors]);
 
     // 地图模式：锁定 body 滚动，防止页面出现滚动条
     useEffect(() => {
@@ -478,6 +536,67 @@ export default function StreetliftingLocationsPage() {
                             </>
                         )}
                     </div>
+            </Card>
+
+            <StreetliftingLocationOverview loading={loadingLocationOverview} overview={locationOverview} />
+
+            <Card className={AERO_CARD}>
+                <div className="p-6 space-y-4">
+                    <div className="flex items-start justify-between gap-4 flex-wrap">
+                        <div>
+                            <div className="text-lg font-black tracking-tight text-surface-900">单杠贡献排行榜</div>
+                            <div className="text-sm text-surface-500 mt-1">直接读取后端聚合贡献表，按上传次数、信息详细度和图片贡献综合排序。</div>
+                        </div>
+                        <div className="rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-2 text-right">
+                            <div className="text-xs font-bold uppercase tracking-[0.2em] text-emerald-600">权益方向</div>
+                            <div className="text-sm font-semibold text-emerald-800">后续可映射徽章、资料兑换、内测优先权</div>
+                        </div>
+                    </div>
+
+                    {loadingContributors ? (
+                        <div className="grid md:grid-cols-2 gap-3">
+                            {Array.from({ length: 4 }).map((_, index) => (
+                                <div key={index} className="rounded-3xl border border-surface-100 bg-surface-50 p-4 space-y-3">
+                                    <Skeleton width="40%" height="1rem" />
+                                    <Skeleton width="75%" height="0.9rem" />
+                                </div>
+                            ))}
+                        </div>
+                    ) : topContributors.length === 0 ? (
+                        <div className="rounded-3xl border border-dashed border-surface-200 bg-surface-50 px-5 py-6 text-sm text-surface-500">
+                            当前还没有足够的贡献数据，新的单杠分享会自动进入累计。
+                        </div>
+                    ) : (
+                        <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-3">
+                            {topContributors.map((item, index) => (
+                                <div
+                                    key={item.contributor_key}
+                                    className="rounded-3xl border border-surface-100 bg-gradient-to-br from-surface-0 to-emerald-50/50 p-4 shadow-sm"
+                                >
+                                    <div className="flex items-start justify-between gap-3">
+                                        <div className="min-w-0">
+                                            <div className="flex items-center gap-2">
+                                                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-100 text-sm font-black text-amber-700">
+                                                    {index + 1}
+                                                </div>
+                                                <div className="truncate text-base font-bold text-surface-900">
+                                                    {formatContributorName(item.display_name)}
+                                                </div>
+                                            </div>
+                                            <div className="mt-2 text-sm text-surface-500">
+                                                {item.upload_count} 次上传 · 详细度 {item.detail_score_total} 分 · {item.image_count_total} 张图
+                                            </div>
+                                        </div>
+                                        <div className="shrink-0 text-right">
+                                            <div className="text-2xl font-black text-emerald-700">{item.contribution_score}</div>
+                                            <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-surface-400">贡献分</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
             </Card>
 
                 <>

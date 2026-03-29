@@ -8,6 +8,10 @@ export interface MapPin {
     name: string;
     latitude: number;
     longitude: number;
+    province?: string | null;
+    city?: string | null;
+    county?: string | null;
+    address?: string | null;
 }
 
 export async function POST(): Promise<Response> {
@@ -16,7 +20,7 @@ export async function POST(): Promise<Response> {
 
         const { data, error } = await serviceRoleSupabase
             .from("streetlifting_locations")
-            .select("id, name, latitude, longitude")
+            .select("id, name, latitude, longitude, province, city, county, address")
             .not("latitude", "is", null)
             .not("longitude", "is", null)
             .limit(2000);
