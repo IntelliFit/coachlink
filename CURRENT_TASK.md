@@ -17,6 +17,8 @@
   - location create/update now persist contributor identity fields and rebuild contributor aggregates after writes
   - Web 前端 `streetlifting-index/locations` 已接入贡献排行榜卡片，直接读取后端贡献榜接口
   - `locations/map-pins` 接口已补充 `province/city/county/address`，供小程序地图模式展示点位详情
+- `2026-03-29` 单杠贡献榜空表修复：`contributorStats.ts` 对无归属点位使用 `legacy:anonymous`；新增迁移 `20260330_streetlifting_contributors_legacy_anonymous.sql` 重算聚合表；`database.types.ts` 补全 `streetlifting_locations`（含 county / contributor_*）与 `streetlifting_location_contributors`，消除相关 Supabase 客户端类型报错。
+- `2026-03-29` 单杠贡献榜展示修正：排行榜接口与聚合逻辑均排除 `legacy:anonymous`；重建时优先用 `user_profiles.nickname/full_name` 刷新真实昵称；Web 榜单改为单列可折叠展示，并将请求上限提高到 30。
 - Blocker: repository still has historical TypeScript errors unrelated to this fix (`npm run typecheck` not fully green baseline)
-- Next step: verify with coach `枭马葛` and student `water` that Day 51 pull-up now resolves to `57.9kg / 50.1kg` instead of the stale `46.5kg / 39.4kg`
+- Next step: 在 Supabase 追加执行 `20260330_streetlifting_contributors_named_only.sql` 以清掉匿名历史桶并刷新昵称；随后打开 `/streetlifting-index/locations` 核对 `枭马葛` 等已登录贡献者是否正确上榜；1RM 侧继续与教练确认 Water Day 51 负荷是否已对齐。
 - Last updated: `2026-03-29`

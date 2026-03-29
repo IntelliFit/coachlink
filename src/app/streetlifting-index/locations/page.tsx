@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Camera, ChevronLeft, ChevronRight, MapPin, Search, Upload, X } from "lucide-react";
+import { Camera, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, MapPin, Search, Upload, X } from "lucide-react";
 import { Button } from "primereact/button";
 import { Card } from "primereact/card";
 import { Dialog } from "primereact/dialog";
@@ -139,6 +139,7 @@ export default function StreetliftingLocationsPage() {
     const [viewMode, setViewMode] = useState<"list" | "map">("list");
     const [contributors, setContributors] = useState<StreetliftingLocationContributorItem[]>([]);
     const [loadingContributors, setLoadingContributors] = useState(true);
+    const [contributorsExpanded, setContributorsExpanded] = useState(false);
     const [locationOverview, setLocationOverview] = useState<StreetliftingLocationOverviewStats | null>(null);
     const [loadingLocationOverview, setLoadingLocationOverview] = useState(true);
 
@@ -166,7 +167,7 @@ export default function StreetliftingLocationsPage() {
     const loadContributorLeaderboard = async () => {
         setLoadingContributors(true);
         try {
-            const data = await streetliftingIndexService.listLocationContributors({ limit: 8 });
+            const data = await streetliftingIndexService.listLocationContributors({ limit: 30 });
             setContributors(data?.contributors || []);
         } catch (e: any) {
             console.error("[streetlifting-index][locations] contributors error:", e);
@@ -409,7 +410,11 @@ export default function StreetliftingLocationsPage() {
     const textareaClassName =
         "w-full rounded-2xl border border-surface-200 bg-surface-0 px-3 py-2 text-sm font-semibold text-surface-800 placeholder:text-surface-400 focus:outline-none focus:border-primary-200";
 
-    const topContributors = useMemo(() => contributors.slice(0, 5), [contributors]);
+    const hasMoreContributors = contributors.length > 3;
+    const visibleContributors = useMemo(
+        () => (contributorsExpanded ? contributors : contributors.slice(0, 3)),
+        [contributors, contributorsExpanded],
+    );
 
     // 地图模式：锁定 body 滚动，防止页面出现滚动条
     useEffect(() => {
@@ -554,7 +559,7 @@ export default function StreetliftingLocationsPage() {
                     </div>
 
                     {loadingContributors ? (
-                        <div className="grid md:grid-cols-2 gap-3">
+                        <div className="space-y-3">
                             {Array.from({ length: 4 }).map((_, index) => (
                                 <div key={index} className="rounded-3xl border border-surface-100 bg-surface-50 p-4 space-y-3">
                                     <Skeleton width="40%" height="1rem" />
@@ -562,29 +567,29 @@ export default function StreetliftingLocationsPage() {
                                 </div>
                             ))}
                         </div>
-                    ) : topContributors.length === 0 ? (
+                    ) : visibleContributors.length === 0 ? (
                         <div className="rounded-3xl border border-dashed border-surface-200 bg-surface-50 px-5 py-6 text-sm text-surface-500">
                             当前还没有足够的贡献数据，新的单杠分享会自动进入累计。
                         </div>
                     ) : (
-                        <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-3">
-                            {topContributors.map((item, index) => (
+                        <div className="space-y-3">
+                            {visibleContributors.map((item, index) => (
                                 <div
                                     key={item.contributor_key}
-                                    className="rounded-3xl border border-surface-100 bg-gradient-to-br from-surface-0 to-emerald-50/50 p-4 shadow-sm"
+                                    className="rounded-3xl border border-surface-100 bg-gradient-to-r from-surface-0 to-emerald-50/60 p-4 shadow-sm"
                                 >
-                                    <div className="flex items-start justify-between gap-3">
-                                        <div className="min-w-0">
-                                            <div className="flex items-center gap-2">
-                                                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-100 text-sm font-black text-amber-700">
-                                                    {index + 1}
-                                                </div>
+                                    <div className="flex items-center justify-between gap-4">
+                                        <div className="flex min-w-0 items-center gap-3">
+                                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-100 text-sm font-black text-amber-700">
+                                                {index + 1}
+                                            </div>
+                                            <div className="min-w-0">
                                                 <div className="truncate text-base font-bold text-surface-900">
                                                     {formatContributorName(item.display_name)}
                                                 </div>
-                                            </div>
-                                            <div className="mt-2 text-sm text-surface-500">
-                                                {item.upload_count} 次上传 · 详细度 {item.detail_score_total} 分 · {item.image_count_total} 张图
+                                                <div className="mt-1 text-sm text-surface-500">
+                                                    {item.upload_count} 次上传 · 详细度 {item.detail_score_total} 分 · {item.image_count_total} 张图
+                                                </div>
                                             </div>
                                         </div>
                                         <div className="shrink-0 text-right">
@@ -594,6 +599,25 @@ export default function StreetliftingLocationsPage() {
                                     </div>
                                 </div>
                             ))}
+                            {hasMoreContributors && (
+                                <button
+                                    type="button"
+                                    onClick={() => setContributorsExpanded((prev) => !prev)}
+                                    className="flex w-full items-center justify-center gap-2 rounded-2xl border border-surface-200 bg-surface-50 px-4 py-3 text-sm font-semibold text-surface-600 transition-colors hover:border-surface-300 hover:text-surface-900"
+                                >
+                                    {contributorsExpanded ? (
+                                        <>
+                                            收起贡献榜
+                                            <ChevronUp size={16} />
+                                        </>
+                                    ) : (
+                                        <>
+                                            展开全部 {contributors.length} 位贡献者
+                                            <ChevronDown size={16} />
+                                        </>
+                                    )}
+                                </button>
+                            )}
                         </div>
                     )}
                 </div>

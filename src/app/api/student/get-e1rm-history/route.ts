@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import supabase from "@/lib/supabaseClient";
+import { getAuthUser } from "@/lib/auth";
 import type { ApiData } from "@/types/api";
 import {
     calculateE1RM,
@@ -34,6 +33,10 @@ export interface GetE1RMHistoryResponseDto {
     currentPR?: number;
 }
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const isUuid = (value?: string | null): value is string =>
+    !!value && UUID_REGEX.test(value);
+
 /**
  * POST /api/student/get-e1rm-history
  *
@@ -46,23 +49,26 @@ export interface GetE1RMHistoryResponseDto {
  */
 export async function POST(request: NextRequest) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) {
+        const authResult = await getAuthUser(request);
+        if (!authResult.isAuthenticated || !authResult.userId) {
             return NextResponse.json<ApiData<null>>(
                 { success: false, message: "未登录", data: null },
                 { status: 401 },
             );
         }
 
-        const currentUserId = session.user.id;
+        const currentUserId = authResult.userId;
         const body: GetE1RMHistoryDto = await request.json();
-        const { actionId, startDate, endDate, targetUserId } = body;
+        const { startDate, endDate, targetUserId } = body;
+        const requestedActionId = String(body.actionId || "").trim();
+        const actionId = isUuid(requestedActionId) ? requestedActionId : undefined;
+        const requestedActionName = String(body.actionName || "").trim();
 
-        if (!actionId) {
+        if (!actionId && !requestedActionName) {
             return NextResponse.json<ApiData<null>>(
                 {
                     success: false,
-                    message: "Action ID is required",
+                    message: "Action ID or actionName is required",
                     data: null,
                 },
                 { status: 400 },
@@ -102,22 +108,53 @@ export async function POST(request: NextRequest) {
         // 1. Fetch Action Details (Name & BodyWeight Prop)
         // First try coach_actions, then fallback to student_actions.
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const { data: coachActionData } = await (supabase as any)
-            .from("coach_actions")
-            .select('name, "includesBodyWeight"')
-            .eq("id", actionId)
-            .maybeSingle();
+        let coachActionData: any = null;
+        let studentActionData: any = null;
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const { data: studentActionData } = await (supabase as any)
-            .from("student_actions")
-            .select('name, "includesBodyWeight"')
-            .eq("id", actionId)
-            .eq("user_id", userId)
-            .maybeSingle();
+        if (actionId) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const { data } = await (supabase as any)
+                .from("coach_actions")
+                .select('name, "includesBodyWeight"')
+                .eq("id", actionId)
+                .maybeSingle();
+            coachActionData = data || null;
+
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const { data: studentData } = await (supabase as any)
+                .from("student_actions")
+                .select('name, "includesBodyWeight"')
+                .eq("id", actionId)
+                .eq("user_id", userId)
+                .maybeSingle();
+            studentActionData = studentData || null;
+        }
+
+        if (!coachActionData && requestedActionName) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const { data } = await (supabase as any)
+                .from("coach_actions")
+                .select('name, "includesBodyWeight"')
+                .eq("name", requestedActionName)
+                .limit(1)
+                .maybeSingle();
+            coachActionData = data || null;
+        }
+
+        if (!studentActionData && requestedActionName) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const { data } = await (supabase as any)
+                .from("student_actions")
+                .select('name, "includesBodyWeight"')
+                .eq("name", requestedActionName)
+                .eq("user_id", userId)
+                .limit(1)
+                .maybeSingle();
+            studentActionData = data || null;
+        }
 
         const actionData = coachActionData || studentActionData;
-        let actionName = actionData?.name || body.actionName;
+        let actionName = actionData?.name || requestedActionName;
         // If we still don't have a name, we can't find it in JSON or Questionnaire
         if (!actionName) {
             // Try to fetch from old personal_records_history to see if we can find a name for this ID?
@@ -219,7 +256,7 @@ export async function POST(request: NextRequest) {
                 // Match by ID preferred, falling back to Name
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const actionExecs = exec.action_executions.filter((ae: any) =>
-                    ae.action_id === actionId ||
+                    (actionId ? ae.action_id === actionId : false) ||
                     ae.action_name === actionName || ae.name === actionName
                 );
 
@@ -293,12 +330,20 @@ export async function POST(request: NextRequest) {
         // Source 3: Manual PRs from History (for fallback/imported data)
         // ------------------------------------------------------------------
         // We fetch these to ensure we don't miss any manually entered records
-        const { data: manualRecords } = await supabase
+        let manualQuery = supabase
             .from("personal_records_history")
             .select("date_achieved, e1rm, weight, reps, is_auto_calculated")
-            .eq("user_id", userId)
-            //.eq("action_id", actionId) // Some old records might miss action_id
-            .or(`action_id.eq.${actionId},exercise_name.eq.${actionName}`);
+            .eq("user_id", userId);
+
+        if (actionId && actionName) {
+            manualQuery = manualQuery.or(`action_id.eq.${actionId},exercise_name.eq.${actionName}`);
+        } else if (actionId) {
+            manualQuery = manualQuery.eq("action_id", actionId);
+        } else {
+            manualQuery = manualQuery.eq("exercise_name", actionName);
+        }
+
+        const { data: manualRecords } = await manualQuery;
 
         if (manualRecords) {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any

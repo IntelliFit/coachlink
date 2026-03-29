@@ -1,5 +1,9 @@
 import { serviceRoleSupabase } from "@/lib/supabaseClient";
 
+/** 无 user_contact / contributor_user_id / 可识别署名的历史点位，统一归入同一贡献键，避免排行榜为空 */
+export const STREETLIFTING_LEGACY_ANONYMOUS_KEY = "legacy:anonymous";
+export const STREETLIFTING_LEGACY_ANONYMOUS_DISPLAY_NAME = "未署名贡献（历史数据）";
+
 export interface StreetliftingLocationContributorRow {
     id?: string;
     contributor_key: string;
@@ -27,6 +31,12 @@ export interface StreetliftingLocationAggregateSourceRow {
     longitude?: number | null;
     image_url?: string | null;
     image_urls?: string[] | null;
+}
+
+interface UserProfileNameRow {
+    user_id: string | null;
+    nickname: string | null;
+    full_name: string | null;
 }
 
 function normalizeText(value: string | null | undefined): string {
@@ -60,31 +70,28 @@ export function computeStreetliftingLocationDetailScore(location: Pick<
     return score;
 }
 
-export function buildStreetliftingContributorKey(params: {
-    contributorUserId?: string | null;
-    userContact?: string | null;
-    contributorNameSnapshot?: string | null;
-}): string | null {
-    const contributorUserId = normalizeText(params.contributorUserId);
+export function buildStreetliftingContributorKey(
+    row: Pick<StreetliftingLocationAggregateSourceRow, "contributor_user_id" | "user_contact" | "contributor_name_snapshot">,
+): string {
+    const contributorUserId = normalizeText(row.contributor_user_id);
     if (contributorUserId) return `user:${contributorUserId}`;
 
-    const contactSeed = normalizeText(params.userContact) || normalizeText(params.contributorNameSnapshot);
-    if (!contactSeed) return null;
-    return `contact:${contactSeed.toLowerCase()}`;
+    const contactSeed = normalizeText(row.user_contact) || normalizeText(row.contributor_name_snapshot);
+    if (contactSeed) return `contact:${contactSeed.toLowerCase()}`;
+
+    return STREETLIFTING_LEGACY_ANONYMOUS_KEY;
 }
 
-export function buildStreetliftingContributorDisplayName(params: {
-    contributorNameSnapshot?: string | null;
-    userContact?: string | null;
-    contributorUserId?: string | null;
-}): string {
-    const snapshot = normalizeText(params.contributorNameSnapshot);
+export function buildStreetliftingContributorDisplayName(
+    row: Pick<StreetliftingLocationAggregateSourceRow, "contributor_name_snapshot" | "user_contact" | "contributor_user_id">,
+): string {
+    const snapshot = normalizeText(row.contributor_name_snapshot);
     if (snapshot) return snapshot;
 
-    const contact = normalizeText(params.userContact);
+    const contact = normalizeText(row.user_contact);
     if (contact) return contact;
 
-    const contributorUserId = normalizeText(params.contributorUserId);
+    const contributorUserId = normalizeText(row.contributor_user_id);
     if (contributorUserId) return `用户 ${contributorUserId.slice(0, 8)}`;
 
     return "未署名贡献者";
@@ -97,8 +104,9 @@ export function aggregateStreetliftingLocationContributors(
 
     for (const location of locations) {
         const contributorKey = buildStreetliftingContributorKey(location);
-        if (!contributorKey) continue;
-
+        if (contributorKey === STREETLIFTING_LEGACY_ANONYMOUS_KEY) {
+            continue;
+        }
         const displayName = buildStreetliftingContributorDisplayName(location);
         const detailScore = computeStreetliftingLocationDetailScore(location);
         const imageCount = getStreetliftingLocationImageCount(location);
@@ -146,9 +154,42 @@ export async function rebuildStreetliftingLocationContributorStats(): Promise<vo
         throw new Error(error.message || "读取单杠点位失败");
     }
 
-    const rows = aggregateStreetliftingLocationContributors(
+    const rawRows = aggregateStreetliftingLocationContributors(
         (locations || []) as StreetliftingLocationAggregateSourceRow[],
     );
+    const contributorUserIds = Array.from(new Set(
+        rawRows
+            .map((row) => normalizeText(row.contributor_user_id))
+            .filter(Boolean),
+    ));
+
+    let profileNameMap = new Map<string, string>();
+    if (contributorUserIds.length > 0) {
+        const { data: profiles, error: profileError } = await serviceRoleSupabase
+            .from("user_profiles")
+            .select("user_id, nickname, full_name")
+            .in("user_id", contributorUserIds);
+
+        if (profileError) {
+            throw new Error(profileError.message || "读取贡献者昵称失败");
+        }
+
+        profileNameMap = new Map(
+            ((profiles || []) as UserProfileNameRow[])
+                .map((profile) => {
+                    const userId = normalizeText(profile.user_id);
+                    const displayName = normalizeText(profile.nickname) || normalizeText(profile.full_name);
+                    if (!userId || !displayName) return null;
+                    return [userId, displayName] as const;
+                })
+                .filter(Boolean) as Array<readonly [string, string]>,
+        );
+    }
+
+    const rows = rawRows.map((row) => ({
+        ...row,
+        display_name: profileNameMap.get(normalizeText(row.contributor_user_id)) || row.display_name,
+    }));
 
     const nextKeys = rows.map((row) => row.contributor_key);
 

@@ -3024,12 +3024,65 @@ export type Database = {
         }
         Relationships: []
       }
+      streetlifting_location_contributors: {
+        Row: {
+          id: string
+          contributor_key: string
+          contributor_user_id: string | null
+          display_name: string
+          upload_count: number
+          detail_score_total: number
+          image_count_total: number
+          contribution_score: number
+          last_contributed_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          contributor_key: string
+          contributor_user_id?: string | null
+          display_name: string
+          upload_count?: number
+          detail_score_total?: number
+          image_count_total?: number
+          contribution_score?: number
+          last_contributed_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          contributor_key?: string
+          contributor_user_id?: string | null
+          display_name?: string
+          upload_count?: number
+          detail_score_total?: number
+          image_count_total?: number
+          contribution_score?: number
+          last_contributed_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "streetlifting_location_contributors_contributor_user_id_fkey"
+            columns: ["contributor_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       streetlifting_locations: {
         Row: {
           address: string | null
           city: string | null
+          county: string | null
           created_at: string | null
           description: string | null
+          contributor_name_snapshot: string | null
+          contributor_user_id: string | null
           id: string
           image_url: string | null
           image_urls: string[] | null
@@ -3042,8 +3095,11 @@ export type Database = {
         Insert: {
           address?: string | null
           city?: string | null
+          county?: string | null
           created_at?: string | null
           description?: string | null
+          contributor_name_snapshot?: string | null
+          contributor_user_id?: string | null
           id?: string
           image_url?: string | null
           image_urls?: string[] | null
@@ -3056,8 +3112,11 @@ export type Database = {
         Update: {
           address?: string | null
           city?: string | null
+          county?: string | null
           created_at?: string | null
           description?: string | null
+          contributor_name_snapshot?: string | null
+          contributor_user_id?: string | null
           id?: string
           image_url?: string | null
           image_urls?: string[] | null
@@ -3067,7 +3126,15 @@ export type Database = {
           province?: string | null
           user_contact?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "streetlifting_locations_contributor_user_id_fkey"
+            columns: ["contributor_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       streetlifting_stories: {
         Row: {

@@ -1,8 +1,51 @@
 import { NextRequest, NextResponse } from 'next/server';
-import supabase from "@/lib/supabaseClient";
+import supabase, { serviceRoleSupabase } from "@/lib/supabaseClient";
 import { verifyPassword } from "../../auth/[...nextauth]/verify";
 import { signToken } from "@/lib/jwt";
 import redis from "@/lib/redisClient";
+
+function buildDefaultNickname(phoneOrEmail: string, isPhone: boolean) {
+    return isPhone
+        ? `手机用户_${phoneOrEmail.slice(-4)}`
+        : `邮箱用户_${(phoneOrEmail.split("@")[0] || "").slice(0, 8)}`;
+}
+
+async function ensureUserProfile(user: any, phoneOrEmail: string, isPhone: boolean) {
+    const { data: existingProfile, error: profileQueryError } = await serviceRoleSupabase
+        .from("user_profiles")
+        .select("*")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+    if (profileQueryError) {
+        console.error("查询用户档案失败:", profileQueryError);
+        return null;
+    }
+
+    if (existingProfile) {
+        return existingProfile;
+    }
+
+    const { data: profile, error: profileCreateError } = await serviceRoleSupabase
+        .from("user_profiles")
+        .insert({
+            user_id: user.id,
+            nickname: buildDefaultNickname(phoneOrEmail, isPhone),
+            bio: "",
+            onboarding_completed: false,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+        })
+        .select("*")
+        .single();
+
+    if (profileCreateError) {
+        console.error("创建用户档案失败:", profileCreateError);
+        return null;
+    }
+
+    return profile;
+}
 
 /**
  * 小程序专用登录接口
@@ -31,25 +74,24 @@ export async function POST(req: NextRequest) {
             }, { status: 400 });
         }
 
-        // 查询用户
-        let userQuery;
-        if (isPhone) {
-            userQuery = supabase.from("users").select("*").eq("phone", phoneOrEmail).single();
-        } else {
-            userQuery = supabase.from("users").select("*").eq("email", phoneOrEmail).single();
-        }
-
-        const { data: user, error: userError } = await userQuery;
-
-        if (userError || !user) {
-            return NextResponse.json({
-                success: false,
-                message: "用户不存在"
-            }, { status: 404 });
-        }
-
         // 方式1：密码登录
         if (password && !verifyCode) {
+            let userQuery;
+            if (isPhone) {
+                userQuery = supabase.from("users").select("*").eq("phone", phoneOrEmail).single();
+            } else {
+                userQuery = supabase.from("users").select("*").eq("email", phoneOrEmail).single();
+            }
+
+            const { data: user, error: userError } = await userQuery;
+
+            if (userError || !user) {
+                return NextResponse.json({
+                    success: false,
+                    message: "该手机号/邮箱未注册"
+                }, { status: 404 });
+            }
+
             const isValid = verifyPassword(password, user.password_hash);
             if (!isValid) {
                 return NextResponse.json({
@@ -57,6 +99,8 @@ export async function POST(req: NextRequest) {
                     message: "密码错误"
                 }, { status: 401 });
             }
+
+            await ensureUserProfile(user, phoneOrEmail, isPhone);
 
             // 移除敏感信息
             const { password_hash, ...userWithoutPassword } = user;
@@ -136,13 +180,55 @@ export async function POST(req: NextRequest) {
                 await redis.del(verificationKey);
             }
 
+            let userQuery;
+            if (isPhone) {
+                userQuery = supabase.from("users").select("*").eq("phone", phoneOrEmail).maybeSingle();
+            } else {
+                userQuery = supabase.from("users").select("*").eq("email", phoneOrEmail).maybeSingle();
+            }
+
+            const { data: existingUser, error: userError } = await userQuery;
+            if (userError) {
+                return NextResponse.json({
+                    success: false,
+                    message: "登录失败，请稍后重试"
+                }, { status: 500 });
+            }
+
+            let resolvedUser = existingUser;
+            if (!resolvedUser) {
+                const { data: createdUser, error: createUserError } = await serviceRoleSupabase
+                    .from("users")
+                    .insert({
+                        ...(isPhone ? { phone: phoneOrEmail } : { email: phoneOrEmail }),
+                        password_hash: "",
+                        is_admin: false,
+                        is_coach: false,
+                        primary_role: "student",
+                        last_login_at: new Date().toISOString(),
+                    })
+                    .select("*")
+                    .single();
+
+                if (createUserError || !createdUser) {
+                    return NextResponse.json({
+                        success: false,
+                        message: "注册失败，请稍后重试"
+                    }, { status: 500 });
+                }
+
+                resolvedUser = createdUser;
+            }
+
+            await ensureUserProfile(resolvedUser, phoneOrEmail, isPhone);
+
             // 验证码验证通过，返回登录信息
-            const { password_hash, ...userWithoutPassword } = user;
+            const { password_hash, ...userWithoutPassword } = resolvedUser;
 
             const { data: coachRow } = await supabase
                 .from("coaches")
                 .select("id, status")
-                .eq("user_id", user.id)
+                .eq("user_id", resolvedUser.id)
                 .eq("status", "approved")
                 .maybeSingle();
             const isCoach = !!coachRow;
@@ -150,14 +236,14 @@ export async function POST(req: NextRequest) {
             const payload = {
                 ...userWithoutPassword,
                 is_coach: isCoach,
-                primary_role: user.primary_role ?? (isCoach ? "coach" : "student"),
-                is_admin: user.is_admin ?? false,
+                primary_role: resolvedUser.primary_role ?? (isCoach ? "coach" : "student"),
+                is_admin: resolvedUser.is_admin ?? false,
             };
 
             const token = signToken({
-                userId: user.id,
-                phone: user.phone,
-                email: user.email
+                userId: resolvedUser.id,
+                phone: resolvedUser.phone,
+                email: resolvedUser.email
             });
 
             return NextResponse.json({

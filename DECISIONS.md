@@ -17,3 +17,5 @@
 - `2026-03-29`: `/api/streetlifting-index/stats` 需同时承担移动端单杠总览分析数据源，返回全量点位的覆盖率、分布和近月趋势，避免前端只基于当前页做失真的轻统计。
 - `2026-03-29`: Web 端 `streetlifting-index/locations` 继续以“列表 + 全屏地图”双视图为主，但列表视图需要同步展示后端贡献榜，保持与小程序单杠运营玩法一致。
 - `2026-03-29`: `locations/map-pins` 不能只返回经纬度和名称；需一并返回省市区和详细地址，便于小程序地图模式在点击点位后直接展示详情和导航。
+- `2026-03-29`: 历史导入的 `streetlifting_locations` 常无 `user_contact` / `contributor_user_id`，贡献键不能为 NULL；无归属行统一归入 `legacy:anonymous`（展示名「未署名贡献（历史数据）」），与 `streetlifting_location_contributors` 回填迁移 `20260330_streetlifting_contributors_legacy_anonymous.sql` 一致。
+- `2026-03-29`: 单杠贡献榜产品展示不应给“未署名历史数据”占榜；榜单只展示可识别贡献者，并优先用 `user_profiles.nickname -> full_name` 作为显示名。Web 榜单改为可折叠的单列列表，而非首屏三列卡片。
