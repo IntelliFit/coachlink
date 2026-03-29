@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "../../auth/[...nextauth]/auth";
 import supabase from "@/lib/supabaseClient";
+import { getAuthUser } from "@/lib/auth";
 
 // 重要！必须以 import type 引入接口类型
 import type { ApiData } from "@/types/api";
@@ -12,8 +12,8 @@ import type {
 import { PR_THRESHOLD_KG } from "@/lib/e1rmCalculator";
 
 export async function POST(req: Request) {
-    const session = await getServerSession();
-    if (!session?.user?.id) {
+    const authResult = await getAuthUser(req);
+    if (!authResult.isAuthenticated || !authResult.userId) {
         return NextResponse.json({
             success: false,
             message: "用户未登录",
@@ -22,7 +22,7 @@ export async function POST(req: Request) {
     }
 
     // 重点！通过 session 获取用户 ID
-    const userId = session.user.id;
+    const userId = authResult.userId;
 
     const {
         userId: requestedUserId,

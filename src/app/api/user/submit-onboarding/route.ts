@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 import supabase from "@/lib/supabaseClient";
+import { getAuthUser } from "@/lib/auth";
 
 export async function POST(request: Request) {
     try {
-        const session = await getServerSession();
-        if (!session?.user?.id) {
+        const authResult = await getAuthUser(request);
+        if (!authResult.isAuthenticated || !authResult.userId) {
             return NextResponse.json({
                 success: false,
                 message: "用户未登录",
@@ -16,7 +16,7 @@ export async function POST(request: Request) {
         const { userId, coachId, answers, baseline_video_urls } = await request
             .json();
 
-        const effectiveUserId = userId || session.user.id;
+        const effectiveUserId = userId || authResult.userId;
 
         const { data, error } = await supabase
             .from("onboarding_questionnaires")

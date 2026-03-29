@@ -2,6 +2,50 @@ import { NextRequest, NextResponse } from 'next/server';
 import { serviceRoleSupabase } from '@/lib/supabaseClient';
 import { signToken } from '@/lib/jwt';
 
+function buildWechatNickname(phoneNumber: string | null, openid: string) {
+    if (phoneNumber && phoneNumber !== 'null') {
+        return `手机用户_${phoneNumber.slice(-4)}`;
+    }
+    return `微信用户_${openid.slice(-6)}`;
+}
+
+async function ensureUserProfile(user: any, phoneNumber: string | null, openid: string) {
+    const { data: existingProfile, error: profileQueryError } = await serviceRoleSupabase
+        .from('user_profiles')
+        .select('*')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+    if (profileQueryError) {
+        console.error('⚠️ 查询用户档案失败:', profileQueryError);
+        return null;
+    }
+
+    if (existingProfile) {
+        return existingProfile;
+    }
+
+    const { data: profile, error: profileCreateError } = await serviceRoleSupabase
+        .from('user_profiles')
+        .insert({
+            user_id: user.id,
+            nickname: buildWechatNickname(phoneNumber, openid),
+            bio: '',
+            onboarding_completed: false,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+        })
+        .select('*')
+        .single();
+
+    if (profileCreateError) {
+        console.error('⚠️ 创建用户档案失败:', profileCreateError);
+        return null;
+    }
+
+    return profile;
+}
+
 /**
  * 小程序微信登录接口
  * 接收小程序传来的 code，调用微信 code2Session API 获取用户登录信息
@@ -201,6 +245,13 @@ export async function POST(req: NextRequest) {
             }
             console.log('✅ 用户已存在（通过 openid 匹配）');
         } else {
+            if (!phoneNumber || phoneNumber === 'null') {
+                return NextResponse.json({
+                    success: false,
+                    message: '首次快捷登录请先授权手机号',
+                }, { status: 400 });
+            }
+
             // 通过 openid 没有找到用户，检查手机号是否已存在
             // 场景：用户可能通过其他方式注册（如手机号注册），但尚未绑定小程序 openid
             let userByPhone = null;
@@ -248,15 +299,15 @@ export async function POST(req: NextRequest) {
                         phone: phoneNumber, // 设置为获取到的手机号或字符串 "null"
                         email: null,
                         has_drawn: null,
-                        last_login_at: null,
+                        last_login_at: new Date().toISOString(),
                         subscription_level: null,
                         subscription_expires_at: null,
-                        is_admin: null,
+                        is_admin: false,
                         admin_role: null,
                         admin_permissions: null,
-                        is_coach: null,
+                        is_coach: false,
                         coach_status: null,
-                        primary_role: null,
+                        primary_role: 'student',
                         invitation_coach_id: null,
                         // created_at 和 updated_at 使用数据库默认值
                     })
@@ -275,6 +326,8 @@ export async function POST(req: NextRequest) {
                 console.log('✅ 已创建新用户');
             }
         }
+
+        await ensureUserProfile(user, phoneNumber, openid);
 
         // 移除敏感信息
         const { password_hash, ...userWithoutPassword } = user;
@@ -325,4 +378,3 @@ export async function POST(req: NextRequest) {
         }, { status: 500 });
     }
 }
-

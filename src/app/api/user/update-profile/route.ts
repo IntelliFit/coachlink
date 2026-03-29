@@ -1,16 +1,17 @@
 import supabase from "@/lib/supabaseClient";
-import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
-import { authOptions } from "../../auth/[...nextauth]/route";
+import { getAuthUser } from "@/lib/auth";
 
 export async function POST(request: Request) {
-    const session = await getServerSession(authOptions);
-
-    if (!session) {
-        return Response.json({ error: "Unauthorized" }, { status: 401 });
+    const authResult = await getAuthUser(request);
+    if (!authResult.isAuthenticated || !authResult.userId) {
+        return NextResponse.json({
+            success: false,
+            message: "用户未登录",
+        }, { status: 401 });
     }
 
-    const userId = session.user.id;
+    const userId = authResult.userId;
 
     // 获取请求数据
     const body = await request.json();
@@ -47,11 +48,11 @@ export async function POST(request: Request) {
     }
 
     // 检查用户档案是否已存在
-    const { data: existingProfile, error: selectError } = await supabase
+    const { data: existingProfile } = await supabase
         .from("user_profiles")
         .select("id")
         .eq("user_id", userId)
-        .single();
+        .maybeSingle();
 
     let result;
     if (existingProfile) {
@@ -94,7 +95,7 @@ export async function POST(request: Request) {
     }
 
     // 如果用户是教练且修改了昵称，同步更新 coaches 表的 name 字段
-    if (session.user.is_coach) {
+    if (authResult.user?.is_coach) {
         const coachSync: Record<string, any> = {};
         if (body.nickname !== undefined) coachSync.name = body.nickname;
         if (body.avatar_url !== undefined) coachSync.avatar_url = body.avatar_url;

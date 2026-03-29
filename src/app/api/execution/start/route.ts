@@ -97,6 +97,56 @@ export async function POST(request: NextRequest) {
 
                 if (masterDay) {
                     const masterActionSets = masterDay.actionSets || [];
+                    const masterActionIds = masterActionSets
+                        .map((set: any) => set?.action_id || set?.actionId)
+                        .filter((id: any) => !!id);
+                    const masterActionNames = Array.from(new Set(
+                        masterActionSets
+                            .map((set: any) => String(set?.actionName || set?.set_name || "").trim())
+                            .filter((name: string) => !!name),
+                    ));
+                    const syncActionsMap: Record<string, any> = {};
+                    let syncBodyWeight = 0;
+                    const syncOneRMMap: Record<string, number> = {};
+
+                    if (masterActionIds.length > 0) {
+                        const { data: syncActionsData } = await supabase
+                            .from("coach_actions")
+                            .select('id, name, canonical_action_id, "includesBodyWeight"')
+                            .in("id", masterActionIds);
+                        if (syncActionsData) {
+                            for (const action of syncActionsData) {
+                                syncActionsMap[action.id] = action;
+                            }
+                        }
+                    }
+
+                    try {
+                        const { data: profile } = await supabase
+                            .from("user_profiles")
+                            .select("weight")
+                            .eq("user_id", userId)
+                            .maybeSingle();
+                        syncBodyWeight = Number(profile?.weight || 0);
+                    } catch {
+                        syncBodyWeight = 0;
+                    }
+
+                    try {
+                        const syncRecords = await getCurrent1RMRecords(userId, {
+                            actionIds: masterActionIds.length > 0 ? masterActionIds : undefined,
+                            actionNames: masterActionNames.length > 0 ? masterActionNames : undefined,
+                            preferPR: true,
+                        });
+                        for (const r of syncRecords || []) {
+                            if (r.actionId) syncOneRMMap[r.actionId] = r.current1RM;
+                            if (r.actionName) syncOneRMMap[r.actionName] = r.current1RM;
+                            if (r.canonicalActionId) syncOneRMMap[r.canonicalActionId] = r.current1RM;
+                        }
+                    } catch {
+                        // best-effort
+                    }
+
                     const existingActionExecutions = existingExecution
                         .action_executions as any[];
                     let needsUpdate = false;
@@ -107,10 +157,48 @@ export async function POST(request: NextRequest) {
                             const masterActionSet = masterActionSets[actionIdx];
                             if (!masterActionSet) return actionExec;
 
-                            const masterLoad = masterActionSet.params?.load;
-                            const masterIntensity =
-                                masterActionSet.params?.["强度"] ||
-                                masterActionSet.intensity;
+                            const masterActionId = masterActionSet.action_id || masterActionSet.actionId;
+                            const masterParams = masterActionSet.params || {};
+                            const intensityConfig = normalizeIntensityConfig(masterParams);
+                            const legacyRm = masterParams?.["强度"] ?? masterActionSet.intensity;
+                            const shouldRefreshExistingLoad = hasDynamicIntensityTarget({
+                                intensityConfig,
+                                legacyRm,
+                            });
+
+                            let masterLoad = masterParams?.load;
+                            if (
+                                masterLoad === null ||
+                                masterLoad === undefined ||
+                                shouldRefreshExistingLoad
+                            ) {
+                                const actionNameForLookup =
+                                    syncActionsMap[masterActionId]?.name ||
+                                    masterActionSet.actionName ||
+                                    masterActionSet.set_name;
+                                const canonicalActionId = syncActionsMap[masterActionId]?.canonical_action_id;
+                                const oneRM = syncOneRMMap[canonicalActionId] ??
+                                    syncOneRMMap[actionNameForLookup] ??
+                                    syncOneRMMap[masterActionId] ??
+                                    undefined;
+                                const includesBodyWeight = !!syncActionsMap[masterActionId]?.includesBodyWeight;
+
+                                const loadResult = calcIntensityDisplay({
+                                    intensityConfig,
+                                    legacyRm,
+                                    oneRM,
+                                    bodyWeight: syncBodyWeight,
+                                    includesBodyWeight,
+                                });
+
+                                if (loadResult.displayWeight !== null && loadResult.displayWeight !== undefined) {
+                                    masterLoad = normalizeToKg(
+                                        Number(loadResult.displayWeight),
+                                        loadResult.displayUnit || "kg",
+                                    );
+                                }
+                            }
+
                             const masterReps =
                                 masterActionSet.params?.["次数"] ||
                                 masterActionSet.reps;
@@ -122,7 +210,7 @@ export async function POST(request: NextRequest) {
                             const masterPlannedWeight =
                                 masterLoad !== null && masterLoad !== undefined
                                     ? formatKgForGym(Number(masterLoad))
-                                    : (masterIntensity ? `${masterIntensity}RM` : null);
+                                    : (legacyRm ? `${legacyRm}RM` : null);
                             const masterPlannedReps = masterReps
                                 ? `${masterReps}`
                                 : null;

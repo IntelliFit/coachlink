@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from '@/app/api/auth/[...nextauth]/auth';
 import supabase from '@/lib/supabaseClient';
 import { getAuthUser } from '@/lib/auth';
 
@@ -60,8 +59,14 @@ export async function POST(req: Request) {
         if (subscriptionIds.length > 0) {
             query = query.in('coach_subscription_id', subscriptionIds);
         } else {
-            // 如果没有找到订阅，则返回空结果
-            query = query.eq('coach_subscription_id', '0'); // 使用一个不可能的ID来返回空结果
+            // 如果没有找到订阅，直接返回空结果，避免 UUID 字段比较 "0" 触发 22P02
+            return NextResponse.json<ApiData<GetCoachReviewsResponseDto>>({
+                success: true,
+                message: '获取教练评价成功',
+                data: {
+                    reviews: []
+                }
+            });
         }
     }
 
