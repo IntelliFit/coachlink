@@ -10,10 +10,13 @@
   - legacy raw `actionId` lookup is kept only as a last-resort compatibility fallback and must never override canonical/name matches
   - recent main-branch work also added deploy version traceability (`appVersion + gitCommitId + buildTime`) via build metadata, version helper, APIs, and meta tags
 - Status: completed
+- `2026-03-29` Web：`/me/toolbox` 已将「场景急救箱」整块移到「进阶工具」下方（顶部分隔线）；`/streetlifting-index/locations` 在首屏卡片与贡献榜之间新增可折叠「单杠数据总体分析」（`/api/streetlifting-index/stats` 的 `locationOverview` + Chart.js 柱状/折线）。
 - Supporting work on `2026-03-29` for linked miniapp `寻找单杠`:
   - added backend-backed location contributor leaderboard instead of client-side full-table aggregation
   - enriched `/api/streetlifting-index/stats` with location overview analytics for mobile summary cards
   - location create/update now persist contributor identity fields and rebuild contributor aggregates after writes
+  - Web 前端 `streetlifting-index/locations` 已接入贡献排行榜卡片，直接读取后端贡献榜接口
+  - `locations/map-pins` 接口已补充 `province/city/county/address`，供小程序地图模式展示点位详情
 - Blocker: repository still has historical TypeScript errors unrelated to this fix (`npm run typecheck` not fully green baseline)
 - Next step: verify with coach `枭马葛` and student `water` that Day 51 pull-up now resolves to `57.9kg / 50.1kg` instead of the stale `46.5kg / 39.4kg`
 - Last updated: `2026-03-29`

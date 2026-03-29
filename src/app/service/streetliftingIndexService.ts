@@ -44,6 +44,10 @@ import type {
     StreetliftingUpdateLocationDto,
     StreetliftingUpdateLocationResponseDto,
 } from "@/app/api/streetlifting-index/locations/update/entity";
+import type {
+    StreetliftingLocationContributorsDto,
+    StreetliftingLocationContributorsResponseDto,
+} from "@/app/api/streetlifting-index/locations/contributors/entity";
 import type { StreetliftingUploadLocationImageResponseDto } from "@/app/api/streetlifting-index/upload-location-image/entity";
 
 class StreetliftingIndexService extends BaseService {
@@ -138,6 +142,14 @@ class StreetliftingIndexService extends BaseService {
 
     async updateLocation(reqData: StreetliftingUpdateLocationDto) {
         const res = await this.post<StreetliftingUpdateLocationResponseDto>("locations/update", reqData);
+        if (res.data && res.data.success) {
+            return res.data.data || null;
+        }
+        return null;
+    }
+
+    async listLocationContributors(reqData?: StreetliftingLocationContributorsDto) {
+        const res = await this.post<StreetliftingLocationContributorsResponseDto>("locations/contributors", reqData || {});
         if (res.data && res.data.success) {
             return res.data.data || null;
         }
