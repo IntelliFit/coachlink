@@ -1,11 +1,12 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Dialog } from 'primereact/dialog';
 import { Button } from 'primereact/button';
 import { InputText } from 'primereact/inputtext';
 import { Skeleton } from 'primereact/skeleton';
 import { Search, Dumbbell, UtensilsCrossed, Activity, CheckCircle2 } from 'lucide-react';
+import { studentActionLibService } from '@/app/service/studentActionLibService';
 
 interface StudentAction {
     id: string;
@@ -55,12 +56,14 @@ interface ActionPickerProps {
     emptyText?: string;
 }
 
+const DEFAULT_ALLOWED_TYPES = ['STRENGTH'];
+
 const ActionPicker: React.FC<ActionPickerProps> = ({
     visible,
     onHide,
     onSelect,
     userId,
-    allowedTypes = ['STRENGTH'],
+    allowedTypes,
     title = '选择动作',
     emptyText = '您的动作库为空',
 }) => {
@@ -69,41 +72,44 @@ const ActionPicker: React.FC<ActionPickerProps> = ({
     const [searchTerm, setSearchTerm] = useState('');
     const [error, setError] = useState<string | null>(null);
 
-    useEffect(() => {
-        if (visible && userId) {
-            loadActions();
-        }
-    }, [visible, userId, allowedTypes]);
+    const allowedTypesKey = useMemo(() => {
+        const sourceTypes = allowedTypes && allowedTypes.length > 0
+            ? allowedTypes
+            : DEFAULT_ALLOWED_TYPES;
+        return sourceTypes
+            .map((type) => String(type).toUpperCase())
+            .sort()
+            .join('|');
+    }, [allowedTypes]);
 
-    const loadActions = async () => {
+    const normalizedAllowedTypes = useMemo(() => {
+        return allowedTypesKey ? allowedTypesKey.split('|') : DEFAULT_ALLOWED_TYPES;
+    }, [allowedTypesKey]);
+
+    const loadActions = useCallback(async () => {
         try {
             setLoading(true);
             setError(null);
 
-            const res = await fetch('/api/student/action-lib/list-actions', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ page: 1, limit: 100 })
+            const data = await studentActionLibService.listActions({ page: 1, limit: 100 });
+            const filteredActions = (data?.actions || []).filter((a: StudentAction) => {
+                const actionType = String(a.type || 'STRENGTH').toUpperCase();
+                return normalizedAllowedTypes.includes(actionType);
             });
-            const data = await res.json();
-
-            if (data.success && data.data?.actions) {
-                const normalizedAllowedTypes = allowedTypes.map((type) => String(type).toUpperCase());
-                const filteredActions = data.data.actions.filter((a: StudentAction) => {
-                    const actionType = String(a.type || 'STRENGTH').toUpperCase();
-                    return normalizedAllowedTypes.includes(actionType);
-                });
-                setActions(filteredActions);
-            } else {
-                setError(data.message || '加载失败');
-            }
+            setActions(filteredActions);
         } catch (err) {
             console.error('Load actions failed:', err);
-            setError('加载动作库失败');
+            setError(err instanceof Error ? err.message : '加载动作库失败');
         } finally {
             setLoading(false);
         }
-    };
+    }, [allowedTypesKey, normalizedAllowedTypes]);
+
+    useEffect(() => {
+        if (visible && userId) {
+            loadActions();
+        }
+    }, [visible, userId, allowedTypesKey, loadActions]);
 
     const filteredActions = searchTerm
         ? actions.filter(a =>
