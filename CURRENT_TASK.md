@@ -1,24 +1,45 @@
 # CURRENT_TASK
 
-- Task: Fix wrong low loads caused by stale questionnaire RM keys overriding real action 1RM mappings
+- Task: 修复 `/today-training` 今日安排日期、月历顺延展示与训练动作数量同步
 - Scope:
-  - confirmed with real Water subscription data that Day 51 pull-up was incorrectly resolving `actionId -> questionnaire RM 53` instead of `canonical/name -> student action 1RM 65`
-  - `src/app/api/student/get-current-1rm/route.ts` now uses service-role Supabase client for server-side 1RM aggregation after explicit permission checks
-  - `src/app/api/plan-lib/get-instance/route.ts` now resolves 1RM in priority order `canonical -> name -> actionId`
-  - `src/app/api/execution/start/route.ts` now resolves 1RM in priority order `canonical -> name -> actionId`
-  - `src/app/api/plan-lib/create-ai-instance/match.ts` and `service.ts` aligned to the same lookup priority for newly generated plans
-  - legacy raw `actionId` lookup is kept only as a last-resort compatibility fallback and must never override canonical/name matches
-  - recent main-branch work also added deploy version traceability (`appVersion + gitCommitId + buildTime`) via build metadata, version helper, APIs, and meta tags
-- Status: completed
-- `2026-03-29` Web：`/me/toolbox` 已将「场景急救箱」整块移到「进阶工具」下方（顶部分隔线）；`/streetlifting-index/locations` 在首屏卡片与贡献榜之间新增可折叠「单杠数据总体分析」（`/api/streetlifting-index/stats` 的 `locationOverview` + Chart.js 柱状/折线）。
-- Supporting work on `2026-03-29` for linked miniapp `寻找单杠`:
-  - added backend-backed location contributor leaderboard instead of client-side full-table aggregation
-  - enriched `/api/streetlifting-index/stats` with location overview analytics for mobile summary cards
-  - location create/update now persist contributor identity fields and rebuild contributor aggregates after writes
-  - Web 前端 `streetlifting-index/locations` 已接入贡献排行榜卡片，直接读取后端贡献榜接口
-  - `locations/map-pins` 接口已补充 `province/city/county/address`，供小程序地图模式展示点位详情
-- `2026-03-29` 单杠贡献榜空表修复：`contributorStats.ts` 对无归属点位使用 `legacy:anonymous`；新增迁移 `20260330_streetlifting_contributors_legacy_anonymous.sql` 重算聚合表；`database.types.ts` 补全 `streetlifting_locations`（含 county / contributor_*）与 `streetlifting_location_contributors`，消除相关 Supabase 客户端类型报错。
-- `2026-03-29` 单杠贡献榜展示修正：排行榜接口与聚合逻辑均排除 `legacy:anonymous`；重建时优先用 `user_profiles.nickname/full_name` 刷新真实昵称；Web 榜单改为单列可折叠展示，并将请求上限提高到 30。
-- Blocker: repository still has historical TypeScript errors unrelated to this fix (`npm run typecheck` not fully green baseline)
-- Next step: 在 Supabase 追加执行 `20260330_streetlifting_contributors_named_only.sql` 以清掉匿名历史桶并刷新昵称；随后打开 `/streetlifting-index/locations` 核对 `枭马葛` 等已登录贡献者是否正确上榜；1RM 侧继续与教练确认 Water Day 51 负荷是否已对齐。
-- Last updated: `2026-03-29`
+  - 用户反馈：今日安排卡片里能看到 5 个训练动作，但外层预览只显示 4 个
+  - 用户反馈：实际日期已经到 3 月底，但页面仍显示 3/10、3/11、3/12 一类的旧日期
+  - 需要让“今日安排”、顶部周视图、展开月历三处都共享同一套顺延日期模型
+  - 自动顺延规则要覆盖“长时间没练 / 进行中但一直没继续练”的情况，并把多出来的休息天标成顺延天
+- Status: fixed in code, browser verified on `2026-03-31`
+- Findings on `2026-03-31`:
+  - 训练动作数量不一致的直接原因在 `src/app/today-training/TodayTrainingCard.tsx`：顶部统计用了完整 `strengthTasks.length`，但卡片内容固定 `slice(0, 4)`，所以 5 动作场景只渲染了 4 条
+  - 日期不对的直接原因在 `src/app/today-training/lib/dayModules.ts`：旧逻辑只按计划起始日推算，或在“进行中”时停留在 `started_at`，没有继续随着真实日历推进
+  - 用用户指定账号“沈妈妈”快速登录验证后，真实页面曾显示：
+    - `已选第3天 · 3月11日星期三 · 已顺延 24 天`
+    - `（开始于 3/11）`
+    - 这说明顺延只算到了上次开始训练那天，没有继续滚动到今天
+  - 用户提供的手机号 `1321064643` 少了一位；本地开发快捷账号里“学员(沈妈妈)”实际为 `13921064643 / 123456`
+- Fix:
+  - `src/app/today-training/lib/dayModules.ts`
+    - 引入统一 `buildPlanScheduleModel()`
+    - 当前推进日只要还未完成/放弃，就一律按“今天”继续顺延，不再冻结在 `started_at`
+    - 产出 `postponedByDateKey`，给月历额外休息天做显式标记
+  - `src/app/today-training/BrowseSection.tsx`
+    - 周视图、月历、已选日期标题统一读取 `scheduleModel`
+    - 推进日显示 `+N天`
+    - 展开月历后把顺延天渲染成浅橙色，并标注 `顺延 -> Dn`
+  - `src/app/today-training/TodayTrainingCard.tsx`
+    - 力量动作预览不再固定只截 4 条；6 条以内直接全显，多于 6 条再折叠
+    - 增加“已顺延 N 天 / 原计划日期”提示
+  - `src/app/today-training/page.tsx`
+    - 当前页摘要文案改成“首次开始于 X，当前已顺延到 Y”，避免把旧开始日误看成今天日期
+- Verification:
+  - `npm run lint`：通过（项目脚本仅提示 lint 未配置）
+  - `npm run typecheck`：失败，但为仓库既有历史错误；本次改动文件未出现在报错列表中
+  - `npx next build`：编译完成后仍在当前 Windows 环境报 `spawn UNKNOWN`，需后续单独排查；未见指向本次改动的编译错误
+  - `npm test`：通过（11 files, 53 tests）
+  - 浏览器验证：
+    - 通过左侧快速登录进入“沈妈妈”账号
+    - `/today-training` 现在显示 `已选第3天 · 3月31日星期二 · 已顺延 44 天 · 今日推进`
+    - 顶部摘要现在显示 `（首次开始于 3/11，当前已顺延到 3月31日星期二）`
+    - 展开月历后，3 月内额外休息天已显示为浅橙色 `顺延 -> D1 / D3`
+    - 截图：`D:\files\coachlink\tmp-shenmama-today-training-loaded.png`
+- Next step:
+  - 若用户再给出“5 动作但外层只显示 4”对应的具体账号/日期，可继续用真实数据复核；当前“沈妈妈”账号在 2026-03-31 这一天本身就是 4 个训练动作
+- Last updated: `2026-03-31`

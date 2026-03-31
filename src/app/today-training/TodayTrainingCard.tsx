@@ -24,6 +24,10 @@ interface TodayTrainingCardProps {
     heading?: string;
     subheading?: string;
     dateLabel?: string | null;
+    dateMeta?: {
+        delayDays?: number;
+        originalDateLabel?: string | null;
+    } | null;
     onOpenLightweightTask?: (task: NormalizedDayTask) => void;
     onAddLightweightTask?: () => void;
     onDeleteLightweightTask?: (task: NormalizedDayTask) => void;
@@ -39,12 +43,14 @@ const TodayTrainingCard: React.FC<TodayTrainingCardProps> = ({
     heading = '今日安排',
     subheading,
     dateLabel,
+    dateMeta,
     onOpenLightweightTask,
     onAddLightweightTask,
     onDeleteLightweightTask,
 }) => {
     const router = useRouter();
     const [showAllTasks, setShowAllTasks] = useState(false);
+    const [showAllStrengthTasks, setShowAllStrengthTasks] = useState(false);
     const [infoDialog, setInfoDialog] = useState<{ title: string; detail: string } | null>(null);
     const moduleModel = useMemo(() => buildDayModuleModel({
         day,
@@ -69,6 +75,11 @@ const TodayTrainingCard: React.FC<TodayTrainingCardProps> = ({
         lightweightCompletedCount,
     } = moduleModel;
     const hasStrengthTasks = strengthTasks.length > 0;
+    const visibleStrengthTasks = useMemo(() => {
+        const previewLimit = 6;
+        return showAllStrengthTasks ? strengthTasks : strengthTasks.slice(0, previewLimit);
+    }, [showAllStrengthTasks, strengthTasks]);
+    const hiddenStrengthTaskCount = Math.max(0, strengthTasks.length - visibleStrengthTasks.length);
 
     const previewGroups = useMemo(() => {
         if (showAllTasks) return lightweightGroups;
@@ -123,6 +134,14 @@ const TodayTrainingCard: React.FC<TodayTrainingCardProps> = ({
                             {headerSubtitle}
                             {strengthTasks.length > 0 ? ` · ${strengthTasks.length} 个训练动作` : ''}
                         </p>
+                        {!!dateMeta?.delayDays && dateMeta.delayDays > 0 && (
+                            <div className="mt-3 inline-flex flex-wrap items-center gap-2 rounded-2xl border border-amber-100 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800">
+                                <span>已顺延 {dateMeta.delayDays} 天</span>
+                                {dateMeta.originalDateLabel && (
+                                    <span className="text-amber-700/80">原计划 {dateMeta.originalDateLabel}</span>
+                                )}
+                            </div>
+                        )}
                     </div>
                     <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:min-w-[420px]">
                         <div className="rounded-2xl border border-surface-100 bg-surface-50 px-3 py-3">
@@ -210,7 +229,7 @@ const TodayTrainingCard: React.FC<TodayTrainingCardProps> = ({
                         </div>
 
                         <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                            {strengthTasks.slice(0, 4).map((task) => {
+                            {visibleStrengthTasks.map((task) => {
                                 const meta = buildStrengthMeta(task);
                                 return (
                                     <div
@@ -246,6 +265,18 @@ const TodayTrainingCard: React.FC<TodayTrainingCardProps> = ({
                                 );
                             })}
                         </div>
+
+                        {strengthTasks.length > 6 && (
+                            <button
+                                type="button"
+                                onClick={() => setShowAllStrengthTasks((prev) => !prev)}
+                                className="mt-4 w-full rounded-2xl border border-surface-100/50 bg-white/80 py-3 font-medium text-surface-700 transition-all duration-200 ease-out hover:bg-surface-50 active:scale-[0.98]"
+                            >
+                                {showAllStrengthTasks
+                                    ? '收起训练动作'
+                                    : `展开查看全部训练动作${hiddenStrengthTaskCount > 0 ? `（还有 ${hiddenStrengthTaskCount} 项）` : ''}`}
+                            </button>
+                        )}
 
                         <div className="mt-4 flex flex-col gap-2 sm:flex-row">
                             {trainingCompleted ? (
