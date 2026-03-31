@@ -12,7 +12,12 @@ import {
     getBeijingWeekday,
     shiftBeijingMonth,
 } from '@/lib/beijingTime';
-import { formatPlanDayLabel, resolvePlanDayDate, toDateKey } from './lib/dayModules';
+import {
+    formatPlanDayLabel,
+    resolvePlanDayDate,
+    toDateKey,
+    type PlanScheduleModel,
+} from './lib/dayModules';
 
 interface BrowseSectionProps {
     instance: any;
@@ -20,6 +25,7 @@ interface BrowseSectionProps {
     selectedDayIndex: number;
     onSelectedDayChange: (dayIndex: number) => void;
     executionsByDayIndex?: Record<number, any>;
+    scheduleModel: PlanScheduleModel;
     todayCompleted?: boolean;
     progressDayIndex?: number;
     effectiveStartDate?: string | Date | null;
@@ -33,6 +39,7 @@ const BrowseSection: React.FC<BrowseSectionProps> = ({
     selectedDayIndex,
     onSelectedDayChange,
     executionsByDayIndex = {},
+    scheduleModel,
     todayCompleted = false,
     progressDayIndex,
     effectiveStartDate,
@@ -66,7 +73,8 @@ const BrowseSection: React.FC<BrowseSectionProps> = ({
 
     const dayDateEntries = useMemo(() => {
         return trainingDays.map((day: any) => {
-            const date = resolvePlanDayDate({
+            const scheduleInfo = scheduleModel.scheduleByDayIndex.get(day.dayIndex);
+            const date = scheduleInfo?.displayDate || resolvePlanDayDate({
                 dayIndex: day.dayIndex,
                 effectiveStartDate,
                 fallbackAnchorDayIndex: progressDayIndex || currentDayIndex || 1,
@@ -78,15 +86,19 @@ const BrowseSection: React.FC<BrowseSectionProps> = ({
                 key: toDateKey(date),
             };
         });
-    }, [trainingDays, effectiveStartDate, progressDayIndex, currentDayIndex]);
+    }, [trainingDays, scheduleModel, effectiveStartDate, progressDayIndex, currentDayIndex]);
+
+    const selectedSchedule = useMemo(() => {
+        return scheduleModel.scheduleByDayIndex.get(selectedDayIndex || 1);
+    }, [scheduleModel, selectedDayIndex]);
 
     const selectedDate = useMemo(() => {
-        return resolvePlanDayDate({
+        return selectedSchedule?.displayDate || resolvePlanDayDate({
             dayIndex: selectedDayIndex || 1,
             effectiveStartDate,
             fallbackAnchorDayIndex: progressDayIndex || currentDayIndex || 1,
         });
-    }, [selectedDayIndex, effectiveStartDate, progressDayIndex, currentDayIndex]);
+    }, [selectedSchedule, selectedDayIndex, effectiveStartDate, progressDayIndex, currentDayIndex]);
 
     const [monthCursor, setMonthCursor] = useState(() => {
         const parts = getBeijingDateParts(selectedDate);
@@ -157,6 +169,7 @@ const BrowseSection: React.FC<BrowseSectionProps> = ({
                     </h3>
                     <p className="mt-2 text-sm text-surface-600">
                         已选第{selectedDayIndex}天 · {formatPlanDayLabel(selectedDate)}
+                        {selectedSchedule?.totalDelayDays ? ` · 已顺延 ${selectedSchedule.totalDelayDays} 天` : ''}
                         {selectedDayIndex === progressDayIndex ? ' · 今日推进' : ''}
                     </p>
                 </div>
@@ -190,6 +203,7 @@ const BrowseSection: React.FC<BrowseSectionProps> = ({
                 <div className="grid grid-cols-7 gap-2">
                     {weekDays.map((dayIndex) => {
                         const day = trainingDays.find((entry: any) => entry.dayIndex === dayIndex);
+                        const scheduleInfo = scheduleModel.scheduleByDayIndex.get(dayIndex);
                         const status = getDayStatus(dayIndex);
                         const isSelected = selectedDayIndex === dayIndex;
                         const isProgressToday = dayIndex === progressDayIndex;
@@ -227,6 +241,11 @@ const BrowseSection: React.FC<BrowseSectionProps> = ({
                                 {isStartDay && (
                                     <div className="absolute -top-1 -right-1 rounded-full bg-green-600 px-1.5 py-0.5 text-[8px] text-surface">
                                         开始
+                                    </div>
+                                )}
+                                {isProgressToday && (scheduleInfo?.totalDelayDays ?? 0) > 0 && (
+                                    <div className="absolute -top-1 -right-1 rounded-full bg-amber-500 px-1.5 py-0.5 text-[8px] text-surface">
+                                        +{scheduleInfo?.totalDelayDays}天
                                     </div>
                                 )}
                                 {renderDayBadge(dayIndex) && (
@@ -287,6 +306,7 @@ const BrowseSection: React.FC<BrowseSectionProps> = ({
                             }
 
                             const mappedDayIndex = dayIndexByDateKey.get(toDateKey(dateCell));
+                            const postponedMarker = scheduleModel.postponedByDateKey.get(toDateKey(dateCell));
                             const dayUnlocked = mappedDayIndex ? isDayUnlocked(mappedDayIndex, unlockedWeek) : false;
                             const isSelected = mappedDayIndex === selectedDayIndex;
                             const status = mappedDayIndex ? getDayStatus(mappedDayIndex) : 'calendar_only';
@@ -300,6 +320,8 @@ const BrowseSection: React.FC<BrowseSectionProps> = ({
                                     className={`h-14 rounded-2xl border text-sm transition-all active:scale-[0.98] ${
                                         isSelected
                                             ? 'border-primary-500 bg-primary-500 text-surface'
+                                            : postponedMarker
+                                                ? 'border-amber-200 bg-amber-50 text-amber-700'
                                             : !mappedDayIndex
                                                 ? 'border-surface-100 bg-surface-50 text-surface-300'
                                                 : status === 'completed'
@@ -314,8 +336,11 @@ const BrowseSection: React.FC<BrowseSectionProps> = ({
                                     <div className="flex h-full flex-col items-center justify-center">
                                         <div className="font-bold">{getBeijingDateParts(dateCell).day}</div>
                                         <div className="text-[10px] opacity-80">
-                                            {mappedDayIndex ? `D${mappedDayIndex}` : ''}
+                                            {mappedDayIndex ? `D${mappedDayIndex}` : postponedMarker ? '顺延' : ''}
                                         </div>
+                                        {!mappedDayIndex && postponedMarker && (
+                                            <div className="text-[9px] opacity-70">→ D{postponedMarker.targetDayIndex}</div>
+                                        )}
                                     </div>
                                 </button>
                             );
@@ -326,6 +351,11 @@ const BrowseSection: React.FC<BrowseSectionProps> = ({
 
             <div className="mt-4 flex flex-wrap items-center gap-3 rounded-2xl border border-surface-100/60 bg-surface-50 px-4 py-3 text-xs text-surface-600">
                 <span>点日期查看当天的力量训练、饮食、有氧和习惯模块。</span>
+                {scheduleModel.postponedDates.length > 0 && (
+                    <span className="rounded-full bg-amber-100 px-2 py-1 text-amber-800">
+                        浅橙色日期 = 顺延出来的额外休息日
+                    </span>
+                )}
                 {currentWeek > unlockedWeek && (
                     <span className="text-amber-600">
                         第 {currentWeek} 周预计 {formatUnlockDate(getUnlockDate(currentWeek, effectiveStartDate || instance?.start_date))} 解锁

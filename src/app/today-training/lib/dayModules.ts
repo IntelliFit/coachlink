@@ -3,6 +3,7 @@
 import { formatKgValueForGym } from '@/lib/weightQuantize';
 import {
     addBeijingDays,
+    diffBeijingCalendarDays,
     formatBeijingDate,
     getBeijingDayStart,
     toBeijingDateKey,
@@ -46,6 +47,27 @@ export interface DayModuleModel {
     strengthCompletedSetCount: number;
     strengthTotalSetCount: number;
     lightweightCompletedCount: number;
+}
+
+export interface PlanDayScheduleInfo {
+    dayIndex: number;
+    baselineDate: Date;
+    displayDate: Date;
+    totalDelayDays: number;
+    delayAddedDays: number;
+}
+
+export interface PostponedDateMarker {
+    date: Date;
+    key: string;
+    targetDayIndex: number;
+    offset: number;
+}
+
+export interface PlanScheduleModel {
+    scheduleByDayIndex: Map<number, PlanDayScheduleInfo>;
+    postponedDates: PostponedDateMarker[];
+    postponedByDateKey: Map<string, PostponedDateMarker>;
 }
 
 export const slotOrder = ['早晨', '中午', '下午', '晚上', '任意时间'] as const;
@@ -359,6 +381,130 @@ export const resolvePlanDayDate = (params: {
 
     const anchor = getBeijingDayStart(fallbackAnchorDate);
     return addBeijingDays(anchor, dayIndex - fallbackAnchorDayIndex);
+};
+
+const getExecutionAnchorDate = (execution?: any) => {
+    if (!execution) return null;
+    const status = String(execution?.status || '').toLowerCase();
+    const ts = status === 'completed'
+        ? execution?.completed_at || execution?.started_at
+        : status === 'abandoned'
+            ? execution?.completed_at || execution?.updated_at || execution?.started_at
+            : status === 'in_progress'
+                ? execution?.started_at
+                : null;
+    return ts ? getBeijingDayStart(ts) : null;
+};
+
+export const buildPlanScheduleModel = (params: {
+    trainingDays: any[];
+    executionsByDayIndex?: Record<number, any>;
+    effectiveStartDate?: string | Date | null;
+    progressDayIndex?: number;
+    fallbackAnchorDayIndex?: number;
+    fallbackAnchorDate?: Date;
+    today?: Date;
+}): PlanScheduleModel => {
+    const {
+        trainingDays,
+        executionsByDayIndex = {},
+        effectiveStartDate,
+        progressDayIndex,
+        fallbackAnchorDayIndex = progressDayIndex || 1,
+        fallbackAnchorDate = new Date(),
+        today = new Date(),
+    } = params;
+
+    const scheduleByDayIndex = new Map<number, PlanDayScheduleInfo>();
+    const postponedDates: PostponedDateMarker[] = [];
+    const postponedByDateKey = new Map<string, PostponedDateMarker>();
+    const todayStart = getBeijingDayStart(today);
+
+    const sortedDays = [...(trainingDays || [])].sort((a, b) => {
+        const left = Number(a?.dayIndex ?? a?.day_index ?? 0);
+        const right = Number(b?.dayIndex ?? b?.day_index ?? 0);
+        return left - right;
+    });
+
+    let cumulativeDelayDays = 0;
+
+    sortedDays.forEach((day) => {
+        const dayIndex = Number(day?.dayIndex ?? day?.day_index ?? 0);
+        if (!Number.isFinite(dayIndex) || dayIndex <= 0) return;
+
+        const baselineDate = resolvePlanDayDate({
+            dayIndex,
+            effectiveStartDate,
+            fallbackAnchorDayIndex,
+            fallbackAnchorDate,
+        });
+        const scheduledDate = addBeijingDays(baselineDate, cumulativeDelayDays);
+        const execution = executionsByDayIndex?.[dayIndex];
+        const executionStatus = String(execution?.status || '').toLowerCase();
+        const executionDate = getExecutionAnchorDate(execution);
+        const isCurrentProgressDay = progressDayIndex === dayIndex;
+        const isTerminalExecution = executionStatus === 'completed' || executionStatus === 'abandoned';
+
+        let displayDate = scheduledDate;
+        let delayAddedDays = 0;
+
+        // The current progress day should keep rolling with the real calendar date
+        // until it is actually completed/abandoned, rather than freezing on started_at.
+        if (isCurrentProgressDay && !isTerminalExecution) {
+            const lateDays = diffBeijingCalendarDays(todayStart, scheduledDate);
+            if (lateDays > 0) {
+                delayAddedDays = lateDays;
+                displayDate = todayStart;
+            } else {
+                displayDate = todayStart;
+            }
+        } else if (executionDate) {
+            const lateDays = diffBeijingCalendarDays(executionDate, scheduledDate);
+            if (lateDays > 0) {
+                delayAddedDays = lateDays;
+                displayDate = executionDate;
+            } else {
+                displayDate = executionDate;
+            }
+        } else if (isCurrentProgressDay) {
+            const lateDays = diffBeijingCalendarDays(todayStart, scheduledDate);
+            if (lateDays > 0) {
+                delayAddedDays = lateDays;
+                displayDate = todayStart;
+            }
+        }
+
+        if (delayAddedDays > 0) {
+            for (let offset = 0; offset < delayAddedDays; offset += 1) {
+                const postponedDate = addBeijingDays(scheduledDate, offset);
+                const key = toBeijingDateKey(postponedDate);
+                if (postponedByDateKey.has(key)) continue;
+                const marker: PostponedDateMarker = {
+                    date: postponedDate,
+                    key,
+                    targetDayIndex: dayIndex,
+                    offset: offset + 1,
+                };
+                postponedByDateKey.set(key, marker);
+                postponedDates.push(marker);
+            }
+            cumulativeDelayDays += delayAddedDays;
+        }
+
+        scheduleByDayIndex.set(dayIndex, {
+            dayIndex,
+            baselineDate,
+            displayDate,
+            delayAddedDays,
+            totalDelayDays: diffBeijingCalendarDays(displayDate, baselineDate),
+        });
+    });
+
+    return {
+        scheduleByDayIndex,
+        postponedDates,
+        postponedByDateKey,
+    };
 };
 
 export const toDateKey = (date: Date) => {

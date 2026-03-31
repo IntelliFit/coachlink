@@ -24,6 +24,7 @@ import BrowseSection from './BrowseSection';
 import LightweightTaskSheet from './components/LightweightTaskSheet';
 import ActionPicker from './ActionPicker';
 import {
+    buildPlanScheduleModel,
     buildDayModuleModel,
     formatPlanDayLabel,
     resolvePlanDayDate,
@@ -178,15 +179,45 @@ const TodayTrainingPage: React.FC = () => {
         };
     }, [selectedModuleModel]);
     const effectiveCalendarStartDate = instance?.start_date || activeSubscription?.start_date || null;
+    const scheduleModel = useMemo(() => {
+        return buildPlanScheduleModel({
+            trainingDays,
+            executionsByDayIndex,
+            effectiveStartDate: effectiveCalendarStartDate,
+            progressDayIndex,
+            fallbackAnchorDayIndex: progressDayIndex,
+        });
+    }, [trainingDays, executionsByDayIndex, effectiveCalendarStartDate, progressDayIndex]);
+    const selectedSchedule = scheduleModel.scheduleByDayIndex.get(selectedDayIndex);
     const selectedDateLabel = useMemo(() => {
         if (!selectedDayIndex) return '';
-        const selectedDate = resolvePlanDayDate({
+        const selectedDate = selectedSchedule?.displayDate || resolvePlanDayDate({
             dayIndex: selectedDayIndex,
             effectiveStartDate: effectiveCalendarStartDate,
             fallbackAnchorDayIndex: progressDayIndex,
         });
         return formatPlanDayLabel(selectedDate);
-    }, [selectedDayIndex, effectiveCalendarStartDate, progressDayIndex]);
+    }, [selectedDayIndex, selectedSchedule?.displayDate, effectiveCalendarStartDate, progressDayIndex]);
+    const selectedDateMeta = useMemo(() => {
+        if (!selectedSchedule || selectedSchedule.totalDelayDays <= 0) return null;
+        return {
+            delayDays: selectedSchedule.totalDelayDays,
+            originalDateLabel: formatPlanDayLabel(selectedSchedule.baselineDate),
+        };
+    }, [selectedSchedule]);
+    const selectedExecutionDateNote = useMemo(() => {
+        if (selectedExecutionStatus === 'in_progress' && selectedExec?.started_at) {
+            const startedLabel = formatShortDate(selectedExec.started_at);
+            if (selectedDateMeta?.delayDays && selectedDateLabel) {
+                return `（首次开始于 ${startedLabel}，当前已顺延到 ${selectedDateLabel}）`;
+            }
+            return `（开始于 ${startedLabel}）`;
+        }
+        if (selectedExecutionStatus === 'completed' && selectedExec?.completed_at) {
+            return `（完成于 ${formatShortDate(selectedExec.completed_at)}）`;
+        }
+        return '';
+    }, [selectedExecutionStatus, selectedExec?.started_at, selectedExec?.completed_at, selectedDateMeta?.delayDays, selectedDateLabel]);
     const selectedHasLightweightTasks = selectedModuleModel.lightweightTasks.length > 0;
     const selectedTrainingStatusLabel = selectedTaskSummary.strengthModuleCount === 0
         ? '今日无力量训练'
@@ -1385,8 +1416,7 @@ const TodayTrainingPage: React.FC = () => {
                                     <span>
                                         今日推进仍在第{progressDayIndex}天
                                     </span>
-                                    {selectedExecutionStatus === 'in_progress' && selectedExec?.started_at ? `（开始于 ${formatShortDate(selectedExec.started_at)}）` : ''}
-                                    {selectedExecutionStatus === 'completed' && selectedExec?.completed_at ? `（完成于 ${formatShortDate(selectedExec.completed_at)}）` : ''}
+                                    {selectedExecutionDateNote}
                                 </p>
                             </div>
                             <div className={`hidden sm:flex items-center gap-2 font-bold text-sm px-3 py-1 rounded-full tracking-tight ${selectedExecutionStatus === 'completed'
@@ -1406,6 +1436,7 @@ const TodayTrainingPage: React.FC = () => {
                             selectedDayIndex={selectedDayIndex}
                             onSelectedDayChange={setSelectedDayIndex}
                             executionsByDayIndex={executionsByDayIndex}
+                            scheduleModel={scheduleModel}
                             todayCompleted={todayCompleted}
                             progressDayIndex={progressDayIndex}
                             effectiveStartDate={effectiveCalendarStartDate}
@@ -1520,12 +1551,11 @@ const TodayTrainingPage: React.FC = () => {
                                         instanceId={instance.id}
                                         dayIndex={selectedDayIndex}
                                         executionStatus={selectedExecutionStatus}
-                                        completedSets={Number(selectedExec?.completed_sets || 0)}
-                                        totalSets={Number(selectedExec?.total_sets || 0)}
                                         execution={selectedExec}
                                         heading={selectedDayIndex === progressDayIndex ? '今日安排' : '当天安排'}
                                         subheading={`第${selectedDayIndex}天 · ${selectedTaskSummary.totalModules} 个模块`}
                                         dateLabel={selectedDateLabel}
+                                        dateMeta={selectedDateMeta}
                                         onOpenLightweightTask={handleOpenLightweightTask}
                                         onAddLightweightTask={handleOpenLightweightPicker}
                                         onDeleteLightweightTask={handleDeleteLightweightTask}
@@ -1578,12 +1608,11 @@ const TodayTrainingPage: React.FC = () => {
                                             instanceId={instance.id}
                                             dayIndex={selectedDayIndex}
                                             executionStatus={selectedExecutionStatus}
-                                            completedSets={Number(selectedExec?.completed_sets || 0)}
-                                            totalSets={Number(selectedExec?.total_sets || 0)}
                                             execution={selectedExec}
                                             heading="休息日轻任务"
                                             subheading={`第${selectedDayIndex}天 · ${selectedTaskSummary.lightweightCount} 个轻任务`}
                                             dateLabel={selectedDateLabel}
+                                            dateMeta={selectedDateMeta}
                                             onOpenLightweightTask={handleOpenLightweightTask}
                                             onAddLightweightTask={handleOpenLightweightPicker}
                                             onDeleteLightweightTask={handleDeleteLightweightTask}

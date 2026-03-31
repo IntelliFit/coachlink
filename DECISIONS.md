@@ -19,3 +19,5 @@
 - `2026-03-29`: `locations/map-pins` 不能只返回经纬度和名称；需一并返回省市区和详细地址，便于小程序地图模式在点击点位后直接展示详情和导航。
 - `2026-03-29`: 历史导入的 `streetlifting_locations` 常无 `user_contact` / `contributor_user_id`，贡献键不能为 NULL；无归属行统一归入 `legacy:anonymous`（展示名「未署名贡献（历史数据）」），与 `streetlifting_location_contributors` 回填迁移 `20260330_streetlifting_contributors_legacy_anonymous.sql` 一致。
 - `2026-03-29`: 单杠贡献榜产品展示不应给“未署名历史数据”占榜；榜单只展示可识别贡献者，并优先用 `user_profiles.nickname -> full_name` 作为显示名。Web 榜单改为可折叠的单列列表，而非首屏三列卡片。
+- `2026-03-31`: `/today-training` 的日期展示改为统一走 `buildPlanScheduleModel()`：今日安排卡片、顶部周视图、展开月历必须共享同一套日期映射与顺延天数。
+- `2026-03-31`: 当前推进日只要仍未完成/未放弃，就不能冻结在 `started_at`；真实日期要继续滚到“今天”，并把中间多出来的休息天以浅橙色“顺延”标记展示在月历中。
