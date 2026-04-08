@@ -1,11 +1,14 @@
-import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
-import { Database } from "@/types/database.types";
 import type { UpdateCoachProfileDto, UpdateCoachProfileResponseDto } from "./entity";
 import type { ApiData } from "@/types/api";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 import supabase from "@/lib/supabaseClient";
 import { headers } from "next/headers";
+import {
+    sanitizeCoachTrack,
+    sanitizeServiceModes,
+    sanitizeTargetStudentLevels,
+} from "@/lib/coachApplicationOptions";
 import {
     upsertCoachPosterQueued,
     tryAcquireCoachPosterJob,
@@ -61,6 +64,10 @@ export async function POST(request: Request) {
         profile,
         invitationCode,
         invitationMode,
+        coachTrack,
+        serviceModes,
+        targetStudentLevels,
+        supportFocus,
         province,
         city,
         county,
@@ -137,7 +144,14 @@ export async function POST(request: Request) {
     }
 
     // 更新教练信息（以申请页字段为准）
-    const mergedProfile = mergeProfile(coach.profile, profile);
+    let mergedProfile = mergeProfile(coach.profile, profile);
+    if (supportFocus !== undefined) {
+        if (!mergedProfile || typeof mergedProfile !== "object") {
+            mergedProfile = { supportFocus };
+        } else {
+            mergedProfile.supportFocus = supportFocus;
+        }
+    }
     const updateData: Record<string, any> = {
         updated_at: new Date().toISOString(),
     };
@@ -148,9 +162,15 @@ export async function POST(request: Request) {
     if (specialties !== undefined) updateData.specialties = specialties;
     if (yearsExperience !== undefined) updateData.years_experience = yearsExperience;
     if (bio !== undefined) updateData.bio = bio || null;
-    if (profile !== undefined) updateData.profile = mergedProfile;
+    if (profile !== undefined || supportFocus !== undefined) updateData.profile = mergedProfile;
     if (invitationCode !== undefined) updateData.invitation_code = invitationCode;
     if (invitationMode !== undefined) updateData.invitation_mode = invitationMode;
+    if (coachTrack !== undefined) updateData.coach_track = sanitizeCoachTrack(coachTrack);
+    if (serviceModes !== undefined) updateData.service_modes = sanitizeServiceModes(serviceModes);
+    if (targetStudentLevels !== undefined) {
+        updateData.target_student_levels = sanitizeTargetStudentLevels(targetStudentLevels);
+    }
+    if (supportFocus !== undefined) updateData.support_focus = supportFocus || null;
     if (province !== undefined) updateData.province = province;
     if (city !== undefined) updateData.city = city;
     if (county !== undefined) updateData.county = county;

@@ -1,45 +1,108 @@
 # CURRENT_TASK
 
-- Task: 修复 `/today-training` 今日安排日期、月历顺延展示与训练动作数量同步
+- Task: 升级“申请成为教练”流程为分层入驻申请，并把分层信息接入找教练链路
 - Scope:
-  - 用户反馈：今日安排卡片里能看到 5 个训练动作，但外层预览只显示 4 个
-  - 用户反馈：实际日期已经到 3 月底，但页面仍显示 3/10、3/11、3/12 一类的旧日期
-  - 需要让“今日安排”、顶部周视图、展开月历三处都共享同一套顺延日期模型
-  - 自动顺延规则要覆盖“长时间没练 / 进行中但一直没继续练”的情况，并把多出来的休息天标成顺延天
-- Status: fixed in code, browser verified on `2026-03-31`
-- Findings on `2026-03-31`:
-  - 训练动作数量不一致的直接原因在 `src/app/today-training/TodayTrainingCard.tsx`：顶部统计用了完整 `strengthTasks.length`，但卡片内容固定 `slice(0, 4)`，所以 5 动作场景只渲染了 4 条
-  - 日期不对的直接原因在 `src/app/today-training/lib/dayModules.ts`：旧逻辑只按计划起始日推算，或在“进行中”时停留在 `started_at`，没有继续随着真实日历推进
-  - 用用户指定账号“沈妈妈”快速登录验证后，真实页面曾显示：
-    - `已选第3天 · 3月11日星期三 · 已顺延 24 天`
-    - `（开始于 3/11）`
-    - 这说明顺延只算到了上次开始训练那天，没有继续滚动到今天
-  - 用户提供的手机号 `1321064643` 少了一位；本地开发快捷账号里“学员(沈妈妈)”实际为 `13921064643 / 123456`
+  - 用户要求先梳理当前申请教练流程，再基于“训练搭子 / 进阶教练 / 专业教练”分层供给思路升级现有功能
+  - 需要把单一教练认证升级为可承载分层生态的数据底座，而不是只改文案
+  - 需要修复当前申请状态只落在 `coach_applications`、但 `users.coach_status` / `session.user` 不跟随的问题
+  - 需要让 `coach_track` 真正进入前台发现/搜索/详情展示，而不是停留在申请后台
+- Status: implemented in code on `2026-04-08`
+- Findings on `2026-04-08`:
+  - 当前线上流程本质是“单一教练认证”：入口在 `/coach/application`，提交到 `create-coach-application`，后台在 `/admin/coach-applications` 审核，通过后创建/更新 `coaches` 并给 `users.is_coach=true`
+  - 申请状态展示链路有断层：创建申请时不会同步 `users.coach_status`，学员侧资料页可能仍显示“未申请”
+  - 学员资料卡中的多个入口仍指向不存在的 `/apply*` 路由，而不是真实页面 `/coach/application`
+  - 后台 UI 已出现 `reviewing` / `needs_info` 状态，但历史建表约束只保证了 `pending/approved/rejected`
+  - `coach_track` 在第一轮升级后仅存在于申请与审核侧，未进入发现页、搜索页、详情页
 - Fix:
-  - `src/app/today-training/lib/dayModules.ts`
-    - 引入统一 `buildPlanScheduleModel()`
-    - 当前推进日只要还未完成/放弃，就一律按“今天”继续顺延，不再冻结在 `started_at`
-    - 产出 `postponedByDateKey`，给月历额外休息天做显式标记
-  - `src/app/today-training/BrowseSection.tsx`
-    - 周视图、月历、已选日期标题统一读取 `scheduleModel`
-    - 推进日显示 `+N天`
-    - 展开月历后把顺延天渲染成浅橙色，并标注 `顺延 -> Dn`
-  - `src/app/today-training/TodayTrainingCard.tsx`
-    - 力量动作预览不再固定只截 4 条；6 条以内直接全显，多于 6 条再折叠
-    - 增加“已顺延 N 天 / 原计划日期”提示
-  - `src/app/today-training/page.tsx`
-    - 当前页摘要文案改成“首次开始于 X，当前已顺延到 Y”，避免把旧开始日误看成今天日期
+  - 数据模型：
+    - 新增迁移 `supabase/migrations/20260408_layered_coach_application_tracks.sql`
+    - `coach_applications` / `coaches` 增加 `coach_track`、`service_modes`、`target_student_levels`、`support_focus`
+    - `coach_applications.status` 约束扩展为支持 `reviewing` / `needs_info`
+  - 接口：
+    - `src/app/api/coach/create-coach-application/route.ts`
+      - 写入分层字段
+      - 创建申请后同步 `users.coach_status='pending'`、`is_coach=false`
+    - `src/app/api/coach/update-coach-application/route.ts`
+      - 支持更新分层字段
+      - 审核通过时把分层信息同步到 `coaches`
+      - 审核状态变化时同步 `users.coach_status`
+      - 已获批教练本人修改申请资料时，不再自动把申请重新打回 `pending`
+    - `src/app/api/coach/get-aggregated-info/route.ts`
+      - 聚合返回时兼容合并最新申请里的分层字段
+    - `src/app/api/coach/get-all-coaches/route.ts`
+      - 新增 `coachTrack`、`serviceMode`、`targetStudentLevel` 筛选能力
+  - 前端：
+    - `src/app/coach/application/page.tsx`
+      - 升级为分层申请表单
+      - 新增“训练搭子 / 进阶教练 / 专业教练”三档选择
+      - 新增服务方式、适合学员阶段、阶段问题聚焦
+      - 提交成功后主动刷新 session
+    - `src/app/admin/coach-applications/page.tsx`
+      - 后台审核列表新增“层级”列
+    - `src/app/admin/coach-applications/CoachApplicationDialog.tsx`
+      - 详情弹窗展示分层字段
+    - `src/components/student/profile/CoachApplicationCard.tsx`
+      - 修正入口到 `/coach/application`
+      - 补齐 `needs_info` 状态展示
+    - `src/app/coach/application/ReviewInfoDisplay.tsx`
+      - 补齐 `needs_info` 展示文案与样式
+    - `src/app/coach/discovery/DiscoveryContent.tsx`
+      - 新增按层级浏览的快速筛选
+      - 教练卡片展示层级标签
+    - `src/app/search/page.tsx`
+      - 新增层级 / 服务方式 / 学员阶段筛选
+      - 搜索结果卡片展示层级标签
+      - 修复“只看同城”判定与距离展示不一致：改为 `isSameCityForFilter`
+        - 优先按省+市一致
+        - 若教练未完善省市但与用户距离很近（30km 内）则同城兜底命中
+    - `src/app/coach/profile/[id]/CoachIntroduction.tsx`
+      - 教练详情页展示层级、服务方式、适合阶段、阶段问题聚焦
+    - `src/app/coach/profile/[id]/EditCoachProfileDialog.tsx`
+      - 教练本人编辑资料时新增层级、服务方式、适合学员阶段、阶段问题聚焦维护能力
+    - `src/app/api/coach/update-coach-profile/route.ts`
+      - 教练资料更新接口支持持久化分层字段
+      - 兼容把 `support_focus` 同步回 `profile.supportFocus`，避免新旧展示来源分叉
+    - `src/app/api/coach/get-all-coaches/route.ts`
+      - 新增 `preferredCoachTrack` 排序偏好
+      - 在未显式筛选层级时，优先把更贴近当前学员阶段的教练排到前面
+  - 数据回填：
+    - 新增迁移 `supabase/migrations/20260408_rebalance_existing_professional_coaches.sql`
+    - 已实际回填当前数据库：
+      - 保留 `professional`：`刘三乐 / 枭马葛 / 四方力量-五花肉 / 文武双缺的杰`
+      - 保持 `buddy`：`沈妈妈`
+      - 其他当前仍为 `professional` 的已批准教练统一降为 `growth`
+    - 同步修正了 `coaches` 与 `coach_applications(status=approved)` 两张表，避免前台与后台层级不一致
 - Verification:
-  - `npm run lint`：通过（项目脚本仅提示 lint 未配置）
-  - `npm run typecheck`：失败，但为仓库既有历史错误；本次改动文件未出现在报错列表中
-  - `npx next build`：编译完成后仍在当前 Windows 环境报 `spawn UNKNOWN`，需后续单独排查；未见指向本次改动的编译错误
-  - `npm test`：通过（11 files, 53 tests）
-  - 浏览器验证：
-    - 通过左侧快速登录进入“沈妈妈”账号
-    - `/today-training` 现在显示 `已选第3天 · 3月31日星期二 · 已顺延 44 天 · 今日推进`
-    - 顶部摘要现在显示 `（首次开始于 3/11，当前已顺延到 3月31日星期二）`
-    - 展开月历后，3 月内额外休息天已显示为浅橙色 `顺延 -> D1 / D3`
-    - 截图：`D:\files\coachlink\tmp-shenmama-today-training-loaded.png`
+  - `npm run lint`：通过（脚本仅提示 Next 16 未配置 eslint）
+  - `npm run typecheck`：多次超时，未在限定时间内跑完；仓库存在较大历史类型面，需单独清查
+  - `npx next build`：通过
+  - `npm test`：通过（12 files, 57 tests）
+  - 浏览器验证：已尝试
+    - `next dev` 本地会出现“端口可监听但页面长时间不返回首字节”的异常，未能稳定用于自动化
+    - 改用 `next start` 成功验证公开链路与登录链路：
+      - 发现页分层区截图：`test-results/manual/coach-discovery-layered.png`
+      - 学员登录后搜索页筛选截图：`test-results/manual/coach-search-student-authenticated.png`
+      - 教练本人资料编辑弹窗截图：`test-results/manual/coach-profile-edit-dialog-layered.png`
+      - 数据回填后的搜索页截图：`test-results/manual/coach-search-after-track-rebalance.png`
 - Next step:
-  - 若用户再给出“5 动作但外层只显示 4”对应的具体账号/日期，可继续用真实数据复核；当前“沈妈妈”账号在 2026-03-31 这一天本身就是 4 个训练动作
-- Last updated: `2026-03-31`
+  - 在稳定的 `next dev` 会话里补一次申请页 `/coach/application` 的端到端录入验证
+  - 若继续推进创业规划，下一步应把 `coach_track` 接入推荐排序权重、报名转化漏斗与教练供给运营面板
+- Last updated: `2026-04-08`
+
+---
+
+## Hotfix Note (`2026-04-08`)
+
+- Task: 修复“计划逻辑已完成但页面仍显示进行中/制定中”的状态错位
+- Scope:
+  - 学员端 `全部计划` 列表状态与真实执行进度不一致
+  - 历史详情页对逻辑已完成计划仍显示“开始今日训练”
+  - `today-training` 在“订阅仍 active 但当前阶段计划已完成”时误显示“计划正在制定中”
+- Fix:
+  - `student/plan-lib/list-history` 改为基于执行记录计算完成度，并把“逻辑完成 + status=active”按 `completed` 展示
+  - `plan-lib/get-instance` 返回 `isLogicallyCompleted/derivedStatus`
+  - `me/plan-history/[id]` 基于派生状态控制按钮显示
+  - `today-training` 在无当前计划但 `has_plan_instance=true` 时展示“当前阶段计划已完成”的引导态
+- Verification:
+  - `npm run lint`：通过（脚本提示未配置 eslint）
+  - `npm run typecheck`：失败，主要为仓库既有历史类型错误（与本次改动无直接关联）

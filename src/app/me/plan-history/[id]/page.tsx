@@ -32,6 +32,12 @@ export default function PlanHistoryDetailPage() {
     const [instance, setInstance] = useState<PlanInstance | null>(null);
     const [executions, setExecutions] = useState<Record<number, any>>({});
     const [actions, setActions] = useState<Record<string, any>>({});
+    const [derivedStatus, setDerivedStatus] = useState<string | null>(null);
+    const [isLogicallyCompleted, setIsLogicallyCompleted] = useState(false);
+    const [trainingProgress, setTrainingProgress] = useState({
+        resolved: 0,
+        total: 0,
+    });
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -42,12 +48,35 @@ export default function PlanHistoryDetailPage() {
 
     const fetchPlanDetail = async () => {
         setLoading(true);
+        setDerivedStatus(null);
+        setIsLogicallyCompleted(false);
+        setTrainingProgress({ resolved: 0, total: 0 });
         try {
             // 获取计划实例详情（带动作信息）
             const res = await planLibService.getInstance({ id: instanceId });
             
             if (res?.instance) {
                 setInstance(res.instance);
+                setDerivedStatus(typeof (res as any)?.derivedStatus === 'string'
+                    ? (res as any).derivedStatus
+                    : null);
+                const totalTrainingDays = Number((res as any)?.totalTrainingDays || 0);
+                const resolvedCount = Array.isArray((res as any)?.resolvedDays)
+                    ? (res as any).resolvedDays.length
+                    : 0;
+                const completedCount = Array.isArray((res as any)?.completedDays)
+                    ? (res as any).completedDays.length
+                    : 0;
+                const logicallyCompletedFromCounts = totalTrainingDays > 0 &&
+                    Math.max(resolvedCount, completedCount) >= totalTrainingDays;
+                setIsLogicallyCompleted(
+                    Boolean((res as any)?.isLogicallyCompleted) ||
+                        logicallyCompletedFromCounts,
+                );
+                setTrainingProgress({
+                    resolved: Math.max(resolvedCount, completedCount),
+                    total: totalTrainingDays,
+                });
                 
                 // 设置动作信息
                 if (res.actions) {
@@ -134,8 +163,14 @@ export default function PlanHistoryDetailPage() {
     }
 
     const totalDays = instance.training_days?.length || 0;
-    const completedDays = Object.keys(executions).length;
-    const completionRate = totalDays > 0 ? Math.round((completedDays / totalDays) * 100) : 0;
+    const legacyResolvedDays = Object.values(executions).filter((exec: any) =>
+        exec?.status === 'completed' || exec?.status === 'abandoned'
+    ).length;
+    const completionRate = trainingProgress.total > 0
+        ? Math.round((trainingProgress.resolved / trainingProgress.total) * 100)
+        : (totalDays > 0 ? Math.round((legacyResolvedDays / totalDays) * 100) : 0);
+    const effectiveStatus = derivedStatus || instance.status;
+    const canStartTodayTraining = effectiveStatus === 'active' && !isLogicallyCompleted;
 
     return (
         <div className="p-4 max-w-4xl mx-auto">
@@ -145,7 +180,7 @@ export default function PlanHistoryDetailPage() {
                     <Button icon="pi pi-arrow-left" text onClick={() => router.back()} />
                     <h1 className="text-xl font-bold m-0">{instance.name}</h1>
                 </div>
-                {instance.status === 'active' && (
+                {canStartTodayTraining && (
                     <Button
                         label="开始今日训练"
                         icon="pi pi-play"
@@ -159,7 +194,7 @@ export default function PlanHistoryDetailPage() {
             <Card className="mb-4">
                 <div className="flex flex-col gap-3">
                     <div className="flex gap-2 flex-wrap">
-                        {getStatusTag(instance.status)}
+                        {getStatusTag(effectiveStatus)}
                         {getSourceTag(instance.source)}
                     </div>
 
@@ -192,7 +227,7 @@ export default function PlanHistoryDetailPage() {
             <div className="mb-4">
                 {(() => {
                     // 🔒 计算已解锁的周次（仅对进行中的计划生效）
-                    const unlockedWeek = instance.status === 'active' 
+                    const unlockedWeek = canStartTodayTraining
                         ? Math.max(
                             calculateCurrentWeek(instance.start_date),
                             getDayWeekNumber(instance.start_execution_day || 1),
@@ -205,7 +240,7 @@ export default function PlanHistoryDetailPage() {
                                 <i className="pi pi-calendar text-primary-600" />
                                 训练安排
                                 <span className="text-sm font-normal text-surface-500">共 {totalDays} 天计划</span>
-                                {instance.status === 'active' && unlockedWeek < Infinity && (
+                                {canStartTodayTraining && unlockedWeek < Infinity && (
                                     <span className="text-sm font-normal text-surface-400 ml-2">
                                         已解锁: 第 {unlockedWeek} 周
                                     </span>

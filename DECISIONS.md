@@ -21,3 +21,15 @@
 - `2026-03-29`: 单杠贡献榜产品展示不应给“未署名历史数据”占榜；榜单只展示可识别贡献者，并优先用 `user_profiles.nickname -> full_name` 作为显示名。Web 榜单改为可折叠的单列列表，而非首屏三列卡片。
 - `2026-03-31`: `/today-training` 的日期展示改为统一走 `buildPlanScheduleModel()`：今日安排卡片、顶部周视图、展开月历必须共享同一套日期映射与顺延天数。
 - `2026-03-31`: 当前推进日只要仍未完成/未放弃，就不能冻结在 `started_at`；真实日期要继续滚到“今天”，并把中间多出来的休息天以浅橙色“顺延”标记展示在月历中。
+- `2026-04-01`: `execution/start` 与 `execution/_helpers/syncExecutionPlan` 必须和 `plan-lib/get-instance` 保持同一套动作元信息加载策略：统一 `coach_actions -> student_actions` 双源兜底，并优先用动作表真实名称参与 1RM/计划负荷计算，否则 `/today-training` 外卡与 `/training-execution` 内页会出现计划重量分叉。
+- `2026-04-08`: 历史计划详情按实例 `id` 打开且实例状态为 `completed/archived` 时，只做实例归属权限校验，不再套用当前订阅有效期/周数窗口门禁；`get-instance` 与 `get-with-executions` 必须保持这个语义一致，否则会出现“列表可见但详情 403”。
+- `2026-04-08`: 针对历史脏数据兼容：若实例状态仍为 `active`，但从 `start_execution_day` 起所有训练日都已在执行记录中 `completed/abandoned`，则详情查看应按“历史已完成实例”处理并允许只读查看（避免订阅过期后出现“计划不存在”假象）。
+- `2026-04-08`: 学员端页面展示统一采用“派生完成态”兜底：当实例 `status=active` 但训练日已全部 `resolved`（completed/abandoned）时，`list-history` 展示为 `completed`，历史详情页不再显示“开始今日训练”；`today-training` 在无当前计划但存在历史实例时展示“当前阶段计划已完成”，而非“计划制定中”。
+- `2026-04-08`: “申请成为教练”不再视为单一认证流程；数据模型升级为分层入驻，首批固定支持 `buddy`（训练搭子）/ `growth`（进阶教练）/ `professional`（专业教练）三档，并补充 `service_modes`、`target_student_levels`、`support_focus` 作为后续撮合与发现页的底层字段。
+- `2026-04-08`: `users.coach_status` 不能再落后于 `coach_applications`；创建申请、补资料、审核通过、驳回、待补充材料这些关键节点都必须同步到 `users`，否则学员侧会话和入口展示会失真。
+- `2026-04-08`: 学员侧教练申请入口统一指向真实页面 `/coach/application`；旧的 `/apply`、`/apply/edit`、`/apply/status` 不应再作为真实入口依赖。
+- `2026-04-08`: 教练分层不是后台元数据而已；前台至少要在发现页、搜索页、详情页三处显式展示，并允许按 `coach_track` / `service_modes` / `target_student_levels` 做筛选，否则用户无法感知“训练搭子 -> 进阶 -> 专业”分层供给。
+- `2026-04-08`: 分层字段不能只在申请和审核时写入；教练审核通过后，仍需在自己的资料编辑链路中维护 `coach_track` / `service_modes` / `target_student_levels` / `support_focus`，否则数据会在后续运营中持续老化。
+- `2026-04-08`: 找教练列表在未显式筛选层级时，可以接收一个 `preferredCoachTrack` 作为排序偏好，让冷启动推荐优先露出更贴近当前学员阶段的供给，而不是只按评分/学员数硬排。
+- `2026-04-08`: 当前存量教练的分层需要显式运营回填，不能默认所有历史批准教练都保持 `professional`。现阶段保留 `professional` 的固定名单为 `刘三乐 / 枭马葛 / 四方力量-五花肉 / 文武双缺的杰`；`沈妈妈` 保持 `buddy`；其余历史 `professional` 已批准教练统一降为 `growth`。
+- `2026-04-08`: 搜索页“只看同城”必须与卡片距离展示口径一致：同城筛选优先按省+市匹配；若教练缺少省市但经纬度显示为近距离（默认 30km 内），也应命中同城筛选，避免出现“100m 内却同城=0”的体验冲突。

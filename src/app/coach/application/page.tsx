@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { coachService } from '@/app/service/coachService';
@@ -16,8 +16,7 @@ import SocialLinkField from './SocialLinkField';
 import SubmitButton from './SubmitButton';
 import ReviewInfoDisplay from './ReviewInfoDisplay';
 import MapLocationPicker from '@/components/MapLocationPicker';
-import { getCurrentLocation, type LocationResult } from '@/lib/locationService';
-import { Button } from 'primereact/button';
+import { getCurrentLocation } from '@/lib/locationService';
 
 // 导入自定义图标组件
 import DouyinIcon from '@/components/icons/douyin';
@@ -28,6 +27,14 @@ import KuaishouIcon from '@/components/icons/kuaishou';
 import { useToastContext } from '@/context/ToastContext';
 import { userService } from '@/app/service/userService';
 import type { UserProfilesRow } from '@/types';
+import {
+    COACH_TRACK_OPTIONS,
+    SERVICE_MODE_OPTIONS,
+    TARGET_STUDENT_LEVEL_OPTIONS,
+    getCoachTrackLabel,
+    getServiceModeLabel,
+    getTargetStudentLevelLabel,
+} from '@/lib/coachApplicationOptions';
 
 // 定义资质证书和社交媒体的类型
 interface Credential {
@@ -57,7 +64,7 @@ export interface ReviewInfo {
 
 const CoachApplicationPage = () => {
     const router = useRouter();
-    const { data: session, status } = useSession();
+    const { data: session, status, update: updateSession } = useSession();
 
     const { showToast } = useToastContext();
 
@@ -75,6 +82,10 @@ const CoachApplicationPage = () => {
         caseStudies: [] as string[],
         credentials: [] as Credential[], // 资质证书
         socialLinks: [] as SocialLink[], // 社交媒体链接
+        coachTrack: '',
+        serviceModes: [] as string[],
+        targetStudentLevels: [] as string[],
+        supportFocus: '',
         city: '',                         // 常住城市（市）
         province: '',                     // 省
         county: '',                      // 区
@@ -287,6 +298,10 @@ const CoachApplicationPage = () => {
                             const name = platformMap[key] || key;
                             return { name, url: value as string };
                         }) : [],
+                        coachTrack: app.coach_track || '',
+                        serviceModes: Array.isArray(app.service_modes) ? app.service_modes : [],
+                        targetStudentLevels: Array.isArray(app.target_student_levels) ? app.target_student_levels : [],
+                        supportFocus: app.support_focus || '',
                         city: app.city || '',
                         province: app.province || '',
                         county: app.county || '',
@@ -360,6 +375,24 @@ const CoachApplicationPage = () => {
         setFormData(prev => ({
             ...prev,
             [name]: value
+        }));
+    };
+
+    const toggleServiceMode = (value: string) => {
+        setFormData((prev) => ({
+            ...prev,
+            serviceModes: prev.serviceModes.includes(value)
+                ? prev.serviceModes.filter((item) => item !== value)
+                : [...prev.serviceModes, value],
+        }));
+    };
+
+    const toggleTargetStudentLevel = (value: string) => {
+        setFormData((prev) => ({
+            ...prev,
+            targetStudentLevels: prev.targetStudentLevels.includes(value)
+                ? prev.targetStudentLevels.filter((item) => item !== value)
+                : [...prev.targetStudentLevels, value],
         }));
     };
 
@@ -483,6 +516,16 @@ const CoachApplicationPage = () => {
                 return;
             }
 
+            if (!formData.coachTrack) {
+                showToast({
+                    severity: 'warn',
+                    summary: '警告',
+                    detail: '请选择你要申请的教练层级',
+                    life: 3000
+                });
+                return;
+            }
+
             if (![formData.province, formData.city, formData.county].filter(Boolean).length) {
                 showToast({
                     severity: 'warn',
@@ -534,6 +577,10 @@ const CoachApplicationPage = () => {
                     caseStudies: formData.caseStudies.length > 0 ? formData.caseStudies : null,
                     credentials: formData.credentials.length > 0 ? formData.credentials : null,
                     socialLinks: Object.keys(socialLinksObj).length > 0 ? socialLinksObj : null,
+                    coachTrack: formData.coachTrack,
+                    serviceModes: formData.serviceModes,
+                    targetStudentLevels: formData.targetStudentLevels,
+                    supportFocus: formData.supportFocus || null,
                     province,
                     city: cityValue,
                     county,
@@ -563,6 +610,10 @@ const CoachApplicationPage = () => {
                     caseStudies: formData.caseStudies.length > 0 ? formData.caseStudies : null,
                     credentials: formData.credentials.length > 0 ? formData.credentials : null,
                     socialLinks: Object.keys(socialLinksObj).length > 0 ? socialLinksObj : null,
+                    coachTrack: formData.coachTrack,
+                    serviceModes: formData.serviceModes,
+                    targetStudentLevels: formData.targetStudentLevels,
+                    supportFocus: formData.supportFocus || null,
                     province,
                     city: cityValue,
                     county,
@@ -581,6 +632,12 @@ const CoachApplicationPage = () => {
                 // 刷新页面
                 router.refresh();
             }
+
+            try {
+                await updateSession();
+            } catch (error) {
+                console.warn('刷新 session 失败:', error);
+            }
         } catch (error: any) {
             console.error('提交申请失败:', error);
             showToast({
@@ -593,6 +650,8 @@ const CoachApplicationPage = () => {
             setSaving(false);
         }
     };
+
+    const selectedTrack = COACH_TRACK_OPTIONS.find((item) => item.value === formData.coachTrack);
 
     if (loading) {
         return (
@@ -621,12 +680,125 @@ const CoachApplicationPage = () => {
             <div className="mb-6">
                 <h1 className="text-2xl font-bold text-surface-900 mb-2">申请成为教练</h1>
                 <p className="text-surface-600">
-                    填写以下信息申请成为平台教练，审核通过后即可开始授课并获得收益。
+                    当前入驻流程已经升级为分层申请。请先确认你最适合的教练层级，再补充资料，审核通过后即可开始提供对应阶段的服务。
                 </p>
             </div>
 
             <Card className="mb-6 shadow-none border border-surface-200">
+                <div className="rounded-2xl border border-primary-100 bg-primary-50/70 p-5 mb-6">
+                    <div className="flex items-center justify-between gap-3 mb-3">
+                        <div>
+                            <h2 className="text-lg font-bold text-surface-900">先选择你的教练层级</h2>
+                            <p className="text-sm text-surface-600 mt-1">
+                                我们不再把所有供给都塞进同一种“教练认证”，而是按你能解决的学员阶段来分层。
+                            </p>
+                        </div>
+                        {formData.coachTrack && (
+                            <span className="rounded-full bg-white px-3 py-1 text-sm font-semibold text-primary-700 border border-primary-200">
+                                {getCoachTrackLabel(formData.coachTrack)}
+                            </span>
+                        )}
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        {COACH_TRACK_OPTIONS.map((option) => {
+                            const active = formData.coachTrack === option.value;
+                            return (
+                                <button
+                                    key={option.value}
+                                    type="button"
+                                    onClick={() => setFormData((prev) => ({ ...prev, coachTrack: option.value }))}
+                                    className={`text-left rounded-2xl border p-4 transition ${
+                                        active
+                                            ? 'border-primary-500 bg-white shadow-sm'
+                                            : 'border-surface-200 bg-surface hover:border-primary-200 hover:bg-white'
+                                    }`}
+                                >
+                                    <div className="flex items-center justify-between gap-2 mb-2">
+                                        <span className="text-base font-bold text-surface-900">{option.label}</span>
+                                        {active && <i className="pi pi-check-circle text-primary-500" />}
+                                    </div>
+                                    <p className="text-sm text-surface-600 leading-6">{option.description}</p>
+                                </button>
+                            );
+                        })}
+                    </div>
+
+                    {selectedTrack && (
+                        <div className="mt-4 rounded-xl border border-primary-100 bg-white px-4 py-3 text-sm text-surface-700">
+                            <span className="font-semibold text-surface-900">当前选择：</span> {selectedTrack.description}
+                        </div>
+                    )}
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="md:col-span-2">
+                        <label className="block text-sm font-medium text-surface-900 mb-2">服务方式</label>
+                        <div className="flex flex-wrap gap-2">
+                            {SERVICE_MODE_OPTIONS.map((option) => {
+                                const active = formData.serviceModes.includes(option.value);
+                                return (
+                                    <button
+                                        key={option.value}
+                                        type="button"
+                                        onClick={() => toggleServiceMode(option.value)}
+                                        className={`rounded-full border px-4 py-2 text-sm transition ${
+                                            active
+                                                ? 'border-primary-500 bg-primary-500 text-white'
+                                                : 'border-surface-300 bg-surface text-surface-700 hover:border-primary-300'
+                                        }`}
+                                    >
+                                        {option.label}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                        {formData.serviceModes.length > 0 && (
+                            <p className="text-xs text-surface-500 mt-2">
+                                已选择：{formData.serviceModes.map((item) => getServiceModeLabel(item)).join('、')}
+                            </p>
+                        )}
+                    </div>
+
+                    <div className="md:col-span-2">
+                        <label className="block text-sm font-medium text-surface-900 mb-2">你最适合服务哪类学员阶段</label>
+                        <div className="flex flex-wrap gap-2">
+                            {TARGET_STUDENT_LEVEL_OPTIONS.map((option) => {
+                                const active = formData.targetStudentLevels.includes(option.value);
+                                return (
+                                    <button
+                                        key={option.value}
+                                        type="button"
+                                        onClick={() => toggleTargetStudentLevel(option.value)}
+                                        className={`rounded-full border px-4 py-2 text-sm transition ${
+                                            active
+                                                ? 'border-surface-900 bg-surface-900 text-white'
+                                                : 'border-surface-300 bg-surface text-surface-700 hover:border-surface-500'
+                                        }`}
+                                    >
+                                        {option.label}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                        {formData.targetStudentLevels.length > 0 && (
+                            <p className="text-xs text-surface-500 mt-2">
+                                已选择：{formData.targetStudentLevels.map((item) => getTargetStudentLevelLabel(item)).join('、')}
+                            </p>
+                        )}
+                    </div>
+
+                    <CoachFormField
+                        id="supportFocus"
+                        name="supportFocus"
+                        label="你最擅长解决的学员问题"
+                        value={formData.supportFocus}
+                        onChange={handleInputChange}
+                        type="textarea"
+                        placeholder="例如：带从没进过健身房的小白完成第一次正式训练；或帮助 1-2 年训练者修正推拉蹲技术并稳定进步。"
+                        rows={3}
+                    />
+
                     {/* 姓名 - 必填字段 */}
                     <CoachFormField
                         id="name"
@@ -645,7 +817,13 @@ const CoachApplicationPage = () => {
                         label="称号/头衔"
                         value={formData.title}
                         onChange={handleInputChange}
-                        placeholder="如：国家一级健身指导员、CrossFit教练等"
+                        placeholder={
+                            formData.coachTrack === 'buddy'
+                                ? '如：街健搭子、力量训练陪练'
+                                : formData.coachTrack === 'growth'
+                                    ? '如：力量举进阶教练、体态训练陪练'
+                                    : '如：国家一级健身指导员、CrossFit教练等'
+                        }
                     />
 
                     {/* 专业领域 */}

@@ -79,7 +79,17 @@ export const CoachApplicationCard: React.FC<CoachApplicationCardProps> = ({ stat
                     hint: '教练团队正在审核您的资料，通常会在2个工作日内给出结果。',
                     actionLabel: '查看申请详情',
                     actionIcon: <Eye size={16} />,
-                    action: () => router.push('/apply/status'),
+                    action: () => router.push('/coach/application'),
+                    btnSeverity: 'warning' as const
+                };
+            case 'needs_info':
+                return {
+                    badge: '待补充材料',
+                    badgeColor: 'bg-orange-100 text-orange-700',
+                    hint: rejectionReason ? `审核团队反馈：${rejectionReason}` : '请根据审核意见补充资料后再次提交。',
+                    actionLabel: '去补充资料',
+                    actionIcon: <Edit3 size={16} />,
+                    action: () => router.push('/coach/application'),
                     btnSeverity: 'warning' as const
                 };
             case 'rejected':
@@ -89,7 +99,7 @@ export const CoachApplicationCard: React.FC<CoachApplicationCardProps> = ({ stat
                     hint: rejectionReason ? `驳回原因：${rejectionReason}。请修改后重新提交。` : '申请未通过，请根据提示修改后再次提交。',
                     actionLabel: '重新提交申请',
                     actionIcon: <RotateCcw size={16} />,
-                    action: () => router.push('/apply/edit'),
+                    action: () => router.push('/coach/application'),
                     btnSeverity: 'danger' as const
                 };
             case 'draft':
@@ -99,7 +109,7 @@ export const CoachApplicationCard: React.FC<CoachApplicationCardProps> = ({ stat
                     hint: '您已保存申请草稿，点击继续完善并提交审核。',
                     actionLabel: '继续编辑申请',
                     actionIcon: <Edit3 size={16} />,
-                    action: () => router.push('/apply/edit'),
+                    action: () => router.push('/coach/application'),
                     btnSeverity: 'secondary' as const
                 };
             default:
@@ -109,7 +119,7 @@ export const CoachApplicationCard: React.FC<CoachApplicationCardProps> = ({ stat
                     hint: '完成认证后即可在同一账号内自由切换学员/教练身份。',
                     actionLabel: '申请成为教练',
                     actionIcon: <ClipboardCheck size={16} />,
-                    action: () => router.push('/apply'),
+                    action: () => router.push('/coach/application'),
                     btnSeverity: 'common' as const
                 };
         }

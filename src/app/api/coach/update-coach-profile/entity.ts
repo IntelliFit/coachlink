@@ -19,6 +19,10 @@ export interface UpdateCoachProfileDto {
 
     invitationCode?: string;
     invitationMode?: "exclusive" | "open";
+    coachTrack?: string | null;
+    serviceModes?: string[] | null;
+    targetStudentLevels?: string[] | null;
+    supportFocus?: string | null;
 
     /** 省 */
     province?: string | null;

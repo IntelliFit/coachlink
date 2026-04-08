@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 import supabase from "@/lib/supabaseClient";
 import { serviceRoleSupabase } from "@/lib/supabaseClient";
 import type { ApiData } from "@/types/api";
@@ -12,7 +11,9 @@ import {
 } from "@/lib/rmCaculator";
 import { normalizeToKg } from "@/types/intensity";
 import { getCurrent1RMRecords } from "@/app/api/student/get-current-1rm/route";
+import { getAuthUser } from "@/lib/auth";
 import { validateExecutionSubscriptionAccess } from "../_helpers/subscriptionAccess";
+import { syncExecutionPlanWithCurrentConfig } from "../_helpers/syncExecutionPlan";
 
 /**
  * POST /api/execution/start
@@ -22,8 +23,8 @@ import { validateExecutionSubscriptionAccess } from "../_helpers/subscriptionAcc
 export async function POST(request: NextRequest) {
     try {
         // 1. 验证用户身份
-        const session = await getServerSession();
-        if (!session?.user?.id) {
+        const authResult = await getAuthUser(request);
+        if (!authResult.isAuthenticated || !authResult.userId) {
             return NextResponse.json<ApiData<StartExecutionResponseDto>>({
                 success: false,
                 message: "未登录",
@@ -31,7 +32,7 @@ export async function POST(request: NextRequest) {
             }, { status: 401 });
         }
 
-        const userId = session.user.id;
+        const userId = authResult.userId;
 
         // 2. 解析请求参数
         const body: StartExecutionDto = await request.json();
@@ -72,215 +73,13 @@ export async function POST(request: NextRequest) {
             .maybeSingle();
 
         if (existingExecution) {
-            // 如果是已完成状态，直接返回，不需要同步
-            if (existingExecution.status === "completed") {
-                return NextResponse.json<ApiData<StartExecutionResponseDto>>({
-                    success: true,
-                    message: "获取执行记录成功",
-                    data: existingExecution,
-                });
-            }
+            const { execution: syncedExecution, changed } =
+                await syncExecutionPlanWithCurrentConfig(existingExecution as any);
 
-            // 对于 in_progress 状态，需要与母版计划同步
-            // 获取最新的母版计划数据
-            const { data: masterInstance } = await supabase
-                .from("coach_plan_instances")
-                .select("training_days")
-                .eq("id", instanceId)
-                .single();
-
-            if (masterInstance) {
-                const masterDays = masterInstance.training_days as any[];
-                const masterDay = masterDays?.find((d: any) =>
-                    d.dayIndex === dayIndex
-                );
-
-                if (masterDay) {
-                    const masterActionSets = masterDay.actionSets || [];
-                    const masterActionIds = masterActionSets
-                        .map((set: any) => set?.action_id || set?.actionId)
-                        .filter((id: any) => !!id);
-                    const masterActionNames = Array.from(new Set(
-                        masterActionSets
-                            .map((set: any) => String(set?.actionName || set?.set_name || "").trim())
-                            .filter((name: string) => !!name),
-                    ));
-                    const syncActionsMap: Record<string, any> = {};
-                    let syncBodyWeight = 0;
-                    const syncOneRMMap: Record<string, number> = {};
-
-                    if (masterActionIds.length > 0) {
-                        const { data: syncActionsData } = await supabase
-                            .from("coach_actions")
-                            .select('id, name, canonical_action_id, "includesBodyWeight"')
-                            .in("id", masterActionIds);
-                        if (syncActionsData) {
-                            for (const action of syncActionsData) {
-                                syncActionsMap[action.id] = action;
-                            }
-                        }
-                    }
-
-                    try {
-                        const { data: profile } = await supabase
-                            .from("user_profiles")
-                            .select("weight")
-                            .eq("user_id", userId)
-                            .maybeSingle();
-                        syncBodyWeight = Number(profile?.weight || 0);
-                    } catch {
-                        syncBodyWeight = 0;
-                    }
-
-                    try {
-                        const syncRecords = await getCurrent1RMRecords(userId, {
-                            actionIds: masterActionIds.length > 0 ? masterActionIds : undefined,
-                            actionNames: masterActionNames.length > 0 ? masterActionNames : undefined,
-                            preferPR: true,
-                        });
-                        for (const r of syncRecords || []) {
-                            if (r.actionId) syncOneRMMap[r.actionId] = r.current1RM;
-                            if (r.actionName) syncOneRMMap[r.actionName] = r.current1RM;
-                            if (r.canonicalActionId) syncOneRMMap[r.canonicalActionId] = r.current1RM;
-                        }
-                    } catch {
-                        // best-effort
-                    }
-
-                    const existingActionExecutions = existingExecution
-                        .action_executions as any[];
-                    let needsUpdate = false;
-
-                    // 遍历并同步每个动作的计划数据（只更新 pending 状态的组）
-                    const updatedActionExecutions = existingActionExecutions
-                        .map((actionExec: any, actionIdx: number) => {
-                            const masterActionSet = masterActionSets[actionIdx];
-                            if (!masterActionSet) return actionExec;
-
-                            const masterActionId = masterActionSet.action_id || masterActionSet.actionId;
-                            const masterParams = masterActionSet.params || {};
-                            const intensityConfig = normalizeIntensityConfig(masterParams);
-                            const legacyRm = masterParams?.["强度"] ?? masterActionSet.intensity;
-                            const shouldRefreshExistingLoad = hasDynamicIntensityTarget({
-                                intensityConfig,
-                                legacyRm,
-                            });
-
-                            let masterLoad = masterParams?.load;
-                            if (
-                                masterLoad === null ||
-                                masterLoad === undefined ||
-                                shouldRefreshExistingLoad
-                            ) {
-                                const actionNameForLookup =
-                                    syncActionsMap[masterActionId]?.name ||
-                                    masterActionSet.actionName ||
-                                    masterActionSet.set_name;
-                                const canonicalActionId = syncActionsMap[masterActionId]?.canonical_action_id;
-                                const oneRM = syncOneRMMap[canonicalActionId] ??
-                                    syncOneRMMap[actionNameForLookup] ??
-                                    syncOneRMMap[masterActionId] ??
-                                    undefined;
-                                const includesBodyWeight = !!syncActionsMap[masterActionId]?.includesBodyWeight;
-
-                                const loadResult = calcIntensityDisplay({
-                                    intensityConfig,
-                                    legacyRm,
-                                    oneRM,
-                                    bodyWeight: syncBodyWeight,
-                                    includesBodyWeight,
-                                });
-
-                                if (loadResult.displayWeight !== null && loadResult.displayWeight !== undefined) {
-                                    masterLoad = normalizeToKg(
-                                        Number(loadResult.displayWeight),
-                                        loadResult.displayUnit || "kg",
-                                    );
-                                }
-                            }
-
-                            const masterReps =
-                                masterActionSet.params?.["次数"] ||
-                                masterActionSet.reps;
-                            const masterSets =
-                                masterActionSet.params?.["组数"] ||
-                                masterActionSet.sets || 1;
-
-                            // 计算母版的计划重量
-                            const masterPlannedWeight =
-                                masterLoad !== null && masterLoad !== undefined
-                                    ? formatKgForGym(Number(masterLoad))
-                                    : (legacyRm ? `${legacyRm}RM` : null);
-                            const masterPlannedReps = masterReps
-                                ? `${masterReps}`
-                                : null;
-
-                            // 更新每个 pending 状态的组
-                            const updatedSets = actionExec.sets.map(
-                                (set: any) => {
-                                    // 只更新 pending 状态的组，不影响已完成或已输入数据的组
-                                    if (set.status !== "pending") {
-                                        return set;
-                                    }
-
-                                    // 检查是否有变化
-                                    if (
-                                        set.planned_weight !==
-                                            masterPlannedWeight ||
-                                        set.planned_reps !== masterPlannedReps
-                                    ) {
-                                        needsUpdate = true;
-                                        return {
-                                            ...set,
-                                            planned_weight: masterPlannedWeight,
-                                            planned_reps: masterPlannedReps,
-                                        };
-                                    }
-                                    return set;
-                                },
-                            );
-
-                            return {
-                                ...actionExec,
-                                item_type: String(masterActionSet.itemType || actionExec?.item_type || "STRENGTH").toUpperCase(),
-                                source_action_index: Number.isInteger(actionExec?.source_action_index)
-                                    ? actionExec.source_action_index
-                                    : actionIdx,
-                                sets: updatedSets,
-                                total_sets: masterSets, // 同步组数
-                            };
-                        });
-
-                    // 如果有变化，更新数据库
-                    if (needsUpdate) {
-                        const { data: updatedExecution, error: updateError } =
-                            await supabase
-                                .from("plan_instance_executions")
-                                .update({
-                                    action_executions: updatedActionExecutions,
-                                    updated_at: new Date().toISOString(),
-                                })
-                                .eq("id", existingExecution.id)
-                                .select()
-                                .single();
-
-                        if (!updateError && updatedExecution) {
-                            console.log("已同步执行记录与母版计划");
-                            return NextResponse.json<ApiData<StartExecutionResponseDto>>({
-                                success: true,
-                                message: "同步执行记录成功",
-                                data: updatedExecution,
-                            });
-                        }
-                    }
-                }
-            }
-
-            // 没有变化或同步失败，返回原执行记录
             return NextResponse.json<ApiData<StartExecutionResponseDto>>({
                 success: true,
-                message: "获取执行记录成功",
-                data: existingExecution,
+                message: changed ? "同步执行记录成功" : "获取执行记录成功",
+                data: syncedExecution,
             });
         }
 
@@ -339,7 +138,7 @@ export async function POST(request: NextRequest) {
 
         // 6. 找到对应的训练日
         const trainingDays = instance.training_days as any[];
-        const trainingDay = trainingDays.find((d) => d.dayIndex === dayIndex);
+        const trainingDay = trainingDays.find((d) => Number(d?.dayIndex) === Number(dayIndex));
 
         if (!trainingDay) {
             return NextResponse.json<ApiData<StartExecutionResponseDto>>({
@@ -355,12 +154,6 @@ export async function POST(request: NextRequest) {
         const actionIds = actionSets
             .map((a: any) => a.action_id || a.actionId)
             .filter((id: string) => id);
-        const actionNames = Array.from(new Set(
-            actionSets
-                .map((a: any) => String(a?.actionName || a?.set_name || "").trim())
-                .filter((name: string) => !!name),
-        ));
-
         let actionsMap: Record<string, any> = {};
         let bodyWeight = 0;
         const oneRMMap: Record<string, number> = {};
@@ -376,6 +169,50 @@ export async function POST(request: NextRequest) {
         } catch (e) {
             bodyWeight = 0;
         }
+
+        if (actionIds.length > 0) {
+            const { data: coachActionsData } = await supabase
+                .from("coach_actions")
+                .select('id, name, type, canonical_action_id, "includesBodyWeight"')
+                .in("id", actionIds);
+
+            if (coachActionsData) {
+                actionsMap = coachActionsData.reduce((acc, action) => {
+                    acc[action.id] = action;
+                    return acc;
+                }, {} as Record<string, any>);
+            }
+
+            const remainingIds = actionIds.filter((id) => !actionsMap[id]);
+            if (remainingIds.length > 0) {
+                const { data: studentActionsData } = await supabase
+                    .from("student_actions")
+                    .select("id, name, type, canonical_action_id, includes_body_weight")
+                    .in("id", remainingIds);
+
+                for (const action of studentActionsData || []) {
+                    actionsMap[action.id] = {
+                        ...action,
+                        canonical_action_id: action.canonical_action_id,
+                        includesBodyWeight: action.includes_body_weight,
+                    };
+                }
+            }
+        }
+
+        const actionNames = Array.from(new Set(
+            actionSets
+                .map((a: any) => {
+                    const actionId = a?.action_id || a?.actionId;
+                    return String(
+                        (actionId ? actionsMap[actionId]?.name : "") ||
+                        a?.actionName ||
+                        a?.set_name ||
+                        "",
+                    ).trim();
+                })
+                .filter((name: string) => !!name),
+        ));
 
         try {
             const records = await getCurrent1RMRecords(userId, {
@@ -393,20 +230,6 @@ export async function POST(request: NextRequest) {
             // ignore
         }
 
-        if (actionIds.length > 0) {
-            const { data: actionsData } = await supabase
-                .from("coach_actions")
-                .select('id, name, type, canonical_action_id, "includesBodyWeight"')
-                .in("id", actionIds);
-
-            if (actionsData) {
-                actionsMap = actionsData.reduce((acc, action) => {
-                    acc[action.id] = action;
-                    return acc;
-                }, {} as Record<string, any>);
-            }
-        }
-
         // 8. 初始化 action_executions（使用真实动作名称）
         const actionExecutions = actionSets.map((
             actionSet: any,
@@ -419,8 +242,7 @@ export async function POST(request: NextRequest) {
             const reps = actionSet.params?.["次数"] || actionSet.reps;
             const intensity = actionSet.params?.["强度"] || actionSet.intensity;
 
-            // Compute a concrete load (kg) if not already present
-            let load = actionSet.params?.load; // 自动计算的实际重量
+            let load = actionSet.params?.load;
             const params = actionSet.params || {};
             const intensityConfig = normalizeIntensityConfig(params);
             const legacyRm = params["强度"] ?? intensity;
@@ -428,11 +250,9 @@ export async function POST(request: NextRequest) {
                 intensityConfig,
                 legacyRm,
             });
-            if (
-                load === null ||
-                load === undefined ||
-                shouldRefreshExistingLoad
-            ) {
+            // 与 today-training/get-instance 统一口径：
+            // RM/% 动态强度优先按当前 1RM 重算；固定重量才沿用实例里已有 load。
+            if (shouldRefreshExistingLoad || load === null || load === undefined) {
                 const actionIdForLookup = actionId;
                 const actionNameForLookup = actionsMap[actionIdForLookup]?.name || actionSet.actionName || actionSet.set_name;
                 const canonicalActionId = actionsMap[actionIdForLookup]?.canonical_action_id;

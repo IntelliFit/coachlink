@@ -26,4 +26,7 @@ export interface GetInstanceResponseDto {
     todayCompleted?: boolean;
     todayExecutionId?: string;
     completionDates?: Record<number, string>;
+    resolvedTrainingDays?: number;
+    isLogicallyCompleted?: boolean;
+    derivedStatus?: string;
 }

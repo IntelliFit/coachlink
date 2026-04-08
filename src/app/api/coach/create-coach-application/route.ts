@@ -1,6 +1,12 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from '@/app/api/auth/[...nextauth]/auth';
 import supabase from '@/lib/supabaseClient';
+import { serviceRoleSupabase } from '@/lib/supabaseClient';
+import {
+    sanitizeCoachTrack,
+    sanitizeServiceModes,
+    sanitizeTargetStudentLevels,
+} from '@/lib/coachApplicationOptions';
 
 // 重要！必须以 import type 引入接口类型
 import type { ApiData } from '@/types/api';
@@ -23,6 +29,9 @@ export async function POST(req: Request) {
     const userId = session.user.id;
 
     const body = await req.json() as CreateCoachApplicationDto;
+    const coachTrack = sanitizeCoachTrack(body.coachTrack);
+    const serviceModes = sanitizeServiceModes(body.serviceModes);
+    const targetStudentLevels = sanitizeTargetStudentLevels(body.targetStudentLevels);
 
     // 插入教练申请记录
     const { data, error } = await supabase
@@ -44,6 +53,10 @@ export async function POST(req: Request) {
             resume_url: body.resumeUrl,
             portfolio_url: body.portfolioUrl,
             social_links: body.socialLinks,
+            coach_track: coachTrack,
+            service_modes: serviceModes,
+            target_student_levels: targetStudentLevels,
+            support_focus: body.supportFocus ?? null,
             province: body.province ?? null,
             city: body.city ?? null,
             county: body.county ?? null,
@@ -63,6 +76,14 @@ export async function POST(req: Request) {
             data: null
         }, { status: 500 });
     }
+
+    await serviceRoleSupabase
+        .from('users')
+        .update({
+            coach_status: 'pending',
+            is_coach: false,
+        })
+        .eq('id', userId);
 
     // 重要！必须声明接口范型位 ApiData<返回参数的接口类型>
     return NextResponse.json<ApiData<CreateCoachApplicationResponseDto>>({

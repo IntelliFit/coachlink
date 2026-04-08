@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 import supabase from "@/lib/supabaseClient";
+import { serviceRoleSupabase } from "@/lib/supabaseClient";
 
 // 重要！必须以 import type 引入接口类型
 import type { ApiData } from "@/types/api";
@@ -9,6 +10,11 @@ import type {
     UpdateCoachApplicationResponseDto,
 } from "./entity";
 import { sendSystemMessage } from "@/lib/chat";
+import {
+    sanitizeCoachTrack,
+    sanitizeServiceModes,
+    sanitizeTargetStudentLevels,
+} from "@/lib/coachApplicationOptions";
 
 function buildCoachProfileFromApplication(application: any) {
     const profile: Record<string, any> = {};
@@ -128,6 +134,20 @@ export async function POST(req: Request) {
     if (body.socialLinks !== undefined) {
         updateData.social_links = body.socialLinks;
     }
+    if (body.coachTrack !== undefined) {
+        updateData.coach_track = sanitizeCoachTrack(body.coachTrack);
+    }
+    if (body.serviceModes !== undefined) {
+        updateData.service_modes = sanitizeServiceModes(body.serviceModes);
+    }
+    if (body.targetStudentLevels !== undefined) {
+        updateData.target_student_levels = sanitizeTargetStudentLevels(
+            body.targetStudentLevels,
+        );
+    }
+    if (body.supportFocus !== undefined) {
+        updateData.support_focus = body.supportFocus;
+    }
     if (body.city !== undefined) {
         updateData.city = body.city;
     }
@@ -169,7 +189,8 @@ export async function POST(req: Request) {
             updateData.reviewed_at = new Date().toISOString();
         }
     } else {
-        updateData.status = "pending";
+        updateData.status =
+            existingApplication.status === "approved" ? "approved" : "pending";
     }
 
     // 更新申请记录
@@ -202,6 +223,11 @@ export async function POST(req: Request) {
                 bio: latestApplication.bio ?? null,
                 years_experience: latestApplication.years_experience ?? null,
                 achievements: latestApplication.achievements ?? null,
+                coach_track: latestApplication.coach_track ?? "professional",
+                service_modes: latestApplication.service_modes ?? [],
+                target_student_levels:
+                    latestApplication.target_student_levels ?? [],
+                support_focus: latestApplication.support_focus ?? null,
                 profile: Object.keys(coachProfile).length ? coachProfile : null,
                 province: latestApplication.province ?? null,
                 city: latestApplication.city ?? null,
@@ -260,9 +286,9 @@ export async function POST(req: Request) {
             // 更新用户的 is_coach 标识，这样用户才能切换到教练端
             // 注意：coach_status 保持为 'approved'（数据库约束不允许 'coach'）
             // 前端通过 is_coach=true 来判断是否已完成教练身份认证
-            const { error: updateProfileError } = await supabase
+            const { error: updateProfileError } = await serviceRoleSupabase
                 .from("users")
-                .update({ is_coach: true })
+                .update({ is_coach: true, coach_status: "approved" })
                 .eq("id", existingApplication.user_id);
 
             if (updateProfileError) {
@@ -274,13 +300,27 @@ export async function POST(req: Request) {
                 content:
                     "您提交的教练申请已经通过🎉，恭喜您成为了一名教链平台的教练。在正式开始您的招生生意前，您需要先完成 [订阅设置](/dashboard/pricing) 和 [学员问卷](/dashboard/questionnaire) 这两部分的编辑，这样，才能最大限度利用教链平台提供的功能为您服务。",
             });
+        } else if (body.status === "reviewing" || body.status === "needs_info") {
+            await serviceRoleSupabase
+                .from("users")
+                .update({ is_coach: false, coach_status: "pending" })
+                .eq("id", existingApplication.user_id);
         } else if (body.status === "rejected") {
+            await serviceRoleSupabase
+                .from("users")
+                .update({ is_coach: false, coach_status: "rejected" })
+                .eq("id", existingApplication.user_id);
             await sendSystemMessage(existingApplication.user_id, {
                 content: `您提交的教练申请未通过，原因： ${
                     body.reviewNotes || "无"
                 }。\n您可以在 [申请成为教练](/coach/application) 查看原因并加以修改。`,
             });
         }
+    } else if (existingApplication.status !== "approved") {
+        await serviceRoleSupabase
+            .from("users")
+            .update({ is_coach: false, coach_status: "pending" })
+            .eq("id", existingApplication.user_id);
     }
 
     // 重要！必须声明接口范型位 ApiData<返回参数的接口类型>

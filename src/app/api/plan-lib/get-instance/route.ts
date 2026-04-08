@@ -17,6 +17,7 @@ import {
     evaluateSubscriptionPlanAccess,
     filterTrainingDaysByAccessWindow,
 } from "@/lib/subscriptionAccess";
+import { deriveStrictSequentialProgressDay } from "@/lib/planProgress";
 
 export async function POST(req: Request) {
     const startTime = performance.now();
@@ -170,8 +171,56 @@ export async function POST(req: Request) {
         }, { status: 403 });
     }
 
+    const isHistoricalInstanceView = !!id &&
+        ["completed", "archived"].includes(
+            String(instance.status ?? "").trim().toLowerCase(),
+        );
+    let shouldBypassSubscriptionGate = isHistoricalInstanceView;
+    if (
+        !shouldBypassSubscriptionGate &&
+        !!id &&
+        !hasCoachPermission &&
+        String(instance.status ?? "").trim().toLowerCase() === "active"
+    ) {
+        const getDayIndex = (day: any) => Number(day?.dayIndex ?? day?.day_index ?? 0);
+        const startExecutionDay = Number((instance as any).start_execution_day || 1);
+        const trainingDays = (Array.isArray((instance as any).training_days)
+            ? (instance as any).training_days
+            : [])
+            .filter((day: any) => {
+                const di = getDayIndex(day);
+                return di >= startExecutionDay && day?.type === "training";
+            });
+        const trainingDayIndexList = trainingDays
+            .map((day: any) => getDayIndex(day))
+            .filter((di: number) => di > 0);
+
+        if (trainingDayIndexList.length > 0) {
+            const { data: resolvedExecutions } = await supabase
+                .from("plan_instance_executions")
+                .select("day_index")
+                .eq("instance_id", instance.id)
+                .in("status", ["completed", "abandoned"]);
+            const resolvedDaySet = new Set<number>(
+                (resolvedExecutions || [])
+                    .map((exec: any) => Number(exec?.day_index ?? 0))
+                    .filter((di: number) => di > 0),
+            );
+            const allTrainingDaysResolved = trainingDayIndexList.every((di: number) =>
+                resolvedDaySet.has(di)
+            );
+            if (allTrainingDaysResolved) {
+                shouldBypassSubscriptionGate = true;
+            }
+        }
+    }
+
     let maxAccessibleDayIndex: number | null = null;
-    if (!hasCoachPermission && instance.coach_subscription_id) {
+    if (
+        !shouldBypassSubscriptionGate &&
+        !hasCoachPermission &&
+        instance.coach_subscription_id
+    ) {
         if (!subscriptionForStudentAccess) {
             const { data: subForAccess } = await supabase
                 .from("coach_subscriptions")
@@ -516,21 +565,23 @@ export async function POST(req: Request) {
         }
     }
 
-    // 7. Derive next training day info (compatible with /api/execution/get-next-training-day)
+    // 7. Derive progress day info
     const nextDayStart = performance.now();
     const startExecutionDay = Number(
         (instance as any).start_execution_day || 1,
     );
     const getDayIndex = (d: any) => Number(d?.dayIndex ?? d?.day_index ?? 0);
-    const trainingDays =
+    const planDays =
         (Array.isArray(instance.training_days)
             ? (instance.training_days as any[])
             : [])
             .slice()
+            .filter((d) => getDayIndex(d) >= startExecutionDay)
             .sort((a, b) => getDayIndex(a) - getDayIndex(b));
+    const trainingDays = planDays;
 
     const trainingOnlyDays = trainingDays.filter((d) =>
-        d?.type === "training" && getDayIndex(d) >= startExecutionDay
+        d?.type === "training"
     );
     const trainingOnlyDayIndexSet = new Set(
         trainingOnlyDays.map((d) => getDayIndex(d)),
@@ -542,8 +593,8 @@ export async function POST(req: Request) {
         trainingOnlyDayIndexSet.has(Number(e?.day_index ?? 0))
     );
 
-    // Resolved days: completed + abandoned (treat abandoned as "skipped" for progress pointer)
-    const resolvedExecs = (executionsList || []).filter((e) =>
+    // Training resolved days: completed + abandoned
+    const trainingResolvedExecs = (executionsList || []).filter((e) =>
         (e?.status === "completed" || e?.status === "abandoned") &&
         Number(e?.day_index ?? 0) >= startExecutionDay &&
         trainingOnlyDayIndexSet.has(Number(e?.day_index ?? 0))
@@ -569,22 +620,19 @@ export async function POST(req: Request) {
         a - b
     );
 
-    const resolvedDaySet = new Set<number>();
-    for (const e of resolvedExecs) {
+    const trainingResolvedDaySet = new Set<number>();
+    for (const e of trainingResolvedExecs) {
         const di = Number(e.day_index);
-        if (di) resolvedDaySet.add(di);
+        if (di) trainingResolvedDaySet.add(di);
     }
-    const resolvedDays = Array.from(resolvedDaySet.values()).sort((a, b) =>
-        a - b
-    );
 
     // todayCompleted + todayExecutionId
-    const today = getBeijingDayStart(new Date());
-    const tomorrow = addBeijingDays(today, 1);
+    const todayStart = getBeijingDayStart(new Date());
+    const tomorrow = addBeijingDays(todayStart, 1);
     const todayExecution = completedExecs.find((e) => {
         if (!e?.completed_at) return false;
         const dt = new Date(e.completed_at);
-        return dt >= today && dt < tomorrow;
+        return dt >= todayStart && dt < tomorrow;
     });
     const todayCompleted = !!todayExecution;
     const todayExecutionId = todayExecution?.id;
@@ -609,35 +657,33 @@ export async function POST(req: Request) {
     }
     timings["7_next_day"] = performance.now() - nextDayStart;
 
-    // recommendedDayIndex (spec v1): max(resolved) + 1 (next training day)
-    let recommendedDayIndex = startExecutionDay;
-    if (trainingOnlyDays.length > 0) {
-        const maxResolved = resolvedDays.length > 0
-            ? Math.max(...resolvedDays)
-            : null;
-        if (maxResolved === null) {
-            recommendedDayIndex = startExecutionDay;
-        } else {
-            const idx = trainingOnlyDays.findIndex((d) =>
-                getDayIndex(d) === maxResolved
-            );
-            if (idx >= 0 && idx + 1 < trainingOnlyDays.length) {
-                recommendedDayIndex = getDayIndex(trainingOnlyDays[idx + 1]);
-            } else {
-                // all resolved to the end -> loop or mark complete (keep looping for compatibility)
-                recommendedDayIndex = getDayIndex(trainingOnlyDays[0]);
-            }
-        }
-    } else {
-        recommendedDayIndex = startExecutionDay;
-    }
+    const { recommendedDayIndex, resolvedDays } = deriveStrictSequentialProgressDay(
+        {
+            planDays,
+            startExecutionDay,
+            executionsByDayIndex,
+            actionsMap,
+            explicitStartDate: (instance as any).start_date,
+            today: todayStart,
+        },
+    );
 
-    // missingDays: unresolved days before recommended pointer
+    // missingDays: unresolved training days before recommended pointer
     const missingDays = trainingOnlyDays
         .map((d) => getDayIndex(d))
         .filter((di) =>
-            di > 0 && di < recommendedDayIndex && !resolvedDaySet.has(di)
+            di > 0 && di < recommendedDayIndex &&
+            !trainingResolvedDaySet.has(di)
         );
+    const resolvedTrainingDays = trainingResolvedDaySet.size;
+    const isLogicallyCompleted = trainingOnlyDays.length > 0 &&
+        resolvedTrainingDays >= trainingOnlyDays.length;
+    const normalizedStatus = String((instance as any).status || "")
+        .trim()
+        .toLowerCase();
+    const derivedStatus = normalizedStatus === "active" && isLogicallyCompleted
+        ? "completed"
+        : (instance as any).status;
 
     // 计算总耗时
     timings["total"] = performance.now() - startTime;
@@ -664,6 +710,9 @@ export async function POST(req: Request) {
             todayCompleted,
             todayExecutionId,
             completionDates,
+            resolvedTrainingDays,
+            isLogicallyCompleted,
+            derivedStatus,
         },
     });
 }
