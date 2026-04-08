@@ -18,7 +18,7 @@ export async function validateExecutionSubscriptionAccess(params: {
 
     const { data: instance, error: instanceError } = await supabase
         .from("coach_plan_instances")
-        .select("coach_subscription_id")
+        .select("coach_subscription_id, training_days, start_execution_day")
         .eq("id", instanceId)
         .maybeSingle();
 
@@ -58,9 +58,23 @@ export async function validateExecutionSubscriptionAccess(params: {
         };
     }
 
+    const { data: completedExecutions } = await supabase
+        .from("plan_instance_executions")
+        .select("day_index, status")
+        .eq("instance_id", instanceId)
+        .eq("status", "completed");
+
     const decision = evaluateSubscriptionPlanAccess({
         subscription,
         requestedDayIndex: dayIndex ?? null,
+        trainingDays: Array.isArray((instance as any)?.training_days)
+            ? ((instance as any).training_days as any[])
+            : [],
+        executions: (completedExecutions || []).map((exec: any) => ({
+            day_index: Number(exec?.day_index ?? 0),
+            status: exec?.status || "completed",
+        })),
+        startExecutionDay: Number((instance as any)?.start_execution_day || 1),
     });
 
     if (!decision.allowed) {

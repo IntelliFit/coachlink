@@ -106,3 +106,17 @@
 - Verification:
   - `npm run lint`：通过（脚本提示未配置 eslint）
   - `npm run typecheck`：失败，主要为仓库既有历史类型错误（与本次改动无直接关联）
+- 追加修复（同日）：
+  - 复现到 `today-training` 显示“当前阶段计划已完成”但实际计划未完成的问题，根因是：
+    - `coach-subscriptions` 返回的 `has_plan_instance=true` 触发了完成态文案
+    - 同时 `get-instance` 门禁仍按 `end_date` 先行拦截，导致当前计划无法加载
+  - 已修复 `src/lib/subscriptionAccess.ts`：
+    - `evaluateSubscriptionPlanAccess` 对 `status=active` 不再直接按 `end_date` 拦截
+    - active 订阅改为严格按 credits（`computeCreditsScope` + `computeUsedCredits`）判定是否过期
+  - 已补回归测试：`src/lib/subscriptionAccess.test.ts` 新增“active 且 end_date 已过但 credits 未耗尽时仍允许访问”用例
+- 本轮验证（追加）：
+  - `npx vitest run src/lib/subscriptionAccess.test.ts`：通过（7 tests）
+  - `npm run lint`：通过（脚本提示）
+  - `npm run typecheck`：长时间无输出，超时后中止（仓库历史类型负担）
+  - `npx next build`：通过
+  - `npm test`：通过（12 files, 58 tests）
