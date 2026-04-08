@@ -67,12 +67,13 @@ export async function POST(req: Request) {
     const { data: resolvedExecutions } = planIds.length > 0
         ? await supabase
             .from("plan_instance_executions")
-            .select("instance_id, day_index, status")
+            .select("instance_id, day_index, status, completed_at, updated_at")
             .in("instance_id", planIds)
             .in("status", ["completed", "abandoned"])
         : { data: [] as any[] };
 
     const resolvedDaySetByInstanceId = new Map<string, Set<number>>();
+    const latestResolvedAtByInstanceId = new Map<string, string>();
     for (const exec of resolvedExecutions || []) {
         const instanceId = String((exec as any)?.instance_id || "");
         if (!instanceId) continue;
@@ -82,6 +83,18 @@ export async function POST(req: Request) {
             new Set<number>();
         existing.add(dayIndex);
         resolvedDaySetByInstanceId.set(instanceId, existing);
+
+        const resolvedAt = (exec as any)?.completed_at || (exec as any)?.updated_at;
+        if (resolvedAt) {
+            const current = latestResolvedAtByInstanceId.get(instanceId);
+            if (
+                !current ||
+                new Date(String(resolvedAt)).getTime() >=
+                    new Date(String(current)).getTime()
+            ) {
+                latestResolvedAtByInstanceId.set(instanceId, String(resolvedAt));
+            }
+        }
     }
 
     // 计算每个计划的真实完成度，并修正“逻辑已完成但状态仍 active”的展示。
@@ -124,6 +137,9 @@ export async function POST(req: Request) {
                 isLogicallyCompleted
             ? "completed"
             : plan.status;
+        const derivedEndDate = isLogicallyCompleted && !plan.end_date
+            ? (latestResolvedAtByInstanceId.get(plan.id) || null)
+            : plan.end_date;
 
         return {
             id: plan.id,
@@ -132,7 +148,7 @@ export async function POST(req: Request) {
             source: plan.source,
             status: displayStatus,
             start_date: plan.start_date,
-            end_date: plan.end_date,
+            end_date: derivedEndDate,
             created_at: plan.created_at,
             updated_at: plan.updated_at,
             total_days: totalTrainingDays,
