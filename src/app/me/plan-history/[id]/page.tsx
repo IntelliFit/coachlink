@@ -34,6 +34,7 @@ export default function PlanHistoryDetailPage() {
     const [actions, setActions] = useState<Record<string, any>>({});
     const [derivedStatus, setDerivedStatus] = useState<string | null>(null);
     const [isLogicallyCompleted, setIsLogicallyCompleted] = useState(false);
+    const [displayEndDate, setDisplayEndDate] = useState<string | null>(null);
     const [trainingProgress, setTrainingProgress] = useState({
         resolved: 0,
         total: 0,
@@ -50,6 +51,7 @@ export default function PlanHistoryDetailPage() {
         setLoading(true);
         setDerivedStatus(null);
         setIsLogicallyCompleted(false);
+        setDisplayEndDate(null);
         setTrainingProgress({ resolved: 0, total: 0 });
         try {
             // 获取计划实例详情（带动作信息）
@@ -61,22 +63,35 @@ export default function PlanHistoryDetailPage() {
                     ? (res as any).derivedStatus
                     : null);
                 const totalTrainingDays = Number((res as any)?.totalTrainingDays || 0);
-                const resolvedCount = Array.isArray((res as any)?.resolvedDays)
-                    ? (res as any).resolvedDays.length
-                    : 0;
+                const resolvedTrainingDays = Number((res as any)?.resolvedTrainingDays || 0);
                 const completedCount = Array.isArray((res as any)?.completedDays)
                     ? (res as any).completedDays.length
                     : 0;
+                const safeResolvedTrainingDays = resolvedTrainingDays > 0
+                    ? resolvedTrainingDays
+                    : completedCount;
                 const logicallyCompletedFromCounts = totalTrainingDays > 0 &&
-                    Math.max(resolvedCount, completedCount) >= totalTrainingDays;
+                    safeResolvedTrainingDays >= totalTrainingDays;
                 setIsLogicallyCompleted(
                     Boolean((res as any)?.isLogicallyCompleted) ||
                         logicallyCompletedFromCounts,
                 );
                 setTrainingProgress({
-                    resolved: Math.max(resolvedCount, completedCount),
+                    resolved: safeResolvedTrainingDays,
                     total: totalTrainingDays,
                 });
+                const completionDateValues = Object.values(
+                    ((res as any)?.completionDates || {}) as Record<string, string>,
+                )
+                    .map((value: any) => {
+                        const time = new Date(String(value || '')).getTime();
+                        return Number.isFinite(time) ? time : 0;
+                    })
+                    .filter((time: number) => time > 0);
+                const derivedEndDate = completionDateValues.length > 0
+                    ? new Date(Math.max(...completionDateValues)).toISOString()
+                    : null;
+                setDisplayEndDate(res.instance.end_date || derivedEndDate);
                 
                 // 设置动作信息
                 if (res.actions) {
@@ -162,13 +177,20 @@ export default function PlanHistoryDetailPage() {
         );
     }
 
-    const totalDays = instance.training_days?.length || 0;
+    const totalScheduleDays = instance.training_days?.length || 0;
+    const totalTrainingDays = trainingProgress.total > 0
+        ? trainingProgress.total
+        : totalScheduleDays;
     const legacyResolvedDays = Object.values(executions).filter((exec: any) =>
         exec?.status === 'completed' || exec?.status === 'abandoned'
     ).length;
-    const completionRate = trainingProgress.total > 0
-        ? Math.round((trainingProgress.resolved / trainingProgress.total) * 100)
-        : (totalDays > 0 ? Math.round((legacyResolvedDays / totalDays) * 100) : 0);
+    const safeResolvedDays = trainingProgress.total > 0
+        ? Math.min(trainingProgress.resolved, trainingProgress.total)
+        : legacyResolvedDays;
+    const rawCompletionRate = totalTrainingDays > 0
+        ? Math.round((safeResolvedDays / totalTrainingDays) * 100)
+        : 0;
+    const completionRate = Math.max(0, Math.min(100, rawCompletionRate));
     const effectiveStatus = derivedStatus || instance.status;
     const canStartTodayTraining = effectiveStatus === 'active' && !isLogicallyCompleted;
 
@@ -209,11 +231,11 @@ export default function PlanHistoryDetailPage() {
                         </div>
                         <div>
                             <div className="text-sm text-gray-500">结束日期</div>
-                            <div className="font-medium">{formatDate(instance.end_date)}</div>
+                            <div className="font-medium">{formatDate(displayEndDate || instance.end_date)}</div>
                         </div>
                         <div>
-                            <div className="text-sm text-gray-500">总天数</div>
-                            <div className="font-medium">{totalDays} 天</div>
+                            <div className="text-sm text-gray-500">训练日</div>
+                            <div className="font-medium">{totalTrainingDays} 天</div>
                         </div>
                         <div>
                             <div className="text-sm text-gray-500">完成度</div>
@@ -239,7 +261,7 @@ export default function PlanHistoryDetailPage() {
                             <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
                                 <i className="pi pi-calendar text-primary-600" />
                                 训练安排
-                                <span className="text-sm font-normal text-surface-500">共 {totalDays} 天计划</span>
+                                <span className="text-sm font-normal text-surface-500">共 {totalScheduleDays} 天计划</span>
                                 {canStartTodayTraining && unlockedWeek < Infinity && (
                                     <span className="text-sm font-normal text-surface-400 ml-2">
                                         已解锁: 第 {unlockedWeek} 周
