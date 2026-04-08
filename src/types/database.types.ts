@@ -557,6 +557,7 @@ export type Database = {
           avatar_url: string | null
           bio: string | null
           case_studies: string[] | null
+          coach_track: string
           contact_email: string | null
           contact_phone: string | null
           county: string | null
@@ -573,11 +574,14 @@ export type Database = {
           review_notes: string | null
           reviewed_at: string | null
           reviewed_by: string | null
+          service_modes: string[]
           social_links: Json | null
           specialties: string[] | null
           status: string
+          support_focus: string | null
           teaching_philosophy: string | null
           title: string | null
+          target_student_levels: string[]
           updated_at: string
           user_id: string
           years_experience: number | null
@@ -589,6 +593,7 @@ export type Database = {
           avatar_url?: string | null
           bio?: string | null
           case_studies?: string[] | null
+          coach_track?: string
           contact_email?: string | null
           contact_phone?: string | null
           county?: string | null
@@ -605,11 +610,14 @@ export type Database = {
           review_notes?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
+          service_modes?: string[]
           social_links?: Json | null
           specialties?: string[] | null
           status?: string
+          support_focus?: string | null
           teaching_philosophy?: string | null
           title?: string | null
+          target_student_levels?: string[]
           updated_at?: string
           user_id: string
           years_experience?: number | null
@@ -621,6 +629,7 @@ export type Database = {
           avatar_url?: string | null
           bio?: string | null
           case_studies?: string[] | null
+          coach_track?: string
           contact_email?: string | null
           contact_phone?: string | null
           county?: string | null
@@ -637,11 +646,14 @@ export type Database = {
           review_notes?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
+          service_modes?: string[]
           social_links?: Json | null
           specialties?: string[] | null
           status?: string
+          support_focus?: string | null
           teaching_philosophy?: string | null
           title?: string | null
+          target_student_levels?: string[]
           updated_at?: string
           user_id?: string
           years_experience?: number | null
@@ -1434,6 +1446,7 @@ export type Database = {
           avatar_url: string | null
           bio: string | null
           city: string | null
+          coach_track: string
           county: string | null
           created_at: string | null
           id: string
@@ -1449,9 +1462,12 @@ export type Database = {
           province: string | null
           rating: number | null
           search_vector: unknown
+          service_modes: string[]
           specialties: string[] | null
           status: string | null
+          support_focus: string | null
           title: string | null
+          target_student_levels: string[]
           total_students: number | null
           updated_at: string | null
           user_id: string | null
@@ -1464,6 +1480,7 @@ export type Database = {
           avatar_url?: string | null
           bio?: string | null
           city?: string | null
+          coach_track?: string
           county?: string | null
           created_at?: string | null
           id?: string
@@ -1479,9 +1496,12 @@ export type Database = {
           province?: string | null
           rating?: number | null
           search_vector?: unknown
+          service_modes?: string[]
           specialties?: string[] | null
           status?: string | null
+          support_focus?: string | null
           title?: string | null
+          target_student_levels?: string[]
           total_students?: number | null
           updated_at?: string | null
           user_id?: string | null
@@ -1494,6 +1514,7 @@ export type Database = {
           avatar_url?: string | null
           bio?: string | null
           city?: string | null
+          coach_track?: string
           county?: string | null
           created_at?: string | null
           id?: string
@@ -1509,9 +1530,12 @@ export type Database = {
           province?: string | null
           rating?: number | null
           search_vector?: unknown
+          service_modes?: string[]
           specialties?: string[] | null
           status?: string | null
+          support_focus?: string | null
           title?: string | null
+          target_student_levels?: string[]
           total_students?: number | null
           updated_at?: string | null
           user_id?: string | null

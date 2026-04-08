@@ -1,20 +1,24 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Dialog } from 'primereact/dialog';
 import { Button } from 'primereact/button';
 import { InputText } from 'primereact/inputtext';
 import { InputTextarea } from 'primereact/inputtextarea';
 import { Dropdown } from 'primereact/dropdown';
-import Image from 'next/image';
 import { coachService } from '@/app/service/coachService';
 import { CoachesRow } from '@/types';
 import { Chip } from 'primereact/chip';
-import { ConfirmDialog, confirmDialog } from 'primereact/confirmdialog';
+import { ConfirmDialog } from 'primereact/confirmdialog';
 import { useToastContext } from '@/context/ToastContext';
 import { AeroInputNumber } from '@/components/AeroInputNumber';
 import MapLocationPicker from '@/components/MapLocationPicker';
 import { getCurrentLocation } from '@/lib/locationService';
+import {
+    COACH_TRACK_OPTIONS,
+    SERVICE_MODE_OPTIONS,
+    TARGET_STUDENT_LEVEL_OPTIONS,
+} from '@/lib/coachApplicationOptions';
 
 /** 将接口/网络错误信息转为用户可读的中文提示 */
 function getErrorMessageForUser(raw: string | undefined): string {
@@ -54,6 +58,10 @@ const EditCoachProfileDialog: React.FC<EditCoachProfileDialogProps> = ({ visible
     const [specialties, setSpecialties] = useState<string[]>([]);
     const [newSpecialty, setNewSpecialty] = useState('');
     const [yearsExperience, setYearsExperience] = useState<number>(0);
+    const [coachTrack, setCoachTrack] = useState<string>('professional');
+    const [serviceModes, setServiceModes] = useState<string[]>([]);
+    const [targetStudentLevels, setTargetStudentLevels] = useState<string[]>([]);
+    const [supportFocus, setSupportFocus] = useState('');
     const [bio, setBio] = useState('');
     const [teachingPhilosophy, setTeachingPhilosophy] = useState('');
     const [achievements, setAchievements] = useState<string[]>([]);
@@ -92,6 +100,9 @@ const EditCoachProfileDialog: React.FC<EditCoachProfileDialogProps> = ({ visible
             setAvatarUrl(coach.avatar_url || '');
             setSpecialties(Array.isArray(coach.specialties) ? coach.specialties : []);
             setYearsExperience(typeof coach.years_experience === 'number' ? coach.years_experience : 0);
+            setCoachTrack((coach as any).coach_track || 'professional');
+            setServiceModes(Array.isArray((coach as any).service_modes) ? (coach as any).service_modes : []);
+            setTargetStudentLevels(Array.isArray((coach as any).target_student_levels) ? (coach as any).target_student_levels : []);
             setBio(coach.bio || '');
             // 省、市、区平铺存
             setProvince(coach.province || '');
@@ -110,6 +121,7 @@ const EditCoachProfileDialog: React.FC<EditCoachProfileDialogProps> = ({ visible
                 setCredentials(Array.isArray(profile.credentials) ? profile.credentials : []);
                 setContactEmail(profile.contactEmail ?? null);
                 setContactPhone(profile.contactPhone ?? null);
+                setSupportFocus((coach as any).support_focus || profile.supportFocus || '');
                 setSocialLinks(
                     profile.socialLinks && typeof profile.socialLinks === 'object'
                         ? Object.entries(profile.socialLinks as Record<string, string>).map(([key, url]) => {
@@ -136,6 +148,7 @@ const EditCoachProfileDialog: React.FC<EditCoachProfileDialogProps> = ({ visible
                 setCredentials([]);
                 setContactEmail(null);
                 setContactPhone(null);
+                setSupportFocus((coach as any).support_focus || '');
                 setSocialLinks([]);
             }
 
@@ -225,6 +238,18 @@ const EditCoachProfileDialog: React.FC<EditCoachProfileDialogProps> = ({ visible
         setSocialLinks([...socialLinks, { name: newSocialPlatform, url: newSocialUrl.trim() }]);
         setNewSocialPlatform('');
         setNewSocialUrl('');
+    };
+
+    const toggleMultiValue = (
+        value: string,
+        currentValues: string[],
+        setValues: React.Dispatch<React.SetStateAction<string[]>>,
+    ) => {
+        setValues(
+            currentValues.includes(value)
+                ? currentValues.filter((item) => item !== value)
+                : [...currentValues, value],
+        );
     };
 
     const handleUploadAvatar = async (file?: File) => {
@@ -356,6 +381,10 @@ const EditCoachProfileDialog: React.FC<EditCoachProfileDialogProps> = ({ visible
                 avatarUrl: avatarUrl || null,
                 specialties: specialties.length ? specialties : null,
                 yearsExperience: yearsExperience ?? 0,
+                coachTrack,
+                serviceModes,
+                targetStudentLevels,
+                supportFocus: supportFocus.trim() || null,
                 bio,
                 profile,
                 province: provinceValue,
@@ -528,6 +557,98 @@ const EditCoachProfileDialog: React.FC<EditCoachProfileDialogProps> = ({ visible
                             min={0}
                             className="w-full"
                         />
+                    </div>
+
+                    <div className="rounded-2xl border border-surface-200 bg-surface-50/50 p-4 space-y-4">
+                        <div>
+                            <label className="block text-sm font-medium text-surface-900 mb-2">
+                                教练层级
+                            </label>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                {COACH_TRACK_OPTIONS.map((option) => {
+                                    const selected = coachTrack === option.value;
+                                    return (
+                                        <button
+                                            key={option.value}
+                                            type="button"
+                                            onClick={() => setCoachTrack(option.value)}
+                                            className={`rounded-2xl border p-4 text-left transition-all ${
+                                                selected
+                                                    ? 'border-primary-500 bg-primary-50 shadow-sm'
+                                                    : 'border-surface-200 bg-surface hover:border-primary-300'
+                                            }`}
+                                        >
+                                            <div className="text-sm font-bold text-surface-900">{option.label}</div>
+                                            <p className="mt-2 text-xs leading-5 text-surface-500">{option.description}</p>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-surface-900 mb-2">
+                                服务方式
+                            </label>
+                            <div className="flex flex-wrap gap-2">
+                                {SERVICE_MODE_OPTIONS.map((option) => {
+                                    const selected = serviceModes.includes(option.value);
+                                    return (
+                                        <button
+                                            key={option.value}
+                                            type="button"
+                                            onClick={() => toggleMultiValue(option.value, serviceModes, setServiceModes)}
+                                            className={`rounded-full border px-4 py-2 text-sm font-bold transition-all ${
+                                                selected
+                                                    ? 'border-primary-500 bg-primary-500 text-white'
+                                                    : 'border-surface-200 bg-surface text-surface-600 hover:border-primary-300 hover:text-primary-700'
+                                            }`}
+                                        >
+                                            {option.label}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-surface-900 mb-2">
+                                适合带的学员阶段
+                            </label>
+                            <div className="flex flex-wrap gap-2">
+                                {TARGET_STUDENT_LEVEL_OPTIONS.map((option) => {
+                                    const selected = targetStudentLevels.includes(option.value);
+                                    return (
+                                        <button
+                                            key={option.value}
+                                            type="button"
+                                            onClick={() => toggleMultiValue(option.value, targetStudentLevels, setTargetStudentLevels)}
+                                            className={`rounded-full border px-4 py-2 text-sm font-bold transition-all ${
+                                                selected
+                                                    ? 'border-surface-900 bg-surface-900 text-white'
+                                                    : 'border-surface-200 bg-surface text-surface-600 hover:border-surface-400'
+                                            }`}
+                                        >
+                                            {option.label}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
+                        <div>
+                            <label htmlFor="supportFocus" className="block text-sm font-medium text-surface-900 mb-2">
+                                阶段问题聚焦
+                            </label>
+                            <InputTextarea
+                                id="supportFocus"
+                                value={supportFocus}
+                                onChange={(e) => setSupportFocus(e.target.value)}
+                                rows={4}
+                                className="w-full"
+                                placeholder="例如：帮助小白克服进门焦虑、安排前三周适应计划、纠正基础动作发力。"
+                            />
+                        </div>
                     </div>
 
                     <div>

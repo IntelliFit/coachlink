@@ -19,6 +19,11 @@ import type { TrainingItem } from '@/types/questionnaires';
 import { subscriptionService } from '@/app/service/subscriptionService';
 import { useSearchParams } from 'next/navigation';
 import { MessageCircle, Edit3, ClipboardList, Star, Users, BookOpen, Award, Zap } from 'lucide-react';
+import {
+    getCoachTrackLabel,
+    getServiceModeLabel,
+    getTargetStudentLevelLabel,
+} from '@/lib/coachApplicationOptions';
 
 interface CoachIntroductionProps {
     coach: CoachesRow;
@@ -60,6 +65,10 @@ const CoachIntroduction: React.FC<CoachIntroductionProps> = ({ coach, userSubscr
 
     const aboutProfile = (coach.profile || {}) as Record<string, any>;
     const caseStudyCount = Array.isArray(aboutProfile.caseStudies) ? aboutProfile.caseStudies.length : 0;
+    const coachTrack = (coach as any).coach_track;
+    const serviceModes = Array.isArray((coach as any).service_modes) ? (coach as any).service_modes : [];
+    const targetStudentLevels = Array.isArray((coach as any).target_student_levels) ? (coach as any).target_student_levels : [];
+    const supportFocus = (coach as any).support_focus || aboutProfile.supportFocus;
 
     const contactCoach = async () => {
         if (!session?.user?.id) {
@@ -157,6 +166,11 @@ const CoachIntroduction: React.FC<CoachIntroductionProps> = ({ coach, userSubscr
                             <div>
                                 <div className="flex flex-wrap items-center gap-3 mb-2">
                                     <h1 className="text-3xl font-black text-surface-900 tracking-tighter">{coach.name}</h1>
+                                    {coachTrack && (
+                                        <span className="px-3 py-1 bg-primary-50 text-primary-700 text-[11px] font-black uppercase tracking-widest rounded-lg border border-primary-100">
+                                            {getCoachTrackLabel(coachTrack)}
+                                        </span>
+                                    )}
                                     {coach.title && (
                                         <span className="px-3 py-1 bg-surface-100 text-surface-600 text-[11px] font-black uppercase tracking-widest rounded-lg">
                                             {coach.title}
@@ -254,6 +268,43 @@ const CoachIntroduction: React.FC<CoachIntroductionProps> = ({ coach, userSubscr
                                     ))}
                                 </div>
                             </div>
+
+                            {(serviceModes.length > 0 || targetStudentLevels.length > 0 || supportFocus) && (
+                                <div className="flex flex-col gap-4">
+                                    <h3 className="text-[11px] font-black text-surface-400 uppercase tracking-[0.2em]">
+                                        服务定位
+                                    </h3>
+                                    {serviceModes.length > 0 && (
+                                        <div className="flex flex-wrap gap-2">
+                                            {serviceModes.map((mode: string) => (
+                                                <span
+                                                    key={mode}
+                                                    className="px-3 py-1.5 bg-primary-50 border border-primary-100 rounded-xl text-[12px] font-bold text-primary-700 shadow-sm"
+                                                >
+                                                    {getServiceModeLabel(mode)}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    )}
+                                    {targetStudentLevels.length > 0 && (
+                                        <div className="flex flex-wrap gap-2">
+                                            {targetStudentLevels.map((level: string) => (
+                                                <span
+                                                    key={level}
+                                                    className="px-3 py-1.5 bg-surface border border-surface-100 rounded-xl text-[12px] font-bold text-surface-700 shadow-sm"
+                                                >
+                                                    适合 {getTargetStudentLevelLabel(level)}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    )}
+                                    {supportFocus && (
+                                        <p className="text-sm text-surface-600 leading-relaxed whitespace-pre-line max-w-2xl px-1">
+                                            {supportFocus}
+                                        </p>
+                                    )}
+                                </div>
+                            )}
 
                             {/* 下部分：简介与核心指标 */}
                             <div className="flex flex-col gap-8">

@@ -19,6 +19,10 @@ export interface UpdateCoachApplicationDto {
     resumeUrl?: string | null;
     portfolioUrl?: string | null;
     socialLinks?: object | null;
+    coachTrack?: string | null;
+    serviceModes?: string[] | null;
+    targetStudentLevels?: string[] | null;
+    supportFocus?: string | null;
     province?: string | null;
     city?: string | null;
     county?: string | null;

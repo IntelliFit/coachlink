@@ -174,7 +174,55 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        if (enforceStudentSubscriptionAccess && instance.coach_subscription_id) {
+        const isHistoricalInstanceView = !!instanceId &&
+            ["completed", "archived"].includes(
+                String(instance.status ?? "").trim().toLowerCase(),
+            );
+        let shouldBypassSubscriptionGate = isHistoricalInstanceView;
+        if (
+            !shouldBypassSubscriptionGate &&
+            !!instanceId &&
+            enforceStudentSubscriptionAccess &&
+            String(instance.status ?? "").trim().toLowerCase() === "active"
+        ) {
+            const getDayIndex = (day: any) =>
+                Number(day?.dayIndex ?? day?.day_index ?? 0);
+            const startExecutionDay = Number(instance.start_execution_day || 1);
+            const trainingDays = (Array.isArray(instance.training_days)
+                ? instance.training_days
+                : [])
+                .filter((day: any) => {
+                    const di = getDayIndex(day);
+                    return di >= startExecutionDay && day?.type === "training";
+                });
+            const trainingDayIndexList = trainingDays
+                .map((day: any) => getDayIndex(day))
+                .filter((di: number) => di > 0);
+            if (trainingDayIndexList.length > 0) {
+                const { data: resolvedExecutions } = await supabase
+                    .from("plan_instance_executions")
+                    .select("day_index")
+                    .eq("instance_id", instance.id)
+                    .in("status", ["completed", "abandoned"]);
+                const resolvedDaySet = new Set<number>(
+                    (resolvedExecutions || [])
+                        .map((exec: any) => Number(exec?.day_index ?? 0))
+                        .filter((di: number) => di > 0),
+                );
+                const allTrainingDaysResolved = trainingDayIndexList.every(
+                    (di: number) => resolvedDaySet.has(di),
+                );
+                if (allTrainingDaysResolved) {
+                    shouldBypassSubscriptionGate = true;
+                }
+            }
+        }
+
+        if (
+            enforceStudentSubscriptionAccess &&
+            instance.coach_subscription_id &&
+            !shouldBypassSubscriptionGate
+        ) {
             if (
                 !subscriptionForStudentAccess ||
                 subscriptionForStudentAccess.id !== instance.coach_subscription_id

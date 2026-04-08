@@ -204,3 +204,29 @@
   - 打开弹窗后，同一接口是否只触发预期次数；
   - 加载完成后，组件是否稳定停留在列表态，而不是重新回到 skeleton；
   - 父组件高频重渲染时（计时器、输入框、toast），子组件请求 effect 是否会被误触发。
+
+## 16) `/today-training` 外卡与 `/training-execution` 计划值取数源不一致（高风险）
+
+- **现象**：外层今日训练卡片已经显示新重量，点进执行页后 `planned_weight` 仍是旧值。
+- **根因**：`get-instance` 已按 `coach_actions -> student_actions` 双源补齐动作元信息并参与算重，但 `execution/start` 或 `syncExecutionPlan` 仍只查单一动作表，或只依赖 `actionSet` 原始名称，导致某些动作拿不到真实 `name/canonical_action_id/includesBodyWeight`，执行页继续沿用旧计划值。
+- **统一规则**：
+  - 任何“计划展示”和“execution 初始化/同步”链路，动作元信息查询都必须统一 `coach_actions -> student_actions` 双源兜底；
+  - 参与 1RM/负荷计算的动作名，优先使用动作表真实名称，其次才回退 `actionSet.actionName/set_name`；
+  - `dayIndex` 比较统一转 `Number(...)`，避免 `string/number` 混用导致同步直接失效。
+- **改动前自检**：
+  - 修改学员 1RM 或动作库配置后，外层卡片与执行页首组 `planned_weight` 一致；
+  - `coach_actions` 与 `student_actions` 两类动作都各抽样验证一次；
+  - 对已有 `in_progress/completed` execution 刷新后，`planned_weight/planned_reps/planned_rest_seconds` 会同步更新。
+
+## 17) 历史计划详情误套当前订阅门禁导致列表可见但点开 403（高风险）
+
+- **现象**：学员在“全部计划”里能看到 `completed/archived` 历史计划，点击后却提示“计划不存在”或接口返回 `403`。
+- **根因**：历史详情链路虽然按实例 `id` 直查到了计划，但后端仍继续套用“当前订阅有效期 / 周数窗口”门禁，把已完成历史计划误当成当前训练内容拦截。
+- **统一规则**：
+  - 显式按实例 `id` 查看历史详情时，若实例状态为 `completed/archived`，只能校验“是否属于该学员/教练”，不能再按当前订阅有效期二次拦截；
+  - 只有“按 subscription 获取当前计划”或“查看 active/paused 计划”时，才应用订阅有效期和周数窗口限制；
+  - `get-instance` 与 `get-with-executions` 这类详情/执行聚合接口必须保持同一权限语义，避免一个放行、另一个 403。
+- **改动前自检**：
+  - 用已过期订阅的学员账号打开已完成计划详情，确认能看到完整训练天和执行记录；
+  - 当前进行中的计划仍会按订阅有效期正常拦截；
+  - 教练端查看学员历史计划弹窗与学员端“全部计划”详情表现一致。

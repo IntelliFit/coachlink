@@ -72,6 +72,36 @@ export function isSameCity(userCityStr: string | undefined, coach: CoachLocation
   return userProvince === coach.province && userCity === coach.city;
 }
 
+/** 基于经纬度的“附近”判断（用于同城筛选兜底） */
+export function isNearbyByCoords(
+  userLocation: UserLocation | null,
+  coach: CoachLocation,
+  maxKm: number = 30
+): boolean {
+  if (!userLocation || !coachHasCoords(coach)) return false;
+  const km = haversineDistanceKm(
+    userLocation.latitude,
+    userLocation.longitude,
+    coach.latitude!,
+    coach.longitude!
+  );
+  return Number.isFinite(km) && km <= maxKm;
+}
+
+/**
+ * 搜索页“同城”判定：
+ * 1) 优先按省+市一致；
+ * 2) 若教练未完善省市，但与用户距离很近（默认 30km 内），也视为同城兜底。
+ */
+export function isSameCityForFilter(
+  userLocation: UserLocation | null,
+  coach: CoachLocation
+): boolean {
+  if (!userLocation) return false;
+  if (isSameCity(userLocation.city, coach)) return true;
+  return isNearbyByCoords(userLocation, coach, 30);
+}
+
 /** 用户所在区/县是否与教练一致（省+市+区 均一致时显示同城角标） */
 export function isSameCounty(userLocation: UserLocation | null, coach: CoachLocation): boolean {
   if (!userLocation?.city || !coach.province || !coach.city || !coach.county) return false;

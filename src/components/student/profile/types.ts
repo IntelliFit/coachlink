@@ -45,6 +45,8 @@ export interface ProfileData {
         | "none"
         | "draft"
         | "pending"
+        | "reviewing"
+        | "needs_info"
         | "rejected"
         | "approved"
         | "coach";

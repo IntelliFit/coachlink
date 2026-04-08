@@ -6,6 +6,11 @@ import { Chip } from 'primereact/chip';
 import { Card } from 'primereact/card';
 import type { CoachApplicationRow } from '@/types';
 import { formatBeijingDate } from '@/lib/beijingTime';
+import {
+    getCoachTrackLabel,
+    getServiceModeLabel,
+    getTargetStudentLevelLabel,
+} from '@/lib/coachApplicationOptions';
 
 interface CoachApplicationDialogProps {
     visible: boolean;
@@ -151,6 +156,7 @@ const CoachApplicationDialog: React.FC<CoachApplicationDialogProps> = ({
                             {renderField("个人简介", application.bio)}
                             {renderField("申请时间", formatDate(application.applied_at))}
                             {renderField("申请状态", statusLabels[application.status] || application.status)}
+                            {renderField("申请层级", getCoachTrackLabel((application as any).coach_track))}
                             {renderField("教学年限", application.years_experience ? `${application.years_experience}年` : null)}
                         </>
                     ))}
@@ -169,6 +175,9 @@ const CoachApplicationDialog: React.FC<CoachApplicationDialogProps> = ({
                     {renderSection("专业信息", (
                         <>
                             {renderArrayField("专业领域", application.specialties)}
+                            {renderArrayField("服务方式", ((application as any).service_modes || []).map((item: string) => getServiceModeLabel(item)))}
+                            {renderArrayField("适合学员阶段", ((application as any).target_student_levels || []).map((item: string) => getTargetStudentLevelLabel(item)))}
+                            {renderField("阶段问题聚焦", (application as any).support_focus)}
                             {renderField("教学理念", application.teaching_philosophy)}
                         </>
                     ))}

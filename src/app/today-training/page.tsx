@@ -121,8 +121,8 @@ const TodayTrainingPage: React.FC = () => {
         return formatBeijingDate(ts, 'zh-CN', { month: 'numeric', day: 'numeric' });
     };
     // 今日训练页必须以 recommendedDayIndex 为主口径：
-    // 休息日会自动顺延到下一训练日，不能再用“计划日历上的今天”覆盖默认展示，
-    // 否则会出现“教练计划还在，但学员默认看到休息日，误以为训练没了”的问题。
+    // 推进按计划日严格顺序进行（包含恢复日），
+    // 恢复日无轻任务次日自动推进；有轻任务需完成/跳过后推进。
     const progressDayIndex = todayDayIndex;
     const progressDay = trainingDays.find(d => d.dayIndex === progressDayIndex);
     const progressExec = (executionsByDayIndex || {})[progressDayIndex];
@@ -899,6 +899,8 @@ const TodayTrainingPage: React.FC = () => {
         const hasActiveSubscription = !!activeSubscription?.id;
         const subscriptionLifecycle = String(activeSubscription?.lifecycle_status || 'active');
         const isExpiredGrace = subscriptionLifecycle === 'expired_grace';
+        const hasHistoricalPlan = !!activeSubscription?.has_plan_instance;
+        const showCompletedState = hasHistoricalPlan && !isExpiredGrace;
         const graceDaysLeft = Math.max(0, Number(activeSubscription?.grace_days_left || 0));
         const graceDeadlineLabel = formatShortDate(activeSubscription?.grace_deadline_at);
         const renewPath = activeSubscription?.coach_id
@@ -931,16 +933,24 @@ const TodayTrainingPage: React.FC = () => {
                             </div>
 
                             <h3 className="text-2xl font-bold tracking-tight text-surface-900 mb-3">
-                                {isExpiredGrace ? '订阅已到期，请尽快续费' : '计划正在制定中'}
+                                {isExpiredGrace
+                                    ? '订阅已到期，请尽快续费'
+                                    : showCompletedState
+                                        ? '当前阶段计划已完成'
+                                        : '计划正在制定中'}
                             </h3>
                             <p className="text-surface-500 max-w-sm mx-auto mb-10 leading-relaxed text-balance">
                                 {isExpiredGrace
                                     ? subscribedCoachName
                                         ? `您与教练「${subscribedCoachName}」的订阅已到期。训练计划内容已锁定，请在宽限期内续费后恢复并继续当前进度。`
                                         : '您的教练订阅已到期。训练计划内容已锁定，请在宽限期内续费后恢复并继续当前进度。'
-                                    : subscribedCoachName
-                                        ? `您的教练「${subscribedCoachName}」正在为您制定训练计划，请耐心等待。`
-                                        : '您的教练正在为您制定训练计划，请耐心等待。'}
+                                    : showCompletedState
+                                        ? (subscribedCoachName
+                                            ? `您与教练「${subscribedCoachName}」的本阶段计划已完成。可查看历史记录，并联系教练制定下一阶段计划。`
+                                            : '您的本阶段计划已完成。可查看历史记录，并联系教练制定下一阶段计划。')
+                                        : (subscribedCoachName
+                                            ? `您的教练「${subscribedCoachName}」正在为您制定训练计划，请耐心等待。`
+                                            : '您的教练正在为您制定训练计划，请耐心等待。')}
                             </p>
 
                             {isExpiredGrace && (
@@ -957,6 +967,13 @@ const TodayTrainingPage: React.FC = () => {
                                         icon="pi pi-refresh"
                                         onClick={() => router.push(renewPath)}
                                         className="w-full sm:w-auto px-8 py-3.5 rounded-2xl bg-amber-500 border-none transition-all active:scale-[0.98] duration-200 ease-out"
+                                    />
+                                ) : showCompletedState ? (
+                                    <Button
+                                        label="查看全部计划"
+                                        icon="pi pi-history"
+                                        onClick={() => router.push('/me/plan-history')}
+                                        className="w-full sm:w-auto px-8 py-3.5 rounded-2xl bg-primary-500 border-none transition-all active:scale-[0.98] duration-200 ease-out"
                                     />
                                 ) : (
                                     <Button
@@ -984,6 +1001,13 @@ const TodayTrainingPage: React.FC = () => {
                                         label="即兴锻炼"
                                         icon="pi pi-bolt"
                                         onClick={() => router.push('/impromptu-training')}
+                                        className="w-full sm:w-auto px-8 py-3.5 rounded-2xl bg-surface-50 text-surface-700 border border-surface-200 transition-all active:scale-[0.98] duration-200 ease-out hover:bg-surface-100"
+                                    />
+                                ) : showCompletedState ? (
+                                    <Button
+                                        label="我的计划库"
+                                        icon="pi pi-bookmark"
+                                        onClick={() => router.push('/me/plan-lib')}
                                         className="w-full sm:w-auto px-8 py-3.5 rounded-2xl bg-surface-50 text-surface-700 border border-surface-200 transition-all active:scale-[0.98] duration-200 ease-out hover:bg-surface-100"
                                     />
                                 ) : (
@@ -1060,6 +1084,8 @@ const TodayTrainingPage: React.FC = () => {
             '教练';
         const subscriptionLifecycle = String(activeSubscription?.lifecycle_status || 'active');
         const isExpiredGrace = subscriptionLifecycle === 'expired_grace';
+        const hasHistoricalPlan = !!activeSubscription?.has_plan_instance;
+        const showCompletedState = hasHistoricalPlan && !isExpiredGrace;
         const graceDaysLeft = Math.max(0, Number(activeSubscription?.grace_days_left || 0));
         const graceDeadlineLabel = formatShortDate(activeSubscription?.grace_deadline_at);
         const renewPath = activeSubscription?.coach_id
@@ -1149,16 +1175,24 @@ const TodayTrainingPage: React.FC = () => {
                                 </div>
                             </div>
                             <h3 className="text-2xl font-bold tracking-tight text-surface-900 mb-3">
-                                {isExpiredGrace ? '订阅已到期，请尽快续费' : '计划正在制定中'}
+                                {isExpiredGrace
+                                    ? '订阅已到期，请尽快续费'
+                                    : showCompletedState
+                                        ? '当前阶段计划已完成'
+                                        : '计划正在制定中'}
                             </h3>
                             <p className="text-surface-500 max-w-sm mx-auto mb-10 leading-relaxed text-balance">
                                 {isExpiredGrace
                                     ? coachName
                                         ? `您与教练「${coachName}」的订阅已到期。训练计划内容已锁定，请在宽限期内续费后恢复并继续当前进度。`
                                         : '您的教练订阅已到期。训练计划内容已锁定，请在宽限期内续费后恢复并继续当前进度。'
-                                    : coachName
-                                        ? `您的教练「${coachName}」正在为您制定训练计划，请耐心等待。`
-                                        : '您的教练正在为您制定训练计划，请耐心等待。'}
+                                    : showCompletedState
+                                        ? (coachName
+                                            ? `您与教练「${coachName}」的本阶段计划已完成。可查看历史记录，并联系教练制定下一阶段计划。`
+                                            : '您的本阶段计划已完成。可查看历史记录，并联系教练制定下一阶段计划。')
+                                        : (coachName
+                                            ? `您的教练「${coachName}」正在为您制定训练计划，请耐心等待。`
+                                            : '您的教练正在为您制定训练计划，请耐心等待。')}
                             </p>
 
                             {isExpiredGrace && (
@@ -1175,6 +1209,13 @@ const TodayTrainingPage: React.FC = () => {
                                         icon="pi pi-refresh"
                                         onClick={() => router.push(renewPath)}
                                         className="w-full sm:w-auto px-8 py-3.5 rounded-2xl bg-amber-500 border-none transition-all active:scale-[0.98] duration-200 ease-out"
+                                    />
+                                ) : showCompletedState ? (
+                                    <Button
+                                        label="查看全部计划"
+                                        icon="pi pi-history"
+                                        onClick={() => router.push('/me/plan-history')}
+                                        className="w-full sm:w-auto px-8 py-3.5 rounded-2xl bg-primary-500 border-none transition-all active:scale-[0.98] duration-200 ease-out"
                                     />
                                 ) : (
                                     <Button
@@ -1201,6 +1242,13 @@ const TodayTrainingPage: React.FC = () => {
                                         label="即兴锻炼"
                                         icon="pi pi-bolt"
                                         onClick={() => router.push('/impromptu-training')}
+                                        className="w-full sm:w-auto px-8 py-3.5 rounded-2xl bg-surface-50 text-surface-700 border border-surface-200 transition-all active:scale-[0.98] duration-200 ease-out hover:bg-surface-100"
+                                    />
+                                ) : showCompletedState ? (
+                                    <Button
+                                        label="我的计划库"
+                                        icon="pi pi-bookmark"
+                                        onClick={() => router.push('/me/plan-lib')}
                                         className="w-full sm:w-auto px-8 py-3.5 rounded-2xl bg-surface-50 text-surface-700 border border-surface-200 transition-all active:scale-[0.98] duration-200 ease-out hover:bg-surface-100"
                                     />
                                 ) : (
@@ -1814,7 +1862,7 @@ const TodayTrainingPage: React.FC = () => {
                 <div className="space-y-4 text-sm text-surface-700 leading-relaxed">
                     <div className="space-y-2">
                         <div className="font-bold text-surface-900">1) 今日推进规则</div>
-                        <div>休息日会自动顺延；到训练日会停住，直到你完成/跳过（避免因为延迟执行而“看起来进度被推走”）。</div>
+                        <div>推进按计划日严格顺序：训练日与恢复日都会经过；恢复日有轻任务需完成/跳过，无轻任务会在次日自动推进。</div>
                     </div>
                     <div className="space-y-2">
                         <div className="font-bold text-surface-900">2) 输入真实重量/次数的意义（不止是记录）</div>

@@ -10,7 +10,13 @@ import { Skeleton } from 'primereact/skeleton';
 import { CoachesRow } from '@/types';
 import { useRouter } from 'next/navigation';
 import { useUserLocation } from '@/hooks/useUserLocation';
-import { formatCoachDistance, isSameCounty } from '@/lib/distanceUtils';
+import { formatCoachDistance, isSameCityForFilter } from '@/lib/distanceUtils';
+import {
+    COACH_TRACK_OPTIONS,
+    SERVICE_MODE_OPTIONS,
+    TARGET_STUDENT_LEVEL_OPTIONS,
+    getCoachTrackShortLabel,
+} from '@/lib/coachApplicationOptions';
 
 const CoachSearchPage: React.FC = () => {
     const [coaches, setCoaches] = useState<CoachesRow[]>([]);
@@ -19,12 +25,27 @@ const CoachSearchPage: React.FC = () => {
     const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [selectedSpecialty, setSelectedSpecialty] = useState<string>('all');
+    const [selectedTrack, setSelectedTrack] = useState<string>('all');
+    const [selectedServiceMode, setSelectedServiceMode] = useState<string>('all');
+    const [selectedStudentLevel, setSelectedStudentLevel] = useState<string>('all');
     const [sameCityOnly, setSameCityOnly] = useState(false);
     const [totalCount, setTotalCount] = useState(0);
     const [currentPage, setCurrentPage] = useState(0);
     const coachesPerPage = 12;
     const router = useRouter();
     const { userLocation } = useUserLocation();
+    const preferredCoachTrack =
+        selectedTrack !== 'all'
+            ? ''
+            : selectedStudentLevel === 'beginner'
+                ? 'buddy'
+                : selectedStudentLevel === 'intermediate'
+                    ? 'growth'
+                    : selectedStudentLevel === 'advanced'
+                        ? 'professional'
+                        : debouncedSearchTerm
+                            ? ''
+                            : 'buddy';
 
     // 搜索防抖
     useEffect(() => {
@@ -43,12 +64,12 @@ const CoachSearchPage: React.FC = () => {
     useEffect(() => {
         setCurrentPage(0);
         loadCoaches(1);
-    }, [debouncedSearchTerm, selectedSpecialty]);
+    }, [debouncedSearchTerm, selectedSpecialty, selectedTrack, selectedServiceMode, selectedStudentLevel]);
 
-    // 只看同城：对当前页结果做客户端过滤（区/县与用户一致）
+    // 只看同城：优先省市一致；省市缺失时用“近距离”兜底
     const filteredCoaches = useMemo(() => {
         if (!sameCityOnly) return coaches;
-        return coaches.filter((c) => isSameCounty(userLocation, c));
+        return coaches.filter((c) => isSameCityForFilter(userLocation, c));
     }, [coaches, sameCityOnly, userLocation]);
 
     const loadSpecialties = async () => {
@@ -82,7 +103,11 @@ const CoachSearchPage: React.FC = () => {
                 page: page,
                 limit: coachesPerPage,
                 search: debouncedSearchTerm || '',
-                specialty: selectedSpecialty === 'all' ? '' : selectedSpecialty
+                specialty: selectedSpecialty === 'all' ? '' : selectedSpecialty,
+                coachTrack: selectedTrack === 'all' ? '' : selectedTrack,
+                preferredCoachTrack,
+                serviceMode: selectedServiceMode === 'all' ? '' : selectedServiceMode,
+                targetStudentLevel: selectedStudentLevel === 'all' ? '' : selectedStudentLevel,
             });
             if (res) {
                 setCoaches(res.coaches);
@@ -122,6 +147,9 @@ const CoachSearchPage: React.FC = () => {
                         <Crown size={12} fill="currentColor" />
                     </div>
                 )}
+                <div className="absolute left-2 top-2 px-2 py-1 bg-surface/90 text-surface-900 text-[10px] font-black rounded-full border border-surface-200">
+                    {getCoachTrackShortLabel((coach as any).coach_track)}
+                </div>
             </div>
             
             <h3 className="text-base font-bold text-surface-900 truncate mb-1">{coach.name}</h3>
@@ -155,7 +183,7 @@ const CoachSearchPage: React.FC = () => {
                 </div>
                 {formatCoachDistance(userLocation, coach) && (
                     <div className="flex items-center gap-1.5 shrink-0">
-                        {isSameCounty(userLocation, coach) && (
+                        {isSameCityForFilter(userLocation, coach) && (
                             <span className="px-2 py-0.5 bg-primary-100 text-primary-700 text-xs font-black rounded-full border border-primary-200">
                                 同城
                             </span>
@@ -206,6 +234,36 @@ const CoachSearchPage: React.FC = () => {
                                 options={specialties}
                                 onChange={(e) => setSelectedSpecialty(e.value)}
                                 placeholder="选择专长"
+                                className="w-full h-10 rounded-full border-none bg-surface-100"
+                                panelClassName="rounded-xl"
+                            />
+                        </div>
+                        <div className="w-full md:w-44">
+                            <Dropdown
+                                value={selectedTrack}
+                                options={[{ label: '所有层级', value: 'all' }, ...COACH_TRACK_OPTIONS.map((item) => ({ label: item.label, value: item.value }))]}
+                                onChange={(e) => setSelectedTrack(e.value)}
+                                placeholder="教练层级"
+                                className="w-full h-10 rounded-full border-none bg-surface-100"
+                                panelClassName="rounded-xl"
+                            />
+                        </div>
+                        <div className="w-full md:w-44">
+                            <Dropdown
+                                value={selectedServiceMode}
+                                options={[{ label: '全部方式', value: 'all' }, ...SERVICE_MODE_OPTIONS.map((item) => ({ label: item.label, value: item.value }))]}
+                                onChange={(e) => setSelectedServiceMode(e.value)}
+                                placeholder="服务方式"
+                                className="w-full h-10 rounded-full border-none bg-surface-100"
+                                panelClassName="rounded-xl"
+                            />
+                        </div>
+                        <div className="w-full md:w-44">
+                            <Dropdown
+                                value={selectedStudentLevel}
+                                options={[{ label: '全部阶段', value: 'all' }, ...TARGET_STUDENT_LEVEL_OPTIONS.map((item) => ({ label: item.label, value: item.value }))]}
+                                onChange={(e) => setSelectedStudentLevel(e.value)}
+                                placeholder="学员阶段"
                                 className="w-full h-10 rounded-full border-none bg-surface-100"
                                 panelClassName="rounded-xl"
                             />

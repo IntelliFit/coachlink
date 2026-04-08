@@ -1,17 +1,44 @@
 import supabase from "@/lib/supabaseClient";
 import { NextResponse } from "next/server";
 import { GetAllCoachesDto } from "./entity";
+import { sanitizeCoachTrack } from "@/lib/coachApplicationOptions";
+
+const TRACK_SORT_ORDER = ["buddy", "growth", "professional"] as const;
+
+function getTrackAffinityScore(track: unknown, preferredTrack: string | null) {
+    if (!preferredTrack || typeof track !== "string") {
+        return 0;
+    }
+
+    const preferredIndex = TRACK_SORT_ORDER.indexOf(preferredTrack as (typeof TRACK_SORT_ORDER)[number]);
+    const currentIndex = TRACK_SORT_ORDER.indexOf(track as (typeof TRACK_SORT_ORDER)[number]);
+
+    if (preferredIndex === -1 || currentIndex === -1) {
+        return 0;
+    }
+
+    const distance = Math.abs(preferredIndex - currentIndex);
+    return Math.max(0, 3 - distance);
+}
 
 export async function POST(req: Request) {
     const {
         page = 1,
         limit = 10,
         search = '',
-        specialty = 'all'
+        specialty = 'all',
+        coachTrack = '',
+        preferredCoachTrack = '',
+        serviceMode = '',
+        targetStudentLevel = '',
     } = await req.json() as GetAllCoachesDto;
 
     const from = (page - 1) * limit;
     const to = from + limit - 1;
+    const preferredTrackForSort =
+        !coachTrack.trim() && preferredCoachTrack.trim()
+            ? sanitizeCoachTrack(preferredCoachTrack)
+            : null;
 
     // 构建查询
     let query = supabase
@@ -30,6 +57,15 @@ export async function POST(req: Request) {
     // specialty 数组过滤
     if (specialty.trim() && specialty.trim() !== 'all') {
         query = query.contains("specialties", [specialty]);
+    }
+    if (coachTrack.trim() && coachTrack.trim() !== 'all') {
+        query = query.eq("coach_track", coachTrack);
+    }
+    if (serviceMode.trim() && serviceMode.trim() !== 'all') {
+        query = query.contains("service_modes", [serviceMode]);
+    }
+    if (targetStudentLevel.trim() && targetStudentLevel.trim() !== 'all') {
+        query = query.contains("target_student_levels", [targetStudentLevel]);
     }
 
     /**
@@ -74,6 +110,15 @@ export async function POST(req: Request) {
         }
         if (specialty.trim() && specialty.trim() !== 'all') {
             fallbackQuery = fallbackQuery.contains("specialties", [specialty]);
+        }
+        if (coachTrack.trim() && coachTrack.trim() !== 'all') {
+            fallbackQuery = fallbackQuery.eq("coach_track", coachTrack);
+        }
+        if (serviceMode.trim() && serviceMode.trim() !== 'all') {
+            fallbackQuery = fallbackQuery.contains("service_modes", [serviceMode]);
+        }
+        if (targetStudentLevel.trim() && targetStudentLevel.trim() !== 'all') {
+            fallbackQuery = fallbackQuery.contains("target_student_levels", [targetStudentLevel]);
         }
 
         const { data: coaches, error: fallbackError, count: fallbackCount } = await fallbackQuery
@@ -195,6 +240,11 @@ export async function POST(req: Request) {
         const af = a.is_featured ? 1 : 0;
         const bf = b.is_featured ? 1 : 0;
         if (bf !== af) return bf - af;
+
+        // 3) 若前端未显式筛选层级，则优先展示更贴近用户当前阶段的教练层级
+        const at = getTrackAffinityScore(a.coach_track, preferredTrackForSort);
+        const bt = getTrackAffinityScore(b.coach_track, preferredTrackForSort);
+        if (bt !== at) return bt - at;
 
         const as = Number(a.studentCount || 0);
         const bs = Number(b.studentCount || 0);

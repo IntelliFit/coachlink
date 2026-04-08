@@ -20,6 +20,10 @@ import { useCart } from '@/context/CartContext';
 import type { Product, DurationOption } from '@/app/api/coach/get-pricing/entity';
 import type { PublicActionItemDto } from '@/app/api/public-action-lib/list-actions/entity';
 import FormattedActionText from '@/components/shared/FormattedActionText';
+import {
+    COACH_TRACK_OPTIONS,
+    getCoachTrackShortLabel,
+} from '@/lib/coachApplicationOptions';
 
 // 动态导入，避免首次加载时拉入 dashboard/me 下的重型组件
 const PublicActionDetailDialog = dynamic(
@@ -224,6 +228,7 @@ function DiscoveryContentInner() {
     const [searchTerm, setSearchTerm] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [selectedSpecialty, setSelectedSpecialty] = useState<string>('all');
+    const [selectedTrack, setSelectedTrack] = useState<string>('all');
     const coachesPerPage = 10;
     const router = useRouter();
     const { startGuide, hasCompletedGuide, isLoading: isGuideLoading } = useGuideStore();
@@ -274,7 +279,7 @@ function DiscoveryContentInner() {
         if (visibilityLoading) return;
         loadCoaches(1);
         loadSpecialties();
-    }, [visibilityLoading, visibilityStatus]);
+    }, [visibilityLoading, visibilityStatus, selectedTrack]);
 
     useEffect(() => {
         if (visibilityLoading) return;
@@ -390,7 +395,10 @@ function DiscoveryContentInner() {
             } else {
                 const res = await coachService.getAllCoaches({
                     page, limit: coachesPerPage,
-                    search: searchTerm || '', specialty: selectedSpecialty
+                    search: searchTerm || '',
+                    specialty: selectedSpecialty,
+                    coachTrack: selectedTrack,
+                    preferredCoachTrack: selectedTrack === 'all' ? 'buddy' : '',
                 });
                 if (res) setCoaches(res.coaches);
             }
@@ -417,6 +425,9 @@ function DiscoveryContentInner() {
                         <Crown size={12} fill="currentColor" />
                     </div>
                 )}
+                <div className="absolute left-2 top-2 px-2 py-1 bg-surface/90 text-surface-900 text-[10px] font-black rounded-full border border-surface-200 shadow-sm">
+                    {getCoachTrackShortLabel((coach as any).coach_track)}
+                </div>
             </div>
             <h3 className="text-sm font-black text-surface-900 truncate mb-1 tracking-tight">{coach.name}</h3>
             <p className="text-xs text-surface-500 font-medium line-clamp-1 mb-3 h-4">{coach.bio || "暂无简介"}</p>
@@ -608,6 +619,51 @@ function DiscoveryContentInner() {
                             <span className="text-xs font-black text-surface-900 tracking-tight">{c.title}</span>
                         </button>
                     ))}
+                </div>
+
+                <div className="mb-8 rounded-3xl border border-surface-100 bg-surface-0 p-4 md:p-5">
+                    <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                        <div>
+                            <h2 className="text-lg font-black text-surface-900 tracking-tight">按教练层级浏览</h2>
+                            <p className="text-sm text-surface-500 mt-1">先选你当前阶段最需要的教练类型，推荐结果会更贴近你的真实需求。</p>
+                        </div>
+                        {selectedTrack !== 'all' && (
+                            <button
+                                type="button"
+                                onClick={() => setSelectedTrack('all')}
+                                className="text-xs font-bold text-surface-500 hover:text-surface-900 transition-colors"
+                            >
+                                清除筛选
+                            </button>
+                        )}
+                    </div>
+                    <div className="flex flex-wrap gap-2 mt-4">
+                        <button
+                            type="button"
+                            onClick={() => setSelectedTrack('all')}
+                            className={`rounded-full border px-4 py-2 text-sm font-bold transition-all ${
+                                selectedTrack === 'all'
+                                    ? 'border-surface-900 bg-surface-900 text-white'
+                                    : 'border-surface-200 bg-surface text-surface-600 hover:border-surface-400'
+                            }`}
+                        >
+                            全部教练
+                        </button>
+                        {COACH_TRACK_OPTIONS.map((option) => (
+                            <button
+                                key={option.value}
+                                type="button"
+                                onClick={() => setSelectedTrack(option.value)}
+                                className={`rounded-full border px-4 py-2 text-sm font-bold transition-all ${
+                                    selectedTrack === option.value
+                                        ? 'border-primary-500 bg-primary-500 text-white'
+                                        : 'border-surface-200 bg-surface text-surface-600 hover:border-primary-300 hover:text-primary-700'
+                                }`}
+                            >
+                                {option.label}
+                            </button>
+                        ))}
+                    </div>
                 </div>
 
                 {productFeedLoading ? (

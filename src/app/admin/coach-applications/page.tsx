@@ -15,6 +15,7 @@ import CoachApplicationDialog from './CoachApplicationDialog';
 import ReviewNotesDialog from './ReviewNotesDialog';
 import type { CoachApplicationRow } from '@/types';
 import { formatBeijingDate } from '@/lib/beijingTime';
+import { getCoachTrackShortLabel } from '@/lib/coachApplicationOptions';
 
 const STATUS_OPTIONS = [
     { label: '待审核', value: 'pending', severity: 'warning' },
@@ -119,6 +120,18 @@ export default function AdminCoachApplicationsPage() {
         );
     };
 
+    const trackTemplate = (rowData: CoachApplicationRow) => {
+        if (loading) return <Skeleton width="72px" height="24px" />;
+        const value = (rowData as any).coach_track;
+        return (
+            <Tag
+                severity={value === 'buddy' ? 'contrast' : value === 'growth' ? 'info' : 'success'}
+                value={getCoachTrackShortLabel(value)}
+                rounded
+            />
+        );
+    };
+
     // --- 业务逻辑 ---
 
     const viewApplicationDetails = async (application: CoachApplicationRow) => {
@@ -210,6 +223,7 @@ export default function AdminCoachApplicationsPage() {
             >
                 <Column selectionMode="multiple" headerStyle={{ width: '3rem' }}></Column>
                 <Column header="申请人信息" body={userInfoTemplate} style={{ minWidth: '14rem' }}></Column>
+                <Column header="层级" body={trackTemplate} style={{ width: '8rem' }}></Column>
                 <Column field="years_experience" header="教龄" body={(d) => loading ? <Skeleton /> : `${d.years_experience} 年`} style={{ width: '8rem' }}></Column>
                 <Column 
                     field="status" 

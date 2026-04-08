@@ -192,6 +192,10 @@ export async function POST(req: Request) {
                 contactEmail: latestApplication.contact_email,
                 contactPhone: latestApplication.contact_phone,
                 socialLinks: latestApplication.social_links,
+                supportFocus: latestApplication.support_focus,
+                coachTrack: latestApplication.coach_track,
+                serviceModes: latestApplication.service_modes,
+                targetStudentLevels: latestApplication.target_student_levels,
             };
 
             enrichedCoach = {
@@ -201,6 +205,14 @@ export async function POST(req: Request) {
                 avatar_url: coach.avatar_url ?? latestApplication.avatar_url,
                 specialties: coach.specialties ?? latestApplication.specialties,
                 bio: coach.bio ?? latestApplication.bio,
+                coach_track: coach.coach_track ?? latestApplication.coach_track,
+                service_modes: coach.service_modes?.length
+                    ? coach.service_modes
+                    : latestApplication.service_modes,
+                target_student_levels: coach.target_student_levels?.length
+                    ? coach.target_student_levels
+                    : latestApplication.target_student_levels,
+                support_focus: coach.support_focus ?? latestApplication.support_focus,
                 years_experience: coach.years_experience ??
                     latestApplication.years_experience,
                 achievements: coach.achievements ??

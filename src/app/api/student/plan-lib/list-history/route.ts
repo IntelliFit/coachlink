@@ -35,7 +35,7 @@ export async function POST(req: Request) {
     let query = supabase
         .from("coach_plan_instances")
         .select(
-            "id, name, description, source, status, start_date, end_date, created_at, updated_at, training_days",
+            "id, name, description, source, status, start_date, end_date, start_execution_day, created_at, updated_at, training_days",
             { count: "exact" },
         )
         .eq("student_id", userId)
@@ -61,25 +61,83 @@ export async function POST(req: Request) {
         }, { status: 500 });
     }
 
-    // 计算每个计划的完成度
-    const plansWithStats: PlanHistoryItem[] = (plans || []).map((plan: any) => {
-        const trainingDays = plan.training_days || [];
-        const totalDays = trainingDays.length;
+    const planIds = (plans || [])
+        .map((plan: any) => plan?.id)
+        .filter(Boolean);
+    const { data: resolvedExecutions } = planIds.length > 0
+        ? await supabase
+            .from("plan_instance_executions")
+            .select("instance_id, day_index, status")
+            .in("instance_id", planIds)
+            .in("status", ["completed", "abandoned"])
+        : { data: [] as any[] };
 
-        // 暂时不计算完成度（需要关联 plan_instance_executions）
-        // 后续 Phase 可以增加此逻辑
+    const resolvedDaySetByInstanceId = new Map<string, Set<number>>();
+    for (const exec of resolvedExecutions || []) {
+        const instanceId = String((exec as any)?.instance_id || "");
+        if (!instanceId) continue;
+        const dayIndex = Number((exec as any)?.day_index ?? 0);
+        if (!dayIndex) continue;
+        const existing = resolvedDaySetByInstanceId.get(instanceId) ||
+            new Set<number>();
+        existing.add(dayIndex);
+        resolvedDaySetByInstanceId.set(instanceId, existing);
+    }
+
+    // 计算每个计划的真实完成度，并修正“逻辑已完成但状态仍 active”的展示。
+    const plansWithStats: PlanHistoryItem[] = (plans || []).map((plan: any) => {
+        const dayList = Array.isArray(plan.training_days) ? plan.training_days : [];
+        const startExecutionDay = Number(plan.start_execution_day || 1);
+        const getDayIndex = (day: any, index: number) =>
+            Number(day?.dayIndex ?? day?.day_index ?? (index + 1));
+        const isTrainingDay = (day: any) => {
+            const type = String(day?.type || "").trim().toLowerCase();
+            // 兼容旧数据：无 type 时默认按训练日处理；只有 rest 明确排除。
+            return type !== "rest";
+        };
+
+        const trainingDayIndexes = dayList
+            .map((day: any, index: number) => ({
+                dayIndex: getDayIndex(day, index),
+                isTraining: isTrainingDay(day),
+            }))
+            .filter((item: any) =>
+                item.isTraining &&
+                item.dayIndex >= startExecutionDay &&
+                item.dayIndex > 0
+            )
+            .map((item: any) => item.dayIndex);
+
+        const resolvedDays = resolvedDaySetByInstanceId.get(plan.id) ||
+            new Set<number>();
+        const completedDays = trainingDayIndexes.filter((dayIndex: number) =>
+            resolvedDays.has(dayIndex)
+        ).length;
+        const totalTrainingDays = trainingDayIndexes.length;
+        const completionRate = totalTrainingDays > 0
+            ? Math.round((completedDays / totalTrainingDays) * 100)
+            : undefined;
+        const isLogicallyCompleted = totalTrainingDays > 0 &&
+            completedDays >= totalTrainingDays;
+        const normalizedStatus = String(plan.status || "").trim().toLowerCase();
+        const displayStatus = normalizedStatus === "active" &&
+                isLogicallyCompleted
+            ? "completed"
+            : plan.status;
+
         return {
             id: plan.id,
             name: plan.name,
             description: plan.description,
             source: plan.source,
-            status: plan.status,
+            status: displayStatus,
             start_date: plan.start_date,
             end_date: plan.end_date,
             created_at: plan.created_at,
             updated_at: plan.updated_at,
-            total_days: totalDays,
-            // completion_rate 和 completed_days 暂不计算
+            total_days: totalTrainingDays,
+            completed_days: completedDays,
+            completion_rate: completionRate,
         };
     });
 
