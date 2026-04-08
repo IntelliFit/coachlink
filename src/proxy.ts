@@ -103,6 +103,7 @@ const PUBLIC_PATHS = new Set([
     "/api/payment/alipay/return", // Alipay return - browser redirect without session
     "/api/payment/alipay/query", // guest payment query
     "/api/payment/alipay/guest/create", // guest payment create (public)
+    "/api/payment/wechat/notify", // Wechat Pay callback - must be public
     "/api/hello-world", // hello world test endpoint (public)
     "/api/system/version", // deploy version info endpoint (public)
     "/docs/agreement",
