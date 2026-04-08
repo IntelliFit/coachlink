@@ -1,3 +1,10 @@
+import {
+    computeCreditsScope,
+    computeUsedCredits,
+    type ExecutionLike,
+    type TrainingDayLike,
+} from "./subscriptionCredits";
+
 export type SubscriptionAccessBlockReason =
     | "SUBSCRIPTION_EXPIRED"
     | "PLAN_OUT_OF_SCOPE";
@@ -51,13 +58,20 @@ export function evaluateSubscriptionPlanAccess(params: {
     subscription: SubscriptionAccessSource;
     requestedDayIndex?: number | null;
     now?: Date;
+    trainingDays?: TrainingDayLike[] | null;
+    executions?: ExecutionLike[] | null;
+    startExecutionDay?: number | null;
 }): SubscriptionAccessDecision {
-    const now = params.now ?? new Date();
+    const normalizedStatus = String(params.subscription.status ?? "")
+        .trim()
+        .toLowerCase();
     const maxAccessibleDayIndex = getMaxAccessibleDayIndex(
         params.subscription.subscribed_weeks,
     );
 
-    if (isSubscriptionExpired(params.subscription, now)) {
+    // 访问门禁以 credits 为准：active 订阅不再被 end_date 直接拦截。
+    // 非 active（cancelled/expired/paused 等）仍直接视为不可继续训练。
+    if (normalizedStatus && normalizedStatus !== "active") {
         return {
             allowed: false,
             reason: "SUBSCRIPTION_EXPIRED",
@@ -79,6 +93,32 @@ export function evaluateSubscriptionPlanAccess(params: {
             reason: "PLAN_OUT_OF_SCOPE",
             maxAccessibleDayIndex,
         };
+    }
+
+    const trainingDays = Array.isArray(params.trainingDays)
+        ? params.trainingDays
+        : null;
+    if (trainingDays) {
+        const scope = computeCreditsScope({
+            trainingDays,
+            startExecutionDay: params.startExecutionDay ?? null,
+            subscribedWeeks: params.subscription.subscribed_weeks,
+        });
+
+        if (scope.totalCredits > 0) {
+            const usedCredits = computeUsedCredits({
+                eligibleTrainingDayIndexSet: scope.eligibleTrainingDayIndexSet,
+                executions: Array.isArray(params.executions) ? params.executions : [],
+                startExecutionDay: params.startExecutionDay ?? null,
+            });
+            if (usedCredits >= scope.totalCredits) {
+                return {
+                    allowed: false,
+                    reason: "SUBSCRIPTION_EXPIRED",
+                    maxAccessibleDayIndex,
+                };
+            }
+        }
     }
 
     return {

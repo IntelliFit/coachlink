@@ -175,7 +175,8 @@ export async function POST(req: Request) {
         ["completed", "archived"].includes(
             String(instance.status ?? "").trim().toLowerCase(),
         );
-    let shouldBypassSubscriptionGate = isHistoricalInstanceView;
+    // 显式按实例 ID 打开的详情页是只读历史查看入口，不应再被订阅门禁直接挡住。
+    let shouldBypassSubscriptionGate = !!id || isHistoricalInstanceView;
     if (
         !shouldBypassSubscriptionGate &&
         !!id &&
@@ -237,8 +238,22 @@ export async function POST(req: Request) {
             }, { status: 403 });
         }
 
+        const { data: completedExecutionsForAccess } = await supabase
+            .from("plan_instance_executions")
+            .select("day_index, status")
+            .eq("instance_id", instance.id)
+            .eq("status", "completed");
+
         const decision = evaluateSubscriptionPlanAccess({
             subscription: subscriptionForStudentAccess,
+            trainingDays: Array.isArray((instance as any).training_days)
+                ? ((instance as any).training_days as any[])
+                : [],
+            executions: (completedExecutionsForAccess || []).map((exec: any) => ({
+                day_index: Number(exec?.day_index ?? 0),
+                status: exec?.status || "completed",
+            })),
+            startExecutionDay: Number((instance as any).start_execution_day || 1),
         });
         if (!decision.allowed) {
             const message = decision.reason === "SUBSCRIPTION_EXPIRED"

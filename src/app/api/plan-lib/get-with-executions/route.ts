@@ -178,7 +178,8 @@ export async function POST(req: NextRequest) {
             ["completed", "archived"].includes(
                 String(instance.status ?? "").trim().toLowerCase(),
             );
-        let shouldBypassSubscriptionGate = isHistoricalInstanceView;
+        // 显式按实例 ID 打开的历史详情属于只读查看，不应再被订阅门禁直接挡住。
+        let shouldBypassSubscriptionGate = !!instanceId || isHistoricalInstanceView;
         if (
             !shouldBypassSubscriptionGate &&
             !!instanceId &&
@@ -242,8 +243,22 @@ export async function POST(req: NextRequest) {
                 );
             }
 
+            const { data: completedExecutionsForAccess } = await supabase
+                .from("plan_instance_executions")
+                .select("day_index, status")
+                .eq("instance_id", instance.id)
+                .eq("status", "completed");
+
             const decision = evaluateSubscriptionPlanAccess({
                 subscription: subscriptionForStudentAccess,
+                trainingDays: Array.isArray(instance.training_days)
+                    ? (instance.training_days as any[])
+                    : [],
+                executions: (completedExecutionsForAccess || []).map((exec: any) => ({
+                    day_index: Number(exec?.day_index ?? 0),
+                    status: exec?.status || "completed",
+                })),
+                startExecutionDay: Number(instance.start_execution_day || 1),
             });
             if (!decision.allowed) {
                 return NextResponse.json<ApiData<GetWithExecutionsResponseDto>>(

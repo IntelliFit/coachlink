@@ -25,6 +25,7 @@
 - `2026-04-08`: 历史计划详情按实例 `id` 打开且实例状态为 `completed/archived` 时，只做实例归属权限校验，不再套用当前订阅有效期/周数窗口门禁；`get-instance` 与 `get-with-executions` 必须保持这个语义一致，否则会出现“列表可见但详情 403”。
 - `2026-04-08`: 针对历史脏数据兼容：若实例状态仍为 `active`，但从 `start_execution_day` 起所有训练日都已在执行记录中 `completed/abandoned`，则详情查看应按“历史已完成实例”处理并允许只读查看（避免订阅过期后出现“计划不存在”假象）。
 - `2026-04-08`: 学员端页面展示统一采用“派生完成态”兜底：当实例 `status=active` 但训练日已全部 `resolved`（completed/abandoned）时，`list-history` 展示为 `completed`，历史详情页不再显示“开始今日训练”；`today-training` 在无当前计划但存在历史实例时展示“当前阶段计划已完成”，而非“计划制定中”。
+- `2026-04-08`: 订阅访问门禁最终语义：`evaluateSubscriptionPlanAccess` 对 `status=active` 不得再以 `end_date` 作为硬阻断条件；是否可继续访问/训练必须按 credits（配额训练日 vs 已消耗训练日）判定。`end_date` 仅保留为生命周期展示与宽限/自动取消链路输入。
 - `2026-04-08`: “申请成为教练”不再视为单一认证流程；数据模型升级为分层入驻，首批固定支持 `buddy`（训练搭子）/ `growth`（进阶教练）/ `professional`（专业教练）三档，并补充 `service_modes`、`target_student_levels`、`support_focus` 作为后续撮合与发现页的底层字段。
 - `2026-04-08`: `users.coach_status` 不能再落后于 `coach_applications`；创建申请、补资料、审核通过、驳回、待补充材料这些关键节点都必须同步到 `users`，否则学员侧会话和入口展示会失真。
 - `2026-04-08`: 学员侧教练申请入口统一指向真实页面 `/coach/application`；旧的 `/apply`、`/apply/edit`、`/apply/status` 不应再作为真实入口依赖。

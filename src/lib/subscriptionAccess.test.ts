@@ -67,6 +67,28 @@ describe("subscriptionAccess", () => {
     expect(decision.reason).toBeUndefined();
   });
 
+  it("keeps active subscription accessible when end_date is past", () => {
+    const decision = evaluateSubscriptionPlanAccess({
+      subscription: {
+        status: "active",
+        end_date: "2026-03-20T23:59:59.000Z",
+        subscribed_weeks: 4,
+      },
+      requestedDayIndex: 7,
+      now: new Date("2026-03-21T12:00:00.000Z"),
+      trainingDays: [
+        { dayIndex: 1, type: "training" },
+        { dayIndex: 2, type: "training" },
+        { dayIndex: 3, type: "training" },
+      ],
+      executions: [],
+      startExecutionDay: 1,
+    });
+
+    expect(decision.allowed).toBe(true);
+    expect(decision.reason).toBeUndefined();
+  });
+
   it("filters training days by max accessible day index", () => {
     const trainingDays = [
       { dayIndex: 1, type: "training" },
