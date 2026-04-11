@@ -230,3 +230,15 @@
   - 用已过期订阅的学员账号打开已完成计划详情，确认能看到完整训练天和执行记录；
   - 当前进行中的计划仍会按订阅有效期正常拦截；
   - 教练端查看学员历史计划弹窗与学员端“全部计划”详情表现一致。
+
+## 18) CI/Docker 的 Node 版本低于原生依赖要求导致 `npm ci` 失败（中高风险）
+
+- **现象**：GitHub Actions 或 Docker 构建在 `npm ci` 阶段失败，`isolated-vm` 等包触发 `node-gyp` 编译报错（如 `v8::SourceLocation`、override 不匹配）；本地用较新 Node 可能正常。
+- **根因**：依赖（如 `isolated-vm@6.x`）声明 `engines.node >= 22`，与 CI/镜像中的 Node 20 不一致，V8 头文件与预编译逻辑不匹配；Alpine 镜像还缺少 `python3/make/g++` 时也会加剧失败。
+- **统一规则**：
+  - 以 `package.json` 的 `engines` 与关键原生依赖的 `engines` 为准，**GHA `setup-node`、Dockerfile 基础镜像、本地推荐版本三线对齐**；
+  - Alpine 上安装含原生模块的依赖时，builder 阶段需具备编译链（如 `apk add python3 make g++`）。
+- **改动前自检**：
+  - 升级/新增带原生绑定的依赖后，看其 `engines` 与当前 CI Node 是否一致；
+  - 修改 Dockerfile 后本地或推一次分支验证 `npm ci` + `npm run build`；
+  - 与 `docs/done/engineering/代码检查清单.md` 中 CI 小节勾选项对照。
