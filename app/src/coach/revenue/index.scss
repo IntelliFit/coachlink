@@ -1,0 +1,40 @@
+.coach-revenue-page {
+  min-height: 100vh;
+  background: #f3f4f6;
+  padding: 12px 12px 80px;
+  box-sizing: border-box;
+
+  .summary {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 16px;
+    padding: 16px;
+    margin-bottom: 16px;
+    .row { display: flex; justify-content: space-between; margin-bottom: 8px; }
+    .total { font-size: 18px; font-weight: 800; color: #111827; }
+  }
+
+  .list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .item {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 16px;
+    padding: 14px 16px;
+    box-sizing: border-box;
+    .row { display: flex; justify-content: space-between; margin-bottom: 4px; }
+    .desc { font-size: 13px; color: #6b7280; }
+    .amount { font-size: 16px; font-weight: 700; color: #059669; }
+  }
+
+  .empty-wrap, .loading-wrap {
+    text-align: center;
+    padding: 40px 20px;
+    color: #9ca3af;
+    font-size: 14px;
+  }
+}

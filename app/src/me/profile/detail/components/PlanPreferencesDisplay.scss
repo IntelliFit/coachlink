@@ -1,0 +1,138 @@
+.plan-preferences {
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 24px 0;
+
+    &.small {
+      padding: 16px 0;
+    }
+
+    .empty-icon {
+      font-size: 36px;
+      margin-bottom: 8px;
+      opacity: 0.5;
+    }
+
+    .empty-text {
+      font-size: 14px;
+      color: #94a3b8;
+    }
+  }
+
+  .questionnaire-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 16px;
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .header-icon {
+      color: #F49227;
+    }
+
+    .header-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: #1e293b;
+    }
+
+    .edit-btn {
+      border-radius: 12px;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      border-color: #F49227 !important;
+      color: #F49227 !important;
+    }
+
+    .edit-btn-text {
+      margin-left: 4px;
+    }
+  }
+
+  .questionnaire-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .question-item {
+    background: #f8fafc;
+    border-radius: 12px;
+    padding: 12px 14px;
+    border: 1px solid #e2e8f0;
+
+    .item-label {
+      font-size: 14px;
+      font-weight: 600;
+      color: #334155;
+      margin-bottom: 8px;
+      display: block;
+    }
+
+    .item-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .tag {
+      background: #fff;
+      border: 1px solid rgba(244, 146, 39, 0.3);
+      border-radius: 8px;
+      padding: 4px 10px;
+    }
+
+    .tag-text {
+      font-size: 13px;
+      color: #b45309;
+      font-weight: 500;
+    }
+
+    .item-times .item-value,
+    .item-value {
+      font-size: 14px;
+      color: #475569;
+    }
+
+    .item-rm {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .rm-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 10px;
+      background: #fff;
+      border-radius: 8px;
+    }
+
+    .rm-key {
+      font-size: 13px;
+      color: #64748b;
+    }
+
+    .rm-val {
+      font-size: 14px;
+      font-weight: 600;
+      color: #1e293b;
+    }
+
+    .item-muted {
+      font-size: 13px;
+      color: #94a3b8;
+    }
+  }
+}

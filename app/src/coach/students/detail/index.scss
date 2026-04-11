@@ -1,0 +1,422 @@
+.student-detail-page {
+  min-height: 100vh;
+  background-color: #f5f5f5;
+  padding: 24rpx;
+  padding-bottom: 48rpx;
+
+  // 通用卡片样式
+  .info-card, .plan-card, .feedbacks-card {
+    background: #fff;
+    border-radius: 16rpx;
+    padding: 24rpx;
+    margin-bottom: 24rpx;
+    box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.04);
+  }
+
+  .card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20rpx;
+
+    .card-title {
+      font-size: 32rpx;
+      font-weight: 600;
+      color: #333;
+    }
+  }
+
+  // 按钮样式
+  .btn-primary {
+    background: #1890ff;
+    padding: 16rpx 32rpx;
+    border-radius: 8rpx;
+    text-align: center;
+    margin-top: 20rpx;
+
+    .btn-text {
+      font-size: 28rpx;
+      color: #fff;
+    }
+  }
+
+  .btn-small-primary {
+    background: #1890ff;
+    padding: 8rpx 20rpx;
+    border-radius: 6rpx;
+
+    .btn-text {
+      font-size: 24rpx;
+      color: #fff;
+    }
+  }
+
+  .btn-small-default {
+    background: #f5f5f5;
+    padding: 8rpx 20rpx;
+    border-radius: 6rpx;
+    border: 1rpx solid #d9d9d9;
+
+    .btn-text {
+      font-size: 24rpx;
+      color: #666;
+    }
+  }
+
+  // 标签样式
+  .tag {
+    background: #f5f5f5;
+    padding: 4rpx 12rpx;
+    border-radius: 6rpx;
+
+    .tag-text {
+      font-size: 22rpx;
+      color: #666;
+    }
+
+    &.tag-primary {
+      background: #e6f7ff;
+      .tag-text { color: #1890ff; }
+    }
+  }
+
+  // 分隔线
+  .divider {
+    height: 1rpx;
+    background: #f0f0f0;
+    margin: 20rpx 0;
+  }
+
+  // 错误提示
+  .error-text {
+    text-align: center;
+    padding: 48rpx;
+    color: #999;
+    font-size: 28rpx;
+    display: block;
+  }
+
+  // 基本信息卡片
+  .info-card {
+    .profile-header {
+      display: flex;
+      align-items: center;
+      gap: 24rpx;
+
+      .avatar-wrapper {
+        width: 120rpx;
+        height: 120rpx;
+        border-radius: 50%;
+        overflow: hidden;
+        flex-shrink: 0;
+
+        .avatar-image {
+          width: 100%;
+          height: 100%;
+        }
+
+        .avatar-placeholder {
+          width: 100%;
+          height: 100%;
+          background: #1890ff;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+
+          .avatar-text {
+            font-size: 48rpx;
+            color: #fff;
+            font-weight: 600;
+          }
+        }
+      }
+
+      .profile-info {
+        flex: 1;
+
+        .name {
+          font-size: 36rpx;
+          font-weight: 600;
+          color: #333;
+          margin-bottom: 12rpx;
+          display: block;
+        }
+
+        .profile-tags {
+          display: flex;
+          gap: 12rpx;
+          flex-wrap: wrap;
+        }
+      }
+    }
+
+    .profile-details {
+      .detail-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 16rpx 0;
+        border-bottom: 1rpx solid #f0f0f0;
+
+        &:last-child {
+          border-bottom: none;
+        }
+
+        .label {
+          font-size: 28rpx;
+          color: #666;
+        }
+
+        .value {
+          font-size: 28rpx;
+          color: #333;
+          font-weight: 500;
+        }
+      }
+    }
+  }
+
+  // 计划卡片
+  .plan-card {
+    .plan-content {
+      .plan-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 24rpx;
+
+        .plan-name {
+          font-size: 32rpx;
+          font-weight: 600;
+          color: #333;
+        }
+
+        .status-tag {
+          padding: 4rpx 12rpx;
+          border-radius: 8rpx;
+
+          .status-text {
+            font-size: 22rpx;
+          }
+
+          &.status-active {
+            background: #f6ffed;
+            .status-text { color: #52c41a; }
+          }
+
+          &.status-paused {
+            background: #fff7e6;
+            .status-text { color: #fa8c16; }
+          }
+        }
+      }
+
+      .progress-section {
+        margin-bottom: 24rpx;
+
+        .progress-header {
+          display: flex;
+          justify-content: space-between;
+          margin-bottom: 12rpx;
+
+          .progress-text {
+            font-size: 26rpx;
+            color: #666;
+          }
+
+          .progress-value {
+            font-size: 26rpx;
+            color: #1890ff;
+            font-weight: 600;
+          }
+        }
+
+        .progress-bar {
+          height: 16rpx;
+          background: #f0f0f0;
+          border-radius: 8rpx;
+          overflow: hidden;
+          margin-bottom: 12rpx;
+
+          .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #1890ff, #36cfc9);
+            border-radius: 8rpx;
+            transition: width 0.3s ease;
+          }
+        }
+
+        .progress-detail {
+          font-size: 24rpx;
+          color: #999;
+        }
+      }
+    }
+
+    .no-plan {
+      text-align: center;
+      padding: 48rpx 0;
+
+      .no-plan-text {
+        font-size: 28rpx;
+        color: #999;
+        margin-bottom: 24rpx;
+        display: block;
+      }
+    }
+  }
+
+  // 反馈卡片
+  .feedbacks-card {
+    .feedback-list {
+      .feedback-item {
+        padding: 24rpx 0;
+        border-bottom: 1rpx solid #f0f0f0;
+
+        &:last-child {
+          border-bottom: none;
+        }
+
+        .feedback-header {
+          display: flex;
+          align-items: center;
+          gap: 16rpx;
+          margin-bottom: 12rpx;
+
+          .feedback-day {
+            font-size: 28rpx;
+            color: #333;
+            font-weight: 500;
+          }
+
+          .feedback-date {
+            font-size: 24rpx;
+            color: #999;
+          }
+
+          .difficulty-tag {
+            background: #fff7e6;
+            padding: 2rpx 8rpx;
+            border-radius: 4rpx;
+
+            .tag-text {
+              font-size: 20rpx;
+              color: #fa8c16;
+            }
+          }
+        }
+
+        .feedback-content {
+          font-size: 28rpx;
+          color: #666;
+          line-height: 1.6;
+          margin-bottom: 16rpx;
+          display: block;
+        }
+
+        .coach-reply {
+          background: #f6ffed;
+          padding: 16rpx;
+          border-radius: 8rpx;
+          margin-bottom: 16rpx;
+
+          .reply-label {
+            font-size: 24rpx;
+            color: #52c41a;
+            font-weight: 500;
+            margin-bottom: 8rpx;
+            display: block;
+          }
+
+          .reply-content {
+            font-size: 26rpx;
+            color: #333;
+            line-height: 1.5;
+          }
+        }
+
+        .reply-section {
+          display: flex;
+          justify-content: flex-end;
+          align-items: center;
+          gap: 12rpx;
+        }
+      }
+
+      .show-more {
+        text-align: center;
+        padding: 20rpx 0;
+
+        .show-more-text {
+          font-size: 26rpx;
+          color: #1890ff;
+        }
+      }
+    }
+
+    .no-data {
+      text-align: center;
+      padding: 48rpx 0;
+      color: #999;
+      font-size: 28rpx;
+      display: block;
+    }
+  }
+
+  // 骨架屏
+  .skeleton-page {
+    .skeleton-card {
+      background: #fff;
+      border-radius: 16rpx;
+      padding: 24rpx;
+      margin-bottom: 24rpx;
+
+      .skeleton-header {
+        display: flex;
+        gap: 20rpx;
+
+        .skeleton-avatar {
+          width: 120rpx;
+          height: 120rpx;
+          border-radius: 50%;
+          background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+          background-size: 200% 100%;
+          animation: shimmer 1.5s infinite;
+        }
+
+        .skeleton-info {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          gap: 16rpx;
+
+          .skeleton-line {
+            height: 28rpx;
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+            border-radius: 4rpx;
+          }
+        }
+      }
+
+      .skeleton-line {
+        height: 24rpx;
+        background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+        background-size: 200% 100%;
+        animation: shimmer 1.5s infinite;
+        border-radius: 4rpx;
+        margin-bottom: 16rpx;
+      }
+    }
+  }
+
+  .bottom-spacer {
+    height: 48rpx;
+  }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}

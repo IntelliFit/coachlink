@@ -36,3 +36,8 @@ coachlink.tar.gz
 test-results
 temp
 tsconfig.tsbuildinfo
+
+# WeChat mini-program (`app/`) build outputs — keep repo lean; rebuild locally
+app/dist-release/
+app/deploy_versions/
+app/.openclaw/
