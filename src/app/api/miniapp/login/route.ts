@@ -3,6 +3,7 @@ import supabase, { serviceRoleSupabase } from "@/lib/supabaseClient";
 import { verifyPassword } from "../../auth/[...nextauth]/verify";
 import { signToken } from "@/lib/jwt";
 import redis from "@/lib/redisClient";
+import { toPublicApiMessage } from "@/lib/publicApiError";
 
 function buildDefaultNickname(phoneOrEmail: string, isPhone: boolean) {
     return isPhone
@@ -261,11 +262,11 @@ export async function POST(req: NextRequest) {
             message: "请提供密码或验证码"
         }, { status: 400 });
 
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('小程序登录错误:', error);
         return NextResponse.json({
             success: false,
-            message: error.message || "登录失败"
+            message: toPublicApiMessage(error, '登录失败，请稍后重试')
         }, { status: 500 });
     }
 }
