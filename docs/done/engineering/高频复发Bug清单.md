@@ -242,3 +242,15 @@
   - 升级/新增带原生绑定的依赖后，看其 `engines` 与当前 CI Node 是否一致；
   - 修改 Dockerfile 后本地或推一次分支验证 `npm ci` + `npm run build`；
   - 与 `docs/done/engineering/代码检查清单.md` 中 CI 小节勾选项对照。
+
+## 19) `path.join` / `fs` 收到 `undefined` 路径片段导致 `ERR_INVALID_ARG_TYPE`（中风险）
+
+- **现象**：接口或页面报错 `The "path" argument must be of type string. Received undefined`；小程序端若把接口返回的 `message` 直接展示，可能整屏白底黑字显示该 Node 报错。
+- **根因**：`path.join(base, 'public', 'docs', filename)` 等调用中，`filename` / `traceId` / `relativeName` 等任一片段为 `undefined` 时，Node 会抛出上述 TypeError。
+- **统一规则**：
+  - 读文件前校验路径分量已定义为非空字符串；
+  - 写 trace/落盘前校验 `traceId`、`relativeName`；
+  - 小程序 `Taro.reLaunch({ url })` 前校验 `url` 为以 `/` 开头的字符串。
+- **改动前自检**：
+  - 新增「动态拼路径」的 API 时，对 slug、id、文件名做存在性与类型校验；
+  - 真机复现后对照后端日志是否同一条 TypeError。

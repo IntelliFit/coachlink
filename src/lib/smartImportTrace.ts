@@ -31,6 +31,9 @@ export function sanitizeTraceId(input: string): string | null {
 export function getTraceDirAbsolute(traceId: string): string {
     // Repo-relative, works in local/self-hosted only.
     // NOTE: In serverless environments, filesystem may be read-only.
+    if (traceId == null || typeof traceId !== "string" || !traceId.trim()) {
+        throw new TypeError("[smartImportTrace] traceId must be a non-empty string");
+    }
     const root = getRepoRoot();
     return path.join(
         root,
@@ -85,6 +88,9 @@ export async function writeTraceText(
     text: string,
     mode: WriteMode = "overwrite",
 ) {
+    if (relativeName == null || typeof relativeName !== "string" || !relativeName.trim()) {
+        throw new TypeError("[smartImportTrace] relativeName must be a non-empty string");
+    }
     const dir = getTraceDirAbsolute(traceId);
     const p = path.join(dir, relativeName);
     await writeFileSafe(p, text ?? "", mode);

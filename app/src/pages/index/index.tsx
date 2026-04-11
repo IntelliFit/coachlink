@@ -24,7 +24,11 @@ function Index() {
             : '/training/today-training'
         })
 
-        Taro.reLaunch({ url: targetUrl })
+        if (typeof targetUrl === 'string' && targetUrl.startsWith('/')) {
+          Taro.reLaunch({ url: targetUrl })
+        } else {
+          console.error('[index] invalid post-login url:', targetUrl)
+        }
       } catch (e) {
         console.error('[index] 检查用户身份失败:', e)
       }
@@ -97,7 +101,11 @@ function Index() {
                     ? '/coach/overview'
                     : '/training/today-training'
             })
-            Taro.reLaunch({ url: targetUrl })
+            if (typeof targetUrl === 'string' && targetUrl.startsWith('/')) {
+              Taro.reLaunch({ url: targetUrl })
+            } else {
+              console.error('[index] invalid post-login url:', targetUrl)
+            }
         } else {
             Taro.navigateTo({ url: authService.buildLoginUrl('/training/today-training') })
         }
