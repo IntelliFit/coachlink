@@ -120,3 +120,11 @@
   - `npm run typecheck`：长时间无输出，超时后中止（仓库历史类型负担）
   - `npx next build`：通过
   - `npm test`：通过（12 files, 58 tests）
+
+---
+
+## Monorepo（`2026-04-11`）
+
+- Task: 将微信小程序工程纳入根目录 `app/`，统一 Git；更新 `AGENTS.md` 与决策记录
+- Status: completed
+- Notes: `app/` 内嵌套 `.git` 已移除；小程序远程 `main` 已通过 `origin/main` fast-forward 对齐

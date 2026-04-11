@@ -1,0 +1,136 @@
+.coach-videos-page {
+  min-height: 100vh;
+  background: #f3f4f6;
+  padding: 12px 12px 80px;
+  box-sizing: border-box;
+
+  .filter-bar {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+
+    .filter-btn {
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 13px;
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      color: #6b7280;
+
+      &.active {
+        background: #fef3c7;
+        border-color: #f59e0b;
+        color: #b45309;
+      }
+    }
+  }
+
+  .video-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .video-card {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 16px;
+    padding: 12px 14px;
+    box-sizing: border-box;
+
+    .card-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+    .student-name {
+      font-size: 15px;
+      font-weight: 700;
+      color: #111827;
+    }
+    .status-tag {
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: #fef3c7;
+      color: #b45309;
+    }
+    .status-tag.reviewed {
+      background: #d1fae5;
+      color: #059669;
+    }
+    .exercise-name {
+      font-size: 13px;
+      color: #6b7280;
+      margin-bottom: 4px;
+    }
+    .card-actions {
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid #f3f4f6;
+    }
+
+    .review-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 10px 16px;
+      background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(59, 130, 246, 0.25);
+      transition: all 0.2s ease;
+      cursor: pointer;
+      user-select: none;
+
+      &:active {
+        transform: scale(0.98);
+        box-shadow: 0 1px 4px rgba(59, 130, 246, 0.3);
+      }
+
+      &.reviewed-btn {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        box-shadow: 0 2px 8px rgba(16, 185, 129, 0.25);
+
+        &:active {
+          box-shadow: 0 1px 4px rgba(16, 185, 129, 0.3);
+        }
+      }
+
+      .review-btn-text {
+        font-size: 15px;
+        font-weight: 700;
+        color: #fff;
+        letter-spacing: 0.5px;
+      }
+
+      .review-btn-icon {
+        font-size: 18px;
+        font-weight: 700;
+        color: #fff;
+        margin-left: 2px;
+        transition: transform 0.2s ease;
+      }
+
+      &:active .review-btn-icon {
+        transform: translateX(2px);
+      }
+    }
+  }
+
+  .empty-wrap {
+    text-align: center;
+    padding: 40px 20px;
+    color: #9ca3af;
+    font-size: 14px;
+  }
+
+  .loading-wrap {
+    padding: 24px;
+    text-align: center;
+    color: #9ca3af;
+    font-size: 14px;
+  }
+}

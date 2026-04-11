@@ -1,0 +1,161 @@
+.user-profile-page {
+  min-height: 100vh;
+  background-color: #f5f5f5;
+
+  .loading {
+    text-align: center;
+    padding: 48rpx;
+    font-size: 28rpx;
+    color: #999;
+  }
+
+  .page-scroll {
+    height: 100vh;
+    padding-bottom: 48rpx;
+  }
+
+  .profile-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    padding: 48rpx;
+    text-align: center;
+
+    .avatar-wrapper {
+      width: 160rpx;
+      height: 160rpx;
+      margin: 0 auto 24rpx;
+      border-radius: 50%;
+      overflow: hidden;
+      border: 4rpx solid rgba(255, 255, 255, 0.3);
+
+      .avatar {
+        width: 100%;
+        height: 100%;
+      }
+
+      .avatar-placeholder {
+        width: 100%;
+        height: 100%;
+        background: rgba(255, 255, 255, 0.2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        Text {
+          font-size: 64rpx;
+          color: #fff;
+          font-weight: 600;
+        }
+      }
+    }
+
+    .nickname {
+      font-size: 40rpx;
+      font-weight: 600;
+      color: #fff;
+      margin-bottom: 12rpx;
+      display: block;
+    }
+
+    .goal {
+      font-size: 26rpx;
+      color: rgba(255, 255, 255, 0.8);
+      margin-bottom: 24rpx;
+      display: block;
+    }
+
+    .friend-btn {
+      display: inline-block;
+      padding: 16rpx 48rpx;
+      background: #fff;
+      border-radius: 32rpx;
+
+      Text {
+        font-size: 28rpx;
+        color: #667eea;
+        font-weight: 500;
+      }
+
+      &.friends {
+        background: rgba(255, 255, 255, 0.3);
+
+        Text {
+          color: #fff;
+        }
+      }
+
+      &.pending {
+        background: rgba(255, 255, 255, 0.2);
+
+        Text {
+          color: rgba(255, 255, 255, 0.8);
+        }
+      }
+    }
+  }
+
+  .stats-card, .info-card {
+    background: #fff;
+    border-radius: 16rpx;
+    margin: 24rpx;
+    padding: 24rpx;
+    box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.04);
+
+    .card-title {
+      font-size: 32rpx;
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 24rpx;
+      display: block;
+    }
+  }
+
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 24rpx;
+
+    .stat-item {
+      text-align: center;
+      padding: 24rpx;
+      background: #f8f8f8;
+      border-radius: 12rpx;
+
+      .stat-value {
+        font-size: 40rpx;
+        font-weight: 700;
+        color: #667eea;
+        margin-bottom: 8rpx;
+        display: block;
+      }
+
+      .stat-label {
+        font-size: 24rpx;
+        color: #999;
+      }
+    }
+  }
+
+  .info-list {
+    .info-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 20rpx 0;
+      border-bottom: 1rpx solid #f0f0f0;
+
+      &:last-child {
+        border-bottom: none;
+      }
+
+      .info-label {
+        font-size: 28rpx;
+        color: #666;
+      }
+
+      .info-value {
+        font-size: 28rpx;
+        color: #333;
+        font-weight: 500;
+      }
+    }
+  }
+}

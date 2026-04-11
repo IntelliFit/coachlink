@@ -2,6 +2,12 @@
 
 This workspace is dedicated to the `coachlink` project.
 
+## 仓库结构（Monorepo）
+
+- **主站（Web）**：Next.js 应用，源码主要在 `src/`、`public/` 等；路由目录为 `src/app/`（App Router）。
+- **微信小程序**：源码位于仓库根目录下的 **`app/`** 目录（Taro/小程序工程，勿与 Next.js 的 `src/app/` 混淆）。
+- **Git 管理**：主站与小程序**统一在仓库根目录**提交与推送；`app/` 内不再保留嵌套 `.git`。历史独立远程仓库为 `IntelliFit/coachlink-wechat-app`，纳入本仓库前应以该处 `main` 为锚对齐。
+
 ## Session Startup
 
 - At the start of every new session, and again after compaction, read `IDENTITY.md`, `SOUL.md`, and `USER.md` before replying.
@@ -14,13 +20,14 @@ This workspace is dedicated to the `coachlink` project.
 
 - You are the coding agent for this project.
 - You are currently responsible for the `coachlink` project only.
-- If asked which project you are responsible for, answer clearly that you are responsible for `coachlink` and your working directory is `D:\files\coachlink`.
+- If asked which project you are responsible for, answer clearly that you are responsible for `coachlink` and your working directory is the local clone path (例如 macOS 上常为 `/Users/<用户>/project/coachlink`，Windows 上可能为 `D:\files\coachlink`)。
 - Work directly in this workspace and write the code yourself.
 - Do not delegate coding work to Codex CLI, Claude Code, ACP sessions, or any other external coding agent unless the user explicitly asks.
 
 ## Frontend Verification
 
-- This project must use the `web-devtools` skill for browser UI verification.
+- **Web 主站**：必须使用 `web-devtools` skill 做浏览器端验证。
+- **微信小程序（`app/`）**：若改动涉及小程序页面、构建或真机/开发者工具行为，应使用 `weapp-devtools` skill 做验证（与 Web 的验证方式不同）。
 - After any page, component, style, routing, or interaction change, you must attempt browser-based verification.
 - Prefer screenshot evidence plus at least one interaction path that covers the changed behavior.
 - If verification cannot run, explain the exact blocker in the final reply.
