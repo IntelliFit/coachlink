@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { serviceRoleSupabase } from '@/lib/supabaseClient';
 import { signToken } from '@/lib/jwt';
+import { toPublicApiMessage } from '@/lib/publicApiError';
 
 function buildWechatNickname(phoneNumber: string | null, openid: string) {
     if (phoneNumber && phoneNumber !== 'null') {
@@ -370,11 +371,11 @@ export async function POST(req: NextRequest) {
             }
         });
 
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('❌ 小程序微信登录错误:', error);
         return NextResponse.json({
             success: false,
-            message: error.message || "登录失败，请稍后重试"
+            message: toPublicApiMessage(error, '登录失败，请稍后重试')
         }, { status: 500 });
     }
 }
