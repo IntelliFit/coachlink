@@ -1,7 +1,10 @@
-# 多阶段构建：构建阶段
-FROM node:20-alpine AS builder
+# 多阶段构建：构建阶段（Node 22：isolated-vm@6.x 原生模块要求 >=22）
+FROM node:22-alpine AS builder
 
 WORKDIR /app
+
+# isolated-vm 等原生模块在 Alpine 上需要编译工具链
+RUN apk add --no-cache python3 make g++
 
 # 复制依赖文件
 COPY package.json package-lock.json ./
@@ -25,7 +28,7 @@ RUN rm -rf .next
 RUN npm run build
 
 # 运行阶段
-FROM node:20-alpine AS runner
+FROM node:22-alpine AS runner
 
 WORKDIR /app
 
