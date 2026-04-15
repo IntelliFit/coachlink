@@ -1,7 +1,7 @@
 /* ==================== 新版悬浮胶囊底部导航 ==================== */
 .bottom-nav {
   position: fixed;
-  bottom: 48rpx;
+  bottom: 24rpx;
   left: 50%;
   transform: translateX(-50%);
   z-index: 1000;
@@ -10,12 +10,12 @@
   justify-content: space-between;
   background: rgba(31, 31, 31, 0.92);
   border-radius: 9999rpx;
-  padding: 24rpx 36rpx;
-  box-shadow: 0 16rpx 48rpx rgba(0, 0, 0, 0.3);
+  padding: 14rpx 24rpx;
+  box-shadow: 0 12rpx 36rpx rgba(0, 0, 0, 0.22);
   backdrop-filter: blur(20rpx);
   width: auto;
-  min-width: 720rpx;
-  max-width: 94vw;
+  min-width: 620rpx;
+  max-width: 92vw;
   border: 1rpx solid rgba(255, 255, 255, 0.1);
 
   .nav-item {
@@ -25,7 +25,7 @@
     align-items: center;
     justify-content: center;
     gap: 0;
-    padding: 22rpx 30rpx;
+    padding: 14rpx 22rpx;
     border-radius: 9999rpx;
     min-width: 0;
     transition: padding 0.35s cubic-bezier(0.34, 1.56, 0.64, 1),
@@ -39,8 +39,8 @@
   }
 
   .nav-icon-img {
-    width: 28px;
-    height: 28px;
+    width: 22px;
+    height: 22px;
     opacity: 0.65;
     flex-shrink: 0;
     transition: opacity 0.35s ease, transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -48,7 +48,7 @@
   }
 
   .nav-label {
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 600;
     color: #CF6D4E;
     white-space: nowrap;
@@ -64,8 +64,8 @@
 
   .nav-active {
     background: rgba(255, 255, 255, 0.98);
-    padding: 22rpx 52rpx;
-    gap: 10rpx;
+    padding: 14rpx 36rpx;
+    gap: 8rpx;
 
     .nav-icon-img {
       opacity: 1;

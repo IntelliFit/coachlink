@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
 import { View, Image, Text, Button as TaroButton } from '@tarojs/components'
 import Taro from '@tarojs/taro'
-import { 
-  Input, 
+import {
+  Input,
   ConfigProvider,
   Toast,
   Checkbox
@@ -15,6 +15,7 @@ import { authService } from '@/services/authService'
 import SliderCaptcha from '@/components/SliderCaptcha'
 import ResetPasswordForm from '@/components/ResetPasswordForm'
 import { studentOnboardingService } from '@/services/studentOnboardingService'
+import { User, Lock, Message } from '@nutui/icons-react-taro'
 import coachlinkLogo from '@/assets/brand/coachlink-logo.jpg'
 import './index.scss'
 
@@ -32,7 +33,6 @@ function Login() {
   const [agreed, setAgreed] = useState(false)
   const [sliderCaptchaVisible, setSliderCaptchaVisible] = useState(false)
 
-  // 倒计时逻辑
   useEffect(() => {
     let timer: NodeJS.Timeout
     if (countdown > 0) {
@@ -41,32 +41,26 @@ function Login() {
     return () => clearTimeout(timer)
   }, [countdown])
 
-  // 检查手机号或邮箱是否有效
   const isValidPhoneOrEmail = () => {
     const isPhone = /^1[3-9]\d{9}$/.test(phoneOrEmail)
     const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(phoneOrEmail)
     return isPhone || isEmail
   }
 
-  // 显示滑块验证
   const sendVerificationCode = () => {
     if (!agreed) {
       Taro.showToast({ title: '请先勾选用户协议', icon: 'none' })
       return
     }
-
     if (!isValidPhoneOrEmail()) {
       Taro.showToast({ title: '请输入正确的手机号或邮箱', icon: 'none' })
       return
     }
-
     setSliderCaptchaVisible(true)
   }
 
-  // 滑块验证成功后发送验证码
   const handleCaptchaSuccess = async (token: string) => {
     const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(phoneOrEmail)
-
     setSendingCode(true)
     try {
       if (isEmail) {
@@ -74,7 +68,6 @@ function Login() {
       } else {
         await smsService.sendVerificationCode({ phoneNumber: phoneOrEmail, captchaToken: token })
       }
-      
       setCountdown(60)
       Toast.show('验证码已发送', {})
     } catch (error: any) {
@@ -85,7 +78,6 @@ function Login() {
     }
   }
 
-  // 根据身份与 returnTo 计算登录后目标页，再决定是否先进入 onboarding
   const getRequestedPostLoginUrl = (loggedInUser: any) => {
     try {
       const instance = Taro.getCurrentInstance()
@@ -104,15 +96,12 @@ function Login() {
       loggedInUser,
       fallbackUrl: getRequestedPostLoginUrl(loggedInUser)
     })
-
     Taro.reLaunch({ url: targetUrl })
   }
 
-  // 跳转协议/政策页
   const goToTerms = () => Taro.navigateTo({ url: '/me/terms/index' })
   const goToPrivacy = () => Taro.navigateTo({ url: '/me/privacy/index' })
 
-  // 登录处理
   const handleLogin = async () => {
     if (!agreed) {
       Toast.show('请阅读并勾选用户服务协议和隐私政策', {})
@@ -165,7 +154,6 @@ function Login() {
     }
   }
 
-  // 跳转注册（支持通过 invite 参数带邀请码）
   const goToRegister = () => {
     const instance = Taro.getCurrentInstance()
     const invite = (instance?.router?.params as any)?.invite
@@ -175,12 +163,10 @@ function Login() {
     Taro.navigateTo({ url })
   }
 
-  // 忘记密码
   const goToResetPassword = () => {
     setShowResetPassword(true)
   }
 
-  // 手机号快捷登录处理（通过微信手机号能力获取授权）
   const handleWechatLogin = async (e: any) => {
     if (!agreed) {
       Toast.show('请阅读并勾选用户服务协议和隐私政策', {})
@@ -188,29 +174,19 @@ function Login() {
     }
     setLoading(true)
     try {
-      console.log('🚀 开始手机号快捷登录流程')
-      
-      // 获取手机号授权结果
       const { code: phoneCode, errMsg, errno } = e.detail || {}
-      
       if (!phoneCode) {
-        console.error('❌ 获取手机号授权失败:', errMsg, errno)
         Toast.show(errMsg || '请先授权手机号以完成快捷登录', {})
         setLoading(false)
         return
       }
-      
-      console.log('✅ 获取到手机号授权 code:', phoneCode.substring(0, 10) + '...')
-      
-      // 调用登录服务（传入手机号授权 code）
       const wechatData = await authService.loginWithWechat(phoneCode)
       Toast.show('快捷登录成功', {})
       setTimeout(() => {
         void handlePostLoginSuccess(wechatData?.user)
       }, 500)
-      
     } catch (error: any) {
-      console.error('❌ 快捷登录失败:', error)
+      console.error('快捷登录失败:', error)
       Toast.show(error.message || '快捷登录失败', {})
     } finally {
       setLoading(false)
@@ -220,22 +196,18 @@ function Login() {
   return (
     <ConfigProvider locale={zhCN}>
       <View className='login-page'>
-        {/* 简化的顶部品牌区 */}
         <View className='login-header'>
-          <View className='brand-container'>
-            <Image 
-              className='brand-logo' 
-              src={coachlinkLogo}
-              mode='aspectFit'
-            />
-            <View className='brand-text-container'>
+          <View className='brand-row'>
+            <Image className='brand-logo' src={coachlinkLogo} mode='aspectFit' />
+            <View className='brand-text-box'>
               <Text className='brand-name'>教链</Text>
               <Text className='brand-subtitle'>CoachLink</Text>
             </View>
           </View>
+          <Text className='login-title'>欢迎回来</Text>
+          <Text className='login-subtitle'>登录以继续你的训练计划</Text>
         </View>
 
-        {/* 表单区域 */}
         <View className='login-form'>
           {showResetPassword ? (
             <ResetPasswordForm
@@ -249,10 +221,9 @@ function Login() {
             />
           ) : (
             <>
-              {/* 登录模式切换器 */}
               <View className='mode-switcher'>
                 <View
-                  className={`switcher-item ${loginMode === 'password' ? 'switcher-active' : ''}`}
+                  className={`switcher-pill ${loginMode === 'password' ? 'switcher-active' : ''}`}
                   onClick={() => {
                     setLoginMode('password')
                     setVerificationCode('')
@@ -261,7 +232,7 @@ function Login() {
                   <Text className='switcher-text'>密码登录</Text>
                 </View>
                 <View
-                  className={`switcher-item ${loginMode === 'verifyCode' ? 'switcher-active' : ''}`}
+                  className={`switcher-pill ${loginMode === 'verifyCode' ? 'switcher-active' : ''}`}
                   onClick={() => {
                     setLoginMode('verifyCode')
                     setPassword('')
@@ -271,13 +242,11 @@ function Login() {
                 </View>
               </View>
 
-              {/* 手机号或邮箱 */}
               <View className='form-item'>
-                <View className='form-label'>
-                  <Text className='label-icon'>👤</Text>
-                  <Text className='label-text'>手机号或邮箱</Text>
-                </View>
-                <View className='input-wrapper'>
+                <View className='input-row'>
+                  <View className='input-icon'>
+                    <User size={18} color='#9CA3AF' />
+                  </View>
                   <Input
                     className='form-input'
                     placeholder='请输入手机号或邮箱'
@@ -287,14 +256,12 @@ function Login() {
                 </View>
               </View>
 
-              {/* 密码（密码登录模式） */}
               {loginMode === 'password' && (
                 <View className='form-item'>
-                  <View className='form-label'>
-                    <Text className='label-icon'>🔒</Text>
-                    <Text className='label-text'>登录密码</Text>
-                  </View>
-                  <View className='input-wrapper'>
+                  <View className='input-row'>
+                    <View className='input-icon'>
+                      <Lock size={18} color='#9CA3AF' />
+                    </View>
                     <Input
                       className='form-input'
                       placeholder='请输入登录密码'
@@ -311,24 +278,20 @@ function Login() {
                 </View>
               )}
 
-              {/* 验证码（验证码登录模式） */}
               {loginMode === 'verifyCode' && (
                 <View className='form-item'>
-                  <View className='form-label'>
-                    <Text className='label-icon'>🛡️</Text>
-                    <Text className='label-text'>验证码</Text>
-                  </View>
-                  <View className='verification-wrapper'>
-                    <View className='input-wrapper verification-input'>
-                      <Input
-                        className='form-input'
-                        placeholder='6位验证码'
-                        type='number'
-                        maxLength={6}
-                        value={verificationCode}
-                        onChange={(val) => setVerificationCode(val)}
-                      />
+                  <View className='input-row'>
+                    <View className='input-icon'>
+                      <Message size={18} color='#9CA3AF' />
                     </View>
+                    <Input
+                      className='form-input'
+                      placeholder='6位验证码'
+                      type='number'
+                      maxLength={6}
+                      value={verificationCode}
+                      onChange={(val) => setVerificationCode(val)}
+                    />
                     <View
                       className={`send-code-btn ${(countdown > 0 || sendingCode || sliderCaptchaVisible || !isValidPhoneOrEmail()) ? 'send-code-btn-disabled' : ''}`}
                       onClick={(countdown > 0 || sendingCode || sliderCaptchaVisible || !isValidPhoneOrEmail()) ? undefined : sendVerificationCode}
@@ -343,78 +306,61 @@ function Login() {
                 </View>
               )}
 
-              {/* 用户服务协议与隐私政策勾选（勾选即表示同时同意两者） */}
-              <View className='agreement-section'>
-                <View className='agreement-row'>
-                  <Checkbox
-                    checked={agreed}
-                    onChange={(val) => setAgreed(val)}
-                  />
-                  <Text className='agreement-text'>
-                    同意
-                    <Text className='agreement-link' onClick={goToTerms}>《用户服务协议》</Text>
-                    和
-                    <Text className='agreement-link' onClick={goToPrivacy}>《隐私政策》</Text>
-                  </Text>
-                </View>
-              </View>
-
-              {/* 登录按钮 */}
-              <View className='login-button-container'>
-                <View 
-                  className={`login-button ${loading || !agreed ? 'login-button-disabled' : ''} ${loading ? 'login-button-loading' : ''}`}
-                  onClick={!loading && agreed ? handleLogin : () => {
-                    if (!agreed) Toast.show('请阅读并勾选用户服务协议和隐私政策', {})
-                  }}
-                >
-                  {loading ? (
-                    <View className='login-button-loading-content'>
-                      <View className='login-button-spinner'></View>
-                      <Text className='login-button-text'>登录中...</Text>
-                    </View>
-                  ) : (
-                    <Text className='login-button-text'>立即登录</Text>
-                  )}
-                </View>
-              </View>
-
-              {/* 手机号快捷登录按钮 */}
-              <View className='wechat-login-container'>
-                <View className='wechat-login-divider'>
-                  <View className='divider-line' />
-                  <Text className='divider-text'>或</Text>
-                  <View className='divider-line' />
-                </View>
-                <TaroButton
-                  className={`wechat-login-button ${!agreed ? 'wechat-login-button-disabled' : ''}`}
-                  openType='getPhoneNumber'
-                  onGetPhoneNumber={handleWechatLogin}
-                  disabled={loading || !agreed}
-                >
-                  {loading ? (
-                    <Text className='wechat-login-text'>登录中...</Text>
-                  ) : (
-                    <Text className='wechat-login-text'>手机号快捷登录</Text>
-                  )}
-                </TaroButton>
-              </View>
-
-              {/* 注册提示 */}
-              <View className='register-tip'>
-                <Text className='tip-text'>还没有账户？</Text>
-                <Text className='tip-link' onClick={goToRegister}>
-                  立即注册
+              <View className='agreement-row'>
+                <Checkbox checked={agreed} onChange={(val) => setAgreed(val)} />
+                <Text className='agreement-text'>
+                  同意
+                  <Text className='agreement-link' onClick={goToTerms}>《用户服务协议》</Text>
+                  和
+                  <Text className='agreement-link' onClick={goToPrivacy}>《隐私政策》</Text>
                 </Text>
               </View>
 
+              <View
+                className={`login-button ${loading || !agreed ? 'login-button-disabled' : ''} ${loading ? 'login-button-loading' : ''}`}
+                onClick={!loading && agreed ? handleLogin : () => {
+                  if (!agreed) Toast.show('请阅读并勾选用户服务协议和隐私政策', {})
+                }}
+              >
+                {loading ? (
+                  <View className='login-button-loading-content'>
+                    <View className='login-button-spinner'></View>
+                    <Text className='login-button-text'>登录中...</Text>
+                  </View>
+                ) : (
+                  <Text className='login-button-text'>立即登录</Text>
+                )}
+              </View>
+
+              <View className='wechat-login-divider'>
+                <View className='divider-line' />
+                <Text className='divider-text'>或</Text>
+                <View className='divider-line' />
+              </View>
+
+              <TaroButton
+                className={`wechat-login-button ${!agreed ? 'wechat-login-button-disabled' : ''}`}
+                openType='getPhoneNumber'
+                onGetPhoneNumber={handleWechatLogin}
+                disabled={loading || !agreed}
+              >
+                {loading ? (
+                  <Text className='wechat-login-text'>登录中...</Text>
+                ) : (
+                  <Text className='wechat-login-text'>手机号快捷登录</Text>
+                )}
+              </TaroButton>
+
+              <View className='register-tip'>
+                <Text className='tip-text'>还没有账户？</Text>
+                <Text className='tip-link' onClick={goToRegister}>立即注册</Text>
+              </View>
             </>
           )}
         </View>
 
-        {/* 底部导航栏 */}
         <BottomNav />
 
-        {/* 滑块验证 */}
         <SliderCaptcha
           visible={sliderCaptchaVisible}
           onHide={() => setSliderCaptchaVisible(false)}
