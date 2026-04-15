@@ -13,6 +13,8 @@ import { smsService } from '@/services/smsService'
 import { sesService } from '@/services/sesService'
 import SliderCaptcha from '@/components/SliderCaptcha'
 import { studentOnboardingService } from '@/services/studentOnboardingService'
+import { User, Lock, Ticket, Message } from '@nutui/icons-react-taro'
+import coachlinkLogo from '@/assets/brand/coachlink-logo.jpg'
 import './index.scss'
 
 const IS_DEV = process.env.NODE_ENV === 'development'
@@ -37,7 +39,6 @@ function Register() {
     return () => clearTimeout(timer)
   }, [countdown])
 
-  // 从路由参数读取 invite（与网页端 ?invite= 一致）
   const getInviteFromParams = () => {
     try {
       const instance = Taro.getCurrentInstance()
@@ -48,32 +49,26 @@ function Register() {
     }
   }
 
-  // 检查手机号或邮箱是否有效
   const isValidPhoneOrEmail = () => {
     const isPhone = /^1[3-9]\d{9}$/.test(phoneOrEmail)
     const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(phoneOrEmail)
     return isPhone || isEmail
   }
 
-  // 显示滑块验证
   const sendVerificationCode = () => {
     if (!agreed) {
       Taro.showToast({ title: '请先同意用户协议', icon: 'none' })
       return
     }
-
     if (!isValidPhoneOrEmail()) {
       Taro.showToast({ title: '请输入正确的手机号或邮箱', icon: 'none' })
       return
     }
-
     setSliderCaptchaVisible(true)
   }
 
-  // 滑块验证成功后发送验证码
   const handleCaptchaSuccess = async (token: string) => {
     const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(phoneOrEmail)
-
     setSendingCode(true)
     try {
       if (isEmail) {
@@ -109,7 +104,6 @@ function Register() {
       loggedInUser,
       fallbackUrl: getRequestedPostLoginUrl(loggedInUser)
     })
-
     Taro.reLaunch({ url: targetUrl })
   }
 
@@ -184,13 +178,24 @@ function Register() {
   return (
     <ConfigProvider locale={zhCN}>
       <View className='register-page'>
+        <View className='register-header'>
+          <View className='brand-row'>
+            <Image className='brand-logo' src={coachlinkLogo} mode='aspectFit' />
+            <View className='brand-text-box'>
+              <Text className='brand-name'>教链</Text>
+              <Text className='brand-subtitle'>CoachLink</Text>
+            </View>
+          </View>
+          <Text className='register-title'>创建账户</Text>
+          <Text className='register-subtitle'>开启你的专业训练之旅</Text>
+        </View>
+
         <View className='register-form'>
           <View className='form-item'>
-            <View className='form-label'>
-              <Text className='label-icon'>👤</Text>
-              <Text className='label-text'>手机号或邮箱</Text>
-            </View>
-            <View className='input-wrapper'>
+            <View className='input-row'>
+              <View className='input-icon'>
+                <User size={18} color='#9CA3AF' />
+              </View>
               <Input
                 className='form-input'
                 placeholder='请输入手机号或邮箱'
@@ -201,11 +206,10 @@ function Register() {
           </View>
 
           <View className='form-item'>
-            <View className='form-label'>
-              <Text className='label-icon'>🔒</Text>
-              <Text className='label-text'>登录密码</Text>
-            </View>
-            <View className='input-wrapper'>
+            <View className='input-row'>
+              <View className='input-icon'>
+                <Lock size={18} color='#9CA3AF' />
+              </View>
               <Input
                 className='form-input'
                 placeholder='请输入密码'
@@ -217,11 +221,10 @@ function Register() {
           </View>
 
           <View className='form-item'>
-            <View className='form-label'>
-              <Text className='label-icon'>🔒</Text>
-              <Text className='label-text'>确认密码</Text>
-            </View>
-            <View className='input-wrapper'>
+            <View className='input-row'>
+              <View className='input-icon'>
+                <Lock size={18} color='#9CA3AF' />
+              </View>
               <Input
                 className='form-input'
                 placeholder='请再次输入密码'
@@ -233,14 +236,13 @@ function Register() {
           </View>
 
           <View className='form-item'>
-            <View className='form-label'>
-              <Text className='label-icon'>🎫</Text>
-              <Text className='label-text'>邀请码（可选）</Text>
-            </View>
-            <View className='input-wrapper'>
+            <View className='input-row'>
+              <View className='input-icon'>
+                <Ticket size={18} color='#9CA3AF' />
+              </View>
               <Input
                 className='form-input'
-                placeholder='请输入邀请码'
+                placeholder='邀请码（可选）'
                 value={invitationCode}
                 onChange={(val) => setInvitationCode(val)}
               />
@@ -248,21 +250,18 @@ function Register() {
           </View>
 
           <View className='form-item'>
-            <View className='form-label'>
-              <Text className='label-icon'>🛡️</Text>
-              <Text className='label-text'>验证码</Text>
-            </View>
-            <View className='verification-wrapper'>
-              <View className='input-wrapper verification-input'>
-                <Input
-                  className='form-input'
-                  placeholder='6位验证码'
-                  type='number'
-                  maxLength={6}
-                  value={verificationCode}
-                  onChange={(val) => setVerificationCode(val)}
-                />
+            <View className='input-row'>
+              <View className='input-icon'>
+                <Message size={18} color='#9CA3AF' />
               </View>
+              <Input
+                className='form-input'
+                placeholder='6位验证码'
+                type='number'
+                maxLength={6}
+                value={verificationCode}
+                onChange={(val) => setVerificationCode(val)}
+              />
               <View
                 className={`send-code-btn ${(countdown > 0 || sendingCode || sliderCaptchaVisible || !isValidPhoneOrEmail()) ? 'send-code-btn-disabled' : ''}`}
                 onClick={(countdown > 0 || sendingCode || sliderCaptchaVisible || !isValidPhoneOrEmail()) ? undefined : sendVerificationCode}
@@ -277,10 +276,7 @@ function Register() {
           </View>
 
           <View className='agreement-row'>
-            <Checkbox
-              checked={agreed}
-              onChange={(val) => setAgreed(val)}
-            />
+            <Checkbox checked={agreed} onChange={(val) => setAgreed(val)} />
             <Text className='agreement-text'>
               同意
               <Text className='agreement-link' onClick={goToTerms}>《用户协议》</Text>
@@ -289,20 +285,18 @@ function Register() {
             </Text>
           </View>
 
-          <View className='register-button-container'>
-            <View
-              className={`register-button ${loading ? 'register-button-loading' : ''}`}
-              onClick={!loading ? handleRegister : undefined}
-            >
-              {loading ? (
-                <View className='register-button-loading-content'>
-                  <View className='register-button-spinner'></View>
-                  <Text className='register-button-text'>注册中...</Text>
-                </View>
-              ) : (
-                <Text className='register-button-text'>立即注册</Text>
-              )}
-            </View>
+          <View
+            className={`register-button ${loading ? 'register-button-loading' : ''}`}
+            onClick={!loading ? handleRegister : undefined}
+          >
+            {loading ? (
+              <View className='register-button-loading-content'>
+                <View className='register-button-spinner'></View>
+                <Text className='register-button-text'>注册中...</Text>
+              </View>
+            ) : (
+              <Text className='register-button-text'>立即注册</Text>
+            )}
           </View>
 
           <View className='login-tip'>
@@ -311,7 +305,6 @@ function Register() {
           </View>
         </View>
 
-        {/* 滑块验证 */}
         <SliderCaptcha
           visible={sliderCaptchaVisible}
           onHide={() => setSliderCaptchaVisible(false)}

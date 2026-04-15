@@ -91,6 +91,24 @@
 
 ---
 
+## WeApp UI Polish (`2026-04-15`)
+
+- Task: 参考 Dribbble 风格优化小程序首页与底部导航
+- Scope:
+  - 首页：`custom` 导航栏、渐变背景、品牌图标替换 emoji、彩色卡片与 promo banner
+  - `BottomNav`：深色胶囊、白色 active pill、图标+文字动画、消除跳转白屏
+- Fix:
+  - `wechat-app/src/pages/index/index.tsx` / `index.scss`
+  - `wechat-app/src/components/BottomNav.tsx` / `BottomNav.scss`
+  - `wechat-app/src/pages/index/index.config.ts`（`navigationStyle: 'custom'`）
+- Verification:
+  - 构建通过（`npm run build:weapp`）
+  - DevTools 截图验证通过（端口 3002）
+- Commit: `258313e` on `origin/dev`
+- Status: completed
+
+---
+
 ## Hotfix Note (`2026-04-08`)
 
 - Task: 修复“计划逻辑已完成但页面仍显示进行中/制定中”的状态错位
