@@ -1,0 +1,161 @@
+.generate-plan-waiting-page {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40rpx;
+
+  .waiting-card {
+    background: #fff;
+    border-radius: 24rpx;
+    padding: 60rpx 40rpx;
+    width: 100%;
+    max-width: 640rpx;
+    text-align: center;
+    box-shadow: 0 20rpx 60rpx rgba(0, 0, 0, 0.2);
+
+    .icon-wrap {
+      width: 120rpx;
+      height: 120rpx;
+      margin: 0 auto 32rpx;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #f5f5f5;
+      border-radius: 50%;
+
+      .icon {
+        font-size: 60rpx;
+
+        &.success {
+          color: #52c41a;
+        }
+
+        &.error {
+          color: #ff4d4f;
+        }
+
+        &.pending {
+          color: #1890ff;
+        }
+      }
+
+      .loading-spinner {
+        .spinner {
+          width: 60rpx;
+          height: 60rpx;
+          border: 4rpx solid #f0f0f0;
+          border-top-color: #1890ff;
+          border-radius: 50%;
+          animation: spin 1s linear infinite;
+        }
+      }
+    }
+
+    .title {
+      font-size: 40rpx;
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 16rpx;
+      display: block;
+    }
+
+    .desc {
+      font-size: 28rpx;
+      color: #666;
+      line-height: 1.6;
+      margin-bottom: 40rpx;
+      display: block;
+    }
+
+    // 进度条
+    .progress-section {
+      margin-bottom: 40rpx;
+
+      .progress-bar {
+        height: 12rpx;
+        background: #f0f0f0;
+        border-radius: 6rpx;
+        overflow: hidden;
+        margin-bottom: 12rpx;
+
+        .progress-fill {
+          height: 100%;
+          background: linear-gradient(90deg, #1890ff, #36cfc9);
+          border-radius: 6rpx;
+          transition: width 0.3s ease;
+        }
+      }
+
+      .progress-text {
+        font-size: 24rpx;
+        color: #999;
+      }
+    }
+
+    .actions {
+      display: flex;
+      flex-direction: column;
+      gap: 20rpx;
+
+      .btn {
+        padding: 24rpx 48rpx;
+        border-radius: 12rpx;
+        text-align: center;
+        transition: all 0.2s;
+
+        &:active {
+          opacity: 0.9;
+          transform: scale(0.98);
+        }
+
+        &.primary {
+          background: #1890ff;
+
+          Text {
+            color: #fff;
+            font-size: 30rpx;
+            font-weight: 500;
+          }
+        }
+
+        &.secondary {
+          background: #f5f5f5;
+          border: 2rpx solid #d9d9d9;
+
+          Text {
+            color: #666;
+            font-size: 30rpx;
+          }
+        }
+
+        &.disabled {
+          opacity: 0.6;
+          pointer-events: none;
+        }
+      }
+    }
+  }
+
+  .back-btn {
+    margin-top: 40rpx;
+    padding: 16rpx 32rpx;
+
+    Text {
+      font-size: 28rpx;
+      color: rgba(255, 255, 255, 0.8);
+    }
+
+    &:active {
+      opacity: 0.8;
+    }
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

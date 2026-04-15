@@ -1,0 +1,1 @@
+export default { navigationBarTitleText: '计算我的力量分' }

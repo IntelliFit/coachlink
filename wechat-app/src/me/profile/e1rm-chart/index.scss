@@ -1,0 +1,38 @@
+.e1rm-chart-page {
+  min-height: 100vh;
+  background-color: #f5f5f5;
+
+  .page-scroll { height: 100vh; padding-bottom: 48rpx; }
+
+  .action-selector {
+    background: #fff; padding: 24rpx; margin-bottom: 24rpx;
+    .label { font-size: 28rpx; color: #666; margin-bottom: 16rpx; display: block; }
+    .action-list { white-space: nowrap; }
+    .action-tag {
+      display: inline-block; padding: 12rpx 24rpx; background: #f5f5f5; border-radius: 8rpx; margin-right: 16rpx;
+      Text { font-size: 26rpx; color: #666; }
+      &.selected { background: #1890ff; Text { color: #fff; } }
+    }
+  }
+
+  .chart-section, .pr-section {
+    background: #fff; margin: 0 24rpx 24rpx; border-radius: 16rpx; padding: 24rpx;
+    .section-title { font-size: 32rpx; font-weight: 600; color: #333; margin-bottom: 24rpx; display: block; }
+    .chart-canvas { width: 100%; height: 400rpx; }
+    .no-data { text-align: center; padding: 48rpx 0; Text { font-size: 28rpx; color: #999; } }
+  }
+
+  .pr-list {
+    .pr-item {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 20rpx 0; border-bottom: 1rpx solid #f0f0f0;
+      &:last-child { border-bottom: none; }
+      .pr-info {
+        .pr-action { font-size: 30rpx; color: #333; font-weight: 500; display: block; margin-bottom: 8rpx; }
+        .pr-value { font-size: 32rpx; color: #1890ff; font-weight: 600; display: block; margin-bottom: 4rpx; }
+        .pr-date { font-size: 24rpx; color: #999; }
+      }
+      .video-btn { padding: 12rpx 24rpx; background: #f0f7ff; border-radius: 8rpx; Text { font-size: 26rpx; color: #1890ff; } }
+    }
+  }
+}

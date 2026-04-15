@@ -1,0 +1,157 @@
+.profile-detail-page {
+  min-height: 100vh;
+  background: #f3f4f6;
+  padding-bottom: 70px; // 为底部导航栏预留空间
+
+  .loading-container,
+  .error-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: calc(100vh - 70px);
+
+    .loading-text,
+    .error-text {
+      font-size: 14px;
+      color: #6b7280;
+    }
+  }
+
+  .page-scroll {
+    height: calc(100vh - 70px);
+  }
+
+
+  .skeleton-wrap {
+    padding: 16px 12px;
+    min-height: calc(100vh - 70px);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .skeleton-header {
+    margin-bottom: 4px;
+    border-radius: 16px;
+    overflow: hidden;
+  }
+
+  .skeleton-block {
+    border-radius: 16px;
+    overflow: hidden;
+  }
+
+  .skeleton-inline {
+    margin: 0 12px 12px;
+    border-radius: 16px;
+    overflow: hidden;
+  }
+
+  .tab-content .empty-state .video-stub-icon {
+    color: #94a3b8;
+    margin-bottom: 8px;
+  }
+
+  // Tab区域
+  .tab-section {
+    padding: 0 12px;
+    margin-top: 4px;
+    padding-bottom: 16px;
+
+    .tab-bar {
+      display: flex;
+      align-items: center;
+      background: #f3f4f6;
+      border-radius: 10px;
+      padding: 4px;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+      margin-bottom: 10px;
+
+      .tab-item {
+        flex: 1;
+        padding: 8px 0;
+        text-align: center;
+        border-radius: 8px;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+
+        &.active {
+          background: linear-gradient(135deg, #F28631 0%, #FFAC6B 100%);
+
+          .tab-icon {
+            filter: brightness(0) invert(1);
+          }
+
+          .tab-text {
+            color: #ffffff;
+            font-weight: 600;
+          }
+        }
+
+        &:active {
+          opacity: 0.8;
+        }
+
+        .tab-icon {
+          font-size: 14px;
+        }
+
+        .tab-text {
+          font-size: 13px;
+          font-weight: 500;
+          color: #6b7280;
+        }
+      }
+
+      .tab-more {
+        display: flex;
+        align-items: center;
+        gap: 2px;
+        padding: 8px 10px;
+        color: #9ca3af;
+        
+        .more-icon {
+          font-size: 12px;
+        }
+        
+        .more-arrow {
+          font-size: 10px;
+        }
+        
+        &:active {
+          opacity: 0.7;
+        }
+      }
+    }
+
+    .tab-content {
+      background: #ffffff;
+      border-radius: 12px;
+      padding: 14px;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+      min-height: 160px;
+
+      .empty-state {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 40px 0;
+
+        .empty-icon {
+          font-size: 36px;
+          margin-bottom: 8px;
+          opacity: 0.5;
+        }
+
+        .empty-text {
+          font-size: 13px;
+          color: #9ca3af;
+        }
+      }
+    }
+  }
+}

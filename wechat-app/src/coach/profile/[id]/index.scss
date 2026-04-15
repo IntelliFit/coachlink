@@ -1,0 +1,412 @@
+.coach-profile-page {
+  min-height: 100vh;
+  background: #f3f4f6;
+
+  .loading-wrap,
+  .error-wrap {
+    padding: 24px;
+    text-align: center;
+    color: #9ca3af;
+    font-size: 14px;
+  }
+
+  .error-wrap {
+    color: #dc2626;
+  }
+
+  .profile-scroll {
+    padding: 12px;
+  }
+
+  .profile-header {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+
+    .avatar {
+      width: 80px;
+      height: 80px;
+      border-radius: 16px;
+      margin-bottom: 12px;
+    }
+
+    .avatar-placeholder {
+      width: 80px;
+      height: 80px;
+      border-radius: 16px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 12px;
+      color: #fff;
+      font-size: 32px;
+      font-weight: 700;
+    }
+
+    .header-info {
+      width: 100%;
+      text-align: center;
+
+      .coach-name {
+        font-size: 20px;
+        font-weight: 800;
+        color: #111827;
+        display: block;
+        margin-bottom: 4px;
+      }
+
+      .coach-title {
+        font-size: 14px;
+        color: #6b7280;
+        display: block;
+        margin-bottom: 16px;
+      }
+
+      .stats-row {
+        display: flex;
+        justify-content: center;
+        gap: 24px;
+        margin-top: 16px;
+        padding-top: 16px;
+        border-top: 1px solid #e5e7eb;
+
+        .stat-item {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+
+          .stat-value {
+            font-size: 18px;
+            font-weight: 800;
+            color: #111827;
+            margin-bottom: 4px;
+          }
+
+          .stat-label {
+            font-size: 12px;
+            color: #6b7280;
+          }
+        }
+      }
+    }
+
+    .edit-btn {
+      margin-top: 16px;
+      padding: 8px 20px;
+      background: #3b82f6;
+      color: #fff;
+      border-radius: 8px;
+      font-size: 14px;
+      border: none;
+    }
+  }
+
+  .section {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 16px;
+    padding: 16px;
+    margin-bottom: 16px;
+
+    .section-title {
+      font-size: 16px;
+      font-weight: 800;
+      color: #111827;
+      margin-bottom: 12px;
+      display: block;
+    }
+
+    .section-content {
+      font-size: 14px;
+      color: #374151;
+      line-height: 1.6;
+      display: block;
+    }
+
+    .textarea {
+      width: 100%;
+      min-height: 100px;
+      padding: 10px 12px;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      font-size: 14px;
+      background: #fff;
+      box-sizing: border-box;
+    }
+
+    .input {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      font-size: 14px;
+      background: #fff;
+      box-sizing: border-box;
+    }
+
+    .tag-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 12px;
+
+      .tag-item {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 12px;
+        background: #f3f4f6;
+        border-radius: 16px;
+        font-size: 13px;
+        color: #374151;
+
+        .tag-remove {
+          color: #ef4444;
+          font-weight: 700;
+          font-size: 16px;
+          cursor: pointer;
+        }
+      }
+    }
+
+    .tag-input-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+
+      .tag-input {
+        flex: 1;
+        padding: 8px 12px;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        font-size: 14px;
+      }
+
+      .tag-add-btn {
+        padding: 8px 16px;
+        background: #3b82f6;
+        color: #fff;
+        border-radius: 8px;
+        font-size: 14px;
+        border: none;
+      }
+    }
+
+    .list-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 12px;
+      background: #f9fafb;
+      border-radius: 8px;
+      margin-bottom: 8px;
+
+      .list-item-remove {
+        color: #ef4444;
+        font-size: 13px;
+        cursor: pointer;
+      }
+    }
+
+    .list-input-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      margin-top: 8px;
+
+      .list-input {
+        flex: 1;
+        padding: 8px 12px;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        font-size: 14px;
+      }
+
+      .list-add-btn {
+        padding: 8px 16px;
+        background: #3b82f6;
+        color: #fff;
+        border-radius: 8px;
+        font-size: 14px;
+        border: none;
+      }
+    }
+
+    .credential-item {
+      padding: 12px;
+      background: #f9fafb;
+      border-radius: 8px;
+      margin-bottom: 8px;
+
+      .credential-name {
+        font-size: 14px;
+        font-weight: 600;
+        color: #111827;
+        display: block;
+        margin-bottom: 4px;
+      }
+
+      .credential-url {
+        font-size: 12px;
+        color: #6b7280;
+        display: block;
+        margin-bottom: 8px;
+        word-break: break-all;
+      }
+
+      .credential-remove {
+        color: #ef4444;
+        font-size: 13px;
+        cursor: pointer;
+      }
+    }
+
+    .credential-form {
+      .credential-form-actions {
+        display: flex;
+        gap: 8px;
+        margin-top: 12px;
+
+        .cancel-btn,
+        .save-btn {
+          flex: 1;
+          padding: 10px;
+          border-radius: 8px;
+          font-size: 14px;
+          border: none;
+        }
+
+        .cancel-btn {
+          background: #f3f4f6;
+          color: #374151;
+        }
+
+        .save-btn {
+          background: #3b82f6;
+          color: #fff;
+        }
+      }
+    }
+
+    .social-item {
+      padding: 12px;
+      background: #f9fafb;
+      border-radius: 8px;
+      margin-bottom: 8px;
+
+      .social-name {
+        font-size: 14px;
+        font-weight: 600;
+        color: #111827;
+        display: block;
+        margin-bottom: 4px;
+      }
+
+      .social-url {
+        font-size: 12px;
+        color: #6b7280;
+        display: block;
+        margin-bottom: 8px;
+        word-break: break-all;
+      }
+
+      .social-remove {
+        color: #ef4444;
+        font-size: 13px;
+        cursor: pointer;
+      }
+    }
+
+    .social-form {
+      .picker-row {
+        margin-bottom: 12px;
+
+        .picker-label {
+          font-size: 14px;
+          font-weight: 600;
+          color: #374151;
+          margin-bottom: 8px;
+          display: block;
+        }
+
+        .platform-options {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+
+          .platform-option {
+            padding: 6px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 13px;
+            color: #374151;
+            background: #fff;
+            cursor: pointer;
+
+            &.active {
+              background: #3b82f6;
+              color: #fff;
+              border-color: #3b82f6;
+            }
+          }
+        }
+      }
+
+      .social-form-actions {
+        display: flex;
+        gap: 8px;
+        margin-top: 12px;
+
+        .cancel-btn,
+        .save-btn {
+          flex: 1;
+          padding: 10px;
+          border-radius: 8px;
+          font-size: 14px;
+          border: none;
+        }
+
+        .cancel-btn {
+          background: #f3f4f6;
+          color: #374151;
+        }
+
+        .save-btn {
+          background: #3b82f6;
+          color: #fff;
+        }
+      }
+    }
+
+    .add-btn {
+      width: 100%;
+      padding: 10px;
+      background: #f3f4f6;
+      color: #374151;
+      border-radius: 8px;
+      font-size: 14px;
+      border: 1px dashed #d1d5db;
+    }
+  }
+
+  .submit-section {
+    padding: 16px 0 32px;
+
+    .submit-btn {
+      width: 100%;
+      padding: 14px;
+      background: #3b82f6;
+      color: #fff;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 700;
+      border: none;
+    }
+  }
+}

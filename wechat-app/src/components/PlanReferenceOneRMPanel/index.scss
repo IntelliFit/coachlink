@@ -1,0 +1,155 @@
+.plan-onerm {
+  padding: 20rpx;
+  border-radius: 24rpx;
+  border: 2rpx solid #e8eef6;
+  background: linear-gradient(180deg, #ffffff 0%, #fbfcff 100%);
+
+  &__header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16rpx;
+    margin-bottom: 16rpx;
+  }
+
+  &__title {
+    display: block;
+    font-size: 30rpx;
+    font-weight: 700;
+    color: #111827;
+  }
+
+  &__caption,
+  &__empty {
+    display: block;
+    margin-top: 6rpx;
+    font-size: 22rpx;
+    line-height: 1.5;
+    color: #6b7280;
+  }
+
+  &__toggle {
+    padding: 8rpx 0;
+    font-size: 24rpx;
+    font-weight: 600;
+    color: #ff8b38;
+  }
+
+  &__summary {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12rpx;
+  }
+
+  &__pill {
+    min-width: 0;
+    padding: 12rpx 18rpx;
+    border-radius: 18rpx;
+    background: #f3f6fb;
+    border: 2rpx solid #e7ecf4;
+
+    &.muted {
+      background: #f8fafc;
+      color: #9ca3af;
+    }
+  }
+
+  &__pill-name,
+  &__pill-value,
+  &__label,
+  &__badge,
+  &__unit {
+    display: block;
+  }
+
+  &__pill-name {
+    font-size: 20rpx;
+    color: #6b7280;
+  }
+
+  &__pill-value {
+    margin-top: 6rpx;
+    font-size: 24rpx;
+    font-weight: 700;
+    color: #111827;
+  }
+
+  &__grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14rpx;
+    margin-top: 18rpx;
+  }
+
+  &__field {
+    min-width: 0;
+  }
+
+  &__label-row {
+    display: flex;
+    align-items: center;
+    gap: 8rpx;
+    margin-bottom: 10rpx;
+  }
+
+  &__label {
+    flex: 1;
+    min-width: 0;
+    font-size: 22rpx;
+    color: #4b5563;
+  }
+
+  &__badge {
+    flex-shrink: 0;
+    padding: 4rpx 10rpx;
+    border-radius: 999rpx;
+    background: #fff2e7;
+    color: #d97706;
+    font-size: 18rpx;
+    font-weight: 700;
+  }
+
+  &__input-wrap {
+    display: flex;
+    align-items: center;
+    gap: 10rpx;
+    min-height: 72rpx;
+    padding: 0 16rpx;
+    border-radius: 18rpx;
+    border: 2rpx solid #e5e7eb;
+    background: #f8fafc;
+
+    &.disabled {
+      background: #f3f4f6;
+      color: #9ca3af;
+    }
+  }
+
+  &__input {
+    flex: 1;
+    min-width: 0;
+    height: 72rpx;
+    font-size: 26rpx;
+    color: #111827;
+  }
+
+  &__unit {
+    flex-shrink: 0;
+    font-size: 22rpx;
+    font-weight: 700;
+    color: #6b7280;
+  }
+
+  &__save {
+    margin-top: 18rpx;
+    min-height: 78rpx;
+    border-radius: 18rpx;
+    background: linear-gradient(135deg, #ff9f4a, #ff7b2c);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 26rpx;
+    font-weight: 700;
+  }
+}
