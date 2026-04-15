@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { lineHasExplicitReps } from "./planImportText";
+import { findFirstLineForAction, lineHasExplicitReps } from "./planImportText";
 
 describe("planImportText.lineHasExplicitReps", () => {
     it("detects classic sets×reps formats", () => {
@@ -28,6 +28,16 @@ describe("planImportText.lineHasExplicitReps", () => {
     it("does not treat timed-only lines as explicit reps", () => {
         expect(lineHasExplicitReps("单手悬挂交替 30s/30s")).toBe(false);
         expect(lineHasExplicitReps("顶部维持 3 秒 + 慢离心")).toBe(false);
+    });
+});
+
+describe("planImportText.findFirstLineForAction", () => {
+    it("prefers the detail line over a markdown heading with the same action name", () => {
+        const text = `**负重臂屈伸**
+* 负重臂屈伸 3组6次（使用8RM的重量）`;
+        expect(findFirstLineForAction(text, "负重臂屈伸")).toBe(
+            "* 负重臂屈伸 3组6次（使用8RM的重量）",
+        );
     });
 });
 

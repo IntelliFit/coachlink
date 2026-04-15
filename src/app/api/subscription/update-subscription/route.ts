@@ -11,6 +11,8 @@ import type {
 import { sendSystemMessage } from "@/lib/chat";
 import { autoMatchPlanForSubscription } from "@/app/api/plan-lib/auto-match-plan/service";
 import { supportsOfflinePaymentForCoach } from "@/lib/offlinePaymentPolicy";
+import { deriveProjectedSubscriptionEndDate } from "@/lib/subscriptionEstimatedEndDate";
+import { getSubscriptionCarryoverSummary } from "@/lib/subscriptionCarryover";
 
 export async function POST(req: Request) {
     const session = await getServerSession();
@@ -266,6 +268,56 @@ export async function POST(req: Request) {
                     ...mergedPaymentData,
                     pending_renew: null,
                 };
+            }
+        }
+    }
+
+    const shouldRefreshProjectedEndDate =
+        typeof (updateData as any)?.subscribed_weeks !== "undefined" &&
+        typeof (updateData as any)?.end_date === "undefined";
+
+    if (shouldRefreshProjectedEndDate) {
+        const nextSubscribedWeeks = Number((updateData as any)?.subscribed_weeks || 0);
+        if (Number.isFinite(nextSubscribedWeeks) && nextSubscribedWeeks > 0) {
+            const { data: instances } = await supabase
+                .from("coach_plan_instances")
+                .select("id, training_days, start_execution_day, status, created_at")
+                .eq("coach_subscription_id", id)
+                .in("status", ["active", "paused", "completed"])
+                .order("created_at", { ascending: false });
+
+            const preferredInstance =
+                (instances || []).find((item: any) => item.status === "active" || item.status === "paused") ||
+                (instances || [])[0];
+
+            if (preferredInstance) {
+                const { data: completedExecutions } = await supabase
+                    .from("plan_instance_executions")
+                    .select("day_index, status")
+                    .eq("instance_id", preferredInstance.id)
+                    .eq("status", "completed");
+
+                const projectedEndDate = deriveProjectedSubscriptionEndDate({
+                    startDate: (subscription as any)?.start_date || null,
+                    subscribedWeeks: nextSubscribedWeeks,
+                    effectiveSubscribedWeeks: (
+                        await getSubscriptionCarryoverSummary({
+                            subscriptionId: id,
+                            subscribedWeeks: nextSubscribedWeeks,
+                            excludeInstanceId: String((preferredInstance as any)?.id || ""),
+                            createdBefore: (preferredInstance as any)?.created_at || null,
+                        })
+                    ).remainingWeeks,
+                    trainingDays: (preferredInstance as any)?.training_days || [],
+                    startExecutionDay: Number((preferredInstance as any)?.start_execution_day || 1),
+                    executions: (completedExecutions as any[]) || [],
+                });
+
+                if (projectedEndDate) {
+                    (updateData as any).end_date = projectedEndDate;
+                }
+            } else if (!(subscription as any)?.start_date) {
+                (updateData as any).end_date = null;
             }
         }
     }

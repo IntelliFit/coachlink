@@ -1,4 +1,5 @@
 import { BaseService } from "@/lib/baseService";
+import { prepareVideoForUpload } from "@/lib/videoCompression";
 import { CoachActionRow } from "@/types";
 import { ListActionsDto, ListActionsResponseDto } from "@/app/api/action-lib/list-actions/entity";
 import { AddActionDto, AddActionResponseDto } from "@/app/api/action-lib/add-action/entity";
@@ -139,17 +140,24 @@ export class ActionLibService extends BaseService {
         if (!file) throw new Error("缺少文件");
         if (!file.type?.startsWith("video/")) throw new Error("仅支持上传视频文件");
 
-        const maxSizeBytes = 200 * 1024 * 1024; // 200MB
-        if (file.size > maxSizeBytes) throw new Error("视频过大，单个视频请小于 200MB");
-
         onProgress?.(0);
+
+        const prepared = await prepareVideoForUpload(file, {
+            onProgress: (progress) => {
+                const mappedPercentage = progress.phase === "compressing"
+                    ? Math.round(10 + progress.percentage * 0.45)
+                    : Math.round(progress.percentage * 0.1);
+                onProgress?.(mappedPercentage);
+            },
+        });
+        const uploadFile = prepared.file;
 
         const signRes = await this.post<CreateDemoVideoUploadUrlResponseDto>(
             "create-demo-video-upload-url",
             {
-                originalFilename: file.name,
-                contentType: file.type || "application/octet-stream",
-                fileSizeBytes: file.size,
+                originalFilename: uploadFile.name,
+                contentType: uploadFile.type || "application/octet-stream",
+                fileSizeBytes: uploadFile.size,
             },
         );
 
@@ -158,7 +166,12 @@ export class ActionLibService extends BaseService {
         }
 
         const { bucket, path, publicUrl, uploadUrl } = signRes.data.data;
-        await this.putWithProgress(uploadUrl, file, onProgress);
+        await this.putWithProgress(uploadUrl, uploadFile, (percentage) => {
+            const mappedPercentage = prepared.compressed
+                ? Math.round(55 + percentage * 0.45)
+                : percentage;
+            onProgress?.(mappedPercentage);
+        });
 
         return {
             url: publicUrl,

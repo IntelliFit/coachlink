@@ -62,8 +62,6 @@ export async function autoMatchPlanForSubscription(
             actorUserId,
             actorCoachId,
             subscriptionId,
-            startWeek: 1,
-            startDay: 1,
             delayedActivation: true, // 延迟2分钟激活
         });
 
@@ -79,6 +77,5 @@ export async function autoMatchPlanForSubscription(
         };
     }
 }
-
 
 

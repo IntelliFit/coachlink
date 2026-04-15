@@ -10,6 +10,7 @@ import {
     evaluateSubscriptionPlanAccess,
     filterTrainingDaysByAccessWindow,
 } from "@/lib/subscriptionAccess";
+import { getSubscriptionCarryoverSummary } from "@/lib/subscriptionCarryover";
 
 /**
  * GET /api/plan-lib/get-with-executions
@@ -259,6 +260,16 @@ export async function POST(req: NextRequest) {
                     status: exec?.status || "completed",
                 })),
                 startExecutionDay: Number(instance.start_execution_day || 1),
+                effectiveSubscribedWeeks: (
+                    await getSubscriptionCarryoverSummary({
+                        subscriptionId: String(instance.coach_subscription_id || ""),
+                        subscribedWeeks: Number(
+                            subscriptionForStudentAccess?.subscribed_weeks || 0,
+                        ),
+                        excludeInstanceId: String(instance.id || ""),
+                        createdBefore: (instance as any)?.created_at || null,
+                    })
+                ).remainingWeeks,
             });
             if (!decision.allowed) {
                 return NextResponse.json<ApiData<GetWithExecutionsResponseDto>>(

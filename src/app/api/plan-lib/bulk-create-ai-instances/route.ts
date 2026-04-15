@@ -24,8 +24,8 @@ export async function POST(req: Request) {
     mode = "explicit",
     subscriptionIds,
     excludedSubscriptionIds = [],
-    startWeek = 1,
-    startDay = 1,
+    startWeek,
+    startDay,
     keepOriginalIndex = true,
   } = (await req.json()) as BulkCreateAiInstancesDto;
 

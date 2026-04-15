@@ -6,8 +6,10 @@ import type {
     CheckSubscriptionDto,
     CheckSubscriptionResponseDto,
 } from "./entity";
-import { computeCreditsScope, computeUsedCredits, estimateRemainingDays } from "@/lib/subscriptionCredits";
+import { computeCreditsScope, computeUsedCredits } from "@/lib/subscriptionCredits";
 import { getSubscriptionLifecycle } from "@/lib/subscriptionLifecycle";
+import { deriveProjectedSubscriptionEndDate } from "@/lib/subscriptionEstimatedEndDate";
+import { deriveSubscriptionCarryoverSummaryFromHistory } from "@/lib/subscriptionCarryover";
 
 export async function POST(req: Request) {
     const session = await getServerSession();
@@ -195,10 +197,21 @@ export async function PUT(req: Request) {
                 const inst = latestInstanceBySub.get(sub.id);
                 if (!inst?.training_days) continue;
 
+                const subInstances = (instances || []).filter((item: any) =>
+                    item?.coach_subscription_id === sub.id
+                );
+                const carryover = deriveSubscriptionCarryoverSummaryFromHistory({
+                    subscribedWeeks: weeks,
+                    instances: subInstances as any[],
+                    executions: (completedExecs || []) as any[],
+                    excludeInstanceId: String(inst.id || ""),
+                    createdBefore: inst.created_at || null,
+                });
+
                 const scope = computeCreditsScope({
                     trainingDays: (inst.training_days as any[]) || [],
                     startExecutionDay: Number(inst.start_execution_day || 1),
-                    subscribedWeeks: weeks,
+                    subscribedWeeks: carryover.remainingWeeks,
                 });
 
                 const totalCredits = scope.totalCredits;
@@ -222,16 +235,20 @@ export async function PUT(req: Request) {
                     continue;
                 }
 
-                // Estimate end_date for friendly UI “剩余X天” display
-                const remainingDaysEstimate = estimateRemainingDays({
+                const endDate = deriveProjectedSubscriptionEndDate({
+                    startDate: sub.start_date,
                     subscribedWeeks: weeks,
-                    totalCredits,
-                    remainingCredits,
-                    fallbackCreditsPerWeek: 3,
+                    effectiveSubscribedWeeks: carryover.remainingWeeks,
+                    trainingDays: (inst.training_days as any[]) || [],
+                    startExecutionDay: Number(inst.start_execution_day || 1),
+                    executions: ((execsByInstance.get(inst.id) || []) as any[]).map((e) => ({
+                        day_index: e.day_index,
+                        status: e.status,
+                    })),
                 });
-                const end = new Date();
-                end.setDate(end.getDate() + remainingDaysEstimate);
-                toRefresh.push({ id: sub.id, end_date: end.toISOString() });
+                if (endDate) {
+                    toRefresh.push({ id: sub.id, end_date: endDate });
+                }
             }
 
             if (toRefresh.length > 0) {

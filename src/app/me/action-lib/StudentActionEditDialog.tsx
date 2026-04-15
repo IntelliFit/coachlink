@@ -627,13 +627,13 @@ const StudentActionEditDialog: React.FC<StudentActionEditDialogProps> = ({
                                 disabled={uploadingDemoVideo}
                             />
                             <span className="text-xs text-surface-500 hidden sm:inline">
-                                支持 MP4/WEBM，≤200MB。上传后会自动回填到 URL。
+                                支持 MP4/WEBM，原视频 ≤200MB。较大文件会先压缩，再自动回填到 URL。
                             </span>
                         </div>
                         {uploadingDemoVideo && (
                             <div className="mt-2">
                                 <div className="flex justify-between text-[10px] font-black text-primary-500 uppercase tracking-widest mb-2">
-                                    <span>视频上传中...</span>
+                                    <span>视频处理中...</span>
                                     <span>{demoVideoUploadProgress}%</span>
                                 </div>
                                 <ProgressBar

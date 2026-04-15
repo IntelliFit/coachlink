@@ -6,6 +6,7 @@ import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 import { sendDirectMessage } from "@/lib/chat";
 import { syncCoachActionsToStudentLibrary } from "../sync-actions";
 import { validateTrainingDaysPresence } from "@/utils/template";
+import { getSubscriptionCarryoverSummary } from "@/lib/subscriptionCarryover";
 
 export async function POST(req: Request) {
     const {
@@ -52,7 +53,7 @@ export async function POST(req: Request) {
 
     const { data: subscription, error: subscriptionError } = await supabase
         .from("coach_subscriptions")
-        .select("coach_id, student_id")
+        .select("coach_id, student_id, subscribed_weeks")
         .eq("id", subscriptionId)
         .single();
 
@@ -64,6 +65,8 @@ export async function POST(req: Request) {
     }
 
     // Calculate start_execution_day if provided (migration mid-cycle)
+    const hasExplicitStartPosition =
+        startWeek !== undefined || startDay !== undefined;
     const normalizedStartWeek = Number(startWeek ?? 1);
     const normalizedStartDay = Number(startDay ?? 1);
     const hasStartPosition = Number.isFinite(normalizedStartWeek) &&
@@ -72,9 +75,25 @@ export async function POST(req: Request) {
         normalizedStartDay >= 1 &&
         normalizedStartDay <= 7;
 
-    const startExecutionDay = hasStartPosition
+    let startExecutionDay = hasStartPosition
         ? (normalizedStartWeek - 1) * 7 + normalizedStartDay
         : 1;
+
+    if (!hasExplicitStartPosition && Array.isArray(trainingDays)) {
+        const carryover = await getSubscriptionCarryoverSummary({
+            subscriptionId,
+            subscribedWeeks: Number((subscription as any)?.subscribed_weeks || 0),
+        });
+
+        if (carryover.exhausted) {
+            return NextResponse.json({
+                success: false,
+                message: "当前订阅剩余周期已耗尽，请续费后再创建新计划",
+            }, { status: 400 });
+        }
+
+        startExecutionDay = 1;
+    }
 
     if (hasStartPosition && Array.isArray(trainingDays)) {
         const totalDays = (trainingDays as any[]).length;

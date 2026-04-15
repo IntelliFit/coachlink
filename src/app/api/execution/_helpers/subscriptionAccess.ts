@@ -1,5 +1,6 @@
 import supabase from "@/lib/supabaseClient";
 import { evaluateSubscriptionPlanAccess } from "@/lib/subscriptionAccess";
+import { getSubscriptionCarryoverSummary } from "@/lib/subscriptionCarryover";
 
 export type ExecutionSubscriptionAccess = {
     allowed: boolean;
@@ -18,7 +19,7 @@ export async function validateExecutionSubscriptionAccess(params: {
 
     const { data: instance, error: instanceError } = await supabase
         .from("coach_plan_instances")
-        .select("coach_subscription_id, training_days, start_execution_day")
+        .select("coach_subscription_id, training_days, start_execution_day, created_at")
         .eq("id", instanceId)
         .maybeSingle();
 
@@ -64,6 +65,13 @@ export async function validateExecutionSubscriptionAccess(params: {
         .eq("instance_id", instanceId)
         .eq("status", "completed");
 
+    const carryover = await getSubscriptionCarryoverSummary({
+        subscriptionId,
+        subscribedWeeks: Number(subscription.subscribed_weeks || 0),
+        excludeInstanceId: instanceId,
+        createdBefore: (instance as any)?.created_at || null,
+    });
+
     const decision = evaluateSubscriptionPlanAccess({
         subscription,
         requestedDayIndex: dayIndex ?? null,
@@ -75,6 +83,7 @@ export async function validateExecutionSubscriptionAccess(params: {
             status: exec?.status || "completed",
         })),
         startExecutionDay: Number((instance as any)?.start_execution_day || 1),
+        effectiveSubscribedWeeks: carryover.remainingWeeks,
     });
 
     if (!decision.allowed) {

@@ -1,4 +1,5 @@
 import { BaseService } from "@/lib/baseService";
+import { prepareVideoForUpload } from "@/lib/videoCompression";
 import { ApiData } from "@/types/api";
 import { Coach, CoachStudentItem } from "@/types/coach";
 
@@ -331,8 +332,12 @@ class CoachService extends BaseService {
 
     // 上传问卷问题示例媒体（图片/视频）
     async uploadQuestionMedia(file: File) {
+        const uploadFile = file.type?.startsWith("video/")
+            ? (await prepareVideoForUpload(file)).file
+            : file;
+
         const formData = new FormData();
-        formData.append("file", file);
+        formData.append("file", uploadFile);
 
         const resp = await fetch("/api/coach/upload-question-media", {
             method: "POST",
