@@ -1,5 +1,5 @@
 # 多阶段构建：构建阶段
-FROM node:20-alpine AS builder
+FROM node:22-alpine AS builder
 
 WORKDIR /app
 
@@ -11,6 +11,9 @@ COPY package.json package-lock.json ./
 RUN npm config set registry https://registry.npmjs.org/ && \
     # 测试官方源是否可用（使用简短超时），如果不可用则切换到镜像源
     (timeout 5 npm ping > /dev/null 2>&1 || npm config set registry https://registry.npmmirror.com/)
+
+# 安装编译依赖（isolated-vm 等原生模块需要 python3 和 build-base）
+RUN apk add --no-cache python3 build-base
 
 # 安装依赖（使用 legacy-peer-deps 与项目一致）
 RUN npm ci --legacy-peer-deps
@@ -25,7 +28,7 @@ RUN rm -rf .next
 RUN npm run build
 
 # 运行阶段
-FROM node:20-alpine AS runner
+FROM node:22-alpine AS runner
 
 WORKDIR /app
 
