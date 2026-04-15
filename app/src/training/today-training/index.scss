@@ -1,0 +1,1168 @@
+.today-training-page {
+  min-height: 100vh;
+  background: #f5f5f5;
+
+  .page-scroll {
+    min-height: 100vh;
+    background: #f5f5f5;
+    padding-bottom: 180rpx;
+    box-sizing: border-box;
+  }
+
+  .page-content {
+    padding: 24rpx;
+  }
+
+  // ========== Dashboard 头部 ==========
+  .dashboard-header {
+    margin-bottom: 24rpx;
+
+    .dashboard-greeting {
+      font-size: 26rpx;
+      color: #888;
+      display: block;
+      margin-bottom: 6rpx;
+    }
+
+    .dashboard-title {
+      font-size: 48rpx;
+      font-weight: 800;
+      color: #1a1a1a;
+      display: block;
+      line-height: 1.1;
+    }
+
+    .dashboard-date {
+      font-size: 24rpx;
+      color: #999;
+      display: block;
+      margin-top: 8rpx;
+    }
+  }
+
+  // ========== Hero 计划卡片 ==========
+  .hero-card {
+    background: #ffffff;
+    border-radius: 32rpx;
+    padding: 28rpx;
+    margin-bottom: 24rpx;
+    box-shadow: 0 4rpx 24rpx rgba(0, 0, 0, 0.04);
+
+    .hero-progress-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20rpx;
+
+      .hero-plan-name {
+        font-size: 32rpx;
+        font-weight: 700;
+        color: #1a1a1a;
+      }
+
+      .hero-status-badge {
+        padding: 8rpx 16rpx;
+        border-radius: 9999rpx;
+        font-size: 22rpx;
+        font-weight: 600;
+
+        &.completed {
+          background: #ecfdf5;
+          color: #15803d;
+        }
+
+        &.in-progress {
+          background: #fff7ed;
+          color: #c2410c;
+        }
+
+        &.pending {
+          background: #eff6ff;
+          color: #1d4ed8;
+        }
+      }
+    }
+
+    .hero-progress-bar-bg {
+      height: 12rpx;
+      background: #f0f0f0;
+      border-radius: 9999rpx;
+      overflow: hidden;
+      margin-bottom: 12rpx;
+    }
+
+    .hero-progress-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #F28631 0%, #FFAC6B 100%);
+      border-radius: 9999rpx;
+    }
+
+    .hero-progress-text {
+      font-size: 22rpx;
+      color: #888;
+      display: block;
+    }
+  }
+
+  // ========== 快捷入口 ==========
+  .quick-actions {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 24rpx;
+
+    .quick-action-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10rpx;
+
+      &:active {
+        opacity: 0.7;
+      }
+    }
+
+    .quick-action-icon {
+      width: 96rpx;
+      height: 96rpx;
+      border-radius: 9999rpx;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 40rpx;
+      box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.06);
+
+      &.primary {
+        background: linear-gradient(135deg, #F28631 0%, #FFAC6B 100%);
+        color: #fff;
+        box-shadow: 0 8rpx 24rpx rgba(242, 134, 49, 0.25);
+      }
+
+      &.secondary {
+        background: #ffffff;
+        color: #F28631;
+      }
+    }
+
+    .quick-action-label {
+      font-size: 22rpx;
+      color: #555;
+      font-weight: 500;
+    }
+  }
+
+  // ========== 数据摘要卡片 ==========
+  .summary-card {
+    background: #ffffff;
+    border-radius: 32rpx;
+    padding: 24rpx;
+    margin-bottom: 24rpx;
+    box-shadow: 0 4rpx 24rpx rgba(0, 0, 0, 0.04);
+
+    .summary-card-title {
+      font-size: 28rpx;
+      font-weight: 700;
+      color: #1a1a1a;
+      margin-bottom: 16rpx;
+      display: block;
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16rpx;
+    }
+
+    .summary-cell {
+      background: #f8f8f8;
+      border-radius: 20rpx;
+      padding: 20rpx;
+      display: flex;
+      flex-direction: column;
+      gap: 4rpx;
+
+      &.highlight {
+        background: #fff7ed;
+      }
+
+      .summary-cell-value {
+        font-size: 30rpx;
+        font-weight: 700;
+        color: #1a1a1a;
+      }
+
+      .summary-cell-label {
+        font-size: 22rpx;
+        color: #888;
+      }
+    }
+  }
+
+  // ========== 加载状态 ==========
+  .loading-container {
+    padding: 16px;
+
+    .skeleton-card {
+      background: #fff;
+      border-radius: 24rpx;
+      padding: 24rpx;
+      margin-bottom: 20rpx;
+      box-shadow: 0 4rpx 24rpx rgba(0, 0, 0, 0.04);
+
+      .skeleton-header {
+        height: 80rpx;
+        background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+        background-size: 200% 100%;
+        animation: shimmer 1.5s infinite;
+        border-radius: 16rpx;
+        margin-bottom: 16rpx;
+      }
+
+      .skeleton-body {
+        .skeleton-line {
+          height: 16rpx;
+          background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+          background-size: 200% 100%;
+          animation: shimmer 1.5s infinite;
+          border-radius: 8rpx;
+          margin-bottom: 12rpx;
+
+          &:nth-child(1) { width: 60%; }
+          &:nth-child(2) { width: 80%; }
+          &:nth-child(3) { width: 40%; }
+        }
+      }
+    }
+  }
+
+  @keyframes shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+
+  // ========== 多订阅教练 Tab ==========
+  .coach-tabs {
+    margin-bottom: 20rpx;
+    background: #ffffff;
+    border-radius: 20rpx;
+    overflow: hidden;
+    box-shadow: 0 4rpx 24rpx rgba(0, 0, 0, 0.04);
+
+    .coach-tabs-scroll {
+      white-space: nowrap;
+      padding: 16rpx;
+      width: 100%;
+    }
+
+    .coach-tab {
+      display: inline-flex;
+      align-items: center;
+      gap: 8rpx;
+      padding: 12rpx 20rpx;
+      margin-right: 12rpx;
+      border-radius: 9999rpx;
+      background: #f5f5f5;
+      color: #666;
+      font-size: 24rpx;
+      font-weight: 500;
+      transition: all 0.2s ease;
+
+      &.active {
+        background: linear-gradient(135deg, #F28631 0%, #FFAC6B 100%);
+        color: #ffffff;
+      }
+
+      &.no-plan .coach-tab-name {
+        opacity: 0.8;
+      }
+
+      .coach-tab-badge {
+        font-size: 18rpx;
+        padding: 2rpx 10rpx;
+        background: rgba(0, 0, 0, 0.08);
+        border-radius: 9999rpx;
+      }
+    }
+  }
+
+  // ========== missingDays 补训提示 ==========
+  .missing-days-banner {
+    background: #fffbeb;
+    border: 1rpx solid #fde68a;
+    border-radius: 20rpx;
+    padding: 18rpx 20rpx;
+    margin-bottom: 20rpx;
+
+    .missing-days-desc {
+      font-size: 24rpx;
+      color: #92400e;
+      display: block;
+      margin-bottom: 14rpx;
+    }
+
+    .missing-days-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10rpx;
+      align-items: center;
+    }
+
+    .missing-days-row {
+      display: flex;
+      align-items: center;
+      gap: 8rpx;
+    }
+
+    .missing-days-btn {
+      padding: 10rpx 18rpx;
+      border-radius: 9999rpx;
+      font-size: 22rpx;
+      font-weight: 600;
+
+      &.primary {
+        background: #ffffff;
+        border: 1rpx solid #f59e0b;
+        color: #92400e;
+      }
+
+      &.secondary {
+        background: #1f2937;
+        color: #ffffff;
+      }
+    }
+
+    .missing-days-ellipsis {
+      font-size: 22rpx;
+      color: #b45309;
+    }
+  }
+
+  // ========== 计划完成弹窗 ==========
+  .completion-modal-mask {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 20px;
+  }
+
+  .completion-modal {
+    background: #ffffff;
+    border-radius: 28rpx;
+    padding: 32rpx;
+    width: 100%;
+    max-width: 320px;
+    text-align: center;
+    box-shadow: 0 16rpx 48rpx rgba(0, 0, 0, 0.18);
+
+    .completion-modal-icon {
+      font-size: 56rpx;
+      margin-bottom: 16rpx;
+    }
+
+    .completion-modal-title {
+      font-size: 20px;
+      font-weight: 700;
+      color: #1f2937;
+      margin-bottom: 10rpx;
+    }
+
+    .completion-modal-plan {
+      font-size: 16px;
+      font-weight: 600;
+      color: #374151;
+      margin-bottom: 6rpx;
+    }
+
+    .completion-modal-rate {
+      font-size: 24rpx;
+      color: #888;
+      margin-bottom: 24rpx;
+    }
+
+    .completion-modal-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 12rpx;
+    }
+
+    .completion-modal-btn {
+      padding: 24rpx;
+      border-radius: 9999rpx;
+      font-size: 28rpx;
+      font-weight: 600;
+
+      &.primary {
+        background: linear-gradient(135deg, #F28631 0%, #FFAC6B 100%);
+        color: #ffffff;
+      }
+
+      &.secondary {
+        background: #f5f5f5;
+        color: #374151;
+      }
+    }
+  }
+
+  // ========== 计划切换器 ==========
+  .plan-switcher {
+    display: flex;
+    background: #ffffff;
+    border-radius: 9999rpx;
+    padding: 6rpx;
+    margin-bottom: 20rpx;
+    box-shadow: 0 4rpx 24rpx rgba(0, 0, 0, 0.04);
+
+    .switcher-btn {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8rpx;
+      padding: 18rpx 24rpx;
+      border-radius: 9999rpx;
+      font-size: 26rpx;
+      font-weight: 500;
+      color: #666;
+      background: transparent;
+      transition: all 0.2s ease;
+
+      &.active {
+        background: linear-gradient(135deg, #F28631 0%, #FFAC6B 100%);
+        color: #ffffff;
+        box-shadow: 0 4rpx 16rpx rgba(242, 134, 49, 0.25);
+      }
+
+      .switcher-icon {
+        font-size: 26rpx;
+      }
+    }
+  }
+
+  // ========== 教练信息卡片 ==========
+  .coach-card {
+    background: #ffffff;
+    border-radius: 28rpx;
+    padding: 24rpx;
+    margin-bottom: 20rpx;
+    box-shadow: 0 4rpx 24rpx rgba(0, 0, 0, 0.04);
+
+    .card-content {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16rpx;
+
+      .card-main {
+        display: flex;
+        align-items: center;
+        gap: 16rpx;
+        min-width: 0;
+        flex: 1;
+      }
+
+      .coach-avatar {
+        position: relative;
+        flex-shrink: 0;
+
+        .avatar-box {
+          width: 96rpx;
+          height: 96rpx;
+          background: linear-gradient(135deg, #F28631 0%, #FFAC6B 100%);
+          border-radius: 20rpx;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          box-shadow: 0 4rpx 16rpx rgba(242, 134, 49, 0.2);
+
+          .avatar-text {
+            font-size: 36rpx;
+            font-weight: 700;
+            color: #ffffff;
+          }
+        }
+
+        .online-dot {
+          position: absolute;
+          bottom: -4rpx;
+          right: -4rpx;
+          width: 24rpx;
+          height: 24rpx;
+          background: #22c55e;
+          border: 4rpx solid #ffffff;
+          border-radius: 50%;
+        }
+      }
+
+      .coach-info {
+        flex: 1;
+        min-width: 0;
+
+        .info-labels {
+          display: flex;
+          align-items: center;
+          gap: 8rpx;
+          margin-bottom: 6rpx;
+
+          .pro-badge {
+            padding: 4rpx 12rpx;
+            background: linear-gradient(135deg, #FFF5EB 0%, #FFE8D1 100%);
+            color: #F28631;
+            font-size: 18rpx;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-radius: 6rpx;
+          }
+
+          .status-text {
+            color: #aaa;
+            font-size: 20rpx;
+          }
+        }
+
+        .coach-name {
+          font-size: 30rpx;
+          font-weight: 700;
+          color: #1a1a1a;
+          margin-bottom: 4rpx;
+        }
+
+        .coach-title {
+          color: #888;
+          font-size: 22rpx;
+        }
+      }
+
+      .card-action {
+        flex-shrink: 0;
+      }
+
+      .danger-action {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 52rpx;
+        padding: 0 18rpx;
+        border-radius: 14rpx;
+        background: #fef2f2;
+        border: 1rpx solid #fecaca;
+        color: #dc2626;
+        font-size: 22rpx;
+        font-weight: 700;
+      }
+    }
+  }
+
+  // ========== 自建计划卡片 ==========
+  .self-plan-card {
+    .avatar-box {
+      background: linear-gradient(135deg, #ECFDF5 0%, #D1FAE5 100%) !important;
+
+      .avatar-text {
+        color: #10b981 !important;
+      }
+    }
+
+    .pro-badge {
+      background: linear-gradient(135deg, #ECFDF5 0%, #D1FAE5 100%) !important;
+      color: #10b981 !important;
+    }
+  }
+
+  .schedule-overview {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16rpx;
+    margin-bottom: 20rpx;
+
+    .overview-main {
+      min-width: 0;
+    }
+
+    .overview-title {
+      display: block;
+      font-size: 36rpx;
+      font-weight: 700;
+      color: #1a1a1a;
+      margin-bottom: 4rpx;
+    }
+
+    .overview-subtitle {
+      display: block;
+      font-size: 24rpx;
+      color: #888;
+      line-height: 1.4;
+    }
+
+    .overview-detail {
+      display: block;
+      margin-top: 8rpx;
+      font-size: 22rpx;
+      color: #aaa;
+      line-height: 1.55;
+    }
+
+    .overview-status {
+      flex-shrink: 0;
+      border-radius: 9999rpx;
+      padding: 12rpx 18rpx;
+      font-size: 22rpx;
+      font-weight: 600;
+      line-height: 1;
+
+      &.completed {
+        background: #dcfce7;
+        color: #15803d;
+      }
+
+      &.in-progress {
+        background: #fff7ed;
+        color: #c2410c;
+      }
+
+      &.pending {
+        background: #eff6ff;
+        color: #1d4ed8;
+      }
+    }
+  }
+
+  // ========== 当天安排标题区域 ==========
+  .section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16rpx;
+
+    .header-left {
+      .section-title {
+        font-size: 32rpx;
+        font-weight: 700;
+        color: #1a1a1a;
+        margin-bottom: 4rpx;
+      }
+
+      .section-subtitle {
+        font-size: 22rpx;
+        color: #888;
+      }
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 10rpx;
+
+      .impromptu-btn {
+        padding: 10rpx 18rpx;
+        border: 1rpx solid #F28631;
+        color: #F28631;
+        border-radius: 9999rpx;
+        font-size: 22rpx;
+        font-weight: 500;
+      }
+
+      .view-day-btn {
+        padding: 10rpx 18rpx;
+        border: 1rpx solid #F28631;
+        color: #F28631;
+        border-radius: 9999rpx;
+        font-size: 22rpx;
+      }
+
+      .status-badge {
+        display: flex;
+        align-items: center;
+        gap: 6rpx;
+        padding: 10rpx 14rpx;
+        border-radius: 9999rpx;
+        font-size: 20rpx;
+        font-weight: 600;
+
+        &.completed {
+          background: #dcfce7;
+          color: #16a34a;
+        }
+
+        &.in-progress {
+          background: #fff7ed;
+          color: #d97706;
+        }
+
+        .status-icon {
+          font-size: 20rpx;
+        }
+      }
+    }
+  }
+
+  // ========== 数据摘要行（兼容旧结构，新样式） ==========
+  .day-summary-row {
+    display: flex;
+    gap: 16rpx;
+    margin-bottom: 20rpx;
+    flex-wrap: wrap;
+
+    .summary-pill {
+      width: calc(50% - 8rpx);
+      background: #ffffff;
+      border-radius: 20rpx;
+      padding: 18rpx 20rpx;
+      box-shadow: 0 4rpx 24rpx rgba(0, 0, 0, 0.04);
+      display: flex;
+      flex-direction: column;
+      gap: 4rpx;
+      border: 1rpx solid rgba(0, 0, 0, 0.03);
+
+      .summary-label {
+        font-size: 22rpx;
+        color: #999;
+      }
+
+      .summary-value {
+        font-size: 28rpx;
+        color: #1a1a1a;
+        font-weight: 600;
+      }
+
+      .summary-tip {
+        font-size: 20rpx;
+        color: #aaa;
+      }
+
+      &.total {
+        background: #f8f8f8;
+      }
+
+      &.done {
+        background: #f0fdf4;
+        border-color: #bbf7d0;
+      }
+
+      &.remain {
+        background: #fffbeb;
+        border-color: #fde68a;
+      }
+
+      &.rhythm {
+        background: #fff7ed;
+        border-color: #fed7aa;
+      }
+    }
+  }
+
+  // ========== 今日已完成卡片 ==========
+  .completed-card {
+    background: #ffffff;
+    border-radius: 28rpx;
+    padding: 40rpx 28rpx;
+    text-align: center;
+    box-shadow: 0 4rpx 24rpx rgba(0, 0, 0, 0.04);
+    margin-bottom: 20rpx;
+
+    .completed-emoji {
+      font-size: 64rpx;
+      margin-bottom: 16rpx;
+    }
+
+    .completed-title {
+      font-size: 20px;
+      font-weight: 700;
+      color: #1a1a1a;
+      margin-bottom: 10rpx;
+    }
+
+    .completed-desc {
+      font-size: 26rpx;
+      color: #888;
+      margin-bottom: 20rpx;
+      line-height: 1.5;
+    }
+
+    .next-day-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8rpx;
+      padding: 12rpx 20rpx;
+      background: #f5f5f5;
+      border-radius: 9999rpx;
+      font-size: 24rpx;
+      color: #555;
+      font-weight: 500;
+    }
+  }
+
+  // ========== 空状态卡片 ==========
+  .empty-card {
+    background: #ffffff;
+    border-radius: 28rpx;
+    padding: 48rpx 28rpx;
+    text-align: center;
+    box-shadow: 0 4rpx 24rpx rgba(0, 0, 0, 0.04);
+
+    .empty-icon-wrapper {
+      position: relative;
+      display: inline-block;
+      margin-bottom: 20rpx;
+
+      .empty-icon-bg {
+        position: absolute;
+        inset: 0;
+        background: rgba(242, 134, 49, 0.12);
+        border-radius: 50%;
+        animation: pulse 2s infinite;
+      }
+
+      .empty-icon-inner {
+        position: relative;
+        width: 112rpx;
+        height: 112rpx;
+        background: #f5f5f5;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        .empty-icon {
+          font-size: 48rpx;
+        }
+      }
+    }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); opacity: 0.5; }
+      50% { transform: scale(1.1); opacity: 0.3; }
+    }
+
+    .empty-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: #1a1a1a;
+      margin-bottom: 10rpx;
+    }
+
+    .empty-desc {
+      font-size: 26rpx;
+      color: #888;
+      line-height: 1.6;
+      margin-bottom: 28rpx;
+      max-width: 560rpx;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .empty-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 14rpx;
+
+      .action-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10rpx;
+        padding: 22rpx 32rpx;
+        border-radius: 9999rpx;
+        font-size: 28rpx;
+        font-weight: 600;
+        transition: all 0.2s ease;
+
+        &.primary {
+          background: linear-gradient(135deg, #F28631 0%, #FFAC6B 100%);
+          color: #ffffff;
+          box-shadow: 0 4rpx 20rpx rgba(242, 134, 49, 0.25);
+
+          &:active {
+            transform: scale(0.98);
+            opacity: 0.9;
+          }
+        }
+
+        &.secondary {
+          background: #f5f5f5;
+          color: #555;
+          border: 1rpx solid rgba(0, 0, 0, 0.06);
+
+          &:active {
+            background: #ececec;
+          }
+        }
+      }
+    }
+  }
+
+  // ========== 等待教练制定计划卡片 ==========
+  .waiting-card {
+    .empty-icon-inner {
+      .empty-icon {
+        color: #F28631;
+      }
+    }
+  }
+
+  .info-tip-card {
+    background: linear-gradient(135deg, #fff7ed 0%, #ffffff 100%);
+    border: 1rpx solid #fed7aa;
+    border-radius: 20rpx;
+    padding: 20rpx 22rpx;
+    margin-bottom: 20rpx;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16rpx;
+
+    .info-tip-title {
+      display: block;
+      font-size: 28rpx;
+      font-weight: 700;
+      color: #9a3412;
+      margin-bottom: 4rpx;
+    }
+
+    .info-tip-desc {
+      display: block;
+      font-size: 24rpx;
+      line-height: 1.5;
+      color: #c2410c;
+    }
+  }
+
+  .today-completed-banner,
+  .return-confirm-banner,
+  .grace-warning-banner,
+  .in-progress-banner,
+  .grace-card {
+    border-radius: 20rpx;
+    padding: 18rpx 20rpx;
+    margin-bottom: 20rpx;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16rpx;
+    font-size: 24rpx;
+    line-height: 1.5;
+  }
+
+  .today-completed-banner {
+    background: #f0fdf4;
+    border: 1rpx solid #bbf7d0;
+    color: #166534;
+  }
+
+  .return-confirm-banner {
+    background: #eff6ff;
+    border: 1rpx solid #bfdbfe;
+    color: #1d4ed8;
+  }
+
+  .grace-warning-banner,
+  .grace-card {
+    background: #fffbeb;
+    border: 1rpx solid #fde68a;
+    color: #92400e;
+  }
+
+  .in-progress-banner {
+    background: #eff6ff;
+    border: 1rpx solid #bfdbfe;
+    color: #1d4ed8;
+  }
+
+  .banner-link {
+    flex-shrink: 0;
+    color: #F28631;
+    font-size: 22rpx;
+    font-weight: 700;
+  }
+
+  .inline-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14rpx;
+    margin-top: 16rpx;
+  }
+
+  .inline-action-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 52rpx;
+    padding: 0 20rpx;
+    border-radius: 9999rpx;
+    background: linear-gradient(135deg, #f28631 0%, #ffac6b 100%);
+    color: #ffffff;
+    font-size: 24rpx;
+    font-weight: 700;
+    box-shadow: 0 4rpx 16rpx rgba(242, 134, 49, 0.22);
+
+    &.disabled {
+      opacity: 0.6;
+    }
+  }
+
+  .share-entry-card {
+    background: linear-gradient(135deg, #fff7ed 0%, #ffffff 100%);
+    border: 1rpx solid #fed7aa;
+    border-radius: 24rpx;
+    padding: 22rpx;
+    margin-top: 20rpx;
+
+    .share-entry-tag {
+      display: block;
+      font-size: 20rpx;
+      font-weight: 700;
+      letter-spacing: 1px;
+      color: #c2410c;
+      margin-bottom: 10rpx;
+    }
+
+    .share-entry-title {
+      display: block;
+      font-size: 18px;
+      font-weight: 700;
+      color: #1a1a1a;
+      margin-bottom: 8rpx;
+    }
+
+    .share-entry-desc {
+      display: block;
+      font-size: 24rpx;
+      line-height: 1.5;
+      color: #888;
+    }
+  }
+
+  .rest-lightweight-wrap {
+    margin-top: 20rpx;
+  }
+
+  .config-sheet-mask,
+  .info-dialog-mask {
+    position: fixed;
+    inset: 0;
+    z-index: 1200;
+    background: rgba(15, 23, 42, 0.45);
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    padding: 16px;
+  }
+
+  .config-sheet,
+  .info-dialog {
+    width: 100%;
+    max-width: 640px;
+    background: #ffffff;
+    border-radius: 28rpx 28rpx 0 0;
+    padding: 24rpx 22rpx 28rpx;
+    box-shadow: 0 -8rpx 28rpx rgba(15, 23, 42, 0.16);
+  }
+
+  .config-title,
+  .info-dialog-title {
+    display: block;
+    font-size: 18px;
+    font-weight: 700;
+    color: #1a1a1a;
+    margin-bottom: 16rpx;
+  }
+
+  .config-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14rpx;
+    margin-bottom: 14rpx;
+  }
+
+  .config-field {
+    flex: 1;
+    min-width: calc(50% - 7rpx);
+    margin-bottom: 14rpx;
+  }
+
+  .config-label {
+    display: block;
+    font-size: 22rpx;
+    color: #888;
+    margin-bottom: 8rpx;
+  }
+
+  .config-input,
+  .config-static,
+  .config-textarea {
+    width: 100%;
+    background: #f9f9f9;
+    border: 1rpx solid rgba(0, 0, 0, 0.06);
+    border-radius: 16rpx;
+    padding: 16rpx 18rpx;
+    font-size: 28rpx;
+    color: #1a1a1a;
+    box-sizing: border-box;
+  }
+
+  .config-static {
+    min-height: 52rpx;
+    display: flex;
+    align-items: center;
+  }
+
+  .config-textarea {
+    min-height: 120rpx;
+  }
+
+  .config-actions,
+  .info-dialog-actions {
+    display: flex;
+    gap: 14rpx;
+    margin-top: 18rpx;
+  }
+
+  .config-btn {
+    flex: 1;
+    min-height: 52rpx;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9999rpx;
+    font-size: 28rpx;
+    font-weight: 700;
+
+    &.primary {
+      background: linear-gradient(135deg, #f28631 0%, #ffac6b 100%);
+      color: #ffffff;
+    }
+
+    &.secondary {
+      background: #f5f5f5;
+      color: #555;
+      border: 1rpx solid rgba(0, 0, 0, 0.06);
+    }
+
+    &.disabled {
+      opacity: 0.6;
+    }
+  }
+
+  .info-dialog-section {
+    margin-bottom: 16rpx;
+
+    .section-title {
+      display: block;
+      font-size: 28rpx;
+      font-weight: 700;
+      color: #1a1a1a;
+      margin-bottom: 8rpx;
+    }
+
+    .section-text {
+      display: block;
+      font-size: 24rpx;
+      line-height: 1.6;
+      color: #555;
+    }
+  }
+}
