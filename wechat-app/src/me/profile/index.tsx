@@ -1,0 +1,547 @@
+import { useState, useEffect, useCallback } from 'react'
+import { View, Text, Image } from '@tarojs/components'
+import Taro, { useDidShow } from '@tarojs/taro'
+import BottomNav from '@/components/BottomNav'
+import { authService } from '@/services/authService'
+import { coachService } from '@/services/coach/coachService'
+import { studentService } from '@/services/studentService'
+import currentPlanIcon from '@/assets/icons/profile/current-plan.svg'
+import myCoachesIcon from '@/assets/icons/profile/my-coaches.svg'
+import myMembershipIcon from '@/assets/icons/profile/my-membership.svg'
+import trainingHistoryIcon from '@/assets/icons/profile/training-history.svg'
+import myFriendsIcon from '@/assets/icons/profile/my-friends.svg'
+import messagesIcon from '@/assets/icons/profile/messages.svg'
+import actionLibraryIcon from '@/assets/icons/profile/action-library.svg'
+import knowledgeIcon from '@/assets/icons/profile/knowledge.svg'
+import planLibraryIcon from '@/assets/icons/profile/plan-library.svg'
+import rankIcon from '@/assets/icons/tabbar/rank.svg'
+import applyCoachIcon from '@/assets/icons/profile/apply-coach.svg'
+import profileSettingsIcon from '@/assets/icons/profile/profile-settings.svg'
+import accountSettingsIcon from '@/assets/icons/profile/account-settings.svg'
+import logoutIcon from '@/assets/icons/profile/logout.svg'
+import badgeStudentIcon from '@/assets/icons/profile/badge-student.svg'
+import badgePointsIcon from '@/assets/icons/profile/badge-points.svg'
+import './index.scss'
+
+interface MenuItem {
+  key: string
+  label: string
+  icon: string
+  iconBg: string
+  path?: string
+  action?: () => void
+  badge?: string
+  requiresAuth?: boolean
+}
+
+function Profile() {
+  const [user, setUser] = useState<any>(null)
+  const [coachId, setCoachId] = useState<string | null>(null)
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+
+  const openLogin = useCallback((returnTo = '/me/profile/index') => {
+    const url = authService.buildLoginUrl(returnTo)
+    Taro.navigateTo({ url }).catch((navigateErr) => {
+      console.error('[profile] navigateTo login 失败:', navigateErr)
+      Taro.redirectTo({ url }).catch((redirectErr) => {
+        console.error('[profile] redirectTo login 失败:', redirectErr)
+        Taro.reLaunch({ url }).catch((relaunchErr) => {
+          console.error('[profile] reLaunch login 失败:', relaunchErr)
+        })
+      })
+    })
+  }, [])
+
+  const loadCurrentUser = useCallback(async () => {
+    const session = authService.getAuthSession({ normalize: true })
+    const currentUser = session.user
+
+    setIsAuthenticated(session.isAuthenticated)
+
+    if (session.isAuthenticated && session.isCoach && session.primaryRole === 'coach') {
+      Taro.reLaunch({ url: '/coach/my-profile' })
+        .catch((relaunchErr) => {
+          console.error('[profile] reLaunch coach my-profile 失败:', relaunchErr)
+          Taro.redirectTo({ url: '/coach/my-profile' })
+            .catch((redirectErr) => {
+              console.error('[profile] redirectTo coach my-profile 失败:', redirectErr)
+            })
+        })
+      return
+    }
+    setUser(currentUser)
+
+    if (!session.isAuthenticated || !session.userId) {
+      setCoachId(null)
+      return
+    }
+
+    if (currentUser?.is_coach && currentUser?.id) {
+      void loadCoachId(currentUser.id)
+    } else {
+      setCoachId(null)
+    }
+
+    try {
+      const profileRes = await studentService.getStudentProfile(currentUser.id)
+      const profile = profileRes?.profile
+      if (!profile || typeof profile !== 'object') return
+
+      let changed = false
+      const nextUser = { ...currentUser }
+
+      if (Object.prototype.hasOwnProperty.call(profile, 'avatar_url') && nextUser.avatar_url !== profile.avatar_url) {
+        nextUser.avatar_url = profile.avatar_url ?? null
+        changed = true
+      }
+
+      if (Object.prototype.hasOwnProperty.call(profile, 'nickname') && nextUser.nickname !== profile.nickname) {
+        nextUser.nickname = profile.nickname ?? ''
+        changed = true
+      }
+
+      if (!changed) return
+
+      authService.setCurrentUser(nextUser)
+      setUser(nextUser)
+    } catch (e) {
+      console.error('[profile] sync current user profile:', e)
+    }
+  }, [])
+
+  useEffect(() => {
+    void loadCurrentUser()
+  }, [loadCurrentUser])
+
+  useDidShow(() => {
+    void loadCurrentUser()
+  })
+
+  async function loadCoachId(userId: string) {
+    try {
+      const res = await coachService.getCoach({ userId })
+      if (res?.coach?.id) {
+        setCoachId(res.coach.id)
+      }
+    } catch (e) {
+      console.error('[profile] load coach id:', e)
+    }
+  }
+
+  const points = user?.points ?? 0
+  const primaryRole = user?.primary_role === 'coach' ? 'coach' : 'student'
+  const isCoach = !!user?.is_coach
+  const canSwitchRole = isAuthenticated && isCoach
+  const displayName = isAuthenticated
+    ? String(user?.nickname || user?.real_name || user?.phone || 'CoachLink 学员')
+    : '未登录'
+  const displaySubtitle = isAuthenticated
+    ? String(user?.phone || '已登录，可同步训练、会员与消息')
+    : '登录后同步训练计划、会员、消息与积分'
+  const roleBadgeText = isAuthenticated ? (primaryRole === 'coach' ? '教练身份' : '学员身份') : '游客模式'
+  const statusBadgeText = isAuthenticated ? `${points}积分` : '点击登录'
+
+  async function handleProfileSettings() {
+    if (isCoach) {
+      let targetCoachId = coachId
+
+      if (!targetCoachId && user?.id) {
+        try {
+          const res = await coachService.getCoach({ userId: user.id })
+          if (res?.coach?.id) {
+            targetCoachId = res.coach.id
+            setCoachId(targetCoachId)
+          }
+        } catch (e) {
+          console.error('[profile] load coach id:', e)
+        }
+      }
+
+      if (targetCoachId) {
+        Taro.navigateTo({
+          url: `/coach/profile/[id]?id=${targetCoachId}&edit=1`
+        }).catch((err) => {
+          console.error('导航失败:', err)
+          Taro.showToast({
+            title: '页面跳转失败',
+            icon: 'none',
+            duration: 2000
+          })
+        })
+      } else {
+        Taro.showToast({
+          title: '获取教练信息失败',
+          icon: 'none'
+        })
+      }
+    } else {
+      Taro.navigateTo({
+        url: '/me/profile/edit/index'
+      }).catch(() => {
+        Taro.showToast({ title: '页面跳转失败', icon: 'none' })
+      })
+    }
+  }
+
+  const topMenus: MenuItem[] = [
+    {
+      key: 'current-plan',
+      label: '全部计划',
+      icon: currentPlanIcon,
+      iconBg: '#29C3A3',
+      path: '/me/plan-history/index',
+      requiresAuth: true
+    },
+    {
+      key: 'my-coaches',
+      label: '我的教练',
+      icon: myCoachesIcon,
+      iconBg: '#5C8DFF',
+      path: '/me/my-coaches/index',
+      requiresAuth: true
+    },
+    {
+      key: 'my-membership',
+      label: '我的会员',
+      icon: myMembershipIcon,
+      iconBg: '#FFA940',
+      path: '/me/membership/index',
+      requiresAuth: true
+    },
+    {
+      key: 'training-history',
+      label: '训练记录',
+      icon: trainingHistoryIcon,
+      iconBg: '#FF7A7A',
+      path: '/me/training-history/index',
+      requiresAuth: true
+    }
+  ]
+
+  const middleMenus: MenuItem[] = [
+    {
+      key: 'my-friends',
+      label: '我的好友',
+      icon: myFriendsIcon,
+      iconBg: '#7DC8FF',
+      path: '/me/friends/index',
+      requiresAuth: true
+    },
+    {
+      key: 'messages',
+      label: '消息中心',
+      icon: messagesIcon,
+      iconBg: '#F97316',
+      path: '/me/messages/index',
+      requiresAuth: true
+    },
+    {
+      key: 'action-library',
+      label: '我的动作库',
+      icon: actionLibraryIcon,
+      iconBg: '#8FD3FE',
+      path: '/me/action-lib/index',
+      requiresAuth: true
+    },
+    {
+      key: 'knowledge',
+      label: '知识库',
+      icon: knowledgeIcon,
+      iconBg: '#B39DDB',
+      path: '/content/knowledge',
+      requiresAuth: true
+    },
+    {
+      key: 'plan-library',
+      label: '我的计划库',
+      icon: planLibraryIcon,
+      iconBg: '#FFD666',
+      path: '/me/plan-lib/index',
+      requiresAuth: true
+    },
+    {
+      key: 'ranking',
+      label: '排行榜',
+      icon: rankIcon,
+      iconBg: '#26A69A',
+      path: '/discovery/ranking',
+      requiresAuth: true
+    },
+    {
+      key: 'purchase-history',
+      label: '购买记录',
+      icon: planLibraryIcon,
+      iconBg: '#722ed1',
+      path: '/me/purchase-history/index',
+      requiresAuth: true
+    }
+  ]
+
+  const bottomMenus: MenuItem[] = isAuthenticated
+    ? [
+        ...(canSwitchRole
+          ? [{
+              key: 'switch-role',
+              label: primaryRole === 'coach' ? '切换到学员端' : '切换到教练端',
+              icon: primaryRole === 'coach' ? badgeStudentIcon : applyCoachIcon,
+              iconBg: primaryRole === 'coach' ? '#29C3A3' : '#FFD700',
+              action: handleSwitchRole,
+              requiresAuth: true
+            }]
+          : []),
+        ...(!isCoach ? [{
+          key: 'apply-coach',
+          label: '申请成为教练',
+          icon: applyCoachIcon,
+          iconBg: '#FFD700',
+          path: '/coach/application'
+        }] : []),
+        {
+          key: 'profile-settings',
+          label: '个人设置',
+          icon: profileSettingsIcon,
+          iconBg: '#9FB3C8',
+          action: handleProfileSettings,
+          requiresAuth: true
+        },
+        {
+          key: 'account-settings',
+          label: '账户设置',
+          icon: accountSettingsIcon,
+          iconBg: '#B0BEC5',
+          path: '/me/settings/index',
+          requiresAuth: true
+        },
+        {
+          key: 'logout',
+          label: '退出登录',
+          icon: logoutIcon,
+          iconBg: '#FFB6B6',
+          action: handleLogout,
+          requiresAuth: true
+        }
+      ]
+    : [
+        {
+          key: 'login',
+          label: '立即登录',
+          icon: accountSettingsIcon,
+          iconBg: '#29C3A3',
+          action: () => openLogin('/me/profile/index'),
+          badge: '推荐'
+        },
+        {
+          key: 'register',
+          label: '注册账号',
+          icon: profileSettingsIcon,
+          iconBg: '#5C8DFF',
+          path: '/auth/register'
+        },
+        {
+          key: 'apply-coach',
+          label: '申请成为教练',
+          icon: applyCoachIcon,
+          iconBg: '#FFD700',
+          path: '/auth/onboarding'
+        }
+      ]
+
+  function handleMenuClick(item: MenuItem) {
+    if (!isAuthenticated && item.requiresAuth) {
+      openLogin(item.path || '/me/profile/index')
+      return
+    }
+    if (item.action) {
+      item.action()
+    } else if (item.path) {
+      Taro.navigateTo({ url: item.path }).catch((err) => {
+        console.error('导航失败:', err)
+        Taro.showToast({ title: '页面跳转失败', icon: 'none' })
+      })
+    }
+  }
+
+  function handleViewProfile() {
+    if (!isAuthenticated || !user?.id) {
+      openLogin('/me/profile/detail/index')
+      return
+    }
+    Taro.navigateTo({
+      url: '/me/profile/detail/index'
+    })
+  }
+
+  async function handleSwitchRole() {
+    try {
+      const newRole = primaryRole === 'coach' ? 'student' : 'coach'
+      await authService.switchRole(newRole)
+      Taro.showToast({
+        title: newRole === 'coach' ? '已切换到教练端' : '已切换到学员端',
+        icon: 'success'
+      })
+      setTimeout(() => {
+        const targetUrl = newRole === 'coach' ? '/coach/overview' : '/training/today-training'
+        Taro.reLaunch({ url: targetUrl })
+          .catch((relaunchErr) => {
+            console.error('[profile] switch role reLaunch 失败:', relaunchErr)
+            Taro.redirectTo({ url: targetUrl })
+              .catch((redirectErr) => {
+                console.error('[profile] switch role redirectTo 失败:', redirectErr)
+                Taro.navigateTo({ url: targetUrl })
+                  .catch((navigateErr) => {
+                    console.error('[profile] switch role navigateTo 失败:', navigateErr)
+                    Taro.showToast({ title: '切换后跳转失败', icon: 'none' })
+                  })
+              })
+          })
+      }, 500)
+    } catch (error: any) {
+      Taro.showToast({
+        title: error?.message || '切换失败',
+        icon: 'none'
+      })
+    }
+  }
+
+  async function handleLogout() {
+    Taro.showModal({
+      title: '退出登录',
+      content: '确定要退出登录吗？',
+      success: async (res) => {
+        if (res.confirm) {
+          try {
+            await authService.logout()
+            Taro.showToast({
+              title: '已退出登录',
+              icon: 'success'
+            })
+            setTimeout(() => {
+              Taro.reLaunch({ url: '/auth/login' })
+            }, 1000)
+          } catch (error: any) {
+            console.error('退出登录失败:', error)
+            Taro.showToast({
+              title: '退出失败',
+              icon: 'error'
+            })
+          }
+        }
+      }
+    })
+  }
+
+
+  return (
+    <View className='profile-page'>
+      <View className='myContainer'>
+        <View className='my_1' onClick={handleViewProfile}>
+          <View className='avatar-wrapper'>
+            <View className='avatar-container'>
+              {user?.avatar_url ? (
+                <Image
+                  className='avatar'
+                  src={user.avatar_url}
+                  mode='aspectFill'
+                />
+              ) : (
+                <View className='avatar-placeholder'>
+                  <Text className='avatar-text'>
+                    {isAuthenticated
+                      ? String(user?.real_name || user?.nickname || user?.phone || '?').substring(0, 1)
+                      : '登'}
+                  </Text>
+                </View>
+              )}
+            </View>
+          </View>
+          <View className='my_1_right'>
+            <Text className='user-phone'>
+              {displayName}
+            </Text>
+            <Text className='user-subtitle'>{displaySubtitle}</Text>
+            <View className='li_2'>
+              <View className='centered'>
+                <Image className='badge-chip-icon' src={isAuthenticated && primaryRole === 'coach' ? applyCoachIcon : badgeStudentIcon} />
+                <Text className='badge-chip-text'>{roleBadgeText}</Text>
+              </View>
+              <View className='centered badge-spacing'>
+                <Image className='badge-chip-icon' src={badgePointsIcon} />
+                <Text className='badge-chip-text'>{statusBadgeText}</Text>
+              </View>
+            </View>
+          </View>
+          <View className='arrow-icon'>
+            <Text className='arrow-text'>›</Text>
+          </View>
+        </View>
+
+        {!isAuthenticated && (
+          <View className='guest-notice-card'>
+            <Text className='guest-notice-title'>登录后解锁个人训练数据</Text>
+            <Text className='guest-notice-desc'>
+              全部计划、我的会员、消息中心、购买记录等个人数据，会在登录后自动同步到这里。
+            </Text>
+          </View>
+        )}
+
+        <View className='my_2'>
+          {topMenus.map((item, index) => (
+            <View
+              key={item.key}
+              className={`item ${index === 0 ? 'item-first' : ''} ${index === topMenus.length - 1 ? 'item-last' : ''}`}
+              onClick={() => handleMenuClick(item)}
+            >
+              <View className='item-icon'>
+                <Image className='item-icon-img' src={item.icon} />
+              </View>
+              <Text className='item-title'>{item.label}</Text>
+            </View>
+          ))}
+        </View>
+
+        <View className='my_3'>
+          {middleMenus.concat(bottomMenus).map((item) => (
+            <View
+              key={item.key}
+              className={`item_1 ${item.key === 'logout' ? 'item-logout' : ''} ${item.key === 'login' ? 'item-login' : ''}`}
+              onClick={() => handleMenuClick(item)}
+            >
+              <View className='item-icon'>
+                <Image className='item-icon-img' src={item.icon} />
+              </View>
+              <Text className='item-title'>{item.label}</Text>
+              {item.badge && (
+                <View className='grid-badge'>
+                  <Text className='grid-badge-text'>{item.badge}</Text>
+                </View>
+              )}
+            </View>
+          ))}
+        </View>
+
+        <View className='profile-footer-links'>
+          <Text className='footer-link' onClick={() => Taro.navigateTo({ url: '/me/about/index' })}>关于</Text>
+          <Text className='footer-dot'>·</Text>
+          <Text className='footer-link' onClick={() => Taro.navigateTo({ url: '/me/disclaimer/index' })}>免责声明</Text>
+          <Text className='footer-dot'>·</Text>
+          
+          <Text className='footer-link' onClick={() => Taro.navigateTo({ url: '/me/contact/index' })}>联系</Text>
+          <Text className='footer-dot'>·</Text>
+          <Text className='footer-link' onClick={() => Taro.navigateTo({ url: '/me/docs/index' })}>文档</Text>
+          <Text className='footer-dot'>·</Text>
+          <Text className='footer-link' onClick={() => Taro.navigateTo({ url: '/auth/onboarding' })}>入驻说明</Text>
+          <Text className='footer-dot'>·</Text>
+          <Text className='footer-link' onClick={() => Taro.navigateTo({ url: '/me/protection-of-consumer/index' })}>消费者权益保护</Text>
+          <Text className='footer-dot'>·</Text>
+          <Text className='footer-link' onClick={() => Taro.navigateTo({ url: '/me/terms/index' })}>用户服务协议</Text>
+          <Text className='footer-dot'>·</Text>
+          <Text className='footer-link' onClick={() => Taro.navigateTo({ url: '/me/platform-agreement/index' })}>平台入驻协议</Text>
+        </View>
+      </View>
+
+      <BottomNav />
+    </View>
+  )
+}
+
+export default Profile

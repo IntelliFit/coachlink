@@ -1,0 +1,14 @@
+const path = require('path')
+
+function getWeappOutputRoot() {
+  return process.env.WEAPP_OUTPUT_ROOT || 'dist'
+}
+
+function getWeappDistDir() {
+  return path.join(__dirname, '..', getWeappOutputRoot())
+}
+
+module.exports = {
+  getWeappOutputRoot,
+  getWeappDistDir,
+}

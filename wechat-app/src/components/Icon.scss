@@ -1,0 +1,29 @@
+.icon-wrapper {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  flex-shrink: 0;
+  vertical-align: middle;
+
+  // 确保 SVG 元素正确显示
+  svg {
+    display: block !important;
+    width: 100% !important;
+    height: 100% !important;
+    flex-shrink: 0;
+    vertical-align: middle;
+  }
+
+  // 兼容小程序环境
+  :global(svg) {
+    display: block !important;
+    width: 100% !important;
+    height: 100% !important;
+  }
+
+  // 确保图标可见
+  * {
+    display: block;
+  }
+}

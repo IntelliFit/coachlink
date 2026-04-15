@@ -1,0 +1,229 @@
+.referral-page {
+  min-height: 100vh;
+  background: #f3f4f6;
+  padding-bottom: 70px;
+
+  .page-scroll {
+    height: calc(100vh - 70px);
+  }
+
+  .page-content {
+    padding: 12px;
+  }
+
+  .page-header {
+    margin-bottom: 16px;
+    padding: 0 4px;
+
+    .page-title {
+      display: block;
+      font-size: 24px;
+      font-weight: 700;
+      color: #1f2937;
+      margin-bottom: 4px;
+    }
+
+    .page-subtitle {
+      display: block;
+      font-size: 13px;
+      color: #6b7280;
+    }
+  }
+
+  .code-card {
+    background: linear-gradient(135deg, #f97316 0%, #fb923c 100%);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 12px;
+    box-shadow: 0 4px 12px rgba(249, 115, 22, 0.3);
+
+    .code-label {
+      display: block;
+      font-size: 13px;
+      color: rgba(255, 255, 255, 0.9);
+      margin-bottom: 12px;
+    }
+
+    .code-display {
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 16px;
+      text-align: center;
+
+      .code-text {
+        font-size: 32px;
+        font-weight: 700;
+        color: #fff;
+        letter-spacing: 4px;
+      }
+    }
+
+    .invite-link-box {
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 8px;
+      padding: 10px 12px;
+      margin-bottom: 14px;
+
+      .invite-link-label {
+        display: block;
+        font-size: 12px;
+        color: rgba(255, 255, 255, 0.85);
+        margin-bottom: 4px;
+      }
+
+      .invite-link-text {
+        display: block;
+        font-size: 11px;
+        color: #fff;
+        line-height: 1.5;
+        word-break: break-all;
+      }
+    }
+
+    .code-actions {
+      display: flex;
+      gap: 12px;
+
+      .action-btn {
+        flex: 1;
+        padding: 12px 0;
+        background: rgba(255, 255, 255, 0.2);
+        color: #fff;
+        border-radius: 8px;
+        text-align: center;
+        font-size: 14px;
+        font-weight: 600;
+        line-height: 1.4;
+
+        &::after {
+          border: none;
+        }
+
+        &.primary {
+          background: #fff;
+          color: #f97316;
+        }
+
+        &.share-action-btn {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        &:active {
+          opacity: 0.8;
+        }
+      }
+    }
+  }
+
+  .reward-card {
+    background: #fff;
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 12px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+
+    .reward-title {
+      display: block;
+      font-size: 16px;
+      font-weight: 600;
+      color: #1f2937;
+      margin-bottom: 16px;
+    }
+
+    .reward-list {
+      margin-bottom: 12px;
+
+      .reward-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 0;
+        border-bottom: 1px solid #f3f4f6;
+
+        &:last-child {
+          border-bottom: none;
+        }
+
+        .reward-icon {
+          font-size: 24px;
+        }
+
+        .reward-content {
+          flex: 1;
+
+          .reward-label {
+            display: block;
+            font-size: 14px;
+            color: #374151;
+            margin-bottom: 4px;
+          }
+
+          .reward-value {
+            display: block;
+            font-size: 16px;
+            font-weight: 700;
+            color: #f97316;
+          }
+        }
+      }
+    }
+
+    .reward-note {
+      display: block;
+      font-size: 11px;
+      color: #9ca3af;
+      line-height: 1.5;
+    }
+  }
+
+  .stats-card {
+    background: #fff;
+    border-radius: 12px;
+    padding: 16px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+
+    .stats-title {
+      display: block;
+      font-size: 16px;
+      font-weight: 600;
+      color: #1f2937;
+      margin-bottom: 16px;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+
+      .stat-item {
+        text-align: center;
+        padding: 12px;
+        background: #f9fafb;
+        border-radius: 8px;
+
+        .stat-value {
+          display: block;
+          font-size: 20px;
+          font-weight: 700;
+          color: #1f2937;
+          margin-bottom: 4px;
+        }
+
+        .stat-label {
+          display: block;
+          font-size: 11px;
+          color: #6b7280;
+        }
+      }
+    }
+  }
+
+  .loading-wrap {
+    text-align: center;
+    padding: 40px 20px;
+    color: #6b7280;
+  }
+}

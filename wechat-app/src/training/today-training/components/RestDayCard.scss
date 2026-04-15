@@ -1,0 +1,217 @@
+.rest-day-card {
+  background: #ffffff;
+  border-radius: 18px;
+  padding: 20px 16px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+  border: 1px solid #e5e7eb;
+
+  .rest-main {
+    margin-bottom: 20px;
+    text-align: center;
+
+    .rest-hero {
+      width: 88px;
+      height: 88px;
+      border-radius: 999px;
+      background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%);
+      border: 1px solid #fed7aa;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 14px;
+    }
+
+    .rest-title-row {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+
+    .rest-emoji {
+      font-size: 48px;
+    }
+
+    .rest-title {
+      font-size: 20px;
+      font-weight: 700;
+      color: #1f2937;
+    }
+
+    .rest-info-btn {
+      width: 24px;
+      height: 24px;
+      border-radius: 999px;
+      background: #f3f4f6;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      text {
+        color: #6b7280;
+        font-size: 12px;
+        font-weight: 700;
+      }
+    }
+
+    .rest-subtitle {
+      display: block;
+      font-size: 13px;
+      color: #6b7280;
+      margin-bottom: 8px;
+    }
+
+    .rest-desc {
+      display: block;
+      font-size: 12px;
+      color: #6b7280;
+      line-height: 1.5;
+      margin-bottom: 8px;
+    }
+
+    .rest-quote {
+      display: block;
+      font-size: 12px;
+      color: #9ca3af;
+      font-style: italic;
+    }
+  }
+
+  .rest-tips {
+    background: linear-gradient(135deg, #F28631 0%, #FFAC6B 100%);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 16px;
+
+    .tips-title {
+      display: block;
+      font-size: 14px;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 12px;
+    }
+
+    .tips-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+
+      .tip-item {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 10px;
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 8px;
+        backdrop-filter: blur(10px);
+
+        .tip-icon {
+          font-size: 14px;
+        }
+
+        .tip-text {
+          font-size: 11px;
+          color: rgba(255, 255, 255, 0.95);
+          flex: 1;
+        }
+      }
+    }
+  }
+}
+
+.rest-info-mask {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.56);
+  z-index: 1003;
+  display: flex;
+  align-items: flex-end;
+}
+
+.rest-info-dialog {
+  width: 100%;
+  background: #fff;
+  border-radius: 24px 24px 0 0;
+  padding: 18px 16px 22px;
+  box-sizing: border-box;
+
+  .dialog-title {
+    display: block;
+    font-size: 20px;
+    font-weight: 800;
+    color: #111827;
+    margin-bottom: 14px;
+  }
+
+  .dialog-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .dialog-card {
+    border-radius: 16px;
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    padding: 14px;
+  }
+
+  .dialog-icon {
+    display: block;
+    font-size: 24px;
+    margin-bottom: 8px;
+  }
+
+  .dialog-card-title {
+    display: block;
+    font-size: 15px;
+    font-weight: 700;
+    color: #111827;
+    margin-bottom: 4px;
+  }
+
+  .dialog-card-text {
+    display: block;
+    font-size: 12px;
+    color: #6b7280;
+    line-height: 1.55;
+  }
+
+  .dialog-foot {
+    margin-top: 12px;
+    border-radius: 16px;
+    background: #fff7ed;
+    border: 1px solid #fed7aa;
+    padding: 14px;
+  }
+
+  .dialog-foot-title {
+    display: block;
+    font-size: 14px;
+    font-weight: 700;
+    color: #9a3412;
+    margin-bottom: 4px;
+  }
+
+  .dialog-foot-text {
+    display: block;
+    font-size: 12px;
+    color: #9a3412;
+    line-height: 1.55;
+  }
+
+  .dialog-close {
+    margin-top: 14px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, #f28631 0%, #ffac6b 100%);
+    padding: 14px;
+    text-align: center;
+
+    text {
+      color: #fff;
+      font-size: 14px;
+      font-weight: 700;
+    }
+  }
+}

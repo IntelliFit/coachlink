@@ -1,0 +1,105 @@
+- generic [active] [ref=e1]:
+  - button "Open Next.js Dev Tools" [ref=e7] [cursor=pointer]:
+    - img [ref=e8]
+  - alert [ref=e11]
+  - generic [ref=e12]:
+    - main [ref=e13]:
+      - generic [ref=e14]:
+        - link "logo 教链 Student" [ref=e16] [cursor=pointer]:
+          - /url: /
+          - img "logo" [ref=e18]
+          - generic [ref=e20]:
+            - generic [ref=e21]: 教链
+            - generic [ref=e22]: Student
+        - menubar [ref=e23]:
+          - menuitem "今日训练" [ref=e24]:
+            - generic [ref=e26] [cursor=pointer]:
+              - img [ref=e27]
+              - generic [ref=e30]: 今日训练
+          - menuitem "好友动态" [ref=e31]:
+            - generic [ref=e33] [cursor=pointer]:
+              - img [ref=e34]
+              - generic [ref=e36]: 好友动态
+          - menuitem "发现" [ref=e37]:
+            - generic [ref=e39] [cursor=pointer]:
+              - img [ref=e40]
+              - generic [ref=e43]: 发现
+          - menuitem "知识库" [ref=e44]:
+            - generic [ref=e46] [cursor=pointer]:
+              - img [ref=e47]
+              - generic [ref=e49]: 知识库
+          - menuitem "我的动作库" [ref=e50]:
+            - generic [ref=e52] [cursor=pointer]:
+              - img [ref=e53]
+              - generic [ref=e56]: 我的动作库
+          - menuitem "排行榜" [ref=e57]:
+            - generic [ref=e59] [cursor=pointer]:
+              - img [ref=e60]
+              - generic [ref=e63]: 排行榜
+          - menuitem "个人档案" [ref=e64]:
+            - generic [ref=e66] [cursor=pointer]:
+              - img [ref=e67]
+              - generic [ref=e70]: 个人档案
+      - generic [ref=e75]:
+        - button "返回" [ref=e77] [cursor=pointer]:
+          - generic: 
+          - generic [ref=e78]: 返回
+        - generic [ref=e83]:
+          - heading "关于我们" [level=1] [ref=e84]
+          - paragraph [ref=e85]: CoachLink（教链）是一个面向训练人群的在线训练服务平台，帮助用户更高效地发现教练、选择服务、完成训练与记录进步。
+          - heading "我们提供的主要服务" [level=2] [ref=e86]
+          - list [ref=e87]:
+            - listitem [ref=e88]:
+              - strong [ref=e89]: 教练订阅/训练计划服务
+              - text: ：用户可选择教练提供的订阅方案，获取周期化训练计划与执行支持。
+            - listitem [ref=e90]:
+              - strong [ref=e91]: 训练执行与记录
+              - text: ：结构化记录每次训练（组数、重量、PR 等），形成可追踪的训练档案。
+            - listitem [ref=e92]:
+              - strong [ref=e93]: 视频沟通与反馈
+              - text: ：训练视频与记录联动，提升远程指导的沟通效率。
+            - listitem [ref=e94]:
+              - strong [ref=e95]: 智能工具
+              - text: ：在合规范围内提供计划生成、导入与辅助工具，帮助用户更快开始训练。
+          - heading "服务范围说明（合规披露）" [level=2] [ref=e96]
+          - paragraph [ref=e97]: 本平台提供的是与训练相关的服务与数字化工具支持，不包含教育培训、新闻资讯、金融理财、招聘、风控投资等业务内容。
+          - heading "联系方式" [level=2] [ref=e98]
+          - paragraph [ref=e99]:
+            - text: 如需联系平台，请前往「联系我们」页面：
+            - code [ref=e100]: "`/contact`"
+            - text: 。
+    - contentinfo [ref=e101]:
+      - generic [ref=e103]:
+        - generic [ref=e104]:
+          - generic [ref=e107]: 北京智健启能
+          - paragraph [ref=e108]: © 2025-2026 保留所有权利
+          - link "京ICP备2025141637号-1" [ref=e109] [cursor=pointer]:
+            - /url: https://beian.miit.gov.cn/
+        - navigation [ref=e110]:
+          - link "服务商品" [ref=e111] [cursor=pointer]:
+            - /url: /market
+            - text: 服务商品
+          - link "技术文章" [ref=e112] [cursor=pointer]:
+            - /url: /articles
+            - text: 技术文章
+          - link "入驻流程" [ref=e113] [cursor=pointer]:
+            - /url: /onboarding
+            - text: 入驻流程
+          - link "关于我们" [ref=e114] [cursor=pointer]:
+            - /url: /about
+            - text: 关于我们
+          - link "联系我们" [ref=e115] [cursor=pointer]:
+            - /url: /contact
+            - text: 联系我们
+          - link "用户服务协议" [ref=e116] [cursor=pointer]:
+            - /url: /terms
+            - text: 用户服务协议
+          - link "消费者权益保护" [ref=e117] [cursor=pointer]:
+            - /url: /protection-of-consumer
+            - text: 消费者权益保护
+          - link "平台入驻协议" [ref=e118] [cursor=pointer]:
+            - /url: /platform-agreement
+            - text: 平台入驻协议
+          - link "免责声明" [ref=e119] [cursor=pointer]:
+            - /url: /disclaimer
+            - text: 免责声明
