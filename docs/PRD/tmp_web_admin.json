@@ -1,0 +1,156 @@
+{
+  "pages": [
+    {
+      "pageName": "管理后台布局",
+      "routePath": "/admin/*",
+      "description": "所有管理后台页面的统一布局容器，仅提供背景和内边距。",
+      "interactableElements": [],
+      "states": { "loading": "无", "error": "无", "empty": "无" }
+    },
+    {
+      "pageName": "用户行为分析",
+      "routePath": "/admin/analytics",
+      "description": "多维度的平台数据看板，包含 Dashboard、功能使用、留存、发布记录和流量日志。",
+      "interactableElements": [
+        { "name": "总览", "type": "Tab按钮", "behavior": "切换至 DashboardView", "target": null },
+        { "name": "功能分析", "type": "Tab按钮", "behavior": "切换至 FeatureUsageView", "target": null },
+        { "name": "留存分析", "type": "Tab按钮", "behavior": "切换至 RetentionView", "target": null },
+        { "name": "功能发布", "type": "Tab按钮", "behavior": "切换至 ReleasesView", "target": null },
+        { "name": "流量日志", "type": "Tab按钮", "behavior": "切换至 TraceView", "target": null },
+        { "name": "7天", "type": "范围切换按钮", "behavior": "设置功能分析时间范围为7天", "target": null },
+        { "name": "30天", "type": "范围切换按钮", "behavior": "设置功能分析时间范围为30天", "target": null },
+        { "name": "90天", "type": "范围切换按钮", "behavior": "设置功能分析时间范围为90天", "target": null },
+        { "name": "+ 记录新功能发布", "type": "按钮", "behavior": "显示/隐藏新增发布记录表单", "target": null },
+        { "name": "功能名称", "type": "文本输入框", "behavior": "输入新功能名称", "target": null },
+        { "name": "发布日期", "type": "日期选择器", "behavior": "选择发布日期", "target": null },
+        { "name": "取消", "type": "按钮", "behavior": "关闭发布记录表单", "target": null },
+        { "name": "保存", "type": "按钮", "behavior": "提交表单创建新发布记录", "target": null },
+        { "name": "开始日期", "type": "日期输入框", "behavior": "修改流量日志查询起始日期", "target": null },
+        { "name": "结束日期", "type": "日期输入框", "behavior": "修改流量日志查询结束日期", "target": null },
+        { "name": "包含开发环境", "type": "复选框", "behavior": "切换是否包含开发环境数据", "target": null },
+        { "name": "包含管理员", "type": "复选框", "behavior": "切换是否包含管理员操作数据", "target": null },
+        { "name": "刷新", "type": "按钮", "behavior": "重新请求流量日志数据", "target": null }
+      ],
+      "states": { "loading": "显示加载中", "error": "数据加载失败", "empty": "暂无数据" }
+    },
+    {
+      "pageName": "教练入驻审核",
+      "routePath": "/admin/coach-applications",
+      "description": "管理员审核教练资质申请，支持批量批准、状态筛选、查看详情及通过/拒绝操作。",
+      "interactableElements": [
+        { "name": "刷新数据", "type": "按钮", "behavior": "重新加载教练申请列表", "target": null },
+        { "name": "批量批准", "type": "按钮", "behavior": "对选中的多个申请执行批量通过", "target": null },
+        { "name": "多选复选框", "type": "表格选择器", "behavior": "勾选/取消勾选单行或全选", "target": null },
+        { "name": "状态筛选", "type": "MultiSelect下拉筛选", "behavior": "按申请状态过滤列表", "target": null },
+        { "name": "分页器", "type": "分页组件", "behavior": "切换页码和每页条数", "target": null },
+        { "name": "查看详情", "type": "图标按钮", "behavior": "打开弹窗查看申请详细信息", "target": null },
+        { "name": "批准", "type": "图标按钮", "behavior": "直接将 pending 状态的申请标记为 approved", "target": null },
+        { "name": "拒绝", "type": "图标按钮", "behavior": "打开弹窗输入拒绝原因", "target": null },
+        { "name": "ReviewNotesDialog-提交", "type": "弹窗按钮", "behavior": "提交拒绝原因并将申请标记为 rejected", "target": null },
+        { "name": "ReviewNotesDialog-关闭", "type": "弹窗按钮", "behavior": "关闭拒绝备注弹窗", "target": null }
+      ],
+      "states": { "loading": "表格行显示 Skeleton", "error": "加载失败", "empty": "暂无待处理的申请", "permissionDenied": "非管理员自动跳转首页" }
+    },
+    {
+      "pageName": "账单管理",
+      "routePath": "/admin/payments",
+      "description": "查看并管理平台所有支付订单，支持状态/类型筛选和对已支付订单发起退款。",
+      "interactableElements": [
+        { "name": "订阅管理", "type": "链接按钮", "behavior": "跳转至订阅管理页面", "target": "/admin/subscriptions" },
+        { "name": "刷新", "type": "按钮", "behavior": "重新加载账单列表", "target": null },
+        { "name": "状态筛选", "type": "Dropdown下拉框", "behavior": "按订单状态过滤", "target": null },
+        { "name": "类型筛选", "type": "Dropdown下拉框", "behavior": "按订单类型过滤", "target": null },
+        { "name": "分页器", "type": "分页组件", "behavior": "切换页码和每页条数", "target": null },
+        { "name": "退款", "type": "按钮", "behavior": "对已支付订单弹出 confirm 确认后调用退款接口", "target": null }
+      ],
+      "states": { "loading": "表格行显示 Skeleton", "error": "加载失败", "empty": "无订单", "permissionDenied": "非管理员自动跳转首页" }
+    },
+    {
+      "pageName": "教练支付设置",
+      "routePath": "/admin/payments/coach-settings",
+      "description": "为每位教练单独配置支付模式及是否允许使用个人收款二维码。",
+      "interactableElements": [
+        { "name": "编辑设置", "type": "图标按钮", "behavior": "打开编辑 Dialog", "target": null },
+        { "name": "支付模式下拉框", "type": "Dropdown", "behavior": "选择教练专属支付模式", "target": null },
+        { "name": "允许使用个人二维码", "type": "InputSwitch开关", "behavior": "切换该教练是否允许上传和使用个人收款码", "target": null },
+        { "name": "取消", "type": "按钮", "behavior": "关闭编辑 Dialog 不保存", "target": null },
+        { "name": "保存", "type": "按钮", "行为": "提交教练支付设置变更", "target": null },
+        { "name": "分页器/每页条数", "type": "分页组件", "行为": "切换页码和每页显示条数", "target": null }
+      ],
+      "states": { "loading": "页面整体显示 ProgressSpinner", "error": "加载或保存失败", "empty": "暂无教练数据", "permissionDenied": "非管理员自动跳转首页" }
+    },
+    {
+      "pageName": "排行榜管理",
+      "routePath": "/admin/rankings",
+      "description": "管理系统排行榜模板，支持创建新排行榜及查看/编辑现有排行榜卡片。",
+      "interactableElements": [
+        { "name": "创建新排行榜", "type": "按钮", "行为": "打开 CreateLeaderboardForm 弹窗", "target": null },
+        { "name": "LeaderboardCard操作", "type": "卡片组件", "行为": "包含编辑、删除、查看审核等操作", "target": null },
+        { "name": "CreateLeaderboardForm-提交", "type": "弹窗表单按钮", "行为": "提交创建排行榜表单", "target": null },
+        { "name": "CreateLeaderboardForm-取消", "type": "弹窗表单按钮", "行为": "关闭创建弹窗", "target": null },
+        { "name": "ConfirmDialog-确认", "type": "确认弹窗按钮", "行为": "确认删除等危险操作", "target": null },
+        { "name": "ConfirmDialog-取消", "type": "确认弹窗按钮", "行为": "取消危险操作", "target": null }
+      ],
+      "states": { "loading": "显示自定义 Skeleton", "error": "加载失败", "empty": "暂无数据，点击上方按钮创建", "permissionDenied": "非管理员自动跳转首页" }
+    },
+    {
+      "pageName": "排行榜条目审核",
+      "routePath": "/admin/rankings/review/[id]",
+      "description": "针对单个排行榜模板审核用户提交的排行榜成绩申请。",
+      "interactableElements": [
+        { "name": "分页器", "type": "分页组件", "行为": "切换待审核条目页码和每页条数", "target": null },
+        { "name": "查看详情", "type": "图标按钮", "行为": "打开 Dialog 查看申请人详情、证据图片/链接及审核备注", "target": null },
+        { "name": "快速通过", "type": "图标按钮", "行为": "直接将该条目审核状态更新为 approved", "target": null },
+        { "name": "直接拒绝", "type": "图标按钮", "行为": "直接将该条目审核状态更新为 rejected", "target": null },
+        { "name": "查看外部证据链接", "type": "链接", "行为": "在新标签页打开用户提交的证据 URL", "target": "_blank" },
+        { "name": "审核备注", "type": "文本域", "行为": "输入拒绝原因或审核批注", "target": null },
+        { "name": "拒绝", "type": "按钮", "行为": "在详情弹窗中提交拒绝（可带备注）", "target": null },
+        { "name": "通过审核", "type": "按钮", "行为": "在详情弹窗中提交通过（可带备注）", "target": null }
+      ],
+      "states": { "loading": "页面整体显示 ProgressSpinner", "error": "加载失败", "empty": "所有申请已处理完毕", "permissionDenied": "非管理员自动跳转首页" }
+    },
+    {
+      "pageName": "平台设置",
+      "routePath": "/admin/settings",
+      "description": "配置平台级参数，当前仅支持全局默认支付模式设置。",
+      "interactableElements": [
+        { "name": "全局默认支付模式", "type": "Dropdown下拉框", "行为": "选择平台默认支付方式", "target": null },
+        { "name": "管理教练个人支付设置", "type": "按钮", "行为": "跳转至教练支付设置页面", "target": "/admin/payments/coach-settings" },
+        { "name": "保存设置", "type": "按钮", "行为": "提交全局支付模式设置", "target": null }
+      ],
+      "states": { "loading": "页面整体显示 ProgressSpinner", "error": "加载或保存失败", "empty": "无", "permissionDenied": "非管理员自动跳转首页" }
+    },
+    {
+      "pageName": "订阅管理",
+      "routePath": "/admin/subscriptions",
+      "description": "查看学员与教练之间的订阅关系，支持多维度筛选和分页。",
+      "interactableElements": [
+        { "name": "刷新", "type": "按钮", "行为": "重新加载订阅列表", "target": null },
+        { "name": "支付确认已废弃", "type": "按钮", "行为": "点击弹出废弃提示 Toast", "target": null },
+        { "name": "学员筛选", "type": "自定义筛选组件", "行为": "按学员过滤订阅数据", "target": null },
+        { "name": "教练筛选", "type": "自定义筛选组件", "行为": "按教练过滤订阅数据", "target": null },
+        { "name": "订阅等级筛选", "type": "自定义筛选组件", "行为": "按订阅等级过滤数据", "target": null },
+        { "name": "状态筛选", "type": "自定义筛选组件", "行为": "按订阅状态过滤数据", "target": null },
+        { "name": "分页器", "type": "分页组件", "行为": "切换页码和每页条数", "target": null }
+      ],
+      "states": { "loading": "表格行显示 Skeleton", "error": "加载失败", "empty": "DataTable 默认空状态", "permissionDenied": "非管理员自动跳转首页" }
+    },
+    {
+      "pageName": "提现管理",
+      "routePath": "/admin/withdrawals",
+      "description": "管理教练提现申请，查看提现记录、筛选状态并对pending订单执行手动到账确认。",
+      "interactableElements": [
+        { "name": "全部", "type": "筛选按钮", "行为": "取消状态筛选，显示全部提现记录", "target": null },
+        { "name": "待处理", "type": "筛选按钮", "行为": "筛选 status=pending", "target": null },
+        { "name": "已到账", "type": "筛选按钮", "行为": "筛选 status=success", "target": null },
+        { "name": "刷新", "type": "按钮", "行为": "重新加载提现列表", "target": null },
+        { "name": "分页器", "type": "分页组件", "行为": "切换页码和每页条数", "target": null },
+        { "name": "确认到账", "type": "按钮", "行为": "打开 Dialog 输入支付宝转账订单号并确认到账", "target": null },
+        { "name": "转账订单号", "type": "文本输入框", "行为": "输入支付宝手动转账的订单号", "target": null },
+        { "name": "确认", "type": "弹窗按钮", "行为": "提交确认到账请求", "target": null },
+        { "name": "取消", "type": "弹窗按钮", "行为": "关闭确认到账 Dialog 并清空输入", "target": null }
+      ],
+      "states": { "loading": "表格行显示 Skeleton", "error": "加载失败", "empty": "DataTable 默认空状态", "permissionDenied": "非管理员自动跳转首页" }
+    }
+  ]
+}

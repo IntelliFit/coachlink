@@ -1,0 +1,259 @@
+[
+  {
+    "pageName": "登录页",
+    "routePath": "/auth/login",
+    "description": "用户登录入口，支持密码/验证码双模式登录及微信手机号快捷登录。",
+    "interactiveElements": [
+      { "name": "密码登录/验证码登录切换", "type": "tab", "behavior": "切换登录模式，清空对应输入", "target": null },
+      { "name": "手机号或邮箱输入框", "type": "input", "behavior": "输入账号", "target": null },
+      { "name": "登录密码输入框", "type": "input", "behavior": "输入密码（仅在密码登录模式显示）", "target": null },
+      { "name": "验证码输入框", "type": "input", "behavior": "输入6位验证码（仅在验证码登录模式显示）", "target": null },
+      { "name": "获取验证码按钮", "type": "button", "behavior": "触发滑块验证后发送短信/邮件验证码，带60秒倒计时", "target": null },
+      { "name": "用户协议勾选框", "type": "checkbox", "behavior": "同意用户服务协议和隐私政策", "target": null },
+      { "name": "《用户服务协议》", "type": "link", "behavior": "跳转协议页", "target": "/me/terms/index" },
+      { "name": "《隐私政策》", "type": "link", "behavior": "跳转隐私政策页", "target": "/me/privacy/index" },
+      { "name": "立即登录按钮", "type": "button", "behavior": "校验后执行登录，成功后跳转对应首页", "target": "/training/today-training" },
+      { "name": "手机号快捷登录按钮", "type": "button", "behavior": "调起微信 getPhoneNumber 授权并快捷登录", "target": "/training/today-training" },
+      { "name": "忘记密码？", "type": "link", "behavior": "显示重置密码表单", "target": null },
+      { "name": "立即注册", "type": "link", "behavior": "跳转注册页，携带 invite 参数", "target": "/auth/register" },
+      { "name": "返回登录", "type": "button", "behavior": "重置密码表单内返回登录态", "target": null },
+      { "name": "滑块验证弹窗", "type": "modal", "behavior": "人机验证，成功后发送验证码", "target": null }
+    ],
+    "states": [
+      { "stateName": "登录中", "description": "按钮显示 loading 动画，禁止重复点击" },
+      { "stateName": "验证码倒计时", "description": "获取验证码按钮显示剩余秒数并禁用" },
+      { "stateName": "重置密码表单", "description": "替换登录表单显示重置密码界面" }
+    ]
+  },
+  {
+    "pageName": "注册页",
+    "routePath": "/auth/register",
+    "description": "新用户注册页，通过手机号/邮箱+验证码完成注册并自动登录。",
+    "interactiveElements": [
+      { "name": "手机号或邮箱输入框", "type": "input", "behavior": "输入注册账号", "target": null },
+      { "name": "登录密码输入框", "type": "input", "behavior": "输入密码", "target": null },
+      { "name": "确认密码输入框", "type": "input", "behavior": "再次输入密码校验一致性", "target": null },
+      { "name": "邀请码输入框", "type": "input", "behavior": "可选，填写邀请码", "target": null },
+      { "name": "验证码输入框", "type": "input", "behavior": "输入6位验证码", "target": null },
+      { "name": "获取验证码按钮", "type": "button", "behavior": "触发滑块验证后发送验证码，带倒计时", "target": null },
+      { "name": "同意协议勾选框", "type": "checkbox", "behavior": "同意用户协议与免责声明", "target": null },
+      { "name": "《用户协议》", "type": "link", "behavior": "跳转用户协议页", "target": "/me/terms/index" },
+      { "name": "《免责声明》", "type": "link", "behavior": "跳转免责声明页", "target": "/me/disclaimer/index" },
+      { "name": "立即注册按钮", "type": "button", "behavior": "校验后注册并自动登录", "target": "/training/today-training" },
+      { "name": "立即登录", "type": "link", "behavior": "返回登录页", "target": "/auth/login" },
+      { "name": "滑块验证弹窗", "type": "modal", "behavior": "人机验证，成功后发送验证码", "target": null }
+    ],
+    "states": [
+      { "stateName": "注册中", "description": "按钮显示 loading 动画" },
+      { "stateName": "验证码倒计时", "description": "获取验证码按钮禁用并显示倒计时" }
+    ]
+  },
+  {
+    "pageName": "入驻引导页",
+    "routePath": "/auth/onboarding",
+    "description": "引导教练或健身房入驻平台，未登录先跳转登录。",
+    "interactiveElements": [
+      { "name": "我是教练，立即入驻", "type": "button", "behavior": "跳转教练申请页，未登录先跳登录", "target": "/coach/application" },
+      { "name": "我是健身房，申请合作", "type": "button", "behavior": "跳转健身房申请页，未登录先跳登录", "target": "/coach/application?role=gym" }
+    ],
+    "states": []
+  },
+  {
+    "pageName": "学员 onboarding",
+    "routePath": "/auth/student-onboarding",
+    "description": "学员首次登录后完善基础档案的三步表单流程。",
+    "interactiveElements": [
+      { "name": "昵称输入框", "type": "input", "behavior": "填写昵称", "target": null },
+      { "name": "性别选择", "type": "card", "behavior": "单选卡片：男 / 女", "target": null },
+      { "name": "身高输入", "type": "inputNumber", "behavior": "输入身高(cm)", "target": null },
+      { "name": "体重输入", "type": "inputNumber", "behavior": "输入体重(kg)", "target": null },
+      { "name": "健身目标选择", "type": "card", "behavior": "单选卡片：减脂塑形/增肌强身/力量提升/体能改善/体态矫正/运动恢复/综合体适能/灵活柔韧", "target": null },
+      { "name": "训练水平选择", "type": "card", "behavior": "单选卡片：零基础/有一点基础/有系统训练经验", "target": null },
+      { "name": "感兴趣的训练方向", "type": "chip", "behavior": "多选标签：上肢/下肢/核心/体态纠正/减脂燃脂/灵活性/力量举/心肺有氧", "target": null },
+      { "name": "常用器械", "type": "chip", "behavior": "多选标签：徒手/哑铃/杠铃/拉力器/器械区/壶铃", "target": null },
+      { "name": "单次训练时长", "type": "chip", "behavior": "单选标签：15/20/30/45/60 分钟", "target": null },
+      { "name": "上一步", "type": "button", "behavior": "返回上一步", "target": null },
+      { "name": "下一步", "type": "button", "behavior": "校验并进入下一步", "target": null },
+      { "name": "开始训练", "type": "button", "behavior": "提交档案并跳转训练页", "target": "/training/impromptu-training" }
+    ],
+    "states": [
+      { "stateName": "加载中", "description": "页面初始化时加载已有档案数据" },
+      { "stateName": "保存中", "description": "点击开始训练后显示保存中" },
+      { "stateName": "校验失败", "description": "必填项未填时 Toast 提示" }
+    ]
+  },
+  {
+    "pageName": "微信授权页",
+    "routePath": "/auth/wechat-auth",
+    "description": "小程序快捷登录统一入口说明页，根据参数自动重定向。",
+    "interactiveElements": [
+      { "name": "去首页", "type": "button", "behavior": "返回平台首页", "target": "/pages/index/index" }
+    ],
+    "states": [
+      { "stateName": "自动重定向", "description": "页面加载后根据 type 参数自动跳转登录页（bind/login）" }
+    ]
+  },
+  {
+    "pageName": "首页",
+    "routePath": "/pages/index/index",
+    "description": "平台着陆页，展示核心卖点与功能入口，已登录自动跳转。",
+    "interactiveElements": [
+      { "name": "顶部登录按钮", "type": "button", "behavior": "已登录跳转训练页，未登录跳转登录", "target": "/auth/login" },
+      { "name": "立即开始训练", "type": "button", "behavior": "已登录跳转训练页，未登录跳转登录", "target": "/training/today-training" },
+      { "name": "入驻成为教练", "type": "button", "behavior": "跳转入驻引导页", "target": "/auth/onboarding" },
+      { "name": "立即注册锁定权益", "type": "button", "behavior": "跳转注册页", "target": "/auth/register" },
+      { "name": "关于", "type": "link", "behavior": "跳转关于页", "target": "/me/about/index" },
+      { "name": "免责声明", "type": "link", "behavior": "跳转免责声明页", "target": "/me/disclaimer/index" },
+      { "name": "服务条款", "type": "link", "behavior": "跳转服务条款页", "target": "/me/terms/index" },
+      { "name": "联系", "type": "link", "behavior": "跳转联系页", "target": "/me/contact/index" },
+      { "name": "文档", "type": "link", "behavior": "跳转文档页", "target": "/me/docs/index" }
+    ],
+    "states": [
+      { "stateName": "已登录自动跳转", "description": "useEffect 检测登录态后自动 relaunch 到对应首页" }
+    ]
+  },
+  {
+    "pageName": "发现页",
+    "routePath": "/discovery/index",
+    "description": "一站式发现教练、服务商品、热门动作与健身资讯。",
+    "interactiveElements": [
+      { "name": "搜索输入框", "type": "input", "behavior": "输入姓名或专长关键字，回车触发搜索", "target": null },
+      { "name": "专长筛选下拉", "type": "button", "behavior": "调起微信 ActionSheet 选择专长过滤", "target": null },
+      { "name": "搜索按钮", "type": "button", "behavior": "触发教练列表搜索", "target": null },
+      { "name": "服务商品-查看更多", "type": "link", "behavior": "跳转服务市场", "target": "/discovery/market" },
+      { "name": "商品卡片-购买", "type": "button", "behavior": "校验登录后跳转支付页", "target": "/me/payment/webview/index" },
+      { "name": "商品卡片-加购", "type": "button", "behavior": "校验登录后加入购物车", "target": null },
+      { "name": "热门动作-查看动作库", "type": "link", "behavior": "跳转动作库列表", "target": "/training/actions" },
+      { "name": "动作卡片-详情", "type": "button", "behavior": "跳转动作详情", "target": "/training/action-detail/index" },
+      { "name": "动作卡片-加入", "type": "button", "behavior": "将公开动作加入我的动作库", "target": null },
+      { "name": "动作卡片主体", "type": "card", "behavior": "点击跳转动作详情", "target": "/training/action-detail/index" },
+      { "name": "健身资讯-查看更多", "type": "link", "behavior": "跳转知识库首页", "target": "/content/knowledge" },
+      { "name": "文章卡片", "type": "card", "behavior": "点击跳转内容详情", "target": "/content/content-detail" },
+      { "name": "教练卡片", "type": "card", "behavior": "点击跳转教练主页", "target": "/discovery/coach-profile" },
+      { "name": "加载更多", "type": "button", "behavior": "加载下一页教练列表", "target": null }
+    ],
+    "states": [
+      { "stateName": "加载中", "description": "教练列表、商品、动作、文章加载时显示骨架屏" },
+      { "stateName": "空状态", "description": "无教练/无商品/无动作/无文章时显示空提示" },
+      { "stateName": "专注模式", "description": "仅展示专属邀请教练，隐藏搜索与筛选" },
+      { "stateName": "触底加载", "description": "滚动到底部自动加载更多教练" }
+    ]
+  },
+  {
+    "pageName": "服务市场",
+    "routePath": "/discovery/market",
+    "description": "按教练展示所有可购买的订阅服务商品，支持筛选与加购。",
+    "interactiveElements": [
+      { "name": "搜索输入框", "type": "input", "behavior": "实时过滤商品（教练、商品、专长关键词）", "target": null },
+      { "name": "套餐等级筛选", "type": "tab", "behavior": "切换全部/基础/专业/全能标签过滤", "target": null },
+      { "name": "购物车按钮", "type": "button", "behavior": "跳转购物车", "target": "/me/cart/index" },
+      { "name": "教练信息区", "type": "card", "behavior": "点击跳转教练主页定价Tab", "target": "/discovery/coach-profile" },
+      { "name": "购买按钮", "type": "button", "behavior": "校验登录后跳转支付页", "target": "/me/payment/webview/index" },
+      { "name": "加购按钮", "type": "button", "behavior": "加入购物车并弹出去购物车/继续选购提示", "target": null }
+    ],
+    "states": [
+      { "stateName": "加载中", "description": "页面初始化显示骨架屏" },
+      { "stateName": "下拉刷新", "description": "下拉重新加载市场数据" },
+      { "stateName": "空状态/错误", "description": "无商品或加载失败，提供重新加载和去发现教练入口" },
+      { "stateName": "筛选结果空", "description": "搜索/筛选无匹配时提示换关键词" }
+    ]
+  },
+  {
+    "pageName": "教练主页",
+    "routePath": "/discovery/coach-profile",
+    "description": "教练详情页，展示简介、定价、教学内容、评价，支持订阅与智能生成计划。",
+    "interactiveElements": [
+      { "name": "Tab切换", "type": "tab", "behavior": "切换：关于教练 / 订阅价格 / 教学内容 / 学员评价", "target": null },
+      { "name": "待支付订阅横幅", "type": "banner", "behavior": "点击继续完成购买支付", "target": "/me/payment/webview/index" },
+      { "name": "立即订阅/查看价格", "type": "button", "behavior": "滚动定位到订阅价格区并切换Tab", "target": "#tab-pricing-anchor" },
+      { "name": "续费", "type": "button", "behavior": "已订阅用户进入续费模式选择套餐", "target": null },
+      { "name": "查看订阅进度", "type": "button", "behavior": "订阅处理中时的状态提示", "target": null },
+      { "name": "智能生成计划", "type": "button", "behavior": "跳转AI生成计划页（需已订阅）", "target": "/discovery/generate-plan" },
+      { "name": "填写/更新训练需求问卷", "type": "button", "behavior": "打开问卷弹窗（需已订阅）", "target": null },
+      { "name": "套餐选择", "type": "card", "behavior": "选择时长套餐进行购买或续费", "target": "/me/payment/webview/index" },
+      { "name": "教学内容项", "type": "card", "behavior": "点击跳转内容详情", "target": "/content/content-detail" },
+      { "name": "问卷弹窗", "type": "modal", "behavior": "加载并提交训练需求问卷", "target": null }
+    ],
+    "states": [
+      { "stateName": "加载中", "description": "页面加载显示骨架屏" },
+      { "stateName": "错误", "description": "加载失败显示错误提示与重试按钮" },
+      { "stateName": "待支付", "description": "顶部显示待支付横幅引导继续支付" },
+      { "stateName": "未登录", "description": "购买/订阅时提示登录并携带 returnTo" }
+    ]
+  },
+  {
+    "pageName": "智能生成计划",
+    "routePath": "/discovery/generate-plan",
+    "description": "为订阅教练的学员选择训练域并填写评估表单以AI生成计划。",
+    "interactiveElements": [
+      { "name": "训练域选择卡片", "type": "card", "behavior": "单选：负重引体 / 负重臂屈伸 / 引体+臂屈伸组合", "target": null },
+      { "name": "返回按钮", "type": "button", "behavior": "返回上一页", "target": null },
+      { "name": "下一步按钮", "type": "button", "behavior": "确认域选择后展示评估表单", "target": null },
+      { "name": "评估表单-返回", "type": "button", "behavior": "返回域选择", "target": null },
+      { "name": "评估表单-提交", "type": "button", "behavior": "提交评估后跳转等待页", "target": "/discovery/generate-plan/waiting" }
+    ],
+    "states": [
+      { "stateName": "未登录重定向", "description": "未登录自动跳登录页" },
+      { "stateName": "缺少教练ID", "description": "无 coachId 时重定向到发现页" },
+      { "stateName": "加载中", "description": "等待 coachId 校验时显示加载中" }
+    ]
+  },
+  {
+    "pageName": "计划生成等待页",
+    "routePath": "/discovery/generate-plan/waiting",
+    "description": "展示AI计划生成进度与结果，支持重试与查看计划列表。",
+    "interactiveElements": [
+      { "name": "查看全部计划", "type": "button", "behavior": "跳转计划历史", "target": "/me/plan-history/index" },
+      { "name": "重新生成", "type": "button", "behavior": "清除错误并重试快速生成", "target": null },
+      { "name": "智能快速生成", "type": "button", "behavior": "手动触发计划生成请求", "target": null },
+      { "name": "返回按钮", "type": "button", "behavior": "返回上一页", "target": null }
+    ],
+    "states": [
+      { "stateName": "轮询中", "description": "显示进度条与生成中提示" },
+      { "stateName": "成功", "description": "显示成功图标并自动跳转计划历史" },
+      { "stateName": "失败", "description": "显示错误信息，提供重新生成和查看计划入口" },
+      { "stateName": "异步任务已提交", "description": "后端返回 taskId，提示稍后去计划列表查看" }
+    ]
+  },
+  {
+    "pageName": "排行榜列表",
+    "routePath": "/discovery/ranking",
+    "description": "展示全部可参与的排行榜活动列表。",
+    "interactiveElements": [
+      { "name": "排行榜卡片", "type": "card", "behavior": "点击跳转排行榜详情", "target": "/discovery/ranking/detail" }
+    ],
+    "states": [
+      { "stateName": "未登录跳转", "description": "无 token 时重定向到登录页" },
+      { "stateName": "加载中", "description": "显示骨架屏" },
+      { "stateName": "空状态", "description": "暂无排行榜时显示空提示" }
+    ]
+  },
+  {
+    "pageName": "排行榜详情",
+    "routePath": "/discovery/ranking/detail",
+    "description": "展示单个排行榜的规则、排名榜单及成绩提交入口。",
+    "interactiveElements": [
+      { "name": "立即挑战", "type": "button", "behavior": "打开成绩提交弹窗", "target": null },
+      { "name": "成绩提交弹窗", "type": "modal", "behavior": "填写成绩表单并提交，成功后刷新榜单", "target": null },
+      { "name": "返回", "type": "link", "behavior": "排行榜不存在时返回上一页", "target": null }
+    ],
+    "states": [
+      { "stateName": "未登录跳转", "description": "无 token 时重定向到登录页" },
+      { "stateName": "加载中", "description": "显示详情骨架屏" },
+      { "stateName": "排行榜不存在", "description": "显示空状态与返回入口" }
+    ]
+  },
+  {
+    "pageName": "训练分享页",
+    "routePath": "/discovery/share",
+    "description": "训练完成后生成分享卡片并保存到相册。",
+    "interactiveElements": [
+      { "name": "保存分享卡片", "type": "button", "behavior": "通过 Canvas 绘制卡片并保存到相册或预览", "target": null },
+      { "name": "返回", "type": "button", "behavior": "返回上一页", "target": null }
+    ],
+    "states": [
+      { "stateName": "加载中", "description": "加载本次训练分享数据" },
+      { "stateName": "生成中", "description": "Canvas 绘制图片过程中按钮禁用" }
+    ]
+  }
+]

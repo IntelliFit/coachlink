@@ -1,0 +1,600 @@
+{
+  "pages": [
+    {
+      "pageName": "个人中心",
+      "route": "/me/profile/index",
+      "description": "学员端个人主页，展示用户头像、昵称、积分、身份徽章，并提供多个功能入口菜单。",
+      "interactions": [
+        { "name": "用户头像/信息区", "type": "卡片点击", "action": "查看个人资料详情", "target": "/me/profile/detail/index" },
+        { "name": "全部计划", "type": "菜单图标", "action": "跳转计划历史", "target": "/me/plan-history/index" },
+        { "name": "我的教练", "type": "菜单图标", "action": "跳转我的教练", "target": "/me/my-coaches/index" },
+        { "name": "我的会员", "type": "菜单图标", "action": "跳转会员中心", "target": "/me/membership/index" },
+        { "name": "训练记录", "type": "菜单图标", "action": "跳转训练历史", "target": "/me/training-history/index" },
+        { "name": "我的好友", "type": "菜单图标", "action": "跳转好友列表", "target": "/me/friends/index" },
+        { "name": "消息中心", "type": "菜单图标", "action": "跳转消息列表", "target": "/me/messages/index" },
+        { "name": "我的动作库", "type": "菜单图标", "action": "跳转动作库", "target": "/me/action-lib/index" },
+        { "name": "知识库", "type": "菜单图标", "action": "跳转知识库", "target": "/content/knowledge" },
+        { "name": "我的计划库", "type": "菜单图标", "action": "跳转计划库", "target": "/me/plan-lib/index" },
+        { "name": "排行榜", "type": "菜单图标", "action": "跳转排行榜", "target": "/discovery/ranking" },
+        { "name": "购买记录", "type": "菜单图标", "action": "跳转购买记录", "target": "/me/purchase-history/index" },
+        { "name": "切换角色", "type": "按钮", "action": "学员/教练端切换", "target": "/coach/overview" },
+        { "name": "申请成为教练", "type": "按钮", "action": "跳转教练申请", "target": "/coach/application" },
+        { "name": "个人设置", "type": "按钮", "action": "编辑个人资料", "target": "/me/profile/edit/index" },
+        { "name": "账户设置", "type": "按钮", "action": "跳转账户设置", "target": "/me/settings/index" },
+        { "name": "退出登录", "type": "按钮", "action": "显示确认弹窗并退出", "target": "/auth/login" },
+        { "name": "立即登录", "type": "按钮", "action": "跳转登录页", "target": "/auth/login" },
+        { "name": "注册账号", "type": "按钮", "action": "跳转注册页", "target": "/auth/register" },
+        { "name": "底部链接", "type": "文本链接", "action": "跳转关于/免责声明/联系/文档/入驻说明/消费者权益/用户协议/平台协议", "target": "对应文档页" }
+      ],
+      "states": [
+        { "state": "未登录态", "description": "显示游客模式、点击登录、注册账号、申请成为教练入口" },
+        { "state": "教练身份", "description": "显示切换到学员端，个人设置跳转教练资料编辑页" },
+        { "state": "加载失败", "description": "导航失败时通过 toast 提示" }
+      ]
+    },
+    {
+      "pageName": "动作库",
+      "route": "/me/action-lib/index",
+      "description": "管理我的动作库与浏览公共动作库，支持搜索、筛选、批量操作、贡献、点赞、纠错。",
+      "interactions": [
+        { "name": "Tab切换", "type": "tab", "action": "切换我的动作库/公共动作库", "target": null },
+        { "name": "从教练添加", "type": "按钮", "action": "跳转从教练导入动作", "target": "/training/copy-from-coach" },
+        { "name": "新建动作", "type": "按钮", "action": "跳转新建动作页", "target": "/me/action-lib/edit/index" },
+        { "name": "快捷筛选标签", "type": "筛选芯片", "action": "按全部/新手推荐/减脂有氧/胸肩手臂/腰背核心筛选公共动作", "target": null },
+        { "name": "仅看有演示", "type": "开关芯片", "action": "过滤出有视频演示的公共动作", "target": null },
+        { "name": "搜索框", "type": "输入框", "action": "输入关键词搜索动作", "target": null },
+        { "name": "搜索按钮", "type": "按钮", "action": "提交搜索", "target": null },
+        { "name": "清除搜索", "type": "按钮", "action": "清空搜索词", "target": null },
+        { "name": "我的动作卡片", "type": "卡片点击", "action": "进入编辑页", "target": "/me/action-lib/edit/index" },
+        { "name": "我的动作长按", "type": "长按手势", "action": "进入批量选择模式", "target": null },
+        { "name": "引用", "type": "菜单按钮", "action": "查看该动作被哪些计划引用", "target": "弹窗展示引用列表" },
+        { "name": "合并", "type": "菜单按钮", "action": "合并到另一个动作并更新引用", "target": "ActionSheet + 确认弹窗" },
+        { "name": "贡献", "type": "菜单按钮", "action": "将个人动作发布到公共动作库", "target": "确认弹窗" },
+        { "name": "删除", "type": "菜单按钮", "action": "删除动作", "target": "确认弹窗后刷新列表" },
+        { "name": "批量更新1RM", "type": "按钮", "action": "弹出批量设置1RM弹窗", "target": null },
+        { "name": "取消批量", "type": "按钮", "action": "退出批量模式", "target": null },
+        { "name": "公共动作卡片", "type": "卡片点击", "action": "查看动作详情", "target": "/training/action-detail/index" },
+        { "name": "点赞", "type": "按钮", "action": "对公共动作点赞/取消点赞", "target": null },
+        { "name": "纠错", "type": "按钮", "action": "打开纠错建议弹窗", "target": null },
+        { "name": "加入我的库", "type": "按钮", "action": "将公共动作加入个人动作库", "target": null },
+        { "name": "纠错弹窗-提交建议", "type": "弹窗按钮", "action": "提交纠错内容", "target": null },
+        { "name": "纠错弹窗-取消", "type": "弹窗按钮", "action": "关闭弹窗", "target": null },
+        { "name": "下拉刷新", "type": "手势", "action": "刷新当前tab列表", "target": null }
+      ],
+      "states": [
+        { "state": "加载中", "description": "显示骨架屏" },
+        { "state": "我的动作为空", "description": "显示空状态，提示新建或从教练/公共库添加" },
+        { "state": "公共动作为空", "description": "显示空状态，提示换关键词或关闭仅看有演示" },
+        { "state": "批量模式", "description": "显示复选框和批量操作栏" }
+      ]
+    },
+    {
+      "pageName": "动作编辑",
+      "route": "/me/action-lib/edit/index",
+      "description": "新建或编辑个人动作，填写动作名称、描述、视频链接、类型、部位、属性及1RM。",
+      "interactions": [
+        { "name": "动作名称", "type": "输入框", "action": "输入动作名称", "target": null },
+        { "name": "动作描述", "type": "多行输入框", "action": "输入动作要领与注意事项", "target": null },
+        { "name": "参考视频链接", "type": "输入框", "action": "输入视频URL", "target": null },
+        { "name": "1RM", "type": "数字输入框", "action": "输入极限重量", "target": null },
+        { "name": "动作类型单选", "type": "选项列表", "action": "选择力量/有氧/柔韧/平衡", "target": null },
+        { "name": "训练部位多选", "type": "选项列表", "action": "选择训练部位", "target": null },
+        { "name": "动作属性多选", "type": "选项列表", "action": "选择力量/耐力/爆发力/柔韧性/平衡/强度", "target": null },
+        { "name": "取消", "type": "按钮", "action": "返回上一页", "target": null },
+        { "name": "保存", "type": "按钮", "action": "保存动作数据并返回", "target": null }
+      ],
+      "states": [
+        { "state": "加载中", "description": "编辑模式时显示加载中" },
+        { "state": "保存中", "description": "按钮显示保存中..." },
+        { "state": "校验失败", "description": "名称为空或保存失败时toast提示" }
+      ]
+    },
+    {
+      "pageName": "计划库",
+      "route": "/me/plan-lib/index",
+      "description": "管理常用训练计划模板，支持新建、编辑、删除、应用计划，应用前可配置1RM。",
+      "interactions": [
+        { "name": "新建", "type": "按钮", "action": "跳转创建计划页", "target": "/me/plan-lib/create/index" },
+        { "name": "计划卡片", "type": "卡片点击", "action": "跳转编辑计划页", "target": "/me/plan-lib/edit/index" },
+        { "name": "应用", "type": "按钮", "action": "激活计划（如有1RM动作先弹窗配置）", "target": "/training/today-training" },
+        { "name": "删除", "type": "按钮", "action": "删除计划模板", "target": "确认弹窗后刷新" },
+        { "name": "1RM配置弹窗-输入框", "type": "数字输入框", "action": "为相关动作设置1RM值", "target": null },
+        { "name": "1RM配置弹窗-跳过", "type": "按钮", "action": "关闭弹窗不应用", "target": null },
+        { "name": "1RM配置弹窗-确认应用", "type": "按钮", "action": "确认1RM并激活计划", "target": null },
+        { "name": "空状态-创建第一个计划", "type": "按钮", "action": "跳转创建页", "target": "/me/plan-lib/create/index" },
+        { "name": "下拉刷新", "type": "手势", "action": "刷新计划列表", "target": null }
+      ],
+      "states": [
+        { "state": "加载中", "description": "显示骨架屏" },
+        { "state": "空列表", "description": "显示空状态和创建引导" },
+        { "state": "应用中带1RM", "description": "弹出1RM配置弹窗" }
+      ]
+    },
+    {
+      "pageName": "创建常用计划",
+      "route": "/me/plan-lib/create/index",
+      "description": "使用计划编辑器创建新的训练计划模板，支持AI草稿、文本导入、批量动作处理。",
+      "interactions": [
+        { "name": "PlanEditorWorkbench", "type": "复合组件", "action": "包含计划名称、描述、天数、动作组编辑、保存、取消、导入文本等交互", "target": null }
+      ],
+      "states": [
+        { "state": "未登录", "description": "重定向到登录页" },
+        { "state": "加载中", "description": "加载动作库、AI草稿、用户档案、1RM记录" },
+        { "state": "保存中", "description": "保存按钮禁用并显示保存中" },
+        { "state": "保存成功", "description": "toast成功后返回上一页" }
+      ]
+    },
+    {
+      "pageName": "编辑常用计划",
+      "route": "/me/plan-lib/edit/index",
+      "description": "编辑已有训练计划模板，使用计划编辑器调整训练结构。",
+      "interactions": [
+        { "name": "PlanEditorWorkbench", "type": "复合组件", "action": "包含计划名称、描述、天数、动作组编辑、保存、取消、导入文本等交互", "target": null }
+      ],
+      "states": [
+        { "state": "未登录/缺少参数", "description": "重定向到登录页或返回上一页" },
+        { "state": "加载中", "description": "加载计划详情、动作库、用户档案、1RM记录" },
+        { "state": "加载失败", "description": "toast提示并返回上一页" },
+        { "state": "保存中", "description": "保存按钮禁用" }
+      ]
+    },
+    {
+      "pageName": "全部计划",
+      "route": "/me/plan-history/index",
+      "description": "查看当前计划与历史计划列表，支持按来源筛选与跳转训练记录。",
+      "interactions": [
+        { "name": "训练记录入口", "type": "按钮", "action": "跳转训练历史", "target": "/me/training-history/index" },
+        { "name": "筛选-全部计划", "type": "tab", "action": "显示全部来源计划", "target": null },
+        { "name": "筛选-教练指派", "type": "tab", "action": "仅显示教练指派计划", "target": null },
+        { "name": "筛选-我的计划", "type": "tab", "action": "仅显示自定义计划", "target": null },
+        { "name": "计划卡片", "type": "卡片点击", "action": "查看计划详情", "target": "/me/plan-history/detail/index" },
+        { "name": "去今日训练", "type": "按钮", "action": "跳转今日训练", "target": "/training/today-training" },
+        { "name": "去我的计划库", "type": "按钮", "action": "跳转计划库", "target": "/me/plan-lib/index" },
+        { "name": "下拉刷新", "type": "手势", "action": "刷新列表", "target": null },
+        { "name": "触底加载", "type": "手势", "action": "加载更多历史计划", "target": null }
+      ],
+      "states": [
+        { "state": "加载中", "description": "显示加载中..." },
+        { "state": "空列表", "description": "显示暂无计划及快捷入口" },
+        { "state": "全部加载完", "description": "底部显示已加载全部记录" }
+      ]
+    },
+    {
+      "pageName": "计划历史详情",
+      "route": "/me/plan-history/detail/index",
+      "description": "展示单个历史计划的详细信息，包括状态、来源、时间、完成度等。",
+      "interactions": [],
+      "states": [
+        { "state": "加载中", "description": "显示加载中..." },
+        { "state": "计划不存在", "description": "显示计划不存在空状态" }
+      ]
+    },
+    {
+      "pageName": "训练记录",
+      "route": "/me/training-history/index",
+      "description": "日历形式的训练记录查看，支持按月切换、选择日期查看当日训练明细与分享。",
+      "interactions": [
+        { "name": "返回", "type": "按钮", "action": "返回上一页", "target": null },
+        { "name": "即兴锻炼", "type": "按钮", "action": "跳转即兴训练", "target": "/training/impromptu-training" },
+        { "name": "上月", "type": "按钮", "action": "切换至上一个月", "target": null },
+        { "name": "下月", "type": "按钮", "action": "切换至下一个月", "target": null },
+        { "name": "日期格子", "type": "日历格子点击", "action": "加载该日训练明细", "target": null },
+        { "name": "训练明细项", "type": "卡片点击", "action": "展开/收起动作摘要", "target": null },
+        { "name": "分享本次训练", "type": "按钮", "action": "生成分享链接并跳转", "target": "分享页" },
+        { "name": "页面分享", "type": "小程序分享", "action": "分享训练记录页面", "target": null }
+      ],
+      "states": [
+        { "state": "加载中", "description": "日历和统计区域显示加载中" },
+        { "state": "当日无记录", "description": "显示暂无训练记录" },
+        { "state": "未登录", "description": "跳转登录页（由service层处理）" }
+      ]
+    },
+    {
+      "pageName": "我的会员",
+      "route": "/me/membership/index",
+      "description": "展示会员等级、AI导入配额、云存储空间及会员权益。",
+      "interactions": [
+        { "name": "AI配额升级提示", "type": "提示条点击", "action": "跳转订阅页（会员套餐/加油包）", "target": "/me/membership/subscribe/index" },
+        { "name": "存储扩容提示", "type": "提示条点击", "action": "跳转订阅页购买扩容包", "target": "/me/membership/subscribe/index" }
+      ],
+      "states": [
+        { "state": "加载中", "description": "显示加载中..." },
+        { "state": "配额偏高使用", "description": "进度条和提示显示警告色" }
+      ]
+    },
+    {
+      "pageName": "会员订阅",
+      "route": "/me/membership/subscribe/index",
+      "description": "选择并购买会员套餐或加油包，跳转webview完成支付。",
+      "interactions": [
+        { "name": "会员套餐Tab", "type": "tab", "action": "显示会员套餐列表", "target": null },
+        { "name": "加油包Tab", "type": "tab", "action": "显示AI加油包和存储扩容包", "target": null },
+        { "name": "立即购买", "type": "按钮", "action": "跳转支付webview", "target": "/me/payment/webview/index" }
+      ],
+      "states": [
+        { "state": "加载中", "description": "显示加载中..." },
+        { "state": "当前方案", "description": "对应套餐显示当前方案标签，点击无效" },
+        { "state": "空列表", "description": "显示暂无可用套餐" }
+      ]
+    },
+    {
+      "pageName": "邀请好友",
+      "route": "/me/membership/referral/index",
+      "description": "展示邀请码、邀请链接、奖励说明及邀请统计数据，支持复制与分享。",
+      "interactions": [
+        { "name": "复制邀请码", "type": "按钮", "action": "复制邀请码到剪贴板", "target": null },
+        { "name": "复制邀请链接", "type": "按钮", "action": "复制邀请链接到剪贴板", "target": null },
+        { "name": "分享邀请", "type": "分享按钮", "action": "触发小程序原生分享", "target": null },
+        { "name": "下拉刷新", "type": "手势", "action": "刷新邀请数据", "target": null }
+      ],
+      "states": [
+        { "state": "加载中", "description": "显示加载中..." },
+        { "state": "未登录带invite参数", "description": "自动重定向到注册页携带邀请码" },
+        { "state": "未登录无参数", "description": "toast提示请先登录" }
+      ]
+    },
+    {
+      "pageName": "待结算订阅",
+      "route": "/me/cart/index",
+      "description": "展示待结算的教练订阅列表，支持删除和发起支付。",
+      "interactions": [
+        { "name": "查看购买记录", "type": "链接", "action": "跳转购买记录", "target": "/me/purchase-history/index" },
+        { "name": "立即订阅", "type": "按钮", "action": "跳转支付webview", "target": "/me/payment/webview/index" },
+        { "name": "删除", "type": "按钮", "action": "移除购物车项", "target": null },
+        { "name": "去发现", "type": "按钮", "action": "跳转发现页", "target": "/discovery/index" },
+        { "name": "下拉刷新", "type": "手势", "action": "刷新购物车列表", "target": null }
+      ],
+      "states": [
+        { "state": "加载中", "description": "显示加载中..." },
+        { "state": "空列表", "description": "显示暂无待结算订阅和引导按钮" },
+        { "state": "未登录", "description": "toast提示请先登录" }
+      ]
+    },
+    {
+      "pageName": "购买记录",
+      "route": "/me/purchase-history/index",
+      "description": "展示历史订单列表，包括订单状态、金额、支付时间等。",
+      "interactions": [
+        { "name": "下拉刷新", "type": "手势", "action": "刷新订单列表", "target": null },
+        { "name": "触底加载", "type": "手势", "action": "加载更多订单", "target": null }
+      ],
+      "states": [
+        { "state": "加载中", "description": "显示加载中..." },
+        { "state": "空列表", "description": "显示暂无购买记录" },
+        { "state": "全部加载完", "description": "显示已加载全部记录" },
+        { "state": "未登录", "description": "toast提示请先登录" }
+      ]
+    },
+    {
+      "pageName": "工具箱",
+      "route": "/me/toolbox/index",
+      "description": "训练辅助工具入口，包含力量计算器、单杠位置、社区数据及场景急救箱。",
+      "interactions": [
+        { "name": "力量计算器", "type": "工具卡片", "action": "跳转力量计算器", "target": "/streetlifting/index/calculator" },
+        { "name": "单杠位置", "type": "工具卡片", "action": "跳转单杠位置", "target": "/streetlifting/index/locations" },
+        { "name": "社区数据", "type": "工具卡片", "action": "跳转社区数据", "target": "/streetlifting/index/data" },
+        { "name": "场景急救箱卡片", "type": "卡片点击", "action": "跳转场景详情", "target": "/me/toolbox/scenario/index" },
+        { "name": "分享", "type": "分享按钮", "action": "小程序原生分享", "target": null }
+      ],
+      "states": [
+        { "state": "正常展示", "description": "展示工具与场景列表" }
+      ]
+    },
+    {
+      "pageName": "场景急救箱详情",
+      "route": "/me/toolbox/scenario/index",
+      "description": "按场景展示急救/恢复练习步骤，支持开始练习并逐步完成。",
+      "interactions": [
+        { "name": "返回", "type": "按钮", "action": "返回上一页", "target": null },
+        { "name": "开始练习", "type": "按钮", "action": "进入第1步", "target": null },
+        { "name": "完成此步骤", "type": "按钮", "action": "标记当前步骤完成并进入下一步", "target": null },
+        { "name": "返回工具箱", "type": "按钮", "action": "全部完成后返回", "target": "/me/toolbox/index" }
+      ],
+      "states": [
+        { "state": "场景不存在", "description": "显示未找到该场景" },
+        { "state": "练习完成", "description": "显示完成庆祝卡片" }
+      ]
+    },
+    {
+      "pageName": "账户设置",
+      "route": "/me/settings/index",
+      "description": "账户安全与偏好设置，支持修改密码和退出登录。",
+      "interactions": [
+        { "name": "修改密码", "type": "设置项点击", "action": "打开修改密码弹窗", "target": null },
+        { "name": "原密码输入", "type": "密码输入框", "action": "输入原密码", "target": null },
+        { "name": "新密码输入", "type": "密码输入框", "action": "输入新密码", "target": null },
+        { "name": "确认新密码输入", "type": "密码输入框", "action": "再次输入新密码", "target": null },
+        { "name": "取消", "type": "弹窗按钮", "action": "关闭弹窗", "target": null },
+        { "name": "确认", "type": "弹窗按钮", "action": "校验并提示在网页端完成", "target": null },
+        { "name": "退出登录", "type": "设置项点击", "action": "确认弹窗后退出并跳转登录页", "target": "/auth/login" }
+      ],
+      "states": [
+        { "state": "密码弹窗", "description": "显示修改密码表单" },
+        { "state": "校验失败", "description": "密码不一致或过短时toast提示" }
+      ]
+    },
+    {
+      "pageName": "个人资料详情",
+      "route": "/me/profile/detail/index",
+      "description": "展示学员详细档案，包括个人信息、运动卡片、教练备注、力量进步、进步足迹、问卷、训练视频。",
+      "interactions": [
+        { "name": "编辑资料", "type": "按钮", "action": "跳转编辑资料页", "target": "/me/profile/edit/index" },
+        { "name": "进步足迹Tab", "type": "tab", "action": "显示进步时间线", "target": null },
+        { "name": "需求问卷Tab", "type": "tab", "action": "显示训练需求问卷", "target": null },
+        { "name": "训练视频Tab", "type": "tab", "action": "显示训练视频集合", "target": null },
+        { "name": "编辑问卷", "type": "按钮", "action": "打开问卷表单弹窗", "target": null },
+        { "name": "提交问卷", "type": "弹窗按钮", "action": "保存问卷答案", "target": null },
+        { "name": "关闭问卷弹窗", "type": "弹窗按钮", "action": "隐藏问卷表单", "target": null }
+      ],
+      "states": [
+        { "state": "未登录", "description": "重定向到登录页" },
+        { "state": "初始加载", "description": "显示骨架屏" },
+        { "state": "加载错误", "description": "显示错误文本" },
+        { "state": "无问卷数据", "description": "显示暂无训练需求问卷数据" },
+        { "state": "无视频", "description": "VideoCollectionSection内部处理空状态" }
+      ]
+    },
+    {
+      "pageName": "编辑个人资料",
+      "route": "/me/profile/edit/index",
+      "description": "三步表单编辑个人资料：基本信息、练习领域、历史成绩。",
+      "interactions": [
+        { "name": "显示昵称", "type": "输入框", "action": "输入昵称", "target": null },
+        { "name": "头像URL", "type": "输入框", "action": "输入头像链接", "target": null },
+        { "name": "年龄", "type": "数字输入", "action": "设置年龄", "target": null },
+        { "name": "性别", "type": "选择器", "action": "选择男/女", "target": null },
+        { "name": "身高", "type": "数字输入", "action": "设置身高(cm)", "target": null },
+        { "name": "体重", "type": "数字输入", "action": "设置体重(kg)", "target": null },
+        { "name": "健身目标", "type": "选择器", "action": "选择健身目标", "target": null },
+        { "name": "当前水平", "type": "选择器", "action": "选择健身水平", "target": null },
+        { "name": "生活作息", "type": "输入框", "action": "输入作息描述", "target": null },
+        { "name": "运动领域卡片", "type": "多选卡片", "action": "选择/取消运动领域", "target": null },
+        { "name": "历史成绩输入", "type": "数字输入", "action": "填写各项目成绩", "target": null },
+        { "name": "取消/上一步", "type": "按钮", "action": "返回上一步或上一页", "target": null },
+        { "name": "下一步", "type": "按钮", "action": "进入下一步", "target": null },
+        { "name": "保存", "type": "按钮", "action": "提交保存并返回", "target": null }
+      ],
+      "states": [
+        { "state": "未登录", "description": "重定向到登录页" },
+        { "state": "加载失败", "description": "toast提示加载失败" },
+        { "state": "保存中", "description": "保存按钮loading" },
+        { "state": "步骤2无选中", "description": "显示空状态提示激活资产配置" }
+      ]
+    },
+    {
+      "pageName": "E1RM趋势图",
+      "route": "/me/profile/e1rm-chart/index",
+      "description": "展示选定动作的E1RM历史趋势折线图及PR记录。",
+      "interactions": [
+        { "name": "动作标签", "type": "横向滚动标签", "action": "切换动作查看对应趋势", "target": null },
+        { "name": "观看视频", "type": "按钮", "action": "预览PR视频", "target": "Taro.previewMedia" }
+      ],
+      "states": [
+        { "state": "数据不足", "description": "显示数据不足，无法绘制图表" },
+        { "state": "无PR记录", "description": "显示暂无PR记录" }
+      ]
+    },
+    {
+      "pageName": "关于我们",
+      "route": "/me/about/index",
+      "description": "平台介绍与服务范围说明。",
+      "interactions": [
+        { "name": "联系我们", "type": "按钮", "action": "跳转联系页面", "target": "/me/contact/index" }
+      ],
+      "states": []
+    },
+    {
+      "pageName": "联系我们",
+      "route": "/me/contact/index",
+      "description": "展示客服邮箱、电话及意见反馈入口。",
+      "interactions": [
+        { "name": "意见反馈", "type": "按钮", "action": "跳转反馈页面", "target": "/me/feedback/index" }
+      ],
+      "states": []
+    },
+    {
+      "pageName": "免责声明",
+      "route": "/me/disclaimer/index",
+      "description": "平台免责条款展示。",
+      "interactions": [],
+      "states": []
+    },
+    {
+      "pageName": "文档列表",
+      "route": "/me/docs/index",
+      "description": "文档入口列表，展示免责声明、关于我们、联系我们等快捷入口。",
+      "interactions": [
+        { "name": "文档项", "type": "列表项点击", "action": "跳转对应文档页", "target": "/me/disclaimer/index" }
+      ],
+      "states": []
+    },
+    {
+      "pageName": "意见反馈",
+      "route": "/me/feedback/index",
+      "description": "提交用户反馈，支持选择常见问题和填写详细内容。",
+      "interactions": [
+        { "name": "常见问题", "type": "FAQ卡片", "action": "将问题填入反馈内容", "target": null },
+        { "name": "清除已选", "type": "按钮", "action": "清空选中的问题和内容", "target": null },
+        { "name": "反馈内容", "type": "多行输入框", "action": "输入反馈详情", "target": null },
+        { "name": "提交反馈", "type": "按钮", "action": "提交反馈内容到后端", "target": null }
+      ],
+      "states": [
+        { "state": "内容为空", "description": "提交按钮禁用，toast提示请填写" },
+        { "state": "提交中", "description": "按钮loading" },
+        { "state": "提交成功", "description": "toast成功并返回上一页" }
+      ]
+    },
+    {
+      "pageName": "我的好友",
+      "route": "/me/friends/index",
+      "description": "好友管理页面，支持搜索用户、发送好友请求、接受/拒绝请求、删除好友。",
+      "interactions": [
+        { "name": "搜索输入框", "type": "输入框", "action": "输入昵称或ID搜索用户", "target": null },
+        { "name": "添加", "type": "按钮", "action": "发送好友请求", "target": null },
+        { "name": "好友列表Tab", "type": "tab", "action": "显示好友列表", "target": null },
+        { "name": "新请求Tab", "type": "tab", "action": "显示待处理请求", "target": null },
+        { "name": "好友头像/昵称", "type": "可点击区域", "action": "查看好友主页", "target": "/me/user/index" },
+        { "name": "删除", "type": "按钮", "action": "删除好友（确认弹窗）", "target": null },
+        { "name": "接受", "type": "按钮", "action": "接受好友请求", "target": null },
+        { "name": "拒绝", "type": "按钮", "action": "拒绝好友请求", "target": null },
+        { "name": "下拉刷新", "type": "手势", "action": "刷新好友和请求列表", "target": null }
+      ],
+      "states": [
+        { "state": "加载中", "description": "显示加载中..." },
+        { "state": "无好友", "description": "显示还没有好友及搜索引导" },
+        { "state": "无新请求", "description": "显示暂无新请求" },
+        { "state": "未登录", "description": "toast提示请先登录" }
+      ]
+    },
+    {
+      "pageName": "好友动态",
+      "route": "/me/friends/activity/index",
+      "description": "查看好友的训练动态与成就。",
+      "interactions": [
+        { "name": "下拉刷新", "type": "手势", "action": "刷新动态列表", "target": null }
+      ],
+      "states": [
+        { "state": "加载中", "description": "显示加载中..." },
+        { "state": "无动态", "description": "显示暂无好友动态" },
+        { "state": "未登录", "description": "toast提示请先登录" }
+      ]
+    },
+    {
+      "pageName": "消息中心",
+      "route": "/me/messages/index",
+      "description": "聊天会话列表，支持搜索联系人、进入聊天、轮询新消息。",
+      "interactions": [
+        { "name": "搜索栏", "type": "输入框", "action": "搜索联系人或聊天内容", "target": null },
+        { "name": "会话卡片", "type": "列表项点击", "action": "进入聊天详情", "target": "/me/messages/chat/index" },
+        { "name": "下拉刷新", "type": "手势", "action": "刷新会话列表", "target": null }
+      ],
+      "states": [
+        { "state": "加载中", "description": "显示加载中..." },
+        { "state": "空列表", "description": "显示暂无消息" },
+        { "state": "未登录", "description": "toast提示请先登录" },
+        { "state": "带coachId参数进入", "description": "自动打开与指定教练的聊天窗口" }
+      ]
+    },
+    {
+      "pageName": "聊天详情",
+      "route": "/me/messages/chat/index",
+      "description": "与教练或好友的单聊页面，支持文字、图片消息及历史消息加载。",
+      "interactions": [
+        { "name": "消息气泡", "type": "图片长按", "action": "图片消息长按显示菜单", "target": null },
+        { "name": "加载更多", "type": "列表顶部点击", "action": "加载更早消息", "target": null },
+        { "name": "相册", "type": "按钮", "action": "选择图片发送", "target": null },
+        { "name": "消息输入框", "type": "输入框", "action": "输入文字消息", "target": null },
+        { "name": "发送", "type": "按钮", "action": "发送文字消息", "target": null }
+      ],
+      "states": [
+        { "state": "加载中", "description": "显示加载中..." },
+        { "state": "缺少会话信息", "description": "显示缺少会话信息" },
+        { "state": "草稿带入", "description": "自动将其他页面带入的草稿填充到输入框" },
+        { "state": "发送失败", "description": "移除乐观消息并恢复输入内容" }
+      ]
+    },
+    {
+      "pageName": "我的教练",
+      "route": "/me/my-coaches/index",
+      "description": "展示已订阅教练列表，支持查看教练详情、续费、发起沟通。",
+      "interactions": [
+        { "name": "发现更多", "type": "按钮", "action": "跳转发现教练页", "target": "/discovery/index" },
+        { "name": "教练卡片-详情", "type": "卡片内按钮", "action": "查看教练资料", "target": "/discovery/coach-profile" },
+        { "name": "教练卡片-续费", "type": "卡片内按钮", "action": "跳转续费支付页", "target": "/me/payment/webview/index" },
+        { "name": "教练卡片-沟通", "type": "卡片内按钮", "action": "打开与该教练的聊天", "target": "/me/messages/chat/index" },
+        { "name": "空状态-发现教练", "type": "按钮", "action": "跳转发现页", "target": "/discovery/index" },
+        { "name": "错误重试", "type": "按钮", "action": "重新加载列表", "target": null },
+        { "name": "下拉刷新", "type": "手势", "action": "刷新教练列表", "target": null }
+      ],
+      "states": [
+        { "state": "加载中", "description": "显示骨架屏" },
+        { "state": "空列表", "description": "显示暂无订阅教练及发现引导" },
+        { "state": "加载失败", "description": "显示错误文本和重试按钮" },
+        { "state": "未登录", "description": "显示请先登录" }
+      ]
+    },
+    {
+      "pageName": "支付WebView",
+      "route": "/me/payment/webview/index",
+      "description": "在小程序内嵌webview打开网站购买页完成支付宝支付。",
+      "interactions": [
+        { "name": "重新打开购买页", "type": "按钮", "action": "重载webview", "target": null },
+        { "name": "返回上一页/返回重新选择套餐", "type": "按钮", "action": "返回或回到发现页", "target": null }
+      ],
+      "states": [
+        { "state": "webview加载失败", "description": "显示购买页加载失败及重试按钮" },
+        { "state": "参数缺失", "description": "显示购买信息不完整，引导返回" }
+      ]
+    },
+    {
+      "pageName": "微信支付占位",
+      "route": "/me/payment/wechat/index",
+      "description": "微信支付资质申请中，引导用户通过webview使用支付宝支付。",
+      "interactions": [
+        { "name": "打开支付宝购买页", "type": "按钮", "action": "跳转支付webview", "target": "/me/payment/webview/index" },
+        { "name": "返回", "type": "按钮", "action": "返回上一页", "target": null }
+      ],
+      "states": []
+    },
+    {
+      "pageName": "支付等待页",
+      "route": "/me/payment-waiting/index",
+      "description": "支付结果确认页，轮询订单状态并引导后续操作。",
+      "interactions": [
+        { "name": "我已完成支付", "type": "按钮", "action": "手动触发查询订单状态", "target": null },
+        { "name": "继续", "type": "按钮", "action": "支付成功后跳转教练详情或我的教练", "target": null },
+        { "name": "重新订阅/重新尝试", "type": "按钮", "action": "失败或取消后跳转重新购买", "target": null },
+        { "name": "返回", "type": "按钮", "action": "返回上一页", "target": null }
+      ],
+      "states": [
+        { "state": "缺少订单号", "description": "toast提示并自动返回" },
+        { "state": "等待支付", "description": "显示旋转图标和等待提示" },
+        { "state": "支付成功", "description": "显示成功图标和继续按钮" },
+        { "state": "支付失败", "description": "显示失败图标和重试按钮" },
+        { "state": "已取消", "description": "显示取消图标和重新订阅按钮" }
+      ]
+    },
+    {
+      "pageName": "平台入驻协议",
+      "route": "/me/platform-agreement/index",
+      "description": "启能教链平台教练入驻与合作协议全文展示。",
+      "interactions": [],
+      "states": []
+    },
+    {
+      "pageName": "隐私政策",
+      "route": "/me/privacy/index",
+      "description": "隐私政策全文展示。",
+      "interactions": [],
+      "states": []
+    },
+    {
+      "pageName": "用户服务协议",
+      "route": "/me/terms/index",
+      "description": "启能教链平台用户服务协议全文展示。",
+      "interactions": [],
+      "states": []
+    },
+    {
+      "pageName": "消费者权益保护",
+      "route": "/me/protection-of-consumer/index",
+      "description": "平台消费者权益保障说明全文展示。",
+      "interactions": [],
+      "states": []
+    },
+    {
+      "pageName": "用户主页",
+      "route": "/me/user/index",
+      "description": "查看其他用户的公开资料、训练统计和健身档案，支持添加好友。",
+      "interactions": [
+        { "name": "加好友", "type": "按钮", "action": "发送好友请求", "target": null }
+      ],
+      "states": [
+        { "state": "加载中", "description": "显示加载中..." },
+        { "state": "已是好友", "description": "按钮显示已是好友，不可点击" },
+        { "state": "等待确认", "description": "按钮显示等待确认，不可点击" },
+        { "state": "待处理请求", "description": "按钮显示待处理请求，不可点击" }
+      ]
+    }
+  ]
+}

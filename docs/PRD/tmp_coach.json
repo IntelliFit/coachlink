@@ -1,0 +1,578 @@
+{
+  "pages": [
+    {
+      "pageName": "教练端入口",
+      "routePath": "/coach",
+      "description": "路由别名页，自动重定向到教练概览页。",
+      "interactions": [],
+      "states": ["loading"]
+    },
+    {
+      "pageName": "教练概览",
+      "routePath": "/coach/overview",
+      "description": "展示教练核心业务指标与教学资产配置入口。",
+      "interactions": [
+        { "name": "总学员数统计卡片", "type": "卡片", "behavior": "点击导航", "target": "/coach/students" },
+        { "name": "待点评视频统计卡片", "type": "卡片", "behavior": "点击导航", "target": "/coach/videos" },
+        { "name": "平均评分统计卡片", "type": "卡片", "behavior": "展示数据", "target": null },
+        { "name": "我的钱包统计卡片", "type": "卡片", "behavior": "点击导航", "target": "/coach/wallet" },
+        { "name": "订阅定价配置行", "type": "列表项", "behavior": "点击导航", "target": "/coach/pricing" },
+        { "name": "学员问卷配置行", "type": "列表项", "behavior": "点击导航", "target": "/coach/questionnaire" },
+        { "name": "内容库配置行", "type": "列表项", "behavior": "点击导航", "target": "/coach/content" },
+        { "name": "计划库配置行", "type": "列表项", "behavior": "点击导航", "target": "/coach/plan-lib" },
+        { "name": "动作库配置行", "type": "列表项", "behavior": "点击导航", "target": "/coach/action-lib" },
+        { "name": "我的钱包配置行", "type": "列表项", "behavior": "点击导航", "target": "/coach/wallet" },
+        { "name": "邀请学员设置行", "type": "列表项", "behavior": "点击导航", "target": "/coach/settings/invitation" },
+        { "name": "收款码设置行", "type": "列表项", "behavior": "点击导航", "target": "/coach/settings/payment" },
+        { "name": "安全设置行", "type": "列表项", "behavior": "点击导航", "target": "/coach/settings/security" }
+      ],
+      "states": ["loading", "error", "empty", "unauthorized"]
+    },
+    {
+      "pageName": "视频点评列表",
+      "routePath": "/coach/videos",
+      "description": "查看学员上传的训练视频，按待点评/已点评筛选。",
+      "interactions": [
+        { "name": "待点评Tab", "type": "Tab切换", "behavior": "切换筛选条件", "target": null },
+        { "name": "已点评Tab", "type": "Tab切换", "behavior": "切换筛选条件", "target": null },
+        { "name": "视频卡片-去点评", "type": "按钮", "behavior": "点击进入点评页", "target": "/coach/videos/review" },
+        { "name": "视频卡片-查看点评", "type": "按钮", "behavior": "点击查看已点评详情", "target": "/coach/videos/review" }
+      ],
+      "states": ["loading", "empty", "unauthorized"]
+    },
+    {
+      "pageName": "视频点评详情",
+      "routePath": "/coach/videos/review",
+      "description": "播放学员视频，查看执行数据，进行评分和文字点评。",
+      "interactions": [
+        { "name": "视频播放器", "type": "Video", "behavior": "播放/暂停/进度控制", "target": null },
+        { "name": "星级评分", "type": "评分组件", "behavior": "点击设置1-5星评分", "target": null },
+        { "name": "点评反馈输入框", "type": "Textarea", "behavior": "输入点评内容", "target": null },
+        { "name": "提交指导意见按钮", "type": "按钮", "behavior": "提交评分和点评", "target": "返回上一页" }
+      ],
+      "states": ["loading", "videoNotFound", "alreadyReviewed", "submitting", "error"]
+    },
+    {
+      "pageName": "学员管理",
+      "routePath": "/coach/students",
+      "description": "教练查看所有订阅学员列表，支持搜索、排序、批量AI生成计划、支付确认。",
+      "interactions": [
+        { "name": "搜索框", "type": "Input", "behavior": "输入学员昵称/手机号搜索", "target": null },
+        { "name": "清除搜索", "type": "按钮", "behavior": "清空搜索关键词", "target": null },
+        { "name": "排序按钮", "type": "按钮", "behavior": "弹出ActionSheet选择排序方式", "target": null },
+        { "name": "批量快速生成按钮", "type": "按钮", "behavior": "为未配置计划学员批量AI生成计划", "target": null },
+        { "name": "待支付确认按钮", "type": "按钮", "behavior": "打开待支付确认弹窗", "target": null },
+        { "name": "学员卡片-展开/收起", "type": "卡片", "behavior": "点击展开显示学员详情操作", "target": null },
+        { "name": "学员卡片-档案按钮", "type": "按钮", "behavior": "跳转学员详情", "target": "/coach/students/detail" },
+        { "name": "学员卡片-查看计划/创建计划", "type": "按钮", "behavior": "跳转学员计划页", "target": "/coach/students/plan" },
+        { "name": "学员卡片-AI生成", "type": "按钮", "behavior": "为单个学员AI生成计划", "target": null },
+        { "name": "学员卡片-联系学员", "type": "按钮", "behavior": "打开聊天会话", "target": "/me/messages/chat/index" },
+        { "name": "未计划学员复选框", "type": "Checkbox", "behavior": "勾选/取消参与批量AI生成", "target": null },
+        { "name": "全选本页/清空本页", "type": "链接", "behavior": "批量选择当前页无计划学员", "target": null },
+        { "name": "上一页", "type": "按钮", "behavior": "分页切换", "target": null },
+        { "name": "下一页", "type": "按钮", "behavior": "分页切换", "target": null },
+        { "name": "待支付弹窗-待确认Tab", "type": "Tab", "behavior": "切换Tab", "target": null },
+        { "name": "待支付弹窗-历史Tab", "type": "Tab", "behavior": "切换Tab", "target": null },
+        { "name": "手动待确认-全选/取消全选", "type": "链接", "behavior": "批量选择手动待确认项", "target": null },
+        { "name": "手动待确认-勾选框", "type": "Checkbox", "behavior": "选择单项确认", "target": null },
+        { "name": "确认支付按钮(单项)", "type": "按钮", "behavior": "确认学员已支付", "target": null },
+        { "name": "忽略通知按钮(系统)", "type": "按钮", "behavior": "忽略系统支付通知", "target": null },
+        { "name": "底部批量确认支付", "type": "按钮", "behavior": "批量确认选中的手动支付", "target": null },
+        { "name": "支付凭证图片", "type": "Image", "behavior": "点击预览支付凭证大图", "target": null },
+        { "name": "关闭弹窗", "type": "按钮", "behavior": "关闭待支付确认弹窗", "target": null }
+      ],
+      "states": ["loading", "empty", "paymentDialogOpen", "unauthorized"]
+    },
+    {
+      "pageName": "学员详情",
+      "routePath": "/coach/students/detail",
+      "description": "查看学员基本信息、当前计划进度及训练反馈记录。",
+      "interactions": [
+        { "name": "编辑计划按钮", "type": "按钮", "behavior": "跳转计划编辑页", "target": "/coach/students/plan" },
+        { "name": "分配计划按钮", "type": "按钮", "behavior": "跳转分配计划页", "target": "/coach/students/assign-plan" },
+        { "name": "联系学员按钮", "type": "按钮", "行为": "打开聊天会话", "target": "/me/messages/chat/index" },
+        { "name": "定位计划日按钮", "type": "按钮", "行为": "跳转计划页并定位反馈对应训练日", "target": "/coach/students/plan" },
+        { "name": "继续沟通按钮", "type": "按钮", "行为": "打开聊天并带入反馈草稿", "target": "/me/messages/chat/index" },
+        { "name": "查看全部/收起反馈", "type": "链接", "行为": "展开或收起反馈列表", "target": null }
+      ],
+      "states": ["loading", "error", "noPlan", "hasPlan"]
+    },
+    {
+      "pageName": "学员计划编辑",
+      "routePath": "/coach/students/plan",
+      "description": "为学员编辑训练计划，支持按日添加动作、设置1RM、导入模板、管理反馈。",
+      "interactions": [
+        { "name": "学员信息卡片-展开/收起", "type": "卡片", "行为": "展开/收起学员信息", "target": null },
+        { "name": "从模板更新按钮", "type": "按钮", "行为": "打开模板选择弹窗", "target": null },
+        { "name": "联系学员按钮", "type": "按钮", "行为": "打开聊天", "target": "/me/messages/chat/index" },
+        { "name": "暂停/恢复计划按钮", "type": "按钮", "行为": "切换计划运行状态", "target": null },
+        { "name": "学员反馈入口", "type": "卡片", "行为": "展开/收起反馈面板", "target": null },
+        { "name": "带建议去沟通按钮", "type": "按钮", "行为": "用AI草稿打开聊天", "target": "/me/messages/chat/index" },
+        { "name": "定位训练日按钮", "type": "按钮", "行为": "自动滚动到反馈对应训练日", "target": null },
+        { "name": "继续沟通按钮", "type": "按钮", "行为": "打开聊天", "target": "/me/messages/chat/index" },
+        { "name": "计划名称输入框", "type": "Input", "行为": "编辑计划名称(自动保存)", "target": null },
+        { "name": "计划描述输入框", "type": "Input", "行为": "编辑计划描述(自动保存)", "target": null },
+        { "name": "适用等级选项", "type": "选项标签", "行为": "选择beginner/intermediate/advanced", "target": null },
+        { "name": "1RM面板-展开/收起", "type": "面板", "行为": "展开/收起1RM配置", "target": null },
+        { "name": "1RM面板-保存按钮", "type": "按钮", "行为": "保存1RM数值", "target": null },
+        { "name": "动作搜索框", "type": "Input", "行为": "搜索动作名称定位训练日", "target": null },
+        { "name": "清除搜索", "type": "链接", "行为": "清空动作搜索", "target": null },
+        { "name": "搜索结果Chip", "type": "Chip", "行为": "点击跳转到对应训练日", "target": null },
+        { "name": "周历组件-展开/收起", "type": "组件", "行为": "展开/收起完整周历", "target": null },
+        { "name": "周历-上周", "type": "按钮", "行为": "切换上一周", "target": null },
+        { "name": "周历-下周", "type": "按钮", "行为": "切换下一周", "target": null },
+        { "name": "周历-选择日期", "type": "日期卡片", "行为": "选中对应训练日", "target": null },
+        { "name": "训练日/休息日切换", "type": "按钮", "行为": "切换当前选中日类型", "target": null },
+        { "name": "训练备注输入框", "type": "Input", "行为": "输入当日备注", "target": null },
+        { "name": "添加动作按钮", "type": "按钮", "行为": "打开动作选择弹窗", "target": null },
+        { "name": "动作选择弹窗-搜索", "type": "Input", "行为": "搜索动作库", "target": null },
+        { "name": "动作选择弹窗-关闭", "type": "按钮", "行为": "关闭弹窗", "target": null },
+        { "name": "动作列表项", "type": "列表项", "行为": "点击添加该动作到训练日", "target": null },
+        { "name": "动作卡片-更多/收起", "type": "按钮", "行为": "展开/收起高级参数", "target": null },
+        { "name": "动作卡片-删除", "type": "按钮", "行为": "删除该动作", "target": null },
+        { "name": "组数输入框", "type": "Input", "行为": "编辑组数", "target": null },
+        { "name": "次数输入框", "type": "Input", "行为": "编辑次数", "target": null },
+        { "name": "休息输入框", "type": "Input", "行为": "编辑休息时间", "target": null },
+        { "name": "强度模式-RM/%/固定", "type": "Segment", "行为": "切换强度计算模式", "target": null },
+        { "name": "强度数值输入框", "type": "Input", "行为": "输入RM值/百分比/固定重量", "target": null },
+        { "name": "时长输入框(Cardio)", "type": "Input", "行为": "输入有氧时长", "target": null },
+        { "name": "距离输入框(Cardio)", "type": "Input", "行为": "输入有氧距离", "target": null },
+        { "name": "配速输入框(Cardio)", "type": "Input", "行为": "输入配速", "target": null },
+        { "name": "饮食内容输入框(Diet)", "type": "Input", "行为": "输入饮食内容", "target": null },
+        { "name": "热量输入框(Diet)", "type": "Input", "行为": "输入热量", "target": null },
+        { "name": "习惯名称输入框(Habit)", "type": "Input", "行为": "输入习惯名称", "target": null },
+        { "name": "目标值输入框(Habit)", "type": "Input", "行为": "输入习惯目标值", "target": null },
+        { "name": "建议时间输入框", "type": "Input", "行为": "输入建议执行时间", "target": null },
+        { "name": "备注输入框", "type": "Input", "行为": "输入动作备注", "target": null },
+        { "name": "自定义显示名称输入框", "type": "Input", "行为": "覆盖默认动作显示名", "target": null },
+        { "name": "模板弹窗-搜索模板", "type": "Input", "行为": "搜索计划模板", "target": null },
+        { "name": "模板弹窗-覆盖当前/新建阶段", "type": "Chip", "行为": "选择导入模式", "target": null },
+        { "name": "模板弹窗-开始周/开始天", "type": "Input", "行为": "设置导入起始进度", "target": null },
+        { "name": "模板弹窗-模板项", "type": "列表项", "行为": "点击选择并导入模板", "target": null },
+        { "name": "模板弹窗-关闭", "type": "按钮", "行为": "关闭弹窗", "target": null },
+        { "name": "无计划时-从模板创建计划", "type": "按钮", "行为": "打开模板弹窗", "target": null },
+        { "name": "无计划时-联系学员", "type": "按钮", "行为": "打开聊天", "target": "/me/messages/chat/index" }
+      ],
+      "states": ["loading", "noPlan", "autoSaving", "autoSaveError", "actionPickerOpen", "templateDialogOpen"]
+    },
+    {
+      "pageName": "分配计划",
+      "routePath": "/coach/students/assign-plan",
+      "description": "为学员从模板库选择并分配训练计划，配置导入方式和1RM。",
+      "interactions": [
+        { "name": "模板搜索框", "type": "Input", "行为": "搜索模板名称或描述", "target": null },
+        { "name": "搜索按钮", "type": "按钮", "行为": "执行搜索", "target": null },
+        { "name": "模板列表项", "type": "卡片", "行为": "点击选中模板", "target": null },
+        { "name": "导入方式-覆盖当前计划", "type": "卡片", "行为": "选择覆盖模式", "target": null },
+        { "name": "导入方式-新建阶段", "type": "卡片", "行为": "选择新建实例模式", "target": null },
+        { "name": "从第1天开始链接", "type": "链接", "行为": "重置起始进度到第1天", "target": null },
+        { "name": "周历组件-选择日期", "type": "组件", "行为": "点击设置起始执行日", "target": null },
+        { "name": "周历-上周", "type": "按钮", "行为": "切换周历预览周", "target": null },
+        { "name": "周历-下周", "type": "按钮", "行为": "切换周历预览周", "target": null },
+        { "name": "周历-展开/收起", "type": "按钮", "行为": "展开/收起周历", "target": null },
+        { "name": "起始周Chip", "type": "Chip", "行为": "选择起始周", "target": null },
+        { "name": "起始天Chip", "type": "Chip", "行为": "选择起始天", "target": null },
+        { "name": "1RM面板-展开/收起", "type": "面板", "行为": "展开/收起1RM编辑", "target": null },
+        { "name": "1RM面板-保存按钮", "type": "按钮", "行为": "保存1RM到学员动作库", "target": null },
+        { "name": "确认分配计划按钮", "type": "按钮", "行为": "提交分配请求", "target": "返回上一页" }
+      ],
+      "states": ["loading", "empty", "saving", "existingInstance"]
+    },
+    {
+      "pageName": "内容库",
+      "routePath": "/coach/content",
+      "description": "管理教练发布的文章、视频、计划等内容资产。",
+      "interactions": [
+        { "name": "新建内容按钮", "type": "按钮", "行为": "跳转内容编辑页", "target": "/coach/content/edit" },
+        { "name": "搜索框", "type": "Input", "行为": "按标题或正文关键词搜索", "target": null },
+        { "name": "可见范围筛选Chip", "type": "Chip", "行为": "按权限层级过滤", "target": null },
+        { "name": "内容类型筛选Chip", "type": "Chip", "行为": "按内容类型过滤", "target": null },
+        { "name": "内容卡片-编辑", "type": "按钮", "行为": "跳转编辑页", "target": "/coach/content/edit" },
+        { "name": "内容卡片-删除", "type": "按钮", "行为": "弹出确认后删除内容", "target": null },
+        { "name": "空状态-去新建一篇内容", "type": "按钮", "行为": "跳转编辑页", "target": "/coach/content/edit" }
+      ],
+      "states": ["loading", "empty", "unauthorized"]
+    },
+    {
+      "pageName": "内容编辑",
+      "routePath": "/coach/content/edit",
+      "description": "新建或编辑图文、视频、直播、计划等内容。",
+      "interactions": [
+        { "name": "返回按钮", "type": "按钮", "行为": "返回上一页", "target": null },
+        { "name": "标题输入框", "type": "Input", "行为": "输入内容标题", "target": null },
+        { "name": "内容输入框", "type": "Textarea", "行为": "输入正文内容", "target": null },
+        { "name": "内容类型Picker", "type": "Picker", "行为": "选择图文/视频/图片/直播/计划", "target": null },
+        { "name": "可见范围Picker", "type": "Picker", "行为": "选择可见权限层级", "target": null },
+        { "name": "价格输入框", "type": "Input", "行为": "输入价格(元)", "target": null },
+        { "name": "标签输入框", "type": "Input", "行为": "输入标签", "target": null },
+        { "name": "添加标签按钮", "type": "按钮", "行为": "添加标签到列表", "target": null },
+        { "name": "标签删除", "type": "文本按钮", "行为": "删除对应标签", "target": null },
+        { "name": "精选内容复选框", "type": "Checkbox", "行为": "设置/取消精选", "target": null },
+        { "name": "保存草稿按钮", "type": "按钮", "行为": "保存为草稿", "target": "返回上一页" },
+        { "name": "更新发布/立即发布按钮", "type": "按钮", "行为": "发布或更新内容", "target": "返回上一页" }
+      ],
+      "states": ["loading", "saving", "unauthorized"]
+    },
+    {
+      "pageName": "计划库",
+      "routePath": "/coach/plan-lib",
+      "description": "管理教练的训练计划模板，支持搜索、筛选、复制、删除。",
+      "interactions": [
+        { "name": "新建模板按钮", "type": "按钮", "行为": "跳转创建模板页", "target": "/coach/plan-lib/create" },
+        { "name": "模板搜索框", "type": "Input", "行为": "搜索模板名称或描述", "target": null },
+        { "name": "搜索按钮", "type": "按钮", "行为": "执行搜索", "target": null },
+        { "name": "类型筛选Chip", "type": "Chip", "行为": "按全部/新手/力量筛选", "target": null },
+        { "name": "标签筛选Chip", "type": "Chip", "行为": "按标签过滤模板", "target": null },
+        { "name": "模板卡片-主区域", "type": "卡片", "行为": "点击进入编辑页", "target": "/coach/plan-lib/edit" },
+        { "name": "模板卡片-复制", "type": "链接", "行为": "复制该模板", "target": null },
+        { "name": "模板卡片-删除", "type": "链接", "行为": "删除该模板", "target": null }
+      ],
+      "states": ["loading", "empty", "unauthorized"]
+    },
+    {
+      "pageName": "创建计划模板",
+      "routePath": "/coach/plan-lib/create",
+      "description": "使用计划编辑器工作台创建新的训练计划模板。",
+      "interactions": [
+        { "name": "PlanEditorWorkbench组件", "type": "复合编辑器", "行为": "编辑模板名称、描述、天数、动作、问卷联动等", "target": null },
+        { "name": "取消按钮", "type": "按钮", "行为": "返回上一页", "target": null },
+        { "name": "创建模板按钮", "type": "按钮", "行为": "提交创建", "target": "返回上一页" }
+      ],
+      "states": ["loading", "saving", "unauthorized"]
+    },
+    {
+      "pageName": "编辑计划模板",
+      "routePath": "/coach/plan-lib/edit",
+      "description": "使用计划编辑器工作台修改已有训练计划模板。",
+      "interactions": [
+        { "name": "PlanEditorWorkbench组件", "type": "复合编辑器", "行为": "编辑模板所有字段", "target": null },
+        { "name": "取消按钮", "type": "按钮", "行为": "返回上一页", "target": null },
+        { "name": "保存模板按钮", "type": "按钮", "行为": "提交更新", "target": "返回上一页" }
+      ],
+      "states": ["loading", "saving", "notFound", "unauthorized"]
+    },
+    {
+      "pageName": "动作库",
+      "routePath": "/coach/action-lib",
+      "description": "管理教练的动作演示资源，支持增删改查。",
+      "interactions": [
+        { "name": "新建按钮", "type": "按钮", "行为": "跳转动作编辑页", "target": "/coach/action-lib/edit" },
+        { "name": "动作卡片-主区域", "type": "卡片", "行为": "点击进入编辑页", "target": "/coach/action-lib/edit" },
+        { "name": "动作卡片-编辑按钮", "type": "按钮", "行为": "跳转编辑页", "target": "/coach/action-lib/edit" },
+        { "name": "动作卡片-删除按钮", "type": "按钮", "行为": "确认后删除动作", "target": null }
+      ],
+      "states": ["loading", "empty", "unauthorized"]
+    },
+    {
+      "pageName": "动作编辑",
+      "routePath": "/coach/action-lib/edit",
+      "description": "新建或编辑动作详情，包括分类、部位、属性、视频URL等。",
+      "interactions": [
+        { "name": "返回按钮", "type": "按钮", "行为": "返回上一页", "target": null },
+        { "name": "项目分类Picker", "type": "Picker", "行为": "选择力量/饮食/有氧/习惯", "target": null },
+        { "name": "动作名称输入框", "type": "Input", "行为": "输入动作名称", "target": null },
+        { "name": "热量估算输入框(Diet)", "type": "Input", "行为": "输入热量", "target": null },
+        { "name": "推荐进食时间输入框(Diet)", "type": "Input", "行为": "输入时间", "target": null },
+        { "name": "距离输入框(Cardio)", "type": "Input", "行为": "输入距离", "target": null },
+        { "name": "时长输入框(Cardio)", "type": "Input", "行为": "输入时长", "target": null },
+        { "name": "配速输入框(Cardio)", "type": "Input", "行为": "输入配速", "target": null },
+        { "name": "目标达成量输入框(Habit)", "type": "Input", "行为": "输入目标值", "target": null },
+        { "name": "智能重量计算复选框(Strength)", "type": "Checkbox", "行为": "开启/关闭自动算重", "target": null },
+        { "name": "包含自身体重复选框(Strength)", "type": "Checkbox", "行为": "设置是否含自重", "target": null },
+        { "name": "训练部位Picker(Strength)", "type": "Picker", "行为": "多选训练部位", "target": null },
+        { "name": "动作属性Picker(Strength)", "type": "Picker", "行为": "多选动作属性", "target": null },
+        { "name": "详细描述Textarea", "type": "Textarea", "行为": "输入动作说明", "target": null },
+        { "name": "演示视频URL输入框", "type": "Input", "行为": "输入视频链接", "target": null },
+        { "name": "保存/更新按钮", "type": "按钮", "行为": "提交保存", "target": "返回上一页" }
+      ],
+      "states": ["loading", "saving", "unauthorized"]
+    },
+    {
+      "pageName": "问卷管理",
+      "routePath": "/coach/questionnaire",
+      "description": "管理线上版本和草稿版本的学员问卷，支持发布和设置默认。",
+      "interactions": [
+        { "name": "编辑草稿/从线上复制草稿/新建问卷按钮", "type": "按钮", "行为": "进入编辑或复制草稿", "target": "/coach/questionnaire/edit" },
+        { "name": "线上版本卡片-查看线上配置", "type": "按钮", "行为": "进入线上版编辑", "target": "/coach/questionnaire/edit?mode=online" },
+        { "name": "线上版本卡片-设为默认", "type": "按钮", "行为": "设为默认问卷", "target": null },
+        { "name": "草稿版本卡片-继续编辑草稿", "type": "按钮", "行为": "进入草稿版编辑", "target": "/coach/questionnaire/edit?mode=draft" },
+        { "name": "草稿版本卡片-发布为线上", "type": "按钮", "行为": "发布草稿替换线上版", "target": null },
+        { "name": "草稿空状态-从线上复制草稿", "type": "按钮", "行为": "复制线上版为草稿", "target": null },
+        { "name": "草稿空状态-直接新建问卷", "type": "按钮", "行为": "新建空白问卷", "target": "/coach/questionnaire/edit?mode=draft" }
+      ],
+      "states": ["loading", "noOnline", "noDraft", "unauthorized"]
+    },
+    {
+      "pageName": "问卷编辑",
+      "routePath": "/coach/questionnaire/edit",
+      "description": "编辑问卷题目，支持文本、选项、训练次数、标签偏好、1RM测试五类题型。",
+      "interactions": [
+        { "name": "返回按钮", "type": "按钮", "行为": "返回上一页", "target": null },
+        { "name": "线上版本Tab", "type": "Tab", "行为": "切换加载线上版问卷", "target": null },
+        { "name": "草稿版本Tab", "type": "Tab", "行为": "切换加载草稿版问卷", "target": null },
+        { "name": "从线上复制按钮", "type": "按钮", "行为": "复制线上版为草稿", "target": null },
+        { "name": "发布为线上按钮", "type": "按钮", "行为": "将草稿发布为线上版", "target": null },
+        { "name": "问题卡片-编辑/收起", "type": "按钮", "行为": "展开/收起问题编辑区", "target": null },
+        { "name": "问题卡片-删除", "type": "按钮", "行为": "确认删除问题", "target": null },
+        { "name": "问题内容Input", "type": "Input", "行为": "编辑问题文本", "target": null },
+        { "name": "添加选项按钮", "type": "按钮", "行为": "为选项问题添加新选项", "target": null },
+        { "name": "选项Input", "type": "Input", "行为": "编辑选项文本", "target": null },
+        { "name": "删除选项按钮", "type": "按钮", "行为": "删除对应选项", "target": null },
+        { "name": "作用范围Picker", "type": "Picker", "行为": "选择全局匹配或动作选择", "target": null },
+        { "name": "训练次数Checkbox", "type": "Checkbox", "行为": "勾选可选周训练次数", "target": null },
+        { "name": "训练项目偏好-添加选项", "type": "按钮", "行为": "添加标签选项", "target": null },
+        { "name": "训练项目偏好-选项Input", "type": "Input", "行为": "编辑标签文本", "target": null },
+        { "name": "训练项目偏好-删除选项", "type": "按钮", "行为": "删除对应标签", "target": null },
+        { "name": "1RM测试-选择动作按钮", "type": "按钮", "行为": "打开动作选择弹窗", "target": null },
+        { "name": "动作选择弹窗-动作项", "type": "列表项", "行为": "点击勾选/取消勾选", "target": null },
+        { "name": "动作选择弹窗-清除已选", "type": "按钮", "行为": "清空已选动作", "target": null },
+        { "name": "动作选择弹窗-确定", "type": "按钮", "行为": "确认选择并关闭弹窗", "target": null },
+        { "name": "动作选择弹窗-关闭", "type": "按钮", "行为": "关闭弹窗", "target": null },
+        { "name": "添加问题按钮", "type": "按钮", "行为": "展开问题类型菜单", "target": null },
+        { "name": "问题类型菜单-文本问题", "type": "菜单项", "行为": "添加文本题", "target": null },
+        { "name": "问题类型菜单-选项问题", "type": "菜单项", "行为": "添加选项题", "target": null },
+        { "name": "问题类型菜单-训练次数", "type": "菜单项", "行为": "添加次数题", "target": null },
+        { "name": "问题类型菜单-训练项目偏好", "type": "菜单项", "行为": "添加标签题(限1个)", "target": null },
+        { "name": "问题类型菜单-1RM测试", "type": "菜单项", "行为": "添加1RM题(限1个)", "target": null },
+        { "name": "问题类型菜单-取消", "type": "菜单项", "行为": "关闭菜单", "target": null },
+        { "name": "保存按钮", "type": "按钮", "行为": "保存问卷", "target": null }
+      ],
+      "states": ["loading", "saving", "actionSelectorOpen", "addMenuOpen", "unauthorized"]
+    },
+    {
+      "pageName": "订阅定价",
+      "routePath": "/coach/pricing",
+      "description": "查看和管理教练的会员订阅定价方案。",
+      "interactions": [
+        { "name": "添加方案按钮", "type": "按钮", "行为": "跳转定价编辑页", "target": "/coach/pricing/edit" },
+        { "name": "层级添加按钮", "type": "按钮", "行为": "按层级跳转新增定价", "target": "/coach/pricing/edit" },
+        { "name": "方案卡片-编辑", "type": "按钮", "行为": "跳转编辑页", "target": "/coach/pricing/edit" },
+        { "name": "方案卡片-删除", "type": "按钮", "行为": "确认后删除方案", "target": null },
+        { "name": "空状态-添加第一个方案", "type": "按钮", "行为": "跳转编辑页", "target": "/coach/pricing/edit" }
+      ],
+      "states": ["loading", "empty", "unauthorized"]
+    },
+    {
+      "pageName": "定价编辑",
+      "routePath": "/coach/pricing/edit",
+      "description": "新建或编辑单个订阅定价方案，包括层级、时长、价格等。",
+      "interactions": [
+        { "name": "层级Picker", "type": "Picker", "行为": "选择basic/standard/vip", "target": null },
+        { "name": "服务类型Picker", "type": "Picker", "行为": "选择单项目或组合套餐", "target": null },
+        { "name": "方案名称输入框", "type": "Input", "行为": "输入产品名称", "target": null },
+        { "name": "详细介绍Textarea", "type": "Textarea", "行为": "输入方案描述", "target": null },
+        { "name": "包含细项输入框", "type": "Input", "行为": "输入组合套餐包含项目(逗号分隔)", "target": null },
+        { "name": "添加时长梯度按钮", "type": "按钮", "行为": "新增一个时长价格选项", "target": null },
+        { "name": "月数输入框", "type": "Input", "行为": "输入订阅月数", "target": null },
+        { "name": "价格输入框", "type": "Input", "行为": "输入价格(元)", "target": null },
+        { "name": "删除时长梯度按钮", "type": "按钮", "行为": "删除对应时长选项", "target": null },
+        { "name": "取消按钮", "type": "按钮", "行为": "返回上一页", "target": null },
+        { "name": "保存方案按钮", "type": "按钮", "行为": "保存定价方案", "target": "返回上一页" }
+      ],
+      "states": ["loading", "saving", "unauthorized"]
+    },
+    {
+      "pageName": "我的钱包",
+      "routePath": "/coach/wallet",
+      "description": "查看教练账户余额、冻结金额、累计收入及最近交易流水。",
+      "interactions": [
+        { "name": "交易流水项", "type": "列表项", "行为": "有orderId时点击跳转订单详情", "target": "/coach/wallet/order" }
+      ],
+      "states": ["loading", "empty", "unauthorized"]
+    },
+    {
+      "pageName": "绑定收款方式",
+      "routePath": "/coach/wallet/bind",
+      "description": "收款方式绑定占位页，提示在Web端完成。",
+      "interactions": [],
+      "states": ["placeholder"]
+    },
+    {
+      "pageName": "订单详情",
+      "routePath": "/coach/wallet/order",
+      "description": "钱包订单详情占位页，提示在Web端查看完整信息。",
+      "interactions": [],
+      "states": ["placeholder"]
+    },
+    {
+      "pageName": "收入详情",
+      "routePath": "/coach/revenue",
+      "description": "查看教练本月总收入、订阅收入、内容收入及收入明细列表。",
+      "interactions": [],
+      "states": ["loading", "empty", "unauthorized"]
+    },
+    {
+      "pageName": "我的主页(个人中心)",
+      "routePath": "/coach/my-profile",
+      "description": "教练个人中心，聚合个人入口、业务配置、账号安全操作。",
+      "interactions": [
+        { "name": "我的主页", "type": "列表项", "行为": "跳转教练主页(学员视角)", "target": "/coach/profile" },
+        { "name": "个人设置", "type": "列表项", "行为": "跳转教练主页编辑模式", "target": "/coach/profile" },
+        { "name": "我的钱包", "type": "列表项", "行为": "跳转钱包", "target": "/coach/wallet" },
+        { "name": "邀请学员", "type": "列表项", "行为": "跳转邀请设置", "target": "/coach/settings/invitation" },
+        { "name": "订阅设置", "type": "列表项", "行为": "跳转定价页", "target": "/coach/pricing" },
+        { "name": "学员问卷", "type": "列表项", "行为": "跳转问卷管理", "target": "/coach/questionnaire" },
+        { "name": "内容管理", "type": "列表项", "行为": "跳转内容库", "target": "/coach/content" },
+        { "name": "动作库", "type": "列表项", "行为": "跳转动作库", "target": "/coach/action-lib" },
+        { "name": "收款码设置", "type": "列表项", "行为": "跳转收款码设置", "target": "/coach/settings/payment" },
+        { "name": "安全设置", "type": "列表项", "行为": "跳转安全设置", "target": "/coach/settings/security" },
+        { "name": "账户设置", "type": "列表项", "行为": "跳转通用账户设置", "target": "/me/settings/index" },
+        { "name": "切换到学员端", "type": "列表项", "行为": "切换角色并跳转训练页", "target": "/training/today-training" },
+        { "name": "退出登录", "type": "列表项", "行为": "确认后登出", "target": "/auth/login" },
+        { "name": "去申请成为教练", "type": "按钮", "行为": "跳转教练申请页", "target": "/coach/application" },
+        { "name": "重新加载", "type": "按钮", "行为": "刷新页面数据", "target": null }
+      ],
+      "states": ["loading", "notCoach", "error", "unauthorized"]
+    },
+    {
+      "pageName": "教练申请",
+      "routePath": "/coach/application",
+      "description": "提交或更新教练入驻申请，填写资质、专长、社交链接等信息。",
+      "interactions": [
+        { "name": "姓名输入框", "type": "Input", "行为": "输入姓名", "target": null },
+        { "name": "职称输入框", "type": "Input", "行为": "输入职称", "target": null },
+        { "name": "简介Textarea", "type": "Textarea", "行为": "输入简介", "target": null },
+        { "name": "从业年限输入框", "type": "Input", "行为": "输入年限", "target": null },
+        { "name": "邮箱输入框", "type": "Input", "行为": "输入邮箱", "target": null },
+        { "name": "手机号输入框", "type": "Input", "行为": "输入手机", "target": null },
+        { "name": "专业领域标签-添加", "type": "按钮", "行为": "添加专长标签", "target": null },
+        { "name": "专业领域标签-删除", "type": "文本按钮", "行为": "删除标签", "target": null },
+        { "name": "教学理念Textarea", "type": "Textarea", "行为": "输入教学理念", "target": null },
+        { "name": "主要成就-添加", "type": "按钮", "行为": "添加成就条目", "target": null },
+        { "name": "主要成就-删除", "type": "文本按钮", "行为": "删除成就条目", "target": null },
+        { "name": "案例研究-添加", "type": "按钮", "行为": "添加案例条目", "target": null },
+        { "name": "案例研究-删除", "type": "文本按钮", "行为": "删除案例条目", "target": null },
+        { "name": "资质证书-添加", "type": "按钮", "行为": "展开证书编辑表单", "target": null },
+        { "name": "资质证书-保存", "type": "按钮", "行为": "保存证书", "target": null },
+        { "name": "资质证书-取消", "type": "按钮", "行为": "取消编辑证书", "target": null },
+        { "name": "资质证书-删除", "type": "文本按钮", "行为": "删除证书", "target": null },
+        { "name": "社交媒体-添加", "type": "按钮", "行为": "展开社交媒体编辑表单", "target": null },
+        { "name": "社交媒体平台选项", "type": "选项标签", "行为": "选择平台(抖音/小红书/知乎/B站/快手/其他)", "target": null },
+        { "name": "社交媒体链接输入框", "type": "Input", "行为": "输入链接", "target": null },
+        { "name": "社交媒体-保存", "type": "按钮", "行为": "保存社交链接", "target": null },
+        { "name": "社交媒体-取消", "type": "按钮", "行为": "取消编辑", "target": null },
+        { "name": "社交媒体-删除", "type": "文本按钮", "行为": "删除社交链接", "target": null },
+        { "name": "提交/更新申请按钮", "type": "按钮", "行为": "提交申请数据", "target": null }
+      ],
+      "states": ["loading", "saving", "pendingReview", "approved", "rejected", "unauthorized"]
+    },
+    {
+      "pageName": "教练主页(重定向)",
+      "routePath": "/coach/profile",
+      "description": "根据当前用户自动解析教练ID并重定向到动态路由教练主页。",
+      "interactions": [],
+      "states": ["redirecting", "error", "unauthorized"]
+    },
+    {
+      "pageName": "教练主页详情",
+      "routePath": "/coach/profile/[id]",
+      "description": "展示教练公开主页信息，支持教练自己进入编辑模式修改资料。",
+      "interactions": [
+        { "name": "编辑/取消编辑按钮", "type": "按钮", "行为": "切换编辑模式", "target": null },
+        { "name": "专业领域标签-添加", "type": "按钮", "行为": "添加专长标签", "target": null },
+        { "name": "专业领域标签-删除", "type": "文本按钮", "行为": "删除标签", "target": null },
+        { "name": "简介Textarea(编辑)", "type": "Textarea", "行为": "编辑简介", "target": null },
+        { "name": "教学理念Textarea(编辑)", "type": "Textarea", "行为": "编辑教学理念", "target": null },
+        { "name": "主要成就-添加", "type": "按钮", "行为": "添加成就", "target": null },
+        { "name": "主要成就-删除", "type": "文本按钮", "行为": "删除成就", "target": null },
+        { "name": "案例研究-添加", "type": "按钮", "行为": "添加案例", "target": null },
+        { "name": "案例研究-删除", "type": "文本按钮", "行为": "删除案例", "target": null },
+        { "name": "资质证书-添加", "type": "按钮", "行为": "展开证书编辑", "target": null },
+        { "name": "资质证书-保存", "type": "按钮", "行为": "保存证书", "target": null },
+        { "name": "资质证书-取消", "type": "按钮", "行为": "取消编辑", "target": null },
+        { "name": "资质证书-删除", "type": "文本按钮", "行为": "删除证书", "target": null },
+        { "name": "联系方式-邮箱输入框", "type": "Input", "行为": "编辑邮箱", "target": null },
+        { "name": "联系方式-手机输入框", "type": "Input", "行为": "编辑手机", "target": null },
+        { "name": "社交媒体-添加", "type": "按钮", "行为": "展开社交编辑", "target": null },
+        { "name": "社交媒体平台选项", "type": "选项标签", "行为": "选择平台", "target": null },
+        { "name": "社交媒体链接输入框", "type": "Input", "行为": "输入链接", "target": null },
+        { "name": "社交媒体-保存", "type": "按钮", "行为": "保存社交链接", "target": null },
+        { "name": "社交媒体-取消", "type": "按钮", "行为": "取消编辑", "target": null },
+        { "name": "社交媒体-删除", "type": "文本按钮", "行为": "删除社交链接", "target": null },
+        { "name": "保存修改按钮", "type": "按钮", "行为": "提交资料更新", "target": null }
+      ],
+      "states": ["loading", "editMode", "viewMode", "notFound", "unauthorized"]
+    },
+    {
+      "pageName": "计划列表",
+      "routePath": "/coach/plans",
+      "description": "学员视角查看自己订阅的教练计划或自建计划。",
+      "interactions": [
+        { "name": "教练计划Tab", "type": "Tab", "行为": "切换到教练计划列表", "target": null },
+        { "name": "我的计划Tab", "type": "Tab", "行为": "切换到自建计划", "target": null },
+        { "name": "计划卡片", "type": "卡片", "行为": "点击进入计划看板", "target": "/coach/plans/dashboard" },
+        { "name": "发现教练按钮", "type": "按钮", "行为": "跳转发现教练页", "target": "/discovery/index" }
+      ],
+      "states": ["loading", "empty", "coachMode", "selfMode"]
+    },
+    {
+      "pageName": "计划详情(重定向)",
+      "routePath": "/coach/plans/[id]",
+      "description": "计划详情入口，自动重定向到计划看板页。",
+      "interactions": [],
+      "states": ["redirecting", "error"]
+    },
+    {
+      "pageName": "计划看板",
+      "routePath": "/coach/plans/dashboard/[id]",
+      "description": "展示训练计划整体进度、周历、每日状态，并进入当日训练执行。",
+      "interactions": [
+        { "name": "上周按钮", "type": "按钮", "行为": "切换到上一周", "target": null },
+        { "name": "下周按钮", "type": "按钮", "行为": "切换到下一周", "target": null },
+        { "name": "日期卡片", "type": "卡片", "行为": "选中对应训练日", "target": null },
+        { "name": "开始训练/继续训练/查看记录/查看计划/休息日按钮", "type": "按钮", "行为": "根据状态跳转训练执行页", "target": "/coach/plans/dashboard/training-execution" },
+        { "name": "返回按钮", "type": "按钮", "行为": "返回上一页", "target": null }
+      ],
+      "states": ["loading", "empty", "past", "today", "future", "rest", "training"]
+    },
+    {
+      "pageName": "训练执行(重定向)",
+      "routePath": "/coach/plans/dashboard/[id]/training-execution",
+      "description": "训练执行入口页，自动重定向到统一训练执行页面。",
+      "interactions": [],
+      "states": ["redirecting", "error"]
+    },
+    {
+      "pageName": "邀请设置",
+      "routePath": "/coach/settings/invitation",
+      "description": "管理教练邀请码、邀请链接及邀请海报的生成与保存。",
+      "interactions": [
+        { "name": "复制邀请码按钮", "type": "按钮", "行为": "复制邀请码到剪贴板", "target": null },
+        { "name": "复制链接按钮", "type": "按钮", "行为": "复制邀请链接到剪贴板", "target": null },
+        { "name": "海报图片", "type": "Image", "行为": "点击预览海报大图", "target": null },
+        { "name": "更新海报按钮", "type": "按钮", "行为": "重新触发海报生成", "target": null },
+        { "name": "生成海报按钮", "type": "按钮", "行为": "首次生成邀请海报", "target": null }
+      ],
+      "states": ["loading", "posterReady", "posterGenerating", "posterFailed", "empty", "unauthorized"]
+    },
+    {
+      "pageName": "收款码设置",
+      "routePath": "/coach/settings/payment",
+      "description": "上传和管理微信、支付宝收款二维码图片。",
+      "interactions": [
+        { "name": "微信收款码-上传/更新按钮", "type": "按钮", "行为": "选择相册/相机图片上传", "target": null },
+        { "name": "微信收款码-删除按钮", "type": "按钮", "行为": "删除微信收款码", "target": null },
+        { "name": "支付宝收款码-上传/更新按钮", "type": "按钮", "行为": "选择相册/相机图片上传", "target": null },
+        { "name": "支付宝收款码-删除按钮", "type": "按钮", "行为": "删除支付宝收款码", "target": null },
+        { "name": "收款码图片", "type": "Image", "行为": "展示已上传二维码", "target": null }
+      ],
+      "states": ["loading", "wechatEmpty", "alipayEmpty", "wechatSet", "alipaySet", "uploading", "forbidden", "unauthorized"]
+    },
+    {
+      "pageName": "安全设置",
+      "routePath": "/coach/settings/security",
+      "description": "通过手机号或邮箱验证后修改登录密码。",
+      "interactions": [
+        { "name": "验证方式切换按钮", "type": "按钮", "行为": "切换手机或邮箱验证", "target": null },
+        { "name": "验证码输入框", "type": "Input", "行为": "输入6位验证码", "target": null },
+        { "name": "发送验证码按钮", "type": "按钮", "行为": "发送验证码并倒计时", "target": null },
+        { "name": "新密码输入框", "type": "Input", "行为": "输入新密码", "target": null },
+        { "name": "新密码显示/隐藏切换", "type": "文本按钮", "行为": "切换密码可见性", "target": null },
+        { "name": "确认新密码输入框", "type": "Input", "行为": "再次输入新密码", "target": null },
+        { "name": "确认密码显示/隐藏切换", "type": "文本按钮", "行为": "切换密码可见性", "target": null },
+        { "name": "保存修改按钮", "type": "按钮", "行为": "提交密码重置", "target": null }
+      ],
+      "states": ["loading", "noContactBound", "countdown", "sending", "submitting", "unauthorized"]
+    }
+  ]
+}

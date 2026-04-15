@@ -1,0 +1,366 @@
+{
+  "pages": [
+    {
+      "pageName": "今日训练",
+      "route": "/training/today-training",
+      "description": "展示学员今日训练计划的核心页面，支持教练/自建计划切换、日历选天、补练/跳过、轻任务管理、打卡分享与训练入口。",
+      "interactions": [
+        { "name": "计划切换 Tab", "type": "tab切换", "behavior": "切换 coach/self 计划模式", "target": null },
+        { "name": "教练订阅 Tab", "type": "tab切换", "behavior": "多教练时横向滚动切换当前订阅", "target": null },
+        { "name": "移除自建计划", "type": "按钮", "behavior": "弹出确认后删除自建计划实例", "target": null },
+        { "name": "说明卡片", "type": "卡片点击", "behavior": "打开「为什么要确认完成」说明弹窗", "target": null },
+        { "name": "收起返回确认 Banner", "type": "文字按钮", "behavior": "隐藏训练完成返回提示", "target": null },
+        { "name": "补练按钮", "type": "按钮", "behavior": "跳转到对应天的训练执行页", "target": "/training/training-execution" },
+        { "name": "跳过按钮", "type": "按钮", "behavior": "弹出确认后跳过该训练日", "target": null },
+        { "name": "去续费链接", "type": "文字按钮", "behavior": "跳转到教练主页续费", "target": "/discovery/coach-profile" },
+        { "name": "日历面板", "type": "日历/日期选择", "behavior": "点击某天切换选中并展示当天安排", "target": null },
+        { "name": "即兴锻炼入口", "type": "按钮", "behavior": "跳转即兴锻炼配置页", "target": "/training/impromptu-training" },
+        { "name": "整日打卡图", "type": "按钮", "behavior": "打开生成日打卡分享图弹窗", "target": null },
+        { "name": "今日训练卡片", "type": "组件交互", "behavior": "打开轻任务/添加轻任务/删除轻任务", "target": null },
+        { "name": "轻任务 Sheet 弹窗", "type": "弹窗", "behavior": "填写并提交轻任务完成数据（饮食/有氧/习惯）", "target": null },
+        { "name": "轻动作选择器", "type": "弹窗", "behavior": "从动作库选择轻任务类型动作", "target": null },
+        { "name": "轻任务配置弹窗", "type": "弹窗", "behavior": "输入时间、备注、饮食内容/有氧距离/习惯名称等并创建任务", "target": null },
+        { "name": "日打卡分享弹窗", "type": "弹窗", "behavior": "展示分享图并支持小程序分享", "target": null },
+        { "name": "计划完成弹窗", "type": "弹窗", "behavior": "展示完成祝贺，提供更新档案/生成下一计划/查看全部计划", "target": "/me/profile/detail/index" },
+        { "name": "说明弹窗-去输入并校准", "type": "按钮", "behavior": "关闭弹窗并跳转训练执行页", "target": "/training/training-execution" },
+        { "name": "空状态-即兴锻炼", "type": "按钮", "behavior": "跳转即兴锻炼页", "target": "/training/impromptu-training" },
+        { "name": "空状态-联系教练", "type": "按钮", "behavior": "跳转消息页", "target": "/me/messages/index" },
+        { "name": "空状态-AI长期计划/我的计划库", "type": "按钮", "behavior": "跳转计划库", "target": "/me/plan-lib/index" },
+        { "name": "空状态-浏览教练", "type": "按钮", "behavior": "跳转发现教练", "target": "/discovery/index" }
+      ],
+      "states": [
+        "loading 骨架屏状态",
+        "无计划空状态（等待教练制定 / 未订阅）",
+        "教练计划宽限期锁定状态",
+        "多教练切换时的「待制定/待续费」标记",
+        "missingDays 补练提示条",
+        "今日已完成提示条",
+        "返回确认提示条（banner）",
+        "轻任务配置/选择/打卡弹窗显隐状态",
+        "计划完成庆祝弹窗状态"
+      ]
+    },
+    {
+      "pageName": "训练执行",
+      "route": "/training/training-execution",
+      "description": "训练当日执行与记录页面，支持逐组录入重量/次数/RPE、视频上传、休息计时、添加额外动作/组、一键完成及训练反馈。",
+      "interactions": [
+        { "name": "返回", "type": "按钮", "behavior": "返回上一页", "target": null },
+        { "name": "联系教练", "type": "按钮", "behavior": "打开与教练的聊天会话", "target": "/me/messages/chat/index" },
+        { "name": "跳过今日", "type": "文字按钮", "behavior": "弹出确认后跳过当天训练", "target": null },
+        { "name": "动作卡片头部", "type": "卡片点击", "behavior": "展开/折叠动作，定位到该动作第一待完成组", "target": null },
+        { "name": "删除额外动作", "type": "文字按钮", "behavior": "删除学员自行添加的动作（student_extra）", "target": null },
+        { "name": "组行点击", "type": "列表项点击", "behavior": "待完成组设为当前组；已完成组展开详情", "target": null },
+        { "name": "删除额外组", "type": "文字按钮", "behavior": "删除学员自行添加的组", "target": null },
+        { "name": "重量输入", "type": "输入框", "behavior": "录入当前组实际重量（kg）", "target": null },
+        { "name": "次数输入", "type": "输入框", "behavior": "录入当前组实际次数", "target": null },
+        { "name": "RPE输入", "type": "输入框", "behavior": "录入主观用力程度 1-10", "target": null },
+        { "name": "备注输入", "type": "输入框", "behavior": "记录本组训练感受或问题", "target": null },
+        { "name": "选视频", "type": "按钮", "behavior": "调用 chooseVideo 并上传", "target": null },
+        { "name": "贴链接", "type": "按钮", "behavior": "弹出可编辑 Modal 粘贴视频链接", "target": null },
+        { "name": "标记PR", "type": "toggle/标签", "behavior": "切换当前组是否标记为个人纪录", "target": null },
+        { "name": "完成本组", "type": "主按钮", "behavior": "提交当前组数据并自动推进到下一组/动作", "target": null },
+        { "name": "编辑本组", "type": "按钮", "behavior": "允许修改已完成组的数据", "target": null },
+        { "name": "取消编辑", "type": "按钮", "behavior": "退出编辑状态并恢复原始值", "target": null },
+        { "name": "+ 新增一组", "type": "按钮", "behavior": "为当前动作添加额外组", "target": null },
+        { "name": "非力量项目完成打卡", "type": "按钮", "behavior": "提交饮食/有氧/习惯类项目的完成数据", "target": null },
+        { "name": "+ 添加动作", "type": "按钮", "behavior": "打开动作选择弹层", "target": null },
+        { "name": "动作选择弹层", "type": "弹窗/搜索", "behavior": "搜索并选择动作库中的 STRENGTH 动作添加", "target": null },
+        { "name": "完成训练", "type": "主按钮", "behavior": "弹出确认后结束本次训练", "target": null },
+        { "name": "一键完成训练", "type": "主按钮", "behavior": "自动补齐未完成组后结束训练", "target": null },
+        { "name": "返回今日安排继续轻任务", "type": "主按钮", "behavior": "当轻任务未完成时返回今日训练页", "target": "/training/today-training" },
+        { "name": "休息计时弹窗", "type": "弹窗", "behavior": "展示组间倒计时，支持 +30秒 / 跳过休息", "target": null },
+        { "name": "训练反馈弹窗", "type": "弹窗", "behavior": "选择难度感受并填写文字反馈发送给教练", "target": null }
+      ],
+      "states": [
+        "loading 加载中",
+        "加载失败重试状态",
+        "只读模式（readOnly）禁止修改",
+        "即兴训练模式（impromptu）",
+        "组间休息倒计时覆盖层",
+        "所有组完成后的完成提示",
+        "轻任务未完成拦截提示",
+        "训练反馈弹窗（可选跳过）",
+        "视频上传中状态"
+      ]
+    },
+    {
+      "pageName": "动作详情",
+      "route": "/training/action-detail",
+      "description": "展示从缓存读取的动作详细信息，包括动作说明、训练部位、属性标签与演示视频链接。",
+      "interactions": [
+        { "name": "复制视频链接", "type": "按钮", "behavior": "将动作演示视频 URL 复制到剪贴板", "target": null }
+      ],
+      "states": [
+        "未找到动作详情的空状态（提示返回动作库重新进入）"
+      ]
+    },
+    {
+      "pageName": "动作编辑",
+      "route": "/training/action-edit",
+      "description": "学员添加或编辑自定义动作到个人动作库。",
+      "interactions": [
+        { "name": "动作名称", "type": "输入框", "behavior": "必填，最大100字符", "target": null },
+        { "name": "动作描述", "type": "文本域", "behavior": "选填，最大500字符", "target": null },
+        { "name": "训练部位", "type": "输入框", "behavior": "选填，多个用逗号分隔", "target": null },
+        { "name": "动作类型选项", "type": "单选标签", "behavior": "选择 STRENGTH/DIET/CARDIO/HABIT", "target": null },
+        { "name": "演示视频链接", "type": "输入框", "behavior": "选填", "target": null },
+        { "name": "添加动作/保存", "type": "提交按钮", "behavior": "调用 addAction 后返回", "target": null }
+      ],
+      "states": [
+        "提交中 disabled 状态",
+        "表单校验失败提示（名称必填）"
+      ]
+    },
+    {
+      "pageName": "学员动作库",
+      "route": "/training/actions",
+      "description": "浏览学员个人动作库列表，支持搜索与分页加载，点击卡片查看动作详情。",
+      "interactions": [
+        { "name": "搜索动作", "type": "输入框", "behavior": "实时搜索动作名称", "target": null },
+        { "name": "动作卡片", "type": "卡片点击", "behavior": "缓存动作数据并跳转详情页", "target": "/training/action-detail" },
+        { "name": "加载更多", "type": "按钮/滚动加载", "behavior": "分页加载更多动作", "target": null }
+      ],
+      "states": [
+        "未登录跳转登录页",
+        "加载中状态",
+        "搜索为空状态",
+        "列表为空状态（提示到电脑端添加）",
+        "全部加载完成提示"
+      ]
+    },
+    {
+      "pageName": "从教练复制动作",
+      "route": "/training/copy-from-coach",
+      "description": "展示订阅教练分享的动作列表，支持一键复制到学员个人动作库。",
+      "interactions": [
+        { "name": "复制到我的动作库", "type": "按钮", "behavior": "调用 copyCoachAction 将该动作加入个人库", "target": null },
+        { "name": "下拉刷新", "type": "下拉刷新", "behavior": "重新加载教练动作列表", "target": null },
+        { "name": "重试", "type": "按钮", "behavior": "错误时重新请求数据", "target": null }
+      ],
+      "states": [
+        "初始加载骨架屏",
+        "加载失败错误状态",
+        "列表为空状态（提示订阅教练后使用）",
+        "已添加状态（按钮置灰）",
+        "复制中 loading 状态"
+      ]
+    },
+    {
+      "pageName": "即兴锻炼",
+      "route": "/training/impromptu-training",
+      "description": "学员自定义即兴训练，选择动作与组次参数后创建并进入标准执行页。",
+      "interactions": [
+        { "name": "返回训练", "type": "按钮", "behavior": "返回今日训练页", "target": "/training/today-training" },
+        { "name": "AI 长期计划", "type": "按钮", "behavior": "跳转 AI 计划创建页", "target": "/me/plan-lib/create/index" },
+        { "name": "添加项目", "type": "按钮", "behavior": "新增一条训练项", "target": null },
+        { "name": "删除项目", "type": "按钮", "behavior": "移除对应训练项", "target": null },
+        { "name": "选择动作", "type": "触发器/弹窗", "behavior": "打开动作选择弹窗", "target": null },
+        { "name": "动作选择弹窗", "type": "弹窗", "behavior": "从力量动作库中选择具体动作", "target": null },
+        { "name": "组数输入", "type": "输入框", "behavior": "数字输入", "target": null },
+        { "name": "次数输入", "type": "输入框", "behavior": "数字输入", "target": null },
+        { "name": "休息输入", "type": "输入框", "behavior": "秒数数字输入", "target": null },
+        { "name": "重量输入", "type": "输入框", "behavior": "可选，数字输入", "target": null },
+        { "name": "开始训练", "type": "主按钮", "behavior": "校验后创建即兴训练并跳转执行页", "target": "/training/training-execution" }
+      ],
+      "states": [
+        "未登录跳转登录页",
+        "动作库加载中",
+        "无训练项空提示",
+        "开始训练 loading 状态"
+      ]
+    },
+    {
+      "pageName": "当前计划",
+      "route": "/training/plan/current",
+      "description": "展示学员当前激活计划的总览，包括训练日列表、完成进度统计与计划切换。",
+      "interactions": [
+        { "name": "教练计划/我的计划 切换", "type": "tab切换", "behavior": "切换展示教练计划或自建计划", "target": null },
+        { "name": "今日训练", "type": "按钮", "behavior": "跳转今日训练页", "target": "/training/today-training" },
+        { "name": "全部计划", "type": "按钮", "behavior": "跳转计划历史页", "target": "/me/plan-history/index" },
+        { "name": "发现教练", "type": "按钮", "behavior": "跳转教练发现页", "target": "/discovery/index" },
+        { "name": "我的计划库", "type": "按钮", "behavior": "跳转计划库页", "target": "/me/plan-lib/index" },
+        { "name": "训练日卡片", "type": "卡片点击", "behavior": "非休息日跳转到对应天的训练执行页", "target": "/training/training-execution" }
+      ],
+      "states": [
+        "加载中骨架屏",
+        "有订阅但教练未制定计划空状态",
+        "无任何计划空状态（引导发现教练/计划库）",
+        "训练日完成/进行中/休息标记"
+      ]
+    },
+    {
+      "pageName": "街健力量指数首页",
+      "route": "/streetlifting/index",
+      "description": "街健力量指数功能入口，展示数据总量与最后更新时间，提供各子模块导航。",
+      "interactions": [
+        { "name": "计算我的力量分", "type": "导航卡片", "行为": "跳转力量分计算器", "target": "/streetlifting/index/calculator" },
+        { "name": "数据总览", "type": "导航卡片", "行为": "跳转社区数据页", "target": "/streetlifting/index/data" },
+        { "name": "场地/地点", "type": "导航卡片", "行为": "跳转单杠位置列表", "target": "/streetlifting/index/locations" },
+        { "name": "计算方法论", "type": "导航卡片", "行为": "跳转方法论说明页", "target": "/streetlifting/index/methodology" },
+        { "name": "故事", "type": "导航卡片", "行为": "跳转故事页", "target": "/streetlifting/index/stories" },
+        { "name": "提交数据", "type": "导航卡片", "行为": "跳转数据提交页", "target": "/streetlifting/index/submit" }
+      ],
+      "states": [
+        "统计数据加载中",
+        "网络异常时数据可能为 0"
+      ]
+    },
+    {
+      "pageName": "力量分计算器",
+      "route": "/streetlifting/index/calculator",
+      "description": "基于网页端一致逻辑的力量分计算器，支持正向计算与反向推导做组重量/次数。",
+      "interactions": [
+        { "name": "运动类型 Picker", "type": "下拉选择", "行为": "选择引体/臂屈伸/实力推/弯举/深蹲/卧推/硬拉", "target": null },
+        { "name": "计算模式 Picker", "type": "下拉选择", "行为": "正向计算 / 反推做组重量 / 反推次数", "target": null },
+        { "name": "性别 Picker", "type": "下拉选择", "行为": "选择 Male/Female", "target": null },
+        { "name": "体重输入", "type": "输入框", "行为": "kg 数字输入", "target": null },
+        { "name": "附加负重输入", "type": "输入框", "行为": "正向计算时输入", "target": null },
+        { "name": "目标负重1RM输入", "type": "输入框", "行为": "反推模式时输入", "target": null },
+        { "name": "做组重量·附加负重输入", "type": "输入框", "行为": "反推次数时输入", "target": null },
+        { "name": "做组重量输入", "type": "输入框", "行为": "三大项/实力推/弯举正向计算", "target": null },
+        { "name": "目标1RM输入", "type": "输入框", "行为": "三大项/实力推/弯举反推模式", "target": null },
+        { "name": "完成次数输入", "type": "输入框", "行为": "数字输入", "target": null },
+        { "name": "动作质量 Picker", "type": "下拉选择", "行为": "比赛级/轻微/严重/超严重借力", "target": null },
+        { "name": "惩罚重量输入", "type": "输入框", "行为": "非比赛级时手动调整惩罚重量", "target": null },
+        { "name": "开始计算", "type": "主按钮", "行为": "根据所选模式与公式计算并展示结果", "target": null }
+      ],
+      "states": [
+        "公式加载中",
+        "公式加载失败提示",
+        "输入校验错误提示（体重/次数/质量必填等）",
+        "结果展示区域（含力量分等级、RM 对照表）"
+      ]
+    },
+    {
+      "pageName": "社区数据",
+      "route": "/streetlifting/index/data",
+      "description": "街健社区数据列表，支持筛选排序、搜索、提交个人数据与认领匿名数据。",
+      "interactions": [
+        { "name": "提交我的数据", "type": "按钮", "行为": "校验登录与档案信息后打开提交表单弹窗", "target": null },
+        { "name": "动作筛选 Picker", "type": "下拉选择", "行为": "全部/负重引体/臂屈伸", "target": null },
+        { "name": "性别筛选 Picker", "type": "下拉选择", "行为": "全部/男/女", "target": null },
+        { "name": "握法筛选 Picker", "type": "下拉选择", "行为": "全部/正手/反手", "target": null },
+        { "name": "质量筛选 Picker", "type": "下拉选择", "行为": "按动作质量过滤", "target": null },
+        { "name": "视频筛选 Picker", "type": "下拉选择", "行为": "全部/有视频/无视频", "target": null },
+        { "name": "排序 Picker", "type": "下拉选择", "行为": "按 1RM / 力量分 / 时间排序", "target": null },
+        { "name": "搜索用户名", "type": "输入框", "行为": "实时按用户名过滤", "target": null },
+        { "name": "认领按钮", "type": "按钮", "行为": "打开确认弹窗，将匿名数据绑定到当前用户", "target": null },
+        { "name": "视频按钮", "type": "按钮", "行为": "复制视频链接到剪贴板", "target": null },
+        { "name": "提交表单弹窗", "type": "弹窗/表单", "行为": "填写并提交个人训练数据", "target": null },
+        { "name": "认领确认弹窗", "type": "弹窗", "行为": "确认是否覆盖已有认领数据", "target": null }
+      ],
+      "states": [
+        "列表加载中",
+        "筛选结果为空",
+        "未登录提示",
+        "个人档案缺失性别/体重提示",
+        "提交中 loading",
+        "认领中 loading"
+      ]
+    },
+    {
+      "pageName": "单杠位置",
+      "route": "/streetlifting/index/locations",
+      "description": "单杠训练点社区列表，支持搜索筛选、图片上传、地图位置选择、编辑与导航。",
+      "interactions": [
+        { "name": "展开/收起分析", "type": "按钮", "行为": "切换总览分析详细内容的显示", "target": null },
+        { "name": "全国地图", "type": "按钮", "行为": "跳转地图模式页", "target": "/streetlifting/index/locations-map" },
+        { "name": "定位我附近", "type": "按钮", "行为": "获取用户定位并展示最近点位", "target": null },
+        { "name": "贡献榜展开/收起", "type": "按钮", "行为": "切换贡献榜显示条数（5/10）", "target": null },
+        { "name": "搜索名称/省市/地址", "type": "输入框", "行为": "实时搜索过滤", "target": null },
+        { "name": "省份筛选 Picker", "type": "下拉选择", "行为": "按省份过滤列表", "target": null },
+        { "name": "分享单杠位置", "type": "主按钮", "行为": "打开新增/编辑弹窗", "target": null },
+        { "name": "位置卡片-编辑", "type": "按钮", "行为": "打开编辑弹窗回填数据", "target": null },
+        { "name": "位置卡片-分享", "type": "按钮", "行为": "复制地点信息到剪贴板", "target": null },
+        { "name": "位置卡片-地图", "type": "按钮", "行为": "调用 openLocation 打开系统地图导航", "target": null },
+        { "name": "附近点位-地图查看", "type": "按钮", "行为": "打开该点位系统地图", "target": null },
+        { "name": "加载更多", "type": "按钮/滚动加载", "行为": "分页加载更多地点", "target": null },
+        { "name": "新增/编辑弹窗-选择位置", "type": "按钮", "行为": "调用 chooseLocation 选择地图坐标", "target": null },
+        { "name": "新增/编辑弹窗-图片上传", "type": "图片选择", "行为": "chooseImage + 服务端上传，最多4张", "target": null },
+        { "name": "新增/编辑弹窗-删除图片", "type": "按钮", "行为": "移除已选图片", "target": null },
+        { "name": "新增/编辑弹窗-提交/保存", "type": "按钮", "行为": "创建或更新地点信息", "target": null }
+      ],
+      "states": [
+        "列表加载中/加载更多中",
+        "定位中/定位失败",
+        "图片上传中",
+        "总览分析加载中",
+        "贡献榜加载中",
+        "列表为空（引导成为第一个分享者）",
+        "表单校验失败（名称必填）"
+      ]
+    },
+    {
+      "pageName": "单杠地图",
+      "route": "/streetlifting/index/locations-map",
+      "description": "全国单杠训练点地图模式，支持聚合显示、缩放浏览、定位与系统地图导航。",
+      "interactions": [
+        { "name": "返回列表", "type": "按钮", "行为": "返回位置列表页", "target": "/streetlifting/index/locations" },
+        { "name": "定位我附近", "type": "按钮", "行为": "获取定位并缩放到附近", "target": null },
+        { "name": "全国视角", "type": "按钮", "行为": "回到全国默认缩放与中心点", "target": null },
+        { "name": "地图标记点击", "type": "地图交互", "行为": "聚合点放大两级；单点选中并展示详情", "target": null },
+        { "name": "取消选中", "type": "按钮", "行为": "关闭底部选中点位详情", "target": null },
+        { "name": "打开系统地图", "type": "按钮", "行为": "调用 openLocation 导航到选中点位", "target": null },
+        { "name": "地图区域变化", "type": "地图交互", "行为": "缩放/拖动结束后更新聚合标记", "target": null }
+      ],
+      "states": [
+        "地图点位加载中",
+        "加载失败错误提示",
+        "选中点位详情浮层",
+        "聚合提示状态"
+      ]
+    },
+    {
+      "pageName": "计算方法论",
+      "route": "/streetlifting/index/methodology",
+      "description": "街健力量指数计算方法论的简要说明页。",
+      "interactions": [
+        { "name": "返回", "type": "按钮", "行为": "返回上一页", "target": null }
+      ],
+      "states": ["纯展示静态页"]
+    },
+    {
+      "pageName": "故事",
+      "route": "/streetlifting/index/stories",
+      "description": "街健力量指数相关故事与案例的简要提示页。",
+      "interactions": [
+        { "name": "返回", "type": "按钮", "行为": "返回上一页", "target": null }
+      ],
+      "states": ["纯展示静态页"]
+    },
+    {
+      "pageName": "提交数据",
+      "route": "/streetlifting/index/submit",
+      "description": "提示用户到网页端完成数据提交的过渡页面。",
+      "interactions": [
+        { "name": "返回", "type": "按钮", "行为": "返回上一页", "target": null }
+      ],
+      "states": ["纯展示静态页"]
+    },
+    {
+      "pageName": "提交成功",
+      "route": "/streetlifting/index/submit/success",
+      "description": "数据提交成功后的确认页面。",
+      "interactions": [
+        { "name": "返回", "type": "按钮", "行为": "返回上一页", "target": null }
+      ],
+      "states": ["纯展示静态页"]
+    },
+    {
+      "pageName": "视频播放器",
+      "route": "/common/common/video-player",
+      "description": "通用 PR 视频播放页，支持小程序内播放与失败后的链接复制 fallback。",
+      "interactions": [
+        { "name": "返回", "type": "按钮", "行为": "返回上一页", "target": null },
+        { "name": "复制链接在浏览器打开", "type": "按钮", "行为": "复制视频 URL 到剪贴板", "target": null },
+        { "name": "点此复制链接到浏览器打开", "type": "文字按钮", "行为": "底部复制链接提示", "target": null },
+        { "name": "Video 组件", "type": "视频播放", "行为": "播放/暂停/全屏等原生控制", "target": null }
+      ],
+      "states": [
+        "视频地址无效空状态",
+        "视频加载失败 fallback 状态（提示复制到浏览器）"
+      ]
+    }
+  ]
+}
