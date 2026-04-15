@@ -1,5 +1,6 @@
 export default {
-  navigationBarTitleText: '教链 CoachLink',
+  navigationStyle: 'custom',
+  navigationBarTitleText: '',
   navigationBarTextStyle: 'black',
   navigationBarBackgroundColor: '#FFF5EB'
 }

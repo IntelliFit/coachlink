@@ -4,6 +4,7 @@ import Taro, { useDidShow } from '@tarojs/taro'
 import BottomNav from '@/components/BottomNav'
 import { authService } from '@/services/authService'
 import { studentOnboardingService } from '@/services/studentOnboardingService'
+import { Power, Search, Star, User, ShieldCheck, Target, ArrowUp } from '@nutui/icons-react-taro'
 import './index.scss'
 
 function Index() {
@@ -91,7 +92,7 @@ function Index() {
       {/* Header */}
       <View className='home-header'>
         <View className='home-header-left'>
-          <Text className='home-greeting'>{greeting} 👋</Text>
+          <Text className='home-greeting'>{greeting}</Text>
           <Text className='home-date'>{todayDateText}</Text>
         </View>
         <View className='home-header-right'>
@@ -110,7 +111,7 @@ function Index() {
               <Text className='hero-card-subtitle'>登录后可查看今日训练计划</Text>
             </View>
             <View className='hero-card-icon-wrap'>
-              <Text className='hero-card-icon'>💪</Text>
+              <Power width={28} height={28} color='#CF6D4E' />
             </View>
           </View>
           <View className='hero-card-progress'>
@@ -126,26 +127,26 @@ function Index() {
           <Text className='section-title'>快速入口</Text>
           <View className='quick-actions-grid'>
             <View className='quick-action-item' onClick={() => handleNav('/pages/today-training/index')}>
-              <View className='quick-action-icon orange'>
-                <Text className='quick-action-emoji'>⚡</Text>
+              <View className='quick-action-icon'>
+                <Power width={24} height={24} color='#010101' />
               </View>
               <Text className='quick-action-label'>今日训练</Text>
             </View>
             <View className='quick-action-item' onClick={() => handleNav('/pages/discovery/index')}>
-              <View className='quick-action-icon blue'>
-                <Text className='quick-action-emoji'>🔍</Text>
+              <View className='quick-action-icon'>
+                <Search width={24} height={24} color='#010101' />
               </View>
               <Text className='quick-action-label'>发现教练</Text>
             </View>
             <View className='quick-action-item' onClick={() => handleNav('/pages/ranking/index')}>
-              <View className='quick-action-icon yellow'>
-                <Text className='quick-action-emoji'>🏆</Text>
+              <View className='quick-action-icon'>
+                <Star width={24} height={24} color='#010101' />
               </View>
               <Text className='quick-action-label'>排行榜</Text>
             </View>
             <View className='quick-action-item' onClick={() => handleNav('/pages/me/profile/index')}>
-              <View className='quick-action-icon green'>
-                <Text className='quick-action-emoji'>👤</Text>
+              <View className='quick-action-icon'>
+                <User width={24} height={24} color='#010101' />
               </View>
               <Text className='quick-action-label'>个人中心</Text>
             </View>
@@ -157,8 +158,8 @@ function Index() {
           <Text className='section-title'>平台亮点</Text>
           <View className='features-list'>
             <View className='feature-item' onClick={() => handleNavTo('/auth/onboarding')}>
-              <View className='feature-icon-wrap bg-orange'>
-                <Text className='feature-icon'>🛡️</Text>
+              <View className='feature-icon-wrap'>
+                <ShieldCheck width={24} height={24} color='#CF6D4E' />
               </View>
               <View className='feature-info'>
                 <Text className='feature-title'>靠谱教练</Text>
@@ -167,8 +168,8 @@ function Index() {
               <Text className='feature-arrow'>›</Text>
             </View>
             <View className='feature-item' onClick={() => handleNavTo('/auth/onboarding')}>
-              <View className='feature-icon-wrap bg-blue'>
-                <Text className='feature-icon'>🧠</Text>
+              <View className='feature-icon-wrap'>
+                <Target width={24} height={24} color='#CF6D4E' />
               </View>
               <View className='feature-info'>
                 <Text className='feature-title'>智能负荷</Text>
@@ -177,8 +178,8 @@ function Index() {
               <Text className='feature-arrow'>›</Text>
             </View>
             <View className='feature-item' onClick={() => handleNavTo('/auth/onboarding')}>
-              <View className='feature-icon-wrap bg-purple'>
-                <Text className='feature-icon'>📈</Text>
+              <View className='feature-icon-wrap'>
+                <ArrowUp width={24} height={24} color='#CF6D4E' />
               </View>
               <View className='feature-info'>
                 <Text className='feature-title'>成长档案</Text>
@@ -186,15 +187,6 @@ function Index() {
               </View>
               <Text className='feature-arrow'>›</Text>
             </View>
-          </View>
-        </View>
-
-        {/* CTA Card */}
-        <View className='home-cta-card'>
-          <Text className='cta-card-title'>还没有账号？</Text>
-          <Text className='cta-card-desc'>立即注册，开启专属训练计划</Text>
-          <View className='cta-card-btn' onClick={() => handleNavTo('/auth/register')}>
-            <Text className='cta-card-btn-text'>立即注册</Text>
           </View>
         </View>
       </View>

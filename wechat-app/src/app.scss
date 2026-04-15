@@ -4,18 +4,18 @@
 
 /* ==================== 新版设计系统变量（v2 Dashboard） ==================== */
 page {
-  --bg-page: #F5F5F5;
+  --bg-page: linear-gradient(180deg, #E8E8E8 0%, #F8F8F8 100%);
   --bg-card: #FFFFFF;
-  --primary: #F28631;
-  --primary-light: #FFAC6B;
-  --primary-gradient: linear-gradient(135deg, #F28631 0%, #FFAC6B 100%);
-  --text-primary: #1A1A1A;
-  --text-secondary: #666666;
-  --text-tertiary: #999999;
+  --primary: #CF6D4E;
+  --primary-light: #E08F76;
+  --primary-gradient: linear-gradient(135deg, #CF6D4E 0%, #E08F76 100%);
+  --text-primary: #010101;
+  --text-secondary: #6B7280;
+  --text-tertiary: #9CA3AF;
   --border-radius-card: 32rpx;
   --border-radius-pill: 9999rpx;
   --shadow-card: 0 4rpx 24rpx rgba(0, 0, 0, 0.04);
-  --shadow-float: 0 8rpx 32rpx rgba(242, 134, 49, 0.22);
+  --shadow-float: 0 8rpx 32rpx rgba(207, 109, 78, 0.22);
 }
 
 /* ==================== 带底部导航栏的页面布局（全局） ====================
