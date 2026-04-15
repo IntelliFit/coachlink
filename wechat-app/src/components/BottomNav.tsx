@@ -17,26 +17,30 @@ import profileDocSelectedIcon from '@/assets/icons/tabbar/profile-doc-selected.s
 interface NavItem {
     key: string
     label: string
-    icon: string
-    iconPath?: string
-    activeIconPath?: string
+    iconPath: string
+    activeIconPath: string
     path: string
 }
 
 /** 学员端底部导航 */
 const studentNavItems: NavItem[] = [
     {
-        key: 'training',
-        label: '今日训练',
-        icon: '▶️',
+        key: 'home',
+        label: '首页',
         iconPath: homeIcon,
         activeIconPath: homeSelectedIcon,
+        path: '/pages/index/index'
+    },
+    {
+        key: 'training',
+        label: '今日训练',
+        iconPath: rankIcon,
+        activeIconPath: rankSelectedIcon,
         path: '/training/today-training'
     },
     {
         key: 'discovery',
         label: '发现',
-        icon: '🔍',
         iconPath: searchIcon,
         activeIconPath: searchSelectedIcon,
         path: '/discovery/index'
@@ -44,23 +48,13 @@ const studentNavItems: NavItem[] = [
     {
         key: 'toolbox',
         label: '工具箱',
-        icon: '📊',
-        iconPath: rankIcon,
-        activeIconPath: rankSelectedIcon,
-        path: '/me/toolbox/index'
-    },
-    {
-        key: 'profile-detail',
-        label: '我的档案',
-        icon: '📋',
         iconPath: profileDocIcon,
         activeIconPath: profileDocSelectedIcon,
-        path: '/me/profile/detail/index'
+        path: '/me/toolbox/index'
     },
     {
         key: 'profile',
         label: '个人中心',
-        icon: '👤',
         iconPath: myIcon,
         activeIconPath: mySelectedIcon,
         path: '/me/profile/index'
@@ -69,11 +63,11 @@ const studentNavItems: NavItem[] = [
 
 /** 教练端底部导航 */
 const coachNavItems: NavItem[] = [
-    { key: 'overview', label: '概览', icon: '📊', path: '/coach/overview' },
-    { key: 'videos', label: '点评', icon: '🎬', path: '/coach/videos' },
-    { key: 'students', label: '学员', icon: '👥', path: '/coach/students' },
-    { key: 'plan-lib', label: '计划库', icon: '📋', path: '/coach/plan-lib' },
-    { key: 'profile', label: '我', icon: '👤', iconPath: myIcon, activeIconPath: mySelectedIcon, path: '/coach/my-profile' }
+    { key: 'overview', label: '概览', iconPath: rankIcon, activeIconPath: rankSelectedIcon, path: '/coach/overview' },
+    { key: 'videos', label: '点评', iconPath: searchIcon, activeIconPath: searchSelectedIcon, path: '/coach/videos' },
+    { key: 'students', label: '学员', iconPath: myIcon, activeIconPath: mySelectedIcon, path: '/coach/students' },
+    { key: 'plan-lib', label: '计划库', iconPath: profileDocIcon, activeIconPath: profileDocSelectedIcon, path: '/coach/plan-lib' },
+    { key: 'profile', label: '我', iconPath: myIcon, activeIconPath: mySelectedIcon, path: '/coach/my-profile' }
 ]
 
 function BottomNav() {
@@ -119,11 +113,12 @@ function BottomNav() {
     }, [])
 
     const tryNavigate = async (url: string) => {
+        // 优先使用 navigateTo 避免页面关闭导致的闪烁
         try {
-            await Taro.reLaunch({ url })
+            await Taro.navigateTo({ url })
             return true
-        } catch (relaunchErr) {
-            console.error('[BottomNav] reLaunch 失败:', relaunchErr)
+        } catch (navigateErr) {
+            console.error('[BottomNav] navigateTo 失败:', navigateErr)
         }
 
         try {
@@ -134,11 +129,11 @@ function BottomNav() {
         }
 
         try {
-            await Taro.navigateTo({ url })
+            await Taro.reLaunch({ url })
             return true
-        } catch (navigateErr) {
-            console.error('[BottomNav] navigateTo 失败:', navigateErr)
-            Taro.showToast({ title: (navigateErr as any)?.errMsg || '跳转失败', icon: 'none' })
+        } catch (relaunchErr) {
+            console.error('[BottomNav] reLaunch 失败:', relaunchErr)
+            Taro.showToast({ title: (relaunchErr as any)?.errMsg || '跳转失败', icon: 'none' })
             return false
         }
     }
@@ -176,14 +171,10 @@ function BottomNav() {
                         className={`nav-item ${isActive ? 'nav-active' : ''}`}
                         onClick={() => handleNavClick(item)}
                     >
-                        {item.iconPath ? (
-                            <Image
-                                className='nav-icon-img'
-                                src={isActive ? (item.activeIconPath || item.iconPath) : item.iconPath}
-                            />
-                        ) : (
-                            <Text className='nav-icon'>{item.icon}</Text>
-                        )}
+                        <Image
+                            className='nav-icon-img'
+                            src={isActive ? item.activeIconPath : item.iconPath}
+                        />
                         <Text className='nav-label'>{item.label}</Text>
                     </View>
                 )

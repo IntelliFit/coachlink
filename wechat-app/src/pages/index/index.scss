@@ -1,7 +1,8 @@
 .home-page {
   min-height: 100vh;
-  background: #F5F5F5;
+  background: linear-gradient(180deg, #E8E8E8 0%, #F8F8F8 100%);
   padding-bottom: 180rpx;
+  font-family: 'Noto Sans SC', 'Source Han Sans CN', 'PingFang SC', sans-serif;
 }
 
 .home-loading {
@@ -26,7 +27,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 48rpx 32rpx 24rpx;
-  background: #F5F5F5;
+  background: transparent;
 }
 
 .home-header-left {
@@ -38,7 +39,7 @@
 .home-greeting {
   font-size: 40rpx;
   font-weight: 700;
-  color: #111827;
+  color: #010101;
   line-height: 1.2;
 }
 
@@ -54,9 +55,9 @@
 
 .login-pill {
   padding: 16rpx 36rpx;
-  background: linear-gradient(135deg, #F28631 0%, #F97316 100%);
+  background: #CF6D4E;
   border-radius: 9999rpx;
-  box-shadow: 0 8rpx 24rpx rgba(242, 134, 49, 0.25);
+  box-shadow: 0 8rpx 24rpx rgba(207, 109, 78, 0.25);
 
   &:active {
     opacity: 0.9;
@@ -75,7 +76,7 @@
   display: block;
   font-size: 32rpx;
   font-weight: 700;
-  color: #1F2937;
+  color: #010101;
   margin-bottom: 24rpx;
   margin-left: 8rpx;
 }
@@ -105,7 +106,7 @@
 .hero-card-title {
   font-size: 34rpx;
   font-weight: 700;
-  color: #1F2937;
+  color: #010101;
   line-height: 1.3;
 }
 
@@ -117,12 +118,12 @@
 .hero-card-icon-wrap {
   width: 100rpx;
   height: 100rpx;
-  background: linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%);
+  background: #FDF2EC;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 8rpx 24rpx rgba(251, 191, 36, 0.2);
+  box-shadow: 0 8rpx 24rpx rgba(207, 109, 78, 0.15);
 }
 
 .hero-card-icon {
@@ -140,7 +141,7 @@
 
   .progress-fill {
     height: 100%;
-    background: linear-gradient(90deg, #F28631 0%, #FBBF24 100%);
+    background: #CF6D4E;
     border-radius: 9999rpx;
     transition: width 0.5s ease;
   }
@@ -187,27 +188,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.08);
-
-  &.orange {
-    background: linear-gradient(135deg, #FFF7ED 0%, #FFEDD5 100%);
-  }
-
-  &.blue {
-    background: linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%);
-  }
-
-  &.yellow {
-    background: linear-gradient(135deg, #FEFCE8 0%, #FEF9C3 100%);
-  }
-
-  &.green {
-    background: linear-gradient(135deg, #F0FDF4 0%, #DCFCE7 100%);
-  }
-}
-
-.quick-action-emoji {
-  font-size: 40rpx;
+  background: #F0F0F0;
 }
 
 .quick-action-label {
@@ -250,22 +231,7 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-
-  &.bg-orange {
-    background: linear-gradient(135deg, #FFF7ED 0%, #FFEDD5 100%);
-  }
-
-  &.bg-blue {
-    background: linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%);
-  }
-
-  &.bg-purple {
-    background: linear-gradient(135deg, #FAF5FF 0%, #F3E8FF 100%);
-  }
-}
-
-.feature-icon {
-  font-size: 40rpx;
+  background: #F0F0F0;
 }
 
 .feature-info {
@@ -278,7 +244,7 @@
 .feature-title {
   font-size: 30rpx;
   font-weight: 600;
-  color: #1F2937;
+  color: #010101;
 }
 
 .feature-desc {
@@ -290,44 +256,4 @@
   font-size: 36rpx;
   color: #D1D5DB;
   font-weight: 300;
-}
-
-/* CTA Card */
-.home-cta-card {
-  background: linear-gradient(135deg, #1F2937 0%, #111827 100%);
-  border-radius: 36rpx;
-  padding: 40rpx 32rpx;
-  text-align: center;
-  box-shadow: 0 16rpx 48rpx rgba(0, 0, 0, 0.12);
-}
-
-.cta-card-title {
-  font-size: 32rpx;
-  font-weight: 700;
-  color: #FFFFFF;
-  margin-bottom: 12rpx;
-}
-
-.cta-card-desc {
-  font-size: 26rpx;
-  color: #9CA3AF;
-  margin-bottom: 32rpx;
-}
-
-.cta-card-btn {
-  background: linear-gradient(135deg, #F28631 0%, #F97316 100%);
-  border-radius: 9999rpx;
-  padding: 24rpx 48rpx;
-  box-shadow: 0 8rpx 24rpx rgba(242, 134, 49, 0.3);
-
-  &:active {
-    opacity: 0.9;
-    transform: scale(0.98);
-  }
-}
-
-.cta-card-btn-text {
-  font-size: 28rpx;
-  font-weight: 600;
-  color: #FFFFFF;
 }
