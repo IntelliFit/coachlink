@@ -8,6 +8,10 @@ import {
     GetTemplateDto,
     GetTemplateResponseDto,
 } from "@/app/api/plan-lib/get-template/entity";
+import type {
+    ExportTemplateTextDto,
+    ExportTemplateTextResponseDto,
+} from "@/app/api/plan-lib/export-template-text/entity";
 import {
     AddTemplateDto,
     AddTemplateResponseDto,
@@ -84,6 +88,17 @@ export class PlanLibService extends BaseService {
         );
         if (!res || !res.data.success) {
             throw new Error(res.data.message || "Failed to fetch template");
+        }
+        return res.data.data;
+    }
+
+    async exportTemplateText(reqData: ExportTemplateTextDto) {
+        const res = await this.post<ExportTemplateTextResponseDto>(
+            "export-template-text",
+            reqData,
+        );
+        if (!res || !res.data.success) {
+            throw new Error(res.data.message || "Failed to export template text");
         }
         return res.data.data;
     }

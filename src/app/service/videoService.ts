@@ -1,4 +1,5 @@
 import { BaseService } from "@/lib/baseService";
+import { prepareVideoForUpload } from "@/lib/videoCompression";
 import axios from "axios";
 
 // 导入视频服务相关的类型定义
@@ -26,6 +27,21 @@ function getApiErrorMessage(err: unknown): string | null {
 }
 
 class VideoService extends BaseService {
+    private emitUploadProgress(
+        onUploadProgress: ((progress: VideoUploadProgress) => void) | undefined,
+        progress: Partial<VideoUploadProgress> & Pick<VideoUploadProgress, "percentage">,
+    ) {
+        onUploadProgress?.({
+            loaded: progress.loaded ?? 0,
+            total: progress.total ?? 0,
+            percentage: progress.percentage,
+            phase: progress.phase,
+            statusText: progress.statusText,
+            originalSizeBytes: progress.originalSizeBytes,
+            finalSizeBytes: progress.finalSizeBytes,
+            compressed: progress.compressed,
+        });
+    }
 
     /** 直传：仅使用服务端下发的 uploadUrl，不携带任何 key */
     private async putWithProgress(
@@ -94,14 +110,44 @@ class VideoService extends BaseService {
             // 2) 直接把视频上传到 Supabase Storage（绕开宝塔/Nginx/Next 的大文件限制）
             // 3) 再调用 submit-video-url 写入数据库记录（并更新配额）
 
-            onUploadProgress?.({ loaded: 0, total: file.size, percentage: 0 });
+            this.emitUploadProgress(onUploadProgress, {
+                loaded: 0,
+                total: file.size,
+                percentage: 0,
+                phase: "preparing",
+                statusText: "准备处理视频…",
+                originalSizeBytes: file.size,
+                finalSizeBytes: file.size,
+                compressed: false,
+            });
+
+            const prepared = await prepareVideoForUpload(file, {
+                onProgress: (progress) => {
+                    const mappedPercentage = progress.phase === "compressing"
+                        ? Math.round(10 + progress.percentage * 0.45)
+                        : Math.round(progress.percentage * 0.1);
+
+                    this.emitUploadProgress(onUploadProgress, {
+                        loaded: 0,
+                        total: file.size,
+                        percentage: mappedPercentage,
+                        phase: progress.phase,
+                        statusText: progress.statusText,
+                        originalSizeBytes: file.size,
+                        finalSizeBytes: file.size,
+                        compressed: false,
+                    });
+                },
+            });
+
+            const uploadFile = prepared.file;
 
             const signRes = await this.post<CreateVideoUploadUrlResponseDto>(
                 "create-video-upload-url",
                 {
-                    originalFilename: file.name,
-                    contentType: file.type || "application/octet-stream",
-                    fileSizeBytes: file.size,
+                    originalFilename: uploadFile.name,
+                    contentType: uploadFile.type || "application/octet-stream",
+                    fileSizeBytes: uploadFile.size,
                 },
             );
 
@@ -111,22 +157,71 @@ class VideoService extends BaseService {
 
             const { path, publicUrl, uploadUrl } = signRes.data.data;
 
+            this.emitUploadProgress(onUploadProgress, {
+                loaded: 0,
+                total: uploadFile.size,
+                percentage: prepared.compressed ? 55 : 5,
+                phase: "uploading",
+                statusText: prepared.compressed ? "压缩完成，开始上传…" : "开始上传视频…",
+                originalSizeBytes: prepared.originalFileSizeBytes,
+                finalSizeBytes: prepared.finalFileSizeBytes,
+                compressed: prepared.compressed,
+            });
+
             // 直传：仅使用服务端下发的 uploadUrl，不暴露 key
-            await this.putWithProgress(uploadUrl, file, onUploadProgress);
+            await this.putWithProgress(uploadUrl, uploadFile, (progress) => {
+                const percentage = prepared.compressed
+                    ? Math.round(55 + progress.percentage * 0.45)
+                    : progress.percentage;
+
+                this.emitUploadProgress(onUploadProgress, {
+                    loaded: progress.loaded,
+                    total: progress.total,
+                    percentage,
+                    phase: "uploading",
+                    statusText: "正在上传视频…",
+                    originalSizeBytes: prepared.originalFileSizeBytes,
+                    finalSizeBytes: prepared.finalFileSizeBytes,
+                    compressed: prepared.compressed,
+                });
+            });
 
             // 写入数据库记录（并进行配额扣减/记录元数据）
             const record = await this.submitVideoUrl({
                 videoUrl: publicUrl,
                 context,
-                fileSizeBytes: file.size,
+                fileSizeBytes: uploadFile.size,
                 metadata: {
                     storage_bucket: "videos",
                     storage_path: path,
-                    original_filename: file.name,
-                    mime_type: file.type || "application/octet-stream",
+                    original_filename: prepared.originalFileName,
+                    uploaded_filename: uploadFile.name,
+                    mime_type: uploadFile.type || "application/octet-stream",
                     submission_source: "direct_signed_upload",
+                    compression: {
+                        applied: prepared.compressed,
+                        original_size_bytes: prepared.originalFileSizeBytes,
+                        uploaded_size_bytes: prepared.finalFileSizeBytes,
+                        original_mime_type: prepared.originalMimeType,
+                        uploaded_mime_type: prepared.finalMimeType,
+                        duration_seconds: prepared.durationSeconds,
+                        width: prepared.width,
+                        height: prepared.height,
+                        strategy: prepared.compressed ? "browser_media_recorder_v1" : "passthrough",
+                    },
                 },
             } satisfies SubmitVideoUrlDto);
+
+            this.emitUploadProgress(onUploadProgress, {
+                loaded: uploadFile.size,
+                total: uploadFile.size,
+                percentage: 100,
+                phase: "uploading",
+                statusText: prepared.compressed ? "压缩并上传完成" : "上传完成",
+                originalSizeBytes: prepared.originalFileSizeBytes,
+                finalSizeBytes: prepared.finalFileSizeBytes,
+                compressed: prepared.compressed,
+            });
 
             return record as any;
         } catch (err) {

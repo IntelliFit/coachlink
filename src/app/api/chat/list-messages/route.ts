@@ -4,9 +4,11 @@ import type { ApiData } from "@/types/api";
 import type {
     GetMessagesDto,
     GetMessagesResponseDto,
-    MessageItem,
 } from "./entity";
 import supabase from "@/lib/supabaseClient";
+import { mapChatMessageRowsToItems } from "@/lib/mapChatMessageRows";
+
+const ANCHOR_WINDOW = 25;
 
 export async function POST(req: Request) {
     const session = await getServerSession();
@@ -20,7 +22,7 @@ export async function POST(req: Request) {
 
     const userId = session.user.id;
     const body = await req.json() as GetMessagesDto;
-    const { roomId, beforeId } = body;
+    const { roomId, beforeId, anchorMessageId } = body;
     const limit = Math.min(body.limit ?? 50, 50);
 
     if (!roomId) {
@@ -30,7 +32,7 @@ export async function POST(req: Request) {
             data: null,
         }, { status: 400 });
     }
-    // 验证用户是否为会话参与者
+
     const { data: chatRoom, error: chatRoomError } = await supabase
         .from("chat_rooms")
         .select("members")
@@ -53,7 +55,74 @@ export async function POST(req: Request) {
         }, { status: 403 });
     }
 
-    // 查询消息
+    const { count: totalCount } = await supabase
+        .from("chat_messages")
+        .select("*", { count: "exact", head: true })
+        .eq("room_id", roomId);
+
+    if (anchorMessageId) {
+        const { data: anchor, error: anchorErr } = await supabase
+            .from("chat_messages")
+            .select("*")
+            .eq("id", anchorMessageId)
+            .eq("room_id", roomId)
+            .single();
+
+        if (anchorErr || !anchor) {
+            return NextResponse.json({
+                success: false,
+                message: "消息不存在",
+                data: null,
+            }, { status: 404 });
+        }
+
+        const t = anchor.created_at as string;
+
+        const { data: older } = await supabase
+            .from("chat_messages")
+            .select("*")
+            .eq("room_id", roomId)
+            .lt("created_at", t)
+            .order("created_at", { ascending: false })
+            .limit(ANCHOR_WINDOW);
+
+        const { data: newer } = await supabase
+            .from("chat_messages")
+            .select("*")
+            .eq("room_id", roomId)
+            .gt("created_at", t)
+            .order("created_at", { ascending: true })
+            .limit(ANCHOR_WINDOW);
+
+        const olderAsc = [...(older || [])].reverse();
+        const merged = [ ...olderAsc, anchor, ...(newer || []) ];
+        const seen = new Set<string>();
+        const mergedUnique = merged.filter((m) => {
+            if (seen.has(m.id)) return false;
+            seen.add(m.id);
+            return true;
+        });
+
+        const hasMore =
+            (older?.length ?? 0) === ANCHOR_WINDOW ||
+            (newer?.length ?? 0) === ANCHOR_WINDOW;
+
+        const returnChatMessages = await mapChatMessageRowsToItems(
+            mergedUnique as Parameters<typeof mapChatMessageRowsToItems>[0],
+            userId,
+        );
+
+        return NextResponse.json<ApiData<GetMessagesResponseDto>>({
+            success: true,
+            message: "获取消息成功",
+            data: {
+                messages: returnChatMessages,
+                has_more: hasMore,
+                total: totalCount ?? 0,
+            },
+        });
+    }
+
     let query = supabase
         .from("chat_messages")
         .select("*", { count: "exact" })
@@ -62,7 +131,6 @@ export async function POST(req: Request) {
         .limit(limit);
 
     if (beforeId) {
-        // 加载更早的消息
         const { data: beforeMsg } = await supabase
             .from("chat_messages")
             .select("created_at")
@@ -94,44 +162,15 @@ export async function POST(req: Request) {
             data: {
                 messages: [],
                 has_more: false,
-                total: count ?? 0,
+                total: count ?? totalCount ?? 0,
             },
         });
     }
 
-    // 获取发送者信息
-    const senderIds = [...new Set(messages.map((m) => m.sender_id))];
-
-    const { data: profiles } = await supabase
-        .from("user_profiles")
-        .select("user_id, nickname, avatar_url")
-        .in("user_id", senderIds);
-
-    const profileMap = new Map(profiles?.map((p) => [p.user_id, p]) || []);
-
-    // 组装消息数据
-    const returnChatMessages: MessageItem[] = messages.map((msg) => {
-        const profile = profileMap.get(msg.sender_id);
-
-        return {
-            id: msg.id,
-            chatUserId: msg.sender_id,
-            chatUserProfile: {
-                name: profile?.nickname || "",
-                avatar: profile?.avatar_url || null,
-            },
-            messageType: msg.message_type,
-            content: msg.content,
-            mediaUrl: msg.media_url,
-            fileName: msg.file_name,
-            fileSize: msg.file_size,
-            duration: msg.duration,
-            isRead: msg.is_read,
-            createdAt: msg.created_at,
-            isMine: msg.sender_id === userId,
-            contentMetadata: (msg as any).content_metadata || null,
-        };
-    }).reverse();
+    const returnChatMessages = await mapChatMessageRowsToItems(
+        [...messages].reverse() as Parameters<typeof mapChatMessageRowsToItems>[0],
+        userId,
+    );
 
     return NextResponse.json<ApiData<GetMessagesResponseDto>>({
         success: true,
@@ -139,7 +178,7 @@ export async function POST(req: Request) {
         data: {
             messages: returnChatMessages,
             has_more: hasMore,
-            total: count ?? 0,
+            total: count ?? totalCount ?? 0,
         },
     });
 }

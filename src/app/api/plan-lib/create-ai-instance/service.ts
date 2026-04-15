@@ -3,6 +3,7 @@ import { TrainingItem } from "@/types/questionnaires";
 import { fillTemplate, matchPlan } from "./match";
 import { sendDirectMessage } from "@/lib/chat";
 import { randomInt } from "crypto";
+import { getSubscriptionCarryoverSummary } from "@/lib/subscriptionCarryover";
 
 export class ApiError extends Error {
     status: number;
@@ -27,8 +28,8 @@ export async function createAiInstanceForSubscription(params: CreateAiInstancePa
         actorUserId,
         actorCoachId,
         subscriptionId,
-        startWeek = 1,
-        startDay = 1,
+        startWeek,
+        startDay,
         delayedActivation = false,
     } = params;
 
@@ -103,20 +104,38 @@ export async function createAiInstanceForSubscription(params: CreateAiInstancePa
         coachId: actorCoachId,
     });
 
-    // 起始执行位置逻辑：以周为单位保留完整结构
-    const startExecutionDay = (startWeek - 1) * 7 + startDay;
     const trainingDays = (selectTemplate.training_days as any[]) || [];
+
+    const hasExplicitStartPosition =
+        startWeek !== undefined || startDay !== undefined;
+    let startExecutionDay = ((Number(startWeek ?? 1) - 1) * 7) + Number(startDay ?? 1);
+
+    if (!hasExplicitStartPosition) {
+        const carryover = await getSubscriptionCarryoverSummary({
+            subscriptionId,
+            subscribedWeeks: Number(subscription.subscribed_weeks || 0),
+        });
+
+        if (carryover.exhausted) {
+            throw new ApiError("当前订阅剩余周期已耗尽，请续费后再创建新计划", 400);
+        }
+        startExecutionDay = 1;
+    }
 
     if (startExecutionDay > trainingDays.length) {
         throw new ApiError(
-            `起始位置(第${startWeek}周第${startDay}天)超出模板总天数(${trainingDays.length}天)`,
+            `起始位置超出模板总天数(${trainingDays.length}天)`,
             400,
         );
     }
 
+    const hasCustomStartPosition = hasExplicitStartPosition && startExecutionDay > 1;
+    const effectiveStartWeek = Math.floor((startExecutionDay - 1) / 7) + 1;
+    const effectiveStartDay = ((startExecutionDay - 1) % 7) + 1;
+
     const planBaseName = `${studentName}的计划`;
-    const planName = startExecutionDay > 1
-        ? `${planBaseName}（从第${startWeek}周${startDay > 1 ? `第${startDay}天` : ""}开始）`
+    const planName = hasCustomStartPosition
+        ? `${planBaseName}（从第${effectiveStartWeek}周${effectiveStartDay > 1 ? `第${effectiveStartDay}天` : ""}开始）`
         : planBaseName;
 
     // DB 约束 check_plan_status 不允许 pending，延迟展示使用 scheduled
@@ -126,8 +145,8 @@ export async function createAiInstanceForSubscription(params: CreateAiInstancePa
         .from("coach_plan_instances")
         .insert({
             name: planName,
-            description: startExecutionDay > 1
-                ? `从第${startWeek}周第${startDay}天开始执行，前${startExecutionDay - 1}天视为已完成`
+            description: hasCustomStartPosition
+                ? `从第${effectiveStartWeek}周第${effectiveStartDay}天开始执行，前${startExecutionDay - 1}天视为已完成`
                 : "暂无描述",
             coach_subscription_id: subscriptionId,
             coach_id: subscription.coach_id || null,

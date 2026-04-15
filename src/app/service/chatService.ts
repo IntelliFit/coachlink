@@ -12,6 +12,10 @@ import type {
     GetMessagesResponseDto,
 } from "../api/chat/list-messages/entity";
 import type {
+    SearchMessagesDto,
+    SearchMessagesResponseDto,
+} from "../api/chat/search-messages/entity";
+import type {
     SendMessageDto,
     SendMessageResponseDto,
 } from "../api/chat/send-message/entity";
@@ -62,6 +66,17 @@ class ChatService extends BaseService {
     async listMessages(reqData: GetMessagesDto) {
         const res = await this.post<GetMessagesResponseDto>(
             "list-messages",
+            reqData,
+        );
+        if (res.data && res.data.success) {
+            return res.data.data || null;
+        }
+        return null;
+    }
+
+    async searchMessages(reqData: SearchMessagesDto) {
+        const res = await this.post<SearchMessagesResponseDto>(
+            "search-messages",
             reqData,
         );
         if (res.data && res.data.success) {

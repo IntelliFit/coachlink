@@ -1,25 +1,8 @@
-import OpenAI from "openai";
-
-let openai: OpenAI;
-
-function getOpenAIClient(): OpenAI {
-    if (!openai) {
-        if (!process.env.DEEPSEEK_API_KEY) {
-            throw new Error("Missing DEEPSEEK_API_KEY environment variable");
-        }
-
-        openai = new OpenAI({
-            baseURL: "https://api.deepseek.com",
-            apiKey: process.env.DEEPSEEK_API_KEY,
-        });
-    }
-
-    return openai;
-}
+import { getCoachlinkLlm } from "@/lib/coachlinkLlm";
 
 type DeepSeekOptions = {
     /**
-     * 是否使用思考模式（deepseek-reasoner），默认 false 使用 deepseek-chat
+     * 是否使用思考模式（仅 DeepSeek 直连时有效：deepseek-reasoner）
      */
     useReasoner?: boolean;
     /**
@@ -29,7 +12,7 @@ type DeepSeekOptions = {
 };
 
 /**
- * 调用 DeepSeek API 生成内容
+ * 调用 LLM 生成 JSON（优先 OfoxAI + `OFOXAI_MODEL`，默认 Gemini Flash）
  */
 export async function callDeepSeek(
     prompt: string,
@@ -40,23 +23,47 @@ export async function callDeepSeek(
         maxTokens = 6000,
     } = options;
 
-    const completion = await getOpenAIClient().chat.completions.create({
-        messages: [{ role: "user", content: prompt }],
-        model: useReasoner ? "deepseek-reasoner" : "deepseek-chat",
-        max_tokens: maxTokens,
-        // 强制返回 JSON，避免 markdown 包裹导致截断或解析失败
-        response_format: { type: "json_object" },
-        temperature: 0.2,
-    });
+    const { client, model, provider } = getCoachlinkLlm();
+    const resolvedModel =
+        useReasoner && provider === "deepseek" ? "deepseek-reasoner" : model;
 
-    const content = completion.choices[0]?.message?.content;
+    // Ofox / Gemini 兼容层常只认 max_completion_tokens；仅传 max_tokens 时可能被压成极小上限，导致 JSON 半截
+    const body: Parameters<typeof client.chat.completions.create>[0] =
+        provider === "ofox"
+            ? ({
+                  messages: [{ role: "user", content: prompt }],
+                  model: resolvedModel,
+                  max_tokens: maxTokens,
+                  max_completion_tokens: maxTokens,
+                  response_format: { type: "json_object" },
+                  temperature: 0.2,
+              } as Parameters<typeof client.chat.completions.create>[0])
+            : {
+                  messages: [{ role: "user", content: prompt }],
+                  model: resolvedModel,
+                  max_tokens: maxTokens,
+                  response_format: { type: "json_object" },
+                  temperature: 0.2,
+              };
+
+    const completion = await client.chat.completions.create(body);
+
+    const choice = completion.choices[0];
+    const content = choice?.message?.content;
     if (!content) {
-        throw new Error("DeepSeek API 返回空内容");
+        throw new Error("LLM 返回空内容");
     }
 
-    // 调试：仅输出前 2000 字，避免日志爆炸
+    const finishReason = choice?.finish_reason;
+    const usage = completion.usage;
+    if (finishReason === "length") {
+        console.warn(
+            `[coachlink-llm] finish_reason=length：输出被截断（请求 max≈${maxTokens}，completion_tokens=${usage?.completion_tokens ?? "?"}）。若 JSON 不完整，请增大调用处 maxTokens 或为 Ofox 检查 max_completion_tokens。`,
+        );
+    }
+
     console.debug(
-        `[deepseek] raw content len=${content.length}, preview=${content.slice(
+        `[coachlink-llm] provider=${provider} model=${resolvedModel} finish_reason=${finishReason ?? "?"} usage=${usage ? JSON.stringify(usage) : "?"} raw len=${content.length}, preview=${content.slice(
             0,
             2000,
         )}`,
@@ -66,12 +73,7 @@ export async function callDeepSeek(
 }
 
 /**
- * 解析 DeepSeek 返回的 JSON 响应
- * 清理可能包含的 markdown 代码块标记，并增加兜底解析
- */
-/**
- * 调用 DeepSeek API 进行对话生成 (自然语言，非 JSON)
- * 适用于 AI 问答、聊天等场景
+ * 对话生成（自然语言，非 JSON）
  */
 export async function callDeepSeekChat(
     messages: { role: 'system' | 'user' | 'assistant'; content: string }[],
@@ -79,24 +81,25 @@ export async function callDeepSeekChat(
 ): Promise<string> {
     const { maxTokens = 2000, temperature = 0.7 } = options;
 
-    const completion = await getOpenAIClient().chat.completions.create({
+    const { client, model } = getCoachlinkLlm();
+
+    const completion = await client.chat.completions.create({
         messages,
-        model: "deepseek-chat",
+        model,
         max_tokens: maxTokens,
         temperature,
     });
 
     const content = completion.choices[0]?.message?.content;
     if (!content) {
-        throw new Error("DeepSeek API 返回空内容");
+        throw new Error("LLM 返回空内容");
     }
 
-    console.debug(`[deepseek-chat] response len=${content.length}`);
+    console.debug(`[coachlink-llm] chat response len=${content.length}`);
     return content;
 }
 
 export function parseJsonResponse<T>(text: string, debugLabel = "deepseek"): T {
-    // 清理 markdown 代码块标记
     const cleaned = text
         .replace(/```json\n?/g, "")
         .replace(/```\n?/g, "")
@@ -112,7 +115,6 @@ export function parseJsonResponse<T>(text: string, debugLabel = "deepseek"): T {
             cleaned.slice(0, 2000),
         );
 
-        // 兜底：截取首尾大括号尝试解析，防止尾部被截断的 markdown
         const first = cleaned.indexOf("{");
         const last = cleaned.lastIndexOf("}");
         if (first !== -1 && last !== -1 && last > first) {
@@ -132,4 +134,3 @@ export function parseJsonResponse<T>(text: string, debugLabel = "deepseek"): T {
         throw err;
     }
 }
-

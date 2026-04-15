@@ -64,6 +64,8 @@ const CreatePlanPage = () => {
     
     // Smart import dialog
     const [showImportDialog, setShowImportDialog] = useState(false);
+    /** 顶部排期条展开「全部周」时抬高主内容 */
+    const [scheduleBarExpanded, setScheduleBarExpanded] = useState(false);
     const [aiBatchDialogVisible, setAiBatchDialogVisible] = useState(false);
     const [originalDaysBeforeAi, setOriginalDaysBeforeAi] = useState<FormPlanTrainingDay[] | null>(null);
     // Mobile day picker
@@ -301,6 +303,27 @@ const CreatePlanPage = () => {
         setDays(newDays);
     };
 
+    const handleMoveActionSet = (
+        dayIndex: number,
+        setIndex: number,
+        direction: 'up' | 'down'
+    ) => {
+        const newDays = [...days];
+        const actualDayIndex = newDays.findIndex(d => d.dayIndex === dayIndex + 1);
+        if (actualDayIndex === -1) return;
+
+        const actionSets = [...(newDays[actualDayIndex].actionSets || [])];
+        const targetIndex = direction === 'up' ? setIndex - 1 : setIndex + 1;
+        if (targetIndex < 0 || targetIndex >= actionSets.length) return;
+
+        [actionSets[setIndex], actionSets[targetIndex]] = [actionSets[targetIndex], actionSets[setIndex]];
+        newDays[actualDayIndex] = {
+            ...newDays[actualDayIndex],
+            actionSets,
+        };
+        setDays(newDays);
+    };
+
     const handleActionSetChange = (
         dayIndex: number,
         setIndex: number,
@@ -516,7 +539,11 @@ const CreatePlanPage = () => {
     }, [days, actionSearchId]);
 
     return (
-        <div className="mx-auto pt-[calc(0.75rem+env(safe-area-inset-top)+3rem)] sm:pt-[calc(0.75rem+env(safe-area-inset-top)+3.25rem)] md:pt-[calc(0.75rem+env(safe-area-inset-top)+3.5rem)]">
+        <div className={`mx-auto ${
+            scheduleBarExpanded
+                ? 'pt-[calc(0.75rem+env(safe-area-inset-top)+min(65vh,32rem))] sm:pt-[calc(0.75rem+env(safe-area-inset-top)+min(58vh,30rem))] md:pt-[calc(0.75rem+env(safe-area-inset-top)+min(52vh,28rem))]'
+                : 'pt-[calc(0.75rem+env(safe-area-inset-top)+5.75rem)] sm:pt-[calc(0.75rem+env(safe-area-inset-top)+6rem)] md:pt-[calc(0.75rem+env(safe-area-inset-top)+6.25rem)]'
+        }`}>
             {/* 页面头部：标题 + 操作工具栏（与编辑页一致） */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
                 <div>
@@ -624,6 +651,7 @@ const CreatePlanPage = () => {
                         onNoteChange={handleNoteChange}
                         onAddActionSet={handleAddActionSet}
                         onRemoveActionSet={handleRemoveActionSet}
+                        onMoveActionSet={handleMoveActionSet}
                         onActionSetChange={handleActionSetChange}
                         saving={saving}
                         totalDays={days.length}
@@ -697,6 +725,7 @@ const CreatePlanPage = () => {
                 onBack={() => router.back()}
                 onAddWeek={handleAddWeek}
                 saving={saving}
+                onExpandedChange={setScheduleBarExpanded}
             />
 
             {/* 智能导入对话框 */}

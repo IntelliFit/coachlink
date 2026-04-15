@@ -18,10 +18,8 @@ import { InputIcon } from 'primereact/inputicon';
 import { Search, MessageSquareText, Bell } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
-import ChatDialog from '@/components/chat/ChatDialog';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
 import { useNotificationPermission } from '@/context/NotificationPermissionContext';
-import type { ChatroomDetail } from '@/app/api/chat/get-chatroom/entity';
 import type { StudentSubscription } from '@/app/api/coach/list-students/entity';
 
 export default function MessagesPage() {
@@ -29,7 +27,7 @@ export default function MessagesPage() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const { data: session } = useSession();
-    const { supported, permission, pushLoading, error, requestAndSubscribe } = usePushNotifications();
+    const { supported, permission, pushLoading, requestAndSubscribe } = usePushNotifications();
     const { openDialog: openNotificationDialog } = useNotificationPermission();
 
     const [chatrooms, setChatrooms] = useState<ChatroomItem[]>([]);
@@ -37,8 +35,6 @@ export default function MessagesPage() {
     const [loading, setLoading] = useState(true);
     const [searchText, setSearchText] = useState('');
 
-    const [chatDialogVisible, setChatDialogVisible] = useState(false);
-    const [currentChatroom, setCurrentChatroom] = useState<ChatroomDetail | null>(null);
     const autoOpenHandledRef = useRef(false);
 
     const [broadcastVisible, setBroadcastVisible] = useState(false);
@@ -63,7 +59,7 @@ export default function MessagesPage() {
                 setChatrooms(res.chatRooms);
                 setFilteredChatrooms(res.chatRooms);
             }
-        } catch (error: any) {
+        } catch {
             showToast({ severity: 'error', summary: '错误', detail: '加载失败' });
         } finally {
             setLoading(false);
@@ -77,7 +73,6 @@ export default function MessagesPage() {
         return () => window.removeEventListener('chat-new-message', handleNewMessage);
     }, []);
 
-    // Detect coach role (so we can show the broadcast entry)
     useEffect(() => {
         const userId = session?.user?.id;
         if (!userId) return;
@@ -100,23 +95,12 @@ export default function MessagesPage() {
         };
     }, [session?.user?.id]);
 
-    const handleMarkSuccess = (roomId: string) => {
-        const userId = session?.user?.id;
-        if (!userId) return;
-
-        setChatrooms(prev =>
-            prev.map(room =>
-                room.id === roomId
-                    ? {
-                          ...room,
-                          unreadCount: 0,
-                          unreadMembers: room.unreadMembers.filter(id => id !== userId),
-                      }
-                    : room,
-            ),
-        );
-        window.dispatchEvent(new Event('chat-unread-update'));
-    };
+    /** 旧链接 ?roomId= → /messages/[roomId] */
+    useEffect(() => {
+        const roomId = searchParams.get('roomId');
+        if (!roomId) return;
+        router.replace(`/messages/${encodeURIComponent(roomId)}`);
+    }, [searchParams, router]);
 
     const loadAllStudentsForBroadcast = async () => {
         setBroadcastStudentsLoading(true);
@@ -134,7 +118,7 @@ export default function MessagesPage() {
                 page += 1;
             }
             setStudents(all);
-        } catch (e) {
+        } catch {
             showToast({ severity: 'error', summary: '错误', detail: '加载学员列表失败' });
         } finally {
             setBroadcastStudentsLoading(false);
@@ -155,14 +139,12 @@ export default function MessagesPage() {
     const handleBroadcastImageUpload = async (file: File) => {
         if (uploadingBroadcastImage) return;
 
-        // 验证文件类型
         const allowedTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'image/gif'];
         if (!allowedTypes.includes(file.type)) {
             showToast({ severity: 'error', summary: '仅支持 PNG/JPEG/WEBP/GIF 格式的图片' });
             return;
         }
 
-        // 验证文件大小（10MB）
         if (file.size > 10 * 1024 * 1024) {
             showToast({ severity: 'error', summary: '图片大小不能超过 10MB' });
             return;
@@ -190,8 +172,7 @@ export default function MessagesPage() {
             setBroadcastFileName(file.name);
             setBroadcastFileSize(file.size);
             showToast({ severity: 'success', summary: '图片上传成功' });
-        } catch (error) {
-            console.error('上传图片失败:', error);
+        } catch {
             showToast({ severity: 'error', summary: '上传失败，请稍后重试' });
         } finally {
             setUploadingBroadcastImage(false);
@@ -215,7 +196,6 @@ export default function MessagesPage() {
     };
 
     const handleBroadcastSend = async () => {
-        // 修改验证：如果有图片，文字可选；如果没图片，必须有文字
         if (!broadcastImageUrl && !broadcastContent.trim()) {
             showToast({ severity: 'warn', summary: '提示', detail: '请输入通知内容或上传图片' });
             return;
@@ -249,7 +229,7 @@ export default function MessagesPage() {
 
             setBroadcastVisible(false);
             loadConversations();
-        } catch (e) {
+        } catch {
             showToast({ severity: 'error', summary: '失败', detail: '发送失败' });
         } finally {
             setBroadcastLoading(false);
@@ -257,26 +237,16 @@ export default function MessagesPage() {
     };
 
     const openChatroomByRoomItem = (room: ChatroomItem) => {
-        const userId = session?.user?.id;
-        if (!userId || !room.chatUserId) return;
-
-        setCurrentChatroom({
-            id: room.id,
-            members: [room.chatUserId, userId],
-            lastMessage: room.lastMessage,
-            lastMessageAt: room.lastMessageAt,
-            unreadMembers: room.unreadMembers,
-            isArchived: room.isArchived,
-        });
-        setChatDialogVisible(true);
+        if (!room.id) return;
+        router.push(`/messages/${encodeURIComponent(room.id)}`);
     };
 
-
-    // 支持从「在线咨询」深链直达：/messages?peerUserId=xxx 或 /messages?coachId=xxx
+    // 支持从「在线咨询」深链：/messages?peerUserId=xxx 或 /messages?coachId=xxx（与 ?roomId= 互斥，由 roomId 重定向优先）
     useEffect(() => {
         const userId = session?.user?.id;
         if (!userId) return;
         if (autoOpenHandledRef.current) return;
+        if (searchParams.get('roomId')) return;
 
         const peerUserIdFromQuery =
             searchParams.get('peerUserId') ||
@@ -288,10 +258,10 @@ export default function MessagesPage() {
         autoOpenHandledRef.current = true;
 
         const run = async () => {
+            let openedId: string | null = null;
             try {
                 let peerUserId = peerUserIdFromQuery;
 
-                // 若只传 coachId（coaches.id），则映射到 coaches.user_id（users.id）
                 if (!peerUserId && coachId) {
                     const info = await coachService.getAggregatedInfo({ coachId });
                     peerUserId = info?.coach?.user_id || null;
@@ -302,7 +272,6 @@ export default function MessagesPage() {
                     return;
                 }
 
-                // 直接 getChatroom：不存在会自动创建
                 const res = await chatService.getChatroom({ members: [userId, peerUserId] });
                 const chatroom = res?.chatroom || null;
                 if (!chatroom) {
@@ -310,17 +279,16 @@ export default function MessagesPage() {
                     return;
                 }
 
-                setCurrentChatroom(chatroom);
-                setChatDialogVisible(true);
-
-                // 刷新列表，确保新建会话出现在消息中心
+                openedId = chatroom.id;
                 loadConversations();
-            } catch (e) {
+            } catch {
                 showToast({ severity: 'error', summary: '错误', detail: '打开会话失败' });
             } finally {
-                // 可选：清理 URL 参数，避免用户关闭弹窗后再次自动弹出
-                // 保持可分享链接的能力：这里用 replace 清掉参数，但不改变历史栈
-                router.replace('/messages');
+                if (openedId) {
+                    router.replace(`/messages/${encodeURIComponent(openedId)}`);
+                } else {
+                    router.replace('/messages');
+                }
             }
         };
 
@@ -328,9 +296,10 @@ export default function MessagesPage() {
     }, [session?.user?.id, searchParams, showToast, router]);
 
     useEffect(() => {
-        const filtered = chatrooms.filter(room =>
-            room.chatUserProfile.name.toLowerCase().includes(searchText.toLowerCase()) ||
-            room.lastMessage?.toLowerCase().includes(searchText.toLowerCase())
+        const filtered = chatrooms.filter(
+            (room) =>
+                room.chatUserProfile.name.toLowerCase().includes(searchText.toLowerCase()) ||
+                room.lastMessage?.toLowerCase().includes(searchText.toLowerCase()),
         );
         setFilteredChatrooms(filtered);
     }, [searchText, chatrooms]);
@@ -338,7 +307,6 @@ export default function MessagesPage() {
     return (
         <div className="min-h-[calc(100-72px)] py-10 px-4">
             <div className="container mx-auto max-w-2xl">
-                {/* 页面标题区 */}
                 <div className="flex items-center gap-3 mb-8">
                     <div className="p-3 bg-primary-50 text-primary-600 rounded-2xl">
                         <MessageSquareText size={24} strokeWidth={2.5} />
@@ -359,7 +327,6 @@ export default function MessagesPage() {
                     )}
                 </div>
 
-                {/* 开启系统通知：仅支持且未授权时展示，点击打开统一对话框 */}
                 {session?.user && supported && permission !== 'granted' && (
                     <div className="mb-6 flex items-center justify-between gap-3 rounded-2xl bg-primary-50 dark:bg-primary-900/20 px-4 py-3">
                         <div className="flex items-center gap-2 text-surface-700 dark:text-surface-200">
@@ -374,10 +341,10 @@ export default function MessagesPage() {
                             disabled={pushLoading}
                             onClick={() => {
                                 if (permission === 'denied') {
-                                    showToast({ 
-                                        severity: 'info', 
-                                        summary: '提示', 
-                                        detail: '请在系统设置中允许 CoachLink 的通知权限' 
+                                    showToast({
+                                        severity: 'info',
+                                        summary: '提示',
+                                        detail: '请在系统设置中允许 CoachLink 的通知权限',
                                     });
                                 } else {
                                     openNotificationDialog();
@@ -387,7 +354,6 @@ export default function MessagesPage() {
                     </div>
                 )}
 
-                {/* 搜索栏 - 磨砂风格 */}
                 <div className="mb-6">
                     <IconField iconPosition="left" className="w-full group">
                         <InputIcon className="z-10 text-surface-400 group-focus-within:text-primary-500 transition-colors">
@@ -402,7 +368,6 @@ export default function MessagesPage() {
                     </IconField>
                 </div>
 
-                {/* 会话列表卡片 */}
                 <Card className="border-none shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-lg overflow-hidden pt-2">
                     <ConversationList
                         chatrooms={filteredChatrooms}
@@ -411,13 +376,6 @@ export default function MessagesPage() {
                     />
                 </Card>
             </div>
-
-            <ChatDialog
-                visible={chatDialogVisible}
-                chatroom={currentChatroom}
-                onHide={() => setChatDialogVisible(false)}
-                onMarkSuccess={handleMarkSuccess}
-            />
 
             <Dialog
                 header="群发通知"
@@ -461,10 +419,9 @@ export default function MessagesPage() {
                         </div>
                     )}
 
-                    {/* 图片上传区域 */}
                     <div className="space-y-2">
                         <div className="text-sm font-semibold text-surface-700">图片（可选）</div>
-                        
+
                         <input
                             ref={broadcastFileInputRef}
                             type="file"
@@ -473,11 +430,11 @@ export default function MessagesPage() {
                             onChange={handleBroadcastFileSelect}
                             disabled={uploadingBroadcastImage || broadcastLoading}
                         />
-                        
+
                         {!broadcastImageUrl ? (
                             <Button
-                                label={uploadingBroadcastImage ? "上传中..." : "选择图片"}
-                                icon={uploadingBroadcastImage ? "pi pi-spin pi-spinner" : "pi pi-image"}
+                                label={uploadingBroadcastImage ? '上传中...' : '选择图片'}
+                                icon={uploadingBroadcastImage ? 'pi pi-spin pi-spinner' : 'pi pi-image'}
                                 className="p-button-outlined rounded-2xl"
                                 onClick={() => broadcastFileInputRef.current?.click()}
                                 disabled={uploadingBroadcastImage || broadcastLoading}
@@ -496,17 +453,15 @@ export default function MessagesPage() {
                                         disabled={broadcastLoading}
                                     />
                                 </div>
-                                <img 
-                                    src={broadcastImageUrl} 
-                                    alt="预览" 
+                                <img
+                                    src={broadcastImageUrl}
+                                    alt="预览"
                                     className="w-full max-h-48 object-contain rounded-lg bg-surface-50"
                                 />
                             </div>
                         )}
-                        
-                        <div className="text-xs text-surface-500">
-                            支持 PNG、JPEG、WEBP、GIF 格式，最大 10MB
-                        </div>
+
+                        <div className="text-xs text-surface-500">支持 PNG、JPEG、WEBP、GIF 格式，最大 10MB</div>
                     </div>
 
                     <div className="space-y-2">
@@ -520,8 +475,8 @@ export default function MessagesPage() {
                             placeholder="请输入要发送的通知内容..."
                         />
                         <div className="text-xs text-surface-500">
-                            {broadcastImageUrl 
-                                ? '可以为图片添加文字说明（可选）' 
+                            {broadcastImageUrl
+                                ? '可以为图片添加文字说明（可选）'
                                 : '将以聊天消息形式发送到每位学员与您的私聊窗口中（不会互相看到收件人）。'}
                         </div>
                     </div>
