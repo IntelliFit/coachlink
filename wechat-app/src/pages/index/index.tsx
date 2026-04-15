@@ -127,28 +127,42 @@ function Index() {
           <Text className='section-title'>快速入口</Text>
           <View className='quick-actions-grid'>
             <View className='quick-action-item' onClick={() => handleNav('/pages/today-training/index')}>
-              <View className='quick-action-icon'>
+              <View className='quick-action-icon peach'>
                 <Power width={24} height={24} color='#010101' />
               </View>
               <Text className='quick-action-label'>今日训练</Text>
             </View>
             <View className='quick-action-item' onClick={() => handleNav('/pages/discovery/index')}>
-              <View className='quick-action-icon'>
+              <View className='quick-action-icon blue'>
                 <Search width={24} height={24} color='#010101' />
               </View>
               <Text className='quick-action-label'>发现教练</Text>
             </View>
             <View className='quick-action-item' onClick={() => handleNav('/pages/ranking/index')}>
-              <View className='quick-action-icon'>
+              <View className='quick-action-icon yellow'>
                 <Star width={24} height={24} color='#010101' />
               </View>
               <Text className='quick-action-label'>排行榜</Text>
             </View>
             <View className='quick-action-item' onClick={() => handleNav('/pages/me/profile/index')}>
-              <View className='quick-action-icon'>
+              <View className='quick-action-icon mint'>
                 <User width={24} height={24} color='#010101' />
               </View>
               <Text className='quick-action-label'>个人中心</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Promo / Insight Card */}
+        <View className='home-promo-card'>
+          <Text className='promo-card-title'>运动后拉伸</Text>
+          <Text className='promo-card-subtitle'>有助于提升睡眠质量</Text>
+          <View className='promo-card-actions'>
+            <View className='promo-btn promo-btn-outline' onClick={() => handleNavTo('/auth/onboarding')}>
+              <Text className='promo-btn-text'>了解更多</Text>
+            </View>
+            <View className='promo-btn promo-btn-solid' onClick={() => handleNavTo('/auth/onboarding')}>
+              <Text className='promo-btn-text'>立即开始</Text>
             </View>
           </View>
         </View>
@@ -158,7 +172,7 @@ function Index() {
           <Text className='section-title'>平台亮点</Text>
           <View className='features-list'>
             <View className='feature-item' onClick={() => handleNavTo('/auth/onboarding')}>
-              <View className='feature-icon-wrap'>
+              <View className='feature-icon-wrap peach'>
                 <ShieldCheck width={24} height={24} color='#CF6D4E' />
               </View>
               <View className='feature-info'>
@@ -168,8 +182,8 @@ function Index() {
               <Text className='feature-arrow'>›</Text>
             </View>
             <View className='feature-item' onClick={() => handleNavTo('/auth/onboarding')}>
-              <View className='feature-icon-wrap'>
-                <Target width={24} height={24} color='#CF6D4E' />
+              <View className='feature-icon-wrap blue'>
+                <Target width={24} height={24} color='#3B82F6' />
               </View>
               <View className='feature-info'>
                 <Text className='feature-title'>智能负荷</Text>
@@ -178,8 +192,8 @@ function Index() {
               <Text className='feature-arrow'>›</Text>
             </View>
             <View className='feature-item' onClick={() => handleNavTo('/auth/onboarding')}>
-              <View className='feature-icon-wrap'>
-                <ArrowUp width={24} height={24} color='#CF6D4E' />
+              <View className='feature-icon-wrap mint'>
+                <ArrowUp width={24} height={24} color='#10B981' />
               </View>
               <View className='feature-info'>
                 <Text className='feature-title'>成长档案</Text>
