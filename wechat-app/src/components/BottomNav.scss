@@ -1,7 +1,7 @@
 /* ==================== 新版悬浮胶囊底部导航 ==================== */
 .bottom-nav {
   position: fixed;
-  bottom: 32rpx;
+  bottom: 48rpx;
   left: 50%;
   transform: translateX(-50%);
   z-index: 1000;
@@ -10,13 +10,13 @@
   justify-content: space-between;
   background: rgba(31, 31, 31, 0.92);
   border-radius: 9999rpx;
-  padding: 18rpx 24rpx;
-  box-shadow: 0 12rpx 40rpx rgba(0, 0, 0, 0.28);
-  backdrop-filter: blur(16rpx);
+  padding: 24rpx 36rpx;
+  box-shadow: 0 16rpx 48rpx rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(20rpx);
   width: auto;
-  min-width: 640rpx;
-  max-width: 92vw;
-  border: 1rpx solid rgba(255, 255, 255, 0.08);
+  min-width: 720rpx;
+  max-width: 94vw;
+  border: 1rpx solid rgba(255, 255, 255, 0.1);
 
   .nav-item {
     flex: 1;
@@ -24,43 +24,58 @@
     flex-direction: row;
     align-items: center;
     justify-content: center;
-    gap: 8rpx;
-    padding: 16rpx 20rpx;
-    transition: all 0.2s ease;
+    gap: 0;
+    padding: 22rpx 30rpx;
     border-radius: 9999rpx;
     min-width: 0;
+    transition: padding 0.35s cubic-bezier(0.34, 1.56, 0.64, 1),
+                background 0.35s ease,
+                gap 0.35s ease,
+                transform 0.15s ease;
 
     &:active {
-      transform: scale(0.95);
+      transform: scale(0.92);
     }
   }
 
   .nav-icon-img {
-    width: 26px;
-    height: 26px;
-    opacity: 0.7;
-    transition: opacity 0.2s;
+    width: 28px;
+    height: 28px;
+    opacity: 0.65;
+    flex-shrink: 0;
+    transition: opacity 0.35s ease, transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+    transform: scale(0.9);
   }
 
   .nav-label {
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 600;
     color: #CF6D4E;
-    display: none;
     white-space: nowrap;
     flex-shrink: 0;
+    max-width: 0;
+    opacity: 0;
+    overflow: hidden;
+    transform: translateX(-8px);
+    transition: max-width 0.35s cubic-bezier(0.34, 1.56, 0.64, 1),
+                opacity 0.3s ease,
+                transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
   }
 
   .nav-active {
     background: rgba(255, 255, 255, 0.98);
-    padding: 16rpx 36rpx;
+    padding: 22rpx 52rpx;
+    gap: 10rpx;
 
     .nav-icon-img {
       opacity: 1;
+      transform: scale(1);
     }
 
     .nav-label {
-      display: block;
+      max-width: 120px;
+      opacity: 1;
+      transform: translateX(0);
     }
   }
 }
