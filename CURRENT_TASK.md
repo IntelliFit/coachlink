@@ -1,5 +1,85 @@
 # CURRENT_TASK
 
+- Task: 修复计划脚本模式把括号动作变体误匹配为基础动作的问题
+- Scope:
+  - 用户在脚本模式输入 `负重引体（底部暂停）` 时，系统会直接识别成基础 `负重引体`
+  - 这会丢失“底部暂停 / 顶端暂停 / 反手”等动作变体语义，属于计划脚本编译层的严重错误
+  - 脚本模式应比智能导入更严格：动作名包含括号变体时，必须优先按完整动作名匹配，不能自动降级为基础动作
+- Status: implemented on `2026-04-16`
+- Root cause:
+  - `src/lib/planScript.ts` 之前复用了 `findBestExistingActionMatch()`
+  - 该函数来自智能导入链路，会通过 `sanitizeActionName()` 去掉括号内容，用于“复用友好”的宽匹配
+  - 在计划脚本这种可编译 DSL 场景下，这种宽匹配会把 `负重引体（底部暂停）` 和 `负重引体` 视为同类，从而错误命中基础动作
+- Fix:
+  - `src/lib/planScript.ts`
+    - 新增脚本专用动作解析逻辑
+    - 先按完整动作名做精确匹配，保留括号内容，并兼容中英文括号
+    - 只有动作名不包含括号变体时，才允许回退到 `findBestExistingActionMatch()` 宽匹配
+    - 若脚本动作名包含括号变体但动作库无精确项，则明确报错，不再静默降级
+  - `src/lib/planScript.test.ts`
+    - 新增回归测试：`负重引体（底部暂停）` 必须匹配到底部暂停变体，而 `负重引体` 匹配基础动作
+    - 新增回归测试：缺失的括号变体不会降级为基础动作
+  - `src/utils/template.ts`
+    - 放宽 `makeWeekDays()` 参数类型到只依赖 `type` 字段，消除脚本解析结果传入时的类型噪音
+- Verification:
+  - `npx vitest run src/lib/planScript.test.ts`：通过（4 tests）
+  - `npm run lint`：通过（脚本仅提示项目未配置 eslint）
+  - `npm run typecheck 2>&1 | Select-String -Pattern 'planScript|PlanScriptDialog|dashboard/students/plan|dashboard/plan-lib/edit|utils/template'`：无相关错误输出；完整 typecheck 仍会因仓库历史类型错误返回失败
+  - `npx next build`：通过
+  - `npm test`：通过（17 files, 77 tests）
+  - 浏览器验证：未完成；当前会话没有可调用的 `web-devtools` / `browser` 工具
+
+- Task: 将“计划脚本模式”从教练计划库模板编辑页扩展到具体学员计划编辑页
+- Scope:
+  - 用户希望 `/dashboard/students/plan/[subscriptionId]` 这种具体学员计划编辑页面也能使用紧凑脚本模式
+  - 目标是让教练不只在计划模板库中编辑脚本，也能直接对某个学员当前计划草稿进行脚本化修改
+  - 页面地址示例：`/dashboard/students/plan/06f07de8-e013-4106-a5ef-0637147a7e0b`
+- Status: implemented on `2026-04-16`
+- Fix:
+  - `src/app/dashboard/students/plan/[id]/page.tsx`
+    - 复用 `PlanScriptDialog`
+    - 复用 `formatTemplateToPlanScript()` / `parsePlanScript()`
+    - 在学生计划页的 `BasicInfoForm.extraButton` 区域新增“脚本模式”按钮
+    - 打开时把当前学员计划草稿转成紧凑脚本
+    - 应用时解析脚本并更新 `days`、`description`、`selectedDayIndex`
+    - 对已有计划同步标记为待保存，保持原有自动保存/手动保存链路
+- Verification:
+  - `npm run lint`：通过（脚本仅提示项目未配置 eslint）
+  - `npm run typecheck`：失败，仍是仓库历史类型错误；定向过滤未发现错误指向 `dashboard/students/plan`、`planScript` 或 `PlanScriptDialog`
+  - `npx next build`：通过
+  - `npm test`：通过（17 files, 75 tests）
+  - 浏览器验证：未完成；当前会话没有可调用的 `web-devtools` / `browser` 工具，且该页面需要教练登录态
+
+- Task: 补齐教练端“当前计划已完成后创建下一阶段计划”的可见入口
+- Scope:
+  - 用户在 `/dashboard/students` 看到学员计划进度 `32/32`、`100%`，但列表仍显示“进行中”，也看不到“创建新计划 / 结束当前计划 / 自动结束”的明显操作
+  - 该场景对应“学员买 3 个月，前 2 个月计划已执行完，教练要继续创建下一阶段计划；新计划从第 1 天开始，学员端只放行剩余额度”
+- Status: implemented on `2026-04-16`
+- Root cause:
+  - 学员列表只按 `coach_plan_instances.status` 展示，未把“active 但所有训练日已完成”的逻辑完成态派生成 `completed`
+  - 学员计划详情页虽已有“从模板创建”能力，但未把“创建下一阶段计划”和“归档当前计划”显性暴露，导致教练不知道下一步入口
+  - AI/手动创建接口把默认 `startWeek=1/startDay=1` 也当成显式起点，可能绕过剩余额度结转检查
+- Fix:
+  - `src/app/api/coach/list-students/route.ts`
+    - 列表接口按当前计划训练日和已完成执行记录派生 `is_logically_completed`
+    - active 但训练日全部完成时，对前端返回 `status='completed'`
+  - `src/app/dashboard/students/page.tsx`
+    - 列表和移动端卡片统一按逻辑完成态展示“已完成”
+    - 移动端主按钮在完成后改为“创建下一阶段”
+    - 桌面端完成计划的快捷 AI 按钮提示改为“AI 生成下一阶段”
+  - `src/app/dashboard/students/plan/[id]/page.tsx`
+    - 完成计划后显示绿色提示区，提供“创建下一阶段计划”和“只归档当前计划”
+    - 选择模板创建下一阶段时直接进入新阶段模式，旧计划由创建接口自动归档
+  - `src/app/api/plan-lib/create-instance/route.ts`
+  - `src/app/api/plan-lib/create-ai-instance/service.ts`
+    - 默认 `第1周第1天` 不再视为手动迁移起点，仍会走剩余额度检查；只有大于第1天的起点才视为显式迁移
+- Verification:
+  - `npm run lint`：通过（脚本提示项目未配置 eslint）
+  - `npm test`：通过（17 files, 75 tests）
+  - `npx next build`：通过
+  - `npm run typecheck`：第一次因 `.next/types` 缺失失败；构建后重跑超时，无进一步输出
+  - 浏览器验证：未完成；当前会话没有可调用的 `web-devtools`/`browser` 工具，且该页面需要教练登录态
+
 - Task: 为教练端计划库增加“导出计划文本”能力，形成“导出文本 -> AI/人工编辑 -> 再导入”闭环的基础层
 - Scope:
   - 用户希望在教练端计划库中把现有模板导出成文本形式

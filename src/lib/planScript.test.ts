@@ -4,6 +4,7 @@ import { formatTemplateToPlanScript, parsePlanScript } from "@/lib/planScript";
 
 describe("planScript", () => {
     const actions = [
+        { id: "pullup-base", name: "负重引体", type: "STRENGTH" },
         { id: "pullup", name: "负重引体（底部暂停）", type: "STRENGTH" },
         { id: "press", name: "实力推", type: "STRENGTH" },
         { id: "curl", name: "锤式弯举", type: "STRENGTH" },
@@ -89,5 +90,39 @@ D2 off #休息日 & 休息日
             type: "rest",
             note: "休息日 & 休息日",
         });
+    });
+
+    it("prefers exact variant names over fuzzy base action matches", () => {
+        const result = parsePlanScript({
+            script: `
+W1
+D1
+负重引体（底部暂停） 5x7 @9rm r270
+负重引体 3x5 @7rm r180
+            `,
+            actions,
+        });
+
+        expect(result.days[0].actionSets?.[0]).toMatchObject({
+            actionId: "pullup",
+            setName: "负重引体（底部暂停）",
+        });
+        expect(result.days[0].actionSets?.[1]).toMatchObject({
+            actionId: "pullup-base",
+            setName: "负重引体",
+        });
+    });
+
+    it("does not downgrade missing variant names to base actions", () => {
+        expect(() =>
+            parsePlanScript({
+                script: `
+W1
+D1
+负重引体（顶端暂停） 3x3 @4rm r270
+                `,
+                actions,
+            }),
+        ).toThrow(/未找到精确动作：负重引体（顶端暂停）/);
     });
 });

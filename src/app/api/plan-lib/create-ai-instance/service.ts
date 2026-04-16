@@ -106,9 +106,13 @@ export async function createAiInstanceForSubscription(params: CreateAiInstancePa
 
     const trainingDays = (selectTemplate.training_days as any[]) || [];
 
+    const normalizedStartWeek = Number(startWeek ?? 1);
+    const normalizedStartDay = Number(startDay ?? 1);
     const hasExplicitStartPosition =
-        startWeek !== undefined || startDay !== undefined;
-    let startExecutionDay = ((Number(startWeek ?? 1) - 1) * 7) + Number(startDay ?? 1);
+        (startWeek !== undefined || startDay !== undefined) &&
+        ((Number.isFinite(normalizedStartWeek) && normalizedStartWeek > 1) ||
+            (Number.isFinite(normalizedStartDay) && normalizedStartDay > 1));
+    let startExecutionDay = ((normalizedStartWeek - 1) * 7) + normalizedStartDay;
 
     if (!hasExplicitStartPosition) {
         const carryover = await getSubscriptionCarryoverSummary({

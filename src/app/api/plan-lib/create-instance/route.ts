@@ -65,10 +65,12 @@ export async function POST(req: Request) {
     }
 
     // Calculate start_execution_day if provided (migration mid-cycle)
-    const hasExplicitStartPosition =
-        startWeek !== undefined || startDay !== undefined;
     const normalizedStartWeek = Number(startWeek ?? 1);
     const normalizedStartDay = Number(startDay ?? 1);
+    const hasExplicitStartPosition =
+        (startWeek !== undefined || startDay !== undefined) &&
+        ((Number.isFinite(normalizedStartWeek) && normalizedStartWeek > 1) ||
+            (Number.isFinite(normalizedStartDay) && normalizedStartDay > 1));
     const hasStartPosition = Number.isFinite(normalizedStartWeek) &&
         Number.isFinite(normalizedStartDay) &&
         normalizedStartWeek >= 1 &&

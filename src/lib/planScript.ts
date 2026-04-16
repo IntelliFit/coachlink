@@ -63,6 +63,47 @@ function parseIntensityToken(token: string): Record<string, any> {
     throw new Error(`无法解析强度标记：${token}`);
 }
 
+function normalizeScriptActionNameForExactMatch(name: string): string {
+    return (name ?? "")
+        .trim()
+        .toLowerCase()
+        .replace(/（/g, "(")
+        .replace(/）/g, ")")
+        .replace(/\s+/g, "");
+}
+
+function hasVariantMarker(name: string): boolean {
+    return /[（(][^）)]*[）)]/.test(name ?? "");
+}
+
+function resolveScriptAction(
+    actionName: string,
+    actions: Array<Pick<CoachActionRow, "id" | "name" | "type">>,
+): { id: string; name: string; score: number } {
+    const exactName = normalizeScriptActionNameForExactMatch(actionName);
+    const exactMatches = actions.filter(
+        (action) => normalizeScriptActionNameForExactMatch(action.name) === exactName,
+    );
+
+    if (exactMatches.length === 1) {
+        return { id: exactMatches[0].id, name: exactMatches[0].name, score: 1 };
+    }
+
+    if (exactMatches.length > 1) {
+        throw new Error(`动作名称存在多个完全匹配项，请先合并或重命名：${actionName}`);
+    }
+
+    if (hasVariantMarker(actionName)) {
+        throw new Error(`未找到精确动作：${actionName}。脚本动作名包含括号变体，为避免误匹配，不会自动降级为基础动作。`);
+    }
+
+    const match = findBestExistingActionMatch(actionName, actions);
+    if (!match) {
+        throw new Error(`未找到动作：${actionName}`);
+    }
+    return match;
+}
+
 function parseActionLine(
     line: string,
     actions: Array<Pick<CoachActionRow, "id" | "name" | "type">>,
@@ -119,10 +160,7 @@ function parseActionLine(
         throw new Error(`动作行缺少动作名称：${line}`);
     }
 
-    const match = findBestExistingActionMatch(actionName, actions);
-    if (!match) {
-        throw new Error(`未找到动作：${actionName}`);
-    }
+    const match = resolveScriptAction(actionName, actions);
 
     if (sets !== null) params["组数"] = sets;
     if (reps !== null) params["次数"] = reps;
