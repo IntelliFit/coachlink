@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { View, Text, ScrollView } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { request } from '@/utils/request'
+import { Book, Calendar, Calculator, List, Location } from '@nutui/icons-react-taro'
 import './index.scss'
 
 export default function StreetliftingIndex() {
@@ -55,27 +56,27 @@ export default function StreetliftingIndex() {
 
         <View className="nav-grid">
           <View className="nav-item primary" onClick={() => nav('/streetlifting/index/calculator')}>
-            <Text className="nav-icon">🧮</Text>
+            <Text className="nav-icon"><Calculator size={20} /></Text>
             <Text className="nav-text">计算我的力量分</Text>
           </View>
           <View className="nav-item" onClick={() => nav('/streetlifting/index/data')}>
-            <Text className="nav-icon">📊</Text>
+            <Text className="nav-icon"><List size={20} /></Text>
             <Text className="nav-text">数据总览</Text>
           </View>
           <View className="nav-item" onClick={() => nav('/streetlifting/index/locations')}>
-            <Text className="nav-icon">📍</Text>
+            <Text className="nav-icon"><Location size={20} /></Text>
             <Text className="nav-text">场地/地点</Text>
           </View>
           <View className="nav-item" onClick={() => nav('/streetlifting/index/methodology')}>
-            <Text className="nav-icon">📐</Text>
+            <Text className="nav-icon"><Book size={20} /></Text>
             <Text className="nav-text">计算方法论</Text>
           </View>
           <View className="nav-item" onClick={() => nav('/streetlifting/index/stories')}>
-            <Text className="nav-icon">📖</Text>
+            <Text className="nav-icon"><Calendar size={20} /></Text>
             <Text className="nav-text">故事</Text>
           </View>
           <View className="nav-item" onClick={() => nav('/streetlifting/index/submit')}>
-            <Text className="nav-icon">✏️</Text>
+            <Text className="nav-icon"><Edit size={20} /></Text>
             <Text className="nav-text">提交数据</Text>
           </View>
         </View>

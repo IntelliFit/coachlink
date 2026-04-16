@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { View, Text, Video } from '@tarojs/components'
+import { Notice } from '@nutui/icons-react-taro'
 import Taro, { useRouter, useDidHide } from '@tarojs/taro'
 import './index.scss'
 
@@ -53,7 +54,7 @@ export default function VideoPlayer() {
           />
         ) : (
           <View className='video-fallback'>
-            <Text className='fallback-icon'>⚠️</Text>
+            <View className='fallback-icon'><Notice size={48} color="#CF6D4E" /></View>
             <Text className='fallback-title'>视频无法在小程序内播放</Text>
             <Text className='fallback-desc'>
               可能与视频域名限制有关。请复制链接到浏览器中打开观看。

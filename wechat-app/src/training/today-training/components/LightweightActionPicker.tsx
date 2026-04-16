@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react'
 import { View, Text, Input, ScrollView } from '@tarojs/components'
+import { ArrowUp, Check, Heart, More } from '@nutui/icons-react-taro'
 import './LightweightActionPicker.scss'
 
 interface LightweightActionPickerProps {
@@ -23,10 +24,10 @@ function LightweightActionPicker({ visible, loading = false, actions, onClose, o
 
   const resolveIcon = (type?: string) => {
     const normalizedType = String(type || '').toUpperCase()
-    if (normalizedType === 'DIET') return '🥗'
-    if (normalizedType === 'CARDIO') return '🏃'
-    if (normalizedType === 'HABIT') return '✅'
-    return '🧩'
+    if (normalizedType === 'DIET') return <Heart size={16} />
+    if (normalizedType === 'CARDIO') return <ArrowUp size={16} />
+    if (normalizedType === 'HABIT') return <Check size={16} />
+    return <More size={16} />
   }
 
   return (
@@ -44,7 +45,7 @@ function LightweightActionPicker({ visible, loading = false, actions, onClose, o
           {!loading && filtered.map((item) => (
             <View key={item.id} className='picker-item' onClick={() => onSelect(item)}>
               <View className={`picker-icon ${String(item.type || '').toLowerCase()}`}>
-                <Text>{resolveIcon(item.type)}</Text>
+                {resolveIcon(item.type)}
               </View>
               <View className='picker-main'>
                 <Text className='picker-name'>{item.name || '未命名'}</Text>

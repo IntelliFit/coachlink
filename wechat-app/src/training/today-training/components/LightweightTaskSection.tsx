@@ -1,6 +1,7 @@
 import React from 'react'
 import { View, Text } from '@tarojs/components'
 import { LightweightTask } from './lightweightTypes'
+import { ArrowUp, Check, Heart, More } from '@nutui/icons-react-taro'
 import './LightweightTaskSection.scss'
 
 interface LightweightTaskSectionProps {
@@ -11,9 +12,9 @@ interface LightweightTaskSectionProps {
 }
 
 const TYPE_ICON: Record<string, string> = {
-  DIET: '🥗',
-  CARDIO: '🏃',
-  HABIT: '✅'
+  DIET: 'Heart',
+  CARDIO: 'ArrowUp',
+  HABIT: 'Check'
 }
 
 function LightweightTaskSection({ tasks, onOpenTask, onAddTask, onDeleteTask }: LightweightTaskSectionProps) {
@@ -46,7 +47,7 @@ function LightweightTaskSection({ tasks, onOpenTask, onAddTask, onDeleteTask }: 
           {tasks.map((task) => (
             <View key={task.key} className={`task-card ${task.isCompleted ? 'done' : ''}`}>
               <View className='task-main' onClick={() => onOpenTask(task)}>
-                <Text className='task-icon'>{TYPE_ICON[task.itemType] || '🧩'}</Text>
+                {(() => { const Icon = require("@nutui/icons-react-taro")[TYPE_ICON[task.itemType] || 'More']; return <Icon size={18} />; })()}
                 <View className='task-content'>
                   <Text className='task-title'>{task.title}</Text>
                   <Text className='task-summary'>{task.summary}</Text>

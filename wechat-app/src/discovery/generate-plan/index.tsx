@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { View, Text, ScrollView } from '@tarojs/components'
 import Taro from '@tarojs/taro'
+import { Target, Check } from '@nutui/icons-react-taro'
 import { authService } from '@/services/authService'
 import AssessmentForm from './AssessmentForm'
 import './index.scss'
@@ -108,7 +109,7 @@ export default function GeneratePlan() {
       <ScrollView scrollY className="page-scroll">
         <View className="domain-header">
           <View className="header-icon-wrap">
-            <Text className="header-icon">🎯</Text>
+            <View className="header-icon"><Target size={28} /></View>
           </View>
           <Text className="header-title">选择您的训练域</Text>
           <Text className="header-desc">根据您想要重点发展的动作选择相应的训练域</Text>
@@ -133,7 +134,7 @@ export default function GeneratePlan() {
                 <Text className="domain-desc">{d.description}</Text>
                 <View className="domain-features">
                   {d.features.slice(0, 3).map((f, i) => (
-                    <Text key={i} className="feature-item">✓ {f}</Text>
+                    <View key={i} className="feature-item"><Check size={12} /><Text style={{ marginLeft: 4 }}>{f}</Text></View>
                   ))}
                 </View>
               </View>

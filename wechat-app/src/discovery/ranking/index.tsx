@@ -3,6 +3,7 @@ import { View, Text } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { Icon } from '@/components/Icon'
 import { Trophy, Target, Zap, Dumbbell, Users, ChevronRight } from 'lucide-react'
+import { Star } from '@nutui/icons-react-taro'
 import BottomNav from '@/components/BottomNav'
 import { rankingService } from '@/services/rankingService'
 import type { ListLeaderboardItem } from '@/types/leaderboard'
@@ -104,7 +105,7 @@ function RankingIndex() {
         renderSkeleton()
       ) : leaderboards.length === 0 ? (
         <View className="empty-state">
-          <Text className="empty-icon">🏆</Text>
+          <View className="empty-icon"><Star size={40} /></View>
           <Text className="empty-text">暂无排行榜</Text>
         </View>
       ) : (
@@ -119,7 +120,7 @@ function RankingIndex() {
               >
                 <View className="card-top">
                   <View className="card-icon-wrap">
-                    <Icon component={IconComp} size={24} color="#F49227" />
+                    <Icon component={IconComp} size={24} color="#CF6D4E" />
                   </View>
                   <View className="card-stats">
                     <Icon component={Users} size={14} color="currentColor" />

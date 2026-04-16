@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { View, Text, ScrollView, Input, Image } from '@tarojs/components'
+import { User, Message } from '@nutui/icons-react-taro'
 import Taro from '@tarojs/taro'
 import PlanCompactWeekCalendar from '@/components/PlanCompactWeekCalendar'
 import PlanReferenceOneRMPanel from '@/components/PlanReferenceOneRMPanel'
@@ -2279,7 +2280,7 @@ function CoachStudentPlan() {
           <View className={`info-card ${showProfilePanel ? 'expanded' : ''}`}>
             <View className='card-header' onClick={() => setShowProfilePanel(!showProfilePanel)}>
               <View className='card-title-wrapper'>
-                <Text className='card-icon'>👤</Text>
+                <View className='card-icon'><User size={18} color="#CF6D4E" /></View>
                 <Text className='card-title'>学员信息</Text>
               </View>
               <Text className={`arrow ${showProfilePanel ? 'up' : ''}`}>▼</Text>
@@ -2367,7 +2368,7 @@ function CoachStudentPlan() {
         {/* 学员反馈面板入口 */}
         <View className='feedback-entry-card' onClick={() => setShowFeedbackPanel(!showFeedbackPanel)}>
           <View className='entry-row'>
-            <Text className='entry-icon'>💬</Text>
+            <View className='entry-icon'><Message size={18} color="#CF6D4E" /></View>
             <Text className='entry-title'>学员反馈</Text>
             {feedbackUnreadCount > 0 && (
               <View className='unread-badge'><Text className='unread-count'>{feedbackUnreadCount}</Text></View>

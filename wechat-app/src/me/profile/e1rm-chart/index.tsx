@@ -120,7 +120,7 @@ export default function E1RMChartPage() {
                   </View>
                   {pr.videoUrl && (
                     <View className='video-btn' onClick={() => Taro.previewMedia({ sources: [{ url: pr.videoUrl!, type: 'video' }] })}>
-                      <Text>▶ 观看视频</Text>
+                      <Text> 观看视频</Text>
                     </View>
                   )}
                 </View>

@@ -1,5 +1,6 @@
 import React from 'react'
 import { View, Text } from '@tarojs/components'
+import { Message } from '@nutui/icons-react-taro'
 import './ReviewsSection.scss'
 
 interface ReviewsSectionProps {
@@ -11,7 +12,7 @@ export default function ReviewsSection({ reviewCount }: ReviewsSectionProps) {
     <View className='reviews-card'>
       <Text className='section-title'>学员评价</Text>
       <View className='reviews-empty'>
-        <Text className='reviews-empty-icon'>💬</Text>
+        <View className='reviews-empty-icon'><Message size={40} /></View>
         <Text className='reviews-empty-text'>
           {reviewCount > 0 ? '暂无评价数据' : '暂无学员评价'}
         </Text>

@@ -6,6 +6,7 @@ import { authService } from '@/services/authService'
 import { request } from '@/utils/request'
 import { formatDateYMD } from '@/utils/dateFormat'
 import './index.scss'
+import { Calendar, File } from '@nutui/icons-react-taro'
 
 interface PlanHistoryItem {
   id: string
@@ -185,12 +186,12 @@ function PlanHistoryPage() {
                     </View>
                     <View className='plan-info'>
                       <View className='info-item'>
-                        <Text className='info-icon'>📅</Text>
+                        <View className='info-icon'><Calendar /></View>
                         <Text className='info-text'>{formatDateRange(plan.start_date, plan.end_date)}</Text>
                       </View>
                       {plan.total_days && (
                         <View className='info-item'>
-                          <Text className='info-icon'>📋</Text>
+                          <View className='info-icon'><File /></View>
                           <Text className='info-text'>共 {plan.total_days} 天</Text>
                         </View>
                       )}

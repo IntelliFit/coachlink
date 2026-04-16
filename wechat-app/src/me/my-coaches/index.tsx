@@ -7,6 +7,7 @@ import { fetchMyCoachSubscriptions, fetchCoachAggregatedInfo } from './service'
 import type { QueryCoachSubscription, GetAggregatedInfoResponseDto } from './types'
 import CoachCard from './components/CoachCard'
 import './index.scss'
+import { User } from '@nutui/icons-react-taro'
 
 type PageState = 'loading' | 'success' | 'empty' | 'error'
 
@@ -155,7 +156,7 @@ export default function MyCoaches() {
 
       {pageState === 'empty' && (
         <View className='empty-state'>
-          <Text className='empty-icon'>👤</Text>
+          <View className='empty-icon'><User /></View>
           <Text className='empty-text'>{errorMessage || '暂无订阅的教练'}</Text>
           <Text className='empty-hint'>去发现教练页订阅你喜欢的教练</Text>
           <View className='btn-discovery' onClick={goDiscovery} style={{ marginTop: 16 }}>

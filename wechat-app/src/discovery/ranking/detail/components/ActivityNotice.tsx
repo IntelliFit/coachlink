@@ -15,8 +15,8 @@ export default function ActivityNotice({ notice }: ActivityNoticeProps) {
   return (
     <View className="section">
       <View className="section-title">
-        <View className="section-title-icon" style={{ background: 'rgba(244,146,39,0.15)', color: '#f49227' }}>
-          <Icon component={MessageSquare} size={18} color="#f49227" />
+        <View className="section-title-icon" style={{ background: 'rgba(244,146,39,0.15)', color: '#cf6d4e' }}>
+          <Icon component={MessageSquare} size={18} color="#cf6d4e" />
         </View>
         <Text className="section-title-text">特别说明 / NOTICE</Text>
       </View>

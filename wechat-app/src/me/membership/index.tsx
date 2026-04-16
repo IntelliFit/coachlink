@@ -4,6 +4,7 @@ import Taro, { useDidShow, usePullDownRefresh } from '@tarojs/taro'
 import BottomNav from '@/components/BottomNav'
 import { request } from '@/utils/request'
 import './index.scss'
+import { Check, Close } from '@nutui/icons-react-taro'
 
 type MembershipTier = 'free' | 'basic' | 'premium' | 'trial'
 
@@ -117,7 +118,7 @@ export default function MembershipPage() {
           {/* AI导入配额 */}
           <View className='quota-card'>
             <View className='quota-header'>
-              <Text className='quota-title'>🤖 AI 导入配额</Text>
+              <Text className='quota-title'>AI 导入配额</Text>
               <Text className={`quota-status ${aiPercent >= 80 ? 'warning' : ''}`}>
                 {aiTotal == null ? '无限次可用' : `${aiRemaining} 次剩余`}
               </Text>
@@ -143,7 +144,7 @@ export default function MembershipPage() {
           {/* 云存储配额 */}
           <View className='quota-card'>
             <View className='quota-header'>
-              <Text className='quota-title'>☁️ 云存储空间</Text>
+              <Text className='quota-title'> 云存储空间</Text>
               <Text className={`quota-status ${storagePercent >= 80 ? 'warning' : ''}`}>
                 {storageUsed.toFixed(1)} / {storageTotal.toFixed(0)} MB
               </Text>
@@ -166,19 +167,19 @@ export default function MembershipPage() {
             <Text className='section-title'>会员权益</Text>
             <View className='benefit-list'>
               <View className='benefit-item'>
-                <Text className='benefit-icon'>✓</Text>
+                <View className='benefit-icon'><Check /></View>
                 <Text className='benefit-text'>无限次 AI 计划导入</Text>
               </View>
               <View className='benefit-item'>
-                <Text className='benefit-icon'>✓</Text>
+                <View className='benefit-icon'><Check /></View>
                 <Text className='benefit-text'>10GB 云存储空间</Text>
               </View>
               <View className='benefit-item'>
-                <Text className='benefit-icon'>✓</Text>
+                <View className='benefit-icon'><Check /></View>
                 <Text className='benefit-text'>高级训练数据分析</Text>
               </View>
               <View className='benefit-item disabled'>
-                <Text className='benefit-icon'>✗</Text>
+                <View className='benefit-icon'><Close /></View>
                 <Text className='benefit-text'>专属客服支持（高级会员）</Text>
               </View>
             </View>

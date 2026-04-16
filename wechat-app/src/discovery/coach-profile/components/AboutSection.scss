@@ -64,8 +64,8 @@
 .list-row .num {
   flex-shrink: 0;
   width: 22px;
-  font-size: 12px;
-  font-weight: 700;
+  display: flex;
+  align-items: center;
   color: #9ca3af;
 }
 

@@ -5,6 +5,7 @@ import BottomNav from '@/components/BottomNav'
 import { authService } from '@/services/authService'
 import { request } from '@/utils/request'
 import './index.scss'
+import { File, Notice } from '@nutui/icons-react-taro'
 
 interface CartItem {
   id: string
@@ -141,7 +142,7 @@ function CartPage() {
 
           {items.length === 0 ? (
             <View className='empty-state'>
-              <Text className='empty-icon'>🛒</Text>
+              <View className='empty-icon'><File /></View>
               <Text className='empty-title'>暂无待结算订阅</Text>
               <Text className='empty-desc'>如果你已经完成支付，请去购买记录查看；如果还没选服务，可以继续去发现。</Text>
               <View 
@@ -194,7 +195,7 @@ function CartPage() {
                   <Text className='summary-total'>总计：¥{getTotalPrice().toFixed(2)}</Text>
                 </View>
                 <View className='summary-notice'>
-                  <Text className='summary-notice-text'>💡 点击购买后会在小程序内打开与网站一致的购买页，继续完成问卷、订阅与支付宝支付。</Text>
+                  <View className='summary-notice-text'><Notice /> 点击购买后会在小程序内打开与网站一致的购买页，继续完成问卷、订阅与支付宝支付。</View>
                 </View>
               </View>
             </>

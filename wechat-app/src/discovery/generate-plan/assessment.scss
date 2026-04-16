@@ -66,19 +66,22 @@
 .input, .textarea {
   width: 100%;
   box-sizing: border-box;
-  padding: 20rpx;
+  padding: 20rpx 24rpx;
   font-size: 28rpx;
   background: #fff;
-  border-radius: 12rpx;
+  border-radius: 9999rpx;
   border: 2rpx solid #eee;
+}
+.textarea {
+  border-radius: 16rpx;
 }
 .input.error, .textarea.error, .picker-value.error { border-color: #ef4444; }
 .textarea { min-height: 160rpx; }
 .picker-value {
-  padding: 20rpx;
+  padding: 20rpx 24rpx;
   font-size: 28rpx;
   background: #fff;
-  border-radius: 12rpx;
+  border-radius: 9999rpx;
   border: 2rpx solid #eee;
   color: #333;
 }

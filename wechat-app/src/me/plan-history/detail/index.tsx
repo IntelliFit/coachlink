@@ -4,6 +4,7 @@ import Taro, { useRouter, useDidShow } from '@tarojs/taro'
 import BottomNav from '@/components/BottomNav'
 import { request } from '@/utils/request'
 import './index.scss'
+import { Notice } from '@nutui/icons-react-taro'
 
 function PlanHistoryDetail() {
   const router = useRouter()
@@ -106,9 +107,9 @@ function PlanHistoryDetail() {
           </View>
 
           <View className='notice-box'>
-            <Text className='notice-text'>
-              💡 详细训练记录和数据分析请在网页端查看
-            </Text>
+            <View className='notice-text'>
+              <Notice /> 详细训练记录和数据分析请在网页端查看
+            </View>
           </View>
         </View>
       </ScrollView>

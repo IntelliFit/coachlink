@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { View, Text, Input, Button, ScrollView, Picker, Checkbox } from '@tarojs/components'
+import { Check, File, List, Calendar, Ticket, Power } from '@nutui/icons-react-taro'
 import Taro from '@tarojs/taro'
 import { coachService } from '@/services/coach/coachService'
 import { actionLibService } from '@/services/coach/actionLibService'
@@ -560,7 +561,7 @@ function CoachQuestionnaireEdit() {
                     }}
                   >
                     <View className="picker-view">
-                      <Text>{question.scope === 'global' ? '🌐 全局匹配' : '🎯 动作选择'}</Text>
+                      <Text>{question.scope === 'global' ? '全局匹配' : '动作选择'}</Text>
                     </View>
                   </Picker>
                 </View>
@@ -761,7 +762,7 @@ function CoachQuestionnaireEdit() {
       <ScrollView scrollY className="form-content">
         {questions.length === 0 ? (
           <View className="empty-wrap">
-            <Text className="empty-icon">📝</Text>
+            <View className="empty-icon"><File size={48} color="#9CA3AF" /></View>
             <Text className="empty-text">还没有问题</Text>
             <Text className="empty-hint">点击下方按钮添加第一个问题</Text>
           </View>
@@ -777,33 +778,33 @@ function CoachQuestionnaireEdit() {
                 className="menu-item"
                 onClick={() => handleAddQuestion('text')}
               >
-                📝 文本问题
+                文本问题
               </Button>
               <Button
                 className="menu-item"
                 onClick={() => handleAddQuestion('option')}
               >
-                📋 选项问题
+                选项问题
               </Button>
               <Button
                 className="menu-item"
                 onClick={() => handleAddQuestion('times')}
               >
-                📅 训练次数
+                训练次数
               </Button>
               <Button
                 className="menu-item"
                 onClick={() => handleAddQuestion('tags')}
                 disabled={questions.some(q => q.type === 'tags')}
               >
-                🏷️ 训练项目偏好
+                训练项目偏好
               </Button>
               <Button
                 className="menu-item"
                 onClick={() => handleAddQuestion('rm')}
                 disabled={questions.some(q => q.type === 'rm')}
               >
-                💪 1RM测试
+                1RM测试
               </Button>
               <Button
                 className="menu-item cancel"
@@ -835,7 +836,7 @@ function CoachQuestionnaireEdit() {
           <View className="modal-content">
             <View className="modal-header">
               <Text className="modal-title">选择1RM测试动作</Text>
-              <Button className="close-btn" onClick={handleConfirmActionSelection}>✕</Button>
+              <Button className="close-btn" onClick={handleConfirmActionSelection}>关闭</Button>
             </View>
             <ScrollView scrollY className="modal-body">
               {loadingActions ? (
@@ -855,7 +856,7 @@ function CoachQuestionnaireEdit() {
                       onClick={() => handleToggleAction(action.id)}
                     >
                       <View className="action-checkbox">
-                        {isSelected && <Text className="checkmark">✓</Text>}
+                        {isSelected && <View className="checkmark"><Check size={14} color="#fff" /></View>}
                       </View>
                       <View className="action-info">
                         <Text className="action-name">{action.name || '未命名'}</Text>

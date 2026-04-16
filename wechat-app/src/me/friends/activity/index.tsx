@@ -5,6 +5,7 @@ import BottomNav from '@/components/BottomNav'
 import { authService } from '@/services/authService'
 import { request } from '@/utils/request'
 import './index.scss'
+import { Mail } from '@nutui/icons-react-taro'
 
 interface Activity {
   id: string
@@ -54,12 +55,12 @@ function FriendsActivityPage() {
 
   const getActivityIcon = (type: string) => {
     const icons: Record<string, string> = {
-      'workout': '💪',
-      'pr': '⭐',
-      'plan': '📋',
-      'achievement': '🏆'
+      'workout': '',
+      'pr': '',
+      'plan': '',
+      'achievement': ''
     }
-    return icons[type] || '📝'
+    return icons[type] || ''
   }
 
   return (
@@ -77,7 +78,7 @@ function FriendsActivityPage() {
             </View>
           ) : activities.length === 0 ? (
             <View className='empty-state'>
-              <Text className='empty-icon'>📭</Text>
+              <View className='empty-icon'><Mail /></View>
               <Text className='empty-text'>暂无好友动态</Text>
               <Text className='empty-hint'>好友的动态会在这里显示</Text>
             </View>

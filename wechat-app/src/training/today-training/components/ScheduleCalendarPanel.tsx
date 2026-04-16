@@ -211,7 +211,7 @@ function ScheduleCalendarPanel({
               <Text className='week-day-type'>{day?.type === 'rest' ? '恢复' : '训练'}</Text>
               <Text className='week-day-status'>
                 {status === 'completed' || status === 'before_start'
-                  ? '✓'
+                  ? <Check size={10} />
                   : status === 'in_progress'
                     ? '进行中'
                     : status === 'abandoned'
@@ -304,7 +304,7 @@ function ScheduleCalendarPanel({
                   <Text className='date-type'>
                     {mappedDayIndex
                       ? status === 'completed' || status === 'before_start'
-                        ? '✓'
+                        ? <Check size={10} />
                         : status === 'in_progress'
                           ? '进行'
                           : status === 'abandoned'

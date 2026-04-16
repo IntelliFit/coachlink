@@ -1,6 +1,7 @@
 import { View, Text, Image } from '@tarojs/components'
 import type { QueryCoachSubscription, GetAggregatedInfoResponseDto, StatusThemeKey, StatusTheme } from '../types'
 import './CoachCard.scss'
+import { Message } from '@nutui/icons-react-taro'
 
 const STATUS_THEME: Record<StatusThemeKey, StatusTheme> = {
   active: { bg: '#d1fae5', text: '#059669', label: '已激活' },
@@ -123,7 +124,7 @@ export default function CoachCard({ subscription, aggregated, onDetail, onRenew,
 
       <View className='actions-row'>
         <View className='btn-consult' onClick={() => onConsult(subscription.coach_id)}>
-          <Text>💬</Text>
+          <Text><Message /></Text>
         </View>
         <View className='btn-detail' onClick={() => onDetail(subscription.coach_id)}>
           <Text>查看详情</Text>

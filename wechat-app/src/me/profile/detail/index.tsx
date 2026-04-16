@@ -19,6 +19,7 @@ import VideoCollectionSection from './components/VideoCollectionSection'
 import QuestionnaireForm from '@/components/QuestionnaireForm'
 import BottomNav from '@/components/BottomNav'
 import './index.scss'
+import { Edit, Video, Clock } from '@nutui/icons-react-taro'
 
 type ProfileTab = 'timeline' | 'questionnaire' | 'video'
 
@@ -292,21 +293,21 @@ function ProfileDetail() {
                                 className={`tab-item ${activeTab === 'timeline' ? 'active' : ''}`}
                                 onClick={() => setActiveTab('timeline')}
                             >
-                                <Text className="tab-icon">⏰</Text>
+                                <View className="tab-icon"><Clock size={16} color={activeTab === 'timeline' ? '#CF6D4E' : '#9CA3AF'} /></View>
                                 <Text className="tab-text">进步足迹</Text>
                             </View>
                             <View
                                 className={`tab-item ${activeTab === 'questionnaire' ? 'active' : ''}`}
                                 onClick={() => setActiveTab('questionnaire')}
                             >
-                                <Text className="tab-icon">📝</Text>
+                                <View className="tab-icon"><Edit /></View>
                                 <Text className="tab-text">需求问卷</Text>
                             </View>
                             <View
                                 className={`tab-item ${activeTab === 'video' ? 'active' : ''}`}
                                 onClick={() => setActiveTab('video')}
                             >
-                                <Text className="tab-icon">🎬</Text>
+                                <View className="tab-icon"><Video /></View>
                                 <Text className="tab-text">训练视频</Text>
                             </View>
                         </View>
@@ -326,7 +327,7 @@ function ProfileDetail() {
                                     />
                                 ) : (
                                     <View className="empty-state">
-                                        <Text className="empty-icon">📝</Text>
+                                        <View className="empty-icon"><Edit /></View>
                                         <Text className="empty-text">暂无训练需求问卷数据</Text>
                                     </View>
                                 )

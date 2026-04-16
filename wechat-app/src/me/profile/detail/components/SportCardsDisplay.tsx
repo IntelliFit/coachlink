@@ -10,13 +10,13 @@ interface SportCardsDisplayProps {
 
 // 运动类型配置：使用 emoji 替代 lucide-react（小程序兼容性更好）
 const SportTypes = [
-  { key: 'powerlifting', label: '力量举', emoji: '🏋️', color: '#F28631', bg: 'rgba(242, 134, 49, 0.1)' },
-  { key: 'streetlifting', label: '街头力量', emoji: '🏋️', color: '#84cc16', bg: 'rgba(132, 204, 22, 0.1)' },
-  { key: 'calisthenics', label: '街头健身', emoji: '🤸', color: '#16a34a', bg: 'rgba(22, 163, 74, 0.1)' },
-  { key: 'weightlifting', label: '举重', emoji: '🏋️', color: '#dc2626', bg: 'rgba(220, 38, 38, 0.1)' },
-  { key: 'bodybuilding', label: '健美/形体', emoji: '💪', color: '#9333ea', bg: 'rgba(147, 51, 234, 0.1)' },
-  { key: 'running', label: '跑步', emoji: '🏃', color: '#2563eb', bg: 'rgba(37, 99, 235, 0.1)' },
-  { key: 'cycling', label: '骑行', emoji: '🚴', color: '#0891b2', bg: 'rgba(8, 145, 178, 0.1)' }
+  { key: 'powerlifting', label: '力量举', emoji: '', color: '#F28631', bg: 'rgba(242, 134, 49, 0.1)' },
+  { key: 'streetlifting', label: '街头力量', emoji: '', color: '#84cc16', bg: 'rgba(132, 204, 22, 0.1)' },
+  { key: 'calisthenics', label: '街头健身', emoji: '', color: '#16a34a', bg: 'rgba(22, 163, 74, 0.1)' },
+  { key: 'weightlifting', label: '举重', emoji: '', color: '#dc2626', bg: 'rgba(220, 38, 38, 0.1)' },
+  { key: 'bodybuilding', label: '健美/形体', emoji: '', color: '#9333ea', bg: 'rgba(147, 51, 234, 0.1)' },
+  { key: 'running', label: '跑步', emoji: '', color: '#2563eb', bg: 'rgba(37, 99, 235, 0.1)' },
+  { key: 'cycling', label: '骑行', emoji: '', color: '#0891b2', bg: 'rgba(8, 145, 178, 0.1)' }
 ]
 
 interface SportChartDisplayProps {

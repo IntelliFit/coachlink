@@ -3,7 +3,8 @@ import { View, Text, ScrollView, Image, RichText } from '@tarojs/components'
 import Taro, { useRouter, useDidShow } from '@tarojs/taro'
 import { knowledgeService } from '@/services/knowledgeService'
 import { Icon } from '@/components/Icon'
-import { Book } from 'lucide-react'
+import { Book as BookIcon } from 'lucide-react'
+import { Notice, Lock } from '@nutui/icons-react-taro'
 import './index.scss'
 
 export default function BookDetail() {
@@ -71,7 +72,7 @@ export default function BookDetail() {
           <Text className="nav-title">书籍详情</Text>
         </View>
         <View className="error-wrap">
-          <Text className="error-icon">⚠️</Text>
+          <View className="error-icon"><Notice size={48} color="#CF6D4E" /></View>
           <Text className="error-text">{errorMsg}</Text>
           <Text className="error-action" onClick={() => Taro.navigateBack()}>返回上一页</Text>
         </View>
@@ -102,7 +103,7 @@ export default function BookDetail() {
           <Text className="nav-title">{book.title || '书籍详情'}</Text>
         </View>
         <View className="paywall-wrap">
-          <View className="paywall-icon">🔒</View>
+          <View className="paywall-icon"><Lock size={48} color="#CF6D4E" /></View>
           <Text className="paywall-title">订阅后可见</Text>
           <Text className="paywall-desc">该书籍需要订阅知识库会员后才能查看完整内容</Text>
           <View className="paywall-btn" onClick={() => Taro.navigateBack()}>
@@ -130,7 +131,7 @@ export default function BookDetail() {
               />
             ) : (
               <View className="book-cover-placeholder">
-                <Icon component={Book} size={48} color="#9ca3af" />
+                <Icon component={BookIcon} size={48} color="#9ca3af" />
               </View>
             )}
           </View>

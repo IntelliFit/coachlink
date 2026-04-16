@@ -4,6 +4,7 @@ import Taro, { useDidShow, useRouter } from '@tarojs/taro'
 import BottomNav from '@/components/BottomNav'
 import { request } from '@/utils/request'
 import './index.scss'
+import { Check, Notice } from '@nutui/icons-react-taro'
 
 type MembershipTier = 'free' | 'basic' | 'premium' | 'trial'
 
@@ -196,7 +197,7 @@ function MembershipSubscribe() {
                     <View className='plan-features'>
                       {plan.features?.map((feature: string, idx: number) => (
                         <View key={idx} className='feature-item'>
-                          <Text className='feature-icon'>✓</Text>
+                          <View className='feature-icon'><Check /></View>
                           <Text className='feature-text'>{feature}</Text>
                         </View>
                       ))}
@@ -214,9 +215,9 @@ function MembershipSubscribe() {
           )}
 
           <View className='notice-box'>
-            <Text className='notice-text'>
-              💡 提示：支付会在小程序内打开与网站一致的购买页，当前优先支持支付宝完成支付
-            </Text>
+            <View className='notice-text'>
+              <Notice /> 提示：支付会在小程序内打开与网站一致的购买页，当前优先支持支付宝完成支付
+            </View>
           </View>
         </View>
       </ScrollView>

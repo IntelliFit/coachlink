@@ -3,6 +3,7 @@ import { View, Text } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { executionService } from '@/services/executionService'
 import './ProgressTimeline.scss'
+import { Star, Clock } from '@nutui/icons-react-taro'
 
 interface ProgressTimelineProps {
   data: any
@@ -75,14 +76,14 @@ const ProgressTimeline: React.FC<ProgressTimelineProps> = ({ data }) => {
     return (
       <View className='progress-timeline'>
         <View className='timeline-header'>
-          <Text className='timeline-icon'>⏰</Text>
+          <View className='timeline-icon'><Clock size={14} color="#CF6D4E" /></View>
           <Text className='timeline-title'>进步足迹</Text>
           <View className='add-pr-btn' onClick={handleAddManualPR}>
             <Text>+ 手动记录 PR</Text>
           </View>
         </View>
         <View className='empty-state'>
-          <Text className='empty-icon'>🏆</Text>
+          <View className='empty-icon'><Star /></View>
           <Text className='empty-text'>暂无进步记录</Text>
           <Text className='empty-hint'>在训练中标记进步组来记录突破</Text>
         </View>
@@ -93,7 +94,7 @@ const ProgressTimeline: React.FC<ProgressTimelineProps> = ({ data }) => {
   return (
     <View className='progress-timeline'>
       <View className='timeline-header'>
-        <Text className='timeline-icon'>⏰</Text>
+        <View className='timeline-icon'><Clock size={14} color="#CF6D4E" /></View>
         <Text className='timeline-title'>进步足迹</Text>
         <Text className='record-count'>（{prRecords.length} 个记录）</Text>
         <View className='add-pr-btn' onClick={handleAddManualPR}>
@@ -114,9 +115,9 @@ const ProgressTimeline: React.FC<ProgressTimelineProps> = ({ data }) => {
             <View className='item-card'>
               {/* 日期行 */}
               <View className='card-header'>
-                <Text className='item-date'>📅 {formatDate(record.date_achieved)}</Text>
+                <View className='item-date'><Calendar /> {formatDate(record.date_achieved)}</View>
                 <View className='new-record-badge'>
-                  <Text className='badge-text'>⭐ 新纪录</Text>
+                  <Text className='badge-text'> 新纪录</Text>
                 </View>
               </View>
               
@@ -126,7 +127,7 @@ const ProgressTimeline: React.FC<ProgressTimelineProps> = ({ data }) => {
               {/* 计算公式 */}
               <View className='formula-box'>
                 <Text className='formula-text'>
-                  🏋️ {record.weight}kg × {record.reps}次 = e1RM {record.e1rm ? record.e1rm.toFixed(1) : '-'}kg
+                   {record.weight}kg × {record.reps}次 = e1RM {record.e1rm ? record.e1rm.toFixed(1) : '-'}kg
                 </Text>
               </View>
               
@@ -155,7 +156,7 @@ const ProgressTimeline: React.FC<ProgressTimelineProps> = ({ data }) => {
                       Taro.navigateTo({ url: '/common/common/video-player/index?source=pr' })
                     }}
                   >
-                    <Text>▶ 查看视频</Text>
+                    <Text> 查看视频</Text>
                   </View>
                 )}
                 <View className='delete-pr-btn' onClick={() => handleDeletePR(record.id)}>

@@ -85,7 +85,8 @@
     }
 
     .filter-icon {
-      font-size: 16px;
+      font-size: 10px;
+      font-weight: 700;
     }
   }
 }
@@ -106,8 +107,9 @@
   }
 
   .search-icon {
-    font-size: 18px;
-    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 }
 

@@ -4,6 +4,7 @@ import { Button } from '@nutui/nutui-react-taro'
 import { Icon } from '@/components/Icon'
 import { FileText, Pencil } from 'lucide-react'
 import './PlanPreferencesDisplay.scss'
+import { Edit } from '@nutui/icons-react-taro'
 
 interface PlanPreferencesDisplayProps {
   subscribeData: any
@@ -21,7 +22,7 @@ const PlanPreferencesDisplay: React.FC<PlanPreferencesDisplayProps> = ({
     return (
       <View className="plan-preferences">
         <View className="empty-state">
-          <Text className="empty-icon">📝</Text>
+          <View className="empty-icon"><Edit /></View>
           <Text className="empty-text">暂无问卷数据</Text>
         </View>
       </View>

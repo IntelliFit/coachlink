@@ -1,5 +1,6 @@
 import React from 'react'
 import { View, Text } from '@tarojs/components'
+import { Star, Mail, Phone, ArrowUp } from '@nutui/icons-react-taro'
 import type { CoachRow, CoachProfileDetail } from '../types'
 import './AboutSection.scss'
 
@@ -43,7 +44,7 @@ export default function AboutSection({ coach }: { coach: CoachRow }) {
             <View className='list'>
               {achievements.map((a, i) => (
                 <View key={i} className='list-row'>
-                  <Text className='num'>★</Text>
+                  <View className='num'><Star size={12} /></View>
                   <Text className='text'>{a}</Text>
                 </View>
               ))}
@@ -97,13 +98,13 @@ export default function AboutSection({ coach }: { coach: CoachRow }) {
             <View className='contact-list'>
               {profile?.contactEmail && (
                 <View className='contact-item'>
-                  <Text className='icon'>✉</Text>
+                  <View className='icon'><Mail size={16} /></View>
                   <Text selectable>{profile.contactEmail}</Text>
                 </View>
               )}
               {profile?.contactPhone && (
                 <View className='contact-item'>
-                  <Text className='icon'>📱</Text>
+                  <View className='icon'><Phone size={16} /></View>
                   <Text selectable>{profile.contactPhone}</Text>
                 </View>
               )}
@@ -122,7 +123,7 @@ export default function AboutSection({ coach }: { coach: CoachRow }) {
               {Object.entries(socialLinks).map(([platform]) => (
                 <View key={platform} className='social-item'>
                   <Text>{SOCIAL_LABELS[platform] || platform}</Text>
-                  <Text className='arrow'>↗</Text>
+                  <View className='arrow'><ArrowUp size={12} /></View>
                 </View>
               ))}
             </View>

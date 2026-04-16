@@ -93,7 +93,7 @@
 
     .hero-progress-bar-fill {
       height: 100%;
-      background: linear-gradient(90deg, #F28631 0%, #FFAC6B 100%);
+      background: linear-gradient(90deg, #CF6D4E 0%, #E59B7D 100%);
       border-radius: 9999rpx;
     }
 
@@ -132,14 +132,14 @@
       box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.06);
 
       &.primary {
-        background: linear-gradient(135deg, #F28631 0%, #FFAC6B 100%);
+        background: linear-gradient(135deg, #CF6D4E 0%, #E59B7D 100%);
         color: #fff;
-        box-shadow: 0 8rpx 24rpx rgba(242, 134, 49, 0.25);
+        box-shadow: 0 8rpx 24rpx rgba(207, 109, 78, 0.25);
       }
 
       &.secondary {
         background: #ffffff;
-        color: #F28631;
+        color: #CF6D4E;
       }
     }
 
@@ -267,7 +267,7 @@
       transition: all 0.2s ease;
 
       &.active {
-        background: linear-gradient(135deg, #F28631 0%, #FFAC6B 100%);
+        background: linear-gradient(135deg, #CF6D4E 0%, #E59B7D 100%);
         color: #ffffff;
       }
 
@@ -395,7 +395,7 @@
       font-weight: 600;
 
       &.primary {
-        background: linear-gradient(135deg, #F28631 0%, #FFAC6B 100%);
+        background: linear-gradient(135deg, #CF6D4E 0%, #E59B7D 100%);
         color: #ffffff;
       }
 
@@ -430,9 +430,9 @@
       transition: all 0.2s ease;
 
       &.active {
-        background: linear-gradient(135deg, #F28631 0%, #FFAC6B 100%);
+        background: linear-gradient(135deg, #CF6D4E 0%, #E59B7D 100%);
         color: #ffffff;
-        box-shadow: 0 4rpx 16rpx rgba(242, 134, 49, 0.25);
+        box-shadow: 0 4rpx 16rpx rgba(207, 109, 78, 0.25);
       }
 
       .switcher-icon {
@@ -470,12 +470,12 @@
         .avatar-box {
           width: 96rpx;
           height: 96rpx;
-          background: linear-gradient(135deg, #F28631 0%, #FFAC6B 100%);
+          background: linear-gradient(135deg, #CF6D4E 0%, #E59B7D 100%);
           border-radius: 20rpx;
           display: flex;
           align-items: center;
           justify-content: center;
-          box-shadow: 0 4rpx 16rpx rgba(242, 134, 49, 0.2);
+          box-shadow: 0 4rpx 16rpx rgba(207, 109, 78, 0.2);
 
           .avatar-text {
             font-size: 36rpx;
@@ -509,7 +509,7 @@
           .pro-badge {
             padding: 4rpx 12rpx;
             background: linear-gradient(135deg, #FFF5EB 0%, #FFE8D1 100%);
-            color: #F28631;
+            color: #CF6D4E;
             font-size: 18rpx;
             font-weight: 700;
             text-transform: uppercase;
@@ -659,8 +659,8 @@
 
       .impromptu-btn {
         padding: 10rpx 18rpx;
-        border: 1rpx solid #F28631;
-        color: #F28631;
+        border: 1rpx solid #CF6D4E;
+        color: #CF6D4E;
         border-radius: 9999rpx;
         font-size: 22rpx;
         font-weight: 500;
@@ -668,8 +668,8 @@
 
       .view-day-btn {
         padding: 10rpx 18rpx;
-        border: 1rpx solid #F28631;
-        color: #F28631;
+        border: 1rpx solid #CF6D4E;
+        color: #CF6D4E;
         border-radius: 9999rpx;
         font-size: 22rpx;
       }
@@ -812,7 +812,7 @@
       .empty-icon-bg {
         position: absolute;
         inset: 0;
-        background: rgba(242, 134, 49, 0.12);
+        background: rgba(207, 109, 78, 0.12);
         border-radius: 50%;
         animation: pulse 2s infinite;
       }
@@ -872,9 +872,9 @@
         transition: all 0.2s ease;
 
         &.primary {
-          background: linear-gradient(135deg, #F28631 0%, #FFAC6B 100%);
+          background: linear-gradient(135deg, #CF6D4E 0%, #E59B7D 100%);
           color: #ffffff;
-          box-shadow: 0 4rpx 20rpx rgba(242, 134, 49, 0.25);
+          box-shadow: 0 4rpx 20rpx rgba(207, 109, 78, 0.25);
 
           &:active {
             transform: scale(0.98);
@@ -899,7 +899,7 @@
   .waiting-card {
     .empty-icon-inner {
       .empty-icon {
-        color: #F28631;
+        color: #CF6D4E;
       }
     }
   }
@@ -974,7 +974,7 @@
 
   .banner-link {
     flex-shrink: 0;
-    color: #F28631;
+    color: #CF6D4E;
     font-size: 22rpx;
     font-weight: 700;
   }
@@ -993,11 +993,11 @@
     min-height: 52rpx;
     padding: 0 20rpx;
     border-radius: 9999rpx;
-    background: linear-gradient(135deg, #f28631 0%, #ffac6b 100%);
+    background: linear-gradient(135deg, #cf6d4e 0%, #e59b7d 100%);
     color: #ffffff;
     font-size: 24rpx;
     font-weight: 700;
-    box-shadow: 0 4rpx 16rpx rgba(242, 134, 49, 0.22);
+    box-shadow: 0 4rpx 16rpx rgba(207, 109, 78, 0.22);
 
     &.disabled {
       opacity: 0.6;
@@ -1132,7 +1132,7 @@
     font-weight: 700;
 
     &.primary {
-      background: linear-gradient(135deg, #f28631 0%, #ffac6b 100%);
+      background: linear-gradient(135deg, #cf6d4e 0%, #e59b7d 100%);
       color: #ffffff;
     }
 

@@ -23,6 +23,7 @@ import ScheduleCalendarPanel from './components/ScheduleCalendarPanel'
 import LightweightTaskSheet from './components/LightweightTaskSheet'
 import LightweightActionPicker from './components/LightweightActionPicker'
 import DayCheckinShareSheet from './components/DayCheckinShareSheet'
+import { ArrowRight, Calendar, Check, Location, Message, Notice, Power, Star, Target, User } from '@nutui/icons-react-taro'
 import {
   buildPlanScheduleModel,
   buildDayModuleModel,
@@ -919,7 +920,7 @@ function TodayTraining() {
                 <View className='empty-icon-bg' />
                 <View className='empty-icon-inner'>
                   <Text className='empty-icon'>
-                    {hasActiveCoachSubscription ? (isExpiredGrace ? '⚠️' : '🎯') : '🧭'}
+                    {hasActiveCoachSubscription ? (isExpiredGrace ? <Notice size={20} /> : <Target size={20} />) : <Location size={20} />}
                   </Text>
                 </View>
               </View>
@@ -951,24 +952,24 @@ function TodayTraining() {
               <View className='empty-actions'>
                 {activeSubscription?.id && isExpiredGrace ? (
                   <View className='action-btn primary' onClick={() => Taro.navigateTo({ url: renewPath })}>
-                    <Text>🔄</Text>
+                    <Text><ArrowRight size={20} /></Text>
                     <Text>去教练主页续费</Text>
                   </View>
                 ) : (
                   <View className='action-btn primary' onClick={handleImpromptu}>
-                    <Text>⚡</Text>
+                    <Text><Power size={20} /></Text>
                     <Text>{activeSubscription?.id ? '即兴锻炼' : '开始即兴首练'}</Text>
                   </View>
                 )}
 
                 {activeSubscription?.id ? (
                   <View className='action-btn primary' onClick={handleContactCoach}>
-                    <Text>💬</Text>
+                    <Text><Message size={20} /></Text>
                     <Text>联系教练</Text>
                   </View>
                 ) : (
                   <View className='action-btn secondary' onClick={handleGoToPlanLib}>
-                    <Text>📅</Text>
+                    <Text><Calendar size={20} /></Text>
                     <Text>AI 长期计划</Text>
                   </View>
                 )}
@@ -983,7 +984,7 @@ function TodayTraining() {
                         : handleDiscoverCoach
                   }
                 >
-                  <Text>{activeSubscription?.id && isExpiredGrace ? '⚡' : activeSubscription?.id ? '📚' : '🧭'}</Text>
+                  <Text>{activeSubscription?.id && isExpiredGrace ? <Power size={20} /> : activeSubscription?.id ? <Calendar size={20} /> : <Location size={20} />}</Text>
                   <Text>{activeSubscription?.id && isExpiredGrace ? '即兴锻炼' : activeSubscription?.id ? '我的计划库' : '浏览教练'}</Text>
                 </View>
               </View>
@@ -1032,11 +1033,11 @@ function TodayTraining() {
           {hasBothPlans && (
             <View className='plan-switcher'>
               <View className={`switcher-btn ${planMode === 'coach' ? 'active' : ''}`} onClick={() => setPlanMode('coach')}>
-                <Text className='switcher-icon'>👤</Text>
+                <Text className='switcher-icon'><User size={14} /></Text>
                 <Text>教练计划</Text>
               </View>
               <View className={`switcher-btn ${planMode === 'self' ? 'active' : ''}`} onClick={() => setPlanMode('self')}>
-                <Text className='switcher-icon'>⭐</Text>
+                <Text className='switcher-icon'><Star size={14} /></Text>
                 <Text>我的计划</Text>
               </View>
             </View>
@@ -1068,7 +1069,7 @@ function TodayTraining() {
               <View className='empty-icon-wrapper'>
                 <View className='empty-icon-bg' />
                 <View className='empty-icon-inner'>
-                  <Text className='empty-icon'>{isExpiredGrace ? '⚠️' : '🎯'}</Text>
+                  <Text className='empty-icon'>{isExpiredGrace ? <Notice size={20} /> : <Target size={20} />}</Text>
                 </View>
               </View>
               <Text className='empty-title'>{isExpiredGrace ? '订阅已到期，请尽快续费' : '教练计划正在制定中'}</Text>
@@ -1089,21 +1090,21 @@ function TodayTraining() {
               <View className='empty-actions'>
                 {isExpiredGrace ? (
                   <View className='action-btn primary' onClick={() => Taro.navigateTo({ url: renewPath })}>
-                    <Text>🔄</Text>
+                    <Text><ArrowRight size={20} /></Text>
                     <Text>去教练主页续费</Text>
                   </View>
                 ) : (
                   <View className='action-btn primary' onClick={handleImpromptu}>
-                    <Text>⚡</Text>
+                    <Text><Power size={20} /></Text>
                     <Text>即兴锻炼</Text>
                   </View>
                 )}
                 <View className='action-btn primary' onClick={handleContactCoach}>
-                  <Text>💬</Text>
+                  <Text><Message size={20} /></Text>
                   <Text>联系教练</Text>
                 </View>
                 <View className='action-btn secondary' onClick={isExpiredGrace ? handleImpromptu : handleGoToPlanLib}>
-                  <Text>{isExpiredGrace ? '⚡' : '📚'}</Text>
+                  <Text>{isExpiredGrace ? <Power size={20} /> : <Calendar size={20} />}</Text>
                   <Text>{isExpiredGrace ? '即兴锻炼' : '我的计划库'}</Text>
                 </View>
               </View>
@@ -1159,19 +1160,19 @@ function TodayTraining() {
 
               <View className='quick-actions'>
                 <View className='quick-action-item' onClick={() => handleGoToTrainingExecution(progressDayIndex)}>
-                  <View className='quick-action-icon primary'>▶️</View>
+                  <View className='quick-action-icon primary'><ArrowRight size={20} /></View>
                   <Text className='quick-action-label'>开始训练</Text>
                 </View>
                 <View className='quick-action-item' onClick={handleImpromptu}>
-                  <View className='quick-action-icon secondary'>⚡</View>
+                  <View className='quick-action-icon secondary'><Power size={20} /></View>
                   <Text className='quick-action-label'>即兴锻炼</Text>
                 </View>
                 <View className='quick-action-item' onClick={handleContactCoach}>
-                  <View className='quick-action-icon secondary'>💬</View>
+                  <View className='quick-action-icon secondary'><Message size={20} /></View>
                   <Text className='quick-action-label'>联系教练</Text>
                 </View>
                 <View className='quick-action-item' onClick={handleGoToPlanLib}>
-                  <View className='quick-action-icon secondary'>📚</View>
+                  <View className='quick-action-icon secondary'><Calendar size={20} /></View>
                   <Text className='quick-action-label'>计划库</Text>
                 </View>
               </View>
@@ -1232,7 +1233,7 @@ function TodayTraining() {
               {missingDays.length > 0 && (
                 <View className='missing-days-banner'>
                   <Text className='missing-days-desc'>
-                    ⚠️ 你有 {missingDays.length} 天训练日未确认，可补练或跳过，系统会继续按这些未解决训练日优先引导。
+                    你有 {missingDays.length} 天训练日未确认，可补练或跳过，系统会继续按这些未解决训练日优先引导。
                   </Text>
                   <View className='missing-days-actions'>
                     {missingDays.slice(0, 3).map((dayIndex: number) => (
@@ -1252,7 +1253,7 @@ function TodayTraining() {
 
               {todayCompleted && (
                 <View className='today-completed-banner'>
-                  <Text>✅ 你今天已经完成过训练了；如果仍有未完成训练日，系统会继续引导你补做。</Text>
+                  <Text><Check size={16} /> 你今天已经完成过训练了；如果仍有未完成训练日，系统会继续引导你补做。</Text>
                 </View>
               )}
 
@@ -1294,7 +1295,7 @@ function TodayTraining() {
                 </View>
                 <View className='header-right'>
                   <View className='impromptu-btn' onClick={handleImpromptu}>
-                    <Text>⚡ 即兴锻炼</Text>
+                    <Text><Power size={16} /> 即兴锻炼</Text>
                   </View>
                 </View>
               </View>
@@ -1375,11 +1376,11 @@ function TodayTraining() {
                   <Text className='empty-desc'>可以先去计划库查看，或者做一次即兴锻炼。</Text>
                   <View className='empty-actions'>
                     <View className='action-btn primary' onClick={handleImpromptu}>
-                      <Text>⚡</Text>
+                      <Text><Power size={20} /></Text>
                       <Text>即兴锻炼</Text>
                     </View>
                     <View className='action-btn secondary' onClick={handleGoToPlanLib}>
-                      <Text>📚</Text>
+                      <Text><Calendar size={20} /></Text>
                       <Text>我的计划库</Text>
                     </View>
                   </View>
@@ -1545,7 +1546,7 @@ function TodayTraining() {
       {showCompletionModal && completedPlanInfo && (
         <View className='completion-modal-mask' onClick={() => setShowCompletionModal(false)}>
           <View className='completion-modal' onClick={(e) => e.stopPropagation()}>
-            <View className='completion-modal-icon'>🎉</View>
+            <View className='completion-modal-icon'><Star size={48} color="#CF6D4E" /></View>
             <Text className='completion-modal-title'>恭喜完成训练计划！</Text>
             <Text className='completion-modal-plan'>{completedPlanInfo.name}</Text>
             <Text className='completion-modal-rate'>完成度：{completedPlanInfo.rate}%</Text>

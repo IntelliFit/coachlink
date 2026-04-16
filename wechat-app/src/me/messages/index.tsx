@@ -5,6 +5,7 @@ import BottomNav from '@/components/BottomNav'
 import { authService } from '@/services/authService'
 import { chatService, type ChatroomItem } from '@/services/chatService'
 import './index.scss'
+import { Message } from '@nutui/icons-react-taro'
 
 function MessagesPage() {
   const router = useRouter()
@@ -169,7 +170,7 @@ function MessagesPage() {
         <View className='page-content'>
           <View className='page-header'>
             <View className='header-left'>
-              <View className='header-icon'>💬</View>
+              <View className='header-icon'><Message /></View>
               <View>
                 <Text className='page-title'>消息中心</Text>
                 <Text className='page-subtitle'>与您的教练保持实时沟通</Text>
@@ -194,7 +195,7 @@ function MessagesPage() {
             </View>
           ) : filteredChatrooms.length === 0 ? (
             <View className='empty-state'>
-              <Text className='empty-icon'>💬</Text>
+              <View className='empty-icon'><Message /></View>
               <Text className='empty-text'>暂无消息</Text>
               <Text className='empty-hint'>开始与教练或好友聊天吧</Text>
             </View>

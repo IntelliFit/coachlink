@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { View, Text } from '@tarojs/components'
 import Taro from '@tarojs/taro'
+import { Star } from '@nutui/icons-react-taro'
 import { rankingService } from '@/services/rankingService'
 import type { LeaderboardFormInput } from '@/types/leaderboard'
 import LeaderboardHeader from './components/LeaderboardHeader'
@@ -119,7 +120,7 @@ function RankingDetail() {
     return (
       <View className="ranking-detail-page">
         <View className="empty-detail">
-          <Text className="empty-icon">🏆</Text>
+          <View className="empty-icon"><Star size={40} /></View>
           <Text className="empty-text">排行榜不存在</Text>
           <View style={{ marginTop: 16 }} onClick={handleBack}>
             <Text style={{ fontSize: 14, fontWeight: 700, color: '#f97316' }}>返回</Text>

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { View, Text, ScrollView, RichText, Video, Image } from '@tarojs/components'
 import Taro, { useRouter, useDidShow } from '@tarojs/taro'
 import { request } from '@/utils/request'
+import { Notice, Lock } from '@nutui/icons-react-taro'
 import { authService } from '@/services/authService'
 import './index.scss'
 
@@ -71,7 +72,7 @@ export default function ContentDetail() {
           <Text className="nav-title">内容</Text>
         </View>
         <View className="error-wrap">
-          <Text className="error-icon">⚠️</Text>
+          <View className="error-icon"><Notice size={48} color="#CF6D4E" /></View>
           <Text className="error-text">{errorMsg}</Text>
           <Text className="error-action" onClick={() => Taro.navigateBack()}>返回上一页</Text>
         </View>
@@ -86,7 +87,7 @@ export default function ContentDetail() {
           <Text className="nav-title">教学内容</Text>
         </View>
         <View className="paywall-wrap">
-          <View className="paywall-icon">🔒</View>
+          <View className="paywall-icon"><Lock size={48} color="#CF6D4E" /></View>
           <Text className="paywall-title">订阅后可见</Text>
           <Text className="paywall-desc">该内容需要订阅教练后才能查看，去教练主页订阅吧</Text>
         </View>

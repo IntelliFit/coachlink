@@ -4,6 +4,7 @@ import Taro, { useRouter, useDidShow } from '@tarojs/taro'
 import { knowledgeService } from '@/services/knowledgeService'
 import { Icon } from '@/components/Icon'
 import { FileText, Video as VideoIcon } from 'lucide-react'
+import { Notice } from '@nutui/icons-react-taro'
 import './index.scss'
 
 export default function NodeDetail() {
@@ -78,7 +79,7 @@ export default function NodeDetail() {
           <Text className="nav-title">节点详情</Text>
         </View>
         <View className="error-wrap">
-          <Text className="error-icon">⚠️</Text>
+          <View className="error-icon"><Notice size={48} color="#CF6D4E" /></View>
           <Text className="error-text">{errorMsg}</Text>
           <Text className="error-action" onClick={() => Taro.navigateBack()}>返回上一页</Text>
         </View>

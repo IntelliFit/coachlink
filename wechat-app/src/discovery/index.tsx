@@ -1,5 +1,6 @@
 import React from 'react'
 import { View, Text, Input, Image, ScrollView } from '@tarojs/components'
+import { Star, Clock, Search, Heart, Lock, Eye } from '@nutui/icons-react-taro'
 import Taro, { useReachBottom } from '@tarojs/taro'
 import BottomNav from '@/components/BottomNav'
 import { coachService } from '@/services/coach/coachService'
@@ -605,7 +606,7 @@ function Discovery() {
                     </View>
                     {coach.is_featured && (
                         <View className='featured-badge'>
-                            <Text className='crown-icon'>👑</Text>
+                            <View className='crown-icon'><Star size={12} /></View>
                         </View>
                     )}
                 </View>
@@ -617,7 +618,7 @@ function Discovery() {
                             <View className='name-row'>
                                 <Text className='coach-name'>{coach.name}</Text>
                                 <View className='rating-badge'>
-                                    <Text className='star-icon'>⭐</Text>
+                                    <View className='star-icon'><Star size={10} /></View>
                                     <Text className='rating-text'>
                                         {typeof coach.averageRating === 'number'
                                             ? coach.averageRating.toFixed(1)
@@ -649,11 +650,10 @@ function Discovery() {
                     {/* 底部数据 */}
                     <View className='stats-row'>
                         <View className='stat-item'>
-                            <Text className='stat-icon'>👥</Text>
                             <Text className='stat-text'>{coach.studentCount || 0} 学员</Text>
                         </View>
                         <View className='stat-item'>
-                            <Text className='stat-icon'>⏰</Text>
+                            <View className='stat-icon'><Clock size={12} /></View>
                             <Text className='stat-text'>{coach.years_experience || 0} 年经验</Text>
                         </View>
                     </View>
@@ -798,7 +798,7 @@ function Discovery() {
                                             {summarizeActionDetail(action.detail)}
                                         </Text>
                                         <View className='action-meta'>
-                                            <Text className='action-meta-text'>❤️ {action.like_count || 0}</Text>
+                                            <View style={{ display: 'flex', alignItems: 'center', gap: 2 }}><Heart size={10} color='#64748b' /><Text className='action-meta-text'>{action.like_count || 0}</Text></View>
                                             <Text className='action-meta-text' numberOfLines={1}>
                                                 {action.contributor?.nickname || '社区贡献'}
                                             </Text>
@@ -873,7 +873,7 @@ function Discovery() {
                                         <Text className='article-coach-name'>{article.coachName}</Text>
                                     </View>
                                     {!article.canView && (
-                                        <Text className='article-lock'>🔒</Text>
+                                        <View className='article-lock'><Lock size={11} color='#f59e0b' /></View>
                                     )}
                                 </View>
                                 <Text className='article-title' numberOfLines={2}>{article.title}</Text>
@@ -928,7 +928,7 @@ function Discovery() {
                     </View>
                 ) : (
                     <View className='empty-state'>
-                        <Text className='empty-icon'>👁️</Text>
+                        <View className='empty-icon'><Eye size={40} /></View>
                         <Text className='empty-text'>教练信息加载失败</Text>
                     </View>
                 )}
@@ -979,13 +979,13 @@ function Discovery() {
                                         })
                                     }}
                                 >
-                                    <Text className='filter-icon'>🔽</Text>
+                                    <Text className='filter-icon'>筛选</Text>
                                 </View>
                             </View>
 
                             {/* 搜索按钮 */}
                             <View className='search-button' onClick={onSearchOrFilter}>
-                                <Text className='search-icon'>🔍</Text>
+                                <View className='search-icon'><Search size={18} color='#fff' /></View>
                             </View>
                         </View>
                     </View>
@@ -1008,7 +1008,7 @@ function Discovery() {
                 renderSkeleton()
             ) : coaches.length === 0 ? (
                 <View className='empty-state'>
-                    <Text className='empty-icon'>👁️</Text>
+                    <View className='empty-icon'><Eye size={40} /></View>
                     <Text className='empty-text'>没有找到相关教练</Text>
                 </View>
             ) : (

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { View, Text, Input, Textarea, Button, ScrollView, Picker } from '@tarojs/components'
+import { Check } from '@nutui/icons-react-taro'
 import Taro from '@tarojs/taro'
 import { coachService } from '@/services/coach/coachService'
 import './index.scss'
@@ -281,7 +282,7 @@ function CoachContentEdit() {
           <View className="checkbox-group">
             <View className="checkbox-item" onClick={() => setIsFeatured(!isFeatured)}>
               <View className={`checkbox ${isFeatured ? 'checked' : ''}`}>
-                {isFeatured && <Text className="checkbox-icon">✓</Text>}
+                {isFeatured && <View className="checkbox-icon"><Check size={12} color="#fff" /></View>}
               </View>
               <Text className="checkbox-label">设为精选内容</Text>
             </View>

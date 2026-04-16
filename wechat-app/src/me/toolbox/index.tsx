@@ -11,27 +11,28 @@ import {
   openCoachLinkShareMenu
 } from '@/utils/share'
 import './index.scss'
+import { Calculator, List, Location, Star } from '@nutui/icons-react-taro'
 
 const TOOLBOX_LINKS = [
   {
     key: 'strength-calculator',
     label: '力量计算器',
     description: '小程序内完整实现，与网页端逻辑一致',
-    icon: '🧮',
+    icon: '',
     url: '/streetlifting/index/calculator'
   },
   {
     key: 'bar-locations',
     label: '单杠位置',
     description: '查找、分享单杠位置，支持上传图片',
-    icon: '📍',
+    icon: '',
     url: '/streetlifting/index/locations'
   },
   {
     key: 'community-data',
     label: '社区数据',
     description: '查看与提交街健力量数据，支持认领',
-    icon: '📊',
+    icon: '',
     url: '/streetlifting/index/data'
   }
 ]
@@ -67,7 +68,7 @@ function ToolboxPage() {
         <View className='page-content'>
           <View className='page-header'>
             <View className='header-left'>
-              <View className='header-icon'>✨</View>
+              <View className='header-icon'><Star /></View>
               <View>
                 <Text className='page-title'>工具箱</Text>
                 <Text className='page-subtitle'>挑一个工具立刻试试</Text>
@@ -80,7 +81,7 @@ function ToolboxPage() {
 
           <View className='hero-section'>
             <View className='hero-badge'>
-              <Text>✨ {TOOLBOX_LINKS.length} 个工具 + {SCENARIO_QUICK_FIXES.length} 个场景急救箱</Text>
+              <Text> {TOOLBOX_LINKS.length} 个工具 + {SCENARIO_QUICK_FIXES.length} 个场景急救箱</Text>
             </View>
             <Text className='hero-title'>让训练更"可量化、可分享、可传播"</Text>
             <Text className='hero-desc'>
@@ -96,7 +97,9 @@ function ToolboxPage() {
                 onClick={() => handleToolClick(tool)}
               >
                 <View className='tool-header'>
-                  <View className='tool-icon'>{tool.icon}</View>
+                  <View className='tool-icon'>
+                    {tool.key === 'strength-calculator' ? <Calculator /> : tool.key === 'bar-locations' ? <Location /> : tool.key === 'community-data' ? <List /> : <Star />}
+                  </View>
                   <Text className='tool-arrow'>→</Text>
                 </View>
                 <Text className='tool-name'>{tool.label}</Text>
@@ -124,7 +127,7 @@ function ToolboxPage() {
                   className='scene-card'
                   onClick={() => handleScenarioClick(scenario.slug)}
                 >
-                  <Text className='scene-icon'>{scenario.icon}</Text>
+                  <View className='scene-icon'><Star /></View>
                   <Text className='scene-name'>{scenario.title}</Text>
                   <Text className='scene-desc'>{scenario.description}</Text>
                   <Text className='scene-meta'>约 {scenario.durationMinutes} 分钟</Text>

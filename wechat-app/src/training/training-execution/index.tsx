@@ -9,6 +9,7 @@ import { studentActionLibService } from '@/services/studentActionLibService'
 import { chatService } from '@/services/chatService'
 import { buildPublicTrainingSharePath } from '@/utils/share'
 import { formatKgValueForGym } from '@/utils/weightQuantize'
+import { Clock, Heart, Power, Target } from '@nutui/icons-react-taro'
 import './index.scss'
 
 const RETURN_CONFIRM_STORAGE_KEY = 'today_training_last_confirmed_day'
@@ -44,11 +45,11 @@ interface ActionExecution {
 }
 
 const FEEDBACK_DIFFICULTY_OPTIONS = [
-  { value: 1, label: '太轻松', emoji: '😴' },
-  { value: 2, label: '轻松', emoji: '😊' },
-  { value: 3, label: '刚好', emoji: '💪' },
-  { value: 4, label: '有点难', emoji: '😤' },
-  { value: 5, label: '太难了', emoji: '🥵' }
+  { value: 1, label: '太轻松', icon: 'Clock' },
+  { value: 2, label: '轻松', icon: 'Heart' },
+  { value: 3, label: '刚好', icon: 'Power' },
+  { value: 4, label: '有点难', icon: 'Target' },
+  { value: 5, label: '太难了', icon: 'Power' }
 ]
 
 function TrainingExecution() {
@@ -1756,7 +1757,7 @@ function TrainingExecution() {
       {isResting && (
         <View className="rest-timer-mask">
           <View className="rest-timer-panel">
-            <Text className="rest-timer-emoji">⏱️</Text>
+            <Text className="rest-timer-emoji"><Clock size={20} /></Text>
             <Text className="rest-timer-value">
               {Math.floor(restTimer / 60)}:{String(restTimer % 60).padStart(2, '0')}
             </Text>
@@ -1790,7 +1791,7 @@ function TrainingExecution() {
                     if (!feedbackSubmitting) setFeedbackDifficulty(item.value)
                   }}
                 >
-                  <Text className="difficulty-emoji">{item.emoji}</Text>
+                  {(() => { const Icon = require("@nutui/icons-react-taro")[item.icon]; return <Icon size={20} />; })()}
                   <Text className="difficulty-label">{item.label}</Text>
                 </View>
               ))}

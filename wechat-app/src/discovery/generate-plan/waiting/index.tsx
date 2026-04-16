@@ -1,6 +1,7 @@
 import { View, Text } from '@tarojs/components'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import Taro from '@tarojs/taro'
+import { Check, Close, Clock } from '@nutui/icons-react-taro'
 import { request } from '@/utils/request'
 import './index.scss'
 
@@ -152,11 +153,11 @@ export default function GeneratePlanWaiting() {
   const renderStatusIcon = () => {
     switch (pollStatus) {
       case 'success':
-        return <Text className='icon success'>✓</Text>
+        return <View className='icon success'><Check size={28} /></View>
       case 'error':
-        return <Text className='icon error'>✗</Text>
+        return <View className='icon error'><Close size={28} /></View>
       case 'async_pending':
-        return <Text className='icon pending'>⏳</Text>
+        return <View className='icon pending'><Clock size={28} /></View>
       case 'polling':
       default:
         return (
