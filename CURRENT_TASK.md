@@ -1,5 +1,17 @@
 # CURRENT_TASK
 
+- Task: 同步 main/dev 的微信小程序目录命名并修复 Next 根路由冲突
+- Scope:
+  - 小程序工程原本合入到根 `app/`，会被 Next.js 识别为 App Router 并导致主站 `/` 404
+  - main 已统一为 `wechat_app/`，dev 远端曾使用 `wechat-app`，需要同步成同一命名
+- Status: implemented on `2026-04-16`
+- Fix:
+  - main/dev 均使用 `wechat_app/` 存放小程序代码
+  - 根目录不再保留 `app/` 或 `wechat-app/`
+- Verification:
+  - main: `npx next build` 通过，路由清单重新包含 `○ /`
+  - dev: `npx next build` 通过，路由清单包含 `○ /`
+
 - Task: 修复计划脚本模式把括号动作变体误匹配为基础动作的问题
 - Scope:
   - 用户在脚本模式输入 `负重引体（底部暂停）` 时，系统会直接识别成基础 `负重引体`
