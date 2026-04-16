@@ -137,3 +137,8 @@ npm run test:e2e
 - **除非用户明确要求**（例如：新增/调整测试、修复失败用例、补充覆盖率），否则在执行其他任务（功能开发、重构、文档等）过程中**不得随意修改**已有测试文件（含 `*.test.ts`、`e2e/*.spec.ts`、测试配置等）。
 - 若业务变更导致测试失败：优先在回复中说明失败原因与建议，由用户决定是否授权改测；**用户授权后再动测试**。
 - 例外：仅当测试失败**明确由本次被用户点名的改动**引起，且用户任务包含“修到绿”时，可最小范围修改相关测试。
+
+## SKILLS
+
+- **port-manager** (`.kimi/skills/port-manager`) — Manage and allocate network ports across multiple local projects to prevent port conflicts.
+- **weapp-devtools** (`.kimi/skills/weapp-devtools`) — 用于调试微信小程序的自动化工具集，基于 miniprogram-automator 封装，提供截图、元素检查、页面导航、网络 Mock 等功能。
