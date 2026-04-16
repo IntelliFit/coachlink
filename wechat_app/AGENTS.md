@@ -1,6 +1,6 @@
-# coachlink-wechat-app agent rules
+# coachlink wechat_app agent rules
 
-This workspace is dedicated to the `coachlink-wechat-app` project.
+This directory contains the WeChat mini-program inside the `coachlink` monorepo.
 
 ## Session Startup
 
@@ -12,9 +12,9 @@ This workspace is dedicated to the `coachlink-wechat-app` project.
 
 ## Role
 
-- You are the coding agent for this project.
-- You are currently responsible for the `coachlink-wechat-app` project only.
-- If asked which project you are responsible for, answer clearly that you are responsible for `coachlink-wechat-app` and your working directory is `D:\files\coachlink-wechat-app`.
+- You are the coding agent for the `coachlink` project.
+- The mini-program working directory is `D:\files\coachlink\wechat_app`.
+- If asked which project you are responsible for, answer clearly that you are responsible for `coachlink` and the mini-program lives under `D:\files\coachlink\wechat_app`.
 - Work directly in this workspace and write the code yourself.
 - Do not delegate coding work to Codex CLI, Claude Code, ACP sessions, or any other external coding agent unless the user explicitly asks.
 
@@ -29,14 +29,14 @@ This workspace is dedicated to the `coachlink-wechat-app` project.
 
 - In multi-project sessions, never rely on a default automation target. `mrc` connects by port only.
 - Use fixed port mapping to avoid cross-project mix-ups:
-  - `coachlink-wechat-app` -> `9420` (AppID: `wx316e39eb71c0e834`)
+  - `coachlink/wechat_app` -> `9420` (AppID: `wx316e39eb71c0e834`)
   - `food_link` -> `9421` (AppID: `wxbb1ce739d73a66e4`)
 - Always specify both project path and port together for automation actions (open/inspect/screenshot/debug).
 - Avoid ambiguous requests such as "open mini program", "use default port", or "check the other project" without path + port.
 - Every `mrc` command must explicitly include `--port`.
 - Before screenshots/interactions, run `mrc where --port <port>` to confirm the active target.
 - Start automation with project root (contains `project.config.json`), not `dist`, for better stability:
-  - `cli.bat auto --project D:\files\coachlink-wechat-app --auto-port 9420`
+  - `cli.bat auto --project D:\files\coachlink\wechat_app --auto-port 9420`
 - If DevTools reports `Connection closed` or wrong page/project appears, treat it as a port/session conflict first and re-establish a dedicated automation instance.
 
 ## Durable State

@@ -325,6 +325,27 @@ const CreatePlanPage = () => {
         setDays(newDays);
     };
 
+    const handleMoveActionSet = (
+        dayIndex: number,
+        setIndex: number,
+        direction: 'up' | 'down'
+    ) => {
+        const newDays = [...days];
+        if (!newDays[dayIndex]) return;
+
+        const actionSets = [...(newDays[dayIndex].actionSets || [])];
+        const targetIndex = direction === 'up' ? setIndex - 1 : setIndex + 1;
+        if (targetIndex < 0 || targetIndex >= actionSets.length) return;
+
+        [actionSets[setIndex], actionSets[targetIndex]] = [actionSets[targetIndex], actionSets[setIndex]];
+        newDays[dayIndex] = {
+            ...newDays[dayIndex],
+            actionSets,
+            actionSetsCount: actionSets.length,
+        };
+        setDays(newDays);
+    };
+
     const handleActionSetChange = (
         dayIndex: number,
         setIndex: number,
@@ -646,6 +667,7 @@ const CreatePlanPage = () => {
                             onNoteChange={handleNoteChange}
                             onAddActionSet={handleAddActionSet}
                             onRemoveActionSet={handleRemoveActionSet}
+                            onMoveActionSet={handleMoveActionSet}
                             onActionSetChange={handleActionSetChange}
                             saving={saving}
                             totalDays={days.length}

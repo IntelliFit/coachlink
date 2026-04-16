@@ -1152,38 +1152,8 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     height: fit-content;
 }
 
-/* StickyScheduleBar 排期组件：PrimeReact ScrollPanel 横向滚动 */
-.sticky-schedule-scroll.p-scrollpanel {
-    flex: 1;
-    min-width: 0;
-}
+/* StickyScheduleBar 已改为按周 + 原生横向滚动，不再使用 ScrollPanel */
 
-.sticky-schedule-scroll .p-scrollpanel-content {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.375rem;
-    padding: 0.125rem 0.125rem;
-}
-.sticky-schedule-scroll .p-scrollpanel-bar.p-scrollpanel-bar-y {
-    display: none;
-}
-
-/* 横向滚动条背景色：提高可见度；减小厚度 */
-.sticky-schedule-scroll .p-scrollpanel-bar.p-scrollpanel-bar-x {
-    background: rgba(0, 0, 0, 0.18) !important;
-    border-radius: 4px;
-    height: 5px !important;
-}
-.sticky-schedule-scroll .p-scrollpanel-bar.p-scrollpanel-bar-x:hover {
-    background: rgba(0, 0, 0, 0.28) !important;
-}
-.dark .sticky-schedule-scroll .p-scrollpanel-bar.p-scrollpanel-bar-x {
-    background: rgba(255, 255, 255, 0.18) !important;
-}
-.dark .sticky-schedule-scroll .p-scrollpanel-bar.p-scrollpanel-bar-x:hover {
-    background: rgba(255, 255, 255, 0.28) !important;
-}
 
 /* 智能导入步骤对话框：header 内自定义布局（上一步 + 时间线 + 关闭） */
 .smart-import-steps-dialog.p-dialog .p-dialog-header {

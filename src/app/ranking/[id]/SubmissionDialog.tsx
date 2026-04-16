@@ -362,7 +362,7 @@ export default function SubmissionDialog({
                                             <FileUpload
                                                 mode="basic"
                                                 accept="video/*"
-                                                maxFileSize={10000000}
+                                                maxFileSize={200 * 1024 * 1024}
                                                 // 关键修复 1：确保 onSelect 能够正确捕获文件
                                                 onSelect={(e) => {
                                                     const file = e.files[0];

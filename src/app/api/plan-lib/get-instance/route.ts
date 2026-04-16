@@ -18,6 +18,7 @@ import {
     filterTrainingDaysByAccessWindow,
 } from "@/lib/subscriptionAccess";
 import { deriveStrictSequentialProgressDay } from "@/lib/planProgress";
+import { getSubscriptionCarryoverSummary } from "@/lib/subscriptionCarryover";
 
 export async function POST(req: Request) {
     const startTime = performance.now();
@@ -254,6 +255,16 @@ export async function POST(req: Request) {
                 status: exec?.status || "completed",
             })),
             startExecutionDay: Number((instance as any).start_execution_day || 1),
+            effectiveSubscribedWeeks: (
+                await getSubscriptionCarryoverSummary({
+                    subscriptionId: String(instance.coach_subscription_id || ""),
+                    subscribedWeeks: Number(
+                        subscriptionForStudentAccess?.subscribed_weeks || 0,
+                    ),
+                    excludeInstanceId: String(instance.id || ""),
+                    createdBefore: (instance as any)?.created_at || null,
+                })
+            ).remainingWeeks,
         });
         if (!decision.allowed) {
             const message = decision.reason === "SUBSCRIPTION_EXPIRED"

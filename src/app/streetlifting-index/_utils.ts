@@ -65,25 +65,32 @@ export function computeCoefficient(
     return Number.isFinite(coeff) ? coeff : 0;
 }
 
-export function estimateTotal1RMFromTotalWeightAndReps(totalWeight: number, reps: number) {
-    if (reps === 1) return totalWeight;
-    if (reps >= 37) throw new Error("完成次数必须小于37次");
-    const epley1RM = totalWeight * (1 + 0.0333 * reps);
-    const brzycki1RM = totalWeight * (36 / (37 - reps));
-    const lombardi1RM = totalWeight * Math.pow(reps, 0.1);
-    return (epley1RM + brzycki1RM + lombardi1RM) / 3;
+/**
+ * 单次做组里，三公式在「总做组重量 w」上的线性系数之平均（与 estimateTotal1RMFromTotalWeightAndReps 一致）。
+ * 正向：1RM = w × meanFactor(reps)。逆：w = 1RM / meanFactor(reps)。
+ * 注意：这不是「三个独立 1RM 再取平均」的逆，而是「先对系数取平均再乘 w」的严格代数逆。
+ */
+export function meanLoadFactorForReps(reps: number) {
+    if (reps < 1 || reps >= 37) throw new Error("完成次数必须小于37次");
+    const fE = 1 + 0.0333 * reps;
+    const fB = 36 / (37 - reps);
+    const fL = Math.pow(reps, 0.1);
+    return (fE + fB + fL) / 3;
 }
 
+export function estimateTotal1RMFromTotalWeightAndReps(totalWeight: number, reps: number) {
+    if (reps === 1) return totalWeight;
+    return totalWeight * meanLoadFactorForReps(reps);
+}
+
+/** 与 estimateTotal1RMFromTotalWeightAndReps 严格互逆（同一 w×平均系数 模型） */
 export function invertTotalWeightForTarget1RM(targetTotal1RM: number, reps: number) {
     if (reps === 1) return targetTotal1RM;
     if (reps < 1 || reps >= 37) throw new Error("完成次数必须在1到36之间");
-    const wtE = targetTotal1RM / (1 + 0.0333 * reps);
-    const wtB = targetTotal1RM * ((37 - reps) / 36);
-    const wtL = targetTotal1RM / Math.pow(reps, 0.1);
-    return (wtE + wtB + wtL) / 3;
+    return targetTotal1RM / meanLoadFactorForReps(reps);
 }
 
-// Continuous reps estimation (Epley-only, linear inversion)
+// Continuous reps estimation (Epley-only, linear inversion) — 用于上肢引体/臂屈伸反推次数，与 streetlifting-index 一致
 export function estimateRepsForTarget1RMContinuous(targetTotal1RM: number, totalWorkingWeight: number) {
     if (totalWorkingWeight <= 0 || targetTotal1RM <= 0) return 0;
     const ratio = targetTotal1RM / totalWorkingWeight;
@@ -91,15 +98,20 @@ export function estimateRepsForTarget1RMContinuous(targetTotal1RM: number, total
     return Math.max(0.1, rE);
 }
 
+/** 三大项 / 实力推 / 弯举：与正向 1RM 一致的三公式平均反推次数（streetlifting-index 同款） */
+export function estimateRepsFromTotalWeightAndTarget1RM(target1RM: number, workingWeight: number) {
+    const epleyReps = (target1RM / workingWeight - 1) / 0.0333;
+    const brzyckiReps = 37 - (36 * workingWeight) / target1RM;
+    const lombardiReps = Math.pow(target1RM / workingWeight, 10);
+    return Math.max(1, (epleyReps + brzyckiReps + lombardiReps) / 3);
+}
+
 export function calculateAdded1RM(bodyweight: number, addedWeight: number, reps: number, penaltyWeight: number) {
     const adjustedWeight = addedWeight - penaltyWeight;
     const totalWeight = bodyweight + adjustedWeight;
     if (reps === 1) return adjustedWeight;
     if (reps >= 37) return 0;
-    const epley1RM = totalWeight * (1 + 0.0333 * reps);
-    const brzycki1RM = totalWeight * (36 / (37 - reps));
-    const lombardi1RM = totalWeight * Math.pow(reps, 0.1);
-    const totalEstimated1RM = (epley1RM + brzycki1RM + lombardi1RM) / 3;
+    const totalEstimated1RM = totalWeight * meanLoadFactorForReps(reps);
     return totalEstimated1RM - bodyweight;
 }
 
@@ -140,12 +152,8 @@ export function generateRMTable(bodyweightForTotal: number, external1rm: number)
     const total1rm = bodyweightForTotal + external1rm;
     const repsList = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 14, 16];
     return repsList.map((r) => {
-        // Keep inversion consistent with estimate/invert helpers so input set can map back correctly.
-        const factorEpley = 1 / (1 + 0.0333 * r);
-        const factorBrzycki = (37 - r) / 36.0;
-        const factorLombardi = 1 / Math.pow(r, 0.1);
-        const avgFactor = (factorEpley + factorBrzycki + factorLombardi) / 3.0;
-        const sysWeight = total1rm * avgFactor;
+        // invertTotalWeightForTarget1RM 与正向为严格代数互逆（w×平均系数）
+        const sysWeight = invertTotalWeightForTarget1RM(total1rm, r);
         const targetLoad = sysWeight - bodyweightForTotal;
         const percentage = external1rm > 0 ? (targetLoad / external1rm) * 100 : 0;
         return {

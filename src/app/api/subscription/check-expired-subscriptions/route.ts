@@ -8,6 +8,7 @@ import type {
 } from "./entity";
 import { computeCreditsScope, computeUsedCredits, estimateRemainingDays } from "@/lib/subscriptionCredits";
 import { getSubscriptionLifecycle } from "@/lib/subscriptionLifecycle";
+import { deriveSubscriptionCarryoverSummaryFromHistory } from "@/lib/subscriptionCarryover";
 
 export async function POST(req: Request) {
     const startTime = performance.now();
@@ -124,10 +125,21 @@ export async function POST(req: Request) {
         const inst = latestInstanceBySub.get(sub.id);
         if (!inst?.training_days) continue;
 
+        const subInstances = (instances || []).filter((item: any) =>
+            item?.coach_subscription_id === sub.id
+        );
+        const carryover = deriveSubscriptionCarryoverSummaryFromHistory({
+            subscribedWeeks: weeks,
+            instances: subInstances as any[],
+            executions: (completedExecs || []) as any[],
+            excludeInstanceId: String(inst.id || ""),
+            createdBefore: inst.created_at || null,
+        });
+
         const scope = computeCreditsScope({
             trainingDays: (inst.training_days as any[]) || [],
             startExecutionDay: Number(inst.start_execution_day || 1),
-            subscribedWeeks: weeks,
+            subscribedWeeks: carryover.remainingWeeks,
         });
 
         const totalCredits = scope.totalCredits;
@@ -142,6 +154,7 @@ export async function POST(req: Request) {
                 day_index: e.day_index,
                 status: e.status,
             })),
+            startExecutionDay: Number(inst.start_execution_day || 1),
         });
 
         const remainingCredits = Math.max(0, totalCredits - usedCredits);
@@ -152,7 +165,7 @@ export async function POST(req: Request) {
 
         // Estimate end_date for friendly UI "剩余X天" display
         const remainingDaysEstimate = estimateRemainingDays({
-            subscribedWeeks: weeks,
+            cadenceWeeks: Math.max(1, carryover.remainingWeeks),
             totalCredits,
             remainingCredits,
             fallbackCreditsPerWeek: 3,
