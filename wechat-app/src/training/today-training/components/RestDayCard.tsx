@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { View, Text } from '@tarojs/components'
+import { Clock, Heart, Location, Power, Target } from '@nutui/icons-react-taro'
 import './RestDayCard.scss'
 
 interface RestDayCardProps {
@@ -14,7 +15,7 @@ function RestDayCard({ dayIndex }: RestDayCardProps) {
       <View className='rest-day-card'>
         <View className='rest-main'>
           <View className='rest-hero'>
-            <Text className='rest-emoji'>😌</Text>
+            <Text className='rest-emoji'><Heart size={40} /></Text>
           </View>
           <View className='rest-title-row'>
             <Text className='rest-title'>今日休息日</Text>
@@ -30,22 +31,22 @@ function RestDayCard({ dayIndex }: RestDayCardProps) {
         </View>
 
         <View className='rest-tips'>
-          <Text className='tips-title'>💡 休息日行动指南</Text>
+          <Text className='tips-title'><Star size={14} /> 休息日行动指南</Text>
           <View className='tips-grid'>
             <View className='tip-item'>
-              <Text className='tip-icon'>😴</Text>
+              <Text className='tip-icon'><Clock size={14} /></Text>
               <Text className='tip-text'>充足睡眠 7-9 小时</Text>
             </View>
             <View className='tip-item'>
-              <Text className='tip-icon'>🥩</Text>
+              <Text className='tip-icon'><Heart size={14} /></Text>
               <Text className='tip-text'>补足蛋白和碳水</Text>
             </View>
             <View className='tip-item'>
-              <Text className='tip-icon'>🚶</Text>
+              <Text className='tip-icon'><Location size={14} /></Text>
               <Text className='tip-text'>散步、瑜伽、拉伸</Text>
             </View>
             <View className='tip-item'>
-              <Text className='tip-icon'>💧</Text>
+              <Text className='tip-icon'><Heart size={14} /></Text>
               <Text className='tip-text'>补水 2-3 升</Text>
             </View>
           </View>
@@ -58,17 +59,17 @@ function RestDayCard({ dayIndex }: RestDayCardProps) {
             <Text className='dialog-title'>为什么休息如此重要？</Text>
             <View className='dialog-grid'>
               <View className='dialog-card'>
-                <Text className='dialog-icon'>💪</Text>
+                <Text className='dialog-icon'><Power size={12} /></Text>
                 <Text className='dialog-card-title'>肌肉重建</Text>
                 <Text className='dialog-card-text'>训练撕裂肌肉纤维，休息时肌肉修复并超量恢复。</Text>
               </View>
               <View className='dialog-card'>
-                <Text className='dialog-icon'>🔋</Text>
+                <Text className='dialog-icon'><Power size={24} /></Text>
                 <Text className='dialog-card-title'>能量储备</Text>
                 <Text className='dialog-card-text'>补充肌糖原储备，为下次训练爆发重新蓄力。</Text>
               </View>
               <View className='dialog-card'>
-                <Text className='dialog-icon'>🧠</Text>
+                <Text className='dialog-icon'><Target size={24} /></Text>
                 <Text className='dialog-card-title'>神经修复</Text>
                 <Text className='dialog-card-text'>中枢神经系统恢复后，动作质量和长期进步都会更稳。</Text>
               </View>

@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { View, Text, ScrollView, Input, Image } from '@tarojs/components'
+import { Check, Search } from '@nutui/icons-react-taro'
 import Taro, { useDidShow, usePullDownRefresh } from '@tarojs/taro'
 import BottomNav from '@/components/BottomNav'
 import { coachService } from '@/services/coach/coachService'
@@ -479,7 +480,7 @@ function CoachStudents() {
   }, [])
 
   const handlePickSort = useCallback(() => {
-    const itemList = SORT_OPTIONS.map((item) => `${item.value === sortMode ? '✓ ' : ''}${item.label}`)
+    const itemList = SORT_OPTIONS.map((item) => `${item.value === sortMode ? '[已选] ' : ''}${item.label}`)
     Taro.showActionSheet({
       itemList,
       success: (res) => {
@@ -707,7 +708,7 @@ function CoachStudents() {
               className={`payment-check ${selected ? 'checked' : ''}`}
               onClick={() => handleToggleManualSelect(subscriptionId)}
             >
-              <Text>{selected ? '✓' : ''}</Text>
+              {selected ? <Check size={14} color="#fff" /> : null}
             </View>
           ) : (
             <View className='payment-check placeholder' />
@@ -848,7 +849,7 @@ function CoachStudents() {
 
       <View className='toolbar-card'>
         <View className='search-box'>
-          <Text className='search-icon'>⌕</Text>
+          <View className='search-icon'><Search size={16} color="#9CA3AF" /></View>
           <Input
             value={searchInput}
             onInput={(e) => setSearchInput(e.detail.value)}
@@ -938,7 +939,7 @@ function CoachStudents() {
                           handleToggleNoPlanSelect(studentId)
                         }}
                       >
-                        <Text>{noPlanSelected ? '✓' : ''}</Text>
+                        {noPlanSelected ? <Check size={14} color="#fff" /> : null}
                       </View>
                     ) : (
                       <View className='student-select-check disabled' />

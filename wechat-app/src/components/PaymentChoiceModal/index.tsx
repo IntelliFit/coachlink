@@ -4,6 +4,7 @@
  */
 import React, { useState } from 'react'
 import { View, Text } from '@tarojs/components'
+import { Check } from '@nutui/icons-react-taro'
 import Taro from '@tarojs/taro'
 import { Dialog } from '@nutui/nutui-react-taro'
 import { createAlipayOrder } from '@/services/paymentService'
@@ -132,12 +133,12 @@ export default function PaymentChoiceModal({
         )}
         <View className="payment-options">
           <View className="payment-option wechat" onClick={handleWechatPay}>
-            <Text className="option-icon">💚</Text>
+            <View className="option-icon wechat-icon"><Check size={20} color="#fff" /></View>
             <Text className="option-name">微信支付</Text>
             <Text className="option-tag">暂不支持</Text>
           </View>
           <View className="payment-option alipay" onClick={handleAlipayPay}>
-            <Text className="option-icon">💙</Text>
+            <View className="option-icon alipay-icon"><Check size={20} color="#fff" /></View>
             <Text className="option-name">支付宝支付</Text>
             <Text className="option-desc">复制链接在浏览器打开</Text>
           </View>

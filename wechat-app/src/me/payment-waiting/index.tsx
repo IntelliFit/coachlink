@@ -3,6 +3,7 @@ import { View, Text } from '@tarojs/components'
 import Taro, { useDidShow, useRouter } from '@tarojs/taro'
 import { queryPaymentOrder, type PaymentStatus } from '@/services/paymentService'
 import './index.scss'
+import { ArrowRight } from '@nutui/icons-react-taro'
 
 const POLL_INTERVAL = 5000
 
@@ -113,7 +114,7 @@ export default function PaymentWaiting() {
         {status === 'pending' ? (
           <>
             <View className="payment-waiting-spinner">
-              <Text className="icon">⟳</Text>
+              <View className="icon"><ArrowRight /></View>
             </View>
             <Text className="payment-waiting-title">正在等待支付结果...</Text>
             <Text className="payment-waiting-hint">
@@ -128,7 +129,7 @@ export default function PaymentWaiting() {
               }`}
             >
               <Text className="result-icon">
-                {status === 'success' ? '✓' : status === 'cancelled' ? '−' : '✕'}
+                {status === 'success' ? '' : status === 'cancelled' ? '−' : 'X'}
               </Text>
             </View>
             <Text className="result-title">

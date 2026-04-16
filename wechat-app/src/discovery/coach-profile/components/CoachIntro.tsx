@@ -1,5 +1,6 @@
 import React from 'react'
 import { View, Text, Image } from '@tarojs/components'
+import { Star } from '@nutui/icons-react-taro'
 import type { CoachRow, GetAggregatedInfoResponseDto, QueryCoachSubscription } from '../types'
 import './CoachIntro.scss'
 
@@ -33,7 +34,7 @@ export default function CoachIntro({
             )}
           </View>
           {coach.is_featured && (
-            <View className='featured-badge'>👑</View>
+            <View className='featured-badge'><Star size={14} /></View>
           )}
         </View>
         <View className='intro-meta'>

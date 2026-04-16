@@ -25,7 +25,7 @@
   .sheet-eyebrow {
     display: block;
     font-size: 11px;
-    color: #f28631;
+    color: #cf6d4e;
     font-weight: 700;
     letter-spacing: 1.2px;
     margin-bottom: 8px;
@@ -51,7 +51,7 @@
 .share-preview-card {
   border-radius: 24px;
   overflow: hidden;
-  background: linear-gradient(135deg, #f28631 0%, #ffac6b 54%, #111827 100%);
+  background: linear-gradient(135deg, #cf6d4e 0%, #e59b7d 54%, #111827 100%);
   padding: 16px;
 
   .preview-head {
@@ -194,7 +194,7 @@
     }
 
     &.primary {
-      background: linear-gradient(135deg, #f28631 0%, #ffac6b 100%);
+      background: linear-gradient(135deg, #cf6d4e 0%, #e59b7d 100%);
 
       text {
         color: #fff;

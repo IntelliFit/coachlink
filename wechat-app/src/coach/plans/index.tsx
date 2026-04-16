@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { View, Text, ScrollView } from '@tarojs/components'
+import { File, User, Star } from '@nutui/icons-react-taro'
 import Taro, { useDidShow, usePullDownRefresh } from '@tarojs/taro'
 import BottomNav from '@/components/BottomNav'
 import { subscriptionService } from '@/services/subscriptionService'
@@ -144,7 +145,7 @@ function CoachPlans() {
       <View className='coach-plans-page'>
         <ScrollView className='page-scroll' scrollY>
           <View className='empty-state'>
-            <View className='empty-icon'>📋</View>
+            <View className='empty-icon'><File size={48} color="#9CA3AF" /></View>
             <Text className='empty-title'>暂无训练计划</Text>
             <Text className='empty-desc'>订阅教练或创建自己的计划开始训练</Text>
             <View className='empty-actions'>
@@ -174,13 +175,13 @@ function CoachPlans() {
                 className={`switcher-btn ${planMode === 'coach' ? 'active' : ''}`}
                 onClick={() => setPlanMode('coach')}
               >
-                <Text>👤 教练计划</Text>
+                <View style={{ display: 'flex', alignItems: 'center', gap: '8rpx' }}><User size={14} color="#0F172A" /><Text>教练计划</Text></View>
               </View>
               <View
                 className={`switcher-btn ${planMode === 'self' ? 'active' : ''}`}
                 onClick={() => setPlanMode('self')}
               >
-                <Text>⭐ 我的计划</Text>
+                <View style={{ display: 'flex', alignItems: 'center', gap: '8rpx' }}><Star size={14} color="#0F172A" /><Text>我的计划</Text></View>
               </View>
             </View>
           )}

@@ -4,6 +4,7 @@ import Taro from '@tarojs/taro'
 import BottomNav from '@/components/BottomNav'
 import { trainingService, PlanInstance } from '@/services/trainingService'
 import { subscriptionService } from '@/services/subscriptionService'
+import { Calendar, Location, Star, Target, User } from '@nutui/icons-react-taro'
 import './index.scss'
 
 function PlanCurrent() {
@@ -186,7 +187,7 @@ function PlanCurrent() {
                 <View className="empty-icon-wrapper">
                   <View className="empty-icon-bg" />
                   <View className="empty-icon-inner">
-                    <Text className="empty-icon">🎯</Text>
+                    <Text className="empty-icon"><Target size={20} /></Text>
                   </View>
                 </View>
                 <Text className="empty-title">计划正在制定中</Text>
@@ -197,7 +198,7 @@ function PlanCurrent() {
                 </Text>
                 <View className="empty-actions">
                   <View className="action-btn primary" onClick={goToTodayTraining}>
-                    <Text>📋</Text>
+                    <Text><Calendar size={20} /></Text>
                     <Text>今日训练</Text>
                   </View>
                 </View>
@@ -217,7 +218,7 @@ function PlanCurrent() {
               <View className="empty-icon-wrapper">
                 <View className="empty-icon-bg" />
                 <View className="empty-icon-inner">
-                  <Text className="empty-icon">📅</Text>
+                  <Text className="empty-icon"><Calendar size={20} /></Text>
                 </View>
               </View>
               <Text className="empty-title">开启您的训练旅程</Text>
@@ -226,11 +227,11 @@ function PlanCurrent() {
               </Text>
               <View className="empty-actions">
                 <View className="action-btn primary" onClick={goToDiscovery}>
-                  <Text>🧭</Text>
+                  <Text><Location size={20} /></Text>
                   <Text>发现教练</Text>
                 </View>
                 <View className="action-btn secondary" onClick={goToPlanLib}>
-                  <Text>📚</Text>
+                  <Text><Calendar size={20} /></Text>
                   <Text>我的计划库</Text>
                 </View>
               </View>
@@ -257,14 +258,14 @@ function PlanCurrent() {
                 className={`switcher-btn ${planMode === 'coach' ? 'active' : ''}`}
                 onClick={() => setPlanMode('coach')}
               >
-                <Text className="switcher-icon">👤</Text>
+                <Text className="switcher-icon"><User size={14} /></Text>
                 <Text>教练计划</Text>
               </View>
               <View
                 className={`switcher-btn ${planMode === 'self' ? 'active' : ''}`}
                 onClick={() => setPlanMode('self')}
               >
-                <Text className="switcher-icon">⭐</Text>
+                <Text className="switcher-icon"><Star size={14} /></Text>
                 <Text>我的计划</Text>
               </View>
             </View>
@@ -364,7 +365,7 @@ function PlanCurrent() {
                 >
                   <View className="day-left">
                     <View className={`day-icon ${isRest ? 'icon-rest' : 'icon-training'}`}>
-                      <Text className="day-icon-text">{isRest ? '🌙' : '⚡'}</Text>
+                      <Text className="day-icon-text">{isRest ? <Clock size={18} /> : <Power size={18} />}</Text>
                     </View>
                     <View className="day-info">
                       <Text className="day-name">第 {day.dayIndex} 天</Text>
@@ -393,11 +394,11 @@ function PlanCurrent() {
 
           <View className="bottom-actions">
             <View className="action-btn primary" onClick={goToTodayTraining}>
-              <Text>📋</Text>
+              <Text><Calendar size={20} /></Text>
               <Text>今日训练</Text>
             </View>
             <View className="action-btn secondary" onClick={goToAllPlans}>
-              <Text>🗂</Text>
+              <Text><Calendar size={20} /></Text>
               <Text>全部计划</Text>
             </View>
           </View>

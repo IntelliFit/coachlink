@@ -4,6 +4,7 @@ import Taro from '@tarojs/taro'
 import BottomNav from '@/components/BottomNav'
 import { authService } from '@/services/authService'
 import './index.scss'
+import { Lock, Phone, Power } from '@nutui/icons-react-taro'
 
 function SettingsPage() {
   const [passwordVisible, setPasswordVisible] = useState(false)
@@ -65,7 +66,7 @@ function SettingsPage() {
             <View className='settings-list'>
               <View className='setting-item' onClick={() => setPasswordVisible(true)}>
                 <View className='item-left'>
-                  <Text className='item-icon'>🔒</Text>
+                  <View className='item-icon'><Lock /></View>
                   <View>
                     <Text className='item-title'>修改密码</Text>
                     <Text className='item-desc'>定期更换密码保护账户安全</Text>
@@ -82,7 +83,7 @@ function SettingsPage() {
             <View className='settings-list'>
               <View className='setting-item'>
                 <View className='item-left'>
-                  <Text className='item-icon'>📱</Text>
+                  <View className='item-icon'><Phone /></View>
                   <View>
                     <Text className='item-title'>微信绑定</Text>
                     <Text className='item-desc'>已绑定微信账号</Text>
@@ -99,7 +100,7 @@ function SettingsPage() {
             <View className='settings-list'>
               <View className='setting-item' onClick={handleLogout}>
                 <View className='item-left'>
-                  <Text className='item-icon'>🚪</Text>
+                  <View className='item-icon'><Power /></View>
                   <Text className='item-title'>退出登录</Text>
                 </View>
                 <Text className='item-arrow'>→</Text>

@@ -93,7 +93,7 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({ data, onUpdate, onEditCli
               </Text>
               {subscriptionLevel === 'premium' && (
                 <View className="crown-badge">
-                  <Icon component={Crown} size={12} color="#F49227" />
+                  <Icon component={Crown} size={12} color="#CF6D4E" />
                 </View>
               )}
             </View>

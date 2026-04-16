@@ -344,7 +344,7 @@ export default function StreetliftingLocations() {
 
   const handleShare = (loc: StreetliftingLocation) => {
     const addressPart = [loc.province, loc.city, loc.county, loc.address].filter(Boolean).join(' ')
-    const text = `🏋️ 发现单杠训练点：${loc.name}\n📍 ${addressPart || '暂无详细地址'}\n${loc.description ? `💬 ${loc.description}\n` : ''}`
+    const text = `发现单杠训练点：${loc.name}\n${addressPart || '暂无详细地址'}\n${loc.description ? `${loc.description}\n` : ''}`
     Taro.setClipboardData({
       data: text,
       success: () => Taro.showToast({ title: '已复制到剪贴板', icon: 'success' })

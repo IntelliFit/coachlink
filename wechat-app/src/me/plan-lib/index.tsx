@@ -6,6 +6,7 @@ import { authService } from '@/services/authService'
 import { studentActionLibService } from '@/services/studentActionLibService'
 import { studentPlanLibService } from '@/services/studentPlanLibService'
 import './index.scss'
+import { Book, Calendar, Clock, Close } from '@nutui/icons-react-taro'
 
 interface PlanFavorite {
   id: string
@@ -171,7 +172,7 @@ export default function PlanLibPage() {
         <View className='dialog-content'>
           <View className='dialog-header'>
             <Text className='dialog-title'>应用计划 - 1RM配置</Text>
-            <Text className='dialog-close' onClick={() => setShowOneRMDialog(false)}>✕</Text>
+            <View className='dialog-close' onClick={() => setShowOneRMDialog(false)}><Close /></View>
           </View>
           <ScrollView className='dialog-body' scrollY>
             <Text className='dialog-desc'>
@@ -246,7 +247,7 @@ export default function PlanLibPage() {
 
           {favorites.length === 0 ? (
             <View className='empty-state'>
-              <View className='empty-icon'>📚</View>
+              <View className='empty-icon'><Book /></View>
               <Text className='empty-title'>空空如也</Text>
               <Text className='empty-desc'>还没有收藏任何训练计划模板</Text>
               <View className='empty-btn' onClick={handleCreate}>
@@ -266,11 +267,11 @@ export default function PlanLibPage() {
                       <Text className='plan-desc'>{fav.description || '无描述文本'}</Text>
                       <View className='plan-meta'>
                         <View className='meta-item'>
-                          <Text className='meta-icon'>📅</Text>
+                          <View className='meta-icon'><Calendar /></View>
                           <Text className='meta-text'>{dayCount} 训练日</Text>
                         </View>
                         <View className='meta-item'>
-                          <Text className='meta-icon'>🕐</Text>
+                          <View className='meta-icon'><Clock /></View>
                           <Text className='meta-text'>
                             {new Date(fav.updated_at).toLocaleDateString()}
                           </Text>

@@ -86,8 +86,8 @@ function DayCheckinShareSheet({
           canvas.height = 1180
 
           const gradient = ctx.createLinearGradient(0, 0, 750, 1180)
-          gradient.addColorStop(0, '#F28631')
-          gradient.addColorStop(0.6, '#FFAC6B')
+          gradient.addColorStop(0, '#CF6D4E')
+          gradient.addColorStop(0.6, '#E59B7D')
           gradient.addColorStop(1, '#111827')
           ctx.fillStyle = gradient
           ctx.fillRect(0, 0, 750, 1180)

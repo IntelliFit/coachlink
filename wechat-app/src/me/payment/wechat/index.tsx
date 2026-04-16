@@ -7,6 +7,7 @@ import React from 'react'
 import { View, Text } from '@tarojs/components'
 import Taro, { useRouter } from '@tarojs/taro'
 import './index.scss'
+import { Lock } from '@nutui/icons-react-taro'
 
 export default function WechatPaymentPlaceholder() {
   const router = useRouter()
@@ -27,7 +28,7 @@ export default function WechatPaymentPlaceholder() {
   return (
     <View className='wechat-payment-page'>
       <View className='icon-wrap'>
-        <Text className='icon-text'>🔒</Text>
+        <View className='icon-text'><Lock /></View>
       </View>
       <Text className='title'>微信支付功能接入中</Text>
       <Text className='desc'>

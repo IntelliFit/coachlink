@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { View, Text, ScrollView, Input, Textarea, Picker } from '@tarojs/components'
 import Taro from '@tarojs/taro'
+import { ArrowLeft } from '@nutui/icons-react-taro'
 import { coachService } from '@/services/coach/coachService'
 import { request } from '@/utils/request'
 import './assessment.scss'
@@ -297,7 +298,7 @@ export default function AssessmentForm({ coachId, domain, onBack, onSubmit }: As
   return (
     <View className="assessment-form">
       <View className="form-header">
-        <Text className="back-link" onClick={onBack}>← 返回选择</Text>
+        <View className="back-link" onClick={onBack}><ArrowLeft size={14} /><Text style={{ marginLeft: 4 }}>返回选择</Text></View>
         <Text className="step-text">步骤 {currentStep + 1} / {totalSteps}</Text>
       </View>
       <Text className="category-title">{CATEGORY_TITLES[categoryName] || categoryName}</Text>

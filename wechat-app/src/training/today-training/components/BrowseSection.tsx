@@ -3,6 +3,7 @@ import { View, Text } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { formatMonthDay } from '@/utils/dateFormat'
 import { formatKgValueForGym } from '@/utils/weightQuantize'
+import { ArrowLeft, ArrowRight, Check, Heart, Location } from '@nutui/icons-react-taro'
 import './BrowseSection.scss'
 
 interface BrowseSectionProps {
@@ -118,14 +119,14 @@ function BrowseSection({
             className={`nav-btn ${currentWeek === 1 ? 'disabled' : ''}`}
             onClick={handlePrevWeek}
           >
-            <Text className='nav-icon'>◀</Text>
+            <ArrowLeft size={10} />
           </View>
           <Text className='week-text'>第 {currentWeek} 周</Text>
           <View
             className={`nav-btn ${currentWeek === totalWeeks ? 'disabled' : ''}`}
             onClick={handleNextWeek}
           >
-            <Text className='nav-icon'>▶</Text>
+            <ArrowRight size={10} />
           </View>
         </View>
       </View>
@@ -149,17 +150,17 @@ function BrowseSection({
               {/* 完成标记 */}
               {(isBeforeStart || isCompleted) && (
                 <View className='completed-mark'>
-                  <Text className='mark-icon'>✓</Text>
+                  <Text className='mark-icon'><Check size={10} /></Text>
                 </View>
               )}
 
               <Text className='day-label'>第{dayIndex}天</Text>
               <Text className='day-number'>{dayIndex}</Text>
               <Text className='day-type'>
-                {isBeforeStart ? '已完成' : isCompleted ? '✓' : isTrainingDay ? '训练' : '休息'}
+                {isBeforeStart ? '已完成' : isCompleted ? <Check size={10} /> : isTrainingDay ? '训练' : '休息'}
               </Text>
               {isRecommended && !isSelected && !todayCompleted && (
-                <Text className='recommended-dot'>📍</Text>
+                <Text className='recommended-dot'><Location size={10} /></Text>
               )}
             </View>
           )
@@ -180,7 +181,7 @@ function BrowseSection({
                 第 {activeSelectedDayIndex} 天
                 {isDayCompleted(activeSelectedDayIndex) && (
                   <Text className='completed-label'>
-                    ✓ {formatMonthDay(getCompletedDate(activeSelectedDayIndex))} 已完成
+                    <Check size={10} /> {formatMonthDay(getCompletedDate(activeSelectedDayIndex))} 已完成
                   </Text>
                 )}
               </Text>
@@ -214,14 +215,14 @@ function BrowseSection({
                           if (numericLoad < 0) {
                             return (
                               <Text className='info-weight assist'>
-                                💪 辅助{formatKgValueForGym(Math.abs(numericLoad))}kg
+                                辅助{formatKgValueForGym(Math.abs(numericLoad))}kg
                               </Text>
                             )
                           }
                           if (numericLoad > 0) {
                             return (
                               <Text className='info-weight'>
-                                💪 {formatKgValueForGym(numericLoad)}kg
+                                {formatKgValueForGym(numericLoad)}kg
                               </Text>
                             )
                           }
@@ -246,7 +247,7 @@ function BrowseSection({
           </View>
         ) : (
           <View className='rest-day-detail'>
-            <Text className='rest-emoji'>😌</Text>
+            <Text className='rest-emoji'><Heart size={40} /></Text>
             <Text className='rest-title'>休息日</Text>
             <Text className='rest-desc'>今天好好休息，为下次训练做准备</Text>
           </View>

@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react'
 import { View, Text } from '@tarojs/components'
 import Taro from '@tarojs/taro'
+import { Calendar } from '@nutui/icons-react-taro'
 import {
   buildDayModuleModel,
   buildLightweightSummary,
@@ -144,7 +145,7 @@ function TodayTrainingCard({
           <View className='head-copy'>
             {displayDateLabel && (
               <View className='date-row'>
-                <Text className='date-icon'>📅</Text>
+                <Text className='date-icon'><Calendar size={20} /></Text>
                 <Text className='date-text'>{displayDateLabel}</Text>
               </View>
             )}

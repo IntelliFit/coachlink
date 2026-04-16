@@ -2,6 +2,7 @@ import React, { useMemo } from 'react'
 import { View, Text, Image } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import './VideoCollectionSection.scss'
+import { ArrowRight, Video } from '@nutui/icons-react-taro'
 
 interface VideoCollectionSectionProps {
   videos?: any[]
@@ -52,7 +53,7 @@ const VideoCollectionSection: React.FC<VideoCollectionSectionProps> = ({ videos 
     return (
       <View className='video-collection-section'>
         <View className='video-empty'>
-          <Text className='video-empty-icon'>🎬</Text>
+          <View className='video-empty-icon'><Video /></View>
           <Text className='video-empty-title'>暂无训练视频</Text>
           <Text className='video-empty-desc'>训练执行中上传视频后，会自动显示在这里</Text>
         </View>
@@ -77,11 +78,11 @@ const VideoCollectionSection: React.FC<VideoCollectionSectionProps> = ({ videos 
                   <Image className='cover-image' src={item.thumbnail_url} mode='aspectFill' />
                 ) : (
                   <View className='cover-fallback'>
-                    <Text className='cover-fallback-icon'>▶</Text>
+                    <View className='cover-fallback-icon'><ArrowRight /></View>
                   </View>
                 )}
                 <View className='cover-overlay'>
-                  <Text className='play-icon'>▶</Text>
+                  <View className='play-icon'><ArrowRight /></View>
                 </View>
                 <View className='cover-badge'>
                   <Text>{item?.type || 'training'}</Text>

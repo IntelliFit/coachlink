@@ -9,6 +9,7 @@ import { studentService } from '@/services/studentService'
 import { authService } from '@/services/authService'
 import { getEmptySportCards, getTotalWeight, showTotalWeight, typicalActionMaps, type SportCards } from '@/utils/sportsCollections'
 import './index.scss'
+import { List } from '@nutui/icons-react-taro'
 
 // 性别选项
 const GENDER_OPTIONS = [
@@ -33,13 +34,13 @@ const FITNESS_LEVEL_OPTIONS = [
 
 // 运动类型配置
 const SportTypes = [
-  { key: 'powerlifting', label: '力量举', icon: '🏋️', color: '#F28631', bg: 'rgba(242, 134, 49, 0.1)' },
-  { key: 'streetlifting', label: '街头力量', icon: '💪', color: '#84cc16', bg: 'rgba(132, 204, 22, 0.1)' },
-  { key: 'calisthenics', label: '街头健身', icon: '🤸', color: '#16a34a', bg: 'rgba(22, 163, 74, 0.1)' },
-  { key: 'weightlifting', label: '举重', icon: '🏋️', color: '#dc2626', bg: 'rgba(220, 38, 38, 0.1)' },
-  { key: 'bodybuilding', label: '健美/形体', icon: '🧍', color: '#9333ea', bg: 'rgba(147, 51, 234, 0.1)' },
-  { key: 'running', label: '跑步', icon: '🏃', color: '#2563eb', bg: 'rgba(37, 99, 235, 0.1)' },
-  { key: 'cycling', label: '骑行', icon: '🚴', color: '#0891b2', bg: 'rgba(8, 145, 178, 0.1)' }
+  { key: 'powerlifting', label: '力量举', icon: '', color: '#F28631', bg: 'rgba(242, 134, 49, 0.1)' },
+  { key: 'streetlifting', label: '街头力量', icon: '', color: '#84cc16', bg: 'rgba(132, 204, 22, 0.1)' },
+  { key: 'calisthenics', label: '街头健身', icon: '', color: '#16a34a', bg: 'rgba(22, 163, 74, 0.1)' },
+  { key: 'weightlifting', label: '举重', icon: '', color: '#dc2626', bg: 'rgba(220, 38, 38, 0.1)' },
+  { key: 'bodybuilding', label: '健美/形体', icon: '', color: '#9333ea', bg: 'rgba(147, 51, 234, 0.1)' },
+  { key: 'running', label: '跑步', icon: '', color: '#2563eb', bg: 'rgba(37, 99, 235, 0.1)' },
+  { key: 'cycling', label: '骑行', icon: '', color: '#0891b2', bg: 'rgba(8, 145, 178, 0.1)' }
 ]
 
 function EditProfile() {
@@ -355,7 +356,7 @@ function EditProfile() {
                 {formData.sport_cards.activeCards.length === 0 ? (
                   <View className="empty-state">
                     <View className="empty-icon">
-                      <Text>📊</Text>
+                      <View><List /></View>
                     </View>
                     <Text className="empty-text">点击上方磁贴以激活资产配置</Text>
                   </View>

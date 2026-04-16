@@ -5,6 +5,7 @@ import { authService } from '@/services/authService'
 import { chatService, type MessageItem } from '@/services/chatService'
 import { API_BASE_URL } from '@/utils/request'
 import './index.scss'
+import { Image as ImageIcon } from '@nutui/icons-react-taro'
 
 function ChatPage() {
   const router = useRouter()
@@ -327,7 +328,7 @@ function ChatPage() {
 
       <View className="chat-input-bar">
         <View className="img-btn" onClick={chooseAndSendImage}>
-          📷
+          <ImageIcon />
         </View>
         <Input
           className="input-wrap"

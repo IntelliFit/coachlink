@@ -145,7 +145,7 @@ export default function TrainingHistoryPage() {
           <Text className='page-title'>训练记录</Text>
         </View>
         <View className='impromptu-btn' onClick={handleImpromptu}>
-          <Text>⚡ 即兴锻炼</Text>
+          <Text> 即兴锻炼</Text>
         </View>
       </View>
 

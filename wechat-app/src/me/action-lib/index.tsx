@@ -12,6 +12,7 @@ import {
 } from '@/services/actionLibPageService'
 import type { PublicActionItemDto } from '@/types/action'
 import './index.scss'
+import { Book, Check, Close, Heart, Target } from '@nutui/icons-react-taro'
 
 interface Action {
   id: string
@@ -517,7 +518,7 @@ export default function ActionLibPage() {
     if (actions.length === 0) {
       return (
         <View className='empty-state'>
-          <View className='empty-icon'>💪</View>
+          <View className='empty-icon'><Target /></View>
           <Text className='empty-title'>暂无动作</Text>
           <Text className='empty-desc'>点击右上角新建、从教练添加，或去公共动作库加入现成动作</Text>
         </View>
@@ -538,7 +539,7 @@ export default function ActionLibPage() {
             >
               {isBatchMode && (
                 <View className={`select-box ${isSelected ? 'checked' : ''}`}>
-                  {isSelected && <Text className='check-icon'>✓</Text>}
+                  {isSelected && <View className='check-icon'><Check /></View>}
                 </View>
               )}
               <View className='action-content'>
@@ -609,7 +610,7 @@ export default function ActionLibPage() {
     if (displayedPublicActions.length === 0) {
       return (
         <View className='empty-state'>
-          <View className='empty-icon'>📚</View>
+          <View className='empty-icon'><Book /></View>
           <Text className='empty-title'>公共动作库暂无结果</Text>
           <Text className='empty-desc'>
             {publicOnlyWithDemo ? '当前筛选下没有带演示视频的动作，先关闭“仅看有演示”试试' : '换个关键词试试，或者稍后再来看看'}
@@ -648,7 +649,7 @@ export default function ActionLibPage() {
                   </View>
                 )}
                 <View className='public-meta'>
-                  <Text className='public-meta-text'>❤️ {action.like_count || 0}</Text>
+                  <View className='public-meta-text'><Heart /> {action.like_count || 0}</View>
                   <Text className='public-meta-text'>
                     {action.contributor?.nickname || '社区贡献'}
                   </Text>
@@ -808,7 +809,7 @@ export default function ActionLibPage() {
               <Text>搜索</Text>
             </View>
             {(activeTab === 'public' ? publicSearchTerm : mySearchTerm) ? (
-              <Text className='clear-btn' onClick={handleClearSearch}>✕</Text>
+              <View className='clear-btn' onClick={handleClearSearch}><Close /></View>
             ) : null}
           </View>
 

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { View, Text, Input, Textarea, Button, ScrollView, Picker } from '@tarojs/components'
+import { Check } from '@nutui/icons-react-taro'
 import Taro from '@tarojs/taro'
 import { actionLibService } from '@/services/coach/actionLibService'
 import './index.scss'
@@ -277,7 +278,7 @@ function CoachActionLibEdit() {
               <View className="checkbox-group">
                 <View className="checkbox-item" onClick={() => setEnableAutoWeightCompute(!enableAutoWeightCompute)}>
                   <View className={`checkbox ${enableAutoWeightCompute ? 'checked' : ''}`}>
-                    {enableAutoWeightCompute && <Text className="checkbox-icon">✓</Text>}
+                    {enableAutoWeightCompute && <View className="checkbox-icon"><Check size={12} color="#fff" /></View>}
                   </View>
                   <View className="checkbox-label-group">
                     <Text className="checkbox-label">智能重量计算</Text>
@@ -289,7 +290,7 @@ function CoachActionLibEdit() {
                 <View className="checkbox-group" style={{ marginTop: '20px' }}>
                   <View className="checkbox-item" onClick={() => setIncludesBodyWeight(!includesBodyWeight)}>
                     <View className={`checkbox ${includesBodyWeight ? 'checked' : ''}`}>
-                      {includesBodyWeight && <Text className="checkbox-icon">✓</Text>}
+                      {includesBodyWeight && <View className="checkbox-icon"><Check size={12} color="#fff" /></View>}
                     </View>
                     <View className="checkbox-label-group">
                       <Text className="checkbox-label">是否包含自身体重</Text>

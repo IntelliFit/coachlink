@@ -5,6 +5,7 @@ import BottomNav from '@/components/BottomNav'
 import { authService } from '@/services/authService'
 import { request } from '@/utils/request'
 import './index.scss'
+import { Edit } from '@nutui/icons-react-taro'
 
 // 与后端 PurchaseHistoryItem 对齐，兼容 orders 列表
 interface PurchaseItem {
@@ -114,7 +115,7 @@ function PurchaseHistoryPage() {
             </View>
           ) : purchases.length === 0 ? (
             <View className='empty-state'>
-              <Text className='empty-icon'>📝</Text>
+              <View className='empty-icon'><Edit /></View>
               <Text className='empty-title'>暂无购买记录</Text>
               <Text className='empty-desc'>您还没有任何购买记录</Text>
             </View>

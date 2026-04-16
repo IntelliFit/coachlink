@@ -17,6 +17,7 @@ import {
   openCoachLinkShareMenu
 } from '@/utils/share'
 import './index.scss'
+import { File, Star } from '@nutui/icons-react-taro'
 
 interface ReferralData {
   code: string
@@ -217,14 +218,14 @@ function MembershipReferral() {
             <Text className='reward-title'>邀请奖励</Text>
             <View className='reward-list'>
               <View className='reward-item'>
-                <Text className='reward-icon'>✨</Text>
+                <View className='reward-icon'><Star /></View>
                 <View className='reward-content'>
                   <Text className='reward-label'>AI 导入次数</Text>
                   <Text className='reward-value'>+2 次</Text>
                 </View>
               </View>
               <View className='reward-item'>
-                <Text className='reward-icon'>💾</Text>
+                <View className='reward-icon'><File /></View>
                 <View className='reward-content'>
                   <Text className='reward-label'>云存储空间</Text>
                   <Text className='reward-value'>+200MB</Text>

@@ -31,7 +31,7 @@
 
         &.expanded {
           background: rgba(244, 146, 39, 0.1);
-          color: #f49227;
+          color: #CF6D4E;
           transform: scale(1.1);
         }
       }
@@ -73,7 +73,7 @@
         .badge-text {
           font-size: 10px;
           font-weight: 700;
-          color: #f49227;
+          color: #CF6D4E;
           text-transform: uppercase;
           letter-spacing: 1px;
         }
@@ -85,7 +85,7 @@
 
         &.expanded {
           transform: rotate(180deg);
-          color: #f49227;
+          color: #CF6D4E;
         }
       }
     }

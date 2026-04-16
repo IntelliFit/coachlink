@@ -36,7 +36,7 @@ export default function ContentSection({ contents, total, onItemClick }: Content
                   />
                 ) : (
                   <View className='content-thumb-placeholder'>
-                    <Text>{c.content_type === 'video' ? '▶' : '📄'}</Text>
+                    <Text>{c.content_type === 'video' ? '视频' : '图文'}</Text>
                   </View>
                 )}
               </View>

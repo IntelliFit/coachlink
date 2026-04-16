@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { View, Text, ScrollView, Image, Input } from '@tarojs/components'
+import { Search } from '@nutui/icons-react-taro'
 import Taro from '@tarojs/taro'
 import BottomNav from '@/components/BottomNav'
 import {
@@ -25,7 +26,7 @@ const BODY_REGION_OPTIONS = [
   { key: '肩关节', label: '肩关节', icon: '🦾' },
   { key: '胸大肌', label: '胸部', icon: '🫁' },
   { key: '背阔肌', label: '背部', icon: '🧱' },
-  { key: '腹直肌', label: '核心', icon: '🛡️' },
+  { key: '腹直肌', label: '核心' },
   { key: '髋关节', label: '髋部', icon: '🦵' },
   { key: '臀大肌', label: '臀部', icon: '🍑' },
   { key: '膝关节', label: '膝关节', icon: '🦿' },
@@ -319,7 +320,7 @@ function KnowledgeBase() {
 
           <View className='search-section'>
             <View className='search-input-wrap'>
-              <Text>🔍</Text>
+              <Search size={18} color="#9CA3AF" />
               <Input
                 className='search-input'
                 placeholder='搜索知识点、部位或动作...'

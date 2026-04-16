@@ -3,6 +3,7 @@ import { View, Text, ScrollView } from '@tarojs/components'
 import Taro, { useRouter } from '@tarojs/taro'
 import { getScenarioQuickFix, type ScenarioQuickFix } from '@/constants/scenarioQuickFixes'
 import './index.scss'
+import { Notice } from '@nutui/icons-react-taro'
 
 export default function ScenarioDetailPage() {
   const router = useRouter()
@@ -102,7 +103,7 @@ export default function ScenarioDetailPage() {
                     className={`step-card ${isCompleted ? 'completed' : ''} ${isCurrent ? 'current' : ''}`}
                   >
                     <View className='step-index'>
-                      <Text>{isCompleted ? '✓' : index + 1}</Text>
+                      <Text>{isCompleted ? '' : index + 1}</Text>
                     </View>
                     <View className='step-main'>
                       <Text className='step-title'>{step.title}</Text>
@@ -117,7 +118,7 @@ export default function ScenarioDetailPage() {
 
           {finished && (
             <View className='done-card'>
-              <Text className='done-icon'>🎉</Text>
+              <View className='done-icon'><Notice /></View>
               <Text className='done-title'>练习完成</Text>
               <Text className='done-desc'>这类“场景急救箱”已经开始从 Web 端迁到小程序，可以直接拿来用。</Text>
               <View className='primary-btn' onClick={handleBack}>

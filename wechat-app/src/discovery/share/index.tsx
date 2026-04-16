@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { View, Text, Canvas } from '@tarojs/components'
 import Taro, { useRouter } from '@tarojs/taro'
+import { Star } from '@nutui/icons-react-taro'
 import { request } from '@/utils/request'
 import './index.scss'
 
@@ -148,7 +149,7 @@ export default function SharePage() {
       {/* 预览卡片 */}
       <View className='preview-card'>
         <View className='card-header'>
-          <Text className='title'>🎉 训练完成！</Text>
+          <View className='title'><Star size={20} /><Text style={{ marginLeft: 4 }}>训练完成！</Text></View>
           <Text className='subtitle'>{data?.workoutName}</Text>
           <Text className='date'>{new Date(data?.completedAt || '').toLocaleDateString()}</Text>
         </View>

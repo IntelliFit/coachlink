@@ -76,9 +76,9 @@
       transition: all 0.2s ease;
 
       &.active {
-        background: linear-gradient(135deg, #F28631 0%, #FFAC6B 100%);
+        background: linear-gradient(135deg, #CF6D4E 0%, #E59B7D 100%);
         color: #ffffff;
-        box-shadow: 0 2px 6px rgba(242, 134, 49, 0.3);
+        box-shadow: 0 2px 6px rgba(207, 109, 78, 0.3);
       }
 
       .switcher-icon {
@@ -103,14 +103,14 @@
       &.decor-1 {
         width: 120px;
         height: 120px;
-        background: #F28631;
+        background: #CF6D4E;
         top: -30px;
         right: -30px;
       }
       &.decor-2 {
         width: 80px;
         height: 80px;
-        background: #FFAC6B;
+        background: #E59B7D;
         bottom: -20px;
         right: 40px;
       }
@@ -129,12 +129,12 @@
         .avatar-box {
           width: 56px;
           height: 56px;
-          background: linear-gradient(135deg, #F28631 0%, #FFAC6B 100%);
+          background: linear-gradient(135deg, #CF6D4E 0%, #E59B7D 100%);
           border-radius: 12px;
           display: flex;
           align-items: center;
           justify-content: center;
-          box-shadow: 0 2px 8px rgba(242, 134, 49, 0.2);
+          box-shadow: 0 2px 8px rgba(207, 109, 78, 0.2);
 
           .avatar-text {
             font-size: 22px;
@@ -153,7 +153,7 @@
           .pro-badge {
             padding: 2px 8px;
             background: linear-gradient(135deg, #FFF5EB 0%, #FFE8D1 100%);
-            color: #F28631;
+            color: #CF6D4E;
             font-size: 10px;
             font-weight: 700;
             border-radius: 4px;
@@ -319,7 +319,7 @@
           color: #16a34a;
         }
         &.action {
-          background: linear-gradient(135deg, #F28631 0%, #FFAC6B 100%);
+          background: linear-gradient(135deg, #CF6D4E 0%, #E59B7D 100%);
           color: #ffffff;
         }
       }
@@ -333,7 +333,7 @@
         color: #16a34a;
       }
       &.day-current .day-name {
-        color: #F28631;
+        color: #CF6D4E;
       }
     }
   }
@@ -355,9 +355,9 @@
       font-weight: 600;
 
       &.primary {
-        background: linear-gradient(135deg, #F28631 0%, #FFAC6B 100%);
+        background: linear-gradient(135deg, #CF6D4E 0%, #E59B7D 100%);
         color: #ffffff;
-        box-shadow: 0 2px 8px rgba(242, 134, 49, 0.3);
+        box-shadow: 0 2px 8px rgba(207, 109, 78, 0.3);
       }
 
       &.secondary {
@@ -383,7 +383,7 @@
       .empty-icon-bg {
         position: absolute;
         inset: 0;
-        background: rgba(242, 134, 49, 0.1);
+        background: rgba(207, 109, 78, 0.1);
         border-radius: 50%;
         animation: pulse 2s infinite;
       }
@@ -442,9 +442,9 @@
         font-weight: 600;
 
         &.primary {
-          background: linear-gradient(135deg, #F28631 0%, #FFAC6B 100%);
+          background: linear-gradient(135deg, #CF6D4E 0%, #E59B7D 100%);
           color: #ffffff;
-          box-shadow: 0 2px 8px rgba(242, 134, 49, 0.3);
+          box-shadow: 0 2px 8px rgba(207, 109, 78, 0.3);
         }
         &.secondary {
           background: #f3f4f6;
@@ -456,6 +456,6 @@
   }
 
   .waiting-card .empty-icon-inner .empty-icon {
-    color: #F28631;
+    color: #CF6D4E;
   }
 }
