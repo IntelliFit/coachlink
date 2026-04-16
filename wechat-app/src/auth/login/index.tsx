@@ -8,7 +8,6 @@ import {
   Checkbox
 } from '@nutui/nutui-react-taro'
 import zhCN from '@nutui/nutui-react-taro/dist/locales/zh-CN'
-import BottomNav from '@/components/BottomNav'
 import { smsService } from '@/services/smsService'
 import { sesService } from '@/services/sesService'
 import { authService } from '@/services/authService'
