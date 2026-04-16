@@ -14,6 +14,7 @@ import { getCurrent1RMRecords } from "@/app/api/student/get-current-1rm/route";
 import { getAuthUser } from "@/lib/auth";
 import { validateExecutionSubscriptionAccess } from "../_helpers/subscriptionAccess";
 import { syncExecutionPlanWithCurrentConfig } from "../_helpers/syncExecutionPlan";
+import { normalizePlannedRestSeconds } from "@/lib/restTime";
 
 /**
  * POST /api/execution/start
@@ -271,8 +272,10 @@ export async function POST(request: NextRequest) {
                     load = normalizeToKg(Number(result.displayWeight), result.displayUnit || "kg");
                 }
             }
-            const restSeconds = actionSet.params?.["休息时间"] ||
-                actionSet.rest_seconds || 90;
+            const restSeconds = normalizePlannedRestSeconds(
+                actionSet.params?.["休息时间"] ?? actionSet.rest_seconds,
+                90,
+            );
 
             // 优先使用自动计算的重量(load)，否则显示RM值
             const plannedWeight =

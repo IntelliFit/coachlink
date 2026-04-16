@@ -8,7 +8,7 @@ import MarkdownIt from 'markdown-it';
 import { useRouter } from 'next/navigation';
 import { useToastContext } from '@/context/ToastContext';
 import { coachService } from '@/app/service/coachService';
-import { formatBeijingDate } from '@/lib/beijingTime';
+import { formatChatBubbleTime } from '@/lib/chatMessageTime';
 let DOMPurify: any;
 if (typeof window !== 'undefined') {
     DOMPurify = require('dompurify').default || require('dompurify');
@@ -17,17 +17,17 @@ import { useMemo, useState } from 'react';
 
 interface MessageItemProps {
     message: MessageItemType;
+    /** 搜索定位后短暂高亮 */
+    highlighted?: boolean;
 }
 
-export function MessageItem({ message }: MessageItemProps) {
+export function MessageItem({ message, highlighted }: MessageItemProps) {
     const router = useRouter();
     const { showToast } = useToastContext();
     const [isChecking, setIsChecking] = useState(false);
     const md = useMemo(() => new MarkdownIt({ html: true, linkify: true, typographer: true }), []);
 
-    const formatTime = (dateStr: string) => {
-        return formatBeijingDate(dateStr, 'zh-CN', { hour: '2-digit', minute: '2-digit' });
-    };
+    const formatTime = (dateStr: string) => formatChatBubbleTime(dateStr);
 
     // 检测是否为广播消息
     const isBroadcastMessage = message.contentMetadata?.broadcast === true;
@@ -265,7 +265,12 @@ export function MessageItem({ message }: MessageItemProps) {
     };
 
     return (
-        <div className={`flex gap-3 mb-4 ${message.isMine ? 'flex-row-reverse' : 'flex-row'}`}>
+        <div
+            data-message-id={message.id}
+            className={`flex gap-3 mb-4 ${message.isMine ? 'flex-row-reverse' : 'flex-row'} ${
+                highlighted ? 'rounded-2xl ring-2 ring-primary-400 ring-offset-2 ring-offset-surface-0' : ''
+            }`}
+        >
             <Avatar
                 image={message.chatUserProfile?.avatar || undefined}
                 label={!message.chatUserProfile?.avatar && message.chatUserProfile?.name ? message.chatUserProfile.name.charAt(0) : undefined}

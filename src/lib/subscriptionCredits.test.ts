@@ -99,7 +99,7 @@ describe("subscriptionCredits (B1)", () => {
   it("estimateRemainingDays: uses plan cadence (credits/week) rather than assuming daily", () => {
     // 4-week plan, totalCredits=12 => 3 credits/week
     const days = estimateRemainingDays({
-      subscribedWeeks: 4,
+      cadenceWeeks: 4,
       totalCredits: 12,
       remainingCredits: 6,
       fallbackCreditsPerWeek: 3,
@@ -111,18 +111,30 @@ describe("subscriptionCredits (B1)", () => {
   it("estimateRemainingDays returns 0 when remainingCredits<=0 or invalid inputs", () => {
     expect(
       estimateRemainingDays({
-        subscribedWeeks: 4,
+        cadenceWeeks: 4,
         totalCredits: 12,
         remainingCredits: 0,
       }),
     ).toBe(0);
     expect(
       estimateRemainingDays({
-        subscribedWeeks: 0,
+        cadenceWeeks: 0,
         totalCredits: 12,
         remainingCredits: 6,
       }),
     ).toBe(0);
+  });
+
+  it("estimateRemainingDays should follow current plan cadence instead of purchased weeks", () => {
+    // Current plan only spans 8 weeks and has 24 credits => 3 credits/week cadence.
+    // If 6 credits remain, expected completion is about 2 weeks, not 13+ weeks.
+    const days = estimateRemainingDays({
+      cadenceWeeks: 8,
+      totalCredits: 24,
+      remainingCredits: 6,
+      fallbackCreditsPerWeek: 3,
+    });
+    expect(days).toBe(14);
   });
 });
 

@@ -239,12 +239,22 @@ export function findFirstLineForAction(text: string, actionName: string): string
     if (!name) return null;
 
     const re = new RegExp(escapeRegExp(name));
+    const matches: string[] = [];
     for (const line of t) {
         const s = line.trim();
         if (!s) continue;
-        if (re.test(s)) return s;
+        if (re.test(s)) matches.push(s);
     }
-    return null;
+    if (matches.length === 0) return null;
+    /** 避免把「**负重臂屈伸**」这类小标题当成唯一来源行，导致 lineHasExplicitReps=false 误清空 reps */
+    const withVolume = matches.find(
+        (s) =>
+            /\d/.test(s) &&
+            (/\d+\s*组/.test(s) ||
+                /\d+\s*(次|个)/.test(s) ||
+                /\d+\s*[x×*＊]\s*\d+/.test(s)),
+    );
+    return withVolume ?? matches[0];
 }
 
 /**

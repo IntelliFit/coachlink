@@ -61,12 +61,17 @@ export function evaluateSubscriptionPlanAccess(params: {
     trainingDays?: TrainingDayLike[] | null;
     executions?: ExecutionLike[] | null;
     startExecutionDay?: number | null;
+    effectiveSubscribedWeeks?: number | null;
 }): SubscriptionAccessDecision {
     const normalizedStatus = String(params.subscription.status ?? "")
         .trim()
         .toLowerCase();
+    const effectiveSubscribedWeeks = typeof params.effectiveSubscribedWeeks !==
+            "undefined"
+        ? Number(params.effectiveSubscribedWeeks ?? 0)
+        : Number(params.subscription.subscribed_weeks ?? 0);
     const maxAccessibleDayIndex = getMaxAccessibleDayIndex(
-        params.subscription.subscribed_weeks,
+        effectiveSubscribedWeeks,
     );
 
     // 访问门禁以 credits 为准：active 订阅不再被 end_date 直接拦截。
@@ -79,9 +84,29 @@ export function evaluateSubscriptionPlanAccess(params: {
         };
     }
 
+    if (!Number.isFinite(effectiveSubscribedWeeks) || effectiveSubscribedWeeks <= 0) {
+        return {
+            allowed: false,
+            reason: "SUBSCRIPTION_EXPIRED",
+            maxAccessibleDayIndex,
+        };
+    }
+
     const requestedDayIndex = Number(params.requestedDayIndex ?? 0);
     const hasRequestedDay = Number.isFinite(requestedDayIndex) &&
         requestedDayIndex > 0;
+    const startExecutionDay = Math.max(
+        1,
+        Number(params.startExecutionDay ?? 1),
+    );
+
+    if (hasRequestedDay && requestedDayIndex < startExecutionDay) {
+        return {
+            allowed: false,
+            reason: "PLAN_OUT_OF_SCOPE",
+            maxAccessibleDayIndex,
+        };
+    }
 
     if (
         hasRequestedDay &&
@@ -101,15 +126,15 @@ export function evaluateSubscriptionPlanAccess(params: {
     if (trainingDays) {
         const scope = computeCreditsScope({
             trainingDays,
-            startExecutionDay: params.startExecutionDay ?? null,
-            subscribedWeeks: params.subscription.subscribed_weeks,
+            startExecutionDay,
+            subscribedWeeks: effectiveSubscribedWeeks,
         });
 
         if (scope.totalCredits > 0) {
             const usedCredits = computeUsedCredits({
                 eligibleTrainingDayIndexSet: scope.eligibleTrainingDayIndexSet,
                 executions: Array.isArray(params.executions) ? params.executions : [],
-                startExecutionDay: params.startExecutionDay ?? null,
+                startExecutionDay,
             });
             if (usedCredits >= scope.totalCredits) {
                 return {

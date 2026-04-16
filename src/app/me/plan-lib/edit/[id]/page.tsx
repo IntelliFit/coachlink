@@ -364,6 +364,34 @@ const EditPlanPage = () => {
         setDays(newDays);
     };
 
+    const handleMoveActionSet = (
+        dayIndexOrArrayIndex: number,
+        setIndex: number,
+        direction: 'up' | 'down'
+    ) => {
+        const newDays = [...days];
+        let arrayIndex = newDays.findIndex(d => d.dayIndex === dayIndexOrArrayIndex);
+        if (arrayIndex === -1 && dayIndexOrArrayIndex >= 0 && dayIndexOrArrayIndex < newDays.length) {
+            arrayIndex = dayIndexOrArrayIndex;
+        }
+        if (arrayIndex === -1) {
+            console.error('Cannot find day for moveActionSet:', dayIndexOrArrayIndex);
+            return;
+        }
+
+        const actionSets = [...(newDays[arrayIndex].actionSets || [])];
+        const targetIndex = direction === 'up' ? setIndex - 1 : setIndex + 1;
+        if (targetIndex < 0 || targetIndex >= actionSets.length) return;
+
+        [actionSets[setIndex], actionSets[targetIndex]] = [actionSets[targetIndex], actionSets[setIndex]];
+        newDays[arrayIndex] = {
+            ...newDays[arrayIndex],
+            actionSets,
+            actionSetsCount: actionSets.length,
+        };
+        setDays(newDays);
+    };
+
     const handleActionSetChange = (
         dayIndex: number,
         setIndex: number,
@@ -698,6 +726,7 @@ const EditPlanPage = () => {
                                     onNoteChange={handleNoteChange}
                                     onAddActionSet={handleAddActionSet}
                                     onRemoveActionSet={handleRemoveActionSet}
+                                    onMoveActionSet={handleMoveActionSet}
                                     onActionSetChange={handleActionSetChange}
                                     saving={saving}
                                     totalDays={days.length}

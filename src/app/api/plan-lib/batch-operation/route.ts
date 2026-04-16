@@ -1,7 +1,6 @@
 import { NextRequest } from "next/server";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 import supabase from "@/lib/supabaseClient";
-import OpenAI from "openai";
 import ivm from "isolated-vm";
 import {
     BatchOperationDto,
@@ -13,20 +12,23 @@ import {
 import { buildBatchOperationContext } from "./context";
 import type { ItemType } from "@/types";
 import { sanitizeActionName } from "@/lib/planImportText";
+import { getCoachlinkLlm } from "@/lib/coachlinkLlm";
+import { tryApplyDeterministicBatchEdit } from "@/lib/batchOperationDeterministic";
 
 // 检查是否为开发环境
 const isDevelopment = process.env.NODE_ENV === 'development';
 
-// 初始化 OpenAI 客户端 (使用 DeepSeek)
-function getOpenAIClient(): OpenAI {
-    if (!process.env.DEEPSEEK_API_KEY) {
-        throw new Error("Missing DEEPSEEK_API_KEY environment variable");
-    }
-
-    return new OpenAI({
-        baseURL: "https://api.deepseek.com",
-        apiKey: process.env.DEEPSEEK_API_KEY,
-    });
+function buildPromptMessages(prompt: string): Array<{ role: "system" | "user"; content: string }> {
+    return [
+        {
+            role: "system",
+            content: "你是 coachlink 的训练计划 AI 助手。请严格遵循用户提示词中的任务、约束和输出格式要求。",
+        },
+        {
+            role: "user",
+            content: prompt,
+        },
+    ];
 }
 
 /**
@@ -264,6 +266,61 @@ function analyzeModifications(
                         field: '休息时间',
                         oldValue: `${origParams.rest_seconds || 0}秒`,
                         newValue: `${updParams.rest_seconds || 0}秒`
+                    });
+                }
+
+                const origIC = origParams.intensityConfig;
+                const updIC = updParams.intensityConfig;
+                const origRI = origIC?.relativeIntensity;
+                const updRI = updIC?.relativeIntensity;
+
+                if (origRI?.type !== updRI?.type || origRI?.value !== updRI?.value) {
+                    const fmtIntensity = (ri?: { type?: string; value?: number }) => {
+                        if (!ri) return '无';
+                        return ri.type === 'percentage' ? `${ri.value}%` : `${ri.value}RM`;
+                    };
+                    modifications.push({
+                        dayIndex,
+                        actionName,
+                        field: '强度',
+                        oldValue: fmtIntensity(origRI),
+                        newValue: fmtIntensity(updRI)
+                    });
+                } else {
+                    const origLegacyRM = origParams['强度'];
+                    const updLegacyRM = updParams['强度'];
+                    if (origLegacyRM !== updLegacyRM && (origLegacyRM != null || updLegacyRM != null)) {
+                        modifications.push({
+                            dayIndex,
+                            actionName,
+                            field: '强度',
+                            oldValue: origLegacyRM != null ? `${origLegacyRM}RM` : '无',
+                            newValue: updLegacyRM != null ? `${updLegacyRM}RM` : '无'
+                        });
+                    }
+                }
+
+                const origRecLoad = origIC?.recommendedLoad;
+                const updRecLoad = updIC?.recommendedLoad;
+                if (origRecLoad?.value !== updRecLoad?.value || origRecLoad?.unit !== updRecLoad?.unit) {
+                    if (origRecLoad != null || updRecLoad != null) {
+                        modifications.push({
+                            dayIndex,
+                            actionName,
+                            field: '推荐负重',
+                            oldValue: origRecLoad ? `${origRecLoad.value}${origRecLoad.unit}` : '无',
+                            newValue: updRecLoad ? `${updRecLoad.value}${updRecLoad.unit}` : '无'
+                        });
+                    }
+                }
+
+                if (origParams.note !== updParams.note && (origParams.note != null || updParams.note != null)) {
+                    modifications.push({
+                        dayIndex,
+                        actionName,
+                        field: '备注',
+                        oldValue: origParams.note || '无',
+                        newValue: updParams.note || '无'
                     });
                 }
             }
@@ -507,6 +564,13 @@ export async function POST(req: NextRequest) {
             return new Response(
                 JSON.stringify({ success: false, message: "Forbidden" }),
                 { status: 403 },
+            );
+        }
+
+        if (!String(instruction ?? "").trim() && !previewInputOnly) {
+            return new Response(
+                JSON.stringify({ success: false, message: "instruction 不能为空" }),
+                { status: 400 },
             );
         }
 
@@ -789,10 +853,13 @@ ${effectiveInstruction}
     "reason": "简短说明判断依据"
 }`;
 
-                    const openai = getOpenAIClient();
+                    const { client: openai, model: llmModel, provider: llmProvider } = getCoachlinkLlm();
+                    if (isDevelopment) {
+                        console.log(`[batch-operation] LLM: ${llmProvider} / ${llmModel}`);
+                    }
                     const intentCompletion = await openai.chat.completions.create({
-                        model: "deepseek-chat",
-                        messages: [{ role: "system", content: intentPrompt }],
+                        model: llmModel,
+                        messages: buildPromptMessages(intentPrompt),
                         response_format: { type: "json_object" },
                         temperature: 0.1,
                         max_tokens: 200
@@ -832,8 +899,8 @@ ${effectiveInstruction}
 请用中文回答，格式要清晰易读。如果涉及统计，请给出具体数字。可以使用 markdown 格式（如列表、加粗等）来增强可读性。`;
 
                         const queryCompletion = await openai.chat.completions.create({
-                            model: "deepseek-chat",
-                            messages: [{ role: "system", content: queryPrompt }],
+                            model: llmModel,
+                            messages: buildPromptMessages(queryPrompt),
                             temperature: 0.3,
                             max_tokens: 2000
                         });
@@ -897,8 +964,8 @@ ${effectiveInstruction}
     "suggestions": ["若 complete 为 false，此处返回 3～6 个具体推荐选项的字符串数组，与追问内容对应。例如有氧类可填 [\"跑步\", \"跳绳\", \"骑行\", \"游泳\", \"划船\"]，力量类可填动作库中的具体动作名。用户可点击直接选用。"]
 }`;
                     const clarificationCompletion = await openai.chat.completions.create({
-                        model: "deepseek-chat",
-                        messages: [{ role: "system", content: clarificationPrompt }],
+                        model: llmModel,
+                        messages: buildPromptMessages(clarificationPrompt),
                         response_format: { type: "json_object" },
                         temperature: 0.1,
                         max_tokens: 400
@@ -918,6 +985,63 @@ ${effectiveInstruction}
                             type: 'need_clarification',
                             question: clarificationResult.clarificationQuestion,
                             ...(suggestions?.length ? { suggestions } : {})
+                        });
+                        return;
+                    }
+
+                    const deterministicResult = tryApplyDeterministicBatchEdit({
+                        instruction: effectiveInstruction,
+                        trainingDays,
+                        actions: actions as Array<{ id: string; name: string; type?: ItemType | string | null }>,
+                    });
+
+                    if (deterministicResult.applied) {
+                        sendMessage({ type: 'progress', message: '已按明确规则直接应用修改' });
+                        sendMessage({
+                            type: 'action_plan',
+                            plan: deterministicResult.actionPlan || '已根据明确规则应用批量修改',
+                        });
+
+                        const modifications = analyzeModifications(
+                            originalTrainingDays,
+                            deterministicResult.updatedTrainingDays,
+                            actions.map(a => ({ id: a.id, name: a.name })),
+                        );
+
+                        const knownActionIds = new Set(actions.map((a: any) => a.id));
+                        const pendingActions = collectPendingActions(
+                            deterministicResult.updatedTrainingDays || [],
+                            knownActionIds,
+                        );
+                        const newActionsDetected: NewActionDetected[] = pendingActions.map((p) => ({
+                            actionId: p.tempActionId,
+                            suggestedName: p.suggestedName,
+                        }));
+                        if (newActionsDetected.length > 0) {
+                            const namesList = newActionsDetected
+                                .map((a) => a.suggestedName || a.actionId)
+                                .join('、');
+                            sendMessage({
+                                type: 'new_actions_detected',
+                                actions: newActionsDetected,
+                                message: `修改计划中包含以下不在您动作库中的动作：${namesList}。请先在动作库中创建这些动作后再应用，或确认是否仍要应用计划。`
+                            });
+                        }
+
+                        const normalizedUpdatedTrainingDays = normalizeTrainingDaysForEditor(
+                            deterministicResult.updatedTrainingDays || [],
+                            actions,
+                        );
+                        const totalDuration = Date.now() - startTime;
+
+                        sendMessage({
+                            type: 'preview_result',
+                            success: true,
+                            originalTrainingDays,
+                            updatedTrainingDays: normalizedUpdatedTrainingDays,
+                            modifications,
+                            pendingActions,
+                            message: `分析完成，共发现 ${modifications.length} 处修改${isDevelopment ? ` (总耗时 ${totalDuration}ms)` : ''}`,
                         });
                         return;
                     }
@@ -955,10 +1079,29 @@ interface ActionSet {
         weight?: number;       // 重量 kg（STRENGTH 常用）
         rest_seconds?: number;  // 组间休息秒
         note?: string;
+        intensityConfig?: IntensityConfig; // 强度配置（RM、百分比、推荐负重）
+        '强度'?: number;        // 旧格式兼容：RM 值（如 5 表示 5RM）
         // 有氧/饮食/习惯类动作可能还有 customData，见下
     };
 }
+
+interface IntensityConfig {
+    relativeIntensity?: {
+        type: 'rm' | 'percentage';  // rm=RM次数, percentage=1RM百分比
+        value: number;              // RM时为1-30(如5表示5RM), 百分比时为1-100(如80表示80%)
+    };
+    recommendedLoad?: {
+        value: number;  // 推荐重量数值
+        unit: 'kg' | 'lbs';
+    };
+}
 \`\`\`
+
+### 修改 RM / 强度 的规则
+- 用户说"改成 8RM"时，设置 \`params.intensityConfig = { relativeIntensity: { type: 'rm', value: 8 } }\`，同时设置 \`params['强度'] = 8\`（旧格式兼容）
+- 用户说"改成 80%"时，设置 \`params.intensityConfig = { relativeIntensity: { type: 'percentage', value: 80 } }\`
+- 如果已有 \`recommendedLoad\`，修改 RM 时保留它不要删除
+- 修改 RM 时不需要修改 \`weight\` 字段（weight 是固定重量模式的值）
 
 ### 替换/添加动作时 itemType 必须同步
 **关键**：当你替换或添加动作时，必须同时设置 \`actionSet.itemType\` 为动作库中该 actionId 对应的 type。
@@ -1009,7 +1152,7 @@ ${effectiveInstruction}
                     let lastError: string = '';
                     
                     const messages: Array<{ role: "system" | "user" | "assistant", content: string }> = [
-                        { role: "system", content: systemPrompt }
+                        ...buildPromptMessages(systemPrompt),
                     ];
 
                     while (retryCount < maxRetries) {
@@ -1027,7 +1170,7 @@ ${effectiveInstruction}
 
                             const aiStartTime = Date.now();
                             const completion = await openai.chat.completions.create({
-                                model: "deepseek-chat",
+                                model: llmModel,
                                 messages: messages,
                                 response_format: { type: "json_object" },
                                 temperature: 0.2,
@@ -1081,6 +1224,27 @@ ${effectiveInstruction}
                             );
 
                             if (executionResult.success) {
+                                const originalSnapshot = JSON.stringify(trainingDays);
+                                const resultSnapshot = JSON.stringify(executionResult.result);
+                                if (originalSnapshot === resultSnapshot) {
+                                    lastError = deterministicResult.matched && deterministicResult.reason
+                                        ? `${deterministicResult.reason}\n另外，上一次生成的代码执行成功但没有对 trainingDays 产生任何修改。请严格按用户指令定位并实际改写数组。`
+                                        : '上一次生成的代码执行成功，但没有对 trainingDays 产生任何修改。请严格按用户指令定位目标训练日/动作，并实际改写数组。';
+                                    retryCount++;
+
+                                    if (retryCount < maxRetries) {
+                                        messages.push(
+                                            { role: "assistant", content: responseContent },
+                                            {
+                                                role: "user",
+                                                content: `代码执行结果没有任何实际修改。\n\n补充要求：\n${lastError}\n\n请重新生成真正会修改 trainingDays 的代码。注意：\n1. 必须让目标训练日/动作发生实际变化\n2. 不要使用 return 语句，直接修改 trainingDays 数组\n3. 如果替换动作不在动作库，请使用 pending: 临时 actionId`
+                                            }
+                                        );
+                                        continue;
+                                    }
+
+                                    throw new Error('操作执行失败：已多次尝试，但生成的代码始终没有对训练计划产生实际修改。请尝试更明确描述范围、动作名和目标参数。');
+                                }
                                 // 执行成功，跳出重试循环
                                 break;
                             } else {

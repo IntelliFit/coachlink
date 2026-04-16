@@ -110,7 +110,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
                             showNotification({
                                 title: senderName,
                                 body: body.slice(0, 80),
-                                url: `/messages?peerUserId=${senderId}`,
+                                url: `/messages/${messageRoomId}`,
                                 tag: `chat-${messageRoomId}`,
                             }).catch((error) => {
                                 console.error('[ChatContext] 显示通知失败:', error);

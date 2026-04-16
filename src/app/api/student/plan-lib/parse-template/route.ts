@@ -255,7 +255,7 @@ export async function POST(req: Request) {
                 );
 
                 const response = await callDeepSeek(prompt, {
-                    maxTokens: 3500,
+                    maxTokens: 16384,
                 });
                 const parsedResult = parseJsonResponse<GeminiParsedTemplate>(
                     response,
@@ -603,6 +603,10 @@ function parseSetsRepsFromLine(line: string): { sets: number | null; reps: numbe
     const setFirst = s.match(/(\d+)\s*组\s*[x×*＊]\s*(\d+)\s*(次|个)?/);
     if (setFirst) {
         return { sets: Number(setFirst[1]), reps: Number(setFirst[2]) };
+    }
+    const setThenReps = s.match(/(\d+)\s*组\s*(\d+)\s*(次|个)/);
+    if (setThenReps) {
+        return { sets: Number(setThenReps[1]), reps: Number(setThenReps[2]) };
     }
     return null;
 }

@@ -35,7 +35,8 @@ export function NotificationPermissionProvider({ children }: { children: ReactNo
             }
 
             // 检查是否在消息页
-            const isMessagesPage = window.location.pathname === '/messages';
+            const path = window.location.pathname;
+            const isMessagesPage = path === '/messages' || path.startsWith('/messages/');
             if (isMessagesPage) {
                 // 延迟显示，避免与页面加载冲突
                 const timer = setTimeout(() => {

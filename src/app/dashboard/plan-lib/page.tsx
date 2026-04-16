@@ -16,6 +16,7 @@ import { CoachPlansPreview } from '@/app/api/plan-lib/list-templates/entity';
 import TemplateCard from './components/TemplateCard';
 import { ConfirmDialog, confirmDialog } from 'primereact/confirmdialog';
 import { BatchOperationDialog } from '@/components/BatchOperationDialog';
+import TemplateTextExportDialog from './components/TemplateTextExportDialog';
 
 const PlanLib = () => {
     const { data: session } = useSession();
@@ -35,6 +36,11 @@ const PlanLib = () => {
     const [searchTotalRecords, setSearchTotalRecords] = useState(0);
     const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
     const [batchOperationVisible, setBatchOperationVisible] = useState(false);
+    const [exportDialogVisible, setExportDialogVisible] = useState(false);
+    const [exportLoading, setExportLoading] = useState(false);
+    const [exportTemplateName, setExportTemplateName] = useState('');
+    const [exportFilename, setExportFilename] = useState('训练计划.txt');
+    const [exportText, setExportText] = useState('');
     const { showToast } = useToastContext();
     const itemsPerPage = 12;
 
@@ -109,6 +115,41 @@ const PlanLib = () => {
         }
     };
 
+    const handleExportTemplate = async (id: string) => {
+        setExportLoading(true);
+        setExportDialogVisible(true);
+        setExportText('');
+        try {
+            const res = await planLibService.exportTemplateText({ id });
+            setExportTemplateName(res.templateName);
+            setExportFilename(res.filename);
+            setExportText(res.text);
+        } catch (error) {
+            console.error('导出训练计划模板文本失败:', error);
+            setExportDialogVisible(false);
+            showToast({ severity: 'error', summary: '导出失败', detail: '无法导出训练计划文本' });
+        } finally {
+            setExportLoading(false);
+        }
+    };
+
+    const handleCopyExportText = async () => {
+        if (!exportText) return;
+        await navigator.clipboard.writeText(exportText);
+        showToast({ severity: 'success', summary: '复制成功', detail: '训练计划文本已复制到剪贴板' });
+    };
+
+    const handleDownloadExportText = () => {
+        if (!exportText) return;
+        const blob = new Blob([exportText], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = exportFilename || '训练计划.txt';
+        link.click();
+        URL.revokeObjectURL(url);
+    };
+
     const handleDeleteTemplate = (id: string) => {
         confirmDialog({
             message: '确定要删除这个训练计划模板吗？此操作无法撤销。',
@@ -171,6 +212,7 @@ const PlanLib = () => {
                 template={template}
                 onEdit={(id) => router.push(`/dashboard/plan-lib/edit/${id}`)}
                 onCopy={handleCopyTemplate}
+                onExport={handleExportTemplate}
                 onDelete={handleDeleteTemplate}
                 onBatchOperation={(id) => {
                     setSelectedTemplateId(id);
@@ -203,6 +245,16 @@ const PlanLib = () => {
                     onSuccess={handleBatchOperationSuccess}
                 />
             )}
+
+            <TemplateTextExportDialog
+                visible={exportDialogVisible}
+                onHide={() => setExportDialogVisible(false)}
+                templateName={exportTemplateName}
+                text={exportText}
+                loading={exportLoading}
+                onCopy={handleCopyExportText}
+                onDownload={handleDownloadExportText}
+            />
 
             {/* Header: 强调数值中心化 */}
             <header className="flex items-center justify-between mb-12 px-2">

@@ -75,7 +75,7 @@ export function checkTrainingDays(
     };
 }
 
-export function makeWeekDays(trainingDays: CoachPlanTrainingDay[]) {
+export function makeWeekDays(trainingDays: Array<Pick<CoachPlanTrainingDay, "type">>) {
     const weekDays: number[] = [];
     // 每七天为间隔进行计算
     for (let i = 0; i < trainingDays.length; i++) {

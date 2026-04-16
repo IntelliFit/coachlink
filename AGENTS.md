@@ -2,6 +2,12 @@
 
 This workspace is dedicated to the `coachlink` project.
 
+## 仓库结构（Monorepo）
+
+- **主站（Web）**：Next.js 应用，路由目录为 `src/app/`。
+- **微信小程序**：源码位于仓库根目录下的 **`wechat_app/`** 目录。根目录禁止再使用 `app/` 存放小程序，以免被 Next.js 当成主站 App Router 目录并覆盖 `src/app/` 路由。
+- **Git 管理**：主站与小程序统一在仓库根目录提交与推送；`wechat_app/` 内不再保留嵌套 `.git`。
+
 ## Session Startup
 
 - At the start of every new session, and again after compaction, read `IDENTITY.md`, `SOUL.md`, and `USER.md` before replying.

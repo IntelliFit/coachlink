@@ -45,6 +45,14 @@ export function computeCreditsScope(params: {
   // Scope always starts from plan day 1 for subscription credits.
   const scopeStartDayIndex = 1;
   const weeks = Math.max(0, Number(params.subscribedWeeks || 0));
+  if (weeks <= 0) {
+    return {
+      scopeStartDayIndex,
+      scopeEndDayIndex: 0,
+      eligibleTrainingDayIndexSet: new Set<number>(),
+      totalCredits: 0,
+    };
+  }
   const scopeLenDays = weeks * 7;
   const rawScopeEnd = scopeStartDayIndex + Math.max(0, scopeLenDays - 1);
 
@@ -101,17 +109,17 @@ export function computeUsedCredits(params: {
 /**
  * 将 remainingCredits 转换为“预计还需要多少自然日”用于 UI 展示。
  * 逻辑：按计划节奏（平均每周训练次数）推算。
- * - plannedCreditsPerWeek = totalCredits / subscribedWeeks
+ * - plannedCreditsPerWeek = totalCredits / cadenceWeeks
  * - remainingDays ≈ remainingCredits / plannedCreditsPerWeek * 7
  * - 如果无法推算，用 fallbackCreditsPerWeek（默认 3 次/周）
  */
 export function estimateRemainingDays(params: {
-  subscribedWeeks: number;
+  cadenceWeeks: number;
   totalCredits: number;
   remainingCredits: number;
   fallbackCreditsPerWeek?: number;
 }): number {
-  const weeks = Number(params.subscribedWeeks || 0);
+  const weeks = Number(params.cadenceWeeks || 0);
   const total = Number(params.totalCredits || 0);
   const remaining = Number(params.remainingCredits || 0);
   const fallback = Number(params.fallbackCreditsPerWeek || 3);

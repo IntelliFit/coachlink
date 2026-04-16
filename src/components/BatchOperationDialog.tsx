@@ -73,7 +73,7 @@ type ContextToggleState = {
 };
 
 interface LogEntry {
-    type: 'progress' | 'action_plan' | 'stats' | 'error' | 'success' | 'need_clarification' | 'new_actions';
+    type: 'progress' | 'action_plan' | 'stats' | 'error' | 'success' | 'need_clarification' | 'new_actions' | 'user_message' | 'ai_response';
     content: string;
     timestamp: Date;
     data?: any;
@@ -324,9 +324,13 @@ export function BatchOperationDialog({
         }
     }, [visible, initialInstruction]);
 
+    const scrollContainerRef = useRef<HTMLDivElement>(null);
     useEffect(() => {
-        logsEndRef.current?.scrollIntoView({ behavior: 'auto', block: 'end' });
-    }, [logs]);
+        const el = scrollContainerRef.current;
+        if (el) {
+            el.scrollTop = el.scrollHeight;
+        }
+    }, [logs, queryAnswer, isProcessing, pendingActions]);
 
     // 添加日志条目
     const addLog = (type: LogEntry['type'], content: string, data?: any) => {
@@ -418,6 +422,7 @@ export function BatchOperationDialog({
             
             case 'query_result':
                 addLog('success', '✅ 分析完成');
+                addLog('ai_response', message.answer || '');
                 setQueryAnswer(message.answer);
                 break;
             
@@ -506,7 +511,7 @@ export function BatchOperationDialog({
         ];
         setConversationHistory(nextHistory);
         setClarificationSuggestions(null);
-        addLog('progress', `已收到您的补充：${trimmed}`);
+        addLog('user_message', trimmed);
         setInstruction('');
         setIsProcessing(true);
 
@@ -737,96 +742,86 @@ export function BatchOperationDialog({
         setAiInputSnapshot(null);
     };
 
-    // 渲染日志条目
     const renderLogEntry = (entry: LogEntry, index: number) => {
-        const timeStr = entry.timestamp.toLocaleTimeString('zh-CN', {
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
-        });
+        if (entry.type === 'user_message') {
+            return (
+                <div key={index} className="flex items-start gap-3">
+                    <div className="w-8 h-8 rounded-full bg-primary-600 text-white flex items-center justify-center shrink-0 font-bold text-sm">你</div>
+                    <div className="flex-1 bg-surface-50 rounded-2xl p-4 border border-surface-100">
+                        <div className="text-surface-900 text-sm leading-relaxed">{entry.content}</div>
+                    </div>
+                </div>
+            );
+        }
+
+        if (entry.type === 'ai_response') {
+            return (
+                <div key={index} className="flex items-start gap-3">
+                    <div className="w-8 h-8 rounded-xl bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 flex items-center justify-center shrink-0">
+                        <i className="pi pi-sparkles text-sm" />
+                    </div>
+                    <div className="flex-1 min-w-0 bg-surface-50 dark:bg-surface-800 rounded-2xl p-4 border border-surface-100 dark:border-surface-700">
+                        <div className="prose prose-sm max-w-none text-surface-700 dark:text-surface-300 markdown-message-content">
+                            <div className="text-sm leading-relaxed" dangerouslySetInnerHTML={{ __html: DOMPurify?.sanitize(md.render(entry.content || '')) }} />
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        if (entry.type === 'need_clarification') {
+            return (
+                <div key={index} className="flex items-start gap-3">
+                    <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center shrink-0">
+                        <i className="pi pi-question-circle text-sm" />
+                    </div>
+                    <div className="flex-1 min-w-0 bg-amber-50 rounded-2xl p-4 border border-amber-200">
+                        <div className="text-sm leading-relaxed text-amber-900">{entry.content}</div>
+                    </div>
+                </div>
+            );
+        }
+
+        const timeStr = entry.timestamp.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        const isLastEntry = index === logs.length - 1;
+        const isError = entry.type === 'error';
+        const isNewActions = entry.type === 'new_actions';
 
         const getLogIcon = () => {
-            // 检查是否是最后一条日志，且类型为 progress
-            const isLastEntry = index === logs.length - 1;
-            
             switch (entry.type) {
-                case 'progress':
-                    // 只有最后一条 progress 消息才显示旋转图标
-                    return isLastEntry ? 'pi-spin pi-spinner' : 'pi-check';
-                case 'action_plan':
-                    return 'pi-list';
-                case 'stats':
-                    return 'pi-chart-bar';
-                case 'success':
-                    return 'pi-check-circle';
-                case 'error':
-                    return 'pi-exclamation-circle';
-                case 'need_clarification':
-                    return 'pi-question-circle';
-                case 'new_actions':
-                    return 'pi-plus-circle';
-                default:
-                    return 'pi-info-circle';
+                case 'progress': return isLastEntry && isProcessing ? 'pi-spin pi-spinner' : 'pi-check';
+                case 'action_plan': return 'pi-list';
+                case 'stats': return 'pi-chart-bar';
+                case 'success': return 'pi-check-circle';
+                case 'error': return 'pi-exclamation-circle';
+                case 'new_actions': return 'pi-plus-circle';
+                default: return 'pi-info-circle';
             }
         };
-
-        const icon = getLogIcon();
-
-        // 错误 / 需补全 / 新动作提醒 使用突出样式
-        const isError = entry.type === 'error';
-        const isClarification = entry.type === 'need_clarification';
-        const isNewActions = entry.type === 'new_actions';
-        const isWarning = isClarification || isNewActions;
 
         return (
             <div
                 key={index}
                 className={`
-                    ${isError 
-                        ? 'bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800/30' 
-                        : isWarning
+                    ${isError
+                        ? 'bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800/30'
+                        : isNewActions
                         ? 'bg-amber-50 border-amber-200 dark:bg-amber-900/20 dark:border-amber-800/30'
-                        : 'bg-surface-50 border-surface-200'
-                    }
-                    border rounded-xl px-3 py-2
-                    flex items-center gap-2.5
-                    log-entry-animation
+                        : 'bg-surface-50 border-surface-200'}
+                    border rounded-xl px-3 py-2 flex items-center gap-2.5 log-entry-animation
                 `}
-                style={{
-                    animationDelay: `${index * 50}ms`,
-                }}
+                style={{ animationDelay: `${index * 50}ms` }}
             >
-                {/* 图标 */}
-                <div className={`shrink-0 ${
-                    isError ? 'text-red-500' 
-                    : isWarning ? 'text-amber-600 dark:text-amber-400' 
-                    : 'text-surface-400 dark:text-surface-500'
-                }`}>
-                    <i className={`pi ${icon} text-xs`}></i>
+                <div className={`shrink-0 ${isError ? 'text-red-500' : isNewActions ? 'text-amber-600' : 'text-surface-400'}`}>
+                    <i className={`pi ${getLogIcon()} text-xs`} />
                 </div>
-                
-                {/* 内容 */}
                 <div className={`flex-1 min-w-0 text-xs font-medium leading-relaxed ${
-                    isError 
-                        ? 'text-red-700 dark:text-red-300' 
-                        : isWarning 
-                        ? 'text-amber-800 dark:text-amber-200' 
-                        : 'text-surface-700 dark:text-surface-500'
-                }`}>
-                    {entry.content}
-                </div>
-
-                {/* 时间戳 - 右侧 */}
+                    isError ? 'text-red-700 dark:text-red-300' : isNewActions ? 'text-amber-800' : 'text-surface-700 dark:text-surface-500'
+                }`}>{entry.content}</div>
                 {entry.type !== 'stats' && (
                     <div className={`shrink-0 text-[10px] font-medium tabular-nums ${
-                        isError 
-                            ? 'text-red-400 dark:text-red-500' 
-                            : isWarning 
-                            ? 'text-amber-600 dark:text-amber-500' 
-                            : 'text-surface-400 dark:text-surface-500'
-                    }`}>
-                        {timeStr}
-                    </div>
+                        isError ? 'text-red-400' : isNewActions ? 'text-amber-600' : 'text-surface-400'
+                    }`}>{timeStr}</div>
                 )}
             </div>
         );
@@ -977,11 +972,11 @@ export function BatchOperationDialog({
                     </div>
                 )}
 
-                {/* 已开始状态：显示对话内容 */}
+                {/* 已开始状态：聊天式对话界面 */}
                 {hasStarted && (
                     <div className="flex flex-col h-full min-h-0">
-                        {/* Header：仅返回 */}
-                        <div className="flex-shrink-0 px-8 pt-6 pb-2 flex items-center">
+                        {/* 顶栏：返回 + 上下文 + 预览 */}
+                        <div className="flex-shrink-0 px-5 pt-4 pb-2 flex items-center border-b border-surface-100/60">
                             <Button
                                 icon="pi pi-arrow-left"
                                 text
@@ -990,8 +985,6 @@ export function BatchOperationDialog({
                                 onClick={handleHide}
                                 disabled={isProcessing || isApplying || isResolvingPendingActions}
                                 aria-label="关闭"
-                                tooltip="关闭对话框"
-                                tooltipOptions={{ position: 'right' }}
                             />
                             <div className="ml-2 flex items-center gap-2">
                                 <Button
@@ -1018,10 +1011,10 @@ export function BatchOperationDialog({
                             </div>
                         </div>
 
-                        {/* 内容容器 */}
-                        <div className="flex-1 min-h-0 px-8 pb-1 flex flex-col">
-                            {contextPanelOpen && (
-                                <div className="mb-3 rounded-2xl border border-surface-200 bg-surface-50/70 p-3">
+                        {/* 上下文设置面板（折叠，不占滚动区） */}
+                        {contextPanelOpen && (
+                            <div className="flex-shrink-0 px-5 py-3 border-b border-surface-100/60">
+                                <div className="rounded-2xl border border-surface-200 bg-surface-50/70 p-3">
                                     <div className="text-xs text-surface-500 mb-2">当前会话上下文开关</div>
                                     <div className="flex flex-wrap gap-2">
                                         {visibleContextItems.map((item) => {
@@ -1048,48 +1041,44 @@ export function BatchOperationDialog({
                                         })}
                                     </div>
                                 </div>
-                            )}
-                            {/* 用户消息 */}
-                            <div className="flex-shrink-0 mb-6">
-                                <div className="bg-surface-50 rounded-2xl p-4 border border-surface-100">
-                                    <div className="flex items-start gap-3">
-                                        <div className="w-8 h-8 rounded-full bg-primary-600 text-white flex items-center justify-center flex-shrink-0 font-bold text-sm">
-                                            你
-                                        </div>
-                                        <div className="flex-1 text-surface-900 text-sm leading-relaxed pt-1">
-                                            {submittedInstruction}
-                                        </div>
-                                    </div>
+                            </div>
+                        )}
+
+                        {/* === 聊天滚动区域 === */}
+                        <div ref={scrollContainerRef} className="flex-1 min-h-0 overflow-y-auto px-5 py-4 space-y-4 custom-scrollbar">
+                            {/* 用户首条消息 */}
+                            <div className="flex items-start gap-3">
+                                <div className="w-8 h-8 rounded-full bg-primary-600 text-white flex items-center justify-center shrink-0 font-bold text-sm">你</div>
+                                <div className="flex-1 bg-surface-50 rounded-2xl p-4 border border-surface-100">
+                                    <div className="text-surface-900 text-sm leading-relaxed">{submittedInstruction}</div>
                                 </div>
                             </div>
 
                             {contextStatusText && (
-                                <div className="mb-3 rounded-xl border border-primary-200 bg-primary-50/70 px-3 py-2 text-xs text-primary-700">
+                                <div className="rounded-xl border border-primary-200 bg-primary-50/70 px-3 py-2 text-xs text-primary-700">
                                     {contextStatusText}
                                 </div>
                             )}
                             {aiInputSnapshot && (
-                                <details className="mb-3 rounded-xl border border-surface-200 bg-surface-50/60 px-3 py-2">
-                                    <summary className="cursor-pointer text-xs font-medium text-surface-700">
-                                        AI 输入快照（仅结果）
-                                    </summary>
+                                <details className="rounded-xl border border-surface-200 bg-surface-50/60 px-3 py-2">
+                                    <summary className="cursor-pointer text-xs font-medium text-surface-700">AI 输入快照（仅结果）</summary>
                                     <div className="mt-2 space-y-2 text-xs">
                                         {aiInputSnapshot.fullPrompts ? (
                                             <>
                                                 <details className="rounded-lg bg-surface p-2 border border-surface-200">
-                                                    <summary className="cursor-pointer font-medium text-surface-700">完整提示词：意图判断 Prompt</summary>
+                                                    <summary className="cursor-pointer font-medium text-surface-700">意图判断 Prompt</summary>
                                                     <pre className="mt-2 max-h-64 overflow-auto custom-scrollbar rounded-md bg-surface-50 p-2 text-[11px] leading-5 whitespace-pre-wrap text-surface-600">{aiInputSnapshot.fullPrompts.intentPrompt}</pre>
                                                 </details>
                                                 <details className="rounded-lg bg-surface p-2 border border-surface-200">
-                                                    <summary className="cursor-pointer font-medium text-surface-700">完整提示词：查询分析 Prompt</summary>
+                                                    <summary className="cursor-pointer font-medium text-surface-700">查询分析 Prompt</summary>
                                                     <pre className="mt-2 max-h-64 overflow-auto custom-scrollbar rounded-md bg-surface-50 p-2 text-[11px] leading-5 whitespace-pre-wrap text-surface-600">{aiInputSnapshot.fullPrompts.queryPrompt}</pre>
                                                 </details>
                                                 <details className="rounded-lg bg-surface p-2 border border-surface-200">
-                                                    <summary className="cursor-pointer font-medium text-surface-700">完整提示词：补充追问 Prompt</summary>
+                                                    <summary className="cursor-pointer font-medium text-surface-700">补充追问 Prompt</summary>
                                                     <pre className="mt-2 max-h-64 overflow-auto custom-scrollbar rounded-md bg-surface-50 p-2 text-[11px] leading-5 whitespace-pre-wrap text-surface-600">{aiInputSnapshot.fullPrompts.clarificationPrompt}</pre>
                                                 </details>
                                                 <details className="rounded-lg bg-surface p-2 border border-surface-200">
-                                                    <summary className="cursor-pointer font-medium text-surface-700">完整提示词：代码生成 Prompt</summary>
+                                                    <summary className="cursor-pointer font-medium text-surface-700">代码生成 Prompt</summary>
                                                     <pre className="mt-2 max-h-64 overflow-auto custom-scrollbar rounded-md bg-surface-50 p-2 text-[11px] leading-5 whitespace-pre-wrap text-surface-600">{aiInputSnapshot.fullPrompts.systemPrompt}</pre>
                                                 </details>
                                             </>
@@ -1113,38 +1102,12 @@ export function BatchOperationDialog({
                                 </details>
                             )}
 
-                            {/* 内容区域：限制高度，超出部分在此滚动 */}
-                            <div className="flex-1 min-h-0 max-h-[calc(100vh-460px)] overflow-y-auto space-y-4 mb-4 pr-2 custom-scrollbar">
-                                {/* 日志显示区域 */}
-                                {logs.length > 0 && (
-                                    <div className="space-y-2">
-                                        {logs.map((entry, index) => renderLogEntry(entry, index))}
-                                        <div ref={logsEndRef} />
-                                    </div>
-                                )}
-
-                                {/* 查询结果展示 */}
-                                {queryAnswer && (
-                                    <div className="space-y-3">
-                                        <div className="flex items-start gap-3">
-                                            <div className="w-8 h-8 rounded-xl bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 flex items-center justify-center flex-shrink-0">
-                                                <i className="pi pi-sparkles text-sm"></i>
-                                            </div>
-                                            <div className="flex-1 min-w-0">
-                                                <div className="bg-surface-50 dark:bg-surface-800 rounded-2xl p-4 border border-surface-100 dark:border-surface-700">
-                                                    <div className="prose prose-sm max-w-none text-surface-700 dark:text-surface-300 markdown-message-content">
-                                                        <div 
-                                                            className="text-sm leading-relaxed"
-                                                            dangerouslySetInnerHTML={{ 
-                                                                __html: DOMPurify?.sanitize(md.render(queryAnswer || ''))
-                                                            }} 
-                                                        />
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
+                            {/* 日志 + 聊天气泡时间线 */}
+                            {logs.length > 0 && (
+                                <div className="space-y-3">
+                                    {logs.map((entry, index) => renderLogEntry(entry, index))}
+                                </div>
+                            )}
 
                                 {pendingActions.length > 0 && (
                                     <div className="rounded-2xl border border-amber-200 bg-amber-50/60 px-4 py-3 space-y-3">
@@ -1294,10 +1257,33 @@ export function BatchOperationDialog({
                                         </div>
                                     </div>
                                 )}
-                            </div>
 
-                            {/* 中部：取消 + 确认应用（小号按钮） */}
-                            <div className="flex-shrink-0 flex items-center justify-center gap-3">
+                            {/* AI 思考中指示器 */}
+                            {isProcessing && (
+                                <div className="flex items-start gap-3">
+                                    <div className="w-8 h-8 rounded-xl bg-primary-100 text-primary-600 flex items-center justify-center shrink-0">
+                                        <i className="pi pi-sparkles text-sm" />
+                                    </div>
+                                    <div className="bg-surface-50 rounded-2xl px-4 py-3 border border-surface-100">
+                                        <div className="flex items-center gap-2.5">
+                                            <div className="flex gap-1">
+                                                <span className="w-1.5 h-1.5 bg-surface-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                                                <span className="w-1.5 h-1.5 bg-surface-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                                                <span className="w-1.5 h-1.5 bg-surface-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                                            </div>
+                                            <span className="text-xs text-surface-500 font-medium">AI 正在思考…</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            <div ref={logsEndRef} />
+                        </div>
+                        {/* === 聊天滚动区结束 === */}
+
+                        {/* 操作按钮栏（固定在底部） */}
+                        {(previewData || hasPendingActions) && (
+                            <div className="flex-shrink-0 px-5 py-2 border-t border-surface-100 flex flex-wrap items-center justify-center gap-2">
                                 {hasPendingActions && (
                                     <Button
                                         label={isResolvingPendingActions ? '映射中...' : '1. 确认并映射动作'}
@@ -1308,8 +1294,8 @@ export function BatchOperationDialog({
                                     />
                                 )}
                                 <Button
-                                    label="取消"
-                                    icon="pi pi-times"
+                                    label="重新开始"
+                                    icon="pi pi-refresh"
                                     text
                                     severity="secondary"
                                     className="rounded-xl text-[11px] font-bold py-1.5 px-3 text-surface-600 hover:text-surface-900 hover:bg-surface-50 active:scale-[0.98] transition-all"
@@ -1318,7 +1304,7 @@ export function BatchOperationDialog({
                                 />
                                 {previewData && (
                                     <Button
-                                        label={isApplying ? '应用中...' : (hasPendingActions ? '2. 确认应用（先映射动作）' : '确认应用')}
+                                        label={isApplying ? '应用中...' : (hasPendingActions ? '2. 确认应用' : '确认应用')}
                                         icon={isApplying ? undefined : 'pi pi-check'}
                                         className="rounded-xl py-1.5 px-4 text-[11px] font-bold bg-primary-600 border-none text-white hover:bg-primary-700 active:scale-[0.98] transition-all shadow-sm shadow-primary-200"
                                         onClick={handleApply}
@@ -1326,18 +1312,18 @@ export function BatchOperationDialog({
                                         loading={isApplying}
                                     />
                                 )}
+                                {(hasUnresolvedPendingActions || hasPendingActions) && (
+                                    <span className="w-full text-center text-[11px] text-amber-600">
+                                        {hasUnresolvedPendingActions
+                                            ? '请先完成所有缺失动作确认，再执行“确认并映射动作”'
+                                            : '请先执行“确认并映射动作”，再确认应用'}
+                                    </span>
+                                )}
                             </div>
-                            {previewData && (hasUnresolvedPendingActions || hasPendingActions) && (
-                                <div className="mt-2 text-center text-[11px] text-amber-600">
-                                    {hasUnresolvedPendingActions
-                                        ? '请先完成所有缺失动作确认，再执行“确认并映射动作”'
-                                        : '请先执行“确认并映射动作”，再确认应用'}
-                                </div>
-                            )}
-                        </div>
+                        )}
 
-                        {/* 底部：推荐选项（若有）+ 输入框（内嵌发送按钮） */}
-                        <div className="flex-shrink-0 border-t border-surface-100 dark:border-surface-700 px-8 pt-4 pb-6">
+                        {/* 底部输入区（固定） */}
+                        <div className="flex-shrink-0 border-t border-surface-100 dark:border-surface-700 px-5 pt-3 pb-4">
                             {clarificationSuggestions && clarificationSuggestions.length > 0 && (
                                 <div className="flex flex-wrap gap-2 mb-3">
                                     {clarificationSuggestions.map((s, idx) => (
@@ -1359,8 +1345,8 @@ export function BatchOperationDialog({
                                     onKeyDown={handleBottomKeyDown}
                                     placeholder={
                                         conversationHistory.some((t) => t.role === 'assistant')
-                                            ? '请补充信息后发送，例如：跑步、跳绳、骑行…'
-                                            : '继续输入并发送，进行多轮对话'
+                                            ? '请补充信息后发送'
+                                            : '继续输入，进行多轮对话'
                                     }
                                     rows={2}
                                     className="w-full rounded-2xl border-surface-200 focus:border-primary-300 text-sm resize-none pr-12"
