@@ -113,22 +113,38 @@ async function getStudentPlanDataBatch(coachId: string, studentIds: string[]) {
             result.set(studentId, { plan: null, progress: { total: 0, completed: 0 } });
             continue;
         }
+        const startExecutionDay = Number(inst.start_execution_day || 1);
+        const trainingDayTotal = Array.isArray(inst.training_days)
+            ? inst.training_days.filter((day: any) => {
+                const dayIndex = Number(day?.dayIndex ?? day?.day_index ?? 0);
+                return dayIndex >= startExecutionDay && day?.type === "training";
+            }).length
+            : Number(inst.training_days_count || 0);
+        const completedCount = completedByInstance.get(inst.id) || 0;
+        const isLogicallyCompleted = trainingDayTotal > 0 &&
+            completedCount >= trainingDayTotal;
+        const derivedStatus = inst.status === "active" && isLogicallyCompleted
+            ? "completed"
+            : inst.status;
+
         result.set(studentId, {
             plan: {
                 name: inst.name,
                 description: inst.description || "",
-                status: inst.status,
+                status: derivedStatus,
+                raw_status: inst.status,
+                is_logically_completed: isLogicallyCompleted,
                 id: inst.id,
             },
             progress: {
-                total: inst.training_days_count || 0,
-                completed: completedByInstance.get(inst.id) || 0,
+                total: trainingDayTotal,
+                completed: completedCount,
             },
             instanceMeta: {
                 instance_id: inst.id,
                 created_at: inst.created_at || null,
                 training_days: Array.isArray(inst.training_days) ? inst.training_days : [],
-                start_execution_day: Number(inst.start_execution_day || 1),
+                start_execution_day: startExecutionDay,
                 executions: executionsByInstance.get(inst.id) || [],
             },
         });

@@ -483,9 +483,20 @@ export default function StudentsPage() {
             </div>
         );
     };
+
+    const isStudentPlanCompleted = (student: StudentSubscription) => {
+        const plan = student.plan;
+        if (!plan) return false;
+        const completedDays = Number(student.progress?.completed || 0);
+        const totalDays = Number(student.progress?.total || 0);
+        return plan.status === 'completed' ||
+            !!(plan as any).is_logically_completed ||
+            (totalDays > 0 && completedDays >= totalDays);
+    };
+
     const trainingPlanTemplate = (student: StudentSubscription) => {
         const plan = student.plan;
-        const isCompleted = plan?.status === 'completed';
+        const isCompleted = isStudentPlanCompleted(student);
         const isActive = plan && !isCompleted;
         const hasPlan = !!plan; // 是否已有计划
 
@@ -549,6 +560,7 @@ export default function StudentsPage() {
                             icon={<SparklesIcon size={18} />}
                             className="p-button-rounded p-button-text p-button-secondary ml-1"
                             style={{ width: '2.5rem', height: '2.5rem' }}
+                            tooltip={isCompleted ? 'AI 生成下一阶段' : 'AI 生成计划'}
                             onClick={(e) => {
                                 e.stopPropagation();
                                 openAiConfigDialog(student);
@@ -606,7 +618,7 @@ export default function StudentsPage() {
         const percentage = totalDays === 0 ? 0 :
             Math.min(Math.round((completedDays / totalDays) * 100), 100);
 
-        const isCompleted = plan.status === 'completed';
+        const isCompleted = isStudentPlanCompleted(student);
 
         return (
             <div className="flex flex-col gap-2 min-w-[180px] px-2">
@@ -751,7 +763,7 @@ export default function StudentsPage() {
                     const nick = student.profile?.nickname || '未知学员';
                     const unreviewed = (student.uploaded || 0) - (student.reviewed || 0);
                     const plan = student.plan;
-                    const isCompleted = plan?.status === 'completed';
+                    const isCompleted = isStudentPlanCompleted(student);
                     const isActive = !!plan && !isCompleted;
                     const isSelected = selectedStudents.some(s => s.id === student.id);
                     const canSelect = student.plan === null;
@@ -927,7 +939,7 @@ export default function StudentsPage() {
                                 {/* 快捷操作 */}
                                 <div className="mt-3 flex gap-2">
                                     <Button
-                                        label={plan ? '查看计划' : '创建计划'}
+                                        label={isCompleted ? '创建下一阶段' : plan ? '查看计划' : '创建计划'}
                                         icon={plan ? <ChevronRight className="w-4 h-4 mr-1" /> : <Plus className="w-4 h-4 mr-1" />}
                                         className="p-button-sm w-full rounded-2xl"
                                         onClick={() => router.push(`/dashboard/students/plan/${student.id}`)}

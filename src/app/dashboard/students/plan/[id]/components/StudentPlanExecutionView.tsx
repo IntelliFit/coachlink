@@ -242,7 +242,7 @@ const StudentPlanExecutionView: React.FC<StudentPlanExecutionViewProps> = ({
                                     <div className="text-center">
                                         <div className="text-[10px] font-black text-surface-400 tracking-widest mb-1">已执行</div>
                                         <div className="text-2xl font-black text-primary-600 tracking-tighter">
-                                            {isCompleted ? 0 : completedExecutionsCount}
+                                            {completedExecutionsCount}
                                             <span className="text-[10px] font-bold text-primary-300 ml-1">次</span>
                                         </div>
                                     </div>
