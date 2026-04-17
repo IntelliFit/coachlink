@@ -1,0 +1,7 @@
+export default {
+  navigationBarTitleText: '我的教练',
+  navigationBarBackgroundColor: '#ffffff',
+  navigationBarTextStyle: 'black',
+  enablePullDownRefresh: true,
+  backgroundTextStyle: 'dark'
+}

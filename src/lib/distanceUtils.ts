@@ -98,7 +98,7 @@ export function isSameCityForFilter(
   coach: CoachLocation
 ): boolean {
   if (!userLocation) return false;
-  if (isSameCity(userLocation.city, coach)) return true;
+  if (isSameCounty(userLocation, coach)) return true;
   return isNearbyByCoords(userLocation, coach, 30);
 }
 
@@ -149,6 +149,6 @@ export function formatCoachDistance(
   if (km <= 100) {
     return `${km.toFixed(1)}km`;
   }
-  if (isSameCity(userLocation.city, coach)) return '同城';
+  if (isSameCounty(userLocation, coach)) return '同城';
   return cityDisplay || '';
 }

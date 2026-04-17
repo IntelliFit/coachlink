@@ -27,6 +27,7 @@ export async function POST(req: Request) {
     startWeek = 1,
     startDay = 1,
     keepOriginalIndex = true,
+    useLLM = false,
   } = (await req.json()) as BulkCreateAiInstancesDto;
 
   const excludedSet = new Set((excludedSubscriptionIds || []).filter(Boolean));
@@ -116,6 +117,7 @@ export async function POST(req: Request) {
           startWeek,
           startDay,
           keepOriginalIndex,
+          useLLM,
         });
 
         return { subscriptionId, success: true, template };

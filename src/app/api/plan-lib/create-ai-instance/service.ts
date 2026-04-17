@@ -3,6 +3,12 @@ import { TrainingItem } from "@/types/questionnaires";
 import { fillTemplate, matchPlan } from "./match";
 import { sendDirectMessage } from "@/lib/chat";
 import { randomInt } from "crypto";
+import {
+    generatePersonalizedPlan,
+    buildTemplateSummary,
+    buildPRRecordSummaries,
+    buildActionLibrary,
+} from "../ai-personalize-plan/service";
 
 export class ApiError extends Error {
     status: number;
@@ -20,6 +26,7 @@ export interface CreateAiInstanceParams {
     startDay?: number;
     keepOriginalIndex?: boolean;
     delayedActivation?: boolean; // 是否延迟激活（2分钟后才显示给学员）
+    useLLM?: boolean; // 是否使用 LLM 个性化生成（Feature Flag）
 }
 
 export async function createAiInstanceForSubscription(params: CreateAiInstanceParams) {
@@ -30,6 +37,7 @@ export async function createAiInstanceForSubscription(params: CreateAiInstancePa
         startWeek = 1,
         startDay = 1,
         delayedActivation = false,
+        useLLM = false,
     } = params;
 
     const { data: subscription, error: subscriptionError } = await supabase
@@ -59,7 +67,7 @@ export async function createAiInstanceForSubscription(params: CreateAiInstancePa
     // 获取学员体重与姓名
     const { data: profile } = await supabase
         .from("user_profiles")
-        .select("weight, nickname, full_name")
+        .select("weight, nickname, full_name, goal, training_age, height, body_fat")
         .eq("user_id", subscription.student_id)
         .single();
 
@@ -84,28 +92,99 @@ export async function createAiInstanceForSubscription(params: CreateAiInstancePa
         .select("id, name, canonical_action_id, enableAutoWeightCompute, includesBodyWeight")
         .eq("enableAutoWeightCompute", true);
 
-    const templates = await matchPlan(answers, actorCoachId);
+    let trainingDays: any[] = [];
+    let selectedTemplateId: string | null = null;
+    let aiGenerationLog: any = null;
+    let planDescription = "暂无描述";
 
-    if (!templates || templates.length === 0) {
-        throw new ApiError("没有匹配的训练计划", 400);
+    // ==================== 分支：LLM 个性化 vs 规则匹配 ====================
+    if (useLLM) {
+        // ---------- LLM 路径 ----------
+        console.log("[create-ai-instance] 使用 LLM 个性化生成计划");
+
+        // 1. 获取学员 PR 记录
+        const { getCurrent1RMRecords } = await import("@/app/api/student/get-current-1rm/route");
+        const prRecords = await getCurrent1RMRecords(actorCoachId, {
+            targetUserId: subscription.student_id,
+        });
+
+        // 2. 获取教练动作库（白名单）
+        const { data: coachActions } = await supabase
+            .from("coach_actions")
+            .select("id, name, category, type, description")
+            .eq("coach_id", actorCoachId);
+
+        // 3. 获取可用模板摘要
+        const { data: allTemplates } = await supabase
+            .from("coach_plan_templates")
+            .select("id, name, description, type, metadata, training_days")
+            .eq("coach_id", actorCoachId);
+
+        const availableTemplates = (allTemplates || []).map(buildTemplateSummary);
+
+        // 4. 调用 LLM 两阶段流水线
+        try {
+            const aiResult = await generatePersonalizedPlan({
+                subscriptionId,
+                actorUserId,
+                actorCoachId,
+                studentId: subscription.student_id,
+                studentName,
+                questionnaireAnswers: answers,
+                studentBodyWeight,
+                studentProfile: {
+                    goal: profile?.goal,
+                    trainingAge: profile?.training_age,
+                    height: profile?.height,
+                    weight: profile?.weight,
+                    bodyFat: profile?.body_fat,
+                },
+                prRecords: buildPRRecordSummaries(prRecords),
+                actionLibrary: buildActionLibrary(coachActions || []),
+                availableTemplates,
+            });
+
+            trainingDays = aiResult.trainingDays;
+            selectedTemplateId = aiResult.templateId;
+            aiGenerationLog = aiResult.aiGenerationLog;
+            planDescription = aiGenerationLog.stageB.reasoning;
+        } catch (llmError: any) {
+            console.error("[create-ai-instance] LLM 生成失败，fallback 到规则匹配:", llmError);
+            // Fallback：继续走下面的规则匹配路径
+        }
     }
 
-    // 多模板匹配时：随机选择一个模板（满足“适合该学员的模板有多个就随机选一个”）
-    const selectTemplate = templates.length === 1
-        ? templates[0]
-        : templates[randomInt(0, templates.length)];
+    // ---------- 规则匹配路径（默认或 LLM fallback）----------
+    if (!trainingDays || trainingDays.length === 0) {
+        console.log("[create-ai-instance] 使用规则匹配生成计划");
 
-    // 根据用户数据进行填充，同时自动计算负重
-    await fillTemplate(answers, selectTemplate, {
-        studentBodyWeight,
-        autoComputeActions: autoComputeActions || [],
-        studentId: subscription.student_id,
-        coachId: actorCoachId,
-    });
+        const templates = await matchPlan(answers, actorCoachId);
 
-    // 起始执行位置逻辑：以周为单位保留完整结构
+        if (!templates || templates.length === 0) {
+            throw new ApiError("没有匹配的训练计划", 400);
+        }
+
+        // 多模板匹配时：随机选择一个模板
+        const selectTemplate = templates.length === 1
+            ? templates[0]
+            : templates[randomInt(0, templates.length)];
+
+        selectedTemplateId = selectTemplate.id;
+
+        // 根据用户数据进行填充，同时自动计算负重
+        await fillTemplate(answers, selectTemplate, {
+            studentBodyWeight,
+            autoComputeActions: autoComputeActions || [],
+            studentId: subscription.student_id,
+            coachId: actorCoachId,
+        });
+
+        trainingDays = (selectTemplate.training_days as any[]) || [];
+        planDescription = selectTemplate.description || "暂无描述";
+    }
+
+    // ==================== 公共：创建 plan_instance ====================
     const startExecutionDay = (startWeek - 1) * 7 + startDay;
-    const trainingDays = (selectTemplate.training_days as any[]) || [];
 
     if (startExecutionDay > trainingDays.length) {
         throw new ApiError(
@@ -119,29 +198,33 @@ export async function createAiInstanceForSubscription(params: CreateAiInstancePa
         ? `${planBaseName}（从第${startWeek}周${startDay > 1 ? `第${startDay}天` : ""}开始）`
         : planBaseName;
 
-    // DB 约束 check_plan_status 不允许 pending，延迟展示使用 scheduled
     const initialStatus = delayedActivation ? "scheduled" : "active";
+
+    const insertPayload: any = {
+        name: planName,
+        description: startExecutionDay > 1
+            ? `从第${startWeek}周第${startDay}天开始执行，前${startExecutionDay - 1}天视为已完成`
+            : planDescription,
+        coach_subscription_id: subscriptionId,
+        coach_id: subscription.coach_id || null,
+        student_id: subscription.student_id || null,
+        coach_plan_template_id: selectedTemplateId,
+        start_date: new Date().toISOString(),
+        end_date: null,
+        status: initialStatus,
+        training_days: trainingDays,
+        start_execution_day: startExecutionDay,
+        source: useLLM ? "ai-personalized" : "coach",
+    };
+
+    // LLM 路径额外写入 AI 生成日志
+    if (aiGenerationLog) {
+        insertPayload.ai_generation_log = aiGenerationLog;
+    }
 
     const { data: template, error: updateError } = await supabase
         .from("coach_plan_instances")
-        .insert({
-            name: planName,
-            description: startExecutionDay > 1
-                ? `从第${startWeek}周第${startDay}天开始执行，前${startExecutionDay - 1}天视为已完成`
-                : "暂无描述",
-            coach_subscription_id: subscriptionId,
-            coach_id: subscription.coach_id || null,
-            student_id: subscription.student_id || null,
-            coach_plan_template_id: selectTemplate.id,
-            start_date: new Date().toISOString(),
-            end_date: null,
-            tags: selectTemplate.tags,
-            type: selectTemplate.type,
-            suitable_for: selectTemplate.suitable_for,
-            status: initialStatus,
-            training_days: trainingDays,
-            start_execution_day: startExecutionDay,
-        })
+        .insert(insertPayload)
         .select("*")
         .single();
 
@@ -149,35 +232,32 @@ export async function createAiInstanceForSubscription(params: CreateAiInstancePa
         throw new ApiError(updateError.message, 500);
     }
 
-    // 如果延迟激活，计划已创建为 scheduled 状态
-    // 激活任务由定时任务 /api/plan-lib/activate-pending-plans 处理（每1分钟检查一次）
-    // 这样即使进程被回收，也能可靠地激活计划
+    // ==================== 通知学员 ====================
     if (delayedActivation && template) {
         console.log(`[create-ai-instance] 计划 ${template.id} 已创建为 scheduled 状态，将在2分钟后由定时任务激活`);
     } else {
-        // 立即激活时，立即通知学员
-    try {
-        const studentId = subscription.student_id as string | null;
-        if (studentId) {
-            const safePlanName = (planName || "训练计划").trim();
-            const content =
-                `✅ 你的训练计划已制定完成：**${safePlanName}**\n\n` +
-                `请点击 [今日训练](/today-training) 查看并开始训练。`;
+        try {
+            const studentId = subscription.student_id as string | null;
+            if (studentId) {
+                const safePlanName = (planName || "训练计划").trim();
+                const content =
+                    `✅ 你的训练计划已制定完成：**${safePlanName}**\n\n` +
+                    `请点击 [今日训练](/today-training) 查看并开始训练。`;
 
-            await sendDirectMessage({
-                fromUserId: actorUserId,
-                toUserId: studentId,
-                content,
-                contentMetadata: {
-                    kind: "plan_instance_created",
-                    instance_id: template.id,
-                    link: "/today-training",
-                    ai_generated: true,
-                },
-            });
-        }
-    } catch (e) {
-        console.error("[create-ai-instance] Failed to notify student:", e);
+                await sendDirectMessage({
+                    fromUserId: actorUserId,
+                    toUserId: studentId,
+                    content,
+                    contentMetadata: {
+                        kind: "plan_instance_created",
+                        instance_id: template.id,
+                        link: "/today-training",
+                        ai_generated: true,
+                    },
+                });
+            }
+        } catch (e) {
+            console.error("[create-ai-instance] Failed to notify student:", e);
         }
     }
 

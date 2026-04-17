@@ -1,0 +1,94 @@
+.coach-action-lib-page {
+  min-height: 100vh;
+  background: #f3f4f6;
+  padding: 12px 12px 80px;
+  box-sizing: border-box;
+
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 12px;
+    background: #fff;
+    margin: -12px -12px 12px -12px;
+
+    .title {
+      font-size: 36px;
+      font-weight: bold;
+      color: #111827;
+    }
+
+    .add-btn {
+      padding: 12px 24px;
+      background: #007aff;
+      color: #fff;
+      border-radius: 12px;
+      font-size: 28px;
+      border: none;
+    }
+  }
+
+  .action-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .action-card {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 16px;
+    padding: 14px 16px;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    .card-content {
+      flex: 1;
+      min-width: 0;
+
+      .name {
+        font-size: 16px;
+        font-weight: 700;
+        color: #111827;
+        margin-bottom: 4px;
+      }
+      .meta {
+        font-size: 12px;
+        color: #6b7280;
+      }
+    }
+
+    .card-actions {
+      display: flex;
+      gap: 12px;
+      margin-left: 16px;
+
+      .edit-btn,
+      .delete-btn {
+        padding: 8px 16px;
+        border-radius: 8px;
+        font-size: 24px;
+        border: none;
+      }
+
+      .edit-btn {
+        background: #e3f2fd;
+        color: #1976d2;
+      }
+
+      .delete-btn {
+        background: #ffebee;
+        color: #d32f2f;
+      }
+    }
+  }
+
+  .empty-wrap, .loading-wrap {
+    text-align: center;
+    padding: 40px 20px;
+    color: #9ca3af;
+    font-size: 14px;
+  }
+}

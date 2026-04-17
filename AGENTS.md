@@ -2,6 +2,32 @@
 
 This workspace is dedicated to the `coachlink` project.
 
+## 仓库结构（Monorepo）
+
+- **主站（Web）**：Next.js 应用，源码主要在 `src/`、`public/` 等；路由目录为 `src/app/`（App Router）。
+- **微信小程序**：源码位于仓库根目录下的 **`app/`** 目录（Taro + NutUI；`project.config.json` 中 `miniprogramRoot` 一般为编译输出 `dist/`）。**勿与 Next.js 的 `src/app/` 混淆**（后者是 Web 路由，不是小程序）。
+- **Git 管理**：主站与小程序**统一在仓库根目录**提交与推送；`app/` 内不再保留嵌套 `.git`。历史独立远程仓库为 `IntelliFit/coachlink-wechat-app`，纳入本仓库前应以该处 `main` 为锚对齐。
+
+### 后端 / 前端 / 小程序（职责划分）
+
+| 层级 | 说明 | 本仓库路径（约定） |
+|------|------|---------------------|
+| **后端（Web 服务端）** | Next.js **Route Handlers**、服务端逻辑、访问 Supabase 等；**不单独拆另一个后端仓库**。 | `src/app/api/**`（各 `route.ts`）、`src/lib/**` 等与请求处理、鉴权、数据访问相关的服务端代码 |
+| **前端（Web 浏览器端）** | 页面、组件、浏览器内发起的业务请求。请求须经 **`src/app/service/**`** 调后端 API，**禁止前端直连数据库**。 | `src/app/**`（页面与布局）、`src/components/**`、`src/app/service/**` |
+| **微信小程序** | 独立客户端：Taro 源码在 **`app/src/`**，编译后微信开发者工具打开 **`app/`**（产物在 `app/dist/`）。调用业务能力时走 HTTP **请求主站/已配置的 API**，与 Web 共用同一套后端接口为主。 | `app/`（根目录小程序工程）、`app/package.json` 中脚本如 `dev:weapp` / `build:weapp` |
+
+### 微信小程序本地开发（与 `weapp-devtools` skill）
+
+- **编译/监听**：在 `app/` 下执行 `npm install`（若未装依赖）后，`npm run dev:weapp`（或项目文档中的等价命令）生成/更新 `dist/`。
+- **微信开发者工具**：用工具打开**仓库内 `app/` 目录**（含 `project.config.json`）；自动化调试需开启 **服务端口**（常见 `9420`），详见 skill `weapp-devtools`。
+- **macOS CLI 示例**（需本机已安装微信开发者工具，路径以实际安装为准）：
+  ```bash
+  /Applications/wechatwebdevtools.app/Contents/MacOS/cli auto \
+    --project /绝对路径/coachlink/app \
+    --auto-port 9420
+  ```
+- **与 `mrc`（weapp-devtools）联动**：微信开发者工具 → **设置 → 安全设置 → 服务端口**，开启并设为 **`9420`**（与 `mrc ... --port 9420` 一致）；否则自动化会连接失败。
+
 ## Session Startup
 
 - At the start of every new session, and again after compaction, read `IDENTITY.md`, `SOUL.md`, and `USER.md` before replying.
@@ -14,13 +40,14 @@ This workspace is dedicated to the `coachlink` project.
 
 - You are the coding agent for this project.
 - You are currently responsible for the `coachlink` project only.
-- If asked which project you are responsible for, answer clearly that you are responsible for `coachlink` and your working directory is `D:\files\coachlink`.
+- If asked which project you are responsible for, answer clearly that you are responsible for `coachlink` and your working directory is the local clone path (例如 macOS 上常为 `/Users/<用户>/project/coachlink`，Windows 上可能为 `D:\files\coachlink`)。
 - Work directly in this workspace and write the code yourself.
 - Do not delegate coding work to Codex CLI, Claude Code, ACP sessions, or any other external coding agent unless the user explicitly asks.
 
 ## Frontend Verification
 
-- This project must use the `web-devtools` skill for browser UI verification.
+- **Web 主站**：必须使用 `web-devtools` skill 做浏览器端验证。
+- **微信小程序（`app/`）**：若改动涉及小程序页面、构建或真机/开发者工具行为，应使用 `weapp-devtools` skill 做验证（与 Web 的验证方式不同）。
 - After any page, component, style, routing, or interaction change, you must attempt browser-based verification.
 - Prefer screenshot evidence plus at least one interaction path that covers the changed behavior.
 - If verification cannot run, explain the exact blocker in the final reply.

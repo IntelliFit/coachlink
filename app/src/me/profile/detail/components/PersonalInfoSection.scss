@@ -1,0 +1,113 @@
+.personal-info-section {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+  margin: 12px 12px;
+  
+  .section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      
+      .section-icon {
+        font-size: 16px;
+      }
+      
+      .section-title {
+        font-size: 15px;
+        font-weight: 600;
+        color: #1e293b;
+      }
+    }
+    
+    .edit-btn {
+      padding: 4px;
+    
+    .edit-icon {
+        font-size: 16px;
+        opacity: 0.5;
+      }
+      
+      &:active {
+        opacity: 0.7;
+      }
+    }
+  }
+  
+  .info-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    
+    .info-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: #ffffff;
+      border-radius: 16px;
+      padding: 6px 12px;
+      border: 1px solid #e5e7eb;
+      
+      .tag-label {
+        font-size: 12px;
+        font-weight: 400;
+        color: #6b7280;
+      }
+      
+      .tag-value {
+        font-size: 13px;
+        font-weight: 600;
+        color: #1f2937;
+      }
+      
+      &.empty {
+        .tag-value {
+          color: #9ca3af;
+      }
+    }
+  }
+}
+}
+
+.personal-info-dialog {
+  :global {
+    .nut-dialog {
+      border-radius: 16px;
+      max-height: 80vh;
+    }
+  }
+}
+
+.edit-form {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.form-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  .form-label {
+    font-size: 14px;
+    font-weight: 600;
+    color: #334155;
+  }
+}
+
+.form-actions {
+  margin-top: 8px;
+  padding-top: 16px;
+  border-top: 1px solid #e2e8f0;
+}

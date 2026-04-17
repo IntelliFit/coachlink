@@ -14,6 +14,7 @@ export interface BulkCreateAiInstancesDto {
   startWeek?: number;
   startDay?: number;
   keepOriginalIndex?: boolean;
+  useLLM?: boolean;
 }
 
 export interface BulkCreateAiInstancesResultItem {
