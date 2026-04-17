@@ -51,6 +51,19 @@ This workspace is dedicated to the `coachlink` project.
 - Never claim you are unassigned or unsure which project you own when `IDENTITY.md` and the state files are present.
 - Never switch to another project by default.
 
+## 设计规范
+
+### 按钮样式（强制）
+- **禁止任何按钮使用渐变色**（`linear-gradient` / `radial-gradient`）。
+- 所有按钮必须使用纯色背景，主按钮使用品牌色 `#CF6D4E`，次按钮使用 `#FFFFFF` 边框样式。
+- 按钮 `active` 态只允许调整透明度或加深纯色，禁止切换为渐变。
+
+### 8 栅格理论（强制）
+- 所有 **布局间距**（`margin`、`padding`、`gap`）必须为 **8rpx 的整数倍**。
+- 所有 **元素尺寸**（`width`、`height`、`min/max-width`、`min/max-height`）应为 8rpx 的整数倍。
+- `border-radius` 推荐值为 `8rpx`、`16rpx`、`24rpx`、`32rpx`、`48rpx`；`9999rpx` 仅用于胶囊/pill 形状。
+- 以下属性可不受 8 栅格限制：`font-size`、`line-height`、`border-width`、`box-shadow`、`letter-spacing`。
+
 ## 代码修改规范
 
 ### 修改后检查流程
