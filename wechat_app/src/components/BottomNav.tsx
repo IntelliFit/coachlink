@@ -33,7 +33,7 @@ const studentNavItems: NavItem[] = [
     },
     {
         key: 'training',
-        label: '今日训练',
+        label: '训练',
         iconPath: rankIcon,
         activeIconPath: rankSelectedIcon,
         path: '/training/today-training'
@@ -54,7 +54,7 @@ const studentNavItems: NavItem[] = [
     },
     {
         key: 'profile',
-        label: '个人中心',
+        label: '个人',
         iconPath: myIcon,
         activeIconPath: mySelectedIcon,
         path: '/me/profile/index'
@@ -143,6 +143,24 @@ function BottomNav() {
         const current = normalizePath(currentPath)
 
         if (current === targetPath || navLockRef.current) return
+
+        // 个人中心需要登录，未登录时跳转到登录页
+        if (item.key === 'profile') {
+            const session = authService.getAuthSession({ normalize: true })
+            if (!session.isAuthenticated) {
+                navLockRef.current = true
+                const success = await tryNavigate('/auth/login')
+                if (success) {
+                    setTimeout(() => {
+                        syncCurrentPath()
+                        navLockRef.current = false
+                    }, 120)
+                    return
+                }
+                navLockRef.current = false
+                return
+            }
+        }
 
         navLockRef.current = true
         const success = await tryNavigate(item.path)

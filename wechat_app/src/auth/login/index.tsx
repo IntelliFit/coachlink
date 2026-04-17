@@ -15,13 +15,13 @@ import SliderCaptcha from '@/components/SliderCaptcha'
 import ResetPasswordForm from '@/components/ResetPasswordForm'
 import { studentOnboardingService } from '@/services/studentOnboardingService'
 import { User, Lock, Message } from '@nutui/icons-react-taro'
-import coachlinkLogo from '@/assets/brand/coachlink-logo.jpg'
+import loginBg from '@/assets/images/login-bg.jpg'
 import './index.scss'
 
-type LoginMode = 'password' | 'verifyCode'
+type LoginMode = 'wechat' | 'password' | 'verifyCode'
 
 function Login() {
-  const [loginMode, setLoginMode] = useState<LoginMode>('password')
+  const [loginMode, setLoginMode] = useState<LoginMode>('wechat')
   const [showResetPassword, setShowResetPassword] = useState(false)
   const [phoneOrEmail, setPhoneOrEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -195,32 +195,43 @@ function Login() {
   return (
     <ConfigProvider locale={zhCN}>
       <View className='login-page'>
-        <View className='login-header'>
-          <View className='brand-row'>
-            <Image className='brand-logo' src={coachlinkLogo} mode='aspectFit' />
-            <View className='brand-text-box'>
-              <Text className='brand-name'>教链</Text>
-              <Text className='brand-subtitle'>CoachLink</Text>
-            </View>
+        <View className='login-hero'>
+          <Image className='login-bg' src={loginBg} mode='aspectFill' />
+          <View className='login-hero-overlay'>
+            <Text className='login-hero-brand'>教链 CoachLink</Text>
+            <Text className='login-hero-slogan'>登录以继续你的训练计划</Text>
           </View>
-          <Text className='login-title'>欢迎回来</Text>
-          <Text className='login-subtitle'>登录以继续你的训练计划</Text>
         </View>
 
-        <View className='login-form'>
+        <View className='login-card'>
           {showResetPassword ? (
-            <ResetPasswordForm
-              onBackToLogin={() => setShowResetPassword(false)}
-              onSuccess={() => {
-                setShowResetPassword(false)
-                setLoginMode('password')
-                setVerificationCode('')
-                setPassword('')
-              }}
-            />
+            <>
+              <Text className='login-card-title'>重置密码</Text>
+              <ResetPasswordForm
+                onBackToLogin={() => setShowResetPassword(false)}
+                onSuccess={() => {
+                  setShowResetPassword(false)
+                  setLoginMode('password')
+                  setVerificationCode('')
+                  setPassword('')
+                }}
+              />
+            </>
           ) : (
             <>
+              <Text className='login-card-title'>登录</Text>
+
               <View className='mode-switcher'>
+                <View
+                  className={`switcher-pill ${loginMode === 'wechat' ? 'switcher-active' : ''}`}
+                  onClick={() => {
+                    setLoginMode('wechat')
+                    setPassword('')
+                    setVerificationCode('')
+                  }}
+                >
+                  <Text className='switcher-text'>微信登录</Text>
+                </View>
                 <View
                   className={`switcher-pill ${loginMode === 'password' ? 'switcher-active' : ''}`}
                   onClick={() => {
@@ -241,68 +252,129 @@ function Login() {
                 </View>
               </View>
 
-              <View className='form-item'>
-                <View className='input-row'>
-                  <View className='input-icon'>
-                    <User size={18} color='#9CA3AF' />
-                  </View>
-                  <Input
-                    className='form-input'
-                    placeholder='请输入手机号或邮箱'
-                    value={phoneOrEmail}
-                    onChange={(val) => setPhoneOrEmail(val)}
-                  />
-                </View>
-              </View>
-
-              {loginMode === 'password' && (
-                <View className='form-item'>
-                  <View className='input-row'>
-                    <View className='input-icon'>
-                      <Lock size={18} color='#9CA3AF' />
-                    </View>
-                    <Input
-                      className='form-input'
-                      placeholder='请输入登录密码'
-                      type='password'
-                      value={password}
-                      onChange={(val) => setPassword(val)}
-                    />
-                  </View>
-                  <View className='form-extra'>
-                    <Text className='forgot-password' onClick={goToResetPassword}>
-                      忘记密码？
-                    </Text>
-                  </View>
+              {loginMode === 'wechat' && (
+                <View className='wechat-login-panel'>
+                  <TaroButton
+                    className={`wechat-primary-button ${!agreed ? 'wechat-primary-button-disabled' : ''}`}
+                    openType='getPhoneNumber'
+                    onGetPhoneNumber={handleWechatLogin}
+                    disabled={loading || !agreed}
+                  >
+                    {loading ? (
+                      <Text className='wechat-primary-text'>登录中...</Text>
+                    ) : (
+                      <Text className='wechat-primary-text'>微信一键登录</Text>
+                    )}
+                  </TaroButton>
                 </View>
               )}
 
-              {loginMode === 'verifyCode' && (
-                <View className='form-item'>
-                  <View className='input-row'>
-                    <View className='input-icon'>
-                      <Message size={18} color='#9CA3AF' />
-                    </View>
-                    <Input
-                      className='form-input'
-                      placeholder='6位验证码'
-                      type='number'
-                      maxLength={6}
-                      value={verificationCode}
-                      onChange={(val) => setVerificationCode(val)}
-                    />
-                    <View
-                      className={`send-code-btn ${(countdown > 0 || sendingCode || sliderCaptchaVisible || !isValidPhoneOrEmail()) ? 'send-code-btn-disabled' : ''}`}
-                      onClick={(countdown > 0 || sendingCode || sliderCaptchaVisible || !isValidPhoneOrEmail()) ? undefined : sendVerificationCode}
-                    >
-                      {sendingCode ? (
-                        <Text className='send-code-btn-text'>发送中...</Text>
-                      ) : (
-                        <Text className='send-code-btn-text'>{countdown > 0 ? `${countdown}s` : '获取验证码'}</Text>
-                      )}
+              {loginMode !== 'wechat' && (
+                <>
+                  <View className='form-item'>
+                    <View className='input-row'>
+                      <View className='input-icon'>
+                        <User size={18} color='#9CA3AF' />
+                      </View>
+                      <Input
+                        className='form-input'
+                        placeholder='请输入手机号或邮箱'
+                        value={phoneOrEmail}
+                        onChange={(val) => setPhoneOrEmail(val)}
+                      />
                     </View>
                   </View>
-                </View>
+
+                  {loginMode === 'password' && (
+                    <View className='form-item'>
+                      <View className='input-row'>
+                        <View className='input-icon'>
+                          <Lock size={18} color='#9CA3AF' />
+                        </View>
+                        <Input
+                          className='form-input'
+                          placeholder='请输入登录密码'
+                          type='password'
+                          value={password}
+                          onChange={(val) => setPassword(val)}
+                        />
+                      </View>
+                      <View className='form-extra'>
+                        <Text className='forgot-password' onClick={goToResetPassword}>
+                          忘记密码？
+                        </Text>
+                      </View>
+                    </View>
+                  )}
+
+                  {loginMode === 'verifyCode' && (
+                    <View className='form-item'>
+                      <View className='input-row'>
+                        <View className='input-icon'>
+                          <Message size={18} color='#9CA3AF' />
+                        </View>
+                        <Input
+                          className='form-input'
+                          placeholder='6位验证码'
+                          type='number'
+                          maxLength={6}
+                          value={verificationCode}
+                          onChange={(val) => setVerificationCode(val)}
+                        />
+                        <View
+                          className={`send-code-btn ${(countdown > 0 || sendingCode || sliderCaptchaVisible || !isValidPhoneOrEmail()) ? 'send-code-btn-disabled' : ''}`}
+                          onClick={(countdown > 0 || sendingCode || sliderCaptchaVisible || !isValidPhoneOrEmail()) ? undefined : sendVerificationCode}
+                        >
+                          {sendingCode ? (
+                            <Text className='send-code-btn-text'>发送中...</Text>
+                          ) : (
+                            <Text className='send-code-btn-text'>{countdown > 0 ? `${countdown}s` : '获取验证码'}</Text>
+                          )}
+                        </View>
+                      </View>
+                    </View>
+                  )}
+
+                  <View
+                    className={`login-button ${loading || !agreed ? 'login-button-disabled' : ''} ${loading ? 'login-button-loading' : ''}`}
+                    onClick={!loading && agreed ? handleLogin : () => {
+                      if (!agreed) Toast.show('请阅读并勾选用户服务协议和隐私政策', {})
+                    }}
+                  >
+                    {loading ? (
+                      <View className='login-button-loading-content'>
+                        <View className='login-button-spinner'></View>
+                        <Text className='login-button-text'>登录中...</Text>
+                      </View>
+                    ) : (
+                      <Text className='login-button-text'>立即登录</Text>
+                    )}
+                  </View>
+
+                  <View className='wechat-login-divider'>
+                    <View className='divider-line' />
+                    <Text className='divider-text'>或</Text>
+                    <View className='divider-line' />
+                  </View>
+
+                  <TaroButton
+                    className={`wechat-login-button ${!agreed ? 'wechat-login-button-disabled' : ''}`}
+                    openType='getPhoneNumber'
+                    onGetPhoneNumber={handleWechatLogin}
+                    disabled={loading || !agreed}
+                  >
+                    {loading ? (
+                      <Text className='wechat-login-text'>登录中...</Text>
+                    ) : (
+                      <Text className='wechat-login-text'>手机号快捷登录</Text>
+                    )}
+                  </TaroButton>
+
+                  <View className='register-tip'>
+                    <Text className='tip-text'>还没有账户？</Text>
+                    <Text className='tip-link' onClick={goToRegister}>立即注册</Text>
+                  </View>
+                </>
               )}
 
               <View className='agreement-row'>
@@ -314,51 +386,9 @@ function Login() {
                   <Text className='agreement-link' onClick={goToPrivacy}>《隐私政策》</Text>
                 </Text>
               </View>
-
-              <View
-                className={`login-button ${loading || !agreed ? 'login-button-disabled' : ''} ${loading ? 'login-button-loading' : ''}`}
-                onClick={!loading && agreed ? handleLogin : () => {
-                  if (!agreed) Toast.show('请阅读并勾选用户服务协议和隐私政策', {})
-                }}
-              >
-                {loading ? (
-                  <View className='login-button-loading-content'>
-                    <View className='login-button-spinner'></View>
-                    <Text className='login-button-text'>登录中...</Text>
-                  </View>
-                ) : (
-                  <Text className='login-button-text'>立即登录</Text>
-                )}
-              </View>
-
-              <View className='wechat-login-divider'>
-                <View className='divider-line' />
-                <Text className='divider-text'>或</Text>
-                <View className='divider-line' />
-              </View>
-
-              <TaroButton
-                className={`wechat-login-button ${!agreed ? 'wechat-login-button-disabled' : ''}`}
-                openType='getPhoneNumber'
-                onGetPhoneNumber={handleWechatLogin}
-                disabled={loading || !agreed}
-              >
-                {loading ? (
-                  <Text className='wechat-login-text'>登录中...</Text>
-                ) : (
-                  <Text className='wechat-login-text'>手机号快捷登录</Text>
-                )}
-              </TaroButton>
-
-              <View className='register-tip'>
-                <Text className='tip-text'>还没有账户？</Text>
-                <Text className='tip-link' onClick={goToRegister}>立即注册</Text>
-              </View>
             </>
           )}
         </View>
-
-        <BottomNav />
 
         <SliderCaptcha
           visible={sliderCaptchaVisible}

@@ -14,7 +14,7 @@ import { sesService } from '@/services/sesService'
 import SliderCaptcha from '@/components/SliderCaptcha'
 import { studentOnboardingService } from '@/services/studentOnboardingService'
 import { User, Lock, Ticket, Message } from '@nutui/icons-react-taro'
-import coachlinkLogo from '@/assets/brand/coachlink-logo.jpg'
+import loginBg from '@/assets/images/login-bg.jpg'
 import './index.scss'
 
 const IS_DEV = process.env.NODE_ENV === 'development'
@@ -178,19 +178,17 @@ function Register() {
   return (
     <ConfigProvider locale={zhCN}>
       <View className='register-page'>
-        <View className='register-header'>
-          <View className='brand-row'>
-            <Image className='brand-logo' src={coachlinkLogo} mode='aspectFit' />
-            <View className='brand-text-box'>
-              <Text className='brand-name'>教链</Text>
-              <Text className='brand-subtitle'>CoachLink</Text>
-            </View>
+        <View className='register-hero'>
+          <Image className='register-bg' src={loginBg} mode='aspectFill' />
+          <View className='register-hero-overlay'>
+            <Text className='register-hero-brand'>教链 CoachLink</Text>
+            <Text className='register-hero-slogan'>开启你的专业训练之旅</Text>
           </View>
-          <Text className='register-title'>创建账户</Text>
-          <Text className='register-subtitle'>开启你的专业训练之旅</Text>
         </View>
 
-        <View className='register-form'>
+        <View className='register-card'>
+          <Text className='register-card-title'>注册</Text>
+
           <View className='form-item'>
             <View className='input-row'>
               <View className='input-icon'>

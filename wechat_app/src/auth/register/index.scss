@@ -1,89 +1,84 @@
 .register-page {
   min-height: 100vh;
-  background: linear-gradient(180deg, #E8E8E8 0%, #F8F8F8 100%);
   display: flex;
   flex-direction: column;
-  padding-bottom: 48rpx;
+  background: #0F172A;
 }
 
-.register-header {
-  padding: calc(env(safe-area-inset-top) + 120rpx) 48rpx 48rpx;
-  text-align: center;
+.register-hero {
+  position: relative;
+  height: 34vh;
+  width: 100%;
+  overflow: hidden;
 }
 
-.brand-row {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 16rpx;
-  margin-bottom: 48rpx;
+.register-bg {
+  width: 100%;
+  height: 100%;
 }
 
-.brand-logo {
-  width: 48rpx;
-  height: 48rpx;
-  border-radius: 12rpx;
-  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.08);
-}
-
-.brand-text-box {
+.register-hero-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(to bottom, rgba(0,0,0,0.25) 0%, rgba(0,0,0,0.55) 100%);
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  line-height: 1;
+  justify-content: flex-end;
+  padding: 56rpx;
+  padding-bottom: 96rpx;
 }
 
-.brand-name {
-  font-size: 30rpx;
+.register-hero-brand {
+  font-size: 60rpx;
   font-weight: 800;
-  color: #0F172A;
-  letter-spacing: 2rpx;
+  color: #FFFFFF;
+  margin-bottom: 16rpx;
 }
 
-.brand-subtitle {
-  font-size: 18rpx;
-  font-weight: 700;
-  color: #CF6D4E;
-  text-transform: uppercase;
-  letter-spacing: 2rpx;
-  margin-top: 4rpx;
+.register-hero-slogan {
+  font-size: 32rpx;
+  color: rgba(255,255,255,0.9);
+  line-height: 1.4;
 }
 
-.register-title {
-  display: block;
-  font-size: 52rpx;
-  font-weight: 800;
-  color: #0F172A;
-  margin-bottom: 12rpx;
-}
-
-.register-subtitle {
-  display: block;
-  font-size: 28rpx;
-  color: #6B7280;
-}
-
-.register-form {
+.register-card {
   flex: 1;
-  padding: 0 48rpx;
+  background: #FFFFFF;
+  border-radius: 48rpx 48rpx 0 0;
+  margin-top: -48rpx;
+  padding: 72rpx 48rpx calc(env(safe-area-inset-bottom) + 64rpx);
+  position: relative;
+  z-index: 1;
+}
+
+.register-card-title {
+  font-size: 56rpx;
+  font-weight: 800;
+  color: #0F172A;
+  text-align: center;
+  margin-bottom: 56rpx;
 }
 
 .form-item {
-  margin-bottom: 32rpx;
+  margin-bottom: 40rpx;
 }
 
 .input-row {
   display: flex;
   align-items: center;
-  gap: 16rpx;
-  background: #FFFFFF;
+  gap: 20rpx;
+  background: #F8F8F8;
   border: 2rpx solid transparent;
   border-radius: 9999rpx;
-  padding: 8rpx 8rpx 8rpx 24rpx;
+  padding: 12rpx 12rpx 12rpx 28rpx;
   transition: all 0.3s ease;
 
   &:focus-within {
     border-color: #CF6D4E;
+    background: #FFFFFF;
     box-shadow: 0 0 0 6rpx rgba(207, 109, 78, 0.08);
   }
 }
@@ -98,8 +93,8 @@
 .form-input {
   flex: 1;
   min-width: 0;
-  height: 44rpx;
-  font-size: 28rpx;
+  height: 56rpx;
+  font-size: 34rpx;
   color: #0F172A;
 
   &::placeholder {
@@ -109,10 +104,10 @@
 
 .send-code-btn {
   flex-shrink: 0;
-  padding: 0 24rpx;
-  height: 64rpx;
+  padding: 0 28rpx;
+  height: 76rpx;
   border-radius: 9999rpx;
-  font-size: 24rpx;
+  font-size: 28rpx;
   font-weight: 600;
   background: #CF6D4E;
   color: #FFFFFF;
@@ -133,7 +128,7 @@
 }
 
 .send-code-btn-text {
-  font-size: 24rpx;
+  font-size: 28rpx;
   font-weight: 600;
   color: #FFFFFF;
 }
@@ -141,13 +136,13 @@
 .agreement-row {
   display: flex;
   align-items: flex-start;
-  gap: 12rpx;
-  margin-bottom: 48rpx;
+  gap: 14rpx;
+  margin-bottom: 56rpx;
 }
 
 .agreement-text {
   flex: 1;
-  font-size: 24rpx;
+  font-size: 28rpx;
   color: #6B7280;
   line-height: 1.5;
 }
@@ -159,7 +154,7 @@
 
 .register-button {
   width: 100%;
-  height: 96rpx;
+  height: 108rpx;
   border-radius: 9999rpx;
   background: #CF6D4E;
   border: none;
@@ -184,12 +179,12 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 12rpx;
+  gap: 14rpx;
 }
 
 .register-button-spinner {
-  width: 28rpx;
-  height: 28rpx;
+  width: 32rpx;
+  height: 32rpx;
   border: 4rpx solid rgba(255, 255, 255, 0.3);
   border-top-color: #FFFFFF;
   border-radius: 50%;
@@ -203,7 +198,7 @@
 }
 
 .register-button-text {
-  font-size: 30rpx;
+  font-size: 34rpx;
   font-weight: 700;
   color: #FFFFFF;
 }
@@ -213,17 +208,17 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 8rpx;
-  margin-top: 48rpx;
+  gap: 10rpx;
+  margin-top: 56rpx;
 }
 
 .tip-text {
-  font-size: 26rpx;
+  font-size: 30rpx;
   color: #6B7280;
 }
 
 .tip-link {
-  font-size: 26rpx;
+  font-size: 30rpx;
   color: #CF6D4E;
   font-weight: 700;
 }
