@@ -8,6 +8,8 @@ export interface CreateAiInstanceDto {
     startDay?: number;
     /** 是否保留原始周次编号，默认true */
     keepOriginalIndex?: boolean;
+    /** 是否使用 LLM 个性化生成（而不是规则匹配），默认 false */
+    useLLM?: boolean;
 }
 
 export interface CreateAiInstanceResponseDto {
