@@ -1,24 +1,13 @@
 import { useState, useEffect, useRef } from 'react'
-import { View, Text, Image } from '@tarojs/components'
+import { View, Text } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { authService } from '@/services/authService'
 import './BottomNav.scss'
-import homeIcon from '@/assets/icons/tabbar/home.svg'
-import homeSelectedIcon from '@/assets/icons/tabbar/home-selected.svg'
-import searchIcon from '@/assets/icons/tabbar/search.svg'
-import searchSelectedIcon from '@/assets/icons/tabbar/search-selected.svg'
-import myIcon from '@/assets/icons/tabbar/my.svg'
-import mySelectedIcon from '@/assets/icons/tabbar/my-selected.svg'
-import rankIcon from '@/assets/icons/tabbar/rank.svg'
-import rankSelectedIcon from '@/assets/icons/tabbar/rank-selected.svg'
-import profileDocIcon from '@/assets/icons/tabbar/profile-doc.svg'
-import profileDocSelectedIcon from '@/assets/icons/tabbar/profile-doc-selected.svg'
 
 interface NavItem {
     key: string
     label: string
-    iconPath: string
-    activeIconPath: string
+    iconClass: string
     path: string
 }
 
@@ -27,47 +16,42 @@ const studentNavItems: NavItem[] = [
     {
         key: 'home',
         label: '首页',
-        iconPath: homeIcon,
-        activeIconPath: homeSelectedIcon,
+        iconClass: 'icon-home',
         path: '/pages/index/index'
     },
     {
         key: 'training',
         label: '训练',
-        iconPath: rankIcon,
-        activeIconPath: rankSelectedIcon,
+        iconClass: 'icon-traing',
         path: '/training/today-training'
     },
     {
         key: 'discovery',
         label: '发现',
-        iconPath: searchIcon,
-        activeIconPath: searchSelectedIcon,
+        iconClass: 'icon-discovery',
         path: '/discovery/index'
     },
     {
         key: 'toolbox',
         label: '工具箱',
-        iconPath: profileDocIcon,
-        activeIconPath: profileDocSelectedIcon,
+        iconClass: 'icon-dashboard',
         path: '/me/toolbox/index'
     },
     {
         key: 'profile',
         label: '个人',
-        iconPath: myIcon,
-        activeIconPath: mySelectedIcon,
+        iconClass: 'icon-login',
         path: '/me/profile/index'
     }
 ]
 
 /** 教练端底部导航 */
 const coachNavItems: NavItem[] = [
-    { key: 'overview', label: '概览', iconPath: rankIcon, activeIconPath: rankSelectedIcon, path: '/coach/overview' },
-    { key: 'videos', label: '点评', iconPath: searchIcon, activeIconPath: searchSelectedIcon, path: '/coach/videos' },
-    { key: 'students', label: '学员', iconPath: myIcon, activeIconPath: mySelectedIcon, path: '/coach/students' },
-    { key: 'plan-lib', label: '计划库', iconPath: profileDocIcon, activeIconPath: profileDocSelectedIcon, path: '/coach/plan-lib' },
-    { key: 'profile', label: '我', iconPath: myIcon, activeIconPath: mySelectedIcon, path: '/coach/my-profile' }
+    { key: 'overview', label: '概览', iconClass: 'icon-dashboard', path: '/coach/overview' },
+    { key: 'videos', label: '点评', iconClass: 'icon-video', path: '/coach/videos' },
+    { key: 'students', label: '学员', iconClass: 'icon-friends-o', path: '/coach/students' },
+    { key: 'plan-lib', label: '计划库', iconClass: 'icon-a-Trainingplan', path: '/coach/plan-lib' },
+    { key: 'profile', label: '我', iconClass: 'icon-login', path: '/coach/my-profile' }
 ]
 
 function BottomNav() {
@@ -113,7 +97,6 @@ function BottomNav() {
     }, [])
 
     const tryNavigate = async (url: string) => {
-        // 优先使用 navigateTo 避免页面关闭导致的闪烁
         try {
             await Taro.navigateTo({ url })
             return true
@@ -189,9 +172,8 @@ function BottomNav() {
                         className={`nav-item ${isActive ? 'nav-active' : ''}`}
                         onClick={() => handleNavClick(item)}
                     >
-                        <Image
-                            className='nav-icon-img'
-                            src={isActive ? item.activeIconPath : item.iconPath}
+                        <Text
+                            className={`nav-icon iconfont ${item.iconClass} ${isActive ? 'nav-icon-active' : ''}`}
                         />
                         <Text className='nav-label'>{item.label}</Text>
                     </View>

@@ -14,7 +14,7 @@ import { authService } from '@/services/authService'
 import SliderCaptcha from '@/components/SliderCaptcha'
 import ResetPasswordForm from '@/components/ResetPasswordForm'
 import { studentOnboardingService } from '@/services/studentOnboardingService'
-import { User, Lock, Message } from '@nutui/icons-react-taro'
+
 import loginBg from '@/assets/images/login-bg.jpg'
 import './index.scss'
 
@@ -273,9 +273,7 @@ function Login() {
                 <>
                   <View className='form-item'>
                     <View className='input-row'>
-                      <View className='input-icon'>
-                        <User size={18} color='#9CA3AF' />
-                      </View>
+                      <Text className='input-icon iconfont icon-login' />
                       <Input
                         className='form-input'
                         placeholder='请输入手机号或邮箱'
@@ -288,9 +286,7 @@ function Login() {
                   {loginMode === 'password' && (
                     <View className='form-item'>
                       <View className='input-row'>
-                        <View className='input-icon'>
-                          <Lock size={18} color='#9CA3AF' />
-                        </View>
+                        <Text className='input-icon iconfont icon-setting' />
                         <Input
                           className='form-input'
                           placeholder='请输入登录密码'
@@ -310,9 +306,7 @@ function Login() {
                   {loginMode === 'verifyCode' && (
                     <View className='form-item'>
                       <View className='input-row'>
-                        <View className='input-icon'>
-                          <Message size={18} color='#9CA3AF' />
-                        </View>
+                        <Text className='input-icon iconfont icon-messages' />
                         <Input
                           className='form-input'
                           placeholder='6位验证码'

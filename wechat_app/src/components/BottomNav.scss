@@ -38,13 +38,16 @@
     }
   }
 
-  .nav-icon-img {
-    width: 22px;
-    height: 22px;
-    opacity: 0.65;
+  .nav-icon {
+    font-size: 22px;
+    color: rgba(255, 255, 255, 0.65);
     flex-shrink: 0;
-    transition: opacity 0.35s ease, transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+    transition: color 0.35s ease, transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
     transform: scale(0.9);
+  }
+
+  .nav-icon-active {
+    color: #CF6D4E;
   }
 
   .nav-label {
@@ -67,8 +70,7 @@
     padding: 16rpx 32rpx;
     gap: 8rpx;
 
-    .nav-icon-img {
-      opacity: 1;
+    .nav-icon {
       transform: scale(1);
     }
 

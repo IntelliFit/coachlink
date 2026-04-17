@@ -3,6 +3,7 @@ import { useDidShow, useDidHide } from '@tarojs/taro'
 import { authService } from '@/services/authService'
 // 全局样式
 import './app.scss'
+import './assets/iconfont/iconfont.css'
 
 function App(props) {
   // 可以使用所有的 React Hooks
