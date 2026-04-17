@@ -64,7 +64,7 @@ function Index() {
   }, [])
 
   const handleLogin = () => {
-    Taro.navigateTo({ url: authService.buildLoginUrl('/index') })
+    Taro.navigateTo({ url: authService.buildLoginUrl('/pages/index/index') })
   }
 
   const handleNav = (url: string) => {
