@@ -1,0 +1,141 @@
+.share-page {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 48rpx 24rpx;
+
+  .loading {
+    text-align: center;
+    padding: 48rpx;
+    font-size: 28rpx;
+    color: #fff;
+  }
+
+  .preview-card {
+    background: #fff;
+    border-radius: 24rpx;
+    padding: 48rpx;
+    margin-bottom: 48rpx;
+    box-shadow: 0 20rpx 60rpx rgba(0, 0, 0, 0.2);
+
+    .card-header {
+      text-align: center;
+      margin-bottom: 48rpx;
+
+      .title {
+        font-size: 48rpx;
+        font-weight: 700;
+        color: #333;
+        margin-bottom: 16rpx;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .subtitle {
+        font-size: 32rpx;
+        color: #666;
+        margin-bottom: 8rpx;
+        display: block;
+      }
+
+      .date {
+        font-size: 24rpx;
+        color: #999;
+      }
+    }
+
+    .stats-section {
+      .main-stat {
+        text-align: center;
+        padding: 48rpx 0;
+        border-bottom: 2rpx solid #f0f0f0;
+        margin-bottom: 32rpx;
+
+        .value {
+          font-size: 80rpx;
+          font-weight: 800;
+          color: #667eea;
+          margin-bottom: 8rpx;
+          display: block;
+        }
+
+        .label {
+          font-size: 28rpx;
+          color: #999;
+        }
+      }
+
+      .sub-stats {
+        display: flex;
+        justify-content: space-around;
+
+        .sub-stat {
+          text-align: center;
+
+          &.highlight {
+            .value {
+              color: #fa8c16;
+            }
+          }
+
+          .value {
+            font-size: 48rpx;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 8rpx;
+            display: block;
+          }
+
+          .label {
+            font-size: 24rpx;
+            color: #999;
+          }
+        }
+      }
+    }
+
+    .footer {
+      text-align: center;
+      margin-top: 48rpx;
+      padding-top: 32rpx;
+      border-top: 2rpx solid #f0f0f0;
+
+      Text {
+        font-size: 24rpx;
+        color: #999;
+      }
+    }
+  }
+
+  .share-actions {
+    .share-btn {
+      padding: 28rpx 0;
+      border-radius: 16rpx;
+      text-align: center;
+      margin-bottom: 24rpx;
+      background: #fff;
+
+      Text {
+        font-size: 32rpx;
+        font-weight: 600;
+        color: #667eea;
+      }
+
+      &.loading {
+        opacity: 0.7;
+      }
+
+      &.secondary {
+        background: rgba(255, 255, 255, 0.2);
+
+        Text {
+          color: #fff;
+        }
+      }
+
+      &:active {
+        opacity: 0.9;
+      }
+    }
+  }
+}

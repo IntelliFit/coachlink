@@ -125,7 +125,11 @@ export default function StreetliftingMethodologyPage() {
                                 <div>- Epley: Total_1RM = Total_Weight × (1 + 0.0333 × Reps)</div>
                                 <div>- Brzycki: Total_1RM = Total_Weight × (36 / (37 - Reps))</div>
                                 <div>- Lombardi: Total_1RM = Total_Weight × (Reps ^ 0.1)</div>
-                                <div className="pt-1">最终：三者平均</div>
+                                <div className="pt-1">最终：三者平均（代数上等价于 Total_1RM = Total_Weight × 三系数之平均）</div>
+                            </div>
+                            <div className="mt-3 pt-3 border-t border-surface-200 text-surface-600">
+                                反推与 RM 对照表：已知 Total_1RM 与次数 Reps 时，Total_Weight = Total_1RM ÷
+                                上述三系数之平均，保证与正向估算严格互逆、表里对应次数行与输入一致。
                             </div>
                         </div>
                     </div>

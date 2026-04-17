@@ -6,43 +6,35 @@ import { Skeleton } from 'primereact/skeleton';
 import type { ChatroomItem } from '@/app/api/chat/list-chatrooms/entity';
 import { useSession } from 'next-auth/react';
 import React, { useState } from 'react';
-import ChatDialog from '@/components/chat/ChatDialog';
-import { ChatroomDetail } from '@/app/api/chat/get-chatroom/entity';
+import { useRouter } from 'next/navigation';
 import MarkdownIt from 'markdown-it';
 import { Clock, ChevronRight, MessageSquareText } from 'lucide-react';
 import { diffBeijingCalendarDays, formatBeijingDate } from '@/lib/beijingTime';
+import { getConversationPreview } from '@/lib/chatPreview';
 
-export function ConversationList({ chatrooms, loading = false, onConversationClick }: any) {
+export function ConversationList({
+    chatrooms,
+    loading = false,
+    onConversationClick,
+    selectedRoomId,
+}: {
+    chatrooms: ChatroomItem[];
+    loading?: boolean;
+    onConversationClick?: (room: ChatroomItem) => void;
+    selectedRoomId?: string | null;
+}) {
+    const router = useRouter();
     const { data: session } = useSession();
     const userId = session?.user?.id;
-    const [chatDialogVisible, setChatDialogVisible] = useState(false);
-    const [currentCoachId, setCurrentCoachId] = useState<string | null>(null);
-    const [currentChatroom, setCurrentChatroom] = useState<ChatroomDetail | null>(null);
     const [chatroomState, setChatroomState] = useState<ChatroomItem[]>(chatrooms);
 
     React.useEffect(() => setChatroomState(chatrooms), [chatrooms]);
-
-    const handleMarkSuccess = (roomId: string) => {
-        setChatroomState(prev => prev.map(room =>
-            room.id === roomId ? { ...room, unreadCount: 0, unreadMembers: room.unreadMembers.filter(id => id !== userId) } : room
-        ));
-        window.dispatchEvent(new Event('chat-unread-update'));
-    };
 
     const handleClick = (room: ChatroomItem) => {
         if (onConversationClick) {
             onConversationClick(room);
         } else {
-            setCurrentCoachId(room.chatUserId);
-            setCurrentChatroom({
-                id: room.id,
-                members: [room.chatUserId, session?.user?.id as string],
-                lastMessage: room.lastMessage,
-                lastMessageAt: room.lastMessageAt,
-                unreadMembers: room.unreadMembers,
-                isArchived: room.isArchived,
-            });
-            setChatDialogVisible(true);
+            router.push(`/messages/${encodeURIComponent(room.id)}`);
         }
     };
 
@@ -99,7 +91,11 @@ export function ConversationList({ chatrooms, loading = false, onConversationCli
                 return (
                     <div
                         key={room.id}
-                        className="group flex items-center gap-4 p-4 rounded-[1.5rem] cursor-pointer transition-all duration-300 hover:bg-primary-50/50 active:scale-[0.99]"
+                        className={`group flex items-center gap-4 p-4 rounded-[1.5rem] cursor-pointer transition-all duration-300 hover:bg-primary-50/50 active:scale-[0.99] ${
+                            selectedRoomId && room.id === selectedRoomId
+                                ? 'bg-primary-50/80 ring-2 ring-primary-200'
+                                : ''
+                        }`}
                         onClick={() => handleClick(room)}
                     >
                         {/* 头像区 */}
@@ -129,8 +125,10 @@ export function ConversationList({ chatrooms, loading = false, onConversationCli
                                 </div>
                             </div>
                             <div className="flex items-center justify-between">
-                                <p className={`text-sm truncate ${isUnread ? 'text-surface-900 font-bold italic' : 'text-surface-500 font-medium'}`}>
-                                    {getPlainText(room.lastMessage)}
+                                <p
+                                    className={`text-sm line-clamp-2 break-words ${isUnread ? 'text-surface-900 font-bold italic' : 'text-surface-500 font-medium'}`}
+                                >
+                                    {getConversationPreview(getPlainText(room.lastMessage))}
                                 </p>
                                 <ChevronRight size={16} className="text-surface-200 group-hover:text-primary-300 group-hover:translate-x-1 transition-all" />
                             </div>
@@ -138,13 +136,6 @@ export function ConversationList({ chatrooms, loading = false, onConversationCli
                     </div>
                 );
             })}
-
-            <ChatDialog
-                visible={chatDialogVisible}
-                chatroom={currentChatroom}
-                onHide={() => setChatDialogVisible(false)}
-                onMarkSuccess={handleMarkSuccess}
-            />
         </div>
     );
 }

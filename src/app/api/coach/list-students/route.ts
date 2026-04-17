@@ -10,6 +10,8 @@ import {
 import { UserProfilesRow } from "@/types";
 import pLimit from "p-limit";
 import { ApiData } from "@/types/api";
+import { deriveProjectedSubscriptionEndDate } from "@/lib/subscriptionEstimatedEndDate";
+import { getSubscriptionCarryoverSummary } from "@/lib/subscriptionCarryover";
 
 async function getVideoStats(studentIds: string[]) {
     if (!studentIds?.length) return new Map();
@@ -46,7 +48,7 @@ async function getStudentPlanDataBatch(coachId: string, studentIds: string[]) {
     const { data: instances } = await supabase
         .from("coach_plan_instances")
         .select(
-            "id, name, description, status, rest_days_count, training_days_count, start_execution_day, student_id, created_at",
+            "id, name, description, status, rest_days_count, training_days_count, start_execution_day, student_id, created_at, training_days",
         )
         .eq("coach_id", coachId)
         .in("student_id", studentIds)
@@ -83,41 +85,99 @@ async function getStudentPlanDataBatch(coachId: string, studentIds: string[]) {
         .map((i) => i.id)
         .filter(Boolean);
     const completedByInstance = new Map<string, number>();
+    const executionsByInstance = new Map<string, Array<{ day_index: number; status: string | null }>>();
     if (instanceIds.length > 0) {
         const { data: execs } = await supabase
             .from("plan_instance_executions")
-            .select("instance_id")
+            .select("instance_id, day_index, status")
             .in("instance_id", instanceIds)
             .eq("status", "completed");
 
         for (const e of execs || []) {
             const iid = (e as any).instance_id as string;
             completedByInstance.set(iid, (completedByInstance.get(iid) || 0) + 1);
+            const list = executionsByInstance.get(iid) || [];
+            list.push({
+                day_index: Number((e as any).day_index || 0),
+                status: String((e as any).status || ""),
+            });
+            executionsByInstance.set(iid, list);
         }
     }
 
     // 3) Assemble result map
-    const result = new Map<string, { plan: any; progress: any }>();
+    const result = new Map<string, { plan: any; progress: any; instanceMeta?: any }>();
     for (const studentId of studentIds) {
         const inst = latestActiveByStudent.get(studentId) || latestCompletedByStudent.get(studentId);
         if (!inst) {
             result.set(studentId, { plan: null, progress: { total: 0, completed: 0 } });
             continue;
         }
+        const startExecutionDay = Number(inst.start_execution_day || 1);
+        const trainingDayTotal = Array.isArray(inst.training_days)
+            ? inst.training_days.filter((day: any) => {
+                const dayIndex = Number(day?.dayIndex ?? day?.day_index ?? 0);
+                return dayIndex >= startExecutionDay && day?.type === "training";
+            }).length
+            : Number(inst.training_days_count || 0);
+        const completedCount = completedByInstance.get(inst.id) || 0;
+        const isLogicallyCompleted = trainingDayTotal > 0 &&
+            completedCount >= trainingDayTotal;
+        const derivedStatus = inst.status === "active" && isLogicallyCompleted
+            ? "completed"
+            : inst.status;
+
         result.set(studentId, {
             plan: {
                 name: inst.name,
                 description: inst.description || "",
-                status: inst.status,
+                status: derivedStatus,
+                raw_status: inst.status,
+                is_logically_completed: isLogicallyCompleted,
                 id: inst.id,
             },
             progress: {
-                total: inst.training_days_count || 0,
-                completed: completedByInstance.get(inst.id) || 0,
+                total: trainingDayTotal,
+                completed: completedCount,
+            },
+            instanceMeta: {
+                instance_id: inst.id,
+                created_at: inst.created_at || null,
+                training_days: Array.isArray(inst.training_days) ? inst.training_days : [],
+                start_execution_day: startExecutionDay,
+                executions: executionsByInstance.get(inst.id) || [],
             },
         });
     }
     return result;
+}
+
+async function deriveProjectedEndDate(params: {
+    subscription: any;
+    instanceMeta?: {
+        instance_id?: string;
+        created_at?: string | null;
+        training_days: any[];
+        start_execution_day: number;
+        executions: Array<{ day_index: number; status: string | null }>;
+    } | null;
+}) {
+    const { subscription, instanceMeta } = params;
+    const carryover = await getSubscriptionCarryoverSummary({
+        subscriptionId: String(subscription?.id || ""),
+        subscribedWeeks: Number(subscription?.subscribed_weeks || 0),
+        excludeInstanceId: String(instanceMeta?.instance_id || ""),
+        createdBefore: instanceMeta?.created_at || null,
+    });
+    const projectedEndDate = deriveProjectedSubscriptionEndDate({
+        startDate: subscription?.start_date || null,
+        subscribedWeeks: subscription?.subscribed_weeks || null,
+        effectiveSubscribedWeeks: carryover.remainingWeeks,
+        trainingDays: instanceMeta?.training_days || [],
+        startExecutionDay: instanceMeta?.start_execution_day || 1,
+        executions: instanceMeta?.executions || [],
+    });
+    return projectedEndDate || subscription?.end_date || null;
 }
 
 export async function POST(req: Request) {
@@ -244,23 +304,28 @@ export async function POST(req: Request) {
     const planDetailByStudentId = await getStudentPlanDataBatch(coachRow.id, studentIds as string[]);
 
     // 5. 组装数据
-    const students: StudentSubscription[] = (subs || []).map((sub) => {
+    const students: StudentSubscription[] = await Promise.all((subs || []).map(async (sub) => {
         const studentId = sub.student_id;
         const profile = profileMap.get(studentId) || null;
         const view = studentViews.get(studentId);
         const detail = planDetailByStudentId.get(studentId);
+        const projectedEndDate = await deriveProjectedEndDate({
+            subscription: sub,
+            instanceMeta: (detail as any)?.instanceMeta || null,
+        });
 
         return {
             ...sub,
             monthly_price: fenToYuan(sub.monthly_price ?? 0),
             tier: Number(sub.tier), // 确保类型为 number
+            end_date: projectedEndDate,
             profile,
             uploaded: view?.uploaded || 0,
             reviewed: view?.reviewed || 0,
             plan: detail?.plan || null, // 对应实例中的 status, name 等
             progress: detail?.progress || { total: 0, completed: 0 },
         } as unknown as StudentSubscription;
-    });
+    }));
 
     return NextResponse.json<ApiData<ListStudentsResponseDto>>({
         success: true,

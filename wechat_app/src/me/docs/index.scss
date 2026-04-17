@@ -1,0 +1,58 @@
+.docs-page {
+  min-height: 100vh;
+  background: linear-gradient(180deg, #E8E8E8 0%, #F8F8F8 100%);
+  width: 100%;
+  box-sizing: border-box;
+  overflow-x: hidden;
+}
+.docs-scroll {
+  height: 100vh;
+  padding: 24rpx;
+  width: 100%;
+  box-sizing: border-box;
+}
+.doc-list {
+  background: #fff;
+  border-radius: 16rpx;
+  overflow: hidden;
+  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.06);
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+.list-title {
+  font-size: 32rpx;
+  font-weight: bold;
+  color: #333;
+  padding: 32rpx;
+  display: block;
+  border-bottom: 1rpx solid #f0f0f0;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+.doc-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 32rpx;
+  border-bottom: 1rpx solid #f0f0f0;
+  width: 100%;
+  box-sizing: border-box;
+}
+.doc-item:last-child {
+  border-bottom: none;
+}
+.doc-item-title {
+  font-size: 30rpx;
+  color: #333;
+  flex: 1;
+  min-width: 0;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+.doc-item-arrow {
+  font-size: 28rpx;
+  color: #999;
+  flex-shrink: 0;
+  margin-left: 16rpx;
+}

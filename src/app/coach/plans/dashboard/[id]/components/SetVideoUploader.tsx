@@ -19,6 +19,7 @@ import { trainingService } from '@/app/service/trainingService';
 import { coachVideoService } from '@/app/service/coachVideoService';
 import { useToastContext } from '@/context/ToastContext';
 import { videoService } from '@/app/service/videoService';
+import { MAX_VIDEO_UPLOAD_MB, getVideoUploadSizeError } from '@/lib/videoCompression';
 
 interface SetVideoUploaderProps {
     trainingRecordId: string;
@@ -47,6 +48,7 @@ const SetVideoUploader: React.FC<SetVideoUploaderProps> = ({
     // 文件上传相关
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [uploadProgress, setUploadProgress] = useState(0);
+    const [uploadStatusText, setUploadStatusText] = useState('');
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     // URL上传相关
@@ -58,7 +60,7 @@ const SetVideoUploader: React.FC<SetVideoUploaderProps> = ({
     const [error, setError] = useState('');
 
     // 文件大小和格式限制
-    const maxFileSize = 100; // MB
+    const maxFileSize = MAX_VIDEO_UPLOAD_MB; // MB
     const acceptedFormats = ['video/mp4', 'video/mov', 'video/avi', 'video/webm', 'video/quicktime'];
 
     // 验证文件
@@ -67,12 +69,13 @@ const SetVideoUploader: React.FC<SetVideoUploaderProps> = ({
             return `不支持的文件格式。请使用: MP4, MOV, AVI, WEBM`;
         }
 
-        if (file.size > maxFileSize * 1024 * 1024) {
-            return `文件过大。最大支持 ${maxFileSize}MB`;
+        const sizeError = getVideoUploadSizeError(file, maxFileSize * 1024 * 1024);
+        if (sizeError) {
+            return sizeError;
         }
 
         return null;
-    }, []);
+    }, [acceptedFormats, maxFileSize]);
 
     // 处理文件选择
     const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -104,6 +107,7 @@ const SetVideoUploader: React.FC<SetVideoUploaderProps> = ({
 
         setUploading(true);
         setError('');
+        setUploadStatusText('');
 
         try {
             // 1. 上传文件到视频服务
@@ -116,10 +120,8 @@ const SetVideoUploader: React.FC<SetVideoUploaderProps> = ({
                     requires_review: false
                 },
                 (progressEvent) => {
-                    if (progressEvent.total && progressEvent.loaded) {
-                        const percentage = Math.round((progressEvent.loaded / progressEvent.total) * 100);
-                        setUploadProgress(percentage);
-                    }
+                    setUploadProgress(progressEvent.percentage);
+                    setUploadStatusText(progressEvent.statusText || '');
                 }
             );
 
@@ -150,6 +152,7 @@ const SetVideoUploader: React.FC<SetVideoUploaderProps> = ({
         } finally {
             setUploading(false);
             setUploadProgress(0);
+            setUploadStatusText('');
         }
     };
 
@@ -283,7 +286,10 @@ const SetVideoUploader: React.FC<SetVideoUploaderProps> = ({
                                 支持: MP4, MOV, AVI, WEBM
                             </p>
                             <p className="text-xs text-500">
-                                最大文件大小: {maxFileSize}MB
+                                原视频最大: {maxFileSize}MB
+                            </p>
+                            <p className="text-xs text-emerald-600 mt-1">
+                                较大视频会先在本地压缩，再上传绑定到本组
                             </p>
                             {selectedFile && (
                                 <p className="text-sm text-primary mt-2">
@@ -311,7 +317,7 @@ const SetVideoUploader: React.FC<SetVideoUploaderProps> = ({
                         {uploading && uploadProgress > 0 && (
                             <div>
                                 <div className="flex justify-content-between mb-2">
-                                    <span className="text-sm text-600">上传进度</span>
+                                    <span className="text-sm text-600">{uploadStatusText || '处理进度'}</span>
                                     <span className="text-sm font-semibold text-primary">{uploadProgress}%</span>
                                 </div>
                                 <ProgressBar value={uploadProgress} />

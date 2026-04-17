@@ -15,9 +15,47 @@ export async function POST(req: Request) {
         }, { status: 401 });
     }
     const userId = session.user.id;
-    const {
-        members
-    } = await req.json() as GetChatroomDto;
+    const { members, roomId } = await req.json() as GetChatroomDto;
+
+    if (roomId && typeof roomId === 'string') {
+        const { data: byId, error: byIdErr } = await supabase
+            .from('chat_rooms')
+            .select('*')
+            .eq('id', roomId)
+            .maybeSingle();
+
+        if (byIdErr || !byId) {
+            return NextResponse.json({
+                success: false,
+                message: '会话不存在',
+                data: { chatroom: null }
+            }, { status: 404 });
+        }
+
+        const membersArr = (byId.members as string[]) || [];
+        if (!membersArr.includes(userId)) {
+            return NextResponse.json({
+                success: false,
+                message: '没有权限',
+                data: null
+            }, { status: 403 });
+        }
+
+        return NextResponse.json<ApiData<GetChatroomResponseDto>>({
+            success: true,
+            message: '获取会话成功',
+            data: {
+                chatroom: {
+                    id: byId.id,
+                    members: membersArr,
+                    lastMessage: byId.last_message,
+                    lastMessageAt: byId.last_message_at,
+                    unreadMembers: byId.unread_members || [],
+                    isArchived: byId.is_archived || false,
+                }
+            }
+        });
+    }
 
     if (!Array.isArray(members) || members.length < 2) {
         return NextResponse.json({

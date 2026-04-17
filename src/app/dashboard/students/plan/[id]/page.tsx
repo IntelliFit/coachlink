@@ -18,6 +18,7 @@ import { CoachActionRow, CoachPlanInstanceRow, ItemType } from '@/types';
 import BasicInfoForm from '@/app/dashboard/plan-lib/components/BasicInfoForm';
 import PlanDayCard from '@/app/dashboard/plan-lib/components/PlanDayCard';
 import WeekCalendar from '@/app/dashboard/plan-lib/components/WeekCalendar';
+import PlanScriptDialog from '@/app/dashboard/plan-lib/components/PlanScriptDialog';
 import { ListActionsDto } from '@/app/api/action-lib/list-actions/entity';
 import { GetInstanceDto } from '@/app/api/plan-lib/get-instance/entity';
 import { coachService } from '@/app/service/coachService';
@@ -44,6 +45,7 @@ import type { TrainingItem } from '@/types/questionnaires';
 import type { FeedbackItem } from '@/app/api/coach/get-student-feedbacks/entity';
 import StudentFeedbackPanel from './components/StudentFeedbackPanel';
 import { BatchOperationDialog } from '@/components/BatchOperationDialog';
+import { formatTemplateToPlanScript, parsePlanScript } from '@/lib/planScript';
 
 const StudentPlanPage = () => {
     const router = useRouter();
@@ -78,8 +80,12 @@ const StudentPlanPage = () => {
     const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
     const [instanceId, setInstanceId] = useState<string | null>(null);
     const [rawInstance, setRawInstance] = useState<CoachPlanInstanceRow>(null);
+    const [currentPlanCompleted, setCurrentPlanCompleted] = useState(false);
     const [batchDialogVisible, setBatchDialogVisible] = useState(false);
     const [aiBatchDialogVisible, setAiBatchDialogVisible] = useState(false);
+    const [scriptDialogVisible, setScriptDialogVisible] = useState(false);
+    const [scriptDraft, setScriptDraft] = useState('');
+    const [scriptError, setScriptError] = useState<string | null>(null);
     const [originalDaysBeforeAi, setOriginalDaysBeforeAi] = useState<FormPlanTrainingDay[] | null>(null);
     const [actionSearchId, setActionSearchId] = useState<string | null>(null);
 
@@ -113,6 +119,15 @@ const StudentPlanPage = () => {
     const [feedbackUnreadCount, setFeedbackUnreadCount] = useState(0);
     const [aiFeedbackInstruction, setAiFeedbackInstruction] = useState<string | undefined>(undefined);
 
+    const buildPlanScript = () => {
+        const actionNameById = Object.fromEntries(actions.map((action) => [action.id, action.name]));
+        return formatTemplateToPlanScript({
+            description,
+            trainingDays: days,
+            actionNameById,
+        });
+    };
+
     // Load instance data
     useEffect(() => {
         if (!coach?.id || !params.id) return;
@@ -126,6 +141,7 @@ const StudentPlanPage = () => {
                 setExecutions({});
                 setExecutionActions({});
                 setRawInstance(null);
+                setCurrentPlanCompleted(false);
 
                 // 1. 定义所有并发任务
                 const actionsPromise = actionLibService.listActions({ page: 1, limit: 100 });
@@ -154,8 +170,12 @@ const StudentPlanPage = () => {
                 // 5. 处理 Instance (训练计划详情)
                 if (instanceRes?.instance) {
                     const instance = instanceRes.instance;
+                    const isLogicallyCompleted =
+                        !!instanceRes.isLogicallyCompleted ||
+                        instanceRes.derivedStatus === 'completed';
                     // 仅在 active 时作为“当前计划”展示（completed 走历史页，不在当前编辑页展示执行记录）
                     setRawInstance(instance.status === 'active' || instance.status === 'paused' ? instance : null);
+                    setCurrentPlanCompleted(isLogicallyCompleted);
 
                     if (instance.status === 'active') {
                         setInstanceExists(true);
@@ -425,6 +445,26 @@ const StudentPlanPage = () => {
         setDays(newDays);
     };
 
+    const handleMoveActionSet = (
+        dayIndex: number,
+        setIndex: number,
+        direction: 'up' | 'down'
+    ) => {
+        const newDays = [...days];
+        if (!newDays[dayIndex]) return;
+
+        const actionSets = [...(newDays[dayIndex].actionSets || [])];
+        const targetIndex = direction === 'up' ? setIndex - 1 : setIndex + 1;
+        if (targetIndex < 0 || targetIndex >= actionSets.length) return;
+
+        [actionSets[setIndex], actionSets[targetIndex]] = [actionSets[targetIndex], actionSets[setIndex]];
+        newDays[dayIndex] = {
+            ...newDays[dayIndex],
+            actionSets,
+        };
+        setDays(newDays);
+    };
+
     const handleActionSetChange = (
         dayIndex: number,
         setIndex: number,
@@ -599,6 +639,47 @@ const StudentPlanPage = () => {
     }, [hasUnsavedChanges, instanceExists, instanceId, performAutoSave]);
     // ==================== 自动保存机制结束 ====================
 
+    const handleOpenScriptDialog = () => {
+        try {
+            setScriptDraft(buildPlanScript());
+            setScriptError(null);
+            setScriptDialogVisible(true);
+        } catch (error: any) {
+            console.error('生成学员计划脚本失败:', error);
+            showToast({
+                severity: 'error',
+                summary: '脚本模式暂不可用',
+                detail: error?.message || '当前计划包含暂不支持的结构',
+            });
+        }
+    };
+
+    const handleApplyScript = () => {
+        try {
+            const parsed = parsePlanScript({
+                script: scriptDraft,
+                actions,
+            });
+            setDays(parsed.days);
+            setDescription(parsed.description || '');
+            setSelectedDayIndex(parsed.days.length > 0 ? parsed.days[0].dayIndex : null);
+            setScriptError(null);
+            setScriptDialogVisible(false);
+            if (instanceExists && instanceId) {
+                setHasUnsavedChanges(true);
+                setAutoSaveStatus('pending');
+            }
+            showToast({
+                severity: 'success',
+                summary: '脚本已应用',
+                detail: `已根据计划脚本更新 ${parsed.days.length} 天内容，请确认后保存`,
+            });
+        } catch (error: any) {
+            console.error('应用学员计划脚本失败:', error);
+            setScriptError(error?.message || '计划脚本解析失败');
+        }
+    };
+
     const handleSave = async () => {
         if (!coach?.id || !params.id) return;
 
@@ -690,6 +771,48 @@ const StudentPlanPage = () => {
         });
     };
 
+    const openNewStageTemplateDialog = () => {
+        setImportMode('new_instance');
+        setPendingTemplate(null);
+        setSelectTemplateDialogVisible(true);
+    };
+
+    const handleArchiveCurrentPlan = () => {
+        if (!instanceId) return;
+
+        confirmDialog({
+            message: '归档后这份计划会从当前计划中移除，学员端不再执行它。后续仍可在历史计划中查看。确定归档当前计划吗？',
+            header: '归档当前计划',
+            icon: 'pi pi-exclamation-triangle',
+            acceptLabel: '确认归档',
+            rejectLabel: '取消',
+            accept: async () => {
+                try {
+                    setSaving(true);
+                    await planLibService.archiveInstance({ instanceId });
+                    setInstanceExists(false);
+                    setInstanceId(null);
+                    setRawInstance(null);
+                    setCurrentPlanCompleted(false);
+                    setName('');
+                    setDescription('');
+                    setTags([]);
+                    setDays([]);
+                    setSelectedDayIndex(null);
+                    setExecutions({});
+                    setExecutionActions({});
+                    showToast({ severity: 'success', summary: '已归档', detail: '当前计划已结束，可以创建下一阶段计划' });
+                } catch (error) {
+                    console.error('归档当前计划失败:', error);
+                    showToast({ severity: 'error', summary: '归档失败', detail: '请稍后重试' });
+                } finally {
+                    setSaving(false);
+                }
+            },
+            reject: () => { }
+        });
+    };
+
     // 新增函数：处理选择模板
     // 新增函数：处理选择模板 -> 弹出配置框
     const handleSelectTemplate = (templateData: GetTemplateResponseDto) => {
@@ -698,10 +821,15 @@ const StudentPlanPage = () => {
         // - overwrite current plan (keep executions)
         // - create a new phase (archive old, executions reset)
         if (instanceExists && instanceId) {
+            if (currentPlanFullyCompleted || importMode === 'new_instance') {
+                setImportMode('new_instance');
+                setPlanStartConfigVisible(true);
+                return;
+            }
             setImportModeDialogVisible(true);
         } else {
             setImportMode('new_instance');
-        setPlanStartConfigVisible(true);
+            setPlanStartConfigVisible(true);
         }
     };
 
@@ -824,6 +952,21 @@ const StudentPlanPage = () => {
         }));
 
     const maxWeeks = Math.max(1, Math.ceil(days.length / 7));
+    const completedTrainingDaysCount = useMemo(() => {
+        const completedDaySet = new Set<number>();
+        Object.values(executions || {}).forEach((execution: any) => {
+            if (execution?.status !== 'completed') return;
+            const dayIndex = Number(execution?.day_index ?? execution?.dayIndex ?? 0);
+            if (dayIndex > 0) completedDaySet.add(dayIndex);
+        });
+        return completedDaySet.size;
+    }, [executions]);
+    const totalTrainingDaysCount = useMemo(
+        () => days.filter((day) => day.type === 'training').length,
+        [days],
+    );
+    const currentPlanFullyCompleted = currentPlanCompleted ||
+        (totalTrainingDaysCount > 0 && completedTrainingDaysCount >= totalTrainingDaysCount);
 
     // 从 aggregated1RM 构建 planReference1RMs，按教练动作 ID 映射，供 PlanDayCard 计算训练重量
     const planReference1RMs = useMemo(() => {
@@ -1168,7 +1311,7 @@ const StudentPlanPage = () => {
                         loading={loading}
                         planName={name || '学员训练计划'}
                         planDescription={description}
-                        isCompleted={false}
+                        isCompleted={currentPlanFullyCompleted}
                     />
 
                     {/* 学员训练反馈面板 */}
@@ -1221,6 +1364,38 @@ const StudentPlanPage = () => {
                     </div>
                 )}
 
+                {instanceExists && currentPlanFullyCompleted && (
+                    <div className="mb-4 rounded-[24px] border border-emerald-100 bg-emerald-50/70 p-4 md:p-5 shadow-sm">
+                        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                            <div>
+                                <div className="flex items-center gap-2 text-emerald-800 font-black tracking-tight">
+                                    <i className="pi pi-check-circle text-sm" />
+                                    当前计划已全部完成
+                                </div>
+                                <p className="mt-1 text-sm text-emerald-700 leading-relaxed">
+                                    已完成 {completedTrainingDaysCount}/{totalTrainingDaysCount} 个训练日。可以直接创建下一阶段计划，旧计划会自动归档；新计划会从第 1 天开始，学员端只放行剩余购买周期对应的内容。
+                                </p>
+                            </div>
+                            <div className="flex flex-col sm:flex-row gap-2 shrink-0">
+                                <Button
+                                    label="创建下一阶段计划"
+                                    icon="pi pi-plus"
+                                    className="p-button-success rounded-2xl"
+                                    onClick={openNewStageTemplateDialog}
+                                    disabled={saving}
+                                />
+                                <Button
+                                    label="只归档当前计划"
+                                    icon="pi pi-archive"
+                                    className="p-button-outlined p-button-secondary rounded-2xl"
+                                    onClick={handleArchiveCurrentPlan}
+                                    disabled={saving}
+                                />
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 <BasicInfoForm
                     variant="student"
                     name={name}
@@ -1268,7 +1443,25 @@ const StudentPlanPage = () => {
                                 disabled={saving}
                             />
                             <Button
-                                label="从模板创建"
+                                label="脚本模式"
+                                size="small"
+                                icon="pi pi-code"
+                                className="
+                                    flex items-center gap-2 px-4 py-2
+                                    bg-surface border border-surface-200 rounded-[14px]
+                                    text-[12px] font-black text-surface-700 tracking-tight
+                                    transition-all duration-200 active:scale-[0.95]
+                                    hover:border-primary-300 hover:text-primary-600 hover:shadow-sm
+                                    disabled:opacity-40 disabled:cursor-not-allowed
+                                "
+                                text
+                                onClick={handleOpenScriptDialog}
+                                disabled={saving || !days.length}
+                                tooltip="以紧凑计划脚本方式编辑当前学员计划"
+                                tooltipOptions={{ position: 'bottom' }}
+                            />
+                            <Button
+                                label={currentPlanFullyCompleted ? '创建下一阶段' : '从模板创建'}
                                 size="small"
                                 icon="pi pi-book"
                                 className="
@@ -1280,7 +1473,7 @@ const StudentPlanPage = () => {
                                     disabled:opacity-40 disabled:cursor-not-allowed
                                 "
                                 text
-                                onClick={() => setSelectTemplateDialogVisible(true)}
+                                onClick={currentPlanFullyCompleted ? openNewStageTemplateDialog : () => setSelectTemplateDialogVisible(true)}
                                 disabled={saving}
                             />
                         </>
@@ -1393,6 +1586,7 @@ const StudentPlanPage = () => {
                                     onNoteChange={handleNoteChange}
                                     onAddActionSet={handleAddActionSet}
                                     onRemoveActionSet={handleRemoveActionSet}
+                                    onMoveActionSet={handleMoveActionSet}
                                     onActionSetChange={handleActionSetChange}
                                     saving={saving}
                                     totalDays={days.length}
@@ -1440,6 +1634,15 @@ const StudentPlanPage = () => {
                     maxWeeks={maxWeeks}
                     onApply={handleBatchApply}
                     disabled={saving}
+                />
+
+                <PlanScriptDialog
+                    visible={scriptDialogVisible}
+                    onHide={() => setScriptDialogVisible(false)}
+                    script={scriptDraft}
+                    onScriptChange={setScriptDraft}
+                    onApply={handleApplyScript}
+                    error={scriptError}
                 />
 
                 <BatchOperationDialog

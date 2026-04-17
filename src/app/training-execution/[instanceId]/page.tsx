@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef, Suspense } from 'react';
+import React, { useState, useEffect, useRef, useCallback, Suspense } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { Card } from 'primereact/card';
@@ -23,6 +23,7 @@ import { AeroInputNumber } from '@/components/AeroInputNumber';
 import { useAnalytics } from '@/hooks/useAnalytics';
 import ActionPicker from '@/app/today-training/ActionPicker';
 import { isOneRMEligibleAction } from '@/lib/oneRmEligibility';
+import { normalizePlannedRestSeconds } from '@/lib/restTime';
 
 interface SetData {
     set_number: number;
@@ -153,6 +154,8 @@ function TrainingExecutionContent() {
     const [restTimer, setRestTimer] = useState(0);
     const [isResting, setIsResting] = useState(false);
     const [sessionNotes, setSessionNotes] = useState('');
+    const restEndAtRef = useRef<number | null>(null);
+    const restTimerStorageKey = `coachlink:rest-timer:${session?.user?.id || 'anonymous'}:${isImpromptuMode ? `impromptu:${impromptuId || instanceId}` : `plan:${instanceId}`}:day:${dayIndex}`;
 
     // Query-based focus: used by “去输入并校准”入口
     useEffect(() => {
@@ -288,21 +291,139 @@ function TrainingExecutionContent() {
         return () => window.cancelAnimationFrame(frameId);
     }, [execution, focusActionIndex]);
 
+    const clearPersistedRestTimer = useCallback(() => {
+        if (typeof window === 'undefined') return;
+        window.localStorage.removeItem(restTimerStorageKey);
+    }, [restTimerStorageKey]);
+
+    const persistRestTimer = useCallback((endAt: number | null, executionId?: string | null) => {
+        if (typeof window === 'undefined') return;
+
+        if (!endAt || endAt <= Date.now()) {
+            window.localStorage.removeItem(restTimerStorageKey);
+            return;
+        }
+
+        window.localStorage.setItem(restTimerStorageKey, JSON.stringify({
+            endAt,
+            executionId: executionId ?? execution?.id ?? null,
+            savedAt: Date.now(),
+        }));
+    }, [execution?.id, restTimerStorageKey]);
+
+    const readPersistedRestTimer = useCallback(() => {
+        if (typeof window === 'undefined') return null;
+
+        try {
+            const raw = window.localStorage.getItem(restTimerStorageKey);
+            if (!raw) return null;
+
+            const parsed = JSON.parse(raw);
+            if (!parsed || typeof parsed.endAt !== 'number') {
+                window.localStorage.removeItem(restTimerStorageKey);
+                return null;
+            }
+
+            return {
+                endAt: parsed.endAt,
+                executionId: typeof parsed.executionId === 'string' ? parsed.executionId : null,
+            };
+        } catch {
+            window.localStorage.removeItem(restTimerStorageKey);
+            return null;
+        }
+    }, [restTimerStorageKey]);
+
+    const syncRestTimer = useCallback(() => {
+        const restEndAt = restEndAtRef.current;
+        if (!restEndAt) return;
+
+        const rawRemainingSeconds = Math.max(0, Math.ceil((restEndAt - Date.now()) / 1000));
+        const remainingSeconds = normalizePlannedRestSeconds(rawRemainingSeconds, 0);
+
+        if (rawRemainingSeconds !== remainingSeconds) {
+            const correctedEndAt = Date.now() + remainingSeconds * 1000;
+            restEndAtRef.current = correctedEndAt;
+            persistRestTimer(correctedEndAt);
+        }
+
+        setRestTimer(remainingSeconds);
+
+        if (remainingSeconds <= 0) {
+            restEndAtRef.current = null;
+            setIsResting(false);
+            clearPersistedRestTimer();
+        }
+    }, [clearPersistedRestTimer, persistRestTimer]);
+
+    const beginRestTimer = useCallback((seconds: number) => {
+        const normalizedSeconds = normalizePlannedRestSeconds(seconds, 0);
+        if (normalizedSeconds <= 0) {
+            restEndAtRef.current = null;
+            setRestTimer(0);
+            setIsResting(false);
+            clearPersistedRestTimer();
+            return;
+        }
+
+        const endAt = Date.now() + normalizedSeconds * 1000;
+        restEndAtRef.current = endAt;
+        setRestTimer(normalizedSeconds);
+        setIsResting(true);
+        persistRestTimer(endAt);
+    }, [clearPersistedRestTimer, persistRestTimer]);
+
+    useEffect(() => {
+        if (!execution?.id) return;
+
+        if (execution.status === 'completed' || execution.status === 'abandoned') {
+            restEndAtRef.current = null;
+            setRestTimer(0);
+            setIsResting(false);
+            clearPersistedRestTimer();
+            return;
+        }
+
+        const persistedTimer = readPersistedRestTimer();
+        if (!persistedTimer) return;
+
+        if (persistedTimer.executionId && persistedTimer.executionId !== execution.id) {
+            clearPersistedRestTimer();
+            return;
+        }
+
+        if (persistedTimer.endAt <= Date.now()) {
+            clearPersistedRestTimer();
+            return;
+        }
+
+        restEndAtRef.current = persistedTimer.endAt;
+        setIsResting(true);
+        syncRestTimer();
+    }, [clearPersistedRestTimer, execution?.id, execution?.status, readPersistedRestTimer, syncRestTimer]);
+
     // Rest timer effect
     useEffect(() => {
-        if (isResting && restTimer > 0) {
-            const interval = setInterval(() => {
-                setRestTimer(prev => {
-                    if (prev <= 1) {
-                        setIsResting(false);
-                        return 0;
-                    }
-                    return prev - 1;
-                });
-            }, 1000);
-            return () => clearInterval(interval);
-        }
-    }, [isResting, restTimer]);
+        if (!isResting) return;
+
+        syncRestTimer();
+
+        const interval = window.setInterval(syncRestTimer, 1000);
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                syncRestTimer();
+            }
+        };
+
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        window.addEventListener('focus', syncRestTimer);
+
+        return () => {
+            window.clearInterval(interval);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+            window.removeEventListener('focus', syncRestTimer);
+        };
+    }, [isResting, syncRestTimer]);
 
     // 当展开非力量训练类型的动作时，回填已完成的数据
     useEffect(() => {
@@ -1046,8 +1167,7 @@ function TrainingExecutionContent() {
                 // Start rest timer if configured
                 const restSeconds = setData.planned_rest_seconds || 90;
                 if (restSeconds > 0) {
-                    setRestTimer(restSeconds);
-                    setIsResting(true);
+                    beginRestTimer(restSeconds);
                 }
             }
 
@@ -1186,6 +1306,7 @@ function TrainingExecutionContent() {
                     summary: '训练完成',
                     detail: `完成 ${res.completed_sets}/${res.total_sets} 组`
                 });
+                handleSkipRest();
                 if (isImpromptuMode) {
                     try {
                         await updateSession();
@@ -1246,6 +1367,7 @@ function TrainingExecutionContent() {
                             summary: '已快速完成',
                             detail: `完成 ${res.completed_sets}/${res.total_sets} 组`,
                         });
+                        handleSkipRest();
                         setExecution((prev: any) => prev ? { ...prev, status: 'completed', completed_at: res.completed_at, completed_sets: res.completed_sets, total_sets: res.total_sets } : null);
                         setFeedbackDialogVisible(true);
                     } else {
@@ -1305,12 +1427,23 @@ function TrainingExecutionContent() {
     };
 
     const handleSkipRest = () => {
+        restEndAtRef.current = null;
         setRestTimer(0);
         setIsResting(false);
+        clearPersistedRestTimer();
     };
 
     const handleAddTime = (seconds: number) => {
-        setRestTimer(prev => prev + seconds);
+        if (seconds <= 0) return;
+
+        const base = restEndAtRef.current && restEndAtRef.current > Date.now()
+            ? restEndAtRef.current
+            : Date.now();
+        const endAt = base + seconds * 1000;
+        restEndAtRef.current = endAt;
+        setIsResting(true);
+        persistRestTimer(endAt);
+        syncRestTimer();
     };
 
     // 添加额外组数
@@ -2143,9 +2276,9 @@ function TrainingExecutionContent() {
                                                                         ${(linkedVideo?.url || videoFile) ? 'border-green-300 text-green-600 bg-green-50/30' : 'border-surface-200 text-surface-700 bg-surface'}`}
                                                                 >
                                                                     <Upload className="w-4 h-4" />
-                                                                    <span>
+                                                                        <span>
                                                                         {uploading
-                                                                            ? `上传中... ${uploadProgress}%`
+                                                                            ? `处理中... ${uploadProgress}%`
                                                                             : (linkedVideo?.url
                                                                                 ? "已上传视频"
                                                                                 : (videoFile ? "已选择视频" : "选择视频"))}

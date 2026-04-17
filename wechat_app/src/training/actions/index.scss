@@ -1,0 +1,117 @@
+.student-action-lib-page {
+  background: linear-gradient(180deg, #E8E8E8 0%, #F8F8F8 100%);
+  min-height: 100vh;
+  background: #f3f4f6;
+  padding-bottom: 70px;
+
+  .hint-card {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 16px;
+    padding: 16px;
+    margin: 12px;
+    box-sizing: border-box;
+
+    .hint-text {
+      font-size: 14px;
+      color: #6b7280;
+      text-align: center;
+      line-height: 1.6;
+    }
+  }
+
+  .search-bar {
+    background: #fff;
+    padding: 12px 16px;
+    border-bottom: 1px solid #e5e7eb;
+
+    .search-input {
+      background: #f3f4f6;
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: 14px;
+      color: #111827;
+    }
+  }
+
+  .loading-wrap,
+  .empty-wrap {
+    padding: 40px 20px;
+    text-align: center;
+    color: #9ca3af;
+    font-size: 14px;
+  }
+
+  .action-list {
+    padding: 12px;
+    height: calc(100vh - 120px);
+  }
+
+  .action-card {
+    background: #fff;
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 12px;
+    border: 1px solid #e5e7eb;
+    box-sizing: border-box;
+
+    .action-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+
+      .action-name {
+        font-size: 16px;
+        font-weight: 700;
+        color: #111827;
+        flex: 1;
+      }
+
+      .action-type {
+        font-size: 12px;
+        color: #6b7280;
+        background: #f3f4f6;
+        padding: 2px 8px;
+        border-radius: 4px;
+      }
+    }
+
+    .action-detail {
+      font-size: 14px;
+      color: #6b7280;
+      line-height: 1.5;
+      margin-bottom: 8px;
+      display: block;
+    }
+
+    .action-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 8px;
+
+      .tag {
+        font-size: 12px;
+        color: #059669;
+        background: #ecfdf5;
+        padding: 2px 8px;
+        border-radius: 4px;
+      }
+    }
+
+    .action-time {
+      font-size: 12px;
+      color: #9ca3af;
+      display: block;
+    }
+  }
+
+  .load-more,
+  .no-more {
+    text-align: center;
+    padding: 16px;
+    color: #9ca3af;
+    font-size: 14px;
+  }
+}

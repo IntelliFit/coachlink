@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useRef } from 'react';
 import { Upload, X, Video, AlertCircle } from 'lucide-react';
+import { MAX_VIDEO_UPLOAD_MB, getVideoUploadSizeError } from '@/lib/videoCompression';
 import { VideoUploadContext } from '../../types/video';
 import { videoService } from '@/app/service/videoService';
 
@@ -26,9 +27,9 @@ const VideoUploader: React.FC<VideoUploaderProps> = ({
     context,
     onUploadSuccess,
     onUploadError,
-    maxFileSize = 30,
+    maxFileSize = MAX_VIDEO_UPLOAD_MB,
     maxFiles = 5,
-    acceptedFormats = ['video/mp4', 'video/mov', 'video/avi', 'video/webm'],
+    acceptedFormats = ['video/mp4', 'video/mov', 'video/avi', 'video/webm', 'video/quicktime'],
     showUrlInput = true,
     showNotes = true,
     submitDisabled = false,
@@ -41,6 +42,7 @@ const VideoUploader: React.FC<VideoUploaderProps> = ({
     const [error, setError] = useState('');
     const [useUrl, setUseUrl] = useState(false);
     const [uploadedCount, setUploadedCount] = useState(0);
+    const [uploadStatusText, setUploadStatusText] = useState('');
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const validateFile = useCallback((file: File): string | null => {
@@ -48,8 +50,9 @@ const VideoUploader: React.FC<VideoUploaderProps> = ({
             return `不支持的文件格式。请使用: ${acceptedFormats.join(', ')}`;
         }
 
-        if (file.size > maxFileSize * 1024 * 1024) {
-            return `文件过大。最大支持 ${maxFileSize}MB`;
+        const sizeError = getVideoUploadSizeError(file, maxFileSize * 1024 * 1024);
+        if (sizeError) {
+            return sizeError;
         }
 
         return null;
@@ -101,6 +104,7 @@ const VideoUploader: React.FC<VideoUploaderProps> = ({
         try {
             setUploading(true);
             setError('');
+            setUploadStatusText('');
 
             if (uploadedCount >= maxFiles) {
                 setError(`已达到 ${maxFiles} 个视频的上限`);
@@ -138,6 +142,7 @@ const VideoUploader: React.FC<VideoUploaderProps> = ({
                         videoFile.file,
                         uploadContext,
                         (progressData) => {
+                            setUploadStatusText(progressData.statusText || '');
                             setProgress(prev => ({
                                 ...prev,
                                 [videoFile.id]: progressData.percentage
@@ -167,6 +172,7 @@ const VideoUploader: React.FC<VideoUploaderProps> = ({
             setUrl('');
             setProgress({});
             setUseUrl(false);
+            setUploadStatusText('');
 
         } catch (err) {
             const error = err as Error;
@@ -174,6 +180,7 @@ const VideoUploader: React.FC<VideoUploaderProps> = ({
             onUploadError?.(error);
         } finally {
             setUploading(false);
+            setUploadStatusText('');
         }
     };
 
@@ -262,7 +269,10 @@ const VideoUploader: React.FC<VideoUploaderProps> = ({
                                         点击上传或拖拽文件到此处
                                     </p>
                                     <p className="text-xs text-gray-500">
-                                        支持: {acceptedFormats.map(f => f.split('/')[1]).join(', ')}，最大 {maxFileSize}MB，最多 {maxFiles} 个文件
+                                        支持: {acceptedFormats.map(f => f.split('/')[1]).join(', ')}，原视频最大 {maxFileSize}MB，最多 {maxFiles} 个文件
+                                    </p>
+                                    <p className="text-xs text-emerald-600">
+                                        较大的视频会先在本地压缩，再上传到服务器
                                     </p>
                                     <p className="text-xs text-blue-600">
                                         已上传 {uploadedCount}/{maxFiles} 个，可再选择 {Math.max(0, maxFiles - uploadedCount - files.length)} 个
@@ -330,12 +340,12 @@ const VideoUploader: React.FC<VideoUploaderProps> = ({
                                         {uploading && progress[videoFile.id] !== undefined && (
                                             <div className="mt-2 space-y-1">
                                                 <div className="w-full bg-gray-200 rounded-full h-2">
-                                                    <div
-                                                        className="bg-blue-500 h-2 rounded-full transition-all duration-300"
-                                                        style={{ width: `${progress[videoFile.id]}%` }}
-                                                    />
-                                                </div>
-                                                <p className="text-xs text-gray-600">{progress[videoFile.id]}% 上传中...</p>
+                                                <div
+                                                    className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+                                                    style={{ width: `${progress[videoFile.id]}%` }}
+                                                />
+                                            </div>
+                                                <p className="text-xs text-gray-600">{progress[videoFile.id]}% {uploadStatusText || '处理中...'}</p>
                                             </div>
                                         )}
                                     </div>

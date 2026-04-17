@@ -9,6 +9,7 @@ import {
     buildPRRecordSummaries,
     buildActionLibrary,
 } from "../ai-personalize-plan/service";
+import { getSubscriptionCarryoverSummary } from "@/lib/subscriptionCarryover";
 
 export class ApiError extends Error {
     status: number;
@@ -34,8 +35,8 @@ export async function createAiInstanceForSubscription(params: CreateAiInstancePa
         actorUserId,
         actorCoachId,
         subscriptionId,
-        startWeek = 1,
-        startDay = 1,
+        startWeek,
+        startDay,
         delayedActivation = false,
         useLLM = false,
     } = params;
@@ -96,6 +97,7 @@ export async function createAiInstanceForSubscription(params: CreateAiInstancePa
     let selectedTemplateId: string | null = null;
     let aiGenerationLog: any = null;
     let planDescription = "暂无描述";
+    let selectTemplate: any = null; // 保留引用，用于后续取 tags/type/suitable_for
 
     // ==================== 分支：LLM 个性化 vs 规则匹配 ====================
     if (useLLM) {
@@ -165,9 +167,9 @@ export async function createAiInstanceForSubscription(params: CreateAiInstancePa
         }
 
         // 多模板匹配时：随机选择一个模板
-        const selectTemplate = templates.length === 1
+        selectTemplate = templates.length === 1
             ? templates[0]
-            : templates[randomInt(0, templates.length)];
+            : templates[randomInt(0, templates.length)]
 
         selectedTemplateId = selectTemplate.id;
 
@@ -183,27 +185,49 @@ export async function createAiInstanceForSubscription(params: CreateAiInstancePa
         planDescription = selectTemplate.description || "暂无描述";
     }
 
-    // ==================== 公共：创建 plan_instance ====================
-    const startExecutionDay = (startWeek - 1) * 7 + startDay;
+    // ==================== 起始位置与 Carryover 逻辑 ====================
+    const normalizedStartWeek = Number(startWeek ?? 1);
+    const normalizedStartDay = Number(startDay ?? 1);
+    const hasExplicitStartPosition =
+        (startWeek !== undefined || startDay !== undefined) &&
+        ((Number.isFinite(normalizedStartWeek) && normalizedStartWeek > 1) ||
+            (Number.isFinite(normalizedStartDay) && normalizedStartDay > 1));
+    let startExecutionDay = ((normalizedStartWeek - 1) * 7) + normalizedStartDay;
+
+    if (!hasExplicitStartPosition) {
+        const carryover = await getSubscriptionCarryoverSummary({
+            subscriptionId,
+            subscribedWeeks: Number(subscription.subscribed_weeks || 0),
+        });
+
+        if (carryover.exhausted) {
+            throw new ApiError("当前订阅剩余周期已耗尽，请续费后再创建新计划", 400);
+        }
+        startExecutionDay = 1;
+    }
 
     if (startExecutionDay > trainingDays.length) {
         throw new ApiError(
-            `起始位置(第${startWeek}周第${startDay}天)超出模板总天数(${trainingDays.length}天)`,
+            `起始位置超出模板总天数(${trainingDays.length}天)`,
             400,
         );
     }
 
+    const hasCustomStartPosition = hasExplicitStartPosition && startExecutionDay > 1;
+    const effectiveStartWeek = Math.floor((startExecutionDay - 1) / 7) + 1;
+    const effectiveStartDay = ((startExecutionDay - 1) % 7) + 1;
+
     const planBaseName = `${studentName}的计划`;
-    const planName = startExecutionDay > 1
-        ? `${planBaseName}（从第${startWeek}周${startDay > 1 ? `第${startDay}天` : ""}开始）`
+    const planName = hasCustomStartPosition
+        ? `${planBaseName}（从第${effectiveStartWeek}周${effectiveStartDay > 1 ? `第${effectiveStartDay}天` : ""}开始）`
         : planBaseName;
 
     const initialStatus = delayedActivation ? "scheduled" : "active";
 
     const insertPayload: any = {
         name: planName,
-        description: startExecutionDay > 1
-            ? `从第${startWeek}周第${startDay}天开始执行，前${startExecutionDay - 1}天视为已完成`
+        description: hasCustomStartPosition
+            ? `从第${effectiveStartWeek}周第${effectiveStartDay}天开始执行，前${startExecutionDay - 1}天视为已完成`
             : planDescription,
         coach_subscription_id: subscriptionId,
         coach_id: subscription.coach_id || null,
@@ -215,6 +239,10 @@ export async function createAiInstanceForSubscription(params: CreateAiInstancePa
         training_days: trainingDays,
         start_execution_day: startExecutionDay,
         source: useLLM ? "ai-personalized" : "coach",
+        // 保留模板的元数据字段（来自规则匹配路径的模板）
+        tags: selectTemplate?.tags ?? null,
+        type: selectTemplate?.type ?? null,
+        suitable_for: selectTemplate?.suitable_for ?? null,
     };
 
     // LLM 路径额外写入 AI 生成日志

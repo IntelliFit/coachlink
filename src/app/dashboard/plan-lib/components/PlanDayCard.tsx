@@ -18,7 +18,7 @@ import { PolymorphicItemMenu } from './PolymorphicItemMenu';
 import { DietItemForm } from './DietItemForm';
 import { CardioItemForm } from './CardioItemForm';
 import { HabitItemForm } from './HabitItemForm';
-import { Calendar, Coffee, Copy, Filter, Trash2 } from 'lucide-react';
+import { ArrowDown, ArrowUp, Calendar, Coffee, Copy, Filter, Trash2 } from 'lucide-react';
 import { Dialog } from 'primereact/dialog';
 
 // 定义动作选项的接口
@@ -126,6 +126,7 @@ interface PlanDayCardProps {
     onNoteChange: (dayIndex: number, note: string) => void;
     onAddActionSet: (dayIndex: number, type?: ItemType) => void; // 支持 type 参数
     onRemoveActionSet: (dayIndex: number, setIndex: number) => void;
+    onMoveActionSet: (dayIndex: number, setIndex: number, direction: 'up' | 'down') => void;
     onActionSetChange: (
         dayIndex: number,
         setIndex: number,
@@ -156,6 +157,7 @@ const PlanDayCard: React.FC<PlanDayCardProps> = ({
     onNoteChange,
     onAddActionSet,
     onRemoveActionSet,
+    onMoveActionSet,
     onActionSetChange,
     saving,
     totalDays,
@@ -466,8 +468,27 @@ const PlanDayCard: React.FC<PlanDayCardProps> = ({
                                     </div>
 
                                         <div className="flex items-center gap-2">
+                                            <button
+                                                type="button"
+                                                onClick={() => onMoveActionSet(dayIndex, setIndex, 'up')}
+                                                disabled={setIndex === 0}
+                                                title="上移动作"
+                                                className="p-2 text-surface-300 hover:text-surface-600 disabled:text-surface-200 disabled:cursor-not-allowed transition-colors active:scale-[0.9]"
+                                            >
+                                                <ArrowUp size={16} />
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => onMoveActionSet(dayIndex, setIndex, 'down')}
+                                                disabled={setIndex === day.actionSets.length - 1}
+                                                title="下移动作"
+                                                className="p-2 text-surface-300 hover:text-surface-600 disabled:text-surface-200 disabled:cursor-not-allowed transition-colors active:scale-[0.9]"
+                                            >
+                                                <ArrowDown size={16} />
+                                            </button>
                                             {isStrength && shouldShowFilterButton && (
                                                 <button
+                                                    type="button"
                                                     onClick={() => { setCurrentActionSetIndex(setIndex); setFilterDialogVisible(true); }}
                                                     className="p-2 text-surface-400 hover:text-primary-500 transition-colors active:scale-[0.9]"
                                                 >
@@ -475,6 +496,7 @@ const PlanDayCard: React.FC<PlanDayCardProps> = ({
                                                 </button>
                                             )}
                                             <button
+                                                type="button"
                                                 onClick={() => onRemoveActionSet(dayIndex, setIndex)}
                                                 className="p-2 text-surface-300 hover:text-red-500 transition-colors active:scale-[0.9]"
                                             >

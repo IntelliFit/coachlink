@@ -1,0 +1,151 @@
+.copy-from-coach-page {
+  background: linear-gradient(180deg, #E8E8E8 0%, #F8F8F8 100%);
+  min-height: 100vh;
+  background: #f5f5f5;
+  padding: 24rpx;
+  padding-bottom: 48rpx;
+}
+
+.header-hint {
+  font-size: 26rpx;
+  color: #6b7280;
+  margin-bottom: 24rpx;
+}
+
+.coach-name {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #cf6d4e;
+  margin-bottom: 16rpx;
+}
+
+.action-card {
+  background: #fff;
+  border-radius: 12rpx;
+  padding: 24rpx;
+  margin-bottom: 20rpx;
+  border: 1px solid #f0f0f0;
+}
+
+.action-name {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 12rpx;
+}
+
+.action-detail {
+  font-size: 26rpx;
+  color: #6b7280;
+  margin-bottom: 16rpx;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.action-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+  margin-bottom: 20rpx;
+}
+
+.tag {
+  font-size: 22rpx;
+  padding: 6rpx 16rpx;
+  border-radius: 999px;
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+.tag-strength {
+  background: #fff3e6;
+  color: #e65100;
+}
+
+.tag-diet {
+  background: #e6f4ea;
+  color: #2e7d32;
+}
+
+.tag-cardio {
+  background: #e3f2fd;
+  color: #1565c0;
+}
+
+.tag-habit {
+  background: #f3e5f5;
+  color: #7b1fa2;
+}
+
+.btn-copy {
+  padding: 16rpx 28rpx;
+  font-size: 26rpx;
+  font-weight: 600;
+  color: #fff;
+  background: linear-gradient(135deg, #cf6d4e 0%, #fb923c 100%);
+  border-radius: 12rpx;
+  text-align: center;
+}
+
+.btn-copy.disabled {
+  background: #e5e7eb;
+  color: #9ca3af;
+  pointer-events: none;
+}
+
+.empty-wrap {
+  padding: 80rpx 40rpx;
+  text-align: center;
+}
+
+.empty-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 16rpx;
+}
+
+.empty-desc {
+  font-size: 28rpx;
+  color: #6b7280;
+}
+
+.error-wrap {
+  padding: 40rpx;
+  text-align: center;
+}
+
+.retry-btn {
+  margin-top: 24rpx;
+  padding: 20rpx 48rpx;
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #fff;
+  background: linear-gradient(135deg, #cf6d4e 0%, #fb923c 100%);
+  border-radius: 12rpx;
+}
+
+.skeleton-card {
+  background: #fff;
+  border-radius: 12rpx;
+  padding: 24rpx;
+  margin-bottom: 20rpx;
+}
+
+.skeleton-line {
+  height: 28rpx;
+  background: #f3f4f6;
+  border-radius: 8rpx;
+  margin-bottom: 16rpx;
+}
+
+.skeleton-title {
+  width: 60%;
+  height: 36rpx;
+}
+
+.skeleton-subtitle {
+  width: 80%;
+}

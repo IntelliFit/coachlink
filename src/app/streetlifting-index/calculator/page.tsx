@@ -1,6 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+    getDefaultStreetliftingCalcForm,
+    parseStreetliftingCalculatorDraft,
+    stringifyStreetliftingCalculatorDraft,
+    STREETLIFTING_CALC_STORAGE_KEY,
+    type StreetliftingCalculatorFormState,
+} from "@/app/streetlifting-index/calculator/calculatorDraft";
 import Link from "next/link";
 import { AlertTriangle, Calculator as CalcIcon, Info } from "lucide-react";
 import { Card } from "primereact/card";
@@ -14,7 +21,7 @@ import { useToastContext } from "@/context/ToastContext";
 import { streetliftingIndexService } from "@/app/service/streetliftingIndexService";
 
 import type { StreetliftingFormula } from "@/app/api/streetlifting-index/formulas/list/entity";
-import type { Gender, ExerciseType, CalcMode } from "@/app/streetlifting-index/_utils";
+import type { ExerciseType, CalcMode } from "@/app/streetlifting-index/_utils";
 import {
     BARBELL_CURL_MULTIPLIER,
     STRICT_PRESS_MULTIPLIER,
@@ -26,6 +33,7 @@ import {
     isPowerliftingExercise,
     isUpperBodyExercise,
     estimateRepsForTarget1RMContinuous,
+    estimateRepsFromTotalWeightAndTarget1RM,
     estimateTotal1RMFromTotalWeightAndReps,
     getScoreLevel,
 } from "@/app/streetlifting-index/_utils";
@@ -40,31 +48,7 @@ type CalcResult = {
     adjusted_used_weight?: number;
 };
 
-type FormState = {
-    gender: Gender | "";
-    bodyweight: number | null;
-
-    // 上肢类
-    addedWeight: number | null;
-    added1RM: number | null;
-    workingAddedWeight: number | null;
-
-    // 三大项/实力推/弯举
-    liftWeight: number | null;
-    target1RM: number | null;
-    workingLiftWeight: number | null;
-
-    reps: number | null;
-    sets: number | null;
-    restCat: "short" | "moderate" | "long" | "very_long" | "";
-    dayFirstType: "RIR" | "Achieved" | "";
-    dayFirstValue: number | null;
-    dayLastType: "RIR" | "Achieved" | "";
-    dayLastValue: number | null;
-
-    formQuality: "Competition" | "Minor_Cheat" | "Major_Cheat" | "Extreme_Cheat" | "";
-    penaltyWeight: number;
-};
+type FormState = StreetliftingCalculatorFormState;
 
 const EXERCISE_OPTIONS: Array<{ label: string; value: ExerciseType }> = [
     { label: "💪 负重引体向上", value: "weighted_pullup" },
@@ -78,8 +62,14 @@ const EXERCISE_OPTIONS: Array<{ label: string; value: ExerciseType }> = [
 
 const MODE_OPTIONS: Array<{ label: string; value: CalcMode }> = [
     { label: "正向计算", value: "forward" },
-    { label: "反推做组重量", value: "reverse_weight" },
-    { label: "反推次数", value: "reverse_reps" },
+    {
+        label: "反推做组重量（现有1RM + 次数 → 该次数重量）",
+        value: "reverse_weight",
+    },
+    {
+        label: "反推次数（现有1RM + 做组重量 → 约几次）",
+        value: "reverse_reps",
+    },
     { label: "做组极限估算（仅引体/臂屈伸）", value: "day_max" },
 ];
 
@@ -192,28 +182,40 @@ export default function StreetliftingCalculatorPage() {
     const [loadingFormula, setLoadingFormula] = useState(true);
     const [formulaMap, setFormulaMap] = useState<Record<string, StreetliftingFormula>>({});
 
-    const [form, setForm] = useState<FormState>({
-        gender: "",
-        bodyweight: null,
-        addedWeight: null,
-        added1RM: null,
-        workingAddedWeight: null,
-        liftWeight: null,
-        target1RM: null,
-        workingLiftWeight: null,
-        reps: null,
-        sets: null,
-        restCat: "",
-        dayFirstType: "",
-        dayFirstValue: null,
-        dayLastType: "",
-        dayLastValue: null,
-        formQuality: "Minor_Cheat",
-        penaltyWeight: 3,
-    });
+    const [form, setForm] = useState<FormState>(() => getDefaultStreetliftingCalcForm());
+
+    /** 首次从 localStorage 恢复完成后再写入，避免用空表单覆盖已存草稿 */
+    const [draftHydrated, setDraftHydrated] = useState(false);
 
     const [submitting, setSubmitting] = useState(false);
     const [result, setResult] = useState<CalcResult | null>(null);
+
+    const persistDraftNow = useCallback(() => {
+        if (typeof window === "undefined") return;
+        try {
+            window.localStorage.setItem(
+                STREETLIFTING_CALC_STORAGE_KEY,
+                stringifyStreetliftingCalculatorDraft({ exerciseType, mode, form }),
+            );
+        } catch (e) {
+            console.warn("[streetlifting-calc] draft save failed", e);
+        }
+    }, [exerciseType, mode, form]);
+
+    const clearPersistedDraft = useCallback(() => {
+        if (typeof window !== "undefined") {
+            try {
+                window.localStorage.removeItem(STREETLIFTING_CALC_STORAGE_KEY);
+            } catch (e) {
+                console.warn("[streetlifting-calc] draft clear failed", e);
+            }
+        }
+        setExerciseType("weighted_pullup");
+        setMode("forward");
+        setForm(getDefaultStreetliftingCalcForm());
+        setResult(null);
+        showToast({ severity: "success", summary: "已清空", detail: "已清除本机保存的上次填写内容" });
+    }, [showToast]);
 
     useEffect(() => {
         const run = async () => {
@@ -234,6 +236,54 @@ export default function StreetliftingCalculatorPage() {
         };
         run();
     }, [showToast]);
+
+    useEffect(() => {
+        try {
+            const raw = typeof window !== "undefined" ? window.localStorage.getItem(STREETLIFTING_CALC_STORAGE_KEY) : null;
+            const parsed = parseStreetliftingCalculatorDraft(raw);
+            if (parsed) {
+                setExerciseType(parsed.exerciseType);
+                setMode(parsed.mode);
+                setForm(parsed.form);
+            }
+        } catch (e) {
+            console.warn("[streetlifting-calc] draft load failed", e);
+        } finally {
+            setDraftHydrated(true);
+        }
+    }, []);
+
+    useEffect(() => {
+        if (!draftHydrated || typeof window === "undefined") return;
+        const id = window.setTimeout(() => {
+            persistDraftNow();
+        }, 400);
+        return () => window.clearTimeout(id);
+    }, [draftHydrated, persistDraftNow]);
+
+    useEffect(() => {
+        if (!draftHydrated || typeof window === "undefined") return;
+
+        const flushDraft = () => {
+            persistDraftNow();
+        };
+
+        const flushWhenHidden = () => {
+            if (document.visibilityState === "hidden") {
+                flushDraft();
+            }
+        };
+
+        window.addEventListener("pagehide", flushDraft);
+        window.addEventListener("beforeunload", flushDraft);
+        document.addEventListener("visibilitychange", flushWhenHidden);
+
+        return () => {
+            window.removeEventListener("pagehide", flushDraft);
+            window.removeEventListener("beforeunload", flushDraft);
+            document.removeEventListener("visibilitychange", flushWhenHidden);
+        };
+    }, [draftHydrated, persistDraftNow]);
 
     useEffect(() => {
         // 动作质量切换时，自动把惩罚重量归到合理区间
@@ -303,7 +353,7 @@ export default function StreetliftingCalculatorPage() {
                 if (mode === "reverse_weight") {
                     const target1RM = Number((form as any).target1RM);
                     const reps = Number((form as any).reps);
-                    if (!Number.isFinite(target1RM) || target1RM <= 0) throw new Error("请填写有效的目标1RM");
+                    if (!Number.isFinite(target1RM) || target1RM <= 0) throw new Error("请填写有效的现有1RM");
                     if (!Number.isFinite(reps) || reps <= 0) throw new Error("请填写有效的完成次数");
                     const computedWeight = invertTotalWeightForTarget1RM(target1RM, reps);
                     setResult({
@@ -318,16 +368,16 @@ export default function StreetliftingCalculatorPage() {
                 if (mode === "reverse_reps") {
                     const target1RM = Number((form as any).target1RM);
                     const workingWeight = Number((form as any).workingLiftWeight);
-                    if (!Number.isFinite(target1RM) || target1RM <= 0) throw new Error("请填写有效的目标1RM");
+                    if (!Number.isFinite(target1RM) || target1RM <= 0) throw new Error("请填写有效的现有1RM");
                     if (!Number.isFinite(workingWeight) || workingWeight <= 0) throw new Error("请填写有效的做组重量");
                     if (workingWeight >= target1RM) throw new Error("做组重量必须小于1RM");
 
-                    const repsContinuous = estimateRepsForTarget1RMContinuous(target1RM, workingWeight);
+                    const repsAvg = estimateRepsFromTotalWeightAndTarget1RM(target1RM, workingWeight);
                     setResult({
                         estimated_1rm: target1RM,
                         final_score: target1RM * coeff,
                         coefficient: coeff,
-                        computed_reps: Number.parseFloat(repsContinuous.toFixed(1)),
+                        computed_reps: Number.parseFloat(repsAvg.toFixed(1)),
                         adjusted_used_weight: workingWeight,
                     });
                     return;
@@ -362,7 +412,7 @@ export default function StreetliftingCalculatorPage() {
                 if (mode === "reverse_weight") {
                     const target1RM = Number((form as any).target1RM);
                     const reps = Number((form as any).reps);
-                    if (!Number.isFinite(target1RM) || target1RM <= 0) throw new Error("请填写有效的目标1RM");
+                    if (!Number.isFinite(target1RM) || target1RM <= 0) throw new Error("请填写有效的现有1RM");
                     if (!Number.isFinite(reps) || reps <= 0) throw new Error("请填写有效的完成次数");
                     const computedWeight = invertTotalWeightForTarget1RM(target1RM, reps);
                     setResult({
@@ -377,15 +427,15 @@ export default function StreetliftingCalculatorPage() {
                 if (mode === "reverse_reps") {
                     const target1RM = Number((form as any).target1RM);
                     const workingWeight = Number((form as any).workingLiftWeight);
-                    if (!Number.isFinite(target1RM) || target1RM <= 0) throw new Error("请填写有效的目标1RM");
+                    if (!Number.isFinite(target1RM) || target1RM <= 0) throw new Error("请填写有效的现有1RM");
                     if (!Number.isFinite(workingWeight) || workingWeight <= 0) throw new Error("请填写有效的做组重量");
                     if (workingWeight >= target1RM) throw new Error("做组重量必须小于1RM");
-                    const repsContinuous = estimateRepsForTarget1RMContinuous(target1RM, workingWeight);
+                    const repsAvg = estimateRepsFromTotalWeightAndTarget1RM(target1RM, workingWeight);
                     setResult({
                         estimated_1rm: target1RM,
                         final_score: target1RM * dots * multiplier,
                         coefficient: dots,
-                        computed_reps: Number.parseFloat(repsContinuous.toFixed(1)),
+                        computed_reps: Number.parseFloat(repsAvg.toFixed(1)),
                         adjusted_used_weight: workingWeight,
                     });
                     return;
@@ -433,7 +483,7 @@ export default function StreetliftingCalculatorPage() {
             if (mode === "reverse_weight") {
                 const added1RM = Number((form as any).added1RM);
                 const reps = Number((form as any).reps);
-                if (!Number.isFinite(added1RM)) throw new Error("请填写负重1RM");
+                if (!Number.isFinite(added1RM)) throw new Error("请填写现有负重1RM");
                 if (!Number.isFinite(reps) || reps < 1 || reps > 36) throw new Error("完成次数必须在 1-36 之间");
                 const targetTotal1RM = bodyweight + added1RM;
                 const totalWorkingWeight = invertTotalWeightForTarget1RM(targetTotal1RM, reps);
@@ -456,7 +506,7 @@ export default function StreetliftingCalculatorPage() {
             if (mode === "reverse_reps") {
                 const added1RM = Number((form as any).added1RM);
                 const workingAdded = Number((form as any).workingAddedWeight);
-                if (!Number.isFinite(added1RM)) throw new Error("请填写负重1RM");
+                if (!Number.isFinite(added1RM)) throw new Error("请填写现有负重1RM");
                 if (!Number.isFinite(workingAdded)) throw new Error("请填写做组重量（附加负重）");
 
                 const targetTotal1RM = bodyweight + added1RM;
@@ -616,16 +666,29 @@ export default function StreetliftingCalculatorPage() {
                             <div>
                                 <div className={AERO_TITLE}>在线力量分计算器</div>
                                 <div className={AERO_SUBTITLE}>输入数据，获得力量评估（引体/臂屈伸满分500；三大项为DOTS分）。</div>
+                                <div className="mt-1.5 text-xs text-surface-500">
+                                    表单会自动保存在本机浏览器，下次打开会保留上次填写（仅本设备）。
+                                </div>
                             </div>
-                            <Link href="/streetlifting-index/data" className="hidden md:block">
+                            <div className="flex items-center gap-2">
                                 <Button
                                     outlined
                                     severity="secondary"
                                     size="small"
-                                    label="去数据社区"
+                                    label="清空上次输入"
                                     className="h-10 rounded-2xl border-surface-200 text-surface-800 hover:bg-surface-0 hover:border-primary-200 active:scale-[0.98] transition-all"
+                                    onClick={clearPersistedDraft}
                                 />
-                            </Link>
+                                <Link href="/streetlifting-index/data">
+                                    <Button
+                                        outlined
+                                        severity="secondary"
+                                        size="small"
+                                        label="去数据社区"
+                                        className="h-10 rounded-2xl border-surface-200 text-surface-800 hover:bg-surface-0 hover:border-primary-200 active:scale-[0.98] transition-all"
+                                    />
+                                </Link>
+                            </div>
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -730,10 +793,10 @@ export default function StreetliftingCalculatorPage() {
                                 </div>
                             )}
 
-                            {/* 上肢 reverse_weight：目标负重1RM */}
+                            {/* 上肢 reverse_weight：现有负重1RM + 次数 → 该次数下附加负重 */}
                             {isUpperBodyExercise(exerciseType) && mode === "reverse_weight" && (
                                 <div>
-                                    <div className="text-xs text-surface-500 mb-1.5">目标负重1RM（kg）</div>
+                                    <div className="text-xs text-surface-500 mb-1.5">现有负重1RM（kg）</div>
                                     <AeroInputNumber
                                         value={form.added1RM}
                                         onValueChange={(e) => setForm((p) => ({ ...p, added1RM: e.value ?? null }))}
@@ -745,10 +808,10 @@ export default function StreetliftingCalculatorPage() {
                                 </div>
                             )}
 
-                            {/* 上肢 reverse_reps：目标负重1RM */}
+                            {/* 上肢 reverse_reps：现有负重1RM + 做组附加负重 → 反推次数 */}
                             {isUpperBodyExercise(exerciseType) && mode === "reverse_reps" && (
                                 <div>
-                                    <div className="text-xs text-surface-500 mb-1.5">目标负重1RM（kg）</div>
+                                    <div className="text-xs text-surface-500 mb-1.5">现有负重1RM（kg）</div>
                                     <AeroInputNumber
                                         value={form.added1RM}
                                         onValueChange={(e) => setForm((p) => ({ ...p, added1RM: e.value ?? null }))}
@@ -775,10 +838,10 @@ export default function StreetliftingCalculatorPage() {
                                 </div>
                             )}
 
-                            {/* 三大项/实力推/弯举 reverse_weight：目标1RM */}
+                            {/* 三大项/实力推/弯举 reverse_weight：现有1RM + 次数 → 该次数做组重量 */}
                             {(isPowerliftingExercise(exerciseType) || isBenchBasedExercise(exerciseType)) && mode === "reverse_weight" && (
                                 <div>
-                                    <div className="text-xs text-surface-500 mb-1.5">目标1RM（kg）</div>
+                                    <div className="text-xs text-surface-500 mb-1.5">现有1RM（kg）</div>
                                     <AeroInputNumber
                                         value={form.target1RM}
                                         onValueChange={(e) => setForm((p) => ({ ...p, target1RM: e.value ?? null }))}
@@ -790,10 +853,10 @@ export default function StreetliftingCalculatorPage() {
                                 </div>
                             )}
 
-                            {/* 三大项/实力推/弯举 reverse_reps：目标1RM */}
+                            {/* 三大项/实力推/弯举 reverse_reps：现有1RM + 做组重量 → 反推次数 */}
                             {(isPowerliftingExercise(exerciseType) || isBenchBasedExercise(exerciseType)) && mode === "reverse_reps" && (
                                 <div>
-                                    <div className="text-xs text-surface-500 mb-1.5">目标1RM（kg）</div>
+                                    <div className="text-xs text-surface-500 mb-1.5">现有1RM（kg）</div>
                                     <AeroInputNumber
                                         value={form.target1RM}
                                         onValueChange={(e) => setForm((p) => ({ ...p, target1RM: e.value ?? null }))}
@@ -836,25 +899,27 @@ export default function StreetliftingCalculatorPage() {
                             )}
                         </div>
 
-                        {/* 次数输入（除 day_max 外都需要；day_max 里 reps 代表每组次数） */}
+                        {/* 次数：正向 / 反推重量 / 做组极限需要；反推次数由现有1RM与做组重量算出，不显示本项 */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <div className="text-xs text-surface-500 mb-1.5">
-                                    {mode === "day_max" ? "每组次数" : "完成次数"}
+                            {mode !== "reverse_reps" && (
+                                <div>
+                                    <div className="text-xs text-surface-500 mb-1.5">
+                                        {mode === "day_max" ? "每组次数" : "完成次数"}
+                                    </div>
+                                    <AeroInputNumber
+                                        value={form.reps}
+                                        onValueChange={(e) => setForm((p) => ({ ...p, reps: e.value ?? null }))}
+                                        className="w-full"
+                                        inputClassName={numberInputClassName}
+                                        min={1}
+                                        max={36}
+                                        placeholder="例如 5"
+                                    />
+                                    <div className="mt-1 text-[12px] text-surface-500">支持 1-36 次（更建议 ≤10）。</div>
                                 </div>
-                                <AeroInputNumber
-                                    value={form.reps}
-                                    onValueChange={(e) => setForm((p) => ({ ...p, reps: e.value ?? null }))}
-                                    className="w-full"
-                                    inputClassName={numberInputClassName}
-                                    min={1}
-                                    max={36}
-                                    placeholder="例如 5"
-                                />
-                                <div className="mt-1 text-[12px] text-surface-500">支持 1-36 次（更建议 ≤10）。</div>
-                            </div>
+                            )}
 
-                            <div>
+                            <div className={mode === "reverse_reps" ? "md:col-span-2" : undefined}>
                                 <div className="text-xs text-surface-500 mb-1.5">动作质量</div>
                                 <Dropdown
                                     value={form.formQuality}
@@ -1093,7 +1158,13 @@ export default function StreetliftingCalculatorPage() {
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                     <div className="rounded-2xl border border-surface-100 bg-surface-0 p-4">
                                         <div className="text-xs text-surface-500">
-                                            {isUpperBodyExercise(exerciseType) ? "估算负重1RM" : "估算1RM"}
+                                            {isUpperBodyExercise(exerciseType)
+                                                ? mode === "reverse_weight" || mode === "reverse_reps"
+                                                    ? "现有负重1RM"
+                                                    : "估算负重1RM"
+                                                : mode === "reverse_weight" || mode === "reverse_reps"
+                                                  ? "现有1RM"
+                                                  : "估算1RM"}
                                         </div>
                                         <div className="text-2xl font-bold text-surface-900 mt-1">
                                             {result.estimated_1rm.toFixed(1)} kg
@@ -1140,4 +1211,3 @@ export default function StreetliftingCalculatorPage() {
         </div>
     );
 }
-

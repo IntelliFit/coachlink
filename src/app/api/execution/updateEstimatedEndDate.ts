@@ -1,9 +1,6 @@
 import supabase from "@/lib/supabaseClient";
-import {
-  computeCreditsScope,
-  computeUsedCredits,
-  estimateRemainingDays,
-} from "@/lib/subscriptionCredits";
+import { deriveProjectedSubscriptionEndDate } from "@/lib/subscriptionEstimatedEndDate";
+import { getSubscriptionCarryoverSummary } from "@/lib/subscriptionCarryover";
 
 /**
  * 更新订阅的预计完成日期（B1：按训练日 credits 消耗）
@@ -14,7 +11,7 @@ export async function updateEstimatedEndDateForInstance(instanceId: string) {
     // 1. 获取计划实例信息
     const { data: instance } = await supabase
       .from("coach_plan_instances")
-      .select("coach_subscription_id, training_days, start_execution_day")
+      .select("id, coach_subscription_id, training_days, start_execution_day, created_at")
       .eq("id", instanceId)
       .single();
 
@@ -25,7 +22,7 @@ export async function updateEstimatedEndDateForInstance(instanceId: string) {
     // 2. 读取订阅信息（subscribed_weeks 决定 credits 作用范围）
     const { data: subscription } = await supabase
       .from("coach_subscriptions")
-      .select("id, subscribed_weeks, status")
+      .select("id, start_date, subscribed_weeks, status")
       .eq("id", instance.coach_subscription_id)
       .maybeSingle();
 
@@ -34,10 +31,11 @@ export async function updateEstimatedEndDateForInstance(instanceId: string) {
       return;
     }
 
-    const scope = computeCreditsScope({
-      trainingDays: (instance.training_days as any[]) || [],
-      startExecutionDay: Number((instance as any).start_execution_day || 1),
+    const carryover = await getSubscriptionCarryoverSummary({
+      subscriptionId: String(instance.coach_subscription_id || ""),
       subscribedWeeks,
+      excludeInstanceId: String((instance as any)?.id || ""),
+      createdBefore: (instance as any)?.created_at || null,
     });
 
     // 3. 获取已完成的训练天数
@@ -47,34 +45,31 @@ export async function updateEstimatedEndDateForInstance(instanceId: string) {
       .eq("instance_id", instanceId)
       .eq("status", "completed");
 
-    const usedCredits = computeUsedCredits({
-      eligibleTrainingDayIndexSet: scope.eligibleTrainingDayIndexSet,
-      executions: (completedExecutions as any[]) || [],
-      startExecutionDay: Number((instance as any).start_execution_day || 1),
-    });
-    const totalCredits = scope.totalCredits;
-    const remainingCredits = Math.max(0, totalCredits - usedCredits);
-
-    // 4. 将 remainingCredits 映射为“预计还需要多少自然日”，按计划节奏推算
-    const remainingDaysEstimate = estimateRemainingDays({
+    const endDate = deriveProjectedSubscriptionEndDate({
+      startDate: (subscription as any)?.start_date || null,
       subscribedWeeks,
-      totalCredits,
-      remainingCredits,
-      fallbackCreditsPerWeek: 3,
+      effectiveSubscribedWeeks: carryover.remainingWeeks,
+      trainingDays: (instance.training_days as any[]) || [],
+      startExecutionDay: Number((instance as any).start_execution_day || 1),
+      executions: (completedExecutions as any[]) || [],
     });
 
-    const newEndDate = new Date();
-    newEndDate.setDate(newEndDate.getDate() + remainingDaysEstimate);
+    const nextEndDate = endDate || (carryover.exhausted
+      ? new Date().toISOString()
+      : null);
+
+    if (!nextEndDate) {
+      return;
+    }
 
     await supabase
       .from("coach_subscriptions")
-      .update({ end_date: newEndDate.toISOString() } as any)
+      .update({ end_date: nextEndDate } as any)
       .eq("id", instance.coach_subscription_id);
 
     console.log(
       `Updated subscription ${instance.coach_subscription_id}: ` +
-        `${usedCredits}/${totalCredits} credits, ` +
-        `remainingDays≈${remainingDaysEstimate}, end_date: ${newEndDate.toISOString()}`,
+        `end_date: ${nextEndDate}`,
     );
   } catch (error) {
     console.error("更新预计完成日期失败:", error);
