@@ -67,6 +67,11 @@ export interface VideoUploadProgress {
     loaded: number;
     total: number;
     percentage: number;
+    phase?: 'preparing' | 'compressing' | 'uploading';
+    statusText?: string;
+    originalSizeBytes?: number;
+    finalSizeBytes?: number;
+    compressed?: boolean;
 }
 
 export interface UploadResult {

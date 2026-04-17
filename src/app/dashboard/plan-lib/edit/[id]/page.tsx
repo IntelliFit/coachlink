@@ -30,12 +30,16 @@ import { checkTrainingDays, makeWeekDays } from '@/utils/template';
 import SmartImportDialog from '@/app/dashboard/plan-lib/components/SmartImportDialog';
 import BatchActionsDialog, { BatchOperation } from '@/app/dashboard/plan-lib/components/BatchActionsDialog';
 import { BatchOperationDialog } from '@/components/BatchOperationDialog';
+import TemplateTextExportDialog from '@/app/dashboard/plan-lib/components/TemplateTextExportDialog';
+import PlanScriptDialog from '@/app/dashboard/plan-lib/components/PlanScriptDialog';
 import {
     appendActionToDays,
     deleteActionInDays,
     isActionFullyCompatible,
     replaceActionInDays,
 } from '@/lib/planBatchUtils';
+import { buildTemplateExportFilename, formatTemplateToText } from '@/lib/planExportText';
+import { formatTemplateToPlanScript, parsePlanScript } from '@/lib/planScript';
 
 
 const EditPlanPage = () => {
@@ -73,12 +77,38 @@ const EditPlanPage = () => {
     const [dayPickerVisible, setDayPickerVisible] = useState(false);
     const [batchDialogVisible, setBatchDialogVisible] = useState(false);
     const [aiBatchDialogVisible, setAiBatchDialogVisible] = useState(false);
+    const [exportDialogVisible, setExportDialogVisible] = useState(false);
+    const [scriptDialogVisible, setScriptDialogVisible] = useState(false);
+    const [scriptDraft, setScriptDraft] = useState('');
+    const [scriptError, setScriptError] = useState<string | null>(null);
     const [syncDialogVisible, setSyncDialogVisible] = useState(false);
     /** AI 修改器：收到 preview 前的原始 days，用于清空时恢复 */
     const [originalDaysBeforeAi, setOriginalDaysBeforeAi] = useState<FormPlanTrainingDay[] | null>(null);
     /** AI 修改器：高亮用 key，格式 dayIndex-actionName 或 dayIndex-day */
     const [aiModificationKeys, setAiModificationKeys] = useState<Set<string> | null>(null);
     const [syncInstances, setSyncInstances] = useState(true);
+    /** 顶部排期条展开「全部周」时抬高主内容，避免压住标题 */
+    const [scheduleBarExpanded, setScheduleBarExpanded] = useState(false);
+
+    const exportText = useMemo(() => {
+        const actionNameById = Object.fromEntries(actions.map((action) => [action.id, action.name]));
+        return formatTemplateToText({
+            description,
+            trainingDays: days,
+            actionNameById,
+        });
+    }, [actions, days, description]);
+
+    const exportFilename = useMemo(() => buildTemplateExportFilename(name), [name]);
+
+    const buildPlanScript = () => {
+        const actionNameById = Object.fromEntries(actions.map((action) => [action.id, action.name]));
+        return formatTemplateToPlanScript({
+            description,
+            trainingDays: days,
+            actionNameById,
+        });
+    };
 
     // Load template data
     useEffect(() => {
@@ -329,6 +359,27 @@ const EditPlanPage = () => {
         setDays(newDays);
     };
 
+    const handleMoveActionSet = (
+        dayIndex: number,
+        setIndex: number,
+        direction: 'up' | 'down'
+    ) => {
+        const newDays = [...days];
+        const actualDayIndex = newDays.findIndex(d => d.dayIndex === dayIndex + 1);
+        if (actualDayIndex === -1) return;
+
+        const actionSets = [...(newDays[actualDayIndex].actionSets || [])];
+        const targetIndex = direction === 'up' ? setIndex - 1 : setIndex + 1;
+        if (targetIndex < 0 || targetIndex >= actionSets.length) return;
+
+        [actionSets[setIndex], actionSets[targetIndex]] = [actionSets[targetIndex], actionSets[setIndex]];
+        newDays[actualDayIndex] = {
+            ...newDays[actualDayIndex],
+            actionSets,
+        };
+        setDays(newDays);
+    };
+
     const handleActionSetChange = (
         dayIndex: number,
         setIndex: number,
@@ -470,6 +521,53 @@ const EditPlanPage = () => {
     const handleSave = () => {
         if (saving) return;
         setSyncDialogVisible(true);
+    };
+
+    const handleCopyExportText = async () => {
+        if (!exportText) return;
+        await navigator.clipboard.writeText(exportText);
+        showToast({ severity: 'success', summary: '复制成功', detail: '训练计划文本已复制到剪贴板' });
+    };
+
+    const handleDownloadExportText = () => {
+        if (!exportText) return;
+        const blob = new Blob([exportText], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = exportFilename;
+        link.click();
+        URL.revokeObjectURL(url);
+    };
+
+    const handleOpenScriptDialog = () => {
+        try {
+            setScriptDraft(buildPlanScript());
+            setScriptError(null);
+            setScriptDialogVisible(true);
+        } catch (error: any) {
+            console.error('生成计划脚本失败:', error);
+            showToast({ severity: 'error', summary: '脚本模式暂不可用', detail: error?.message || '当前计划包含暂不支持的结构' });
+        }
+    };
+
+    const handleApplyScript = () => {
+        try {
+            const parsed = parsePlanScript({
+                script: scriptDraft,
+                actions,
+            });
+            setDays(parsed.days);
+            setWeekDays(makeWeekDays(parsed.days));
+            setDescription(parsed.description || '');
+            setSelectedDayIndex(parsed.days.length > 0 ? parsed.days[0].dayIndex : null);
+            setScriptError(null);
+            setScriptDialogVisible(false);
+            showToast({ severity: 'success', summary: '脚本已应用', detail: `已根据计划脚本更新 ${parsed.days.length} 天内容` });
+        } catch (error: any) {
+            console.error('应用计划脚本失败:', error);
+            setScriptError(error?.message || '计划脚本解析失败');
+        }
     };
 
     const handleBatchApply = (operation: BatchOperation) => {
@@ -634,7 +732,11 @@ const EditPlanPage = () => {
     }
 
     return (
-        <div className={`mx-auto pt-[calc(0.75rem+env(safe-area-inset-top)+3rem)] sm:pt-[calc(0.75rem+env(safe-area-inset-top)+3.25rem)] md:pt-[calc(0.75rem+env(safe-area-inset-top)+3.5rem)] ${aiBatchDialogVisible ? 'flex gap-0 min-h-0' : ''}`}>
+        <div className={`mx-auto ${
+            scheduleBarExpanded
+                ? 'pt-[calc(0.75rem+env(safe-area-inset-top)+min(65vh,32rem))] sm:pt-[calc(0.75rem+env(safe-area-inset-top)+min(58vh,30rem))] md:pt-[calc(0.75rem+env(safe-area-inset-top)+min(52vh,28rem))]'
+                : 'pt-[calc(0.75rem+env(safe-area-inset-top)+5.75rem)] sm:pt-[calc(0.75rem+env(safe-area-inset-top)+6rem)] md:pt-[calc(0.75rem+env(safe-area-inset-top)+6.25rem)]'
+        } ${aiBatchDialogVisible ? 'flex gap-0 min-h-0' : ''}`}>
             {/* 主编辑区域：桌面端 AI 面板打开时收缩宽度 */}
             <div className={`flex-1 min-w-0 ${aiBatchDialogVisible ? 'shrink' : ''}`}>
             {/* 页面头部：标题 + 操作工具栏 */}
@@ -659,6 +761,40 @@ const EditPlanPage = () => {
                         onClick={() => setShowImportDialog(true)}
                         disabled={saving}
                         tooltip="从文本智能解析并导入训练计划"
+                        tooltipOptions={{ position: 'bottom' }}
+                    />
+                    <Button
+                        label="导出文本"
+                        icon="pi pi-file-export"
+                        className="
+                            flex items-center gap-2 px-4 py-2 rounded-2xl
+                            bg-surface-0 border border-surface-200
+                            text-[12px] font-bold text-surface-700
+                            hover:bg-surface-50 hover:border-surface-300
+                            active:scale-[0.98] transition-all
+                            disabled:opacity-40 disabled:cursor-not-allowed
+                        "
+                        text
+                        onClick={() => setExportDialogVisible(true)}
+                        disabled={saving || !days.length}
+                        tooltip="将当前计划导出为可复制文本"
+                        tooltipOptions={{ position: 'bottom' }}
+                    />
+                    <Button
+                        label="脚本模式"
+                        icon="pi pi-code"
+                        className="
+                            flex items-center gap-2 px-4 py-2 rounded-2xl
+                            bg-surface-0 border border-surface-200
+                            text-[12px] font-bold text-surface-700
+                            hover:bg-surface-50 hover:border-surface-300
+                            active:scale-[0.98] transition-all
+                            disabled:opacity-40 disabled:cursor-not-allowed
+                        "
+                        text
+                        onClick={handleOpenScriptDialog}
+                        disabled={saving || !days.length}
+                        tooltip="以紧凑计划脚本方式编辑当前模板"
                         tooltipOptions={{ position: 'bottom' }}
                     />
                     <Button
@@ -810,6 +946,7 @@ const EditPlanPage = () => {
                         onNoteChange={handleNoteChange}
                         onAddActionSet={handleAddActionSet}
                         onRemoveActionSet={handleRemoveActionSet}
+                        onMoveActionSet={handleMoveActionSet}
                         onActionSetChange={handleActionSetChange}
                         saving={saving}
                         totalDays={days.length}
@@ -834,6 +971,7 @@ const EditPlanPage = () => {
                 onBack={() => router.back()}
                 onAddWeek={handleAddWeek}
                 saving={saving}
+                onExpandedChange={setScheduleBarExpanded}
             />
 
             {/* 智能导入对话框 */}
@@ -843,6 +981,24 @@ const EditPlanPage = () => {
                 existingActions={actions}
                 onImportComplete={handleImportComplete}
                 willOverwriteExisting={days.some(d => d.actionSets && d.actionSets.length > 0)}
+            />
+
+            <TemplateTextExportDialog
+                visible={exportDialogVisible}
+                onHide={() => setExportDialogVisible(false)}
+                templateName={name}
+                text={exportText}
+                onCopy={handleCopyExportText}
+                onDownload={handleDownloadExportText}
+            />
+
+            <PlanScriptDialog
+                visible={scriptDialogVisible}
+                onHide={() => setScriptDialogVisible(false)}
+                script={scriptDraft}
+                onScriptChange={setScriptDraft}
+                onApply={handleApplyScript}
+                error={scriptError}
             />
 
             {/* 传统批量操作对话框 */}

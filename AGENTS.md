@@ -4,29 +4,9 @@ This workspace is dedicated to the `coachlink` project.
 
 ## 仓库结构（Monorepo）
 
-- **主站（Web）**：Next.js 应用，源码主要在 `src/`、`public/` 等；路由目录为 `src/app/`（App Router）。
-- **微信小程序**：源码位于仓库根目录下的 **`app/`** 目录（Taro + NutUI；`project.config.json` 中 `miniprogramRoot` 一般为编译输出 `dist/`）。**勿与 Next.js 的 `src/app/` 混淆**（后者是 Web 路由，不是小程序）。
-- **Git 管理**：主站与小程序**统一在仓库根目录**提交与推送；`app/` 内不再保留嵌套 `.git`。历史独立远程仓库为 `IntelliFit/coachlink-wechat-app`，纳入本仓库前应以该处 `main` 为锚对齐。
-
-### 后端 / 前端 / 小程序（职责划分）
-
-| 层级 | 说明 | 本仓库路径（约定） |
-|------|------|---------------------|
-| **后端（Web 服务端）** | Next.js **Route Handlers**、服务端逻辑、访问 Supabase 等；**不单独拆另一个后端仓库**。 | `src/app/api/**`（各 `route.ts`）、`src/lib/**` 等与请求处理、鉴权、数据访问相关的服务端代码 |
-| **前端（Web 浏览器端）** | 页面、组件、浏览器内发起的业务请求。请求须经 **`src/app/service/**`** 调后端 API，**禁止前端直连数据库**。 | `src/app/**`（页面与布局）、`src/components/**`、`src/app/service/**` |
-| **微信小程序** | 独立客户端：Taro 源码在 **`app/src/`**，编译后微信开发者工具打开 **`app/`**（产物在 `app/dist/`）。调用业务能力时走 HTTP **请求主站/已配置的 API**，与 Web 共用同一套后端接口为主。 | `app/`（根目录小程序工程）、`app/package.json` 中脚本如 `dev:weapp` / `build:weapp` |
-
-### 微信小程序本地开发（与 `weapp-devtools` skill）
-
-- **编译/监听**：在 `app/` 下执行 `npm install`（若未装依赖）后，`npm run dev:weapp`（或项目文档中的等价命令）生成/更新 `dist/`。
-- **微信开发者工具**：用工具打开**仓库内 `app/` 目录**（含 `project.config.json`）；自动化调试需开启 **服务端口**（常见 `9420`），详见 skill `weapp-devtools`。
-- **macOS CLI 示例**（需本机已安装微信开发者工具，路径以实际安装为准）：
-  ```bash
-  /Applications/wechatwebdevtools.app/Contents/MacOS/cli auto \
-    --project /绝对路径/coachlink/app \
-    --auto-port 9420
-  ```
-- **与 `mrc`（weapp-devtools）联动**：微信开发者工具 → **设置 → 安全设置 → 服务端口**，开启并设为 **`9420`**（与 `mrc ... --port 9420` 一致）；否则自动化会连接失败。
+- **主站（Web）**：Next.js 应用，路由目录为 `src/app/`。
+- **微信小程序**：源码位于仓库根目录下的 **`wechat_app/`** 目录。根目录禁止再使用 `app/` 存放小程序，以免被 Next.js 当成主站 App Router 目录并覆盖 `src/app/` 路由。
+- **Git 管理**：主站与小程序统一在仓库根目录提交与推送；`wechat_app/` 内不再保留嵌套 `.git`。
 
 ## Session Startup
 
@@ -71,6 +51,19 @@ This workspace is dedicated to the `coachlink` project.
 - Never answer project ownership, current task, or decision history from stale transcript memory without rereading the state files.
 - Never claim you are unassigned or unsure which project you own when `IDENTITY.md` and the state files are present.
 - Never switch to another project by default.
+
+## 设计规范
+
+### 按钮样式（强制）
+- **禁止任何按钮使用渐变色**（`linear-gradient` / `radial-gradient`）。
+- 所有按钮必须使用纯色背景，主按钮使用品牌色 `#CF6D4E`，次按钮使用 `#FFFFFF` 边框样式。
+- 按钮 `active` 态只允许调整透明度或加深纯色，禁止切换为渐变。
+
+### 8 栅格理论（强制）
+- 所有 **布局间距**（`margin`、`padding`、`gap`）必须为 **8rpx 的整数倍**。
+- 所有 **元素尺寸**（`width`、`height`、`min/max-width`、`min/max-height`）应为 8rpx 的整数倍。
+- `border-radius` 推荐值为 `8rpx`、`16rpx`、`24rpx`、`32rpx`、`48rpx`；`9999rpx` 仅用于胶囊/pill 形状。
+- 以下属性可不受 8 栅格限制：`font-size`、`line-height`、`border-width`、`box-shadow`、`letter-spacing`。
 
 ## 代码修改规范
 
@@ -164,3 +157,8 @@ npm run test:e2e
 - **除非用户明确要求**（例如：新增/调整测试、修复失败用例、补充覆盖率），否则在执行其他任务（功能开发、重构、文档等）过程中**不得随意修改**已有测试文件（含 `*.test.ts`、`e2e/*.spec.ts`、测试配置等）。
 - 若业务变更导致测试失败：优先在回复中说明失败原因与建议，由用户决定是否授权改测；**用户授权后再动测试**。
 - 例外：仅当测试失败**明确由本次被用户点名的改动**引起，且用户任务包含“修到绿”时，可最小范围修改相关测试。
+
+## SKILLS
+
+- **port-manager** (`.kimi/skills/port-manager`) — Manage and allocate network ports across multiple local projects to prevent port conflicts.
+- **weapp-devtools** (`.kimi/skills/weapp-devtools`) — 用于调试微信小程序的自动化工具集，基于 miniprogram-automator 封装，提供截图、元素检查、页面导航、网络 Mock 等功能。

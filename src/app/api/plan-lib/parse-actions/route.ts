@@ -107,8 +107,8 @@ export async function POST(req: Request) {
             await writeTraceText(id, "stage1.prompt.txt", prompt);
         });
 
-        // 调用 DeepSeek API
-        const response = await callDeepSeek(prompt);
+        // 上限过大时 Gemini 可能把 completion 预算几乎全用在 reasoning_tokens；16k 足够完整 JSON 且控成本
+        const response = await callDeepSeek(prompt, { maxTokens: 16384 });
         await tryTrace(traceEnabled, traceId, async (id) => {
             await writeTraceText(id, "stage1.raw.txt", response);
         });

@@ -75,7 +75,7 @@ export async function POST(req: Request) {
         );
 
         // 调用 DeepSeek API
-        const response = await callDeepSeek(prompt);
+        const response = await callDeepSeek(prompt, { maxTokens: 16384 });
         const parsedResult = parseJsonResponse<
             { actions: GeminiParsedAction[] }
         >(response);

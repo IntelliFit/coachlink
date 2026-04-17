@@ -1,5 +1,469 @@
 # CURRENT_TASK
 
+- Task: 同步 main/dev 的微信小程序目录命名并修复 Next 根路由冲突
+- Scope:
+  - 小程序工程原本合入到根 `app/`，会被 Next.js 识别为 App Router 并导致主站 `/` 404
+  - main 已统一为 `wechat_app/`，dev 远端曾使用 `wechat-app`，需要同步成同一命名
+- Status: implemented on `2026-04-16`
+- Fix:
+  - main/dev 均使用 `wechat_app/` 存放小程序代码
+  - 根目录不再保留 `app/` 或 `wechat-app/`
+- Verification:
+  - main: `npx next build` 通过，路由清单重新包含 `○ /`
+  - dev: `npx next build` 通过，路由清单包含 `○ /`
+
+- Task: 修复计划脚本模式把括号动作变体误匹配为基础动作的问题
+- Scope:
+  - 用户在脚本模式输入 `负重引体（底部暂停）` 时，系统会直接识别成基础 `负重引体`
+  - 这会丢失“底部暂停 / 顶端暂停 / 反手”等动作变体语义，属于计划脚本编译层的严重错误
+  - 脚本模式应比智能导入更严格：动作名包含括号变体时，必须优先按完整动作名匹配，不能自动降级为基础动作
+- Status: implemented on `2026-04-16`
+- Root cause:
+  - `src/lib/planScript.ts` 之前复用了 `findBestExistingActionMatch()`
+  - 该函数来自智能导入链路，会通过 `sanitizeActionName()` 去掉括号内容，用于“复用友好”的宽匹配
+  - 在计划脚本这种可编译 DSL 场景下，这种宽匹配会把 `负重引体（底部暂停）` 和 `负重引体` 视为同类，从而错误命中基础动作
+- Fix:
+  - `src/lib/planScript.ts`
+    - 新增脚本专用动作解析逻辑
+    - 先按完整动作名做精确匹配，保留括号内容，并兼容中英文括号
+    - 只有动作名不包含括号变体时，才允许回退到 `findBestExistingActionMatch()` 宽匹配
+    - 若脚本动作名包含括号变体但动作库无精确项，则明确报错，不再静默降级
+  - `src/lib/planScript.test.ts`
+    - 新增回归测试：`负重引体（底部暂停）` 必须匹配到底部暂停变体，而 `负重引体` 匹配基础动作
+    - 新增回归测试：缺失的括号变体不会降级为基础动作
+  - `src/utils/template.ts`
+    - 放宽 `makeWeekDays()` 参数类型到只依赖 `type` 字段，消除脚本解析结果传入时的类型噪音
+- Verification:
+  - `npx vitest run src/lib/planScript.test.ts`：通过（4 tests）
+  - `npm run lint`：通过（脚本仅提示项目未配置 eslint）
+  - `npm run typecheck 2>&1 | Select-String -Pattern 'planScript|PlanScriptDialog|dashboard/students/plan|dashboard/plan-lib/edit|utils/template'`：无相关错误输出；完整 typecheck 仍会因仓库历史类型错误返回失败
+  - `npx next build`：通过
+  - `npm test`：通过（17 files, 77 tests）
+  - 浏览器验证：未完成；当前会话没有可调用的 `web-devtools` / `browser` 工具
+
+- Task: 将“计划脚本模式”从教练计划库模板编辑页扩展到具体学员计划编辑页
+- Scope:
+  - 用户希望 `/dashboard/students/plan/[subscriptionId]` 这种具体学员计划编辑页面也能使用紧凑脚本模式
+  - 目标是让教练不只在计划模板库中编辑脚本，也能直接对某个学员当前计划草稿进行脚本化修改
+  - 页面地址示例：`/dashboard/students/plan/06f07de8-e013-4106-a5ef-0637147a7e0b`
+- Status: implemented on `2026-04-16`
+- Fix:
+  - `src/app/dashboard/students/plan/[id]/page.tsx`
+    - 复用 `PlanScriptDialog`
+    - 复用 `formatTemplateToPlanScript()` / `parsePlanScript()`
+    - 在学生计划页的 `BasicInfoForm.extraButton` 区域新增“脚本模式”按钮
+    - 打开时把当前学员计划草稿转成紧凑脚本
+    - 应用时解析脚本并更新 `days`、`description`、`selectedDayIndex`
+    - 对已有计划同步标记为待保存，保持原有自动保存/手动保存链路
+- Verification:
+  - `npm run lint`：通过（脚本仅提示项目未配置 eslint）
+  - `npm run typecheck`：失败，仍是仓库历史类型错误；定向过滤未发现错误指向 `dashboard/students/plan`、`planScript` 或 `PlanScriptDialog`
+  - `npx next build`：通过
+  - `npm test`：通过（17 files, 75 tests）
+  - 浏览器验证：未完成；当前会话没有可调用的 `web-devtools` / `browser` 工具，且该页面需要教练登录态
+
+- Task: 补齐教练端“当前计划已完成后创建下一阶段计划”的可见入口
+- Scope:
+  - 用户在 `/dashboard/students` 看到学员计划进度 `32/32`、`100%`，但列表仍显示“进行中”，也看不到“创建新计划 / 结束当前计划 / 自动结束”的明显操作
+  - 该场景对应“学员买 3 个月，前 2 个月计划已执行完，教练要继续创建下一阶段计划；新计划从第 1 天开始，学员端只放行剩余额度”
+- Status: implemented on `2026-04-16`
+- Root cause:
+  - 学员列表只按 `coach_plan_instances.status` 展示，未把“active 但所有训练日已完成”的逻辑完成态派生成 `completed`
+  - 学员计划详情页虽已有“从模板创建”能力，但未把“创建下一阶段计划”和“归档当前计划”显性暴露，导致教练不知道下一步入口
+  - AI/手动创建接口把默认 `startWeek=1/startDay=1` 也当成显式起点，可能绕过剩余额度结转检查
+- Fix:
+  - `src/app/api/coach/list-students/route.ts`
+    - 列表接口按当前计划训练日和已完成执行记录派生 `is_logically_completed`
+    - active 但训练日全部完成时，对前端返回 `status='completed'`
+  - `src/app/dashboard/students/page.tsx`
+    - 列表和移动端卡片统一按逻辑完成态展示“已完成”
+    - 移动端主按钮在完成后改为“创建下一阶段”
+    - 桌面端完成计划的快捷 AI 按钮提示改为“AI 生成下一阶段”
+  - `src/app/dashboard/students/plan/[id]/page.tsx`
+    - 完成计划后显示绿色提示区，提供“创建下一阶段计划”和“只归档当前计划”
+    - 选择模板创建下一阶段时直接进入新阶段模式，旧计划由创建接口自动归档
+  - `src/app/api/plan-lib/create-instance/route.ts`
+  - `src/app/api/plan-lib/create-ai-instance/service.ts`
+    - 默认 `第1周第1天` 不再视为手动迁移起点，仍会走剩余额度检查；只有大于第1天的起点才视为显式迁移
+- Verification:
+  - `npm run lint`：通过（脚本提示项目未配置 eslint）
+  - `npm test`：通过（17 files, 75 tests）
+  - `npx next build`：通过
+  - `npm run typecheck`：第一次因 `.next/types` 缺失失败；构建后重跑超时，无进一步输出
+  - 浏览器验证：未完成；当前会话没有可调用的 `web-devtools`/`browser` 工具，且该页面需要教练登录态
+
+- Task: 为教练端计划库增加“导出计划文本”能力，形成“导出文本 -> AI/人工编辑 -> 再导入”闭环的基础层
+- Scope:
+  - 用户希望在教练端计划库中把现有模板导出成文本形式
+  - 导出能力仅限教练端计划库，不扩展到学员计划或 `/me` 侧自建计划
+  - 文本格式需尽量贴近现有智能导入能理解的结构，而不是导出一整份 JSON
+- Status: implemented on `2026-04-13`
+- Fix:
+  - `src/lib/planExportText.ts`
+    - 新增模板文本格式化器，把 `training_days` 转成周/天/动作行形式
+    - 支持训练日、休息日、强度、组次、休息时间，以及条件分支动作的文本展开
+  - `src/app/api/plan-lib/export-template-text/route.ts`
+    - 新增教练模板文本导出 API
+    - 仅允许已登录教练导出属于自己的模板
+    - 服务器端解析模板并补动作名映射，返回导出文本和 `.txt` 文件名
+  - `src/app/dashboard/plan-lib/page.tsx`
+    - 计划库列表新增“导出文本”入口
+    - 导出后可在弹窗内预览、复制或下载 `.txt`
+  - `src/app/dashboard/plan-lib/edit/[id]/page.tsx`
+    - 编辑页新增“导出文本”按钮
+    - 基于当前编辑中的 `days + actions + description` 实时导出，包含未保存的本地修改
+  - `src/app/dashboard/plan-lib/components/TemplateTextExportDialog.tsx`
+    - 统一导出文本预览弹窗
+  - `src/lib/planExportText.test.ts`
+    - 新增文本格式化回归测试
+- Verification:
+  - `npm run lint`：通过（脚本仅提示项目未配置 eslint）
+  - `npm test -- src/lib/planExportText.test.ts`：通过
+  - `npm test`：通过（16 files, 72 tests）
+  - `npx next build`：通过
+  - `npm run typecheck`：失败，仍是仓库既有 `.next/types/routes.d.ts` / `.next/types/validator.ts` 缺失
+  - 浏览器验证：未完成；当前会话未提供 AGENTS.md 指定的 `web-devtools` skill，无法做该新增交互的浏览器级确认
+
+- Task: 扩宽计划 AI 修改器的可编辑边界，优先支持“周范围 + 指定训练日 + 最后 N 次动作 + 替换 + 组次/RM”这类结构化批量改动
+- Scope:
+  - 用户最新明确指出：当前 AI 修改器在涉及多周、多次出现、定向替换的场景下边界过窄
+  - 失败示例为“第 5 周到第 15 周的第 3 天，一共出现了 3 次负重引体，最后 1 次负重引体全部换成海豹划船，3 组 8 次，10RM”，接口此前返回“零处可以修改”
+  - 目标不是继续依赖模型临场生成代码碰运气，而是先吃掉高频、可结构化表达的编辑指令
+- Status: implemented on `2026-04-12`
+- Root cause:
+  - 旧链路基本依赖 LLM 生成修改代码；当指令涉及“范围 + 次序 + 最后一次匹配 + 参数覆盖”时，模型容易生成 no-op 代码
+  - 旧实现只要代码执行成功就会继续往下走，没有把“执行成功但结果完全没变”识别为失败，因此前端会看到“0 处修改”
+- Fix:
+  - `src/lib/batchOperationDeterministic.ts`
+    - 新增确定性规则引擎，直接解析“周范围 / 第几天 / 最后 N 次某动作 / 替换成新动作 / 组次 / RM”
+    - 动作匹配支持用户宽口径表达，如 `负重引体` 命中 `正手负重引体`
+    - 若替换动作不在动作库中，则生成 `pending:*` 临时 actionId，继续复用既有待确认动作链路
+  - `src/app/api/plan-lib/batch-operation/route.ts`
+    - 在 LLM 代码生成前先跑确定性规则命中
+    - 若命中则直接返回 preview / action plan，不再让模型兜圈子
+    - 对 LLM fallback 增加 no-op 检测：`executionResult.result` 与原 `trainingDays` 完全一致时，不能算成功，必须重试或显式报错
+  - `src/lib/batchOperationDeterministic.test.ts`
+    - 新增用户失败案例的回归测试
+    - 新增“宽口径动作名匹配更具体动作名”的测试
+- Verification:
+  - `npm run lint`：通过（脚本仅提示项目未配置 eslint）
+  - `npx vitest run src/lib/batchOperationDeterministic.test.ts`：通过
+  - `npm test`：通过（15 files, 69 tests）
+  - `npx next build`：通过
+  - `npm run typecheck`：失败，但仍是仓库既有历史类型错误海，未发现本次新增规则文件对应的新报错
+  - 前端 skill / 浏览器验证：按用户 `2026-04-12` 最新要求跳过，不再执行
+- Next step:
+  - 继续把高频批量编辑模式收敛成“结构化编辑语法 + diff 预览”，而不是把所有复杂修改都丢给自由生成代码
+  - 用户在 `2026-04-13` 进一步明确希望：AI 编辑器的目标不是“重生成整份 JSON”，而是输出一种更轻量、低 token、可被规则器快速映射到 `training_days` 的中间格式，再渲染回前端
+  - 用户在 `2026-04-13` 新增了更具体的思路：既然系统已经具备“混乱文本 -> 规整结构”导入，以及“结构 -> 规整文本”导出，那么下一步应评估把“规整文本 / 计划脚本”作为可编辑中间层，再由编译器映射回 `training_days`，并对比其功能边界与 token 成本
+  - 用户进一步明确：`actionId` 不必出现在人类/AI 编辑的计划脚本中，只要能按动作名稳定解析；若脚本里出现新动作，则先触发“新建动作/确认动作”步骤，再继续编译计划
+  - 用户在 `2026-04-13` 继续收敛需求：优先设计“最小 token 耗费的可编译计划脚本”，要求脚本以训练语义为主、尽量省字、可稳定编译回 `training_days`
+
+- Task: 修复训练执行页组间休息在离开页面后丢失的问题
+- Scope:
+  - 用户反馈 `/training-execution/[instanceId]` 的组间休息计时器即使已支持“本页挂后台按真实时间回算”，只要离开训练执行页组件，计时状态仍会丢失
+  - 需要覆盖“退出当前训练执行界面，再回来继续训练”的场景，而不只是页面保持打开时的 `visibilitychange/focus`
+  - 用户在本轮最新要求里明确表示：不需要做任何前端验证，只需要直接修改代码
+- Status: implemented on `2026-04-12`
+- Root cause:
+  - 当前实现把休息截止时间只存放在页面内 `restEndAtRef`
+  - 当用户离开训练执行页时，React 组件卸载，`restEndAtRef` 会随组件一起丢失
+  - 因此再次进入同一训练页时，无法恢复之前尚未结束的组间休息
+- Fix:
+  - `src/app/training-execution/[instanceId]/page.tsx`
+    - 新增按 `user + instance/impromptu + dayIndex` 生成的 `restTimerStorageKey`
+    - 新增 `persistRestTimer()` / `readPersistedRestTimer()` / `clearPersistedRestTimer()`，把休息截止时间持久化到 `localStorage`
+    - `beginRestTimer()` 与 `+30s` 现在会同步刷新持久化截止时间
+    - 页面重新进入并拿到当前 `execution.id` 后，会尝试恢复尚未结束的组间休息
+    - 训练完成、快速完成、跳过休息、倒计时自然结束时都会清理持久化状态，避免脏恢复
+    - 新增 `normalizePlannedRestSeconds()`，把历史脏数据里被放大 60 倍的休息时长（如 10800）纠正回真实秒数（180）
+    - `syncRestTimer()` 在恢复旧的持久化计时器时，若发现剩余时间明显超出组间休息合理范围，会立刻回写纠正后的截止时间，避免继续显示成 180 分钟
+  - `src/app/api/execution/start/route.ts`
+    - 创建新的执行记录时，对 `planned_rest_seconds` 做同一套归一化，防止新进入训练页后继续拿到异常超大的休息秒数
+  - `src/app/api/execution/_helpers/syncExecutionPlan.ts`
+    - 同步历史执行记录与当前计划配置时，也统一纠正异常休息时长，避免旧记录反复把错误值带回前端
+- Verification:
+  - 本轮按用户 `2026-04-12` 最新要求，未继续运行任何 lint/typecheck/build/test 或前端验证命令；由用户自行验证前端行为
+
+- Task: 规划视频上传链路从“仅前端压缩直传”升级为“前端减负 + 服务端异步处理”的下一阶段方案
+- Scope:
+  - 当前已实现浏览器前置压缩 + signed upload + 视频记录入库
+  - 需要在不打断现有上传体验的前提下，进一步提升播放兼容性、存储治理、处理可观测性与后续扩展能力
+  - 重点关注训练视频主链路，同时兼容动作示范视频、问卷示例视频等其它视频入口
+- Status: proposed on `2026-04-12`
+- Findings:
+  - 现有 `src/lib/videoCompression.ts` 已承担浏览器端预压缩
+  - `training_videos` 表已具备 `processing_status`、`thumbnail_url`、`duration_seconds`、`metadata` 等可复用字段
+  - 当前 `src/app/api/user/_helpers/videoRecord.ts` 默认直接以 `processing_status='ready'` 创建记录，尚未真正接入服务端异步处理状态机
+- Proposed next step:
+  - 保留前端压缩作为上传前减负
+  - 新增服务端异步视频处理任务，统一产出可播放版本、封面、时长与处理状态
+  - 后续若转码稳定，再评估原始视频保留/清理策略与分场景码率策略
+
+- Task: 修复“购买 53 周但两个月计划被错误推到 2026-07-14 才完成”的预计完成日公式
+- Scope:
+  - 用户指出 `/dashboard/students` 中某学员显示“已购 53 周”，但当前第一阶段计划只有约两个月，预计完成日却被算到 `2026-07-14`
+  - 需要确认是购买周期和计划周期混淆导致，而不是学员真实还剩这么久
+  - 目标是让预计完成日按“当前计划实例的实际训练节奏/跨度”估算，而不是按总购买周数摊薄
+- Status: implemented on `2026-04-12`
+- Root cause:
+  - `src/lib/subscriptionEstimatedEndDate.ts` 之前在估算 `remainingDaysEstimate` 时，把 `subscribed_weeks` 直接传给 `estimateRemainingDays()`
+  - 当学员购买 53 周、但当前计划实例只有 8 周左右时，公式会把当前计划的训练天数按 53 周平均摊开，导致预计完成日被明显拖长
+  - `src/app/api/subscription/check-subscription/route.ts` 的定时巡检链路也复用了同样的错误口径，可能把错误日期再次写回数据库
+- Fix:
+  - `src/lib/subscriptionCredits.ts`
+    - `estimateRemainingDays()` 参数从“购买周数”改为“当前计划节奏周数 `cadenceWeeks`”
+  - `src/lib/subscriptionEstimatedEndDate.ts`
+    - 改为使用当前实例 credits scope 对应的有效周数 `effectivePlanWeeks`
+    - 不再用总购买周数去推当前阶段预计完成日
+  - `src/app/api/subscription/check-subscription/route.ts`
+    - 统一改用 `deriveProjectedSubscriptionEndDate()`，避免后台巡检继续按旧公式刷新错误 `end_date`
+  - `src/lib/subscriptionCredits.test.ts`
+    - 新增“购买 53 周但当前计划只有 8 周节奏时，不应被拉长到十几周后”的回归思路覆盖
+- Verification:
+  - `npm test`：通过（14 files, 67 tests）
+  - `npx next build`：通过
+  - `npm run lint`：本轮未重跑；此前仓库脚本仅提示未配置 eslint
+  - `npm run typecheck`：超时未完成；仓库仍存在既有类型检查阻塞
+  - 浏览器验证：未完成；当前会话环境未提供 AGENTS.md 要求的 `web-devtools` skill，无法做该页面的浏览器级验证
+
+- Task: 支持计划编辑器直接调整同一天内动作顺序，并为后续“灵活编辑计划”保留升级方向
+- Scope:
+  - 用户在 `/dashboard/plan-lib/edit/[id]` 想把同一天里的第 1、2 个动作对调，但当前编辑器做不到
+  - 需要至少支持同日动作上移/下移，覆盖教练模板编辑、学员计划编辑、`/me` 侧自建计划等共用入口
+  - 用户在本轮最新要求里明确表示：只需要改代码，不需要再调用任何 skill 做前端验证
+- Status: implemented on `2026-04-12`
+- Root cause:
+  - `training_days[].actionSets[]` 本身就是有序数组，后端保存也会保留顺序
+  - 但前端 `PlanDayCard` 只有删除/筛选，没有任何重排入口或状态 handler，所以第 1、2 个动作无法直接交换
+- Fix:
+  - `src/app/dashboard/plan-lib/components/PlanDayCard.tsx`
+    - 每个动作卡片头部新增“上移 / 下移”按钮
+    - 首项禁用上移，末项禁用下移，避免越界
+  - 以下页面补 `handleMoveActionSet()`，直接交换 `actionSets` 数组顺序：
+    - `src/app/dashboard/plan-lib/edit/[id]/page.tsx`
+    - `src/app/dashboard/plan-lib/create/page.tsx`
+    - `src/app/dashboard/students/plan/[id]/page.tsx`
+    - `src/app/me/plan-lib/create/page.tsx`
+    - `src/app/me/plan-lib/edit/[id]/page.tsx`
+- Verification:
+  - `npm run lint`：通过（脚本仅提示项目未配置 eslint）
+  - `npm test`：通过（14 files, 66 tests）
+  - `npx next build`：通过
+  - `npm run typecheck`：失败，但仍是仓库既有历史类型错误海；未出现本次排序改动对应的新报错定位到上述编辑页
+  - 前端 skill / 浏览器验证：按用户 `2026-04-12` 最新要求跳过，不再继续执行
+- Next step:
+  - 若要把“灵活编辑计划”再往前推，建议新增“文本脚本视图”作为高级模式，但继续让 `training_days` 结构化 JSON 作为最终真相，避免直接把自由文本变成唯一数据源
+
+- Task: 重新对齐“跨计划实例结转”的产品语义，确认新计划应从第 1 个月顺序执行而不是跳到尾段
+- Scope:
+  - 用户明确指出：学员买 3 个月，旧计划已做完并归档后，教练新建 2 个月计划时，新计划应从自己的第 1 个月开始按顺序执行
+  - 当前代码把“历史已消耗周数”直接映射到新计划尾段，导致默认 `start_execution_day` 可能跳到新计划后半段
+  - 需要后续评估是否将“剩余额度结转”从“改起点”改为“限制可执行窗口/credits”
+- Status: requirement clarified on `2026-04-12`
+- Root cause:
+  - `src/lib/subscriptionCarryover.ts` 当前实现按“剩余周数映射到新计划尾段”推断 `start_execution_day`
+- Next step:
+  - 若进入实现，优先改为“新计划从 day 1 开始 + 剩余额度单独限制”，并同步收紧前端/后端对超出剩余额度部分的展示与执行门禁
+
+- Task: 拆清“购买周期 vs 实际执行时长”语义，并让教练修改购买周期时同步刷新预计完成日
+- Scope:
+  - 用户明确指出“学员买的计划长度”和“实际执行完成所需时长”不是一个概念
+  - 典型场景：学员购买 1 个月计划，但因延迟/推迟，实际执行可能需要 1 个半月
+  - 需要确保教练在 `/dashboard/students` 修改购买周期时，`end_date` 会跟随当前执行节奏重算，而不是停留在旧值
+  - 同时要避免前台继续把 `end_date` 当成“硬到期”，导致延期执行时文案误导
+- Status: implemented on `2026-04-12`
+- Fix:
+  - 新增 `src/lib/subscriptionEstimatedEndDate.ts`
+    - 抽出基于 `subscribed_weeks + training_days + completed executions + start_execution_day` 的统一预计完成日推导逻辑
+  - `src/app/api/subscription/update-subscription/route.ts`
+    - 教练手动修改 `subscribed_weeks` 且未显式传 `end_date` 时，自动读取当前计划实例进度并重算 `end_date`
+  - `src/app/api/execution/updateEstimatedEndDate.ts`
+  - `src/app/api/coach/list-students/route.ts`
+    - 统一复用同一套预计完成日推导，避免“保存后列表显示”和“训练执行后回写”使用不同算法
+  - `src/app/dashboard/students/StudentDetailDialog.tsx`
+    - 文案从“订阅周期”改为“购买周期”
+    - 保存购买周期后直接使用后端返回的最新 `end_date`，让弹窗即时反映新的预计完成日
+    - `end_date` 已过时不再显示“已到期”，改为“已超过原预计完成日 xx 天”
+    - “总跟随周数”在 `status=active` 时不再被过期的 `end_date` 截断
+  - `src/app/dashboard/students/page.tsx`
+    - 列表列名改为“购买周期 / 预计完成”
+    - 桌面端与移动端统一展示 `已购xx周` + `预计完成 yyyy/mm/dd`
+- Verification:
+  - `npm run lint`：通过（脚本仅提示项目未配置 eslint）
+  - `npm test`：通过（14 files, 66 tests）
+  - `npx next build`：通过
+  - `npm run typecheck`：失败，仍为仓库既有问题：`D:/files/coachlink/.next/types/validator.ts` 缺失
+  - 浏览器验证：未完成；当前会话环境未提供 AGENTS.md 要求的 `web-devtools` skill，无法做该页面的浏览器级验证
+
+- Task: 修复计划库编辑页 AI 修改器在 Gemini/Ofox 链路下报 `400 Unable to submit request because at least one contents field is required`
+- Scope:
+  - 用户在 `/dashboard/plan-lib/edit/[id]` 使用 AI 修改器时，输入自然语言指令后立即报错
+  - 错误来自 Ofox 转发的 Gemini/Vertex 兼容层，提示请求里至少要有一个 `contents` 字段
+  - 需要确认是前端没传指令，还是后端组装 LLM 请求时把用户内容丢掉
+- Status: implemented on `2026-04-11`
+- Root cause:
+  - `src/app/api/plan-lib/batch-operation/route.ts` 中多次调用 `openai.chat.completions.create()`
+  - 这些请求把完整提示词都塞进了单条 `system` 消息，没有显式 `user` 消息
+  - 在 Ofox -> Gemini/Vertex 兼容链路下，这类请求会被判定为缺少 `contents`，直接返回 400
+- Fix:
+  - `src/app/api/plan-lib/batch-operation/route.ts`
+    - 新增 `buildPromptMessages()`，统一把提示词组装为 `system + user` 两条消息
+    - 意图识别、查询回答、补充追问判断、代码生成四处 LLM 调用全部改用该消息结构
+    - 新增空 `instruction` 的 400 保护，避免再次发出无意义请求
+- Verification:
+  - `npm run lint`：通过（脚本仅提示项目未配置 eslint）
+  - `npx next build`：通过
+  - `npm test`：通过（14 files, 66 tests）
+  - `npm run typecheck`：失败，仍为仓库既有问题：`D:/files/coachlink/.next/types/validator.ts` 缺失
+  - 浏览器验证：未完成；当前会话环境未提供 AGENTS.md 要求的 `web-devtools` skill，无法做该交互的真实浏览器复现
+
+- Task: 修复“我的学员”里手动修改剩余时长后，列表仍显示旧的 `4周计划` 的语义错位
+- Scope:
+  - 用户在 `/dashboard/students` 点击学员昵称进入详情弹窗后，可直接编辑“剩余时长”
+  - 现状是该编辑只更新 `end_date`，但列表中的“订阅状态”实际显示 `subscribed_weeks`，导致改了剩余时长后仍显示旧的 `4周计划`
+  - 用户要求仔细修改，并明确表示本轮由自己手动验证，无需代理继续做构建或页面验证
+- Status: implemented in code on `2026-04-11`
+- Fix:
+  - `src/app/dashboard/students/StudentDetailDialog.tsx`
+    - 新增基于“开始日期 -> 新结束日期”的周数推导逻辑
+    - 保存剩余时长时，除了更新 `end_date`，也同步更新 `subscribed_weeks`
+    - 若结束日期早于开始日期，前端直接拦截并提示
+    - 保存成功后 toast 明确提示已同步到多少周
+  - `src/app/dashboard/students/page.tsx`
+    - 列表列名从“订阅状态”改为“订阅周期”
+    - 桌面端/移动端的周期标签统一改为显示 `xx周周期`，避免误导成状态字段
+    - 补上 `onStudentUpdate`，让弹窗保存后列表和当前选中学员立即同步刷新
+- Verification:
+  - `npm run lint`：通过（脚本仅提示项目未配置 eslint）
+  - `npx next build`：通过
+  - `npm test`：通过（14 files, 66 tests）
+  - `npm run typecheck`：
+    - 第一次失败原因为 `.next/types` 尚未生成，不是本次改动直接导致
+    - 用户随后明确表示“不用构建去验证，我来验证就行”，因此未继续追类型检查结果
+  - 前端浏览器验证：按用户本轮最新要求交由用户自行验证，代理未继续执行
+- Next step:
+  - 若用户后续仍觉得“改结束日期”和“改订阅额度”混在一起容易误解，可再拆成两个明确入口：`预计结束日` 与 `延长订阅周数`
+
+- Task: 为训练执行页及通用视频上传链路增加前置压缩，缓解大视频上传限制与服务器存储压力
+- Scope:
+  - 用户要求在 `training-execution` 训练执行页上传训练视频时，先在前端尝试压缩再上传
+  - 同时把其他复用视频上传链路一并覆盖，避免只有单页受益
+  - 目标是减少上传失败率、缩短上传时间，并让服务端记录压缩后的真实体积
+  - 用户在本轮明确表示“不用去验证执行，你只管改就行”
+- Status: implemented on `2026-04-11`
+- Fix:
+  - 新增 `src/lib/videoCompression.ts`
+    - 基于浏览器 `video + canvas + MediaRecorder` 做前置压缩
+    - 大于阈值或分辨率过高的视频会先缩到较小体积/尺寸，再进入直传
+    - 若压缩收益不明显，则自动回退原文件，避免越压越大
+  - `src/app/service/videoService.ts`
+    - `uploadVideoFile()` 在申请 signed upload URL 前先执行 `prepareVideoForUpload()`
+    - 对外暴露“准备中/压缩中/上传中”进度
+    - `submit-video-url` 元数据新增压缩信息（原始体积、上传体积、mime、尺寸、策略）
+  - `src/app/service/actionLibService.ts`
+    - 动作库演示视频上传接入同一套前置压缩
+  - `src/app/service/coachService.ts`
+    - 教练问卷示例媒体上传在视频场景下同样先压缩再发到 `/api/coach/upload-question-media`
+  - 前端入口同步放宽并统一说明：
+    - `src/components/video/VideoUploader.tsx`
+    - `src/app/coach/plans/dashboard/[id]/components/SetVideoUploader.tsx`
+    - `src/app/ranking/[id]/SubmissionDialog.tsx`
+    - `src/app/training-execution/[instanceId]/page.tsx`
+    - `src/app/dashboard/action-lib/ActionEditDialog.tsx`
+    - `src/app/me/action-lib/StudentActionEditDialog.tsx`
+- Verification:
+  - `npm run lint`：通过（脚本仅提示 Next 16 未配置 eslint）
+  - `npx next build`：通过
+  - `npm test`：通过（14 files, 66 tests，含新增 `src/lib/videoCompression.test.ts`）
+  - `npm run typecheck`：失败，但输出均为仓库既有/历史类型问题；未筛到本次新增文件相关报错
+  - 浏览器验证：用户明确要求本轮不做执行验证，因此未继续跑页面回归
+
+---
+
+- Task: 修复学员训练执行页组间休息在后台不走时的问题
+- Scope:
+  - 用户反馈页面位于 `/training-execution/[instanceId]`，学员在执行今日训练计划时，组间休息倒计时挂后台后不会继续按真实时间推进
+  - 目标是在不改训练主流程的前提下，让休息计时基于真实经过时间结算，而不是依赖前台每秒递减
+  - 用户在本轮明确表示“不需要你去验证，你只管改就行”
+- Status: implemented on `2026-04-11`
+- Root cause:
+  - `src/app/training-execution/[instanceId]/page.tsx` 原实现使用 `setInterval` 每秒递减 `restTimer`
+  - 页面切到后台后浏览器会节流或暂停定时器，导致返回前台时剩余休息时间停留在旧值
+- Fix:
+  - `src/app/training-execution/[instanceId]/page.tsx`
+    - 新增 `restEndAtRef`，开始组间休息时记录真实截止时间戳
+    - 新增 `beginRestTimer()` / `syncRestTimer()`，改为用 `Date.now()` 与截止时间回算剩余秒数
+    - 页面重新获得焦点或从后台回到前台时，立即同步剩余休息时间
+    - `+30s` 改为延长真实截止时间，而不是只改本地显示秒数
+    - 跳过休息时同步清空截止时间引用，避免残留计时状态
+- Verification:
+  - `lint`：通过（项目脚本仅输出“未配置 eslint”提示）
+  - `typecheck`：失败，仓库存在大量历史 TypeScript 错误；本次改动未新增与休息计时相关的报错
+  - `next build`：通过
+  - `npm test`：通过（13 files, 63 tests）
+  - 前端浏览器验证：按用户本轮要求跳过；此前尝试访问目标 URL 时，未登录态会被重定向到登录页
+- Next step:
+  - 若后续还要修“切后台时休息结束提醒没弹出/没响铃”，可继续把计时逻辑抽成共享 hook，并补浏览器级回归验证
+
+- Task: 让 `/streetlifting-index/calculator` 记住上一次填写的计算器输入，避免重复填写性别/体重/负重等字段
+- Scope:
+  - 用户要求在线力量计算器保留上一次填写结果
+  - 重点覆盖会被反复输入的字段：性别、体重、附加负重及同页其他计算参数
+  - 用户在本轮明确表示“不需要你去验证，你只管改就行”
+- Status: implemented in code on `2026-04-11`
+- Fix:
+  - `src/app/streetlifting-index/calculator/page.tsx`
+    - 保留现有 localStorage 草稿恢复逻辑
+    - 新增 `persistDraftNow()`，在页面隐藏、关闭、刷新前立即落盘，避免仅靠 400ms 防抖导致“刚填完就离开页面”时丢失
+    - 新增“清空上次输入”按钮，允许用户手动清除本机已保存内容
+- Verification:
+  - 按用户要求，本轮未继续做浏览器验证
+  - `npm run lint`：通过（脚本仅提示未配置 eslint）
+  - `npm test`：通过（13 files, 63 tests）
+  - `npx next build`：通过
+  - `npm run typecheck`：失败，仍为仓库级既有历史类型错误，未见与本次计算器改动直接相关的新错误定位到该页面
+- Next step:
+  - 若用户后续仍反馈“没记住”，再针对其实际使用环境（浏览器/无痕模式/嵌入 WebView）做定点排查
+
+---
+
+- Task: 梳理订阅系统全链路语义，并为“跨计划实例结转剩余订阅时长/credits”改造做安全设计
+- Scope:
+  - 用户要求先彻底梳理当前订阅系统的真实逻辑，避免直接改动导致原有正确链路回归
+  - 需要确认创建订阅、支付确认、续费、计划自动匹配、手动建计划、开始训练、订阅门禁、到期巡检、宽限期、自愈回填之间的关系
+  - 目标问题：同一学员购买 3 个月，但教练先做 2 个月计划后又新建一个 2 个月计划时，系统应识别“只剩 1 个月可走”，而不是把新实例误当成新的完整额度
+  - 改造约束：不能破坏当前已成立的 B1 语义，包括“订阅按训练日 credits 消耗”“start_date 以第一次开始训练为准”“end_date 主要用于预计完成日与宽限期输入”“同订阅仅保留一个当前计划实例”
+- Status: analysis in progress on `2026-04-10`
+- Findings so far:
+  - 当前门禁按“订阅 subscribed_weeks -> 当前实例 credits 范围 -> 当前实例 completed executions”判定，不会自动跨历史实例累计已消耗额度
+  - 同一个 `coach_subscription_id` 新建实例时会归档该订阅下旧的 `active/paused` 实例，因此“当前计划”始终只看最新实例
+  - 现有系统已存在多处历史兼容/自愈逻辑（pending_renew、offline renew、rebind legacy instance、normalize stale end_date），后续改造必须先区分“主语义”与“兼容补丁”
+- Fix on `2026-04-10`:
+  - 新增 `src/lib/subscriptionCarryover.ts`
+    - 基于同一订阅下历史计划实例的最远进度（`max(start_execution_day - 1, completed day_index)`）推断已消耗周数
+    - 将“历史已走周数”映射到新计划尾段，自动推断 `start_execution_day`
+  - `src/app/api/plan-lib/create-instance/route.ts`
+    - 手动创建计划时，若教练未显式填写 `startWeek/startDay`，自动继承历史订阅进度
+    - 若订阅剩余周期已耗尽，则拒绝创建新计划并提示先续费
+  - `src/app/api/plan-lib/create-ai-instance/service.ts`
+    - AI 建计划时同样自动继承历史订阅进度
+    - 计划名称/描述里的“从第几周开始”改为显示推断后的真实起点
+  - `src/app/api/plan-lib/create-ai-instance/route.ts`
+  - `src/app/api/plan-lib/bulk-create-ai-instances/route.ts`
+  - `src/app/api/plan-lib/auto-match-plan/service.ts`
+    - 去掉默认强制传 `startWeek=1/startDay=1`，让自动推断能够生效
+- Verification:
+  - `npm run lint`：通过（脚本提示未配置 eslint）
+  - `npx next build`：通过
+  - `npm test`：通过（13 files, 63 tests）
+  - `npm run typecheck`：两次超时，仓库级历史类型面仍未跑完，未发现本次改动触发的新增编译错误输出
+- Next step:
+  - 若需要彻底修复“已存在的历史错误实例”，可继续补一个只读自愈：对当前活动实例在读取时比对历史进度并提示/自动回填 `start_execution_day`
+  - 若后续发现“跨计划替换但周数映射仍不够精确”的个案，再评估是否需要把“历史最远进度”升级为更细粒度的订阅消耗账本
+
+---
+
 - Task: 升级“申请成为教练”流程为分层入驻申请，并把分层信息接入找教练链路
 - Scope:
   - 用户要求先梳理当前申请教练流程，再基于“训练搭子 / 进阶教练 / 专业教练”分层供给思路升级现有功能
@@ -91,6 +555,24 @@
 
 ---
 
+## WeApp UI Polish (`2026-04-15`)
+
+- Task: 参考 Dribbble 风格优化小程序首页与底部导航
+- Scope:
+  - 首页：`custom` 导航栏、渐变背景、品牌图标替换 emoji、彩色卡片与 promo banner
+  - `BottomNav`：深色胶囊、白色 active pill、图标+文字动画、消除跳转白屏
+- Fix:
+  - `wechat-app/src/pages/index/index.tsx` / `index.scss`
+  - `wechat-app/src/components/BottomNav.tsx` / `BottomNav.scss`
+  - `wechat-app/src/pages/index/index.config.ts`（`navigationStyle: 'custom'`）
+- Verification:
+  - 构建通过（`npm run build:weapp`）
+  - DevTools 截图验证通过（端口 3002）
+- Commit: `258313e` on `origin/dev`
+- Status: completed
+
+---
+
 ## Hotfix Note (`2026-04-08`)
 
 - Task: 修复“计划逻辑已完成但页面仍显示进行中/制定中”的状态错位
@@ -128,3 +610,9 @@
 - Task: 将微信小程序工程纳入根目录 `app/`，统一 Git；更新 `AGENTS.md` 与决策记录
 - Status: completed
 - Notes: `app/` 内嵌套 `.git` 已移除；小程序远程 `main` 已通过 `origin/main` fast-forward 对齐
+
+## coachlink LLM（`2026-04-09` 追加）
+
+- `coachlinkLlm`：默认 `google/gemini-3.1-flash-lite-preview`；开发环境打印 `OFOXAI_MODEL` 与 effective 模型；`COACHLINK_USE_DEEPSEEK=1` 强制 DeepSeek。
+- `parse-actions` / `parse-template`：`maxTokens` 65536 → 16384，减轻 Gemini reasoning 烧 token。
+- 若终端仍显示旧模型：检查 `.env.local` 是否仍写 `OFOXAI_MODEL=...gemini-3-flash-preview`（会覆盖代码默认）。

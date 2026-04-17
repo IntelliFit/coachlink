@@ -1,0 +1,103 @@
+.lightweight-sheet-mask {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.42);
+  z-index: 1001;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 12px;
+
+  .lightweight-sheet-panel {
+    width: 100%;
+    background: #fff;
+    border-radius: 16px 16px 0 0;
+    padding: 16px;
+    box-sizing: border-box;
+  }
+
+  .sheet-title {
+    display: block;
+    font-size: 16px;
+    font-weight: 700;
+    color: #111827;
+  }
+
+  .sheet-summary {
+    display: block;
+    margin-top: 4px;
+    font-size: 12px;
+    color: #6b7280;
+  }
+
+  .sheet-field-row {
+    display: flex;
+    gap: 10px;
+  }
+
+  .sheet-field {
+    margin-top: 12px;
+    flex: 1;
+
+    .field-label {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 12px;
+      color: #4b5563;
+    }
+
+    .field-input {
+      width: 100%;
+      box-sizing: border-box;
+      height: 36px;
+      border-radius: 8px;
+      border: 1px solid #d1d5db;
+      padding: 0 10px;
+      font-size: 14px;
+      background: #fff;
+    }
+  }
+
+  .sheet-tip {
+    margin-top: 12px;
+    background: #f3f4f6;
+    color: #374151;
+    border-radius: 8px;
+    padding: 10px;
+    font-size: 12px;
+
+    &.note {
+      background: #fff7ed;
+      color: #9a3412;
+    }
+  }
+
+  .sheet-actions {
+    margin-top: 14px;
+    display: flex;
+    gap: 10px;
+
+    .sheet-btn {
+      flex: 1;
+      border-radius: 10px;
+      padding: 11px;
+      text-align: center;
+      font-size: 13px;
+      font-weight: 700;
+
+      &.secondary {
+        background: #f3f4f6;
+        color: #374151;
+      }
+
+      &.primary {
+        background: linear-gradient(135deg, #cf6d4e 0%, #e59b7d 100%);
+        color: #fff;
+      }
+
+      &.disabled {
+        opacity: 0.7;
+      }
+    }
+  }
+}

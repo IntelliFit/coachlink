@@ -8,8 +8,8 @@ import { ApiError, createAiInstanceForSubscription } from "./service";
 export async function POST(req: Request) {
     const {
         subscriptionId,
-        startWeek = 1,
-        startDay = 1,
+        startWeek,
+        startDay,
         keepOriginalIndex = true,
         useLLM = false,
     } = await req.json() as CreateAiInstanceDto;

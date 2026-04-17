@@ -8,6 +8,7 @@ import {
 } from "@/lib/rmCaculator";
 import { normalizeToKg } from "@/types/intensity";
 import { getCurrent1RMRecords } from "@/app/api/student/get-current-1rm/route";
+import { normalizePlannedRestSeconds } from "@/lib/restTime";
 
 type ExecutionRecord = {
     id: string;
@@ -37,8 +38,10 @@ function resolveMasterPlanFields(actionSet: any, context: PlanningContext) {
     const actionMeta = actionId ? context.actionsMap[actionId] : null;
     const params = actionSet?.params || {};
     const reps = params?.["次数"] || actionSet?.reps || null;
-    const restSeconds =
-        params?.["休息时间"] ?? actionSet?.rest_seconds ?? 90;
+    const restSeconds = normalizePlannedRestSeconds(
+        params?.["休息时间"] ?? actionSet?.rest_seconds,
+        90,
+    );
     const intensityConfig = normalizeIntensityConfig(params);
     const legacyRm = params?.["强度"] ?? actionSet?.intensity;
 

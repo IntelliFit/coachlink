@@ -5,6 +5,8 @@ export interface GetMessagesDto {
     page?: number;
     limit?: number;
     beforeId?: string; // 用于分页加载更多历史消息
+    /** 跳转到某条消息附近（加载其前后各一段，用于搜索定位） */
+    anchorMessageId?: string;
 }
 
 export interface MessageItem {

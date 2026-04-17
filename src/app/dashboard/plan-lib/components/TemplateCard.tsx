@@ -9,11 +9,12 @@ interface TemplateCardProps {
     onEdit?: (id: string) => void;
     onSelect?: (template: CoachPlansPreview) => void;
     onCopy?: (id: string) => void;
+    onExport?: (id: string) => void;
     onDelete?: (id: string) => void;
     onBatchOperation?: (id: string) => void;
 }
 
-const TemplateCard: React.FC<TemplateCardProps> = ({ template, onEdit, onSelect, onCopy, onDelete, onBatchOperation }) => {
+const TemplateCard: React.FC<TemplateCardProps> = ({ template, onEdit, onSelect, onCopy, onExport, onDelete, onBatchOperation }) => {
     // 计算总周数
     const totalWeeks = Math.ceil((template.trainingDaysCount + template.restDaysCount) / 7);
 
@@ -121,6 +122,9 @@ const TemplateCard: React.FC<TemplateCardProps> = ({ template, onEdit, onSelect,
                 )}
                 {onCopy && (
                     <Button label="复制" text rounded size="small" className="text-surface-500 hover:bg-surface-100 text-xs font-medium py-1.5 px-2" onClick={() => onCopy(template.id)} />
+                )}
+                {onExport && (
+                    <Button label="导出文本" text rounded size="small" className="text-surface-500 hover:bg-surface-100 text-xs font-medium py-1.5 px-2" onClick={() => onExport(template.id)} />
                 )}
                 {onBatchOperation && (
                     <Button label="AI 修改" text rounded size="small" className="text-primary-600 hover:bg-primary-50 text-xs font-medium py-1.5 px-2" onClick={() => onBatchOperation(template.id)} />

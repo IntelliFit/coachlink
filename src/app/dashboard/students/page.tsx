@@ -116,6 +116,17 @@ export default function StudentsPage() {
     };
 
     /** 加载学生列表 */
+    const formatProjectedEndDate = (value: string | null | undefined) => {
+        if (!value) return '自动计算中';
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return '自动计算中';
+        return date.toLocaleDateString('zh-CN', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+        });
+    };
+
     const loadStudents = async (page: number = 0, limit: number = 10) => {
         try {
             setLoading(true);
@@ -130,8 +141,11 @@ export default function StudentsPage() {
                 setStudents(data.students);
                 setTotalRecords(data.pagination.total);
             }
+
+            return data ?? null;
         } catch (error) {
             console.error('获取学生列表失败:', error);
+            return null;
         } finally {
             setLoading(false);
         }
@@ -398,6 +412,14 @@ export default function StudentsPage() {
             isOffline = true;
         }
 
+        const subscriptionRangeLabel =
+            typeof student.subscribed_weeks === 'number' && student.subscribed_weeks > 0
+                ? `已购${student.subscribed_weeks}周`
+                : '购买周期待定';
+        const projectedEndDateLabel = student.start_date
+            ? `预计完成 ${formatProjectedEndDate(student.end_date)}`
+            : '开始训练后自动计算';
+
         return (
             <div className="flex flex-col gap-1.5 py-2">
                 {productTagTemplate(Number(student.tier))}
@@ -411,11 +433,16 @@ export default function StudentsPage() {
                         <>
                             <Calendar size={12} />
                             <span className="text-xs font-bold tracking-tight">
-                                {student.subscribed_weeks}周计划
+                                {subscriptionRangeLabel}
                             </span>
                         </>
                     )}
                 </div>
+                {!isOffline && (
+                    <div className="text-[11px] font-medium text-surface-400">
+                        {projectedEndDateLabel}
+                    </div>
+                )}
             </div>
         );
     };
@@ -458,9 +485,20 @@ export default function StudentsPage() {
             </div>
         );
     };
+
+    const isStudentPlanCompleted = (student: StudentSubscription) => {
+        const plan = student.plan;
+        if (!plan) return false;
+        const completedDays = Number(student.progress?.completed || 0);
+        const totalDays = Number(student.progress?.total || 0);
+        return plan.status === 'completed' ||
+            !!(plan as any).is_logically_completed ||
+            (totalDays > 0 && completedDays >= totalDays);
+    };
+
     const trainingPlanTemplate = (student: StudentSubscription) => {
         const plan = student.plan;
-        const isCompleted = plan?.status === 'completed';
+        const isCompleted = isStudentPlanCompleted(student);
         const isActive = plan && !isCompleted;
         const hasPlan = !!plan; // 是否已有计划
 
@@ -524,6 +562,7 @@ export default function StudentsPage() {
                             icon={<SparklesIcon size={18} />}
                             className="p-button-rounded p-button-text p-button-secondary ml-1"
                             style={{ width: '2.5rem', height: '2.5rem' }}
+                            tooltip={isCompleted ? 'AI 生成下一阶段' : 'AI 生成计划'}
                             onClick={(e) => {
                                 e.stopPropagation();
                                 openAiConfigDialog(student);
@@ -581,7 +620,7 @@ export default function StudentsPage() {
         const percentage = totalDays === 0 ? 0 :
             Math.min(Math.round((completedDays / totalDays) * 100), 100);
 
-        const isCompleted = plan.status === 'completed';
+        const isCompleted = isStudentPlanCompleted(student);
 
         return (
             <div className="flex flex-col gap-2 min-w-[180px] px-2">
@@ -726,7 +765,7 @@ export default function StudentsPage() {
                     const nick = student.profile?.nickname || '未知学员';
                     const unreviewed = (student.uploaded || 0) - (student.reviewed || 0);
                     const plan = student.plan;
-                    const isCompleted = plan?.status === 'completed';
+                    const isCompleted = isStudentPlanCompleted(student);
                     const isActive = !!plan && !isCompleted;
                     const isSelected = selectedStudents.some(s => s.id === student.id);
                     const canSelect = student.plan === null;
@@ -787,8 +826,13 @@ export default function StudentsPage() {
                                         </div>
                                         <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px]">
                                             <span className="px-2 py-0.5 rounded-full bg-surface-50 border border-surface-100 text-surface-600 font-bold">
-                                                {isOffline ? '线下已付' : `${student.subscribed_weeks}周`}
+                                                {isOffline ? '线下已付' : (typeof student.subscribed_weeks === 'number' && student.subscribed_weeks > 0 ? `已购${student.subscribed_weeks}周` : '购买周期待定')}
                                             </span>
+                                            {!isOffline && (
+                                                <span className="px-2 py-0.5 rounded-full bg-surface-50 border border-surface-100 text-surface-500 font-medium">
+                                                    {student.start_date ? `预计完成 ${formatProjectedEndDate(student.end_date)}` : '开始训练后自动计算'}
+                                                </span>
+                                            )}
                                             <span
                                                 className={[
                                                     'px-2 py-0.5 rounded-full border font-bold',
@@ -897,7 +941,7 @@ export default function StudentsPage() {
                                 {/* 快捷操作 */}
                                 <div className="mt-3 flex gap-2">
                                     <Button
-                                        label={plan ? '查看计划' : '创建计划'}
+                                        label={isCompleted ? '创建下一阶段' : plan ? '查看计划' : '创建计划'}
                                         icon={plan ? <ChevronRight className="w-4 h-4 mr-1" /> : <Plus className="w-4 h-4 mr-1" />}
                                         className="p-button-sm w-full rounded-2xl"
                                         onClick={() => router.push(`/dashboard/students/plan/${student.id}`)}
@@ -1031,7 +1075,7 @@ export default function StudentsPage() {
                 >
                     <Column selectionMode="multiple" headerStyle={{ width: '3.25rem' }} bodyStyle={{ width: '3.25rem' }} />
                     <Column header="学员信息" body={studentTemplate} style={{ width: '20%' }} />
-                    <Column header="订阅状态" body={subscribeTemplate} style={{ width: '12%' }} />
+                    <Column header="购买周期 / 预计完成" body={subscribeTemplate} style={{ width: '12%' }} />
                     <Column header="训练计划" body={trainingPlanTemplate} style={{ width: '23%' }} />
                     <Column header="训练进度" body={trainingProgressTemplate} style={{ width: '25%' }} />
                     <Column header="已评价/视频总数" body={videoStatsTemplate} style={{ width: '20%' }} />
@@ -1044,6 +1088,33 @@ export default function StudentsPage() {
                 coach={coach}
                 student={selectedStudent}
                 onHide={() => setDialogVisible(false)}
+                onStudentUpdate={(updatedStudent) => {
+                    if (!updatedStudent?.id) return;
+                    const currentPage = Math.floor(first / rows);
+
+                    setStudents((prev) => prev.map((item) => (
+                        item.id === updatedStudent.id
+                            ? { ...item, ...updatedStudent }
+                            : item
+                    )));
+
+                    setSelectedStudent((prev) => (
+                        prev?.id === updatedStudent.id
+                            ? { ...prev, ...updatedStudent }
+                            : prev
+                    ));
+
+                    void loadStudents(currentPage, rows).then((data) => {
+                        const refreshedStudent = data?.students?.find((item) => item.id === updatedStudent.id) || null;
+                        if (refreshedStudent) {
+                            setSelectedStudent((prev) => (
+                                prev?.id === refreshedStudent.id
+                                    ? refreshedStudent
+                                    : prev
+                            ));
+                        }
+                    });
+                }}
                 onShowReviewDialog={() => {
                     setReviewDialogVisible(true);
                 }}

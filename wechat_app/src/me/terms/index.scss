@@ -1,0 +1,60 @@
+.doc-page {
+  min-height: 100vh;
+  background: linear-gradient(180deg, #E8E8E8 0%, #F8F8F8 100%);
+  width: 100%;
+  box-sizing: border-box;
+  overflow-x: hidden;
+}
+.doc-scroll {
+  height: 100vh;
+  padding: 24rpx;
+  width: 100%;
+  box-sizing: border-box;
+}
+.doc-card {
+  background: #fff;
+  border-radius: 16rpx;
+  padding: 40rpx;
+  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.06);
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  margin-bottom: 24rpx;
+}
+.doc-title {
+  font-size: 36rpx;
+  font-weight: bold;
+  color: #111;
+  margin-bottom: 16rpx;
+  display: block;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+.doc-meta {
+  font-size: 24rpx;
+  color: #999;
+  line-height: 1.8;
+  margin-bottom: 32rpx;
+  display: block;
+}
+.doc-section {
+  margin-bottom: 32rpx;
+}
+.doc-section-title {
+  font-size: 30rpx;
+  font-weight: bold;
+  color: #222;
+  margin-bottom: 16rpx;
+  display: block;
+}
+.doc-content {
+  font-size: 28rpx;
+  color: #555;
+  line-height: 1.8;
+  margin-bottom: 12rpx;
+  display: block;
+  text-align: justify;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}

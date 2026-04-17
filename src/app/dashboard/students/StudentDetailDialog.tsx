@@ -13,7 +13,6 @@ import {
 } from 'lucide-react';
 import { CoachesRow } from '@/types';
 import { Button } from 'primereact/button';
-import { Calendar as PRCalendar } from 'primereact/calendar';
 import { PersonalInfoDisplay } from '@/components/student/profile/PersonalInfoDisplay';
 import { SportCardsDisplay } from '@/components/student/profile/SportCardsDisplay';
 import { CoachViewProgressTimeline } from '@/components/student/profile/CoachViewProgressTimeline';
@@ -47,10 +46,10 @@ export const StudentDetailDialog = ({ visible, coach, student, onHide, onShowRev
     const [priorWeeksValue, setPriorWeeksValue] = useState<number | null>(student?.prior_training_weeks ?? 0);
     const [isSavingPriorWeeks, setIsSavingPriorWeeks] = useState(false);
 
-    // End Date Editing
-    const [isEditingEndDate, setIsEditingEndDate] = useState(false);
-    const [endDateValue, setEndDateValue] = useState<Date | null>(student?.end_date ? new Date(student.end_date) : null);
-    const [isSavingEndDate, setIsSavingEndDate] = useState(false);
+    // 订阅周期编辑
+    const [isEditingSubscribedWeeks, setIsEditingSubscribedWeeks] = useState(false);
+    const [subscribedWeeksValue, setSubscribedWeeksValue] = useState<number | null>(student?.subscribed_weeks ?? null);
+    const [isSavingSubscribedWeeks, setIsSavingSubscribedWeeks] = useState(false);
 
     // 问卷编辑状态
     const [questionnaireVisible, setQuestionnaireVisible] = useState(false);
@@ -86,9 +85,9 @@ export const StudentDetailDialog = ({ visible, coach, student, onHide, onShowRev
         setIsSavingPriorWeeks(false);
         setPriorWeeksValue(student.prior_training_weeks ?? 0);
 
-        setIsEditingEndDate(false);
-        setIsSavingEndDate(false);
-        setEndDateValue(student.end_date ? new Date(student.end_date as any) : null);
+        setIsEditingSubscribedWeeks(false);
+        setIsSavingSubscribedWeeks(false);
+        setSubscribedWeeksValue(student.subscribed_weeks ?? null);
     }, [student?.id]);
 
     useEffect(() => {
@@ -142,22 +141,21 @@ export const StudentDetailDialog = ({ visible, coach, student, onHide, onShowRev
         }
     };
 
-    const getRemainingDuration = () => {
+    const getProjectedRemainingDuration = () => {
         const startDate = parseDateSafe(student?.start_date ?? null);
         
-        // 如果还没开始训练，显示"未开始"
         if (!startDate) {
-            return '未开始';
+            return '开始训练后会按实际执行节奏自动推算';
         }
         
         const endDate = parseDateSafe(student?.end_date ?? null);
         const now = new Date();
         
-        // 如果有 end_date（系统计算的预计完成日），显示预计剩余时间
         if (endDate) {
             const diff = endDate.getTime() - now.getTime();
             if (diff < 0) {
-                return '已过期';
+                const overdueDays = Math.ceil(Math.abs(diff) / (1000 * 60 * 60 * 24));
+                return `已超过原预计完成日 ${overdueDays} 天`;
             }
             const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
             if (days < 7) {
@@ -170,42 +168,44 @@ export const StudentDetailDialog = ({ visible, coach, student, onHide, onShowRev
             }
             return `预计剩余 ${weeks} 周 ${remainingDays} 天`;
         }
-        
-        // 如果没有 end_date，但已开始训练，根据 subscribed_weeks 估算
-        // 注意：这是粗略估算，实际应该由后端根据 credits 计算
-        const subscribedWeeks = student?.subscribed_weeks ?? 0;
-        if (subscribedWeeks > 0) {
-            // 粗略估算：假设每周训练 3 次，从开始日期算起
-            const elapsedDays = Math.floor((now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
-            const elapsedWeeks = Math.floor(elapsedDays / 7);
-            const remainingWeeks = Math.max(0, subscribedWeeks - elapsedWeeks);
-            if (remainingWeeks > 0) {
-                return `预计剩余约 ${remainingWeeks} 周（估算）`;
-            } else {
-                return '预计已完成';
-            }
+
+        if (!student?.plan) {
+            return '待分配计划后自动计算';
         }
-        
-        // 兜底：无法确定
-        return '待计算';
+
+        return '系统会按当前训练节奏自动计算';
     };
 
-    const saveEndDate = async () => {
+    const saveSubscribedWeeks = async () => {
         if (!student) return;
-        setIsSavingEndDate(true);
+        const nextSubscribedWeeks = Number(subscribedWeeksValue ?? 0);
+        if (!Number.isFinite(nextSubscribedWeeks) || nextSubscribedWeeks <= 0) {
+            showToast({ severity: 'warn', summary: '请输入大于 0 的订阅周数' });
+            return;
+        }
+
+        setIsSavingSubscribedWeeks(true);
         try {
-            await subscriptionService.updateSubscription({
+            const res = await subscriptionService.updateSubscription({
                 id: student.id,
-                end_date: endDateValue ? endDateValue.toISOString() : null,
+                subscribed_weeks: nextSubscribedWeeks,
             });
-            onStudentUpdate?.({ ...student, end_date: endDateValue ? endDateValue.toISOString() : null });
-            setIsEditingEndDate(false);
-            showToast({ severity: 'success', summary: '更新成功' });
+            onStudentUpdate?.({
+                ...student,
+                subscribed_weeks: nextSubscribedWeeks,
+                end_date: res?.subscription?.end_date ?? student.end_date,
+            });
+            setIsEditingSubscribedWeeks(false);
+            showToast({
+                severity: 'success',
+                summary: '更新成功',
+                detail: `购买周期已更新为 ${nextSubscribedWeeks} 周，预计完成日会随当前执行节奏联动刷新`,
+            });
         } catch (error) {
             console.error('保存失败:', error);
             showToast({ severity: 'error', summary: '保存失败' });
         } finally {
-            setIsSavingEndDate(false);
+            setIsSavingSubscribedWeeks(false);
         }
     };
 
@@ -291,9 +291,11 @@ export const StudentDetailDialog = ({ visible, coach, student, onHide, onShowRev
             return priorWeeks;
         }
         const now = new Date();
-        // 若已设置 end_date 且已过期，则平台内周数用 end_date 截止，避免“无限增长”
         const endDate = parseDateSafe(student.end_date);
-        const effectiveEnd = endDate && endDate.getTime() < now.getTime() ? endDate : now;
+        const effectiveEnd =
+            student.status !== 'active' && endDate && endDate.getTime() < now.getTime()
+                ? endDate
+                : now;
         const platformWeeks = Math.floor((effectiveEnd.getTime() - startDate.getTime()) / (7 * 24 * 60 * 60 * 1000));
         return priorWeeks + Math.max(0, platformWeeks);
     };
@@ -396,38 +398,53 @@ export const StudentDetailDialog = ({ visible, coach, student, onHide, onShowRev
                         <div className="bg-surface-50/50 p-3 rounded-2xl border border-surface-100 flex items-center gap-3">
                             <div className="w-8 h-8 rounded-xl bg-surface flex items-center justify-center text-orange-500 shadow-sm"><Clock size={16} /></div>
                             <div>
-                                <p className="text-[10px] font-bold text-surface-400 uppercase tracking-tighter">剩余时长</p>
-                                <div className="flex items-center gap-1">
-                                    {isEditingEndDate ? (
+                                <p className="text-[10px] font-bold text-surface-400 uppercase tracking-tighter">购买周期</p>
+                                <div className="flex flex-col gap-1.5">
+                                    {isEditingSubscribedWeeks ? (
                                         <div className="flex items-center gap-1">
-                                            <PRCalendar 
-                                                value={endDateValue} 
-                                                onChange={(e) => setEndDateValue(e.value as Date)} 
-                                                className="w-24 h-6 text-xs" 
-                                                inputClassName="p-1 px-2 text-xs font-black"
-                                                dateFormat="yy/mm/dd"
+                                            <AeroInputNumber
+                                                value={subscribedWeeksValue}
+                                                onValueChange={(e) => setSubscribedWeeksValue(e.value ?? null)}
+                                                min={1}
+                                                max={520}
+                                                suffix=" 周"
+                                                inputClassName="w-20 text-center text-xs font-black"
+                                                className="p-inputtext-sm"
                                             />
-                                              <Button
+                                            <Button
                                                 icon={<Check size={12} />}
                                                 className="p-button-success p-button-sm w-6 h-6 rounded-md p-0"
-                                                onClick={saveEndDate}
-                                                loading={isSavingEndDate}
+                                                onClick={saveSubscribedWeeks}
+                                                loading={isSavingSubscribedWeeks}
                                             />
                                             <Button
                                                 icon={<X size={12} />}
                                                 className="p-button-secondary p-button-text p-button-sm w-6 h-6 rounded-md p-0"
                                                 onClick={() => {
-                                                    setIsEditingEndDate(false);
-                                                    setEndDateValue(student.end_date ? new Date(student.end_date) : null);
+                                                    setIsEditingSubscribedWeeks(false);
+                                                    setSubscribedWeeksValue(student.subscribed_weeks ?? null);
                                                 }}
                                             />
                                         </div>
                                     ) : (
-                                        <div className="flex items-center gap-2 group cursor-pointer" onClick={() => setIsEditingEndDate(true)}>
-                                            <p className="text-xs font-black text-surface-700">{getRemainingDuration()}</p>
+                                        <div className="flex items-center gap-2 group cursor-pointer" onClick={() => setIsEditingSubscribedWeeks(true)}>
+                                            <p className="text-xs font-black text-surface-700">
+                                                {typeof student.subscribed_weeks === 'number' && student.subscribed_weeks > 0
+                                                    ? `已购 ${student.subscribed_weeks} 周`
+                                                    : '待设置'}
+                                            </p>
                                             <Edit2 size={12} className="text-primary opacity-70 hover:opacity-100 transition-all" />
                                         </div>
                                     )}
+                                    <p className="text-[11px] text-surface-500 font-medium">
+                                        预计完成：{formatDate(student.end_date, '系统将按当前训练节奏自动计算')}
+                                    </p>
+                                    <p className="text-[11px] text-surface-400">
+                                        {getProjectedRemainingDuration()}
+                                    </p>
+                                    <p className="text-[11px] text-surface-400">
+                                        购买周期和实际执行时长分开计算，延期执行时这里只会顺延预计完成日。
+                                    </p>
                                 </div>
                             </div>
                         </div>

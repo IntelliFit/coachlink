@@ -1,6 +1,7 @@
-// 获取会话详情 DTO
+// 获取会话详情 DTO：按成员查找/创建，或按 roomId 拉取（需当前用户在 members 内）
 export interface GetChatroomDto {
-    members: string[];
+    members?: string[];
+    roomId?: string;
 }
 
 export interface ChatroomDetail {

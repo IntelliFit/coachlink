@@ -5,6 +5,7 @@ import { CoachSubscriptionGetDto, QueryCoachSubscription } from './entity';
 import { CoachesRow, CoachSubscriptionRow } from '@/types';
 import { computeCreditsScope, computeUsedCredits, estimateRemainingDays } from '@/lib/subscriptionCredits';
 import { getSubscriptionLifecycle } from '@/lib/subscriptionLifecycle';
+import { deriveSubscriptionCarryoverSummaryFromHistory } from '@/lib/subscriptionCarryover';
 
 async function embeddingCaochesIntoSubscriptions(subscriptions: CoachSubscriptionRow[]) {
     const coachIds = Array.from(
@@ -432,10 +433,21 @@ export async function POST(req: Request) {
                     const weeks = Number(s.subscribed_weeks || 0);
                     if (!weeks || weeks <= 0) return;
 
+                    const subInstances = (instances || []).filter((item: any) =>
+                        item?.coach_subscription_id === s.id
+                    );
+                    const carryover = deriveSubscriptionCarryoverSummaryFromHistory({
+                        subscribedWeeks: weeks,
+                        instances: subInstances as any[],
+                        executions: (execs || []) as any[],
+                        excludeInstanceId: String(inst.id || ''),
+                        createdBefore: inst.created_at || null,
+                    });
+
                     const scope = computeCreditsScope({
                         trainingDays: (inst.training_days as any[]) || [],
                         startExecutionDay: Number(inst.start_execution_day || 1),
-                        subscribedWeeks: weeks,
+                        subscribedWeeks: carryover.remainingWeeks,
                     });
 
                     const totalCredits = scope.totalCredits;
@@ -458,7 +470,7 @@ export async function POST(req: Request) {
                     }
 
                     const remainingDaysEstimate = estimateRemainingDays({
-                        subscribedWeeks: weeks,
+                        cadenceWeeks: Math.max(1, carryover.remainingWeeks),
                         totalCredits,
                         remainingCredits,
                         fallbackCreditsPerWeek: 3,
