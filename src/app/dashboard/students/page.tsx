@@ -214,6 +214,7 @@ export default function StudentsPage() {
                 startWeek: config.startWeek,
                 startDay: config.startDay,
                 keepOriginalIndex: config.keepOriginalIndex,
+                useLLM: config.useLLM,
             });
 
             if (res) {
@@ -275,6 +276,7 @@ export default function StudentsPage() {
                 startWeek: config.startWeek,
                 startDay: config.startDay,
                 keepOriginalIndex: config.keepOriginalIndex,
+                useLLM: config.useLLM,
             });
 
             const successMap = new Map<string, any>();

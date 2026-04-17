@@ -11,6 +11,7 @@ export async function POST(req: Request) {
         startWeek = 1,
         startDay = 1,
         keepOriginalIndex = true,
+        useLLM = false,
     } = await req.json() as CreateAiInstanceDto;
 
     // Check if user is logged in
@@ -47,6 +48,7 @@ export async function POST(req: Request) {
             startWeek,
             startDay,
             keepOriginalIndex,
+            useLLM,
         });
 
         return NextResponse.json<ApiData<CreateAiInstanceResponseDto>>({
