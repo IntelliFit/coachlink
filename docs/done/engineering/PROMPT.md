@@ -225,3 +225,7 @@ git config --global i18n.logOutputEncoding utf-8
    git merge dev -m "merge: 同步dev到main"
    git push origin main
    ```
+
+### CI / Node 版本（简记）
+
+- 本项目含 **`isolated-vm` 等原生依赖**时，**Node 版本须与 `package.json` 的 `engines` 及 GitHub Actions / Dockerfile 对齐**（当前要求 **≥22**）；Alpine 构建需保证 builder 有编译链。详见 `docs/done/engineering/高频复发Bug清单.md` 第 18 条与 `代码检查清单.md` 中「CI / 构建环境」。

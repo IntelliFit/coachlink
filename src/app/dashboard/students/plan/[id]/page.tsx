@@ -24,6 +24,7 @@ import { coachService } from '@/app/service/coachService';
 import SelectTemplateDialog from './components/SelectTemplateDialog';
 import { GetTemplateResponseDto } from '@/app/api/plan-lib/get-template/entity';
 import { StudentProfilePanel } from './components/StudentProfilePanel';
+import { AiGenerationLogCard } from './components/AiGenerationLogCard';
 import { FormPlanTrainingDay } from '@/app/api/plan-lib/create-template/entity';
 import { PlanStartConfigDialog, PlanStartConfig } from './components/PlanStartConfigDialog';
 import { GetStudentResponseDto } from '@/app/api/coach/get-student/entity';
@@ -1176,6 +1177,12 @@ const StudentPlanPage = () => {
                         unreadCount={feedbackUnreadCount}
                         onAiSuggest={handleAiSuggestFromFeedbacks}
                     />
+
+                    {rawInstance?.ai_generation_log && (
+                        <AiGenerationLogCard
+                            aiGenerationLog={rawInstance.ai_generation_log}
+                        />
+                    )}
                 </div>
 
 
