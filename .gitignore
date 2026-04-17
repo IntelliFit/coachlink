@@ -41,3 +41,6 @@ tsconfig.tsbuildinfo
 wechat_app/dist-release/
 wechat_app/deploy_versions/
 wechat_app/.openclaw/
+
+.playwright-mcp
+screenshots
