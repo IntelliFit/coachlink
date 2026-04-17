@@ -1,0 +1,159 @@
+@font-face {
+  font-family: "iconfont"; /* Project id 5163112 */
+  src: url('iconfont.woff2?t=1776450787667') format('woff2'),
+       url('iconfont.woff?t=1776450787667') format('woff'),
+       url('iconfont.ttf?t=1776450787667') format('truetype');
+}
+
+.iconfont {
+  font-family: "iconfont" !important;
+  
+  font-style: normal;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.icon-tuichu:before {
+  content: "\e603";
+}
+
+.icon-pencil:before {
+  content: "\e790";
+}
+
+.icon-shenqingquanxian:before {
+  content: "\e640";
+}
+
+.icon-account-settings-variant:before {
+  content: "\e60a";
+}
+
+.icon-dumbbell:before {
+  content: "\e70d";
+}
+
+.icon-ranking:before {
+  content: "\e6ad";
+}
+
+.icon-location:before {
+  content: "\e791";
+}
+
+.icon-gengduo:before {
+  content: "\e612";
+}
+
+.icon-share:before {
+  content: "\e86e";
+}
+
+.icon-video:before {
+  content: "\e73b";
+}
+
+.icon-friends-o:before {
+  content: "\e64b";
+}
+
+.icon-dashboard:before {
+  content: "\e62d";
+}
+
+.icon-pinglun:before {
+  content: "\e8b4";
+}
+
+.icon-vips:before {
+  content: "\e662";
+}
+
+.icon-send:before {
+  content: "\e997";
+}
+
+.icon-knowledge:before {
+  content: "\e89d";
+}
+
+.icon-messages:before {
+  content: "\e671";
+}
+
+.icon-24px:before {
+  content: "\e60d";
+}
+
+.icon-discovery:before {
+  content: "\e654";
+}
+
+.icon-kaiji:before {
+  content: "\e626";
+}
+
+.icon-picture:before {
+  content: "\e67c";
+}
+
+.icon-time:before {
+  content: "\e680";
+}
+
+.icon-left:before {
+  content: "\e681";
+}
+
+.icon-right:before {
+  content: "\e683";
+}
+
+.icon-calculator:before {
+  content: "\e698";
+}
+
+.icon-traing:before {
+  content: "\e6a0";
+}
+
+.icon-coachline_line:before {
+  content: "\e633";
+}
+
+.icon-a-Trainingplan:before {
+  content: "\e7ab";
+}
+
+.icon-star:before {
+  content: "\eaaa";
+}
+
+.icon-jhk:before {
+  content: "\e899";
+}
+
+.icon-home:before {
+  content: "\e601";
+}
+
+.icon-goumaijilu:before {
+  content: "\e63a";
+}
+
+.icon-training_history:before {
+  content: "\e682";
+}
+
+.icon-setting:before {
+  content: "\e966";
+}
+
+.icon-login:before {
+  content: "\e657";
+}
+
+.icon-search:before {
+  content: "\ea56";
+}
+

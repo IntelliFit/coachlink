@@ -35,7 +35,8 @@ export default defineConfig<'vite'>(async (merge, { command, mode }) => {
     },
     copy: {
       patterns: [
-        { from: 'src/assets/favicon.svg', to: 'favicon.svg' }
+        { from: 'src/assets/favicon.svg', to: 'favicon.svg' },
+        { from: 'src/assets/iconfont/', to: 'assets/iconfont/' }
       ],
       options: {
       }

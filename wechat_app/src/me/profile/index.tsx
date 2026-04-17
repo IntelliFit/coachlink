@@ -5,22 +5,6 @@ import BottomNav from '@/components/BottomNav'
 import { authService } from '@/services/authService'
 import { coachService } from '@/services/coach/coachService'
 import { studentService } from '@/services/studentService'
-import currentPlanIcon from '@/assets/icons/profile/current-plan.svg'
-import myCoachesIcon from '@/assets/icons/profile/my-coaches.svg'
-import myMembershipIcon from '@/assets/icons/profile/my-membership.svg'
-import trainingHistoryIcon from '@/assets/icons/profile/training-history.svg'
-import myFriendsIcon from '@/assets/icons/profile/my-friends.svg'
-import messagesIcon from '@/assets/icons/profile/messages.svg'
-import actionLibraryIcon from '@/assets/icons/profile/action-library.svg'
-import knowledgeIcon from '@/assets/icons/profile/knowledge.svg'
-import planLibraryIcon from '@/assets/icons/profile/plan-library.svg'
-import rankIcon from '@/assets/icons/tabbar/rank.svg'
-import applyCoachIcon from '@/assets/icons/profile/apply-coach.svg'
-import profileSettingsIcon from '@/assets/icons/profile/profile-settings.svg'
-import accountSettingsIcon from '@/assets/icons/profile/account-settings.svg'
-import logoutIcon from '@/assets/icons/profile/logout.svg'
-import badgeStudentIcon from '@/assets/icons/profile/badge-student.svg'
-import badgePointsIcon from '@/assets/icons/profile/badge-points.svg'
 import './index.scss'
 
 interface MenuItem {
@@ -187,7 +171,7 @@ function Profile() {
     {
       key: 'current-plan',
       label: '全部计划',
-      icon: currentPlanIcon,
+      icon: 'icon-a-Trainingplan',
       iconBg: '#29C3A3',
       path: '/me/plan-history/index',
       requiresAuth: true
@@ -195,7 +179,7 @@ function Profile() {
     {
       key: 'my-coaches',
       label: '我的教练',
-      icon: myCoachesIcon,
+      icon: 'icon-coachline_line',
       iconBg: '#5C8DFF',
       path: '/me/my-coaches/index',
       requiresAuth: true
@@ -203,7 +187,7 @@ function Profile() {
     {
       key: 'my-membership',
       label: '我的会员',
-      icon: myMembershipIcon,
+      icon: 'icon-vips',
       iconBg: '#FFA940',
       path: '/me/membership/index',
       requiresAuth: true
@@ -211,7 +195,7 @@ function Profile() {
     {
       key: 'training-history',
       label: '训练记录',
-      icon: trainingHistoryIcon,
+      icon: 'icon-training_history',
       iconBg: '#FF7A7A',
       path: '/me/training-history/index',
       requiresAuth: true
@@ -222,7 +206,7 @@ function Profile() {
     {
       key: 'my-friends',
       label: '我的好友',
-      icon: myFriendsIcon,
+      icon: 'icon-friends-o',
       iconBg: '#7DC8FF',
       path: '/me/friends/index',
       requiresAuth: true
@@ -230,7 +214,7 @@ function Profile() {
     {
       key: 'messages',
       label: '消息中心',
-      icon: messagesIcon,
+      icon: 'icon-messages',
       iconBg: '#F97316',
       path: '/me/messages/index',
       requiresAuth: true
@@ -238,7 +222,7 @@ function Profile() {
     {
       key: 'action-library',
       label: '我的动作库',
-      icon: actionLibraryIcon,
+      icon: 'icon-dumbbell',
       iconBg: '#8FD3FE',
       path: '/me/action-lib/index',
       requiresAuth: true
@@ -246,7 +230,7 @@ function Profile() {
     {
       key: 'knowledge',
       label: '知识库',
-      icon: knowledgeIcon,
+      icon: 'icon-knowledge',
       iconBg: '#B39DDB',
       path: '/content/knowledge',
       requiresAuth: true
@@ -254,7 +238,7 @@ function Profile() {
     {
       key: 'plan-library',
       label: '我的计划库',
-      icon: planLibraryIcon,
+      icon: 'icon-a-Trainingplan',
       iconBg: '#FFD666',
       path: '/me/plan-lib/index',
       requiresAuth: true
@@ -262,7 +246,7 @@ function Profile() {
     {
       key: 'ranking',
       label: '排行榜',
-      icon: rankIcon,
+      icon: 'icon-ranking',
       iconBg: '#26A69A',
       path: '/discovery/ranking',
       requiresAuth: true
@@ -270,7 +254,7 @@ function Profile() {
     {
       key: 'purchase-history',
       label: '购买记录',
-      icon: planLibraryIcon,
+      icon: 'icon-goumaijilu',
       iconBg: '#722ed1',
       path: '/me/purchase-history/index',
       requiresAuth: true
@@ -283,7 +267,7 @@ function Profile() {
           ? [{
               key: 'switch-role',
               label: primaryRole === 'coach' ? '切换到学员端' : '切换到教练端',
-              icon: primaryRole === 'coach' ? badgeStudentIcon : applyCoachIcon,
+              icon: primaryRole === 'coach' ? 'icon-shenqingquanxian' : 'icon-coachline_line',
               iconBg: primaryRole === 'coach' ? '#29C3A3' : '#FFD700',
               action: handleSwitchRole,
               requiresAuth: true
@@ -292,14 +276,14 @@ function Profile() {
         ...(!isCoach ? [{
           key: 'apply-coach',
           label: '申请成为教练',
-          icon: applyCoachIcon,
+          icon: 'icon-shenqingquanxian',
           iconBg: '#FFD700',
           path: '/coach/application'
         }] : []),
         {
           key: 'profile-settings',
           label: '个人设置',
-          icon: profileSettingsIcon,
+          icon: 'icon-setting',
           iconBg: '#9FB3C8',
           action: handleProfileSettings,
           requiresAuth: true
@@ -307,7 +291,7 @@ function Profile() {
         {
           key: 'account-settings',
           label: '账户设置',
-          icon: accountSettingsIcon,
+          icon: 'icon-account-settings-variant',
           iconBg: '#B0BEC5',
           path: '/me/settings/index',
           requiresAuth: true
@@ -315,7 +299,7 @@ function Profile() {
         {
           key: 'logout',
           label: '退出登录',
-          icon: logoutIcon,
+          icon: 'icon-tuichu',
           iconBg: '#FFB6B6',
           action: handleLogout,
           requiresAuth: true
@@ -325,7 +309,7 @@ function Profile() {
         {
           key: 'login',
           label: '立即登录',
-          icon: accountSettingsIcon,
+          icon: 'icon-login',
           iconBg: '#29C3A3',
           action: () => openLogin('/me/profile/index'),
           badge: '推荐'
@@ -333,14 +317,14 @@ function Profile() {
         {
           key: 'register',
           label: '注册账号',
-          icon: profileSettingsIcon,
+          icon: 'icon-account-settings-variant',
           iconBg: '#5C8DFF',
           path: '/auth/register'
         },
         {
           key: 'apply-coach',
           label: '申请成为教练',
-          icon: applyCoachIcon,
+          icon: 'icon-shenqingquanxian',
           iconBg: '#FFD700',
           path: '/auth/onboarding'
         }
@@ -461,11 +445,11 @@ function Profile() {
             <Text className='user-subtitle'>{displaySubtitle}</Text>
             <View className='li_2'>
               <View className='centered'>
-                <Image className='badge-chip-icon' src={isAuthenticated && primaryRole === 'coach' ? applyCoachIcon : badgeStudentIcon} />
+                <Text className={`badge-chip-icon iconfont ${isAuthenticated && primaryRole === 'coach' ? 'icon-shenqingquanxian' : 'icon-coachline_line'}`} />
                 <Text className='badge-chip-text'>{roleBadgeText}</Text>
               </View>
               <View className='centered badge-spacing'>
-                <Image className='badge-chip-icon' src={badgePointsIcon} />
+                <Text className='badge-chip-icon iconfont icon-star' />
                 <Text className='badge-chip-text'>{statusBadgeText}</Text>
               </View>
             </View>
@@ -492,7 +476,7 @@ function Profile() {
               onClick={() => handleMenuClick(item)}
             >
               <View className='item-icon'>
-                <Image className='item-icon-img' src={item.icon} />
+                <Text className={`item-iconfont iconfont ${item.icon}`} />
               </View>
               <Text className='item-title'>{item.label}</Text>
             </View>
@@ -507,7 +491,7 @@ function Profile() {
               onClick={() => handleMenuClick(item)}
             >
               <View className='item-icon'>
-                <Image className='item-icon-img' src={item.icon} />
+                <Text className={`item-iconfont iconfont ${item.icon}`} />
               </View>
               <Text className='item-title'>{item.label}</Text>
               {item.badge && (
