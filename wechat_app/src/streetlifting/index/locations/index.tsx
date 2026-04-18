@@ -412,9 +412,9 @@ export default function StreetliftingLocations() {
   const primaryOverviewCards = useMemo(() => {
     if (!locationOverview) return []
     return [
-      { label: '全部点位', value: String(locationOverview.totalCount) },
-      { label: '带图片', value: String(locationOverview.withImagesCount) },
-      { label: '覆盖省份', value: String(locationOverview.provinceCount) }
+      { label: '全部点位', value: String(locationOverview.totalCount), icon: 'icon-location' },
+      { label: '带图片', value: String(locationOverview.withImagesCount), icon: 'icon-picture' },
+      { label: '覆盖省份', value: String(locationOverview.provinceCount), icon: 'icon-location' }
     ]
   }, [locationOverview])
 
@@ -487,6 +487,7 @@ export default function StreetliftingLocations() {
             <View className='loc-stats compact'>
               {primaryOverviewCards.map((item) => (
                 <View key={item.label} className='stat-card'>
+                  <Text className={`iconfont ${item.icon} stat-icon`} />
                   <Text className='stat-value'>{item.value}</Text>
                   <Text className='stat-label'>{item.label}</Text>
                 </View>

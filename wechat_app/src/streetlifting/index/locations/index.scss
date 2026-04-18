@@ -120,6 +120,15 @@
     background: #FAFAFA;
     border-radius: 24rpx;
     padding: 24rpx 16rpx;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .stat-icon {
+    font-size: 32rpx;
+    color: #CF6D4E;
+    margin-bottom: 8rpx;
   }
 
   .stat-value {
