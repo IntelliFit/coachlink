@@ -569,12 +569,22 @@
   }
 }
 
-.loc-card-meta {
+.loc-card-meta-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4rpx;
+  margin-bottom: 12rpx;
+}
+
+.loc-card-meta-item {
   display: block;
   font-size: 22rpx;
   color: #9CA3AF;
-  margin-bottom: 12rpx;
   line-height: 1.4;
+}
+
+.loc-card-meta-user {
+  color: #CF6D4E;
 }
 
 .loc-card-desc-row {

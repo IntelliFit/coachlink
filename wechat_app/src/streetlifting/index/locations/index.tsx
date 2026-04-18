@@ -660,11 +660,26 @@ export default function StreetliftingLocations() {
                       </View>
                     )}
                   </View>
-                  <Text className='loc-card-meta'>
-                    {[loc.province, loc.city, loc.county].filter(Boolean).join(' · ')}
-                    {(loc.contributor_name_snapshot || loc.user_contact) ? ` · ${getContributorLabel(loc)}` : ''}
-                    {loc.address ? ` · ${loc.address}` : ''}
-                  </Text>
+                  <View className='loc-card-meta-list'>
+                    <Text className='loc-card-meta-item'>
+                      {[loc.province, loc.city, loc.county].filter(Boolean).join(' · ')}
+                    </Text>
+                    {(loc.contributor_name_snapshot || loc.user_contact) && loc.contributor_user_id ? (
+                      <Text
+                        className='loc-card-meta-item loc-card-meta-user'
+                        onClick={() => Taro.navigateTo({ url: `/me/user/index?userId=${loc.contributor_user_id}` })}
+                      >
+                        贡献者：{getContributorLabel(loc)}
+                      </Text>
+                    ) : (loc.contributor_name_snapshot || loc.user_contact) ? (
+                      <Text className='loc-card-meta-item'>
+                        贡献者：{getContributorLabel(loc)}
+                      </Text>
+                    ) : null}
+                    {loc.address ? (
+                      <Text className='loc-card-meta-item'>{loc.address}</Text>
+                    ) : null}
+                  </View>
                   {loc.description ? (
                     <View className='loc-card-desc-row'>
                       <Text className='loc-card-desc' numberOfLines={2}>{loc.description}</Text>
