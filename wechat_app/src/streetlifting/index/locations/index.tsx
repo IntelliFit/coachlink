@@ -131,6 +131,7 @@ export default function StreetliftingLocations() {
   const [analysisSheetOpen, setAnalysisSheetOpen] = useState(false)
   const [leaderboardSheetOpen, setLeaderboardSheetOpen] = useState(false)
   const [rightsSheetOpen, setRightsSheetOpen] = useState(false)
+  const [activeTab, setActiveTab] = useState(0)
   const requestIdRef = useRef(0)
   const firstFilterEffectRef = useRef(true)
 
@@ -396,6 +397,14 @@ export default function StreetliftingLocations() {
     })
   }
 
+  const handleBack = () => {
+    Taro.navigateBack().catch(() => {
+      Taro.switchTab({ url: '/pages/index/index' }).catch(() => {
+        Taro.reLaunch({ url: '/pages/index/index' })
+      })
+    })
+  }
+
   const nearbyLocations = useMemo<NearbyLocation[]>(() => {
     if (!userLocation || mapPins.length === 0) return []
     return [...mapPins]
@@ -459,259 +468,300 @@ export default function StreetliftingLocations() {
     void fetchLocations(page + 1, true)
   }
 
+  const TAB_LIST = [
+    { key: 0, label: '单杠列表' },
+    { key: 1, label: '寻找单杠' },
+    { key: 2, label: '分享权益' }
+  ]
+
   return (
     <View className='loc-page'>
-      {/* ===== 概览卡片 ===== */}
-      <View className='loc-summary-card'>
-        <View className='loc-header compact'>
-          <View>
-            <Text className='loc-title'>寻找单杠</Text>
-            <Text className='loc-desc'>保留完整分析，但默认先收起来；你可以先看概览，再直接找附近和有图点位。</Text>
-          </View>
-          <View className='loc-header-actions'>
-            <View className='loc-summary-secondary' onClick={handleOpenMapMode}>
-              <Text className='iconfont icon-location' />
-              <Text>全国地图</Text>
-            </View>
-            <View className='loc-summary-action' onClick={handleLocateNearby}>
-              <Text>{locating ? '定位中…' : '定位我附近'}</Text>
-            </View>
-          </View>
+      {/* ===== 顶部导航栏 ===== */}
+      <View className='loc-nav-bar'>
+        <View className='loc-nav-back' onClick={handleBack}>
+          <Text className='iconfont icon-left' />
         </View>
+        <Text className='loc-nav-title'>寻找单杠</Text>
+        <View className='loc-nav-placeholder' />
+      </View>
 
-        {loadingOverview ? (
-          <View className='summary-loading'>
-            <Text>总览分析加载中…</Text>
+      {/* ===== Tab 导航 ===== */}
+      <View className='loc-tab-bar'>
+        {TAB_LIST.map((tab) => (
+          <View
+            key={tab.key}
+            className={`loc-tab-item ${activeTab === tab.key ? 'loc-tab-active' : ''}`}
+            onClick={() => setActiveTab(tab.key)}
+          >
+            <Text className='loc-tab-text'>{tab.label}</Text>
+            {activeTab === tab.key && <View className='loc-tab-indicator' />}
           </View>
-        ) : locationOverview ? (
-          <>
-            <View className='loc-stats compact'>
-              {primaryOverviewCards.map((item) => (
-                <View key={item.label} className='stat-card'>
-                  <Text className={`iconfont ${item.icon} stat-icon`} />
-                  <Text className='stat-value'>{item.value}</Text>
-                  <Text className='stat-label'>{item.label}</Text>
+        ))}
+      </View>
+
+      {/* ===== Tab 内容 ===== */}
+      <View className='loc-tab-content'>
+        {/* --- Tab 0: 单杠列表 --- */}
+        {activeTab === 0 && (
+          <View className='loc-tab-panel'>
+            <View className='loc-toolbar'>
+              <Input
+                className='search-input'
+                placeholder='搜索名称/省市/地址'
+                value={search}
+                onInput={(e) => setSearch(e.detail.value)}
+              />
+              <Picker
+                mode='selector'
+                range={['全部省份', ...provinces]}
+                value={province === 'all' ? 0 : Math.max(0, provinces.indexOf(province) + 1)}
+                onChange={(e) => {
+                  const i = Number(e.detail.value)
+                  setProvince(i === 0 ? 'all' : (provinces[i - 1] || 'all'))
+                }}
+              >
+                <View className='picker-province'>{province === 'all' ? '全部省份' : province}</View>
+              </Picker>
+            </View>
+
+            <ScrollView
+              className='loc-scroll'
+              scrollY
+              onScrollToLower={loadMore}
+              lowerThreshold={100}
+            >
+              {loading && locations.length === 0 ? (
+                <View className='loading-wrap'><Text>加载中…</Text></View>
+              ) : locations.length === 0 ? (
+                <View className='empty-wrap'>
+                  <Text>暂无地点信息</Text>
+                  <Text className='empty-hint'>成为第一个分享者吧</Text>
                 </View>
-              ))}
-            </View>
-
-            <View className='loc-view-more-btn' onClick={() => setAnalysisSheetOpen(true)}>
-              <Text>查看更多</Text>
-            </View>
-
-
-          </>
-        ) : (
-          <View className='summary-loading'>
-            <Text>暂时没有可展示的总览分析</Text>
+              ) : (
+                <View className='loc-list'>
+                  {locations.map((loc) => (
+                    <View key={loc.id} className='loc-card'>
+                      <View className='loc-card-image-wrap'>
+                        {getLocationImages(loc).length > 0 ? (
+                          <Image
+                            className='loc-card-img'
+                            src={getLocationImages(loc)[0]}
+                            mode='aspectFill'
+                          />
+                        ) : (
+                          <View className='loc-card-noimg'>
+                            <Text>暂无图片</Text>
+                          </View>
+                        )}
+                        {hasLocationImages(loc) && (
+                          <View className='loc-card-badge'>
+                            <Text>{getLocationImages(loc).length} 张图</Text>
+                          </View>
+                        )}
+                        <View className='loc-card-img-share' onClick={() => handleShare(loc)}>
+                          <Text className='iconfont icon-share' />
+                        </View>
+                      </View>
+                      <View className='loc-card-body'>
+                        <View className='loc-card-title-row'>
+                          <Text className='loc-card-name'>{loc.name}</Text>
+                          {loc.latitude != null && loc.longitude != null && (
+                            <View
+                              className='loc-card-map-btn'
+                              onClick={() => openLocationInMap({
+                                name: loc.name,
+                                latitude: loc.latitude as number,
+                                longitude: loc.longitude as number,
+                                address: [loc.province, loc.city, loc.county, loc.address].filter(Boolean).join(' ')
+                              })}
+                            >
+                              <Text className='iconfont icon-location' />
+                            </View>
+                          )}
+                        </View>
+                        <View className='loc-card-meta-list'>
+                          <Text className='loc-card-meta-item'>
+                            {[loc.province, loc.city, loc.county].filter(Boolean).join(' · ')}
+                          </Text>
+                          {(loc.contributor_name_snapshot || loc.user_contact) && loc.contributor_user_id ? (
+                            <Text
+                              className='loc-card-meta-item loc-card-meta-user'
+                              onClick={() => Taro.navigateTo({ url: `/me/user/index?userId=${loc.contributor_user_id}` })}
+                            >
+                              贡献者：{getContributorLabel(loc)}
+                            </Text>
+                          ) : (loc.contributor_name_snapshot || loc.user_contact) ? (
+                            <Text className='loc-card-meta-item'>
+                              贡献者：{getContributorLabel(loc)}
+                            </Text>
+                          ) : null}
+                          {loc.address ? (
+                            <Text className='loc-card-meta-item'>{loc.address}</Text>
+                          ) : null}
+                        </View>
+                        {loc.description ? (
+                          <View className='loc-card-desc-row'>
+                            <Text className='loc-card-desc' numberOfLines={2}>{loc.description}</Text>
+                            <View className='loc-card-edit-btn' onClick={() => openEdit(loc)}>
+                              <Text className='iconfont icon-pencil' />
+                            </View>
+                          </View>
+                        ) : (
+                          <View className='loc-card-desc-row'>
+                            <View style={{ flex: 1 }} />
+                            <View className='loc-card-edit-btn' onClick={() => openEdit(loc)}>
+                              <Text className='iconfont icon-pencil' />
+                            </View>
+                          </View>
+                        )}
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              )}
+              {loading && locations.length > 0 && <View className='loading-more'><Text>加载中…</Text></View>}
+              {hasMore && !loading && (
+                <View className='load-more' onClick={loadMore}><Text>加载更多</Text></View>
+              )}
+            </ScrollView>
           </View>
         )}
 
-        {userLocation && (
-          <View className='user-location-row'>
-            <Text className='user-location-text'>
-              已获取当前位置，可直接在地图中打开最近的单杠点位
-            </Text>
-          </View>
-        )}
-
-        {nearbyLocations.length > 0 && (
-          <View className='nearby-section'>
-            <Text className='nearby-title'>离你最近</Text>
-            <View className='nearby-list'>
-              {nearbyLocations.map((item) => (
-                <View key={item.id} className='nearby-item'>
-                  <View className='nearby-item-main'>
-                    <Text className='nearby-name'>{item.name}</Text>
-                    <Text className='nearby-distance'>{item.distanceKm < 1 ? `${Math.round(item.distanceKm * 1000)}m` : `${item.distanceKm.toFixed(1)}km`}</Text>
-                  </View>
-                  <View className='nearby-map-btn' onClick={() => openLocationInMap(item)}>
+        {/* --- Tab 1: 寻找单杠（概览） --- */}
+        {activeTab === 1 && (
+          <View className='loc-tab-panel'>
+            <View className='loc-summary-card'>
+              <View className='loc-header compact'>
+                <View>
+                  <Text className='loc-title'>寻找单杠</Text>
+                  <Text className='loc-desc'>保留完整分析，但默认先收起来；你可以先看概览，再直接找附近和有图点位。</Text>
+                </View>
+                <View className='loc-header-actions'>
+                  <View className='loc-summary-secondary' onClick={handleOpenMapMode}>
                     <Text className='iconfont icon-location' />
-                    <Text>地图查看</Text>
+                    <Text>全国地图</Text>
                   </View>
-                </View>
-              ))}
-            </View>
-          </View>
-        )}
-      </View>
-
-      {/* ===== 分享数据卡片（包含贡献榜） ===== */}
-      <View className='share-data-card'>
-        <View className='share-data-head'>
-          <Text className='share-data-title'>分享您的单杠数据领取更多权益</Text>
-          <View className='share-data-rights-hint' onClick={() => setRightsSheetOpen(true)}>
-            <Text>?</Text>
-          </View>
-        </View>
-        <View className='btn-share-my-bar' onClick={openCreate}>
-          <Text className='iconfont icon-location' />
-          <Text>分享我的单杠位置</Text>
-        </View>
-
-        <View className='contribution-mini'>
-          <View className='contribution-mini-head'>
-            <Text className='contribution-mini-title'>单杠贡献排行榜</Text>
-          </View>
-
-          {loadingContributors ? (
-            <View className='contribution-loading'>
-              <Text>贡献榜加载中…</Text>
-            </View>
-          ) : contributors.length === 0 ? (
-            <View className='contribution-empty'>
-              <Text>当前可识别的署名贡献还不多，新的分享会开始累计上榜。</Text>
-            </View>
-          ) : (
-            <View className='contribution-list'>
-              {displayContributors.map((item, index) => (
-                <View key={item.contributor_key} className='contribution-item'>
-                  <View className='contribution-rank'>
-                    <Text>{index + 1}</Text>
+                  <View className='loc-summary-action' onClick={handleLocateNearby}>
+                    <Text>{locating ? '定位中…' : '定位我附近'}</Text>
                   </View>
-                  <View className='contribution-main'>
-                    <Text className='contribution-name'>{formatContributorName(item.display_name)}</Text>
-                    <Text className='contribution-meta'>
-                      {item.upload_count} 次上传 · 详细度 {item.detail_score_total} 分 · {item.image_count_total} 张图
-                    </Text>
-                  </View>
-                  <View className='contribution-score'>
-                    <Text className='contribution-score-value'>{item.contribution_score}</Text>
-                    <Text className='contribution-score-label'>贡献分</Text>
-                  </View>
-                </View>
-              ))}
-            </View>
-          )}
-        </View>
-
-        <View className='contribution-view-more' onClick={() => setLeaderboardSheetOpen(true)}>
-          <Text>查看更多</Text>
-        </View>
-      </View>
-
-      {/* ===== 搜索工具栏 ===== */}
-      <View className='loc-toolbar'>
-        <Input
-          className='search-input'
-          placeholder='搜索名称/省市/地址'
-          value={search}
-          onInput={(e) => setSearch(e.detail.value)}
-        />
-        <Picker
-          mode='selector'
-          range={['全部省份', ...provinces]}
-          value={province === 'all' ? 0 : Math.max(0, provinces.indexOf(province) + 1)}
-          onChange={(e) => {
-            const i = Number(e.detail.value)
-            setProvince(i === 0 ? 'all' : (provinces[i - 1] || 'all'))
-          }}
-        >
-          <View className='picker-province'>{province === 'all' ? '全部省份' : province}</View>
-        </Picker>
-      </View>
-
-      {/* ===== 地点列表 ===== */}
-      <ScrollView
-        className='loc-scroll'
-        scrollY
-        onScrollToLower={loadMore}
-        lowerThreshold={100}
-      >
-        {loading && locations.length === 0 ? (
-          <View className='loading-wrap'><Text>加载中…</Text></View>
-        ) : locations.length === 0 ? (
-          <View className='empty-wrap'>
-            <Text>暂无地点信息</Text>
-            <Text className='empty-hint'>成为第一个分享者吧</Text>
-          </View>
-        ) : (
-          <View className='loc-list'>
-            {locations.map((loc) => (
-              <View key={loc.id} className='loc-card'>
-                <View className='loc-card-image-wrap'>
-                  {getLocationImages(loc).length > 0 ? (
-                    <Image
-                      className='loc-card-img'
-                      src={getLocationImages(loc)[0]}
-                      mode='aspectFill'
-                    />
-                  ) : (
-                    <View className='loc-card-noimg'>
-                      <Text>暂无图片</Text>
-                    </View>
-                  )}
-                  {hasLocationImages(loc) && (
-                    <View className='loc-card-badge'>
-                      <Text>{getLocationImages(loc).length} 张图</Text>
-                    </View>
-                  )}
-                  <View className='loc-card-img-share' onClick={() => handleShare(loc)}>
-                    <Text className='iconfont icon-share' />
-                  </View>
-                </View>
-                <View className='loc-card-body'>
-                  <View className='loc-card-title-row'>
-                    <Text className='loc-card-name'>{loc.name}</Text>
-                    {loc.latitude != null && loc.longitude != null && (
-                      <View
-                        className='loc-card-map-btn'
-                        onClick={() => openLocationInMap({
-                          name: loc.name,
-                          latitude: loc.latitude as number,
-                          longitude: loc.longitude as number,
-                          address: [loc.province, loc.city, loc.county, loc.address].filter(Boolean).join(' ')
-                        })}
-                      >
-                        <Text className='iconfont icon-location' />
-                      </View>
-                    )}
-                  </View>
-                  <View className='loc-card-meta-list'>
-                    <Text className='loc-card-meta-item'>
-                      {[loc.province, loc.city, loc.county].filter(Boolean).join(' · ')}
-                    </Text>
-                    {(loc.contributor_name_snapshot || loc.user_contact) && loc.contributor_user_id ? (
-                      <Text
-                        className='loc-card-meta-item loc-card-meta-user'
-                        onClick={() => Taro.navigateTo({ url: `/me/user/index?userId=${loc.contributor_user_id}` })}
-                      >
-                        贡献者：{getContributorLabel(loc)}
-                      </Text>
-                    ) : (loc.contributor_name_snapshot || loc.user_contact) ? (
-                      <Text className='loc-card-meta-item'>
-                        贡献者：{getContributorLabel(loc)}
-                      </Text>
-                    ) : null}
-                    {loc.address ? (
-                      <Text className='loc-card-meta-item'>{loc.address}</Text>
-                    ) : null}
-                  </View>
-                  {loc.description ? (
-                    <View className='loc-card-desc-row'>
-                      <Text className='loc-card-desc' numberOfLines={2}>{loc.description}</Text>
-                      <View className='loc-card-edit-btn' onClick={() => openEdit(loc)}>
-                        <Text className='iconfont icon-pencil' />
-                      </View>
-                    </View>
-                  ) : (
-                    <View className='loc-card-desc-row'>
-                      <View style={{ flex: 1 }} />
-                      <View className='loc-card-edit-btn' onClick={() => openEdit(loc)}>
-                        <Text className='iconfont icon-pencil' />
-                      </View>
-                    </View>
-                  )}
                 </View>
               </View>
-            ))}
+
+              {loadingOverview ? (
+                <View className='summary-loading'>
+                  <Text>总览分析加载中…</Text>
+                </View>
+              ) : locationOverview ? (
+                <>
+                  <View className='loc-stats compact'>
+                    {primaryOverviewCards.map((item) => (
+                      <View key={item.label} className='stat-card'>
+                        <Text className={`iconfont ${item.icon} stat-icon`} />
+                        <Text className='stat-value'>{item.value}</Text>
+                        <Text className='stat-label'>{item.label}</Text>
+                      </View>
+                    ))}
+                  </View>
+
+                  <View className='loc-view-more-btn' onClick={() => setAnalysisSheetOpen(true)}>
+                    <Text>查看更多</Text>
+                  </View>
+                </>
+              ) : (
+                <View className='summary-loading'>
+                  <Text>暂时没有可展示的总览分析</Text>
+                </View>
+              )}
+
+              {userLocation && (
+                <View className='user-location-row'>
+                  <Text className='user-location-text'>
+                    已获取当前位置，可直接在地图中打开最近的单杠点位
+                  </Text>
+                </View>
+              )}
+
+              {nearbyLocations.length > 0 && (
+                <View className='nearby-section'>
+                  <Text className='nearby-title'>离你最近</Text>
+                  <View className='nearby-list'>
+                    {nearbyLocations.map((item) => (
+                      <View key={item.id} className='nearby-item'>
+                        <View className='nearby-item-main'>
+                          <Text className='nearby-name'>{item.name}</Text>
+                          <Text className='nearby-distance'>{item.distanceKm < 1 ? `${Math.round(item.distanceKm * 1000)}m` : `${item.distanceKm.toFixed(1)}km`}</Text>
+                        </View>
+                        <View className='nearby-map-btn' onClick={() => openLocationInMap(item)}>
+                          <Text className='iconfont icon-location' />
+                          <Text>地图查看</Text>
+                        </View>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              )}
+            </View>
           </View>
         )}
-        {loading && locations.length > 0 && <View className='loading-more'><Text>加载中…</Text></View>}
-        {hasMore && !loading && (
-          <View className='load-more' onClick={loadMore}><Text>加载更多</Text></View>
+
+        {/* --- Tab 2: 分享权益 --- */}
+        {activeTab === 2 && (
+          <View className='loc-tab-panel'>
+            <View className='share-data-card'>
+              <View className='share-data-head'>
+                <Text className='share-data-title'>分享您的单杠数据领取更多权益</Text>
+                <View className='share-data-rights-hint' onClick={() => setRightsSheetOpen(true)}>
+                  <Text>?</Text>
+                </View>
+              </View>
+              <View className='btn-share-my-bar' onClick={openCreate}>
+                <Text className='iconfont icon-location' />
+                <Text>分享我的单杠位置</Text>
+              </View>
+
+              <View className='contribution-mini'>
+                <View className='contribution-mini-head'>
+                  <Text className='contribution-mini-title'>单杠贡献排行榜</Text>
+                </View>
+
+                {loadingContributors ? (
+                  <View className='contribution-loading'>
+                    <Text>贡献榜加载中…</Text>
+                  </View>
+                ) : contributors.length === 0 ? (
+                  <View className='contribution-empty'>
+                    <Text>当前可识别的署名贡献还不多，新的分享会开始累计上榜。</Text>
+                  </View>
+                ) : (
+                  <View className='contribution-list'>
+                    {displayContributors.map((item, index) => (
+                      <View key={item.contributor_key} className='contribution-item'>
+                        <View className='contribution-rank'>
+                          <Text>{index + 1}</Text>
+                        </View>
+                        <View className='contribution-main'>
+                          <Text className='contribution-name'>{formatContributorName(item.display_name)}</Text>
+                          <Text className='contribution-meta'>
+                            {item.upload_count} 次上传 · 详细度 {item.detail_score_total} 分 · {item.image_count_total} 张图
+                          </Text>
+                        </View>
+                        <View className='contribution-score'>
+                          <Text className='contribution-score-value'>{item.contribution_score}</Text>
+                          <Text className='contribution-score-label'>贡献分</Text>
+                        </View>
+                      </View>
+                    ))}
+                  </View>
+                )}
+              </View>
+
+              <View className='contribution-view-more' onClick={() => setLeaderboardSheetOpen(true)}>
+                <Text>查看更多</Text>
+              </View>
+            </View>
+          </View>
         )}
-      </ScrollView>
+      </View>
 
       {/* ===== 分析数据底部弹窗 ===== */}
       {analysisSheetOpen && (
@@ -822,7 +872,6 @@ export default function StreetliftingLocations() {
                   ))}
                 </View>
               )}
-
             </ScrollView>
           </View>
         </View>
