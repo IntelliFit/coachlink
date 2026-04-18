@@ -130,6 +130,7 @@ export default function StreetliftingLocations() {
   const [contributors, setContributors] = useState<StreetliftingLocationContributor[]>([])
   const [analysisSheetOpen, setAnalysisSheetOpen] = useState(false)
   const [leaderboardSheetOpen, setLeaderboardSheetOpen] = useState(false)
+  const [rightsSheetOpen, setRightsSheetOpen] = useState(false)
   const requestIdRef = useRef(0)
   const firstFilterEffectRef = useRef(true)
 
@@ -537,7 +538,12 @@ export default function StreetliftingLocations() {
 
       {/* ===== 分享数据卡片（包含贡献榜） ===== */}
       <View className='share-data-card'>
-        <Text className='share-data-title'>分享您的单杠数据领取更多权益</Text>
+        <View className='share-data-head'>
+          <Text className='share-data-title'>分享您的单杠数据领取更多权益</Text>
+          <View className='share-data-rights-hint' onClick={() => setRightsSheetOpen(true)}>
+            <Text>?</Text>
+          </View>
+        </View>
         <View className='btn-share-my-bar' onClick={openCreate}>
           <Text className='iconfont icon-location' />
           <Text>分享我的单杠位置</Text>
@@ -817,6 +823,22 @@ export default function StreetliftingLocations() {
                 </View>
               )}
 
+            </ScrollView>
+          </View>
+        </View>
+      )}
+
+      {/* ===== 权益说明底部弹窗 ===== */}
+      {rightsSheetOpen && (
+        <View className='sheet-mask' onClick={() => setRightsSheetOpen(false)}>
+          <View className='sheet-box' onClick={(e) => e.stopPropagation()}>
+            <View className='sheet-header'>
+              <Text className='sheet-title'>贡献权益说明</Text>
+              <View className='sheet-close' onClick={() => setRightsSheetOpen(false)}>
+                <Text>×</Text>
+              </View>
+            </View>
+            <ScrollView scrollY className='sheet-scroll'>
               <View className='contribution-rights-note'>
                 <Text>权益方向：贡献徽章、内测优先权、训练资料兑换等都会优先参考这份贡献分，后续可以直接映射到产品权益体系。</Text>
               </View>
