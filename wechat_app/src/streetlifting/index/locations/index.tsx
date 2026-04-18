@@ -471,6 +471,75 @@ export default function StreetliftingLocations() {
     { key: 2, label: '贡献排行榜' }
   ]
 
+  const renderSkeleton = () => {
+    if (activeTab === 0) {
+      // Tab 0: 地点卡片骨架 ×3
+      return (
+        <View className='loc-skeleton-wrap'>
+          {[1, 2, 3].map((i) => (
+            <View key={`loc-${i}`} className='loc-skeleton-card'>
+              <View className='loc-skeleton-img' />
+              <View className='loc-skeleton-body'>
+                <View className='loc-skeleton-line' style={{ width: '60%', height: '32rpx', marginBottom: '12rpx' }} />
+                <View className='loc-skeleton-line' style={{ width: '40%', height: '24rpx', marginBottom: '8rpx' }} />
+                <View className='loc-skeleton-line' style={{ width: '80%', height: '24rpx', marginBottom: '8rpx' }} />
+                <View className='loc-skeleton-line' style={{ width: '50%', height: '24rpx' }} />
+              </View>
+            </View>
+          ))}
+        </View>
+      )
+    }
+    if (activeTab === 1) {
+      // Tab 1: 统计卡片 + 二级统计 + 图表骨架
+      return (
+        <View className='loc-skeleton-wrap'>
+          {/* 主统计骨架 */}
+          <View className='loc-stats compact skeleton-stats'>
+            {[1, 2, 3].map((i) => (
+              <View key={`stat-${i}`} className='stat-card skeleton-stat'>
+                <View className='skeleton-circle' style={{ width: '40rpx', height: '40rpx', marginBottom: '8rpx' }} />
+                <View className='loc-skeleton-line' style={{ width: '50%', height: '36rpx', marginBottom: '8rpx' }} />
+                <View className='loc-skeleton-line' style={{ width: '60%', height: '24rpx' }} />
+              </View>
+            ))}
+          </View>
+          {/* 按钮骨架 */}
+          <View className='loc-header-actions skeleton-actions'>
+            <View className='loc-skeleton-line' style={{ flex: 1, height: '80rpx', borderRadius: '16rpx' }} />
+            <View className='loc-skeleton-line' style={{ flex: 1, height: '80rpx', borderRadius: '16rpx' }} />
+          </View>
+          {/* 二级统计骨架 */}
+          <View className='overview-secondary-stats skeleton-secondary'>
+            {[1, 2, 3, 4, 5].map((i) => (
+              <View key={`sec-${i}`} className='overview-secondary-card skeleton-sec-card'>
+                <View className='skeleton-circle' style={{ width: '32rpx', height: '32rpx', marginBottom: '8rpx' }} />
+                <View className='loc-skeleton-line' style={{ width: '70%', height: '24rpx', marginBottom: '8rpx' }} />
+                <View className='loc-skeleton-line' style={{ width: '50%', height: '32rpx', marginBottom: '8rpx' }} />
+                <View className='loc-skeleton-line' style={{ width: '80%', height: '20rpx' }} />
+              </View>
+            ))}
+          </View>
+        </View>
+      )
+    }
+    // Tab 2: 排行榜条目骨架 ×5
+    return (
+      <View className='loc-skeleton-wrap'>
+        {[1, 2, 3, 4, 5].map((i) => (
+          <View key={`rank-${i}`} className='contribution-item skeleton-rank-item'>
+            <View className='skeleton-circle' style={{ width: '48rpx', height: '48rpx', flexShrink: 0 }} />
+            <View className='skeleton-rank-meta'>
+              <View className='loc-skeleton-line' style={{ width: '40%', height: '28rpx', marginBottom: '8rpx' }} />
+              <View className='loc-skeleton-line' style={{ width: '70%', height: '22rpx' }} />
+            </View>
+            <View className='loc-skeleton-line' style={{ width: '80rpx', height: '32rpx', flexShrink: 0 }} />
+          </View>
+        ))}
+      </View>
+    )
+  }
+
   return (
     <View className='loc-page'>
       {/* ===== 分享按钮 ===== */}
@@ -525,7 +594,7 @@ export default function StreetliftingLocations() {
               lowerThreshold={100}
             >
               {loading && locations.length === 0 ? (
-                <View className='loading-wrap'><Text>加载中…</Text></View>
+                renderSkeleton()
               ) : locations.length === 0 ? (
                 <View className='empty-wrap'>
                   <Text>暂无地点信息</Text>
@@ -641,9 +710,7 @@ export default function StreetliftingLocations() {
               </View>
 
               {loadingOverview ? (
-                <View className='summary-loading'>
-                  <Text>总览分析加载中…</Text>
-                </View>
+                renderSkeleton()
               ) : locationOverview ? (
                 <>
                   <View className='loc-stats compact'>
@@ -758,9 +825,7 @@ export default function StreetliftingLocations() {
               </View>
 
               {loadingContributors ? (
-                <View className='contribution-loading'>
-                  <Text>贡献榜加载中…</Text>
-                </View>
+                renderSkeleton()
               ) : contributors.length === 0 ? (
                 <View className='contribution-empty'>
                   <Text>当前可识别的署名贡献还不多，新的分享会开始累计上榜。</Text>
