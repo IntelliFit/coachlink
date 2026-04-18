@@ -76,10 +76,6 @@ export async function request<T = any>(options: RequestOptions): Promise<ApiResp
       timeout: 30000
     })
 
-    console.log(`📥 响应状态: ${response.statusCode}`)
-    console.log('📥 响应数据:', response.data)
-    console.log('📥 响应头:', response.header)
-
     // 检查HTTP状态码
     if (response.statusCode !== 200) {
       const body = response.data
