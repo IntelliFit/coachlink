@@ -22,6 +22,8 @@ import {
   BARBELL_CURL_MULTIPLIER
 } from '@/utils/streetliftingCalc'
 import { streetliftingIndexService, type StreetliftingFormula } from '@/services/streetliftingIndexService'
+import { studentService } from '@/services/studentService'
+import { authService } from '@/services/authService'
 import './index.scss'
 
 const EXERCISE_OPTIONS: { label: string; value: ExerciseType }[] = [
@@ -61,6 +63,13 @@ type CalcResult = {
   adjusted_used_weight?: number
 }
 
+function normalizeGender(g: string): Gender | null {
+  const s = String(g).toLowerCase().trim()
+  if (s === 'male' || s === 'm' || s === '男' || s === '1') return 'Male'
+  if (s === 'female' || s === 'f' || s === '女' || s === '0' || s === '2') return 'Female'
+  return null
+}
+
 export default function StreetliftingCalculator() {
   const [exerciseType, setExerciseType] = useState<ExerciseType>('weighted_pullup')
   const [mode, setMode] = useState<CalcMode>('forward')
@@ -81,6 +90,7 @@ export default function StreetliftingCalculator() {
   const [submitting, setSubmitting] = useState(false)
   const [result, setResult] = useState<CalcResult | null>(null)
 
+  // 加载公式 + 读取用户档案默认值
   useEffect(() => {
     let cancelled = false
     const run = async () => {
@@ -101,6 +111,23 @@ export default function StreetliftingCalculator() {
         }
       } finally {
         if (!cancelled) setLoadingFormula(false)
+      }
+
+      // 读取用户档案，自动填充性别和体重
+      try {
+        const session = authService.getAuthSession({ normalize: true })
+        if (session.isAuthenticated && session.user?.id) {
+          const profileRes = await studentService.getStudentProfile(session.user.id)
+          const profile = profileRes?.profile
+          if (profile && !cancelled) {
+            const g = normalizeGender(profile.gender)
+            if (g) setGender(g)
+            const w = Number(profile.weight)
+            if (Number.isFinite(w) && w > 0) setBodyweight(String(w))
+          }
+        }
+      } catch (e) {
+        console.error('[calculator] load profile error:', e)
       }
     }
     run()
@@ -300,196 +327,209 @@ export default function StreetliftingCalculator() {
     ? generateRMTable(isUpperBodyExercise(exerciseType) ? bwNum : 0, result.estimated_1rm)
     : []
 
+  const scoreLabel = isUpperBodyExercise(exerciseType) || isBenchBasedExercise(exerciseType) ? '力量分' : 'DOTS 分'
+  const scoreUnit = isUpperBodyExercise(exerciseType) ? '' : ''
+  const scoreDecimals = isUpperBodyExercise(exerciseType) ? 0 : 1
+  const oneRMLabel = isUpperBodyExercise(exerciseType) ? '估算负重 1RM' : '估算 1RM'
+
   return (
     <View className='calc-page'>
       <ScrollView className='calc-scroll' scrollY>
         <View className='calc-card'>
-          <Text className='calc-title'>力量分计算器</Text>
-          <Text className='calc-desc'>与网页端 coachlink.fit 逻辑一致，无需跳转网页。</Text>
-
-          <View className='form-row'>
-            <Text className='label'>运动类型</Text>
-            <Picker
-              mode='selector'
-              range={EXERCISE_OPTIONS}
-              rangeKey='label'
-              value={EXERCISE_OPTIONS.findIndex((o) => o.value === exerciseType)}
-              onChange={(e) => {
-                const i = Number(e.detail.value)
-                if (i >= 0) setExerciseType(EXERCISE_OPTIONS[i].value)
-                setResult(null)
-              }}
-            >
-              <View className='picker-value'>{EXERCISE_OPTIONS.find((o) => o.value === exerciseType)?.label || '请选择'}</View>
-            </Picker>
-          </View>
-
-          <View className='form-row'>
-            <Text className='label'>计算模式</Text>
-            <Picker
-              mode='selector'
-              range={MODE_OPTIONS}
-              rangeKey='label'
-              value={MODE_OPTIONS.findIndex((o) => o.value === mode)}
-              onChange={(e) => {
-                const i = Number(e.detail.value)
-                if (i >= 0) setMode(MODE_OPTIONS[i].value)
-                setResult(null)
-              }}
-            >
-              <View className='picker-value'>{MODE_OPTIONS.find((o) => o.value === mode)?.label || '请选择'}</View>
-            </Picker>
-          </View>
-
-          <View className='form-row'>
-            <Text className='label'>性别</Text>
-            <Picker
-              mode='selector'
-              range={GENDER_OPTIONS}
-              rangeKey='label'
-              value={gender ? GENDER_OPTIONS.findIndex((o) => o.value === gender) : 0}
-              onChange={(e) => {
-                const i = Number(e.detail.value)
-                if (i >= 0) setGender(GENDER_OPTIONS[i].value)
-                setResult(null)
-              }}
-            >
-              <View className='picker-value'>{gender ? GENDER_OPTIONS.find((o) => o.value === gender)?.label : '请选择'}</View>
-            </Picker>
-          </View>
-
-          <View className='form-row'>
-            <Text className='label'>体重（kg）</Text>
-            <Input
-              className='input'
-              type='digit'
-              placeholder='例如 70.5'
-              value={bodyweight}
-              onInput={(e) => { setBodyweight(e.detail.value); setResult(null) }}
-            />
-          </View>
-
-          {isUpperBodyExercise(exerciseType) && mode === 'forward' && (
+          {/* 表单区域 */}
+          <View className='calc-form-wrap'>
             <View className='form-row'>
-              <Text className='label'>附加负重（kg）</Text>
+              <Text className='label'>运动类型</Text>
+              <Picker
+                mode='selector'
+                range={EXERCISE_OPTIONS}
+                rangeKey='label'
+                value={EXERCISE_OPTIONS.findIndex((o) => o.value === exerciseType)}
+                onChange={(e) => {
+                  const i = Number(e.detail.value)
+                  if (i >= 0) setExerciseType(EXERCISE_OPTIONS[i].value)
+                  setResult(null)
+                }}
+              >
+                <View className='picker-value'>{EXERCISE_OPTIONS.find((o) => o.value === exerciseType)?.label || '请选择'}</View>
+              </Picker>
+            </View>
+
+            <View className='form-row'>
+              <Text className='label'>计算模式</Text>
+              <Picker
+                mode='selector'
+                range={MODE_OPTIONS}
+                rangeKey='label'
+                value={MODE_OPTIONS.findIndex((o) => o.value === mode)}
+                onChange={(e) => {
+                  const i = Number(e.detail.value)
+                  if (i >= 0) setMode(MODE_OPTIONS[i].value)
+                  setResult(null)
+                }}
+              >
+                <View className='picker-value'>{MODE_OPTIONS.find((o) => o.value === mode)?.label || '请选择'}</View>
+              </Picker>
+            </View>
+
+            <View className='form-row'>
+              <Text className='label'>性别</Text>
+              <Picker
+                mode='selector'
+                range={GENDER_OPTIONS}
+                rangeKey='label'
+                value={gender ? GENDER_OPTIONS.findIndex((o) => o.value === gender) : 0}
+                onChange={(e) => {
+                  const i = Number(e.detail.value)
+                  if (i >= 0) setGender(GENDER_OPTIONS[i].value)
+                  setResult(null)
+                }}
+              >
+                <View className='picker-value'>{gender ? GENDER_OPTIONS.find((o) => o.value === gender)?.label : '请选择'}</View>
+              </Picker>
+            </View>
+
+            <View className='form-row'>
+              <Text className='label'>体重（kg）</Text>
               <Input
                 className='input'
                 type='digit'
-                placeholder='例如 20'
-                value={addedWeight}
-                onInput={(e) => { setAddedWeight(e.detail.value); setResult(null) }}
+                placeholder='例如 70.5'
+                value={bodyweight}
+                onInput={(e) => { setBodyweight(e.detail.value); setResult(null) }}
               />
             </View>
-          )}
-          {isUpperBodyExercise(exerciseType) && mode === 'reverse_weight' && (
-            <View className='form-row'>
-              <Text className='label'>目标负重1RM（kg）</Text>
-              <Input
-                className='input'
-                type='digit'
-                placeholder='例如 50'
-                value={added1RM}
-                onInput={(e) => { setAdded1RM(e.detail.value); setResult(null) }}
-              />
-            </View>
-          )}
-          {isUpperBodyExercise(exerciseType) && mode === 'reverse_reps' && (
-            <>
+
+            {isUpperBodyExercise(exerciseType) && mode === 'forward' && (
+              <View className='form-row'>
+                <Text className='label'>附加负重（kg）</Text>
+                <Input
+                  className='input'
+                  type='digit'
+                  placeholder='例如 20'
+                  value={addedWeight}
+                  onInput={(e) => { setAddedWeight(e.detail.value); setResult(null) }}
+                />
+              </View>
+            )}
+            {isUpperBodyExercise(exerciseType) && mode === 'reverse_weight' && (
               <View className='form-row'>
                 <Text className='label'>目标负重1RM（kg）</Text>
-                <Input className='input' type='digit' placeholder='例如 50' value={added1RM} onInput={(e) => { setAdded1RM(e.detail.value); setResult(null) }} />
+                <Input
+                  className='input'
+                  type='digit'
+                  placeholder='例如 50'
+                  value={added1RM}
+                  onInput={(e) => { setAdded1RM(e.detail.value); setResult(null) }}
+                />
               </View>
-              <View className='form-row'>
-                <Text className='label'>做组重量·附加负重（kg）</Text>
-                <Input className='input' type='digit' placeholder='例如 20' value={workingAddedWeight} onInput={(e) => { setWorkingAddedWeight(e.detail.value); setResult(null) }} />
-              </View>
-            </>
-          )}
-
-          {(isPowerliftingExercise(exerciseType) || isBenchBasedExercise(exerciseType)) && mode === 'forward' && (
-            <View className='form-row'>
-              <Text className='label'>做组重量（kg）</Text>
-              <Input className='input' type='digit' placeholder='例如 100' value={liftWeight} onInput={(e) => { setLiftWeight(e.detail.value); setResult(null) }} />
-            </View>
-          )}
-          {(isPowerliftingExercise(exerciseType) || isBenchBasedExercise(exerciseType)) && (mode === 'reverse_weight' || mode === 'reverse_reps') && (
-            <>
-              <View className='form-row'>
-                <Text className='label'>目标1RM（kg）</Text>
-                <Input className='input' type='digit' placeholder='例如 200' value={target1RM} onInput={(e) => { setTarget1RM(e.detail.value); setResult(null) }} />
-              </View>
-              {mode === 'reverse_reps' && (
+            )}
+            {isUpperBodyExercise(exerciseType) && mode === 'reverse_reps' && (
+              <>
                 <View className='form-row'>
-                  <Text className='label'>做组重量（kg）</Text>
-                  <Input className='input' type='digit' placeholder='例如 150' value={workingLiftWeight} onInput={(e) => { setWorkingLiftWeight(e.detail.value); setResult(null) }} />
+                  <Text className='label'>目标负重1RM（kg）</Text>
+                  <Input className='input' type='digit' placeholder='例如 50' value={added1RM} onInput={(e) => { setAdded1RM(e.detail.value); setResult(null) }} />
                 </View>
-              )}
-            </>
-          )}
+                <View className='form-row'>
+                  <Text className='label'>做组重量·附加负重（kg）</Text>
+                  <Input className='input' type='digit' placeholder='例如 20' value={workingAddedWeight} onInput={(e) => { setWorkingAddedWeight(e.detail.value); setResult(null) }} />
+                </View>
+              </>
+            )}
 
-          <View className='form-row'>
-            <Text className='label'>{mode === 'day_max' ? '每组次数' : '完成次数'}</Text>
-            <Input className='input' type='number' placeholder='例如 5' value={reps} onInput={(e) => { setReps(e.detail.value); setResult(null) }} />
-          </View>
+            {(isPowerliftingExercise(exerciseType) || isBenchBasedExercise(exerciseType)) && mode === 'forward' && (
+              <View className='form-row'>
+                <Text className='label'>做组重量（kg）</Text>
+                <Input className='input' type='digit' placeholder='例如 100' value={liftWeight} onInput={(e) => { setLiftWeight(e.detail.value); setResult(null) }} />
+              </View>
+            )}
+            {(isPowerliftingExercise(exerciseType) || isBenchBasedExercise(exerciseType)) && (mode === 'reverse_weight' || mode === 'reverse_reps') && (
+              <>
+                <View className='form-row'>
+                  <Text className='label'>目标1RM（kg）</Text>
+                  <Input className='input' type='digit' placeholder='例如 200' value={target1RM} onInput={(e) => { setTarget1RM(e.detail.value); setResult(null) }} />
+                </View>
+                {mode === 'reverse_reps' && (
+                  <View className='form-row'>
+                    <Text className='label'>做组重量（kg）</Text>
+                    <Input className='input' type='digit' placeholder='例如 150' value={workingLiftWeight} onInput={(e) => { setWorkingLiftWeight(e.detail.value); setResult(null) }} />
+                  </View>
+                )}
+              </>
+            )}
 
-          <View className='form-row'>
-            <Text className='label'>动作质量</Text>
-            <Picker
-              mode='selector'
-              range={QUALITY_OPTIONS}
-              rangeKey='label'
-              value={formQuality ? QUALITY_OPTIONS.findIndex((o) => o.value === formQuality) : 0}
-              onChange={(e) => {
-                const i = Number(e.detail.value)
-                if (i >= 0) {
-                  setFormQuality(QUALITY_OPTIONS[i].value)
-                  if (QUALITY_OPTIONS[i].value === 'Minor_Cheat') setPenaltyWeight(3)
-                  else if (QUALITY_OPTIONS[i].value === 'Major_Cheat') setPenaltyWeight(10)
-                  else if (QUALITY_OPTIONS[i].value === 'Extreme_Cheat') setPenaltyWeight(30)
-                }
-                setResult(null)
-              }}
-            >
-              <View className='picker-value'>{formQuality ? QUALITY_OPTIONS.find((o) => o.value === formQuality)?.label : '请选择'}</View>
-            </Picker>
-          </View>
-
-          {showPenalty && (
             <View className='form-row'>
-              <Text className='label'>惩罚重量（kg）</Text>
-              <Input
-                className='input'
-                type='digit'
-                value={String(penaltyWeight)}
-                onInput={(e) => { setPenaltyWeight(Number(e.detail.value) || 0); setResult(null) }}
-              />
+              <Text className='label'>{mode === 'day_max' ? '每组次数' : '完成次数'}</Text>
+              <Input className='input' type='number' placeholder='例如 5' value={reps} onInput={(e) => { setReps(e.detail.value); setResult(null) }} />
             </View>
-          )}
 
-          {isUpperBodyExercise(exerciseType) && (
-            <View className='formula-hint'>
-              {loadingFormula ? (
-                <Text className='hint'>正在加载公式…</Text>
-              ) : currentFormula ? (
-                <Text className='hint'>公式已加载（{currentFormula.gender} · {currentFormula.exercise_type}）</Text>
-              ) : (
-                <Text className='hint warn'>未找到对应公式，请稍后重试</Text>
-              )}
+            <View className='form-row'>
+              <Text className='label'>动作质量</Text>
+              <Picker
+                mode='selector'
+                range={QUALITY_OPTIONS}
+                rangeKey='label'
+                value={formQuality ? QUALITY_OPTIONS.findIndex((o) => o.value === formQuality) : 0}
+                onChange={(e) => {
+                  const i = Number(e.detail.value)
+                  if (i >= 0) {
+                    setFormQuality(QUALITY_OPTIONS[i].value)
+                    if (QUALITY_OPTIONS[i].value === 'Minor_Cheat') setPenaltyWeight(3)
+                    else if (QUALITY_OPTIONS[i].value === 'Major_Cheat') setPenaltyWeight(10)
+                    else if (QUALITY_OPTIONS[i].value === 'Extreme_Cheat') setPenaltyWeight(30)
+                  }
+                  setResult(null)
+                }}
+              >
+                <View className='picker-value'>{formQuality ? QUALITY_OPTIONS.find((o) => o.value === formQuality)?.label : '请选择'}</View>
+              </Picker>
             </View>
-          )}
 
-          <Button className='btn-calc' onClick={handleCalculate} disabled={submitting}>
-            {submitting ? '计算中...' : '开始计算'}
-          </Button>
+            {showPenalty && (
+              <View className='form-row'>
+                <Text className='label'>惩罚重量（kg）</Text>
+                <Input
+                  className='input'
+                  type='digit'
+                  value={String(penaltyWeight)}
+                  onInput={(e) => { setPenaltyWeight(Number(e.detail.value) || 0); setResult(null) }}
+                />
+              </View>
+            )}
 
+            {isUpperBodyExercise(exerciseType) && (
+              <View className='formula-hint'>
+                {loadingFormula ? (
+                  <Text className='hint'>正在加载公式…</Text>
+                ) : currentFormula ? (
+                  <Text className='hint'>公式已加载（{currentFormula.gender} · {currentFormula.exercise_type}）</Text>
+                ) : (
+                  <Text className='hint warn'>未找到对应公式，请稍后重试</Text>
+                )}
+              </View>
+            )}
+
+            <Button className='btn-calc' onClick={handleCalculate} disabled={submitting}>
+              {submitting ? '计算中...' : '开始计算'}
+            </Button>
+          </View>
+
+          {/* 计算结果区域 */}
           {result && (
             <View className='result-box'>
-              <Text className='result-title'>计算结果</Text>
+              {/* 评分等级品牌色大卡片 */}
               {scoreLevel && (
-                <View className='result-level'>
-                  <Text>{scoreLevel.level}</Text>
+                <View className='result-score-card'>
+                  <Text className='result-score-label'>{scoreLevel.level}</Text>
+                  <Text className='result-score-value'>
+                    {result.final_score.toFixed(scoreDecimals)}
+                    {scoreUnit}
+                  </Text>
+                  <Text className='result-score-sublabel'>{scoreLabel}</Text>
                 </View>
               )}
+
+              {/* 辅助信息行 */}
               {result.adjusted_used_weight !== undefined && (
                 <Text className='result-line'>实际用于计算的重量：{result.adjusted_used_weight.toFixed(1)} kg</Text>
               )}
@@ -499,22 +539,31 @@ export default function StreetliftingCalculator() {
               {result.computed_reps !== undefined && (
                 <Text className='result-line'>反推可完成次数：{result.computed_reps} 次</Text>
               )}
-              <View className='result-grid'>
-                <View className='result-item'>
-                  <Text className='result-item-label'>{isUpperBodyExercise(exerciseType) ? '估算负重1RM' : '估算1RM'}</Text>
-                  <Text className='result-item-value'>{result.estimated_1rm.toFixed(1)} kg</Text>
+
+              {/* 数据指标网格 */}
+              <View className='result-metrics-grid'>
+                <View className='result-metric-card'>
+                  <Text className='result-metric-label'>{oneRMLabel}</Text>
+                  <Text className='result-metric-value'>{result.estimated_1rm.toFixed(1)}<Text className='result-metric-unit'> kg</Text></Text>
                 </View>
-                <View className='result-item'>
-                  <Text className='result-item-label'>{isUpperBodyExercise(exerciseType) || isBenchBasedExercise(exerciseType) ? '力量分（/500）' : 'DOTS 分'}</Text>
-                  <Text className='result-item-value score'>{result.final_score.toFixed(isUpperBodyExercise(exerciseType) ? 0 : 1)}</Text>
+                <View className='result-metric-card'>
+                  <Text className='result-metric-label'>{scoreLabel}</Text>
+                  <Text className='result-metric-value brand'>{result.final_score.toFixed(scoreDecimals)}</Text>
                 </View>
               </View>
+
+              {/* RM 对照表 */}
               <View className='rm-table-wrap'>
                 <Text className='rm-table-title'>RM 对照表</Text>
                 <View className='rm-table'>
-                  {rmTable.map((row) => (
-                    <View key={row.reps} className='rm-row'>
-                      <Text>{row.reps}次</Text>
+                  <View className='rm-header'>
+                    <Text>次数</Text>
+                    <Text>重量</Text>
+                    <Text>百分比</Text>
+                  </View>
+                  {rmTable.map((row, idx) => (
+                    <View key={row.reps} className={`rm-row ${idx % 2 === 1 ? 'striped' : ''}`}>
+                      <Text>{row.reps} 次</Text>
                       <Text>{row.weight.toFixed(1)} kg</Text>
                       <Text>{row.percentage}%</Text>
                     </View>
