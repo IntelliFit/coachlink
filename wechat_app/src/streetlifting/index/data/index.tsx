@@ -322,12 +322,47 @@ export default function StreetliftingData() {
     }
   }
 
+  const renderSkeleton = () => (
+    <View className='skeleton-wrap'>
+      {/* 统计行骨架 */}
+      <View className='stats-row skeleton-stats'>
+        {[1, 2, 3, 4].map((i) => (
+          <View key={i} className='stat skeleton-stat'>
+            <View className='skeleton-line' style={{ width: '50%', height: '40rpx', marginBottom: '8rpx' }} />
+            <View className='skeleton-line' style={{ width: '70%', height: '24rpx' }} />
+          </View>
+        ))}
+      </View>
+      {/* 数据卡片骨架 ×3 */}
+      {[1, 2, 3].map((i) => (
+        <View key={`card-${i}`} className='data-card skeleton-card'>
+          <View className='skeleton-head'>
+            <View className='skeleton-line' style={{ width: '40%', height: '32rpx' }} />
+            <View className='skeleton-line' style={{ width: '96rpx', height: '48rpx' }} />
+          </View>
+          <View className='skeleton-tags'>
+            <View className='skeleton-line' style={{ width: '80rpx', height: '36rpx', borderRadius: '9999rpx' }} />
+            <View className='skeleton-line' style={{ width: '96rpx', height: '36rpx', borderRadius: '9999rpx' }} />
+            <View className='skeleton-line' style={{ width: '80rpx', height: '36rpx', borderRadius: '9999rpx' }} />
+          </View>
+          <View className='skeleton-grid'>
+            {[1, 2, 3, 4].map((j) => (
+              <View key={j} className='skeleton-cell'>
+                <View className='skeleton-line' style={{ width: '60%', height: '24rpx', marginBottom: '8rpx' }} />
+                <View className='skeleton-line' style={{ width: '80%', height: '32rpx' }} />
+              </View>
+            ))}
+          </View>
+          <View className='skeleton-score'>
+            <View className='skeleton-line' style={{ width: '40%', height: '40rpx' }} />
+          </View>
+        </View>
+      ))}
+    </View>
+  )
+
   return (
     <View className='data-page'>
-      <View className='data-header'>
-        <Text className='data-title'>数据提交与社区排行</Text>
-        <Text className='data-desc'>提交你的训练数据，或浏览社区数据。</Text>
-      </View>
       <Button className='btn-add' onClick={openSubmit}>提交我的数据</Button>
 
       {!loading && (
@@ -363,7 +398,7 @@ export default function StreetliftingData() {
 
       <ScrollView className='data-scroll' scrollY>
         {loading ? (
-          <View className='loading-wrap'><Text>加载中…</Text></View>
+          renderSkeleton()
         ) : filtered.length === 0 ? (
           <View className='empty-wrap'><Text>没有符合条件的数据</Text></View>
         ) : (

@@ -1047,3 +1047,85 @@
     }
   }
 }
+
+/* ===== 骨架屏 ===== */
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.loc-skeleton-wrap {
+  padding: 0 24rpx;
+}
+
+.loc-skeleton-line {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 8rpx;
+}
+
+.skeleton-circle {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.loc-skeleton-card {
+  background: #FFFFFF;
+  border-radius: 32rpx;
+  overflow: hidden;
+  margin-bottom: 24rpx;
+  box-shadow: 0 4rpx 24rpx rgba(0, 0, 0, 0.04);
+
+  .loc-skeleton-img {
+    width: 100%;
+    height: 280rpx;
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+  }
+
+  .loc-skeleton-body {
+    padding: 24rpx;
+  }
+}
+
+.skeleton-stats {
+  .skeleton-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+.skeleton-actions {
+  display: flex;
+  gap: 16rpx;
+  margin-bottom: 16rpx;
+}
+
+.skeleton-secondary {
+  .skeleton-sec-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20rpx;
+    border-radius: 24rpx;
+    background: #FAFAFA;
+  }
+}
+
+.skeleton-rank-item {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  padding: 20rpx 0;
+  border-bottom: 1rpx solid #F5F5F5;
+
+  .skeleton-rank-meta {
+    flex: 1;
+    min-width: 0;
+  }
+}
