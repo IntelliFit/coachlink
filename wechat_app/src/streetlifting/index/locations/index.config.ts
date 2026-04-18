@@ -1,3 +1,3 @@
-export default { navigationBarTitleText: '场地地点',
+export default { navigationBarTitleText: '寻找单杠',
   animationType: 'none'
 }
