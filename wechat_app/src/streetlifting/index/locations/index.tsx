@@ -124,12 +124,12 @@ export default function StreetliftingLocations() {
   const [locating, setLocating] = useState(false)
   const [mapPins, setMapPins] = useState<StreetliftingLocationMapPin[]>([])
   const [loadingMapPins, setLoadingMapPins] = useState(false)
-  const [overviewExpanded, setOverviewExpanded] = useState(false)
   const [loadingOverview, setLoadingOverview] = useState(true)
   const [locationOverview, setLocationOverview] = useState<StreetliftingLocationOverviewStats | null>(null)
-  const [contributionBoardOpen, setContributionBoardOpen] = useState(false)
   const [loadingContributors, setLoadingContributors] = useState(false)
   const [contributors, setContributors] = useState<StreetliftingLocationContributor[]>([])
+  const [analysisSheetOpen, setAnalysisSheetOpen] = useState(false)
+  const [leaderboardSheetOpen, setLeaderboardSheetOpen] = useState(false)
   const requestIdRef = useRef(0)
   const firstFilterEffectRef = useRef(true)
 
@@ -229,10 +229,6 @@ export default function StreetliftingLocations() {
   const openCreate = () => {
     resetForm()
     setDialogOpen(true)
-  }
-
-  const handleToggleContributionBoard = () => {
-    setContributionBoardOpen((prev) => !prev)
   }
 
   const openEdit = (loc: StreetliftingLocation) => {
@@ -453,9 +449,7 @@ export default function StreetliftingLocations() {
     ]
   }, [locationOverview])
 
-  const displayContributors = useMemo(() => (
-    contributionBoardOpen ? contributors.slice(0, 10) : contributors.slice(0, 5)
-  ), [contributionBoardOpen, contributors])
+  const displayContributors = useMemo(() => contributors.slice(0, 3), [contributors])
 
   const hasMore = locations.length < total
 
@@ -466,6 +460,7 @@ export default function StreetliftingLocations() {
 
   return (
     <View className='loc-page'>
+      {/* ===== 概览卡片 ===== */}
       <View className='loc-summary-card'>
         <View className='loc-header compact'>
           <View>
@@ -473,10 +468,8 @@ export default function StreetliftingLocations() {
             <Text className='loc-desc'>保留完整分析，但默认先收起来；你可以先看概览，再直接找附近和有图点位。</Text>
           </View>
           <View className='loc-header-actions'>
-            <View className='loc-summary-secondary' onClick={() => setOverviewExpanded((prev) => !prev)}>
-              <Text>{overviewExpanded ? '收起分析' : '展开分析'}</Text>
-            </View>
             <View className='loc-summary-secondary' onClick={handleOpenMapMode}>
+              <Text className='iconfont icon-location' />
               <Text>全国地图</Text>
             </View>
             <View className='loc-summary-action' onClick={handleLocateNearby}>
@@ -500,6 +493,10 @@ export default function StreetliftingLocations() {
               ))}
             </View>
 
+            <View className='loc-view-more-btn' onClick={() => setAnalysisSheetOpen(true)}>
+              <Text>查看更多</Text>
+            </View>
+
             {locationOverview.topCities.length > 0 && (
               <View className='loc-hot-tags compact'>
                 {locationOverview.topCities.slice(0, 4).map((item) => (
@@ -507,61 +504,6 @@ export default function StreetliftingLocations() {
                     <Text>{item.name} {item.count}</Text>
                   </View>
                 ))}
-              </View>
-            )}
-
-            {overviewExpanded && (
-              <View className='overview-expand-card'>
-                <Text className='overview-expand-title'>点位总体分析</Text>
-                <Text className='overview-expand-desc'>
-                  统计基于全部 {locationOverview.totalCount} 个点位，不受当前筛选影响，用来快速判断数据完整度与分布情况。
-                </Text>
-
-                <View className='overview-secondary-stats'>
-                  {secondaryOverviewCards.map((item) => (
-                    <View key={item.label} className='overview-secondary-card'>
-                      <Text className='overview-secondary-label'>{item.label}</Text>
-                      <Text className='overview-secondary-value'>{item.value}</Text>
-                      <Text className='overview-secondary-helper'>{item.helper}</Text>
-                    </View>
-                  ))}
-                </View>
-
-                {locationOverview.topProvinces.length > 0 && (
-                  <View className='analysis-block'>
-                    <Text className='analysis-block-title'>省份分布 Top 6</Text>
-                    <View className='analysis-rank-list'>
-                      {locationOverview.topProvinces.map((item) => (
-                        <View key={item.name} className='analysis-rank-item'>
-                          <View className='analysis-rank-head'>
-                            <Text className='analysis-rank-name'>{item.name}</Text>
-                            <Text className='analysis-rank-count'>{item.count}</Text>
-                          </View>
-                          <View className='analysis-rank-track'>
-                            <View
-                              className='analysis-rank-fill'
-                              style={{ width: `${Math.max(12, Math.round((item.count / Math.max(locationOverview.topProvinces[0]?.count || 1, 1)) * 100))}%` }}
-                            />
-                          </View>
-                        </View>
-                      ))}
-                    </View>
-                  </View>
-                )}
-
-                {locationOverview.recentMonths.length > 0 && (
-                  <View className='analysis-block'>
-                    <Text className='analysis-block-title'>最近 6 个月新增趋势</Text>
-                    <View className='analysis-trend-row'>
-                      {locationOverview.recentMonths.map((item) => (
-                        <View key={item.month} className='analysis-trend-item'>
-                          <Text className='analysis-trend-value'>{item.count}</Text>
-                          <Text className='analysis-trend-label'>{formatMonthLabel(item.month)}</Text>
-                        </View>
-                      ))}
-                    </View>
-                  </View>
-                )}
               </View>
             )}
           </>
@@ -590,6 +532,7 @@ export default function StreetliftingLocations() {
                     <Text className='nearby-distance'>{item.distanceKm < 1 ? `${Math.round(item.distanceKm * 1000)}m` : `${item.distanceKm.toFixed(1)}km`}</Text>
                   </View>
                   <View className='nearby-map-btn' onClick={() => openLocationInMap(item)}>
+                    <Text className='iconfont icon-location' />
                     <Text>地图查看</Text>
                   </View>
                 </View>
@@ -599,18 +542,19 @@ export default function StreetliftingLocations() {
         )}
       </View>
 
-      <View className='contribution-card'>
-        <View className='contribution-head'>
-          <View>
-            <Text className='contribution-title'>单杠贡献排行榜</Text>
-            <Text className='contribution-desc'>直接读取后端贡献榜表，按上传次数和详细度积分综合排序。</Text>
-          </View>
-          <View className='contribution-toggle' onClick={handleToggleContributionBoard}>
-            <Text>{contributionBoardOpen ? '收起' : '展开'}</Text>
-          </View>
+      {/* ===== 分享数据卡片（包含贡献榜） ===== */}
+      <View className='share-data-card'>
+        <Text className='share-data-title'>分享您的单杠数据领取更多权益</Text>
+        <View className='btn-share-my-bar' onClick={openCreate}>
+          <Text className='iconfont icon-location' />
+          <Text>分享我的单杠位置</Text>
         </View>
 
-        <View className='contribution-body'>
+        <View className='contribution-mini'>
+          <View className='contribution-mini-head'>
+            <Text className='contribution-mini-title'>单杠贡献排行榜</Text>
+          </View>
+
           {loadingContributors ? (
             <View className='contribution-loading'>
               <Text>贡献榜加载中…</Text>
@@ -640,15 +584,14 @@ export default function StreetliftingLocations() {
               ))}
             </View>
           )}
+        </View>
 
-          {contributionBoardOpen && (
-            <View className='contribution-rights-note'>
-              <Text>权益方向：贡献徽章、内测优先权、训练资料兑换等都会优先参考这份贡献分，后续可以直接映射到产品权益体系。</Text>
-            </View>
-          )}
+        <View className='contribution-view-more' onClick={() => setLeaderboardSheetOpen(true)}>
+          <Text>查看更多</Text>
         </View>
       </View>
 
+      {/* ===== 搜索工具栏 ===== */}
       <View className='loc-toolbar'>
         <Input
           className='search-input'
@@ -669,10 +612,7 @@ export default function StreetliftingLocations() {
         </Picker>
       </View>
 
-      <Button className='btn-add compact' onClick={openCreate}>
-        分享单杠位置
-      </Button>
-
+      {/* ===== 地点列表 ===== */}
       <ScrollView
         className='loc-scroll'
         scrollY
@@ -690,41 +630,33 @@ export default function StreetliftingLocations() {
           <View className='loc-list'>
             {locations.map((loc) => (
               <View key={loc.id} className='loc-card'>
-                {getLocationImages(loc).length > 0 ? (
-                  <Image
-                    className='loc-card-img'
-                    src={getLocationImages(loc)[0]}
-                    mode='aspectFill'
-                  />
-                ) : (
-                  <View className='loc-card-noimg'>
-                    <Text>暂无图片</Text>
+                <View className='loc-card-image-wrap'>
+                  {getLocationImages(loc).length > 0 ? (
+                    <Image
+                      className='loc-card-img'
+                      src={getLocationImages(loc)[0]}
+                      mode='aspectFill'
+                    />
+                  ) : (
+                    <View className='loc-card-noimg'>
+                      <Text>暂无图片</Text>
+                    </View>
+                  )}
+                  {hasLocationImages(loc) && (
+                    <View className='loc-card-badge'>
+                      <Text>{getLocationImages(loc).length} 张图</Text>
+                    </View>
+                  )}
+                  <View className='loc-card-img-share' onClick={() => handleShare(loc)}>
+                    <Text className='iconfont icon-share' />
                   </View>
-                )}
+                </View>
                 <View className='loc-card-body'>
                   <View className='loc-card-title-row'>
                     <Text className='loc-card-name'>{loc.name}</Text>
-                    {hasLocationImages(loc) && (
-                      <View className='loc-card-badge'>
-                        <Text>{getLocationImages(loc).length} 张图</Text>
-                      </View>
-                    )}
-                  </View>
-                  <Text className='loc-card-addr'>
-                    {[loc.province, loc.city, loc.county].filter(Boolean).join(' · ')}
-                  </Text>
-                  {(loc.contributor_name_snapshot || loc.user_contact) ? (
-                    <Text className='loc-card-contributor'>贡献者：{getContributorLabel(loc)}</Text>
-                  ) : null}
-                  {loc.address ? <Text className='loc-card-detail'>{loc.address}</Text> : null}
-                  {loc.description ? <Text className='loc-card-desc' numberOfLines={2}>{loc.description}</Text> : null}
-                  <View className='loc-card-actions'>
-                    <Button className='btn-edit' size='mini' onClick={() => openEdit(loc)}>编辑</Button>
-                    <Button className='btn-share' size='mini' onClick={() => handleShare(loc)}>分享</Button>
                     {loc.latitude != null && loc.longitude != null && (
-                      <Button
-                        className='btn-map'
-                        size='mini'
+                      <View
+                        className='loc-card-map-btn'
                         onClick={() => openLocationInMap({
                           name: loc.name,
                           latitude: loc.latitude as number,
@@ -732,10 +664,25 @@ export default function StreetliftingLocations() {
                           address: [loc.province, loc.city, loc.county, loc.address].filter(Boolean).join(' ')
                         })}
                       >
-                        地图
-                      </Button>
+                        <Text className='iconfont icon-location' />
+                      </View>
                     )}
                   </View>
+                  {loc.description ? (
+                    <View className='loc-card-desc-row'>
+                      <Text className='loc-card-desc' numberOfLines={2}>{loc.description}</Text>
+                      <View className='loc-card-edit-btn' onClick={() => openEdit(loc)}>
+                        <Text className='iconfont icon-pencil' />
+                      </View>
+                    </View>
+                  ) : (
+                    <View className='loc-card-desc-row'>
+                      <View style={{ flex: 1 }} />
+                      <View className='loc-card-edit-btn' onClick={() => openEdit(loc)}>
+                        <Text className='iconfont icon-pencil' />
+                      </View>
+                    </View>
+                  )}
                 </View>
               </View>
             ))}
@@ -747,6 +694,125 @@ export default function StreetliftingLocations() {
         )}
       </ScrollView>
 
+      {/* ===== 分析数据底部弹窗 ===== */}
+      {analysisSheetOpen && (
+        <View className='sheet-mask' onClick={() => setAnalysisSheetOpen(false)}>
+          <View className='sheet-box' onClick={(e) => e.stopPropagation()}>
+            <View className='sheet-header'>
+              <Text className='sheet-title'>点位总体分析</Text>
+              <View className='sheet-close' onClick={() => setAnalysisSheetOpen(false)}>
+                <Text>×</Text>
+              </View>
+            </View>
+            <ScrollView scrollY className='sheet-scroll'>
+              {locationOverview && (
+                <>
+                  <Text className='sheet-desc'>
+                    统计基于全部 {locationOverview.totalCount} 个点位，不受当前筛选影响，用来快速判断数据完整度与分布情况。
+                  </Text>
+
+                  <View className='overview-secondary-stats'>
+                    {secondaryOverviewCards.map((item) => (
+                      <View key={item.label} className='overview-secondary-card'>
+                        <Text className='overview-secondary-label'>{item.label}</Text>
+                        <Text className='overview-secondary-value'>{item.value}</Text>
+                        <Text className='overview-secondary-helper'>{item.helper}</Text>
+                      </View>
+                    ))}
+                  </View>
+
+                  {locationOverview.topProvinces.length > 0 && (
+                    <View className='analysis-block'>
+                      <Text className='analysis-block-title'>省份分布 Top 6</Text>
+                      <View className='analysis-rank-list'>
+                        {locationOverview.topProvinces.map((item) => (
+                          <View key={item.name} className='analysis-rank-item'>
+                            <View className='analysis-rank-head'>
+                              <Text className='analysis-rank-name'>{item.name}</Text>
+                              <Text className='analysis-rank-count'>{item.count}</Text>
+                            </View>
+                            <View className='analysis-rank-track'>
+                              <View
+                                className='analysis-rank-fill'
+                                style={{ width: `${Math.max(12, Math.round((item.count / Math.max(locationOverview.topProvinces[0]?.count || 1, 1)) * 100))}%` }}
+                              />
+                            </View>
+                          </View>
+                        ))}
+                      </View>
+                    </View>
+                  )}
+
+                  {locationOverview.recentMonths.length > 0 && (
+                    <View className='analysis-block'>
+                      <Text className='analysis-block-title'>最近 6 个月新增趋势</Text>
+                      <View className='analysis-trend-row'>
+                        {locationOverview.recentMonths.map((item) => (
+                          <View key={item.month} className='analysis-trend-item'>
+                            <Text className='analysis-trend-value'>{item.count}</Text>
+                            <Text className='analysis-trend-label'>{formatMonthLabel(item.month)}</Text>
+                          </View>
+                        ))}
+                      </View>
+                    </View>
+                  )}
+                </>
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      )}
+
+      {/* ===== 贡献榜底部弹窗 ===== */}
+      {leaderboardSheetOpen && (
+        <View className='sheet-mask' onClick={() => setLeaderboardSheetOpen(false)}>
+          <View className='sheet-box' onClick={(e) => e.stopPropagation()}>
+            <View className='sheet-header'>
+              <Text className='sheet-title'>单杠贡献排行榜</Text>
+              <View className='sheet-close' onClick={() => setLeaderboardSheetOpen(false)}>
+                <Text>×</Text>
+              </View>
+            </View>
+            <ScrollView scrollY className='sheet-scroll'>
+              {loadingContributors ? (
+                <View className='contribution-loading'>
+                  <Text>贡献榜加载中…</Text>
+                </View>
+              ) : contributors.length === 0 ? (
+                <View className='contribution-empty'>
+                  <Text>当前可识别的署名贡献还不多，新的分享会开始累计上榜。</Text>
+                </View>
+              ) : (
+                <View className='contribution-list'>
+                  {contributors.slice(0, 10).map((item, index) => (
+                    <View key={item.contributor_key} className='contribution-item'>
+                      <View className='contribution-rank'>
+                        <Text>{index + 1}</Text>
+                      </View>
+                      <View className='contribution-main'>
+                        <Text className='contribution-name'>{formatContributorName(item.display_name)}</Text>
+                        <Text className='contribution-meta'>
+                          {item.upload_count} 次上传 · 详细度 {item.detail_score_total} 分 · {item.image_count_total} 张图
+                        </Text>
+                      </View>
+                      <View className='contribution-score'>
+                        <Text className='contribution-score-value'>{item.contribution_score}</Text>
+                        <Text className='contribution-score-label'>贡献分</Text>
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              )}
+
+              <View className='contribution-rights-note'>
+                <Text>权益方向：贡献徽章、内测优先权、训练资料兑换等都会优先参考这份贡献分，后续可以直接映射到产品权益体系。</Text>
+              </View>
+            </ScrollView>
+          </View>
+        </View>
+      )}
+
+      {/* ===== 表单弹窗 ===== */}
       {dialogOpen && (
         <View className='dialog-mask' onClick={() => { setDialogOpen(false); resetForm() }}>
           <View className='dialog-box' onClick={(e) => e.stopPropagation()}>
