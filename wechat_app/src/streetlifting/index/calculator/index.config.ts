@@ -1,1 +1,3 @@
-export default { navigationBarTitleText: '计算我的力量分' }
+export default { navigationBarTitleText: '计算我的力量分',
+  animationType: 'none'
+}

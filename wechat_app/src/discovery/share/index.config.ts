@@ -1,4 +1,5 @@
 export default {
   navigationBarTitleText: '分享',
-  navigationStyle: 'default'
+  navigationStyle: 'default',
+  animationType: 'none'
 }

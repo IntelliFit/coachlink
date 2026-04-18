@@ -1,4 +1,5 @@
 export default {
   navigationBarTitleText: '训练执行',
-  enablePullDownRefresh: true
+  enablePullDownRefresh: true,
+  animationType: 'none'
 }

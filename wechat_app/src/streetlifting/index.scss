@@ -14,7 +14,7 @@
     font-weight: bold;
     color: #333;
     display: block;
-    margin-bottom: 12rpx;
+    margin-bottom: 8rpx;
   }
   .hero-desc {
     font-size: 28rpx;
@@ -37,15 +37,15 @@
 .nav-grid {
   display: flex;
   flex-wrap: wrap;
-  gap: 20rpx;
+  gap: 16rpx;
 }
 .nav-item {
-  width: calc(50% - 10rpx);
+  width: calc(50% - 8rpx);
   background: #fff;
   border-radius: 16rpx;
-  padding: 28rpx;
+  padding: 24rpx;
   box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.06);
-  &.primary { background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%); }
+  &.primary { background: #1890ff; }
   .nav-icon { font-size: 40rpx; display: block; margin-bottom: 8rpx; }
   .nav-text { font-size: 28rpx; color: #333; }
   &.primary .nav-text { color: #fff; }

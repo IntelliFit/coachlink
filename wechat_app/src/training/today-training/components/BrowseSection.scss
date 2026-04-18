@@ -78,7 +78,7 @@
       }
 
       &.selected {
-        background: linear-gradient(135deg, #CF6D4E 0%, #E59B7D 100%);
+        background: #CF6D4E;
         transform: scale(1.05);
         box-shadow: 0 2px 8px rgba(207, 109, 78, 0.3);
         border: none;
@@ -239,7 +239,7 @@
       align-items: center;
       justify-content: center;
       padding: 12px;
-      background: linear-gradient(135deg, #CF6D4E 0%, #E59B7D 100%);
+      background: #CF6D4E;
       border-radius: 10px;
       box-shadow: 0 2px 6px rgba(207, 109, 78, 0.3);
 

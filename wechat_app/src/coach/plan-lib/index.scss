@@ -7,7 +7,7 @@
   }
 
   &__content {
-    padding: 24rpx 24rpx 180rpx;
+    padding: 24rpx 24rpx 184rpx;
     box-sizing: border-box;
   }
 
@@ -21,11 +21,11 @@
   }
 
   &__hero {
-    padding: 28rpx;
-    margin-bottom: 20rpx;
+    padding: 24rpx;
+    margin-bottom: 16rpx;
     display: flex;
     justify-content: space-between;
-    gap: 20rpx;
+    gap: 16rpx;
   }
 
   &__title {
@@ -55,30 +55,30 @@
   &__filter-chip,
   &__tag,
   &__link {
-    border-radius: 999rpx;
+    border-radius: 1000rpx;
     font-size: 24rpx;
   }
 
   &__create,
   &__search-btn {
-    padding: 18rpx 24rpx;
+    padding: 16rpx 24rpx;
     align-self: center;
   }
 
   &__search-card {
-    padding: 20rpx;
+    padding: 16rpx;
     margin-bottom: 16rpx;
     display: flex;
-    gap: 12rpx;
+    gap: 8rpx;
   }
 
   &__search-input {
     flex: 1;
-    min-height: 84rpx;
-    padding: 0 20rpx;
+    min-height: 88rpx;
+    padding: 0 16rpx;
     background: #f8fafc;
     border: 2rpx solid #e5e7eb;
-    border-radius: 18rpx;
+    border-radius: 16rpx;
     box-sizing: border-box;
   }
 
@@ -88,19 +88,19 @@
   &__card-actions {
     display: flex;
     flex-wrap: wrap;
-    gap: 12rpx;
+    gap: 8rpx;
   }
 
   &__filters {
     margin-bottom: 16rpx;
 
     &.tags {
-      margin-top: -4rpx;
+      margin-top: -0rpx;
     }
   }
 
   &__filter-chip {
-    padding: 14rpx 20rpx;
+    padding: 16rpx 16rpx;
     background: #eef2f7;
     color: #4b5563;
   }
@@ -131,13 +131,13 @@
   }
 
   &__meta-row {
-    margin-top: 14rpx;
+    margin-top: 16rpx;
     color: #9ca3af;
     font-size: 22rpx;
   }
 
   &__tag-row {
-    margin-top: 14rpx;
+    margin-top: 16rpx;
   }
 
   &__tag {
@@ -145,12 +145,12 @@
   }
 
   &__card-actions {
-    margin-top: 18rpx;
+    margin-top: 16rpx;
     justify-content: flex-end;
   }
 
   &__link {
-    padding: 10rpx 18rpx;
+    padding: 8rpx 16rpx;
     background: #f3f4f6;
     color: #374151;
 

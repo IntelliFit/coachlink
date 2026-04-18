@@ -1,3 +1,4 @@
 export default {
-  navigationBarTitleText: '文档'
+  navigationBarTitleText: '文档',
+  animationType: 'none'
 }

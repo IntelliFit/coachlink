@@ -1,4 +1,5 @@
 export default {
   navigationBarTitleText: '购买记录',
-  enablePullDownRefresh: true
+  enablePullDownRefresh: true,
+  animationType: 'none'
 }

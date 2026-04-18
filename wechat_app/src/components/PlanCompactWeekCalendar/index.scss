@@ -1,5 +1,5 @@
 .plan-week-nav {
-  padding: 20rpx;
+  padding: 16rpx;
   border-radius: 24rpx;
   border: 2rpx solid #e8eef6;
   background: linear-gradient(180deg, #ffffff 0%, #fbfcff 100%);
@@ -14,7 +14,7 @@
   &__empty,
   &__caption {
     display: block;
-    margin-top: 6rpx;
+    margin-top: 8rpx;
     font-size: 22rpx;
     line-height: 1.5;
     color: #6b7280;
@@ -24,13 +24,13 @@
   &__actions,
   &__footer {
     display: flex;
-    gap: 12rpx;
+    gap: 8rpx;
   }
 
   &__header {
     justify-content: space-between;
     align-items: flex-start;
-    margin-bottom: 14rpx;
+    margin-bottom: 16rpx;
   }
 
   &__actions,
@@ -59,8 +59,8 @@
   }
 
   &__link {
-    padding: 12rpx 20rpx;
-    border-radius: 999rpx;
+    padding: 8rpx 16rpx;
+    border-radius: 1000rpx;
     background: #f3f5f8;
     color: #374151;
     font-size: 22rpx;
@@ -77,24 +77,24 @@
 
   &__strip-inner {
     display: flex;
-    gap: 12rpx;
+    gap: 8rpx;
   }
 
   &__grid {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 12rpx;
+    gap: 8rpx;
   }
 
   &__chip {
     min-width: 152rpx;
     padding: 16rpx;
-    border-radius: 20rpx;
+    border-radius: 16rpx;
     border: 2rpx solid #e5e7eb;
     background: #f8fafc;
     display: flex;
     flex-direction: column;
-    gap: 6rpx;
+    gap: 8rpx;
 
     &.active {
       border-color: #ff9f4a;
@@ -126,13 +126,13 @@
   }
 
   &__footer {
-    margin-top: 14rpx;
+    margin-top: 16rpx;
   }
 
   &__list {
-    margin-top: 14rpx;
+    margin-top: 16rpx;
     display: flex;
     flex-direction: column;
-    gap: 14rpx;
+    gap: 16rpx;
   }
 }

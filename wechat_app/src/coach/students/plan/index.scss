@@ -30,8 +30,8 @@
   }
 
   .student-avatar {
-    width: 100rpx;
-    height: 100rpx;
+    width: 104rpx;
+    height: 104rpx;
     border-radius: 50%;
     background: #f0f0f0;
   }
@@ -74,7 +74,7 @@
   .card-title-wrapper {
     display: flex;
     align-items: center;
-    gap: 12rpx;
+    gap: 8rpx;
   }
 
   .card-icon {
@@ -104,7 +104,7 @@
   .student-row {
     display: flex;
     align-items: center;
-    gap: 20rpx;
+    gap: 16rpx;
     margin-bottom: 24rpx;
 
     .student-avatar {
@@ -127,7 +127,7 @@
     .student-meta {
       font-size: 24rpx;
       color: #666;
-      margin-top: 4rpx;
+      margin-top: 0rpx;
     }
   }
 
@@ -135,8 +135,8 @@
     display: flex;
     justify-content: space-around;
     background: #f8f8f8;
-    border-radius: 12rpx;
-    padding: 20rpx;
+    border-radius: 8rpx;
+    padding: 16rpx;
 
     .stat-item {
       text-align: center;
@@ -152,7 +152,7 @@
     .stat-label {
       font-size: 22rpx;
       color: #999;
-      margin-top: 4rpx;
+      margin-top: 0rpx;
       display: block;
     }
   }
@@ -180,8 +180,8 @@
   }
 
   .status-tag {
-    padding: 8rpx 20rpx;
-    border-radius: 20rpx;
+    padding: 8rpx 16rpx;
+    border-radius: 16rpx;
     font-size: 24rpx;
 
     &.status-active {
@@ -210,7 +210,7 @@
     .progress-header {
       display: flex;
       justify-content: space-between;
-      margin-bottom: 12rpx;
+      margin-bottom: 8rpx;
     }
 
     .progress-text {
@@ -225,17 +225,17 @@
     }
 
     .progress-bar {
-      height: 12rpx;
+      height: 8rpx;
       background: #f0f0f0;
-      border-radius: 6rpx;
+      border-radius: 8rpx;
       overflow: hidden;
-      margin-bottom: 12rpx;
+      margin-bottom: 8rpx;
     }
 
     .progress-fill {
       height: 100%;
       background: linear-gradient(90deg, #34c759, #30d158);
-      border-radius: 6rpx;
+      border-radius: 8rpx;
       transition: width 0.3s ease;
     }
 
@@ -251,12 +251,12 @@
 
     .action-btn {
       flex: 1;
-      padding: 20rpx;
-      border-radius: 12rpx;
+      padding: 16rpx;
+      border-radius: 8rpx;
       text-align: center;
 
       &.primary {
-        background: linear-gradient(135deg, #007aff 0%, #0056d2 100%);
+        background: #007aff;
       }
 
       &.secondary {
@@ -305,8 +305,8 @@
 
   .unread-badge {
     background: #ff3b30;
-    padding: 4rpx 12rpx;
-    border-radius: 12rpx;
+    padding: 0rpx 8rpx;
+    border-radius: 8rpx;
 
     .unread-count {
       font-size: 22rpx;
@@ -337,9 +337,9 @@
   }
 
   .feedback-item {
-    padding: 20rpx;
+    padding: 16rpx;
     background: #f8f8f8;
-    border-radius: 12rpx;
+    border-radius: 8rpx;
     margin-bottom: 16rpx;
 
     &.unread {
@@ -349,7 +349,7 @@
     .feedback-header {
       display: flex;
       justify-content: space-between;
-      margin-bottom: 12rpx;
+      margin-bottom: 8rpx;
     }
 
     .feedback-day {
@@ -367,7 +367,7 @@
       font-size: 28rpx;
       color: #333;
       line-height: 1.5;
-      margin-bottom: 12rpx;
+      margin-bottom: 8rpx;
     }
 
     .feedback-rating {
@@ -388,8 +388,8 @@
     }
 
     .coach-reply {
-      margin-top: 12rpx;
-      padding-top: 12rpx;
+      margin-top: 8rpx;
+      padding-top: 8rpx;
       border-top: 1rpx solid #e5e5e5;
 
       .reply-label {
@@ -406,14 +406,14 @@
     }
 
     .feedback-actions {
-      margin-top: 14rpx;
+      margin-top: 16rpx;
       display: flex;
-      gap: 12rpx;
+      gap: 8rpx;
       justify-content: flex-end;
 
       .feedback-action-btn {
-        padding: 8rpx 18rpx;
-        border-radius: 18rpx;
+        padding: 8rpx 16rpx;
+        border-radius: 16rpx;
         border: 1rpx solid transparent;
 
         &.secondary {
@@ -462,7 +462,7 @@
     .form-label {
       font-size: 26rpx;
       color: #666;
-      margin-bottom: 12rpx;
+      margin-bottom: 8rpx;
       display: block;
     }
 
@@ -470,8 +470,8 @@
       width: 100%;
       height: 80rpx;
       background: #f8f8f8;
-      border-radius: 12rpx;
-      padding: 0 20rpx;
+      border-radius: 8rpx;
+      padding: 0 16rpx;
       font-size: 28rpx;
       box-sizing: border-box;
     }
@@ -482,9 +482,9 @@
     gap: 16rpx;
 
     .option-tag {
-      padding: 12rpx 24rpx;
+      padding: 8rpx 24rpx;
       background: #f0f0f0;
-      border-radius: 20rpx;
+      border-radius: 16rpx;
       border: 2rpx solid transparent;
 
       &.active {
@@ -556,8 +556,8 @@
     flex: 1;
     height: 72rpx;
     background: #f8fafc;
-    border-radius: 10rpx;
-    padding: 0 20rpx;
+    border-radius: 8rpx;
+    padding: 0 16rpx;
     font-size: 26rpx;
     box-sizing: border-box;
   }
@@ -572,13 +572,13 @@
   .action-search-results {
     display: flex;
     flex-wrap: wrap;
-    gap: 10rpx;
+    gap: 8rpx;
     margin-bottom: 16rpx;
   }
 
   .search-result-chip {
-    padding: 8rpx 18rpx;
-    border-radius: 20rpx;
+    padding: 8rpx 16rpx;
+    border-radius: 16rpx;
     background: rgba(0, 122, 255, 0.08);
     border: 1rpx solid rgba(0, 122, 255, 0.28);
   }
@@ -598,18 +598,18 @@
 
   .week-tabs {
     display: flex;
-    gap: 12rpx;
+    gap: 8rpx;
     margin-bottom: 24rpx;
     overflow-x: auto;
 
     .week-tab {
-      padding: 12rpx 24rpx;
+      padding: 8rpx 24rpx;
       background: #f0f0f0;
-      border-radius: 20rpx;
+      border-radius: 16rpx;
       white-space: nowrap;
 
       &.active {
-        background: linear-gradient(135deg, #007aff 0%, #0056d2 100%);
+        background: #007aff;
 
         .week-label {
           color: #fff;
@@ -629,9 +629,9 @@
 
     .day-cell {
       flex: 1;
-      height: 100rpx;
+      height: 104rpx;
       background: #f8f8f8;
-      border-radius: 12rpx;
+      border-radius: 8rpx;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -639,7 +639,7 @@
       position: relative;
 
       &.selected {
-        background: linear-gradient(135deg, #007aff 0%, #0056d2 100%);
+        background: #007aff;
 
         .day-label, .day-index {
           color: #fff;
@@ -659,8 +659,8 @@
         content: '';
         position: absolute;
         bottom: 8rpx;
-        width: 12rpx;
-        height: 12rpx;
+        width: 8rpx;
+        height: 8rpx;
         background: #34c759;
         border-radius: 50%;
       }
@@ -674,7 +674,7 @@
         font-size: 28rpx;
         font-weight: 600;
         color: #333;
-        margin-top: 4rpx;
+        margin-top: 0rpx;
       }
     }
   }
@@ -702,7 +702,7 @@
   }
 
   .day-type-toggle {
-    padding: 8rpx 20rpx;
+    padding: 8rpx 16rpx;
     background: #f0f0f0;
     border-radius: 16rpx;
 
@@ -718,7 +718,7 @@
     .form-label {
       font-size: 26rpx;
       color: #666;
-      margin-bottom: 12rpx;
+      margin-bottom: 8rpx;
       display: block;
     }
 
@@ -726,8 +726,8 @@
       width: 100%;
       height: 80rpx;
       background: #f8f8f8;
-      border-radius: 12rpx;
-      padding: 0 20rpx;
+      border-radius: 8rpx;
+      padding: 0 16rpx;
       font-size: 28rpx;
       box-sizing: border-box;
     }
@@ -748,8 +748,8 @@
     }
 
     .add-action-btn {
-      padding: 8rpx 20rpx;
-      background: linear-gradient(135deg, #34c759 0%, #248a3d 100%);
+      padding: 8rpx 16rpx;
+      background: #34c759;
       border-radius: 16rpx;
 
       .add-btn-text {
@@ -760,8 +760,8 @@
 
     .action-set-item {
       background: #fff;
-      border-radius: 22rpx;
-      padding: 20rpx;
+      border-radius: 24rpx;
+      padding: 16rpx;
       margin-bottom: 16rpx;
       border: 2rpx solid #e9eef5;
 
@@ -786,7 +786,7 @@
         justify-content: space-between;
         align-items: flex-start;
         gap: 16rpx;
-        margin-bottom: 14rpx;
+        margin-bottom: 16rpx;
       }
 
       .action-set-main {
@@ -794,13 +794,13 @@
         min-width: 0;
         display: flex;
         align-items: flex-start;
-        gap: 12rpx;
+        gap: 8rpx;
       }
 
       .action-set-type-badge {
         width: 56rpx;
         height: 56rpx;
-        border-radius: 18rpx;
+        border-radius: 16rpx;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -846,7 +846,7 @@
 
       .action-set-summary {
         display: block;
-        margin-top: 6rpx;
+        margin-top: 8rpx;
         font-size: 22rpx;
         color: #6b7280;
         line-height: 1.5;
@@ -862,7 +862,7 @@
       .action-set-badge {
         font-size: 20rpx;
         color: #48627c;
-        padding: 4rpx 12rpx;
+        padding: 0rpx 8rpx;
         border-radius: 16rpx;
         background: #eaf3ff;
         border: 1rpx solid #cfe4fb;
@@ -932,8 +932,8 @@
         background: #f8fbff;
         border: 1rpx solid #dbeafe;
         border-radius: 16rpx;
-        padding: 14rpx 16rpx;
-        margin-bottom: 12rpx;
+        padding: 16rpx 16rpx;
+        margin-bottom: 8rpx;
 
         &.auto {
           border-color: #bfdbfe;
@@ -955,7 +955,7 @@
           font-size: 22rpx;
           color: #1e3a8a;
           font-weight: 600;
-          margin-bottom: 6rpx;
+          margin-bottom: 8rpx;
         }
 
         .strength-summary-line {
@@ -977,7 +977,7 @@
 
       .action-set-params {
         display: grid;
-        gap: 12rpx;
+        gap: 8rpx;
 
         &.action-set-params--strength,
         &.action-set-params--lite,
@@ -986,7 +986,7 @@
         }
 
         &.action-set-params--advanced {
-          margin-top: 14rpx;
+          margin-top: 16rpx;
         }
 
         .param-item {
@@ -1001,7 +1001,7 @@
 
           .param-input {
             width: 100%;
-            height: 68rpx;
+            height: 72rpx;
             background: #f8fafc;
             border: 2rpx solid #e5e7eb;
             border-radius: 16rpx;
@@ -1013,10 +1013,10 @@
           .param-readonly {
             display: block;
             width: 100%;
-            min-height: 68rpx;
+            min-height: 72rpx;
             background: #f8fafc;
             border-radius: 16rpx;
-            padding: 12rpx 16rpx;
+            padding: 8rpx 16rpx;
             font-size: 22rpx;
             line-height: 1.4;
             color: #666;
@@ -1031,9 +1031,9 @@
       }
 
       .strength-control-card {
-        margin-top: 12rpx;
+        margin-top: 8rpx;
         padding: 16rpx;
-        border-radius: 18rpx;
+        border-radius: 16rpx;
         background: #fffaf5;
         border: 2rpx solid #fde2c3;
 
@@ -1041,7 +1041,7 @@
           display: flex;
           justify-content: space-between;
           align-items: center;
-          margin-bottom: 12rpx;
+          margin-bottom: 8rpx;
         }
 
         &__title {
@@ -1058,12 +1058,12 @@
         &__body {
           display: grid;
           grid-template-columns: minmax(0, 1fr) 180rpx;
-          gap: 12rpx;
+          gap: 8rpx;
         }
 
         &__segments {
           display: flex;
-          gap: 10rpx;
+          gap: 8rpx;
         }
 
         &__segment {
@@ -1089,7 +1089,7 @@
         &__input-wrap {
           display: flex;
           align-items: center;
-          gap: 10rpx;
+          gap: 8rpx;
           min-height: 64rpx;
           padding: 0 16rpx;
           border-radius: 16rpx;
@@ -1114,8 +1114,8 @@
       }
 
       .action-set-advanced {
-        margin-top: 14rpx;
-        padding-top: 14rpx;
+        margin-top: 16rpx;
+        padding-top: 16rpx;
         border-top: 1rpx solid #eef2f7;
       }
     }
@@ -1123,13 +1123,13 @@
     .one-filter-group {
       background: #f8fafc;
       border: 1rpx solid #e2e8f0;
-      border-radius: 14rpx;
-      padding: 14rpx;
+      border-radius: 16rpx;
+      padding: 16rpx;
       margin-bottom: 16rpx;
     }
 
     .one-filter-header {
-      margin-bottom: 10rpx;
+      margin-bottom: 8rpx;
     }
 
     .one-filter-title {
@@ -1141,14 +1141,14 @@
 
     .one-filter-subtitle {
       display: block;
-      margin-top: 4rpx;
+      margin-top: 0rpx;
       font-size: 21rpx;
       color: #64748b;
     }
 
     .one-filter-empty {
       display: block;
-      padding: 16rpx 10rpx 8rpx;
+      padding: 16rpx 8rpx 8rpx;
       font-size: 22rpx;
       color: #94a3b8;
     }
@@ -1170,7 +1170,7 @@
       font-size: 28rpx;
       font-weight: 600;
       color: #333;
-      margin-bottom: 12rpx;
+      margin-bottom: 8rpx;
       display: block;
     }
 
@@ -1187,7 +1187,7 @@
 .no-plan-card {
   background: #fff;
   border-radius: 16rpx;
-  padding: 60rpx 32rpx;
+  padding: 64rpx 32rpx;
   margin-bottom: 24rpx;
   text-align: center;
   box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.06);
@@ -1197,7 +1197,7 @@
     font-weight: 600;
     color: #333;
     display: block;
-    margin-bottom: 12rpx;
+    margin-bottom: 8rpx;
   }
 
   .no-plan-desc {
@@ -1209,8 +1209,8 @@
 
   .create-plan-btn {
     display: inline-block;
-    padding: 20rpx 48rpx;
-    background: linear-gradient(135deg, #007aff 0%, #0056d2 100%);
+    padding: 16rpx 48rpx;
+    background: #007aff;
     border-radius: 24rpx;
     margin: 0 8rpx;
 
@@ -1223,7 +1223,7 @@
 
   .contact-btn {
     margin-top: 16rpx;
-    background: linear-gradient(135deg, #34c759 0%, #248a3d 100%);
+    background: #34c759;
   }
 }
 
@@ -1311,8 +1311,8 @@
 .action-picker-search-input {
   height: 72rpx;
   background: #f8fafc;
-  border-radius: 10rpx;
-  padding: 0 20rpx;
+  border-radius: 8rpx;
+  padding: 0 16rpx;
   font-size: 26rpx;
   box-sizing: border-box;
 }
@@ -1321,7 +1321,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 22rpx 24rpx;
+  padding: 24rpx 24rpx;
   border-bottom: 1rpx solid #f3f4f6;
 }
 
@@ -1340,7 +1340,7 @@
 .action-picker-limit {
   display: block;
   text-align: center;
-  padding: 18rpx 12rpx 24rpx;
+  padding: 16rpx 8rpx 24rpx;
   font-size: 22rpx;
   color: #6b7280;
 }
@@ -1358,13 +1358,13 @@
     justify-content: space-between;
     align-items: center;
     padding: 24rpx 32rpx;
-    background: linear-gradient(135deg, #007aff 0%, #0056d2 100%);
+    background: #007aff;
   }
 
   .panel-title-wrapper {
     display: flex;
     align-items: center;
-    gap: 12rpx;
+    gap: 8rpx;
   }
 
   .panel-icon {
@@ -1410,8 +1410,8 @@
 .action-item {
   width: calc(50% - 8rpx);
   background: #f8f8f8;
-  border-radius: 12rpx;
-  padding: 20rpx;
+  border-radius: 8rpx;
+  padding: 16rpx;
   box-sizing: border-box;
 
   &.not-synced {
@@ -1423,7 +1423,7 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 12rpx;
+    margin-bottom: 8rpx;
   }
 
   .action-name {
@@ -1440,7 +1440,7 @@
     font-size: 20rpx;
     color: #ff9500;
     background: rgba(255, 149, 0, 0.1);
-    padding: 4rpx 10rpx;
+    padding: 0rpx 8rpx;
     border-radius: 8rpx;
     flex-shrink: 0;
   }
@@ -1481,8 +1481,8 @@
 
 // 保存按钮
 .save-btn {
-  background: linear-gradient(135deg, #007aff 0%, #0056d2 100%);
-  border-radius: 12rpx;
+  background: #007aff;
+  border-radius: 8rpx;
   padding: 24rpx;
   text-align: center;
   margin-top: 16rpx;
@@ -1510,10 +1510,10 @@
 }
 
 .execution-summary-card {
-  margin-top: 20rpx;
-  margin-bottom: 20rpx;
+  margin-top: 16rpx;
+  margin-bottom: 16rpx;
   background: #fff;
-  border-radius: 20rpx;
+  border-radius: 16rpx;
   padding: 24rpx;
   display: flex;
   justify-content: space-between;
@@ -1543,8 +1543,8 @@
 .feedback-ai-card {
   background: #fff7ed;
   border: 2rpx solid rgba(255, 159, 74, 0.25);
-  border-radius: 18rpx;
-  padding: 20rpx;
+  border-radius: 16rpx;
+  padding: 16rpx;
   margin-bottom: 16rpx;
 
   .feedback-ai-title {
@@ -1552,7 +1552,7 @@
     font-size: 28rpx;
     font-weight: 700;
     color: #9a3412;
-    margin-bottom: 12rpx;
+    margin-bottom: 8rpx;
   }
 
   .feedback-ai-text {
@@ -1568,7 +1568,7 @@
 .template-dialog-mode-row,
 .template-dialog-config-row {
   display: flex;
-  gap: 12rpx;
+  gap: 8rpx;
   margin-bottom: 16rpx;
 }
 
@@ -1576,12 +1576,12 @@
 .template-dialog-chip {
   background: #f3f4f6;
   color: #374151;
-  padding: 14rpx 18rpx;
-  border-radius: 999rpx;
+  padding: 16rpx 16rpx;
+  border-radius: 1000rpx;
   font-size: 22rpx;
 
   &.active {
-    background: linear-gradient(135deg, #ff9f4a, #ff7b2c);
+    background: #ff9f4a;
     color: #fff;
   }
 }
@@ -1603,7 +1603,7 @@
   min-height: 72rpx;
   background: #f8fafc;
   border: 2rpx solid #e5e7eb;
-  border-radius: 14rpx;
+  border-radius: 16rpx;
   box-sizing: border-box;
-  padding: 0 18rpx;
+  padding: 0 16rpx;
 }

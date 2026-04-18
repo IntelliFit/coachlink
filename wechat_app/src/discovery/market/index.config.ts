@@ -1,1 +1,3 @@
-export default { navigationBarTitleText: '市场' }
+export default { navigationBarTitleText: '市场',
+  animationType: 'none'
+}

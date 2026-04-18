@@ -25,7 +25,7 @@
   .pr-list {
     .pr-item {
       display: flex; justify-content: space-between; align-items: center;
-      padding: 20rpx 0; border-bottom: 1rpx solid #f0f0f0;
+      padding: 16rpx 0; border-bottom: 1rpx solid #f0f0f0;
       &:last-child { border-bottom: none; }
       .pr-info {
         .pr-action { font-size: 30rpx; color: #333; font-weight: 500; display: block; margin-bottom: 8rpx; }

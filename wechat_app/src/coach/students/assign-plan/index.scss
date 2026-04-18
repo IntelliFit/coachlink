@@ -3,7 +3,7 @@
   background:
     radial-gradient(circle at top right, rgba(255, 170, 95, 0.12), transparent 30%),
     linear-gradient(180deg, #f8fafc 0%, #f2f5fa 100%);
-  padding-bottom: 220rpx;
+  padding-bottom: 224rpx;
   box-sizing: border-box;
 
   &__inner {
@@ -20,9 +20,9 @@
   .section {
     background: rgba(255, 255, 255, 0.96);
     border: 2rpx solid rgba(229, 231, 235, 0.7);
-    border-radius: 28rpx;
-    padding: 26rpx;
-    margin-bottom: 20rpx;
+    border-radius: 24rpx;
+    padding: 24rpx;
+    margin-bottom: 16rpx;
     box-shadow: 0 16rpx 40rpx rgba(15, 23, 42, 0.05);
     backdrop-filter: blur(12rpx);
   }
@@ -30,8 +30,8 @@
   .assign-plan-hero {
     &__eyebrow {
       display: inline-block;
-      padding: 10rpx 18rpx;
-      border-radius: 999rpx;
+      padding: 8rpx 16rpx;
+      border-radius: 1000rpx;
       background: #fff2e5;
       color: #d97706;
       font-size: 22rpx;
@@ -49,7 +49,7 @@
 
     &__desc {
       display: block;
-      margin-top: 12rpx;
+      margin-top: 8rpx;
       font-size: 25rpx;
       color: #6b7280;
       line-height: 1.6;
@@ -58,8 +58,8 @@
     &__meta {
       display: flex;
       flex-wrap: wrap;
-      gap: 12rpx;
-      margin-top: 18rpx;
+      gap: 8rpx;
+      margin-top: 16rpx;
     }
   }
 
@@ -72,7 +72,7 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    border-radius: 999rpx;
+    border-radius: 1000rpx;
     font-size: 22rpx;
     line-height: 1;
   }
@@ -80,7 +80,7 @@
   .hero-pill,
   .summary-pill,
   .template-meta__pill {
-    padding: 12rpx 18rpx;
+    padding: 8rpx 16rpx;
     background: #f3f4f6;
     color: #4b5563;
   }
@@ -134,7 +134,7 @@
 
   .section-side,
   .template-status {
-    padding: 10rpx 18rpx;
+    padding: 8rpx 16rpx;
     background: #fff7ed;
     color: #ea580c;
     font-weight: 700;
@@ -155,20 +155,20 @@
   .bottom-bar {
     display: flex;
     flex-wrap: wrap;
-    gap: 14rpx;
+    gap: 16rpx;
   }
 
   .search-row {
-    margin-top: 18rpx;
+    margin-top: 16rpx;
   }
 
   .search-input {
     flex: 1;
     min-width: 0;
-    min-height: 84rpx;
-    padding: 0 22rpx;
+    min-height: 88rpx;
+    padding: 0 24rpx;
     box-sizing: border-box;
-    border-radius: 18rpx;
+    border-radius: 16rpx;
     background: #f8fafc;
     border: 2rpx solid #e5e7eb;
   }
@@ -178,16 +178,16 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    border-radius: 20rpx;
-    background: linear-gradient(135deg, #ff9f4a, #ff7b2c);
+    border-radius: 16rpx;
+    background: #ff9f4a;
     color: #fff;
     font-weight: 700;
   }
 
   .search-btn {
-    min-width: 132rpx;
-    min-height: 84rpx;
-    padding: 0 26rpx;
+    min-width: 136rpx;
+    min-height: 88rpx;
+    padding: 0 24rpx;
     font-size: 24rpx;
   }
 
@@ -195,7 +195,7 @@
     &__header {
       display: flex;
       align-items: center;
-      gap: 18rpx;
+      gap: 16rpx;
     }
 
     &__avatar {
@@ -217,16 +217,16 @@
     }
 
     &__stats {
-      margin-top: 22rpx;
+      margin-top: 24rpx;
     }
   }
 
   .student-stat {
     flex: 1;
     min-width: 0;
-    padding: 18rpx;
+    padding: 16rpx;
     background: #f8fafc;
-    border-radius: 20rpx;
+    border-radius: 16rpx;
     border: 2rpx solid #edf2f7;
 
     &__value {
@@ -248,12 +248,12 @@
   .template-list {
     display: flex;
     flex-direction: column;
-    gap: 14rpx;
-    margin-top: 18rpx;
+    gap: 16rpx;
+    margin-top: 16rpx;
   }
 
   .template-item {
-    padding: 22rpx;
+    padding: 24rpx;
     border-radius: 24rpx;
     border: 2rpx solid #e5e7eb;
     background: #f8fafc;
@@ -283,7 +283,7 @@
 
   .template-focus {
     &__name {
-      margin-top: 18rpx;
+      margin-top: 16rpx;
       font-size: 34rpx;
       line-height: 1.25;
     }
@@ -291,16 +291,16 @@
 
   .summary-pills,
   .template-meta {
-    margin-top: 18rpx;
+    margin-top: 16rpx;
   }
 
   .mode-grid {
-    margin-top: 18rpx;
+    margin-top: 16rpx;
     flex-direction: column;
   }
 
   .mode-card {
-    padding: 22rpx;
+    padding: 24rpx;
     border-radius: 24rpx;
     border: 2rpx solid #e5e7eb;
     background: #f8fafc;
@@ -324,8 +324,8 @@
   }
 
   .start-summary {
-    margin-top: 18rpx;
-    padding: 22rpx;
+    margin-top: 16rpx;
+    padding: 24rpx;
     background: linear-gradient(180deg, #fff8f2 0%, #fff 100%);
     border-radius: 24rpx;
     border: 2rpx solid #ffe1c2;
@@ -340,13 +340,13 @@
 
   .plan-week-nav,
   .picker-block {
-    margin-top: 18rpx;
+    margin-top: 16rpx;
   }
 
   .picker-block {
     &__label {
       display: block;
-      margin-bottom: 10rpx;
+      margin-bottom: 8rpx;
       font-size: 23rpx;
       color: #6b7280;
       font-weight: 600;
@@ -354,12 +354,12 @@
   }
 
   .picker-chip {
-    padding: 16rpx 20rpx;
+    padding: 16rpx 16rpx;
     background: #f3f4f6;
     color: #4b5563;
 
     &.active {
-      background: linear-gradient(135deg, #ff9f4a, #ff7b2c);
+      background: #ff9f4a;
       color: #fff;
       font-weight: 700;
       box-shadow: 0 10rpx 20rpx rgba(249, 115, 22, 0.18);
@@ -382,7 +382,7 @@
     left: 0;
     right: 0;
     bottom: 0;
-    padding: 20rpx 24rpx calc(env(safe-area-inset-bottom) + 20rpx);
+    padding: 16rpx 24rpx calc(env(safe-area-inset-bottom) + 16rpx);
     background: rgba(255, 255, 255, 0.96);
     border-top: 2rpx solid rgba(229, 231, 235, 0.75);
     box-shadow: 0 -12rpx 34rpx rgba(15, 23, 42, 0.08);
@@ -404,8 +404,8 @@
 
   .btn-primary {
     min-width: 280rpx;
-    min-height: 92rpx;
-    padding: 0 28rpx;
+    min-height: 96rpx;
+    padding: 0 24rpx;
 
     &.disabled {
       background: #d1d5db;

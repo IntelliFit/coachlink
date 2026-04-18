@@ -1,1 +1,3 @@
-export default { navigationBarTitleText: '计算方法论' }
+export default { navigationBarTitleText: '计算方法论',
+  animationType: 'none'
+}

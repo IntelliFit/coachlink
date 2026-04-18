@@ -1,3 +1,4 @@
 export default {
-  navigationBarTitleText: '计划详情'
+  navigationBarTitleText: '计划详情',
+  animationType: 'none'
 }

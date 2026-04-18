@@ -78,7 +78,7 @@
       justify-content: center;
       gap: 6px;
       padding: 10px 16px;
-      background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+      background: #3b82f6;
       border-radius: 8px;
       box-shadow: 0 2px 8px rgba(59, 130, 246, 0.25);
       transition: all 0.2s ease;
@@ -91,7 +91,7 @@
       }
 
       &.reviewed-btn {
-        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        background: #10b981;
         box-shadow: 0 2px 8px rgba(16, 185, 129, 0.25);
 
         &:active {

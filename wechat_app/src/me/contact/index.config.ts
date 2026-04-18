@@ -1,3 +1,4 @@
 export default {
-  navigationBarTitleText: '联系我们'
+  navigationBarTitleText: '联系我们',
+  animationType: 'none'
 }

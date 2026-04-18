@@ -1,4 +1,5 @@
 export default {
   navigationBarTitleText: '全部计划',
-  enablePullDownRefresh: true
+  enablePullDownRefresh: true,
+  animationType: 'none'
 }

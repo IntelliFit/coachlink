@@ -8,7 +8,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 24rpx 24rpx 20rpx;
+    padding: 24rpx 24rpx 16rpx;
     background: #fff;
 
     .header-left {
@@ -30,7 +30,7 @@
   }
 
   .intro-card {
-    margin: 20rpx 24rpx;
+    margin: 16rpx 24rpx;
     padding: 24rpx;
     background: #fff;
     border-radius: 16rpx;
@@ -47,10 +47,10 @@
       gap: 16rpx;
 
       .intro-btn {
-        padding: 12rpx 24rpx;
+        padding: 8rpx 24rpx;
         border: 1rpx solid #1890ff;
         color: #1890ff;
-        border-radius: 12rpx;
+        border-radius: 8rpx;
         font-size: 26rpx;
       }
     }
@@ -69,14 +69,14 @@
 
     .form-actions {
       display: flex;
-      gap: 20rpx;
+      gap: 16rpx;
       margin-bottom: 24rpx;
 
       .btn-add, .btn-start {
         flex: 1;
         padding: 24rpx;
         text-align: center;
-        border-radius: 12rpx;
+        border-radius: 8rpx;
         font-size: 28rpx;
       }
 
@@ -105,7 +105,7 @@
     }
 
     .training-item {
-      padding: 20rpx 0;
+      padding: 16rpx 0;
       border-bottom: 1rpx solid #f0f0f0;
 
       &:last-child { border-bottom: none; }
@@ -144,7 +144,7 @@
 
           .btn-remove {
             margin-left: 16rpx;
-            padding: 12rpx 20rpx;
+            padding: 8rpx 16rpx;
             color: #ff4d4f;
             font-size: 26rpx;
           }
@@ -197,7 +197,7 @@
     max-height: 60vh;
     background: #fff;
     border-radius: 24rpx 24rpx 0 0;
-    padding: 30rpx;
+    padding: 32rpx;
 
     .picker-title { font-size: 32rpx; font-weight: bold; margin-bottom: 20rpx; }
     .picker-list { max-height: 400rpx; }

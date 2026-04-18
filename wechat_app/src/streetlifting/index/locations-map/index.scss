@@ -8,7 +8,7 @@
 
 .locations-map-toolbar {
   display: flex;
-  gap: 12rpx;
+  gap: 8rpx;
   margin-bottom: 16rpx;
 }
 
@@ -17,7 +17,7 @@
   height: 72rpx;
   line-height: 72rpx;
   text-align: center;
-  border-radius: 18rpx;
+  border-radius: 16rpx;
   background: #ffffff;
   border: 1px solid #e5e7eb;
   color: #374151;
@@ -36,8 +36,8 @@
   align-items: center;
   justify-content: space-between;
   gap: 16rpx;
-  padding: 20rpx 24rpx;
-  border-radius: 20rpx;
+  padding: 16rpx 24rpx;
+  border-radius: 16rpx;
   background: linear-gradient(180deg, #f0fdf4 0%, #ffffff 100%);
   border: 1px solid #d1fae5;
   margin-bottom: 16rpx;
@@ -65,9 +65,9 @@
 
 .locations-map-stat {
   flex-shrink: 0;
-  min-width: 132rpx;
-  padding: 16rpx 18rpx;
-  border-radius: 18rpx;
+  min-width: 136rpx;
+  padding: 16rpx 16rpx;
+  border-radius: 16rpx;
   background: #ffffff;
   border: 1px solid #e5e7eb;
   text-align: center;
@@ -78,7 +78,7 @@
   font-size: 30rpx;
   font-weight: 800;
   color: #047857;
-  margin-bottom: 6rpx;
+  margin-bottom: 8rpx;
 }
 
 .locations-map-stat-label {
@@ -104,15 +104,15 @@
 
 .locations-map-overlay {
   position: absolute;
-  left: 20rpx;
-  right: 20rpx;
-  top: 20rpx;
+  left: 16rpx;
+  right: 16rpx;
+  top: 16rpx;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16rpx;
-  padding: 14rpx 18rpx;
-  border-radius: 18rpx;
+  padding: 16rpx 16rpx;
+  border-radius: 16rpx;
   background: rgba(255, 255, 255, 0.92);
   backdrop-filter: blur(12rpx);
 }
@@ -122,7 +122,7 @@
   font-size: 24rpx;
   font-weight: 700;
   color: #111827;
-  margin-bottom: 4rpx;
+  margin-bottom: 0rpx;
 }
 
 .locations-map-overlay-desc {
@@ -134,7 +134,7 @@
 .locations-map-overlay-badge {
   flex-shrink: 0;
   padding: 8rpx 16rpx;
-  border-radius: 999rpx;
+  border-radius: 1000rpx;
   background: #fef3c7;
   color: #b45309;
   font-size: 20rpx;
@@ -143,9 +143,9 @@
 
 .locations-map-loading,
 .locations-map-error {
-  margin-top: 20rpx;
+  margin-top: 16rpx;
   padding: 24rpx;
-  border-radius: 20rpx;
+  border-radius: 16rpx;
   background: #ffffff;
   border: 1px solid #e5e7eb;
   color: #6b7280;
@@ -153,7 +153,7 @@
 }
 
 .locations-map-selected {
-  margin-top: 20rpx;
+  margin-top: 16rpx;
   padding: 24rpx;
   border-radius: 24rpx;
   background: #ffffff;
@@ -179,13 +179,13 @@
 
 .locations-map-selected-actions {
   display: flex;
-  gap: 12rpx;
-  margin-top: 18rpx;
+  gap: 8rpx;
+  margin-top: 16rpx;
 }
 
 .locations-map-selected-btn {
   flex: 1;
-  height: 68rpx;
+  height: 72rpx;
   line-height: 68rpx;
   text-align: center;
   border-radius: 16rpx;
@@ -204,8 +204,8 @@
 
 .locations-map-hint {
   margin-top: 16rpx;
-  padding: 18rpx 20rpx;
-  border-radius: 18rpx;
+  padding: 16rpx 16rpx;
+  border-radius: 16rpx;
   background: #ffffff;
   border: 1px solid #e5e7eb;
   font-size: 22rpx;

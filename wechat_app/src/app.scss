@@ -12,10 +12,123 @@ page {
   --text-primary: #010101;
   --text-secondary: #6B7280;
   --text-tertiary: #9CA3AF;
+  --border-color: #E5E5E5;
   --border-radius-card: 32rpx;
   --border-radius-pill: 9999rpx;
   --shadow-card: 0 4rpx 24rpx rgba(0, 0, 0, 0.04);
   --shadow-float: 0 8rpx 32rpx rgba(207, 109, 78, 0.22);
+}
+
+/* ==================== 暗色主题变量覆盖 ==================== */
+.theme-dark page {
+  --bg-page: #121212;
+  --bg-card: #1E1E1E;
+  --primary: #CF6D4E;
+  --primary-light: #E08F76;
+  --text-primary: #FFFFFF;
+  --text-secondary: #B0B0B0;
+  --text-tertiary: #808080;
+  --border-color: #333333;
+  --shadow-card: 0 4rpx 24rpx rgba(0, 0, 0, 0.3);
+  --shadow-float: 0 8rpx 32rpx rgba(0, 0, 0, 0.4);
+}
+
+/* ==================== 全局暗色硬编码颜色批量覆盖 ==================== */
+.theme-dark {
+  /* 页面根背景 */
+  .profile-page,
+  .page-with-nav,
+  .page-with-float-nav,
+  .doc-page,
+  .doc-scroll {
+    background: #121212 !important;
+  }
+
+  /* 白色/浅灰卡片背景 → 暗色卡片 */
+  .profile-card,
+  .menu-list-card,
+  .core-grid,
+  .guest-notice-card,
+  .doc-card {
+    background: #1E1E1E !important;
+  }
+
+  /* 主要文字 #333 → 浅灰 */
+  .profile-name,
+  .core-label,
+  .menu-list-label,
+  .doc-title,
+  .doc-subtitle {
+    color: #E0E0E0 !important;
+  }
+
+  /* 次要文字 #666 → 中灰 */
+  .profile-subtitle,
+  .guest-notice-desc,
+  .doc-content {
+    color: #B0B0B0 !important;
+  }
+
+  /* 第三级文字 #999 → 深灰 */
+  .badge-text,
+  .badge-dot,
+  .profile-settings-btn,
+  .footer-link,
+  .footer-dot {
+    color: #808080 !important;
+  }
+
+  /* 分割线/边框 */
+  .menu-list-item {
+    border-bottom-color: #333333 !important;
+  }
+
+  /* 退出登录按钮背景 */
+  .logout-btn {
+    background: #1E1E1E !important;
+  }
+
+  /* 导航栏背后填充 */
+  .page-with-nav::after {
+    background: #121212 !important;
+  }
+
+  /* ===== 通用批量覆盖：捕获未使用变量的页面 ===== */
+  /* 任何硬编码白色/浅灰背景 → 暗色 */
+  [style*="background: #fff"],
+  [style*="background:#fff"],
+  [style*="background: #ffffff"],
+  [style*="background:#ffffff"],
+  [style*="background: #f5f5f5"],
+  [style*="background:#f5f5f5"],
+  [style*="background: #f8f8f8"],
+  [style*="background:#f8f8f8"] {
+    background: #1E1E1E !important;
+  }
+
+  /* 硬编码 #333 文字 → 浅灰 */
+  [style*="color: #333"],
+  [style*="color:#333"],
+  [style*="color: #333333"],
+  [style*="color:#333333"] {
+    color: #E0E0E0 !important;
+  }
+
+  /* 硬编码 #666 文字 → 中灰 */
+  [style*="color: #666"],
+  [style*="color:#666"],
+  [style*="color: #666666"],
+  [style*="color:#666666"] {
+    color: #B0B0B0 !important;
+  }
+
+  /* 硬编码 #999 文字 → 深灰 */
+  [style*="color: #999"],
+  [style*="color:#999"],
+  [style*="color: #999999"],
+  [style*="color:#999999"] {
+    color: #808080 !important;
+  }
 }
 
 /* ==================== 带底部导航栏的页面布局（全局） ====================
@@ -58,7 +171,7 @@ $bottom-nav-height-rpx: 140rpx;
 
   .page-scroll {
     min-height: 100vh;
-    padding-bottom: 180rpx;
+    padding-bottom: 184rpx;
     box-sizing: border-box;
   }
 }
@@ -100,7 +213,7 @@ $bottom-nav-height-rpx: 140rpx;
   font-weight: bold;
   color: #333;
   margin-top: 24rpx;
-  margin-bottom: 12rpx;
+  margin-bottom: 8rpx;
   display: block;
   word-wrap: break-word;
   overflow-wrap: break-word;
@@ -121,7 +234,7 @@ $bottom-nav-height-rpx: 140rpx;
 }
 .action-btn {
   padding: 24rpx 32rpx;
-  border-radius: 12rpx;
+  border-radius: 8rpx;
   text-align: center;
   font-size: 30rpx;
   &.primary {

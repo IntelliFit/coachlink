@@ -1,3 +1,4 @@
 export default {
-  navigationBarTitleText: '当前计划'
+  navigationBarTitleText: '当前计划',
+  animationType: 'none'
 }

@@ -1,4 +1,5 @@
 export default {
   navigationBarTitleText: '购物车',
-  enablePullDownRefresh: true
+  enablePullDownRefresh: true,
+  animationType: 'none'
 }
