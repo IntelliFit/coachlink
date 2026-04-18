@@ -7,7 +7,7 @@
 }
 
 .data-header {
-  margin-bottom: 20rpx;
+  margin-bottom: 16rpx;
   .data-title { display: block; font-size: 36rpx; font-weight: 700; color: #1f2937; margin-bottom: 8rpx; }
   .data-desc { display: block; font-size: 26rpx; color: #6b7280; }
 }
@@ -31,9 +31,9 @@
   margin-bottom: 24rpx;
   .stat {
     flex: 1;
-    padding: 20rpx;
+    padding: 16rpx;
     background: #fff;
-    border-radius: 12rpx;
+    border-radius: 8rpx;
     border: 1px solid #e5e7eb;
     .stat-n { display: block; font-size: 36rpx; font-weight: 800; color: #1f2937; }
     .stat-l { display: block; font-size: 22rpx; color: #6b7280; margin-top: 4rpx; }
@@ -43,13 +43,13 @@
 .filter-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 12rpx;
+  gap: 8rpx;
   margin-bottom: 16rpx;
   .filter-btn {
-    padding: 12rpx 20rpx;
+    padding: 8rpx 16rpx;
     background: #fff;
     border: 1px solid #e5e7eb;
-    border-radius: 12rpx;
+    border-radius: 8rpx;
     font-size: 24rpx;
     color: #374151;
   }
@@ -61,7 +61,7 @@
   padding: 0 24rpx;
   background: #fff;
   border: 1px solid #e5e7eb;
-  border-radius: 12rpx;
+  border-radius: 8rpx;
   font-size: 28rpx;
   margin-bottom: 24rpx;
 }
@@ -69,7 +69,7 @@
 .data-scroll { height: calc(100vh - 480rpx); }
 
 .loading-wrap, .empty-wrap {
-  padding: 60rpx;
+  padding: 64rpx;
   text-align: center;
   color: #6b7280;
   font-size: 28rpx;
@@ -87,15 +87,15 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 12rpx;
+    margin-bottom: 8rpx;
     .data-user { font-size: 28rpx; font-weight: 600; color: #1f2937; }
     .data-card-actions { display: flex; gap: 12rpx; }
     .btn-claim, .btn-video {
-      padding: 0 20rpx;
-      height: 52rpx;
+      padding: 0 16rpx;
+      height: 56rpx;
       line-height: 52rpx;
       font-size: 22rpx;
-      border-radius: 10rpx;
+      border-radius: 8rpx;
       border: 1px solid #e5e7eb;
       background: #f9fafb;
       color: #374151;
@@ -104,26 +104,26 @@
   .data-tags {
     display: flex;
     flex-wrap: wrap;
-    gap: 12rpx;
+    gap: 8rpx;
     margin-bottom: 16rpx;
     .tag {
-      padding: 4rpx 14rpx;
+      padding: 0rpx 16rpx;
       font-size: 22rpx;
       color: #6b7280;
       background: #f3f4f6;
-      border-radius: 999rpx;
+      border-radius: 1000rpx;
       &.quality { background: #fff; border: 1px solid #e5e7eb; }
     }
   }
   .data-grid {
     display: flex;
-    gap: 12rpx;
+    gap: 8rpx;
     margin-bottom: 16rpx;
     .data-cell {
       flex: 1;
-      padding: 12rpx;
+      padding: 8rpx;
       background: #f9fafb;
-      border-radius: 10rpx;
+      border-radius: 8rpx;
       text-align: center;
       .cell-l { display: block; font-size: 20rpx; color: #6b7280; }
       .cell-v { display: block; font-size: 26rpx; font-weight: 700; color: #1f2937; }
@@ -133,7 +133,7 @@
     padding: 16rpx;
     background: linear-gradient(135deg, #eff6ff 0%, #fff 100%);
     border: 1px solid #bfdbfe;
-    border-radius: 12rpx;
+    border-radius: 8rpx;
     text-align: center;
     .score-l { font-size: 22rpx; color: #6b7280; }
     .score-v { font-size: 36rpx; font-weight: 800; color: #2563eb; }
@@ -169,7 +169,7 @@
       padding: 0 24rpx;
       background: #f9fafb;
       border: 1px solid #e5e7eb;
-      border-radius: 12rpx;
+      border-radius: 8rpx;
       font-size: 28rpx;
     }
     .picker-val {
@@ -178,7 +178,7 @@
       padding: 0 24rpx;
       background: #f9fafb;
       border: 1px solid #e5e7eb;
-      border-radius: 12rpx;
+      border-radius: 8rpx;
       font-size: 28rpx;
       color: #374151;
     }

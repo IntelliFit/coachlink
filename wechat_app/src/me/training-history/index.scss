@@ -13,7 +13,7 @@
     .header-left {
       display: flex;
       align-items: center;
-      gap: 12rpx;
+      gap: 8rpx;
 
       .back-icon {
         font-size: 36rpx;
@@ -28,10 +28,10 @@
     }
 
     .impromptu-btn {
-      padding: 12rpx 24rpx;
+      padding: 8rpx 24rpx;
       border: 1rpx solid #1890ff;
       color: #1890ff;
-      border-radius: 12rpx;
+      border-radius: 8rpx;
       font-size: 26rpx;
     }
   }
@@ -78,7 +78,7 @@
         .nav-btn {
           font-size: 36rpx;
           color: #1890ff;
-          padding: 0 12rpx;
+          padding: 0 8rpx;
         }
       }
     }
@@ -101,7 +101,7 @@
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        border-radius: 12rpx;
+        border-radius: 8rpx;
         border: 1rpx solid #f0f0f0;
 
         &.empty {
@@ -122,7 +122,7 @@
         .day-sessions {
           font-size: 20rpx;
           color: #1890ff;
-          margin-top: 4rpx;
+          margin-top: 0rpx;
         }
       }
     }
@@ -194,7 +194,7 @@
       .detail-item {
         padding: 24rpx;
         border: 1rpx solid #f0f0f0;
-        border-radius: 12rpx;
+        border-radius: 8rpx;
         margin-bottom: 16rpx;
 
         &:last-child {
@@ -221,11 +221,11 @@
 
           .item-tags {
             display: flex;
-            gap: 12rpx;
+            gap: 8rpx;
 
             .tag {
               font-size: 22rpx;
-              padding: 4rpx 12rpx;
+              padding: 0rpx 8rpx;
               border-radius: 8rpx;
 
               &.source {
@@ -258,14 +258,14 @@
           }
 
           .item-actions {
-            margin-top: 20rpx;
+            margin-top: 16rpx;
             display: flex;
             justify-content: flex-end;
           }
 
           .share-action {
-            padding: 12rpx 24rpx;
-            border-radius: 999rpx;
+            padding: 8rpx 24rpx;
+            border-radius: 1000rpx;
             background: #1890ff;
 
             text {

@@ -29,7 +29,7 @@
 
   .error-btn {
     padding: 16rpx 40rpx;
-    border-radius: 999rpx;
+    border-radius: 1000rpx;
     background: #1890ff;
     color: #fff;
     font-size: 28rpx;
@@ -59,11 +59,11 @@
     }
 
     .avatar-wrap {
-      width: 140rpx;
-      height: 140rpx;
-      border-radius: 999rpx;
+      width: 144rpx;
+      height: 144rpx;
+      border-radius: 1000rpx;
       border: 4rpx solid rgba(255, 255, 255, 0.2);
-      padding: 6rpx;
+      padding: 8rpx;
       background: rgba(15, 23, 42, 0.6);
       margin-bottom: 24rpx;
     }
@@ -71,7 +71,7 @@
     .avatar {
       width: 100%;
       height: 100%;
-      border-radius: 999rpx;
+      border-radius: 1000rpx;
       background: #e5e7eb;
 
       &.placeholder {
@@ -105,7 +105,7 @@
       font-size: 28rpx;
       font-weight: 500;
       color: #38bdf8;
-      margin-left: 6rpx;
+      margin-left: 8rpx;
     }
 
     .banner-meta {
@@ -118,7 +118,7 @@
     margin-top: -40rpx;
     padding: 0 24rpx 16rpx;
     display: flex;
-    gap: 20rpx;
+    gap: 16rpx;
   }
 
   .stat-card {
@@ -145,7 +145,7 @@
     .stat-unit {
       font-size: 22rpx;
       color: #9ca3af;
-      margin-left: 4rpx;
+      margin-left: 0rpx;
     }
   }
 
@@ -164,7 +164,7 @@
   .actions-list {
     background: #ffffff;
     border-radius: 24rpx;
-    padding: 12rpx 8rpx;
+    padding: 8rpx 8rpx;
     box-shadow: 0 8rpx 24rpx rgba(15, 23, 42, 0.04);
     border: 1rpx solid #e5e7eb;
   }
@@ -173,7 +173,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 16rpx 12rpx;
+    padding: 16rpx 8rpx;
     border-radius: 16rpx;
 
     &:not(:last-child) {
@@ -212,12 +212,12 @@
   .action-right {
     display: flex;
     align-items: center;
-    gap: 12rpx;
+    gap: 8rpx;
   }
 
   .badge {
-    padding: 6rpx 16rpx;
-    border-radius: 999rpx;
+    padding: 8rpx 16rpx;
+    border-radius: 1000rpx;
     font-size: 24rpx;
 
     &.primary {
@@ -240,7 +240,7 @@
 
   .cta-card {
     margin: 32rpx 24rpx 0;
-    padding: 28rpx 24rpx;
+    padding: 24rpx 24rpx;
     border-radius: 24rpx;
     background: #020617;
     overflow: hidden;
@@ -251,10 +251,10 @@
       position: absolute;
       right: -40rpx;
       top: -40rpx;
-      width: 180rpx;
-      height: 180rpx;
+      width: 184rpx;
+      height: 184rpx;
       background: rgba(56, 189, 248, 0.18);
-      border-radius: 999rpx;
+      border-radius: 1000rpx;
       filter: blur(10rpx);
     }
   }
@@ -285,8 +285,8 @@
 
   .cta-btn {
     flex: 1;
-    padding: 18rpx 0;
-    border-radius: 999rpx;
+    padding: 16rpx 0;
+    border-radius: 1000rpx;
     text-align: center;
     font-size: 28rpx;
     font-weight: 600;
@@ -310,8 +310,8 @@
   .share-btn {
     width: 100%;
     padding: 24rpx 0;
-    background: linear-gradient(135deg, #38bdf8, #0ea5e9);
-    border-radius: 999rpx;
+    background: #38bdf8;
+    border-radius: 1000rpx;
     color: #fff;
     font-size: 32rpx;
     font-weight: 600;

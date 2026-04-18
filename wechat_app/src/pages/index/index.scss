@@ -54,7 +54,7 @@
 }
 
 .login-pill {
-  padding: 16rpx 36rpx;
+  padding: 16rpx 40rpx;
   background: #CF6D4E;
   border-radius: 9999rpx;
   box-shadow: 0 8rpx 24rpx rgba(207, 109, 78, 0.25);
@@ -84,7 +84,7 @@
 /* Hero Card */
 .home-hero-card {
   background: #FFFFFF;
-  border-radius: 36rpx;
+  border-radius: 40rpx;
   padding: 40rpx 32rpx;
   margin-bottom: 32rpx;
   box-shadow: 0 8rpx 32rpx rgba(0, 0, 0, 0.04);
@@ -94,13 +94,13 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 28rpx;
+  margin-bottom: 24rpx;
 }
 
 .hero-card-text {
   display: flex;
   flex-direction: column;
-  gap: 12rpx;
+  gap: 8rpx;
 }
 
 .hero-card-title {
@@ -116,8 +116,8 @@
 }
 
 .hero-card-icon-wrap {
-  width: 100rpx;
-  height: 100rpx;
+  width: 104rpx;
+  height: 104rpx;
   background: #FDF2EC;
   border-radius: 50%;
   display: flex;
@@ -171,8 +171,8 @@
   align-items: center;
   gap: 16rpx;
   background: #FFFFFF;
-  border-radius: 28rpx;
-  padding: 28rpx 0;
+  border-radius: 24rpx;
+  padding: 24rpx 0;
   box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.03);
 
   &:active {
@@ -215,8 +215,8 @@
 /* Promo Card */
 .home-promo-card {
   background: #CF6D4E;
-  border-radius: 36rpx;
-  padding: 36rpx 32rpx;
+  border-radius: 40rpx;
+  padding: 40rpx 32rpx;
   margin-bottom: 32rpx;
   box-shadow: 0 12rpx 36rpx rgba(207, 109, 78, 0.22);
 }
@@ -232,7 +232,7 @@
 .promo-card-subtitle {
   font-size: 26rpx;
   color: rgba(255, 255, 255, 0.85);
-  margin-bottom: 28rpx;
+  margin-bottom: 24rpx;
 }
 
 .promo-card-actions {
@@ -242,7 +242,7 @@
 }
 
 .promo-btn {
-  padding: 18rpx 36rpx;
+  padding: 16rpx 40rpx;
   border-radius: 9999rpx;
 
   &:active {
@@ -278,7 +278,7 @@
 .features-list {
   display: flex;
   flex-direction: column;
-  gap: 20rpx;
+  gap: 16rpx;
 }
 
 .feature-item {
@@ -286,8 +286,8 @@
   align-items: center;
   gap: 24rpx;
   background: #FFFFFF;
-  border-radius: 28rpx;
-  padding: 28rpx 32rpx;
+  border-radius: 24rpx;
+  padding: 24rpx 32rpx;
   box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.03);
 
   &:active {
@@ -297,8 +297,8 @@
 }
 
 .feature-icon-wrap {
-  width: 84rpx;
-  height: 84rpx;
+  width: 88rpx;
+  height: 88rpx;
   border-radius: 24rpx;
   display: flex;
   align-items: center;

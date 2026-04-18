@@ -1,3 +1,4 @@
 export default {
-  navigationBarTitleText: '新用户引导'
+  navigationBarTitleText: '新用户引导',
+  animationType: 'none'
 }

@@ -1,3 +1,4 @@
 export default {
-  navigationBarTitleText: '书籍详情'
+  navigationBarTitleText: '书籍详情',
+  animationType: 'none'
 }

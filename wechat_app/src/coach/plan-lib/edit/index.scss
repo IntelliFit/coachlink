@@ -95,7 +95,7 @@
         content: '';
         width: 3px;
         height: 16px;
-        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+        background: #3b82f6;
         border-radius: 2px;
       }
     }
@@ -105,7 +105,7 @@
       align-items: center;
       gap: 3px;
       padding: 6px 10px;
-      background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+      background: #3b82f6;
       color: #fff;
       font-size: 12px;
       font-weight: 700;
@@ -264,7 +264,7 @@
       min-width: 0;
 
       &.active {
-        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+        background: #3b82f6;
         color: #fff;
         box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
       }
@@ -543,7 +543,7 @@
     }
 
     .save-btn {
-      background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+      background: #3b82f6;
       color: #fff;
       box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
 

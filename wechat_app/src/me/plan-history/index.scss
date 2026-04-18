@@ -65,7 +65,7 @@
       transition: all 0.2s;
 
       &.active {
-        background: linear-gradient(135deg, #f97316 0%, #fb923c 100%);
+        background: #f97316;
         color: #fff;
         font-weight: 600;
       }
@@ -227,7 +227,7 @@
       font-weight: 600;
 
       &.primary {
-        background: linear-gradient(135deg, #f97316 0%, #fb923c 100%);
+        background: #f97316;
         color: #fff;
       }
 

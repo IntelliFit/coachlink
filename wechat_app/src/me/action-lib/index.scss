@@ -4,7 +4,7 @@
 
   .page-scroll {
     height: 100vh;
-    padding-bottom: 140rpx;
+    padding-bottom: 144rpx;
   }
 
   .page-content {
@@ -28,7 +28,7 @@
       .page-subtitle {
         font-size: 24rpx;
         color: #999;
-        margin-top: 4rpx;
+        margin-top: 0rpx;
         display: block;
       }
     }
@@ -45,7 +45,7 @@
       justify-content: center;
       min-height: 64rpx;
       padding: 0 24rpx;
-      border-radius: 12rpx;
+      border-radius: 8rpx;
       border: 2rpx solid #e5e7eb;
       background: #fff;
 
@@ -62,7 +62,7 @@
       gap: 8rpx;
       background: #1890ff;
       padding: 16rpx 24rpx;
-      border-radius: 12rpx;
+      border-radius: 8rpx;
 
       .create-icon {
         font-size: 32rpx;
@@ -90,14 +90,14 @@
       height: 80rpx;
       padding: 0 80rpx 0 24rpx;
       background: #fff;
-      border-radius: 12rpx;
+      border-radius: 8rpx;
       font-size: 28rpx;
     }
 
     .search-submit {
       height: 80rpx;
-      padding: 0 28rpx;
-      border-radius: 12rpx;
+      padding: 0 24rpx;
+      border-radius: 8rpx;
       background: #1f2937;
       display: flex;
       align-items: center;
@@ -112,7 +112,7 @@
 
     .clear-btn {
       position: absolute;
-      right: 132rpx;
+      right: 136rpx;
       top: 50%;
       transform: translateY(-50%);
       font-size: 28rpx;
@@ -126,8 +126,8 @@
     justify-content: space-between;
     align-items: center;
     background: #e6f7ff;
-    padding: 20rpx 24rpx;
-    border-radius: 12rpx;
+    padding: 16rpx 24rpx;
+    border-radius: 8rpx;
     margin-bottom: 24rpx;
 
     .batch-text {
@@ -138,7 +138,7 @@
 
     .batch-actions {
       display: flex;
-      gap: 20rpx;
+      gap: 16rpx;
 
       .batch-btn {
         font-size: 26rpx;
@@ -155,14 +155,14 @@
   .tab-bar {
     display: flex;
     gap: 16rpx;
-    margin-bottom: 20rpx;
+    margin-bottom: 16rpx;
 
     .tab-chip {
       flex: 1;
       display: flex;
       align-items: center;
       justify-content: center;
-      padding: 20rpx 16rpx;
+      padding: 16rpx 16rpx;
       border-radius: 16rpx;
       background: #ffffff;
       border: 2rpx solid #e5e7eb;
@@ -186,9 +186,9 @@
 
   .preset-panel {
     background: #fff;
-    border-radius: 18rpx;
-    padding: 20rpx 22rpx;
-    margin-bottom: 20rpx;
+    border-radius: 16rpx;
+    padding: 16rpx 24rpx;
+    margin-bottom: 16rpx;
     border: 2rpx solid #f3f4f6;
 
     .preset-label {
@@ -196,18 +196,18 @@
       font-size: 24rpx;
       color: #6b7280;
       font-weight: 600;
-      margin-bottom: 14rpx;
+      margin-bottom: 16rpx;
     }
 
     .preset-chips {
       display: flex;
       flex-wrap: wrap;
-      gap: 12rpx;
+      gap: 8rpx;
     }
 
     .preset-chip {
-      padding: 12rpx 18rpx;
-      border-radius: 999rpx;
+      padding: 8rpx 16rpx;
+      border-radius: 1000rpx;
       background: #f3f4f6;
       border: 2rpx solid transparent;
 
@@ -231,9 +231,9 @@
   .library-tip {
     background: linear-gradient(135deg, #fff7ed 0%, #ffffff 100%);
     border: 2rpx solid #fed7aa;
-    border-radius: 20rpx;
-    padding: 22rpx 24rpx;
-    margin-bottom: 20rpx;
+    border-radius: 16rpx;
+    padding: 24rpx 24rpx;
+    margin-bottom: 16rpx;
 
     .library-tip-title {
       display: block;
@@ -271,7 +271,7 @@
         height: 40rpx;
         border: 2rpx solid #d9d9d9;
         border-radius: 50%;
-        margin-right: 20rpx;
+        margin-right: 16rpx;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -305,7 +305,7 @@
 
           .onerm-badge {
             background: #f6ffed;
-            padding: 4rpx 12rpx;
+            padding: 0rpx 8rpx;
             border-radius: 8rpx;
 
             Text {
@@ -318,7 +318,7 @@
         .action-detail {
           font-size: 26rpx;
           color: #999;
-          margin-bottom: 12rpx;
+          margin-bottom: 8rpx;
           display: block;
           overflow: hidden;
           text-overflow: ellipsis;
@@ -328,12 +328,12 @@
         .action-tags {
           display: flex;
           flex-wrap: wrap;
-          gap: 12rpx;
+          gap: 8rpx;
 
           .tag {
             background: #f5f5f5;
-            padding: 4rpx 12rpx;
-            border-radius: 6rpx;
+            padding: 0rpx 8rpx;
+            border-radius: 8rpx;
             font-size: 22rpx;
             color: #666;
 
@@ -348,7 +348,7 @@
       .action-menu {
         display: flex;
         flex-direction: column;
-        gap: 12rpx;
+        gap: 8rpx;
         margin-left: 16rpx;
 
         .menu-item {
@@ -393,13 +393,13 @@
 
   .public-card {
     background: #fff;
-    border-radius: 18rpx;
+    border-radius: 16rpx;
     padding: 24rpx;
     box-shadow: 0 2rpx 10rpx rgba(15, 23, 42, 0.05);
     border: 2rpx solid #f3f4f6;
 
     .public-card-main {
-      margin-bottom: 20rpx;
+      margin-bottom: 16rpx;
     }
 
     .public-card-top {
@@ -407,7 +407,7 @@
       align-items: flex-start;
       justify-content: space-between;
       gap: 16rpx;
-      margin-bottom: 10rpx;
+      margin-bottom: 8rpx;
     }
 
     .public-name {
@@ -428,8 +428,8 @@
 
     .public-badge {
       font-size: 20rpx;
-      padding: 6rpx 10rpx;
-      border-radius: 999rpx;
+      padding: 8rpx 8rpx;
+      border-radius: 1000rpx;
       font-weight: 600;
 
       &.type {
@@ -448,22 +448,22 @@
       font-size: 24rpx;
       color: #6b7280;
       line-height: 1.6;
-      margin-bottom: 12rpx;
+      margin-bottom: 8rpx;
     }
 
     .public-tags {
       display: flex;
       flex-wrap: wrap;
-      gap: 10rpx;
-      margin-bottom: 12rpx;
+      gap: 8rpx;
+      margin-bottom: 8rpx;
     }
 
     .public-tag {
       font-size: 20rpx;
       color: #4b5563;
       background: #f3f4f6;
-      border-radius: 999rpx;
-      padding: 6rpx 12rpx;
+      border-radius: 1000rpx;
+      padding: 8rpx 8rpx;
     }
 
     .public-meta {
@@ -479,15 +479,15 @@
 
     .public-actions {
       display: flex;
-      gap: 12rpx;
+      gap: 8rpx;
       border-top: 2rpx solid #f3f4f6;
-      padding-top: 18rpx;
+      padding-top: 16rpx;
     }
 
     .public-action-btn {
       flex: 1;
       height: 72rpx;
-      border-radius: 12rpx;
+      border-radius: 8rpx;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -506,7 +506,7 @@
       }
 
       &.primary {
-        background: linear-gradient(135deg, #f97316 0%, #fb923c 100%);
+        background: #f97316;
 
         Text {
           color: #fff;
@@ -535,7 +535,7 @@
       font-size: 32rpx;
       font-weight: 600;
       color: #333;
-      margin-bottom: 12rpx;
+      margin-bottom: 8rpx;
     }
 
     .empty-desc {
@@ -555,7 +555,7 @@
       background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
       background-size: 200% 100%;
       animation: shimmer 1.5s infinite;
-      border-radius: 4rpx;
+      border-radius: 0rpx;
       margin-bottom: 16rpx;
 
       &.short {
@@ -566,7 +566,7 @@
   }
 
   .skeleton-public-card {
-    min-height: 220rpx;
+    min-height: 224rpx;
   }
 
   .dialog {
@@ -621,9 +621,9 @@
       .dialog-input {
         width: 100%;
         height: 80rpx;
-        padding: 0 20rpx;
+        padding: 0 16rpx;
         border: 1rpx solid #e8e8e8;
-        border-radius: 12rpx;
+        border-radius: 8rpx;
         font-size: 28rpx;
         margin-bottom: 32rpx;
       }
@@ -641,15 +641,15 @@
         font-size: 24rpx;
         color: #374151;
         font-weight: 600;
-        margin-bottom: 12rpx;
+        margin-bottom: 8rpx;
       }
 
       .dialog-textarea {
         width: 100%;
-        min-height: 180rpx;
-        padding: 20rpx;
+        min-height: 184rpx;
+        padding: 16rpx;
         border: 1rpx solid #e8e8e8;
-        border-radius: 12rpx;
+        border-radius: 8rpx;
         font-size: 28rpx;
         box-sizing: border-box;
       }
@@ -657,12 +657,12 @@
       .option-grid {
         display: flex;
         flex-wrap: wrap;
-        gap: 12rpx;
+        gap: 8rpx;
       }
 
       .option-chip {
-        padding: 12rpx 18rpx;
-        border-radius: 999rpx;
+        padding: 8rpx 16rpx;
+        border-radius: 1000rpx;
         background: #f3f4f6;
         border: 2rpx solid transparent;
 
@@ -684,12 +684,12 @@
 
       .dialog-buttons {
         display: flex;
-        gap: 20rpx;
+        gap: 16rpx;
 
         .btn-primary, .btn-secondary {
           flex: 1;
-          padding: 20rpx 0;
-          border-radius: 12rpx;
+          padding: 16rpx 0;
+          border-radius: 8rpx;
           text-align: center;
 
           Text {

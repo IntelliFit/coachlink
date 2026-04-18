@@ -6,8 +6,8 @@
 
   .action-card {
     background: #fff;
-    border-radius: 20rpx;
-    padding: 28rpx;
+    border-radius: 16rpx;
+    padding: 24rpx;
     box-shadow: 0 6rpx 20rpx rgba(0, 0, 0, 0.06);
   }
 
@@ -16,7 +16,7 @@
     font-size: 36rpx;
     font-weight: 700;
     color: #1f2937;
-    margin-bottom: 12rpx;
+    margin-bottom: 8rpx;
   }
 
   .type-tag {
@@ -24,13 +24,13 @@
     background: #eff6ff;
     color: #2563eb;
     font-size: 22rpx;
-    border-radius: 999rpx;
+    border-radius: 1000rpx;
     padding: 8rpx 16rpx;
-    margin-bottom: 20rpx;
+    margin-bottom: 16rpx;
   }
 
   .section {
-    margin-top: 20rpx;
+    margin-top: 16rpx;
   }
 
   .section-title {
@@ -38,7 +38,7 @@
     font-size: 26rpx;
     font-weight: 600;
     color: #374151;
-    margin-bottom: 10rpx;
+    margin-bottom: 8rpx;
   }
 
   .section-content {
@@ -51,15 +51,15 @@
   .tag-list {
     display: flex;
     flex-wrap: wrap;
-    gap: 12rpx;
+    gap: 8rpx;
   }
 
   .tag {
     font-size: 22rpx;
     color: #4b5563;
     background: #f3f4f6;
-    border-radius: 999rpx;
-    padding: 8rpx 14rpx;
+    border-radius: 1000rpx;
+    padding: 8rpx 16rpx;
   }
 
   .video-url {
@@ -71,10 +71,10 @@
   }
 
   .copy-btn {
-    margin-top: 14rpx;
+    margin-top: 16rpx;
     background: #2563eb;
-    border-radius: 12rpx;
-    padding: 16rpx 20rpx;
+    border-radius: 8rpx;
+    padding: 16rpx 16rpx;
     width: fit-content;
 
     Text {
@@ -84,8 +84,8 @@
   }
 
   .empty-state {
-    margin-top: 22rpx;
-    padding-top: 20rpx;
+    margin-top: 24rpx;
+    padding-top: 16rpx;
     border-top: 1rpx solid #e5e7eb;
   }
 

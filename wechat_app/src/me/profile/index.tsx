@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { View, Text, Image } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
 import BottomNav from '@/components/BottomNav'
+import { useTheme } from '@/hooks/useTheme'
 import { authService } from '@/services/authService'
 import { coachService } from '@/services/coach/coachService'
 import { studentService } from '@/services/studentService'
@@ -19,6 +20,7 @@ interface MenuItem {
 }
 
 function Profile() {
+  const { themeMode, effectiveTheme, isDark, setThemeMode } = useTheme()
   const [user, setUser] = useState<any>(null)
   const [coachId, setCoachId] = useState<string | null>(null)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
@@ -261,7 +263,7 @@ function Profile() {
     }
   ]
 
-  const bottomMenus: MenuItem[] = isAuthenticated
+  const extraMenus: MenuItem[] = isAuthenticated
     ? [
         ...(canSwitchRole
           ? [{
@@ -281,27 +283,11 @@ function Profile() {
           path: '/coach/application'
         }] : []),
         {
-          key: 'profile-settings',
-          label: '个人设置',
-          icon: 'icon-setting',
-          iconBg: '#9FB3C8',
-          action: handleProfileSettings,
-          requiresAuth: true
-        },
-        {
           key: 'account-settings',
           label: '账户设置',
           icon: 'icon-account-settings-variant',
           iconBg: '#B0BEC5',
           path: '/me/settings/index',
-          requiresAuth: true
-        },
-        {
-          key: 'logout',
-          label: '退出登录',
-          icon: 'icon-tuichu',
-          iconBg: '#FFB6B6',
-          action: handleLogout,
           requiresAuth: true
         }
       ]
@@ -387,6 +373,29 @@ function Profile() {
     }
   }
 
+  function handleThemeToggle() {
+    const modes: { key: 'light' | 'dark' | 'system' | 'auto'; label: string }[] = [
+      { key: 'light', label: '浅色' },
+      { key: 'dark', label: '深色' },
+      { key: 'system', label: '跟随系统' },
+      { key: 'auto', label: '自动' },
+    ]
+    Taro.showActionSheet({
+      itemList: modes.map((m) => m.label),
+      success: (res) => {
+        const selected = modes[res.tapIndex]
+        if (selected) {
+          setThemeMode(selected.key)
+          Taro.showToast({
+            title: `已切换为${selected.label}`,
+            icon: 'none',
+            duration: 1500,
+          })
+        }
+      },
+    })
+  }
+
   async function handleLogout() {
     Taro.showModal({
       title: '退出登录',
@@ -418,47 +427,55 @@ function Profile() {
   return (
     <View className='profile-page'>
       <View className='myContainer'>
-        <View className='my_1' onClick={handleViewProfile}>
-          <View className='avatar-wrapper'>
-            <View className='avatar-container'>
-              {user?.avatar_url ? (
-                <Image
-                  className='avatar'
-                  src={user.avatar_url}
-                  mode='aspectFill'
-                />
-              ) : (
-                <View className='avatar-placeholder'>
-                  <Text className='avatar-text'>
-                    {isAuthenticated
-                      ? String(user?.real_name || user?.nickname || user?.phone || '?').substring(0, 1)
-                      : '登'}
-                  </Text>
-                </View>
-              )}
+        {/* 用户档案卡片 */}
+        <View className='profile-card' onClick={handleViewProfile}>
+          <View className='profile-card-header'>
+            <View className='avatar-wrapper'>
+              <View className='avatar-container'>
+                {user?.avatar_url ? (
+                  <Image
+                    className='avatar'
+                    src={user.avatar_url}
+                    mode='aspectFill'
+                  />
+                ) : (
+                  <View className='avatar-placeholder'>
+                    <Text className='avatar-text'>
+                      {isAuthenticated
+                        ? String(user?.real_name || user?.nickname || user?.phone || '?').substring(0, 1)
+                        : '登'}
+                    </Text>
+                  </View>
+                )}
+              </View>
+            </View>
+            <View className='profile-info'>
+              <Text className='profile-name'>{displayName}</Text>
+              <Text className='profile-subtitle'>{displaySubtitle}</Text>
+              <View className='profile-badges'>
+                <Text className='badge-text'>{roleBadgeText}</Text>
+                <Text className='badge-dot'>·</Text>
+                <Text className='badge-text'>{statusBadgeText}</Text>
+              </View>
             </View>
           </View>
-          <View className='my_1_right'>
-            <Text className='user-phone'>
-              {displayName}
+          <View className='profile-actions' onClick={(e) => e.stopPropagation()}>
+            <Text
+              className='profile-settings-btn'
+              onClick={handleProfileSettings}
+            >
+              设置
             </Text>
-            <Text className='user-subtitle'>{displaySubtitle}</Text>
-            <View className='li_2'>
-              <View className='centered'>
-                <Text className={`badge-chip-icon iconfont ${isAuthenticated && primaryRole === 'coach' ? 'icon-shenqingquanxian' : 'icon-coachline_line'}`} />
-                <Text className='badge-chip-text'>{roleBadgeText}</Text>
-              </View>
-              <View className='centered badge-spacing'>
-                <Text className='badge-chip-icon iconfont icon-star' />
-                <Text className='badge-chip-text'>{statusBadgeText}</Text>
-              </View>
-            </View>
-          </View>
-          <View className='arrow-icon'>
-            <Text className='arrow-text'>›</Text>
+            <Text
+              className='theme-toggle-btn'
+              onClick={handleThemeToggle}
+            >
+              {effectiveTheme === 'dark' ? '☀' : '☾'}
+            </Text>
           </View>
         </View>
 
+        {/* 未登录提示 */}
         {!isAuthenticated && (
           <View className='guest-notice-card'>
             <Text className='guest-notice-title'>登录后解锁个人训练数据</Text>
@@ -468,47 +485,82 @@ function Profile() {
           </View>
         )}
 
-        <View className='my_2'>
-          {topMenus.map((item, index) => (
+        {/* 核心功能网格 */}
+        <View className='core-grid'>
+          {topMenus.map((item) => (
             <View
               key={item.key}
-              className={`item ${index === 0 ? 'item-first' : ''} ${index === topMenus.length - 1 ? 'item-last' : ''}`}
+              className='core-item'
               onClick={() => handleMenuClick(item)}
             >
-              <View className='item-icon'>
-                <Text className={`item-iconfont iconfont ${item.icon}`} />
+              <View className='core-icon' style={{ '--icon-color': item.iconBg } as any}>
+                <Text className={`iconfont ${item.icon}`} />
               </View>
-              <Text className='item-title'>{item.label}</Text>
+              <Text className='core-label'>{item.label}</Text>
             </View>
           ))}
         </View>
 
-        <View className='my_3'>
-          {middleMenus.concat(bottomMenus).map((item) => (
+        {/* 更多功能列表 */}
+        <View className='menu-list-card'>
+          {middleMenus.map((item) => (
             <View
               key={item.key}
-              className={`item_1 ${item.key === 'logout' ? 'item-logout' : ''} ${item.key === 'login' ? 'item-login' : ''}`}
+              className='menu-list-item'
               onClick={() => handleMenuClick(item)}
             >
-              <View className='item-icon'>
-                <Text className={`item-iconfont iconfont ${item.icon}`} />
-              </View>
-              <Text className='item-title'>{item.label}</Text>
-              {item.badge && (
-                <View className='grid-badge'>
-                  <Text className='grid-badge-text'>{item.badge}</Text>
+              <View className='menu-list-left'>
+                <View className='menu-list-icon' style={{ '--icon-color': item.iconBg } as any}>
+                  <Text className={`iconfont ${item.icon}`} />
                 </View>
-              )}
+                <Text className='menu-list-label'>{item.label}</Text>
+              </View>
+              <Text className='menu-list-arrow'>›</Text>
             </View>
           ))}
         </View>
 
+        {/* 额外功能列表 */}
+        <View className='menu-list-card'>
+          {extraMenus.map((item) => (
+            <View
+              key={item.key}
+              className='menu-list-item'
+              onClick={() => handleMenuClick(item)}
+            >
+              <View className='menu-list-left'>
+                <View className='menu-list-icon' style={{ '--icon-color': item.iconBg } as any}>
+                  <Text className={`iconfont ${item.icon}`} />
+                </View>
+                <Text className='menu-list-label'>{item.label}</Text>
+              </View>
+              <View className='menu-list-right'>
+                {item.badge && (
+                  <View className='list-badge'>
+                    <Text className='list-badge-text'>{item.badge}</Text>
+                  </View>
+                )}
+                <Text className='menu-list-arrow'>›</Text>
+              </View>
+            </View>
+          ))}
+        </View>
+
+        {/* 退出登录 */}
+        {isAuthenticated && (
+          <View className='logout-section'>
+            <View className='logout-btn' onClick={handleLogout}>
+              <Text className='logout-text'>退出登录</Text>
+            </View>
+          </View>
+        )}
+
+        {/* 底部链接 */}
         <View className='profile-footer-links'>
           <Text className='footer-link' onClick={() => Taro.navigateTo({ url: '/me/about/index' })}>关于</Text>
           <Text className='footer-dot'>·</Text>
           <Text className='footer-link' onClick={() => Taro.navigateTo({ url: '/me/disclaimer/index' })}>免责声明</Text>
           <Text className='footer-dot'>·</Text>
-          
           <Text className='footer-link' onClick={() => Taro.navigateTo({ url: '/me/contact/index' })}>联系</Text>
           <Text className='footer-dot'>·</Text>
           <Text className='footer-link' onClick={() => Taro.navigateTo({ url: '/me/docs/index' })}>文档</Text>

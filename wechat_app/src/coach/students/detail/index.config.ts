@@ -1,3 +1,4 @@
 export default definePageConfig({
-  navigationBarTitleText: '学员详情'
+  navigationBarTitleText: '学员详情',
+  animationType: 'none'
 })

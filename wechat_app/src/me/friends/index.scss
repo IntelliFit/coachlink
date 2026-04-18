@@ -73,7 +73,7 @@
         .user-avatar {
           width: 40px;
           height: 40px;
-          background: linear-gradient(135deg, #f97316 0%, #fb923c 100%);
+          background: #f97316;
           color: #fff;
           border-radius: 50%;
           display: flex;
@@ -92,7 +92,7 @@
 
       .add-btn {
         padding: 6px 16px;
-        background: linear-gradient(135deg, #f97316 0%, #fb923c 100%);
+        background: #f97316;
         color: #fff;
         border-radius: 16px;
         font-size: 12px;
@@ -124,7 +124,7 @@
       position: relative;
 
       &.active {
-        background: linear-gradient(135deg, #f97316 0%, #fb923c 100%);
+        background: #f97316;
         color: #fff;
         font-weight: 600;
       }
@@ -174,7 +174,7 @@
           .user-avatar {
             width: 48px;
             height: 48px;
-            background: linear-gradient(135deg, #f97316 0%, #fb923c 100%);
+            background: #f97316;
             color: #fff;
             border-radius: 50%;
             display: flex;
@@ -215,7 +215,7 @@
             font-weight: 600;
 
             &.accept {
-              background: linear-gradient(135deg, #f97316 0%, #fb923c 100%);
+              background: #f97316;
               color: #fff;
             }
 

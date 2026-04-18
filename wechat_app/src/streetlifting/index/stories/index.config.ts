@@ -1,1 +1,3 @@
-export default { navigationBarTitleText: '故事' }
+export default { navigationBarTitleText: '故事',
+  animationType: 'none'
+}

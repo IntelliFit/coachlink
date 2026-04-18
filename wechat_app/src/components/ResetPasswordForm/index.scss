@@ -106,7 +106,7 @@
   border-radius: 16px;
   font-size: 16px;
   font-weight: 700;
-  background: linear-gradient(135deg, #CF6D4E 0%, #FBB924 100%);
+  background: #CF6D4E;
   border: none;
   box-shadow: 0 8px 24px rgba(244, 146, 39, 0.3);
   transition: all 0.3s ease;
@@ -149,7 +149,7 @@
   }
 
   .nut-button--primary {
-    background: linear-gradient(135deg, #CF6D4E 0%, #FBB924 100%) !important;
+    background: #CF6D4E !important;
     border: none !important;
   }
 

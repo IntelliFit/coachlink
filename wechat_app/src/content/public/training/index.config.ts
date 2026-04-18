@@ -3,4 +3,5 @@ export default {
   enablePullDownRefresh: false,
   enableShareAppMessage: true,
   enableShareTimeline: true,
+  animationType: 'none'
 }

@@ -7,7 +7,7 @@
 
 .coach-overview-scroll {
   min-height: 100vh;
-  padding: 24rpx 24rpx 180rpx;
+  padding: 24rpx 24rpx 184rpx;
   box-sizing: border-box;
 }
 
@@ -16,7 +16,7 @@
   font-weight: 700;
   color: #1a1a1a;
   letter-spacing: -0.02em;
-  margin-bottom: 4rpx;
+  margin-bottom: 0rpx;
 }
 
 .section-desc {
@@ -26,7 +26,7 @@
 }
 
 .section {
-  margin-bottom: 28rpx;
+  margin-bottom: 24rpx;
 }
 
 /* 核心指标 - 2x2 网格 */
@@ -39,7 +39,7 @@
 .stat-tile {
   background: #fff;
   border-radius: 24rpx;
-  padding: 20rpx;
+  padding: 16rpx;
   box-sizing: border-box;
   box-shadow: 0 4rpx 24rpx rgba(0, 0, 0, 0.04);
 
@@ -47,12 +47,12 @@
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    margin-bottom: 12rpx;
+    margin-bottom: 8rpx;
   }
 
   .tile-icon-wrap {
-    width: 52rpx;
-    height: 52rpx;
+    width: 56rpx;
+    height: 56rpx;
     border-radius: 16rpx;
     display: flex;
     align-items: center;
@@ -69,7 +69,7 @@
     font-size: 22rpx;
     font-weight: 500;
     color: #888;
-    margin-bottom: 6rpx;
+    margin-bottom: 8rpx;
   }
 
   .tile-value {
@@ -84,13 +84,13 @@
 .config-list {
   display: flex;
   flex-direction: column;
-  gap: 12rpx;
+  gap: 8rpx;
 }
 
 .config-row {
   background: #fff;
-  border-radius: 20rpx;
-  padding: 18rpx 20rpx;
+  border-radius: 16rpx;
+  padding: 16rpx 16rpx;
   display: flex;
   align-items: center;
   gap: 16rpx;
@@ -100,7 +100,7 @@
   .config-icon-wrap {
     width: 48rpx;
     height: 48rpx;
-    border-radius: 14rpx;
+    border-radius: 16rpx;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -133,7 +133,7 @@
     font-size: 22rpx;
     color: #aaa;
     line-height: 1.3;
-    margin-top: 2rpx;
+    margin-top: 0rpx;
   }
 
   .config-right {
@@ -151,7 +151,7 @@
 
   .config-badge {
     font-size: 18rpx;
-    padding: 4rpx 10rpx;
+    padding: 0rpx 8rpx;
     border-radius: 9999rpx;
     background: #ecfdf5;
     color: #059669;
@@ -185,11 +185,11 @@
     font-size: 30rpx;
     font-weight: 700;
     color: #1a1a1a;
-    margin-bottom: 10rpx;
+    margin-bottom: 8rpx;
   }
   .not-coach-desc {
     font-size: 24rpx;
     color: #888;
-    margin-bottom: 20rpx;
+    margin-bottom: 16rpx;
   }
 }

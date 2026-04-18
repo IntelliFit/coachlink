@@ -4,7 +4,7 @@
 
   .page-scroll {
     height: 100vh;
-    padding-bottom: 140rpx;
+    padding-bottom: 144rpx;
   }
 
   .page-content {
@@ -28,7 +28,7 @@
     .tier-badge {
       background: rgba(255, 255, 255, 0.2);
       display: inline-block;
-      padding: 12rpx 32rpx;
+      padding: 8rpx 32rpx;
       border-radius: 32rpx;
       margin-bottom: 16rpx;
 
@@ -80,7 +80,7 @@
       background: #f0f0f0;
       border-radius: 8rpx;
       overflow: hidden;
-      margin-bottom: 12rpx;
+      margin-bottom: 8rpx;
 
       .progress-fill {
         height: 100%;

@@ -73,7 +73,7 @@
       transition: all 0.2s ease;
 
       &.active {
-        background: linear-gradient(135deg, #f97316 0%, #fb923c 100%);
+        background: #f97316;
         color: #fff;
         font-weight: 600;
       }
@@ -248,7 +248,7 @@
         transition: all 0.2s;
 
         &.primary {
-          background: linear-gradient(135deg, #f97316 0%, #fb923c 100%);
+          background: #f97316;
           color: #fff;
           box-shadow: 0 4px 12px rgba(249, 115, 22, 0.3);
 

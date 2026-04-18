@@ -1,3 +1,4 @@
 export default {
-  navigationBarTitleText: '快捷登录'
+  navigationBarTitleText: '快捷登录',
+  animationType: 'none'
 }

@@ -1,4 +1,5 @@
 export default {
   navigationBarTitleText: '聊天',
-  enablePullDownRefresh: false
+  enablePullDownRefresh: false,
+  animationType: 'none'
 }

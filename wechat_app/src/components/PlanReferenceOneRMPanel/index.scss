@@ -1,5 +1,5 @@
 .plan-onerm {
-  padding: 20rpx;
+  padding: 16rpx;
   border-radius: 24rpx;
   border: 2rpx solid #e8eef6;
   background: linear-gradient(180deg, #ffffff 0%, #fbfcff 100%);
@@ -22,7 +22,7 @@
   &__caption,
   &__empty {
     display: block;
-    margin-top: 6rpx;
+    margin-top: 8rpx;
     font-size: 22rpx;
     line-height: 1.5;
     color: #6b7280;
@@ -38,13 +38,13 @@
   &__summary {
     display: flex;
     flex-wrap: wrap;
-    gap: 12rpx;
+    gap: 8rpx;
   }
 
   &__pill {
     min-width: 0;
-    padding: 12rpx 18rpx;
-    border-radius: 18rpx;
+    padding: 8rpx 16rpx;
+    border-radius: 16rpx;
     background: #f3f6fb;
     border: 2rpx solid #e7ecf4;
 
@@ -68,7 +68,7 @@
   }
 
   &__pill-value {
-    margin-top: 6rpx;
+    margin-top: 8rpx;
     font-size: 24rpx;
     font-weight: 700;
     color: #111827;
@@ -77,8 +77,8 @@
   &__grid {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 14rpx;
-    margin-top: 18rpx;
+    gap: 16rpx;
+    margin-top: 16rpx;
   }
 
   &__field {
@@ -89,7 +89,7 @@
     display: flex;
     align-items: center;
     gap: 8rpx;
-    margin-bottom: 10rpx;
+    margin-bottom: 8rpx;
   }
 
   &__label {
@@ -101,8 +101,8 @@
 
   &__badge {
     flex-shrink: 0;
-    padding: 4rpx 10rpx;
-    border-radius: 999rpx;
+    padding: 0rpx 8rpx;
+    border-radius: 1000rpx;
     background: #fff2e7;
     color: #d97706;
     font-size: 18rpx;
@@ -112,10 +112,10 @@
   &__input-wrap {
     display: flex;
     align-items: center;
-    gap: 10rpx;
+    gap: 8rpx;
     min-height: 72rpx;
     padding: 0 16rpx;
-    border-radius: 18rpx;
+    border-radius: 16rpx;
     border: 2rpx solid #e5e7eb;
     background: #f8fafc;
 
@@ -141,10 +141,10 @@
   }
 
   &__save {
-    margin-top: 18rpx;
-    min-height: 78rpx;
-    border-radius: 18rpx;
-    background: linear-gradient(135deg, #ff9f4a, #ff7b2c);
+    margin-top: 16rpx;
+    min-height: 80rpx;
+    border-radius: 16rpx;
+    background: #ff9f4a;
     display: flex;
     align-items: center;
     justify-content: center;

@@ -12,7 +12,7 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 100rpx 40rpx;
+    padding: 104rpx 40rpx;
     box-sizing: border-box;
     text-align: center;
     color: rgba(255, 255, 255, 0.86);
@@ -23,13 +23,13 @@
   }
 
   .execution-shell {
-    padding: 28rpx 24rpx 52rpx;
+    padding: 24rpx 24rpx 56rpx;
     box-sizing: border-box;
   }
 
   .hero-section {
-    padding: 28rpx;
-    border-radius: 30rpx;
+    padding: 24rpx;
+    border-radius: 32rpx;
     background: linear-gradient(180deg, rgba(33, 35, 41, 0.96) 0%, rgba(23, 24, 29, 0.98) 100%);
     border: 1rpx solid rgba(255, 255, 255, 0.08);
     box-shadow: 0 18rpx 44rpx rgba(0, 0, 0, 0.28);
@@ -49,21 +49,21 @@
   .feedback-difficulty-wrap {
     display: flex;
     align-items: center;
-    gap: 12rpx;
+    gap: 8rpx;
     flex-wrap: wrap;
   }
 
   .hero-topbar {
     justify-content: space-between;
-    margin-bottom: 22rpx;
+    margin-bottom: 24rpx;
   }
 
   .back-btn,
   .hero-link-btn,
   .action-delete-btn,
   .set-delete-btn {
-    padding: 10rpx 18rpx;
-    border-radius: 999rpx;
+    padding: 8rpx 16rpx;
+    border-radius: 1000rpx;
     background: rgba(255, 255, 255, 0.06);
     color: rgba(255, 255, 255, 0.84);
     font-size: 24rpx;
@@ -80,14 +80,14 @@
 
   .hero-main {
     display: flex;
-    gap: 20rpx;
+    gap: 16rpx;
     align-items: stretch;
   }
 
   .hero-timer-card {
-    width: 220rpx;
+    width: 224rpx;
     flex-shrink: 0;
-    padding: 22rpx 18rpx;
+    padding: 24rpx 16rpx;
     border-radius: 24rpx;
     background: linear-gradient(180deg, rgba(12, 13, 16, 0.84) 0%, rgba(28, 30, 36, 0.94) 100%);
     border: 1rpx solid rgba(255, 255, 255, 0.06);
@@ -107,7 +107,7 @@
 
   .hero-timer-label {
     display: block;
-    margin-top: 12rpx;
+    margin-top: 8rpx;
     font-size: 22rpx;
     color: rgba(255, 255, 255, 0.58);
   }
@@ -130,7 +130,7 @@
 
   .hero-subtitle {
     display: block;
-    margin-top: 12rpx;
+    margin-top: 8rpx;
     font-size: 24rpx;
     line-height: 1.5;
     color: rgba(255, 255, 255, 0.64);
@@ -142,7 +142,7 @@
 
   .hero-chip {
     padding: 8rpx 16rpx;
-    border-radius: 999rpx;
+    border-radius: 1000rpx;
     background: rgba(255, 255, 255, 0.08);
     color: rgba(255, 255, 255, 0.78);
     font-size: 22rpx;
@@ -161,13 +161,13 @@
   .hero-stats {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 14rpx;
+    gap: 16rpx;
     margin-top: 24rpx;
   }
 
   .hero-stat-card {
-    padding: 18rpx 16rpx;
-    border-radius: 20rpx;
+    padding: 16rpx 16rpx;
+    border-radius: 16rpx;
     background: rgba(255, 255, 255, 0.04);
     border: 1rpx solid rgba(255, 255, 255, 0.05);
   }
@@ -182,7 +182,7 @@
 
   .hero-stat-value {
     display: block;
-    margin-top: 10rpx;
+    margin-top: 8rpx;
     font-size: 34rpx;
     line-height: 1;
     font-weight: 700;
@@ -190,13 +190,13 @@
   }
 
   .progress-section {
-    margin-top: 20rpx;
+    margin-top: 16rpx;
   }
 
   .progress-bar {
     width: 100%;
-    height: 12rpx;
-    border-radius: 999rpx;
+    height: 8rpx;
+    border-radius: 1000rpx;
     overflow: hidden;
     background: rgba(255, 255, 255, 0.08);
   }
@@ -210,7 +210,7 @@
 
   .progress-text {
     display: block;
-    margin-top: 10rpx;
+    margin-top: 8rpx;
     font-size: 22rpx;
     color: rgba(255, 255, 255, 0.52);
   }
@@ -219,11 +219,11 @@
     margin-top: 24rpx;
     display: flex;
     flex-direction: column;
-    gap: 18rpx;
+    gap: 16rpx;
   }
 
   .action-card {
-    border-radius: 28rpx;
+    border-radius: 24rpx;
     background: rgba(24, 25, 30, 0.96);
     border: 1rpx solid rgba(255, 255, 255, 0.06);
     overflow: hidden;
@@ -267,15 +267,15 @@
   .action-info {
     display: flex;
     align-items: flex-start;
-    gap: 18rpx;
+    gap: 16rpx;
     flex: 1;
     min-width: 0;
   }
 
   .action-number {
-    width: 58rpx;
-    height: 58rpx;
-    border-radius: 20rpx;
+    width: 56rpx;
+    height: 56rpx;
+    border-radius: 16rpx;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -301,7 +301,7 @@
   }
 
   .action-meta-row {
-    margin-top: 12rpx;
+    margin-top: 8rpx;
   }
 
   .action-type-pill,
@@ -311,7 +311,7 @@
   .set-tag,
   .pr-toggle-chip {
     padding: 8rpx 16rpx;
-    border-radius: 999rpx;
+    border-radius: 1000rpx;
     font-size: 22rpx;
   }
 
@@ -324,7 +324,7 @@
     display: flex;
     flex-direction: column;
     align-items: flex-end;
-    gap: 10rpx;
+    gap: 8rpx;
   }
 
   .action-progress-pill {
@@ -345,21 +345,21 @@
   .sets-list {
     display: flex;
     flex-direction: column;
-    gap: 14rpx;
-    margin-top: 20rpx;
+    gap: 16rpx;
+    margin-top: 16rpx;
   }
 
   .set-item,
   .non-strength-card,
   .set-details,
   .feedback-modal {
-    border-radius: 22rpx;
+    border-radius: 24rpx;
     background: rgba(14, 15, 19, 0.74);
     border: 1rpx solid rgba(255, 255, 255, 0.05);
   }
 
   .set-item {
-    padding: 18rpx;
+    padding: 16rpx;
 
     &.current {
       border-color: rgba(244, 166, 77, 0.45);
@@ -378,9 +378,9 @@
   }
 
   .set-index-pill {
-    width: 86rpx;
-    min-height: 92rpx;
-    border-radius: 20rpx;
+    width: 88rpx;
+    min-height: 96rpx;
+    border-radius: 16rpx;
     background: rgba(255, 255, 255, 0.05);
     display: flex;
     flex-direction: column;
@@ -413,7 +413,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 12rpx;
+    gap: 8rpx;
   }
 
   .set-state-pill {
@@ -433,7 +433,7 @@
   }
 
   .set-header-bottom {
-    margin-top: 12rpx;
+    margin-top: 8rpx;
   }
 
   .set-subline,
@@ -467,16 +467,16 @@
 
   .set-input,
   .item-form {
-    margin-top: 18rpx;
-    padding: 18rpx;
-    border-radius: 20rpx;
+    margin-top: 16rpx;
+    padding: 16rpx;
+    border-radius: 16rpx;
     background: rgba(255, 255, 255, 0.03);
   }
 
   .compact-input-grid {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 12rpx;
+    gap: 8rpx;
 
     &.two-cols {
       grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -484,8 +484,8 @@
   }
 
   .compact-input-card {
-    padding: 14rpx 14rpx 12rpx;
-    border-radius: 18rpx;
+    padding: 16rpx 16rpx 8rpx;
+    border-radius: 16rpx;
     background: rgba(255, 255, 255, 0.04);
     border: 1rpx solid rgba(255, 255, 255, 0.04);
     box-sizing: border-box;
@@ -503,7 +503,7 @@
   .picker-search-input,
   .feedback-input {
     width: 100%;
-    min-height: 52rpx;
+    min-height: 56rpx;
     box-sizing: border-box;
     font-size: 30rpx;
     color: #fff;
@@ -511,21 +511,21 @@
   }
 
   .compact-note-row {
-    margin-top: 14rpx;
-    padding: 14rpx 16rpx;
-    border-radius: 18rpx;
+    margin-top: 16rpx;
+    padding: 16rpx 16rpx;
+    border-radius: 16rpx;
     background: rgba(255, 255, 255, 0.04);
     border: 1rpx solid rgba(255, 255, 255, 0.04);
   }
 
   .compact-note-input {
-    min-height: 44rpx;
+    min-height: 48rpx;
     font-size: 24rpx;
   }
 
   .set-tool-row {
     justify-content: space-between;
-    margin-top: 14rpx;
+    margin-top: 16rpx;
   }
 
   .ghost-tool-btn,
@@ -561,38 +561,38 @@
   .video-url,
   .detail-link {
     display: block;
-    margin-top: 12rpx;
+    margin-top: 8rpx;
     word-break: break-all;
     color: #8fc1ff;
   }
 
   .readonly-set-tip {
-    margin-top: 14rpx;
-    padding: 12rpx 16rpx;
+    margin-top: 16rpx;
+    padding: 8rpx 16rpx;
     border-radius: 16rpx;
     background: rgba(243, 166, 77, 0.1);
   }
 
   .set-details {
-    margin-top: 14rpx;
-    padding: 18rpx;
+    margin-top: 16rpx;
+    padding: 16rpx;
   }
 
   .detail-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 14rpx;
+    gap: 16rpx;
   }
 
   .detail-cell,
   .detail-note {
     display: flex;
     flex-direction: column;
-    gap: 6rpx;
+    gap: 8rpx;
   }
 
   .detail-note {
-    margin-top: 14rpx;
+    margin-top: 16rpx;
   }
 
   .detail-actions {
@@ -613,15 +613,15 @@
   }
 
   .non-strength-card {
-    margin-top: 18rpx;
-    padding: 18rpx;
+    margin-top: 16rpx;
+    padding: 16rpx;
   }
 
   .item-completed,
   .item-readonly {
     display: flex;
     flex-direction: column;
-    gap: 10rpx;
+    gap: 8rpx;
   }
 
   .item-done-text {
@@ -645,13 +645,13 @@
   .action-picker-panel,
   .feedback-modal {
     width: 100%;
-    padding: 28rpx 24rpx;
+    padding: 24rpx 24rpx;
     box-sizing: border-box;
   }
 
   .action-picker-panel {
     max-height: 68vh;
-    border-radius: 28rpx 28rpx 0 0;
+    border-radius: 24rpx 24rpx 0 0;
     background: #191b20;
   }
 
@@ -660,20 +660,20 @@
     font-size: 32rpx;
     font-weight: 700;
     color: #fff;
-    margin-bottom: 18rpx;
+    margin-bottom: 16rpx;
   }
 
   .picker-search-input,
   .feedback-input {
-    border-radius: 18rpx;
+    border-radius: 16rpx;
     background: rgba(255, 255, 255, 0.05);
     border: 1rpx solid rgba(255, 255, 255, 0.05);
-    padding: 16rpx 18rpx;
+    padding: 16rpx 16rpx;
   }
 
   .picker-list {
-    max-height: 460rpx;
-    margin: 14rpx 0 18rpx;
+    max-height: 464rpx;
+    margin: 16rpx 0 16rpx;
   }
 
   .picker-item {
@@ -684,19 +684,19 @@
 
   .picker-empty {
     display: block;
-    padding: 36rpx 0;
+    padding: 40rpx 0;
     text-align: center;
     color: rgba(255, 255, 255, 0.4);
   }
 
   .footer-section {
-    margin-top: 20rpx;
-    padding-bottom: 28rpx;
+    margin-top: 16rpx;
+    padding-bottom: 24rpx;
   }
 
   .finish-hint {
     display: block;
-    margin-bottom: 12rpx;
+    margin-bottom: 8rpx;
     text-align: center;
     font-size: 22rpx;
     color: #f4c77d;
@@ -705,23 +705,23 @@
   .finish-btn {
     width: 100%;
     height: 96rpx;
-    border-radius: 22rpx;
-    background: linear-gradient(90deg, #53c96b 0%, #75df88 100%);
+    border-radius: 24rpx;
+    background: #53c96b;
     color: #fff;
     font-size: 32rpx;
     font-weight: 700;
 
     &.warning {
-      background: linear-gradient(90deg, #ef8f3e 0%, #ffb65c 100%);
+      background: #ef8f3e;
     }
   }
 
   .feedback-modal {
-    border-radius: 28rpx 28rpx 0 0;
+    border-radius: 24rpx 24rpx 0 0;
   }
 
   .feedback-modal-header {
-    margin-bottom: 20rpx;
+    margin-bottom: 16rpx;
   }
 
   .feedback-modal-subtitle {
@@ -730,9 +730,9 @@
 
   .difficulty-option {
     flex: 1;
-    padding: 12rpx 6rpx;
+    padding: 8rpx 8rpx;
     text-align: center;
-    border-radius: 18rpx;
+    border-radius: 16rpx;
     background: rgba(255, 255, 255, 0.04);
     border: 1rpx solid rgba(255, 255, 255, 0.05);
 
@@ -766,10 +766,10 @@
 
   .rest-timer-panel {
     width: 100%;
-    max-width: 540rpx;
-    border-radius: 28rpx;
+    max-width: 544rpx;
+    border-radius: 24rpx;
     background: linear-gradient(180deg, #1e2127 0%, #121418 100%);
-    padding: 44rpx 34rpx;
+    padding: 48rpx 32rpx;
     box-sizing: border-box;
     text-align: center;
     border: 1rpx solid rgba(255, 255, 255, 0.08);
@@ -798,6 +798,6 @@
 
   .rest-timer-actions {
     justify-content: center;
-    margin-top: 26rpx;
+    margin-top: 24rpx;
   }
 }

@@ -12,7 +12,7 @@
   .page-header {
     margin-bottom: 32rpx;
     padding: 40rpx 32rpx;
-    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    background: #f59e0b;
     border-radius: 24rpx;
     box-shadow: 0 8rpx 24rpx rgba(245, 158, 11, 0.3);
     position: relative;
@@ -34,8 +34,8 @@
       position: absolute;
       bottom: -30%;
       left: -10%;
-      width: 150rpx;
-      height: 150rpx;
+      width: 152rpx;
+      height: 152rpx;
       background: rgba(255, 255, 255, 0.08);
       border-radius: 50%;
     }
@@ -52,7 +52,7 @@
     .page-subtitle {
       font-size: 26rpx;
       color: rgba(255, 255, 255, 0.85);
-      margin-top: 12rpx;
+      margin-top: 8rpx;
       display: block;
       position: relative;
       z-index: 1;
@@ -62,7 +62,7 @@
   // 表单区块 - 卡片设计
   .form-section {
     background: #ffffff;
-    border-radius: 20rpx;
+    border-radius: 16rpx;
     padding: 32rpx;
     margin-bottom: 24rpx;
     box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.06);
@@ -80,14 +80,14 @@
         color: #1e293b;
         display: flex;
         align-items: center;
-        gap: 12rpx;
+        gap: 8rpx;
 
         &::before {
           content: '';
-          width: 6rpx;
+          width: 8rpx;
           height: 32rpx;
           background: linear-gradient(180deg, #f59e0b 0%, #d97706 100%);
-          border-radius: 3rpx;
+          border-radius: 0rpx;
         }
       }
 
@@ -105,21 +105,21 @@
       margin-bottom: 24rpx;
       display: flex;
       align-items: center;
-      gap: 12rpx;
+      gap: 8rpx;
 
       &::before {
         content: '';
-        width: 6rpx;
+        width: 8rpx;
         height: 32rpx;
         background: linear-gradient(180deg, #f59e0b 0%, #d97706 100%);
-        border-radius: 3rpx;
+        border-radius: 0rpx;
       }
     }
   }
 
   // 表单项
   .form-field {
-    margin-bottom: 28rpx;
+    margin-bottom: 24rpx;
 
     &:last-child {
       margin-bottom: 0;
@@ -128,13 +128,13 @@
     .field-label {
       font-size: 28rpx;
       color: #475569;
-      margin-bottom: 12rpx;
+      margin-bottom: 8rpx;
       display: block;
       font-weight: 500;
 
       .required {
         color: #ef4444;
-        margin-left: 4rpx;
+        margin-left: 0rpx;
       }
     }
 
@@ -143,7 +143,7 @@
       height: 96rpx;
       padding: 0 24rpx;
       border: 2rpx solid #e2e8f0;
-      border-radius: 12rpx;
+      border-radius: 8rpx;
       font-size: 30rpx;
       background: #f8fafc;
       transition: all 0.3s ease;
@@ -158,9 +158,9 @@
     .field-textarea {
       width: 100%;
       height: 200rpx;
-      padding: 20rpx 24rpx;
+      padding: 16rpx 24rpx;
       border: 2rpx solid #e2e8f0;
-      border-radius: 12rpx;
+      border-radius: 8rpx;
       font-size: 30rpx;
       background: #f8fafc;
       transition: all 0.3s ease;
@@ -176,7 +176,7 @@
 
   // 1RM配置面板
   .onerm-panel {
-    background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+    background: #fffbeb;
     border-radius: 16rpx;
     padding: 24rpx;
     border: 1rpx solid #fde68a;
@@ -184,8 +184,8 @@
     .panel-header {
       display: flex;
       align-items: center;
-      gap: 12rpx;
-      margin-bottom: 12rpx;
+      gap: 8rpx;
+      margin-bottom: 8rpx;
 
       .panel-icon {
         font-size: 36rpx;
@@ -201,7 +201,7 @@
     .panel-desc {
       font-size: 24rpx;
       color: #b45309;
-      margin-bottom: 20rpx;
+      margin-bottom: 16rpx;
       display: block;
       line-height: 1.5;
     }
@@ -211,10 +211,10 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding: 20rpx;
+        padding: 16rpx;
         background: #ffffff;
-        border-radius: 12rpx;
-        margin-bottom: 12rpx;
+        border-radius: 8rpx;
+        margin-bottom: 8rpx;
         box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.04);
 
         .onerm-name {
@@ -230,7 +230,7 @@
           gap: 8rpx;
 
           .onerm-input {
-            width: 140rpx;
+            width: 144rpx;
             height: 72rpx;
             padding: 0 16rpx;
             border: 2rpx solid #cbd5e1;
@@ -253,7 +253,7 @@
   // 周历 - 更精美的设计
   .week-calendar {
     .week-block {
-      margin-bottom: 28rpx;
+      margin-bottom: 24rpx;
 
       .week-header {
         margin-bottom: 16rpx;
@@ -281,7 +281,7 @@
 
       .week-days {
         display: flex;
-        gap: 10rpx;
+        gap: 8rpx;
         justify-content: space-between;
 
         .day-item {
@@ -299,7 +299,7 @@
 
           &.selected {
             border-color: #f59e0b;
-            background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+            background: #fffbeb;
             transform: translateY(-4rpx);
             box-shadow: 0 8rpx 16rpx rgba(245, 158, 11, 0.2);
           }
@@ -325,7 +325,7 @@
 
           .day-type {
             font-size: 22rpx;
-            margin-top: 4rpx;
+            margin-top: 0rpx;
             font-weight: 500;
           }
 
@@ -335,7 +335,7 @@
             right: 8rpx;
             min-width: 32rpx;
             height: 32rpx;
-            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            background: #f59e0b;
             color: #fff;
             font-size: 20rpx;
             border-radius: 16rpx;
@@ -350,8 +350,8 @@
 
     .add-week-btn {
       text-align: center;
-      padding: 28rpx;
-      background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+      padding: 24rpx;
+      background: #f8fafc;
       border: 2rpx dashed #cbd5e1;
       border-radius: 16rpx;
       transition: all 0.3s ease;
@@ -375,7 +375,7 @@
     justify-content: space-between;
     align-items: center;
     margin-bottom: 24rpx;
-    padding-bottom: 20rpx;
+    padding-bottom: 16rpx;
     border-bottom: 2rpx solid #f1f5f9;
 
     .section-title {
@@ -390,13 +390,13 @@
 
     .day-type-toggle {
       display: flex;
-      gap: 12rpx;
+      gap: 8rpx;
       background: #f1f5f9;
-      padding: 6rpx;
-      border-radius: 12rpx;
+      padding: 8rpx;
+      border-radius: 8rpx;
 
       .type-btn {
-        padding: 12rpx 28rpx;
+        padding: 8rpx 24rpx;
         background: transparent;
         border-radius: 8rpx;
         transition: all 0.3s ease;
@@ -408,7 +408,7 @@
         }
 
         &.active {
-          background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+          background: #f59e0b;
           box-shadow: 0 4rpx 12rpx rgba(245, 158, 11, 0.3);
 
           Text {
@@ -423,7 +423,7 @@
   .action-list {
     .empty-text {
       text-align: center;
-      padding: 60rpx 0;
+      padding: 64rpx 0;
       font-size: 28rpx;
       color: #94a3b8;
       display: block;
@@ -449,7 +449,7 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 20rpx;
+        margin-bottom: 16rpx;
         padding-bottom: 16rpx;
         border-bottom: 1rpx solid #f1f5f9;
 
@@ -459,21 +459,21 @@
           color: #1e293b;
           display: flex;
           align-items: center;
-          gap: 12rpx;
+          gap: 8rpx;
 
           &::before {
             content: '';
             width: 8rpx;
             height: 32rpx;
             background: linear-gradient(180deg, #f59e0b 0%, #d97706 100%);
-            border-radius: 4rpx;
+            border-radius: 0rpx;
           }
         }
 
         .delete-btn {
           font-size: 26rpx;
           color: #ef4444;
-          padding: 8rpx 20rpx;
+          padding: 8rpx 16rpx;
           background: #fef2f2;
           border-radius: 8rpx;
           font-weight: 500;
@@ -488,7 +488,7 @@
           flex: 1;
           background: #f8fafc;
           padding: 16rpx;
-          border-radius: 12rpx;
+          border-radius: 8rpx;
           border: 1rpx solid #e2e8f0;
 
           .param-label {
@@ -502,7 +502,7 @@
           .param-value {
             width: 100%;
             height: 64rpx;
-            padding: 0 12rpx;
+            padding: 0 8rpx;
             border: none;
             border-radius: 8rpx;
             font-size: 28rpx;
@@ -517,11 +517,11 @@
 
     .add-action-btn {
       text-align: center;
-      padding: 28rpx;
-      background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+      padding: 24rpx;
+      background: #fffbeb;
       border: 2rpx dashed #fcd34d;
       border-radius: 16rpx;
-      margin-top: 20rpx;
+      margin-top: 16rpx;
       transition: all 0.3s ease;
 
       Text {
@@ -547,7 +547,7 @@
 
     .rest-icon {
       font-size: 96rpx;
-      margin-bottom: 20rpx;
+      margin-bottom: 16rpx;
       display: block;
     }
 
@@ -561,12 +561,12 @@
   // 底部操作 - 精美的按钮设计
   .bottom-actions {
     display: flex;
-    gap: 20rpx;
-    padding: 12rpx 0 20rpx;
+    gap: 16rpx;
+    padding: 8rpx 0 16rpx;
 
     .primary-btn, .secondary-btn {
       flex: 1;
-      padding: 28rpx 0;
+      padding: 24rpx 0;
       border-radius: 16rpx;
       text-align: center;
       transition: all 0.3s ease;
@@ -582,7 +582,7 @@
     }
 
     .primary-btn {
-      background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+      background: #f59e0b;
       box-shadow: 0 8rpx 24rpx rgba(245, 158, 11, 0.4);
 
       Text {
@@ -621,17 +621,17 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 100rpx 0;
+  padding: 104rpx 0;
 
   .loading-text {
     font-size: 28rpx;
     color: #94a3b8;
-    margin-top: 20rpx;
+    margin-top: 16rpx;
   }
 
   .loading-spinner {
-    width: 60rpx;
-    height: 60rpx;
+    width: 64rpx;
+    height: 64rpx;
     border: 4rpx solid #e2e8f0;
     border-top-color: #f59e0b;
     border-radius: 50%;

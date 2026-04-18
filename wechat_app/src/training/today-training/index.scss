@@ -5,7 +5,7 @@
   .page-scroll {
     min-height: 100vh;
     background: #f5f5f5;
-    padding-bottom: 180rpx;
+    padding-bottom: 184rpx;
     box-sizing: border-box;
   }
 
@@ -21,7 +21,7 @@
       font-size: 26rpx;
       color: #888;
       display: block;
-      margin-bottom: 6rpx;
+      margin-bottom: 8rpx;
     }
 
     .dashboard-title {
@@ -44,7 +44,7 @@
   .hero-card {
     background: #ffffff;
     border-radius: 32rpx;
-    padding: 28rpx;
+    padding: 24rpx;
     margin-bottom: 24rpx;
     box-shadow: 0 4rpx 24rpx rgba(0, 0, 0, 0.04);
 
@@ -52,7 +52,7 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-bottom: 20rpx;
+      margin-bottom: 16rpx;
 
       .hero-plan-name {
         font-size: 32rpx;
@@ -84,11 +84,11 @@
     }
 
     .hero-progress-bar-bg {
-      height: 12rpx;
+      height: 8rpx;
       background: #f0f0f0;
       border-radius: 9999rpx;
       overflow: hidden;
-      margin-bottom: 12rpx;
+      margin-bottom: 8rpx;
     }
 
     .hero-progress-bar-fill {
@@ -114,7 +114,7 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 10rpx;
+      gap: 8rpx;
 
       &:active {
         opacity: 0.7;
@@ -132,7 +132,7 @@
       box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.06);
 
       &.primary {
-        background: linear-gradient(135deg, #CF6D4E 0%, #E59B7D 100%);
+        background: #CF6D4E;
         color: #fff;
         box-shadow: 0 8rpx 24rpx rgba(207, 109, 78, 0.25);
       }
@@ -174,11 +174,11 @@
 
     .summary-cell {
       background: #f8f8f8;
-      border-radius: 20rpx;
-      padding: 20rpx;
+      border-radius: 16rpx;
+      padding: 16rpx;
       display: flex;
       flex-direction: column;
-      gap: 4rpx;
+      gap: 0rpx;
 
       &.highlight {
         background: #fff7ed;
@@ -205,7 +205,7 @@
       background: #fff;
       border-radius: 24rpx;
       padding: 24rpx;
-      margin-bottom: 20rpx;
+      margin-bottom: 16rpx;
       box-shadow: 0 4rpx 24rpx rgba(0, 0, 0, 0.04);
 
       .skeleton-header {
@@ -224,7 +224,7 @@
           background-size: 200% 100%;
           animation: shimmer 1.5s infinite;
           border-radius: 8rpx;
-          margin-bottom: 12rpx;
+          margin-bottom: 8rpx;
 
           &:nth-child(1) { width: 60%; }
           &:nth-child(2) { width: 80%; }
@@ -241,9 +241,9 @@
 
   // ========== 多订阅教练 Tab ==========
   .coach-tabs {
-    margin-bottom: 20rpx;
+    margin-bottom: 16rpx;
     background: #ffffff;
-    border-radius: 20rpx;
+    border-radius: 16rpx;
     overflow: hidden;
     box-shadow: 0 4rpx 24rpx rgba(0, 0, 0, 0.04);
 
@@ -257,8 +257,8 @@
       display: inline-flex;
       align-items: center;
       gap: 8rpx;
-      padding: 12rpx 20rpx;
-      margin-right: 12rpx;
+      padding: 8rpx 16rpx;
+      margin-right: 8rpx;
       border-radius: 9999rpx;
       background: #f5f5f5;
       color: #666;
@@ -267,7 +267,7 @@
       transition: all 0.2s ease;
 
       &.active {
-        background: linear-gradient(135deg, #CF6D4E 0%, #E59B7D 100%);
+        background: #CF6D4E;
         color: #ffffff;
       }
 
@@ -277,7 +277,7 @@
 
       .coach-tab-badge {
         font-size: 18rpx;
-        padding: 2rpx 10rpx;
+        padding: 0rpx 8rpx;
         background: rgba(0, 0, 0, 0.08);
         border-radius: 9999rpx;
       }
@@ -288,21 +288,21 @@
   .missing-days-banner {
     background: #fffbeb;
     border: 1rpx solid #fde68a;
-    border-radius: 20rpx;
-    padding: 18rpx 20rpx;
-    margin-bottom: 20rpx;
+    border-radius: 16rpx;
+    padding: 16rpx 16rpx;
+    margin-bottom: 16rpx;
 
     .missing-days-desc {
       font-size: 24rpx;
       color: #92400e;
       display: block;
-      margin-bottom: 14rpx;
+      margin-bottom: 16rpx;
     }
 
     .missing-days-actions {
       display: flex;
       flex-wrap: wrap;
-      gap: 10rpx;
+      gap: 8rpx;
       align-items: center;
     }
 
@@ -313,7 +313,7 @@
     }
 
     .missing-days-btn {
-      padding: 10rpx 18rpx;
+      padding: 8rpx 16rpx;
       border-radius: 9999rpx;
       font-size: 22rpx;
       font-weight: 600;
@@ -350,7 +350,7 @@
 
   .completion-modal {
     background: #ffffff;
-    border-radius: 28rpx;
+    border-radius: 24rpx;
     padding: 32rpx;
     width: 100%;
     max-width: 320px;
@@ -366,14 +366,14 @@
       font-size: 20px;
       font-weight: 700;
       color: #1f2937;
-      margin-bottom: 10rpx;
+      margin-bottom: 8rpx;
     }
 
     .completion-modal-plan {
       font-size: 16px;
       font-weight: 600;
       color: #374151;
-      margin-bottom: 6rpx;
+      margin-bottom: 8rpx;
     }
 
     .completion-modal-rate {
@@ -385,7 +385,7 @@
     .completion-modal-actions {
       display: flex;
       flex-direction: column;
-      gap: 12rpx;
+      gap: 8rpx;
     }
 
     .completion-modal-btn {
@@ -395,7 +395,7 @@
       font-weight: 600;
 
       &.primary {
-        background: linear-gradient(135deg, #CF6D4E 0%, #E59B7D 100%);
+        background: #CF6D4E;
         color: #ffffff;
       }
 
@@ -411,8 +411,8 @@
     display: flex;
     background: #ffffff;
     border-radius: 9999rpx;
-    padding: 6rpx;
-    margin-bottom: 20rpx;
+    padding: 8rpx;
+    margin-bottom: 16rpx;
     box-shadow: 0 4rpx 24rpx rgba(0, 0, 0, 0.04);
 
     .switcher-btn {
@@ -421,7 +421,7 @@
       align-items: center;
       justify-content: center;
       gap: 8rpx;
-      padding: 18rpx 24rpx;
+      padding: 16rpx 24rpx;
       border-radius: 9999rpx;
       font-size: 26rpx;
       font-weight: 500;
@@ -430,7 +430,7 @@
       transition: all 0.2s ease;
 
       &.active {
-        background: linear-gradient(135deg, #CF6D4E 0%, #E59B7D 100%);
+        background: #CF6D4E;
         color: #ffffff;
         box-shadow: 0 4rpx 16rpx rgba(207, 109, 78, 0.25);
       }
@@ -444,9 +444,9 @@
   // ========== 教练信息卡片 ==========
   .coach-card {
     background: #ffffff;
-    border-radius: 28rpx;
+    border-radius: 24rpx;
     padding: 24rpx;
-    margin-bottom: 20rpx;
+    margin-bottom: 16rpx;
     box-shadow: 0 4rpx 24rpx rgba(0, 0, 0, 0.04);
 
     .card-content {
@@ -471,7 +471,7 @@
           width: 96rpx;
           height: 96rpx;
           background: linear-gradient(135deg, #CF6D4E 0%, #E59B7D 100%);
-          border-radius: 20rpx;
+          border-radius: 16rpx;
           display: flex;
           align-items: center;
           justify-content: center;
@@ -486,8 +486,8 @@
 
         .online-dot {
           position: absolute;
-          bottom: -4rpx;
-          right: -4rpx;
+          bottom: -0rpx;
+          right: -0rpx;
           width: 24rpx;
           height: 24rpx;
           background: #22c55e;
@@ -504,17 +504,17 @@
           display: flex;
           align-items: center;
           gap: 8rpx;
-          margin-bottom: 6rpx;
+          margin-bottom: 8rpx;
 
           .pro-badge {
-            padding: 4rpx 12rpx;
+            padding: 0rpx 8rpx;
             background: linear-gradient(135deg, #FFF5EB 0%, #FFE8D1 100%);
             color: #CF6D4E;
             font-size: 18rpx;
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 0.5px;
-            border-radius: 6rpx;
+            border-radius: 8rpx;
           }
 
           .status-text {
@@ -527,7 +527,7 @@
           font-size: 30rpx;
           font-weight: 700;
           color: #1a1a1a;
-          margin-bottom: 4rpx;
+          margin-bottom: 0rpx;
         }
 
         .coach-title {
@@ -544,9 +544,9 @@
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        min-height: 52rpx;
-        padding: 0 18rpx;
-        border-radius: 14rpx;
+        min-height: 56rpx;
+        padding: 0 16rpx;
+        border-radius: 16rpx;
         background: #fef2f2;
         border: 1rpx solid #fecaca;
         color: #dc2626;
@@ -577,7 +577,7 @@
     justify-content: space-between;
     align-items: center;
     gap: 16rpx;
-    margin-bottom: 20rpx;
+    margin-bottom: 16rpx;
 
     .overview-main {
       min-width: 0;
@@ -588,7 +588,7 @@
       font-size: 36rpx;
       font-weight: 700;
       color: #1a1a1a;
-      margin-bottom: 4rpx;
+      margin-bottom: 0rpx;
     }
 
     .overview-subtitle {
@@ -609,7 +609,7 @@
     .overview-status {
       flex-shrink: 0;
       border-radius: 9999rpx;
-      padding: 12rpx 18rpx;
+      padding: 8rpx 16rpx;
       font-size: 22rpx;
       font-weight: 600;
       line-height: 1;
@@ -643,7 +643,7 @@
         font-size: 32rpx;
         font-weight: 700;
         color: #1a1a1a;
-        margin-bottom: 4rpx;
+        margin-bottom: 0rpx;
       }
 
       .section-subtitle {
@@ -655,10 +655,10 @@
     .header-right {
       display: flex;
       align-items: center;
-      gap: 10rpx;
+      gap: 8rpx;
 
       .impromptu-btn {
-        padding: 10rpx 18rpx;
+        padding: 8rpx 16rpx;
         border: 1rpx solid #CF6D4E;
         color: #CF6D4E;
         border-radius: 9999rpx;
@@ -667,7 +667,7 @@
       }
 
       .view-day-btn {
-        padding: 10rpx 18rpx;
+        padding: 8rpx 16rpx;
         border: 1rpx solid #CF6D4E;
         color: #CF6D4E;
         border-radius: 9999rpx;
@@ -677,8 +677,8 @@
       .status-badge {
         display: flex;
         align-items: center;
-        gap: 6rpx;
-        padding: 10rpx 14rpx;
+        gap: 8rpx;
+        padding: 8rpx 16rpx;
         border-radius: 9999rpx;
         font-size: 20rpx;
         font-weight: 600;
@@ -704,18 +704,18 @@
   .day-summary-row {
     display: flex;
     gap: 16rpx;
-    margin-bottom: 20rpx;
+    margin-bottom: 16rpx;
     flex-wrap: wrap;
 
     .summary-pill {
       width: calc(50% - 8rpx);
       background: #ffffff;
-      border-radius: 20rpx;
-      padding: 18rpx 20rpx;
+      border-radius: 16rpx;
+      padding: 16rpx 16rpx;
       box-shadow: 0 4rpx 24rpx rgba(0, 0, 0, 0.04);
       display: flex;
       flex-direction: column;
-      gap: 4rpx;
+      gap: 0rpx;
       border: 1rpx solid rgba(0, 0, 0, 0.03);
 
       .summary-label {
@@ -758,11 +758,11 @@
   // ========== 今日已完成卡片 ==========
   .completed-card {
     background: #ffffff;
-    border-radius: 28rpx;
-    padding: 40rpx 28rpx;
+    border-radius: 24rpx;
+    padding: 40rpx 24rpx;
     text-align: center;
     box-shadow: 0 4rpx 24rpx rgba(0, 0, 0, 0.04);
-    margin-bottom: 20rpx;
+    margin-bottom: 16rpx;
 
     .completed-emoji {
       font-size: 64rpx;
@@ -773,13 +773,13 @@
       font-size: 20px;
       font-weight: 700;
       color: #1a1a1a;
-      margin-bottom: 10rpx;
+      margin-bottom: 8rpx;
     }
 
     .completed-desc {
       font-size: 26rpx;
       color: #888;
-      margin-bottom: 20rpx;
+      margin-bottom: 16rpx;
       line-height: 1.5;
     }
 
@@ -787,7 +787,7 @@
       display: inline-flex;
       align-items: center;
       gap: 8rpx;
-      padding: 12rpx 20rpx;
+      padding: 8rpx 16rpx;
       background: #f5f5f5;
       border-radius: 9999rpx;
       font-size: 24rpx;
@@ -799,15 +799,15 @@
   // ========== 空状态卡片 ==========
   .empty-card {
     background: #ffffff;
-    border-radius: 28rpx;
-    padding: 48rpx 28rpx;
+    border-radius: 24rpx;
+    padding: 48rpx 24rpx;
     text-align: center;
     box-shadow: 0 4rpx 24rpx rgba(0, 0, 0, 0.04);
 
     .empty-icon-wrapper {
       position: relative;
       display: inline-block;
-      margin-bottom: 20rpx;
+      margin-bottom: 16rpx;
 
       .empty-icon-bg {
         position: absolute;
@@ -842,14 +842,14 @@
       font-size: 18px;
       font-weight: 700;
       color: #1a1a1a;
-      margin-bottom: 10rpx;
+      margin-bottom: 8rpx;
     }
 
     .empty-desc {
       font-size: 26rpx;
       color: #888;
       line-height: 1.6;
-      margin-bottom: 28rpx;
+      margin-bottom: 24rpx;
       max-width: 560rpx;
       margin-left: auto;
       margin-right: auto;
@@ -858,21 +858,21 @@
     .empty-actions {
       display: flex;
       flex-direction: column;
-      gap: 14rpx;
+      gap: 16rpx;
 
       .action-btn {
         display: flex;
         align-items: center;
         justify-content: center;
-        gap: 10rpx;
-        padding: 22rpx 32rpx;
+        gap: 8rpx;
+        padding: 24rpx 32rpx;
         border-radius: 9999rpx;
         font-size: 28rpx;
         font-weight: 600;
         transition: all 0.2s ease;
 
         &.primary {
-          background: linear-gradient(135deg, #CF6D4E 0%, #E59B7D 100%);
+          background: #CF6D4E;
           color: #ffffff;
           box-shadow: 0 4rpx 20rpx rgba(207, 109, 78, 0.25);
 
@@ -907,9 +907,9 @@
   .info-tip-card {
     background: linear-gradient(135deg, #fff7ed 0%, #ffffff 100%);
     border: 1rpx solid #fed7aa;
-    border-radius: 20rpx;
-    padding: 20rpx 22rpx;
-    margin-bottom: 20rpx;
+    border-radius: 16rpx;
+    padding: 16rpx 24rpx;
+    margin-bottom: 16rpx;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -920,7 +920,7 @@
       font-size: 28rpx;
       font-weight: 700;
       color: #9a3412;
-      margin-bottom: 4rpx;
+      margin-bottom: 0rpx;
     }
 
     .info-tip-desc {
@@ -936,9 +936,9 @@
   .grace-warning-banner,
   .in-progress-banner,
   .grace-card {
-    border-radius: 20rpx;
-    padding: 18rpx 20rpx;
-    margin-bottom: 20rpx;
+    border-radius: 16rpx;
+    padding: 16rpx 16rpx;
+    margin-bottom: 16rpx;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -982,7 +982,7 @@
   .inline-actions {
     display: flex;
     flex-wrap: wrap;
-    gap: 14rpx;
+    gap: 16rpx;
     margin-top: 16rpx;
   }
 
@@ -990,10 +990,10 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-height: 52rpx;
-    padding: 0 20rpx;
+    min-height: 56rpx;
+    padding: 0 16rpx;
     border-radius: 9999rpx;
-    background: linear-gradient(135deg, #cf6d4e 0%, #e59b7d 100%);
+    background: #cf6d4e;
     color: #ffffff;
     font-size: 24rpx;
     font-weight: 700;
@@ -1008,8 +1008,8 @@
     background: linear-gradient(135deg, #fff7ed 0%, #ffffff 100%);
     border: 1rpx solid #fed7aa;
     border-radius: 24rpx;
-    padding: 22rpx;
-    margin-top: 20rpx;
+    padding: 24rpx;
+    margin-top: 16rpx;
 
     .share-entry-tag {
       display: block;
@@ -1017,7 +1017,7 @@
       font-weight: 700;
       letter-spacing: 1px;
       color: #c2410c;
-      margin-bottom: 10rpx;
+      margin-bottom: 8rpx;
     }
 
     .share-entry-title {
@@ -1037,7 +1037,7 @@
   }
 
   .rest-lightweight-wrap {
-    margin-top: 20rpx;
+    margin-top: 16rpx;
   }
 
   .config-sheet-mask,
@@ -1057,8 +1057,8 @@
     width: 100%;
     max-width: 640px;
     background: #ffffff;
-    border-radius: 28rpx 28rpx 0 0;
-    padding: 24rpx 22rpx 28rpx;
+    border-radius: 24rpx 24rpx 0 0;
+    padding: 24rpx 24rpx 24rpx;
     box-shadow: 0 -8rpx 28rpx rgba(15, 23, 42, 0.16);
   }
 
@@ -1074,14 +1074,14 @@
   .config-grid {
     display: flex;
     flex-wrap: wrap;
-    gap: 14rpx;
-    margin-bottom: 14rpx;
+    gap: 16rpx;
+    margin-bottom: 16rpx;
   }
 
   .config-field {
     flex: 1;
-    min-width: calc(50% - 7rpx);
-    margin-bottom: 14rpx;
+    min-width: calc(50% - 8rpx);
+    margin-bottom: 16rpx;
   }
 
   .config-label {
@@ -1098,14 +1098,14 @@
     background: #f9f9f9;
     border: 1rpx solid rgba(0, 0, 0, 0.06);
     border-radius: 16rpx;
-    padding: 16rpx 18rpx;
+    padding: 16rpx 16rpx;
     font-size: 28rpx;
     color: #1a1a1a;
     box-sizing: border-box;
   }
 
   .config-static {
-    min-height: 52rpx;
+    min-height: 56rpx;
     display: flex;
     align-items: center;
   }
@@ -1117,13 +1117,13 @@
   .config-actions,
   .info-dialog-actions {
     display: flex;
-    gap: 14rpx;
-    margin-top: 18rpx;
+    gap: 16rpx;
+    margin-top: 16rpx;
   }
 
   .config-btn {
     flex: 1;
-    min-height: 52rpx;
+    min-height: 56rpx;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1132,7 +1132,7 @@
     font-weight: 700;
 
     &.primary {
-      background: linear-gradient(135deg, #cf6d4e 0%, #e59b7d 100%);
+      background: #cf6d4e;
       color: #ffffff;
     }
 

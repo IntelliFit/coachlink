@@ -3,5 +3,6 @@ export default {
   navigationBarBackgroundColor: '#ffffff',
   navigationBarTextStyle: 'black',
   enablePullDownRefresh: true,
-  backgroundTextStyle: 'dark'
+  backgroundTextStyle: 'dark',
+  animationType: 'none'
 }

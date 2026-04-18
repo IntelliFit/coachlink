@@ -6,7 +6,7 @@
   padding-bottom: env(safe-area-inset-bottom);
 }
 .assessment-form .loading-wrap {
-  padding: 60rpx;
+  padding: 64rpx;
   text-align: center;
   color: #999;
   font-size: 28rpx;
@@ -48,7 +48,7 @@
 }
 
 .field {
-  margin-bottom: 28rpx;
+  margin-bottom: 24rpx;
 }
 .field-row {
   display: flex;
@@ -60,13 +60,13 @@
   font-size: 28rpx;
   color: #333;
   display: block;
-  margin-bottom: 12rpx;
+  margin-bottom: 8rpx;
 }
 .required { color: #ef4444; }
 .input, .textarea {
   width: 100%;
   box-sizing: border-box;
-  padding: 20rpx 24rpx;
+  padding: 16rpx 24rpx;
   font-size: 28rpx;
   background: #fff;
   border-radius: 9999rpx;
@@ -78,7 +78,7 @@
 .input.error, .textarea.error, .picker-value.error { border-color: #ef4444; }
 .textarea { min-height: 160rpx; }
 .picker-value {
-  padding: 20rpx 24rpx;
+  padding: 16rpx 24rpx;
   font-size: 28rpx;
   background: #fff;
   border-radius: 9999rpx;
@@ -96,7 +96,7 @@
   padding: 16rpx 24rpx;
   font-size: 26rpx;
   background: #fff;
-  border-radius: 12rpx;
+  border-radius: 8rpx;
   border: 2rpx solid #eee;
 }
 .multiselect-item.checked {
@@ -106,9 +106,9 @@
 }
 
 .bool-btn {
-  padding: 12rpx 24rpx;
+  padding: 8rpx 24rpx;
   font-size: 26rpx;
-  border-radius: 12rpx;
+  border-radius: 8rpx;
   border: 2rpx solid #eee;
   background: #fff;
 }
@@ -140,7 +140,7 @@
 }
 .form-actions .btn {
   flex: 1;
-  padding: 28rpx;
+  padding: 24rpx;
   text-align: center;
   border-radius: 16rpx;
   font-size: 30rpx;

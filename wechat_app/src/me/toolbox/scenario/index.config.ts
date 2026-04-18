@@ -1,3 +1,4 @@
 export default definePageConfig({
-  navigationBarTitleText: '场景急救箱'
+  navigationBarTitleText: '场景急救箱',
+  animationType: 'none'
 })
