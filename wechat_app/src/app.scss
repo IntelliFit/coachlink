@@ -4,6 +4,12 @@
 
 /* ==================== 新版设计系统变量（v2 Dashboard） ==================== */
 page {
+  /* 全局字体：优先使用思源黑体（Noto Sans SC / Source Han Sans CN），
+     已安装该字体的设备（Windows / 部分安卓）直接生效；
+     iOS 回退到苹方（PingFang SC），质量相当；
+     最终回退到系统默认无衬线字体栈。 */
+  font-family: 'Noto Sans SC', 'Source Han Sans CN', 'PingFang SC', -apple-system-font, 'Helvetica Neue', sans-serif;
+
   --bg-page: linear-gradient(180deg, #E8E8E8 0%, #F8F8F8 100%);
   --bg-card: #FFFFFF;
   --primary: #CF6D4E;
