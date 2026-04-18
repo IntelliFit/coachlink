@@ -426,27 +426,32 @@ export default function StreetliftingLocations() {
       {
         label: '图片覆盖率',
         value: formatRate(locationOverview.withImagesCount, locationOverview.totalCount),
-        helper: `${locationOverview.withImagesCount} / ${locationOverview.totalCount} 有图`
+        helper: `${locationOverview.withImagesCount} / ${locationOverview.totalCount} 有图`,
+        icon: 'icon-picture'
       },
       {
         label: '描述覆盖率',
         value: formatRate(locationOverview.withDescriptionCount, locationOverview.totalCount),
-        helper: `${locationOverview.withDescriptionCount} / ${locationOverview.totalCount} 有描述`
+        helper: `${locationOverview.withDescriptionCount} / ${locationOverview.totalCount} 有描述`,
+        icon: 'icon-pinglun'
       },
       {
         label: '平均图片数',
         value: String(locationOverview.averageImageCount),
-        helper: '每个点位的平均图片数量'
+        helper: '每个点位的平均图片数量',
+        icon: 'icon-calculator'
       },
       {
         label: '可地图打开',
         value: String(locationOverview.mapReadyCount),
-        helper: '已带经纬度，可直接导航'
+        helper: '已带经纬度，可直接导航',
+        icon: 'icon-location'
       },
       {
         label: '贡献者数',
         value: String(locationOverview.contributorCount),
-        helper: '已建立贡献累计的上传者'
+        helper: '已建立贡献累计的上传者',
+        icon: 'icon-user'
       }
     ]
   }, [locationOverview])
@@ -624,15 +629,12 @@ export default function StreetliftingLocations() {
           <ScrollView className='loc-tab-panel-scroll' scrollY>
             <View className='loc-data-section'>
               <View className='loc-header compact'>
-                <View>
-                  <Text className='loc-desc'>保留完整分析，你可以先看概览，再直接找附近和有图点位。</Text>
-                </View>
                 <View className='loc-header-actions'>
-                  <View className='loc-summary-secondary' onClick={handleOpenMapMode}>
+                  <View className='loc-summary-secondary loc-summary-half' onClick={handleOpenMapMode}>
                     <Text className='iconfont icon-location' />
                     <Text>全国地图</Text>
                   </View>
-                  <View className='loc-summary-action' onClick={handleLocateNearby}>
+                  <View className='loc-summary-action loc-summary-half' onClick={handleLocateNearby}>
                     <Text>{locating ? '定位中…' : '定位我附近'}</Text>
                   </View>
                 </View>
@@ -654,13 +656,10 @@ export default function StreetliftingLocations() {
                     ))}
                   </View>
 
-                  <Text className='sheet-desc'>
-                    统计基于全部 {locationOverview.totalCount} 个点位，不受当前筛选影响，用来快速判断数据完整度与分布情况。
-                  </Text>
-
                   <View className='overview-secondary-stats'>
                     {secondaryOverviewCards.map((item) => (
                       <View key={item.label} className='overview-secondary-card'>
+                        <Text className={`iconfont ${item.icon} overview-secondary-icon`} />
                         <Text className='overview-secondary-label'>{item.label}</Text>
                         <Text className='overview-secondary-value'>{item.value}</Text>
                         <Text className='overview-secondary-helper'>{item.helper}</Text>
@@ -693,13 +692,22 @@ export default function StreetliftingLocations() {
                   {locationOverview.recentMonths.length > 0 && (
                     <View className='analysis-block'>
                       <Text className='analysis-block-title'>最近 6 个月新增趋势</Text>
-                      <View className='analysis-trend-row'>
-                        {locationOverview.recentMonths.map((item) => (
-                          <View key={item.month} className='analysis-trend-item'>
-                            <Text className='analysis-trend-value'>{item.count}</Text>
-                            <Text className='analysis-trend-label'>{formatMonthLabel(item.month)}</Text>
-                          </View>
-                        ))}
+                      <View className='trend-chart'>
+                        {(() => {
+                          const maxMonthCount = Math.max(...locationOverview.recentMonths.map(m => m.count), 1)
+                          return locationOverview.recentMonths.map((item) => (
+                            <View key={item.month} className='trend-chart-item'>
+                              <Text className='trend-chart-value'>{item.count}</Text>
+                              <View className='trend-chart-bar-wrap'>
+                                <View
+                                  className='trend-chart-bar'
+                                  style={{ height: `${Math.max(8, Math.round((item.count / maxMonthCount) * 100))}%` }}
+                                />
+                              </View>
+                              <Text className='trend-chart-label'>{formatMonthLabel(item.month)}</Text>
+                            </View>
+                          ))
+                        })()}
                       </View>
                     </View>
                   )}
@@ -800,13 +808,10 @@ export default function StreetliftingLocations() {
             <ScrollView scrollY className='sheet-scroll'>
               {locationOverview && (
                 <>
-                  <Text className='sheet-desc'>
-                    统计基于全部 {locationOverview.totalCount} 个点位，不受当前筛选影响，用来快速判断数据完整度与分布情况。
-                  </Text>
-
                   <View className='overview-secondary-stats'>
                     {secondaryOverviewCards.map((item) => (
                       <View key={item.label} className='overview-secondary-card'>
+                        <Text className={`iconfont ${item.icon} overview-secondary-icon`} />
                         <Text className='overview-secondary-label'>{item.label}</Text>
                         <Text className='overview-secondary-value'>{item.value}</Text>
                         <Text className='overview-secondary-helper'>{item.helper}</Text>
@@ -839,13 +844,22 @@ export default function StreetliftingLocations() {
                   {locationOverview.recentMonths.length > 0 && (
                     <View className='analysis-block'>
                       <Text className='analysis-block-title'>最近 6 个月新增趋势</Text>
-                      <View className='analysis-trend-row'>
-                        {locationOverview.recentMonths.map((item) => (
-                          <View key={item.month} className='analysis-trend-item'>
-                            <Text className='analysis-trend-value'>{item.count}</Text>
-                            <Text className='analysis-trend-label'>{formatMonthLabel(item.month)}</Text>
-                          </View>
-                        ))}
+                      <View className='trend-chart'>
+                        {(() => {
+                          const maxMonthCount = Math.max(...locationOverview.recentMonths.map(m => m.count), 1)
+                          return locationOverview.recentMonths.map((item) => (
+                            <View key={item.month} className='trend-chart-item'>
+                              <Text className='trend-chart-value'>{item.count}</Text>
+                              <View className='trend-chart-bar-wrap'>
+                                <View
+                                  className='trend-chart-bar'
+                                  style={{ height: `${Math.max(8, Math.round((item.count / maxMonthCount) * 100))}%` }}
+                                />
+                              </View>
+                              <Text className='trend-chart-label'>{formatMonthLabel(item.month)}</Text>
+                            </View>
+                          ))
+                        })()}
                       </View>
                     </View>
                   )}
