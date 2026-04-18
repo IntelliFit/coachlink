@@ -553,7 +553,7 @@ export default function StreetliftingLocations() {
                       </View>
                       <View className='loc-card-body'>
                         <View className='loc-card-title-row'>
-                          <Text className='loc-card-name'>{loc.name}</Text>
+                          <Text className='loc-card-name' numberOfLines={1}>{loc.name}</Text>
                           {loc.latitude != null && loc.longitude != null && (
                             <View
                               className='loc-card-map-btn'
@@ -565,6 +565,7 @@ export default function StreetliftingLocations() {
                               })}
                             >
                               <Text className='iconfont icon-location' />
+                              <Text className='loc-card-map-text'>查看地图</Text>
                             </View>
                           )}
                         </View>
@@ -593,6 +594,7 @@ export default function StreetliftingLocations() {
                             <Text className='loc-card-desc' numberOfLines={2}>{loc.description}</Text>
                             <View className='loc-card-edit-btn' onClick={() => openEdit(loc)}>
                               <Text className='iconfont icon-pencil' />
+                              <Text className='loc-card-edit-text'>编辑位置</Text>
                             </View>
                           </View>
                         ) : (
@@ -600,6 +602,7 @@ export default function StreetliftingLocations() {
                             <View style={{ flex: 1 }} />
                             <View className='loc-card-edit-btn' onClick={() => openEdit(loc)}>
                               <Text className='iconfont icon-pencil' />
+                              <Text className='loc-card-edit-text'>编辑位置</Text>
                             </View>
                           </View>
                         )}

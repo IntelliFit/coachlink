@@ -562,13 +562,14 @@
 
 .loc-card-map-btn {
   flex-shrink: 0;
-  width: 56rpx;
-  height: 56rpx;
-  border-radius: 50%;
+  height: 48rpx;
+  padding: 0 16rpx;
+  border-radius: 9999rpx;
   background: #FDF2EC;
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 4rpx;
 
   &:active {
     opacity: 0.8;
@@ -576,8 +577,13 @@
 
   .iconfont {
     color: #CF6D4E;
-    font-size: 28rpx;
+    font-size: 22rpx;
   }
+}
+
+.loc-card-map-text {
+  font-size: 22rpx;
+  color: #CF6D4E;
 }
 
 .loc-card-meta-list {
@@ -614,13 +620,14 @@
 
 .loc-card-edit-btn {
   flex-shrink: 0;
-  width: 64rpx;
-  height: 64rpx;
-  border-radius: 50%;
+  height: 48rpx;
+  padding: 0 16rpx;
+  border-radius: 9999rpx;
   background: #FAFAFA;
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 4rpx;
 
   &:active {
     background: #F0F0F0;
@@ -628,8 +635,13 @@
 
   .iconfont {
     color: #9CA3AF;
-    font-size: 32rpx;
+    font-size: 24rpx;
   }
+}
+
+.loc-card-edit-text {
+  font-size: 22rpx;
+  color: #9CA3AF;
 }
 
 .loading-more, .load-more {
