@@ -622,7 +622,6 @@ export default function StreetliftingLocations() {
             <View className='loc-data-section'>
               <View className='loc-header compact'>
                 <View>
-                  <Text className='loc-title'>单杠数据</Text>
                   <Text className='loc-desc'>保留完整分析，你可以先看概览，再直接找附近和有图点位。</Text>
                 </View>
                 <View className='loc-header-actions'>
@@ -744,7 +743,7 @@ export default function StreetliftingLocations() {
           <ScrollView className='loc-tab-panel-scroll' scrollY>
             <View className='loc-leaderboard-section'>
               <View className='contribution-mini-head'>
-                <Text className='contribution-mini-title'>单杠贡献排行榜</Text>
+                <Text className='iconfont icon-ranking contribution-title-icon' />
               </View>
 
               {loadingContributors ? (
