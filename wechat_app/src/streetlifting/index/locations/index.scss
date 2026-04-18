@@ -147,6 +147,7 @@
   color: #6B7280;
   font-size: 26rpx;
   margin-bottom: 16rpx;
+  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.06);
 
   &:active {
     background: #F0F0F0;
@@ -315,6 +316,7 @@
   background: #FAFAFA;
   color: #6B7280;
   font-size: 26rpx;
+  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.06);
 
   &:active {
     background: #F0F0F0;
@@ -565,6 +567,14 @@
     color: #CF6D4E;
     font-size: 28rpx;
   }
+}
+
+.loc-card-meta {
+  display: block;
+  font-size: 22rpx;
+  color: #9CA3AF;
+  margin-bottom: 12rpx;
+  line-height: 1.4;
 }
 
 .loc-card-desc-row {

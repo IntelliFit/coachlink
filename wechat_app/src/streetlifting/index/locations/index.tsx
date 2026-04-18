@@ -497,15 +497,7 @@ export default function StreetliftingLocations() {
               <Text>查看更多</Text>
             </View>
 
-            {locationOverview.topCities.length > 0 && (
-              <View className='loc-hot-tags compact'>
-                {locationOverview.topCities.slice(0, 4).map((item) => (
-                  <View key={item.name} className='hot-tag'>
-                    <Text>{item.name} {item.count}</Text>
-                  </View>
-                ))}
-              </View>
-            )}
+
           </>
         ) : (
           <View className='summary-loading'>
@@ -668,6 +660,11 @@ export default function StreetliftingLocations() {
                       </View>
                     )}
                   </View>
+                  <Text className='loc-card-meta'>
+                    {[loc.province, loc.city, loc.county].filter(Boolean).join(' · ')}
+                    {(loc.contributor_name_snapshot || loc.user_contact) ? ` · ${getContributorLabel(loc)}` : ''}
+                    {loc.address ? ` · ${loc.address}` : ''}
+                  </Text>
                   {loc.description ? (
                     <View className='loc-card-desc-row'>
                       <Text className='loc-card-desc' numberOfLines={2}>{loc.description}</Text>
