@@ -52,13 +52,18 @@
   padding-top: 8rpx;
 }
 
-/* ===== 概览卡片 ===== */
-.loc-summary-card {
-  background: #FFFFFF;
-  border-radius: 32rpx;
-  padding: 32rpx;
-  margin-bottom: 24rpx;
-  box-shadow: 0 4rpx 24rpx rgba(0, 0, 0, 0.04);
+.loc-tab-panel-scroll {
+  height: calc(100vh - 320rpx);
+}
+
+/* ===== 单杠数据区域 ===== */
+.loc-data-section {
+  padding-top: 8rpx;
+}
+
+/* ===== 贡献排行榜区域 ===== */
+.loc-leaderboard-section {
+  padding-top: 8rpx;
 }
 
 .loc-header {
@@ -192,23 +197,6 @@
   }
 }
 
-.loc-view-more-btn {
-  width: 100%;
-  height: 72rpx;
-  line-height: 72rpx;
-  text-align: center;
-  border-radius: 16rpx;
-  background: #FAFAFA;
-  color: #6B7280;
-  font-size: 26rpx;
-  margin-bottom: 16rpx;
-  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.06);
-
-  &:active {
-    background: #F0F0F0;
-  }
-}
-
 .loc-hot-tags.compact {
   margin-top: 0;
   margin-bottom: 16rpx;
@@ -306,46 +294,6 @@
 }
 
 /* ===== 分享数据卡片 ===== */
-.share-data-card {
-  background: #FFFFFF;
-  border-radius: 32rpx;
-  padding: 32rpx;
-  margin-bottom: 24rpx;
-  box-shadow: 0 4rpx 24rpx rgba(0, 0, 0, 0.04);
-}
-
-.share-data-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 24rpx;
-}
-
-.share-data-title {
-  font-size: 32rpx;
-  font-weight: 700;
-  color: #010101;
-}
-
-.share-data-rights-hint {
-  width: 48rpx;
-  height: 48rpx;
-  border-radius: 50%;
-  background: #F5F5F5;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  &:active {
-    background: #E5E5E5;
-  }
-
-  .iconfont {
-    font-size: 24rpx;
-    color: #9CA3AF;
-  }
-}
-
 .btn-share-my-bar {
   width: 100%;
   height: 88rpx;
@@ -384,22 +332,6 @@
   font-size: 28rpx;
   font-weight: 700;
   color: #010101;
-}
-
-.contribution-view-more {
-  width: 100%;
-  height: 72rpx;
-  line-height: 72rpx;
-  text-align: center;
-  border-radius: 16rpx;
-  background: #FAFAFA;
-  color: #6B7280;
-  font-size: 26rpx;
-  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.06);
-
-  &:active {
-    background: #F0F0F0;
-  }
 }
 
 .contribution-loading,
