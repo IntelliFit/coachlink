@@ -397,14 +397,6 @@ export default function StreetliftingLocations() {
     })
   }
 
-  const handleBack = () => {
-    Taro.navigateBack().catch(() => {
-      Taro.switchTab({ url: '/pages/index/index' }).catch(() => {
-        Taro.reLaunch({ url: '/pages/index/index' })
-      })
-    })
-  }
-
   const nearbyLocations = useMemo<NearbyLocation[]>(() => {
     if (!userLocation || mapPins.length === 0) return []
     return [...mapPins]
@@ -476,15 +468,6 @@ export default function StreetliftingLocations() {
 
   return (
     <View className='loc-page'>
-      {/* ===== 顶部导航栏 ===== */}
-      <View className='loc-nav-bar'>
-        <View className='loc-nav-back' onClick={handleBack}>
-          <Text className='iconfont icon-left' />
-        </View>
-        <Text className='loc-nav-title'>寻找单杠</Text>
-        <View className='loc-nav-placeholder' />
-      </View>
-
       {/* ===== Tab 导航 ===== */}
       <View className='loc-tab-bar'>
         {TAB_LIST.map((tab) => (
