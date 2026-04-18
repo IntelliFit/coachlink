@@ -78,6 +78,7 @@ function ToolboxPage() {
                   className='tool-bg-image'
                   src={tool.image}
                   mode='aspectFill'
+                  style={{ width: '100%', height: '100%', borderRadius: '32rpx' }}
                 />
                 <View className='tool-gradient' />
                 <View className='tool-content'>
