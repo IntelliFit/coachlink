@@ -414,7 +414,7 @@ export default function StreetliftingLocations() {
     return [
       { label: '全部点位', value: String(locationOverview.totalCount), icon: 'icon-location' },
       { label: '带图片', value: String(locationOverview.withImagesCount), icon: 'icon-picture' },
-      { label: '覆盖省份', value: String(locationOverview.provinceCount), icon: 'icon-location' }
+      { label: '覆盖省份', value: String(locationOverview.provinceCount), icon: 'icon-city' }
     ]
   }, [locationOverview])
 
