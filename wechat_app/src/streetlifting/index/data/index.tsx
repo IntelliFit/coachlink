@@ -367,10 +367,26 @@ export default function StreetliftingData() {
 
       {!loading && (
         <View className='stats-row'>
-          <View className='stat'><Text className='stat-n'>{stats.total}</Text><Text className='stat-l'>筛选结果</Text></View>
-          <View className='stat'><Text className='stat-n'>{stats.withVideo}</Text><Text className='stat-l'>含视频</Text></View>
-          <View className='stat'><Text className='stat-n'>{stats.pullup}</Text><Text className='stat-l'>负重引体</Text></View>
-          <View className='stat'><Text className='stat-n'>{stats.dips}</Text><Text className='stat-l'>臂屈伸</Text></View>
+          <View className='stat'>
+            <Text className='iconfont icon-ranking stat-icon' />
+            <Text className='stat-n'>{stats.total}</Text>
+            <Text className='stat-l'>筛选结果</Text>
+          </View>
+          <View className='stat'>
+            <Text className='iconfont icon-video stat-icon' />
+            <Text className='stat-n'>{stats.withVideo}</Text>
+            <Text className='stat-l'>含视频</Text>
+          </View>
+          <View className='stat'>
+            <Text className='iconfont icon-dumbbell stat-icon' />
+            <Text className='stat-n'>{stats.pullup}</Text>
+            <Text className='stat-l'>负重引体</Text>
+          </View>
+          <View className='stat'>
+            <Text className='iconfont icon-traing stat-icon' />
+            <Text className='stat-n'>{stats.dips}</Text>
+            <Text className='stat-l'>臂屈伸</Text>
+          </View>
         </View>
       )}
 
@@ -428,10 +444,10 @@ export default function StreetliftingData() {
                     <Text className='tag quality'>{qualityLabel(s.form_quality)}</Text>
                   </View>
                   <View className='data-grid'>
-                    <View className='data-cell'><Text className='cell-l'>体重</Text><Text className='cell-v'>{s.bodyweight}kg</Text></View>
-                    <View className='data-cell'><Text className='cell-l'>负重</Text><Text className='cell-v'>{s.added_weight}kg</Text></View>
-                    <View className='data-cell'><Text className='cell-l'>次数</Text><Text className='cell-v'>{s.reps}</Text></View>
-                    <View className='data-cell'><Text className='cell-l'>1RM</Text><Text className='cell-v'>{rm.toFixed(1)}</Text></View>
+                    <View className='data-cell'><Text className='cell-l'>体重</Text><Text className='cell-v' numberOfLines={1}>{s.bodyweight}kg</Text></View>
+                    <View className='data-cell'><Text className='cell-l'>负重</Text><Text className='cell-v' numberOfLines={1}>{s.added_weight}kg</Text></View>
+                    <View className='data-cell'><Text className='cell-l'>次数</Text><Text className='cell-v' numberOfLines={1}>{s.reps}</Text></View>
+                    <View className='data-cell'><Text className='cell-l'>1RM</Text><Text className='cell-v' numberOfLines={1}>{rm.toFixed(1)}</Text></View>
                   </View>
                   <View className='data-score'><Text className='score-l'>力量分</Text><Text className='score-v'>{score.toFixed(1)}</Text></View>
                 </View>
