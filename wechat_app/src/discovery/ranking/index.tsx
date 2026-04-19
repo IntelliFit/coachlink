@@ -92,15 +92,6 @@ function RankingIndex() {
 
   return (
     <View className="ranking-page">
-      <View className="page-header">
-        <View className="header-content">
-          <View className="title-section">
-            <Text className="page-title">排行榜</Text>
-            <Text className="page-subtitle">记录每一次超越，实力是最高的话语权</Text>
-          </View>
-        </View>
-      </View>
-
       {loading ? (
         renderSkeleton()
       ) : leaderboards.length === 0 ? (

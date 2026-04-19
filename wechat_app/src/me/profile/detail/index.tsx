@@ -60,14 +60,15 @@ function ProfileDetail() {
     const [questionnaireLoading, setQuestionnaireLoading] = useState(false)
 
     const authSession = authService.getAuthSession({ normalize: true })
-    const user = authSession.user
+    const userId = authSession.user?.id
 
     const fetchData = useCallback(async () => {
-        if (!user?.id) return
+        const uid = authService.getAuthSession({ normalize: true }).user?.id
+        if (!uid) return
         try {
             const [profileRes, subsRes, statsRes] = await Promise.all([
-                studentService.getStudentProfile(user.id),
-                subscriptionService.getCoachSubscriptions({ studentId: user.id }),
+                studentService.getStudentProfile(uid),
+                subscriptionService.getCoachSubscriptions({ studentId: uid }),
                 studentService.getStudentStats()
             ])
 
@@ -91,10 +92,12 @@ function ProfileDetail() {
         } catch (e: any) {
             console.error('刷新档案失败:', e)
         }
-    }, [user?.id])
+    }, [])
 
     useEffect(() => {
-        if (!authSession.isAuthenticated || !user?.id) {
+        const session = authService.getAuthSession({ normalize: true })
+        const user = session.user
+        if (!session.isAuthenticated || !user?.id) {
             // 未登录时直接跳转登录页，不显示「请先登录」提示
             Taro.redirectTo({
                 url: authService.buildLoginUrl('/me/profile/detail/index')
@@ -142,12 +145,15 @@ function ProfileDetail() {
         }
 
         load()
-    }, [authSession.isAuthenticated, user?.id])
+    }, [authSession.isAuthenticated, userId])
 
     useEffect(() => {
-        if (!profileData || !user) return
+        if (!profileData || !userId) return
+        const session = authService.getAuthSession({ normalize: true })
+        const u = session.user
+        if (!u?.id) return
         const payload: ProfileData = {
-            user,
+            user: u,
             profile: profileData.profile,
             stats: {
                 subscriptionCount: statsData?.subscriptionCount ?? 0,
@@ -155,8 +161,8 @@ function ProfileDetail() {
                 completedWorkouts: statsData?.completedWorkouts ?? 0,
                 totalTrainingTime: 0
             },
-            subscriptionLevel: (user.subscription_level as any) ?? 'basic',
-            coachApplicationStatus: user.is_coach ? 'coach' : ((user.coach_status as any) ?? 'none'),
+            subscriptionLevel: (u.subscription_level as any) ?? 'basic',
+            coachApplicationStatus: u.is_coach ? 'coach' : ((u.coach_status as any) ?? 'none'),
             progressData: {
                 dates: [],
                 weight: [],
@@ -168,8 +174,22 @@ function ProfileDetail() {
             coachesData: [],
             notesData: []
         }
-        setData(payload)
-    }, [profileData, user, statsData])
+        setData((prev) => {
+            if (
+                prev &&
+                prev.user?.id === payload.user?.id &&
+                prev.profile === payload.profile &&
+                prev.stats?.subscriptionCount === payload.stats.subscriptionCount &&
+                prev.stats?.activePlanCount === payload.stats.activePlanCount &&
+                prev.stats?.completedWorkouts === payload.stats.completedWorkouts &&
+                prev.subscriptionLevel === payload.subscriptionLevel &&
+                prev.coachApplicationStatus === payload.coachApplicationStatus
+            ) {
+                return prev
+            }
+            return payload
+        })
+    }, [profileData, statsData, userId])
 
     const handleEditQuestionnaire = async () => {
         if (!subscription?.coach_id) {
@@ -219,7 +239,7 @@ function ProfileDetail() {
     if (isInitialLoading) {
         return (
             <ConfigProvider locale={zhCN}>
-                <View className="profile-detail-page">
+                <View className="profile-detail-page page-with-float-nav">
                     <View className="skeleton-wrap">
                         <Skeleton animated rows={4} title avatar avatarSize="64px" visible={false} className="skeleton-header" />
                         <Skeleton animated rows={3} title={false} visible={false} className="skeleton-block" />
@@ -257,7 +277,7 @@ function ProfileDetail() {
 
     return (
         <ConfigProvider locale={zhCN}>
-            <View className="profile-detail-page">
+            <View className="profile-detail-page page-with-float-nav">
                 <ScrollView className="page-scroll" scrollY>
                     <ProfileHeader
                         data={data}
@@ -279,7 +299,7 @@ function ProfileDetail() {
                         <SportCardsDisplay sportCards={data.profile?.sport_cards} />
                     )}
 
-                    {user?.id && <CoachNotesSection data={data} userId={user.id} />}
+                    {userId ? <CoachNotesSection data={data} userId={userId} /> : null}
 
                     {loadingSubscription ? (
                         <Skeleton animated rows={2} title={false} visible={false} className="skeleton-inline" />

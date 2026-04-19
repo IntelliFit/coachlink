@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "../../../auth/[...nextauth]/auth";
 import { serviceRoleSupabase } from "@/lib/supabaseClient";
+import { validateStreetliftingSubmissionWeights } from "@/lib/streetliftingSubmissionLimits";
 
 import type { ApiData } from "@/types/api";
 import type {
@@ -49,6 +50,15 @@ export async function POST(req: Request) {
             return NextResponse.json<ApiData<StreetliftingCreateSubmissionResponseDto>>({
                 success: false,
                 message: "请填写有效的附加负重",
+                data: null,
+            }, { status: 400 });
+        }
+
+        const weightCheck = validateStreetliftingSubmissionWeights(bodyweight, added_weight);
+        if (!weightCheck.ok) {
+            return NextResponse.json<ApiData<StreetliftingCreateSubmissionResponseDto>>({
+                success: false,
+                message: weightCheck.message,
                 data: null,
             }, { status: 400 });
         }

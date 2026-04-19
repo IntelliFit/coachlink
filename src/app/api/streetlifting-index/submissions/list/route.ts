@@ -41,25 +41,36 @@ export async function POST(req: Request) {
 
         const submissions = (data || []) as any[];
         const userIds = Array.from(new Set(submissions.map((s) => s.user_id).filter(Boolean)));
-        let nameMap = new Map<string, string>();
+        type ProfileRow = { user_id: string | null; nickname: string | null; full_name: string | null; avatar_url: string | null };
+        let profileMap = new Map<string, { user_name: string | null; user_avatar_url: string | null }>();
         if (userIds.length > 0) {
             const { data: profiles } = await db
                 .from("user_profiles")
-                .select("user_id,nickname,full_name")
+                .select("user_id,nickname,full_name,avatar_url")
                 .in("user_id", userIds);
-            (profiles || []).forEach((p: any) => {
-                const uid = p.user_id as string | null;
+            (profiles || []).forEach((p: ProfileRow) => {
+                const uid = p.user_id;
+                if (!uid) return;
                 const name = (p.nickname || p.full_name) as string | null;
-                if (uid && name) nameMap.set(uid, name);
+                const avatar = (p.avatar_url && String(p.avatar_url).trim()) || null;
+                profileMap.set(uid, {
+                    user_name: name || null,
+                    user_avatar_url: avatar,
+                });
             });
         }
 
         const resolved = submissions.map((s) => {
             const uid = s.user_id as string | null;
             if (uid) {
-                return { ...s, user_name: nameMap.get(uid) || s.user_name || null };
+                const row = profileMap.get(uid);
+                return {
+                    ...s,
+                    user_name: row?.user_name || s.user_name || null,
+                    user_avatar_url: row?.user_avatar_url ?? null,
+                };
             }
-            return s;
+            return { ...s, user_avatar_url: null as string | null };
         });
 
         return NextResponse.json<ApiData<StreetliftingListSubmissionsResponseDto>>({

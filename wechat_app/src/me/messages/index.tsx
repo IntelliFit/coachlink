@@ -4,8 +4,8 @@ import Taro, { useDidShow, useDidHide, usePullDownRefresh, useRouter } from '@ta
 import BottomNav from '@/components/BottomNav'
 import { authService } from '@/services/authService'
 import { chatService, type ChatroomItem } from '@/services/chatService'
+import { Calendar, Location, Message, Power, Search, Star } from '@nutui/icons-react-taro'
 import './index.scss'
-import { Message } from '@nutui/icons-react-taro'
 
 function MessagesPage() {
   const router = useRouter()
@@ -131,13 +131,20 @@ function MessagesPage() {
     }
 
     const keyword = searchText.toLowerCase()
-    const filtered = chatrooms.filter(room => {
+    const filtered = chatrooms.filter((room) => {
       const peerName = getChatUserName(room).toLowerCase()
       const message = (room.lastMessage || '').toLowerCase()
       return peerName.includes(keyword) || message.includes(keyword)
     })
     setFilteredChatrooms(filtered)
   }, [searchText, chatrooms, getChatUserName])
+
+  const handleNav = (url: string) => {
+    const normalized = url.startsWith('/') ? url : `/${url}`
+    Taro.navigateTo({ url: normalized }).catch(() => {
+      Taro.reLaunch({ url: normalized }).catch(() => {})
+    })
+  }
 
   const handleChatroomClick = (room: ChatroomItem) => {
     const name = getChatUserName(room)
@@ -152,7 +159,7 @@ function MessagesPage() {
     const now = new Date()
     const diff = now.getTime() - date.getTime()
     const days = Math.floor(diff / (1000 * 60 * 60 * 24))
-    
+
     if (days === 0) {
       return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
     } else if (days === 1) {
@@ -164,51 +171,83 @@ function MessagesPage() {
     }
   }
 
+  const avatarToneClass = (index: number) => {
+    const tones = ['tone-peach', 'tone-blue', 'tone-mint']
+    return tones[index % tones.length]
+  }
+
   return (
     <View className='messages-page'>
       <ScrollView className='page-scroll' scrollY>
-        <View className='page-content'>
-          <View className='page-header'>
-            <View className='header-left'>
-              <View className='header-icon'><Message /></View>
-              <View>
-                <Text className='page-title'>消息中心</Text>
-                <Text className='page-subtitle'>与您的教练保持实时沟通</Text>
+        <View className='page-inner'>
+          <View className='messages-shortcuts'>
+            <View className='msg-shortcut' onClick={() => handleNav('/training/today-training')}>
+              <View className='msg-shortcut-icon peach'>
+                <Power width={22} height={22} color='#010101' />
               </View>
+              <Text className='msg-shortcut-label'>训练</Text>
+            </View>
+            <View className='msg-shortcut' onClick={() => handleNav('/discovery/index')}>
+              <View className='msg-shortcut-icon blue'>
+                <Search width={22} height={22} color='#010101' />
+              </View>
+              <Text className='msg-shortcut-label'>发现</Text>
+            </View>
+            <View className='msg-shortcut' onClick={() => handleNav('/discovery/ranking')}>
+              <View className='msg-shortcut-icon yellow'>
+                <Star width={22} height={22} color='#010101' />
+              </View>
+              <Text className='msg-shortcut-label'>排行</Text>
+            </View>
+            <View className='msg-shortcut' onClick={() => handleNav('/me/plan-lib/index')}>
+              <View className='msg-shortcut-icon mint'>
+                <Calendar width={22} height={22} color='#010101' />
+              </View>
+              <Text className='msg-shortcut-label'>计划库</Text>
             </View>
           </View>
 
-          {/* 搜索栏 */}
           <View className='search-section'>
+            <Text className='iconfont icon-search search-section-icon' />
             <Input
               className='search-input'
-              placeholder='搜索联系人或聊天内容...'
+              placeholder='搜索联系人或聊天内容'
               value={searchText}
               onInput={(e: any) => setSearchText(e.detail.value)}
             />
           </View>
 
-          {/* 会话列表 */}
+          <View className='list-section-header'>
+            <Text className='list-section-title'>会话</Text>
+            <View className='list-section-tag'>
+              <Message size={14} color='#CF6D4E' />
+              <Text className='list-section-tag-text'>消息列表</Text>
+            </View>
+          </View>
+
           {loading ? (
             <View className='loading-wrap'>
-              <Text>加载中...</Text>
+              <View className='loading-dot' />
+              <Text className='loading-text'>加载中…</Text>
             </View>
           ) : filteredChatrooms.length === 0 ? (
             <View className='empty-state'>
-              <View className='empty-icon'><Message /></View>
-              <Text className='empty-text'>暂无消息</Text>
-              <Text className='empty-hint'>开始与教练或好友聊天吧</Text>
+              <View className='empty-icon-wrap'>
+                <Location width={32} height={32} color='#CF6D4E' />
+              </View>
+              <Text className='empty-text'>暂无会话</Text>
+              <Text className='empty-hint'>下拉刷新，或通过上方入口开始训练与发现</Text>
             </View>
           ) : (
             <View className='chatrooms-list'>
-              {filteredChatrooms.map((room) => (
+              {filteredChatrooms.map((room, index) => (
                 <View
                   key={room.id}
                   className='chatroom-item'
                   onClick={() => handleChatroomClick(room)}
                 >
-                  <View className='chatroom-avatar'>
-                    <Text>{getChatUserName(room).charAt(0) || 'U'}</Text>
+                  <View className={`chatroom-avatar ${avatarToneClass(index)}`}>
+                    <Text className='chatroom-avatar-text'>{getChatUserName(room).charAt(0) || 'U'}</Text>
                   </View>
                   <View className='chatroom-content'>
                     <View className='chatroom-header'>
@@ -216,9 +255,12 @@ function MessagesPage() {
                       <Text className='chatroom-time'>{formatTime(room.lastMessageAt ?? undefined)}</Text>
                     </View>
                     <View className='chatroom-footer'>
-                      <Text className='chatroom-message' numberOfLines={1}>
-                        {room.lastMessage ?? '暂无消息'}
-                      </Text>
+                      <View className='chatroom-msg-row'>
+                        <Message size={14} color='#9CA3AF' />
+                        <Text className='chatroom-message' numberOfLines={1}>
+                          {room.lastMessage ?? '暂无消息'}
+                        </Text>
+                      </View>
                       {room.unreadCount > 0 && (
                         <View className='unread-badge'>
                           <Text>{room.unreadCount > 99 ? '99+' : room.unreadCount}</Text>
@@ -230,7 +272,6 @@ function MessagesPage() {
               ))}
             </View>
           )}
-
         </View>
       </ScrollView>
       <BottomNav />

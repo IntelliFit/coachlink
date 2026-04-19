@@ -4,6 +4,7 @@ import Taro, { useRouter } from '@tarojs/taro'
 import { getScenarioQuickFix, type ScenarioQuickFix } from '@/constants/scenarioQuickFixes'
 import './index.scss'
 import { Notice } from '@nutui/icons-react-taro'
+import { ScenarioNutIcon } from '@/components/ScenarioNutIcon'
 
 export default function ScenarioDetailPage() {
   const router = useRouter()
@@ -68,7 +69,9 @@ export default function ScenarioDetailPage() {
       <ScrollView scrollY className='scenario-scroll'>
         <View className='page-content'>
           <View className='hero-card'>
-            <Text className='hero-icon'>{scenario.icon}</Text>
+            <View className='hero-icon'>
+              <ScenarioNutIcon name={scenario.icon} size={40} />
+            </View>
             <Text className='hero-title'>{scenario.title}</Text>
             <Text className='hero-desc'>{scenario.description}</Text>
             <Text className='hero-meta'>约 {scenario.durationMinutes} 分钟 · 共 {scenario.steps.length} 步</Text>

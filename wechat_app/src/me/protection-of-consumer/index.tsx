@@ -7,7 +7,6 @@ export default function ProtectionOfConsumer() {
     <View className='doc-page'>
       <ScrollView scrollY className='doc-scroll'>
         <View className='doc-card'>
-          <Text className='doc-title'>启能教链平台消费者权益保障说明</Text>
           <Text className='doc-meta'>
             {'适用业务：启能教链平台教练入驻与分账业务\n平台运营主体：智健启能（北京）科技有限公司\n版本号：1.0'}
           </Text>

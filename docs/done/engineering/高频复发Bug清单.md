@@ -254,3 +254,54 @@
 - **改动前自检**：
   - 新增「动态拼路径」的 API 时，对 slug、id、文件名做存在性与类型校验；
   - 真机复现后对照后端日志是否同一条 TypeError。
+
+## 20) 本地草稿恢复前即写入 storage，冲掉历史数据（高风险）
+
+- **现象**：再次进入页面时，表单像被清空；性别/体重与档案不一致；用户反复填次数、负重等。
+- **根因**：`useEffect` 在首屏用**空 state** 立刻 `setStorageSync`，早于异步「读档案 + 读旧草稿」完成，把 `sl_calc_form_data` 覆盖成空对象；或恢复草稿时用 storage **覆盖**档案中的性别/体重。
+- **统一规则**：
+  - 带本地缓存的表单：增加 **hydration 门闩**，仅在「读完 storage / 合并完档案」后再允许自动持久化；
+  - 多数据源时明确优先级（如档案优先于草稿中的性别、体重）。
+- **改动前自检**：
+  - 首屏是否会在初始化完成前写入缓存键；
+  - 合并顺序是否与产品口径一致。
+
+## 21) 微信小程序 Canvas 绘制网络图未先落地本地路径（中高频）
+
+- **现象**：分享海报、合成图里用户头像或远程资源始终空白或走占位，开发者工具无报错或仅偶发 `getImageInfo` 失败。
+- **根因**：`https` 头像 URL 直接赋给 `createImage` 或仅 `getImageInfo`，不符合小程序对网络资源的落地要求；本地品牌图仅依赖打包 URL 时，在分包/产物路径下也可能解析失败。
+- **统一规则**：
+  - 远程图：先 `Taro.downloadFile` 再 `getImageInfo`/`createImage`（并确保下载域名已在后台配置）；
+  - 包内固定资源：用 `config.copy` 落到 `dist` 已知路径，绘制时多候选路径兜底；
+  - 头像字段兼容 `avatar_url` / `profile.avatar_url` 等多层结构。
+- **改动前自检**：
+  - 真机与开发者工具各测一张 `https` 头像；
+  - 产物目录中是否存在 copy 的静态文件；
+  - 关闭网络时包内 Logo 是否仍能绘制。
+
+## 22) 微信小程序 Canvas 2D：`await` 插在同步绘制中间导致下半张「空白」（高风险）
+
+- **现象**：海报/分享图只有顶部几行（昵称、时间、副标题），力量分、四格、底部品牌与二维码整段缺失。
+- **根因**：在 `canvas.width/height` 重置并 `scale` 后，先同步画了头部，再 `await loadFontFace` / `getImageInfo` 等；恢复执行后后续 `fillText`/`drawImage` 在部分基础库上不再生效或绘制被丢弃。
+- **统一规则**：
+  - 主版面（分数、指标、文案、二维码等）在**同一段同步流程**内画完；`await` 仅放在「整图画完前」预加载字体，或放在「整图主体画完后」叠加非关键资源（如 Logo 盖图）。
+  - 设置画布尺寸后用 `ctx.setTransform(dpr,0,0,dpr,0,0)`，避免与历史变换叠加。
+- **改动前自检**：
+  - 搜索绘制函数内的 `await`，确认其不在「只画了头部」与「画分数/四格」之间；
+  - 开发者工具与真机各导出一张，检查是否仅顶部有字。
+
+## 23) 小程序海报 Hook：`draw` 未 `return` 异步 Promise，导出早于绘制完成（高风险）
+
+- **现象**：首次点「生成分享卡片」不出图或白图；再次点击也不出图（`generating` 与 `useCallback` 依赖叠加后更难恢复）。
+- **根因**：`useSharePoster` 内 `await draw(ctx, data, canvas)`；若业务写成 `draw: (ctx, d) => { drawPoster(ctx, d) }` 而未 `return drawPoster(...)`，则 `drawPoster` 返回的 `Promise` 被丢弃，`canvasToTempFilePath` 在异步绘制完成前就执行。
+- **统一规则**：`draw` 若内部有异步（字体、头像 `downloadFile` 等），必须 **`return` 该 Promise**（或改为 `async (ctx, d, c) => { await ... }`）；并发用 `useRef` 防重入，避免把 `generating` 放进 `useCallback` 依赖导致闭包/早退问题。
+- **改动前自检**：
+  - `draw` 回调是否显式 `return` 异步绘制函数的结果；
+  - `createSelectorQuery` 在分包页是否 `.in(getCurrentInstance().page)`（按需）。
+
+## 24) `useEffect` 依赖「每次渲染都是新引用」的会话对象 → 无限 setState（高风险）
+
+- **现象**：控制台 `Maximum update depth exceeded`；某页一进就疯狂重渲染。
+- **根因**：`const user = authService.getAuthSession().user`（或整个 `session`）引用每轮变化，却放进 `useEffect(..., [user])` 并在 effect 内 `setState`，形成死循环。
+- **统一规则**：依赖里只放 **稳定原始值**（如 `user?.id`、`isAuthenticated`）；effect 内需要最新用户时再 `getAuthSession()`；合并 `setState` 时用浅比较避免重复写入同一快照。
+- **改动前自检**：搜索 `getAuthSession` / `getCurrentUser` 与 `useEffect` 依赖数组是否同时出现「整条 user/session 对象」。

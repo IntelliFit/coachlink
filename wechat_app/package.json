@@ -25,6 +25,7 @@
     "fix:weapp-wxml": "node scripts/fix-weapp-wxml.js",
     "fix:weapp-comp": "node scripts/fix-weapp-comp-path.js",
     "copy:comp": "node scripts/copy-comp-to-subpackages.js",
+    "ensure:weapp-comp": "node -e \"require('./scripts/ensure-root-comp-artifacts').ensureRootCompArtifacts(require('path').join(process.cwd(), process.env.WEAPP_OUTPUT_ROOT||'dist'))\"",
     "dev:weapp:simulator": "node scripts/dev-weapp-with-fixes.js local",
     "dev:swan": "npm run build:swan -- --watch",
     "dev:alipay": "npm run build:alipay -- --watch",

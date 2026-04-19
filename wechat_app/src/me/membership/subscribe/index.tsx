@@ -138,11 +138,10 @@ function MembershipSubscribe() {
     <View className='membership-subscribe-page'>
       <ScrollView className='page-scroll' scrollY>
         <View className='page-content'>
-          <View className='page-header'>
-            <Text className='page-title'>会员订阅</Text>
-            <Text className='page-subtitle'>选择适合您的会员套餐</Text>
-            <Text className='page-subtitle'>将在小程序内打开与网站一致的购买页，优先使用支付宝完成支付</Text>
-            <Text className='page-subtitle'>当前等级：{currentTier === 'premium' ? '高级会员' : currentTier === 'basic' ? '基础会员' : currentTier === 'trial' ? '试用会员' : '免费用户'}</Text>
+          <View className='subscribe-status'>
+            <Text className='subscribe-status-text'>
+              当前等级：{currentTier === 'premium' ? '高级会员' : currentTier === 'basic' ? '基础会员' : currentTier === 'trial' ? '试用会员' : '免费用户'}
+            </Text>
           </View>
 
           {/* Tab 切换 */}

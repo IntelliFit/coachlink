@@ -7,7 +7,6 @@ export default function Privacy() {
     <View className="doc-page privacy-page">
       <ScrollView scrollY className="doc-scroll">
         <View className="doc-card">
-          <Text className="doc-title">隐私政策</Text>
           <Text className="doc-content">
             教链 CoachLink（以下简称「我们」）重视您的隐私。本政策说明我们如何收集、使用、存储与保护您的个人信息。
           </Text>

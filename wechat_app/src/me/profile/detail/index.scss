@@ -1,155 +1,130 @@
 .profile-detail-page {
   min-height: 100vh;
-  background: #f3f4f6;
-  padding-bottom: 70px; // 为底部导航栏预留空间
+  background: linear-gradient(180deg, #e8e8e8 0%, #f8f8f8 100%);
 
   .loading-container,
   .error-container {
     display: flex;
     align-items: center;
     justify-content: center;
-    height: calc(100vh - 70px);
+    min-height: 60vh;
 
     .loading-text,
     .error-text {
-      font-size: 14px;
-      color: #6b7280;
+      font-size: 28rpx;
+      color: var(--text-secondary, #6b7280);
     }
   }
 
   .page-scroll {
-    height: calc(100vh - 70px);
+    min-height: 100vh;
+    box-sizing: border-box;
   }
-
 
   .skeleton-wrap {
-    padding: 16px 12px;
-    min-height: calc(100vh - 70px);
+    padding: 24rpx;
+    min-height: 60vh;
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 24rpx;
   }
 
-  .skeleton-header {
-    margin-bottom: 4px;
-    border-radius: 16px;
-    overflow: hidden;
-  }
-
-  .skeleton-block {
-    border-radius: 16px;
+  .skeleton-header,
+  .skeleton-block,
+  .skeleton-inline {
+    border-radius: 0;
     overflow: hidden;
   }
 
   .skeleton-inline {
-    margin: 0 12px 12px;
-    border-radius: 16px;
-    overflow: hidden;
+    margin: 0 0 24rpx;
   }
 
   .tab-content .empty-state .video-stub-icon {
     color: #94a3b8;
-    margin-bottom: 8px;
+    margin-bottom: 16rpx;
   }
 
-  // Tab区域
   .tab-section {
-    padding: 0 12px;
-    margin-top: 4px;
-    padding-bottom: 16px;
+    padding: 0 24rpx;
+    margin-top: 8rpx;
+    padding-bottom: 32rpx;
 
     .tab-bar {
       display: flex;
       align-items: center;
-      background: #f3f4f6;
-      border-radius: 10px;
-      padding: 4px;
-      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
-      margin-bottom: 10px;
+      background: transparent;
+      border-radius: 0;
+      padding: 0;
+      border-bottom: 1rpx solid var(--border-color, #e5e5e5);
+      margin-bottom: 24rpx;
+      gap: 0;
 
       .tab-item {
         flex: 1;
-        padding: 8px 0;
+        padding: 16rpx 0;
         text-align: center;
-        border-radius: 8px;
-        transition: all 0.2s;
+        border-radius: 0;
+        transition: opacity 0.2s;
         display: flex;
         align-items: center;
         justify-content: center;
-        gap: 4px;
+        gap: 8rpx;
+        border-bottom: 4rpx solid transparent;
+        margin-bottom: -1rpx;
 
         &.active {
-          background: #F28631;
+          background: transparent;
+          border-bottom-color: #cf6d4e;
 
           .tab-icon {
-            filter: brightness(0) invert(1);
+            filter: none;
           }
 
           .tab-text {
-            color: #ffffff;
+            color: #cf6d4e;
             font-weight: 600;
           }
         }
 
         &:active {
-          opacity: 0.8;
+          opacity: 0.75;
         }
 
         .tab-icon {
-          font-size: 14px;
+          font-size: 28rpx;
         }
 
         .tab-text {
-          font-size: 13px;
+          font-size: 26rpx;
           font-weight: 500;
-          color: #6b7280;
-        }
-      }
-
-      .tab-more {
-        display: flex;
-        align-items: center;
-        gap: 2px;
-        padding: 8px 10px;
-        color: #9ca3af;
-        
-        .more-icon {
-          font-size: 12px;
-        }
-        
-        .more-arrow {
-          font-size: 10px;
-        }
-        
-        &:active {
-          opacity: 0.7;
+          color: var(--text-secondary, #6b7280);
         }
       }
     }
 
     .tab-content {
-      background: #ffffff;
-      border-radius: 12px;
-      padding: 14px;
-      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
-      min-height: 160px;
+      background: transparent;
+      border-radius: 0;
+      padding: 0;
+      box-shadow: none;
+      min-height: 160rpx;
 
       .empty-state {
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        padding: 40px 0;
+        padding: 64rpx 0;
 
         .empty-icon {
-          font-size: 36px;
-          margin-bottom: 8px;
-          opacity: 0.5;
+          margin-bottom: 16rpx;
+          opacity: 0.85;
         }
 
         .empty-text {
-          font-size: 13px;
-          color: #9ca3af;
+          font-size: 26rpx;
+          color: var(--text-tertiary, #9ca3af);
         }
       }
     }

@@ -15,6 +15,8 @@ export interface StreetliftingSubmission {
     form_quality: "Competition" | "Minor_Cheat" | "Major_Cheat" | "Extreme_Cheat";
     penalty_weight: number;
     user_name: string | null;
+    /** 认领用户来自 user_profiles.avatar_url，未登录提交为 null */
+    user_avatar_url?: string | null;
     video_url: string | null;
     pullup_type: "Overhand" | "Underhand" | null;
     exercise_type: "weighted_pullup" | "weighted_dips";

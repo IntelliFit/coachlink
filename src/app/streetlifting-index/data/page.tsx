@@ -24,6 +24,7 @@ import type { StreetliftingSubmission } from "@/app/api/streetlifting-index/subm
 import type { StreetliftingCreateSubmissionDto } from "@/app/api/streetlifting-index/submissions/create/entity";
 import { calculateAdded1RM, computeCoefficient } from "@/app/streetlifting-index/_utils";
 import { AERO_CARD, AERO_CONTAINER_7XL, AERO_SUBTITLE, AERO_TITLE } from "@/components/streetlifting-index/aero";
+import { validateStreetliftingSubmissionWeights } from "@/lib/streetliftingSubmissionLimits";
 
 type Filters = {
     exerciseType: "all" | "weighted_pullup" | "weighted_dips";
@@ -329,6 +330,11 @@ export default function StreetliftingDataPage() {
             if (!form.gender) throw new Error("请选择性别");
             if (!Number.isFinite(form.bodyweight ?? NaN) || (form.bodyweight as number) <= 0) throw new Error("请填写有效体重");
             if (!Number.isFinite(form.added_weight ?? NaN)) throw new Error("请填写有效负重");
+            const weightCheck = validateStreetliftingSubmissionWeights(
+                form.bodyweight as number,
+                form.added_weight as number,
+            );
+            if (!weightCheck.ok) throw new Error(weightCheck.message);
             if (!Number.isFinite(form.reps ?? NaN) || (form.reps as number) < 1 || (form.reps as number) > 36) throw new Error("次数必须在1-36之间");
             if (!form.form_quality) throw new Error("请选择动作质量");
             if (form.exercise_type === "weighted_pullup" && !form.pullup_type) throw new Error("负重引体需要选择引体类型");

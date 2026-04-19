@@ -142,10 +142,6 @@ export default function MyCoaches() {
     <View className='my-coaches-page'>
       <View className='page-header'>
         <View className='header-row'>
-          <View className='title-section'>
-            <Text className='page-title'>我的教练</Text>
-            <Text className='page-subtitle'>已订阅的教练列表</Text>
-          </View>
           <View className='btn-discovery' onClick={goDiscovery}>
             发现更多
           </View>

@@ -104,11 +104,6 @@ function PurchaseHistoryPage() {
     <View className='purchase-history-page'>
       <ScrollView className='page-scroll' scrollY>
         <View className='page-content'>
-          <View className='page-header'>
-            <Text className='page-title'>购买记录</Text>
-            <Text className='page-subtitle'>查看您的订阅购买历史</Text>
-          </View>
-
           {loading && page === 1 ? (
             <View className='loading-wrap'>
               <Text>加载中...</Text>
