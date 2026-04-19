@@ -7,7 +7,6 @@ export default function PlatformAgreement() {
     <View className='doc-page'>
       <ScrollView scrollY className='doc-scroll'>
         <View className='doc-card'>
-          <Text className='doc-title'>启能教链平台教练入驻与合作协议</Text>
           <Text className='doc-meta'>
             {'版本号：1.0\n适用主体：入驻教练/服务提供方\n签署主体甲方：智健启能（北京）科技有限公司\n签署主体乙方：入驻教练/服务提供方'}
           </Text>

@@ -1,0 +1,164 @@
+.share-poster-canvas-wrap {
+  position: fixed;
+  left: -9999px;
+  top: 0;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.share-poster-canvas {
+  width: 750rpx;
+  /* 高度由 TSX 内联 px 与 STRENGTH_POSTER_DISPLAY_HEIGHT 同步；此处占位避免过小 */
+  min-height: 1200rpx;
+}
+
+/* 遮罩：浅灰 + 轻微暖白渐变，衬托白底海报 */
+.share-poster-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 100001;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  background: linear-gradient(180deg, #f4f4f5 0%, #faf8f6 45%, #ffffff 100%);
+}
+
+.share-poster-bar {
+  flex-shrink: 0;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: calc(8rpx + env(safe-area-inset-top)) 24rpx 16rpx;
+  min-height: 88rpx;
+  box-sizing: border-box;
+  background: rgba(255, 255, 255, 0.92);
+  border-bottom: 1rpx solid rgba(207, 109, 78, 0.12);
+}
+
+.share-poster-title {
+  flex: 1;
+  text-align: center;
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #111827;
+}
+
+.share-poster-close {
+  position: absolute;
+  left: 8rpx;
+  top: calc(8rpx + env(safe-area-inset-top));
+  width: 72rpx;
+  height: 72rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.share-poster-close-x {
+  font-size: 44rpx;
+  line-height: 1;
+  color: #6b7280;
+  font-weight: 300;
+}
+
+.share-poster-body {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 16rpx 16rpx 8rpx;
+  box-sizing: border-box;
+}
+
+.share-poster-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 80rpx 0;
+}
+
+.share-poster-spinner {
+  width: 48rpx;
+  height: 48rpx;
+  border: 4rpx solid rgba(207, 109, 78, 0.2);
+  border-top-color: #cf6d4e;
+  border-radius: 50%;
+  animation: share-poster-spin 0.8s linear infinite;
+}
+
+@keyframes share-poster-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.share-poster-loading-text {
+  margin-top: 24rpx;
+  font-size: 26rpx;
+  color: #9ca3af;
+}
+
+.share-poster-image {
+  width: 100%;
+  max-width: 100%;
+  display: block;
+  border-radius: 0;
+  margin: 0;
+  padding: 0;
+}
+
+.share-poster-bottom-bar {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: row;
+  justify-content: space-around;
+  align-items: flex-start;
+  padding: 20rpx 24rpx calc(20rpx + env(safe-area-inset-bottom));
+  background: rgba(255, 255, 255, 0.96);
+  border-top: 1rpx solid rgba(207, 109, 78, 0.1);
+}
+
+.share-poster-channel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12rpx;
+  min-width: 160rpx;
+}
+
+.share-poster-channel-icon {
+  width: 104rpx;
+  height: 104rpx;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.share-poster-channel-icon-wechat {
+  background: #07c160;
+}
+
+.share-poster-channel-icon-save {
+  background: #cf6d4e;
+}
+
+.share-poster-channel-glyph {
+  font-size: 52rpx;
+  line-height: 1;
+  color: #fff;
+}
+
+.share-poster-channel-label {
+  font-size: 24rpx;
+  color: #6b7280;
+  text-align: center;
+}

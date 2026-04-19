@@ -142,7 +142,6 @@ export default function TrainingHistoryPage() {
       <View className='page-header'>
         <View className='header-left' onClick={() => Taro.navigateBack()}>
           <Text className='back-icon'>←</Text>
-          <Text className='page-title'>训练记录</Text>
         </View>
         <View className='impromptu-btn' onClick={handleImpromptu}>
           <Text> 即兴锻炼</Text>

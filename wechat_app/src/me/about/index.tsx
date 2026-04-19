@@ -14,7 +14,6 @@ export default function About() {
     <View className="doc-page">
       <ScrollView scrollY className="doc-scroll">
         <View className="doc-card">
-          <Text className="doc-title">关于我们</Text>
           <Text className="doc-content">
             CoachLink（教链）是一个面向训练人群的在线训练服务平台，帮助用户更高效地发现教练、选择服务、完成训练与记录进步。
           </Text>

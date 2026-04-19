@@ -1,3 +1,4 @@
-export default { navigationBarTitleText: '数据总览',
+export default {
+  navigationBarTitleText: '社区数据',
   animationType: 'none'
 }

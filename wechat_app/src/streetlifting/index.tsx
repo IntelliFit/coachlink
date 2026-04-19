@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { View, Text, ScrollView } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { request } from '@/utils/request'
-import { Book, Calendar, Calculator, List, Location } from '@nutui/icons-react-taro'
+import { Book, Calendar, Calculator, Edit, List, Location } from '@nutui/icons-react-taro'
 import './index.scss'
 
 export default function StreetliftingIndex() {
@@ -61,7 +61,7 @@ export default function StreetliftingIndex() {
           </View>
           <View className="nav-item" onClick={() => nav('/streetlifting/index/data')}>
             <Text className="nav-icon"><List size={20} /></Text>
-            <Text className="nav-text">数据总览</Text>
+            <Text className="nav-text">社区数据</Text>
           </View>
           <View className="nav-item" onClick={() => nav('/streetlifting/index/locations')}>
             <Text className="nav-icon"><Location size={20} /></Text>

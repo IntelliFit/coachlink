@@ -699,10 +699,6 @@ export default function ActionLibPage() {
       <ScrollView className='page-scroll' scrollY>
         <View className='page-content'>
           <View className='page-header'>
-            <View className='header-left'>
-              <Text className='page-title'>动作库</Text>
-              <Text className='page-subtitle'>我的动作 + 公共动作库</Text>
-            </View>
             {activeTab === 'mine' && (
               <View className='header-actions'>
                 <View className='header-btn secondary' onClick={handleOpenCoachLibrary}>

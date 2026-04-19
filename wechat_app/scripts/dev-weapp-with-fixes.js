@@ -7,6 +7,7 @@ const { getWeappOutputRoot } = require('./weapp-output-root')
 
 const root = path.join(__dirname, '..')
 const mode = process.argv[2] || 'local'
+const { ensureRootCompArtifacts } = require('./ensure-root-comp-artifacts')
 
 function getWatchEnv(watchMode) {
   const env = { ...process.env }
@@ -45,6 +46,7 @@ function runFixScripts(reason = 'build') {
   console.log(`\n[dev-weapp] Running fix scripts (${reason})...`)
 
   try {
+    ensureRootCompArtifacts(path.join(root, outputRoot))
     execSync('node scripts/fix-weapp-wxml.js', { cwd: root, stdio: 'inherit' })
     execSync('node scripts/fix-weapp-comp-path.js', { cwd: root, stdio: 'inherit' })
     execSync('node scripts/copy-comp-to-subpackages.js', { cwd: root, stdio: 'inherit' })
@@ -65,7 +67,7 @@ function scheduleFix(reason) {
   debounceTimer = setTimeout(() => {
     debounceTimer = null
     runFixScripts(reason)
-  }, 1200)
+  }, 400)
 }
 
 function handleBuildLine(line) {
@@ -84,6 +86,9 @@ function wireStream(stream, writer) {
 }
 
 console.log(`[dev-weapp] Starting Taro watch (mode: ${mode}, output: ${outputRoot})...`)
+if (fs.existsSync(distAppJson)) {
+  ensureRootCompArtifacts(path.join(root, outputRoot))
+}
 const taro = spawn('npx', ['taro', 'build', '--type', 'weapp', '--watch'], {
   cwd: root,
   stdio: ['inherit', 'pipe', 'pipe'],

@@ -84,7 +84,7 @@ function ToolboxPage() {
                 <View className='tool-content'>
                   <View className='tool-top-row'>
                     <Text className='tool-name'>{tool.label}</Text>
-                    <Text className='tool-arrow'>›</Text>
+                    <Text className='iconfont icon-right-arrow tool-arrow' />
                   </View>
                   <Text className='tool-desc'>{tool.description}</Text>
                 </View>

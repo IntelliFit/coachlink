@@ -68,7 +68,10 @@ function Index() {
   }
 
   const handleNav = (url: string) => {
-    Taro.switchTab({ url })
+    const normalized = url.startsWith('/') ? url : `/${url}`
+    Taro.navigateTo({ url: normalized }).catch(() => {
+      Taro.reLaunch({ url: normalized }).catch(() => {})
+    })
   }
 
   const handleNavTo = (url: string) => {
@@ -126,25 +129,25 @@ function Index() {
         <View className='home-quick-actions'>
           <Text className='section-title'>快速入口</Text>
           <View className='quick-actions-grid'>
-            <View className='quick-action-item' onClick={() => handleNav('/pages/today-training/index')}>
+            <View className='quick-action-item' onClick={() => handleNav('/training/today-training')}>
               <View className='quick-action-icon peach'>
                 <Power width={24} height={24} color='#010101' />
               </View>
-              <Text className='quick-action-label'>今日训练</Text>
+              <Text className='quick-action-label'>训练</Text>
             </View>
-            <View className='quick-action-item' onClick={() => handleNav('/pages/discovery/index')}>
+            <View className='quick-action-item' onClick={() => handleNav('/discovery/index')}>
               <View className='quick-action-icon blue'>
                 <Search width={24} height={24} color='#010101' />
               </View>
               <Text className='quick-action-label'>发现教练</Text>
             </View>
-            <View className='quick-action-item' onClick={() => handleNav('/pages/ranking/index')}>
+            <View className='quick-action-item' onClick={() => handleNav('/discovery/ranking')}>
               <View className='quick-action-icon yellow'>
                 <Star width={24} height={24} color='#010101' />
               </View>
               <Text className='quick-action-label'>排行榜</Text>
             </View>
-            <View className='quick-action-item' onClick={() => handleNav('/pages/me/profile/index')}>
+            <View className='quick-action-item' onClick={() => handleNav('/me/profile/index')}>
               <View className='quick-action-icon mint'>
                 <User width={24} height={24} color='#010101' />
               </View>

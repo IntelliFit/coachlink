@@ -149,6 +149,7 @@ export default {
       pages: [
         'index',
         'index/calculator',
+        'index/calculator/result',
         'index/data',
         'index/locations',
         'index/locations-map',

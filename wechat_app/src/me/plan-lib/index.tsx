@@ -235,10 +235,6 @@ export default function PlanLibPage() {
       <ScrollView className='page-scroll' scrollY>
         <View className='page-content'>
           <View className='page-header'>
-            <View className='header-left'>
-              <Text className='page-title'>常用计划库</Text>
-              <Text className='page-subtitle'>Plan Library</Text>
-            </View>
             <View className='create-btn' onClick={handleCreate}>
               <Text className='create-icon'>+</Text>
               <Text className='create-text'>新建</Text>

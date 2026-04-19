@@ -11,14 +11,8 @@ interface NavItem {
     path: string
 }
 
-/** 学员端底部导航 */
+/** 学员端底部导航（首页与「今日训练」合并为「训练」；消息在工具箱右侧） */
 const studentNavItems: NavItem[] = [
-    {
-        key: 'home',
-        label: '首页',
-        iconClass: 'icon-home',
-        path: '/pages/index/index'
-    },
     {
         key: 'training',
         label: '训练',
@@ -36,6 +30,12 @@ const studentNavItems: NavItem[] = [
         label: '工具箱',
         iconClass: 'icon-toolbox',
         path: '/me/toolbox/index'
+    },
+    {
+        key: 'messages',
+        label: '消息',
+        iconClass: 'icon-messages',
+        path: '/me/messages/index'
     },
     {
         key: 'profile',
@@ -128,8 +128,8 @@ function BottomNav() {
 
         if (current === targetPath || navLockRef.current) return
 
-        // 个人中心需要登录，未登录时跳转到登录页
-        if (item.key === 'profile') {
+        // 个人中心、消息需要登录，未登录时跳转到登录页
+        if (item.key === 'profile' || item.key === 'messages') {
             const session = authService.getAuthSession({ normalize: true })
             if (!session.isAuthenticated) {
                 navLockRef.current = true

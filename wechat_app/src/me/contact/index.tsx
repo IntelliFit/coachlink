@@ -14,7 +14,6 @@ export default function Contact() {
     <View className="doc-page">
       <ScrollView scrollY className="doc-scroll">
         <View className="doc-card">
-          <Text className="doc-title">联系我们</Text>
           <Text className="doc-content">
             如您对本协议有任何疑问或建议，请通过以下方式联系我们：
           </Text>

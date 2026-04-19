@@ -7,7 +7,6 @@ export default function Disclaimer() {
     <View className="doc-page disclaimer-page">
       <ScrollView scrollY className="doc-scroll">
         <View className="doc-card">
-          <Text className="doc-title">免责声明</Text>
           <Text className="doc-content">
             本平台所提供之训练计划、动作说明、营养建议等仅供参考，不构成任何医疗、康复或专业建议。用户在参与任何运动前，应根据自身健康状况咨询医生或专业人士。
           </Text>

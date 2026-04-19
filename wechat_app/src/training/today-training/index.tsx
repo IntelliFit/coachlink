@@ -23,7 +23,21 @@ import ScheduleCalendarPanel from './components/ScheduleCalendarPanel'
 import LightweightTaskSheet from './components/LightweightTaskSheet'
 import LightweightActionPicker from './components/LightweightActionPicker'
 import DayCheckinShareSheet from './components/DayCheckinShareSheet'
-import { ArrowRight, Calendar, Check, Location, Message, Notice, Power, Star, Target, User } from '@nutui/icons-react-taro'
+import {
+  ArrowRight,
+  ArrowUp,
+  Calendar,
+  Check,
+  Location,
+  Message,
+  Notice,
+  Power,
+  Search,
+  ShieldCheck,
+  Star,
+  Target,
+  User
+} from '@nutui/icons-react-taro'
 import {
   buildPlanScheduleModel,
   buildDayModuleModel,
@@ -104,6 +118,13 @@ function TodayTraining() {
     coachSubscriptions[0] ||
     null
 
+  const subscriptionLifecycle = String(activeSubscription?.lifecycle_status || 'active')
+  const isExpiredGrace = subscriptionLifecycle === 'expired_grace'
+  const renewCoachId = activeSubscription?.coach_id || activeSubscription?.coach?.id
+  const renewPath = renewCoachId
+    ? `/discovery/coach-profile?id=${encodeURIComponent(renewCoachId)}&renew=true`
+    : '/discovery/index'
+
   const activeCoachPlan = activeCoachSubscriptionId ? coachPlanDataBySubId[activeCoachSubscriptionId] : null
   const coachInstance = activeCoachPlan?.instance ?? null
   const coachActions = activeCoachPlan?.actions ?? {}
@@ -131,6 +152,28 @@ function TodayTraining() {
       : progressExec?.status === 'in_progress'
         ? 'in_progress'
         : 'none'
+
+  const progressDayModuleModel = useMemo(
+    () =>
+      instance && progressDay
+        ? buildDayModuleModel({
+            day: progressDay,
+            actions,
+            execution: progressExec,
+            executionStatus: progressExecutionStatus
+          })
+        : null,
+    [actions, instance, progressDay, progressExec, progressExecutionStatus]
+  )
+
+  const homeTodayCompletionPercent = useMemo(() => {
+    if (!instance) return 0
+    if (todayCompleted) return 100
+    if (!progressDayModuleModel || progressDay?.type !== 'training') return 0
+    const t = progressDayModuleModel.moduleCount
+    if (!t) return 0
+    return Math.round((progressDayModuleModel.completedModuleCount / t) * 100)
+  }, [instance, todayCompleted, progressDay?.type, progressDayModuleModel])
 
   const greeting = useMemo(() => {
     const hour = new Date().getHours()
@@ -601,6 +644,11 @@ function TodayTraining() {
     Taro.navigateTo({ url: '/discovery/index' })
   }, [])
 
+  /** 主行动：进入当前进度日训练执行（与原「开始训练」快捷入口一致） */
+  const handleMegaStart = useCallback(() => {
+    handleGoToTrainingExecution(progressDayIndex)
+  }, [handleGoToTrainingExecution, progressDayIndex])
+
   const handleImpromptu = useCallback(() => {
     Taro.navigateTo({ url: '/training/impromptu-training' })
   }, [])
@@ -892,6 +940,125 @@ function TodayTraining() {
     </View>
   )
 
+  const handleHomeNav = useCallback((url: string) => {
+    const normalized = url.startsWith('/') ? url : `/${url}`
+    Taro.navigateTo({ url: normalized }).catch(() => {
+      Taro.reLaunch({ url: normalized }).catch(() => {})
+    })
+  }, [])
+
+  /** 融合原首页：目标卡片（真实今日完成度 + 计划进度）+ 快速入口 + 促销卡 + 平台亮点 */
+  const renderHomeStyleStrip = () => {
+    const heroSubtitle = instance
+      ? `${instance.name || '今日训练'} · 今日完成度与计划进度一览`
+      : '添加计划或从即兴首练开始，数据将展示在这里'
+    const planLine = instance
+      ? `计划整体进度 ${heroProgressPercent}% · 第 ${progressDayIndex} 天 / 共 ${instance.total_days ?? '-'} 天`
+      : '尚未关联长期训练计划'
+
+    return (
+      <View className='tt-home-blocks'>
+        <View className='home-hero-card'>
+          <View className='hero-card-content'>
+            <View className='hero-card-text'>
+              <Text className='hero-card-title'>开启你的训练之旅</Text>
+              <Text className='hero-card-subtitle'>{heroSubtitle}</Text>
+            </View>
+            <View className='hero-card-icon-wrap'>
+              <Power width={28} height={28} color='#CF6D4E' />
+            </View>
+          </View>
+          <View className='hero-card-progress'>
+            <View className='progress-track'>
+              <View className='progress-fill' style={{ width: `${Math.min(100, Math.max(0, homeTodayCompletionPercent))}%` }} />
+            </View>
+            <Text className='progress-label'>今日完成度 {homeTodayCompletionPercent}%</Text>
+            <Text className='hero-plan-hint'>{planLine}</Text>
+          </View>
+        </View>
+
+        <View className='home-quick-actions'>
+          <Text className='section-title'>快速入口</Text>
+          <View className='quick-actions-grid'>
+            <View className='quick-action-item' onClick={() => handleHomeNav('/training/today-training')}>
+              <View className='quick-action-icon peach'>
+                <Power width={24} height={24} color='#010101' />
+              </View>
+              <Text className='quick-action-label'>训练</Text>
+            </View>
+            <View className='quick-action-item' onClick={() => handleHomeNav('/discovery/index')}>
+              <View className='quick-action-icon blue'>
+                <Search width={24} height={24} color='#010101' />
+              </View>
+              <Text className='quick-action-label'>发现教练</Text>
+            </View>
+            <View className='quick-action-item' onClick={() => handleHomeNav('/discovery/ranking')}>
+              <View className='quick-action-icon yellow'>
+                <Star width={24} height={24} color='#010101' />
+              </View>
+              <Text className='quick-action-label'>排行榜</Text>
+            </View>
+            <View className='quick-action-item' onClick={() => handleHomeNav('/me/profile/index')}>
+              <View className='quick-action-icon mint'>
+                <User width={24} height={24} color='#010101' />
+              </View>
+              <Text className='quick-action-label'>个人中心</Text>
+            </View>
+          </View>
+        </View>
+
+        <View className='home-promo-card'>
+          <Text className='promo-card-title'>运动后拉伸</Text>
+          <Text className='promo-card-subtitle'>有助于提升睡眠质量</Text>
+          <View className='promo-card-actions'>
+            <View className='promo-btn promo-btn-outline' onClick={() => Taro.navigateTo({ url: '/content/knowledge' })}>
+              <Text className='promo-btn-text'>了解更多</Text>
+            </View>
+            <View className='promo-btn promo-btn-solid' onClick={() => Taro.navigateTo({ url: '/training/impromptu-training' })}>
+              <Text className='promo-btn-text'>立即开始</Text>
+            </View>
+          </View>
+        </View>
+
+        <View className='home-features'>
+          <Text className='section-title'>平台亮点</Text>
+          <View className='features-list'>
+            <View className='feature-item' onClick={() => Taro.navigateTo({ url: '/discovery/index' })}>
+              <View className='feature-icon-wrap peach'>
+                <ShieldCheck width={24} height={24} color='#CF6D4E' />
+              </View>
+              <View className='feature-info'>
+                <Text className='feature-title'>靠谱教练</Text>
+                <Text className='feature-desc'>资质认证，评价透明</Text>
+              </View>
+              <Text className='feature-arrow'>›</Text>
+            </View>
+            <View className='feature-item' onClick={() => Taro.navigateTo({ url: '/content/knowledge' })}>
+              <View className='feature-icon-wrap blue'>
+                <Target width={24} height={24} color='#3B82F6' />
+              </View>
+              <View className='feature-info'>
+                <Text className='feature-title'>智能负荷</Text>
+                <Text className='feature-desc'>基于1RM自动计算重量</Text>
+              </View>
+              <Text className='feature-arrow'>›</Text>
+            </View>
+            <View className='feature-item' onClick={() => Taro.navigateTo({ url: '/me/training-history/index' })}>
+              <View className='feature-icon-wrap mint'>
+                <ArrowUp width={24} height={24} color='#10B981' />
+              </View>
+              <View className='feature-info'>
+                <Text className='feature-title'>成长档案</Text>
+                <Text className='feature-desc'>追踪每一次 PR 进步</Text>
+              </View>
+              <Text className='feature-arrow'>›</Text>
+            </View>
+          </View>
+        </View>
+      </View>
+    )
+  }
+
   if (loading) {
     return renderLoading()
   }
@@ -901,20 +1068,19 @@ function TodayTraining() {
   const hasActiveCoachSubscription = !!activeSubscription?.id
   const subscribedCoachName =
     activeSubscription?.coach?.name || activeSubscription?.coach?.title || activeSubscription?.coach_id || ''
-  const subscriptionLifecycle = String(activeSubscription?.lifecycle_status || 'active')
-  const isExpiredGrace = subscriptionLifecycle === 'expired_grace'
   const graceDaysLeft = Math.max(0, Number(activeSubscription?.grace_days_left || 0))
   const graceDeadlineLabel = formatShortDate(activeSubscription?.grace_deadline_at)
-  const renewCoachId = activeSubscription?.coach_id || activeSubscription?.coach?.id
-  const renewPath = renewCoachId
-    ? `/discovery/coach-profile?id=${encodeURIComponent(renewCoachId)}&renew=true`
-    : '/discovery/index'
 
   if (!hasAnyPlan) {
     return (
       <View className='today-training-page'>
         <ScrollView className='page-scroll' scrollY>
           <View className='page-content'>
+            <View className='dashboard-header'>
+              <Text className='dashboard-greeting'>{greeting}</Text>
+              <Text className='dashboard-date'>{todayDateText}</Text>
+            </View>
+            {renderHomeStyleStrip()}
             <View className='empty-card waiting-card'>
               <View className='empty-icon-wrapper'>
                 <View className='empty-icon-bg' />
@@ -962,30 +1128,22 @@ function TodayTraining() {
                   </View>
                 )}
 
-                {activeSubscription?.id ? (
-                  <View className='action-btn primary' onClick={handleContactCoach}>
+                {activeSubscription?.id && !isExpiredGrace && (
+                  <View className='action-btn action-btn-outline' onClick={handleContactCoach}>
                     <Text><Message size={20} /></Text>
                     <Text>联系教练</Text>
                   </View>
-                ) : (
+                )}
+
+                <View className='empty-actions-pair'>
                   <View className='action-btn secondary' onClick={handleGoToPlanLib}>
                     <Text><Calendar size={20} /></Text>
                     <Text>AI 长期计划</Text>
                   </View>
-                )}
-
-                <View
-                  className='action-btn secondary'
-                  onClick={
-                    activeSubscription?.id && isExpiredGrace
-                      ? handleImpromptu
-                      : activeSubscription?.id
-                        ? handleGoToPlanLib
-                        : handleDiscoverCoach
-                  }
-                >
-                  <Text>{activeSubscription?.id && isExpiredGrace ? <Power size={20} /> : activeSubscription?.id ? <Calendar size={20} /> : <Location size={20} />}</Text>
-                  <Text>{activeSubscription?.id && isExpiredGrace ? '即兴锻炼' : activeSubscription?.id ? '我的计划库' : '浏览教练'}</Text>
+                  <View className='action-btn secondary' onClick={handleDiscoverCoach}>
+                    <Text><Location size={20} /></Text>
+                    <Text>浏览教练</Text>
+                  </View>
                 </View>
               </View>
             </View>
@@ -1028,6 +1186,8 @@ function TodayTraining() {
             <Text className='dashboard-greeting'>{greeting}</Text>
             <Text className='dashboard-date'>{todayDateText}</Text>
           </View>
+
+          {renderHomeStyleStrip()}
 
           {hasBothPlans && (
             <View className='plan-switcher'>
@@ -1095,85 +1255,111 @@ function TodayTraining() {
                 ) : (
                   <View className='action-btn primary' onClick={handleImpromptu}>
                     <Text><Power size={20} /></Text>
-                    <Text>即兴锻炼</Text>
+                    <Text>开始即兴首练</Text>
                   </View>
                 )}
-                <View className='action-btn primary' onClick={handleContactCoach}>
-                  <Text><Message size={20} /></Text>
-                  <Text>联系教练</Text>
-                </View>
-                <View className='action-btn secondary' onClick={isExpiredGrace ? handleImpromptu : handleGoToPlanLib}>
-                  <Text>{isExpiredGrace ? <Power size={20} /> : <Calendar size={20} />}</Text>
-                  <Text>{isExpiredGrace ? '即兴锻炼' : '我的计划库'}</Text>
+                {!isExpiredGrace && (
+                  <View className='action-btn action-btn-outline' onClick={handleContactCoach}>
+                    <Text><Message size={20} /></Text>
+                    <Text>联系教练</Text>
+                  </View>
+                )}
+                <View className='empty-actions-pair'>
+                  <View className='action-btn secondary' onClick={handleGoToPlanLib}>
+                    <Text><Calendar size={20} /></Text>
+                    <Text>AI 长期计划</Text>
+                  </View>
+                  <View className='action-btn secondary' onClick={handleDiscoverCoach}>
+                    <Text><Location size={20} /></Text>
+                    <Text>浏览教练</Text>
+                  </View>
                 </View>
               </View>
             </View>
           ) : (
             <>
-              <View className='hero-card'>
-                <View className='hero-progress-row'>
-                  <Text className='hero-plan-name'>{instance?.name || '今日训练'}</Text>
-                  <View className={`hero-status-badge ${selectedStatusClass}`}>
-                    <Text>{selectedStatusText}</Text>
-                  </View>
-                </View>
-                <View className='hero-progress-bar-bg'>
-                  <View className='hero-progress-bar-fill' style={{ width: `${heroProgressPercent}%` }} />
-                </View>
-                <Text className='hero-progress-text'>计划进度 {heroProgressPercent}% · 第{progressDayIndex}天 / 共{instance?.total_days || '-'}天</Text>
-              </View>
+              <View className='unified-home-block'>
+                <Text className='unified-home-headline'>加油，开练！</Text>
 
-              <View className='quick-actions'>
-                <View className='quick-action-item' onClick={() => handleGoToTrainingExecution(progressDayIndex)}>
-                  <View className='quick-action-icon primary'><ArrowRight size={20} /></View>
-                  <Text className='quick-action-label'>开始训练</Text>
-                </View>
-                <View className='quick-action-item' onClick={handleImpromptu}>
-                  <View className='quick-action-icon secondary'><Power size={20} /></View>
-                  <Text className='quick-action-label'>即兴锻炼</Text>
-                </View>
-                <View className='quick-action-item' onClick={handleContactCoach}>
-                  <View className='quick-action-icon secondary'><Message size={20} /></View>
-                  <Text className='quick-action-label'>联系教练</Text>
-                </View>
-                <View className='quick-action-item' onClick={handleGoToPlanLib}>
-                  <View className='quick-action-icon secondary'><Calendar size={20} /></View>
-                  <Text className='quick-action-label'>计划库</Text>
-                </View>
-              </View>
+                <View className='unified-hero-card'>
+                  <View className='hero-progress-row'>
+                    <Text className='hero-plan-name'>{instance?.name || '今日训练'}</Text>
+                    <View className={`hero-status-badge ${selectedStatusClass}`}>
+                      <Text>{selectedStatusText}</Text>
+                    </View>
+                  </View>
+                  <View className='hero-progress-bar-bg'>
+                    <View className='hero-progress-bar-fill' style={{ width: `${heroProgressPercent}%` }} />
+                  </View>
+                  <Text className='hero-progress-text'>计划进度 {heroProgressPercent}% · 第{progressDayIndex}天 / 共{instance?.total_days || '-'}天</Text>
 
-              <View className='summary-card'>
-                <Text className='summary-card-title'>今日数据</Text>
-                <View className='summary-grid'>
-                  <View className='summary-cell'>
-                    <Text className='summary-cell-value'>{selectedDay?.type === 'training' ? selectedTaskSummary.totalModules : 1}</Text>
-                    <Text className='summary-cell-label'>今日模块</Text>
-                  </View>
-                  <View className='summary-cell highlight'>
-                    <Text className='summary-cell-value'>
-                      {selectedDay?.type === 'training'
-                        ? selectedTaskSummary.completedModules
-                        : selectedExecutionStatus === 'completed'
-                          ? 1
-                          : 0}
-                    </Text>
-                    <Text className='summary-cell-label'>已完成</Text>
-                  </View>
-                  <View className='summary-cell'>
-                    <Text className='summary-cell-value'>
-                      {selectedDay?.type === 'training'
-                        ? selectedTaskSummary.remainingModules
-                        : selectedExecutionStatus === 'completed'
-                          ? 0
-                          : 1}
-                    </Text>
-                    <Text className='summary-cell-label'>剩余</Text>
-                  </View>
-                  <View className='summary-cell'>
-                    <Text className='summary-cell-value'>{selectedDay?.type === 'training' ? '训练日' : '恢复日'}</Text>
-                    <Text className='summary-cell-label'>当前节奏</Text>
+                  <Text className='unified-stat-title'>今日数据</Text>
+                  <View className='summary-grid unified-stat-grid'>
+                    <View className='summary-cell'>
+                      <Text className='summary-cell-value'>{selectedDay?.type === 'training' ? selectedTaskSummary.totalModules : 1}</Text>
+                      <Text className='summary-cell-label'>今日模块</Text>
+                    </View>
+                    <View className='summary-cell highlight'>
+                      <Text className='summary-cell-value'>
+                        {selectedDay?.type === 'training'
+                          ? selectedTaskSummary.completedModules
+                          : selectedExecutionStatus === 'completed'
+                            ? 1
+                            : 0}
+                      </Text>
+                      <Text className='summary-cell-label'>已完成</Text>
+                    </View>
+                    <View className='summary-cell'>
+                      <Text className='summary-cell-value'>
+                        {selectedDay?.type === 'training'
+                          ? selectedTaskSummary.remainingModules
+                          : selectedExecutionStatus === 'completed'
+                            ? 0
+                            : 1}
+                      </Text>
+                      <Text className='summary-cell-label'>剩余</Text>
+                    </View>
+                    <View className='summary-cell'>
+                      <Text className='summary-cell-value'>{selectedDay?.type === 'training' ? '训练日' : '恢复日'}</Text>
+                      <Text className='summary-cell-label'>当前节奏</Text>
+                    </View>
                   </View>
                 </View>
+
+                <View className='today-outline-btn' onClick={handleMegaStart}>
+                  <Power size={20} color='#CF6D4E' />
+                  <Text className='today-outline-text'>进入今日训练</Text>
+                </View>
+
+                <View className='mega-start-btn' onClick={handleImpromptu}>
+                  <Power size={22} color='#FFFFFF' />
+                  <Text className='mega-start-text'>开始即兴首练</Text>
+                </View>
+
+                <View className='pair-actions-row'>
+                  <View className='pair-action pair-action-light' onClick={handleGoToPlanLib}>
+                    <Calendar size={20} color='#111827' />
+                    <Text className='pair-action-text dark'>AI 长期计划</Text>
+                  </View>
+                  <View className='pair-action pair-action-light' onClick={handleDiscoverCoach}>
+                    <Location size={20} color='#111827' />
+                    <Text className='pair-action-text dark'>浏览教练</Text>
+                  </View>
+                </View>
+
+                {isExpiredGrace && (
+                  <View className='renew-inline' onClick={() => Taro.navigateTo({ url: renewPath })}>
+                    <ArrowRight size={16} color='#CF6D4E' />
+                    <Text className='renew-inline-text'>订阅宽限期内，去续费恢复计划</Text>
+                  </View>
+                )}
+
+                {activeSubscription?.id && !isExpiredGrace && (
+                  <View className='contact-coach-inline' onClick={handleContactCoach}>
+                    <Message size={16} color='#6B7280' />
+                    <Text className='contact-coach-text'>联系教练</Text>
+                  </View>
+                )}
               </View>
 
               <View className={instance?.source === 'self' ? 'coach-card self-plan-card' : 'coach-card'}>
@@ -1291,11 +1477,6 @@ function TodayTraining() {
                       ? `第${selectedDayIndex}天 · 恢复与轻任务`
                       : `第${selectedDayIndex}天 · ${selectedTaskSummary.totalModules} 个模块`}
                   </Text>
-                </View>
-                <View className='header-right'>
-                  <View className='impromptu-btn' onClick={handleImpromptu}>
-                    <Text><Power size={16} /> 即兴锻炼</Text>
-                  </View>
                 </View>
               </View>
 

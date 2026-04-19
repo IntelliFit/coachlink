@@ -1,8 +1,8 @@
 @font-face {
   font-family: "iconfont"; /* Project id 5163112 */
-  src: url('iconfont.woff2?t=1776539191377') format('woff2'),
-       url('iconfont.woff?t=1776539191377') format('woff'),
-       url('iconfont.ttf?t=1776539191377') format('truetype');
+  src: url('iconfont.woff2?t=1776627594742') format('woff2'),
+       url('iconfont.woff?t=1776627594742') format('woff'),
+       url('iconfont.ttf?t=1776627594742') format('truetype');
 }
 
 .iconfont {
@@ -11,6 +11,30 @@
   font-style: normal;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+.icon-messages:before {
+  content: "\e691";
+}
+
+.icon-right-arrow:before {
+  content: "\e632";
+}
+
+.icon-filter:before {
+  content: "\e672";
+}
+
+.icon-download:before {
+  content: "\e66c";
+}
+
+.icon-strength:before {
+  content: "\e605";
+}
+
+.icon-zhongliang:before {
+  content: "\e7f6";
 }
 
 .icon-wenhao:before {
@@ -99,10 +123,6 @@
 
 .icon-knowledge:before {
   content: "\e89d";
-}
-
-.icon-messages:before {
-  content: "\e671";
 }
 
 .icon-24px:before {

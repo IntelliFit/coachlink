@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { View, Text, ScrollView, Image, Input } from '@tarojs/components'
-import { Search } from '@nutui/icons-react-taro'
+import { Search, Target } from '@nutui/icons-react-taro'
+import { ScenarioNutIcon } from '@/components/ScenarioNutIcon'
 import Taro from '@tarojs/taro'
 import BottomNav from '@/components/BottomNav'
 import {
@@ -22,16 +23,16 @@ const NODE_TYPE_LABELS: Record<string, string> = {
 }
 
 const BODY_REGION_OPTIONS = [
-  { key: '斜方肌', label: '颈肩', icon: '🧠' },
-  { key: '肩关节', label: '肩关节', icon: '🦾' },
-  { key: '胸大肌', label: '胸部', icon: '🫁' },
-  { key: '背阔肌', label: '背部', icon: '🧱' },
+  { key: '斜方肌', label: '颈肩' },
+  { key: '肩关节', label: '肩关节' },
+  { key: '胸大肌', label: '胸部' },
+  { key: '背阔肌', label: '背部' },
   { key: '腹直肌', label: '核心' },
-  { key: '髋关节', label: '髋部', icon: '🦵' },
-  { key: '臀大肌', label: '臀部', icon: '🍑' },
-  { key: '膝关节', label: '膝关节', icon: '🦿' },
-  { key: '腓肠肌', label: '小腿', icon: '🏃' },
-  { key: '踝关节', label: '踝关节', icon: '🦶' }
+  { key: '髋关节', label: '髋部' },
+  { key: '臀大肌', label: '臀部' },
+  { key: '膝关节', label: '膝关节' },
+  { key: '腓肠肌', label: '小腿' },
+  { key: '踝关节', label: '踝关节' }
 ]
 
 function stripHtml(html: string) {
@@ -309,15 +310,9 @@ function KnowledgeBase() {
   }
 
   return (
-    <View className='knowledge-page'>
-      <ScrollView scrollY className='knowledge-scroll'>
+    <View className='knowledge-page page-with-float-nav'>
+      <ScrollView scrollY className='knowledge-scroll page-scroll'>
         <View className='page-shell'>
-          <View className='hero-section'>
-            <Text className='hero-badge'>知识库升级中</Text>
-            <Text className='page-title'>知识库</Text>
-            <Text className='page-desc'>现在先把 Web 端最重要的 4 层结构迁进来：搜索、场景急救箱、身体部位入口、知识体系。</Text>
-          </View>
-
           <View className='search-section'>
             <View className='search-input-wrap'>
               <Search size={18} color="#9CA3AF" />
@@ -395,7 +390,6 @@ function KnowledgeBase() {
           <View className='section'>
             <View className='section-head'>
               <Text className='section-title'>场景急救箱</Text>
-              <Text className='section-caption'>按场景直接开始，不必先懂完整体系</Text>
             </View>
             <View className='scenario-grid'>
               {SCENARIO_QUICK_FIXES.map((scenario) => (
@@ -404,7 +398,9 @@ function KnowledgeBase() {
                   className='scenario-card'
                   onClick={() => Taro.navigateTo({ url: `/me/toolbox/scenario/index?slug=${scenario.slug}` })}
                 >
-                  <Text className='scenario-icon'>{scenario.icon}</Text>
+                  <View className='scenario-icon'>
+                    <ScenarioNutIcon name={scenario.icon} size={22} />
+                  </View>
                   <Text className='scenario-title'>{scenario.title}</Text>
                   <Text className='scenario-desc' numberOfLines={2}>{scenario.description}</Text>
                   <Text className='scenario-meta'>约 {scenario.durationMinutes} 分钟</Text>
@@ -416,7 +412,6 @@ function KnowledgeBase() {
           <View className='section'>
             <View className='section-head'>
               <Text className='section-title'>身体部位入口</Text>
-              <Text className='section-caption'>先点部位，再看对应知识</Text>
             </View>
             <View className='region-grid'>
               {BODY_REGION_OPTIONS.map((region) => (
@@ -425,7 +420,9 @@ function KnowledgeBase() {
                   className={`region-card ${selectedBodyRegion === region.key ? 'active' : ''}`}
                   onClick={() => void handleBodyRegionClick(region.key)}
                 >
-                  <Text className='region-icon'>{region.icon}</Text>
+                  <View className='region-icon'>
+                    <Target size={20} color='#CF6D4E' />
+                  </View>
                   <Text className='region-label'>{region.label}</Text>
                 </View>
               ))}
@@ -456,7 +453,6 @@ function KnowledgeBase() {
           <View className='section'>
             <View className='section-head'>
               <Text className='section-title'>知识体系</Text>
-              <Text className='section-caption'>从领域到主题，逐层展开</Text>
             </View>
             {loadingTree ? (
               <View className='empty-panel'><Text className='empty-panel-text'>知识体系加载中...</Text></View>
@@ -473,7 +469,6 @@ function KnowledgeBase() {
             <View className='section'>
               <View className='section-head'>
                 <Text className='section-title'>{focusedNodeTitle}</Text>
-                <Text className='section-caption'>当前节点下的可浏览内容</Text>
               </View>
               {loadingFocusedNodes ? (
                 <View className='empty-panel'><Text className='empty-panel-text'>加载中...</Text></View>

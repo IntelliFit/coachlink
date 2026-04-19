@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback } from 'react'
 import { View, Text, Image } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
 import BottomNav from '@/components/BottomNav'
+import { Icon } from '@/components/Icon'
+import { Sun, Moon, MonitorSmartphone, Clock } from 'lucide-react'
 import { useTheme } from '@/hooks/useTheme'
 import { authService } from '@/services/authService'
 import { coachService } from '@/services/coach/coachService'
@@ -20,7 +22,7 @@ interface MenuItem {
 }
 
 function Profile() {
-  const { themeMode, effectiveTheme, isDark, setThemeMode } = useTheme()
+  const { themeMode, setThemeMode } = useTheme()
   const [user, setUser] = useState<any>(null)
   const [coachId, setCoachId] = useState<string | null>(null)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
@@ -214,14 +216,6 @@ function Profile() {
       requiresAuth: true
     },
     {
-      key: 'messages',
-      label: '消息中心',
-      icon: 'icon-messages',
-      iconBg: '#F97316',
-      path: '/me/messages/index',
-      requiresAuth: true
-    },
-    {
       key: 'action-library',
       label: '我的动作库',
       icon: 'icon-dumbbell',
@@ -373,6 +367,21 @@ function Profile() {
     }
   }
 
+  function renderThemeModeIcon() {
+    const size = 18
+    const color = '#999999'
+    if (themeMode === 'system') {
+      return <Icon component={MonitorSmartphone} size={size} color={color} />
+    }
+    if (themeMode === 'auto') {
+      return <Icon component={Clock} size={size} color={color} />
+    }
+    if (themeMode === 'dark') {
+      return <Icon component={Moon} size={size} color={color} />
+    }
+    return <Icon component={Sun} size={size} color={color} />
+  }
+
   function handleThemeToggle() {
     const modes: { key: 'light' | 'dark' | 'system' | 'auto'; label: string }[] = [
       { key: 'light', label: '浅色' },
@@ -466,12 +475,12 @@ function Profile() {
             >
               设置
             </Text>
-            <Text
+            <View
               className='theme-toggle-btn'
               onClick={handleThemeToggle}
             >
-              {effectiveTheme === 'dark' ? '☀' : '☾'}
-            </Text>
+              {renderThemeModeIcon()}
+            </View>
           </View>
         </View>
 

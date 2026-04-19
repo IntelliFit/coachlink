@@ -55,11 +55,6 @@ function SettingsPage() {
     <View className='settings-page'>
       <ScrollView className='page-scroll' scrollY>
         <View className='page-content'>
-          <View className='page-header'>
-            <Text className='page-title'>账户设置</Text>
-            <Text className='page-subtitle'>管理您的账户安全和偏好设置</Text>
-          </View>
-
           {/* 安全设置 */}
           <View className='settings-section'>
             <Text className='section-title'>安全设置</Text>

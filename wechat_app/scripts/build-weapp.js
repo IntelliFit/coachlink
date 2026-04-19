@@ -1,4 +1,6 @@
 const { execSync } = require('child_process')
+const path = require('path')
+const { ensureRootCompArtifacts } = require('./ensure-root-comp-artifacts')
 
 const mode = process.argv[2] || 'local'
 
@@ -38,6 +40,8 @@ execSync('npx taro build --type weapp', {
   shell: true,
   env,
 })
+
+ensureRootCompArtifacts(path.join(process.cwd(), env.WEAPP_OUTPUT_ROOT || 'dist'))
 
 execSync('node scripts/fix-weapp-wxml.js', {
   cwd: process.cwd(),

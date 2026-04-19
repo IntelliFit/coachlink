@@ -1,6 +1,7 @@
 .today-training-page {
   min-height: 100vh;
-  background: linear-gradient(180deg, #E8E8E8 0%, #F8F8F8 100%);
+  /* 与游客首页 `pages/index` 背景一致 */
+  background: linear-gradient(180deg, #e8e8e8 0%, #f8f8f8 100%);
 
   .page-scroll {
     min-height: 100vh;
@@ -33,7 +34,459 @@
     }
   }
 
-  // ========== Hero 计划卡片 ==========
+  /* ========== 融合原首页区块（与 `pages/index/index.scss` 对齐） ========== */
+  .tt-home-blocks {
+    margin-bottom: 24rpx;
+  }
+
+  .section-title {
+    display: block;
+    font-size: 32rpx;
+    font-weight: 700;
+    color: #010101;
+    margin-bottom: 24rpx;
+    margin-left: 8rpx;
+  }
+
+  .home-hero-card {
+    background: #ffffff;
+    border-radius: 40rpx;
+    padding: 40rpx 32rpx;
+    margin-bottom: 32rpx;
+    box-shadow: 0 8rpx 32rpx rgba(0, 0, 0, 0.04);
+  }
+
+  .hero-card-content {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 24rpx;
+  }
+
+  .hero-card-text {
+    display: flex;
+    flex-direction: column;
+    gap: 8rpx;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .hero-card-title {
+    font-size: 34rpx;
+    font-weight: 700;
+    color: #010101;
+    line-height: 1.3;
+  }
+
+  .hero-card-subtitle {
+    font-size: 26rpx;
+    color: #6b7280;
+  }
+
+  .hero-card-icon-wrap {
+    width: 104rpx;
+    height: 104rpx;
+    background: #fdf2ec;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    box-shadow: 0 8rpx 24rpx rgba(207, 109, 78, 0.12);
+  }
+
+  .hero-card-progress {
+    .progress-track {
+      height: 16rpx;
+      background: #f3f4f6;
+      border-radius: 9999rpx;
+      overflow: hidden;
+      margin-bottom: 16rpx;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: #cf6d4e;
+      border-radius: 9999rpx;
+      transition: width 0.5s ease;
+    }
+
+    .progress-label {
+      font-size: 24rpx;
+      color: #9ca3af;
+      font-weight: 500;
+      display: block;
+    }
+  }
+
+  .hero-plan-hint {
+    display: block;
+    margin-top: 8rpx;
+    font-size: 24rpx;
+    color: #6b7280;
+    line-height: 1.4;
+  }
+
+  .home-quick-actions {
+    margin-bottom: 32rpx;
+  }
+
+  .quick-actions-grid {
+    display: flex;
+    justify-content: space-between;
+    gap: 16rpx;
+  }
+
+  .quick-action-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16rpx;
+    background: #ffffff;
+    border-radius: 24rpx;
+    padding: 24rpx 0;
+    box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.03);
+
+    &:active {
+      transform: scale(0.97);
+      opacity: 0.95;
+    }
+  }
+
+  .quick-action-icon {
+    width: 88rpx;
+    height: 88rpx;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    &.peach {
+      background: #fff5eb;
+    }
+
+    &.blue {
+      background: #eff6ff;
+    }
+
+    &.yellow {
+      background: #fefce8;
+    }
+
+    &.mint {
+      background: #f0fdf4;
+    }
+  }
+
+  .quick-action-label {
+    font-size: 24rpx;
+    color: #4b5563;
+    font-weight: 500;
+  }
+
+  .home-promo-card {
+    background: #cf6d4e;
+    border-radius: 40rpx;
+    padding: 40rpx 32rpx;
+    margin-bottom: 32rpx;
+    box-shadow: 0 12rpx 36rpx rgba(207, 109, 78, 0.22);
+  }
+
+  .promo-card-title {
+    font-size: 32rpx;
+    font-weight: 700;
+    color: #ffffff;
+    margin-bottom: 8rpx;
+    line-height: 1.3;
+  }
+
+  .promo-card-subtitle {
+    font-size: 26rpx;
+    color: rgba(255, 255, 255, 0.85);
+    margin-bottom: 24rpx;
+  }
+
+  .promo-card-actions {
+    display: flex;
+    align-items: center;
+    gap: 16rpx;
+  }
+
+  .promo-btn {
+    padding: 16rpx 40rpx;
+    border-radius: 9999rpx;
+
+    &:active {
+      opacity: 0.9;
+      transform: scale(0.98);
+    }
+  }
+
+  .promo-btn-outline {
+    background: rgba(255, 255, 255, 0.18);
+    border: 1rpx solid rgba(255, 255, 255, 0.35);
+  }
+
+  .promo-btn-solid {
+    background: #ffffff;
+  }
+
+  .promo-btn-text {
+    font-size: 26rpx;
+    font-weight: 600;
+    color: #ffffff;
+  }
+
+  .promo-btn-solid .promo-btn-text {
+    color: #cf6d4e;
+  }
+
+  .home-features {
+    margin-bottom: 32rpx;
+  }
+
+  .features-list {
+    display: flex;
+    flex-direction: column;
+    gap: 16rpx;
+  }
+
+  .feature-item {
+    display: flex;
+    align-items: center;
+    gap: 24rpx;
+    background: #ffffff;
+    border-radius: 24rpx;
+    padding: 24rpx 32rpx;
+    box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.03);
+
+    &:active {
+      opacity: 0.9;
+      transform: scale(0.99);
+    }
+  }
+
+  .feature-icon-wrap {
+    width: 88rpx;
+    height: 88rpx;
+    border-radius: 24rpx;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+
+    &.peach {
+      background: #fff5eb;
+    }
+
+    &.blue {
+      background: #eff6ff;
+    }
+
+    &.mint {
+      background: #f0fdf4;
+    }
+  }
+
+  .feature-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 8rpx;
+    min-width: 0;
+  }
+
+  .feature-title {
+    font-size: 30rpx;
+    font-weight: 600;
+    color: #010101;
+  }
+
+  .feature-desc {
+    font-size: 24rpx;
+    color: #9ca3af;
+  }
+
+  .feature-arrow {
+    font-size: 36rpx;
+    color: #d1d5db;
+    font-weight: 300;
+    flex-shrink: 0;
+  }
+
+  .today-outline-btn {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    gap: 12rpx;
+    min-height: 96rpx;
+    padding: 0 32rpx;
+    margin-bottom: 16rpx;
+    background: #ffffff;
+    border: 2rpx solid #cf6d4e;
+    border-radius: 9999rpx;
+    box-sizing: border-box;
+
+    &:active {
+      opacity: 0.9;
+    }
+  }
+
+  .today-outline-text {
+    font-size: 28rpx;
+    font-weight: 700;
+    color: #cf6d4e;
+  }
+
+  .renew-inline {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    gap: 8rpx;
+    padding: 16rpx;
+    margin-bottom: 8rpx;
+
+    &:active {
+      opacity: 0.75;
+    }
+  }
+
+  .renew-inline-text {
+    font-size: 24rpx;
+    color: #cf6d4e;
+    font-weight: 600;
+  }
+
+  /* ========== 融合首页：大主按钮 + 双次按钮 + 统计 ========== */
+  .unified-home-block {
+    margin-bottom: 24rpx;
+  }
+
+  .unified-home-headline {
+    font-size: 44rpx;
+    font-weight: 800;
+    color: #010101;
+    display: block;
+    margin-bottom: 24rpx;
+    line-height: 1.25;
+  }
+
+  .unified-hero-card {
+    background: #eef0f4;
+    border-radius: 40rpx;
+    padding: 32rpx;
+    margin-bottom: 24rpx;
+    box-shadow: 0 12rpx 48rpx rgba(15, 23, 42, 0.08);
+  }
+
+  .unified-stat-title {
+    display: block;
+    margin-top: 24rpx;
+    margin-bottom: 16rpx;
+    font-size: 28rpx;
+    font-weight: 700;
+    color: #374151;
+  }
+
+  .unified-stat-grid {
+    margin-bottom: 0;
+  }
+
+  .mega-start-btn {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    gap: 16rpx;
+    min-height: 112rpx;
+    padding: 0 40rpx;
+    margin-bottom: 24rpx;
+    background: #cf6d4e;
+    border-radius: 9999rpx;
+    box-shadow: 0 16rpx 40rpx rgba(207, 109, 78, 0.32);
+
+    &:active {
+      opacity: 0.92;
+    }
+  }
+
+  .mega-start-text {
+    font-size: 32rpx;
+    font-weight: 700;
+    color: #ffffff;
+  }
+
+  .pair-actions-row {
+    display: flex;
+    flex-direction: row;
+    gap: 16rpx;
+    margin-bottom: 16rpx;
+  }
+
+  .pair-action {
+    flex: 1;
+    min-height: 96rpx;
+    border-radius: 9999rpx;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    gap: 8rpx;
+    padding: 24rpx 16rpx;
+    box-sizing: border-box;
+
+    &:active {
+      opacity: 0.88;
+    }
+  }
+
+  .pair-action-ghost {
+    background: transparent;
+    border: 2rpx solid #cf6d4e;
+  }
+
+  .pair-action-ghost .pair-action-text {
+    color: #cf6d4e;
+    font-weight: 600;
+    font-size: 26rpx;
+  }
+
+  .pair-action-light {
+    background: #ffffff;
+    box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.06);
+  }
+
+  .pair-action-text {
+    font-size: 26rpx;
+    font-weight: 600;
+
+    &.dark {
+      color: #111827;
+    }
+  }
+
+  .contact-coach-inline {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    gap: 8rpx;
+    padding: 16rpx;
+
+    &:active {
+      opacity: 0.75;
+    }
+  }
+
+  .contact-coach-text {
+    font-size: 24rpx;
+    color: #6b7280;
+  }
+
+  // ========== Hero 计划卡片（旧类名保留，防其它引用） ==========
   .hero-card {
     background: #ffffff;
     border-radius: 32rpx;
@@ -86,7 +539,7 @@
 
     .hero-progress-bar-fill {
       height: 100%;
-      background: linear-gradient(90deg, #CF6D4E 0%, #E59B7D 100%);
+      background: #cf6d4e;
       border-radius: 9999rpx;
     }
 
@@ -845,6 +1298,21 @@
       margin-right: auto;
     }
 
+    .empty-actions-pair {
+      display: flex;
+      flex-direction: row;
+      gap: 16rpx;
+      width: 100%;
+      box-sizing: border-box;
+
+      .action-btn {
+        flex: 1;
+        min-width: 0;
+        padding-left: 16rpx;
+        padding-right: 16rpx;
+      }
+    }
+
     .empty-actions {
       display: flex;
       flex-direction: column;
@@ -879,6 +1347,16 @@
 
           &:active {
             background: #ececec;
+          }
+        }
+
+        &.action-btn-outline {
+          background: #ffffff;
+          color: #374151;
+          border: 2rpx solid rgba(0, 0, 0, 0.08);
+
+          &:active {
+            background: #f9fafb;
           }
         }
       }

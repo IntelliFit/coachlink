@@ -6,12 +6,16 @@ export interface ScenarioQuickFixStep {
   durationSeconds: number
 }
 
+/** 与知识库场景卡片中 NutUI 图标组件名对应 */
+export type ScenarioQuickFixIcon = 'User' | 'Location' | 'Target' | 'Heart'
+
 export interface ScenarioQuickFix {
   id: string
   title: string
   slug: string
   description: string
-  icon: string
+  /** 场景列表展示用图标（NutUI icons-react-taro 导出名称） */
+  icon: ScenarioQuickFixIcon
   durationMinutes: number
   steps: ScenarioQuickFixStep[]
 }
@@ -22,7 +26,7 @@ export const SCENARIO_QUICK_FIXES: ScenarioQuickFix[] = [
     title: '办公族肩颈救星',
     slug: 'office-neck',
     description: '久坐办公后的肩颈放松方案，5分钟快速缓解。',
-    icon: '💼',
+    icon: 'User',
     durationMinutes: 5,
     steps: [
       { id: 'office-neck-1', order: 1, title: '颈部前后屈伸', description: '轻轻低头，下巴靠近胸口保持3秒；再缓慢抬头向后仰，保持3秒。', durationSeconds: 30 },
@@ -38,7 +42,7 @@ export const SCENARIO_QUICK_FIXES: ScenarioQuickFix[] = [
     title: '久坐腰痛缓解',
     slug: 'sitting-back',
     description: '针对久坐导致的腰背不适，站立或坐姿都可完成。',
-    icon: '🪑',
+    icon: 'Location',
     durationMinutes: 6,
     steps: [
       { id: 'sitting-back-1', order: 1, title: '骨盆前后倾', description: '坐姿交替做骨盆前倾和后倾动作，各10次。', durationSeconds: 60 },
@@ -54,7 +58,7 @@ export const SCENARIO_QUICK_FIXES: ScenarioQuickFix[] = [
     title: '跑步后拉伸',
     slug: 'post-run',
     description: '跑步训练后的下肢放松与恢复方案。',
-    icon: '🏃',
+    icon: 'Target',
     durationMinutes: 8,
     steps: [
       { id: 'post-run-1', order: 1, title: '股四头肌拉伸', description: '站立单腿后勾，手抓脚踝拉向臀部，每侧30秒。', durationSeconds: 60 },
@@ -70,7 +74,7 @@ export const SCENARIO_QUICK_FIXES: ScenarioQuickFix[] = [
     title: '睡前放松',
     slug: 'bedtime',
     description: '帮助放松身心，提高睡眠质量的轻柔伸展。',
-    icon: '😴',
+    icon: 'Heart',
     durationMinutes: 10,
     steps: [
       { id: 'bedtime-1', order: 1, title: '颈部放松', description: '缓慢转动头部，左右各5圈。', durationSeconds: 60 },

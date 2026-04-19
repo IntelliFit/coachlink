@@ -44,11 +44,17 @@
   }
 
   .hero-card {
-    background: linear-gradient(135deg, #fff7ed 0%, #ffffff 100%);
-    border-color: #fed7aa;
+    background: var(--bg-card, #fff);
+    border-color: var(--border-color, #e5e7eb);
   }
 
-  .hero-icon,
+  .hero-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 8px;
+  }
+
   .done-icon {
     display: block;
     font-size: 28px;

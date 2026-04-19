@@ -1,6 +1,6 @@
 .membership-subscribe-page {
   min-height: 100vh;
-  background: #f3f4f6;
+  background: linear-gradient(180deg, #e8e8e8 0%, #f8f8f8 100%);
   padding-bottom: 70px;
 
   .page-scroll {
@@ -11,23 +11,15 @@
     padding: 12px;
   }
 
-  .page-header {
+  .subscribe-status {
     margin-bottom: 16px;
-    padding: 0 4px;
+    padding: 0 8rpx;
+  }
 
-    .page-title {
-      display: block;
-      font-size: 24px;
-      font-weight: 700;
-      color: #1f2937;
-      margin-bottom: 4px;
-    }
-
-    .page-subtitle {
-      display: block;
-      font-size: 13px;
-      color: #6b7280;
-    }
+  .subscribe-status-text {
+    font-size: 26rpx;
+    color: #6b7280;
+    line-height: 1.5;
   }
 
   .tab-switcher {

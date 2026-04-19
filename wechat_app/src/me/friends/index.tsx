@@ -175,10 +175,6 @@ function FriendsPage() {
     <View className='friends-page'>
       <ScrollView className='page-scroll' scrollY>
         <View className='page-content'>
-          <View className='page-header'>
-            <Text className='page-title'>我的好友</Text>
-          </View>
-
           {/* 搜索区域 */}
           <View className='search-section'>
             <Input

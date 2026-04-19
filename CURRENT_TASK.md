@@ -1,5 +1,126 @@
 # CURRENT_TASK
 
+- Latest (`2026-04-20` 续): 小程序「我的」— 深色模式变量挂到 `.app-root.theme-*`；`me/profile/detail` 修复 `useEffect` 依赖（避免 `user` 引用死循环）；主题切换按钮改为 Lucide 图标（含「跟随系统」）；档案页与知识库等去冗余标题/emoji、统一训练页渐变底；`npm run build:weapp` 通过（本机未重跑开发者工具截图）。
+
+- Task: 调整街健计算结果页层级与视觉，并在每次修改后确认前后端/小程序开发环境已生效
+- Latest (`2026-04-20`): 力量分享卡片 **首点不出图 / 再点无效** — `draw` 必须 `return drawStrengthPoster(...)`；`useSharePoster` 用 `inFlightRef` + `query.in(page)` + 超时兜底；文档 Bug #23 + 检查清单；`build:weapp` 通过
+- Previous latest: 力量分享海报 **修复整卡空白**（Canvas 主内容改同步绘制、`preload` 前置、`setTransform`；Logo 异步仅最后叠加；Modal 画布高 1120）；文档 Bug #22 + 检查清单；`build:weapp` 通过
+- Previous: 力量分享海报改为纯白底 + 光运球；四指标药丸大字；头像网络图 `downloadFile`；Logo 静态 copy + 多路径兜底；文档已补小程序 Canvas 检查项与 Bug #21
+- Scope:
+  - 页面位于 `wechat_app/src/streetlifting/index/calculator/result/`
+  - 需要去掉与页面主体重复的顶部“计算结果/返回”区域
+  - 需要强化“估算负重 1RM / 力量分”两个指标卡的左侧图标表现
+  - 需要在保持现有品牌色和小程序风格下，提升结果主卡（如“菜就多练”）的设计感
+  - 用户明确要求：每次修改完成后，都要先检查当前前后端是否打开，以及小程序开发环境是否已连接到正确实例，再反馈修改结果
+- Status: in progress on `2026-04-19`
+- Verification baseline:
+  - 当前监听端口：
+    - `3000`：`next-server (v16.0.1)`，为当前仓库 Web 主站开发服务
+    - `9420`：微信开发者工具当前已监听
+    - `8080`：`/Users/kirigaya/project/dust/dust-fe`，不是本项目，不能作为 `coachlink` 验证依据
+- This round:
+  - `wechat_app/src/streetlifting/index/calculator/result/index.tsx`
+    - 删除结果页内重复的自定义“计算结果”导航条
+    - 将“生成分享卡片 / 再算一次”移动到结果内容顶部
+  - `wechat_app/src/streetlifting/index/calculator/result/index.scss`
+    - 删除自定义导航条对应样式
+    - 新增顶部双按钮布局 `result-actions-top`
+    - 顶部按钮继续使用纯色/描边按钮，符合项目按钮规范
+- Share poster round:
+  - `wechat_app/src/streetlifting/index/calculator/poster.ts`
+    - 重做力量分享海报为暖白纯色背景，不再使用渐变背景
+    - 新增左上/右下品牌光晕球，并用半透明白色面板压住，形成高级感背景
+    - 强化主结果区：更突出称号、分数、动作类型与可炫耀指标
+    - 底部改为左下用户昵称 + `CoachLink 启能教链` 品牌文案，右下真实二维码
+    - 海报中加入品牌 Logo 资源 `wechat_app/src/assets/brand/coachlink-logo.jpg`
+    - 当前二维码链接采用推断值 `https://coachlink.fit/?from=streetlifting_share`
+  - `wechat_app/src/streetlifting/index/calculator/result/index.tsx`
+    - 海报生成时从本地 `user` 缓存补入昵称，用于分享卡片左下角展示
+  - `wechat_app/src/components/SharePosterModal/index.tsx`
+    - “保存图片”按钮图标从 `icon-send` 改为 `icon-download`
+  - `wechat_app/src/components/SharePosterModal/index.scss`
+    - 预览弹窗背景改为暖白玻璃层，弱化原有纯黑感
+    - 海报预览容器改为更轻的浅色外壳，匹配新版卡片风格
+- Verification:
+  - 环境检查：
+    - `3000` 仍为当前仓库 `next-server (v16.0.1)`
+    - `9420` 仍为微信开发者工具自动化端口
+    - `mrc where --port 9420`：当前页面为 `streetlifting/index/calculator/result`
+  - 小程序验证：
+    - 初次检查时 `.result-actions-top` 不存在，说明开发者工具未刷新到最新编译结果
+    - 执行 `mrc relaunch /streetlifting/index/calculator/result --port 9420` 后再次检查：
+      - `.calc-result-nav` 不存在
+      - `.result-actions-top` 存在
+    - `mrc errors 20 --port 9420`：0 条错误
+    - `mrc warnings 20 --port 9420`：0 条警告
+    - `mrc screenshot` 本轮命令未正常返回，未拿到截图文件；已改用元素存在性验证确认页面已刷新到新结构
+  - 命令检查：
+    - 根目录 `npm run lint`：通过（脚本仅提示项目未配置 eslint）
+    - `wechat_app npm run build:weapp`：通过
+    - 根目录 `npm test`：通过（21 files, 100 tests）
+    - 根目录 `npm run typecheck`：失败，仍有大量历史类型错误，与本次结果页改动无直接对应
+    - `wechat_app npm run typecheck`：脚本不存在
+  - 分享卡片验证：
+    - `mrc click .result-share-row --port 9420`：成功，已触发“生成分享卡片”
+    - `.share-poster-modal` 存在
+    - `.share-poster-bottom-bar` 存在
+    - `.share-poster-channel-icon-save` 存在
+    - `mrc errors 20 --port 9420`：0 条错误
+    - `mrc warnings 20 --port 9420`：0 条警告
+    - 本轮仍未拿到稳定截图文件；当前通过页面结构与运行日志确认弹窗已打开、无报错
+  - 分享卡片二维码渲染故障修复：
+    - 用户反馈点击“分享卡片”后报错：
+      - `module 'streetlifting/index/calculator/qrcode-generator.js' is not defined`
+      - 根因是海报绘制里使用了运行时 `require('qrcode-generator')`，小程序分包未将其静态收包
+    - 已改为 `import qrcode from 'qrcode-generator'` 的静态导入，位置：
+      - `wechat_app/src/streetlifting/index/calculator/poster.ts`
+    - 当前阻塞：
+      - 本地 `npm run build:weapp` 在本会话环境下触发了构建脚本侧的 Rust panic，未能稳定产出可复验的最新 `dist`
+      - 同时 `9420` 自动化连接在本轮后半段出现波动，导致未能完成修复后的再次点击验证
+    - 静态检查已确认源码中不再存在运行时 `require('qrcode-generator')`
+  - 分享卡片视觉重做（本轮）：
+    - 用户明确要求：
+      - 海报除卡片主体外，其余区域统一改为黑色背景
+      - 取消多层叠加装饰，保留双层结构（外层主卡 + 中央子卡）
+      - 子卡顶部必须展示用户头像、用户 ID、注册天数
+      - 外卡底部保留品牌 Logo/文案 + 右侧二维码
+    - 已完成代码：
+      - `wechat_app/src/streetlifting/index/calculator/poster.ts`
+        - 背景改为纯黑色
+        - 海报结构收口为双层容器，不再使用多重光晕和多层面板
+        - 新增头像绘制逻辑：优先使用用户真实头像，失败时回退首字母头像
+        - 新增“@昵称 + 已加入天数”区块
+        - 中央分数区与 2x2 指标卡重排，提升社交展示感
+        - 外卡底部重排为“品牌区 + 二维码”布局
+      - `wechat_app/src/streetlifting/index/calculator/result/index.tsx`
+        - 海报数据新增 `avatarUrl` 与 `registeredDays`
+        - 从本地用户缓存提取头像字段（`avatar_url/avatar/headimgurl`）
+        - 按用户创建时间推导“已加入天数”
+    - 验证：
+      - `wechat_app npm run build:weapp`：通过
+      - `ReadLints`（上述 2 个文件）：无新增诊断
+      - `mrc` 运行态验证本轮出现阻塞：命令能连接 `9420`，但 `where/relaunch` 未返回页面结果，暂未产出新截图
+- Calculator persistence round:
+  - `wechat_app/src/streetlifting/index/calculator/index.tsx`
+    - 新增 `sl_calc_form_data` 草稿存储：用户每次输入都会实时写入本地 storage，下次进入页面自动预填
+    - 新增 `sl_calc_last_run` 正式计算快照：仅在用户成功点击“开始计算”后写入
+    - 页面初始化顺序改为：先读档案默认值（性别/体重），再用本地草稿覆盖
+    - 若检测到 `sl_calc_last_run`，则在各字段 label 右侧显示与上次相比的提示
+    - 数字字段显示 `较上次 +x/-x/持平`
+    - 枚举/文本字段显示 `上次 xxx`
+    - 页面底部新增“上一次正式计算”摘要卡
+  - `wechat_app/src/streetlifting/index/calculator/index.scss`
+    - 新增 label 左右布局、对比提示样式、上次正式计算摘要卡样式
+  - 验证：
+    - `wechat_app npm run build:weapp`：通过
+    - `mrc relaunch /streetlifting/index/calculator --port 9420`：通过
+    - `mrc where --port 9420`：当前页面为 `streetlifting/index/calculator`
+    - `mrc errors 20 --port 9420`：0 条错误
+    - `mrc warnings 20 --port 9420`：0 条警告
+    - `.label-compare` 当前未出现；这与预期一致，因为当前开发者工具环境里大概率还没有成功计算后写入的 `sl_calc_last_run`
+    - 根目录 `npm test`：通过（21 files, 100 tests）
+    - 根目录 `npm run typecheck`：失败，仍是仓库现有历史类型错误，与本轮改动无直接对应
+
 - Task: 同步 main/dev 的微信小程序目录命名并修复 Next 根路由冲突
 - Scope:
   - 小程序工程原本合入到根 `app/`，会被 Next.js 识别为 App Router 并导致主站 `/` 404

@@ -2,7 +2,7 @@
  * 社区数据 - 小程序原生实现（列表、筛选/排序、提交、认领）
  */
 import { useEffect, useState, useMemo } from 'react'
-import { View, Text, ScrollView, Input, Picker, Button } from '@tarojs/components'
+import { View, Text, ScrollView, Input, Picker, Button, Image } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import {
   streetliftingIndexService,
@@ -12,6 +12,7 @@ import {
 import { studentService } from '@/services/studentService'
 import { authService } from '@/services/authService'
 import { computeCoefficient, calculateAdded1RM } from '@/utils/streetliftingCalc'
+import { validateStreetliftingSubmissionWeights } from '@/utils/streetliftingSubmissionLimits'
 import './index.scss'
 
 const EXERCISE_OPTIONS = [
@@ -67,6 +68,14 @@ function qualityLabel(q: string) {
   return m[q] || q
 }
 
+/** 列表卡片展示提交时间 */
+function formatSubmissionTime(iso: string | undefined | null): string {
+  if (!iso) return ''
+  const d = new Date(String(iso))
+  if (Number.isNaN(d.getTime())) return ''
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+}
+
 export default function StreetliftingData() {
   const [loading, setLoading] = useState(true)
   const [submissions, setSubmissions] = useState<StreetliftingSubmission[]>([])
@@ -78,6 +87,8 @@ export default function StreetliftingData() {
   const [filterVideo, setFilterVideo] = useState<'all' | 'with' | 'without'>('all')
   const [search, setSearch] = useState('')
   const [sortBy, setSortBy] = useState<'weight' | 'score' | 'date'>('weight')
+  /** 展开后显示：全部动作～按 1RM 等筛选标签 */
+  const [filtersExpanded, setFiltersExpanded] = useState(false)
 
   const [formOpen, setFormOpen] = useState(false)
   const [profileLocked, setProfileLocked] = useState(false)
@@ -242,6 +253,14 @@ export default function StreetliftingData() {
       Taro.showToast({ title: '请填写附加负重', icon: 'none' })
       return
     }
+    const weightCheck = validateStreetliftingSubmissionWeights(
+      form.bodyweight as number,
+      form.added_weight as number
+    )
+    if (!weightCheck.ok) {
+      Taro.showToast({ title: weightCheck.message, icon: 'none' })
+      return
+    }
     if (!Number.isFinite(form.reps) || (form.reps as number) < 1 || (form.reps as number) > 36) {
       Taro.showToast({ title: '次数须在 1-36 之间', icon: 'none' })
       return
@@ -324,7 +343,6 @@ export default function StreetliftingData() {
 
   const renderSkeleton = () => (
     <View className='skeleton-wrap'>
-      {/* 统计行骨架 */}
       <View className='stats-row skeleton-stats'>
         {[1, 2, 3, 4].map((i) => (
           <View key={i} className='stat skeleton-stat'>
@@ -333,17 +351,24 @@ export default function StreetliftingData() {
           </View>
         ))}
       </View>
-      {/* 数据卡片骨架 ×3 */}
       {[1, 2, 3].map((i) => (
         <View key={`card-${i}`} className='data-card skeleton-card'>
           <View className='skeleton-head'>
-            <View className='skeleton-line' style={{ width: '40%', height: '32rpx' }} />
-            <View className='skeleton-line' style={{ width: '96rpx', height: '48rpx' }} />
+            <View className='skeleton-line' style={{ width: '88rpx', height: '88rpx', borderRadius: '9999rpx', flexShrink: 0 }} />
+            <View style={{ flex: 1, marginLeft: '16rpx', minWidth: 0 }}>
+              <View className='skeleton-line' style={{ width: '55%', height: '32rpx', marginBottom: '12rpx' }} />
+              <View className='skeleton-line' style={{ width: '70%', height: '22rpx' }} />
+            </View>
+            <View className='skeleton-line' style={{ width: '96rpx', height: '48rpx', flexShrink: 0 }} />
           </View>
           <View className='skeleton-tags'>
             <View className='skeleton-line' style={{ width: '80rpx', height: '36rpx', borderRadius: '9999rpx' }} />
             <View className='skeleton-line' style={{ width: '96rpx', height: '36rpx', borderRadius: '9999rpx' }} />
             <View className='skeleton-line' style={{ width: '80rpx', height: '36rpx', borderRadius: '9999rpx' }} />
+          </View>
+          <View className='skeleton-score-hero'>
+            <View className='skeleton-line' style={{ width: '30%', height: '28rpx', margin: '0 auto 16rpx' }} />
+            <View className='skeleton-line' style={{ width: '50%', height: '56rpx', margin: '0 auto' }} />
           </View>
           <View className='skeleton-grid'>
             {[1, 2, 3, 4].map((j) => (
@@ -353,9 +378,6 @@ export default function StreetliftingData() {
               </View>
             ))}
           </View>
-          <View className='skeleton-score'>
-            <View className='skeleton-line' style={{ width: '40%', height: '40rpx' }} />
-          </View>
         </View>
       ))}
     </View>
@@ -363,56 +385,78 @@ export default function StreetliftingData() {
 
   return (
     <View className='data-page'>
-      <Button className='btn-add' onClick={openSubmit}>提交我的数据</Button>
-
-      {!loading && (
-        <View className='stats-row'>
-          <View className='stat'>
-            <Text className='iconfont icon-ranking stat-icon' />
-            <Text className='stat-n'>{stats.total}</Text>
-            <Text className='stat-l'>筛选结果</Text>
-          </View>
-          <View className='stat'>
-            <Text className='iconfont icon-video stat-icon' />
-            <Text className='stat-n'>{stats.withVideo}</Text>
-            <Text className='stat-l'>含视频</Text>
-          </View>
-          <View className='stat'>
-            <Text className='iconfont icon-dumbbell stat-icon' />
-            <Text className='stat-n'>{stats.pullup}</Text>
-            <Text className='stat-l'>负重引体</Text>
-          </View>
-          <View className='stat'>
-            <Text className='iconfont icon-traing stat-icon' />
-            <Text className='stat-n'>{stats.dips}</Text>
-            <Text className='stat-l'>臂屈伸</Text>
-          </View>
+      <View className='data-page-inner'>
+        <View className='btn-add' onClick={openSubmit}>
+          <Text className='iconfont icon-pencil btn-add-icon' />
+          <Text className='btn-add-text'>提交我的数据</Text>
         </View>
-      )}
 
-      <View className='filter-row'>
-        <Picker mode='selector' range={EXERCISE_OPTIONS} rangeKey='label' value={EXERCISE_OPTIONS.findIndex((o) => o.value === filterEx)} onChange={(e) => setFilterEx(EXERCISE_OPTIONS[Number(e.detail.value)]?.value || 'all')}>
-          <View className='filter-btn'>{EXERCISE_OPTIONS.find((o) => o.value === filterEx)?.label || '动作'}</View>
-        </Picker>
-        <Picker mode='selector' range={GENDER_OPTIONS} rangeKey='label' value={GENDER_OPTIONS.findIndex((o) => o.value === filterGender)} onChange={(e) => setFilterGender(GENDER_OPTIONS[Number(e.detail.value)]?.value || 'all')}>
-          <View className='filter-btn'>{GENDER_OPTIONS.find((o) => o.value === filterGender)?.label || '性别'}</View>
-        </Picker>
-        <Picker mode='selector' range={PULLUP_OPTIONS} rangeKey='label' value={PULLUP_OPTIONS.findIndex((o) => o.value === filterPullup)} onChange={(e) => setFilterPullup(PULLUP_OPTIONS[Number(e.detail.value)]?.value || 'all')}>
-          <View className='filter-btn'>{PULLUP_OPTIONS.find((o) => o.value === filterPullup)?.label || '握法'}</View>
-        </Picker>
-        <Picker mode='selector' range={QUALITY_OPTIONS} rangeKey='label' value={QUALITY_OPTIONS.findIndex((o) => o.value === filterQuality)} onChange={(e) => setFilterQuality(QUALITY_OPTIONS[Number(e.detail.value)]?.value || 'all')}>
-          <View className='filter-btn'>{QUALITY_OPTIONS.find((o) => o.value === filterQuality)?.label || '质量'}</View>
-        </Picker>
-        <Picker mode='selector' range={VIDEO_OPTIONS} rangeKey='label' value={VIDEO_OPTIONS.findIndex((o) => o.value === filterVideo)} onChange={(e) => setFilterVideo(VIDEO_OPTIONS[Number(e.detail.value)]?.value as any)}>
-          <View className='filter-btn'>{VIDEO_OPTIONS.find((o) => o.value === filterVideo)?.label || '视频'}</View>
-        </Picker>
-        <Picker mode='selector' range={SORT_OPTIONS} rangeKey='label' value={SORT_OPTIONS.findIndex((o) => o.value === sortBy)} onChange={(e) => setSortBy(SORT_OPTIONS[Number(e.detail.value)]?.value as any)}>
-          <View className='filter-btn'>{SORT_OPTIONS.find((o) => o.value === sortBy)?.label || '排序'}</View>
-        </Picker>
-      </View>
-      <Input className='search-input' placeholder='搜索用户名' value={search} onInput={(e) => setSearch(e.detail.value)} />
+        {!loading && (
+          <>
+            <View className='stats-row'>
+              <View className='stat'>
+                <Text className='iconfont icon-ranking stat-icon' />
+                <Text className='stat-n'>{stats.total}</Text>
+                <Text className='stat-l'>筛选结果</Text>
+              </View>
+              <View className='stat'>
+                <Text className='iconfont icon-video stat-icon' />
+                <Text className='stat-n'>{stats.withVideo}</Text>
+                <Text className='stat-l'>含视频</Text>
+              </View>
+              <View className='stat'>
+                <Text className='iconfont icon-dumbbell stat-icon' />
+                <Text className='stat-n'>{stats.pullup}</Text>
+                <Text className='stat-l'>负重引体</Text>
+              </View>
+              <View className='stat'>
+                <Text className='iconfont icon-traing stat-icon' />
+                <Text className='stat-n'>{stats.dips}</Text>
+                <Text className='stat-l'>臂屈伸</Text>
+              </View>
+            </View>
+          </>
+        )}
 
-      <ScrollView className='data-scroll' scrollY>
+        <View className='search-toolbar'>
+          <Input
+            className='search-input search-input--toolbar'
+            placeholder='搜索用户名'
+            value={search}
+            onInput={(e) => setSearch(e.detail.value)}
+          />
+          <View className='filter-funnel' />
+          <Text
+            className='filter-expand-btn'
+            onClick={() => setFiltersExpanded((v) => !v)}
+          >
+            {filtersExpanded ? '收起筛选' : '展开筛选'}
+          </Text>
+        </View>
+        {filtersExpanded && (
+          <View className='filter-row'>
+            <Picker mode='selector' range={EXERCISE_OPTIONS} rangeKey='label' value={EXERCISE_OPTIONS.findIndex((o) => o.value === filterEx)} onChange={(e) => setFilterEx(EXERCISE_OPTIONS[Number(e.detail.value)]?.value || 'all')}>
+              <View className='filter-btn'>{EXERCISE_OPTIONS.find((o) => o.value === filterEx)?.label || '动作'}</View>
+            </Picker>
+            <Picker mode='selector' range={GENDER_OPTIONS} rangeKey='label' value={GENDER_OPTIONS.findIndex((o) => o.value === filterGender)} onChange={(e) => setFilterGender(GENDER_OPTIONS[Number(e.detail.value)]?.value || 'all')}>
+              <View className='filter-btn'>{GENDER_OPTIONS.find((o) => o.value === filterGender)?.label || '性别'}</View>
+            </Picker>
+            <Picker mode='selector' range={PULLUP_OPTIONS} rangeKey='label' value={PULLUP_OPTIONS.findIndex((o) => o.value === filterPullup)} onChange={(e) => setFilterPullup(PULLUP_OPTIONS[Number(e.detail.value)]?.value || 'all')}>
+              <View className='filter-btn'>{PULLUP_OPTIONS.find((o) => o.value === filterPullup)?.label || '握法'}</View>
+            </Picker>
+            <Picker mode='selector' range={QUALITY_OPTIONS} rangeKey='label' value={QUALITY_OPTIONS.findIndex((o) => o.value === filterQuality)} onChange={(e) => setFilterQuality(QUALITY_OPTIONS[Number(e.detail.value)]?.value || 'all')}>
+              <View className='filter-btn'>{QUALITY_OPTIONS.find((o) => o.value === filterQuality)?.label || '质量'}</View>
+            </Picker>
+            <Picker mode='selector' range={VIDEO_OPTIONS} rangeKey='label' value={VIDEO_OPTIONS.findIndex((o) => o.value === filterVideo)} onChange={(e) => setFilterVideo(VIDEO_OPTIONS[Number(e.detail.value)]?.value as any)}>
+              <View className='filter-btn'>{VIDEO_OPTIONS.find((o) => o.value === filterVideo)?.label || '视频'}</View>
+            </Picker>
+            <Picker mode='selector' range={SORT_OPTIONS} rangeKey='label' value={SORT_OPTIONS.findIndex((o) => o.value === sortBy)} onChange={(e) => setSortBy(SORT_OPTIONS[Number(e.detail.value)]?.value as any)}>
+              <View className='filter-btn'>{SORT_OPTIONS.find((o) => o.value === sortBy)?.label || '排序'}</View>
+            </Picker>
+          </View>
+        )}
+
+        <ScrollView className={filtersExpanded ? 'data-scroll' : 'data-scroll data-scroll--compact'} scrollY>
         {loading ? (
           renderSkeleton()
         ) : filtered.length === 0 ? (
@@ -422,10 +466,24 @@ export default function StreetliftingData() {
             {filtered.map((s) => {
               const rm = compute1RM(s)
               const score = computeScore(s)
+              const avatarUrl = (s.user_avatar_url && String(s.user_avatar_url).trim()) || ''
+              const displayName = s.user_name || '匿名'
               return (
                 <View key={s.id} className='data-card'>
                   <View className='data-card-head'>
-                    <Text className='data-user'>{s.user_name || '匿名'}</Text>
+                    <View className='data-user-block'>
+                      {avatarUrl ? (
+                        <Image className='data-avatar' src={avatarUrl} mode='aspectFill' />
+                      ) : (
+                        <View className='data-avatar data-avatar--placeholder'>
+                          <Text className='data-avatar-letter'>{displayName.slice(0, 1)}</Text>
+                        </View>
+                      )}
+                      <View className='data-user-col'>
+                        <Text className='data-user'>{displayName}</Text>
+                        <Text className='data-submitted-at'>{formatSubmissionTime(s.created_at)}</Text>
+                      </View>
+                    </View>
                     <View className='data-card-actions'>
                       {!s.user_id && (
                         <Button size='mini' className='btn-claim' onClick={() => handleClaimClick(s.id)} disabled={claimingIds.has(s.id)}>认领</Button>
@@ -443,19 +501,38 @@ export default function StreetliftingData() {
                     {s.pullup_type && <Text className='tag'>{s.pullup_type === 'Overhand' ? '正手' : '反手'}</Text>}
                     <Text className='tag quality'>{qualityLabel(s.form_quality)}</Text>
                   </View>
-                  <View className='data-grid'>
-                    <View className='data-cell'><Text className='cell-l'>体重</Text><Text className='cell-v' numberOfLines={1}>{s.bodyweight}kg</Text></View>
-                    <View className='data-cell'><Text className='cell-l'>负重</Text><Text className='cell-v' numberOfLines={1}>{s.added_weight}kg</Text></View>
-                    <View className='data-cell'><Text className='cell-l'>次数</Text><Text className='cell-v' numberOfLines={1}>{s.reps}</Text></View>
-                    <View className='data-cell'><Text className='cell-l'>1RM</Text><Text className='cell-v' numberOfLines={1}>{rm.toFixed(1)}</Text></View>
+                  <View className='data-score-hero'>
+                    <View className='data-score-head'>
+                      <Text className='iconfont icon-strength data-score-icon' />
+                      <Text className='data-score-label'>力量分</Text>
+                    </View>
+                    <Text className='data-score-value'>{score.toFixed(1)}</Text>
                   </View>
-                  <View className='data-score'><Text className='score-l'>力量分</Text><Text className='score-v'>{score.toFixed(1)}</Text></View>
+                  <View className='data-grid'>
+                    <View className='data-cell'>
+                      <Text className='cell-l'>体重</Text>
+                      <Text className='cell-v' numberOfLines={1}>{s.bodyweight}kg</Text>
+                    </View>
+                    <View className='data-cell'>
+                      <Text className='cell-l'>负重</Text>
+                      <Text className='cell-v' numberOfLines={1}>{s.added_weight}kg</Text>
+                    </View>
+                    <View className='data-cell'>
+                      <Text className='cell-l'>次数</Text>
+                      <Text className='cell-v' numberOfLines={1}>{s.reps}</Text>
+                    </View>
+                    <View className='data-cell'>
+                      <Text className='cell-l'>1RM</Text>
+                      <Text className='cell-v' numberOfLines={1}>{rm.toFixed(1)}</Text>
+                    </View>
+                  </View>
                 </View>
               )
             })}
           </View>
         )}
-      </ScrollView>
+        </ScrollView>
+      </View>
 
       {formOpen && (
         <View className='dialog-mask' onClick={() => { setFormOpen(false); resetForm() }}>

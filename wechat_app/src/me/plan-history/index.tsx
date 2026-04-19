@@ -115,10 +115,6 @@ function PlanHistoryPage() {
       <ScrollView className='page-scroll' scrollY>
         <View className='page-content'>
             <View className='page-header'>
-              <View className='header-left'>
-              <Text className='page-title'>全部计划</Text>
-              <Text className='page-subtitle'>查看当前计划与历史计划</Text>
-              </View>
             <View className='calendar-entry' onClick={() => Taro.navigateTo({ url: '/me/training-history/index' })}>
               <Text>训练记录</Text>
             </View>

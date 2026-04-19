@@ -1,5 +1,5 @@
 export default definePageConfig({
-  navigationBarTitleText: '今日训练',
+  navigationBarTitleText: '训练',
   navigationBarBackgroundColor: '#ffffff',
   navigationBarTextStyle: 'black',
   enableShareAppMessage: true,

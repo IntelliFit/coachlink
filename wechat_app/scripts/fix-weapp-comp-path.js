@@ -8,9 +8,11 @@
 const fs = require('fs')
 const path = require('path')
 const { getWeappDistDir, getWeappOutputRoot } = require('./weapp-output-root')
+const { ensureRootCompArtifacts } = require('./ensure-root-comp-artifacts')
 
 const distDir = getWeappDistDir()
 console.log('Using weapp output root:', getWeappOutputRoot())
+ensureRootCompArtifacts(distDir)
 if (!fs.existsSync(distDir)) {
   console.log('No dist folder, skip comp path fix.')
   process.exit(0)

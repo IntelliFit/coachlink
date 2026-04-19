@@ -37,7 +37,9 @@ export default defineConfig<'vite'>(async (merge, { command, mode }) => {
       patterns: [
         { from: 'src/assets/favicon.svg', to: 'favicon.svg' },
         { from: 'src/assets/iconfont/', to: 'assets/iconfont/' },
-        { from: 'src/assets/images/', to: 'assets/images/' }
+        { from: 'src/assets/images/', to: 'assets/images/' },
+        { from: 'src/assets/brand/coachlink-logo.jpg', to: 'assets/brand/coachlink-logo.jpg' },
+        { from: 'src/assets/brand/coachlink-brand-icon.png', to: 'assets/brand/coachlink-brand-icon.png' }
       ],
       options: {
       }
