@@ -1025,8 +1025,7 @@ function TodayTraining() {
       <ScrollView className='page-scroll' scrollY>
         <View className='page-content'>
           <View className='dashboard-header'>
-            <Text className='dashboard-greeting'>{greeting}，准备好开始今天的训练了吗？</Text>
-            <Text className='dashboard-title'>今日训练</Text>
+            <Text className='dashboard-greeting'>{greeting}</Text>
             <Text className='dashboard-date'>{todayDateText}</Text>
           </View>
 
@@ -1111,40 +1110,6 @@ function TodayTraining() {
             </View>
           ) : (
             <>
-              <View className={instance?.source === 'self' ? 'coach-card self-plan-card' : 'coach-card'}>
-                <View className='card-content'>
-                  <View className='card-main'>
-                    <View className='coach-avatar'>
-                      <View className='avatar-box'>
-                        <Text className='avatar-text'>
-                          {instance?.source === 'self' ? 'ME' : String(activeSubscription?.coach?.name || 'C').slice(0, 1)}
-                        </Text>
-                      </View>
-                      {instance?.source !== 'self' && <View className='online-dot' />}
-                    </View>
-                    <View className='coach-info'>
-                      <View className='info-labels'>
-                        <Text className='pro-badge'>{instance?.source === 'self' ? 'SELF PLAN' : 'PRO COACH'}</Text>
-                        <Text className='status-text'>
-                          {instance?.source === 'self' ? 'Your personal journey' : 'Assigning your path'}
-                        </Text>
-                      </View>
-                      <Text className='coach-name'>
-                        {instance?.source === 'self' ? instance?.name || '我的计划' : activeSubscription?.coach?.name || '未知教练'}
-                      </Text>
-                      <Text className='coach-title'>
-                        {instance?.source === 'self' ? '自我驱动，超越极限' : activeSubscription?.coach?.title || '资深健身专家'}
-                      </Text>
-                    </View>
-                  </View>
-                  {instance?.source === 'self' && (
-                    <View className='card-action' onClick={handleRemoveSelfPlan}>
-                      <Text className='danger-action'>移除计划</Text>
-                    </View>
-                  )}
-                </View>
-              </View>
-
               <View className='hero-card'>
                 <View className='hero-progress-row'>
                   <Text className='hero-plan-name'>{instance?.name || '今日训练'}</Text>
@@ -1208,6 +1173,40 @@ function TodayTraining() {
                     <Text className='summary-cell-value'>{selectedDay?.type === 'training' ? '训练日' : '恢复日'}</Text>
                     <Text className='summary-cell-label'>当前节奏</Text>
                   </View>
+                </View>
+              </View>
+
+              <View className={instance?.source === 'self' ? 'coach-card self-plan-card' : 'coach-card'}>
+                <View className='card-content'>
+                  <View className='card-main'>
+                    <View className='coach-avatar'>
+                      <View className='avatar-box'>
+                        <Text className='avatar-text'>
+                          {instance?.source === 'self' ? 'ME' : String(activeSubscription?.coach?.name || 'C').slice(0, 1)}
+                        </Text>
+                      </View>
+                      {instance?.source !== 'self' && <View className='online-dot' />}
+                    </View>
+                    <View className='coach-info'>
+                      <View className='info-labels'>
+                        <Text className='pro-badge'>{instance?.source === 'self' ? 'SELF PLAN' : 'PRO COACH'}</Text>
+                        <Text className='status-text'>
+                          {instance?.source === 'self' ? 'Your personal journey' : 'Assigning your path'}
+                        </Text>
+                      </View>
+                      <Text className='coach-name'>
+                        {instance?.source === 'self' ? instance?.name || '我的计划' : activeSubscription?.coach?.name || '未知教练'}
+                      </Text>
+                      <Text className='coach-title'>
+                        {instance?.source === 'self' ? '自我驱动，超越极限' : activeSubscription?.coach?.title || '资深健身专家'}
+                      </Text>
+                    </View>
+                  </View>
+                  {instance?.source === 'self' && (
+                    <View className='card-action' onClick={handleRemoveSelfPlan}>
+                      <Text className='danger-action'>移除计划</Text>
+                    </View>
+                  )}
                 </View>
               </View>
 
