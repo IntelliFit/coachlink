@@ -157,7 +157,6 @@ function CoachOverview() {
       {/* 业务概览 */}
       <View className="section">
         <Text className="section-title">业务概览</Text>
-        <Text className="section-desc">关键运营指标实时汇总</Text>
         <View className="core-grid">
           <View className="stat-tile" onClick={() => navTo('/coach/students')}>
             <View className="tile-header">
@@ -210,7 +209,6 @@ function CoachOverview() {
       {/* 教学资产配置 */}
       <View className="section">
         <Text className="section-title">教学资产配置</Text>
-        <Text className="section-desc">完善以下内容以提升教学专业度</Text>
         <View className="config-list">
           <View className="config-row" onClick={() => navTo('/coach/pricing')}>
             <View className={`config-icon-wrap ${data.pricingReady ? 'emerald' : 'rose'}`}>
@@ -301,7 +299,6 @@ function CoachOverview() {
       {/* 设置 */}
       <View className="section">
         <Text className="section-title">设置</Text>
-        <Text className="section-desc">账号与业务设置</Text>
         <View className="config-list">
           <View className="config-row" onClick={() => navTo('/coach/settings/invitation')}>
             <View className="config-icon-wrap blue">

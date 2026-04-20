@@ -18,24 +18,326 @@
     padding: 180rpx 24rpx 24rpx;
   }
 
-  // ========== Dashboard 头部 ==========
-  .dashboard-header {
+  // ========== 顶部问候 + 更多（⋯）==========
+  .dashboard-intro-row {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 16rpx;
+    gap: 16rpx;
+  }
+
+  .dashboard-intro-left {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .dashboard-greeting-row {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 16rpx;
+    margin-bottom: 8rpx;
+  }
+
+  .dashboard-greeting-icon {
+    font-size: 44rpx;
+    color: #010101;
+    line-height: 1;
+  }
+
+  .dashboard-greeting {
+    font-size: 40rpx;
+    font-weight: 700;
+    color: #010101;
+    display: block;
+    line-height: 1.2;
+    margin-bottom: 8rpx;
+  }
+
+  .dashboard-date {
+    font-size: 26rpx;
+    color: #6b7280;
+    display: block;
+  }
+
+  .dashboard-date-hit {
+    align-self: flex-start;
+    padding: 8rpx 0;
+    margin: 0 0 0 -8rpx;
+    padding-left: 8rpx;
+    padding-right: 16rpx;
+    border-radius: 16rpx;
+
+    &:active,
+    &.dashboard-date-hit--active {
+      opacity: 0.65;
+    }
+  }
+
+  .dashboard-more-hit {
+    flex-shrink: 0;
+    min-width: 64rpx;
+    height: 64rpx;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 8rpx;
+    border-radius: 16rpx;
+
+    &:active {
+      opacity: 0.65;
+    }
+  }
+
+  .dashboard-more-dots {
+    font-size: 36rpx;
+    color: #9ca3af;
+    line-height: 1;
+    font-weight: 700;
+  }
+
+  /* 今日进度条（仅当天）+ 周/月训练日统计 */
+  .tt-daily-progress-card {
+    background: #ffffff;
+    border-radius: 32rpx;
+    padding: 32rpx;
     margin-bottom: 24rpx;
+    box-shadow: 0 4rpx 24rpx rgba(0, 0, 0, 0.04);
+    border: 2rpx solid #f0f0f0;
+    box-sizing: border-box;
+  }
 
-    .dashboard-greeting {
-      font-size: 40rpx;
-      font-weight: 700;
-      color: #010101;
-      display: block;
-      line-height: 1.2;
-      margin-bottom: 8rpx;
+  /* 「切换教练」条：置于计划进度卡上方 */
+  .tt-coach-switch-bar {
+    margin-bottom: 24rpx;
+  }
+
+  .tt-coach-switch-btn {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 88rpx;
+    padding: 24rpx 32rpx;
+    box-sizing: border-box;
+    background: #ffffff;
+    border-radius: 32rpx;
+    border: 2rpx solid #e5e7eb;
+    box-shadow: 0 4rpx 24rpx rgba(0, 0, 0, 0.04);
+
+    &--pressed {
+      opacity: 0.88;
+    }
+  }
+
+  .tt-coach-switch-label {
+    font-size: 28rpx;
+    font-weight: 600;
+    color: #010101;
+  }
+
+  .tt-coach-switch-chevron {
+    font-size: 36rpx;
+    color: #d1d5db;
+    font-weight: 300;
+    line-height: 1;
+  }
+
+  .tt-daily-progress-title {
+    font-size: 28rpx;
+    font-weight: 700;
+    color: #010101;
+    display: block;
+    margin-bottom: 16rpx;
+  }
+
+  .tt-daily-progress-coach-row {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    padding: 16rpx 24rpx;
+    margin-bottom: 16rpx;
+    background: #f9fafb;
+    border-radius: 24rpx;
+    border: 2rpx solid #e5e7eb;
+    box-sizing: border-box;
+
+    &--active {
+      opacity: 0.88;
+    }
+  }
+
+  .tt-daily-progress-coach-identity {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 16rpx;
+    min-width: 0;
+  }
+
+  .tt-daily-progress-coach-avatar-wrap {
+    width: 72rpx;
+    height: 72rpx;
+    border-radius: 16rpx;
+    overflow: hidden;
+    flex-shrink: 0;
+    background: #f3f4f6;
+    border: 2rpx solid #e5e7eb;
+    box-sizing: border-box;
+  }
+
+  .tt-daily-progress-coach-avatar-img {
+    width: 72rpx;
+    height: 72rpx;
+    display: block;
+  }
+
+  .tt-daily-progress-coach-avatar-fallback {
+    width: 72rpx;
+    height: 72rpx;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #fdf2ec;
+  }
+
+  .tt-daily-progress-coach-avatar-letter {
+    font-size: 32rpx;
+    font-weight: 800;
+    color: #cf6d4e;
+    line-height: 1;
+  }
+
+  .tt-daily-progress-coach-text {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8rpx;
+  }
+
+  .tt-daily-progress-coach-name {
+    font-size: 30rpx;
+    font-weight: 700;
+    color: #010101;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .tt-daily-progress-coach-chevron {
+    font-size: 36rpx;
+    color: #d1d5db;
+    font-weight: 300;
+    flex-shrink: 0;
+    line-height: 1;
+    align-self: center;
+  }
+
+  /* 约为悬浮底栏总高度一半（底栏约 96rpx 量级），8 栅格取 48rpx */
+  .tt-daily-progress-track {
+    height: 48rpx;
+    background: #f3f4f6;
+    border-radius: 9999rpx;
+    overflow: hidden;
+    margin-bottom: 16rpx;
+  }
+
+  .tt-daily-progress-fill {
+    height: 100%;
+    background: #cf6d4e;
+    border-radius: 9999rpx;
+  }
+
+  .tt-daily-progress-label {
+    font-size: 24rpx;
+    color: #6b7280;
+    display: block;
+  }
+
+  .tt-period-stats {
+    display: flex;
+    flex-direction: column;
+    gap: 8rpx;
+    margin-top: 16rpx;
+  }
+
+  .tt-period-line {
+    font-size: 24rpx;
+    color: #9ca3af;
+    line-height: 1.4;
+  }
+
+  /* 更多训练方式底部弹层 */
+  .more-training-sheet {
+    padding: 24rpx;
+    padding-bottom: calc(24rpx + constant(safe-area-inset-bottom));
+    padding-bottom: calc(24rpx + env(safe-area-inset-bottom));
+    display: flex;
+    flex-direction: column;
+    gap: 8rpx;
+    box-sizing: border-box;
+  }
+
+  .more-training-item {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 16rpx;
+    padding: 24rpx 16rpx;
+    border-radius: 16rpx;
+    background: #f9fafb;
+
+    &:active {
+      opacity: 0.88;
+    }
+  }
+
+  .more-training-item-text {
+    font-size: 30rpx;
+    font-weight: 600;
+    color: #111827;
+  }
+
+  .today-action-row {
+    display: flex;
+    flex-direction: row;
+    justify-content: flex-start;
+    margin-bottom: 16rpx;
+  }
+
+  .hero-status-badge {
+    padding: 8rpx 16rpx;
+    border-radius: 9999rpx;
+    font-size: 22rpx;
+    font-weight: 600;
+
+    &.completed {
+      background: #f0fdf4;
+      color: #16a34a;
     }
 
-    .dashboard-date {
-      font-size: 26rpx;
-      color: #6B7280;
-      display: block;
+    &.in-progress {
+      background: #fff7ed;
+      color: #cf6d4e;
     }
+
+    &.pending {
+      background: #f5f5f5;
+      color: #6b7280;
+    }
+  }
+
+  .unified-home-block--compact {
+    background: #ffffff;
+    border-radius: 24rpx;
+    padding: 24rpx;
+    margin-bottom: 24rpx;
+    box-shadow: 0 4rpx 24rpx rgba(0, 0, 0, 0.04);
+    border: 2rpx solid #f0f0f0;
+    box-sizing: border-box;
   }
 
   /* ========== 融合原首页区块（与 `pages/index/index.scss` 对齐） ========== */
@@ -700,6 +1002,7 @@
   // ========== 加载状态 ==========
   .loading-container {
     padding: 16px;
+    padding-top: 180rpx;
 
     .skeleton-card {
       background: #fff;
@@ -748,17 +1051,30 @@
     box-shadow: 0 4rpx 24rpx rgba(0, 0, 0, 0.04);
 
     .coach-tabs-scroll {
-      white-space: nowrap;
-      padding: 16rpx;
       width: 100%;
+      min-height: 88rpx;
+      box-sizing: border-box;
+    }
+
+    .coach-tabs-inner {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      flex-wrap: nowrap;
+      gap: 12rpx;
+      width: max-content;
+      min-height: 88rpx;
+      padding: 16rpx;
+      box-sizing: border-box;
     }
 
     .coach-tab {
-      display: inline-flex;
+      display: flex;
+      flex-direction: row;
       align-items: center;
       gap: 8rpx;
+      flex-shrink: 0;
       padding: 12rpx 20rpx;
-      margin-right: 12rpx;
       border-radius: 9999rpx;
       background: #F5F5F5;
       color: #6B7280;
@@ -780,7 +1096,15 @@
         background: rgba(0, 0, 0, 0.08);
         border-radius: 9999rpx;
       }
+
+      &.coach-tab--pressed {
+        opacity: 0.88;
+      }
     }
+  }
+
+  .schedule-calendar-anchor {
+    scroll-margin-top: 24rpx;
   }
 
   // ========== missingDays 补训提示 ==========
@@ -857,8 +1181,16 @@
     box-shadow: 0 16rpx 48rpx rgba(0, 0, 0, 0.18);
 
     .completion-modal-icon {
-      font-size: 56rpx;
       margin-bottom: 16rpx;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .completion-modal-icon-star {
+      font-size: 96rpx;
+      line-height: 1;
+      color: #cf6d4e;
     }
 
     .completion-modal-title {
@@ -936,6 +1268,16 @@
 
       .switcher-icon {
         font-size: 26rpx;
+      }
+
+      .switcher-icon-star {
+        font-size: 28rpx;
+        line-height: 1;
+        color: #6b7280;
+      }
+
+      &.active .switcher-icon-star {
+        color: #ffffff;
       }
     }
   }
@@ -1528,34 +1870,25 @@
   }
 
   .share-entry-card {
-    background: linear-gradient(135deg, #fff7ed 0%, #ffffff 100%);
-    border: 1rpx solid #fed7aa;
+    background: #ffffff;
+    border: 2rpx solid #f0f0f0;
     border-radius: 24rpx;
     padding: 24rpx;
     margin-top: 16rpx;
-
-    .share-entry-tag {
-      display: block;
-      font-size: 20rpx;
-      font-weight: 700;
-      letter-spacing: 1px;
-      color: #c2410c;
-      margin-bottom: 8rpx;
-    }
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16rpx;
+    box-sizing: border-box;
 
     .share-entry-title {
       display: block;
-      font-size: 18px;
+      font-size: 28rpx;
       font-weight: 700;
-      color: #1a1a1a;
-      margin-bottom: 8rpx;
-    }
-
-    .share-entry-desc {
-      display: block;
-      font-size: 24rpx;
-      line-height: 1.5;
-      color: #888;
+      color: #010101;
+      flex: 1;
+      min-width: 0;
     }
   }
 

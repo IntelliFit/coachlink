@@ -1,16 +1,17 @@
 .student-action-lib-page {
-  background: linear-gradient(180deg, #E8E8E8 0%, #F8F8F8 100%);
   min-height: 100vh;
-  background: #f3f4f6;
-  padding-bottom: 70px;
+  background: linear-gradient(180deg, #e8e8e8 0%, #f8f8f8 100%);
+  padding-bottom: 200rpx;
+  box-sizing: border-box;
 
   .hint-card {
     background: #fff;
-    border: 1px solid #e5e7eb;
-    border-radius: 16px;
-    padding: 16px;
-    margin: 12px;
+    border: 2rpx solid #e5e7eb;
+    border-radius: 24rpx;
+    padding: 24rpx;
+    margin: 24rpx;
     box-sizing: border-box;
+    box-shadow: 0 4rpx 24rpx rgba(0, 0, 0, 0.04);
 
     .hint-text {
       font-size: 14px;
