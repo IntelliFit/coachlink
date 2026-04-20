@@ -1,11 +1,68 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
-import { View, Text, ScrollView, Input } from '@tarojs/components'
+import { View, Text, ScrollView, Input, Image } from '@tarojs/components'
 import Taro, { useDidShow, useDidHide, usePullDownRefresh, useRouter } from '@tarojs/taro'
 import BottomNav from '@/components/BottomNav'
+import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { authService } from '@/services/authService'
 import { chatService, type ChatroomItem } from '@/services/chatService'
-import { Calendar, Location, Message, Power, Search, Star } from '@nutui/icons-react-taro'
+import { request } from '@/utils/request'
+import { Location, Message } from '@nutui/icons-react-taro'
 import './index.scss'
+
+interface FriendRequestBrief {
+  friendshipId: string
+  userId: string
+  nickname: string
+}
+
+/** 会话列表摘要：只体现「最近一句」— 首行、Markdown 链接转可见文案、压成单行语义 */
+function formatLastMessagePreview(raw: string | null | undefined): string {
+  if (raw == null || !String(raw).trim()) return '暂无消息'
+  const flattened = String(raw).replace(/\r\n/g, '\n').replace(/\r/g, '\n').trim()
+  const firstNonEmpty = flattened
+    .split('\n')
+    .map((l) => l.trim())
+    .find((l) => l.length > 0)
+  if (!firstNonEmpty) return '暂无消息'
+  let line = firstNonEmpty.replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
+  line = line.replace(/\s+/g, ' ').trim()
+  return line || '暂无消息'
+}
+
+function ChatroomRowAvatar({
+  room,
+  index,
+  displayName
+}: {
+  room: ChatroomItem
+  index: number
+  displayName: string
+}) {
+  const [imgBroken, setImgBroken] = useState(false)
+  const url = (room.chatUserProfile?.avatar || '').trim()
+  const initial = displayName.charAt(0) || 'U'
+  const tones = ['tone-peach', 'tone-blue', 'tone-mint']
+  const toneClass = tones[index % tones.length]
+
+  if (url && !imgBroken) {
+    return (
+      <View className='chatroom-avatar chatroom-avatar--image'>
+        <Image
+          className='chatroom-avatar-img'
+          src={url}
+          mode='aspectFill'
+          onError={() => setImgBroken(true)}
+        />
+      </View>
+    )
+  }
+
+  return (
+    <View className={`chatroom-avatar ${toneClass}`}>
+      <Text className='chatroom-avatar-text'>{initial}</Text>
+    </View>
+  )
+}
 
 function MessagesPage() {
   const router = useRouter()
@@ -19,6 +76,7 @@ function MessagesPage() {
   const [filteredChatrooms, setFilteredChatrooms] = useState<ChatroomItem[]>([])
   const [loading, setLoading] = useState(true)
   const [searchText, setSearchText] = useState('')
+  const [friendRequests, setFriendRequests] = useState<FriendRequestBrief[]>([])
 
   const getChatUserName = useCallback((room: ChatroomItem) => {
     return room.chatUserProfile?.name || '未知用户'
@@ -89,6 +147,28 @@ function MessagesPage() {
     }
   }, [openChatWithCoach, pendingCoachId, pendingCoachName, sortChatrooms])
 
+  const loadFriendRequests = useCallback(async () => {
+    try {
+      const userId = authService.getCurrentUser()?.id
+      if (!userId) {
+        setFriendRequests([])
+        return
+      }
+      const res = await request<{ requests: FriendRequestBrief[] }>({
+        url: '/api/user/friends/pending',
+        method: 'GET'
+      })
+      if (res.success && res.data?.requests) {
+        setFriendRequests(res.data.requests)
+      } else {
+        setFriendRequests([])
+      }
+    } catch (e) {
+      console.error('[messages] load friend requests:', e)
+      setFriendRequests([])
+    }
+  }, [])
+
   const stopConversationPolling = useCallback(() => {
     if (pollTimerRef.current) {
       clearInterval(pollTimerRef.current)
@@ -108,6 +188,7 @@ function MessagesPage() {
   }, [loadConversations, stopConversationPolling])
 
   useDidShow(() => {
+    void loadFriendRequests()
     loadConversations()
     startConversationPolling()
   })
@@ -117,6 +198,7 @@ function MessagesPage() {
   })
 
   usePullDownRefresh(() => {
+    void loadFriendRequests()
     loadConversations().finally(() => Taro.stopPullDownRefresh())
   })
 
@@ -138,13 +220,6 @@ function MessagesPage() {
     })
     setFilteredChatrooms(filtered)
   }, [searchText, chatrooms, getChatUserName])
-
-  const handleNav = (url: string) => {
-    const normalized = url.startsWith('/') ? url : `/${url}`
-    Taro.navigateTo({ url: normalized }).catch(() => {
-      Taro.reLaunch({ url: normalized }).catch(() => {})
-    })
-  }
 
   const handleChatroomClick = (room: ChatroomItem) => {
     const name = getChatUserName(room)
@@ -171,40 +246,37 @@ function MessagesPage() {
     }
   }
 
-  const avatarToneClass = (index: number) => {
-    const tones = ['tone-peach', 'tone-blue', 'tone-mint']
-    return tones[index % tones.length]
-  }
-
   return (
     <View className='messages-page'>
       <ScrollView className='page-scroll' scrollY>
         <View className='page-inner'>
-          <View className='messages-shortcuts'>
-            <View className='msg-shortcut' onClick={() => handleNav('/training/today-training')}>
-              <View className='msg-shortcut-icon peach'>
-                <Power width={22} height={22} color='#010101' />
-              </View>
-              <Text className='msg-shortcut-label'>训练</Text>
+          <View
+            className='messages-friends-entry'
+            onClick={() =>
+              Taro.navigateTo({
+                url:
+                  friendRequests.length > 0
+                    ? '/me/friends/index?tab=requests'
+                    : '/me/friends/index'
+              })
+            }
+          >
+            <View className='messages-friends-left'>
+              <Text className='messages-friends-title'>好友</Text>
+              {friendRequests.length > 0 && (
+                <View className='messages-friends-badge'>
+                  <Text className='messages-friends-badge-text'>
+                    {friendRequests.length > 99 ? '99+' : friendRequests.length}
+                  </Text>
+                </View>
+              )}
             </View>
-            <View className='msg-shortcut' onClick={() => handleNav('/discovery/index')}>
-              <View className='msg-shortcut-icon blue'>
-                <Search width={22} height={22} color='#010101' />
-              </View>
-              <Text className='msg-shortcut-label'>发现</Text>
-            </View>
-            <View className='msg-shortcut' onClick={() => handleNav('/discovery/ranking')}>
-              <View className='msg-shortcut-icon yellow'>
-                <Star width={22} height={22} color='#010101' />
-              </View>
-              <Text className='msg-shortcut-label'>排行</Text>
-            </View>
-            <View className='msg-shortcut' onClick={() => handleNav('/me/plan-lib/index')}>
-              <View className='msg-shortcut-icon mint'>
-                <Calendar width={22} height={22} color='#010101' />
-              </View>
-              <Text className='msg-shortcut-label'>计划库</Text>
-            </View>
+            <Text className='messages-friends-hint' numberOfLines={1}>
+              {friendRequests.length > 0
+                ? `${friendRequests.length} 条好友申请待处理 · ${friendRequests[0]?.nickname || '用户'} 等`
+                : '添加好友、查看好友申请与列表'}
+            </Text>
+            <Text className='messages-friends-arrow'>›</Text>
           </View>
 
           <View className='search-section'>
@@ -227,8 +299,7 @@ function MessagesPage() {
 
           {loading ? (
             <View className='loading-wrap'>
-              <View className='loading-dot' />
-              <Text className='loading-text'>加载中…</Text>
+              <LoadingSpinner size={48} />
             </View>
           ) : filteredChatrooms.length === 0 ? (
             <View className='empty-state'>
@@ -236,7 +307,7 @@ function MessagesPage() {
                 <Location width={32} height={32} color='#CF6D4E' />
               </View>
               <Text className='empty-text'>暂无会话</Text>
-              <Text className='empty-hint'>下拉刷新，或通过上方入口开始训练与发现</Text>
+              <Text className='empty-hint'>下拉刷新，或从上方进入好友页添加联系人</Text>
             </View>
           ) : (
             <View className='chatrooms-list'>
@@ -246,9 +317,7 @@ function MessagesPage() {
                   className='chatroom-item'
                   onClick={() => handleChatroomClick(room)}
                 >
-                  <View className={`chatroom-avatar ${avatarToneClass(index)}`}>
-                    <Text className='chatroom-avatar-text'>{getChatUserName(room).charAt(0) || 'U'}</Text>
-                  </View>
+                  <ChatroomRowAvatar room={room} index={index} displayName={getChatUserName(room)} />
                   <View className='chatroom-content'>
                     <View className='chatroom-header'>
                       <Text className='chatroom-name'>{getChatUserName(room)}</Text>
@@ -258,7 +327,7 @@ function MessagesPage() {
                       <View className='chatroom-msg-row'>
                         <Message size={14} color='#9CA3AF' />
                         <Text className='chatroom-message' numberOfLines={1}>
-                          {room.lastMessage ?? '暂无消息'}
+                          {formatLastMessagePreview(room.lastMessage)}
                         </Text>
                       </View>
                       {room.unreadCount > 0 && (

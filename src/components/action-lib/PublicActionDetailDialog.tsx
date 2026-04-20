@@ -3,6 +3,7 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { Dialog } from 'primereact/dialog';
 import { Button } from 'primereact/button';
+import { ProgressSpinner } from 'primereact/progressspinner';
 import { useSession } from 'next-auth/react';
 import { useToastContext } from '@/context/ToastContext';
 import { publicActionLibService } from '@/app/service/publicActionLibService';
@@ -419,7 +420,9 @@ export default function PublicActionDetailDialog(props: {
                     <div className="flex flex-col gap-2">
                         <div className="text-xs font-semibold text-surface-600">贡献者</div>
                         {loadingMeta ? (
-                            <div className="text-sm text-surface-500">加载中...</div>
+                            <div className="flex items-center gap-2 py-1">
+                                <ProgressSpinner style={{ width: '22px', height: '22px' }} strokeWidth="4" />
+                            </div>
                         ) : contributors.length === 0 ? (
                             <div className="text-sm text-surface-500">暂无贡献者记录</div>
                         ) : (
@@ -453,7 +456,9 @@ export default function PublicActionDetailDialog(props: {
                             {isOwner ? '待审核/历史编辑' : '历史编辑'}
                         </div>
                         {loadingMeta ? (
-                            <div className="text-sm text-surface-500">加载中...</div>
+                            <div className="flex items-center gap-2 py-1">
+                                <ProgressSpinner style={{ width: '22px', height: '22px' }} strokeWidth="4" />
+                            </div>
                         ) : edits.length === 0 ? (
                             <div className="text-sm text-surface-500">暂无编辑记录</div>
                         ) : (

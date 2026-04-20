@@ -6,6 +6,7 @@ import { authService } from '@/services/authService'
 import { request } from '@/utils/request'
 import './index.scss'
 import { Mail } from '@nutui/icons-react-taro'
+import { LoadingSpinner } from '@/components/LoadingSpinner'
 
 interface Activity {
   id: string
@@ -74,7 +75,7 @@ function FriendsActivityPage() {
 
           {loading ? (
             <View className='loading-wrap'>
-              <Text>加载中...</Text>
+              <LoadingSpinner size={48} />
             </View>
           ) : activities.length === 0 ? (
             <View className='empty-state'>

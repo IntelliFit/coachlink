@@ -4,6 +4,7 @@ import Taro, { useRouter } from '@tarojs/taro'
 import { Star } from '@nutui/icons-react-taro'
 import { request } from '@/utils/request'
 import './index.scss'
+import { LoadingSpinner } from '@/components/LoadingSpinner'
 
 interface ShareData {
   workoutName: string
@@ -137,7 +138,7 @@ export default function SharePage() {
   if (loading) {
     return (
       <View className='share-page'>
-        <View className='loading'>加载中...</View>
+        <View className="loading"><LoadingSpinner size={48} /></View>
       </View>
     )
   }

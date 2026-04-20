@@ -5,6 +5,7 @@ import { request } from '@/utils/request'
 import { Notice, Lock } from '@nutui/icons-react-taro'
 import { authService } from '@/services/authService'
 import './index.scss'
+import { LoadingSpinner } from '@/components/LoadingSpinner'
 
 export default function ContentDetail() {
   const router = useRouter()
@@ -56,10 +57,10 @@ export default function ContentDetail() {
     return (
       <View className="content-detail-page">
         <View className="nav-bar">
-          <Text className="nav-title">加载中...</Text>
+          <Text className="nav-title">内容</Text>
         </View>
         <View className="loading-wrap">
-          <Text>加载中...</Text>
+          <LoadingSpinner size={48} />
         </View>
       </View>
     )

@@ -13,6 +13,7 @@ import {
   openCoachLinkShareMenu
 } from '@/utils/share'
 import './index.scss'
+import { LoadingSpinner } from '@/components/LoadingSpinner'
 
 const getMonthKey = (date: Date) => {
   const year = date.getFullYear()
@@ -151,7 +152,7 @@ export default function TrainingHistoryPage() {
       <ScrollView scrollY className='page-scroll'>
         {loading ? (
           <View className='calendar-card loading'>
-            <Text className='loading-text'>加载中...</Text>
+            <LoadingSpinner size={48} />
           </View>
         ) : (
           <View className='calendar-card'>
@@ -238,7 +239,7 @@ export default function TrainingHistoryPage() {
             {selectedDate ? `${selectedDate} 训练明细` : '选择日期查看训练明细'}
           </Text>
           {loadingDay ? (
-            <Text className='loading-text'>加载中...</Text>
+            <LoadingSpinner size={48} />
           ) : dayItems.length === 0 ? (
             <Text className='empty-text'>暂无训练记录</Text>
           ) : (

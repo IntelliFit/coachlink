@@ -4,6 +4,7 @@ import Taro from '@tarojs/taro'
 import BottomNav from '@/components/BottomNav'
 import { studentActionLibService } from '@/services/studentActionLibService'
 import './index.scss'
+import { LoadingSpinner } from '@/components/LoadingSpinner'
 
 interface ActionItem {
   id: string
@@ -146,7 +147,7 @@ function StudentActionLib() {
       </View>
 
       {loading && actions.length === 0 ? (
-        <View className="loading-wrap">加载中...</View>
+        <View className="loading-wrap"><LoadingSpinner size={48} /></View>
       ) : actions.length === 0 ? (
         <View className="empty-wrap">
           <Text className="empty-text">{searchTerm ? '未找到相关动作' : '暂无动作，请到电脑端添加'}</Text>

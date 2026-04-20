@@ -4,6 +4,7 @@ import Taro from '@tarojs/taro'
 import { executionService } from '@/services/executionService'
 import './ProgressTimeline.scss'
 import { Star, Clock } from '@nutui/icons-react-taro'
+import { LoadingSpinner } from '@/components/LoadingSpinner'
 
 interface ProgressTimelineProps {
   data: any
@@ -67,7 +68,7 @@ const ProgressTimeline: React.FC<ProgressTimelineProps> = ({ data }) => {
   if (loading) {
     return (
       <View className='progress-timeline'>
-        <Text className='loading-text'>加载中...</Text>
+        <LoadingSpinner size={48} />
       </View>
     )
   }

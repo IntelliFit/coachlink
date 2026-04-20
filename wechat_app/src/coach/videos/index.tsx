@@ -5,6 +5,7 @@ import BottomNav from '@/components/BottomNav'
 import { coachVideoService } from '@/services/coach/coachVideoService'
 import type { ExecutionSetVideoWithDetails } from '@/services/coach/coachVideoService'
 import './index.scss'
+import { LoadingSpinner } from '@/components/LoadingSpinner'
 
 type FilterStatus = 'pending' | 'reviewed' | ''
 
@@ -78,7 +79,7 @@ function CoachVideos() {
         </Text>
       </View>
       {loading ? (
-        <View className="loading-wrap">加载中...</View>
+        <View className="loading-wrap"><LoadingSpinner size={48} /></View>
       ) : videos.length === 0 ? (
         <View className="empty-wrap">暂无视频</View>
       ) : (

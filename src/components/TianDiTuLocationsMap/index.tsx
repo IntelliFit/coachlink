@@ -7,6 +7,7 @@ import {
     createDumbbellIcon,
     createClusterIcon,
 } from '@/lib/tianDiTuService';
+import { ProgressSpinner } from 'primereact/progressspinner';
 
 interface MapPin {
     id: string;
@@ -234,9 +235,9 @@ export default function TianDiTuLocationsMap({ className }: Props) {
             {status === 'loading' && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-surface-900/60 backdrop-blur-sm z-20">
                     <div className="flex flex-col items-center gap-4 bg-surface-0 rounded-3xl px-10 py-8 shadow-2xl">
-                        <i className="pi pi-spin pi-spinner text-4xl text-primary-500" />
+                        <ProgressSpinner style={{ width: '48px', height: '48px' }} className="text-primary-500" strokeWidth="4" />
                         <div className="text-center space-y-1">
-                            <div className="text-sm font-bold text-surface-900">地图加载中</div>
+                            <div className="text-sm font-bold text-surface-900">正在初始化地图</div>
                             <div className="text-xs text-surface-500">正在获取单杠点位数据…</div>
                         </div>
                     </div>

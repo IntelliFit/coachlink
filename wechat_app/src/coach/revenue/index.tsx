@@ -4,6 +4,7 @@ import Taro from '@tarojs/taro'
 import BottomNav from '@/components/BottomNav'
 import { coachService } from '@/services/coach/coachService'
 import './index.scss'
+import { LoadingSpinner } from '@/components/LoadingSpinner'
 
 function CoachRevenue() {
   const [data, setData] = useState<{ totalRevenue: number; subscriptionRevenue: number; contentPurchaseRevenue: number; items: any[] } | null>(null)
@@ -45,7 +46,7 @@ function CoachRevenue() {
   return (
     <View className="coach-revenue-page">
       {loading ? (
-        <View className="loading-wrap">加载中...</View>
+        <View className="loading-wrap"><LoadingSpinner size={48} /></View>
       ) : !data ? (
         <View className="empty-wrap">暂无数据</View>
       ) : (

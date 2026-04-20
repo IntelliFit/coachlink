@@ -11,6 +11,7 @@ import { addPublicToMyLib, listPublicActions } from '@/services/actionLibPageSer
 import type { PublicActionItemDto } from '@/types/action'
 import { knowledgeService } from '@/services/knowledgeService'
 import './index.scss'
+import { LoadingSpinner } from '@/components/LoadingSpinner'
 
 interface Coach {
     id: string
@@ -1018,9 +1019,11 @@ function Discovery() {
                     {/* 加载更多 */}
                     {hasMoreCoaches && !visibilityStatus?.focusMode && (
                         <View className='load-more' onClick={handleLoadMore}>
-                            <Text className='load-more-text'>
-                                {isLoading ? '加载中...' : '加载更多'}
-                            </Text>
+                            {isLoading ? (
+                                <LoadingSpinner size={32} />
+                            ) : (
+                                <Text className='load-more-text'>加载更多</Text>
+                            )}
                         </View>
                     )}
 

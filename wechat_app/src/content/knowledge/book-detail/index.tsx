@@ -6,6 +6,7 @@ import { Icon } from '@/components/Icon'
 import { Book as BookIcon } from 'lucide-react'
 import { Notice, Lock } from '@nutui/icons-react-taro'
 import './index.scss'
+import { LoadingSpinner } from '@/components/LoadingSpinner'
 
 export default function BookDetail() {
   const router = useRouter()
@@ -55,10 +56,10 @@ export default function BookDetail() {
       <View className="book-detail-page">
         <View className="nav-bar">
           <Text className="nav-back" onClick={() => Taro.navigateBack()}>返回</Text>
-          <Text className="nav-title">加载中...</Text>
+          <Text className="nav-title">书籍详情</Text>
         </View>
         <View className="loading-wrap">
-          <Text>加载中...</Text>
+          <LoadingSpinner size={48} />
         </View>
       </View>
     )

@@ -183,7 +183,7 @@ export const PlanPreferencesDisplay: React.FC<PlanPreferencesDisplayProps> = ({
                                                       })
                                                   ) : (
                                                       <div className="text-center py-4 text-gray-400 text-sm italic">
-                                                          未配置 RM 动作或加载中...
+                                                          暂无可用 RM 动作（教练未在动作库中配置自动推算项）
                                                       </div>
                                                   )}
                                               </div>

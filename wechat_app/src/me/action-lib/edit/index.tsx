@@ -4,6 +4,7 @@ import Taro, { useRouter } from '@tarojs/taro'
 import BottomNav from '@/components/BottomNav'
 import { studentActionLibService } from '@/services/studentActionLibService'
 import './index.scss'
+import { LoadingSpinner } from '@/components/LoadingSpinner'
 
 const POSITIONS = ['胸部', '背部', '肩部', '手臂', '核心', '腿部', '臀部', '全身']
 const ATTRS = ['力量', '耐力', '爆发力', '柔韧性', '平衡', '强度']
@@ -110,7 +111,7 @@ export default function ActionEditPage() {
   if (loading) {
     return (
       <View className='action-edit-page'>
-        <View className='loading'>加载中...</View>
+        <View className="loading"><LoadingSpinner size={48} /></View>
         <BottomNav />
       </View>
     )

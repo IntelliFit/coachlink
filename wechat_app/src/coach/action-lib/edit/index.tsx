@@ -4,6 +4,7 @@ import { Check } from '@nutui/icons-react-taro'
 import Taro from '@tarojs/taro'
 import { actionLibService } from '@/services/coach/actionLibService'
 import './index.scss'
+import { LoadingSpinner } from '@/components/LoadingSpinner'
 
 const ACTION_TYPES = [
   { label: '力量训练', value: 'STRENGTH' },
@@ -146,7 +147,7 @@ function CoachActionLibEdit() {
   if (loading) {
     return (
       <View className="coach-action-lib-edit-page">
-        <View className="loading-wrap">加载中...</View>
+        <View className="loading-wrap"><LoadingSpinner size={48} /></View>
       </View>
     )
   }

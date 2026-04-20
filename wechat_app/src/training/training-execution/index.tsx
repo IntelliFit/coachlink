@@ -11,6 +11,7 @@ import { buildPublicTrainingSharePath } from '@/utils/share'
 import { formatKgValueForGym } from '@/utils/weightQuantize'
 import { Clock, Heart, Power, Target } from '@nutui/icons-react-taro'
 import './index.scss'
+import { LoadingSpinner } from '@/components/LoadingSpinner'
 
 const RETURN_CONFIRM_STORAGE_KEY = 'today_training_last_confirmed_day'
 
@@ -1167,7 +1168,7 @@ function TrainingExecution() {
     return (
       <View className="training-execution-page">
         <View className="loading-wrap">
-          <Text>加载中...</Text>
+          <LoadingSpinner size={48} />
         </View>
       </View>
     )

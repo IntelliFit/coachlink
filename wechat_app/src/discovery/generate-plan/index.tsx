@@ -5,6 +5,7 @@ import { Target, Check } from '@nutui/icons-react-taro'
 import { authService } from '@/services/authService'
 import AssessmentForm from './AssessmentForm'
 import './index.scss'
+import { LoadingSpinner } from '@/components/LoadingSpinner'
 
 const DOMAINS = [
   {
@@ -86,7 +87,7 @@ export default function GeneratePlan() {
   if (!coachId) {
     return (
       <View className="generate-plan-page">
-        <View className="loading-wrap"><Text>加载中…</Text></View>
+        <View className="loading-wrap"><LoadingSpinner size={48} /></View>
       </View>
     )
   }

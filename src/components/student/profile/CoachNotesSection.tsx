@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { MessageSquare } from 'lucide-react';
 import { Avatar } from 'primereact/avatar';
+import { ProgressSpinner } from 'primereact/progressspinner';
 import { ProfileData } from './types';
 import { subscriptionService } from '@/app/service/subscriptionService';
 import { coachService } from '@/app/service/coachService';
@@ -59,8 +60,8 @@ export const CoachNotesSection: React.FC<CoachNotesSectionProps> = ({ data, user
                     <MessageSquare className="text-primary" size={20} />
                     教链评语
                 </h2>
-                <div className="text-center py-4">
-                    加载中...
+                <div className="flex justify-center py-6">
+                    <ProgressSpinner style={{ width: '36px', height: '36px' }} className="text-primary" strokeWidth="4" />
                 </div>
             </div>
         );

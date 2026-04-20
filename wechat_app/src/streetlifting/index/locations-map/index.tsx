@@ -8,6 +8,7 @@ import {
 } from '@/services/streetliftingIndexService'
 import locationClusterIcon from '@/assets/map/location-cluster.png'
 import locationPinIcon from '@/assets/map/location-pin.png'
+import { LoadingSpinner } from '@/components/LoadingSpinner'
 
 import './index.scss'
 
@@ -353,7 +354,7 @@ export default function StreetliftingLocationsMapPage() {
 
       {loading && (
         <View className='locations-map-loading'>
-          <Text>地图点位加载中…</Text>
+          <LoadingSpinner size={48} />
         </View>
       )}
 

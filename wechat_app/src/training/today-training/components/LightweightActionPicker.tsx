@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react'
 import { View, Text, Input, ScrollView } from '@tarojs/components'
 import { ArrowUp, Check, Heart, More } from '@nutui/icons-react-taro'
 import './LightweightActionPicker.scss'
+import { LoadingSpinner } from '@/components/LoadingSpinner'
 
 interface LightweightActionPickerProps {
   visible: boolean
@@ -41,7 +42,7 @@ function LightweightActionPicker({ visible, loading = false, actions, onClose, o
           onInput={(e) => setKeyword(e.detail.value)}
         />
         <ScrollView scrollY className='picker-list'>
-          {loading && <Text className='picker-empty'>加载中...</Text>}
+          {loading && <LoadingSpinner size={48} />}
           {!loading && filtered.map((item) => (
             <View key={item.id} className='picker-item' onClick={() => onSelect(item)}>
               <View className={`picker-icon ${String(item.type || '').toLowerCase()}`}>

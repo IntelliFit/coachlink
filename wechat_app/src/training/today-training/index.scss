@@ -1,5 +1,9 @@
 .today-training-page {
   min-height: 100vh;
+  /* 自定义导航栏：仅避让状态栏与安全区（系统胶囊仍由微信固定在右上角） */
+  padding-top: constant(safe-area-inset-top);
+  padding-top: env(safe-area-inset-top);
+  box-sizing: border-box;
   /* 与游客首页 `pages/index` 背景一致 */
   background: linear-gradient(180deg, #e8e8e8 0%, #f8f8f8 100%);
 
@@ -11,7 +15,7 @@
   }
 
   .page-content {
-    padding: 24rpx;
+    padding: 180rpx 24rpx 24rpx;
   }
 
   // ========== Dashboard 头部 ==========
@@ -395,18 +399,32 @@
     margin-bottom: 0;
   }
 
+  /* 即兴主按钮：品牌纯色、8 栅格间距 */
+  .home-quick-cta {
+    margin-bottom: 24rpx;
+  }
+
+  .home-quick-cta-kicker {
+    display: block;
+    font-size: 24rpx;
+    font-weight: 600;
+    color: #6b7280;
+    margin-bottom: 16rpx;
+    padding-left: 8rpx;
+    line-height: 1.3;
+  }
+
   .mega-start-btn {
     display: flex;
     flex-direction: row;
     align-items: center;
     justify-content: center;
     gap: 16rpx;
-    min-height: 112rpx;
-    padding: 0 40rpx;
-    margin-bottom: 24rpx;
+    min-height: 96rpx;
+    padding: 32rpx 40rpx;
     background: #cf6d4e;
-    border-radius: 9999rpx;
-    box-shadow: 0 16rpx 40rpx rgba(207, 109, 78, 0.32);
+    border-radius: 24rpx;
+    box-sizing: border-box;
 
     &:active {
       opacity: 0.92;
@@ -419,53 +437,87 @@
     color: #ffffff;
   }
 
-  .pair-actions-row {
-    display: flex;
-    flex-direction: row;
-    gap: 16rpx;
-    margin-bottom: 16rpx;
+  /* AI 计划 + 浏览教练：扁平分块、主题色点缀，与首页渐变底协调 */
+  .home-secondary-cta {
+    margin-bottom: 24rpx;
   }
 
-  .pair-action {
-    flex: 1;
-    min-height: 96rpx;
-    border-radius: 9999rpx;
+  .home-secondary-cta-kicker {
+    display: block;
+    font-size: 24rpx;
+    font-weight: 600;
+    color: #6b7280;
+    margin-bottom: 16rpx;
+    padding-left: 8rpx;
+    line-height: 1.3;
+  }
+
+  .secondary-cta-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 24rpx;
+  }
+
+  .secondary-cta-tile {
     display: flex;
     flex-direction: row;
     align-items: center;
-    justify-content: center;
-    gap: 8rpx;
-    padding: 24rpx 16rpx;
+    gap: 24rpx;
+    padding: 24rpx 32rpx;
+    min-height: 96rpx;
+    background: #ffffff;
+    border: 1rpx solid #e5e5e5;
+    border-radius: 16rpx;
     box-sizing: border-box;
 
     &:active {
-      opacity: 0.88;
+      opacity: 0.9;
+    }
+
+    &.secondary-cta-tile--accent {
+      background: #fdf2ec;
+      border-color: rgba(207, 109, 78, 0.28);
     }
   }
 
-  .pair-action-ghost {
-    background: transparent;
-    border: 2rpx solid #cf6d4e;
+  .secondary-cta-icon-wrap {
+    width: 80rpx;
+    height: 80rpx;
+    border-radius: 50%;
+    background: rgba(207, 109, 78, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
   }
 
-  .pair-action-ghost .pair-action-text {
-    color: #cf6d4e;
-    font-weight: 600;
-    font-size: 26rpx;
+  .secondary-cta-copy {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8rpx;
+    text-align: left;
   }
 
-  .pair-action-light {
-    background: #ffffff;
-    box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.06);
+  .secondary-cta-title {
+    font-size: 30rpx;
+    font-weight: 700;
+    color: #010101;
+    line-height: 1.3;
   }
 
-  .pair-action-text {
-    font-size: 26rpx;
-    font-weight: 600;
+  .secondary-cta-desc {
+    font-size: 24rpx;
+    color: #6b7280;
+    line-height: 1.4;
+  }
 
-    &.dark {
-      color: #111827;
-    }
+  .secondary-cta-chevron {
+    flex-shrink: 0;
+    font-size: 32rpx;
+    color: #d1d5db;
+    font-weight: 300;
   }
 
   .contact-coach-inline {
@@ -1300,10 +1352,13 @@
 
     .empty-actions-pair {
       display: flex;
-      flex-direction: row;
-      gap: 16rpx;
+      flex-direction: column;
       width: 100%;
       box-sizing: border-box;
+
+      .home-secondary-cta {
+        margin-bottom: 0;
+      }
 
       .action-btn {
         flex: 1;

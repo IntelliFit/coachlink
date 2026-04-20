@@ -4,6 +4,7 @@ import Taro from '@tarojs/taro'
 import BottomNav from '@/components/BottomNav'
 import { actionLibService } from '@/services/coach/actionLibService'
 import './index.scss'
+import { LoadingSpinner } from '@/components/LoadingSpinner'
 
 function CoachActionLib() {
   const [list, setList] = useState<any[]>([])
@@ -72,7 +73,7 @@ function CoachActionLib() {
         <Button className="add-btn" onClick={handleCreate}>+ 新建</Button>
       </View>
       {loading ? (
-        <View className="loading-wrap">加载中...</View>
+        <View className="loading-wrap"><LoadingSpinner size={48} /></View>
       ) : list.length === 0 ? (
         <View className="empty-wrap">暂无动作</View>
       ) : (

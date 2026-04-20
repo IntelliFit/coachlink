@@ -25,15 +25,12 @@ import LightweightActionPicker from './components/LightweightActionPicker'
 import DayCheckinShareSheet from './components/DayCheckinShareSheet'
 import {
   ArrowRight,
-  ArrowUp,
   Calendar,
   Check,
   Location,
   Message,
   Notice,
   Power,
-  Search,
-  ShieldCheck,
   Star,
   Target,
   User
@@ -653,6 +650,37 @@ function TodayTraining() {
     Taro.navigateTo({ url: '/training/impromptu-training' })
   }, [])
 
+  const planCoachSecondaryTiles = useMemo(
+    () => (
+      <View className='home-secondary-cta'>
+        <Text className='home-secondary-cta-kicker'>计划与教练</Text>
+        <View className='secondary-cta-stack'>
+          <View className='secondary-cta-tile secondary-cta-tile--accent' onClick={handleGoToPlanLib}>
+            <View className='secondary-cta-icon-wrap'>
+              <Calendar size={22} color='#CF6D4E' />
+            </View>
+            <View className='secondary-cta-copy'>
+              <Text className='secondary-cta-title'>AI 长期计划</Text>
+              <Text className='secondary-cta-desc'>模板与周期计划，随时调整进度</Text>
+            </View>
+            <Text className='secondary-cta-chevron'>›</Text>
+          </View>
+          <View className='secondary-cta-tile' onClick={handleDiscoverCoach}>
+            <View className='secondary-cta-icon-wrap'>
+              <Location size={22} color='#CF6D4E' />
+            </View>
+            <View className='secondary-cta-copy'>
+              <Text className='secondary-cta-title'>浏览教练</Text>
+              <Text className='secondary-cta-desc'>发现私教与订阅服务</Text>
+            </View>
+            <Text className='secondary-cta-chevron'>›</Text>
+          </View>
+        </View>
+      </View>
+    ),
+    [handleGoToPlanLib, handleDiscoverCoach]
+  )
+
   const handleUpdateProfile = useCallback(() => {
     Taro.navigateTo({ url: '/me/profile/detail/index' })
   }, [])
@@ -940,14 +968,7 @@ function TodayTraining() {
     </View>
   )
 
-  const handleHomeNav = useCallback((url: string) => {
-    const normalized = url.startsWith('/') ? url : `/${url}`
-    Taro.navigateTo({ url: normalized }).catch(() => {
-      Taro.reLaunch({ url: normalized }).catch(() => {})
-    })
-  }, [])
-
-  /** 融合原首页：目标卡片（真实今日完成度 + 计划进度）+ 快速入口 + 促销卡 + 平台亮点 */
+  /** 融合原首页：目标卡片（真实今日完成度 + 计划进度）+ 促销卡 */
   const renderHomeStyleStrip = () => {
     const heroSubtitle = instance
       ? `${instance.name || '今日训练'} · 今日完成度与计划进度一览`
@@ -977,36 +998,6 @@ function TodayTraining() {
           </View>
         </View>
 
-        <View className='home-quick-actions'>
-          <Text className='section-title'>快速入口</Text>
-          <View className='quick-actions-grid'>
-            <View className='quick-action-item' onClick={() => handleHomeNav('/training/today-training')}>
-              <View className='quick-action-icon peach'>
-                <Power width={24} height={24} color='#010101' />
-              </View>
-              <Text className='quick-action-label'>训练</Text>
-            </View>
-            <View className='quick-action-item' onClick={() => handleHomeNav('/discovery/index')}>
-              <View className='quick-action-icon blue'>
-                <Search width={24} height={24} color='#010101' />
-              </View>
-              <Text className='quick-action-label'>发现教练</Text>
-            </View>
-            <View className='quick-action-item' onClick={() => handleHomeNav('/discovery/ranking')}>
-              <View className='quick-action-icon yellow'>
-                <Star width={24} height={24} color='#010101' />
-              </View>
-              <Text className='quick-action-label'>排行榜</Text>
-            </View>
-            <View className='quick-action-item' onClick={() => handleHomeNav('/me/profile/index')}>
-              <View className='quick-action-icon mint'>
-                <User width={24} height={24} color='#010101' />
-              </View>
-              <Text className='quick-action-label'>个人中心</Text>
-            </View>
-          </View>
-        </View>
-
         <View className='home-promo-card'>
           <Text className='promo-card-title'>运动后拉伸</Text>
           <Text className='promo-card-subtitle'>有助于提升睡眠质量</Text>
@@ -1016,42 +1007,6 @@ function TodayTraining() {
             </View>
             <View className='promo-btn promo-btn-solid' onClick={() => Taro.navigateTo({ url: '/training/impromptu-training' })}>
               <Text className='promo-btn-text'>立即开始</Text>
-            </View>
-          </View>
-        </View>
-
-        <View className='home-features'>
-          <Text className='section-title'>平台亮点</Text>
-          <View className='features-list'>
-            <View className='feature-item' onClick={() => Taro.navigateTo({ url: '/discovery/index' })}>
-              <View className='feature-icon-wrap peach'>
-                <ShieldCheck width={24} height={24} color='#CF6D4E' />
-              </View>
-              <View className='feature-info'>
-                <Text className='feature-title'>靠谱教练</Text>
-                <Text className='feature-desc'>资质认证，评价透明</Text>
-              </View>
-              <Text className='feature-arrow'>›</Text>
-            </View>
-            <View className='feature-item' onClick={() => Taro.navigateTo({ url: '/content/knowledge' })}>
-              <View className='feature-icon-wrap blue'>
-                <Target width={24} height={24} color='#3B82F6' />
-              </View>
-              <View className='feature-info'>
-                <Text className='feature-title'>智能负荷</Text>
-                <Text className='feature-desc'>基于1RM自动计算重量</Text>
-              </View>
-              <Text className='feature-arrow'>›</Text>
-            </View>
-            <View className='feature-item' onClick={() => Taro.navigateTo({ url: '/me/training-history/index' })}>
-              <View className='feature-icon-wrap mint'>
-                <ArrowUp width={24} height={24} color='#10B981' />
-              </View>
-              <View className='feature-info'>
-                <Text className='feature-title'>成长档案</Text>
-                <Text className='feature-desc'>追踪每一次 PR 进步</Text>
-              </View>
-              <Text className='feature-arrow'>›</Text>
             </View>
           </View>
         </View>
@@ -1135,16 +1090,7 @@ function TodayTraining() {
                   </View>
                 )}
 
-                <View className='empty-actions-pair'>
-                  <View className='action-btn secondary' onClick={handleGoToPlanLib}>
-                    <Text><Calendar size={20} /></Text>
-                    <Text>AI 长期计划</Text>
-                  </View>
-                  <View className='action-btn secondary' onClick={handleDiscoverCoach}>
-                    <Text><Location size={20} /></Text>
-                    <Text>浏览教练</Text>
-                  </View>
-                </View>
+                <View className='empty-actions-pair'>{planCoachSecondaryTiles}</View>
               </View>
             </View>
           </View>
@@ -1264,16 +1210,7 @@ function TodayTraining() {
                     <Text>联系教练</Text>
                   </View>
                 )}
-                <View className='empty-actions-pair'>
-                  <View className='action-btn secondary' onClick={handleGoToPlanLib}>
-                    <Text><Calendar size={20} /></Text>
-                    <Text>AI 长期计划</Text>
-                  </View>
-                  <View className='action-btn secondary' onClick={handleDiscoverCoach}>
-                    <Text><Location size={20} /></Text>
-                    <Text>浏览教练</Text>
-                  </View>
-                </View>
+                <View className='empty-actions-pair'>{planCoachSecondaryTiles}</View>
               </View>
             </View>
           ) : (
@@ -1331,21 +1268,15 @@ function TodayTraining() {
                   <Text className='today-outline-text'>进入今日训练</Text>
                 </View>
 
-                <View className='mega-start-btn' onClick={handleImpromptu}>
-                  <Power size={22} color='#FFFFFF' />
-                  <Text className='mega-start-text'>开始即兴首练</Text>
+                <View className='home-quick-cta'>
+                  <Text className='home-quick-cta-kicker'>即兴开练</Text>
+                  <View className='mega-start-btn' onClick={handleImpromptu}>
+                    <Power size={22} color='#FFFFFF' />
+                    <Text className='mega-start-text'>开始即兴首练</Text>
+                  </View>
                 </View>
 
-                <View className='pair-actions-row'>
-                  <View className='pair-action pair-action-light' onClick={handleGoToPlanLib}>
-                    <Calendar size={20} color='#111827' />
-                    <Text className='pair-action-text dark'>AI 长期计划</Text>
-                  </View>
-                  <View className='pair-action pair-action-light' onClick={handleDiscoverCoach}>
-                    <Location size={20} color='#111827' />
-                    <Text className='pair-action-text dark'>浏览教练</Text>
-                  </View>
-                </View>
+                {planCoachSecondaryTiles}
 
                 {isExpiredGrace && (
                   <View className='renew-inline' onClick={() => Taro.navigateTo({ url: renewPath })}>

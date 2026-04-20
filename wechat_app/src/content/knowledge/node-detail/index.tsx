@@ -6,6 +6,7 @@ import { Icon } from '@/components/Icon'
 import { FileText, Video as VideoIcon } from 'lucide-react'
 import { Notice } from '@nutui/icons-react-taro'
 import './index.scss'
+import { LoadingSpinner } from '@/components/LoadingSpinner'
 
 export default function NodeDetail() {
   const router = useRouter()
@@ -62,10 +63,10 @@ export default function NodeDetail() {
       <View className="node-detail-page">
         <View className="nav-bar">
           <Text className="nav-back" onClick={() => Taro.navigateBack()}>返回</Text>
-          <Text className="nav-title">加载中...</Text>
+          <Text className="nav-title">节点详情</Text>
         </View>
         <View className="loading-wrap">
-          <Text>加载中...</Text>
+          <LoadingSpinner size={48} />
         </View>
       </View>
     )

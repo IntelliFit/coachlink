@@ -3,9 +3,11 @@ import { View, Text, ScrollView, Input, Image } from '@tarojs/components'
 import Taro, { useDidShow, useRouter } from '@tarojs/taro'
 import { authService } from '@/services/authService'
 import { chatService, type MessageItem } from '@/services/chatService'
+import { getChatMessagesCache, mergeServerLatestPage, setChatMessagesCache } from '@/utils/chatMessageCache'
 import { API_BASE_URL } from '@/utils/request'
 import './index.scss'
 import { Image as ImageIcon } from '@nutui/icons-react-taro'
+import { LoadingSpinner } from '@/components/LoadingSpinner'
 
 function ChatPage() {
   const router = useRouter()
@@ -25,6 +27,8 @@ function ChatPage() {
   const didInitialScrollRef = useRef(false)
   const lastRoomIdRef = useRef(roomId)
   const lastAppliedDraftKeyRef = useRef('')
+  /** 与 useEffect(roomId) 触发的首拉去重，避免 useDidShow 与 effect 连续打两次接口 */
+  const skipNextDidShowFetchRef = useRef(true)
 
   if (lastRoomIdRef.current !== roomId) {
     lastRoomIdRef.current = roomId
@@ -59,11 +63,12 @@ function ChatPage() {
   }, [roomId, draftText])
 
   const loadMessages = useCallback(
-    async (beforeId?: string) => {
+    async (beforeId?: string, options?: { skipSpinner?: boolean }) => {
       if (!roomId || !myId) return
+      const skipSpinner = Boolean(options?.skipSpinner) && !beforeId
       if (beforeId) {
         setLoadingMore(true)
-      } else {
+      } else if (!skipSpinner) {
         setLoading(true)
       }
       try {
@@ -76,7 +81,7 @@ function ChatPage() {
           if (beforeId) {
             setMessages(prev => [...(data.messages || []), ...prev])
           } else {
-            setMessages(data.messages || [])
+            setMessages(prev => mergeServerLatestPage(prev, data.messages || []))
           }
           setHasMore(data.has_more ?? false)
         }
@@ -85,7 +90,7 @@ function ChatPage() {
         }
       } catch (e) {
         console.error('loadMessages error', e)
-        if (!beforeId) Taro.showToast({ title: '加载失败', icon: 'none' })
+        if (!beforeId && !skipSpinner) Taro.showToast({ title: '加载失败', icon: 'none' })
       } finally {
         setLoading(false)
         setLoadingMore(false)
@@ -94,12 +99,33 @@ function ChatPage() {
     [roomId, myId]
   )
 
-  useDidShow(() => {
-    if (roomId && myId) {
-      loadMessages()
-    } else if (!myId) {
-      Taro.showToast({ title: '请先登录', icon: 'none' })
+  useEffect(() => {
+    if (!roomId || !myId) return
+    skipNextDidShowFetchRef.current = true
+    didInitialScrollRef.current = false
+    const cached = getChatMessagesCache(myId, roomId)
+    if (cached?.messages?.length) {
+      setMessages(cached.messages)
+      setHasMore(cached.hasMore)
+      setLoading(false)
+    } else {
+      setMessages([])
+      setHasMore(false)
+      setLoading(true)
     }
+    void loadMessages(undefined, { skipSpinner: !!(cached?.messages?.length) })
+  }, [roomId, myId, loadMessages])
+
+  useDidShow(() => {
+    if (!roomId || !myId) {
+      if (!myId) Taro.showToast({ title: '请先登录', icon: 'none' })
+      return
+    }
+    if (skipNextDidShowFetchRef.current) {
+      skipNextDidShowFetchRef.current = false
+      return
+    }
+    void loadMessages(undefined, { skipSpinner: true })
   })
 
   // 轮询拉取新消息（小程序无 SSE，用定时刷新模拟网页端实时）
@@ -138,6 +164,16 @@ function ChatPage() {
       }
     }
   }, [roomId, myId, loading])
+
+  /** 消息列表与 hasMore 落盘，供下次进入会话瞬时展示（不写发送中的 temp-*） */
+  useEffect(() => {
+    if (!roomId || !myId) return
+    const persistable = messages.filter(m => !String(m.id).startsWith('temp-'))
+    const t = setTimeout(() => {
+      setChatMessagesCache(myId, roomId, { messages: persistable, hasMore })
+    }, 400)
+    return () => clearTimeout(t)
+  }, [messages, hasMore, roomId, myId])
 
   // 轮询合并后若有对方新消息，先清空再设 scrollIntoView 以强制触发滚动
   useEffect(() => {
@@ -285,6 +321,7 @@ function ChatPage() {
       <ScrollView
         className="chat-messages"
         scrollY
+        enableFlex
         scrollIntoView={scrollIntoViewId}
         scrollWithAnimation
         onScrollToUpper={loadMore}
@@ -292,13 +329,13 @@ function ChatPage() {
       >
         {loading ? (
           <View className="loading-wrap">
-            <Text>加载中...</Text>
+            <LoadingSpinner size={48} />
           </View>
         ) : (
           <>
             {hasMore && messages.length > 0 && (
               <View className="load-more" onClick={loadMore}>
-                {loadingMore ? <Text>加载更多...</Text> : <Text>下拉加载更多</Text>}
+                {loadingMore ? <LoadingSpinner size={32} /> : <Text>下拉加载更多</Text>}
               </View>
             )}
             {messages.map(msg => (
@@ -328,7 +365,7 @@ function ChatPage() {
 
       <View className="chat-input-bar">
         <View className="img-btn" onClick={chooseAndSendImage}>
-          <ImageIcon />
+          <ImageIcon size={40} />
         </View>
         <Input
           className="input-wrap"

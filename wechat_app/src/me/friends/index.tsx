@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { View, Text, ScrollView, Input } from '@tarojs/components'
-import Taro, { useDidShow, usePullDownRefresh } from '@tarojs/taro'
+import Taro, { useDidShow, usePullDownRefresh, useRouter } from '@tarojs/taro'
 import BottomNav from '@/components/BottomNav'
+import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { authService } from '@/services/authService'
 import { request } from '@/utils/request'
 import './index.scss'
@@ -20,6 +21,7 @@ interface FriendRequest {
 }
 
 function FriendsPage() {
+  const router = useRouter()
   const [friends, setFriends] = useState<Friend[]>([])
   const [requests, setRequests] = useState<FriendRequest[]>([])
   const [searchResults, setSearchResults] = useState<any[]>([])
@@ -63,6 +65,13 @@ function FriendsPage() {
       setLoading(false)
     }
   }, [])
+
+  useEffect(() => {
+    const tab = router.params?.tab
+    if (tab === 'requests' || tab === '1') {
+      setActiveTab(1)
+    }
+  }, [router.params?.tab])
 
   useDidShow(() => {
     loadData()
@@ -243,7 +252,7 @@ function FriendsPage() {
             <View className='content-panel'>
               {loading ? (
                 <View className='loading-wrap'>
-                  <Text>加载中...</Text>
+                  <LoadingSpinner size={48} />
                 </View>
               ) : friends.length === 0 ? (
                 <View className='empty-state'>
@@ -285,7 +294,7 @@ function FriendsPage() {
             <View className='content-panel'>
               {loading ? (
                 <View className='loading-wrap'>
-                  <Text>加载中...</Text>
+                  <LoadingSpinner size={48} />
                 </View>
               ) : requests.length === 0 ? (
                 <View className='empty-state'>

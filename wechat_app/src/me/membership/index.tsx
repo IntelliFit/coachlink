@@ -5,6 +5,7 @@ import BottomNav from '@/components/BottomNav'
 import { request } from '@/utils/request'
 import './index.scss'
 import { Check, Close } from '@nutui/icons-react-taro'
+import { LoadingSpinner } from '@/components/LoadingSpinner'
 
 type MembershipTier = 'free' | 'basic' | 'premium' | 'trial'
 
@@ -83,7 +84,7 @@ export default function MembershipPage() {
   if (loading) {
     return (
       <View className='membership-page'>
-        <View className='loading'>加载中...</View>
+        <View className="loading"><LoadingSpinner size={48} /></View>
         <BottomNav />
       </View>
     )

@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { ChevronRight, FolderTree, Loader2 } from 'lucide-react';
+import { ChevronRight, FolderTree } from 'lucide-react';
+import { ProgressSpinner } from 'primereact/progressspinner';
 
 interface KnowledgeNode {
   id: string;
@@ -173,8 +174,7 @@ export default function NodeSelector({
       >
         {loading ? (
           <span className="flex items-center gap-2 text-surface-400">
-            <Loader2 size={16} className="animate-spin" />
-            加载中...
+            <ProgressSpinner style={{ width: '20px', height: '20px' }} strokeWidth="4" />
           </span>
         ) : selectedPath.length > 0 ? (
           <span className="flex items-center gap-1 text-sm text-surface-700 dark:text-surface-300">

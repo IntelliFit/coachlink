@@ -22,6 +22,7 @@ import {
 } from 'lucide-react'
 import { coachService } from '@/services/coach/coachService'
 import './index.scss'
+import { LoadingSpinner } from '@/components/LoadingSpinner'
 
 interface OverviewData {
   totalStudentCount: number
@@ -126,7 +127,7 @@ function CoachOverview() {
   if (loading) {
     return (
       <View className="coach-overview-page">
-        <View className="loading-wrap">加载中...</View>
+        <View className="loading-wrap"><LoadingSpinner size={48} /></View>
         <BottomNav />
       </View>
     )

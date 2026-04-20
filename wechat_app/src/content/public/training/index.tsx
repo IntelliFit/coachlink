@@ -10,6 +10,7 @@ import {
   openCoachLinkShareMenu
 } from '@/utils/share'
 import './index.scss'
+import { LoadingSpinner } from '@/components/LoadingSpinner'
 
 interface ActionExecutionSummary {
   actionName: string
@@ -110,7 +111,7 @@ export default function PublicTrainingPage() {
     return (
       <View className="public-training-page">
         <View className="loading-wrap">
-          <Text>加载中…</Text>
+          <LoadingSpinner size={48} />
         </View>
       </View>
     )

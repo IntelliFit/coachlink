@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
+import { ProgressSpinner } from "primereact/progressspinner";
 import { addBeijingDays, formatBeijingDate, toBeijingDateKey } from "@/lib/beijingTime";
 
 // --- Types ---
@@ -50,7 +51,12 @@ function DashboardView() {
             .finally(() => setLoading(false));
     }, []);
 
-    if (loading) return <div>加载中...</div>;
+    if (loading)
+        return (
+            <div className="flex justify-center py-12">
+                <ProgressSpinner strokeWidth="3" />
+            </div>
+        );
     if (!data) return <div>加载失败</div>;
 
     return (
@@ -132,7 +138,9 @@ function FeatureUsageView() {
                              {(!data.topFeatures || data.topFeatures.length === 0) && <div className="text-sm text-slate-500">暂无数据</div>}
                         </div>
                     ) : (
-                        <div>加载中...</div>
+                        <div className="flex justify-center py-8">
+                            <ProgressSpinner strokeWidth="3" />
+                        </div>
                     )}
                 </Section>
                  {/* Placeholder for Categorized Breakdown */}
@@ -314,7 +322,11 @@ function TraceView() {
                  <button onClick={fetchData} className="px-3 py-1 bg-slate-100 dark:bg-slate-700 rounded text-sm text-black dark:text-white hover:bg-slate-200">刷新</button>
              </div>
 
-             {loading && <div>加载中...</div>}
+             {loading && (
+                 <div className="flex justify-center py-6">
+                     <ProgressSpinner strokeWidth="3" />
+                 </div>
+             )}
 
              {data && (
                  <>

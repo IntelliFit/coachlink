@@ -13,6 +13,7 @@ import {
 } from '@/services/streetliftingIndexService'
 import { authService } from '@/services/authService'
 import './index.scss'
+import { LoadingSpinner } from '@/components/LoadingSpinner'
 
 const MAX_IMAGES = 4
 const PAGE_SIZE = 20
@@ -685,7 +686,7 @@ export default function StreetliftingLocations() {
                   ))}
                 </View>
               )}
-              {loading && locations.length > 0 && <View className='loading-more'><Text>加载中…</Text></View>}
+              {loading && locations.length > 0 && <View className='loading-more'><LoadingSpinner size={48} /></View>}
               {hasMore && !loading && (
                 <View className='load-more' onClick={loadMore}><Text>加载更多</Text></View>
               )}
@@ -948,7 +949,7 @@ export default function StreetliftingLocations() {
             <ScrollView scrollY className='sheet-scroll'>
               {loadingContributors ? (
                 <View className='contribution-loading'>
-                  <Text>贡献榜加载中…</Text>
+                  <LoadingSpinner size={48} />
                 </View>
               ) : contributors.length === 0 ? (
                 <View className='contribution-empty'>
