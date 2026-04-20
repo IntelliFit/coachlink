@@ -18,6 +18,7 @@ import {
 } from '@/utils/share'
 import './index.scss'
 import { File, Star } from '@nutui/icons-react-taro'
+import { LoadingSpinner } from '@/components/LoadingSpinner'
 
 interface ReferralData {
   code: string
@@ -171,7 +172,7 @@ function MembershipReferral() {
       <View className='referral-page'>
         <ScrollView className='page-scroll' scrollY>
           <View className='loading-wrap'>
-            <Text>加载中...</Text>
+            <LoadingSpinner size={48} />
           </View>
         </ScrollView>
         <BottomNav />

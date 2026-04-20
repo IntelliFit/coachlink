@@ -4,6 +4,7 @@ import { Check } from '@nutui/icons-react-taro'
 import Taro from '@tarojs/taro'
 import { coachService } from '@/services/coach/coachService'
 import './index.scss'
+import { LoadingSpinner } from '@/components/LoadingSpinner'
 
 type ContentType = 'text' | 'video' | 'image' | 'live' | 'plan'
 
@@ -166,7 +167,7 @@ function CoachContentEdit() {
   if (loading) {
     return (
       <View className="coach-content-edit-page">
-        <View className="loading-wrap">加载中...</View>
+        <View className="loading-wrap"><LoadingSpinner size={48} /></View>
       </View>
     )
   }

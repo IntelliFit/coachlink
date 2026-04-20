@@ -1,0 +1,17 @@
+@keyframes loading-spinner-rotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.loading-spinner {
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 4rpx solid rgba(207, 109, 78, 0.2);
+  border-top-color: #cf6d4e;
+  box-sizing: border-box;
+  animation: loading-spinner-rotate 0.75s linear infinite;
+}

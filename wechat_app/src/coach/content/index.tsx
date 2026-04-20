@@ -4,6 +4,7 @@ import Taro, { useDidShow } from '@tarojs/taro'
 import BottomNav from '@/components/BottomNav'
 import { coachService } from '@/services/coach/coachService'
 import './index.scss'
+import { LoadingSpinner } from '@/components/LoadingSpinner'
 
 type ContentType = 'text' | 'video' | 'image' | 'live' | 'plan'
 type TierFilter = 'all' | 0 | 1 | 2 | 3
@@ -239,7 +240,7 @@ function CoachContent() {
         </View>
 
         {loading ? (
-          <View className='empty-wrap'>加载中...</View>
+          <View className="empty-wrap"><LoadingSpinner size={48} /></View>
         ) : filteredList.length === 0 ? (
           <View className='empty-wrap'>
             <Text className='empty-title'>没有匹配的内容</Text>

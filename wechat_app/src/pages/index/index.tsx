@@ -4,7 +4,8 @@ import Taro, { useDidShow } from '@tarojs/taro'
 import BottomNav from '@/components/BottomNav'
 import { authService } from '@/services/authService'
 import { studentOnboardingService } from '@/services/studentOnboardingService'
-import { Power, Search, Star, User, ShieldCheck, Target, ArrowUp } from '@nutui/icons-react-taro'
+import { Power } from '@nutui/icons-react-taro'
+import { LoadingSpinner } from '@/components/LoadingSpinner'
 import './index.scss'
 
 function Index() {
@@ -67,13 +68,6 @@ function Index() {
     Taro.navigateTo({ url: authService.buildLoginUrl('/pages/index/index') })
   }
 
-  const handleNav = (url: string) => {
-    const normalized = url.startsWith('/') ? url : `/${url}`
-    Taro.navigateTo({ url: normalized }).catch(() => {
-      Taro.reLaunch({ url: normalized }).catch(() => {})
-    })
-  }
-
   const handleNavTo = (url: string) => {
     Taro.navigateTo({ url })
   }
@@ -83,7 +77,7 @@ function Index() {
     return (
       <View className='home-page page-with-float-nav'>
         <View className='home-loading'>
-          <Text className='home-loading-text'>正在进入…</Text>
+          <LoadingSpinner size={48} />
         </View>
         <BottomNav />
       </View>
@@ -125,37 +119,6 @@ function Index() {
           </View>
         </View>
 
-        {/* Quick Actions */}
-        <View className='home-quick-actions'>
-          <Text className='section-title'>快速入口</Text>
-          <View className='quick-actions-grid'>
-            <View className='quick-action-item' onClick={() => handleNav('/training/today-training')}>
-              <View className='quick-action-icon peach'>
-                <Power width={24} height={24} color='#010101' />
-              </View>
-              <Text className='quick-action-label'>训练</Text>
-            </View>
-            <View className='quick-action-item' onClick={() => handleNav('/discovery/index')}>
-              <View className='quick-action-icon blue'>
-                <Search width={24} height={24} color='#010101' />
-              </View>
-              <Text className='quick-action-label'>发现教练</Text>
-            </View>
-            <View className='quick-action-item' onClick={() => handleNav('/discovery/ranking')}>
-              <View className='quick-action-icon yellow'>
-                <Star width={24} height={24} color='#010101' />
-              </View>
-              <Text className='quick-action-label'>排行榜</Text>
-            </View>
-            <View className='quick-action-item' onClick={() => handleNav('/me/profile/index')}>
-              <View className='quick-action-icon mint'>
-                <User width={24} height={24} color='#010101' />
-              </View>
-              <Text className='quick-action-label'>个人中心</Text>
-            </View>
-          </View>
-        </View>
-
         {/* Promo / Insight Card */}
         <View className='home-promo-card'>
           <Text className='promo-card-title'>运动后拉伸</Text>
@@ -166,43 +129,6 @@ function Index() {
             </View>
             <View className='promo-btn promo-btn-solid' onClick={() => handleNavTo('/auth/onboarding')}>
               <Text className='promo-btn-text'>立即开始</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Features / Highlights */}
-        <View className='home-features'>
-          <Text className='section-title'>平台亮点</Text>
-          <View className='features-list'>
-            <View className='feature-item' onClick={() => handleNavTo('/auth/onboarding')}>
-              <View className='feature-icon-wrap peach'>
-                <ShieldCheck width={24} height={24} color='#CF6D4E' />
-              </View>
-              <View className='feature-info'>
-                <Text className='feature-title'>靠谱教练</Text>
-                <Text className='feature-desc'>资质认证，评价透明</Text>
-              </View>
-              <Text className='feature-arrow'>›</Text>
-            </View>
-            <View className='feature-item' onClick={() => handleNavTo('/auth/onboarding')}>
-              <View className='feature-icon-wrap blue'>
-                <Target width={24} height={24} color='#3B82F6' />
-              </View>
-              <View className='feature-info'>
-                <Text className='feature-title'>智能负荷</Text>
-                <Text className='feature-desc'>基于1RM自动计算重量</Text>
-              </View>
-              <Text className='feature-arrow'>›</Text>
-            </View>
-            <View className='feature-item' onClick={() => handleNavTo('/auth/onboarding')}>
-              <View className='feature-icon-wrap mint'>
-                <ArrowUp width={24} height={24} color='#10B981' />
-              </View>
-              <View className='feature-info'>
-                <Text className='feature-title'>成长档案</Text>
-                <Text className='feature-desc'>追踪每一次 PR 进步</Text>
-              </View>
-              <Text className='feature-arrow'>›</Text>
             </View>
           </View>
         </View>

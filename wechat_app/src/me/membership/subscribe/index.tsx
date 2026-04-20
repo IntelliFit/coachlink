@@ -5,6 +5,7 @@ import BottomNav from '@/components/BottomNav'
 import { request } from '@/utils/request'
 import './index.scss'
 import { Check, Notice } from '@nutui/icons-react-taro'
+import { LoadingSpinner } from '@/components/LoadingSpinner'
 
 type MembershipTier = 'free' | 'basic' | 'premium' | 'trial'
 
@@ -168,7 +169,7 @@ function MembershipSubscribe() {
 
           {loading ? (
             <View className='loading-wrap'>
-              <Text>加载中...</Text>
+              <LoadingSpinner size={48} />
             </View>
           ) : (
             <View className='plans-list'>

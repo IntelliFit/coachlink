@@ -6,6 +6,7 @@ import { authService } from '@/services/authService'
 import { request } from '@/utils/request'
 import './index.scss'
 import { File, Notice } from '@nutui/icons-react-taro'
+import { LoadingSpinner } from '@/components/LoadingSpinner'
 
 interface CartItem {
   id: string
@@ -111,7 +112,7 @@ function CartPage() {
       <View className='cart-page'>
         <ScrollView className='page-scroll' scrollY>
           <View className='loading-wrap'>
-            <Text>加载中...</Text>
+            <LoadingSpinner size={48} />
           </View>
         </ScrollView>
         <BottomNav />

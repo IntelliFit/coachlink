@@ -5,6 +5,7 @@ import BottomNav from '@/components/BottomNav'
 import { planLibService } from '@/services/coach/planLibService'
 import { formatDateYMD } from '@/utils/dateFormat'
 import './index.scss'
+import { LoadingSpinner } from '@/components/LoadingSpinner'
 
 type TemplateType = '' | 'beginner' | 'strength'
 
@@ -209,7 +210,7 @@ export default function CoachPlanLib() {
           ) : null}
 
           {loading ? (
-            <View className='coach-plan-lib-page__empty'>加载中...</View>
+            <View className="coach-plan-lib-page__empty"><LoadingSpinner size={48} /></View>
           ) : templates.length === 0 ? (
             <View className='coach-plan-lib-page__empty'>当前没有匹配的模板</View>
           ) : (

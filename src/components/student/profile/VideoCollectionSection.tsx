@@ -10,6 +10,7 @@ import VideoUploader from '@/components/video/VideoUploader';
 import { useToastContext } from '@/context/ToastContext';
 import type { VideoUploadContext } from '@/types/video';
 import { formatBeijingDate } from '@/lib/beijingTime';
+import { ProgressSpinner } from 'primereact/progressspinner';
 
 type AddMode = 'existing' | 'upload';
 
@@ -348,14 +349,19 @@ export const VideoCollectionSection: React.FC = () => {
 
                             {mode === 'existing' ? (
                                 <div className="space-y-2">
-                                    <label className="block text-sm font-medium text-gray-700">选择已有训练视频</label>
+                                    <label className="block text-sm font-medium text-gray-700 flex items-center gap-2">
+                                        选择已有训练视频
+                                        {loadingVideos && (
+                                            <ProgressSpinner style={{ width: '18px', height: '18px' }} strokeWidth="4" />
+                                        )}
+                                    </label>
                                     <select
                                         className="w-full border rounded-lg px-3 py-2 text-sm"
                                         value={selectedVideoId}
                                         onChange={(e) => setSelectedVideoId(e.target.value)}
+                                        disabled={loadingVideos}
                                     >
                                         <option value="">请选择视频</option>
-                                        {loadingVideos && <option value="">加载中...</option>}
                                         {existingVideos.map(video => (
                                             <option key={video.id} value={video.id}>
                                                 {video.exercise_name || '训练视频'} - {formatBeijingDate(video.created_at, 'zh-CN', {

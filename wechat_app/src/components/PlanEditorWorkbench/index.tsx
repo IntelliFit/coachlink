@@ -37,6 +37,7 @@ import {
   resolveReferenceOneRM
 } from '@/utils/planStrength'
 import './index.scss'
+import { LoadingSpinner } from '@/components/LoadingSpinner'
 
 type PlanEditorMode = 'coach-template' | 'student-favorite'
 type BatchMode = 'replace' | 'delete' | 'append'
@@ -1023,7 +1024,7 @@ export default function PlanEditorWorkbench({
   if (loading) {
     return (
       <View className='plan-editor page-with-nav'>
-        <View className='plan-editor__loading'>加载中...</View>
+        <View className="plan-editor__loading"><LoadingSpinner size={48} /></View>
         {withBottomNav ? <BottomNav /> : null}
       </View>
     )
@@ -1139,7 +1140,7 @@ export default function PlanEditorWorkbench({
             <View className='plan-editor__section'>
               <Text className='plan-editor__section-title'>问卷联动</Text>
               {questionnaireLoading ? (
-                <Text className='plan-editor__muted'>问卷加载中...</Text>
+                <LoadingSpinner size={40} />
               ) : questionnaires.length === 0 ? (
                 <Text className='plan-editor__muted'>当前没有可联动的问题，后续可在问卷里补充。</Text>
               ) : (

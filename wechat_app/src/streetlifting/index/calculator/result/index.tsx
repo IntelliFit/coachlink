@@ -18,6 +18,7 @@ import { authService } from '@/services/authService'
 import { studentService } from '@/services/studentService'
 import { drawStrengthPoster, type StrengthPosterData } from '../poster'
 import './index.scss'
+import { LoadingSpinner } from '@/components/LoadingSpinner'
 
 const EXERCISE_OPTIONS: { label: string; value: ExerciseType }[] = [
   { label: '负重引体向上', value: 'weighted_pullup' },
@@ -235,7 +236,7 @@ export default function CalculatorResultPage() {
     return (
       <View className='calc-result-page'>
         <View className='calc-result-loading'>
-          <Text>加载中...</Text>
+          <LoadingSpinner size={48} />
         </View>
       </View>
     )

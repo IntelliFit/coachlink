@@ -5,6 +5,7 @@ import BottomNav from '@/components/BottomNav'
 import { coachService } from '@/services/coach/coachService'
 import { authService } from '@/services/authService'
 import './index.scss'
+import { LoadingSpinner } from '@/components/LoadingSpinner'
 
 type PricingTier = 'basic' | 'standard' | 'vip'
 
@@ -158,7 +159,7 @@ function CoachPricing() {
       </View>
 
       {loading ? (
-        <View className="loading-wrap">加载中...</View>
+        <View className="loading-wrap"><LoadingSpinner size={48} /></View>
       ) : !hasProducts && !hasLegacyPricings ? (
         <View className="empty-wrap">
           <Text className="empty-text">暂无定价方案</Text>

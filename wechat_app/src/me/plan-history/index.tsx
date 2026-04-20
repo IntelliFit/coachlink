@@ -7,6 +7,7 @@ import { request } from '@/utils/request'
 import { formatDateYMD } from '@/utils/dateFormat'
 import './index.scss'
 import { Calendar, File } from '@nutui/icons-react-taro'
+import { LoadingSpinner } from '@/components/LoadingSpinner'
 
 interface PlanHistoryItem {
   id: string
@@ -144,7 +145,7 @@ function PlanHistoryPage() {
 
           {loading && page === 1 ? (
             <View className='loading-wrap'>
-              <Text>加载中...</Text>
+              <LoadingSpinner size={48} />
             </View>
           ) : plans.length === 0 ? (
             <View className='empty-state'>

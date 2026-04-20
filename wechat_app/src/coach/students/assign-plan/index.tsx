@@ -8,6 +8,7 @@ import { planLibService } from '@/services/coach/planLibService'
 import { actionLibService } from '@/services/coach/actionLibService'
 import { isOneRMEligibleAction } from '@/utils/oneRmEligibility'
 import './index.scss'
+import { LoadingSpinner } from '@/components/LoadingSpinner'
 
 interface CoachAction {
   id: string
@@ -387,7 +388,7 @@ export default function AssignPlanPage() {
   if (loading) {
     return (
       <View className='assign-plan-page'>
-        <View className='loading'>加载中...</View>
+        <View className="loading"><LoadingSpinner size={48} /></View>
       </View>
     )
   }

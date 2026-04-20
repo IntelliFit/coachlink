@@ -4,6 +4,7 @@ import Taro, { useDidShow } from '@tarojs/taro'
 import BottomNav from '@/components/BottomNav'
 import { coachService } from '@/services/coach/coachService'
 import './index.scss'
+import { LoadingSpinner } from '@/components/LoadingSpinner'
 
 interface QuestionnaireTemplateItem {
   id: string
@@ -305,7 +306,7 @@ function CoachQuestionnaire() {
   if (loading) {
     return (
       <View className='coach-questionnaire-page'>
-        <View className='loading-wrap'>加载中...</View>
+        <View className="loading-wrap"><LoadingSpinner size={48} /></View>
         <BottomNav />
       </View>
     )

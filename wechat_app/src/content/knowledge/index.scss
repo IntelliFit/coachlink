@@ -99,11 +99,15 @@
 
   .empty-panel,
   .search-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
     background: #fff;
     border: 1px solid #e5e7eb;
     border-radius: 14px;
     padding: 20px 16px;
     text-align: center;
+    min-height: 120rpx;
   }
 
   .empty-panel-text {

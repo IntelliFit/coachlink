@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { ProgressSpinner } from 'primereact/progressspinner';
 import { supabase } from '../lib/supabaseClient';
 import { AuthService } from '../services/authService';
 import { 
@@ -191,10 +192,7 @@ const AdminReviewPage: React.FC<AdminReviewPageProps> = ({ onNavigate }) => {
       <div className="container mx-auto px-4 py-8">
         {loading ? (
           <div className="flex items-center justify-center py-12">
-            <div className="text-center">
-              <Clock className="w-12 h-12 text-blue-500 mx-auto mb-4 animate-spin" />
-              <p className="text-gray-600">加载中...</p>
-            </div>
+            <ProgressSpinner style={{ width: '48px', height: '48px' }} className="text-primary-500" strokeWidth="4" />
           </div>
         ) : pendingRecords.length === 0 ? (
           <div className="space-y-6">

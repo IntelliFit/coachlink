@@ -4,6 +4,7 @@ import Taro, { useRouter } from '@tarojs/taro'
 import { studentService } from '@/services/studentService'
 import { request } from '@/utils/request'
 import './index.scss'
+import { LoadingSpinner } from '@/components/LoadingSpinner'
 
 interface UserStats {
   totalWorkouts: number
@@ -115,7 +116,7 @@ export default function UserProfilePage() {
   if (loading) {
     return (
       <View className='user-profile-page'>
-        <View className='loading'>加载中...</View>
+        <View className="loading"><LoadingSpinner size={48} /></View>
       </View>
     )
   }

@@ -5,6 +5,7 @@ import BottomNav from '@/components/BottomNav'
 import { request } from '@/utils/request'
 import './index.scss'
 import { Notice } from '@nutui/icons-react-taro'
+import { LoadingSpinner } from '@/components/LoadingSpinner'
 
 function PlanHistoryDetail() {
   const router = useRouter()
@@ -41,7 +42,7 @@ function PlanHistoryDetail() {
       <View className='plan-history-detail-page'>
         <ScrollView className='page-scroll' scrollY>
           <View className='loading-wrap'>
-            <Text>加载中...</Text>
+            <LoadingSpinner size={48} />
           </View>
         </ScrollView>
         <BottomNav />

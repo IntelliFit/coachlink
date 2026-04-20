@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Button } from 'primereact/button';
+import { ProgressSpinner } from 'primereact/progressspinner';
 import { WalletData } from '@/app/api/coach/wallet/route';
 import { ArrowUpRight, ArrowDownLeft, Wallet } from 'lucide-react';
 import axios from 'axios';
@@ -291,7 +292,9 @@ export default function CoachWalletPage() {
                     <h3 className="text-lg font-bold text-surface-900">提现记录</h3>
                 </div>
                 {loadingWithdrawals ? (
-                    <div className="text-center py-10 text-surface-500">加载中...</div>
+                    <div className="flex justify-center py-10">
+                        <ProgressSpinner style={{ width: '40px', height: '40px' }} className="text-primary-500" strokeWidth="4" />
+                    </div>
                 ) : withdrawals.length > 0 ? (
                     <div className="space-y-4">
                         {withdrawals.map((wd) => {

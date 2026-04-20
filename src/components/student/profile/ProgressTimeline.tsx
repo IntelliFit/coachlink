@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { History, Trophy, Play, Calendar, Star, Loader2, Trash2 } from 'lucide-react';
+import { History, Trophy, Play, Calendar, Star, Trash2 } from 'lucide-react';
 import { Dialog } from 'primereact/dialog';
+import { ProgressSpinner } from 'primereact/progressspinner';
 import { ProfileData, TimelineItem, PRRecord } from './types';
 import { executionService } from '@/app/service/executionService';
 
@@ -97,8 +98,7 @@ export const ProgressTimeline: React.FC<ProgressTimelineProps> = ({ data }) => {
                     进步足迹
                 </h2>
                 <div className="flex items-center justify-center py-8">
-                    <Loader2 className="w-6 h-6 animate-spin text-primary" />
-                    <span className="ml-2 text-gray-500">加载中...</span>
+                    <ProgressSpinner style={{ width: '40px', height: '40px' }} className="text-primary" strokeWidth="4" />
                 </div>
             </div>
         );

@@ -13,6 +13,7 @@ import { isOneRMEligibleAction } from '@/utils/oneRmEligibility'
 import { buildExecutionSummary } from '@/utils/planEditor'
 import { buildStrengthPreview, resolveEditableDisplayName } from '@/utils/planStrength'
 import './index.scss'
+import { LoadingSpinner } from '@/components/LoadingSpinner'
 
 // ============ 类型定义 ============
 interface StudentProfile {
@@ -2086,7 +2087,7 @@ function CoachStudentPlan() {
     return (
       <View className='coach-student-plan-page'>
         <View className='loading-container'>
-          <Text className='loading-text'>加载中...</Text>
+          <LoadingSpinner size={48} />
         </View>
       </View>
     )

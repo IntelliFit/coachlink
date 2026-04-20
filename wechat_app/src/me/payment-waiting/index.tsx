@@ -4,6 +4,7 @@ import Taro, { useDidShow, useRouter } from '@tarojs/taro'
 import { queryPaymentOrder, type PaymentStatus } from '@/services/paymentService'
 import './index.scss'
 import { ArrowRight } from '@nutui/icons-react-taro'
+import { LoadingSpinner } from '@/components/LoadingSpinner'
 
 const POLL_INTERVAL = 5000
 
@@ -93,7 +94,7 @@ export default function PaymentWaiting() {
     return (
       <View className="payment-waiting-page">
         <View className="payment-waiting-card">
-          <Text className="payment-waiting-hint">加载中...</Text>
+          <LoadingSpinner size={48} />
         </View>
       </View>
     )

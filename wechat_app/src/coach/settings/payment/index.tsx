@@ -4,6 +4,7 @@ import Taro from '@tarojs/taro'
 import { coachService } from '@/services/coach/coachService'
 import BottomNav from '@/components/BottomNav'
 import './index.scss'
+import { LoadingSpinner } from '@/components/LoadingSpinner'
 
 function CoachPaymentSettings() {
   const [loading, setLoading] = useState(true)
@@ -111,7 +112,7 @@ function CoachPaymentSettings() {
   if (loading) {
     return (
       <View className="payment-settings-page">
-        <View className="loading-wrap">加载中...</View>
+        <View className="loading-wrap"><LoadingSpinner size={48} /></View>
         <BottomNav />
       </View>
     )

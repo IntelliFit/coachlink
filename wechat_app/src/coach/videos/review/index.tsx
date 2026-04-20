@@ -4,6 +4,7 @@ import Taro from '@tarojs/taro'
 import { coachVideoService } from '@/services/coach/coachVideoService'
 import type { ExecutionSetVideoWithDetails } from '@/services/coach/coachVideoService'
 import './index.scss'
+import { LoadingSpinner } from '@/components/LoadingSpinner'
 
 function CoachVideosReview() {
   const videoId = Taro.getCurrentInstance().router?.params?.id
@@ -128,7 +129,7 @@ function CoachVideosReview() {
   if (loading) {
     return (
       <View className="review-page">
-        <View className="loading-wrap">加载中...</View>
+        <View className="loading-wrap"><LoadingSpinner size={48} /></View>
       </View>
     )
   }

@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { Card } from 'primereact/card';
 import { Button } from 'primereact/button';
+import { ProgressSpinner } from 'primereact/progressspinner';
 import { CoachActionRow } from '@/types';
 import { FormPlanTrainingDay } from '@/app/api/plan-lib/create-template/entity';
 import { AeroInputNumber } from '@/components/AeroInputNumber';
@@ -253,7 +254,9 @@ const CoachOneRMConfigPanel: React.FC<CoachOneRMConfigPanelProps> = ({
     if (loading) {
         return (
             <Card className="mb-6 bg-primary-50 border-primary-100 shadow-none">
-                <div className="text-center py-4 text-surface-500">加载中...</div>
+                <div className="flex justify-center py-6">
+                    <ProgressSpinner style={{ width: '40px', height: '40px' }} className="text-primary" strokeWidth="4" />
+                </div>
             </Card>
         );
     }

@@ -5,6 +5,7 @@ import { useSession } from 'next-auth/react';
 import { getCoach } from '@/app/dashboard/util';
 import { coachService } from '@/app/service/coachService';
 import { Skeleton } from 'primereact/skeleton';
+import { ProgressSpinner } from 'primereact/progressspinner';
 import { Card } from 'primereact/card';
 import { Dialog } from 'primereact/dialog';
 import { InputText } from 'primereact/inputtext';
@@ -1732,7 +1733,9 @@ const QuestionarePage = () => {
                         <div className="flex flex-col md:flex-row md:items-center gap-3 md:justify-between">
                             <div className="flex items-center gap-2">
                                 <div className="text-sm font-bold">问卷模板</div>
-                                {loadingTemplates && <span className="text-xs text-surface-500">加载中...</span>}
+                                {loadingTemplates && (
+                                    <ProgressSpinner style={{ width: '18px', height: '18px' }} strokeWidth="4" />
+                                )}
                             </div>
                             <div className="flex flex-col md:flex-row gap-2 md:items-center w-full md:w-auto">
                                 <div className="flex items-center gap-2">

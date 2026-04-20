@@ -22,6 +22,7 @@ import { Icon } from '@/components/Icon'
 import { authService } from '@/services/authService'
 import { coachService } from '@/services/coach/coachService'
 import './index.scss'
+import { LoadingSpinner } from '@/components/LoadingSpinner'
 
 interface ProfileActionItem {
   key: string
@@ -300,7 +301,7 @@ function CoachMyProfile() {
   if (loading) {
     return (
       <View className='coach-my-profile-page'>
-        <View className='loading-wrap'>加载中...</View>
+        <View className="loading-wrap"><LoadingSpinner size={48} /></View>
         <BottomNav />
       </View>
     )

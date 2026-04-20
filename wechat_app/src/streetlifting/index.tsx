@@ -4,6 +4,7 @@ import Taro from '@tarojs/taro'
 import { request } from '@/utils/request'
 import { Book, Calendar, Calculator, Edit, List, Location } from '@nutui/icons-react-taro'
 import './index.scss'
+import { LoadingSpinner } from '@/components/LoadingSpinner'
 
 export default function StreetliftingIndex() {
   const [stats, setStats] = useState<{ totalCount: number; lastUpdated: string | null }>({ totalCount: 0, lastUpdated: null })
@@ -43,7 +44,7 @@ export default function StreetliftingIndex() {
         </View>
 
         {loading ? (
-          <View className="stats-card"><Text className="stats-loading">加载中…</Text></View>
+          <View className="stats-card"><LoadingSpinner size={48} /></View>
         ) : (
           <View className="stats-card">
             <Text className="stats-value">{stats.totalCount}</Text>

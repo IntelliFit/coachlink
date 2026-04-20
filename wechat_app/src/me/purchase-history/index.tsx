@@ -6,6 +6,7 @@ import { authService } from '@/services/authService'
 import { request } from '@/utils/request'
 import './index.scss'
 import { Edit } from '@nutui/icons-react-taro'
+import { LoadingSpinner } from '@/components/LoadingSpinner'
 
 // 与后端 PurchaseHistoryItem 对齐，兼容 orders 列表
 interface PurchaseItem {
@@ -106,7 +107,7 @@ function PurchaseHistoryPage() {
         <View className='page-content'>
           {loading && page === 1 ? (
             <View className='loading-wrap'>
-              <Text>加载中...</Text>
+              <LoadingSpinner size={48} />
             </View>
           ) : purchases.length === 0 ? (
             <View className='empty-state'>

@@ -5,6 +5,7 @@ import Taro from '@tarojs/taro'
 import { coachService } from '@/services/coach/coachService'
 import { actionLibService } from '@/services/coach/actionLibService'
 import './index.scss'
+import { LoadingSpinner } from '@/components/LoadingSpinner'
 
 type QuestionType = 'text' | 'option' | 'times' | 'tags' | 'rm'
 
@@ -712,7 +713,7 @@ function CoachQuestionnaireEdit() {
   if (loading) {
     return (
       <View className="coach-questionnaire-edit-page">
-        <View className="loading-wrap">加载中...</View>
+        <View className="loading-wrap"><LoadingSpinner size={48} /></View>
       </View>
     )
   }
@@ -840,7 +841,7 @@ function CoachQuestionnaireEdit() {
             </View>
             <ScrollView scrollY className="modal-body">
               {loadingActions ? (
-                <View className="loading-text">加载中...</View>
+                <View className="loading-text"><LoadingSpinner size={48} /></View>
               ) : actions.length === 0 ? (
                 <View className="empty-text">暂无动作，请先添加动作</View>
               ) : (

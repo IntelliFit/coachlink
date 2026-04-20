@@ -12,6 +12,7 @@ import {
 } from '@/services/knowledgeService'
 import { SCENARIO_QUICK_FIXES } from '@/constants/scenarioQuickFixes'
 import './index.scss'
+import { LoadingSpinner } from '@/components/LoadingSpinner'
 
 const NODE_TYPE_LABELS: Record<string, string> = {
   domain: '领域',
@@ -438,7 +439,7 @@ function KnowledgeBase() {
                   }}>收起</Text>
                 </View>
                 {loadingBodyRegion ? (
-                  <View className='empty-panel'><Text className='empty-panel-text'>加载中...</Text></View>
+                  <View className='empty-panel'><LoadingSpinner size={48} /></View>
                 ) : bodyRegionNodes.length === 0 ? (
                   <View className='empty-panel'><Text className='empty-panel-text'>这个部位暂时还没有内容。</Text></View>
                 ) : (
@@ -455,7 +456,7 @@ function KnowledgeBase() {
               <Text className='section-title'>知识体系</Text>
             </View>
             {loadingTree ? (
-              <View className='empty-panel'><Text className='empty-panel-text'>知识体系加载中...</Text></View>
+              <View className='empty-panel'><LoadingSpinner size={40} /></View>
             ) : tree.length === 0 ? (
               <View className='empty-panel'><Text className='empty-panel-text'>知识体系还在整理中。</Text></View>
             ) : (
@@ -471,7 +472,7 @@ function KnowledgeBase() {
                 <Text className='section-title'>{focusedNodeTitle}</Text>
               </View>
               {loadingFocusedNodes ? (
-                <View className='empty-panel'><Text className='empty-panel-text'>加载中...</Text></View>
+                <View className='empty-panel'><LoadingSpinner size={48} /></View>
               ) : focusedEntries.length === 0 ? (
                 <View className='empty-panel'><Text className='empty-panel-text'>这个节点下暂时还没有子内容。</Text></View>
               ) : (
@@ -487,7 +488,7 @@ function KnowledgeBase() {
               <Text className='section-title'>最新书籍笔记</Text>
             </View>
             {loadingBooks ? (
-              <View className='empty-panel'><Text className='empty-panel-text'>加载中...</Text></View>
+              <View className='empty-panel'><LoadingSpinner size={48} /></View>
             ) : books.length > 0 ? (
               <View className='books-grid'>
                 {books.map((book) => (
@@ -520,7 +521,7 @@ function KnowledgeBase() {
               <Text className='section-title'>最新技术文章</Text>
             </View>
             {loadingArticles ? (
-              <View className='empty-panel'><Text className='empty-panel-text'>加载中...</Text></View>
+              <View className='empty-panel'><LoadingSpinner size={48} /></View>
             ) : articles.length > 0 ? (
               <View className='articles-list'>
                 {articles.map((item) => (
