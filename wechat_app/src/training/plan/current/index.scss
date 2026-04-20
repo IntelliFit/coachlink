@@ -1,15 +1,18 @@
 .plan-current-page {
   min-height: 100vh;
-  background: #f3f4f6;
-  padding-bottom: 70px;
+  background: linear-gradient(180deg, #e8e8e8 0%, #f8f8f8 100%);
+  padding-bottom: 200rpx;
+  box-sizing: border-box;
 
   .page-scroll {
-    height: calc(100vh - 70px);
-    background: #f3f4f6;
+    min-height: 100vh;
+    background: transparent;
+    box-sizing: border-box;
   }
 
   .page-content {
-    padding: 12px;
+    padding: 24rpx;
+    box-sizing: border-box;
   }
 
   .loading-container {
@@ -56,43 +59,44 @@
   .plan-switcher {
     display: flex;
     background: #ffffff;
-    border-radius: 10px;
-    padding: 4px;
-    margin-bottom: 10px;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+    border-radius: 9999rpx;
+    padding: 8rpx;
+    margin-bottom: 24rpx;
+    box-shadow: 0 4rpx 24rpx rgba(0, 0, 0, 0.04);
 
     .switcher-btn {
       flex: 1;
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 6px;
-      padding: 10px 16px;
-      border-radius: 8px;
-      font-size: 13px;
+      gap: 8rpx;
+      padding: 16rpx 24rpx;
+      border-radius: 9999rpx;
+      font-size: 26rpx;
       font-weight: 500;
       color: #6b7280;
       background: transparent;
       transition: all 0.2s ease;
 
       &.active {
-        background: #CF6D4E;
+        background: #cf6d4e;
         color: #ffffff;
-        box-shadow: 0 2px 6px rgba(207, 109, 78, 0.3);
+        box-shadow: 0 4rpx 16rpx rgba(207, 109, 78, 0.25);
       }
 
       .switcher-icon {
-        font-size: 14px;
+        font-size: 26rpx;
       }
     }
   }
 
   .coach-card {
     background: #ffffff;
-    border-radius: 12px;
-    padding: 16px;
-    margin-bottom: 10px;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+    border-radius: 32rpx;
+    padding: 32rpx;
+    margin-bottom: 24rpx;
+    box-shadow: 0 8rpx 32rpx rgba(0, 0, 0, 0.04);
+    border: 2rpx solid #f0f0f0;
     position: relative;
     overflow: hidden;
 
@@ -127,17 +131,17 @@
         flex-shrink: 0;
 
         .avatar-box {
-          width: 56px;
-          height: 56px;
-          background: linear-gradient(135deg, #CF6D4E 0%, #E59B7D 100%);
-          border-radius: 12px;
+          width: 112rpx;
+          height: 112rpx;
+          background: #cf6d4e;
+          border-radius: 24rpx;
           display: flex;
           align-items: center;
           justify-content: center;
-          box-shadow: 0 2px 8px rgba(207, 109, 78, 0.2);
+          box-shadow: 0 8rpx 24rpx rgba(207, 109, 78, 0.2);
 
           .avatar-text {
-            font-size: 22px;
+            font-size: 40rpx;
             font-weight: 700;
             color: #ffffff;
           }
@@ -151,25 +155,25 @@
         .info-labels {
           margin-bottom: 4px;
           .pro-badge {
-            padding: 2px 8px;
-            background: linear-gradient(135deg, #FFF5EB 0%, #FFE8D1 100%);
-            color: #CF6D4E;
-            font-size: 10px;
+            padding: 4rpx 16rpx;
+            background: #fff5eb;
+            color: #cf6d4e;
+            font-size: 20rpx;
             font-weight: 700;
-            border-radius: 4px;
+            border-radius: 8rpx;
           }
         }
 
         .coach-name {
-          font-size: 18px;
+          font-size: 32rpx;
           font-weight: 700;
-          color: #1f2937;
-          margin-bottom: 2px;
+          color: #010101;
+          margin-bottom: 8rpx;
         }
 
         .coach-title {
           color: #6b7280;
-          font-size: 12px;
+          font-size: 24rpx;
         }
       }
     }
@@ -177,14 +181,14 @@
 
   .self-plan-card {
     .avatar-box {
-      background: linear-gradient(135deg, #ECFDF5 0%, #D1FAE5 100%) !important;
+      background: #d1fae5 !important;
       .avatar-text {
-        color: #10b981 !important;
+        color: #059669 !important;
       }
     }
     .pro-badge {
-      background: linear-gradient(135deg, #ECFDF5 0%, #D1FAE5 100%) !important;
-      color: #10b981 !important;
+      background: #ecfdf5 !important;
+      color: #059669 !important;
     }
   }
 
@@ -278,7 +282,7 @@
         flex-shrink: 0;
 
         &.icon-training {
-          background: linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%);
+          background: #fef3c7;
         }
         &.icon-rest {
           background: #EFF6FF;

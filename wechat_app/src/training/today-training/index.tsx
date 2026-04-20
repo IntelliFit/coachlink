@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import { View, Text, ScrollView, Input, Textarea } from '@tarojs/components'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { View, Text, Image, ScrollView, Input, Textarea } from '@tarojs/components'
 import Taro, { useDidShow, useShareAppMessage, useShareTimeline } from '@tarojs/taro'
 import BottomNav from '@/components/BottomNav'
 import { authService } from '@/services/authService'
@@ -7,7 +7,7 @@ import { trainingService, PlanInstance } from '@/services/trainingService'
 import { executionService } from '@/services/executionService'
 import { studentActionLibService } from '@/services/studentActionLibService'
 import { studentOnboardingService } from '@/services/studentOnboardingService'
-import { request } from '@/utils/request'
+import { request, API_BASE_URL } from '@/utils/request'
 import { formatMonthDaySlash } from '@/utils/dateFormat'
 import {
   buildSharePath,
@@ -31,23 +31,94 @@ import {
   Message,
   Notice,
   Power,
-  Star,
   Target,
   User
 } from '@nutui/icons-react-taro'
+import { Popup } from '@nutui/nutui-react-taro'
 import {
   buildPlanScheduleModel,
   buildDayModuleModel,
   formatPlanDayLabel,
   resolvePlanDayDate,
-  type NormalizedDayTask
+  toDateKey,
+  type NormalizedDayTask,
+  type PlanScheduleModel
 } from './lib/dayModules'
+import WeekDashboardStrip, { buildWeekStripCells, getSundayWeekStart } from './components/WeekDashboardStrip'
+import type { WeekStripCell } from './components/WeekDashboardStrip'
+import { calculateCurrentWeek, getDayWeekNumber, isDayUnlocked } from '@/utils/weekUnlock'
 import './index.scss'
 
 type PlanMode = 'coach' | 'self'
 type ExecutionStatus = 'none' | 'in_progress' | 'completed'
 const RETURN_CONFIRM_STORAGE_KEY = 'today_training_last_confirmed_day'
 const TODAY_TRAINING_RETURN_TO = '/training/today-training'
+
+/** 小程序 Image 需要可访问的绝对 URL；后端若返回相对路径则拼 API 根 */
+function resolveCoachAvatarUrl(raw: string | null | undefined): string {
+  const s = raw != null ? String(raw).trim() : ''
+  if (!s) return ''
+  if (/^https?:\/\//i.test(s)) return s
+  const base = String(API_BASE_URL || '').replace(/\/$/, '')
+  const path = s.startsWith('/') ? s : `/${s}`
+  return base ? `${base}${path}` : s
+}
+
+const startCalendarDay = (d: Date | string) => {
+  const x = new Date(d)
+  x.setHours(0, 0, 0, 0)
+  return x
+}
+
+function computeWeekMonthTrainingStats(
+  trainingDays: any[],
+  scheduleModel: PlanScheduleModel,
+  planStartDate: string | null | undefined,
+  progressDayIndex: number,
+  executionsByDayIndex: Record<number, any>,
+  completionDates: Record<number, string>
+) {
+  const now = new Date()
+  const weekStart = getSundayWeekStart(now)
+  const weekEnd = new Date(weekStart)
+  weekEnd.setDate(weekStart.getDate() + 6)
+  weekEnd.setHours(23, 59, 59, 999)
+
+  const monthStart = startCalendarDay(new Date(now.getFullYear(), now.getMonth(), 1))
+  const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0)
+  monthEnd.setHours(23, 59, 59, 999)
+
+  let weekTotal = 0
+  let weekDone = 0
+  let monthTotal = 0
+  let monthDone = 0
+
+  for (const day of trainingDays) {
+    if (day.type !== 'training') continue
+    const info = scheduleModel.scheduleByDayIndex.get(day.dayIndex)
+    const dt =
+      info?.displayDate ||
+      resolvePlanDayDate({
+        dayIndex: day.dayIndex,
+        effectiveStartDate: planStartDate,
+        fallbackAnchorDayIndex: progressDayIndex || 1
+      })
+    const t = startCalendarDay(dt).getTime()
+    const ex = executionsByDayIndex[day.dayIndex]
+    const done = ex?.status === 'completed' || !!completionDates[day.dayIndex]
+
+    if (t >= weekStart.getTime() && t <= weekEnd.getTime()) {
+      weekTotal++
+      if (done) weekDone++
+    }
+    if (t >= monthStart.getTime() && t <= monthEnd.getTime()) {
+      monthTotal++
+      if (done) monthDone++
+    }
+  }
+
+  return { weekDone, weekTotal, monthDone, monthTotal }
+}
 
 const isAuthErrorMessage = (message?: string | null) => {
   if (!message) return false
@@ -71,6 +142,8 @@ const getExecutionId = (value: any) => value?.id || value?.data?.id || null
 function TodayTraining() {
   const [coachSubscriptions, setCoachSubscriptions] = useState<any[]>([])
   const [activeCoachSubscriptionId, setActiveCoachSubscriptionId] = useState<string | null>(null)
+  const activeCoachSubscriptionIdRef = useRef<string | null>(null)
+  const loadRequestSeqRef = useRef(0)
   const [coachPlanDataBySubId, setCoachPlanDataBySubId] = useState<Record<string, any>>({})
 
   const [selfInstance, setSelfInstance] = useState<PlanInstance | null>(null)
@@ -101,6 +174,8 @@ function TodayTraining() {
   const [daySharePath, setDaySharePath] = useState('')
   const [dayShareLoading, setDayShareLoading] = useState(false)
   const [dayShareShareable, setDayShareShareable] = useState(false)
+  const [moreTrainingOpen, setMoreTrainingOpen] = useState(false)
+  const [scheduleScrollIntoView, setScheduleScrollIntoView] = useState('')
   const [newTaskSuggestedTime, setNewTaskSuggestedTime] = useState('')
   const [newTaskNotes, setNewTaskNotes] = useState('')
   const [newDietContent, setNewDietContent] = useState('')
@@ -179,6 +254,13 @@ function TodayTraining() {
     return '晚上好'
   }, [])
 
+  const greetingIconClass = useMemo(() => {
+    const hour = new Date().getHours()
+    if (hour < 12) return 'icon-zaoshang'
+    if (hour < 18) return 'icon-zhongwu'
+    return 'icon-wanshang'
+  }, [])
+
   const todayDateText = useMemo(() => {
     const now = new Date()
     const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
@@ -187,12 +269,6 @@ function TodayTraining() {
     const weekday = weekdays[now.getDay()]
     return `${month}月${date}日 · ${weekday}`
   }, [])
-
-  const heroProgressPercent = useMemo(() => {
-    if (!instance?.total_days || instance.total_days <= 0) return 0
-    const done = Math.max(0, Math.min(instance.total_days, (progressDayIndex || 1) - 1))
-    return Math.round((done / instance.total_days) * 100)
-  }, [instance?.total_days, progressDayIndex])
 
   const inProgressExec = useMemo(() => {
     const list = Object.values(executionsByDayIndex || {}) as any[]
@@ -274,6 +350,84 @@ function TodayTraining() {
       originalDateLabel: formatPlanDayLabel(selectedSchedule.baselineDate)
     }
   }, [selectedSchedule])
+
+  const unlockedWeekForStrip = useMemo(() => {
+    if (!instance) return 999
+    const byDate = calculateCurrentWeek(effectiveCalendarStartDate || undefined)
+    const byStart = getDayWeekNumber(Number(instance?.start_execution_day || 1))
+    return Math.max(byDate, byStart)
+  }, [effectiveCalendarStartDate, instance])
+
+  const weekStripCells = useMemo(
+    () =>
+      buildWeekStripCells({
+        trainingDays,
+        scheduleModel,
+        planStartDate: effectiveCalendarStartDate,
+        progressDayIndex,
+        currentDayIndex: todayDayIndex,
+        executionsByDayIndex,
+        completionDates,
+        startExecutionDay: instance?.start_execution_day || 1,
+        unlockedWeek: instance ? unlockedWeekForStrip : 999
+      }),
+    [
+      trainingDays,
+      scheduleModel,
+      effectiveCalendarStartDate,
+      progressDayIndex,
+      todayDayIndex,
+      executionsByDayIndex,
+      completionDates,
+      instance?.start_execution_day,
+      unlockedWeekForStrip,
+      instance
+    ]
+  )
+
+  const stripSelectedDateKey = useMemo(() => {
+    const today = startCalendarDay(new Date())
+    if (!instance || trainingDays.length === 0) {
+      return toDateKey(today)
+    }
+    const sch = scheduleModel.scheduleByDayIndex.get(selectedDayIndex)
+    if (sch?.displayDate) return toDateKey(startCalendarDay(sch.displayDate))
+    const d = resolvePlanDayDate({
+      dayIndex: selectedDayIndex,
+      effectiveStartDate: effectiveCalendarStartDate,
+      fallbackAnchorDayIndex: progressDayIndex || 1
+    })
+    return toDateKey(startCalendarDay(d))
+  }, [
+    instance,
+    trainingDays.length,
+    scheduleModel,
+    selectedDayIndex,
+    effectiveCalendarStartDate,
+    progressDayIndex
+  ])
+
+  const weekMonthStats = useMemo(() => {
+    if (!instance || trainingDays.length === 0) {
+      return { weekDone: 0, weekTotal: 0, monthDone: 0, monthTotal: 0 }
+    }
+    return computeWeekMonthTrainingStats(
+      trainingDays,
+      scheduleModel,
+      effectiveCalendarStartDate,
+      progressDayIndex,
+      executionsByDayIndex,
+      completionDates
+    )
+  }, [
+    instance,
+    trainingDays,
+    scheduleModel,
+    effectiveCalendarStartDate,
+    progressDayIndex,
+    executionsByDayIndex,
+    completionDates
+  ])
 
   const selectedHasLightweightTasks = selectedModuleModel.lightweightTasks.length > 0
   const canShareDayCheckin = selectedDay?.type === 'training' && selectedTaskSummary.totalModules > 0
@@ -420,7 +574,12 @@ function TodayTraining() {
     }
   }, [])
 
+  useEffect(() => {
+    activeCoachSubscriptionIdRef.current = activeCoachSubscriptionId
+  }, [activeCoachSubscriptionId])
+
   const loadData = useCallback(async () => {
+    const requestSeq = ++loadRequestSeqRef.current
     try {
       setLoading(true)
       const session = authService.getAuthSession({ normalize: true })
@@ -507,10 +666,29 @@ function TodayTraining() {
 
       setCoachPlanDataBySubId(coachPlanData)
 
-      const previousActive = activeSubs.find((item: any) => item.id === activeCoachSubscriptionId)
+      const selectedSubId = activeCoachSubscriptionIdRef.current
+      const previousActive = activeSubs.find((item: any) => item.id === selectedSubId)
       const firstWithPlan = activeSubs.find((item: any) => coachPlanData[item.id]?.instance)
       const nextActiveId = previousActive?.id || firstWithPlan?.id || activeSubs[0]?.id || null
       setActiveCoachSubscriptionId(nextActiveId)
+
+      const logTargetSub = nextActiveId ? activeSubs.find((item: any) => item.id === nextActiveId) : activeSubs[0]
+      const logCoach = logTargetSub?.coach
+      console.log('[today-training] target coach (coach-subscriptions)', {
+        timestamp: Date.now(),
+        activeSubscriptionId: nextActiveId,
+        subscriptionCoachId: logTargetSub?.coach_id,
+        coachRow: logCoach,
+        avatar_url_raw: logCoach?.avatar_url ?? null,
+        avatar_url_resolved: logCoach?.avatar_url ? resolveCoachAvatarUrl(logCoach.avatar_url) : '',
+        subscriptionsPreview: activeSubs.map((s: any) => ({
+          subId: s.id,
+          coach_id: s.coach_id,
+          hasCoachObject: !!s.coach,
+          coachName: s.coach?.name,
+          avatar_url: s.coach?.avatar_url ?? null
+        }))
+      })
 
       if (selfRes?.instance) {
         const derived = selfRes as any
@@ -546,13 +724,11 @@ function TodayTraining() {
       console.error('[today-training] load failed', error)
       Taro.showToast({ title: '加载失败，请稍后重试', icon: 'none' })
     } finally {
-      setLoading(false)
+      if (requestSeq === loadRequestSeqRef.current) {
+        setLoading(false)
+      }
     }
-  }, [activeCoachSubscriptionId, handleCompletePlan])
-
-  useEffect(() => {
-    void loadData()
-  }, [loadData])
+  }, [handleCompletePlan])
 
   const consumeReturnConfirmState = useCallback(() => {
     const raw = Taro.getStorageSync(RETURN_CONFIRM_STORAGE_KEY)
@@ -633,12 +809,79 @@ function TodayTraining() {
     })
   }, [activeSubscription])
 
+  const scrollToScheduleCalendar = useCallback(() => {
+    setScheduleScrollIntoView('schedule-calendar-anchor')
+    setTimeout(() => setScheduleScrollIntoView(''), 480)
+  }, [])
+
+  const handleHeaderDatePress = useCallback(() => {
+    if (!instance || !trainingDays.length) {
+      Taro.showToast({ title: '暂无计划日历', icon: 'none' })
+      return
+    }
+    scrollToScheduleCalendar()
+  }, [instance, trainingDays.length, scrollToScheduleCalendar])
+
+  const handleWeekStripCell = useCallback(
+    (cell: WeekStripCell) => {
+      if (!instance) {
+        Taro.showToast({ title: '暂无训练计划', icon: 'none' })
+        return
+      }
+      if (cell.planDayIndex == null) {
+        Taro.showToast({ title: '这一天不在当前计划内', icon: 'none' })
+        scrollToScheduleCalendar()
+        return
+      }
+      if (!isDayUnlocked(cell.planDayIndex, unlockedWeekForStrip)) {
+        Taro.showToast({ title: '该日尚未解锁', icon: 'none' })
+        return
+      }
+      setSelectedDayIndex(cell.planDayIndex)
+    },
+    [instance, scrollToScheduleCalendar, unlockedWeekForStrip]
+  )
+
+  const handleOpenTargetCoach = useCallback(() => {
+    const coachId = activeSubscription?.coach_id || activeSubscription?.coach?.id
+    if (!coachId) {
+      Taro.showToast({ title: '暂无教练信息', icon: 'none' })
+      return
+    }
+    Taro.navigateTo({
+      url: `/discovery/coach-profile?id=${encodeURIComponent(String(coachId))}`
+    })
+  }, [activeSubscription])
+
+  /** 多订阅切换：同步进度日与教练计划模式，避免沿用上一位教练的 dayIndex */
+  const handleSelectCoachSubscription = useCallback(
+    (subId: string) => {
+      if (!subId) return
+      setPlanMode('coach')
+      setActiveCoachSubscriptionId(subId)
+      const pd = coachPlanDataBySubId[subId]
+      const raw = Number(pd?.dayIndex ?? 1)
+      let nextDay = Number.isFinite(raw) && raw > 0 ? raw : 1
+      const days = (pd?.instance?.training_days || []) as any[]
+      if (days.length > 0) {
+        const maxDay = Math.max(...days.map((d) => Number(d?.dayIndex || 0)).filter((n) => n > 0))
+        if (Number.isFinite(maxDay) && maxDay > 0 && nextDay > maxDay) nextDay = maxDay
+      }
+      setSelectedDayIndex(nextDay)
+    },
+    [coachPlanDataBySubId]
+  )
+
   const handleGoToPlanLib = useCallback(() => {
     Taro.navigateTo({ url: '/me/plan-lib/index' })
   }, [])
 
   const handleDiscoverCoach = useCallback(() => {
     Taro.navigateTo({ url: '/discovery/index' })
+  }, [])
+
+  const handleGoMyCoaches = useCallback(() => {
+    Taro.navigateTo({ url: '/me/my-coaches/index' })
   }, [])
 
   /** 主行动：进入当前进度日训练执行（与原「开始训练」快捷入口一致） */
@@ -649,37 +892,6 @@ function TodayTraining() {
   const handleImpromptu = useCallback(() => {
     Taro.navigateTo({ url: '/training/impromptu-training' })
   }, [])
-
-  const planCoachSecondaryTiles = useMemo(
-    () => (
-      <View className='home-secondary-cta'>
-        <Text className='home-secondary-cta-kicker'>计划与教练</Text>
-        <View className='secondary-cta-stack'>
-          <View className='secondary-cta-tile secondary-cta-tile--accent' onClick={handleGoToPlanLib}>
-            <View className='secondary-cta-icon-wrap'>
-              <Calendar size={22} color='#CF6D4E' />
-            </View>
-            <View className='secondary-cta-copy'>
-              <Text className='secondary-cta-title'>AI 长期计划</Text>
-              <Text className='secondary-cta-desc'>模板与周期计划，随时调整进度</Text>
-            </View>
-            <Text className='secondary-cta-chevron'>›</Text>
-          </View>
-          <View className='secondary-cta-tile' onClick={handleDiscoverCoach}>
-            <View className='secondary-cta-icon-wrap'>
-              <Location size={22} color='#CF6D4E' />
-            </View>
-            <View className='secondary-cta-copy'>
-              <Text className='secondary-cta-title'>浏览教练</Text>
-              <Text className='secondary-cta-desc'>发现私教与订阅服务</Text>
-            </View>
-            <Text className='secondary-cta-chevron'>›</Text>
-          </View>
-        </View>
-      </View>
-    ),
-    [handleGoToPlanLib, handleDiscoverCoach]
-  )
 
   const handleUpdateProfile = useCallback(() => {
     Taro.navigateTo({ url: '/me/profile/detail/index' })
@@ -945,7 +1157,13 @@ function TodayTraining() {
 
   const renderLoading = () => (
     <View className='today-training-page'>
-      <ScrollView className='page-scroll' scrollY>
+      <ScrollView
+        className='page-scroll'
+        scrollY
+        scrollIntoView={scheduleScrollIntoView}
+        scrollWithAnimation
+        scrollIntoViewAlignment='start'
+      >
         <View className='loading-container'>
           <View className='skeleton-card'>
             <View className='skeleton-header' />
@@ -968,51 +1186,169 @@ function TodayTraining() {
     </View>
   )
 
-  /** 融合原首页：目标卡片（真实今日完成度 + 计划进度）+ 促销卡 */
-  const renderHomeStyleStrip = () => {
-    const heroSubtitle = instance
-      ? `${instance.name || '今日训练'} · 今日完成度与计划进度一览`
-      : '添加计划或从即兴首练开始，数据将展示在这里'
-    const planLine = instance
-      ? `计划整体进度 ${heroProgressPercent}% · 第 ${progressDayIndex} 天 / 共 ${instance.total_days ?? '-'} 天`
-      : '尚未关联长期训练计划'
-
-    return (
-      <View className='tt-home-blocks'>
-        <View className='home-hero-card'>
-          <View className='hero-card-content'>
-            <View className='hero-card-text'>
-              <Text className='hero-card-title'>开启你的训练之旅</Text>
-              <Text className='hero-card-subtitle'>{heroSubtitle}</Text>
-            </View>
-            <View className='hero-card-icon-wrap'>
-              <Power width={28} height={28} color='#CF6D4E' />
-            </View>
-          </View>
-          <View className='hero-card-progress'>
-            <View className='progress-track'>
-              <View className='progress-fill' style={{ width: `${Math.min(100, Math.max(0, homeTodayCompletionPercent))}%` }} />
-            </View>
-            <Text className='progress-label'>今日完成度 {homeTodayCompletionPercent}%</Text>
-            <Text className='hero-plan-hint'>{planLine}</Text>
-          </View>
+  const renderDashboardIntro = () => (
+    <View className='dashboard-intro-row'>
+      <View className='dashboard-intro-left'>
+        <View className='dashboard-greeting-row'>
+          <Text className={`dashboard-greeting-icon iconfont ${greetingIconClass}`} />
+          <Text className='dashboard-greeting'>{greeting}</Text>
         </View>
+        <View className='dashboard-date-hit' onClick={handleHeaderDatePress} hoverClass='dashboard-date-hit--active' hoverStayTime={70}>
+          <Text className='dashboard-date'>{todayDateText}</Text>
+        </View>
+      </View>
+      <View className='dashboard-more-hit' onClick={() => setMoreTrainingOpen(true)}>
+        <Text className='dashboard-more-dots'>⋯</Text>
+      </View>
+    </View>
+  )
 
-        <View className='home-promo-card'>
-          <Text className='promo-card-title'>运动后拉伸</Text>
-          <Text className='promo-card-subtitle'>有助于提升睡眠质量</Text>
-          <View className='promo-card-actions'>
-            <View className='promo-btn promo-btn-outline' onClick={() => Taro.navigateTo({ url: '/content/knowledge' })}>
-              <Text className='promo-btn-text'>了解更多</Text>
+  const renderCoachSwitcherAbovePlan = () => {
+    if (planMode !== 'coach') return null
+    if (!coachSubscriptions.length) return null
+    if (coachSubscriptions.length > 1) {
+      return (
+        <View className='coach-tabs'>
+          <ScrollView scrollX enableFlex className='coach-tabs-scroll'>
+            <View className='coach-tabs-inner'>
+              {coachSubscriptions.map((sub: any) => {
+                const isActive = activeCoachSubscriptionId === sub.id
+                const hasPlan = !!coachPlanDataBySubId[sub.id]?.instance
+                return (
+                  <View
+                    key={sub.id}
+                    className={`coach-tab ${isActive ? 'active' : ''} ${!hasPlan ? 'no-plan' : ''}`}
+                    hoverClass='coach-tab--pressed'
+                    hoverStayTime={70}
+                    onClick={() => handleSelectCoachSubscription(sub.id)}
+                  >
+                    <Text className='coach-tab-name'>{sub.coach?.name || `教练${String(sub.id).slice(0, 8)}`}</Text>
+                    {!hasPlan && <Text className='coach-tab-badge'>{isExpiredGrace && isActive ? '待续费' : '待制定'}</Text>}
+                  </View>
+                )
+              })}
             </View>
-            <View className='promo-btn promo-btn-solid' onClick={() => Taro.navigateTo({ url: '/training/impromptu-training' })}>
-              <Text className='promo-btn-text'>立即开始</Text>
-            </View>
-          </View>
+          </ScrollView>
+        </View>
+      )
+    }
+    return (
+      <View className='tt-coach-switch-bar'>
+        <View
+          className='tt-coach-switch-btn'
+          onClick={handleGoMyCoaches}
+          hoverClass='tt-coach-switch-btn--pressed'
+          hoverStayTime={70}
+        >
+          <Text className='tt-coach-switch-label'>切换教练</Text>
+          <Text className='tt-coach-switch-chevron'>›</Text>
         </View>
       </View>
     )
   }
+
+  const renderDailyProgressCard = () => {
+    const showCoachRow =
+      !!instance &&
+      planMode === 'coach' &&
+      coachSubscriptions.length <= 1 &&
+      !!(activeSubscription?.coach_id || activeSubscription?.coach?.id)
+    const coachEntity = activeSubscription?.coach
+    const coachNameOnly = coachEntity?.name?.trim() || '教练'
+    const coachAvatarUrl = resolveCoachAvatarUrl(coachEntity?.avatar_url)
+    const coachInitial = coachNameOnly.charAt(0) || '教'
+
+    return (
+      <View className='tt-daily-progress-card'>
+        <Text className='tt-daily-progress-title'>{instance?.name || '训练'}</Text>
+        {showCoachRow && (
+          <View
+            className='tt-daily-progress-coach-row'
+            onClick={handleOpenTargetCoach}
+            hoverClass='tt-daily-progress-coach-row--active'
+            hoverStayTime={70}
+          >
+            <View className='tt-daily-progress-coach-identity'>
+              <View className='tt-daily-progress-coach-avatar-wrap'>
+                {coachAvatarUrl ? (
+                  <Image
+                    src={coachAvatarUrl}
+                    mode='aspectFill'
+                    className='tt-daily-progress-coach-avatar-img'
+                    onError={() => {
+                      console.warn('[today-training] coach avatar image load failed', { coachAvatarUrl })
+                    }}
+                  />
+                ) : (
+                  <View className='tt-daily-progress-coach-avatar-fallback'>
+                    <Text className='tt-daily-progress-coach-avatar-letter'>{coachInitial}</Text>
+                  </View>
+                )}
+              </View>
+              <View className='tt-daily-progress-coach-text'>
+                <Text className='tt-daily-progress-coach-name'>{coachNameOnly}</Text>
+              </View>
+              <Text className='tt-daily-progress-coach-chevron'>›</Text>
+            </View>
+          </View>
+        )}
+        <View className='tt-daily-progress-track'>
+          <View
+            className='tt-daily-progress-fill'
+            style={{ width: `${Math.min(100, Math.max(0, homeTodayCompletionPercent))}%` }}
+          />
+        </View>
+        <Text className='tt-daily-progress-label'>今日进度 {homeTodayCompletionPercent}%</Text>
+        {instance && trainingDays.length > 0 && (
+          <View className='tt-period-stats'>
+            <Text className='tt-period-line'>
+              本周 · 训练日 {weekMonthStats.weekDone}/{weekMonthStats.weekTotal}
+            </Text>
+            <Text className='tt-period-line'>
+              本月 · 训练日 {weekMonthStats.monthDone}/{weekMonthStats.monthTotal}
+            </Text>
+          </View>
+        )}
+      </View>
+    )
+  }
+
+  const renderMoreTrainingPopup = () => (
+    <Popup visible={moreTrainingOpen} position='bottom' round onClose={() => setMoreTrainingOpen(false)}>
+      <View className='more-training-sheet'>
+        <View
+          className='more-training-item'
+          onClick={() => {
+            setMoreTrainingOpen(false)
+            handleImpromptu()
+          }}
+        >
+          <Power size={22} color='#CF6D4E' />
+          <Text className='more-training-item-text'>即兴首练</Text>
+        </View>
+        <View
+          className='more-training-item'
+          onClick={() => {
+            setMoreTrainingOpen(false)
+            handleGoToPlanLib()
+          }}
+        >
+          <Calendar size={22} color='#CF6D4E' />
+          <Text className='more-training-item-text'>AI 长期计划</Text>
+        </View>
+        <View
+          className='more-training-item'
+          onClick={() => {
+            setMoreTrainingOpen(false)
+            handleDiscoverCoach()
+          }}
+        >
+          <Location size={22} color='#CF6D4E' />
+          <Text className='more-training-item-text'>浏览教练</Text>
+        </View>
+      </View>
+    </Popup>
+  )
 
   if (loading) {
     return renderLoading()
@@ -1021,21 +1357,28 @@ function TodayTraining() {
   const hasAnyPlan = !!(coachInstance || selfInstance)
   const hasBothPlans = !!(coachInstance && selfInstance)
   const hasActiveCoachSubscription = !!activeSubscription?.id
-  const subscribedCoachName =
-    activeSubscription?.coach?.name || activeSubscription?.coach?.title || activeSubscription?.coach_id || ''
   const graceDaysLeft = Math.max(0, Number(activeSubscription?.grace_days_left || 0))
   const graceDeadlineLabel = formatShortDate(activeSubscription?.grace_deadline_at)
 
   if (!hasAnyPlan) {
     return (
       <View className='today-training-page'>
-        <ScrollView className='page-scroll' scrollY>
+        <ScrollView
+          className='page-scroll'
+          scrollY
+          scrollIntoView={scheduleScrollIntoView}
+          scrollWithAnimation
+          scrollIntoViewAlignment='start'
+        >
           <View className='page-content'>
-            <View className='dashboard-header'>
-              <Text className='dashboard-greeting'>{greeting}</Text>
-              <Text className='dashboard-date'>{todayDateText}</Text>
-            </View>
-            {renderHomeStyleStrip()}
+            {renderDashboardIntro()}
+            <WeekDashboardStrip
+              cells={weekStripCells}
+              selectedDateKey={stripSelectedDateKey}
+              onCellPress={handleWeekStripCell}
+            />
+            {renderCoachSwitcherAbovePlan()}
+            {renderDailyProgressCard()}
             <View className='empty-card waiting-card'>
               <View className='empty-icon-wrapper'>
                 <View className='empty-icon-bg' />
@@ -1053,13 +1396,9 @@ function TodayTraining() {
               <Text className='empty-desc'>
                 {activeSubscription?.id
                   ? isExpiredGrace
-                    ? subscribedCoachName
-                      ? `您与教练「${subscribedCoachName}」的订阅已到期。训练计划内容已锁定，请在宽限期内续费后恢复并继续当前进度。`
-                      : '您的教练订阅已到期。训练计划内容已锁定，请在宽限期内续费后恢复并继续当前进度。'
-                    : subscribedCoachName
-                      ? `您的教练「${subscribedCoachName}」正在为您制定训练计划，请耐心等待。`
-                      : '您的教练正在为您制定训练计划，请耐心等待。'
-                  : '先完成一次即兴首练，再决定是否进入 AI 长期计划或订阅教练。'}
+                    ? '订阅已到期，请续费。'
+                    : '教练正在制定计划。'
+                  : '暂无长期计划。'}
               </Text>
 
               {isExpiredGrace && (
@@ -1089,12 +1428,11 @@ function TodayTraining() {
                     <Text>联系教练</Text>
                   </View>
                 )}
-
-                <View className='empty-actions-pair'>{planCoachSecondaryTiles}</View>
               </View>
             </View>
           </View>
         </ScrollView>
+        {renderMoreTrainingPopup()}
         <BottomNav />
       </View>
     )
@@ -1126,15 +1464,20 @@ function TodayTraining() {
 
   return (
     <View className='today-training-page'>
-      <ScrollView className='page-scroll' scrollY>
+      <ScrollView
+        className='page-scroll'
+        scrollY
+        scrollIntoView={scheduleScrollIntoView}
+        scrollWithAnimation
+        scrollIntoViewAlignment='start'
+      >
         <View className='page-content'>
-          <View className='dashboard-header'>
-            <Text className='dashboard-greeting'>{greeting}</Text>
-            <Text className='dashboard-date'>{todayDateText}</Text>
-          </View>
-
-          {renderHomeStyleStrip()}
-
+          {renderDashboardIntro()}
+          <WeekDashboardStrip
+            cells={weekStripCells}
+            selectedDateKey={stripSelectedDateKey}
+            onCellPress={handleWeekStripCell}
+          />
           {hasBothPlans && (
             <View className='plan-switcher'>
               <View className={`switcher-btn ${planMode === 'coach' ? 'active' : ''}`} onClick={() => setPlanMode('coach')}>
@@ -1142,32 +1485,13 @@ function TodayTraining() {
                 <Text>教练计划</Text>
               </View>
               <View className={`switcher-btn ${planMode === 'self' ? 'active' : ''}`} onClick={() => setPlanMode('self')}>
-                <Text className='switcher-icon'><Star size={14} /></Text>
+                <Text className='iconfont icon-star switcher-icon-star' />
                 <Text>我的计划</Text>
               </View>
             </View>
           )}
-
-          {planMode === 'coach' && coachSubscriptions.length > 1 && (
-            <View className='coach-tabs'>
-              <ScrollView scrollX className='coach-tabs-scroll'>
-                {coachSubscriptions.map((sub: any) => {
-                  const isActive = activeCoachSubscriptionId === sub.id
-                  const hasPlan = !!coachPlanDataBySubId[sub.id]?.instance
-                  return (
-                    <View
-                      key={sub.id}
-                      className={`coach-tab ${isActive ? 'active' : ''} ${!hasPlan ? 'no-plan' : ''}`}
-                      onClick={() => setActiveCoachSubscriptionId(sub.id)}
-                    >
-                      <Text className='coach-tab-name'>{sub.coach?.name || `教练${String(sub.id).slice(0, 8)}`}</Text>
-                      {!hasPlan && <Text className='coach-tab-badge'>{isExpiredGrace && isActive ? '待续费' : '待制定'}</Text>}
-                    </View>
-                  )
-                })}
-              </ScrollView>
-            </View>
-          )}
+          {renderCoachSwitcherAbovePlan()}
+          {renderDailyProgressCard()}
 
           {waitingCoachPage ? (
             <View className='empty-card waiting-card'>
@@ -1179,9 +1503,7 @@ function TodayTraining() {
               </View>
               <Text className='empty-title'>{isExpiredGrace ? '订阅已到期，请尽快续费' : '教练计划正在制定中'}</Text>
               <Text className='empty-desc'>
-                {isExpiredGrace
-                  ? `您与教练「${subscribedCoachName || '教练'}」的订阅已到期。训练计划内容已锁定，请在宽限期内续费后恢复并继续当前进度。`
-                  : `您的教练「${subscribedCoachName || '教练'}」正在为您制定训练计划，请耐心等待。`}
+                {isExpiredGrace ? '订阅已到期，请续费。' : '教练正在制定计划。'}
               </Text>
 
               {isExpiredGrace && (
@@ -1210,81 +1532,31 @@ function TodayTraining() {
                     <Text>联系教练</Text>
                   </View>
                 )}
-                <View className='empty-actions-pair'>{planCoachSecondaryTiles}</View>
               </View>
             </View>
           ) : (
             <>
-              <View className='unified-home-block'>
-                <Text className='unified-home-headline'>加油，开练！</Text>
-
-                <View className='unified-hero-card'>
-                  <View className='hero-progress-row'>
-                    <Text className='hero-plan-name'>{instance?.name || '今日训练'}</Text>
-                    <View className={`hero-status-badge ${selectedStatusClass}`}>
-                      <Text>{selectedStatusText}</Text>
-                    </View>
-                  </View>
-                  <View className='hero-progress-bar-bg'>
-                    <View className='hero-progress-bar-fill' style={{ width: `${heroProgressPercent}%` }} />
-                  </View>
-                  <Text className='hero-progress-text'>计划进度 {heroProgressPercent}% · 第{progressDayIndex}天 / 共{instance?.total_days || '-'}天</Text>
-
-                  <Text className='unified-stat-title'>今日数据</Text>
-                  <View className='summary-grid unified-stat-grid'>
-                    <View className='summary-cell'>
-                      <Text className='summary-cell-value'>{selectedDay?.type === 'training' ? selectedTaskSummary.totalModules : 1}</Text>
-                      <Text className='summary-cell-label'>今日模块</Text>
-                    </View>
-                    <View className='summary-cell highlight'>
-                      <Text className='summary-cell-value'>
-                        {selectedDay?.type === 'training'
-                          ? selectedTaskSummary.completedModules
-                          : selectedExecutionStatus === 'completed'
-                            ? 1
-                            : 0}
-                      </Text>
-                      <Text className='summary-cell-label'>已完成</Text>
-                    </View>
-                    <View className='summary-cell'>
-                      <Text className='summary-cell-value'>
-                        {selectedDay?.type === 'training'
-                          ? selectedTaskSummary.remainingModules
-                          : selectedExecutionStatus === 'completed'
-                            ? 0
-                            : 1}
-                      </Text>
-                      <Text className='summary-cell-label'>剩余</Text>
-                    </View>
-                    <View className='summary-cell'>
-                      <Text className='summary-cell-value'>{selectedDay?.type === 'training' ? '训练日' : '恢复日'}</Text>
-                      <Text className='summary-cell-label'>当前节奏</Text>
-                    </View>
+              <View className='unified-home-block unified-home-block--compact'>
+                <View className='today-action-row'>
+                  <View className={`hero-status-badge ${selectedStatusClass}`}>
+                    <Text>{selectedStatusText}</Text>
                   </View>
                 </View>
-
                 <View className='today-outline-btn' onClick={handleMegaStart}>
                   <Power size={20} color='#CF6D4E' />
                   <Text className='today-outline-text'>进入今日训练</Text>
                 </View>
-
-                <View className='home-quick-cta'>
-                  <Text className='home-quick-cta-kicker'>即兴开练</Text>
-                  <View className='mega-start-btn' onClick={handleImpromptu}>
-                    <Power size={22} color='#FFFFFF' />
-                    <Text className='mega-start-text'>开始即兴首练</Text>
+                {instance?.source === 'self' && (
+                  <View className='self-plan-remove-row' onClick={handleRemoveSelfPlan}>
+                    <Text className='danger-action'>移除自建计划</Text>
                   </View>
-                </View>
-
-                {planCoachSecondaryTiles}
-
+                )}
                 {isExpiredGrace && (
                   <View className='renew-inline' onClick={() => Taro.navigateTo({ url: renewPath })}>
                     <ArrowRight size={16} color='#CF6D4E' />
-                    <Text className='renew-inline-text'>订阅宽限期内，去续费恢复计划</Text>
+                    <Text className='renew-inline-text'>宽限期内续费</Text>
                   </View>
                 )}
-
                 {activeSubscription?.id && !isExpiredGrace && (
                   <View className='contact-coach-inline' onClick={handleContactCoach}>
                     <Message size={16} color='#6B7280' />
@@ -1293,64 +1565,18 @@ function TodayTraining() {
                 )}
               </View>
 
-              <View className={instance?.source === 'self' ? 'coach-card self-plan-card' : 'coach-card'}>
-                <View className='card-content'>
-                  <View className='card-main'>
-                    <View className='coach-avatar'>
-                      <View className='avatar-box'>
-                        <Text className='avatar-text'>
-                          {instance?.source === 'self' ? 'ME' : String(activeSubscription?.coach?.name || 'C').slice(0, 1)}
-                        </Text>
-                      </View>
-                      {instance?.source !== 'self' && <View className='online-dot' />}
-                    </View>
-                    <View className='coach-info'>
-                      <View className='info-labels'>
-                        <Text className='pro-badge'>{instance?.source === 'self' ? 'SELF PLAN' : 'PRO COACH'}</Text>
-                        <Text className='status-text'>
-                          {instance?.source === 'self' ? 'Your personal journey' : 'Assigning your path'}
-                        </Text>
-                      </View>
-                      <Text className='coach-name'>
-                        {instance?.source === 'self' ? instance?.name || '我的计划' : activeSubscription?.coach?.name || '未知教练'}
-                      </Text>
-                      <Text className='coach-title'>
-                        {instance?.source === 'self' ? '自我驱动，超越极限' : activeSubscription?.coach?.title || '资深健身专家'}
-                      </Text>
-                    </View>
-                  </View>
-                  {instance?.source === 'self' && (
-                    <View className='card-action' onClick={handleRemoveSelfPlan}>
-                      <Text className='danger-action'>移除计划</Text>
-                    </View>
-                  )}
-                </View>
-              </View>
-
               {returnConfirmedDayIndex && (
                 <View className='return-confirm-banner'>
-                  <Text>
-                    已确认第{returnConfirmedDayIndex}天：训练记录、备注和视频都会沉淀；真实重量会帮助系统更新 e1RM，让下次自动算重量更准。
-                  </Text>
+                  <Text>已确认第{returnConfirmedDayIndex}天。</Text>
                   <Text className='banner-link' onClick={() => setReturnConfirmedDayIndex(null)}>
                     收起
                   </Text>
                 </View>
               )}
 
-              <View className='info-tip-card' onClick={() => setShowExplainDialog(true)}>
-                <View>
-                  <Text className='info-tip-title'>为什么要确认完成？为什么要输入重量？</Text>
-                  <Text className='info-tip-desc'>这里会解释休息日顺延、e1RM 校准和为什么确认完成会影响下一次自动算重。</Text>
-                </View>
-                <Text className='banner-link'>查看说明</Text>
-              </View>
-
               {missingDays.length > 0 && (
                 <View className='missing-days-banner'>
-                  <Text className='missing-days-desc'>
-                    你有 {missingDays.length} 天训练日未确认，可补练或跳过，系统会继续按这些未解决训练日优先引导。
-                  </Text>
+                  <Text className='missing-days-desc'>未确认训练日 {missingDays.length} 天</Text>
                   <View className='missing-days-actions'>
                     {missingDays.slice(0, 3).map((dayIndex: number) => (
                       <View key={dayIndex} className='missing-days-row'>
@@ -1369,7 +1595,7 @@ function TodayTraining() {
 
               {todayCompleted && (
                 <View className='today-completed-banner'>
-                  <Text><Check size={16} /> 你今天已经完成过训练了；如果仍有未完成训练日，系统会继续引导你补做。</Text>
+                  <Text><Check size={16} /> 今日训练已完成</Text>
                 </View>
               )}
 
@@ -1385,19 +1611,22 @@ function TodayTraining() {
               )}
 
               {trainingDays.length > 0 && (
-                <ScheduleCalendarPanel
-                  trainingDays={trainingDays}
-                  currentDayIndex={todayDayIndex}
-                  selectedDayIndex={selectedDayIndex}
-                  completionDates={completionDates}
-                  executionsByDayIndex={executionsByDayIndex}
-                  scheduleModel={scheduleModel}
-                  todayCompleted={todayCompleted}
-                  progressDayIndex={progressDayIndex}
-                  planStartDate={effectiveCalendarStartDate || undefined}
-                  startExecutionDay={instance?.start_execution_day || 1}
-                  onSelectedDayChange={setSelectedDayIndex}
-                />
+                <View id='schedule-calendar-anchor' className='schedule-calendar-anchor'>
+                  <ScheduleCalendarPanel
+                    trainingDays={trainingDays}
+                    currentDayIndex={todayDayIndex}
+                    selectedDayIndex={selectedDayIndex}
+                    completionDates={completionDates}
+                    executionsByDayIndex={executionsByDayIndex}
+                    scheduleModel={scheduleModel}
+                    todayCompleted={todayCompleted}
+                    progressDayIndex={progressDayIndex}
+                    planStartDate={effectiveCalendarStartDate || undefined}
+                    startExecutionDay={instance?.start_execution_day || 1}
+                    onSelectedDayChange={setSelectedDayIndex}
+                    monthOnly
+                  />
+                </View>
               )}
 
               <View className='section-header'>
@@ -1433,12 +1662,10 @@ function TodayTraining() {
 
                   {canShareDayCheckin && (
                     <View className='share-entry-card'>
-                      <Text className='share-entry-tag'>SHARE CHECK-IN</Text>
-                      <Text className='share-entry-title'>现在可以生成整日打卡图</Text>
-                      <Text className='share-entry-desc'>这里展示的是这一天的完成状态快照，不要求你先把所有任务做完。</Text>
+                      <Text className='share-entry-title'>整日打卡图</Text>
                       <View className='inline-actions'>
                         <View className='inline-action-btn' onClick={() => setDayShareVisible(true)}>
-                          <Text>整日打卡图</Text>
+                          <Text>生成</Text>
                         </View>
                       </View>
                     </View>
@@ -1502,6 +1729,7 @@ function TodayTraining() {
         </View>
       </ScrollView>
 
+      {renderMoreTrainingPopup()}
       <BottomNav />
 
       <LightweightTaskSheet
@@ -1657,7 +1885,9 @@ function TodayTraining() {
       {showCompletionModal && completedPlanInfo && (
         <View className='completion-modal-mask' onClick={() => setShowCompletionModal(false)}>
           <View className='completion-modal' onClick={(e) => e.stopPropagation()}>
-            <View className='completion-modal-icon'><Star size={48} color="#CF6D4E" /></View>
+            <View className='completion-modal-icon'>
+              <Text className='iconfont icon-star completion-modal-icon-star' />
+            </View>
             <Text className='completion-modal-title'>恭喜完成训练计划！</Text>
             <Text className='completion-modal-plan'>{completedPlanInfo.name}</Text>
             <Text className='completion-modal-rate'>完成度：{completedPlanInfo.rate}%</Text>

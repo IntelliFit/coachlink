@@ -1,32 +1,27 @@
 .coach-overview-page {
   min-height: 100vh;
-  background: #f5f5f5;
+  background: linear-gradient(180deg, #e8e8e8 0%, #f8f8f8 100%);
   padding: 0;
   box-sizing: border-box;
 }
 
 .coach-overview-scroll {
   min-height: 100vh;
-  padding: 24rpx 24rpx 184rpx;
+  padding: 24rpx 24rpx 200rpx;
   box-sizing: border-box;
 }
 
 .section-title {
   font-size: 32rpx;
   font-weight: 700;
-  color: #1a1a1a;
+  color: #010101;
   letter-spacing: -0.02em;
-  margin-bottom: 0rpx;
-}
-
-.section-desc {
-  font-size: 22rpx;
-  color: #888;
   margin-bottom: 16rpx;
+  margin-left: 8rpx;
 }
 
 .section {
-  margin-bottom: 24rpx;
+  margin-bottom: 32rpx;
 }
 
 /* 核心指标 - 2x2 网格 */
@@ -38,10 +33,11 @@
 
 .stat-tile {
   background: #fff;
-  border-radius: 24rpx;
-  padding: 16rpx;
+  border-radius: 32rpx;
+  padding: 24rpx;
   box-sizing: border-box;
-  box-shadow: 0 4rpx 24rpx rgba(0, 0, 0, 0.04);
+  box-shadow: 0 8rpx 32rpx rgba(0, 0, 0, 0.04);
+  border: 2rpx solid #f0f0f0;
 
   .tile-header {
     display: flex;
@@ -66,16 +62,16 @@
   }
 
   .tile-label {
-    font-size: 22rpx;
+    font-size: 24rpx;
     font-weight: 500;
-    color: #888;
+    color: #6b7280;
     margin-bottom: 8rpx;
   }
 
   .tile-value {
-    font-size: 32rpx;
+    font-size: 36rpx;
     font-weight: 700;
-    color: #1a1a1a;
+    color: #010101;
     letter-spacing: -0.02em;
   }
 }
@@ -84,18 +80,19 @@
 .config-list {
   display: flex;
   flex-direction: column;
-  gap: 8rpx;
+  gap: 16rpx;
 }
 
 .config-row {
   background: #fff;
-  border-radius: 16rpx;
-  padding: 16rpx 16rpx;
+  border-radius: 24rpx;
+  padding: 24rpx;
   display: flex;
   align-items: center;
   gap: 16rpx;
   box-sizing: border-box;
   box-shadow: 0 4rpx 24rpx rgba(0, 0, 0, 0.04);
+  border: 2rpx solid #f0f0f0;
 
   .config-icon-wrap {
     width: 48rpx;
@@ -125,13 +122,13 @@
   .config-title {
     font-size: 28rpx;
     font-weight: 700;
-    color: #1a1a1a;
+    color: #010101;
     line-height: 1.3;
   }
 
   .config-desc {
-    font-size: 22rpx;
-    color: #aaa;
+    font-size: 24rpx;
+    color: #9ca3af;
     line-height: 1.3;
     margin-top: 0rpx;
   }
@@ -146,7 +143,7 @@
   .config-value {
     font-size: 26rpx;
     font-weight: 700;
-    color: #1a1a1a;
+    color: #374151;
   }
 
   .config-badge {

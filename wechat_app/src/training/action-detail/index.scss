@@ -1,21 +1,23 @@
 .action-detail-page {
-  background: linear-gradient(180deg, #E8E8E8 0%, #F8F8F8 100%);
   min-height: 100vh;
   padding: 24rpx;
-  background: #f5f6f8;
+  padding-bottom: 48rpx;
+  background: linear-gradient(180deg, #e8e8e8 0%, #f8f8f8 100%);
+  box-sizing: border-box;
 
   .action-card {
     background: #fff;
-    border-radius: 16rpx;
-    padding: 24rpx;
-    box-shadow: 0 6rpx 20rpx rgba(0, 0, 0, 0.06);
+    border-radius: 32rpx;
+    padding: 32rpx;
+    box-shadow: 0 8rpx 32rpx rgba(0, 0, 0, 0.04);
+    border: 2rpx solid #f0f0f0;
   }
 
   .title {
     display: block;
     font-size: 36rpx;
     font-weight: 700;
-    color: #1f2937;
+    color: #010101;
     margin-bottom: 8rpx;
   }
 

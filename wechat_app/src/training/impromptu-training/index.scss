@@ -1,29 +1,29 @@
 .impromptu-training-page {
-  background: linear-gradient(180deg, #E8E8E8 0%, #F8F8F8 100%);
   min-height: 100vh;
-  background: #f5f5f5;
-  padding-bottom: 40rpx;
+  background: linear-gradient(180deg, #e8e8e8 0%, #f8f8f8 100%);
+  padding-bottom: 48rpx;
+  box-sizing: border-box;
 
   .page-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 24rpx 24rpx 16rpx;
-    background: #fff;
+    padding: 24rpx 32rpx 16rpx;
+    background: transparent;
 
     .header-left {
       display: flex;
       align-items: center;
       gap: 8rpx;
 
-      .back-icon { font-size: 36rpx; color: #1890ff; }
-      .back-text { font-size: 28rpx; color: #1890ff; }
+      .back-icon { font-size: 36rpx; color: #cf6d4e; }
+      .back-text { font-size: 28rpx; color: #cf6d4e; }
     }
 
     .page-title {
       font-size: 34rpx;
-      font-weight: bold;
-      color: #333;
+      font-weight: 700;
+      color: #010101;
     }
 
     .header-placeholder { width: 120rpx; }
@@ -31,14 +31,15 @@
 
   .intro-card {
     margin: 16rpx 24rpx;
-    padding: 24rpx;
+    padding: 32rpx;
     background: #fff;
-    border-radius: 16rpx;
-    border: 1rpx solid #eee;
+    border-radius: 32rpx;
+    border: 2rpx solid #f0f0f0;
+    box-shadow: 0 4rpx 24rpx rgba(0, 0, 0, 0.04);
 
     .intro-title {
       font-size: 26rpx;
-      color: #666;
+      color: #6b7280;
       margin-bottom: 16rpx;
     }
 
@@ -47,11 +48,12 @@
       gap: 16rpx;
 
       .intro-btn {
-        padding: 8rpx 24rpx;
-        border: 1rpx solid #1890ff;
-        color: #1890ff;
-        border-radius: 8rpx;
+        padding: 16rpx 32rpx;
+        border: 2rpx solid #cf6d4e;
+        color: #cf6d4e;
+        border-radius: 9999rpx;
         font-size: 26rpx;
+        background: #fff;
       }
     }
   }
@@ -62,10 +64,11 @@
 
   .form-card {
     margin: 0 24rpx 24rpx;
-    padding: 24rpx;
+    padding: 32rpx;
     background: #fff;
-    border-radius: 16rpx;
-    border: 1rpx solid #eee;
+    border-radius: 32rpx;
+    border: 2rpx solid #f0f0f0;
+    box-shadow: 0 4rpx 24rpx rgba(0, 0, 0, 0.04);
 
     .form-actions {
       display: flex;
@@ -76,22 +79,22 @@
         flex: 1;
         padding: 24rpx;
         text-align: center;
-        border-radius: 8rpx;
+        border-radius: 24rpx;
         font-size: 28rpx;
       }
 
       .btn-add {
-        background: #f5f5f5;
-        color: #333;
-        border: 1rpx dashed #ccc;
+        background: #f9fafb;
+        color: #374151;
+        border: 2rpx dashed #d1d5db;
       }
 
       .btn-start {
-        background: #1890ff;
+        background: #cf6d4e;
         color: #fff;
 
         &.disabled {
-          background: #ccc;
+          background: #d1d5db;
           color: #fff;
         }
       }
