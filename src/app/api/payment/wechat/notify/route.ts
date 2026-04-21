@@ -1,44 +1,92 @@
 import { NextRequest, NextResponse } from "next/server";
+import { serviceRoleSupabase } from "@/lib/supabaseClient";
+import { parseHuifuNotifyContent } from "@/lib/huifuMiniProgramPay";
 import {
-    decryptCallbackBody,
-    verifyCallbackSignature,
-    type WechatPayNotificationResource,
-} from "@/lib/wechatPay";
+    fulfillSubscriptionOnPaid,
+    updateTransactionAndWallet,
+} from "@/app/api/payment/alipay/fulfillPaidOrder";
 
 export const runtime = "nodejs";
+
+function mapNotifyStatus(transStat: string | undefined) {
+    if (transStat === "S") return "paid";
+    if (transStat === "F") return "failed";
+    return "pending";
+}
 
 export async function POST(request: NextRequest) {
     const rawBody = await request.text();
 
     try {
-        verifyCallbackSignature(request.headers, rawBody);
-        const payload = JSON.parse(rawBody) as WechatPayNotificationResource;
-        const decrypted = decryptCallbackBody(payload);
+        let sign = "";
+        let content = "";
 
-        console.log("[Wechat Pay Notify] verified callback received:", {
-            eventType: payload.event_type,
-            summary: payload.summary,
-            outTradeNo: decrypted?.out_trade_no,
-            transactionId: decrypted?.transaction_id,
-            tradeState: decrypted?.trade_state,
-            tradeType: decrypted?.trade_type,
-            successTime: decrypted?.success_time,
-            amountTotal: decrypted?.amount?.total,
-            payerOpenid: decrypted?.payer?.openid,
-        });
+        const contentType = request.headers.get("content-type") || "";
+        if (contentType.includes("application/x-www-form-urlencoded")) {
+            const params = new URLSearchParams(rawBody);
+            sign = String(params.get("sign") || "").trim();
+            content = String(params.get("resp_data") || "").trim();
+        } else {
+            const parsed = JSON.parse(rawBody) as { sign?: string; resp_data?: string; data?: string };
+            sign = String(parsed.sign || "").trim();
+            content = String(parsed.resp_data || parsed.data || "").trim();
+        }
 
-        return NextResponse.json({
-            code: "SUCCESS",
-            message: "成功",
-        });
-    } catch (error: any) {
-        console.error("[Wechat Pay Notify] handle callback failed:", error);
-        return NextResponse.json(
-            {
-                code: "FAIL",
-                message: error?.message || "处理失败",
+        if (!sign || !content) {
+            return new Response("", { status: 400 });
+        }
+
+        const notifyData = parseHuifuNotifyContent(content, sign) as Record<string, any>;
+        const reqSeqId = String(notifyData.req_seq_id || "").trim();
+
+        if (!reqSeqId) {
+            return new Response("", { status: 400 });
+        }
+
+        const nextStatus = mapNotifyStatus(String(notifyData.trans_stat || ""));
+        const { data: updatedOrder, error: updateError } = await (serviceRoleSupabase
+            .from("alipay_orders") as any)
+            .update({
+                status: nextStatus,
+                trade_status: notifyData.trans_stat || null,
+                alipay_trade_no:
+                    notifyData.org_hf_seq_id ||
+                    notifyData.out_trans_id ||
+                    notifyData.party_order_id ||
+                    null,
+                payment_provider: "wechat",
+                updated_at: new Date().toISOString(),
+            })
+            .eq("id", reqSeqId)
+            .select()
+            .single();
+
+        if (updateError || !updatedOrder) {
+            console.error("[Huifu Wechat Notify] update order failed:", updateError);
+            return new Response("", { status: 500 });
+        }
+
+        if (
+            nextStatus === "paid" &&
+            (updatedOrder.order_type === "subscription" || updatedOrder.order_type === "subscription_renew")
+        ) {
+            await fulfillSubscriptionOnPaid(
+                updatedOrder,
+                updatedOrder.id,
+                String(updatedOrder.user_id || ""),
+                "wechat",
+            );
+            await updateTransactionAndWallet(updatedOrder);
+        }
+
+        return new Response(`RECV_ORD_ID_${reqSeqId}`, {
+            status: 200,
+            headers: {
+                "Content-Type": "text/plain; charset=UTF-8",
             },
-            { status: 500 },
-        );
+        });
+    } catch (error) {
+        console.error("[Huifu Wechat Notify] failed:", error);
+        return new Response("", { status: 500 });
     }
 }

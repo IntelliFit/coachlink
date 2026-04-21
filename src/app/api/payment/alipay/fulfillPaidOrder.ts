@@ -1,12 +1,22 @@
 /**
- * 支付宝订单支付成功后的统一履约逻辑（订阅确认 + 教练钱包入账）。
- * 供 notify（支付宝服务器异步通知）、return（同步跳转）、query（前端轮询）共用。
+ * 平台支付订单支付成功后的统一履约逻辑（订阅确认 + 教练钱包入账）。
+ * 当前供支付宝与微信小程序支付共用。
  * 所有操作均幂等：以 last_payment_order_id / alipay_order_id 防重。
  */
 import { serviceRoleSupabase } from "@/lib/supabaseClient";
 import { sendSystemMessage } from "@/lib/chat";
 import { addFen } from "@/lib/moneyUtils";
 import { autoMatchPlanForSubscription } from "@/app/api/plan-lib/auto-match-plan/service";
+
+type PaymentProvider = "alipay" | "wechat";
+
+function getPaymentMethod(provider: PaymentProvider) {
+    return provider === "wechat" ? "platform_wechat" : "platform_alipay";
+}
+
+function getPaymentLabel(provider: PaymentProvider) {
+    return provider === "wechat" ? "微信支付" : "平台支付";
+}
 
 /** 教练钱包入账 + 流水记录，按 alipay_order_id 幂等。同一支付宝订单只允许一条收入流水，先查再插，插入成功后才更新钱包，避免 notify/return/query 并发重复入账。 */
 export async function updateTransactionAndWallet(order: {
@@ -96,7 +106,8 @@ export async function fulfillSubscriptionOnPaid(
         user_id?: string | null;
     },
     orderId: string,
-    userId: string
+    userId: string,
+    provider: PaymentProvider = "alipay",
 ): Promise<void> {
     const orderData = (order.order_data && typeof order.order_data === "object" ? order.order_data : {}) as Record<string, unknown>;
     const subscriptionId = orderData?.subscriptionId as string | undefined;
@@ -118,7 +129,7 @@ export async function fulfillSubscriptionOnPaid(
 
     const nowIso = new Date().toISOString();
     const update: Record<string, unknown> = {
-        payment_method: "platform_alipay",
+        payment_method: getPaymentMethod(provider),
         payment_confirmed_by: "system",
         payment_confirmed_at: nowIso,
         coach_seen_at: null,
@@ -158,7 +169,7 @@ export async function fulfillSubscriptionOnPaid(
             .single();
         if (coach?.user_id) {
             await sendSystemMessage(coach.user_id, {
-                content: `新的学员订阅通过【平台支付】完成，系统已自动确认。请前往 [我的学员](/dashboard/students) 查看。`,
+                content: `新的学员订阅通过【${getPaymentLabel(provider)}】完成，系统已自动确认。请前往 [我的学员](/dashboard/students) 查看。`,
             });
 
             // 新订阅激活后自动尝试匹配计划；失败时给教练明确提示手动创建。
