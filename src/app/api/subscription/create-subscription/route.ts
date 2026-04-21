@@ -63,14 +63,16 @@ export async function POST(req: Request) {
         }, { status: 400 });
     }
 
-    // 查看是否已经存在订阅
-    const { data: subscriptionQuery, error: subscriptionQueryError } =
+    // 读取该学员在当前教练下的历史订阅。
+    // 未支付/待支付订阅不能再被复用，否则会把旧价格快照带到新的支付流程里。
+    const { data: subscriptionRows, error: subscriptionQueryError } =
         await supabase
             .from("coach_subscriptions")
-            .select("id")
+            .select("id, status")
             .eq("coach_id", coachId)
             .eq("student_id", userId)
-            .maybeSingle();
+            .order("created_at", { ascending: false })
+            .limit(20);
 
     if (subscriptionQueryError) {
         return NextResponse.json({
@@ -80,7 +82,12 @@ export async function POST(req: Request) {
         }, { status: 500 });
     }
 
-    if (subscriptionQuery) {
+    const unpaidStatuses = new Set(["inactive", "pending_payment", "waiting"]);
+    const reusableSubscription = (subscriptionRows || []).find((row) =>
+        !unpaidStatuses.has(String(row.status || "")),
+    );
+
+    if (reusableSubscription) {
         // 更新现有订阅的数据
         const updateData: Record<string, unknown> = {
             subscribe_data: subscribeData as unknown as Json,
@@ -98,7 +105,7 @@ export async function POST(req: Request) {
             await supabase
                 .from("coach_subscriptions")
                 .update(updateData)
-                .eq("id", subscriptionQuery.id)
+                .eq("id", reusableSubscription.id)
                 .select()
                 .maybeSingle();
 
@@ -106,7 +113,7 @@ export async function POST(req: Request) {
             success: true,
             message: "训练计划已经创建",
             data: {
-                subscription: subscriptionQuery,
+                subscription: subscriptionEdit || reusableSubscription,
             },
         });
     }
