@@ -65,6 +65,16 @@
   color: #FFFFFF;
 }
 
+.login-pill--muted {
+  background: #f9fafb;
+  border: 2rpx solid #e5e7eb;
+  box-shadow: none;
+}
+
+.login-pill-text--muted {
+  color: #6b7280;
+}
+
 /* Section Title */
 .section-title {
   display: block;

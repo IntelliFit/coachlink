@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { View, Text } from '@tarojs/components'
+import { Check } from '@nutui/icons-react-taro'
 import { calculateCurrentWeek, formatUnlockDate, getDayWeekNumber, getUnlockDate, isDayUnlocked } from '@/utils/weekUnlock'
 import { formatMonthDayWeekday, formatYearMonth } from '@/utils/dateFormat'
 import { resolvePlanDayDate, toDateKey, type PlanScheduleModel } from '../lib/dayModules'
@@ -17,6 +18,10 @@ interface ScheduleCalendarPanelProps {
   planStartDate?: string
   startExecutionDay?: number
   onSelectedDayChange: (dayIndex: number) => void
+  /** 仅展示月历网格（与顶部周条仪表盘配合，隐藏周条与冗长说明） */
+  monthOnly?: boolean
+  /** monthOnly 时是否展示月历网格；与顶部周条「展开月历」联动，不传则默认展开 */
+  showMonthGrid?: boolean
 }
 
 const WEEK_LABELS = ['一', '二', '三', '四', '五', '六', '日']
@@ -46,10 +51,12 @@ function ScheduleCalendarPanel({
   progressDayIndex,
   planStartDate,
   startExecutionDay = 1,
-  onSelectedDayChange
+  onSelectedDayChange,
+  monthOnly = false,
+  showMonthGrid
 }: ScheduleCalendarPanelProps) {
   const totalWeeks = Math.max(1, Math.ceil(trainingDays.length / 7))
-  const [isMonthExpanded, setIsMonthExpanded] = useState(false)
+  const [isMonthExpanded, setIsMonthExpanded] = useState(monthOnly)
   const [currentWeek, setCurrentWeek] = useState(() => {
     const anchorDay = selectedDayIndex || currentDayIndex || 1
     return Math.max(1, Math.min(Math.ceil(anchorDay / 7), totalWeeks))
@@ -150,8 +157,13 @@ function ScheduleCalendarPanel({
   const selectedStatusText =
     selectedDayIndex === progressDayIndex ? '今日推进' : selectedDate < startOfDay(new Date()) ? '历史安排' : '未来安排'
 
+  const monthGridVisible =
+    typeof showMonthGrid === 'boolean' ? showMonthGrid : monthOnly || isMonthExpanded
+
   return (
-    <View className='schedule-calendar-panel'>
+    <View className={`schedule-calendar-panel ${monthOnly ? 'schedule-calendar-panel--month-only' : ''}`}>
+      {!monthOnly && (
+        <>
       <View className='calendar-head'>
         <View className='head-left'>
           <Text className='head-label'>按日期查看每日安排</Text>
@@ -235,8 +247,10 @@ function ScheduleCalendarPanel({
           </Text>
         </View>
       )}
+        </>
+      )}
 
-      {isMonthExpanded && (
+      {monthGridVisible && (
         <View className='month-board'>
           <View className='month-head'>
             <View
@@ -323,6 +337,7 @@ function ScheduleCalendarPanel({
         </View>
       )}
 
+      {!monthOnly && (
       <View className='calendar-tip'>
         <Text className='calendar-tip-text'>
           当前计划时间：
@@ -340,6 +355,7 @@ function ScheduleCalendarPanel({
           <Text className='calendar-tip-text delay-tip'>浅橙色日期 = 顺延出来的额外休息日</Text>
         )}
       </View>
+      )}
     </View>
   )
 }

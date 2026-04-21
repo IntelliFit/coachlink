@@ -152,7 +152,7 @@ function PlanHistoryPage() {
               <Text className='empty-title'>暂无计划</Text>
               <Text className='empty-desc'>全部计划（当前 + 历史）会显示在这里</Text>
               <View className='empty-actions'>
-                <View className='empty-action primary' onClick={() => Taro.navigateTo({ url: '/training/today-training' })}>
+                <View className='empty-action primary' onClick={() => Taro.navigateTo({ url: '/pages/index/index' })}>
                   <Text>去今日训练</Text>
                 </View>
                 <View className='empty-action secondary' onClick={() => Taro.navigateTo({ url: '/me/plan-lib/index' })}>

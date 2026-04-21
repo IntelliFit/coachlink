@@ -131,7 +131,7 @@ function PlanCurrent() {
   }
 
   const goToTodayTraining = () => {
-    Taro.redirectTo({ url: '/training/today-training' })
+    Taro.redirectTo({ url: '/pages/index/index' })
   }
 
   const goToTrainingExecution = (instanceId: string, dayIndex: number, options?: { coachId?: string; coachName?: string }) => {

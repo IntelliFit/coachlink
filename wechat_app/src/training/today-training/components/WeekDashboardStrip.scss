@@ -1,0 +1,83 @@
+/* 8 栅格：间距与圆角为 8rpx 整数倍 */
+.week-dashboard-strip {
+  margin-bottom: 24rpx;
+}
+
+.week-dashboard-strip__scroll {
+  width: 100%;
+  white-space: nowrap;
+}
+
+.week-dashboard-strip__row {
+  display: inline-flex;
+  flex-direction: row;
+  gap: 16rpx;
+  padding: 8rpx 0 16rpx;
+  box-sizing: border-box;
+}
+
+.week-dashboard-strip__pill {
+  width: 88rpx;
+  min-width: 88rpx;
+  padding: 16rpx 8rpx;
+  box-sizing: border-box;
+  border-radius: 32rpx;
+  background: #ffffff;
+  border: 2rpx solid #e5e7eb;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8rpx;
+
+  &:active {
+    opacity: 0.92;
+  }
+}
+
+.week-dashboard-strip__pill--active {
+  opacity: 0.88;
+}
+
+.week-dashboard-strip__pill--today:not(.week-dashboard-strip__pill--selected) {
+  border-color: #cf6d4e;
+}
+
+/* 低饱和深色选中态，贴近灰底 */
+.week-dashboard-strip__pill--selected {
+  background: #3d3d42;
+  border-color: #3d3d42;
+
+  .week-dashboard-strip__wd,
+  .week-dashboard-strip__num {
+    color: #ffffff;
+  }
+
+  .week-dashboard-strip__dot {
+    background: #ffffff;
+  }
+}
+
+.week-dashboard-strip__dot-placeholder {
+  width: 8rpx;
+  height: 8rpx;
+}
+
+.week-dashboard-strip__dot {
+  width: 8rpx;
+  height: 8rpx;
+  border-radius: 9999rpx;
+  background: #cf6d4e;
+}
+
+.week-dashboard-strip__wd {
+  font-size: 22rpx;
+  color: #6b7280;
+  line-height: 1.2;
+}
+
+.week-dashboard-strip__num {
+  font-size: 30rpx;
+  font-weight: 700;
+  color: #111827;
+  line-height: 1.2;
+}

@@ -231,7 +231,7 @@ export default function PublicTrainingPage() {
               </View>
               <View
                 className="cta-btn secondary"
-                onClick={() => Taro.reLaunch({ url: '/training/today-training' })}
+                onClick={() => Taro.reLaunch({ url: '/pages/index/index' })}
               >
                 <Text>查看今日训练</Text>
               </View>

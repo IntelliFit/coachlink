@@ -10,7 +10,7 @@ page {
      最终回退到系统默认无衬线字体栈。 */
   font-family: 'Noto Sans SC', 'Source Han Sans SC', 'Source Han Sans CN', 'PingFang SC', -apple-system-font, 'Helvetica Neue', sans-serif;
 
-  --bg-page: linear-gradient(180deg, #E8E8E8 0%, #F8F8F8 100%);
+  --bg-page: linear-gradient(180deg, #E8E8E8 0%, #F5F5F5 100%);
   --bg-card: #FFFFFF;
   --primary: #CF6D4E;
   --primary-light: #E08F76;
@@ -30,7 +30,7 @@ page {
  * 可能无法被子树继承。将同一套变量挂在 `.app-root.theme-*` 上，保证子组件能读到。
  */
 .app-root.theme-light {
-  --bg-page: linear-gradient(180deg, #E8E8E8 0%, #F8F8F8 100%);
+  --bg-page: linear-gradient(180deg, #E8E8E8 0%, #F5F5F5 100%);
   --bg-card: #FFFFFF;
   --primary: #CF6D4E;
   --primary-light: #E08F76;

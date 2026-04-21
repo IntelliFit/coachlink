@@ -59,9 +59,9 @@ function CoachMyProfile() {
       await authService.switchRole('student')
       Taro.showToast({ title: '已切换到学员端', icon: 'success' })
       setTimeout(() => {
-        Taro.reLaunch({ url: '/training/today-training' }).catch((relaunchErr) => {
+        Taro.reLaunch({ url: '/pages/index/index' }).catch((relaunchErr) => {
           console.error('[coach/my-profile] reLaunch student 失败:', relaunchErr)
-          Taro.redirectTo({ url: '/training/today-training' }).catch((redirectErr) => {
+          Taro.redirectTo({ url: '/pages/index/index' }).catch((redirectErr) => {
             console.error('[coach/my-profile] redirectTo student 失败:', redirectErr)
             Taro.showToast({ title: '切换后跳转失败', icon: 'none' })
           })

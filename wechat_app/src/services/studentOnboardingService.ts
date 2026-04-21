@@ -1,6 +1,6 @@
 import { studentService } from './studentService'
 
-const DEFAULT_STUDENT_NEXT_URL = '/training/today-training'
+const DEFAULT_STUDENT_NEXT_URL = '/pages/index/index'
 const DEFAULT_ONBOARDING_NEXT_URL = '/training/impromptu-training?from=onboarding'
 
 const normalizeNextUrl = (value?: string | null, fallback = DEFAULT_STUDENT_NEXT_URL) => {
@@ -38,7 +38,7 @@ export const buildStudentOnboardingUrl = (nextUrl = DEFAULT_ONBOARDING_NEXT_URL)
 }
 
 const resolveDefaultUrlByRole = (loggedInUser: any) => {
-  if (loggedInUser?.is_admin) return '/training/today-training'
+  if (loggedInUser?.is_admin) return '/pages/index/index'
   if (loggedInUser?.is_coach && loggedInUser?.primary_role === 'coach') return '/coach/overview'
   return DEFAULT_STUDENT_NEXT_URL
 }
