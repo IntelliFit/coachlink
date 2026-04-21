@@ -32,6 +32,8 @@ interface TodayTrainingCardProps {
   onOpenLightweightTask?: (task: NormalizedDayTask) => void
   onAddLightweightTask?: () => void
   onDeleteLightweightTask?: (task: NormalizedDayTask) => void
+  /** 嵌入今日训练「今日安排」区块：去掉重复大标题与四宫格，采用紧凑摘要行 */
+  embeddedInSchedule?: boolean
 }
 
 function TodayTrainingCard({
@@ -49,7 +51,8 @@ function TodayTrainingCard({
   dateMeta,
   onOpenLightweightTask,
   onAddLightweightTask,
-  onDeleteLightweightTask
+  onDeleteLightweightTask,
+  embeddedInSchedule = false
 }: TodayTrainingCardProps) {
   const [showAllTasks, setShowAllTasks] = useState(false)
   const [showAllStrengthTasks, setShowAllStrengthTasks] = useState(false)
@@ -138,63 +141,109 @@ function TodayTrainingCard({
     )
   const headerSubtitle = subheading || `第${dayIndex}天 · ${moduleCount} 个任务模块`
 
+  const strengthStatusText =
+    strengthTasks.length === 0
+      ? '今日无力量'
+      : trainingCompleted
+        ? '力量已完成'
+        : trainingInProgress
+          ? '力量进行中'
+          : '力量待开始'
+
+  const scheduleProgressText =
+    moduleCount === 0 ? '暂无模块' : dayCompleted ? '已全部完成' : `进度 ${completedModuleCount}/${moduleCount}`
+
   return (
     <>
-      <View className={`training-card ${dayCompleted ? 'day-completed' : ''}`}>
-        <View className='card-head'>
-          <View className='head-copy'>
+      <View className={`training-card ${dayCompleted ? 'day-completed' : ''} ${embeddedInSchedule ? 'training-card--embedded' : ''}`}>
+        {!embeddedInSchedule && (
+          <View className='card-head'>
+            <View className='head-copy'>
+              {displayDateLabel && (
+                <View className='date-row'>
+                  <Text className='date-icon'><Calendar size={20} /></Text>
+                  <Text className='date-text'>{displayDateLabel}</Text>
+                </View>
+              )}
+              <Text className='card-title'>{heading}</Text>
+              <Text className='card-subtitle'>{headerSubtitle}</Text>
+              {!!dateMeta?.delayDays && dateMeta.delayDays > 0 && (
+                <View className='delay-banner'>
+                  <Text className='delay-banner-title'>已顺延 {dateMeta.delayDays} 天</Text>
+                  {!!dateMeta?.originalDateLabel && (
+                    <Text className='delay-banner-desc'>原计划 {dateMeta.originalDateLabel}</Text>
+                  )}
+                </View>
+              )}
+            </View>
+
+            <View className='head-metrics'>
+              <View className='metric-card'>
+                <Text className='metric-label'>训练打卡</Text>
+                <Text className='metric-value'>
+                  {strengthTasks.length === 0
+                    ? '今日无力量训练'
+                    : trainingCompleted
+                      ? '已完成'
+                      : trainingInProgress
+                        ? '进行中'
+                        : '待开始'}
+                </Text>
+              </View>
+              <View className='metric-card success'>
+                <Text className='metric-label'>今日安排</Text>
+                <Text className='metric-value'>
+                  {moduleCount === 0 ? '暂无任务' : dayCompleted ? '已打卡完成' : `${completedModuleCount}/${moduleCount} 模块`}
+                </Text>
+              </View>
+              <View className='metric-card'>
+                <Text className='metric-label'>总模块</Text>
+                <Text className='metric-value numeric'>{moduleCount}</Text>
+              </View>
+              <View className='metric-card primary'>
+                <Text className='metric-label'>剩余</Text>
+                <Text className='metric-value numeric'>{remainingModuleCount}</Text>
+              </View>
+            </View>
+          </View>
+        )}
+
+        {embeddedInSchedule && (
+          <View className='embed-schedule-top'>
             {displayDateLabel && (
-              <View className='date-row'>
-                <Text className='date-icon'><Calendar size={20} /></Text>
-                <Text className='date-text'>{displayDateLabel}</Text>
+              <View className='embed-date-row'>
+                <Text className='date-icon'><Calendar size={16} /></Text>
+                <Text className='embed-date-text'>{displayDateLabel}</Text>
               </View>
             )}
-            <Text className='card-title'>{heading}</Text>
-            <Text className='card-subtitle'>{headerSubtitle}</Text>
             {!!dateMeta?.delayDays && dateMeta.delayDays > 0 && (
-              <View className='delay-banner'>
+              <View className='delay-banner delay-banner--compact'>
                 <Text className='delay-banner-title'>已顺延 {dateMeta.delayDays} 天</Text>
                 {!!dateMeta?.originalDateLabel && (
                   <Text className='delay-banner-desc'>原计划 {dateMeta.originalDateLabel}</Text>
                 )}
               </View>
             )}
-          </View>
-
-          <View className='head-metrics'>
-            <View className='metric-card'>
-              <Text className='metric-label'>训练打卡</Text>
-              <Text className='metric-value'>
-                {strengthTasks.length === 0
-                  ? '今日无力量训练'
-                  : trainingCompleted
-                    ? '已完成'
-                    : trainingInProgress
-                      ? '进行中'
-                      : '待开始'}
-              </Text>
-            </View>
-            <View className='metric-card success'>
-              <Text className='metric-label'>今日安排</Text>
-              <Text className='metric-value'>
-                {moduleCount === 0 ? '暂无任务' : dayCompleted ? '已打卡完成' : `${completedModuleCount}/${moduleCount} 模块`}
-              </Text>
-            </View>
-            <View className='metric-card'>
-              <Text className='metric-label'>总模块</Text>
-              <Text className='metric-value numeric'>{moduleCount}</Text>
-            </View>
-            <View className='metric-card primary'>
-              <Text className='metric-label'>剩余</Text>
-              <Text className='metric-value numeric'>{remainingModuleCount}</Text>
+            <View className='embed-summary-row'>
+              <Text className='embed-summary-item'>{strengthStatusText}</Text>
+              <Text className='embed-summary-dot'>·</Text>
+              <Text className='embed-summary-item'>{scheduleProgressText}</Text>
+              {moduleCount > 0 && (
+                <>
+                  <Text className='embed-summary-dot'>·</Text>
+                  <Text className='embed-summary-item'>剩余 {remainingModuleCount}</Text>
+                </>
+              )}
             </View>
           </View>
-        </View>
+        )}
 
         {dayCompleted && (
-          <View className='done-banner'>
+          <View className={`done-banner ${embeddedInSchedule ? 'done-banner--compact' : ''}`}>
             <Text className='done-title'>今日安排已完成</Text>
-            <Text className='done-desc'>力量训练和轻量任务都已记录完成，稍后也可以回看训练和打卡记录。</Text>
+            {!embeddedInSchedule && (
+              <Text className='done-desc'>力量训练和轻量任务都已记录完成，稍后也可以回看训练和打卡记录。</Text>
+            )}
           </View>
         )}
 
@@ -216,9 +265,11 @@ function TodayTrainingCard({
                     <Text>{trainingCompleted ? '已完成' : trainingInProgress ? '进行中' : '待开始'}</Text>
                   </View>
                 </View>
-                <Text className='panel-desc'>
-                  力量训练进入专门执行页，集中处理重量、次数、RPE、休息、视频与 PR 记录。
-                </Text>
+                {!embeddedInSchedule && (
+                  <Text className='panel-desc'>
+                    力量训练进入专门执行页，集中处理重量、次数、RPE、休息、视频与 PR 记录。
+                  </Text>
+                )}
               </View>
 
               <View className='strength-stats'>
@@ -277,9 +328,11 @@ function TodayTrainingCard({
               >
                 <Text>{trainingCompleted ? '查看训练记录' : trainingInProgress ? '继续训练' : '开始训练'}</Text>
               </View>
-              <View className='strength-tip'>
-                <Text>这里的主按钮只代表力量训练打卡；轻量任务在下方单独记录，但会一起汇总到今日安排进度。</Text>
-              </View>
+              {!embeddedInSchedule && (
+                <View className='strength-tip'>
+                  <Text>这里的主按钮只代表力量训练打卡；轻量任务在下方单独记录，但会一起汇总到今日安排进度。</Text>
+                </View>
+              )}
             </View>
           </View>
         )}
@@ -289,7 +342,9 @@ function TodayTrainingCard({
             <View className='lightweight-header'>
               <View>
                 <Text className='lightweight-title'>轻量任务</Text>
-                <Text className='lightweight-subtitle'>饮食、有氧和习惯单独执行，完成后会立即回写到当天进度。</Text>
+                {!embeddedInSchedule && (
+                  <Text className='lightweight-subtitle'>饮食、有氧和习惯单独执行，完成后会立即回写到当天进度。</Text>
+                )}
               </View>
               <View className='lightweight-header-right'>
                 {lightweightTasks.length > 0 && (

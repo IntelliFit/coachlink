@@ -127,7 +127,7 @@ export default function PlanLibPage() {
       if (res) {
         Taro.showToast({ title: '计划已激活', icon: 'success' })
         setTimeout(() => {
-          Taro.switchTab({ url: '/training/today-training' })
+          Taro.reLaunch({ url: '/pages/index/index' })
         }, 800)
       }
     } catch (error) {

@@ -5,17 +5,29 @@ import BottomNav from '@/components/BottomNav'
 import { authService } from '@/services/authService'
 import { studentOnboardingService } from '@/services/studentOnboardingService'
 import { Power } from '@nutui/icons-react-taro'
-import { LoadingSpinner } from '@/components/LoadingSpinner'
+import TodayTrainingScreen from '@/training/today-training/TodayTrainingScreen'
 import './index.scss'
 
+const STUDENT_HOME_PATH = '/pages/index/index'
+const LEGACY_TRAINING_PATH = '/training/today-training'
+
+function isStudentHomePath(url: string) {
+  const pathOnly = (url || '').split('?')[0]
+  return pathOnly === STUDENT_HOME_PATH || pathOnly === LEGACY_TRAINING_PATH
+}
+
+function resolveHomeMode(): 'guest' | 'student' | 'coach' {
+  const session = authService.getAuthSession({ normalize: true })
+  if (!session.isAuthenticated) return 'guest'
+  if (session.isCoach && session.primaryRole === 'coach') return 'coach'
+  return 'student'
+}
+
 function Index() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false)
-  const [userName, setUserName] = useState('')
+  const [mode, setMode] = useState<'guest' | 'student' | 'coach'>(() => resolveHomeMode())
 
   const checkAuth = () => {
-    const session = authService.getAuthSession({ normalize: true })
-    setIsAuthenticated(session.isAuthenticated)
-    setUserName(session.user?.nickname || session.user?.name || '')
+    setMode(resolveHomeMode())
   }
 
   useDidShow(() => {
@@ -27,26 +39,33 @@ function Index() {
   }, [])
 
   useEffect(() => {
-    // 已登录用户自动跳转到主要界面
-    if (isAuthenticated) {
-      const redirect = async () => {
-        try {
-          const targetUrl = await studentOnboardingService.resolvePostLoginUrl({
-            loggedInUser: authService.getAuthSession({ normalize: true }).user,
-            fallbackUrl: '/training/today-training'
-          })
-          Taro.reLaunch({ url: targetUrl })
-        } catch (e) {
-          console.error('[index] redirect failed:', e)
-        }
-      }
-      // 稍微延迟避免闪烁
-      const timer = setTimeout(() => {
-        redirect()
-      }, 300)
-      return () => clearTimeout(timer)
+    if (mode === 'coach') {
+      void Taro.reLaunch({ url: '/coach/overview' })
     }
-  }, [isAuthenticated])
+  }, [mode])
+
+  useEffect(() => {
+    if (mode !== 'student') return
+    let cancelled = false
+    void (async () => {
+      try {
+        const session = authService.getAuthSession({ normalize: true })
+        const targetUrl = await studentOnboardingService.resolvePostLoginUrl({
+          loggedInUser: session.user,
+          fallbackUrl: STUDENT_HOME_PATH
+        })
+        if (cancelled) return
+        if (!isStudentHomePath(targetUrl)) {
+          await Taro.reLaunch({ url: targetUrl })
+        }
+      } catch (e) {
+        console.error('[index] onboarding gate failed:', e)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [mode])
 
   const greeting = useMemo(() => {
     const hour = new Date().getHours()
@@ -72,21 +91,20 @@ function Index() {
     Taro.navigateTo({ url })
   }
 
-  // If authenticated, we'll redirect soon, but show a brief loading/skeleton
-  if (isAuthenticated) {
+  if (mode === 'coach') {
     return (
       <View className='home-page page-with-float-nav'>
-        <View className='home-loading'>
-          <LoadingSpinner size={48} />
-        </View>
         <BottomNav />
       </View>
     )
   }
 
+  if (mode === 'student') {
+    return <TodayTrainingScreen />
+  }
+
   return (
     <View className='home-page page-with-float-nav'>
-      {/* Header */}
       <View className='home-header'>
         <View className='home-header-left'>
           <Text className='home-greeting'>{greeting}</Text>
@@ -100,7 +118,6 @@ function Index() {
       </View>
 
       <View className='home-scroll'>
-        {/* Daily Goal Hero Card */}
         <View className='home-hero-card'>
           <View className='hero-card-content'>
             <View className='hero-card-text'>
@@ -119,7 +136,6 @@ function Index() {
           </View>
         </View>
 
-        {/* Promo / Insight Card */}
         <View className='home-promo-card'>
           <Text className='promo-card-title'>运动后拉伸</Text>
           <Text className='promo-card-subtitle'>有助于提升睡眠质量</Text>

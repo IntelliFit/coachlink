@@ -85,9 +85,9 @@ function Login() {
         return decodeURIComponent(returnTo)
       }
     } catch (_) {}
-    if (loggedInUser?.is_admin) return '/training/today-training'
+    if (loggedInUser?.is_admin) return '/pages/index/index'
     if (loggedInUser?.is_coach && loggedInUser?.primary_role === 'coach') return '/coach/overview'
-    return '/training/today-training'
+    return '/pages/index/index'
   }
 
   const handlePostLoginSuccess = async (loggedInUser: any) => {

@@ -296,7 +296,7 @@ class AuthService {
     return this.getAuthSession({ normalize: true }).isAuthenticated
   }
 
-  buildLoginUrl(returnTo = '/training/today-training') {
+  buildLoginUrl(returnTo = '/pages/index/index') {
     return '/auth/login?returnTo=' + encodeURIComponent(returnTo)
   }
 

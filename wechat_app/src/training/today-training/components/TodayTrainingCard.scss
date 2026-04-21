@@ -1,13 +1,65 @@
 .training-card {
   background: #fff;
-  border-radius: 22px;
-  padding: 16px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
-  border: 1px solid #e5e7eb;
+  border-radius: 32rpx;
+  padding: 32rpx;
+  box-shadow: 0 8rpx 32rpx rgba(0, 0, 0, 0.04);
+  border: none;
 
   &.day-completed {
-    border-color: #bbf7d0;
-    background: linear-gradient(180deg, rgba(236, 253, 245, 0.44) 0%, #fff 60%);
+    background: rgba(236, 253, 245, 0.35);
+  }
+
+  &--embedded {
+    background: transparent;
+    box-shadow: none;
+    padding: 0;
+    border-radius: 0;
+
+    &.day-completed {
+      background: transparent;
+    }
+
+    .strength-panel {
+      margin-top: 24rpx;
+    }
+
+    .strength-item {
+      border: none;
+      background: #f3f4f6;
+      border-radius: 16rpx;
+    }
+
+    .strength-stat {
+      border: none;
+      background: #ffffff;
+    }
+
+    .strength-toggle {
+      border: none;
+      background: #f3f4f6;
+    }
+
+    .lightweight-panel {
+      margin-top: 24rpx;
+    }
+
+    .lightweight-header {
+      margin-bottom: 16rpx;
+    }
+
+    .lightweight-card {
+      border: none;
+      border-radius: 16rpx;
+    }
+
+    .group-divider .divider-line {
+      background: #e5e7eb;
+    }
+
+    .lightweight-empty {
+      border: none;
+      background: #f9fafb;
+    }
   }
 
   .card-head {
@@ -66,6 +118,51 @@
     color: #9a3412;
   }
 
+  .delay-banner--compact {
+    margin-top: 0;
+    margin-bottom: 16rpx;
+    border: none;
+    border-radius: 16rpx;
+    padding: 16rpx 24rpx;
+  }
+
+  .embed-schedule-top {
+    margin-bottom: 24rpx;
+  }
+
+  .embed-date-row {
+    display: flex;
+    align-items: center;
+    gap: 8rpx;
+    margin-bottom: 16rpx;
+  }
+
+  .embed-date-text {
+    font-size: 24rpx;
+    color: #6b7280;
+  }
+
+  .embed-summary-row {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8rpx 16rpx;
+    padding: 8rpx 0 0;
+  }
+
+  .embed-summary-item {
+    font-size: 26rpx;
+    color: #374151;
+    font-weight: 600;
+  }
+
+  .embed-summary-dot {
+    font-size: 24rpx;
+    color: #d1d5db;
+    line-height: 1;
+  }
+
   .head-metrics {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -117,6 +214,13 @@
     padding: 14px;
   }
 
+  .done-banner--compact {
+    border: none;
+    margin-top: 16rpx;
+    padding: 16rpx 24rpx;
+    border-radius: 16rpx;
+  }
+
   .done-title {
     display: block;
     font-size: 16px;
@@ -134,10 +238,10 @@
 
   .strength-panel {
     margin-top: 16px;
-    border-radius: 22px;
-    background: linear-gradient(135deg, #fff7ed 0%, #ffffff 84%);
-    border: 1px solid #fed7aa;
-    padding: 14px;
+    border-radius: 24rpx;
+    background: #fff8f5;
+    border: none;
+    padding: 24rpx;
   }
 
   .panel-tag {
@@ -311,7 +415,7 @@
     }
 
     &.success {
-      background: linear-gradient(135deg, #cf6d4e 0%, #e59b7d 100%);
+      background: #cf6d4e;
     }
 
     &.warning {

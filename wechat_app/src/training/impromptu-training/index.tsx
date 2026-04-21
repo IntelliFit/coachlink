@@ -139,7 +139,7 @@ export default function ImpromptuTraining() {
   }
 
   const handleBack = () => {
-    Taro.navigateTo({ url: '/training/today-training' })
+    Taro.navigateTo({ url: '/pages/index/index' })
   }
 
   const openActionPicker = (index: number) => {

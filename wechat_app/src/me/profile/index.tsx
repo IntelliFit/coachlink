@@ -344,7 +344,7 @@ function Profile() {
         icon: 'success'
       })
       setTimeout(() => {
-        const targetUrl = newRole === 'coach' ? '/coach/overview' : '/training/today-training'
+        const targetUrl = newRole === 'coach' ? '/coach/overview' : '/pages/index/index'
         Taro.reLaunch({ url: targetUrl })
           .catch((relaunchErr) => {
             console.error('[profile] switch role reLaunch 失败:', relaunchErr)

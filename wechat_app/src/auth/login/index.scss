@@ -46,7 +46,7 @@
 
 .login-card {
   flex: 1;
-  background: #FFFFFF;
+  background: linear-gradient(180deg, #E8E8E8 0%, #F5F5F5 100%);
   border-radius: 48rpx 48rpx 0 0;
   margin-top: -48rpx;
   padding: 40rpx 48rpx calc(env(safe-area-inset-bottom) + 64rpx);

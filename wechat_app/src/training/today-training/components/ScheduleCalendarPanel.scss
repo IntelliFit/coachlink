@@ -362,7 +362,7 @@
     }
 
     &.selected {
-      background: linear-gradient(180deg, #ffb469 0%, #cf6d4e 100%);
+      background: #cf6d4e;
       border-color: #cf6d4e;
 
       .date-num,
@@ -413,6 +413,156 @@
       display: block;
       margin-top: 6px;
       color: #9a3412;
+    }
+  }
+}
+
+/* 今日训练嵌入：无外层卡片、主题色、与页面背景融合 */
+.schedule-calendar-panel.schedule-calendar-panel--month-only {
+  margin: 0;
+  margin-top: 0;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+
+  .month-board {
+    margin-top: 0;
+    padding: 0;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+  }
+
+  .month-head {
+    margin-bottom: 16rpx;
+  }
+
+  .month-title {
+    font-size: 32rpx;
+    font-weight: 700;
+    color: #010101;
+  }
+
+  .month-nav-btn {
+    width: 64rpx;
+    height: 64rpx;
+    border-radius: 16rpx;
+    border: 2rpx solid #e5e7eb;
+    background: #ffffff;
+    color: #cf6d4e;
+    font-size: 28rpx;
+    font-weight: 700;
+
+    &:active {
+      opacity: 0.88;
+    }
+  }
+
+  .month-weekdays {
+    gap: 8rpx;
+    margin-bottom: 16rpx;
+  }
+
+  .month-weekdays .weekday-cell {
+    font-size: 22rpx;
+    font-weight: 600;
+    color: #9ca3af;
+    padding: 8rpx 0;
+  }
+
+  .month-grid {
+    gap: 8rpx;
+  }
+
+  .date-cell {
+    min-height: 88rpx;
+    border-radius: 16rpx;
+    border: 2rpx solid #e5e7eb;
+    background: #ffffff;
+    gap: 4rpx;
+
+    .date-num {
+      font-size: 28rpx;
+      font-weight: 700;
+      color: #010101;
+    }
+
+    .date-day-index {
+      font-size: 18rpx;
+      color: #9ca3af;
+    }
+
+    .date-type {
+      font-size: 18rpx;
+      color: #6b7280;
+    }
+
+    &.outside {
+      background: rgba(255, 255, 255, 0.45);
+      border-color: transparent;
+
+      .date-num,
+      .date-day-index,
+      .date-type {
+        color: #cbd5e1;
+      }
+    }
+
+    &.plan:not(.selected) {
+      border-color: #e5e7eb;
+    }
+
+    &.postponed:not(.selected) {
+      background: #fdf2ec;
+      border-color: rgba(207, 109, 78, 0.35);
+
+      .date-num,
+      .date-day-index,
+      .date-type {
+        color: #b45309;
+      }
+    }
+
+    &.completed:not(.selected) {
+      background: #f0fdf4;
+      border-color: #86efac;
+
+      .date-num,
+      .date-day-index,
+      .date-type {
+        color: #15803d;
+      }
+    }
+
+    &.today:not(.selected) {
+      border-color: #cf6d4e;
+      box-shadow: inset 0 0 0 2rpx rgba(207, 109, 78, 0.2);
+    }
+
+    &.selected {
+      background: #cf6d4e;
+      border-color: #cf6d4e;
+    }
+
+    &.in_progress:not(.selected) {
+      background: #fdf2ec;
+      border-color: rgba(207, 109, 78, 0.45);
+    }
+
+    &.abandoned:not(.selected) {
+      background: #f3f4f6;
+      border-color: #d1d5db;
+    }
+
+    &.before_start:not(.selected) {
+      background: #ecfdf5;
+      border-color: #86efac;
+    }
+
+    &.locked {
+      opacity: 0.4;
     }
   }
 }

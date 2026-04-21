@@ -17,7 +17,7 @@ const studentNavItems: NavItem[] = [
         key: 'training',
         label: '训练',
         iconClass: 'icon-dumbbell',
-        path: '/training/today-training'
+        path: '/pages/index/index'
     },
     {
         key: 'discovery',
@@ -165,7 +165,11 @@ function BottomNav() {
     return (
         <View className='bottom-nav'>
             {navItems.map((item) => {
-                const isActive = currentNorm === normalizePath(item.path)
+                const targetNorm = normalizePath(item.path)
+                const isActive =
+                    currentNorm === targetNorm ||
+                    (item.key === 'training' &&
+                        (currentNorm === 'pages/index/index' || currentNorm === 'training/today-training'))
 
                 return (
                     <View

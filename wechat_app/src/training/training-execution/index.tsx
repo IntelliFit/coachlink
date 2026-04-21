@@ -500,8 +500,8 @@ function TrainingExecution() {
 
   const handleBackToTodayTraining = useCallback(() => {
     Taro.navigateBack().catch(() => {
-      Taro.redirectTo({ url: '/training/today-training' }).catch(() => {
-        Taro.switchTab({ url: '/training/today-training' }).catch(() => {
+      Taro.redirectTo({ url: '/pages/index/index' }).catch(() => {
+        Taro.reLaunch({ url: '/pages/index/index' }).catch(() => {
           Taro.showToast({ title: '跳转失败，请手动返回', icon: 'none' })
         })
       })
