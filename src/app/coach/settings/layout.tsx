@@ -22,7 +22,7 @@ const CoachSettingsLayout: React.FC<CoachSettingsLayoutProps> = ({ children }) =
     const safeIndex = activeIndex >= 0 ? activeIndex : 0;
 
     return (
-        <div className="min-h-screen bg-surface-50/50">
+        <div className="min-h-screen">
             <div className="max-w-4xl mx-auto px-6 py-8 md:py-12 animate-in fade-in duration-700">
                 
                 {/* 标题区域：遵循数值中心化排版 */}

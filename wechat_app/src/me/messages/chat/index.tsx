@@ -2,7 +2,7 @@ import React, { useState, useCallback, useEffect, useRef } from 'react'
 import { View, Text, ScrollView, Input, Image } from '@tarojs/components'
 import Taro, { useDidShow, useRouter } from '@tarojs/taro'
 import { authService } from '@/services/authService'
-import { chatService, type MessageItem } from '@/services/chatService'
+import { chatService, type MessageItem, CHAT_UNREAD_BADGE_REFRESH_EVENT } from '@/services/chatService'
 import { getChatMessagesCache, mergeServerLatestPage, setChatMessagesCache } from '@/utils/chatMessageCache'
 import { API_BASE_URL } from '@/utils/request'
 import './index.scss'
@@ -87,6 +87,7 @@ function ChatPage() {
         }
         if (!beforeId) {
           await chatService.markAsRead(roomId)
+          Taro.eventCenter.trigger(CHAT_UNREAD_BADGE_REFRESH_EVENT)
         }
       } catch (e) {
         console.error('loadMessages error', e)
@@ -381,7 +382,7 @@ function ChatPage() {
           className={`send-btn ${(!inputText.trim() && !uploadingImage) || sending ? 'disabled' : ''}`}
           onClick={sendText}
         >
-          <Text>发送</Text>
+          <Text className='iconfont icon-send send-btn__icon' />
         </View>
       </View>
     </View>

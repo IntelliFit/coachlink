@@ -60,7 +60,7 @@ export default function NodeDetailPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-surface-50 dark:bg-surface-900">
+      <div className="min-h-screen">
         <div className="bg-gradient-to-br from-primary-600 via-primary-500 to-amber-500 h-32 animate-pulse" />
         <div className="px-4 py-6 max-w-3xl mx-auto space-y-4">
           <div className="h-48 bg-surface-100 dark:bg-surface-800 rounded-xl animate-pulse" />
@@ -72,7 +72,7 @@ export default function NodeDetailPage() {
 
   if (!node) {
     return (
-      <div className="min-h-screen bg-surface-50 dark:bg-surface-900 flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <p className="text-surface-500">内容不存在</p>
           <button onClick={() => router.back()} className="mt-4 text-primary-500">
@@ -91,7 +91,7 @@ export default function NodeDetailPage() {
   const HeaderIcon = node.node_type === 'video' ? Video : BookOpen;
 
   return (
-    <div className="min-h-screen bg-surface-50 dark:bg-surface-900 pb-32">
+    <div className="min-h-screen pb-32">
       <KnowledgeHeader
         title={node.title}
         subtitle={node.node_type === 'video' ? '视频课程' : '知识文章'}

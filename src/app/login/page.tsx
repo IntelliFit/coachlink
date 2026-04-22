@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 
 export default function LoginPage() {
     return (
-        <main className="min-h-screen flex items-center justify-center bg-surface px-6 py-12">
+        <main className="min-h-screen flex items-center justify-center px-6 py-12">
             {/* 提供可爬内容，避免 Bing 抓到空页面导致缺少 H1 */}
             <h1 className="sr-only">登录 CoachLink 教链</h1>
 

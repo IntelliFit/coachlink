@@ -345,3 +345,81 @@
   color: #D1D5DB;
   font-weight: 300;
 }
+
+/* ==================== 暗色主题适配 ==================== */
+.theme-dark .home-page {
+  background: linear-gradient(180deg, #1c1c1c 0%, #141414 100%) !important;
+
+  .home-greeting,
+  .section-title,
+  .hero-card-title,
+  .feature-title {
+    color: #E0E0E0 !important;
+  }
+
+  .home-date,
+  .hero-card-subtitle,
+  .feature-desc {
+    color: #B0B0B0 !important;
+  }
+
+  .home-hero-card,
+  .quick-action-item,
+  .feature-item {
+    background: #242424 !important;
+    box-shadow: 0 8rpx 32rpx rgba(0, 0, 0, 0.2) !important;
+  }
+
+  .quick-action-icon.peach {
+    background: rgba(207, 109, 78, 0.12) !important;
+  }
+
+  .quick-action-icon.blue {
+    background: rgba(92, 141, 255, 0.12) !important;
+  }
+
+  .quick-action-icon.yellow {
+    background: rgba(255, 169, 64, 0.12) !important;
+  }
+
+  .quick-action-icon.mint {
+    background: rgba(41, 195, 163, 0.12) !important;
+  }
+
+  .quick-action-label {
+    color: #E0E0E0 !important;
+  }
+
+  .feature-icon-wrap.peach {
+    background: rgba(207, 109, 78, 0.12) !important;
+  }
+
+  .feature-icon-wrap.blue {
+    background: rgba(92, 141, 255, 0.12) !important;
+  }
+
+  .feature-icon-wrap.mint {
+    background: rgba(41, 195, 163, 0.12) !important;
+  }
+
+  .feature-arrow {
+    color: #666666 !important;
+  }
+
+  .hero-card-icon-wrap {
+    background: rgba(207, 109, 78, 0.12) !important;
+  }
+
+  .progress-track {
+    background: #333333 !important;
+  }
+
+  .login-pill--muted {
+    background: #242424 !important;
+    border-color: #333333 !important;
+  }
+
+  .login-pill-text--muted {
+    color: #B0B0B0 !important;
+  }
+}

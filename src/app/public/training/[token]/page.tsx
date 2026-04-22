@@ -44,7 +44,7 @@ const PublicTrainingPage = () => {
 
     if (loading) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-surface-50">
+            <div className="min-h-screen flex items-center justify-center">
                 <ProgressSpinner />
             </div>
         );
@@ -52,7 +52,7 @@ const PublicTrainingPage = () => {
 
     if (error || !data) {
         return (
-            <div className="min-h-screen flex flex-col items-center justify-center bg-surface-50 p-4">
+            <div className="min-h-screen flex flex-col items-center justify-center p-4">
                 <Card className="max-w-md w-full text-center">
                     <h2 className="text-xl font-bold text-red-500 mb-4">{error || '内容不可见'}</h2>
                     <Button label="回主页" onClick={() => router.push('/')} />
@@ -64,7 +64,7 @@ const PublicTrainingPage = () => {
     const dateStr = format(new Date(data.completedAt), 'yyyy年MM月dd日 HH:mm', { locale: zhCN });
 
     return (
-        <div className="min-h-screen bg-surface-50 pb-12">
+        <div className="min-h-screen pb-12">
             {/* Header / Banner */}
             <div className="bg-gradient-to-br from-slate-900 to-slate-800 text-white p-8 mb-8 text-center relative overflow-hidden">
                 <div className="absolute top-0 left-0 w-full h-full opacity-10 bg-[radial-gradient(circle_at_50%_50%,rgba(255,255,255,0.2),transparent)]"></div>

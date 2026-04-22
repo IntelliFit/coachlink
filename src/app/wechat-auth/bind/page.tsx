@@ -58,7 +58,7 @@ export default function WechatBindPage() {
 
   if (loading && !error) {
     return (
-      <main className="min-h-screen flex items-center justify-center bg-surface p-6">
+      <main className="min-h-screen flex items-center justify-center p-6">
         <div className="text-center">
           <div className="text-surface-900 font-black text-lg">正在跳转到微信授权页面…</div>
           <div className="mt-2 text-surface-500 text-sm">请稍候</div>
@@ -69,7 +69,7 @@ export default function WechatBindPage() {
 
   if (error) {
     return (
-      <main className="min-h-screen flex items-center justify-center bg-surface p-6">
+      <main className="min-h-screen flex items-center justify-center p-6">
         <div className="text-center">
           <div className="text-surface-900 font-black text-lg">微信绑定失败</div>
           <div className="mt-2 text-surface-500 text-sm">{error}</div>

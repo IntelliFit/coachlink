@@ -7,7 +7,7 @@ import DeleteAccountSection from '@/components/settings/DeleteAccountSection';
 
 export default function StudentSettingsPage() {
     return (
-        <div className="min-h-screen bg-surface-50 p-4 md:p-8">
+        <div className="min-h-screen p-4 md:p-8">
             <div className="max-w-4xl mx-auto space-y-6">
                 <div>
                     <h1 className="text-2xl font-bold text-surface-900 mb-2">账号设置</h1>

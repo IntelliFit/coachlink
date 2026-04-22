@@ -112,9 +112,10 @@
 
   .send-btn {
     flex-shrink: 0;
-    min-width: 96rpx;
+    width: 80rpx;
+    min-width: 80rpx;
     height: 80rpx;
-    padding: 0 24rpx;
+    padding: 0;
     box-sizing: border-box;
     display: flex;
     align-items: center;
@@ -122,8 +123,6 @@
     background: #cf6d4e;
     color: #fff;
     border-radius: 40rpx;
-    font-size: 28rpx;
-    font-weight: 600;
 
     &:active {
       opacity: 0.9;
@@ -132,6 +131,12 @@
     &.disabled {
       opacity: 0.5;
     }
+  }
+
+  .send-btn__icon {
+    font-size: 40rpx;
+    line-height: 1;
+    color: #ffffff;
   }
 
   .img-btn {

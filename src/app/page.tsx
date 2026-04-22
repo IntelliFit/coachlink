@@ -22,7 +22,7 @@ export default function Home() {
   }, [router]);
 
   return (
-    <main className="min-h-screen bg-surface-50 flex items-center justify-center px-6">
+    <main className="min-h-screen flex items-center justify-center px-6">
       <div className="text-center">
         <div className="text-sm font-black text-surface-900">正在进入…</div>
         <div className="mt-2 text-xs text-surface-500">如果未自动跳转，请点击下方按钮。</div>

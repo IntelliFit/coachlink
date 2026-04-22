@@ -199,7 +199,7 @@ const CoachSearchPage: React.FC = () => {
     );
 
     return (
-        <div className="min-h-screen bg-surface-50/50 pb-20">
+        <div className="min-h-screen pb-20">
             {/* 顶部搜索区 */}
             <div className="bg-surface-0 sticky top-0 z-30 pt-safe-top border-b border-surface-100">
                 <div className="px-4 py-4 max-w-6xl mx-auto">

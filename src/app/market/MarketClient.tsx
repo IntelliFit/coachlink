@@ -106,7 +106,7 @@ export default function MarketClient({ initialItems }: { initialItems: MarketIte
   };
 
   return (
-    <div className="min-h-screen bg-surface-50/50 py-8 px-4">
+    <div className="min-h-screen py-8 px-4">
       <div className="max-w-6xl mx-auto">
         <header className="mb-6">
           <div className="flex items-start justify-between gap-4">

@@ -61,7 +61,7 @@ export default function PublicToolboxPage() {
   };
 
   return (
-    <div className="min-h-screen bg-surface-50 p-4 md:p-10">
+    <div className="min-h-screen p-4 md:p-10">
       <div className="max-w-5xl mx-auto space-y-6">
         <div className="rounded-3xl border border-primary-100 bg-gradient-to-r from-primary-50 via-surface-0 to-amber-50 p-6 md:p-8 shadow-sm">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-5">

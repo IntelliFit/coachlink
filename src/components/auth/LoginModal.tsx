@@ -259,7 +259,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
             showHeader={false}
             className="border-none shadow-2xl rounded-none sm:rounded-3xl overflow-hidden"
             style={{ width: '850px' }}
-            contentClassName="p-0"
+            contentClassName="p-0 bg-transparent"
             pt={{
                 root: {
                     className: 'shadow-none border-none bg-transparent min-h-screen md:min-h-[fit-content]'
@@ -272,9 +272,9 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                 }
             }}
         >
-            <div className="flex flex-col md:flex-row min-h-[550px] bg-surface">
-                {/* 左侧品牌区域 - 延续导航栏风格 */}
-                <div className="hidden md:flex w-[38%] bg-surface-50 p-10 flex-col justify-between relative overflow-hidden">
+            <div className="flex flex-col md:flex-row min-h-[550px] bg-app-canvas">
+                {/* 左侧品牌区域：轻玻璃层，透出与全站一致的 #E8E8E8→#F5F5F5 画布 */}
+                <div className="hidden md:flex w-[38%] bg-white/30 backdrop-blur-sm dark:bg-surface-900/25 p-10 flex-col justify-between relative overflow-hidden">
                     {/* 背景装饰球 */}
                     <div className="absolute -top-20 -left-20 w-64 h-64 bg-primary-100/50 dark:bg-primary-800/50 rounded-full blur-3xl"></div>
                     <div className="absolute -bottom-20 -right-20 w-64 h-64 bg-primary-200/30 dark:bg-primary-700/30 rounded-full blur-3xl"></div>
@@ -354,7 +354,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                 </div>
 
                 {/* 右侧表单区域 */}
-                <div className="flex-1 p-8 md:p-14 flex flex-col justify-center relative min-h-screen sm:min-h-[unset]">
+                <div className="flex-1 p-8 md:p-14 flex flex-col justify-center relative min-h-screen sm:min-h-[unset] bg-transparent">
                     <button
                         onClick={() => onClose(true)}
                         className="absolute top-6 right-6 p-2 text-surface-400 hover:text-primary-500 hover:bg-primary-50 dark:hover:bg-surface-50 rounded-full transition-all"
@@ -504,7 +504,9 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                                         <div className="w-full border-t border-surface-200"></div>
                                     </div>
                                     <div className="relative flex justify-center text-sm">
-                                        <span className="px-4 bg-surface text-surface-500 text-xs font-bold uppercase tracking-widest">其他登录方式</span>
+                                        <span className="px-4 text-surface-500 text-xs font-bold uppercase tracking-widest bg-app-canvas">
+                                            其他登录方式
+                                        </span>
                                     </div>
                                 </div>
 

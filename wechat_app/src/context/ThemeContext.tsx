@@ -146,7 +146,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     }
   }, [themeMode])
 
-  // 当 effectiveTheme 变化时，同步到 app-root class
+  // 当 effectiveTheme 变化时，同步到 app-root class 与微信原生导航栏
   useEffect(() => {
     try {
       const pages = Taro.getCurrentPages()
@@ -157,6 +157,49 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       })
     } catch {
       // ignore
+    }
+
+    // 同步微信原生导航栏与下拉刷新样式
+    const isDark = effectiveTheme === 'dark'
+    const syncNativeUI = () => {
+      try {
+        Taro.setNavigationBarColor({
+          frontColor: isDark ? '#ffffff' : '#000000',
+          backgroundColor: isDark ? '#1c1c1c' : '#ffffff',
+          animation: { duration: 300, timingFunc: 'easeIn' },
+        })
+      } catch {
+        // ignore
+      }
+      try {
+        Taro.setBackgroundTextStyle({
+          textStyle: isDark ? 'dark' : 'light',
+        })
+      } catch {
+        // ignore
+      }
+    }
+    syncNativeUI()
+
+    // 每次 App 显示或页面切换时重新同步，防止页面 config 覆盖
+    let appShowHandler: any
+    try {
+      appShowHandler = () => {
+        syncNativeUI()
+      }
+      Taro.onAppShow?.(appShowHandler)
+    } catch {
+      // ignore
+    }
+
+    return () => {
+      try {
+        if (appShowHandler) {
+          Taro.offAppShow?.(appShowHandler)
+        }
+      } catch {
+        // ignore
+      }
     }
   }, [effectiveTheme])
 

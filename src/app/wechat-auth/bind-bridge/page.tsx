@@ -58,7 +58,7 @@ export default function WechatBindBridgePage() {
   const message = searchParams.get('message') || (status === 'success' ? '绑定成功' : '绑定失败');
 
   return (
-    <main className="min-h-screen flex items-center justify-center bg-surface p-6">
+    <main className="min-h-screen flex items-center justify-center p-6">
       <div className="text-center">
         <div className="text-surface-900 font-black text-lg">
           {status === 'success' ? '微信绑定成功' : '微信绑定失败'}

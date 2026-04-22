@@ -34,7 +34,7 @@ function TrainingExecutionContent() {
   
   if (loading) {
     return (
-      <div className="min-h-screen flex align-items-center justify-content-center bg-surface">
+      <div className="min-h-screen flex align-items-center justify-content-center">
         <div className="text-center">
           <Skeleton width="4rem" height="4rem" shape="circle" className="mx-auto mb-4" />
           <Skeleton width="10rem" height="1.5rem" />
@@ -45,7 +45,7 @@ function TrainingExecutionContent() {
   
   if (!session?.user?.id) {
     return (
-      <div className="min-h-screen flex align-items-center justify-content-center bg-surface">
+      <div className="min-h-screen flex align-items-center justify-content-center">
         <div className="text-center">
           <h2 className="text-2xl font-bold text-900 mb-2">未登录</h2>
           <p className="text-600">请先登录</p>
@@ -76,7 +76,7 @@ function TrainingExecutionContent() {
 export default function TrainingExecutionPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen flex align-items-center justify-content-center bg-surface">
+      <div className="min-h-screen flex align-items-center justify-content-center">
         <div className="text-center">
           <Skeleton width="4rem" height="4rem" shape="circle" className="mx-auto mb-4" />
           <Skeleton width="10rem" height="1.5rem" />

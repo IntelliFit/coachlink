@@ -513,7 +513,7 @@ const TianDiTuMapPicker: React.FC<TianDiTuMapPickerProps> = ({
         
         {loading && !loadError ? (
             <div 
-              className="absolute inset-0 flex items-center justify-center bg-surface-50 bg-opacity-75"
+              className="absolute inset-0 flex items-center justify-center bg-opacity-75"
               style={{ zIndex: 10, pointerEvents: 'auto', borderRadius: 'inherit' }}
             >
               <div className="text-center">
@@ -525,7 +525,7 @@ const TianDiTuMapPicker: React.FC<TianDiTuMapPickerProps> = ({
         
         {loadError && (
           <div 
-            className="absolute inset-0 flex items-center justify-center bg-surface-50"
+            className="absolute inset-0 flex items-center justify-center"
             style={{ zIndex: 10, pointerEvents: 'auto', borderRadius: 'inherit' }}
           >
             <div className="text-center p-6">

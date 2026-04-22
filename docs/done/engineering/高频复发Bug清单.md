@@ -305,3 +305,10 @@
 - **根因**：`const user = authService.getAuthSession().user`（或整个 `session`）引用每轮变化，却放进 `useEffect(..., [user])` 并在 effect 内 `setState`，形成死循环。
 - **统一规则**：依赖里只放 **稳定原始值**（如 `user?.id`、`isAuthenticated`）；effect 内需要最新用户时再 `getAuthSession()`；合并 `setState` 时用浅比较避免重复写入同一快照。
 - **改动前自检**：搜索 `getAuthSession` / `getCurrentUser` 与 `useEffect` 依赖数组是否同时出现「整条 user/session 对象」。
+
+## 25) 并发/链式拉数 + 全局 `loading`：`finally` 被旧请求关掉、新请求仍飞 → 骨架屏卡死（高风险）
+
+- **现象**：接口面板里请求都 200，但页面一直停在骨架屏/全屏 loading。
+- **根因**：同一页 `loadData` 被 `useDidShow` 与 `useEffect([loadData])` 或「`loadData` 依赖会在加载末尾 `setState` 的字段」重复触发，多段 `Promise` 重叠；先结束的那段在 `finally` 里 `setLoading(false)`，后发起的请求又把 `loading` 设为 `true`，若时序错乱或旧 `finally` 误执行，会出现 `loading` 长期为 `true`。
+- **统一规则**：并发拉数用 **请求序号/AbortController**，仅在 **当前序号** 的 `finally` 里结束 loading；`loadData` 不要依赖「本次加载会改写的 state」；页面展示用 `useDidShow` 与 `useEffect` 二选一去重，避免首屏双击请求。
+- **改动前自检**：`setLoading(false)` 是否只对应「最后一次发起的请求」；`useCallback(loadData)` 依赖里有无 `activeXxxId` 这类会在 `loadData` 末尾被赋值的变量。

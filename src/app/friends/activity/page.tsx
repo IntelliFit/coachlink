@@ -57,7 +57,7 @@ export default function FriendActivityPage() {
     );
 
     return (
-        <div className="min-h-screen bg-surface-50 pb-24">
+        <div className="min-h-screen pb-24">
             {/* 背景装饰 */}
             <div className="pointer-events-none absolute inset-x-0 top-0 h-72 bg-gradient-to-b from-primary-100/30 to-transparent" />
 

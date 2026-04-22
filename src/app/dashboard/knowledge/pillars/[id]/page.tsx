@@ -102,7 +102,7 @@ export default function PillarDetailPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-surface-50 dark:bg-surface-950">
+      <div className="min-h-screen">
         {/* 背景装饰 */}
         <div className="pointer-events-none absolute inset-x-0 top-0 h-72 bg-gradient-to-b from-primary-100/30 dark:from-primary-900/20 to-transparent" />
         
@@ -122,7 +122,7 @@ export default function PillarDetailPage() {
 
   if (!pillar) {
     return (
-      <div className="min-h-screen bg-surface-50 dark:bg-surface-950 flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <BookOpen className="w-12 h-12 mx-auto text-surface-400 mb-4" />
           <p className="text-surface-500">内容不存在</p>
@@ -135,7 +135,7 @@ export default function PillarDetailPage() {
   }
 
   return (
-    <div className="min-h-screen bg-surface-50 dark:bg-surface-950 pb-24">
+    <div className="min-h-screen pb-24">
       {/* 背景装饰 - 与知识库首页一致 */}
       <div className="pointer-events-none absolute inset-x-0 top-0 h-72 bg-gradient-to-b from-primary-100/30 dark:from-primary-900/20 to-transparent" />
 

@@ -48,6 +48,11 @@ import WeekDashboardStrip, { buildWeekStripCells, getSundayWeekStart } from './c
 import type { WeekStripCell } from './components/WeekDashboardStrip'
 import { calculateCurrentWeek, getDayWeekNumber, isDayUnlocked } from '@/utils/weekUnlock'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
+import {
+  getTodayTrainingBootFromCache,
+  patchTodayTrainingPageCache,
+  persistTodayTrainingPageCache
+} from '@/utils/todayTrainingPageCache'
 import './index.scss'
 
 type PlanMode = 'coach' | 'self'
@@ -63,73 +68,6 @@ function isStudentTrainingHomeUrl(url: string) {
   const pathOnly = (url || '').split('?')[0]
   return pathOnly === TODAY_TRAINING_HOME_PATH || pathOnly === LEGACY_TODAY_TRAINING_PATH
 }
-/** 今日训练页展示数据：本地优先，云端仅同步刷新（与学员端 60 天缓存策略一致） */
-const TODAY_TRAINING_PAGE_CACHE_KEY = 'today_training_page_cache_v1'
-const TODAY_TRAINING_CACHE_MAX_AGE_MS = 60 * 24 * 60 * 60 * 1000
-
-type TodayTrainingPageCacheV1 = {
-  v: 1
-  userId: string
-  savedAt: number
-  coachSubscriptions: any[]
-  coachPlanDataBySubId: Record<string, any>
-  activeCoachSubscriptionId: string | null
-  selfInstance: PlanInstance | null
-  selfActions: Record<string, any>
-  selfDayIndex: number
-  selfTodayCompleted: boolean
-  selfCompletionDates: Record<number, string>
-  selfExecutionsByDayIndex: Record<number, any>
-  selfMissingDays: number[]
-  planMode: 'coach' | 'self'
-  selectedDayIndex: number
-}
-
-function readTodayTrainingPageCache(userId: string): TodayTrainingPageCacheV1 | null {
-  if (!userId) return null
-  try {
-    const raw = Taro.getStorageSync(TODAY_TRAINING_PAGE_CACHE_KEY) as any
-    if (!raw || typeof raw !== 'object') return null
-    if (raw.v !== 1) return null
-    if (String(raw.userId || '') !== String(userId)) return null
-    const savedAt = Number(raw.savedAt || 0)
-    if (!savedAt || Date.now() - savedAt > TODAY_TRAINING_CACHE_MAX_AGE_MS) return null
-    return raw as TodayTrainingPageCacheV1
-  } catch {
-    return null
-  }
-}
-
-function persistTodayTrainingPageCache(payload: Omit<TodayTrainingPageCacheV1, 'v' | 'savedAt'>) {
-  try {
-    const toSave: TodayTrainingPageCacheV1 = {
-      v: 1,
-      savedAt: Date.now(),
-      ...payload
-    }
-    Taro.setStorageSync(TODAY_TRAINING_PAGE_CACHE_KEY, toSave)
-  } catch (e) {
-    console.warn('[today-training] persist page cache failed', e)
-  }
-}
-
-function patchTodayTrainingPageCache(partial: Partial<Omit<TodayTrainingPageCacheV1, 'v' | 'savedAt' | 'userId'>>) {
-  const session = authService.getAuthSession({ normalize: true })
-  const uid = session.userId ? String(session.userId) : ''
-  if (!uid) return
-  const cur = readTodayTrainingPageCache(uid)
-  if (!cur) return
-  const { v: _v, savedAt: _sa, ...rest } = cur
-  persistTodayTrainingPageCache({ ...rest, userId: uid, ...partial })
-}
-
-function createTodayTrainingInitialBoot() {
-  const session = authService.getAuthSession({ normalize: true })
-  const userId = session.userId ? String(session.userId) : ''
-  const cache = userId ? readTodayTrainingPageCache(userId) : null
-  return { cache, userId }
-}
-
 /** 小程序 Image 需要可访问的绝对 URL；后端若返回相对路径则拼 API 根 */
 function resolveCoachAvatarUrl(raw: string | null | undefined): string {
   const s = raw != null ? String(raw).trim() : ''
@@ -216,9 +154,9 @@ const formatShortDate = (ts?: string | null) => {
 const getExecutionId = (value: any) => value?.id || value?.data?.id || null
 
 function TodayTrainingScreen() {
-  const bootRef = useRef<ReturnType<typeof createTodayTrainingInitialBoot> | null>(null)
+  const bootRef = useRef<ReturnType<typeof getTodayTrainingBootFromCache> | null>(null)
   if (!bootRef.current) {
-    bootRef.current = createTodayTrainingInitialBoot()
+    bootRef.current = getTodayTrainingBootFromCache()
   }
   const pageBoot = bootRef.current
   const pageCache = pageBoot.cache
@@ -1436,6 +1374,7 @@ function TodayTrainingScreen() {
               hoverClass='tt-daily-progress-coach-trigger--pressed'
               hoverStayTime={70}
             >
+              <Text className='tt-daily-progress-coach-trigger-icon iconfont icon-qiehuanyonghu' />
               <Text className='tt-daily-progress-coach-trigger-text'>切换教练</Text>
             </View>
           )}
@@ -1649,6 +1588,11 @@ function TodayTrainingScreen() {
             hoverClass='schedule-calendar-anchor__toggle--pressed'
             hoverStayTime={70}
           >
+            <Text
+              className={`schedule-calendar-anchor__toggle-icon iconfont icon-a-shili-zhankaizuocezhankaijiantou${
+                calendarExpanded ? ' schedule-calendar-anchor__toggle-icon--expanded' : ''
+              }`}
+            />
             <Text className='schedule-calendar-anchor__toggle-text'>
               {calendarExpanded ? '收起月历' : '展开月历'}
             </Text>
@@ -1824,18 +1768,26 @@ function TodayTrainingScreen() {
                 </View>
               )}
 
-              <View className='section-header section-header--schedule'>
-                <View className='header-left'>
-                  <Text className='section-title'>{selectedDayIndex === progressDayIndex ? '今日安排' : '当天安排'}</Text>
-                  <Text className='section-subtitle'>
-                    {selectedDay?.type === 'rest'
-                      ? `第${selectedDayIndex}天 · 恢复与轻任务`
-                      : `第${selectedDayIndex}天 · ${selectedTaskSummary.totalModules} 个模块`}
-                  </Text>
+              <View className='tt-schedule-stack'>
+                <View className='section-header section-header--schedule'>
+                  <View className='header-left'>
+                    <View className='tt-schedule-stack__head'>
+                      <Text className='tt-schedule-stack__icon iconfont icon-a-Trainingplan' />
+                      <View className='tt-schedule-stack__titles'>
+                        <Text className='section-title'>
+                          {selectedDayIndex === progressDayIndex ? '今日安排' : '当天安排'}
+                        </Text>
+                        <Text className='section-subtitle'>
+                          {selectedDay?.type === 'rest'
+                            ? `第${selectedDayIndex}天 · 恢复与轻任务`
+                            : `第${selectedDayIndex}天 · ${selectedTaskSummary.totalModules} 个模块`}
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
                 </View>
-              </View>
 
-              {selectedDay?.type === 'training' ? (
+                {selectedDay?.type === 'training' ? (
                 <>
                   <TodayTrainingCard
                     day={selectedDay}
@@ -1918,7 +1870,8 @@ function TodayTrainingScreen() {
                     </View>
                   </View>
                 </View>
-              )}
+                )}
+              </View>
             </>
           )}
         </View>

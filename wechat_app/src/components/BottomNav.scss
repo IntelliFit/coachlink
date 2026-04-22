@@ -38,6 +38,38 @@
     }
   }
 
+  .nav-icon-badge-wrap {
+    position: relative;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .nav-msg-badge {
+    position: absolute;
+    top: -4rpx;
+    right: -10rpx;
+    min-width: 32rpx;
+    height: 32rpx;
+    padding: 0 8rpx;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #cf6d4e;
+    border-radius: 9999rpx;
+    border: 2rpx solid rgba(31, 31, 31, 0.92);
+    z-index: 2;
+  }
+
+  .nav-msg-badge-text {
+    font-size: 20rpx;
+    font-weight: 700;
+    color: #ffffff;
+    line-height: 1;
+  }
+
   .nav-icon {
     font-size: 22px;
     color: rgba(255, 255, 255, 0.65);
@@ -48,6 +80,10 @@
 
   .nav-icon-active {
     color: #CF6D4E;
+  }
+
+  .nav-active .nav-msg-badge {
+    border-color: rgba(255, 255, 255, 0.96);
   }
 
   .nav-label {

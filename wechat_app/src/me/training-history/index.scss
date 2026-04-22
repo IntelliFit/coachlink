@@ -283,3 +283,33 @@
     }
   }
 }
+
+/* ==================== 暗色主题适配 ==================== */
+.theme-dark .training-history-page {
+  background: linear-gradient(180deg, #1c1c1c 0%, #141414 100%) !important;
+
+  .page-header {
+    background: linear-gradient(180deg, #1c1c1c 0%, #141414 100%) !important;
+  }
+
+  .header-title,
+  .history-item-title,
+  .stat-value {
+    color: #E0E0E0 !important;
+  }
+
+  .history-item-desc,
+  .stat-label,
+  .empty-text {
+    color: #B0B0B0 !important;
+  }
+
+  .history-item,
+  .stat-card {
+    background: #242424 !important;
+  }
+
+  .divider {
+    background: #333333 !important;
+  }
+}

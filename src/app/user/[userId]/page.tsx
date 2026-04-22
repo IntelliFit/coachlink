@@ -48,7 +48,7 @@ export default function FriendProfilePage() {
     // 骨架屏
     if (loading) {
         return (
-            <div className="min-h-screen bg-surface-50 pb-20">
+            <div className="min-h-screen pb-20">
                 <div className="pointer-events-none absolute inset-x-0 top-0 h-72 bg-gradient-to-b from-primary-100/30 to-transparent" />
                 <div className="relative z-10">
                     <div className={`${AERO_CONTAINER} pt-6`}>
@@ -86,7 +86,7 @@ export default function FriendProfilePage() {
     // 访问受限
     if (!profile) {
         return (
-            <div className="min-h-screen bg-surface-50">
+            <div className="min-h-screen">
                 <div className="pointer-events-none absolute inset-x-0 top-0 h-72 bg-gradient-to-b from-surface-200/50 to-transparent" />
                 <div className="relative z-10">
                     <div className={`${AERO_CONTAINER} pt-6`}>
@@ -118,7 +118,7 @@ export default function FriendProfilePage() {
     }
 
     return (
-        <div className="min-h-screen bg-surface-50 pb-20">
+        <div className="min-h-screen pb-20">
             {/* 背景装饰 */}
             <div className="pointer-events-none absolute inset-x-0 top-0 h-72 bg-gradient-to-b from-primary-100/30 to-transparent" />
 

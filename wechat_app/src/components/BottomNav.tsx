@@ -1,7 +1,8 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { View, Text } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { authService } from '@/services/authService'
+import { chatService, CHAT_UNREAD_BADGE_REFRESH_EVENT } from '@/services/chatService'
 import './BottomNav.scss'
 
 interface NavItem {
@@ -56,8 +57,30 @@ const coachNavItems: NavItem[] = [
 
 function BottomNav() {
     const [currentPath, setCurrentPath] = useState('')
-    const [isCoachView, setIsCoachView] = useState(false)
+    const [isCoachView, setIsCoachView] = useState(() => {
+        const session = authService.getAuthSession({ normalize: true })
+        return !!(session.isAuthenticated && session.isCoach && session.primaryRole === 'coach')
+    })
+    const [studentMessageUnreadTotal, setStudentMessageUnreadTotal] = useState(0)
     const navLockRef = useRef(false)
+
+    const refreshStudentUnreadBadge = useCallback(async () => {
+        const session = authService.getAuthSession({ normalize: true })
+        const isCoachTab =
+            session.isAuthenticated && session.isCoach && session.primaryRole === 'coach'
+        if (!session.isAuthenticated || isCoachTab) {
+            setStudentMessageUnreadTotal(0)
+            return
+        }
+        try {
+            const data = await chatService.listChatrooms({ page: 1, limit: 50 })
+            const rooms = data?.chatRooms ?? []
+            const sum = rooms.reduce((acc, r) => acc + (Number(r.unreadCount) || 0), 0)
+            setStudentMessageUnreadTotal(sum)
+        } catch (e) {
+            console.warn('[BottomNav] refresh unread badge failed', e)
+        }
+    }, [])
 
     useEffect(() => {
         const session = authService.getAuthSession({ normalize: true })
@@ -95,6 +118,28 @@ function BottomNav() {
         }, 300)
         return () => clearInterval(timer)
     }, [])
+
+    useEffect(() => {
+        void refreshStudentUnreadBadge()
+    }, [refreshStudentUnreadBadge, isCoachView])
+
+    useEffect(() => {
+        const tick = () => {
+            void refreshStudentUnreadBadge()
+        }
+        const id = setInterval(tick, 25000)
+        return () => clearInterval(id)
+    }, [refreshStudentUnreadBadge])
+
+    useEffect(() => {
+        const handler = () => {
+            void refreshStudentUnreadBadge()
+        }
+        Taro.eventCenter.on(CHAT_UNREAD_BADGE_REFRESH_EVENT, handler)
+        return () => {
+            Taro.eventCenter.off(CHAT_UNREAD_BADGE_REFRESH_EVENT, handler)
+        }
+    }, [refreshStudentUnreadBadge])
 
     const tryNavigate = async (url: string) => {
         const navOptions = { url, animationType: 'none' as any }
@@ -171,15 +216,27 @@ function BottomNav() {
                     (item.key === 'training' &&
                         (currentNorm === 'pages/index/index' || currentNorm === 'training/today-training'))
 
+                const showMsgBadge =
+                    item.key === 'messages' && !isCoachView && studentMessageUnreadTotal > 0
+
                 return (
                     <View
                         key={item.key}
                         className={`nav-item ${isActive ? 'nav-active' : ''}`}
                         onClick={() => handleNavClick(item)}
                     >
-                        <Text
-                            className={`nav-icon iconfont ${item.iconClass} ${isActive ? 'nav-icon-active' : ''}`}
-                        />
+                        <View className='nav-icon-badge-wrap'>
+                            <Text
+                                className={`nav-icon iconfont ${item.iconClass} ${isActive ? 'nav-icon-active' : ''}`}
+                            />
+                            {showMsgBadge ? (
+                                <View className='nav-msg-badge'>
+                                    <Text className='nav-msg-badge-text'>
+                                        {studentMessageUnreadTotal > 99 ? '99+' : studentMessageUnreadTotal}
+                                    </Text>
+                                </View>
+                            ) : null}
+                        </View>
                         <Text className='nav-label'>{item.label}</Text>
                     </View>
                 )

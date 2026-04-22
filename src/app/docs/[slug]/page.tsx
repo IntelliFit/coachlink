@@ -42,7 +42,7 @@ export default async function DocPage({ params }: { params: Promise<{ slug: stri
     const htmlContent = md.render(content);
 
     return (
-        <main className="min-h-screen bg-gray-50 dark:bg-gray-900 py-12 px-4 sm:px-6 lg:px-8">
+        <main className="min-h-screen py-12 px-4 sm:px-6 lg:px-8">
             <div className="max-w-4xl mx-auto bg-white dark:bg-gray-800 rounded-xl shadow-sm p-8 md:p-12">
                 <article className="prose prose-lg dark:prose-invert max-w-none">
                     <div dangerouslySetInnerHTML={{ __html: htmlContent }} />

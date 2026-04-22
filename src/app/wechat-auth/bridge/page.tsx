@@ -26,7 +26,7 @@ export default function WechatAuthBridgePage() {
   }, [searchParams]);
 
   return (
-    <main className="min-h-screen flex items-center justify-center bg-surface p-6">
+    <main className="min-h-screen flex items-center justify-center p-6">
       <div className="text-center">
         <div className="text-surface-900 font-black text-lg">登录成功</div>
         <div className="mt-2 text-surface-500 text-sm">正在返回…</div>

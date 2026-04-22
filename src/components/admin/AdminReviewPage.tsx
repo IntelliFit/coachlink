@@ -147,7 +147,7 @@ const AdminReviewPage: React.FC<AdminReviewPageProps> = ({ onNavigate }) => {
 
   if (!isAdmin) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <XCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
           <h2 className="text-2xl font-bold text-gray-800 mb-2">访问被拒绝</h2>
@@ -164,7 +164,7 @@ const AdminReviewPage: React.FC<AdminReviewPageProps> = ({ onNavigate }) => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen">
       {/* 页面头部 */}
       <div className="bg-white shadow-sm border-b">
         <div className="container mx-auto px-4 py-6">

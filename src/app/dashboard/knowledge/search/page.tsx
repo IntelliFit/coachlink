@@ -85,7 +85,7 @@ function SearchResultsContent() {
   };
 
   return (
-    <div className="min-h-screen bg-surface-50 dark:bg-surface-900 pb-32">
+    <div className="min-h-screen pb-32">
       <KnowledgeHeader
         title="搜索知识"
         subtitle="搜索文章、视频和知识点"
@@ -208,7 +208,7 @@ function SearchResultsContent() {
 export default function SearchPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-surface-50 dark:bg-surface-900 flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center">
         <Loader2 size={24} className="animate-spin text-primary-500" />
       </div>
     }>

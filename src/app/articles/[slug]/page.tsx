@@ -93,7 +93,7 @@ export default async function ArticleDetailPage({ params }: { params: Promise<{ 
     const coachStatus = (data as any)?.coach?.status || null;
     if (error || !data) {
       return (
-        <div className="min-h-screen bg-surface-50 py-12 px-4 sm:px-6">
+        <div className="min-h-screen py-12 px-4 sm:px-6">
           <div className="max-w-4xl mx-auto">
             <div className="mb-8">
               <BackButton />
@@ -118,7 +118,7 @@ export default async function ArticleDetailPage({ params }: { params: Promise<{ 
     }
     if (coachStatus !== 'approved') {
       return (
-        <div className="min-h-screen bg-surface-50 py-12 px-4 sm:px-6">
+        <div className="min-h-screen py-12 px-4 sm:px-6">
           <div className="max-w-4xl mx-auto">
             <div className="mb-8">
               <BackButton />
@@ -184,7 +184,7 @@ export default async function ArticleDetailPage({ params }: { params: Promise<{ 
     const priceYuan = (priceCents / 100).toFixed(2);
 
     return (
-      <div className="min-h-screen bg-surface-50 py-12 px-4 sm:px-6">
+      <div className="min-h-screen py-12 px-4 sm:px-6">
         {PaidRefresh}
         <div className="max-w-4xl mx-auto">
           <div className="mb-8">
@@ -253,7 +253,7 @@ export default async function ArticleDetailPage({ params }: { params: Promise<{ 
   const htmlContent = md.render(previewMd);
 
   return (
-    <div className="min-h-screen bg-surface-50 py-12 px-4 sm:px-6">
+    <div className="min-h-screen py-12 px-4 sm:px-6">
         {PaidRefresh}
       <div className="max-w-4xl mx-auto">
         <div className="mb-8">

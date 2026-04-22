@@ -1092,7 +1092,7 @@ const TodayTrainingPage: React.FC = () => {
             ? `/coach/profile/${activeSubscription.coach_id}?renew=true`
             : '/coach/subscription';
         return (
-            <div className="min-h-screen bg-surface pb-12">
+            <div className="min-h-screen pb-12">
                 <div className="max-w-6xl mx-auto px-3 sm:px-4 md:px-6 py-3 sm:py-6 md:py-8">
                     {hasBothPlans && (
                         <div className="grid grid-cols-2 gap-2 p-1 bg-surface-50 rounded-2xl mb-6 w-full sm:w-fit border border-surface-100/50">
@@ -1268,7 +1268,7 @@ const TodayTrainingPage: React.FC = () => {
     }
 
     return (
-        <div className="min-h-screen bg-surface pb-12">
+        <div className="min-h-screen pb-12">
             {/* 确认对话框 */}
             <ConfirmDialog />
 

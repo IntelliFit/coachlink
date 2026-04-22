@@ -113,7 +113,7 @@ export default function AdminRankingsPage() {
     }
 
     return (
-        <div className="min-h-screen bg-surface-50/50 py-10 px-4">
+        <div className="min-h-screen py-10 px-4">
             <div className="max-w-5xl mx-auto">
                 {/* 顶部标题栏 */}
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
