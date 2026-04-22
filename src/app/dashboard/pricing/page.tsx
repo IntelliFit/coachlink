@@ -15,7 +15,7 @@ const PricingPage = () => {
     }
 
     return (
-        <div className="min-h-screen bg-[#F8FAFC] pb-20">
+        <div className="min-h-screen pb-20">
             {/* 页面装饰背景 */}
             <div className="absolute top-0 left-0 w-full h-64 bg-gradient-to-b from-blue-50/50 to-transparent -z-10" />
 

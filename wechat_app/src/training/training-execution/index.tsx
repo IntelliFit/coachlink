@@ -9,7 +9,11 @@ import { studentActionLibService } from '@/services/studentActionLibService'
 import { chatService } from '@/services/chatService'
 import { buildPublicTrainingSharePath } from '@/utils/share'
 import { formatKgValueForGym } from '@/utils/weightQuantize'
-import { Clock, Heart, Power, Target } from '@nutui/icons-react-taro'
+import {
+  readTrainingExecutionSnapshot,
+  syncTrainingExecutionToStorage,
+  trainingExecutionSnapshotKey
+} from '@/utils/trainingExecutionCache'
 import './index.scss'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 
@@ -52,6 +56,61 @@ const FEEDBACK_DIFFICULTY_OPTIONS = [
   { value: 4, label: '有点难', icon: 'Target' },
   { value: 5, label: '太难了', icon: 'Power' }
 ]
+
+/** 与动作 type 对应的展示文案（hero 标签、非力量摘要等） */
+function getActionTypeMeta(type: string): { label: string; cue: string } {
+  const t = String(type || 'STRENGTH').toUpperCase()
+  const map: Record<string, { label: string; cue: string }> = {
+    STRENGTH: { label: '力量', cue: '按计划完成组次与重量' },
+    CARDIO: { label: '有氧', cue: '记录距离或训练时长' },
+    DIET: { label: '饮食', cue: '按提示记录饮食内容' },
+    HABIT: { label: '习惯', cue: '完成习惯打卡' }
+  }
+  return map[t] || map.STRENGTH
+}
+
+/** 计划间歇秒数展示（hero / 组卡片） */
+function formatRestSummary(seconds?: number | null): string {
+  if (seconds === null || seconds === undefined || !Number.isFinite(Number(seconds))) {
+    return '间歇未设'
+  }
+  const s = Math.max(0, Math.round(Number(seconds)))
+  if (s <= 0) return '无间歇'
+  if (s < 60) return `间歇 ${s}s`
+  const m = Math.floor(s / 60)
+  const r = s % 60
+  if (r === 0) return `间歇 ${m}分钟`
+  return `间歇 ${m}分${r}秒`
+}
+
+/** 休息倒计时 mm:ss */
+function formatTimerValue(totalSeconds: number): string {
+  const s = Math.max(0, Math.floor(Number(totalSeconds) || 0))
+  const m = Math.floor(s / 60)
+  const r = s % 60
+  return `${String(m).padStart(2, '0')}:${String(r).padStart(2, '0')}`
+}
+
+function syncExpandUIFromExecution(
+  data: any,
+  setExpandedAction: (n: number) => void,
+  setCurrentSetIndex: (n: number) => void
+) {
+  const actionExecutions = data?.action_executions || []
+  if (actionExecutions.length > 0) {
+    const firstPendingActionIdx = actionExecutions.findIndex((action: ActionExecution) =>
+      (action.sets || []).some((s: SetData) => s.status === 'pending')
+    )
+    const targetActionIdx = firstPendingActionIdx >= 0 ? firstPendingActionIdx : 0
+    const targetAction = actionExecutions[targetActionIdx]
+    const pendingSetIndex = targetAction?.sets?.findIndex((s: SetData) => s.status === 'pending') ?? 0
+    setExpandedAction(targetActionIdx)
+    setCurrentSetIndex(pendingSetIndex >= 0 ? pendingSetIndex : 0)
+  } else {
+    setExpandedAction(0)
+    setCurrentSetIndex(0)
+  }
+}
 
 function TrainingExecution() {
   const instance = Taro.getCurrentInstance()
@@ -103,6 +162,30 @@ function TrainingExecution() {
 
   const userId = authService.getCurrentUser()?.id
 
+  const syncExecutionToCaches = useCallback(
+    (exec: any) => {
+      if (!userId || !exec) return
+      const scopeKey = trainingExecutionSnapshotKey({
+        isImpromptuMode,
+        impromptuId,
+        instanceId,
+        dayIndex
+      })
+      if (!scopeKey) return
+      syncTrainingExecutionToStorage({
+        userId,
+        scopeKey,
+        instanceId: isImpromptuMode ? undefined : instanceId,
+        dayIndex,
+        isImpromptuMode,
+        execution: exec,
+        planInstance: planInstance || undefined,
+        actions: actions || {}
+      })
+    },
+    [userId, isImpromptuMode, impromptuId, instanceId, dayIndex, planInstance, actions]
+  )
+
   const parseInputNumber = useCallback((value: string, mode: 'int' | 'float' = 'float') => {
     const trimmed = String(value ?? '').trim()
     if (!trimmed || trimmed === '-' || trimmed === '.' || trimmed === '-.') {
@@ -147,6 +230,31 @@ function TrainingExecution() {
 
   const canFinishWholeDay = isImpromptuMode || lightweightProgress.pending <= 0
 
+  const actionExecutions = useMemo(
+    () => (Array.isArray(execution?.action_executions) ? execution.action_executions : []) as ActionExecution[],
+    [execution?.action_executions]
+  )
+
+  const trainingCardSlots = useMemo(() => {
+    const slots: { actionIdx: number; setIdx: number }[] = []
+    actionExecutions.forEach((action, actionIdx) => {
+      const t = String(actions?.[action.action_id]?.type || 'STRENGTH').toUpperCase()
+      if (['DIET', 'CARDIO', 'HABIT'].includes(t)) {
+        slots.push({ actionIdx, setIdx: 0 })
+      } else {
+        (action.sets || []).forEach((_, setIdx) => {
+          slots.push({ actionIdx, setIdx })
+        })
+      }
+    })
+    return slots
+  }, [actionExecutions, actions])
+
+  const currentCardSlotIndex = useMemo(
+    () => trainingCardSlots.findIndex((s) => s.actionIdx === expandedAction && s.setIdx === currentSetIndex),
+    [trainingCardSlots, expandedAction, currentSetIndex]
+  )
+
   const setKeyOf = useCallback((actionIndex: number, setIndex: number) => `${actionIndex}:${setIndex}`, [])
 
   const isWeightRequiredForSet = useCallback((set?: SetData | null) => {
@@ -179,6 +287,93 @@ function TrainingExecution() {
     setMarkAsPR(!!set.is_pr)
     setVideoUrl(set.video_url || '')
   }, [formatInputValue])
+
+  const applyTrainingCardSlot = useCallback(
+    (slot: { actionIdx: number; setIdx: number }) => {
+      setExpandedAction(slot.actionIdx)
+      setCurrentSetIndex(slot.setIdx)
+      setExpandedSetKey(null)
+      setEditingSetKey(null)
+      const set = actionExecutions[slot.actionIdx]?.sets?.[slot.setIdx]
+      hydrateSetInputs(set)
+    },
+    [actionExecutions, hydrateSetInputs]
+  )
+
+  const handleManualPrevCard = useCallback(() => {
+    const idx = currentCardSlotIndex
+    if (idx <= 0) {
+      Taro.showToast({ title: '已是第一项', icon: 'none' })
+      return
+    }
+    applyTrainingCardSlot(trainingCardSlots[idx - 1])
+  }, [applyTrainingCardSlot, currentCardSlotIndex, trainingCardSlots])
+
+  const handleManualNextCard = useCallback(() => {
+    const idx = currentCardSlotIndex
+    if (idx < 0 || trainingCardSlots.length === 0) return
+    const cur = trainingCardSlots[idx]
+    const act = actionExecutions[cur.actionIdx]
+    const t = String(actions?.[act?.action_id]?.type || 'STRENGTH').toUpperCase()
+    const isLight = ['DIET', 'CARDIO', 'HABIT'].includes(t)
+
+    const goNext = () => {
+      if (idx >= trainingCardSlots.length - 1) {
+        Taro.showToast({ title: '已是最后一项', icon: 'none' })
+        return
+      }
+      applyTrainingCardSlot(trainingCardSlots[idx + 1])
+    }
+
+    if (isReadOnly) {
+      goNext()
+      return
+    }
+
+    if (!isLight) {
+      const set = act?.sets?.[cur.setIdx]
+      if (set?.status === 'pending') {
+        Taro.showModal({
+          title: '跳过本组？',
+          content: '未记录本组就进入下一项，将无法保证今日训练数据完整。仍要使用「下一项」吗？',
+          confirmText: '仍要跳过',
+          success: (res) => {
+            if (res.confirm) goNext()
+          }
+        })
+        return
+      }
+      goNext()
+      return
+    }
+
+    const done = (act?.completed_sets || 0) >= 1
+    if (!done) {
+      Taro.showModal({
+        title: '跳过此项？',
+        content: '未完成打卡就进入下一项，可能影响今日完成度。仍要继续吗？',
+        confirmText: '仍要跳过',
+        success: (res) => {
+          if (res.confirm) goNext()
+        }
+      })
+      return
+    }
+    goNext()
+  }, [
+    actionExecutions,
+    actions,
+    applyTrainingCardSlot,
+    currentCardSlotIndex,
+    isReadOnly,
+    trainingCardSlots
+  ])
+
+  useEffect(() => {
+    if (!execution || trainingCardSlots.length === 0) return
+    if (currentCardSlotIndex >= 0) return
+    applyTrainingCardSlot(trainingCardSlots[0])
+  }, [applyTrainingCardSlot, currentCardSlotIndex, execution, trainingCardSlots])
 
   const buildPreviewExecution = useCallback(
     (targetInstance: any, actionMap: Record<string, any>, targetDayIndex: number) => {
@@ -270,7 +465,22 @@ function TrainingExecution() {
     }
 
     try {
-      setLoading(true)
+      const scopeKey = trainingExecutionSnapshotKey({
+        isImpromptuMode,
+        impromptuId,
+        instanceId,
+        dayIndex
+      })
+      const snap = userId && scopeKey ? readTrainingExecutionSnapshot(userId, scopeKey) : null
+      if (snap?.execution) {
+        setExecution(snap.execution)
+        if (snap.planInstance) setPlanInstance(snap.planInstance)
+        if (snap.actions && Object.keys(snap.actions).length > 0) setActions(snap.actions)
+        syncExpandUIFromExecution(snap.execution, setExpandedAction, setCurrentSetIndex)
+        setLoading(false)
+      } else {
+        setLoading(true)
+      }
 
       if (isImpromptuMode && impromptuId) {
         // 即兴训练：直接获取执行记录
@@ -280,12 +490,13 @@ function TrainingExecution() {
           return
         }
         setExecution(data)
-        setPlanInstance({
+        const impromptuPlan = {
           id: 'impromptu',
           name: '即兴锻炼',
           description: '即兴训练模式',
           source: 'impromptu'
-        })
+        }
+        setPlanInstance(impromptuPlan)
         // 从 action_executions 构建 actions map
         const actionMap: Record<string, any> = {}
         ;(data.action_executions || []).forEach((item: any) => {
@@ -299,17 +510,17 @@ function TrainingExecution() {
           }
         })
         setActions(actionMap)
-        const actionExecutions = data.action_executions || []
-        if (actionExecutions.length > 0) {
-          for (let i = 0; i < actionExecutions.length; i++) {
-            const action = actionExecutions[i]
-            const pendingSetIndex = action.sets?.findIndex((s: SetData) => s.status === 'pending')
-            if (pendingSetIndex !== -1) {
-              setExpandedAction(i)
-              setCurrentSetIndex(pendingSetIndex)
-              break
-            }
-          }
+        syncExpandUIFromExecution(data, setExpandedAction, setCurrentSetIndex)
+        if (userId && scopeKey) {
+          syncTrainingExecutionToStorage({
+            userId,
+            scopeKey,
+            dayIndex,
+            isImpromptuMode: true,
+            execution: data,
+            planInstance: impromptuPlan,
+            actions: actionMap
+          })
         }
       } else {
         // 计划训练
@@ -332,19 +543,18 @@ function TrainingExecution() {
 
         if (data) {
           setExecution(data)
-          const actionExecutions = data.action_executions || []
-          if (actionExecutions.length > 0) {
-            const firstPendingActionIdx = actionExecutions.findIndex((action: ActionExecution) =>
-              (action.sets || []).some((s: SetData) => s.status === 'pending')
-            )
-            const targetActionIdx = firstPendingActionIdx >= 0 ? firstPendingActionIdx : 0
-            const targetAction = actionExecutions[targetActionIdx]
-            const pendingSetIndex = targetAction?.sets?.findIndex((s: SetData) => s.status === 'pending') ?? 0
-            setExpandedAction(targetActionIdx)
-            setCurrentSetIndex(pendingSetIndex >= 0 ? pendingSetIndex : 0)
-          } else {
-            setExpandedAction(0)
-            setCurrentSetIndex(0)
+          syncExpandUIFromExecution(data, setExpandedAction, setCurrentSetIndex)
+          if (userId && scopeKey) {
+            syncTrainingExecutionToStorage({
+              userId,
+              scopeKey,
+              instanceId,
+              dayIndex,
+              isImpromptuMode: false,
+              execution: data,
+              planInstance: instanceRes?.instance,
+              actions: instanceActions
+            })
           }
         } else {
           Taro.showToast({ title: '加载失败', icon: 'none' })
@@ -578,6 +788,7 @@ function TrainingExecution() {
         updatedActionExecutions[expandedAction] = updatedAction
         updatedExecution.action_executions = updatedActionExecutions
         setExecution(updatedExecution)
+        syncExecutionToCaches(updatedExecution)
 
         // 重置输入状态
         setWeight(null)
@@ -967,6 +1178,7 @@ function TrainingExecution() {
         }
         ae.completed_sets = 1
         setExecution(updated)
+        syncExecutionToCaches(updated)
         setItemStates((prev) => ({ ...prev, [actionIndex]: {} }))
         Taro.showToast({ title: '完成', icon: 'success' })
         const nextIdx = (updated.action_executions || []).findIndex(
@@ -1018,6 +1230,7 @@ function TrainingExecution() {
         })
         ae.total_sets = ae.sets.length
         setExecution(updated)
+        syncExecutionToCaches(updated)
         setCurrentSetIndex(res.newSetIndex)
         Taro.showToast({ title: `已添加第${res.newSetIndex + 1}组`, icon: 'success' })
       } else {
@@ -1046,6 +1259,37 @@ function TrainingExecution() {
     }
   }, [])
 
+  const handleOpenExecMenu = useCallback(() => {
+    const items: string[] = []
+    if (!isImpromptuMode && !!coachId && coachId !== userId) {
+      items.push('联系教练')
+    }
+    if (!isImpromptuMode && !isReadOnly) {
+      items.push('跳过本日')
+    }
+    if (!isReadOnly) {
+      items.push('添加动作')
+    }
+    if (items.length === 0) {
+      Taro.showToast({ title: '暂无可选操作', icon: 'none' })
+      return
+    }
+    Taro.showActionSheet({
+      itemList: items,
+      success: (res) => {
+        const choice = items[res.tapIndex]
+        if (choice === '联系教练') {
+          void handleContactCoach()
+        } else if (choice === '跳过本日') {
+          void handleSkipDay()
+        } else if (choice === '添加动作') {
+          setShowActionPicker(true)
+          void loadActionPicker()
+        }
+      }
+    })
+  }, [coachId, handleContactCoach, handleSkipDay, isImpromptuMode, isReadOnly, loadActionPicker, userId])
+
   // 删除额外组（仅限 student_extra）
   const handleDeleteExtraSet = async (actionIndex: number, setIdx: number) => {
     if (isReadOnly) {
@@ -1073,6 +1317,7 @@ function TrainingExecution() {
             ae.sets.forEach((s: any, i: number) => { s.set_number = i + 1 })
             ae.total_sets = ae.sets.length
             setExecution(updated)
+            syncExecutionToCaches(updated)
             const nextIndex = Math.max(0, Math.min(currentSetIndex, ae.sets.length - 1))
             setCurrentSetIndex(nextIndex)
             Taro.showToast({ title: '已删除', icon: 'success' })
@@ -1111,6 +1356,7 @@ function TrainingExecution() {
             const updated = { ...execution }
             updated.action_executions.splice(actionIndex, 1)
             setExecution(updated)
+            syncExecutionToCaches(updated)
             setExpandedAction(Math.min(expandedAction, Math.max(0, updated.action_executions.length - 1)))
             setCurrentSetIndex(0)
             Taro.showToast({ title: '已删除', icon: 'success' })
@@ -1150,6 +1396,7 @@ function TrainingExecution() {
           completed_sets: 0
         })
         setExecution(updated)
+        syncExecutionToCaches(updated)
         setExpandedAction(res.newActionIndex)
         setCurrentSetIndex(0)
         setShowActionPicker(false)
@@ -1167,9 +1414,13 @@ function TrainingExecution() {
   if (loading) {
     return (
       <View className="training-execution-page">
-        <View className="loading-wrap">
-          <LoadingSpinner size={48} />
-        </View>
+        <ScrollView scrollY className="execution-scroll">
+          <View className="execution-page-content">
+            <View className="loading-wrap">
+              <LoadingSpinner size={48} />
+            </View>
+          </View>
+        </ScrollView>
       </View>
     )
   }
@@ -1177,46 +1428,20 @@ function TrainingExecution() {
   if (!execution) {
     return (
       <View className="training-execution-page">
-        <View className="error-wrap">
-          <Text>加载失败，请重试</Text>
-          <Button onClick={startTraining}>重试</Button>
-        </View>
+        <ScrollView scrollY className="execution-scroll">
+          <View className="execution-page-content">
+            <View className="error-wrap">
+              <Text>加载失败，请重试</Text>
+              <Button onClick={startTraining}>重试</Button>
+            </View>
+          </View>
+        </ScrollView>
       </View>
     )
   }
 
-  const actionExecutions = execution.action_executions || []
-  const currentAction = actionExecutions[expandedAction]
-  const currentSet = currentAction?.sets?.[currentSetIndex]
-
-  const handleExpandAction = (actionIdx: number) => {
-    setExpandedAction(actionIdx)
-    setExpandedSetKey(null)
-    setEditingSetKey(null)
-    const nextAction = actionExecutions[actionIdx]
-    const pendingIdx = nextAction?.sets?.findIndex((s: SetData) => s.status === 'pending') ?? -1
-    if (pendingIdx >= 0) {
-      setCurrentSetIndex(pendingIdx)
-      return
-    }
-    setCurrentSetIndex(0)
-  }
-
-  const handlePressSet = (actionIdx: number, setIdx: number) => {
-    const targetSet = actionExecutions?.[actionIdx]?.sets?.[setIdx]
-    if (!targetSet) return
-
-    const targetKey = setKeyOf(actionIdx, setIdx)
-    if (targetSet.status === 'completed') {
-      setExpandedSetKey((prev) => (prev === targetKey ? null : targetKey))
-      return
-    }
-
-    setExpandedAction(actionIdx)
-    setCurrentSetIndex(setIdx)
-    setExpandedSetKey(null)
-    setEditingSetKey(null)
-  }
+  const focusAction = actionExecutions[expandedAction]
+  const currentSet = focusAction?.sets?.[currentSetIndex]
 
   const handleEditCompletedSet = (actionIdx: number, setIdx: number, set: SetData) => {
     const targetKey = setKeyOf(actionIdx, setIdx)
@@ -1249,459 +1474,459 @@ function TrainingExecution() {
   const pendingSetsCount = Math.max(0, totalSets - completedSets)
   const progress = totalSets > 0 ? (completedSets / totalSets) * 100 : 0
   const shouldShowQuickFinishButton = !isImpromptuMode && canFinishWholeDay && pendingSetsCount > 0
-  const completedActions = actionExecutions.reduce((sum: number, a: ActionExecution) => {
-    return sum + ((a.completed_sets || 0) >= (a.total_sets || 0) ? 1 : 0)
-  }, 0)
   const planTitle = String(planInstance?.name || (isImpromptuMode ? '即兴锻炼' : '训练执行')).trim()
-  const heroTimerValue = isResting ? formatTimerValue(restTimer) : '00:00'
-  const heroTimerLabel = isResting ? '自动休息中' : pendingSetsCount > 0 ? '准备下一组' : '今日已完成'
-  const currentActionName = String(currentAction?.action_name || '').trim() || '等待选择动作'
-  const currentActionType = String(actions?.[currentAction?.action_id]?.type || 'STRENGTH').toUpperCase()
-  const currentActionMeta = getActionTypeMeta(currentActionType)
-  const currentPlannedSummary = currentSet
-    ? [currentSet.planned_weight || null, currentSet.planned_reps ? `${currentSet.planned_reps}次` : null].filter(Boolean).join(' × ')
+  const focusActionDetail = focusAction ? actions[focusAction.action_id] : null
+  const focusActionType = String(focusActionDetail?.type || 'STRENGTH').toUpperCase()
+  const focusActionMeta = getActionTypeMeta(focusActionType)
+  const focusIsStrength = focusActionType === 'STRENGTH'
+  const slotPositionLabel =
+    trainingCardSlots.length > 0 && currentCardSlotIndex >= 0
+      ? `${currentCardSlotIndex + 1} / ${trainingCardSlots.length}`
+      : '—'
+  const allSlotsDone = totalSets > 0 && completedSets >= totalSets
+  const strengthSetTotal = focusIsStrength && focusAction ? Math.max(1, focusAction.total_sets || focusAction.sets?.length || 1) : 0
+  const strengthSetPositionLabel =
+    focusIsStrength && focusAction ? `${Math.min(currentSetIndex + 1, strengthSetTotal)} / ${strengthSetTotal} 组` : ''
+
+  const flashStrengthSet = focusIsStrength ? focusAction?.sets?.[currentSetIndex] : null
+  const flashSetKey =
+    focusIsStrength && flashStrengthSet ? setKeyOf(expandedAction, currentSetIndex) : ''
+  const flashSetCompleted = !!flashStrengthSet && flashStrengthSet.status === 'completed'
+  const flashSetEditing = !!flashSetKey && editingSetKey === flashSetKey
+  const flashShowSetForm = focusIsStrength && !!flashStrengthSet && !isReadOnly && (!flashSetCompleted || flashSetEditing)
+  const flashPlannedRepsText = String(flashStrengthSet?.planned_reps || '').trim()
+    ? `${flashStrengthSet?.planned_reps}次`
+    : '自选'
+  const flashPlannedSummary = flashStrengthSet
+    ? [flashStrengthSet.planned_weight || null, flashPlannedRepsText].filter(Boolean).join(' × ')
     : ''
-  const currentActualSummary = currentSet
+  const flashActualSummary = flashStrengthSet
     ? [
-        currentSet.actual_weight !== null && currentSet.actual_weight !== undefined ? `${currentSet.actual_weight}kg` : null,
-        currentSet.actual_reps !== null && currentSet.actual_reps !== undefined ? `${currentSet.actual_reps}次` : null,
-        currentSet.rpe ? `RPE ${currentSet.rpe}` : null
-      ].filter(Boolean).join(' · ')
+        flashStrengthSet.actual_weight !== null && flashStrengthSet.actual_weight !== undefined
+          ? `${flashStrengthSet.actual_weight}kg`
+          : null,
+        flashStrengthSet.actual_reps !== null && flashStrengthSet.actual_reps !== undefined
+          ? `${flashStrengthSet.actual_reps}次`
+          : null,
+        flashStrengthSet.rpe ? `RPE ${flashStrengthSet.rpe}` : null
+      ]
+        .filter(Boolean)
+        .join(' · ')
     : ''
-  const currentRestLabel = formatRestSummary(currentSet?.planned_rest_seconds)
+  const flashStateText = flashSetEditing ? '编辑中' : flashSetCompleted ? '已完成' : '当前组'
+  const flashShowCompletedDetails = focusIsStrength && flashSetCompleted && !flashShowSetForm
 
   return (
     <View className="training-execution-page">
       <ScrollView scrollY className="execution-scroll">
-        <View className="execution-shell">
-          <View className="hero-section">
-            <View className="hero-topbar">
-              <Text className="back-btn" onClick={() => Taro.navigateBack()}>返回</Text>
-              <Text className="hero-day-label">{isImpromptuMode ? '即兴锻炼' : `${isReadOnly ? '只读查看 · ' : ''}第${dayIndex}天`}</Text>
-              <View className="hero-top-actions">
-                {!isImpromptuMode && !!coachId && coachId !== userId && (
-                  <Text className="hero-link-btn" onClick={() => void handleContactCoach()}>联系教练</Text>
-                )}
-                {!isImpromptuMode && !isReadOnly && (
-                  <Text className="hero-link-btn muted" onClick={handleSkipDay}>跳过</Text>
-                )}
-              </View>
+        <View className="execution-page-content execution-page-content--flash">
+          <View className="exec-focus-header">
+            <View className="exec-back-pill" onClick={() => void handleBackToTodayTraining()}>
+              <Text className="exec-back-pill-text">‹</Text>
             </View>
-
-            <View className="hero-main">
-              <View className="hero-timer-card">
-                <Text className="hero-timer-value">{heroTimerValue}</Text>
-                <Text className="hero-timer-label">{heroTimerLabel}</Text>
-              </View>
-              <View className="hero-summary">
-                <Text className="hero-title">{planTitle || '训练执行'}</Text>
-                <Text className="hero-subtitle">
-                  {currentActionName}
-                  {currentPlannedSummary ? ` · ${currentPlannedSummary}` : ''}
-                </Text>
-                <View className="hero-chip-row">
-                  <Text className="hero-chip">{currentActionMeta.label}</Text>
-                  <Text className="hero-chip">{currentRestLabel}</Text>
-                  {currentActualSummary ? <Text className="hero-chip success">{currentActualSummary}</Text> : null}
-                  {isReadOnly ? <Text className="hero-chip warning">只读模式</Text> : null}
-                </View>
-              </View>
-            </View>
-
-            <View className="hero-stats">
-              <View className="hero-stat-card">
-                <Text className="hero-stat-label">动作</Text>
-                <Text className="hero-stat-value">{actionExecutions.length}</Text>
-              </View>
-              <View className="hero-stat-card">
-                <Text className="hero-stat-label">组进度</Text>
-                <Text className="hero-stat-value">{completedSets}/{totalSets}</Text>
-              </View>
-              <View className="hero-stat-card">
-                <Text className="hero-stat-label">已完成</Text>
-                <Text className="hero-stat-value">{completedActions}</Text>
-              </View>
-              <View className="hero-stat-card">
-                <Text className="hero-stat-label">轻任务</Text>
-                <Text className="hero-stat-value">{lightweightProgress.pending}</Text>
-              </View>
-            </View>
-
-            <View className="progress-section">
-              <View className="progress-bar">
-                <View className="progress-fill" style={{ width: `${progress}%` }} />
-              </View>
-              <Text className="progress-text">已完成 {Math.round(progress)}%</Text>
+            <Text className="exec-page-title">训练计划</Text>
+            <View className="exec-header-more-hit" onClick={handleOpenExecMenu}>
+              <Text className="exec-header-more-dots">⋯</Text>
             </View>
           </View>
 
-          <View className="actions-section">
-            {actionExecutions.map((action: ActionExecution, actionIdx: number) => {
-              const actionDetail = actions[action.action_id]
-              const actionType = String(actionDetail?.type || 'STRENGTH').toUpperCase()
-              const actionMeta = getActionTypeMeta(actionType)
-              const isStrength = actionType === 'STRENGTH'
-              const isExpanded = expandedAction === actionIdx
-              const isCompleted = action.completed_sets >= action.total_sets
-              const firstSet = action.sets?.[0]
-              const actionSummary = isStrength
-                ? [
-                    firstSet?.planned_weight || null,
-                    firstSet?.planned_reps ? `${firstSet.planned_reps}次` : null,
-                    formatRestSummary(firstSet?.planned_rest_seconds)
-                  ].filter(Boolean).join(' · ')
-                : actionMeta.cue
+          <View className="exec-focus-hero-card">
+            <Text className="exec-plan-title">{planTitle || '训练执行'}</Text>
+            <Text className="exec-day-line">
+              {isImpromptuMode ? '即兴锻炼' : `${isReadOnly ? '只读 · ' : ''}第 ${dayIndex} 天`}
+              {totalSets > 0 ? ` · 组进度 ${completedSets} / ${totalSets}` : ''}
+            </Text>
+            <View className="exec-progress-track">
+              <View className="exec-progress-fill" style={{ width: `${progress}%` }} />
+            </View>
+            <Text className="exec-progress-caption">今日完成度 {Math.round(progress)}%</Text>
+            {lightweightProgress.pending > 0 ? (
+              <Text className="exec-light-hint">今日安排另有 {lightweightProgress.pending} 个轻任务待打卡</Text>
+            ) : null}
+            <View className="exec-coach-row">
+              <Text className="exec-coach-label">教练 {coachName?.trim() ? coachName : '—'}</Text>
+              {isReadOnly ? <Text className="exec-coach-readonly">只读</Text> : null}
+            </View>
+          </View>
 
-              return (
-                <View
-                  key={actionIdx}
-                  className={`action-card action-tone-${actionType.toLowerCase()} ${isExpanded ? 'expanded' : ''} ${isCompleted ? 'completed' : ''}`}
-                >
-                  <View className="action-header" onClick={() => handleExpandAction(actionIdx)}>
-                    <View className="action-info">
-                      <Text className="action-number">{actionIdx + 1}</Text>
-                      <View className="action-copy">
-                        <Text className="action-name">{action.action_name || actionDetail?.name || '未知动作'}</Text>
-                        <View className="action-meta-row">
-                          <Text className="action-type-pill">{actionMeta.label}</Text>
-                          {actionSummary ? <Text className="action-summary">{actionSummary}</Text> : null}
-                        </View>
-                      </View>
+          <View className="exec-flash-stack">
+            {isResting ? (
+              <View className="exec-rest-strip">
+                <Text className="exec-rest-strip-time">{formatTimerValue(restTimer)}</Text>
+                <View className="exec-rest-strip-mid">
+                  <Text className="exec-rest-strip-label">组间休息</Text>
+                  <Text className="exec-rest-strip-hint">结束休息后继续下一组</Text>
+                </View>
+                <View className="exec-rest-strip-actions">
+                  <Text className="exec-rest-chip" onClick={() => handleAddRestTime(30)}>
+                    +30秒
+                  </Text>
+                  <Text className="exec-rest-chip exec-rest-chip--primary" onClick={handleSkipRest}>
+                    跳过
+                  </Text>
+                </View>
+              </View>
+            ) : null}
+
+            <View className="exec-flash-card">
+              {actionExecutions.length === 0 ? (
+                <Text className="exec-flash-empty">今日暂无训练动作</Text>
+              ) : allSlotsDone ? (
+                <View className="exec-flash-done">
+                  <Text className="exec-flash-done-title">今日训练项已全部完成</Text>
+                  <Text className="exec-flash-done-desc">
+                    {canFinishWholeDay
+                      ? '点击下方「完成训练」结束今日训练'
+                      : `还可返回今日安排完成 ${lightweightProgress.pending} 个轻任务`}
+                  </Text>
+                </View>
+              ) : !focusAction ? (
+                <Text className="exec-flash-empty">加载训练项…</Text>
+              ) : !focusIsStrength ? (
+                <>
+                  <View className="exec-flash-card-head">
+                    <View className="exec-flash-head-row">
+                      <Text className="exec-flash-badge">{focusActionMeta.label}</Text>
+                      <Text className="exec-flash-slot-pos">卡片 {slotPositionLabel}</Text>
                     </View>
-                    <View className="action-progress">
-                      <Text className={`action-progress-pill ${isCompleted ? 'done' : ''}`}>{action.completed_sets}/{action.total_sets}组</Text>
-                      {!isReadOnly && action.source === 'student_extra' && (
-                        <Text
-                          className="action-delete-btn"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            handleDeleteExtraExercise(actionIdx)
-                          }}
-                        >
-                          删除
-                        </Text>
-                      )}
-                    </View>
+                    <Text className="exec-flash-action-title">
+                      {focusAction.action_name || focusActionDetail?.name || '未知动作'}
+                    </Text>
+                    <Text className="exec-flash-cue">{focusActionMeta.cue}</Text>
+                    {!isReadOnly && focusAction.source === 'student_extra' && (
+                      <Text className="exec-flash-delete-action" onClick={() => handleDeleteExtraExercise(expandedAction)}>
+                        删除此动作
+                      </Text>
+                    )}
                   </View>
-
-                {isExpanded && (
-                  <View className="action-content">
-                    {isStrength ? (
-                      <>
-                        <View className="sets-list">
-                          {action.sets?.map((set: SetData, setIdx: number) => {
-                            const isCurrentSet = setIdx === currentSetIndex
-                            const isCompletedSet = set.status === 'completed'
-                            const setKey = setKeyOf(actionIdx, setIdx)
-                            const isExpandedSet = expandedSetKey === setKey
-                            const isEditingThisSet = editingSetKey === setKey
-                            const showSetForm = isCurrentSet && !isReadOnly && (!isCompletedSet || isEditingThisSet)
-                            const plannedRepsText = String(set.planned_reps || '').trim() ? `${set.planned_reps}次` : '自选'
-                            const plannedSummary = [set.planned_weight || null, plannedRepsText].filter(Boolean).join(' × ')
-                            const actualSummary = [
-                              set.actual_weight !== null && set.actual_weight !== undefined ? `${set.actual_weight}kg` : null,
-                              set.actual_reps !== null && set.actual_reps !== undefined ? `${set.actual_reps}次` : null,
-                              set.rpe ? `RPE ${set.rpe}` : null
-                            ].filter(Boolean).join(' · ')
-                            const stateText = isEditingThisSet
-                              ? '编辑中'
-                              : isCompletedSet
-                                ? '已完成'
-                                : isCurrentSet
-                                  ? '当前组'
-                                  : '待完成'
-
-                            return (
-                              <View
-                                key={setIdx}
-                                className={`set-item ${isCurrentSet ? 'current' : ''} ${isCompletedSet ? 'completed' : ''} ${isExpandedSet ? 'expanded-details' : ''}`}
-                              >
-                                <View className="set-header" onClick={() => handlePressSet(actionIdx, setIdx)}>
-                                  <View className="set-index-pill">
-                                    <Text className="set-index-number">{set.set_number}</Text>
-                                    <Text className="set-index-label">组</Text>
-                                  </View>
-                                  <View className="set-header-main">
-                                    <View className="set-header-top">
-                                      <Text className="set-main-summary">{isCompletedSet ? actualSummary || '已完成' : plannedSummary || '待输入本组数据'}</Text>
-                                      <Text className={`set-state-pill ${isCompletedSet ? 'done' : isCurrentSet ? 'active' : ''}`}>{stateText}</Text>
-                                    </View>
-                                    <View className="set-header-bottom">
-                                      <Text className="set-subline">计划：{plannedSummary || '未填写'}</Text>
-                                      <Text className="set-subline">{formatRestSummary(set.planned_rest_seconds)}</Text>
-                                      {set.is_pr && <Text className="set-tag pr">PR</Text>}
-                                      {set.is_auto_pr && <Text className="set-tag auto">新纪录</Text>}
-                                      {set.video_url && <Text className="set-tag">视频</Text>}
-                                    </View>
-                                  </View>
-                                  {!isReadOnly && set.source === 'student_extra' && (
-                                    <Text
-                                      className="set-delete-btn"
-                                      onClick={(e) => {
-                                        e.stopPropagation()
-                                        handleDeleteExtraSet(actionIdx, setIdx)
-                                      }}
-                                    >
-                                      删除
-                                    </Text>
-                                  )}
-                                </View>
-
-                                {showSetForm && (
-                                  <View className="set-input">
-                                    <View className="compact-input-grid">
-                                      <View className="compact-input-card">
-                                        <Text className="compact-input-label">重量</Text>
-                                        <Input
-                                          type="digit"
-                                          className="compact-input-field"
-                                          value={weightInput}
-                                          placeholder={set.planned_weight || '0'}
-                                          onInput={(e) => {
-                                            const nextValue = e.detail.value
-                                            setWeightInput(nextValue)
-                                            setWeight(parseInputNumber(nextValue, 'float'))
-                                          }}
-                                        />
-                                      </View>
-                                      <View className="compact-input-card">
-                                        <Text className="compact-input-label">次数</Text>
-                                        <Input
-                                          type="number"
-                                          className="compact-input-field"
-                                          value={reps?.toString() || ''}
-                                          placeholder={set.planned_reps || '0'}
-                                          onInput={(e) => {
-                                            const parsed = parseInputNumber(e.detail.value, 'int')
-                                            setReps(parsed === null ? null : Math.max(0, Math.floor(parsed)))
-                                          }}
-                                        />
-                                      </View>
-                                      <View className="compact-input-card">
-                                        <Text className="compact-input-label">RPE</Text>
-                                        <Input
-                                          type="number"
-                                          className="compact-input-field"
-                                          value={rpe?.toString() || ''}
-                                          placeholder="1-10"
-                                          onInput={(e) => {
-                                            const parsed = parseInputNumber(e.detail.value, 'int')
-                                            setRpe(parsed === null ? null : Math.min(10, Math.max(1, Math.floor(parsed))))
-                                          }}
-                                        />
-                                      </View>
-                                    </View>
-
-                                    <View className="compact-note-row">
-                                      <Text className="compact-input-label">备注</Text>
-                                      <Input
-                                        className="compact-note-input"
-                                        value={setNotes}
-                                        placeholder="记录手感、节奏或动作问题"
-                                        onInput={(e) => setSetNotes(e.detail.value)}
-                                      />
-                                    </View>
-
-                                    <View className="set-tool-row">
-                                      <Button size="mini" className="ghost-tool-btn" onClick={handleChooseVideo} loading={uploadingVideo}>
-                                        选视频
-                                      </Button>
-                                      <Button size="mini" className="ghost-tool-btn" onClick={handlePasteVideoLink}>
-                                        贴链接
-                                      </Button>
-                                      <Text
-                                        className={`pr-toggle-chip ${markAsPR ? 'active' : ''}`}
-                                        onClick={() => setMarkAsPR(!markAsPR)}
-                                      >
-                                        {markAsPR ? '已标记 PR' : '标记 PR'}
-                                      </Text>
-                                    </View>
-
-                                    {videoUrl && <Text className="video-url">{videoUrl.substring(0, 60)}...</Text>}
-
-                                    <Button
-                                      type="primary"
-                                      className="complete-btn"
-                                      onClick={handleCompleteSet}
-                                      loading={completing}
-                                    >
-                                      完成本组
-                                    </Button>
-                                  </View>
-                                )}
-
-                                {isCurrentSet && !isCompletedSet && isReadOnly && (
-                                  <View className="readonly-set-tip">
-                                    <Text className="readonly-set-tip-text">该组暂无执行记录（只读模式）</Text>
-                                  </View>
-                                )}
-
-                                {isCompletedSet && isExpandedSet && (
-                                  <View className="set-details">
-                                    <View className="detail-grid">
-                                      <View className="detail-cell">
-                                        <Text className="detail-label">计划</Text>
-                                        <Text className="detail-value">{plannedSummary || '未填写'}</Text>
-                                      </View>
-                                      <View className="detail-cell">
-                                        <Text className="detail-label">实际</Text>
-                                        <Text className="detail-value">{actualSummary || '未填写'}</Text>
-                                      </View>
-                                      <View className="detail-cell">
-                                        <Text className="detail-label">休息</Text>
-                                        <Text className="detail-value">{formatRestSummary(set.planned_rest_seconds)}</Text>
-                                      </View>
-                                      <View className="detail-cell">
-                                        <Text className="detail-label">e1RM</Text>
-                                        <Text className="detail-value">
-                                          {set.e1rm !== null && set.e1rm !== undefined ? `${set.e1rm}kg` : '未生成'}
-                                        </Text>
-                                      </View>
-                                    </View>
-
-                                    {!!set.notes && (
-                                      <View className="detail-note">
-                                        <Text className="detail-label">备注</Text>
-                                        <Text className="detail-note-text">{set.notes}</Text>
-                                      </View>
-                                    )}
-
-                                    {!!set.video_url && (
-                                      <View className="detail-note">
-                                        <Text className="detail-label">视频</Text>
-                                        <Text className="detail-link">{set.video_url}</Text>
-                                      </View>
-                                    )}
-
-                                    {!isReadOnly && (
-                                      <View className="detail-actions">
-                                        <Button size="mini" className="ghost-tool-btn" onClick={() => handleEditCompletedSet(actionIdx, setIdx, set)}>
-                                          编辑本组
-                                        </Button>
-                                        {isEditingThisSet && (
-                                          <Button size="mini" className="ghost-tool-btn" onClick={handleCancelEditCompletedSet}>
-                                            取消编辑
-                                          </Button>
-                                        )}
-                                      </View>
-                                    )}
-                                  </View>
-                                )}
-                              </View>
-                            )
-                          })}
-                        </View>
-                        {!isReadOnly && (
-                          <View className="extra-set-btn-wrap">
-                            <Button
-                              size="mini"
-                              className="add-extra-set-btn"
-                              onClick={() => handleAddExtraSet(actionIdx)}
-                              disabled={addingExtraSet}
-                            >
-                              {addingExtraSet ? '添加中...' : '+ 新增一组'}
-                            </Button>
-                          </View>
+                  <View className="non-strength-card">
+                    {focusAction.completed_sets > 0 ? (
+                      <View className="item-completed">
+                        <Text className="item-done-text">已打卡完成</Text>
+                        {focusAction.sets?.[0]?.diet_content && (
+                          <Text className="item-detail">内容：{focusAction.sets[0].diet_content}</Text>
                         )}
-                      </>
+                        {focusAction.sets?.[0]?.actual_distance && (
+                          <Text className="item-detail">
+                            距离：{(focusAction.sets[0].actual_distance / 1000).toFixed(1)} km
+                          </Text>
+                        )}
+                        {focusAction.sets?.[0]?.actual_duration && (
+                          <Text className="item-detail">
+                            时长：{Math.round((focusAction.sets[0].actual_duration || 0) / 60)} 分钟
+                          </Text>
+                        )}
+                      </View>
+                    ) : isReadOnly ? (
+                      <View className="item-readonly">
+                        <Text className="item-readonly-text">该项目暂无完成记录（只读模式）</Text>
+                      </View>
                     ) : (
-                      <View className="non-strength-card">
-                        {action.completed_sets > 0 ? (
-                          <View className="item-completed">
-                            <Text className="item-done-text">已打卡完成</Text>
-                            {action.sets?.[0]?.diet_content && <Text className="item-detail">内容：{action.sets[0].diet_content}</Text>}
-                            {action.sets?.[0]?.actual_distance && <Text className="item-detail">距离：{(action.sets[0].actual_distance / 1000).toFixed(1)} km</Text>}
-                            {action.sets?.[0]?.actual_duration && <Text className="item-detail">时长：{Math.round((action.sets[0].actual_duration || 0) / 60)} 分钟</Text>}
-                          </View>
-                        ) : isReadOnly ? (
-                          <View className="item-readonly">
-                            <Text className="item-readonly-text">该项目暂无完成记录（只读模式）</Text>
-                          </View>
-                        ) : (
-                          <View className="item-form">
-                            <Text className="item-form-title">{actionMeta.label}打卡</Text>
-                            {actionType === 'DIET' && (
-                              <View className="compact-note-row">
-                                <Text className="compact-input-label">内容</Text>
-                                <Input
-                                  className="compact-note-input"
-                                  value={itemStates[actionIdx]?.dietContent || ''}
-                                  placeholder="吃了什么、补了什么"
-                                  onInput={(e) => setItemStates((prev) => ({ ...prev, [actionIdx]: { ...prev[actionIdx], dietContent: e.detail.value } }))}
-                                />
-                              </View>
-                            )}
-                            {actionType === 'CARDIO' && (
-                              <View className="compact-input-grid two-cols">
-                                <View className="compact-input-card">
-                                  <Text className="compact-input-label">距离</Text>
-                                  <Input
-                                    type="digit"
-                                    className="compact-input-field"
-                                    value={itemStates[actionIdx]?.cardioDistance?.toString() || ''}
-                                    placeholder="0"
-                                    onInput={(e) => {
-                                      const parsed = parseInputNumber(e.detail.value, 'float')
-                                      setItemStates((prev) => ({
-                                        ...prev,
-                                        [actionIdx]: {
-                                          ...prev[actionIdx],
-                                          cardioDistance: parsed === null ? null : Math.max(0, parsed)
-                                        }
-                                      }))
-                                    }}
-                                  />
-                                </View>
-                                <View className="compact-input-card">
-                                  <Text className="compact-input-label">时长</Text>
-                                  <Input
-                                    type="number"
-                                    className="compact-input-field"
-                                    value={itemStates[actionIdx]?.cardioDuration?.toString() || ''}
-                                    placeholder="0"
-                                    onInput={(e) => {
-                                      const parsed = parseInputNumber(e.detail.value, 'int')
-                                      setItemStates((prev) => ({
-                                        ...prev,
-                                        [actionIdx]: {
-                                          ...prev[actionIdx],
-                                          cardioDuration: parsed === null ? null : Math.max(0, Math.floor(parsed))
-                                        }
-                                      }))
-                                    }}
-                                  />
-                                </View>
-                              </View>
-                            )}
-                            <Button type="primary" className="complete-btn" onClick={() => handleCompleteItem(actionIdx)} loading={completing}>
-                              完成打卡
-                            </Button>
+                      <View className="item-form">
+                        <Text className="item-form-title">{focusActionMeta.label}打卡</Text>
+                        {focusActionType === 'DIET' && (
+                          <View className="compact-note-row">
+                            <Text className="compact-input-label">内容</Text>
+                            <Input
+                              className="compact-note-input"
+                              value={itemStates[expandedAction]?.dietContent || ''}
+                              placeholder="吃了什么、补了什么"
+                              onInput={(e) =>
+                                setItemStates((prev) => ({
+                                  ...prev,
+                                  [expandedAction]: { ...prev[expandedAction], dietContent: e.detail.value }
+                                }))
+                              }
+                            />
                           </View>
                         )}
+                        {focusActionType === 'CARDIO' && (
+                          <View className="compact-input-grid two-cols">
+                            <View className="compact-input-card">
+                              <Text className="compact-input-label">距离</Text>
+                              <Input
+                                type="digit"
+                                className="compact-input-field"
+                                value={itemStates[expandedAction]?.cardioDistance?.toString() || ''}
+                                placeholder="0"
+                                onInput={(e) => {
+                                  const parsed = parseInputNumber(e.detail.value, 'float')
+                                  setItemStates((prev) => ({
+                                    ...prev,
+                                    [expandedAction]: {
+                                      ...prev[expandedAction],
+                                      cardioDistance: parsed === null ? null : Math.max(0, parsed)
+                                    }
+                                  }))
+                                }}
+                              />
+                            </View>
+                            <View className="compact-input-card">
+                              <Text className="compact-input-label">时长</Text>
+                              <Input
+                                type="number"
+                                className="compact-input-field"
+                                value={itemStates[expandedAction]?.cardioDuration?.toString() || ''}
+                                placeholder="0"
+                                onInput={(e) => {
+                                  const parsed = parseInputNumber(e.detail.value, 'int')
+                                  setItemStates((prev) => ({
+                                    ...prev,
+                                    [expandedAction]: {
+                                      ...prev[expandedAction],
+                                      cardioDuration: parsed === null ? null : Math.max(0, Math.floor(parsed))
+                                    }
+                                  }))
+                                }}
+                              />
+                            </View>
+                          </View>
+                        )}
+                        <Button
+                          type="primary"
+                          className="complete-btn"
+                          onClick={() => handleCompleteItem(expandedAction)}
+                          loading={completing}
+                        >
+                          完成打卡
+                        </Button>
                       </View>
                     )}
                   </View>
-                )}
-              </View>
-            )
-          })}
-        </View>
+                </>
+              ) : (
+                <>
+                  <View className="exec-flash-card-head">
+                    <View className="exec-flash-head-row">
+                      <Text className="exec-flash-badge">{focusActionMeta.label}</Text>
+                      <Text className="exec-flash-slot-pos">卡片 {slotPositionLabel}</Text>
+                    </View>
+                    <Text className="exec-flash-action-title">
+                      {focusAction.action_name || focusActionDetail?.name || '未知动作'}
+                    </Text>
+                    <Text className="exec-flash-set-pos">{strengthSetPositionLabel}</Text>
+                    <Text className="exec-flash-plan-line">
+                      计划 {flashPlannedSummary || '待填写'} · {formatRestSummary(flashStrengthSet?.planned_rest_seconds)}
+                    </Text>
+                    {!isReadOnly && focusAction.source === 'student_extra' && (
+                      <Text className="exec-flash-delete-action" onClick={() => handleDeleteExtraExercise(expandedAction)}>
+                        删除此动作
+                      </Text>
+                    )}
+                  </View>
+                  {!flashStrengthSet ? (
+                    <Text className="exec-flash-empty">暂无本组数据</Text>
+                  ) : (
+                    <View
+                      className={`set-item flash-set-item current ${flashSetCompleted ? 'completed' : ''} ${flashShowCompletedDetails ? 'expanded-details' : ''}`}
+                    >
+                      <View className="set-header set-header--static">
+                        <View className="set-index-pill">
+                          <Text className="set-index-number">{flashStrengthSet.set_number}</Text>
+                          <Text className="set-index-label">组</Text>
+                        </View>
+                        <View className="set-header-main">
+                          <View className="set-header-top">
+                            <Text className="set-main-summary">
+                              {flashSetCompleted ? flashActualSummary || '已完成' : flashPlannedSummary || '待输入本组数据'}
+                            </Text>
+                            <Text className={`set-state-pill ${flashSetCompleted ? 'done' : 'active'}`}>{flashStateText}</Text>
+                          </View>
+                          <View className="set-header-bottom">
+                            <Text className="set-subline">计划：{flashPlannedSummary || '未填写'}</Text>
+                            <Text className="set-subline">{formatRestSummary(flashStrengthSet.planned_rest_seconds)}</Text>
+                            {flashStrengthSet.is_pr && <Text className="set-tag pr">PR</Text>}
+                            {flashStrengthSet.is_auto_pr && <Text className="set-tag auto">新纪录</Text>}
+                            {flashStrengthSet.video_url && <Text className="set-tag">视频</Text>}
+                          </View>
+                        </View>
+                        {!isReadOnly && flashStrengthSet.source === 'student_extra' && (
+                          <Text className="set-delete-btn" onClick={() => handleDeleteExtraSet(expandedAction, currentSetIndex)}>
+                            删除
+                          </Text>
+                        )}
+                      </View>
 
-        {!isReadOnly && (
-          <View className="add-action-wrap">
-            <Button
-              size="mini"
-              className="add-action-btn"
-              onClick={async () => {
-                setShowActionPicker(true)
-                await loadActionPicker()
-              }}
-              disabled={addingExtraAction}
-            >
-              {addingExtraAction ? '添加中...' : '+ 添加动作'}
-            </Button>
+                      {flashShowSetForm && (
+                        <View className="set-input">
+                          <View className="compact-input-grid">
+                            <View className="compact-input-card">
+                              <Text className="compact-input-label">重量</Text>
+                              <Input
+                                type="digit"
+                                className="compact-input-field"
+                                value={weightInput}
+                                placeholder={flashStrengthSet.planned_weight || '0'}
+                                onInput={(e) => {
+                                  const nextValue = e.detail.value
+                                  setWeightInput(nextValue)
+                                  setWeight(parseInputNumber(nextValue, 'float'))
+                                }}
+                              />
+                            </View>
+                            <View className="compact-input-card">
+                              <Text className="compact-input-label">次数</Text>
+                              <Input
+                                type="number"
+                                className="compact-input-field"
+                                value={reps?.toString() || ''}
+                                placeholder={flashStrengthSet.planned_reps || '0'}
+                                onInput={(e) => {
+                                  const parsed = parseInputNumber(e.detail.value, 'int')
+                                  setReps(parsed === null ? null : Math.max(0, Math.floor(parsed)))
+                                }}
+                              />
+                            </View>
+                            <View className="compact-input-card">
+                              <Text className="compact-input-label">RPE</Text>
+                              <Input
+                                type="number"
+                                className="compact-input-field"
+                                value={rpe?.toString() || ''}
+                                placeholder="1-10"
+                                onInput={(e) => {
+                                  const parsed = parseInputNumber(e.detail.value, 'int')
+                                  setRpe(parsed === null ? null : Math.min(10, Math.max(1, Math.floor(parsed))))
+                                }}
+                              />
+                            </View>
+                          </View>
+
+                          <View className="compact-note-row">
+                            <Text className="compact-input-label">备注</Text>
+                            <Input
+                              className="compact-note-input"
+                              value={setNotes}
+                              placeholder="记录手感、节奏或动作问题"
+                              onInput={(e) => setSetNotes(e.detail.value)}
+                            />
+                          </View>
+
+                          <View className="set-tool-row">
+                            <Button size="mini" className="ghost-tool-btn" onClick={handleChooseVideo} loading={uploadingVideo}>
+                              选视频
+                            </Button>
+                            <Button size="mini" className="ghost-tool-btn" onClick={handlePasteVideoLink}>
+                              贴链接
+                            </Button>
+                            <Text className={`pr-toggle-chip ${markAsPR ? 'active' : ''}`} onClick={() => setMarkAsPR(!markAsPR)}>
+                              {markAsPR ? '已标记 PR' : '标记 PR'}
+                            </Text>
+                          </View>
+
+                          {videoUrl && <Text className="video-url">{videoUrl.substring(0, 60)}...</Text>}
+
+                          <Button type="primary" className="complete-btn" onClick={handleCompleteSet} loading={completing}>
+                            完成本组
+                          </Button>
+                        </View>
+                      )}
+
+                      {!flashSetCompleted && isReadOnly && (
+                        <View className="readonly-set-tip">
+                          <Text className="readonly-set-tip-text">该组暂无执行记录（只读模式）</Text>
+                        </View>
+                      )}
+
+                      {flashShowCompletedDetails && (
+                        <View className="set-details">
+                          <View className="detail-grid">
+                            <View className="detail-cell">
+                              <Text className="detail-label">计划</Text>
+                              <Text className="detail-value">{flashPlannedSummary || '未填写'}</Text>
+                            </View>
+                            <View className="detail-cell">
+                              <Text className="detail-label">实际</Text>
+                              <Text className="detail-value">{flashActualSummary || '未填写'}</Text>
+                            </View>
+                            <View className="detail-cell">
+                              <Text className="detail-label">休息</Text>
+                              <Text className="detail-value">{formatRestSummary(flashStrengthSet.planned_rest_seconds)}</Text>
+                            </View>
+                            <View className="detail-cell">
+                              <Text className="detail-label">e1RM</Text>
+                              <Text className="detail-value">
+                                {flashStrengthSet.e1rm !== null && flashStrengthSet.e1rm !== undefined
+                                  ? `${flashStrengthSet.e1rm}kg`
+                                  : '未生成'}
+                              </Text>
+                            </View>
+                          </View>
+
+                          {!!flashStrengthSet.notes && (
+                            <View className="detail-note">
+                              <Text className="detail-label">备注</Text>
+                              <Text className="detail-note-text">{flashStrengthSet.notes}</Text>
+                            </View>
+                          )}
+
+                          {!!flashStrengthSet.video_url && (
+                            <View className="detail-note">
+                              <Text className="detail-label">视频</Text>
+                              <Text className="detail-link">{flashStrengthSet.video_url}</Text>
+                            </View>
+                          )}
+
+                          {!isReadOnly && (
+                            <View className="detail-actions">
+                              <Button
+                                size="mini"
+                                className="ghost-tool-btn"
+                                onClick={() => handleEditCompletedSet(expandedAction, currentSetIndex, flashStrengthSet)}
+                              >
+                                编辑本组
+                              </Button>
+                              {flashSetEditing && (
+                                <Button size="mini" className="ghost-tool-btn" onClick={handleCancelEditCompletedSet}>
+                                  取消编辑
+                                </Button>
+                              )}
+                            </View>
+                          )}
+                        </View>
+                      )}
+                    </View>
+                  )}
+                  {!isReadOnly && (
+                    <View className="extra-set-btn-wrap">
+                      <Button
+                        size="mini"
+                        className="add-extra-set-btn"
+                        onClick={() => handleAddExtraSet(expandedAction)}
+                        disabled={addingExtraSet}
+                      >
+                        {addingExtraSet ? '添加中...' : '+ 新增一组'}
+                      </Button>
+                    </View>
+                  )}
+                </>
+              )}
+            </View>
+
+            <View className="exec-card-nav">
+              <Text
+                className={`exec-nav-btn ${currentCardSlotIndex <= 0 ? 'disabled' : ''}`}
+                onClick={currentCardSlotIndex > 0 ? handleManualPrevCard : undefined}
+              >
+                上一项
+              </Text>
+              <Text className="exec-nav-counter">{slotPositionLabel}</Text>
+              <Text
+                className={`exec-nav-btn ${
+                  currentCardSlotIndex < 0 || currentCardSlotIndex >= trainingCardSlots.length - 1 ? 'disabled' : ''
+                }`}
+                onClick={
+                  currentCardSlotIndex >= 0 && currentCardSlotIndex < trainingCardSlots.length - 1
+                    ? handleManualNextCard
+                    : undefined
+                }
+              >
+                下一项
+              </Text>
+            </View>
+            <Text className="exec-nav-hint">顺序完成更利于统计；跳过未完成的组会提示确认，可能影响今日完成度。</Text>
           </View>
-        )}
+
         {/* 动作选择弹层 */}
         {showActionPicker && (
           <View className="action-picker-mask" onClick={() => setShowActionPicker(false)}>
@@ -1754,26 +1979,6 @@ function TrainingExecution() {
         )}
         </View>
       </ScrollView>
-
-      {isResting && (
-        <View className="rest-timer-mask">
-          <View className="rest-timer-panel">
-            <Text className="rest-timer-emoji"><Clock size={20} /></Text>
-            <Text className="rest-timer-value">
-              {Math.floor(restTimer / 60)}:{String(restTimer % 60).padStart(2, '0')}
-            </Text>
-            <Text className="rest-timer-label">组间休息</Text>
-            <View className="rest-timer-actions">
-              <Button size="mini" onClick={() => handleAddRestTime(30)}>
-                +30秒
-              </Button>
-              <Button size="mini" onClick={handleSkipRest}>
-                跳过休息
-              </Button>
-            </View>
-          </View>
-        </View>
-      )}
 
       {showFeedbackDialog && (
         <View className="feedback-modal-mask">

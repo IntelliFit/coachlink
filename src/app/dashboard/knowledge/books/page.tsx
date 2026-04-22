@@ -52,7 +52,7 @@ const BooksPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-surface-50 dark:bg-surface-900 pb-32">
+    <div className="min-h-screen pb-32">
       <KnowledgeHeader
         title="书籍笔记"
         subtitle="深入学习的系统化知识整理"

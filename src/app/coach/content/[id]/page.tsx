@@ -357,7 +357,7 @@ const ActionButton = ({ icon, label, count, onClick, disabled }: any) => (
 );
 
 const ContentSkeleton = () => (
-    <div className="min-h-screen bg-surface-50 py-8">
+    <div className="min-h-screen py-8">
         <div className="max-w-3xl mx-auto px-4">
             <Skeleton width="100px" height="32px" className="mb-12 rounded-full" />
             <Skeleton width="40%" height="20px" className="mb-4 rounded-lg" />

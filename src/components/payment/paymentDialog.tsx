@@ -844,7 +844,7 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
                         </label>
 
                         {offlineReceiptUrl ? (
-                            <div className="group relative rounded-2xl overflow-hidden border-2 border-dashed border-surface-200 aspect-video flex items-center justify-center bg-surface-50 transition-all active:scale-[0.98]">
+                            <div className="group relative rounded-2xl overflow-hidden border-2 border-dashed border-surface-200 aspect-video flex items-center justify-center transition-all active:scale-[0.98]">
                                 <Image
                                     src={offlineReceiptUrl}
                                     alt="支付凭证"

@@ -75,7 +75,7 @@ export default function KnowledgeArticlesPage() {
     const totalPages = Math.ceil(total / rows);
 
     return (
-        <div className="min-h-screen bg-surface-50 dark:bg-surface-900 pb-32">
+        <div className="min-h-screen pb-32">
             <KnowledgeHeader
                 title="技术文章"
                 subtitle={`共 ${total} 篇教练精选文章`}

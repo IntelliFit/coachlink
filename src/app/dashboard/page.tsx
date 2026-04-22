@@ -22,7 +22,7 @@ const CoachDashboard: React.FC<CoachDashboardProps> = () => {
     // 骨架图加载状态
     if (status === 'loading') {
         return (
-            <div className="min-h-screen bg-surface-50 p-6 md:p-10">
+            <div className="min-h-screen p-6 md:p-10">
                 <div className="max-w-[1200px] mx-auto space-y-8">
                     {/* 顶部导航骨架 */}
                     <div className="flex justify-between items-center">

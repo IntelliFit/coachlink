@@ -130,3 +130,29 @@
     }
   }
 }
+
+/* ==================== 暗色主题适配 ==================== */
+.theme-dark .profile-detail-page {
+  background: linear-gradient(180deg, #1c1c1c 0%, #141414 100%) !important;
+
+  .tab-bar {
+    border-bottom-color: #333333 !important;
+  }
+
+  .tab-text {
+    color: #B0B0B0 !important;
+  }
+
+  .tab-item.active .tab-text {
+    color: #cf6d4e !important;
+  }
+
+  .empty-text {
+    color: #808080 !important;
+  }
+
+  .loading-text,
+  .error-text {
+    color: #B0B0B0 !important;
+  }
+}

@@ -128,7 +128,7 @@ export default function ScenarioDetailPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-surface-50 dark:bg-surface-900 flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500"></div>
       </div>
     );
@@ -136,7 +136,7 @@ export default function ScenarioDetailPage() {
 
   if (!scenario) {
     return (
-      <div className="min-h-screen bg-surface-50 dark:bg-surface-900 p-4">
+      <div className="min-h-screen p-4">
         <div className="text-center py-20">
           <p className="text-surface-500">场景不存在</p>
           <button onClick={() => router.back()} className="mt-4 text-primary-500">
@@ -148,7 +148,7 @@ export default function ScenarioDetailPage() {
   }
 
   return (
-    <div className="min-h-screen bg-surface-50 dark:bg-surface-900 pb-32">
+    <div className="min-h-screen pb-32">
       {/* Header */}
       <div className="sticky top-0 z-20 bg-surface-50/80 dark:bg-surface-900/80 backdrop-blur-lg border-b border-surface-200 dark:border-surface-700">
         <div className="flex items-center gap-4 px-4 py-3 max-w-3xl mx-auto">

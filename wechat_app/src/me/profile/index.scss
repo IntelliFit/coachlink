@@ -135,6 +135,41 @@
   opacity: 0.6;
 }
 
+/* 页面左上角主题切换按钮 */
+.page-theme-toggle {
+  padding: 24rpx 24rpx 0;
+  margin-bottom: 8rpx;
+}
+
+.theme-toggle-btn--page {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12rpx;
+  border-radius: 16rpx;
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.theme-toggle-btn--page:active {
+  opacity: 0.6;
+  background: rgba(0, 0, 0, 0.08);
+}
+
+.theme-toggle-icon {
+  font-size: 40rpx;
+  color: #CF6D4E;
+  line-height: 1;
+}
+
+/* 暗色主题下页面主题按钮适配 */
+.theme-dark .theme-toggle-btn--page {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.theme-dark .theme-toggle-btn--page:active {
+  background: rgba(255, 255, 255, 0.10);
+}
+
 /* ===== 未登录提示 ===== */
 .guest-notice-card {
   background: #FFF8F0;

@@ -120,6 +120,111 @@
     overflow: hidden;
   }
 
+  /* 「今日安排」整块：与进度卡同一白卡片、阴影与圆角体系 */
+  .tt-schedule-stack {
+    background: #ffffff;
+    border-radius: 32rpx;
+    padding: 32rpx;
+    margin-bottom: 24rpx;
+    box-shadow: 0 8rpx 32rpx rgba(0, 0, 0, 0.04);
+    border: none;
+    box-sizing: border-box;
+    overflow: hidden;
+
+    .section-header--schedule {
+      margin-bottom: 0;
+      padding-bottom: 24rpx;
+      border-bottom: 2rpx solid #f3f4f6;
+      align-items: flex-start;
+    }
+
+    .section-header--schedule .header-left {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .tt-schedule-stack__head {
+      display: flex;
+      flex-direction: row;
+      align-items: flex-start;
+      gap: 16rpx;
+      min-width: 0;
+    }
+
+    .tt-schedule-stack__icon {
+      flex-shrink: 0;
+      font-size: 40rpx;
+      line-height: 1;
+      color: #cf6d4e;
+    }
+
+    .tt-schedule-stack__titles {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 8rpx;
+    }
+
+    .section-header--schedule .section-title {
+      margin-left: 0;
+      margin-bottom: 0;
+      font-size: 30rpx;
+      line-height: 1.35;
+    }
+
+    .section-header--schedule .section-subtitle {
+      font-size: 24rpx;
+      color: #6b7280;
+      line-height: 1.4;
+    }
+
+    .rest-day-card {
+      background: transparent;
+      box-shadow: none;
+      border: none;
+      padding: 0 0 24rpx;
+      border-radius: 0;
+      margin-bottom: 24rpx;
+      border-bottom: 2rpx solid #f3f4f6;
+    }
+
+    .share-entry-card {
+      margin-top: 0;
+      padding: 24rpx 0 0;
+      border: none;
+      border-radius: 0;
+      background: transparent;
+      box-shadow: none;
+      border-top: 2rpx solid #f3f4f6;
+    }
+
+    .share-entry-card .inline-actions {
+      margin-top: 0;
+    }
+
+    .empty-card {
+      margin-top: 0;
+      margin-bottom: 0;
+      background: transparent;
+      box-shadow: none;
+      border-radius: 0;
+      padding: 16rpx 0 8rpx;
+    }
+
+    .in-progress-banner {
+      margin-top: 24rpx;
+      margin-bottom: 0;
+      padding-top: 24rpx;
+      border-top: 2rpx solid #f3f4f6;
+      border-radius: 0;
+      background: #f9fafb;
+      border-left: none;
+      border-right: none;
+      border-bottom: none;
+    }
+  }
+
   .tt-daily-progress-head {
     display: flex;
     flex-direction: row;
@@ -161,12 +266,14 @@
 
   .tt-daily-progress-coach-trigger {
     flex-shrink: 0;
-    padding: 8rpx 24rpx;
-    min-height: 56rpx;
+    padding: 8rpx 16rpx;
+    min-height: 48rpx;
     box-sizing: border-box;
     display: flex;
+    flex-direction: row;
     align-items: center;
     justify-content: center;
+    gap: 8rpx;
     background: #ffffff;
     border-radius: 9999rpx;
     border: 2rpx solid #e5e7eb;
@@ -177,8 +284,14 @@
   }
 
   .tt-daily-progress-coach-trigger-text {
-    font-size: 24rpx;
+    font-size: 22rpx;
     font-weight: 600;
+    color: #cf6d4e;
+  }
+
+  .tt-daily-progress-coach-trigger-icon {
+    font-size: 28rpx;
+    line-height: 1;
     color: #cf6d4e;
   }
 
@@ -544,11 +657,11 @@
 
   .unified-home-block--compact {
     background: #ffffff;
-    border-radius: 24rpx;
-    padding: 24rpx;
+    border-radius: 32rpx;
+    padding: 32rpx;
     margin-bottom: 24rpx;
-    box-shadow: 0 4rpx 24rpx rgba(0, 0, 0, 0.04);
-    border: 2rpx solid #f0f0f0;
+    box-shadow: 0 8rpx 32rpx rgba(0, 0, 0, 0.04);
+    border: none;
     box-sizing: border-box;
   }
 
@@ -887,12 +1000,14 @@
   }
 
   .schedule-calendar-anchor__toggle {
-    padding: 8rpx 24rpx;
-    min-height: 56rpx;
+    padding: 8rpx 16rpx;
+    min-height: 48rpx;
     box-sizing: border-box;
     display: flex;
+    flex-direction: row;
     align-items: center;
     justify-content: center;
+    gap: 8rpx;
     border-radius: 9999rpx;
     background: #f9fafb;
     border: 2rpx solid #e5e7eb;
@@ -903,9 +1018,21 @@
   }
 
   .schedule-calendar-anchor__toggle-text {
-    font-size: 24rpx;
+    font-size: 22rpx;
     font-weight: 600;
     color: #cf6d4e;
+  }
+
+  .schedule-calendar-anchor__toggle-icon {
+    font-size: 28rpx;
+    line-height: 1;
+    color: #cf6d4e;
+    display: block;
+    transition: transform 0.2s ease;
+
+    &--expanded {
+      transform: rotate(180deg);
+    }
   }
 
   .renew-inline {
@@ -1748,7 +1875,8 @@
       .header-left {
         display: flex;
         flex-direction: column;
-        gap: 8rpx;
+        gap: 0;
+        width: 100%;
       }
 
       .section-title {
@@ -2303,5 +2431,51 @@
       line-height: 1.6;
       color: #555;
     }
+  }
+}
+
+/* ==================== 暗色主题适配 ==================== */
+.theme-dark .today-training-page {
+  background: linear-gradient(180deg, #1c1c1c 0%, #141414 100%) !important;
+
+  .dashboard-greeting-icon,
+  .dashboard-greeting {
+    color: #E0E0E0 !important;
+  }
+
+  .dashboard-date {
+    color: #B0B0B0 !important;
+  }
+
+  .dashboard-more-dots {
+    color: #808080 !important;
+  }
+
+  .tt-daily-progress-card,
+  .tt-schedule-stack {
+    background: #242424 !important;
+    box-shadow: 0 8rpx 32rpx rgba(0, 0, 0, 0.2) !important;
+  }
+
+  .section-title,
+  .tt-schedule-stack__titles .section-title {
+    color: #E0E0E0 !important;
+  }
+
+  .section-subtitle,
+  .tt-schedule-stack__titles .section-subtitle {
+    color: #B0B0B0 !important;
+  }
+
+  .rest-day-card {
+    border-bottom-color: #333333 !important;
+  }
+
+  .share-entry-card {
+    border-top-color: #333333 !important;
+  }
+
+  .progress-track {
+    background: #333333 !important;
   }
 }

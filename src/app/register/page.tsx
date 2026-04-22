@@ -255,13 +255,7 @@ export default function RegisterPage() {
         /** * 使用 z-[100] 和 fixed inset-0 确保彻底遮盖全局 Header/Footer 
          * 这种方案不需要修改全局 layout，最适合独立注册页
          */
-        <div className="fixed inset-0 z-[100] bg-surface flex flex-col items-center justify-center overflow-y-auto overflow-x-hidden p-6 sm:p-10">
-
-            {/* 背景美化元素：亮色模式柔和光圈，暗色模式低饱和度微光 */}
-            <div className="absolute top-0 left-0 w-full h-full -z-10 pointer-events-none">
-                <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-primary-50 rounded-full blur-[120px] dark:bg-primary-500/15 dark:blur-[140px]" />
-                <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-primary-50 rounded-full blur-[120px] dark:bg-primary-800/50 dark:blur-[160px]" />
-            </div>
+        <div className="fixed inset-0 z-[100] bg-app-canvas flex flex-col items-center justify-center overflow-y-auto overflow-x-hidden p-6 sm:p-10">
 
             <div className="w-full max-w-[480px] animate-in fade-in slide-in-from-bottom-4 duration-500">
                 {/* 返回按钮 */}

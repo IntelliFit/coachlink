@@ -74,7 +74,7 @@ export default function WechatLoginBridgePage() {
   }, [code, state]);
 
   return (
-    <main className="min-h-screen flex items-center justify-center bg-surface p-6">
+    <main className="min-h-screen flex items-center justify-center p-6">
       <div className="text-center">
         <div className="text-surface-900 font-black text-lg">
           {status === 'error' ? '微信登录失败' : status === 'success' ? '登录成功' : '微信登录'}

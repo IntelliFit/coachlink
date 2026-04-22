@@ -30,7 +30,7 @@ import dynamic from 'next/dynamic';
 const DiscoveryContent = dynamic(() => import('./DiscoveryContent'), {
   ssr: false,
   loading: () => (
-    <div className="min-h-screen bg-surface-50 flex items-center justify-center px-6">
+    <div className="min-h-screen flex items-center justify-center px-6">
       <div className="text-center">
         <div className="w-10 h-10 border-2 border-surface-300 border-t-surface-900 rounded-full animate-spin mx-auto mb-4" />
         <div className="text-sm font-black text-surface-900">正在加载发现页…</div>
@@ -633,7 +633,7 @@ const CoachDiscoveryPage: React.FC = () => {
     // 专注模式
     if (visibilityStatus?.focusMode) {
         return (
-            <div className="min-h-screen bg-surface-50 py-8 px-4">
+            <div className="min-h-screen py-8 px-4">
                 <div className="max-w-6xl mx-auto">
                     <header className="mb-10">
                         <div className="flex items-center gap-4 mb-3">
@@ -666,7 +666,7 @@ const CoachDiscoveryPage: React.FC = () => {
     }
 
     return (
-        <div className="min-h-screen bg-surface-50 pb-20">
+        <div className="min-h-screen pb-20">
             {/* 顶部搜索区 */}
             <div className="bg-surface-50 sticky top-0 z-30 pt-safe-top">
                 <div className="px-4 py-4 flex items-center gap-3 max-w-6xl mx-auto">

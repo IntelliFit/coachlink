@@ -199,3 +199,60 @@
     }
   }
 }
+
+/* ==================== 暗色主题适配 ==================== */
+.theme-dark .settings-page {
+  background: linear-gradient(180deg, #1c1c1c 0%, #141414 100%) !important;
+
+  .page-title,
+  .item-title {
+    color: #E0E0E0 !important;
+  }
+
+  .page-subtitle,
+  .section-title,
+  .item-desc {
+    color: #B0B0B0 !important;
+  }
+
+  .settings-list {
+    background: #242424 !important;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2) !important;
+  }
+
+  .setting-item {
+    border-bottom-color: #333333 !important;
+  }
+
+  .setting-item:active {
+    background: #2a2a2a !important;
+  }
+
+  .item-arrow {
+    color: #666666 !important;
+  }
+
+  .item-status {
+    color: #4ade80 !important;
+  }
+
+  .modal-content {
+    background: #242424 !important;
+  }
+
+  .modal-title,
+  .form-label {
+    color: #E0E0E0 !important;
+  }
+
+  .form-input {
+    background: #1a1a1a !important;
+    border-color: #333333 !important;
+    color: #E0E0E0 !important;
+  }
+
+  .modal-btn.cancel {
+    background: #333333 !important;
+    color: #B0B0B0 !important;
+  }
+}

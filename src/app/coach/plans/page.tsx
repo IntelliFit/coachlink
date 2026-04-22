@@ -241,7 +241,7 @@ const TrainingPlansHome: React.FC = () => {
 
     // 骨架屏
     const SkeletonTabs = () => (
-        <div className="min-h-screen bg-surface-50">
+        <div className="min-h-screen">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 <Skeleton width="250px" height="48px" className="mb-8 rounded-lg" />
                 <div className="space-y-8">

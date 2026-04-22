@@ -56,7 +56,7 @@ const VideosPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-surface-50 dark:bg-surface-900 pb-32">
+    <div className="min-h-screen pb-32">
       <KnowledgeHeader
         title="视频课程"
         subtitle="优质健身视频内容，涵盖力量训练、营养学等多个方面"

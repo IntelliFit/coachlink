@@ -1,5 +1,8 @@
 import { request } from '@/utils/request'
 
+/** 底部栏等订阅：会话未读数变化时触发刷新 */
+export const CHAT_UNREAD_BADGE_REFRESH_EVENT = 'coachlink:chat-unread-badge-refresh'
+
 /** 会话列表项（与 Web list-chatrooms 一致） */
 export interface ChatroomItem {
   id: string

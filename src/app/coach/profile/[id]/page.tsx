@@ -245,7 +245,7 @@ const CoachProfilePage: React.FC = () => {
 
     } else {
         return (
-            <div className="min-h-screen bg-surface-50">
+            <div className="min-h-screen">
                 {/* 顶部导航骨架 */}
                 <div className="bg-surface shadow-sm border-b border-surface-200">
                     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

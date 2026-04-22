@@ -245,3 +245,29 @@
     color: #6b7280;
   }
 }
+
+/* ==================== 暗色主题适配 ==================== */
+.theme-dark .plan-history-page {
+  background: linear-gradient(180deg, #1c1c1c 0%, #141414 100%) !important;
+
+  .page-title,
+  .plan-name,
+  .item-title {
+    color: #E0E0E0 !important;
+  }
+
+  .page-subtitle,
+  .plan-desc,
+  .item-desc {
+    color: #B0B0B0 !important;
+  }
+
+  .plan-card,
+  .list-item {
+    background: #242424 !important;
+  }
+
+  .divider {
+    background: #333333 !important;
+  }
+}

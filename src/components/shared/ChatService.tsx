@@ -362,7 +362,7 @@ const ChatService: React.FC<ChatServiceProps> = ({
   const emojis = ['😊', '😄', '😆', '😍', '🤔', '👍', '👏', '💪', '🔥', '❤️', '🎉', '✨'];
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="min-h-screen flex flex-col">
       {/* 聊天头部 */}
       <div className="bg-white shadow-sm p-4 flex items-center justify-between">
         <div className="flex items-center space-x-4">

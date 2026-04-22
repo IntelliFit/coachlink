@@ -246,7 +246,7 @@ export default function TianDiTuLocationsMap({ className }: Props) {
 
             {/* 错误状态 */}
             {status === 'error' && (
-                <div className="absolute inset-0 flex items-center justify-center bg-surface-50 z-20">
+                <div className="absolute inset-0 flex items-center justify-center z-20">
                     <div className="text-center space-y-2">
                         <i className="pi pi-exclamation-triangle text-3xl text-amber-500" />
                         <div className="text-sm text-surface-600">地图加载失败，请刷新重试</div>

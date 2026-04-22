@@ -71,7 +71,7 @@ const MyLearningPage = () => {
   const completedItems = learningProgress.filter(item => item.progress === 100);
 
   return (
-    <div className="min-h-screen bg-surface-50 dark:bg-surface-900 pb-32">
+    <div className="min-h-screen pb-32">
       <KnowledgeHeader
         title="我的学习"
         subtitle="跟踪您的学习进度和历史记录"

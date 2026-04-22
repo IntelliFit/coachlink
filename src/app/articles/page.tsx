@@ -34,7 +34,7 @@ export default async function ArticlesPage() {
     const items = await loadItems();
 
     return (
-        <div className="min-h-screen bg-surface-50 py-12 px-4 sm:px-6">
+        <div className="min-h-screen py-12 px-4 sm:px-6">
             <div className="max-w-5xl mx-auto">
                 <div className="mb-8">
                     <div className="text-xs font-black uppercase tracking-widest text-surface-500">

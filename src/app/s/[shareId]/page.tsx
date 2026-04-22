@@ -53,7 +53,7 @@ export default function ShareLandingPage() {
     }, [router, shareId]);
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-surface">
+        <div className="min-h-screen flex items-center justify-center">
             <div className="text-center space-y-2 px-6">
                 <div className="text-surface-900 font-black text-xl">正在跳转注册…</div>
                 <div className="text-surface-500 text-sm">

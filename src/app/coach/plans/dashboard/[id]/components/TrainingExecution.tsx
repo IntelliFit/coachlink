@@ -246,7 +246,7 @@ const TrainingExecution: React.FC<TrainingExecutionProps> = ({
   
   if (loading) {
     return (
-      <div className="min-h-screen flex align-items-center justify-content-center bg-surface">
+      <div className="min-h-screen flex align-items-center justify-content-center">
         <div className="text-center">
           <Skeleton width="4rem" height="4rem" shape="circle" className="mx-auto mb-4" />
           <Skeleton width="10rem" height="1.5rem" />
@@ -257,7 +257,7 @@ const TrainingExecution: React.FC<TrainingExecutionProps> = ({
   
   if (error) {
     return (
-      <div className="min-h-screen flex align-items-center justify-content-center bg-surface">
+      <div className="min-h-screen flex align-items-center justify-content-center">
         <Card className="text-center max-w-md p-6">
           <div className="text-red-500 text-5xl mb-4">⚠️</div>
           <h2 className="text-2xl font-bold text-900 mb-2">加载失败</h2>
@@ -274,7 +274,7 @@ const TrainingExecution: React.FC<TrainingExecutionProps> = ({
   
   if (showSummary) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 flex align-items-center justify-content-center p-4">
+      <div className="min-h-screen bg-app-canvas flex align-items-center justify-content-center p-4">
         <Card className="max-w-md w-full">
           <div className="text-center">
             <div className="text-6xl mb-4">🎉</div>
@@ -321,7 +321,7 @@ const TrainingExecution: React.FC<TrainingExecutionProps> = ({
   return (
     <>
       <ConfirmDialog />
-      <div className="min-h-screen bg-surface">
+      <div className="min-h-screen">
         <div className="bg-surface shadow-sm border-bottom-1 surface-border sticky top-0 z-1">
           <div className="max-w-4xl mx-auto px-4 py-4">
             <div className="flex align-items-center justify-content-between">

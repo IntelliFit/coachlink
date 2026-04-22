@@ -94,7 +94,7 @@ const Videos: React.FC = () => {
     ];
 
     return (
-        <div className="min-h-screen bg-surface-50/50 py-8 px-4">
+        <div className="min-h-screen py-8 px-4">
             <div className="max-w-7xl mx-auto space-y-8">
 
                 {/* 顶部标题与筛选 */}

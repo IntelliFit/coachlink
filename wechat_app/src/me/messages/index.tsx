@@ -4,7 +4,7 @@ import Taro, { useDidShow, useDidHide, usePullDownRefresh, useRouter } from '@ta
 import BottomNav from '@/components/BottomNav'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { authService } from '@/services/authService'
-import { chatService, type ChatroomItem } from '@/services/chatService'
+import { chatService, type ChatroomItem, CHAT_UNREAD_BADGE_REFRESH_EVENT } from '@/services/chatService'
 import { request } from '@/utils/request'
 import { Location, Message } from '@nutui/icons-react-taro'
 import './index.scss'
@@ -144,6 +144,7 @@ function MessagesPage() {
       }
     } finally {
       if (!silent) setLoading(false)
+      Taro.eventCenter.trigger(CHAT_UNREAD_BADGE_REFRESH_EVENT)
     }
   }, [openChatWithCoach, pendingCoachId, pendingCoachName, sortChatrooms])
 

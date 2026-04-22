@@ -176,7 +176,7 @@ const VideoSharePage: React.FC<VideoSharePageProps> = ({ videoId, onClose }) => 
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
           <p className="text-gray-600">正在加载视频...</p>
@@ -187,7 +187,7 @@ const VideoSharePage: React.FC<VideoSharePageProps> = ({ videoId, onClose }) => 
 
   if (error || !video) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="text-6xl mb-4">😔</div>
           <h2 className="text-xl font-semibold text-gray-900 mb-2">视频不存在或已被删除</h2>
@@ -204,7 +204,7 @@ const VideoSharePage: React.FC<VideoSharePageProps> = ({ videoId, onClose }) => 
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen">
       {/* 顶部导航 */}
       <div className="bg-white shadow-sm">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4">

@@ -98,7 +98,7 @@ export default function PurchaseHistoryPage() {
     };
 
     return (
-        <div className="min-h-screen py-10 px-4 bg-surface-50">
+        <div className="min-h-screen py-10 px-4">
             <div className="container mx-auto max-w-4xl">
                 {/* 页面标题 */}
                 <div className="flex items-center gap-3 mb-8">

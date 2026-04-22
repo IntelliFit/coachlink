@@ -1,5 +1,19 @@
 # CURRENT_TASK
 
+- Latest (`2026-04-23`): 按用户要求根据项目 skills 启动开发环境
+- Task: 启动 `coachlink` Web 前后端开发服务、小程序 `dev:weapp` 监听，以及微信开发者工具自动化会话
+- Scope:
+  - 根目录使用 `npm run dev` 启动 Next.js 全栈开发服务（覆盖 Web 前端与 API 后端）
+  - `wechat_app/` 使用 `npm run dev:weapp` 启动小程序本地构建监听
+  - 按 `weapp-devtools` 规约将微信开发者工具自动化挂到固定端口 `9420`
+- Status: started on `2026-04-23`
+- Verification:
+  - 根目录 `npm run dev` 已启动，Next.js 16 开发服务监听 `http://localhost:3000`
+  - `curl -I http://127.0.0.1:3000` 返回 `307 Temporary Redirect` 到 `/coach/discovery`，说明 Web 服务可响应
+  - `wechat_app npm run dev:weapp` 已启动并完成首轮 watch 构建，输出目录为 `wechat_app/dist`
+  - 微信开发者工具已按小程序项目拉起；本机监听端口确认包含 `9420`
+  - `mrc where --port 9420` / `mrc errors 10 --port 9420` 可连接，错误日志为 0 条
+
 - Latest (`2026-04-20` 续): 小程序「我的」— 深色模式变量挂到 `.app-root.theme-*`；`me/profile/detail` 修复 `useEffect` 依赖（避免 `user` 引用死循环）；主题切换按钮改为 Lucide 图标（含「跟随系统」）；档案页与知识库等去冗余标题/emoji、统一训练页渐变底；`npm run build:weapp` 通过（本机未重跑开发者工具截图）。
 
 - Task: 调整街健计算结果页层级与视觉，并在每次修改后确认前后端/小程序开发环境已生效

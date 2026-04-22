@@ -1693,7 +1693,7 @@ function TrainingExecutionContent() {
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-surface-50 p-4">
+            <div className="min-h-screen p-4">
                 <Skeleton height="60px" className="mb-4" />
                 <Skeleton height="200px" className="mb-4" />
                 <Skeleton height="300px" />
@@ -1703,7 +1703,7 @@ function TrainingExecutionContent() {
 
     if (!session?.user?.id) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-surface-50">
+            <div className="min-h-screen flex items-center justify-center">
                 <div className="text-center">
                     <h2 className="text-2xl font-bold mb-2 text-surface-900">未登录</h2>
                     <p className="text-surface-500">请先登录</p>
@@ -1714,7 +1714,7 @@ function TrainingExecutionContent() {
 
     if (!execution) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-surface-50">
+            <div className="min-h-screen flex items-center justify-center">
                 <div className="text-center">
                     <h2 className="text-2xl font-bold mb-2 text-surface-900">加载失败</h2>
                     <Button label="返回" onClick={() => router.back()} />
@@ -1754,7 +1754,7 @@ function TrainingExecutionContent() {
         : planDescriptionText;
 
     return (
-        <div className="min-h-screen bg-surface-50">
+        <div className="min-h-screen">
             {/* 超时未结束提醒 */}
             <Dialog
                 header="训练未结束提醒"
@@ -2905,7 +2905,7 @@ function TrainingExecutionContent() {
 export default function TrainingExecutionPage() {
     return (
         <Suspense fallback={
-            <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+            <div className="min-h-screen bg-app-canvas flex items-center justify-center">
                 <Skeleton width="4rem" height="4rem" shape="circle" />
             </div>
         }>

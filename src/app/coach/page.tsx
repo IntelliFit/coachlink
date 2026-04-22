@@ -8,7 +8,7 @@ export const metadata: Metadata = {
 
 export default function CoachPage() {
   return (
-    <main className="min-h-screen bg-surface px-6 py-14">
+    <main className="min-h-screen px-6 py-14">
       <div className="max-w-5xl mx-auto">
         <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-surface-900">
           教练与学员的训练管理平台

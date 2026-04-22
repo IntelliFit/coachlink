@@ -170,3 +170,31 @@
     }
   }
 }
+
+/* ==================== 暗色主题适配 ==================== */
+.theme-dark .membership-page {
+  background: linear-gradient(180deg, #1c1c1c 0%, #141414 100%) !important;
+
+  .page-title,
+  .card-title,
+  .feature-title {
+    color: #E0E0E0 !important;
+  }
+
+  .page-subtitle,
+  .card-desc,
+  .feature-desc,
+  .loading {
+    color: #B0B0B0 !important;
+  }
+
+  .membership-card,
+  .feature-card,
+  .plan-card {
+    background: #242424 !important;
+  }
+
+  .divider {
+    background: #333333 !important;
+  }
+}

@@ -169,6 +169,23 @@ npm run test:e2e
 5. **云端优先更新**：当云端数据与本地不一致时，**永远以云端数据为准**更新本地 `storage`。
 6. **本地作为缓存层**：本地 `storage` 承担数据缓存职责，保证离线可用和流畅体验。
 
+### 微信小程序：今日训练页与训练执行页（落地规则）
+
+以下与 `wechat_app/` 中学员 **今日训练首页**、**训练执行** 相关；后续迭代**不得**在业务页里再写一套互不相认的 storage 键或 60 天规则，应复用或扩展既有工具。
+
+| 用途 | Storage 键（常量见代码） | 工具模块 |
+|------|--------------------------|----------|
+| 今日训练首页聚合数据（订阅、计划、按天的 execution 摘要等） | `today_training_page_cache_v1` | `wechat_app/src/utils/todayTrainingPageCache.ts` |
+| 训练执行页「按次打开」的快照（整份 execution + planInstance + actions） | `training_execution_snapshots_v1` | `wechat_app/src/utils/trainingExecutionCache.ts` |
+
+**统一规则**
+
+1. **60 天**：首页缓存整条 `savedAt` 过期即视为无效；训练执行快照按**条目** `savedAt` 裁剪，超过 60 天的条目删除（与上表「存储范围」一致）。
+2. **进入训练执行**：可先读快照 **快速展示**，再请求云端；**云端返回后覆盖**本地快照（云端为准）。
+3. **训练中写操作**：在 **`executionService` / `impromptuService` 等接口成功返回后**，必须同步更新：① 训练执行快照；② 计划模式下通过 `patchExecutionInTodayTrainingPageCache` 更新首页缓存里对应 `instanceId` 的 `executionsByDayIndex[dayIndex]`，以便返回今日训练页时**进度条与模块完成度**与刚完成的组一致（首页 `useDidShow` 仍会拉云端，本地补丁解决「返回瞬间」与弱网下的体验）。
+4. **即兴训练**：只写训练执行快照，**不写**今日训练首页里的计划 execution 映射（无 `instanceId` 计划上下文）。
+5. **新增「会改 execution 状态」的接口或 UI**：在成功回调里调用与现有 `syncTrainingExecutionToStorage` / `syncExecutionToCaches` 同级的持久化逻辑，避免只改内存不写 storage。
+
 ## SKILLS
 
 - **port-manager** (`.kimi/skills/port-manager`) — Manage and allocate network ports across multiple local projects to prevent port conflicts.

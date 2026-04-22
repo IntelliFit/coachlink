@@ -1,9 +1,7 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { View, Text, Image } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
 import BottomNav from '@/components/BottomNav'
-import { Icon } from '@/components/Icon'
-import { Sun, Moon, MonitorSmartphone, Clock } from 'lucide-react'
 import { useTheme } from '@/hooks/useTheme'
 import { authService } from '@/services/authService'
 import { coachService } from '@/services/coach/coachService'
@@ -22,7 +20,7 @@ interface MenuItem {
 }
 
 function Profile() {
-  const { themeMode, setThemeMode } = useTheme()
+  const { isDark, toggleTheme } = useTheme()
   const [user, setUser] = useState<any>(null)
   const [coachId, setCoachId] = useState<string | null>(null)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
@@ -367,41 +365,16 @@ function Profile() {
     }
   }
 
-  function renderThemeModeIcon() {
-    const size = 18
-    const color = '#999999'
-    if (themeMode === 'system') {
-      return <Icon component={MonitorSmartphone} size={size} color={color} />
-    }
-    if (themeMode === 'auto') {
-      return <Icon component={Clock} size={size} color={color} />
-    }
-    if (themeMode === 'dark') {
-      return <Icon component={Moon} size={size} color={color} />
-    }
-    return <Icon component={Sun} size={size} color={color} />
-  }
+  const themeIconClass = useMemo(() => {
+    return isDark ? 'icon-wanshang' : 'icon-zaoshang'
+  }, [isDark])
 
   function handleThemeToggle() {
-    const modes: { key: 'light' | 'dark' | 'system' | 'auto'; label: string }[] = [
-      { key: 'light', label: '浅色' },
-      { key: 'dark', label: '深色' },
-      { key: 'system', label: '跟随系统' },
-      { key: 'auto', label: '自动' },
-    ]
-    Taro.showActionSheet({
-      itemList: modes.map((m) => m.label),
-      success: (res) => {
-        const selected = modes[res.tapIndex]
-        if (selected) {
-          setThemeMode(selected.key)
-          Taro.showToast({
-            title: `已切换为${selected.label}`,
-            icon: 'none',
-            duration: 1500,
-          })
-        }
-      },
+    toggleTheme()
+    Taro.showToast({
+      title: isDark ? '已切换为浅色模式' : '已切换为深色模式',
+      icon: 'none',
+      duration: 1500,
     })
   }
 
@@ -436,6 +409,16 @@ function Profile() {
   return (
     <View className='profile-page'>
       <View className='myContainer'>
+        {/* 页面左上角主题切换 */}
+        <View className='page-theme-toggle'>
+          <View
+            className='theme-toggle-btn theme-toggle-btn--page'
+            onClick={handleThemeToggle}
+          >
+            <Text className={`iconfont ${themeIconClass} theme-toggle-icon`} />
+          </View>
+        </View>
+
         {/* 用户档案卡片 */}
         <View className='profile-card' onClick={handleViewProfile}>
           <View className='profile-card-header'>
@@ -475,12 +458,6 @@ function Profile() {
             >
               设置
             </Text>
-            <View
-              className='theme-toggle-btn'
-              onClick={handleThemeToggle}
-            >
-              {renderThemeModeIcon()}
-            </View>
           </View>
         </View>
 
