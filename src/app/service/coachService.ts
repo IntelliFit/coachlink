@@ -17,6 +17,10 @@ import type {
     BroadcastMessageResponseDto,
 } from '@/app/api/coach/broadcast-message/entity';
 import type {
+    CoachAiAutoReplySettingsDto,
+    CoachAiAutoReplySettingsResponseDto,
+} from '@/app/api/coach/ai-auto-reply-settings/entity';
+import type {
     GetAllCoachesDto,
     GetAllCoachesResponseDto
 } from '@/app/api/coach/get-all-coaches/entity';
@@ -46,6 +50,11 @@ import type {
     CheckContentInteractionDto,
     CheckContentInteractionResponseDto
 } from '@/app/api/coach/check-content-interaction/entity';
+import type {
+    ContentColumnDto,
+    ContentColumnResponseDto,
+    ContentColumnsResponseDto,
+} from '@/app/api/coach/content-columns/entity';
 
 // 规则包与专长相关接口
 import type {
@@ -177,6 +186,25 @@ class CoachService extends BaseService {
         return null;
     }
 
+    async getAiAutoReplySettings() {
+        const res = await this.get<CoachAiAutoReplySettingsResponseDto>('ai-auto-reply-settings');
+        if (res.data && res.data.success) {
+            return res.data.data || null;
+        }
+        return null;
+    }
+
+    async updateAiAutoReplySettings(reqData: CoachAiAutoReplySettingsDto) {
+        const res = await this.post<CoachAiAutoReplySettingsResponseDto>(
+            'ai-auto-reply-settings',
+            reqData,
+        );
+        if (res.data && res.data.success) {
+            return res.data.data || null;
+        }
+        return null;
+    }
+
     async getContents(reqData: GetContentsDto) {
         const res = await this.post<GetContentsResponseDto>('get-contents', reqData);
         if (res.data && res.data.success) {
@@ -189,6 +217,30 @@ class CoachService extends BaseService {
         if (res.data && res.data.success) {
             return res.data.data || null;
         }
+    }
+
+    async listContentColumns() {
+        const res = await this.get<ContentColumnsResponseDto>('content-columns');
+        if (res.data && res.data.success) {
+            return res.data.data || null;
+        }
+        return null;
+    }
+
+    async createContentColumn(reqData: ContentColumnDto) {
+        const res = await this.post<ContentColumnResponseDto>('content-columns', reqData);
+        if (res.data && res.data.success) {
+            return res.data.data || null;
+        }
+        return null;
+    }
+
+    async updateContentColumn(reqData: ContentColumnDto & { id: string }) {
+        const res = await this.put<ContentColumnResponseDto>('content-columns', reqData);
+        if (res.data && res.data.success) {
+            return res.data.data || null;
+        }
+        return null;
     }
 
     // 添加更新内容的方法

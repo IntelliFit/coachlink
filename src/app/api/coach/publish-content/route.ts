@@ -11,6 +11,8 @@ export async function POST(req: Request) {
         content_type,
         required_tier,
         price_cents,
+        column_id = null,
+        column_sort_order = null,
         is_featured,
         tags,
         media_urls = [],
@@ -53,6 +55,7 @@ export async function POST(req: Request) {
     }
 
     const resolvedPriceCents = Math.max(0, Math.floor(Number(price_cents ?? 0)));
+    const resolvedColumnId = column_id || null;
 
     // 验证教练是否存在、状态为 approved 且属于当前用户
     const { data: coach, error: coachError } = await supabase
@@ -70,9 +73,27 @@ export async function POST(req: Request) {
         }, { status: 404 });
     }
 
+    if (resolvedColumnId) {
+        const { data: column, error: columnError } = await supabase
+            .from('coach_content_columns')
+            .select('id')
+            .eq('id', resolvedColumnId)
+            .eq('coach_id', coach.id)
+            .single();
+
+        if (columnError || !column) {
+            return NextResponse.json({
+                success: false,
+                message: '所选专栏不存在或无权限'
+            }, { status: 400 });
+        }
+    }
+
     // 插入内容记录
     const contentData = {
         coach_id: coach.id,
+        column_id: resolvedColumnId,
+        column_sort_order: column_sort_order == null ? null : Number(column_sort_order),
         title: title.trim(),
         content: content.trim(),
         content_type,

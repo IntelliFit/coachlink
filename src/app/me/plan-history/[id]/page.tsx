@@ -7,6 +7,7 @@ import { Tag } from 'primereact/tag';
 import { Skeleton } from 'primereact/skeleton';
 import { useRouter, useParams } from 'next/navigation';
 import { TrainingDayCard } from '@/components/plan/TrainingDayCard';
+import ExecutionPlanNoticeDialog from '@/components/plan/ExecutionPlanNoticeDialog';
 import { planLibService } from '@/app/service/planLibService';
 import { calculateCurrentWeek, isDayUnlocked, getDayWeekNumber, formatUnlockDate, getUnlockDate } from '@/lib/weekUnlock';
 
@@ -14,6 +15,7 @@ interface PlanInstance {
     id: string;
     name: string;
     description: string | null;
+    execution_notice?: string | null;
     source: string | null;
     status: string;
     start_date: string | null;
@@ -40,6 +42,7 @@ export default function PlanHistoryDetailPage() {
         total: 0,
     });
     const [loading, setLoading] = useState(true);
+    const [noticeVisible, setNoticeVisible] = useState(false);
 
     useEffect(() => {
         if (instanceId) {
@@ -202,14 +205,23 @@ export default function PlanHistoryDetailPage() {
                     <Button icon="pi pi-arrow-left" text onClick={() => router.back()} />
                     <h1 className="text-xl font-bold m-0">{instance.name}</h1>
                 </div>
-                {canStartTodayTraining && (
+                <div className="flex flex-wrap items-center justify-end gap-2">
                     <Button
-                        label="开始今日训练"
-                        icon="pi pi-play"
-                        className="p-button-lg"
-                        onClick={() => router.push('/today-training')}
+                        label="执行须知"
+                        icon="pi pi-info-circle"
+                        severity="secondary"
+                        outlined
+                        onClick={() => setNoticeVisible(true)}
                     />
-                )}
+                    {canStartTodayTraining && (
+                        <Button
+                            label="开始今日训练"
+                            icon="pi pi-play"
+                            className="p-button-lg"
+                            onClick={() => router.push('/today-training')}
+                        />
+                    )}
+                </div>
             </div>
 
             {/* Summary Card */}
@@ -341,6 +353,15 @@ export default function PlanHistoryDetailPage() {
                     );
                 })()}
             </div>
+
+            <ExecutionPlanNoticeDialog
+                visible={noticeVisible}
+                mode="read"
+                executionNotice={instance?.execution_notice || null}
+                planName={instance?.name || null}
+                onHide={() => setNoticeVisible(false)}
+                onConfirm={() => setNoticeVisible(false)}
+            />
         </div>
     );
 }

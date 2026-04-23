@@ -304,6 +304,7 @@ export async function POST(req: Request) {
                 .from('coach_plan_instances')
                 .select('id, coach_subscription_id, student_id, coach_id, status, created_at')
                 .in('coach_subscription_id', activeIds)
+                .in('status', ['active', 'paused', 'completed', 'scheduled'])
                 .order('created_at', { ascending: false });
 
             const latestInstanceIdBySub = new Map<string, string>();
@@ -397,8 +398,9 @@ export async function POST(req: Request) {
                 // Latest plan instance per subscription (for training_days cadence & start_execution_day)
                 const { data: instances } = await supabase
                     .from('coach_plan_instances')
-                    .select('id, coach_subscription_id, training_days, start_execution_day, created_at')
+                    .select('id, coach_subscription_id, training_days, start_execution_day, created_at, status')
                     .in('coach_subscription_id', subscriptionIds)
+                    .in('status', ['active', 'paused', 'completed', 'scheduled'])
                     .order('created_at', { ascending: false });
 
                 const latestInstanceBySub = new Map<string, any>();

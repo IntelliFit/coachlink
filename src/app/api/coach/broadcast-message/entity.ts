@@ -9,6 +9,10 @@ export interface BroadcastMessageDto {
    * Text content of the notification.
    */
   content: string;
+  messageType?: "text" | "image";
+  mediaUrl?: string;
+  fileName?: string;
+  fileSize?: number;
 }
 
 export interface BroadcastMessageResultItem {

@@ -31,6 +31,10 @@ export interface MessageItem {
         contentId?: string;
         contentTitle?: string;
         contentLink?: string;
+        coach_ai_auto_reply?: boolean;
+        virtual_avatar_label?: string;
+        provider?: string;
+        model?: string;
     } | null;
 }
 

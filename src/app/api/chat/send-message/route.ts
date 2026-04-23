@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 import supabase from "@/lib/supabaseClient";
+import { maybeCreateCoachAiAutoReply } from "@/lib/coachAiAutoReply";
 // 推送通知现在完全由前端通过 Service Worker 处理，不再需要后端推送
 import type { ApiData } from "@/types/api";
 import type { SendMessageDto, SendMessageResponseDto } from "./entity";
@@ -70,7 +71,7 @@ export async function POST(req: Request) {
     // 获取会话信息
     const { data: chatRoom, error: chatRoomError } = await supabase
         .from("chat_rooms")
-        .select("members")
+        .select("id, members")
         .eq("id", roomId)
         .single();
 
@@ -154,6 +155,16 @@ export async function POST(req: Request) {
             data: null,
         }, { status: 500 });
     }
+
+    await maybeCreateCoachAiAutoReply({
+        room: {
+            id: roomId,
+            members: chatRoom.members,
+        },
+        senderUserId: userId,
+        messageType,
+        content: messageData.content || "",
+    });
 
     // 注意：推送通知现在完全由前端通过 Service Worker 处理
     // 当消息插入到数据库后，SSE 会通知前端，前端会自动显示通知

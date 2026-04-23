@@ -3,12 +3,13 @@
 import React, { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { getCoach } from '@/app/dashboard/util';
-import { Eye, ThumbsUp, MessageCircle, Clock, Plus, ArrowLeft, Search, Pencil, Trash2 } from 'lucide-react';
+import { Eye, ThumbsUp, Clock, Plus, ArrowLeft, Search, Pencil, Trash2, FolderPlus } from 'lucide-react';
 import { Button } from 'primereact/button';
 import { InputText } from 'primereact/inputtext';
 import { Dropdown } from 'primereact/dropdown';
 import { DataView } from 'primereact/dataview';
 import { Skeleton } from 'primereact/skeleton';
+import { Dialog } from 'primereact/dialog';
 import { IconField } from 'primereact/iconfield';
 import { InputIcon } from 'primereact/inputicon';
 import { ConfirmDialog, confirmDialog } from 'primereact/confirmdialog';
@@ -16,7 +17,7 @@ import { useToastContext } from '@/context/ToastContext';
 import ContentEditor from '@/app/dashboard/content/ContentEditor';
 import NodeSelector from '@/components/knowledge/NodeSelector';
 import { coachService } from '@/app/service/coachService';
-import { CoachContentRow } from '@/types';
+import { CoachContentColumnRow, CoachContentRow } from '@/types';
 
 const Content = () => {
     const { data: session } = useSession();
@@ -24,12 +25,19 @@ const Content = () => {
     const { showToast } = useToastContext();
 
     const [contents, setContents] = useState<CoachContentRow[]>([]);
+    const [columns, setColumns] = useState<CoachContentColumnRow[]>([]);
     const [loading, setLoading] = useState(true);
     const [searching, setSearching] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [currentView, setCurrentView] = useState<'list' | 'editor'>('list');
     const [searchTerm, setSearchTerm] = useState('');
     const [filterTier, setFilterTier] = useState<number | 'all'>('all');
+    const [filterColumnId, setFilterColumnId] = useState<string | 'all' | 'loose'>('all');
+    const [columnDialogVisible, setColumnDialogVisible] = useState(false);
+    const [newColumnName, setNewColumnName] = useState('');
+    const [newColumnDescription, setNewColumnDescription] = useState('');
+    const [creatingColumn, setCreatingColumn] = useState(false);
+    const [columnToSelectId, setColumnToSelectId] = useState<string | null>(null);
     const [editingContent, setEditingContent] = useState<CoachContentRow | null>(null);
     const [selectedKnowledgeNodeId, setSelectedKnowledgeNodeId] = useState<string | null>(null);
     const [selectedKnowledgeNodePath, setSelectedKnowledgeNodePath] = useState<string[]>([]);
@@ -54,6 +62,8 @@ const Content = () => {
         try {
             const res = await coachService.getContents({ coachId: coach.id, limit: 50, offset: 0 });
             if (res) setContents(res.contents || []);
+            const columnsRes = await coachService.listContentColumns();
+            setColumns(columnsRes?.columns || []);
         } catch (err) {
             setError('加载内容失败，请重试');
         } finally {
@@ -69,6 +79,7 @@ const Content = () => {
     };
 
     const handleEditContent = (content: CoachContentRow) => {
+        setColumnToSelectId(null);
         setEditingContent(content);
         setCurrentView('editor');
     };
@@ -89,6 +100,54 @@ const Content = () => {
             closeEditor();
         } catch (err) {
             showToast({ severity: 'error', summary: '操作失败' });
+        }
+    };
+
+    const handleCreateColumn = async (name: string) => {
+        const res = await coachService.createContentColumn({
+            name,
+            description: newColumnDescription.trim() || null,
+        });
+        const created = res?.column || null;
+        if (created) {
+            setColumns((prev) => {
+                if (prev.some((column) => column.id === created.id)) return prev;
+                return [created, ...prev];
+            });
+        }
+        return created;
+    };
+
+    const handleCreateColumnFromDialog = async () => {
+        const name = newColumnName.trim();
+        if (!name) {
+            showToast({ severity: 'warn', summary: '请先填写专栏名称' });
+            return;
+        }
+
+        setCreatingColumn(true);
+        try {
+            const created = await handleCreateColumn(name);
+            if (created) {
+                setNewColumnName('');
+                setNewColumnDescription('');
+                setFilterColumnId(created.id);
+                if (currentView === 'editor') {
+                    setColumnToSelectId(created.id);
+                    setColumnDialogVisible(false);
+                    showToast({ severity: 'success', summary: '专栏已创建并选中' });
+                } else {
+                    showToast({ severity: 'success', summary: '专栏已创建' });
+                }
+            }
+        } catch (err: any) {
+            showToast({
+                severity: 'error',
+                summary: '创建专栏失败',
+                detail: err?.message || '请稍后重试',
+            });
+        } finally {
+            setCreatingColumn(false);
         }
     };
 
@@ -113,6 +172,7 @@ const Content = () => {
     const closeEditor = () => {
         setCurrentView('list');
         setEditingContent(null);
+        setColumnToSelectId(null);
         setSelectedKnowledgeNodeId(null);
         setSelectedKnowledgeNodePath([]);
         loadContents();
@@ -159,12 +219,120 @@ const Content = () => {
     const filteredContents = contents.filter(content => {
         const matchesSearch = content.title.toLowerCase().includes(searchTerm.toLowerCase());
         const matchesTier = filterTier === 'all' || content.required_tier === filterTier;
-        return matchesSearch && matchesTier;
+        const matchesColumn =
+            filterColumnId === 'all' ||
+            (filterColumnId === 'loose' && !(content as any).column_id) ||
+            (filterColumnId !== 'loose' && filterColumnId !== 'all' && (content as any).column_id === filterColumnId);
+        return matchesSearch && matchesTier && matchesColumn;
     });
+
+    const getColumnName = (columnId?: string | null) => {
+        if (!columnId) return '闲散文章';
+        return columns.find((column) => column.id === columnId)?.name || '未知专栏';
+    };
+
+    const columnDialog = (
+        <Dialog
+            header="专栏管理"
+            visible={columnDialogVisible}
+            onHide={() => setColumnDialogVisible(false)}
+            className="w-[min(720px,calc(100vw-32px))]"
+            modal
+        >
+            <div className="space-y-6">
+                <div className="rounded-3xl border border-surface-100 bg-surface-50/60 p-5">
+                    <div className="flex items-start gap-3">
+                        <div className="rounded-2xl bg-primary-50 p-3 text-primary-600">
+                            <FolderPlus size={22} />
+                        </div>
+                        <div className="flex-1 space-y-3">
+                            <div>
+                                <div className="text-sm font-black text-surface-900">新建命名专栏</div>
+                                <p className="mt-1 text-xs text-surface-500">
+                                    专栏适合连续主题内容；不归入专栏的文章会保留为“闲散文章”。
+                                </p>
+                            </div>
+                            <InputText
+                                value={newColumnName}
+                                onChange={(e) => setNewColumnName(e.target.value)}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                        e.preventDefault();
+                                        handleCreateColumnFromDialog();
+                                    }
+                                }}
+                                placeholder="专栏名称，例如：饮食篇 / 引体向上进阶"
+                                className="w-full rounded-2xl border-surface-200"
+                            />
+                            <InputText
+                                value={newColumnDescription}
+                                onChange={(e) => setNewColumnDescription(e.target.value)}
+                                placeholder="专栏简介（可选）"
+                                className="w-full rounded-2xl border-surface-200"
+                            />
+                            <div className="flex justify-end">
+                                <Button
+                                    label="创建专栏"
+                                    icon={<Plus size={16} className="mr-1" />}
+                                    loading={creatingColumn}
+                                    disabled={!newColumnName.trim()}
+                                    onClick={handleCreateColumnFromDialog}
+                                    className="rounded-2xl"
+                                />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <div className="mb-3 text-xs font-black uppercase tracking-widest text-surface-400">
+                        已有专栏
+                    </div>
+                    {columns.length === 0 ? (
+                        <div className="rounded-2xl border border-dashed border-surface-200 p-8 text-center text-sm text-surface-500">
+                            还没有专栏。先创建一个，再回到文章编辑器选择归属。
+                        </div>
+                    ) : (
+                        <div className="space-y-2">
+                            {columns.map((column) => (
+                                <div
+                                    key={column.id}
+                                    className="flex items-center justify-between gap-4 rounded-2xl border border-surface-100 bg-white px-4 py-3"
+                                >
+                                    <div className="min-w-0">
+                                        <div className="truncate text-sm font-black text-surface-900">{column.name}</div>
+                                        {column.description ? (
+                                            <div className="mt-0.5 line-clamp-1 text-xs text-surface-500">{column.description}</div>
+                                        ) : (
+                                            <div className="mt-0.5 text-xs text-surface-400">暂无简介</div>
+                                        )}
+                                    </div>
+                                    <Button
+                                        label={currentView === 'editor' ? '选中' : '筛选查看'}
+                                        text
+                                        onClick={() => {
+                                            if (currentView === 'editor') {
+                                                setColumnToSelectId(column.id);
+                                            } else {
+                                                setFilterColumnId(column.id);
+                                            }
+                                            setColumnDialogVisible(false);
+                                        }}
+                                        className="shrink-0 rounded-xl"
+                                    />
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </div>
+        </Dialog>
+    );
 
     if (currentView === 'editor') {
         return (
             <div className="max-w-5xl mx-auto px-4 py-8 animate-in fade-in duration-500">
+                {columnDialog}
                 <Button
                     icon={<ArrowLeft size={18} className="mr-2" />}
                     label={editingContent ? "取消编辑" : "返回列表"}
@@ -203,6 +371,10 @@ const Content = () => {
                         onPublish={handlePublishContent}
                         onSaveDraft={handleSaveDraft}
                         initialContent={editingContent}
+                        columns={columns}
+                        onManageColumns={() => setColumnDialogVisible(true)}
+                        columnToSelectId={columnToSelectId}
+                        onColumnSelectionConsumed={() => setColumnToSelectId(null)}
                     />
                 </div>
             </div>
@@ -212,6 +384,7 @@ const Content = () => {
     return (
         <div className="max-w-5xl mx-auto px-4 py-10 animate-in fade-in slide-in-from-bottom-2 duration-700">
             <ConfirmDialog />
+            {columnDialog}
             
             <header className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12 px-2">
                 <div className="space-y-1">
@@ -223,12 +396,20 @@ const Content = () => {
                         <p className="text-surface-500 text-sm font-medium opacity-70">记录与读者的每一次互动</p>
                     </div>
                 </div>
-                <Button
-                    label="发布新内容"
-                    icon={<Plus size={18} className="mr-1" />}
-                    onClick={() => { setEditingContent(null); setCurrentView('editor'); }}
-                    className="p-button-primary shadow-lg shadow-primary-100 transition-transform active:scale-95 rounded-2xl px-6 py-3"
-                />
+                <div className="flex flex-wrap gap-3">
+                    <Button
+                        label="专栏管理"
+                        icon={<FolderPlus size={18} className="mr-1" />}
+                        onClick={() => setColumnDialogVisible(true)}
+                        className="p-button-outlined transition-transform active:scale-95 rounded-2xl px-6 py-3"
+                    />
+                    <Button
+                        label="发布新内容"
+                        icon={<Plus size={18} className="mr-1" />}
+                        onClick={() => { setEditingContent(null); setColumnToSelectId(null); setCurrentView('editor'); }}
+                        className="p-button-primary shadow-lg shadow-primary-100 transition-transform active:scale-95 rounded-2xl px-6 py-3"
+                    />
+                </div>
             </header>
 
             {/* 同步 PlanLib 样式的搜索区域 */}
@@ -257,6 +438,16 @@ const Content = () => {
                     ]}
                     onChange={(e) => setFilterTier(e.value)}
                     className="w-40 border-surface-200 bg-surface-50/50 focus:bg-surface-100 focus:border-primary rounded-2xl flex items-center px-2"
+                />
+                <Dropdown
+                    value={filterColumnId}
+                    options={[
+                        { label: '全部归属', value: 'all' },
+                        { label: '闲散文章', value: 'loose' },
+                        ...columns.map((column) => ({ label: column.name, value: column.id })),
+                    ]}
+                    onChange={(e) => setFilterColumnId(e.value)}
+                    className="w-48 border-surface-200 bg-surface-50/50 focus:bg-surface-100 focus:border-primary rounded-2xl flex items-center px-2"
                 />
                 <Button
                     icon="pi pi-search"
@@ -289,6 +480,9 @@ const Content = () => {
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-3 mb-2">
                                         {getTierBadge(content.required_tier)}
+                                        <span className="px-2.5 py-0.5 text-[10px] font-bold rounded-md bg-surface-100 text-surface-500">
+                                            {getColumnName((content as any).column_id)}
+                                        </span>
                                         <h3 className="text-lg font-bold tracking-tight text-surface-900 truncate group-hover:text-primary transition-colors leading-tight">
                                             {content.title}
                                         </h3>

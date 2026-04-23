@@ -7,6 +7,7 @@ import { serviceRoleSupabase } from "@/lib/supabaseClient";
 import { sendSystemMessage } from "@/lib/chat";
 import { addFen } from "@/lib/moneyUtils";
 import { autoMatchPlanForSubscription } from "@/app/api/plan-lib/auto-match-plan/service";
+import { finalizeSubscriptionOrder } from "@/lib/subscriptionOrders";
 
 type PaymentProvider = "alipay" | "wechat";
 
@@ -110,8 +111,19 @@ export async function fulfillSubscriptionOnPaid(
     provider: PaymentProvider = "alipay",
 ): Promise<void> {
     const orderData = (order.order_data && typeof order.order_data === "object" ? order.order_data : {}) as Record<string, unknown>;
+    const subscriptionOrderId = orderData?.subscriptionOrderId as string | undefined;
     const subscriptionId = orderData?.subscriptionId as string | undefined;
     const coachId = orderData?.coachId as string | undefined;
+
+    if (subscriptionOrderId) {
+        await finalizeSubscriptionOrder({
+            orderId: subscriptionOrderId,
+            confirmedBy: "system",
+            alipayOrderId: order.id,
+            expectedStudentId: userId,
+        });
+        return;
+    }
 
     if (!subscriptionId) return;
 

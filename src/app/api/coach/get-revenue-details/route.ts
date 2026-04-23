@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
+import { isSubscriptionOrderTableMissingError } from "@/lib/subscriptionOrders";
 import supabase, { serviceRoleSupabase } from "@/lib/supabaseClient";
 import { fenToYuan } from "@/lib/moneyUtils";
 import type { ApiData } from "@/types/api";
@@ -8,6 +9,8 @@ import type {
     GetRevenueDetailsResponseDto,
     RevenueItem,
 } from "./entity";
+
+const SUBSCRIPTION_ORDER_CUTOVER_AT = new Date("2026-04-22T00:00:00+08:00").getTime();
 
 export async function POST(req: Request) {
     const session = await getServerSession();
@@ -65,6 +68,32 @@ export async function POST(req: Request) {
     let subscriptionRevenueFen = 0;
     let contentPurchaseRevenueFen = 0;
 
+    const { data: subscriptionOrders, error: subscriptionOrderError } = await serviceRoleSupabase
+        .from("coach_subscription_orders" as any)
+        .select(`
+            id,
+            amount_fen,
+            payment_confirmed_at,
+            student_id,
+            order_type
+        `)
+        .eq("coach_id", coachId)
+        .eq("status", "paid")
+        .gte("payment_confirmed_at", monthStart.toISOString())
+        .lt("payment_confirmed_at", nextMonthStart.toISOString())
+        .limit(5000);
+
+    if (
+        subscriptionOrderError &&
+        !isSubscriptionOrderTableMissingError(subscriptionOrderError.message)
+    ) {
+        return NextResponse.json({
+            success: false,
+            message: subscriptionOrderError.message,
+            data: null,
+        }, { status: 500 });
+    }
+
     // 1. 查询订阅收入（沿用历史来源：coach_subscriptions.monthly_price）
     const { data: subscriptions } = await supabase
         .from("coach_subscriptions")
@@ -91,6 +120,7 @@ export async function POST(req: Request) {
         if (!revenueAtRaw) return false;
         const revenueAtMs = new Date(revenueAtRaw).getTime();
         if (Number.isNaN(revenueAtMs)) return false;
+        if (revenueAtMs >= SUBSCRIPTION_ORDER_CUTOVER_AT) return false;
         return revenueAtMs >= monthStart.getTime() &&
             revenueAtMs < nextMonthStart.getTime();
     });
@@ -132,6 +162,7 @@ export async function POST(req: Request) {
     // 3. 读取相关学员昵称
     const userIds = new Set<string>();
     filteredSubscriptions.forEach((sub: any) => sub.student_id && userIds.add(sub.student_id));
+    (subscriptionOrders || []).forEach((order: any) => order.student_id && userIds.add(order.student_id));
     purchases.forEach((p: any) => p.user_id && userIds.add(p.user_id));
 
     const userProfileMap = new Map<string, string>();
@@ -152,6 +183,23 @@ export async function POST(req: Request) {
     }
 
     // 4. 组装订阅收入明细（按月过滤后）
+    for (const order of subscriptionOrders || []) {
+        const amountFen = Number(order.amount_fen) || 0;
+        subscriptionRevenueFen += amountFen;
+
+        const studentName = userProfileMap.get(order.student_id) || "未知学员";
+        const suffix = order.order_type === "renew" ? "（续费）" : "";
+
+        items.push({
+            id: order.id,
+            type: "subscription",
+            amount: fenToYuan(amountFen),
+            description: `订阅收入${suffix} - ${studentName}`,
+            createdAt: order.payment_confirmed_at,
+            studentName,
+        });
+    }
+
     for (const sub of filteredSubscriptions) {
         const amountFen = Number(sub.monthly_price) || 0;
         subscriptionRevenueFen += amountFen;

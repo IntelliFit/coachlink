@@ -678,6 +678,8 @@ export type Database = {
       coach_contents: {
         Row: {
           coach_id: string
+          column_id: string | null
+          column_sort_order: number | null
           comments_count: number | null
           content: string
           content_type: string
@@ -696,6 +698,8 @@ export type Database = {
         }
         Insert: {
           coach_id: string
+          column_id?: string | null
+          column_sort_order?: number | null
           comments_count?: number | null
           content: string
           content_type: string
@@ -714,6 +718,8 @@ export type Database = {
         }
         Update: {
           coach_id?: string
+          column_id?: string | null
+          column_sort_order?: number | null
           comments_count?: number | null
           content?: string
           content_type?: string
@@ -733,6 +739,60 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "coach_contents_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "coaches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coach_contents_column_id_fkey"
+            columns: ["column_id"]
+            isOneToOne: false
+            referencedRelation: "coach_content_columns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      coach_content_columns: {
+        Row: {
+          coach_id: string
+          cover_url: string | null
+          created_at: string
+          description: string | null
+          id: string
+          is_visible: boolean
+          name: string
+          slug: string | null
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          coach_id: string
+          cover_url?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_visible?: boolean
+          name: string
+          slug?: string | null
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          coach_id?: string
+          cover_url?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_visible?: boolean
+          name?: string
+          slug?: string | null
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coach_content_columns_coach_id_fkey"
             columns: ["coach_id"]
             isOneToOne: false
             referencedRelation: "coaches"
@@ -803,6 +863,7 @@ export type Database = {
           created_at: string | null
           description: string | null
           end_date: string | null
+          execution_notice: string | null
           id: string
           name: string
           rest_days_count: number | null
@@ -825,6 +886,7 @@ export type Database = {
           created_at?: string | null
           description?: string | null
           end_date?: string | null
+          execution_notice?: string | null
           id?: string
           name: string
           rest_days_count?: number | null
@@ -847,6 +909,7 @@ export type Database = {
           created_at?: string | null
           description?: string | null
           end_date?: string | null
+          execution_notice?: string | null
           id?: string
           name?: string
           rest_days_count?: number | null
@@ -899,6 +962,7 @@ export type Database = {
           contained_options: string[] | null
           created_at: string | null
           description: string | null
+          execution_notice: string | null
           global_answers: Json | null
           id: string
           name: string
@@ -916,6 +980,7 @@ export type Database = {
           contained_options?: string[] | null
           created_at?: string | null
           description?: string | null
+          execution_notice?: string | null
           global_answers?: Json | null
           id?: string
           name: string
@@ -933,6 +998,7 @@ export type Database = {
           contained_options?: string[] | null
           created_at?: string | null
           description?: string | null
+          execution_notice?: string | null
           global_answers?: Json | null
           id?: string
           name?: string

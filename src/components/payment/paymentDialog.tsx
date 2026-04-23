@@ -57,6 +57,8 @@ interface PaymentDialogProps {
     visible: boolean;
     onHide: () => void;
     coachId: string;
+    /** Business order id for subscription purchase / renewal. Preferred over raw subscriptionId. */
+    subscriptionOrderId?: string;
     /** Target subscription id to bind platform payment orders to (new subscribe or renew). */
     subscriptionId?: string;
     /**
@@ -82,6 +84,7 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
     visible,
     onHide,
     coachId,
+    subscriptionOrderId,
     subscriptionId,
     subscriptionFlow = 'subscribe',
     renewAdditionalWeeks,
@@ -330,13 +333,17 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
             showToast({ severity: 'error', summary: '错误', detail: '缺少支付金额' });
             return;
         }
-        if (!subscriptionId) {
-            showToast({ severity: 'error', summary: '错误', detail: '缺少订阅ID，无法绑定平台支付订单' });
+        if (!subscriptionOrderId && !subscriptionId) {
+            showToast({ severity: 'error', summary: '错误', detail: '缺少订阅订单，无法创建平台支付订单' });
             return;
         }
 
         setProcessingAlipay(true);
         const mobile = isMobile();
+        const redirect =
+            typeof window !== 'undefined'
+                ? `${window.location.pathname}${window.location.search || ''}`
+                : '';
 
         try {
             const res = await fetch('/api/payment/alipay/create', {
@@ -348,8 +355,10 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
                     orderType: subscriptionFlow === 'renew' ? 'subscription_renew' : 'subscription',
                     orderData: {
                         coachId,
+                        subscriptionOrderId,
                         subscriptionId,
                         note: paymentNote,
+                        redirect,
                         renewAdditionalWeeks: subscriptionFlow === 'renew' ? (renewAdditionalWeeks || 0) : undefined
                     },
                     isMobile: mobile

@@ -2,20 +2,21 @@
 
 import React, { useEffect, useState } from 'react';
 import { InputText } from 'primereact/inputtext';
+import { InputTextarea } from 'primereact/inputtextarea';
 import { MultiSelect } from 'primereact/multiselect';
-import { Checkbox } from 'primereact/checkbox';
 import { trainingItemService } from '@/app/service/trainingItemService';
-import { useToastContext } from '@/context/ToastContext';
 import { TrainingOptionQuestion } from '@/types/questionnaires';
-import { Sparkles, Info, Target, Calendar } from 'lucide-react';
+import { Info, Target, Calendar } from 'lucide-react';
 
 interface BasicInfoFormProps {
     name: string;
     description: string;
+    executionNotice?: string;
     tags: string[];
     suitableFor: 'beginner' | 'intermediate' | 'advanced';
     onNameChange: (name: string) => void;
     onDescriptionChange: (description: string) => void;
+    onExecutionNoticeChange?: (executionNotice: string) => void;
     onTagsChange: (tags: string[]) => void;
     onSuitableForChange: (suitableFor: 'beginner' | 'intermediate' | 'advanced') => void;
     saving: boolean;
@@ -44,10 +45,12 @@ interface BasicInfoFormProps {
 const BasicInfoForm: React.FC<BasicInfoFormProps> = ({
     name,
     description,
+    executionNotice = '',
     tags,
     suitableFor,
     onNameChange,
     onDescriptionChange,
+    onExecutionNoticeChange,
     onTagsChange,
     onSuitableForChange,
     saving,
@@ -62,8 +65,6 @@ const BasicInfoForm: React.FC<BasicInfoFormProps> = ({
     availableTrainingTags,
     hideHeader = false
 }) => {
-
-    const { showToast } = useToastContext();
     const [fallbackTypes, setFallbackTypes] = useState<{ label: string, value: string }[]>([]);
     const [loadingFallback, setLoadingFallback] = useState(false);
     const isStudent = variant === 'student';
@@ -166,6 +167,21 @@ const BasicInfoForm: React.FC<BasicInfoFormProps> = ({
                             onChange={(e) => onDescriptionChange(e.target.value)}
                             placeholder="简述此计划的核心目标（可选）"
                             className="w-full border-surface-200 bg-surface-50/50 focus:bg-surface focus:border-primary rounded-2xl py-2.5 text-sm transition-all"
+                        />
+                    </div>
+
+                    <div className="flex flex-col gap-1.5">
+                        <label className="text-[11px] font-black text-surface-500 uppercase tracking-widest px-1">
+                            {isStudent ? '学员执行须知' : '执行须知'}
+                        </label>
+                        <InputTextarea
+                            value={executionNotice}
+                            onChange={(e) => onExecutionNoticeChange?.(e.target.value)}
+                            placeholder="例如：训练前先热身 10 分钟；疼痛时停止并联系教练；按 RPE 真实记录。"
+                            rows={4}
+                            autoResize
+                            className="w-full border-surface-200 bg-surface-50/50 focus:bg-surface focus:border-primary rounded-2xl py-2.5 text-sm leading-relaxed transition-all"
+                            disabled={saving || !onExecutionNoticeChange}
                         />
                     </div>
 

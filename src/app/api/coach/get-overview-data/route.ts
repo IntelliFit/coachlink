@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
+import { isSubscriptionOrderTableMissingError } from "@/lib/subscriptionOrders";
 import supabase, { serviceRoleSupabase } from "@/lib/supabaseClient";
 import type { ApiData } from "@/types/api";
 import { fenToYuan } from "@/lib/moneyUtils";
 import { GetOverviewDataResponseDto } from "./entity";
+
+const SUBSCRIPTION_ORDER_CUTOVER_AT = new Date("2026-04-22T00:00:00+08:00").getTime();
 
 export async function POST(req: Request) {
     const session = await getServerSession();
@@ -39,6 +42,7 @@ export async function POST(req: Request) {
     const [
         activeStudentCountResult,
         subscriptionRevenueResult,
+        subscriptionOrderRevenueResult,
         pendingReviewResult,
         ratingResult,
         contentCountResult,
@@ -59,6 +63,13 @@ export async function POST(req: Request) {
             .from("coach_subscriptions")
             .select("monthly_price,created_at,payment_confirmed_at,payment_confirmed_by,status")
             .eq("coach_id", coachId)
+            .limit(5000),
+
+        serviceRoleSupabase
+            .from("coach_subscription_orders" as any)
+            .select("amount_fen,payment_confirmed_at,status")
+            .eq("coach_id", coachId)
+            .eq("status", "paid")
             .limit(5000),
 
         // 假设 training_videos 表有 coach_id 或可以通过关联查询
@@ -109,7 +120,7 @@ export async function POST(req: Request) {
     const pendingReviewCount = pendingReviewResult.count || 0;
 
     // monthly_price 在 DB 中为分；按“确认支付时间(优先) / 创建时间(兜底)”过滤到本月
-    const subscriptionRevenueFen = (subscriptionRevenueResult.data || []).reduce(
+    const legacySubscriptionRevenueFen = (subscriptionRevenueResult.data || []).reduce(
         (sum, row: any) => {
             const isPaidLike = Boolean(
                 row?.payment_confirmed_at ||
@@ -121,6 +132,7 @@ export async function POST(req: Request) {
             if (!revenueAtRaw) return sum;
             const revenueAtMs = new Date(revenueAtRaw).getTime();
             if (Number.isNaN(revenueAtMs)) return sum;
+            if (revenueAtMs >= SUBSCRIPTION_ORDER_CUTOVER_AT) return sum;
             if (
                 revenueAtMs < monthStart.getTime() ||
                 revenueAtMs >= nextMonthStart.getTime()
@@ -128,6 +140,35 @@ export async function POST(req: Request) {
                 return sum;
             }
             return sum + (Number(row?.monthly_price) || 0);
+        },
+        0,
+    );
+
+    if (
+        subscriptionOrderRevenueResult.error &&
+        !isSubscriptionOrderTableMissingError(subscriptionOrderRevenueResult.error.message)
+    ) {
+        return NextResponse.json({
+            success: false,
+            message: subscriptionOrderRevenueResult.error.message,
+        }, {
+            status: 500,
+        });
+    }
+
+    const subscriptionOrderRevenueFen = ((subscriptionOrderRevenueResult.data || []) as any[]).reduce(
+        (sum: number, row: any) => {
+            const revenueAtRaw = row?.payment_confirmed_at;
+            if (!revenueAtRaw) return sum;
+            const revenueAtMs = new Date(revenueAtRaw).getTime();
+            if (Number.isNaN(revenueAtMs)) return sum;
+            if (
+                revenueAtMs < monthStart.getTime() ||
+                revenueAtMs >= nextMonthStart.getTime()
+            ) {
+                return sum;
+            }
+            return sum + (Number(row?.amount_fen) || 0);
         },
         0,
     );
@@ -180,7 +221,7 @@ export async function POST(req: Request) {
         console.error("[coach/overview] content purchase revenue calc failed:", e);
     }
 
-    const subscriptionRevenue = fenToYuan(subscriptionRevenueFen);
+    const subscriptionRevenue = fenToYuan(legacySubscriptionRevenueFen + subscriptionOrderRevenueFen);
     const contentPurchaseRevenue = fenToYuan(contentPurchaseRevenueFen);
     const contentCount = contentCountResult.count || 0;
     const actionCount = actionCountResult.count || 0;

@@ -55,12 +55,15 @@ export const RankingsTableItem: React.FC<RankingsTableItemProps> = ({
         e.stopPropagation();
         e.preventDefault();
         
-        // 检查是否是 mp4 文件
-        if (url.toLowerCase().endsWith('.mp4')) {
-            // 如果是 mp4，打开预览对话框
+        // 检查是否是视频文件（支持多种格式）
+        const videoExtensions = ['.mp4', '.mov', '.avi', '.mkv', '.webm', '.m4v', '.3gp'];
+        const isVideoFile = videoExtensions.some(ext => url.toLowerCase().includes(ext));
+        
+        if (isVideoFile) {
+            // 如果是视频文件，打开预览对话框（避免手机端直接下载）
             setPreviewVideoUrl(url);
         } else {
-            // 如果不是 mp4，保持原有行为（新窗口打开）
+            // 如果不是视频文件（如抖音、YouTube等链接），新窗口打开
             window.open(url, '_blank', 'noopener,noreferrer');
         }
     };

@@ -19,6 +19,7 @@ export async function POST(req: Request) {
         id,
         name,
         description,
+        executionNotice,
         tags,
         suitableFor,
         weekDays,
@@ -53,6 +54,9 @@ export async function POST(req: Request) {
     }
     if (description !== undefined) {
         updateData.description = description;
+    }
+    if (executionNotice !== undefined) {
+        updateData.execution_notice = executionNotice?.trim() || null;
     }
 
     if (tags && tags.length > 0) {
@@ -142,12 +146,19 @@ export async function POST(req: Request) {
 
     if (syncInstances) {
         const instanceTrainingDays = trainingDays || template?.training_days;
+        const syncUpdateData: any = {};
+
         if (Array.isArray(instanceTrainingDays)) {
+            syncUpdateData.training_days = instanceTrainingDays;
+        }
+        if (template && "execution_notice" in template) {
+            syncUpdateData.execution_notice = (template as any).execution_notice || null;
+        }
+
+        if (Object.keys(syncUpdateData).length > 0) {
             const { error: syncError } = await supabase
                 .from("coach_plan_instances")
-                .update({
-                    training_days: instanceTrainingDays,
-                })
+                .update(syncUpdateData)
                 .eq("coach_plan_template_id", id)
                 .eq("coach_id", template?.coach_id);
 

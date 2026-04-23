@@ -9,6 +9,7 @@ export interface UpdateTemplateDto {
     id: string;
     name?: string;
     description?: string | null;
+    executionNotice?: string | null;
     tags?: string[];
     suitableFor?: string;
     weekDays?: number[];

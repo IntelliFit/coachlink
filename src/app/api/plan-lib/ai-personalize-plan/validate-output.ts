@@ -1,13 +1,6 @@
 import { CoachPlanTrainingImplementationDay } from "../create-template/entity";
 import { ActionLibraryEntry } from "./entity";
 
-/**
- * 验证并清理 LLM 输出的 training_days
- *
- * 1. JSON Schema 结构校验
- * 2. actionId 白名单过滤（只允许使用教练动作库中存在的 actionId）
- * 3. 如果 dayIndex 不连续，自动重新编号
- */
 export function validateAndSanitizeTrainingDays(
     rawDays: any[],
     actionLibrary: ActionLibraryEntry[],
@@ -27,7 +20,6 @@ export function validateAndSanitizeTrainingDays(
     for (let i = 0; i < rawDays.length; i++) {
         const day = rawDays[i];
 
-        // 基本结构校验
         if (!day || typeof day !== "object") {
             warnings.push(`第 ${i} 个 day 不是对象，已跳过`);
             continue;
@@ -35,7 +27,6 @@ export function validateAndSanitizeTrainingDays(
 
         const type = day.type === "rest" ? "rest" : "training";
 
-        // 处理 rest 日
         if (type === "rest") {
             sanitizedDays.push({
                 type: "rest",
@@ -45,7 +36,6 @@ export function validateAndSanitizeTrainingDays(
             continue;
         }
 
-        // 处理 training 日
         const actionSets: any[] = [];
         const rawActionSets = Array.isArray(day.actionSets) ? day.actionSets : [];
 
@@ -54,8 +44,6 @@ export function validateAndSanitizeTrainingDays(
                 continue;
             }
 
-            // 只接受 no-filter 类型（LLM 不应输出 one-filter）
-            const actionType = action.type === "no-filter" ? "no-filter" : "no-filter";
             const actionId = String(action.actionId || "").trim();
 
             if (!actionId) {
@@ -63,16 +51,13 @@ export function validateAndSanitizeTrainingDays(
                 continue;
             }
 
-            // 白名单过滤
             if (!validActionIds.has(actionId)) {
-                warnings.push(
-                    `day ${i + 1} 的动作 actionId="${actionId}" 不在教练动作库中，已跳过`,
-                );
+                warnings.push(`day ${i + 1} 的动作 actionId="${actionId}" 不在教练动作库中，已跳过`);
                 continue;
             }
 
             actionSets.push({
-                type: actionType,
+                type: "no-filter",
                 actionId,
                 setName: String(action.setName || "").trim() || actionId,
                 params: sanitizeParams(action.params),
@@ -101,7 +86,6 @@ function sanitizeParams(params: any): Record<string, any> {
 
     const result: Record<string, any> = {};
     for (const [key, value] of Object.entries(params)) {
-        // 过滤掉非法值，保留基本类型
         if (
             value === null ||
             value === undefined ||

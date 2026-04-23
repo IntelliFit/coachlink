@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
-import supabase from "@/lib/supabaseClient";
+import { mapLegacySubscriptionToPaymentRecord, mapSubscriptionOrderToPaymentRecord } from "@/lib/coachPaymentRecords";
+import { isSubscriptionOrderTableMissingError } from "@/lib/subscriptionOrders";
+import supabase, { serviceRoleSupabase } from "@/lib/supabaseClient";
 import type { ApiData } from "@/types/api";
 import type {
     GetPaymentWaitingStudentsDto,
@@ -32,9 +34,36 @@ export async function POST(req: Request) {
         });
     }
 
-    // 查询需要手动确认的订阅：
-    // 1. status = 'waiting'（传统流程）
-    // 2. status = 'inactive' 且 payment_method 为空（学员创建订阅但未完成支付流程）
+    const { data: manualOrders, error: manualOrderErr } = await serviceRoleSupabase
+        .from("coach_subscription_orders" as any)
+        .select("*")
+        .eq("coach_id", coach.id)
+        .eq("status", "pending_confirmation")
+        .order("created_at", { ascending: false });
+
+    if (manualOrderErr && !isSubscriptionOrderTableMissingError(manualOrderErr.message)) {
+        return NextResponse.json({
+            success: false,
+            message: manualOrderErr.message,
+        });
+    }
+
+    const { data: systemOrders, error: systemOrderErr } = await serviceRoleSupabase
+        .from("coach_subscription_orders" as any)
+        .select("*")
+        .eq("coach_id", coach.id)
+        .eq("status", "paid")
+        .eq("payment_confirmed_by", "system")
+        .is("coach_seen_at", null)
+        .order("payment_confirmed_at", { ascending: false });
+
+    if (systemOrderErr && !isSubscriptionOrderTableMissingError(systemOrderErr.message)) {
+        return NextResponse.json({
+            success: false,
+            message: systemOrderErr.message,
+        });
+    }
+
     const { data: manualSubscriptions, error: manualErr } = await supabase
         .from("coach_subscriptions")
         .select("*")
@@ -69,8 +98,18 @@ export async function POST(req: Request) {
         success: true,
         message: "获取待支付确认列表成功",
         data: {
-            manualSubscriptions: manualSubscriptions || [],
-            systemSubscriptions: systemSubscriptions || [],
+            manualSubscriptions: [
+                ...((manualOrders || []).map(mapSubscriptionOrderToPaymentRecord)),
+                ...((manualSubscriptions || []).map(mapLegacySubscriptionToPaymentRecord)),
+            ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()),
+            systemSubscriptions: [
+                ...((systemOrders || []).map(mapSubscriptionOrderToPaymentRecord)),
+                ...((systemSubscriptions || []).map(mapLegacySubscriptionToPaymentRecord)),
+            ].sort((a, b) => {
+                const aTime = new Date(a.payment_confirmed_at || a.created_at).getTime();
+                const bTime = new Date(b.payment_confirmed_at || b.created_at).getTime();
+                return bTime - aTime;
+            }),
         },
     });
 }

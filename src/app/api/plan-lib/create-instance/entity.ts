@@ -8,6 +8,7 @@ export interface CreateInstanceDto {
 
     name: string;
     description?: string | null;    
+    executionNotice?: string | null;
     tags?: string[] | null;
     type?: string | null;
     suitableFor?: string | null;

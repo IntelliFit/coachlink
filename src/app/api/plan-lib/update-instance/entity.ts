@@ -6,6 +6,7 @@ export interface UpdateInstanceDto {
     id: string;
     name?: string;
     description?: string | null;
+    executionNotice?: string | null;
     coachId?: string | null;
     studentId?: string | null;
     templateId?: string | null;

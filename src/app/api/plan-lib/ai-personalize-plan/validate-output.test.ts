@@ -45,7 +45,6 @@ describe("validateAndSanitizeTrainingDays", () => {
 
         expect(days[0].actionSets).toHaveLength(1);
         expect(days[0].actionSets![0].actionId).toBe("act-1");
-        expect(warnings.length).toBeGreaterThan(0);
         expect(warnings[0]).toContain("fake-id");
     });
 
@@ -80,9 +79,7 @@ describe("validateAndSanitizeTrainingDays", () => {
     });
 
     it("空数组抛出错误", () => {
-        expect(() => validateAndSanitizeTrainingDays([], mockActionLib)).toThrow(
-            "校验后 training_days 为空",
-        );
+        expect(() => validateAndSanitizeTrainingDays([], mockActionLib)).toThrow("校验后 training_days 为空");
     });
 
     it("非法 day 对象被跳过", () => {

@@ -1,6 +1,92 @@
 import { NextRequest, NextResponse } from 'next/server';
 import supabase, { serviceRoleSupabase } from '@/lib/supabaseClient';
 
+type BodyMapMode = 'screening' | 'training';
+
+type KnowledgeNodeContent = {
+  body?: string;
+  tags?: unknown;
+  source?: string;
+  source_topic?: string;
+  content_level?: string;
+  body_map_modes?: unknown;
+  pending_body_map_hitbox?: boolean;
+};
+
+const BODY_MAP_SOURCE_MATERIAL_LEVELS = new Set(['transcript-pack']);
+
+function asContent(value: unknown): KnowledgeNodeContent {
+  return value && typeof value === 'object' ? (value as KnowledgeNodeContent) : {};
+}
+
+function asStringArray(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
+}
+
+function getContentLevel(content: KnowledgeNodeContent) {
+  const tags = asStringArray(content.tags);
+  if (typeof content.content_level === 'string') return content.content_level;
+  if (tags.includes('transcript-pack') || tags.includes('source-material')) return 'transcript-pack';
+  if (content.source === 'body-map-system/articles') return 'article-guide';
+  return 'knowledge-node';
+}
+
+function getBodyMapModes(content: KnowledgeNodeContent): BodyMapMode[] {
+  return asStringArray(content.body_map_modes).filter(
+    (mode): mode is BodyMapMode => mode === 'screening' || mode === 'training',
+  );
+}
+
+function getModeRank(node: any, mode: BodyMapMode | null) {
+  const content = asContent(node.content);
+  const contentLevel = getContentLevel(content);
+  const title = String(node.title || '');
+  const sourceTopic = String(content.source_topic || '');
+
+  if (contentLevel === 'formal-guide') return 0;
+  if (!mode) return contentLevel === 'article-guide' ? 1 : 2;
+
+  const screeningSignals = [
+    '筛查',
+    '评估',
+    '疼痛',
+    '受限',
+    '体态',
+    '管理',
+    '圆肩',
+    '骨盆',
+    '膝内扣',
+    '扁平足',
+    '网球肘',
+    '高尔夫球肘',
+    '伤病',
+  ];
+  const trainingSignals = ['训练', '发力', '动作', '力量', '激活', '拉伸', '强化', '推类', '拉类', '硬拉', '深蹲'];
+  const haystack = `${title} ${sourceTopic}`;
+
+  if (mode === 'screening' && screeningSignals.some((signal) => haystack.includes(signal))) return 1;
+  if (mode === 'training' && trainingSignals.some((signal) => haystack.includes(signal))) return 1;
+  return contentLevel === 'article-guide' ? 2 : 3;
+}
+
+function compactNode(node: any, mode: BodyMapMode | null) {
+  const content = asContent(node.content);
+  const contentLevel = getContentLevel(content);
+  const bodyMapModes = getBodyMapModes(content);
+
+  const { content: _content, ...rest } = node;
+  return {
+    ...rest,
+    content_summary: {
+      content_level: contentLevel,
+      body_map_modes: bodyMapModes,
+      source: content.source || null,
+      source_topic: content.source_topic || null,
+      mode_rank: getModeRank(node, mode),
+    },
+  };
+}
+
 /**
  * GET /api/knowledge/nodes
  * List knowledge nodes with optional filters
@@ -11,12 +97,17 @@ export async function GET(request: NextRequest) {
 
     const parentId = searchParams.get('parent_id');
     const bodyRegion = searchParams.get('body_region');
+    const modeParam = searchParams.get('mode');
+    const mode: BodyMapMode | null = modeParam === 'screening' || modeParam === 'training' ? modeParam : null;
     const equipment = searchParams.get('equipment');
     const publishedOnly = searchParams.get('published') !== 'false';
+    const includeSourceMaterial = searchParams.get('include_source_material') === 'true';
+    const limitParam = Number(searchParams.get('limit') || '');
+    const limit = Number.isFinite(limitParam) && limitParam > 0 ? Math.min(limitParam, 30) : bodyRegion ? 8 : null;
 
     let query = supabase
       .from('knowledge_nodes')
-      .select('id, node_type, title, slug, description, icon, body_region, equipment, difficulty, is_free, view_count, sort_order, created_at, created_by');
+      .select('id, node_type, title, slug, description, icon, body_region, equipment, difficulty, is_free, view_count, sort_order, created_at, created_by, content');
 
     // Filter by published status
     if (publishedOnly) {
@@ -58,9 +149,35 @@ export async function GET(request: NextRequest) {
     }
 
     // Simplified: don't fetch editors in list view for performance
-    const nodesWithEditors = (nodes || []).map(node => ({
-      ...node,
-      editors: []
+    let filteredNodes = nodes || [];
+
+    if (bodyRegion) {
+      filteredNodes = filteredNodes.filter((node) => {
+        const content = asContent((node as any).content);
+        const contentLevel = getContentLevel(content);
+        const bodyMapModes = getBodyMapModes(content);
+
+        if (!includeSourceMaterial && BODY_MAP_SOURCE_MATERIAL_LEVELS.has(contentLevel)) return false;
+        if (content.pending_body_map_hitbox) return false;
+        if (mode && bodyMapModes.length > 0 && !bodyMapModes.includes(mode)) return false;
+        return true;
+      });
+
+      filteredNodes.sort((a, b) => {
+        const rankDiff = getModeRank(a, mode) - getModeRank(b, mode);
+        if (rankDiff !== 0) return rankDiff;
+        return Number(a.sort_order || 0) - Number(b.sort_order || 0);
+      });
+
+      if (limit) {
+        filteredNodes = filteredNodes.slice(0, limit);
+      }
+    }
+
+    // Simplified: don't fetch editors in list view for performance. Also strip long HTML content.
+    const nodesWithEditors = filteredNodes.map((node) => ({
+      ...compactNode(node, mode),
+      editors: [],
     }));
 
     // Also fetch coach_contents linked to this parent_id (if parent_id is provided)

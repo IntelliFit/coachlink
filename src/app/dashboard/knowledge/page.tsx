@@ -3,10 +3,12 @@
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
-import { BookOpen, Search, ChevronRight, Sparkles, List, GitBranch, MapPin, Plus, Edit3, Users } from "lucide-react";
+import { Activity, BookOpen, CheckCircle2, ChevronRight, Dumbbell, Edit3, GitBranch, List, MapPin, Plus, Search, Sparkles, Users } from "lucide-react";
 import AIChatPanel from "@/components/knowledge/AIChatPanel";
 import BodyMapCanvas, { BODY_REGION_LABELS, type BodyRegion } from "@/components/knowledge/BodyMap/BodyMapCanvas";
 import BodyMapModeSwitch from "@/components/knowledge/BodyMap/BodyMapModeSwitch";
+import knowledgeService from "@/app/service/knowledgeService";
+import { KnowledgeBookCollection, groupKnowledgeBooks } from "@/lib/knowledgeBooks";
 
 const KnowledgeMindMap = dynamic(
     () => import("@/components/knowledge/KnowledgeMindMap"),
@@ -41,6 +43,13 @@ type KnowledgeNode = {
     is_collaborative?: boolean;
     created_by?: string;
     editors?: Editor[];
+    content_summary?: {
+        content_level?: string;
+        body_map_modes?: BodyMapMode[];
+        source?: string | null;
+        source_topic?: string | null;
+        mode_rank?: number;
+    };
 };
 
 // Aero design system constants
@@ -51,6 +60,39 @@ const AERO_SUBTITLE = "text-sm text-surface-600 dark:text-surface-400 mt-1";
 
 // 自定义非线性动画曲线 - 营造丝滑感
 const ANIMATION_CURVE = "cubic-bezier(0.34, 1.56, 0.64, 1)";
+const JOINT_REGIONS = new Set(["膝关节", "踝关节", "髋关节", "腕关节", "肩关节"]);
+
+function getBodyMapModeCopy(region: string, mode: BodyMapMode) {
+    const isJoint = JOINT_REGIONS.has(region);
+    if (mode === "screening") {
+        return {
+            icon: Activity,
+            title: `${region} 筛查`,
+            subtitle: "先判断它是不是当前动作受限或疼痛的关键环节。",
+            steps: isJoint
+                ? ["看活动范围：左右是否明显不同", "看疼痛信号：是否有肿胀、卡住、刺痛", "看负重稳定：下蹲、支撑或推拉时是否失控"]
+                : ["看位置和触感：是否单侧更紧或更敏感", "看动作代偿：目标动作中是否先耸肩、塌腰或膝内扣", "看训练反馈：训练后是否反复在同一区域不适"],
+            badge: "先筛查，再处理",
+        };
+    }
+
+    return {
+        icon: Dumbbell,
+        title: `${region} 训练`,
+        subtitle: "把注意力放在动作选择、发力路径和逐步加量上。",
+        steps: isJoint
+            ? ["先恢复可控活动范围", "再做低负荷稳定控制", "最后回到深蹲、推拉、跑跳等复合动作"]
+            : ["先用低强度动作找到发力感", "再选择能稳定重复的主训练动作", "最后按周增加组数、次数或重量"],
+        badge: "先会用，再加量",
+    };
+}
+
+function getContentLevelLabel(level?: string) {
+    if (level === "formal-guide") return "系统指南";
+    if (level === "article-guide") return "延伸阅读";
+    if (level === "transcript-pack") return "素材包";
+    return "知识点";
+}
 
 const KnowledgeBaseHomePage = () => {
     const router = useRouter();
@@ -58,6 +100,8 @@ const KnowledgeBaseHomePage = () => {
     const [pillars, setPillars] = useState<KnowledgePillar[]>([]);
     const [showAIChat, setShowAIChat] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
+    const [bookCollections, setBookCollections] = useState<KnowledgeBookCollection[]>([]);
+    const [loadingBookCollections, setLoadingBookCollections] = useState(true);
     const [viewMode, setViewMode] = useState<ViewMode>('list');
     const [bodyMapMode, setBodyMapMode] = useState<BodyMapMode>('screening');
     const [selectedBodyRegion, setSelectedBodyRegion] = useState<BodyRegion | null>(null);
@@ -93,6 +137,24 @@ const KnowledgeBaseHomePage = () => {
     }, []);
 
     useEffect(() => {
+        const fetchBookCollections = async () => {
+            try {
+                const result = await knowledgeService.listKnowledgeBooks({
+                    is_published: true,
+                });
+                setBookCollections(groupKnowledgeBooks(result?.books || []));
+            } catch (error) {
+                console.error("获取书籍列表失败:", error);
+                setBookCollections([]);
+            } finally {
+                setLoadingBookCollections(false);
+            }
+        };
+
+        fetchBookCollections();
+    }, []);
+
+    useEffect(() => {
         if (!selectedBodyRegion) {
             setRegionNodes([]);
             return;
@@ -101,7 +163,12 @@ const KnowledgeBaseHomePage = () => {
         const fetchRegionNodes = async () => {
             setLoadingRegionNodes(true);
             try {
-                const res = await fetch(`/api/knowledge/nodes?body_region=${selectedBodyRegion}`);
+                const params = new URLSearchParams({
+                    body_region: selectedBodyRegion,
+                    mode: bodyMapMode,
+                    limit: "6",
+                });
+                const res = await fetch(`/api/knowledge/nodes?${params.toString()}`);
                 const json = await res.json();
                 setRegionNodes(json.nodes || []);
             } catch (error) {
@@ -113,13 +180,15 @@ const KnowledgeBaseHomePage = () => {
         };
 
         fetchRegionNodes();
-    }, [selectedBodyRegion]);
+    }, [selectedBodyRegion, bodyMapMode]);
 
     const handleSearch = () => {
         if (searchQuery.trim()) {
             router.push(`/dashboard/knowledge/search?q=${encodeURIComponent(searchQuery.trim())}`);
         }
     };
+
+    const displayedRegionNodes = regionNodes.slice(0, 1);
 
     // 渲染编辑者头像
     const renderEditors = (editors: Editor[]) => {
@@ -214,21 +283,87 @@ const KnowledgeBaseHomePage = () => {
                     </div>
                 </div>
 
-                {/* Quick Actions - 仅保留书籍入口 */}
+                {/* Book Shelf */}
                 <div className={`${AERO_CONTAINER} mb-4`}>
-                    <button
-                        onClick={() => router.push('/dashboard/knowledge/books')}
-                        className={`${AERO_CARD} w-full flex items-center gap-3 p-4 active:scale-[0.98]`}
-                    >
-                        <div className="w-10 h-10 rounded-2xl bg-amber-50 dark:bg-amber-900/20 flex items-center justify-center">
-                            <BookOpen className="w-5 h-5 text-amber-500" />
+                    <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                            <BookOpen className="w-4 h-4 text-amber-500" />
+                            <div>
+                                <h2 className="font-semibold text-surface-900 dark:text-surface-0 text-sm">书籍笔记</h2>
+                                <p className="text-xs text-surface-500">先看到每一本书，再进入书内章节</p>
+                            </div>
                         </div>
-                        <div className="text-left flex-1">
-                            <h3 className="font-semibold text-surface-900 dark:text-surface-0 text-sm">书籍笔记</h3>
-                            <p className="text-xs text-surface-500">系统化学习资料</p>
+                        <button
+                            onClick={() => router.push('/dashboard/knowledge/books')}
+                            className="text-xs font-medium text-primary-600 hover:text-primary-700 flex items-center gap-1"
+                        >
+                            查看全部
+                            <ChevronRight className="w-3.5 h-3.5" />
+                        </button>
+                    </div>
+
+                    {loadingBookCollections ? (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            {Array.from({ length: 2 }).map((_, index) => (
+                                <div key={index} className={`${AERO_CARD} p-4`}>
+                                    <div className="h-24 rounded-2xl bg-surface-100 dark:bg-surface-800 animate-pulse" />
+                                </div>
+                            ))}
                         </div>
-                        <ChevronRight className="w-4 h-4 text-surface-300" />
-                    </button>
+                    ) : bookCollections.length > 0 ? (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            {bookCollections.slice(0, 4).map((collection) => (
+                                <button
+                                    key={collection.slug}
+                                    onClick={() => router.push(`/dashboard/knowledge/books/${collection.representativeBook.id}`)}
+                                    className={`${AERO_CARD} text-left p-4 active:scale-[0.98]`}
+                                >
+                                    <div className="flex items-start gap-3">
+                                        <div className="w-11 h-11 rounded-2xl bg-amber-50 dark:bg-amber-900/20 flex items-center justify-center shrink-0">
+                                            <BookOpen className="w-5 h-5 text-amber-500" />
+                                        </div>
+                                        <div className="min-w-0 flex-1">
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <h3 className="font-semibold text-surface-900 dark:text-surface-0 text-sm line-clamp-1">
+                                                    {collection.displayTitle}
+                                                </h3>
+                                                {collection.chapterCount > 0 && (
+                                                    <span className="shrink-0 px-2 py-0.5 rounded-full bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300 text-[11px] font-semibold">
+                                                        {collection.chapterCount} 篇章节
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <p className="text-xs text-surface-500 line-clamp-2">
+                                                {collection.summary}
+                                            </p>
+                                            <div className="flex items-center justify-between mt-3 text-xs text-surface-400">
+                                                <span>
+                                                    {collection.chapterCount > 0
+                                                        ? `总览 + ${collection.chapterCount} 篇分篇`
+                                                        : '单篇解读'}
+                                                </span>
+                                                <span className="text-primary-600">进入本书</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </button>
+                            ))}
+                        </div>
+                    ) : (
+                        <button
+                            onClick={() => router.push('/dashboard/knowledge/books')}
+                            className={`${AERO_CARD} w-full flex items-center gap-3 p-4 active:scale-[0.98]`}
+                        >
+                            <div className="w-10 h-10 rounded-2xl bg-amber-50 dark:bg-amber-900/20 flex items-center justify-center">
+                                <BookOpen className="w-5 h-5 text-amber-500" />
+                            </div>
+                            <div className="text-left flex-1">
+                                <h3 className="font-semibold text-surface-900 dark:text-surface-0 text-sm">书籍笔记</h3>
+                                <p className="text-xs text-surface-500">系统化学习资料</p>
+                            </div>
+                            <ChevronRight className="w-4 h-4 text-surface-300" />
+                        </button>
+                    )}
                 </div>
 
                 {/* Body Map - 丝滑动画焦点模式 */}
@@ -319,14 +454,49 @@ const KnowledgeBaseHomePage = () => {
                                         className="mt-6 lg:mt-0 lg:col-span-7 space-y-3 animate-in slide-in-from-right-8 fade-in duration-700 ease-[cubic-bezier(0.34,1.56,0.64,1)]"
                                         style={{ animationTimingFunction: ANIMATION_CURVE }}
                                     >
+                                        {(() => {
+                                            const modeCopy = getBodyMapModeCopy(BODY_REGION_LABELS[selectedBodyRegion], bodyMapMode);
+                                            const ModeIcon = modeCopy.icon;
+                                            return (
+                                                <div className="rounded-2xl border border-primary-100 dark:border-primary-900/40 bg-primary-50/70 dark:bg-primary-900/15 p-4">
+                                                    <div className="flex items-start gap-3">
+                                                        <div className="w-9 h-9 rounded-xl bg-surface-900 text-surface-0 flex items-center justify-center shrink-0">
+                                                            <ModeIcon className="w-4 h-4" />
+                                                        </div>
+                                                        <div className="min-w-0 flex-1">
+                                                            <div className="flex items-center gap-2">
+                                                                <h3 className="font-semibold text-surface-900 dark:text-surface-0 text-sm">
+                                                                    {modeCopy.title}
+                                                                </h3>
+                                                                <span className="px-2 py-0.5 rounded-full bg-surface-0 dark:bg-surface-900 text-[10px] font-medium text-primary-600 dark:text-primary-300">
+                                                                    {modeCopy.badge}
+                                                                </span>
+                                                            </div>
+                                                            <p className="text-xs text-surface-600 dark:text-surface-300 mt-1">
+                                                                {modeCopy.subtitle}
+                                                            </p>
+                                                            <div className="grid gap-2 mt-3">
+                                                                {modeCopy.steps.map((step, index) => (
+                                                                    <div key={step} className="flex items-start gap-2 text-xs text-surface-700 dark:text-surface-200">
+                                                                        <CheckCircle2 className="w-3.5 h-3.5 text-primary-500 mt-0.5 shrink-0" />
+                                                                        <span>{index + 1}. {step}</span>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })()}
+
                                         {/* 头部：标题 + 创建按钮 */}
                                         <div className="flex items-center justify-between pb-3 border-b border-surface-200 dark:border-surface-700">
                                             <div>
                                                 <h3 className="text-sm font-semibold text-surface-700 dark:text-surface-200">
-                                                    {BODY_REGION_LABELS[selectedBodyRegion]} 相关知识
+                                                    主文章
                                                 </h3>
                                                 <p className="text-xs text-surface-400 mt-0.5">
-                                                    共 {regionNodes.length} 篇 • 欢迎共建
+                                                    先用一篇详实文章覆盖筛查、训练和风险边界
                                                 </p>
                                             </div>
                                             {selectedBodyRegion && (
@@ -357,13 +527,13 @@ const KnowledgeBaseHomePage = () => {
                                                         <div key={i} className="h-20 bg-surface-100 dark:bg-surface-800 rounded-2xl animate-pulse" />
                                                     ))}
                                                 </div>
-                                            ) : regionNodes.length === 0 ? (
+                                            ) : displayedRegionNodes.length === 0 ? (
                                                 <div className="text-sm text-surface-500 bg-surface-50 dark:bg-surface-800/50 rounded-2xl px-4 py-6 text-center animate-in fade-in zoom-in-95 duration-500">
-                                                    <p>该部位暂时没有内容</p>
-                                                    <p className="text-xs mt-1">点击"创建文章"成为第一个贡献者</p>
+                                                    <p>该模式暂时没有整理好的内容</p>
+                                                    <p className="text-xs mt-1">可以先看上方 3 步，或点击"创建文章"补充</p>
                                                 </div>
                                             ) : (
-                                                regionNodes.map((node, index) => (
+                                                displayedRegionNodes.map((node, index) => (
                                                     <div
                                                         key={node.id}
                                                         className="w-full text-left rounded-2xl border border-surface-100 dark:border-surface-800 bg-surface-50 dark:bg-surface-800/50 px-4 py-3 hover:border-primary-200 dark:hover:border-primary-800 hover:bg-primary-50/30 dark:hover:bg-primary-900/20 transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] hover:scale-[1.02] hover:shadow-md group"
@@ -380,11 +550,16 @@ const KnowledgeBaseHomePage = () => {
                                                                 <div className="font-medium text-surface-900 dark:text-surface-0 text-sm line-clamp-1 flex-1 group-hover:text-primary-600 transition-colors duration-300">
                                                                     {node.title}
                                                                 </div>
-                                                                {node.is_collaborative && (
-                                                                    <span className="shrink-0 px-1.5 py-0.5 bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 text-[10px] font-medium rounded">
-                                                                        共建
+                                                                <div className="shrink-0 flex items-center gap-1">
+                                                                    <span className="px-1.5 py-0.5 bg-surface-0 dark:bg-surface-900 text-surface-500 dark:text-surface-300 text-[10px] font-medium rounded">
+                                                                        {getContentLevelLabel(node.content_summary?.content_level)}
                                                                     </span>
-                                                                )}
+                                                                    {node.is_collaborative && (
+                                                                        <span className="px-1.5 py-0.5 bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 text-[10px] font-medium rounded">
+                                                                            共建
+                                                                        </span>
+                                                                    )}
+                                                                </div>
                                                             </div>
                                                             {node.description && (
                                                                 <div className="text-xs text-surface-500 mt-1 line-clamp-1">

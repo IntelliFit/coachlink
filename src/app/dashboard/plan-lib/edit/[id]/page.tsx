@@ -53,6 +53,7 @@ const EditPlanPage = () => {
     // Plan template basic info
     const [name, setName] = useState('');
     const [description, setDescription] = useState('');
+    const [executionNotice, setExecutionNotice] = useState('');
     const [tags, setTags] = useState<string[]>([]);
     const [suitableFor, setSuitableFor] = useState<'beginner' | 'intermediate' | 'advanced'>('beginner');
     const [weekDays, setWeekDays] = useState<number[]>([]);  // 新增
@@ -132,6 +133,7 @@ const EditPlanPage = () => {
                 // Fill form with template data
                 setName(templateRes.template.name);
                 setDescription(templateRes.template.description || '');
+                setExecutionNotice((templateRes.template as any).execution_notice || '');
                 setTags(templateRes.template.tags || []);
                 setSuitableFor(templateRes.template.suitable_for as 'beginner' | 'intermediate' | 'advanced' || 'beginner');
                 setWeekDays(templateRes.template.week_days || []);
@@ -500,6 +502,7 @@ const EditPlanPage = () => {
                 id: params.id as string,
                 name,
                 description: description || null,
+                executionNotice: executionNotice || null,
                 tags: tags,
                 suitableFor: suitableFor,
                 weekDays: weekDays,
@@ -838,10 +841,12 @@ const EditPlanPage = () => {
             <BasicInfoForm
                 name={name}
                 description={description}
+                executionNotice={executionNotice}
                 tags={tags}
                 suitableFor={suitableFor}
                 onNameChange={setName}
                 onDescriptionChange={setDescription}
+                onExecutionNoticeChange={setExecutionNotice}
                 onTagsChange={setTags}
                 onSuitableForChange={setSuitableFor}
                 saving={saving}
@@ -1020,6 +1025,7 @@ const EditPlanPage = () => {
                         onHide={() => setAiBatchDialogVisible(false)}
                         templateId={params.id as string}
                         targetActionType="coach"
+                        editEngine="plan_script"
                         contextOptions={{
                             // 默认仅必要：教练动作库+公共动作库；模板库/匹配等由用户自行勾选
                             includeStudentProfile: false,

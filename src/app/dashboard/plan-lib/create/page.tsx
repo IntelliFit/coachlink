@@ -37,6 +37,7 @@ const CreatePlanPage = () => {
     // Plan template basic info
     const [name, setName] = useState('');
     const [description, setDescription] = useState('');
+    const [executionNotice, setExecutionNotice] = useState('');
     const [tags, setTags] = useState<string[]>([]);
     const [suitableFor, setSuitableFor] = useState<'beginner' | 'intermediate' | 'advanced'>('beginner');
     const [weekDays, setWeekDays] = useState<number[]>([]);  // 新增
@@ -482,6 +483,7 @@ const CreatePlanPage = () => {
             await planLibService.addTemplate({
                 name,
                 description: description || null,
+                executionNotice: executionNotice || null,
                 tags: tags,
                 suitableFor: suitableFor,
                 trainingDays: daysData
@@ -671,10 +673,12 @@ const CreatePlanPage = () => {
             <BasicInfoForm
                 name={name}
                 description={description}
+                executionNotice={executionNotice}
                 tags={tags}
                 suitableFor={suitableFor}
                 onNameChange={setName}
                 onDescriptionChange={setDescription}
+                onExecutionNoticeChange={setExecutionNotice}
                 onTagsChange={setTags}
                 onSuitableForChange={setSuitableFor}
                 saving={saving}

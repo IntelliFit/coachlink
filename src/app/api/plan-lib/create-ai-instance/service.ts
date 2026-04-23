@@ -1,15 +1,17 @@
-import supabase from "@/lib/supabaseClient";
+import supabase, { serviceRoleSupabase } from "@/lib/supabaseClient";
 import { TrainingItem } from "@/types/questionnaires";
 import { fillTemplate, matchPlan } from "./match";
 import { sendDirectMessage } from "@/lib/chat";
 import { randomInt } from "crypto";
-import {
-    generatePersonalizedPlan,
-    buildTemplateSummary,
-    buildPRRecordSummaries,
-    buildActionLibrary,
-} from "../ai-personalize-plan/service";
 import { getSubscriptionCarryoverSummary } from "@/lib/subscriptionCarryover";
+import { syncCoachActionsToStudentLibrary } from "../sync-actions";
+import {
+    buildActionLibrary,
+    buildPRRecordSummaries,
+    buildTemplateSummary,
+    generatePersonalizedPlan,
+} from "../ai-personalize-plan/service";
+import { AiPersonalizeError } from "../ai-personalize-plan/service";
 
 export class ApiError extends Error {
     status: number;
@@ -27,7 +29,7 @@ export interface CreateAiInstanceParams {
     startDay?: number;
     keepOriginalIndex?: boolean;
     delayedActivation?: boolean; // 是否延迟激活（2分钟后才显示给学员）
-    useLLM?: boolean; // 是否使用 LLM 个性化生成（Feature Flag）
+    useLLM?: boolean;
 }
 
 export async function createAiInstanceForSubscription(params: CreateAiInstanceParams) {
@@ -68,7 +70,7 @@ export async function createAiInstanceForSubscription(params: CreateAiInstancePa
     // 获取学员体重与姓名
     const { data: profile } = await supabase
         .from("user_profiles")
-        .select("weight, nickname, full_name, goal, training_age, height, body_fat")
+        .select("weight, nickname, full_name, fitness_goal, fitness_level, height, age, gender, lifestyle, sport_cards")
         .eq("user_id", subscription.student_id)
         .single();
 
@@ -76,70 +78,70 @@ export async function createAiInstanceForSubscription(params: CreateAiInstancePa
     const studentNameRaw = (profile?.nickname || profile?.full_name || "学员").trim();
     const studentName = studentNameRaw || "学员";
 
-    // --- QUOTA CHECK START ---
-    const { checkAndConsumeAiQuota } = await import("@/lib/membershipLimit");
-    const quotaResult = await checkAndConsumeAiQuota(subscription.student_id, 1);
-    if (!quotaResult.success) {
-        throw new ApiError(
-            quotaResult.message || "AI 生成配额不足，请升级会员或购买加油包",
-            403,
-        );
-    }
-    // --- QUOTA CHECK END ---
-
     // 获取支持自动计算的动作列表（包含 includesBodyWeight）
     const { data: autoComputeActions } = await supabase
         .from("coach_actions")
         .select("id, name, canonical_action_id, enableAutoWeightCompute, includesBodyWeight")
+        .eq("coach_id", actorUserId)
         .eq("enableAutoWeightCompute", true);
 
     let trainingDays: any[] = [];
     let selectedTemplateId: string | null = null;
+    let selectedTemplateMeta: any = null;
     let aiGenerationLog: any = null;
     let planDescription = "暂无描述";
-    let selectTemplate: any = null; // 保留引用，用于后续取 tags/type/suitable_for
 
-    // ==================== 分支：LLM 个性化 vs 规则匹配 ====================
     if (useLLM) {
-        // ---------- LLM 路径 ----------
-        console.log("[create-ai-instance] 使用 LLM 个性化生成计划");
-
-        // 1. 获取学员 PR 记录
-        const { getCurrent1RMRecords } = await import("@/app/api/student/get-current-1rm/route");
-        const prRecords = await getCurrent1RMRecords(actorCoachId, {
-            targetUserId: subscription.student_id,
-        });
-
-        // 2. 获取教练动作库（白名单）
-        const { data: coachActions } = await supabase
-            .from("coach_actions")
-            .select("id, name, category, type, description")
-            .eq("coach_id", actorCoachId);
-
-        // 3. 获取可用模板摘要
-        const { data: allTemplates } = await supabase
-            .from("coach_plan_templates")
-            .select("id, name, description, type, metadata, training_days")
-            .eq("coach_id", actorCoachId);
-
-        const availableTemplates = (allTemplates || []).map(buildTemplateSummary);
-
-        // 4. 调用 LLM 两阶段流水线
         try {
+            console.log("[create-ai-instance] 使用 LLM 个性化生成计划");
+
+            const { getCurrent1RMRecords } = await import("@/app/api/student/get-current-1rm/route");
+            const prRecords = await getCurrent1RMRecords(actorUserId, {
+                targetUserId: subscription.student_id,
+            });
+
+            const { data: coachActions } = await supabase
+                .from("coach_actions")
+                .select("id, name, type, detail")
+                .eq("coach_id", actorUserId);
+
+            const { data: allTemplates } = await supabase
+                .from("coach_plan_templates")
+                .select("id, name, description, execution_notice, type, suitable_for, tags, metadata, training_days")
+                .eq("coach_id", actorUserId);
+
+            const { data: recentPlanInstances } = await supabase
+                .from("coach_plan_instances")
+                .select("id, name, description, execution_notice, type, suitable_for, tags, training_days, created_at")
+                .eq("coach_id", actorCoachId)
+                .neq("coach_subscription_id", subscriptionId)
+                .order("created_at", { ascending: false })
+                .limit(12);
+
+            const availableTemplates = [
+                ...(allTemplates || []).map((tpl) => buildTemplateSummary({ ...tpl, __source: "template" })),
+                ...(recentPlanInstances || []).map((inst) => buildTemplateSummary({ ...inst, __source: "instance" })),
+            ]
+                .filter((template) => template.dayCount > 0);
+
             const aiResult = await generatePersonalizedPlan({
                 subscriptionId,
                 actorUserId,
                 actorCoachId,
                 studentId: subscription.student_id,
                 studentName,
+                subscribedWeeks: Number(subscription.subscribed_weeks || 0) || null,
                 questionnaireAnswers: answers,
                 studentBodyWeight,
                 studentProfile: {
-                    goal: profile?.goal,
-                    trainingAge: profile?.training_age,
+                    goal: profile?.fitness_goal,
+                    trainingAge: profile?.fitness_level,
                     height: profile?.height,
                     weight: profile?.weight,
-                    bodyFat: profile?.body_fat,
+                    age: profile?.age,
+                    gender: profile?.gender,
+                    lifestyle: profile?.lifestyle,
+                    sportCards: profile?.sport_cards,
                 },
                 prRecords: buildPRRecordSummaries(prRecords),
                 actionLibrary: buildActionLibrary(coachActions || []),
@@ -148,44 +150,61 @@ export async function createAiInstanceForSubscription(params: CreateAiInstancePa
 
             trainingDays = aiResult.trainingDays;
             selectedTemplateId = aiResult.templateId;
+            selectedTemplateMeta = selectedTemplateId
+                ? (allTemplates || []).find((tpl: any) => tpl.id === selectedTemplateId)
+                    || (recentPlanInstances || []).find((inst: any) => inst.id === selectedTemplateId)
+                    || null
+                : null;
             aiGenerationLog = aiResult.aiGenerationLog;
-            planDescription = aiGenerationLog.stageB.reasoning;
-        } catch (llmError: any) {
-            console.error("[create-ai-instance] LLM 生成失败，fallback 到规则匹配:", llmError);
-            // Fallback：继续走下面的规则匹配路径
-        }
-    }
+            planDescription = aiGenerationLog?.stageB?.reasoning || "AI 个性化生成计划";
 
-    // ---------- 规则匹配路径（默认或 LLM fallback）----------
-    if (!trainingDays || trainingDays.length === 0) {
+            if (!hasAnyTrainingAction(trainingDays)) {
+                throw new ApiError("AI 生成结果没有有效训练动作，请调整模板或学员信息后重试", 400);
+            }
+        } catch (llmError) {
+            console.error("[create-ai-instance] LLM 生成失败:", llmError);
+            if (llmError instanceof ApiError) {
+                throw llmError;
+            }
+            if (llmError instanceof AiPersonalizeError) {
+                throw new ApiError(llmError.message, llmError.status);
+            }
+            const message = llmError instanceof Error ? llmError.message : "AI 个性化生成失败";
+            throw new ApiError(message, 500);
+        }
+    } else if (!trainingDays || trainingDays.length === 0) {
         console.log("[create-ai-instance] 使用规则匹配生成计划");
 
-        const templates = await matchPlan(answers, actorCoachId);
+        const templates = await matchPlan(answers, actorUserId);
 
         if (!templates || templates.length === 0) {
             throw new ApiError("没有匹配的训练计划", 400);
         }
 
-        // 多模板匹配时：随机选择一个模板
-        selectTemplate = templates.length === 1
+        // 多模板匹配时：随机选择一个模板（满足“适合该学员的模板有多个就随机选一个”）
+        const selectTemplate = templates.length === 1
             ? templates[0]
-            : templates[randomInt(0, templates.length)]
+            : templates[randomInt(0, templates.length)];
 
         selectedTemplateId = selectTemplate.id;
+        selectedTemplateMeta = selectTemplate;
 
         // 根据用户数据进行填充，同时自动计算负重
         await fillTemplate(answers, selectTemplate, {
             studentBodyWeight,
             autoComputeActions: autoComputeActions || [],
             studentId: subscription.student_id,
-            coachId: actorCoachId,
+            coachId: actorUserId,
         });
 
         trainingDays = (selectTemplate.training_days as any[]) || [];
         planDescription = selectTemplate.description || "暂无描述";
     }
 
-    // ==================== 起始位置与 Carryover 逻辑 ====================
+    if (!hasAnyTrainingAction(trainingDays)) {
+        throw new ApiError("生成后的计划没有训练动作，已阻止创建空训练计划", 400);
+    }
+
     const normalizedStartWeek = Number(startWeek ?? 1);
     const normalizedStartDay = Number(startDay ?? 1);
     const hasExplicitStartPosition =
@@ -222,37 +241,31 @@ export async function createAiInstanceForSubscription(params: CreateAiInstancePa
         ? `${planBaseName}（从第${effectiveStartWeek}周${effectiveStartDay > 1 ? `第${effectiveStartDay}天` : ""}开始）`
         : planBaseName;
 
+    // DB 约束 check_plan_status 不允许 pending，延迟展示使用 scheduled
     const initialStatus = delayedActivation ? "scheduled" : "active";
-
-    const insertPayload: any = {
-        name: planName,
-        description: hasCustomStartPosition
-            ? `从第${effectiveStartWeek}周第${effectiveStartDay}天开始执行，前${startExecutionDay - 1}天视为已完成`
-            : planDescription,
-        coach_subscription_id: subscriptionId,
-        coach_id: subscription.coach_id || null,
-        student_id: subscription.student_id || null,
-        coach_plan_template_id: selectedTemplateId,
-        start_date: new Date().toISOString(),
-        end_date: null,
-        status: initialStatus,
-        training_days: trainingDays,
-        start_execution_day: startExecutionDay,
-        source: useLLM ? "ai-personalized" : "coach",
-        // 保留模板的元数据字段（来自规则匹配路径的模板）
-        tags: selectTemplate?.tags ?? null,
-        type: selectTemplate?.type ?? null,
-        suitable_for: selectTemplate?.suitable_for ?? null,
-    };
-
-    // LLM 路径额外写入 AI 生成日志
-    if (aiGenerationLog) {
-        insertPayload.ai_generation_log = aiGenerationLog;
-    }
 
     const { data: template, error: updateError } = await supabase
         .from("coach_plan_instances")
-        .insert(insertPayload)
+        .insert({
+            name: planName,
+            description: hasCustomStartPosition
+                ? `从第${effectiveStartWeek}周第${effectiveStartDay}天开始执行，前${startExecutionDay - 1}天视为已完成`
+                : planDescription,
+            execution_notice: selectedTemplateMeta?.execution_notice || null,
+            coach_subscription_id: subscriptionId,
+            coach_id: subscription.coach_id || null,
+            student_id: subscription.student_id || null,
+            coach_plan_template_id: aiGenerationLog?.stageA?.source === "template" ? selectedTemplateId : null,
+            start_date: new Date().toISOString(),
+            end_date: null,
+            tags: selectedTemplateMeta?.tags || null,
+            type: selectedTemplateMeta?.type || null,
+            suitable_for: selectedTemplateMeta?.suitable_for || null,
+            status: initialStatus,
+            training_days: trainingDays,
+            start_execution_day: startExecutionDay,
+            ...(aiGenerationLog ? { ai_generation_log: aiGenerationLog } : {}),
+        } as any)
         .select("*")
         .single();
 
@@ -260,34 +273,83 @@ export async function createAiInstanceForSubscription(params: CreateAiInstancePa
         throw new ApiError(updateError.message, 500);
     }
 
-    // ==================== 通知学员 ====================
+    // 同步教练计划中的动作到学员动作库，保持手动从模板创建和 AI 创建的一致体验
+    try {
+        const studentId = subscription.student_id as string | null;
+        if (studentId && Array.isArray(trainingDays)) {
+            const actionIds = collectTrainingActionIds(trainingDays);
+
+            if (actionIds.size > 0) {
+                const idsList = Array.from(actionIds);
+                const { data: coachActions } = await serviceRoleSupabase
+                    .from("coach_actions")
+                    .select("*")
+                    .eq("coach_id", actorUserId)
+                    .in("id", idsList);
+
+                if (coachActions && coachActions.length > 0) {
+                    await syncCoachActionsToStudentLibrary(
+                        studentId,
+                        coachActions as any[],
+                        actionIds,
+                    );
+                }
+            }
+        }
+    } catch (e) {
+        console.warn("[create-ai-instance] Failed to sync actions to student library:", e);
+    }
+
+    // 如果延迟激活，计划已创建为 scheduled 状态
+    // 激活任务由定时任务 /api/plan-lib/activate-pending-plans 处理（每1分钟检查一次）
+    // 这样即使进程被回收，也能可靠地激活计划
     if (delayedActivation && template) {
         console.log(`[create-ai-instance] 计划 ${template.id} 已创建为 scheduled 状态，将在2分钟后由定时任务激活`);
     } else {
-        try {
-            const studentId = subscription.student_id as string | null;
-            if (studentId) {
-                const safePlanName = (planName || "训练计划").trim();
-                const content =
-                    `✅ 你的训练计划已制定完成：**${safePlanName}**\n\n` +
-                    `请点击 [今日训练](/today-training) 查看并开始训练。`;
+        // 立即激活时，立即通知学员
+    try {
+        const studentId = subscription.student_id as string | null;
+        if (studentId) {
+            const safePlanName = (planName || "训练计划").trim();
+            const content =
+                `✅ 你的训练计划已制定完成：**${safePlanName}**\n\n` +
+                `请点击 [今日训练](/today-training) 查看并开始训练。`;
 
-                await sendDirectMessage({
-                    fromUserId: actorUserId,
-                    toUserId: studentId,
-                    content,
-                    contentMetadata: {
-                        kind: "plan_instance_created",
-                        instance_id: template.id,
-                        link: "/today-training",
-                        ai_generated: true,
-                    },
-                });
-            }
-        } catch (e) {
-            console.error("[create-ai-instance] Failed to notify student:", e);
+            await sendDirectMessage({
+                fromUserId: actorUserId,
+                toUserId: studentId,
+                content,
+                contentMetadata: {
+                    kind: "plan_instance_created",
+                    instance_id: template.id,
+                    link: "/today-training",
+                    ai_generated: true,
+                },
+            });
+        }
+    } catch (e) {
+        console.error("[create-ai-instance] Failed to notify student:", e);
         }
     }
 
     return template;
+}
+
+function collectTrainingActionIds(trainingDays: any[]): Set<string> {
+    const actionIds = new Set<string>();
+
+    for (const day of trainingDays || []) {
+        for (const actionSet of day?.actionSets || []) {
+            const actionId = actionSet?.action_id || actionSet?.actionId;
+            if (typeof actionId === "string" && actionId.trim()) {
+                actionIds.add(actionId.trim());
+            }
+        }
+    }
+
+    return actionIds;
+}
+
+function hasAnyTrainingAction(trainingDays: any[]): boolean {
+    return collectTrainingActionIds(trainingDays).size > 0;
 }

@@ -31,6 +31,7 @@ This workspace is dedicated to the `coachlink` project.
 - After any page, component, style, routing, or interaction change, you must attempt browser-based verification.
 - Prefer screenshot evidence plus at least one interaction path that covers the changed behavior.
 - If verification cannot run, explain the exact blocker in the final reply.
+- If the user explicitly says they will manually run or verify the change (for example: `不用你测试，我来手动运行就行`), that instruction overrides the automatic browser/manual verification requirement for that task. In that case, do not run UI/manual verification yourself; focus on code changes and code-level checks, and state clearly in the final reply that manual verification was left to the user.
 
 ## Working Style
 

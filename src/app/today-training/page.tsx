@@ -35,6 +35,11 @@ import PlanCompletionModal from '@/components/plan/PlanCompletionModal';
 import DayCheckinShareGenerator from '@/components/share/DayCheckinShareGenerator';
 import { Avatar } from 'primereact/avatar';
 import { AeroInputNumber } from '@/components/AeroInputNumber';
+import ExecutionPlanNoticeDialog from '@/components/plan/ExecutionPlanNoticeDialog';
+import {
+    hasReadExecutionPlanNotice,
+    markExecutionPlanNoticeRead,
+} from '@/lib/executionPlanNotice';
 import {
     formatBeijingDate,
 } from '@/lib/beijingTime';
@@ -91,6 +96,8 @@ const TodayTrainingPage: React.FC = () => {
     const [newCardioPace, setNewCardioPace] = useState('');
     const [newHabitName, setNewHabitName] = useState('');
     const [newHabitTargetDurationMin, setNewHabitTargetDurationMin] = useState<number | null>(null);
+    const [executionNoticeVisible, setExecutionNoticeVisible] = useState(false);
+    const [pendingExecutionUrl, setPendingExecutionUrl] = useState<string | null>(null);
 
     const activeSubscription =
         coachSubscriptions.find((s) => s.id === activeCoachSubscriptionId) ||
@@ -218,6 +225,36 @@ const TodayTrainingPage: React.FC = () => {
         }
         return '';
     }, [selectedExecutionStatus, selectedExec?.started_at, selectedExec?.completed_at, selectedDateMeta?.delayDays, selectedDateLabel]);
+
+    const openTrainingExecution = (targetDayIndex: number, suffix = '') => {
+        if (!instance?.id) return;
+
+        const nextUrl = `/training-execution/${instance.id}?dayIndex=${targetDayIndex}${suffix}`;
+        if (!hasReadExecutionPlanNotice({
+            instanceId: instance.id,
+            userId: session?.user?.id,
+        })) {
+            setPendingExecutionUrl(nextUrl);
+            setExecutionNoticeVisible(true);
+            return;
+        }
+
+        router.push(nextUrl);
+    };
+
+    const confirmExecutionNotice = () => {
+        if (instance?.id) {
+            markExecutionPlanNoticeRead({
+                instanceId: instance.id,
+                userId: session?.user?.id,
+            });
+        }
+        setExecutionNoticeVisible(false);
+        if (pendingExecutionUrl) {
+            router.push(pendingExecutionUrl);
+        }
+    };
+
     const selectedHasLightweightTasks = selectedModuleModel.lightweightTasks.length > 0;
     const selectedTrainingStatusLabel = selectedTaskSummary.strengthModuleCount === 0
         ? '今日无力量训练'
@@ -1551,7 +1588,7 @@ const TodayTrainingPage: React.FC = () => {
                                                     <div key={di} className="flex items-center gap-1.5">
                                                         <button
                                                             className="px-2 py-1 rounded-xl bg-surface border border-amber-200 text-amber-900 text-xs font-semibold hover:bg-amber-50 transition-all active:scale-[0.98]"
-                                                            onClick={() => router.push(`/training-execution/${instance.id}?dayIndex=${di}&focus=weight`)}
+                                                            onClick={() => openTrainingExecution(di, '&focus=weight')}
                                                             title="补练：输入真实重量/次数会帮助系统校准推荐"
                                                         >
                                                             去补练 第{di}天
@@ -1597,6 +1634,8 @@ const TodayTrainingPage: React.FC = () => {
                                         day={selectedDay}
                                         actions={actions}
                                         instanceId={instance.id}
+                                        executionNotice={(instance as any)?.execution_notice || null}
+                                        planName={instance?.name || null}
                                         dayIndex={selectedDayIndex}
                                         executionStatus={selectedExecutionStatus}
                                         execution={selectedExec}
@@ -1607,6 +1646,7 @@ const TodayTrainingPage: React.FC = () => {
                                         onOpenLightweightTask={handleOpenLightweightTask}
                                         onAddLightweightTask={handleOpenLightweightPicker}
                                         onDeleteLightweightTask={handleDeleteLightweightTask}
+                                        userId={session?.user?.id}
                                     />
                                     {selectedDayIndex === progressDayIndex && !selectedHasLightweightTasks && selectedExecutionStatus !== 'completed' && (
                                         <div className="mt-3 flex justify-end">
@@ -1654,6 +1694,8 @@ const TodayTrainingPage: React.FC = () => {
                                             day={selectedDay}
                                             actions={actions}
                                             instanceId={instance.id}
+                                            executionNotice={(instance as any)?.execution_notice || null}
+                                            planName={instance?.name || null}
                                             dayIndex={selectedDayIndex}
                                             executionStatus={selectedExecutionStatus}
                                             execution={selectedExec}
@@ -1664,6 +1706,7 @@ const TodayTrainingPage: React.FC = () => {
                                             onOpenLightweightTask={handleOpenLightweightTask}
                                             onAddLightweightTask={handleOpenLightweightPicker}
                                             onDeleteLightweightTask={handleDeleteLightweightTask}
+                                            userId={session?.user?.id}
                                         />
                                     </div>
                                 </>
@@ -1674,7 +1717,7 @@ const TodayTrainingPage: React.FC = () => {
                                     你有进行中的训练：第{inProgressExec.day_index}天（开始于 {formatShortDate(inProgressExec.started_at)}）。
                                     <button
                                         className="ml-2 underline font-semibold transition-all active:scale-[0.98]"
-                                        onClick={() => router.push(`/training-execution/${instance.id}?dayIndex=${inProgressExec.day_index}`)}
+                                        onClick={() => openTrainingExecution(inProgressExec.day_index)}
                                     >
                                         继续训练
                                     </button>
@@ -1891,8 +1934,7 @@ const TodayTrainingPage: React.FC = () => {
                             severity="success"
                             onClick={() => {
                                 setShowExplainDialog(false);
-                                if (!instance?.id) return;
-                                router.push(`/training-execution/${instance.id}?dayIndex=${selectedDayIndex}&focus=weight`);
+                                openTrainingExecution(selectedDayIndex, '&focus=weight');
                             }}
                         />
                         <Button
@@ -1902,6 +1944,14 @@ const TodayTrainingPage: React.FC = () => {
                     </div>
                 </div>
             </Dialog>
+
+            <ExecutionPlanNoticeDialog
+                visible={executionNoticeVisible}
+                executionNotice={(instance as any)?.execution_notice || null}
+                planName={instance?.name || null}
+                onConfirm={confirmExecutionNotice}
+                confirmLabel="我已阅读，进入训练"
+            />
 
             {/* 适配 Tailwind 配置的额外样式 */}
             <style jsx global>{`

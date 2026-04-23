@@ -12,6 +12,7 @@ export async function POST(req: Request) {
     const {
         name,
         description,
+        executionNotice,
         templateId,
         subscriptionId,
         startDate,
@@ -62,6 +63,17 @@ export async function POST(req: Request) {
             success: false,
             message: subscriptionError.message,
         }, { status: 500 });
+    }
+
+    let normalizedExecutionNotice = executionNotice?.trim() || null;
+    if (executionNotice === undefined && templateId) {
+        const { data: template } = await supabase
+            .from("coach_plan_templates")
+            .select("execution_notice")
+            .eq("id", templateId)
+            .eq("coach_id", userId)
+            .maybeSingle();
+        normalizedExecutionNotice = (template as any)?.execution_notice || null;
     }
 
     // Calculate start_execution_day if provided (migration mid-cycle)
@@ -134,6 +146,7 @@ export async function POST(req: Request) {
         .insert({
             name,
             description: description || null,
+            execution_notice: normalizedExecutionNotice,
             coach_subscription_id: subscriptionId,
             coach_id: subscription.coach_id || null,
             student_id: subscription.student_id || null,

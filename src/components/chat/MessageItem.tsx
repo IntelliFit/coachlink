@@ -9,6 +9,7 @@ import { useRouter } from 'next/navigation';
 import { useToastContext } from '@/context/ToastContext';
 import { coachService } from '@/app/service/coachService';
 import { formatChatBubbleTime } from '@/lib/chatMessageTime';
+import { Bot } from 'lucide-react';
 let DOMPurify: any;
 if (typeof window !== 'undefined') {
     DOMPurify = require('dompurify').default || require('dompurify');
@@ -32,6 +33,7 @@ export function MessageItem({ message, highlighted }: MessageItemProps) {
     // 检测是否为广播消息
     const isBroadcastMessage = message.contentMetadata?.broadcast === true;
     const contentLink = message.contentMetadata?.contentLink;
+    const isCoachAiAutoReply = message.contentMetadata?.coach_ai_auto_reply === true;
 
     // 处理广播消息点击，先检查内容是否存在
     const handleBroadcastClick = async () => {
@@ -132,16 +134,31 @@ export function MessageItem({ message, highlighted }: MessageItemProps) {
                 
                 // 普通文本消息
                 return (
-                    <div
-                        className={`px-4 py-2 rounded-lg max-w-md break-words markdown-message-content ${
-                            message.isMine
-                                ? 'bg-primary-500 text-surface'
-                                : 'bg-surface-100 text-surface-900'
-                        }`}
-                        dangerouslySetInnerHTML={{
-                            __html: DOMPurify?.sanitize(md.render(message.content || '')),
-                        }}
-                    />
+                    <div className="max-w-md">
+                        {isCoachAiAutoReply && (
+                            <div className="mb-1 inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-bold text-amber-700 border border-amber-100">
+                                <Bot size={12} strokeWidth={2.5} />
+                                教练虚拟分身自动回复
+                            </div>
+                        )}
+                        <div
+                            className={`px-4 py-2 rounded-lg break-words markdown-message-content ${
+                                message.isMine
+                                    ? 'bg-primary-500 text-surface'
+                                    : isCoachAiAutoReply
+                                      ? 'bg-amber-50 text-surface-900 border border-amber-100'
+                                      : 'bg-surface-100 text-surface-900'
+                            }`}
+                            dangerouslySetInnerHTML={{
+                                __html: DOMPurify?.sanitize(md.render(message.content || '')),
+                            }}
+                        />
+                        {isCoachAiAutoReply && (
+                            <div className="mt-1 px-2 text-[11px] text-surface-500">
+                                这是 AI 根据教练设置生成的参考回复，重要事项请等待教练本人确认。
+                            </div>
+                        )}
+                    </div>
                 );
 
             case 'image':
@@ -278,7 +295,10 @@ export function MessageItem({ message, highlighted }: MessageItemProps) {
                 className="bg-primary-500 text-surface flex-shrink-0"
             />
             <div className={`flex flex-col gap-1 ${message.isMine ? 'items-end' : 'items-start'}`}>
-                <span className="text-xs text-surface-500 px-2">{message.chatUserProfile?.name}</span>
+                <span className="text-xs text-surface-500 px-2">
+                    {message.chatUserProfile?.name}
+                    {isCoachAiAutoReply ? ' · 虚拟分身' : ''}
+                </span>
                 {renderContent()}
                 <div className="flex items-center gap-2 px-2">
                     <span className="text-xs text-surface-500">

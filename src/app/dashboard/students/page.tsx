@@ -11,6 +11,7 @@ import { Button } from 'primereact/button';
 import { DataTable } from 'primereact/datatable';
 import { Column } from 'primereact/column';
 import { Checkbox } from 'primereact/checkbox';
+import { Dialog } from 'primereact/dialog';
 import { StudentDetailDialog } from './StudentDetailDialog';
 import { Tag } from 'primereact/tag';
 import { CoachReviewDialog } from './CoachReviewDialog';
@@ -24,11 +25,14 @@ import { chatService } from '@/app/service/chatService';
 import { subscriptionService } from '@/app/service/subscriptionService';
 import type { GetPaymentWaitingStudentsResponseDto } from '@/app/api/coach/get-payment-waiting-students/entity';
 import type { ChatroomDetail } from '@/app/api/chat/get-chatroom/entity';
-import { Calendar, CheckCircle2, ChevronRight, Circle, MessageSquare, MoreVertical, Plus, Sparkles, SparklesIcon, Users, Video } from 'lucide-react';
+import { Archive, Calendar, CheckCircle2, ChevronRight, Circle, MessageSquare, MoreVertical, Plus, Sparkles, SparklesIcon, Trash2, Users, Video } from 'lucide-react';
 import { ProgressBar } from 'primereact/progressbar';
 import { useAnalytics } from '@/hooks/useAnalytics';
 import { InputText } from 'primereact/inputtext';
 import { Dropdown } from 'primereact/dropdown';
+import { RadioButton } from 'primereact/radiobutton';
+
+type ClearPlanMode = 'archive' | 'delete';
 
 export default function StudentsPage() {
     const [students, setStudents] = useState<StudentSubscription[]>([]);
@@ -55,6 +59,10 @@ export default function StudentsPage() {
     const [selectedChatroom, setSelectedChatroom] = useState<ChatroomDetail | null>(null);
     const [search, setSearch] = useState('');
     const [debouncedSearch, setDebouncedSearch] = useState('');
+    const [clearPlanDialogVisible, setClearPlanDialogVisible] = useState(false);
+    const [clearPlanTarget, setClearPlanTarget] = useState<StudentSubscription | null>(null);
+    const [clearPlanMode, setClearPlanMode] = useState<ClearPlanMode>('archive');
+    const [clearingPlan, setClearingPlan] = useState(false);
     const [sortMode, setSortMode] = useState<
         'subscription_created_desc' | 'subscription_created_asc' | 'subscription_updated_desc'
     >('subscription_created_desc');
@@ -339,6 +347,93 @@ export default function StudentsPage() {
         }
     };
 
+    const markStudentPlanCleared = (student: StudentSubscription) => {
+        const excludedSet = new Set(excludedNoPlanIds || []);
+
+        setStudents(prev => prev.map(s => (
+            s.id === student.id
+                ? {
+                    ...s,
+                    plan: null as any,
+                    progress: { total: 0, completed: 0 },
+                }
+                : s
+        )));
+
+        setSelectedStudents(prev => {
+            const withoutStudent = (prev || []).filter(s => s.id !== student.id);
+            if (excludedSet.has(student.id)) return withoutStudent;
+            return [...withoutStudent, { ...student, plan: null as any, progress: { total: 0, completed: 0 } }];
+        });
+    };
+
+    const openClearPlanDialog = (student: StudentSubscription) => {
+        const instanceId = (student.plan as any)?.id;
+
+        if (!instanceId) {
+            showToast({
+                severity: 'warn',
+                summary: '无法清空',
+                detail: '没有找到当前计划实例，请刷新后重试',
+            });
+            return;
+        }
+        setClearPlanTarget(student);
+        setClearPlanMode('archive');
+        setClearPlanDialogVisible(true);
+    };
+
+    const closeClearPlanDialog = () => {
+        if (clearingPlan) return;
+        setClearPlanDialogVisible(false);
+        setClearPlanTarget(null);
+        setClearPlanMode('archive');
+    };
+
+    const confirmClearCurrentPlan = async () => {
+        const student = clearPlanTarget;
+        const instanceId = (student?.plan as any)?.id;
+
+        if (!student || !instanceId) {
+            showToast({
+                severity: 'warn',
+                summary: '无法清空',
+                detail: '没有找到当前计划实例，请刷新后重试',
+            });
+            closeClearPlanDialog();
+            return;
+        }
+
+        setClearingPlan(true);
+
+        try {
+            if (clearPlanMode === 'delete') {
+                await planLibService.deleteInstance({ id: instanceId });
+            } else {
+                await planLibService.archiveInstance({ instanceId });
+            }
+
+            markStudentPlanCleared(student);
+            closeClearPlanDialog();
+            showToast({
+                severity: 'success',
+                summary: clearPlanMode === 'delete' ? '已彻底删除计划' : '已归档计划',
+                detail: clearPlanMode === 'delete'
+                    ? '垃圾计划已删除，现在可以重新使用 AI 生成计划'
+                    : '计划已归档保留，现在可以重新使用 AI 生成计划',
+            });
+        } catch (error: any) {
+            console.error('清空当前计划失败:', error);
+            showToast({
+                severity: 'error',
+                summary: '清空失败',
+                detail: error?.message || '请稍后重试',
+            });
+        } finally {
+            setClearingPlan(false);
+        }
+    };
+
     /** 获取产品��称 */
     const getProductName = (tier: number) => {
         switch (tier) {
@@ -505,12 +600,12 @@ export default function StudentsPage() {
         if (student.plan === undefined) return <Skeleton width="100%" height="48px" borderRadius="12px" />;
 
         return (
-            <div className="w-full">
+            <div className="w-full min-w-0">
                 {/* 优化后的呼吸感卡片 */}
                 <div
                     onClick={() => router.push(`/dashboard/students/plan/${student.id}`)}
                     className={`
-                    group flex items-center p-3 rounded-xl border transition-all duration-300 cursor-pointer w-full
+                    group flex items-center p-3 rounded-xl border transition-all duration-300 cursor-pointer w-full min-w-0
                     ${isActive
                             ? 'border-primary-100 dark:border-orange-800 bg-surface shadow-sm shadow-primary-50/50 dark:shadow-primary-800/50'
                             : 'border-surface-100 bg-surface-50/20 opacity-80'}
@@ -541,14 +636,14 @@ export default function StudentsPage() {
                         <span className={`text-sm font-bold truncate ${isActive ? 'text-surface-900' : 'text-surface-600'}`}>
                             {plan?.name || '未配置计划'}
                         </span>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
                             <span className={`text-[11px] font-semibold tracking-wide whitespace-nowrap uppercase ${isActive ? 'text-primary-600' : 'text-surface-400'}`}>
                                 {isActive ? '进行中' : isCompleted ? '已完成' : '待处理'}
                             </span>
                             {plan?.description && (
                                 <>
-                                    <span className="text-surface-300 text-[10px]">|</span>
-                                    <span className="text-[11px] text-surface-400 truncate font-medium italic">
+                                    <span className="text-surface-300 text-[10px] shrink-0">|</span>
+                                    <span className="min-w-0 text-[11px] text-surface-400 truncate font-medium italic">
                                         {plan.description}
                                     </span>
                                 </>
@@ -556,9 +651,24 @@ export default function StudentsPage() {
                         </div>
                     </div>
 
+                    {plan && (
+                        <Button
+                            aria-label="清空当前计划"
+                            icon={<Archive size={17} />}
+                            className="p-button-rounded p-button-text p-button-secondary ml-1 shrink-0"
+                            style={{ width: '2.5rem', height: '2.5rem' }}
+                            tooltip="清空当前计划"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                openClearPlanDialog(student);
+                            }}
+                        />
+                    )}
+
                     {/* 快速生成图标 - 只对已完成和未配置的计划显示 */}
                     {!isActive && (
                         <Button
+                            aria-label={isCompleted ? 'AI 生成下一阶段' : 'AI 生成计划'}
                             icon={<SparklesIcon size={18} />}
                             className="p-button-rounded p-button-text p-button-secondary ml-1"
                             style={{ width: '2.5rem', height: '2.5rem' }}
@@ -946,6 +1056,18 @@ export default function StudentsPage() {
                                         className="p-button-sm w-full rounded-2xl"
                                         onClick={() => router.push(`/dashboard/students/plan/${student.id}`)}
                                     />
+                                    {plan && (
+                                        <Button
+                                            label="清空"
+                                            icon={<Archive className="w-4 h-4 mr-1" />}
+                                            className="p-button-sm p-button-outlined p-button-secondary w-[36%] rounded-2xl"
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                                openClearPlanDialog(student);
+                                            }}
+                                        />
+                                    )}
                                     {!plan && (
                                         <Button
                                             label="AI生成"
@@ -1037,6 +1159,7 @@ export default function StudentsPage() {
                     lazy
                     removableSort
                     breakpoint="960px"
+                    tableStyle={{ tableLayout: 'fixed', width: '100%' }}
                     className="p-datatable-custom"
                     rowClassName={() => 'hover:bg-primary-50/20 transition-colors border-b border-surface-50 last:border-0'}
                     dataKey="id"
@@ -1074,13 +1197,94 @@ export default function StudentsPage() {
                     }}
                 >
                     <Column selectionMode="multiple" headerStyle={{ width: '3.25rem' }} bodyStyle={{ width: '3.25rem' }} />
-                    <Column header="学员信息" body={studentTemplate} style={{ width: '20%' }} />
-                    <Column header="购买周期 / 预计完成" body={subscribeTemplate} style={{ width: '12%' }} />
-                    <Column header="训练计划" body={trainingPlanTemplate} style={{ width: '23%' }} />
-                    <Column header="训练进度" body={trainingProgressTemplate} style={{ width: '25%' }} />
-                    <Column header="已评价/视频总数" body={videoStatsTemplate} style={{ width: '20%' }} />
+                    <Column header="学员信息" body={studentTemplate} style={{ width: '17%' }} />
+                    <Column header="购买周期 / 预计完成" body={subscribeTemplate} style={{ width: '13%' }} />
+                    <Column header="训练计划" body={trainingPlanTemplate} style={{ width: '30%' }} bodyStyle={{ overflow: 'hidden' }} />
+                    <Column header="训练进度" body={trainingProgressTemplate} style={{ width: '20%' }} />
+                    <Column header="已评价/视频总数" body={videoStatsTemplate} style={{ width: '16%' }} />
                 </DataTable>
             </div>
+
+            <Dialog
+                visible={clearPlanDialogVisible}
+                onHide={closeClearPlanDialog}
+                header="清空当前计划"
+                className="w-[92vw] max-w-[38rem]"
+                closable={!clearingPlan}
+                draggable={false}
+                resizable={false}
+                footer={(
+                    <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                        <Button
+                            label="取消"
+                            className="p-button-text rounded-xl"
+                            onClick={closeClearPlanDialog}
+                            disabled={clearingPlan}
+                        />
+                        <Button
+                            label={clearPlanMode === 'delete' ? '确认彻底删除' : '确认归档'}
+                            icon={clearPlanMode === 'delete' ? <Trash2 className="w-4 h-4 mr-1" /> : <Archive className="w-4 h-4 mr-1" />}
+                            className={clearPlanMode === 'delete'
+                                ? 'p-button-danger rounded-xl'
+                                : 'rounded-xl'}
+                            onClick={confirmClearCurrentPlan}
+                            loading={clearingPlan}
+                        />
+                    </div>
+                )}
+            >
+                <div className="space-y-4">
+                    <div className="text-sm leading-6 text-surface-600">
+                        请选择怎么处理
+                        <span className="font-bold text-surface-900">
+                            {clearPlanTarget?.profile?.nickname || '该学员'}
+                        </span>
+                        的当前计划。
+                    </div>
+
+                    <label className={`flex cursor-pointer gap-3 rounded-2xl border p-4 transition-colors ${clearPlanMode === 'archive' ? 'border-primary bg-primary-50/40' : 'border-surface-200 bg-surface-0'}`}>
+                        <RadioButton
+                            inputId="clear-plan-mode-archive"
+                            name="clear-plan-mode"
+                            value="archive"
+                            checked={clearPlanMode === 'archive'}
+                            onChange={() => setClearPlanMode('archive')}
+                        />
+                        <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2 text-sm font-bold text-surface-900">
+                                <Archive className="h-4 w-4 text-primary" />
+                                归档保留
+                            </div>
+                            <div className="mt-1 text-xs leading-5 text-surface-500">
+                                适合正常结束或想保留参考的计划。学员端不再执行它，但这份计划和已有记录仍会保留。
+                            </div>
+                        </div>
+                    </label>
+
+                    <label className={`flex cursor-pointer gap-3 rounded-2xl border p-4 transition-colors ${clearPlanMode === 'delete' ? 'border-red-300 bg-red-50/70' : 'border-surface-200 bg-surface-0'}`}>
+                        <RadioButton
+                            inputId="clear-plan-mode-delete"
+                            name="clear-plan-mode"
+                            value="delete"
+                            checked={clearPlanMode === 'delete'}
+                            onChange={() => setClearPlanMode('delete')}
+                        />
+                        <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2 text-sm font-bold text-surface-900">
+                                <Trash2 className="h-4 w-4 text-red-500" />
+                                彻底删除垃圾计划
+                            </div>
+                            <div className="mt-1 text-xs leading-5 text-surface-500">
+                                适合 AI 乱生成或创建失败的脏计划。会直接删除当前计划实例；该计划下的执行/反馈记录也会一并移除，不再保留归档痕迹。
+                            </div>
+                        </div>
+                    </label>
+
+                    <div className="rounded-2xl bg-surface-50 px-4 py-3 text-xs leading-5 text-surface-500">
+                        订阅关系、学员资料和聊天记录不会受影响。清空后，这位学员会重新回到“未配置计划”状态，可以重新用 AI 生成。
+                    </div>
+                </div>
+            </Dialog>
 
             {/* Dialogs 保持不变 */}
             <StudentDetailDialog
@@ -1139,7 +1343,9 @@ export default function StudentsPage() {
                         const nowIso = new Date().toISOString();
                         Promise.all(
                             systemPaymentSubscriptions.map(s =>
-                                subscriptionService.updateSubscription({ id: s.id, coach_seen_at: nowIso } as any),
+                                s.record_kind === 'subscription_order'
+                                    ? subscriptionService.updateSubscriptionOrder({ id: s.id, coachSeenAt: nowIso })
+                                    : subscriptionService.updateSubscription({ id: s.id, coach_seen_at: nowIso } as any),
                             ),
                         ).finally(() => {
                             loadWaitingStudents();

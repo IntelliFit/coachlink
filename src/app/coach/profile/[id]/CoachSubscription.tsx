@@ -16,8 +16,9 @@ import { useCart } from '@/context/CartContext';
 // 类型定义
 import type { QueryCoachSubscription } from '@/app/api/subscription/coach-subscriptions/entity';
 import type { Product, PricingTier, DurationOption } from '@/app/api/coach/get-pricing/entity';
-import type { CoachesRow, CoachSubscriptionRow } from '@/types';
+import type { CoachesRow } from '@/types';
 import type { TrainingItem } from '@/types/questionnaires';
+import type { CoachSubscriptionOrderRow } from '@/types/subscriptionOrders';
 
 // 组件引用
 import QuestionnaireForm from './QuestionnaireForm';
@@ -56,7 +57,7 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
     // 选择逻辑
     const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
     const [selectedDuration, setSelectedDuration] = useState<DurationOption | null>(null);
-    const [coachSubscription, setCoachSubscription] = useState<CoachSubscriptionRow | null>(null);
+    const [pendingOrder, setPendingOrder] = useState<CoachSubscriptionOrderRow | null>(null);
     const [renewMode, setRenewMode] = useState(false);
     const autoSubscribeOnceRef = useRef(false);
 
@@ -128,6 +129,33 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
         }, 50);
     };
 
+    const createPendingOrder = async (
+        product: Product,
+        duration: DurationOption,
+        answers: TrainingItem[] = [],
+    ) => {
+        const tier = product.tier === 'basic' ? 1 : product.tier === 'standard' ? 2 : 3;
+        const res = await subscriptionService.createSubscriptionOrder({
+            coachId: coach.id,
+            orderType: renewMode || activeSub ? 'renew' : 'subscribe',
+            subscriptionId: renewMode || activeSub ? activeSub?.id : undefined,
+            tier,
+            monthlyPrice: duration.price || 0,
+            subscribeData: answers,
+            productId: product.id,
+            productName: product.name,
+            productTier: product.tier,
+            subscribedWeeks: (duration.months || 1) * 4,
+        });
+
+        if (!res?.subscriptionOrder) {
+            throw new Error('创建订阅订单失败');
+        }
+
+        setPendingOrder(res.subscriptionOrder);
+        return res.subscriptionOrder;
+    };
+
     // 订阅流程处理
     const handleSelectProduct = async (product: Product, duration: DurationOption) => {
         setSelectedProduct(product);
@@ -156,6 +184,7 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
             }
 
             if (renewMode || activeSub) {
+                await createPendingOrder(product, duration);
                 setPaymentDialogVisible(true);
                 return;
             }
@@ -165,28 +194,15 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
                 setQuestionnaireQuestions(qRes.questionnaires);
                 setQuestionnaireVisible(true);
             } else {
-                // 无问卷时，也必须先创建订阅记录（否则平台支付无法绑定 subscriptionId，且后续无法自动确认）
-                if (!renewMode) {
-                    const res = await subscriptionService.createSubscription({
-                        coachId: coach.id,
-                        tier: product.tier === 'basic' ? 1 : product.tier === 'standard' ? 2 : 3,
-                        monthlyPrice: duration.price || 0,
-                        status: 'inactive',
-                        subscribeData: [],
-                        productId: product.id,
-                        productName: product.name,
-                        productTier: product.tier,
-                        subscribedWeeks: (duration.months || 1) * 4
-                    });
-                    if (res) {
-                        setCoachSubscription(res.subscription);
-                    }
-                }
-
+                await createPendingOrder(product, duration, []);
                 setPaymentDialogVisible(true);
             }
         } catch (error) {
-            showToast({ severity: 'error', summary: '启动订阅流程失败' });
+            showToast({
+                severity: 'error',
+                summary: '启动订阅流程失败',
+                detail: error instanceof Error ? error.message : undefined,
+            });
         } finally {
             setSubscribing(false);
         }
@@ -218,190 +234,60 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
     }, [loading, products]);
 
     const handlePaymentSuccess = async (note?: string, offlinePaymentData?: OfflinePaymentData) => {
-        const isOffline = Boolean(offlinePaymentData);
-        if (!isOffline && (!selectedProduct || !selectedDuration)) return;
-        
-        const additionalWeeks = selectedDuration ? selectedDuration.months * 4 : 0;
-        const targetSubscriptionId = renewMode
-            ? (activeSub?.id || coachSubscription?.id)
-            : (coachSubscription?.id || activeSub?.id);
-
-        if (!targetSubscriptionId) return;
+        if (!pendingOrder?.id) return;
 
         // NOTE: 平台支付（alipay_api）不再走 onSuccess；只会在支付成功回调中自动确认并生效。
         // 这里的 onSuccess 仅用于“个人收款码/线下已支付”这类无法自动验款的流程。
-
-        // 支付相关信息统一写入 payment_data（不要污染 subscribe_data，避免覆盖问卷/档案数据）
-        const nowIso = new Date().toISOString();
-        const currentPaymentData = (renewMode ? (activeSub as any)?.payment_data : coachSubscription?.payment_data) as any;
-        const basePaymentData =
-            currentPaymentData && typeof currentPaymentData === 'object' && !Array.isArray(currentPaymentData)
-                ? currentPaymentData
-                : {};
-
-        const nextPaymentData: any = {
-            ...basePaymentData,
-            offline_payment: offlinePaymentData || null,
-            pending_renew: renewMode && selectedDuration
-                ? {
-                      additional_weeks: additionalWeeks,
-                      amount: selectedDuration.price,
-                      requested_at: nowIso,
-                  }
-                : null,
-        };
-
-        const res = await subscriptionService.updateSubscription({
-            id: targetSubscriptionId,
-            status: 'waiting',
-            has_remind_coach: true,
-            remind_coach_note: note || '',
-            payment_method: offlinePaymentData ? 'offline' : 'personal_qrcode',
-            payment_data: nextPaymentData as any,
-            ...(offlinePaymentData?.expires_at ? { end_date: offlinePaymentData.expires_at } : {}),
-        });
-
-        if (res) {
-            if (!isOffline && selectedProduct) {
-                onSubscribeSuccess(selectedProduct.tier === 'basic' ? 1 : selectedProduct.tier === 'standard' ? 2 : 3);
-            } else {
-                onSubscribeSuccess(undefined);
-            }
-            setPaymentDialogVisible(false);
-        }
-    };
-
-    // 处理线下支付（直接从套餐选择页面触发）
-    const handleOfflinePayment = async (product: Product, duration: DurationOption) => {
-        if (!allowOfflinePayment) {
-            showToast({
-                severity: 'warn',
-                summary: '该教练仅支持线上支付',
-                detail: '请使用扫码或平台支付完成订阅。',
-            });
-            return;
-        }
-
-        setSelectedProduct(product);
-        setSelectedDuration(duration);
-        setIsOfflinePaymentMode(true); // 标记为线下支付模式
-        
         try {
-            setSubscribing(true);
+            const res = await subscriptionService.updateSubscriptionOrder({
+                id: pendingOrder.id,
+                status: 'pending_confirmation',
+                paymentMethod: offlinePaymentData ? 'offline' : 'personal_qrcode',
+                note: note || '',
+                paymentData: {
+                    offline_payment: offlinePaymentData || null,
+                },
+            });
 
-            // 登录保护：订阅/支付均需要登录
-            if (!session?.user?.id) {
-                try {
-                    const redirect = typeof window !== 'undefined'
-                        ? `${window.location.pathname}${window.location.search}${window.location.hash || ''}`
-                        : `/coach/profile/${coach.id}?tab=1`; // 订阅价格现在在第二栏（index 1）
-                    router.push(`/login?redirect=${encodeURIComponent(redirect)}`);
-                } catch {
-                    router.push('/login');
-                }
-                return;
-            }
-
-            if (activeSub && !renewMode) {
-                showToast({ severity: 'info', summary: '您已订阅该教练', detail: '点击上方【续费】即可延长订阅' });
-                return;
-            }
-
-            // 如果是续费模式，直接打开支付对话框
-            if (renewMode || activeSub) {
-                setPaymentDialogVisible(true);
-                return;
-            }
-
-            // 检查是否有问卷
-            const qRes = await coachService.getQuestionnaires({ coachId: coach.id });
-            if (qRes?.questionnaires?.length > 0) {
-                // 有问卷时，先填写问卷
-                setQuestionnaireQuestions(qRes.questionnaires);
-                setQuestionnaireVisible(true);
-            } else {
-                // 无问卷时，直接创建订阅记录并打开支付对话框
-                const res = await subscriptionService.createSubscription({
-                    coachId: coach.id,
-                    tier: product.tier === 'basic' ? 1 : product.tier === 'standard' ? 2 : 3,
-                    monthlyPrice: duration.price || 0,
-                    status: 'inactive',
-                    subscribeData: [],
-                    productId: product.id,
-                    productName: product.name,
-                    productTier: product.tier,
-                    subscribedWeeks: duration.months * 4
-                });
-                if (res) {
-                    setCoachSubscription(res.subscription);
-                    setPaymentDialogVisible(true);
-                }
+            if (res) {
+                onSubscribeSuccess(undefined);
+                setPaymentDialogVisible(false);
             }
         } catch (error) {
-            showToast({ severity: 'error', summary: '启动订阅流程失败' });
-        } finally {
-            setSubscribing(false);
+            showToast({
+                severity: 'error',
+                summary: '提交支付凭证失败',
+                detail: error instanceof Error ? error.message : '请稍后重试',
+            });
         }
     };
 
-    const handleOfflineEntry = async () => {
+    const handleOfflineEntry = () => {
         if (!allowOfflinePayment) {
             showToast({
                 severity: 'warn',
                 summary: '该教练仅支持线上支付',
-                detail: '当前教练不支持线下已付续费。',
+                detail: '当前教练不支持线下已付订阅。',
             });
             return;
         }
 
         setIsOfflinePaymentMode(true);
-        setSelectedProduct(null);
-        setSelectedDuration(null);
-        try {
-            setSubscribing(true);
-            // 登录保护：订阅/支付均需要登录
-            if (!session?.user?.id) {
-                try {
-                    const redirect = typeof window !== 'undefined'
-                        ? `${window.location.pathname}${window.location.search}${window.location.hash || ''}`
-                        : `/coach/profile/${coach.id}?tab=1`; // 订阅价格现在在第二栏（index 1）
-                    router.push(`/login?redirect=${encodeURIComponent(redirect)}`);
-                } catch {
-                    router.push('/login');
-                }
-                return;
-            }
-
-            if (activeSub) {
-                setPaymentDialogVisible(true);
-                return;
-            }
-
-            const qRes = await coachService.getQuestionnaires({ coachId: coach.id });
-            if (qRes?.questionnaires?.length > 0) {
-                setQuestionnaireQuestions(qRes.questionnaires);
-                setQuestionnaireVisible(true);
-                return;
-            }
-
-            if (!coachSubscription) {
-                const res = await subscriptionService.createSubscription({
-                    coachId: coach.id,
-                    tier: 1,
-                    monthlyPrice: 0,
-                    status: 'inactive',
-                    subscribeData: [],
-                });
-                if (res) {
-                    setCoachSubscription(res.subscription);
-                }
-            }
-            setPaymentDialogVisible(true);
-        } catch (error) {
-            showToast({ severity: 'error', summary: '启动订阅流程失败' });
-        } finally {
-            setSubscribing(false);
+        if (activeSub && !renewMode) {
+            enterRenewMode();
         }
+
+        try {
+            document.getElementById('choose-pricing')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        } catch { }
+
+        showToast({
+            severity: 'info',
+            summary: '先选择套餐',
+            detail: activeSub
+                ? '请选择续费时长，支付弹窗里可切换为“线下已付”并上传凭证。'
+                : '请选择订阅套餐，支付弹窗里可切换为“线下已付”并上传凭证。',
+        });
     };
 
     // 渲染产品卡片 (与 PricingSettings 镜像)
@@ -625,29 +511,24 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
                 questions={questionnaireQuestions}
                 coach={coach}
                 onSubmit={async (answers) => {
-                    const isOfflineWithoutProduct = isOfflinePaymentMode && !selectedProduct;
-                    const res = await subscriptionService.createSubscription({
-                        coachId: coach.id,
-                        tier: isOfflineWithoutProduct
-                            ? 1
-                            : selectedProduct?.tier === 'basic'
-                                ? 1
-                                : selectedProduct?.tier === 'standard'
-                                    ? 2
-                                    : 3,
-                        monthlyPrice: isOfflineWithoutProduct ? 0 : (selectedDuration?.price || 0),
-                        status: 'inactive',
-                        subscribeData: answers,
-                        productId: isOfflineWithoutProduct ? undefined : selectedProduct?.id,
-                        productName: isOfflineWithoutProduct ? undefined : selectedProduct?.name,
-                        productTier: isOfflineWithoutProduct ? undefined : selectedProduct?.tier,
-                        subscribedWeeks: isOfflineWithoutProduct ? undefined : (selectedDuration?.months || 1) * 4
-                    });
-                    if (res) {
-                        setCoachSubscription(res.subscription);
+                    if (!selectedProduct || !selectedDuration) {
+                        showToast({ severity: 'warn', summary: '请先选择套餐' });
+                        return;
+                    }
+
+                    try {
+                        setSubscribing(true);
+                        await createPendingOrder(selectedProduct, selectedDuration, answers);
                         setQuestionnaireVisible(false);
                         setPaymentDialogVisible(true);
-                        // 注意：isOfflinePaymentMode状态已经在handleOfflinePayment中设置，这里不需要重置
+                    } catch (error) {
+                        showToast({
+                            severity: 'error',
+                            summary: '创建订单失败',
+                            detail: error instanceof Error ? error.message : '请稍后重试',
+                        });
+                    } finally {
+                        setSubscribing(false);
                     }
                 }}
                 loading={subscribing}
@@ -661,10 +542,8 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
                 }}
                 amount={selectedDuration?.price || 0}
                 coachId={coach.id}
-                subscriptionId={renewMode
-                    ? (activeSub?.id || coachSubscription?.id || undefined)
-                    : (coachSubscription?.id || activeSub?.id || undefined)
-                }
+                subscriptionOrderId={pendingOrder?.id || undefined}
+                subscriptionId={renewMode ? (activeSub?.id || pendingOrder?.subscription_id || undefined) : undefined}
                 subscriptionFlow={renewMode ? 'renew' : 'subscribe'}
                 renewAdditionalWeeks={renewMode ? (selectedDuration?.months || 1) * 4 : undefined}
                 defaultPaymentMethod={isOfflinePaymentMode && allowOfflinePayment ? 'offline' : undefined}

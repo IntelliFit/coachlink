@@ -302,7 +302,7 @@ export function parsePlanScript({
             continue;
         }
 
-        const restDayMatch = line.match(/^D(\d+)\s+off(?:\s+#(.*))?$/i);
+        const restDayMatch = line.match(/^D(\d+)\s+off(?:\s+(?:#|!)(.*))?$/i);
         if (restDayMatch) {
             if (!currentWeek) throw new Error(`休息日出现在周标题之前：${line}`);
             const dayOfWeek = Number(restDayMatch[1]);
