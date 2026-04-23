@@ -15,6 +15,7 @@ export async function POST(req: Request) {
     const {
         name,
         description,
+        executionNotice,
         tags = [],
         suitableFor = '',
         trainingDays = []
@@ -68,6 +69,7 @@ export async function POST(req: Request) {
             coach_id: userId,
             name,
             description: description || null,
+            execution_notice: executionNotice?.trim() || null,
             tags: tags || [],
             week_days: makeWeekDays(trainingDays),
             contained_options: makeContainedOptions(trainingDays),

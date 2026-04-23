@@ -9,10 +9,11 @@ import {
 import { Button } from 'primereact/button';
 import { InputText } from 'primereact/inputtext';
 import { InputNumber } from 'primereact/inputnumber';
+import { Dropdown } from 'primereact/dropdown';
 import { Chip } from 'primereact/chip';
 import { Checkbox } from 'primereact/checkbox';
 import { useToastContext } from '@/context/ToastContext';
-import { CoachContentRow } from '@/types';
+import { CoachContentColumnRow, CoachContentRow } from '@/types';
 import RichTextEditor from '@/components/RichTextEditor';
 
 export enum ContentTier { FREE = 0, BASIC = 1, PREMIUM = 2, VIP = 3 }
@@ -21,6 +22,8 @@ interface ContentForm {
     title: string;
     content: string;
     content_type: 'text' | 'video' | 'image' | 'live' | 'plan';
+    column_id?: string | null;
+    column_sort_order?: number | null;
     required_tier: ContentTier;
     price_cents?: number;
     is_featured: boolean;
@@ -35,11 +38,24 @@ interface ContentEditorProps {
     onPublish: (content: ContentForm) => Promise<void>;
     onSaveDraft: (content: ContentForm) => Promise<void>;
     initialContent?: CoachContentRow | null;
+    columns?: CoachContentColumnRow[];
+    onManageColumns?: () => void;
+    columnToSelectId?: string | null;
+    onColumnSelectionConsumed?: () => void;
 }
 
-const ContentEditor: React.FC<ContentEditorProps> = ({ coachId, onPublish, onSaveDraft, initialContent = null }) => {
+const ContentEditor: React.FC<ContentEditorProps> = ({
+    coachId,
+    onPublish,
+    onSaveDraft,
+    initialContent = null,
+    columns = [],
+    onManageColumns,
+    columnToSelectId = null,
+    onColumnSelectionConsumed,
+}) => {
     const [form, setForm] = useState<ContentForm>({
-        title: '', content: '', content_type: 'text', required_tier: ContentTier.FREE,
+        title: '', content: '', content_type: 'text', column_id: null, column_sort_order: null, required_tier: ContentTier.FREE,
         is_featured: false, tags: [], media_urls: [], notifyAllStudents: false, price_cents: 0
     });
     const [currentTag, setCurrentTag] = useState('');
@@ -58,6 +74,8 @@ const ContentEditor: React.FC<ContentEditorProps> = ({ coachId, onPublish, onSav
                 title: initialContent.title,
                 content: initialContent.content,
                 content_type: (initialContent.content_type as any) || 'text',
+                column_id: (initialContent as any).column_id || null,
+                column_sort_order: (initialContent as any).column_sort_order ?? null,
                 required_tier: initialContent.required_tier,
                 is_featured: initialContent.is_featured || false,
                 tags: initialContent.tags || [],
@@ -66,6 +84,19 @@ const ContentEditor: React.FC<ContentEditorProps> = ({ coachId, onPublish, onSav
             });
         }
     }, [initialContent]);
+
+    useEffect(() => {
+        if (!columnToSelectId) return;
+        if (!columns.some((column) => column.id === columnToSelectId)) return;
+
+        setForm((prev) => ({ ...prev, column_id: columnToSelectId }));
+        onColumnSelectionConsumed?.();
+    }, [columnToSelectId, columns, onColumnSelectionConsumed]);
+
+    const columnOptions = [
+        { label: '闲散文章（不属于任何专栏）', value: null },
+        ...columns.map((column) => ({ label: column.name, value: column.id })),
+    ];
 
     const handleInputChange = (field: keyof ContentForm, value: any) => {
         setForm(prev => ({
@@ -141,6 +172,32 @@ const ContentEditor: React.FC<ContentEditorProps> = ({ coachId, onPublish, onSav
                             placeholder="输入标题..."
                             className="w-full border-none bg-surface-50/50 focus:bg-white focus:ring-2 focus:ring-primary-100 rounded-2xl py-4 text-lg font-bold tracking-tight transition-all"
                         />
+                    </div>
+
+                    {/* Column Selection */}
+                    <div className="space-y-3">
+                        <div className="flex items-center justify-between gap-3 px-1">
+                            <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-surface-400">
+                                内容归属
+                            </label>
+                            <button
+                                type="button"
+                                onClick={onManageColumns}
+                                className="text-xs font-bold text-primary-600 hover:text-primary-700"
+                            >
+                                管理 / 新建专栏
+                            </button>
+                        </div>
+                        <Dropdown
+                            value={form.column_id ?? null}
+                            options={columnOptions}
+                            onChange={(e) => handleInputChange('column_id', e.value)}
+                            placeholder="选择专栏或保持为闲散文章"
+                            className="w-full border-surface-100 bg-surface-50/30 rounded-2xl"
+                        />
+                        <p className="text-xs text-surface-400 px-1">
+                            不选专栏时，这篇会作为“闲散文章”展示；需要新专栏时先进入专栏管理创建。
+                        </p>
                     </div>
 
                     {/* Content Editor Area - Rich Text Editor */}

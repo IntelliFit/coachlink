@@ -21,11 +21,7 @@ export function AiGenerationLogCard({ aiGenerationLog }: AiGenerationLogCardProp
             <div className="flex items-center gap-2 mb-3">
                 <i className="pi pi-sparkles text-purple-500" />
                 <span className="font-bold text-surface-900">AI 个性化生成记录</span>
-                <Badge
-                    value="AI"
-                    severity="info"
-                    className="ml-auto"
-                />
+                <Badge value="AI" severity="info" className="ml-auto" />
             </div>
 
             {stageA && (
@@ -38,7 +34,7 @@ export function AiGenerationLogCard({ aiGenerationLog }: AiGenerationLogCardProp
                     </div>
                     {stageA.templateId && (
                         <div className="mt-1 text-xs text-surface-400">
-                            选中模板: {stageA.templateId}
+                            选中模板：{stageA.templateId}
                         </div>
                     )}
                 </div>

@@ -8,6 +8,7 @@ import type {
 } from "./entity";
 import { createAlipaySdk } from "@/lib/alipaySdk";
 import { yuanToFen, fenToYuan } from "@/lib/moneyUtils";
+import { getSubscriptionOrderById } from "@/lib/subscriptionOrders";
 
 // 文档：https://opendocs.alipay.com/open/59da99d0_alipay.trade.page.pay?pathHash=e26b497f&scene=22
 // 流程和博客：https://kirigaya.cn/blog/article?seq=361
@@ -89,11 +90,13 @@ export async function POST(req: Request) {
     // We validate ownership/coaching relation and, for initial subscription, override amount from DB.
     const od: any = orderData || {};
     const subscriptionId = od.subscriptionId as string | undefined;
+    const subscriptionOrderId = od.subscriptionOrderId as string | undefined;
     const coachId = od.coachId as string | undefined;
     const contentId = od.contentId as string | undefined;
 
     let subjectText = String(subject || "");
     let resolvedTotalAmount = Number(totalAmount);
+    let resolvedAmountAlreadyFen = false;
 
     if (orderType === "subscription" || orderType === "subscription_renew") {
         if (!subjectText) {
@@ -102,44 +105,81 @@ export async function POST(req: Request) {
                 { status: 400 },
             );
         }
-        if (!subscriptionId) {
+
+        if (subscriptionOrderId) {
+            const subscriptionOrder = await getSubscriptionOrderById(subscriptionOrderId);
+            if (!subscriptionOrder) {
+                return NextResponse.json(
+                    { success: false, message: "订阅订单不存在，无法创建平台支付订单", data: null },
+                    { status: 400 },
+                );
+            }
+
+            if (subscriptionOrder.student_id !== userId) {
+                return NextResponse.json(
+                    { success: false, message: "无权为该订阅订单创建支付订单", data: null },
+                    { status: 403 },
+                );
+            }
+
+            if (coachId && subscriptionOrder.coach_id !== coachId) {
+                return NextResponse.json(
+                    { success: false, message: "订阅订单与教练不匹配，无法创建支付订单", data: null },
+                    { status: 400 },
+                );
+            }
+
+            resolvedTotalAmount = Number(subscriptionOrder.amount_fen || 0);
+            if (!resolvedTotalAmount || resolvedTotalAmount <= 0) {
+                return NextResponse.json(
+                    { success: false, message: "订阅订单金额无效，无法创建平台支付订单", data: null },
+                    { status: 400 },
+                );
+            }
+            resolvedAmountAlreadyFen = true;
+
+            if (!subjectText.trim()) {
+                subjectText = `${subscriptionOrder.order_type === "renew" ? "续费" : "订阅"}教练 ${subscriptionOrder.product_name || ""}`.trim();
+            }
+        } else if (!subscriptionId) {
             return NextResponse.json(
                 { success: false, message: "缺少订阅ID，无法创建平台支付订单", data: null },
                 { status: 400 },
             );
-        }
+        } else {
+            const { data: sub, error: subErr } = await serviceRoleSupabase
+                .from("coach_subscriptions")
+                .select("id, student_id, coach_id, monthly_price")
+                .eq("id", subscriptionId)
+                .single();
 
-        const { data: sub, error: subErr } = await serviceRoleSupabase
-            .from("coach_subscriptions")
-            .select("id, student_id, coach_id, monthly_price")
-            .eq("id", subscriptionId)
-            .single();
+            if (subErr || !sub) {
+                return NextResponse.json(
+                    { success: false, message: "订阅不存在，无法创建平台支付订单", data: null },
+                    { status: 400 },
+                );
+            }
 
-        if (subErr || !sub) {
-            return NextResponse.json(
-                { success: false, message: "订阅不存在，无法创建平台支付订单", data: null },
-                { status: 400 },
-            );
-        }
+            if (sub.student_id !== userId) {
+                return NextResponse.json(
+                    { success: false, message: "无权为该订阅创建支付订单", data: null },
+                    { status: 403 },
+                );
+            }
 
-        if (sub.student_id !== userId) {
-            return NextResponse.json(
-                { success: false, message: "无权为该订阅创建支付订单", data: null },
-                { status: 403 },
-            );
-        }
+            if (coachId && sub.coach_id !== coachId) {
+                return NextResponse.json(
+                    { success: false, message: "订阅与教练不匹配，无法创建支付订单", data: null },
+                    { status: 400 },
+                );
+            }
 
-        if (coachId && sub.coach_id !== coachId) {
-            return NextResponse.json(
-                { success: false, message: "订阅与教练不匹配，无法创建支付订单", data: null },
-                { status: 400 },
-            );
-        }
-
-        // Initial subscription: monthly_price 在 DB 中已存为分（整数），直接作为订单金额（分）
-        // Renewals may have different tiered discounts; we keep client-provided totalAmount (yuan) and convert to fen below.
-        if (orderType === "subscription") {
-            resolvedTotalAmount = Number(sub.monthly_price);
+            // Initial subscription: monthly_price 在 DB 中已存为分（整数），直接作为订单金额（分）
+            // Renewals may have different tiered discounts; we keep client-provided totalAmount (yuan) and convert to fen below.
+            if (orderType === "subscription") {
+                resolvedTotalAmount = Number(sub.monthly_price);
+                resolvedAmountAlreadyFen = true;
+            }
         }
     }
 
@@ -210,10 +250,9 @@ export async function POST(req: Request) {
 
     // 写入订单到数据库，金额存储为分（整数）
     // 订阅首单：resolvedTotalAmount 已是 sub.monthly_price（分）；其他/续费：前端传的是元，需转分
-    const totalAmountFen =
-        orderType === "subscription"
-            ? Math.round(Number(resolvedTotalAmount))
-            : yuanToFen(resolvedTotalAmount);
+    const totalAmountFen = resolvedAmountAlreadyFen
+        ? Math.round(Number(resolvedTotalAmount))
+        : yuanToFen(resolvedTotalAmount);
     const { data: order, error: orderError } = await supabase
         .from("alipay_orders")
         .insert({
@@ -238,7 +277,19 @@ export async function POST(req: Request) {
 
     // Bind platform payment order to subscription (so notify can auto-confirm/renew)
     try {
+        if (subscriptionOrderId && (orderType === "subscription" || orderType === "subscription_renew")) {
+            await serviceRoleSupabase
+                .from("coach_subscription_orders" as any)
+                .update({
+                    alipay_order_id: order.id,
+                    payment_method: "platform_alipay",
+                    updated_at: new Date().toISOString(),
+                })
+                .eq("id", subscriptionOrderId);
+        }
+
         if (
+            !subscriptionOrderId &&
             subscriptionId &&
             (orderType === "subscription" || orderType === "subscription_renew")
         ) {

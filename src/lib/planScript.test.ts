@@ -92,6 +92,23 @@ D2 off #休息日 & 休息日
         });
     });
 
+    it("parses rest day inline notes written with bang syntax", () => {
+        const result = parsePlanScript({
+            script: `
+W1
+D1 off !有氧：慢走30分钟
+            `,
+            actions,
+        });
+
+        expect(result.days).toHaveLength(1);
+        expect(result.days[0]).toMatchObject({
+            dayIndex: 1,
+            type: "rest",
+            note: "有氧：慢走30分钟",
+        });
+    });
+
     it("prefers exact variant names over fuzzy base action matches", () => {
         const result = parsePlanScript({
             script: `

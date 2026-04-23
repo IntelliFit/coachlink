@@ -52,10 +52,10 @@ export async function matchPlan(questionare: TrainingItem[], coachId?: string) {
         query = query.contains("tags", tagsInfo.userSelections);
     }
 
-    const timesInfo = questionare.find((item) => item.type === "times");
-    if (timesInfo) {
-        console.log("匹配条件 - 每周训练次数:", timesInfo.userSelection);
-        query = query.contains("week_days", [timesInfo.userSelection]);
+    const weeklyTrainingDays = extractWeeklyTrainingDays(questionare);
+    if (weeklyTrainingDays !== null) {
+        console.log("匹配条件 - 每周训练次数:", weeklyTrainingDays);
+        query = query.contains("week_days", [weeklyTrainingDays]);
     }
 
     // 只匹配动作选择类的 option 问题（排除 scope='global' 的全局问题）
@@ -145,6 +145,116 @@ export async function matchPlan(questionare: TrainingItem[], coachId?: string) {
 
     console.log(`最终匹配到 ${filteredTemplates.length} 个模板`);
     return filteredTemplates;
+}
+
+export async function findClosestPlans(
+    questionnaire: TrainingItem[],
+    coachId?: string,
+): Promise<CoachPlanTemplateRow[]> {
+    let query = supabase.from("coach_plan_templates").select("*");
+
+    if (coachId) {
+        query = query.eq("coach_id", coachId);
+    }
+
+    const { data: planTemplates, error: planTemplatesError } = await query;
+
+    if (planTemplatesError) {
+        console.error("查询模板失败:", planTemplatesError);
+        return [];
+    }
+
+    const desiredTags = getSelectedTags(questionnaire);
+    const desiredTagTopics = new Set(desiredTags.map(normalizeTagTopic).filter(Boolean));
+    const desiredWeeklyTrainingDays = extractWeeklyTrainingDays(questionnaire);
+    const actionQuestionNames = new Set(
+        questionnaire
+            .filter((item) => item.type === "option" && item.scope !== "global")
+            .map((item) => (item as TrainingOptionQuestion).question),
+    );
+    const userGlobalAnswers = getUserGlobalAnswers(questionnaire);
+
+    const rankedTemplates = (planTemplates || [])
+        .filter((template) => Array.isArray(template.training_days) && template.training_days.length > 0)
+        .map((template) => {
+            let score = 0;
+
+            const templateTags = Array.isArray(template.tags) ? template.tags.filter(Boolean) : [];
+            const exactTagOverlap = templateTags.filter((tag) => desiredTags.includes(tag)).length;
+            const templateTagTopics = new Set(templateTags.map(normalizeTagTopic).filter(Boolean));
+            const topicOverlap = [...desiredTagTopics].filter((tag) => templateTagTopics.has(tag)).length;
+
+            score += exactTagOverlap * 20;
+            score += topicOverlap * 12;
+
+            if (desiredTags.length === 0) {
+                score += 5;
+            } else if (exactTagOverlap === 0 && topicOverlap === 0 && templateTags.length > 0) {
+                score -= 8;
+            }
+
+            const weekDays = Array.isArray(template.week_days)
+                ? template.week_days.filter((v) => typeof v === "number")
+                : [];
+            const avgWeekDays = weekDays.length > 0
+                ? weekDays.reduce((sum, value) => sum + value, 0) / weekDays.length
+                : null;
+
+            if (desiredWeeklyTrainingDays !== null) {
+                if (weekDays.includes(desiredWeeklyTrainingDays)) {
+                    score += 18;
+                } else if (avgWeekDays !== null) {
+                    const diff = Math.abs(avgWeekDays - desiredWeeklyTrainingDays);
+                    score += Math.max(0, 12 - diff * 4);
+                }
+            } else if (weekDays.length === 0) {
+                score += 2;
+            }
+
+            const containedOptions = Array.isArray(template.contained_options)
+                ? template.contained_options
+                : [];
+            if (containedOptions.length > 0) {
+                const matchedCount = containedOptions.filter((opt: string) =>
+                    actionQuestionNames.has(opt)
+                ).length;
+                score += matchedCount * 4;
+                if (matchedCount < containedOptions.length) {
+                    score -= (containedOptions.length - matchedCount) * 6;
+                }
+            }
+
+            const templateGlobalAnswers = (template.global_answers || {}) as Record<string, number>;
+            for (const [question, expectedIndex] of Object.entries(templateGlobalAnswers)) {
+                const userAnswer = userGlobalAnswers[question];
+                if (userAnswer === undefined) {
+                    score -= 4;
+                    continue;
+                }
+                score += userAnswer === expectedIndex ? 6 : -10;
+            }
+
+            return { template, score };
+        })
+        .sort((a, b) => b.score - a.score);
+
+    if (rankedTemplates.length === 0) {
+        return [];
+    }
+
+    const bestScore = rankedTemplates[0].score;
+    const shortlist = rankedTemplates
+        .filter(({ score }) => score >= bestScore - 6)
+        .map(({ template }) => template);
+
+    console.log("[matchPlan] 精确匹配为空，已启用最接近模板回退:", shortlist.map((tpl) => ({
+        id: tpl.id,
+        name: tpl.name,
+        tags: tpl.tags,
+        week_days: tpl.week_days,
+    })));
+
+    return shortlist;
 }
 
 /**
@@ -363,4 +473,79 @@ export async function fillTemplate(
 
         day.actionSets = specificActionSet;
     }
+}
+
+function extractWeeklyTrainingDays(questionnaire: TrainingItem[]): number | null {
+    const directTimesInfo = questionnaire.find((item) => item.type === "times") as
+        | (TrainingItem & { userSelection?: unknown; options?: unknown[] })
+        | undefined;
+
+    const optionTimesInfo = questionnaire.find((item) =>
+        item.type === "option" &&
+        typeof (item as TrainingOptionQuestion).question === "string" &&
+        (item as TrainingOptionQuestion).question.includes("每周训练次数")
+    ) as TrainingOptionQuestion | undefined;
+
+    const candidate = optionTimesInfo || directTimesInfo;
+    if (!candidate) return null;
+
+    const options = Array.isArray((candidate as any).options) ? (candidate as any).options : [];
+    const userSelection = (candidate as any).userSelection;
+
+    if (typeof userSelection === "number" && Number.isFinite(userSelection)) {
+        const selectedOption = options[userSelection];
+        if (typeof selectedOption === "string") {
+            const parsed = extractFirstInteger(selectedOption);
+            if (parsed !== null) return parsed;
+        }
+
+        if (options.length > userSelection && typeof options[userSelection] === "number") {
+            return options[userSelection];
+        }
+
+        if (userSelection >= 1 && userSelection <= 7) {
+            return userSelection;
+        }
+    }
+
+    if (typeof userSelection === "string") {
+        return extractFirstInteger(userSelection);
+    }
+
+    return null;
+}
+
+function extractFirstInteger(value: string): number | null {
+    const match = value.match(/\d+/);
+    if (!match) return null;
+    const parsed = Number(match[0]);
+    return Number.isFinite(parsed) ? parsed : null;
+}
+
+function getSelectedTags(questionnaire: TrainingItem[]): string[] {
+    const tagsInfo = questionnaire.find((item) => item.type === "tags");
+    return Array.isArray(tagsInfo?.userSelections)
+        ? tagsInfo.userSelections.filter((tag): tag is string => typeof tag === "string" && tag.trim().length > 0)
+        : [];
+}
+
+function normalizeTagTopic(tag: string): string {
+    return tag
+        .replace(/（.*?）/g, "")
+        .replace(/\(.*?\)/g, "")
+        .replace(/极限是体重的几倍\??/g, "")
+        .replace(/个数|负重|力量|增肌|减脂|提升计划|长期计划/g, "")
+        .trim();
+}
+
+function getUserGlobalAnswers(questionnaire: TrainingItem[]): Record<string, number> {
+    const globalOptionInfos = questionnaire.filter((item) =>
+        item.type === "option" && item.scope === "global"
+    ) as TrainingOptionQuestion[];
+
+    const userGlobalAnswers: Record<string, number> = {};
+    for (const opt of globalOptionInfos) {
+        userGlobalAnswers[opt.question] = opt.userSelection;
+    }
+    return userGlobalAnswers;
 }

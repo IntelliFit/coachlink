@@ -56,6 +56,8 @@ interface BatchOperationDialogProps {
     initialInstruction?: string;
     /** 传递给后端的上下文增强配置 */
     contextOptions?: BatchOperationContextOptions;
+    /** 底层 AI 修改引擎：教练端计划编辑默认可用紧凑计划脚本减少 token 与 JSON 脆弱性 */
+    editEngine?: 'code' | 'plan_script' | 'auto';
 }
 
 type ContextToggleState = {
@@ -132,6 +134,7 @@ export function BatchOperationDialog({
     onGetDaysToApply,
     initialInstruction,
     contextOptions,
+    editEngine = 'code',
 }: BatchOperationDialogProps) {
     const isDesktop = useIsDesktop();
     const effectiveVariant = variant === 'auto' ? (isDesktop ? 'panel' : 'modal') : variant;
@@ -462,7 +465,8 @@ export function BatchOperationDialog({
                 [],
                 targetActionType,
                 runtimeContextOptions,
-                previewInputOnly
+                previewInputOnly,
+                editEngine
             );
             return;
         }
@@ -485,7 +489,8 @@ export function BatchOperationDialog({
             [],
             targetActionType,
             runtimeContextOptions,
-            previewInputOnly
+            previewInputOnly,
+            editEngine
         );
     };
 
@@ -529,7 +534,9 @@ export function BatchOperationDialog({
                 },
                 nextHistory,
                 targetActionType,
-                runtimeContextOptions
+                runtimeContextOptions,
+                false,
+                editEngine
             );
             return;
         }
@@ -551,7 +558,9 @@ export function BatchOperationDialog({
             },
             nextHistory,
             targetActionType,
-            runtimeContextOptions
+            runtimeContextOptions,
+            false,
+            editEngine
         );
     };
 

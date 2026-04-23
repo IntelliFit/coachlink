@@ -1,8 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { generatePersonalizedPlan, buildTemplateSummary, buildActionLibrary } from "./service";
+import {
+    buildActionLibrary,
+    buildPRRecordSummaries,
+    buildTemplateSummary,
+    generatePersonalizedPlan,
+} from "./service";
 import { GeneratePersonalizedPlanInput } from "./entity";
 
-// ── Mock DeepSeek ──────────────────────────────────────────────
 const { mockCallDeepSeek } = vi.hoisted(() => ({
     mockCallDeepSeek: vi.fn(),
 }));
@@ -12,25 +16,53 @@ vi.mock("@/lib/deepseek", () => ({
     parseJsonResponse: <T>(text: string) => JSON.parse(text) as T,
 }));
 
-// ── Mock Supabase ──────────────────────────────────────────────
-const mockSupabaseChain = vi.hoisted(() => {
-    const chain: any = {
-        from: vi.fn().mockReturnThis(),
-        select: vi.fn().mockReturnThis(),
-        eq: vi.fn().mockReturnThis(),
-        single: vi.fn(),
-    };
-    // 让 from() 返回 chain，支持链式调用
-    chain.from = vi.fn(() => chain);
-    return chain;
-});
-
-vi.mock("@/lib/supabaseClient", () => ({
-    default: mockSupabaseChain,
-    serviceRoleSupabase: mockSupabaseChain,
+const { mockMaybeSingle, mockInstanceMaybeSingle, mockAutoComputeQuery, mockCoachActionsEq } = vi.hoisted(() => ({
+    mockMaybeSingle: vi.fn(),
+    mockInstanceMaybeSingle: vi.fn(),
+    mockAutoComputeQuery: vi.fn(),
+    mockCoachActionsEq: vi.fn(),
 }));
 
-// ── Mock fillTemplate ──────────────────────────────────────────
+vi.mock("@/lib/supabaseClient", () => ({
+    default: {
+        from: vi.fn((table: string) => {
+            if (table === "coach_plan_templates") {
+                return {
+                    select: vi.fn(() => ({
+                        eq: vi.fn(() => ({
+                            eq: vi.fn(() => ({
+                                maybeSingle: mockMaybeSingle,
+                            })),
+                        })),
+                    })),
+                };
+            }
+
+            if (table === "coach_plan_instances") {
+                return {
+                    select: vi.fn(() => ({
+                        eq: vi.fn(() => ({
+                            eq: vi.fn(() => ({
+                                maybeSingle: mockInstanceMaybeSingle,
+                            })),
+                        })),
+                    })),
+                };
+            }
+
+            if (table === "coach_actions") {
+                return {
+                    select: vi.fn(() => ({
+                        eq: mockCoachActionsEq,
+                    })),
+                };
+            }
+
+            throw new Error(`Unexpected table ${table}`);
+        }),
+    },
+}));
+
 const { mockFillTemplate } = vi.hoisted(() => ({
     mockFillTemplate: vi.fn(),
 }));
@@ -39,20 +71,20 @@ vi.mock("../create-ai-instance/match", () => ({
     fillTemplate: mockFillTemplate,
 }));
 
-// ── Fixtures ───────────────────────────────────────────────────
 const makeInput = (overrides?: Partial<GeneratePersonalizedPlanInput>): GeneratePersonalizedPlanInput => ({
     subscriptionId: "sub-1",
     actorUserId: "user-1",
     actorCoachId: "coach-1",
     studentId: "stu-1",
     studentName: "王五",
+    subscribedWeeks: null,
     questionnaireAnswers: [],
     studentBodyWeight: 80,
     studentProfile: { goal: "力量", trainingAge: "3年" },
     prRecords: [{ actionName: "深蹲", actionId: "act-1", current1RM: 120, unit: "kg" }],
     actionLibrary: [
-        { id: "act-1", name: "深蹲" },
-        { id: "act-2", name: "卧推" },
+        { id: "act-1", name: "深蹲", type: "STRENGTH" },
+        { id: "act-2", name: "卧推", type: "STRENGTH" },
     ],
     availableTemplates: [
         { id: "tpl-1", name: "力量基础", description: "适合中级", type: "strength", weekCount: 4, dayCount: 12 },
@@ -62,6 +94,7 @@ const makeInput = (overrides?: Partial<GeneratePersonalizedPlanInput>): Generate
 
 const mockFullTemplate = {
     id: "tpl-1",
+    coach_id: "coach-1",
     name: "力量基础",
     description: "4周力量计划",
     type: "strength",
@@ -77,230 +110,212 @@ const mockFullTemplate = {
     ],
 };
 
-const mockAutoComputeActions = [
-    { id: "act-1", name: "深蹲", canonical_action_id: "sq", enableAutoWeightCompute: true, includesBodyWeight: false },
-];
-
-describe("generatePersonalizedPlan (全流程编排器)", () => {
+describe("generatePersonalizedPlan", () => {
     beforeEach(() => {
-        vi.clearAllMocks();
-        mockSupabaseChain.single.mockReset();
-    });
-
-    it("完整流程：Stage A 选模板 → Stage B 调计划 → 校验 → 计算重量", async () => {
-        const input = makeInput();
-
-        // Stage A: LLM 选中 tpl-1
-        mockCallDeepSeek
-            .mockResolvedValueOnce(
-                JSON.stringify({ template_id: "tpl-1", reasoning: "学员适合力量计划", confidence: 0.9 }),
-            )
-            // Stage B: LLM 调计划
-            .mockResolvedValueOnce(
-                JSON.stringify({
-                    training_days: [
-                        {
-                            type: "training",
-                            dayIndex: 1,
-                            actionSets: [
-                                { type: "no-filter", actionId: "act-1", setName: "深蹲", params: { sets: 5, reps: 5 } },
-                                { type: "no-filter", actionId: "act-2", setName: "卧推", params: { sets: 3, reps: 8 } },
-                            ],
-                        },
-                        { type: "rest", dayIndex: 2 },
-                    ],
-                    reasoning: "增加了卧推",
-                    changes_summary: "+卧推",
-                }),
-            );
-
-        // Mock Supabase 查询模板
-        mockSupabaseChain.single
-            .mockResolvedValueOnce({ data: mockFullTemplate, error: null }) // coach_plan_templates
-            .mockResolvedValueOnce({ data: mockAutoComputeActions, error: null }); // coach_actions
-
-        // Mock fillTemplate：模拟副作用——给动作加上 weight
-        mockFillTemplate.mockImplementation(async (_answers: any, template: any, _opts: any) => {
+        mockCallDeepSeek.mockReset();
+        mockMaybeSingle.mockReset();
+        mockInstanceMaybeSingle.mockReset();
+        mockAutoComputeQuery.mockReset();
+        mockCoachActionsEq.mockReset();
+        mockFillTemplate.mockReset();
+        mockCoachActionsEq.mockImplementation((column: string) => {
+            if (column === "coach_id") {
+                return { eq: mockAutoComputeQuery };
+            }
+            return mockAutoComputeQuery();
+        });
+        mockAutoComputeQuery.mockResolvedValue({
+            data: [
+                { id: "act-1", name: "深蹲", canonical_action_id: "sq", enableAutoWeightCompute: true, includesBodyWeight: false },
+            ],
+            error: null,
+        });
+        mockFillTemplate.mockImplementation(async (_answers: any, template: any) => {
             template.training_days.forEach((day: any) => {
-                if (day.actionSets) {
-                    day.actionSets.forEach((action: any) => {
-                        if (!action.params.load) {
-                            action.params.load = 80; // 模拟计算出的重量
-                        }
-                    });
-                }
+                day.actionSets?.forEach((action: any) => {
+                    action.params.load = 80;
+                });
             });
         });
+        mockInstanceMaybeSingle.mockResolvedValue({ data: null, error: null });
+    });
 
-        const result = await generatePersonalizedPlan(input);
+    it("完整流程：选模板、个性化、校验、计算重量", async () => {
+        mockCallDeepSeek
+            .mockResolvedValueOnce(JSON.stringify({ template_id: "tpl-1", reasoning: "适合力量计划", confidence: 0.9 }))
+            .mockResolvedValueOnce(JSON.stringify({
+                plan_script: [
+                    "W1",
+                    "D1",
+                    "深蹲 5x5 r180",
+                    "卧推 3x8 r120",
+                    "D2 off",
+                ].join("\n"),
+                reasoning: "增加了卧推",
+                changes_summary: "+卧推",
+            }));
+        mockMaybeSingle.mockResolvedValueOnce({ data: mockFullTemplate, error: null });
 
-        // ── 验证 Stage A ──
+        const result = await generatePersonalizedPlan(makeInput());
+
         expect(mockCallDeepSeek).toHaveBeenCalledTimes(2);
-        expect(result.templateId).toBe("tpl-1");
-
-        // ── 验证 Supabase 查询 ──
-        expect(mockSupabaseChain.from).toHaveBeenCalledWith("coach_plan_templates");
-        expect(mockSupabaseChain.from).toHaveBeenCalledWith("coach_actions");
-
-        // ── 验证 fillTemplate 被调用且传入了正确参数 ──
+        expect(mockMaybeSingle).toHaveBeenCalledTimes(1);
         expect(mockFillTemplate).toHaveBeenCalledTimes(1);
-        const fillTemplateArgs = mockFillTemplate.mock.calls[0];
-        expect(fillTemplateArgs[2]).toMatchObject({
-            studentBodyWeight: 80,
-            studentId: "stu-1",
-            coachId: "coach-1",
-        });
-
-        // ── 验证输出 ──
-        expect(result.trainingDays).toHaveLength(2);
-        // 第一个训练日应包含两个动作
+        expect(result.templateId).toBe("tpl-1");
         expect(result.trainingDays[0].actionSets).toHaveLength(2);
-        // fillTemplate 应该给动作加上了 weight
         expect(result.trainingDays[0].actionSets![0].params.load).toBe(80);
-
-        // ── 验证 aiGenerationLog ──
-        expect(result.aiGenerationLog).toBeDefined();
-        expect(result.aiGenerationLog.stageA.templateId).toBe("tpl-1");
         expect(result.aiGenerationLog.stageB.reasoning).toContain("卧推");
-        expect(result.aiGenerationLog.promptVersion).toBe("v1.0");
-        expect(result.aiGenerationLog.model).toContain("deepseek");
-        expect(new Date(result.aiGenerationLog.timestamp)).toBeInstanceOf(Date);
     });
 
-    it("Stage A 选中的模板不存在时，fallback 到从零生成", async () => {
-        const input = makeInput();
-
-        // Stage A: LLM 选中 tpl-1（但数据库里没有）
+    it("选中的模板不可用时改为从零生成，而不是直接报错", async () => {
         mockCallDeepSeek
-            .mockResolvedValueOnce(
-                JSON.stringify({ template_id: "tpl-missing", reasoning: "选了这个", confidence: 0.8 }),
-            )
-            // Stage B: 从零生成
-            .mockResolvedValueOnce(
-                JSON.stringify({
-                    training_days: [
-                        { type: "training", dayIndex: 1, actionSets: [{ type: "no-filter", actionId: "act-1", setName: "深蹲", params: {} }] },
-                    ],
-                    reasoning: "模板不存在，从零生成",
-                    changes_summary: "从零",
-                }),
-            );
+            .mockResolvedValueOnce(JSON.stringify({ template_id: "tpl-missing", reasoning: "选了这个", confidence: 0.8 }))
+            .mockResolvedValueOnce(JSON.stringify({
+                plan_script: [
+                    "W1",
+                    "D1",
+                    "深蹲 4x6 r150",
+                    "D2 off",
+                ].join("\n"),
+                reasoning: "模板不可用，改为从零生成",
+                changes_summary: "从零生成 2 天计划",
+            }));
+        mockMaybeSingle.mockResolvedValueOnce({ data: null, error: null });
+        mockInstanceMaybeSingle.mockResolvedValueOnce({ data: null, error: null });
 
-        // 模板查询返回 null
-        mockSupabaseChain.single
-            .mockResolvedValueOnce({ data: null, error: null }) // coach_plan_templates → null
-            .mockResolvedValueOnce({ data: mockAutoComputeActions, error: null }); // coach_actions
+        const result = await generatePersonalizedPlan(makeInput());
 
-        mockFillTemplate.mockImplementation(async () => {});
-
-        const result = await generatePersonalizedPlan(input);
-
-        // templateId 应为 null（因为选中的模板不存在，stageA 被修改了）
+        expect(mockCallDeepSeek).toHaveBeenCalledTimes(2);
         expect(result.templateId).toBeNull();
-        // 但训练日仍然生成了
-        expect(result.trainingDays).toHaveLength(1);
-        // Stage A 的 reasoning 应被追加提示
-        expect(result.aiGenerationLog.stageA.reasoning).toContain("不存在");
+        expect(result.trainingDays[0].actionSets?.[0].actionId).toBe("act-1");
+        expect(result.aiGenerationLog.stageA.reasoning).toContain("改为自主生成");
     });
 
-    it("Stage B 返回的幻觉 actionId 被 validate 过滤掉", async () => {
-        const input = makeInput();
-
+    it("脚本包含动作库外动作名时会明确报错", async () => {
         mockCallDeepSeek
-            .mockResolvedValueOnce(
-                JSON.stringify({ template_id: "tpl-1", reasoning: "选这个", confidence: 0.9 }),
-            )
-            .mockResolvedValueOnce(
-                JSON.stringify({
-                    training_days: [
-                        {
-                            type: "training",
-                            dayIndex: 1,
-                            actionSets: [
-                                { type: "no-filter", actionId: "act-1", setName: "深蹲", params: {} },
-                                { type: "no-filter", actionId: "hallucinated-id", setName: "幻觉动作", params: {} },
-                            ],
-                        },
-                    ],
-                    reasoning: "测试幻觉过滤",
-                    changes_summary: "有幻觉",
-                }),
-            );
+            .mockResolvedValueOnce(JSON.stringify({ template_id: "tpl-1", reasoning: "选这个", confidence: 0.9 }))
+            .mockResolvedValueOnce(JSON.stringify({
+                plan_script: [
+                    "W1",
+                    "D1",
+                    "深蹲 3x5 r180",
+                    "幻觉动作 3x8 r120",
+                ].join("\n"),
+                reasoning: "测试过滤",
+                changes_summary: "过滤",
+            }));
+        mockMaybeSingle.mockResolvedValueOnce({ data: mockFullTemplate, error: null });
 
-        mockSupabaseChain.single
-            .mockResolvedValueOnce({ data: mockFullTemplate, error: null })
-            .mockResolvedValueOnce({ data: mockAutoComputeActions, error: null });
-
-        mockFillTemplate.mockImplementation(async () => {});
-
-        const result = await generatePersonalizedPlan(input);
-
-        // hallucinated-id 应被过滤掉
-        expect(result.trainingDays[0].actionSets).toHaveLength(1);
-        expect(result.trainingDays[0].actionSets![0].actionId).toBe("act-1");
+        await expect(generatePersonalizedPlan(makeInput())).rejects.toThrow("AI 生成的计划脚本无法编译");
     });
 
-    it("没有可用模板时，直接走 Stage B 从零生成", async () => {
-        const input = makeInput({ availableTemplates: [] });
+    it("没有可用模板时允许从零生成", async () => {
+        mockCallDeepSeek.mockResolvedValueOnce(JSON.stringify({
+            plan_script: [
+                "W1",
+                "D1",
+                "深蹲 4x8 r120",
+                "D2 off",
+            ].join("\n"),
+            reasoning: "没有模板，直接从零生成",
+            changes_summary: "生成 2 天计划",
+        }));
 
-        // 只调用一次 DeepSeek（Stage A 直接返回，不调用；Stage B 调用）
-        mockCallDeepSeek.mockResolvedValueOnce(
-            JSON.stringify({
-                training_days: [
-                    { type: "training", dayIndex: 1, actionSets: [{ type: "no-filter", actionId: "act-1", setName: "深蹲", params: {} }] },
-                ],
-                reasoning: "从零生成",
-                changes_summary: "全新",
-            }),
-        );
+        const result = await generatePersonalizedPlan(makeInput({ availableTemplates: [] }));
 
-        mockSupabaseChain.single.mockResolvedValueOnce({ data: mockAutoComputeActions, error: null });
-        mockFillTemplate.mockImplementation(async () => {});
-
-        const result = await generatePersonalizedPlan(input);
-
-        // Stage A 不调用 DeepSeek，所以总共只调用 1 次（Stage B）
         expect(mockCallDeepSeek).toHaveBeenCalledTimes(1);
+        expect(mockMaybeSingle).not.toHaveBeenCalled();
         expect(result.templateId).toBeNull();
+        expect(result.trainingDays[0].actionSets?.[0].actionId).toBe("act-1");
+        expect(result.aiGenerationLog.stageB.reasoning).toContain("从零生成");
+    });
+
+    it("动作库为空时保留模板骨架，不调用 Stage B 从零改写", async () => {
+        mockCallDeepSeek
+            .mockResolvedValueOnce(JSON.stringify({ template_id: "tpl-1", reasoning: "适合力量计划", confidence: 0.9 }));
+        mockMaybeSingle.mockResolvedValueOnce({ data: mockFullTemplate, error: null });
+
+        const result = await generatePersonalizedPlan(makeInput({ actionLibrary: [] }));
+
+        expect(mockCallDeepSeek).toHaveBeenCalledTimes(1);
+        expect(result.templateId).toBe("tpl-1");
+        expect(result.trainingDays[0].actionSets![0].actionId).toBe("act-1");
+        expect(result.aiGenerationLog.stageB.reasoning).toContain("保留已选模板骨架");
+    });
+
+    it("没有模板且动作库为空时抛错", async () => {
+        await expect(
+            generatePersonalizedPlan(makeInput({ availableTemplates: [], actionLibrary: [] })),
+        ).rejects.toThrow("动作库为空");
+        expect(mockCallDeepSeek).not.toHaveBeenCalled();
+    });
+
+    it("学员购买 4 周时，过短的从零计划会被拒绝", async () => {
+        mockCallDeepSeek.mockResolvedValueOnce(JSON.stringify({
+            plan_script: [
+                "W1",
+                "D1",
+                "深蹲 4x8 r120",
+                "D2 off",
+                "D3",
+                "卧推 4x8 r120",
+                "D4 off",
+            ].join("\n"),
+            reasoning: "先给一个短周期",
+            changes_summary: "只有 4 天",
+        }));
+
+        await expect(
+            generatePersonalizedPlan(makeInput({ availableTemplates: [], subscribedWeeks: 4 })),
+        ).rejects.toThrow("计划周期过短");
     });
 });
 
-describe("buildTemplateSummary", () => {
-    it("正确计算周数和天数", () => {
-        const tpl = {
+describe("ai-personalize-plan builders", () => {
+    it("buildTemplateSummary 计算周数和天数", () => {
+        const summary = buildTemplateSummary({
             id: "t1",
             name: "测试模板",
             description: "desc",
             type: "strength",
             training_days: Array(14).fill({ type: "training" }),
-        };
-        const summary = buildTemplateSummary(tpl);
+        });
+
         expect(summary.weekCount).toBe(2);
         expect(summary.dayCount).toBe(14);
-        expect(summary.name).toBe("测试模板");
     });
 
-    it("training_days 为空时返回 0", () => {
-        const tpl = { id: "t1", name: "空模板", description: null, type: null, training_days: undefined };
-        const summary = buildTemplateSummary(tpl);
-        expect(summary.dayCount).toBe(0);
+    it("buildTemplateSummary 兼容空 training_days", () => {
+        const summary = buildTemplateSummary({
+            id: "t1",
+            name: "空模板",
+            description: null,
+            type: null,
+        });
+
         expect(summary.weekCount).toBe(0);
-    });
-});
-
-describe("buildActionLibrary", () => {
-    it("正确映射动作库", () => {
-        const actions = [
-            { id: "a1", name: "深蹲", category: "leg", description: "desc" },
-            { id: "a2", name: "卧推" },
-        ];
-        const lib = buildActionLibrary(actions);
-        expect(lib).toHaveLength(2);
-        expect(lib[0]).toEqual({ id: "a1", name: "深蹲", category: "leg", description: "desc" });
-        expect(lib[1]).toEqual({ id: "a2", name: "卧推", category: undefined, description: undefined });
+        expect(summary.dayCount).toBe(0);
     });
 
-    it("空数组返回空数组", () => {
-        expect(buildActionLibrary([])).toEqual([]);
+    it("buildActionLibrary 兼容当前 schema 的 type/detail 字段", () => {
+        const lib = buildActionLibrary([
+            { id: "a1", name: "深蹲", type: "STRENGTH", detail: "下肢主项" },
+        ]);
+
+        expect(lib[0]).toEqual({
+            id: "a1",
+            name: "深蹲",
+            type: "STRENGTH",
+            category: "STRENGTH",
+            description: "下肢主项",
+        });
+    });
+
+    it("buildPRRecordSummaries 映射旧字段", () => {
+        expect(buildPRRecordSummaries([
+            { name: "卧推", actionId: "a2", one_rm: 90 },
+        ])).toEqual([
+            { actionName: "卧推", actionId: "a2", current1RM: 90, unit: "kg" },
+        ]);
     });
 });

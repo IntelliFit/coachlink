@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, type ChangeEvent } from 'react';
 import { Card } from 'primereact/card';
 import { InputText } from 'primereact/inputtext';
 import { Button } from 'primereact/button';
@@ -8,6 +8,8 @@ import { Dialog } from 'primereact/dialog';
 import { InputTextarea } from 'primereact/inputtextarea';
 import { MultiSelect } from 'primereact/multiselect';
 import { Checkbox } from 'primereact/checkbox';
+import { InputSwitch } from 'primereact/inputswitch';
+import { Skeleton } from 'primereact/skeleton';
 import { ConversationList } from '@/components/chat/ConversationList';
 import { chatService } from '@/app/service/chatService';
 import { coachService } from '@/app/service/coachService';
@@ -15,12 +17,18 @@ import { useToastContext } from '@/context/ToastContext';
 import type { ChatroomItem } from '@/app/api/chat/list-chatrooms/entity';
 import { IconField } from 'primereact/iconfield';
 import { InputIcon } from 'primereact/inputicon';
-import { Search, MessageSquareText, Bell } from 'lucide-react';
+import { Search, MessageSquareText, Bell, Bot, Settings } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
 import { useNotificationPermission } from '@/context/NotificationPermissionContext';
 import type { StudentSubscription } from '@/app/api/coach/list-students/entity';
+import {
+    COACH_AI_KNOWLEDGE_CATEGORY_LABELS,
+    inferCoachAiKnowledgeCategory,
+    shouldEnableCoachAiKnowledgeDocumentByDefault,
+    type CoachAiKnowledgeDocument,
+} from '@/lib/coachAiKnowledge';
 
 export default function MessagesPage() {
     const { showToast } = useToastContext();
@@ -50,6 +58,14 @@ export default function MessagesPage() {
     const [broadcastFileSize, setBroadcastFileSize] = useState<number | null>(null);
     const [uploadingBroadcastImage, setUploadingBroadcastImage] = useState(false);
     const broadcastFileInputRef = useRef<HTMLInputElement>(null);
+    const [aiSettingsVisible, setAiSettingsVisible] = useState(false);
+    const [aiSettingsLoading, setAiSettingsLoading] = useState(false);
+    const [aiSettingsSaving, setAiSettingsSaving] = useState(false);
+    const [aiEnabled, setAiEnabled] = useState(false);
+    const [aiSystemPrompt, setAiSystemPrompt] = useState('');
+    const [aiKnowledgeBase, setAiKnowledgeBase] = useState('');
+    const [aiKnowledgeDocuments, setAiKnowledgeDocuments] = useState<CoachAiKnowledgeDocument[]>([]);
+    const aiKnowledgeFileInputRef = useRef<HTMLInputElement>(null);
 
     const loadConversations = async () => {
         setLoading(true);
@@ -134,6 +150,110 @@ export default function MessagesPage() {
         setBroadcastFileName(null);
         setBroadcastFileSize(null);
         await loadAllStudentsForBroadcast();
+    };
+
+    const openAiSettingsDialog = async () => {
+        setAiSettingsVisible(true);
+        setAiSettingsLoading(true);
+        try {
+            const settings = await coachService.getAiAutoReplySettings();
+            if (settings) {
+                setAiEnabled(settings.enabled);
+                setAiSystemPrompt(settings.systemPrompt || '');
+                setAiKnowledgeBase(settings.knowledgeBase || '');
+                setAiKnowledgeDocuments(settings.knowledgeDocuments || []);
+            }
+        } catch {
+            showToast({ severity: 'error', summary: '错误', detail: '加载 AI 自动回复设置失败' });
+        } finally {
+            setAiSettingsLoading(false);
+        }
+    };
+
+    const saveAiSettings = async () => {
+        setAiSettingsSaving(true);
+        try {
+            const settings = await coachService.updateAiAutoReplySettings({
+                enabled: aiEnabled,
+                systemPrompt: aiSystemPrompt,
+                knowledgeBase: aiKnowledgeBase,
+                knowledgeDocuments: aiKnowledgeDocuments,
+            });
+            if (!settings) {
+                showToast({ severity: 'error', summary: '保存失败' });
+                return;
+            }
+            setAiEnabled(settings.enabled);
+            setAiSystemPrompt(settings.systemPrompt || '');
+            setAiKnowledgeBase(settings.knowledgeBase || '');
+            setAiKnowledgeDocuments(settings.knowledgeDocuments || []);
+            setAiSettingsVisible(false);
+            showToast({
+                severity: 'success',
+                summary: '保存成功',
+                detail: settings.enabled ? 'AI 虚拟分身已开启' : 'AI 虚拟分身已关闭',
+            });
+        } catch (error: any) {
+            showToast({ severity: 'error', summary: '保存失败', detail: error?.message || '请稍后重试' });
+        } finally {
+            setAiSettingsSaving(false);
+        }
+    };
+
+    const handleAiKnowledgeFilesImport = async (event: ChangeEvent<HTMLInputElement>) => {
+        const files = Array.from(event.target.files || [])
+            .filter((file) => file.name.toLowerCase().endsWith('.md') || file.type.includes('text'));
+
+        if (files.length === 0) return;
+
+        try {
+            const importedDocs = await Promise.all(files.map(async (file) => {
+                const content = (await file.text()).trim();
+                const title = file.name.replace(/\.(md|markdown|txt)$/i, '');
+                const category = inferCoachAiKnowledgeCategory(title, content);
+                return {
+                    id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+                    title,
+                    category,
+                    content,
+                    keywords: [],
+                    enabled: shouldEnableCoachAiKnowledgeDocumentByDefault(title, category),
+                    priority: 0,
+                    updatedAt: new Date().toISOString(),
+                } satisfies CoachAiKnowledgeDocument;
+            }));
+            const enabledCount = importedDocs.filter((doc) => doc.enabled !== false).length;
+            const disabledCount = importedDocs.length - enabledCount;
+
+            setAiKnowledgeDocuments((prev) => {
+                const importedTitles = new Set(importedDocs.map((doc) => doc.title));
+                return [
+                    ...prev.filter((doc) => !importedTitles.has(doc.title)),
+                    ...importedDocs.filter((doc) => doc.content),
+                ].slice(0, 30);
+            });
+            showToast({
+                severity: 'success',
+                summary: '导入成功',
+                detail: disabledCount > 0
+                    ? `已导入 ${importedDocs.length} 个知识文档，默认启用 ${enabledCount} 个、停用 ${disabledCount} 个，保存设置后生效`
+                    : `已导入 ${importedDocs.length} 个知识文档，保存设置后生效`,
+            });
+        } catch (error: any) {
+            showToast({ severity: 'error', summary: '导入失败', detail: error?.message || '无法读取文件' });
+        } finally {
+            event.target.value = '';
+        }
+    };
+
+    const removeAiKnowledgeDocument = (id: string) => {
+        setAiKnowledgeDocuments((prev) => prev.filter((doc) => doc.id !== id));
+    };
+
+    const toggleAiKnowledgeDocument = (id: string) => {
+        setAiKnowledgeDocuments((prev) => prev.map((doc) => (
+            doc.id === id ? { ...doc, enabled: doc.enabled === false } : doc
+        )));
     };
 
     const handleBroadcastImageUpload = async (file: File) => {
@@ -316,7 +436,13 @@ export default function MessagesPage() {
                         <p className="text-sm text-surface-500 font-medium">与您的教练保持实时沟通</p>
                     </div>
                     {isCoach && (
-                        <div className="ml-auto">
+                        <div className="ml-auto flex items-center gap-2">
+                            <Button
+                                label="AI 分身"
+                                icon={<Bot className="w-4 h-4" />}
+                                className="rounded-2xl p-button-outlined"
+                                onClick={openAiSettingsDialog}
+                            />
                             <Button
                                 label="群发通知"
                                 icon="pi pi-megaphone"
@@ -497,6 +623,173 @@ export default function MessagesPage() {
                         />
                     </div>
                 </div>
+            </Dialog>
+
+            <Dialog
+                header={
+                    <div className="flex items-center gap-2">
+                        <Bot className="w-5 h-5 text-primary-500" />
+                        <span>教练 AI 虚拟分身</span>
+                    </div>
+                }
+                visible={aiSettingsVisible}
+                style={{ width: 'min(760px, 92vw)' }}
+                onHide={() => setAiSettingsVisible(false)}
+                modal
+                draggable={false}
+            >
+                {aiSettingsLoading ? (
+                    <div className="space-y-4">
+                        <Skeleton width="100%" height="4rem" />
+                        <Skeleton width="100%" height="8rem" />
+                        <Skeleton width="100%" height="10rem" />
+                    </div>
+                ) : (
+                    <div className="space-y-5">
+                        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                            开启后，学员给你发送文本消息时，系统会先用 DeepSeek 根据你的提示词和资料库自动回复，并在消息里明确标注“教练虚拟分身自动回复”。
+                        </div>
+
+                        <div className="flex items-center justify-between rounded-2xl border border-surface-200 px-4 py-3">
+                            <div className="flex items-center gap-3">
+                                <div className="rounded-xl bg-primary-50 p-2 text-primary-600">
+                                    <Settings className="w-5 h-5" />
+                                </div>
+                                <div>
+                                    <div className="text-sm font-bold text-surface-800">智能自动回复</div>
+                                    <div className="text-xs text-surface-500">关闭后不会生成 AI 消息。</div>
+                                </div>
+                            </div>
+                            <InputSwitch checked={aiEnabled} onChange={(e) => setAiEnabled(!!e.value)} />
+                        </div>
+
+                        <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                                <label className="text-sm font-bold text-surface-700">基础提示词</label>
+                                <span className="text-xs text-surface-400">{aiSystemPrompt.length}/3000</span>
+                            </div>
+                            <InputTextarea
+                                value={aiSystemPrompt}
+                                onChange={(e) => setAiSystemPrompt(e.target.value.slice(0, 3000))}
+                                autoResize
+                                rows={6}
+                                className="w-full"
+                                placeholder="例如：你是我的教练助理，回复要短、直接、偏街健训练风格；遇到疼痛或伤病问题必须提醒联系我本人。"
+                            />
+                        </div>
+
+                        <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                                <label className="text-sm font-bold text-surface-700">核心资料</label>
+                                <span className="text-xs text-surface-400">{aiKnowledgeBase.length}/12000</span>
+                            </div>
+                            <InputTextarea
+                                value={aiKnowledgeBase}
+                                onChange={(e) => setAiKnowledgeBase(e.target.value.slice(0, 12000))}
+                                autoResize
+                                rows={9}
+                                className="w-full"
+                                placeholder="放少量必须始终参考的内容，例如服务边界、不可承诺事项、固定称呼和回复原则。大量资料建议用下面的 Markdown 知识文档导入。"
+                            />
+                            <div className="text-xs text-surface-500">
+                                这里会始终进入提示词；知识文档会按学员问题检索后再进入提示词。
+                            </div>
+                        </div>
+
+                        <div className="space-y-3">
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                                <div>
+                                    <label className="text-sm font-bold text-surface-700">知识文档</label>
+                                    <div className="text-xs text-surface-500">
+                                        已导入 {aiKnowledgeDocuments.length}/30 个文档，自动回复时只加载已启用的相关片段。
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <input
+                                        ref={aiKnowledgeFileInputRef}
+                                        type="file"
+                                        accept=".md,.markdown,.txt,text/markdown,text/plain"
+                                        multiple
+                                        className="hidden"
+                                        onChange={handleAiKnowledgeFilesImport}
+                                    />
+                                    {aiKnowledgeDocuments.length > 0 && (
+                                        <Button
+                                            label="清空"
+                                            icon="pi pi-trash"
+                                            className="p-button-text p-button-sm rounded-2xl"
+                                            onClick={() => setAiKnowledgeDocuments([])}
+                                            disabled={aiSettingsSaving}
+                                        />
+                                    )}
+                                    <Button
+                                        label="导入 Markdown"
+                                        icon="pi pi-upload"
+                                        className="p-button-outlined p-button-sm rounded-2xl"
+                                        onClick={() => aiKnowledgeFileInputRef.current?.click()}
+                                        disabled={aiSettingsSaving}
+                                    />
+                                </div>
+                            </div>
+
+                            {aiKnowledgeDocuments.length === 0 ? (
+                                <div className="rounded-2xl border border-dashed border-surface-300 px-4 py-5 text-sm text-surface-500">
+                                    可以一次选择 `persona.md`、`program_design.md`、`nutrition_supplements.md` 等文件。`content_ideas.md` 和 `system_prompt_template.md` 会默认停用，避免进入学员私聊自动回复。
+                                </div>
+                            ) : (
+                                <div className="max-h-56 space-y-2 overflow-auto rounded-2xl border border-surface-200 p-2">
+                                    {aiKnowledgeDocuments.map((doc) => {
+                                        const enabled = doc.enabled !== false;
+                                        return (
+                                            <div
+                                                key={doc.id}
+                                                className="flex items-center gap-3 rounded-xl border border-surface-100 bg-surface-0 px-3 py-2"
+                                            >
+                                                <InputSwitch
+                                                    checked={enabled}
+                                                    onChange={() => toggleAiKnowledgeDocument(doc.id)}
+                                                />
+                                                <div className="min-w-0 flex-1">
+                                                    <div className="truncate text-sm font-semibold text-surface-800">
+                                                        {doc.title}
+                                                    </div>
+                                                    <div className="flex flex-wrap items-center gap-2 text-xs text-surface-500">
+                                                        <span>{COACH_AI_KNOWLEDGE_CATEGORY_LABELS[doc.category]}</span>
+                                                        <span>{doc.content.length} 字</span>
+                                                        {!enabled && <span className="text-amber-600">已停用</span>}
+                                                    </div>
+                                                </div>
+                                                <Button
+                                                    icon="pi pi-times"
+                                                    className="p-button-rounded p-button-text p-button-sm"
+                                                    aria-label={`删除 ${doc.title}`}
+                                                    onClick={() => removeAiKnowledgeDocument(doc.id)}
+                                                    disabled={aiSettingsSaving}
+                                                />
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="flex justify-end gap-2 pt-2">
+                            <Button
+                                label="取消"
+                                className="p-button-text rounded-2xl"
+                                onClick={() => setAiSettingsVisible(false)}
+                                disabled={aiSettingsSaving}
+                            />
+                            <Button
+                                label={aiSettingsSaving ? '保存中...' : '保存设置'}
+                                icon="pi pi-save"
+                                className="rounded-2xl"
+                                onClick={saveAiSettings}
+                                loading={aiSettingsSaving}
+                            />
+                        </div>
+                    </div>
+                )}
             </Dialog>
         </div>
     );

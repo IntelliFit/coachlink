@@ -7,6 +7,7 @@ import KnowledgeHeader from '@/components/knowledge/KnowledgeHeader';
 import { useToastContext } from '@/context/ToastContext';
 import knowledgeService from '@/app/service/knowledgeService';
 import { KnowledgeBookRow } from '@/types';
+import { groupKnowledgeBooks } from '@/lib/knowledgeBooks';
 
 const BooksPage = () => {
   const [books, setBooks] = useState<KnowledgeBookRow[]>([]);
@@ -51,6 +52,8 @@ const BooksPage = () => {
     }
   };
 
+  const collections = groupKnowledgeBooks(books);
+
   return (
     <div className="min-h-screen pb-32">
       <KnowledgeHeader
@@ -77,18 +80,23 @@ const BooksPage = () => {
                   <div className="h-4 w-2/3 bg-surface-200 dark:bg-surface-700 rounded animate-pulse" />
                 </div>
               ))
-            : books.map((book) => (
+            : collections.map((collection) => (
                 <button
-                  key={book.id}
-                  onClick={() => handleBookClick(book.id, book.is_free || false)}
+                  key={collection.slug}
+                  onClick={() =>
+                    handleBookClick(
+                      collection.representativeBook.id,
+                      collection.isFree
+                    )
+                  }
                   className="group text-left bg-white dark:bg-surface-800 rounded-2xl p-4 shadow-sm hover:shadow-md transition-all duration-200"
                 >
                   <div className="relative mb-3">
-                    {book.cover_image ? (
+                    {collection.representativeBook.cover_image ? (
                       <div className="aspect-[4/3] rounded-xl overflow-hidden bg-surface-100">
                         <img
-                          src={book.cover_image}
-                          alt={book.title}
+                          src={collection.representativeBook.cover_image}
+                          alt={collection.displayTitle}
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                         />
                       </div>
@@ -98,7 +106,7 @@ const BooksPage = () => {
                       </div>
                     )}
                     <div className="absolute top-2 right-2">
-                      {book.is_free ? (
+                      {collection.isFree ? (
                         <span className="flex items-center gap-1 px-2 py-1 text-xs font-bold rounded-full bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300">
                           <LockOpen size={12} />
                           免费
@@ -111,17 +119,29 @@ const BooksPage = () => {
                       )}
                     </div>
                   </div>
-                  <h3 className="text-base font-bold text-surface-900 dark:text-surface-100 line-clamp-1 mb-1 group-hover:text-primary-600 transition-colors">
-                    {book.title}
-                  </h3>
+                  <div className="flex items-center gap-2 mb-1">
+                    <h3 className="text-base font-bold text-surface-900 dark:text-surface-100 line-clamp-1 group-hover:text-primary-600 transition-colors">
+                      {collection.displayTitle}
+                    </h3>
+                    {collection.chapterCount > 0 && (
+                      <span className="shrink-0 px-2 py-0.5 rounded-full bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300 text-[11px] font-semibold">
+                        {collection.chapterCount} 篇章节
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-surface-400 dark:text-surface-500 mb-1">
+                    {collection.chapterCount > 0
+                      ? `先看总览，再看 ${collection.chapterCount} 篇分篇解读`
+                      : '单篇书籍解读'}
+                  </p>
                   <p className="text-sm text-surface-500 dark:text-surface-400 line-clamp-2">
-                    {book.summary || "暂无简介"}
+                    {collection.summary || "暂无简介"}
                   </p>
                 </button>
               ))}
         </div>
 
-        {books.length === 0 && !loading && (
+        {collections.length === 0 && !loading && (
           <div className="text-center py-12 bg-white dark:bg-surface-800 rounded-2xl">
             <BookOpen size={48} className="mx-auto text-surface-300 mb-4" />
             <h3 className="text-lg font-bold text-surface-600 dark:text-surface-300">

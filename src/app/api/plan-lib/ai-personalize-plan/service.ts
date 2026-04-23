@@ -1,7 +1,5 @@
 import supabase from "@/lib/supabaseClient";
-import { TrainingItem } from "@/types/questionnaires";
 import { fillTemplate } from "../create-ai-instance/match";
-import { getCurrent1RMRecords } from "@/app/api/student/get-current-1rm/route";
 import { selectTemplateWithLLM } from "./select-template";
 import { personalizePlanWithLLM } from "./personalize-plan";
 import { validateAndSanitizeTrainingDays } from "./validate-output";
@@ -12,6 +10,7 @@ import {
     PRRecordSummary,
     TemplateSummary,
 } from "./entity";
+import { inferFocusDomainsFromTemplate } from "./questionnaire-intent";
 
 export class AiPersonalizeError extends Error {
     status: number;
@@ -21,117 +20,192 @@ export class AiPersonalizeError extends Error {
     }
 }
 
-/**
- * 主入口：为学员生成个性化训练计划
- *
- * 两阶段流水线：
- * 1. Stage A: LLM 选择最佳模板（或决定从零生成）
- * 2. Stage B: LLM 基于模板骨架调计划（或从零生成）
- * 3. 后处理: JSON 校验 + 动作库白名单过滤 + 自动计算重量
- */
 export async function generatePersonalizedPlan(
     input: GeneratePersonalizedPlanInput,
 ): Promise<GeneratePersonalizedPlanOutput> {
-    const { actorCoachId, studentId } = input;
+    const { actorUserId, actorCoachId, studentId } = input;
 
-    // ==================== Stage A: 选模板 ====================
     const stageA = await selectTemplateWithLLM(input);
-    console.log("[ai-personalize-plan] Stage A 结果:", stageA);
+    console.log("[ai-personalize-plan] Stage A result:", stageA);
 
-    // 如果选中了模板，查询完整模板数据
     let selectedTemplate: any = null;
     if (stageA.templateId) {
         const { data: tpl } = await supabase
             .from("coach_plan_templates")
             .select("*")
             .eq("id", stageA.templateId)
-            .single();
+            .eq("coach_id", actorUserId)
+            .maybeSingle();
 
         if (tpl) {
-            selectedTemplate = tpl;
+            selectedTemplate = { ...tpl, __source: "template" };
         } else {
-            console.warn(`[ai-personalize-plan] 选中的模板 ${stageA.templateId} 不存在，将从零生成`);
-            stageA.templateId = null;
-            stageA.reasoning += "（选中的模板已不存在，从零生成）";
+            const { data: inst } = await supabase
+                .from("coach_plan_instances")
+                .select("*")
+                .eq("id", stageA.templateId)
+                .eq("coach_id", actorCoachId)
+                .maybeSingle();
+
+            if (inst) {
+                selectedTemplate = { ...inst, __source: "instance" };
+                stageA.source = "instance";
+            } else {
+                stageA.reasoning = `${stageA.reasoning || "LLM 选择了一个骨架"}（候选 ${stageA.templateId} 已不存在或无权访问，改为自主生成）`;
+                stageA.templateId = null;
+                stageA.source = "none";
+                stageA.confidence = Math.min(stageA.confidence || 0.5, 0.5);
+            }
         }
     }
 
-    // ==================== Stage B: 调计划 ====================
+    if (!selectedTemplate && (!input.actionLibrary || input.actionLibrary.length === 0)) {
+        throw new AiPersonalizeError("教练没有可用模板且动作库为空，AI 无法生成计划", 400);
+    }
+
+    if (selectedTemplate && (!input.actionLibrary || input.actionLibrary.length === 0)) {
+        const templateDays = cloneTrainingDays(selectedTemplate.training_days);
+        const aiGenerationLog = {
+            stageA,
+            stageB: {
+                trainingDays: templateDays,
+                reasoning: "教练动作库读取为空，系统保留已选模板骨架，避免模型编造动作或生成空计划。",
+                changesSummary: "保留模板原始训练日",
+            },
+            promptVersion: "v1.3-script",
+            model: "coachlink-llm",
+            timestamp: new Date().toISOString(),
+        };
+
+        const tempTemplate = {
+            ...selectedTemplate,
+            training_days: templateDays,
+        };
+
+        await fillTemplate(input.questionnaireAnswers, tempTemplate, {
+            studentBodyWeight: input.studentBodyWeight,
+            autoComputeActions: [],
+            studentId,
+            coachId: actorUserId,
+        });
+
+        return {
+            trainingDays: tempTemplate.training_days,
+            templateId: stageA.templateId,
+            aiGenerationLog,
+        };
+    }
+
     const stageB = await personalizePlanWithLLM({
         ...input,
         selectedTemplate,
     });
-    console.log("[ai-personalize-plan] Stage B 结果:", stageB.changesSummary);
+    console.log("[ai-personalize-plan] Stage B summary:", stageB.changesSummary);
 
-    // ==================== 后处理：校验 + 白名单过滤 ====================
     const { days: sanitizedDays, warnings } = validateAndSanitizeTrainingDays(
         stageB.trainingDays,
         input.actionLibrary,
     );
 
     if (warnings.length > 0) {
-        console.warn("[ai-personalize-plan] 校验警告:", warnings);
+        console.warn("[ai-personalize-plan] validation warnings:", warnings);
     }
 
-    // ==================== 后处理：自动计算重量 ====================
-    // 复用现有的 fillTemplate 中的 computeActionWeight 逻辑
-    // 这里我们构造一个 mock 的 template 结构，让 fillTemplate 帮我们算重量
+    let effectiveTrainingDays = sanitizedDays;
+    let effectiveStageB = stageB;
+
+    if (!hasAnyTrainingAction(sanitizedDays) && selectedTemplate && hasAnyTrainingAction(selectedTemplate.training_days)) {
+        const templateDays = cloneTrainingDays(selectedTemplate.training_days);
+        effectiveTrainingDays = templateDays;
+        effectiveStageB = {
+            ...stageB,
+            trainingDays: templateDays,
+            reasoning: `${stageB.reasoning || "AI 结果缺少有效动作"}；由于 AI 输出在校验后没有留下有效动作，系统已退回所选模板骨架。`,
+            changesSummary: `${stageB.changesSummary || "AI 输出已校验"}；校验后回退到模板骨架`,
+        };
+    }
+
+    if (!hasAnyTrainingAction(effectiveTrainingDays)) {
+        throw new AiPersonalizeError("AI 生成结果没有有效训练动作，无法创建计划", 400);
+    }
+
+    effectiveTrainingDays = enforcePlanSpan(
+        effectiveTrainingDays,
+        input.subscribedWeeks,
+        Boolean(selectedTemplate),
+    );
+
     const tempTemplate = {
-        ...selectedTemplate,
-        training_days: sanitizedDays,
+        ...(selectedTemplate || {}),
+        training_days: effectiveTrainingDays,
     };
 
-    // 获取支持自动计算的动作列表
     const { data: autoComputeActions } = await supabase
         .from("coach_actions")
         .select("id, name, canonical_action_id, enableAutoWeightCompute, includesBodyWeight")
+        .eq("coach_id", actorUserId)
         .eq("enableAutoWeightCompute", true);
 
     await fillTemplate(input.questionnaireAnswers, tempTemplate, {
         studentBodyWeight: input.studentBodyWeight,
         autoComputeActions: autoComputeActions || [],
         studentId,
-        coachId: actorCoachId,
+        coachId: actorUserId,
     });
 
-    // fillTemplate 会修改 tempTemplate.training_days 中每个动作的 params.load
-    const finalTrainingDays = tempTemplate.training_days;
-
-    // ==================== 组装输出 ====================
     const aiGenerationLog = {
         stageA,
-        stageB,
-        promptVersion: "v1.0",
-        model: "deepseek-chat/deepseek-reasoner",
+        stageB: effectiveStageB,
+        promptVersion: "v1.3-script",
+        model: "coachlink-llm",
         timestamp: new Date().toISOString(),
     };
 
     return {
-        trainingDays: finalTrainingDays,
+        trainingDays: tempTemplate.training_days,
         templateId: stageA.templateId,
         aiGenerationLog,
     };
 }
 
-/**
- * 从 coach_plan_templates 行构建 TemplateSummary（给 LLM 看，节省 token）
- */
+function cloneTrainingDays(trainingDays: any): any[] {
+    if (!Array.isArray(trainingDays)) return [];
+    return JSON.parse(JSON.stringify(trainingDays));
+}
+
+function hasAnyTrainingAction(trainingDays: any): boolean {
+    if (!Array.isArray(trainingDays)) return false;
+
+    return trainingDays.some((day) =>
+        day?.type === "training" &&
+        Array.isArray(day?.actionSets) &&
+        day.actionSets.some((action: any) => typeof action?.actionId === "string" && action.actionId.trim().length > 0)
+    );
+}
+
 export function buildTemplateSummary(tpl: any): TemplateSummary {
     const days = (tpl.training_days as any[]) || [];
+    const focusDomains = inferFocusDomainsFromTemplate(tpl);
+    const metadata = tpl.metadata && typeof tpl.metadata === "object" && !Array.isArray(tpl.metadata)
+        ? { ...tpl.metadata }
+        : {};
+
+    if (focusDomains.length > 0) {
+        metadata.aiFocusDomains = focusDomains;
+    }
+
     return {
         id: tpl.id,
         name: tpl.name,
         description: tpl.description,
         type: tpl.type,
-        metadata: tpl.metadata,
+        source: tpl.__source || tpl.source || "template",
+        metadata,
         weekCount: Math.ceil(days.length / 7),
         dayCount: days.length,
     };
 }
 
-/**
- * 从 PR 记录构建简化版摘要
- */
 export function buildPRRecordSummaries(records: any[]): PRRecordSummary[] {
     return (records || []).map((r) => ({
         actionName: r.actionName || r.name || "未知动作",
@@ -141,14 +215,47 @@ export function buildPRRecordSummaries(records: any[]): PRRecordSummary[] {
     }));
 }
 
-/**
- * 从 coach_actions 构建动作库白名单
- */
 export function buildActionLibrary(actions: any[]): ActionLibraryEntry[] {
     return (actions || []).map((a) => ({
         id: a.id,
         name: a.name || "未命名动作",
+        type: a.type || undefined,
         category: a.category || a.type || undefined,
-        description: a.description || undefined,
+        description: a.description || a.detail || undefined,
     }));
+}
+
+function enforcePlanSpan(
+    trainingDays: any[],
+    subscribedWeeks?: number | null,
+    basedOnExistingSkeleton?: boolean,
+): any[] {
+    const targetWeeks = Number(subscribedWeeks || 0);
+    if (!Number.isFinite(targetWeeks) || targetWeeks <= 0) {
+        return trainingDays;
+    }
+
+    const targetDays = targetWeeks * 7;
+    if (trainingDays.length < targetDays) {
+        throw new AiPersonalizeError(
+            `AI 生成的计划周期过短：当前只有 ${trainingDays.length} 天，但该学员购买了 ${targetWeeks} 周，至少应生成 ${targetDays} 天的完整计划。`,
+            400,
+        );
+    }
+
+    if (trainingDays.length === targetDays) {
+        return trainingDays;
+    }
+
+    const trimmed = trainingDays.slice(0, targetDays).map((day, index) => ({
+        ...day,
+        dayIndex: index + 1,
+    }));
+
+    console.warn(
+        `[ai-personalize-plan] plan span trimmed from ${trainingDays.length} to ${targetDays} days` +
+        (basedOnExistingSkeleton ? " based on existing skeleton" : ""),
+    );
+
+    return trimmed;
 }

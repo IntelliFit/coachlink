@@ -11,6 +11,8 @@ export async function POST(req: Request) {
         content_type,
         required_tier,
         price_cents,
+        column_id,
+        column_sort_order,
         is_featured,
         tags,
         media_urls = [],
@@ -49,6 +51,8 @@ export async function POST(req: Request) {
     if (content_type !== undefined) updateData.content_type = content_type;
     if (required_tier !== undefined) updateData.required_tier = required_tier;
     if (price_cents !== undefined) updateData.price_cents = Math.max(0, Math.floor(Number(price_cents ?? 0)));
+    if (column_id !== undefined) updateData.column_id = column_id || null;
+    if (column_sort_order !== undefined) updateData.column_sort_order = column_sort_order == null ? null : Number(column_sort_order);
     if (is_featured !== undefined) updateData.is_featured = is_featured;
     if (tags !== undefined) updateData.tags = tags;
     if (media_urls !== undefined) updateData.media_urls = media_urls;
@@ -82,6 +86,22 @@ export async function POST(req: Request) {
             success: false,
             message: '无权限更新此内容'
         }, { status: 403 });
+    }
+
+    if (updateData.column_id) {
+        const { data: column, error: columnError } = await supabase
+            .from('coach_content_columns')
+            .select('id')
+            .eq('id', updateData.column_id)
+            .eq('coach_id', coach.id)
+            .single();
+
+        if (columnError || !column) {
+            return NextResponse.json({
+                success: false,
+                message: '所选专栏不存在或无权限'
+            }, { status: 400 });
+        }
     }
 
     // 更新内容记录

@@ -47,6 +47,8 @@ export interface BatchOperationDto {
     conversationHistory?: ConversationTurn[];
     // 仅预览输入：不调用模型，只返回“会喂给 AI 的输入快照”
     previewInputOnly?: boolean;
+    // 修改引擎：默认旧的 code；plan_script 会优先用紧凑计划脚本作为 AI 底层编辑格式
+    editEngine?: 'code' | 'plan_script' | 'auto';
 }
 
 // 修改差异信息

@@ -25,12 +25,12 @@ import { coachService } from '@/app/service/coachService';
 import SelectTemplateDialog from './components/SelectTemplateDialog';
 import { GetTemplateResponseDto } from '@/app/api/plan-lib/get-template/entity';
 import { StudentProfilePanel } from './components/StudentProfilePanel';
-import { AiGenerationLogCard } from './components/AiGenerationLogCard';
 import { FormPlanTrainingDay } from '@/app/api/plan-lib/create-template/entity';
 import { PlanStartConfigDialog, PlanStartConfig } from './components/PlanStartConfigDialog';
 import { GetStudentResponseDto } from '@/app/api/coach/get-student/entity';
 import { subscriptionService } from '@/app/service/subscriptionService';
 import StudentPlanExecutionView from './components/StudentPlanExecutionView';
+import { AiGenerationLogCard } from './components/AiGenerationLogCard';
 import BatchActionsDialog, { BatchOperation } from '@/app/dashboard/plan-lib/components/BatchActionsDialog';
 import CoachOneRMConfigPanel from './components/CoachOneRMConfigPanel';
 import {
@@ -58,6 +58,7 @@ const StudentPlanPage = () => {
     // Plan instance basic info
     const [name, setName] = useState('');
     const [description, setDescription] = useState('');
+    const [executionNotice, setExecutionNotice] = useState('');
     const [tags, setTags] = useState<string[]>([]);
     const [type, setType] = useState<string | null>(null);
     const [suitableFor, setSuitableFor] = useState<'beginner' | 'intermediate' | 'advanced'>('beginner');
@@ -182,6 +183,7 @@ const StudentPlanPage = () => {
                         setInstanceId(instance.id);
                         setName(instance.name);
                         setDescription(instance.description || '');
+                        setExecutionNotice((instance as any).execution_notice || '');
 
                         const convertedDays = (instance.training_days || []).map((day: any) => ({
                             id: day.id,
@@ -199,6 +201,7 @@ const StudentPlanPage = () => {
                         setInstanceExists(false);
                         // 当前计划已完成：清空编辑区（避免显示旧内容）
                         setInstanceId(null);
+                        setExecutionNotice('');
                         setDays([]);
                         setSelectedDayIndex(null);
                     }
@@ -551,7 +554,7 @@ const StudentPlanPage = () => {
             setHasUnsavedChanges(true);
             setAutoSaveStatus('pending');
         }
-    }, [days, instanceExists, instanceId]);
+    }, [name, description, executionNotice, tags, type, suitableFor, days, instanceExists, instanceId]);
     
     // 初始加载完成后设置标记
     useEffect(() => {
@@ -590,6 +593,7 @@ const StudentPlanPage = () => {
                 id: instanceId,
                 name,
                 description: description || null,
+                executionNotice: executionNotice || null,
                 tags: tags || null,
                 type: type || null,
                 suitableFor: suitableFor || null,
@@ -613,7 +617,7 @@ const StudentPlanPage = () => {
             console.error('自动保存失败:', error);
             setAutoSaveStatus('error');
         }
-    }, [coach?.id, params.id, instanceExists, instanceId, name, description, tags, type, suitableFor, days]);
+    }, [coach?.id, params.id, instanceExists, instanceId, name, description, executionNotice, tags, type, suitableFor, days, importStartConfig]);
 
     // 防抖自动保存 - 2秒后自动保存
     useEffect(() => {
@@ -713,6 +717,7 @@ const StudentPlanPage = () => {
                 id: instanceId, // Use the actual instance ID, not subscription ID
                 name,
                 description: description || null,
+                executionNotice: executionNotice || null,
                 tags: tags || null,
                 type: type || null,
                 suitableFor: suitableFor || null,
@@ -734,6 +739,7 @@ const StudentPlanPage = () => {
                 subscriptionId: params.id.toString(),
                 name,
                 description: description || null,
+                executionNotice: executionNotice || null,
                 tags: tags || null,
                 type: type || null,
                 suitableFor: suitableFor || null,
@@ -796,6 +802,7 @@ const StudentPlanPage = () => {
                     setCurrentPlanCompleted(false);
                     setName('');
                     setDescription('');
+                    setExecutionNotice('');
                     setTags([]);
                     setDays([]);
                     setSelectedDayIndex(null);
@@ -863,6 +870,7 @@ const StudentPlanPage = () => {
         const studentName = studentNameRaw || "学员";
         setName(`${studentName}的计划`);
         setDescription(templateData.template.description || '');
+        setExecutionNotice((templateData.template as any).execution_notice || '');
         setTags(templateData.template.tags || []);
         setType(templateData.template.type);
         setSuitableFor(templateData.template.suitable_for as 'beginner' | 'intermediate' | 'advanced');
@@ -1321,9 +1329,9 @@ const StudentPlanPage = () => {
                         onAiSuggest={handleAiSuggestFromFeedbacks}
                     />
 
-                    {rawInstance?.ai_generation_log && (
+                    {(rawInstance as any)?.ai_generation_log && (
                         <AiGenerationLogCard
-                            aiGenerationLog={rawInstance.ai_generation_log}
+                            aiGenerationLog={(rawInstance as any).ai_generation_log}
                         />
                     )}
                 </div>
@@ -1400,10 +1408,12 @@ const StudentPlanPage = () => {
                     variant="student"
                     name={name}
                     description={description}
+                    executionNotice={executionNotice}
                     tags={tags}
                     suitableFor={suitableFor}
                     onNameChange={setName}
                     onDescriptionChange={setDescription}
+                    onExecutionNoticeChange={setExecutionNotice}
                     onTagsChange={setTags}
                     onSuitableForChange={setSuitableFor}
                     saving={saving}
@@ -1653,6 +1663,7 @@ const StudentPlanPage = () => {
                     }}
                     mode="local"
                     targetActionType="coach"
+                    editEngine="plan_script"
                     initialTrainingDays={days}
                     existingActions={actions}
                     onApplyLocal={handleAiApplyLocal}

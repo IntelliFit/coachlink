@@ -5,6 +5,11 @@ import { Button } from 'primereact/button';
 import { Dialog } from 'primereact/dialog';
 import { useRouter } from 'next/navigation';
 import { CheckCircle, Info, Play, RotateCcw, Video } from 'lucide-react';
+import ExecutionPlanNoticeDialog from '@/components/plan/ExecutionPlanNoticeDialog';
+import {
+    hasReadExecutionPlanNotice,
+    markExecutionPlanNoticeRead,
+} from '@/lib/executionPlanNotice';
 import {
     buildDayModuleModel,
     buildLightweightSummary,
@@ -31,6 +36,9 @@ interface TodayTrainingCardProps {
     onOpenLightweightTask?: (task: NormalizedDayTask) => void;
     onAddLightweightTask?: () => void;
     onDeleteLightweightTask?: (task: NormalizedDayTask) => void;
+    userId?: string | null;
+    executionNotice?: string | null;
+    planName?: string | null;
 }
 
 const TodayTrainingCard: React.FC<TodayTrainingCardProps> = ({
@@ -47,11 +55,16 @@ const TodayTrainingCard: React.FC<TodayTrainingCardProps> = ({
     onOpenLightweightTask,
     onAddLightweightTask,
     onDeleteLightweightTask,
+    userId,
+    executionNotice,
+    planName,
 }) => {
     const router = useRouter();
     const [showAllTasks, setShowAllTasks] = useState(false);
     const [showAllStrengthTasks, setShowAllStrengthTasks] = useState(false);
     const [infoDialog, setInfoDialog] = useState<{ title: string; detail: string } | null>(null);
+    const [noticeVisible, setNoticeVisible] = useState(false);
+    const [pendingExecutionUrl, setPendingExecutionUrl] = useState<string | null>(null);
     const moduleModel = useMemo(() => buildDayModuleModel({
         day,
         actions,
@@ -101,9 +114,23 @@ const TodayTrainingCard: React.FC<TodayTrainingCardProps> = ({
         lightweightTasks.length - previewGroups.reduce((sum, group) => sum + group.items.length, 0),
     );
 
-    const openExecution = (focusAction?: number) => {
+    const openExecution = (focusAction?: number, requiresNotice = true) => {
         const focusQuery = typeof focusAction === 'number' ? `&focusAction=${focusAction}` : '';
-        router.push(`/training-execution/${instanceId}?dayIndex=${dayIndex}${focusQuery}`);
+        const nextUrl = `/training-execution/${instanceId}?dayIndex=${dayIndex}${focusQuery}`;
+
+        if (requiresNotice && !hasReadExecutionPlanNotice({ instanceId, userId })) {
+            setPendingExecutionUrl(nextUrl);
+            setNoticeVisible(true);
+            return;
+        }
+
+        router.push(nextUrl);
+    };
+
+    const confirmExecutionNotice = () => {
+        markExecutionPlanNoticeRead({ instanceId, userId });
+        setNoticeVisible(false);
+        router.push(pendingExecutionUrl || `/training-execution/${instanceId}?dayIndex=${dayIndex}`);
     };
 
     const headerSubtitle = subheading || `第${dayIndex}天 · ${moduleCount} 个任务模块`;
@@ -283,7 +310,7 @@ const TodayTrainingCard: React.FC<TodayTrainingCardProps> = ({
                                 <Button
                                     label="查看训练记录"
                                     icon={<CheckCircle className="w-5 h-5" />}
-                                    onClick={() => openExecution()}
+                                    onClick={() => openExecution(undefined, false)}
                                     className="w-full sm:w-auto"
                                     severity="secondary"
                                     outlined
@@ -468,6 +495,14 @@ const TodayTrainingCard: React.FC<TodayTrainingCardProps> = ({
                     {infoDialog?.detail || ''}
                 </div>
             </Dialog>
+
+            <ExecutionPlanNoticeDialog
+                visible={noticeVisible}
+                executionNotice={executionNotice}
+                planName={planName}
+                onConfirm={confirmExecutionNotice}
+                confirmLabel="我已阅读，进入训练"
+            />
         </div>
     );
 };

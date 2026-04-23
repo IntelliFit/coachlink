@@ -15,9 +15,10 @@ import { subscriptionService } from '@/app/service/subscriptionService';
 import { coachService } from '@/app/service/coachService';
 import { useToastContext } from '@/context/ToastContext';
 import { useAnalytics } from '@/hooks/useAnalytics';
-import type { CoachSubscriptionRow, CoachesRow } from '@/types';
+import type { CoachesRow } from '@/types';
 import type { GetUserProfileResponseDto } from '@/app/api/user/get-profile/entity';
 import { formatYuanFromFen, yuanToFen } from '@/lib/moneyUtils';
+import type { CoachPaymentRecordRow } from '@/types/subscriptionOrders';
 
 // 线下支付数据结构
 interface OfflinePaymentData {
@@ -31,14 +32,14 @@ interface OfflinePaymentData {
 
 interface PaymentConfirmationDialogProps {
     visible: boolean;
-    manualSubscriptions: CoachSubscriptionRow[];
-    systemSubscriptions: CoachSubscriptionRow[];
+    manualSubscriptions: CoachPaymentRecordRow[];
+    systemSubscriptions: CoachPaymentRecordRow[];
     coach: CoachesRow | null;
     onHide: () => void;
     onConfirm: () => void;
 }
 
-interface SubscriptionWithStudentProfile extends CoachSubscriptionRow {
+interface SubscriptionWithStudentProfile extends CoachPaymentRecordRow {
     studentProfile?: GetUserProfileResponseDto['profile'] | null;
     loadingProfile?: boolean;
     __kind?: 'manual' | 'system';
@@ -191,7 +192,7 @@ export const PaymentConfirmationDialog: React.FC<PaymentConfirmationDialogProps>
         loadHistory();
     }, [activeTab, visible, historyLoadedOnce]);
 
-    const buildUpdateDataForConfirm = (subscription: CoachSubscriptionRow) => {
+    const buildUpdateDataForConfirm = (subscription: CoachPaymentRecordRow) => {
         const paymentData = (subscription as any).payment_data as any;
         const offlinePayment: OfflinePaymentData | undefined = paymentData?.offline_payment || undefined;
         const pendingRenew = paymentData?.pending_renew as
@@ -237,15 +238,17 @@ export const PaymentConfirmationDialog: React.FC<PaymentConfirmationDialogProps>
         return updateData;
     };
 
-    const confirmSubscriptions = async (targets: CoachSubscriptionRow[], options?: { closeOnSuccess?: boolean }) => {
+    const confirmSubscriptions = async (targets: CoachPaymentRecordRow[], options?: { closeOnSuccess?: boolean }) => {
         const closeOnSuccess = options?.closeOnSuccess ?? false;
         setLoading(true);
         try {
-            const updatePromises = (targets || []).map((subscription) =>
-                subscriptionService.updateSubscription(
-                    buildUpdateDataForConfirm(subscription) as Parameters<typeof subscriptionService.updateSubscription>[0],
-                ),
-            );
+            const updatePromises = (targets || []).map((subscription) => (
+                subscription.record_kind === 'subscription_order'
+                    ? subscriptionService.confirmSubscriptionOrder({ orderId: subscription.id })
+                    : subscriptionService.updateSubscription(
+                        buildUpdateDataForConfirm(subscription) as Parameters<typeof subscriptionService.updateSubscription>[0],
+                    )
+            ));
 
             await Promise.all(updatePromises);
             trackEvent('coach_manual_payment', 'business', {
@@ -282,17 +285,21 @@ export const PaymentConfirmationDialog: React.FC<PaymentConfirmationDialogProps>
 
     const handleConfirm = async () => {
         // 批量更新订阅状态，并为线下支付/续费请求处理 end_date
-        const selectedSubscriptions = (selectedManualRows || []).map(s => s as CoachSubscriptionRow);
+        const selectedSubscriptions = (selectedManualRows || []).map(s => s as CoachPaymentRecordRow);
 
         if (selectedSubscriptions.length === 0) return;
         await confirmSubscriptions(selectedSubscriptions, { closeOnSuccess: true });
     };
 
-    const handleDismiss = async (subscriptionId: string) => {
+    const handleDismiss = async (subscription: CoachPaymentRecordRow) => {
         setLoading(true);
         try {
             const nowIso = new Date().toISOString();
-            await subscriptionService.updateSubscription({ id: subscriptionId, coach_seen_at: nowIso } as any);
+            if (subscription.record_kind === 'subscription_order') {
+                await subscriptionService.updateSubscriptionOrder({ id: subscription.id, coachSeenAt: nowIso });
+            } else {
+                await subscriptionService.updateSubscription({ id: subscription.id, coach_seen_at: nowIso } as any);
+            }
             showToast({ severity: 'success', summary: '已忽略', detail: '该通知已隐藏' });
             onConfirm(); // refresh list
         } catch (e) {
@@ -442,12 +449,22 @@ export const PaymentConfirmationDialog: React.FC<PaymentConfirmationDialogProps>
 
         return (
             <div className="text-right">
-                <div>¥{formatYuanFromFen(subscription.monthly_price)}</div>
+                <div className="font-medium">¥{formatYuanFromFen(subscription.monthly_price)}</div>
+                <div className="text-xs text-surface-500">方案金额</div>
                 {subscription.order_id && (
                     <div className="text-xs text-surface-500">订单: {subscription.order_id.substring(0, 8)}...</div>
                 )}
             </div>
         );
+    };
+
+    const purchasedWeeksTemplate = (subscription: SubscriptionWithStudentProfile) => {
+        const weeks = Number((subscription as any).subscribed_weeks || 0);
+        if (!Number.isFinite(weeks) || weeks <= 0) {
+            return <span className="text-surface-400">-</span>;
+        }
+
+        return <Tag value={`${weeks}周`} severity="info" rounded />;
     };
 
     const noteTemplate = (subscription: SubscriptionWithStudentProfile) => {
@@ -504,7 +521,7 @@ export const PaymentConfirmationDialog: React.FC<PaymentConfirmationDialogProps>
                 label="忽略"
                 size="small"
                 outlined
-                onClick={() => handleDismiss(rowData.id)}
+                onClick={() => handleDismiss(rowData)}
                 disabled={loading}
             />
         );
@@ -573,7 +590,7 @@ export const PaymentConfirmationDialog: React.FC<PaymentConfirmationDialogProps>
                                             dataKey="id"
                                             scrollable
                                             scrollHeight="380px"
-                                            tableStyle={{ minWidth: '1080px' }}
+                                            tableStyle={{ minWidth: '1180px' }}
                                             selection={selectedManualRows}
                                             onSelectionChange={(e) => setSelectedManualRows((e.value || []) as SubscriptionWithStudentProfile[])}
                                             selectionMode="checkbox"
@@ -582,7 +599,8 @@ export const PaymentConfirmationDialog: React.FC<PaymentConfirmationDialogProps>
                                             <Column field="student" header="学员" body={studentTemplate}></Column>
                                             <Column field="payment_type" header="支付方式" body={paymentTypeTemplate} style={{ width: '110px' }}></Column>
                                             <Column field="offline_details" header="线下支付详情" body={offlineDetailsTemplate} style={{ width: '180px' }}></Column>
-                                            <Column field="monthly_price" header="月费" body={priceTemplate} align="right" style={{ width: '100px' }}></Column>
+                                            <Column field="subscribed_weeks" header="购买周期" body={purchasedWeeksTemplate} style={{ width: '100px' }} />
+                                            <Column field="monthly_price" header="支付金额" body={priceTemplate} align="right" style={{ width: '110px' }}></Column>
                                             <Column
                                                 field="remind_coach_note"
                                                 header="备注"
@@ -657,13 +675,14 @@ export const PaymentConfirmationDialog: React.FC<PaymentConfirmationDialogProps>
                                 dataKey="id"
                                 scrollable
                                 scrollHeight="460px"
-                                tableStyle={{ minWidth: '1020px' }}
+                                tableStyle={{ minWidth: '1120px' }}
                             >
                                 <Column field="student" header="学员" body={studentTemplate}></Column>
                                 <Column field="confirm_source" header="确认来源" body={confirmSourceTemplate} style={{ width: '110px' }} />
                                 <Column field="payment_type" header="支付方式" body={paymentTypeTemplate} style={{ width: '110px' }}></Column>
                                 <Column field="offline_details" header="线下支付详情" body={offlineDetailsTemplate} style={{ width: '180px' }}></Column>
-                                <Column field="monthly_price" header="月费" body={priceTemplate} align="right" style={{ width: '100px' }}></Column>
+                                <Column field="subscribed_weeks" header="购买周期" body={purchasedWeeksTemplate} style={{ width: '100px' }} />
+                                <Column field="monthly_price" header="支付金额" body={priceTemplate} align="right" style={{ width: '110px' }}></Column>
                                 <Column
                                     field="payment_confirmed_at"
                                     header="确认时间"

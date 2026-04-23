@@ -22,6 +22,11 @@ import ShareCardGenerator from '@/components/share/ShareCardGenerator';
 import { AeroInputNumber } from '@/components/AeroInputNumber';
 import { useAnalytics } from '@/hooks/useAnalytics';
 import ActionPicker from '@/app/today-training/ActionPicker';
+import ExecutionPlanNoticeDialog from '@/components/plan/ExecutionPlanNoticeDialog';
+import {
+    hasReadExecutionPlanNotice,
+    markExecutionPlanNoticeRead,
+} from '@/lib/executionPlanNotice';
 import { isOneRMEligibleAction } from '@/lib/oneRmEligibility';
 import { normalizePlannedRestSeconds } from '@/lib/restTime';
 
@@ -129,6 +134,7 @@ function TrainingExecutionContent() {
     const calibrationToastShownRef = useRef(false);
     const underPlanToastShownRef = useRef(false);
     const focusHandledRef = useRef(false);
+    const startTrainingRequestedRef = useRef(false);
 
     const instanceId = params.instanceId as string;
     const dayIndex = parseInt(searchParams.get('dayIndex') || '1');
@@ -271,11 +277,48 @@ function TrainingExecutionContent() {
     const [removingSet, setRemovingSet] = useState(false);
     const [removingAction, setRemovingAction] = useState(false);
     const [showActionPicker, setShowActionPicker] = useState(false);
+    const [executionNoticeVisible, setExecutionNoticeVisible] = useState(false);
+    const [executionNoticeStarting, setExecutionNoticeStarting] = useState(false);
+    const [noticeReviewVisible, setNoticeReviewVisible] = useState(false);
 
     useEffect(() => {
-        if (session?.user?.id && instanceId) {
-            startTraining();
-        }
+        if (!session?.user?.id || !instanceId || startTrainingRequestedRef.current) return;
+
+        let cancelled = false;
+
+        const prepareExecution = async () => {
+            if (!isImpromptuMode && !hasReadExecutionPlanNotice({
+                instanceId,
+                userId: session.user.id,
+            })) {
+                try {
+                    const instanceRes = await planLibService.getInstance({ id: instanceId });
+                    if (cancelled) return;
+                    if (instanceRes?.instance) {
+                        setPlanInstance(instanceRes.instance);
+                    }
+                    if (instanceRes?.actions) {
+                        setActions(instanceRes.actions);
+                    }
+                } catch (error) {
+                    console.warn('[training-execution] Failed to preload execution notice context:', error);
+                }
+
+                if (cancelled) return;
+                setLoading(false);
+                setExecutionNoticeVisible(true);
+                return;
+            }
+
+            startTrainingRequestedRef.current = true;
+            await startTraining();
+        };
+
+        void prepareExecution();
+
+        return () => {
+            cancelled = true;
+        };
     }, [session?.user?.id, instanceId, impromptuId]);
 
     useEffect(() => {
@@ -739,6 +782,22 @@ function TrainingExecutionContent() {
             });
         } finally {
             setLoading(false);
+        }
+    };
+
+    const confirmExecutionNoticeAndStart = async () => {
+        markExecutionPlanNoticeRead({
+            instanceId,
+            userId: session?.user?.id,
+        });
+        setExecutionNoticeVisible(false);
+        setExecutionNoticeStarting(true);
+        startTrainingRequestedRef.current = true;
+
+        try {
+            await startTraining();
+        } finally {
+            setExecutionNoticeStarting(false);
         }
     };
 
@@ -1712,6 +1771,40 @@ function TrainingExecutionContent() {
         );
     }
 
+    if (executionNoticeVisible && !execution) {
+        return (
+            <div className="min-h-screen bg-surface-50 px-4 py-8">
+                <div className="mx-auto flex min-h-[70vh] max-w-xl flex-col items-center justify-center text-center">
+                    <div className="rounded-3xl border border-surface-200 bg-surface px-6 py-8 shadow-sm">
+                        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary-50 text-primary-700">
+                            <i className="pi pi-book text-xl" />
+                        </div>
+                        <h2 className="text-xl font-bold text-surface-900">开始训练前先确认教练须知</h2>
+                        <p className="mt-2 text-sm leading-relaxed text-surface-600">
+                            确认阅读后才会创建或恢复本次训练记录，避免还没看完教练要求就进入正式执行。
+                        </p>
+                        <Button
+                            label="返回今日安排"
+                            icon="pi pi-arrow-left"
+                            severity="secondary"
+                            outlined
+                            className="mt-5"
+                            onClick={() => router.push('/today-training')}
+                        />
+                    </div>
+                </div>
+                <ExecutionPlanNoticeDialog
+                    visible={executionNoticeVisible}
+                    executionNotice={(planInstance as any)?.execution_notice || null}
+                    planName={planInstance?.name || null}
+                    onConfirm={confirmExecutionNoticeAndStart}
+                    confirmLabel="我已阅读，开始训练"
+                    confirmLoading={executionNoticeStarting}
+                />
+            </div>
+        );
+    }
+
     if (!execution) {
         return (
             <div className="min-h-screen flex items-center justify-center">
@@ -1802,6 +1895,16 @@ function TrainingExecutionContent() {
                     </p>
                 </div>
             </Dialog>
+
+            <ExecutionPlanNoticeDialog
+                visible={noticeReviewVisible}
+                mode="read"
+                executionNotice={(planInstance as any)?.execution_notice || null}
+                planName={planInstance?.name || null}
+                onHide={() => setNoticeReviewVisible(false)}
+                onConfirm={() => setNoticeReviewVisible(false)}
+            />
+
             {/* Header */}
             <div className="bg-gradient-to-r from-purple-600 to-blue-600 p-4 sticky top-0 z-10">
                 <div className="flex items-center justify-between mb-3">
@@ -1827,14 +1930,22 @@ function TrainingExecutionContent() {
                                 这里专门处理力量动作的连续训练与逐组记录。饮食、有氧和习惯任务请回到“今日安排”分别完成。
                             </div>
                         </div>
-                        <Button
-                            label="返回今日安排"
-                            icon="pi pi-home"
-                            severity="secondary"
-                            outlined
-                            className="shrink-0"
-                            onClick={() => router.push('/today-training')}
-                        />
+                        <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
+                            <Button
+                                label="执行须知"
+                                icon="pi pi-info-circle"
+                                severity="secondary"
+                                outlined
+                                onClick={() => setNoticeReviewVisible(true)}
+                            />
+                            <Button
+                                label="返回今日安排"
+                                icon="pi pi-home"
+                                severity="secondary"
+                                outlined
+                                onClick={() => router.push('/today-training')}
+                            />
+                        </div>
                     </div>
                 </div>
             )}

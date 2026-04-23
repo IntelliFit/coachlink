@@ -40,6 +40,7 @@ export interface CoachPlanTrainingImplementationDay {
 export interface AddTemplateDto {
     name: string;
     description?: string | null;
+    executionNotice?: string | null;
     tags: string[];
     suitableFor: string;
     trainingDays: CoachPlanTrainingDay[];

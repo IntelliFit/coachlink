@@ -11,6 +11,7 @@ export async function POST(req: Request) {
         id,
         name,
         description,
+        executionNotice,
         coachId,
         studentId,
         templateId,
@@ -119,6 +120,7 @@ export async function POST(req: Request) {
         .update({
             ...(name !== undefined && { name }),
             ...(description !== undefined && { description }),
+            ...(executionNotice !== undefined && { execution_notice: executionNotice?.trim() || null }),
             ...(coachId !== undefined && { coach_id: coachId }),
             ...(studentId !== undefined && { student_id: studentId }),
             ...(templateId !== undefined &&

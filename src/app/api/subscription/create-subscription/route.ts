@@ -81,8 +81,37 @@ export async function POST(req: Request) {
     }
 
     if (subscriptionQuery) {
+        const { data: existingSubscription, error: existingSubscriptionError } =
+            await supabase
+                .from("coach_subscriptions")
+                .select("*")
+                .eq("id", subscriptionQuery.id)
+                .single();
+
+        if (existingSubscriptionError || !existingSubscription) {
+            return NextResponse.json({
+                success: false,
+                message: existingSubscriptionError?.message || "订阅记录读取失败",
+                data: null,
+            }, { status: 500 });
+        }
+
+        // 已生效订阅不在这里重写价格/周期；续费走专门的续费与支付确认链路。
+        if (existingSubscription.status === "active") {
+            return NextResponse.json({
+                success: true,
+                message: "训练计划已经创建",
+                data: {
+                    subscription: existingSubscription,
+                },
+            });
+        }
+
         // 更新现有订阅的数据
         const updateData: Record<string, unknown> = {
+            tier,
+            monthly_price: yuanToFen(monthlyPrice),
+            status,
             subscribe_data: subscribeData as unknown as Json,
         };
 
@@ -90,6 +119,7 @@ export async function POST(req: Request) {
         if (productId) updateData.product_id = productId;
         if (productName) updateData.product_name = productName;
         if (productTier) updateData.product_tier = productTier;
+        if (orderId) updateData.order_id = orderId;
         // NOTE: do NOT recompute end_date here. Duration changes/renewals should be handled by
         // payment callbacks or dedicated renewal/admin flows to avoid "reset from now" bugs.
         if (subscribedWeeks) updateData.subscribed_weeks = subscribedWeeks;
@@ -106,7 +136,7 @@ export async function POST(req: Request) {
             success: true,
             message: "训练计划已经创建",
             data: {
-                subscription: subscriptionQuery,
+                subscription: subscriptionEdit || subscriptionQuery,
             },
         });
     }

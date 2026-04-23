@@ -1,139 +1,861 @@
 # CURRENT_TASK
 
-- Latest (`2026-04-23`): 按用户要求根据项目 skills 启动开发环境
-- Task: 启动 `coachlink` Web 前后端开发服务、小程序 `dev:weapp` 监听，以及微信开发者工具自动化会话
+- Task: 将《力量训练原理》整理为可上传的非侵权书籍笔记并接入知识库书籍页
 - Scope:
-  - 根目录使用 `npm run dev` 启动 Next.js 全栈开发服务（覆盖 Web 前端与 API 后端）
-  - `wechat_app/` 使用 `npm run dev:weapp` 启动小程序本地构建监听
-  - 按 `weapp-devtools` 规约将微信开发者工具自动化挂到固定端口 `9420`
-- Status: started on `2026-04-23`
+  - 用户要求先从 `D:\WPSDrive\632379361\WPS云盘\创业-部分资料版\健身书籍pdf的文字版本\力量训练原理.docx` 开始
+  - 内容必须是“笔记 / 解读”形态，不能做原书全文搬运或章节替代
+  - 笔记需要成体系、深入浅出、通俗好读，并预留可直接给 AI 画图的提示词
+  - 用户进一步明确：`1 本书 = 1 篇长文` 太粗糙，应改为 `1 本书 = 1 个专题 + 多篇文章`
+  - 目标不只是生成文案，还要让知识库 `书籍笔记` 页面能把结构化内容正常展示出来，并能从同一本书的总览跳到各分篇
+- Status: implemented on `2026-04-24`
+- Fix:
+  - `src/content/knowledgeBooks/strengthTrainingPrinciplesNote.ts`
+    - 从单篇长文升级为《力量训练原理》专题清单
+    - 当前拆分为 `1` 篇总览 + `7` 篇原理分篇
+    - 每篇都保留非侵权的 interpretive reading note 定位
+    - 总览保留整本书框架；分篇按“专项性 / 超负荷 / 疲劳管理 / SRA / 变式 / 阶段增益 / 个体差异”逐篇展开
+    - 每篇都单独配 `1` 条对应配图提示词
+  - `scripts/import-knowledge-book-notes.ts`
+    - 新增可复用的书籍笔记导入脚本
+    - 支持 dry run / `--apply`
+    - 自动读取 `.env.local` / `.env.development` / `.env`
+    - 现已支持按 `collectionSlug` 批量导入同一本书的多篇文章
+    - 通过标题对 `knowledge_books` 做 insert / update
+  - `src/app/dashboard/knowledge/books/[id]/page.tsx`
+    - 修复书籍详情页原先把结构化 `content` 渲染成 JSON 字符串的问题
+    - 新增结构化内容归一化：支持 Markdown / HTML / fallback JSON
+    - 新增“解读型笔记”说明卡
+    - 新增“配图提示词”卡片区
+    - 新增“同书专题”卡片区，可从总览页跳到其它分篇
+- Data sync:
+  - 已执行 `npx tsx scripts/import-knowledge-book-notes.ts strength-training-principles --apply`
+  - 当前专题共 `8` 篇记录已写入 / 更新到 `knowledge_books`
+  - 总览 ID：`52f3a7b7-e13c-4676-9bf6-5cd22f84beb3`
+  - 分篇 ID：
+    - 专题01 专项性：`ba7e9765-aa2b-4b7c-a5f9-870837585794`
+    - 专题02 超负荷：`71502d2f-06e7-4cae-a75c-951026820e6d`
+    - 专题03 疲劳管理：`5060297e-2840-4e34-9cf7-4b1dd97277ec`
+    - 专题04 SRA：`d9f0fd46-371b-4c3d-89de-5900a97e5148`
+    - 专题05 变式：`892d10d9-f661-4800-81eb-9beb8b706879`
+    - 专题06 阶段增益：`9aed3b20-1681-451d-aa51-0abceda10b4f`
+    - 专题07 个体差异：`dcf05903-2afd-4d30-82e0-0fcefc4c7822`
+  - 当前默认发布状态：`is_published=true`
+  - 当前默认访问权限：`is_free=true`
 - Verification:
-  - 根目录 `npm run dev` 已启动，Next.js 16 开发服务监听 `http://localhost:3000`
-  - `curl -I http://127.0.0.1:3000` 返回 `307 Temporary Redirect` 到 `/coach/discovery`，说明 Web 服务可响应
-  - `wechat_app npm run dev:weapp` 已启动并完成首轮 watch 构建，输出目录为 `wechat_app/dist`
-  - 微信开发者工具已按小程序项目拉起；本机监听端口确认包含 `9420`
-  - `mrc where --port 9420` / `mrc errors 10 --port 9420` 可连接，错误日志为 0 条
+  - `npm run lint`：通过当前提示脚本
+  - `npm test`：通过（21 files, 104 tests）
+  - `npm run typecheck`：仓库仍有大量历史类型错误；本次新增文件相关报错已定向清掉
+  - `npx next build`：被当前运行中的 `next dev` 占用 `.next/lock` 阻塞，未拿到最终构建结果
+  - 浏览器验证：通过
+    - 使用 Playwright 脚本登录本地 dev 站点后，打开书籍列表与详情页
+    - 确认列表页已从单篇变为同书多篇卡片，可见总览与专题分篇
+    - 确认总览详情页可见“同书专题”区域，并能看到专题01与专题07等分篇入口
+    - 截图：`test-results/knowledge-books-series-list.png`、`test-results/knowledge-book-series-detail.png`
+- Next step:
+  - 下一本书可直接按同一模式拆成 `1 篇总览 + 多篇章节 / 主题分篇`
+  - 若后续要改成付费内容，可直接把该记录的 `is_free` 切成 `false`
 
-- Latest (`2026-04-20` 续): 小程序「我的」— 深色模式变量挂到 `.app-root.theme-*`；`me/profile/detail` 修复 `useEffect` 依赖（避免 `user` 引用死循环）；主题切换按钮改为 Lucide 图标（含「跟随系统」）；档案页与知识库等去冗余标题/emoji、统一训练页渐变底；`npm run build:weapp` 通过（本机未重跑开发者工具截图）。
+---
 
-- Task: 调整街健计算结果页层级与视觉，并在每次修改后确认前后端/小程序开发环境已生效
-- Latest (`2026-04-20`): 力量分享卡片 **首点不出图 / 再点无效** — `draw` 必须 `return drawStrengthPoster(...)`；`useSharePoster` 用 `inFlightRef` + `query.in(page)` + 超时兜底；文档 Bug #23 + 检查清单；`build:weapp` 通过
-- Previous latest: 力量分享海报 **修复整卡空白**（Canvas 主内容改同步绘制、`preload` 前置、`setTransform`；Logo 异步仅最后叠加；Modal 画布高 1120）；文档 Bug #22 + 检查清单；`build:weapp` 通过
-- Previous: 力量分享海报改为纯白底 + 光运球；四指标药丸大字；头像网络图 `downloadFile`；Logo 静态 copy + 多路径兜底；文档已补小程序 Canvas 检查项与 Bug #21
+- Task: 修复教练枭马葛为学员测试账号0628生成计划时报“没有匹配的训练计划”
 - Scope:
-  - 页面位于 `wechat_app/src/streetlifting/index/calculator/result/`
-  - 需要去掉与页面主体重复的顶部“计算结果/返回”区域
-  - 需要强化“估算负重 1RM / 力量分”两个指标卡的左侧图标表现
-  - 需要在保持现有品牌色和小程序风格下，提升结果主卡（如“菜就多练”）的设计感
-  - 用户明确要求：每次修改完成后，都要先检查当前前后端是否打开，以及小程序开发环境是否已连接到正确实例，再反馈修改结果
-- Status: in progress on `2026-04-19`
-- Verification baseline:
-  - 当前监听端口：
-    - `3000`：`next-server (v16.0.1)`，为当前仓库 Web 主站开发服务
-    - `9420`：微信开发者工具当前已监听
-    - `8080`：`/Users/kirigaya/project/dust/dust-fe`，不是本项目，不能作为 `coachlink` 验证依据
-- This round:
-  - `wechat_app/src/streetlifting/index/calculator/result/index.tsx`
-    - 删除结果页内重复的自定义“计算结果”导航条
-    - 将“生成分享卡片 / 再算一次”移动到结果内容顶部
-  - `wechat_app/src/streetlifting/index/calculator/result/index.scss`
-    - 删除自定义导航条对应样式
-    - 新增顶部双按钮布局 `result-actions-top`
-    - 顶部按钮继续使用纯色/描边按钮，符合项目按钮规范
-- Share poster round:
-  - `wechat_app/src/streetlifting/index/calculator/poster.ts`
-    - 重做力量分享海报为暖白纯色背景，不再使用渐变背景
-    - 新增左上/右下品牌光晕球，并用半透明白色面板压住，形成高级感背景
-    - 强化主结果区：更突出称号、分数、动作类型与可炫耀指标
-    - 底部改为左下用户昵称 + `CoachLink 启能教链` 品牌文案，右下真实二维码
-    - 海报中加入品牌 Logo 资源 `wechat_app/src/assets/brand/coachlink-logo.jpg`
-    - 当前二维码链接采用推断值 `https://coachlink.fit/?from=streetlifting_share`
-  - `wechat_app/src/streetlifting/index/calculator/result/index.tsx`
-    - 海报生成时从本地 `user` 缓存补入昵称，用于分享卡片左下角展示
-  - `wechat_app/src/components/SharePosterModal/index.tsx`
-    - “保存图片”按钮图标从 `icon-send` 改为 `icon-download`
-  - `wechat_app/src/components/SharePosterModal/index.scss`
-    - 预览弹窗背景改为暖白玻璃层，弱化原有纯黑感
-    - 海报预览容器改为更轻的浅色外壳，匹配新版卡片风格
+  - 用户明确要求这次不需要代理做 UI 验证，由用户自己在页面上验证
+  - 用户进一步明确：当前总任务是 `useLLM=true` 走纯 AI 两阶段生成，`match.ts` 硬匹配不应混入 AI 路径
+  - 即使规则上“匹配不到模板”，LLM 也应该能自己从模板全集里选一个；如果没有合适模板，也允许从零生成计划
+  - 目标是修复 `/api/plan-lib/create-ai-instance` 在 0628 这类问卷下直接 400 的后端逻辑，同时把 AI 路径与 legacy 路径重新拆清楚
+- Status: implemented in code on `2026-04-24`
+- Root cause:
+  - 旧 `matchPlan` 对标签匹配过严：问卷选的是 `臂屈伸个数`，而枭马葛现有模板主要是 `臂屈伸负重 / 引体负重 / 引体个数`，精确匹配会直接筛成 0
+  - 旧逻辑读取“每周训练次数”时只兼容老的 `type=times` 结构；当前问卷实际存的是 `option(question=每周训练次数)`，导致训练频次条件识别不完整
+- Fix:
+  - `src/app/api/plan-lib/ai-personalize-plan/personalize-plan.ts`
+    - Stage B 不再要求 LLM 直接输出 `training_days` JSON
+    - 改为先输出紧凑 `plan_script`，再通过 `parsePlanScript()` 编译成 `training_days`
+    - prompt 中把已选模板骨架也从 JSON 改为 `plan_script`，统一 AI 修改器与 AI 生成器的中间层
+    - prompt 进一步收紧休息日 DSL：休息日备注优先写成 `D2 off #备注`，显式禁止模型写出 `D2 off !备注`
+    - 编译动作名时同时允许使用“当前动作库 + 所选模板骨架中的历史动作”，避免模板里已有变体动作在生成时丢失
+    - 新增订阅周期约束：`subscribedWeeks=4` 时，prompt 必须要求输出完整 4 周 / 28 天，而不是只给 1-4 个训练日
+    - 新增“问卷意图硬约束”解析与二次纠偏：如果问卷明确只练某个专项（例如只练臂屈伸），prompt 会把它当成硬约束；若 AI 首次输出仍保留对立专项（如引体），系统会自动重试一次，仍不满足则直接报错而不是落垃圾计划
+  - `src/app/api/plan-lib/ai-personalize-plan/entity.ts`
+    - `PersonalizePlanResult` 增加 `planScript`
+    - `ActionLibraryEntry` 增加 `type`
+    - `GeneratePersonalizedPlanInput` 增加 `subscribedWeeks`
+    - 模板摘要/选择结果增加 `source`，区分模板库与历史计划骨架
+  - `src/app/api/plan-lib/ai-personalize-plan/service.ts`
+    - `buildActionLibrary()` 补齐 `type`
+    - `ai_generation_log.promptVersion` 升级为 `v1.3-script`
+    - `enforcePlanSpan()`：学员购买 4 周时，AI 若只生成几天短周期，将直接拒绝创建
+    - Stage A 选中的骨架若不在模板库，会继续尝试从 `coach_plan_instances` 历史计划里取骨架
+  - `src/app/api/plan-lib/create-ai-instance/match.ts`
+    - 新增 `extractWeeklyTrainingDays()`，兼容解析老 `times` 结构和新 `option + 每周训练次数` 结构
+    - 保留 `matchPlan()` 仅供 `useLLM=false` 的 legacy 规则路径使用
+  - `src/app/api/plan-lib/create-ai-instance/service.ts`
+    - AI 候选骨架不再只看 `coach_plan_templates`，还会合并最近的 `coach_plan_instances`
+    - 插入实例时，只有骨架来源是模板库才回写 `coach_plan_template_id`
+  - `src/app/api/plan-lib/ai-personalize-plan/select-template.ts`
+    - 没有模板时不再表达为“无法生成”，而是明确记录为“将直接从零生成计划”
+    - 模板选择 prompt 现在会显式读取“问卷意图提炼”和骨架专项标签；若问卷明确只练单一专项，会优先选择对应单专项模板而不是组合模板
+  - `src/app/api/plan-lib/ai-personalize-plan/questionnaire-intent.ts`
+    - 新增问卷专项偏好解析器：从 `tags / option / text / times` 中提炼出“专项偏好、是否单专项硬约束、每周频率”
+    - 当前先重点覆盖 `引体 / 臂屈伸 / 平衡发展` 这条真实问题链路
+    - “每周训练次数”现在同时兼容老 `times` 和新 `option(question=每周训练次数, value=2次)` 结构
+    - 问卷里明确的每周训练次数（如每周 2 次）已升级为硬约束，并在生成后按周校验训练日数量
+  - `src/lib/planScript.ts`
+    - 休息日解析器现在兼容 `D2 off #备注` 和 `D2 off !备注` 两种同行备注写法，避免 AI 偶发写出 bang 语法时直接被误判成“未找到动作”
+  - `src/lib/planScript.test.ts`
+    - 新增回归用例，覆盖 `D1 off !有氧：慢走30分钟` 这类休息日同行备注写法
+  - `src/app/api/plan-lib/ai-personalize-plan/personalize-plan.test.ts`
+    - 新增回归用例，覆盖“问卷明确每周训练 2 次，但 AI 首次输出 3 练时自动重试修正”
+  - `src/app/api/plan-lib/ai-personalize-plan/personalize-plan.ts`
+    - 无模板时 prompt 改为允许从零生成，不再要求返回空计划
+    - prompt 明确要求：如果问卷写了“每周训练 X 次”，则每个 W 周块都必须恰好安排 X 个训练日
+    - 若 AI 首次输出的周训练频率与问卷不一致（例如问卷 2 练但计划 3 练），系统会自动带纠偏提示重试一次；仍不满足则直接报硬约束冲突
+  - `src/app/api/plan-lib/ai-personalize-plan/service.ts`
+    - Stage A 选不到模板时，不再强行拿第一个模板兜底
+    - Stage A 选中的模板不存在/不可访问时，改为从零生成，而不是抛错
+    - 无模板但动作库可用时，允许 LLM 直接从零生成计划
+    - 有模板但校验后动作全掉光时，回退到所选模板骨架，避免生成空计划
+    - 模板摘要新增专项标签推断，供 Stage A 模板选择参考
+  - `src/app/api/plan-lib/create-ai-instance/service.ts`
+    - `useLLM=true` 时只走 AI 两阶段生成，不再回退到 `match.ts`
+    - AI 路径失败时，直接返回 AI 错误给前端，而不是偷偷改走 legacy 匹配
+    - 入口层去掉“无模板直接报错”的门槛，让 AI 服务层决定是选模板还是从零生成
+    - `useLLM=false` 时继续保留原 `matchPlan() + fillTemplate()` 旧规则路径
 - Verification:
-  - 环境检查：
-    - `3000` 仍为当前仓库 `next-server (v16.0.1)`
-    - `9420` 仍为微信开发者工具自动化端口
-    - `mrc where --port 9420`：当前页面为 `streetlifting/index/calculator/result`
-  - 小程序验证：
-    - 初次检查时 `.result-actions-top` 不存在，说明开发者工具未刷新到最新编译结果
-    - 执行 `mrc relaunch /streetlifting/index/calculator/result --port 9420` 后再次检查：
-      - `.calc-result-nav` 不存在
-      - `.result-actions-top` 存在
-    - `mrc errors 20 --port 9420`：0 条错误
-    - `mrc warnings 20 --port 9420`：0 条警告
-    - `mrc screenshot` 本轮命令未正常返回，未拿到截图文件；已改用元素存在性验证确认页面已刷新到新结构
-  - 命令检查：
-    - 根目录 `npm run lint`：通过（脚本仅提示项目未配置 eslint）
-    - `wechat_app npm run build:weapp`：通过
-    - 根目录 `npm test`：通过（21 files, 100 tests）
-    - 根目录 `npm run typecheck`：失败，仍有大量历史类型错误，与本次结果页改动无直接对应
-    - `wechat_app npm run typecheck`：脚本不存在
-  - 分享卡片验证：
-    - `mrc click .result-share-row --port 9420`：成功，已触发“生成分享卡片”
-    - `.share-poster-modal` 存在
-    - `.share-poster-bottom-bar` 存在
-    - `.share-poster-channel-icon-save` 存在
-    - `mrc errors 20 --port 9420`：0 条错误
-    - `mrc warnings 20 --port 9420`：0 条警告
-    - 本轮仍未拿到稳定截图文件；当前通过页面结构与运行日志确认弹窗已打开、无报错
-  - 分享卡片二维码渲染故障修复：
-    - 用户反馈点击“分享卡片”后报错：
-      - `module 'streetlifting/index/calculator/qrcode-generator.js' is not defined`
-      - 根因是海报绘制里使用了运行时 `require('qrcode-generator')`，小程序分包未将其静态收包
-    - 已改为 `import qrcode from 'qrcode-generator'` 的静态导入，位置：
-      - `wechat_app/src/streetlifting/index/calculator/poster.ts`
-    - 当前阻塞：
-      - 本地 `npm run build:weapp` 在本会话环境下触发了构建脚本侧的 Rust panic，未能稳定产出可复验的最新 `dist`
-      - 同时 `9420` 自动化连接在本轮后半段出现波动，导致未能完成修复后的再次点击验证
-    - 静态检查已确认源码中不再存在运行时 `require('qrcode-generator')`
-  - 分享卡片视觉重做（本轮）：
-    - 用户明确要求：
-      - 海报除卡片主体外，其余区域统一改为黑色背景
-      - 取消多层叠加装饰，保留双层结构（外层主卡 + 中央子卡）
-      - 子卡顶部必须展示用户头像、用户 ID、注册天数
-      - 外卡底部保留品牌 Logo/文案 + 右侧二维码
-    - 已完成代码：
-      - `wechat_app/src/streetlifting/index/calculator/poster.ts`
-        - 背景改为纯黑色
-        - 海报结构收口为双层容器，不再使用多重光晕和多层面板
-        - 新增头像绘制逻辑：优先使用用户真实头像，失败时回退首字母头像
-        - 新增“@昵称 + 已加入天数”区块
-        - 中央分数区与 2x2 指标卡重排，提升社交展示感
-        - 外卡底部重排为“品牌区 + 二维码”布局
-      - `wechat_app/src/streetlifting/index/calculator/result/index.tsx`
-        - 海报数据新增 `avatarUrl` 与 `registeredDays`
-        - 从本地用户缓存提取头像字段（`avatar_url/avatar/headimgurl`）
-        - 按用户创建时间推导“已加入天数”
-    - 验证：
-      - `wechat_app npm run build:weapp`：通过
-      - `ReadLints`（上述 2 个文件）：无新增诊断
-      - `mrc` 运行态验证本轮出现阻塞：命令能连接 `9420`，但 `where/relaunch` 未返回页面结果，暂未产出新截图
-- Calculator persistence round:
-  - `wechat_app/src/streetlifting/index/calculator/index.tsx`
-    - 新增 `sl_calc_form_data` 草稿存储：用户每次输入都会实时写入本地 storage，下次进入页面自动预填
-    - 新增 `sl_calc_last_run` 正式计算快照：仅在用户成功点击“开始计算”后写入
-    - 页面初始化顺序改为：先读档案默认值（性别/体重），再用本地草稿覆盖
-    - 若检测到 `sl_calc_last_run`，则在各字段 label 右侧显示与上次相比的提示
-    - 数字字段显示 `较上次 +x/-x/持平`
-    - 枚举/文本字段显示 `上次 xxx`
-    - 页面底部新增“上一次正式计算”摘要卡
-  - `wechat_app/src/streetlifting/index/calculator/index.scss`
-    - 新增 label 左右布局、对比提示样式、上次正式计算摘要卡样式
-  - 验证：
-    - `wechat_app npm run build:weapp`：通过
-    - `mrc relaunch /streetlifting/index/calculator --port 9420`：通过
-    - `mrc where --port 9420`：当前页面为 `streetlifting/index/calculator`
-    - `mrc errors 20 --port 9420`：0 条错误
-    - `mrc warnings 20 --port 9420`：0 条警告
-    - `.label-compare` 当前未出现；这与预期一致，因为当前开发者工具环境里大概率还没有成功计算后写入的 `sl_calc_last_run`
-    - 根目录 `npm test`：通过（21 files, 100 tests）
-    - 根目录 `npm run typecheck`：失败，仍是仓库现有历史类型错误，与本轮改动无直接对应
+  - 用真实订阅 `3a100757-1d1c-4fd1-94d2-f433affec296` 的问卷数据跑本地脚本确认：
+    - legacy 精确匹配结果 `0`
+    - 说明之前 `没有匹配的训练计划` 的根因确实来自旧规则路径被错误带入 AI 生成流程
+  - 用真实订阅和数据库复查确认：
+    - 学员 `测试账号0628` 当前订阅 `subscribed_weeks=4`
+    - 枭马葛名下可用模板实际有 `10` 个，且大量为 `56/84/105` 天长计划
+    - 当前短计划实例 `04ce17b4-e120-4e37-b8d4-76ebc635cf3f` 的 `ai_generation_log.stageA.templateId = null`
+    - 旧 prompt 里明确写了“优先给出 1-4 个训练日”，这是只生成 4 天微周期的直接原因
+  - AI 生成链路脚本化定向测试：通过（3 files, 21 tests）
+  - `npm run lint`：通过当前提示脚本
+  - `npm test`：通过（21 files, 106 tests）
+  - `npm run typecheck`：122 秒超时，仍未跑完仓库既有历史类型面
+  - `npx next build`：本轮通过；日志里有既有 Redis timeout 噪音，但未阻塞构建完成
+- Next step:
+  - 由用户重新为测试账号0628生成：若问卷明确只练臂屈伸且每周训练 2 次，新计划里不应再保留引体专项主项，且每个 W 周块都应恰好只有 2 个训练日
+  - 若用户再次看到 500 且提示“脚本无法编译”，优先检查 AI 是否又写了新的 DSL 变体；当前已兼容“休息日 + bang 备注”这条真实报错链路
+  - 用户本轮已明确“不用你测试，我来手动运行就行”，因此页面与真实生成结果由用户手动验证
+  - 用户最新又补充：教练端“清空当前计划”不能只支持归档，因为部分 AI 乱生成的垃圾计划不应该留下归档记录；本轮已把学员列表改成“归档保留 / 彻底删除垃圾计划”二选一弹窗
+  - 同步修复 `src/app/api/plan-lib/delete-instance/route.ts`：删除权限校验改成和归档接口同语义，教练本人可对自己学员的当前计划做彻底删除
+
+---
+
+- Task: 人体地图胸小肌内容从“互动/阅读试点”收敛为“一篇详实主文章”
+- Scope:
+  - 用户明确指出当前所谓“互动筛查”还不是真互动，先不做互动模式
+  - 图片暂时不处理，优先确保已有文章和转录素材能被整理进一篇小白可读、内容充实的主文章
+  - 当前仍以胸前区域为样板：人体图没有单独胸小肌 hitbox，先挂在 `胸大肌` 点击区
+- Status: implemented on `2026-04-23`
+- Fix:
+  - `src/app/dashboard/knowledge/page.tsx`
+    - 移除胸小肌硬编码 `CoreGuidePanel` 试点，不再展示 `互动 / 阅读` 两个入口
+    - 选中部位后只展示模式说明卡和 `主文章`
+    - 部位文章列表收敛为 1 篇，避免用户点击后看到一堆材料
+  - `scripts/import-body-map-formal-guides.ts`
+    - 将 `body-map-guide-020-pectoralis-minor` 改写为《胸小肌完整指南：圆肩筛查、肩前紧张与训练处理》
+    - 主文整合胸小肌、圆肩、肩关节、锁骨/肩峰位置、肩胛胸廓节律、胸椎活动度、胸大肌、前锯肌、中下斜方肌、肩袖控制及胸小肌视频转录里的训练场景
+    - 内容结构覆盖：这篇整合了哪些内容 / 一句话理解 / 位置和影响 / 什么时候想到胸小肌 / 小白筛查 / 训练处理 / 可执行组合 / 常见误区 / 停止自处理边界
+  - 数据库已同步 `2026-04-23-body-map-formal-guides-v4`
+- Verification:
+  - 导入脚本 `--apply`：通过，`updated=11`，`errors=0`，输出 `temp_dir/body_map_formal_guides_import_apply_20260423_040704.json`
+  - 浏览器验证：DEV 快速登录后打开 `/dashboard/knowledge`，点击 `胸大肌`，确认没有 `互动 / 阅读`，只显示 `主文章`；打开详情页确认新小节“这篇主文整合了哪些内容”、筛查段、训练段和风险边界均可见
+  - 截图：`test-results/body-map-main-article-list.png`、`test-results/body-map-main-article-detail-v4.png`
+  - `npm run lint`：通过当前提示脚本
+  - `npm test`：通过（21 files, 101 tests）
+  - `npm run typecheck`：上次运行 184 秒超时，残留 `tsc --noEmit` 进程已停止；未得到完整类型检查结论
+  - `npx next build`：此前已完成编译和静态页生成，但因本地 dev server/`.next` 文件锁在 standalone copy 阶段报 `EBUSY`，未形成干净最终退出码
+- Next step:
+  - 如果用户认可胸小肌样板，把同一“一个点击部位一篇主文”的模板批量套到其它已入库正式指南；真正的互动筛查要等后续做成问答/动作选择流后再命名为互动。
+
+---
+
+- Task: 优化人体地图筛查/训练模式的内容分层
+- Scope:
+  - 用户反馈当前人体地图内容太乱，筛查模式和训练模式看到的是同一批内容，且内容过多导致用户懵
+  - 目标是让“筛查模式 / 训练模式”产生真实差异，并把默认展示从“长材料堆叠”改为“少量可执行引导 + 推荐阅读”
+- Status: implemented in code on `2026-04-22`
+- Fix:
+  - `src/app/api/knowledge/nodes/route.ts`
+    - 新增 `mode=screening|training` 查询语义
+    - 读取 `knowledge_nodes.content.body_map_modes` 做模式过滤
+    - 人体地图查询默认排除 `content_level=transcript-pack` / source-material 素材包，避免把原始转录材料直接塞给用户
+    - 对结果做模式相关排序：`formal-guide` 优先，其次按筛查/训练关键词排序
+    - 人体地图默认最多返回 `8` 条；前端当前请求限制为 `6` 条
+    - 返回 `content_summary`，剥离长 HTML body，减少列表接口负担
+  - `src/app/dashboard/knowledge/page.tsx`
+    - 切换筛查/训练时重新请求对应模式内容
+    - 选中部位后先展示模式专属行动卡：
+      - 筛查模式：活动范围/疼痛信号/动作代偿
+      - 训练模式：发力感/动作选择/逐步加量
+    - 文章区改为“推荐阅读”，文案明确“只看筛查/问题管理”或“只看训练/动作方法”
+    - 内容卡增加 `系统指南 / 延伸阅读 / 知识点` 标签，降低用户判断成本
+- Verification:
+  - `npm run lint`：通过当前提示脚本
+  - `npm test`：通过（21 files, 101 tests）
+  - `npx next build`：通过
+  - `npm run typecheck`：构建前失败于 `.next/types/validator.ts` 缺失；构建后重跑 184 秒超时无输出，未得到新增文件相关错误
+  - 浏览器验证：已尝试用 Playwright 打开 `http://localhost:3000/dashboard/knowledge`，但当前无登录态，页面/API 返回未授权或长连接等待，无法完成真实人体图点击验证
+- Next step:
+  - 用户在已登录浏览器刷新 `/dashboard/knowledge` 后，点击同一部位切换筛查/训练，应先看到不同的 3 步行动卡，下面推荐阅读数量也应明显收敛。
+
+---
+
+- Task: 为人体地图文章补充小白友好的解剖/动作配图
+- Scope:
+  - 先以胸小肌文章为样例，确定文章需要的配图类型和准确性标准
+  - 图像目标不是学术论文级复杂解剖，而是帮助小白理解“在哪里、怎么影响体态、怎么筛查、怎么放松/训练”
+- Status: in progress on `2026-04-22`
+- Requirement:
+  - 圆肩/胸小肌相关体态图不能只画成“肩胛骨单独前倾”；应表达肩带整体前引链条：锁骨/肩峰端前引，带动肩胛骨前引、前倾、内旋，并让肩膀前扣更容易被用户看懂。
+  - 面向小白的图中文字优先用“肩膀前扣 / 锁骨前引 / 肩胛前引+前倾”这类可理解标签，少用过度专业且容易误读的单一术语。
+- Proposed content direction:
+  - 当前胸小肌指南内容偏“系统笔记”，对小白仍然偏长、偏密。下一步应把同一主题拆成两种前台消费方式：`互动模式` 用少量问题/动作卡片带用户一步步判断；`阅读模式` 保留一篇结构化短文用于完整理解。
+  - 对每个身体部位，不建议同时展示很多文章。筛查模式和训练模式各保留 1 篇主文章即可：筛查文章解决“我是不是和它有关、什么时候该停/就医”；训练文章解决“我现在该怎么练、怎么避免代偿”。底层转录和长资料继续留作素材，不直接堆给用户。
+
+---
+
+- Task: 人体地图“一个部位一个核心指南”试点
+- Scope:
+  - 先用胸前区域做样板：当前人体图没有单独胸小肌 hitbox，所以先挂在 `胸大肌` 点击区
+  - 点击胸前区域后，不再先让用户面对文章列表；先出现 `胸小肌核心指南` 的互动/阅读双入口
+  - 推荐阅读区域在试点中收敛为 `核心文章`，只露出一篇正式指南
+- Status: implemented on `2026-04-22`
+- Fix:
+  - `src/app/dashboard/knowledge/page.tsx`
+    - 新增胸小肌核心指南试点数据与 `CoreGuidePanel`
+    - 点击 `胸大肌` 时显示“核心指南试点”：问题卡片、互动筛查/互动训练步骤、阅读模式短解释
+    - `筛查模式 / 训练模式` 继续控制互动步骤内容
+    - `互动 / 阅读` 作为部位内容消费方式，默认回到互动
+    - 对试点部位，底部列表从“推荐阅读”改为“核心文章”，优先只展示胸小肌正式指南
+- Verification:
+  - `npm run lint`：通过当前提示脚本
+  - `npm test`：通过（21 files, 101 tests）
+  - `npx next build`：通过
+  - `npm run typecheck`：失败于仓库既有类型问题（Next 16 route params、动作库 schema、小程序 Taro 依赖等）；定向搜索未见 `src/app/dashboard/knowledge/page.tsx` 新增错误
+  - 浏览器验证：使用本地 `localhost:3000` DEV 快速登录后打开 `/dashboard/knowledge`，通过 SVG `胸大肌` 区域触发选中，已看到 `胸小肌核心指南`、互动筛查内容和核心文章；切到“阅读”后看到“它在哪里 / 为什么会影响圆肩”等阅读内容
+  - 截图：`test-results/body-map-core-guide-pilot.png`、`test-results/body-map-core-guide-pilot-reading.png`
+- Next step:
+  - 让用户实际体验胸前区域样板；如果认可，再把该结构抽成可配置数据模型，而不是把每个部位都硬编码在页面里。
+
+---
+
+- Task: 将教练订阅支付链路拆成“订单/支付记录”和“正式订阅”两层
+- Scope:
+  - 用户确认为了后期数据分析方便，订阅链路不再把“待支付草稿”和“正式成交订阅”混在 `coach_subscriptions` 一张表里
+  - 新模型：`coach_subscription_orders` 记录选套餐、待支付、待确认、已支付等订单事实；`coach_subscriptions` 只在付款确认/平台支付成功后生成或更新正式订阅
+  - 需要覆盖学员下单、平台支付宝创建/回调、个人收款码/线下已付提交、教练待确认/历史、收入看板与旧数据兼容
+- Status: implemented in code on `2026-04-22`; database migration not yet applied in current remote database
+- Fix:
+  - 新增迁移 `supabase/migrations/20260422_subscription_orders.sql`，定义 `coach_subscription_orders`
+  - 新增 `src/types/subscriptionOrders.ts`、`src/lib/subscriptionOrders.ts`、`src/lib/coachPaymentRecords.ts`
+  - 新增 API：
+    - `/api/subscription/create-subscription-order`
+    - `/api/subscription/update-subscription-order`
+    - `/api/subscription/confirm-subscription-order`
+  - 学员教练主页订阅/续费流程改为先创建订单，支付确认后再正式激活/续费订阅
+  - 支付宝创建与支付成功履约支持 `subscriptionOrderId`，平台支付成功后自动调用订单 finalize
+  - 教练端“待支付确认 / 历史”改为读取新订单层，同时保留旧 `coach_subscriptions` 历史 fallback
+  - 教练收入总览/收入明细按 `2026-04-22T00:00:00+08:00` 作为切换点：新付款从订单表统计，旧历史从订阅表统计，避免双算
+  - 增加迁移前兼容：如果当前数据库还没有 `coach_subscription_orders`，教练端读接口回退旧数据；新写入接口返回明确提示“订阅订单表尚未迁移，请先执行 supabase/migrations/20260422_subscription_orders.sql”
+- Verification:
+  - `npm run lint`：通过当前提示脚本
+  - `npm test`：通过（21 files, 101 tests）
+  - `npx next build`：通过
+  - `npm run typecheck`：244 秒超时，无具体错误输出
+  - 浏览器验证：用临时学员登录后访问刘三乐教练页，点击 `3个月 / ¥199` 套餐；由于该教练页有问卷，UI 点击先进入问卷链路，随后在同一已登录浏览器会话直接调用新订单 API，返回 `503` 和明确迁移提示，说明当前阻塞是数据库未建表而不是前端/编译问题
+  - 截图：`test-results/subscription-order-browser-check.png`
+- Blocker:
+  - 当前远程数据库缺少 `public.coach_subscription_orders`
+  - `supabase migration list --linked` 显示本地/远程迁移历史严重分叉，不能安全地直接 `supabase db push` 全量推送；需要只执行单个 SQL 文件 `supabase/migrations/20260422_subscription_orders.sql`，或由数据库管理员在 Supabase SQL Editor 中执行该迁移
+- Next step:
+  - 执行 `supabase/migrations/20260422_subscription_orders.sql` 后，再完整浏览器验证：临时学员选择 3 个月套餐 -> 创建订单 -> 上传/提交个人收款码凭证 -> 教练端待确认显示订单 -> 教练确认后生成正式订阅。
+
+---
+
+- Task: 整理并同步人体地图新增转录素材
+- Scope:
+  - 用户补充说明 `C:\Users\29454\.openclaw\workspace-main\body-map-system\content` 下 Apr 21 19:00 之后真正新增的 68 个 transcript，分布在胸小肌、腕屈肌群、大圆肌、颞下颌关节、咬肌、翼内肌、颈前淋巴结、肱三头肌、腹外斜肌、股二头肌、半腱肌/半膜肌等主题
+  - 目录存在 `topic/topic/source/transcript.txt` 和 `020-胸小肌/video/bilibili/...` 等嵌套结构，不手动平铺，由导入脚本递归扫描并按 source id 去重
+  - 在保留 `transcript-pack` 原始素材层的同时，把可直接面向用户展示的主题整理为 `formal-guide`
+- Status: completed on `2026-04-21`
+- Fix:
+  - `scripts/import-body-map-transcript-packs.ts` 重新 dry-run/apply，确认本轮嵌套目录被识别并同步到数据库
+  - 转录包当前识别结果：`26` 个 topic、`22` 个可挂现有人体图、`4` 个头面/颈前待扩点击区、`276` 份去重后的 transcript、无薄弱 topic
+  - `scripts/import-body-map-formal-guides.ts` 升级到 `2026-04-21-body-map-formal-guides-v2`
+  - 正式指南从 `7` 篇扩展到 `11` 篇，新增：
+    - `肱三头肌系统指南：推类动作、肘伸力量与长头训练`
+    - `腹外斜肌系统指南：抗旋转、侧向稳定与呼吸核心`
+    - `股二头肌系统指南：后链发力、腘绳肌拉伤与硬拉跑跳`
+    - `半腱肌与半膜肌系统指南：内侧腘绳肌、膝稳定与后链控制`
+  - apply 结果：
+    - 转录包：`updated=26`、`inserted=0`、`errors=0`
+    - 正式指南：`inserted=4`、`updated=7`、`errors=0`
+- Output:
+  - 转录包报告：`temp_dir/body_map_transcript_pack_import_apply_20260421_222018.json`
+  - 正式指南报告：`temp_dir/body_map_formal_guides_import_apply_20260421_222007.json`
+- Verification:
+  - `npm run lint`：通过当前提示脚本
+  - `npm test`：通过（21 files, 101 tests）
+  - `npx next build`：通过
+  - `npm run typecheck`：失败于仓库既有类型问题（Next 16 route params、动作库/schema 类型、小程序 Taro 依赖等），非本次导入脚本引入
+- Next step:
+  - 现有素材不需要平铺目录即可继续复用；后续若新增转录，直接放在 topic 任意嵌套目录下即可由脚本递归吸收。
+
+---
+
+- Task: 修复刘三乐学员 li 支付历史金额显示为 99 的问题
+- Scope:
+  - 用户反馈刘三乐教练下学员 `li` 明明付款 `199`，列表显示已购 `12周`，但“待支付确认 -> 历史”里显示“月费 99”
+  - 需要核查真实订阅记录、付款凭证、前端支付历史展示口径，以及订阅创建时套餐价格是否同步
+- Status: completed on `2026-04-21`
+- Root cause:
+  - 订阅 `26df041e-a4e3-4dac-83db-679ad2e41fae` 确认为刘三乐教练下学员 `li`
+  - 数据库原值为 `subscribed_weeks=12`、`monthly_price=9900`、`payment_method=personal_qrcode`、`payment_data.offline_payment=null`
+  - 凭证截图显示实际付款 `-199.00`，付款留言为“烛火3个月力量”
+  - 根因是 `/api/subscription/create-subscription` 遇到已有未生效订阅时，只更新了 `subscribed_weeks` / 产品信息，没有同步更新 `monthly_price` / `tier` / `status`，导致“12周 + 99元”的脏组合
+  - 支付历史表头仍叫“月费”，进一步把“方案/支付金额”误导成月付
+- Fix:
+  - 已将 li 订阅记录 `monthly_price` 从 `9900` 修正为 `19900`，`subscribed_weeks` 保持 `12`
+  - 已在该订阅 `payment_data.manual_repair` 写入修复原因、旧值、新值、凭证核验标记和修复人
+  - `src/app/api/subscription/create-subscription/route.ts`
+    - 已有 `active` 订阅不再由创建订阅接口重写价格/周期，续费继续走专门链路
+    - 已有非 active 订阅重新选择套餐时，同步更新 `tier`、`monthly_price`、`status`、产品信息和 `subscribed_weeks`
+    - 返回更新后的订阅，而不是只返回旧查询里的 `id`
+  - `src/app/dashboard/students/PaymentConfirmationDialog.tsx`
+    - “月费”列改为“支付金额”
+    - 增加“购买周期”列
+    - 对普通扫码记录标注“方案金额”，线下已付记录继续优先显示“线下实付”
+- Verification:
+  - `npm run lint`：通过当前提示脚本
+  - `npm test`：通过（21 files, 101 tests）
+  - `npx next build`：通过
+  - `npm run typecheck`：184 秒超时，无错误输出；仓库长期存在大体量历史类型问题
+  - 浏览器验证：用刘三乐账号登录 `http://localhost:3000/dashboard/students`，打开“待支付确认 -> 历史”，li 行显示 `12周` 和 `¥199.00`
+  - 截图：`test-results/payment-history-li-199-loaded.png`
+- Next step:
+  - 若后续还要同步教练收入看板，需进一步把 `get-revenue-details` 中“订阅月费”的历史文案也改成“订阅收入/方案金额”
+
+---
+
+- Task: 美化并深化 CoachLink 商业计划书，产出 PDF
+- Scope:
+  - 基于用户提供的 `CoachLink 商业计划书 v2` 继续打磨，而不是替换商业定位
+  - 重点增强外发阅读感、结构层次、当前数据口径、传统教练线上化问题分析
+  - 输出可交付 PDF 版本，同时保留可继续迭代的 Markdown 源文档与生成脚本
+- Status: completed on `2026-04-21`
+- Output:
+  - 增强版 Markdown：`docs/CoachLink_商业计划书_v2_1.md`
+  - PDF 成品：`output/pdf/CoachLink_商业计划书_v2_1.pdf`
+  - Word 可编辑版：`output/docx/CoachLink_商业计划书_v2_1.docx`
+  - Word 紧凑版：`output/docx/CoachLink_商业计划书_v2_1_紧凑版.docx`
+  - Word 封面修正版：`output/docx/CoachLink_商业计划书_v2_1_封面修正版.docx`
+  - PDF 生成脚本：`scripts/generate-business-plan-pdf.py`
+  - Word 生成脚本：`scripts/generate-business-plan-docx.py`
+- Verification:
+  - PDF 生成成功，共 `21` 页，文件大小 `368,163` bytes
+  - 使用 `pypdf` 校验：21 页均可抽取文本，无空白页
+  - 关键内容命中：`CoachLink 商业计划书 v2.1`、`线上自由教练的商业化操作系统`、`传统教练困境`、`注册用户`、`1,296`、`上传训练视频用户`
+  - 用户截图反馈第一版 PDF 在 VS Code 预览器中文字不可见；根因是使用了 `STSong-Light` 这类未嵌入 CID 字体
+  - 已改为嵌入 Windows 中文字体 `Deng.ttf/Dengb.ttf`，并验证 PDF 内包含 `/FontFile2` 嵌入字体
+  - 当前环境缺少 `pdftoppm/mutool/ghostscript/magick`，Chrome/Edge headless 未能生成 PDF 页面截图，因此未完成真正的 PNG 视觉渲染校验
+  - Word 版生成成功，文件大小 `54,797` bytes；反读校验包含 `225` 个段落、`16` 张表，关键内容命中
+  - 本机未发现 LibreOffice/Word 命令行转换器，因此未生成旧二进制 `.doc`，交付现代 Word `.docx`
+  - 用户反馈 Word 版“内容排版过于分散”，已调整 Word 生成器：取消每个 `##` 大章节前强制分页、收紧页边距与页眉页脚距离、压缩正文/列表/标题段距、去掉表格后的硬空行
+  - 新输出 `CoachLink_商业计划书_v2_1_紧凑版.docx`，反读校验为 `196` 个段落、`16` 张表
+  - 用户随后反馈“第一页还是有点问题，其他没问题”；已继续调整封面生成策略：
+    - 去掉第一页的真实表格，改成纯段落式“关键数据”数据行
+    - 第一页页脚改为留空，避免封面被页脚干扰
+    - 新输出 `CoachLink_商业计划书_v2_1_封面修正版.docx`
+    - 反读校验：`201` 个段落、`15` 张表；第一页前 10 段顺序为标题、定位、副文案、关键数据 4 行、阶段判断、版本信息
+  - 用户再次指出“第一页后面都是空白”；已删除封面末尾的强制分页，让正文从第一页直接续接
+  - 新输出 `CoachLink_商业计划书_v2_1_首页无空白版.docx`，反读校验前 10 段后直接进入 `执行摘要`
+- Next step:
+  - 若要继续外发融资/路演版，可基于 v2.1 再压缩成 8-12 页 BP deck 或一页式投资人摘要。
+
+---
+
+- Task: 在学员执行训练计划前增加阅读须知
+- Scope:
+  - “执行计划阅读须知”必须是教练为模板/计划实例填写的专属内容，不是平台统一文案
+  - 学员首次进入某个计划实例的正式训练执行前强提醒；计划详情页和训练执行页可回看
+  - 教练端需要在模板编辑页和学员计划编辑页维护这段内容，并在从模板创建实例、AI 生成实例时继承到实例
+- Status: implemented in code on `2026-04-21`
+- Fix:
+  - 新增数据库字段 `coach_plan_templates.execution_notice` 与 `coach_plan_instances.execution_notice`
+  - 教练端模板页、学员计划页新增“执行须知”输入，保存时写入模板/实例
+  - 模板复制、手动从模板建计划、AI 个性化建计划都会把模板上的执行须知带到计划实例
+  - `ExecutionPlanNoticeDialog` 改为优先展示教练填写的执行须知，平台文案只保留安全底线兜底
+  - 今日训练、训练执行页直达入口、计划历史页回看入口全部改为读取实例上的 `execution_notice`
+  - 本地已读状态仍使用 `localStorage` 按 `userId + plan_instance_id` 记录，只负责“这个实例是否已读过”
+- Verification:
+  - 按用户最新要求，本轮只改代码，未执行 lint / typecheck / build / browser 验证
+- Next step:
+  - 用户执行 SQL 迁移后，可在教练端为模板和具体学员计划填写专属执行须知，再验证学员首次执行拦截是否展示教练内容
+
+---
+
+- Task: 清理测试账号0628的失败 AI 空计划
+- Scope:
+  - 用户反馈测试账号0628此前 AI 创建失败，但空计划仍显示为“进行中”，导致无法正常重新生成
+  - 目标是清空当前坏计划，同时保留该学员订阅关系和资料，以便重新走 AI 深度个性化生成
+- Status: completed on `2026-04-21`
+- Fix:
+  - 定位订阅 `3a100757-1d1c-4fd1-94d2-f433affec296`
+  - 定位坏计划实例 `1d7b45f1-1a5b-4db7-ab81-51bae2965443`
+  - 确认该实例 `status=active`、`training_days=2`、`actionSets=0`、无执行记录
+  - 已将该实例归档为 `archived`，保留订阅 `active`
+  - 修复 `src/app/api/subscription/coach-subscriptions/route.ts`：`has_plan_instance` 和预计结束日计算不再把 `archived` 计划算作当前/有效计划
+- Verification:
+  - 数据库复查：该订阅下 `active/paused/completed/scheduled` 计划为空，仅剩归档坏实例
+  - `npm run lint`：通过当前提示脚本
+  - `npx vitest run src/app/api/subscription/coach-subscriptions.integration.test.ts`：通过
+  - `npm test`：通过（21 files, 101 tests）
+  - `npx next build`：通过
+  - 定向 typecheck 命中既有 `coach-subscriptions/entity.ts` 类型继承错误，非本次 route 状态过滤改动引入
+- Next step:
+  - 用户刷新 `/dashboard/students` 后，测试账号0628应显示为未配置/待处理，可重新打开“AI 深度个性化”生成。
+
+- Task: 给教练端增加手动清空当前计划入口
+- Scope:
+  - 用户指出只由代理进数据库归档是治标不治本，教练后台应该能手动清空当前计划，方便重新启用 AI 生成计划
+  - 清空语义采用“归档当前计划”：保留订阅、学员资料和历史记录，只把当前计划从学员端执行流中移除
+- Status: implemented in code on `2026-04-21`
+- Fix:
+  - `src/app/dashboard/students/page.tsx`
+    - 桌面训练计划卡片新增“清空当前计划”图标按钮
+    - 移动端展开学员卡片后新增“清空”按钮
+    - 点击后弹确认框，确认后调用已有 `/api/plan-lib/archive-instance`
+    - 成功后本地把该学员 `plan` 置空、训练进度归零，并让其重新进入未配置计划可选择状态
+    - 给“清空当前计划”和 AI 生成图标补 `aria-label`，方便自动化测试和可访问性
+- Verification:
+  - Playwright 通过现有 `localhost:3000` + DEV 教练登录 + API mock 验证：
+    - 有计划学员显示清空按钮
+    - 点击清空弹确认框
+    - 确认后请求 `archive-instance`，payload 为 `{ instanceId: "plan-instance-1" }`
+    - 列表变成“未配置计划”，AI 生成按钮重新出现
+    - 截图：`test-results/students-clear-plan-after.png`
+  - `npm run lint`：通过当前提示脚本
+  - `npm test`：通过（21 files, 101 tests）
+  - `npx next build`：通过
+  - `npm run typecheck`：仍会在当前仓库超时或命中既有类型问题，本次页面编译由 build 覆盖通过
+
+- Task: 修正教练端 LLM 个性化生成计划的模板/动作库流程
+- Scope:
+  - 用户反馈生成后的计划详情显示“教练没有可用的计划模板”“可用动作库为空”，并把计划改成休息日
+  - 正确业务流应是：先选教练计划模板 -> 导入模板动作 -> 基于模板保守调整 -> 创建实例后同步对应教练动作到学员动作库
+  - 动作库为空不能成为阻止创建计划或生成空计划的理由；尤其不能把“学员动作库为空”和“教练动作库为空”混在一起
+- Status: implemented in code on `2026-04-20`
+- Root cause:
+  - `create-ai-instance/service.ts` 的 LLM 分支使用 `actorCoachId` 查询 `coach_plan_templates.coach_id` 和 `coach_actions.coach_id`
+  - 但当前项目里模板和教练动作的 `coach_id` 存的是教练用户 `users.id`；`actorCoachId` 是 `coaches.id`，只适合用于校验订阅归属
+  - 因此 LLM 分支把教练模板和动作库查成空，然后进入从零生成 prompt，模型按“可用动作库为空”输出了全休息计划
+- Fix:
+  - 查教练模板、教练动作、自动计算动作、`matchPlan`、`fillTemplate` 的 coach 身份统一改用 `actorUserId`
+  - 订阅归属校验继续使用 `actorCoachId`
+  - LLM 流程只允许模板驱动：没有可用模板 / 选中模板不可访问时，抛错交给 legacy 规则匹配 fallback，不再从零生成
+  - 当动作库读取为空时，保留已选模板骨架，不调用 Stage B 让模型改写成休息日
+  - 当 LLM 输出没有任何训练动作时，回退 legacy 规则匹配；最终仍无训练动作则阻止创建空计划
+  - AI 创建实例后复用 `syncCoachActionsToStudentLibrary`，把训练计划中使用的教练动作同步到学员动作库，和手动从模板创建保持一致
+- Verification:
+  - `npm run lint`：通过当前提示脚本
+  - `npx vitest run src/app/api/plan-lib/ai-personalize-plan`：通过（4 files, 24 tests）
+  - `npm test`：通过（21 files, 101 tests）
+  - `npm run typecheck 2>&1 | Select-String -Pattern 'create-ai-instance|ai-personalize-plan|sync-actions|personalize-plan|select-template'`：无相关错误输出
+  - `npx next build`：编译与静态页生成成功，最终 standalone copy 因当前 3000 dev server 占用 `.next` 文件触发 Windows `EBUSY` 文件锁
+- Next step:
+  - 重启/刷新本地 dev server 后用教练账号重新生成：应先选到教练模板，不再显示“教练没有可用模板/可用动作库为空”，生成后学员动作库应 best-effort 同步对应教练动作。
+
+- Task: 修复教练端开启 `AI 深度个性化` 生成计划时报学员会员配额不足
+- Scope:
+  - 用户以教练身份在 `/dashboard/students` 开启 AI 深度个性化并确认生成计划
+  - 请求 `/api/plan-lib/create-ai-instance` 返回 403，提示“配额不足，请升级会员或购买加油包”
+  - 该提示来自学员侧会员 AI 配额逻辑，教练后台给学员制定计划不应消耗学员会员配额
+- Status: implemented in code on `2026-04-20`
+- Root cause:
+  - `src/app/api/plan-lib/create-ai-instance/service.ts` 在完成教练身份和订阅归属校验后，仍无条件调用 `checkAndConsumeAiQuota(subscription.student_id, 1)`
+  - 这导致教练端生成计划被学员会员余额拦截，并返回错误的升级会员提示
+- Fix:
+  - 移除教练端 `createAiInstanceForSubscription` 中的学生会员 AI quota 检查
+  - 保留原有教练身份、订阅归属、订阅 active 状态、LLM fallback、订阅剩余额度等校验
+  - 批量生成复用同一服务函数，因此同步不再因学员会员配额失败
+- Verification:
+  - `npm run lint`：通过当前提示脚本
+  - `npx vitest run src/app/api/plan-lib/ai-personalize-plan`：通过（4 files, 23 tests）
+  - `npm test`：通过（21 files, 100 tests）
+  - `npm run typecheck 2>&1 | Select-String -Pattern 'create-ai-instance|ai-personalize-plan|bulk-create-ai-instances'`：无相关错误输出
+  - `npx next build`：通过
+  - 代码确认：`create-ai-instance/service.ts` 已无 `checkAndConsumeAiQuota` / `membershipLimit` / “配额不足”相关调用
+- Next step:
+  - 在已登录教练页面重试开启 `AI 深度个性化` 后确认生成计划，应不再出现学员会员配额不足提示；若失败，下一步看真实 LLM API / 模板匹配 / 数据库迁移错误。
+
+- Task: 升级教练 AI 分身资料库为多文档检索加载
+- Scope:
+  - 用户作为教练枭马葛，已从大量学员聊天记录中提取个人 AI 分身资料，目录为 `C:\Users\29454\Documents\微信聊天记录导出\ai_coach_knowledge_base`
+  - 当前单一 `knowledge_base` 文本框会被保存上限和 prompt 截断限制影响，不能充分利用 10 个 Markdown 文件
+  - 目标是支持把 Markdown 资料作为结构化知识文档保存，并在自动回复时按当前学员问题检索相关文档注入 prompt
+- Status: implemented in code on `2026-04-20`
+- Fix:
+  - 新增 `src/lib/coachAiKnowledge.ts`
+    - 定义教练 AI 知识文档结构
+    - 支持按文件名/内容推断分类：身份风格、训练理念、沟通策略、动作技术、计划设计、营养补剂、伤病边界、常见问题、内容运营
+    - 自动回复时始终优先保留 persona / philosophy / communication / injury 等核心文档，并按学员问题关键词检索 topic 文档
+  - 新增迁移 `supabase/migrations/20260420_coach_ai_knowledge_documents.sql`
+    - 给 `coach_ai_auto_reply_settings` 增加 `knowledge_documents jsonb`
+  - 更新 `/api/coach/ai-auto-reply-settings`
+    - GET/POST 支持 `knowledgeDocuments`
+    - 兼容未执行新迁移时的旧字段读取
+    - 保存多文档时做数量、单文档长度、总长度保护
+  - 更新 `src/lib/coachAiAutoReply.ts`
+    - 不再只把 `knowledge_base` 整段截断塞入 prompt
+    - 新增“核心补充资料 + 按当前问题检索命中的教练知识文档”两层上下文
+  - 更新 `src/app/messages/page.tsx`
+    - AI 分身弹窗新增 Markdown 多文件导入
+    - 可以一次选择 `persona.md`、`program_design.md`、`nutrition_supplements.md` 等文件
+    - 文档支持启用/停用、删除、清空，并展示自动分类和字数
+  - 顺手补齐 `src/app/api/coach/broadcast-message/entity.ts` 的图片群发 DTO 字段，避免同一消息页类型检查被旧字段污染
+- Verification:
+  - 用户最新要求“不用写测试，只管写代码；我执行 SQL 并验证功能”，因此已删除新增测试文件，后续未继续追加验证命令
+  - 在用户打断前已跑过：`npm run lint` 通过当前提示脚本；`npm test` 通过；`npx next build` 通过；全量 `npm run typecheck` 仍失败于仓库历史类型面，定向过滤本次 AI 分身相关文件无输出
+- Next step:
+  - 用户执行 `supabase/migrations/20260420_coach_ai_knowledge_documents.sql`
+  - 在 `/messages` 点击“AI 分身”，导入 `C:\Users\29454\Documents\微信聊天记录导出\ai_coach_knowledge_base` 下 10 个 `.md` 文件并保存
+  - 用学员号向枭马葛发不同类型问题验证：动作技术、计划调整、补剂、疼痛/伤病
+
+- Task: 为教练文章增加独立“专栏”页与入口
+- Scope:
+  - 用户提出“教练的文章能不能搞一个专栏”
+  - 目标不是再造新内容系统，而是在现有 `coach_contents` 基础上补一个按教练聚合的公开专栏页
+  - 需要同时打通三处入口：全站文章广场、教练主页内容页签、专栏页本身
+- Status: implemented in code on `2026-04-20`
+- Fix:
+  - 新增 `src/app/articles/coach/[coachId]/page.tsx`
+    - 改为服务端公开页面，直接读取已审核教练和其 `coach_contents` 图文文章
+    - 展示教练名、头衔、文章列表、阅读/点赞数据，并保留文章详情跳转
+  - 新增 `src/app/articles/coach/[coachId]/loading.tsx`
+    - 提供专栏页加载骨架
+  - `src/app/articles/page.tsx`
+    - 将“教练内容 · 公开资讯”升级为“教练专栏广场”
+    - 每篇文章补充“查看某教练专栏”入口
+  - `src/app/coach/profile/[id]/CoachContent.tsx`
+    - 页签文案从“教学内容”调整为“教练专栏”
+  - `src/app/coach/profile/[id]/content-panel/Content.tsx`
+    - 在教练主页内容面板顶部增加专栏说明卡和“进入专栏”按钮
+- Verification:
+  - `npm run lint`：通过当前提示脚本
+  - `npm run typecheck`：失败，仍为仓库既有问题；当前报错是 `.next/types/validator.ts` 缺失
+  - `npx next build`：通过，路由清单包含 `ƒ /articles/coach/[coachId]`
+  - `npm test`：通过（21 files, 100 tests）
+  - 浏览器验证：
+    - 当前会话没有 AGENTS.md 指定的 `web-devtools` skill
+    - 已改用本地 dev server + Playwright 脚本验证 `http://localhost:3000/articles -> /articles/coach/[coachId]`
+    - 结果：找到 `11` 个专栏入口，成功进入 `枭马葛专栏`，页内识别到 `6` 个文章卡片
+    - 截图：`test-results/coach-column-articles-page.png`、`test-results/coach-column-page.png`
+
+- Task: 将教练文章专栏升级为“命名专栏 + 闲散文章”结构
+- Scope:
+  - 用户追问：专栏是否需要名字，以及同一教练是否会同时存在专栏文章和闲散文章
+  - 结论：轻量的“按教练聚合文章”不够，需要真正变结构
+  - 目标：每位教练可以创建命名专栏，文章可选择归属某专栏；未选择专栏的文章保留为闲散文章
+- Status: implemented in code on `2026-04-20`
+- Fix:
+  - 新增迁移 `supabase/migrations/20260420_coach_content_columns.sql`
+    - 新表 `coach_content_columns`
+    - `coach_contents` 增加 `column_id` 和 `column_sort_order`
+    - `column_id IS NULL` 表示闲散文章
+    - 补索引、外键、RLS、grant
+  - `src/types/database.types.ts` / `src/types/index.ts`
+    - 补 `coach_content_columns` 类型
+    - 补 `CoachContentColumnRow`
+    - 补 `coach_contents.column_id` / `column_sort_order`
+  - 新增 `/api/coach/content-columns`
+    - GET 获取当前教练专栏
+    - POST 新建专栏
+    - PUT 更新专栏基础信息
+  - `publish-content` / `update-content`
+    - 支持写入和更新 `column_id` / `column_sort_order`
+    - 校验所选专栏必须属于当前教练
+  - `src/app/dashboard/content/ContentEditor.tsx`
+    - 新增“内容归属”：闲散文章 / 某个专栏
+    - 编辑器内只负责选择“闲散文章 / 已有专栏”，不再把新建专栏输入框塞进文章表单
+    - “管理 / 新建专栏”会打开统一的专栏管理弹窗；在编辑器内创建或选中专栏后会自动回填到内容归属
+  - `src/app/dashboard/content/page.tsx`
+    - 加载教练专栏列表
+    - 内容列表展示所属专栏或“闲散文章”
+    - 支持按专栏归属过滤
+    - 新增独立“专栏管理”弹窗，用于创建专栏、查看已有专栏、筛选或选中专栏
+  - `src/app/api/coach/content-columns`
+    - 用户截图反馈 `POST /api/coach/content-columns 500` 后复查：专栏表已存在，失败更像是 API 使用匿名 Supabase client 写入时被 RLS 拦截
+    - 已改为：API 先用登录 session 校验当前教练身份，再用 `serviceRoleSupabase` 执行专栏表的列表/创建/更新，避免 RLS 误拦截服务端可信写入
+    - 重复 slug 时返回已有专栏，不再直接 500
+  - `src/app/articles/coach/[coachId]/page.tsx`
+    - 公开页按命名专栏分区展示
+    - 单独展示“闲散文章”
+- Verification:
+  - `npm run lint`：通过当前提示脚本
+  - `npx next build`：通过，路由清单包含 `ƒ /api/coach/content-columns` 和 `ƒ /articles/coach/[coachId]`
+  - `npm test`：通过（21 files, 100 tests）
+  - `npm run typecheck`：超时；二次定向过滤同样超时，未得到新增文件相关错误输出
+  - 用户截图后的追加验证：
+    - `npx next build`：通过
+    - `npm test`：通过（21 files, 100 tests）
+    - `npm run lint`：通过当前提示脚本
+    - `npm run typecheck`：失败于仓库既有大面积类型问题（Next 16 route params、动作库/schema 类型、小程序 Taro 依赖等）；定向过滤 `content-columns` / `dashboard/content` / `ContentEditor` 无命中
+    - service role 数据库验证：临时插入 `coach_content_columns`、读取、删除，全部成功且清理完成
+    - Playwright 尝试打开 `http://localhost:3000/dashboard/content`，但无共享登录态，被重定向到 `/login`；截图 `test-results/content-columns-dashboard-check.png`
+  - Deployment blocker:
+    - 这版代码必须与 SQL 迁移一起上线，不能只部署代码
+
+- Task: 导入 body-map-system 文章到当前人体地图知识库
+- Scope:
+  - 盘点 `C:\Users\29454\.openclaw\workspace-main\body-map-system\articles` 现有 134 篇 Markdown 是否可直接复用到当前人体地图
+  - 将可用文章按“直接同名部位 / 别名映射 / 相关结构或问题节点”挂载到当前 26 个可点击肌肉/关节
+  - 先把现有内容填充进人体地图，再明确当前仍缺的内容空白
+- Status: implemented in code and imported on `2026-04-20`
+- Fix:
+  - 新增 `scripts/import-body-map-articles.ts`
+    - 读取外部 body-map-system Markdown 文章
+    - 用 `markdown-it` 转为 `knowledge_nodes.content.body` 可渲染 HTML
+    - 支持 `direct / alias / related / skipped` 四类映射
+    - 默认 dry-run 输出 JSON 报告，`--apply` 时用 Supabase service role 幂等 upsert 到 `knowledge_nodes`
+    - 同步补写 `knowledge_node_closures` 自关联，保证详情与树结构兼容
+  - 导入结果：
+    - 总文件 `134`
+    - 可利用 `130`
+    - 直接命中 `19`
+    - 别名映射 `4`
+    - 相关挂载 `107`
+    - 跳过 `4`（`颈前淋巴结区 / 颞下颌关节 / 咬肌 / 翼内肌`，当前人体图无对应点击区）
+    - 当前 `26` 个可点击部位已全部有内容，不再有空部位
+- Verification:
+  - dry-run：`temp_dir/body_map_article_import_dry-run_20260420_034304.json`
+  - apply：`temp_dir/body_map_article_import_apply_20260420_034811.json`
+    - `updated=130`，`errors=0`
+  - `npm run lint`：通过当前提示脚本
+  - `npm run typecheck`：失败，仓库既有问题；当前报错为 `.next/types/routes.d.ts` 与 `.next/types/validator.ts` 缺失
+  - `npx next build`：通过
+  - `npm test`：通过（21 files, 100 tests）
+- Next step:
+  - 优先补“头面/颈前区域”问题节点与点击区，吸收这次跳过的 4 篇文章
+  - 若要让“筛查模式 / 训练模式”真正分流结果，可在 `/api/knowledge/nodes` 增加对 `content.body_map_modes` 的过滤
+
+- Task: 补充 body-map-system 新转录 topic 到人体地图知识库
+- Scope:
+  - 评估 `C:\Users\29454\.openclaw\workspace-main\body-map-system\content` 下 26 个 topic 目录及后续新增转录是否可补强当前人体地图
+  - 把当前可用的转录 topic 作为补充型知识节点导入 `knowledge_nodes`
+  - 递归兼容 scp 产生的嵌套目录，并合并重点主题的中文别名目录
+  - 头面/颈前主题先作为 `pending` 待接入节点入库，不误挂到当前 26 个点击区
+- Status: implemented in code and imported on `2026-04-21`
+- Fix:
+  - 新增 `scripts/import-body-map-transcript-packs.ts`
+    - 读取外部 `content/<topic>/.../transcript.txt`
+    - 已升级为递归扫描，兼容 `114-wrist-flexors\114-wrist-flexors\...` 这类嵌套目录
+    - 合并重点主题中文别名目录：`020-胸小肌 / 036-颈前淋巴结区 / 037-颞下颌关节 / 038-咬肌 / 039-翼内肌 / 114-腕屈肌群`
+    - 把同一 topic 下的多份转录整理成“转录素材摘录”型 HTML 页面
+    - 用现有人体图部位映射把 topic 归到相关 `body_region`
+    - 头面/颈前主题保留自身 `body_region`，并写入 `content.pending_body_map_hitbox=true`
+    - 默认 dry-run 输出 JSON 报告，`--apply` 时幂等 upsert 到 `knowledge_nodes`
+  - 导入结果：
+    - 总 topic `26`
+    - 当前人体图可用 `22`
+    - 待扩点击区 `4`（`cervical-lymph-nodes / temporomandibular-joint / masseter / medial-pterygoid`）
+    - 合并后总转录文件 `250`
+    - 实际入库 `26`（`22` 个更新，`4` 个新增 pending 节点）
+  - 本轮重点补强的部位：
+    - `大圆肌 / 岗下肌 / 内收肌 / 肱三头肌 / 腕屈肌群 / 腹外斜肌 / 股二头肌 / 半腱肌 / 足弓 / 踝背屈受限 / 肘关节`
+- Verification:
+  - dry-run：`temp_dir/body_map_transcript_pack_import_dry-run_20260421_204524.json`
+  - apply：`temp_dir/body_map_transcript_pack_import_apply_20260421_204731.json`
+    - `inserted=4`，`updated=22`，`skipped=0`，`errors=0`
+  - `npm run lint`：通过当前提示脚本
+  - `npm run typecheck`：失败于仓库既有类型问题（Next 16 route params、动作库/schema 类型、小程序 Taro 依赖等）；未见本次导入脚本相关错误
+  - `npx next build`：通过
+  - `npm test`：通过（21 files, 101 tests）
+- Next step:
+  - 若后续扩人体图点击区，可直接接入本轮新增的 `颈前淋巴结区 / 颞下颌关节 / 咬肌 / 翼内肌` pending 节点
+  - 内容层面下一步更适合从“素材摘录”升级成正式系统指南，而不是继续盲目堆同主题转录
+
+- Task: 将人体地图重点转录素材整理成正式系统指南并入库
+- Scope:
+  - 用户确认由代理整理当前人体地图素材，并同步到数据库
+  - 第一批整理 7 个主题：`胸小肌 / 腕屈肌群 / 大圆肌 / 颞下颌关节 / 咬肌 / 翼内肌 / 颈前淋巴结区`
+  - 将“转录素材摘录”升级为用户可直接阅读的正式知识节点
+  - 对头面/颈前主题保持保守医学边界，先以 `pending_body_map_hitbox=true` 入库，后续扩点击区再展示
+- Status: implemented and imported on `2026-04-21`
+- Fix:
+  - 新增 `scripts/import-body-map-formal-guides.ts`
+    - 生成 7 篇正式系统指南
+    - 使用统一结构：定位、常见表现、自我观察、处理策略、误区、风险边界
+    - 当前人体图可用主题：
+      - `胸小肌系统指南：圆肩、肩前侧紧张与肩胛控制`
+      - `腕屈肌群系统指南：握力、前臂内侧疼痛与高尔夫球肘`
+      - `大圆肌系统指南：拉类动作、肩后侧发力与背阔肌区分`
+    - 待扩头面/颈前点击区主题：
+      - `颞下颌关节指南：弹响、咬紧与张口受限的风险边界`
+      - `咬肌指南：咬紧牙、磨牙与面颊紧张管理`
+      - `翼内肌指南：深层咀嚼肌、张口偏移与 TMJ 关联`
+      - `颈前淋巴结区指南：肿大、压痛与何时就医`
+  - 数据库导入：
+    - dry-run：`temp_dir/body_map_formal_guides_import_dry-run_20260421_210006.json`
+    - apply：`temp_dir/body_map_formal_guides_import_apply_20260421_210114.json`
+    - `inserted=7`，`updated=0`，`errors=0`
+- Verification:
+  - dry-run 成功：`total_guides=7`，`usable_guides=3`，`pending_guides=4`
+  - apply 成功写入 Supabase：`inserted=7`，`errors=0`
+  - lint 脚本等价检查通过（项目当前 lint 只是提示 Next 16 未配置 eslint）
+  - `npm test` 等价 Vitest 命令通过（21 files, 101 tests）
+  - `typecheck` 失败于仓库既有大面积类型问题（Next 16 route params、动作库/schema、小程序 Taro 依赖等），未见本次脚本相关错误
+  - `next build` 两次卡在 `Creating an optimized production build ...` 直到超时；当前机器存在大量常驻 node 进程，未强杀以免影响用户 dev 服务
+- Next step:
+  - 后续更适合继续把其他高价值素材包升级为正式指南，而不是继续只导入转录摘录
+  - 若要让头面/颈前 4 篇在人体地图 UI 中出现，需要新增对应 hitbox 或问题模式入口
+
+- Task: 优化 AI 生成配置弹窗中的 `AI 深度个性化` 开关表达
+- Scope:
+  - 用户反馈原来的 `开启/关闭` ToggleButton 状态不清晰，截图里难以判断当前到底是关闭状态还是点击后关闭
+  - 目标是换成更传统、明确的开关样式，并直接显示当前状态
+- Status: implemented in code on `2026-04-20`
+- Fix:
+  - `src/app/dashboard/students/AiInstanceConfigDialog.tsx`
+    - 将 `ToggleButton` 替换为 PrimeReact `InputSwitch`
+    - 在标题旁增加明确状态标签：`已关闭` / `已开启`
+    - 保留说明文案和原有 `useLLM` 参数传递逻辑
+- Verification:
+  - `npm run lint`：通过当前提示脚本
+  - `npm test`：通过（21 files, 100 tests）
+  - `npm run typecheck 2>&1 | Select-String -Pattern 'AiInstanceConfigDialog|dashboard/students/page|dashboard\\students\\page'`：无相关错误输出
+  - `npx next build`：通过
+  - 浏览器验证：已用 Playwright 尝试打开 `http://localhost:3000/dashboard/students`，但自动化浏览器无教练登录态，被重定向到 `/login`；无法实际打开该弹窗截图验证。截图保存于 `test-results/ai-config-switch-verification.png`
+
+- Task: 修复 `/dashboard/students` 桌面学员表格训练计划列撑宽导致横向滚动
+- Scope:
+  - 用户反馈训练计划列里的长描述会把表格撑得很宽，需要手动横向滑动才能看到最后一列
+  - 目标是在桌面 DataTable 内限制训练计划卡片宽度，让长计划描述在本列内截断，不再撑开整张表
+- Status: implemented in code on `2026-04-20`
+- Fix:
+  - `src/app/dashboard/students/page.tsx`
+    - 桌面 DataTable 增加 `tableStyle={{ tableLayout: 'fixed', width: '100%' }}`
+    - 调整桌面列宽分配，为固定 checkbox 列预留空间
+    - 训练计划卡片和描述行补 `min-w-0`，让 `truncate` 在 flex 布局中真正生效
+    - 计划描述分隔符设为 `shrink-0`，描述文字本身在本列内省略
+- Verification:
+  - `npm run lint`：通过当前提示脚本
+  - `npm test`：通过（21 files, 100 tests）
+  - `npm run typecheck`：仍失败于项目既有历史类型问题；定向过滤 `dashboard/students/page` 无相关错误输出
+  - `npx next build`：编译、收集页面和静态页面生成均成功，但最终 standalone copy 因本机 3000 服务占用 `.next` 文件触发 Windows `EBUSY`
+  - 浏览器验证：用 Playwright 打开 `http://localhost:3000/dashboard/students`，因没有该浏览器上下文的教练登录态被重定向到 `/login`；未能在真实表格数据态下自动截图验证。截图保存于 `test-results/students-table-overflow-check.png`
+- Next step:
+  - 用已有登录态浏览器刷新 `/dashboard/students`，确认底部横向滚动条消失；若仍出现，优先检查训练进度列 `min-w-[180px]` 或外层容器宽度。
+
+- Task: 移植 LLM 个性化训练计划生成到当前 dev 分支
+- Scope:
+  - 从 `origin/feat/ai-personalize-plan` 手工移植 LLM 相关文件，不整分支合并旧 `app/` 小程序结构
+  - 保留当前 `dev` 的订阅剩余额度 / 下一阶段计划 / 默认起点判断逻辑
+  - 修复特性分支里与当前 schema 和 `source` 约束不兼容的问题
+- Status: implemented in code on `2026-04-20`
+- Findings:
+  - 当前本地 `dev` 与 `origin/dev` 均为 `fd9656d844c886035899377c1a1c17f1d2db67aa`，没有 `src/app/api/plan-lib/ai-personalize-plan/`、`useLLM`、`ai_generation_log`、`AiGenerationLogCard` 或 `20260416_add_ai_generation_log.sql`。
+  - 远端存在 `origin/feat/ai-personalize-plan`，提交 `1f12d7554761edb87357d19113bdf5f9e92a056f`，其中确实包含用户转述的 20 个左右文件改动和 23 个单测。
+  - 该远端特性分支未合入当前 `dev`，且基于较旧主线，仍携带根目录 `app/` 小程序结构；当前项目要求小程序在 `wechat_app/`，直接合并会产生目录/状态文件/基础设施冲突。
+  - 静态检查发现特性分支实现存在至少两个上线阻断：`coach_actions` 查询了当前 schema 不存在的 `category`/`description` 列；插入计划时写 `source='ai-personalized'`，但当前数据库约束只允许 `coach/self`。
+- Fix:
+  - 新增 `src/app/api/plan-lib/ai-personalize-plan/`
+    - Stage A：`select-template.ts` 让 LLM 从模板摘要里选骨架
+    - Stage B：`personalize-plan.ts` 让 LLM 基于学员上下文和动作白名单个性化调整训练日
+    - `validate-output.ts` 做 `actionId` 白名单过滤、day 重编号和 JSON 输出清理
+    - `service.ts` 编排 Stage A/B、校验和 `fillTemplate` 重算重量
+  - `create-ai-instance` / `bulk-create-ai-instances` DTO、route、service 透传 `useLLM`
+  - `create-ai-instance/service.ts`
+    - `useLLM=true` 时走 LLM 分支，失败时 fallback 到现有 `matchPlan + fillTemplate`
+    - 保留当前 `dev` 的 `getSubscriptionCarryoverSummary` 剩余额度判断和默认起点语义
+    - PR 记录读取使用 `actorUserId` 做权限身份，而不是误用 coach row id
+    - 动作库查询使用当前真实字段 `id,name,type,detail`，并在 prompt 映射为 `category/description`
+    - 不再写非法 `source='ai-personalized'`，继续保持 `source` 默认 `coach`，用 `ai_generation_log` 判断 AI 个性化记录
+  - 前端配置弹窗新增 `AI 深度个性化` ToggleButton，单条/批量生成时传 `useLLM`
+  - 学员计划详情页新增 `AiGenerationLogCard`，当实例有 `ai_generation_log` 时展示 Stage A/B reasoning
+  - 新增迁移 `supabase/migrations/20260416_add_ai_generation_log.sql`
+  - 新增 4 个测试文件，共 23 个 LLM 单测
+- Verification:
+  - `npm run lint`：通过当前脚本（脚本提示未配置 eslint）
+  - `npm test`：通过（21 files, 100 tests）
+  - `npm run typecheck`：失败，仍为项目历史类型问题；二次过滤 `ai-personalize-plan|create-ai-instance|bulk-create-ai-instances|AiInstanceConfigDialog|dashboard\\students\\page|AiGenerationLogCard|20260416_add_ai_generation_log` 无匹配错误
+  - `npx next build`：第一次最终 standalone copy 遇到 Windows `EBUSY` 文件锁；清理 `.next` 后重跑通过
+  - 浏览器验证：当前会话没有 AGENTS.md 指定的 `web-devtools` skill；已用 Playwright 打开 `http://localhost:3100/dashboard/students` 并截图到 `test-results/ai-personalize-plan-dashboard-students.png`，页面因缺少登录态重定向到登录弹窗，无法实际点击“AI 深度个性化”开关或走真实学员生成流程
+- Next step:
+  - 在 staging 应用 `20260416_add_ai_generation_log.sql` 后，用真实教练账号走通：无计划学员 -> 打开 AI 生成配置 -> 开启 AI 深度个性化 -> 生成计划 -> 计划详情页看到 AI 个性化生成记录。
+
+- Task: 基于当前真实数据回答项目 8 条补充信息
+- Scope:
+  - 区分 `已上线 / 已开发未上线 / 规划中`
+  - 回答用户侧、教练侧、供需撮合、核心场景、种子用户、风险责任机制、优先变现对象
+  - 真实运营数据以当前 Supabase 配置和生产埋点为准；无埋点或无法严谨归因的数据必须明确标注不可精确回答
+- Status: analysis completed on `2026-04-18`
+- Data snapshot:
+  - 统计口径：北京时间 `2026-04-18`，近 7 日从 `2026-04-11 00:00` 起，近 30 日从 `2026-03-19 00:00` 起
+  - 注册用户 `1296`
+  - 近 7 日登录用户 `165`，近 30 日登录用户 `718`
+  - 行为埋点近 7 日去重用户 `27`，近 30 日去重用户 `42`
+  - 页面埋点近 7 日去重会话 `447`，近 30 日去重会话 `1947`
+  - 近 7 日完成训练打卡用户 `23`，完成训练记录 `49`
+  - 全量完成训练用户 `65`，完成训练记录 `794`
+  - 完成过整套计划用户 `5`，完成计划实例 `8`
+  - 上传过训练视频用户 `16`，训练/执行视频共 `69`
+  - 已批准教练 `15`，近 30 日教练行为活跃 `2`，真正带过学员/有订阅/有计划执行的教练 `3`
+  - 教练订阅关系 `126`，active `84`，waiting `1`；当前订阅均在 `professional/growth` 教练层级，`buddy` 暂无订阅
+  - 好友/搭子关系 `20`，其中 accepted `15`
+  - 支付订单 `222`，订阅订单 `86`，其中 paid `15`；订阅支付客单价约 `180.14` 元；付费订阅用户 `14`，重复付费用户 `1`
+  - AI 精确使用人数当前没有稳定埋点；`student_quotas` 有 `105` 行，其中 `56` 行余额低于旧/免费额度，最多只能作为“可能使用过 AI/配额被消耗”的弱证据
+- Notes:
+  - `coach_ai_auto_reply_settings` 表在当前 Supabase 中不存在，说明教练 AI 自动回复迁移尚未应用到线上库；该功能只能列为“已开发未上线/未部署”。
+
+- Task: 为每个教练增加 DeepSeek AI 自动回复虚拟分身
+- Scope:
+  - 教练可以在消息中心配置 AI 自动回复开关
+  - 教练可以维护基础提示词和资料库，供 AI 回复学员私信时参考
+  - 先使用 DeepSeek OpenAI 兼容接口，模型为 `deepseek-chat`
+  - 学员给教练发送文本消息时，若该教练已开启自动回复，则系统自动以教练身份插入一条 AI 回复
+  - AI 回复必须在消息气泡中明确标注“教练虚拟分身自动回复”，提醒用户这不是教练本人实时输入
+  - AI 回复必须参考系统资料和教练资料库，不能只凭模型常识瞎回复
+- Status: implemented in code on `2026-04-16`
+- Fix:
+  - 新增迁移 `supabase/migrations/20260416_coach_ai_auto_reply.sql`
+    - 新表 `coach_ai_auto_reply_settings`
+    - 每个教练按 `coach_user_id` 保存 `enabled`、`system_prompt`、`knowledge_base`、`model`
+  - 新增 `src/lib/coachAiAutoReply.ts`
+    - 使用 `DEEPSEEK_API_KEY` + `https://api.deepseek.com` + `deepseek-chat`
+    - 只处理一对一私聊中“学员发给教练”的文本消息
+    - 自动拼装 DeepSeek 上下文：
+      - 教练档案：姓名、头衔、简介、专项、支持重点、教学理念等
+      - 学员档案：昵称/姓名、性别、年龄、身高、体重、训练目标/水平、作息、运动数据卡
+      - 订阅关系：状态、档位、购买周期、开始日期、预计结束日期、订阅补充资料
+      - 当前计划摘要：计划名称、说明、状态、完成进度、接下来若干训练日动作
+      - 最近聊天上下文
+    - 自动回复包含安全边界：不冒充真人教练、不处理医疗诊断、不承诺计划/价格/退款等需真人确认事项
+    - 若系统资料、教练资料库、聊天上下文都没有足够依据，则要求 AI 明确说明需要教练本人确认，不能编造
+    - 插入消息时写入 `content_metadata.coach_ai_auto_reply=true`
+  - 新增 `/api/coach/ai-auto-reply-settings`
+    - GET/POST 读取和保存当前教练的 AI 自动回复设置
+  - `src/app/messages/page.tsx`
+    - 教练消息中心新增“AI 分身”入口
+    - 支持开关、基础提示词、资料库编辑
+  - `src/app/api/chat/send-message/route.ts`
+    - 发文本消息成功后触发 AI 自动回复并等待插入完成
+  - `src/components/chat/MessageItem.tsx`
+    - AI 回复气泡展示“教练虚拟分身自动回复”和“重要事项请等待教练本人确认”提示
+  - `.env.local`
+    - 复用项目既有的 `DEEPSEEK_API_KEY` 环境变量；这不是新的独立密钥体系
+- Verification:
+  - `npm run lint`：通过（脚本仅提示项目未配置 eslint）
+  - `npm test`：通过（17 files, 77 tests）
+  - `npm run typecheck`：超时未完成，符合近期历史表现
+  - `npx next build`：用户中止并明确表示“不用编译，写代码就行”，因此未继续构建
+  - 浏览器验证：未执行；用户本轮明确不要求编译/验证，只要求写代码
+- Note:
+  - 用户在 `2026-04-17` 纠正：DeepSeek key 原本就是项目既有同一个 key，本功能应复用 `DEEPSEEK_API_KEY`，不要理解成新增了一套独立 API key 配置
+  - 用户在 `2026-04-17` 进一步明确：AI 自动回复必须参考资料，不能凭自己的感觉瞎回复；已在 `coachAiAutoReply` 中补系统上下文拼装和“不足则转真人确认”的约束
 
 - Task: 同步 main/dev 的微信小程序目录命名并修复 Next 根路由冲突
 - Scope:
@@ -739,12 +1461,6 @@
   - `npm test`：通过（12 files, 58 tests）
 
 ---
-
-## Monorepo（`2026-04-11`）
-
-- Task: 将微信小程序工程纳入根目录 `app/`，统一 Git；更新 `AGENTS.md` 与决策记录
-- Status: completed
-- Notes: `app/` 内嵌套 `.git` 已移除；小程序远程 `main` 已通过 `origin/main` fast-forward 对齐
 
 ## coachlink LLM（`2026-04-09` 追加）
 

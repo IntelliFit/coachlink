@@ -14,6 +14,7 @@ import type { ItemType } from "@/types";
 import { sanitizeActionName } from "@/lib/planImportText";
 import { getCoachlinkLlm } from "@/lib/coachlinkLlm";
 import { tryApplyDeterministicBatchEdit } from "@/lib/batchOperationDeterministic";
+import { formatTemplateToPlanScript, parsePlanScript } from "@/lib/planScript";
 
 // 检查是否为开发环境
 const isDevelopment = process.env.NODE_ENV === 'development';
@@ -533,6 +534,226 @@ function normalizeTrainingDaysForEditor(trainingDays: any[], actions: any[]): an
     }));
 }
 
+type PlanScriptEditResult = {
+    success: boolean;
+    actionPlan?: string;
+    updatedTrainingDays?: any[];
+    promptTokens?: number;
+    completionTokens?: number;
+    totalTokens?: number;
+    duration?: number;
+    error?: string;
+};
+
+function buildActionNameById(actions: Array<{ id: string; name: string }>): Record<string, string> {
+    return Object.fromEntries((actions || []).map((action) => [String(action.id), String(action.name || "")]));
+}
+
+function buildPlanScriptActionLibrary(actions: any[]): string {
+    const grouped: Record<ItemType, string[]> = {
+        STRENGTH: [],
+        CARDIO: [],
+        DIET: [],
+        HABIT: [],
+    };
+    for (const action of actions || []) {
+        const type = normalizeItemType(action?.type);
+        const name = String(action?.name || "").trim();
+        if (!name) continue;
+        grouped[type].push(name);
+    }
+
+    return [
+        `力量: ${grouped.STRENGTH.join("、") || "（暂无）"}`,
+        `有氧: ${grouped.CARDIO.join("、") || "（暂无）"}`,
+        `饮食: ${grouped.DIET.join("、") || "（暂无）"}`,
+        `习惯: ${grouped.HABIT.join("、") || "（暂无）"}`,
+    ].join("\n");
+}
+
+function normalizePlanScriptText(script: string): string {
+    return String(script || "")
+        .replace(/\r\n/g, "\n")
+        .split("\n")
+        .map((line) => line.trim())
+        .filter(Boolean)
+        .join("\n");
+}
+
+async function runPlanScriptEdit(params: {
+    openai: ReturnType<typeof getCoachlinkLlm>["client"];
+    llmModel: string;
+    trainingDays: any[];
+    actions: any[];
+    effectiveInstruction: string;
+    contextPrompt: string;
+    deterministicReason?: string;
+    sendMessage: (message: SSEMessage) => void;
+}): Promise<PlanScriptEditResult> {
+    const {
+        openai,
+        llmModel,
+        trainingDays,
+        actions,
+        effectiveInstruction,
+        contextPrompt,
+        deterministicReason,
+        sendMessage,
+    } = params;
+
+    let currentScript: string;
+    try {
+        currentScript = formatTemplateToPlanScript({
+            trainingDays,
+            actionNameById: buildActionNameById(actions),
+        });
+    } catch (error: any) {
+        return {
+            success: false,
+            error: error?.message || "当前计划无法转换为计划脚本",
+        };
+    }
+
+    const actionLibrary = buildPlanScriptActionLibrary(actions);
+    const maxRetries = 2;
+    const messages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
+        {
+            role: "system",
+            content: "你是 coachlink 的训练计划脚本编辑器。你只输出 JSON，不输出额外说明。",
+        },
+        {
+            role: "user",
+            content: `请根据用户指令修改下面的计划脚本，并返回完整的新脚本。
+
+## 计划脚本规则
+- W1 表示第 1 周，D1 表示一周第 1 天，D1 off 表示休息日。
+- !开头表示当天备注，# 后面表示动作备注。
+- 动作格式示例：负重引体（底部暂停） 4x7 @9rm r270。
+- 4x7 表示 4 组 7 次，4x30s 表示 4 组 30 秒，@9rm 表示 9RM，r270 表示休息 270 秒。
+- 必须保留完整计划，不能只返回被修改片段。
+- 除用户要求修改的地方外，其余周、天、动作顺序、备注和参数都必须保持不变。
+- 动作名必须使用动作库中的完整名称，尤其括号变体必须精确保留，例如“负重引体（底部暂停）”不能写成“负重引体”。
+- 如果用户要求的新动作不在动作库中，返回无法执行原因，不要编造动作名。
+
+## 可用动作库
+${actionLibrary}
+
+## 额外业务上下文
+${contextPrompt}
+
+## 当前计划脚本
+\`\`\`plan
+${currentScript}
+\`\`\`
+
+## 用户指令
+${effectiveInstruction}
+${deterministicReason ? `\n\n## 已尝试的明确规则未命中原因\n${deterministicReason}` : ""}
+
+请严格返回 JSON：
+{
+  "actionPlan": "一句中文说明你做了什么",
+  "script": "完整修改后的计划脚本",
+  "cannotApplyReason": "如果无法修改，写明原因；可以修改时为空字符串"
+}`,
+        },
+    ];
+
+    let lastError = "";
+    let promptTokens = 0;
+    let completionTokens = 0;
+    let totalTokens = 0;
+    const startedAt = Date.now();
+
+    for (let retry = 0; retry < maxRetries; retry++) {
+        sendMessage({
+            type: "progress",
+            message: retry === 0 ? "正在用计划脚本生成修改方案" : "正在微调计划脚本",
+        });
+
+        const completion = await openai.chat.completions.create({
+            model: llmModel,
+            messages,
+            response_format: { type: "json_object" },
+            temperature: 0.1,
+            max_tokens: 6000,
+        });
+
+        promptTokens += completion.usage?.prompt_tokens || 0;
+        completionTokens += completion.usage?.completion_tokens || 0;
+        totalTokens += completion.usage?.total_tokens || 0;
+
+        const responseContent = completion.choices[0]?.message?.content;
+        if (!responseContent) {
+            lastError = "AI 未返回有效脚本";
+        } else {
+            try {
+                const response = JSON.parse(responseContent) as {
+                    actionPlan?: string;
+                    script?: string;
+                    cannotApplyReason?: string;
+                };
+
+                if (response.cannotApplyReason?.trim()) {
+                    return {
+                        success: false,
+                        error: response.cannotApplyReason.trim(),
+                        promptTokens,
+                        completionTokens,
+                        totalTokens,
+                        duration: Date.now() - startedAt,
+                    };
+                }
+
+                if (!response.script?.trim()) {
+                    throw new Error("AI 返回缺少 script 字段");
+                }
+
+                if (normalizePlanScriptText(response.script) === normalizePlanScriptText(currentScript)) {
+                    throw new Error("AI 返回的计划脚本与原脚本相同，没有实际修改");
+                }
+
+                const parsed = parsePlanScript({
+                    script: response.script,
+                    actions: actions.map((action: any) => ({
+                        id: action.id,
+                        name: action.name,
+                        type: action.type,
+                    })),
+                });
+
+                return {
+                    success: true,
+                    actionPlan: response.actionPlan || "已根据计划脚本完成修改",
+                    updatedTrainingDays: parsed.days,
+                    promptTokens,
+                    completionTokens,
+                    totalTokens,
+                    duration: Date.now() - startedAt,
+                };
+            } catch (error: any) {
+                lastError = error?.message || "计划脚本解析失败";
+                messages.push(
+                    { role: "assistant", content: responseContent },
+                    {
+                        role: "user",
+                        content: `上一次返回的脚本无法编译或没有实际修改：${lastError}\n请重新返回完整可编译脚本，并且只修改用户要求的部分。`,
+                    },
+                );
+            }
+        }
+    }
+
+    return {
+        success: false,
+        error: lastError || "计划脚本修改失败",
+        promptTokens,
+        completionTokens,
+        totalTokens,
+        duration: Date.now() - startedAt,
+    };
+}
+
 /**
  * SSE 流式批量操作接口
  */
@@ -558,6 +779,7 @@ export async function POST(req: NextRequest) {
             targetActionType = "coach",
             contextOptions,
             previewInputOnly = false,
+            editEngine = "code",
         } = body;
 
         if (targetActionType === "coach" && !session.user.is_coach) {
@@ -642,6 +864,8 @@ export async function POST(req: NextRequest) {
                     }
 
                     const actions = actionsData || [];
+                    const shouldUsePlanScriptEngine =
+                        editEngine === "plan_script" || editEngine === "auto";
 
                     // 按类型分组的动作列表，供 AI prompt 使用
                     const actionsByType = {
@@ -659,10 +883,25 @@ export async function POST(req: NextRequest) {
 
 用户可从上述动作库中选择，也可创建新动作（需先在动作库中添加）。`;
 
+                    let planScriptBody: string | null = null;
+                    let planScriptUnavailableReason: string | null = null;
+                    if (shouldUsePlanScriptEngine) {
+                        try {
+                            planScriptBody = formatTemplateToPlanScript({
+                                trainingDays,
+                                actionNameById: buildActionNameById(actions),
+                            });
+                        } catch (error: any) {
+                            planScriptUnavailableReason = error?.message || "当前计划无法转换为计划脚本";
+                        }
+                    }
+
                     const includePlanBody = contextOptions?.includePlanBody ?? true;
                     const includeActionLibrary = contextOptions?.includeActionLibrary ?? true;
                     const planBodyPrompt = includePlanBody
-                        ? JSON.stringify(trainingDays, null, 2)
+                        ? (planScriptBody
+                            ? `（计划脚本格式，已由 training_days 编译而来）\n${planScriptBody}`
+                            : JSON.stringify(trainingDays, null, 2))
                         : '（已关闭：计划/模板本体上下文）';
                     const actionLibraryPrompt = includeActionLibrary
                         ? `${actions.map(a => `- ${a.name} (type: ${a.type})`).join('\n')}\n${actionsByTypePrompt}`
@@ -1044,6 +1283,75 @@ ${effectiveInstruction}
                             message: `分析完成，共发现 ${modifications.length} 处修改${isDevelopment ? ` (总耗时 ${totalDuration}ms)` : ''}`,
                         });
                         return;
+                    }
+
+                    if (shouldUsePlanScriptEngine) {
+                        if (!planScriptBody) {
+                            const reason = planScriptUnavailableReason || "当前计划无法转换为计划脚本";
+                            if (editEngine === "plan_script") {
+                                throw new Error(`脚本编辑引擎暂不可用：${reason}`);
+                            }
+                            sendMessage({ type: "progress", message: `计划脚本不可用，已回退旧引擎：${reason}` });
+                        } else {
+                            const scriptResult = await runPlanScriptEdit({
+                                openai,
+                                llmModel,
+                                trainingDays,
+                                actions,
+                                effectiveInstruction,
+                                contextPrompt,
+                                deterministicReason: deterministicResult.matched ? deterministicResult.reason : undefined,
+                                sendMessage,
+                            });
+
+                            if (scriptResult.success && scriptResult.updatedTrainingDays) {
+                                sendMessage({
+                                    type: "action_plan",
+                                    plan: scriptResult.actionPlan || "已根据计划脚本完成修改",
+                                });
+
+                                const modifications = analyzeModifications(
+                                    originalTrainingDays,
+                                    scriptResult.updatedTrainingDays,
+                                    actions.map(a => ({ id: a.id, name: a.name })),
+                                );
+                                const normalizedUpdatedTrainingDays = normalizeTrainingDaysForEditor(
+                                    scriptResult.updatedTrainingDays || [],
+                                    actions,
+                                );
+                                if (isDevelopment && scriptResult.totalTokens) {
+                                    sendMessage({
+                                        type: "stats",
+                                        tokenUsage: {
+                                            prompt: scriptResult.promptTokens || 0,
+                                            completion: scriptResult.completionTokens || 0,
+                                            total: scriptResult.totalTokens || 0,
+                                        },
+                                        duration: scriptResult.duration,
+                                    });
+                                }
+
+                                sendMessage({
+                                    type: "preview_result",
+                                    success: true,
+                                    originalTrainingDays,
+                                    updatedTrainingDays: normalizedUpdatedTrainingDays,
+                                    modifications,
+                                    pendingActions: [],
+                                    message: `脚本编辑完成，共发现 ${modifications.length} 处修改${isDevelopment ? ` (总耗时 ${Date.now() - startTime}ms)` : ""}`,
+                                });
+                                return;
+                            }
+
+                            if (editEngine === "plan_script") {
+                                throw new Error(scriptResult.error || "计划脚本修改失败");
+                            }
+
+                            sendMessage({
+                                type: "progress",
+                                message: `计划脚本未能完成修改，已回退旧引擎：${scriptResult.error || "未知原因"}`,
+                            });
+                        }
                     }
 
                     // 代码生成流程（借鉴智能导入的 training data 结构描述）

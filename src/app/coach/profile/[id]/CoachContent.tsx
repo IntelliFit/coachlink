@@ -54,7 +54,7 @@ const CoachContent: React.FC<CoachContentProps> = ({
                         onSubscribeSuccess={(tier) => onSubscribeSuccess(tier)}
                     />
                 </TabPanel>
-                <TabPanel header={`教学内容(${aggregatedInfo?.contentCount || 0})`}>
+                <TabPanel header={`教练专栏(${aggregatedInfo?.contentCount || 0})`}>
                     <CoachContentPanel
                         coachId={coachId}
                         userSubscription={userSubscription}

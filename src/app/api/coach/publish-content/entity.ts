@@ -9,6 +9,11 @@ export type PublishContentDto = {
      * 单篇价格（分）。0 表示免费（无需单篇支付）。
      */
     price_cents?: number;
+    /**
+     * 所属专栏。null 表示闲散文章。
+     */
+    column_id?: string | null;
+    column_sort_order?: number | null;
     is_featured?: boolean;
     tags?: string[];
     media_urls?: string[];
@@ -28,6 +33,8 @@ export type PublishContentResponseDto = {
     content_type: string;
     required_tier: number;
     price_cents: number;
+    column_id: string | null;
+    column_sort_order: number | null;
     is_featured: boolean;
     tags: string[];
     media_urls: string[];

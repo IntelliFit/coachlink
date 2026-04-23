@@ -21,13 +21,15 @@ export class BatchOperationService {
         conversationHistory?: ConversationTurn[],
         targetActionType: 'coach' | 'student' = 'coach',
         contextOptions?: BatchOperationContextOptions,
-        previewInputOnly = false
+        previewInputOnly = false,
+        editEngine: 'code' | 'plan_script' | 'auto' = 'code'
     ): Promise<void> {
         try {
             const body: Record<string, unknown> = {
                 templateId,
                 instruction,
                 targetActionType,
+                editEngine,
             };
             if (contextOptions) {
                 body.contextOptions = contextOptions;
@@ -103,13 +105,15 @@ export class BatchOperationService {
         conversationHistory?: ConversationTurn[],
         targetActionType: 'coach' | 'student' = 'coach',
         contextOptions?: BatchOperationContextOptions,
-        previewInputOnly = false
+        previewInputOnly = false,
+        editEngine: 'code' | 'plan_script' | 'auto' = 'code'
     ): Promise<void> {
         try {
             const body: Record<string, unknown> = {
                 trainingDays,
                 instruction,
                 targetActionType,
+                editEngine,
             };
             if (contextOptions) {
                 body.contextOptions = contextOptions;

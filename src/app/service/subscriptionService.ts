@@ -20,9 +20,21 @@ import type {
     CreateSubscriptionResponseDto,
 } from "../api/subscription/create-subscription/entity";
 import type {
+    CreateSubscriptionOrderDto,
+    CreateSubscriptionOrderResponseDto,
+} from "../api/subscription/create-subscription-order/entity";
+import type {
     UpdateSubscriptionDto,
     UpdateSubscriptionResponseDto,
 } from "../api/subscription/update-subscription/entity";
+import type {
+    UpdateSubscriptionOrderDto,
+    UpdateSubscriptionOrderResponseDto,
+} from "../api/subscription/update-subscription-order/entity";
+import type {
+    ConfirmSubscriptionOrderDto,
+    ConfirmSubscriptionOrderResponseDto,
+} from "../api/subscription/confirm-subscription-order/entity";
 import type {
     GetCoachReviewsDto,
     GetCoachReviewsResponseDto,
@@ -134,9 +146,42 @@ class SubscriptionService extends BaseService {
         return null;
     }
 
+    async createSubscriptionOrder(reqData: CreateSubscriptionOrderDto) {
+        const res = await this.post<CreateSubscriptionOrderResponseDto>(
+            "create-subscription-order",
+            reqData,
+        );
+        if (res.data && res.data.success) {
+            return res.data.data;
+        }
+        return null;
+    }
+
     async updateSubscription(reqData: UpdateSubscriptionDto) {
         const res = await this.post<UpdateSubscriptionResponseDto>(
             "update-subscription",
+            reqData,
+        );
+        if (res.data && res.data.success) {
+            return res.data.data;
+        }
+        return null;
+    }
+
+    async updateSubscriptionOrder(reqData: UpdateSubscriptionOrderDto) {
+        const res = await this.post<UpdateSubscriptionOrderResponseDto>(
+            "update-subscription-order",
+            reqData,
+        );
+        if (res.data && res.data.success) {
+            return res.data.data;
+        }
+        return null;
+    }
+
+    async confirmSubscriptionOrder(reqData: ConfirmSubscriptionOrderDto) {
+        const res = await this.post<ConfirmSubscriptionOrderResponseDto>(
+            "confirm-subscription-order",
             reqData,
         );
         if (res.data && res.data.success) {

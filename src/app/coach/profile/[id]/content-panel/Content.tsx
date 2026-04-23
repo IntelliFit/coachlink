@@ -1,6 +1,8 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { ArrowRight } from 'lucide-react';
 import ContentItem from './ContentItem';
 import ContentSkeleton from './ContentSkeleton';
 import { coachService } from '@/app/service/coachService';
@@ -94,6 +96,26 @@ const CoachContentPanel: React.FC<CoachContentPanelProps> = ({
 
     return (
         <div className="space-y-6">
+            <div className="flex flex-col gap-3 rounded-3xl border border-surface-100 bg-surface px-5 py-5 md:flex-row md:items-center md:justify-between">
+                <div>
+                    <div className="text-xs font-black uppercase tracking-[0.24em] text-surface-400">
+                        Coach Column
+                    </div>
+                    <h2 className="mt-2 text-xl font-black tracking-tight text-surface-900">
+                        文章不只是列表，也可以沉淀成专栏
+                    </h2>
+                    <p className="mt-2 text-sm text-surface-500">
+                        如果你想连续看这位教练写的图文内容，可以直接进入专栏页集中浏览。
+                    </p>
+                </div>
+                <Link
+                    href={`/articles/coach/${coachId}`}
+                    className="inline-flex items-center gap-2 self-start rounded-2xl border border-surface-200 bg-surface px-4 py-3 text-sm font-bold text-surface-700 hover:border-primary-200 hover:text-primary-600 transition-colors"
+                >
+                    进入专栏
+                    <ArrowRight className="w-4 h-4" />
+                </Link>
+            </div>
             {coachContent.map((content) => (
                 <ContentItem
                     key={content.id}

@@ -47,6 +47,7 @@ export async function POST(req: Request) {
             coach_id: userId,
             name: `${sourceTemplate.name}（副本）`,
             description: sourceTemplate.description,
+            execution_notice: (sourceTemplate as any).execution_notice || null,
             tags: sourceTemplate.tags,
             week_days: sourceTemplate.week_days,
             contained_options: sourceTemplate.contained_options,
