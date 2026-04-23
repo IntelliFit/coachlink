@@ -1,0 +1,7 @@
+{
+  "navigationBarTitleText": "意见反馈",
+  "animationType": "none",
+  "usingComponents": {
+    "comp": "../../comp"
+  }
+}

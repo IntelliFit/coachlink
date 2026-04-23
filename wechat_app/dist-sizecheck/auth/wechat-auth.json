@@ -1,0 +1,7 @@
+{
+  "navigationBarTitleText": "快捷登录",
+  "animationType": "none",
+  "usingComponents": {
+    "comp": "../../comp"
+  }
+}

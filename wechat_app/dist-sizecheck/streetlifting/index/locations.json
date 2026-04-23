@@ -1,0 +1,7 @@
+{
+  "navigationBarTitleText": "寻找单杠",
+  "animationType": "none",
+  "usingComponents": {
+    "comp": "../../../comp"
+  }
+}

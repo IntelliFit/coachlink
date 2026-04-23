@@ -1,0 +1,7 @@
+{
+  "navigationBarTitleText": "创建计划",
+  "animationType": "none",
+  "usingComponents": {
+    "comp": "../../../comp"
+  }
+}

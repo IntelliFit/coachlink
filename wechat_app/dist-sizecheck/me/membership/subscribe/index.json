@@ -1,0 +1,7 @@
+{
+  "navigationBarTitleText": "会员订阅",
+  "animationType": "none",
+  "usingComponents": {
+    "comp": "../../../comp"
+  }
+}

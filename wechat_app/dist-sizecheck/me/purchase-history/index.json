@@ -1,0 +1,8 @@
+{
+  "navigationBarTitleText": "购买记录",
+  "enablePullDownRefresh": true,
+  "animationType": "none",
+  "usingComponents": {
+    "comp": "../../comp"
+  }
+}

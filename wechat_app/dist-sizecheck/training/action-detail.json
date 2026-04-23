@@ -1,0 +1,10 @@
+{
+  "navigationBarTitleText": "动作详情",
+  "navigationBarTextStyle": "black",
+  "navigationBarBackgroundColor": "#ffffff",
+  "backgroundColor": "#f5f5f5",
+  "animationType": "none",
+  "usingComponents": {
+    "comp": "../../comp"
+  }
+}
