@@ -1,0 +1,7 @@
+{
+  "navigationBarTitleText": "计算方法论",
+  "animationType": "none",
+  "usingComponents": {
+    "comp": "../../../comp"
+  }
+}

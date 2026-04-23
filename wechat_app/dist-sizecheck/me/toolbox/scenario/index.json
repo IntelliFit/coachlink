@@ -1,0 +1,7 @@
+{
+  "navigationBarTitleText": "场景急救箱",
+  "animationType": "none",
+  "usingComponents": {
+    "comp": "../../../comp"
+  }
+}

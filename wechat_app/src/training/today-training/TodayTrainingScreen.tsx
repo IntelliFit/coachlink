@@ -1357,6 +1357,11 @@ function TodayTrainingScreen() {
 
   const renderDailyProgressCard = () => {
     const showCoachSwitchTrigger = planMode === 'coach' && coachSubscriptions.length > 0
+    const activeCoachAvatar =
+      resolveCoachAvatarUrl(activeSubscription?.coach?.avatar_url) ||
+      resolveCoachAvatarUrl(activeSubscription?.coach?.image) ||
+      ''
+    const activeCoachInitial = String(activeSubscription?.coach?.name || '教').trim().charAt(0) || '教'
 
     return (
       <View className='tt-daily-progress-card'>
@@ -1367,17 +1372,35 @@ function TodayTrainingScreen() {
               <Text className='tt-daily-progress-title'>{instance?.name || '我的计划'}</Text>
             </View>
           </View>
-          {showCoachSwitchTrigger && (
-            <View
-              className='tt-daily-progress-coach-trigger'
-              onClick={() => setCoachPickSheetOpen(true)}
-              hoverClass='tt-daily-progress-coach-trigger--pressed'
-              hoverStayTime={70}
-            >
-              <Text className='tt-daily-progress-coach-trigger-icon iconfont icon-qiehuanyonghu' />
-              <Text className='tt-daily-progress-coach-trigger-text'>切换教练</Text>
-            </View>
-          )}
+          <View className='tt-daily-progress-head-actions'>
+            {planMode === 'coach' && activeSubscription?.id && !isExpiredGrace && (
+              <View
+                className='tt-daily-progress-coach-avatar'
+                onClick={handleContactCoach}
+                hoverClass='tt-daily-progress-coach-avatar--pressed'
+                hoverStayTime={70}
+              >
+                {activeCoachAvatar ? (
+                  <Image className='tt-daily-progress-coach-avatar-img' src={activeCoachAvatar} mode='aspectFill' />
+                ) : (
+                  <View className='tt-daily-progress-coach-avatar-fallback'>
+                    <Text className='tt-daily-progress-coach-avatar-letter'>{activeCoachInitial}</Text>
+                  </View>
+                )}
+              </View>
+            )}
+            {showCoachSwitchTrigger && (
+              <View
+                className='tt-daily-progress-coach-trigger'
+                onClick={() => setCoachPickSheetOpen(true)}
+                hoverClass='tt-daily-progress-coach-trigger--pressed'
+                hoverStayTime={70}
+              >
+                <Text className='tt-daily-progress-coach-trigger-icon iconfont icon-qiehuanyonghu' />
+                <Text className='tt-daily-progress-coach-trigger-text'>切换教练</Text>
+              </View>
+            )}
+          </View>
         </View>
         <View className='tt-daily-progress-track'>
           <View
@@ -1417,6 +1440,31 @@ function TodayTrainingScreen() {
                 </Text>
               </View>
             </View>
+          </View>
+        )}
+        {instance && (
+          <View className='tt-plan-actions'>
+            <View className='tt-plan-actions__primary' onClick={handleMegaStart}>
+              <Power size={18} color='#FFFFFF' />
+              <Text className='tt-plan-actions__primary-text'>进入今日训练</Text>
+            </View>
+
+            {(isExpiredGrace || instance?.source === 'self') && (
+              <View className='tt-plan-actions__secondary-row'>
+                {isExpiredGrace && (
+                  <View className='tt-plan-actions__secondary tt-plan-actions__secondary--accent' onClick={() => Taro.navigateTo({ url: renewPath })}>
+                    <ArrowRight size={16} color='#CF6D4E' />
+                    <Text className='tt-plan-actions__secondary-text tt-plan-actions__secondary-text--accent'>宽限期内续费</Text>
+                  </View>
+                )}
+
+                {instance?.source === 'self' && (
+                  <View className='tt-plan-actions__secondary tt-plan-actions__secondary--danger' onClick={handleRemoveSelfPlan}>
+                    <Text className='tt-plan-actions__secondary-text tt-plan-actions__secondary-text--danger'>移除自建计划</Text>
+                  </View>
+                )}
+              </View>
+            )}
           </View>
         )}
       </View>
@@ -1694,35 +1742,6 @@ function TodayTrainingScreen() {
             </View>
           ) : (
             <>
-              <View className='unified-home-block unified-home-block--compact'>
-                <View className='today-action-row'>
-                  <View className={`hero-status-badge ${selectedStatusClass}`}>
-                    <Text>{selectedStatusText}</Text>
-                  </View>
-                </View>
-                <View className='today-outline-btn' onClick={handleMegaStart}>
-                  <Power size={20} color='#FFFFFF' />
-                  <Text className='today-outline-text'>进入今日训练</Text>
-                </View>
-                {instance?.source === 'self' && (
-                  <View className='self-plan-remove-row' onClick={handleRemoveSelfPlan}>
-                    <Text className='danger-action'>移除自建计划</Text>
-                  </View>
-                )}
-                {isExpiredGrace && (
-                  <View className='renew-inline' onClick={() => Taro.navigateTo({ url: renewPath })}>
-                    <ArrowRight size={16} color='#CF6D4E' />
-                    <Text className='renew-inline-text'>宽限期内续费</Text>
-                  </View>
-                )}
-                {activeSubscription?.id && !isExpiredGrace && (
-                  <View className='contact-coach-inline' onClick={handleContactCoach}>
-                    <Message size={16} color='#6B7280' />
-                    <Text className='contact-coach-text'>联系教练</Text>
-                  </View>
-                )}
-              </View>
-
               {returnConfirmedDayIndex && (
                 <View className='return-confirm-banner'>
                   <Text>已确认第{returnConfirmedDayIndex}天。</Text>
@@ -1772,19 +1791,28 @@ function TodayTrainingScreen() {
                 <View className='section-header section-header--schedule'>
                   <View className='header-left'>
                     <View className='tt-schedule-stack__head'>
-                      <Text className='tt-schedule-stack__icon iconfont icon-a-Trainingplan' />
+                      <View className='tt-schedule-stack__icon'>
+                        <Calendar size={24} color='#111111' />
+                      </View>
                       <View className='tt-schedule-stack__titles'>
                         <Text className='section-title'>
                           {selectedDayIndex === progressDayIndex ? '今日安排' : '当天安排'}
                         </Text>
-                        <Text className='section-subtitle'>
-                          {selectedDay?.type === 'rest'
-                            ? `第${selectedDayIndex}天 · 恢复与轻任务`
-                            : `第${selectedDayIndex}天 · ${selectedTaskSummary.totalModules} 个模块`}
-                        </Text>
                       </View>
                     </View>
                   </View>
+                  {enableScheduleMonthExpand ? (
+                    <View
+                      className='section-header__action'
+                      onClick={() => setCalendarExpanded((v) => !v)}
+                      hoverClass='section-header__action--pressed'
+                      hoverStayTime={70}
+                    >
+                      <Text className='section-header__action-text'>
+                        {calendarExpanded ? '收起月历' : '查看全部'}
+                      </Text>
+                    </View>
+                  ) : null}
                 </View>
 
                 {selectedDay?.type === 'training' ? (

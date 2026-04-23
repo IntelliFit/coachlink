@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react'
 import { View, Text } from '@tarojs/components'
 import Taro from '@tarojs/taro'
-import { Calendar } from '@nutui/icons-react-taro'
+import { Calendar, List } from '@nutui/icons-react-taro'
 import {
   buildDayModuleModel,
   buildLightweightSummary,
@@ -210,17 +210,20 @@ function TodayTrainingCard({
 
         {embeddedInSchedule && (
           <View className='embed-schedule-top'>
+            <View className='embed-topline'>
+              <Text className='embed-topline-text'>{headerSubtitle}</Text>
+              {!!dateMeta?.delayDays && dateMeta.delayDays > 0 && (
+                <View className='delay-banner delay-banner--compact delay-banner--inline'>
+                  <Text className='delay-banner-title'>已顺延 {dateMeta.delayDays} 天</Text>
+                </View>
+              )}
+            </View>
             {displayDateLabel && (
               <View className='embed-date-row'>
                 <Text className='date-icon'><Calendar size={16} /></Text>
                 <Text className='embed-date-text'>{displayDateLabel}</Text>
-              </View>
-            )}
-            {!!dateMeta?.delayDays && dateMeta.delayDays > 0 && (
-              <View className='delay-banner delay-banner--compact'>
-                <Text className='delay-banner-title'>已顺延 {dateMeta.delayDays} 天</Text>
-                {!!dateMeta?.originalDateLabel && (
-                  <Text className='delay-banner-desc'>原计划 {dateMeta.originalDateLabel}</Text>
+                {!!dateMeta?.originalDateLabel && dateMeta?.delayDays && dateMeta.delayDays > 0 && (
+                  <Text className='embed-date-origin'>原计划 {dateMeta.originalDateLabel}</Text>
                 )}
               </View>
             )}
@@ -255,8 +258,8 @@ function TodayTrainingCard({
                   <Text>训练模块</Text>
                   <Text>STRENGTH</Text>
                 </View>
-                <View className='panel-title-row'>
-                  <Text className='panel-title'>连续力量训练</Text>
+                <View className={`panel-title-row ${embeddedInSchedule ? 'panel-title-row--embedded' : ''}`}>
+                  <Text className={`panel-title ${embeddedInSchedule ? 'panel-title--embedded' : ''}`}>连续力量训练</Text>
                   <View
                     className={`panel-status ${
                       trainingCompleted ? 'completed' : trainingInProgress ? 'in-progress' : 'pending'
@@ -265,6 +268,19 @@ function TodayTrainingCard({
                     <Text>{trainingCompleted ? '已完成' : trainingInProgress ? '进行中' : '待开始'}</Text>
                   </View>
                 </View>
+                {embeddedInSchedule && (
+                  <Text className='panel-inline-meta'>
+                    {strengthStatusText}
+                    <Text className='panel-inline-meta-dot'>·</Text>
+                    {scheduleProgressText}
+                    {moduleCount > 0 && (
+                      <>
+                        <Text className='panel-inline-meta-dot'>·</Text>
+                        剩余 {remainingModuleCount}
+                      </>
+                    )}
+                  </Text>
+                )}
                 {!embeddedInSchedule && (
                   <Text className='panel-desc'>
                     力量训练进入专门执行页，集中处理重量、次数、RPE、休息、视频与 PR 记录。
@@ -272,42 +288,46 @@ function TodayTrainingCard({
                 )}
               </View>
 
-              <View className='strength-stats'>
-                <View className='strength-stat'>
-                  <Text className='stat-label'>动作</Text>
-                  <Text className='stat-value'>{strengthTasks.length}</Text>
+              {!embeddedInSchedule && (
+                <View className='strength-stats'>
+                  <View className='strength-stat'>
+                    <Text className='stat-label'>动作</Text>
+                    <Text className='stat-value'>{strengthTasks.length}</Text>
+                  </View>
+                  <View className='strength-stat'>
+                    <Text className='stat-label'>计划组数</Text>
+                    <Text className='stat-value'>{strengthTotalSetCount}</Text>
+                  </View>
+                  <View className='strength-stat'>
+                    <Text className='stat-label'>完成进度</Text>
+                    <Text className='stat-value'>
+                      {strengthCompletedSetCount}/{strengthTotalSetCount}
+                    </Text>
+                  </View>
                 </View>
-                <View className='strength-stat'>
-                  <Text className='stat-label'>计划组数</Text>
-                  <Text className='stat-value'>{strengthTotalSetCount}</Text>
-                </View>
-                <View className='strength-stat'>
-                  <Text className='stat-label'>完成进度</Text>
-                  <Text className='stat-value'>
-                    {strengthCompletedSetCount}/{strengthTotalSetCount}
-                  </Text>
-                </View>
-              </View>
+              )}
             </View>
 
-            <View className='strength-list'>
-              {visibleStrengthTasks.map((task) => {
-                const meta = buildStrengthMeta(task)
-                return (
-                  <View key={`${task.index}-${task.title}`} className='strength-item' onClick={() => openExecution(task.executionIndex)}>
-                    <View className='strength-item-main'>
-                      <Text className='strength-item-title'>{task.title}</Text>
-                      <Text className='strength-item-meta'>
-                        {meta.summary}
-                        {meta.loadText ? ` · ${meta.loadText}` : ''}
-                        {meta.restText ? ` · ${meta.restText}` : ''}
-                      </Text>
+            {(!embeddedInSchedule || showAllStrengthTasks) && (
+              <View className='strength-list'>
+                {visibleStrengthTasks.map((task) => {
+                  const meta = buildStrengthMeta(task)
+                  return (
+                    <View key={`${task.index}-${task.title}`} className='strength-item' onClick={() => openExecution(task.executionIndex)}>
+                      <View className='strength-item-main'>
+                        <Text className='strength-item-title'>{task.title}</Text>
+                        <Text className='strength-item-meta'>
+                          {meta.summary}
+                          {meta.loadText ? ` · ${meta.loadText}` : ''}
+                          {meta.restText ? ` · ${meta.restText}` : ''}
+                        </Text>
+                      </View>
+                      {task.noteText && <Text className='strength-item-note'>{task.noteText}</Text>}
                     </View>
-                    {task.noteText && <Text className='strength-item-note'>{task.noteText}</Text>}
-                  </View>
-                )
-              })}
-            </View>
+                  )
+                })}
+              </View>
+            )}
 
             {strengthTasks.length > 6 && (
               <View className='strength-toggle' onClick={() => setShowAllStrengthTasks((prev) => !prev)}>
@@ -319,15 +339,30 @@ function TodayTrainingCard({
               </View>
             )}
 
-            <View className='strength-actions'>
+            <View className={`strength-actions ${embeddedInSchedule ? 'strength-actions--embedded' : ''}`}>
               <View
                 className={`main-action-btn ${
                   trainingCompleted ? 'ghost' : trainingInProgress ? 'warning' : 'success'
                 }`}
                 onClick={() => openExecution()}
               >
+                {embeddedInSchedule && <Text className='main-action-btn__icon iconfont icon-dumbbell' />}
                 <Text>{trainingCompleted ? '查看训练记录' : trainingInProgress ? '继续训练' : '开始训练'}</Text>
               </View>
+              {embeddedInSchedule && (
+                <View
+                  className='strength-side-btn'
+                  onClick={() => {
+                    if (strengthTasks.length > 1 || hiddenStrengthTaskCount > 0 || showAllStrengthTasks) {
+                      setShowAllStrengthTasks((prev) => !prev)
+                      return
+                    }
+                    openExecution()
+                  }}
+                >
+                  <List size={18} color='#6B7280' />
+                </View>
+              )}
               {!embeddedInSchedule && (
                 <View className='strength-tip'>
                   <Text>这里的主按钮只代表力量训练打卡；轻量任务在下方单独记录，但会一起汇总到今日安排进度。</Text>
@@ -340,8 +375,13 @@ function TodayTrainingCard({
         {(lightweightTasks.length > 0 || onAddLightweightTask) && (
           <View className='lightweight-panel'>
             <View className='lightweight-header'>
-              <View>
-                <Text className='lightweight-title'>轻量任务</Text>
+              <View className='lightweight-header-main'>
+                <View className='lightweight-title-row'>
+                  <View className='lightweight-title-icon-wrap'>
+                    <Text className='lightweight-title-icon'>⚡</Text>
+                  </View>
+                  <Text className='lightweight-title'>轻量任务</Text>
+                </View>
                 {!embeddedInSchedule && (
                   <Text className='lightweight-subtitle'>饮食、有氧和习惯单独执行，完成后会立即回写到当天进度。</Text>
                 )}

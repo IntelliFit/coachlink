@@ -10,6 +10,9 @@ import { request } from '@/utils/request'
 import { addPublicToMyLib, listPublicActions } from '@/services/actionLibPageService'
 import type { PublicActionItemDto } from '@/types/action'
 import { knowledgeService } from '@/services/knowledgeService'
+import toolboxDataImage from '@/assets/images/toolbox-data.jpg'
+import toolboxCalculatorImage from '@/assets/images/toolbox-calculator.jpg'
+import toolboxLocationsImage from '@/assets/images/toolbox-locations.jpg'
 import './index.scss'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 
@@ -73,9 +76,20 @@ interface ArticleHighlightItem {
     summary: string
     coachName: string
     coachAvatarUrl?: string
+    thumbnailUrl?: string
     canView: boolean
     createdAt?: string
 }
+
+interface DiscoveryCategoryItem {
+    key: string
+    label: string
+    iconText: string
+    active?: boolean
+    onClick: () => void
+}
+
+const discoveryCoverImages = [toolboxDataImage, toolboxCalculatorImage, toolboxLocationsImage]
 
 function stripHtml(html: string): string {
     return html
@@ -136,6 +150,10 @@ function summarizeActionDetail(detail?: string): string {
     const plainText = stripHtml(detail || '')
     if (!plainText) return '点击查看动作细节与要点'
     return truncateText(plainText, 56)
+}
+
+function pickDiscoveryCover(index: number): string {
+    return discoveryCoverImages[index % discoveryCoverImages.length]
 }
 
 function Discovery() {
@@ -417,6 +435,7 @@ function Discovery() {
                         summary: summary || '点击查看详情',
                         coachName: String(item?.coach?.name || '教练'),
                         coachAvatarUrl: item?.coach?.avatar_url || '',
+                        thumbnailUrl: content.thumbnail_url || '',
                         canView: !!item?.canView,
                         createdAt: content.created_at || ''
                     }
@@ -564,6 +583,30 @@ function Discovery() {
         })
     }
 
+    const handleCategoryClick = (key: string) => {
+        if (key === 'market') {
+            handleGoMarket()
+            return
+        }
+        if (key === 'actions') {
+            Taro.navigateTo({ url: '/training/actions' })
+            return
+        }
+        if (key === 'coach') {
+            Taro.pageScrollTo({ scrollTop: 1880, duration: 220 })
+            return
+        }
+        if (key === 'articles') {
+            Taro.navigateTo({ url: '/content/knowledge' })
+            return
+        }
+        if (key === 'service') {
+            Taro.navigateTo({ url: '/me/payment/cart/index' })
+            return
+        }
+        Taro.pageScrollTo({ scrollTop: 0, duration: 220 })
+    }
+
     const handleSpecialtyChange = (value: string) => {
         setSelectedSpecialty(value)
         // 专注模式下不重新加载
@@ -705,13 +748,15 @@ function Discovery() {
                             const isAdding = addingMarketKey === actionKey
                             return (
                                 <View key={item.id} className='market-card'>
-                                    <View className='market-card-head'>
+                                    <View className='market-cover-wrap'>
+                                        <Image className='market-cover' src={pickDiscoveryCover(actionKey.length)} mode='aspectFill' />
                                         <View className={`tier-pill tier-pill-${item.productTier}`}>
                                             <Text>{tierLabel(item.productTier)}</Text>
                                         </View>
-                                        <Text className='market-price'>{formatPrice(item.price)}</Text>
                                     </View>
-                                    <Text className='market-product-name'>{item.productName}</Text>
+                                    <View className='market-card-head'>
+                                        <Text className='market-product-name'>{item.productName}</Text>
+                                    </View>
                                     <Text className='market-product-desc'>
                                         {item.productDesc || `${item.durationMonths} 个月订阅服务`}
                                     </Text>
@@ -727,11 +772,10 @@ function Discovery() {
                                         </View>
                                         <View className='market-coach-meta'>
                                             <Text className='market-coach-name'>{item.coachName}</Text>
-                                            <Text className='market-coach-sub'>
-                                                {item.durationMonths}个月{item.recommend ? ' · 推荐' : ''}
-                                            </Text>
+                                            <Text className='market-coach-sub'>{item.durationMonths}个月</Text>
                                         </View>
                                     </View>
+                                    <Text className='market-price'>{formatPrice(item.price)}</Text>
 
                                     <View className='market-action-row'>
                                         <View className='market-btn buy' onClick={() => handleBuyMarketItem(item)}>
@@ -762,69 +806,78 @@ function Discovery() {
             <View className='section-head'>
                 <Text className='section-title'>热门动作</Text>
                 <View className='section-more' onClick={() => Taro.navigateTo({ url: '/training/actions' })}>
-                    <Text>查看动作库</Text>
+                    <Text>查看更多动作库</Text>
                 </View>
             </View>
 
             {actionLoading ? (
-                <ScrollView className='feed-scroll' scrollX enableFlex>
-                    <View className='feed-scroll-inner'>
-                        {[1, 2, 3].map((i) => (
-                            <View key={i} className='feed-card action-card-skeleton'>
+                <View className='action-list'>
+                    {[1, 2, 3].map((i) => (
+                        <View key={i} className='action-list-card action-card-skeleton'>
+                            <View className='action-list-cover skeleton-cover' />
+                            <View className='action-list-content'>
                                 <View className='skeleton-title-md' />
                                 <View className='skeleton-line-md' />
                                 <View className='skeleton-line-sm' />
-                                <View className='skeleton-btn-row'>
-                                    <View className='skeleton-btn' />
-                                    <View className='skeleton-btn' />
-                                </View>
                             </View>
-                        ))}
-                    </View>
-                </ScrollView>
+                        </View>
+                    ))}
+                </View>
             ) : actionHighlights.length === 0 ? (
                 <View className='feed-empty'>
                     <Text className='feed-empty-text'>暂无热门动作</Text>
                 </View>
             ) : (
-                <ScrollView className='feed-scroll' scrollX enableFlex>
-                    <View className='feed-scroll-inner'>
-                        {actionHighlights.map((action) => {
-                            const isAdding = addingActionKey === action.id
-                            return (
-                                <View key={action.id} className='feed-card action-card'>
-                                    <View className='action-main' onClick={() => handleActionClick(action)}>
-                                        <Text className='action-name' numberOfLines={2}>{action.name || '未命名动作'}</Text>
-                                        <Text className='action-desc' numberOfLines={3}>
-                                            {summarizeActionDetail(action.detail)}
-                                        </Text>
-                                        <View className='action-meta'>
-                                            <View style={{ display: 'flex', alignItems: 'center', gap: 2 }}><Heart size={10} color='#64748b' /><Text className='action-meta-text'>{action.like_count || 0}</Text></View>
-                                            <Text className='action-meta-text' numberOfLines={1}>
-                                                {action.contributor?.nickname || '社区贡献'}
-                                            </Text>
-                                        </View>
-                                    </View>
-                                    <View className='action-btn-row'>
-                                        <View className='mini-btn plain' onClick={() => handleActionClick(action)}>
-                                            <Text>详情</Text>
-                                        </View>
+                <View className='action-list'>
+                    {actionHighlights.map((action, index) => {
+                        const isAdding = addingActionKey === action.id
+                        return (
+                            <View key={action.id} className='action-list-card'>
+                                <Image className='action-list-cover' src={pickDiscoveryCover(index)} mode='aspectFill' />
+                                <View className='action-list-content' onClick={() => handleActionClick(action)}>
+                                    <View className='action-list-top'>
+                                        <Text className='action-name' numberOfLines={1}>{action.name || '未命名动作'}</Text>
                                         <View
-                                            className={`mini-btn primary ${(action.isAdded || isAdding) ? 'mini-btn-disabled' : ''}`}
-                                            onClick={() => {
+                                            className={`action-save-btn ${(action.isAdded || isAdding) ? 'action-save-btn-active' : ''}`}
+                                            onClick={(e) => {
+                                                e.stopPropagation()
                                                 if (!action.isAdded && !isAdding) {
                                                     void handleAddActionToMyLib(action)
                                                 }
                                             }}
                                         >
-                                            <Text>{action.isAdded ? '已加入' : isAdding ? '加入中' : '加入'}</Text>
+                                            <Text>{action.isAdded ? '已收' : isAdding ? '加入中' : '收藏'}</Text>
+                                        </View>
+                                    </View>
+                                    <Text className='action-desc' numberOfLines={2}>
+                                        {summarizeActionDetail(action.detail)}
+                                    </Text>
+                                    <View className='action-list-bottom'>
+                                        <View className='action-author-row'>
+                                            <View className='market-avatar-wrap action-author-avatar'>
+                                                {action.contributor?.avatarUrl ? (
+                                                    <Image className='market-avatar' src={action.contributor.avatarUrl} mode='aspectFill' />
+                                                ) : (
+                                                    <View className='market-avatar-placeholder'>
+                                                        <Text>{(action.contributor?.nickname || '社').slice(0, 1)}</Text>
+                                                    </View>
+                                                )}
+                                            </View>
+                                            <Text className='action-meta-text'>{action.contributor?.nickname || '社区贡献'}</Text>
+                                            <View className='action-like'>
+                                                <Heart size={12} color='#8a93a5' />
+                                                <Text className='action-meta-text'>{action.like_count || 0}</Text>
+                                            </View>
+                                        </View>
+                                        <View className='detail-btn' onClick={() => handleActionClick(action)}>
+                                            <Text>详情</Text>
                                         </View>
                                     </View>
                                 </View>
-                            )
-                        })}
-                    </View>
-                </ScrollView>
+                            </View>
+                        )
+                    })}
+                </View>
             )}
         </View>
     )
@@ -860,6 +913,9 @@ function Discovery() {
                     <View className='feed-scroll-inner'>
                         {articleHighlights.map((article) => (
                             <View key={article.id} className='feed-card article-card' onClick={() => handleArticleClick(article)}>
+                                {!!article.thumbnailUrl && (
+                                    <Image className='article-cover' src={article.thumbnailUrl} mode='aspectFill' />
+                                )}
                                 <View className='article-top'>
                                     <View className='article-coach'>
                                         <View className='article-avatar-wrap'>
@@ -940,6 +996,15 @@ function Discovery() {
         )
     }
 
+    const discoveryCategories: DiscoveryCategoryItem[] = [
+        { key: 'all', label: '全部', iconText: '●', active: true, onClick: () => handleCategoryClick('all') },
+        { key: 'market', label: '训练计划', iconText: '计', onClick: () => handleCategoryClick('market') },
+        { key: 'actions', label: '动作库', iconText: '动', onClick: () => handleCategoryClick('actions') },
+        { key: 'coach', label: '教练', iconText: '教', onClick: () => handleCategoryClick('coach') },
+        { key: 'articles', label: '资讯', iconText: '资', onClick: () => handleCategoryClick('articles') },
+        { key: 'service', label: '服务', iconText: '服', onClick: () => handleCategoryClick('service') }
+    ]
+
     return (
         <View className='discovery-page'>
             {/* 头部标题区 */}
@@ -954,89 +1019,109 @@ function Discovery() {
                 {/* 搜索与筛选区域 */}
                 <View className='search-section'>
                     <View className='search-container'>
+                        <View className='search-leading-icon'>
+                            <Search size={18} color='#7d8596' />
+                        </View>
                         <Input
                             className='search-input'
-                            placeholder='搜索姓名或专长...'
+                            placeholder='搜索姓名或专长、内容、动作...'
                             value={searchTerm}
                             onInput={(e) => setSearchTerm(e.detail.value)}
                             confirmType='search'
                             onConfirm={onSearchOrFilter}
                         />
                         <View className='search-actions'>
-                            {/* 筛选下拉 */}
-                            <View className='filter-dropdown'>
-                                <View
-                                    className='filter-button'
-                                    onClick={() => {
-                                        Taro.showActionSheet({
-                                            itemList: specialties.map(s => s.label),
-                                            success: (res) => {
-                                                if (res.tapIndex === 0) {
-                                                    handleSpecialtyChange('all')
-                                                } else {
-                                                    handleSpecialtyChange(specialties[res.tapIndex].value)
-                                                }
-                                            }
-                                        })
-                                    }}
-                                >
-                                    <Text className='filter-icon'>筛选</Text>
-                                </View>
-                            </View>
-
-                            {/* 搜索按钮 */}
                             <View className='search-button' onClick={onSearchOrFilter}>
-                                <View className='search-icon'><Search size={18} color='#fff' /></View>
+                                <Text className='search-button-text'>搜索</Text>
                             </View>
                         </View>
                     </View>
+                </View>
+
+                <View className='quick-category-row'>
+                    {discoveryCategories.map((item) => (
+                        <View key={item.key} className='quick-category-item' onClick={item.onClick}>
+                            <View className={`quick-category-icon ${item.active ? 'quick-category-icon-active' : ''}`}>
+                                {item.key === 'all' ? (
+                                    <View className='quick-category-grid'>
+                                        <Text className='quick-category-dot' />
+                                        <Text className='quick-category-dot' />
+                                        <Text className='quick-category-dot' />
+                                        <Text className='quick-category-dot' />
+                                    </View>
+                                ) : (
+                                    <Text className={`quick-category-icon-text ${item.active ? 'quick-category-icon-text-active' : ''}`}>{item.iconText}</Text>
+                                )}
+                            </View>
+                            <Text className={`quick-category-label ${item.active ? 'quick-category-label-active' : ''}`}>{item.label}</Text>
+                        </View>
+                    ))}
                 </View>
             </View>
 
             {renderMarketSection()}
             {renderActionSection()}
-            {renderArticleSection()}
+            {articleHighlights.length > 0 && renderArticleSection()}
 
-            {/* 统计信息 */}
-            <View className='stats-info'>
-                <Text className='stats-text'>
-                    {hasMoreCoaches ? `已展示 ${coaches.length} 位教练` : `当前共展示 ${coaches.length} 位教练`}
-                </Text>
+            <View className='coach-section'>
+                <View className='section-head'>
+                    <Text className='section-title'>推荐教练</Text>
+                    <View
+                        className='section-more'
+                        onClick={() => {
+                            Taro.showActionSheet({
+                                itemList: specialties.map(s => s.label),
+                                success: (res) => {
+                                    if (res.tapIndex === 0) {
+                                        handleSpecialtyChange('all')
+                                    } else {
+                                        handleSpecialtyChange(specialties[res.tapIndex].value)
+                                    }
+                                }
+                            })
+                        }}
+                    >
+                        <Text>{selectedSpecialty === 'all' ? '筛选专长' : '切换筛选'}</Text>
+                    </View>
+                </View>
+
+                <View className='stats-info'>
+                    <Text className='stats-text'>
+                        {hasMoreCoaches ? `已展示 ${coaches.length} 位教练` : `当前共展示 ${coaches.length} 位教练`}
+                    </Text>
+                </View>
+
+                {isLoading && coaches.length === 0 || visibilityLoading ? (
+                    renderSkeleton()
+                ) : coaches.length === 0 ? (
+                    <View className='empty-state'>
+                        <View className='empty-icon'><Eye size={40} /></View>
+                        <Text className='empty-text'>没有找到相关教练</Text>
+                    </View>
+                ) : (
+                    <View className='coaches-list'>
+                        {coaches.map((coach, idx) => renderCoachCard(coach, idx))}
+
+                        {hasMoreCoaches && !visibilityStatus?.focusMode && (
+                            <View className='load-more' onClick={handleLoadMore}>
+                                {isLoading ? (
+                                    <LoadingSpinner size={32} />
+                                ) : (
+                                    <Text className='load-more-text'>加载更多</Text>
+                                )}
+                            </View>
+                        )}
+
+                        {!visibilityStatus?.focusMode && coaches.length > 0 && !hasMoreCoaches && (
+                            <View className='list-end-divider'>
+                                <View className='list-end-line' />
+                                <Text className='list-end-text'>已加载当前全部教练</Text>
+                                <View className='list-end-line' />
+                            </View>
+                        )}
+                    </View>
+                )}
             </View>
-
-            {/* 列表内容区 */}
-            {isLoading && coaches.length === 0 || visibilityLoading ? (
-                renderSkeleton()
-            ) : coaches.length === 0 ? (
-                <View className='empty-state'>
-                    <View className='empty-icon'><Eye size={40} /></View>
-                    <Text className='empty-text'>没有找到相关教练</Text>
-                </View>
-            ) : (
-                <View className='coaches-list'>
-                    {coaches.map((coach, idx) => renderCoachCard(coach, idx))}
-                    
-                    {/* 加载更多 */}
-                    {hasMoreCoaches && !visibilityStatus?.focusMode && (
-                        <View className='load-more' onClick={handleLoadMore}>
-                            {isLoading ? (
-                                <LoadingSpinner size={32} />
-                            ) : (
-                                <Text className='load-more-text'>加载更多</Text>
-                            )}
-                        </View>
-                    )}
-
-                    {/* 已加载完成提示 */}
-                    {!visibilityStatus?.focusMode && coaches.length > 0 && !hasMoreCoaches && (
-                        <View className='list-end-divider'>
-                            <View className='list-end-line' />
-                            <Text className='list-end-text'>已加载当前全部教练</Text>
-                            <View className='list-end-line' />
-                        </View>
-                    )}
-                </View>
-            )}
 
             {/* 底部导航栏 */}
             <BottomNav />
@@ -1045,4 +1130,3 @@ function Discovery() {
 }
 
 export default Discovery
-

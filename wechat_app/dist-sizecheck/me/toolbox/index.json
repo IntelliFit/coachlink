@@ -1,0 +1,8 @@
+{
+  "navigationStyle": "custom",
+  "navigationBarTitleText": "工具箱",
+  "animationType": "none",
+  "usingComponents": {
+    "comp": "../../comp"
+  }
+}

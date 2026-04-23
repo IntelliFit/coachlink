@@ -1,0 +1,9 @@
+{
+  "navigationBarTitleText": "学员计划",
+  "navigationBarBackgroundColor": "#FFFFFF",
+  "navigationBarTextStyle": "black",
+  "animationType": "none",
+  "usingComponents": {
+    "comp": "../../../comp"
+  }
+}
