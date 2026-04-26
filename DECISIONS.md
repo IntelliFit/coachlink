@@ -58,6 +58,13 @@
 - `2026-04-17`: DeepSeek API key 是项目既有同一个 `DEEPSEEK_API_KEY`，教练 AI 自动回复复用该环境变量即可，不需要新增另一套密钥配置或把它视为独立 secret。
 - `2026-04-17`: 教练 AI 自动回复必须是资料驱动，不允许只靠模型常识“像教练一样”回答。DeepSeek system context 必须包含可用的教练档案、学员档案、订阅关系、当前计划摘要、最近聊天和教练自填资料库；资料不足时必须转为“需要教练本人确认”。
 - `2026-04-16`: 在没有独立消息队列/任务系统前，聊天发送接口触发 AI 自动回复时应等待 DeepSeek 回复并插入消息完成，再返回发送结果；这样比请求返回后 fire-and-forget 更可靠，代价是文本发送响应会变慢。
+- `2026-04-26`: 微信小程序代码质量优化的基线策略为：
+  - DevTools 工程配置开启 `setting.minified = true`
+  - `app.config.ts` 启用 `lazyCodeLoading: 'requiredComponents'`
+  - 不再通过 `copy.patterns` 整包复制 `src/assets/images/` 这类大资源到根包；图片应走模块引用按需产物
+  - 业务展示图若需打进小程序包，单文件体积应控制在 200KB 内
+- `2026-04-25`: 生产服务器 `root@coachlink.fit` 的 SSH 登录策略已收紧为“仅允许密钥登录”：通过 `/etc/ssh/sshd_config.d/00-key-only.conf` 强制 `PasswordAuthentication no`、`KbdInteractiveAuthentication no`、`PubkeyAuthentication yes`、`PermitRootLogin prohibit-password`。后续若调整 SSH 策略，必须保持“禁止 SSH 密码登录”不回退。
+- `2026-04-24`: 微信小程序首页（`pages/index` / `training/today-training`）与发现页（`discovery/index`）的品牌主题色统一为 `#C27255`。实现上必须通过变量/常量引用，不再在这些页面直接写死新的主题色；样式层走 `wechat_app/src/app.scss` 的 `--brand-primary` / `--primary*` 变量，图标和 Canvas 场景走 `wechat_app/src/styles/theme.ts` 常量。
 - `2026-04-16`: 小程序工程在 monorepo 内统一放到根目录 `wechat_app/`，不能放在根 `app/`。Next.js 会优先识别根 `app/` 作为 App Router 目录，导致主站真实路由 `src/app/` 被旁路并出现 `/` 404。
 - `2026-04-16`: 计划脚本模式的动作名匹配必须比智能导入更严格。包含括号变体的动作名（如 `负重引体（底部暂停）` / `负重引体（顶端暂停）`）必须优先完整精确匹配；如果找不到精确动作，应报错并触发后续动作确认/新增流程，不能自动降级到基础动作 `负重引体`。
 - `2026-04-16`: 紧凑计划脚本模式不应只存在于教练计划库模板编辑页；具体学员计划编辑页也需要同一入口，以便教练直接对单个学员当前计划做低 token、可编译的文本化批量修改。

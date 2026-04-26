@@ -53,6 +53,7 @@ import {
   patchTodayTrainingPageCache,
   persistTodayTrainingPageCache
 } from '@/utils/todayTrainingPageCache'
+import { BRAND_PRIMARY } from '@/styles/theme'
 import './index.scss'
 
 type PlanMode = 'coach' | 'self'
@@ -1410,7 +1411,7 @@ function TodayTrainingScreen() {
         </View>
         <View className='tt-daily-progress-label-row'>
           <View className='tt-daily-progress-label-icon-wrap'>
-            <Check size={14} color='#CF6D4E' />
+            <Check size={14} color={BRAND_PRIMARY} />
           </View>
           <Text className='tt-daily-progress-label'>今日进度 {homeTodayCompletionPercent}%</Text>
         </View>
@@ -1430,7 +1431,7 @@ function TodayTrainingScreen() {
             </View>
             <View className='tt-period-pill'>
               <View className='tt-period-pill-icon-wrap tt-period-pill-icon-wrap--month'>
-                <Calendar size={18} color='#CF6D4E' />
+                <Calendar size={18} color={BRAND_PRIMARY} />
               </View>
               <View className='tt-period-pill-main'>
                 <Text className='tt-period-pill-caption'>本月进度</Text>
@@ -1453,7 +1454,7 @@ function TodayTrainingScreen() {
               <View className='tt-plan-actions__secondary-row'>
                 {isExpiredGrace && (
                   <View className='tt-plan-actions__secondary tt-plan-actions__secondary--accent' onClick={() => Taro.navigateTo({ url: renewPath })}>
-                    <ArrowRight size={16} color='#CF6D4E' />
+                    <ArrowRight size={16} color={BRAND_PRIMARY} />
                     <Text className='tt-plan-actions__secondary-text tt-plan-actions__secondary-text--accent'>宽限期内续费</Text>
                   </View>
                 )}
@@ -1481,7 +1482,7 @@ function TodayTrainingScreen() {
             handleImpromptu()
           }}
         >
-          <Power size={22} color='#CF6D4E' />
+          <Power size={22} color={BRAND_PRIMARY} />
           <Text className='more-training-item-text'>即兴首练</Text>
         </View>
         <View
@@ -1491,7 +1492,7 @@ function TodayTrainingScreen() {
             handleGoToPlanLib()
           }}
         >
-          <Calendar size={22} color='#CF6D4E' />
+          <Calendar size={22} color={BRAND_PRIMARY} />
           <Text className='more-training-item-text'>AI 长期计划</Text>
         </View>
         <View
@@ -1501,7 +1502,7 @@ function TodayTrainingScreen() {
             handleDiscoverCoach()
           }}
         >
-          <Location size={22} color='#CF6D4E' />
+          <Location size={22} color={BRAND_PRIMARY} />
           <Text className='more-training-item-text'>浏览教练</Text>
         </View>
       </View>

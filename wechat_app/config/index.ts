@@ -36,10 +36,7 @@ export default defineConfig<'vite'>(async (merge, { command, mode }) => {
     copy: {
       patterns: [
         { from: 'src/assets/favicon.svg', to: 'favicon.svg' },
-        { from: 'src/assets/iconfont/', to: 'assets/iconfont/' },
-        { from: 'src/assets/images/', to: 'assets/images/' },
-        { from: 'src/assets/brand/coachlink-logo.jpg', to: 'assets/brand/coachlink-logo.jpg' },
-        { from: 'src/assets/brand/coachlink-brand-icon.png', to: 'assets/brand/coachlink-brand-icon.png' }
+        { from: 'src/assets/iconfont/', to: 'assets/iconfont/' }
       ],
       options: {
       }
@@ -84,6 +81,14 @@ export default defineConfig<'vite'>(async (merge, { command, mode }) => {
       'react-dom': resolve(__dirname, '..', 'node_modules/react-dom'),
     },
     mini: {
+      enableSourceMap: false,
+      debugReact: false,
+      commonChunks(commonChunks) {
+        return commonChunks.filter((chunk) => chunk !== 'common')
+      },
+      optimizeMainPackage: {
+        enable: true
+      },
       imageUrlLoaderOption: {
         limit: 50 * 1024,
       },
@@ -112,6 +117,13 @@ export default defineConfig<'vite'>(async (merge, { command, mode }) => {
           }
         }
       },
+    },
+    jsMinimizer: 'esbuild',
+    cssMinimizer: 'lightningcss',
+    esbuild: {
+      minify: {
+        enable: true
+      }
     },
     h5: {
       publicPath: '/',
