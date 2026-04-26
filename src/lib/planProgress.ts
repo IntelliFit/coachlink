@@ -1,4 +1,8 @@
-import { addBeijingDays, getBeijingDayStart } from "@/lib/beijingTime";
+import {
+    addBeijingDays,
+    diffBeijingCalendarDays,
+    getBeijingDayStart,
+} from "@/lib/beijingTime";
 
 type AnyMap = Record<string, any>;
 
@@ -28,6 +32,55 @@ const getExecutionResolvedDate = (execution: any): Date | null => {
                 execution?.started_at
             : null;
     return ts ? getBeijingDayStart(ts) : null;
+};
+
+const getDayIndex = (d: any) => Number(d?.dayIndex ?? d?.day_index ?? 0);
+
+export const deriveEffectiveStartExecutionDay = (params: {
+    storedStartExecutionDay?: number | null;
+    planDays: any[];
+    executionsByDayIndex: Record<number, any>;
+    planStartDate?: string | Date | null;
+    subscriptionStartDate?: string | Date | null;
+}) => {
+    const storedStartExecutionDay = Math.max(
+        1,
+        Math.floor(Number(params.storedStartExecutionDay || 1)),
+    );
+    if (storedStartExecutionDay > 1) return storedStartExecutionDay;
+    if (!params.planStartDate || !params.subscriptionStartDate) {
+        return storedStartExecutionDay;
+    }
+
+    const planStart = getBeijingDayStart(params.planStartDate);
+    const subscriptionStart = getBeijingDayStart(params.subscriptionStartDate);
+    const subscriptionOffsetDays = diffBeijingCalendarDays(
+        subscriptionStart,
+        planStart,
+    );
+    if (subscriptionOffsetDays <= 0) return storedStartExecutionDay;
+
+    const planDayIndexSet = new Set(
+        (params.planDays || [])
+            .map((day) => getDayIndex(day))
+            .filter((dayIndex) => dayIndex > 0),
+    );
+    const resolvedDayIndexes = Object.entries(params.executionsByDayIndex || {})
+        .map(([key, execution]) => {
+            const status = normalizeExecutionStatus(execution);
+            if (status !== "completed" && status !== "abandoned") return 0;
+            return Number(execution?.day_index ?? key);
+        })
+        .filter((dayIndex) => dayIndex > 1 && planDayIndexSet.has(dayIndex))
+        .sort((a, b) => a - b);
+
+    if (resolvedDayIndexes.length === 0) return storedStartExecutionDay;
+
+    const calendarStartDayIndex = subscriptionOffsetDays + 1;
+    return Math.max(
+        storedStartExecutionDay,
+        Math.min(resolvedDayIndexes[0], calendarStartDayIndex),
+    );
 };
 
 const dayHasRestTasks = (
@@ -77,7 +130,6 @@ export const deriveStrictSequentialProgressDay = (params: {
         today = new Date(),
     } = params;
 
-    const getDayIndex = (d: any) => Number(d?.dayIndex ?? d?.day_index ?? 0);
     const sortedPlanDays = [...(planDays || [])]
         .filter((d) => getDayIndex(d) >= startExecutionDay)
         .sort((a, b) => getDayIndex(a) - getDayIndex(b));

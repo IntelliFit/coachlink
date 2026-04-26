@@ -76,6 +76,44 @@ function hasVariantMarker(name: string): boolean {
     return /[（(][^）)]*[）)]/.test(name ?? "");
 }
 
+type ParsedVolumeToken = {
+    sets: number | null;
+    reps: number | null;
+    durationSeconds: number | null;
+    setRangeMin?: number;
+    setRangeMax?: number;
+};
+
+function parseVolumeToken(token: string): ParsedVolumeToken | null {
+    const setRangeMatch = token.match(/^(\d+)-(\d+)x(\d+)(s)?$/i);
+    if (setRangeMatch) {
+        const min = Number(setRangeMatch[1]);
+        const max = Number(setRangeMatch[2]);
+        const value = Number(setRangeMatch[3]);
+        if (max < min) {
+            throw new Error(`组数范围无效：${token}`);
+        }
+        return {
+            sets: min,
+            reps: setRangeMatch[4] ? null : value,
+            durationSeconds: setRangeMatch[4] ? value : null,
+            setRangeMin: min,
+            setRangeMax: max,
+        };
+    }
+
+    const volumeMatch = token.match(/^(\d+)x(\d+)(s)?$/i);
+    if (volumeMatch) {
+        return {
+            sets: Number(volumeMatch[1]),
+            reps: volumeMatch[3] ? null : Number(volumeMatch[2]),
+            durationSeconds: volumeMatch[3] ? Number(volumeMatch[2]) : null,
+        };
+    }
+
+    return null;
+}
+
 function resolveScriptAction(
     actionName: string,
     actions: Array<Pick<CoachActionRow, "id" | "name" | "type">>,
@@ -127,17 +165,18 @@ function parseActionLine(
     let sets: number | null = null;
     let reps: number | null = null;
     let durationSeconds: number | null = null;
+    let setRangeMin: number | null = null;
+    let setRangeMax: number | null = null;
 
     const remaining: string[] = [];
     for (const token of tokens) {
-        const volumeMatch = token.match(/^(\d+)x(\d+)(s)?$/i);
-        if (volumeMatch) {
-            sets = Number(volumeMatch[1]);
-            if (volumeMatch[3]) {
-                durationSeconds = Number(volumeMatch[2]);
-            } else {
-                reps = Number(volumeMatch[2]);
-            }
+        const volume = parseVolumeToken(token);
+        if (volume) {
+            sets = volume.sets;
+            reps = volume.reps;
+            durationSeconds = volume.durationSeconds;
+            setRangeMin = volume.setRangeMin ?? null;
+            setRangeMax = volume.setRangeMax ?? null;
             continue;
         }
 
@@ -163,6 +202,10 @@ function parseActionLine(
     const match = resolveScriptAction(actionName, actions);
 
     if (sets !== null) params["组数"] = sets;
+    if (setRangeMin !== null && setRangeMax !== null) {
+        params["组数下限"] = setRangeMin;
+        params["组数上限"] = setRangeMax;
+    }
     if (reps !== null) params["次数"] = reps;
     if (durationSeconds !== null) params["持续时间"] = durationSeconds;
 
@@ -230,9 +273,21 @@ export function formatTemplateToPlanScript(params: {
                 "未命名动作";
             const parts = [actionName];
             const sets = set.params?.["组数"];
+            const setRangeMin = set.params?.["组数下限"];
+            const setRangeMax = set.params?.["组数上限"];
             const reps = set.params?.["次数"];
             const durationSeconds = set.params?.["持续时间"];
-            if (typeof sets === "number") {
+            if (
+                typeof setRangeMin === "number" &&
+                typeof setRangeMax === "number" &&
+                setRangeMin !== setRangeMax
+            ) {
+                if (typeof durationSeconds === "number") {
+                    parts.push(`${setRangeMin}-${setRangeMax}x${durationSeconds}s`);
+                } else if (typeof reps === "number") {
+                    parts.push(`${setRangeMin}-${setRangeMax}x${reps}`);
+                }
+            } else if (typeof sets === "number") {
                 if (typeof durationSeconds === "number") {
                     parts.push(`${sets}x${durationSeconds}s`);
                 } else if (typeof reps === "number") {

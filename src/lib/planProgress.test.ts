@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { deriveStrictSequentialProgressDay } from "./planProgress";
+import {
+    deriveEffectiveStartExecutionDay,
+    deriveStrictSequentialProgressDay,
+} from "./planProgress";
 
 const buildPlanDays = (withRestTask = false) => [
     { dayIndex: 1, type: "training" },
@@ -111,6 +114,37 @@ describe("planProgress (strict sequential pointer)", () => {
             today: new Date("2026-04-06T12:00:00.000Z"),
         });
         expect(nextDay.recommendedDayIndex).toBe(5);
+    });
+});
+
+describe("planProgress (effective start day)", () => {
+    it("ignores pre-subscription holes when a migrated plan first logs a later day", () => {
+        const result = deriveEffectiveStartExecutionDay({
+            storedStartExecutionDay: 1,
+            planDays: buildPlanDays(false),
+            executionsByDayIndex: {
+                3: { status: "completed", completed_at: "2026-03-04T09:00:00.000Z" },
+                5: { status: "completed", completed_at: "2026-03-06T09:00:00.000Z" },
+            },
+            planStartDate: "2026-03-01",
+            subscriptionStartDate: "2026-03-04T03:07:09.000Z",
+        });
+
+        expect(result).toBe(3);
+    });
+
+    it("preserves an explicit non-first start position", () => {
+        const result = deriveEffectiveStartExecutionDay({
+            storedStartExecutionDay: 8,
+            planDays: buildPlanDays(false),
+            executionsByDayIndex: {
+                10: { status: "completed", completed_at: "2026-03-10T09:00:00.000Z" },
+            },
+            planStartDate: "2026-03-01",
+            subscriptionStartDate: "2026-03-04T03:07:09.000Z",
+        });
+
+        expect(result).toBe(8);
     });
 });
 

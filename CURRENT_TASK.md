@@ -1,5 +1,66 @@
 # CURRENT_TASK
 
+- Task: 修复学员“痴迷负重引体”追加第 9 周后今日训练日历被顺延到 6 月 22 日
+- Status: implemented in code on `2026-04-27`; verification intentionally skipped per user request
+- Real data finding:
+  - 学员 `痴迷负重引体` 当前订阅 `f41716eb-9295-4d89-9ceb-9cb3714162f0`，当前计划实例 `ff2af767-f366-4c57-9afa-e6c45a47851e`
+  - 该实例已从 56 天扩到 63 天，`DAY57-DAY63` 已存在，说明第 9 周是追加到了同一个实例里，不是单独新计划
+  - 实例 `start_date=2026-03-01`、数据库存量 `start_execution_day=1`，但真实有效执行从 `DAY3` 开始；`DAY1` 在 `2026-04-27` 早上被误启动/完成，是异常执行记录
+  - 小程序今日训练页因此把 `DAY1` 当成当前推进日，从 `2026-03-01` 滚到 `2026-04-27`，产生约 57 天顺延，并把这段顺延累计推到了后续 `DAY57`，最终显示到 `2026-06-22`
+- Fix:
+  - `src/lib/planProgress.ts`
+    - 新增 `deriveEffectiveStartExecutionDay()`，对 `start_execution_day=1` 但订阅真实开始日晚于计划 `start_date`、且最早有效执行从后续天开始的迁移/历史空洞场景，推导有效执行起点
+  - `src/app/api/plan-lib/get-instance/route.ts`
+    - 返回计划实例时使用有效执行起点参与推荐日与前端展示，避免历史空洞污染今日推进
+  - `wechat_app/src/training/today-training/lib/dayModules.ts`
+  - `src/app/today-training/lib/dayModules.ts`
+    - `buildPlanScheduleModel()` 新增 `startExecutionDay`，执行起点前的历史天不参与顺延累计
+  - `wechat_app/src/training/today-training/TodayTrainingScreen.tsx`
+  - `src/app/today-training/page.tsx`
+    - 构建日历模型时传入实例执行起点
+- Verification:
+  - 用户明确要求“不用你运行，改代码就行”，因此未继续跑构建、测试或小程序验证
+- Data note:
+  - 不建议直接删除真实数据库记录；若用户确认需要清理，可单独处理 `DAY1` 这条 `2026-04-27` 的异常执行记录
+
+---
+
+- Task: 修复计划脚本模式误把 `1-2x2` 组数范围识别成动作名
+- Status: completed on `2026-04-27`
+- Root cause:
+  - `src/lib/planScript.ts` 原先只识别 `4x7` / `4x30s` 这类单一组数 token
+  - 当脚本里写 `负重引体（底部暂停） 1-2x2 @5rm r240` 时，`1-2x2` 没被解析为容量，而是残留进动作名
+  - 后续又触发“括号变体动作名必须精确匹配”的保护，因此报成 `未找到精确动作：负重引体（底部暂停） 1-2x2`
+- Fix:
+  - `src/lib/planScript.ts`
+    - 新增对 `1-2x2` / `1-2x30s` 的容量解析
+    - 将其存为 `组数下限` / `组数上限` 元信息
+    - 为兼容当前系统仍需一个具体组数值，`组数` 先落下限值
+    - `formatTemplateToPlanScript()` 现可把这组元信息重新格式化回 `1-2x2`
+  - `src/lib/planScript.test.ts`
+    - 新增范围组数脚本的解析与回写回归测试
+- Verification:
+  - `npx vitest run src/lib/planScript.test.ts`：通过（6 tests）
+  - `npx vitest run src/lib/batchOperationDeterministic.test.ts`：通过（3 tests）
+- Next step:
+  - 若后续希望训练执行页、卡片展示、打印导出都显式展示 `1-2组`，需要继续把展示层和执行层也读 `组数下限/组数上限`
+
+---
+
+- Task: 排查本地 Web dev 启动后 `/api/auth/session` 与 `/api/auth/_log` 反复 404
+- Status: diagnosed on `2026-04-27`
+- Finding:
+  - `/today-training` 页面本身返回 200，404 来自 NextAuth 客户端会话探测接口，不是页面路由缺失。
+  - `src/app/api/auth/[...nextauth]/route.ts` 存在且导出了 `GET/POST` handler。
+  - `.next/dev/server/app-paths-manifest.json` 也包含 `/api/auth/[...nextauth]/route`。
+  - 但 live `http://localhost:3000/api/auth/session`、`/providers`、`/csrf` 均返回 Next 内置 not-found HTML，说明当前 dev server 没有实际命中已存在的 catch-all auth route。
+- Likely cause:
+  - 本地 Next dev router/cache 或正在运行的 dev 进程路由表陈旧/异常。
+- Recommended next step:
+  - 停掉 `npm run dev`，删除 `.next`，重新启动 `npm run dev`；若仍复现，再考虑把 NextAuth v4 catch-all handler 拆到兼容 Next 16 的独立 route 包装层或升级 Auth.js。
+
+---
+
 - Task: 将《力量训练原理》整理为可上传的非侵权书籍笔记并接入知识库书籍页
 - Scope:
   - 用户要求先从 `D:\WPSDrive\632379361\WPS云盘\创业-部分资料版\健身书籍pdf的文字版本\力量训练原理.docx` 开始
