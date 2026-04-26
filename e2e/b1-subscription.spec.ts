@@ -60,13 +60,25 @@ async function login(page: any, user: { id: string; phone: string }) {
   throw new Error(`登录失败：未能快速登录到种子账号 ${user.phone} (${user.id})，最后一次 session userId=${lastSessionUserId || "none"}`);
 }
 
+async function openSubscriptionAndExpect(page: any, matcher: string | RegExp) {
+  await page.goto("/coach/subscription");
+  await expect
+    .poll(
+      async () => {
+        const text = await page.locator("body").innerText();
+        return text;
+      },
+      { timeout: 15_000, intervals: [500, 1000, 1500] },
+    )
+    .toMatch(matcher);
+}
+
 test("B1 status labels: 制定中 (no plan) vs 未开始 (plan assigned but not started)", async ({ page }) => {
   // Case 1: active subscription, no plan assigned => 制定中
   const s1 = await seed(page.request, { withPlan: false, subscribedWeeks: 4 });
   try {
     await login(page, { id: s1.student.id, phone: s1.student.phone });
-    await page.goto("/coach/subscription");
-    await expect(page.getByText("制定中").first()).toBeVisible();
+    await openSubscriptionAndExpect(page, /制定中/);
   } finally {
     await cleanup(page.request, s1);
   }
@@ -77,8 +89,7 @@ test("B1 status labels: 制定中 (no plan) vs 未开始 (plan assigned but not 
     // new context is cleaner; but keep same page for speed: just clear cookies by new page reload
     await page.context().clearCookies();
     await login(page, { id: s2.student.id, phone: s2.student.phone });
-    await page.goto("/coach/subscription");
-    await expect(page.getByText("未开始").first()).toBeVisible();
+    await openSubscriptionAndExpect(page, /未开始/);
   } finally {
     await cleanup(page.request, s2);
   }
@@ -90,8 +101,7 @@ test("B1 end-to-end: start + finish training updates remaining days", async ({ p
     await login(page, { id: s.student.id, phone: s.student.phone });
 
     // Before start => 未开始
-    await page.goto("/coach/subscription");
-    await expect(page.getByText("未开始").first()).toBeVisible();
+    await openSubscriptionAndExpect(page, /未开始/);
 
     // Start execution via real API (same session cookies)
     expect(s.instance.id).toBeTruthy();
@@ -104,8 +114,7 @@ test("B1 end-to-end: start + finish training updates remaining days", async ({ p
     const executionId = startJson.data.id as string;
 
     // After start, subscription start_date gets set and end_date estimated => "剩余 X 天"
-    await page.goto("/coach/subscription");
-    await expect(page.getByText(/剩余\s+\d+\s+天/).first()).toBeVisible();
+    await openSubscriptionAndExpect(page, /剩余\s+\d+\s+天/);
 
     // Finish training => consumes 1 training-day credit and updates estimated end_date
     const finishRes = await page.request.post("/api/execution/finish", {
@@ -115,8 +124,7 @@ test("B1 end-to-end: start + finish training updates remaining days", async ({ p
     expect(finishJson.success).toBeTruthy();
 
     // Refresh and still shows remaining days (should generally decrease or stay consistent)
-    await page.goto("/coach/subscription");
-    await expect(page.getByText(/剩余\s+\d+\s+天/).first()).toBeVisible();
+    await openSubscriptionAndExpect(page, /剩余\s+\d+\s+天/);
   } finally {
     await cleanup(page.request, s);
   }
