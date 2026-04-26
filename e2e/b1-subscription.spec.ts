@@ -1,5 +1,4 @@
 import { test, expect } from "@playwright/test";
-import { getDevUsers } from "./_helpers/devUsers";
 
 const E2E_SECRET = process.env.E2E_SECRET || "local-e2e";
 
@@ -43,31 +42,29 @@ async function cleanup(request: any, data: any) {
   }
 }
 
-async function login(page: any, user: { phone: string; password: string }) {
-  const candidates = [
-    user,
-    ...getDevUsers().map((u) => ({ phone: u.phone, password: u.password })),
-  ];
-  for (const c of candidates) {
-    await page.goto("/login");
-    await page.getByPlaceholder("手机号或邮箱").fill(c.phone);
-    await page.getByPlaceholder("输入登录密码").fill(c.password);
-    await page.getByRole("button", { name: "立即登录" }).click();
-    await page.waitForTimeout(1200);
+async function login(page: any, user: { id: string; phone: string }) {
+  await page.context().clearCookies();
+  await page.goto("/login");
+  await page.getByPlaceholder("输入用户 ID").fill(user.id);
+  await page.getByRole("button", { name: "快速登录" }).click();
+  let lastSessionUserId: string | null = null;
+  for (let attempt = 0; attempt < 16; attempt += 1) {
+    await page.waitForTimeout(500);
     const session = await page.evaluate(async () => {
       const res = await fetch("/api/auth/session");
       return res.json();
     });
-    if (session?.user?.id) return;
+    lastSessionUserId = session?.user?.id || null;
+    if (session?.user?.id === user.id) return;
   }
-  throw new Error("登录失败：已尝试种子账号与 .env.development 测试账号");
+  throw new Error(`登录失败：未能快速登录到种子账号 ${user.phone} (${user.id})，最后一次 session userId=${lastSessionUserId || "none"}`);
 }
 
 test("B1 status labels: 制定中 (no plan) vs 未开始 (plan assigned but not started)", async ({ page }) => {
   // Case 1: active subscription, no plan assigned => 制定中
   const s1 = await seed(page.request, { withPlan: false, subscribedWeeks: 4 });
   try {
-    await login(page, { phone: s1.student.phone, password: s1.student.password });
+    await login(page, { id: s1.student.id, phone: s1.student.phone });
     await page.goto("/coach/subscription");
     await expect(page.getByText("制定中").first()).toBeVisible();
   } finally {
@@ -79,7 +76,7 @@ test("B1 status labels: 制定中 (no plan) vs 未开始 (plan assigned but not 
   try {
     // new context is cleaner; but keep same page for speed: just clear cookies by new page reload
     await page.context().clearCookies();
-    await login(page, { phone: s2.student.phone, password: s2.student.password });
+    await login(page, { id: s2.student.id, phone: s2.student.phone });
     await page.goto("/coach/subscription");
     await expect(page.getByText("未开始").first()).toBeVisible();
   } finally {
@@ -90,7 +87,7 @@ test("B1 status labels: 制定中 (no plan) vs 未开始 (plan assigned but not 
 test("B1 end-to-end: start + finish training updates remaining days", async ({ page }) => {
   const s = await seed(page.request, { withPlan: true, subscribedWeeks: 4 });
   try {
-    await login(page, { phone: s.student.phone, password: s.student.password });
+    await login(page, { id: s.student.id, phone: s.student.phone });
 
     // Before start => 未开始
     await page.goto("/coach/subscription");
