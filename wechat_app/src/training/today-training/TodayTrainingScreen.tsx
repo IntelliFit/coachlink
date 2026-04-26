@@ -364,9 +364,10 @@ function TodayTrainingScreen() {
         executionsByDayIndex,
         effectiveStartDate: effectiveCalendarStartDate,
         progressDayIndex,
+        startExecutionDay: Number(instance?.start_execution_day || 1),
         fallbackAnchorDayIndex: progressDayIndex || 1
       }),
-    [trainingDays, executionsByDayIndex, effectiveCalendarStartDate, progressDayIndex]
+    [trainingDays, executionsByDayIndex, effectiveCalendarStartDate, progressDayIndex, instance?.start_execution_day]
   )
   const selectedSchedule = scheduleModel.scheduleByDayIndex.get(selectedDayIndex)
   const selectedDateLabel = useMemo(() => {

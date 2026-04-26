@@ -17,7 +17,10 @@ import {
     evaluateSubscriptionPlanAccess,
     filterTrainingDaysByAccessWindow,
 } from "@/lib/subscriptionAccess";
-import { deriveStrictSequentialProgressDay } from "@/lib/planProgress";
+import {
+    deriveEffectiveStartExecutionDay,
+    deriveStrictSequentialProgressDay,
+} from "@/lib/planProgress";
 import { getSubscriptionCarryoverSummary } from "@/lib/subscriptionCarryover";
 
 export async function POST(req: Request) {
@@ -151,7 +154,7 @@ export async function POST(req: Request) {
             const studentCheckStart = performance.now();
             const { data: subscription } = await supabase
                 .from("coach_subscriptions")
-                .select("student_id, status, end_date, subscribed_weeks")
+                .select("student_id, status, start_date, end_date, subscribed_weeks")
                 .eq("id", instance.coach_subscription_id)
                 .single();
             timings["3b_student_check"] = performance.now() - studentCheckStart;
@@ -226,7 +229,7 @@ export async function POST(req: Request) {
         if (!subscriptionForStudentAccess) {
             const { data: subForAccess } = await supabase
                 .from("coach_subscriptions")
-                .select("id, student_id, status, end_date, subscribed_weeks")
+                .select("id, student_id, status, start_date, end_date, subscribed_weeks")
                 .eq("id", instance.coach_subscription_id)
                 .eq("student_id", userId)
                 .maybeSingle();
@@ -593,10 +596,36 @@ export async function POST(req: Request) {
 
     // 7. Derive progress day info
     const nextDayStart = performance.now();
-    const startExecutionDay = Number(
+    const storedStartExecutionDay = Number(
         (instance as any).start_execution_day || 1,
     );
     const getDayIndex = (d: any) => Number(d?.dayIndex ?? d?.day_index ?? 0);
+    let subscriptionStartDateForProgress: string | Date | null = null;
+    if (instance.coach_subscription_id) {
+        if (subscriptionForStudentAccess?.start_date) {
+            subscriptionStartDateForProgress = subscriptionForStudentAccess.start_date;
+        } else {
+            const { data: subForProgress } = await supabase
+                .from("coach_subscriptions")
+                .select("start_date")
+                .eq("id", instance.coach_subscription_id)
+                .maybeSingle();
+            subscriptionStartDateForProgress = subForProgress?.start_date || null;
+        }
+    }
+    const startExecutionDay = deriveEffectiveStartExecutionDay({
+        storedStartExecutionDay,
+        planDays: Array.isArray(instance.training_days)
+            ? (instance.training_days as any[])
+            : [],
+        executionsByDayIndex,
+        planStartDate: (instance as any).start_date,
+        subscriptionStartDate: subscriptionStartDateForProgress,
+    });
+    if (startExecutionDay !== storedStartExecutionDay) {
+        (instance as any).start_execution_day = startExecutionDay;
+        (instance as any).stored_start_execution_day = storedStartExecutionDay;
+    }
     const planDays =
         (Array.isArray(instance.training_days)
             ? (instance.training_days as any[])
