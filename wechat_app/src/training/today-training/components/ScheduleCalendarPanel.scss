@@ -144,7 +144,7 @@
     .delay-badge {
       left: auto;
       right: 4px;
-      background: #f59e0b;
+      background: var(--primary);
     }
 
     .week-day-status {
@@ -157,8 +157,8 @@
     }
 
     &.selected {
-      background: #ffb469;
-      border-color: #cf6d4e;
+      background: var(--primary-light);
+      border-color: var(--primary);
 
       .week-day-prefix,
       .week-day-date,
@@ -169,7 +169,7 @@
     }
 
     &.recommended:not(.selected) {
-      box-shadow: inset 0 0 0 2px rgba(207, 109, 78, 0.24);
+      box-shadow: inset 0 0 0 2px rgba(var(--brand-primary-rgb), 0.24);
     }
 
     &.progress:not(.selected) {
@@ -188,11 +188,11 @@
     }
 
     &.in_progress:not(.selected) {
-      background: #fff7ed;
-      border-color: #fdba74;
+      background: var(--primary-soft-bg);
+      border-color: var(--primary-light);
 
       .week-day-status {
-        color: #c2410c;
+        color: var(--primary);
       }
     }
 
@@ -221,13 +221,13 @@
   .unlock-hint {
     margin-top: 10px;
     border-radius: 10px;
-    background: #fff7ed;
+    background: var(--primary-soft-bg);
     padding: 10px 12px;
 
     text {
       font-size: 12px;
       line-height: 1.45;
-      color: #9a3412;
+      color: var(--primary);
     }
   }
 
@@ -327,13 +327,13 @@
     }
 
     &.postponed:not(.selected) {
-      background: #fff7ed;
-      border-color: #fdba74;
+      background: var(--primary-soft-bg);
+      border-color: var(--primary-light);
 
       .date-num,
       .date-day-index,
       .date-type {
-        color: #c2410c;
+        color: var(--primary);
       }
     }
 
@@ -358,12 +358,12 @@
     }
 
     &.today:not(.selected) {
-      border-color: #f59e0b;
+      border-color: var(--primary);
     }
 
     &.selected {
-      background: #cf6d4e;
-      border-color: #cf6d4e;
+      background: var(--primary);
+      border-color: var(--primary);
 
       .date-num,
       .date-day-index,
@@ -373,8 +373,8 @@
     }
 
     &.in_progress:not(.selected) {
-      background: #fff7ed;
-      border-color: #fdba74;
+      background: var(--primary-soft-bg);
+      border-color: var(--primary-light);
     }
 
     &.abandoned:not(.selected) {
@@ -412,7 +412,7 @@
     .delay-tip {
       display: block;
       margin-top: 6px;
-      color: #9a3412;
+      color: var(--primary);
     }
   }
 }
@@ -451,7 +451,7 @@
     border-radius: 16rpx;
     border: 2rpx solid #e5e7eb;
     background: #ffffff;
-    color: #cf6d4e;
+    color: var(--primary);
     font-size: 28rpx;
     font-weight: 700;
 
@@ -515,13 +515,13 @@
     }
 
     &.postponed:not(.selected) {
-      background: #fdf2ec;
-      border-color: rgba(207, 109, 78, 0.35);
+      background: var(--primary-soft-bg);
+      border-color: rgba(var(--brand-primary-rgb), 0.35);
 
       .date-num,
       .date-day-index,
       .date-type {
-        color: #b45309;
+        color: var(--primary);
       }
     }
 
@@ -537,18 +537,18 @@
     }
 
     &.today:not(.selected) {
-      border-color: #cf6d4e;
-      box-shadow: inset 0 0 0 2rpx rgba(207, 109, 78, 0.2);
+      border-color: var(--primary);
+      box-shadow: inset 0 0 0 2rpx rgba(var(--brand-primary-rgb), 0.2);
     }
 
     &.selected {
-      background: #cf6d4e;
-      border-color: #cf6d4e;
+      background: var(--primary);
+      border-color: var(--primary);
     }
 
     &.in_progress:not(.selected) {
-      background: #fdf2ec;
-      border-color: rgba(207, 109, 78, 0.45);
+      background: var(--primary-soft-bg);
+      border-color: rgba(var(--brand-primary-rgb), 0.45);
     }
 
     &.abandoned:not(.selected) {

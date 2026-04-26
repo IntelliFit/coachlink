@@ -5,7 +5,7 @@ import BottomNav from '@/components/BottomNav'
 import { authService } from '@/services/authService'
 import { studentOnboardingService } from '@/services/studentOnboardingService'
 import { Power } from '@nutui/icons-react-taro'
-import TodayTrainingScreen from '@/training/today-training/TodayTrainingScreen'
+import { BRAND_PRIMARY } from '@/styles/theme'
 import './index.scss'
 
 const STUDENT_HOME_PATH = '/pages/index/index'
@@ -55,9 +55,8 @@ function Index() {
           fallbackUrl: STUDENT_HOME_PATH
         })
         if (cancelled) return
-        if (!isStudentHomePath(targetUrl)) {
-          await Taro.reLaunch({ url: targetUrl })
-        }
+        const nextUrl = isStudentHomePath(targetUrl) ? LEGACY_TRAINING_PATH : targetUrl
+        await Taro.reLaunch({ url: nextUrl })
       } catch (e) {
         console.error('[index] onboarding gate failed:', e)
       }
@@ -91,16 +90,17 @@ function Index() {
     Taro.navigateTo({ url })
   }
 
-  if (mode === 'coach') {
+  if (mode === 'coach' || mode === 'student') {
     return (
-      <View className='home-page page-with-float-nav'>
-        <BottomNav />
+      <View className='home-page home-loading-shell'>
+        <View className='home-redirect-card'>
+          <Text className='home-redirect-title'>
+            {mode === 'coach' ? '正在进入教练工作台' : '正在进入今日训练'}
+          </Text>
+          <Text className='home-redirect-subtitle'>请稍候，正在为你跳转</Text>
+        </View>
       </View>
     )
-  }
-
-  if (mode === 'student') {
-    return <TodayTrainingScreen />
   }
 
   return (
@@ -125,7 +125,7 @@ function Index() {
               <Text className='hero-card-subtitle'>登录后可查看今日训练计划</Text>
             </View>
             <View className='hero-card-icon-wrap'>
-              <Power width={28} height={28} color='#CF6D4E' />
+              <Power width={28} height={28} color={BRAND_PRIMARY} />
             </View>
           </View>
           <View className='hero-card-progress'>

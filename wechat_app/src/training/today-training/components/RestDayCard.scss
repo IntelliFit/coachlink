@@ -19,8 +19,8 @@
       width: 96rpx;
       height: 96rpx;
       border-radius: 9999rpx;
-      background: #fdf2ec;
-      border: 2rpx solid rgba(207, 109, 78, 0.2);
+      background: var(--primary-soft-bg);
+      border: 2rpx solid rgba(var(--brand-primary-rgb), 0.2);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -86,8 +86,8 @@
   }
 
   .rest-tips {
-    background: #fdf2ec;
-    border: 2rpx solid rgba(207, 109, 78, 0.18);
+    background: var(--primary-soft-bg);
+    border: 2rpx solid rgba(var(--brand-primary-rgb), 0.18);
     border-radius: 24rpx;
     padding: 24rpx;
     margin-bottom: 0;
@@ -104,7 +104,7 @@
     .tips-title {
       font-size: 28rpx;
       font-weight: 700;
-      color: #9a3412;
+      color: var(--primary);
     }
 
     .tips-grid {
@@ -124,7 +124,7 @@
 
         .tip-icon {
           font-size: 28rpx;
-          color: #cf6d4e;
+          color: var(--primary);
           flex-shrink: 0;
         }
 
@@ -200,8 +200,8 @@
   .dialog-foot {
     margin-top: 12px;
     border-radius: 16px;
-    background: #fff7ed;
-    border: 1px solid #fed7aa;
+    background: var(--primary-soft-bg);
+    border: 1px solid var(--primary-soft-border);
     padding: 14px;
   }
 
@@ -209,21 +209,21 @@
     display: block;
     font-size: 14px;
     font-weight: 700;
-    color: #9a3412;
+    color: var(--primary);
     margin-bottom: 4px;
   }
 
   .dialog-foot-text {
     display: block;
     font-size: 12px;
-    color: #9a3412;
+    color: var(--primary);
     line-height: 1.55;
   }
 
   .dialog-close {
     margin-top: 14px;
     border-radius: 14px;
-    background: #cf6d4e;
+    background: var(--primary);
     padding: 14px;
     text-align: center;
 

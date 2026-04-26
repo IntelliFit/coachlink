@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { View, Text, Canvas, Button } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { formatMonthDayTime } from '@/utils/dateFormat'
+import { BRAND_PRIMARY, BRAND_PRIMARY_LIGHT } from '@/styles/theme'
 import './DayCheckinShareSheet.scss'
 
 interface DayCheckinShareData {
@@ -86,8 +87,8 @@ function DayCheckinShareSheet({
           canvas.height = 1180
 
           const gradient = ctx.createLinearGradient(0, 0, 750, 1180)
-          gradient.addColorStop(0, '#CF6D4E')
-          gradient.addColorStop(0.6, '#E59B7D')
+          gradient.addColorStop(0, BRAND_PRIMARY)
+          gradient.addColorStop(0.6, BRAND_PRIMARY_LIGHT)
           gradient.addColorStop(1, '#111827')
           ctx.fillStyle = gradient
           ctx.fillRect(0, 0, 750, 1180)

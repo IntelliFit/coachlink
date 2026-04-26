@@ -2,6 +2,7 @@ export default {
   pages: [
     'pages/index/index',
   ],
+  lazyCodeLoading: 'requiredComponents',
   subPackages: [
     {
       root: 'coach',

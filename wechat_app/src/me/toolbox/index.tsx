@@ -12,27 +12,30 @@ import {
 } from '@/utils/share'
 import './index.scss'
 import { Share } from '@nutui/icons-react-taro'
+import toolboxCalculatorImage from '@/assets/images/toolbox-calculator.jpg'
+import toolboxLocationsImage from '@/assets/images/toolbox-locations.jpg'
+import toolboxDataImage from '@/assets/images/toolbox-data.jpg'
 
 const TOOLBOX_LINKS = [
   {
     key: 'strength-calculator',
     label: '力量计算器',
     description: '小程序内完整实现，与网页端逻辑一致',
-    image: '/assets/images/toolbox-calculator.jpg',
+    image: toolboxCalculatorImage,
     url: '/streetlifting/index/calculator'
   },
   {
     key: 'bar-locations',
     label: '单杠位置',
     description: '查找、分享单杠位置，支持上传图片',
-    image: '/assets/images/toolbox-locations.jpg',
+    image: toolboxLocationsImage,
     url: '/streetlifting/index/locations'
   },
   {
     key: 'community-data',
     label: '社区数据',
     description: '查看与提交街健力量数据，支持认领',
-    image: '/assets/images/toolbox-data.jpg',
+    image: toolboxDataImage,
     url: '/streetlifting/index/data'
   }
 ]

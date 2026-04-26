@@ -90,7 +90,7 @@
   font-size: 28rpx;
   line-height: 1;
   font-weight: 700;
-  color: #CF6D4E;
+  color: var(--primary);
 }
 
 .quick-category-row {
@@ -122,7 +122,7 @@
 }
 
 .quick-category-icon-active {
-  background: #fbefe7;
+  background: var(--primary-soft-bg);
 }
 
 .quick-category-grid {
@@ -138,7 +138,7 @@
   width: 14rpx;
   height: 14rpx;
   border-radius: 4rpx;
-  background: #F28A44;
+  background: var(--primary);
 }
 
 .quick-category-icon-text {
@@ -149,7 +149,7 @@
 }
 
 .quick-category-icon-text-active {
-  color: #F28A44;
+  color: var(--primary);
 }
 
 .quick-category-label {
@@ -162,7 +162,7 @@
 }
 
 .quick-category-label-active {
-  color: #F28A44;
+  color: var(--primary);
 }
 
 .market-section,
@@ -278,8 +278,8 @@
 }
 
 .tier-pill-basic {
-  background: #fff1e8;
-  color: #F28A44;
+  background: var(--primary-soft-bg);
+  color: var(--primary);
 }
 
 .tier-pill-standard {
@@ -353,8 +353,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #fbefe7;
-  color: #CF6D4E;
+  background: var(--primary-soft-bg);
+  color: var(--primary);
   font-size: 18rpx;
   font-weight: 800;
 }
@@ -388,7 +388,7 @@
   font-size: 24rpx;
   line-height: 1.2;
   font-weight: 800;
-  color: #F28A44;
+  color: var(--primary);
   text-align: right;
 }
 
@@ -425,7 +425,7 @@
 
 .market-btn.cart {
   background: #ffffff;
-  color: #CF6D4E;
+  color: var(--primary);
   border: 2rpx solid #efb08c;
 }
 
@@ -515,11 +515,11 @@
 }
 
 .action-save-btn-active {
-  background: #fbefe7;
+  background: var(--primary-soft-bg);
   border-color: #f0d0bc;
 
   text {
-    color: #CF6D4E;
+    color: var(--primary);
   }
 }
 
@@ -683,14 +683,14 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #fbefe7;
+  background: var(--primary-soft-bg);
 }
 
 .avatar-text {
   font-size: 32rpx;
   line-height: 1;
   font-weight: 800;
-  color: #CF6D4E;
+  color: var(--primary);
 }
 
 .featured-badge {
@@ -743,14 +743,14 @@
   align-items: center;
   gap: 4rpx;
   border-radius: 16rpx;
-  background: #fbefe7;
+  background: var(--primary-soft-bg);
 }
 
 .rating-text {
   font-size: 14rpx;
   line-height: 1;
   font-weight: 800;
-  color: #CF6D4E;
+  color: var(--primary);
 }
 
 .coach-bio {
@@ -779,7 +779,7 @@
   font-size: 24rpx;
   line-height: 1.2;
   font-weight: 800;
-  color: #F28A44;
+  color: var(--primary);
 }
 
 .tags-row {
@@ -850,7 +850,7 @@
   font-size: 20rpx;
   line-height: 1;
   font-weight: 800;
-  color: #CF6D4E;
+  color: var(--primary);
 }
 
 .list-end-divider {
