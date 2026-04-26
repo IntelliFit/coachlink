@@ -1,0 +1,3610 @@
+{
+  "ok": true,
+  "summary": {
+    "mode": "apply",
+    "articleDir": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles",
+    "generated_at": "2026-04-19T19:44:05.682Z",
+    "total_files": 134,
+    "usable_total": 130,
+    "direct_count": 19,
+    "alias_count": 4,
+    "related_count": 107,
+    "skipped_count": 4,
+    "coverage_by_region": [
+      {
+        "region": "斜方肌",
+        "count": 18,
+        "files": [
+          "001-高低肩-系统教学.md",
+          "001-高低肩-系统指南.md",
+          "001-高低肩-小白跟练版.md",
+          "002-圆肩-系统指南.md",
+          "003-头前伸-系统指南.md",
+          "006-翼状肩胛-系统指南.md",
+          "021-上斜方肌-系统指南.md",
+          "022-下斜方肌-系统指南.md",
+          "031-胸锁乳突肌-系统指南.md",
+          "032-斜角肌-系统指南.md",
+          "033-肩胛提肌-系统指南.md",
+          "034-头夹肌-系统指南.md",
+          "035-颈椎-系统指南.md",
+          "047-菱形肌-系统指南.md",
+          "048-斜方肌中束-系统指南.md",
+          "049-斜方肌下束-系统指南.md",
+          "050-肩胛胸廓节律-系统指南.md",
+          "130-驼背-系统指南.md"
+        ]
+      },
+      {
+        "region": "三角肌",
+        "count": 10,
+        "files": [
+          "001-高低肩-系统教学.md",
+          "001-高低肩-系统指南.md",
+          "001-高低肩-小白跟练版.md",
+          "040-三角肌前束-系统指南.md",
+          "041-三角肌中束-系统指南.md",
+          "042-三角肌后束-系统指南.md",
+          "043-冈上肌-系统指南.md",
+          "053-肩峰下间隙-系统指南.md",
+          "121-推类模式-系统指南.md",
+          "126-肩肱节律-系统指南.md"
+        ]
+      },
+      {
+        "region": "胸大肌",
+        "count": 12,
+        "files": [
+          "002-圆肩-系统指南.md",
+          "019-前锯肌-系统指南.md",
+          "020-胸小肌-系统指南.md",
+          "051-锁骨-系统指南.md",
+          "054-胸大肌-系统指南.md",
+          "055-肋间肌-系统指南.md",
+          "056-胸骨-系统指南.md",
+          "058-胸廓活动度-系统指南.md",
+          "068-膈肌-系统指南.md",
+          "121-推类模式-系统指南.md",
+          "128-呼吸模式-系统指南.md",
+          "130-驼背-系统指南.md"
+        ]
+      },
+      {
+        "region": "腹直肌",
+        "count": 16,
+        "files": [
+          "004-骨盆前倾-系统指南.md",
+          "005-骨盆侧倾-系统指南.md",
+          "015-腰椎-系统指南.md",
+          "025-髂腰肌-系统指南.md",
+          "026-腰方肌-系统指南.md",
+          "055-肋间肌-系统指南.md",
+          "062-多裂肌-系统指南.md",
+          "064-腹直肌-系统指南.md",
+          "066-腹内斜肌-系统指南.md",
+          "067-腹横肌-系统指南.md",
+          "068-膈肌-系统指南.md",
+          "076-骨盆-系统指南.md",
+          "124-核心抗压-系统指南.md",
+          "125-核心抗旋转-系统指南.md",
+          "128-呼吸模式-系统指南.md",
+          "129-骨盆后倾-系统指南.md"
+        ]
+      },
+      {
+        "region": "肱二头肌",
+        "count": 7,
+        "files": [
+          "009-网球肘-系统指南.md",
+          "010-高尔夫球肘-系统指南.md",
+          "027-肱二头肌-系统指南.md",
+          "107-肱肌-系统指南.md",
+          "108-肱二头肌长头腱-系统指南.md",
+          "109-肘关节-系统指南.md",
+          "122-拉类模式-系统指南.md"
+        ]
+      },
+      {
+        "region": "肱桡肌",
+        "count": 12,
+        "files": [
+          "009-网球肘-系统指南.md",
+          "010-高尔夫球肘-系统指南.md",
+          "029-肱桡肌-系统指南.md",
+          "107-肱肌-系统指南.md",
+          "109-肘关节-系统指南.md",
+          "110-肘外侧-系统指南.md",
+          "111-肘内侧-系统指南.md",
+          "112-前臂伸肌群-系统指南.md",
+          "115-腕伸肌群-系统指南.md",
+          "116-握力系统-系统指南.md",
+          "117-腱鞘炎区-系统指南.md",
+          "122-拉类模式-系统指南.md"
+        ]
+      },
+      {
+        "region": "肱侧腕屈肌",
+        "count": 4,
+        "files": [
+          "113-前臂屈肌群-系统指南.md",
+          "114-腕屈肌群-系统指南.md",
+          "116-握力系统-系统指南.md",
+          "117-腱鞘炎区-系统指南.md"
+        ]
+      },
+      {
+        "region": "腹外直肌",
+        "count": 4,
+        "files": [
+          "065-腹外斜肌-系统指南.md",
+          "066-腹内斜肌-系统指南.md",
+          "067-腹横肌-系统指南.md",
+          "125-核心抗旋转-系统指南.md"
+        ]
+      },
+      {
+        "region": "内收肌",
+        "count": 3,
+        "files": [
+          "069-腹股沟-系统指南.md",
+          "073-内收肌群-系统指南.md",
+          "084-大腿内收肌群-系统指南.md"
+        ]
+      },
+      {
+        "region": "股四头肌",
+        "count": 15,
+        "files": [
+          "007-膝内扣-系统指南.md",
+          "018-髌腱-系统指南.md",
+          "030-股四头肌-系统指南.md",
+          "074-阔筋膜张肌-系统指南.md",
+          "075-髂胫束-系统指南.md",
+          "078-股直肌-系统指南.md",
+          "079-股外侧肌-系统指南.md",
+          "080-股内侧肌-系统指南.md",
+          "085-大腿外侧筋膜区-系统指南.md",
+          "086-髌骨-系统指南.md",
+          "087-髂胫束止点-系统指南.md",
+          "119-深蹲模式-系统指南.md",
+          "131-膝过伸-系统指南.md",
+          "132-X型腿-系统指南.md",
+          "133-O型腿-系统指南.md"
+        ]
+      },
+      {
+        "region": "腓肠肌",
+        "count": 10,
+        "files": [
+          "008-扁平足-系统指南.md",
+          "016-跟腱-系统指南.md",
+          "017-足底筋膜-系统指南.md",
+          "092-腘窝-系统指南.md",
+          "093-腓肠肌-系统指南.md",
+          "096-腓骨长肌-系统指南.md",
+          "098-小腿三头肌-系统指南.md",
+          "103-跟骨-系统指南.md",
+          "105-踝背屈受限-系统指南.md",
+          "127-步态周期-系统指南.md"
+        ]
+      },
+      {
+        "region": "胫骨前肌",
+        "count": 7,
+        "files": [
+          "008-扁平足-系统指南.md",
+          "017-足底筋膜-系统指南.md",
+          "095-胫骨前肌-系统指南.md",
+          "097-胫骨后肌-系统指南.md",
+          "101-足弓-系统指南.md",
+          "105-踝背屈受限-系统指南.md",
+          "106-高足弓-系统指南.md"
+        ]
+      },
+      {
+        "region": "比目鱼肌",
+        "count": 6,
+        "files": [
+          "008-扁平足-系统指南.md",
+          "016-跟腱-系统指南.md",
+          "094-比目鱼肌-系统指南.md",
+          "098-小腿三头肌-系统指南.md",
+          "103-跟骨-系统指南.md",
+          "105-踝背屈受限-系统指南.md"
+        ]
+      },
+      {
+        "region": "半腱肌",
+        "count": 4,
+        "files": [
+          "082-半腱肌-系统指南.md",
+          "083-腘绳肌群-系统指南.md",
+          "120-硬拉模式-系统指南.md",
+          "131-膝过伸-系统指南.md"
+        ]
+      },
+      {
+        "region": "股二头肌",
+        "count": 5,
+        "files": [
+          "081-股二头肌-系统指南.md",
+          "083-腘绳肌群-系统指南.md",
+          "092-腘窝-系统指南.md",
+          "120-硬拉模式-系统指南.md",
+          "131-膝过伸-系统指南.md"
+        ]
+      },
+      {
+        "region": "臀大肌",
+        "count": 18,
+        "files": [
+          "004-骨盆前倾-系统指南.md",
+          "005-骨盆侧倾-系统指南.md",
+          "007-膝内扣-系统指南.md",
+          "023-臀中肌-系统指南.md",
+          "024-臀大肌-系统指南.md",
+          "061-胸腰筋膜-系统指南.md",
+          "070-臀小肌-系统指南.md",
+          "071-梨状肌-系统指南.md",
+          "072-深层外旋肌群-系统指南.md",
+          "076-骨盆-系统指南.md",
+          "077-骶髂关节-系统指南.md",
+          "083-腘绳肌群-系统指南.md",
+          "119-深蹲模式-系统指南.md",
+          "120-硬拉模式-系统指南.md",
+          "123-单腿稳定性-系统指南.md",
+          "127-步态周期-系统指南.md",
+          "129-骨盆后倾-系统指南.md",
+          "132-X型腿-系统指南.md"
+        ]
+      },
+      {
+        "region": "竖脊肌",
+        "count": 17,
+        "files": [
+          "004-骨盆前倾-系统指南.md",
+          "005-骨盆侧倾-系统指南.md",
+          "015-腰椎-系统指南.md",
+          "026-腰方肌-系统指南.md",
+          "057-胸椎-系统指南.md",
+          "060-竖脊肌-系统指南.md",
+          "061-胸腰筋膜-系统指南.md",
+          "062-多裂肌-系统指南.md",
+          "063-回旋肌-系统指南.md",
+          "076-骨盆-系统指南.md",
+          "077-骶髂关节-系统指南.md",
+          "120-硬拉模式-系统指南.md",
+          "124-核心抗压-系统指南.md",
+          "125-核心抗旋转-系统指南.md",
+          "128-呼吸模式-系统指南.md",
+          "129-骨盆后倾-系统指南.md",
+          "130-驼背-系统指南.md"
+        ]
+      },
+      {
+        "region": "背阔肌",
+        "count": 11,
+        "files": [
+          "002-圆肩-系统指南.md",
+          "006-翼状肩胛-系统指南.md",
+          "019-前锯肌-系统指南.md",
+          "047-菱形肌-系统指南.md",
+          "050-肩胛胸廓节律-系统指南.md",
+          "057-胸椎-系统指南.md",
+          "058-胸廓活动度-系统指南.md",
+          "059-背阔肌-系统指南.md",
+          "061-胸腰筋膜-系统指南.md",
+          "122-拉类模式-系统指南.md",
+          "126-肩肱节律-系统指南.md"
+        ]
+      },
+      {
+        "region": "肱三头肌",
+        "count": 3,
+        "files": [
+          "028-肱三头肌-系统指南.md",
+          "109-肘关节-系统指南.md",
+          "121-推类模式-系统指南.md"
+        ]
+      },
+      {
+        "region": "大圆肌",
+        "count": 2,
+        "files": [
+          "059-背阔肌-系统指南.md",
+          "122-拉类模式-系统指南.md"
+        ]
+      },
+      {
+        "region": "岗下肌",
+        "count": 2,
+        "files": [
+          "044-冈下肌-系统指南.md",
+          "045-小圆肌-系统指南.md"
+        ]
+      },
+      {
+        "region": "膝关节",
+        "count": 20,
+        "files": [
+          "007-膝内扣-系统指南.md",
+          "013-膝关节-系统指南.md",
+          "018-髌腱-系统指南.md",
+          "075-髂胫束-系统指南.md",
+          "078-股直肌-系统指南.md",
+          "079-股外侧肌-系统指南.md",
+          "080-股内侧肌-系统指南.md",
+          "085-大腿外侧筋膜区-系统指南.md",
+          "086-髌骨-系统指南.md",
+          "087-髂胫束止点-系统指南.md",
+          "088-内侧副韧带-系统指南.md",
+          "089-外侧副韧带-系统指南.md",
+          "091-后交叉韧带-系统指南.md",
+          "092-腘窝-系统指南.md",
+          "119-深蹲模式-系统指南.md",
+          "123-单腿稳定性-系统指南.md",
+          "127-步态周期-系统指南.md",
+          "131-膝过伸-系统指南.md",
+          "132-X型腿-系统指南.md",
+          "133-O型腿-系统指南.md"
+        ]
+      },
+      {
+        "region": "踝关节",
+        "count": 18,
+        "files": [
+          "008-扁平足-系统指南.md",
+          "016-跟腱-系统指南.md",
+          "017-足底筋膜-系统指南.md",
+          "096-腓骨长肌-系统指南.md",
+          "097-胫骨后肌-系统指南.md",
+          "098-小腿三头肌-系统指南.md",
+          "099-踝关节-系统指南.md",
+          "100-距下关节-系统指南.md",
+          "101-足弓-系统指南.md",
+          "102-大脚趾-系统指南.md",
+          "103-跟骨-系统指南.md",
+          "104-足底内在肌-系统指南.md",
+          "105-踝背屈受限-系统指南.md",
+          "106-高足弓-系统指南.md",
+          "119-深蹲模式-系统指南.md",
+          "123-单腿稳定性-系统指南.md",
+          "127-步态周期-系统指南.md",
+          "133-O型腿-系统指南.md"
+        ]
+      },
+      {
+        "region": "髋关节",
+        "count": 25,
+        "files": [
+          "004-骨盆前倾-系统指南.md",
+          "005-骨盆侧倾-系统指南.md",
+          "007-膝内扣-系统指南.md",
+          "012-髋关节-系统指南.md",
+          "015-腰椎-系统指南.md",
+          "023-臀中肌-系统指南.md",
+          "025-髂腰肌-系统指南.md",
+          "026-腰方肌-系统指南.md",
+          "069-腹股沟-系统指南.md",
+          "070-臀小肌-系统指南.md",
+          "071-梨状肌-系统指南.md",
+          "072-深层外旋肌群-系统指南.md",
+          "074-阔筋膜张肌-系统指南.md",
+          "075-髂胫束-系统指南.md",
+          "076-骨盆-系统指南.md",
+          "077-骶髂关节-系统指南.md",
+          "078-股直肌-系统指南.md",
+          "085-大腿外侧筋膜区-系统指南.md",
+          "119-深蹲模式-系统指南.md",
+          "120-硬拉模式-系统指南.md",
+          "123-单腿稳定性-系统指南.md",
+          "127-步态周期-系统指南.md",
+          "129-骨盆后倾-系统指南.md",
+          "132-X型腿-系统指南.md",
+          "133-O型腿-系统指南.md"
+        ]
+      },
+      {
+        "region": "腕关节",
+        "count": 12,
+        "files": [
+          "009-网球肘-系统指南.md",
+          "010-高尔夫球肘-系统指南.md",
+          "014-腕关节-系统指南.md",
+          "110-肘外侧-系统指南.md",
+          "111-肘内侧-系统指南.md",
+          "112-前臂伸肌群-系统指南.md",
+          "113-前臂屈肌群-系统指南.md",
+          "114-腕屈肌群-系统指南.md",
+          "115-腕伸肌群-系统指南.md",
+          "116-握力系统-系统指南.md",
+          "117-腱鞘炎区-系统指南.md",
+          "118-手掌内在肌-系统指南.md"
+        ]
+      },
+      {
+        "region": "肩关节",
+        "count": 34,
+        "files": [
+          "001-高低肩-系统教学.md",
+          "001-高低肩-系统指南.md",
+          "001-高低肩-小白跟练版.md",
+          "002-圆肩-系统指南.md",
+          "003-头前伸-系统指南.md",
+          "006-翼状肩胛-系统指南.md",
+          "011-肩关节-系统指南.md",
+          "019-前锯肌-系统指南.md",
+          "020-胸小肌-系统指南.md",
+          "021-上斜方肌-系统指南.md",
+          "022-下斜方肌-系统指南.md",
+          "031-胸锁乳突肌-系统指南.md",
+          "032-斜角肌-系统指南.md",
+          "033-肩胛提肌-系统指南.md",
+          "034-头夹肌-系统指南.md",
+          "035-颈椎-系统指南.md",
+          "040-三角肌前束-系统指南.md",
+          "041-三角肌中束-系统指南.md",
+          "042-三角肌后束-系统指南.md",
+          "043-冈上肌-系统指南.md",
+          "045-小圆肌-系统指南.md",
+          "046-肩胛下肌-系统指南.md",
+          "047-菱形肌-系统指南.md",
+          "050-肩胛胸廓节律-系统指南.md",
+          "051-锁骨-系统指南.md",
+          "052-肩锁关节-系统指南.md",
+          "053-肩峰下间隙-系统指南.md",
+          "057-胸椎-系统指南.md",
+          "058-胸廓活动度-系统指南.md",
+          "108-肱二头肌长头腱-系统指南.md",
+          "121-推类模式-系统指南.md",
+          "122-拉类模式-系统指南.md",
+          "126-肩肱节律-系统指南.md",
+          "130-驼背-系统指南.md"
+        ]
+      }
+    ],
+    "uncovered_regions": [],
+    "skipped": [
+      {
+        "fileName": "036-颈前淋巴结区-系统指南.md",
+        "sourceTopic": "颈前淋巴结区",
+        "reason": "主题偏头面部/淋巴区域，当前人体图没有对应点击部位"
+      },
+      {
+        "fileName": "037-颞下颌关节-系统指南.md",
+        "sourceTopic": "颞下颌关节",
+        "reason": "主题偏头面部/淋巴区域，当前人体图没有对应点击部位"
+      },
+      {
+        "fileName": "038-咬肌-系统指南.md",
+        "sourceTopic": "咬肌",
+        "reason": "主题偏头面部/淋巴区域，当前人体图没有对应点击部位"
+      },
+      {
+        "fileName": "039-翼内肌-系统指南.md",
+        "sourceTopic": "翼内肌",
+        "reason": "主题偏头面部/淋巴区域，当前人体图没有对应点击部位"
+      }
+    ]
+  },
+  "candidates": [
+    {
+      "fileName": "001-高低肩-系统教学.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\001-高低肩-系统教学.md",
+      "sourceTopic": "高低肩",
+      "title": "高低肩 系统教学",
+      "slug": "body-map-001-高低肩-系统教学",
+      "description": "围绕高低肩的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：斜方肌、三角肌、肩关节。",
+      "bodyRegions": [
+        "斜方肌",
+        "三角肌",
+        "肩关节"
+      ],
+      "modes": [
+        "screening"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "001-高低肩-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\001-高低肩-系统指南.md",
+      "sourceTopic": "高低肩",
+      "title": "高低肩 系统指南",
+      "slug": "body-map-001-高低肩-系统指南",
+      "description": "围绕高低肩的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：斜方肌、三角肌、肩关节。",
+      "bodyRegions": [
+        "斜方肌",
+        "三角肌",
+        "肩关节"
+      ],
+      "modes": [
+        "screening"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "001-高低肩-小白跟练版.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\001-高低肩-小白跟练版.md",
+      "sourceTopic": "高低肩",
+      "title": "高低肩 小白跟练版",
+      "slug": "body-map-001-高低肩-小白跟练版",
+      "description": "围绕高低肩的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：斜方肌、三角肌、肩关节。",
+      "bodyRegions": [
+        "斜方肌",
+        "三角肌",
+        "肩关节"
+      ],
+      "modes": [
+        "screening"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "002-圆肩-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\002-圆肩-系统指南.md",
+      "sourceTopic": "圆肩",
+      "title": "圆肩 系统指南",
+      "slug": "body-map-002-圆肩-系统指南",
+      "description": "围绕圆肩的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：胸大肌、肩关节、斜方肌、背阔肌。",
+      "bodyRegions": [
+        "胸大肌",
+        "肩关节",
+        "斜方肌",
+        "背阔肌"
+      ],
+      "modes": [
+        "screening"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "003-头前伸-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\003-头前伸-系统指南.md",
+      "sourceTopic": "头前伸",
+      "title": "头前伸 系统指南",
+      "slug": "body-map-003-头前伸-系统指南",
+      "description": "围绕头前伸的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：斜方肌、肩关节。",
+      "bodyRegions": [
+        "斜方肌",
+        "肩关节"
+      ],
+      "modes": [
+        "screening"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "004-骨盆前倾-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\004-骨盆前倾-系统指南.md",
+      "sourceTopic": "骨盆前倾",
+      "title": "骨盆前倾 系统指南",
+      "slug": "body-map-004-骨盆前倾-系统指南",
+      "description": "围绕骨盆前倾的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：髋关节、臀大肌、竖脊肌、腹直肌。",
+      "bodyRegions": [
+        "髋关节",
+        "臀大肌",
+        "竖脊肌",
+        "腹直肌"
+      ],
+      "modes": [
+        "screening"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "005-骨盆侧倾-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\005-骨盆侧倾-系统指南.md",
+      "sourceTopic": "骨盆侧倾",
+      "title": "骨盆侧倾 系统指南",
+      "slug": "body-map-005-骨盆侧倾-系统指南",
+      "description": "围绕骨盆侧倾的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：髋关节、臀大肌、竖脊肌、腹直肌。",
+      "bodyRegions": [
+        "髋关节",
+        "臀大肌",
+        "竖脊肌",
+        "腹直肌"
+      ],
+      "modes": [
+        "screening"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "006-翼状肩胛-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\006-翼状肩胛-系统指南.md",
+      "sourceTopic": "翼状肩胛",
+      "title": "翼状肩胛 系统指南",
+      "slug": "body-map-006-翼状肩胛-系统指南",
+      "description": "围绕翼状肩胛的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：肩关节、背阔肌、斜方肌。",
+      "bodyRegions": [
+        "肩关节",
+        "背阔肌",
+        "斜方肌"
+      ],
+      "modes": [
+        "screening"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "007-膝内扣-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\007-膝内扣-系统指南.md",
+      "sourceTopic": "膝内扣",
+      "title": "膝内扣 系统指南",
+      "slug": "body-map-007-膝内扣-系统指南",
+      "description": "围绕膝内扣的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：膝关节、髋关节、臀大肌、股四头肌。",
+      "bodyRegions": [
+        "膝关节",
+        "髋关节",
+        "臀大肌",
+        "股四头肌"
+      ],
+      "modes": [
+        "screening"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "008-扁平足-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\008-扁平足-系统指南.md",
+      "sourceTopic": "扁平足",
+      "title": "扁平足 系统指南",
+      "slug": "body-map-008-扁平足-系统指南",
+      "description": "围绕扁平足的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：踝关节、胫骨前肌、腓肠肌、比目鱼肌。",
+      "bodyRegions": [
+        "踝关节",
+        "胫骨前肌",
+        "腓肠肌",
+        "比目鱼肌"
+      ],
+      "modes": [
+        "screening"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "009-网球肘-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\009-网球肘-系统指南.md",
+      "sourceTopic": "网球肘",
+      "title": "网球肘 系统指南",
+      "slug": "body-map-009-网球肘-系统指南",
+      "description": "围绕网球肘的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：肱桡肌、腕关节、肱二头肌。",
+      "bodyRegions": [
+        "肱桡肌",
+        "腕关节",
+        "肱二头肌"
+      ],
+      "modes": [
+        "screening"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "010-高尔夫球肘-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\010-高尔夫球肘-系统指南.md",
+      "sourceTopic": "高尔夫球肘",
+      "title": "高尔夫球肘 系统指南",
+      "slug": "body-map-010-高尔夫球肘-系统指南",
+      "description": "围绕高尔夫球肘的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：肱桡肌、腕关节、肱二头肌。",
+      "bodyRegions": [
+        "肱桡肌",
+        "腕关节",
+        "肱二头肌"
+      ],
+      "modes": [
+        "screening"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "011-肩关节-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\011-肩关节-系统指南.md",
+      "sourceTopic": "肩关节",
+      "title": "肩关节 系统指南",
+      "slug": "body-map-011-肩关节-系统指南",
+      "description": "围绕肩关节的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：肩关节。",
+      "bodyRegions": [
+        "肩关节"
+      ],
+      "modes": [
+        "training",
+        "screening"
+      ],
+      "status": "direct",
+      "reason": "文章主题与当前人体图点击部位直接同名"
+    },
+    {
+      "fileName": "012-髋关节-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\012-髋关节-系统指南.md",
+      "sourceTopic": "髋关节",
+      "title": "髋关节 系统指南",
+      "slug": "body-map-012-髋关节-系统指南",
+      "description": "围绕髋关节的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：髋关节。",
+      "bodyRegions": [
+        "髋关节"
+      ],
+      "modes": [
+        "training",
+        "screening"
+      ],
+      "status": "direct",
+      "reason": "文章主题与当前人体图点击部位直接同名"
+    },
+    {
+      "fileName": "013-膝关节-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\013-膝关节-系统指南.md",
+      "sourceTopic": "膝关节",
+      "title": "膝关节 系统指南",
+      "slug": "body-map-013-膝关节-系统指南",
+      "description": "围绕膝关节的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：膝关节。",
+      "bodyRegions": [
+        "膝关节"
+      ],
+      "modes": [
+        "training",
+        "screening"
+      ],
+      "status": "direct",
+      "reason": "文章主题与当前人体图点击部位直接同名"
+    },
+    {
+      "fileName": "014-腕关节-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\014-腕关节-系统指南.md",
+      "sourceTopic": "腕关节",
+      "title": "腕关节 系统指南",
+      "slug": "body-map-014-腕关节-系统指南",
+      "description": "围绕腕关节的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：腕关节。",
+      "bodyRegions": [
+        "腕关节"
+      ],
+      "modes": [
+        "training",
+        "screening"
+      ],
+      "status": "direct",
+      "reason": "文章主题与当前人体图点击部位直接同名"
+    },
+    {
+      "fileName": "015-腰椎-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\015-腰椎-系统指南.md",
+      "sourceTopic": "腰椎",
+      "title": "腰椎 系统指南",
+      "slug": "body-map-015-腰椎-系统指南",
+      "description": "围绕腰椎的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：竖脊肌、腹直肌、髋关节。",
+      "bodyRegions": [
+        "竖脊肌",
+        "腹直肌",
+        "髋关节"
+      ],
+      "modes": [
+        "screening"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "016-跟腱-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\016-跟腱-系统指南.md",
+      "sourceTopic": "跟腱",
+      "title": "跟腱 系统指南",
+      "slug": "body-map-016-跟腱-系统指南",
+      "description": "围绕跟腱的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：踝关节、腓肠肌、比目鱼肌。",
+      "bodyRegions": [
+        "踝关节",
+        "腓肠肌",
+        "比目鱼肌"
+      ],
+      "modes": [
+        "screening"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "017-足底筋膜-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\017-足底筋膜-系统指南.md",
+      "sourceTopic": "足底筋膜",
+      "title": "足底筋膜 系统指南",
+      "slug": "body-map-017-足底筋膜-系统指南",
+      "description": "围绕足底筋膜的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：踝关节、胫骨前肌、腓肠肌。",
+      "bodyRegions": [
+        "踝关节",
+        "胫骨前肌",
+        "腓肠肌"
+      ],
+      "modes": [
+        "screening"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "018-髌腱-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\018-髌腱-系统指南.md",
+      "sourceTopic": "髌腱",
+      "title": "髌腱 系统指南",
+      "slug": "body-map-018-髌腱-系统指南",
+      "description": "围绕髌腱的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：膝关节、股四头肌。",
+      "bodyRegions": [
+        "膝关节",
+        "股四头肌"
+      ],
+      "modes": [
+        "screening"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "019-前锯肌-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\019-前锯肌-系统指南.md",
+      "sourceTopic": "前锯肌",
+      "title": "前锯肌 系统指南",
+      "slug": "body-map-019-前锯肌-系统指南",
+      "description": "围绕前锯肌的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：肩关节、胸大肌、背阔肌。",
+      "bodyRegions": [
+        "肩关节",
+        "胸大肌",
+        "背阔肌"
+      ],
+      "modes": [
+        "training"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "020-胸小肌-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\020-胸小肌-系统指南.md",
+      "sourceTopic": "胸小肌",
+      "title": "胸小肌 系统指南",
+      "slug": "body-map-020-胸小肌-系统指南",
+      "description": "围绕胸小肌的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：胸大肌、肩关节。",
+      "bodyRegions": [
+        "胸大肌",
+        "肩关节"
+      ],
+      "modes": [
+        "training"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "021-上斜方肌-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\021-上斜方肌-系统指南.md",
+      "sourceTopic": "上斜方肌",
+      "title": "上斜方肌 系统指南",
+      "slug": "body-map-021-上斜方肌-系统指南",
+      "description": "围绕上斜方肌的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：斜方肌、肩关节。",
+      "bodyRegions": [
+        "斜方肌",
+        "肩关节"
+      ],
+      "modes": [
+        "training"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "022-下斜方肌-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\022-下斜方肌-系统指南.md",
+      "sourceTopic": "下斜方肌",
+      "title": "下斜方肌 系统指南",
+      "slug": "body-map-022-下斜方肌-系统指南",
+      "description": "围绕下斜方肌的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：斜方肌、肩关节。",
+      "bodyRegions": [
+        "斜方肌",
+        "肩关节"
+      ],
+      "modes": [
+        "training"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "023-臀中肌-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\023-臀中肌-系统指南.md",
+      "sourceTopic": "臀中肌",
+      "title": "臀中肌 系统指南",
+      "slug": "body-map-023-臀中肌-系统指南",
+      "description": "围绕臀中肌的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：髋关节、臀大肌。",
+      "bodyRegions": [
+        "髋关节",
+        "臀大肌"
+      ],
+      "modes": [
+        "training"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "024-臀大肌-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\024-臀大肌-系统指南.md",
+      "sourceTopic": "臀大肌",
+      "title": "臀大肌 系统指南",
+      "slug": "body-map-024-臀大肌-系统指南",
+      "description": "围绕臀大肌的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：臀大肌。",
+      "bodyRegions": [
+        "臀大肌"
+      ],
+      "modes": [
+        "training",
+        "screening"
+      ],
+      "status": "direct",
+      "reason": "文章主题与当前人体图点击部位直接同名"
+    },
+    {
+      "fileName": "025-髂腰肌-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\025-髂腰肌-系统指南.md",
+      "sourceTopic": "髂腰肌",
+      "title": "髂腰肌 系统指南",
+      "slug": "body-map-025-髂腰肌-系统指南",
+      "description": "围绕髂腰肌的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：髋关节、腹直肌。",
+      "bodyRegions": [
+        "髋关节",
+        "腹直肌"
+      ],
+      "modes": [
+        "training"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "026-腰方肌-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\026-腰方肌-系统指南.md",
+      "sourceTopic": "腰方肌",
+      "title": "腰方肌 系统指南",
+      "slug": "body-map-026-腰方肌-系统指南",
+      "description": "围绕腰方肌的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：竖脊肌、髋关节、腹直肌。",
+      "bodyRegions": [
+        "竖脊肌",
+        "髋关节",
+        "腹直肌"
+      ],
+      "modes": [
+        "training"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "027-肱二头肌-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\027-肱二头肌-系统指南.md",
+      "sourceTopic": "肱二头肌",
+      "title": "肱二头肌 系统指南",
+      "slug": "body-map-027-肱二头肌-系统指南",
+      "description": "围绕肱二头肌的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：肱二头肌。",
+      "bodyRegions": [
+        "肱二头肌"
+      ],
+      "modes": [
+        "training",
+        "screening"
+      ],
+      "status": "direct",
+      "reason": "文章主题与当前人体图点击部位直接同名"
+    },
+    {
+      "fileName": "028-肱三头肌-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\028-肱三头肌-系统指南.md",
+      "sourceTopic": "肱三头肌",
+      "title": "肱三头肌 系统指南",
+      "slug": "body-map-028-肱三头肌-系统指南",
+      "description": "围绕肱三头肌的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：肱三头肌。",
+      "bodyRegions": [
+        "肱三头肌"
+      ],
+      "modes": [
+        "training",
+        "screening"
+      ],
+      "status": "direct",
+      "reason": "文章主题与当前人体图点击部位直接同名"
+    },
+    {
+      "fileName": "029-肱桡肌-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\029-肱桡肌-系统指南.md",
+      "sourceTopic": "肱桡肌",
+      "title": "肱桡肌 系统指南",
+      "slug": "body-map-029-肱桡肌-系统指南",
+      "description": "围绕肱桡肌的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：肱桡肌。",
+      "bodyRegions": [
+        "肱桡肌"
+      ],
+      "modes": [
+        "training",
+        "screening"
+      ],
+      "status": "direct",
+      "reason": "文章主题与当前人体图点击部位直接同名"
+    },
+    {
+      "fileName": "030-股四头肌-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\030-股四头肌-系统指南.md",
+      "sourceTopic": "股四头肌",
+      "title": "股四头肌 系统指南",
+      "slug": "body-map-030-股四头肌-系统指南",
+      "description": "围绕股四头肌的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：股四头肌。",
+      "bodyRegions": [
+        "股四头肌"
+      ],
+      "modes": [
+        "training",
+        "screening"
+      ],
+      "status": "direct",
+      "reason": "文章主题与当前人体图点击部位直接同名"
+    },
+    {
+      "fileName": "031-胸锁乳突肌-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\031-胸锁乳突肌-系统指南.md",
+      "sourceTopic": "胸锁乳突肌",
+      "title": "胸锁乳突肌 系统指南",
+      "slug": "body-map-031-胸锁乳突肌-系统指南",
+      "description": "围绕胸锁乳突肌的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：斜方肌、肩关节。",
+      "bodyRegions": [
+        "斜方肌",
+        "肩关节"
+      ],
+      "modes": [
+        "training"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "032-斜角肌-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\032-斜角肌-系统指南.md",
+      "sourceTopic": "斜角肌",
+      "title": "斜角肌 系统指南",
+      "slug": "body-map-032-斜角肌-系统指南",
+      "description": "围绕斜角肌的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：斜方肌、肩关节。",
+      "bodyRegions": [
+        "斜方肌",
+        "肩关节"
+      ],
+      "modes": [
+        "training"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "033-肩胛提肌-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\033-肩胛提肌-系统指南.md",
+      "sourceTopic": "肩胛提肌",
+      "title": "肩胛提肌 系统指南",
+      "slug": "body-map-033-肩胛提肌-系统指南",
+      "description": "围绕肩胛提肌的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：斜方肌、肩关节。",
+      "bodyRegions": [
+        "斜方肌",
+        "肩关节"
+      ],
+      "modes": [
+        "training"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "034-头夹肌-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\034-头夹肌-系统指南.md",
+      "sourceTopic": "头夹肌",
+      "title": "头夹肌 系统指南",
+      "slug": "body-map-034-头夹肌-系统指南",
+      "description": "围绕头夹肌的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：斜方肌、肩关节。",
+      "bodyRegions": [
+        "斜方肌",
+        "肩关节"
+      ],
+      "modes": [
+        "training"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "035-颈椎-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\035-颈椎-系统指南.md",
+      "sourceTopic": "颈椎",
+      "title": "颈椎 系统指南",
+      "slug": "body-map-035-颈椎-系统指南",
+      "description": "围绕颈椎的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：斜方肌、肩关节。",
+      "bodyRegions": [
+        "斜方肌",
+        "肩关节"
+      ],
+      "modes": [
+        "screening"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "036-颈前淋巴结区-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\036-颈前淋巴结区-系统指南.md",
+      "sourceTopic": "颈前淋巴结区",
+      "title": "颈前淋巴结区 系统指南",
+      "slug": "body-map-036-颈前淋巴结区-系统指南",
+      "description": "主题偏头面部/淋巴区域，当前人体图没有对应点击部位",
+      "bodyRegions": [],
+      "modes": [],
+      "status": "skipped",
+      "reason": "主题偏头面部/淋巴区域，当前人体图没有对应点击部位"
+    },
+    {
+      "fileName": "037-颞下颌关节-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\037-颞下颌关节-系统指南.md",
+      "sourceTopic": "颞下颌关节",
+      "title": "颞下颌关节 系统指南",
+      "slug": "body-map-037-颞下颌关节-系统指南",
+      "description": "主题偏头面部/淋巴区域，当前人体图没有对应点击部位",
+      "bodyRegions": [],
+      "modes": [],
+      "status": "skipped",
+      "reason": "主题偏头面部/淋巴区域，当前人体图没有对应点击部位"
+    },
+    {
+      "fileName": "038-咬肌-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\038-咬肌-系统指南.md",
+      "sourceTopic": "咬肌",
+      "title": "咬肌 系统指南",
+      "slug": "body-map-038-咬肌-系统指南",
+      "description": "主题偏头面部/淋巴区域，当前人体图没有对应点击部位",
+      "bodyRegions": [],
+      "modes": [],
+      "status": "skipped",
+      "reason": "主题偏头面部/淋巴区域，当前人体图没有对应点击部位"
+    },
+    {
+      "fileName": "039-翼内肌-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\039-翼内肌-系统指南.md",
+      "sourceTopic": "翼内肌",
+      "title": "翼内肌 系统指南",
+      "slug": "body-map-039-翼内肌-系统指南",
+      "description": "主题偏头面部/淋巴区域，当前人体图没有对应点击部位",
+      "bodyRegions": [],
+      "modes": [],
+      "status": "skipped",
+      "reason": "主题偏头面部/淋巴区域，当前人体图没有对应点击部位"
+    },
+    {
+      "fileName": "040-三角肌前束-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\040-三角肌前束-系统指南.md",
+      "sourceTopic": "三角肌前束",
+      "title": "三角肌前束 系统指南",
+      "slug": "body-map-040-三角肌前束-系统指南",
+      "description": "围绕三角肌前束的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：三角肌、肩关节。",
+      "bodyRegions": [
+        "三角肌",
+        "肩关节"
+      ],
+      "modes": [
+        "training"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "041-三角肌中束-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\041-三角肌中束-系统指南.md",
+      "sourceTopic": "三角肌中束",
+      "title": "三角肌中束 系统指南",
+      "slug": "body-map-041-三角肌中束-系统指南",
+      "description": "围绕三角肌中束的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：三角肌、肩关节。",
+      "bodyRegions": [
+        "三角肌",
+        "肩关节"
+      ],
+      "modes": [
+        "training"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "042-三角肌后束-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\042-三角肌后束-系统指南.md",
+      "sourceTopic": "三角肌后束",
+      "title": "三角肌后束 系统指南",
+      "slug": "body-map-042-三角肌后束-系统指南",
+      "description": "围绕三角肌后束的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：三角肌、肩关节。",
+      "bodyRegions": [
+        "三角肌",
+        "肩关节"
+      ],
+      "modes": [
+        "training"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "043-冈上肌-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\043-冈上肌-系统指南.md",
+      "sourceTopic": "冈上肌",
+      "title": "冈上肌 系统指南",
+      "slug": "body-map-043-冈上肌-系统指南",
+      "description": "围绕冈上肌的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：肩关节、三角肌。",
+      "bodyRegions": [
+        "肩关节",
+        "三角肌"
+      ],
+      "modes": [
+        "training"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "044-冈下肌-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\044-冈下肌-系统指南.md",
+      "sourceTopic": "冈下肌",
+      "title": "冈下肌 系统指南",
+      "slug": "body-map-044-冈下肌-系统指南",
+      "description": "围绕冈下肌的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：岗下肌。",
+      "bodyRegions": [
+        "岗下肌"
+      ],
+      "modes": [
+        "training",
+        "screening"
+      ],
+      "status": "alias",
+      "reason": "文章主题通过别名映射到当前人体图部位：岗下肌"
+    },
+    {
+      "fileName": "045-小圆肌-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\045-小圆肌-系统指南.md",
+      "sourceTopic": "小圆肌",
+      "title": "小圆肌 系统指南",
+      "slug": "body-map-045-小圆肌-系统指南",
+      "description": "围绕小圆肌的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：肩关节、岗下肌。",
+      "bodyRegions": [
+        "肩关节",
+        "岗下肌"
+      ],
+      "modes": [
+        "training"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "046-肩胛下肌-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\046-肩胛下肌-系统指南.md",
+      "sourceTopic": "肩胛下肌",
+      "title": "肩胛下肌 系统指南",
+      "slug": "body-map-046-肩胛下肌-系统指南",
+      "description": "围绕肩胛下肌的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：肩关节。",
+      "bodyRegions": [
+        "肩关节"
+      ],
+      "modes": [
+        "training"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "047-菱形肌-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\047-菱形肌-系统指南.md",
+      "sourceTopic": "菱形肌",
+      "title": "菱形肌 系统指南",
+      "slug": "body-map-047-菱形肌-系统指南",
+      "description": "围绕菱形肌的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：斜方肌、背阔肌、肩关节。",
+      "bodyRegions": [
+        "斜方肌",
+        "背阔肌",
+        "肩关节"
+      ],
+      "modes": [
+        "training"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "048-斜方肌中束-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\048-斜方肌中束-系统指南.md",
+      "sourceTopic": "斜方肌中束",
+      "title": "斜方肌中束 系统指南",
+      "slug": "body-map-048-斜方肌中束-系统指南",
+      "description": "围绕斜方肌中束的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：斜方肌。",
+      "bodyRegions": [
+        "斜方肌"
+      ],
+      "modes": [
+        "training"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "049-斜方肌下束-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\049-斜方肌下束-系统指南.md",
+      "sourceTopic": "斜方肌下束",
+      "title": "斜方肌下束 系统指南",
+      "slug": "body-map-049-斜方肌下束-系统指南",
+      "description": "围绕斜方肌下束的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：斜方肌。",
+      "bodyRegions": [
+        "斜方肌"
+      ],
+      "modes": [
+        "training"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "050-肩胛胸廓节律-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\050-肩胛胸廓节律-系统指南.md",
+      "sourceTopic": "肩胛胸廓节律",
+      "title": "肩胛胸廓节律 系统指南",
+      "slug": "body-map-050-肩胛胸廓节律-系统指南",
+      "description": "围绕肩胛胸廓节律的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：肩关节、斜方肌、背阔肌。",
+      "bodyRegions": [
+        "肩关节",
+        "斜方肌",
+        "背阔肌"
+      ],
+      "modes": [
+        "training"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "051-锁骨-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\051-锁骨-系统指南.md",
+      "sourceTopic": "锁骨",
+      "title": "锁骨 系统指南",
+      "slug": "body-map-051-锁骨-系统指南",
+      "description": "围绕锁骨的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：肩关节、胸大肌。",
+      "bodyRegions": [
+        "肩关节",
+        "胸大肌"
+      ],
+      "modes": [
+        "training"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "052-肩锁关节-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\052-肩锁关节-系统指南.md",
+      "sourceTopic": "肩锁关节",
+      "title": "肩锁关节 系统指南",
+      "slug": "body-map-052-肩锁关节-系统指南",
+      "description": "围绕肩锁关节的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：肩关节。",
+      "bodyRegions": [
+        "肩关节"
+      ],
+      "modes": [
+        "screening"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "053-肩峰下间隙-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\053-肩峰下间隙-系统指南.md",
+      "sourceTopic": "肩峰下间隙",
+      "title": "肩峰下间隙 系统指南",
+      "slug": "body-map-053-肩峰下间隙-系统指南",
+      "description": "围绕肩峰下间隙的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：肩关节、三角肌。",
+      "bodyRegions": [
+        "肩关节",
+        "三角肌"
+      ],
+      "modes": [
+        "screening"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "054-胸大肌-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\054-胸大肌-系统指南.md",
+      "sourceTopic": "胸大肌",
+      "title": "胸大肌 系统指南",
+      "slug": "body-map-054-胸大肌-系统指南",
+      "description": "围绕胸大肌的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：胸大肌。",
+      "bodyRegions": [
+        "胸大肌"
+      ],
+      "modes": [
+        "training",
+        "screening"
+      ],
+      "status": "direct",
+      "reason": "文章主题与当前人体图点击部位直接同名"
+    },
+    {
+      "fileName": "055-肋间肌-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\055-肋间肌-系统指南.md",
+      "sourceTopic": "肋间肌",
+      "title": "肋间肌 系统指南",
+      "slug": "body-map-055-肋间肌-系统指南",
+      "description": "围绕肋间肌的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：胸大肌、腹直肌。",
+      "bodyRegions": [
+        "胸大肌",
+        "腹直肌"
+      ],
+      "modes": [
+        "training"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "056-胸骨-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\056-胸骨-系统指南.md",
+      "sourceTopic": "胸骨",
+      "title": "胸骨 系统指南",
+      "slug": "body-map-056-胸骨-系统指南",
+      "description": "围绕胸骨的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：胸大肌。",
+      "bodyRegions": [
+        "胸大肌"
+      ],
+      "modes": [
+        "training"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "057-胸椎-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\057-胸椎-系统指南.md",
+      "sourceTopic": "胸椎",
+      "title": "胸椎 系统指南",
+      "slug": "body-map-057-胸椎-系统指南",
+      "description": "围绕胸椎的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：竖脊肌、背阔肌、肩关节。",
+      "bodyRegions": [
+        "竖脊肌",
+        "背阔肌",
+        "肩关节"
+      ],
+      "modes": [
+        "training"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "058-胸廓活动度-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\058-胸廓活动度-系统指南.md",
+      "sourceTopic": "胸廓活动度",
+      "title": "胸廓活动度 系统指南",
+      "slug": "body-map-058-胸廓活动度-系统指南",
+      "description": "围绕胸廓活动度的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：胸大肌、背阔肌、肩关节。",
+      "bodyRegions": [
+        "胸大肌",
+        "背阔肌",
+        "肩关节"
+      ],
+      "modes": [
+        "training"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "059-背阔肌-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\059-背阔肌-系统指南.md",
+      "sourceTopic": "背阔肌",
+      "title": "背阔肌 系统指南",
+      "slug": "body-map-059-背阔肌-系统指南",
+      "description": "围绕背阔肌的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：背阔肌、大圆肌。",
+      "bodyRegions": [
+        "背阔肌",
+        "大圆肌"
+      ],
+      "modes": [
+        "training",
+        "screening"
+      ],
+      "status": "direct",
+      "reason": "文章主题与当前人体图点击部位直接同名"
+    },
+    {
+      "fileName": "060-竖脊肌-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\060-竖脊肌-系统指南.md",
+      "sourceTopic": "竖脊肌",
+      "title": "竖脊肌 系统指南",
+      "slug": "body-map-060-竖脊肌-系统指南",
+      "description": "围绕竖脊肌的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：竖脊肌。",
+      "bodyRegions": [
+        "竖脊肌"
+      ],
+      "modes": [
+        "training",
+        "screening"
+      ],
+      "status": "direct",
+      "reason": "文章主题与当前人体图点击部位直接同名"
+    },
+    {
+      "fileName": "061-胸腰筋膜-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\061-胸腰筋膜-系统指南.md",
+      "sourceTopic": "胸腰筋膜",
+      "title": "胸腰筋膜 系统指南",
+      "slug": "body-map-061-胸腰筋膜-系统指南",
+      "description": "围绕胸腰筋膜的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：竖脊肌、背阔肌、臀大肌。",
+      "bodyRegions": [
+        "竖脊肌",
+        "背阔肌",
+        "臀大肌"
+      ],
+      "modes": [
+        "training"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "062-多裂肌-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\062-多裂肌-系统指南.md",
+      "sourceTopic": "多裂肌",
+      "title": "多裂肌 系统指南",
+      "slug": "body-map-062-多裂肌-系统指南",
+      "description": "围绕多裂肌的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：竖脊肌、腹直肌。",
+      "bodyRegions": [
+        "竖脊肌",
+        "腹直肌"
+      ],
+      "modes": [
+        "training"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "063-回旋肌-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\063-回旋肌-系统指南.md",
+      "sourceTopic": "回旋肌",
+      "title": "回旋肌 系统指南",
+      "slug": "body-map-063-回旋肌-系统指南",
+      "description": "围绕回旋肌的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：竖脊肌。",
+      "bodyRegions": [
+        "竖脊肌"
+      ],
+      "modes": [
+        "training"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "064-腹直肌-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\064-腹直肌-系统指南.md",
+      "sourceTopic": "腹直肌",
+      "title": "腹直肌 系统指南",
+      "slug": "body-map-064-腹直肌-系统指南",
+      "description": "围绕腹直肌的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：腹直肌。",
+      "bodyRegions": [
+        "腹直肌"
+      ],
+      "modes": [
+        "training",
+        "screening"
+      ],
+      "status": "direct",
+      "reason": "文章主题与当前人体图点击部位直接同名"
+    },
+    {
+      "fileName": "065-腹外斜肌-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\065-腹外斜肌-系统指南.md",
+      "sourceTopic": "腹外斜肌",
+      "title": "腹外斜肌 系统指南",
+      "slug": "body-map-065-腹外斜肌-系统指南",
+      "description": "围绕腹外斜肌的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：腹外直肌。",
+      "bodyRegions": [
+        "腹外直肌"
+      ],
+      "modes": [
+        "training",
+        "screening"
+      ],
+      "status": "alias",
+      "reason": "文章主题通过别名映射到当前人体图部位：腹外直肌"
+    },
+    {
+      "fileName": "066-腹内斜肌-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\066-腹内斜肌-系统指南.md",
+      "sourceTopic": "腹内斜肌",
+      "title": "腹内斜肌 系统指南",
+      "slug": "body-map-066-腹内斜肌-系统指南",
+      "description": "围绕腹内斜肌的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：腹直肌、腹外直肌。",
+      "bodyRegions": [
+        "腹直肌",
+        "腹外直肌"
+      ],
+      "modes": [
+        "training"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "067-腹横肌-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\067-腹横肌-系统指南.md",
+      "sourceTopic": "腹横肌",
+      "title": "腹横肌 系统指南",
+      "slug": "body-map-067-腹横肌-系统指南",
+      "description": "围绕腹横肌的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：腹直肌、腹外直肌。",
+      "bodyRegions": [
+        "腹直肌",
+        "腹外直肌"
+      ],
+      "modes": [
+        "training"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "068-膈肌-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\068-膈肌-系统指南.md",
+      "sourceTopic": "膈肌",
+      "title": "膈肌 系统指南",
+      "slug": "body-map-068-膈肌-系统指南",
+      "description": "围绕膈肌的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：腹直肌、胸大肌。",
+      "bodyRegions": [
+        "腹直肌",
+        "胸大肌"
+      ],
+      "modes": [
+        "training"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "069-腹股沟-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\069-腹股沟-系统指南.md",
+      "sourceTopic": "腹股沟",
+      "title": "腹股沟 系统指南",
+      "slug": "body-map-069-腹股沟-系统指南",
+      "description": "围绕腹股沟的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：髋关节、内收肌。",
+      "bodyRegions": [
+        "髋关节",
+        "内收肌"
+      ],
+      "modes": [
+        "training"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "070-臀小肌-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\070-臀小肌-系统指南.md",
+      "sourceTopic": "臀小肌",
+      "title": "臀小肌 系统指南",
+      "slug": "body-map-070-臀小肌-系统指南",
+      "description": "围绕臀小肌的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：髋关节、臀大肌。",
+      "bodyRegions": [
+        "髋关节",
+        "臀大肌"
+      ],
+      "modes": [
+        "training"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "071-梨状肌-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\071-梨状肌-系统指南.md",
+      "sourceTopic": "梨状肌",
+      "title": "梨状肌 系统指南",
+      "slug": "body-map-071-梨状肌-系统指南",
+      "description": "围绕梨状肌的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：髋关节、臀大肌。",
+      "bodyRegions": [
+        "髋关节",
+        "臀大肌"
+      ],
+      "modes": [
+        "training"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "072-深层外旋肌群-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\072-深层外旋肌群-系统指南.md",
+      "sourceTopic": "深层外旋肌群",
+      "title": "深层外旋肌群 系统指南",
+      "slug": "body-map-072-深层外旋肌群-系统指南",
+      "description": "围绕深层外旋肌群的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：髋关节、臀大肌。",
+      "bodyRegions": [
+        "髋关节",
+        "臀大肌"
+      ],
+      "modes": [
+        "training"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "073-内收肌群-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\073-内收肌群-系统指南.md",
+      "sourceTopic": "内收肌群",
+      "title": "内收肌群 系统指南",
+      "slug": "body-map-073-内收肌群-系统指南",
+      "description": "围绕内收肌群的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：内收肌。",
+      "bodyRegions": [
+        "内收肌"
+      ],
+      "modes": [
+        "training",
+        "screening"
+      ],
+      "status": "alias",
+      "reason": "文章主题通过别名映射到当前人体图部位：内收肌"
+    },
+    {
+      "fileName": "074-阔筋膜张肌-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\074-阔筋膜张肌-系统指南.md",
+      "sourceTopic": "阔筋膜张肌",
+      "title": "阔筋膜张肌 系统指南",
+      "slug": "body-map-074-阔筋膜张肌-系统指南",
+      "description": "围绕阔筋膜张肌的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：髋关节、股四头肌。",
+      "bodyRegions": [
+        "髋关节",
+        "股四头肌"
+      ],
+      "modes": [
+        "training"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "075-髂胫束-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\075-髂胫束-系统指南.md",
+      "sourceTopic": "髂胫束",
+      "title": "髂胫束 系统指南",
+      "slug": "body-map-075-髂胫束-系统指南",
+      "description": "围绕髂胫束的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：髋关节、膝关节、股四头肌。",
+      "bodyRegions": [
+        "髋关节",
+        "膝关节",
+        "股四头肌"
+      ],
+      "modes": [
+        "training"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "076-骨盆-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\076-骨盆-系统指南.md",
+      "sourceTopic": "骨盆",
+      "title": "骨盆 系统指南",
+      "slug": "body-map-076-骨盆-系统指南",
+      "description": "围绕骨盆的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：髋关节、臀大肌、竖脊肌、腹直肌。",
+      "bodyRegions": [
+        "髋关节",
+        "臀大肌",
+        "竖脊肌",
+        "腹直肌"
+      ],
+      "modes": [
+        "training"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "077-骶髂关节-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\077-骶髂关节-系统指南.md",
+      "sourceTopic": "骶髂关节",
+      "title": "骶髂关节 系统指南",
+      "slug": "body-map-077-骶髂关节-系统指南",
+      "description": "围绕骶髂关节的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：髋关节、竖脊肌、臀大肌。",
+      "bodyRegions": [
+        "髋关节",
+        "竖脊肌",
+        "臀大肌"
+      ],
+      "modes": [
+        "screening"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "078-股直肌-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\078-股直肌-系统指南.md",
+      "sourceTopic": "股直肌",
+      "title": "股直肌 系统指南",
+      "slug": "body-map-078-股直肌-系统指南",
+      "description": "围绕股直肌的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：股四头肌、髋关节、膝关节。",
+      "bodyRegions": [
+        "股四头肌",
+        "髋关节",
+        "膝关节"
+      ],
+      "modes": [
+        "training"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "079-股外侧肌-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\079-股外侧肌-系统指南.md",
+      "sourceTopic": "股外侧肌",
+      "title": "股外侧肌 系统指南",
+      "slug": "body-map-079-股外侧肌-系统指南",
+      "description": "围绕股外侧肌的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：股四头肌、膝关节。",
+      "bodyRegions": [
+        "股四头肌",
+        "膝关节"
+      ],
+      "modes": [
+        "training"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "080-股内侧肌-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\080-股内侧肌-系统指南.md",
+      "sourceTopic": "股内侧肌",
+      "title": "股内侧肌 系统指南",
+      "slug": "body-map-080-股内侧肌-系统指南",
+      "description": "围绕股内侧肌的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：股四头肌、膝关节。",
+      "bodyRegions": [
+        "股四头肌",
+        "膝关节"
+      ],
+      "modes": [
+        "training"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "081-股二头肌-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\081-股二头肌-系统指南.md",
+      "sourceTopic": "股二头肌",
+      "title": "股二头肌 系统指南",
+      "slug": "body-map-081-股二头肌-系统指南",
+      "description": "围绕股二头肌的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：股二头肌。",
+      "bodyRegions": [
+        "股二头肌"
+      ],
+      "modes": [
+        "training",
+        "screening"
+      ],
+      "status": "direct",
+      "reason": "文章主题与当前人体图点击部位直接同名"
+    },
+    {
+      "fileName": "082-半腱肌-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\082-半腱肌-系统指南.md",
+      "sourceTopic": "半腱肌",
+      "title": "半腱肌 系统指南",
+      "slug": "body-map-082-半腱肌-系统指南",
+      "description": "围绕半腱肌的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：半腱肌。",
+      "bodyRegions": [
+        "半腱肌"
+      ],
+      "modes": [
+        "training",
+        "screening"
+      ],
+      "status": "direct",
+      "reason": "文章主题与当前人体图点击部位直接同名"
+    },
+    {
+      "fileName": "083-腘绳肌群-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\083-腘绳肌群-系统指南.md",
+      "sourceTopic": "腘绳肌群",
+      "title": "腘绳肌群 系统指南",
+      "slug": "body-map-083-腘绳肌群-系统指南",
+      "description": "围绕腘绳肌群的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：股二头肌、半腱肌、臀大肌。",
+      "bodyRegions": [
+        "股二头肌",
+        "半腱肌",
+        "臀大肌"
+      ],
+      "modes": [
+        "training"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "084-大腿内收肌群-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\084-大腿内收肌群-系统指南.md",
+      "sourceTopic": "大腿内收肌群",
+      "title": "大腿内收肌群 系统指南",
+      "slug": "body-map-084-大腿内收肌群-系统指南",
+      "description": "围绕大腿内收肌群的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：内收肌。",
+      "bodyRegions": [
+        "内收肌"
+      ],
+      "modes": [
+        "training",
+        "screening"
+      ],
+      "status": "alias",
+      "reason": "文章主题通过别名映射到当前人体图部位：内收肌"
+    },
+    {
+      "fileName": "085-大腿外侧筋膜区-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\085-大腿外侧筋膜区-系统指南.md",
+      "sourceTopic": "大腿外侧筋膜区",
+      "title": "大腿外侧筋膜区 系统指南",
+      "slug": "body-map-085-大腿外侧筋膜区-系统指南",
+      "description": "围绕大腿外侧筋膜区的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：股四头肌、髋关节、膝关节。",
+      "bodyRegions": [
+        "股四头肌",
+        "髋关节",
+        "膝关节"
+      ],
+      "modes": [
+        "training"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "086-髌骨-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\086-髌骨-系统指南.md",
+      "sourceTopic": "髌骨",
+      "title": "髌骨 系统指南",
+      "slug": "body-map-086-髌骨-系统指南",
+      "description": "围绕髌骨的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：膝关节、股四头肌。",
+      "bodyRegions": [
+        "膝关节",
+        "股四头肌"
+      ],
+      "modes": [
+        "training"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "087-髂胫束止点-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\087-髂胫束止点-系统指南.md",
+      "sourceTopic": "髂胫束止点",
+      "title": "髂胫束止点 系统指南",
+      "slug": "body-map-087-髂胫束止点-系统指南",
+      "description": "围绕髂胫束止点的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：膝关节、股四头肌。",
+      "bodyRegions": [
+        "膝关节",
+        "股四头肌"
+      ],
+      "modes": [
+        "training"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "088-内侧副韧带-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\088-内侧副韧带-系统指南.md",
+      "sourceTopic": "内侧副韧带",
+      "title": "内侧副韧带 系统指南",
+      "slug": "body-map-088-内侧副韧带-系统指南",
+      "description": "围绕内侧副韧带的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：膝关节。",
+      "bodyRegions": [
+        "膝关节"
+      ],
+      "modes": [
+        "screening"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "089-外侧副韧带-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\089-外侧副韧带-系统指南.md",
+      "sourceTopic": "外侧副韧带",
+      "title": "外侧副韧带 系统指南",
+      "slug": "body-map-089-外侧副韧带-系统指南",
+      "description": "围绕外侧副韧带的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：膝关节。",
+      "bodyRegions": [
+        "膝关节"
+      ],
+      "modes": [
+        "screening"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "091-后交叉韧带-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\091-后交叉韧带-系统指南.md",
+      "sourceTopic": "后交叉韧带",
+      "title": "后交叉韧带 系统指南",
+      "slug": "body-map-091-后交叉韧带-系统指南",
+      "description": "围绕后交叉韧带的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：膝关节。",
+      "bodyRegions": [
+        "膝关节"
+      ],
+      "modes": [
+        "screening"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "092-腘窝-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\092-腘窝-系统指南.md",
+      "sourceTopic": "腘窝",
+      "title": "腘窝 系统指南",
+      "slug": "body-map-092-腘窝-系统指南",
+      "description": "围绕腘窝的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：膝关节、腓肠肌、股二头肌。",
+      "bodyRegions": [
+        "膝关节",
+        "腓肠肌",
+        "股二头肌"
+      ],
+      "modes": [
+        "training"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "093-腓肠肌-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\093-腓肠肌-系统指南.md",
+      "sourceTopic": "腓肠肌",
+      "title": "腓肠肌 系统指南",
+      "slug": "body-map-093-腓肠肌-系统指南",
+      "description": "围绕腓肠肌的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：腓肠肌。",
+      "bodyRegions": [
+        "腓肠肌"
+      ],
+      "modes": [
+        "training",
+        "screening"
+      ],
+      "status": "direct",
+      "reason": "文章主题与当前人体图点击部位直接同名"
+    },
+    {
+      "fileName": "094-比目鱼肌-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\094-比目鱼肌-系统指南.md",
+      "sourceTopic": "比目鱼肌",
+      "title": "比目鱼肌 系统指南",
+      "slug": "body-map-094-比目鱼肌-系统指南",
+      "description": "围绕比目鱼肌的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：比目鱼肌。",
+      "bodyRegions": [
+        "比目鱼肌"
+      ],
+      "modes": [
+        "training",
+        "screening"
+      ],
+      "status": "direct",
+      "reason": "文章主题与当前人体图点击部位直接同名"
+    },
+    {
+      "fileName": "095-胫骨前肌-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\095-胫骨前肌-系统指南.md",
+      "sourceTopic": "胫骨前肌",
+      "title": "胫骨前肌 系统指南",
+      "slug": "body-map-095-胫骨前肌-系统指南",
+      "description": "围绕胫骨前肌的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：胫骨前肌。",
+      "bodyRegions": [
+        "胫骨前肌"
+      ],
+      "modes": [
+        "training",
+        "screening"
+      ],
+      "status": "direct",
+      "reason": "文章主题与当前人体图点击部位直接同名"
+    },
+    {
+      "fileName": "096-腓骨长肌-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\096-腓骨长肌-系统指南.md",
+      "sourceTopic": "腓骨长肌",
+      "title": "腓骨长肌 系统指南",
+      "slug": "body-map-096-腓骨长肌-系统指南",
+      "description": "围绕腓骨长肌的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：踝关节、腓肠肌。",
+      "bodyRegions": [
+        "踝关节",
+        "腓肠肌"
+      ],
+      "modes": [
+        "training"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "097-胫骨后肌-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\097-胫骨后肌-系统指南.md",
+      "sourceTopic": "胫骨后肌",
+      "title": "胫骨后肌 系统指南",
+      "slug": "body-map-097-胫骨后肌-系统指南",
+      "description": "围绕胫骨后肌的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：踝关节、胫骨前肌。",
+      "bodyRegions": [
+        "踝关节",
+        "胫骨前肌"
+      ],
+      "modes": [
+        "training"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "098-小腿三头肌-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\098-小腿三头肌-系统指南.md",
+      "sourceTopic": "小腿三头肌",
+      "title": "小腿三头肌 系统指南",
+      "slug": "body-map-098-小腿三头肌-系统指南",
+      "description": "围绕小腿三头肌的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：腓肠肌、比目鱼肌、踝关节。",
+      "bodyRegions": [
+        "腓肠肌",
+        "比目鱼肌",
+        "踝关节"
+      ],
+      "modes": [
+        "training"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "099-踝关节-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\099-踝关节-系统指南.md",
+      "sourceTopic": "踝关节",
+      "title": "踝关节 系统指南",
+      "slug": "body-map-099-踝关节-系统指南",
+      "description": "围绕踝关节的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：踝关节。",
+      "bodyRegions": [
+        "踝关节"
+      ],
+      "modes": [
+        "training",
+        "screening"
+      ],
+      "status": "direct",
+      "reason": "文章主题与当前人体图点击部位直接同名"
+    },
+    {
+      "fileName": "100-距下关节-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\100-距下关节-系统指南.md",
+      "sourceTopic": "距下关节",
+      "title": "距下关节 系统指南",
+      "slug": "body-map-100-距下关节-系统指南",
+      "description": "围绕距下关节的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：踝关节。",
+      "bodyRegions": [
+        "踝关节"
+      ],
+      "modes": [
+        "training"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "101-足弓-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\101-足弓-系统指南.md",
+      "sourceTopic": "足弓",
+      "title": "足弓 系统指南",
+      "slug": "body-map-101-足弓-系统指南",
+      "description": "围绕足弓的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：踝关节、胫骨前肌。",
+      "bodyRegions": [
+        "踝关节",
+        "胫骨前肌"
+      ],
+      "modes": [
+        "training"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "102-大脚趾-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\102-大脚趾-系统指南.md",
+      "sourceTopic": "大脚趾",
+      "title": "大脚趾 系统指南",
+      "slug": "body-map-102-大脚趾-系统指南",
+      "description": "围绕大脚趾的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：踝关节。",
+      "bodyRegions": [
+        "踝关节"
+      ],
+      "modes": [
+        "training"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "103-跟骨-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\103-跟骨-系统指南.md",
+      "sourceTopic": "跟骨",
+      "title": "跟骨 系统指南",
+      "slug": "body-map-103-跟骨-系统指南",
+      "description": "围绕跟骨的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：踝关节、腓肠肌、比目鱼肌。",
+      "bodyRegions": [
+        "踝关节",
+        "腓肠肌",
+        "比目鱼肌"
+      ],
+      "modes": [
+        "training"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "104-足底内在肌-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\104-足底内在肌-系统指南.md",
+      "sourceTopic": "足底内在肌",
+      "title": "足底内在肌 系统指南",
+      "slug": "body-map-104-足底内在肌-系统指南",
+      "description": "围绕足底内在肌的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：踝关节。",
+      "bodyRegions": [
+        "踝关节"
+      ],
+      "modes": [
+        "training"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "105-踝背屈受限-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\105-踝背屈受限-系统指南.md",
+      "sourceTopic": "踝背屈受限",
+      "title": "踝背屈受限 系统指南",
+      "slug": "body-map-105-踝背屈受限-系统指南",
+      "description": "围绕踝背屈受限的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：踝关节、胫骨前肌、腓肠肌、比目鱼肌。",
+      "bodyRegions": [
+        "踝关节",
+        "胫骨前肌",
+        "腓肠肌",
+        "比目鱼肌"
+      ],
+      "modes": [
+        "screening"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "106-高足弓-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\106-高足弓-系统指南.md",
+      "sourceTopic": "高足弓",
+      "title": "高足弓 系统指南",
+      "slug": "body-map-106-高足弓-系统指南",
+      "description": "围绕高足弓的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：踝关节、胫骨前肌。",
+      "bodyRegions": [
+        "踝关节",
+        "胫骨前肌"
+      ],
+      "modes": [
+        "screening"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "107-肱肌-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\107-肱肌-系统指南.md",
+      "sourceTopic": "肱肌",
+      "title": "肱肌 系统指南",
+      "slug": "body-map-107-肱肌-系统指南",
+      "description": "围绕肱肌的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：肱二头肌、肱桡肌。",
+      "bodyRegions": [
+        "肱二头肌",
+        "肱桡肌"
+      ],
+      "modes": [
+        "training"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "108-肱二头肌长头腱-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\108-肱二头肌长头腱-系统指南.md",
+      "sourceTopic": "肱二头肌长头腱",
+      "title": "肱二头肌长头腱 系统指南",
+      "slug": "body-map-108-肱二头肌长头腱-系统指南",
+      "description": "围绕肱二头肌长头腱的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：肱二头肌、肩关节。",
+      "bodyRegions": [
+        "肱二头肌",
+        "肩关节"
+      ],
+      "modes": [
+        "training"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "109-肘关节-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\109-肘关节-系统指南.md",
+      "sourceTopic": "肘关节",
+      "title": "肘关节 系统指南",
+      "slug": "body-map-109-肘关节-系统指南",
+      "description": "围绕肘关节的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：肱二头肌、肱三头肌、肱桡肌。",
+      "bodyRegions": [
+        "肱二头肌",
+        "肱三头肌",
+        "肱桡肌"
+      ],
+      "modes": [
+        "training"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "110-肘外侧-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\110-肘外侧-系统指南.md",
+      "sourceTopic": "肘外侧",
+      "title": "肘外侧 系统指南",
+      "slug": "body-map-110-肘外侧-系统指南",
+      "description": "围绕肘外侧的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：肱桡肌、腕关节。",
+      "bodyRegions": [
+        "肱桡肌",
+        "腕关节"
+      ],
+      "modes": [
+        "screening"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "111-肘内侧-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\111-肘内侧-系统指南.md",
+      "sourceTopic": "肘内侧",
+      "title": "肘内侧 系统指南",
+      "slug": "body-map-111-肘内侧-系统指南",
+      "description": "围绕肘内侧的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：肱桡肌、腕关节。",
+      "bodyRegions": [
+        "肱桡肌",
+        "腕关节"
+      ],
+      "modes": [
+        "screening"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "112-前臂伸肌群-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\112-前臂伸肌群-系统指南.md",
+      "sourceTopic": "前臂伸肌群",
+      "title": "前臂伸肌群 系统指南",
+      "slug": "body-map-112-前臂伸肌群-系统指南",
+      "description": "围绕前臂伸肌群的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：肱桡肌、腕关节。",
+      "bodyRegions": [
+        "肱桡肌",
+        "腕关节"
+      ],
+      "modes": [
+        "training"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "113-前臂屈肌群-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\113-前臂屈肌群-系统指南.md",
+      "sourceTopic": "前臂屈肌群",
+      "title": "前臂屈肌群 系统指南",
+      "slug": "body-map-113-前臂屈肌群-系统指南",
+      "description": "围绕前臂屈肌群的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：肱侧腕屈肌、腕关节。",
+      "bodyRegions": [
+        "肱侧腕屈肌",
+        "腕关节"
+      ],
+      "modes": [
+        "training"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "114-腕屈肌群-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\114-腕屈肌群-系统指南.md",
+      "sourceTopic": "腕屈肌群",
+      "title": "腕屈肌群 系统指南",
+      "slug": "body-map-114-腕屈肌群-系统指南",
+      "description": "围绕腕屈肌群的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：肱侧腕屈肌、腕关节。",
+      "bodyRegions": [
+        "肱侧腕屈肌",
+        "腕关节"
+      ],
+      "modes": [
+        "training"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "115-腕伸肌群-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\115-腕伸肌群-系统指南.md",
+      "sourceTopic": "腕伸肌群",
+      "title": "腕伸肌群 系统指南",
+      "slug": "body-map-115-腕伸肌群-系统指南",
+      "description": "围绕腕伸肌群的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：肱桡肌、腕关节。",
+      "bodyRegions": [
+        "肱桡肌",
+        "腕关节"
+      ],
+      "modes": [
+        "training"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "116-握力系统-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\116-握力系统-系统指南.md",
+      "sourceTopic": "握力系统",
+      "title": "握力系统 系统指南",
+      "slug": "body-map-116-握力系统-系统指南",
+      "description": "围绕握力系统的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：肱桡肌、肱侧腕屈肌、腕关节。",
+      "bodyRegions": [
+        "肱桡肌",
+        "肱侧腕屈肌",
+        "腕关节"
+      ],
+      "modes": [
+        "training"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "117-腱鞘炎区-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\117-腱鞘炎区-系统指南.md",
+      "sourceTopic": "腱鞘炎区",
+      "title": "腱鞘炎区 系统指南",
+      "slug": "body-map-117-腱鞘炎区-系统指南",
+      "description": "围绕腱鞘炎区的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：腕关节、肱侧腕屈肌、肱桡肌。",
+      "bodyRegions": [
+        "腕关节",
+        "肱侧腕屈肌",
+        "肱桡肌"
+      ],
+      "modes": [
+        "screening"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "118-手掌内在肌-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\118-手掌内在肌-系统指南.md",
+      "sourceTopic": "手掌内在肌",
+      "title": "手掌内在肌 系统指南",
+      "slug": "body-map-118-手掌内在肌-系统指南",
+      "description": "围绕手掌内在肌的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：腕关节。",
+      "bodyRegions": [
+        "腕关节"
+      ],
+      "modes": [
+        "training"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "119-深蹲模式-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\119-深蹲模式-系统指南.md",
+      "sourceTopic": "深蹲模式",
+      "title": "深蹲模式 系统指南",
+      "slug": "body-map-119-深蹲模式-系统指南",
+      "description": "围绕深蹲模式的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：髋关节、膝关节、踝关节、股四头肌、臀大肌。",
+      "bodyRegions": [
+        "髋关节",
+        "膝关节",
+        "踝关节",
+        "股四头肌",
+        "臀大肌"
+      ],
+      "modes": [
+        "training"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "120-硬拉模式-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\120-硬拉模式-系统指南.md",
+      "sourceTopic": "硬拉模式",
+      "title": "硬拉模式 系统指南",
+      "slug": "body-map-120-硬拉模式-系统指南",
+      "description": "围绕硬拉模式的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：髋关节、臀大肌、股二头肌、半腱肌、竖脊肌。",
+      "bodyRegions": [
+        "髋关节",
+        "臀大肌",
+        "股二头肌",
+        "半腱肌",
+        "竖脊肌"
+      ],
+      "modes": [
+        "training"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "121-推类模式-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\121-推类模式-系统指南.md",
+      "sourceTopic": "推类模式",
+      "title": "推类模式 系统指南",
+      "slug": "body-map-121-推类模式-系统指南",
+      "description": "围绕推类模式的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：胸大肌、三角肌、肱三头肌、肩关节。",
+      "bodyRegions": [
+        "胸大肌",
+        "三角肌",
+        "肱三头肌",
+        "肩关节"
+      ],
+      "modes": [
+        "training"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "122-拉类模式-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\122-拉类模式-系统指南.md",
+      "sourceTopic": "拉类模式",
+      "title": "拉类模式 系统指南",
+      "slug": "body-map-122-拉类模式-系统指南",
+      "description": "围绕拉类模式的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：背阔肌、大圆肌、肱二头肌、肱桡肌、肩关节。",
+      "bodyRegions": [
+        "背阔肌",
+        "大圆肌",
+        "肱二头肌",
+        "肱桡肌",
+        "肩关节"
+      ],
+      "modes": [
+        "training"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "123-单腿稳定性-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\123-单腿稳定性-系统指南.md",
+      "sourceTopic": "单腿稳定性",
+      "title": "单腿稳定性 系统指南",
+      "slug": "body-map-123-单腿稳定性-系统指南",
+      "description": "围绕单腿稳定性的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：髋关节、膝关节、踝关节、臀大肌。",
+      "bodyRegions": [
+        "髋关节",
+        "膝关节",
+        "踝关节",
+        "臀大肌"
+      ],
+      "modes": [
+        "training"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "124-核心抗压-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\124-核心抗压-系统指南.md",
+      "sourceTopic": "核心抗压",
+      "title": "核心抗压 系统指南",
+      "slug": "body-map-124-核心抗压-系统指南",
+      "description": "围绕核心抗压的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：腹直肌、竖脊肌。",
+      "bodyRegions": [
+        "腹直肌",
+        "竖脊肌"
+      ],
+      "modes": [
+        "training"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "125-核心抗旋转-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\125-核心抗旋转-系统指南.md",
+      "sourceTopic": "核心抗旋转",
+      "title": "核心抗旋转 系统指南",
+      "slug": "body-map-125-核心抗旋转-系统指南",
+      "description": "围绕核心抗旋转的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：腹直肌、腹外直肌、竖脊肌。",
+      "bodyRegions": [
+        "腹直肌",
+        "腹外直肌",
+        "竖脊肌"
+      ],
+      "modes": [
+        "training"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "126-肩肱节律-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\126-肩肱节律-系统指南.md",
+      "sourceTopic": "肩肱节律",
+      "title": "肩肱节律 系统指南",
+      "slug": "body-map-126-肩肱节律-系统指南",
+      "description": "围绕肩肱节律的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：肩关节、三角肌、背阔肌。",
+      "bodyRegions": [
+        "肩关节",
+        "三角肌",
+        "背阔肌"
+      ],
+      "modes": [
+        "training"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "127-步态周期-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\127-步态周期-系统指南.md",
+      "sourceTopic": "步态周期",
+      "title": "步态周期 系统指南",
+      "slug": "body-map-127-步态周期-系统指南",
+      "description": "围绕步态周期的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：髋关节、膝关节、踝关节、臀大肌、腓肠肌。",
+      "bodyRegions": [
+        "髋关节",
+        "膝关节",
+        "踝关节",
+        "臀大肌",
+        "腓肠肌"
+      ],
+      "modes": [
+        "training"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "128-呼吸模式-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\128-呼吸模式-系统指南.md",
+      "sourceTopic": "呼吸模式",
+      "title": "呼吸模式 系统指南",
+      "slug": "body-map-128-呼吸模式-系统指南",
+      "description": "围绕呼吸模式的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：腹直肌、胸大肌、竖脊肌。",
+      "bodyRegions": [
+        "腹直肌",
+        "胸大肌",
+        "竖脊肌"
+      ],
+      "modes": [
+        "training"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "129-骨盆后倾-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\129-骨盆后倾-系统指南.md",
+      "sourceTopic": "骨盆后倾",
+      "title": "骨盆后倾 系统指南",
+      "slug": "body-map-129-骨盆后倾-系统指南",
+      "description": "围绕骨盆后倾的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：髋关节、臀大肌、腹直肌、竖脊肌。",
+      "bodyRegions": [
+        "髋关节",
+        "臀大肌",
+        "腹直肌",
+        "竖脊肌"
+      ],
+      "modes": [
+        "screening"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "130-驼背-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\130-驼背-系统指南.md",
+      "sourceTopic": "驼背",
+      "title": "驼背 系统指南",
+      "slug": "body-map-130-驼背-系统指南",
+      "description": "围绕驼背的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：斜方肌、竖脊肌、肩关节、胸大肌。",
+      "bodyRegions": [
+        "斜方肌",
+        "竖脊肌",
+        "肩关节",
+        "胸大肌"
+      ],
+      "modes": [
+        "screening"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "131-膝过伸-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\131-膝过伸-系统指南.md",
+      "sourceTopic": "膝过伸",
+      "title": "膝过伸 系统指南",
+      "slug": "body-map-131-膝过伸-系统指南",
+      "description": "围绕膝过伸的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：膝关节、股四头肌、股二头肌、半腱肌。",
+      "bodyRegions": [
+        "膝关节",
+        "股四头肌",
+        "股二头肌",
+        "半腱肌"
+      ],
+      "modes": [
+        "screening"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "132-X型腿-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\132-X型腿-系统指南.md",
+      "sourceTopic": "X型腿",
+      "title": "X型腿 系统指南",
+      "slug": "body-map-132-X型腿-系统指南",
+      "description": "围绕X型腿的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：膝关节、髋关节、臀大肌、股四头肌。",
+      "bodyRegions": [
+        "膝关节",
+        "髋关节",
+        "臀大肌",
+        "股四头肌"
+      ],
+      "modes": [
+        "screening"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    },
+    {
+      "fileName": "133-O型腿-系统指南.md",
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\articles\\133-O型腿-系统指南.md",
+      "sourceTopic": "O型腿",
+      "title": "O型腿 系统指南",
+      "slug": "body-map-133-O型腿-系统指南",
+      "description": "围绕O型腿的基础介绍、训练方法、体态管理和伤病管理，关联到人体地图部位：膝关节、髋关节、踝关节、股四头肌。",
+      "bodyRegions": [
+        "膝关节",
+        "髋关节",
+        "踝关节",
+        "股四头肌"
+      ],
+      "modes": [
+        "screening"
+      ],
+      "status": "related",
+      "reason": "文章主题是姿态/动作/细分结构，挂到相关可点击肌肉或关节"
+    }
+  ],
+  "writeResults": [
+    {
+      "fileName": "001-高低肩-系统教学.md",
+      "slug": "body-map-001-高低肩-系统教学",
+      "action": "inserted",
+      "id": "98935f80-d524-45f2-9ea5-813bc3c228b1"
+    },
+    {
+      "fileName": "001-高低肩-系统指南.md",
+      "slug": "body-map-001-高低肩-系统指南",
+      "action": "inserted",
+      "id": "bf8ebbd9-f598-4db2-aa37-7e1a5872c26e"
+    },
+    {
+      "fileName": "001-高低肩-小白跟练版.md",
+      "slug": "body-map-001-高低肩-小白跟练版",
+      "action": "inserted",
+      "id": "5719bda6-5f09-4f9b-a428-0f10e5ba1593"
+    },
+    {
+      "fileName": "002-圆肩-系统指南.md",
+      "slug": "body-map-002-圆肩-系统指南",
+      "action": "inserted",
+      "id": "6105f7af-8f81-47de-a18b-831ea33a43e2"
+    },
+    {
+      "fileName": "003-头前伸-系统指南.md",
+      "slug": "body-map-003-头前伸-系统指南",
+      "action": "inserted",
+      "id": "b9d715c7-bca4-4a77-8b62-be90ffe36f96"
+    },
+    {
+      "fileName": "004-骨盆前倾-系统指南.md",
+      "slug": "body-map-004-骨盆前倾-系统指南",
+      "action": "inserted",
+      "id": "91e78f1a-2219-4768-b0d3-b565a73417c5"
+    },
+    {
+      "fileName": "005-骨盆侧倾-系统指南.md",
+      "slug": "body-map-005-骨盆侧倾-系统指南",
+      "action": "inserted",
+      "id": "4f987a17-0b30-4bfa-851a-233df2bae60f"
+    },
+    {
+      "fileName": "006-翼状肩胛-系统指南.md",
+      "slug": "body-map-006-翼状肩胛-系统指南",
+      "action": "inserted",
+      "id": "e95ac154-1645-4eb7-9738-94d69ca7bdc9"
+    },
+    {
+      "fileName": "007-膝内扣-系统指南.md",
+      "slug": "body-map-007-膝内扣-系统指南",
+      "action": "inserted",
+      "id": "6825706b-0783-42c2-8f50-a461a2a4254e"
+    },
+    {
+      "fileName": "008-扁平足-系统指南.md",
+      "slug": "body-map-008-扁平足-系统指南",
+      "action": "inserted",
+      "id": "c29ab047-66dd-4bf4-938c-7f574cda08b7"
+    },
+    {
+      "fileName": "009-网球肘-系统指南.md",
+      "slug": "body-map-009-网球肘-系统指南",
+      "action": "inserted",
+      "id": "2a25c171-cde8-4db1-92ee-63455a5652b5"
+    },
+    {
+      "fileName": "010-高尔夫球肘-系统指南.md",
+      "slug": "body-map-010-高尔夫球肘-系统指南",
+      "action": "inserted",
+      "id": "1e52dd4e-1b51-4ea8-a594-ceeabd22836c"
+    },
+    {
+      "fileName": "011-肩关节-系统指南.md",
+      "slug": "body-map-011-肩关节-系统指南",
+      "action": "inserted",
+      "id": "cef3b0ea-89be-41d9-a505-9f18db9d0e4d"
+    },
+    {
+      "fileName": "012-髋关节-系统指南.md",
+      "slug": "body-map-012-髋关节-系统指南",
+      "action": "inserted",
+      "id": "509b414d-bf62-44c9-adde-7278e49b5251"
+    },
+    {
+      "fileName": "013-膝关节-系统指南.md",
+      "slug": "body-map-013-膝关节-系统指南",
+      "action": "inserted",
+      "id": "ec989037-9c90-4167-b6de-64db64b27301"
+    },
+    {
+      "fileName": "014-腕关节-系统指南.md",
+      "slug": "body-map-014-腕关节-系统指南",
+      "action": "inserted",
+      "id": "9072dd99-f10f-4e73-8b81-b79c3172bc32"
+    },
+    {
+      "fileName": "015-腰椎-系统指南.md",
+      "slug": "body-map-015-腰椎-系统指南",
+      "action": "inserted",
+      "id": "e3c59d63-372b-4e26-8b14-1c5145231cb2"
+    },
+    {
+      "fileName": "016-跟腱-系统指南.md",
+      "slug": "body-map-016-跟腱-系统指南",
+      "action": "inserted",
+      "id": "0ed320d6-9e8a-45bc-a7a4-598e971aed2d"
+    },
+    {
+      "fileName": "017-足底筋膜-系统指南.md",
+      "slug": "body-map-017-足底筋膜-系统指南",
+      "action": "inserted",
+      "id": "405e102b-b0e8-4e0b-ad12-2f6e78ba14d8"
+    },
+    {
+      "fileName": "018-髌腱-系统指南.md",
+      "slug": "body-map-018-髌腱-系统指南",
+      "action": "inserted",
+      "id": "28ee3a5b-c9b2-426d-8fe5-5eac57fe18b5"
+    },
+    {
+      "fileName": "019-前锯肌-系统指南.md",
+      "slug": "body-map-019-前锯肌-系统指南",
+      "action": "inserted",
+      "id": "4733c307-9869-4633-a2cf-da50d88a161c"
+    },
+    {
+      "fileName": "020-胸小肌-系统指南.md",
+      "slug": "body-map-020-胸小肌-系统指南",
+      "action": "inserted",
+      "id": "273b415b-c6c2-4de6-923b-c16af7e9a6f5"
+    },
+    {
+      "fileName": "021-上斜方肌-系统指南.md",
+      "slug": "body-map-021-上斜方肌-系统指南",
+      "action": "inserted",
+      "id": "f2b4bc25-d510-4e2c-99cd-863340e632e8"
+    },
+    {
+      "fileName": "022-下斜方肌-系统指南.md",
+      "slug": "body-map-022-下斜方肌-系统指南",
+      "action": "inserted",
+      "id": "c8fcb1e0-fbc6-4c31-b7e7-75275c18f0f3"
+    },
+    {
+      "fileName": "023-臀中肌-系统指南.md",
+      "slug": "body-map-023-臀中肌-系统指南",
+      "action": "inserted",
+      "id": "69a733ee-3a7b-4361-aa46-1a3a6f8f688f"
+    },
+    {
+      "fileName": "024-臀大肌-系统指南.md",
+      "slug": "body-map-024-臀大肌-系统指南",
+      "action": "inserted",
+      "id": "aeb82bb5-c9a6-4262-a63e-aead68ed6183"
+    },
+    {
+      "fileName": "025-髂腰肌-系统指南.md",
+      "slug": "body-map-025-髂腰肌-系统指南",
+      "action": "inserted",
+      "id": "17078206-72c1-4856-b9fa-f5bb88381b7a"
+    },
+    {
+      "fileName": "026-腰方肌-系统指南.md",
+      "slug": "body-map-026-腰方肌-系统指南",
+      "action": "inserted",
+      "id": "beba8d14-0662-4ee9-8a28-11129ac46edd"
+    },
+    {
+      "fileName": "027-肱二头肌-系统指南.md",
+      "slug": "body-map-027-肱二头肌-系统指南",
+      "action": "inserted",
+      "id": "78531b75-cbb0-480d-bebb-1923b8fb12b0"
+    },
+    {
+      "fileName": "028-肱三头肌-系统指南.md",
+      "slug": "body-map-028-肱三头肌-系统指南",
+      "action": "inserted",
+      "id": "734e84aa-75ba-4033-86ec-74582ee2f534"
+    },
+    {
+      "fileName": "029-肱桡肌-系统指南.md",
+      "slug": "body-map-029-肱桡肌-系统指南",
+      "action": "inserted",
+      "id": "d837ddfe-0814-4ad6-a810-d9a638d26f54"
+    },
+    {
+      "fileName": "030-股四头肌-系统指南.md",
+      "slug": "body-map-030-股四头肌-系统指南",
+      "action": "inserted",
+      "id": "c03e6bda-46ba-4704-b7a2-f7aca91a361a"
+    },
+    {
+      "fileName": "031-胸锁乳突肌-系统指南.md",
+      "slug": "body-map-031-胸锁乳突肌-系统指南",
+      "action": "inserted",
+      "id": "1ab0fb2f-d5e8-47db-abb1-ecdf1cf6baaa"
+    },
+    {
+      "fileName": "032-斜角肌-系统指南.md",
+      "slug": "body-map-032-斜角肌-系统指南",
+      "action": "inserted",
+      "id": "375d9796-a76d-4b3b-9815-5525a3cd44aa"
+    },
+    {
+      "fileName": "033-肩胛提肌-系统指南.md",
+      "slug": "body-map-033-肩胛提肌-系统指南",
+      "action": "inserted",
+      "id": "737e8b62-f6ec-4a7e-bfea-e46740be0d7b"
+    },
+    {
+      "fileName": "034-头夹肌-系统指南.md",
+      "slug": "body-map-034-头夹肌-系统指南",
+      "action": "inserted",
+      "id": "45830e72-a8fa-4faa-ad0b-b31ed263e7d8"
+    },
+    {
+      "fileName": "035-颈椎-系统指南.md",
+      "slug": "body-map-035-颈椎-系统指南",
+      "action": "inserted",
+      "id": "b371778a-3f4f-4dce-ae20-294942444076"
+    },
+    {
+      "fileName": "036-颈前淋巴结区-系统指南.md",
+      "slug": "body-map-036-颈前淋巴结区-系统指南",
+      "action": "skipped"
+    },
+    {
+      "fileName": "037-颞下颌关节-系统指南.md",
+      "slug": "body-map-037-颞下颌关节-系统指南",
+      "action": "skipped"
+    },
+    {
+      "fileName": "038-咬肌-系统指南.md",
+      "slug": "body-map-038-咬肌-系统指南",
+      "action": "skipped"
+    },
+    {
+      "fileName": "039-翼内肌-系统指南.md",
+      "slug": "body-map-039-翼内肌-系统指南",
+      "action": "skipped"
+    },
+    {
+      "fileName": "040-三角肌前束-系统指南.md",
+      "slug": "body-map-040-三角肌前束-系统指南",
+      "action": "inserted",
+      "id": "dd95fcdb-62cc-4e72-9d93-8e842b2497d8"
+    },
+    {
+      "fileName": "041-三角肌中束-系统指南.md",
+      "slug": "body-map-041-三角肌中束-系统指南",
+      "action": "inserted",
+      "id": "7ba9c0d5-f136-4150-a1d1-28df9f76976d"
+    },
+    {
+      "fileName": "042-三角肌后束-系统指南.md",
+      "slug": "body-map-042-三角肌后束-系统指南",
+      "action": "inserted",
+      "id": "e7041166-1297-4d22-b206-d0c619cf227c"
+    },
+    {
+      "fileName": "043-冈上肌-系统指南.md",
+      "slug": "body-map-043-冈上肌-系统指南",
+      "action": "inserted",
+      "id": "a325dc1e-c6a9-41a7-978d-5c05463a8284"
+    },
+    {
+      "fileName": "044-冈下肌-系统指南.md",
+      "slug": "body-map-044-冈下肌-系统指南",
+      "action": "inserted",
+      "id": "5e018b46-4297-4da1-9c58-a4a47d9aa105"
+    },
+    {
+      "fileName": "045-小圆肌-系统指南.md",
+      "slug": "body-map-045-小圆肌-系统指南",
+      "action": "inserted",
+      "id": "7509606c-3486-4559-b5d0-f904887c0dda"
+    },
+    {
+      "fileName": "046-肩胛下肌-系统指南.md",
+      "slug": "body-map-046-肩胛下肌-系统指南",
+      "action": "inserted",
+      "id": "9c5783d9-919d-4287-a614-a1dbb3a12456"
+    },
+    {
+      "fileName": "047-菱形肌-系统指南.md",
+      "slug": "body-map-047-菱形肌-系统指南",
+      "action": "inserted",
+      "id": "4fe9ae9d-525f-48a0-8ac6-7dd167b23a83"
+    },
+    {
+      "fileName": "048-斜方肌中束-系统指南.md",
+      "slug": "body-map-048-斜方肌中束-系统指南",
+      "action": "inserted",
+      "id": "f05680d7-e0fc-4266-a36e-8002d4f1718d"
+    },
+    {
+      "fileName": "049-斜方肌下束-系统指南.md",
+      "slug": "body-map-049-斜方肌下束-系统指南",
+      "action": "inserted",
+      "id": "33152483-4ede-4ae8-8215-2495a46bcc12"
+    },
+    {
+      "fileName": "050-肩胛胸廓节律-系统指南.md",
+      "slug": "body-map-050-肩胛胸廓节律-系统指南",
+      "action": "inserted",
+      "id": "0dcc5d56-da51-4c5f-b816-a4dac1084ec8"
+    },
+    {
+      "fileName": "051-锁骨-系统指南.md",
+      "slug": "body-map-051-锁骨-系统指南",
+      "action": "inserted",
+      "id": "d50a5573-b7b7-4572-b917-1581f00463fc"
+    },
+    {
+      "fileName": "052-肩锁关节-系统指南.md",
+      "slug": "body-map-052-肩锁关节-系统指南",
+      "action": "inserted",
+      "id": "cc9111f0-54f2-4d1c-ade2-8dfb0da50446"
+    },
+    {
+      "fileName": "053-肩峰下间隙-系统指南.md",
+      "slug": "body-map-053-肩峰下间隙-系统指南",
+      "action": "inserted",
+      "id": "afcc2dc6-7d53-4013-9817-5f7e7accadef"
+    },
+    {
+      "fileName": "054-胸大肌-系统指南.md",
+      "slug": "body-map-054-胸大肌-系统指南",
+      "action": "inserted",
+      "id": "9b98b533-daa9-4355-bdcb-fba70eadd30b"
+    },
+    {
+      "fileName": "055-肋间肌-系统指南.md",
+      "slug": "body-map-055-肋间肌-系统指南",
+      "action": "inserted",
+      "id": "e9a7371c-7d66-4508-b4d2-52288c0ac4bb"
+    },
+    {
+      "fileName": "056-胸骨-系统指南.md",
+      "slug": "body-map-056-胸骨-系统指南",
+      "action": "inserted",
+      "id": "f5b5befe-78a5-4218-8d42-5bce9e8d502b"
+    },
+    {
+      "fileName": "057-胸椎-系统指南.md",
+      "slug": "body-map-057-胸椎-系统指南",
+      "action": "inserted",
+      "id": "2a502e7f-4396-47fa-9764-248247eb5cd9"
+    },
+    {
+      "fileName": "058-胸廓活动度-系统指南.md",
+      "slug": "body-map-058-胸廓活动度-系统指南",
+      "action": "inserted",
+      "id": "b4ef5c9a-510b-4e4f-afcd-3e77714e591c"
+    },
+    {
+      "fileName": "059-背阔肌-系统指南.md",
+      "slug": "body-map-059-背阔肌-系统指南",
+      "action": "inserted",
+      "id": "a9e442cc-c141-44ac-859a-0b29076e26c8"
+    },
+    {
+      "fileName": "060-竖脊肌-系统指南.md",
+      "slug": "body-map-060-竖脊肌-系统指南",
+      "action": "inserted",
+      "id": "ca8d0b7e-e3b4-46f4-ad89-db8c7bb1a370"
+    },
+    {
+      "fileName": "061-胸腰筋膜-系统指南.md",
+      "slug": "body-map-061-胸腰筋膜-系统指南",
+      "action": "inserted",
+      "id": "848ef332-944e-45bb-992d-f97069f4fe95"
+    },
+    {
+      "fileName": "062-多裂肌-系统指南.md",
+      "slug": "body-map-062-多裂肌-系统指南",
+      "action": "inserted",
+      "id": "9307aff3-ce64-41bd-bb39-1387cef78172"
+    },
+    {
+      "fileName": "063-回旋肌-系统指南.md",
+      "slug": "body-map-063-回旋肌-系统指南",
+      "action": "inserted",
+      "id": "5a578825-b63b-45e9-9ee3-1f799084d019"
+    },
+    {
+      "fileName": "064-腹直肌-系统指南.md",
+      "slug": "body-map-064-腹直肌-系统指南",
+      "action": "inserted",
+      "id": "2655f894-21fc-46b8-8465-0a3887cae990"
+    },
+    {
+      "fileName": "065-腹外斜肌-系统指南.md",
+      "slug": "body-map-065-腹外斜肌-系统指南",
+      "action": "inserted",
+      "id": "1f70b9fa-b157-46d1-9a14-f47b860ff175"
+    },
+    {
+      "fileName": "066-腹内斜肌-系统指南.md",
+      "slug": "body-map-066-腹内斜肌-系统指南",
+      "action": "inserted",
+      "id": "094cabaf-7067-4c64-835b-541671b368f2"
+    },
+    {
+      "fileName": "067-腹横肌-系统指南.md",
+      "slug": "body-map-067-腹横肌-系统指南",
+      "action": "inserted",
+      "id": "04352dff-689e-4771-b4a2-8512e17a02ea"
+    },
+    {
+      "fileName": "068-膈肌-系统指南.md",
+      "slug": "body-map-068-膈肌-系统指南",
+      "action": "inserted",
+      "id": "99747dca-8636-4ea2-bf66-720f01c01cde"
+    },
+    {
+      "fileName": "069-腹股沟-系统指南.md",
+      "slug": "body-map-069-腹股沟-系统指南",
+      "action": "inserted",
+      "id": "c1abe851-dfd8-468b-bb85-9aaeb8c3e230"
+    },
+    {
+      "fileName": "070-臀小肌-系统指南.md",
+      "slug": "body-map-070-臀小肌-系统指南",
+      "action": "inserted",
+      "id": "7c605de3-1cea-45c8-b174-51b9abb6bb47"
+    },
+    {
+      "fileName": "071-梨状肌-系统指南.md",
+      "slug": "body-map-071-梨状肌-系统指南",
+      "action": "inserted",
+      "id": "e9bc0eda-8668-4139-abe4-36b9ef90e086"
+    },
+    {
+      "fileName": "072-深层外旋肌群-系统指南.md",
+      "slug": "body-map-072-深层外旋肌群-系统指南",
+      "action": "inserted",
+      "id": "c624a3ef-75a6-4525-8699-a12ef21da93c"
+    },
+    {
+      "fileName": "073-内收肌群-系统指南.md",
+      "slug": "body-map-073-内收肌群-系统指南",
+      "action": "inserted",
+      "id": "acf761c7-a80d-4ba3-94d3-932f0b0ee6fc"
+    },
+    {
+      "fileName": "074-阔筋膜张肌-系统指南.md",
+      "slug": "body-map-074-阔筋膜张肌-系统指南",
+      "action": "inserted",
+      "id": "542dd613-f7dc-409e-9a90-6aa5b7b42971"
+    },
+    {
+      "fileName": "075-髂胫束-系统指南.md",
+      "slug": "body-map-075-髂胫束-系统指南",
+      "action": "inserted",
+      "id": "6ae09a1c-3185-49c5-9c4b-78730de97e70"
+    },
+    {
+      "fileName": "076-骨盆-系统指南.md",
+      "slug": "body-map-076-骨盆-系统指南",
+      "action": "inserted",
+      "id": "ecfeb47f-7f91-42b7-ab94-a733965e328b"
+    },
+    {
+      "fileName": "077-骶髂关节-系统指南.md",
+      "slug": "body-map-077-骶髂关节-系统指南",
+      "action": "inserted",
+      "id": "ab8e64fa-a3f0-4806-b3da-61f70ad215df"
+    },
+    {
+      "fileName": "078-股直肌-系统指南.md",
+      "slug": "body-map-078-股直肌-系统指南",
+      "action": "inserted",
+      "id": "49f999ff-523e-4823-a31f-0b8d99888796"
+    },
+    {
+      "fileName": "079-股外侧肌-系统指南.md",
+      "slug": "body-map-079-股外侧肌-系统指南",
+      "action": "inserted",
+      "id": "a1d57942-105a-4cc5-98aa-875a88f866a9"
+    },
+    {
+      "fileName": "080-股内侧肌-系统指南.md",
+      "slug": "body-map-080-股内侧肌-系统指南",
+      "action": "inserted",
+      "id": "8f71395b-6379-44ba-8201-6cca308a4613"
+    },
+    {
+      "fileName": "081-股二头肌-系统指南.md",
+      "slug": "body-map-081-股二头肌-系统指南",
+      "action": "inserted",
+      "id": "968fd169-e4da-466b-9fde-44203af45c61"
+    },
+    {
+      "fileName": "082-半腱肌-系统指南.md",
+      "slug": "body-map-082-半腱肌-系统指南",
+      "action": "inserted",
+      "id": "6a58d382-5d58-4742-bf07-83e7aecb0d91"
+    },
+    {
+      "fileName": "083-腘绳肌群-系统指南.md",
+      "slug": "body-map-083-腘绳肌群-系统指南",
+      "action": "inserted",
+      "id": "750ffe9e-b1e0-4b2f-b8d7-9aca06525c8e"
+    },
+    {
+      "fileName": "084-大腿内收肌群-系统指南.md",
+      "slug": "body-map-084-大腿内收肌群-系统指南",
+      "action": "inserted",
+      "id": "55e1f8c1-da01-42a1-aef0-9d10048e25ac"
+    },
+    {
+      "fileName": "085-大腿外侧筋膜区-系统指南.md",
+      "slug": "body-map-085-大腿外侧筋膜区-系统指南",
+      "action": "inserted",
+      "id": "0a027fe9-2252-439e-aeda-f9aec83c2d97"
+    },
+    {
+      "fileName": "086-髌骨-系统指南.md",
+      "slug": "body-map-086-髌骨-系统指南",
+      "action": "inserted",
+      "id": "447fe6c7-5da5-4b23-bc4e-f84b3e0a15bc"
+    },
+    {
+      "fileName": "087-髂胫束止点-系统指南.md",
+      "slug": "body-map-087-髂胫束止点-系统指南",
+      "action": "inserted",
+      "id": "dbcf7aae-d158-4e07-854c-441ea14a126b"
+    },
+    {
+      "fileName": "088-内侧副韧带-系统指南.md",
+      "slug": "body-map-088-内侧副韧带-系统指南",
+      "action": "inserted",
+      "id": "d4d0e580-2348-426d-b484-69c63c1a4e69"
+    },
+    {
+      "fileName": "089-外侧副韧带-系统指南.md",
+      "slug": "body-map-089-外侧副韧带-系统指南",
+      "action": "inserted",
+      "id": "fac81d43-1528-4551-b816-ce6663593562"
+    },
+    {
+      "fileName": "091-后交叉韧带-系统指南.md",
+      "slug": "body-map-091-后交叉韧带-系统指南",
+      "action": "inserted",
+      "id": "270ca24c-df93-4d5c-a01e-355e38527eeb"
+    },
+    {
+      "fileName": "092-腘窝-系统指南.md",
+      "slug": "body-map-092-腘窝-系统指南",
+      "action": "inserted",
+      "id": "e3ac975c-754f-43dd-b834-d0fd938d4d13"
+    },
+    {
+      "fileName": "093-腓肠肌-系统指南.md",
+      "slug": "body-map-093-腓肠肌-系统指南",
+      "action": "inserted",
+      "id": "45f92bac-309b-43ef-9471-16e3f8241a91"
+    },
+    {
+      "fileName": "094-比目鱼肌-系统指南.md",
+      "slug": "body-map-094-比目鱼肌-系统指南",
+      "action": "inserted",
+      "id": "34a7dbac-17fd-4910-87a4-35076ed014e2"
+    },
+    {
+      "fileName": "095-胫骨前肌-系统指南.md",
+      "slug": "body-map-095-胫骨前肌-系统指南",
+      "action": "inserted",
+      "id": "d6ee80a4-2445-4415-be50-31301e38b3b6"
+    },
+    {
+      "fileName": "096-腓骨长肌-系统指南.md",
+      "slug": "body-map-096-腓骨长肌-系统指南",
+      "action": "inserted",
+      "id": "8b9c8ef3-cba1-4c1a-b80b-8c7ebb2b5599"
+    },
+    {
+      "fileName": "097-胫骨后肌-系统指南.md",
+      "slug": "body-map-097-胫骨后肌-系统指南",
+      "action": "inserted",
+      "id": "7614c7e8-9e3c-453b-a320-32b5d171013b"
+    },
+    {
+      "fileName": "098-小腿三头肌-系统指南.md",
+      "slug": "body-map-098-小腿三头肌-系统指南",
+      "action": "inserted",
+      "id": "81aac8eb-7902-4e90-9165-56fef12a7835"
+    },
+    {
+      "fileName": "099-踝关节-系统指南.md",
+      "slug": "body-map-099-踝关节-系统指南",
+      "action": "inserted",
+      "id": "a9399881-8fb5-4b37-a5f1-db709fd4a6ec"
+    },
+    {
+      "fileName": "100-距下关节-系统指南.md",
+      "slug": "body-map-100-距下关节-系统指南",
+      "action": "inserted",
+      "id": "71ffdc90-3b9f-4b8f-a4d0-e769e4da2718"
+    },
+    {
+      "fileName": "101-足弓-系统指南.md",
+      "slug": "body-map-101-足弓-系统指南",
+      "action": "inserted",
+      "id": "6a20989d-6e04-4d4a-ba95-5a0b48d6d446"
+    },
+    {
+      "fileName": "102-大脚趾-系统指南.md",
+      "slug": "body-map-102-大脚趾-系统指南",
+      "action": "inserted",
+      "id": "4331ced2-e419-47a7-89a2-0a1a9e2ff3af"
+    },
+    {
+      "fileName": "103-跟骨-系统指南.md",
+      "slug": "body-map-103-跟骨-系统指南",
+      "action": "inserted",
+      "id": "a8777024-1837-462f-962c-f339080f3e97"
+    },
+    {
+      "fileName": "104-足底内在肌-系统指南.md",
+      "slug": "body-map-104-足底内在肌-系统指南",
+      "action": "inserted",
+      "id": "fd458fd9-b101-4a41-a188-b3fe91eb1574"
+    },
+    {
+      "fileName": "105-踝背屈受限-系统指南.md",
+      "slug": "body-map-105-踝背屈受限-系统指南",
+      "action": "inserted",
+      "id": "13923068-e2a8-49a8-9712-377a9ae14ce7"
+    },
+    {
+      "fileName": "106-高足弓-系统指南.md",
+      "slug": "body-map-106-高足弓-系统指南",
+      "action": "inserted",
+      "id": "2cee895c-b3b5-426d-89ab-892a2ca81659"
+    },
+    {
+      "fileName": "107-肱肌-系统指南.md",
+      "slug": "body-map-107-肱肌-系统指南",
+      "action": "inserted",
+      "id": "b8d6544a-096e-4910-9fb6-27dec2b1428c"
+    },
+    {
+      "fileName": "108-肱二头肌长头腱-系统指南.md",
+      "slug": "body-map-108-肱二头肌长头腱-系统指南",
+      "action": "inserted",
+      "id": "ea688508-462a-42cf-8053-6c4ecbeb56f8"
+    },
+    {
+      "fileName": "109-肘关节-系统指南.md",
+      "slug": "body-map-109-肘关节-系统指南",
+      "action": "inserted",
+      "id": "04895f67-27c3-428e-ab8f-d9c9838e2e09"
+    },
+    {
+      "fileName": "110-肘外侧-系统指南.md",
+      "slug": "body-map-110-肘外侧-系统指南",
+      "action": "inserted",
+      "id": "c58aae14-c05c-4609-a211-b351b108624f"
+    },
+    {
+      "fileName": "111-肘内侧-系统指南.md",
+      "slug": "body-map-111-肘内侧-系统指南",
+      "action": "inserted",
+      "id": "77bd5d6b-fbf1-45ba-8b84-8166016dd43a"
+    },
+    {
+      "fileName": "112-前臂伸肌群-系统指南.md",
+      "slug": "body-map-112-前臂伸肌群-系统指南",
+      "action": "inserted",
+      "id": "1d804918-a7d2-41f7-9758-eecde411c91e"
+    },
+    {
+      "fileName": "113-前臂屈肌群-系统指南.md",
+      "slug": "body-map-113-前臂屈肌群-系统指南",
+      "action": "inserted",
+      "id": "00a58cf1-3911-48bc-bbb0-3da0e794593b"
+    },
+    {
+      "fileName": "114-腕屈肌群-系统指南.md",
+      "slug": "body-map-114-腕屈肌群-系统指南",
+      "action": "inserted",
+      "id": "a73b6c72-0b3b-434c-9c42-8ca84f3a7c29"
+    },
+    {
+      "fileName": "115-腕伸肌群-系统指南.md",
+      "slug": "body-map-115-腕伸肌群-系统指南",
+      "action": "inserted",
+      "id": "2446f586-339a-4df0-872f-4c92ff08b5c4"
+    },
+    {
+      "fileName": "116-握力系统-系统指南.md",
+      "slug": "body-map-116-握力系统-系统指南",
+      "action": "inserted",
+      "id": "58450d2a-1ff6-4992-a65d-29691902125f"
+    },
+    {
+      "fileName": "117-腱鞘炎区-系统指南.md",
+      "slug": "body-map-117-腱鞘炎区-系统指南",
+      "action": "inserted",
+      "id": "a18ca0ac-91f7-454e-a1f6-800c33452198"
+    },
+    {
+      "fileName": "118-手掌内在肌-系统指南.md",
+      "slug": "body-map-118-手掌内在肌-系统指南",
+      "action": "inserted",
+      "id": "433444b9-3c1b-466a-965b-b8285957f1f5"
+    },
+    {
+      "fileName": "119-深蹲模式-系统指南.md",
+      "slug": "body-map-119-深蹲模式-系统指南",
+      "action": "inserted",
+      "id": "2f2c8eeb-4434-4524-a11a-76069e8c68af"
+    },
+    {
+      "fileName": "120-硬拉模式-系统指南.md",
+      "slug": "body-map-120-硬拉模式-系统指南",
+      "action": "inserted",
+      "id": "f7b1ba05-7d0f-4659-9945-ec89dbd218b3"
+    },
+    {
+      "fileName": "121-推类模式-系统指南.md",
+      "slug": "body-map-121-推类模式-系统指南",
+      "action": "inserted",
+      "id": "a92bd9d7-c7e2-4c6c-8e80-84159c55d33c"
+    },
+    {
+      "fileName": "122-拉类模式-系统指南.md",
+      "slug": "body-map-122-拉类模式-系统指南",
+      "action": "inserted",
+      "id": "607b74cd-ab6b-4f3f-a139-f871d70aaddb"
+    },
+    {
+      "fileName": "123-单腿稳定性-系统指南.md",
+      "slug": "body-map-123-单腿稳定性-系统指南",
+      "action": "inserted",
+      "id": "44edd47d-5424-4c5a-bdbc-2cb97d05bd6b"
+    },
+    {
+      "fileName": "124-核心抗压-系统指南.md",
+      "slug": "body-map-124-核心抗压-系统指南",
+      "action": "inserted",
+      "id": "87ae0274-577d-4149-8784-0fea89540c89"
+    },
+    {
+      "fileName": "125-核心抗旋转-系统指南.md",
+      "slug": "body-map-125-核心抗旋转-系统指南",
+      "action": "inserted",
+      "id": "31f3de65-ebe5-433d-a5d9-68e5a445e281"
+    },
+    {
+      "fileName": "126-肩肱节律-系统指南.md",
+      "slug": "body-map-126-肩肱节律-系统指南",
+      "action": "inserted",
+      "id": "716096be-e995-4461-8818-9ace32a27df0"
+    },
+    {
+      "fileName": "127-步态周期-系统指南.md",
+      "slug": "body-map-127-步态周期-系统指南",
+      "action": "inserted",
+      "id": "78451542-3937-426f-bea5-944ec3c4eaa3"
+    },
+    {
+      "fileName": "128-呼吸模式-系统指南.md",
+      "slug": "body-map-128-呼吸模式-系统指南",
+      "action": "inserted",
+      "id": "6daa96ef-25e5-45dc-a441-e03f68bb51c4"
+    },
+    {
+      "fileName": "129-骨盆后倾-系统指南.md",
+      "slug": "body-map-129-骨盆后倾-系统指南",
+      "action": "inserted",
+      "id": "fb28f0a6-00dd-4e82-b8e3-daab3e2d3ecb"
+    },
+    {
+      "fileName": "130-驼背-系统指南.md",
+      "slug": "body-map-130-驼背-系统指南",
+      "action": "inserted",
+      "id": "6501fc20-64c3-4374-be63-339663dac28f"
+    },
+    {
+      "fileName": "131-膝过伸-系统指南.md",
+      "slug": "body-map-131-膝过伸-系统指南",
+      "action": "inserted",
+      "id": "1211c8d0-4ccf-4492-b411-51a0fa6a661e"
+    },
+    {
+      "fileName": "132-X型腿-系统指南.md",
+      "slug": "body-map-132-X型腿-系统指南",
+      "action": "inserted",
+      "id": "56d0e683-21e5-40db-91bd-18ae231c0bd3"
+    },
+    {
+      "fileName": "133-O型腿-系统指南.md",
+      "slug": "body-map-133-O型腿-系统指南",
+      "action": "inserted",
+      "id": "c579980c-6587-408e-971b-ffbef3d7c296"
+    }
+  ]
+}

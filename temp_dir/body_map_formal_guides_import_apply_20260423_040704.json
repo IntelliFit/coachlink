@@ -1,0 +1,388 @@
+{
+  "ok": true,
+  "summary": {
+    "mode": "apply",
+    "generated_at": "2026-04-22T20:07:04.368Z",
+    "import_version": "2026-04-23-body-map-formal-guides-v4",
+    "total_guides": 11,
+    "usable_guides": 7,
+    "pending_guides": 4,
+    "guide_slugs": [
+      "body-map-guide-020-pectoralis-minor",
+      "body-map-guide-114-wrist-flexors",
+      "body-map-guide-134-teres-major",
+      "body-map-guide-028-triceps-brachii",
+      "body-map-guide-065-external-obliques",
+      "body-map-guide-081-biceps-femoris",
+      "body-map-guide-082-semitendinosus-semimembranosus",
+      "body-map-guide-037-temporomandibular-joint",
+      "body-map-guide-038-masseter",
+      "body-map-guide-039-medial-pterygoid",
+      "body-map-guide-036-cervical-lymph-nodes"
+    ]
+  },
+  "guides": [
+    {
+      "sourceTopicSlug": "020-pectoralis-minor",
+      "title": "胸小肌完整指南：圆肩筛查、肩前紧张与训练处理",
+      "slug": "body-map-guide-020-pectoralis-minor",
+      "displayName": "胸小肌",
+      "bodyRegions": [
+        "胸大肌",
+        "肩关节"
+      ],
+      "modes": [
+        "screening",
+        "training"
+      ],
+      "pendingBodyMapHitbox": false,
+      "difficulty": 2,
+      "sortOrder": 820,
+      "tags": [
+        "胸小肌",
+        "圆肩",
+        "肩胛控制",
+        "肩关节",
+        "胸大肌",
+        "肩胛胸廓节律",
+        "肩肱节律",
+        "formal-guide"
+      ],
+      "description": "面向小白整理胸小肌在哪里、为什么会和圆肩/肩前紧张相关、如何筛查、如何训练处理，以及什么情况应该停止自行处理。",
+      "markdownCharCount": 3657,
+      "htmlCharCount": 4421
+    },
+    {
+      "sourceTopicSlug": "114-wrist-flexors",
+      "title": "腕屈肌群系统指南：握力、前臂内侧疼痛与高尔夫球肘",
+      "slug": "body-map-guide-114-wrist-flexors",
+      "displayName": "腕屈肌群",
+      "bodyRegions": [
+        "肱侧腕屈肌",
+        "腕关节"
+      ],
+      "modes": [
+        "screening",
+        "training"
+      ],
+      "pendingBodyMapHitbox": false,
+      "difficulty": 2,
+      "sortOrder": 830,
+      "tags": [
+        "腕屈肌群",
+        "肱侧腕屈肌",
+        "腕关节",
+        "高尔夫球肘",
+        "握力",
+        "formal-guide"
+      ],
+      "description": "整理腕屈肌群在抓握、屈腕、前臂内侧疼痛和高尔夫球肘中的作用，并给出训练与负荷管理建议。",
+      "markdownCharCount": 1168,
+      "htmlCharCount": 1413
+    },
+    {
+      "sourceTopicSlug": "134-teres-major",
+      "title": "大圆肌系统指南：拉类动作、肩后侧发力与背阔肌区分",
+      "slug": "body-map-guide-134-teres-major",
+      "displayName": "大圆肌",
+      "bodyRegions": [
+        "大圆肌",
+        "背阔肌",
+        "肩关节"
+      ],
+      "modes": [
+        "screening",
+        "training"
+      ],
+      "pendingBodyMapHitbox": false,
+      "difficulty": 2,
+      "sortOrder": 840,
+      "tags": [
+        "大圆肌",
+        "背阔肌",
+        "肩关节",
+        "拉类动作",
+        "肩后侧",
+        "formal-guide"
+      ],
+      "description": "整理大圆肌在肩伸、肩内收、拉类动作中的作用，帮助区分大圆肌与背阔肌，并处理肩后侧紧张。",
+      "markdownCharCount": 1125,
+      "htmlCharCount": 1354
+    },
+    {
+      "sourceTopicSlug": "028-triceps-brachii",
+      "title": "肱三头肌系统指南：推类动作、肘伸力量与长头训练",
+      "slug": "body-map-guide-028-triceps-brachii",
+      "displayName": "肱三头肌",
+      "bodyRegions": [
+        "肱三头肌",
+        "肩关节"
+      ],
+      "modes": [
+        "training",
+        "screening"
+      ],
+      "pendingBodyMapHitbox": false,
+      "difficulty": 2,
+      "sortOrder": 850,
+      "tags": [
+        "肱三头肌",
+        "肘伸",
+        "推类动作",
+        "肩关节",
+        "长头训练",
+        "formal-guide"
+      ],
+      "description": "整理肱三头肌在卧推、俯卧撑、双杠臂屈伸、过顶伸肘中的作用，并给出筛查、训练和肘部负荷管理建议。",
+      "markdownCharCount": 1086,
+      "htmlCharCount": 1314
+    },
+    {
+      "sourceTopicSlug": "065-external-obliques",
+      "title": "腹外斜肌系统指南：抗旋转、侧向稳定与呼吸核心",
+      "slug": "body-map-guide-065-external-obliques",
+      "displayName": "腹外斜肌",
+      "bodyRegions": [
+        "腹外直肌",
+        "腹直肌"
+      ],
+      "modes": [
+        "training",
+        "screening"
+      ],
+      "pendingBodyMapHitbox": false,
+      "difficulty": 2,
+      "sortOrder": 860,
+      "tags": [
+        "腹外斜肌",
+        "核心稳定",
+        "抗旋转",
+        "侧向稳定",
+        "呼吸",
+        "formal-guide"
+      ],
+      "description": "整理腹外斜肌在躯干旋转、抗旋转、肋骨骨盆堆叠和侧向稳定中的作用，并给出核心训练建议。",
+      "markdownCharCount": 997,
+      "htmlCharCount": 1225
+    },
+    {
+      "sourceTopicSlug": "081-biceps-femoris",
+      "title": "股二头肌系统指南：后链发力、腘绳肌拉伤与硬拉跑跳",
+      "slug": "body-map-guide-081-biceps-femoris",
+      "displayName": "股二头肌",
+      "bodyRegions": [
+        "股二头肌",
+        "臀大肌",
+        "膝关节"
+      ],
+      "modes": [
+        "training",
+        "screening"
+      ],
+      "pendingBodyMapHitbox": false,
+      "difficulty": 2,
+      "sortOrder": 870,
+      "tags": [
+        "股二头肌",
+        "腘绳肌",
+        "后链",
+        "硬拉",
+        "跑跳",
+        "formal-guide"
+      ],
+      "description": "整理股二头肌在髋伸、膝屈、跑跳减速和硬拉后链中的作用，并给出训练、筛查和拉伤风险管理建议。",
+      "markdownCharCount": 977,
+      "htmlCharCount": 1199
+    },
+    {
+      "sourceTopicSlug": "082-semitendinosus-semimembranosus",
+      "title": "半腱肌与半膜肌系统指南：内侧腘绳肌、膝稳定与后链控制",
+      "slug": "body-map-guide-082-semitendinosus-semimembranosus",
+      "displayName": "半腱肌与半膜肌",
+      "bodyRegions": [
+        "半腱肌",
+        "臀大肌",
+        "膝关节"
+      ],
+      "modes": [
+        "training",
+        "screening"
+      ],
+      "pendingBodyMapHitbox": false,
+      "difficulty": 2,
+      "sortOrder": 880,
+      "tags": [
+        "半腱肌",
+        "半膜肌",
+        "腘绳肌",
+        "膝稳定",
+        "后链控制",
+        "formal-guide"
+      ],
+      "description": "整理半腱肌与半膜肌在内侧腘绳肌、膝关节稳定、髋伸和膝屈控制中的作用，并给出训练建议。",
+      "markdownCharCount": 958,
+      "htmlCharCount": 1180
+    },
+    {
+      "sourceTopicSlug": "037-temporomandibular-joint",
+      "title": "颞下颌关节指南：弹响、咬紧与张口受限的风险边界",
+      "slug": "body-map-guide-037-temporomandibular-joint",
+      "displayName": "颞下颌关节",
+      "bodyRegions": [
+        "颞下颌关节"
+      ],
+      "modes": [
+        "screening"
+      ],
+      "pendingBodyMapHitbox": true,
+      "difficulty": 3,
+      "sortOrder": 900,
+      "tags": [
+        "颞下颌关节",
+        "TMJ",
+        "张口弹响",
+        "咬紧",
+        "pending-body-map-hitbox",
+        "formal-guide"
+      ],
+      "description": "整理颞下颌关节弹响、张口受限、咬紧相关的观察方法和风险边界，作为后续头面点击区待接入内容。",
+      "markdownCharCount": 936,
+      "htmlCharCount": 1180
+    },
+    {
+      "sourceTopicSlug": "038-masseter",
+      "title": "咬肌指南：咬紧牙、磨牙与面颊紧张管理",
+      "slug": "body-map-guide-038-masseter",
+      "displayName": "咬肌",
+      "bodyRegions": [
+        "咬肌"
+      ],
+      "modes": [
+        "screening"
+      ],
+      "pendingBodyMapHitbox": true,
+      "difficulty": 3,
+      "sortOrder": 910,
+      "tags": [
+        "咬肌",
+        "磨牙",
+        "咬紧牙",
+        "TMJ",
+        "pending-body-map-hitbox",
+        "formal-guide"
+      ],
+      "description": "整理咬肌紧张、咬紧牙、磨牙与颞下颌关节不适之间的关系，并给出保守管理和就医边界。",
+      "markdownCharCount": 864,
+      "htmlCharCount": 1098
+    },
+    {
+      "sourceTopicSlug": "039-medial-pterygoid",
+      "title": "翼内肌指南：深层咀嚼肌、张口偏移与 TMJ 关联",
+      "slug": "body-map-guide-039-medial-pterygoid",
+      "displayName": "翼内肌",
+      "bodyRegions": [
+        "翼内肌"
+      ],
+      "modes": [
+        "screening"
+      ],
+      "pendingBodyMapHitbox": true,
+      "difficulty": 3,
+      "sortOrder": 920,
+      "tags": [
+        "翼内肌",
+        "咀嚼肌",
+        "TMJ",
+        "张口偏移",
+        "pending-body-map-hitbox",
+        "formal-guide"
+      ],
+      "description": "整理翼内肌作为深层咀嚼肌在咬合、张口偏移和 TMJ 不适中的可能角色，并强调安全边界。",
+      "markdownCharCount": 870,
+      "htmlCharCount": 1110
+    },
+    {
+      "sourceTopicSlug": "036-cervical-lymph-nodes",
+      "title": "颈前淋巴结区指南：肿大、压痛与何时就医",
+      "slug": "body-map-guide-036-cervical-lymph-nodes",
+      "displayName": "颈前淋巴结区",
+      "bodyRegions": [
+        "颈前淋巴结区"
+      ],
+      "modes": [
+        "screening"
+      ],
+      "pendingBodyMapHitbox": true,
+      "difficulty": 3,
+      "sortOrder": 930,
+      "tags": [
+        "颈前淋巴结区",
+        "颈部肿块",
+        "红旗征象",
+        "就医边界",
+        "pending-body-map-hitbox",
+        "formal-guide"
+      ],
+      "description": "整理颈前淋巴结肿大、压痛和颈部肿块的基本观察方式，强调红旗征象与就医边界。",
+      "markdownCharCount": 797,
+      "htmlCharCount": 979
+    }
+  ],
+  "writeResults": [
+    {
+      "slug": "body-map-guide-020-pectoralis-minor",
+      "action": "updated",
+      "id": "5e119ae5-4c40-41c2-b475-ad606e6d3320"
+    },
+    {
+      "slug": "body-map-guide-114-wrist-flexors",
+      "action": "updated",
+      "id": "ad431285-14b0-4481-9292-d443d3e5ab81"
+    },
+    {
+      "slug": "body-map-guide-134-teres-major",
+      "action": "updated",
+      "id": "ed766510-47a3-49e5-9d17-b67c38bac19c"
+    },
+    {
+      "slug": "body-map-guide-028-triceps-brachii",
+      "action": "updated",
+      "id": "a7992003-46d6-4314-8ff2-290a682499a6"
+    },
+    {
+      "slug": "body-map-guide-065-external-obliques",
+      "action": "updated",
+      "id": "8f802db0-822e-4801-8bf1-11413ec19ae4"
+    },
+    {
+      "slug": "body-map-guide-081-biceps-femoris",
+      "action": "updated",
+      "id": "9c06f3ec-e171-4a0e-af9f-05676f9cb212"
+    },
+    {
+      "slug": "body-map-guide-082-semitendinosus-semimembranosus",
+      "action": "updated",
+      "id": "d7e3e17f-8fc0-4406-956d-e58818f2706d"
+    },
+    {
+      "slug": "body-map-guide-037-temporomandibular-joint",
+      "action": "updated",
+      "id": "bd927705-2582-45c9-a1cd-e0fe0a1299bb"
+    },
+    {
+      "slug": "body-map-guide-038-masseter",
+      "action": "updated",
+      "id": "dbaa45bc-5797-49e5-afdd-bf46d2e42838"
+    },
+    {
+      "slug": "body-map-guide-039-medial-pterygoid",
+      "action": "updated",
+      "id": "a3cee649-ac5d-45b4-b3bd-cfe60d1ccd30"
+    },
+    {
+      "slug": "body-map-guide-036-cervical-lymph-nodes",
+      "action": "updated",
+      "id": "9e634230-7a1a-4c4a-8127-0a1414762a72"
+    }
+  ]
+}

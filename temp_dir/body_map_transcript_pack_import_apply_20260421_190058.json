@@ -1,0 +1,920 @@
+{
+  "ok": true,
+  "summary": {
+    "mode": "apply",
+    "generated_at": "2026-04-21T11:00:57.873Z",
+    "contentDir": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\content",
+    "total_topics": 26,
+    "usable_topics": 22,
+    "skipped_topics": 4,
+    "total_transcripts": 120,
+    "likely_enough_topics": [
+      "002-rounded-shoulders",
+      "004-anterior-pelvic-tilt",
+      "007-knee-valgus-knee-cave",
+      "008-flat-feet",
+      "009-tennis-elbow",
+      "010-golfers-elbow",
+      "018-patellar-tendon",
+      "019-serratus-anterior",
+      "020-pectoralis-minor",
+      "023-gluteus-medius",
+      "025-iliopsoas",
+      "028-triceps-brachii",
+      "044-infraspinatus",
+      "065-external-obliques",
+      "073-adductors",
+      "081-biceps-femoris",
+      "082-semitendinosus-semimembranosus",
+      "101-foot-arch",
+      "105-ankle-dorsiflexion-limit",
+      "109-elbow-joint",
+      "114-wrist-flexors",
+      "134-teres-major"
+    ],
+    "thin_topics": [],
+    "skipped": [
+      {
+        "slug": "036-cervical-lymph-nodes",
+        "displayName": "颈前淋巴结区",
+        "reason": "当前人体图没有头面颈前点击区，且该主题医学红线较高，不适合硬挂到现有 26 个点击部位。"
+      },
+      {
+        "slug": "037-temporomandibular-joint",
+        "displayName": "颞下颌关节",
+        "reason": "当前人体图没有头面颌面点击区，更适合后续扩点击区或做问题模式时接入。"
+      },
+      {
+        "slug": "038-masseter",
+        "displayName": "咬肌",
+        "reason": "当前人体图没有面部点击区。"
+      },
+      {
+        "slug": "039-medial-pterygoid",
+        "displayName": "翼内肌",
+        "reason": "当前人体图没有面部点击区。"
+      }
+    ]
+  },
+  "candidates": [
+    {
+      "slug": "002-rounded-shoulders",
+      "displayName": "圆肩",
+      "status": "usable",
+      "bodyRegions": [
+        "胸大肌",
+        "肩关节",
+        "斜方肌",
+        "背阔肌"
+      ],
+      "modes": [
+        "screening"
+      ],
+      "structureType": "problem",
+      "transcriptCount": 5,
+      "charCount": 8001,
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\content\\002-rounded-shoulders",
+      "sourceBvids": [
+        "34107674",
+        "591219334",
+        "667882417",
+        "726502418",
+        "752502257"
+      ],
+      "searchGaps": [],
+      "title": "圆肩 转录素材摘录",
+      "description": "基于 5 份视频转录整理的 圆肩 素材摘录，当前挂载到 胸大肌、肩关节、斜方肌、背阔肌。",
+      "knowledgeSlug": "body-map-transcript-pack-002-rounded-shoulders"
+    },
+    {
+      "slug": "004-anterior-pelvic-tilt",
+      "displayName": "骨盆前倾",
+      "status": "usable",
+      "bodyRegions": [
+        "髋关节",
+        "臀大肌",
+        "竖脊肌",
+        "腹直肌"
+      ],
+      "modes": [
+        "screening"
+      ],
+      "structureType": "problem",
+      "transcriptCount": 5,
+      "charCount": 11006,
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\content\\004-anterior-pelvic-tilt",
+      "sourceBvids": [
+        "10307623",
+        "245109812",
+        "324234819",
+        "327676390",
+        "498811487"
+      ],
+      "searchGaps": [],
+      "title": "骨盆前倾 转录素材摘录",
+      "description": "基于 5 份视频转录整理的 骨盆前倾 素材摘录，当前挂载到 髋关节、臀大肌、竖脊肌、腹直肌。",
+      "knowledgeSlug": "body-map-transcript-pack-004-anterior-pelvic-tilt"
+    },
+    {
+      "slug": "007-knee-valgus-knee-cave",
+      "displayName": "膝内扣",
+      "status": "usable",
+      "bodyRegions": [
+        "膝关节",
+        "髋关节",
+        "臀大肌",
+        "股四头肌"
+      ],
+      "modes": [
+        "screening"
+      ],
+      "structureType": "problem",
+      "transcriptCount": 5,
+      "charCount": 7331,
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\content\\007-knee-valgus-knee-cave",
+      "sourceBvids": [
+        "1551459369",
+        "215792054",
+        "386510910",
+        "952999158",
+        "977279901"
+      ],
+      "searchGaps": [],
+      "title": "膝内扣 转录素材摘录",
+      "description": "基于 5 份视频转录整理的 膝内扣 素材摘录，当前挂载到 膝关节、髋关节、臀大肌、股四头肌。",
+      "knowledgeSlug": "body-map-transcript-pack-007-knee-valgus-knee-cave"
+    },
+    {
+      "slug": "008-flat-feet",
+      "displayName": "扁平足",
+      "status": "usable",
+      "bodyRegions": [
+        "踝关节",
+        "胫骨前肌",
+        "腓肠肌",
+        "比目鱼肌"
+      ],
+      "modes": [
+        "screening"
+      ],
+      "structureType": "problem",
+      "transcriptCount": 5,
+      "charCount": 15234,
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\content\\008-flat-feet",
+      "sourceBvids": [
+        "114743255767219",
+        "292194508",
+        "298422764",
+        "932059911",
+        "972527443"
+      ],
+      "searchGaps": [],
+      "title": "扁平足 转录素材摘录",
+      "description": "基于 5 份视频转录整理的 扁平足 素材摘录，当前挂载到 踝关节、胫骨前肌、腓肠肌、比目鱼肌。",
+      "knowledgeSlug": "body-map-transcript-pack-008-flat-feet"
+    },
+    {
+      "slug": "009-tennis-elbow",
+      "displayName": "网球肘",
+      "status": "usable",
+      "bodyRegions": [
+        "肱桡肌",
+        "腕关节",
+        "肱二头肌"
+      ],
+      "modes": [
+        "screening"
+      ],
+      "structureType": "problem",
+      "transcriptCount": 5,
+      "charCount": 8039,
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\content\\009-tennis-elbow",
+      "sourceBvids": [
+        "263690645",
+        "482520440",
+        "627060418",
+        "627462605",
+        "763388765"
+      ],
+      "searchGaps": [],
+      "title": "网球肘 转录素材摘录",
+      "description": "基于 5 份视频转录整理的 网球肘 素材摘录，当前挂载到 肱桡肌、腕关节、肱二头肌。",
+      "knowledgeSlug": "body-map-transcript-pack-009-tennis-elbow"
+    },
+    {
+      "slug": "010-golfers-elbow",
+      "displayName": "高尔夫球肘",
+      "status": "usable",
+      "bodyRegions": [
+        "肱桡肌",
+        "腕关节",
+        "肱二头肌",
+        "肱侧腕屈肌"
+      ],
+      "modes": [
+        "screening"
+      ],
+      "structureType": "problem",
+      "transcriptCount": 5,
+      "charCount": 10353,
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\content\\010-golfers-elbow",
+      "sourceBvids": [
+        "1503638233",
+        "373005104",
+        "409294249",
+        "627819475",
+        "726761230"
+      ],
+      "searchGaps": [],
+      "title": "高尔夫球肘 转录素材摘录",
+      "description": "基于 5 份视频转录整理的 高尔夫球肘 素材摘录，当前挂载到 肱桡肌、腕关节、肱二头肌、肱侧腕屈肌。",
+      "knowledgeSlug": "body-map-transcript-pack-010-golfers-elbow"
+    },
+    {
+      "slug": "018-patellar-tendon",
+      "displayName": "髌腱",
+      "status": "usable",
+      "bodyRegions": [
+        "膝关节",
+        "股四头肌"
+      ],
+      "modes": [
+        "screening",
+        "training"
+      ],
+      "structureType": "mixed",
+      "transcriptCount": 5,
+      "charCount": 10348,
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\content\\018-patellar-tendon",
+      "sourceBvids": [
+        "113949492121973",
+        "114862642565114",
+        "510347911",
+        "611118320",
+        "937180269"
+      ],
+      "searchGaps": [],
+      "title": "髌腱 转录素材摘录",
+      "description": "基于 5 份视频转录整理的 髌腱 素材摘录，当前挂载到 膝关节、股四头肌。",
+      "knowledgeSlug": "body-map-transcript-pack-018-patellar-tendon"
+    },
+    {
+      "slug": "019-serratus-anterior",
+      "displayName": "前锯肌",
+      "status": "usable",
+      "bodyRegions": [
+        "肩关节",
+        "胸大肌",
+        "背阔肌"
+      ],
+      "modes": [
+        "training",
+        "screening"
+      ],
+      "structureType": "muscle",
+      "transcriptCount": 5,
+      "charCount": 9699,
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\content\\019-serratus-anterior",
+      "sourceBvids": [
+        "1751230741",
+        "1806733951",
+        "1906315981",
+        "625936776",
+        "817262098"
+      ],
+      "searchGaps": [],
+      "title": "前锯肌 转录素材摘录",
+      "description": "基于 5 份视频转录整理的 前锯肌 素材摘录，当前挂载到 肩关节、胸大肌、背阔肌。",
+      "knowledgeSlug": "body-map-transcript-pack-019-serratus-anterior"
+    },
+    {
+      "slug": "020-pectoralis-minor",
+      "displayName": "胸小肌",
+      "status": "usable",
+      "bodyRegions": [
+        "胸大肌",
+        "肩关节"
+      ],
+      "modes": [
+        "training",
+        "screening"
+      ],
+      "structureType": "muscle",
+      "transcriptCount": 5,
+      "charCount": 5756,
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\content\\020-pectoralis-minor",
+      "sourceBvids": [
+        "114364929544999",
+        "632636913",
+        "645352928",
+        "710692516",
+        "848636774"
+      ],
+      "searchGaps": [
+        "胸小肌综合征",
+        "pectoralis minor syndrome rehab",
+        "胸小肌与肩峰撞击"
+      ],
+      "title": "胸小肌 转录素材摘录",
+      "description": "基于 5 份视频转录整理的 胸小肌 素材摘录，当前挂载到 胸大肌、肩关节。",
+      "knowledgeSlug": "body-map-transcript-pack-020-pectoralis-minor"
+    },
+    {
+      "slug": "023-gluteus-medius",
+      "displayName": "臀中肌",
+      "status": "usable",
+      "bodyRegions": [
+        "髋关节",
+        "臀大肌"
+      ],
+      "modes": [
+        "training",
+        "screening"
+      ],
+      "structureType": "muscle",
+      "transcriptCount": 5,
+      "charCount": 13356,
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\content\\023-gluteus-medius",
+      "sourceBvids": [
+        "116389184542825",
+        "17934284",
+        "336625184",
+        "468955226",
+        "967890890"
+      ],
+      "searchGaps": [],
+      "title": "臀中肌 转录素材摘录",
+      "description": "基于 5 份视频转录整理的 臀中肌 素材摘录，当前挂载到 髋关节、臀大肌。",
+      "knowledgeSlug": "body-map-transcript-pack-023-gluteus-medius"
+    },
+    {
+      "slug": "025-iliopsoas",
+      "displayName": "髂腰肌",
+      "status": "usable",
+      "bodyRegions": [
+        "髋关节",
+        "腹直肌"
+      ],
+      "modes": [
+        "training",
+        "screening"
+      ],
+      "structureType": "muscle",
+      "transcriptCount": 5,
+      "charCount": 12794,
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\content\\025-iliopsoas",
+      "sourceBvids": [
+        "114776877305567",
+        "1352064436",
+        "219183933",
+        "838877047",
+        "868396160"
+      ],
+      "searchGaps": [],
+      "title": "髂腰肌 转录素材摘录",
+      "description": "基于 5 份视频转录整理的 髂腰肌 素材摘录，当前挂载到 髋关节、腹直肌。",
+      "knowledgeSlug": "body-map-transcript-pack-025-iliopsoas"
+    },
+    {
+      "slug": "028-triceps-brachii",
+      "displayName": "肱三头肌",
+      "status": "usable",
+      "bodyRegions": [
+        "肱三头肌",
+        "肩关节"
+      ],
+      "modes": [
+        "training"
+      ],
+      "structureType": "muscle",
+      "transcriptCount": 5,
+      "charCount": 7875,
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\content\\028-triceps-brachii",
+      "sourceBvids": [
+        "114153855386466",
+        "114229554189518",
+        "250361743",
+        "485147545",
+        "541852947"
+      ],
+      "searchGaps": [],
+      "title": "肱三头肌 转录素材摘录",
+      "description": "基于 5 份视频转录整理的 肱三头肌 素材摘录，当前挂载到 肱三头肌、肩关节。",
+      "knowledgeSlug": "body-map-transcript-pack-028-triceps-brachii"
+    },
+    {
+      "slug": "036-cervical-lymph-nodes",
+      "displayName": "颈前淋巴结区",
+      "status": "skipped",
+      "bodyRegions": [],
+      "modes": [],
+      "structureType": "problem",
+      "transcriptCount": 3,
+      "charCount": 5884,
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\content\\036-cervical-lymph-nodes",
+      "sourceBvids": [
+        "259111513",
+        "510489935",
+        "741319870"
+      ],
+      "searchGaps": [
+        "颈前淋巴结 肿大 何时就医",
+        "cervical lymph nodes red flags"
+      ],
+      "skipReason": "当前人体图没有头面颈前点击区，且该主题医学红线较高，不适合硬挂到现有 26 个点击部位。",
+      "title": "颈前淋巴结区 转录素材包（待扩点击区）",
+      "description": "当前人体图没有头面颈前点击区，且该主题医学红线较高，不适合硬挂到现有 26 个点击部位。",
+      "knowledgeSlug": "body-map-transcript-pack-036-cervical-lymph-nodes"
+    },
+    {
+      "slug": "037-temporomandibular-joint",
+      "displayName": "颞下颌关节",
+      "status": "skipped",
+      "bodyRegions": [],
+      "modes": [],
+      "structureType": "joint",
+      "transcriptCount": 3,
+      "charCount": 3615,
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\content\\037-temporomandibular-joint",
+      "sourceBvids": [
+        "116049513026947",
+        "585509877",
+        "68043653"
+      ],
+      "searchGaps": [
+        "TMJ rehab",
+        "颞下颌关节 弹响 康复",
+        "jaw pain red flags"
+      ],
+      "skipReason": "当前人体图没有头面颌面点击区，更适合后续扩点击区或做问题模式时接入。",
+      "title": "颞下颌关节 转录素材包（待扩点击区）",
+      "description": "当前人体图没有头面颌面点击区，更适合后续扩点击区或做问题模式时接入。",
+      "knowledgeSlug": "body-map-transcript-pack-037-temporomandibular-joint"
+    },
+    {
+      "slug": "038-masseter",
+      "displayName": "咬肌",
+      "status": "skipped",
+      "bodyRegions": [],
+      "modes": [],
+      "structureType": "muscle",
+      "transcriptCount": 3,
+      "charCount": 4848,
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\content\\038-masseter",
+      "sourceBvids": [
+        "299034436",
+        "582538009",
+        "843120888"
+      ],
+      "searchGaps": [
+        "咬肌 紧张 放松",
+        "masseter bruxism rehab"
+      ],
+      "skipReason": "当前人体图没有面部点击区。",
+      "title": "咬肌 转录素材包（待扩点击区）",
+      "description": "当前人体图没有面部点击区。",
+      "knowledgeSlug": "body-map-transcript-pack-038-masseter"
+    },
+    {
+      "slug": "039-medial-pterygoid",
+      "displayName": "翼内肌",
+      "status": "skipped",
+      "bodyRegions": [],
+      "modes": [],
+      "structureType": "muscle",
+      "transcriptCount": 3,
+      "charCount": 13631,
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\content\\039-medial-pterygoid",
+      "sourceBvids": [
+        "113956505193131",
+        "1704613054",
+        "707262531"
+      ],
+      "searchGaps": [
+        "翼内肌 TMJ",
+        "medial pterygoid rehab"
+      ],
+      "skipReason": "当前人体图没有面部点击区。",
+      "title": "翼内肌 转录素材包（待扩点击区）",
+      "description": "当前人体图没有面部点击区。",
+      "knowledgeSlug": "body-map-transcript-pack-039-medial-pterygoid"
+    },
+    {
+      "slug": "044-infraspinatus",
+      "displayName": "冈下肌",
+      "status": "usable",
+      "bodyRegions": [
+        "岗下肌",
+        "肩关节"
+      ],
+      "modes": [
+        "training",
+        "screening"
+      ],
+      "structureType": "muscle",
+      "transcriptCount": 4,
+      "charCount": 9216,
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\content\\044-infraspinatus",
+      "sourceBvids": [
+        "113264562341820",
+        "1651872963",
+        "259591367",
+        "502123660"
+      ],
+      "searchGaps": [],
+      "title": "冈下肌 转录素材摘录",
+      "description": "基于 4 份视频转录整理的 冈下肌 素材摘录，当前挂载到 岗下肌、肩关节。",
+      "knowledgeSlug": "body-map-transcript-pack-044-infraspinatus"
+    },
+    {
+      "slug": "065-external-obliques",
+      "displayName": "腹外斜肌",
+      "status": "usable",
+      "bodyRegions": [
+        "腹外直肌",
+        "腹直肌"
+      ],
+      "modes": [
+        "training"
+      ],
+      "structureType": "muscle",
+      "transcriptCount": 5,
+      "charCount": 11398,
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\content\\065-external-obliques",
+      "sourceBvids": [
+        "260974752",
+        "710743031",
+        "711966283",
+        "83284475",
+        "844605957"
+      ],
+      "searchGaps": [],
+      "title": "腹外斜肌 转录素材摘录",
+      "description": "基于 5 份视频转录整理的 腹外斜肌 素材摘录，当前挂载到 腹外直肌、腹直肌。",
+      "knowledgeSlug": "body-map-transcript-pack-065-external-obliques"
+    },
+    {
+      "slug": "073-adductors",
+      "displayName": "内收肌群",
+      "status": "usable",
+      "bodyRegions": [
+        "内收肌",
+        "髋关节"
+      ],
+      "modes": [
+        "training",
+        "screening"
+      ],
+      "structureType": "muscle",
+      "transcriptCount": 5,
+      "charCount": 17480,
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\content\\073-adductors",
+      "sourceBvids": [
+        "114189171432311",
+        "115190955773982",
+        "1506394007",
+        "397524202",
+        "45546111"
+      ],
+      "searchGaps": [],
+      "title": "内收肌群 转录素材摘录",
+      "description": "基于 5 份视频转录整理的 内收肌群 素材摘录，当前挂载到 内收肌、髋关节。",
+      "knowledgeSlug": "body-map-transcript-pack-073-adductors"
+    },
+    {
+      "slug": "081-biceps-femoris",
+      "displayName": "股二头肌",
+      "status": "usable",
+      "bodyRegions": [
+        "股二头肌",
+        "臀大肌"
+      ],
+      "modes": [
+        "training",
+        "screening"
+      ],
+      "structureType": "muscle",
+      "transcriptCount": 5,
+      "charCount": 20079,
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\content\\081-biceps-femoris",
+      "sourceBvids": [
+        "113059695756247",
+        "289146124",
+        "628553831",
+        "707262531",
+        "711416723"
+      ],
+      "searchGaps": [],
+      "title": "股二头肌 转录素材摘录",
+      "description": "基于 5 份视频转录整理的 股二头肌 素材摘录，当前挂载到 股二头肌、臀大肌。",
+      "knowledgeSlug": "body-map-transcript-pack-081-biceps-femoris"
+    },
+    {
+      "slug": "082-semitendinosus-semimembranosus",
+      "displayName": "半腱肌与半膜肌",
+      "status": "usable",
+      "bodyRegions": [
+        "半腱肌",
+        "臀大肌",
+        "膝关节"
+      ],
+      "modes": [
+        "training",
+        "screening"
+      ],
+      "structureType": "muscle",
+      "transcriptCount": 5,
+      "charCount": 5601,
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\content\\082-semitendinosus-semimembranosus",
+      "sourceBvids": [
+        "334953276",
+        "335388197",
+        "505539622",
+        "816513371",
+        "884509478"
+      ],
+      "searchGaps": [],
+      "title": "半腱肌与半膜肌 转录素材摘录",
+      "description": "基于 5 份视频转录整理的 半腱肌与半膜肌 素材摘录，当前挂载到 半腱肌、臀大肌、膝关节。",
+      "knowledgeSlug": "body-map-transcript-pack-082-semitendinosus-semimembranosus"
+    },
+    {
+      "slug": "101-foot-arch",
+      "displayName": "足弓",
+      "status": "usable",
+      "bodyRegions": [
+        "踝关节",
+        "胫骨前肌"
+      ],
+      "modes": [
+        "screening",
+        "training"
+      ],
+      "structureType": "mixed",
+      "transcriptCount": 5,
+      "charCount": 14966,
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\content\\101-foot-arch",
+      "sourceBvids": [
+        "114743255767219",
+        "292194508",
+        "298422764",
+        "932059911",
+        "972527443"
+      ],
+      "searchGaps": [],
+      "title": "足弓 转录素材摘录",
+      "description": "基于 5 份视频转录整理的 足弓 素材摘录，当前挂载到 踝关节、胫骨前肌。",
+      "knowledgeSlug": "body-map-transcript-pack-101-foot-arch"
+    },
+    {
+      "slug": "105-ankle-dorsiflexion-limit",
+      "displayName": "踝背屈受限",
+      "status": "usable",
+      "bodyRegions": [
+        "踝关节",
+        "胫骨前肌",
+        "腓肠肌",
+        "比目鱼肌"
+      ],
+      "modes": [
+        "screening",
+        "training"
+      ],
+      "structureType": "problem",
+      "transcriptCount": 5,
+      "charCount": 10817,
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\content\\105-ankle-dorsiflexion-limit",
+      "sourceBvids": [
+        "226555741",
+        "266488508",
+        "534653398",
+        "587708963",
+        "618486895"
+      ],
+      "searchGaps": [],
+      "title": "踝背屈受限 转录素材摘录",
+      "description": "基于 5 份视频转录整理的 踝背屈受限 素材摘录，当前挂载到 踝关节、胫骨前肌、腓肠肌、比目鱼肌。",
+      "knowledgeSlug": "body-map-transcript-pack-105-ankle-dorsiflexion-limit"
+    },
+    {
+      "slug": "109-elbow-joint",
+      "displayName": "肘关节",
+      "status": "usable",
+      "bodyRegions": [
+        "肱二头肌",
+        "肱三头肌",
+        "肱桡肌"
+      ],
+      "modes": [
+        "screening",
+        "training"
+      ],
+      "structureType": "joint",
+      "transcriptCount": 5,
+      "charCount": 18351,
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\content\\109-elbow-joint",
+      "sourceBvids": [
+        "114103808951220",
+        "114153855386466",
+        "115485731593959",
+        "252958370",
+        "562625731"
+      ],
+      "searchGaps": [],
+      "title": "肘关节 转录素材摘录",
+      "description": "基于 5 份视频转录整理的 肘关节 素材摘录，当前挂载到 肱二头肌、肱三头肌、肱桡肌。",
+      "knowledgeSlug": "body-map-transcript-pack-109-elbow-joint"
+    },
+    {
+      "slug": "114-wrist-flexors",
+      "displayName": "腕屈肌群",
+      "status": "usable",
+      "bodyRegions": [
+        "肱侧腕屈肌",
+        "腕关节"
+      ],
+      "modes": [
+        "training",
+        "screening"
+      ],
+      "structureType": "muscle",
+      "transcriptCount": 5,
+      "charCount": 6816,
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\content\\114-wrist-flexors",
+      "sourceBvids": [
+        "1856173298",
+        "470341981",
+        "633406774",
+        "801938371",
+        "957753828"
+      ],
+      "searchGaps": [
+        "腕屈肌群 康复",
+        "wrist flexors rehab",
+        "前臂内侧疼痛 训练"
+      ],
+      "title": "腕屈肌群 转录素材摘录",
+      "description": "基于 5 份视频转录整理的 腕屈肌群 素材摘录，当前挂载到 肱侧腕屈肌、腕关节。",
+      "knowledgeSlug": "body-map-transcript-pack-114-wrist-flexors"
+    },
+    {
+      "slug": "134-teres-major",
+      "displayName": "大圆肌",
+      "status": "usable",
+      "bodyRegions": [
+        "大圆肌",
+        "背阔肌",
+        "肩关节"
+      ],
+      "modes": [
+        "training"
+      ],
+      "structureType": "muscle",
+      "transcriptCount": 4,
+      "charCount": 9619,
+      "filePath": "C:\\Users\\29454\\.openclaw\\workspace-main\\body-map-system\\content\\134-teres-major",
+      "sourceBvids": [
+        "114228950209366",
+        "1203602998",
+        "1653643434",
+        "757132341"
+      ],
+      "searchGaps": [
+        "大圆肌 背阔肌 区别",
+        "teres major anatomy training",
+        "大圆肌 肩后侧疼痛"
+      ],
+      "title": "大圆肌 转录素材摘录",
+      "description": "基于 4 份视频转录整理的 大圆肌 素材摘录，当前挂载到 大圆肌、背阔肌、肩关节。",
+      "knowledgeSlug": "body-map-transcript-pack-134-teres-major"
+    }
+  ],
+  "writeResults": [
+    {
+      "slug": "002-rounded-shoulders",
+      "action": "error",
+      "error": "TypeError: fetch failed"
+    },
+    {
+      "slug": "004-anterior-pelvic-tilt",
+      "action": "error",
+      "error": "TypeError: fetch failed"
+    },
+    {
+      "slug": "007-knee-valgus-knee-cave",
+      "action": "error",
+      "error": "TypeError: fetch failed"
+    },
+    {
+      "slug": "008-flat-feet",
+      "action": "error",
+      "error": "TypeError: fetch failed"
+    },
+    {
+      "slug": "009-tennis-elbow",
+      "action": "error",
+      "error": "TypeError: fetch failed"
+    },
+    {
+      "slug": "010-golfers-elbow",
+      "action": "error",
+      "error": "TypeError: fetch failed"
+    },
+    {
+      "slug": "018-patellar-tendon",
+      "action": "error",
+      "error": "TypeError: fetch failed"
+    },
+    {
+      "slug": "019-serratus-anterior",
+      "action": "error",
+      "error": "TypeError: fetch failed"
+    },
+    {
+      "slug": "020-pectoralis-minor",
+      "action": "error",
+      "error": "TypeError: fetch failed"
+    },
+    {
+      "slug": "023-gluteus-medius",
+      "action": "error",
+      "error": "TypeError: fetch failed"
+    },
+    {
+      "slug": "025-iliopsoas",
+      "action": "error",
+      "error": "TypeError: fetch failed"
+    },
+    {
+      "slug": "028-triceps-brachii",
+      "action": "error",
+      "error": "TypeError: fetch failed"
+    },
+    {
+      "slug": "036-cervical-lymph-nodes",
+      "action": "skipped"
+    },
+    {
+      "slug": "037-temporomandibular-joint",
+      "action": "skipped"
+    },
+    {
+      "slug": "038-masseter",
+      "action": "skipped"
+    },
+    {
+      "slug": "039-medial-pterygoid",
+      "action": "skipped"
+    },
+    {
+      "slug": "044-infraspinatus",
+      "action": "error",
+      "error": "TypeError: fetch failed"
+    },
+    {
+      "slug": "065-external-obliques",
+      "action": "error",
+      "error": "TypeError: fetch failed"
+    },
+    {
+      "slug": "073-adductors",
+      "action": "error",
+      "error": "TypeError: fetch failed"
+    },
+    {
+      "slug": "081-biceps-femoris",
+      "action": "error",
+      "error": "TypeError: fetch failed"
+    },
+    {
+      "slug": "082-semitendinosus-semimembranosus",
+      "action": "error",
+      "error": "TypeError: fetch failed"
+    },
+    {
+      "slug": "101-foot-arch",
+      "action": "error",
+      "error": "TypeError: fetch failed"
+    },
+    {
+      "slug": "105-ankle-dorsiflexion-limit",
+      "action": "error",
+      "error": "TypeError: fetch failed"
+    },
+    {
+      "slug": "109-elbow-joint",
+      "action": "error",
+      "error": "TypeError: fetch failed"
+    },
+    {
+      "slug": "114-wrist-flexors",
+      "action": "error",
+      "error": "TypeError: fetch failed"
+    },
+    {
+      "slug": "134-teres-major",
+      "action": "error",
+      "error": "TypeError: fetch failed"
+    }
+  ]
+}
