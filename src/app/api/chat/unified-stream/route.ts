@@ -12,18 +12,62 @@ export async function GET(req: NextRequest) {
     }
 
     const userId = session.user.id;
+    let cleanupStream: (() => void) | undefined;
 
     const stream = new ReadableStream({
         start(controller) {
             const channels: any[] = [];
+            let isClosed = false;
+
+            const removeChannels = () => {
+                while (channels.length > 0) {
+                    const channel = channels.pop();
+                    if (channel) {
+                        serviceRoleSupabase.removeChannel(channel);
+                    }
+                }
+            };
+
+            const safeEnqueue = (chunk: string) => {
+                if (isClosed || req.signal.aborted) return false;
+                try {
+                    controller.enqueue(chunk);
+                    return true;
+                } catch (error: any) {
+                    if (error?.code !== 'ERR_INVALID_STATE') {
+                        console.error('SSE 写入失败:', error);
+                    }
+                    isClosed = true;
+                    removeChannels();
+                    return false;
+                }
+            };
+
+            const cleanup = () => {
+                if (isClosed) return;
+                isClosed = true;
+                removeChannels();
+                try {
+                    controller.close();
+                } catch (error: any) {
+                    if (error?.code !== 'ERR_INVALID_STATE') {
+                        console.error('SSE 关闭失败:', error);
+                    }
+                }
+            };
+            cleanupStream = cleanup;
 
             // 1. 获取用户所在的所有聊天室，并为每个聊天室创建消息监听
             (async () => {
                 try {
+                    if (isClosed || req.signal.aborted) return;
+
                     const { data: userRooms, error: roomsError } = await supabase
                         .from('chat_rooms')
                         .select('id, members')
                         .contains('members', [userId]);
+
+                    if (isClosed || req.signal.aborted) return;
 
                     if (roomsError) {
                         console.error('获取用户聊天室失败:', roomsError);
@@ -39,6 +83,8 @@ export async function GET(req: NextRequest) {
 
                     // 为每个聊天室创建单独的消息监听
                     userRooms.forEach((room) => {
+                        if (isClosed || req.signal.aborted) return;
+
                         const messageChannel = serviceRoleSupabase
                             .channel(`unified:room:${room.id}:user:${userId}`)
                             .on(
@@ -50,6 +96,8 @@ export async function GET(req: NextRequest) {
                                     filter: `room_id=eq.${room.id}`,
                                 },
                                 async (payload) => {
+                                    if (isClosed || req.signal.aborted) return;
+
                                     // 双重验证：确保消息属于用户所在的聊天室
                                     const messageRoomId = payload.new?.room_id;
                                     if (!messageRoomId || !userRoomIds.has(messageRoomId)) {
@@ -65,9 +113,9 @@ export async function GET(req: NextRequest) {
                                     }
 
                                     // 验证通过，发送消息
-                                    controller.enqueue(
+                                    if (!safeEnqueue(
                                         `event: message\ndata: ${JSON.stringify({ type: 'message', data: payload.new })}\n\n`
-                                    );
+                                    )) return;
 
                                     // 当收到新消息时，主动触发一次未读数更新
                                     // 这样可以确保即使数据库触发器没有正确触发事件，前端也能收到更新
@@ -92,7 +140,7 @@ export async function GET(req: NextRequest) {
                                                     return acc;
                                                 }, {} as Record<string, number>);
 
-                                                controller.enqueue(
+                                                safeEnqueue(
                                                     `event: unread_count\ndata: ${JSON.stringify({ type: 'unread_count', totalUnread, unreadByRoom })}\n\n`
                                                 );
                                             }
@@ -122,6 +170,8 @@ export async function GET(req: NextRequest) {
                         filter: `user_id=eq.${userId}`,
                     },
                     async (payload) => {
+                        if (isClosed || req.signal.aborted) return;
+
                         // 验证 payload 中的 user_id 是否匹配当前用户（双重验证）
                         const newRecord = payload.new as any;
                         const oldRecord = payload.old as any;
@@ -155,7 +205,7 @@ export async function GET(req: NextRequest) {
                             return acc;
                         }, {} as Record<string, number>);
 
-                        controller.enqueue(
+                        safeEnqueue(
                             `event: unread_count\ndata: ${JSON.stringify({ type: 'unread_count', totalUnread, unreadByRoom })}\n\n`
                         );
                     }
@@ -166,10 +216,14 @@ export async function GET(req: NextRequest) {
             // 3. 初始发送一次未读数（只发送当前用户的未读数）
             (async () => {
                 try {
+                    if (isClosed || req.signal.aborted) return;
+
                     const { data: unreadRows, error } = await supabase
                         .from('chat_room_unreads')
                         .select('room_id, unread_count, user_id')
                         .eq('user_id', userId); // 明确指定只查询当前用户的未读数
+
+                    if (isClosed || req.signal.aborted) return;
 
                     if (error) {
                         console.error('获取初始未读数失败:', error);
@@ -189,7 +243,7 @@ export async function GET(req: NextRequest) {
                         return acc;
                     }, {} as Record<string, number>);
 
-                    controller.enqueue(
+                    safeEnqueue(
                         `event: unread_count\ndata: ${JSON.stringify({ type: 'unread_count', totalUnread, unreadByRoom })}\n\n`
                     );
                 } catch (error) {
@@ -199,11 +253,11 @@ export async function GET(req: NextRequest) {
 
             // 清理函数
             req.signal.addEventListener('abort', () => {
-                channels.forEach(channel => {
-                    serviceRoleSupabase.removeChannel(channel);
-                });
-                controller.close();
+                cleanup();
             });
+        },
+        cancel() {
+            cleanupStream?.();
         },
     });
 

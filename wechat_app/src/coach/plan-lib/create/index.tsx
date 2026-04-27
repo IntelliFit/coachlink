@@ -2,9 +2,8 @@ import { useEffect, useState } from 'react'
 import Taro from '@tarojs/taro'
 import PlanEditorWorkbench from '@/components/PlanEditorWorkbench'
 import { actionLibService } from '@/services/coach/actionLibService'
-import { coachService } from '@/services/coach/coachService'
 import { planLibService } from '@/services/coach/planLibService'
-import type { PlanActionOption, PlanEditorValue, PlanQuestionItem } from '@/types/plan'
+import type { PlanActionOption, PlanEditorValue } from '@/types/plan'
 
 export default function CoachPlanLibCreate() {
   const [actions, setActions] = useState<PlanActionOption[]>([])
@@ -37,9 +36,8 @@ export default function CoachPlanLibCreate() {
     }
   }
 
-  const loadQuestionnaires = async (): Promise<PlanQuestionItem[]> => {
-    const res = await coachService.getQuestionnaires()
-    return Array.isArray((res as any)?.questionnaires) ? (res as any).questionnaires : []
+  const handleImportText = async (text: string, importActions: PlanActionOption[]) => {
+    return planLibService.parseTemplate(text, importActions)
   }
 
   const handleSave = async (value: PlanEditorValue) => {
@@ -48,6 +46,7 @@ export default function CoachPlanLibCreate() {
       const res = await planLibService.createTemplate({
         name: value.name,
         description: value.description || null,
+        executionNotice: value.executionNotice || null,
         tags: value.tags,
         suitableFor: value.suitableFor,
         type: value.type || null,
@@ -77,7 +76,7 @@ export default function CoachPlanLibCreate() {
       saveLabel='创建模板'
       onCancel={() => Taro.navigateBack()}
       onSave={handleSave}
-      loadQuestionnaires={loadQuestionnaires}
+      onImportText={handleImportText}
     />
   )
 }

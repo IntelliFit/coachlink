@@ -139,9 +139,11 @@ export async function getCurrent1RMRecords(
                 console.warn("[get-current-1rm] student_actions by name failed:", byNameResult.error);
             }
             const mergedMap = new Map<string, any>();
+            const byIdRows = (byIdResult.data || []) as any[];
+            const byNameRows = (byNameResult.data || []) as any[];
             for (const row of [
-                ...(byIdResult.data || []),
-                ...(byNameResult.data || []),
+                ...byIdRows,
+                ...byNameRows,
             ]) {
                 if (row?.id) mergedMap.set(row.id, row);
             }

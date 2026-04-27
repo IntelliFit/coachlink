@@ -1,6 +1,6 @@
 {
-  "libVersion": "3.15.0",
-  "projectname": "coachlink-wechat-app",
+  "libVersion": "3.15.2",
+  "projectname": "wechat_app",
   "condition": {},
   "setting": {
     "urlCheck": false,

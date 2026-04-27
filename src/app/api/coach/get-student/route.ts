@@ -63,7 +63,7 @@ export async function POST(req: Request) {
 
     let query = supabase
         .from('coach_subscriptions')
-        .select('id, student_id, tier, status, start_date, end_date, updated_at, subscribe_data, monthly_price')
+        .select('id, coach_id, student_id, tier, status, start_date, end_date, updated_at, subscribe_data, monthly_price, subscribed_weeks, prior_training_weeks, order_id, last_payment_order_id, payment_method')
         .eq('status', 'active');
 
     // 根据参数类型构建查询

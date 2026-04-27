@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
-import { View, Text, ScrollView, Input, Image } from '@tarojs/components'
+import { View, Text, ScrollView, Input, Image, Textarea } from '@tarojs/components'
 import { User, Message } from '@nutui/icons-react-taro'
 import Taro from '@tarojs/taro'
 import PlanCompactWeekCalendar from '@/components/PlanCompactWeekCalendar'
@@ -11,7 +11,7 @@ import { authService } from '@/services/authService'
 import { chatService } from '@/services/chatService'
 import { isOneRMEligibleAction } from '@/utils/oneRmEligibility'
 import { buildExecutionSummary } from '@/utils/planEditor'
-import { buildStrengthPreview, resolveEditableDisplayName } from '@/utils/planStrength'
+import { buildStrengthPreview } from '@/utils/planStrength'
 import './index.scss'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 
@@ -83,12 +83,14 @@ interface PlanInstance {
   id: string
   name: string
   description?: string
+  execution_notice?: string | null
   status: 'active' | 'paused' | 'completed'
   progress: number
   current_day: number
   total_days: number
   start_date?: string
   template_id?: string
+  ai_generation_log?: any
 }
 
 interface Execution {
@@ -306,6 +308,8 @@ interface PlanInstanceWithExtras extends PlanInstance {
 function CoachStudentPlan() {
   const routeParams = Taro.getCurrentInstance().router?.params || {}
   const subscriptionId = routeParams.id
+  const historyInstanceId = routeParams.instanceId || routeParams.planInstanceId || ''
+  const isReadonlyPlanView = routeParams.readonly === '1' || Boolean(historyInstanceId)
   const focusDayParam = Number(routeParams.focusDay)
   const openFeedbackParam = routeParams.openFeedback === '1'
 
@@ -335,6 +339,7 @@ function CoachStudentPlan() {
   const [selectedDayIndex, setSelectedDayIndex] = useState<number>(0)
   const [editName, setEditName] = useState('')
   const [editDescription, setEditDescription] = useState('')
+  const [editExecutionNotice, setEditExecutionNotice] = useState('')
   const [editSuitableFor, setEditSuitableFor] = useState<string>('beginner')
 
   // 面板状态
@@ -348,6 +353,12 @@ function CoachStudentPlan() {
   const [templateImportMode, setTemplateImportMode] = useState<'overwrite' | 'new_instance'>('overwrite')
   const [templateStartWeek, setTemplateStartWeek] = useState(1)
   const [templateStartDay, setTemplateStartDay] = useState(1)
+  const [showAiModifierDialog, setShowAiModifierDialog] = useState(false)
+  const [aiModifierInstruction, setAiModifierInstruction] = useState('')
+  const [aiModifierLoading, setAiModifierLoading] = useState(false)
+  const [aiModifierError, setAiModifierError] = useState('')
+  const [aiModifierPreviewDays, setAiModifierPreviewDays] = useState<TrainingDay[] | null>(null)
+  const [aiModifierPreviewSummary, setAiModifierPreviewSummary] = useState('')
 
   // 1RM 配置
   const [oneRMValues, setOneRMValues] = useState<Record<string, number | null>>({})
@@ -520,6 +531,7 @@ function CoachStudentPlan() {
   const serializePlanSnapshot = useCallback((
     name: string,
     description: string,
+    executionNotice: string,
     suitableFor: string,
     days: TrainingDay[]
   ) => {
@@ -527,6 +539,7 @@ function CoachStudentPlan() {
       return JSON.stringify({
         name: (name || '').trim(),
         description: (description || '').trim(),
+        executionNotice: (executionNotice || '').trim(),
         suitableFor: (suitableFor || '').trim() || 'beginner',
         trainingDays: days || []
       })
@@ -708,6 +721,7 @@ function CoachStudentPlan() {
     dayIndex: number,
     updater: (currentDay: TrainingDay) => TrainingDay
   ) => {
+    if (isReadonlyPlanView) return
     const normalized = Math.floor(Number(dayIndex))
     if (!Number.isFinite(normalized) || normalized <= 0) return
     setTrainingDays((prevDays) => {
@@ -717,7 +731,7 @@ function CoachStudentPlan() {
       nextDays[targetIndex] = updater(nextDays[targetIndex])
       return nextDays
     })
-  }, [])
+  }, [isReadonlyPlanView])
 
   const weekGroups = useMemo(() => {
     const weeks: TrainingDay[][] = []
@@ -734,6 +748,9 @@ function CoachStudentPlan() {
     try {
       setLoading(true)
       setAutoSaveReady(false)
+      const instanceRequest = historyInstanceId
+        ? { id: historyInstanceId }
+        : { subscriptionId }
 
       // 并行加载所有数据
       const [
@@ -746,8 +763,10 @@ function CoachStudentPlan() {
         actionLibService.listActions({ page: 1, limit: 500 }).catch(e => { console.error('Actions load failed', e); return null }),
         coachService.getStudent({ subscriptionId, need1RM: true }).catch(e => { console.error('Student load failed', e); return null }),
         coachService.getStudentActions({ subscriptionId }).catch(e => { console.error('Student actions load failed', e); return null }),
-        planLibService.getInstance({ subscriptionId }).catch(e => { console.error('Instance load failed', e); return null }),
-        planLibService.getWithExecutions({ subscriptionId }).catch(e => { console.error('Execution load failed', e); return null })
+        planLibService.getInstance(instanceRequest).catch(e => { console.error('Instance load failed', e); return null }),
+        isReadonlyPlanView
+          ? Promise.resolve(null)
+          : planLibService.getWithExecutions({ subscriptionId }).catch(e => { console.error('Execution load failed', e); return null })
       ])
 
       // 处理学员数据
@@ -762,17 +781,19 @@ function CoachStudentPlan() {
       let nextInstanceId: string | null = null
       if (instanceRes?.instance) {
         const inst = instanceRes.instance as PlanInstanceWithExtras
-        setInstance(inst.status === 'active' || inst.status === 'paused' ? inst : null)
-        if (inst.status === 'active' || inst.status === 'paused') {
+        const editableCurrentInstance = inst.status === 'active' || inst.status === 'paused'
+        setInstance(isReadonlyPlanView || editableCurrentInstance ? inst : null)
+        if (!isReadonlyPlanView && editableCurrentInstance) {
           nextInstanceId = inst.id
         }
         setEditName(inst.name || '')
         setEditDescription(inst.description || '')
+        setEditExecutionNotice(inst.execution_notice || (inst as any).executionNotice || '')
         setEditSuitableFor(inst.suitable_for || 'beginner')
 
         // 加载反馈
         try {
-          const fbRes = await coachService.getStudentFeedbacks({ instanceId: inst.id, markRead: true })
+          const fbRes = await coachService.getStudentFeedbacks({ instanceId: inst.id, markRead: !isReadonlyPlanView })
           if (fbRes) {
             setFeedbacks(fbRes.feedbacks || [])
             setFeedbackUnreadCount(fbRes.unread_count || 0)
@@ -783,6 +804,7 @@ function CoachStudentPlan() {
         setInstanceId(null)
         setEditName('')
         setEditDescription('')
+        setEditExecutionNotice('')
         setFeedbacks([])
         setFeedbackUnreadCount(0)
         setShowOneRMPanel(false)
@@ -896,16 +918,19 @@ function CoachStudentPlan() {
         serializePlanSnapshot(
           instanceRes?.instance?.name || '',
           instanceRes?.instance?.description || '',
+          (instanceRes?.instance as any)?.execution_notice || (instanceRes?.instance as any)?.executionNotice || '',
           (instanceRes?.instance as PlanInstanceWithExtras | undefined)?.suitable_for || 'beginner',
           normalizedForSave
         )
       )
       setInstanceId(nextInstanceId)
-      setAutoSaveReady(Boolean(nextInstanceId && normalizedForSave.length > 0))
+      setAutoSaveReady(Boolean(!isReadonlyPlanView && nextInstanceId && normalizedForSave.length > 0))
       setAutoSaveStatus('idle')
 
       // 处理执行记录
-      if (exeRes?.executions) {
+      if (isReadonlyPlanView && instanceRes?.executionsByDayIndex) {
+        setExecutions(instanceRes.executionsByDayIndex as Record<number, Execution>)
+      } else if (exeRes?.executions) {
         setExecutions(exeRes.executions)
       } else {
         setExecutions({})
@@ -923,7 +948,7 @@ function CoachStudentPlan() {
     } finally {
       setLoading(false)
     }
-  }, [focusDayParam, normalizeActionSetTree, normalizeTrainingDaysForSave, openFeedbackParam, serializePlanSnapshot, subscriptionId])
+  }, [focusDayParam, historyInstanceId, isReadonlyPlanView, normalizeActionSetTree, normalizeTrainingDaysForSave, openFeedbackParam, serializePlanSnapshot, subscriptionId])
 
   useEffect(() => {
     if (!subscriptionId) {
@@ -960,6 +985,7 @@ function CoachStudentPlan() {
 
   // 自动保存
   useEffect(() => {
+    if (isReadonlyPlanView) return
     if (!autoSaveReady) return
     if (loading) return
     if (!instanceId) return
@@ -971,6 +997,7 @@ function CoachStudentPlan() {
     const currentSnapshot = serializePlanSnapshot(
       editName,
       editDescription,
+      editExecutionNotice,
       editSuitableFor,
       normalizedTrainingDays
     )
@@ -989,11 +1016,12 @@ function CoachStudentPlan() {
           id: instanceId,
           name: editName,
           description: editDescription || null,
+          executionNotice: editExecutionNotice || null,
           suitableFor: editSuitableFor || 'beginner',
           trainingDays: normalizedTrainingDays
         })
         setLastSavedSnapshot(currentSnapshot)
-        setInstance((prev) => (prev ? { ...prev, name: editName, description: editDescription } : prev))
+        setInstance((prev) => (prev ? { ...prev, name: editName, description: editDescription, execution_notice: editExecutionNotice || null } : prev))
         setAutoSaveStatus('saved')
         setTimeout(() => setAutoSaveStatus('idle'), 1800)
       } catch (error) {
@@ -1005,10 +1033,12 @@ function CoachStudentPlan() {
     return () => clearTimeout(timer)
   }, [
     editDescription,
+    editExecutionNotice,
     editName,
     editSuitableFor,
     autoSaveReady,
     instanceId,
+    isReadonlyPlanView,
     lastSavedSnapshot,
     loading,
     normalizeTrainingDaysForSave,
@@ -1018,6 +1048,10 @@ function CoachStudentPlan() {
 
   // 保存 1RM
   const handleSaveOneRM = async () => {
+    if (isReadonlyPlanView) {
+      Taro.showToast({ title: '历史计划仅支持查看', icon: 'none' })
+      return
+    }
     if (!subscriptionId || eligibleActions.length === 0) return
 
     const updates: Array<{ actionId: string; reference_1rm: number | null }> = []
@@ -1063,6 +1097,10 @@ function CoachStudentPlan() {
 
   // 暂停/继续计划
   const handleTogglePlanStatus = async () => {
+    if (isReadonlyPlanView) {
+      Taro.showToast({ title: '历史计划仅支持查看', icon: 'none' })
+      return
+    }
     if (!instanceId || !instance) return
     try {
       if (instance.status === 'active') {
@@ -1162,6 +1200,10 @@ function CoachStudentPlan() {
 
   // 从模板创建计划
   const handleCreateFromTemplate = async (templateId: string, startConfig?: { weekIndex: number; dayIndex: number; startDate?: string }) => {
+    if (isReadonlyPlanView) {
+      Taro.showToast({ title: '历史计划仅支持查看', icon: 'none' })
+      return
+    }
     if (!subscriptionId) {
       Taro.showToast({ title: '缺少学员参数', icon: 'none' })
       return
@@ -1187,6 +1229,7 @@ function CoachStudentPlan() {
           templateId,
           name: editName || templateRes?.template?.name || '训练计划',
           description: editDescription || templateRes?.template?.description || null,
+          executionNotice: editExecutionNotice || templateRes?.template?.execution_notice || templateRes?.template?.executionNotice || null,
           suitableFor: editSuitableFor || templateRes?.template?.suitable_for || 'beginner',
           startExecutionDay,
           trainingDays: templateRes?.days || []
@@ -1198,6 +1241,7 @@ function CoachStudentPlan() {
           subscriptionId,
           name: editName || '新训练计划',
           description: editDescription || null,
+          executionNotice: editExecutionNotice || null,
           suitableFor: editSuitableFor || 'beginner',
           startDate: calculatedStartDate,
           startWeek: normalizedStartWeek,
@@ -1594,7 +1638,6 @@ function CoachStudentPlan() {
       getActionSetRawName(actionSet)
     ) || '未选择动作'
     const summaryText = getActionSummaryText(actionSet)
-    const editableDisplayName = resolveEditableDisplayName(actionSet as any)
     const pathKey = path.join('-')
     const advancedOpen = Boolean(advancedActionKeys[pathKey])
     const topIndex = path[0]
@@ -1690,7 +1733,9 @@ function CoachStudentPlan() {
             <Text className='action-set-more' onClick={() => toggleActionAdvanced(pathKey)}>
               {advancedOpen ? '收起' : '更多'}
             </Text>
-            <Text className='action-set-delete' onClick={handleDelete}>删除</Text>
+            {!isReadonlyPlanView && (
+              <Text className='action-set-delete' onClick={handleDelete}>删除</Text>
+            )}
           </View>
         </View>
 
@@ -1845,6 +1890,21 @@ function CoachStudentPlan() {
                 </View>
               </View>
             </View>
+
+            <View className='action-set-params action-set-params--advanced action-set-params--inline-note'>
+              <View className='param-item param-item-full'>
+                <Text className='param-label'>备注</Text>
+                <Input
+                  className='param-input'
+                  type='text'
+                  value={String(params.note || '')}
+                  placeholder='如 rpe9、热身组等'
+                  onInput={(e) => updateSelectedDayActionParams(path, {
+                    note: e.detail.value
+                  })}
+                />
+              </View>
+            </View>
           </>
         ) : null}
 
@@ -1993,34 +2053,20 @@ function CoachStudentPlan() {
                     />
                   </View>
                 ) : null}
-                <View className='param-item param-item-full'>
-                  <Text className='param-label'>备注</Text>
-                  <Input
-                    className='param-input'
-                    type='text'
-                    value={String(params.note || '')}
-                    placeholder={isStrength ? '如 rpe9、热身组等' : '补充执行说明'}
-                    onInput={(e) => updateSelectedDayActionParams(path, {
-                      note: e.detail.value
-                    })}
-                  />
-                </View>
-                <View className='param-item param-item-full'>
-                  <Text className='param-label'>自定义显示名称</Text>
-                  <Input
-                    className='param-input'
-                    type='text'
-                    value={editableDisplayName}
-                    placeholder='不填就直接显示动作名'
-                    onInput={(e) => {
-                      const value = e.detail.value
-                      updateSelectedDayActionSet(path, (current) => ({
-                        ...current,
-                        setName: value
-                      }))
-                    }}
-                  />
-                </View>
+                {!isStrength ? (
+                  <View className='param-item param-item-full'>
+                    <Text className='param-label'>备注</Text>
+                    <Input
+                      className='param-input'
+                      type='text'
+                      value={String(params.note || '')}
+                      placeholder='补充执行说明'
+                      onInput={(e) => updateSelectedDayActionParams(path, {
+                        note: e.detail.value
+                      })}
+                    />
+                  </View>
+                ) : null}
               </View>
             ) : null}
 
@@ -2069,6 +2115,10 @@ function CoachStudentPlan() {
   }
 
   const handleOpenActionPicker = () => {
+    if (isReadonlyPlanView) {
+      Taro.showToast({ title: '历史计划仅支持查看', icon: 'none' })
+      return
+    }
     const day = getTrainingDayByDayIndex(selectedDayIndex)
     if (!day) return
     if (!actions.length) {
@@ -2251,6 +2301,28 @@ function CoachStudentPlan() {
     () => buildExecutionSummary(trainingDays as any, executions as any),
     [trainingDays, executions]
   )
+  const aiGenerationLog = instance?.ai_generation_log || (instance as any)?.aiGenerationLog || null
+  const formatAiGenerationSource = useCallback((source?: string | null) => {
+    if (source === 'instance') return '历史计划骨架'
+    if (source === 'template') return '模板骨架'
+    return '从零生成'
+  }, [])
+  const formatAiGenerationConfidence = useCallback((value?: number | null) => {
+    const num = Number(value)
+    if (!Number.isFinite(num)) return ''
+    return `${Math.round(num * 100)}%`
+  }, [])
+  const formatAiGenerationTime = useCallback((value?: string | null) => {
+    if (!value) return ''
+    const dt = new Date(value)
+    if (Number.isNaN(dt.getTime())) return ''
+    const yyyy = dt.getFullYear()
+    const mm = String(dt.getMonth() + 1).padStart(2, '0')
+    const dd = String(dt.getDate()).padStart(2, '0')
+    const hh = String(dt.getHours()).padStart(2, '0')
+    const min = String(dt.getMinutes()).padStart(2, '0')
+    return `${yyyy}-${mm}-${dd} ${hh}:${min}`
+  }, [])
   const aiFeedbackDraft = useMemo(() => {
     if (!feedbacks.length) return ''
     const latestFeedbacks = feedbacks.slice(0, 3)
@@ -2272,6 +2344,76 @@ function CoachStudentPlan() {
       '3. 如果主要问题是恢复差，优先调整休息、睡眠和训练密度'
     ].join('\n')
   }, [feedbacks, studentData])
+
+  const handleOpenAiModifier = (instruction?: string) => {
+    if (isReadonlyPlanView) {
+      Taro.showToast({ title: '历史计划仅支持查看', icon: 'none' })
+      return
+    }
+    const preset = (instruction || aiFeedbackDraft || '').trim()
+    setAiModifierInstruction(preset)
+    setAiModifierError('')
+    setAiModifierPreviewDays(null)
+    setAiModifierPreviewSummary('')
+    setShowAiModifierDialog(true)
+  }
+
+  const handleRunAiModifier = async () => {
+    const instruction = aiModifierInstruction.trim()
+    if (!instruction) {
+      setAiModifierError('请输入要让 AI 修改计划的要求')
+      return
+    }
+    if (!trainingDays.length) {
+      setAiModifierError('当前计划为空，无法进行 AI 修改')
+      return
+    }
+
+    setAiModifierLoading(true)
+    setAiModifierError('')
+    setAiModifierPreviewDays(null)
+    setAiModifierPreviewSummary('')
+    try {
+      const result = await planLibService.previewBatchOperationLocal({
+        trainingDays,
+        instruction,
+        subscriptionId,
+        subjectUserId: studentData?.student_id
+      })
+      if (!result?.updatedTrainingDays?.length) {
+        throw new Error('AI 暂未返回可应用的计划修改')
+      }
+      const normalizedDays = (result.updatedTrainingDays as TrainingDay[]).map((day) => ({
+        ...day,
+        actionSets: Array.isArray(day.actionSets) ? day.actionSets : []
+      }))
+      const modifications = result.modifications || []
+      setAiModifierPreviewDays(normalizedDays)
+      setAiModifierPreviewSummary(
+        result.message || (modifications.length ? `AI 已生成 ${modifications.length} 处修改预览` : 'AI 已生成计划修改预览')
+      )
+    } catch (error: any) {
+      console.error('[coach/students/plan] ai modifier failed:', error)
+      setAiModifierError(error?.message || 'AI 修改失败，请稍后重试')
+    } finally {
+      setAiModifierLoading(false)
+    }
+  }
+
+  const handleApplyAiModifierPreview = () => {
+    if (isReadonlyPlanView) return
+    if (!aiModifierPreviewDays?.length) return
+    const normalizedDays = aiModifierPreviewDays.map((day) => ({
+      ...day,
+      actionSets: Array.isArray(day.actionSets) ? day.actionSets : []
+    }))
+    setTrainingDays(normalizedDays)
+    setSelectedDayIndex(normalizedDays.find((day) => day.type === 'training')?.dayIndex || normalizedDays[0]?.dayIndex || 1)
+    setShowAiModifierDialog(false)
+    setAiModifierPreviewDays(null)
+    setAiModifierPreviewSummary('')
+    Taro.showToast({ title: 'AI 修改已应用，请保存计划', icon: 'none' })
+  }
 
   return (
     <ScrollView scrollY className='coach-student-plan-page'>
@@ -2338,16 +2480,30 @@ function CoachStudentPlan() {
               第 {instance.current_day || 0} 天 / 共 {instance.total_days || trainingDays.length} 天
             </Text>
           </View>
-          <View className='execution-actions'>
-            <View className='action-btn secondary' onClick={() => { void loadTemplates(); setShowTemplateDialog(true) }}>
-              <Text className='btn-text'>从模板更新</Text>
+          {isReadonlyPlanView && (
+            <View className='readonly-plan-banner'>
+              <Text className='readonly-plan-text'>历史计划只读查看，不会自动保存或修改学员当前计划。</Text>
             </View>
+          )}
+          <View className='execution-actions'>
+            {!isReadonlyPlanView && (
+              <>
+                <View className='action-btn secondary' onClick={() => { void loadTemplates(); setShowTemplateDialog(true) }}>
+                  <Text className='btn-text'>从模板更新</Text>
+                </View>
+                <View className='action-btn secondary' onClick={() => handleOpenAiModifier()}>
+                  <Text className='btn-text'>AI 修改器</Text>
+                </View>
+              </>
+            )}
             <View className='action-btn primary' onClick={() => void handleContactStudent()}>
               <Text className='btn-text'>联系学员</Text>
             </View>
-            <View className='action-btn secondary' onClick={handleTogglePlanStatus}>
-              <Text className='btn-text'>{instance.status === 'active' ? '暂停计划' : '恢复计划'}</Text>
-            </View>
+            {!isReadonlyPlanView && (
+              <View className='action-btn secondary' onClick={handleTogglePlanStatus}>
+                <Text className='btn-text'>{instance.status === 'active' ? '暂停计划' : '恢复计划'}</Text>
+              </View>
+            )}
           </View>
         </View>
 
@@ -2386,6 +2542,9 @@ function CoachStudentPlan() {
                 <Text className='feedback-ai-title'>一键生成沟通建议</Text>
                 <Text className='feedback-ai-text'>{aiFeedbackDraft}</Text>
                 <View className='feedback-actions'>
+                  <View className='feedback-action-btn secondary' onClick={() => handleOpenAiModifier(aiFeedbackDraft)}>
+                    <Text className='action-btn-text'>用反馈改计划</Text>
+                  </View>
                   <View className='feedback-action-btn primary' onClick={() => void handleContactStudent({ draft: aiFeedbackDraft })}>
                     <Text className='action-btn-text'>带建议去沟通</Text>
                   </View>
@@ -2428,6 +2587,47 @@ function CoachStudentPlan() {
           </View>
         )}
 
+        {aiGenerationLog ? (
+          <View className='ai-generation-log-card'>
+            <View className='ai-generation-log-header'>
+              <Text className='ai-generation-log-title'>AI 个性化生成记录</Text>
+              <Text className='ai-generation-log-badge'>AI</Text>
+            </View>
+            <View className='ai-generation-log-tags'>
+              <Text className='ai-generation-log-tag'>来源：{formatAiGenerationSource(aiGenerationLog?.stageA?.source)}</Text>
+              {aiGenerationLog?.stageA?.confidence !== undefined && aiGenerationLog?.stageA?.confidence !== null ? (
+                <Text className='ai-generation-log-tag'>置信度：{formatAiGenerationConfidence(aiGenerationLog.stageA.confidence)}</Text>
+              ) : null}
+              {aiGenerationLog?.promptVersion ? (
+                <Text className='ai-generation-log-tag'>Prompt：{aiGenerationLog.promptVersion}</Text>
+              ) : null}
+            </View>
+            {aiGenerationLog?.timestamp ? (
+              <Text className='ai-generation-log-caption'>生成时间：{formatAiGenerationTime(aiGenerationLog.timestamp)}</Text>
+            ) : null}
+            {aiGenerationLog.stageA ? (
+              <View className='ai-generation-log-section'>
+                <Text className='ai-generation-log-label'>模板选择理由</Text>
+                <Text className='ai-generation-log-text'>{aiGenerationLog.stageA.reasoning || '未记录'}</Text>
+                {aiGenerationLog.stageA.templateId ? (
+                  <Text className='ai-generation-log-meta'>选中骨架：{aiGenerationLog.stageA.templateId}</Text>
+                ) : (
+                  <Text className='ai-generation-log-meta'>本次未复用模板骨架，直接从零生成。</Text>
+                )}
+              </View>
+            ) : null}
+            {aiGenerationLog.stageB ? (
+              <View className='ai-generation-log-section'>
+                <Text className='ai-generation-log-label'>个性化调整说明</Text>
+                <Text className='ai-generation-log-text'>{aiGenerationLog.stageB.reasoning || '未记录'}</Text>
+                {aiGenerationLog.stageB.changesSummary ? (
+                  <Text className='ai-generation-log-meta'>{aiGenerationLog.stageB.changesSummary}</Text>
+                ) : null}
+              </View>
+            ) : null}
+          </View>
+        ) : null}
+
         {/* 基础信息编辑 */}
         <View className='edit-card'>
           <Text className='section-title'>计划信息</Text>
@@ -2436,6 +2636,7 @@ function CoachStudentPlan() {
             <Input
               className='form-input'
               value={editName}
+              disabled={isReadonlyPlanView}
               onInput={(e) => setEditName(e.detail.value)}
               placeholder='输入计划名称'
             />
@@ -2445,8 +2646,21 @@ function CoachStudentPlan() {
             <Input
               className='form-input'
               value={editDescription}
+              disabled={isReadonlyPlanView}
               onInput={(e) => setEditDescription(e.detail.value)}
               placeholder='输入计划描述'
+            />
+          </View>
+          <View className='form-group'>
+            <Text className='form-label'>执行须知</Text>
+            <Textarea
+              className='form-textarea'
+              value={editExecutionNotice}
+              disabled={isReadonlyPlanView}
+              onInput={(e) => setEditExecutionNotice(e.detail.value)}
+              placeholder='同步网页端的执行前说明'
+              maxlength={1200}
+              autoHeight
             />
           </View>
           <View className='form-group'>
@@ -2464,19 +2678,20 @@ function CoachStudentPlan() {
                 </View>
               ))}
             </View>
-          </View>
-          <View className='auto-save-indicator'>
-            <Text className={`save-status status-${autoSaveStatus}`}>
-              {autoSaveStatus === 'idle' ? '' :
+        </View>
+        <View className='auto-save-indicator'>
+          <Text className={`save-status status-${autoSaveStatus}`}>
+              {isReadonlyPlanView ? '只读查看' :
+               autoSaveStatus === 'idle' ? '' :
                autoSaveStatus === 'pending' ? '待保存...' :
                autoSaveStatus === 'saving' ? '保存中...' :
                autoSaveStatus === 'saved' ? '已保存' : '保存失败'}
-            </Text>
-          </View>
+          </Text>
+        </View>
         </View>
 
         {/* 1RM 配置面板 */}
-        {eligibleActions.length > 0 && (
+        {!isReadonlyPlanView && eligibleActions.length > 0 && (
           <PlanReferenceOneRMPanel
             title='学员动作 1RM 设定'
             caption='这些值会参与自动算重。未同步到学员动作库的动作暂时不可编辑。'
@@ -2536,26 +2751,28 @@ function CoachStudentPlan() {
         </View>
 
         {/* 训练日详情 */}
-        <View className='day-detail-card'>
+        <View className={`day-detail-card ${isReadonlyPlanView ? 'readonly' : ''}`}>
           <View className='day-detail-header'>
             <Text className='day-detail-title'>
               第{selectedTrainingDay?.dayIndex || getDisplayDayNumber(selectedDayIndex)}天 - {selectedTrainingDay?.type === 'rest' ? '休息日' : '训练日'}
             </Text>
-            <View className='day-type-toggle' onClick={() => {
-              if (!selectedTrainingDay) return
-              updateTrainingDayByDayIndex(selectedTrainingDay.dayIndex, (currentDay) => {
-                const nextType = currentDay.type === 'rest' ? 'training' : 'rest'
-                return {
-                  ...currentDay,
-                  type: nextType,
-                  actionSets: nextType === 'rest' ? [] : (currentDay.actionSets || [])
-                }
-              })
-            }}>
-              <Text className='toggle-text'>
-                {selectedTrainingDay?.type === 'rest' ? '改为训练日' : '改为休息日'}
-              </Text>
-            </View>
+            {!isReadonlyPlanView && (
+              <View className='day-type-toggle' onClick={() => {
+                if (!selectedTrainingDay) return
+                updateTrainingDayByDayIndex(selectedTrainingDay.dayIndex, (currentDay) => {
+                  const nextType = currentDay.type === 'rest' ? 'training' : 'rest'
+                  return {
+                    ...currentDay,
+                    type: nextType,
+                    actionSets: nextType === 'rest' ? [] : (currentDay.actionSets || [])
+                  }
+                })
+              }}>
+                <Text className='toggle-text'>
+                  {selectedTrainingDay?.type === 'rest' ? '改为训练日' : '改为休息日'}
+                </Text>
+              </View>
+            )}
           </View>
 
           {selectedTrainingDay?.type === 'training' && (
@@ -2565,6 +2782,7 @@ function CoachStudentPlan() {
                 <Input
                   className='form-input'
                   value={selectedTrainingDay?.note || ''}
+                  disabled={isReadonlyPlanView}
                   onInput={(e) => {
                     if (!selectedTrainingDay) return
                     updateTrainingDayByDayIndex(selectedTrainingDay.dayIndex, (currentDay) => ({
@@ -2579,9 +2797,11 @@ function CoachStudentPlan() {
               <View className='action-sets-section'>
                 <View className='action-sets-header'>
                   <Text className='action-sets-title'>动作组</Text>
-                  <View className='add-action-btn' onClick={handleOpenActionPicker}>
-                    <Text className='add-btn-text'>+ 添加动作</Text>
-                  </View>
+                  {!isReadonlyPlanView && (
+                    <View className='add-action-btn' onClick={handleOpenActionPicker}>
+                      <Text className='add-btn-text'>+ 添加动作</Text>
+                    </View>
+                  )}
                 </View>
                 {(selectedTrainingDay?.actionSets || []).map((actionSet, idx) => {
                   if (isOneFilterActionSet(actionSet)) {
@@ -2727,6 +2947,64 @@ function CoachStudentPlan() {
                   <Text className='no-template'>暂无模板</Text>
                 )}
               </ScrollView>
+            </View>
+          </View>
+        )}
+
+        {showAiModifierDialog && (
+          <View className='dialog-mask'>
+            <View className='template-dialog ai-modifier-dialog'>
+              <View className='dialog-header'>
+                <Text className='dialog-title'>AI 修改器</Text>
+                <Text className='dialog-close' onClick={() => setShowAiModifierDialog(false)}>×</Text>
+              </View>
+              <View className='ai-modifier-body'>
+                <Text className='ai-modifier-hint'>
+                  复用 Web 的计划 AI 修改器。先生成预览，确认后只应用到当前编辑器，仍需点击保存计划。
+                </Text>
+                <Textarea
+                  className='ai-modifier-textarea'
+                  value={aiModifierInstruction}
+                  placeholder='例如：根据最近反馈，把第 2 周引体强度下调到 8RM，并把总量减少一组。'
+                  maxlength={2000}
+                  autoHeight
+                  onInput={(event) => {
+                    setAiModifierInstruction(event.detail.value)
+                    if (aiModifierError) setAiModifierError('')
+                  }}
+                />
+                {aiModifierError ? (
+                  <Text className='ai-modifier-error'>{aiModifierError}</Text>
+                ) : null}
+                {aiModifierPreviewSummary ? (
+                  <View className='ai-modifier-preview'>
+                    <Text className='ai-modifier-preview-title'>预览结果</Text>
+                    <Text className='ai-modifier-preview-text'>{aiModifierPreviewSummary}</Text>
+                    <Text className='ai-modifier-preview-meta'>
+                      {aiModifierPreviewDays?.length || 0} 天计划已准备应用
+                    </Text>
+                  </View>
+                ) : null}
+              </View>
+              <View className='ai-modifier-footer'>
+                <View className='ai-modifier-btn secondary' onClick={() => setShowAiModifierDialog(false)}>
+                  <Text>取消</Text>
+                </View>
+                <View
+                  className={`ai-modifier-btn ${aiModifierPreviewDays?.length ? 'secondary' : 'primary'} ${aiModifierLoading ? 'disabled' : ''}`}
+                  onClick={() => {
+                    if (aiModifierLoading) return
+                    void handleRunAiModifier()
+                  }}
+                >
+                  <Text>{aiModifierLoading ? '生成中...' : aiModifierPreviewDays?.length ? '重新生成' : '生成预览'}</Text>
+                </View>
+                {aiModifierPreviewDays?.length ? (
+                  <View className='ai-modifier-btn primary' onClick={handleApplyAiModifierPreview}>
+                    <Text>应用到编辑器</Text>
+                  </View>
+                ) : null}
+              </View>
             </View>
           </View>
         )}
