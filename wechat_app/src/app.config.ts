@@ -92,6 +92,7 @@ export default {
       pages: [
         'index',
         'coach-profile',
+        'coach-questionnaire',
         'generate-plan',
         'generate-plan/waiting',
         'market',
