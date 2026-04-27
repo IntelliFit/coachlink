@@ -1,3 +1,22 @@
+# 构建并推送到腾讯云容器镜像服务（CCR / TCR）
+#
+# 个人版默认 registry：ccr.ccs.tencentyun.com
+# 镜像全名：{registry}/{命名空间}/{仓库名}:{标签}
+#
+# --- GitHub Secrets（必须）---
+# TENCENT_CCR_USERNAME  腾讯云账号 ID（控制台「登录实例」指引里与 docker login 的 username 一致，一般为数字账号 ID）
+# TENCENT_CCR_PASSWORD  个人版：在容器镜像服务控制台「初始化密码 / 重置登录密码」设置的固定密码
+#                        企业版：按控制台文档使用实例登录密码或临时访问凭证（以控制台为准）
+#
+# --- GitHub Variables（仓库 Settings → Secrets and variables → Actions → Variables，推荐）---
+# TENCENT_CCR_NAMESPACE   命名空间名称（如 project-a），须与控制台一致
+# TENCENT_CCR_REPOSITORY  镜像仓库名（小写字母/数字/._-），默认不写则使用 coachlink
+# TENCENT_CCR_REGISTRY    可选；个人版可省略（默认 ccr.ccs.tencentyun.com）；企业版填控制台给出的域名
+#
+# 本地验证登录（示例）：
+#   docker login ccr.ccs.tencentyun.com --username=<账号ID>
+# 推送后拉取：
+#   docker pull ccr.ccs.tencentyun.com/<namespace>/<repo>:staging
 name: Build and Push Docker Image
 
 on:
@@ -17,44 +36,73 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Log in to Docker Hub
+      - name: Resolve Tencent registry and image base
+        id: reg
+        env:
+          TENCENT_CCR_REGISTRY: ${{ vars.TENCENT_CCR_REGISTRY }}
+          TENCENT_CCR_NAMESPACE: ${{ vars.TENCENT_CCR_NAMESPACE }}
+          TENCENT_CCR_REPOSITORY: ${{ vars.TENCENT_CCR_REPOSITORY }}
+        run: |
+          set -euo pipefail
+          REGISTRY="${TENCENT_CCR_REGISTRY:-ccr.ccs.tencentyun.com}"
+          NS="${TENCENT_CCR_NAMESPACE:-}"
+          REPO="${TENCENT_CCR_REPOSITORY:-coachlink}"
+          if [ -z "$NS" ]; then
+            echo "::error::请在仓库 Actions Variables 中设置 TENCENT_CCR_NAMESPACE（命名空间），与腾讯云控制台一致。"
+            exit 1
+          fi
+          # 去掉可能误填的 https:// 前缀
+          REGISTRY="${REGISTRY#https://}"
+          REGISTRY="${REGISTRY#http://}"
+          REGISTRY="${REGISTRY%/}"
+          IMAGE_BASE="${REGISTRY}/${NS}/${REPO}"
+          echo "registry=${REGISTRY}" >> "${GITHUB_OUTPUT}"
+          echo "image_base=${IMAGE_BASE}" >> "${GITHUB_OUTPUT}"
+
+      - name: Log in to Tencent Cloud Container Registry
         uses: docker/login-action@v3
         with:
-          registry: https://index.docker.io/v1/
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
+          registry: ${{ steps.reg.outputs.registry }}
+          username: ${{ secrets.TENCENT_CCR_USERNAME }}
+          password: ${{ secrets.TENCENT_CCR_PASSWORD }}
 
       - name: Determine image tags
         id: meta
         run: |
-          SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-7)
-          IMAGE="peacesheep/coachlink"
-          
-          echo "image=$IMAGE" >> $GITHUB_OUTPUT
-          echo "short_sha=$SHORT_SHA" >> $GITHUB_OUTPUT
-          
+          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+          IMAGE="${{ steps.reg.outputs.image_base }}"
+
+          echo "image=${IMAGE}" >> "${GITHUB_OUTPUT}"
+          echo "short_sha=${SHORT_SHA}" >> "${GITHUB_OUTPUT}"
+
           if [ "${{ github.ref }}" = "refs/heads/main" ]; then
-            echo "tags<<EOF" >> $GITHUB_OUTPUT
-            echo "$IMAGE:latest" >> $GITHUB_OUTPUT
-            echo "$IMAGE:production" >> $GITHUB_OUTPUT
-            echo "$IMAGE:$SHORT_SHA" >> $GITHUB_OUTPUT
-            echo "EOF" >> $GITHUB_OUTPUT
-            echo "deploy_env=production" >> $GITHUB_OUTPUT
+            {
+              echo "tags<<EOF"
+              echo "${IMAGE}:latest"
+              echo "${IMAGE}:production"
+              echo "${IMAGE}:${SHORT_SHA}"
+              echo "EOF"
+            } >> "${GITHUB_OUTPUT}"
+            echo "deploy_env=production" >> "${GITHUB_OUTPUT}"
           elif [ "${{ github.ref }}" = "refs/heads/dev" ]; then
-            echo "tags<<EOF" >> $GITHUB_OUTPUT
-            echo "$IMAGE:staging" >> $GITHUB_OUTPUT
-            echo "$IMAGE:$SHORT_SHA" >> $GITHUB_OUTPUT
-            echo "EOF" >> $GITHUB_OUTPUT
-            echo "deploy_env=staging" >> $GITHUB_OUTPUT
+            {
+              echo "tags<<EOF"
+              echo "${IMAGE}:staging"
+              echo "${IMAGE}:${SHORT_SHA}"
+              echo "EOF"
+            } >> "${GITHUB_OUTPUT}"
+            echo "deploy_env=staging" >> "${GITHUB_OUTPUT}"
           elif [ "${{ github.ref }}" = "refs/heads/gray" ]; then
-            echo "tags<<EOF" >> $GITHUB_OUTPUT
-            echo "$IMAGE:gray" >> $GITHUB_OUTPUT
-            echo "$IMAGE:$SHORT_SHA" >> $GITHUB_OUTPUT
-            echo "EOF" >> $GITHUB_OUTPUT
-            echo "deploy_env=gray" >> $GITHUB_OUTPUT
+            {
+              echo "tags<<EOF"
+              echo "${IMAGE}:gray"
+              echo "${IMAGE}:${SHORT_SHA}"
+              echo "EOF"
+            } >> "${GITHUB_OUTPUT}"
+            echo "deploy_env=gray" >> "${GITHUB_OUTPUT}"
           fi
 
-      - name: Build and push to Docker Hub
+      - name: Build and push to Tencent CCR
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -65,6 +113,7 @@ jobs:
 
       - name: Output summary
         run: |
-          echo "### Docker Hub 镜像构建完成" >> $GITHUB_STEP_SUMMARY
-          echo "Docker Hub 镜像: ${{ steps.meta.outputs.image }}" >> $GITHUB_STEP_SUMMARY
-          echo "标签: ${{ steps.meta.outputs.deploy_env }} (${{ steps.meta.outputs.short_sha }})" >> $GITHUB_STEP_SUMMARY
+          echo "### 腾讯云容器镜像构建完成" >> "${GITHUB_STEP_SUMMARY}"
+          echo "Registry: ${{ steps.reg.outputs.registry }}" >> "${GITHUB_STEP_SUMMARY}"
+          echo "镜像: ${{ steps.meta.outputs.image }}" >> "${GITHUB_STEP_SUMMARY}"
+          echo "环境标签: ${{ steps.meta.outputs.deploy_env }} (${{ steps.meta.outputs.short_sha }})" >> "${GITHUB_STEP_SUMMARY}"
