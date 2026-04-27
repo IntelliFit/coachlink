@@ -25,6 +25,51 @@ export interface ChatroomDetail {
   isArchived: boolean
 }
 
+export interface ChatReplyMetadata {
+  id: string
+  senderId: string
+  senderName: string
+  messageType: string
+  contentPreview: string
+  mediaUrl?: string | null
+}
+
+export interface VideoReferenceItem {
+  videoId: string
+  videoUrl: string
+  thumbnailUrl: string | null
+  actionName: string
+  description?: string | null
+  tags?: string[] | null
+  sourceType?: 'execution_set' | 'training_video' | 'video_collection'
+  setNumber: number
+  weight: number | null
+  reps: number | null
+  isProgress: boolean
+  createdAt: string
+  dayIndex?: number | null
+  studentInfo?: {
+    id: string
+    fullName: string | null
+    nickname: string | null
+    avatarUrl: string | null
+  }
+}
+
+export interface ChatMessageMetadata {
+  reply_to_message?: ChatReplyMetadata
+  video_references?: VideoReferenceItem[]
+  broadcast?: boolean
+  contentId?: string
+  contentTitle?: string
+  contentLink?: string
+  coach_ai_auto_reply?: boolean
+  virtual_avatar_label?: string
+  provider?: string
+  model?: string
+  [key: string]: unknown
+}
+
 /** 单条消息（与 Web list-messages 一致） */
 export interface MessageItem {
   id: string
@@ -39,7 +84,15 @@ export interface MessageItem {
   isRead: boolean
   createdAt: string
   isMine: boolean
-  contentMetadata?: Record<string, unknown> | null
+  contentMetadata?: ChatMessageMetadata | null
+}
+
+export interface SearchMessagesResult {
+  messages: MessageItem[]
+}
+
+export interface VideoItem extends Omit<VideoReferenceItem, 'videoId'> {
+  id: string
 }
 
 export const chatService = {
@@ -55,11 +108,11 @@ export const chatService = {
   },
 
   /** 获取或创建会话（members: [myId, peerId]） */
-  async getChatroom(params: { members: string[] }) {
+  async getChatroom(params: { members?: string[]; roomId?: string }) {
     const res = await request<{ chatroom: ChatroomDetail | null }>({
       url: '/api/chat/get-chatroom',
       method: 'POST',
-      data: { members: params.members }
+      data: params.roomId ? { roomId: params.roomId } : { members: params.members }
     })
     if (!res.success || !res.data) return null
     return res.data.chatroom
@@ -70,6 +123,7 @@ export const chatService = {
     roomId: string
     limit?: number
     beforeId?: string
+    anchorMessageId?: string
   }) {
     const res = await request<{
       messages: MessageItem[]
@@ -81,8 +135,24 @@ export const chatService = {
       data: {
         roomId: params.roomId,
         limit: params.limit ?? 50,
-        beforeId: params.beforeId
+        beforeId: params.beforeId,
+        anchorMessageId: params.anchorMessageId
       }
+    })
+    if (!res.success || !res.data) return null
+    return res.data
+  },
+
+  async searchMessages(params: { roomId: string; query: string; limit?: number }) {
+    const res = await request<SearchMessagesResult>({
+      url: '/api/chat/search-messages',
+      method: 'POST',
+      data: {
+        roomId: params.roomId,
+        query: params.query,
+        limit: params.limit ?? 30
+      },
+      showErrorToast: false
     })
     if (!res.success || !res.data) return null
     return res.data
@@ -91,11 +161,13 @@ export const chatService = {
   /** 发送消息 */
   async sendMessage(params: {
     roomId: string
-    messageType: 'text' | 'image'
+    messageType: 'text' | 'image' | 'video_reference'
     content?: string
     mediaUrl?: string
     fileName?: string
     fileSize?: number
+    videoReferences?: VideoReferenceItem[]
+    replyToMessageId?: string
   }) {
     const res = await request<{ messageId?: string; createdAt?: string }>({
       url: '/api/chat/send-message',
@@ -117,19 +189,21 @@ export const chatService = {
   },
 
   /** 获取学员上传的视频列表 */
-  async listStudentVideos(roomId: string) {
+  async listStudentVideos(params: {
+    studentId?: string
+    query?: string
+    onlyProgress?: boolean
+    page?: number
+    pageSize?: number
+  }) {
     const res = await request<{
-      videos: Array<{
-        id: string
-        url: string
-        thumbnail?: string
-        exerciseName?: string
-        createdAt: string
-      }>
+      videos: VideoItem[]
+      hasMore: boolean
+      total: number
     }>({
       url: '/api/chat/list-student-videos',
       method: 'POST',
-      data: { roomId }
+      data: params
     })
     if (!res.success || !res.data) return null
     return res.data

@@ -2,9 +2,8 @@ import { useEffect, useState } from 'react'
 import Taro from '@tarojs/taro'
 import PlanEditorWorkbench from '@/components/PlanEditorWorkbench'
 import { actionLibService } from '@/services/coach/actionLibService'
-import { coachService } from '@/services/coach/coachService'
 import { planLibService } from '@/services/coach/planLibService'
-import type { PlanActionOption, PlanEditorValue, PlanQuestionItem } from '@/types/plan'
+import type { PlanActionOption, PlanEditorValue } from '@/types/plan'
 
 export default function CoachPlanLibEdit() {
   const templateId = Taro.getCurrentInstance().router?.params?.id || ''
@@ -42,6 +41,7 @@ export default function CoachPlanLibEdit() {
       setInitialValue({
         name: templateRes.template.name || '',
         description: templateRes.template.description || '',
+        executionNotice: templateRes.template.execution_notice || templateRes.template.executionNotice || '',
         tags: templateRes.template.tags || [],
         suitableFor: templateRes.template.suitable_for || 'beginner',
         type: templateRes.template.type || '',
@@ -58,9 +58,8 @@ export default function CoachPlanLibEdit() {
     }
   }
 
-  const loadQuestionnaires = async (): Promise<PlanQuestionItem[]> => {
-    const res = await coachService.getQuestionnaires()
-    return Array.isArray((res as any)?.questionnaires) ? (res as any).questionnaires : []
+  const handleImportText = async (text: string, importActions: PlanActionOption[]) => {
+    return planLibService.parseTemplate(text, importActions)
   }
 
   const handleSave = async (value: PlanEditorValue) => {
@@ -70,6 +69,7 @@ export default function CoachPlanLibEdit() {
         id: templateId,
         name: value.name,
         description: value.description || null,
+        executionNotice: value.executionNotice || null,
         tags: value.tags,
         suitableFor: value.suitableFor,
         type: value.type || null,
@@ -92,7 +92,7 @@ export default function CoachPlanLibEdit() {
     <PlanEditorWorkbench
       mode='coach-template'
       title='编辑计划模板'
-      subtitle='继续完善模板结构、问卷联动与多类型条目'
+      subtitle='继续完善模板结构、执行须知与多类型条目'
       initialValue={initialValue}
       actions={actions}
       loading={loading}
@@ -100,7 +100,7 @@ export default function CoachPlanLibEdit() {
       saveLabel='保存模板'
       onCancel={() => Taro.navigateBack()}
       onSave={handleSave}
-      loadQuestionnaires={loadQuestionnaires}
+      onImportText={handleImportText}
     />
   )
 }

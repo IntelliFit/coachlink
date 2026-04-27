@@ -16,6 +16,11 @@ import {
 } from '@/utils/trainingExecutionCache'
 import './index.scss'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
+import ExecutionPlanNoticePopup from '@/components/ExecutionPlanNoticePopup'
+import {
+  hasReadExecutionPlanNotice,
+  markExecutionPlanNoticeRead
+} from '@/utils/executionPlanNotice'
 
 const RETURN_CONFIRM_STORAGE_KEY = 'today_training_last_confirmed_day'
 
@@ -159,8 +164,11 @@ function TrainingExecution() {
   const [feedbackDifficulty, setFeedbackDifficulty] = useState<number>(3)
   const [feedbackSubmitting, setFeedbackSubmitting] = useState(false)
   const [pendingSharePath, setPendingSharePath] = useState('')
+  const [executionNoticeVisible, setExecutionNoticeVisible] = useState(false)
+  const [executionNoticeStarting, setExecutionNoticeStarting] = useState(false)
 
   const userId = authService.getCurrentUser()?.id
+  const needsExecutionNoticeGate = !isImpromptuMode && !isReadOnly && !!instanceId
 
   const syncExecutionToCaches = useCallback(
     (exec: any) => {
@@ -453,6 +461,17 @@ function TrainingExecution() {
     []
   )
 
+  const loadNoticeContext = useCallback(async () => {
+    if (!instanceId) return
+    try {
+      const instanceRes = await trainingService.getInstance({ id: instanceId })
+      if (instanceRes?.actions) setActions(instanceRes.actions)
+      if (instanceRes?.instance) setPlanInstance(instanceRes.instance)
+    } catch (error) {
+      console.warn('[training-execution] preload execution notice context failed:', error)
+    }
+  }, [instanceId])
+
   // 开始或恢复训练（T03：先 checkToday 判断今日是否已有进行中记录，若有则恢复；即兴模式直接 get）
   const startTraining = useCallback(async () => {
     if (!userId) {
@@ -568,12 +587,45 @@ function TrainingExecution() {
     }
   }, [instanceId, impromptuId, isImpromptuMode, dayIndex, userId, isReadOnly, buildPreviewExecution])
 
+  const startTrainingWithNoticeGuard = useCallback(async () => {
+    if (
+      needsExecutionNoticeGate &&
+      !hasReadExecutionPlanNotice({
+        instanceId,
+        userId
+      })
+    ) {
+      await loadNoticeContext()
+      setLoading(false)
+      setExecutionNoticeVisible(true)
+      return
+    }
+
+    setExecutionNoticeVisible(false)
+    await startTraining()
+  }, [instanceId, loadNoticeContext, needsExecutionNoticeGate, startTraining, userId])
+
+  const confirmExecutionNoticeAndStart = useCallback(async () => {
+    if (!instanceId) return
+    markExecutionPlanNoticeRead({
+      instanceId,
+      userId
+    })
+    setExecutionNoticeVisible(false)
+    setExecutionNoticeStarting(true)
+    try {
+      await startTraining()
+    } finally {
+      setExecutionNoticeStarting(false)
+    }
+  }, [instanceId, startTraining, userId])
+
   useDidShow(() => {
-    startTraining()
+    void startTrainingWithNoticeGuard()
   })
 
   usePullDownRefresh(() => {
-    startTraining().finally(() => Taro.stopPullDownRefresh())
+    startTrainingWithNoticeGuard().finally(() => Taro.stopPullDownRefresh())
   })
 
   useEffect(() => {
@@ -1425,6 +1477,31 @@ function TrainingExecution() {
     )
   }
 
+  if (executionNoticeVisible && !execution) {
+    return (
+      <View className="training-execution-page">
+        <ScrollView scrollY className="execution-scroll">
+          <View className="execution-page-content">
+            <View className="error-wrap">
+              <Text>开始训练前先确认教练须知</Text>
+              <Button onClick={() => Taro.navigateBack().catch(() => Taro.switchTab({ url: '/pages/index/index' }))}>
+                返回今日训练
+              </Button>
+            </View>
+          </View>
+        </ScrollView>
+        <ExecutionPlanNoticePopup
+          visible={executionNoticeVisible}
+          executionNotice={(planInstance as any)?.execution_notice || (planInstance as any)?.executionNotice || null}
+          planName={planInstance?.name || null}
+          onConfirm={() => void confirmExecutionNoticeAndStart()}
+          confirmLabel="我已阅读，开始训练"
+          confirmLoading={executionNoticeStarting}
+        />
+      </View>
+    )
+  }
+
   if (!execution) {
     return (
       <View className="training-execution-page">
@@ -1432,7 +1509,7 @@ function TrainingExecution() {
           <View className="execution-page-content">
             <View className="error-wrap">
               <Text>加载失败，请重试</Text>
-              <Button onClick={startTraining}>重试</Button>
+              <Button onClick={() => void startTrainingWithNoticeGuard()}>重试</Button>
             </View>
           </View>
         </ScrollView>

@@ -76,19 +76,20 @@
   }
 
   &__strip-inner {
-    display: flex;
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
     gap: 8rpx;
   }
 
   &__grid {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(7, minmax(0, 1fr));
     gap: 8rpx;
   }
 
   &__chip {
-    min-width: 152rpx;
-    padding: 16rpx;
+    min-width: 0;
+    padding: 8rpx;
     border-radius: 16rpx;
     border: 2rpx solid #e5e7eb;
     background: #f8fafc;
@@ -114,13 +115,13 @@
   &__chip-label,
   &__chip-meta {
     display: block;
-    font-size: 20rpx;
+    font-size: 18rpx;
     color: #6b7280;
   }
 
   &__chip-title {
     display: block;
-    font-size: 28rpx;
+    font-size: 22rpx;
     font-weight: 700;
     color: #111827;
   }

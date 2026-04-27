@@ -1,4 +1,37 @@
 # DECISIONS
+- `2026-04-28`: Root push-gate type checking should use a maintained submission-surface config instead of the whole monorepo plus generated artifacts. `npm run typecheck` now runs `tsc --noEmit -p tsconfig.typecheck.json`, excluding `.next`, `wechat_app`, `wechat-app`, and other historical noise while still checking the currently maintained Web/API chat submission surface.
+- `2026-04-28`: Local Playwright e2e should default to port `3000` so the test runner can reuse an already-running `next dev` session when present and avoid `.next/dev/lock` conflicts that happened with the old `3001` default.
+- `2026-04-28`: Coach plan-library strength fields in mini-program must preserve Web unit semantics: rest is stored in seconds but edited/displayed in minutes; RM/%/fixed intensity must be parsed from both legacy fields (`强度`, `intensity`) and structured `intensityConfig`.
+- `2026-04-28`: Mini-program strength auto-calculation should expose the same algorithm choices as Web (`综合计算`, `Epley`, `Brzycki`, `Lombardi`) and keep a user-editable recommended weight fallback for non-computable cases.
+- `2026-04-28`: Coach-side mini-program plan-library template `基础信息` must follow the Web editor as the source of truth. This surface should only expose `模板名称`、`训练项目（可选）`、`详情描述`、`执行摘要`、`每周频率`; mini-program-only fields such as `适合人群` and `模板类型` should stay hidden here even if their stored data model still exists.
+- `2026-04-28`: When syncing the coach-side mini-program generation flow with Web, parity should include observability as well as invocation. The mini-program should show the effective start-position semantics before generation and expose shared `ai_generation_log` metadata such as skeleton source, confidence, prompt version, and generation timestamp on the student plan page.
+- `2026-04-28`: Web private-message training-video cards should remain informative even when `thumbnailUrl` is missing. For directly playable URLs, the card should fall back to a muted first-frame inline `<video>` preview, and execution-set stat rendering should use tolerant action/set matching plus multi-key weight/reps fallback instead of assuming one exact JSON shape.
+- `2026-04-28`: Web private-message training-video cards should not open storage media with a raw `window.open(videoUrl)` flow by default. Chat video references should prefer in-page playback for directly playable media URLs, and only fall back to opening a new tab for non-inline-playable external links.
+- `2026-04-28`: Web chat message rendering should refresh `content_metadata.video_references` against current video records when messages are read, instead of treating the send-time snapshot as the long-term source of truth. Otherwise historical private-message cards cannot pick up later cover/stat fixes.
+- `2026-04-28`: Coach-side mini-program AI generation from `我的学员` should use the same high-level entry semantics as the Web workstation: expose `useLLM` in the generation config, pass it through to `/api/plan-lib/create-ai-instance` and `/api/plan-lib/bulk-create-ai-instances`, and keep `keepOriginalIndex` fixed to the Web-compatible value in this entry flow.
+
+- `2026-04-28`: Coach-side mini-program action-item editors should not invent extra concepts that the Web editor does not expose. In strength items, `自定义重量 / 手动覆盖重量` should be presented only as an optional fixed-weight fallback, `自定义显示名称` should stay hidden on this surface, and `备注` should remain directly visible in the main editing area.
+- `2026-04-28`: Coach-side mini-program strength item editors must read and preserve both canonical params and legacy Chinese-key params for `组数 / 次数 / 休息`, so old plan data renders the same values as Web instead of showing blank or divergent fields.
+
+- `2026-04-28`: Coach plan template calendars represent relative plan positions, not real weekdays. Mini-program plan-library UI should label them as `第1日` / `第2日` etc. and should show all seven plan days in the collapsed week view.
+- `2026-04-28`: Coach plan-library template editing should not show questionnaire linkage unless the Web workstation has the same visible workflow. The mini-program plan template editor should use Web-like base fields including `建议每周频率`, not a separate questionnaire-linkage block.
+
+- `2026-04-27`: Chat SSE endpoints must guard every async write after client disconnect. `ReadableStream` controllers can already be closed by the browser/request lifecycle, so chat streams should use a safe enqueue helper and remove Supabase realtime channels on abort/cancel instead of writing directly to `controller.enqueue`.
+- `2026-04-27`: Local development Redis should fail fast and degrade noisily only once when the configured endpoint refuses connections. The shared Redis client disables automatic reconnect/offline queue to avoid repeated `ECONNREFUSED` terminal spam.
+
+- `2026-04-27`: Coach-side mini-program historical plans should open as read-only plan details via explicit `instanceId`, not just toast back to Web. The read-only view may reuse the student plan editor shell, but must disable autosave and hide/guard mutation actions such as template import, AI modifier, status toggle, action edits, and 1RM saving.
+
+- `2026-04-27`: Coach-side mini-program `我的学员` detail should surface recent plan history for parity with the Web workstation. The current active plan opens in the editable mini-program editor; historical plans open in a read-only mini-program detail view.
+
+- `2026-04-27`: Coach-side Web/WeApp parity should expose the same `plan_script` editing concept in the mini-program instead of keeping it Web-only. The mini-program editor uses a local parser/formatter for the same compact DSL (`Wn`, `Dn`, `off`, `4x8`, `@rm/%/kg`, `r秒`, `#备注`) and keeps strict exact matching for parenthesized action variants.
+- `2026-04-27`: Coach-side mini-program student detail should reuse the Web subscription contracts for high-risk account changes: questionnaire edits go through `/api/subscription/update-questionnaire`, and platform Alipay refunds go through `/api/payment/alipay/refund` with a required confirmation modal before mutation.
+- `2026-04-27`: The mini-program AI plan modifier should reuse Web `/api/plan-lib/batch-operation` with `editEngine=plan_script` and apply only previewed results into the local editor first. Persisting still goes through the normal plan save flow; unresolved new actions are blocked in mini-program and should be confirmed in Web where the full action-confirmation UX exists.
+
+- `2026-04-27`: Coach-side Web/WeApp alignment should keep sharing the existing Web backend contracts instead of creating mobile-only APIs. For `计划库`, the mini-program uses the same `executionNotice`, `/api/plan-lib/parse-template`, and `/api/plan-lib/export-template-text` semantics. For `我的学员`, configurable AI generation, archive/delete current plan, subscription week edits, and coach private reviews should reuse the Web API contracts and enforce coach ownership on mutations.
+
+- `2026-04-27`: Web 与微信小程序私信功能同步时，优先复用同一套 `/api/chat/*` 后端协议和 `chat_messages.content_metadata` 语义，不新增小程序私有消息协议。小程序应识别并渲染 `reply_to_message`、`video_references`、`broadcast`、`coach_ai_auto_reply` 等 Web 已产生的元数据，避免跨端消息降级或丢语义。
+
+- `2026-04-27`: Web 私信“回复指定消息”第一版不新增数据库列，直接复用 `chat_messages.content_metadata` 持久化 `reply_to_message`。其中仅保存服务端校验后的可信摘要字段：`id / senderId / senderName / messageType / contentPreview / mediaUrl`，避免前端伪造任意回复引用。
 
 - `2026-04-27`: `.github/workflows/build-and-push-docker.yml` 已废弃自动触发（不再 `on: push`），仅保留 `workflow_dispatch` 备用手动跑；日常镜像用 `npm run push-docker-ccr`。CI 曾推腾讯云 CCR（`TENCENT_CCR_*`）；自建 Registry 试验保留在 git 历史。
 - `2026-04-27`: `main` 线镜像标签使用 `latest` + `main` + `sha`，不再使用 `production`；本地/他人可用 `npm run push-docker-ccr`（`scripts/push-docker-ccr.mjs`）在本机构建推送 CCR，镜像路径写死 `ccr.ccs.tencentyun.com/littlehorse/coachlink`（命名空间 littlehorse、仓库名 coachlink），不要求构建期 `NEXT_PUBLIC_*`。
@@ -142,3 +175,5 @@
   - 若压缩收益不明显，则自动回退原文件，避免为了压缩而牺牲结果
   - 统一保留 200MB 原视频上限，但不再让 30MB/100MB 的前端限制提前拦住可压缩的视频
   - 训练视频、基线视频、排行榜视频、动作库演示视频、问卷示例视频都应尽量复用同一套前置压缩逻辑
+- `2026-04-27`: Mini-program `today-training` should prioritize "what do I do now" over browsing tools: primary daily action/progress comes before the week strip/month calendar, and secondary actions remain compact inline controls instead of separate large cards.
+- `2026-04-28`: Student-side mini-program execution notice should follow the same instance-level contract as Web. Acknowledgement remains local-device state keyed by `userId + plan_instance_id`, and the gate must exist in both `today-training` entry and `training-execution` direct-open fallback. Impromptu mode and read-only history viewing do not require this confirmation gate.

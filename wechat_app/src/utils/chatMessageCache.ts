@@ -5,6 +5,7 @@ export const CHAT_MESSAGES_CACHE_VERSION = 1 as const
 
 /** 单会话最多缓存条数，避免逼近小程序单 key / 总存储上限 */
 export const MAX_CACHED_MESSAGES_PER_ROOM = 200
+export const MAX_CACHED_MESSAGE_AGE_MS = 60 * 24 * 60 * 60 * 1000
 
 export interface ChatMessagesCachePayload {
   v: typeof CHAT_MESSAGES_CACHE_VERSION
@@ -23,7 +24,15 @@ export function getChatMessagesCache(userId: string, roomId: string): ChatMessag
   const raw = appStorageGetJSON<ChatMessagesCachePayload>(chatMessagesCacheKey(userId, roomId))
   if (!raw || raw.v !== CHAT_MESSAGES_CACHE_VERSION || raw.roomId !== roomId) return null
   if (!Array.isArray(raw.messages)) return null
-  return raw
+  const cutoff = Date.now() - MAX_CACHED_MESSAGE_AGE_MS
+  const messages = raw.messages.filter(m => {
+    const t = new Date(m.createdAt).getTime()
+    return Number.isFinite(t) && t >= cutoff
+  })
+  return {
+    ...raw,
+    messages
+  }
 }
 
 export function setChatMessagesCache(
@@ -33,6 +42,11 @@ export function setChatMessagesCache(
 ): boolean {
   if (!userId || !roomId) return false
   let { messages } = partial
+  const cutoff = Date.now() - MAX_CACHED_MESSAGE_AGE_MS
+  messages = messages.filter(m => {
+    const t = new Date(m.createdAt).getTime()
+    return Number.isFinite(t) && t >= cutoff
+  })
   if (messages.length > MAX_CACHED_MESSAGES_PER_ROOM) {
     messages = messages.slice(messages.length - MAX_CACHED_MESSAGES_PER_ROOM)
   }

@@ -37,6 +37,7 @@ export interface SendMessageDto {
     fileSize?: number;
     duration?: number;
     videoReferences?: VideoReferenceItem[]; // 新增：视频引用列表
+    replyToMessageId?: string;
 }
 
 export interface SendMessageResponseDto {

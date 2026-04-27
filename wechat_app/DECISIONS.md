@@ -157,3 +157,4 @@
 - `2026-03-31`: 小程序 `/training/today-training` 的日期展示与网站端统一走 `buildPlanScheduleModel()`；今日安排卡片、周视图、展开月历必须共享同一套顺延日期映射。
 - `2026-03-31`: 当前推进日只要仍未完成/未放弃，就不能冻结在 `started_at`；小程序里也要继续滚到“今天”，并把中间多出来的休息天在月历上显示为浅橙色 `顺延 -> Dn`。
 - `2026-03-31`: 使用微信开发者工具 CLI 上传 release 包时，仓库根目录的 `project.config.json` 仍指向 `dist/`，因此上传前需要临时让 `project.private.config.json` 覆盖 `miniprogramRoot/srcMiniprogramRoot -> dist-release/`，上传完成后再恢复，避免把开发包误传到微信开发者平台。
+- `2026-04-27`: student bottom-nav icons in `wechat-app` should use destination-specific semantics: `����ѵ��` uses a dedicated training icon, and `������` uses a toolbox icon. Do not reuse the generic ranking/doc tab assets there, because those meanings drift from the actual page destinations.

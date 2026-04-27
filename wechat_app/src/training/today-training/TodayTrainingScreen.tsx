@@ -48,6 +48,11 @@ import WeekDashboardStrip, { buildWeekStripCells, getSundayWeekStart } from './c
 import type { WeekStripCell } from './components/WeekDashboardStrip'
 import { calculateCurrentWeek, getDayWeekNumber, isDayUnlocked } from '@/utils/weekUnlock'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
+import ExecutionPlanNoticePopup from '@/components/ExecutionPlanNoticePopup'
+import {
+  hasReadExecutionPlanNotice,
+  markExecutionPlanNoticeRead
+} from '@/utils/executionPlanNotice'
 import {
   getTodayTrainingBootFromCache,
   patchTodayTrainingPageCache,
@@ -220,6 +225,8 @@ function TodayTrainingScreen() {
   const [newCardioPace, setNewCardioPace] = useState('')
   const [newHabitName, setNewHabitName] = useState('')
   const [newHabitTargetDurationMin, setNewHabitTargetDurationMin] = useState('')
+  const [executionNoticeVisible, setExecutionNoticeVisible] = useState(false)
+  const [pendingExecutionTarget, setPendingExecutionTarget] = useState<{ dayIndex: number; focusAction?: number } | null>(null)
 
   const activeSubscription =
     coachSubscriptions.find((item) => item.id === activeCoachSubscriptionId) ||
@@ -251,6 +258,10 @@ function TodayTrainingScreen() {
   const missingDays = planMode === 'coach' ? coachMissingDays : selfMissingDays
 
   const trainingDays = (instance?.training_days || []) as any[]
+  const currentUserId = useMemo(() => {
+    const session = authService.getAuthSession({ normalize: true })
+    return session?.userId ? String(session.userId) : null
+  }, [])
   const progressDayIndex = todayDayIndex
   const progressDay = trainingDays.find((item) => item.dayIndex === progressDayIndex)
   const progressExec = executionsByDayIndex?.[progressDayIndex]
@@ -866,19 +877,39 @@ function TodayTrainingScreen() {
   }, [instance?.id, trainingDays.length])
 
   const handleGoToTrainingExecution = useCallback(
-    (dayIndex: number) => {
+    (dayIndex: number, focusAction?: number) => {
       if (!instance?.id) return
+      if (!hasReadExecutionPlanNotice({ instanceId: instance.id, userId: currentUserId })) {
+        setPendingExecutionTarget({ dayIndex, focusAction })
+        setExecutionNoticeVisible(true)
+        return
+      }
       const coachId = activeSubscription?.coach_id || activeSubscription?.coach?.id
       const coachName = activeSubscription?.coach?.name || ''
       const coachQuery = coachId
         ? `&coachId=${encodeURIComponent(coachId)}${coachName ? `&coachName=${encodeURIComponent(coachName)}` : ''}`
         : ''
+      const focusQuery = typeof focusAction === 'number' ? `&focusAction=${focusAction}` : ''
       Taro.navigateTo({
-        url: `/training/training-execution?instanceId=${instance.id}&dayIndex=${dayIndex}${coachQuery}`
+        url: `/training/training-execution?instanceId=${instance.id}&dayIndex=${dayIndex}${coachQuery}${focusQuery}`
       })
     },
-    [activeSubscription, instance?.id]
+    [activeSubscription, currentUserId, instance?.id]
   )
+
+  const handleConfirmExecutionNotice = useCallback(() => {
+    if (!instance?.id || !pendingExecutionTarget) return
+
+    markExecutionPlanNoticeRead({
+      instanceId: instance.id,
+      userId: currentUserId
+    })
+
+    const target = pendingExecutionTarget
+    setExecutionNoticeVisible(false)
+    setPendingExecutionTarget(null)
+    handleGoToTrainingExecution(target.dayIndex, target.focusAction)
+  }, [currentUserId, handleGoToTrainingExecution, instance?.id, pendingExecutionTarget])
 
   const handleSkipDay = useCallback(
     (dayIndex: number) => {
@@ -1358,6 +1389,28 @@ function TodayTrainingScreen() {
 
   const renderDailyProgressCard = () => {
     const showCoachSwitchTrigger = planMode === 'coach' && coachSubscriptions.length > 0
+    const focusStatusClass = selectedTaskSummary.dayCompleted
+      ? 'completed'
+      : selectedTaskSummary.trainingInProgress
+        ? 'in-progress'
+        : 'pending'
+    const focusStatusText =
+      selectedTaskSummary.totalModules === 0
+        ? '暂无任务'
+        : selectedTaskSummary.dayCompleted
+          ? '已完成'
+          : selectedTaskSummary.trainingInProgress
+            ? '进行中'
+            : '待执行'
+    const focusDayText = selectedDay
+      ? `第${selectedDayIndex}天 · ${selectedDay.type === 'rest' ? '恢复日' : '训练日'}`
+      : '暂无训练日'
+    const focusPlanText =
+      instance?.source === 'self'
+        ? '我的计划'
+        : activeSubscription?.coach?.name
+          ? `教练 · ${activeSubscription.coach.name}`
+          : '教练计划'
 
     return (
       <View className='tt-daily-progress-card'>
@@ -1380,6 +1433,50 @@ function TodayTrainingScreen() {
             </View>
           )}
         </View>
+        {instance && (
+          <View className='tt-focus-panel'>
+            <View className='tt-focus-copy'>
+              <View className={`hero-status-badge ${focusStatusClass}`}>
+                <Text>{focusStatusText}</Text>
+              </View>
+              <Text className='tt-focus-meta'>{focusPlanText} · {focusDayText}</Text>
+              <Text className='tt-focus-title'>
+                {selectedTaskSummary.dayCompleted
+                  ? '今天已经完成，随时可以回看记录'
+                  : selectedTaskSummary.trainingInProgress
+                    ? '训练正在进行，继续完成剩余内容'
+                    : '先从今天真正要做的训练开始'}
+              </Text>
+            </View>
+            <View className='tt-focus-primary-btn' onClick={handleMegaStart} hoverClass='tt-focus-primary-btn--pressed' hoverStayTime={70}>
+              <Power size={20} color='#FFFFFF' />
+              <Text className='tt-focus-primary-text'>
+                {selectedTaskSummary.dayCompleted
+                  ? '查看今日记录'
+                  : selectedTaskSummary.trainingInProgress
+                    ? '继续训练'
+                    : '开始训练'}
+              </Text>
+            </View>
+            <View className='tt-focus-secondary-row'>
+              <View className='tt-focus-secondary-btn' onClick={handleImpromptu} hoverClass='tt-focus-secondary-btn--pressed' hoverStayTime={70}>
+                <Power size={15} color='#CF6D4E' />
+                <Text>即兴锻炼</Text>
+              </View>
+              {activeSubscription?.id && !isExpiredGrace ? (
+                <View className='tt-focus-secondary-btn' onClick={handleContactCoach} hoverClass='tt-focus-secondary-btn--pressed' hoverStayTime={70}>
+                  <Message size={15} color='#6B7280' />
+                  <Text>联系教练</Text>
+                </View>
+              ) : null}
+              {instance?.source === 'self' ? (
+                <View className='tt-focus-secondary-btn tt-focus-secondary-btn--danger' onClick={handleRemoveSelfPlan} hoverClass='tt-focus-secondary-btn--pressed' hoverStayTime={70}>
+                  <Text>移除计划</Text>
+                </View>
+              ) : null}
+            </View>
+          </View>
+        )}
         <View className='tt-daily-progress-track'>
           <View
             className='tt-daily-progress-fill'
@@ -1551,29 +1648,6 @@ function TodayTrainingScreen() {
   }
 
   const waitingCoachPage = planMode === 'coach' && !coachInstance && activeSubscription?.id
-  const selectedStatusClass =
-    selectedTaskSummary.dayCompleted ? 'completed' : selectedTaskSummary.trainingInProgress ? 'in-progress' : 'pending'
-  const selectedStatusText =
-    selectedTaskSummary.totalModules === 0
-      ? '暂无任务'
-      : selectedTaskSummary.dayCompleted
-        ? '已完成'
-        : selectedTaskSummary.trainingInProgress
-          ? '进行中'
-          : '待执行'
-  const selectedExecutionMeta =
-    selectedExecutionStatus === 'completed' && selectedExec?.completed_at
-      ? `完成于 ${formatShortDate(selectedExec.completed_at)}`
-      : selectedExecutionStatus === 'in_progress' && selectedExec?.started_at
-        ? selectedDateMeta?.delayDays && selectedDateLabel
-          ? `首次开始于 ${formatShortDate(selectedExec.started_at)}，当前已顺延到 ${selectedDateLabel}`
-          : `开始于 ${formatShortDate(selectedExec.started_at)}`
-        : selectedExecutionStatus === 'completed'
-          ? '本日已完成'
-          : selectedExecutionStatus === 'in_progress'
-            ? '正在执行中'
-            : '等待开始'
-
   const enableScheduleMonthExpand = !!instance && trainingDays.length > 0 && !waitingCoachPage
 
   const renderScheduleCalendarCombined = () => (
@@ -1637,7 +1711,6 @@ function TodayTrainingScreen() {
       >
         <View className='page-content'>
           {renderDashboardIntro()}
-          {renderScheduleCalendarCombined()}
           {hasBothPlans && (
             <View className='plan-switcher'>
               <View className={`switcher-btn ${planMode === 'coach' ? 'active' : ''}`} onClick={() => setPlanMode('coach')}>
@@ -1651,6 +1724,7 @@ function TodayTrainingScreen() {
             </View>
           )}
           {renderDailyProgressCard()}
+          {renderScheduleCalendarCombined()}
 
           {waitingCoachPage ? (
             <View className='empty-card waiting-card'>
@@ -1695,35 +1769,6 @@ function TodayTrainingScreen() {
             </View>
           ) : (
             <>
-              <View className='unified-home-block unified-home-block--compact'>
-                <View className='today-action-row'>
-                  <View className={`hero-status-badge ${selectedStatusClass}`}>
-                    <Text>{selectedStatusText}</Text>
-                  </View>
-                </View>
-                <View className='today-outline-btn' onClick={handleMegaStart}>
-                  <Power size={20} color='#FFFFFF' />
-                  <Text className='today-outline-text'>进入今日训练</Text>
-                </View>
-                {instance?.source === 'self' && (
-                  <View className='self-plan-remove-row' onClick={handleRemoveSelfPlan}>
-                    <Text className='danger-action'>移除自建计划</Text>
-                  </View>
-                )}
-                {isExpiredGrace && (
-                  <View className='renew-inline' onClick={() => Taro.navigateTo({ url: renewPath })}>
-                    <ArrowRight size={16} color='#CF6D4E' />
-                    <Text className='renew-inline-text'>宽限期内续费</Text>
-                  </View>
-                )}
-                {activeSubscription?.id && !isExpiredGrace && (
-                  <View className='contact-coach-inline' onClick={handleContactCoach}>
-                    <Message size={16} color='#6B7280' />
-                    <Text className='contact-coach-text'>联系教练</Text>
-                  </View>
-                )}
-              </View>
-
               {returnConfirmedDayIndex && (
                 <View className='return-confirm-banner'>
                   <Text>已确认第{returnConfirmedDayIndex}天。</Text>
@@ -1807,6 +1852,7 @@ function TodayTrainingScreen() {
                     onOpenLightweightTask={handleOpenLightweightTask}
                     onAddLightweightTask={handleOpenLightweightPicker}
                     onDeleteLightweightTask={handleDeleteLightweightTask}
+                    onOpenExecution={handleGoToTrainingExecution}
                   />
 
                   {canShareDayCheckin && (
@@ -1840,6 +1886,7 @@ function TodayTrainingScreen() {
                     onOpenLightweightTask={handleOpenLightweightTask}
                     onAddLightweightTask={handleOpenLightweightPicker}
                     onDeleteLightweightTask={handleDeleteLightweightTask}
+                    onOpenExecution={handleGoToTrainingExecution}
                   />
 
                   {inProgressExec && (
@@ -1907,6 +1954,14 @@ function TodayTrainingScreen() {
         data={dayShareData}
         directShareReady={dayShareShareable}
         directShareLoading={dayShareLoading}
+      />
+
+      <ExecutionPlanNoticePopup
+        visible={executionNoticeVisible}
+        executionNotice={(instance as any)?.execution_notice || (instance as any)?.executionNotice || null}
+        planName={instance?.name || null}
+        onConfirm={handleConfirmExecutionNotice}
+        confirmLabel='我已阅读，进入训练'
       />
 
       {lightweightConfigVisible && pendingLightweightAction && (
