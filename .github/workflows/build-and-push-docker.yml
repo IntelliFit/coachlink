@@ -16,7 +16,7 @@
 # 本地验证登录（示例）：
 #   docker login ccr.ccs.tencentyun.com --username=<账号ID>
 # 推送后拉取：
-#   docker pull ccr.ccs.tencentyun.com/<namespace>/<repo>:staging
+#   docker pull ccr.ccs.tencentyun.com/<namespace>/<repo>:dev
 name: Build and Push Docker Image
 
 on:
@@ -87,11 +87,11 @@ jobs:
           elif [ "${{ github.ref }}" = "refs/heads/dev" ]; then
             {
               echo "tags<<EOF"
-              echo "${IMAGE}:staging"
+              echo "${IMAGE}:dev"
               echo "${IMAGE}:${SHORT_SHA}"
               echo "EOF"
             } >> "${GITHUB_OUTPUT}"
-            echo "deploy_env=staging" >> "${GITHUB_OUTPUT}"
+            echo "deploy_env=dev" >> "${GITHUB_OUTPUT}"
           elif [ "${{ github.ref }}" = "refs/heads/gray" ]; then
             {
               echo "tags<<EOF"
@@ -102,18 +102,33 @@ jobs:
             echo "deploy_env=gray" >> "${GITHUB_OUTPUT}"
           fi
 
-      - name: Build and push to Tencent CCR
+      # 先构建并 load 到 runner 本地 Docker（单平台 linux/amd64）；不推送到 registry
+      - name: Build image (local)
+        if: ${{ steps.meta.outputs.tags != '' }}
         uses: docker/build-push-action@v6
         with:
           context: .
-          push: true
+          push: false
+          load: true
           tags: ${{ steps.meta.outputs.tags }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      # 再逐条推送（需已登录 registry；与上一步标签一致）
+      - name: Push image tags to Tencent CCR
+        if: ${{ steps.meta.outputs.tags != '' }}
+        env:
+          DOCKER_TAGS: ${{ steps.meta.outputs.tags }}
+        run: |
+          set -euo pipefail
+          while IFS= read -r tag; do
+            [ -z "${tag}" ] && continue
+            docker push "${tag}"
+          done <<< "${DOCKER_TAGS}"
+
       - name: Output summary
         run: |
-          echo "### 腾讯云容器镜像构建完成" >> "${GITHUB_STEP_SUMMARY}"
+          echo "### 腾讯云容器镜像：构建与推送完成" >> "${GITHUB_STEP_SUMMARY}"
           echo "Registry: ${{ steps.reg.outputs.registry }}" >> "${GITHUB_STEP_SUMMARY}"
           echo "镜像: ${{ steps.meta.outputs.image }}" >> "${GITHUB_STEP_SUMMARY}"
           echo "环境标签: ${{ steps.meta.outputs.deploy_env }} (${{ steps.meta.outputs.short_sha }})" >> "${GITHUB_STEP_SUMMARY}"
