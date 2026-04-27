@@ -19,8 +19,8 @@
 #                        企业版：按控制台文档使用实例登录密码或临时访问凭证（以控制台为准）
 #
 # --- GitHub Variables（仓库 Settings → Secrets and variables → Actions → Variables，推荐）---
-# TENCENT_CCR_NAMESPACE   命名空间名称（如 project-a），须与控制台一致
-# TENCENT_CCR_REPOSITORY  镜像仓库名（小写字母/数字/._-），默认不写则使用 coachlink
+# TENCENT_CCR_NAMESPACE   命名空间；不设时默认 littlehorse（与脚本 push-docker-ccr 一致）
+# TENCENT_CCR_REPOSITORY  镜像仓库名；不设时默认 coachlink
 # TENCENT_CCR_REGISTRY    可选；个人版可省略（默认 ccr.ccs.tencentyun.com）；企业版填控制台给出的域名
 #
 # 本地验证登录（示例）：
@@ -55,12 +55,8 @@ jobs:
         run: |
           set -euo pipefail
           REGISTRY="${TENCENT_CCR_REGISTRY:-ccr.ccs.tencentyun.com}"
-          NS="${TENCENT_CCR_NAMESPACE:-}"
+          NS="${TENCENT_CCR_NAMESPACE:-littlehorse}"
           REPO="${TENCENT_CCR_REPOSITORY:-coachlink}"
-          if [ -z "$NS" ]; then
-            echo "::error::请在仓库 Actions Variables 中设置 TENCENT_CCR_NAMESPACE（命名空间），与腾讯云控制台一致。"
-            exit 1
-          fi
           # 去掉可能误填的 https:// 前缀
           REGISTRY="${REGISTRY#https://}"
           REGISTRY="${REGISTRY#http://}"
