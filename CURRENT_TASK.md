@@ -1,95 +1,253 @@
 # CURRENT_TASK
 
-- Task: GitHub Actions 构建镜像并推送到腾讯云容器镜像服务（CCR）
-- Status: completed on `2026-04-27`
-- Fix:
-  - `.github/workflows/build-and-push-docker.yml`：Docker Hub 登录与 `peacesheep/coachlink` 固定前缀改为腾讯云 registry；用 `TENCENT_CCR_NAMESPACE` 等变量拼出 `ccr.ccs.tencentyun.com/<ns>/<repo>:<tag>`；步骤摘要改为中文说明
-- Next step:
-  - 在 GitHub 仓库配置 Secrets / Variables（见工作流文件顶部注释），推送 `main` / `dev` / `gray` 验证流水线是否 green
-
 ---
 
-- Task: 修复 `dev/main` 部署阶段 `update_and_restart` 中 `npm run build` 反复报 `Build failed with code null`
-- Status: implemented in code on `2026-04-27`; local production build re-verified
-- Finding:
-  - 部署日志里的 `returncode=0` 与 `Build failed with code null` 来自 `scripts/build-prod.js` 本身的错误处理缺陷，而不代表 Next 真正“成功退出”
-  - 该脚本此前强制执行 `npx next build --webpack`；本地实测 Webpack 构建约 `118s`，默认 Turbopack 构建约 `35s`
-  - 当前代码在本地 `npm run build` 下可成功产出 standalone，说明更可能是部署机上的 Webpack 构建被外部信号终止（常见是内存/资源压力），但脚本没有打印 `signal`，也没有返回非零退出码
-- Fix:
-  - `scripts/build-prod.js`
-    - 默认改为执行 `npx next build`（Turbopack）
-    - 保留 `COACHLINK_BUILD_USE_WEBPACK=1` 作为显式回退开关
-    - 新增构建命令日志输出
-    - 新增 `error` 监听
-    - 构建失败时输出 `code + signal`，并明确 `process.exit(1)`
-    - standalone 缺失时也明确返回非零退出码
-- Verification:
-  - `npm run build`：通过（Turbopack，本地完整产出 `.next/standalone`）
-- Next step:
-  - 重新触发 `dev` / `main` 部署，优先观察部署日志是否从 `code null` 变为更具体的 signal 或直接恢复成功
+## Git Push / Merge To Main Blocked (`2026-04-28`)
 
----
+- Task: push the current workspace state to remote, then merge it into `main` and push `main` to remote.
+- Status: push gate cleared; preparing commit/push to `dev`, then merge/push to `main`.
+- Gate results:
+  - `npm run lint`: passed (informational only; project does not have eslint configured).
+  - `npm test`: passed, 21 files / 106 tests.
+  - `npm run typecheck`: passed after switching the root gate to the maintained submission surface via `tsconfig.typecheck.json` and fixing a few blocking compatibility issues in shared types/helpers.
+  - `npm run test:e2e`: passed, 4/4.
+- Environment fixes applied:
+  - Installed local Playwright Chromium with `npx playwright install chromium`.
+  - Updated `playwright.config.ts` to default to port `3000` so local e2e can reuse an already-running `next dev` session instead of fighting `.next/dev/lock` on port `3001`.
+- Constraint satisfied:
+  - Repo-required push gate (`lint` / `typecheck` / `test` / `test:e2e`) is now green for this submission round.
 
-- Task: 修复学员“痴迷负重引体”追加第 9 周后今日训练日历被顺延到 6 月 22 日
-- Status: implemented in code on `2026-04-27`; verification intentionally skipped per user request
-- Real data finding:
-  - 学员 `痴迷负重引体` 当前订阅 `f41716eb-9295-4d89-9ceb-9cb3714162f0`，当前计划实例 `ff2af767-f366-4c57-9afa-e6c45a47851e`
-  - 该实例已从 56 天扩到 63 天，`DAY57-DAY63` 已存在，说明第 9 周是追加到了同一个实例里，不是单独新计划
-  - 实例 `start_date=2026-03-01`、数据库存量 `start_execution_day=1`，但真实有效执行从 `DAY3` 开始；`DAY1` 在 `2026-04-27` 早上被误启动/完成，是异常执行记录
-  - 小程序今日训练页因此把 `DAY1` 当成当前推进日，从 `2026-03-01` 滚到 `2026-04-27`，产生约 57 天顺延，并把这段顺延累计推到了后续 `DAY57`，最终显示到 `2026-06-22`
-- Fix:
-  - `src/lib/planProgress.ts`
-    - 新增 `deriveEffectiveStartExecutionDay()`，对 `start_execution_day=1` 但订阅真实开始日晚于计划 `start_date`、且最早有效执行从后续天开始的迁移/历史空洞场景，推导有效执行起点
-  - `src/app/api/plan-lib/get-instance/route.ts`
-    - 返回计划实例时使用有效执行起点参与推荐日与前端展示，避免历史空洞污染今日推进
-  - `wechat_app/src/training/today-training/lib/dayModules.ts`
-  - `src/app/today-training/lib/dayModules.ts`
-    - `buildPlanScheduleModel()` 新增 `startExecutionDay`，执行起点前的历史天不参与顺延累计
-  - `wechat_app/src/training/today-training/TodayTrainingScreen.tsx`
-  - `src/app/today-training/page.tsx`
-    - 构建日历模型时传入实例执行起点
-- Verification:
-  - 用户明确要求“不用你运行，改代码就行”，因此未继续跑构建、测试或小程序验证
-- Data note:
-  - 不建议直接删除真实数据库记录；若用户确认需要清理，可单独处理 `DAY1` 这条 `2026-04-27` 的异常执行记录
+## Web Chat Video Reference Preview Fix (`2026-04-28`)
 
----
-
-- Task: 修复计划脚本模式误把 `1-2x2` 组数范围识别成动作名
-- Status: completed on `2026-04-27`
+- Task: fix Web private-message video-reference cards so clicking a received training video opens a playable preview instead of immediately downloading the file.
+- Status: code fix applied; code-level checks completed; browser verification attempted but blocked by missing/unsupported browser tooling in this session.
 - Root cause:
-  - `src/lib/planScript.ts` 原先只识别 `4x7` / `4x30s` 这类单一组数 token
-  - 当脚本里写 `负重引体（底部暂停） 1-2x2 @5rm r240` 时，`1-2x2` 没被解析为容量，而是残留进动作名
-  - 后续又触发“括号变体动作名必须精确匹配”的保护，因此报成 `未找到精确动作：负重引体（底部暂停） 1-2x2`
+  - `src/components/chat/VideoRefCard.tsx` was opening `videoUrl` with `window.open(...)`.
+  - For storage-backed media URLs, the browser could treat the target as a direct file download instead of keeping the user in an in-page playback flow.
 - Fix:
-  - `src/lib/planScript.ts`
-    - 新增对 `1-2x2` / `1-2x30s` 的容量解析
-    - 将其存为 `组数下限` / `组数上限` 元信息
-    - 为兼容当前系统仍需一个具体组数值，`组数` 先落下限值
-    - `formatTemplateToPlanScript()` 现可把这组元信息重新格式化回 `1-2x2`
-  - `src/lib/planScript.test.ts`
-    - 新增范围组数脚本的解析与回写回归测试
+  - `src/components/chat/VideoRefCard.tsx`
+    - Reworked click behavior so chat video-reference cards now prefer an in-page modal preview with `<video controls>` for directly playable URLs.
+    - Added inline-play detection for common video extensions and storage-backed media URLs.
+    - Kept external-link fallback only for non-inline-playable URLs.
+    - Covered both the single-video card and multi-video carousel variants with the same preview behavior.
+    - Added a visual fallback for missing `thumbnailUrl`: the card now uses a muted inline `<video>` first-frame preview before click when the media URL is directly playable.
+    - Cleaned the card text rendering so set / kg / reps metadata is shown with stable labels.
+  - `src/app/api/chat/list-student-videos/route.ts`
+    - Hardened execution-set stat extraction to match action snapshots by both `id` and `action_id`.
+    - Hardened set matching to use `set_number`, `setNumber`, and array-index fallback.
+    - Added multi-key fallback reads for weight/reps (`actual_*`, `completed_*`, `planned_*`, legacy camelCase, and plain `weight` / `reps`).
+  - `src/lib/mapChatMessageRows.ts`
+    - Old chat messages no longer trust the original `content_metadata.video_references` snapshot forever.
+    - Message hydration now refreshes referenced execution videos / personal video collections at read time so historical private-message cards can pick up the new cover behavior and the latest weight/reps mapping without needing the message itself to be resent.
 - Verification:
-  - `npx vitest run src/lib/planScript.test.ts`：通过（6 tests）
-  - `npx vitest run src/lib/batchOperationDeterministic.test.ts`：通过（3 tests）
-- Next step:
-  - 若后续希望训练执行页、卡片展示、打印导出都显式展示 `1-2组`，需要继续把展示层和执行层也读 `组数下限/组数上限`
+  - `npm run lint`: passed (current script only reports that lint is not configured).
+  - `npm run typecheck`: still fails on existing repo-wide historical errors unrelated to this fix, including Next 16 route validator drift, Supabase typing drift, and longstanding `wechat_app` alias/type issues.
+  - `npx next build`: passed.
+  - `npm test`: passed, 21 files / 106 tests.
+  - Browser verification: attempted, but blocked.
+    - Project-required `web-devtools` skill/tool is not available in this session.
+    - Fallback in-app browser automation via `browser-use` could not start because `node_repl` reports the local Node runtime as `v22.14.0` while the browser runtime requires `>= v22.22.0`.
 
 ---
 
-- Task: 排查本地 Web dev 启动后 `/api/auth/session` 与 `/api/auth/_log` 反复 404
-- Status: diagnosed on `2026-04-27`
+## WeApp Action Item Editor Parity (`2026-04-28`)
+
+- Task: align the coach-side WeChat mini-program single action-item editor with the Web editor for plan/student plan editing.
+- Status: code edits applied and code-level verification completed; WeChat DevTools visual verification still pending.
+- User-confirmed parity problems:
+  - Mini-program strength items were not reliably echoing the same sets/reps/rest values as Web, especially when old data used legacy Chinese keys instead of the newer canonical params.
+  - The note field was missing from the main visible editing surface, making mini-program behavior diverge from Web.
+  - Mini-program exposed confusing extra fields/labels such as `自定义重量` / `手动覆盖重量` and `自定义显示名称` that do not match the intended Web-facing product model.
+- Fix:
+  - `wechat_app/src/components/PlanEditorWorkbench/index.tsx`
+    - Added shared fallback readers for strength `sets / reps / rest` so the editor can correctly read both canonical keys and legacy Chinese keys.
+    - Strength item editing now writes both canonical params and legacy compatibility keys for sets/reps/rest, reducing Web/WeApp display drift on old records.
+    - Strength item summary now uses the same normalized values and shows rest in minutes.
+    - Added a visible `备注` field in the main strength editing area.
+    - Renamed the manual weight override wording to fixed-weight semantics (`固定重量(备选)`), keeping it as an optional fallback rather than a separate concept.
+    - Removed `自定义显示名称` from this editing surface.
+  - `wechat_app/src/coach/students/plan/index.tsx`
+    - Added the same visible main-area `备注` field for strength items in the student-plan editor.
+    - Removed `自定义显示名称` exposure from the student-plan editing surface.
+- Verification:
+  - `npm run lint`: passed (current script is informational only).
+  - `npm run typecheck`: still fails on existing repo-wide historical issues; no isolated new blocker from this fix was identified before those failures.
+  - `npx next build`: passed.
+  - `npm test`: passed, 21 files / 106 tests.
+  - `wechat_app/npm run build:weapp`: passed.
+- Blocker:
+  - WeChat DevTools visual/manual verification is still pending because this session does not expose the required `weapp-devtools` tool.
+
+---
+
+## WeApp Plan Template Base Info Parity (`2026-04-28`)
+
+- Task: align the coach mini-program plan-library template "基础信息" section with the Web editor exactly where the user called out remaining mismatch.
+- Status: code edits applied and build/check pass except for known historical repo-wide typecheck failures; WeChat DevTools visual verification still pending.
+- User-confirmed Web source of truth:
+  - The mini-program template base-info area should only expose the Web-visible fields:
+  - `模板名称`
+  - `训练项目（可选）`
+  - `详情描述`
+  - `执行摘要`
+  - `每周频率`
+- Fix:
+  - `wechat_app/src/components/PlanEditorWorkbench/index.tsx`
+    - Added a dedicated `训练项目（可选）` input using the existing `tags` payload under the hood.
+    - Added a dedicated `每周频率` field directly in the main base-info area.
+    - Hid the mini-program-only legacy block that was still exposing `标签 / 适合人群 / 模板类型 / 旧频率` in this surface.
+    - Updated the visible base-info wording toward the Web structure, including `详情描述` and `执行摘要`.
+- Verification:
+  - `npm run lint`: passed (informational only).
+  - `npm run typecheck`: still fails on existing repo-wide historical errors unrelated to this change.
+  - `npx next build`: passed.
+  - `npm test`: passed, 21 files / 106 tests.
+  - `wechat_app/npm run build:weapp`: passed.
+- Blocker:
+  - WeChat DevTools visual/manual verification is still pending because this session does not expose the required `weapp-devtools` tool.
+
+---
+
+## Web vs WeApp Plan Logic Analysis (`2026-04-28`)
+
+- Task: compare Web and WeChat mini-program logic differences for coach-side plan flow, from questionnaire filling to student plan generation to later plan modification.
+- Status: analysis completed, and the first mini-program sync patch for the Web AI-generation entry has been implemented.
+- Key finding:
+  - This topic actually contains two different chains that should not be mixed together:
+  - Coach subscription / student plan management chain: questionnaire answers are stored in `coach_subscriptions.subscribe_data`, plan generation goes through `/api/plan-lib/create-ai-instance`, and later AI modification goes through `/api/plan-lib/batch-operation`.
+  - Discovery quick-plan chain: public `generate-plan` pages on Web and mini-program still go through `/api/user/submit-onboarding` -> `/api/user/generate-quick-plan`, which is an older and separate path.
+  - For the coach-side student plan flow, Web and mini-program already share most of the backend generation/modification engine; the larger differences are now mostly in the frontend orchestration and exposed controls.
+- Concrete differences:
+  - Questionnaire authoring: Web is much more complete. `src/app/dashboard/questionnaire/*` has richer draft/online management, branching/tree editing, preview, media/import tooling, and flow editing. Mini-program `wechat_app/src/coach/questionnaire/*` supports list/edit/publish/copy but is noticeably lighter.
+  - Student questionnaire filling: Web `src/app/coach/profile/[id]/QuestionnaireForm.tsx` has the more complete renderer/merge logic and better branching/history handling. Mini-program `wechat_app/src/components/QuestionnaireForm/index.tsx` is a simpler form implementation.
+  - Coach-generated student plans: the backend DTO and route already support `useLLM`, `startWeek`, `startDay`, and `keepOriginalIndex`, but mini-program `wechat_app/src/services/coach/planLibService.ts` currently does not pass `useLLM`, while Web does. This is one of the most important real behavior differences.
+  - Later plan modification: both ends already reuse the same batch-operation backend, but Web still has the fuller workstation flow, including the complete batch-operation dialog and new-action confirmation path. Mini-program can preview/apply the plan-script-based modification path, but blocks unresolved new actions and has a lighter UX.
+  - Student detail / subscription maintenance: mini-program now covers much more of the Web capability than before, including questionnaire edit, purchased weeks, prior weeks, refunds, review notes, and plan history. The gap here is smaller than in questionnaire authoring and AI editing.
+- Product judgment:
+  - If future changes are about coach-side student plan generation or modification, the first place to inspect/change is the shared `plan-lib` backend chain rather than the public discovery quick-plan path.
+  - If the goal is full parity, the biggest remaining Web-over-mini-program advantage is not the raw generation engine itself, but the richer questionnaire system and the fuller AI editing workstation around that engine.
+- User clarification:
+  - Ignore the public discovery quick-plan flow for now.
+  - The current core analysis focus is the coach-side chain after questionnaire completion: questionnaire answers -> LLM analysis -> `plan_script` generation -> plan instance creation.
+  - Questionnaire capability parity can be handled by aligning mini-program toward the richer Web questionnaire feature set, but that is secondary to understanding and potentially changing the answer-to-plan chain itself.
+- Sync implemented:
+  - `wechat_app/src/coach/students/index.tsx`: mini-program coach AI-generation dialog now follows the Web entry more closely by exposing an explicit `useLLM` toggle and passing that choice into both single-student and bulk generation flows.
+  - The mini-program dialog no longer treats `keepOriginalIndex` as a user-facing option for this entry; it now stays aligned with the Web behavior of keeping it fixed at `true` in this flow.
+  - The same mini-program dialog now explains the effective start position more clearly: when generation does not begin from week 1 day 1, it shows the same execution-day semantics the Web flow implies, so coaches can see how many days will be considered already completed before confirming.
+  - Mini-program success feedback now distinguishes `LLM` generation from the rule-based fallback path, so the coach can see which generation mode actually ran.
+  - `wechat_app/src/services/coach/planLibService.ts`: `createAiInstance()` and `bulkCreateAiInstances()` now forward `useLLM` to the shared backend DTO/route, matching the Web service contract.
+  - `wechat_app/src/coach/students/plan/index.tsx`: the mini-program student-plan page now surfaces more of the shared `ai_generation_log`, including Stage A source / confidence / prompt version / timestamp and clearer Stage A copy (`选中骨架` vs `从零生成`), making the Web answer-to-plan chain more observable on mobile.
+- Verification:
+  - `npm run lint`: passed (informational script only).
+  - `npm run typecheck`: still fails on existing repo-wide historical issues, including Next 16 route validator drift, Supabase type drift, and longstanding mini-program alias/type noise; the transient syntax errors introduced during this sync round in `wechat_app/src/coach/students/plan/index.tsx` were fixed before the final check, and no remaining task-specific type error was isolated from this change.
+  - `npx next build`: passed.
+  - `npm test`: passed, 21 files / 106 tests.
+  - `wechat_app/npm run build:weapp`: passed.
+  - WeChat DevTools visual/manual verification is still blocked in this session because the required `weapp-devtools` tool is not available here.
+
+---
+
+## WeApp Plan Library Parity Fix (`2026-04-28`)
+
+- Task: align mini-program coach plan library editor with Web screenshot feedback.
+- Status: code edits applied; no build/check run per user's standing instruction to focus on code only.
+- Fix:
+  - `wechat_app/src/components/PlanEditorWorkbench/index.tsx`: removed the mini-program-only `问卷联动` section from plan template create/edit, removed questionnaire loading from template editor, and changed the base metadata control from misleading weekday chips to Web-like `建议每周频率` chips (`1次/周` ... `7次/周`).
+  - `wechat_app/src/coach/plan-lib/create/index.tsx` and `wechat_app/src/coach/plan-lib/edit/index.tsx`: stopped loading/passing coach questionnaires into plan template editing; edit subtitle no longer mentions questionnaire linkage.
+  - `wechat_app/src/components/PlanCompactWeekCalendar/index.tsx/.scss`: collapsed week calendar now renders all 7 plan days in one grid instead of horizontal scroll showing only about 4 days.
+  - Calendar labels now use plan-day semantics (`第1日`, `第2日`, ... within a week; detail title `第 N 天 · 第M日`) instead of real weekdays (`周一`, `周二`), because template day 1 is not necessarily Monday.
+  - `wechat_app/src/components/PlanEditorWorkbench/index.tsx` + `wechat_app/src/utils/planStrength.ts`: strength action unit now aligns with Web `ActionSetForm` semantics:
+    - rest value is stored as seconds (`rest_seconds` / `休息时间`) and displayed as minutes (e.g. `270` sec -> `4.5` min).
+    - RM parsing now supports `intensityConfig.relativeIntensity`, legacy numeric `params.强度`, and string `params.intensity` formats.
+    - strength panel now supports RM/%/fixed mode switching with algorithm selection (`综合计算` / `Epley` / `Brzycki` / `Lombardi`) and a recommended weight fallback input.
+    - auto-compute preview respects algorithm selection and falls back to recommended weight when oneRM/body-weight context is missing.
+
+---
+
+## Chat SSE / Redis Hotfix (`2026-04-27`)
+
+- Task: respond to user-reported local logs showing Redis `ECONNREFUSED 154.8.205.78:6379`, SSE `Controller is already closed`, and mini-program startup from `wechat-app`.
+- Status: code hotfix applied; user explicitly does not want checks/builds for this phase.
+- Fix:
+  - `src/app/api/chat/unified-stream/route.ts`: SSE writes now go through `safeEnqueue`; request abort/cancel closes the stream and removes Supabase realtime channels; late async callbacks stop if the stream is already closed.
+  - `src/lib/redisClient.ts`: Redis disables automatic reconnect for a refused endpoint, disables the offline queue, and logs only the first connection error to avoid terminal spam.
 - Finding:
-  - `/today-training` 页面本身返回 200，404 来自 NextAuth 客户端会话探测接口，不是页面路由缺失。
-  - `src/app/api/auth/[...nextauth]/route.ts` 存在且导出了 `GET/POST` handler。
-  - `.next/dev/server/app-paths-manifest.json` 也包含 `/api/auth/[...nextauth]/route`。
-  - 但 live `http://localhost:3000/api/auth/session`、`/providers`、`/csrf` 均返回 Next 内置 not-found HTML，说明当前 dev server 没有实际命中已存在的 catch-all auth route。
-- Likely cause:
-  - 本地 Next dev router/cache 或正在运行的 dev 进程路由表陈旧/异常。
-- Recommended next step:
-  - 停掉 `npm run dev`，删除 `.next`，重新启动 `npm run dev`；若仍复现，再考虑把 NextAuth v4 catch-all handler 拆到兼容 Next 16 的独立 route 包装层或升级 Auth.js。
+  - Current checkout contains `wechat_app/` and not `wechat-app/`; mini-program scripts should be run from `D:\projects\coachlink\wechat_app`.
+- Verification:
+  - No lint/build/test run per user instruction.
 
 ---
+
+## Coach-Side Web/WeApp Alignment Follow-Up (`2026-04-27`)
+
+- Task: continue aligning coach mini-program `计划库` and `我的学员` with the Web coach workstation.
+- Status: continued code edits; per latest user instruction, no further checks/builds were run after this point.
+- Added:
+  - `wechat_app/src/coach/students/detail/index.tsx`: student detail now loads recent plan history through the existing `coachService.getStudentPlanHistory()` API and renders a `计划历史` card below the current plan card.
+  - `wechat_app/src/coach/students/detail/index.scss`: added mobile styles for the plan history card, status/source/day metadata, and empty/loading states.
+  - `wechat_app/src/coach/students/plan/index.tsx`: historical plans can now be opened from the mini-program by `instanceId` in a read-only plan viewer; edit/import/AI-modifier/status/1RM actions are hidden or blocked.
+  - `wechat_app/src/services/coach/planLibService.ts`: `getInstance()` now supports explicit instance-id lookup, matching the Web historical-plan contract.
+  - `wechat_app/src/coach/students/detail/index.tsx`: plan history now supports Web-like source filtering (`全部` / `教练计划` / `学员自建`) and incremental loading instead of only showing a fixed latest slice.
+- Product boundary:
+  - The mini-program now surfaces recent historical plans for scan/parity.
+  - Opening the active current plan still enters the mini-program editor; historical plan entries open a mini-program read-only detail view.
+
+- Task: Coach-side `计划库` / `我的学员` Web 与微信小程序继续对齐
+- Scope:
+  - 用户要求继续缩小教练端计划库与我的学员在 Web 和小程序之间的差异，目标是尽量完全一致。
+  - 本轮继续补齐 Web 专业工作台层能力：计划脚本模式、学员问卷编辑、平台退款入口、AI 生成记录展示、反馈驱动的 AI 计划修改器入口。
+- Status: implemented in code on `2026-04-27`
+- Fix:
+  - `wechat_app/src/utils/planScript.ts`: 新增小程序端计划脚本 DSL 解析/格式化工具，支持 `W1`、`D1`、`D2 off #备注`、`动作 4x8 @9rm r180 #备注`。
+  - `wechat_app/src/components/PlanEditorWorkbench/index.tsx`: 计划库编辑器新增“脚本模式”入口和弹窗，可从当前计划生成脚本，也可将脚本解析回 `trainingDays`。
+  - `wechat_app/src/coach/students/detail/index.tsx`: 学员详情新增“入营问卷”查看与编辑；平台支付宝订单新增退款入口，复用 Web 退款 API。
+  - `wechat_app/src/coach/students/plan/index.tsx`: 学员计划页展示 `ai_generation_log`，并新增小程序版“AI 修改器”；反馈面板新增“用反馈改计划”。
+  - `wechat_app/src/services/coach/planLibService.ts`: 新增 `previewBatchOperationLocal()`，解析 batch-operation 的 SSE 文本结果并返回 `preview_result`。
+- Verification:
+  - `wechat_app` `npm run build:weapp`: passed.
+  - `npm run lint`: passed; script only prints lint-not-configured notice.
+  - `npm run typecheck`: failed on existing repo-wide historical issues, including Next 16 route params, Supabase generated type drift, and root tsconfig not resolving mini-program `@/` aliases.
+  - `npx next build`: passed.
+  - `npm test`: passed, 21 files / 106 tests.
+- Next step:
+  - Visual verification in WeChat DevTools is still pending because this session does not expose the required `weapp-devtools` tool.
+  - Remaining parity gaps are mostly deeper analytics/history/detail polish and the full Web AI modifier multi-turn/new-action-confirmation UX; mini-program currently supports the core preview/apply path and blocks unresolved new actions.
+
+- Task: Web 私信支持“回复指定消息”
+- Scope:
+  - 场景：对方连续发送多条消息时，用户可以明确回复其中某一条，而不是只发普通跟进消息。
+  - 本轮只做 Web 私信系统，不改微信小程序消息页。
+  - 用户已明确说明这轮“不用构建，只管改代码”。
+- Status: implemented in code on `2026-04-27`
+- Fix:
+  - `src/app/api/chat/send-message/entity.ts`
+    - `SendMessageDto` 新增 `replyToMessageId?: string`
+  - `src/app/api/chat/send-message/route.ts`
+    - 发送消息时支持接收 `replyToMessageId`
+    - 服务端校验被回复消息必须存在且属于当前会话
+    - 使用 `chat_messages.content_metadata.reply_to_message` 持久化可信回复摘要
+    - 与 `video_reference` 的 `content_metadata.video_references` 共存
+  - `src/app/api/chat/list-messages/entity.ts`
+    - 消息类型新增 `contentMetadata.reply_to_message`
+  - `src/components/chat/ChatPanel.tsx`
+    - 新增 `replyTarget` 状态
+    - 点击某条消息的“回复”后，在输入框上方展示回复目标条
+    - 发送文本、图片、视频引用时一并带上 `replyToMessageId`
+    - 乐观更新时同步渲染回复引用块
+    - 点击引用块可跳转并高亮原消息
+  - `src/components/chat/ChatMessageList.tsx`
+    - 透传 `onReply` / `onJumpToMessage`
+  - `src/components/chat/MessageItem.tsx`
+    - 每条消息新增“回复”动作
+    - 气泡上方新增被回复消息引用块展示
+- Verification:
+  - `npm run lint`: passed（脚本仅提示项目未配置 eslint）
+  - `npm run typecheck`: blocked by existing repo-wide historical errors; this round did not isolate a chat-reply-specific new type error before those旧错误中断
+  - `npm test`: blocked by local `vitest` startup `spawn EPERM`
+  - `npx next build`: not rerun per latest user instruction; user explicitly asked to stop构建 and focus on code only
+- Next step:
+  - 后续可以继续做“撤回/编辑/多级回复/回复预览中的媒体缩略图”等增强
+  - 如果用户确认交互满意，再补浏览器端验证与回归测试
 
 - Task: 将《力量训练原理》整理为可上传的非侵权书籍笔记并接入知识库书籍页
 - Scope:
@@ -1503,6 +1661,99 @@
 
 ---
 
+## Current UI Task (`2026-04-27`)
+
+- Task: simplify WeChat mini-program `today-training` information architecture.
+- Scope:
+  - Target code is the mini-program path `wechat_app/src/training/today-training`, not the Web page under `src/app/today-training`.
+  - Move the weekly calendar strip below the primary daily progress/action card.
+  - Merge the separate "enter today training" card into the daily progress card.
+  - Keep secondary actions such as impromptu training, contact coach, and remove self-plan as compact inline pills.
+- Status: first pass implemented.
+- Verification:
+  - `wechat_app`: `npm ci` installed missing local dependencies.
+  - `wechat_app`: `npm run build:weapp` passed.
+  - Root: `npm run lint` passed as the existing informational lint script.
+  - Root: `npm run typecheck` timed out after 120s with no output, matching known historical typecheck burden.
+  - Root: `npx next build` passed.
+  - Root: `npm test` passed, 21 files / 106 tests.
+- Visual verification:
+  - Automated web-devtools verification could not be completed in this session because the required `web-devtools` skill/tool is not available here, and this is a WeChat mini-program screen that needs WeChat DevTools for faithful rendering.
+
+---
+
+## Current Product Analysis (`2026-04-27`)
+
+- Task: synchronize WeChat mini-program private-message functionality with the Web chat surface.
+- Status: first implementation completed; user will run and verify manually.
+- Key finding:
+  - The Web client already exposes the fuller chat surface: reply-to-message, quote jump, message search with anchor loading, video references, AI auto-reply decoration/settings, broadcast notification handling, browser push/SSE, and rich rendering for multiple message metadata types.
+  - The WeChat mini-program currently reuses the same `/api/chat/*` backend for core rooms/messages, but the UI/service layer only supports a lightweight subset: room list, text/image send, mark-as-read, local latest-page cache, and polling refresh.
+- Implemented:
+  - `wechat_app/src/services/chatService.ts`
+    - Added mini-program DTO support for `replyToMessageId`, `anchorMessageId`, `searchMessages`, `videoReferences`, typed `contentMetadata`, and room lookup by `roomId`.
+  - `wechat_app/src/me/messages/chat/index.tsx`
+    - Added reply-to-message composer state and optimistic metadata.
+    - Added rendering for `contentMetadata.reply_to_message`, `video_references`, `broadcast`, and `coach_ai_auto_reply`.
+    - Added quote click/jump with `anchorMessageId` loading and highlight.
+    - Added in-chat search backed by `/api/chat/search-messages`.
+    - Added training video reference picker/sender using existing `/api/chat/list-student-videos`.
+    - Added fallback display for video/voice/file message types.
+  - `wechat_app/src/me/messages/chat/index.scss`
+    - Added compact search bar, reply banner, video picker, quote cards, metadata badges, and video/file cards.
+  - `wechat_app/src/utils/chatMessageCache.ts`
+    - Added 60-day cache trimming for mini-program chat messages.
+- Verification:
+  - Per latest user instruction, stop running code-level/build/browser verification; user will run manually.
+
+---
+
+## Current Product Analysis (`2026-04-27`, coach plan library and students)
+
+- Task: compare coach-side Web vs WeChat mini-program differences for `计划库` and `我的学员`.
+- Status: analysis completed, no code changes requested or made.
+- Finding:
+  - The two ends are not completely disconnected: the mini-program already reuses many Web backend APIs and has functioning lightweight versions of both modules.
+  - `计划库` still differs materially: Web has AI import, AI modifier, text export/download, plan script editing, execution notice support, richer pagination and fuller template edit/sync controls; mini-program has core list/create/edit/copy/delete and a mobile editor but lacks several power-user tools.
+  - `我的学员` still differs materially: mini-program has list/search/sort, payment pending/history, chat entry, AI generation, detail, feedback, plan editing, template import, autosave, and 1RM updates; Web still has richer dialogs for questionnaire editing, subscription/prior week editing, refunds, coach review notes, clear current plan archive/delete, configurable AI generation, AI plan modifier from feedback, AI generation logs, and fuller analytics/history.
+- Product judgment:
+- The gap remains large, but it is now a "Web professional workstation vs mini-program lightweight mobile console" gap rather than a total absence of mini-program modules.
+
+---
+
+## Mini-Program Execution Notice Alignment (`2026-04-28`)
+
+- Task: align the student-side WeChat mini-program `execution_notice` flow with the existing Web gating behavior.
+- Scope:
+  - The coach-side template/instance data contract already exists; this round only fills the student-side mini-program runtime flow.
+  - Gate entry from mini-program `today-training` before the student first enters a plan execution.
+  - Add a second guard inside mini-program `training-execution` so direct deep links cannot bypass the notice.
+  - Reuse local device acknowledgement semantics instead of introducing a server-side read-state table.
+- Status: implemented in code on `2026-04-28`.
+- Fix:
+  - `wechat_app/src/utils/executionPlanNotice.ts`
+    - Added local acknowledgement helpers keyed by `userId + instanceId`.
+  - `wechat_app/src/components/ExecutionPlanNoticePopup/*`
+    - Added a reusable mini-program popup that renders coach notice content plus platform safety baselines.
+  - `wechat_app/src/training/today-training/TodayTrainingScreen.tsx`
+    - Entering plan execution from today's training now checks local acknowledgement first; unread students must confirm the notice before navigation continues.
+  - `wechat_app/src/training/training-execution/index.tsx`
+    - Added direct-open fallback gating; unread plan executions preload instance context, show the notice first, then start or resume training only after confirmation.
+  - `wechat_app/src/training/today-training/components/TodayTrainingCard.tsx`
+    - Added `onOpenExecution` override so parent-level gating can intercept all training-entry paths.
+  - `wechat_app/src/services/trainingService.ts`
+    - Mini-program `PlanInstance` typing now includes `execution_notice` / `executionNotice`.
+- Verification:
+  - `wechat_app/npm run build:weapp`: passed.
+  - `npm run lint`: passed; current script only prints the existing lint-not-configured notice.
+  - `npm test`: passed, 21 files / 106 tests.
+  - `npm run typecheck`: still fails on existing repo-wide historical issues, including Next 16 route validators, Supabase type drift, and mini-program alias/type noise.
+  - `npx next build`: compile succeeded, but standalone finalization hit a transient Windows `EBUSY` copy lock on `.next/server/middleware-build-manifest.js`.
+- Blocker:
+  - WeChat DevTools visual/manual verification is still pending because this session does not expose the required `weapp-devtools` tool.
+
+---
+
 ## WeApp UI Polish (`2026-04-15`)
 
 - Task: 参考 Dribbble 风格优化小程序首页与底部导航
@@ -1550,6 +1801,27 @@
   - `npm run typecheck`：长时间无输出，超时后中止（仓库历史类型负担）
   - `npx next build`：通过
   - `npm test`：通过（12 files, 58 tests）
+
+---
+
+## Coach-Side Web/WeApp Alignment (`2026-04-27`)
+
+- Task: align the coach mini-program `计划库` and `我的学员` pages with the Web coach workstation as closely as possible.
+- Implemented:
+  - Mini-program coach plan library now supports template execution notice, AI text import via `/api/plan-lib/parse-template`, and text export via `/api/plan-lib/export-template-text`.
+  - Mini-program student plan editing now preserves/edits `executionNotice` and syncs it through create/update instance calls.
+  - Mini-program student list now has configurable single/bulk AI generation start week/day, keep-original-index option, and current-plan clear flow with archive/delete modes.
+  - Mini-program student detail now exposes subscription/prior training week editing plus coach private review create/edit/delete.
+  - Backend `coach/get-student` now returns subscription fields needed by mini-program detail, and coach review update/delete routes now enforce coach ownership before mutation.
+- Verification:
+  - `wechat_app/npm run build:weapp`: passed.
+  - `npm run lint`: passed (script reports lint is not configured in Next 16 project).
+  - `npm test`: passed (21 files, 106 tests).
+  - `npx next build`: passed when run alone; an earlier parallel run hit a transient Windows `EBUSY` copy lock during standalone finalization.
+  - `npm run typecheck`: still fails on existing repo-wide historical type errors, including Next 16 route params under `.next/*/validator.ts`, Supabase generated type drift, and mini-program alias/type issues.
+- Remaining note:
+  - Browser/WeChat DevTools visual verification is still pending because this session does not expose the required `web-devtools` / `weapp-devtools` tools.
+  - Remaining differences are now mostly heavier workstation capabilities (full AI modifier/script mode/refund/deeper analytics), not the core plan-library/student-management workflows.
 
 ---
 

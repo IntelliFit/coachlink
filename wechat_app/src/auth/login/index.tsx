@@ -13,7 +13,6 @@ import { sesService } from '@/services/sesService'
 import { authService } from '@/services/authService'
 import SliderCaptcha from '@/components/SliderCaptcha'
 import ResetPasswordForm from '@/components/ResetPasswordForm'
-import { studentOnboardingService } from '@/services/studentOnboardingService'
 
 import loginBg from '@/assets/images/login-bg.jpg'
 import './index.scss'
@@ -77,25 +76,8 @@ function Login() {
     }
   }
 
-  const getRequestedPostLoginUrl = (loggedInUser: any) => {
-    try {
-      const instance = Taro.getCurrentInstance()
-      const returnTo = (instance?.router?.params as any)?.returnTo
-      if (returnTo && typeof returnTo === 'string') {
-        return decodeURIComponent(returnTo)
-      }
-    } catch (_) {}
-    if (loggedInUser?.is_admin) return '/pages/index/index'
-    if (loggedInUser?.is_coach && loggedInUser?.primary_role === 'coach') return '/coach/overview'
-    return '/pages/index/index'
-  }
-
-  const handlePostLoginSuccess = async (loggedInUser: any) => {
-    const targetUrl = await studentOnboardingService.resolvePostLoginUrl({
-      loggedInUser,
-      fallbackUrl: getRequestedPostLoginUrl(loggedInUser)
-    })
-    Taro.reLaunch({ url: targetUrl })
+  const handlePostLoginSuccess = async () => {
+    await Taro.reLaunch({ url: authService.buildPostAuthHomeUrl() })
   }
 
   const goToTerms = () => Taro.navigateTo({ url: '/me/terms/index' })
@@ -143,7 +125,7 @@ function Login() {
       }
       Toast.show('登录成功', {})
       setTimeout(() => {
-        void handlePostLoginSuccess(data?.user)
+        void handlePostLoginSuccess()
       }, 500)
     } catch (error: any) {
       console.error('登录失败:', error)
@@ -182,7 +164,7 @@ function Login() {
       const wechatData = await authService.loginWithWechat(phoneCode)
       Toast.show('快捷登录成功', {})
       setTimeout(() => {
-        void handlePostLoginSuccess(wechatData?.user)
+        void handlePostLoginSuccess()
       }, 500)
     } catch (error: any) {
       console.error('快捷登录失败:', error)

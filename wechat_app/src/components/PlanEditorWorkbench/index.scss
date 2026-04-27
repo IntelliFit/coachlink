@@ -227,6 +227,12 @@
     gap: 8rpx;
   }
 
+  &__chip-row--compact {
+    flex-wrap: nowrap;
+    justify-content: flex-end;
+    align-items: center;
+  }
+
   &__chip,
   &__toolbar-btn,
   &__week-link,
@@ -243,7 +249,7 @@
   &__modal-btn.primary,
   &__bottom-btn.primary,
   &__chip.active {
-    background: #ff9f4a;
+    background: #CF6D4E;
     color: #fff;
   }
 
@@ -342,7 +348,7 @@
     gap: 8rpx;
 
     &.active {
-      border-color: #ff9f4a;
+      border-color: #CF6D4E;
       background: #fff5eb;
     }
 
@@ -692,6 +698,29 @@
     border-radius: 16rpx;
     background: #f8fafc;
     border: 2rpx solid #e5e7eb;
+  }
+
+  &__modal-textarea--script {
+    min-height: 560rpx;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 24rpx;
+    line-height: 36rpx;
+  }
+
+  &__modal-hint {
+    display: block;
+    margin-bottom: 16rpx;
+    color: #6b7280;
+    font-size: 24rpx;
+    line-height: 36rpx;
+  }
+
+  &__modal-error {
+    display: block;
+    margin-top: 16rpx;
+    color: #dc2626;
+    font-size: 24rpx;
+    line-height: 36rpx;
   }
 
   &__modal-list {

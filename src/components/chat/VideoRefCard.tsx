@@ -1,8 +1,9 @@
 'use client';
 
-import React from 'react';
-import type { VideoReferenceItem } from '@/app/api/chat/send-message/entity';
+import React, { useState } from 'react';
+import { Dialog } from 'primereact/dialog';
 import { Trophy, Play, Calendar } from 'lucide-react';
+import type { VideoReferenceItem } from '@/app/api/chat/send-message/entity';
 import { formatBeijingDate } from '@/lib/beijingTime';
 
 interface VideoRefCardProps {
@@ -10,157 +11,260 @@ interface VideoRefCardProps {
     isMine?: boolean;
 }
 
+function canPlayInlineVideo(url?: string | null) {
+    if (!url) return false;
+    if (url.startsWith('blob:')) return true;
+
+    const lower = url.toLowerCase();
+    if (
+        lower.endsWith('.mp4') ||
+        lower.endsWith('.webm') ||
+        lower.endsWith('.mov') ||
+        lower.endsWith('.m4v') ||
+        lower.endsWith('.ogg') ||
+        lower.includes('.mp4?') ||
+        lower.includes('.webm?') ||
+        lower.includes('.mov?') ||
+        lower.includes('.m4v?') ||
+        lower.includes('.ogg?')
+    ) {
+        return true;
+    }
+
+    return url.includes('/storage/v1/object/');
+}
+
+function VideoCover({
+    video,
+    className,
+}: {
+    video: VideoReferenceItem;
+    className?: string;
+}) {
+    const [showFallback, setShowFallback] = useState(false);
+
+    if (video.thumbnailUrl && !showFallback) {
+        return (
+            <img
+                src={video.thumbnailUrl}
+                className={className}
+                alt=""
+                onError={() => setShowFallback(true)}
+            />
+        );
+    }
+
+    if (canPlayInlineVideo(video.videoUrl) && !showFallback) {
+        return (
+            <video
+                src={video.videoUrl}
+                className={className}
+                preload="metadata"
+                muted
+                playsInline
+                onLoadedMetadata={(event) => {
+                    try {
+                        event.currentTarget.currentTime = 0.1;
+                    } catch {
+                        // ignore
+                    }
+                }}
+                onError={() => setShowFallback(true)}
+            />
+        );
+    }
+
+    return (
+        <div className={`flex items-center justify-center bg-slate-800 ${className || ''}`}>
+            <Play size={24} className="text-slate-600" />
+        </div>
+    );
+}
+
 export function VideoRefCard({ videos, isMine = false }: VideoRefCardProps) {
+    const [previewVideo, setPreviewVideo] = useState<VideoReferenceItem | null>(null);
+
     if (!videos || videos.length === 0) return null;
 
-    const formatDate = (dateStr: string) => {
-        return formatBeijingDate(dateStr, 'zh-CN', { month: 'short', day: 'numeric' });
-    };
+    const formatDate = (dateStr: string) =>
+        formatBeijingDate(dateStr, 'zh-CN', { month: 'short', day: 'numeric' });
 
     const formatDayIndex = (dayIndex?: number | null) => {
         if (dayIndex === undefined || dayIndex === null) return null;
         const week = Math.floor((dayIndex - 1) / 7) + 1;
         const day = ((dayIndex - 1) % 7) + 1;
-        return `W${week}·D${day}`;
-    };
-
-    const handleClick = (videoUrl: string) => {
-        window.open(videoUrl, '_blank');
+        return `W${week} / D${day}`;
     };
 
     const hasTrainingStats = (video: VideoReferenceItem) => {
         return !(video.weight === null && video.reps === null);
     };
 
-    // 公用训练数据组件：体现“数值中心化”
-    const TrainingStats = ({ video, light = false }: { video: VideoReferenceItem, light?: boolean }) => (
-        <div className={`flex items-baseline gap-1 mt-1.5 ${light ? 'opacity-80' : ''}`}>
+    const handleClick = (video: VideoReferenceItem) => {
+        if (canPlayInlineVideo(video.videoUrl)) {
+            setPreviewVideo(video);
+            return;
+        }
+
+        window.open(video.videoUrl, '_blank', 'noopener,noreferrer');
+    };
+
+    const TrainingStats = ({ video, light = false }: { video: VideoReferenceItem; light?: boolean }) => (
+        <div className={`mt-1.5 flex items-baseline gap-1 ${light ? 'opacity-80' : ''}`}>
             <span className="text-[10px] font-bold uppercase tracking-wider opacity-60">第 {video.setNumber} 组</span>
             <div className="flex items-baseline gap-0.5">
-                <span className="text-sm font-black tracking-tight leading-none ml-1">
-                    {video.weight ?? '--'}
-                </span>
-                <span className="text-[10px] font-bold opacity-40 italic ml-0.5">kg</span>
+                <span className="ml-1 text-sm font-black leading-none tracking-tight">{video.weight ?? '--'}</span>
+                <span className="ml-0.5 text-[10px] font-bold italic opacity-40">kg</span>
                 <span className="mx-1 text-[10px] opacity-30">×</span>
-                <span className="text-sm font-black tracking-tight leading-none">
-                    {video.reps ?? '--'}
-                </span>
-                <span className="text-[10px] font-bold opacity-40 ml-0.5">次</span>
+                <span className="text-sm font-black leading-none tracking-tight">{video.reps ?? '--'}</span>
+                <span className="ml-0.5 text-[10px] font-bold opacity-40">次</span>
             </div>
         </div>
     );
 
-    // --- 单个视频展示 ---
+    const previewDialog = (
+        <Dialog
+            visible={!!previewVideo}
+            onHide={() => setPreviewVideo(null)}
+            header={previewVideo ? previewVideo.actionName : '视频预览'}
+            modal
+            dismissableMask
+            draggable={false}
+            resizable={false}
+            style={{ width: 'min(960px, 92vw)' }}
+            className="overflow-hidden"
+        >
+            {previewVideo ? (
+                <div className="space-y-4">
+                    <div className="overflow-hidden rounded-2xl bg-black">
+                        <video
+                            src={previewVideo.videoUrl}
+                            poster={previewVideo.thumbnailUrl || undefined}
+                            controls
+                            autoPlay
+                            playsInline
+                            preload="metadata"
+                            className="w-full max-h-[72vh]"
+                        >
+                            您的浏览器不支持视频播放
+                        </video>
+                    </div>
+                    {previewVideo.description && previewVideo.description !== previewVideo.actionName ? (
+                        <p className="text-sm text-surface-600">{previewVideo.description}</p>
+                    ) : null}
+                </div>
+            ) : null}
+        </Dialog>
+    );
+
     if (videos.length === 1) {
         const video = videos[0];
+
         return (
-            <div
-                onClick={() => handleClick(video.videoUrl)}
-                className={`
-                    group relative w-[min(360px,calc(100vw-120px))] max-w-full rounded-[24px] overflow-hidden cursor-pointer
-                    transition-all duration-300 active:scale-[0.98] border border-transparent
-                    ${isMine
-                        ? 'bg-primary-600 shadow-lg shadow-primary-600/20'
-                        : 'bg-surface border-surface-100 shadow-sm hover:shadow-md'}
-                `}
-            >
-                {/* 封面图：大圆角裁剪 */}
-                <div className="relative aspect-[4/3] m-2 overflow-hidden rounded-[18px] bg-surface-900">
-                    {video.thumbnailUrl ? (
-                        <img src={video.thumbnailUrl} className="w-full h-full object-cover transition-transform group-hover:scale-105" alt="" />
-                    ) : (
-                        <div className="absolute inset-0 flex items-center justify-center bg-slate-800"><Play size={24} className="text-slate-600" /></div>
-                    )}
+            <>
+                <div
+                    onClick={() => handleClick(video)}
+                    className={`
+                        group relative w-[min(360px,calc(100vw-120px))] max-w-full cursor-pointer overflow-hidden rounded-[24px]
+                        border border-transparent transition-all duration-300 active:scale-[0.98]
+                        ${isMine
+                            ? 'bg-primary-600 shadow-lg shadow-primary-600/20'
+                            : 'bg-surface border-surface-100 shadow-sm hover:shadow-md'}
+                    `}
+                >
+                    <div className="relative m-2 aspect-[4/3] overflow-hidden rounded-[18px] bg-surface-900">
+                        <VideoCover
+                            video={video}
+                            className="h-full w-full object-cover transition-transform group-hover:scale-105"
+                        />
 
-                    {/* 播放按钮悬浮层 */}
-                    <div className="absolute inset-0 bg-black/20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                        <div className="w-10 h-10 rounded-full bg-surface/20 backdrop-blur-md flex items-center justify-center border border-surface/30">
-                            <Play size={18} fill="surface" className="text-surface ml-0.5" />
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 transition-opacity group-hover:opacity-100">
+                            <div className="flex h-10 w-10 items-center justify-center rounded-full border border-surface/30 bg-surface/20 backdrop-blur-md">
+                                <Play size={18} fill="surface" className="ml-0.5 text-surface" />
+                            </div>
                         </div>
+
+                        {video.isProgress ? (
+                            <div className="absolute left-2 top-2 flex items-center gap-1 rounded-full bg-amber-400 px-2 py-0.5 text-[10px] font-black text-amber-950 shadow-sm">
+                                <Trophy size={10} /> PR
+                            </div>
+                        ) : null}
                     </div>
 
-                    {/* 进步标签：悬浮胶囊 */}
-                    {video.isProgress && (
-                        <div className="absolute top-2 left-2 bg-amber-400 text-amber-950 px-2 py-0.5 rounded-full text-[10px] font-black flex items-center gap-1 shadow-sm">
-                            <Trophy size={10} /> ACHIEVEMENT
+                    <div className={`px-4 pb-4 pt-1 ${isMine ? 'text-surface' : 'text-surface-900 dark:text-surface-0'}`}>
+                        <div className="line-clamp-2 text-sm font-black leading-snug tracking-tight">{video.actionName}</div>
+                        {video.description && video.description !== video.actionName ? (
+                            <div className={`mt-1 text-[11px] font-bold leading-snug ${isMine ? 'text-surface/80' : 'text-surface-600'}`}>
+                                {video.description}
+                            </div>
+                        ) : null}
+                        {Array.isArray(video.tags) && video.tags.length > 0 ? (
+                            <div className={`mt-2 flex flex-wrap gap-1 ${isMine ? 'text-surface/70' : 'text-surface-500'}`}>
+                                {video.tags.slice(0, 4).map((tag) => (
+                                    <span
+                                        key={tag}
+                                        className={`rounded-full px-2 py-0.5 text-[9px] font-black ${isMine ? 'bg-surface/15' : 'bg-surface-100'}`}
+                                    >
+                                        #{tag}
+                                    </span>
+                                ))}
+                            </div>
+                        ) : null}
+                        {hasTrainingStats(video) ? <TrainingStats video={video} light={isMine} /> : null}
+                        <div className={`mt-3 flex items-center gap-2 text-[10px] font-bold ${isMine ? 'text-surface/60' : 'text-slate-400'}`}>
+                            <Calendar size={10} />
+                            <span>
+                                {formatDate(video.createdAt)} {formatDayIndex(video.dayIndex)}
+                            </span>
                         </div>
-                    )}
+                    </div>
                 </div>
-
-                {/* 文字信息 */}
-                <div className={`px-4 pb-4 pt-1 ${isMine ? 'text-surface' : 'text-surface-900 dark:text-surface-0'}`}>
-                    <div className="font-black text-sm tracking-tight leading-snug line-clamp-2">
-                        {video.actionName}
-                    </div>
-                    {video.description && video.description !== video.actionName && (
-                        <div className={`mt-1 text-[11px] font-bold leading-snug ${isMine ? 'text-surface/80' : 'text-surface-600'}`}>
-                            {video.description}
-                        </div>
-                    )}
-                    {Array.isArray(video.tags) && video.tags.length > 0 && (
-                        <div className={`mt-2 flex flex-wrap gap-1 ${isMine ? 'text-surface/70' : 'text-surface-500'}`}>
-                            {video.tags.slice(0, 4).map((t) => (
-                                <span key={t} className={`text-[9px] font-black px-2 py-0.5 rounded-full ${isMine ? 'bg-surface/15' : 'bg-surface-100'}`}>
-                                    #{t}
-                                </span>
-                            ))}
-                        </div>
-                    )}
-                    {hasTrainingStats(video) && <TrainingStats video={video} light={isMine} />}
-                    <div className={`mt-3 flex items-center gap-2 text-[10px] font-bold ${isMine ? 'text-surface/60' : 'text-slate-400'}`}>
-                        <Calendar size={10} />
-                        <span>{formatDate(video.createdAt)} {formatDayIndex(video.dayIndex)}</span>
-                    </div>
-                </div>
-            </div>
+                {previewDialog}
+            </>
         );
     }
 
-    // --- 多个视频滚动展示 ---
     return (
         <div className="w-[min(448px,calc(100vw-120px))] max-w-full">
-            <div className="flex items-center justify-between px-1 mb-2">
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+            <div className="mb-2 flex items-center justify-between px-1">
+                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
                     {videos.length} 个训练视频
                 </span>
             </div>
-            <div className="flex gap-3 overflow-x-auto pb-4 -mx-2 px-2 snap-x scrollbar-hide">
+            <div className="-mx-2 flex snap-x gap-3 overflow-x-auto px-2 pb-4 scrollbar-hide">
                 {videos.map((video) => (
                     <div
                         key={video.videoId}
-                        onClick={() => handleClick(video.videoUrl)}
+                        onClick={() => handleClick(video)}
                         className={`
-                            flex-shrink-0 w-36 sm:w-40 rounded-[20px] overflow-hidden cursor-pointer snap-start
-                            transition-all duration-300 active:scale-95 border
+                            w-36 flex-shrink-0 cursor-pointer snap-start overflow-hidden rounded-[20px] border transition-all duration-300 active:scale-95 sm:w-40
                             ${isMine
-                                ? 'bg-primary-600 border-transparent shadow-md shadow-primary-600/10'
-                                : 'bg-surface border-slate-100 shadow-sm'}
+                                ? 'border-transparent bg-primary-600 shadow-md shadow-primary-600/10'
+                                : 'border-slate-100 bg-surface shadow-sm'}
                         `}
                     >
-                        <div className="relative aspect-video bg-slate-900">
-                            {video.thumbnailUrl ? (
-                                <img src={video.thumbnailUrl} className="w-full h-full object-cover" alt="" />
-                            ) : (
-                                <Play size={16} className="text-slate-700" />
-                            )}
-                            {video.isProgress && (
-                                <div className="absolute top-1.5 left-1.5 w-5 h-5 bg-amber-400 rounded-full flex items-center justify-center shadow-sm">
+                        <div className="relative aspect-video overflow-hidden bg-slate-900">
+                            <VideoCover
+                                video={video}
+                                className="h-full w-full object-cover"
+                            />
+                            {video.isProgress ? (
+                                <div className="absolute left-1.5 top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-amber-400 shadow-sm">
                                     <Trophy size={10} className="text-amber-900" />
                                 </div>
-                            )}
+                            ) : null}
                         </div>
                         <div className={`p-3 ${isMine ? 'text-surface' : 'text-surface-900 dark:text-surface-0'}`}>
-                            <div className="text-[11px] font-black tracking-tighter leading-tight line-clamp-2">
+                            <div className="line-clamp-2 text-[11px] font-black leading-tight tracking-tighter">
                                 {video.actionName}
                             </div>
-                            {hasTrainingStats(video) && <TrainingStats video={video} light={isMine} />}
-                            <div className={`text-[9px] mt-2 font-bold opacity-50`}>
-                                {formatDate(video.createdAt)}
-                            </div>
+                            {hasTrainingStats(video) ? <TrainingStats video={video} light={isMine} /> : null}
+                            <div className="mt-2 text-[9px] font-bold opacity-50">{formatDate(video.createdAt)}</div>
                         </div>
                     </div>
                 ))}
             </div>
+            {previewDialog}
         </div>
     );
 }

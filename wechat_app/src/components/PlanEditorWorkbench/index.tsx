@@ -4,10 +4,9 @@ import Taro from '@tarojs/taro'
 import BottomNav from '@/components/BottomNav'
 import PlanCompactWeekCalendar from '@/components/PlanCompactWeekCalendar'
 import PlanReferenceOneRMPanel from '@/components/PlanReferenceOneRMPanel'
-import type { PlanActionOption, PlanActionSet, PlanEditorValue, PlanItemType, PlanQuestionItem, PlanTrainingDay } from '@/types/plan'
+import type { PlanActionOption, PlanActionSet, PlanEditorValue, PlanItemType, PlanTrainingDay } from '@/types/plan'
 import type { PlanOneRMRecord } from '@/utils/planStrength'
 import {
-  WEEKDAY_LABELS,
   SUITABLE_FOR_LABELS,
   addEmptyWeek,
   applyAppendAction,
@@ -23,9 +22,9 @@ import {
   getTrainingWeekDays,
   normalizeItemType,
   normalizePlanDays,
-  normalizeQuestionOptions,
   resolveActionDisplayName
 } from '@/utils/planEditor'
+import { formatPlanToScript, getPlanScriptErrorMessage, parsePlanScript } from '@/utils/planScript'
 import {
   applyStrengthControlValue,
   buildOneRMIndex,
@@ -62,7 +61,59 @@ interface PlanEditorWorkbenchProps {
   onCancel?: () => void
   onSave: (value: PlanEditorValue) => Promise<void> | void
   onImportText?: (text: string, actions: PlanActionOption[]) => Promise<PlanImportResult | null>
-  loadQuestionnaires?: () => Promise<PlanQuestionItem[]>
+}
+
+const PLAN_DAY_POSITIONS = [1, 2, 3, 4, 5, 6, 7]
+
+const toFiniteNumber = (value: unknown) => {
+  const num = Number(value)
+  return Number.isFinite(num) ? num : null
+}
+
+const getStrengthSetsValue = (actionSet?: PlanActionSet | null) => {
+  const direct = toFiniteNumber((actionSet as any)?.sets)
+  if (direct !== null && direct > 0) return Math.floor(direct)
+  const paramSets = toFiniteNumber(actionSet?.params?.sets)
+  if (paramSets !== null && paramSets > 0) return Math.floor(paramSets)
+  const legacySets = toFiniteNumber(actionSet?.params?.['组数'])
+  if (legacySets !== null && legacySets > 0) return Math.floor(legacySets)
+  return null
+}
+
+const getStrengthRepsValue = (actionSet?: PlanActionSet | null) => {
+  const direct = toFiniteNumber((actionSet as any)?.reps)
+  if (direct !== null && direct > 0) return Math.floor(direct)
+  const paramReps = toFiniteNumber(actionSet?.params?.reps)
+  if (paramReps !== null && paramReps > 0) return Math.floor(paramReps)
+  const legacyReps = toFiniteNumber(actionSet?.params?.['次数'])
+  if (legacyReps !== null && legacyReps > 0) return Math.floor(legacyReps)
+  return null
+}
+
+const getStrengthRestMinutesValue = (actionSet?: PlanActionSet | null) => {
+  const restSeconds = toFiniteNumber(actionSet?.params?.rest_seconds)
+  if (restSeconds !== null && restSeconds >= 0) {
+    return Number((restSeconds / 60).toFixed(1))
+  }
+  const legacyRest = toFiniteNumber(actionSet?.params?.['休息时间'])
+  if (legacyRest !== null && legacyRest >= 0) {
+    return Number((legacyRest / 60).toFixed(1))
+  }
+  return null
+}
+
+const getStrengthLoadUnit = (params: Record<string, any>) => (
+  String(params?.loadUnit || params?.intensityConfig?.recommendedLoad?.unit || 'kg') === 'lbs' ? 'lbs' : 'kg'
+)
+
+const getStrengthIntensitySource = (params: Record<string, any>) => {
+  const relativeConfig = params?.intensityConfig?.relativeIntensity
+  if (relativeConfig && typeof relativeConfig === 'object') {
+    return relativeConfig
+  }
+  const legacyRm = toFiniteNumber(params?.['强度'])
+  if (legacyRm !== null && legacyRm > 0) return legacyRm
+  return params?.intensity
 }
 
 const createInitialValue = (mode: PlanEditorMode, initialValue?: Partial<PlanEditorValue> | null): PlanEditorValue => {
@@ -73,6 +124,7 @@ const createInitialValue = (mode: PlanEditorMode, initialValue?: Partial<PlanEdi
   return {
     name: initialValue?.name || '',
     description: initialValue?.description || '',
+    executionNotice: initialValue?.executionNotice || '',
     tags: initialValue?.tags || [],
     suitableFor: initialValue?.suitableFor || 'beginner',
     type: initialValue?.type || '',
@@ -103,22 +155,22 @@ export default function PlanEditorWorkbench({
   withBottomNav = false,
   onCancel,
   onSave,
-  onImportText,
-  loadQuestionnaires
+  onImportText
 }: PlanEditorWorkbenchProps) {
   const [editor, setEditor] = useState<PlanEditorValue>(() => createInitialValue(mode, initialValue))
   const [selectedDayIndex, setSelectedDayIndex] = useState(1)
   const [tagInput, setTagInput] = useState((initialValue?.tags || []).join(', '))
-  const [questionnaires, setQuestionnaires] = useState<PlanQuestionItem[]>([])
-  const [questionnaireLoading, setQuestionnaireLoading] = useState(false)
   const [showBatchDialog, setShowBatchDialog] = useState(false)
   const [showImportDialog, setShowImportDialog] = useState(false)
+  const [showScriptDialog, setShowScriptDialog] = useState(false)
   const [showCopyDialog, setShowCopyDialog] = useState(false)
   const [showOneRMPanel, setShowOneRMPanel] = useState(false)
   const [showFullCalendar, setShowFullCalendar] = useState(false)
   const [advancedActionKeys, setAdvancedActionKeys] = useState<Record<string, boolean>>({})
   const [importText, setImportText] = useState('')
   const [importing, setImporting] = useState(false)
+  const [scriptText, setScriptText] = useState('')
+  const [scriptError, setScriptError] = useState('')
   const [batchMode, setBatchMode] = useState<BatchMode>('replace')
   const [batchFromActionId, setBatchFromActionId] = useState('')
   const [batchToActionId, setBatchToActionId] = useState('')
@@ -135,28 +187,11 @@ export default function PlanEditorWorkbench({
     setBatchWeekEnd(Math.max(1, Math.ceil(nextValue.days.length / 7)))
     setShowOneRMPanel(false)
     setShowFullCalendar(false)
+    setShowScriptDialog(false)
+    setScriptText('')
+    setScriptError('')
     setAdvancedActionKeys({})
   }, [initialValue, mode])
-
-  useEffect(() => {
-    if (mode !== 'coach-template' || !loadQuestionnaires) return
-    let mounted = true
-    setQuestionnaireLoading(true)
-    loadQuestionnaires()
-      .then((items) => {
-        if (!mounted) return
-        setQuestionnaires(Array.isArray(items) ? items : [])
-      })
-      .catch((error) => {
-        console.warn('[PlanEditorWorkbench] load questionnaires failed:', error)
-      })
-      .finally(() => {
-        if (mounted) setQuestionnaireLoading(false)
-      })
-    return () => {
-      mounted = false
-    }
-  }, [loadQuestionnaires, mode])
 
   const weeks = useMemo(() => chunkDaysByWeek(editor.days), [editor.days])
   const oneRMRecordIndex = useMemo(() => buildOneRMIndex(oneRMRecords), [oneRMRecords])
@@ -211,8 +246,8 @@ export default function PlanEditorWorkbench({
   const weekCalendarWeeks = useMemo(
     () => weeks.map((week) => week.map((day) => ({
       dayIndex: day.dayIndex,
-      label: `周${WEEKDAY_LABELS[(Math.max(day.dayIndex, 1) - 1) % 7] || '-'}`,
-      title: `第${day.dayIndex}天`,
+      label: `第${((Math.max(day.dayIndex, 1) - 1) % 7) + 1}日`,
+      title: day.type === 'rest' ? '休息' : '训练',
       meta: day.type === 'rest' ? '休息' : `${day.actionSets?.length || 0}项`,
       rest: day.type === 'rest'
     }))),
@@ -240,7 +275,7 @@ export default function PlanEditorWorkbench({
     setEditor((current) => updater(current))
   }
 
-  const getDayWeekLabel = (dayIndex: number) => `周${WEEKDAY_LABELS[(Math.max(dayIndex, 1) - 1) % 7] || '-'}`
+  const getPlanDayPositionLabel = (dayIndex: number) => `第${((Math.max(dayIndex, 1) - 1) % 7) + 1}日`
 
   const getItemMeta = (itemType: PlanItemType) => {
     switch (itemType) {
@@ -267,14 +302,19 @@ export default function PlanEditorWorkbench({
     const customData = params.custom_data || {}
 
     if (itemType === 'STRENGTH') {
-      const parsedIntensity = parseIntensityValue(params.intensity, params.load)
+      const fallbackLoad = toFiniteNumber(params.load) ?? toFiniteNumber(params?.intensityConfig?.recommendedLoad?.value)
+      const parsedIntensity = parseIntensityValue(getStrengthIntensitySource(params), fallbackLoad)
+      const strengthUnit = getStrengthLoadUnit(params)
+      const setsValue = getStrengthSetsValue(actionSet)
+      const repsValue = getStrengthRepsValue(actionSet)
+      const restMinutesValue = getStrengthRestMinutesValue(actionSet)
       const parts = [
-        params.sets ? `${params.sets}组` : '',
-        params.reps ? `${params.reps}次` : '',
+        setsValue ? `${setsValue}组` : '',
+        repsValue ? `${repsValue}次` : '',
         parsedIntensity.mode === 'rm' && parsedIntensity.value ? `${parsedIntensity.value}RM` : '',
         parsedIntensity.mode === 'percentage' && parsedIntensity.value ? `${parsedIntensity.value}%` : '',
-        parsedIntensity.mode === 'fixed' && params.load ? `${params.load}kg` : '',
-        params.rest_seconds ? `${params.rest_seconds}s` : ''
+        parsedIntensity.mode === 'fixed' && fallbackLoad ? `${fallbackLoad}${strengthUnit}` : '',
+        restMinutesValue !== null ? `${restMinutesValue}min` : ''
       ].filter(Boolean)
       return parts.join(' · ') || '补充组数、次数和强度'
     }
@@ -474,6 +514,52 @@ export default function PlanEditorWorkbench({
     }
   }
 
+  const handleOpenScriptDialog = () => {
+    try {
+      setScriptText(formatPlanToScript({
+        description: editor.description,
+        days: editor.days,
+        actions
+      }))
+      setScriptError('')
+      setShowScriptDialog(true)
+    } catch (error) {
+      Taro.showToast({
+        title: getPlanScriptErrorMessage(error),
+        icon: 'none'
+      })
+    }
+  }
+
+  const handleApplyScript = () => {
+    if (!scriptText.trim()) {
+      setScriptError('请输入计划脚本')
+      return
+    }
+
+    try {
+      const result = parsePlanScript({ script: scriptText, actions })
+      if (!result.days.length) {
+        setScriptError('脚本里没有解析出训练日')
+        return
+      }
+
+      const normalizedDays = normalizePlanDays(result.days)
+      updateEditor((current) => ({
+        ...current,
+        description: result.description !== null ? result.description : current.description,
+        days: normalizedDays,
+        weekDays: getTrainingWeekDays(normalizedDays)
+      }))
+      setSelectedDayIndex(normalizedDays.find((day) => day.type === 'training')?.dayIndex || normalizedDays[0]?.dayIndex || 1)
+      setScriptError('')
+      setShowScriptDialog(false)
+      Taro.showToast({ title: '已应用脚本', icon: 'none' })
+    } catch (error) {
+      setScriptError(getPlanScriptErrorMessage(error))
+    }
+  }
+
   const handleBatchConfirm = () => {
     let result = null as ReturnType<typeof applyReplaceAction> | ReturnType<typeof applyDeleteAction> | ReturnType<typeof applyAppendAction> | null
     if (batchMode === 'replace') {
@@ -526,6 +612,7 @@ export default function PlanEditorWorkbench({
       ...editor,
       name: editor.name.trim(),
       description: editor.description.trim(),
+      executionNotice: editor.executionNotice.trim(),
       tags: parseTags(tagInput),
       weekDays: editor.weekDays?.length ? editor.weekDays : getTrainingWeekDays(editor.days),
       days: normalizePlanDays(editor.days)
@@ -554,13 +641,63 @@ export default function PlanEditorWorkbench({
     const currentAction = getActionBySet(actionSet)
     const autoLoadEnabled = itemType === 'STRENGTH' && isAutoLoadEligible(currentAction)
     const strengthPreview = itemType === 'STRENGTH' ? getStrengthPreview(actionSet) : null
-    const parsedIntensity = itemType === 'STRENGTH' ? parseIntensityValue(params.intensity, params.load) : null
-    const strengthControl = itemType === 'STRENGTH' ? getStrengthControlValue(params.intensity, params.load) : null
+    const strengthIntensitySource = itemType === 'STRENGTH' ? getStrengthIntensitySource(params) : null
+    const fallbackLoad = itemType === 'STRENGTH'
+      ? (toFiniteNumber(params.load) ?? toFiniteNumber(params?.intensityConfig?.recommendedLoad?.value))
+      : null
+    const parsedIntensity = itemType === 'STRENGTH' ? parseIntensityValue(strengthIntensitySource, fallbackLoad) : null
+    const strengthControl = itemType === 'STRENGTH' ? getStrengthControlValue(strengthIntensitySource, fallbackLoad) : null
+    const strengthSetsValue = itemType === 'STRENGTH' ? getStrengthSetsValue(actionSet) : null
+    const strengthRepsValue = itemType === 'STRENGTH' ? getStrengthRepsValue(actionSet) : null
+    const strengthRestMinutesValue = itemType === 'STRENGTH' ? getStrengthRestMinutesValue(actionSet) : null
+    const strengthLoadUnit = itemType === 'STRENGTH' ? getStrengthLoadUnit(params) : 'kg'
+    const strengthAlgorithm = String(params?.algorithm || '综合计算')
     const referenceOneRM = currentAction
       ? resolveReferenceOneRM(currentAction, editor.oneRMConfig, oneRMRecordIndex)
       : null
     const editableDisplayName = resolveEditableDisplayName(actionSet)
     const actionSummary = getActionSummaryText(actionSet)
+    const autoRecommendedLoad = strengthPreview?.source === 'auto' && strengthPreview.value !== undefined
+      ? strengthPreview.value
+      : null
+    const recommendedWeightValue = fallbackLoad ?? autoRecommendedLoad
+    const recommendedWeightDisplay = recommendedWeightValue !== null && recommendedWeightValue !== undefined
+      ? String(recommendedWeightValue)
+      : ''
+
+    const syncRecommendedLoad = (
+      currentSet: PlanActionSet,
+      loadValue: number | null,
+      loadUnit: 'kg' | 'lbs'
+    ) => {
+      const nextParams = {
+        ...(currentSet.params || {})
+      } as Record<string, any>
+      const existingConfig = (nextParams.intensityConfig && typeof nextParams.intensityConfig === 'object')
+        ? nextParams.intensityConfig
+        : {}
+      const nextConfig: Record<string, any> = {
+        ...existingConfig
+      }
+
+      if (loadValue !== null && loadValue > 0) {
+        nextParams.load = loadValue
+        nextParams.loadUnit = loadUnit
+        nextConfig.recommendedLoad = {
+          value: loadValue,
+          unit: loadUnit
+        }
+      } else {
+        nextParams.load = ''
+        delete nextConfig.recommendedLoad
+      }
+
+      nextParams.intensityConfig = Object.keys(nextConfig).length > 0 ? nextConfig : undefined
+      return {
+        ...currentSet,
+        params: nextParams
+      }
+    }
 
     return (
       <View
@@ -655,13 +792,14 @@ export default function PlanEditorWorkbench({
                 <Input
                   className='plan-editor__input'
                   type='number'
-                  value={String(params.sets ?? '')}
+                  value={strengthSetsValue === null ? '' : String(strengthSetsValue)}
                   onInput={(event) => {
                     updateActionSet(selectedDay.dayIndex, setIndex, (currentSet) => ({
                       ...currentSet,
                       params: {
                         ...(currentSet.params || {}),
-                        sets: Number(event.detail.value || 0)
+                        sets: Number(event.detail.value || 0),
+                        ['组数']: Number(event.detail.value || 0)
                       }
                     }))
                   }}
@@ -671,30 +809,35 @@ export default function PlanEditorWorkbench({
                 <Text className='plan-editor__label'>次数</Text>
                 <Input
                   className='plan-editor__input'
-                  value={String(params.reps ?? '')}
+                  type='number'
+                  value={strengthRepsValue === null ? '' : String(strengthRepsValue)}
                   onInput={(event) => {
                     updateActionSet(selectedDay.dayIndex, setIndex, (currentSet) => ({
                       ...currentSet,
                       params: {
                         ...(currentSet.params || {}),
-                        reps: event.detail.value
+                        reps: Number(event.detail.value || 0),
+                        ['次数']: Number(event.detail.value || 0)
                       }
                     }))
                   }}
                 />
               </View>
               <View className='plan-editor__field'>
-                <Text className='plan-editor__label'>休息</Text>
+                <Text className='plan-editor__label'>休息(min)</Text>
                 <Input
                   className='plan-editor__input'
-                  type='number'
-                  value={String(params.rest_seconds ?? '')}
+                  type='digit'
+                  value={strengthRestMinutesValue === null ? '' : String(strengthRestMinutesValue)}
                   onInput={(event) => {
+                    const restMinutes = Number(event.detail.value || 0)
+                    const restSeconds = Number((restMinutes * 60).toFixed(0))
                     updateActionSet(selectedDay.dayIndex, setIndex, (currentSet) => ({
                       ...currentSet,
                       params: {
                         ...(currentSet.params || {}),
-                        rest_seconds: Number(event.detail.value || 0)
+                        rest_seconds: restSeconds,
+                        ['休息时间']: restSeconds
                       }
                     }))
                   }}
@@ -714,11 +857,14 @@ export default function PlanEditorWorkbench({
                       key={option.key}
                       className={`plan-editor__segment ${strengthControl?.mode === option.key ? 'active' : ''}`}
                       onClick={() => {
+                        const nextValue = option.key === 'fixed'
+                          ? recommendedWeightDisplay
+                          : (strengthControl?.mode === option.key ? strengthControl?.value || '' : '')
                         updateActionSet(selectedDay.dayIndex, setIndex, (currentSet) => ({
                           ...currentSet,
                           params: applyStrengthControlValue(currentSet.params || {}, {
                             mode: option.key as 'rm' | 'percentage' | 'fixed',
-                            value: strengthControl?.mode === option.key ? strengthControl?.value || '' : ''
+                            value: nextValue
                           })
                         }))
                       }}
@@ -757,16 +903,73 @@ export default function PlanEditorWorkbench({
                 </View>
               </View>
             </View>
+            {strengthControl?.mode === 'rm' ? (
+              <View className='plan-editor__field plan-editor__field--full'>
+                <Text className='plan-editor__label'>自动计算算法</Text>
+                <View className='plan-editor__chip-row'>
+                  {['综合计算', 'Epley', 'Brzycki', 'Lombardi'].map((name) => (
+                    <View
+                      key={name}
+                      className={`plan-editor__chip ${strengthAlgorithm === name ? 'active' : ''}`}
+                      onClick={() => {
+                        updateActionSet(selectedDay.dayIndex, setIndex, (currentSet) => ({
+                          ...currentSet,
+                          params: {
+                            ...(currentSet.params || {}),
+                            algorithm: name
+                          }
+                        }))
+                      }}
+                    >
+                      <Text>{name}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            ) : null}
+            <View className='plan-editor__field plan-editor__field--full'>
+              <Text className='plan-editor__label'>
+                {strengthControl?.mode === 'fixed' ? '固定重量' : '推荐重量（备选）'}
+              </Text>
+              <View className='plan-editor__grid plan-editor__grid--two'>
+                <Input
+                  className='plan-editor__input'
+                  type='digit'
+                  value={recommendedWeightDisplay}
+                  placeholder={autoRecommendedLoad !== null ? String(autoRecommendedLoad) : '0'}
+                  onInput={(event) => {
+                    const nextLoad = toFiniteNumber(event.detail.value)
+                    updateActionSet(selectedDay.dayIndex, setIndex, (currentSet) => syncRecommendedLoad(currentSet, nextLoad, strengthLoadUnit))
+                  }}
+                />
+                <View className='plan-editor__chip-row plan-editor__chip-row--compact'>
+                  {(['kg', 'lbs'] as const).map((unit) => (
+                    <View
+                      key={`load-unit-${unit}`}
+                      className={`plan-editor__chip ${strengthLoadUnit === unit ? 'active' : ''}`}
+                      onClick={() => {
+                        updateActionSet(selectedDay.dayIndex, setIndex, (currentSet) => {
+                          const currentLoad = toFiniteNumber((currentSet.params || {}).load)
+                          return syncRecommendedLoad(currentSet, currentLoad, unit)
+                        })
+                      }}
+                    >
+                      <Text>{unit}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            </View>
             <View className={`plan-editor__auto-load plan-editor__auto-load--${strengthPreview?.source || 'missing'}`}>
               <View className='plan-editor__auto-load-main'>
                 <Text className='plan-editor__auto-load-label'>
-                  {autoLoadEnabled ? '自动算重' : '重量信息'}
+                  {strengthControl?.mode === 'fixed' ? '固定重量' : '自动计算'}
                 </Text>
                 <Text className='plan-editor__auto-load-value'>
                   {strengthPreview?.source === 'auto' && strengthPreview.value !== undefined
-                    ? `${strengthPreview.value}${strengthPreview.unit || 'kg'}`
+                    ? `${strengthPreview.value}${strengthPreview.unit || strengthLoadUnit}`
                     : strengthPreview?.source === 'manual' && strengthPreview.value !== undefined
-                      ? `${strengthPreview.value}${strengthPreview.unit || 'kg'}`
+                      ? `${strengthPreview.value}${strengthPreview.unit || strengthLoadUnit}`
                       : strengthPreview?.reason || '填写强度后显示自动算重'}
                 </Text>
               </View>
@@ -774,49 +977,35 @@ export default function PlanEditorWorkbench({
                 {strengthPreview?.source === 'auto'
                   ? `基于 ${strengthPreview.basis || ''}${referenceOneRM ? ` · 1RM ${referenceOneRM}kg` : ''}${bodyWeight ? ` · 体重 ${bodyWeight}kg` : ''}`
                   : strengthPreview?.source === 'manual'
-                    ? '这组会按固定重量展示与执行'
+                    ? (strengthControl?.mode === 'fixed' ? '这组会按固定重量展示与执行' : '无法计算时会回退使用推荐重量')
                     : autoLoadEnabled
                       ? `当前识别：${parsedIntensity?.raw || '未设置强度'}`
                       : '当前动作未启用自动算重'}
               </Text>
             </View>
+            <View className='plan-editor__field plan-editor__field--full'>
+              <Text className='plan-editor__label'>备注</Text>
+              <Textarea
+                className='plan-editor__textarea plan-editor__textarea--compact'
+                value={String(params.note || '')}
+                placeholder='如 rpe9、热身组、动作节奏等'
+                maxlength={200}
+                autoHeight
+                onInput={(event) => {
+                  updateActionParams(selectedDay.dayIndex, setIndex, {
+                    note: event.detail.value
+                  })
+                }}
+              />
+            </View>
 
             {advancedOpen ? (
               <View className='plan-editor__grid plan-editor__grid--two plan-editor__advanced-grid'>
-                {strengthControl?.mode !== 'fixed' ? (
-                  <View className='plan-editor__field'>
-                    <Text className='plan-editor__label'>{autoLoadEnabled ? '手动覆盖重量' : '重量(kg)'}</Text>
-                    <Input
-                      className='plan-editor__input'
-                      type='digit'
-                      value={String(params.load ?? '')}
-                      placeholder={autoLoadEnabled ? '留空则按 1RM 自动计算' : '可留空'}
-                      onInput={(event) => {
-                        updateActionSet(selectedDay.dayIndex, setIndex, (currentSet) => ({
-                          ...currentSet,
-                          params: {
-                            ...(currentSet.params || {}),
-                            load: event.detail.value
-                          }
-                        }))
-                      }}
-                    />
-                  </View>
-                ) : null}
-                <View className='plan-editor__field'>
-                  <Text className='plan-editor__label'>自定义显示名称</Text>
-                  <Input
-                    className='plan-editor__input'
-                    value={editableDisplayName}
-                    placeholder='不填就直接显示动作名'
-                    onInput={(event) => {
-                      const value = event.detail.value
-                      updateActionSet(selectedDay.dayIndex, setIndex, (currentSet) => ({
-                        ...currentSet,
-                        setName: value
-                      }))
-                    }}
-                  />
+                <View className='plan-editor__field plan-editor__field--full'>
+                  <Text className='plan-editor__label'>识别明细</Text>
+                  <Text className='plan-editor__caption'>
+                    当前强度：{parsedIntensity?.raw || '未设置'} · 算法：{strengthControl?.mode === 'rm' ? strengthAlgorithm : '不适用'}
+                  </Text>
                 </View>
               </View>
             ) : null}
@@ -1000,21 +1189,6 @@ export default function PlanEditorWorkbench({
                 />
               </View>
             ) : null}
-            <View className='plan-editor__field plan-editor__field--full'>
-              <Text className='plan-editor__label'>自定义显示名称</Text>
-              <Input
-                className='plan-editor__input'
-                value={editableDisplayName}
-                placeholder='不填就直接显示动作名'
-                onInput={(event) => {
-                  const value = event.detail.value
-                  updateActionSet(selectedDay.dayIndex, setIndex, (currentSet) => ({
-                    ...currentSet,
-                    setName: value
-                  }))
-                }}
-              />
-            </View>
           </View>
         ) : null}
       </View>
@@ -1055,18 +1229,66 @@ export default function PlanEditorWorkbench({
                 onInput={(event) => updateEditor((current) => ({ ...current, name: event.detail.value }))}
               />
             </View>
+            {mode === 'coach-template' ? (
+              <View className='plan-editor__field'>
+                <Text className='plan-editor__label'>训练项目（可选）</Text>
+                <Input
+                  className='plan-editor__input'
+                  value={tagInput}
+                  placeholder='用逗号分隔，例如 引体、背屈伸、8周'
+                  onInput={(event) => {
+                    setTagInput(event.detail.value)
+                    updateEditor((current) => ({
+                      ...current,
+                      tags: parseTags(event.detail.value)
+                    }))
+                  }}
+                />
+              </View>
+            ) : null}
             <View className='plan-editor__field'>
-              <Text className='plan-editor__label'>描述</Text>
+              <Text className='plan-editor__label'>详情描述</Text>
               <Textarea
                 className='plan-editor__textarea'
                 value={editor.description}
-                placeholder='补充计划目标、注意事项与执行提示'
+                placeholder='补充模板目标、安排思路和使用说明'
                 maxlength={600}
                 autoHeight
                 onInput={(event) => updateEditor((current) => ({ ...current, description: event.detail.value }))}
               />
             </View>
             {mode === 'coach-template' ? (
+              <View className='plan-editor__field'>
+                <Text className='plan-editor__label'>执行摘要</Text>
+                <Textarea
+                  className='plan-editor__textarea'
+                  value={editor.executionNotice}
+                  placeholder='同步网页端的执行说明，例如安全提醒、视频提交要求或周期注意事项'
+                  maxlength={1200}
+                  autoHeight
+                  onInput={(event) => updateEditor((current) => ({ ...current, executionNotice: event.detail.value }))}
+                />
+              </View>
+            ) : null}
+            {mode === 'coach-template' ? (
+              <View className='plan-editor__field'>
+                <Text className='plan-editor__label'>每周频率</Text>
+                <View className='plan-editor__chip-row'>
+                  {PLAN_DAY_POSITIONS.map((value) => {
+                    return (
+                      <View
+                        key={`weekly-frequency-inline-${value}`}
+                        className={`plan-editor__chip ${editor.weekDays.includes(value) ? 'active' : ''}`}
+                        onClick={() => handleToggleWeekday(value)}
+                      >
+                        <Text>{value}次/周</Text>
+                      </View>
+                    )
+                  })}
+                </View>
+              </View>
+            ) : null}
+            {false ? (
               <>
                 <View className='plan-editor__field'>
                   <Text className='plan-editor__label'>标签</Text>
@@ -1116,17 +1338,16 @@ export default function PlanEditorWorkbench({
                   </View>
                 </View>
                 <View className='plan-editor__field'>
-                  <Text className='plan-editor__label'>建议训练日</Text>
+                  <Text className='plan-editor__label'>建议每周频率</Text>
                   <View className='plan-editor__chip-row'>
-                    {WEEKDAY_LABELS.map((label, index) => {
-                      const value = index + 1
+                    {PLAN_DAY_POSITIONS.map((value) => {
                       return (
                         <View
-                          key={label}
+                          key={`weekly-frequency-${value}`}
                           className={`plan-editor__chip ${editor.weekDays.includes(value) ? 'active' : ''}`}
                           onClick={() => handleToggleWeekday(value)}
                         >
-                          <Text>周{label}</Text>
+                          <Text>{value}次/周</Text>
                         </View>
                       )
                     })}
@@ -1135,45 +1356,6 @@ export default function PlanEditorWorkbench({
               </>
             ) : null}
           </View>
-
-          {mode === 'coach-template' ? (
-            <View className='plan-editor__section'>
-              <Text className='plan-editor__section-title'>问卷联动</Text>
-              {questionnaireLoading ? (
-                <LoadingSpinner size={40} />
-              ) : questionnaires.length === 0 ? (
-                <Text className='plan-editor__muted'>当前没有可联动的问题，后续可在问卷里补充。</Text>
-              ) : (
-                questionnaires.map((question, index) => {
-                  const options = normalizeQuestionOptions(question)
-                  if (options.length === 0) return null
-                  const questionKey = String(question.question || question.id || `question-${index}`)
-                  return (
-                    <View key={questionKey} className='plan-editor__question-card'>
-                      <Text className='plan-editor__question-title'>{question.question || `问题 ${index + 1}`}</Text>
-                      <View className='plan-editor__chip-row'>
-                        {options.map((option, optionIndex) => (
-                          <View
-                            key={`${questionKey}-${optionIndex}`}
-                            className={`plan-editor__chip ${editor.globalAnswers[questionKey] === optionIndex ? 'active' : ''}`}
-                            onClick={() => updateEditor((current) => ({
-                              ...current,
-                              globalAnswers: {
-                                ...current.globalAnswers,
-                                [questionKey]: optionIndex
-                              }
-                            }))}
-                          >
-                            <Text>{option.label}</Text>
-                          </View>
-                        ))}
-                      </View>
-                    </View>
-                  )
-                })
-              )}
-            </View>
-          ) : null}
 
           {mode === 'student-favorite' ? (
             <View className='plan-editor__section'>
@@ -1221,6 +1403,9 @@ export default function PlanEditorWorkbench({
                     <Text>智能导入</Text>
                   </View>
                 ) : null}
+                <View className='plan-editor__toolbar-btn' onClick={handleOpenScriptDialog}>
+                  <Text>脚本模式</Text>
+                </View>
                 <View className='plan-editor__toolbar-btn' onClick={() => setShowBatchDialog(true)}>
                   <Text>批量操作</Text>
                 </View>
@@ -1235,7 +1420,7 @@ export default function PlanEditorWorkbench({
               currentWeekIndex={currentWeekIndex}
               selectedDayIndex={selectedDayIndex}
               title={`第 ${currentWeekIndex + 1} 周`}
-              caption={`当前选中 ${getDayWeekLabel(selectedDayIndex)} · 第 ${selectedDayIndex} 日`}
+              caption={`当前选中第 ${selectedDayIndex} 天 · ${getPlanDayPositionLabel(selectedDayIndex)}`}
               expanded={showFullCalendar}
               onSelectDay={setSelectedDayIndex}
               onPrevWeek={() => goToWeek(-1)}
@@ -1257,7 +1442,7 @@ export default function PlanEditorWorkbench({
               <View className='plan-editor__section-header'>
                 <View>
                   <Text className='plan-editor__section-title'>
-                    第 {selectedDay.dayIndex} 天 · {getDayWeekLabel(selectedDay.dayIndex)}
+                    第 {selectedDay.dayIndex} 天 · {getPlanDayPositionLabel(selectedDay.dayIndex)}
                   </Text>
                   <Text className='plan-editor__caption'>
                     {selectedDay.type === 'rest'
@@ -1358,7 +1543,7 @@ export default function PlanEditorWorkbench({
             <Textarea
               className='plan-editor__modal-textarea'
               value={importText}
-              placeholder='粘贴训练计划文本，例如：周一 深蹲 5x5，周三 卧推 4x8...'
+              placeholder='粘贴训练计划文本，例如：第1日 深蹲 5x5，第3日 卧推 4x8...'
               maxlength={5000}
               onInput={(event) => setImportText(event.detail.value)}
             />
@@ -1368,6 +1553,41 @@ export default function PlanEditorWorkbench({
               </View>
               <View className='plan-editor__modal-btn primary' onClick={() => void handleImportConfirm()}>
                 <Text>{importing ? '导入中...' : '确认导入'}</Text>
+              </View>
+            </View>
+          </View>
+        </View>
+      ) : null}
+
+      {showScriptDialog ? (
+        <View className='plan-editor__modal-mask' onClick={() => setShowScriptDialog(false)}>
+          <View className='plan-editor__modal large' onClick={(event) => event.stopPropagation()}>
+            <View className='plan-editor__modal-header'>
+              <Text className='plan-editor__modal-title'>计划脚本</Text>
+              <Text className='plan-editor__modal-close' onClick={() => setShowScriptDialog(false)}>×</Text>
+            </View>
+            <Text className='plan-editor__modal-hint'>
+              支持 W1、D1、D2 off、动作 4x8 @9rm r180 #备注。保存前会回写到当前编辑器。
+            </Text>
+            <Textarea
+              className='plan-editor__modal-textarea plan-editor__modal-textarea--script'
+              value={scriptText}
+              placeholder={'W1\nD1\n深蹲 5x5 @8rm r180\nD2 off #主动恢复'}
+              maxlength={20000}
+              onInput={(event) => {
+                setScriptText(event.detail.value)
+                if (scriptError) setScriptError('')
+              }}
+            />
+            {scriptError ? (
+              <Text className='plan-editor__modal-error'>{scriptError}</Text>
+            ) : null}
+            <View className='plan-editor__modal-footer'>
+              <View className='plan-editor__modal-btn' onClick={() => setShowScriptDialog(false)}>
+                <Text>取消</Text>
+              </View>
+              <View className='plan-editor__modal-btn primary' onClick={handleApplyScript}>
+                <Text>应用脚本</Text>
               </View>
             </View>
           </View>
@@ -1515,8 +1735,7 @@ export default function PlanEditorWorkbench({
                 <View className='plan-editor__field'>
                   <Text className='plan-editor__label'>目标训练日</Text>
                   <View className='plan-editor__chip-row'>
-                    {WEEKDAY_LABELS.map((label, index) => {
-                      const value = index + 1
+                    {PLAN_DAY_POSITIONS.map((value) => {
                       const active = batchWeekdays.includes(value)
                       return (
                         <View
@@ -1530,7 +1749,7 @@ export default function PlanEditorWorkbench({
                             ))
                           }}
                         >
-                          <Text>周{label}</Text>
+                          <Text>第{value}日</Text>
                         </View>
                       )
                     })}

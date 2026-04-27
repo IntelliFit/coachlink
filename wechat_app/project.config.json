@@ -48,5 +48,6 @@
     "tabIndent": "insertSpaces",
     "tabSize": 2
   },
-  "srcMiniprogramRoot": "dist/"
+  "srcMiniprogramRoot": "dist/",
+  "libVersion": "3.15.0"
 }

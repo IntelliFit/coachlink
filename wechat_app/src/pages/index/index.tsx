@@ -3,31 +3,17 @@ import { View, Text } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
 import BottomNav from '@/components/BottomNav'
 import { authService } from '@/services/authService'
-import { studentOnboardingService } from '@/services/studentOnboardingService'
-import { Power } from '@nutui/icons-react-taro'
-import TodayTrainingScreen from '@/training/today-training/TodayTrainingScreen'
+import { Power, Search, Star, User, ShieldCheck, Target, ArrowUp } from '@nutui/icons-react-taro'
 import './index.scss'
 
-const STUDENT_HOME_PATH = '/pages/index/index'
-const LEGACY_TRAINING_PATH = '/training/today-training'
-
-function isStudentHomePath(url: string) {
-  const pathOnly = (url || '').split('?')[0]
-  return pathOnly === STUDENT_HOME_PATH || pathOnly === LEGACY_TRAINING_PATH
-}
-
-function resolveHomeMode(): 'guest' | 'student' | 'coach' {
-  const session = authService.getAuthSession({ normalize: true })
-  if (!session.isAuthenticated) return 'guest'
-  if (session.isCoach && session.primaryRole === 'coach') return 'coach'
-  return 'student'
-}
-
 function Index() {
-  const [mode, setMode] = useState<'guest' | 'student' | 'coach'>(() => resolveHomeMode())
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [userName, setUserName] = useState('')
 
   const checkAuth = () => {
-    setMode(resolveHomeMode())
+    const session = authService.getAuthSession({ normalize: true })
+    setIsAuthenticated(session.isAuthenticated)
+    setUserName(session.user?.nickname || session.user?.name || '')
   }
 
   useDidShow(() => {
@@ -37,35 +23,6 @@ function Index() {
   useEffect(() => {
     checkAuth()
   }, [])
-
-  useEffect(() => {
-    if (mode === 'coach') {
-      void Taro.reLaunch({ url: '/coach/overview' })
-    }
-  }, [mode])
-
-  useEffect(() => {
-    if (mode !== 'student') return
-    let cancelled = false
-    void (async () => {
-      try {
-        const session = authService.getAuthSession({ normalize: true })
-        const targetUrl = await studentOnboardingService.resolvePostLoginUrl({
-          loggedInUser: session.user,
-          fallbackUrl: STUDENT_HOME_PATH
-        })
-        if (cancelled) return
-        if (!isStudentHomePath(targetUrl)) {
-          await Taro.reLaunch({ url: targetUrl })
-        }
-      } catch (e) {
-        console.error('[index] onboarding gate failed:', e)
-      }
-    })()
-    return () => {
-      cancelled = true
-    }
-  }, [mode])
 
   const greeting = useMemo(() => {
     const hour = new Date().getHours()
@@ -87,32 +44,50 @@ function Index() {
     Taro.navigateTo({ url: authService.buildLoginUrl('/pages/index/index') })
   }
 
-  const handleNavTo = (url: string) => {
-    Taro.navigateTo({ url })
+  const tryNavigate = async (url: string) => {
+    try {
+      await Taro.navigateTo({ url })
+      return
+    } catch {}
+
+    try {
+      await Taro.redirectTo({ url })
+      return
+    } catch {}
+
+    await Taro.reLaunch({ url })
   }
 
-  if (mode === 'coach') {
-    return (
-      <View className='home-page page-with-float-nav'>
-        <BottomNav />
-      </View>
-    )
+  const handleProtectedNav = async (url: string) => {
+    if (!authService.isAuthenticated()) {
+      await Taro.navigateTo({ url: authService.buildLoginUrl(url) })
+      return
+    }
+
+    await tryNavigate(url)
   }
 
-  if (mode === 'student') {
-    return <TodayTrainingScreen />
+  const handleProfileEntry = async () => {
+    if (isAuthenticated) {
+      await tryNavigate('/me/profile/index')
+      return
+    }
+
+    handleLogin()
   }
 
   return (
     <View className='home-page page-with-float-nav'>
       <View className='home-header'>
         <View className='home-header-left'>
-          <Text className='home-greeting'>{greeting}</Text>
+          <Text className='home-greeting'>
+            {isAuthenticated && userName ? `${greeting}，${userName}` : greeting}
+          </Text>
           <Text className='home-date'>{todayDateText}</Text>
         </View>
         <View className='home-header-right'>
-          <View className='login-pill' onClick={handleLogin}>
-            <Text className='login-pill-text'>登录</Text>
+          <View className='login-pill' onClick={() => void handleProfileEntry()}>
+            <Text className='login-pill-text'>{isAuthenticated ? '个人中心' : '登录'}</Text>
           </View>
         </View>
       </View>
@@ -121,8 +96,14 @@ function Index() {
         <View className='home-hero-card'>
           <View className='hero-card-content'>
             <View className='hero-card-text'>
-              <Text className='hero-card-title'>开启你的训练之旅</Text>
-              <Text className='hero-card-subtitle'>登录后可查看今日训练计划</Text>
+              <Text className='hero-card-title'>
+                {isAuthenticated ? '从首页开始今天的安排' : '开启你的训练之旅'}
+              </Text>
+              <Text className='hero-card-subtitle'>
+                {isAuthenticated
+                  ? '你可以从这里进入今日训练、发现教练、排行榜和个人中心。'
+                  : '登录后可查看今日训练、成长记录和教练服务。'}
+              </Text>
             </View>
             <View className='hero-card-icon-wrap'>
               <Power width={28} height={28} color='#CF6D4E' />
@@ -132,19 +113,74 @@ function Index() {
             <View className='progress-track'>
               <View className='progress-fill' style={{ width: '0%' }} />
             </View>
-            <Text className='progress-label'>今日完成度 0%</Text>
+            <Text className='progress-label'>
+              {isAuthenticated ? '从这里选择你接下来要做的事' : '登录后开启你的训练计划'}
+            </Text>
           </View>
         </View>
 
-        <View className='home-promo-card'>
-          <Text className='promo-card-title'>运动后拉伸</Text>
-          <Text className='promo-card-subtitle'>有助于提升睡眠质量</Text>
-          <View className='promo-card-actions'>
-            <View className='promo-btn promo-btn-outline' onClick={() => handleNavTo('/auth/onboarding')}>
-              <Text className='promo-btn-text'>了解更多</Text>
+        <View className='home-quick-actions'>
+          <Text className='section-title'>快捷入口</Text>
+          <View className='quick-actions-grid'>
+            <View className='quick-action-item' onClick={() => void handleProtectedNav('/training/today-training')}>
+              <View className='quick-action-icon'>
+                <Power width={24} height={24} color='#010101' />
+              </View>
+              <Text className='quick-action-label'>今日训练</Text>
             </View>
-            <View className='promo-btn promo-btn-solid' onClick={() => handleNavTo('/auth/onboarding')}>
-              <Text className='promo-btn-text'>立即开始</Text>
+            <View className='quick-action-item' onClick={() => void tryNavigate('/discovery/index')}>
+              <View className='quick-action-icon'>
+                <Search width={24} height={24} color='#010101' />
+              </View>
+              <Text className='quick-action-label'>发现教练</Text>
+            </View>
+            <View className='quick-action-item' onClick={() => void tryNavigate('/discovery/ranking')}>
+              <View className='quick-action-icon'>
+                <Star width={24} height={24} color='#010101' />
+              </View>
+              <Text className='quick-action-label'>排行榜</Text>
+            </View>
+            <View className='quick-action-item' onClick={() => void handleProtectedNav('/me/profile/index')}>
+              <View className='quick-action-icon'>
+                <User width={24} height={24} color='#010101' />
+              </View>
+              <Text className='quick-action-label'>个人中心</Text>
+            </View>
+          </View>
+        </View>
+
+        <View className='home-features'>
+          <Text className='section-title'>平台亮点</Text>
+          <View className='features-list'>
+            <View className='feature-item' onClick={() => void tryNavigate('/auth/onboarding')}>
+              <View className='feature-icon-wrap'>
+                <ShieldCheck width={24} height={24} color='#CF6D4E' />
+              </View>
+              <View className='feature-info'>
+                <Text className='feature-title'>靠谱教练</Text>
+                <Text className='feature-desc'>资质认证，评价透明</Text>
+              </View>
+              <Text className='feature-arrow'>→</Text>
+            </View>
+            <View className='feature-item' onClick={() => void handleProtectedNav('/training/today-training')}>
+              <View className='feature-icon-wrap'>
+                <Target width={24} height={24} color='#CF6D4E' />
+              </View>
+              <View className='feature-info'>
+                <Text className='feature-title'>训练安排</Text>
+                <Text className='feature-desc'>登录后从首页自主进入今日训练，不再强制跳转</Text>
+              </View>
+              <Text className='feature-arrow'>→</Text>
+            </View>
+            <View className='feature-item' onClick={() => void handleProtectedNav('/me/profile/detail/index')}>
+              <View className='feature-icon-wrap'>
+                <ArrowUp width={24} height={24} color='#CF6D4E' />
+              </View>
+              <View className='feature-info'>
+                <Text className='feature-title'>成长档案</Text>
+                <Text className='feature-desc'>记录计划、训练和阶段进展</Text>
+              </View>
+              <Text className='feature-arrow'>→</Text>
             </View>
           </View>
         </View>

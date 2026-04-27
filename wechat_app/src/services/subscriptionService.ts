@@ -11,6 +11,7 @@ interface GetCoachSubscriptionsDto {
 interface GetCoachReviewsDto {
   studentId?: string
   coachId?: string
+  subscriptionId?: string
 }
 
 class SubscriptionService extends BaseService {
@@ -37,6 +38,40 @@ class SubscriptionService extends BaseService {
       return res.data
     }
     
+    return null
+  }
+
+  async createCoachReview(reqData: {
+    subscriptionId: string
+    studentId: string
+    coachId: string
+    reviewText?: string
+    mediaUrls?: string[]
+  }) {
+    const res = await this.post('create-coach-reviews', reqData)
+    if (res.success && res.data) return res.data
+    return null
+  }
+
+  async updateCoachReview(reqData: {
+    reviewId: string
+    reviewText?: string
+    mediaUrls?: string[]
+  }) {
+    const res = await this.post('update-coach-reviews', reqData)
+    if (res.success && res.data) return res.data
+    return null
+  }
+
+  async deleteCoachReview(reqData: { reviewId: string }) {
+    const res = await this.post('delete-coach-reviews', reqData)
+    if (res.success) return res.data ?? true
+    return null
+  }
+
+  async updateQuestionnaire(reqData: { id: string; questionnaires: any[] }) {
+    const res = await this.post('update-questionnaire', reqData)
+    if (res.success && res.data) return res.data
     return null
   }
 

@@ -8,9 +8,13 @@ import { formatChatDateSeparator, shouldShowDateSeparator } from '@/lib/chatMess
 export function ChatMessageList({
     messages,
     highlightMessageId,
+    onReply,
+    onJumpToMessage,
 }: {
     messages: MessageItemType[];
     highlightMessageId?: string | null;
+    onReply?: (message: MessageItemType) => void;
+    onJumpToMessage?: (messageId: string) => void;
 }) {
     return (
         <>
@@ -29,6 +33,8 @@ export function ChatMessageList({
                         <MessageItem
                             message={message}
                             highlighted={highlightMessageId === message.id}
+                            onReply={onReply}
+                            onJumpToMessage={onJumpToMessage}
                         />
                     </React.Fragment>
                 );
