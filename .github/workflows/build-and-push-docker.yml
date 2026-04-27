@@ -1,3 +1,13 @@
+# =============================================================================
+# 【已废弃】不在 push 时自动运行，仅保留文件供将来需要时「手动」启用。
+#
+# 原因：GitHub Actions  runner 跨境推送腾讯云 CCR 过慢（GFW）；日常请用本机：
+#   npm run push-docker-ccr
+#   （见 scripts/push-docker-ccr.mjs）
+#
+# 如需再次使用本 workflow：把下方 `on:` 改回 `push: branches: [main, dev, gray]` 等即可。
+# =============================================================================
+#
 # 构建并推送到腾讯云容器镜像服务（CCR / TCR）
 #
 # 个人版默认 registry：ccr.ccs.tencentyun.com
@@ -17,11 +27,11 @@
 #   docker login ccr.ccs.tencentyun.com --username=<账号ID>
 # 推送后拉取：
 #   docker pull ccr.ccs.tencentyun.com/<namespace>/<repo>:dev
-name: Build and Push Docker Image
+name: '[已废弃·仅手动] Build and Push Docker Image'
 
 on:
-  push:
-    branches: [main, dev, gray]
+  # 已取消 push 触发；在 Actions 页「Run workflow」可选手动跑一次（需选分支以匹配标签逻辑）
+  workflow_dispatch:
 
 jobs:
   build-and-push:
@@ -79,11 +89,11 @@ jobs:
             {
               echo "tags<<EOF"
               echo "${IMAGE}:latest"
-              echo "${IMAGE}:production"
+              echo "${IMAGE}:main"
               echo "${IMAGE}:${SHORT_SHA}"
               echo "EOF"
             } >> "${GITHUB_OUTPUT}"
-            echo "deploy_env=production" >> "${GITHUB_OUTPUT}"
+            echo "deploy_env=main" >> "${GITHUB_OUTPUT}"
           elif [ "${{ github.ref }}" = "refs/heads/dev" ]; then
             {
               echo "tags<<EOF"

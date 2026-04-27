@@ -1,6 +1,7 @@
 # DECISIONS
 
-- `2026-04-27`: CI 容器镜像默认推送到腾讯云 CCR（`TENCENT_CCR_*` Variables + `TENCENT_CCR_USERNAME`/`PASSWORD` Secrets）。中间曾在 git 中试验自建 Registry（`REGISTRY_*`），已用新提交改回腾讯云，历史提交保留可查。
+- `2026-04-27`: `.github/workflows/build-and-push-docker.yml` 已废弃自动触发（不再 `on: push`），仅保留 `workflow_dispatch` 备用手动跑；日常镜像用 `npm run push-docker-ccr`。CI 曾推腾讯云 CCR（`TENCENT_CCR_*`）；自建 Registry 试验保留在 git 历史。
+- `2026-04-27`: `main` 线镜像标签使用 `latest` + `main` + `sha`，不再使用 `production`；本地/他人可用 `npm run push-docker-ccr`（`scripts/push-docker-ccr.mjs`）在本机构建推送 CCR，镜像路径写死 `ccr.ccs.tencentyun.com/coachlink/coachlink`，不要求构建期 `NEXT_PUBLIC_*`。
 - `2026-04-27`: 生产构建脚本 `scripts/build-prod.js` 默认应优先走 Next 16 的默认构建器（Turbopack），不要无条件强制 `--webpack`。当前仓库本地对照中，Turbopack 明显更快、更轻，适合作为部署默认值；仅在明确需要排查兼容问题时再通过 `COACHLINK_BUILD_USE_WEBPACK=1` 显式切回 Webpack。
 - `2026-04-27`: 部署脚本不能再吞掉真实构建失败原因。`scripts/build-prod.js` 在构建失败或 standalone 缺失时必须返回非零退出码，并记录 `signal`，避免部署端只看到误导性的 `returncode=0 / code null`。
 - `2026-04-27`: 今日训练页的顺延计算不能让执行起点前的历史空洞参与累计。对历史迁移/手动修计划造成的 `plan.start_date` 早于 `subscription.start_date` 且 `start_execution_day` 仍为 1 的实例，读取时应基于订阅真实开始日和最早有效执行记录推导有效执行起点；执行起点之前的天只保留历史展示，不应驱动当前推进日或后续日期顺延。
