@@ -22,7 +22,8 @@
         "check-vapid": "tsx scripts/check-vapid.ts",
         "test-push": "tsx scripts/test-push.ts",
         "pre-deploy-check": "node scripts/pre-deploy-check.js",
-        "context-preview-report": "npx tsx scripts/context-preview-report.ts"
+        "context-preview-report": "npx tsx scripts/context-preview-report.ts",
+        "push-docker-ccr": "node scripts/push-docker-ccr.mjs"
     },
     "dependencies": {
         "@dagrejs/dagre": "^1.1.8",

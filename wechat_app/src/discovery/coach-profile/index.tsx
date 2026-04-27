@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { View, Text, ScrollView } from '@tarojs/components'
 import Taro, { useDidShow, usePullDownRefresh } from '@tarojs/taro'
 import {
@@ -8,7 +8,9 @@ import {
   fetchPricing,
   fetchContents,
   fetchQuestionnaires,
-  updateSubscriptionSubscribeData
+  createSubscription,
+  createCoachWechatPayment,
+  requestCoachWechatPayment
 } from './service'
 import type {
   CoachRow,
@@ -23,9 +25,7 @@ import AboutSection from './components/AboutSection'
 import ContentSection from './components/ContentSection'
 import PricingSection from './components/PricingSection'
 import ReviewsSection from './components/ReviewsSection'
-import QuestionnaireForm from '@/components/QuestionnaireForm'
 import { authService } from '@/services/authService'
-import { buildCoachSubscriptionPaymentStartUrl } from '@/services/paymentService'
 import './index.scss'
 
 type PageState = 'loading' | 'success' | 'error'
@@ -46,16 +46,12 @@ export default function CoachProfile() {
   const [pageState, setPageState] = useState<PageState>('loading')
   const [errorMsg, setErrorMsg] = useState('')
   const [activeTab, setActiveTab] = useState(TAB_ABOUT)
-  
-  // 问卷相关状态
-  const [questionnaireVisible, setQuestionnaireVisible] = useState(false)
-  const [questionnaireQuestions, setQuestionnaireQuestions] = useState<any[]>([])
-  const [questionnaireLoading, setQuestionnaireLoading] = useState(false)
-  const [questionnaireSubmitting, setQuestionnaireSubmitting] = useState(false)
-  // 续费模式：已订阅用户点击续费后进入，选择套餐即对当前订阅续费而非新建
   const [renewMode, setRenewMode] = useState(false)
-  // 滚动锚点：点击「立即订阅」后滚动到订阅价格区域
   const [scrollIntoView, setScrollIntoView] = useState('')
+  const [autoSelectRequest, setAutoSelectRequest] = useState<{
+    productId: string
+    months: number
+  } | null>(null)
 
   const coachDisplayName = aggregatedInfo?.coach?.name || coach?.name || ''
 
@@ -99,7 +95,6 @@ export default function CoachProfile() {
         fetchContents(id, 0, 10)
       ])
       let productList = pricingRes || []
-      // 用户有待支付订阅时，若该订阅对应的套餐不在列表中则加入（合并 get-pricing 与订阅派生产品）
       if (userSub?.product_id && userSub?.product_name && (userSub.status === 'inactive' || userSub.status === 'waiting')) {
         const hasSubProduct = productList.some((p: Product) => p.id === userSub!.product_id)
         if (!hasSubProduct) {
@@ -111,7 +106,7 @@ export default function CoachProfile() {
               type: 'single',
               name: userSub.product_name,
               description: userSub.status === 'inactive' ? '待支付' : '待确认',
-              duration_options: [{ months: 1, price: userSub.monthly_price ?? 0 }]
+              duration_options: [{ months: 1, price: Number(userSub.monthly_price ?? 0) / 100 }]
             }
           ]
         }
@@ -133,6 +128,10 @@ export default function CoachProfile() {
     const id = (params.id ?? params.coachId) as string
     const tabParam = params.tab as string | undefined
     const renewParam = params.renew as string | undefined
+    const autoSubscribeParam = params.autoSubscribe as string | undefined
+    const autoSubscribeToken = params.autoSubscribeToken as string | undefined
+    const productIdParam = params.productId as string | undefined
+    const monthsParam = params.months as string | undefined
     if (id) {
       load()
       if (tabParam !== undefined && tabParam !== '') {
@@ -144,6 +143,27 @@ export default function CoachProfile() {
       if (renewParam === 'true' || renewParam === '1') {
         setRenewMode(true)
       }
+      if ((autoSubscribeParam === 'true' || autoSubscribeParam === '1') && productIdParam) {
+        const consumeKey = autoSubscribeToken
+          ? `coach-profile-auto-subscribe-consumed:${autoSubscribeToken}`
+          : ''
+        const consumed = consumeKey ? Taro.getStorageSync(consumeKey) : ''
+
+        if (!consumed) {
+          if (consumeKey) {
+            Taro.setStorageSync(consumeKey, '1')
+          }
+          const months = Number(monthsParam)
+          setAutoSelectRequest({
+            productId: productIdParam,
+            months: Number.isFinite(months) ? months : 0
+          })
+        } else {
+          setAutoSelectRequest(null)
+        }
+      } else {
+        setAutoSelectRequest(null)
+      }
     }
   })
 
@@ -151,31 +171,79 @@ export default function CoachProfile() {
     load().finally(() => Taro.stopPullDownRefresh())
   })
 
-  const openPaymentWebview = useCallback((params?: {
-    rawUrl?: string
-    productId?: string
-    months?: number
-    renew?: boolean
+  const navigateToPaymentWaiting = useCallback((params: {
+    orderId: string
+    amount: number
+    initialStatus?: 'cancelled' | 'failed'
   }) => {
     const query = [
-      params?.rawUrl ? `url=${encodeURIComponent(params.rawUrl)}` : '',
-      !params?.rawUrl && coachId ? `coachId=${encodeURIComponent(coachId)}` : '',
-      !params?.rawUrl && params?.productId ? `productId=${encodeURIComponent(params.productId)}` : '',
-      !params?.rawUrl && params?.months ? `months=${params.months}` : '',
-      !params?.rawUrl && params?.renew ? 'renew=1' : ''
-    ]
-      .filter(Boolean)
-      .join('&')
+      `orderId=${encodeURIComponent(params.orderId)}`,
+      `amount=${encodeURIComponent(String(params.amount))}`,
+      coachId ? `coachId=${encodeURIComponent(coachId)}` : '',
+      'provider=wechat',
+      params.initialStatus ? `initialStatus=${encodeURIComponent(params.initialStatus)}` : ''
+    ].filter(Boolean).join('&')
 
-    if (!query) {
-      Taro.showToast({ title: '购买信息缺失，请重试', icon: 'none' })
+    Taro.navigateTo({ url: `/me/payment-waiting/index?${query}` })
+  }, [coachId])
+
+  const navigateToQuestionnairePage = useCallback((params: {
+    mode: 'edit' | 'prepay'
+    product?: Product
+    duration?: DurationOption
+    existingAnswers?: any[]
+  }) => {
+    const query = [
+      `coachId=${encodeURIComponent(coachId)}`,
+      `mode=${encodeURIComponent(params.mode)}`,
+      coachDisplayName ? `coachName=${encodeURIComponent(coachDisplayName)}` : '',
+      userSubscription?.id ? `subscriptionId=${encodeURIComponent(userSubscription.id)}` : ''
+    ]
+
+    if (params.mode === 'prepay' && params.product && params.duration) {
+      query.push(`productId=${encodeURIComponent(params.product.id)}`)
+      query.push(`productName=${encodeURIComponent(params.product.name)}`)
+      query.push(`productTier=${encodeURIComponent(params.product.tier)}`)
+      query.push(`price=${encodeURIComponent(String(params.duration.price))}`)
+      query.push(`months=${encodeURIComponent(String(params.duration.months))}`)
+    }
+
+    if (params.mode === 'edit' && params.existingAnswers) {
+      const answersKey = `coach-questionnaire-${Date.now()}`
+      Taro.setStorageSync(answersKey, params.existingAnswers)
+      query.push(`answersKey=${encodeURIComponent(answersKey)}`)
+    }
+
+    Taro.navigateTo({ url: `/discovery/coach-questionnaire?${query.filter(Boolean).join('&')}` })
+  }, [coachDisplayName, coachId, userSubscription?.id])
+
+  const startCoachWechatPayment = useCallback(async (params: {
+    subscriptionId: string
+    amount?: number
+    renew?: boolean
+    renewAdditionalWeeks?: number
+  }) => {
+    const payment = await createCoachWechatPayment({
+      coachId,
+      subscriptionId: params.subscriptionId,
+      amount: params.amount,
+      renew: params.renew,
+      renewAdditionalWeeks: params.renewAdditionalWeeks,
+      subject: `订阅教练 ${coachDisplayName}`.trim()
+    })
+
+    if (!payment?.orderId || !payment?.paymentParams) {
+      Taro.showToast({ title: '创建支付单失败，请稍后重试', icon: 'none' })
       return
     }
 
-    Taro.navigateTo({
-      url: `/me/payment/webview/index?${query}`
+    const paymentResult = await requestCoachWechatPayment(payment.paymentParams)
+    navigateToPaymentWaiting({
+      orderId: payment.orderId,
+      amount: payment.amount,
+      initialStatus: paymentResult.status === 'success' ? undefined : paymentResult.status
     })
-  }, [coachId])
+  }, [coachDisplayName, coachId, navigateToPaymentWaiting])
 
   const handleSubscribe = () => {
     setActiveTab(TAB_PRICING)
@@ -191,9 +259,6 @@ export default function CoachProfile() {
     setTimeout(() => setScrollIntoView(''), 600)
   }
 
-  // 选择套餐后：
-  // 1. 新购统一打开网站版购买页（小程序内 webview）
-  // 2. 已有待支付订阅或续费则直接打开站内支付直达页，避免重复创建订阅
   const handleSelectProduct = async (product: Product, duration: DurationOption) => {
     const user = authService.getCurrentUser()
     if (!user?.id) {
@@ -209,7 +274,6 @@ export default function CoachProfile() {
       })
       return
     }
-    // 已订阅且未进入续费模式：提示点击续费
     if (showRenewBtn && !renewMode) {
       Taro.showToast({
         title: '您已订阅该教练，点击上方【续费】即可延长订阅并且可以续订',
@@ -219,51 +283,62 @@ export default function CoachProfile() {
       return
     }
 
-    // 已订阅 + 续费模式：直接用现有订阅进入站内支付直达页
     if (showRenewBtn && renewMode) {
       if (userSubscription?.id) {
-        openPaymentWebview({
-          rawUrl: buildCoachSubscriptionPaymentStartUrl({
-            coachId,
-            subscriptionId: userSubscription.id,
-            amount: duration.price,
-            subject: `订阅教练 ${coachDisplayName}`.trim(),
-            renew: true,
-            renewAdditionalWeeks: duration.months * 4
-          })
+        await startCoachWechatPayment({
+          subscriptionId: userSubscription.id,
+          amount: duration.price,
+          renew: true,
+          renewAdditionalWeeks: duration.months * 4
         })
         return
       }
-      openPaymentWebview({
-        productId: product.id,
-        months: duration.months,
-        renew: true
-      })
       return
     }
 
-    // 已有待支付订阅且点击的是同一套餐：直接继续支付，不重复创建
     if (
       (userSubscription?.status === 'inactive' || userSubscription?.status === 'pending_payment') &&
       userSubscription?.id &&
       product.id === userSubscription.product_id
     ) {
-      openPaymentWebview({
-        rawUrl: buildCoachSubscriptionPaymentStartUrl({
-          coachId,
-          subscriptionId: userSubscription.id,
-          amount: duration.price,
-          subject: `订阅教练 ${coachDisplayName}`.trim(),
-          renew: false
-        })
+      await startCoachWechatPayment({
+        subscriptionId: userSubscription.id
       })
       return
     }
 
-    openPaymentWebview({
-      productId: product.id,
-      months: duration.months
-    })
+    try {
+      const questions = await fetchQuestionnaires(coachId)
+      if (questions && questions.length > 0) {
+        navigateToQuestionnairePage({
+          mode: 'prepay',
+          product,
+          duration
+        })
+      } else {
+        const createdSubscription = await createSubscription({
+          coachId,
+          tier: product.tier === 'basic' ? 1 : product.tier === 'standard' ? 2 : 3,
+          monthlyPrice: duration.price,
+          status: 'inactive',
+          subscribeData: [],
+          productId: product.id,
+          productName: product.name,
+          productTier: product.tier,
+          subscribedWeeks: duration.months * 4
+        })
+        if (!createdSubscription?.id) {
+          throw new Error('创建订阅失败')
+        }
+        setUserSubscription(createdSubscription)
+        await startCoachWechatPayment({
+          subscriptionId: createdSubscription.id
+        })
+      }
+    } catch (e: any) {
+      console.error('拉起订阅流程失败:', e)
+      Taro.showToast({ title: e?.message || '拉起订阅流程失败', icon: 'none' })
+    }
   }
 
   const handleGeneratePlan = () => {
@@ -288,66 +363,52 @@ export default function CoachProfile() {
     }
   }
 
-  // 打开问卷填写对话框
   const handleOpenQuestionnaire = async () => {
     if (!coachId) {
       Taro.showToast({ title: '教练信息加载失败', icon: 'none' })
       return
     }
 
-    setQuestionnaireLoading(true)
-    setQuestionnaireVisible(true)
-    
-    try {
-      const questions = await fetchQuestionnaires(coachId)
-      if (questions && questions.length > 0) {
-        setQuestionnaireQuestions(questions)
-        
-        // 如果有现有订阅数据，预填充答案
-        if (userSubscription?.subscribe_data) {
-          // subscribe_data 已经是答案格式
-        }
-      } else {
-        Taro.showToast({ title: '该教练暂未配置问卷', icon: 'none' })
-        setQuestionnaireVisible(false)
-      }
-    } catch (e: any) {
-      console.error('获取问卷失败:', e)
-      Taro.showToast({ title: e.message || '获取问卷失败', icon: 'none' })
-      setQuestionnaireVisible(false)
-    } finally {
-      setQuestionnaireLoading(false)
+    if (!userSubscription?.id) {
+      Taro.showToast({ title: '请先完成订阅后再填写问卷', icon: 'none' })
+      return
     }
+
+    navigateToQuestionnairePage({
+      mode: 'edit',
+      existingAnswers: (userSubscription?.subscribe_data as any[]) || []
+    })
   }
 
-  // 提交问卷
-  const handleSubmitQuestionnaire = async (answers: any[]) => {
-    try {
-      setQuestionnaireSubmitting(true)
-      if (userSubscription?.id) {
-        const success = await updateSubscriptionSubscribeData(userSubscription.id, answers)
-        if (success) {
-          Taro.showToast({ title: '问卷提交成功', icon: 'success' })
-          setQuestionnaireVisible(false)
-          const user = authService.getCurrentUser()
-          if (user?.id) {
-            const subs = await fetchMySubscriptions(user.id)
-            const sub = subs.find((s) => s.coach_id === coachId) || null
-            setUserSubscription(sub)
-          }
-        } else {
-          Taro.showToast({ title: '提交失败，请重试', icon: 'none' })
-        }
-      } else {
-        Taro.showToast({ title: '请先完成订阅后再填写问卷', icon: 'none' })
-      }
-    } catch (e: any) {
-      console.error('提交问卷失败:', e)
-      Taro.showToast({ title: e.message || '提交失败', icon: 'none' })
-    } finally {
-      setQuestionnaireSubmitting(false)
+  const showRenewBtn = ['active', 'expired', 'near_expiry'].includes(userSubscription?.status || '')
+  const hasPendingPayment =
+    userSubscription &&
+    (userSubscription.status === 'inactive' ||
+      userSubscription.status === 'pending_payment')
+
+  useEffect(() => {
+    if (!autoSelectRequest || pageState !== 'success' || products.length === 0) return
+
+    const targetProduct = products.find((product) => product.id === autoSelectRequest.productId)
+    if (!targetProduct) {
+      Taro.showToast({ title: '未找到对应套餐，请重新选择', icon: 'none' })
+      setAutoSelectRequest(null)
+      return
     }
-  }
+
+    const targetDuration =
+      targetProduct.duration_options.find((option) => option.months === autoSelectRequest.months) ||
+      targetProduct.duration_options[0]
+
+    if (!targetDuration) {
+      Taro.showToast({ title: '未找到对应时长，请重新选择', icon: 'none' })
+      setAutoSelectRequest(null)
+      return
+    }
+
+    setAutoSelectRequest(null)
+    void handleSelectProduct(targetProduct, targetDuration)
+  }, [autoSelectRequest, pageState, products])
 
   if (pageState === 'loading') {
     return (
@@ -387,26 +448,14 @@ export default function CoachProfile() {
   const isOwnProfile = false
   const reviewCount = aggregatedInfo?.reviewCount ?? 0
 
-  const showRenewBtn = ['active', 'expired', 'near_expiry'].includes(userSubscription?.status || '')
-  const hasPendingPayment =
-    userSubscription &&
-    (userSubscription.status === 'inactive' ||
-      userSubscription.status === 'pending_payment')
-
   const handleContinuePendingPayment = () => {
-    if (userSubscription?.id && userSubscription.monthly_price != null) {
-      openPaymentWebview({
-        rawUrl: buildCoachSubscriptionPaymentStartUrl({
-          coachId,
-          subscriptionId: userSubscription.id,
-          amount: userSubscription.monthly_price,
-          subject: `订阅教练 ${displayCoach.name || ''}`.trim(),
-          renew: false
-        })
+    if (userSubscription?.id) {
+      void startCoachWechatPayment({
+        subscriptionId: userSubscription.id
       })
       return
     }
-    openPaymentWebview()
+    Taro.showToast({ title: '缺少待支付订阅', icon: 'none' })
   }
 
   const tabs = [
@@ -427,52 +476,52 @@ export default function CoachProfile() {
         scrollIntoViewAlignment='start'
       >
         <View style={{ paddingBottom: '100px' }}>
-        {hasPendingPayment && (
-          <View className='pending-payment-banner' onClick={handleContinuePendingPayment}>
-            <Text className='banner-text'>您有待支付的订阅，点击继续完成购买</Text>
-          </View>
-        )}
-        <CoachIntro
-          coach={displayCoach}
-          aggregatedInfo={aggregatedInfo}
-          userSubscription={userSubscription}
-        />
-
-        <View id='tab-pricing-anchor' className='tab-wrap'>
-          <View className='tab-bar'>
-            {tabs.map((t) => (
-              <View
-                key={t.index}
-                className={`tab-item ${activeTab === t.index ? 'tab-item-active' : ''}`}
-                onClick={() => setActiveTab(t.index)}
-              >
-                <Text>{t.label}</Text>
-              </View>
-            ))}
-          </View>
-        </View>
-
-        <View className={`tab-panel ${activeTab === TAB_ABOUT ? 'tab-panel-active' : ''}`}>
-          <AboutSection coach={displayCoach} />
-        </View>
-        <View className={`tab-panel ${activeTab === TAB_PRICING ? 'tab-panel-active' : ''}`}>
-          <PricingSection
-            products={products}
-            onSelectProduct={handleSelectProduct}
+          {hasPendingPayment && (
+            <View className='pending-payment-banner' onClick={handleContinuePendingPayment}>
+              <Text className='banner-text'>您有待支付的订阅，点击继续完成购买</Text>
+            </View>
+          )}
+          <CoachIntro
+            coach={displayCoach}
+            aggregatedInfo={aggregatedInfo}
             userSubscription={userSubscription}
-            renewMode={renewMode}
           />
-        </View>
-        <View className={`tab-panel ${activeTab === TAB_CONTENT ? 'tab-panel-active' : ''}`}>
-          <ContentSection
-            contents={contents}
-            total={contentsTotal}
-            onItemClick={handleContentItem}
-          />
-        </View>
-        <View className={`tab-panel ${activeTab === TAB_REVIEWS ? 'tab-panel-active' : ''}`}>
-          <ReviewsSection reviewCount={reviewCount} />
-        </View>
+
+          <View id='tab-pricing-anchor' className='tab-wrap'>
+            <View className='tab-bar'>
+              {tabs.map((t) => (
+                <View
+                  key={t.index}
+                  className={`tab-item ${activeTab === t.index ? 'tab-item-active' : ''}`}
+                  onClick={() => setActiveTab(t.index)}
+                >
+                  <Text>{t.label}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+
+          <View className={`tab-panel ${activeTab === TAB_ABOUT ? 'tab-panel-active' : ''}`}>
+            <AboutSection coach={displayCoach} />
+          </View>
+          <View className={`tab-panel ${activeTab === TAB_PRICING ? 'tab-panel-active' : ''}`}>
+            <PricingSection
+              products={products}
+              onSelectProduct={handleSelectProduct}
+              userSubscription={userSubscription}
+              renewMode={renewMode}
+            />
+          </View>
+          <View className={`tab-panel ${activeTab === TAB_CONTENT ? 'tab-panel-active' : ''}`}>
+            <ContentSection
+              contents={contents}
+              total={contentsTotal}
+              onItemClick={handleContentItem}
+            />
+          </View>
+          <View className={`tab-panel ${activeTab === TAB_REVIEWS ? 'tab-panel-active' : ''}`}>
+            <ReviewsSection reviewCount={reviewCount} />
+          </View>
         </View>
       </ScrollView>
 
@@ -499,16 +548,6 @@ export default function CoachProfile() {
           </View>
         </View>
       )}
-
-      {/* 问卷填写对话框 */}
-      <QuestionnaireForm
-        visible={questionnaireVisible}
-        onHide={() => setQuestionnaireVisible(false)}
-        questions={questionnaireQuestions}
-        onSubmit={handleSubmitQuestionnaire}
-        loading={questionnaireLoading}
-        existingAnswers={userSubscription?.subscribe_data as any}
-      />
     </View>
   )
 }
