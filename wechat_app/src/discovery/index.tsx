@@ -6,7 +6,6 @@ import BottomNav from '@/components/BottomNav'
 import { coachService } from '@/services/coach/coachService'
 import { studentService } from '@/services/studentService'
 import { authService } from '@/services/authService'
-import { request } from '@/utils/request'
 import { addPublicToMyLib, listPublicActions } from '@/services/actionLibPageService'
 import type { PublicActionItemDto } from '@/types/action'
 import { knowledgeService } from '@/services/knowledgeService'
@@ -468,53 +467,35 @@ function Discovery() {
         return false
     }
 
-    const handleBuyMarketItem = (item: MarketHighlightItem) => {
+    const navigateToCoachProductFlow = (item: MarketHighlightItem) => {
         if (!ensureLogin('/discovery/index')) return
 
+        const autoSubscribeToken = `market-${item.productId}-${item.durationMonths}-${Date.now()}`
         const query = [
-            `coachId=${encodeURIComponent(item.coachId)}`,
+            `id=${encodeURIComponent(item.coachId)}`,
+            'tab=1',
             `productId=${encodeURIComponent(item.productId)}`,
-            `months=${item.durationMonths}`
+            `months=${item.durationMonths}`,
+            'autoSubscribe=1',
+            `autoSubscribeToken=${encodeURIComponent(autoSubscribeToken)}`
         ].join('&')
 
         Taro.navigateTo({
-            url: `/me/payment/webview/index?${query}`
+            url: `/discovery/coach-profile?${query}`
         })
     }
 
-    const handleAddMarketToCart = async (item: MarketHighlightItem) => {
-        if (!ensureLogin('/discovery/index')) return
+    const handleBuyMarketItem = (item: MarketHighlightItem) => {
+        navigateToCoachProductFlow(item)
+    }
 
+    const handleAddMarketToCart = async (item: MarketHighlightItem) => {
         const actionKey = `${item.id}-${item.durationMonths}`
         if (addingMarketKey === actionKey) return
         setAddingMarketKey(actionKey)
 
         try {
-            const res = await request({
-                url: '/api/cart/add',
-                method: 'POST',
-                data: {
-                    coachId: item.coachId,
-                    coachName: item.coachName || '教练',
-                    productId: item.productId,
-                    productName: item.productName,
-                    productTier: item.productTier,
-                    durationMonths: item.durationMonths,
-                    price: item.price
-                }
-            })
-            if (!res.success) return
-
-            Taro.showToast({
-                title: '已加入购物车',
-                icon: 'success'
-            })
-        } catch (error) {
-            console.error('加入购物车失败:', error)
-            Taro.showToast({
-                title: '加购失败',
-                icon: 'none'
-            })
+            navigateToCoachProductFlow(item)
         } finally {
             setAddingMarketKey('')
         }
@@ -1045,4 +1026,3 @@ function Discovery() {
 }
 
 export default Discovery
-

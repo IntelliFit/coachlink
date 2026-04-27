@@ -97,6 +97,13 @@ export async function POST(req: Request) {
     let subjectText = String(subject || "");
     let resolvedTotalAmount = Number(totalAmount);
     let resolvedAmountAlreadyFen = false;
+    let subscriptionMeta: {
+        coachId: string;
+        coachName: string;
+        productName: string;
+        productTier: string;
+        durationMonths: number;
+    } | null = null;
 
     if (orderType === "subscription" || orderType === "subscription_renew") {
         if (!subjectText) {
@@ -141,6 +148,24 @@ export async function POST(req: Request) {
             if (!subjectText.trim()) {
                 subjectText = `${subscriptionOrder.order_type === "renew" ? "续费" : "订阅"}教练 ${subscriptionOrder.product_name || ""}`.trim();
             }
+
+            const renewWeeks = Number(od.renewAdditionalWeeks || 0);
+            const baseDurationMonths = Math.max(
+                1,
+                Math.round(Number(subscriptionOrder.duration_months || 0)),
+            );
+            const durationMonths =
+                orderType === "subscription_renew" && renewWeeks > 0
+                    ? Math.max(1, Math.round(renewWeeks / 4))
+                    : baseDurationMonths;
+
+            subscriptionMeta = {
+                coachId: String(coachId || subscriptionOrder.coach_id || ""),
+                coachName: String(subscriptionOrder.coach_name || "").trim(),
+                productName: String(subscriptionOrder.product_name || ""),
+                productTier: String(subscriptionOrder.product_tier || ""),
+                durationMonths,
+            };
         } else if (!subscriptionId) {
             return NextResponse.json(
                 { success: false, message: "缺少订阅ID，无法创建平台支付订单", data: null },
@@ -149,10 +174,9 @@ export async function POST(req: Request) {
         } else {
             const { data: sub, error: subErr } = await serviceRoleSupabase
                 .from("coach_subscriptions")
-                .select("id, student_id, coach_id, monthly_price")
+                .select("id, student_id, coach_id, monthly_price, product_name, product_tier, subscribed_weeks, coaches(name)")
                 .eq("id", subscriptionId)
                 .single();
-
             if (subErr || !sub) {
                 return NextResponse.json(
                     { success: false, message: "订阅不存在，无法创建平台支付订单", data: null },
@@ -180,6 +204,40 @@ export async function POST(req: Request) {
                 resolvedTotalAmount = Number(sub.monthly_price);
                 resolvedAmountAlreadyFen = true;
             }
+
+            const coachName = String((sub as any)?.coaches?.name || "");
+            const productName = String((sub as any)?.product_name || "");
+            const productTier = String((sub as any)?.product_tier || "");
+            const baseDurationMonths = Math.max(1, Math.round(Number((sub as any)?.subscribed_weeks || 0) / 4));
+            const renewWeeks = Number(od.renewAdditionalWeeks || 0);
+            const durationMonths =
+                orderType === "subscription_renew" && renewWeeks > 0
+                    ? Math.max(1, Math.round(renewWeeks / 4))
+                    : baseDurationMonths;
+
+            subscriptionMeta = {
+                coachId: String(coachId || sub.coach_id || ""),
+                coachName: coachName.trim(),
+                productName,
+                productTier,
+                durationMonths,
+            };
+        }
+
+        if (subscriptionMeta) {
+            Object.assign(od, {
+                ...od,
+                subscriptionId,
+                subscription_id: subscriptionId,
+                coachId: subscriptionMeta.coachId,
+                coachName: subscriptionMeta.coachName,
+                productName: subscriptionMeta.productName,
+                product_name: subscriptionMeta.productName,
+                productTier: subscriptionMeta.productTier,
+                product_tier: subscriptionMeta.productTier,
+                durationMonths: subscriptionMeta.durationMonths,
+                duration_months: subscriptionMeta.durationMonths,
+            });
         }
     }
 
@@ -254,16 +312,16 @@ export async function POST(req: Request) {
         ? Math.round(Number(resolvedTotalAmount))
         : yuanToFen(resolvedTotalAmount);
     const { data: order, error: orderError } = await supabase
-        .from("alipay_orders")
-        .insert({
-            subject: subjectText,
-            total_amount: totalAmountFen, // 存储分（整数）
-            order_type: orderType,
-            order_data: orderData,
-            user_id: userId,
-            status: "pending",
-            qr_code: "",
-        })
+            .from("alipay_orders")
+            .insert({
+                subject: subjectText,
+                total_amount: totalAmountFen, // 存储分（整数）
+                order_type: orderType,
+                order_data: od,
+                user_id: userId,
+                status: "pending",
+                qr_code: "",
+            })
         .select()
         .single();
 
