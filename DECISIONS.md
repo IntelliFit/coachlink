@@ -1,6 +1,6 @@
 # DECISIONS
 
-- `2026-04-27`: CI 容器镜像推送到自建 Docker Registry；`REGISTRY_HOST`（及按需 `REGISTRY_IMAGE_PATH`）用 Variables，`REGISTRY_USERNAME` / `REGISTRY_PASSWORD` 用 Secrets；经 Nginx 对外 443、反代到后端 5000 时不配置 `REGISTRY_PORT`。证书 CN/SAN 须与 `docker login` 主机名一致。
+- `2026-04-27`: CI 容器镜像默认推送到腾讯云 CCR（`TENCENT_CCR_*` Variables + `TENCENT_CCR_USERNAME`/`PASSWORD` Secrets）。中间曾在 git 中试验自建 Registry（`REGISTRY_*`），已用新提交改回腾讯云，历史提交保留可查。
 - `2026-04-27`: 生产构建脚本 `scripts/build-prod.js` 默认应优先走 Next 16 的默认构建器（Turbopack），不要无条件强制 `--webpack`。当前仓库本地对照中，Turbopack 明显更快、更轻，适合作为部署默认值；仅在明确需要排查兼容问题时再通过 `COACHLINK_BUILD_USE_WEBPACK=1` 显式切回 Webpack。
 - `2026-04-27`: 部署脚本不能再吞掉真实构建失败原因。`scripts/build-prod.js` 在构建失败或 standalone 缺失时必须返回非零退出码，并记录 `signal`，避免部署端只看到误导性的 `returncode=0 / code null`。
 - `2026-04-27`: 今日训练页的顺延计算不能让执行起点前的历史空洞参与累计。对历史迁移/手动修计划造成的 `plan.start_date` 早于 `subscription.start_date` 且 `start_execution_day` 仍为 1 的实例，读取时应基于订阅真实开始日和最早有效执行记录推导有效执行起点；执行起点之前的天只保留历史展示，不应驱动当前推进日或后续日期顺延。

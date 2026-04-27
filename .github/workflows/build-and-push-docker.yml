@@ -1,23 +1,22 @@
-# 构建并推送到自建 Docker Registry（与本地 .env 对应项一致，勿把密码写入仓库）
+# 构建并推送到腾讯云容器镜像服务（CCR / TCR）
 #
-# 镜像全名：{registry 主机[:端口]}/{镜像路径}:{标签}
-# registry 须与证书 CN/SAN 一致，且与 docker login 使用的地址一致。
-#
-# Nginx 对外 443、反代到本机 5000 时：只配 REGISTRY_HOST（不要配 REGISTRY_PORT），
-# 即 docker login / 镜像引用均为 host 默认 443，无 :5000。
+# 个人版默认 registry：ccr.ccs.tencentyun.com
+# 镜像全名：{registry}/{命名空间}/{仓库名}:{标签}
 #
 # --- GitHub Secrets（必须）---
-# REGISTRY_USERNAME   例如 registry
-# REGISTRY_PASSWORD   强密码；仅放在 Secrets，勿提交 .env
+# TENCENT_CCR_USERNAME  腾讯云账号 ID（控制台「登录实例」指引里与 docker login 的 username 一致，一般为数字账号 ID）
+# TENCENT_CCR_PASSWORD  个人版：在容器镜像服务控制台「初始化密码 / 重置登录密码」设置的固定密码
+#                        企业版：按控制台文档使用实例登录密码或临时访问凭证（以控制台为准）
 #
-# --- GitHub Variables（仓库 Settings → Secrets and variables → Actions → Variables）---
-# REGISTRY_HOST           必填。对外访问用主机名，如 docker-registry.littlehorse.website（不要带 https://）
-# REGISTRY_PORT           可选。仅当你直连 registry 监听端口时才填（如内网 host:5000）；Nginx 终止 TLS 时不要设
-# REGISTRY_IMAGE_PATH     可选。如 coachlink/coachlink；默认 coachlink/coachlink
+# --- GitHub Variables（仓库 Settings → Secrets and variables → Actions → Variables，推荐）---
+# TENCENT_CCR_NAMESPACE   命名空间名称（如 project-a），须与控制台一致
+# TENCENT_CCR_REPOSITORY  镜像仓库名（小写字母/数字/._-），默认不写则使用 coachlink
+# TENCENT_CCR_REGISTRY    可选；个人版可省略（默认 ccr.ccs.tencentyun.com）；企业版填控制台给出的域名
 #
-# 本地验证（经 Nginx 443，无端口）：
-#   docker login docker-registry.littlehorse.website -u registry
-#   docker pull docker-registry.littlehorse.website/coachlink/coachlink:dev
+# 本地验证登录（示例）：
+#   docker login ccr.ccs.tencentyun.com --username=<账号ID>
+# 推送后拉取：
+#   docker pull ccr.ccs.tencentyun.com/<namespace>/<repo>:dev
 name: Build and Push Docker Image
 
 on:
@@ -37,46 +36,35 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Resolve registry and image base
+      - name: Resolve Tencent registry and image base
         id: reg
         env:
-          REGISTRY_HOST: ${{ vars.REGISTRY_HOST }}
-          REGISTRY_PORT: ${{ vars.REGISTRY_PORT }}
-          REGISTRY_IMAGE_PATH: ${{ vars.REGISTRY_IMAGE_PATH }}
+          TENCENT_CCR_REGISTRY: ${{ vars.TENCENT_CCR_REGISTRY }}
+          TENCENT_CCR_NAMESPACE: ${{ vars.TENCENT_CCR_NAMESPACE }}
+          TENCENT_CCR_REPOSITORY: ${{ vars.TENCENT_CCR_REPOSITORY }}
         run: |
           set -euo pipefail
-          HOST="${REGISTRY_HOST:-}"
-          PORT="${REGISTRY_PORT:-}"
-          IMG_PATH="${REGISTRY_IMAGE_PATH:-coachlink/coachlink}"
-
-          if [ -z "${HOST}" ]; then
-            echo "::error::请在仓库 Actions Variables 中设置 REGISTRY_HOST（须与证书 CN/SAN、docker login 一致）。"
+          REGISTRY="${TENCENT_CCR_REGISTRY:-ccr.ccs.tencentyun.com}"
+          NS="${TENCENT_CCR_NAMESPACE:-}"
+          REPO="${TENCENT_CCR_REPOSITORY:-coachlink}"
+          if [ -z "$NS" ]; then
+            echo "::error::请在仓库 Actions Variables 中设置 TENCENT_CCR_NAMESPACE（命名空间），与腾讯云控制台一致。"
             exit 1
           fi
-
-          HOST="${HOST#https://}"
-          HOST="${HOST#http://}"
-          HOST="${HOST%/}"
-
-          # 与 docker login 一致：Nginx 443 反代时 PORT 留空 → 仅 HOST；直连非 443 端口时才 HOST:PORT
-          if [ -n "${PORT}" ] && [ "${PORT}" != "443" ]; then
-            REGISTRY="${HOST}:${PORT}"
-          else
-            REGISTRY="${HOST}"
-          fi
-
-          IMG_PATH="${IMG_PATH#/}"
-          IMAGE_BASE="${REGISTRY}/${IMG_PATH}"
-
+          # 去掉可能误填的 https:// 前缀
+          REGISTRY="${REGISTRY#https://}"
+          REGISTRY="${REGISTRY#http://}"
+          REGISTRY="${REGISTRY%/}"
+          IMAGE_BASE="${REGISTRY}/${NS}/${REPO}"
           echo "registry=${REGISTRY}" >> "${GITHUB_OUTPUT}"
           echo "image_base=${IMAGE_BASE}" >> "${GITHUB_OUTPUT}"
 
-      - name: Log in to Docker Registry
+      - name: Log in to Tencent Cloud Container Registry
         uses: docker/login-action@v3
         with:
           registry: ${{ steps.reg.outputs.registry }}
-          username: ${{ secrets.REGISTRY_USERNAME }}
-          password: ${{ secrets.REGISTRY_PASSWORD }}
+          username: ${{ secrets.TENCENT_CCR_USERNAME }}
+          password: ${{ secrets.TENCENT_CCR_PASSWORD }}
 
       - name: Determine image tags
         id: meta
@@ -125,7 +113,7 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Push image tags to registry
+      - name: Push image tags to Tencent CCR
         if: ${{ steps.meta.outputs.tags != '' }}
         env:
           DOCKER_TAGS: ${{ steps.meta.outputs.tags }}
@@ -138,7 +126,7 @@ jobs:
 
       - name: Output summary
         run: |
-          echo "### 自建 Registry：构建与推送完成" >> "${GITHUB_STEP_SUMMARY}"
+          echo "### 腾讯云容器镜像：构建与推送完成" >> "${GITHUB_STEP_SUMMARY}"
           echo "Registry: ${{ steps.reg.outputs.registry }}" >> "${GITHUB_STEP_SUMMARY}"
           echo "镜像: ${{ steps.meta.outputs.image }}" >> "${GITHUB_STEP_SUMMARY}"
           echo "环境: ${{ steps.meta.outputs.deploy_env }} (${{ steps.meta.outputs.short_sha }})" >> "${GITHUB_STEP_SUMMARY}"
