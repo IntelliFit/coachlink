@@ -1,5 +1,14 @@
 # CURRENT_TASK
 
+- Task: GitHub Actions 构建镜像并推送到腾讯云容器镜像服务（CCR）
+- Status: completed on `2026-04-27`
+- Fix:
+  - `.github/workflows/build-and-push-docker.yml`：Docker Hub 登录与 `peacesheep/coachlink` 固定前缀改为腾讯云 registry；用 `TENCENT_CCR_NAMESPACE` 等变量拼出 `ccr.ccs.tencentyun.com/<ns>/<repo>:<tag>`；步骤摘要改为中文说明
+- Next step:
+  - 在 GitHub 仓库配置 Secrets / Variables（见工作流文件顶部注释），推送 `main` / `dev` / `gray` 验证流水线是否 green
+
+---
+
 - Task: 修复 `dev/main` 部署阶段 `update_and_restart` 中 `npm run build` 反复报 `Build failed with code null`
 - Status: implemented in code on `2026-04-27`; local production build re-verified
 - Finding:
