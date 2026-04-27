@@ -1,5 +1,26 @@
 # CURRENT_TASK
 
+- Task: 修复 `dev/main` 部署阶段 `update_and_restart` 中 `npm run build` 反复报 `Build failed with code null`
+- Status: implemented in code on `2026-04-27`; local production build re-verified
+- Finding:
+  - 部署日志里的 `returncode=0` 与 `Build failed with code null` 来自 `scripts/build-prod.js` 本身的错误处理缺陷，而不代表 Next 真正“成功退出”
+  - 该脚本此前强制执行 `npx next build --webpack`；本地实测 Webpack 构建约 `118s`，默认 Turbopack 构建约 `35s`
+  - 当前代码在本地 `npm run build` 下可成功产出 standalone，说明更可能是部署机上的 Webpack 构建被外部信号终止（常见是内存/资源压力），但脚本没有打印 `signal`，也没有返回非零退出码
+- Fix:
+  - `scripts/build-prod.js`
+    - 默认改为执行 `npx next build`（Turbopack）
+    - 保留 `COACHLINK_BUILD_USE_WEBPACK=1` 作为显式回退开关
+    - 新增构建命令日志输出
+    - 新增 `error` 监听
+    - 构建失败时输出 `code + signal`，并明确 `process.exit(1)`
+    - standalone 缺失时也明确返回非零退出码
+- Verification:
+  - `npm run build`：通过（Turbopack，本地完整产出 `.next/standalone`）
+- Next step:
+  - 重新触发 `dev` / `main` 部署，优先观察部署日志是否从 `code null` 变为更具体的 signal 或直接恢复成功
+
+---
+
 - Task: 修复学员“痴迷负重引体”追加第 9 周后今日训练日历被顺延到 6 月 22 日
 - Status: implemented in code on `2026-04-27`; verification intentionally skipped per user request
 - Real data finding:
