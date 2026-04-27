@@ -58,6 +58,7 @@ export interface PlanTrainingDay {
 export interface PlanEditorValue {
   name: string
   description: string
+  executionNotice: string
   tags: string[]
   suitableFor: 'beginner' | 'intermediate' | 'advanced'
   type?: string | null

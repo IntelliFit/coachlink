@@ -123,6 +123,21 @@ export default function CoachPlanLib() {
     }
   }
 
+  const handleExport = async (id: string) => {
+    try {
+      const res = await planLibService.exportTemplateText({ id })
+      if (!res?.text) {
+        Taro.showToast({ title: '导出失败', icon: 'none' })
+        return
+      }
+      await Taro.setClipboardData({ data: res.text })
+      Taro.showToast({ title: '模板文本已复制', icon: 'none' })
+    } catch (error) {
+      console.error('[coach/plan-lib] export failed:', error)
+      Taro.showToast({ title: '导出失败', icon: 'none' })
+    }
+  }
+
   const handleDelete = async (id: string) => {
     const res = await Taro.showModal({
       title: '删除模板',
@@ -235,6 +250,7 @@ export default function CoachPlanLib() {
                     ) : null}
                   </View>
                   <View className='coach-plan-lib-page__card-actions'>
+                    <Text className='coach-plan-lib-page__link' onClick={() => void handleExport(template.id)}>导出</Text>
                     <Text className='coach-plan-lib-page__link' onClick={() => handleCopy(template.id)}>复制</Text>
                     <Text className='coach-plan-lib-page__link danger' onClick={() => handleDelete(template.id)}>删除</Text>
                   </View>

@@ -8,6 +8,34 @@ import type {
 } from "./entity";
 import { ApiData } from "@/types/api";
 
+function findMatchingActionExecution(actionExecutions: unknown, actionId: string) {
+    if (!Array.isArray(actionExecutions)) return null;
+
+    return actionExecutions.find((actionExecution: any) => (
+        actionExecution?.id === actionId || actionExecution?.action_id === actionId
+    )) ?? null;
+}
+
+function findMatchingSetExecution(sets: unknown, setNumber: number) {
+    if (!Array.isArray(sets)) return null;
+
+    return sets.find((setExecution: any, index: number) => (
+        setExecution?.set_number === setNumber ||
+        setExecution?.setNumber === setNumber ||
+        index === Math.max(0, setNumber - 1)
+    )) ?? null;
+}
+
+function pickSetValue(setExecution: any, ...keys: string[]) {
+    for (const key of keys) {
+        const value = setExecution?.[key];
+        if (value !== undefined && value !== null && value !== "") {
+            return value;
+        }
+    }
+    return null;
+}
+
 export async function POST(req: Request) {
     const session = await getServerSession();
     if (!session?.user?.id) {
@@ -201,23 +229,34 @@ export async function POST(req: Request) {
     const execItems: VideoItem[] = (execVideos || []).map((v: any) => {
         // 从执行记录的 action_executions 中补充动作名、计划/实际重量次数
         let actionName = v.exercise_name || "未命名动作";
-        let weight: number | null | undefined = undefined;
-        let reps: number | null | undefined = undefined;
+        let weight: number | null = null;
+        let reps: number | null = null;
 
         const actions = v.plan_instance_executions?.action_executions;
-        if (Array.isArray(actions)) {
-            const matchedAction = actions.find((a: any) => a.action_id === v.action_id);
-            if (matchedAction) {
-                actionName = matchedAction.action_name || actionName;
-                const sets = matchedAction.sets;
-                if (Array.isArray(sets) && v.set_number) {
-                    const setIdx = Math.max(0, (v.set_number as number) - 1);
-                    const matchedSet = sets[setIdx];
-                    if (matchedSet) {
-                        weight = matchedSet.actual_weight ?? matchedSet.planned_weight ?? weight;
-                        reps = matchedSet.actual_reps ?? matchedSet.planned_reps ?? reps;
-                    }
-                }
+        const matchedAction = findMatchingActionExecution(actions, v.action_id);
+        if (matchedAction) {
+            actionName = matchedAction.action_name || matchedAction.name || actionName;
+
+            const matchedSet = findMatchingSetExecution(matchedAction.sets, v.set_number || 1);
+            if (matchedSet) {
+                weight = pickSetValue(
+                    matchedSet,
+                    "actual_weight",
+                    "actualWeight",
+                    "completed_weight",
+                    "planned_weight",
+                    "plannedWeight",
+                    "weight",
+                );
+                reps = pickSetValue(
+                    matchedSet,
+                    "actual_reps",
+                    "actualReps",
+                    "completed_reps",
+                    "planned_reps",
+                    "plannedReps",
+                    "reps",
+                );
             }
         }
 
