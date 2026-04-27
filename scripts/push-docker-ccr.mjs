@@ -2,7 +2,7 @@
 /**
  * 在本机构建 Docker 镜像并推送到腾讯云 CCR（绕过 GitHub Actions 跨境推送过慢）。
  *
- * 镜像路径固定为：ccr.ccs.tencentyun.com/coachlink/coachlink（与当前项目 CCR 命名一致）。
+ * 镜像路径固定为：ccr.ccs.tencentyun.com/littlehorse/coachlink（命名空间 littlehorse，镜像仓库名 coachlink）。
  * 运行时配置由部署侧 .env 注入，构建阶段不要求 NEXT_PUBLIC_*。
  *
  * 用法（在仓库根目录）：
@@ -22,9 +22,9 @@ import { fileURLToPath } from 'node:url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, '..');
 
-/** 个人版 CCR 默认域名；镜像命名空间与仓库名均为 coachlink */
+/** 个人版 CCR 默认域名；命名空间 littlehorse，镜像仓库名 coachlink */
 const REGISTRY = 'ccr.ccs.tencentyun.com';
-const IMAGE_NAMESPACE = 'coachlink';
+const IMAGE_NAMESPACE = 'littlehorse';
 const IMAGE_REPOSITORY = 'coachlink';
 
 function print(...args) {
@@ -116,7 +116,7 @@ function main() {
       : [`${imageBase}:dev`, `${imageBase}:${shortSha}`];
 
   print(`Registry:   ${REGISTRY}`);
-  print(`镜像基名:   ${imageBase}（命名空间/仓库名已写死为 coachlink/coachlink）`);
+  print(`镜像基名:   ${imageBase}（命名空间 littlehorse，仓库名 coachlink）`);
   print(`当前分支:   ${branch}`);
   print(`Git 短 SHA: ${shortSha}`);
   print(`将打标签:   ${tags.join(', ')}\n`);
