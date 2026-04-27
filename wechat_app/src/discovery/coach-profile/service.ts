@@ -4,6 +4,11 @@
  */
 
 import { coachService } from '@/services/coach/coachService'
+import {
+  createCoachWechatPayment as createCoachWechatPaymentRequest,
+  queryCoachPaymentOrder as queryCoachPaymentOrderRequest,
+  requestCoachWechatPayment
+} from '@/services/paymentService'
 import { subscriptionService } from '@/services/subscriptionService'
 import type {
   CoachRow,
@@ -67,3 +72,21 @@ export async function fetchQuestionnaires(coachId: string): Promise<any[]> {
   const list = (res as any)?.questionnaires
   return Array.isArray(list) ? list : []
 }
+
+export async function createCoachWechatPayment(reqData: {
+  coachId: string
+  subscriptionId: string
+  amount?: number
+  renew?: boolean
+  renewAdditionalWeeks?: number
+  subject?: string
+}) {
+  const res = await createCoachWechatPaymentRequest(reqData)
+  return res.success ? res.data ?? null : null
+}
+
+export async function queryCoachPaymentOrder(orderId: string) {
+  return queryCoachPaymentOrderRequest(orderId)
+}
+
+export { requestCoachWechatPayment }

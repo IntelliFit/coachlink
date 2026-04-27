@@ -1,8 +1,8 @@
 /**
- * 支付相关：小程序内调用 create 获取支付宝跳转 URL（带鉴权）
- * 主要用于继续支付已有订阅或兜底直达支付页
+ * 支付相关：同时保留旧支付宝跳转能力，并新增小程序内原生微信支付能力。
  */
 import { request } from '@/utils/request'
+import Taro from '@tarojs/taro'
 
 const WEB_BASE = 'https://coachlink.fit'
 
@@ -84,6 +84,33 @@ export interface QueryPaymentOrderResponse {
   tradeStatus: string
 }
 
+export interface WechatPaymentParams {
+  appId: string
+  timeStamp: string
+  nonceStr: string
+  package: string
+  signType: 'RSA'
+  paySign: string
+}
+
+export interface CreateCoachWechatPaymentResponse {
+  orderId: string
+  outTradeNo: string
+  paymentProvider: 'wechat'
+  amount: number
+  paymentParams: WechatPaymentParams
+}
+
+export interface QueryCoachWechatPaymentResponse {
+  status: PaymentStatus
+  amount: number
+  order: {
+    id: string
+    total_amount: number
+    status: string
+  }
+}
+
 /**
  * 查询支付订单状态（轮询用，小程序鉴权）
  */
@@ -114,4 +141,81 @@ export async function queryPaymentOrder(orderId: string): Promise<{
   }
   const amount = order?.total_amount != null ? Number(order.total_amount) : undefined
   return { success: true, status, amount }
+}
+
+export async function createCoachWechatPayment(params: {
+  coachId: string
+  subscriptionId: string
+  amount?: number
+  renew?: boolean
+  renewAdditionalWeeks?: number
+  subject?: string
+}): Promise<{ success: boolean; data?: CreateCoachWechatPaymentResponse; message?: string }> {
+  const res = await request<CreateCoachWechatPaymentResponse>({
+    url: '/api/payment/wechat/coach/create',
+    method: 'POST',
+    data: params,
+  })
+
+  if (!res.success || !res.data) {
+    return { success: false, message: res.message }
+  }
+
+  return {
+    success: true,
+    data: res.data
+  }
+}
+
+export async function queryCoachPaymentOrder(orderId: string): Promise<{
+  success: boolean
+  status?: PaymentStatus
+  amount?: number
+  message?: string
+}> {
+  const res = await request<QueryCoachWechatPaymentResponse>({
+    url: '/api/payment/wechat/query',
+    method: 'POST',
+    data: { orderId },
+    showErrorToast: false
+  })
+
+  if (!res.success || !res.data) {
+    return { success: false, message: res.message }
+  }
+
+  return {
+    success: true,
+    status: res.data.status,
+    amount: Number(res.data.amount || 0)
+  }
+}
+
+export async function requestCoachWechatPayment(params: WechatPaymentParams): Promise<{
+  success: boolean
+  status: 'success' | 'cancelled' | 'failed'
+  message?: string
+}> {
+  try {
+    await Taro.requestPayment({
+      timeStamp: params.timeStamp,
+      nonceStr: params.nonceStr,
+      package: params.package,
+      signType: params.signType,
+      paySign: params.paySign,
+    })
+    return { success: true, status: 'success' }
+  } catch (error: any) {
+    const errMsg = String(error?.errMsg || error?.message || '')
+    const cancelled =
+      errMsg.includes('cancel') ||
+      errMsg.includes('cancelled') ||
+      errMsg.includes('用户取消')
+
+    return {
+      success: false,
+      status: cancelled ? 'cancelled' : 'failed',
+      message: errMsg || (cancelled ? '用户取消支付' : '拉起微信支付失败')
+    }
+  }
 }

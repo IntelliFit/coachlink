@@ -35,6 +35,67 @@ function ensureQuestionIds(questions: any[]): { normalized: TrainingItem[]; chan
     return { normalized: normalized as unknown as TrainingItem[], changed };
 }
 
+async function enrichRmQuestions(
+    questions: TrainingItem[],
+): Promise<TrainingItem[]> {
+    const rmActionIds = Array.from(
+        new Set(
+            questions.flatMap((item: any) =>
+                item?.type === "rm" && Array.isArray(item?.actionIds)
+                    ? item.actionIds.filter((id: unknown) => typeof id === "string" && id.trim())
+                    : [],
+            ),
+        ),
+    );
+
+    if (rmActionIds.length === 0) {
+        return questions;
+    }
+
+    const { data: actionRows, error: actionError } = await supabase
+        .from("coach_actions")
+        .select("id, name")
+        .in("id", rmActionIds);
+
+    if (actionError) {
+        console.error("[get-questionnaires] load rm action names failed:", actionError);
+    }
+
+    const actionNameMap = new Map<string, string>();
+    (actionRows || []).forEach((row: any) => {
+        const id = String(row?.id || "").trim();
+        const name = String(row?.name || "").trim();
+        if (id && name) actionNameMap.set(id, name);
+    });
+
+    return questions.map((item: any) => {
+        if (item?.type !== "rm") return item;
+
+        const actionIds = Array.isArray(item?.actionIds) ? item.actionIds : [];
+        const existingInputs =
+            item?.userInputs && typeof item.userInputs === "object" ? item.userInputs : {};
+
+        const generatedInputs: Record<string, string | number> = {};
+        actionIds.forEach((actionId: string, index: number) => {
+            const key =
+                actionNameMap.get(String(actionId).trim()) ||
+                String(actionId || "").trim() ||
+                `动作${index + 1}`;
+            if (!(key in generatedInputs)) {
+                generatedInputs[key] = existingInputs[key] ?? "";
+            }
+        });
+
+        return {
+            ...item,
+            userInputs:
+                Object.keys(generatedInputs).length > 0
+                    ? generatedInputs
+                    : existingInputs,
+        } as TrainingItem;
+    });
+}
+
 export async function POST(req: Request) {
     const session = await getServerSession();
     if (!session?.user?.id) {
@@ -154,12 +215,14 @@ export async function POST(req: Request) {
         }
     }
 
+    const enrichedQuestions = await enrichRmQuestions(normalized);
+
     return NextResponse.json<ApiData<GetQuestionnairesResponseDto>>({
         success: true,
         message: "获取问卷成功",
         data: {
             id: questionnairesData.id,
-            questionnaires: normalized,
+            questionnaires: enrichedQuestions,
         },
     });
 }

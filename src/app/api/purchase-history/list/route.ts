@@ -6,8 +6,9 @@ import type { ApiData } from '@/types/api';
 
 export interface PurchaseHistoryItem {
     id: string | number;
-    orderType: 'subscription' | 'student_membership' | 'other';
+    orderType: 'subscription' | 'subscription_renew' | 'student_membership' | 'other';
     subject: string;
+    productName?: string;
     amount: number;
     status: 'pending' | 'paid' | 'failed' | 'closed' | 'refunded';
     createdAt: string;
@@ -17,6 +18,7 @@ export interface PurchaseHistoryItem {
     coachId?: string;
     coachName?: string;
     subscriptionId?: string;
+    durationMonths?: number;
     // 会员相关
     productKey?: string;
 }
@@ -74,31 +76,64 @@ export async function GET(req: Request) {
         if (alipayOrders) {
             for (const order of alipayOrders) {
                 const orderData = (order.order_data as any) || {};
+                const subscriptionId = String(orderData.subscription_id || orderData.subscriptionId || '').trim();
                 let coachName = '';
                 let coachId = '';
+                let productName = '';
+                let durationMonths = 0;
 
                 // 如果是订阅订单，获取教练信息
-                if (order.order_type === 'subscription' && orderData.subscription_id) {
+                if ((order.order_type === 'subscription' || order.order_type === 'subscription_renew') && subscriptionId) {
                     try {
                         const { data: subscription } = await serviceRoleSupabase
                             .from('coach_subscriptions')
-                            .select('coach_id, coaches(name)')
-                            .eq('id', orderData.subscription_id)
+                            .select('coach_id, product_name, subscribed_weeks, coaches(name)')
+                            .eq('id', subscriptionId)
                             .single();
                         
                         if (subscription) {
                             coachId = subscription.coach_id;
                             coachName = (subscription.coaches as any)?.name || '教练';
+                            productName = String((subscription as any).product_name || '').trim();
+                            const subscribedWeeks = Number((subscription as any).subscribed_weeks || 0);
+                            durationMonths = subscribedWeeks > 0 ? Math.max(1, Math.round(subscribedWeeks / 4)) : 0;
                         }
                     } catch (e) {
                         console.error('获取教练信息失败:', e);
                     }
                 }
 
+                if (!coachId && orderData.coachId) {
+                    coachId = String(orderData.coachId);
+                }
+
+                if (!productName) {
+                    productName = String(
+                        orderData.product_name ||
+                        orderData.productName ||
+                        ''
+                    ).trim();
+                }
+
+                if (!durationMonths) {
+                    const renewWeeks = Number(orderData.renewAdditionalWeeks || 0);
+                    if (renewWeeks > 0) {
+                        durationMonths = Math.max(1, Math.round(renewWeeks / 4));
+                    }
+                }
+
+                const fallbackSubject = String(order.subject || '').trim();
+                const resolvedProductName =
+                    productName ||
+                    fallbackSubject.replace(/^订阅教练\s*/, '').trim() ||
+                    fallbackSubject ||
+                    '订阅服务';
+
                 orders.push({
                     id: order.id,
                     orderType: (order.order_type as any) || 'other',
                     subject: order.subject,
+                    productName: resolvedProductName,
                     amount: fenToYuan(order.total_amount ?? 0),
                     status: order.status as any,
                     createdAt: order.created_at,
@@ -106,7 +141,8 @@ export async function GET(req: Request) {
                     orderData: orderData,
                     coachId,
                     coachName,
-                    subscriptionId: orderData.subscription_id,
+                    subscriptionId,
+                    durationMonths,
                 });
             }
         }
@@ -118,11 +154,13 @@ export async function GET(req: Request) {
                     id: order.id,
                     orderType: 'student_membership',
                     subject: `会员服务 - ${order.product_key}`,
+                    productName: `会员服务 - ${order.product_key}`,
                     amount: fenToYuan(order.amount ?? 0),
                     status: order.status as any,
                     createdAt: order.created_at,
                     paidAt: order.paid_at || undefined,
                     productKey: order.product_key,
+                    durationMonths: 0,
                 });
             }
         }
