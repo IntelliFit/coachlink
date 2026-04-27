@@ -45,13 +45,22 @@ if (fs.existsSync(nextDir)) {
     fs.rmSync(nextDir, { recursive: true, force: true });
 }
 
-// Next.js 16 uses Turbopack by default. Force Webpack build to avoid Turbopack/font internal module
-// resolution issues (e.g. next/font/google -> @vercel/turbopack-next/internal/...).
-const nextBuild = crossSpawn('npx', ['next', 'build', '--webpack'], {
+// Next.js 16 defaults to Turbopack, which is materially faster and lighter for our production builds.
+// Keep an escape hatch for Webpack-only debugging on environments that explicitly request it.
+const useWebpack = process.env.COACHLINK_BUILD_USE_WEBPACK === '1';
+const nextBuildArgs = useWebpack ? ['next', 'build', '--webpack'] : ['next', 'build'];
+console.log(`→ Running build command: npx ${nextBuildArgs.join(' ')}`);
+
+const nextBuild = crossSpawn('npx', nextBuildArgs, {
     env: { ...process.env, NODE_ENV: 'production' }
 });
 
-nextBuild.on('close', (code) => {
+nextBuild.on('error', (error) => {
+    console.error('\n✗ Build process failed to start:', error);
+    process.exit(1);
+});
+
+nextBuild.on('close', (code, signal) => {
     if (code === 0) {
         console.log('\n✓ Build completed successfully!');
 
@@ -81,10 +90,14 @@ nextBuild.on('close', (code) => {
 
             console.log('\n✅ Standalone is ready at: .next/standalone');
             console.log('🚀 Now you can just scp the EVERYTHING inside .next/standalone to your server.');
+            process.exit(0);
         } else {
             console.error('✗ Error: standalone folder not found. Check next.config.js for output: "standalone"');
+            process.exit(1);
         }
     } else {
-        console.log(`\n✗ Build failed with code ${code}`);
+        const signalLabel = signal ? `, signal ${signal}` : '';
+        console.log(`\n✗ Build failed with code ${code}${signalLabel}`);
+        process.exit(code ?? 1);
     }
 });
