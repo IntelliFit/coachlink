@@ -4,21 +4,35 @@ import path from "node:path";
 import dotenv from "dotenv";
 
 import { serviceRoleSupabase } from "../src/lib/supabaseClient";
+import { loadAllKnowledgeBookWorkspaceBundles } from "../src/lib/knowledgeBookWorkspace";
 import {
   strengthTrainingPrinciplesNote,
   strengthTrainingPrinciplesNotes,
 } from "../src/content/knowledgeBooks/strengthTrainingPrinciplesNote";
+import type { KnowledgeBookManifest } from "../src/content/knowledgeBooks/schema";
 import type { Json } from "../src/types/database.types";
 
-type BookManifest = typeof strengthTrainingPrinciplesNote;
+type BookManifest = KnowledgeBookManifest;
 
-const REGISTRY: Record<string, BookManifest[]> = {
+const WORKSPACE_REGISTRY: Record<string, BookManifest[]> = Object.fromEntries(
+  loadAllKnowledgeBookWorkspaceBundles().flatMap(({ bundle, manifests }) => [
+    [bundle.source.collectionSlug, manifests],
+    ...manifests.map((manifest) => [manifest.slug, [manifest]] as const),
+  ])
+);
+
+const LEGACY_REGISTRY: Record<string, BookManifest[]> = {
   [strengthTrainingPrinciplesNote.source.collectionSlug]:
     strengthTrainingPrinciplesNotes,
   [strengthTrainingPrinciplesNote.slug]: [strengthTrainingPrinciplesNote],
   ...Object.fromEntries(
     strengthTrainingPrinciplesNotes.map((manifest) => [manifest.slug, [manifest]]),
   ),
+};
+
+const REGISTRY: Record<string, BookManifest[]> = {
+  ...LEGACY_REGISTRY,
+  ...WORKSPACE_REGISTRY,
 };
 
 for (const fileName of [".env.local", ".env.development", ".env"]) {
