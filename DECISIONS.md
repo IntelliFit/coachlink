@@ -1,17 +1,52 @@
 # DECISIONS
+- `2026-04-29`: Non-multimodal pure-text plan LLM flows such as plan generation, parsing, and scripted modification should default to DeepSeek `deepseek-v4-flash`. `useReasoner=true` should no longer switch model names to `deepseek-reasoner`; it should stay on `deepseek-v4-flash` and add `thinking` / `reasoning_effort` parameters instead.
 
-- `2026-04-29`: 计划相关的**非多模态**纯文本 LLM 链路（计划生成、计划解析、计划脚本修改等）默认统一走 DeepSeek `deepseek-v4-flash`。`useReasoner=true` 时也不再使用将弃用的 `deepseek-reasoner` 名称，而是继续使用 `deepseek-v4-flash` 并附加 `thinking` / `reasoning_effort` 参数。多模态或其他通用兼容链路可继续保留独立路由策略。
+- `2026-04-29`: The Web knowledge-home `知识体系` section should be hidden until the content structure is actually ready, instead of showing a weak placeholder. The current implementation uses a page-level feature flag for fast restore later.
 
-- `2026-04-29`: 知识库首页的“知识体系”模块在内容与结构未准备好之前，前台应优先隐藏而不是继续展示“构建中”占位。当前采用页面级临时开关控制，等体系真正可用后再恢复。
+- `2026-04-29`: The knowledge-book production flow is upgraded from hardcoded TypeScript content files to a two-layer workspace system:
+  - publishable content lives in `src/content/knowledgeBooks/workspaces/<slug>/book.json + notes/*.md`
+  - original extracted book text and chapter-probe artifacts stay local-only in `temp_dir/knowledge-book-workspaces/<slug>/`
+  This keeps the publish tree reusable without storing raw source-book text there.
+- `2026-04-29`: The knowledge-book import script must auto-discover books under `workspaces/` so adding a new book no longer requires manually editing a registry file every time.
+- `2026-04-29`: The first book-workspace scaffold supports `.docx / .txt / .md` and should generate an editable `overview + chapter notes` skeleton. Auto-detected chapter structure is only a draft and is expected to be cleaned up manually in `book.json` before final publication.
+- `2026-04-29`: The preferred book-note generation pipeline is `local extracted text -> DeepSeek interpretation draft -> quick human cleanup -> knowledge-base import`. The model output must remain interpretive and non-infringing, and every published note should carry the unified copyright-risk footer.
+- `2026-04-29`: For book workspaces, auto-detected chapter splits are not the source of truth for publication. Before import, the content should usually be converged into a cleaner `overview + core chapters` release structure; for `力量训练原理`, `1 overview + 9 core chapters` is preferred over the overly fragmented draft split.
+- `2026-04-28`: Root push-gate type checking should use a maintained submission-surface config instead of the whole monorepo plus generated artifacts. `npm run typecheck` now runs `tsc --noEmit -p tsconfig.typecheck.json`, excluding `.next`, `wechat_app`, `wechat-app`, and other historical noise while still checking the currently maintained Web/API chat submission surface.
+- `2026-04-28`: Local Playwright e2e should default to port `3000` so the test runner can reuse an already-running `next dev` session when present and avoid `.next/dev/lock` conflicts that happened with the old `3001` default.
+- `2026-04-28`: Coach plan-library strength fields in mini-program must preserve Web unit semantics: rest is stored in seconds but edited/displayed in minutes; RM/%/fixed intensity must be parsed from both legacy fields (`强度`, `intensity`) and structured `intensityConfig`.
+- `2026-04-28`: Mini-program strength auto-calculation should expose the same algorithm choices as Web (`综合计算`, `Epley`, `Brzycki`, `Lombardi`) and keep a user-editable recommended weight fallback for non-computable cases.
+- `2026-04-28`: Coach-side mini-program plan-library template `基础信息` must follow the Web editor as the source of truth. This surface should only expose `模板名称`、`训练项目（可选）`、`详情描述`、`执行摘要`、`每周频率`; mini-program-only fields such as `适合人群` and `模板类型` should stay hidden here even if their stored data model still exists.
+- `2026-04-28`: When syncing the coach-side mini-program generation flow with Web, parity should include observability as well as invocation. The mini-program should show the effective start-position semantics before generation and expose shared `ai_generation_log` metadata such as skeleton source, confidence, prompt version, and generation timestamp on the student plan page.
+- `2026-04-28`: Web private-message training-video cards should remain informative even when `thumbnailUrl` is missing. For directly playable URLs, the card should fall back to a muted first-frame inline `<video>` preview, and execution-set stat rendering should use tolerant action/set matching plus multi-key weight/reps fallback instead of assuming one exact JSON shape.
+- `2026-04-28`: Web private-message training-video cards should not open storage media with a raw `window.open(videoUrl)` flow by default. Chat video references should prefer in-page playback for directly playable media URLs, and only fall back to opening a new tab for non-inline-playable external links.
+- `2026-04-28`: Web chat message rendering should refresh `content_metadata.video_references` against current video records when messages are read, instead of treating the send-time snapshot as the long-term source of truth. Otherwise historical private-message cards cannot pick up later cover/stat fixes.
+- `2026-04-28`: Coach-side mini-program AI generation from `我的学员` should use the same high-level entry semantics as the Web workstation: expose `useLLM` in the generation config, pass it through to `/api/plan-lib/create-ai-instance` and `/api/plan-lib/bulk-create-ai-instances`, and keep `keepOriginalIndex` fixed to the Web-compatible value in this entry flow.
 
-- `2026-04-29`: 书籍笔记生产链路从“硬编码 TS 大文件”升级为“双层结构”：
-  - 可发布内容放在 `src/content/knowledgeBooks/workspaces/<slug>/book.json + notes/*.md`
-  - 原书抽取全文和章节探测结果只放本地 `temp_dir/knowledge-book-workspaces/<slug>/`
-  这样既能提高复用效率，也能避免把原书全文落进可发布目录。
-- `2026-04-29`: 书籍笔记导入脚本必须自动识别 `workspaces/` 下的新书目录，不能继续要求每新增一本书就手工改一次 registry。未来新增书籍的标准流程应是：`scaffold -> 补写 notes -> import --apply`。
-- `2026-04-29`: 书籍脚手架第一版优先支持 `.docx / .txt / .md`，并自动生成“总览 + 多篇章节”的工作目录骨架；章节探测只作为初稿，允许人工在 `book.json` 中清理和重排。
-- `2026-04-29`: 书籍笔记自动生成链路优先采用“原书本地抽取文本 -> DeepSeek 生成解读初稿 -> 人工快速校正 -> 导入知识库”的半自动模式。模型只能输出解读型内容，不得直接搬运原文；统一由系统在每篇文章末尾追加版权风险尾注：`本书仅为阅读笔记，如果侵权请联系平台，我们会删除相关的内容。`
-- `2026-04-29`: 对书籍工作目录来说，脚手架自动探测出来的目录不应直接等同于发布目录。发布前应优先人工收口为“总览 + 核心章节”结构；像《力量训练原理》这种书，`1 篇总览 + 9 篇核心章节` 比脚手架误拆出的 20 篇碎片目录更适合作为知识库成品。
+- `2026-04-28`: Coach-side mini-program action-item editors should not invent extra concepts that the Web editor does not expose. In strength items, `自定义重量 / 手动覆盖重量` should be presented only as an optional fixed-weight fallback, `自定义显示名称` should stay hidden on this surface, and `备注` should remain directly visible in the main editing area.
+- `2026-04-28`: Coach-side mini-program strength item editors must read and preserve both canonical params and legacy Chinese-key params for `组数 / 次数 / 休息`, so old plan data renders the same values as Web instead of showing blank or divergent fields.
+
+- `2026-04-28`: Coach plan template calendars represent relative plan positions, not real weekdays. Mini-program plan-library UI should label them as `第1日` / `第2日` etc. and should show all seven plan days in the collapsed week view.
+- `2026-04-28`: Coach plan-library template editing should not show questionnaire linkage unless the Web workstation has the same visible workflow. The mini-program plan template editor should use Web-like base fields including `建议每周频率`, not a separate questionnaire-linkage block.
+
+- `2026-04-27`: Chat SSE endpoints must guard every async write after client disconnect. `ReadableStream` controllers can already be closed by the browser/request lifecycle, so chat streams should use a safe enqueue helper and remove Supabase realtime channels on abort/cancel instead of writing directly to `controller.enqueue`.
+- `2026-04-27`: Local development Redis should fail fast and degrade noisily only once when the configured endpoint refuses connections. The shared Redis client disables automatic reconnect/offline queue to avoid repeated `ECONNREFUSED` terminal spam.
+
+- `2026-04-27`: Coach-side mini-program historical plans should open as read-only plan details via explicit `instanceId`, not just toast back to Web. The read-only view may reuse the student plan editor shell, but must disable autosave and hide/guard mutation actions such as template import, AI modifier, status toggle, action edits, and 1RM saving.
+
+- `2026-04-27`: Coach-side mini-program `我的学员` detail should surface recent plan history for parity with the Web workstation. The current active plan opens in the editable mini-program editor; historical plans open in a read-only mini-program detail view.
+
+- `2026-04-27`: Coach-side Web/WeApp parity should expose the same `plan_script` editing concept in the mini-program instead of keeping it Web-only. The mini-program editor uses a local parser/formatter for the same compact DSL (`Wn`, `Dn`, `off`, `4x8`, `@rm/%/kg`, `r秒`, `#备注`) and keeps strict exact matching for parenthesized action variants.
+- `2026-04-27`: Coach-side mini-program student detail should reuse the Web subscription contracts for high-risk account changes: questionnaire edits go through `/api/subscription/update-questionnaire`, and platform Alipay refunds go through `/api/payment/alipay/refund` with a required confirmation modal before mutation.
+- `2026-04-27`: The mini-program AI plan modifier should reuse Web `/api/plan-lib/batch-operation` with `editEngine=plan_script` and apply only previewed results into the local editor first. Persisting still goes through the normal plan save flow; unresolved new actions are blocked in mini-program and should be confirmed in Web where the full action-confirmation UX exists.
+
+- `2026-04-27`: Coach-side Web/WeApp alignment should keep sharing the existing Web backend contracts instead of creating mobile-only APIs. For `计划库`, the mini-program uses the same `executionNotice`, `/api/plan-lib/parse-template`, and `/api/plan-lib/export-template-text` semantics. For `我的学员`, configurable AI generation, archive/delete current plan, subscription week edits, and coach private reviews should reuse the Web API contracts and enforce coach ownership on mutations.
+
+- `2026-04-27`: Web 与微信小程序私信功能同步时，优先复用同一套 `/api/chat/*` 后端协议和 `chat_messages.content_metadata` 语义，不新增小程序私有消息协议。小程序应识别并渲染 `reply_to_message`、`video_references`、`broadcast`、`coach_ai_auto_reply` 等 Web 已产生的元数据，避免跨端消息降级或丢语义。
+
+- `2026-04-27`: Web 私信“回复指定消息”第一版不新增数据库列，直接复用 `chat_messages.content_metadata` 持久化 `reply_to_message`。其中仅保存服务端校验后的可信摘要字段：`id / senderId / senderName / messageType / contentPreview / mediaUrl`，避免前端伪造任意回复引用。
+
+- `2026-04-27`: `.github/workflows/build-and-push-docker.yml` 已废弃自动触发（不再 `on: push`），仅保留 `workflow_dispatch` 备用手动跑；日常镜像用 `npm run push-docker-ccr`。CI 曾推腾讯云 CCR（`TENCENT_CCR_*`）；自建 Registry 试验保留在 git 历史。
+- `2026-04-27`: `main` 线镜像标签使用 `latest` + `main` + `sha`，不再使用 `production`；本地/他人可用 `npm run push-docker-ccr`（`scripts/push-docker-ccr.mjs`）在本机构建推送 CCR，镜像路径写死 `ccr.ccs.tencentyun.com/littlehorse/coachlink`（命名空间 littlehorse、仓库名 coachlink），不要求构建期 `NEXT_PUBLIC_*`。
 - `2026-04-27`: 生产构建脚本 `scripts/build-prod.js` 默认应优先走 Next 16 的默认构建器（Turbopack），不要无条件强制 `--webpack`。当前仓库本地对照中，Turbopack 明显更快、更轻，适合作为部署默认值；仅在明确需要排查兼容问题时再通过 `COACHLINK_BUILD_USE_WEBPACK=1` 显式切回 Webpack。
 - `2026-04-27`: 部署脚本不能再吞掉真实构建失败原因。`scripts/build-prod.js` 在构建失败或 standalone 缺失时必须返回非零退出码，并记录 `signal`，避免部署端只看到误导性的 `returncode=0 / code null`。
 - `2026-04-27`: 今日训练页的顺延计算不能让执行起点前的历史空洞参与累计。对历史迁移/手动修计划造成的 `plan.start_date` 早于 `subscription.start_date` 且 `start_execution_day` 仍为 1 的实例，读取时应基于订阅真实开始日和最早有效执行记录推导有效执行起点；执行起点之前的天只保留历史展示，不应驱动当前推进日或后续日期顺延。
@@ -152,3 +187,5 @@
   - 若压缩收益不明显，则自动回退原文件，避免为了压缩而牺牲结果
   - 统一保留 200MB 原视频上限，但不再让 30MB/100MB 的前端限制提前拦住可压缩的视频
   - 训练视频、基线视频、排行榜视频、动作库演示视频、问卷示例视频都应尽量复用同一套前置压缩逻辑
+- `2026-04-27`: Mini-program `today-training` should prioritize "what do I do now" over browsing tools: primary daily action/progress comes before the week strip/month calendar, and secondary actions remain compact inline controls instead of separate large cards.
+- `2026-04-28`: Student-side mini-program execution notice should follow the same instance-level contract as Web. Acknowledgement remains local-device state keyed by `userId + plan_instance_id`, and the gate must exist in both `today-training` entry and `training-execution` direct-open fallback. Impromptu mode and read-only history viewing do not require this confirmation gate.

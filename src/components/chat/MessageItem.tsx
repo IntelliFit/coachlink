@@ -9,20 +9,22 @@ import { useRouter } from 'next/navigation';
 import { useToastContext } from '@/context/ToastContext';
 import { coachService } from '@/app/service/coachService';
 import { formatChatBubbleTime } from '@/lib/chatMessageTime';
-import { Bot } from 'lucide-react';
+import { Bot, CornerUpLeft, Reply } from 'lucide-react';
+import { useMemo, useState } from 'react';
+
 let DOMPurify: any;
 if (typeof window !== 'undefined') {
     DOMPurify = require('dompurify').default || require('dompurify');
 }
-import { useMemo, useState } from 'react';
 
 interface MessageItemProps {
     message: MessageItemType;
-    /** 搜索定位后短暂高亮 */
     highlighted?: boolean;
+    onReply?: (message: MessageItemType) => void;
+    onJumpToMessage?: (messageId: string) => void;
 }
 
-export function MessageItem({ message, highlighted }: MessageItemProps) {
+export function MessageItem({ message, highlighted, onReply, onJumpToMessage }: MessageItemProps) {
     const router = useRouter();
     const { showToast } = useToastContext();
     const [isChecking, setIsChecking] = useState(false);
@@ -30,16 +32,14 @@ export function MessageItem({ message, highlighted }: MessageItemProps) {
 
     const formatTime = (dateStr: string) => formatChatBubbleTime(dateStr);
 
-    // 检测是否为广播消息
     const isBroadcastMessage = message.contentMetadata?.broadcast === true;
     const contentLink = message.contentMetadata?.contentLink;
     const isCoachAiAutoReply = message.contentMetadata?.coach_ai_auto_reply === true;
+    const replyMeta = message.contentMetadata?.reply_to_message;
 
-    // 处理广播消息点击，先检查内容是否存在
     const handleBroadcastClick = async () => {
         if (!contentLink || isChecking) return;
 
-        // 提取 contentId
         const contentId = message.contentMetadata?.contentId;
         if (!contentId) {
             router.push(contentLink);
@@ -49,73 +49,99 @@ export function MessageItem({ message, highlighted }: MessageItemProps) {
         setIsChecking(true);
 
         try {
-            // 先检查内容是否存在
             const result = await coachService.getContentById({
                 contentId: contentId.toString(),
-                viewerId: undefined // 只是检查存在性，不需要 viewerId
+                viewerId: undefined,
             });
 
             if (result && result.content) {
-                // 内容存在，跳转
                 router.push(contentLink);
             } else {
-                // 内容不存在，显示提示
                 showToast({
                     severity: 'error',
                     summary: '跳转失败',
-                    detail: '该内容已被删除！',
-                    life: 3000
+                    detail: '该内容已被删除。',
+                    life: 3000,
                 });
             }
         } catch (error) {
             console.error('检查内容失败:', error);
-            // 出错时也显示提示
             showToast({
                 severity: 'error',
                 summary: '跳转失败',
-                detail: '该内容已被删除！',
-                life: 3000
+                detail: '该内容已被删除。',
+                life: 3000,
             });
         } finally {
             setIsChecking(false);
         }
     };
 
+    const renderReplyQuote = () => {
+        if (!replyMeta) return null;
+
+        const quoteClass = message.isMine
+            ? 'border-primary-300 bg-primary-50/95 text-primary-950 shadow-sm'
+            : 'border-surface-200 bg-surface-50 text-surface-700 shadow-sm';
+
+        return (
+            <button
+                type="button"
+                className={`mb-2 flex w-full appearance-none items-start gap-2 rounded-xl border-l-4 border-r-0 border-t-0 border-b-0 px-3 py-2 text-left transition hover:opacity-90 focus:outline-none ${quoteClass}`}
+                onClick={() => onJumpToMessage?.(replyMeta.id)}
+                title="定位到被回复的消息"
+            >
+                <CornerUpLeft size={14} strokeWidth={2.5} className="mt-0.5 shrink-0 opacity-80" />
+                <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                        <span className="rounded-full bg-black/5 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em]">
+                            原消息
+                        </span>
+                        <span className="text-[11px] font-bold tracking-wide opacity-80">
+                            回复 {replyMeta.senderName}
+                        </span>
+                    </div>
+                    <div className="mt-1 line-clamp-2 text-xs font-medium leading-5 opacity-95">
+                        {replyMeta.contentPreview}
+                    </div>
+                </div>
+            </button>
+        );
+    };
+
+    const bubbleClass = message.isMine
+        ? 'bg-primary-500 text-surface'
+        : isCoachAiAutoReply
+          ? 'border border-amber-100 bg-amber-50 text-surface-900'
+          : 'bg-surface-100 text-surface-900';
+
     const renderContent = () => {
         switch (message.messageType) {
             case 'text':
-                // 广播消息特殊处理
                 if (isBroadcastMessage && contentLink) {
                     return (
                         <div
-                            className={`px-4 py-3 rounded-xl max-w-md transition-all ${
-                                isChecking 
-                                    ? 'cursor-wait opacity-70'
-                                    : 'cursor-pointer hover:shadow-lg'
+                            className={`max-w-md rounded-xl px-4 py-3 transition-all ${
+                                isChecking ? 'cursor-wait opacity-70' : 'cursor-pointer hover:shadow-lg'
                             } ${
                                 message.isMine
                                     ? 'bg-gradient-to-br from-primary-500 to-primary-600 text-surface hover:from-primary-600 hover:to-primary-700'
-                                    : 'bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 text-surface-900 dark:text-surface-0 border border-amber-200 dark:border-amber-700 hover:shadow-amber-200/50'
+                                    : 'border border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50 text-surface-900 hover:shadow-amber-200/50 dark:border-amber-700 dark:from-amber-900/20 dark:to-orange-900/20 dark:text-surface-0'
                             }`}
                             onClick={handleBroadcastClick}
                         >
-                            {/* 内容通知标签 */}
-                            <div className="flex items-center gap-2 mb-2 pb-2 border-b border-current/10">
+                            <div className="mb-2 flex items-center gap-2 border-b border-current/10 pb-2">
                                 <span className="text-xs font-bold uppercase tracking-wider opacity-80">
                                     发布内容通知
                                 </span>
                             </div>
-                            
-                            {/* 消息内容 */}
                             <div
-                                className="break-words markdown-message-content"
+                                className="markdown-message-content break-words"
                                 dangerouslySetInnerHTML={{
                                     __html: DOMPurify?.sanitize(md.render(message.content || '')),
                                 }}
                             />
-                            
-                            {/* 点击提示 */}
-                            <div className="mt-2 pt-2 border-t border-current/10 flex items-center justify-end gap-1 text-xs opacity-60 hover:opacity-100 transition-opacity">
+                            <div className="mt-2 flex items-center justify-end gap-1 border-t border-current/10 pt-2 text-xs opacity-60 transition-opacity hover:opacity-100">
                                 {isChecking ? (
                                     <>
                                         <span>检查中...</span>
@@ -131,24 +157,18 @@ export function MessageItem({ message, highlighted }: MessageItemProps) {
                         </div>
                     );
                 }
-                
-                // 普通文本消息
+
                 return (
                     <div className="max-w-md">
                         {isCoachAiAutoReply && (
-                            <div className="mb-1 inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-bold text-amber-700 border border-amber-100">
+                            <div className="mb-1 inline-flex items-center gap-1.5 rounded-full border border-amber-100 bg-amber-50 px-2.5 py-1 text-[11px] font-bold text-amber-700">
                                 <Bot size={12} strokeWidth={2.5} />
                                 教练虚拟分身自动回复
                             </div>
                         )}
+                        {renderReplyQuote()}
                         <div
-                            className={`px-4 py-2 rounded-lg break-words markdown-message-content ${
-                                message.isMine
-                                    ? 'bg-primary-500 text-surface'
-                                    : isCoachAiAutoReply
-                                      ? 'bg-amber-50 text-surface-900 border border-amber-100'
-                                      : 'bg-surface-100 text-surface-900'
-                            }`}
+                            className={`markdown-message-content break-words rounded-lg px-4 py-2 ${bubbleClass}`}
                             dangerouslySetInnerHTML={{
                                 __html: DOMPurify?.sanitize(md.render(message.content || '')),
                             }}
@@ -164,31 +184,20 @@ export function MessageItem({ message, highlighted }: MessageItemProps) {
             case 'image':
                 return (
                     <div className="max-w-md">
+                        {renderReplyQuote()}
                         {message.mediaUrl ? (
-                            <Image 
-                                src={message.mediaUrl} 
-                                alt="图片消息" 
+                            <Image
+                                src={message.mediaUrl}
+                                alt="图片消息"
                                 width="250"
                                 preview
-                                className="rounded-lg cursor-pointer"
+                                className="cursor-pointer rounded-lg"
                             />
                         ) : (
-                            <div className={`px-4 py-2 rounded-lg ${
-                                message.isMine
-                                    ? 'bg-primary-500 text-surface'
-                                    : 'bg-surface-100 text-surface-900'
-                            }`}>
-                                图片加载失败
-                            </div>
+                            <div className={`rounded-lg px-4 py-2 ${bubbleClass}`}>图片加载失败</div>
                         )}
                         {message.content && message.content.trim() && message.content !== message.mediaUrl && (
-                            <div className={`mt-2 px-4 py-2 rounded-lg ${
-                                message.isMine
-                                    ? 'bg-primary-500 text-surface'
-                                    : 'bg-surface-100 text-surface-900'
-                            }`}>
-                                {message.content}
-                            </div>
+                            <div className={`mt-2 rounded-lg px-4 py-2 ${bubbleClass}`}>{message.content}</div>
                         )}
                     </div>
                 );
@@ -196,86 +205,81 @@ export function MessageItem({ message, highlighted }: MessageItemProps) {
             case 'video':
                 return (
                     <div className="max-w-md">
-                        <video 
-                            src={message.mediaUrl || ''} 
-                            controls 
-                            className="rounded-lg max-w-full"
+                        {renderReplyQuote()}
+                        <video
+                            src={message.mediaUrl || ''}
+                            controls
+                            className="max-w-full rounded-lg"
                             style={{ maxHeight: '400px' }}
                         />
                         {message.content && message.content !== message.mediaUrl && (
-                            <div className={`mt-2 px-4 py-2 rounded-lg ${
-                                message.isMine
-                                    ? 'bg-primary-500 text-surface'
-                                    : 'bg-surface-100 text-surface-900'
-                            }`}>
-                                {message.content}
-                            </div>
+                            <div className={`mt-2 rounded-lg px-4 py-2 ${bubbleClass}`}>{message.content}</div>
                         )}
                     </div>
                 );
 
             case 'voice':
                 return (
-                    <div className={`px-4 py-2 rounded-lg flex items-center gap-2 ${
-                        message.isMine
-                            ? 'bg-primary-500 text-surface'
-                            : 'bg-surface-100 text-surface-900'
-                    }`}>
-                        <audio src={message.mediaUrl || ''} controls className="max-w-xs" />
-                        {message.duration && <span className="text-sm">{message.duration}s</span>}
+                    <div className="max-w-md">
+                        {renderReplyQuote()}
+                        <div className={`flex items-center gap-2 rounded-lg px-4 py-2 ${bubbleClass}`}>
+                            <audio src={message.mediaUrl || ''} controls className="max-w-xs" />
+                            {message.duration && <span className="text-sm">{message.duration}s</span>}
+                        </div>
                     </div>
                 );
 
             case 'file':
                 return (
-                    <a 
-                        href={message.mediaUrl || '#'}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className={`px-4 py-3 rounded-lg flex items-center gap-3 max-w-md ${
-                            message.isMine
-                                ? 'bg-primary-500 text-surface hover:bg-primary-600'
-                                : 'bg-surface-100 dark:bg-surface-700 text-surface-900 dark:text-surface-0 hover:bg-surface-200 dark:hover:bg-surface-600'
-                        } transition-colors`}
-                    >
-                        <i className="pi pi-file text-2xl" />
-                        <div className="flex-1 min-w-0">
-                            <div className="font-medium truncate">{message.fileName || '文件'}</div>
-                            {message.fileSize && (
-                                <div className="text-xs opacity-80">
-                                    {(message.fileSize / 1024 / 1024).toFixed(2)} MB
-                                </div>
-                            )}
-                        </div>
-                        <i className="pi pi-download" />
-                    </a>
-                );
-
-            case 'video_reference':
-                // 渲染视频引用卡片
-                const videoRefs = message.contentMetadata?.video_references;
-                if (videoRefs && videoRefs.length > 0) {
-                    return <VideoRefCard videos={videoRefs} isMine={message.isMine} />;
-                }
-                // 如果没有视频引用数据，fallback 到默认显示
-                return (
-                    <div className={`px-4 py-2 rounded-lg ${
-                        message.isMine
-                            ? 'bg-primary-500 text-surface'
-                            : 'bg-surface-100 text-surface-900'
-                    }`}>
-                        {message.content}
+                    <div className="max-w-md">
+                        {renderReplyQuote()}
+                        <a
+                            href={message.mediaUrl || '#'}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className={`flex max-w-md items-center gap-3 rounded-lg px-4 py-3 transition-colors ${
+                                message.isMine
+                                    ? 'bg-primary-500 text-surface hover:bg-primary-600'
+                                    : 'bg-surface-100 text-surface-900 hover:bg-surface-200 dark:bg-surface-700 dark:text-surface-0 dark:hover:bg-surface-600'
+                            }`}
+                        >
+                            <i className="pi pi-file text-2xl" />
+                            <div className="min-w-0 flex-1">
+                                <div className="truncate font-medium">{message.fileName || '文件'}</div>
+                                {message.fileSize && (
+                                    <div className="text-xs opacity-80">
+                                        {(message.fileSize / 1024 / 1024).toFixed(2)} MB
+                                    </div>
+                                )}
+                            </div>
+                            <i className="pi pi-download" />
+                        </a>
                     </div>
                 );
 
+            case 'video_reference': {
+                const videoRefs = message.contentMetadata?.video_references;
+                if (videoRefs && videoRefs.length > 0) {
+                    return (
+                        <div className="max-w-md">
+                            {renderReplyQuote()}
+                            <VideoRefCard videos={videoRefs} isMine={message.isMine} />
+                        </div>
+                    );
+                }
+                return (
+                    <div className="max-w-md">
+                        {renderReplyQuote()}
+                        <div className={`rounded-lg px-4 py-2 ${bubbleClass}`}>{message.content}</div>
+                    </div>
+                );
+            }
+
             default:
                 return (
-                    <div className={`px-4 py-2 rounded-lg ${
-                        message.isMine
-                            ? 'bg-primary-500 text-surface'
-                            : 'bg-surface-100 dark:bg-surface-700 text-surface-900 dark:text-surface-0'
-                    }`}>
-                        {message.content}
+                    <div className="max-w-md">
+                        {renderReplyQuote()}
+                        <div className={`rounded-lg px-4 py-2 ${bubbleClass}`}>{message.content}</div>
                     </div>
                 );
         }
@@ -284,35 +288,49 @@ export function MessageItem({ message, highlighted }: MessageItemProps) {
     return (
         <div
             data-message-id={message.id}
-            className={`flex gap-3 mb-4 ${message.isMine ? 'flex-row-reverse' : 'flex-row'} ${
+            className={`group mb-4 flex gap-3 ${message.isMine ? 'flex-row-reverse' : 'flex-row'} ${
                 highlighted ? 'rounded-2xl ring-2 ring-primary-400 ring-offset-2 ring-offset-surface-0' : ''
             }`}
         >
             <Avatar
                 image={message.chatUserProfile?.avatar || undefined}
-                label={!message.chatUserProfile?.avatar && message.chatUserProfile?.name ? message.chatUserProfile.name.charAt(0) : undefined}
+                label={
+                    !message.chatUserProfile?.avatar && message.chatUserProfile?.name
+                        ? message.chatUserProfile.name.charAt(0)
+                        : undefined
+                }
                 shape="circle"
-                className="bg-primary-500 text-surface flex-shrink-0"
+                className="shrink-0 bg-primary-500 text-surface"
             />
             <div className={`flex flex-col gap-1 ${message.isMine ? 'items-end' : 'items-start'}`}>
-                <span className="text-xs text-surface-500 px-2">
-                    {message.chatUserProfile?.name}
-                    {isCoachAiAutoReply ? ' · 虚拟分身' : ''}
-                </span>
-                {renderContent()}
                 <div className="flex items-center gap-2 px-2">
                     <span className="text-xs text-surface-500">
-                        {formatTime(message.createdAt)}
+                        {message.chatUserProfile?.name}
+                        {isCoachAiAutoReply ? ' · 虚拟分身' : ''}
                     </span>
-                    {/* {message.isMine && (
-                        <span className="text-xs text-surface-500">
-                            {message.isRead ? '已读' : '未读'}
+                    {replyMeta ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-surface-100 px-2 py-1 text-[11px] font-medium text-surface-600">
+                            <CornerUpLeft size={11} strokeWidth={2.5} />
+                            回复给 {replyMeta.senderName}
                         </span>
-                    )} */}
+                    ) : null}
+                    {onReply ? (
+                        <button
+                            type="button"
+                            className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-[11px] font-medium text-surface-400 transition hover:bg-surface-100 hover:text-surface-700"
+                            onClick={() => onReply(message)}
+                            title="回复这条消息"
+                        >
+                            <Reply size={12} strokeWidth={2.5} />
+                            回复
+                        </button>
+                    ) : null}
+                </div>
+                {renderContent()}
+                <div className="flex items-center gap-2 px-2">
+                    <span className="text-xs text-surface-500">{formatTime(message.createdAt)}</span>
                 </div>
             </div>
         </div>
     );
 }
-
-

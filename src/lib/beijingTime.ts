@@ -2,7 +2,7 @@ const BEIJING_TIME_ZONE = "Asia/Shanghai";
 const DAY_MS = 24 * 60 * 60 * 1000;
 const BEIJING_UTC_OFFSET_MS = 8 * 60 * 60 * 1000;
 
-type DateInput = Date | string | number;
+export type DateInput = Date | string | number;
 
 const isValidDate = (value: Date) => Number.isFinite(value.getTime());
 

@@ -26,6 +26,14 @@ export interface MessageItem {
     createdAt: string;
     isMine: boolean;
     contentMetadata?: {
+        reply_to_message?: {
+            id: string;
+            senderId: string;
+            senderName: string;
+            messageType: string;
+            contentPreview: string;
+            mediaUrl?: string | null;
+        };
         video_references?: VideoReferenceItem[];
         broadcast?: boolean;
         contentId?: string;

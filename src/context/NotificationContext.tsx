@@ -11,6 +11,7 @@ export interface NotificationPayload {
     tag?: string;
     requireInteraction?: boolean;
     renotify?: boolean;
+    data?: Record<string, unknown>;
     actions?: Array<{
         action: string;
         title: string;
@@ -123,7 +124,12 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
             console.log('[NotificationContext] 准备显示通知:', payload);
 
             // 直接使用 registration.showNotification（参考 swRegistration.ts 27-43 行的注释代码）
-            const notificationOptions: NotificationOptions = {
+            const notificationOptions: NotificationOptions & {
+                badge?: string;
+                data?: Record<string, unknown>;
+                renotify?: boolean;
+                actions?: Array<{ action: string; title: string }>;
+            } = {
                 body: payload.body || '',
                 icon: payload.icon || '/icons/icon-192.png',
                 badge: '/icons/icon-72.png',

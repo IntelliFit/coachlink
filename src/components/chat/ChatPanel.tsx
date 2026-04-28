@@ -23,6 +23,19 @@ import { useChatContext } from '@/context/ChatContext';
 const INITIAL_MESSAGE_LIMIT = 10;
 const LOAD_MORE_MESSAGE_LIMIT = 30;
 
+function buildReplyPreview(message: MessageItemType) {
+    const text = (message.content || '').trim();
+    if (text) {
+        return text.length > 120 ? `${text.slice(0, 120)}…` : text;
+    }
+    if (message.messageType === 'image') return '[图片]';
+    if (message.messageType === 'video') return '[视频]';
+    if (message.messageType === 'voice') return '[语音]';
+    if (message.messageType === 'file') return '[文件]';
+    if (message.messageType === 'video_reference') return '[视频引用]';
+    return '[消息]';
+}
+
 export interface ChatPanelProps {
     chatroom: ChatroomDetail | null;
     onMarkSuccess?: (roomId: string) => void;
@@ -66,6 +79,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
     const shouldScrollToBottomRef = useRef(true);
     const [searchOpen, setSearchOpen] = useState(false);
     const [highlightMessageId, setHighlightMessageId] = useState<string | null>(null);
+    const [replyTarget, setReplyTarget] = useState<MessageItemType | null>(null);
 
     useEffect(() => {
         if (!session?.user?.id) {
@@ -112,6 +126,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
             setHasMore(false);
             shouldScrollToBottomRef.current = true;
             setHighlightMessageId(null);
+            setReplyTarget(null);
             try {
                 const messagesRes = await chatService.listMessages({
                     roomId: chatroom.id,
@@ -304,11 +319,29 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
         [chatroom?.id],
     );
 
+    const handleReply = useCallback((message: MessageItemType) => {
+        setReplyTarget(message);
+    }, []);
+
+    const handleJumpToMessage = useCallback(
+        async (messageId: string) => {
+            const loaded = messages.some((message) => message.id === messageId);
+            if (loaded) {
+                setHighlightMessageId(messageId);
+                return;
+            }
+            await jumpToMessageFromSearch(messageId);
+        },
+        [jumpToMessageFromSearch, messages],
+    );
+
     const sendMessage = async () => {
         if (sending || !messageText.trim() || !chatroom) return;
         const content = messageText.trim();
+        const currentReplyTarget = replyTarget;
         setSending(true);
         setMessageText('');
+        setReplyTarget(null);
 
         const optimisticMsg: MessageItemType = {
             id: Date.now().toString(),
@@ -323,21 +356,40 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
             fileName: null,
             fileSize: null,
             duration: null,
+            contentMetadata: currentReplyTarget
+                ? {
+                      reply_to_message: {
+                          id: currentReplyTarget.id,
+                          senderId: currentReplyTarget.chatUserId,
+                          senderName: currentReplyTarget.chatUserProfile.name,
+                          messageType: currentReplyTarget.messageType,
+                          contentPreview: buildReplyPreview(currentReplyTarget),
+                          mediaUrl: currentReplyTarget.mediaUrl || null,
+                      },
+                  }
+                : null,
         };
         setMessages((prev) => [...prev, optimisticMsg]);
         shouldScrollToBottomRef.current = true;
 
-        const res = await chatService.sendMessage({ roomId: chatroom.id, messageType: 'text', content });
+        const res = await chatService.sendMessage({
+            roomId: chatroom.id,
+            messageType: 'text',
+            content,
+            replyToMessageId: currentReplyTarget?.id,
+        });
         if (!res) {
             showToast({ severity: 'error', summary: '发送失败' });
             setMessages((prev) => prev.filter((m) => m.id !== optimisticMsg.id));
             setMessageText(content);
+            setReplyTarget(currentReplyTarget);
         }
         setSending(false);
     };
 
     const handleImageUpload = async (file: File) => {
         if (!chatroom || sending || uploadingImage) return;
+        const currentReplyTarget = replyTarget;
 
         const allowedTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'image/gif'];
         if (!allowedTypes.includes(file.type)) {
@@ -384,9 +436,22 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
                 fileName: file.name,
                 fileSize: file.size,
                 duration: null,
+                contentMetadata: currentReplyTarget
+                    ? {
+                          reply_to_message: {
+                              id: currentReplyTarget.id,
+                              senderId: currentReplyTarget.chatUserId,
+                              senderName: currentReplyTarget.chatUserProfile.name,
+                              messageType: currentReplyTarget.messageType,
+                              contentPreview: buildReplyPreview(currentReplyTarget),
+                              mediaUrl: currentReplyTarget.mediaUrl || null,
+                          },
+                      }
+                    : null,
             };
             setMessages((prev) => [...prev, optimisticMsg]);
             shouldScrollToBottomRef.current = true;
+            setReplyTarget(null);
 
             const res = await chatService.sendMessage({
                 roomId: chatroom.id,
@@ -395,11 +460,13 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
                 mediaUrl: imageUrl,
                 fileName: file.name,
                 fileSize: file.size,
+                replyToMessageId: currentReplyTarget?.id,
             });
 
             if (!res) {
                 showToast({ severity: 'error', summary: '发送失败' });
                 setMessages((prev) => prev.filter((m) => m.id !== optimisticMsg.id));
+                setReplyTarget(currentReplyTarget);
             }
         } catch (error) {
             console.error('上传图像失败:', error);
@@ -421,7 +488,9 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
 
     const sendVideoReferences = async (videos: VideoReferenceItem[]) => {
         if (sending || !chatroom || videos.length === 0) return;
+        const currentReplyTarget = replyTarget;
         setSending(true);
+        setReplyTarget(null);
 
         const count = videos.length;
         const content = count === 1 ? `[视频] ${videos[0].actionName}` : `[${count}个视频]`;
@@ -439,7 +508,21 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
             fileName: null,
             fileSize: null,
             duration: null,
-            contentMetadata: { video_references: videos },
+            contentMetadata: {
+                ...(currentReplyTarget
+                    ? {
+                          reply_to_message: {
+                              id: currentReplyTarget.id,
+                              senderId: currentReplyTarget.chatUserId,
+                              senderName: currentReplyTarget.chatUserProfile.name,
+                              messageType: currentReplyTarget.messageType,
+                              contentPreview: buildReplyPreview(currentReplyTarget),
+                              mediaUrl: currentReplyTarget.mediaUrl || null,
+                          },
+                      }
+                    : {}),
+                video_references: videos,
+            },
         };
         setMessages((prev) => [...prev, optimisticMsg]);
         shouldScrollToBottomRef.current = true;
@@ -449,11 +532,13 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
             messageType: 'video_reference',
             content: '',
             videoReferences: videos,
+            replyToMessageId: currentReplyTarget?.id,
         });
 
         if (!res) {
             showToast({ severity: 'error', summary: '发送失败' });
             setMessages((prev) => prev.filter((m) => m.id !== optimisticMsg.id));
+            setReplyTarget(currentReplyTarget);
         }
         setSending(false);
     };
@@ -524,13 +609,40 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
                                 <span className="ml-2 text-xs text-surface-500">加载更多消息...</span>
                             </div>
                         )}
-                        <ChatMessageList messages={messages} highlightMessageId={highlightMessageId} />
+                        <ChatMessageList
+                            messages={messages}
+                            highlightMessageId={highlightMessageId}
+                            onReply={handleReply}
+                            onJumpToMessage={handleJumpToMessage}
+                        />
                         <div ref={messagesEndRef} />
                     </div>
                 )}
             </div>
 
             <div className="p-4 md:p-6 border-t border-surface-100 shrink-0">
+                {replyTarget ? (
+                    <div className="mb-3 flex items-start justify-between gap-3 rounded-2xl border border-primary-100 bg-primary-50/70 px-4 py-3">
+                        <div className="min-w-0">
+                            <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-primary-500">
+                                正在回复
+                            </div>
+                            <div className="mt-1 text-sm font-semibold text-surface-800">
+                                {replyTarget.chatUserProfile.name}
+                            </div>
+                            <div className="truncate text-xs text-surface-500">
+                                {buildReplyPreview(replyTarget)}
+                            </div>
+                        </div>
+                        <button
+                            type="button"
+                            className="rounded-full px-2 py-1 text-xs font-medium text-surface-400 transition hover:bg-surface-100 hover:text-surface-700"
+                            onClick={() => setReplyTarget(null)}
+                        >
+                            取消
+                        </button>
+                    </div>
+                ) : null}
                 <div className="flex items-end gap-2 bg-surface-50 p-2 rounded-[1.5rem] border border-surface-100 focus-within:border-primary-300 focus-within:ring-4 focus-within:ring-primary-500/5 transition-all">
                     <button
                         className="p-2.5 text-surface-400 hover:text-primary-500 transition-colors"

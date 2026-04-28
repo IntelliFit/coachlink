@@ -1,0 +1,25 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "incremental": false
+  },
+  "include": [
+    "next-auth.d.ts",
+    "next-env.d.ts",
+    "src/app/api/chat/**/*.ts",
+    "src/app/api/coach/get-student/route.ts",
+    "src/app/api/subscription/delete-coach-reviews/route.ts",
+    "src/app/api/subscription/update-coach-reviews/route.ts",
+    "src/components/chat/**/*.ts",
+    "src/components/chat/**/*.tsx",
+    "src/lib/mapChatMessageRows.ts",
+    "src/lib/redisClient.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    ".next",
+    "wechat_app",
+    "wechat-app",
+    "**/*.backup"
+  ]
+}

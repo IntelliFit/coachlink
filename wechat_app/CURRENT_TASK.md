@@ -669,3 +669,24 @@
     - 继续补 `订阅/支付/续费闭环` 的下一阶段：排查小程序 `webview` 内网站登录态 / 支付回流是否还有断点
     - `学员 onboarding / 档案完整度闭环`
   - 若要补计划编辑器运行态截图，需先把微信开发者工具会话按规约重启到 `9420`
+
+## Hotfix Note (`2026-04-27` - tabbar icon semantics)
+
+- Task: adjust WeChat mini program student bottom-nav icons so they better match the actual destinations
+- Scope:
+  - The current `����ѵ��` tab icon looked like a ranking / bar-chart symbol, which weakened recognition
+  - The current `������` tab icon looked like a document, not a toolbox
+- Fix:
+  - `src/components/BottomNav.tsx`
+    - keep the existing tab structure and routes unchanged
+    - switch only the student-side `training` and `toolbox` tab icon imports to dedicated assets
+  - `src/assets/icons/tabbar/training.svg`
+  - `src/assets/icons/tabbar/training-selected.svg`
+  - `src/assets/icons/tabbar/toolbox.svg`
+  - `src/assets/icons/tabbar/toolbox-selected.svg`
+- Verification:
+  - `npm run build:weapp`: passed
+  - `npx tsc --noEmit`: failed due to existing repository-wide type errors unrelated to this icon change
+  - `npx eslint src/components/BottomNav.tsx --ext .ts,.tsx`: failed because `wechat-app/.eslintrc` is currently written in CommonJS syntax but named as a YAML-parsed `.eslintrc`
+  - `npm test`: failed because the mini program package currently has no `test` script
+  - Browser-based verification: attempted, but blocked in this session because the available `browser-use` path depends on `node_repl` and the current Node runtime is below the required version (`v22.14.0`, requires `>= v22.22.0`)

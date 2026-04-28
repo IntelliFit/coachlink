@@ -12,7 +12,6 @@ import { authService } from '@/services/authService'
 import { smsService } from '@/services/smsService'
 import { sesService } from '@/services/sesService'
 import SliderCaptcha from '@/components/SliderCaptcha'
-import { studentOnboardingService } from '@/services/studentOnboardingService'
 import { User, Lock, Ticket, Message } from '@nutui/icons-react-taro'
 import loginBg from '@/assets/images/login-bg.jpg'
 import './index.scss'
@@ -86,25 +85,8 @@ function Register() {
     }
   }
 
-  const getRequestedPostLoginUrl = (loggedInUser: any) => {
-    try {
-      const instance = Taro.getCurrentInstance()
-      const returnTo = (instance?.router?.params as any)?.returnTo
-      if (returnTo && typeof returnTo === 'string') {
-        return decodeURIComponent(returnTo)
-      }
-    } catch (_) {}
-    if (loggedInUser?.is_admin) return '/pages/index/index'
-    if (loggedInUser?.is_coach && loggedInUser?.primary_role === 'coach') return '/coach/overview'
-    return '/pages/index/index'
-  }
-
-  const handlePostLoginSuccess = async (loggedInUser: any) => {
-    const targetUrl = await studentOnboardingService.resolvePostLoginUrl({
-      loggedInUser,
-      fallbackUrl: getRequestedPostLoginUrl(loggedInUser)
-    })
-    Taro.reLaunch({ url: targetUrl })
+  const handlePostLoginSuccess = async () => {
+    await Taro.reLaunch({ url: authService.buildPostAuthHomeUrl() })
   }
 
   const handleRegister = async () => {
@@ -145,13 +127,13 @@ function Register() {
       })
       Toast.show('注册成功，正在登录…', {})
 
-      const data = await authService.loginWithPassword({
+      await authService.loginWithPassword({
         phoneOrEmail: trimmedPhoneOrEmail,
         password: trimmedPassword
       })
       Toast.show('登录成功', {})
       setTimeout(() => {
-        void handlePostLoginSuccess(data?.user)
+        void handlePostLoginSuccess()
       }, 500)
     } catch (error: any) {
       console.error('注册失败:', error)
