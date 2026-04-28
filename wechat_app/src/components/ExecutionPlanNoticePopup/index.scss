@@ -1,0 +1,190 @@
+.execution-plan-notice-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 1300;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 16px;
+  box-sizing: border-box;
+}
+
+.execution-plan-notice-sheet {
+  width: 100%;
+  max-width: 640px;
+  max-height: 88vh;
+  background: #ffffff;
+  border-radius: 24rpx 24rpx 0 0;
+  padding: 24rpx;
+  box-sizing: border-box;
+  box-shadow: 0 -8rpx 28rpx rgba(15, 23, 42, 0.16);
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+}
+
+.execution-plan-notice-handle {
+  width: 80rpx;
+  height: 8rpx;
+  border-radius: 9999rpx;
+  background: #e5e7eb;
+  margin: 0 auto;
+}
+
+.execution-plan-notice-title {
+  display: block;
+  font-size: 36rpx;
+  line-height: 48rpx;
+  font-weight: 700;
+  color: #1a1a1a;
+}
+
+.execution-plan-notice-scroll {
+  flex: 1;
+  min-height: 0;
+  max-height: 60vh;
+}
+
+.execution-plan-notice-card {
+  background: #f9f9f9;
+  border: 2rpx solid rgba(15, 23, 42, 0.06);
+  border-radius: 24rpx;
+  padding: 24rpx;
+  box-sizing: border-box;
+  margin-bottom: 16rpx;
+}
+
+.execution-plan-notice-card--intro {
+  background: #fdf2ec;
+  border-color: rgba(207, 109, 78, 0.18);
+}
+
+.execution-plan-notice-card--safe {
+  background: #fff7ed;
+  border-color: rgba(234, 88, 12, 0.14);
+}
+
+.execution-plan-notice-card-title {
+  display: block;
+  font-size: 30rpx;
+  line-height: 40rpx;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin-bottom: 12rpx;
+}
+
+.execution-plan-notice-card-text {
+  display: block;
+  font-size: 26rpx;
+  line-height: 40rpx;
+  color: #4b5563;
+}
+
+.execution-plan-notice-card-text--prewrap {
+  white-space: pre-wrap;
+}
+
+.execution-plan-notice-safe-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+}
+
+.execution-plan-notice-safe-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12rpx;
+}
+
+.execution-plan-notice-safe-index {
+  width: 40rpx;
+  height: 40rpx;
+  border-radius: 9999rpx;
+  background: #ffedd5;
+  color: #9a3412;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 22rpx;
+  font-weight: 700;
+}
+
+.execution-plan-notice-safe-text {
+  flex: 1;
+  font-size: 26rpx;
+  line-height: 40rpx;
+  color: #7c2d12;
+}
+
+.execution-plan-notice-check-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12rpx;
+  border: 2rpx solid rgba(15, 23, 42, 0.08);
+  border-radius: 24rpx;
+  padding: 16rpx;
+  box-sizing: border-box;
+}
+
+.execution-plan-notice-check {
+  width: 36rpx;
+  height: 36rpx;
+  border-radius: 8rpx;
+  border: 2rpx solid #d1d5db;
+  background: #ffffff;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 22rpx;
+  line-height: 1;
+  margin-top: 2rpx;
+}
+
+.execution-plan-notice-check.checked {
+  border-color: #cf6d4e;
+  background: #cf6d4e;
+}
+
+.execution-plan-notice-check-text {
+  flex: 1;
+  font-size: 24rpx;
+  line-height: 36rpx;
+  color: #4b5563;
+}
+
+.execution-plan-notice-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+}
+
+.execution-plan-notice-btn {
+  width: 100%;
+  min-height: 88rpx;
+  border-radius: 9999rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  font-size: 28rpx;
+  font-weight: 600;
+}
+
+.execution-plan-notice-btn--primary {
+  background: #cf6d4e;
+  color: #ffffff;
+}
+
+.execution-plan-notice-btn--secondary {
+  background: #ffffff;
+  color: #374151;
+  border: 2rpx solid #e5e7eb;
+}
+
+.execution-plan-notice-btn.disabled {
+  opacity: 0.55;
+}

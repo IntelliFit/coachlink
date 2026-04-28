@@ -11,7 +11,7 @@
         "start": "next start",
         "dev:custom": "node scripts/start-dev.mjs",
         "lint": "node -e \"console.log('Lint 未配置：Next v16 已移除 next lint，且项目未安装 eslint。可运行 npm run typecheck（当前会暴露历史类型错误）。')\"",
-        "typecheck": "tsc --noEmit",
+        "typecheck": "tsc --noEmit -p tsconfig.typecheck.json",
         "check-env": "node scripts/check-env.js",
         "test": "vitest run",
         "test:report": "xunit-viewer -r test-results/vitest/junit.xml -o test-results/vitest/report.html",
@@ -22,7 +22,8 @@
         "check-vapid": "tsx scripts/check-vapid.ts",
         "test-push": "tsx scripts/test-push.ts",
         "pre-deploy-check": "node scripts/pre-deploy-check.js",
-        "context-preview-report": "npx tsx scripts/context-preview-report.ts"
+        "context-preview-report": "npx tsx scripts/context-preview-report.ts",
+        "push-docker-ccr": "node scripts/push-docker-ccr.mjs"
     },
     "dependencies": {
         "@dagrejs/dagre": "^1.1.8",
