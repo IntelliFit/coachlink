@@ -1,5 +1,124 @@
 # CURRENT_TASK
 
+- Task: 统一计划相关非多模态 LLM 链路到 DeepSeek `deepseek-v4-flash`
+- Status: implemented on `2026-04-29`
+- Requirement:
+  - 用户要求：所有“生成计划 / 解析计划 / 计划修改”这类**非多模态**纯文本链路统一使用 DeepSeek
+  - 目标模型：`deepseek-v4-flash`
+  - 不再继续依赖将于 `2026-07-24` 废弃的 `deepseek-chat` / `deepseek-reasoner` 作为计划链路默认模型名
+- Fix:
+  - `src/lib/coachlinkLlm.ts`
+    - 新增 `COACHLINK_DEFAULT_DEEPSEEK_MODEL = deepseek-v4-flash`
+    - 新增 `getCoachlinkPlanLlm()`，计划纯文本链路默认优先直连 DeepSeek；只有缺少 `DEEPSEEK_API_KEY` 时才回退通用 LLM 配置
+  - `src/lib/deepseek.ts`
+    - `callDeepSeek()` 改为使用 `getCoachlinkPlanLlm()`
+    - DeepSeek 下统一使用 `deepseek-v4-flash`
+    - `useReasoner=true` 时不再切到 `deepseek-reasoner`，而是继续使用 `deepseek-v4-flash` 并附加 `thinking={type:enabled}` 与 `reasoning_effort=high`
+  - `src/app/api/plan-lib/batch-operation/route.ts`
+    - 计划 AI 修改器改为使用 `getCoachlinkPlanLlm()`
+  - `src/app/api/plan-lib/parse-actions/route.ts`
+  - `src/app/api/plan-lib/parse-template/route.ts`
+    - trace 里记录的模型名改为 `deepseek-v4-flash`
+  - `.env.development`
+  - `.env.production`
+    - 补充 `COACHLINK_USE_DEEPSEEK=1`
+- Verification:
+  - `npm run lint`：通过（提示脚本）
+  - `npm test`：通过（21 files, 109 tests）
+  - `npx next build`：通过
+  - `npm run typecheck`：124 秒超时，仍未跑完仓库既有历史类型面
+- Next step:
+  - 用户重启对应环境后，计划相关的纯文本链路应默认走 DeepSeek `deepseek-v4-flash`
+  - 若后续还有“非多模态但仍跑到旧模型”的个案，优先检查是否绕过了 `callDeepSeek()` / `getCoachlinkPlanLlm()`
+
+---
+
+- Task: 暂时隐去知识库首页里的“知识体系”模块
+- Status: implemented on `2026-04-29`
+- Requirement:
+  - 用户确认当前“知识体系”尚未做好，希望前台首页先不要展示这块内容
+  - 本轮只隐藏 Web 知识库首页对应模块，不继续改知识树/思维导图内部实现
+- Fix:
+  - `src/app/dashboard/knowledge/page.tsx`
+    - 新增临时开关 `SHOW_KNOWLEDGE_PILLARS = false`
+    - 停止首页请求和渲染“知识体系 / 思维导图”区块
+    - 同步移除该区块相关的动态导入、状态和请求，避免保留无效加载
+- Verification:
+  - `npm run lint`：通过（脚本仅提示项目未配置 eslint）
+  - `npm run typecheck`：失败，仍为仓库既有历史类型错误与 wechat_app 类型缺失；未见本次页面文件新增报错
+  - `npx next build`：通过
+  - `npm test`：通过（21 files, 109 tests）
+  - 浏览器验证：本轮未完成；当前会话里未拿到可直接驱动的 `web-devtools` / 浏览器工具，尚未补到页面截图证据
+- Next step:
+  - 若后续准备重新开放该区域，可直接把 `SHOW_KNOWLEDGE_PILLARS` 切回 `true`，再继续完善知识树内容与交互
+
+---
+
+- Task: 搭建“本地书籍文件 -> 书籍笔记工作目录 -> 导入知识库”的高效生产系统
+- Scope:
+  - 用户希望后续不再手工把整本书硬写进一个 `.ts` 文件
+  - 目标是用户只需要给出一本书的本地文件路径，系统就能先生成可编辑的书籍笔记工作目录
+  - 图片不直接生成，但每篇文章要预留提示词位
+  - 生成完成后，系统应能直接读取本地工作目录并导入 `knowledge_books`
+  - 必须继续遵守非侵权边界：原书抽取文本只能用于本地整理，不能直接作为可发布内容入库
+- Status: implemented in code on `2026-04-29`
+- Fix:
+  - `src/content/knowledgeBooks/schema.ts`
+    - 抽出统一的书籍笔记 schema
+    - 区分 `workspace bundle`（工作目录）与最终 `manifest`（可导入记录）
+    - 统一在导入阶段为每篇文章追加版权风险尾注：`本书仅为阅读笔记，如果侵权请联系平台，我们会删除相关的内容。`
+  - `src/lib/knowledgeBookWorkspace.ts`
+    - 新增工作目录加载器
+    - 自动扫描 `src/content/knowledgeBooks/workspaces/*/book.json`
+    - 把 `book.json + notes/*.md` 组装成可导入的 manifest 列表
+  - `scripts/scaffold-knowledge-book.ts`
+    - 新增书籍脚手架命令
+    - 支持读取 `.docx / .txt / .md`
+    - 自动抽取文本、探测章节标题、生成 `book.json`、`notes/*.md`、`README.md`
+    - 原书抽取全文与章节探测结果不再放在可发布目录，而是写到 `temp_dir/knowledge-book-workspaces/<slug>/`
+  - `scripts/import-knowledge-book-notes.ts`
+    - 从“只认硬编码 TS 注册表”升级为“兼容 legacy TS + 自动识别 workspaces 新书”
+    - 后续新增书籍目录后，不需要再手工改 registry
+  - `scripts/generate-knowledge-book-drafts.ts`
+    - 新增基于 DeepSeek OpenAI 兼容接口的初稿生成脚本
+    - 从 `temp_dir/knowledge-book-workspaces/<slug>/source.txt` 读取原书抽取文本
+    - 按单篇 `note` 生成标题、摘要、Markdown 正文与 2-3 条图片提示词
+    - 自动回写 `notes/*.md`、`book.json` 和 `temp_dir/.../generation-log.json`
+    - 初版已补上“优先保留原始段落格式”“跳过空正文”“统一追加尾注”的稳健性处理
+  - `docs/knowledge-book-system.md`
+    - 补充标准使用流程、DeepSeek 初稿生成命令和版权边界说明
+  - `src/content/knowledgeBooks/strengthTrainingPrinciplesNote.ts`
+    - 改为复用统一 schema 类型
+- Real file verification:
+  - 已用真实文件 `D:\WPSDrive\632379361\WPS云盘\创业-部分资料版\健身书籍pdf的文字版本\力量训练原理.docx` 跑通脚手架
+  - 生成工作目录：`src/content/knowledgeBooks/workspaces/strength-training-principles-workspace`
+  - 本地临时素材目录：`temp_dir/knowledge-book-workspaces/strength-training-principles-workspace`
+  - dry run 导入命令已通过：`npx tsx scripts/import-knowledge-book-notes.ts strength-training-principles-workspace`
+  - DeepSeek 初稿生成已用同一工作目录实跑：
+    - `overview` 已成功生成，自动写入正文、摘要和 3 条图片提示词
+    - `chapter-03` 已成功生成，验证了章节级回写链路；同时暴露出原始章节探测里存在“目录/摘要式短标题”噪音，后续仍建议人工清理 `book.json` 再批量生成
+  - 在用户要求“删掉原来那个书本内容并重新生成”后，已于 `2026-04-29` 做第二轮清理和重生：
+    - 删除原先过碎的 `10-20` 号章节文件
+    - 将工作目录收口为 `1 篇总览 + 9 篇核心章节`
+    - 修正 `book.json` 中 `chapter-03 ~ chapter-09` 的真实章节标题，改为 `原理1~原理7`
+    - 使用 `deepseek-v4-pro` 对 `overview + chapter-01 ~ chapter-09` 全量覆盖重生成
+    - 当前样例已变成更适合人工审稿的单书专题结构
+- Verification:
+  - `npm run lint`：通过当前提示脚本
+  - `npm test`：通过（21 files, 109 tests）
+  - `npm run build`：通过（standalone 已产出）
+  - `npm run typecheck`：仓库仍有大量既有历史类型错误，主要集中在 Next route handler、action lib、支付、微信小程序等旧问题；本轮新增书籍系统文件未成为报错主焦点
+  - 第二轮内容重生后再次验证：
+    - `npx tsx scripts/import-knowledge-book-notes.ts strength-training-principles-workspace` dry run 通过
+    - `npm run lint` 通过当前提示脚本
+    - `npx next build` 通过
+    - `npm test` 通过（21 files, 109 tests）
+- Next step:
+  - 下一本书可直接先跑 `scripts/scaffold-knowledge-book.ts`
+  - 若有 DeepSeek key，可先跑 `scripts/generate-knowledge-book-drafts.ts` 生成初稿
+  - 然后人工清理 `book.json + notes/*.md`
+  - 最后用 `scripts/import-knowledge-book-notes.ts <slug> --apply` 入库
+
 - Task: 修复 `dev/main` 部署阶段 `update_and_restart` 中 `npm run build` 反复报 `Build failed with code null`
 - Status: implemented in code on `2026-04-27`; local production build re-verified
 - Finding:

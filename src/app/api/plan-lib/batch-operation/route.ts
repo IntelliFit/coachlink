@@ -12,7 +12,7 @@ import {
 import { buildBatchOperationContext } from "./context";
 import type { ItemType } from "@/types";
 import { sanitizeActionName } from "@/lib/planImportText";
-import { getCoachlinkLlm } from "@/lib/coachlinkLlm";
+import { getCoachlinkPlanLlm } from "@/lib/coachlinkLlm";
 import { tryApplyDeterministicBatchEdit } from "@/lib/batchOperationDeterministic";
 import { formatTemplateToPlanScript, parsePlanScript } from "@/lib/planScript";
 
@@ -1092,7 +1092,7 @@ ${effectiveInstruction}
     "reason": "简短说明判断依据"
 }`;
 
-                    const { client: openai, model: llmModel, provider: llmProvider } = getCoachlinkLlm();
+                    const { client: openai, model: llmModel, provider: llmProvider } = getCoachlinkPlanLlm();
                     if (isDevelopment) {
                         console.log(`[batch-operation] LLM: ${llmProvider} / ${llmModel}`);
                     }
