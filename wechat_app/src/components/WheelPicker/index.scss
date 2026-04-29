@@ -1,0 +1,18 @@
+.wheel-picker {
+  width: 100%;
+  height: 100%;
+
+  &__view {
+    width: 100%;
+    height: 100%;
+  }
+
+  &__item {
+    height: 80rpx;
+    font-size: 36rpx;
+    font-weight: 600;
+    color: #1e293b;
+    line-height: 80rpx;
+    text-align: center;
+  }
+}

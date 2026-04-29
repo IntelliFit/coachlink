@@ -1,0 +1,135 @@
+.body-metrics-page {
+  min-height: 100vh;
+  background: linear-gradient(180deg, #fff7ed 0%, #f8fafc 38%, #f8fafc 100%);
+  display: flex;
+  flex-direction: column;
+  padding: 0 32rpx;
+  box-sizing: border-box;
+}
+
+.bm-header {
+  padding-top: 96rpx;
+  margin-bottom: 48rpx;
+}
+
+.bm-step-dots {
+  display: flex;
+  gap: 16rpx;
+  margin-bottom: 32rpx;
+}
+
+.bm-step-dot {
+  width: 16rpx;
+  height: 16rpx;
+  border-radius: 999rpx;
+  background: #e2e8f0;
+
+  &--active {
+    width: 48rpx;
+    background: #cf6d4e;
+  }
+}
+
+.bm-title {
+  display: block;
+  font-size: 48rpx;
+  font-weight: 800;
+  color: #0f172a;
+  line-height: 1.2;
+}
+
+.bm-desc {
+  display: block;
+  margin-top: 16rpx;
+  font-size: 28rpx;
+  color: #64748b;
+  line-height: 1.5;
+}
+
+.bm-preview {
+  display: flex;
+  gap: 24rpx;
+  margin-bottom: 48rpx;
+}
+
+.bm-preview-card {
+  flex: 1;
+  background: #ffffff;
+  border-radius: 24rpx;
+  padding: 32rpx 24rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
+}
+
+.bm-preview-label {
+  font-size: 24rpx;
+  color: #64748b;
+  margin-bottom: 16rpx;
+}
+
+.bm-preview-value {
+  font-size: 56rpx;
+  font-weight: 700;
+  color: #0f172a;
+  line-height: 1;
+}
+
+.bm-preview-unit {
+  font-size: 24rpx;
+  color: #94a3b8;
+  margin-top: 8rpx;
+}
+
+.bm-pickers {
+  flex: 1;
+  display: flex;
+  gap: 24rpx;
+  min-height: 0;
+  position: relative;
+}
+
+.bm-picker-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.bm-picker-label {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #334155;
+  margin-bottom: 16rpx;
+}
+
+.bm-picker-divider {
+  width: 2rpx;
+  background: #e2e8f0;
+  margin-top: 64rpx;
+}
+
+.bm-footer {
+  padding: 32rpx 0 64rpx;
+}
+
+.bm-btn {
+  width: 100%;
+  height: 96rpx;
+  border-radius: 48rpx;
+  background: #cf6d4e;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &:active {
+    opacity: 0.9;
+  }
+}
+
+.bm-btn-text {
+  font-size: 32rpx;
+  font-weight: 700;
+  color: #ffffff;
+}
