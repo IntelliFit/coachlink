@@ -569,7 +569,7 @@ function ChatPage() {
   const openVideo = (videoUrl: string) => {
     if (!videoUrl) return
     Taro.navigateTo({
-      url: `/common/common/video-player/index?url=${encodeURIComponent(videoUrl)}`
+      url: `/common/common/video-player?url=${encodeURIComponent(videoUrl)}`
     })
   }
 

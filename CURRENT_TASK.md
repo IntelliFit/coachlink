@@ -1,5 +1,39 @@
 # CURRENT_TASK
 
+## WeApp Membership WeChat Pay (`2026-04-29`)
+
+- Task: switch the WeChat mini-program membership-upgrade flow from the old webview/Alipay path to direct mini-program WeChat Pay, with the mini-program membership purchase experience using WeChat pay as the source of truth.
+- Status: implemented at code level; root checks and mini-program build passed; WeChat DevTools automation verification was attempted in this session but still blocked by missing local automation runtime.
+- Requirement:
+  - Mini-program membership upgrade should no longer depend on the web purchase page as the primary path.
+  - For mini-program membership purchase, WeChat Pay is the important payment path; Alipay is not the primary mobile solution.
+- Fix:
+  - `src/app/api/payment/wechat/membership/create/route.ts`
+    - Added a dedicated mini-program WeChat membership order-create route.
+    - Reused the existing Huifu mini-program WeChat payment stack and persisted membership purchase context in `alipay_orders.order_data`.
+  - `src/app/api/payment/studentMembershipFulfillment.ts`
+    - Added idempotent fulfillment helper for student membership orders so notify/query races do not double-fulfill quota or tier upgrades.
+  - `src/app/api/payment/alipay/notify/route.ts`
+  - `src/app/api/payment/wechat/notify/route.ts`
+  - `src/app/api/payment/wechat/query/route.ts`
+    - Unified student membership paid handling through the new idempotent fulfillment helper.
+  - `wechat_app/src/services/paymentService.ts`
+    - Added mini-program membership WeChat payment create/request helpers.
+  - `wechat_app/src/me/membership/subscribe/index.tsx`
+    - Replaced the old mini-program membership purchase entry from webview purchase-page navigation to direct WeChat pay creation and `requestPayment`.
+    - Removed the coupon-only web-purchase messaging from this page.
+  - `wechat_app/src/me/payment-waiting/index.tsx`
+    - Expanded the waiting page so membership purchases can poll WeChat payment status and return to the membership surfaces correctly.
+- Verification:
+  - `npm run lint`: passed (informational script only; eslint is not configured in this repo).
+  - `npm run typecheck`: passed.
+  - `npm test`: passed, 21 files / 109 tests.
+  - `npx next build`: passed.
+  - `wechat_app/npm run build:weapp`: passed.
+  - WeChat DevTools automation/manual verification: blocked.
+    - `mrc` is not installed in this session.
+    - Port `9420` is not accepting connections, so local WeChat DevTools automation is not running.
+
 ## Plan LLM DeepSeek Unification (`2026-04-29`)
 
 - Task: unify all non-multimodal plan-related LLM flows to DeepSeek `deepseek-v4-flash`.
@@ -85,6 +119,222 @@
   - `npm run build`: passed.
   - `npx next build`: passed.
   - `npm run typecheck`: still blocked by longstanding repo-wide historical type errors unrelated to this feature set.
+
+---
+
+## WeApp Membership Page Parity (`2026-04-29`)
+
+- Task: align the WeChat mini-program `我的会员` page with the current Web `/me/membership` page and use the Web page as the source of truth.
+- Status: mini-program membership dashboard sync implemented; code-level/build verification passed; WeChat DevTools automation verification attempted but blocked by missing local automation runtime.
+- Key mismatch confirmed before the fix:
+  - Mini-program was still using the older layout: gradient hero card plus a static `会员权益` list.
+  - Web had already moved to a different information architecture: `当前等级` card, two quota cards, and an `邀请好友` reward banner.
+  - Mini-program also violated current workspace UI guidance here by keeping the old gradient membership card.
+- Fix:
+  - `wechat_app/src/me/membership/index.tsx`
+    - Rebuilt the page structure to match Web: `当前等级` card, `智能导入次数` card, `云存储空间` card, and `邀请好友，免费领会员` banner.
+    - Synced action entry points with Web semantics: `立即升级` / `续费升级` / `购买加油包` / `扩容空间` / `去邀请`.
+    - Removed the old static `会员权益` list so the page no longer diverges from the current Web dashboard content model.
+  - `wechat_app/src/me/membership/index.scss`
+    - Reworked the mini-program page styling around the Web card hierarchy while keeping to the mini-program spacing system.
+    - Removed the old gradient membership hero and kept buttons on pure-color backgrounds to satisfy the project button rule.
+- Verification:
+  - `npm run lint`: passed (informational only; lint is not configured in this repo).
+  - `npm run typecheck`: passed.
+  - `npm test`: passed, 21 files / 109 tests.
+  - `npx next build`: passed.
+  - `wechat_app/npm run build:weapp`: passed.
+  - WeChat DevTools automation: attempted but blocked.
+    - `mrc --version`: failed because `mrc` is not installed in this session.
+    - Port `9420` is not accepting connections, so local WeChat DevTools automation is not running.
+
+---
+
+## WeApp Home Quick Entry Swap (`2026-04-29`)
+
+- Task: replace the last quick-entry tile on the WeChat mini-program home page from `个人中心` to `知识库`.
+- Status: implemented and code-level verification passed; WeChat DevTools verification could not run in this session.
+- Implemented:
+  - `wechat_app/src/pages/index/index.tsx`
+    - Replaced the fourth home quick-action tile so it now opens `/content/knowledge`.
+    - Swapped the icon from the profile icon to the book icon to match the knowledge-base destination.
+    - Updated the authenticated hero subtitle so the home-page copy now lists `知识库` instead of `个人中心`.
+- Verification:
+  - `npm run lint`: passed (informational only; eslint is not configured).
+  - `npm run typecheck`: passed.
+  - `npx next build`: passed.
+  - `npm test`: passed, 21 files / 109 tests.
+  - `wechat_app/npm run build:weapp`: passed.
+- Blocker:
+  - WeChat DevTools automation/manual verification was not available in this session because the required `weapp-devtools` capability is not exposed here.
+
+---
+
+## WeApp Calculator Logic Parity (`2026-04-29`)
+
+- Task: make the mini-program toolbox `力量计算器` logic match the Web `/streetlifting-index/calculator` implementation exactly.
+- Status: code parity patch applied; code-level/build verification passed; WeChat DevTools automation verification attempted but blocked by missing local automation runtime.
+- Fix:
+  - `wechat_app/src/streetlifting/index/calculator/index.tsx`
+    - Added the Web-aligned `day_max` mode for upper-body exercises.
+    - Synced powerlifting / strict-press / curl `reverse_reps` to the same averaged inverse estimation used by Web.
+    - Kept upper-body `reverse_reps` on the Web-matching continuous estimate path.
+    - Added draft flush on hide/unload and a visible `清空上次输入` action.
+  - `wechat_app/src/utils/streetliftingCalc.ts`
+    - Synced the mini-program shared calculator math to the Web helper semantics, including exact inverse solving and day-max helpers.
+  - `wechat_app/src/streetlifting/index/calculator/index.scss`
+    - Added styles for the new parity-only inputs and secondary button.
+- Verification:
+  - `npm run lint`: passed (informational only)
+  - `npm run typecheck`: passed
+  - `npx next build`: passed
+  - `npm test`: passed, 21 files / 109 tests
+  - `wechat_app/npm run build:weapp`: passed
+  - WeChat DevTools automation: blocked because `mrc` is not installed and port `9420` is not open.
+
+## WeApp Streetlifting Share Poster Fix (`2026-04-29`)
+
+- Task: fix the WeChat mini-program streetlifting calculator share poster so it reflects the actual user-entered set data instead of only showing reps, and remove the misleading coefficient-only metric card.
+- Status: code fix applied; code-level/build verification passed; WeChat DevTools visual verification attempted but blocked by missing local automation runtime.
+- User-reported issue:
+  - The generated mini-program share poster showed `力量系数 2.865` in a metric card, but the user expected the poster to reflect the actual performance score shown in the main hero area rather than spotlighting the coefficient.
+  - The poster only showed `做组次数 4`, but did not include the user-entered working weight (`80kg x 4次` in the reported case).
+- Fix:
+  - `wechat_app/src/streetlifting/index/calculator/index.tsx`
+    - Persist the working-weight value together with the calculator result payload so the result page/share flow can access the original set weight.
+  - `wechat_app/src/streetlifting/index/calculator/result/index.tsx`
+    - Pass `workingWeight` into the share-poster data builder, with fallback to computed/adjusted result fields for reverse modes.
+  - `wechat_app/src/streetlifting/index/calculator/poster.ts`
+    - Added `workingWeight` to `StrengthPosterData`.
+    - The poster metric grid now swaps the coefficient card for a working-weight card when that value is available, so the poster shows `做组重量` and `做组次数` together instead of only reps.
+    - Normalized bodyweight/working-weight number formatting to avoid noisy trailing `.0`.
+  - `wechat_app/src/utils/streetliftingCalc.ts`
+    - Rebuilt the shared calculator utility file with clean strings after `wechat_app/npm run build:weapp` exposed an existing historical unterminated-string parse error around `meanLoadFactorForReps()`.
+- Verification:
+  - `npm run lint`: passed (informational only; eslint is not configured).
+  - `npm run typecheck`: passed.
+  - `npm test`: passed, 21 files / 109 tests.
+  - `npx next build`: passed.
+  - `wechat_app/npm run build:weapp`: passed after fixing the historical `streetliftingCalc.ts` parse error.
+  - WeChat DevTools automation: attempted but blocked.
+    - `mrc --version`: failed because `mrc` is not installed in this session.
+    - Port `9420` is not accepting connections, so local WeChat DevTools automation is not running.
+
+---
+
+## WeApp Knowledge Base Parity (`2026-04-29`)
+
+- Task: align the WeChat mini-program knowledge-base experience with the current Web knowledge surfaces, using the Web side as the source of truth.
+- Status: core mini-program knowledge-base sync implemented; root checks passed; WeChat mini-program build/manual verification attempted but blocked by an existing unrelated mini-program parse error plus missing local DevTools automation.
+- Correction:
+  - The user clarified that the current Web knowledge-home source of truth is narrower than the earlier mobile sync assumption.
+  - The correct homepage scope is primarily `书籍笔记 + 人体地图`; mini-program-only or older extra sections such as scenario blocks, knowledge-tree browsing, and latest technical articles should not live on the mini-program knowledge homepage.
+- Current result after correction:
+  - `wechat_app/src/content/knowledge/index.tsx` now keeps only:
+    - search
+    - quick tags
+    - book notes
+    - body-map entry with `screening / training` mode switch
+  - Removed the previously added extra homepage sections from the mini-program knowledge home:
+    - scenario cards
+    - knowledge tree
+    - latest coach articles
+- Implemented:
+  - `wechat_app/src/content/knowledge/index.tsx`
+    - Reworked the mini-program knowledge home toward the current Web information architecture.
+    - Updated the top copy to frame the surface as a knowledge-base entry by body region, scenario, and book topic.
+    - Retitled the scenario section from `场景急救` semantics toward the Web-aligned `场景放松`.
+    - Added scenario cover-image cards instead of text-only cards.
+    - Added body-map mode switching (`screening` / `training`) and now passes `mode` and `limit` into the shared `/api/knowledge/nodes` query.
+    - Upgraded the books section from raw latest-book cards to grouped book collections (`overview + chapters`) like the Web flow.
+  - `wechat_app/src/content/knowledge/index.scss`
+    - Refreshed the mini-program knowledge-home layout and cards to support the new grouped books, scenario covers, and body-mode chips.
+  - `wechat_app/src/constants/scenarioQuickFixes.ts`
+    - Replaced the old mini-program scenario quick-fixes with the newer Web-aligned `场景放松` copy.
+    - Reduced each scenario to the same 3-step structure used on the Web scenario pages.
+    - Added local cover/step image references for each scenario.
+  - `wechat_app/src/me/toolbox/index.tsx`
+    - Synced the mini-program toolbox scenario block with the current Web toolbox direction (`场景放松`, cover images, updated copy).
+  - `wechat_app/src/me/toolbox/index.scss`
+    - Added scenario cover styling for the aligned toolbox cards.
+  - `wechat_app/src/me/toolbox/scenario/index.tsx`
+  - `wechat_app/src/me/toolbox/scenario/index.scss`
+    - Upgraded the mini-program scenario detail page to the Web-style structure: cover image, current-step hero card, per-step images, and completion state.
+  - `wechat_app/src/content/knowledge/book-detail/index.tsx`
+  - `wechat_app/src/content/knowledge/book-detail/index.scss`
+    - Upgraded mini-program book detail to better handle structured knowledge-book content (`html` / `markdown` fallback, disclaimer, related same-book entries, image prompts).
+  - `wechat_app/src/services/knowledgeService.ts`
+    - Extended `listNodes()` to forward `mode` and `limit`, matching the shared Web/API body-map query contract.
+  - `wechat_app/src/utils/knowledgeBooks.ts`
+    - Added a mini-program-side book-grouping helper parallel to the Web `knowledgeBooks` utility.
+  - Assets:
+    - Copied Web scenario images into `wechat_app/src/assets/images/toolbox-scenarios/first-aid-1.png` through `first-aid-12.png` so the mini-program can use the same scene imagery locally.
+- Verification:
+  - `npm run lint`: passed (informational only; eslint is not configured).
+  - `npm run typecheck`: passed.
+  - `npm test`: passed, 21 files / 109 tests.
+  - `npx next build`: passed.
+  - `wechat_app/npm run build:weapp`: failed before reaching the new knowledge-base pages because an existing unrelated file still has a parse error:
+    - `wechat_app/src/utils/streetliftingCalc.ts`
+    - `Unterminated string constant` around line 64.
+  - WeChat DevTools automation: attempted but blocked.
+    - `mrc --version`: failed because `mrc` is not installed in this session.
+    - Port `9420` is not accepting connections, so WeChat DevTools automation is not running locally.
+
+---
+
+## Scenario Relief Copy Review (`2026-04-29`)
+
+- Task: review the current `场景急救箱` content direction, tighten the user-facing copy, and prepare image prompts for each scenario card/step.
+- Status: copy and image integration applied to the Web toolbox/scenario surface; code-level checks passed; browser verification attempted but blocked by the local browser runtime requirement.
+- User preference:
+  - Skip voice guidance for now.
+  - Focus this round on revised copy plus image prompts only.
+  - The scenario text explanation should feel more complete than short labels, and should read more like guided copy.
+- Product guidance:
+  - Prefer lower-risk wording such as `放松` / `舒展` / `缓解紧绷感`, and avoid stronger medical implication where the content is actually self-guided mobility/relief.
+  - Keep scenario naming consistent across cards instead of mixing scene names with symptom names.
+- Assets integrated:
+  - Copied 12 user-provided desktop images into `public/images/toolbox-scenarios/first-aid-1.png` through `first-aid-12.png`.
+- Web changes:
+  - `src/app/me/toolbox/page.tsx`
+    - Reworked the scenario section from `场景急救箱` to `场景放松`.
+    - Updated the 4 scenario card titles/descriptions.
+    - Added cover images to each scenario card.
+  - `src/app/dashboard/knowledge/scenarios/[slug]/page.tsx`
+    - Simplified each scenario to 3 image-backed steps so the 12 provided images map cleanly to `4 scenes x 3 steps`.
+    - Added cover image + per-step image rendering for the active step and step list.
+    - Upgraded scenario intros and step descriptions from short labels into fuller guided copy with clearer body cues and pacing.
+- Verification:
+  - `npm run lint`: passed (informational only; eslint is not configured).
+  - `npm run typecheck`: passed.
+  - `npx next build`: passed.
+  - `npm test`: passed, 21 files / 109 tests.
+  - Browser verification: attempted but blocked.
+    - Local dev server responded at `http://127.0.0.1:3000/me/toolbox`.
+    - In-app browser automation could not start because the available Node runtime is `v22.14.0`, while the browser runtime requires `>= v22.22.0`.
+
+## WeApp Chat Video Player Route Fix (`2026-04-29`)
+
+- Task: fix WeChat mini-program private-message video opening failure where tapping a chat video reference throws `navigateTo:fail page ".../video-player/index?...\" is not found`.
+- Status: code fix applied; code-level checks passed; WeChat DevTools automation verification attempted but blocked by missing local automation runtime.
+- Root cause:
+  - Mini-program chat/profile video entrypoints were navigating to `/common/common/video-player/index?...`.
+  - In Taro subpackage routing, the registered page path is `common/common/video-player` from `wechat_app/src/app.config.ts`, not the filesystem-style URL with `/index`.
+- Fix:
+  - `wechat_app/src/me/messages/chat/index.tsx`
+  - `wechat_app/src/me/profile/detail/components/ProgressTimeline.tsx`
+  - `wechat_app/src/me/profile/detail/components/VideoCollectionSection.tsx`
+  - Updated all three entrypoints to navigate to `/common/common/video-player?...` so they match the actual registered mini-program page path.
+- Verification:
+  - `npm run lint`: passed (informational only; project has no eslint configured).
+  - `npm run typecheck`: passed.
+  - `npx next build`: passed.
+  - `npm test`: passed, 21 files / 109 tests.
+  - `wechat_app/npm run build:weapp`: passed.
+  - WeChat DevTools automation: attempted but blocked.
+    - `mrc --version`: failed because `mrc` is not installed in this session.
+    - Port `9420` is not accepting connections, so WeChat DevTools automation is not running locally.
 
 ---
 

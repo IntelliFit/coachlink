@@ -5,6 +5,7 @@ import {
     fulfillSubscriptionOnPaid,
     updateTransactionAndWallet,
 } from "@/app/api/payment/alipay/fulfillPaidOrder";
+import { fulfillStudentMembershipOrderOnPaid } from "@/app/api/payment/studentMembershipFulfillment";
 
 export const runtime = "nodejs";
 
@@ -77,6 +78,15 @@ export async function POST(request: NextRequest) {
                 "wechat",
             );
             await updateTransactionAndWallet(updatedOrder);
+        }
+
+        if (nextStatus === "paid" && updatedOrder.order_type === "student_membership") {
+            const orderData = (updatedOrder.order_data || {}) as Record<string, any>;
+            await fulfillStudentMembershipOrderOnPaid({
+                relatedOrderId: String(orderData.related_order_id || ""),
+                productKey: String(orderData.product_key || ""),
+                userId: String(updatedOrder.user_id || ""),
+            });
         }
 
         return new Response(`RECV_ORD_ID_${reqSeqId}`, {

@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
+import Image from 'next/image';
 import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, Play, Clock, CheckCircle } from 'lucide-react';
 
@@ -10,8 +11,7 @@ type ScenarioStep = {
   title: string;
   description: string;
   duration_seconds: number;
-  video_url?: string;
-  image_url?: string;
+  image_url: string;
 };
 
 type Scenario = {
@@ -21,73 +21,149 @@ type Scenario = {
   description: string;
   icon: string;
   duration_minutes: number;
+  cover_image_url: string;
   steps: ScenarioStep[];
 };
 
-// Hardcoded sample scenarios for demo
 const SAMPLE_SCENARIOS: Record<string, Scenario> = {
   'office-neck': {
     id: '1',
-    title: '办公族肩颈救星',
+    title: '办公后肩颈放松',
     slug: 'office-neck',
-    description: '久坐办公后的肩颈放松方案，5分钟快速缓解',
-    icon: '💼',
+    description: '适合久坐办公、低头看电脑后肩颈发紧的时候。用几步温和动作把后颈、肩侧和上背慢慢放松开。',
+    icon: '🪑',
     duration_minutes: 5,
+    cover_image_url: '/images/toolbox-scenarios/first-aid-1.png',
     steps: [
-      { id: '1', order: 1, title: '颈部前后屈伸', description: '轻轻低头，下巴靠近胸口，保持3秒；然后慢慢抬头向后仰，保持3秒', duration_seconds: 30 },
-      { id: '2', order: 2, title: '颈部左右侧屈', description: '左耳尽量靠近左肩，保持15秒；换右侧重复', duration_seconds: 30 },
-      { id: '3', order: 3, title: '颈部旋转', description: '缓慢顺时针转动头部一圈，再逆时针转动一圈', duration_seconds: 30 },
-      { id: '4', order: 4, title: '耸肩放松', description: '双肩尽量向上耸，保持5秒后放松，重复5次', duration_seconds: 30 },
-      { id: '5', order: 5, title: '肩部环绕', description: '双臂自然下垂，肩部向前画圈5次，再向后画圈5次', duration_seconds: 30 },
-      { id: '6', order: 6, title: '胸椎伸展', description: '双手交叉放头后，胸部向上挺起，眼睛看天花板，保持10秒', duration_seconds: 30 },
+      {
+        id: '1',
+        order: 1,
+        title: '坐姿下巴微收',
+        description: '坐稳后把头顶轻轻向上延展，下巴微微回收，不要低头含胸。感受后颈像被轻轻拉长一样，呼吸保持放松。',
+        duration_seconds: 90,
+        image_url: '/images/toolbox-scenarios/first-aid-1.png',
+      },
+      {
+        id: '2',
+        order: 2,
+        title: '颈侧轻柔拉伸',
+        description: '头部慢慢倒向一侧，另一边肩膀保持下沉，不要跟着抬起。停留时只要有轻微拉伸感就够了，换边时也保持慢慢来。',
+        duration_seconds: 90,
+        image_url: '/images/toolbox-scenarios/first-aid-2.png',
+      },
+      {
+        id: '3',
+        order: 3,
+        title: '肩部后绕放松',
+        description: '双肩向上、向后、再向下缓慢绕环，把动作做圆但不要做快。重点是把肩颈的紧绷感一点点卸下来。',
+        duration_seconds: 120,
+        image_url: '/images/toolbox-scenarios/first-aid-3.png',
+      },
     ],
   },
   'sitting-back': {
     id: '2',
-    title: '久坐腰痛缓解',
+    title: '久坐后腰背舒展',
     slug: 'sitting-back',
-    description: '针对久坐导致的腰背不适，站立或坐姿均可完成',
-    icon: '🪑',
+    description: '适合久坐之后腰背发僵、起身时觉得身体打不开的时候。先把背部延展开，再做温和活动和收尾放松。',
+    icon: '🧘',
     duration_minutes: 6,
+    cover_image_url: '/images/toolbox-scenarios/first-aid-4.png',
     steps: [
-      { id: '1', order: 1, title: '骨盆前后倾', description: '坐姿，交替做骨盆前倾（翘臀）和后倾（收腹）动作，各10次', duration_seconds: 60 },
-      { id: '2', order: 2, title: '猫牛式伸展', description: '双手撑地，交替做拱背（猫式）和塌腰（牛式），各8次', duration_seconds: 60 },
-      { id: '3', order: 3, title: '坐姿扭转', description: '坐姿，右手放左膝外侧，左手放身后，扭转躯干15秒；换边重复', duration_seconds: 60 },
-      { id: '4', order: 4, title: '髋屈肌拉伸', description: '弓步位，后腿膝盖着地，前推髋部感受大腿前侧拉伸，每侧30秒', duration_seconds: 60 },
-      { id: '5', order: 5, title: '仰卧抱膝', description: '仰卧，双手抱膝拉向胸口，保持30秒', duration_seconds: 30 },
-      { id: '6', order: 6, title: '腿部交叉拉伸', description: '仰卧，右脚踝放左膝上，双手抱左大腿拉向胸口，每侧30秒', duration_seconds: 60 },
+      {
+        id: '1',
+        order: 1,
+        title: '站姿扶桌延展',
+        description: '双手扶稳支撑面，慢慢把髋部向后送出去，让手臂和背部自然拉长。不要塌腰，用“拉长”而不是“硬压”的感觉开始。',
+        duration_seconds: 120,
+        image_url: '/images/toolbox-scenarios/first-aid-4.png',
+      },
+      {
+        id: '2',
+        order: 2,
+        title: '猫牛式舒展',
+        description: '四点支撑后，随着呼吸慢慢拱背、再慢慢回到伸展位。动作范围不用很大，重点是让整条脊柱重新活动起来。',
+        duration_seconds: 120,
+        image_url: '/images/toolbox-scenarios/first-aid-5.png',
+      },
+      {
+        id: '3',
+        order: 3,
+        title: '仰卧抱膝放松',
+        description: '躺下后把膝盖轻轻带向身体，手臂只是辅助，不要用力猛拉。让下背部慢慢松下来，呼吸越平稳越好。',
+        duration_seconds: 120,
+        image_url: '/images/toolbox-scenarios/first-aid-6.png',
+      },
     ],
   },
   'post-run': {
     id: '3',
-    title: '跑步后拉伸',
+    title: '跑步后下肢拉伸',
     slug: 'post-run',
-    description: '跑步训练后的下肢放松与恢复方案',
+    description: '适合跑步、跳绳或下肢训练后做恢复。按顺序放松小腿、大腿前侧和髋臀区域，让腿部紧绷感慢慢退下来。',
     icon: '🏃',
     duration_minutes: 8,
+    cover_image_url: '/images/toolbox-scenarios/first-aid-7.png',
     steps: [
-      { id: '1', order: 1, title: '股四头肌拉伸', description: '站立单腿后勾，手抓脚踝拉向臀部，每侧30秒', duration_seconds: 60 },
-      { id: '2', order: 2, title: '腘绳肌拉伸', description: '单腿前伸脚跟着地，身体前倾感受大腿后侧拉伸，每侧30秒', duration_seconds: 60 },
-      { id: '3', order: 3, title: '小腿拉伸', description: '面墙弓步，后腿伸直脚跟着地，前推身体，每侧30秒', duration_seconds: 60 },
-      { id: '4', order: 4, title: '髂胫束放松', description: '站立交叉腿，向外侧侧身延展，每侧30秒', duration_seconds: 60 },
-      { id: '5', order: 5, title: '髋屈肌拉伸', description: '弓步跪姿，前推髋部，每侧45秒', duration_seconds: 90 },
-      { id: '6', order: 6, title: '臀肌拉伸', description: '坐姿4字腿，身体前倾，每侧45秒', duration_seconds: 90 },
+      {
+        id: '1',
+        order: 1,
+        title: '小腿后侧拉伸',
+        description: '弓步站稳后让后脚脚跟贴地，身体轻轻往前送一点。你应该感觉到小腿后侧被拉开，而不是脚踝被硬顶住。',
+        duration_seconds: 150,
+        image_url: '/images/toolbox-scenarios/first-aid-7.png',
+      },
+      {
+        id: '2',
+        order: 2,
+        title: '大腿前侧拉伸',
+        description: '先扶稳再拉伸，轻轻把脚跟带向臀部，膝盖尽量朝下。重点放在大腿前侧的舒展感，不要为了拉更深而扭腰。',
+        duration_seconds: 150,
+        image_url: '/images/toolbox-scenarios/first-aid-8.png',
+      },
+      {
+        id: '3',
+        order: 3,
+        title: '臀部与髋部放松',
+        description: '进入臀部和髋部的放松姿势后，先找到稳定，再慢慢加一点点幅度。只保留温和拉伸感，不需要追求压到底。',
+        duration_seconds: 180,
+        image_url: '/images/toolbox-scenarios/first-aid-9.png',
+      },
     ],
   },
-  'bedtime': {
+  bedtime: {
     id: '4',
     title: '睡前放松',
     slug: 'bedtime',
-    description: '帮助放松身心，提高睡眠质量的轻柔伸展',
-    icon: '😴',
+    description: '适合睡前十分钟做个简单收尾，把呼吸、背部和神经状态一起慢慢放下来，让身体更容易进入休息节奏。',
+    icon: '🌙',
     duration_minutes: 10,
+    cover_image_url: '/images/toolbox-scenarios/first-aid-10.png',
     steps: [
-      { id: '1', order: 1, title: '颈部放松', description: '缓慢转动头部，左右各5圈', duration_seconds: 60 },
-      { id: '2', order: 2, title: '肩部放松', description: '耸肩保持5秒后放松，重复8次', duration_seconds: 60 },
-      { id: '3', order: 3, title: '婴儿式', description: '跪坐，双臂向前延伸趴下，放松呼吸1分钟', duration_seconds: 90 },
-      { id: '4', order: 4, title: '仰卧扭转', description: '仰卧，双膝并拢倒向一侧，保持30秒换边', duration_seconds: 90 },
-      { id: '5', order: 5, title: '仰卧蝴蝶式', description: '仰卧，脚底相对，膝盖自然外展，放松1分钟', duration_seconds: 90 },
-      { id: '6', order: 6, title: '腿靠墙', description: '仰卧双腿靠墙垂直向上，放松呼吸2分钟', duration_seconds: 120 },
+      {
+        id: '1',
+        order: 1,
+        title: '仰卧腹式呼吸',
+        description: '平躺后把注意力放到呼吸上，吸气时感受腹部轻轻鼓起，呼气时慢慢落下。先不要着急拉伸，先把节奏放慢。',
+        duration_seconds: 180,
+        image_url: '/images/toolbox-scenarios/first-aid-10.png',
+      },
+      {
+        id: '2',
+        order: 2,
+        title: '仰卧扭转舒展',
+        description: '双膝并拢倒向一侧时，肩膀尽量保持放松，不需要为了贴地而强压。让腰背和侧腰在呼吸里慢慢打开就可以。',
+        duration_seconds: 180,
+        image_url: '/images/toolbox-scenarios/first-aid-11.png',
+      },
+      {
+        id: '3',
+        order: 3,
+        title: '婴儿式放松',
+        description: '最后用一个更安静的姿势收尾，臀部坐回脚跟，手臂向前延展，背部自然松下来。让身体知道现在可以慢慢休息了。',
+        duration_seconds: 240,
+        image_url: '/images/toolbox-scenarios/first-aid-12.png',
+      },
     ],
   },
 };
@@ -96,14 +172,13 @@ export default function ScenarioDetailPage() {
   const params = useParams();
   const router = useRouter();
   const slug = params?.slug as string;
-  
+
   const [scenario, setScenario] = useState<Scenario | null>(null);
   const [loading, setLoading] = useState(true);
   const [currentStepIndex, setCurrentStepIndex] = useState<number | null>(null);
   const [completedSteps, setCompletedSteps] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    // For demo, use hardcoded data
     const data = SAMPLE_SCENARIOS[slug];
     if (data) {
       setScenario(data);
@@ -112,13 +187,12 @@ export default function ScenarioDetailPage() {
   }, [slug]);
 
   const handleStepComplete = (stepId: string) => {
-    setCompletedSteps(prev => new Set([...prev, stepId]));
-    // Auto-advance to next step
+    setCompletedSteps((prev) => new Set([...prev, stepId]));
     if (scenario && currentStepIndex !== null && currentStepIndex < scenario.steps.length - 1) {
       setCurrentStepIndex(currentStepIndex + 1);
-    } else {
-      setCurrentStepIndex(null);
+      return;
     }
+    setCurrentStepIndex(null);
   };
 
   const startFlow = () => {
@@ -129,7 +203,7 @@ export default function ScenarioDetailPage() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500"></div>
+        <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-primary-500" />
       </div>
     );
   }
@@ -137,7 +211,7 @@ export default function ScenarioDetailPage() {
   if (!scenario) {
     return (
       <div className="min-h-screen p-4">
-        <div className="text-center py-20">
+        <div className="py-20 text-center">
           <p className="text-surface-500">场景不存在</p>
           <button onClick={() => router.back()} className="mt-4 text-primary-500">
             返回
@@ -147,14 +221,15 @@ export default function ScenarioDetailPage() {
     );
   }
 
+  const currentStep = currentStepIndex !== null ? scenario.steps[currentStepIndex] : null;
+
   return (
     <div className="min-h-screen pb-32">
-      {/* Header */}
-      <div className="sticky top-0 z-20 bg-surface-50/80 dark:bg-surface-900/80 backdrop-blur-lg border-b border-surface-200 dark:border-surface-700">
-        <div className="flex items-center gap-4 px-4 py-3 max-w-3xl mx-auto">
+      <div className="sticky top-0 z-20 border-b border-surface-200 bg-surface-50/80 backdrop-blur-lg dark:border-surface-700 dark:bg-surface-900/80">
+        <div className="mx-auto flex max-w-3xl items-center gap-4 px-4 py-3">
           <button
             onClick={() => router.back()}
-            className="p-2 -ml-2 text-surface-600 dark:text-surface-400 hover:bg-surface-100 dark:hover:bg-surface-800 rounded-xl transition-colors"
+            className="rounded-xl p-2 -ml-2 text-surface-600 transition-colors hover:bg-surface-100 dark:text-surface-400 dark:hover:bg-surface-800"
           >
             <ArrowLeft size={20} />
           </button>
@@ -162,105 +237,134 @@ export default function ScenarioDetailPage() {
             <h1 className="text-lg font-black text-surface-900 dark:text-surface-100">
               {scenario.icon} {scenario.title}
             </h1>
-            <p className="text-xs text-surface-500">
-              约 {scenario.duration_minutes} 分钟
-            </p>
+            <p className="text-xs text-surface-500">约 {scenario.duration_minutes} 分钟</p>
           </div>
         </div>
       </div>
 
-      <div className="px-4 py-6 max-w-3xl mx-auto space-y-6">
-        {/* Description */}
-        <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4">
-          <p className="text-sm text-amber-800 dark:text-amber-200">{scenario.description}</p>
+      <div className="mx-auto max-w-3xl space-y-6 px-4 py-6">
+        <div className="overflow-hidden rounded-3xl border border-surface-200 bg-white shadow-sm dark:border-surface-700 dark:bg-surface-800">
+          <div className="relative aspect-[16/9] w-full">
+            <Image
+              src={scenario.cover_image_url}
+              alt={scenario.title}
+              fill
+              className="object-cover"
+              sizes="(max-width: 768px) 100vw, 768px"
+              priority
+            />
+          </div>
+          <div className="border-t border-surface-100 bg-amber-50 p-4 text-sm text-amber-900 dark:border-surface-700 dark:bg-amber-900/20 dark:text-amber-200">
+            {scenario.description}
+          </div>
         </div>
 
-        {/* Start Button */}
         {currentStepIndex === null && (
           <button
             onClick={startFlow}
-            className="w-full flex items-center justify-center gap-3 bg-primary-500 hover:bg-primary-600 text-white py-4 rounded-xl font-bold text-lg transition-colors"
+            className="flex w-full items-center justify-center gap-3 rounded-xl bg-primary-500 py-4 text-lg font-bold text-white transition-colors hover:bg-primary-600"
           >
             <Play size={24} />
-            <span>开始练习</span>
+            <span>开始跟练</span>
           </button>
         )}
 
-        {/* Current Step (Active) */}
-        {currentStepIndex !== null && scenario.steps[currentStepIndex] && (
-          <div className="bg-primary-500 text-white rounded-2xl p-6 shadow-lg">
-            <div className="flex items-center gap-2 mb-4 text-white/80 text-sm">
-              <Clock size={16} />
-              <span>{scenario.steps[currentStepIndex].duration_seconds}秒</span>
+        {currentStep && (
+          <div className="overflow-hidden rounded-2xl bg-primary-500 text-white shadow-lg">
+            <div className="relative aspect-[4/3] w-full bg-primary-400/30">
+              <Image
+                src={currentStep.image_url}
+                alt={currentStep.title}
+                fill
+                className="object-cover"
+                sizes="(max-width: 768px) 100vw, 768px"
+              />
             </div>
-            <h2 className="text-xl font-black mb-3">
-              第 {currentStepIndex + 1} 步：{scenario.steps[currentStepIndex].title}
-            </h2>
-            <p className="text-white/90 leading-relaxed">
-              {scenario.steps[currentStepIndex].description}
-            </p>
-            <button
-              onClick={() => handleStepComplete(scenario.steps[currentStepIndex].id)}
-              className="mt-6 w-full flex items-center justify-center gap-2 bg-white/20 hover:bg-white/30 py-3 rounded-xl font-bold transition-colors"
-            >
-              <CheckCircle size={20} />
-              <span>完成此步骤</span>
-            </button>
+            <div className="p-6">
+              <div className="mb-4 flex items-center gap-2 text-sm text-white/80">
+                <Clock size={16} />
+                <span>{currentStep.duration_seconds} 秒</span>
+              </div>
+              <h2 className="mb-3 text-xl font-black">
+                第 {currentStepIndex + 1} 步：{currentStep.title}
+              </h2>
+              <p className="leading-relaxed text-white/90">{currentStep.description}</p>
+              <button
+                onClick={() => handleStepComplete(currentStep.id)}
+                className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-white/20 py-3 font-bold transition-colors hover:bg-white/30"
+              >
+                <CheckCircle size={20} />
+                <span>完成这一步</span>
+              </button>
+            </div>
           </div>
         )}
 
-        {/* Steps List */}
         <div className="space-y-3">
           <h3 className="text-sm font-bold text-surface-500">全部步骤</h3>
           {scenario.steps.map((step, idx) => {
             const isCompleted = completedSteps.has(step.id);
             const isCurrent = currentStepIndex === idx;
-            
+
             return (
               <div
                 key={step.id}
-                className={`flex items-start gap-4 p-4 rounded-xl transition-all ${
+                className={`overflow-hidden rounded-2xl transition-all ${
                   isCurrent
-                    ? 'bg-primary-100 dark:bg-primary-900/30 border-2 border-primary-500'
+                    ? 'border-2 border-primary-500 bg-primary-100 dark:bg-primary-900/30'
                     : isCompleted
-                    ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800'
-                    : 'bg-white dark:bg-surface-800 border border-surface-200 dark:border-surface-700'
+                      ? 'border border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/20'
+                      : 'border border-surface-200 bg-white dark:border-surface-700 dark:bg-surface-800'
                 }`}
               >
-                <div
-                  className={`shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
-                    isCompleted
-                      ? 'bg-green-500 text-white'
-                      : isCurrent
-                      ? 'bg-primary-500 text-white'
-                      : 'bg-surface-200 dark:bg-surface-700 text-surface-600 dark:text-surface-400'
-                  }`}
-                >
-                  {isCompleted ? <CheckCircle size={16} /> : idx + 1}
+                <div className="flex items-start gap-4 p-4">
+                  <div
+                    className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-bold ${
+                      isCompleted
+                        ? 'bg-green-500 text-white'
+                        : isCurrent
+                          ? 'bg-primary-500 text-white'
+                          : 'bg-surface-200 text-surface-600 dark:bg-surface-700 dark:text-surface-400'
+                    }`}
+                  >
+                    {isCompleted ? <CheckCircle size={16} /> : idx + 1}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <h4
+                      className={`font-bold ${
+                        isCurrent ? 'text-primary-700 dark:text-primary-300' : 'text-surface-800 dark:text-surface-200'
+                      }`}
+                    >
+                      {step.title}
+                    </h4>
+                    <p className="mt-1 text-xs text-surface-500">{step.description}</p>
+                  </div>
+                  <span className="shrink-0 text-xs text-surface-400">{step.duration_seconds} 秒</span>
                 </div>
-                <div className="flex-1">
-                  <h4 className={`font-bold ${isCurrent ? 'text-primary-700 dark:text-primary-300' : 'text-surface-800 dark:text-surface-200'}`}>
-                    {step.title}
-                  </h4>
-                  <p className="text-xs text-surface-500 mt-1 line-clamp-2">{step.description}</p>
+                <div className="relative aspect-[16/9] w-full border-t border-surface-100 dark:border-surface-700">
+                  <Image
+                    src={step.image_url}
+                    alt={step.title}
+                    fill
+                    className="object-cover"
+                    sizes="(max-width: 768px) 100vw, 768px"
+                  />
                 </div>
-                <span className="text-xs text-surface-400 shrink-0">{step.duration_seconds}秒</span>
               </div>
             );
           })}
         </div>
 
-        {/* Completion Message */}
         {completedSteps.size === scenario.steps.length && (
-          <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl p-6 text-center">
-            <div className="text-4xl mb-3">🎉</div>
-            <h3 className="font-black text-green-700 dark:text-green-300 text-lg">练习完成！</h3>
-            <p className="text-sm text-green-600 dark:text-green-400 mt-1">坚持下去，你会越来越好</p>
+          <div className="rounded-xl border border-green-200 bg-green-50 p-6 text-center dark:border-green-800 dark:bg-green-900/20">
+            <div className="mb-3 text-4xl">🎉</div>
+            <h3 className="text-lg font-black text-green-700 dark:text-green-300">练习完成</h3>
+            <p className="mt-1 text-sm text-green-600 dark:text-green-400">今天先做到这里，身体放松一点就很好。</p>
             <button
               onClick={() => router.back()}
-              className="mt-4 px-6 py-2 bg-green-500 text-white rounded-xl font-bold hover:bg-green-600 transition-colors"
+              className="mt-4 rounded-xl bg-green-500 px-6 py-2 font-bold text-white transition-colors hover:bg-green-600"
             >
-              返回知识库
+              返回工具箱
             </button>
           </div>
         )}

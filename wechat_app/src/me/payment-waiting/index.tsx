@@ -1,7 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { View, Text } from '@tarojs/components'
 import Taro, { useDidShow, useRouter } from '@tarojs/taro'
-import { queryPaymentOrder, type PaymentStatus } from '@/services/paymentService'
+import {
+  queryCoachPaymentOrder,
+  queryPaymentOrder,
+  type PaymentStatus
+} from '@/services/paymentService'
 import './index.scss'
 import { ArrowRight } from '@nutui/icons-react-taro'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
@@ -17,13 +21,18 @@ export default function PaymentWaiting() {
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const coachId = (router.params.coachId ?? router.params.coach_id ?? '') as string
+  const provider = (router.params.provider ?? 'alipay') as string
+  const target = (router.params.target ?? '') as string
+  const membershipTab = (router.params.membershipTab ?? 'membership') as string
 
   const fetchStatus = async (id?: string, isSilent = false) => {
     const oid = id ?? orderId
     if (!oid) return
     if (!isSilent) setLoading(true)
     try {
-      const res = await queryPaymentOrder(oid)
+      const res = provider === 'wechat'
+        ? await queryCoachPaymentOrder(oid)
+        : await queryPaymentOrder(oid)
       if (res.success && res.status) {
         setStatus(res.status)
         if (res.amount != null) setAmount(res.amount)
@@ -45,10 +54,17 @@ export default function PaymentWaiting() {
     const params = router.params
     const id = (params.orderId ?? params.order_id ?? '') as string
     const amt = params.amount != null ? Number(params.amount) : 0
+    const initialStatus = (params.initialStatus ?? '') as PaymentStatus | ''
     if (id) {
       setOrderId(id)
       if (amt > 0) setAmount(amt)
-      fetchStatus(id)
+      if (initialStatus === 'cancelled' || initialStatus === 'failed') {
+        setStatus(initialStatus)
+        setLoading(false)
+      } else {
+        setStatus('pending')
+        fetchStatus(id)
+      }
     } else {
       Taro.showToast({ title: '缺少订单号', icon: 'none' })
       setTimeout(() => Taro.navigateBack(), 1500)
@@ -67,6 +83,11 @@ export default function PaymentWaiting() {
   }, [orderId, status])
 
   const handleContinue = () => {
+    if (target === 'membership') {
+      Taro.redirectTo({ url: '/me/membership/index' })
+      return
+    }
+
     if (coachId) {
       Taro.redirectTo({
         url: `/discovery/coach-profile?id=${coachId}&tab=1&paid=1`
@@ -77,6 +98,11 @@ export default function PaymentWaiting() {
   }
 
   const handleRetry = () => {
+    if (target === 'membership') {
+      Taro.redirectTo({ url: `/me/membership/subscribe/index?tab=${encodeURIComponent(membershipTab === 'addon' ? 'addon' : 'membership')}` })
+      return
+    }
+
     if (coachId) {
       Taro.redirectTo({ url: `/discovery/coach-profile?id=${coachId}&tab=1` })
     } else {
@@ -119,7 +145,9 @@ export default function PaymentWaiting() {
             </View>
             <Text className="payment-waiting-title">正在等待支付结果...</Text>
             <Text className="payment-waiting-hint">
-              请到浏览器中完成支付宝支付后返回本页，系统将自动同步结果
+              {provider === 'wechat'
+                ? '微信支付已拉起，完成支付后请稍候，系统会自动同步结果'
+                : '请到浏览器中完成支付宝支付后返回本页，系统将自动同步结果'}
             </Text>
           </>
         ) : (

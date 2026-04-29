@@ -3,7 +3,7 @@ import { View, Text } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
 import BottomNav from '@/components/BottomNav'
 import { authService } from '@/services/authService'
-import { Power, Search, Star, User, ShieldCheck, Target, ArrowUp } from '@nutui/icons-react-taro'
+import { Power, Search, Star, Book, ShieldCheck, Target, ArrowUp } from '@nutui/icons-react-taro'
 import './index.scss'
 
 function Index() {
@@ -101,7 +101,7 @@ function Index() {
               </Text>
               <Text className='hero-card-subtitle'>
                 {isAuthenticated
-                  ? '你可以从这里进入今日训练、发现教练、排行榜和个人中心。'
+                  ? '你可以从这里进入今日训练、发现教练、排行榜和知识库。'
                   : '登录后可查看今日训练、成长记录和教练服务。'}
               </Text>
             </View>
@@ -140,11 +140,11 @@ function Index() {
               </View>
               <Text className='quick-action-label'>排行榜</Text>
             </View>
-            <View className='quick-action-item' onClick={() => void handleProtectedNav('/me/profile/index')}>
+            <View className='quick-action-item' onClick={() => void handleProtectedNav('/content/knowledge')}>
               <View className='quick-action-icon'>
-                <User width={24} height={24} color='#010101' />
+                <Book width={24} height={24} color='#010101' />
               </View>
-              <Text className='quick-action-label'>个人中心</Text>
+              <Text className='quick-action-label'>知识库</Text>
             </View>
           </View>
         </View>
