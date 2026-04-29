@@ -45,7 +45,7 @@ const VideoCollectionSection: React.FC<VideoCollectionSectionProps> = ({ videos 
       return
     }
     Taro.navigateTo({
-      url: `/common/common/video-player/index?url=${encodeURIComponent(url)}`
+      url: `/common/common/video-player?url=${encodeURIComponent(url)}`
     })
   }
 

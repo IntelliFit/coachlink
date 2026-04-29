@@ -101,6 +101,14 @@ export interface CreateCoachWechatPaymentResponse {
   paymentParams: WechatPaymentParams
 }
 
+export interface CreateMembershipWechatPaymentResponse {
+  orderId: string
+  outTradeNo: string
+  paymentProvider: 'wechat'
+  amount: number
+  paymentParams: WechatPaymentParams
+}
+
 export interface QueryCoachWechatPaymentResponse {
   status: PaymentStatus
   amount: number
@@ -167,6 +175,25 @@ export async function createCoachWechatPayment(params: {
   }
 }
 
+export async function createMembershipWechatPayment(params: {
+  productKey: string
+}): Promise<{ success: boolean; data?: CreateMembershipWechatPaymentResponse; message?: string }> {
+  const res = await request<CreateMembershipWechatPaymentResponse>({
+    url: '/api/payment/wechat/membership/create',
+    method: 'POST',
+    data: params,
+  })
+
+  if (!res.success || !res.data) {
+    return { success: false, message: res.message }
+  }
+
+  return {
+    success: true,
+    data: res.data
+  }
+}
+
 export async function queryCoachPaymentOrder(orderId: string): Promise<{
   success: boolean
   status?: PaymentStatus
@@ -218,6 +245,10 @@ export async function requestCoachWechatPayment(params: WechatPaymentParams): Pr
       message: errMsg || (cancelled ? '鐢ㄦ埛鍙栨秷鏀粯' : '鎷夎捣寰俊鏀粯澶辫触')
     }
   }
+}
+
+export async function requestWechatPayment(params: WechatPaymentParams) {
+  return requestCoachWechatPayment(params)
 }
 
 export async function refundAlipayOrder(params: {

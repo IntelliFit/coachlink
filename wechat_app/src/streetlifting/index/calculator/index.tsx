@@ -1,13 +1,14 @@
 /**
  * 力量分计算器 - 小程序原生实现（逻辑与网页端一致）
  */
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { View, Text, ScrollView, Input, Picker, Button } from '@tarojs/components'
-import Taro from '@tarojs/taro'
+import Taro, { useDidHide, useUnload } from '@tarojs/taro'
 import {
   type ExerciseType,
   type CalcMode,
   type Gender,
+  type RestCat,
   isUpperBodyExercise,
   isPowerliftingExercise,
   isBenchBasedExercise,
@@ -16,6 +17,8 @@ import {
   estimateTotal1RMFromTotalWeightAndReps,
   invertTotalWeightForTarget1RM,
   estimateRepsForTarget1RMContinuous,
+  estimateRepsFromTotalWeightAndTarget1RM,
+  estimateDayMaxFromSets,
   STRICT_PRESS_MULTIPLIER,
   BARBELL_CURL_MULTIPLIER
 } from '@/utils/streetliftingCalc'
@@ -27,8 +30,8 @@ import './index.scss'
 const EXERCISE_OPTIONS: { label: string; value: ExerciseType }[] = [
   { label: '负重引体向上', value: 'weighted_pullup' },
   { label: '负重双杠臂屈伸', value: 'weighted_dips' },
-  { label: '实力推（满分500）', value: 'strict_press' },
-  { label: '杠铃弯举（满分500）', value: 'barbell_curl' },
+  { label: '实力推（满分 500）', value: 'strict_press' },
+  { label: '杠铃弯举（满分 500）', value: 'barbell_curl' },
   { label: '深蹲（DOTS）', value: 'squat' },
   { label: '卧推（DOTS）', value: 'bench' },
   { label: '硬拉（DOTS）', value: 'deadlift' }
@@ -37,12 +40,13 @@ const EXERCISE_OPTIONS: { label: string; value: ExerciseType }[] = [
 const MODE_OPTIONS: { label: string; value: CalcMode }[] = [
   { label: '正向计算', value: 'forward' },
   { label: '反推做组重量', value: 'reverse_weight' },
-  { label: '反推次数', value: 'reverse_reps' }
+  { label: '反推次数', value: 'reverse_reps' },
+  { label: '做组极限估算（仅引体/臂屈伸）', value: 'day_max' }
 ]
 
 const GENDER_OPTIONS: { label: string; value: Gender }[] = [
-  { label: '男性', value: 'Male' },
-  { label: '女性', value: 'Female' }
+  { label: '男', value: 'Male' },
+  { label: '女', value: 'Female' }
 ]
 
 const QUALITY_OPTIONS: { label: string; value: string }[] = [
@@ -50,6 +54,18 @@ const QUALITY_OPTIONS: { label: string; value: string }[] = [
   { label: '轻微借力（2-5kg）', value: 'Minor_Cheat' },
   { label: '严重借力（5-20kg）', value: 'Major_Cheat' },
   { label: '超严重借力（20-50kg）', value: 'Extreme_Cheat' }
+]
+
+const REST_OPTIONS: { label: string; value: RestCat }[] = [
+  { label: '≤90秒', value: 'short' },
+  { label: '90秒-3分钟', value: 'moderate' },
+  { label: '3-5分钟', value: 'long' },
+  { label: '>5分钟', value: 'very_long' }
+]
+
+const SET_FEEDBACK_TYPE_OPTIONS: { label: string; value: 'RIR' | 'Achieved' }[] = [
+  { label: 'RIR', value: 'RIR' },
+  { label: '实际次数', value: 'Achieved' }
 ]
 
 type CalcResult = {
@@ -73,6 +89,12 @@ type CalcDraft = {
   target1RM: string
   workingLiftWeight: string
   reps: string
+  sets: string
+  restCat: RestCat | ''
+  dayFirstType: 'RIR' | 'Achieved' | ''
+  dayFirstValue: string
+  dayLastType: 'RIR' | 'Achieved' | ''
+  dayLastValue: string
   formQuality: string
   penaltyWeight: number
 }
@@ -87,11 +109,41 @@ const STORAGE_KEY = 'sl_calc_form_data'
 const RESULT_KEY = 'sl_calc_result'
 const LAST_RUN_KEY = 'sl_calc_last_run'
 
+const DEFAULT_DRAFT: CalcDraft = {
+  exerciseType: 'weighted_pullup',
+  mode: 'forward',
+  gender: '',
+  bodyweight: '',
+  addedWeight: '',
+  added1RM: '',
+  workingAddedWeight: '',
+  liftWeight: '',
+  target1RM: '',
+  workingLiftWeight: '',
+  reps: '',
+  sets: '',
+  restCat: '',
+  dayFirstType: '',
+  dayFirstValue: '',
+  dayLastType: '',
+  dayLastValue: '',
+  formQuality: 'Minor_Cheat',
+  penaltyWeight: 3
+}
+
 function normalizeGender(g: string): Gender | null {
   const s = String(g).toLowerCase().trim()
   if (s === 'male' || s === 'm' || s === '男' || s === '1') return 'Male'
   if (s === 'female' || s === 'f' || s === '女' || s === '0' || s === '2') return 'Female'
   return null
+}
+
+function isExerciseType(v: unknown): v is ExerciseType {
+  return typeof v === 'string' && EXERCISE_OPTIONS.some((o) => o.value === v)
+}
+
+function isCalcMode(v: unknown): v is CalcMode {
+  return typeof v === 'string' && MODE_OPTIONS.some((o) => o.value === v)
 }
 
 function parseStoredDraft(raw: unknown): Partial<CalcDraft> | null {
@@ -105,14 +157,6 @@ function parseStoredDraft(raw: unknown): Partial<CalcDraft> | null {
   }
 }
 
-function isExerciseType(v: unknown): v is ExerciseType {
-  return typeof v === 'string' && EXERCISE_OPTIONS.some((o) => o.value === v)
-}
-
-function isCalcMode(v: unknown): v is CalcMode {
-  return typeof v === 'string' && MODE_OPTIONS.some((o) => o.value === v)
-}
-
 function parseLastSnapshot(raw: unknown): CalcSnapshot | null {
   if (raw == null || raw === '') return null
   try {
@@ -124,7 +168,6 @@ function parseLastSnapshot(raw: unknown): CalcSnapshot | null {
   }
 }
 
-/** 草稿优先；为空时再使用「上一次正式计算」快照里的同字段，避免输入框空但右侧仍有「较上次」的错位 */
 function coalesceDraftField(a: unknown, b: unknown): string {
   const sa = a !== undefined && a !== null ? String(a).trim() : ''
   if (sa !== '') return String(a).trim()
@@ -132,51 +175,68 @@ function coalesceDraftField(a: unknown, b: unknown): string {
   return sb !== '' ? sb : ''
 }
 
-export default function StreetliftingCalculator() {
-  const [exerciseType, setExerciseType] = useState<ExerciseType>('weighted_pullup')
-  const [mode, setMode] = useState<CalcMode>('forward')
-  const [gender, setGender] = useState<Gender | ''>('')
-  const [bodyweight, setBodyweight] = useState('')
-  const [addedWeight, setAddedWeight] = useState('')
-  const [added1RM, setAdded1RM] = useState('')
-  const [workingAddedWeight, setWorkingAddedWeight] = useState('')
-  const [liftWeight, setLiftWeight] = useState('')
-  const [target1RM, setTarget1RM] = useState('')
-  const [workingLiftWeight, setWorkingLiftWeight] = useState('')
-  const [reps, setReps] = useState('')
-  const [formQuality, setFormQuality] = useState('')
-  const [penaltyWeight, setPenaltyWeight] = useState(3)
+function getPenaltyPreset(formQuality: string) {
+  if (formQuality === 'Minor_Cheat') return 3
+  if (formQuality === 'Major_Cheat') return 10
+  if (formQuality === 'Extreme_Cheat') return 30
+  return 3
+}
 
+export default function StreetliftingCalculator() {
+  const [draft, setDraft] = useState<CalcDraft>(DEFAULT_DRAFT)
   const [formulaMap, setFormulaMap] = useState<Record<string, StreetliftingFormula>>({})
   const [loadingFormula, setLoadingFormula] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [lastSnapshot, setLastSnapshot] = useState<CalcSnapshot | null>(null)
-  /** 未完成初始化前禁止把空表单写回 storage，否则会冲掉历史草稿 */
   const [formHydrated, setFormHydrated] = useState(false)
 
-  const draft: CalcDraft = {
-    exerciseType,
-    mode,
-    gender,
-    bodyweight,
-    addedWeight,
-    added1RM,
-    workingAddedWeight,
-    liftWeight,
-    target1RM,
-    workingLiftWeight,
-    reps,
-    formQuality,
-    penaltyWeight
-  }
+  const exerciseType = draft.exerciseType
+  const mode = draft.mode
+  const gender = draft.gender
+  const bodyweight = draft.bodyweight
+  const addedWeight = draft.addedWeight
+  const added1RM = draft.added1RM
+  const workingAddedWeight = draft.workingAddedWeight
+  const liftWeight = draft.liftWeight
+  const target1RM = draft.target1RM
+  const workingLiftWeight = draft.workingLiftWeight
+  const reps = draft.reps
+  const sets = draft.sets
+  const restCat = draft.restCat
+  const dayFirstType = draft.dayFirstType
+  const dayFirstValue = draft.dayFirstValue
+  const dayLastType = draft.dayLastType
+  const dayLastValue = draft.dayLastValue
+  const formQuality = draft.formQuality
+  const penaltyWeight = draft.penaltyWeight
 
-  // 加载公式 + 同步读取本地草稿 + 拉取档案（性别/体重优先档案）+ 合并后再允许写回 storage
+  const patchDraft = useCallback((patch: Partial<CalcDraft>) => {
+    setDraft((prev) => ({ ...prev, ...patch }))
+  }, [])
+
+  const saveDraftNow = useCallback(() => {
+    try {
+      Taro.setStorageSync(STORAGE_KEY, JSON.stringify(draft))
+    } catch (e) {
+      console.error('[calculator] save form data error:', e)
+    }
+  }, [draft])
+
+  useDidHide(() => {
+    if (formHydrated) saveDraftNow()
+  })
+
+  useUnload(() => {
+    if (formHydrated) saveDraftNow()
+  })
+
   useEffect(() => {
     let cancelled = false
+
     const run = async () => {
       const saved = parseStoredDraft(Taro.getStorageSync(STORAGE_KEY))
       const lastSnap = parseLastSnapshot(Taro.getStorageSync(LAST_RUN_KEY))
-      const lastD = lastSnap?.draft
+      const lastDraft = lastSnap?.draft
 
       setLoadingFormula(true)
       try {
@@ -217,81 +277,94 @@ export default function StreetliftingCalculator() {
 
       if (cancelled) return
 
-      // 运动类型 / 模式：草稿优先，缺省用上一次正式计算
-      try {
-        if (saved && isExerciseType(saved.exerciseType)) {
-          setExerciseType(saved.exerciseType)
-        } else if (lastD && isExerciseType(lastD.exerciseType)) {
-          setExerciseType(lastD.exerciseType)
-        }
-        if (saved && isCalcMode(saved.mode)) {
-          setMode(saved.mode)
-        } else if (lastD && isCalcMode(lastD.mode)) {
-          setMode(lastD.mode)
-        }
-      } catch (e) {
-        console.error('[calculator] restore exercise/mode error:', e)
+      const restoredExerciseType = saved && isExerciseType(saved.exerciseType)
+        ? saved.exerciseType
+        : lastDraft && isExerciseType(lastDraft.exerciseType)
+          ? lastDraft.exerciseType
+          : DEFAULT_DRAFT.exerciseType
+
+      let restoredMode = saved && isCalcMode(saved.mode)
+        ? saved.mode
+        : lastDraft && isCalcMode(lastDraft.mode)
+          ? lastDraft.mode
+          : DEFAULT_DRAFT.mode
+
+      if (!isUpperBodyExercise(restoredExerciseType) && restoredMode === 'day_max') {
+        restoredMode = 'forward'
       }
 
-      // 性别：档案 > 本地草稿 > 上一次正式计算
-      let mergedGender: Gender | '' = ''
-      if (profileGender) mergedGender = profileGender
-      else if (saved?.gender === 'Male' || saved?.gender === 'Female') mergedGender = saved.gender
-      else if (lastD?.gender === 'Male' || lastD?.gender === 'Female') mergedGender = lastD.gender
-      setGender(mergedGender)
-
-      const mergedBodyweight =
-        profileBodyweightStr !== null
-          ? profileBodyweightStr
-          : coalesceDraftField(saved?.bodyweight, lastD?.bodyweight)
-
-      setBodyweight(mergedBodyweight)
-
-      // 数字与选项字段：storage 与「上一次正式计算」草稿二选一合并（避免仅存空串导致输入框空白）
-      setAddedWeight(coalesceDraftField(saved?.addedWeight, lastD?.addedWeight))
-      setAdded1RM(coalesceDraftField(saved?.added1RM, lastD?.added1RM))
-      setWorkingAddedWeight(coalesceDraftField(saved?.workingAddedWeight, lastD?.workingAddedWeight))
-      setLiftWeight(coalesceDraftField(saved?.liftWeight, lastD?.liftWeight))
-      setTarget1RM(coalesceDraftField(saved?.target1RM, lastD?.target1RM))
-      setWorkingLiftWeight(coalesceDraftField(saved?.workingLiftWeight, lastD?.workingLiftWeight))
-      setReps(coalesceDraftField(saved?.reps, lastD?.reps))
-      setFormQuality(coalesceDraftField(saved?.formQuality, lastD?.formQuality))
-
-      let nextPenalty = 3
-      if (typeof saved?.penaltyWeight === 'number' && Number.isFinite(saved.penaltyWeight)) {
-        nextPenalty = saved.penaltyWeight
-      } else if (typeof lastD?.penaltyWeight === 'number' && Number.isFinite(lastD.penaltyWeight)) {
-        nextPenalty = lastD.penaltyWeight
+      const nextDraft: CalcDraft = {
+        ...DEFAULT_DRAFT,
+        exerciseType: restoredExerciseType,
+        mode: restoredMode,
+        gender: profileGender || (saved?.gender === 'Male' || saved?.gender === 'Female' ? saved.gender : lastDraft?.gender === 'Male' || lastDraft?.gender === 'Female' ? lastDraft.gender : ''),
+        bodyweight: profileBodyweightStr !== null ? profileBodyweightStr : coalesceDraftField(saved?.bodyweight, lastDraft?.bodyweight),
+        addedWeight: coalesceDraftField(saved?.addedWeight, lastDraft?.addedWeight),
+        added1RM: coalesceDraftField(saved?.added1RM, lastDraft?.added1RM),
+        workingAddedWeight: coalesceDraftField(saved?.workingAddedWeight, lastDraft?.workingAddedWeight),
+        liftWeight: coalesceDraftField(saved?.liftWeight, lastDraft?.liftWeight),
+        target1RM: coalesceDraftField(saved?.target1RM, lastDraft?.target1RM),
+        workingLiftWeight: coalesceDraftField(saved?.workingLiftWeight, lastDraft?.workingLiftWeight),
+        reps: coalesceDraftField(saved?.reps, lastDraft?.reps),
+        sets: coalesceDraftField(saved?.sets, lastDraft?.sets),
+        restCat: saved?.restCat && REST_OPTIONS.some((option) => option.value === saved.restCat)
+          ? saved.restCat
+          : lastDraft?.restCat && REST_OPTIONS.some((option) => option.value === lastDraft.restCat)
+            ? lastDraft.restCat
+            : '',
+        dayFirstType: saved?.dayFirstType === 'RIR' || saved?.dayFirstType === 'Achieved'
+          ? saved.dayFirstType
+          : lastDraft?.dayFirstType === 'RIR' || lastDraft?.dayFirstType === 'Achieved'
+            ? lastDraft.dayFirstType
+            : '',
+        dayFirstValue: coalesceDraftField(saved?.dayFirstValue, lastDraft?.dayFirstValue),
+        dayLastType: saved?.dayLastType === 'RIR' || saved?.dayLastType === 'Achieved'
+          ? saved.dayLastType
+          : lastDraft?.dayLastType === 'RIR' || lastDraft?.dayLastType === 'Achieved'
+            ? lastDraft.dayLastType
+            : '',
+        dayLastValue: coalesceDraftField(saved?.dayLastValue, lastDraft?.dayLastValue),
+        formQuality: coalesceDraftField(saved?.formQuality, lastDraft?.formQuality) || DEFAULT_DRAFT.formQuality,
+        penaltyWeight: typeof saved?.penaltyWeight === 'number' && Number.isFinite(saved.penaltyWeight)
+          ? saved.penaltyWeight
+          : typeof lastDraft?.penaltyWeight === 'number' && Number.isFinite(lastDraft.penaltyWeight)
+            ? lastDraft.penaltyWeight
+            : DEFAULT_DRAFT.penaltyWeight
       }
-      setPenaltyWeight(nextPenalty)
 
-      if (!cancelled && lastSnap) {
-        setLastSnapshot(lastSnap)
-      }
-
-      if (!cancelled) setFormHydrated(true)
+      setDraft(nextDraft)
+      if (lastSnap) setLastSnapshot(lastSnap)
+      setFormHydrated(true)
     }
+
     run()
-    return () => { cancelled = true }
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   useEffect(() => {
     if (!formHydrated) return
-    try {
-      Taro.setStorageSync(STORAGE_KEY, JSON.stringify(draft))
-    } catch (e) {
-      console.error('[calculator] save form data error:', e)
-    }
-  }, [
-    formHydrated,
-    exerciseType, mode, gender, bodyweight,
-    addedWeight, added1RM, workingAddedWeight,
-    liftWeight, target1RM, workingLiftWeight,
-    reps, formQuality, penaltyWeight
-  ])
+    const timer = setTimeout(() => {
+      saveDraftNow()
+    }, 400)
+    return () => clearTimeout(timer)
+  }, [formHydrated, saveDraftNow])
 
-  const penalty = ['Minor_Cheat', 'Major_Cheat', 'Extreme_Cheat'].includes(formQuality) ? penaltyWeight : 0
-  const currentFormula = gender && isUpperBodyExercise(exerciseType) ? formulaMap[gender] || null : null
+  const penalty = useMemo(
+    () => ['Minor_Cheat', 'Major_Cheat', 'Extreme_Cheat'].includes(formQuality) ? penaltyWeight : 0,
+    [formQuality, penaltyWeight]
+  )
+
+  const currentFormula = useMemo(
+    () => gender && isUpperBodyExercise(exerciseType) ? formulaMap[gender] || null : null,
+    [exerciseType, formulaMap, gender]
+  )
+
+  const availableModeOptions = useMemo(
+    () => MODE_OPTIONS.filter((option) => option.value !== 'day_max' || isUpperBodyExercise(exerciseType)),
+    [exerciseType]
+  )
 
   const saveLastSnapshot = (snapshot: CalcSnapshot) => {
     try {
@@ -302,36 +375,40 @@ export default function StreetliftingCalculator() {
     }
   }
 
-  const getOptionLabel = <T extends string>(
-    options: Array<{ label: string; value: T }>,
-    value: string | undefined
-  ) => options.find((item) => item.value === value)?.label || String(value || '')
+  const clearPersistedDraft = useCallback(() => {
+    try {
+      Taro.removeStorageSync(STORAGE_KEY)
+    } catch (e) {
+      console.error('[calculator] clear draft error:', e)
+    }
+    setDraft(DEFAULT_DRAFT)
+    Taro.showToast({ title: '已清除上次输入', icon: 'success' })
+  }, [])
+
+  const getOptionLabel = <T extends string>(options: Array<{ label: string; value: T }>, value: string | undefined) =>
+    options.find((item) => item.value === value)?.label || String(value || '')
 
   const getNumericCompareText = (field: keyof CalcDraft) => {
     if (!lastSnapshot) return ''
-    const prevRaw = lastSnapshot.draft?.[field]
-    const prevStr = prevRaw !== undefined && prevRaw !== null ? String(prevRaw).trim() : ''
-    if (!prevStr) return ''
-    const previous = Number(prevRaw)
+    const previousRaw = lastSnapshot.draft?.[field]
+    const previousStr = previousRaw !== undefined && previousRaw !== null ? String(previousRaw).trim() : ''
+    if (!previousStr) return ''
+    const previous = Number(previousRaw)
     if (!Number.isFinite(previous)) return ''
 
-    const curRaw = draft[field]
-    const curStr =
-      typeof curRaw === 'number' && Number.isFinite(curRaw)
-        ? String(curRaw)
-        : String(curRaw ?? '').trim()
-    // 空输入不应按 0 参与比较，否则会与「上次」产生虚假差值
-    if (curStr === '') {
-      return `上次 ${prevStr}`
-    }
-    const current = Number(curStr)
-    if (!Number.isFinite(current)) {
-      return `上次 ${prevStr}`
-    }
+    const currentRaw = draft[field]
+    const currentStr =
+      typeof currentRaw === 'number' && Number.isFinite(currentRaw)
+        ? String(currentRaw)
+        : String(currentRaw ?? '').trim()
+
+    if (currentStr === '') return `上次 ${previousStr}`
+    const current = Number(currentStr)
+    if (!Number.isFinite(current)) return `上次 ${previousStr}`
     const delta = current - previous
-    if (Math.abs(delta) < 0.0001) return `较上次持平`
-    const prefix = delta > 0 ? '+' : ''
-    return `较上次 ${prefix}${delta.toFixed(field === 'reps' || field === 'penaltyWeight' ? 0 : 1)}`
+    if (Math.abs(delta) < 0.0001) return '较上次持平'
+    const decimals = field === 'reps' || field === 'sets' || field === 'penaltyWeight' ? 0 : 1
+    return `较上次 ${delta > 0 ? '+' : ''}${delta.toFixed(decimals)}`
   }
 
   const getTextCompareText = (field: keyof CalcDraft, formatter?: (value: string) => string) => {
@@ -339,7 +416,7 @@ export default function StreetliftingCalculator() {
     const previous = String(lastSnapshot.draft?.[field] ?? '').trim()
     if (!previous) return ''
     const current = String(draft[field] ?? '').trim()
-    const fmt = (v: string) => (formatter ? formatter(v) : v)
+    const fmt = (value: string) => (formatter ? formatter(value) : value)
     if (current && current === previous) return '较上次一致'
     if (current && current !== previous) return `上次 ${fmt(previous)} · 现 ${fmt(current)}`
     return `上次 ${fmt(previous)}`
@@ -347,44 +424,67 @@ export default function StreetliftingCalculator() {
 
   const handleCalculate = () => {
     setSubmitting(true)
-    const finish = (res: CalcResult) => {
+
+    const finish = (result: CalcResult) => {
+      let workingWeightForPoster: number | null = null
+      if (mode === 'forward') {
+        workingWeightForPoster = isUpperBodyExercise(exerciseType) ? Number(addedWeight) : Number(liftWeight)
+      } else if (mode === 'reverse_reps') {
+        workingWeightForPoster = isUpperBodyExercise(exerciseType) ? Number(workingAddedWeight) : Number(workingLiftWeight)
+      } else if (mode === 'reverse_weight') {
+        workingWeightForPoster = Number(result.computed_added_weight)
+      }
+      if (!Number.isFinite(workingWeightForPoster)) {
+        workingWeightForPoster = typeof result.adjusted_used_weight === 'number' && Number.isFinite(result.adjusted_used_weight)
+          ? result.adjusted_used_weight
+          : null
+      }
+
       try {
         Taro.setStorageSync(RESULT_KEY, JSON.stringify({
-          result: res,
+          result,
           exerciseType,
           mode,
           gender,
           bodyweight,
-          reps
+          reps,
+          workingWeight: workingWeightForPoster
         }))
       } catch (e) {
         console.error('[calculator] save result error:', e)
       }
+
       saveLastSnapshot({
         timestamp: Date.now(),
         draft,
-        result: res
+        result
       })
+
       Taro.navigateTo({ url: '/streetlifting/index/calculator/result' })
     }
+
     try {
       const bw = Number(bodyweight)
       const isMale = gender === 'Male'
+
       if (!gender || !Number.isFinite(bw) || bw <= 0) {
         throw new Error('请填写性别与体重')
       }
-      if (!formQuality) throw new Error('请选择动作质量')
+      if (!formQuality) {
+        throw new Error('请选择动作质量')
+      }
 
-      // 三大项
       if (isPowerliftingExercise(exerciseType)) {
         const coeff = computeDOTSCoefficient(bw, isMale)
+
         if (mode === 'forward') {
-          const lw = Number(liftWeight)
-          const r = Number(reps)
-          if (!Number.isFinite(lw) || lw <= 0 || !Number.isFinite(r) || r <= 0) throw new Error('请填写做组重量与次数')
-          const adjusted = lw - penalty
-          if (adjusted <= 0) throw new Error('惩罚重量过高')
-          const estimated1RM = estimateTotal1RMFromTotalWeightAndReps(adjusted, r)
+          const workingWeight = Number(liftWeight)
+          const repCount = Number(reps)
+          if (!Number.isFinite(workingWeight) || workingWeight <= 0) throw new Error('请填写有效的做组重量')
+          if (!Number.isFinite(repCount) || repCount <= 0) throw new Error('请填写有效的完成次数')
+          const adjusted = workingWeight - penalty
+          if (adjusted <= 0) throw new Error('惩罚重量过高，调整后的重量必须大于 0')
+          const estimated1RM = estimateTotal1RMFromTotalWeightAndReps(adjusted, repCount)
           finish({
             estimated_1rm: estimated1RM,
             final_score: estimated1RM * coeff,
@@ -393,106 +493,124 @@ export default function StreetliftingCalculator() {
           })
           return
         }
+
         if (mode === 'reverse_weight') {
-          const t1 = Number(target1RM)
-          const r = Number(reps)
-          if (!Number.isFinite(t1) || t1 <= 0 || !Number.isFinite(r) || r <= 0) throw new Error('请填写目标1RM与次数')
-          const computed = invertTotalWeightForTarget1RM(t1, r)
+          const existing1RM = Number(target1RM)
+          const repCount = Number(reps)
+          if (!Number.isFinite(existing1RM) || existing1RM <= 0) throw new Error('请填写有效的现有 1RM')
+          if (!Number.isFinite(repCount) || repCount <= 0) throw new Error('请填写有效的完成次数')
+          const computedWeight = invertTotalWeightForTarget1RM(existing1RM, repCount)
           finish({
-            estimated_1rm: t1,
-            final_score: t1 * coeff,
+            estimated_1rm: existing1RM,
+            final_score: existing1RM * coeff,
             coefficient: coeff,
-            computed_added_weight: computed
+            computed_added_weight: computedWeight
           })
           return
         }
+
         if (mode === 'reverse_reps') {
-          const t1 = Number(target1RM)
-          const ww = Number(workingLiftWeight)
-          if (!Number.isFinite(t1) || t1 <= 0 || !Number.isFinite(ww) || ww <= 0) throw new Error('请填写目标1RM与做组重量')
-          if (ww >= t1) throw new Error('做组重量必须小于1RM')
-          const repsCont = estimateRepsForTarget1RMContinuous(t1, ww)
+          const existing1RM = Number(target1RM)
+          const workingWeight = Number(workingLiftWeight)
+          if (!Number.isFinite(existing1RM) || existing1RM <= 0) throw new Error('请填写有效的现有 1RM')
+          if (!Number.isFinite(workingWeight) || workingWeight <= 0) throw new Error('请填写有效的做组重量')
+          if (workingWeight >= existing1RM) throw new Error('做组重量必须小于 1RM')
+          const estimatedReps = estimateRepsFromTotalWeightAndTarget1RM(existing1RM, workingWeight)
           finish({
-            estimated_1rm: t1,
-            final_score: t1 * coeff,
+            estimated_1rm: existing1RM,
+            final_score: existing1RM * coeff,
             coefficient: coeff,
-            computed_reps: Number(repsCont.toFixed(1)),
-            adjusted_used_weight: ww
+            computed_reps: Number(estimatedReps.toFixed(1)),
+            adjusted_used_weight: workingWeight
           })
           return
         }
+
+        throw new Error('三大项不支持做组极限估算')
       }
 
-      // 实力推/弯举
       if (isBenchBasedExercise(exerciseType)) {
         const dots = computeDOTSCoefficient(bw, isMale)
-        const mult = exerciseType === 'strict_press' ? STRICT_PRESS_MULTIPLIER : BARBELL_CURL_MULTIPLIER
+        const multiplier = exerciseType === 'strict_press' ? STRICT_PRESS_MULTIPLIER : BARBELL_CURL_MULTIPLIER
+
         if (mode === 'forward') {
-          const lw = Number(liftWeight)
-          const r = Number(reps)
-          if (!Number.isFinite(lw) || lw <= 0 || !Number.isFinite(r) || r <= 0) throw new Error('请填写做组重量与次数')
-          const adjusted = lw - penalty
-          if (adjusted <= 0) throw new Error('惩罚重量过高')
-          const estimated1RM = estimateTotal1RMFromTotalWeightAndReps(adjusted, r)
+          const workingWeight = Number(liftWeight)
+          const repCount = Number(reps)
+          if (!Number.isFinite(workingWeight) || workingWeight <= 0) throw new Error('请填写有效的做组重量')
+          if (!Number.isFinite(repCount) || repCount <= 0) throw new Error('请填写有效的完成次数')
+          const adjusted = workingWeight - penalty
+          if (adjusted <= 0) throw new Error('惩罚重量过高，调整后的重量必须大于 0')
+          const estimated1RM = estimateTotal1RMFromTotalWeightAndReps(adjusted, repCount)
           finish({
             estimated_1rm: estimated1RM,
-            final_score: estimated1RM * dots * mult,
+            final_score: estimated1RM * dots * multiplier,
             coefficient: dots,
             adjusted_used_weight: adjusted
           })
           return
         }
+
         if (mode === 'reverse_weight') {
-          const t1 = Number(target1RM)
-          const r = Number(reps)
-          if (!Number.isFinite(t1) || t1 <= 0 || !Number.isFinite(r) || r <= 0) throw new Error('请填写目标1RM与次数')
-          const computed = invertTotalWeightForTarget1RM(t1, r)
+          const existing1RM = Number(target1RM)
+          const repCount = Number(reps)
+          if (!Number.isFinite(existing1RM) || existing1RM <= 0) throw new Error('请填写有效的现有 1RM')
+          if (!Number.isFinite(repCount) || repCount <= 0) throw new Error('请填写有效的完成次数')
+          const computedWeight = invertTotalWeightForTarget1RM(existing1RM, repCount)
           finish({
-            estimated_1rm: t1,
-            final_score: t1 * dots * mult,
+            estimated_1rm: existing1RM,
+            final_score: existing1RM * dots * multiplier,
             coefficient: dots,
-            computed_added_weight: computed
+            computed_added_weight: computedWeight
           })
           return
         }
+
         if (mode === 'reverse_reps') {
-          const t1 = Number(target1RM)
-          const ww = Number(workingLiftWeight)
-          if (!Number.isFinite(t1) || t1 <= 0 || !Number.isFinite(ww) || ww <= 0) throw new Error('请填写目标1RM与做组重量')
-          if (ww >= t1) throw new Error('做组重量必须小于1RM')
-          const repsCont = estimateRepsForTarget1RMContinuous(t1, ww)
+          const existing1RM = Number(target1RM)
+          const workingWeight = Number(workingLiftWeight)
+          if (!Number.isFinite(existing1RM) || existing1RM <= 0) throw new Error('请填写有效的现有 1RM')
+          if (!Number.isFinite(workingWeight) || workingWeight <= 0) throw new Error('请填写有效的做组重量')
+          if (workingWeight >= existing1RM) throw new Error('做组重量必须小于 1RM')
+          const estimatedReps = estimateRepsFromTotalWeightAndTarget1RM(existing1RM, workingWeight)
           finish({
-            estimated_1rm: t1,
-            final_score: t1 * dots * mult,
+            estimated_1rm: existing1RM,
+            final_score: existing1RM * dots * multiplier,
             coefficient: dots,
-            computed_reps: Number(repsCont.toFixed(1)),
-            adjusted_used_weight: ww
+            computed_reps: Number(estimatedReps.toFixed(1)),
+            adjusted_used_weight: workingWeight
           })
           return
         }
+
+        throw new Error('该动作不支持做组极限估算')
       }
 
-      // 上肢：引体/臂屈伸
-      if (!isUpperBodyExercise(exerciseType)) throw new Error('未知运动类型')
-      if (loadingFormula) throw new Error('公式加载中，请稍后再试')
-      if (!currentFormula) throw new Error('未找到对应性别/动作的公式')
+      if (!isUpperBodyExercise(exerciseType)) {
+        throw new Error('未知运动类型')
+      }
+      if (loadingFormula) {
+        throw new Error('公式加载中，请稍后再试')
+      }
+      if (!currentFormula) {
+        throw new Error('未找到对应性别/动作的公式')
+      }
 
       const coefficient = computeCoefficient(bw, currentFormula)
 
       if (mode === 'forward') {
         const added = Number(addedWeight)
-        const r = Number(reps)
+        const repCount = Number(reps)
         if (!Number.isFinite(added)) throw new Error('请填写附加负重')
-        if (!Number.isFinite(r) || r < 1 || r > 36) throw new Error('完成次数须在 1-36 之间')
+        if (!Number.isFinite(repCount) || repCount < 1 || repCount > 36) throw new Error('完成次数需在 1-36 之间')
         const adjustedAdded = added - penalty
-        const totalWeight = bw + adjustedAdded
-        if (totalWeight <= 0) throw new Error('惩罚重量过高，导致总重量无效')
-        const total1RM = estimateTotal1RMFromTotalWeightAndReps(totalWeight, r)
-        const added1RMVal = total1RM - bw
+        const totalWorkingWeight = bw + adjustedAdded
+        if (totalWorkingWeight <= 0) throw new Error('惩罚重量过高，导致总重量无效')
+        const total1RM = estimateTotal1RMFromTotalWeightAndReps(totalWorkingWeight, repCount)
+        const added1RMValue = total1RM - bw
         const rawScore = total1RM * coefficient
         const finalScore = exerciseType === 'weighted_dips' ? rawScore / 1.3 : rawScore
         finish({
-          estimated_1rm: added1RMVal,
+          estimated_1rm: added1RMValue,
           final_score: finalScore,
           coefficient,
           adjusted_used_weight: adjustedAdded
@@ -501,17 +619,18 @@ export default function StreetliftingCalculator() {
       }
 
       if (mode === 'reverse_weight') {
-        const a1rm = Number(added1RM)
-        const r = Number(reps)
-        if (!Number.isFinite(a1rm) || !Number.isFinite(r) || r < 1 || r > 36) throw new Error('请填写负重1RM与次数')
-        const targetTotal1RM = bw + a1rm
-        const totalWorkingWeight = invertTotalWeightForTarget1RM(targetTotal1RM, r)
+        const existingAdded1RM = Number(added1RM)
+        const repCount = Number(reps)
+        if (!Number.isFinite(existingAdded1RM)) throw new Error('请填写负重 1RM')
+        if (!Number.isFinite(repCount) || repCount < 1 || repCount > 36) throw new Error('完成次数需在 1-36 之间')
+        const targetTotal1RM = bw + existingAdded1RM
+        const totalWorkingWeight = invertTotalWeightForTarget1RM(targetTotal1RM, repCount)
         const adjustedAdded = totalWorkingWeight - bw
         const computedAdded = adjustedAdded + penalty
         const rawScore = targetTotal1RM * coefficient
         const finalScore = exerciseType === 'weighted_dips' ? rawScore / 1.3 : rawScore
         finish({
-          estimated_1rm: a1rm,
+          estimated_1rm: existingAdded1RM,
           final_score: finalScore,
           coefficient,
           computed_added_weight: computedAdded,
@@ -521,22 +640,70 @@ export default function StreetliftingCalculator() {
       }
 
       if (mode === 'reverse_reps') {
-        const a1rm = Number(added1RM)
-        const wAdded = Number(workingAddedWeight)
-        if (!Number.isFinite(a1rm) || !Number.isFinite(wAdded)) throw new Error('请填写负重1RM与做组重量（附加负重）')
-        const targetTotal1RM = bw + a1rm
-        const adjustedAdded = wAdded - penalty
+        const existingAdded1RM = Number(added1RM)
+        const workingAdded = Number(workingAddedWeight)
+        if (!Number.isFinite(existingAdded1RM)) throw new Error('请填写负重 1RM')
+        if (!Number.isFinite(workingAdded)) throw new Error('请填写做组重量（附加负重）')
+        const targetTotal1RM = bw + existingAdded1RM
+        const adjustedAdded = workingAdded - penalty
         const totalWorkingWeight = bw + adjustedAdded
         if (totalWorkingWeight <= 0) throw new Error('输入导致总重量无效')
-        const repsCont = estimateRepsForTarget1RMContinuous(targetTotal1RM, totalWorkingWeight)
+        const estimatedReps = estimateRepsForTarget1RMContinuous(targetTotal1RM, totalWorkingWeight)
         const rawScore = targetTotal1RM * coefficient
         const finalScore = exerciseType === 'weighted_dips' ? rawScore / 1.3 : rawScore
         finish({
-          estimated_1rm: a1rm,
+          estimated_1rm: existingAdded1RM,
           final_score: finalScore,
           coefficient,
-          computed_reps: Number(repsCont.toFixed(1)),
+          computed_reps: Number(estimatedReps.toFixed(1)),
           adjusted_used_weight: adjustedAdded
+        })
+        return
+      }
+
+      if (mode === 'day_max') {
+        const setCount = Number(sets)
+        const repCount = Number(reps)
+        const added = Number(addedWeight)
+        if (!Number.isFinite(setCount) || setCount <= 0) throw new Error('请填写有效的组数')
+        if (!Number.isFinite(repCount) || repCount <= 0) throw new Error('请填写有效的每组次数')
+        if (!Number.isFinite(added)) throw new Error('请填写做组重量（附加负重）')
+
+        const firstSet = dayFirstType && dayFirstValue.trim() !== ''
+          ? { type: dayFirstType, value: Number(dayFirstValue) }
+          : undefined
+        const lastSet = dayLastType && dayLastValue.trim() !== ''
+          ? { type: dayLastType, value: Number(dayLastValue) }
+          : undefined
+
+        if (!firstSet && !lastSet) {
+          throw new Error('请至少输入第一组或最后一组的信息')
+        }
+        if (firstSet && !Number.isFinite(firstSet.value)) {
+          throw new Error('请填写有效的第一组信息')
+        }
+        if (lastSet && !Number.isFinite(lastSet.value)) {
+          throw new Error('请填写有效的最后一组信息')
+        }
+
+        const { total1RM, added1RM: dayMaxAdded1RM } = estimateDayMaxFromSets({
+          bodyweight: bw,
+          addedWeight: added,
+          penaltyWeight: penalty,
+          sets: setCount,
+          reps: repCount,
+          restCat: (restCat || 'long') as RestCat,
+          firstSet,
+          lastSet
+        })
+
+        const rawScore = total1RM * coefficient
+        const finalScore = exerciseType === 'weighted_dips' ? rawScore / 1.3 : rawScore
+        finish({
+          estimated_1rm: dayMaxAdded1RM,
+          final_score: finalScore,
+          coefficient,
+          adjusted_used_weight: added - penalty
         })
         return
       }
@@ -560,7 +727,6 @@ export default function StreetliftingCalculator() {
     <View className='calc-page'>
       <ScrollView className='calc-scroll' scrollY>
         <View className='calc-card'>
-          {/* 表单区域 */}
           <View className='calc-form-wrap'>
             <View className='form-row'>
               {renderLabel('运动类型', getTextCompareText('exerciseType', (value) => getOptionLabel(EXERCISE_OPTIONS, value)))}
@@ -568,13 +734,18 @@ export default function StreetliftingCalculator() {
                 mode='selector'
                 range={EXERCISE_OPTIONS}
                 rangeKey='label'
-                value={EXERCISE_OPTIONS.findIndex((o) => o.value === exerciseType)}
+                value={Math.max(0, EXERCISE_OPTIONS.findIndex((option) => option.value === exerciseType))}
                 onChange={(e) => {
-                  const i = Number(e.detail.value)
-                  if (i >= 0) setExerciseType(EXERCISE_OPTIONS[i].value)
+                  const index = Number(e.detail.value)
+                  if (index < 0) return
+                  const nextExerciseType = EXERCISE_OPTIONS[index].value
+                  patchDraft({
+                    exerciseType: nextExerciseType,
+                    mode: !isUpperBodyExercise(nextExerciseType) && mode === 'day_max' ? 'forward' : mode
+                  })
                 }}
               >
-                <View className='picker-value'>{EXERCISE_OPTIONS.find((o) => o.value === exerciseType)?.label || '请选择'}</View>
+                <View className='picker-value'>{getOptionLabel(EXERCISE_OPTIONS, exerciseType)}</View>
               </Picker>
             </View>
 
@@ -582,15 +753,15 @@ export default function StreetliftingCalculator() {
               {renderLabel('计算模式', getTextCompareText('mode', (value) => getOptionLabel(MODE_OPTIONS, value as CalcMode)))}
               <Picker
                 mode='selector'
-                range={MODE_OPTIONS}
+                range={availableModeOptions}
                 rangeKey='label'
-                value={MODE_OPTIONS.findIndex((o) => o.value === mode)}
+                value={Math.max(0, availableModeOptions.findIndex((option) => option.value === mode))}
                 onChange={(e) => {
-                  const i = Number(e.detail.value)
-                  if (i >= 0) setMode(MODE_OPTIONS[i].value)
+                  const index = Number(e.detail.value)
+                  if (index >= 0) patchDraft({ mode: availableModeOptions[index].value })
                 }}
               >
-                <View className='picker-value'>{MODE_OPTIONS.find((o) => o.value === mode)?.label || '请选择'}</View>
+                <View className='picker-value'>{getOptionLabel(availableModeOptions, mode)}</View>
               </Picker>
             </View>
 
@@ -600,60 +771,44 @@ export default function StreetliftingCalculator() {
                 mode='selector'
                 range={GENDER_OPTIONS}
                 rangeKey='label'
-                value={gender ? GENDER_OPTIONS.findIndex((o) => o.value === gender) : 0}
+                value={gender ? Math.max(0, GENDER_OPTIONS.findIndex((option) => option.value === gender)) : 0}
                 onChange={(e) => {
-                  const i = Number(e.detail.value)
-                  if (i >= 0) setGender(GENDER_OPTIONS[i].value)
+                  const index = Number(e.detail.value)
+                  if (index >= 0) patchDraft({ gender: GENDER_OPTIONS[index].value })
                 }}
               >
-                <View className='picker-value'>{gender ? GENDER_OPTIONS.find((o) => o.value === gender)?.label : '请选择'}</View>
+                <View className='picker-value'>{gender ? getOptionLabel(GENDER_OPTIONS, gender) : '请选择'}</View>
               </Picker>
             </View>
 
             <View className='form-row'>
               {renderLabel('体重（kg）', getNumericCompareText('bodyweight'))}
-              <Input
-                className='input'
-                type='digit'
-                placeholder='例如 70.5'
-                value={bodyweight}
-                onInput={(e) => { setBodyweight(e.detail.value) }}
-              />
+              <Input className='input' type='digit' placeholder='例如 70.5' value={bodyweight} onInput={(e) => patchDraft({ bodyweight: e.detail.value })} />
             </View>
 
             {isUpperBodyExercise(exerciseType) && mode === 'forward' && (
               <View className='form-row'>
                 {renderLabel('附加负重（kg）', getNumericCompareText('addedWeight'))}
-                <Input
-                  className='input'
-                  type='digit'
-                  placeholder='例如 20'
-                  value={addedWeight}
-                  onInput={(e) => { setAddedWeight(e.detail.value) }}
-                />
+                <Input className='input' type='digit' placeholder='例如 20' value={addedWeight} onInput={(e) => patchDraft({ addedWeight: e.detail.value })} />
               </View>
             )}
+
             {isUpperBodyExercise(exerciseType) && mode === 'reverse_weight' && (
               <View className='form-row'>
-                {renderLabel('目标负重1RM（kg）', getNumericCompareText('added1RM'))}
-                <Input
-                  className='input'
-                  type='digit'
-                  placeholder='例如 50'
-                  value={added1RM}
-                  onInput={(e) => { setAdded1RM(e.detail.value) }}
-                />
+                {renderLabel('目标负重 1RM（kg）', getNumericCompareText('added1RM'))}
+                <Input className='input' type='digit' placeholder='例如 50' value={added1RM} onInput={(e) => patchDraft({ added1RM: e.detail.value })} />
               </View>
             )}
+
             {isUpperBodyExercise(exerciseType) && mode === 'reverse_reps' && (
               <>
                 <View className='form-row'>
-                  {renderLabel('目标负重1RM（kg）', getNumericCompareText('added1RM'))}
-                  <Input className='input' type='digit' placeholder='例如 50' value={added1RM} onInput={(e) => { setAdded1RM(e.detail.value) }} />
+                  {renderLabel('目标负重 1RM（kg）', getNumericCompareText('added1RM'))}
+                  <Input className='input' type='digit' placeholder='例如 50' value={added1RM} onInput={(e) => patchDraft({ added1RM: e.detail.value })} />
                 </View>
                 <View className='form-row'>
                   {renderLabel('做组重量·附加负重（kg）', getNumericCompareText('workingAddedWeight'))}
-                  <Input className='input' type='digit' placeholder='例如 20' value={workingAddedWeight} onInput={(e) => { setWorkingAddedWeight(e.detail.value) }} />
+                  <Input className='input' type='digit' placeholder='例如 20' value={workingAddedWeight} onInput={(e) => patchDraft({ workingAddedWeight: e.detail.value })} />
                 </View>
               </>
             )}
@@ -661,19 +816,20 @@ export default function StreetliftingCalculator() {
             {(isPowerliftingExercise(exerciseType) || isBenchBasedExercise(exerciseType)) && mode === 'forward' && (
               <View className='form-row'>
                 {renderLabel('做组重量（kg）', getNumericCompareText('liftWeight'))}
-                <Input className='input' type='digit' placeholder='例如 100' value={liftWeight} onInput={(e) => { setLiftWeight(e.detail.value) }} />
+                <Input className='input' type='digit' placeholder='例如 100' value={liftWeight} onInput={(e) => patchDraft({ liftWeight: e.detail.value })} />
               </View>
             )}
+
             {(isPowerliftingExercise(exerciseType) || isBenchBasedExercise(exerciseType)) && (mode === 'reverse_weight' || mode === 'reverse_reps') && (
               <>
                 <View className='form-row'>
-                  {renderLabel('目标1RM（kg）', getNumericCompareText('target1RM'))}
-                  <Input className='input' type='digit' placeholder='例如 200' value={target1RM} onInput={(e) => { setTarget1RM(e.detail.value) }} />
+                  {renderLabel('目标 1RM（kg）', getNumericCompareText('target1RM'))}
+                  <Input className='input' type='digit' placeholder='例如 200' value={target1RM} onInput={(e) => patchDraft({ target1RM: e.detail.value })} />
                 </View>
                 {mode === 'reverse_reps' && (
                   <View className='form-row'>
                     {renderLabel('做组重量（kg）', getNumericCompareText('workingLiftWeight'))}
-                    <Input className='input' type='digit' placeholder='例如 150' value={workingLiftWeight} onInput={(e) => { setWorkingLiftWeight(e.detail.value) }} />
+                    <Input className='input' type='digit' placeholder='例如 150' value={workingLiftWeight} onInput={(e) => patchDraft({ workingLiftWeight: e.detail.value })} />
                   </View>
                 )}
               </>
@@ -681,8 +837,80 @@ export default function StreetliftingCalculator() {
 
             <View className='form-row'>
               {renderLabel(mode === 'day_max' ? '每组次数' : '完成次数', getNumericCompareText('reps'))}
-              <Input className='input' type='number' placeholder='例如 5' value={reps} onInput={(e) => { setReps(e.detail.value) }} />
+              <Input className='input' type='number' placeholder='例如 5' value={reps} onInput={(e) => patchDraft({ reps: e.detail.value })} />
             </View>
+
+            {mode === 'day_max' && isUpperBodyExercise(exerciseType) && (
+              <View className='calc-section'>
+                <Text className='calc-section-hint'>
+                  做组极限估算会结合组数、休息和第一组/最后一组的完成情况估算当天负重极限。若两者都填写，第一组权重更高。
+                </Text>
+
+                <View className='form-row'>
+                  {renderLabel('做组重量（附加负重 kg）', getNumericCompareText('addedWeight'))}
+                  <Input className='input' type='digit' placeholder='例如 20' value={addedWeight} onInput={(e) => patchDraft({ addedWeight: e.detail.value })} />
+                </View>
+
+                <View className='form-row'>
+                  {renderLabel('组数', getNumericCompareText('sets'))}
+                  <Input className='input' type='number' placeholder='例如 4' value={sets} onInput={(e) => patchDraft({ sets: e.detail.value })} />
+                </View>
+
+                <View className='form-row'>
+                  {renderLabel('平均休息', getTextCompareText('restCat', (value) => getOptionLabel(REST_OPTIONS, value as RestCat)))}
+                  <Picker
+                    mode='selector'
+                    range={REST_OPTIONS}
+                    rangeKey='label'
+                    value={restCat ? Math.max(0, REST_OPTIONS.findIndex((option) => option.value === restCat)) : 0}
+                    onChange={(e) => {
+                      const index = Number(e.detail.value)
+                      if (index >= 0) patchDraft({ restCat: REST_OPTIONS[index].value })
+                    }}
+                  >
+                    <View className='picker-value'>{restCat ? getOptionLabel(REST_OPTIONS, restCat) : '请选择'}</View>
+                  </Picker>
+                </View>
+
+                <View className='form-row'>
+                  {renderLabel('第一组信息（可选）', getTextCompareText('dayFirstType', (value) => getOptionLabel(SET_FEEDBACK_TYPE_OPTIONS, value as 'RIR' | 'Achieved')))}
+                  <View className='inline-grid'>
+                    <Picker
+                      mode='selector'
+                      range={SET_FEEDBACK_TYPE_OPTIONS}
+                      rangeKey='label'
+                      value={dayFirstType ? Math.max(0, SET_FEEDBACK_TYPE_OPTIONS.findIndex((option) => option.value === dayFirstType)) : 0}
+                      onChange={(e) => {
+                        const index = Number(e.detail.value)
+                        if (index >= 0) patchDraft({ dayFirstType: SET_FEEDBACK_TYPE_OPTIONS[index].value })
+                      }}
+                    >
+                      <View className='picker-value'>{dayFirstType ? getOptionLabel(SET_FEEDBACK_TYPE_OPTIONS, dayFirstType) : '类型'}</View>
+                    </Picker>
+                    <Input className='input' type='digit' placeholder='数值' value={dayFirstValue} onInput={(e) => patchDraft({ dayFirstValue: e.detail.value })} />
+                  </View>
+                </View>
+
+                <View className='form-row'>
+                  {renderLabel('最后一组信息（可选）', getTextCompareText('dayLastType', (value) => getOptionLabel(SET_FEEDBACK_TYPE_OPTIONS, value as 'RIR' | 'Achieved')))}
+                  <View className='inline-grid'>
+                    <Picker
+                      mode='selector'
+                      range={SET_FEEDBACK_TYPE_OPTIONS}
+                      rangeKey='label'
+                      value={dayLastType ? Math.max(0, SET_FEEDBACK_TYPE_OPTIONS.findIndex((option) => option.value === dayLastType)) : 0}
+                      onChange={(e) => {
+                        const index = Number(e.detail.value)
+                        if (index >= 0) patchDraft({ dayLastType: SET_FEEDBACK_TYPE_OPTIONS[index].value })
+                      }}
+                    >
+                      <View className='picker-value'>{dayLastType ? getOptionLabel(SET_FEEDBACK_TYPE_OPTIONS, dayLastType) : '类型'}</View>
+                    </Picker>
+                    <Input className='input' type='digit' placeholder='数值' value={dayLastValue} onInput={(e) => patchDraft({ dayLastValue: e.detail.value })} />
+                  </View>
+                </View>
+              </View>
+            )}
 
             <View className='form-row'>
               {renderLabel('动作质量', getTextCompareText('formQuality', (value) => getOptionLabel(QUALITY_OPTIONS, value)))}
@@ -690,18 +918,20 @@ export default function StreetliftingCalculator() {
                 mode='selector'
                 range={QUALITY_OPTIONS}
                 rangeKey='label'
-                value={formQuality ? QUALITY_OPTIONS.findIndex((o) => o.value === formQuality) : 0}
+                value={formQuality ? Math.max(0, QUALITY_OPTIONS.findIndex((option) => option.value === formQuality)) : 0}
                 onChange={(e) => {
-                  const i = Number(e.detail.value)
-                  if (i >= 0) {
-                    setFormQuality(QUALITY_OPTIONS[i].value)
-                    if (QUALITY_OPTIONS[i].value === 'Minor_Cheat') setPenaltyWeight(3)
-                    else if (QUALITY_OPTIONS[i].value === 'Major_Cheat') setPenaltyWeight(10)
-                    else if (QUALITY_OPTIONS[i].value === 'Extreme_Cheat') setPenaltyWeight(30)
-                  }
+                  const index = Number(e.detail.value)
+                  if (index < 0) return
+                  const nextFormQuality = QUALITY_OPTIONS[index].value
+                  patchDraft({
+                    formQuality: nextFormQuality,
+                    penaltyWeight: ['Minor_Cheat', 'Major_Cheat', 'Extreme_Cheat'].includes(nextFormQuality)
+                      ? getPenaltyPreset(nextFormQuality)
+                      : penaltyWeight
+                  })
                 }}
               >
-                <View className='picker-value'>{formQuality ? QUALITY_OPTIONS.find((o) => o.value === formQuality)?.label : '请选择'}</View>
+                <View className='picker-value'>{formQuality ? getOptionLabel(QUALITY_OPTIONS, formQuality) : '请选择'}</View>
               </Picker>
             </View>
 
@@ -712,7 +942,7 @@ export default function StreetliftingCalculator() {
                   className='input'
                   type='digit'
                   value={String(penaltyWeight)}
-                  onInput={(e) => { setPenaltyWeight(Number(e.detail.value) || 0) }}
+                  onInput={(e) => patchDraft({ penaltyWeight: Number(e.detail.value) || 0 })}
                 />
               </View>
             )}
@@ -729,9 +959,14 @@ export default function StreetliftingCalculator() {
               </View>
             )}
 
-            <Button className='btn-calc' onClick={handleCalculate} disabled={submitting}>
-              {submitting ? '计算中...' : '开始计算'}
-            </Button>
+            <View className='action-row'>
+              <Button className='btn-secondary' onClick={clearPersistedDraft}>
+                清空上次输入
+              </Button>
+              <Button className='btn-calc' onClick={handleCalculate} disabled={submitting}>
+                {submitting ? '计算中…' : '开始计算'}
+              </Button>
+            </View>
 
             {lastSnapshot?.result ? (
               <View className='calc-last-run-card'>
@@ -745,7 +980,6 @@ export default function StreetliftingCalculator() {
               </View>
             ) : null}
           </View>
-
         </View>
       </ScrollView>
     </View>

@@ -3,9 +3,8 @@ import { View, Text, ScrollView } from '@tarojs/components'
 import Taro, { useDidShow, usePullDownRefresh } from '@tarojs/taro'
 import BottomNav from '@/components/BottomNav'
 import { request } from '@/utils/request'
-import './index.scss'
-import { Check, Close } from '@nutui/icons-react-taro'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
+import './index.scss'
 
 type MembershipTier = 'free' | 'basic' | 'premium' | 'trial'
 
@@ -21,13 +20,6 @@ interface QuotaData {
   storage_used_mb: number
 }
 
-const AI_LIMIT_BY_TIER: Record<MembershipTier, number | null> = {
-  free: 2,
-  basic: 10,
-  premium: null,
-  trial: null
-}
-
 const TIER_TEXT: Record<MembershipTier, string> = {
   free: '免费用户',
   basic: '基础会员',
@@ -35,12 +27,26 @@ const TIER_TEXT: Record<MembershipTier, string> = {
   trial: '试用会员'
 }
 
+const AI_HINT_BY_TIER: Record<MembershipTier, string> = {
+  free: '用于生成个性化训练计划',
+  basic: '用于生成个性化训练计划',
+  premium: '高级会员无限量使用',
+  trial: '试用期间按活动规则使用'
+}
+
+const TIER_TONE_CLASS: Record<MembershipTier, string> = {
+  free: 'tier-pill-neutral',
+  basic: 'tier-pill-info',
+  premium: 'tier-pill-premium',
+  trial: 'tier-pill-trial'
+}
+
 export default function MembershipPage() {
   const [membership, setMembership] = useState<MembershipData | null>(null)
   const [quota, setQuota] = useState<QuotaData | null>(null)
   const [loading, setLoading] = useState(true)
 
-  const loadQuota = useCallback(async () => {
+  const loadMembership = useCallback(async () => {
     try {
       setLoading(true)
       const [statusRes, quotaRes] = await Promise.all([
@@ -59,130 +65,146 @@ export default function MembershipPage() {
       if (statusRes.success && statusRes.data) {
         setMembership(statusRes.data)
       }
+
       if (quotaRes.success && quotaRes.data) {
         setQuota(quotaRes.data)
       }
     } catch (error) {
-      console.error('加载配额失败:', error)
+      console.error('加载会员数据失败:', error)
     } finally {
       setLoading(false)
     }
   }, [])
 
   useDidShow(() => {
-    loadQuota()
+    loadMembership()
   })
 
   usePullDownRefresh(() => {
-    loadQuota().finally(() => Taro.stopPullDownRefresh())
+    loadMembership().finally(() => Taro.stopPullDownRefresh())
   })
 
-  const handleUpgrade = (tab: 'membership' | 'addon' = 'membership') => {
+  const navigateToSubscribe = (tab: 'membership' | 'addon' = 'membership') => {
     Taro.navigateTo({ url: `/me/membership/subscribe/index?tab=${tab}` })
+  }
+
+  const navigateToReferral = () => {
+    Taro.navigateTo({ url: '/me/membership/referral/index' })
   }
 
   if (loading) {
     return (
       <View className='membership-page'>
-        <View className="loading"><LoadingSpinner size={48} /></View>
+        <View className='loading-wrap'>
+          <LoadingSpinner size={48} />
+        </View>
         <BottomNav />
       </View>
     )
   }
 
   const tier = membership?.tier || 'free'
-  const aiTotal = AI_LIMIT_BY_TIER[tier]
+  const isFree = tier === 'free'
+  const isPremium = tier === 'premium'
   const aiRemaining = Math.max(0, Number(quota?.ai_import_balance || 0))
-  const aiUsed = aiTotal == null ? 0 : Math.max(0, aiTotal - aiRemaining)
-  const aiPercent = aiTotal == null || aiTotal <= 0 ? 0 : Math.min(100, Math.round((aiUsed / aiTotal) * 100))
-
   const storageUsed = Math.max(0, Number(quota?.storage_used_mb || 0))
-  const storageTotal = Math.max(1, Number(quota?.storage_total_mb || 200))
+  const storageTotal = Math.max(1, Number(quota?.storage_total_mb || 0))
   const storagePercent = Math.min(100, Math.round((storageUsed / storageTotal) * 100))
+  const endDateText =
+    membership?.status === 'active' && membership?.end_date
+      ? `有效期至：${new Date(membership.end_date).toLocaleDateString()}`
+      : ''
 
   return (
     <View className='membership-page'>
       <ScrollView className='page-scroll' scrollY>
         <View className='page-content'>
-          {/* 会员状态卡片 */}
-          <View className='membership-card'>
-            <View className='tier-badge'>
-              <Text>{TIER_TEXT[tier]}</Text>
+          <View className='status-card'>
+            <View className='card-head'>
+              <View className='card-head-copy'>
+                <Text className='card-title'>当前等级</Text>
+                <Text className='card-subtitle'>您的会员权益状态</Text>
+              </View>
+              <View className={`tier-mark ${TIER_TONE_CLASS[tier]}`}>
+                <Text className='tier-mark-text'>会</Text>
+              </View>
             </View>
-            <Text className='expiry-text'>
-              {membership?.status === 'active' && membership?.end_date
-                ? `有效期至 ${new Date(membership.end_date).toLocaleDateString()}`
-                : '长期有效'}
-            </Text>
+
+            <View className='status-row'>
+              <View className={`tier-pill ${TIER_TONE_CLASS[tier]}`}>
+                <Text className='tier-pill-text'>{TIER_TEXT[tier]}</Text>
+              </View>
+              {endDateText ? <Text className='status-date'>{endDateText}</Text> : null}
+            </View>
+
+            {isFree ? (
+              <View className='upgrade-panel'>
+                <Text className='upgrade-copy'>
+                  升级会员解锁更多智能生成次数和存储空间，提升训练效率。
+                </Text>
+                <View className='action-button primary' onClick={() => navigateToSubscribe('membership')}>
+                  <Text className='action-button-text primary'>立即升级</Text>
+                </View>
+              </View>
+            ) : (
+              <View className='actions-row'>
+                <View className='action-button secondary' onClick={() => navigateToSubscribe('membership')}>
+                  <Text className='action-button-text secondary'>续费/升级</Text>
+                </View>
+              </View>
+            )}
           </View>
 
-          {/* AI导入配额 */}
-          <View className='quota-card'>
-            <View className='quota-header'>
-              <Text className='quota-title'>AI 导入配额</Text>
-              <Text className={`quota-status ${aiPercent >= 80 ? 'warning' : ''}`}>
-                {aiTotal == null ? '无限次可用' : `${aiRemaining} 次剩余`}
+          <View className='quota-grid'>
+            <View className='quota-card'>
+              <View className='quota-head'>
+                <Text className='quota-title'>智能导入次数</Text>
+                <View className='quota-badge'>
+                  <Text className='quota-badge-text'>AI</Text>
+                </View>
+              </View>
+              <View className='quota-main-row'>
+                <Text className='quota-value'>{aiRemaining}</Text>
+                <Text className='quota-unit'>次</Text>
+              </View>
+              <Text className='quota-note'>{AI_HINT_BY_TIER[tier]}</Text>
+              {!isPremium ? (
+                <View className='inline-link' onClick={() => navigateToSubscribe('addon')}>
+                  <Text className='inline-link-text'>购买加油包</Text>
+                </View>
+              ) : null}
+            </View>
+
+            <View className='quota-card'>
+              <View className='quota-head'>
+                <Text className='quota-title'>云存储空间</Text>
+                <View className='quota-badge'>
+                  <Text className='quota-badge-text'>MB</Text>
+                </View>
+              </View>
+              <View className='quota-storage-row'>
+                <Text className='quota-value'>{storageUsed.toFixed(1)}</Text>
+                <Text className='quota-unit'>/ {storageTotal.toFixed(0)} MB</Text>
+              </View>
+              <View className='progress-track'>
+                <View className='progress-fill' style={{ width: `${storagePercent}%` }} />
+              </View>
+              <Text className='quota-note'>用于存储训练视频和动态</Text>
+              <View className='inline-link' onClick={() => navigateToSubscribe('addon')}>
+                <Text className='inline-link-text'>扩容空间</Text>
+              </View>
+            </View>
+          </View>
+
+          <View className='referral-card'>
+            <View className='referral-copy'>
+              <Text className='referral-title'>邀请好友，免费领会员</Text>
+              <Text className='referral-subtitle'>
+                每邀请一位好友注册，双方各获 AI 导入 +2 次 和 存储 +200MB 奖励。
               </Text>
             </View>
-            {aiTotal != null && (
-              <View className='progress-bar'>
-                <View
-                  className={`progress-fill ${aiPercent >= 80 ? 'warning' : ''}`}
-                  style={{ width: `${aiPercent}%` }}
-                />
-              </View>
-            )}
-            <Text className='quota-detail'>
-              {aiTotal == null ? '高级会员无限量使用' : `已用 ${aiUsed} / ${aiTotal} 次`}
-            </Text>
-            {aiTotal != null && aiPercent >= 80 && (
-              <View className='upgrade-tip' onClick={() => handleUpgrade(aiRemaining <= 0 ? 'addon' : 'membership')}>
-                <Text>{aiRemaining <= 0 ? '配额已耗尽，去购买加油包' : '配额偏低，去升级会员'}</Text>
-              </View>
-            )}
-          </View>
-
-          {/* 云存储配额 */}
-          <View className='quota-card'>
-            <View className='quota-header'>
-              <Text className='quota-title'> 云存储空间</Text>
-              <Text className={`quota-status ${storagePercent >= 80 ? 'warning' : ''}`}>
-                {storageUsed.toFixed(1)} / {storageTotal.toFixed(0)} MB
-              </Text>
-            </View>
-            <View className='progress-bar'>
-              <View
-                className={`progress-fill ${storagePercent >= 80 ? 'warning' : ''}`}
-                style={{ width: `${storagePercent}%` }}
-              />
-            </View>
-            {storagePercent >= 80 && (
-              <View className='upgrade-tip' onClick={() => handleUpgrade('addon')}>
-                <Text>存储空间偏低，去购买扩容包</Text>
-              </View>
-            )}
-          </View>
-
-          {/* 会员权益 */}
-          <View className='benefits-section'>
-            <Text className='section-title'>会员权益</Text>
-            <View className='benefit-list'>
-              <View className='benefit-item'>
-                <View className='benefit-icon'><Check /></View>
-                <Text className='benefit-text'>无限次 AI 计划导入</Text>
-              </View>
-              <View className='benefit-item'>
-                <View className='benefit-icon'><Check /></View>
-                <Text className='benefit-text'>10GB 云存储空间</Text>
-              </View>
-              <View className='benefit-item'>
-                <View className='benefit-icon'><Check /></View>
-                <Text className='benefit-text'>高级训练数据分析</Text>
-              </View>
-              <View className='benefit-item disabled'>
-                <View className='benefit-icon'><Close /></View>
-                <Text className='benefit-text'>专属客服支持（高级会员）</Text>
-              </View>
+            <View className='action-button tertiary' onClick={navigateToReferral}>
+              <Text className='action-button-text tertiary'>去邀请</Text>
             </View>
           </View>
         </View>

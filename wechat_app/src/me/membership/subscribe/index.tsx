@@ -3,6 +3,10 @@ import { View, Text, ScrollView } from '@tarojs/components'
 import Taro, { useDidShow, useRouter } from '@tarojs/taro'
 import BottomNav from '@/components/BottomNav'
 import { request } from '@/utils/request'
+import {
+  createMembershipWechatPayment,
+  requestWechatPayment
+} from '@/services/paymentService'
 import './index.scss'
 import { Check, Notice } from '@nutui/icons-react-taro'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
@@ -11,10 +15,6 @@ type MembershipTier = 'free' | 'basic' | 'premium' | 'trial'
 
 interface MembershipData {
   tier: MembershipTier
-}
-
-interface CouponData {
-  id: string
 }
 
 interface PlanItem {
@@ -69,8 +69,8 @@ function MembershipSubscribe() {
   const [loading, setLoading] = useState(true)
   const [plans, setPlans] = useState<PlanItem[]>([])
   const [currentTier, setCurrentTier] = useState<MembershipTier>('free')
-  const [couponCount, setCouponCount] = useState(0)
   const [activeTab, setActiveTab] = useState<'membership' | 'addon'>('membership')
+  const [payingPlanId, setPayingPlanId] = useState('')
 
   useEffect(() => {
     const tab = router.params?.tab as string
@@ -86,14 +86,9 @@ function MembershipSubscribe() {
   const loadPlans = async () => {
     try {
       setLoading(true)
-      const [statusRes, couponRes] = await Promise.all([
+      const [statusRes] = await Promise.all([
         request<MembershipData>({
           url: '/api/membership/get-status',
-          method: 'POST',
-          data: {}
-        }),
-        request<CouponData[]>({
-          url: '/api/membership/list-coupons',
           method: 'POST',
           data: {}
         })
@@ -101,9 +96,6 @@ function MembershipSubscribe() {
 
       if (statusRes.success && statusRes.data?.tier) {
         setCurrentTier(statusRes.data.tier)
-      }
-      if (couponRes.success && Array.isArray(couponRes.data)) {
-        setCouponCount(couponRes.data.length)
       }
 
       setPlans(PLAN_ITEMS.filter((item) => item.tab === activeTab))
@@ -119,7 +111,9 @@ function MembershipSubscribe() {
     setPlans(PLAN_ITEMS.filter((item) => item.tab === activeTab))
   }, [activeTab])
 
-  const handleSubscribe = (plan: PlanItem) => {
+  const handleSubscribe = async (plan: PlanItem) => {
+    if (payingPlanId) return
+
     if (plan.tier && (currentTier === plan.tier || (currentTier === 'trial' && plan.tier === 'premium'))) {
       Taro.showToast({
         title: '当前已是该会员等级',
@@ -128,11 +122,29 @@ function MembershipSubscribe() {
       return
     }
 
-    const tab = plan.tab === 'addon' ? 'addon' : 'membership'
-    const webviewUrl = `/me/payment/webview/index?target=membership&tab=${tab}&productKey=${plan.id}&autoPurchase=1`
-    Taro.navigateTo({
-      url: webviewUrl
-    })
+    try {
+      setPayingPlanId(plan.id)
+      const payment = await createMembershipWechatPayment({
+        productKey: plan.id
+      })
+
+      if (!payment.success || !payment.data?.orderId || !payment.data?.paymentParams) {
+        throw new Error(payment.message || '创建支付单失败，请稍后重试')
+      }
+
+      const paymentResult = await requestWechatPayment(payment.data.paymentParams)
+
+      Taro.navigateTo({
+        url: `/me/payment-waiting/index?orderId=${encodeURIComponent(payment.data.orderId)}&amount=${encodeURIComponent(String(payment.data.amount))}&provider=wechat&target=membership&membershipTab=${encodeURIComponent(activeTab)}&initialStatus=${encodeURIComponent(paymentResult.status)}`
+      })
+    } catch (error: any) {
+      Taro.showToast({
+        title: error?.message || '拉起微信支付失败',
+        icon: 'none'
+      })
+    } finally {
+      setPayingPlanId('')
+    }
   }
 
   return (
@@ -160,12 +172,6 @@ function MembershipSubscribe() {
               <Text>加油包</Text>
             </View>
           </View>
-
-          {couponCount > 0 && (
-            <View className='coupon-tip'>
-              <Text>您有 {couponCount} 张可用优惠券，进入购买页后可按网页端流程继续使用。</Text>
-            </View>
-          )}
 
           {loading ? (
             <View className='loading-wrap'>
@@ -203,10 +209,10 @@ function MembershipSubscribe() {
                       ))}
                     </View>
                     <View 
-                      className='subscribe-btn'
+                      className={`subscribe-btn ${payingPlanId === plan.id ? 'is-paying' : ''}`}
                       onClick={() => handleSubscribe(plan)}
                     >
-                      <Text>立即购买</Text>
+                      <Text>{payingPlanId === plan.id ? '拉起支付中...' : '立即购买'}</Text>
                     </View>
                   </View>
                 ))
@@ -216,7 +222,7 @@ function MembershipSubscribe() {
 
           <View className='notice-box'>
             <View className='notice-text'>
-              <Notice /> 提示：支付会在小程序内打开与网站一致的购买页，当前优先支持支付宝完成支付
+              <Notice /> 提示：会员升级现在会直接拉起小程序微信支付，请确认当前微信账号已完成小程序登录。
             </View>
           </View>
         </View>

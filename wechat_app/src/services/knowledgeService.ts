@@ -160,6 +160,8 @@ class KnowledgeService extends BaseService {
   async listNodes(params?: {
     parentId?: string
     bodyRegion?: string
+    mode?: 'screening' | 'training'
+    limit?: number
     published?: boolean
   }): Promise<{ nodes: KnowledgeNodeListItem[]; articles: KnowledgeNodeListItem[] }> {
     const query: string[] = []
@@ -168,6 +170,12 @@ class KnowledgeService extends BaseService {
     }
     if (params?.bodyRegion) {
       query.push(`body_region=${encodeURIComponent(params.bodyRegion)}`)
+    }
+    if (params?.mode) {
+      query.push(`mode=${encodeURIComponent(params.mode)}`)
+    }
+    if (params?.limit) {
+      query.push(`limit=${encodeURIComponent(String(params.limit))}`)
     }
     if (params?.published === false) {
       query.push('published=false')

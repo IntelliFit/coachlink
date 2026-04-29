@@ -145,13 +145,22 @@
 .scene-card {
   background: #FFFFFF;
   border-radius: 32rpx;
-  padding: 32rpx 24rpx;
+  padding: 0 24rpx 32rpx;
   box-shadow: 0 4rpx 24rpx rgba(0, 0, 0, 0.04);
+  overflow: hidden;
 
   &:active {
     transform: scale(0.97);
     box-shadow: 0 8rpx 32rpx rgba(0, 0, 0, 0.08);
   }
+}
+
+.scene-cover {
+  width: calc(100% + 48rpx);
+  height: 184rpx;
+  margin: 0 -24rpx 20rpx;
+  display: block;
+  background: #F3F4F6;
 }
 
 .scene-icon-wrap {
@@ -163,11 +172,6 @@
   align-items: center;
   justify-content: center;
   margin-bottom: 20rpx;
-}
-
-.scene-icon {
-  font-size: 40rpx;
-  color: #CF6D4E;
 }
 
 .scene-name {

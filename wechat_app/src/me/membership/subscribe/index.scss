@@ -145,6 +145,10 @@
         &:active {
           transform: scale(0.98);
         }
+
+        &.is-paying {
+          opacity: 0.7;
+        }
       }
     }
   }
