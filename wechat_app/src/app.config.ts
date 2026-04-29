@@ -134,6 +134,8 @@ export default {
         'register',
         'onboarding',
         'student-onboarding',
+        'body-metrics',
+        'body-parts',
         'wechat-auth',
       ],
     },

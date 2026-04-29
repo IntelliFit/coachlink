@@ -263,7 +263,7 @@ function Login() {
                     {loading ? (
                       <Text className='wechat-primary-text'>登录中...</Text>
                     ) : (
-                      <Text className='wechat-primary-text'>微信一键登录</Text>
+                      <Text className='wechat-primary-text'>手机一键登录</Text>
                     )}
                   </TaroButton>
                 </View>
