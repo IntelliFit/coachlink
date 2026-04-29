@@ -1,8 +1,11 @@
-import { getCoachlinkLlm } from "@/lib/coachlinkLlm";
+import {
+    COACHLINK_DEFAULT_DEEPSEEK_MODEL,
+    getCoachlinkPlanLlm,
+} from "@/lib/coachlinkLlm";
 
 type DeepSeekOptions = {
     /**
-     * 是否使用思考模式（仅 DeepSeek 直连时有效：deepseek-reasoner）
+ * 是否使用思考模式（仅 DeepSeek 直连时有效）
      */
     useReasoner?: boolean;
     /**
@@ -12,7 +15,7 @@ type DeepSeekOptions = {
 };
 
 /**
- * 调用 LLM 生成 JSON（优先 OfoxAI + `OFOXAI_MODEL`，默认 Gemini Flash）
+ * 调用 LLM 生成 JSON（计划纯文本链路默认优先 DeepSeek v4-flash）
  */
 export async function callDeepSeek(
     prompt: string,
@@ -23,9 +26,9 @@ export async function callDeepSeek(
         maxTokens = 6000,
     } = options;
 
-    const { client, model, provider } = getCoachlinkLlm();
+    const { client, model, provider } = getCoachlinkPlanLlm();
     const resolvedModel =
-        useReasoner && provider === "deepseek" ? "deepseek-reasoner" : model;
+        provider === "deepseek" ? COACHLINK_DEFAULT_DEEPSEEK_MODEL : model;
 
     // Ofox / Gemini 兼容层常只认 max_completion_tokens；仅传 max_tokens 时可能被压成极小上限，导致 JSON 半截
     const body: Parameters<typeof client.chat.completions.create>[0] =
@@ -38,13 +41,19 @@ export async function callDeepSeek(
                   response_format: { type: "json_object" },
                   temperature: 0.2,
               } as Parameters<typeof client.chat.completions.create>[0])
-            : {
+            : ({
                   messages: [{ role: "user", content: prompt }],
                   model: resolvedModel,
                   max_tokens: maxTokens,
                   response_format: { type: "json_object" },
                   temperature: 0.2,
-              };
+                  ...(useReasoner
+                      ? {
+                            thinking: { type: "enabled" },
+                            reasoning_effort: "high",
+                        }
+                      : {}),
+              } as Parameters<typeof client.chat.completions.create>[0]);
 
     const completion = await client.chat.completions.create(body);
 

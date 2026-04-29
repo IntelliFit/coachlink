@@ -1,8 +1,37 @@
-name: Build and Push Docker Image
+# =============================================================================
+# 【已废弃】不在 push 时自动运行，仅保留文件供将来需要时「手动」启用。
+#
+# 原因：GitHub Actions  runner 跨境推送腾讯云 CCR 过慢（GFW）；日常请用本机：
+#   npm run push-docker-ccr
+#   （见 scripts/push-docker-ccr.mjs）
+#
+# 如需再次使用本 workflow：把下方 `on:` 改回 `push: branches: [main, dev, gray]` 等即可。
+# =============================================================================
+#
+# 构建并推送到腾讯云容器镜像服务（CCR / TCR）
+#
+# 个人版默认 registry：ccr.ccs.tencentyun.com
+# 镜像全名：{registry}/{命名空间}/{仓库名}:{标签}
+#
+# --- GitHub Secrets（必须）---
+# TENCENT_CCR_USERNAME  腾讯云账号 ID（控制台「登录实例」指引里与 docker login 的 username 一致，一般为数字账号 ID）
+# TENCENT_CCR_PASSWORD  个人版：在容器镜像服务控制台「初始化密码 / 重置登录密码」设置的固定密码
+#                        企业版：按控制台文档使用实例登录密码或临时访问凭证（以控制台为准）
+#
+# --- GitHub Variables（仓库 Settings → Secrets and variables → Actions → Variables，推荐）---
+# TENCENT_CCR_NAMESPACE   命名空间；不设时默认 littlehorse（与脚本 push-docker-ccr 一致）
+# TENCENT_CCR_REPOSITORY  镜像仓库名；不设时默认 coachlink
+# TENCENT_CCR_REGISTRY    可选；个人版可省略（默认 ccr.ccs.tencentyun.com）；企业版填控制台给出的域名
+#
+# 本地验证登录（示例）：
+#   docker login ccr.ccs.tencentyun.com --username=<账号ID>
+# 推送后拉取：
+#   docker pull ccr.ccs.tencentyun.com/<namespace>/<repo>:dev
+name: '[已废弃·仅手动] Build and Push Docker Image'
 
 on:
-  push:
-    branches: [main, dev, gray]
+  # 已取消 push 触发；在 Actions 页「Run workflow」可选手动跑一次（需选分支以匹配标签逻辑）
+  workflow_dispatch:
 
 jobs:
   build-and-push:
@@ -17,54 +46,93 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Log in to Docker Hub
+      - name: Resolve Tencent registry and image base
+        id: reg
+        env:
+          TENCENT_CCR_REGISTRY: ${{ vars.TENCENT_CCR_REGISTRY }}
+          TENCENT_CCR_NAMESPACE: ${{ vars.TENCENT_CCR_NAMESPACE }}
+          TENCENT_CCR_REPOSITORY: ${{ vars.TENCENT_CCR_REPOSITORY }}
+        run: |
+          set -euo pipefail
+          REGISTRY="${TENCENT_CCR_REGISTRY:-ccr.ccs.tencentyun.com}"
+          NS="${TENCENT_CCR_NAMESPACE:-littlehorse}"
+          REPO="${TENCENT_CCR_REPOSITORY:-coachlink}"
+          # 去掉可能误填的 https:// 前缀
+          REGISTRY="${REGISTRY#https://}"
+          REGISTRY="${REGISTRY#http://}"
+          REGISTRY="${REGISTRY%/}"
+          IMAGE_BASE="${REGISTRY}/${NS}/${REPO}"
+          echo "registry=${REGISTRY}" >> "${GITHUB_OUTPUT}"
+          echo "image_base=${IMAGE_BASE}" >> "${GITHUB_OUTPUT}"
+
+      - name: Log in to Tencent Cloud Container Registry
         uses: docker/login-action@v3
         with:
-          registry: https://index.docker.io/v1/
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
+          registry: ${{ steps.reg.outputs.registry }}
+          username: ${{ secrets.TENCENT_CCR_USERNAME }}
+          password: ${{ secrets.TENCENT_CCR_PASSWORD }}
 
       - name: Determine image tags
         id: meta
         run: |
-          SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-7)
-          IMAGE="peacesheep/coachlink"
-          
-          echo "image=$IMAGE" >> $GITHUB_OUTPUT
-          echo "short_sha=$SHORT_SHA" >> $GITHUB_OUTPUT
-          
+          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+          IMAGE="${{ steps.reg.outputs.image_base }}"
+
+          echo "image=${IMAGE}" >> "${GITHUB_OUTPUT}"
+          echo "short_sha=${SHORT_SHA}" >> "${GITHUB_OUTPUT}"
+
           if [ "${{ github.ref }}" = "refs/heads/main" ]; then
-            echo "tags<<EOF" >> $GITHUB_OUTPUT
-            echo "$IMAGE:latest" >> $GITHUB_OUTPUT
-            echo "$IMAGE:production" >> $GITHUB_OUTPUT
-            echo "$IMAGE:$SHORT_SHA" >> $GITHUB_OUTPUT
-            echo "EOF" >> $GITHUB_OUTPUT
-            echo "deploy_env=production" >> $GITHUB_OUTPUT
+            {
+              echo "tags<<EOF"
+              echo "${IMAGE}:latest"
+              echo "${IMAGE}:main"
+              echo "${IMAGE}:${SHORT_SHA}"
+              echo "EOF"
+            } >> "${GITHUB_OUTPUT}"
+            echo "deploy_env=main" >> "${GITHUB_OUTPUT}"
           elif [ "${{ github.ref }}" = "refs/heads/dev" ]; then
-            echo "tags<<EOF" >> $GITHUB_OUTPUT
-            echo "$IMAGE:staging" >> $GITHUB_OUTPUT
-            echo "$IMAGE:$SHORT_SHA" >> $GITHUB_OUTPUT
-            echo "EOF" >> $GITHUB_OUTPUT
-            echo "deploy_env=staging" >> $GITHUB_OUTPUT
+            {
+              echo "tags<<EOF"
+              echo "${IMAGE}:dev"
+              echo "${IMAGE}:${SHORT_SHA}"
+              echo "EOF"
+            } >> "${GITHUB_OUTPUT}"
+            echo "deploy_env=dev" >> "${GITHUB_OUTPUT}"
           elif [ "${{ github.ref }}" = "refs/heads/gray" ]; then
-            echo "tags<<EOF" >> $GITHUB_OUTPUT
-            echo "$IMAGE:gray" >> $GITHUB_OUTPUT
-            echo "$IMAGE:$SHORT_SHA" >> $GITHUB_OUTPUT
-            echo "EOF" >> $GITHUB_OUTPUT
-            echo "deploy_env=gray" >> $GITHUB_OUTPUT
+            {
+              echo "tags<<EOF"
+              echo "${IMAGE}:gray"
+              echo "${IMAGE}:${SHORT_SHA}"
+              echo "EOF"
+            } >> "${GITHUB_OUTPUT}"
+            echo "deploy_env=gray" >> "${GITHUB_OUTPUT}"
           fi
 
-      - name: Build and push to Docker Hub
+      - name: Build image (local)
+        if: ${{ steps.meta.outputs.tags != '' }}
         uses: docker/build-push-action@v6
         with:
           context: .
-          push: true
+          push: false
+          load: true
           tags: ${{ steps.meta.outputs.tags }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      - name: Push image tags to Tencent CCR
+        if: ${{ steps.meta.outputs.tags != '' }}
+        env:
+          DOCKER_TAGS: ${{ steps.meta.outputs.tags }}
+        run: |
+          set -euo pipefail
+          while IFS= read -r tag; do
+            [ -z "${tag}" ] && continue
+            docker push "${tag}"
+          done <<< "${DOCKER_TAGS}"
+
       - name: Output summary
         run: |
-          echo "### Docker Hub 镜像构建完成" >> $GITHUB_STEP_SUMMARY
-          echo "Docker Hub 镜像: ${{ steps.meta.outputs.image }}" >> $GITHUB_STEP_SUMMARY
-          echo "标签: ${{ steps.meta.outputs.deploy_env }} (${{ steps.meta.outputs.short_sha }})" >> $GITHUB_STEP_SUMMARY
+          echo "### 腾讯云容器镜像：构建与推送完成" >> "${GITHUB_STEP_SUMMARY}"
+          echo "Registry: ${{ steps.reg.outputs.registry }}" >> "${GITHUB_STEP_SUMMARY}"
+          echo "镜像: ${{ steps.meta.outputs.image }}" >> "${GITHUB_STEP_SUMMARY}"
+          echo "环境: ${{ steps.meta.outputs.deploy_env }} (${{ steps.meta.outputs.short_sha }})" >> "${GITHUB_STEP_SUMMARY}"

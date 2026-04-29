@@ -67,7 +67,7 @@ export async function POST(req: Request) {
             await writeTraceMetaOnce(id, {
                 createdAt: new Date().toISOString(),
                 stage: "parse-actions",
-                model: "deepseek-chat",
+                model: "deepseek-v4-flash",
             });
             await writeTraceText(id, "stage1.input.txt", String(text ?? ""));
         });
@@ -364,4 +364,3 @@ function normalizeAttrsByType(
         .filter((x) => x && allowedSet.has(x));
     return Array.from(new Set(cleaned));
 }
-

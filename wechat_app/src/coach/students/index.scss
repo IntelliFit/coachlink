@@ -554,6 +554,7 @@
 
   .detail-actions {
     display: flex;
+    flex-wrap: wrap;
     gap: 8px;
   }
 
@@ -721,6 +722,15 @@
 
       &.disabled {
         opacity: 0.55;
+      }
+    }
+
+    .action-danger {
+      border: 1px solid #fecaca;
+      background: #fff1f2;
+
+      text {
+        color: #be123c;
       }
     }
   }
@@ -1135,5 +1145,249 @@
   .payment-empty {
     margin-top: 6px;
     margin-bottom: 6px;
+  }
+
+  .coach-dialog-mask {
+    position: fixed;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    z-index: 120;
+    background: rgba(15, 23, 42, 0.46);
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+  }
+
+  .coach-dialog-panel {
+    width: 100%;
+    background: #ffffff;
+    border-top-left-radius: 24rpx;
+    border-top-right-radius: 24rpx;
+    padding: 24rpx 24rpx 32rpx;
+    box-sizing: border-box;
+  }
+
+  .coach-dialog-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16rpx;
+    margin-bottom: 8rpx;
+  }
+
+  .coach-dialog-title {
+    font-size: 34rpx;
+    color: #111827;
+    font-weight: 800;
+  }
+
+  .coach-dialog-close {
+    width: 56rpx;
+    height: 56rpx;
+    border-radius: 28rpx;
+    background: #f3f4f6;
+    color: #6b7280;
+    font-size: 34rpx;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .coach-dialog-subtitle {
+    display: block;
+    margin-bottom: 24rpx;
+    font-size: 24rpx;
+    color: #64748b;
+    line-height: 1.5;
+  }
+
+  .config-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16rpx;
+    margin-bottom: 16rpx;
+  }
+
+  .config-start-hint {
+    margin-bottom: 16rpx;
+    padding: 16rpx;
+    border-radius: 16rpx;
+    border: 2rpx solid #bfdbfe;
+    background: #eff6ff;
+  }
+
+  .config-start-hint-text {
+    display: block;
+    font-size: 22rpx;
+    color: #1d4ed8;
+    line-height: 1.6;
+    font-weight: 700;
+  }
+
+  .config-field {
+    display: flex;
+    flex-direction: column;
+    gap: 8rpx;
+  }
+
+  .config-label {
+    font-size: 24rpx;
+    color: #4b5563;
+    font-weight: 700;
+  }
+
+  .config-input {
+    height: 80rpx;
+    padding: 0 16rpx;
+    border-radius: 16rpx;
+    background: #f8fafc;
+    border: 2rpx solid #e5e7eb;
+    color: #111827;
+    font-size: 28rpx;
+    box-sizing: border-box;
+  }
+
+  .config-toggle {
+    display: flex;
+    align-items: flex-start;
+    gap: 16rpx;
+    padding: 16rpx;
+    border-radius: 16rpx;
+    border: 2rpx solid #e5e7eb;
+    background: #ffffff;
+    margin-bottom: 24rpx;
+
+    &.active {
+      border-color: #CF6D4E;
+      background: #fff7f2;
+
+      .config-toggle-dot {
+        background: #CF6D4E;
+        border-color: #CF6D4E;
+      }
+    }
+  }
+
+  .config-toggle-dot {
+    width: 32rpx;
+    height: 32rpx;
+    border-radius: 16rpx;
+    border: 2rpx solid #cbd5e1;
+    background: #ffffff;
+    flex-shrink: 0;
+    margin-top: 4rpx;
+  }
+
+  .config-toggle-copy {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .config-toggle-title {
+    display: block;
+    font-size: 26rpx;
+    color: #111827;
+    font-weight: 800;
+  }
+
+  .config-toggle-desc {
+    display: block;
+    margin-top: 4rpx;
+    font-size: 22rpx;
+    color: #64748b;
+    line-height: 1.5;
+  }
+
+  .clear-mode-list {
+    display: flex;
+    flex-direction: column;
+    gap: 16rpx;
+    margin-bottom: 24rpx;
+  }
+
+  .clear-mode-item {
+    padding: 16rpx;
+    border-radius: 16rpx;
+    border: 2rpx solid #e5e7eb;
+    background: #ffffff;
+
+    &.active {
+      border-color: #CF6D4E;
+      background: #fff7f2;
+    }
+
+    &.danger.active {
+      border-color: #ef4444;
+      background: #fff1f2;
+    }
+  }
+
+  .clear-mode-title {
+    display: block;
+    font-size: 28rpx;
+    color: #111827;
+    font-weight: 800;
+  }
+
+  .clear-mode-desc {
+    display: block;
+    margin-top: 8rpx;
+    font-size: 22rpx;
+    color: #64748b;
+    line-height: 1.5;
+  }
+
+  .coach-dialog-footer {
+    display: flex;
+    align-items: center;
+    gap: 16rpx;
+  }
+
+  .coach-dialog-btn {
+    flex: 1;
+    min-height: 80rpx;
+    border-radius: 16rpx;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2rpx solid #e5e7eb;
+    box-sizing: border-box;
+
+    text {
+      font-size: 28rpx;
+      font-weight: 800;
+    }
+
+    &.secondary {
+      background: #ffffff;
+
+      text {
+        color: #4b5563;
+      }
+    }
+
+    &.primary {
+      background: #CF6D4E;
+      border-color: #CF6D4E;
+
+      text {
+        color: #ffffff;
+      }
+    }
+
+    &.danger {
+      background: #ef4444;
+      border-color: #ef4444;
+
+      text {
+        color: #ffffff;
+      }
+    }
+
+    &.disabled {
+      opacity: 0.55;
+    }
   }
 }

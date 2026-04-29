@@ -1,17 +1,25 @@
-import { View, Text, Image } from '@tarojs/components'
+import { View, Text, Image, Input, Textarea } from '@tarojs/components'
 import { useState, useEffect } from 'react'
 import Taro, { useRouter } from '@tarojs/taro'
 import { coachService } from '@/services/coach/coachService'
 import { planLibService } from '@/services/coach/planLibService'
+import { subscriptionService } from '@/services/subscriptionService'
 import { authService } from '@/services/authService'
 import { chatService } from '@/services/chatService'
+import { refundAlipayOrder } from '@/services/paymentService'
 import './index.scss'
 
 interface StudentData {
   id: string
+  coach_id?: string
   student_id: string
   start_date: string
   status: string
+  subscribed_weeks?: number | null
+  prior_training_weeks?: number | null
+  order_id?: string | null
+  last_payment_order_id?: string | null
+  payment_method?: string | null
   profile: {
     nickname: string
     avatar_url: string
@@ -50,6 +58,38 @@ interface Feedback {
   is_read?: boolean
 }
 
+interface CoachReview {
+  id: string
+  review_text?: string | null
+  created_at?: string | null
+  updated_at?: string | null
+}
+
+interface PlanHistoryItem {
+  id: string
+  name?: string | null
+  description?: string | null
+  source?: string | null
+  status?: string | null
+  start_date?: string | null
+  end_date?: string | null
+  updated_at?: string | null
+  total_days?: number | null
+}
+
+type PlanHistorySource = 'all' | 'coach' | 'student'
+
+type QuestionnaireItem = Record<string, any> & {
+  id?: string
+  type?: 'tags' | 'times' | 'rm' | 'option' | 'text' | string
+  question?: string
+  options?: Array<string | number>
+  userSelection?: string | number
+  userSelections?: string[]
+  userInputs?: Record<string, number>
+  answer?: string
+}
+
 const FEEDBACK_DIFFICULTY_MAP: Record<number, string> = {
   1: '太轻松',
   2: '轻松',
@@ -67,6 +107,23 @@ export default function StudentDetailPage() {
   const [planInstance, setPlanInstance] = useState<PlanInstance | null>(null)
   const [feedbacks, setFeedbacks] = useState<Feedback[]>([])
   const [showAllFeedbacks, setShowAllFeedbacks] = useState(false)
+  const [coachReviews, setCoachReviews] = useState<CoachReview[]>([])
+  const [reviewDraft, setReviewDraft] = useState('')
+  const [editingReviewId, setEditingReviewId] = useState<string | null>(null)
+  const [savingReview, setSavingReview] = useState(false)
+  const [priorWeeksInput, setPriorWeeksInput] = useState('0')
+  const [subscribedWeeksInput, setSubscribedWeeksInput] = useState('0')
+  const [savingSubscriptionWeeks, setSavingSubscriptionWeeks] = useState(false)
+  const [questionnaireDraft, setQuestionnaireDraft] = useState<QuestionnaireItem[]>([])
+  const [questionnaireEditing, setQuestionnaireEditing] = useState(false)
+  const [questionnaireLoading, setQuestionnaireLoading] = useState(false)
+  const [questionnaireSaving, setQuestionnaireSaving] = useState(false)
+  const [refunding, setRefunding] = useState(false)
+  const [planHistory, setPlanHistory] = useState<PlanHistoryItem[]>([])
+  const [planHistoryTotal, setPlanHistoryTotal] = useState(0)
+  const [planHistoryLoading, setPlanHistoryLoading] = useState(false)
+  const [planHistoryPage, setPlanHistoryPage] = useState(1)
+  const [planHistorySource, setPlanHistorySource] = useState<PlanHistorySource>('all')
 
   useEffect(() => {
     if (!subscriptionId) {
@@ -81,14 +138,22 @@ export default function StudentDetailPage() {
       setLoading(true)
       
       // 并行加载学员数据、计划实例
-      const [studentRes, instanceRes] = await Promise.all([
+      const [studentRes, instanceRes, reviewsRes] = await Promise.all([
         coachService.getStudent({ subscriptionId, need1RM: true }),
-        planLibService.getInstance({ subscriptionId })
+        planLibService.getInstance({ subscriptionId }),
+        subscriptionService.getCoachReviews({ subscriptionId }).catch(() => null)
       ])
 
       if (studentRes?.student) {
         setStudent(studentRes.student)
+        setPriorWeeksInput(String(studentRes.student.prior_training_weeks ?? 0))
+        setSubscribedWeeksInput(String(studentRes.student.subscribed_weeks ?? 0))
+        setQuestionnaireDraft(normalizeQuestionnaireData(studentRes.student.subscribe_data))
+        setQuestionnaireEditing(false)
+        void loadPlanHistory(studentRes.student.student_id, { page: 1, source: 'all' })
       }
+
+      setCoachReviews(Array.isArray((reviewsRes as any)?.reviews) ? (reviewsRes as any).reviews : [])
 
       if (instanceRes?.instance) {
         setPlanInstance(instanceRes.instance)
@@ -112,6 +177,169 @@ export default function StudentDetailPage() {
       Taro.showToast({ title: '加载失败', icon: 'none' })
     } finally {
       setLoading(false)
+    }
+  }
+
+  const loadPlanHistory = async (
+    studentId?: string,
+    options?: { page?: number; source?: PlanHistorySource; append?: boolean }
+  ) => {
+    if (!studentId) return
+    const page = options?.page || 1
+    const source = options?.source || planHistorySource
+    setPlanHistoryLoading(true)
+    try {
+      const historyRes = await coachService.getStudentPlanHistory({
+        studentId,
+        page,
+        limit: 5,
+        source
+      })
+      const nextPlans = Array.isArray(historyRes?.plans) ? historyRes.plans : []
+      setPlanHistory((current) => options?.append ? [...current, ...nextPlans] : nextPlans)
+      setPlanHistoryTotal(Number(historyRes?.totalCount || 0))
+      setPlanHistoryPage(page)
+      setPlanHistorySource(source)
+    } catch (error) {
+      console.error('[coach/student-detail] load plan history failed:', error)
+      if (!options?.append) setPlanHistory([])
+      setPlanHistoryTotal(0)
+    } finally {
+      setPlanHistoryLoading(false)
+    }
+  }
+
+  function cloneQuestionnaireItems(items: QuestionnaireItem[]) {
+    return JSON.parse(JSON.stringify(items || [])) as QuestionnaireItem[]
+  }
+
+  function normalizeQuestionnaireData(data: any): QuestionnaireItem[] {
+    if (Array.isArray(data)) return cloneQuestionnaireItems(data)
+    if (Array.isArray(data?.answers)) {
+      return data.answers.map((item: any) => ({
+        type: 'text',
+        question: String(item?.question || '未命名问卷项'),
+        userSelection: String(item?.answer || '')
+      }))
+    }
+    return []
+  }
+
+  const getQuestionnaireKey = (item: QuestionnaireItem) => {
+    if (item.id) return `id:${item.id}`
+    if (item.type === 'tags' || item.type === 'times' || item.type === 'rm') return `type:${item.type}`
+    if (item.question) return `${item.type || 'text'}:${item.question}`
+    return String(item.type || 'text')
+  }
+
+  const mergeQuestionnaireAnswers = (
+    questions: QuestionnaireItem[],
+    existingAnswers: QuestionnaireItem[]
+  ) => {
+    const answerMap = new Map<string, QuestionnaireItem>()
+    existingAnswers.forEach((item) => answerMap.set(getQuestionnaireKey(item), item))
+    return questions.map((question) => {
+      const answer = answerMap.get(getQuestionnaireKey(question))
+      if (!answer) return question
+      if (question.type === 'tags') return { ...question, userSelections: answer.userSelections || [] }
+      if (question.type === 'rm') return { ...question, userInputs: answer.userInputs || {} }
+      if (question.type === 'times' || question.type === 'option' || question.type === 'text') {
+        return { ...question, userSelection: answer.userSelection ?? answer.answer ?? '' }
+      }
+      return { ...question, ...answer }
+    })
+  }
+
+  const getQuestionText = (item: QuestionnaireItem) => {
+    if (item.question && String(item.question).trim()) return String(item.question)
+    if (item.type === 'tags') return '训练目标/项目偏好'
+    if (item.type === 'times') return '每周训练次数'
+    if (item.type === 'rm') return '基础 1RM 数据'
+    return '未命名问卷项'
+  }
+
+  const getAnswerText = (item: QuestionnaireItem) => {
+    if (typeof item.answer === 'string' && item.answer.trim()) return item.answer
+    if (item.type === 'tags') {
+      const selections = Array.isArray(item.userSelections) ? item.userSelections : []
+      return selections.length ? selections.join('、') : '未选择'
+    }
+    if (item.type === 'times') {
+      return item.userSelection ? `${item.userSelection} 次/周` : '未填写'
+    }
+    if (item.type === 'option') {
+      const options = Array.isArray(item.options) ? item.options : []
+      const selectedIndex = Number(item.userSelection)
+      if (Number.isInteger(selectedIndex) && options[selectedIndex] !== undefined) {
+        return String(options[selectedIndex])
+      }
+      return item.userSelection !== undefined && item.userSelection !== '' ? String(item.userSelection) : '未填写'
+    }
+    if (item.type === 'rm') {
+      const inputs = item.userInputs || {}
+      const entries = Object.entries(inputs).filter(([, value]) => Number(value) > 0)
+      return entries.length
+        ? entries.map(([key, value]) => `${key}: ${value}kg`).join('、')
+        : '未填写'
+    }
+    return item.userSelection !== undefined && item.userSelection !== ''
+      ? String(item.userSelection)
+      : '未填写'
+  }
+
+  const updateQuestionnaireDraftItem = (
+    index: number,
+    updater: (item: QuestionnaireItem) => QuestionnaireItem
+  ) => {
+    setQuestionnaireDraft((current) => current.map((item, itemIndex) => (
+      itemIndex === index ? updater(item) : item
+    )))
+  }
+
+  const handleOpenQuestionnaireEdit = async () => {
+    if (!student) return
+    setQuestionnaireLoading(true)
+    try {
+      const currentAnswers = normalizeQuestionnaireData(student.subscribe_data)
+      let nextDraft = currentAnswers
+      if (student.coach_id) {
+        const res = await coachService.getQuestionnaires({ coachId: student.coach_id })
+        const questions = normalizeQuestionnaireData((res as any)?.questionnaires)
+        if (questions.length > 0) {
+          nextDraft = mergeQuestionnaireAnswers(questions, currentAnswers)
+        }
+      }
+      if (!nextDraft.length) {
+        Taro.showToast({ title: '暂无可编辑问卷', icon: 'none' })
+        return
+      }
+      setQuestionnaireDraft(nextDraft)
+      setQuestionnaireEditing(true)
+    } catch (error) {
+      console.error('[coach/student-detail] open questionnaire edit failed:', error)
+      Taro.showToast({ title: '加载问卷失败', icon: 'none' })
+    } finally {
+      setQuestionnaireLoading(false)
+    }
+  }
+
+  const handleSaveQuestionnaire = async () => {
+    if (!student?.id) return
+    setQuestionnaireSaving(true)
+    try {
+      const saved = await subscriptionService.updateQuestionnaire({
+        id: student.id,
+        questionnaires: questionnaireDraft
+      })
+      if (!saved) throw new Error('update questionnaire failed')
+      setStudent((prev) => prev ? { ...prev, subscribe_data: questionnaireDraft } : prev)
+      setQuestionnaireEditing(false)
+      Taro.showToast({ title: '问卷已更新', icon: 'none' })
+    } catch (error) {
+      console.error('[coach/student-detail] save questionnaire failed:', error)
+      Taro.showToast({ title: '保存问卷失败', icon: 'none' })
+    } finally {
+      setQuestionnaireSaving(false)
     }
   }
 
@@ -196,6 +424,61 @@ export default function StudentDetailPage() {
     })
   }
 
+  const handleOpenPlanHistoryItem = (plan: PlanHistoryItem) => {
+    if (!plan?.id || !subscriptionId) {
+      return
+    }
+    if (planInstance?.id && plan.id === planInstance.id) {
+      handleEditPlan()
+      return
+    }
+    Taro.navigateTo({
+      url:
+        '/coach/students/plan?id=' +
+        encodeURIComponent(subscriptionId) +
+        '&instanceId=' +
+        encodeURIComponent(plan.id) +
+        '&readonly=1'
+    }).catch((err) => {
+      console.error('[coach/students/detail] go history plan failed:', err)
+      Taro.showToast({ title: '页面跳转失败', icon: 'none' })
+    })
+  }
+
+  const getPlanSourceLabel = (source?: string | null) => {
+    if (source === 'student' || source === 'self') return '学员自建'
+    if (source === 'coach') return '教练计划'
+    if (source === 'ai') return 'AI 生成'
+    return '计划'
+  }
+
+  const getPlanStatusLabel = (status?: string | null) => {
+    if (status === 'active') return '进行中'
+    if (status === 'paused') return '已暂停'
+    if (status === 'completed') return '已完成'
+    if (status === 'archived') return '已归档'
+    if (status === 'scheduled') return '待开始'
+    return status || '-'
+  }
+
+  const handleChangePlanHistorySource = (source: PlanHistorySource) => {
+    if (!student?.student_id || planHistoryLoading || source === planHistorySource) return
+    setPlanHistory([])
+    setPlanHistorySource(source)
+    setPlanHistoryPage(1)
+    void loadPlanHistory(student.student_id, { page: 1, source })
+  }
+
+  const handleLoadMorePlanHistory = () => {
+    if (!student?.student_id || planHistoryLoading) return
+    if (planHistory.length >= planHistoryTotal) return
+    void loadPlanHistory(student.student_id, {
+      page: planHistoryPage + 1,
+      source: planHistorySource,
+      append: true
+    })
+  }
+
   const handleAssignPlan = () => {
     if (!subscriptionId) {
       Taro.showToast({ title: '缺少学员参数', icon: 'none' })
@@ -210,6 +493,144 @@ export default function StudentDetailPage() {
     }).catch((err) => {
       console.error('[coach/students/detail] go assign plan failed:', err)
       Taro.showToast({ title: '页面跳转失败', icon: 'none' })
+    })
+  }
+
+  const normalizeWeeks = (value: string, fallback = 0) => {
+    const next = Math.max(0, Math.floor(Number(value) || fallback))
+    return next
+  }
+
+  const handleSaveSubscriptionWeeks = async () => {
+    if (!student?.id) return
+    const priorWeeks = normalizeWeeks(priorWeeksInput)
+    const subscribedWeeks = normalizeWeeks(subscribedWeeksInput)
+    setSavingSubscriptionWeeks(true)
+    try {
+      const res = await subscriptionService.updateSubscription({
+        id: student.id,
+        prior_training_weeks: priorWeeks,
+        subscribed_weeks: subscribedWeeks
+      })
+      if (!res) throw new Error('update subscription failed')
+      setStudent((prev) => prev ? {
+        ...prev,
+        prior_training_weeks: priorWeeks,
+        subscribed_weeks: subscribedWeeks
+      } : prev)
+      Taro.showToast({ title: '订阅周期已更新', icon: 'none' })
+    } catch (error) {
+      console.error('[coach/student-detail] save subscription weeks failed:', error)
+      Taro.showToast({ title: '保存失败，请稍后重试', icon: 'none' })
+    } finally {
+      setSavingSubscriptionWeeks(false)
+    }
+  }
+
+  const handleEditReview = (review: CoachReview) => {
+    setEditingReviewId(review.id)
+    setReviewDraft(review.review_text || '')
+  }
+
+  const handleSaveCoachReview = async () => {
+    const text = reviewDraft.trim()
+    if (!text) {
+      Taro.showToast({ title: '请输入记录内容', icon: 'none' })
+      return
+    }
+    if (!student?.student_id || !student?.coach_id) {
+      Taro.showToast({ title: '学员或教练信息不完整', icon: 'none' })
+      return
+    }
+    setSavingReview(true)
+    try {
+      const res = editingReviewId
+        ? await subscriptionService.updateCoachReview({ reviewId: editingReviewId, reviewText: text })
+        : await subscriptionService.createCoachReview({
+          subscriptionId,
+          studentId: student.student_id,
+          coachId: student.coach_id,
+          reviewText: text,
+          mediaUrls: []
+        })
+      const nextReview = (res as any)?.review
+      if (!nextReview) throw new Error('save review failed')
+      setCoachReviews((prev) => {
+        if (editingReviewId) {
+          return prev.map((item) => item.id === editingReviewId ? nextReview : item)
+        }
+        return [nextReview, ...prev]
+      })
+      setReviewDraft('')
+      setEditingReviewId(null)
+      Taro.showToast({ title: '教练记录已保存', icon: 'none' })
+    } catch (error) {
+      console.error('[coach/student-detail] save coach review failed:', error)
+      Taro.showToast({ title: '保存记录失败', icon: 'none' })
+    } finally {
+      setSavingReview(false)
+    }
+  }
+
+  const handleDeleteReview = (review: CoachReview) => {
+    if (!review?.id) return
+    Taro.showModal({
+      title: '删除教练记录',
+      content: '删除后不可恢复，是否继续？',
+      confirmText: '删除',
+      confirmColor: '#ef4444',
+      success: async (res) => {
+        if (!res.confirm) return
+        try {
+          const deleted = await subscriptionService.deleteCoachReview({ reviewId: review.id })
+          if (!deleted) throw new Error('delete review failed')
+          setCoachReviews((prev) => prev.filter((item) => item.id !== review.id))
+          if (editingReviewId === review.id) {
+            setEditingReviewId(null)
+            setReviewDraft('')
+          }
+          Taro.showToast({ title: '已删除', icon: 'none' })
+        } catch (error) {
+          console.error('[coach/student-detail] delete coach review failed:', error)
+          Taro.showToast({ title: '删除失败', icon: 'none' })
+        }
+      }
+    })
+  }
+
+  const handleRefund = () => {
+    const orderId = student?.last_payment_order_id || student?.order_id
+    if (!orderId || refunding) return
+    Taro.showModal({
+      title: '确认退款',
+      content: '退款会同步取消订阅并扣减教练钱包余额，确认继续？',
+      confirmText: '退款',
+      confirmColor: '#ef4444',
+      success: async (res) => {
+        if (!res.confirm) return
+        setRefunding(true)
+        try {
+          const result = await refundAlipayOrder({
+            orderId,
+            refundReason: '教练/学员申请退款',
+            showErrorToast: false
+          })
+          if (!result.success) throw new Error(result.message || 'refund failed')
+          setStudent((prev) => prev ? {
+            ...prev,
+            status: 'cancelled',
+            order_id: null,
+            last_payment_order_id: null,
+            payment_method: null
+          } : prev)
+          Taro.showToast({ title: '退款成功，订阅已取消', icon: 'none' })
+        } catch (error) {
+          console.error('[coach/student-detail] refund failed:', error)
+          Taro.showToast({ title: '退款失败，请稍后重试', icon: 'none' })
+        } finally {
+          setRefunding(false)
+        }
+      }
     })
   }
 
@@ -247,6 +668,141 @@ export default function StudentDetailPage() {
   }
 
   // 渲染骨架屏
+  const renderQuestionnaireEditorItem = (item: QuestionnaireItem, index: number) => {
+    const options = Array.isArray(item.options) ? item.options.map((option) => String(option)) : []
+
+    if (item.type === 'tags') {
+      const selections = Array.isArray(item.userSelections) ? item.userSelections : []
+      return (
+        <View className='question-editor-control'>
+          {options.length > 0 ? (
+            <View className='question-option-row'>
+              {options.map((option) => {
+                const active = selections.includes(option)
+                return (
+                  <View
+                    key={`${index}-${option}`}
+                    className={`question-option-chip ${active ? 'active' : ''}`}
+                    onClick={() => updateQuestionnaireDraftItem(index, (current) => {
+                      const currentSelections = Array.isArray(current.userSelections) ? current.userSelections : []
+                      return {
+                        ...current,
+                        userSelections: currentSelections.includes(option)
+                          ? currentSelections.filter((itemValue) => itemValue !== option)
+                          : [...currentSelections, option]
+                      }
+                    })}
+                  >
+                    <Text>{option}</Text>
+                  </View>
+                )
+              })}
+            </View>
+          ) : (
+            <Input
+              className='question-input'
+              value={selections.join('、')}
+              placeholder='用顿号分隔多个选项'
+              onInput={(event) => updateQuestionnaireDraftItem(index, (current) => ({
+                ...current,
+                userSelections: event.detail.value.split(/[、,，]/).map((value) => value.trim()).filter(Boolean)
+              }))}
+            />
+          )}
+        </View>
+      )
+    }
+
+    if (item.type === 'times') {
+      const timesOptions = options.length > 0 ? options : ['1', '2', '3', '4', '5', '6', '7']
+      return (
+        <View className='question-option-row'>
+          {timesOptions.map((option) => {
+            const active = String(item.userSelection || '') === option
+            return (
+              <View
+                key={`${index}-times-${option}`}
+                className={`question-option-chip ${active ? 'active' : ''}`}
+                onClick={() => updateQuestionnaireDraftItem(index, (current) => ({
+                  ...current,
+                  userSelection: Number(option)
+                }))}
+              >
+                <Text>{option}次</Text>
+              </View>
+            )
+          })}
+        </View>
+      )
+    }
+
+    if (item.type === 'option') {
+      return (
+        <View className='question-option-row'>
+          {options.map((option, optionIndex) => {
+            const active = Number(item.userSelection) === optionIndex || String(item.userSelection || '') === option
+            return (
+              <View
+                key={`${index}-option-${option}`}
+                className={`question-option-chip ${active ? 'active' : ''}`}
+                onClick={() => updateQuestionnaireDraftItem(index, (current) => ({
+                  ...current,
+                  userSelection: optionIndex
+                }))}
+              >
+                <Text>{option}</Text>
+              </View>
+            )
+          })}
+        </View>
+      )
+    }
+
+    if (item.type === 'rm') {
+      const actionKeys = Array.isArray(item.actionIds) && item.actionIds.length > 0
+        ? item.actionIds
+        : Object.keys(item.userInputs || {})
+      return (
+        <View className='rm-input-list'>
+          {actionKeys.length > 0 ? actionKeys.map((actionId) => (
+            <View key={`${index}-rm-${actionId}`} className='rm-input-row'>
+              <Text className='rm-action-name'>{actionId}</Text>
+              <Input
+                className='question-input'
+                type='digit'
+                value={String((item.userInputs || {})[actionId] || '')}
+                placeholder='kg'
+                onInput={(event) => updateQuestionnaireDraftItem(index, (current) => ({
+                  ...current,
+                  userInputs: {
+                    ...(current.userInputs || {}),
+                    [actionId]: Number(event.detail.value) || 0
+                  }
+                }))}
+              />
+            </View>
+          )) : (
+            <Text className='question-empty'>暂无 1RM 动作项</Text>
+          )}
+        </View>
+      )
+    }
+
+    return (
+      <Textarea
+        className='question-textarea'
+        value={String(item.userSelection ?? item.answer ?? '')}
+        placeholder='填写问卷答案'
+        maxlength={1000}
+        autoHeight
+        onInput={(event) => updateQuestionnaireDraftItem(index, (current) => ({
+          ...current,
+          userSelection: event.detail.value
+        }))}
+      />
+    )
+  }
+
   const renderSkeleton = () => (
     <View className='skeleton-page'>
       <View className='skeleton-card'>
@@ -280,6 +836,8 @@ export default function StudentDetailPage() {
 
   const profile = student.profile
   const displayedFeedbacks = showAllFeedbacks ? feedbacks : feedbacks.slice(0, 3)
+  const canRefundSubscription = student.payment_method === 'platform_alipay' && Boolean(student.last_payment_order_id || student.order_id)
+  const questionnaireItems = questionnaireEditing ? questionnaireDraft : normalizeQuestionnaireData(student.subscribe_data)
 
   return (
     <View className='student-detail-page'>
@@ -339,6 +897,168 @@ export default function StudentDetailPage() {
         </View>
       </View>
 
+      <View className='questionnaire-card'>
+        <View className='card-header'>
+          <Text className='card-title'>入营问卷</Text>
+          <View className='questionnaire-actions'>
+            {questionnaireEditing ? (
+              <>
+                <View
+                  className='btn-small-default'
+                  onClick={() => {
+                    setQuestionnaireDraft(normalizeQuestionnaireData(student.subscribe_data))
+                    setQuestionnaireEditing(false)
+                  }}
+                >
+                  <Text className='btn-text'>取消</Text>
+                </View>
+                <View
+                  className={`btn-small-primary ${questionnaireSaving ? 'disabled' : ''}`}
+                  onClick={() => {
+                    if (questionnaireSaving) return
+                    void handleSaveQuestionnaire()
+                  }}
+                >
+                  <Text className='btn-text'>{questionnaireSaving ? '保存中...' : '保存'}</Text>
+                </View>
+              </>
+            ) : (
+              <View
+                className={`btn-small-primary ${questionnaireLoading ? 'disabled' : ''}`}
+                onClick={() => {
+                  if (questionnaireLoading) return
+                  void handleOpenQuestionnaireEdit()
+                }}
+              >
+                <Text className='btn-text'>{questionnaireLoading ? '加载中...' : '编辑'}</Text>
+              </View>
+            )}
+          </View>
+        </View>
+
+        {questionnaireItems.length > 0 ? (
+          <View className='questionnaire-list'>
+            {questionnaireItems.map((item, index) => (
+              <View key={`${item.id || item.type || 'question'}-${index}`} className='questionnaire-item'>
+                <View className='questionnaire-index'>
+                  <Text>{String(index + 1).padStart(2, '0')}</Text>
+                </View>
+                <View className='questionnaire-body'>
+                  <Text className='questionnaire-question'>{getQuestionText(item)}</Text>
+                  {questionnaireEditing ? (
+                    renderQuestionnaireEditorItem(item, index)
+                  ) : (
+                    <Text className='questionnaire-answer'>{getAnswerText(item)}</Text>
+                  )}
+                </View>
+              </View>
+            ))}
+          </View>
+        ) : (
+          <Text className='no-data'>暂无问卷数据</Text>
+        )}
+      </View>
+
+      <View className='manage-card'>
+        <View className='card-header'>
+          <Text className='card-title'>订阅与教练记录</Text>
+          {canRefundSubscription ? (
+            <View
+              className={`btn-small-default danger ${refunding ? 'disabled' : ''}`}
+              onClick={() => {
+                if (refunding) return
+                handleRefund()
+              }}
+            >
+              <Text className='btn-text'>{refunding ? '退款中...' : '退款'}</Text>
+            </View>
+          ) : null}
+        </View>
+
+        <View className='week-edit-grid'>
+          <View className='week-edit-field'>
+            <Text className='field-label'>迁入前训练周数</Text>
+            <Input
+              className='week-input'
+              type='number'
+              value={priorWeeksInput}
+              onInput={(e) => setPriorWeeksInput(e.detail.value)}
+            />
+          </View>
+          <View className='week-edit-field'>
+            <Text className='field-label'>购买周数</Text>
+            <Input
+              className='week-input'
+              type='number'
+              value={subscribedWeeksInput}
+              onInput={(e) => setSubscribedWeeksInput(e.detail.value)}
+            />
+          </View>
+        </View>
+        <View
+          className={`btn-primary ${savingSubscriptionWeeks ? 'disabled' : ''}`}
+          onClick={() => {
+            if (savingSubscriptionWeeks) return
+            void handleSaveSubscriptionWeeks()
+          }}
+        >
+          <Text className='btn-text'>{savingSubscriptionWeeks ? '保存中...' : '保存订阅周期'}</Text>
+        </View>
+
+        <View className='review-editor'>
+          <Text className='field-label'>教练私密记录</Text>
+          <Textarea
+            className='review-textarea'
+            value={reviewDraft}
+            placeholder='记录阶段判断、沟通重点、伤病禁忌或后续调整依据'
+            maxlength={1200}
+            autoHeight
+            onInput={(e) => setReviewDraft(e.detail.value)}
+          />
+          <View className='review-editor-actions'>
+            {editingReviewId && (
+              <View
+                className='btn-small-default'
+                onClick={() => {
+                  setEditingReviewId(null)
+                  setReviewDraft('')
+                }}
+              >
+                <Text className='btn-text'>取消编辑</Text>
+              </View>
+            )}
+            <View
+              className={`btn-small-primary ${savingReview ? 'disabled' : ''}`}
+              onClick={() => {
+                if (savingReview) return
+                void handleSaveCoachReview()
+              }}
+            >
+              <Text className='btn-text'>{savingReview ? '保存中...' : editingReviewId ? '更新记录' : '新增记录'}</Text>
+            </View>
+          </View>
+        </View>
+
+        <View className='coach-review-list'>
+          {coachReviews.length > 0 ? coachReviews.slice(0, 5).map((review) => (
+            <View key={review.id} className='coach-review-item'>
+              <Text className='coach-review-time'>{formatDateTime(review.updated_at || review.created_at || '')}</Text>
+              <Text className='coach-review-content'>{review.review_text || '（空记录）'}</Text>
+              <View className='review-item-actions'>
+                <View className='btn-small-default' onClick={() => handleEditReview(review)}>
+                  <Text className='btn-text'>编辑</Text>
+                </View>
+                <View className='btn-small-default danger' onClick={() => handleDeleteReview(review)}>
+                  <Text className='btn-text'>删除</Text>
+                </View>
+              </View>
+            </View>
+          )) : (
+            <Text className='no-data'>暂无教练记录</Text>
+          )}
+        </View>
+      </View>
+
       {/* 当前计划卡片 */}
       <View className='plan-card'>
         <View className='card-header'>
@@ -395,6 +1115,58 @@ export default function StudentDetailPage() {
               <Text className='btn-text'>分配计划</Text>
             </View>
           </View>
+        )}
+      </View>
+
+      <View className='plan-history-card'>
+        <View className='card-header'>
+          <Text className='card-title'>计划历史</Text>
+          <Text className='history-total'>{planHistoryTotal > 0 ? `共 ${planHistoryTotal} 个` : ''}</Text>
+        </View>
+        <View className='history-filter-row'>
+          {([
+            { value: 'all', label: '全部' },
+            { value: 'coach', label: '教练计划' },
+            { value: 'student', label: '学员自建' }
+          ] as Array<{ value: PlanHistorySource; label: string }>).map((item) => (
+            <View
+              key={item.value}
+              className={`history-filter-chip ${planHistorySource === item.value ? 'active' : ''}`}
+              onClick={() => handleChangePlanHistorySource(item.value)}
+            >
+              <Text>{item.label}</Text>
+            </View>
+          ))}
+        </View>
+
+        {planHistoryLoading && planHistory.length === 0 ? (
+          <Text className='no-data'>加载计划历史中...</Text>
+        ) : planHistory.length > 0 ? (
+          <View className='plan-history-list'>
+            {planHistory.map((plan) => (
+              <View key={plan.id} className='plan-history-item' onClick={() => handleOpenPlanHistoryItem(plan)}>
+                <View className='plan-history-main'>
+                  <Text className='plan-history-name'>{plan.name || '未命名计划'}</Text>
+                  <Text className='plan-history-desc'>{plan.description || '暂无描述'}</Text>
+                </View>
+                <View className='plan-history-meta-row'>
+                  <Text className={`plan-history-status status-${plan.status || 'unknown'}`}>
+                    {getPlanStatusLabel(plan.status)}
+                  </Text>
+                  <Text className='plan-history-meta'>{getPlanSourceLabel(plan.source)}</Text>
+                  <Text className='plan-history-meta'>{plan.total_days || 0} 天</Text>
+                  <Text className='plan-history-meta'>{formatDateTime(plan.updated_at || plan.start_date || '')}</Text>
+                </View>
+              </View>
+            ))}
+            {planHistory.length < planHistoryTotal && (
+              <View className='history-more-btn' onClick={handleLoadMorePlanHistory}>
+                <Text>{planHistoryLoading ? '加载中...' : '加载更多'}</Text>
+              </View>
+            )}
+          </View>
+        ) : (
+          <Text className='no-data'>暂无历史计划</Text>
         )}
       </View>
 

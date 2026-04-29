@@ -41,6 +41,8 @@ interface AuthSessionState {
 }
 
 class AuthService {
+  private readonly postAuthHomeUrl = '/pages/index/index'
+
   private clearStoredAuth() {
     Taro.removeStorageSync('user')
     Taro.removeStorageSync('token')
@@ -296,7 +298,11 @@ class AuthService {
     return this.getAuthSession({ normalize: true }).isAuthenticated
   }
 
-  buildLoginUrl(returnTo = '/pages/index/index') {
+  buildPostAuthHomeUrl() {
+    return this.postAuthHomeUrl
+  }
+
+  buildLoginUrl(returnTo = this.postAuthHomeUrl) {
     return '/auth/login?returnTo=' + encodeURIComponent(returnTo)
   }
 

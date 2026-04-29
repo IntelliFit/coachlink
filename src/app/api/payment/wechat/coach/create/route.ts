@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
 
         const { data: subscription, error: subError } = await serviceRoleSupabase
             .from("coach_subscriptions")
-            .select("id, student_id, coach_id, status, monthly_price, product_name, product_tier, subscribed_weeks")
+            .select("id, student_id, coach_id, status, monthly_price, product_name, product_tier, subscribed_weeks, coaches(name)")
             .eq("id", subscriptionId)
             .single();
 
@@ -152,9 +152,22 @@ export async function POST(request: NextRequest) {
         const reqDate = formatHuifuReqDate();
         const orderType = renew ? "subscription_renew" : "subscription";
         const clientIp = getClientIp(request);
+        const coachName = String((subscription as any)?.coaches?.name || "").trim();
+        const baseDurationMonths = Math.max(1, Math.round(Number(subscription.subscribed_weeks || 0) / 4));
+        const durationMonths = renew
+            ? Math.max(1, Math.round(renewAdditionalWeeks / 4))
+            : baseDurationMonths;
         const orderData = {
             coachId,
+            coachName,
             subscriptionId,
+            subscription_id: subscriptionId,
+            productName: String(subscription.product_name || "").trim(),
+            product_name: String(subscription.product_name || "").trim(),
+            productTier: String(subscription.product_tier || "").trim(),
+            product_tier: String(subscription.product_tier || "").trim(),
+            durationMonths,
+            duration_months: durationMonths,
             renewAdditionalWeeks: renew ? renewAdditionalWeeks : undefined,
             huifu_req_date: reqDate,
         };

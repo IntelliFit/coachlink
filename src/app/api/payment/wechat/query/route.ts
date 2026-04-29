@@ -8,6 +8,7 @@ import {
     fulfillSubscriptionOnPaid,
     updateTransactionAndWallet,
 } from "@/app/api/payment/alipay/fulfillPaidOrder";
+import { fulfillStudentMembershipOrderOnPaid } from "@/app/api/payment/studentMembershipFulfillment";
 
 export const runtime = "nodejs";
 
@@ -122,6 +123,15 @@ export async function POST(request: NextRequest) {
             ) {
                 await fulfillSubscriptionOnPaid(latestOrder, latestOrder.id, userId, "wechat");
                 await updateTransactionAndWallet(latestOrder);
+            }
+
+            if (paymentStatus === "success" && latestOrder.order_type === "student_membership") {
+                const orderData = (latestOrder.order_data || {}) as Record<string, any>;
+                await fulfillStudentMembershipOrderOnPaid({
+                    relatedOrderId: String(orderData.related_order_id || ""),
+                    productKey: String(orderData.product_key || ""),
+                    userId,
+                });
             }
         }
 

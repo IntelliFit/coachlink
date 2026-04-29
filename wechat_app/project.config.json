@@ -10,7 +10,7 @@
     "compileHotReLoad": false,
     "postcss": false,
     "preloadBackgroundData": false,
-    "minified": true,
+    "minified": false,
     "newFeature": true,
     "autoAudits": false,
     "coverView": true,
@@ -24,8 +24,6 @@
     "packNpmRelationList": [],
     "minifyWXSS": true,
     "minifyWXML": true,
-    "ignoreUploadUnusedFiles": true,
-    "lazyloadPlaceholderEnable": true,
     "localPlugins": false,
     "disableUseStrict": false,
     "useCompilerPlugins": false,
@@ -50,5 +48,6 @@
     "tabIndent": "insertSpaces",
     "tabSize": 2
   },
-  "srcMiniprogramRoot": "dist/"
+  "srcMiniprogramRoot": "dist/",
+  "libVersion": "3.15.0"
 }

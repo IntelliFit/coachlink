@@ -22,21 +22,22 @@ function ensureNextEnvLoaded(): void {
 /**
  * 智能导入、计划 AI 修改等共用 LLM 客户端。
  *
- * - OFOXAI_API_KEY（或别名 OFOX_API_KEY）：优先（OfoxAI OpenAI 兼容协议）
+ * - OFOXAI_API_KEY（或别名 OFOX_API_KEY）：通用 OpenAI 兼容后备（主要给多模态/兼容链路）
  * - OFOXAI_MODEL：默认 `google/gemini-3.1-flash-lite-preview`（见 Ofox Models；若 .env 仍写旧 id 会覆盖默认值）
  * - COACHLINK_USE_DEEPSEEK=1：在同时配置了 DEEPSEEK 时强制走 DeepSeek（省成本/省 reasoning tokens）
- * 未配置 Ofox 时回退 DEEPSEEK_API_KEY + deepseek-chat
+ * 未配置 Ofox 时回退 DEEPSEEK_API_KEY + deepseek-v4-flash
  */
-export const COACHLINK_DEFAULT_LLM_MODEL = "google/gemini-3.1-flash-lite-preview";
+export const COACHLINK_DEFAULT_OFOX_MODEL = "google/gemini-3.1-flash-lite-preview";
+export const COACHLINK_DEFAULT_DEEPSEEK_MODEL = "deepseek-v4-flash";
 
 /** 去掉 # 注释、误粘贴的中文/空白，避免请求里出现非法 model id（会 404） */
 function sanitizeLlmModelId(raw: string | undefined): string {  
     let s = (raw ?? "").trim();
-    if (!s) return COACHLINK_DEFAULT_LLM_MODEL;
+    if (!s) return COACHLINK_DEFAULT_OFOX_MODEL;
     s = s.split("#")[0]?.trim() ?? s;
     s = s.replace(/[\u4e00-\u9fff]+/g, "").trim();
     s = s.split(/\s+/)[0] ?? s;
-    return s || COACHLINK_DEFAULT_LLM_MODEL;
+    return s || COACHLINK_DEFAULT_OFOX_MODEL;
 }
 
 export type CoachlinkLlmProvider = "ofox" | "deepseek";
@@ -73,8 +74,8 @@ export function getCoachlinkLlm(): {
         const hasDs = Boolean(deepseekKey);
         const envModelRaw = process.env.OFOXAI_MODEL;
         const effective = ofoxKey && !forceDs
-            ? sanitizeLlmModelId(envModelRaw ?? COACHLINK_DEFAULT_LLM_MODEL)
-            : "deepseek-chat";
+            ? sanitizeLlmModelId(envModelRaw ?? COACHLINK_DEFAULT_OFOX_MODEL)
+            : COACHLINK_DEFAULT_DEEPSEEK_MODEL;
         console.info(
             `[coachlinkLlm] cwd=${process.cwd()} OFOXAI_API_KEY=${hasOfox ? "set" : "missing"}, DEEPSEEK_API_KEY=${hasDs ? "set" : "missing"}, COACHLINK_USE_DEEPSEEK=${forceDs ? "on" : "off"}`,
         );
@@ -94,14 +95,14 @@ export function getCoachlinkLlm(): {
                 baseURL: "https://api.deepseek.com",
                 apiKey: deepseekKey!,
             }),
-            model: "deepseek-chat",
+            model: COACHLINK_DEFAULT_DEEPSEEK_MODEL,
             provider: "deepseek",
         };
     }
 
     if (ofoxKey) {
         const model = sanitizeLlmModelId(
-            process.env.OFOXAI_MODEL ?? COACHLINK_DEFAULT_LLM_MODEL,
+            process.env.OFOXAI_MODEL ?? COACHLINK_DEFAULT_OFOX_MODEL,
         );
         return {
             client: new OpenAI({
@@ -115,7 +116,7 @@ export function getCoachlinkLlm(): {
 
     if (!deepseekKey) {
         throw new Error(
-            `请配置 OFOXAI_API_KEY（推荐，默认模型 ${COACHLINK_DEFAULT_LLM_MODEL}）或 DEEPSEEK_API_KEY（兼容）；或设 COACHLINK_USE_DEEPSEEK=1 强制 DeepSeek`,
+            `请配置 OFOXAI_API_KEY（后备，默认模型 ${COACHLINK_DEFAULT_OFOX_MODEL}）或 DEEPSEEK_API_KEY（推荐，默认模型 ${COACHLINK_DEFAULT_DEEPSEEK_MODEL}）；或设 COACHLINK_USE_DEEPSEEK=1 强制 DeepSeek`,
         );
     }
 
@@ -124,7 +125,33 @@ export function getCoachlinkLlm(): {
             baseURL: "https://api.deepseek.com",
             apiKey: deepseekKey,
         }),
-        model: "deepseek-chat",
+        model: COACHLINK_DEFAULT_DEEPSEEK_MODEL,
         provider: "deepseek",
     };
+}
+
+/**
+ * 计划生成 / 计划解析 / 计划修改等纯文本链路，默认优先使用 DeepSeek v4-flash。
+ * 只有在 DeepSeek key 缺失时，才回退通用 LLM 配置。
+ */
+export function getCoachlinkPlanLlm(): {
+    client: OpenAI;
+    model: string;
+    provider: CoachlinkLlmProvider;
+} {
+    ensureNextEnvLoaded();
+
+    const deepseekKey = process.env.DEEPSEEK_API_KEY?.trim();
+    if (deepseekKey) {
+        return {
+            client: new OpenAI({
+                baseURL: "https://api.deepseek.com",
+                apiKey: deepseekKey,
+            }),
+            model: COACHLINK_DEFAULT_DEEPSEEK_MODEL,
+            provider: "deepseek",
+        };
+    }
+
+    return getCoachlinkLlm();
 }

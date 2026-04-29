@@ -1,141 +1,170 @@
 .scenario-page {
   min-height: 100vh;
-  background: #f3f4f6;
+  background:
+    radial-gradient(circle at top, rgba(207, 109, 78, 0.12), transparent 32%),
+    #f6f4f2;
 
   .nav-bar {
-    height: 88px;
-    padding: 40px 16px 12px;
+    height: 104rpx;
+    padding: 40rpx 24rpx 16rpx;
     display: flex;
     align-items: center;
-    gap: 12px;
-    background: rgba(243, 244, 246, 0.95);
+    gap: 16rpx;
+    background: rgba(246, 244, 242, 0.96);
     border-bottom: 1px solid #e5e7eb;
 
     .nav-back {
-      font-size: 14px;
+      font-size: 28rpx;
       font-weight: 700;
-      color: #c2410c;
+      color: #cf6d4e;
     }
 
     .nav-title {
       flex: 1;
-      font-size: 16px;
+      font-size: 32rpx;
       font-weight: 700;
       color: #111827;
     }
   }
 
   .scenario-scroll {
-    height: calc(100vh - 88px);
+    height: calc(100vh - 104rpx);
   }
 
   .page-content {
-    padding: 14px 12px 28px;
+    padding: 24rpx;
   }
 
   .hero-card,
   .current-step-card,
   .done-card {
     background: #fff;
-    border-radius: 18px;
+    border-radius: 24rpx;
     border: 1px solid #e5e7eb;
-    padding: 18px 16px;
-    margin-bottom: 14px;
+    overflow: hidden;
+    margin-bottom: 24rpx;
+    box-shadow: 0 16rpx 32rpx rgba(15, 23, 42, 0.05);
   }
 
-  .hero-card {
-    background: var(--bg-card, #fff);
-    border-color: var(--border-color, #e5e7eb);
+  .hero-cover,
+  .current-step-image,
+  .step-image {
+    width: 100%;
+    display: block;
+    background: #f3f4f6;
+  }
+
+  .hero-cover {
+    height: 320rpx;
+  }
+
+  .current-step-image {
+    height: 360rpx;
+  }
+
+  .step-image {
+    height: 224rpx;
+  }
+
+  .hero-body,
+  .current-step-body {
+    padding: 24rpx;
   }
 
   .hero-icon {
+    width: 64rpx;
+    height: 64rpx;
+    border-radius: 16rpx;
+    background: #fdf2ec;
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-bottom: 8px;
+    margin-bottom: 16rpx;
+  }
+
+  .done-card {
+    padding: 24rpx;
   }
 
   .done-icon {
     display: block;
-    font-size: 28px;
-    margin-bottom: 8px;
+    font-size: 56rpx;
+    margin-bottom: 12rpx;
+    text-align: center;
   }
 
   .hero-title,
   .current-step-title,
   .done-title {
     display: block;
-    font-size: 22px;
+    font-size: 40rpx;
     font-weight: 800;
     color: #111827;
-    margin-bottom: 8px;
+    margin-bottom: 12rpx;
+    line-height: 1.35;
   }
 
   .hero-desc,
   .current-step-desc,
   .done-desc {
     display: block;
-    font-size: 13px;
-    line-height: 1.7;
+    font-size: 24rpx;
+    line-height: 1.75;
     color: #6b7280;
-    margin-bottom: 8px;
+    margin-bottom: 12rpx;
   }
 
   .hero-meta,
   .current-step-meta {
     display: block;
-    font-size: 12px;
+    font-size: 22rpx;
     font-weight: 700;
-    color: #c2410c;
+    color: #cf6d4e;
   }
 
   .primary-btn,
   .current-step-btn {
-    height: 48px;
-    border-radius: 14px;
-    background: #f97316;
+    height: 88rpx;
+    border-radius: 24rpx;
+    background: #cf6d4e;
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 8px 18px rgba(249, 115, 22, 0.22);
 
     Text {
       color: #fff;
-      font-size: 14px;
+      font-size: 28rpx;
       font-weight: 700;
     }
   }
 
   .steps-section {
-    margin-bottom: 16px;
+    margin-bottom: 24rpx;
   }
 
   .section-title {
     display: block;
-    font-size: 16px;
+    font-size: 30rpx;
     font-weight: 800;
     color: #111827;
-    margin-bottom: 10px;
+    margin-bottom: 16rpx;
   }
 
   .steps-list {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 16rpx;
   }
 
   .step-card {
-    display: flex;
-    align-items: flex-start;
-    gap: 12px;
+    overflow: hidden;
     background: #fff;
-    border-radius: 16px;
+    border-radius: 24rpx;
     border: 1px solid #e5e7eb;
-    padding: 14px 12px;
 
     &.current {
       background: #fff7ed;
-      border-color: #fb923c;
+      border-color: #cf6d4e;
     }
 
     &.completed {
@@ -144,10 +173,17 @@
     }
   }
 
+  .step-inner {
+    display: flex;
+    align-items: flex-start;
+    gap: 16rpx;
+    padding: 16rpx;
+  }
+
   .step-index {
-    width: 28px;
-    height: 28px;
-    border-radius: 999px;
+    width: 48rpx;
+    height: 48rpx;
+    border-radius: 9999rpx;
     background: #e5e7eb;
     display: flex;
     align-items: center;
@@ -155,7 +191,7 @@
     flex-shrink: 0;
 
     Text {
-      font-size: 12px;
+      font-size: 22rpx;
       font-weight: 700;
       color: #374151;
     }
@@ -168,42 +204,43 @@
 
   .step-title {
     display: block;
-    font-size: 14px;
+    font-size: 28rpx;
     font-weight: 700;
     color: #111827;
-    margin-bottom: 6px;
+    margin-bottom: 8rpx;
+    line-height: 1.45;
   }
 
   .step-desc {
     display: block;
-    font-size: 12px;
-    line-height: 1.6;
+    font-size: 22rpx;
+    line-height: 1.65;
     color: #6b7280;
   }
 
   .step-duration {
-    font-size: 11px;
+    font-size: 20rpx;
     color: #9ca3af;
     font-weight: 700;
   }
 
   .empty-wrap {
-    padding: 120px 24px;
+    padding: 200rpx 48rpx;
     text-align: center;
   }
 
   .empty-title {
     display: block;
-    font-size: 20px;
+    font-size: 40rpx;
     font-weight: 800;
     color: #111827;
-    margin-bottom: 8px;
+    margin-bottom: 16rpx;
   }
 
   .empty-desc {
     display: block;
-    font-size: 13px;
-    line-height: 1.6;
+    font-size: 24rpx;
+    line-height: 1.7;
     color: #6b7280;
   }
 }

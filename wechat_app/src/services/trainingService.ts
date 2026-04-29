@@ -19,6 +19,8 @@ interface PlanInstance {
   training_days: TrainingDay[]
   start_date?: string
   start_execution_day?: number
+  execution_notice?: string | null
+  executionNotice?: string | null
 }
 
 interface TrainingDay {

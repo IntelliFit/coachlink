@@ -12,6 +12,15 @@ import './index.scss'
 
 type SortMode = 'subscription_created_desc' | 'subscription_created_asc' | 'subscription_updated_desc'
 type PaymentTab = 'pending' | 'history'
+type AiConfigMode = 'single' | 'bulk'
+type ClearPlanMode = 'archive' | 'delete'
+
+interface AiGenerationConfig {
+  startWeek: number
+  startDay: number
+  keepOriginalIndex: boolean
+  useLLM: boolean
+}
 
 interface StudentListResponse {
   students: any[]
@@ -61,6 +70,15 @@ function CoachStudents() {
   const [bulkAiGenerating, setBulkAiGenerating] = useState(false)
   const [aiGeneratingStudentId, setAiGeneratingStudentId] = useState<string | null>(null)
   const [excludedNoPlanIds, setExcludedNoPlanIds] = useState<string[]>([])
+  const [aiConfigVisible, setAiConfigVisible] = useState(false)
+  const [aiConfigMode, setAiConfigMode] = useState<AiConfigMode>('single')
+  const [aiConfigStudent, setAiConfigStudent] = useState<any | null>(null)
+  const [aiStartWeek, setAiStartWeek] = useState('1')
+  const [aiStartDay, setAiStartDay] = useState('1')
+  const [aiUseLLM, setAiUseLLM] = useState(false)
+  const [clearPlanTarget, setClearPlanTarget] = useState<any | null>(null)
+  const [clearPlanMode, setClearPlanMode] = useState<ClearPlanMode>('archive')
+  const [clearingPlan, setClearingPlan] = useState(false)
 
   const totalPages = Math.max(1, Math.ceil(totalRecords / PAGE_SIZE))
   const waitingTotal = manualWaitingCount + systemWaitingCount
@@ -102,6 +120,31 @@ function CoachStudents() {
   const allNoPlanSelectedOnPage = useMemo(() => {
     return noPlanStudentIdsOnPage.length > 0 && selectedNoPlanIdsOnPage.length === noPlanStudentIdsOnPage.length
   }, [noPlanStudentIdsOnPage.length, selectedNoPlanIdsOnPage.length])
+
+  const getAiConfig = useCallback((): AiGenerationConfig => {
+    const week = Math.max(1, Math.floor(Number(aiStartWeek) || 1))
+    const day = Math.max(1, Math.min(7, Math.floor(Number(aiStartDay) || 1)))
+    return {
+      startWeek: week,
+      startDay: day,
+      keepOriginalIndex: true,
+      useLLM: aiUseLLM
+    }
+  }, [aiStartDay, aiStartWeek, aiUseLLM])
+
+  const aiConfigSummary = useMemo(() => {
+    const config = getAiConfig()
+    const startExecutionDay = ((config.startWeek - 1) * 7) + config.startDay
+    return {
+      ...config,
+      startExecutionDay,
+      isFromBeginning: config.startWeek === 1 && config.startDay === 1
+    }
+  }, [getAiConfig])
+
+  const getStudentPlanId = useCallback((student: any) => {
+    return String(student?.plan?.id || student?.plan?.instance_id || student?.latest_plan_instance_id || '')
+  }, [])
 
   const loadWaitingData = useCallback(async (options?: { showLoading?: boolean }) => {
     try {
@@ -580,7 +623,7 @@ function CoachStudents() {
     return { label: '扫码支付', className: 'info' }
   }, [])
 
-  const handleAiGenerateStudent = useCallback(async (student: any) => {
+  const handleAiGenerateStudent = useCallback(async (student: any, config: AiGenerationConfig) => {
     const subscriptionId = String(student?.id || '')
     if (!subscriptionId) {
       Taro.showToast({ title: '学员数据异常，请刷新后重试', icon: 'none' })
@@ -595,9 +638,10 @@ function CoachStudents() {
     try {
       const res = await planLibService.createAiInstance({
         subscriptionId,
-        startWeek: 1,
-        startDay: 1,
-        keepOriginalIndex: true
+        startWeek: config.startWeek,
+        startDay: config.startDay,
+        keepOriginalIndex: config.keepOriginalIndex,
+        useLLM: config.useLLM
       })
 
       if (!res?.template) {
@@ -621,7 +665,7 @@ function CoachStudents() {
         }
       }))
 
-      Taro.showToast({ title: 'AI 生成成功', icon: 'none' })
+      Taro.showToast({ title: config.useLLM ? 'LLM 生成成功' : '规则生成成功', icon: 'none' })
     } catch (error: any) {
       console.error('[coach/students] create ai instance failed:', error)
       Taro.showToast({ title: error?.message || '生成失败，请稍后重试', icon: 'none' })
@@ -630,48 +674,138 @@ function CoachStudents() {
     }
   }, [getStudentName])
 
-  const handleBulkAiGenerate = useCallback(() => {
+  const handleBulkAiGenerate = useCallback(async (config: AiGenerationConfig) => {
     if (bulkAiGenerating) return
 
     const excludedCount = excludedNoPlanIds.length
-    const modalContent = excludedCount > 0
-      ? `将为未配置计划学员批量生成训练计划，已取消勾选 ${excludedCount} 位将跳过。是否继续？`
-      : '将为所有未配置计划的学员批量生成训练计划（与网页端一致）。是否继续？'
+    setBulkAiGenerating(true)
+    try {
+      const response = await planLibService.bulkCreateAiInstances({
+        mode: 'no_plan',
+        excludedSubscriptionIds: excludedNoPlanIds,
+        startWeek: config.startWeek,
+        startDay: config.startDay,
+        keepOriginalIndex: config.keepOriginalIndex,
+        useLLM: config.useLLM
+      })
 
-    Taro.showModal({
-      title: '批量快速生成',
-      content: modalContent,
-      confirmText: '开始生成',
-      success: async (res) => {
-        if (!res.confirm) return
-        setBulkAiGenerating(true)
-        try {
-          const response = await planLibService.bulkCreateAiInstances({
-            mode: 'no_plan',
-            excludedSubscriptionIds: excludedNoPlanIds,
-            startWeek: 1,
-            startDay: 1,
-            keepOriginalIndex: true
-          })
+      const successCount = Number(response?.successCount || 0)
+      const failedCount = Number(response?.failedCount || 0)
+      const successLabel = config.useLLM ? 'LLM' : '规则'
+      Taro.showToast({
+        title: failedCount > 0 ? `${successLabel}成功${successCount} 失败${failedCount}` : `${successLabel}生成 ${successCount} 个`,
+        icon: 'none',
+        duration: 2600
+      })
 
-          const successCount = Number(response?.successCount || 0)
-          const failedCount = Number(response?.failedCount || 0)
-          Taro.showToast({
-            title: failedCount > 0 ? `成功${successCount} 失败${failedCount}` : `成功生成 ${successCount} 个`,
-            icon: 'none',
-            duration: 2600
-          })
-
-          await loadStudents({ targetPage: page, showPageLoading: false, skipWaitingCounts: false })
-        } catch (error) {
-          console.error('[coach/students] bulk ai generate failed:', error)
-          Taro.showToast({ title: '批量生成失败，请稍后重试', icon: 'none' })
-        } finally {
-          setBulkAiGenerating(false)
-        }
+      if (excludedCount > 0) {
+        setExcludedNoPlanIds([])
       }
-    })
+      await loadStudents({ targetPage: page, showPageLoading: false, skipWaitingCounts: false })
+    } catch (error) {
+      console.error('[coach/students] bulk ai generate failed:', error)
+      Taro.showToast({ title: '批量生成失败，请稍后重试', icon: 'none' })
+    } finally {
+      setBulkAiGenerating(false)
+    }
   }, [bulkAiGenerating, excludedNoPlanIds, loadStudents, page])
+
+  const openAiConfigForStudent = useCallback((student: any) => {
+    const subscriptionId = String(student?.id || '')
+    if (!subscriptionId) {
+      Taro.showToast({ title: '学员数据异常，请刷新后重试', icon: 'none' })
+      return
+    }
+    if (student?.plan) {
+      Taro.showToast({ title: '该学员已有计划', icon: 'none' })
+      return
+    }
+    setAiConfigMode('single')
+    setAiConfigStudent(student)
+    setAiStartWeek('1')
+    setAiStartDay('1')
+    setAiUseLLM(false)
+    setAiConfigVisible(true)
+  }, [])
+
+  const openBulkAiConfig = useCallback(() => {
+    if (bulkAiGenerating) return
+    setAiConfigMode('bulk')
+    setAiConfigStudent(null)
+    setAiStartWeek('1')
+    setAiStartDay('1')
+    setAiUseLLM(false)
+    setAiConfigVisible(true)
+  }, [bulkAiGenerating])
+
+  const closeAiConfig = useCallback(() => {
+    if (aiGeneratingStudentId || bulkAiGenerating) return
+    setAiConfigVisible(false)
+    setAiConfigStudent(null)
+  }, [aiGeneratingStudentId, bulkAiGenerating])
+
+  const confirmAiConfig = useCallback(async () => {
+    const config = getAiConfig()
+    if (aiConfigMode === 'single') {
+      if (!aiConfigStudent) return
+      await handleAiGenerateStudent(aiConfigStudent, config)
+    } else {
+      await handleBulkAiGenerate(config)
+    }
+    setAiConfigVisible(false)
+    setAiConfigStudent(null)
+  }, [aiConfigMode, aiConfigStudent, getAiConfig, handleAiGenerateStudent, handleBulkAiGenerate])
+
+  const openClearPlanDialog = useCallback((student: any) => {
+    if (!getStudentPlanId(student)) {
+      Taro.showToast({ title: '该学员当前没有计划', icon: 'none' })
+      return
+    }
+    setClearPlanTarget(student)
+    setClearPlanMode('archive')
+  }, [getStudentPlanId])
+
+  const closeClearPlanDialog = useCallback(() => {
+    if (clearingPlan) return
+    setClearPlanTarget(null)
+    setClearPlanMode('archive')
+  }, [clearingPlan])
+
+  const confirmClearPlan = useCallback(async () => {
+    const target = clearPlanTarget
+    const instanceId = getStudentPlanId(target)
+    if (!target || !instanceId) return
+
+    setClearingPlan(true)
+    try {
+      const res = clearPlanMode === 'archive'
+        ? await planLibService.archiveInstance({ id: instanceId })
+        : await planLibService.deleteInstance({ id: instanceId })
+
+      if (!res) {
+        Taro.showToast({ title: '清空计划失败，请稍后重试', icon: 'none' })
+        return
+      }
+
+      const subscriptionId = String(target?.id || '')
+      setStudents((prev) => prev.map((item) => (
+        String(item?.id || '') === subscriptionId
+          ? { ...item, plan: null, progress: { total: 0, completed: 0 } }
+          : item
+      )))
+      setClearPlanTarget(null)
+      Taro.showToast({
+        title: clearPlanMode === 'archive' ? '当前计划已归档' : '当前计划已删除',
+        icon: 'none'
+      })
+      await loadStudents({ targetPage: page, showPageLoading: false, skipWaitingCounts: false })
+    } catch (error) {
+      console.error('[coach/students] clear plan failed:', error)
+      Taro.showToast({ title: '清空计划失败，请稍后重试', icon: 'none' })
+    } finally {
+      setClearingPlan(false)
+    }
+  }, [clearPlanMode, clearPlanTarget, getStudentPlanId, loadStudents, page])
 
   const renderLoading = () => (
     <View className='skeleton-list'>
@@ -874,7 +1008,7 @@ function CoachStudents() {
             <Text className='toolbar-btn-text'>{currentSortLabel}</Text>
           </View>
 
-          <View className='toolbar-btn ai-btn' onClick={handleBulkAiGenerate}>
+          <View className='toolbar-btn ai-btn' onClick={openBulkAiConfig}>
             <Text className='toolbar-btn-text'>{bulkAiGenerating ? '批量生成中...' : '批量快速生成'}</Text>
           </View>
 
@@ -1035,10 +1169,16 @@ function CoachStudents() {
                           className={`action-link action-ai ${aiGenerating ? 'disabled' : ''}`}
                           onClick={() => {
                             if (aiGenerating) return
-                            void handleAiGenerateStudent(student)
+                            openAiConfigForStudent(student)
                           }}
                         >
                           <Text>{aiGenerating ? 'AI生成中...' : 'AI生成'}</Text>
+                        </View>
+                      )}
+
+                      {student?.plan && (
+                        <View className='action-link action-danger' onClick={() => openClearPlanDialog(student)}>
+                          <Text>清空计划</Text>
                         </View>
                       )}
 
@@ -1189,6 +1329,137 @@ function CoachStudents() {
                 </View>
               </View>
             )}
+          </View>
+        </View>
+      )}
+
+      {aiConfigVisible && (
+        <View className='coach-dialog-mask' onClick={closeAiConfig}>
+          <View
+            className='coach-dialog-panel'
+            onClick={(e) => {
+              e.stopPropagation()
+            }}
+          >
+            <View className='coach-dialog-header'>
+              <Text className='coach-dialog-title'>
+                {aiConfigMode === 'single' ? 'AI 生成配置' : '批量 AI 生成配置'}
+              </Text>
+              <Text className='coach-dialog-close' onClick={closeAiConfig}>×</Text>
+            </View>
+
+            <Text className='coach-dialog-subtitle'>
+              {aiConfigMode === 'single'
+                ? `${getStudentName(aiConfigStudent)} · 与网页端一致，可指定从第几周第几天开始，并选择是否启用 LLM 深度个性化。`
+                : `将为未配置计划学员生成，已取消勾选 ${excludedNoPlanIds.length} 位。`}
+            </Text>
+
+            <View className='config-grid'>
+              <View className='config-field'>
+                <Text className='config-label'>起始周</Text>
+                <Input
+                  className='config-input'
+                  type='number'
+                  value={aiStartWeek}
+                  onInput={(e) => setAiStartWeek(e.detail.value)}
+                />
+              </View>
+              <View className='config-field'>
+                <Text className='config-label'>起始天</Text>
+                <Input
+                  className='config-input'
+                  type='number'
+                  value={aiStartDay}
+                  onInput={(e) => setAiStartDay(e.detail.value)}
+                />
+              </View>
+            </View>
+
+            {!aiConfigSummary.isFromBeginning && (
+              <View className='config-start-hint'>
+                <Text className='config-start-hint-text'>
+                  学员将从第 {aiConfigSummary.startWeek} 周第 {aiConfigSummary.startDay} 天开始执行，前 {aiConfigSummary.startExecutionDay - 1} 天视为已完成。
+                </Text>
+              </View>
+            )}
+
+            <View
+              className={`config-toggle ${aiUseLLM ? 'active' : ''}`}
+              onClick={() => setAiUseLLM((current) => !current)}
+            >
+              <View className='config-toggle-dot' />
+              <View className='config-toggle-copy'>
+                <Text className='config-toggle-title'>启用 LLM 深度个性化</Text>
+                <Text className='config-toggle-desc'>开启后会让大模型分析学员问卷、档案和 PR 记录，先选参考骨架，再用脚本模式生成更个性化的计划。</Text>
+              </View>
+            </View>
+
+            <View className='coach-dialog-footer'>
+              <View className='coach-dialog-btn secondary' onClick={closeAiConfig}>
+                <Text>取消</Text>
+              </View>
+              <View
+                className={`coach-dialog-btn primary ${aiGeneratingStudentId || bulkAiGenerating ? 'disabled' : ''}`}
+                onClick={() => {
+                  if (aiGeneratingStudentId || bulkAiGenerating) return
+                  void confirmAiConfig()
+                }}
+              >
+                <Text>{aiGeneratingStudentId || bulkAiGenerating ? '生成中...' : '开始生成'}</Text>
+              </View>
+            </View>
+          </View>
+        </View>
+      )}
+
+      {clearPlanTarget && (
+        <View className='coach-dialog-mask' onClick={closeClearPlanDialog}>
+          <View
+            className='coach-dialog-panel'
+            onClick={(e) => {
+              e.stopPropagation()
+            }}
+          >
+            <View className='coach-dialog-header'>
+              <Text className='coach-dialog-title'>清空当前计划</Text>
+              <Text className='coach-dialog-close' onClick={closeClearPlanDialog}>×</Text>
+            </View>
+
+            <Text className='coach-dialog-subtitle'>
+              {getStudentName(clearPlanTarget)} 当前计划：{clearPlanTarget?.plan?.name || '未命名计划'}
+            </Text>
+
+            <View className='clear-mode-list'>
+              <View
+                className={`clear-mode-item ${clearPlanMode === 'archive' ? 'active' : ''}`}
+                onClick={() => setClearPlanMode('archive')}
+              >
+                <Text className='clear-mode-title'>归档保留</Text>
+                <Text className='clear-mode-desc'>保留计划和已有记录，学员回到未配置计划状态。</Text>
+              </View>
+              <View
+                className={`clear-mode-item danger ${clearPlanMode === 'delete' ? 'active' : ''}`}
+                onClick={() => setClearPlanMode('delete')}
+              >
+                <Text className='clear-mode-title'>彻底删除垃圾计划</Text>
+                <Text className='clear-mode-desc'>删除当前计划实例，适合明显错误的 AI 生成结果。</Text>
+              </View>
+            </View>
+
+            <View className='coach-dialog-footer'>
+              <View className='coach-dialog-btn secondary' onClick={closeClearPlanDialog}>
+                <Text>取消</Text>
+              </View>
+              <View
+                className={`coach-dialog-btn ${clearPlanMode === 'delete' ? 'danger' : 'primary'} ${clearingPlan ? 'disabled' : ''}`}
+                onClick={() => {
+                  if (clearingPlan) return
+                  void confirmClearPlan()
+                }}
+              >
+                <Text>{clearingPlan ? '处理中...' : clearPlanMode === 'delete' ? '确认删除' : '确认归档'}</Text>
+              </View>
+            </View>
           </View>
         </View>
       )}

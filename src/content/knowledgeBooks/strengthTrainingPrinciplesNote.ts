@@ -1,41 +1,8 @@
-type ImagePrompt = {
-  title: string;
-  intent: string;
-  prompt: string;
-};
-
-type KnowledgeBookManifest = {
-  slug: string;
-  source: {
-    title: string;
-    authors: string[];
-    originalFilePath: string;
-    copyrightMode: string;
-    collectionSlug: string;
-    collectionTitle: string;
-    noteSlug: string;
-    noteType: "overview" | "chapter";
-    chapterOrder: number;
-    chapterTitle: string;
-  };
-  book: {
-    title: string;
-    author: string;
-    cover_image: string | null;
-    audio_url: string | null;
-    summary: string;
-    is_free: boolean;
-    is_published: boolean;
-    sort_order: number;
-  };
-  content: {
-    format: string;
-    noteStyle: string;
-    disclaimer: string;
-    markdown: string;
-    imagePrompts: ImagePrompt[];
-  };
-};
+import {
+  appendKnowledgeBookRightsNotice,
+  type ImagePrompt,
+  type KnowledgeBookManifest,
+} from "./schema";
 
 const baseSource = {
   title: "力量训练原理",
@@ -84,7 +51,7 @@ function createNote(input: {
       format: "book-note-v1",
       noteStyle: "interpretive-reading-note",
       disclaimer,
-      markdown: input.markdown,
+      markdown: appendKnowledgeBookRightsNotice(input.markdown),
       imagePrompts: input.imagePrompts,
     },
   };

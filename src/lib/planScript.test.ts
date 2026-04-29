@@ -142,4 +142,35 @@ D1
             }),
         ).toThrow(/未找到精确动作：负重引体（顶端暂停）/);
     });
+
+    it("supports set range syntax like 1-2x2 and preserves it when formatting", () => {
+        const result = parsePlanScript({
+            script: `
+W1
+D5
+负重引体（底部暂停） 1-2x2 @5rm r240
+            `,
+            actions,
+        });
+
+        expect(result.days[0].actionSets?.[0]).toMatchObject({
+            actionId: "pullup",
+            params: {
+                组数: 1,
+                组数下限: 1,
+                组数上限: 2,
+                次数: 2,
+                休息时间: 240,
+            },
+        });
+
+        const script = formatTemplateToPlanScript({
+            trainingDays: result.days,
+            actionNameById: {
+                pullup: "负重引体（底部暂停）",
+            },
+        });
+
+        expect(script).toContain("负重引体（底部暂停） 1-2x2 @5rm r240");
+    });
 });

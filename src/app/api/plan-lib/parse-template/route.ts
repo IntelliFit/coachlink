@@ -248,7 +248,7 @@ export async function POST(req: Request) {
             await writeTraceMetaOnce(id, {
                 createdAt: new Date().toISOString(),
                 stage: "parse-template",
-                model: "deepseek-chat",
+                model: "deepseek-v4-flash",
             });
             await writeTraceText(id, "stage2.input.txt", String(text ?? ""));
         });

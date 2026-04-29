@@ -1,6 +1,6 @@
 /**
  * 力量计算结果页
- * 从计算器页面跳转过来，展示计算结果和分享功能
+ * 从计算器页面跳转而来，展示计算结果和分享功能
  */
 import { useEffect, useState, useCallback } from 'react'
 import { View, Text, ScrollView } from '@tarojs/components'
@@ -52,6 +52,7 @@ interface ResultData {
   gender: string
   bodyweight: string
   reps: string
+  workingWeight?: number | null
 }
 
 const STORAGE_KEY = 'sl_calc_result'
@@ -81,9 +82,13 @@ export default function CalculatorResultPage() {
   const gender = data?.gender || ''
   const bodyweight = data?.bodyweight || ''
   const reps = data?.reps || ''
+  const workingWeight =
+    typeof data?.workingWeight === 'number' && Number.isFinite(data.workingWeight)
+      ? data.workingWeight
+      : null
 
   const scoreLevel = result ? getScoreLevel(result.final_score, exerciseType) : null
-  const scoreLabel = isUpperBodyExercise(exerciseType) || isBenchBasedExercise(exerciseType) ? '力量分' : 'DOTS 分'
+  const scoreLabel = isUpperBodyExercise(exerciseType) || isBenchBasedExercise(exerciseType) ? '力量分' : 'DOTS分'
   const scoreUnit = ''
   const scoreDecimals = isUpperBodyExercise(exerciseType) ? 0 : 1
   const oneRMLabel = isUpperBodyExercise(exerciseType) ? '估算负重 1RM' : '估算 1RM'
@@ -92,15 +97,16 @@ export default function CalculatorResultPage() {
     ? generateRMTable(isUpperBodyExercise(exerciseType) ? bwNum : 0, result.estimated_1rm)
     : []
 
-  // 分享海报
-  const { generate: generatePoster, generating: posterGenerating, imageUrl: posterImageUrl, reset: resetPoster } = useSharePoster<StrengthPosterData>({
-    canvasId: 'strength-calc-poster-canvas',
-    width: 750,
-    draw: (ctx, data) => drawStrengthPoster(ctx, data)
-  })
+  const { generate: generatePoster, generating: posterGenerating, imageUrl: posterImageUrl, reset: resetPoster } =
+    useSharePoster<StrengthPosterData>({
+      canvasId: 'strength-calc-poster-canvas',
+      width: 750,
+      draw: (ctx, posterData) => drawStrengthPoster(ctx, posterData)
+    })
 
   const buildPosterData = useCallback((): StrengthPosterData | null => {
     if (!result || !scoreLevel) return null
+
     const now = new Date()
     const user = Taro.getStorageSync('user') || {}
     const profile = Taro.getStorageSync('studentProfile') as Record<string, unknown> | null
@@ -108,29 +114,45 @@ export default function CalculatorResultPage() {
       profile && typeof profile === 'object' && profile !== null && 'user' in profile
         ? (profile as { user?: Record<string, unknown> }).user
         : null
-    const p = (profileUser || profile || {}) as Record<string, unknown>
-    const nickname = String(user?.nickname || user?.real_name || user?.name || user?.phone || 'CoachLink 用户').trim()
+    const mergedProfile = (profileUser || profile || {}) as Record<string, unknown>
+
+    const nickname = String(
+      user?.nickname || user?.real_name || user?.name || user?.phone || 'CoachLink 用户'
+    ).trim()
     const displayName = String(user?.nickname || user?.real_name || user?.name || nickname).trim()
     const avatarUrl = String(
       user?.avatar_url ||
         user?.avatarUrl ||
         user?.headimgurl ||
         user?.wechat_avatar ||
-        p?.avatar_url ||
-        p?.avatarUrl ||
+        mergedProfile?.avatar_url ||
+        mergedProfile?.avatarUrl ||
         ''
     ).trim()
+
     const createdAtRaw = user?.created_at || user?.createdAt || user?.register_time || user?.registeredAt || ''
     const createdAt = createdAtRaw ? new Date(String(createdAtRaw)) : null
     const msPerDay = 24 * 60 * 60 * 1000
-    const registeredDays = createdAt && !Number.isNaN(createdAt.getTime())
-      ? Math.max(1, Math.floor((Date.now() - createdAt.getTime()) / msPerDay) + 1)
-      : 1
-    const dateStr = `${now.getFullYear()}.${String(now.getMonth() + 1).padStart(2, '0')}.${String(now.getDate()).padStart(2, '0')}`
-    const submittedAtDisplay = `${String(now.getMonth() + 1).padStart(2, '0')}/${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
+    const registeredDays =
+      createdAt && !Number.isNaN(createdAt.getTime())
+        ? Math.max(1, Math.floor((Date.now() - createdAt.getTime()) / msPerDay) + 1)
+        : 1
+
+    const submittedAtDisplay = `${String(now.getMonth() + 1).padStart(2, '0')}/${String(now.getDate()).padStart(
+      2,
+      '0'
+    )} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
     const estimated1RMLabel = isUpperBodyExercise(exerciseType) ? '估算负重 1RM' : '估算 1RM'
+    const posterWorkingWeight =
+      workingWeight ??
+      (typeof result.computed_added_weight === 'number' && Number.isFinite(result.computed_added_weight)
+        ? result.computed_added_weight
+        : typeof result.adjusted_used_weight === 'number' && Number.isFinite(result.adjusted_used_weight)
+          ? result.adjusted_used_weight
+          : undefined)
+
     return {
-      exerciseName: EXERCISE_OPTIONS.find((o) => o.value === exerciseType)?.label || '力量训练',
+      exerciseName: EXERCISE_OPTIONS.find((option) => option.value === exerciseType)?.label || '力量训练',
       displayName,
       nickname,
       avatarUrl: avatarUrl || undefined,
@@ -141,48 +163,49 @@ export default function CalculatorResultPage() {
       estimated1RM: result.estimated_1rm,
       estimated1RMLabel,
       coefficient: result.coefficient,
+      workingWeight: posterWorkingWeight,
       bodyweight: Number(bodyweight) || 0,
       reps: Number(reps) || 0,
       gender: gender === 'Male' ? '男' : gender === 'Female' ? '女' : '',
-      mode: MODE_OPTIONS.find((o) => o.value === mode)?.label || '正向计算',
-      date: dateStr,
+      mode: MODE_OPTIONS.find((option) => option.value === mode)?.label || '正向计算',
+      date: `${now.getFullYear()}.${String(now.getMonth() + 1).padStart(2, '0')}.${String(now.getDate()).padStart(
+        2,
+        '0'
+      )}`,
       submittedAtDisplay
     }
-  }, [result, scoreLevel, exerciseType, scoreLabel, bodyweight, reps, gender, mode])
+  }, [bodyweight, exerciseType, gender, mode, reps, result, scoreLabel, scoreLevel, workingWeight])
 
   const handleOpenShare = useCallback(async () => {
     const base = buildPosterData()
     if (!base) return
-    setShowShareModal(true)
 
+    setShowShareModal(true)
     let posterData: StrengthPosterData = { ...base }
+
     try {
       const session = authService.getAuthSession({ normalize: true })
       const uid = session.userId
       if (uid) {
-        const profRes = await studentService.getStudentProfile(String(uid))
-        const profile = profRes?.profile as Record<string, unknown> | undefined
-        const av = profile?.avatar_url || profile?.avatarUrl
-        if (av && String(av).trim()) {
-          posterData = { ...posterData, avatarUrl: String(av).trim() }
+        const profileRes = await studentService.getStudentProfile(String(uid))
+        const profile = profileRes?.profile as Record<string, unknown> | undefined
+        const avatar = profile?.avatar_url || profile?.avatarUrl
+        const nickname = profile?.nickname || profile?.real_name
+
+        if (avatar && String(avatar).trim()) {
+          posterData = { ...posterData, avatarUrl: String(avatar).trim() }
         }
-        const nn = profile?.nickname || profile?.real_name
-        if (nn && String(nn).trim()) {
-          const n = String(nn).trim()
-          posterData = { ...posterData, displayName: n, nickname: n }
+        if (nickname && String(nickname).trim()) {
+          const cleanName = String(nickname).trim()
+          posterData = { ...posterData, displayName: cleanName, nickname: cleanName }
         }
       }
     } catch (e) {
       console.warn('[calculator-result] poster profile merge failed', e)
     }
 
-    await new Promise<void>((resolve) => {
-      Taro.nextTick(() => resolve())
-    })
-    await new Promise<void>((resolve) => {
-      setTimeout(() => resolve(), 40)
-    })
-
+    await new Promise<void>((resolve) => Taro.nextTick(() => resolve()))
+    await new Promise<void>((resolve) => setTimeout(() => resolve(), 40))
     await generatePoster(posterData)
   }, [buildPosterData, generatePoster])
 
@@ -198,7 +221,7 @@ export default function CalculatorResultPage() {
       path: posterImageUrl,
       fail: (err: { errMsg?: string }) => {
         console.error('showShareImageMenu fail', err)
-        Taro.showToast({ title: '分享失败，请保存图片后手动发送', icon: 'none' })
+        Taro.showToast({ title: '分享失败，请先保存图片再发送', icon: 'none' })
       }
     })
   }, [posterImageUrl])
@@ -217,16 +240,16 @@ export default function CalculatorResultPage() {
             title: '提示',
             content: '需要您授权保存图片到相册',
             confirmText: '去设置',
-            success: (r) => {
-              if (r.confirm) Taro.openSetting()
+            success: (res) => {
+              if (res.confirm) Taro.openSetting()
             }
           })
-        } else {
-          Taro.showToast({ title: '保存失败', icon: 'none' })
+          return
         }
+        Taro.showToast({ title: '保存失败', icon: 'none' })
       }
     })
-  }, [posterImageUrl, handleCloseShare])
+  }, [handleCloseShare, posterImageUrl])
 
   const handleBack = () => {
     Taro.navigateBack()
@@ -269,7 +292,6 @@ export default function CalculatorResultPage() {
             </View>
           </View>
 
-          {/* 评分等级品牌色大卡片 */}
           {scoreLevel && (
             <View className='result-score-card'>
               <Text className='result-score-label'>{scoreLevel.level}</Text>
@@ -281,7 +303,6 @@ export default function CalculatorResultPage() {
             </View>
           )}
 
-          {/* 辅助信息行 */}
           {result.adjusted_used_weight !== undefined && (
             <Text className='result-line'>实际用于计算的重量：{result.adjusted_used_weight.toFixed(1)} kg</Text>
           )}
@@ -292,14 +313,16 @@ export default function CalculatorResultPage() {
             <Text className='result-line'>反推可完成次数：{result.computed_reps} 次</Text>
           )}
 
-          {/* 数据指标网格 */}
           <View className='result-metrics-grid'>
             <View className='result-metric-card'>
               <Text className='result-metric-label'>
                 <Text className='iconfont icon-zhongliang metric-icon' />
                 {oneRMLabel}
               </Text>
-              <Text className='result-metric-value'>{result.estimated_1rm.toFixed(1)}<Text className='result-metric-unit'> kg</Text></Text>
+              <Text className='result-metric-value'>
+                {result.estimated_1rm.toFixed(1)}
+                <Text className='result-metric-unit'> kg</Text>
+              </Text>
             </View>
             <View className='result-metric-card'>
               <Text className='result-metric-label'>
@@ -310,7 +333,6 @@ export default function CalculatorResultPage() {
             </View>
           </View>
 
-          {/* RM 对照表 */}
           <View className='rm-table-wrap'>
             <Text className='rm-table-title'>RM 对照表</Text>
             <View className='rm-table'>
@@ -331,7 +353,6 @@ export default function CalculatorResultPage() {
         </View>
       </ScrollView>
 
-      {/* 分享海报弹窗 */}
       <SharePosterModal
         visible={showShareModal}
         onClose={handleCloseShare}

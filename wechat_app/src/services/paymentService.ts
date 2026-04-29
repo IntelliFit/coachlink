@@ -1,8 +1,8 @@
 /**
- * 支付相关：小程序内调用 create 获取支付宝跳转 URL（带鉴权）
- * 主要用于继续支付已有订阅或兜底直达支付页
+ * 鏀粯鐩稿叧锛氬悓鏃朵繚鐣欐棫鏀粯瀹濊烦杞兘鍔涳紝骞舵柊澧炲皬绋嬪簭鍐呭師鐢熷井淇℃敮浠樿兘鍔涖€?
  */
 import { request } from '@/utils/request'
+import Taro from '@tarojs/taro'
 
 const WEB_BASE = 'https://coachlink.fit'
 
@@ -15,7 +15,7 @@ export interface CreateAlipayOrderParams {
     subscriptionId: string
     renewAdditionalWeeks?: number
   }
-  /** 为 true 时接口返回 paymentUrl，不返回 formHtml */
+  /** 涓?true 鏃舵帴鍙ｈ繑鍥?paymentUrl锛屼笉杩斿洖 formHtml */
   returnUrlOnly?: boolean
   isMobile?: boolean
 }
@@ -48,8 +48,8 @@ export function buildCoachSubscriptionPaymentStartUrl(params: {
 }
 
 /**
- * 创建支付宝订单并返回支付跳转 URL（小程序鉴权）
- * 供小程序内继续发起支付宝支付或跳转支付直达页使用
+ * 鍒涘缓鏀粯瀹濊鍗曞苟杩斿洖鏀粯璺宠浆 URL锛堝皬绋嬪簭閴存潈锛?
+ * 渚涘皬绋嬪簭鍐呯户缁彂璧锋敮浠樺疂鏀粯鎴栬烦杞敮浠樼洿杈鹃〉浣跨敤
  */
 export async function createAlipayOrder(
   params: CreateAlipayOrderParams & { showErrorToast?: boolean }
@@ -76,7 +76,7 @@ export async function createAlipayOrder(
   return { success: true, paymentUrl, orderId }
 }
 
-/** 订单状态：与 web payment/[id] 一致 */
+/** 璁㈠崟鐘舵€侊細涓?web payment/[id] 涓€鑷?*/
 export type PaymentStatus = 'pending' | 'success' | 'failed' | 'cancelled'
 
 export interface QueryPaymentOrderResponse {
@@ -84,8 +84,43 @@ export interface QueryPaymentOrderResponse {
   tradeStatus: string
 }
 
+export interface WechatPaymentParams {
+  appId: string
+  timeStamp: string
+  nonceStr: string
+  package: string
+  signType: 'RSA'
+  paySign: string
+}
+
+export interface CreateCoachWechatPaymentResponse {
+  orderId: string
+  outTradeNo: string
+  paymentProvider: 'wechat'
+  amount: number
+  paymentParams: WechatPaymentParams
+}
+
+export interface CreateMembershipWechatPaymentResponse {
+  orderId: string
+  outTradeNo: string
+  paymentProvider: 'wechat'
+  amount: number
+  paymentParams: WechatPaymentParams
+}
+
+export interface QueryCoachWechatPaymentResponse {
+  status: PaymentStatus
+  amount: number
+  order: {
+    id: string
+    total_amount: string
+    status: string
+  }
+}
+
 /**
- * 查询支付订单状态（轮询用，小程序鉴权）
+ * 鏌ヨ鏀粯璁㈠崟鐘舵€侊紙杞鐢紝灏忕▼搴忛壌鏉冿級
  */
 export async function queryPaymentOrder(orderId: string): Promise<{
   success: boolean
@@ -114,4 +149,124 @@ export async function queryPaymentOrder(orderId: string): Promise<{
   }
   const amount = order?.total_amount != null ? Number(order.total_amount) : undefined
   return { success: true, status, amount }
+}
+
+export async function createCoachWechatPayment(params: {
+  coachId: string
+  subscriptionId: string
+  amount?: number
+  renew?: boolean
+  renewAdditionalWeeks?: number
+  subject?: string
+}): Promise<{ success: boolean; data?: CreateCoachWechatPaymentResponse; message?: string }> {
+  const res = await request<CreateCoachWechatPaymentResponse>({
+    url: '/api/payment/wechat/coach/create',
+    method: 'POST',
+    data: params,
+  })
+
+  if (!res.success || !res.data) {
+    return { success: false, message: res.message }
+  }
+
+  return {
+    success: true,
+    data: res.data
+  }
+}
+
+export async function createMembershipWechatPayment(params: {
+  productKey: string
+}): Promise<{ success: boolean; data?: CreateMembershipWechatPaymentResponse; message?: string }> {
+  const res = await request<CreateMembershipWechatPaymentResponse>({
+    url: '/api/payment/wechat/membership/create',
+    method: 'POST',
+    data: params,
+  })
+
+  if (!res.success || !res.data) {
+    return { success: false, message: res.message }
+  }
+
+  return {
+    success: true,
+    data: res.data
+  }
+}
+
+export async function queryCoachPaymentOrder(orderId: string): Promise<{
+  success: boolean
+  status?: PaymentStatus
+  amount?: number
+  message?: string
+}> {
+  const res = await request<QueryCoachWechatPaymentResponse>({
+    url: '/api/payment/wechat/query',
+    method: 'POST',
+    data: { orderId },
+    showErrorToast: false
+  })
+
+  if (!res.success || !res.data) {
+    return { success: false, message: res.message }
+  }
+
+  return {
+    success: true,
+    status: res.data.status,
+    amount: Number(res.data.amount || 0)
+  }
+}
+
+export async function requestCoachWechatPayment(params: WechatPaymentParams): Promise<{
+  success: boolean
+  status: 'success' | 'cancelled' | 'failed'
+  message?: string
+}> {
+  try {
+    await Taro.requestPayment({
+      timeStamp: params.timeStamp,
+      nonceStr: params.nonceStr,
+      package: params.package,
+      signType: params.signType,
+      paySign: params.paySign,
+    })
+    return { success: true, status: 'success' }
+  } catch (error: any) {
+    const errMsg = String(error?.errMsg || error?.message || '')
+    const cancelled =
+      errMsg.includes('cancel') ||
+      errMsg.includes('cancelled') ||
+      errMsg.includes('鐢ㄦ埛鍙栨秷')
+
+    return {
+      success: false,
+      status: cancelled ? 'cancelled' : 'failed',
+      message: errMsg || (cancelled ? '鐢ㄦ埛鍙栨秷鏀粯' : '鎷夎捣寰俊鏀粯澶辫触')
+    }
+  }
+}
+
+export async function requestWechatPayment(params: WechatPaymentParams) {
+  return requestCoachWechatPayment(params)
+}
+
+export async function refundAlipayOrder(params: {
+  orderId: string
+  refundReason?: string
+  showErrorToast?: boolean
+}): Promise<{ success: boolean; message?: string }> {
+  const res = await request({
+    url: '/api/payment/alipay/refund',
+    method: 'POST',
+    data: {
+      orderId: params.orderId,
+      refundReason: params.refundReason || '鐢ㄦ埛鐢宠閫€娆?'
+    },
+    showErrorToast: params.showErrorToast ?? true
+  })
+  if (!res.success) {
+    return { success: false, message: res.message }
+  }
+  return { success: true, message: res.message }
 }

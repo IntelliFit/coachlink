@@ -2,29 +2,13 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import dynamic from "next/dynamic";
-import { Activity, BookOpen, CheckCircle2, ChevronRight, Dumbbell, Edit3, GitBranch, List, MapPin, Plus, Search, Sparkles, Users } from "lucide-react";
+import { Activity, BookOpen, CheckCircle2, ChevronRight, Dumbbell, Edit3, MapPin, Plus, Search, Sparkles, Users } from "lucide-react";
 import AIChatPanel from "@/components/knowledge/AIChatPanel";
 import BodyMapCanvas, { BODY_REGION_LABELS, type BodyRegion, type DisplayMode } from "@/components/knowledge/BodyMap/BodyMapCanvas";
 import BodyMapModeSwitch from "@/components/knowledge/BodyMap/BodyMapModeSwitch";
 import knowledgeService from "@/app/service/knowledgeService";
 import { studentService } from "@/app/service/studentService";
 import { KnowledgeBookCollection, groupKnowledgeBooks } from "@/lib/knowledgeBooks";
-
-const KnowledgeMindMap = dynamic(
-    () => import("@/components/knowledge/KnowledgeMindMap"),
-    { ssr: false, loading: () => <div className="h-[500px] bg-surface-100 dark:bg-surface-800 rounded-3xl animate-pulse" /> }
-);
-
-type KnowledgePillar = {
-    id: string;
-    title: string;
-    description: string | null;
-    node_type?: string;
-    children?: KnowledgePillar[];
-};
-
-type ViewMode = 'list' | 'mindmap';
 type BodyMapMode = 'screening' | 'training';
 
 type Editor = {
@@ -58,6 +42,7 @@ const AERO_CONTAINER = "max-w-5xl mx-auto px-4";
 const AERO_CARD = "rounded-3xl border border-surface-100 dark:border-surface-800 bg-surface-0 dark:bg-surface-900 shadow-[0_1px_0_rgba(15,23,42,0.02)] hover:shadow-[0_18px_50px_rgba(15,23,42,0.08)] transition-[box-shadow,transform]";
 const AERO_TITLE = "text-xl font-bold tracking-tight text-surface-900 dark:text-surface-0";
 const AERO_SUBTITLE = "text-sm text-surface-600 dark:text-surface-400 mt-1";
+const SHOW_KNOWLEDGE_PILLARS = false;
 
 // 自定义非线性动画曲线 - 营造丝滑感
 const ANIMATION_CURVE = "cubic-bezier(0.34, 1.56, 0.64, 1)";
@@ -97,13 +82,10 @@ function getContentLevelLabel(level?: string) {
 
 const KnowledgeBaseHomePage = () => {
     const router = useRouter();
-    const [loadingPillars, setLoadingPillars] = useState(true);
-    const [pillars, setPillars] = useState<KnowledgePillar[]>([]);
     const [showAIChat, setShowAIChat] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
     const [bookCollections, setBookCollections] = useState<KnowledgeBookCollection[]>([]);
     const [loadingBookCollections, setLoadingBookCollections] = useState(true);
-    const [viewMode, setViewMode] = useState<ViewMode>('list');
     const [bodyMapMode, setBodyMapMode] = useState<BodyMapMode>('screening');
     const [selectedBodyRegion, setSelectedBodyRegion] = useState<BodyRegion | null>(null);
     const [regionNodes, setRegionNodes] = useState<KnowledgeNode[]>([]);
@@ -149,21 +131,6 @@ const KnowledgeBaseHomePage = () => {
             }, 100);
         }
     }, [selectedBodyRegion]);
-
-    useEffect(() => {
-        const fetchPillars = async () => {
-            try {
-                const res = await fetch("/api/knowledge/tree");
-                const json = await res.json();
-                setPillars(json.tree || []);
-            } catch (error) {
-                console.error("获取知识体系失败:", error);
-            } finally {
-                setLoadingPillars(false);
-            }
-        };
-        fetchPillars();
-    }, []);
 
     useEffect(() => {
         const fetchBookCollections = async () => {
@@ -629,81 +596,7 @@ const KnowledgeBaseHomePage = () => {
                     </div>
                 </div>
 
-                {/* Knowledge Pillars */}
-                <div className={AERO_CONTAINER}>
-                    <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center gap-2">
-                            <BookOpen className="w-4 h-4 text-primary-500" />
-                            <h2 className="font-semibold text-surface-900 dark:text-surface-0 text-sm">知识体系</h2>
-                        </div>
-                        <div className="flex items-center gap-1 bg-surface-0 dark:bg-surface-900 rounded-xl p-0.5 border border-surface-200 dark:border-surface-800">
-                            <button
-                                onClick={() => setViewMode('list')}
-                                className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all active:scale-[0.98] ${
-                                    viewMode === 'list' 
-                                        ? 'bg-surface-100 dark:bg-surface-800 text-primary-600 shadow-sm' 
-                                        : 'text-surface-500 hover:text-surface-700'
-                                }`}
-                            >
-                                <List className="w-3.5 h-3.5" />
-                                列表
-                            </button>
-                            <button
-                                onClick={() => setViewMode('mindmap')}
-                                className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all active:scale-[0.98] ${
-                                    viewMode === 'mindmap' 
-                                        ? 'bg-surface-100 dark:bg-surface-800 text-primary-600 shadow-sm' 
-                                        : 'text-surface-500 hover:text-surface-700'
-                                }`}
-                            >
-                                <GitBranch className="w-3.5 h-3.5" />
-                                思维导图
-                            </button>
-                        </div>
-                    </div>
-
-                    {loadingPillars ? (
-                        <div className="space-y-3">
-                            {[1, 2, 3].map((i) => (
-                                <div key={i} className="h-16 bg-surface-100 dark:bg-surface-800 rounded-3xl animate-pulse" />
-                            ))}
-                        </div>
-                    ) : pillars.length === 0 ? (
-                        <div className={`${AERO_CARD} py-8 text-center`}>
-                            <BookOpen className="w-10 h-10 mx-auto mb-2 text-surface-400" />
-                            <p className="text-sm text-surface-500">知识体系构建中...</p>
-                        </div>
-                    ) : viewMode === 'list' ? (
-                        <div className="space-y-2">
-                            {pillars.map((domain) => (
-                                <button
-                                    key={domain.id}
-                                    onClick={() => router.push(`/dashboard/knowledge/pillars/${domain.id}`)}
-                                    className={`${AERO_CARD} w-full flex items-center justify-between p-3.5 active:scale-[0.98]`}
-                                >
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-9 h-9 rounded-2xl bg-primary-50 dark:bg-primary-900/20 flex items-center justify-center">
-                                            <BookOpen className="w-4 h-4 text-primary-500" />
-                                        </div>
-                                        <div>
-                                            <h3 className="font-medium text-surface-900 dark:text-surface-0 text-sm">
-                                                {domain.title}
-                                            </h3>
-                                            {domain.description && (
-                                                <p className="text-xs text-surface-500 line-clamp-1">
-                                                    {domain.description}
-                                                </p>
-                                            )}
-                                        </div>
-                                    </div>
-                                    <ChevronRight className="w-4 h-4 text-surface-300" />
-                                </button>
-                            ))}
-                        </div>
-                    ) : (
-                        <KnowledgeMindMap data={pillars} />
-                    )}
-                </div>
+                {SHOW_KNOWLEDGE_PILLARS && <div className={AERO_CONTAINER} />}
             </div>
 
             {/* AI Chat Floating Button */}
