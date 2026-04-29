@@ -1,4 +1,4 @@
-import { ScrollView, Text, View } from '@tarojs/components'
+import { Text, View } from '@tarojs/components'
 import './index.scss'
 
 export interface PlanCompactWeekDay {
@@ -87,7 +87,7 @@ export default function PlanCompactWeekCalendar({
           </View>
         </View>
 
-        <ScrollView className='plan-week-nav__strip' scrollX>
+        <View className='plan-week-nav__strip'>
           <View className='plan-week-nav__strip-inner'>
             {currentWeek.map((day) => (
               <View
@@ -101,7 +101,7 @@ export default function PlanCompactWeekCalendar({
               </View>
             ))}
           </View>
-        </ScrollView>
+        </View>
 
         {footerActions.length > 0 ? (
           <View className='plan-week-nav__footer'>

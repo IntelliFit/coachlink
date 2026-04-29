@@ -1,7 +1,8 @@
 import { useEffect, useMemo } from 'react'
-import { View, Text, ScrollView, Button, Image } from '@tarojs/components'
+import { View, Text, ScrollView, Image } from '@tarojs/components'
 import Taro, { useShareAppMessage, useShareTimeline } from '@tarojs/taro'
 import BottomNav from '@/components/BottomNav'
+import { ScenarioNutIcon } from '@/components/ScenarioNutIcon'
 import { SCENARIO_QUICK_FIXES } from '@/constants/scenarioQuickFixes'
 import {
   buildSharePath,
@@ -11,31 +12,27 @@ import {
   openCoachLinkShareMenu
 } from '@/utils/share'
 import './index.scss'
-import { Share } from '@nutui/icons-react-taro'
-import toolboxCalculatorImage from '@/assets/images/toolbox-calculator.jpg'
-import toolboxLocationsImage from '@/assets/images/toolbox-locations.jpg'
-import toolboxDataImage from '@/assets/images/toolbox-data.jpg'
 
 const TOOLBOX_LINKS = [
   {
     key: 'strength-calculator',
     label: '力量计算器',
-    description: '小程序内完整实现，与网页端逻辑一致',
-    image: toolboxCalculatorImage,
+    description: '小程序内完整实现，与网页端逻辑一致。',
+    image: '/assets/images/toolbox-calculator.jpg',
     url: '/streetlifting/index/calculator'
   },
   {
     key: 'bar-locations',
     label: '单杠位置',
-    description: '查找、分享单杠位置，支持上传图片',
-    image: toolboxLocationsImage,
+    description: '查找、分享单杠位置，支持上传图片。',
+    image: '/assets/images/toolbox-locations.jpg',
     url: '/streetlifting/index/locations'
   },
   {
     key: 'community-data',
     label: '社区数据',
-    description: '查看与提交街健力量数据，支持认领',
-    image: toolboxDataImage,
+    description: '查看与提交街健力量数据，支持认领。',
+    image: '/assets/images/toolbox-data.jpg',
     url: '/streetlifting/index/data'
   }
 ]
@@ -69,7 +66,6 @@ function ToolboxPage() {
     <View className='toolbox-page'>
       <ScrollView className='page-scroll' scrollY>
         <View className='page-content'>
-          {/* 工具卡片 */}
           <View className='tools-grid'>
             {TOOLBOX_LINKS.map((tool) => (
               <View
@@ -95,11 +91,10 @@ function ToolboxPage() {
             ))}
           </View>
 
-          {/* 场景急救箱 */}
           <View className='scene-section'>
             <View className='scene-header'>
-              <Text className='scene-title'>场景急救箱</Text>
-              <Text className='scene-subtitle'>不需要先懂体系，直接按情境开始</Text>
+              <Text className='scene-title'>场景放松</Text>
+              <Text className='scene-subtitle'>不用先懂体系，直接按情境开始。</Text>
             </View>
             <View className='scene-grid'>
               {SCENARIO_QUICK_FIXES.map((scenario) => (
@@ -108,8 +103,9 @@ function ToolboxPage() {
                   className='scene-card'
                   onClick={() => handleScenarioClick(scenario.slug)}
                 >
+                  <Image className='scene-cover' src={scenario.coverImageUrl} mode='aspectFill' />
                   <View className='scene-icon-wrap'>
-                    <Text className='iconfont icon-jhk scene-icon' />
+                    <ScenarioNutIcon name={scenario.icon} size={20} />
                   </View>
                   <Text className='scene-name'>{scenario.title}</Text>
                   <Text className='scene-desc'>{scenario.description}</Text>

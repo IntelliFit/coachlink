@@ -154,7 +154,7 @@ const ProgressTimeline: React.FC<ProgressTimelineProps> = ({ data }) => {
                     className='view-video-btn'
                     onClick={() => {
                       Taro.setStorageSync('pr_video_url', record.video_url)
-                      Taro.navigateTo({ url: '/common/common/video-player/index?source=pr' })
+                      Taro.navigateTo({ url: '/common/common/video-player?source=pr' })
                     }}
                   >
                     <Text> 查看视频</Text>

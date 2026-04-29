@@ -401,6 +401,7 @@ export const buildPlanScheduleModel = (params: {
     executionsByDayIndex?: Record<number, any>;
     effectiveStartDate?: string | Date | null;
     progressDayIndex?: number;
+    startExecutionDay?: number;
     fallbackAnchorDayIndex?: number;
     fallbackAnchorDate?: Date;
     today?: Date;
@@ -410,6 +411,7 @@ export const buildPlanScheduleModel = (params: {
         executionsByDayIndex = {},
         effectiveStartDate,
         progressDayIndex,
+        startExecutionDay = 1,
         fallbackAnchorDayIndex = progressDayIndex || 1,
         fallbackAnchorDate = new Date(),
         today = new Date(),
@@ -431,6 +433,8 @@ export const buildPlanScheduleModel = (params: {
     sortedDays.forEach((day) => {
         const dayIndex = Number(day?.dayIndex ?? day?.day_index ?? 0);
         if (!Number.isFinite(dayIndex) || dayIndex <= 0) return;
+        const isBeforeExecutionStart = dayIndex <
+            Math.max(1, Number(startExecutionDay || 1));
 
         const baselineDate = resolvePlanDayDate({
             dayIndex,
@@ -442,7 +446,8 @@ export const buildPlanScheduleModel = (params: {
         const execution = executionsByDayIndex?.[dayIndex];
         const executionStatus = String(execution?.status || '').toLowerCase();
         const executionDate = getExecutionAnchorDate(execution);
-        const isCurrentProgressDay = progressDayIndex === dayIndex;
+        const isCurrentProgressDay = !isBeforeExecutionStart &&
+            progressDayIndex === dayIndex;
         const isTerminalExecution = executionStatus === 'completed' || executionStatus === 'abandoned';
 
         let displayDate = scheduledDate;
@@ -450,7 +455,9 @@ export const buildPlanScheduleModel = (params: {
 
         // The current progress day should keep rolling with the real calendar date
         // until it is actually completed/abandoned, rather than freezing on started_at.
-        if (isCurrentProgressDay && !isTerminalExecution) {
+        if (isBeforeExecutionStart) {
+            displayDate = scheduledDate;
+        } else if (isCurrentProgressDay && !isTerminalExecution) {
             const lateDays = diffBeijingCalendarDays(todayStart, scheduledDate);
             if (lateDays > 0) {
                 delayAddedDays = lateDays;

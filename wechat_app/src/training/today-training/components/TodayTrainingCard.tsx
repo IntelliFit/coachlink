@@ -32,6 +32,7 @@ interface TodayTrainingCardProps {
   onOpenLightweightTask?: (task: NormalizedDayTask) => void
   onAddLightweightTask?: () => void
   onDeleteLightweightTask?: (task: NormalizedDayTask) => void
+  onOpenExecution?: (dayIndex: number, focusAction?: number) => void
   /** 嵌入今日训练「今日安排」区块：去掉重复大标题与四宫格，采用紧凑摘要行 */
   embeddedInSchedule?: boolean
 }
@@ -52,6 +53,7 @@ function TodayTrainingCard({
   onOpenLightweightTask,
   onAddLightweightTask,
   onDeleteLightweightTask,
+  onOpenExecution,
   embeddedInSchedule = false
 }: TodayTrainingCardProps) {
   const [showAllTasks, setShowAllTasks] = useState(false)
@@ -110,6 +112,10 @@ function TodayTrainingCard({
   const hiddenStrengthTaskCount = Math.max(0, strengthTasks.length - visibleStrengthTasks.length)
 
   const openExecution = (focusAction?: number) => {
+    if (onOpenExecution) {
+      onOpenExecution(dayIndex, focusAction)
+      return
+    }
     const coachQuery = coachId
       ? `&coachId=${encodeURIComponent(coachId)}${coachName ? `&coachName=${encodeURIComponent(coachName)}` : ''}`
       : ''

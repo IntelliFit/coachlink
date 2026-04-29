@@ -1,10 +1,9 @@
 import { useEffect, useState } from 'react'
-import { View, Text, ScrollView } from '@tarojs/components'
+import { View, Text, ScrollView, Image } from '@tarojs/components'
 import Taro, { useRouter } from '@tarojs/taro'
 import { getScenarioQuickFix, type ScenarioQuickFix } from '@/constants/scenarioQuickFixes'
-import './index.scss'
-import { Notice } from '@nutui/icons-react-taro'
 import { ScenarioNutIcon } from '@/components/ScenarioNutIcon'
+import './index.scss'
 
 export default function ScenarioDetailPage() {
   const router = useRouter()
@@ -46,11 +45,11 @@ export default function ScenarioDetailPage() {
       <View className='scenario-page'>
         <View className='nav-bar'>
           <Text className='nav-back' onClick={handleBack}>返回</Text>
-          <Text className='nav-title'>场景急救箱</Text>
+          <Text className='nav-title'>场景放松</Text>
         </View>
         <View className='empty-wrap'>
           <Text className='empty-title'>未找到该场景</Text>
-          <Text className='empty-desc'>这个场景可能还没有迁入小程序。</Text>
+          <Text className='empty-desc'>这个场景可能还没有同步到小程序。</Text>
         </View>
       </View>
     )
@@ -69,27 +68,33 @@ export default function ScenarioDetailPage() {
       <ScrollView scrollY className='scenario-scroll'>
         <View className='page-content'>
           <View className='hero-card'>
-            <View className='hero-icon'>
-              <ScenarioNutIcon name={scenario.icon} size={40} />
+            <Image className='hero-cover' src={scenario.coverImageUrl} mode='aspectFill' />
+            <View className='hero-body'>
+              <View className='hero-icon'>
+                <ScenarioNutIcon name={scenario.icon} size={28} />
+              </View>
+              <Text className='hero-title'>{scenario.title}</Text>
+              <Text className='hero-desc'>{scenario.description}</Text>
+              <Text className='hero-meta'>约 {scenario.durationMinutes} 分钟 · 共 {scenario.steps.length} 步</Text>
             </View>
-            <Text className='hero-title'>{scenario.title}</Text>
-            <Text className='hero-desc'>{scenario.description}</Text>
-            <Text className='hero-meta'>约 {scenario.durationMinutes} 分钟 · 共 {scenario.steps.length} 步</Text>
           </View>
 
           {!currentStep && !finished && (
             <View className='primary-btn' onClick={startFlow}>
-              <Text>开始练习</Text>
+              <Text>开始跟练</Text>
             </View>
           )}
 
           {currentStep && (
             <View className='current-step-card'>
-              <Text className='current-step-meta'>第 {currentStepIndex! + 1} 步 · {currentStep.durationSeconds} 秒</Text>
-              <Text className='current-step-title'>{currentStep.title}</Text>
-              <Text className='current-step-desc'>{currentStep.description}</Text>
-              <View className='current-step-btn' onClick={() => handleStepComplete(currentStep.id)}>
-                <Text>完成此步骤</Text>
+              <Image className='current-step-image' src={currentStep.imageUrl} mode='aspectFill' />
+              <View className='current-step-body'>
+                <Text className='current-step-meta'>第 {currentStepIndex! + 1} 步 · {currentStep.durationSeconds} 秒</Text>
+                <Text className='current-step-title'>{currentStep.title}</Text>
+                <Text className='current-step-desc'>{currentStep.description}</Text>
+                <View className='current-step-btn' onClick={() => handleStepComplete(currentStep.id)}>
+                  <Text>完成这一步</Text>
+                </View>
               </View>
             </View>
           )}
@@ -105,14 +110,17 @@ export default function ScenarioDetailPage() {
                     key={step.id}
                     className={`step-card ${isCompleted ? 'completed' : ''} ${isCurrent ? 'current' : ''}`}
                   >
-                    <View className='step-index'>
-                      <Text>{isCompleted ? '' : index + 1}</Text>
+                    <Image className='step-image' src={step.imageUrl} mode='aspectFill' />
+                    <View className='step-inner'>
+                      <View className='step-index'>
+                        <Text>{isCompleted ? '✓' : index + 1}</Text>
+                      </View>
+                      <View className='step-main'>
+                        <Text className='step-title'>{step.title}</Text>
+                        <Text className='step-desc'>{step.description}</Text>
+                      </View>
+                      <Text className='step-duration'>{step.durationSeconds}s</Text>
                     </View>
-                    <View className='step-main'>
-                      <Text className='step-title'>{step.title}</Text>
-                      <Text className='step-desc'>{step.description}</Text>
-                    </View>
-                    <Text className='step-duration'>{step.durationSeconds}s</Text>
                   </View>
                 )
               })}
@@ -121,9 +129,9 @@ export default function ScenarioDetailPage() {
 
           {finished && (
             <View className='done-card'>
-              <View className='done-icon'><Notice /></View>
+              <Text className='done-icon'>🎉</Text>
               <Text className='done-title'>练习完成</Text>
-              <Text className='done-desc'>这类“场景急救箱”已经开始从 Web 端迁到小程序，可以直接拿来用。</Text>
+              <Text className='done-desc'>今天先做到这里，身体慢慢放松下来就很好。</Text>
               <View className='primary-btn' onClick={handleBack}>
                 <Text>返回工具箱</Text>
               </View>

@@ -204,6 +204,7 @@ export interface StrengthPosterData {
   estimated1RM: number
   estimated1RMLabel?: string
   coefficient: number
+  workingWeight?: number
   bodyweight: number
   reps: number
   gender: string
@@ -518,9 +519,18 @@ function drawPosterBodySync(
   y += L.SUBTITLE_H + L.GAP_BEFORE_METRICS
   const rmLabel = data.estimated1RMLabel?.trim() || '估算 1RM'
   const tRm = Math.min(1, data.estimated1RM / 320)
+  const workingWeight =
+    typeof data.workingWeight === 'number' && Number.isFinite(data.workingWeight)
+      ? data.workingWeight
+      : null
   const tCoeff = Math.min(1, data.coefficient / 5)
+  const tWorkingWeight = Math.min(1, Math.max(0, (workingWeight ?? 0) / 200))
   const tBw = Math.min(1, data.bodyweight / 140)
   const tReps = Math.min(1, data.reps / 35)
+  const formatMetricNumber = (value: number, decimals = 1) => {
+    const fixed = value.toFixed(decimals)
+    return fixed.replace(/\.0+$/, '').replace(/(\.\d*[1-9])0+$/, '$1')
+  }
 
   const cardW = Math.floor((W - PAD * 2 - METRIC_GAP_X) / 2)
   const metrics: Array<{
@@ -553,6 +563,19 @@ function drawPosterBodySync(
       decor: { kind: 'progress', t: tReps, seed: Math.floor(Number(data.reps) * 131) }
     }
   ]
+
+  if (workingWeight !== null) {
+    metrics[1] = {
+      label: '鍋氱粍閲嶉噺',
+      main: formatMetricNumber(workingWeight, 1),
+      suffix: 'kg',
+      decor: { kind: 'progress', t: tWorkingWeight, seed: Math.floor(workingWeight * 1000 + data.reps) }
+    }
+  }
+  metrics[2] = {
+    ...metrics[2],
+    main: formatMetricNumber(data.bodyweight, 1)
+  }
 
   metrics.forEach((m, i) => {
     const col = i % 2

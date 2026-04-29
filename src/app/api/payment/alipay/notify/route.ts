@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
 import supabase, { serviceRoleSupabase } from "@/lib/supabaseClient";
 import type { ApiData } from "@/types/api";
-import { fulfillmentService } from "@/app/service/fulfillmentService";
 import { createAlipaySdk } from "@/lib/alipaySdk";
 import {
     updateTransactionAndWallet,
     fulfillSubscriptionOnPaid,
 } from "@/app/api/payment/alipay/fulfillPaidOrder";
 import { fulfillContentPurchasePaid } from "../contentPurchaseFulfillment";
+import { fulfillStudentMembershipOrderOnPaid } from "@/app/api/payment/studentMembershipFulfillment";
 
 export async function POST(req: Request) {
     const timestamp = new Date().toISOString();
@@ -112,21 +112,12 @@ export async function POST(req: Request) {
             const userId = alipayOrder.user_id;
 
             if (related_order_id && product_key && userId) {
-                // Update the student_membership_order status too
-                await supabase.from("student_membership_orders" as any)
-                    .update({
-                        status: "paid",
-                        paid_at: new Date().toISOString(),
-                    })
-                    .eq("id", related_order_id);
-
-                // Execute fulfillment
                 try {
-                    await fulfillmentService.fulfillOrder(
-                        related_order_id,
-                        product_key,
+                    await fulfillStudentMembershipOrderOnPaid({
+                        relatedOrderId: related_order_id,
+                        productKey: product_key,
                         userId,
-                    );
+                    });
                 } catch (err) {
                     console.error("[Fulfillment] Failed:", err);
                     // Even if fulfillment fails, we might still return success to Alipay to stop retries,

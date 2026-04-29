@@ -5,8 +5,60 @@ import { knowledgeService } from '@/services/knowledgeService'
 import { Icon } from '@/components/Icon'
 import { Book as BookIcon } from 'lucide-react'
 import { Notice, Lock } from '@nutui/icons-react-taro'
-import './index.scss'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
+import { getKnowledgeBookSource, groupKnowledgeBooks } from '@/utils/knowledgeBooks'
+import './index.scss'
+
+type StructuredBookContent = {
+  markdown?: string
+  html?: string
+  disclaimer?: string
+  imagePrompts?: Array<{
+    title?: string
+    intent?: string
+    prompt?: string
+  }>
+}
+
+function escapeHtml(text: string) {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
+function normalizeBookContent(content: unknown) {
+  if (typeof content === 'string') {
+    return {
+      html: `<div>${escapeHtml(content).replace(/\n/g, '<br/>')}</div>`,
+      disclaimer: '',
+      prompts: [] as StructuredBookContent['imagePrompts']
+    }
+  }
+
+  if (content && typeof content === 'object') {
+    const structured = content as StructuredBookContent
+    const html = typeof structured.html === 'string' && structured.html.trim()
+      ? structured.html
+      : typeof structured.markdown === 'string' && structured.markdown.trim()
+        ? `<div>${escapeHtml(structured.markdown).replace(/\n/g, '<br/>')}</div>`
+        : ''
+
+    return {
+      html,
+      disclaimer: structured.disclaimer || '',
+      prompts: Array.isArray(structured.imagePrompts) ? structured.imagePrompts : []
+    }
+  }
+
+  return {
+    html: '',
+    disclaimer: '',
+    prompts: [] as StructuredBookContent['imagePrompts']
+  }
+}
 
 export default function BookDetail() {
   const router = useRouter()
@@ -15,6 +67,7 @@ export default function BookDetail() {
   const [hasAccess, setHasAccess] = useState(false)
   const [loading, setLoading] = useState(true)
   const [errorMsg, setErrorMsg] = useState('')
+  const [relatedBooks, setRelatedBooks] = useState<any[]>([])
 
   const loadBook = useCallback(async () => {
     if (!bookId) {
@@ -22,43 +75,58 @@ export default function BookDetail() {
       setLoading(false)
       return
     }
+
     setLoading(true)
     setBook(null)
     setErrorMsg('')
+    setRelatedBooks([])
+
     const res = await knowledgeService.getKnowledgeBook({ id: bookId })
-    setLoading(false)
-    if (res) {
-      setBook(res.book)
-      setHasAccess(res.hasAccess ?? false)
+    if (!res) {
+      setLoading(false)
+      setErrorMsg('加载失败，请稍后重试')
       return
     }
-    setErrorMsg('加载失败，请稍后重试')
+
+    setBook(res.book)
+    setHasAccess(res.hasAccess ?? false)
+
+    try {
+      const listRes = await knowledgeService.listKnowledgeBooks({
+        is_published: true,
+        page: 0,
+        limit: 50
+      })
+      const collectionSlug = getKnowledgeBookSource(res.book?.content)?.collectionSlug
+      if (collectionSlug && listRes?.books?.length) {
+        const collection = groupKnowledgeBooks(listRes.books).find((item) => item.slug === collectionSlug)
+        const siblings = (collection?.books || []).filter((item) => item.id !== res.book.id)
+        setRelatedBooks(siblings)
+      }
+    } catch (listError) {
+      console.error('[knowledge] load related books:', listError)
+      setRelatedBooks([])
+    } finally {
+      setLoading(false)
+    }
   }, [bookId])
 
   useDidShow(() => {
-    loadBook()
+    void loadBook()
   })
 
-  /** 将书籍 content（可能是 string 或 object）转为可渲染的 HTML 字符串 */
-  function getContentHtml() {
-    if (!book?.content) return ''
-    const c = book.content
-    if (typeof c === 'string') return c
-    if (typeof c === 'object' && c !== null && typeof (c as any).html === 'string') return (c as any).html
-    return ''
-  }
-
-  const contentHtml = getContentHtml()
+  const normalizedContent = normalizeBookContent(book?.content)
+  const source = getKnowledgeBookSource(book?.content)
   const canReadContent = hasAccess || book?.is_free
 
   if (loading) {
     return (
-      <View className="book-detail-page">
-        <View className="nav-bar">
-          <Text className="nav-back" onClick={() => Taro.navigateBack()}>返回</Text>
-          <Text className="nav-title">书籍详情</Text>
+      <View className='book-detail-page'>
+        <View className='nav-bar'>
+          <Text className='nav-back' onClick={() => Taro.navigateBack()}>返回</Text>
+          <Text className='nav-title'>书籍详情</Text>
         </View>
-        <View className="loading-wrap">
+        <View className='loading-wrap'>
           <LoadingSpinner size={48} />
         </View>
       </View>
@@ -67,15 +135,15 @@ export default function BookDetail() {
 
   if (errorMsg && !book) {
     return (
-      <View className="book-detail-page">
-        <View className="nav-bar">
-          <Text className="nav-back" onClick={() => Taro.navigateBack()}>返回</Text>
-          <Text className="nav-title">书籍详情</Text>
+      <View className='book-detail-page'>
+        <View className='nav-bar'>
+          <Text className='nav-back' onClick={() => Taro.navigateBack()}>返回</Text>
+          <Text className='nav-title'>书籍详情</Text>
         </View>
-        <View className="error-wrap">
-          <View className="error-icon"><Notice size={48} color="#CF6D4E" /></View>
-          <Text className="error-text">{errorMsg}</Text>
-          <Text className="error-action" onClick={() => Taro.navigateBack()}>返回上一页</Text>
+        <View className='error-wrap'>
+          <View className='error-icon'><Notice size={48} color='#CF6D4E' /></View>
+          <Text className='error-text'>{errorMsg}</Text>
+          <Text className='error-action' onClick={() => Taro.navigateBack()}>返回上一页</Text>
         </View>
       </View>
     )
@@ -83,14 +151,14 @@ export default function BookDetail() {
 
   if (!book) {
     return (
-      <View className="book-detail-page">
-        <View className="nav-bar">
-          <Text className="nav-back" onClick={() => Taro.navigateBack()}>返回</Text>
-          <Text className="nav-title">书籍详情</Text>
+      <View className='book-detail-page'>
+        <View className='nav-bar'>
+          <Text className='nav-back' onClick={() => Taro.navigateBack()}>返回</Text>
+          <Text className='nav-title'>书籍详情</Text>
         </View>
-        <View className="error-wrap">
-          <Text className="error-text">书籍不存在或已下架</Text>
-          <Text className="error-action" onClick={() => Taro.navigateBack()}>返回</Text>
+        <View className='error-wrap'>
+          <Text className='error-text'>书籍不存在或已下架</Text>
+          <Text className='error-action' onClick={() => Taro.navigateBack()}>返回</Text>
         </View>
       </View>
     )
@@ -98,16 +166,16 @@ export default function BookDetail() {
 
   if (!canReadContent) {
     return (
-      <View className="book-detail-page">
-        <View className="nav-bar">
-          <Text className="nav-back" onClick={() => Taro.navigateBack()}>返回</Text>
-          <Text className="nav-title">{book.title || '书籍详情'}</Text>
+      <View className='book-detail-page'>
+        <View className='nav-bar'>
+          <Text className='nav-back' onClick={() => Taro.navigateBack()}>返回</Text>
+          <Text className='nav-title'>{book.title || '书籍详情'}</Text>
         </View>
-        <View className="paywall-wrap">
-          <View className="paywall-icon"><Lock size={48} color="#CF6D4E" /></View>
-          <Text className="paywall-title">订阅后可见</Text>
-          <Text className="paywall-desc">该书籍需要订阅知识库会员后才能查看完整内容</Text>
-          <View className="paywall-btn" onClick={() => Taro.navigateBack()}>
+        <View className='paywall-wrap'>
+          <View className='paywall-icon'><Lock size={48} color='#CF6D4E' /></View>
+          <Text className='paywall-title'>订阅后可读</Text>
+          <Text className='paywall-desc'>这本书需要订阅知识库会员后才能查看完整内容。</Text>
+          <View className='paywall-btn' onClick={() => Taro.navigateBack()}>
             <Text>返回</Text>
           </View>
         </View>
@@ -116,48 +184,59 @@ export default function BookDetail() {
   }
 
   return (
-    <View className="book-detail-page">
-      <View className="nav-bar">
-        <Text className="nav-back" onClick={() => Taro.navigateBack()}>返回</Text>
-        <Text className="nav-title">书籍详情</Text>
+    <View className='book-detail-page'>
+      <View className='nav-bar'>
+        <Text className='nav-back' onClick={() => Taro.navigateBack()}>返回</Text>
+        <Text className='nav-title'>书籍详情</Text>
       </View>
-      <ScrollView className="content-scroll" scrollY>
-        <View className="book-body">
-          <View className="book-cover-wrap">
+      <ScrollView className='content-scroll' scrollY>
+        <View className='book-body'>
+          <View className='book-cover-wrap'>
             {book.cover_image ? (
               <Image
-                className="book-cover"
+                className='book-cover'
                 src={book.cover_image}
-                mode="aspectFill"
+                mode='aspectFill'
               />
             ) : (
-              <View className="book-cover-placeholder">
-                <Icon component={BookIcon} size={48} color="#9ca3af" />
+              <View className='book-cover-placeholder'>
+                <Icon component={BookIcon} size={48} color='#9ca3af' />
               </View>
             )}
           </View>
 
-          <Text className="book-title">{book.title || '未命名书籍'}</Text>
+          <Text className='book-title'>{book.title || '未命名书籍'}</Text>
           {book.author && (
-            <Text className="book-author">作者：{book.author}</Text>
+            <Text className='book-author'>作者：{book.author}</Text>
           )}
           {book.summary && (
-            <Text className="book-summary">{book.summary}</Text>
+            <Text className='book-summary'>{book.summary}</Text>
           )}
 
-          <View>
-            {book.is_free ? (
-              <Text className="book-badge free">免费</Text>
-            ) : (
-              <Text className="book-badge paid">付费</Text>
+          <View className='book-badges'>
+            <Text className={`book-badge ${book.is_free ? 'free' : 'paid'}`}>
+              {book.is_free ? '免费内容' : '付费内容'}
+            </Text>
+            {source?.noteType === 'overview' && (
+              <Text className='book-badge overview'>专题总览</Text>
+            )}
+            {source?.noteType === 'chapter' && (
+              <Text className='book-badge chapter'>{source.chapterTitle || '专题分篇'}</Text>
             )}
           </View>
 
+          {normalizedContent.disclaimer && (
+            <View className='disclaimer-card'>
+              <Text className='disclaimer-badge'>解读型笔记</Text>
+              <Text className='disclaimer-text'>{normalizedContent.disclaimer}</Text>
+            </View>
+          )}
+
           {book.audio_url && (
-            <View className="audio-wrap">
-              <Text className="audio-label">AI 讲解音频</Text>
+            <View className='audio-wrap'>
+              <Text className='audio-label'>AI 讲解音频</Text>
               <View
-                className="audio-btn"
+                className='audio-btn'
                 onClick={() => {
                   const ctx = Taro.createInnerAudioContext()
                   ctx.src = book.audio_url
@@ -171,15 +250,50 @@ export default function BookDetail() {
             </View>
           )}
 
-          <Text className="content-section-title">内容详情</Text>
-          {contentHtml ? (
-            <View className="content-html">
-              <RichText nodes={contentHtml} />
+          <Text className='content-section-title'>内容详情</Text>
+          {normalizedContent.html ? (
+            <View className='content-html'>
+              <RichText nodes={normalizedContent.html} />
             </View>
           ) : (
-            <Text className="content-fallback">
+            <Text className='content-fallback'>
               {book.summary || '暂无详细内容'}
             </Text>
+          )}
+
+          {relatedBooks.length > 0 && (
+            <View className='related-section'>
+              <Text className='content-section-title'>同书专题</Text>
+              <View className='related-list'>
+                {relatedBooks.map((item) => (
+                  <View
+                    key={item.id}
+                    className='related-card'
+                    onClick={() => Taro.navigateTo({ url: `/content/knowledge/book-detail?id=${item.id}` })}
+                  >
+                    <Text className='related-title'>{item.title}</Text>
+                    <Text className='related-desc' numberOfLines={2}>{item.summary || '点击继续阅读'}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          )}
+
+          {normalizedContent.prompts.length > 0 && (
+            <View className='related-section'>
+              <Text className='content-section-title'>配图提示词</Text>
+              <View className='related-list'>
+                {normalizedContent.prompts.map((item, index) => (
+                  <View key={`${item?.title || 'prompt'}-${index}`} className='prompt-card'>
+                    <Text className='prompt-title'>{item?.title || `配图提示词 ${index + 1}`}</Text>
+                    {item?.intent && (
+                      <Text className='prompt-intent'>用途：{item.intent}</Text>
+                    )}
+                    <Text className='prompt-body'>{item?.prompt || '暂无提示词'}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
           )}
         </View>
       </ScrollView>
