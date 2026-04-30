@@ -322,8 +322,8 @@ export default function BodyMapCanvas({
         ref={svgContainerRef}
         className={`body-map-container relative w-full mx-auto select-none transition-all duration-700 ${
           showJoints ? 'show-joints' : 'hide-joints'
-        } ${isFocusMode ? 'max-w-[280px]' : 'max-w-[360px]'}`}
-        style={{ aspectRatio: '300/600', minHeight: isFocusMode ? '350px' : '450px' }}
+        } ${isFocusMode ? 'max-w-[400px]' : 'max-w-[520px]'}`}
+        style={{ aspectRatio: '300/600', minHeight: isFocusMode ? '500px' : '650px' }}
         onClick={handleSvgClick}
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
