@@ -61,7 +61,8 @@ if (process.env.NODE_ENV === "development") {
 
 export default {
   defineConstants: {
-    TARO_APP_API_URL: JSON.stringify(devApiUrl)
+    TARO_APP_API_URL: JSON.stringify(devApiUrl),
+    __DEV_MODE__: JSON.stringify(true)
   },
   mini: {},
   h5: {}

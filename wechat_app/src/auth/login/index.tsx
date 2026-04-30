@@ -350,7 +350,29 @@ function Login() {
                     <Text className='tip-text'>还没有账户？</Text>
                     <Text className='tip-link' onClick={goToRegister}>立即注册</Text>
                   </View>
+
                 </>
+              )}
+
+              {__DEV_MODE__ && (
+                <View className='dev-onboarding-btn' onClick={() => {
+                  const mockUser = {
+                    id: 'dev-user-' + Date.now(),
+                    nickname: '开发测试用户',
+                    name: '开发测试用户',
+                    role: 'student',
+                    primary_role: 'student',
+                    avatar_url: '',
+                    phone: '',
+                    email: '',
+                  }
+                  const mockToken = 'dev-token-' + Date.now()
+                  Taro.setStorageSync('token', mockToken)
+                  Taro.setStorageSync('user', mockUser)
+                  Taro.reLaunch({ url: '/auth/student-onboarding' })
+                }}>
+                  <Text className='dev-onboarding-btn-text'>【开发】快速进入初始化引导</Text>
+                </View>
               )}
 
               <View className='agreement-row'>
