@@ -7,6 +7,7 @@ import { authService } from '@/services/authService'
 import { studentService } from '@/services/studentService'
 import { buildStudentOnboardingUrl, isCoreStudentProfileComplete } from '@/services/studentOnboardingService'
 import WheelPicker from '@/components/WheelPicker'
+import BodyMapInterestSelector from '@/components/BodyMapInterestSelector'
 import './index.scss'
 
 interface OnboardingFormData {
@@ -510,17 +511,11 @@ function StudentOnboarding() {
 
           <View className='field-group'>
             <Text className='field-label'>感兴趣的训练方向</Text>
-            <View className='tag-grid'>
-              {INTEREST_OPTIONS.map((option) => (
-                <View
-                  key={option}
-                  className={`tag-chip ${formData.interestTags.includes(option) ? 'tag-chip--active' : ''}`}
-                  onClick={() => toggleListValue('interestTags', option)}
-                >
-                  <Text className='tag-chip-text'>{option}</Text>
-                </View>
-              ))}
-            </View>
+            <BodyMapInterestSelector
+              gender={formData.gender as any}
+              selectedIds={formData.interestTags}
+              onChange={(ids) => setFormData((prev) => ({ ...prev, interestTags: ids }))}
+            />
           </View>
 
           <View className='field-group'>

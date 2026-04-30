@@ -373,6 +373,26 @@
   font-weight: 700;
 }
 
+.dev-onboarding-btn {
+  margin-top: 32rpx;
+  padding: 24rpx 0;
+  background: #CF6D4E;
+  border-radius: 9999rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &:active {
+    opacity: 0.85;
+  }
+}
+
+.dev-onboarding-btn-text {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #FFFFFF;
+}
+
 :global {
   .nut-input {
     border: none !important;
