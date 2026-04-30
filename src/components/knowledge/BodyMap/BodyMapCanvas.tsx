@@ -348,7 +348,10 @@ export default function BodyMapCanvas({
             key={`${view}-${effectiveGender}`}
             className="absolute inset-0 flex items-center justify-center"
             dangerouslySetInnerHTML={{ 
-              __html: currentSvg.replace(/<svg/i, '<svg preserveAspectRatio="xMidYMid meet" style="width:100%;height:100%;display:block;"')
+              __html: currentSvg
+                .replace(/<svg/i, '<svg preserveAspectRatio="xMidYMid meet" style="width:100%;height:100%;display:block;"')
+                .replace(/fill:#fff/gi, 'fill:#222222')
+                .replace(/fill="#fff"/gi, 'fill="#222222"')
             }}
           />
         )}
