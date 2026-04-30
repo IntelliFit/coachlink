@@ -33,8 +33,8 @@ function parseSvgCategoryMap(svg: string): Record<string, string> {
   return map
 }
 
-const MUSCLE_FILL_ORIGIN = 'fill="#fff"'
-const MUSCLE_FILL_HIGHLIGHT = 'fill="#CF6D4E"'
+const MUSCLE_FILL_ORIGIN_STYLE = 'fill:#222222'
+const MUSCLE_FILL_HIGHLIGHT_STYLE = 'fill:#CF6D4E'
 
 function highlightSvgParts(
   svg: string,
@@ -67,8 +67,8 @@ function highlightSvgParts(
     )
     result = result.replace(regex, (match, open, content, close) => {
       const highlighted = content.replace(
-        new RegExp(MUSCLE_FILL_ORIGIN.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'),
-        MUSCLE_FILL_HIGHLIGHT
+        new RegExp(MUSCLE_FILL_ORIGIN_STYLE.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'),
+        MUSCLE_FILL_HIGHLIGHT_STYLE
       )
       return open + highlighted + close
     })
@@ -118,10 +118,13 @@ const BodyPartsPage: React.FC = () => {
 
   const svgHtml = useMemo(() => {
     const highlighted = highlightSvgParts(svgRaw, Array.from(selectedIds), categoryMap, displayMode)
-    return highlighted.replace(
-      /<svg\s/,
-      '<svg style="width:100%;height:100%;display:block;" preserveAspectRatio="xMidYMid meet" '
-    )
+    return highlighted
+      .replace(
+        /<svg\s/,
+        '<svg style="width:100%;height:100%;display:block;" preserveAspectRatio="xMidYMid meet" '
+      )
+      .replace(/fill:#fff/gi, 'fill:#222222')
+      .replace(/fill="#fff"/gi, 'fill="#222222"')
   }, [svgRaw, selectedIds, categoryMap, displayMode])
 
   const toggleSelection = (id: string) => {
