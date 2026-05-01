@@ -86,7 +86,8 @@ const STEP_TITLES = [
   { title: '身体数据', desc: '选择你的身高和体重，推荐计划会更精准。' },
   { title: '健身目标', desc: '选择你的健身目标，定制专属训练方案。' },
   { title: '训练水平', desc: '选择你的训练水平，匹配适合难度。' },
-  { title: '训练偏好', desc: '选择你感兴趣的训练方向。' }
+  { title: '训练方向', desc: '选择你感兴趣的肌肉部位。' },
+  { title: '训练偏好', desc: '选择你的器械和训练时长。' }
 ]
 
 const HEIGHT_MIN = 100
@@ -488,7 +489,16 @@ function StudentOnboarding() {
       )}
 
       {step === 5 && (
+        <View className='step-content'>
+          <BodyMapInterestSelector
+            gender={formData.gender as any}
+            selectedIds={formData.interestTags}
+            onChange={(ids) => setFormData((prev) => ({ ...prev, interestTags: ids }))}
+          />
+        </View>
+      )}
 
+      {step === 6 && (
         <View className='step-content'>
           <View className='field-group'>
             <Text className='field-label'>感兴趣的健身部位</Text>
@@ -507,15 +517,6 @@ function StudentOnboarding() {
               )}
               <Text className='body-parts-trigger-arrow'>›</Text>
             </View>
-          </View>
-
-          <View className='field-group'>
-            <Text className='field-label'>感兴趣的训练方向</Text>
-            <BodyMapInterestSelector
-              gender={formData.gender as any}
-              selectedIds={formData.interestTags}
-              onChange={(ids) => setFormData((prev) => ({ ...prev, interestTags: ids }))}
-            />
           </View>
 
           <View className='field-group'>
