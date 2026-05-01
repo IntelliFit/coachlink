@@ -1,79 +1,86 @@
-import { useState, useEffect, useRef } from 'react'
-import { View, Text, Image } from '@tarojs/components'
+import { useState, useEffect, useRef, useCallback } from 'react'
+import { View, Text } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { authService } from '@/services/authService'
+import { chatService, CHAT_UNREAD_BADGE_REFRESH_EVENT } from '@/services/chatService'
 import './BottomNav.scss'
-import homeIcon from '@/assets/icons/tabbar/home.svg'
-import homeSelectedIcon from '@/assets/icons/tabbar/home-selected.svg'
-import searchIcon from '@/assets/icons/tabbar/search.svg'
-import searchSelectedIcon from '@/assets/icons/tabbar/search-selected.svg'
-import myIcon from '@/assets/icons/tabbar/my.svg'
-import mySelectedIcon from '@/assets/icons/tabbar/my-selected.svg'
-import rankIcon from '@/assets/icons/tabbar/rank.svg'
-import rankSelectedIcon from '@/assets/icons/tabbar/rank-selected.svg'
-import profileDocIcon from '@/assets/icons/tabbar/profile-doc.svg'
-import profileDocSelectedIcon from '@/assets/icons/tabbar/profile-doc-selected.svg'
 
 interface NavItem {
     key: string
     label: string
-    iconPath: string
-    activeIconPath: string
+    iconClass: string
     path: string
 }
 
-/** 学员端底部导航 */
+/** 学员端底部导航（首页与「今日训练」合并为「训练」；消息在工具箱右侧） */
 const studentNavItems: NavItem[] = [
     {
-        key: 'home',
-        label: '首页',
-        iconPath: homeIcon,
-        activeIconPath: homeSelectedIcon,
-        path: '/pages/index/index'
-    },
-    {
         key: 'training',
-        label: '今日训练',
-        iconPath: rankIcon,
-        activeIconPath: rankSelectedIcon,
-        path: '/training/today-training'
+        label: '训练',
+        iconClass: 'icon-dumbbell',
+        path: '/pages/index/index'
     },
     {
         key: 'discovery',
         label: '发现',
-        iconPath: searchIcon,
-        activeIconPath: searchSelectedIcon,
+        iconClass: 'icon-discovery',
         path: '/discovery/index'
     },
     {
         key: 'toolbox',
         label: '工具箱',
-        iconPath: profileDocIcon,
-        activeIconPath: profileDocSelectedIcon,
+        iconClass: 'icon-toolbox',
         path: '/me/toolbox/index'
     },
     {
+        key: 'messages',
+        label: '消息',
+        iconClass: 'icon-messages',
+        path: '/me/messages/index'
+    },
+    {
         key: 'profile',
-        label: '个人中心',
-        iconPath: myIcon,
-        activeIconPath: mySelectedIcon,
+        label: '个人',
+        iconClass: 'icon-user',
         path: '/me/profile/index'
     }
 ]
 
 /** 教练端底部导航 */
 const coachNavItems: NavItem[] = [
-    { key: 'overview', label: '概览', iconPath: rankIcon, activeIconPath: rankSelectedIcon, path: '/coach/overview' },
-    { key: 'videos', label: '点评', iconPath: searchIcon, activeIconPath: searchSelectedIcon, path: '/coach/videos' },
-    { key: 'students', label: '学员', iconPath: myIcon, activeIconPath: mySelectedIcon, path: '/coach/students' },
-    { key: 'plan-lib', label: '计划库', iconPath: profileDocIcon, activeIconPath: profileDocSelectedIcon, path: '/coach/plan-lib' },
-    { key: 'profile', label: '我', iconPath: myIcon, activeIconPath: mySelectedIcon, path: '/coach/my-profile' }
+    { key: 'overview', label: '概览', iconClass: 'icon-dashboard', path: '/coach/overview' },
+    { key: 'videos', label: '点评', iconClass: 'icon-video', path: '/coach/videos' },
+    { key: 'students', label: '学员', iconClass: 'icon-friends-o', path: '/coach/students' },
+    { key: 'plan-lib', label: '计划库', iconClass: 'icon-a-Trainingplan', path: '/coach/plan-lib' },
+    { key: 'profile', label: '我', iconClass: 'icon-account-settings-variant', path: '/coach/my-profile' }
 ]
 
 function BottomNav() {
     const [currentPath, setCurrentPath] = useState('')
-    const [isCoachView, setIsCoachView] = useState(false)
+    const [isCoachView, setIsCoachView] = useState(() => {
+        const session = authService.getAuthSession({ normalize: true })
+        return !!(session.isAuthenticated && session.isCoach && session.primaryRole === 'coach')
+    })
+    const [studentMessageUnreadTotal, setStudentMessageUnreadTotal] = useState(0)
     const navLockRef = useRef(false)
+
+    const refreshStudentUnreadBadge = useCallback(async () => {
+        const session = authService.getAuthSession({ normalize: true })
+        const isCoachTab =
+            session.isAuthenticated && session.isCoach && session.primaryRole === 'coach'
+        if (!session.isAuthenticated || isCoachTab) {
+            setStudentMessageUnreadTotal(0)
+            return
+        }
+        try {
+            const data = await chatService.listChatrooms({ page: 1, limit: 50 })
+            const rooms = data?.chatRooms ?? []
+            const sum = rooms.reduce((acc, r) => acc + (Number(r.unreadCount) || 0), 0)
+            setStudentMessageUnreadTotal(sum)
+        } catch (e) {
+            console.warn('[BottomNav] refresh unread badge failed', e)
+        }
+    }, [])
 
     useEffect(() => {
         const session = authService.getAuthSession({ normalize: true })
@@ -112,24 +119,46 @@ function BottomNav() {
         return () => clearInterval(timer)
     }, [])
 
+    useEffect(() => {
+        void refreshStudentUnreadBadge()
+    }, [refreshStudentUnreadBadge, isCoachView])
+
+    useEffect(() => {
+        const tick = () => {
+            void refreshStudentUnreadBadge()
+        }
+        const id = setInterval(tick, 25000)
+        return () => clearInterval(id)
+    }, [refreshStudentUnreadBadge])
+
+    useEffect(() => {
+        const handler = () => {
+            void refreshStudentUnreadBadge()
+        }
+        Taro.eventCenter.on(CHAT_UNREAD_BADGE_REFRESH_EVENT, handler)
+        return () => {
+            Taro.eventCenter.off(CHAT_UNREAD_BADGE_REFRESH_EVENT, handler)
+        }
+    }, [refreshStudentUnreadBadge])
+
     const tryNavigate = async (url: string) => {
-        // 优先使用 navigateTo 避免页面关闭导致的闪烁
+        const navOptions = { url, animationType: 'none' as any }
         try {
-            await Taro.navigateTo({ url })
+            await Taro.navigateTo(navOptions)
             return true
         } catch (navigateErr) {
             console.error('[BottomNav] navigateTo 失败:', navigateErr)
         }
 
         try {
-            await Taro.redirectTo({ url })
+            await Taro.redirectTo(navOptions)
             return true
         } catch (redirectErr) {
             console.error('[BottomNav] redirectTo 失败:', redirectErr)
         }
 
         try {
-            await Taro.reLaunch({ url })
+            await Taro.reLaunch(navOptions)
             return true
         } catch (relaunchErr) {
             console.error('[BottomNav] reLaunch 失败:', relaunchErr)
@@ -143,6 +172,24 @@ function BottomNav() {
         const current = normalizePath(currentPath)
 
         if (current === targetPath || navLockRef.current) return
+
+        // 个人中心、消息需要登录，未登录时跳转到登录页
+        if (item.key === 'profile' || item.key === 'messages') {
+            const session = authService.getAuthSession({ normalize: true })
+            if (!session.isAuthenticated) {
+                navLockRef.current = true
+                const success = await tryNavigate('/auth/login')
+                if (success) {
+                    setTimeout(() => {
+                        syncCurrentPath()
+                        navLockRef.current = false
+                    }, 120)
+                    return
+                }
+                navLockRef.current = false
+                return
+            }
+        }
 
         navLockRef.current = true
         const success = await tryNavigate(item.path)
@@ -163,7 +210,14 @@ function BottomNav() {
     return (
         <View className='bottom-nav'>
             {navItems.map((item) => {
-                const isActive = currentNorm === normalizePath(item.path)
+                const targetNorm = normalizePath(item.path)
+                const isActive =
+                    currentNorm === targetNorm ||
+                    (item.key === 'training' &&
+                        (currentNorm === 'pages/index/index' || currentNorm === 'training/today-training'))
+
+                const showMsgBadge =
+                    item.key === 'messages' && !isCoachView && studentMessageUnreadTotal > 0
 
                 return (
                     <View
@@ -171,10 +225,18 @@ function BottomNav() {
                         className={`nav-item ${isActive ? 'nav-active' : ''}`}
                         onClick={() => handleNavClick(item)}
                     >
-                        <Image
-                            className='nav-icon-img'
-                            src={isActive ? item.activeIconPath : item.iconPath}
-                        />
+                        <View className='nav-icon-badge-wrap'>
+                            <Text
+                                className={`nav-icon iconfont ${item.iconClass} ${isActive ? 'nav-icon-active' : ''}`}
+                            />
+                            {showMsgBadge ? (
+                                <View className='nav-msg-badge'>
+                                    <Text className='nav-msg-badge-text'>
+                                        {studentMessageUnreadTotal > 99 ? '99+' : studentMessageUnreadTotal}
+                                    </Text>
+                                </View>
+                            ) : null}
+                        </View>
                         <Text className='nav-label'>{item.label}</Text>
                     </View>
                 )

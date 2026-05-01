@@ -63,3 +63,14 @@ execSync('node scripts/copy-comp-to-subpackages.js', {
   shell: true,
   env,
 })
+
+// 修复 app.wxss：Taro 编译后未自动导入 common.wxss，需手动补全
+const fs = require('fs')
+const appWxssPath = path.join(process.cwd(), env.WEAPP_OUTPUT_ROOT || 'dist', 'app.wxss')
+if (fs.existsSync(appWxssPath)) {
+  const content = fs.readFileSync(appWxssPath, 'utf8')
+  if (!content.includes('common.wxss')) {
+    fs.writeFileSync(appWxssPath, '@import "common.wxss";\n' + content)
+    console.log('[build-weapp] Fixed app.wxss: added @import "common.wxss"')
+  }
+}
