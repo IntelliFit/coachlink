@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback } from 'react'
-import { View, Text, ScrollView } from '@tarojs/components'
+import { View, Text, ScrollView, Image } from '@tarojs/components'
 import './index.scss'
 
 import maleFrontSvgRaw from '@/assets/body-map/maleFrontSvg'
@@ -96,15 +96,16 @@ const BodyMapInterestSelector: React.FC<BodyMapInterestSelectorProps> = ({
     }))
   }, [categoryMap])
 
-  const svgHtml = useMemo(() => {
+  const svgDataUrl = useMemo(() => {
     const highlighted = highlightSvgParts(svgRaw, selectedIds, categoryMap)
-    return highlighted
-      .replace(
-        /<svg\s/,
-        '<svg style="width:100%;height:100%;display:block;" preserveAspectRatio="xMidYMid meet" '
-      )
+    const cleaned = highlighted
       .replace(/fill:#fff/gi, 'fill:#222222')
       .replace(/fill="#fff"/gi, 'fill="#222222"')
+    // 转为 base64 data URL 供 Image 组件渲染
+    const base64 = typeof btoa === 'function'
+      ? btoa(unescape(encodeURIComponent(cleaned)))
+      : cleaned // fallback
+    return `data:image/svg+xml;base64,${base64}`
   }, [svgRaw, selectedIds, categoryMap])
 
   const toggleSelection = useCallback((id: string) => {
@@ -154,9 +155,10 @@ const BodyMapInterestSelector: React.FC<BodyMapInterestSelectorProps> = ({
         </ScrollView>
 
         <View className='bmis-map-wrap'>
-          <View
-            className='bmis-map-svg'
-            dangerouslySetInnerHTML={{ __html: svgHtml }}
+          <Image
+            className='bmis-map-img'
+            src={svgDataUrl}
+            mode='aspectFit'
           />
         </View>
       </View>
