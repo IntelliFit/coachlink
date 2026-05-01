@@ -10,7 +10,7 @@
   justify-content: space-between;
   background: rgba(31, 31, 31, 0.92);
   border-radius: 9999rpx;
-  padding: 14rpx 24rpx;
+  padding: 16rpx 24rpx;
   box-shadow: 0 12rpx 36rpx rgba(0, 0, 0, 0.22);
   backdrop-filter: blur(20rpx);
   width: auto;
@@ -25,7 +25,7 @@
     align-items: center;
     justify-content: center;
     gap: 0;
-    padding: 14rpx 22rpx;
+    padding: 16rpx 24rpx;
     border-radius: 9999rpx;
     min-width: 0;
     transition: padding 0.35s cubic-bezier(0.34, 1.56, 0.64, 1),
@@ -38,13 +38,52 @@
     }
   }
 
-  .nav-icon-img {
-    width: 22px;
-    height: 22px;
-    opacity: 0.65;
+  .nav-icon-badge-wrap {
+    position: relative;
     flex-shrink: 0;
-    transition: opacity 0.35s ease, transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .nav-msg-badge {
+    position: absolute;
+    top: -4rpx;
+    right: -10rpx;
+    min-width: 32rpx;
+    height: 32rpx;
+    padding: 0 8rpx;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #cf6d4e;
+    border-radius: 9999rpx;
+    border: 2rpx solid rgba(31, 31, 31, 0.92);
+    z-index: 2;
+  }
+
+  .nav-msg-badge-text {
+    font-size: 20rpx;
+    font-weight: 700;
+    color: #ffffff;
+    line-height: 1;
+  }
+
+  .nav-icon {
+    font-size: 22px;
+    color: rgba(255, 255, 255, 0.65);
+    flex-shrink: 0;
+    transition: color 0.35s ease, transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
     transform: scale(0.9);
+  }
+
+  .nav-icon-active {
+    color: #CF6D4E;
+  }
+
+  .nav-active .nav-msg-badge {
+    border-color: rgba(255, 255, 255, 0.96);
   }
 
   .nav-label {
@@ -64,11 +103,10 @@
 
   .nav-active {
     background: rgba(255, 255, 255, 0.98);
-    padding: 14rpx 36rpx;
+    padding: 16rpx 32rpx;
     gap: 8rpx;
 
-    .nav-icon-img {
-      opacity: 1;
+    .nav-icon {
       transform: scale(1);
     }
 
@@ -77,5 +115,15 @@
       opacity: 1;
       transform: translateX(0);
     }
+  }
+}
+
+/* 暗色主题适配 */
+.theme-dark .bottom-nav {
+  background: rgba(30, 30, 30, 0.80);
+  border-color: rgba(255, 255, 255, 0.08);
+
+  .nav-item:not(.nav-active):active {
+    background: rgba(255, 255, 255, 0.06);
   }
 }
