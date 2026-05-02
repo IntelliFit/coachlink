@@ -1,11 +1,6 @@
-import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react'
-import { View, Text, ScrollView, Image } from '@tarojs/components'
-import Taro from '@tarojs/taro'
+import React, { useState, useMemo, useCallback } from 'react'
+import { View, Text } from '@tarojs/components'
 import './index.scss'
-
-// 微信小程序原生 API，Taro 未完全封装 env
-/* eslint-disable no-var */
-declare var wx: any
 
 import maleFrontSvgRaw from '@/assets/body-map/maleFrontSvg'
 import maleBackSvgRaw from '@/assets/body-map/maleBackSvg'
@@ -81,7 +76,6 @@ const BodyMapInterestSelector: React.FC<BodyMapInterestSelectorProps> = ({
   onChange,
 }) => {
   const [view, setView] = useState<BodyView>('front')
-  const [svgFilePath, setSvgFilePath] = useState('')
 
   const effectiveGender = gender === 'female' ? 'female' : 'male'
 
@@ -102,44 +96,30 @@ const BodyMapInterestSelector: React.FC<BodyMapInterestSelectorProps> = ({
     }))
   }, [categoryMap])
 
-  // 将 SVG 写入本地临时文件，Image 组件通过本地路径加载
-  // 微信小程序 Image 组件对 data URL (base64/encodeURIComponent) 支持不稳定
-  const prevFilePathRef = useRef('')
-  useEffect(() => {
+  const svgHtml = useMemo(() => {
     const highlighted = highlightSvgParts(svgRaw, selectedIds, categoryMap)
-    const cleaned = highlighted
+    return highlighted
+      .replace(
+        /<svg\s/,
+        '<svg style="width:100%;height:100%;display:block;" preserveAspectRatio="xMidYMid meet" '
+      )
       .replace(/fill:#fff/gi, 'fill:#222222')
       .replace(/fill="#fff"/gi, 'fill="#222222"')
+  }, [svgRaw, selectedIds, categoryMap])
 
-    try {
-      const fs = Taro.getFileSystemManager()
-      // wx.env.USER_DATA_PATH 是小程序原生 API，Taro.env 可能没有 USER_DATA_PATH
-      const userDataPath = wx.env.USER_DATA_PATH
-      const dir = `${userDataPath}/bodymap`
-      
-      // 确保目录存在
-      try { fs.accessSync(dir) } catch { fs.mkdirSync(dir, true) }
-
-      // 使用简单命名避免文件名过长，并用时间戳保证唯一性
-      const selectedHash = selectedIds.length > 0
-        ? selectedIds.map(s => s.charCodeAt(0)).reduce((a, b) => a + b, 0)
-        : 0
-      const fileName = `bm_${effectiveGender}_${view}_${selectedHash}_${Date.now()}.svg`
-      const filePath = `${dir}/${fileName}`
-
-      fs.writeFileSync(filePath, cleaned, 'utf8')
-      setSvgFilePath(filePath)
-
-      // 清理上一个临时文件
-      const prev = prevFilePathRef.current
-      if (prev && prev !== filePath) {
-        try { fs.unlinkSync(prev) } catch {}
-      }
-      prevFilePathRef.current = filePath
-    } catch (err) {
-      console.error('BodyMap SVG write failed:', err)
+  const handleSetView = useCallback((nextView: BodyView) => {
+    setView(nextView)
+    // 切换视图时，过滤掉不在新视图选项中的选中项
+    const nextSvgRaw = effectiveGender === 'female'
+      ? (nextView === 'front' ? femaleFrontSvgRaw : femaleBackSvgRaw)
+      : (nextView === 'front' ? maleFrontSvgRaw : maleBackSvgRaw)
+    const nextCategoryMap = parseSvgCategoryMap(nextSvgRaw)
+    const nextCategories = new Set(Object.values(nextCategoryMap))
+    const filtered = selectedIds.filter((id) => nextCategories.has(id))
+    if (filtered.length !== selectedIds.length) {
+      onChange(filtered)
     }
-  }, [svgRaw, selectedIds, categoryMap, effectiveGender, view])
+  }, [effectiveGender, selectedIds, onChange])
 
   const toggleSelection = useCallback((id: string) => {
     const next = new Set(selectedIds)
@@ -156,20 +136,20 @@ const BodyMapInterestSelector: React.FC<BodyMapInterestSelectorProps> = ({
       <View className='bmis-view-toggle'>
         <View
           className={`bmis-view-btn ${view === 'front' ? 'bmis-view-btn--active' : ''}`}
-          onClick={() => setView('front')}
+          onClick={() => handleSetView('front')}
         >
           <Text className='bmis-view-btn-text'>正面</Text>
         </View>
         <View
           className={`bmis-view-btn ${view === 'back' ? 'bmis-view-btn--active' : ''}`}
-          onClick={() => setView('back')}
+          onClick={() => handleSetView('back')}
         >
           <Text className='bmis-view-btn-text'>背面</Text>
         </View>
       </View>
 
       <View className='bmis-main'>
-        <ScrollView scrollY className='bmis-list'>
+        <View className='bmis-list'>
           {options.map((m) => {
             const isSelected = selectedIds.includes(m.id)
             return (
@@ -185,20 +165,13 @@ const BodyMapInterestSelector: React.FC<BodyMapInterestSelectorProps> = ({
               </View>
             )
           })}
-        </ScrollView>
+        </View>
 
         <View className='bmis-map-wrap'>
-          {svgFilePath ? (
-            <Image
-              className='bmis-map-img'
-              src={svgFilePath}
-              mode='aspectFit'
-            />
-          ) : (
-            <View className='bmis-map-placeholder'>
-              <Text className='bmis-map-placeholder-text'>加载中...</Text>
-            </View>
-          )}
+          <View
+            className='bmis-map-svg'
+            dangerouslySetInnerHTML={{ __html: svgHtml }}
+          />
         </View>
       </View>
     </View>
