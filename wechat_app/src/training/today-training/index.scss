@@ -123,19 +123,18 @@
   /* 「今日安排」整块：与进度卡同一白卡片、阴影与圆角体系 */
   .tt-schedule-stack {
     background: #ffffff;
-    border-radius: 32rpx;
+    border-radius: 40rpx;
     padding: 32rpx;
     margin-bottom: 24rpx;
-    box-shadow: 0 8rpx 32rpx rgba(0, 0, 0, 0.04);
+    box-shadow: 0 12rpx 40rpx rgba(15, 23, 42, 0.04);
     border: none;
     box-sizing: border-box;
     overflow: hidden;
 
     .section-header--schedule {
       margin-bottom: 0;
-      padding-bottom: 24rpx;
-      border-bottom: 2rpx solid #f3f4f6;
-      align-items: flex-start;
+      padding-bottom: 32rpx;
+      align-items: center;
     }
 
     .section-header--schedule .header-left {
@@ -146,16 +145,20 @@
     .tt-schedule-stack__head {
       display: flex;
       flex-direction: row;
-      align-items: flex-start;
+      align-items: center;
       gap: 16rpx;
       min-width: 0;
     }
 
     .tt-schedule-stack__icon {
       flex-shrink: 0;
-      font-size: 40rpx;
-      line-height: 1;
-      color: #cf6d4e;
+      width: 72rpx;
+      height: 72rpx;
+      border-radius: 24rpx;
+      background: #fbfbfc;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
     .tt-schedule-stack__titles {
@@ -163,20 +166,40 @@
       min-width: 0;
       display: flex;
       flex-direction: column;
-      gap: 8rpx;
+      gap: 0;
     }
 
     .section-header--schedule .section-title {
       margin-left: 0;
       margin-bottom: 0;
-      font-size: 30rpx;
+      font-size: 34rpx;
+      font-weight: 800;
+      color: #121826;
       line-height: 1.35;
     }
 
-    .section-header--schedule .section-subtitle {
+    .section-header__action {
+      flex-shrink: 0;
+      min-height: 80rpx;
+      min-width: 168rpx;
+      padding: 0 32rpx;
+      border-radius: 9999rpx;
+      border: 2rpx solid #dde1e8;
+      background: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-sizing: border-box;
+
+      &--pressed {
+        opacity: 0.8;
+      }
+    }
+
+    .section-header__action-text {
       font-size: 24rpx;
-      color: #6b7280;
-      line-height: 1.4;
+      font-weight: 700;
+      color: #6f7787;
     }
 
     .rest-day-card {
@@ -239,6 +262,14 @@
     min-width: 0;
   }
 
+  .tt-daily-progress-head-actions {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 16rpx;
+    flex-shrink: 0;
+  }
+
   .tt-daily-progress-title-row {
     display: flex;
     flex-direction: row;
@@ -251,7 +282,7 @@
     flex-shrink: 0;
     font-size: 40rpx;
     line-height: 1;
-    color: #cf6d4e;
+    color: var(--primary);
   }
 
   .tt-daily-progress-title {
@@ -286,13 +317,51 @@
   .tt-daily-progress-coach-trigger-text {
     font-size: 22rpx;
     font-weight: 600;
-    color: #cf6d4e;
+    color: var(--primary);
   }
 
   .tt-daily-progress-coach-trigger-icon {
     font-size: 28rpx;
     line-height: 1;
-    color: #cf6d4e;
+    color: var(--primary);
+  }
+
+  .tt-daily-progress-coach-avatar {
+    width: 72rpx;
+    height: 72rpx;
+    border-radius: 9999rpx;
+    overflow: hidden;
+    border: 2rpx solid #e5e7eb;
+    background: #f9fafb;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+
+    &--pressed {
+      opacity: 0.82;
+    }
+  }
+
+  .tt-daily-progress-coach-avatar-img {
+    width: 72rpx;
+    height: 72rpx;
+    display: block;
+  }
+
+  .tt-daily-progress-coach-avatar-fallback {
+    width: 72rpx;
+    height: 72rpx;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--primary-soft-bg);
+  }
+
+  .tt-daily-progress-coach-avatar-letter {
+    font-size: 28rpx;
+    font-weight: 700;
+    color: var(--primary);
   }
 
   .tt-focus-panel {
@@ -438,7 +507,7 @@
     box-sizing: border-box;
 
     &--active {
-      background: #fdf2ec;
+      background: var(--primary-soft-bg);
     }
 
     &--pressed {
@@ -467,13 +536,13 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: #fdf2ec;
+    background: var(--primary-soft-bg);
   }
 
   .coach-pick-avatar-letter {
     font-size: 40rpx;
     font-weight: 800;
-    color: #cf6d4e;
+    color: var(--primary);
   }
 
   .coach-pick-body {
@@ -501,10 +570,10 @@
   .coach-pick-current {
     font-size: 20rpx;
     font-weight: 700;
-    color: #cf6d4e;
+    color: var(--primary);
     padding: 4rpx 12rpx;
     border-radius: 9999rpx;
-    background: rgba(207, 109, 78, 0.12);
+    background: rgba(var(--brand-primary-rgb), 0.12);
   }
 
   .coach-pick-plan {
@@ -538,7 +607,7 @@
 
   .coach-pick-check {
     font-size: 32rpx;
-    color: #cf6d4e;
+    color: var(--primary);
     font-weight: 700;
     flex-shrink: 0;
     margin-left: 16rpx;
@@ -577,7 +646,7 @@
 
   .tt-daily-progress-fill {
     height: 100%;
-    background: #cf6d4e;
+    background: var(--primary);
     border-radius: 9999rpx;
   }
 
@@ -592,7 +661,7 @@
     width: 32rpx;
     height: 32rpx;
     border-radius: 16rpx;
-    background: rgba(207, 109, 78, 0.12);
+    background: rgba(var(--brand-primary-rgb), 0.12);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -638,7 +707,7 @@
     width: 64rpx;
     height: 64rpx;
     border-radius: 16rpx;
-    background: rgba(207, 109, 78, 0.1);
+    background: rgba(var(--brand-primary-rgb), 0.1);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -646,13 +715,13 @@
   }
 
   .tt-period-pill-icon-wrap--month {
-    background: rgba(207, 109, 78, 0.08);
+    background: rgba(var(--brand-primary-rgb), 0.08);
   }
 
   .tt-period-pill-icon {
     font-size: 36rpx;
     line-height: 1;
-    color: #cf6d4e;
+    color: var(--primary);
   }
 
   .tt-period-pill-main {
@@ -688,6 +757,89 @@
     font-size: 24rpx;
     color: #9ca3af;
     line-height: 1.4;
+  }
+
+  .tt-plan-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 16rpx;
+    margin-top: 24rpx;
+    padding-top: 24rpx;
+    border-top: 2rpx solid #f3f4f6;
+  }
+
+  .tt-plan-actions__primary {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    gap: 12rpx;
+    min-height: 96rpx;
+    padding: 0 32rpx;
+    background: var(--primary);
+    border-radius: 24rpx;
+    box-sizing: border-box;
+
+    &:active {
+      opacity: 0.92;
+    }
+  }
+
+  .tt-plan-actions__primary-text {
+    font-size: 28rpx;
+    font-weight: 700;
+    color: #ffffff;
+  }
+
+  .tt-plan-actions__secondary-row {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 16rpx;
+  }
+
+  .tt-plan-actions__secondary {
+    flex: 1;
+    min-width: 0;
+    min-height: 80rpx;
+    padding: 0 24rpx;
+    border-radius: 24rpx;
+    border: 2rpx solid #e5e7eb;
+    background: #ffffff;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    gap: 8rpx;
+
+    &:active {
+      opacity: 0.75;
+    }
+  }
+
+  .tt-plan-actions__secondary--accent {
+    border-color: rgba(var(--brand-primary-rgb), 0.18);
+    background: var(--primary-soft-bg);
+  }
+
+  .tt-plan-actions__secondary--danger {
+    border-color: #fecaca;
+    background: #fff5f5;
+  }
+
+  .tt-plan-actions__secondary-text {
+    font-size: 24rpx;
+    color: #6b7280;
+    font-weight: 600;
+  }
+
+  .tt-plan-actions__secondary-text--accent {
+    color: var(--primary);
+  }
+
+  .tt-plan-actions__secondary-text--danger {
+    color: #dc2626;
   }
 
   /* 更多训练方式底部弹层 */
@@ -740,8 +892,8 @@
     }
 
     &.in-progress {
-      background: #fff7ed;
-      color: #cf6d4e;
+      background: var(--primary-soft-bg);
+      color: var(--primary);
     }
 
     &.pending {
@@ -812,13 +964,13 @@
   .hero-card-icon-wrap {
     width: 104rpx;
     height: 104rpx;
-    background: #fdf2ec;
+    background: var(--primary-soft-bg);
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-    box-shadow: 0 8rpx 24rpx rgba(207, 109, 78, 0.12);
+    box-shadow: 0 8rpx 24rpx rgba(var(--brand-primary-rgb), 0.12);
   }
 
   .hero-card-progress {
@@ -832,7 +984,7 @@
 
     .progress-fill {
       height: 100%;
-      background: #cf6d4e;
+      background: var(--primary);
       border-radius: 9999rpx;
       transition: width 0.5s ease;
     }
@@ -912,11 +1064,11 @@
   }
 
   .home-promo-card {
-    background: #cf6d4e;
+    background: var(--primary);
     border-radius: 40rpx;
     padding: 40rpx 32rpx;
     margin-bottom: 32rpx;
-    box-shadow: 0 12rpx 36rpx rgba(207, 109, 78, 0.22);
+    box-shadow: 0 12rpx 36rpx rgba(var(--brand-primary-rgb), 0.22);
   }
 
   .promo-card-title {
@@ -965,7 +1117,7 @@
   }
 
   .promo-btn-solid .promo-btn-text {
-    color: #cf6d4e;
+    color: var(--primary);
   }
 
   .home-features {
@@ -1050,11 +1202,11 @@
     min-height: 96rpx;
     padding: 0 32rpx;
     margin-bottom: 16rpx;
-    background: #cf6d4e;
+    background: var(--primary);
     border: none;
     border-radius: 9999rpx;
     box-sizing: border-box;
-    box-shadow: 0 8rpx 24rpx rgba(207, 109, 78, 0.35);
+    box-shadow: 0 8rpx 24rpx rgba(var(--brand-primary-rgb), 0.35);
 
     &:active {
       opacity: 0.92;
@@ -1115,13 +1267,13 @@
   .schedule-calendar-anchor__toggle-text {
     font-size: 22rpx;
     font-weight: 600;
-    color: #cf6d4e;
+    color: var(--primary);
   }
 
   .schedule-calendar-anchor__toggle-icon {
     font-size: 28rpx;
     line-height: 1;
-    color: #cf6d4e;
+    color: var(--primary);
     display: block;
     transition: transform 0.2s ease;
 
@@ -1146,7 +1298,7 @@
 
   .renew-inline-text {
     font-size: 24rpx;
-    color: #cf6d4e;
+    color: var(--primary);
     font-weight: 600;
   }
 
@@ -1208,7 +1360,7 @@
     gap: 16rpx;
     min-height: 96rpx;
     padding: 32rpx 40rpx;
-    background: #cf6d4e;
+    background: var(--primary);
     border-radius: 24rpx;
     box-sizing: border-box;
 
@@ -1261,8 +1413,8 @@
     }
 
     &.secondary-cta-tile--accent {
-      background: #fdf2ec;
-      border-color: rgba(207, 109, 78, 0.28);
+      background: var(--primary-soft-bg);
+      border-color: rgba(var(--brand-primary-rgb), 0.28);
     }
   }
 
@@ -1270,7 +1422,7 @@
     width: 80rpx;
     height: 80rpx;
     border-radius: 50%;
-    background: rgba(207, 109, 78, 0.1);
+    background: rgba(var(--brand-primary-rgb), 0.1);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1357,7 +1509,7 @@
 
         &.in-progress {
           background: #FFF7ED;
-          color: #CF6D4E;
+          color: var(--primary);
         }
 
         &.pending {
@@ -1377,7 +1529,7 @@
 
     .hero-progress-bar-fill {
       height: 100%;
-      background: #cf6d4e;
+      background: var(--primary);
       border-radius: 9999rpx;
     }
 
@@ -1418,14 +1570,14 @@
       box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.06);
 
       &.primary {
-        background: #CF6D4E;
+        background: var(--primary);
         color: #FFFFFF;
-        box-shadow: 0 8rpx 24rpx rgba(207, 109, 78, 0.25);
+        box-shadow: 0 8rpx 24rpx rgba(var(--brand-primary-rgb), 0.25);
       }
 
       &.secondary {
         background: #FFFFFF;
-        color: #CF6D4E;
+        color: var(--primary);
       }
     }
 
@@ -1566,7 +1718,7 @@
       font-weight: 500;
 
       &.active {
-        background: #CF6D4E;
+        background: var(--primary);
         color: #FFFFFF;
       }
 
@@ -1674,7 +1826,7 @@
     .completion-modal-icon-star {
       font-size: 96rpx;
       line-height: 1;
-      color: #cf6d4e;
+      color: var(--primary);
     }
 
     .completion-modal-title {
@@ -1710,7 +1862,7 @@
       font-weight: 600;
 
       &.primary {
-        background: #CF6D4E;
+        background: var(--primary);
         color: #ffffff;
       }
 
@@ -1745,9 +1897,9 @@
       transition: all 0.2s ease;
 
       &.active {
-        background: #CF6D4E;
+        background: var(--primary);
         color: #ffffff;
-        box-shadow: 0 4rpx 16rpx rgba(207, 109, 78, 0.25);
+        box-shadow: 0 4rpx 16rpx rgba(var(--brand-primary-rgb), 0.25);
       }
 
       .switcher-icon {
@@ -1795,12 +1947,12 @@
         .avatar-box {
           width: 96rpx;
           height: 96rpx;
-          background: linear-gradient(135deg, #CF6D4E 0%, #E59B7D 100%);
+          background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
           border-radius: 16rpx;
           display: flex;
           align-items: center;
           justify-content: center;
-          box-shadow: 0 4rpx 16rpx rgba(207, 109, 78, 0.2);
+          box-shadow: 0 4rpx 16rpx rgba(var(--brand-primary-rgb), 0.2);
 
           .avatar-text {
             font-size: 36rpx;
@@ -1834,7 +1986,7 @@
           .pro-badge {
             padding: 0rpx 8rpx;
             background: linear-gradient(135deg, #FFF5EB 0%, #FFE8D1 100%);
-            color: #CF6D4E;
+            color: var(--primary);
             font-size: 18rpx;
             font-weight: 700;
             text-transform: uppercase;
@@ -1946,7 +2098,7 @@
 
       &.in-progress {
         background: #FFF7ED;
-        color: #CF6D4E;
+        color: var(--primary);
       }
 
       &.pending {
@@ -2006,8 +2158,8 @@
 
       .impromptu-btn {
         padding: 8rpx 16rpx;
-        border: 1rpx solid #CF6D4E;
-        color: #CF6D4E;
+        border: 1rpx solid var(--primary);
+        color: var(--primary);
         border-radius: 9999rpx;
         font-size: 22rpx;
         font-weight: 500;
@@ -2015,8 +2167,8 @@
 
       .view-day-btn {
         padding: 8rpx 16rpx;
-        border: 1rpx solid #CF6D4E;
-        color: #CF6D4E;
+        border: 1rpx solid var(--primary);
+        color: var(--primary);
         border-radius: 9999rpx;
         font-size: 22rpx;
       }
@@ -2036,7 +2188,7 @@
         }
 
         &.in-progress {
-          background: #fff7ed;
+          background: var(--primary-soft-bg);
           color: #d97706;
         }
 
@@ -2155,7 +2307,7 @@
       .empty-icon-bg {
         position: absolute;
         inset: 0;
-        background: rgba(207, 109, 78, 0.12);
+        background: rgba(var(--brand-primary-rgb), 0.12);
         border-radius: 50%;
         animation: pulse 2s infinite;
       }
@@ -2233,9 +2385,9 @@
         transition: all 0.2s ease;
 
         &.primary {
-          background: #CF6D4E;
+          background: var(--primary);
           color: #ffffff;
-          box-shadow: 0 4rpx 20rpx rgba(207, 109, 78, 0.25);
+          box-shadow: 0 4rpx 20rpx rgba(var(--brand-primary-rgb), 0.25);
 
           &:active {
             transform: scale(0.98);
@@ -2270,7 +2422,7 @@
   .waiting-card {
     .empty-icon-inner {
       .empty-icon {
-        color: #CF6D4E;
+        color: var(--primary);
       }
     }
   }
@@ -2333,8 +2485,8 @@
   .grace-warning-banner,
   .grace-card {
     background: #fffbeb;
-    border: 1rpx solid #fde68a;
-    color: #92400e;
+    border: 1rpx solid var(--primary-soft-border);
+    color: var(--primary);
   }
 
   .in-progress-banner {
@@ -2345,7 +2497,7 @@
 
   .banner-link {
     flex-shrink: 0;
-    color: #CF6D4E;
+    color: var(--primary);
     font-size: 22rpx;
     font-weight: 700;
   }
@@ -2364,11 +2516,11 @@
     min-height: 64rpx;
     padding: 0 24rpx;
     border-radius: 9999rpx;
-    background: #CF6D4E;
+    background: var(--primary);
     color: #FFFFFF;
     font-size: 24rpx;
     font-weight: 700;
-    box-shadow: 0 4rpx 16rpx rgba(207, 109, 78, 0.22);
+    box-shadow: 0 4rpx 16rpx rgba(var(--brand-primary-rgb), 0.22);
 
     &.disabled {
       opacity: 0.6;
@@ -2494,7 +2646,7 @@
     font-weight: 700;
 
     &.primary {
-      background: #cf6d4e;
+      background: var(--primary);
       color: #ffffff;
     }
 

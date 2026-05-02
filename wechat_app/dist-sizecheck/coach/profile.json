@@ -1,0 +1,9 @@
+{
+  "navigationBarTitleText": "教练主页",
+  "navigationBarBackgroundColor": "#FFFFFF",
+  "navigationBarTextStyle": "black",
+  "animationType": "none",
+  "usingComponents": {
+    "comp": "../../comp"
+  }
+}

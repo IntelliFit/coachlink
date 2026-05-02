@@ -39,7 +39,7 @@
 }
 
 .week-dashboard-strip__pill--today:not(.week-dashboard-strip__pill--selected) {
-  border-color: #cf6d4e;
+  border-color: var(--primary);
 }
 
 /* 低饱和深色选中态，贴近灰底 */
@@ -66,7 +66,7 @@
   width: 8rpx;
   height: 8rpx;
   border-radius: 9999rpx;
-  background: #cf6d4e;
+  background: var(--primary);
 }
 
 .week-dashboard-strip__wd {
