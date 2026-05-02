@@ -1,0 +1,7 @@
+{
+  "navigationBarTitleText": "提交成功",
+  "animationType": "none",
+  "usingComponents": {
+    "comp": "../../../../comp"
+  }
+}

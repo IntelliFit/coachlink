@@ -1,0 +1,7 @@
+{
+  "navigationBarTitleText": "文档",
+  "animationType": "none",
+  "usingComponents": {
+    "comp": "../../comp"
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "navigationBarTitleText": "知识详情",
+  "animationType": "none",
+  "usingComponents": {
+    "comp": "../../../comp"
+  }
+}

@@ -1,0 +1,1 @@
+.coach-profile-page{min-height:100vh;background:#f3f4f6;padding:48rpx 48rpx 192rpx;-webkit-box-sizing:border-box;box-sizing:border-box}.coach-profile-page .loading-wrap{background:#fff;border:2rpx solid #e5e7eb;border-radius:40rpx;padding:64rpx 48rpx;text-align:center;color:#6b7280;font-size:28rpx}

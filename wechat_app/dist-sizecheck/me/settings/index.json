@@ -1,0 +1,7 @@
+{
+  "navigationBarTitleText": "账户设置",
+  "animationType": "none",
+  "usingComponents": {
+    "comp": "../../comp"
+  }
+}

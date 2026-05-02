@@ -994,6 +994,263 @@
   - 如果用户确认交互满意，再补浏览器端验证与回归测试
 
 - Task: 将《力量训练原理》整理为可上传的非侵权书籍笔记并接入知识库书籍页
+- Latest (`2026-04-26`): 修复微信小程序 DevTools 代码质量告警（主包大小 / JS 压缩 / 组件按需注入 / 图片资源）
+- Task: 根据微信开发者工具代码质量面板的告警，降低小程序包体积并补齐官方建议配置
+- Scope:
+  - `wechat_app/project.config.json`
+  - `wechat_app/config/index.ts`
+  - `wechat_app/src/app.config.ts`
+  - `wechat_app/src/pages/index/index.tsx`
+  - `wechat_app/src/pages/index/index.scss`
+  - `wechat_app/src/me/toolbox/index.tsx`
+  - `wechat_app/src/assets/images/toolbox-*.jpg`
+- Status: in_progress on `2026-04-26`
+- This round:
+  - 打开 DevTools 代码压缩开关：`project.config.json -> setting.minified = true`
+  - 启用组件按需注入：`app.config.ts -> lazyCodeLoading = 'requiredComponents'`
+  - 小程序构建改为不产出 source map，并开启 `esbuild` JS 压缩、`lightningcss` CSS 压缩
+  - 移除对 `src/assets/images/` 与品牌图的整目录 copy，改为按代码引用打包
+  - `me/toolbox/index.tsx` 改为模块化图片引用，避免依赖根包静态路径
+  - 压缩三张工具封面图到 200KB 内：`toolbox-data.jpg` `152821B`、`toolbox-locations.jpg` `133250B`、`toolbox-calculator.jpg` `112712B`
+  - 学员首页 `pages/index/index` 不再直接渲染 `TodayTrainingScreen`，改为轻量身份判断后跳转到 `/training/today-training`，以减轻主包首页依赖
+- Verification:
+  - `wechat_app npm run build:weapp`：通过
+  - `find wechat_app/dist -type f \\( -name '*.jpg' -o -name '*.png' -o -name '*.jpeg' -o -name '*.gif' -o -name '*.svg' \\)`：当前 `dist` 仅剩 `favicon.svg`，大图不再落在根包静态目录
+  - `mrc relaunch /pages/index/index --port 9420`：通过
+  - `mrc where --port 9420`：当前页面 `pages/index/index`
+  - `mrc errors 10 --port 9420` / `mrc warnings 10 --port 9420`：均为 0 条
+  - 当前剩余观察项：
+    - 本地 `development` 模式产物根目录仍存在较大的 `common.js` / `vendors.js`，DevTools 的“主包 < 1.5M”是否已完全转绿，需要在开发者工具代码质量面板重新扫描确认
+    - `mrc screenshot` 本轮再次长时间无返回，未拿到截图文件
+
+- Latest (`2026-04-26`): 按用户要求启动开发环境
+- Task: 启动 `coachlink` Web 开发服务、小程序 `dev:weapp` 监听，以及微信开发者工具
+- Scope:
+  - 根目录使用 `npm run dev` 启动 Next.js 开发服务（覆盖 Web 前端与 API 后端）
+  - `wechat_app/` 使用 `npm run dev:weapp` 启动小程序本地构建监听
+  - 使用微信开发者工具 CLI 打开 `wechat_app` 项目，并确认自动化端口可连接
+- Status: started on `2026-04-26`
+- Verification:
+  - 根目录 `npm run dev`：已启动并保持运行，Next.js 16 开发服务监听 `http://localhost:3000`
+  - `curl -I http://127.0.0.1:3000`：返回 `307 Temporary Redirect` 到 `/coach/discovery`
+  - `wechat_app npm run dev:weapp`：已启动并完成首轮 watch 构建，输出目录为 `wechat_app/dist`
+  - `python3 .kimi/skills/port-manager/scripts/portman.py get /Users/kirigaya/project/coachlink weapp-devtools-20260426`：分配并登记端口 `3014`
+  - `'/Applications/wechatwebdevtools.app/Contents/MacOS/cli' auto --project /Users/kirigaya/project/coachlink/wechat_app --port 33988 --debug`：成功返回 `✔ auto`
+  - `mrc where --port 9420`：可连接，当前页面为 `pages/index/index`
+
+- Latest (`2026-04-25`): 审计 `root@coachlink.fit` 的 SSH 与可疑进程，并关闭 SSH 密码登录
+- Task: 检查服务器是否存在密码登录风险、木马/挖矿等异常，并将 SSH 收紧为仅允许密钥登录
+- Scope:
+  - 通过 `ssh root@coachlink.fit` 登录服务器做只读安全体检
+  - 检查 `sshd` 当前有效配置、`authorized_keys`、root 口令状态
+  - 检查可疑进程、systemd 服务、定时任务、监听端口
+  - 将 SSH 调整为仅允许公钥登录并重载验证
+- Status: completed on `2026-04-25`
+- Verification:
+  - `passwd -S root`：root 账户当前存在本地口令哈希，状态为 `PS`，算法显示为 `MD5 crypt`
+  - `sshd -T -C user=root -C host=$(hostname) -C addr=127.0.0.1`：
+    - `passwordauthentication no`
+    - `kbdinteractiveauthentication no`
+    - `pubkeyauthentication yes`
+    - `permitrootlogin without-password`
+  - 新增 `/etc/ssh/sshd_config.d/00-key-only.conf`，并删除失效的晚序配置 `/etc/ssh/sshd_config.d/99-key-only.conf`
+  - `systemctl reload sshd`：通过
+  - 可疑项：
+    - 发现运行中的矿工进程：`./https -a rx/0 -o pool.supportxmr.com:3333 ...`
+    - 发现启用过的挖矿服务：`c3pool_miner.service`、`moneroocean_miner.service`
+    - 发现 Redis `6379` 对公网监听且存在外部连接
+  - 当前未执行：
+    - 未主动停止/删除挖矿进程与文件，避免误伤潜在“人为部署”的内容；如需我可下一步直接清理
+
+- Latest (`2026-04-25`): 通过 `port-manager` 为当前仓库分配新端口并打开新的微信开发者工具窗口
+- Task: 避开当前已启动的微信开发者工具端口，为 `coachlink/wechat_app` 新开独立 DevTools 实例
+- Scope:
+  - 读取 `~/.port-man` 登记并结合本机监听状态判断可用端口
+  - 使用 `.kimi/skills/port-manager` 为当前仓库新增登记端口
+  - 使用微信开发者工具 CLI 打开 `wechat_app` 项目
+- Status: completed on `2026-04-25`
+- Verification:
+  - `python3 .kimi/skills/port-manager/scripts/portman.py get /Users/kirigaya/project/coachlink weapp-devtools-20260425`：分配并登记端口 `3013`
+  - `lsof -nP -iTCP:3013 -sTCP:LISTEN`：确认分配时 `3013` 未被占用
+  - `lsof -nP -iTCP -sTCP:LISTEN | rg '(:94|:30|:35|wechatwebdevtools|wechatweb|Python)'`：确认现有实例仍占用 `9420`，且 `3010` 被 `Python run_backend.py` 占用
+  - `'/Applications/wechatwebdevtools.app/Contents/MacOS/cli' auto --project /Users/kirigaya/project/coachlink/wechat_app --port 3013 --debug`：微信开发者工具未按指定端口启动，而是提示实例实际已起在 `16866`
+  - `'/Applications/wechatwebdevtools.app/Contents/MacOS/cli' auto --project /Users/kirigaya/project/coachlink/wechat_app --port 16866 --debug`：成功，当前项目已挂到新实例
+  - `lsof -nP -iTCP:16866 -sTCP:LISTEN`：确认新实例实际监听 `127.0.0.1:16866`
+  - 当前阻塞：
+    - `mrc where --port 16866` 仍连接失败；当前可确认新窗口已打开并监听 `16866`，但本机 `mrc` 暂未直接接入这个实例
+
+- Latest (`2026-04-24`): 避开已打开项目的微信开发者工具端口，为当前仓库新开独立 DevTools 窗口
+- Task: 在不影响已占用 `9420` 的前提下，为 `coachlink/wechat_app` 打开新的微信开发者工具实例，并确认当前使用端口
+- Scope:
+  - 使用 `.kimi/skills/port-manager` 检查登记端口与实际监听情况
+  - 使用微信开发者工具 CLI 为 `wechat_app` 打开独立项目窗口
+  - 避免与另一个项目已打开的开发者工具端口冲突
+- Status: completed on `2026-04-24`
+- Verification:
+  - `python3 .kimi/skills/port-manager/scripts/portman.py list`：确认当前仓库已登记 `weapp-devtools` 端口且已有其他项目占用不同端口
+  - `lsof -nP -iTCP:9420 -sTCP:LISTEN`：旧实例仍在监听 `9420`
+  - `'/Applications/wechatwebdevtools.app/Contents/MacOS/cli' auto --project /Users/kirigaya/project/coachlink/wechat_app --port 35437 --debug`：成功
+  - `lsof -nP -iTCP:35437 -sTCP:LISTEN`：新的微信开发者工具实例监听 `127.0.0.1:35437`
+  - 当前阻塞：
+    - `mrc where --port 35437` 连接失败；现阶段可确认新窗口已打开并监听 `35437`，但本机 `mrc` 尚未直接接入该实例
+
+- Latest (`2026-04-24`): 首页/发现页主题色统一为 `#C27255` 并变量化
+- Task: 重启 Web 后端、打开微信开发者工具，并将小程序首页与发现页所有橙色相关细节统一改为基于主题变量的 `#C27255`
+- Scope:
+  - Web 后端：根目录 `npm run dev`
+  - 微信开发者工具：`9420` 自动化端口保持可连接
+  - 主题变量源头：`wechat_app/src/app.scss`、`wechat_app/src/styles/theme.ts`
+  - 首页：`wechat_app/src/pages/index/index.scss`、`wechat_app/src/pages/index/index.tsx`、`wechat_app/src/training/today-training/**`
+  - 发现页：`wechat_app/src/discovery/index.scss`
+- This round:
+  - 重启 Web 后端并确认 `http://127.0.0.1:3000` 返回 `307`
+  - 唤起微信开发者工具应用，`9420` 端口继续监听
+  - 新增小程序主题常量 `BRAND_PRIMARY = #C27255` 与全局 CSS 变量：
+    - `--brand-primary`
+    - `--brand-primary-rgb`
+    - `--primary`
+    - `--primary-light`
+    - `--primary-soft-bg`
+    - `--primary-soft-bg-strong`
+    - `--primary-soft-border`
+  - 将首页和发现页内所有橙色相关按钮、图标、浅底、描边、阴影统一改为变量引用，不再直接写新的主题色
+- Status: implemented on `2026-04-24`
+- Verification:
+  - 根目录 `npm run dev`：已重启并保持运行
+  - `curl -I http://127.0.0.1:3000`：返回 `307 Temporary Redirect` 到 `/coach/discovery`
+  - `wechat_app npm run build:weapp`：通过
+  - 根目录 `npm run lint`：通过（脚本仅提示未配置 eslint）
+  - 根目录 `npm test`：通过（21 files, 100 tests）
+  - 根目录 `npx next build`：通过
+  - 根目录 `npm run typecheck`：失败，仍为仓库既有大量历史类型错误（Next route handler、Supabase 类型、小程序别名解析等）；本轮新增的 `@/styles/theme` 也落在同一批既有 `wechat_app` 别名解析错误里
+  - 小程序运行态验证（`9420`）：
+    - `mrc errors 20 --port 9420` / `mrc warnings 20 --port 9420`：均为 0 条
+    - 当前页面校验类命令本轮再次出现长时间无返回，未拿到稳定的页面路径/元素存在性回执
+- Latest (`2026-04-24`): 首页「今日安排」继续按参考图做严格贴图式微调
+- Task: 将学员端首页 `今日安排` 卡片的颜色、留白、内外卡层级、状态胶囊和底部按钮尺寸进一步压到用户参考图效果
+- Scope:
+  - 页面位于 `wechat_app/src/training/today-training/TodayTrainingScreen.tsx`
+  - 样式位于 `wechat_app/src/training/today-training/index.scss`
+  - 卡片样式位于 `wechat_app/src/training/today-training/components/TodayTrainingCard.scss`
+- This round:
+  - 收紧 `tt-schedule-stack` 外层白卡：加大圆角、调整阴影、抬高头部与右侧 `查看全部` 胶囊尺寸
+  - 将嵌入式 `TodayTrainingCard` 的内层边框卡、顶部灰条、顺延标签、标题字号、状态胶囊和底部双按钮继续向参考图靠拢
+  - 主按钮改为更浅的米色块面，右侧列表按钮放大到更接近参考图的方形尺寸
+- Status: implemented on `2026-04-24`
+- Verification:
+  - `wechat_app npm run build:weapp`：通过
+  - 根目录 `npm run lint`：通过（脚本仅提示未配置 eslint）
+  - 根目录 `npm test`：通过（21 files, 100 tests）
+  - 小程序运行态验证（`9420`）：
+    - `mrc relaunch /pages/index/index --port 9420`：通过
+    - `mrc where --port 9420`：当前页面 `pages/index/index`
+    - `mrc exists .tt-schedule-stack/.training-card--embedded/.main-action-btn__icon --port 9420`：均存在
+    - `mrc errors 20 --port 9420` / `mrc warnings 20 --port 9420`：均为 0 条
+  - 当前阻塞：
+    - 按用户要求继续使用 `weapp-devtools` 执行 `mrc screenshot` 两次，命令均连接成功但长时间无返回，未产出截图文件
+    - 尝试使用系统级 `screencapture` 做辅助截图时，当前机器返回 `could not create image from display/rect`，说明本机会话下未拿到可用录屏截图能力
+
+- Latest (`2026-04-24`): 底部导航页统一移除微信默认导航栏并补顶间距
+- Task: 底部导航栏每个按钮对应页面去除微信默认导航栏，并在已移除的页面顶部预留 `180rpx` 上间距
+- Scope:
+  - 学员端：`pages/index/index`、`discovery/index`、`me/toolbox/index`、`me/messages/index`、`me/profile/index`
+  - 教练端：`coach/overview`、`coach/videos`、`coach/students`、`coach/plan-lib`、`coach/my-profile`
+  - 已经是 `navigationStyle: 'custom'` 的页面不重复移除，只补样式时按现状处理
+- Status: implemented on `2026-04-24`
+- Verification:
+  - `wechat_app npm run build:weapp`：通过
+  - 根目录 `npm run lint`：通过（脚本仅提示未配置 eslint）
+  - 根目录 `npm test`：通过（21 files, 100 tests）
+  - 根目录 `npm run typecheck`：失败，仍为仓库既有大量历史类型错误；未见本轮新增指向上述底部导航页面的单独结论
+  - 小程序运行态验证（`9420`）：
+    - `mrc relaunch /discovery/index --port 9420`：通过
+    - `mrc where --port 9420`：当前页面 `discovery/index`
+    - `mrc exists .discovery-page --port 9420`：存在
+    - `mrc exists .page-header --port 9420`：存在
+    - `mrc errors 20 --port 9420` / `mrc warnings 20 --port 9420`：均为 0 条
+
+- Latest (`2026-04-24`): 小程序「发现」页主内容按参考图重排
+- Task: 根据用户提供的发现页参考图，重做小程序 `discovery/index` 的主要内容布局
+- Requirement:
+  - 保持每次修改后自动编译再反馈
+- Scope:
+  - 页面位于 `wechat_app/src/discovery/index.tsx`
+  - 头部改为大标题 + 副标题 + 圆角搜索栏 + 六宫格分类入口
+  - `服务商品` 改为带封面图的横向商品卡，补齐标签、教练信息、价格与购买/加购按钮
+  - `热门动作` 改为参考图式的纵向列表卡，包含左侧封面、标题摘要、作者/点赞与详情按钮
+  - `推荐教练` 区块下沉到主内容后段，保留原筛选与加载更多能力
+- Status: implemented on `2026-04-24`
+- Verification:
+  - `wechat_app npm run build:weapp`：通过
+  - 根目录 `npm run lint`：通过（脚本仅提示未配置 eslint）
+  - 根目录 `npm test`：通过（21 files, 100 tests）
+  - 根目录 `npx next build`：通过
+  - 根目录 `npm run typecheck`：失败，仍为仓库既有大量历史类型错误；本轮未新增指向 `discovery/index` 的单独新错误结论
+  - 小程序运行态验证（`9420`）：
+    - `mrc relaunch /discovery/index --port 9420`：通过
+    - `mrc exists .quick-category-row --port 9420`：存在
+    - `mrc exists .market-cover-wrap --port 9420`：存在
+    - `mrc exists .action-list-card --port 9420`：存在
+    - `mrc errors 20 --port 9420` / `mrc warnings 20 --port 9420`：均为 0 条
+  - 当前阻塞：
+    - `mrc screenshot screenshots/weapp/discovery-reference-2026-04-24.png --port 9420` 本轮长时间无返回，仍未拿到稳定截图文件
+
+- Latest (`2026-04-24`): 小程序首页「我的计划 / 今日安排 / 轻量任务」布局优化
+- Task: 将首页中的「进入今日训练」「联系教练」合并进「我的计划」板块底部，并按参考图优化「今日安排」「轻量任务」区块布局
+- Requirement:
+  - 用户新增要求：今后每次修改后都要自动执行编译，再反馈结果
+- Scope:
+  - 页面位于 `wechat_app/src/training/today-training/TodayTrainingScreen.tsx`
+  - 将 `进入今日训练` 主按钮从独立块移动到顶部「我的计划」卡片底部
+  - 将 `联系教练` 入口并入同一卡片底部，与续费/移除自建计划共用次级操作区
+  - 「今日安排」头部新增右侧 `查看全部` 入口，用于切换月历展开态
+  - 收紧嵌入式 `TodayTrainingCard` 结构：顶部摘要、日期信息、训练主按钮与轻量任务卡片更接近参考图的卡片层级
+- Status: implemented on `2026-04-24`
+- Verification:
+  - `wechat_app npm run build:weapp`：通过
+  - 根目录 `npm run lint`：通过（脚本仅提示未配置 eslint）
+  - 根目录 `npm test`：通过（21 files, 100 tests）
+  - 根目录 `npx next build`：通过
+  - 根目录 `npm run typecheck`：失败，仍为仓库既有的大量历史类型错误，包含 Next 路由类型、Supabase 类型和 `wechat_app` 别名解析等问题；本轮未新增与 `today-training` 改动直接对应的新错误结论
+  - 小程序运行态验证（`9420`）：
+    - `mrc where --port 9420`：当前页面为 `pages/index/index`
+    - `mrc exists .tt-plan-actions --port 9420`：存在
+    - `mrc exists .section-header__action --port 9420`：存在
+    - `mrc exists .embed-topline --port 9420`：存在
+    - `mrc exists .strength-side-btn --port 9420`：存在
+    - `mrc click .section-header__action --port 9420` 后，`mrc exists .schedule-calendar-anchor__toggle-icon--expanded --port 9420`：存在，说明“查看全部/收起月历”交互生效
+    - `mrc errors 20 --port 9420` / `mrc warnings 20 --port 9420`：均为 0 条
+  - 当前阻塞：
+    - `mrc screenshot` 在本机本轮仍返回 `fail to capture screenshot`，因此本轮没有拿到新的开发者工具截图文件
+  - 本轮追加微调：
+    - 将嵌入式 `TodayTrainingCard` 的力量模块统计卡（动作/计划组数/完成进度）移除
+    - 标题区改为“标题 + 右侧状态胶囊 + 下方单行摘要”
+    - 主按钮视觉改为更接近参考图的浅米色大按钮，保留右侧列表辅助按钮
+    - `mrc exists .strength-stats --port 9420`：不存在
+    - `mrc exists .panel-inline-meta/.main-action-btn/.strength-side-btn --port 9420`：均存在
+  - 本轮再次调整：
+    - 去掉计划卡底部的“联系教练”按钮
+    - 在“切换教练”按钮左侧新增当前激活教练头像入口，点击进入原“联系教练”页
+    - 「今日安排」标题图标改为浅底黑色图标风格；标题、按钮和边框进一步向参考图靠拢
+    - 「轻量任务」标题区改为“图标气泡 + 标题 + 右侧新增轻任务胶囊”的结构
+    - `wechat_app npm run build:weapp`：通过
+    - 根目录 `npm test`：通过（21 files, 100 tests）
+    - `mrc errors 20 --port 9420` / `mrc warnings 20 --port 9420`：均为 0 条
+    - 本轮 `mrc exists` 对若干新元素查询在本机开发者工具连接上出现长时间无返回，因此未拿到稳定的元素存在性回执；运行日志层面未见报错
+
+- Latest (`2026-04-24`): 按用户要求启动开发环境
+- Task: 启动 `coachlink` Web 前后端开发服务、小程序 `dev:weapp` 监听，以及微信开发者工具自动化会话
+- Status: started on `2026-04-24`
+- Verification:
+  - 根目录 `npm run dev` 已启动，Next.js 16 开发服务监听 `http://localhost:3000`
+  - `curl -I http://127.0.0.1:3000` 返回 `307 Temporary Redirect` 到 `/coach/discovery`，说明 Web 服务可响应
+  - `wechat_app npm run dev:weapp` 已启动并完成首轮 watch 构建，输出目录为 `wechat_app/dist`
+  - 微信开发者工具自动化服务监听 `9420`
+  - `mrc where --port 9420` 可连接，当前页面为 `pages/index/index`
+  - `mrc errors 10 --port 9420` / `mrc warnings 10 --port 9420` 均为 0 条
+
+- Latest (`2026-04-23`): 按用户要求根据项目 skills 启动开发环境
+- Task: 启动 `coachlink` Web 前后端开发服务、小程序 `dev:weapp` 监听，以及微信开发者工具自动化会话
 - Scope:
   - 用户要求先从 `D:\WPSDrive\632379361\WPS云盘\创业-部分资料版\健身书籍pdf的文字版本\力量训练原理.docx` 开始
   - 内容必须是“笔记 / 解读”形态，不能做原书全文搬运或章节替代

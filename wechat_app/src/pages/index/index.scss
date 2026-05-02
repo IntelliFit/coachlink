@@ -11,6 +11,36 @@
   min-height: 60vh;
 }
 
+.home-loading-shell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32rpx;
+}
+
+.home-redirect-card {
+  width: 100%;
+  max-width: 640rpx;
+  background: #FFFFFF;
+  border-radius: 32rpx;
+  padding: 48rpx 40rpx;
+  box-shadow: 0 12rpx 32rpx rgba(0, 0, 0, 0.06);
+}
+
+.home-redirect-title {
+  display: block;
+  font-size: 32rpx;
+  font-weight: 700;
+  color: #111827;
+  margin-bottom: 16rpx;
+}
+
+.home-redirect-subtitle {
+  display: block;
+  font-size: 26rpx;
+  color: #6B7280;
+}
+
 .home-scroll {
   padding: 32rpx 24rpx;
 }
@@ -49,9 +79,9 @@
 
 .login-pill {
   padding: 16rpx 40rpx;
-  background: #CF6D4E;
+  background: var(--primary);
   border-radius: 9999rpx;
-  box-shadow: 0 8rpx 24rpx rgba(207, 109, 78, 0.25);
+  box-shadow: 0 8rpx 24rpx rgba(var(--brand-primary-rgb), 0.25);
 
   &:active {
     opacity: 0.9;
@@ -122,12 +152,12 @@
 .hero-card-icon-wrap {
   width: 104rpx;
   height: 104rpx;
-  background: #FDF2EC;
+  background: var(--primary-soft-bg);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 8rpx 24rpx rgba(207, 109, 78, 0.12);
+  box-shadow: 0 8rpx 24rpx rgba(var(--brand-primary-rgb), 0.12);
 }
 
 .hero-card-icon {
@@ -145,7 +175,7 @@
 
   .progress-fill {
     height: 100%;
-    background: #CF6D4E;
+    background: var(--primary);
     border-radius: 9999rpx;
     transition: width 0.5s ease;
   }
@@ -218,11 +248,11 @@
 
 /* Promo Card */
 .home-promo-card {
-  background: #CF6D4E;
+  background: var(--primary);
   border-radius: 40rpx;
   padding: 40rpx 32rpx;
   margin-bottom: 32rpx;
-  box-shadow: 0 12rpx 36rpx rgba(207, 109, 78, 0.22);
+  box-shadow: 0 12rpx 36rpx rgba(var(--brand-primary-rgb), 0.22);
 }
 
 .promo-card-title {
@@ -271,7 +301,7 @@
 }
 
 .promo-btn-solid .promo-btn-text {
-  color: #CF6D4E;
+  color: var(--primary);
 }
 
 /* Features List */
@@ -371,7 +401,7 @@
   }
 
   .quick-action-icon.peach {
-    background: rgba(207, 109, 78, 0.12) !important;
+    background: rgba(var(--brand-primary-rgb), 0.12) !important;
   }
 
   .quick-action-icon.blue {
@@ -391,7 +421,7 @@
   }
 
   .feature-icon-wrap.peach {
-    background: rgba(207, 109, 78, 0.12) !important;
+    background: rgba(var(--brand-primary-rgb), 0.12) !important;
   }
 
   .feature-icon-wrap.blue {
@@ -407,7 +437,7 @@
   }
 
   .hero-card-icon-wrap {
-    background: rgba(207, 109, 78, 0.12) !important;
+    background: rgba(var(--brand-primary-rgb), 0.12) !important;
   }
 
   .progress-track {

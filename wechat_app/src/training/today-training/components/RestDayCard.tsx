@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { View, Text } from '@tarojs/components'
 import { Clock, Heart, Location, Power, Star, Target } from '@nutui/icons-react-taro'
+import { BRAND_PRIMARY } from '@/styles/theme'
 import './RestDayCard.scss'
 
 interface RestDayCardProps {
@@ -32,7 +33,7 @@ function RestDayCard({ dayIndex }: RestDayCardProps) {
 
         <View className='rest-tips'>
           <View className='tips-title-row'>
-            <Star size={14} color='#9a3412' />
+            <Star size={14} color={BRAND_PRIMARY} />
             <Text className='tips-title'>休息日行动指南</Text>
           </View>
           <View className='tips-grid'>

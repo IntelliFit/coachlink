@@ -67,8 +67,8 @@
     font-size: 12px;
 
     &.note {
-      background: #fff7ed;
-      color: #9a3412;
+      background: var(--primary-soft-bg);
+      color: var(--primary);
     }
   }
 
@@ -91,7 +91,7 @@
       }
 
       &.primary {
-        background: #cf6d4e;
+        background: var(--primary);
         color: #fff;
       }
 

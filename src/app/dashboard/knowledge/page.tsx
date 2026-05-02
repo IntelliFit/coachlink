@@ -4,9 +4,10 @@ import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Activity, BookOpen, CheckCircle2, ChevronRight, Dumbbell, Edit3, MapPin, Plus, Search, Sparkles, Users } from "lucide-react";
 import AIChatPanel from "@/components/knowledge/AIChatPanel";
-import BodyMapCanvas, { BODY_REGION_LABELS, type BodyRegion } from "@/components/knowledge/BodyMap/BodyMapCanvas";
+import BodyMapCanvas, { BODY_REGION_LABELS, type BodyRegion, type DisplayMode } from "@/components/knowledge/BodyMap/BodyMapCanvas";
 import BodyMapModeSwitch from "@/components/knowledge/BodyMap/BodyMapModeSwitch";
 import knowledgeService from "@/app/service/knowledgeService";
+import { studentService } from "@/app/service/studentService";
 import { KnowledgeBookCollection, groupKnowledgeBooks } from "@/lib/knowledgeBooks";
 type BodyMapMode = 'screening' | 'training';
 
@@ -90,6 +91,34 @@ const KnowledgeBaseHomePage = () => {
     const [regionNodes, setRegionNodes] = useState<KnowledgeNode[]>([]);
     const [loadingRegionNodes, setLoadingRegionNodes] = useState(false);
     const [isBodyMapExpanded, setIsBodyMapExpanded] = useState(true);
+    const [userGender, setUserGender] = useState<'male' | 'female' | 'unknown'>('male');
+    const [displayMode, setDisplayMode] = useState<DisplayMode>('normal');
+    
+    // 加载用户性别和显示模式偏好
+    useEffect(() => {
+        const savedMode = localStorage.getItem('bodyMapDisplayMode') as DisplayMode | null;
+        if (savedMode) {
+            setDisplayMode(savedMode);
+        }
+        
+        const fetchProfile = async () => {
+            try {
+                const data = await studentService.getStudentProfile();
+                const gender = data?.profile?.gender;
+                if (gender === 'male' || gender === 'female') {
+                    setUserGender(gender);
+                }
+            } catch (error) {
+                console.error('获取用户档案失败:', error);
+            }
+        };
+        fetchProfile();
+    }, []);
+    
+    const handleDisplayModeChange = (mode: DisplayMode) => {
+        setDisplayMode(mode);
+        localStorage.setItem('bodyMapDisplayMode', mode);
+    };
     
     // 结果区域ref，用于自动滚动
     const resultsRef = React.useRef<HTMLDivElement>(null);
@@ -391,6 +420,9 @@ const KnowledgeBaseHomePage = () => {
                                                 setSelectedBodyRegion((prev) => (prev === region ? null : region))
                                             }
                                             isFocusMode={!!selectedBodyRegion}
+                                            gender={userGender}
+                                            displayMode={displayMode}
+                                            onDisplayModeChange={handleDisplayModeChange}
                                         />
                                     </div>
                                     
