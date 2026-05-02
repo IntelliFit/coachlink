@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react'
-import { View, Text, ScrollView } from '@tarojs/components'
+import { View, Text } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import './index.scss'
 
@@ -175,7 +175,7 @@ const BodyPartsPage: React.FC = () => {
       </View>
 
       <View className='bp-main'>
-        <ScrollView scrollY className='bp-list'>
+        <View className='bp-list'>
           {options.map((m) => {
             const isSelected = selectedIds.has(m.id)
             return (
@@ -191,7 +191,7 @@ const BodyPartsPage: React.FC = () => {
               </View>
             )
           })}
-        </ScrollView>
+        </View>
 
         <View className='bp-map-wrap'>
           <View
