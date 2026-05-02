@@ -416,3 +416,120 @@
     font-size: 30rpx !important;
   }
 }
+/* ===== 目标部位 step 样式 ===== */
+.body-parts-step {
+  padding: 0;
+}
+
+.bp-view-toggle {
+  display: flex;
+  gap: 16rpx;
+  margin-bottom: 32rpx;
+}
+
+.bp-view-btn {
+  padding: 12rpx 32rpx;
+  border-radius: 16rpx;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &--active {
+    background: #cf6d4e;
+    border-color: #cf6d4e;
+  }
+}
+
+.bp-view-btn-text {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #334155;
+
+  .bp-view-btn--active & {
+    color: #ffffff;
+  }
+}
+
+.bp-main {
+  display: flex;
+  gap: 24rpx;
+}
+
+.bp-list {
+  width: 280rpx;
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+}
+
+.bp-muscle-chip {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  padding: 20rpx 24rpx;
+  border-radius: 48rpx;
+  border: 2rpx solid #e2e8f0;
+  background: #ffffff;
+
+  &--selected {
+    border-color: #cf6d4e;
+    background: rgba(207, 109, 78, 0.08);
+  }
+}
+
+.bp-check {
+  width: 36rpx;
+  height: 36rpx;
+  border-radius: 999rpx;
+  border: 2rpx solid #cbd5e1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+
+  &--checked {
+    background: #cf6d4e;
+    border-color: #cf6d4e;
+  }
+}
+
+.bp-check-icon {
+  font-size: 20rpx;
+  color: #ffffff;
+  font-weight: 800;
+}
+
+.bp-muscle-label {
+  font-size: 28rpx;
+  color: #0f172a;
+  font-weight: 500;
+
+  &--selected {
+    color: #cf6d4e;
+    font-weight: 700;
+  }
+}
+
+.bp-map-wrap {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.bp-map-svg {
+  width: 100%;
+  height: 800rpx;
+}
+
+.bp-count {
+  text-align: center;
+  margin-top: 24rpx;
+}
+
+.bp-count-text {
+  font-size: 24rpx;
+  color: #64748b;
+}

@@ -1,7 +1,8 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react'
-import { View, Text } from '@tarojs/components'
+import { View, Text, Image } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import './index.scss'
+import { svgToDataUri } from '@/utils/svgToDataUri'
 
 import maleFrontSvgRaw from '@/assets/body-map/maleFrontSvg'
 import maleBackSvgRaw from '@/assets/body-map/maleBackSvg'
@@ -116,15 +117,16 @@ const BodyPartsPage: React.FC = () => {
     }))
   }, [categoryMap, displayMode])
 
-  const svgHtml = useMemo(() => {
+  const svgDataUri = useMemo(() => {
     const highlighted = highlightSvgParts(svgRaw, Array.from(selectedIds), categoryMap, displayMode)
-    return highlighted
+    const svgStr = highlighted
       .replace(
         /<svg\s/,
         '<svg style="width:100%;height:100%;display:block;" preserveAspectRatio="xMidYMid meet" '
       )
       .replace(/fill:#fff/gi, 'fill:#222222')
       .replace(/fill="#fff"/gi, 'fill="#222222"')
+    return svgToDataUri(svgStr)
   }, [svgRaw, selectedIds, categoryMap, displayMode])
 
   const toggleSelection = (id: string) => {
@@ -187,16 +189,18 @@ const BodyPartsPage: React.FC = () => {
                 <View className={`bp-check ${isSelected ? 'bp-check--checked' : ''}`}>
                   {isSelected && <Text className='bp-check-icon'>✓</Text>}
                 </View>
-                <Text className='bp-muscle-label'>{m.label}</Text>
+                <Text className={`bp-muscle-label ${isSelected ? 'bp-muscle-label--selected' : ''}`}>{m.label}</Text>
               </View>
             )
           })}
         </View>
 
         <View className='bp-map-wrap'>
-          <View
+          <Image
             className='bp-map-svg'
-            dangerouslySetInnerHTML={{ __html: svgHtml }}
+            src={svgDataUri}
+            mode='aspectFit'
+            style={{ width: '100%', height: '100%' }}
           />
         </View>
       </View>

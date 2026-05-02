@@ -129,6 +129,11 @@
   font-size: 28rpx;
   color: #0f172a;
   font-weight: 500;
+
+  &--selected {
+    color: #cf6d4e;
+    font-weight: 700;
+  }
 }
 
 .bp-map-wrap {

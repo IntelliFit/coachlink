@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { View, Text, ScrollView } from '@tarojs/components'
+import { useEffect, useState, useMemo } from 'react'
+import { View, Text, ScrollView, Image } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { ConfigProvider, Input } from '@nutui/nutui-react-taro'
 import zhCN from '@nutui/nutui-react-taro/dist/locales/zh-CN'
@@ -8,6 +8,11 @@ import { studentService } from '@/services/studentService'
 import { buildStudentOnboardingUrl, isCoreStudentProfileComplete } from '@/services/studentOnboardingService'
 import WheelPicker from '@/components/WheelPicker'
 import BodyMapInterestSelector from '@/components/BodyMapInterestSelector'
+import { svgToDataUri } from '@/utils/svgToDataUri'
+import maleFrontSvgRaw from '@/assets/body-map/maleFrontSvg'
+import maleBackSvgRaw from '@/assets/body-map/maleBackSvg'
+import femaleFrontSvgRaw from '@/assets/body-map/femaleFrontSvg'
+import femaleBackSvgRaw from '@/assets/body-map/femaleBackSvg'
 import './index.scss'
 
 interface OnboardingFormData {
@@ -68,6 +73,60 @@ const EQUIPMENT_OPTIONS = [
 
 const DURATION_OPTIONS = [15, 20, 30, 45, 60]
 
+type BodyView = 'front' | 'back'
+type BodyGender = 'male' | 'female' | 'unknown'
+
+const MUSCLE_FILL_ORIGIN_STYLE = 'fill:#222222'
+const MUSCLE_FILL_HIGHLIGHT_STYLE = 'fill:#CF6D4E'
+
+function parseSvgCategoryMap(svg: string): Record<string, string> {
+  const map: Record<string, string> = {}
+  const singleLineRegex = /<g[^>]*data-name="([^"]+)"[^>]*category="([^"]+)"[^>]*>/g
+  let match: RegExpExecArray | null
+  while ((match = singleLineRegex.exec(svg)) !== null) {
+    if (match[1] !== '肌肉' && match[1] !== '关节' && match[1] !== '全身轮廓') {
+      map[match[1]] = match[2]
+    }
+  }
+  const multiLineRegex = /<g\s*\n?\s*data-name="([^"]+)"\s*\n?\s*category="([^"]+)"/g
+  while ((match = multiLineRegex.exec(svg)) !== null) {
+    if (match[1] !== '肌肉' && match[1] !== '关节' && match[1] !== '全身轮廓') {
+      map[match[1]] = match[2]
+    }
+  }
+  return map
+}
+
+function highlightSvgParts(
+  svg: string,
+  selectedParts: string[],
+  categoryMap: Record<string, string>
+): string {
+  let result = svg
+  const dataNamesToHighlight = new Set<string>()
+  for (const part of selectedParts) {
+    for (const [dataName, category] of Object.entries(categoryMap)) {
+      if (category === part) {
+        dataNamesToHighlight.add(dataName)
+      }
+    }
+  }
+  for (const dataName of dataNamesToHighlight) {
+    const regex = new RegExp(
+      `(<g[^>]*data-name="${dataName}"[^>]*>)([\\s\\S]*?)(</g>)`,
+      'g'
+    )
+    result = result.replace(regex, (_match, open, content, close) => {
+      const highlighted = content.replace(
+        new RegExp(MUSCLE_FILL_ORIGIN_STYLE.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'),
+        MUSCLE_FILL_HIGHLIGHT_STYLE
+      )
+      return open + highlighted + close
+    })
+  }
+  return result
+}
+
 const DEFAULT_FORM_DATA: OnboardingFormData = {
   nickname: '',
   gender: '',
@@ -84,6 +143,7 @@ const DEFAULT_FORM_DATA: OnboardingFormData = {
 const STEP_TITLES = [
   { title: '基础信息', desc: '选择你的性别，让我们更了解你。' },
   { title: '身体数据', desc: '选择你的身高和体重，推荐计划会更精准。' },
+  { title: '目标部位', desc: '选择你感兴趣的肌肉部位。' },
   { title: '健身目标', desc: '选择你的健身目标，定制专属训练方案。' },
   { title: '训练水平', desc: '选择你的训练水平，匹配适合难度。' },
   { title: '训练方向', desc: '选择你感兴趣的肌肉部位。' },
@@ -134,6 +194,7 @@ function StudentOnboarding() {
   const [saving, setSaving] = useState(false)
   const [step, setStep] = useState(1)
   const [formData, setFormData] = useState<OnboardingFormData>(DEFAULT_FORM_DATA)
+  const [bodyView, setBodyView] = useState<BodyView>('front')
 
   const [heightIndex, setHeightIndex] = useState(() => {
     const idx = DEFAULT_FORM_DATA.height - HEIGHT_MIN
@@ -247,14 +308,14 @@ function StudentOnboarding() {
       }
       return true
     }
-    if (step === 3) {
+    if (step === 4) {
       if (!formData.fitnessGoal) {
         Taro.showToast({ title: '请选择健身目标', icon: 'none' })
         return false
       }
       return true
     }
-    if (step === 4) {
+    if (step === 5) {
       if (!formData.fitnessLevel) {
         Taro.showToast({ title: '请选择训练水平', icon: 'none' })
         return false
@@ -356,6 +417,99 @@ function StudentOnboarding() {
 
   const stepInfo = STEP_TITLES[step - 1]
 
+  const renderBodyPartsStep = () => {
+    const effectiveGender = formData.gender === 'female' ? 'female' : 'male'
+    const svgRaw = useMemo(() => {
+      if (effectiveGender === 'female') {
+        return bodyView === 'front' ? femaleFrontSvgRaw : femaleBackSvgRaw
+      }
+      return bodyView === 'front' ? maleFrontSvgRaw : maleBackSvgRaw
+    }, [bodyView, effectiveGender])
+
+    const categoryMap = useMemo(() => parseSvgCategoryMap(svgRaw), [svgRaw])
+
+    const options = useMemo(() => {
+      const categories = Array.from(new Set(Object.values(categoryMap)))
+      return categories.map((cat) => ({
+        id: cat,
+        label: cat,
+      }))
+    }, [categoryMap])
+
+    const svgDataUri = useMemo(() => {
+      const highlighted = highlightSvgParts(svgRaw, formData.targetBodyParts, categoryMap)
+      const svgStr = highlighted
+        .replace(
+          /<svg\s/,
+          '<svg style="width:100%;height:100%;display:block;" preserveAspectRatio="xMidYMid meet" '
+        )
+        .replace(/fill:#fff/gi, 'fill:#222222')
+        .replace(/fill="#fff"/gi, 'fill="#222222"')
+      return svgToDataUri(svgStr)
+    }, [svgRaw, formData.targetBodyParts, categoryMap])
+
+    const toggleBodyPart = (id: string) => {
+      setFormData((prev) => {
+        const next = prev.targetBodyParts.includes(id)
+          ? prev.targetBodyParts.filter((item) => item !== id)
+          : [...prev.targetBodyParts, id]
+        return { ...prev, targetBodyParts: next }
+      })
+    }
+
+    return (
+      <View className='step-content body-parts-step'>
+        <View className='bp-view-toggle'>
+          <View
+            className={`bp-view-btn ${bodyView === 'front' ? 'bp-view-btn--active' : ''}`}
+            onClick={() => setBodyView('front')}
+          >
+            <Text className='bp-view-btn-text'>正面</Text>
+          </View>
+          <View
+            className={`bp-view-btn ${bodyView === 'back' ? 'bp-view-btn--active' : ''}`}
+            onClick={() => setBodyView('back')}
+          >
+            <Text className='bp-view-btn-text'>背面</Text>
+          </View>
+        </View>
+
+        <View className='bp-main'>
+          <View className='bp-list'>
+            {options.map((m) => {
+              const isSelected = formData.targetBodyParts.includes(m.id)
+              return (
+                <View
+                  key={m.id}
+                  className={`bp-muscle-chip ${isSelected ? 'bp-muscle-chip--selected' : ''}`}
+                  onClick={() => toggleBodyPart(m.id)}
+                >
+                  <View className={`bp-check ${isSelected ? 'bp-check--checked' : ''}`}>
+                    {isSelected && <Text className='bp-check-icon'>✓</Text>}
+                  </View>
+                  <Text className={`bp-muscle-label ${isSelected ? 'bp-muscle-label--selected' : ''}`}>{m.label}</Text>
+                </View>
+              )
+            })}
+          </View>
+
+          <View className='bp-map-wrap'>
+            <Image
+              className='bp-map-svg'
+              src={svgDataUri}
+              mode='aspectFit'
+              style={{ width: '100%', height: '100%' }}
+            />
+          </View>
+        </View>
+
+        <View className='bp-count'>
+          <Text className='bp-count-text'>已选 {formData.targetBodyParts.length} 个部位</Text>
+        </View>
+      </View>
+    )
+  }
+
   const renderStepDots = () => (
     <View className='step-dots'>
       {Array.from({ length: totalSteps }).map((_, i) => (
@@ -446,7 +600,9 @@ function StudentOnboarding() {
         </View>
       )}
 
-      {step === 3 && (
+      {step === 3 && renderBodyPartsStep()}
+
+      {step === 4 && (
 
         <View className='step-content'>
           <View className='option-list'>
@@ -467,7 +623,7 @@ function StudentOnboarding() {
         </View>
       )}
 
-      {step === 4 && (
+      {step === 5 && (
 
         <View className='step-content'>
           <View className='option-list'>
@@ -488,7 +644,7 @@ function StudentOnboarding() {
         </View>
       )}
 
-      {step === 5 && (
+      {step === 6 && (
         <View className='step-content'>
           <BodyMapInterestSelector
             gender={formData.gender as any}
@@ -498,7 +654,7 @@ function StudentOnboarding() {
         </View>
       )}
 
-      {step === 6 && (
+      {step === 7 && (
         <View className='step-content'>
           <View className='field-group'>
             <Text className='field-label'>感兴趣的健身部位</Text>

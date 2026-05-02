@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useCallback } from 'react'
-import { View, Text } from '@tarojs/components'
+import { View, Text, Image } from '@tarojs/components'
 import './index.scss'
+import { svgToDataUri } from '@/utils/svgToDataUri'
 
 import maleFrontSvgRaw from '@/assets/body-map/maleFrontSvg'
 import maleBackSvgRaw from '@/assets/body-map/maleBackSvg'
@@ -96,15 +97,16 @@ const BodyMapInterestSelector: React.FC<BodyMapInterestSelectorProps> = ({
     }))
   }, [categoryMap])
 
-  const svgHtml = useMemo(() => {
+  const svgDataUri = useMemo(() => {
     const highlighted = highlightSvgParts(svgRaw, selectedIds, categoryMap)
-    return highlighted
+    const svgStr = highlighted
       .replace(
         /<svg\s/,
         '<svg style="width:100%;height:100%;display:block;" preserveAspectRatio="xMidYMid meet" '
       )
       .replace(/fill:#fff/gi, 'fill:#222222')
       .replace(/fill="#fff"/gi, 'fill="#222222"')
+    return svgToDataUri(svgStr)
   }, [svgRaw, selectedIds, categoryMap])
 
   const handleSetView = useCallback((nextView: BodyView) => {
@@ -168,9 +170,11 @@ const BodyMapInterestSelector: React.FC<BodyMapInterestSelectorProps> = ({
         </View>
 
         <View className='bmis-map-wrap'>
-          <View
+          <Image
             className='bmis-map-svg'
-            dangerouslySetInnerHTML={{ __html: svgHtml }}
+            src={svgDataUri}
+            mode='aspectFit'
+            style={{ width: '100%', height: '100%' }}
           />
         </View>
       </View>
