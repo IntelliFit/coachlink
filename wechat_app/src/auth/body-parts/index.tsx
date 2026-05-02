@@ -118,14 +118,14 @@ const BodyPartsPage: React.FC = () => {
   }, [categoryMap, displayMode])
 
   const svgDataUri = useMemo(() => {
-    const highlighted = highlightSvgParts(svgRaw, Array.from(selectedIds), categoryMap, displayMode)
-    const svgStr = highlighted
-      .replace(
-        /<svg\s/,
-        '<svg style="width:100%;height:100%;display:block;" preserveAspectRatio="xMidYMid meet" '
-      )
+    const baseSvg = svgRaw
       .replace(/fill:#fff/gi, 'fill:#222222')
       .replace(/fill="#fff"/gi, 'fill="#222222"')
+    const highlighted = highlightSvgParts(baseSvg, Array.from(selectedIds), categoryMap, displayMode)
+    const svgStr = highlighted.replace(
+      /<svg\s/,
+      '<svg style="width:100%;height:100%;display:block;" preserveAspectRatio="xMidYMid meet" '
+    )
     return svgToDataUri(svgStr)
   }, [svgRaw, selectedIds, categoryMap, displayMode])
 
