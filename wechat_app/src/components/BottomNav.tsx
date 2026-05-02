@@ -173,12 +173,26 @@ function BottomNav() {
 
         if (current === targetPath || navLockRef.current) return
 
-        // 个人中心、消息需要登录，未登录时跳转到登录页
-        if (item.key === 'profile' || item.key === 'messages') {
+        // 个人中心优先进入可浏览页；消息仍需要登录
+        if (item.key === 'profile') {
+            navLockRef.current = true
+            const success = await tryNavigate(item.path)
+            if (success) {
+                setTimeout(() => {
+                    syncCurrentPath()
+                    navLockRef.current = false
+                }, 120)
+                return
+            }
+            navLockRef.current = false
+            return
+        }
+
+        if (item.key === 'messages') {
             const session = authService.getAuthSession({ normalize: true })
             if (!session.isAuthenticated) {
                 navLockRef.current = true
-                const success = await tryNavigate('/auth/login')
+                const success = await tryNavigate(authService.buildLoginUrl('/me/messages/index'))
                 if (success) {
                     setTimeout(() => {
                         syncCurrentPath()

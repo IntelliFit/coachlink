@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import { View, Text, ScrollView, Input, Textarea } from '@tarojs/components'
+import { View, Text, ScrollView, Input } from '@tarojs/components'
 import Taro, { useDidShow, usePullDownRefresh, useRouter } from '@tarojs/taro'
 import BottomNav from '@/components/BottomNav'
 import { studentActionLibService } from '@/services/studentActionLibService'
@@ -7,7 +7,6 @@ import {
   addPublicToMyLib,
   listPublicActions,
   publishMyAction,
-  submitPublicActionEdit,
   togglePublicLike
 } from '@/services/actionLibPageService'
 import type { PublicActionItemDto } from '@/types/action'
@@ -35,16 +34,6 @@ const PUBLIC_PRESET_SEARCH_MAP: Record<Exclude<PublicPresetKey, 'all' | 'recomme
   'core-back': '核心'
 }
 
-const ACTION_TYPES = [
-  { value: 'STRENGTH', label: '力量' },
-  { value: 'CARDIO', label: '有氧' },
-  { value: 'DIET', label: '饮食' },
-  { value: 'HABIT', label: '习惯' }
-]
-
-const ACTION_POSITIONS = ['胸部', '背部', '肩部', '手臂', '核心', '腿部', '臀部', '全身']
-const ACTION_ATTRS = ['力量', '耐力', '爆发力', '柔韧性', '平衡', '强度']
-
 function formatShortDate(dateLike?: string | null) {
   if (!dateLike) return ''
   const date = new Date(dateLike)
@@ -55,16 +44,6 @@ function formatShortDate(dateLike?: string | null) {
   return `${year}-${month}-${day}`
 }
 
-function normalizeText(value?: string | null) {
-  const nextValue = value?.trim() || ''
-  return nextValue || null
-}
-
-function normalizeList(value?: string[] | null) {
-  if (!Array.isArray(value) || value.length === 0) return null
-  return value
-}
-
 function cacheAndOpenActionDetail(action: {
   id: string
   name: string
@@ -73,11 +52,23 @@ function cacheAndOpenActionDetail(action: {
   attrs?: string[] | null
   type?: string | null
   url?: string | null
+  item_schema?: Record<string, unknown> | null
+  suggested_time?: string | null
+  enableAutoWeightCompute?: boolean | null
+  includesBodyWeight?: boolean | null
+  canonical_action_id?: string | null
+  source?: 'mine' | 'public'
+  contributor_user_id?: string
+  contributor?: { nickname?: string | null; avatarUrl?: string | null } | null
+  owner_user_id?: string | null
+  isAdded?: boolean
+  created_at?: string | null
 }) {
   if (!action?.id) {
     Taro.showToast({ title: '动作信息异常', icon: 'none' })
     return
   }
+
   const cacheKey = `action_detail_${action.id}`
   Taro.setStorageSync(cacheKey, {
     id: action.id,
@@ -86,8 +77,20 @@ function cacheAndOpenActionDetail(action: {
     positions: action.positions,
     attrs: action.attrs,
     type: action.type,
-    url: action.url
+    url: action.url,
+    item_schema: action.item_schema,
+    suggested_time: action.suggested_time,
+    enableAutoWeightCompute: action.enableAutoWeightCompute,
+    includesBodyWeight: action.includesBodyWeight,
+    canonical_action_id: action.canonical_action_id,
+    source: action.source,
+    contributor_user_id: action.contributor_user_id,
+    contributor: action.contributor,
+    owner_user_id: action.owner_user_id,
+    isAdded: action.isAdded,
+    created_at: action.created_at
   })
+
   Taro.navigateTo({
     url: `/training/action-detail/index?id=${encodeURIComponent(action.id)}`
   })
@@ -113,16 +116,6 @@ export default function ActionLibPage() {
   const [selectedPublicPreset, setSelectedPublicPreset] = useState<PublicPresetKey>('all')
   const [publicOnlyWithDemo, setPublicOnlyWithDemo] = useState(false)
 
-  const [showEditSuggestion, setShowEditSuggestion] = useState(false)
-  const [editingPublicAction, setEditingPublicAction] = useState<PublicActionItemDto | null>(null)
-  const [editName, setEditName] = useState('')
-  const [editDetail, setEditDetail] = useState('')
-  const [editUrl, setEditUrl] = useState('')
-  const [editType, setEditType] = useState('STRENGTH')
-  const [editPositions, setEditPositions] = useState<string[]>([])
-  const [editAttrs, setEditAttrs] = useState<string[]>([])
-  const [submittingEdit, setSubmittingEdit] = useState(false)
-
   useEffect(() => {
     if (router.params?.tab === 'public') {
       setActiveTab('public')
@@ -130,11 +123,25 @@ export default function ActionLibPage() {
   }, [router.params?.tab])
 
   const displayedPublicActions = useMemo(() => {
-    if (!publicOnlyWithDemo) {
-      return publicActions
+    let next = [...publicActions]
+
+    if (selectedPublicPreset === 'recommended') {
+      const calcScore = (item: PublicActionItemDto) => {
+        const hasVideoScore = item.url ? 30 : 0
+        const hasDetailScore = item.detail && item.detail.trim().length > 0 ? 15 : 0
+        const likesScore = Math.min(item.like_count || 0, 20)
+        const hasPositionsScore = (item.positions?.length || 0) > 0 ? 10 : 0
+        return hasVideoScore + hasDetailScore + likesScore + hasPositionsScore
+      }
+      next.sort((a, b) => calcScore(b) - calcScore(a))
     }
-    return publicActions.filter((item) => !!item.url?.trim())
-  }, [publicActions, publicOnlyWithDemo])
+
+    if (publicOnlyWithDemo) {
+      next = next.filter((item) => !!item.url?.trim())
+    }
+
+    return next
+  }, [publicActions, publicOnlyWithDemo, selectedPublicPreset])
 
   const loadActions = useCallback(async (search = mySearchTerm) => {
     try {
@@ -173,17 +180,17 @@ export default function ActionLibPage() {
 
   useDidShow(() => {
     if (activeTab === 'public') {
-      loadPublicLibrary()
+      void loadPublicLibrary()
     } else {
-      loadActions()
+      void loadActions()
     }
   })
 
   useEffect(() => {
     if (activeTab === 'public') {
-      loadPublicLibrary()
+      void loadPublicLibrary()
     } else {
-      loadActions()
+      void loadActions()
     }
   }, [activeTab, loadActions, loadPublicLibrary])
 
@@ -209,61 +216,15 @@ export default function ActionLibPage() {
       title: '删除确认',
       content: '确定要删除此动作吗？'
     })
-    if (res.confirm) {
-      try {
-        await studentActionLibService.deleteAction({ id })
-        Taro.showToast({ title: '删除成功', icon: 'success' })
-        loadActions()
-      } catch (error) {
-        Taro.showToast({ title: '删除失败', icon: 'none' })
-      }
-    }
-  }
+    if (!res.confirm) return
 
-  const handleViewReferences = async (action: Action) => {
     try {
-      const res = await studentActionLibService.getActionReferences(action.id)
-      if (res?.references && res.references.length > 0) {
-        const list = res.references.map(r => `• ${r.planName} - 第${r.dayIndex}天`).join('\n')
-        Taro.showModal({
-          title: `${action.name} 被引用`,
-          content: list,
-          showCancel: false
-        })
-      } else {
-        Taro.showToast({ title: '暂无计划引用此动作', icon: 'none' })
-      }
+      await studentActionLibService.deleteAction({ id })
+      Taro.showToast({ title: '删除成功', icon: 'success' })
+      void loadActions()
     } catch (error) {
-      Taro.showToast({ title: '查询失败', icon: 'none' })
+      Taro.showToast({ title: '删除失败', icon: 'none' })
     }
-  }
-
-  const handleMerge = async (sourceAction: Action) => {
-    const otherActions = actions.filter(a => a.id !== sourceAction.id)
-    if (otherActions.length === 0) {
-      Taro.showToast({ title: '没有其他动作可合并', icon: 'none' })
-      return
-    }
-
-    Taro.showActionSheet({
-      itemList: otherActions.map(a => `合并到: ${a.name}`).slice(0, 10),
-      success: async (res) => {
-        const targetAction = otherActions[res.tapIndex]
-        const confirm = await Taro.showModal({
-          title: '合并确认',
-          content: `将「${sourceAction.name}」合并到「${targetAction.name}」？\n这会将所有计划中的引用一并更新。`
-        })
-        if (confirm.confirm) {
-          try {
-            await studentActionLibService.mergeActions(sourceAction.id, targetAction.id)
-            Taro.showToast({ title: '合并成功', icon: 'success' })
-            loadActions()
-          } catch (error) {
-            Taro.showToast({ title: '合并失败', icon: 'none' })
-          }
-        }
-      }
-    })
   }
 
   const handlePublishAction = async (action: Action) => {
@@ -288,15 +249,13 @@ export default function ActionLibPage() {
       cancelText: '再检查下'
     })
 
-    if (!modal.confirm) {
-      return
-    }
+    if (!modal.confirm) return
 
     try {
       setPublishingActionId(action.id)
       await publishMyAction(action.id, 'student')
       Taro.showToast({ title: '已贡献到公共库', icon: 'success' })
-      loadPublicLibrary(publicSearchTerm.trim())
+      void loadPublicLibrary(publicSearchTerm.trim())
     } catch (error: any) {
       Taro.showToast({ title: error?.message || '贡献失败', icon: 'none' })
     } finally {
@@ -305,12 +264,14 @@ export default function ActionLibPage() {
   }
 
   const toggleSelect = (id: string) => {
-    setSelectedIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id])
+    setSelectedIds((prev) => (
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    ))
   }
 
   const handleBatchUpdateOneRM = async () => {
     if (selectedIds.length === 0) {
-      Taro.showToast({ title: '请先选择动作', icon: 'none' })
+      Taro.showToast({ title: '请选择动作', icon: 'none' })
       return
     }
 
@@ -321,14 +282,14 @@ export default function ActionLibPage() {
     }
 
     try {
-      const updates = selectedIds.map(id => ({ actionId: id, reference1RM: value }))
+      const updates = selectedIds.map((id) => ({ actionId: id, reference1RM: value }))
       await studentActionLibService.batchUpdate1RM(updates)
       Taro.showToast({ title: '批量更新成功', icon: 'success' })
       setShowBatchOneRM(false)
       setBatchOneRMValue('')
       setSelectedIds([])
       setIsBatchMode(false)
-      loadActions()
+      void loadActions()
     } catch (error) {
       Taro.showToast({ title: '更新失败', icon: 'none' })
     }
@@ -344,21 +305,21 @@ export default function ActionLibPage() {
   const handleSubmitSearch = () => {
     if (activeTab === 'public') {
       setSelectedPublicPreset('all')
-      loadPublicLibrary(publicSearchTerm.trim())
-    } else {
-      loadActions(mySearchTerm.trim())
+      void loadPublicLibrary(publicSearchTerm.trim())
+      return
     }
+    void loadActions(mySearchTerm.trim())
   }
 
   const handleClearSearch = () => {
     if (activeTab === 'public') {
       setPublicSearchTerm('')
       setSelectedPublicPreset('all')
-      loadPublicLibrary('')
-    } else {
-      setMySearchTerm('')
-      loadActions('')
+      void loadPublicLibrary('')
+      return
     }
+    setMySearchTerm('')
+    void loadActions('')
   }
 
   const handleSelectPublicPreset = async (preset: PublicPresetKey) => {
@@ -382,7 +343,7 @@ export default function ActionLibPage() {
         prev.map((item) => (item.id === actionId ? { ...item, isAdded: true } : item))
       )
       Taro.showToast({ title: '已加入我的动作库', icon: 'success' })
-      loadActions()
+      void loadActions()
     } catch (error: any) {
       Taro.showToast({ title: error?.message || '加入失败', icon: 'none' })
     } finally {
@@ -397,11 +358,7 @@ export default function ActionLibPage() {
       setPublicActions((prev) =>
         prev.map((item) =>
           item.id === actionId
-            ? {
-                ...item,
-                isLiked: res.liked,
-                like_count: res.likeCount
-              }
+            ? { ...item, isLiked: res.liked, like_count: res.likeCount }
             : item
         )
       )
@@ -413,99 +370,17 @@ export default function ActionLibPage() {
   }
 
   const handleOpenPublicDetail = (action: PublicActionItemDto) => {
-    cacheAndOpenActionDetail(action)
-  }
-
-  const openEditSuggestion = (action: PublicActionItemDto) => {
-    setEditingPublicAction(action)
-    setEditName(action.name || '')
-    setEditDetail(action.detail || '')
-    setEditUrl(action.url || '')
-    setEditType(action.type || 'STRENGTH')
-    setEditPositions(Array.isArray(action.positions) ? action.positions : [])
-    setEditAttrs(Array.isArray(action.attrs) ? action.attrs : [])
-    setShowEditSuggestion(true)
-  }
-
-  const closeEditSuggestion = () => {
-    setShowEditSuggestion(false)
-    setEditingPublicAction(null)
-    setSubmittingEdit(false)
-  }
-
-  const toggleEditPosition = (position: string) => {
-    setEditPositions((prev) => (
-      prev.includes(position) ? prev.filter((item) => item !== position) : [...prev, position]
-    ))
-  }
-
-  const toggleEditAttr = (attr: string) => {
-    setEditAttrs((prev) => (
-      prev.includes(attr) ? prev.filter((item) => item !== attr) : [...prev, attr]
-    ))
-  }
-
-  const handleSubmitEditSuggestion = async () => {
-    if (!editingPublicAction) {
-      return
-    }
-
-    if (!editName.trim()) {
-      Taro.showToast({ title: '请输入动作名称', icon: 'none' })
-      return
-    }
-
-    const nextPayload = {
-      name: editName.trim(),
-      detail: normalizeText(editDetail),
-      url: normalizeText(editUrl),
-      positions: normalizeList(editPositions),
-      attrs: normalizeList(editAttrs),
-      type: editType || null
-    }
-
-    const hasChanged =
-      nextPayload.name !== editingPublicAction.name ||
-      nextPayload.detail !== (editingPublicAction.detail || null) ||
-      nextPayload.url !== (editingPublicAction.url || null) ||
-      JSON.stringify(nextPayload.positions) !== JSON.stringify(editingPublicAction.positions || null) ||
-      JSON.stringify(nextPayload.attrs) !== JSON.stringify(editingPublicAction.attrs || null) ||
-      nextPayload.type !== (editingPublicAction.type || null)
-
-    if (!hasChanged) {
-      Taro.showToast({ title: '请先修改至少一项内容', icon: 'none' })
-      return
-    }
-
-    try {
-      setSubmittingEdit(true)
-      await submitPublicActionEdit({
-        actionId: editingPublicAction.id,
-        name: nextPayload.name,
-        detail: nextPayload.detail,
-        url: nextPayload.url,
-        positions: nextPayload.positions,
-        attrs: nextPayload.attrs,
-        type: nextPayload.type,
-        item_schema: (editingPublicAction.item_schema as Record<string, unknown> | null) ?? null,
-        suggested_time: editingPublicAction.suggested_time ?? null,
-        enableAutoWeightCompute: editingPublicAction.enableAutoWeightCompute ?? false,
-        includesBodyWeight: editingPublicAction.includesBodyWeight ?? false,
-        canonical_action_id: editingPublicAction.canonical_action_id ?? null
-      })
-      Taro.showToast({ title: '纠错建议已提交', icon: 'success' })
-      closeEditSuggestion()
-    } catch (error: any) {
-      Taro.showToast({ title: error?.message || '提交失败', icon: 'none' })
-      setSubmittingEdit(false)
-    }
+    cacheAndOpenActionDetail({
+      ...action,
+      source: 'public'
+    })
   }
 
   const renderMineList = () => {
     if (loading) {
       return (
         <View className='loading-container'>
-          {[1, 2, 3, 4].map(i => (
+          {[1, 2, 3, 4].map((i) => (
             <View key={i} className='skeleton-card'>
               <View className='skeleton-line' />
               <View className='skeleton-line short' />
@@ -527,14 +402,15 @@ export default function ActionLibPage() {
 
     return (
       <View className='action-list'>
-        {actions.map(action => {
+        {actions.map((action) => {
           const isSelected = selectedIds.includes(action.id)
           const isPublishing = publishingActionId === action.id
+
           return (
             <View
               key={action.id}
               className={`action-card ${isSelected ? 'selected' : ''}`}
-              onClick={() => isBatchMode ? toggleSelect(action.id) : handleEdit(action.id)}
+              onClick={() => (isBatchMode ? toggleSelect(action.id) : handleEdit(action.id))}
               onLongPress={() => handleLongPress(action.id)}
             >
               {isBatchMode && (
@@ -542,35 +418,29 @@ export default function ActionLibPage() {
                   {isSelected && <View className='check-icon'><Check /></View>}
                 </View>
               )}
+
               <View className='action-content'>
                 <View className='action-header'>
                   <Text className='action-name'>{action.name}</Text>
-                  {action.reference_1rm && (
+                  {action.reference_1rm ? (
                     <View className='onerm-badge'>
                       <Text>1RM: {action.reference_1rm}kg</Text>
                     </View>
-                  )}
+                  ) : null}
                 </View>
-                {action.detail && (
-                  <Text className='action-detail'>{action.detail}</Text>
-                )}
+
+                {action.detail ? <Text className='action-detail'>{action.detail}</Text> : null}
+
                 <View className='action-tags'>
-                  {action.type && (
-                    <Text className='tag type'>{action.type}</Text>
-                  )}
+                  {action.type ? <Text className='tag type'>{action.type}</Text> : null}
                   {action.attrs?.map((attr, idx) => (
                     <Text key={idx} className='tag'>{attr}</Text>
                   ))}
                 </View>
               </View>
+
               {!isBatchMode && (
-                <View className='action-menu' onClick={e => e.stopPropagation()}>
-                  <View className='menu-item' onClick={() => handleViewReferences(action)}>
-                    <Text>引用</Text>
-                  </View>
-                  <View className='menu-item' onClick={() => handleMerge(action)}>
-                    <Text>合并</Text>
-                  </View>
+                <View className='action-menu' onClick={(e) => e.stopPropagation()}>
                   <View
                     className={`menu-item publish ${isPublishing ? 'disabled' : ''}`}
                     onClick={() => {
@@ -580,6 +450,9 @@ export default function ActionLibPage() {
                     }}
                   >
                     <Text>{isPublishing ? '贡献中' : '贡献'}</Text>
+                  </View>
+                  <View className='menu-item' onClick={() => handleEdit(action.id)}>
+                    <Text>编辑</Text>
                   </View>
                   <View className='menu-item delete' onClick={() => handleDelete(action.id)}>
                     <Text>删除</Text>
@@ -597,7 +470,7 @@ export default function ActionLibPage() {
     if (publicLoading) {
       return (
         <View className='loading-container'>
-          {[1, 2, 3].map(i => (
+          {[1, 2, 3].map((i) => (
             <View key={i} className='public-card skeleton-public-card'>
               <View className='skeleton-line' />
               <View className='skeleton-line short' />
@@ -624,23 +497,22 @@ export default function ActionLibPage() {
         {displayedPublicActions.map((action) => {
           const isAdding = addingPublicId === action.id
           const isLiking = likingPublicId === action.id
+
           return (
             <View key={action.id} className='public-card'>
               <View className='public-card-main' onClick={() => handleOpenPublicDetail(action)}>
                 <View className='public-card-top'>
                   <Text className='public-name'>{action.name || '未命名动作'}</Text>
                   <View className='public-badges'>
-                    {action.type ? (
-                      <Text className='public-badge type'>{action.type}</Text>
-                    ) : null}
-                    {action.url ? (
-                      <Text className='public-badge video'>演示</Text>
-                    ) : null}
+                    {action.type ? <Text className='public-badge type'>{action.type}</Text> : null}
+                    {action.url ? <Text className='public-badge video'>演示</Text> : null}
                   </View>
                 </View>
+
                 <Text className='public-detail' numberOfLines={2}>
                   {action.detail || '点击查看动作细节、训练部位和演示视频'}
                 </Text>
+
                 {!!action.positions?.length && (
                   <View className='public-tags'>
                     {action.positions.slice(0, 4).map((position, idx) => (
@@ -648,18 +520,18 @@ export default function ActionLibPage() {
                     ))}
                   </View>
                 )}
+
                 <View className='public-meta'>
                   <View className='public-meta-text'><Heart /> {action.like_count || 0}</View>
-                  <Text className='public-meta-text'>
-                    {action.contributor?.nickname || '社区贡献'}
-                  </Text>
-                  {action.created_at ? (
-                    <Text className='public-meta-text'>{formatShortDate(action.created_at)}</Text>
-                  ) : null}
+                  <Text className='public-meta-text'>{action.contributor?.nickname || '社区贡献'}</Text>
+                  {action.created_at ? <Text className='public-meta-text'>{formatShortDate(action.created_at)}</Text> : null}
                 </View>
               </View>
 
               <View className='public-actions'>
+                <View className='public-action-btn subtle' onClick={() => handleOpenPublicDetail(action)}>
+                  <Text>详情</Text>
+                </View>
                 <View
                   className={`public-action-btn subtle ${isLiking ? 'disabled' : ''}`}
                   onClick={() => {
@@ -669,12 +541,6 @@ export default function ActionLibPage() {
                   }}
                 >
                   <Text>{action.isLiked ? '已点赞' : '点赞'}</Text>
-                </View>
-                <View
-                  className='public-action-btn subtle'
-                  onClick={() => openEditSuggestion(action)}
-                >
-                  <Text>纠错</Text>
                 </View>
                 <View
                   className={`public-action-btn primary ${(action.isAdded || isAdding) ? 'disabled' : ''}`}
@@ -731,12 +597,12 @@ export default function ActionLibPage() {
             {activeTab === 'public' ? (
               <>
                 <Text className='library-tip-title'>公共动作库已接入共建链路</Text>
-                <Text className='library-tip-desc'>现在可以直接浏览社区动作、查看详情、点赞、纠错，并一键加入到你的动作库。</Text>
+                <Text className='library-tip-desc'>现在可以直接浏览社区动作、查看详情、点赞、加入，并在动作详情里提交纠错建议。</Text>
               </>
             ) : (
               <>
                 <Text className='library-tip-title'>我的动作现在支持继续向外贡献</Text>
-                <Text className='library-tip-desc'>除了编辑、合并、查引用和批量更新 1RM，你还可以从教练动作库导入，或者把自己的优质动作贡献到公共动作库。</Text>
+                <Text className='library-tip-desc'>除了编辑、删除和批量更新 1RM，你还可以从教练动作库导入，或者把自己的优质动作贡献到公共动作库。</Text>
               </>
             )}
           </View>
@@ -779,7 +645,7 @@ export default function ActionLibPage() {
                   className={`preset-chip ${publicOnlyWithDemo ? 'active' : ''}`}
                   onClick={() => setPublicOnlyWithDemo((prev) => !prev)}
                 >
-                  <Text>{publicOnlyWithDemo ? '仅看有演示: 开' : '仅看有演示: 关'}</Text>
+                  <Text>{publicOnlyWithDemo ? '仅看有演示 开' : '仅看有演示 关'}</Text>
                 </View>
               </View>
             </View>
@@ -842,7 +708,7 @@ export default function ActionLibPage() {
               type='digit'
               placeholder='输入1RM值 (kg)'
               value={batchOneRMValue}
-              onInput={e => setBatchOneRMValue(e.detail.value)}
+              onInput={(e) => setBatchOneRMValue(e.detail.value)}
             />
             <View className='dialog-buttons'>
               <View className='btn-secondary' onClick={() => setShowBatchOneRM(false)}>
@@ -850,104 +716,6 @@ export default function ActionLibPage() {
               </View>
               <View className='btn-primary' onClick={handleBatchUpdateOneRM}>
                 <Text>确认</Text>
-              </View>
-            </View>
-          </View>
-        </View>
-      )}
-
-      {showEditSuggestion && editingPublicAction && (
-        <View className='dialog'>
-          <View className='dialog-overlay' onClick={closeEditSuggestion} />
-          <View className='dialog-content large'>
-            <Text className='dialog-title'>提交纠错建议</Text>
-            <Text className='dialog-desc'>你的修改会进入贡献者审核队列，通过后再更新到公共动作库。</Text>
-            <ScrollView className='dialog-scroll' scrollY>
-              <View className='dialog-section'>
-                <Text className='dialog-label'>动作名称</Text>
-                <Input
-                  className='dialog-input'
-                  value={editName}
-                  onInput={(e) => setEditName(e.detail.value)}
-                  placeholder='请输入动作名称'
-                />
-              </View>
-
-              <View className='dialog-section'>
-                <Text className='dialog-label'>动作说明</Text>
-                <Textarea
-                  className='dialog-textarea'
-                  value={editDetail}
-                  onInput={(e) => setEditDetail(e.detail.value)}
-                  placeholder='补充动作要领、注意事项、纠错说明'
-                  maxlength={500}
-                />
-              </View>
-
-              <View className='dialog-section'>
-                <Text className='dialog-label'>演示视频链接</Text>
-                <Input
-                  className='dialog-input'
-                  value={editUrl}
-                  onInput={(e) => setEditUrl(e.detail.value)}
-                  placeholder='https://...'
-                />
-              </View>
-
-              <View className='dialog-section'>
-                <Text className='dialog-label'>动作类型</Text>
-                <View className='option-grid'>
-                  {ACTION_TYPES.map((item) => (
-                    <View
-                      key={item.value}
-                      className={`option-chip ${editType === item.value ? 'selected' : ''}`}
-                      onClick={() => setEditType(item.value)}
-                    >
-                      <Text>{item.label}</Text>
-                    </View>
-                  ))}
-                </View>
-              </View>
-
-              <View className='dialog-section'>
-                <Text className='dialog-label'>训练部位</Text>
-                <View className='option-grid'>
-                  {ACTION_POSITIONS.map((position) => (
-                    <View
-                      key={position}
-                      className={`option-chip ${editPositions.includes(position) ? 'selected' : ''}`}
-                      onClick={() => toggleEditPosition(position)}
-                    >
-                      <Text>{position}</Text>
-                    </View>
-                  ))}
-                </View>
-              </View>
-
-              <View className='dialog-section'>
-                <Text className='dialog-label'>动作属性</Text>
-                <View className='option-grid'>
-                  {ACTION_ATTRS.map((attr) => (
-                    <View
-                      key={attr}
-                      className={`option-chip ${editAttrs.includes(attr) ? 'selected' : ''}`}
-                      onClick={() => toggleEditAttr(attr)}
-                    >
-                      <Text>{attr}</Text>
-                    </View>
-                  ))}
-                </View>
-              </View>
-            </ScrollView>
-            <View className='dialog-buttons'>
-              <View className='btn-secondary' onClick={closeEditSuggestion}>
-                <Text>取消</Text>
-              </View>
-              <View
-                className={`btn-primary ${submittingEdit ? 'disabled' : ''}`}
-                onClick={submittingEdit ? undefined : handleSubmitEditSuggestion}
-              >
-                <Text>{submittingEdit ? '提交中...' : '提交建议'}</Text>
               </View>
             </View>
           </View>

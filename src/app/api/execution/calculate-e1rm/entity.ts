@@ -12,7 +12,6 @@ export interface CalculateE1RMResponseDto {
     e1rm: number;
     epley: number;
     brzycki: number;
-    lombardi: number;
     formula: string;
     includesBodyWeight: boolean;
 }

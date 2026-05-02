@@ -118,7 +118,6 @@ export async function POST(req: Request) {
                     bodyWeight: includeBodyWeight ? userBodyWeight : undefined,
                     epley: e1rmResult.epley,
                     brzycki: e1rmResult.brzycki,
-                    lombardi: e1rmResult.lombardi,
                 };
 
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any

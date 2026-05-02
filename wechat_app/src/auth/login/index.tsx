@@ -82,6 +82,16 @@ function Login() {
 
   const goToTerms = () => Taro.navigateTo({ url: '/me/terms/index' })
   const goToPrivacy = () => Taro.navigateTo({ url: '/me/privacy/index' })
+  const handleBack = async () => {
+    const pages = Taro.getCurrentPages()
+
+    if (pages.length > 1) {
+      await Taro.navigateBack({ delta: 1 })
+      return
+    }
+
+    await Taro.reLaunch({ url: '/pages/index/index' })
+  }
 
   const handleLogin = async () => {
     if (!agreed) {
@@ -157,6 +167,7 @@ function Login() {
     try {
       const { code: phoneCode, errMsg, errno } = e.detail || {}
       if (!phoneCode) {
+        console.log('快捷登录已取消或拒绝授权', { errMsg, errno })
         Toast.show(errMsg || '请先授权手机号以完成快捷登录', {})
         setLoading(false)
         return
@@ -180,6 +191,12 @@ function Login() {
         <View className='login-hero'>
           <Image className='login-bg' src={loginBg} mode='aspectFill' />
           <View className='login-hero-overlay'>
+            <View className='login-hero-topbar'>
+              <View className='login-back-button' onClick={() => void handleBack()}>
+                <Text className='login-back-icon'>‹</Text>
+                <Text className='login-back-text'>返回</Text>
+              </View>
+            </View>
             <Text className='login-hero-brand'>教链 CoachLink</Text>
             <Text className='login-hero-slogan'>登录以继续你的训练计划</Text>
           </View>
@@ -212,7 +229,7 @@ function Login() {
                     setVerificationCode('')
                   }}
                 >
-                  <Text className='switcher-text'>微信登录</Text>
+                  <Text className='switcher-text'>快捷登录</Text>
                 </View>
                 <View
                   className={`switcher-pill ${loginMode === 'password' ? 'switcher-active' : ''}`}
@@ -245,7 +262,7 @@ function Login() {
                     {loading ? (
                       <Text className='wechat-primary-text'>登录中...</Text>
                     ) : (
-                      <Text className='wechat-primary-text'>微信一键登录</Text>
+                      <Text className='wechat-primary-text'>手机号快捷登录</Text>
                     )}
                   </TaroButton>
                 </View>

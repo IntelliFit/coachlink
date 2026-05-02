@@ -8,6 +8,10 @@ import type {
     CompleteImpromptuSetResponseDto,
 } from "@/app/api/impromptu/complete-set/entity";
 import type {
+    CompleteImpromptuItemDto,
+    CompleteImpromptuItemResponseDto,
+} from "@/app/api/impromptu/complete-item/entity";
+import type {
     FinishImpromptuDto,
     FinishImpromptuResponseDto,
 } from "@/app/api/impromptu/finish/entity";
@@ -61,6 +65,17 @@ class ImpromptuTrainingService extends BaseService {
     async completeSet(reqData: CompleteImpromptuSetDto) {
         const res = await this.post<CompleteImpromptuSetResponseDto>(
             "complete-set",
+            reqData,
+        );
+        if (res.data && res.data.success) {
+            return res.data.data || null;
+        }
+        return null;
+    }
+
+    async completeItem(reqData: CompleteImpromptuItemDto) {
+        const res = await this.post<CompleteImpromptuItemResponseDto>(
+            "complete-item",
             reqData,
         );
         if (res.data && res.data.success) {

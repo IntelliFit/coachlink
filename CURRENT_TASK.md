@@ -1,5 +1,413 @@
 # CURRENT_TASK
 
+## WeApp Chat Image Caption Parity (`2026-05-02`)
+
+- Task: fix the WeChat mini-program private-message detail view so coach broadcast image messages show their attached caption text instead of only the image, matching the chat-list preview and Web chat behavior.
+- Status: implemented and verified at code/build level.
+- Root cause:
+  - Coach broadcast messages can be stored as `message_type = image` with the explanatory text carried in `content`.
+  - The mini-program chat list preview uses `chat_rooms.last_message`, so that caption text was visible there.
+  - `wechat_app/src/me/messages/chat/index.tsx` rendered `image` messages as image-only and dropped `content`, so the detail page hid the caption even though it existed in `chat_messages`.
+- Implemented:
+  - `wechat_app/src/me/messages/chat/index.tsx`
+    - Added shared media-caption rendering for image messages.
+    - Image messages now render the uploaded image plus the trimmed caption when `content` is present and not just the media URL.
+  - `wechat_app/src/me/messages/chat/index.scss`
+    - Added compact media-block / caption styling so image and caption stay grouped in the same bubble flow.
+- Verification:
+  - Root `npm run lint`: passed (informational script only).
+  - Root `npm run typecheck`: passed.
+  - Root `npm test`: passed, 21 files / 109 tests.
+  - Root `npx next build`: passed.
+  - `wechat_app/npm run build:weapp`: passed.
+- Mini-program DevTools verification:
+  - Attempted per local `weapp-devtools` workflow.
+  - Blocked because `mrc` is not installed in this session.
+  - `127.0.0.1:9420` is not accepting connections, so local WeChat DevTools automation is not running.
+
+## WeApp Login Audit-Fix For WeChat Review (`2026-05-01`)
+
+- Update (`2026-05-02`):
+  - Follow-up fix after product review: even when users do reach `/auth/login`, the page itself must still expose a visible return path so the flow does not become a dead end.
+  - `wechat_app/src/auth/login/index.tsx` now adds a custom top-left `返回` action because this page uses `navigationStyle: 'custom'`.
+  - Return behavior is `navigateBack()` when there is history, otherwise `reLaunch('/pages/index/index')`.
+  - `wechat_app/src/auth/login/index.scss` adds the matching lightweight hero-level back control styling instead of another heavy card inside the login form.
+
+- Update (`2026-05-01`, later same session):
+  - Product direction corrected after review: the right fix is not to enlarge the login page with extra guest-exit cards, but to keep unauthenticated users on browsable surfaces first.
+  - Final implemented behavior:
+    - unauthenticated `个人` tab now opens the guest profile page instead of forcing `/auth/login`
+    - unauthenticated `消息` still requires auth, but now uses a return-aware login URL
+    - logout from profile / coach profile / settings now returns to `/pages/index/index`
+    - the previously added guest-entry cards on login/register were removed
+
+- Task: address the WeChat mini-program review rejection on the login flow by making cancellation / return paths explicit and ensuring users are not forced to log in before they can continue browsing the app.
+- Status: implemented and verified at code/build level.
+- Requirement:
+  - The mini-program login flow must provide a clear, effective cancel / refuse / return path.
+  - Users who decline phone-number authorization should still be able to continue browsing instead of being trapped in the login path.
+  - Registration should also provide a visible path back to non-authenticated browsing so the whole auth chain is not perceived as mandatory.
+- Implemented:
+  - `wechat_app/src/auth/login/index.tsx`
+    - Added a prominent guest-exit card ahead of the login methods with a `先逛逛` action that returns users to `/pages/index/index`.
+    - Softened the `getPhoneNumber` refusal handling so denial now tells users they can continue browsing or use another login method instead of only pushing them back toward authorization.
+    - Added explanatory copy under the quick-login button that refusal does not block returning to the home page.
+  - `wechat_app/src/auth/login/index.scss`
+    - Added the guest-exit card / secondary-button styles using pure-color buttons and 8-grid spacing.
+  - `wechat_app/src/auth/register/index.tsx`
+    - Added a matching guest-exit card with a `返回首页` action so registration is not a dead-end or mandatory gate.
+  - `wechat_app/src/auth/register/index.scss`
+    - Added the matching guest-exit card / secondary-button styles.
+- Verification:
+  - Root `npm run lint`: passed (informational script only).
+  - Root `npm run typecheck`: passed.
+  - Root `npm test`: passed, 21 files / 109 tests.
+  - Root `npx next build`: passed.
+  - `wechat_app/npm run build:weapp`: passed.
+- Mini-program DevTools verification:
+  - Not completed in this session.
+  - Blocker: the required `weapp-devtools` skill/runtime is not available in the current tool surface, so only code/build verification could be completed.
+
+## WeApp Student Action Edit Demo Video Upload Parity (`2026-05-01`)
+
+- Task: sync the WeChat mini-program student action edit page with the current Web demo-video workflow so editing a student action supports local video upload instead of requiring manual link paste only.
+- Status: implemented and verified at code/build level.
+- Requirement:
+  - The mini-program student action edit page should follow Web `src/app/me/action-lib/StudentActionEditDialog.tsx` semantics for demo videos.
+  - The URL field remains the stored source of truth, but users should be able to upload a local video and have the returned URL auto-filled back into the form.
+  - The edit surface should preview the playable demo video inline after upload or link paste, instead of showing a raw URL card as the primary feedback.
+  - Replacing or deleting a student action should clean up the previously uploaded demo video file when it belongs to the app storage bucket.
+- Implemented:
+  - `wechat_app/src/me/action-lib/edit/index.tsx`
+    - Added demo-video upload entry with progress display, local file selection, URL auto-fill, and clear-link action.
+    - Replaced the old raw-link preview card with an inline mini-program video preview so uploaded videos and pasted direct video links can be watched directly on the page.
+    - Kept the editable URL field so uploaded and manually pasted external links still share the same persisted field.
+  - `wechat_app/src/me/action-lib/edit/index.scss`
+    - Reworked the video field UI to support upload actions and progress while staying within the mini-program design rules (pure-color buttons, 8-grid spacing).
+  - `wechat_app/src/services/studentActionLibService.ts`
+    - Added `uploadDemoVideo()` using mini-program `uploadFile` plus auth token forwarding and progress callbacks.
+  - `src/app/api/student/action-lib/upload-demo-video/route.ts`
+    - Added a student-side upload endpoint for multipart demo-video uploads to the `videos` storage bucket.
+  - `src/app/api/student/action-lib/update-action/route.ts`
+    - Added cleanup for replaced/cleared demo videos when the stored URL changes away from an app-managed storage file.
+  - `src/app/api/student/action-lib/delete-action/route.ts`
+    - Added cleanup for app-managed demo videos when the student action itself is deleted.
+- Verification:
+  - Root `npm run lint`: passed (informational script only).
+  - Root `npm run typecheck`: passed.
+  - Root `npm test`: passed, 21 files / 109 tests.
+  - Root `npx next build`: passed.
+  - `wechat_app/npm run build:weapp`: passed.
+- Mini-program DevTools verification:
+  - Attempted per local `weapp-devtools` workflow.
+  - Blocked because `mrc` is not installed in this session.
+  - `127.0.0.1:9420` is also not accepting connections, so local WeChat DevTools automation is not running.
+
+## WeApp Streetlifting Score Title Parity (`2026-05-01`)
+
+- Task: make the WeChat mini-program streetlifting calculator score titles match the current Web source of truth instead of showing the older English `World Class / Intermediate` labels.
+- Status: implemented and verified at code/build level.
+- Requirement:
+  - The mini-program result page and share poster should use the same more playful Chinese level wording as the Web streetlifting calculator.
+  - The shared mini-program calculator utility must be the single source of truth for this mapping so result-page UI and share data stay aligned.
+- Implemented:
+  - `wechat_app/src/utils/streetliftingCalc.ts`
+    - Updated `getScoreLevel()` to match the current Web `src/app/streetlifting-index/_utils.ts` thresholds and wording.
+    - Powerlifting labels now use `世界一线 / 国内一线 / 大佬 / 爱好者 / 菜就多练`.
+    - 500-point system labels now use `世界级 / 国内顶级 / 大佬 / 爱好者水平 / 菜就多练`.
+- Verification:
+  - Root `npm run lint`: passed (informational script only).
+  - Root `npm run typecheck`: passed.
+  - Root `npm test`: passed, 21 files / 109 tests.
+  - Root `npx next build`: passed.
+  - `wechat_app/npm run build:weapp`: passed.
+- Mini-program DevTools verification:
+  - Attempted per local `weapp-devtools` workflow.
+  - Blocked because `mrc` is not installed in this session.
+  - `127.0.0.1:9420` is also not accepting connections, so local WeChat DevTools automation is not running.
+
+## Streetlifting And Auto 1RM Remove Lombardi (`2026-04-30`)
+
+- Task: remove the Lombardi formula from Web and WeChat mini-program strength / streetlifting calculations, including toolbox calculator forward/reverse modes, RM tables, day-max estimation dependencies, auto recommended load, and shared e1RM utility outputs.
+- Status: implemented and verified at code/build level.
+- Requirement:
+  - The current three-formula average can overestimate user-facing 1RM for low-rep weighted pull-up / dip scenarios such as `77kg BW + 40kg x 4`.
+  - Web and mini-program must stop using Lombardi anywhere in the shared strength-calculation path, so users do not see different numbers across calculator, RM table, auto load preview, or auto PR/e1RM calculations.
+- Implemented:
+  - Shared streetlifting math:
+    - `src/app/streetlifting-index/_utils.ts`
+    - `wechat_app/src/utils/streetliftingCalc.ts`
+    - Changed forward 1RM, reverse weight, reverse reps, and RM table inversion from `avg(Epley, Brzycki, Lombardi)` to `avg(Epley, Brzycki)`.
+  - Shared 1RM / recommended-load math:
+    - `src/lib/e1rmCalculator.ts`
+    - `src/lib/rmCaculator.ts`
+    - `wechat_app/src/utils/rmCalculator.ts`
+    - Removed Lombardi from shared e1RM outputs and lambda-model selection, keeping only `average / epley / brzycki`.
+  - UI / product surfaces:
+    - `src/components/streetlifting-index/StreetliftingRecentSubmissions.tsx`
+    - `src/app/streetlifting-index/methodology/page.tsx`
+    - `wechat_app/src/components/PlanEditorWorkbench/index.tsx`
+    - `src/app/dashboard/plan-lib/components/ActionSetForm.tsx`
+    - `wechat_app/src/utils/planStrength.ts`
+    - Removed Lombardi from recent-submission 1RM display, methodology copy, and plan-editor algorithm choices / mappings.
+  - API / persistence payload alignment:
+    - `src/app/api/execution/calculate-e1rm/entity.ts`
+    - `src/app/api/execution/calculate-e1rm/route.ts`
+    - `src/app/api/execution/complete-set/route.ts`
+    - `src/app/api/execution/create-pr/route.ts`
+    - `src/app/api/training/finish-training/route.ts`
+    - `src/app/api/training/save-1rm-record/route.ts`
+    - `src/app/api/user/update-personal-records/route.ts`
+    - Removed `lombardi` from response/trace payloads and `estimatedFrom` snapshots written by shared e1RM flows.
+  - Docs / tests:
+    - `src/RM.md`
+    - `src/lib/e1rmAndLoadCalculation.test.ts`
+    - Updated docs and tests to the two-formula average.
+- Verification:
+  - Root `npm run lint`: passed (informational script only).
+  - Root `npm run typecheck`: passed.
+  - Root `npm test`: passed, 21 files / 109 tests.
+  - Root `npx next build`: passed.
+  - `wechat_app/npm run build:weapp`: passed.
+- UI verification:
+  - Browser / mini-program manual automation was not completed in this session.
+  - Blocker: the workspace instructions require `web-devtools` / `weapp-devtools`, but those tool surfaces are not available in the current session.
+
+## WeApp Student Action Library Web Parity Review (`2026-04-30`)
+
+- Task: inspect the current WeChat mini-program student action-library screen against the existing Web student action-library implementation before proposing UX changes.
+- Status: implemented in code.
+- Requirement:
+  - Use the current Web student action-library under `src/app/me/action-lib` as the immediate source of truth.
+  - Do not redesign the mini-program action-library flow from scratch before checking what the Web product already does.
+- Focus:
+  - Compare `wechat_app/src/me/action-lib/index.tsx` with `src/app/me/action-lib/page.tsx`.
+  - Clarify the actual semantics of `贡献 / 加入我的动作库 / 纠错建议 / 点赞 / 删除 / 合并 / 查引用`.
+  - Identify where the mini-program currently exposes Web capabilities in a more crowded or mismatched way.
+- Implemented:
+  - `wechat_app/src/me/action-lib/index.tsx`
+    - `我的动作库` 列表层改为与 Web 对齐，只保留 `贡献 / 编辑 / 删除`。
+    - 移除了列表常驻的 `引用 / 合并` 入口。
+    - `公共动作库` 列表层改为 `详情 / 点赞 / 加入我的库`。
+    - 移除了公共列表卡片上的 `纠错` 按钮，改为进入详情页后再提交建议。
+  - `wechat_app/src/training/action-detail/index.tsx`
+    - 为公共动作详情补齐 `提交纠错建议`。
+    - 为公共动作 owner 补齐 `同步到我的动作库`。
+  - `wechat_app/src/services/actionLibPageService.ts`
+    - 新增 `syncPublicToMyLib()`，对接现有 Web 后端 `/api/public-action-lib/sync-to-my-lib`。
+  - `wechat_app/src/types/action.ts`
+    - 补充 `owner_user_id` 以支持详情页 owner 判断。
+- Verification:
+  - Root `npm run lint`: passed.
+  - Root `npm run typecheck`: passed.
+  - Root `npx next build`: passed.
+  - Root `npm test`: passed, 21 files / 109 tests.
+  - `wechat_app/npm run build:weapp`: passed.
+  - WeChat DevTools automation verification: blocked in this session because local `weapp-devtools` runtime is unavailable (`mrc` missing and `127.0.0.1:9420` not accepting connections).
+
+## WeApp Contact Coach Chat Target Fix (`2026-04-30`)
+
+- Task: fix the student-side WeChat mini-program `联系教练` flow so it opens the real coach chat instead of creating a room for an unknown user.
+- Status: implemented in code.
+- Root cause:
+  - Student-side mini-program contact-chat entry points were treating `coach_subscriptions.coach_id` / `coaches.id` as if it were the chat peer user id.
+  - The chat system actually needs the coach account `user_id`, so using the coach row id could create a private room against a non-user identifier and then render as `未知用户`.
+- Fix:
+  - `wechat_app/src/utils/coachChat.ts`
+    - Added a shared resolver/opener for coach chat.
+    - Prefer `coach.user_id` directly; if only `coachId` is available, resolve it through `coachService.getAggregatedInfo({ coachId })` before opening chat.
+  - `wechat_app/src/training/today-training/TodayTrainingScreen.tsx`
+    - `联系教练` now uses the shared coach-chat helper.
+    - Navigation into `training-execution` now carries `coachUserId` when available, so the execution page does not need to guess later.
+  - `wechat_app/src/training/training-execution/index.tsx`
+    - Added `coachUserId` route-param support.
+    - The execution-page `联系教练` menu action now uses the shared coach-chat helper instead of directly opening chat with `coachId`.
+  - `wechat_app/src/me/messages/index.tsx`
+    - Deep-link auto-open now supports `peerUserId`.
+    - When only `coachId` is present, it resolves the coach's real `user_id` before trying to open the room.
+  - `wechat_app/src/me/my-coaches/index.tsx`
+  - `wechat_app/src/me/my-coaches/types.ts`
+    - `我的教练` contact entry now passes `coach.user_id` when available and otherwise falls back to the shared resolver flow.
+- Verification:
+  - Root `npm run lint`: passed (informational script only).
+  - Root `npm run typecheck`: passed.
+  - Root `npm test`: passed, 21 files / 109 tests.
+  - Root `npx next build`: passed.
+  - `wechat_app/npm run build:weapp`: passed.
+  - WeChat DevTools automation verification: attempted but blocked.
+    - `mrc` is not installed in this session.
+    - `127.0.0.1:9420` is not accepting connections, so local WeChat DevTools automation is not running.
+
+## WeApp Coach Application And Waiting-State Parity (`2026-04-30`)
+
+- Task: make the WeChat mini-program coach application flow and the coach-application waiting display on mini-program home/profile surfaces match the current Web source of truth.
+- Status: implemented in code.
+- Requirement:
+  - Mini-program coach application must no longer stay on the older pre-layering form model.
+  - Mini-program waiting / pending / supplement-material display should follow the Web coach-application status semantics instead of only showing a generic `not a coach yet` empty state.
+- Implemented:
+  - `wechat_app/src/utils/coachApplicationParity.ts`
+    - Added a shared mini-program parity helper for coach-track options and the full Web-aligned coach application status model: `none / draft / pending / reviewing / needs_info / rejected / approved / coach`.
+  - `wechat_app/src/coach/application/index.tsx`
+  - `wechat_app/src/coach/application/index.scss`
+    - Rebuilt the mini-program coach application page around the current Web semantics.
+    - Added Web-aligned layered fields: `coachTrack`, `serviceModes`, `targetStudentLevels`, `supportFocus`, and location fields.
+    - Expanded review-status rendering to cover `reviewing` and `needs_info`, not just the old `pending / approved / rejected` subset.
+    - Synced local mini-program auth storage after load/submit so pending/approved state is reflected immediately without waiting for a fresh login.
+  - `wechat_app/src/coach/my-profile/index.tsx`
+  - `wechat_app/src/coach/my-profile/index.scss`
+    - Replaced the old one-size-fits-all `go apply to become a coach` empty state with a Web-aligned status card that distinguishes waiting, supplement-material, rejected, and approved states.
+  - `wechat_app/src/me/profile/index.tsx`
+  - `wechat_app/src/me/profile/index.scss`
+    - Added a mini-program profile-home coach application progress card so users can see the same waiting-state semantics on mobile home/profile entry surfaces.
+    - Updated the extra menu entry so it reflects current application status rather than always saying `申请成为教练`.
+    - Hid the profile-home `教练申请进度` card after coach permission is already granted; this waiting-state card should only appear for users still in the application/review flow.
+  - `wechat_app/src/services/coach/coachService.ts`
+    - Extended create/update coach-application payload typing to include the newer Web fields.
+  - `wechat_app/src/me/profile/detail/index.tsx`
+    - Expanded local type support for `reviewing` and `needs_info`.
+- Verification:
+  - Root `npm run lint`: passed (informational script only).
+  - Root `npm run typecheck`: passed.
+  - Root `npm test`: passed, 21 files / 109 tests.
+  - Root `npx next build`: passed.
+  - `wechat_app/npm run build:weapp`: passed.
+- Mini-program DevTools verification:
+  - Attempted per local `weapp-devtools` workflow.
+  - Blocked because `mrc` is not installed in this session.
+  - Port `127.0.0.1:9420` is also not accepting connections, so local WeChat DevTools automation is not running.
+
+## Impromptu Training Parity And Usability Check (`2026-04-30`)
+
+- Task: make the WeChat mini-program `impromptu training` flow match the current Web experience as closely as possible and remove the current mini-program usability/build blocker.
+- Status: implemented in code.
+- Implemented:
+  - `wechat_app/src/training/impromptu-training/index.tsx`
+    - Rebuilt the mini-program entry page around the Web flow.
+    - Added support for `STRENGTH / CARDIO / DIET / HABIT` item types instead of strength-only creation.
+    - Added profile-based draft bootstrap through `studentActionLibService.bootstrapFromProfile`.
+    - Kept strength items editable for sets/reps/rest/weight and allowed non-strength items to enter the same creation flow.
+  - `wechat_app/src/services/studentActionLibService.ts`
+    - Added mini-program support for `bootstrapFromProfile` so the mobile flow can preload recommended draft items like Web.
+  - `wechat_app/src/services/impromptuService.ts`
+  - `src/app/service/impromptuTrainingService.ts`
+  - `src/app/api/impromptu/complete-item/*`
+    - Added explicit impromptu item-complete support for non-strength action types so mobile/Web execution can complete `CARDIO / DIET / HABIT` items correctly.
+  - `src/app/api/impromptu/start/route.ts`
+  - `src/app/api/impromptu/get/route.ts`
+    - Enriched impromptu execution payloads with action `type` and `attrs` so existing and new impromptu executions can render the correct item-type UI.
+  - `wechat_app/src/training/training-execution/index.tsx`
+  - `src/app/training-execution/[instanceId]/page.tsx`
+    - Updated impromptu execution rendering and completion flow so both clients preserve action type metadata instead of forcing everything to `STRENGTH`.
+    - Extra impromptu actions now immediately keep their real `type` in local UI state after being added.
+  - `wechat_app/src/me/my-coaches/index.tsx`
+    - Fixed the unrelated syntax error that had been blocking the mini-program build (`Unterminated string constant`).
+- Current parity judgment:
+  - Mini-program and Web impromptu training now share the same broad product surface:
+    - multi-type creation
+    - profile-based bootstrap draft
+    - impromptu execution support for strength and non-strength items
+  - Some UI presentation details still differ because the two clients are built with different component systems, but the mini-program is no longer missing the major Web capabilities that were identified in the review.
+- Verification:
+  - Root `npm run lint`: passed.
+  - Root `npm run typecheck`: passed.
+  - Root `npx next build`: passed.
+  - Root `npm test`: passed, 21 files / 109 tests.
+  - `wechat_app/npm run build:weapp`: passed.
+  - WeChat DevTools automation/manual verification is still blocked in this session because the required local `weapp-devtools` runtime is not available here.
+
+## Coach Profile And Dashboard Optimization (`2026-04-29`)
+
+- Task: optimize the coach-side personal-center / homepage loading speed and align the coach-facing profile/dashboard UI language more closely with the student profile center, without changing coach-side functionality.
+- Status: first implementation completed.
+- Performance fixes:
+  - `src/app/coach/profile/[id]/page.tsx`
+    - Removed the duplicate first-paint coach fetch.
+    - The page now uses `get-aggregated-info` as the main first-screen source instead of loading both `get-coach` and `get-aggregated-info`.
+  - `src/app/coach/profile/[id]/CoachContent.tsx`
+    - Coach profile tabs now lazy-mount and keep state only after first visit, so `订阅价格 / 教练专栏 / 学员评价` no longer all fetch on initial page load.
+  - `src/app/api/coach/get-overview-data/route.ts`
+    - Added a short Redis cache (`90s`) for coach overview aggregates to reduce repeated dashboard waits.
+- UI alignment:
+  - `src/app/coach/profile/[id]/CoachIntroduction.tsx`
+    - Rebuilt the coach profile header into a cleaner card-based structure closer to the student profile center: identity block, status chips, action row, stat cards, specialty/service cards.
+    - Kept existing actions intact: contact coach, edit profile, questionnaire entry, subscribe entry, chat dialog, and questionnaire dialog.
+  - `src/app/dashboard/overview/page.tsx`
+    - Reworked the coach overview into a simpler hero + metric cards + setup cards layout so it feels closer to the student center’s card hierarchy and less visually noisy.
+- Verification:
+  - `npm run lint`: passed (repo lint script remains informational only).
+  - `npm run typecheck`: passed.
+  - `npm test`: passed, 21 files / 109 tests.
+  - `npx next build`: passed.
+- Browser verification:
+  - Attempted via the available `browser-use` path, but the in-app browser runtime is blocked in this session because `node_repl` resolved Node `v22.14.0` and the browser runtime requires `>= v22.22.0`.
+  - Also attempted to install bundled workspace runtime dependencies, but that install failed in this session.
+  - Result: code-level verification completed; browser-based verification remains blocked by the current tool/runtime environment.
+
+## WeApp Upload Package Size Fix (`2026-04-29`)
+
+- Task: resolve the WeChat mini-program upload blocker where subpackage `/me` exceeded the 2MB source-size limit.
+- Status: fixed at build-script and asset-packaging level; release build now brings both the main package and `/me` subpackage under WeChat's upload limits.
+- Root cause:
+  - Uploading from the development-oriented `dist` output was the wrong packaging target for release.
+  - `wechat_app/scripts/copy-comp-to-subpackages.js` was copying `base.wxml` and `utils.wxs` into many nested `me/*` directories, duplicating the Taro runtime template and inflating the `/me` subpackage.
+- Fix:
+  - `wechat_app/scripts/copy-comp-to-subpackages.js`
+    - Kept nested `comp.*` compatibility copies.
+    - Stopped copying `base.wxml` / `utils.wxs` into nested leaf directories.
+    - Refined the nested compatibility-copy rule so only real `/index` directory pages keep `comp.*`.
+    - Flat-page source folders such as `coach/overview` or `auth/login` now have stale copied `comp.*` removed after build, preventing Summer Compiler from misreading them as directory pages.
+  - `wechat_app/config/index.ts`
+    - Stopped copying the entire `src/assets/images/` directory into the main package.
+    - Kept only the small root image used by auth and moved toolbox/scenario images into `me/assets/images/`.
+    - Added explicit `body-map` copy so the knowledge page's string-path SVG assets still exist in the release package.
+  - `wechat_app/src/assets/images/*`
+    - Compressed the large toolbox cover images for release packaging.
+    - Converted the large scenario PNGs to smaller JPGs for mini-program packaging.
+  - `wechat_app/src/me/toolbox/index.tsx`
+  - `wechat_app/src/constants/scenarioQuickFixes.ts`
+    - Switched image paths from root `/assets/images/...` to `/me/assets/images/...`.
+- Verification:
+  - `wechat_app/npm run build:weapp:release`: passed.
+  - `wechat_app/dist-release` package sizes:
+    - main package: about `1745.8 KB`
+    - `/me` subpackage: about `1185.71 KB`
+  - Both are below the `2048 KB` limit.
+  - Follow-up check for the later DevTools WXML error:
+    - The bad state was in the development output `wechat_app/dist`, not in `wechat_app/dist-release`.
+    - Before rebuilding, `wechat_app/dist/auth/utils.wxs` was missing, which can cause `auth/login/comp.wxml ... ./utils.wxs not found`.
+    - After rerunning `wechat_app/npm run build:weapp`, `wechat_app/dist/auth/login/comp.wxml` now imports `../utils.wxs` and `wechat_app/dist/auth/utils.wxs` exists again.
+  - Follow-up check for the later Summer Compiler `../../comp.json` error:
+    - `wechat_app/dist/coach/overview` and similar flat-page folders were incorrectly carrying copied `comp.*` files.
+    - After the script fix and rebuild, folders such as `wechat_app/dist/coach/overview` and `wechat_app/dist/auth/login` only keep `index.wxml`, so Summer Compiler no longer sees a fake directory-page `comp.json`.
+  - `npm run lint`: passed.
+  - `npm run typecheck`: passed.
+  - `npx next build`: passed.
+  - `npm test`: passed, 21 files / 109 tests.
+- Recommended upload target:
+  - Use `wechat_app/dist-release` for upload/release builds instead of `wechat_app/dist`.
+
+## WeApp Login Copy Compliance (`2026-04-29`)
+
+- Task: remove user-facing `微信登录` wording from the WeChat mini-program login page and use safer audit-friendly copy.
+- Status: implemented.
+- Requirement:
+  - The login tab should say `快捷登录`, not `微信登录`.
+  - The primary phone-auth button should say `手机号快捷登录`, not `微信一键登录`.
+- Fix:
+  - `wechat_app/src/auth/login/index.tsx`
+    - Changed the `wechat` login-mode tab copy from `微信登录` to `快捷登录`.
+    - Changed the primary `getPhoneNumber` action copy from `微信一键登录` to `手机号快捷登录`.
+- Verification:
+  - `npm run lint`: passed (informational script only; eslint is not configured in this repo).
+  - `npm run typecheck`: passed.
+  - `npx next build`: passed.
+  - `npm test`: passed, 21 files / 109 tests.
+  - `wechat_app/npm run build:weapp`: passed.
+  - WeChat DevTools automation verification: blocked.
+    - `mrc` is not installed in this session.
+    - Port `9420` is not accepting connections, so local WeChat DevTools automation is not running.
+
 ## WeApp Membership WeChat Pay (`2026-04-29`)
 
 - Task: switch the WeChat mini-program membership-upgrade flow from the old webview/Alipay path to direct mini-program WeChat Pay, with the mini-program membership purchase experience using WeChat pay as the source of truth.

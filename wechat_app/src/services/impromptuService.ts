@@ -23,6 +23,18 @@ export interface StartImpromptuResponseDto {
   started_at: string
 }
 
+export interface CompleteImpromptuItemDto {
+  executionId: string
+  actionIndex: number
+  itemType: 'DIET' | 'CARDIO' | 'HABIT'
+  completed: boolean
+  photoUrl?: string
+  actualContent?: string
+  actualDistance?: number
+  actualDuration?: number
+  notes?: string
+}
+
 class ImpromptuService {
   private readonly baseUrl = '/api/impromptu'
 
@@ -70,6 +82,17 @@ class ImpromptuService {
         actualReps: data.actualReps,
         notes: data.notes
       }
+    })
+    if (res.success && res.data) return res.data
+    return null
+  }
+
+  /** 完成一个非力量项目 */
+  async completeItem(data: CompleteImpromptuItemDto): Promise<any | null> {
+    const res = await request({
+      url: `${this.baseUrl}/complete-item`,
+      method: 'POST',
+      data
     })
     if (res.success && res.data) return res.data
     return null

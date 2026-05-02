@@ -365,6 +365,16 @@ class CoachService extends BaseService {
     resumeUrl?: string | null
     portfolioUrl?: string | null
     socialLinks?: Record<string, string> | null
+    coachTrack?: string | null
+    serviceModes?: string[] | null
+    targetStudentLevels?: string[] | null
+    supportFocus?: string | null
+    province?: string | null
+    city?: string | null
+    county?: string | null
+    address?: string | null
+    latitude?: number | null
+    longitude?: number | null
   }) {
     const res = await this.post<{ application: any }>('create-coach-application', reqData)
     if (res.success && res.data) return res.data
@@ -389,6 +399,16 @@ class CoachService extends BaseService {
     resumeUrl?: string | null
     portfolioUrl?: string | null
     socialLinks?: Record<string, string> | null
+    coachTrack?: string | null
+    serviceModes?: string[] | null
+    targetStudentLevels?: string[] | null
+    supportFocus?: string | null
+    province?: string | null
+    city?: string | null
+    county?: string | null
+    address?: string | null
+    latitude?: number | null
+    longitude?: number | null
   }) {
     const res = await this.post<{ application: any }>('update-coach-application', reqData)
     if (res.success && res.data) return res.data

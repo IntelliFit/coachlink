@@ -66,16 +66,15 @@ export function computeCoefficient(
 }
 
 /**
- * 单次做组里，三公式在「总做组重量 w」上的线性系数之平均（与 estimateTotal1RMFromTotalWeightAndReps 一致）。
+ * 单次做组里，双公式在「总做组重量 w」上的线性系数之平均（与 estimateTotal1RMFromTotalWeightAndReps 一致）。
  * 正向：1RM = w × meanFactor(reps)。逆：w = 1RM / meanFactor(reps)。
- * 注意：这不是「三个独立 1RM 再取平均」的逆，而是「先对系数取平均再乘 w」的严格代数逆。
+ * 注意：这不是「两个独立 1RM 再取平均」的逆，而是「先对系数取平均再乘 w」的严格代数逆。
  */
 export function meanLoadFactorForReps(reps: number) {
     if (reps < 1 || reps >= 37) throw new Error("完成次数必须小于37次");
     const fE = 1 + 0.0333 * reps;
     const fB = 36 / (37 - reps);
-    const fL = Math.pow(reps, 0.1);
-    return (fE + fB + fL) / 3;
+    return (fE + fB) / 2;
 }
 
 export function estimateTotal1RMFromTotalWeightAndReps(totalWeight: number, reps: number) {
@@ -98,12 +97,11 @@ export function estimateRepsForTarget1RMContinuous(targetTotal1RM: number, total
     return Math.max(0.1, rE);
 }
 
-/** 三大项 / 实力推 / 弯举：与正向 1RM 一致的三公式平均反推次数（streetlifting-index 同款） */
+/** 三大项 / 实力推 / 弯举：与正向 1RM 一致的双公式平均反推次数（streetlifting-index 同款） */
 export function estimateRepsFromTotalWeightAndTarget1RM(target1RM: number, workingWeight: number) {
     const epleyReps = (target1RM / workingWeight - 1) / 0.0333;
     const brzyckiReps = 37 - (36 * workingWeight) / target1RM;
-    const lombardiReps = Math.pow(target1RM / workingWeight, 10);
-    return Math.max(1, (epleyReps + brzyckiReps + lombardiReps) / 3);
+    return Math.max(1, (epleyReps + brzyckiReps) / 2);
 }
 
 export function calculateAdded1RM(bodyweight: number, addedWeight: number, reps: number, penaltyWeight: number) {

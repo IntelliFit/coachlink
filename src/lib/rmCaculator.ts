@@ -19,36 +19,24 @@ export function lambdaBrzycki(r: number): number {
 }
 
 /**
- * Lombardi 模型的 λ(r)
- * λ_lombardi(r) = r ^ 0.1
- */
-export function lambdaLombardi(r: number): number {
-    if (r <= 0) throw new Error("r 必须大于 0");
-    return Math.pow(r, 0.1);
-}
-
-/**
- * 三模型平均 λ(r)
+ * 双模型平均 λ(r)
  *
  * λ_avg(r) =
- * (λ_epley + λ_brzycki + λ_lombardi) / 3
+ * (λ_epley + λ_brzycki) / 2
  */
 export function lambdaAverage(r: number): number {
     const e = lambdaEpley(r);
     const b = lambdaBrzycki(r);
-    const l = lambdaLombardi(r);
-
-    return (e + b + l) / 3;
+    return (e + b) / 2;
 }
 
 /**
  * 支持的 λ 模型类型
  */
 export type LambdaModel =
-    | "average" // 三公式平均
+    | "average" // 双公式平均
     | "epley"
-    | "brzycki"
-    | "lombardi";
+    | "brzycki";
 
 /**
  * 计算推荐负重 L_r
@@ -79,9 +67,6 @@ export function calcRecommendedLoad(
             break;
         case "brzycki":
             lambda = lambdaBrzycki(reps);
-            break;
-        case "lombardi":
-            lambda = lambdaLombardi(reps);
             break;
         case "average":
         default:

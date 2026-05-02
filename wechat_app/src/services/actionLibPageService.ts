@@ -129,6 +129,17 @@ export async function publishMyAction(actionId: string, actionType: 'student' | 
   return res.data ?? null
 }
 
+export async function syncPublicToMyLib(actionId: string, targetActionType: 'student' | 'coach' = 'student'): Promise<void> {
+  const res = await request<{ success?: boolean }>({
+    url: `${PUBLIC_BASE}/sync-to-my-lib`,
+    method: 'POST',
+    data: { actionId, targetActionType }
+  })
+  if (!res?.success) {
+    throw new Error((res as any)?.message || '同步失败')
+  }
+}
+
 /** 为公共动作提交编辑建议 */
 export async function submitPublicActionEdit(data: SubmitPublicActionEditInput): Promise<void> {
   const res = await request<{ edit?: unknown }>({

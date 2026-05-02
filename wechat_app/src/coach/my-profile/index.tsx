@@ -21,6 +21,10 @@ import BottomNav from '@/components/BottomNav'
 import { Icon } from '@/components/Icon'
 import { authService } from '@/services/authService'
 import { coachService } from '@/services/coach/coachService'
+import {
+  getCoachApplicationStatusMeta,
+  normalizeCoachApplicationStatus,
+} from '@/utils/coachApplicationParity'
 import './index.scss'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 
@@ -36,19 +40,26 @@ interface ProfileActionItem {
   badge?: string
 }
 
+interface CoachApplicationSummary {
+  status?: string
+  reviewNotes?: string | null
+  reviewedAt?: string | null
+}
+
 function CoachMyProfile() {
   const [user, setUser] = useState<any>(null)
   const [coach, setCoach] = useState<any>(null)
   const [overview, setOverview] = useState<any>(null)
   const [aggregatedInfo, setAggregatedInfo] = useState<any>(null)
+  const [coachApplication, setCoachApplication] = useState<CoachApplicationSummary | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   const openPage = useCallback((url: string) => {
     Taro.navigateTo({ url }).catch((navigateErr) => {
-      console.error('[coach/my-profile] navigateTo 失败:', navigateErr)
+      console.error('[coach/my-profile] navigateTo failed:', navigateErr)
       Taro.redirectTo({ url }).catch((redirectErr) => {
-        console.error('[coach/my-profile] redirectTo 失败:', redirectErr)
+        console.error('[coach/my-profile] redirectTo failed:', redirectErr)
         Taro.showToast({ title: '页面跳转失败', icon: 'none' })
       })
     })
@@ -60,9 +71,27 @@ function CoachMyProfile() {
       Taro.showToast({ title: '已切换到学员端', icon: 'success' })
       setTimeout(() => {
         Taro.reLaunch({ url: '/pages/index/index' }).catch((relaunchErr) => {
-          console.error('[coach/my-profile] reLaunch student 失败:', relaunchErr)
+          console.error('[coach/my-profile] reLaunch student failed:', relaunchErr)
           Taro.redirectTo({ url: '/pages/index/index' }).catch((redirectErr) => {
-            console.error('[coach/my-profile] redirectTo student 失败:', redirectErr)
+            console.error('[coach/my-profile] redirectTo student failed:', redirectErr)
+            Taro.showToast({ title: '切换后跳转失败', icon: 'none' })
+          })
+        })
+      }, 400)
+    } catch (e: any) {
+      Taro.showToast({ title: e?.message || '切换失败', icon: 'none' })
+    }
+  }, [])
+
+  const switchToCoach = useCallback(async () => {
+    try {
+      await authService.switchRole('coach')
+      Taro.showToast({ title: '已切换到教练端', icon: 'success' })
+      setTimeout(() => {
+        Taro.reLaunch({ url: '/coach/overview' }).catch((relaunchErr) => {
+          console.error('[coach/my-profile] reLaunch coach failed:', relaunchErr)
+          Taro.redirectTo({ url: '/coach/overview' }).catch((redirectErr) => {
+            console.error('[coach/my-profile] redirectTo coach failed:', redirectErr)
             Taro.showToast({ title: '切换后跳转失败', icon: 'none' })
           })
         })
@@ -82,7 +111,7 @@ function CoachMyProfile() {
           await authService.logout()
           Taro.showToast({ title: '已退出登录', icon: 'success' })
           setTimeout(() => {
-            Taro.reLaunch({ url: '/auth/login' })
+            Taro.reLaunch({ url: '/pages/index/index' })
           }, 500)
         } catch (e) {
           console.error('[coach/my-profile] logout:', e)
@@ -98,9 +127,7 @@ function CoachMyProfile() {
       return
     }
     const query = [`id=${encodeURIComponent(coach.id)}`]
-    if (edit) {
-      query.push('edit=1')
-    }
+    if (edit) query.push('edit=1')
     openPage(`/coach/profile/[id]?${query.join('&')}`)
   }, [coach?.id, openPage])
 
@@ -115,10 +142,40 @@ function CoachMyProfile() {
       return
     }
 
-    const currentUser = session.user
+    let currentUser = session.user
+    let canUseCoachSide = session.isCoach
     setUser(currentUser)
 
-    if (!session.isCoach) {
+    if (!canUseCoachSide) {
+      try {
+        const applicationRes = await coachService.getCoachApplication()
+        const application = applicationRes?.application || null
+        setCoachApplication(application ? {
+          status: application.status,
+          reviewNotes: application.review_notes || null,
+          reviewedAt: application.reviewed_at || null,
+        } : null)
+
+        const nextStatus = normalizeCoachApplicationStatus(application?.status ?? currentUser?.coach_status, !!currentUser?.is_coach)
+        const nextIsCoach = nextStatus === 'coach' || nextStatus === 'approved'
+        const nextUser = authService.mergeCurrentUser({
+          coach_status: nextStatus === 'coach' ? 'approved' : nextStatus,
+          is_coach: nextIsCoach,
+        })
+        if (nextUser) {
+          currentUser = nextUser
+          setUser(nextUser)
+          canUseCoachSide = !!nextUser.is_coach
+        }
+      } catch (applicationError) {
+        console.error('[coach/my-profile] load application failed:', applicationError)
+        setCoachApplication(null)
+      }
+    } else {
+      setCoachApplication(null)
+    }
+
+    if (!canUseCoachSide) {
       setCoach(null)
       setOverview(null)
       setAggregatedInfo(null)
@@ -127,7 +184,7 @@ function CoachMyProfile() {
       return
     }
 
-    if (session.primaryRole !== 'coach') {
+    if (currentUser?.primary_role !== 'coach') {
       setLoading(false)
       setError('当前处于学员端，请先切换到教练身份。')
       return
@@ -149,12 +206,12 @@ function CoachMyProfile() {
       setOverview(overviewRes)
       setAggregatedInfo(aggregatedRes)
     } catch (e) {
-      console.error('[coach/my-profile] load:', e)
+      console.error('[coach/my-profile] load failed:', e)
       setError('加载教练信息失败，请稍后重试')
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [openPage])
 
   useEffect(() => {
     void loadData()
@@ -298,10 +355,19 @@ function CoachMyProfile() {
     }
   }, [openPage])
 
+  const pendingCoachStatus = normalizeCoachApplicationStatus(
+    coachApplication?.status ?? user?.coach_status,
+    !!user?.is_coach,
+  )
+  const pendingCoachMeta = getCoachApplicationStatusMeta(
+    pendingCoachStatus,
+    coachApplication?.reviewNotes,
+  )
+
   if (loading) {
     return (
       <View className='coach-my-profile-page'>
-        <View className="loading-wrap"><LoadingSpinner size={48} /></View>
+        <View className='loading-wrap'><LoadingSpinner size={48} /></View>
         <BottomNav />
       </View>
     )
@@ -311,10 +377,29 @@ function CoachMyProfile() {
     return (
       <View className='coach-my-profile-page'>
         <View className='empty-state-card'>
-          <Text className='empty-state-title'>当前还不是教练身份</Text>
-          <Text className='empty-state-desc'>完成教练申请并审核通过后，这里会显示教练端的个人中心。</Text>
-          <View className='empty-state-action' onClick={() => openPage('/coach/application')}>
-            <Text className='empty-state-action-text'>去申请成为教练</Text>
+          <View className={`coach-application-status tone-${pendingCoachMeta.tone}`}>
+            <Text className='coach-application-status-text'>{pendingCoachMeta.label}</Text>
+          </View>
+          <Text className='empty-state-title'>
+            {pendingCoachStatus === 'none' ? '当前还不是教练身份' : `教练申请${pendingCoachMeta.label}`}
+          </Text>
+          <Text className='empty-state-desc'>{pendingCoachMeta.hint}</Text>
+          {coachApplication?.reviewedAt ? (
+            <Text className='empty-state-meta'>
+              最近审核时间：{String(coachApplication.reviewedAt).replace('T', ' ').slice(0, 16)}
+            </Text>
+          ) : null}
+          <View
+            className='empty-state-action'
+            onClick={() => {
+              if (pendingCoachStatus === 'approved' || pendingCoachStatus === 'coach') {
+                void switchToCoach()
+                return
+              }
+              openPage('/coach/application')
+            }}
+          >
+            <Text className='empty-state-action-text'>{pendingCoachMeta.actionLabel}</Text>
           </View>
         </View>
         <BottomNav />

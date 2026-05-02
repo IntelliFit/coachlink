@@ -65,8 +65,7 @@ export function meanLoadFactorForReps(reps: number) {
   if (reps < 1 || reps >= 37) throw new Error('Reps must be between 1 and 36')
   const fE = 1 + 0.0333 * reps
   const fB = 36 / (37 - reps)
-  const fL = Math.pow(reps, 0.1)
-  return (fE + fB + fL) / 3
+  return (fE + fB) / 2
 }
 
 export function estimateTotal1RMFromTotalWeightAndReps(totalWeight: number, reps: number) {
@@ -90,8 +89,7 @@ export function estimateRepsForTarget1RMContinuous(targetTotal1RM: number, total
 export function estimateRepsFromTotalWeightAndTarget1RM(target1RM: number, workingWeight: number) {
   const epleyReps = (target1RM / workingWeight - 1) / 0.0333
   const brzyckiReps = 37 - (36 * workingWeight) / target1RM
-  const lombardiReps = Math.pow(target1RM / workingWeight, 10)
-  return Math.max(1, (epleyReps + brzyckiReps + lombardiReps) / 3)
+  return Math.max(1, (epleyReps + brzyckiReps) / 2)
 }
 
 export function calculateAdded1RM(bodyweight: number, addedWeight: number, reps: number, penaltyWeight: number) {
@@ -106,32 +104,32 @@ export function calculateAdded1RM(bodyweight: number, addedWeight: number, reps:
 export function getScoreLevel(score: number, exerciseType: ExerciseType): { level: string } {
   if (isPowerliftingExercise(exerciseType)) {
     if (exerciseType === 'squat') {
-      if (score >= 182) return { level: 'World Class' }
-      if (score >= 158) return { level: 'National Elite' }
-      if (score >= 133) return { level: 'Advanced' }
-      if (score >= 105) return { level: 'Intermediate' }
-      return { level: 'Beginner' }
+      if (score >= 182) return { level: '世界一线' }
+      if (score >= 158) return { level: '国内一线' }
+      if (score >= 133) return { level: '大佬' }
+      if (score >= 105) return { level: '爱好者' }
+      return { level: '菜就多练' }
     }
     if (exerciseType === 'bench') {
-      if (score >= 130) return { level: 'World Class' }
-      if (score >= 113) return { level: 'National Elite' }
-      if (score >= 95) return { level: 'Advanced' }
-      if (score >= 75) return { level: 'Intermediate' }
-      return { level: 'Beginner' }
+      if (score >= 130) return { level: '世界一线' }
+      if (score >= 113) return { level: '国内一线' }
+      if (score >= 95) return { level: '大佬' }
+      if (score >= 75) return { level: '爱好者' }
+      return { level: '菜就多练' }
     }
     if (exerciseType === 'deadlift') {
-      if (score >= 208) return { level: 'World Class' }
-      if (score >= 180) return { level: 'National Elite' }
-      if (score >= 152) return { level: 'Advanced' }
-      if (score >= 120) return { level: 'Intermediate' }
-      return { level: 'Beginner' }
+      if (score >= 208) return { level: '世界一线' }
+      if (score >= 180) return { level: '国内一线' }
+      if (score >= 152) return { level: '大佬' }
+      if (score >= 120) return { level: '爱好者' }
+      return { level: '菜就多练' }
     }
   }
-  if (score >= 500) return { level: 'World Class' }
-  if (score >= 450) return { level: 'National Elite' }
-  if (score >= 400) return { level: 'Advanced' }
-  if (score >= 300) return { level: 'Intermediate' }
-  return { level: 'Beginner' }
+  if (score >= 500) return { level: '世界级' }
+  if (score >= 450) return { level: '国内顶级' }
+  if (score >= 400) return { level: '大佬' }
+  if (score >= 300) return { level: '爱好者水平' }
+  return { level: '菜就多练' }
 }
 
 export function generateRMTable(bodyweightForTotal: number, external1rm: number) {

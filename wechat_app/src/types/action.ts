@@ -34,6 +34,7 @@ export interface PublicActionContributorDto {
 export interface PublicActionItemDto {
   id: string
   contributor_user_id: string
+  owner_user_id?: string | null
   name: string
   detail: string | null
   positions: string[] | null
