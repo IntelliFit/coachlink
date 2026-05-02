@@ -14,7 +14,7 @@ import type {
 /**
  * POST /api/execution/calculate-e1rm
  *
- * Calculate estimated 1RM using 3-formula average method
+ * Calculate estimated 1RM using 2-formula average method
  */
 export async function POST(request: NextRequest) {
     try {
@@ -73,10 +73,10 @@ export async function POST(request: NextRequest) {
         let formula: string;
         if (shouldIncludeBodyWeight && bodyWeight) {
             formula =
-                `(${weight}kg + ${bodyWeight}kg自重) × avg(Epley, Brzycki, Lombardi) = ${result.e1rm}kg`;
+                `(${weight}kg + ${bodyWeight}kg自重) × avg(Epley, Brzycki) = ${result.e1rm}kg`;
         } else {
             formula =
-                `${weight}kg × ${reps}次 → avg(${result.epley}, ${result.brzycki}, ${result.lombardi}) = ${result.e1rm}kg`;
+                `${weight}kg × ${reps}次 → avg(${result.epley}, ${result.brzycki}) = ${result.e1rm}kg`;
         }
 
         return NextResponse.json<ApiData<CalculateE1RMResponseDto>>({
@@ -86,7 +86,6 @@ export async function POST(request: NextRequest) {
                 e1rm: result.e1rm,
                 epley: result.epley,
                 brzycki: result.brzycki,
-                lombardi: result.lombardi,
                 formula,
                 includesBodyWeight: shouldIncludeBodyWeight,
             },

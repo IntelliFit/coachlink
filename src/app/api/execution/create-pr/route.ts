@@ -125,7 +125,6 @@ export async function POST(request: NextRequest) {
             bodyWeight: includeBodyWeight ? bodyWeight : undefined,
             epley: e1rmResult.epley,
             brzycki: e1rmResult.brzycki,
-            lombardi: e1rmResult.lombardi,
         };
 
         const today = new Date().toISOString().split("T")[0];

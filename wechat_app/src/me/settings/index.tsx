@@ -45,7 +45,7 @@ function SettingsPage() {
       success: (res) => {
         if (res.confirm) {
           authService.logout()
-          Taro.reLaunch({ url: '/auth/login' })
+          Taro.reLaunch({ url: '/pages/index/index' })
         }
       }
     })

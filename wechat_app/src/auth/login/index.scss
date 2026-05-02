@@ -31,6 +31,47 @@
   padding-bottom: 96rpx;
 }
 
+.login-hero-topbar {
+  position: absolute;
+  top: 56rpx;
+  left: 56rpx;
+  right: 56rpx;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.login-back-button {
+  min-width: 144rpx;
+  height: 64rpx;
+  padding: 0 24rpx 0 16rpx;
+  border-radius: 9999rpx;
+  background: rgba(255, 255, 255, 0.18);
+  border: 2rpx solid rgba(255, 255, 255, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8rpx;
+  backdrop-filter: blur(12rpx);
+
+  &:active {
+    opacity: 0.9;
+    background: rgba(255, 255, 255, 0.24);
+  }
+}
+
+.login-back-icon {
+  font-size: 32rpx;
+  line-height: 1;
+  color: #FFFFFF;
+}
+
+.login-back-text {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #FFFFFF;
+}
+
 .login-hero-brand {
   font-size: 60rpx;
   font-weight: 800;

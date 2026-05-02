@@ -27,7 +27,34 @@ export async function POST(req: Request) {
             }, { status: 400 });
         }
 
+        const actionIds = Array.from(
+            new Set(
+                actions
+                    .map((action) => String(action.actionId || "").trim())
+                    .filter(Boolean),
+            ),
+        );
+
+        const actionMetaById = new Map<string, { name: string; type: string | null; attrs: string[] | null }>();
+        if (actionIds.length > 0) {
+            const { data: actionRows } = await supabase
+                .from("student_actions")
+                .select("id, name, type, attrs")
+                .eq("user_id", userId)
+                .in("id", actionIds);
+
+            (actionRows || []).forEach((item: any) => {
+                actionMetaById.set(String(item.id), {
+                    name: item.name || "",
+                    type: item.type || "STRENGTH",
+                    attrs: Array.isArray(item.attrs) ? item.attrs : null,
+                });
+            });
+        }
+
         const actionExecutions = actions.map((action, actionIndex) => {
+            const actionId = String(action.actionId || "").trim() || null;
+            const actionMeta = actionId ? actionMetaById.get(actionId) : null;
             const totalSets = Math.max(1, Number(action.sets || 1));
             const plannedReps = action.reps === null || action.reps === undefined
                 ? null
@@ -40,9 +67,11 @@ export async function POST(req: Request) {
                 : 90;
 
             return {
-                action_id: action.actionId || null,
+                action_id: actionId,
                 action_name: action.actionName || `动作${actionIndex + 1}`,
                 action_order: actionIndex + 1,
+                type: actionMeta?.type || "STRENGTH",
+                attrs: actionMeta?.attrs || null,
                 sets: Array.from({ length: totalSets }, (_, setIndex) => ({
                     set_number: setIndex + 1,
                     status: "pending",

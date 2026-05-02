@@ -313,7 +313,6 @@ export const buildStrengthPreview = (params: Record<string, any>, options: {
   const modelMap = {
     Epley: 'epley',
     Brzycki: 'brzycki',
-    Lombardi: 'lombardi',
     综合计算: 'average'
   } as const
   const lambdaModel = modelMap[algorithm as keyof typeof modelMap] || 'average'

@@ -7,6 +7,7 @@ import {
     CreateOrderResponse,
 } from "@/app/service/studentMembershipService";
 import { createAlipaySdk } from "@/lib/alipaySdk";
+import { yuanToFen } from "@/lib/moneyUtils";
 
 /**
  * Product configurations
@@ -64,6 +65,7 @@ export async function POST(request: Request) {
 
     const product = PRODUCTS[productKey];
     const amount = product.price;
+    const amountFen = yuanToFen(amount);
 
     // Guardrail: prevent accidentally deploying 1-cent pricing to production.
     if (!TEST_PRICING_ENABLED && process.env.NODE_ENV === "production" && amount < 1) {
@@ -80,8 +82,8 @@ export async function POST(request: Request) {
         .insert({
             user_id: session.user.id,
             product_key: productKey,
-            amount,
-            original_amount: product.price,
+            amount: amountFen,
+            original_amount: amountFen,
             payment_method: paymentMethod,
             status: "pending",
         })

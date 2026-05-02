@@ -159,7 +159,6 @@ export async function POST(req: Request) {
                                 : undefined,
                             epley: e1rmResult.epley,
                             brzycki: e1rmResult.brzycki,
-                            lombardi: e1rmResult.lombardi,
                         };
 
                         // 检查当前最高 e1RM (从 personal_records_history)

@@ -907,7 +907,7 @@ export default function PlanEditorWorkbench({
               <View className='plan-editor__field plan-editor__field--full'>
                 <Text className='plan-editor__label'>自动计算算法</Text>
                 <View className='plan-editor__chip-row'>
-                  {['综合计算', 'Epley', 'Brzycki', 'Lombardi'].map((name) => (
+                                  {['综合计算', 'Epley', 'Brzycki'].map((name) => (
                     <View
                       key={name}
                       className={`plan-editor__chip ${strengthAlgorithm === name ? 'active' : ''}`}

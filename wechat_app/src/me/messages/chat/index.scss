@@ -216,6 +216,20 @@
     display: block;
   }
 
+  .message-media-block {
+    display: flex;
+    flex-direction: column;
+    gap: 8rpx;
+  }
+
+  .message-media-caption {
+    display: block;
+    font-size: 26rpx;
+    line-height: 40rpx;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
   .video-ref-list {
     display: flex;
     flex-direction: column;

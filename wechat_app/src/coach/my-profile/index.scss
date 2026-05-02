@@ -216,8 +216,8 @@
 
   .primary-button,
   .empty-state-action {
-    background: #2563eb;
-    box-shadow: 0 10px 18px rgba(37, 99, 235, 0.18);
+    background: #cf6d4e;
+    box-shadow: 0 10px 18px rgba(207, 109, 78, 0.18);
   }
 
   .secondary-button {
@@ -371,5 +371,49 @@
     font-size: 13px;
     line-height: 1.6;
     color: #64748b;
+  }
+
+  .empty-state-meta {
+    display: block;
+    margin-bottom: 18px;
+    font-size: 12px;
+    line-height: 1.5;
+    color: #94a3b8;
+  }
+
+  .coach-application-status {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 32px;
+    padding: 0 14px;
+    border-radius: 999px;
+    margin-bottom: 14px;
+
+    &.tone-slate {
+      background: #f1f5f9;
+    }
+
+    &.tone-amber {
+      background: #fef3c7;
+    }
+
+    &.tone-orange {
+      background: #fed7aa;
+    }
+
+    &.tone-red {
+      background: #fecdd3;
+    }
+
+    &.tone-green {
+      background: #dcfce7;
+    }
+  }
+
+  .coach-application-status-text {
+    font-size: 12px;
+    font-weight: 800;
+    color: #334155;
   }
 }

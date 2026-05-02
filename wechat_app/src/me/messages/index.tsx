@@ -5,6 +5,7 @@ import BottomNav from '@/components/BottomNav'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { authService } from '@/services/authService'
 import { chatService, type ChatroomItem, CHAT_UNREAD_BADGE_REFRESH_EVENT } from '@/services/chatService'
+import { resolveCoachChatUserId } from '@/utils/coachChat'
 import { request } from '@/utils/request'
 import { Location, Message } from '@nutui/icons-react-taro'
 import './index.scss'
@@ -67,8 +68,9 @@ function ChatroomRowAvatar({
 function MessagesPage() {
   const router = useRouter()
   const pendingCoachId = router.params?.coachId ? decodeURIComponent(router.params.coachId) : ''
+  const pendingPeerUserId = router.params?.peerUserId ? decodeURIComponent(router.params.peerUserId) : ''
   const pendingCoachName = router.params?.coachName ? decodeURIComponent(router.params.coachName) : ''
-  const lastAutoOpenCoachIdRef = useRef('')
+  const lastAutoOpenTargetRef = useRef('')
   const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const pollingInFlightRef = useRef(false)
 
@@ -124,13 +126,20 @@ function MessagesPage() {
 
       if (
         !skipAutoOpen &&
-        pendingCoachId &&
-        pendingCoachId !== userId &&
-        lastAutoOpenCoachIdRef.current !== pendingCoachId
+        (pendingPeerUserId || pendingCoachId) &&
+        lastAutoOpenTargetRef.current !== `${pendingPeerUserId}::${pendingCoachId}`
       ) {
-        lastAutoOpenCoachIdRef.current = pendingCoachId
-        const opened = await openChatWithCoach(userId, pendingCoachId, pendingCoachName)
-        if (opened) return
+        lastAutoOpenTargetRef.current = `${pendingPeerUserId}::${pendingCoachId}`
+        const peerUserId =
+          pendingPeerUserId ||
+          (await resolveCoachChatUserId({
+            coachId: pendingCoachId
+          }))
+
+        if (peerUserId && peerUserId !== userId) {
+          const opened = await openChatWithCoach(userId, peerUserId, pendingCoachName)
+          if (opened) return
+        }
       }
 
       const data = await chatService.listChatrooms({ page: 1, limit: 50 })
@@ -146,7 +155,7 @@ function MessagesPage() {
       if (!silent) setLoading(false)
       Taro.eventCenter.trigger(CHAT_UNREAD_BADGE_REFRESH_EVENT)
     }
-  }, [openChatWithCoach, pendingCoachId, pendingCoachName, sortChatrooms])
+  }, [openChatWithCoach, pendingCoachId, pendingCoachName, pendingPeerUserId, sortChatrooms])
 
   const loadFriendRequests = useCallback(async () => {
     try {
