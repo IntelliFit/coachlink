@@ -194,7 +194,6 @@ function StudentOnboarding() {
   const [saving, setSaving] = useState(false)
   const [step, setStep] = useState(1)
   const [formData, setFormData] = useState<OnboardingFormData>(DEFAULT_FORM_DATA)
-  const [bodyView, setBodyView] = useState<BodyView>('front')
 
   const [heightIndex, setHeightIndex] = useState(() => {
     const idx = DEFAULT_FORM_DATA.height - HEIGHT_MIN
@@ -417,14 +416,23 @@ function StudentOnboarding() {
 
   const stepInfo = STEP_TITLES[step - 1]
 
-  const renderBodyPartsStep = () => {
-    const effectiveGender = formData.gender === 'female' ? 'female' : 'male'
+  interface BodyPartsStepProps {
+    gender: string
+    selectedParts: string[]
+    onChange: (parts: string[]) => void
+  }
+
+  const BodyPartsStep: React.FC<BodyPartsStepProps> = ({ gender, selectedParts, onChange }) => {
+    const [view, setView] = useState<BodyView>('front')
+
+    const effectiveGender = gender === 'female' ? 'female' : 'male'
+
     const svgRaw = useMemo(() => {
       if (effectiveGender === 'female') {
-        return bodyView === 'front' ? femaleFrontSvgRaw : femaleBackSvgRaw
+        return view === 'front' ? femaleFrontSvgRaw : femaleBackSvgRaw
       }
-      return bodyView === 'front' ? maleFrontSvgRaw : maleBackSvgRaw
-    }, [bodyView, effectiveGender])
+      return view === 'front' ? maleFrontSvgRaw : maleBackSvgRaw
+    }, [view, effectiveGender])
 
     const categoryMap = useMemo(() => parseSvgCategoryMap(svgRaw), [svgRaw])
 
@@ -437,38 +445,37 @@ function StudentOnboarding() {
     }, [categoryMap])
 
     const svgDataUri = useMemo(() => {
-      const highlighted = highlightSvgParts(svgRaw, formData.targetBodyParts, categoryMap)
-      const svgStr = highlighted
-        .replace(
-          /<svg\s/,
-          '<svg style="width:100%;height:100%;display:block;" preserveAspectRatio="xMidYMid meet" '
-        )
+      const baseSvg = svgRaw
         .replace(/fill:#fff/gi, 'fill:#222222')
         .replace(/fill="#fff"/gi, 'fill="#222222"')
+      const highlighted = highlightSvgParts(baseSvg, selectedParts, categoryMap)
+      const svgStr = highlighted.replace(
+        /<svg\s/,
+        '<svg style="width:100%;height:100%;display:block;" preserveAspectRatio="xMidYMid meet" '
+      )
       return svgToDataUri(svgStr)
-    }, [svgRaw, formData.targetBodyParts, categoryMap])
+    }, [svgRaw, selectedParts, categoryMap])
 
     const toggleBodyPart = (id: string) => {
-      setFormData((prev) => {
-        const next = prev.targetBodyParts.includes(id)
-          ? prev.targetBodyParts.filter((item) => item !== id)
-          : [...prev.targetBodyParts, id]
-        return { ...prev, targetBodyParts: next }
-      })
+      onChange(
+        selectedParts.includes(id)
+          ? selectedParts.filter((item) => item !== id)
+          : [...selectedParts, id]
+      )
     }
 
     return (
       <View className='step-content body-parts-step'>
         <View className='bp-view-toggle'>
           <View
-            className={`bp-view-btn ${bodyView === 'front' ? 'bp-view-btn--active' : ''}`}
-            onClick={() => setBodyView('front')}
+            className={`bp-view-btn ${view === 'front' ? 'bp-view-btn--active' : ''}`}
+            onClick={() => setView('front')}
           >
             <Text className='bp-view-btn-text'>正面</Text>
           </View>
           <View
-            className={`bp-view-btn ${bodyView === 'back' ? 'bp-view-btn--active' : ''}`}
-            onClick={() => setBodyView('back')}
+            className={`bp-view-btn ${view === 'back' ? 'bp-view-btn--active' : ''}`}
+            onClick={() => setView('back')}
           >
             <Text className='bp-view-btn-text'>背面</Text>
           </View>
@@ -477,7 +484,7 @@ function StudentOnboarding() {
         <View className='bp-main'>
           <View className='bp-list'>
             {options.map((m) => {
-              const isSelected = formData.targetBodyParts.includes(m.id)
+              const isSelected = selectedParts.includes(m.id)
               return (
                 <View
                   key={m.id}
@@ -504,7 +511,7 @@ function StudentOnboarding() {
         </View>
 
         <View className='bp-count'>
-          <Text className='bp-count-text'>已选 {formData.targetBodyParts.length} 个部位</Text>
+          <Text className='bp-count-text'>已选 {selectedParts.length} 个部位</Text>
         </View>
       </View>
     )
@@ -600,7 +607,13 @@ function StudentOnboarding() {
         </View>
       )}
 
-      {step === 3 && renderBodyPartsStep()}
+      {step === 3 && (
+        <BodyPartsStep
+          gender={formData.gender}
+          selectedParts={formData.targetBodyParts}
+          onChange={(parts) => setFormData((prev) => ({ ...prev, targetBodyParts: parts }))}
+        />
+      )}
 
       {step === 4 && (
 
