@@ -103,14 +103,17 @@ const BodyPartsPage: React.FC = () => {
   // 根据 displayMode 构建可选项列表
   const options = useMemo(() => {
     if (displayMode === 'professional') {
-      // 专业模式：按 data-name 列表
-      return Object.keys(categoryMap).map((name) => ({
-        id: name,
-        label: name,
-      }))
+      // 专业模式：按 data-name 列表，过滤掉关节
+      return Object.entries(categoryMap)
+        .filter(([, category]) => category !== '关节')
+        .map(([name]) => ({
+          id: name,
+          label: name,
+        }))
     }
-    // 普通模式：按 category 去重
+    // 普通模式：按 category 去重，过滤掉关节
     const categories = Array.from(new Set(Object.values(categoryMap)))
+      .filter((cat) => cat !== '关节')
     return categories.map((cat) => ({
       id: cat,
       label: cat,

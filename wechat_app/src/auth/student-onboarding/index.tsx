@@ -438,6 +438,7 @@ function StudentOnboarding() {
 
     const options = useMemo(() => {
       const categories = Array.from(new Set(Object.values(categoryMap)))
+        .filter((cat) => cat !== '关节')
       return categories.map((cat) => ({
         id: cat,
         label: cat,
