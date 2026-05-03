@@ -57,12 +57,13 @@ export async function autoMatchPlanForSubscription(
             return { success: false, reason: "无问卷数据" };
         }
 
-        // 尝试自动匹配并生成计划（延迟2分钟激活）
+        // 自动匹配走 AI 生成（延迟2分钟激活）
         await createAiInstanceForSubscription({
             actorUserId,
             actorCoachId,
             subscriptionId,
             delayedActivation: true, // 延迟2分钟激活
+            useLLM: true,
         });
 
         console.log(`[auto-match-plan] 成功为订阅 ${subscriptionId} 自动匹配并生成计划`);

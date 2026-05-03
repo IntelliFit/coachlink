@@ -60,7 +60,7 @@
       display: flex;
       align-items: center;
       gap: 8rpx;
-      background: #CF6D4E;
+      background: #1890ff;
       padding: 16rpx 24rpx;
       border-radius: 8rpx;
 
@@ -98,7 +98,7 @@
       height: 80rpx;
       padding: 0 24rpx;
       border-radius: 8rpx;
-      background: #CF6D4E;
+      background: #1f2937;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -350,30 +350,22 @@
         flex-direction: column;
         gap: 8rpx;
         margin-left: 16rpx;
-        min-width: 120rpx;
 
         .menu-item {
-          min-height: 56rpx;
           padding: 8rpx 16rpx;
-          background: #ffffff;
+          background: #f5f5f5;
           border-radius: 8rpx;
-          border: 2rpx solid #e5e7eb;
-          display: flex;
-          align-items: center;
-          justify-content: center;
 
           Text {
             font-size: 22rpx;
-            color: #4b5563;
-            font-weight: 600;
+            color: #666;
           }
 
           &.publish {
-            background: #CF6D4E;
-            border-color: #CF6D4E;
+            background: #fff7ed;
 
             Text {
-              color: #ffffff;
+              color: #ea580c;
             }
           }
 
@@ -382,11 +374,10 @@
           }
 
           &.delete {
-            background: #ffffff;
-            border-color: #fecaca;
+            background: #fff1f0;
 
             Text {
-              color: #dc2626;
+              color: #ff4d4f;
             }
           }
         }
@@ -507,8 +498,7 @@
       }
 
       &.subtle {
-        background: #ffffff;
-        border: 2rpx solid #e5e7eb;
+        background: #f3f4f6;
 
         Text {
           color: #4b5563;
@@ -516,8 +506,7 @@
       }
 
       &.primary {
-        background: #CF6D4E;
-        border: 2rpx solid #CF6D4E;
+        background: #f97316;
 
         Text {
           color: #fff;
@@ -710,7 +699,7 @@
         }
 
         .btn-primary {
-          background: #CF6D4E;
+          background: #1890ff;
 
           Text {
             color: #fff;
@@ -722,8 +711,7 @@
         }
 
         .btn-secondary {
-          background: #ffffff;
-          border: 2rpx solid #e5e7eb;
+          background: #f5f5f5;
 
           Text {
             color: #666;

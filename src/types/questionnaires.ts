@@ -44,6 +44,10 @@ interface BaseQuestion {
     next?: string | null;
 }
 
+/**
+ * @deprecated 历史题型；问卷星化后新建问卷不再产生 tags 题。
+ * 已存在的 tags 题在 UI 上只读 + 可删，类型保留以兼容存量数据。
+ */
 export interface TrainingTagsQuestion extends BaseQuestion {
     type: "tags";
     /**
@@ -61,6 +65,10 @@ export interface TrainingTagsQuestion extends BaseQuestion {
     branching?: QuestionBranching;
 }
 
+/**
+ * @deprecated 历史题型；问卷星化后新建问卷不再产生 times 题。
+ * 已存在的 times 题在 UI 上只读 + 可删，类型保留以兼容存量数据。
+ */
 export interface TrainingTimesQuestion extends BaseQuestion {
     type: "times";
     // 允许教练自定义题干（不填则使用默认文案）
@@ -72,6 +80,10 @@ export interface TrainingTimesQuestion extends BaseQuestion {
     branching?: QuestionBranching;
 }
 
+/**
+ * @deprecated 历史题型；问卷星化后新建问卷不再产生 rm 题。
+ * 已存在的 rm 题在 UI 上只读 + 可删，类型保留以兼容存量数据。
+ */
 export interface TrainingRmQuestion extends BaseQuestion {
     type: "rm";
     /**
@@ -86,8 +98,12 @@ export interface TrainingOptionQuestion extends BaseQuestion {
     type: "option";
     question: string;
     options: string[];
+    selectionMode?: "single" | "multiple";
+    allowOther?: boolean;
     scope?: "global" | "action"; // 区分问题类型：global=全局匹配，action=动作选择，默认action
     userSelection?: number;
+    userSelections?: number[];
+    userOtherText?: string;
     // 条件分支逻辑（树状问卷）
     branching?: QuestionBranching;
 }
@@ -99,6 +115,12 @@ export interface TrainingTextQuestion extends BaseQuestion {
 }
 
 export type QuestionType = "tags" | "times" | "option" | "text" | "rm";
+export type QuestionnaireEditorType = "simple" | "flow";
+
+export interface QuestionnaireDocument {
+    editorType: QuestionnaireEditorType;
+    questions: TrainingItem[];
+}
 
 export type TrainingItem =
     | TrainingTagsQuestion

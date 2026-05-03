@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { View, Text, ScrollView } from '@tarojs/components'
+import { View, Text, ScrollView, Textarea } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { Dialog, Button, Checkbox, Radio, Input, Skeleton } from '@nutui/nutui-react-taro'
 import './index.scss'
@@ -9,8 +9,11 @@ interface TrainingItem {
   type: string
   question?: string
   options?: any[]
+  selectionMode?: 'single' | 'multiple'
+  allowOther?: boolean
   userSelections?: string[]
   userSelection?: any
+  userOtherText?: string
   userInputs?: any
 }
 
@@ -147,13 +150,100 @@ const QuestionnaireForm: React.FC<QuestionnaireFormProps> = ({
                   </View>
                 )}
 
-                {(item.type === 'option' || item.type === 'text') && (
+                {item.type === 'option' && (() => {
+                  const isMultiple = item.selectionMode === 'multiple'
+                  const allowOther = Boolean(item.allowOther)
+                  const opts: string[] = (Array.isArray(item.options) ? item.options : []) as string[]
+                  const selections: string[] = Array.isArray(item.userSelections) ? item.userSelections : []
+                  const singleSelection = typeof item.userSelection === 'string' ? item.userSelection : ''
+                  const OTHER_KEY = '__other__'
+                  const otherChecked = isMultiple ? selections.includes(OTHER_KEY) : singleSelection === OTHER_KEY
+
+                  return (
+                    <View className="option-group">
+                      {opts.map((opt: string, optIdx: number) => {
+                        const checked = isMultiple
+                          ? selections.includes(opt)
+                          : singleSelection === opt
+                        return isMultiple ? (
+                          <Checkbox
+                            key={optIdx}
+                            checked={checked}
+                            onChange={(c) => {
+                              const next = c
+                                ? Array.from(new Set([...selections, opt]))
+                                : selections.filter((s) => s !== opt)
+                              updateAnswer(index, 'userSelections', next)
+                            }}
+                            className="option-checkbox"
+                          >
+                            {opt}
+                          </Checkbox>
+                        ) : (
+                          <Radio
+                            key={optIdx}
+                            checked={checked}
+                            onChange={() => updateAnswer(index, 'userSelection', opt)}
+                            className="option-radio"
+                          >
+                            {opt}
+                          </Radio>
+                        )
+                      })}
+                      {allowOther && (
+                        <View className="option-other">
+                          {isMultiple ? (
+                            <Checkbox
+                              checked={otherChecked}
+                              onChange={(c) => {
+                                const next = c
+                                  ? Array.from(new Set([...selections, OTHER_KEY]))
+                                  : selections.filter((s) => s !== OTHER_KEY)
+                                updateAnswer(index, 'userSelections', next)
+                                if (!c) {
+                                  updateAnswer(index, 'userOtherText', '')
+                                }
+                              }}
+                              className="option-checkbox"
+                            >
+                              其他
+                            </Checkbox>
+                          ) : (
+                            <Radio
+                              checked={otherChecked}
+                              onChange={() => updateAnswer(index, 'userSelection', OTHER_KEY)}
+                              className="option-radio"
+                            >
+                              其他
+                            </Radio>
+                          )}
+                          {otherChecked && (
+                            <Input
+                              className="option-other-input"
+                              value={item.userOtherText || ''}
+                              onChange={(val) => updateAnswer(index, 'userOtherText', val)}
+                              placeholder="请补充说明"
+                            />
+                          )}
+                        </View>
+                      )}
+                    </View>
+                  )
+                })()}
+
+                {item.type === 'text' && (
                   <View className="text-input">
-                    <Input
+                    <Textarea
+                      className="text-textarea"
                       value={item.userSelection?.toString() || ''}
-                      onChange={(val) => updateAnswer(index, 'userSelection', val)}
-                      placeholder="请输入答案"
+                      onInput={(e) => updateAnswer(index, 'userSelection', e.detail.value)}
+                      placeholder="请一次性把你的情况写完整，例如训练目标、当前水平、每周训练次数、器械条件、伤痛限制、作息情况等"
+                      maxlength={-1}
+                      autoHeight
                     />
+                    <Text className="text-input-hint">
+                      一次性写完整会更方便教练和 AI 理解你的情况。
+                    </Text>
                   </View>
                 )}
               </View>

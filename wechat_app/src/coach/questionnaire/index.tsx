@@ -9,26 +9,26 @@ import { LoadingSpinner } from '@/components/LoadingSpinner'
 interface QuestionnaireTemplateItem {
   id: string
   name?: string
-  is_active: boolean
+  status: 'active' | 'draft'
+  editorType: 'simple' | 'flow'
+  is_default?: boolean
   version?: number | null
   created_at?: string | null
   updated_at?: string | null
-  is_default?: boolean
 }
 
 interface QuestionnaireSummary {
   questionCount: number
   questionTypes: string[]
   hasBranching: boolean
-  hasConfiguredRM: boolean
 }
 
 const QUESTION_TYPE_LABELS: Record<string, string> = {
-  text: '文本',
-  option: '单选',
-  times: '训练频率',
-  tags: '训练偏好',
-  rm: '1RM'
+  text: '纯文本',
+  option: '选项题',
+  times: '训练频率（旧）',
+  tags: '训练偏好（旧）',
+  rm: '1RM（旧）',
 }
 
 function formatTemplateDate(value?: string | null) {
@@ -57,16 +57,14 @@ function buildSummary(questions: any[]): QuestionnaireSummary {
       const hasRules = !!rules && typeof rules === 'object' && Object.keys(rules).length > 0
       return hasRules || branching?.defaultNext !== undefined
     }),
-    hasConfiguredRM: questions.some((item) => item?.type === 'rm' && Array.isArray(item?.actionIds) && item.actionIds.length > 0)
   }
 }
 
 function CoachQuestionnaire() {
   const [templates, setTemplates] = useState<QuestionnaireTemplateItem[]>([])
   const [summaryMap, setSummaryMap] = useState<Record<string, QuestionnaireSummary>>({})
-  const [defaultId, setDefaultId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
-  const [busyAction, setBusyAction] = useState<string>('')
+  const [busyId, setBusyId] = useState<string>('')
 
   const loadData = useCallback(async () => {
     const token = Taro.getStorageSync('token')
@@ -82,20 +80,18 @@ function CoachQuestionnaire() {
       if (!coachRes?.coach?.id) {
         setTemplates([])
         setSummaryMap({})
-        setDefaultId(null)
         return
       }
 
       const listRes = await coachService.listQuestionnaires({ coachId: coachRes.coach.id })
-      const items = Array.isArray(listRes?.items) ? listRes.items : []
+      const items = (Array.isArray(listRes?.items) ? listRes.items : []) as QuestionnaireTemplateItem[]
 
       setTemplates(items)
-      setDefaultId(listRes?.defaultId || null)
 
       const summaryEntries = await Promise.all(
         items.map(async (item) => {
           try {
-            const detail = await coachService.getQuestionnaireById({ id: item.id })
+            const detail: any = await coachService.getQuestionnaireById({ id: item.id })
             const questions = Array.isArray(detail?.questionnaires) ? detail.questionnaires : []
             return [item.id, buildSummary(questions)] as const
           } catch (error) {
@@ -110,7 +106,6 @@ function CoachQuestionnaire() {
       console.error('[coach/questionnaire] load:', error)
       setTemplates([])
       setSummaryMap({})
-      setDefaultId(null)
       Taro.showToast({ title: '加载失败', icon: 'none' })
     } finally {
       setLoading(false)
@@ -125,123 +120,89 @@ function CoachQuestionnaire() {
     void loadData()
   })
 
-  const onlineTemplate = useMemo(
-    () => templates.find((item) => item.is_active) || null,
-    [templates]
-  )
+  const sortedTemplates = useMemo(() => {
+    const list = [...templates]
+    list.sort((a, b) => {
+      // active first, default first, then by updated_at desc
+      if (a.status === 'active' && b.status !== 'active') return -1
+      if (a.status !== 'active' && b.status === 'active') return 1
+      if (a.is_default && !b.is_default) return -1
+      if (!a.is_default && b.is_default) return 1
+      const ad = a.updated_at || a.created_at || ''
+      const bd = b.updated_at || b.created_at || ''
+      return bd.localeCompare(ad)
+    })
+    return list
+  }, [templates])
 
-  const draftTemplate = useMemo(
-    () => templates.find((item) => !item.is_active) || null,
-    [templates]
-  )
-
-  const defaultTemplate = useMemo(
-    () => templates.find((item) => item.id === defaultId) || onlineTemplate || null,
-    [defaultId, onlineTemplate, templates]
-  )
-
-  const onlineSummary = onlineTemplate ? summaryMap[onlineTemplate.id] : null
-  const draftSummary = draftTemplate ? summaryMap[draftTemplate.id] : null
-
-  const openEditor = useCallback((mode: 'online' | 'draft') => {
-    Taro.navigateTo({ url: `/coach/questionnaire/edit?mode=${mode}` }).catch((error) => {
+  const openEditor = useCallback((id?: string) => {
+    const url = id
+      ? `/coach/questionnaire/edit?id=${encodeURIComponent(id)}`
+      : `/coach/questionnaire/edit`
+    Taro.navigateTo({ url }).catch((error) => {
       console.error('[coach/questionnaire] navigate edit failed:', error)
       Taro.showToast({ title: '页面跳转失败', icon: 'none' })
     })
   }, [])
 
-  const handleCopyFromOnline = useCallback(async () => {
-    if (!onlineTemplate?.id) {
-      openEditor('draft')
-      return
-    }
-
+  const handleSetDefault = useCallback(async (id: string) => {
     try {
-      setBusyAction('copy')
-      const res = await coachService.duplicateQuestionnaire({ id: onlineTemplate.id })
+      setBusyId(id)
+      const res = await coachService.setDefaultQuestionnaire({ id })
       if (res?.success) {
-        Taro.showToast({ title: '已生成草稿', icon: 'success' })
+        Taro.showToast({ title: '已设为默认', icon: 'success' })
         await loadData()
-        openEditor('draft')
-        return
+      } else {
+        Taro.showToast({ title: res?.message || '操作失败', icon: 'none' })
       }
-      Taro.showToast({ title: res?.message || '复制失败', icon: 'none' })
-    } catch (error) {
-      console.error('[coach/questionnaire] copy:', error)
-      Taro.showToast({ title: '复制失败', icon: 'none' })
-    } finally {
-      setBusyAction('')
-    }
-  }, [loadData, onlineTemplate?.id, openEditor])
-
-  const handlePublishDraft = useCallback(async () => {
-    if (!draftTemplate?.id) {
-      Taro.showToast({ title: '当前还没有草稿', icon: 'none' })
-      return
-    }
-
-    const confirmRes = await Taro.showModal({
-      title: '发布草稿',
-      content: '发布后，学员端将立即使用这份线上问卷。确定继续吗？',
-      confirmText: '发布',
-      confirmColor: '#0f766e'
-    })
-
-    if (!confirmRes.confirm) return
-
-    try {
-      setBusyAction('publish')
-      const res = await coachService.publishQuestionnaire({ id: draftTemplate.id })
-      if (res?.success) {
-        Taro.showToast({ title: '已发布上线', icon: 'success' })
-        await loadData()
-        return
-      }
-      Taro.showToast({ title: res?.message || '发布失败', icon: 'none' })
-    } catch (error) {
-      console.error('[coach/questionnaire] publish:', error)
-      Taro.showToast({ title: '发布失败', icon: 'none' })
-    } finally {
-      setBusyAction('')
-    }
-  }, [draftTemplate?.id, loadData])
-
-  const handleSetDefault = useCallback(async (templateId: string) => {
-    try {
-      setBusyAction(`default-${templateId}`)
-      const res = await coachService.setDefaultQuestionnaire({ id: templateId })
-      if (res?.success) {
-        Taro.showToast({ title: '已设为默认问卷', icon: 'success' })
-        await loadData()
-        return
-      }
-      Taro.showToast({ title: res?.message || '设置失败', icon: 'none' })
     } catch (error) {
       console.error('[coach/questionnaire] set default:', error)
-      Taro.showToast({ title: '设置失败', icon: 'none' })
+      Taro.showToast({ title: '操作失败', icon: 'none' })
     } finally {
-      setBusyAction('')
+      setBusyId('')
     }
   }, [loadData])
 
-  const renderTemplateCard = (template: QuestionnaireTemplateItem, variant: 'online' | 'draft') => {
+  const handleDuplicate = useCallback(async (id: string) => {
+    try {
+      setBusyId(id)
+      const res = await coachService.duplicateQuestionnaire({ id })
+      if (res?.success) {
+        Taro.showToast({ title: '已复制一份副本', icon: 'success' })
+        await loadData()
+      } else {
+        Taro.showToast({ title: res?.message || '复制失败', icon: 'none' })
+      }
+    } catch (error) {
+      console.error('[coach/questionnaire] duplicate:', error)
+      Taro.showToast({ title: '复制失败', icon: 'none' })
+    } finally {
+      setBusyId('')
+    }
+  }, [loadData])
+
+  const renderTemplateCard = (template: QuestionnaireTemplateItem) => {
     const summary = summaryMap[template.id] || buildSummary([])
-    const isDefault = template.is_default || defaultId === template.id
-    const actionMode = template.is_active ? 'online' : 'draft'
-    const actionText = template.is_active ? '查看线上配置' : '继续编辑草稿'
+    const isActive = template.status === 'active'
+    const busy = busyId === template.id
 
     return (
-      <View key={template.id} className={`template-card ${variant}`}>
+      <View key={template.id} className={`template-card ${isActive ? 'online' : 'draft'}`}>
         <View className='template-card__head'>
           <View className='template-card__title-wrap'>
             <Text className='template-card__title'>
-              {template.name || (template.is_active ? '线上版本' : '草稿版本')}
+              {template.name || (isActive ? '已发布问卷' : '编辑中问卷')}
             </Text>
             <View className='template-card__badge-row'>
-              <Text className={`template-badge ${variant}`}>
-                {template.is_active ? '当前线上' : '草稿'}
+              <Text className={`template-badge ${isActive ? 'online' : 'draft'}`}>
+                {isActive ? '已发布' : '编辑中'}
               </Text>
-              {isDefault ? <Text className='template-badge default'>默认问卷</Text> : null}
+              <Text className='template-badge editor-type'>
+                {template.editorType === 'flow' ? '流程图式' : '列表式'}
+              </Text>
+              {template.is_default && (
+                <Text className='template-badge default'>默认</Text>
+              )}
             </View>
           </View>
           <Text className='template-card__version'>v{template.version ?? 1}</Text>
@@ -259,45 +220,35 @@ function CoachQuestionnaire() {
           ) : (
             <Text className='template-chip muted'>暂未配置题目</Text>
           )}
-        </View>
-
-        <View className='template-card__insights'>
-          <Text className='template-insight'>
-            {summary.hasBranching ? '含条件分支逻辑' : '当前为顺序问卷'}
-          </Text>
-          <Text className='template-insight'>
-            {summary.hasConfiguredRM ? '已配置 1RM 动作采集' : '尚未配置 1RM 动作'}
-          </Text>
+          {summary.hasBranching && (
+            <Text className='template-chip'>含条件分支</Text>
+          )}
         </View>
 
         <View className='template-card__actions'>
-          <View className='action-pill primary' onClick={() => openEditor(actionMode)}>
-            <Text className='action-pill__text'>{actionText}</Text>
+          <View className='action-pill primary' onClick={() => openEditor(template.id)}>
+            <Text className='action-pill__text'>编辑</Text>
           </View>
-
-          {!template.is_active ? (
+          <View
+            className={`action-pill ${busy ? 'disabled' : ''}`}
+            onClick={() => {
+              if (busy) return
+              void handleDuplicate(template.id)
+            }}
+          >
+            <Text className='action-pill__text'>{busy ? '处理中...' : '复制一份'}</Text>
+          </View>
+          {!template.is_default && (
             <View
-              className={`action-pill success ${busyAction === 'publish' ? 'disabled' : ''}`}
+              className={`action-pill ${busy ? 'disabled' : ''}`}
               onClick={() => {
-                if (busyAction) return
-                void handlePublishDraft()
-              }}
-            >
-              <Text className='action-pill__text'>{busyAction === 'publish' ? '发布中...' : '发布为线上'}</Text>
-            </View>
-          ) : !isDefault ? (
-            <View
-              className={`action-pill subtle ${busyAction === `default-${template.id}` ? 'disabled' : ''}`}
-              onClick={() => {
-                if (busyAction) return
+                if (busy) return
                 void handleSetDefault(template.id)
               }}
             >
-              <Text className='action-pill__text'>
-                {busyAction === `default-${template.id}` ? '设置中...' : '设为默认'}
-              </Text>
+              <Text className='action-pill__text'>{busy ? '处理中...' : '设为默认'}</Text>
             </View>
-          ) : null}
+          )}
         </View>
       </View>
     )
@@ -317,95 +268,34 @@ function CoachQuestionnaire() {
       <ScrollView scrollY className='page-scroll'>
         <View className='hero-card'>
           <View className='hero-card__content'>
-            <Text className='hero-card__eyebrow'>学员问卷设置</Text>
-            <Text className='hero-card__title'>把线上版和草稿版分开管理</Text>
+            <Text className='hero-card__eyebrow'>学员问卷管理</Text>
+            <Text className='hero-card__title'>多份问卷,一份上线</Text>
             <Text className='hero-card__desc'>
-              网页端的核心心智是“线上问卷给学员真实使用，调整先写进草稿，确认后再发布”。小程序这里也按同样流程收口。
+              你可以维护任意多份问卷模板,但同一时间只会有一份「已发布」,学员实际填写的就是它。
             </Text>
           </View>
 
-          <View
-            className='hero-card__action'
-            onClick={() => {
-              if (draftTemplate) {
-                openEditor('draft')
-                return
-              }
-              void handleCopyFromOnline()
-            }}
-          >
-            <Text className='hero-card__action-text'>
-              {draftTemplate ? '编辑草稿' : (onlineTemplate ? '从线上复制草稿' : '新建问卷')}
-            </Text>
-          </View>
-        </View>
-
-        <View className='summary-card'>
-          <View className='summary-item'>
-            <Text className='summary-item__label'>线上版本</Text>
-            <Text className='summary-item__value'>
-              {onlineSummary ? `${onlineSummary.questionCount} 题` : '未配置'}
-            </Text>
-          </View>
-          <View className='summary-item'>
-            <Text className='summary-item__label'>草稿版本</Text>
-            <Text className='summary-item__value'>
-              {draftSummary ? `${draftSummary.questionCount} 题` : '未创建'}
-            </Text>
-          </View>
-          <View className='summary-item'>
-            <Text className='summary-item__label'>默认问卷</Text>
-            <Text className='summary-item__value'>
-              {defaultTemplate?.name || (defaultTemplate?.is_active ? '线上版本' : '草稿版本') || '未设置'}
-            </Text>
+          <View className='hero-card__action' onClick={() => openEditor()}>
+            <Text className='hero-card__action-text'>+ 新建问卷</Text>
           </View>
         </View>
 
         <View className='section-card'>
           <View className='section-head'>
             <View>
-              <Text className='section-title'>当前线上版本</Text>
-              <Text className='section-subtitle'>学员在订阅和资料页里实际看到的就是这份</Text>
+              <Text className='section-title'>问卷列表</Text>
+              <Text className='section-subtitle'>每行一份问卷;已发布的会自动作为学员填写的版本</Text>
             </View>
           </View>
 
-          {onlineTemplate ? (
-            renderTemplateCard(onlineTemplate, 'online')
+          {sortedTemplates.length > 0 ? (
+            sortedTemplates.map((template) => renderTemplateCard(template))
           ) : (
             <View className='empty-state'>
-              <Text className='empty-state__title'>还没有线上问卷</Text>
-              <Text className='empty-state__desc'>建议先在草稿里整理题目，再发布给学员使用。</Text>
-              <View className='inline-action' onClick={() => openEditor('draft')}>
-                <Text className='inline-action__text'>去新建草稿</Text>
-              </View>
-            </View>
-          )}
-        </View>
-
-        <View className='section-card'>
-          <View className='section-head'>
-            <View>
-              <Text className='section-title'>草稿工作区</Text>
-              <Text className='section-subtitle'>所有改动先在这里排练，确认后再发布上线</Text>
-            </View>
-          </View>
-
-          {draftTemplate ? (
-            renderTemplateCard(draftTemplate, 'draft')
-          ) : (
-            <View className='empty-state'>
-              <Text className='empty-state__title'>当前没有草稿</Text>
-              <Text className='empty-state__desc'>可以从线上版本复制一份草稿，或者直接创建一份新的问卷结构。</Text>
-              <View
-                className={`inline-action ${busyAction === 'copy' ? 'disabled' : ''}`}
-                onClick={() => {
-                  if (busyAction) return
-                  void handleCopyFromOnline()
-                }}
-              >
-                <Text className='inline-action__text'>
-                  {busyAction === 'copy' ? '处理中...' : (onlineTemplate ? '从线上复制草稿' : '直接新建问卷')}
-                </Text>
+              <Text className='empty-state__title'>还没有任何问卷</Text>
+              <Text className='empty-state__desc'>点上方「新建问卷」开始,先选「列表式」最省心。</Text>
+              <View className='inline-action' onClick={() => openEditor()}>
+                <Text className='inline-action__text'>新建问卷</Text>
               </View>
             </View>
           )}

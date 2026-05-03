@@ -9,7 +9,6 @@ import { studentActionLibService } from '@/services/studentActionLibService'
 import { chatService } from '@/services/chatService'
 import { buildPublicTrainingSharePath } from '@/utils/share'
 import { formatKgValueForGym } from '@/utils/weightQuantize'
-import { openCoachChat } from '@/utils/coachChat'
 import {
   readTrainingExecutionSnapshot,
   syncTrainingExecutionToStorage,
@@ -127,7 +126,6 @@ function TrainingExecution() {
   const readOnlyParam = String(instance.router?.params?.readOnly || '').toLowerCase()
   const isReadOnly = !isImpromptuMode && (readOnlyParam === 'true' || readOnlyParam === '1')
   const coachId = instance.router?.params?.coachId ? decodeURIComponent(instance.router.params.coachId) : ''
-  const coachUserId = instance.router?.params?.coachUserId ? decodeURIComponent(instance.router.params.coachUserId) : ''
   const coachName = instance.router?.params?.coachName ? decodeURIComponent(instance.router.params.coachName) : ''
   
   const [loading, setLoading] = useState(true)
@@ -170,7 +168,6 @@ function TrainingExecution() {
   const [executionNoticeStarting, setExecutionNoticeStarting] = useState(false)
 
   const userId = authService.getCurrentUser()?.id
-  const coachChatTargetId = coachUserId || coachId
   const needsExecutionNoticeGate = !isImpromptuMode && !isReadOnly && !!instanceId
 
   const syncExecutionToCaches = useCallback(
@@ -526,20 +523,10 @@ function TrainingExecution() {
             actionMap[item.action_id] = {
               id: item.action_id,
               name: item.action_name || '动作',
-              type: String(item?.type || 'STRENGTH').toUpperCase(),
+              type: 'STRENGTH',
               attrs: ['组数', '次数', '强度', '休息时间']
             }
           }
-        })
-        Object.values(actionMap).forEach((action: any) => {
-          const itemType = String(action?.type || 'STRENGTH').toUpperCase()
-          if (itemType === 'STRENGTH') {
-            if (!Array.isArray(action?.attrs) || action.attrs.length === 0) {
-              action.attrs = ['缁勬暟', '娆℃暟', '寮哄害', '浼戞伅鏃堕棿']
-            }
-            return
-          }
-          action.attrs = []
         })
         setActions(actionMap)
         syncExpandUIFromExecution(data, setExpandedAction, setCurrentSetIndex)
@@ -772,25 +759,6 @@ function TrainingExecution() {
       url: `/me/messages/index?coachId=${encodeURIComponent(coachId)}${coachName ? `&coachName=${encodeURIComponent(coachName)}` : ''}`
     })
   }, [coachId, coachName, isImpromptuMode, userId])
-
-  const handleContactCoachResolved = useCallback(async () => {
-    if (isImpromptuMode) {
-      Taro.showToast({ title: '鍗冲叴閿荤偧鏆傛棤鏁欑粌浼氳瘽', icon: 'none' })
-      return
-    }
-    if (!coachChatTargetId || !userId) {
-      Taro.showToast({ title: '鏁欑粌淇℃伅缂哄け', icon: 'none' })
-      return
-    }
-
-    await openCoachChat({
-      currentUserId: userId,
-      coachId,
-      coachUserId,
-      coachName: coachName || '教练',
-      fallbackToMessagesList: true
-    })
-  }, [coachChatTargetId, coachId, coachName, coachUserId, isImpromptuMode, userId])
 
   const handleBackToTodayTraining = useCallback(() => {
     Taro.navigateBack().catch(() => {
@@ -1065,7 +1033,7 @@ function TrainingExecution() {
 
               const shouldAskFeedback = !isImpromptuMode && (
                 planInstance?.source === 'coach' ||
-                (!!coachChatTargetId && coachChatTargetId !== userId)
+                (!!coachId && coachId !== userId)
               )
               if (shouldAskFeedback) {
                 setPendingSharePath(sharePath)
@@ -1155,7 +1123,7 @@ function TrainingExecution() {
 
               const shouldAskFeedback = !isImpromptuMode && (
                 planInstance?.source === 'coach' ||
-                (!!coachChatTargetId && coachChatTargetId !== userId)
+                (!!coachId && coachId !== userId)
               )
               if (shouldAskFeedback) {
                 setPendingSharePath(sharePath)
@@ -1231,33 +1199,19 @@ function TrainingExecution() {
 
     try {
       setCompleting(true)
-      const res = isImpromptuMode
-        ? await impromptuService.completeItem({
-            executionId: execution.id,
-            actionIndex,
-            itemType,
-            completed: true,
-            actualContent: itemType === 'DIET' ? state.dietContent : undefined,
-            actualDistance: itemType === 'CARDIO' && Number.isFinite(cardioDistance) && (cardioDistance as number) > 0
-              ? (cardioDistance as number) * 1000
-              : undefined,
-            actualDuration: itemType === 'CARDIO' && Number.isFinite(cardioDuration) && (cardioDuration as number) > 0
-              ? (cardioDuration as number) * 60
-              : undefined
-          })
-        : await executionService.completeItem({
-            executionId: execution.id,
-            actionIndex,
-            itemType,
-            completed: true,
-            actualContent: itemType === 'DIET' ? state.dietContent : undefined,
-            actualDistance: itemType === 'CARDIO' && Number.isFinite(cardioDistance) && (cardioDistance as number) > 0
-              ? (cardioDistance as number) * 1000
-              : undefined,
-            actualDuration: itemType === 'CARDIO' && Number.isFinite(cardioDuration) && (cardioDuration as number) > 0
-              ? (cardioDuration as number) * 60
-              : undefined
-          })
+      const res = await executionService.completeItem({
+        executionId: execution.id,
+        actionIndex,
+        itemType,
+        completed: true,
+        actualContent: itemType === 'DIET' ? state.dietContent : undefined,
+        actualDistance: itemType === 'CARDIO' && Number.isFinite(cardioDistance) && (cardioDistance as number) > 0
+          ? (cardioDistance as number) * 1000
+          : undefined,
+        actualDuration: itemType === 'CARDIO' && Number.isFinite(cardioDuration) && (cardioDuration as number) > 0
+          ? (cardioDuration as number) * 60
+          : undefined
+      })
       if (res) {
         const updated = { ...execution }
         const ae = updated.action_executions[actionIndex]
@@ -1346,7 +1300,7 @@ function TrainingExecution() {
     try {
       const res = await studentActionLibService.listActions({ page: 1, limit: 100 })
       const list = (res?.actions || [])
-        .filter((a: any) => isImpromptuMode || a.type === 'STRENGTH' || !a.type)
+        .filter((a: any) => a.type === 'STRENGTH' || !a.type)
         .sort((a: any, b: any) => String(a?.name || '').localeCompare(String(b?.name || ''), 'zh-CN'))
       setActionPickerList(list)
       setActionKeyword('')
@@ -1355,11 +1309,11 @@ function TrainingExecution() {
       setActionPickerList([])
       Taro.showToast({ title: '加载动作失败', icon: 'none' })
     }
-  }, [isImpromptuMode])
+  }, [])
 
   const handleOpenExecMenu = useCallback(() => {
     const items: string[] = []
-    if (!isImpromptuMode && !!coachChatTargetId && coachChatTargetId !== userId) {
+    if (!isImpromptuMode && !!coachId && coachId !== userId) {
       items.push('联系教练')
     }
     if (!isImpromptuMode && !isReadOnly) {
@@ -1377,7 +1331,7 @@ function TrainingExecution() {
       success: (res) => {
         const choice = items[res.tapIndex]
         if (choice === '联系教练') {
-          void handleContactCoachResolved()
+          void handleContactCoach()
         } else if (choice === '跳过本日') {
           void handleSkipDay()
         } else if (choice === '添加动作') {
@@ -1386,7 +1340,7 @@ function TrainingExecution() {
         }
       }
     })
-  }, [coachChatTargetId, handleContactCoachResolved, handleSkipDay, isImpromptuMode, isReadOnly, loadActionPicker, userId])
+  }, [coachId, handleContactCoach, handleSkipDay, isImpromptuMode, isReadOnly, loadActionPicker, userId])
 
   // 删除额外组（仅限 student_extra）
   const handleDeleteExtraSet = async (actionIndex: number, setIdx: number) => {
@@ -1484,15 +1438,6 @@ function TrainingExecution() {
         : await executionService.addExtraExercise(execution.id, action.id, action.name || '未知动作')
       if (res) {
         const updated = { ...execution }
-        setActions((prev) => ({
-          ...prev,
-          [action.id]: {
-            id: action.id,
-            name: action.name || '鏈煡鍔ㄤ綔',
-            type: String(action.type || 'STRENGTH').toUpperCase(),
-            attrs: Array.isArray(action.attrs) ? action.attrs : []
-          }
-        }))
         updated.action_executions.push({
           action_id: action.id,
           action_name: action.name || '未知动作',

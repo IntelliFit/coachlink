@@ -1,8 +1,8 @@
 /**
  * e1RM Calculation Utility
  *
- * Uses the average of two classic formulas (Epley, Brzycki)
- * for one-rep max estimation.
+ * Uses the average of three classic formulas (Epley, Brzycki, Lombardi)
+ * for more accurate one-rep max estimation.
  *
  * Supports body weight inclusion for exercises like Pull-ups and Dips.
  */
@@ -11,6 +11,7 @@ export interface E1RMResult {
     e1rm: number;
     epley: number;
     brzycki: number;
+    lombardi: number;
 }
 
 export interface E1RMCalculationParams {
@@ -21,14 +22,17 @@ export interface E1RMCalculationParams {
 }
 
 /**
- * Calculate estimated 1RM using the 2-formula average method
+ * Calculate estimated 1RM using the 3-formula average method
  *
  * Formulas:
  * - Epley: weight × (1 + 0.0333 × reps)
  * - Brzycki: weight × (36 / (37 - reps))
+ * - Lombardi: weight × reps^0.1
+ *
  * With body weight (for Pull-ups, Dips):
  * - Epley: ((bw + weight) × (1 + 0.0333 × reps)) - bw
  * - Brzycki: ((bw + weight) × (36 / (37 - reps))) - bw
+ * - Lombardi: ((bw + weight) × reps^0.1) - bw
  *
  * @param params Calculation parameters
  * @returns e1RM result with individual formula values
@@ -42,30 +46,31 @@ export function calculateE1RM(params: E1RMCalculationParams): E1RMResult {
             e1rm: weight,
             epley: weight,
             brzycki: weight,
+            lombardi: weight,
         };
     }
 
     // Edge case: invalid reps
     if (reps <= 0 || !Number.isFinite(reps)) {
-        return { e1rm: 0, epley: 0, brzycki: 0 };
+        return { e1rm: 0, epley: 0, brzycki: 0, lombardi: 0 };
     }
 
     // For non-bodyweight actions: external weight must be > 0.
     // For bodyweight-including actions: external weight may be negative (assistance),
     // as long as total system weight (bw + external) stays > 0.
     if (!Number.isFinite(weight)) {
-        return { e1rm: 0, epley: 0, brzycki: 0 };
+        return { e1rm: 0, epley: 0, brzycki: 0, lombardi: 0 };
     }
 
     if (!includeBodyWeight) {
-        if (weight <= 0) return { e1rm: 0, epley: 0, brzycki: 0 };
+        if (weight <= 0) return { e1rm: 0, epley: 0, brzycki: 0, lombardi: 0 };
     } else {
         if (!Number.isFinite(bodyWeight) || bodyWeight <= 0) {
-            return { e1rm: 0, epley: 0, brzycki: 0 };
+            return { e1rm: 0, epley: 0, brzycki: 0, lombardi: 0 };
         }
         const totalWeight = weight + bodyWeight;
         if (totalWeight <= 0) {
-            return { e1rm: 0, epley: 0, brzycki: 0 };
+            return { e1rm: 0, epley: 0, brzycki: 0, lombardi: 0 };
         }
     }
 
@@ -74,25 +79,30 @@ export function calculateE1RM(params: E1RMCalculationParams): E1RMResult {
 
     let epley: number;
     let brzycki: number;
+    let lombardi: number;
+
     if (includeBodyWeight && bodyWeight > 0) {
         // Include body weight in calculation (for Pull-ups, Dips)
         const totalWeight = weight + bodyWeight;
         epley = (totalWeight * (1 + 0.0333 * safeReps)) - bodyWeight;
         brzycki = (totalWeight * (36 / (37 - safeReps))) - bodyWeight;
+        lombardi = (totalWeight * Math.pow(safeReps, 0.1)) - bodyWeight;
     } else {
         // Standard calculation (without body weight)
         epley = weight * (1 + 0.0333 * safeReps);
         brzycki = weight * (36 / (37 - safeReps));
+        lombardi = weight * Math.pow(safeReps, 0.1);
     }
 
-    // Average of two formulas
-    const e1rm = (epley + brzycki) / 2;
+    // Average of three formulas
+    const e1rm = (epley + brzycki + lombardi) / 3;
 
     // Round to 1 decimal place
     return {
         e1rm: Math.round(e1rm * 10) / 10,
         epley: Math.round(epley * 10) / 10,
         brzycki: Math.round(brzycki * 10) / 10,
+        lombardi: Math.round(lombardi * 10) / 10,
     };
 }
 

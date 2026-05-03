@@ -2,24 +2,27 @@ import { NextResponse } from "next/server";
 import supabase from "@/lib/supabaseClient";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 import type { ApiData } from "@/types/api";
+import type { QuestionnaireDocument, QuestionnaireEditorType } from "@/types/questionnaires";
+import { ensureQuestionIds } from "@/lib/questionnaireDocument";
 import type {
     CoachQuestionnairesInsert,
     UpdateQuestionnairesDto,
     UpdateQuestionnairesResponseDto,
 } from "./entity";
 
-function normalizeQuestions(questions: any[]): any[] {
-    return (Array.isArray(questions) ? questions : []).map((q: any) => {
-        if (typeof q === "string") {
-            return { id: crypto.randomUUID(), type: "text", question: q };
-        }
-        if (!q || typeof q !== "object") return q;
-        // 确保保留所有字段，包括 branching、media 等
-        if (!q.id) {
-            return { ...q, id: crypto.randomUUID() };
-        }
-        return q;
-    });
+function buildQuestionnaireDocument(
+    questions: any[],
+    editorType?: QuestionnaireEditorType,
+): QuestionnaireDocument {
+    const { normalized } = ensureQuestionIds(Array.isArray(questions) ? questions : []);
+    const inferredType = normalized.some((item: any) => item?.branching || item?.next)
+        ? "flow"
+        : "simple";
+
+    return {
+        editorType: editorType === "flow" ? "flow" : (editorType === "simple" ? "simple" : inferredType),
+        questions: normalized,
+    };
 }
 
 export async function POST(req: Request) {
@@ -36,8 +39,9 @@ export async function POST(req: Request) {
 
     const {
         id,
+        name,
+        editorType,
         questionnaires,
-        mode = "draft", // 默认保存到草稿版本
     } = await req.json() as UpdateQuestionnairesDto;
 
     if (!session.user.is_coach) {
@@ -48,19 +52,20 @@ export async function POST(req: Request) {
         }, { status: 404 });
     }
 
-    const normalized = normalizeQuestions(questionnaires as any);
+    const document = buildQuestionnaireDocument(questionnaires as any, editorType);
+    const fallbackName = document.editorType === "flow" ? "流程图问卷" : "列表问卷";
 
     if (id) {
-        // 更新现有问卷
+        // 编辑现有问卷：仅更新内容；status 由 publish 接口翻转
+        const updatePayload: Record<string, any> = {
+            questions: document as any,
+            name: name?.trim() || undefined,
+            updated_at: new Date().toISOString(),
+        };
+
         const { data, error } = await supabase
             .from("coach_questionnaires")
-            .update({
-                questions: normalized as any,
-                // 让“线上/草稿”槽位稳定：按 mode 对齐状态（避免误把草稿写成线上或反之）
-                is_active: mode === "online",
-                status: mode === "online" ? "active" : "draft",
-                updated_at: new Date().toISOString(),
-            })
+            .update(updatePayload)
             .eq("id", id)
             .select()
             .single();
@@ -82,13 +87,12 @@ export async function POST(req: Request) {
             },
         });
     } else {
-        // 新建问卷：根据 mode 决定 is_active
-        const isOnline = mode === "online";
+        // 新建问卷固定为草稿；上线由 publish 接口处理
         const insertData: CoachQuestionnairesInsert = {
             coach_id: userId,
-            questions: normalized as any,
-            is_active: isOnline,
-            status: isOnline ? "active" : "draft",
+            name: name?.trim() || fallbackName,
+            questions: document as any,
+            status: "draft",
         } as any;
 
         const { data, error } = await supabase

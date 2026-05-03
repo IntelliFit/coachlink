@@ -57,7 +57,6 @@ const EditPlanPage = () => {
     const [tags, setTags] = useState<string[]>([]);
     const [suitableFor, setSuitableFor] = useState<'beginner' | 'intermediate' | 'advanced'>('beginner');
     const [weekDays, setWeekDays] = useState<number[]>([]);  // 新增
-    const [globalAnswers, setGlobalAnswers] = useState<Record<string, number>>({});  // 新增
 
     // Days management
     const [days, setDays] = useState<FormPlanTrainingDay[]>([]);
@@ -137,10 +136,6 @@ const EditPlanPage = () => {
                 setTags(templateRes.template.tags || []);
                 setSuitableFor(templateRes.template.suitable_for as 'beginner' | 'intermediate' | 'advanced' || 'beginner');
                 setWeekDays(templateRes.template.week_days || []);
-                // 加载全局问题答案
-                if (templateRes.template.global_answers) {
-                    setGlobalAnswers(templateRes.template.global_answers as Record<string, number>);
-                }
 
                 // Convert days data to local format
                 const convertedDays: FormPlanTrainingDay[] = templateRes.days.map((day: any) => ({
@@ -506,7 +501,6 @@ const EditPlanPage = () => {
                 tags: tags,
                 suitableFor: suitableFor,
                 weekDays: weekDays,
-                globalAnswers: globalAnswers,  // 新增
                 trainingDays: daysData,
                 syncInstances,
             });
@@ -853,19 +847,6 @@ const EditPlanPage = () => {
                 onSave={handleSave}
                 weekDays={weekDays}
                 onWeekDaysChange={setWeekDays}
-                globalQuestions={questions.filter(q => q.type === 'option' && q.scope === 'global') as any[]}
-                globalAnswers={globalAnswers}
-                onGlobalAnswerChange={(question, answerIndex) => {
-                    setGlobalAnswers(prev => {
-                        const next = { ...prev };
-                        if (answerIndex === null) {
-                            delete next[question];
-                            return next;
-                        }
-                        next[question] = answerIndex;
-                        return next;
-                    });
-                }}
                 availableTrainingTags={
                     (questions.find(q => q.type === 'tags') as any)?.options?.filter((o: string) => o.trim()) || []
                 }

@@ -8,13 +8,13 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: rgba(31, 31, 31, 0.92);
+  background: rgba(31, 31, 31, 0.80);
   border-radius: 9999rpx;
   padding: 16rpx 24rpx;
   box-shadow: 0 12rpx 36rpx rgba(0, 0, 0, 0.22);
   backdrop-filter: blur(20rpx);
   width: auto;
-  min-width: 620rpx;
+  min-width: 624rpx;
   max-width: 92vw;
   border: 1rpx solid rgba(255, 255, 255, 0.1);
 
@@ -25,7 +25,7 @@
     align-items: center;
     justify-content: center;
     gap: 0;
-    padding: 16rpx 24rpx;
+    padding: 12rpx 20rpx;
     border-radius: 9999rpx;
     min-width: 0;
     transition: padding 0.35s cubic-bezier(0.34, 1.56, 0.64, 1),
@@ -88,8 +88,8 @@
 
   .nav-label {
     font-size: 12px;
-    font-weight: 600;
-    color: #CF6D4E;
+    font-weight: 400;
+    color: #000000;
     white-space: nowrap;
     flex-shrink: 0;
     max-width: 0;
@@ -103,7 +103,7 @@
 
   .nav-active {
     background: rgba(255, 255, 255, 0.98);
-    padding: 16rpx 32rpx;
+    padding: 16rpx 48rpx;
     gap: 8rpx;
 
     .nav-icon {
@@ -114,6 +114,7 @@
       max-width: 120px;
       opacity: 1;
       transform: translateX(0);
+      font-weight: 600;
     }
   }
 }

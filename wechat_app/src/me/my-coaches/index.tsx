@@ -1,13 +1,13 @@
 import { useState, useCallback } from 'react'
 import { View, Text } from '@tarojs/components'
 import Taro, { useDidShow, usePullDownRefresh } from '@tarojs/taro'
-import { User } from '@nutui/icons-react-taro'
 import { authService } from '@/services/authService'
-import { openCoachChat } from '@/utils/coachChat'
+import { chatService } from '@/services/chatService'
 import { fetchMyCoachSubscriptions, fetchCoachAggregatedInfo } from './service'
 import type { QueryCoachSubscription, GetAggregatedInfoResponseDto } from './types'
 import CoachCard from './components/CoachCard'
 import './index.scss'
+import { User } from '@nutui/icons-react-taro'
 
 type PageState = 'loading' | 'success' | 'empty' | 'error'
 
@@ -29,64 +29,60 @@ export default function MyCoaches() {
 
     setPageState('loading')
     setErrorMessage('')
-
     try {
       const list = await fetchMyCoachSubscriptions(studentId)
       setSubscriptions(list)
-
       if (list.length === 0) {
         setPageState('empty')
         return
       }
-
       setPageState('success')
 
-      const nextMap: Record<string, GetAggregatedInfoResponseDto> = {}
-      for (const subscription of list) {
+      const map: Record<string, GetAggregatedInfoResponseDto> = {}
+      for (const sub of list) {
         try {
-          const info = await fetchCoachAggregatedInfo(subscription.coach_id)
-          if (info) nextMap[subscription.coach_id] = info
-        } catch (error) {
-          console.warn('getAggregatedInfo failed for', subscription.coach_id, error)
+          const info = await fetchCoachAggregatedInfo(sub.coach_id)
+          if (info) map[sub.coach_id] = info
+        } catch (e) {
+          console.warn('getAggregatedInfo failed for', sub.coach_id, e)
         }
       }
-      setAggregatedMap(nextMap)
-    } catch (error) {
-      console.error('load my coaches failed:', error)
+      setAggregatedMap(map)
+    } catch (e) {
+      console.error('加载我的教练失败:', e)
       setPageState('error')
-      setErrorMessage((error as Error).message || '加载我的教练失败，请稍后重试')
+      setErrorMessage((e as Error).message || '加载失败，请重试')
       setSubscriptions([])
     }
   }, [])
 
   useDidShow(() => {
-    void load()
+    load()
   })
 
   usePullDownRefresh(() => {
     load().finally(() => Taro.stopPullDownRefresh())
   })
 
-  const goDiscovery = useCallback(() => {
+  const goDiscovery = () => {
     Taro.navigateTo({ url: '/discovery/index' })
-  }, [])
+  }
 
-  const onDetail = useCallback((coachId: string) => {
+  const onDetail = (coachId: string) => {
     Taro.navigateTo({ url: `/discovery/coach-profile?id=${coachId}` })
-  }, [])
+  }
 
-  const onRenew = useCallback((coachId: string) => {
-    if (!coachId) {
-      Taro.showToast({ title: '无法获取教练信息', icon: 'none' })
+  const onRenew = (_coachId: string) => {
+    if (!_coachId) {
+      Taro.showToast({ title: '缺少教练信息', icon: 'none' })
       return
     }
-
     Taro.navigateTo({
-      url: `/me/payment/webview/index?coachId=${encodeURIComponent(coachId)}&renew=1`
+      url: `/me/payment/webview/index?coachId=${encodeURIComponent(_coachId)}&renew=1`
     })
-  }, [])
+  }
 
-  const openChatWithCoach = useCallback(async (coachId: string, coachName?: string, coachUserId?: string | null) => {
+  const openChatWithCoach = useCallback(async (coachId: string, coachName?: string) => {
     const userId = authService.getCurrentUser()?.id
     if (!userId) {
       Taro.showToast({ title: '请先登录', icon: 'none' })
@@ -95,30 +91,42 @@ export default function MyCoaches() {
       })
       return
     }
-
     if (!coachId) {
-      Taro.showToast({ title: '无法获取教练信息', icon: 'none' })
+      Taro.showToast({ title: '缺少教练信息', icon: 'none' })
+      return
+    }
+    if (coachId === userId) {
+      Taro.showToast({ title: '无法与自己发起会话', icon: 'none' })
       return
     }
 
-    await openCoachChat({
-      currentUserId: userId,
-      coachId,
-      coachUserId,
-      coachName: coachName || '教练',
-      fallbackToMessagesList: true
+    const safeCoachName = coachName || '教练'
+    try {
+      const room = await chatService.getChatroom({ members: [userId, coachId] })
+      if (room?.id) {
+        await Taro.navigateTo({
+          url: `/me/messages/chat/index?roomId=${room.id}&peerName=${encodeURIComponent(safeCoachName)}`
+        })
+        return
+      }
+    } catch (error) {
+      console.error('[my-coaches] open chat failed:', error)
+    }
+
+    await Taro.navigateTo({
+      url: `/me/messages/index?coachId=${encodeURIComponent(coachId)}&coachName=${encodeURIComponent(safeCoachName)}`
     })
   }, [])
 
-  const onConsult = useCallback((coachId: string) => {
-    const coach = subscriptions.find((item) => item.coach_id === coachId)?.coach
-    void openChatWithCoach(coachId, coach?.name || '', coach?.user_id || '')
-  }, [openChatWithCoach, subscriptions])
+  const onConsult = (coachId: string) => {
+    const coachName = subscriptions.find((item) => item.coach_id === coachId)?.coach?.name || ''
+    void openChatWithCoach(coachId, coachName)
+  }
 
   const renderSkeleton = () => (
     <View className='skeleton-list'>
-      {[1, 2, 3].map((item) => (
-        <View key={item} className='skeleton-card'>
+      {[1, 2, 3].map((i) => (
+        <View key={i} className='skeleton-card'>
           <View className='skeleton-avatar' />
           <View className='skeleton-content'>
             <View className='skeleton-line skeleton-title' />
@@ -135,7 +143,7 @@ export default function MyCoaches() {
       <View className='page-header'>
         <View className='header-row'>
           <View className='btn-discovery' onClick={goDiscovery}>
-            浏览教练
+            发现更多
           </View>
         </View>
       </View>
@@ -145,10 +153,10 @@ export default function MyCoaches() {
       {pageState === 'empty' && (
         <View className='empty-state'>
           <View className='empty-icon'><User /></View>
-          <Text className='empty-text'>{errorMessage || '暂时还没有订阅中的教练'}</Text>
-          <Text className='empty-hint'>去发现教练页面挑选你喜欢的教练吧。</Text>
+          <Text className='empty-text'>{errorMessage || '暂无订阅的教练'}</Text>
+          <Text className='empty-hint'>去发现教练页订阅你喜欢的教练</Text>
           <View className='btn-discovery' onClick={goDiscovery} style={{ marginTop: 16 }}>
-            <Text>去发现教练</Text>
+            <Text>发现教练</Text>
           </View>
         </View>
       )}
@@ -156,19 +164,19 @@ export default function MyCoaches() {
       {pageState === 'error' && (
         <View className='error-container'>
           <Text className='error-text'>{errorMessage}</Text>
-          <View className='btn-retry' onClick={() => void load()}>
-            <Text>重新加载</Text>
+          <View className='btn-retry' onClick={load}>
+            <Text>重试</Text>
           </View>
         </View>
       )}
 
       {pageState === 'success' && (
         <View className='coaches-list'>
-          {subscriptions.map((subscription) => (
+          {subscriptions.map((sub) => (
             <CoachCard
-              key={subscription.id}
-              subscription={subscription}
-              aggregated={aggregatedMap[subscription.coach_id]}
+              key={sub.id}
+              subscription={sub}
+              aggregated={aggregatedMap[sub.coach_id]}
               onDetail={onDetail}
               onRenew={onRenew}
               onConsult={onConsult}

@@ -66,9 +66,8 @@ export const COMMON_ICONS = {
 } as const
 
 /**
- * 注意：不要 export * from 'lucide-react'
- * 这会导致整个图标库被打包，显著增加包体积。
- * 请直接从 'lucide-react' 按需导入所需图标。
+ * 导出所有 Lucide 图标（按需导入）
  * 使用方式：
- * import { Home, Search } from 'lucide-react'
+ * import { Home, Search } from '@/constants/icons'
  */
+export * from 'lucide-react'

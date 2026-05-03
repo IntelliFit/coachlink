@@ -3,21 +3,8 @@ import supabase from "@/lib/supabaseClient";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 
 import type { ApiData } from "@/types/api";
-import type { TrainingItem } from "@/types/questionnaires";
 import type { GetQuestionnaireByIdDto, GetQuestionnaireByIdResponseDto } from "./entity";
-
-function normalizeQuestions(raw: any): TrainingItem[] {
-    // 兼容错误/旧写法：{ templateName, questions: [...] }
-    if (raw && typeof raw === "object" && !Array.isArray(raw)) {
-        const inner = (raw as any).questions;
-        if (Array.isArray(inner)) return inner as TrainingItem[];
-        if (inner && typeof inner === "object" && Array.isArray((inner as any).questions)) {
-            return (inner as any).questions as TrainingItem[];
-        }
-        return [];
-    }
-    return Array.isArray(raw) ? (raw as TrainingItem[]) : [];
-}
+import { parseQuestionnaireDocument } from "@/lib/questionnaireDocument";
 
 export async function POST(req: Request) {
     const session = await getServerSession();
@@ -46,7 +33,7 @@ export async function POST(req: Request) {
     const userId = session.user.id;
     const { data, error } = await supabase
         .from("coach_questionnaires")
-        .select("id, questions, is_active, status, version")
+        .select("id, questions, status, version, name")
         .eq("id", id)
         .eq("coach_id", userId)
         .single();
@@ -58,14 +45,15 @@ export async function POST(req: Request) {
         );
     }
 
-    // 兼容旧数据：优先使用 status，如果没有则从 is_active 推导
-    const status = data.status || (data.is_active ? 'active' : 'archived');
-    const isActive = status === 'active';
+    const status: "active" | "draft" = data.status === "active" ? "active" : "draft";
+    const document = parseQuestionnaireDocument(data.questions);
 
     const resp: GetQuestionnaireByIdResponseDto = {
         id: data.id,
-        questionnaires: normalizeQuestions(data.questions),
-        is_active: isActive,
+        name: data.name ?? null,
+        status,
+        questionnaires: document.questions,
+        editorType: document.editorType,
         version: data.version ?? null,
     };
 
@@ -75,4 +63,3 @@ export async function POST(req: Request) {
         data: resp,
     });
 }
-

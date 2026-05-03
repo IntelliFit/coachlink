@@ -4,11 +4,9 @@ import { isSubscriptionOrderTableMissingError } from "@/lib/subscriptionOrders";
 import supabase, { serviceRoleSupabase } from "@/lib/supabaseClient";
 import type { ApiData } from "@/types/api";
 import { fenToYuan } from "@/lib/moneyUtils";
-import redis from "@/lib/redisClient";
 import { GetOverviewDataResponseDto } from "./entity";
 
 const SUBSCRIPTION_ORDER_CUTOVER_AT = new Date("2026-04-22T00:00:00+08:00").getTime();
-const OVERVIEW_CACHE_TTL_SECONDS = 90;
 
 export async function POST(req: Request) {
     const session = await getServerSession();
@@ -39,19 +37,6 @@ export async function POST(req: Request) {
     const now = new Date();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-    const cacheKey = `coach:overview:${coachId}:${monthStart.toISOString().slice(0, 10)}`;
-
-    try {
-        const cached = await redis.get(cacheKey);
-        if (cached) {
-            return NextResponse.json<ApiData<GetOverviewDataResponseDto>>({
-                success: true,
-                data: JSON.parse(cached as string) as GetOverviewDataResponseDto,
-            });
-        }
-    } catch (error) {
-        console.error("[coach/overview] redis get failed:", error);
-    }
 
     // 2. 并行执行聚合查询
     const [
@@ -118,10 +103,8 @@ export async function POST(req: Request) {
 
         supabase
             .from("coach_questionnaires")
-            .select("id")
-            .eq("coach_id", userId)
-            .eq("is_active", true)
-            .maybeSingle(),
+            .select("id, status")
+            .eq("coach_id", userId),
 
         supabase
             .from("coach_pricing")
@@ -241,7 +224,9 @@ export async function POST(req: Request) {
     const contentCount = contentCountResult.count || 0;
     const actionCount = actionCountResult.count || 0;
     const planTemplateCount = planTemplateCountResult.count || 0;
-    const questionReady = Boolean(coachQuestionResult.data);
+    const questionReady = Array.isArray(coachQuestionResult.data)
+        ? coachQuestionResult.data.some((row: any) => row?.status === "active")
+        : false;
     const pricingReady = Boolean(coachPricingResult.data);
 
     const ratings = ratingResult.data || [];
@@ -252,26 +237,18 @@ export async function POST(req: Request) {
         )
         : 0;
 
-    const responseData: GetOverviewDataResponseDto = {
-        totalStudentCount,
-        pendingReviewCount,
-        averageRating,
-        monthlyRevenue: subscriptionRevenue + contentPurchaseRevenue,
-        contentCount,
-        actionCount,
-        planTemplateCount,
-        questionReady,
-        pricingReady,
-    };
-
-    try {
-        await redis.setEx(cacheKey, OVERVIEW_CACHE_TTL_SECONDS, JSON.stringify(responseData));
-    } catch (error) {
-        console.error("[coach/overview] redis set failed:", error);
-    }
-
     return NextResponse.json<ApiData<GetOverviewDataResponseDto>>({
         success: true,
-        data: responseData,
+        data: {
+            totalStudentCount,
+            pendingReviewCount,
+            averageRating,
+            monthlyRevenue: subscriptionRevenue + contentPurchaseRevenue,
+            contentCount,
+            actionCount,
+            planTemplateCount,
+            questionReady,
+            pricingReady,
+        },
     });
 }

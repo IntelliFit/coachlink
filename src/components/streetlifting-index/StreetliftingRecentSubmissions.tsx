@@ -17,7 +17,8 @@ const calculate1RM = (bodyweight: number, addedWeight: number, reps: number, pen
     if (reps >= 37) return 0;
     const epley1RM = totalWeight * (1 + 0.0333 * reps);
     const brzycki1RM = totalWeight * (36 / (37 - reps));
-    const totalEstimated1RM = (epley1RM + brzycki1RM) / 2;
+    const lombardi1RM = totalWeight * Math.pow(reps, 0.1);
+    const totalEstimated1RM = (epley1RM + brzycki1RM + lombardi1RM) / 3;
     return totalEstimated1RM - bodyweight;
 };
 

@@ -1,15 +1,16 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
-import { TabPanel, TabView, type TabViewTabChangeEvent } from 'primereact/tabview';
-import type { GetAggregatedInfoResponseDto } from '@/app/api/coach/get-aggregated-info/entity';
-import type { QueryCoachSubscription } from '@/app/api/subscription/coach-subscriptions/entity';
-import type { CoachesRow } from '@/types';
-import CoachSubscription from './CoachSubscription';
+import React, { useState, useEffect } from 'react';
+import { TabView, TabPanel, TabViewTabChangeEvent } from 'primereact/tabview';
 import CoachAboutPanel from './content-panel/About';
 import CoachContentPanel from './content-panel/Content';
 import CoachReviewsPanel from './content-panel/Reviews';
+import { useSearchParams } from 'next/navigation';
+import { CoachesRow } from '@/types';
+import { QueryCoachSubscription } from '@/app/api/subscription/coach-subscriptions/entity';
+import CoachSubscription from './CoachSubscription';
+import { GetAggregatedInfoResponseDto } from '@/app/api/coach/get-aggregated-info/entity';
+
 
 interface CoachContentProps {
     coach: CoachesRow;
@@ -17,7 +18,7 @@ interface CoachContentProps {
     userSubscription: QueryCoachSubscription | null;
     mySubscriptions: QueryCoachSubscription[];
     aggregatedInfo: GetAggregatedInfoResponseDto;
-    onSubscribeSuccess: (tier?: number) => void;
+    onSubscribeSuccess: (tier: number) => void;
     activeTab: number;
     onTabChange: (tab: number) => void;
 }
@@ -30,63 +31,41 @@ const CoachContent: React.FC<CoachContentProps> = ({
     aggregatedInfo,
     onSubscribeSuccess,
     activeTab,
-    onTabChange,
+    onTabChange
 }) => {
     const searchParams = useSearchParams();
-    const [visitedTabs, setVisitedTabs] = useState<number[]>(() => Array.from(new Set([0, activeTab])));
-
-    useEffect(() => {
-        setVisitedTabs((current) => (
-            current.includes(activeTab) ? current : [...current, activeTab]
-        ));
-    }, [activeTab]);
-
-    const loadedTabs = useMemo(() => {
-        return new Set(visitedTabs);
-    }, [visitedTabs]);
-
-    const handleTabChange = (event: TabViewTabChangeEvent) => {
-        onTabChange(event.index);
-
-        if (typeof window !== 'undefined') {
-            const params = new URLSearchParams(searchParams.toString());
-            params.set('tab', event.index.toString());
-            const nextUrl = `${window.location.pathname}?${params.toString()}${window.location.hash || ''}`;
-            window.history.replaceState(null, '', nextUrl);
-        }
+    const handleTabChange = (e: TabViewTabChangeEvent) => {
+        onTabChange(e.index);
+        // searchParams 中设置
+        const params = new URLSearchParams(searchParams.toString());
+        params.set('tab', e.index.toString());
     };
 
     return (
-        <div id="coach-profile-tabs" className="mx-auto min-h-screen max-w-7xl overflow-hidden rounded-2xl">
+        <div id="coach-profile-tabs" className="max-w-7xl mx-auto min-h-screen rounded-2xl overflow-hidden">
             <TabView activeIndex={activeTab} onTabChange={handleTabChange} scrollable>
                 <TabPanel header="关于教练">
-                    {loadedTabs.has(0) ? <CoachAboutPanel coach={coach} /> : null}
+                    <CoachAboutPanel coach={coach} />
                 </TabPanel>
                 <TabPanel header="订阅价格">
-                    {loadedTabs.has(1) ? (
-                        <CoachSubscription
-                            coach={coach}
-                            mySubscriptions={mySubscriptions}
-                            onSubscribeSuccess={(tier) => onSubscribeSuccess(tier)}
-                        />
-                    ) : null}
+                    <CoachSubscription
+                        coach={coach}
+                        mySubscriptions={mySubscriptions}
+                        onSubscribeSuccess={(tier) => onSubscribeSuccess(tier)}
+                    />
                 </TabPanel>
                 <TabPanel header={`教练专栏(${aggregatedInfo?.contentCount || 0})`}>
-                    {loadedTabs.has(2) ? (
-                        <CoachContentPanel
-                            coachId={coachId}
-                            userSubscription={userSubscription}
-                            onSubscribeSuccess={onSubscribeSuccess}
-                        />
-                    ) : null}
+                    <CoachContentPanel
+                        coachId={coachId}
+                        userSubscription={userSubscription}
+                        onSubscribeSuccess={onSubscribeSuccess}
+                    />
                 </TabPanel>
                 <TabPanel header={`学员评价(${aggregatedInfo?.reviewCount || 0})`}>
-                    {loadedTabs.has(3) ? (
-                        <CoachReviewsPanel
-                            coachId={coachId}
-                            userSubscription={userSubscription}
-                        />
-                    ) : null}
+                    <CoachReviewsPanel
+                        coachId={coachId}
+                        userSubscription={userSubscription}
+                    />
                 </TabPanel>
             </TabView>
         </div>

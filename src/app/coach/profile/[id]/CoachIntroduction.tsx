@@ -1,30 +1,24 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { Avatar } from 'primereact/avatar';
+import { Tag } from 'primereact/tag';
 import { useSession } from 'next-auth/react';
-import { useSearchParams } from 'next/navigation';
-import {
-    Award,
-    BookOpen,
-    ClipboardList,
-    Edit3,
-    MessageCircle,
-    Star,
-    Users,
-    Zap,
-} from 'lucide-react';
-import type { CoachesRow } from '@/types';
-import type { QueryCoachSubscription } from '@/app/api/subscription/coach-subscriptions/entity';
-import type { GetAggregatedInfoResponseDto } from '@/app/api/coach/get-aggregated-info/entity';
-import type { ChatroomDetail } from '@/app/api/chat/get-chatroom/entity';
-import type { TrainingItem } from '@/types/questionnaires';
+import { CoachesRow } from '@/types';
+import { QueryCoachSubscription } from '@/app/api/subscription/coach-subscriptions/entity';
+import { GetAggregatedInfoResponseDto } from '@/app/api/coach/get-aggregated-info/entity';
+import { Button } from 'primereact/button';
+import EditCoachProfileDialog from './EditCoachProfileDialog';
 import { chatService } from '@/app/service/chatService';
-import { coachService } from '@/app/service/coachService';
-import { subscriptionService } from '@/app/service/subscriptionService';
 import { useToastContext } from '@/context/ToastContext';
 import ChatDialog from '@/components/chat/ChatDialog';
-import EditCoachProfileDialog from './EditCoachProfileDialog';
+import { ChatroomDetail } from '@/app/api/chat/get-chatroom/entity';
 import QuestionnaireForm from './QuestionnaireForm';
+import { coachService } from '@/app/service/coachService';
+import type { TrainingItem } from '@/types/questionnaires';
+import { subscriptionService } from '@/app/service/subscriptionService';
+import { useSearchParams } from 'next/navigation';
+import { MessageCircle, Edit3, ClipboardList, Star, Users, BookOpen, Award, Zap } from 'lucide-react';
 import {
     getCoachTrackLabel,
     getServiceModeLabel,
@@ -38,122 +32,85 @@ interface CoachIntroductionProps {
     onGoToSubscribe?: () => void;
 }
 
-const CoachIntroduction: React.FC<CoachIntroductionProps> = ({
-    coach,
-    userSubscription,
-    aggregatedInfo,
-    onGoToSubscribe,
-}) => {
+const CoachIntroduction: React.FC<CoachIntroductionProps> = ({ coach, userSubscription, aggregatedInfo, onGoToSubscribe }) => {
     const { data: session } = useSession();
-    const searchParams = useSearchParams();
-    const { showToast } = useToastContext();
-
     const isOwnProfile = session?.user?.id === coach.user_id;
+    const searchParams = useSearchParams();
 
     const [editDialogVisible, setEditDialogVisible] = useState(false);
     const [loading, setLoading] = useState(false);
     const [chatDialogVisible, setChatDialogVisible] = useState(false);
     const [chatroom, setChatroom] = useState<ChatroomDetail>(null);
+
     const [questionnaireVisible, setQuestionnaireVisible] = useState(false);
     const [questionnaireQuestions, setQuestionnaireQuestions] = useState<TrainingItem[]>([]);
     const [questionnaireLoading, setQuestionnaireLoading] = useState(false);
 
-    const profile = (coach.profile || {}) as Record<string, any>;
-    const specialtiesToShow = aggregatedInfo?.specialties?.length
-        ? aggregatedInfo.specialties
-        : (coach.specialties || []);
-    const coachTrack = (coach as any).coach_track;
-    const serviceModes = Array.isArray((coach as any).service_modes) ? (coach as any).service_modes : [];
-    const targetStudentLevels = Array.isArray((coach as any).target_student_levels)
-        ? (coach as any).target_student_levels
-        : [];
-    const supportFocus = (coach as any).support_focus || profile.supportFocus;
-    const caseStudyCount = Array.isArray(profile.caseStudies) ? profile.caseStudies.length : 0;
+    const { showToast } = useToastContext();
 
+    // 检查URL参数，如果 action=questionnaire 则自动打开问卷
     useEffect(() => {
         const action = searchParams.get('action');
         if (action === 'questionnaire' && userSubscription) {
+            // 延迟打开，确保组件完全渲染
             setTimeout(() => {
-                void openQuestionnaire();
+                openQuestionnaire();
             }, 500);
         }
     }, [searchParams, userSubscription]);
 
-    const statusChip = useMemo(() => {
-        if (userSubscription?.status === 'active') {
-            return {
-                label: '服务进行中',
-                className: 'border-emerald-200 bg-emerald-50 text-emerald-700',
-            };
-        }
+    const specialtiesToShow = (aggregatedInfo?.specialties?.length
+        ? aggregatedInfo.specialties
+        : (coach.specialties || []));
 
-        if (userSubscription?.status === 'waiting') {
-            return {
-                label: '等待确认',
-                className: 'border-amber-200 bg-amber-50 text-amber-700',
-            };
-        }
-
-        return null;
-    }, [userSubscription?.status]);
-
-    const statItems = useMemo(() => {
-        return [
-            {
-                label: '教学内容',
-                value: aggregatedInfo?.contentCount || 0,
-                icon: BookOpen,
-            },
-            {
-                label: '活跃学员',
-                value: aggregatedInfo?.studentCount || 0,
-                icon: Users,
-            },
-            {
-                label: '综合评分',
-                value: aggregatedInfo?.averageRating?.toFixed(1) || '0.0',
-                icon: Star,
-            },
-            {
-                label: '案例经验',
-                value: caseStudyCount,
-                icon: Award,
-            },
-        ];
-    }, [aggregatedInfo?.averageRating, aggregatedInfo?.contentCount, aggregatedInfo?.studentCount, caseStudyCount]);
+    const aboutProfile = (coach.profile || {}) as Record<string, any>;
+    const caseStudyCount = Array.isArray(aboutProfile.caseStudies) ? aboutProfile.caseStudies.length : 0;
+    const coachTrack = (coach as any).coach_track;
+    const serviceModes = Array.isArray((coach as any).service_modes) ? (coach as any).service_modes : [];
+    const targetStudentLevels = Array.isArray((coach as any).target_student_levels) ? (coach as any).target_student_levels : [];
+    const supportFocus = (coach as any).support_focus || aboutProfile.supportFocus;
 
     const contactCoach = async () => {
-        if (!session?.user?.id || session.user.id === coach.user_id) {
+        if (!session?.user?.id) {
+            return;
+        }
+
+        if (session.user.id === coach.user_id) {
             return;
         }
 
         setLoading(true);
-        try {
-            const result = await chatService.getChatroom({ members: [session.user.id, coach.user_id] });
-            if (!result) {
-                showToast({ severity: 'error', summary: '创建聊天失败' });
-                return;
-            }
 
-            setChatroom(null);
-            setTimeout(() => {
-                setChatroom(result.chatroom);
-                setChatDialogVisible(true);
-            }, 0);
+        try {
+            const res = await chatService.getChatroom({ members: [session.user.id, coach.user_id] });
+
+            if (res) {
+                setChatroom(null);
+                setTimeout(() => {
+                    setChatroom(res.chatroom);
+                    setChatDialogVisible(true);
+                }, 0);
+            } else {
+                showToast({ severity: 'error', summary: '创建聊天室出错' });
+            }
         } finally {
             setLoading(false);
         }
-    };
+    }
 
     const openQuestionnaire = async () => {
         setQuestionnaireLoading(true);
         try {
-            const result = await coachService.getQuestionnaires({ coachId: coach.id });
-            if (result?.questionnaires?.length) {
-                setQuestionnaireQuestions(result.questionnaires);
+            // 获取问卷问题
+            const qRes = await coachService.getQuestionnaires({
+                coachId: coach.id
+            });
+
+            if (qRes?.questionnaires && qRes.questionnaires.length > 0) {
+                setQuestionnaireQuestions(qRes.questionnaires);
                 setQuestionnaireVisible(true);
             } else {
-                showToast({ severity: 'info', summary: '该教练暂未配置问卷' });
+                showToast({ severity: 'info', summary: '该教练暂无问卷' });
             }
         } catch (error) {
             console.error('获取问卷失败:', error);
@@ -164,98 +121,95 @@ const CoachIntroduction: React.FC<CoachIntroductionProps> = ({
     };
 
     const handleQuestionnaireSubmit = async (answers: TrainingItem[]) => {
-        if (!userSubscription?.id) return;
-
-        const result = await subscriptionService.updateSubscription({
+        const res = await subscriptionService.updateSubscription({
             id: userSubscription.id,
-            subscribe_data: answers as any,
+            subscribe_data: answers as any
         });
 
-        if (result?.subscription) {
+        if (res?.subscription) {
             showToast({ severity: 'success', summary: '问卷更新成功' });
             setQuestionnaireVisible(false);
         } else {
             showToast({ severity: 'error', summary: '问卷更新失败' });
         }
-    };
+    }
 
     return (
-        <div className="pb-8 pt-6 sm:pt-8">
-            <div className="mx-auto max-w-7xl px-4 sm:px-6">
-                <div className="overflow-hidden rounded-[32px] border border-surface-200 bg-surface shadow-[0_18px_60px_rgba(15,23,42,0.06)]">
-                    <div className="border-b border-surface-100 bg-[radial-gradient(circle_at_top_left,rgba(207,109,78,0.16),transparent_42%),linear-gradient(180deg,rgba(255,248,244,0.9),rgba(255,255,255,0.98))] px-5 py-6 sm:px-8 sm:py-8">
-                        <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
-                            <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
-                                <div className="relative">
-                                    <div className="h-24 w-24 overflow-hidden rounded-[28px] border border-white/70 bg-[#F5E7E1] shadow-lg sm:h-28 sm:w-28">
-                                        {coach.avatar_url ? (
-                                            <img src={coach.avatar_url} alt={coach.name || 'coach'} className="h-full w-full object-cover" />
-                                        ) : (
-                                            <div className="flex h-full w-full items-center justify-center text-3xl font-black text-[#CF6D4E]">
-                                                {(coach.name || 'C').slice(0, 1).toUpperCase()}
-                                            </div>
-                                        )}
-                                    </div>
-                                    {coach.is_featured ? (
-                                        <div className="absolute -right-2 -top-2 flex h-9 w-9 items-center justify-center rounded-2xl border border-white bg-[#CF6D4E] text-white shadow-md">
-                                            <Award size={18} />
-                                        </div>
-                                    ) : null}
+        <div className="pb-12">
+            {/* 背景装饰：淡淡的径向渐变，增加层次感 */}
+            <div className="absolute inset-0 h-64 bg-gradient-to-b from-primary-100/50 to-transparent dark:from-primary-800/50 pointer-events-none" />
+
+            <div className="max-w-7xl mx-auto px-6 sm:px-8 relative">
+                <div className="flex flex-col md:flex-row gap-10 items-start pt-10">
+
+                    {/* 左侧：精简头像与状态 */}
+                    <div className="flex-shrink-0 relative group">
+                        <div className="w-32 h-32 md:w-40 md:h-40 rounded-[32px] overflow-hidden shadow-2xl shadow-primary-100 dark:shadow-primary-800 ring-4 ring-surface transition-transform duration-500 group-hover:scale-[1.02]">
+                            {coach.avatar_url ? (
+                                <img src={coach.avatar_url} alt={coach.name} className="w-full h-full object-cover" />
+                            ) : (
+                                <div className="w-full h-full bg-gradient-to-br from-surface-200 to-surface-100 flex items-center justify-center text-3xl font-black text-surface-400">
+                                    {coach.name?.substring(0, 1)}
+                                </div>
+                            )}
+                        </div>
+                        {coach.is_featured && (
+                            <div className="absolute -bottom-2 -right-2 bg-yellow-400 text-surface rounded-2xl p-2 shadow-xl border-2 border-surface">
+                                <Award size={20} strokeWidth={2.5} />
+                            </div>
+                        )}
+                    </div>
+
+                    {/* 右侧：数值中心化的核心内容 */}
+                    <div className="flex-1 w-full">
+                        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-8">
+                            <div>
+                                <div className="flex flex-wrap items-center gap-3 mb-2">
+                                    <h1 className="text-3xl font-black text-surface-900 tracking-tighter">{coach.name}</h1>
+                                    {coachTrack && (
+                                        <span className="px-3 py-1 bg-primary-50 text-primary-700 text-[11px] font-black uppercase tracking-widest rounded-lg border border-primary-100">
+                                            {getCoachTrackLabel(coachTrack)}
+                                        </span>
+                                    )}
+                                    {coach.title && (
+                                        <span className="px-3 py-1 bg-surface-100 text-surface-600 text-[11px] font-black uppercase tracking-widest rounded-lg">
+                                            {coach.title}
+                                        </span>
+                                    )}
                                 </div>
 
-                                <div className="min-w-0 flex-1">
-                                    <div className="flex flex-wrap items-center gap-2">
-                                        <h1 className="text-2xl font-black tracking-tight text-surface-900 sm:text-3xl">
-                                            {coach.name || '未命名教练'}
-                                        </h1>
-                                        <span className="rounded-full bg-surface-900 px-3 py-1 text-[11px] font-black tracking-[0.18em] text-white">
-                                            教练
+                                {/* 订阅状态：低调的 Aero 标签 */}
+                                <div className="flex gap-2">
+                                    {userSubscription?.status === 'active' && (
+                                        <span className="flex items-center gap-1.5 text-xs font-bold text-green-600 bg-green-50 px-2.5 py-1 rounded-full border border-green-100">
+                                            <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
+                                            服务进行中
                                         </span>
-                                        {coachTrack ? (
-                                            <span className="rounded-full border border-primary-200 bg-primary-50 px-3 py-1 text-[11px] font-black text-primary-700">
-                                                {getCoachTrackLabel(coachTrack)}
-                                            </span>
-                                        ) : null}
-                                        {coach.title ? (
-                                            <span className="rounded-full border border-surface-200 bg-surface px-3 py-1 text-[11px] font-bold text-surface-600">
-                                                {coach.title}
-                                            </span>
-                                        ) : null}
-                                    </div>
-
-                                    <div className="mt-3 flex flex-wrap gap-2">
-                                        {statusChip ? (
-                                            <span className={`rounded-full border px-3 py-1 text-xs font-bold ${statusChip.className}`}>
-                                                {statusChip.label}
-                                            </span>
-                                        ) : null}
-                                        <span className="rounded-full border border-surface-200 bg-white/80 px-3 py-1 text-xs font-medium text-surface-600">
-                                            {coach.years_experience || 0} 年教练经验
+                                    )}
+                                    {userSubscription?.status === 'waiting' && (
+                                        <span className="flex items-center gap-1.5 text-xs font-bold text-surface-500 bg-surface-50 px-2.5 py-1 rounded-full border border-surface-100">
+                                            等待确认
                                         </span>
-                                    </div>
-
-                                    <p className="mt-4 max-w-3xl whitespace-pre-line text-sm leading-6 text-surface-600 sm:text-[15px]">
-                                        {coach.bio || '这位教练还没有补充个人简介。'}
-                                    </p>
+                                    )}
                                 </div>
                             </div>
 
+                            {/* 动作按钮：扁平化、强质感 */}
                             <div className="flex flex-wrap gap-3">
-                                {['waiting', 'active'].includes(userSubscription?.status || '') ? (
+                                {['waiting', 'active'].includes(userSubscription?.status) && (
                                     <button
-                                        onClick={() => void openQuestionnaire()}
-                                        className="inline-flex items-center gap-2 rounded-2xl border border-surface-200 bg-white px-4 py-3 text-sm font-bold text-surface-700 transition hover:border-primary-300 hover:text-primary-700"
+                                        onClick={openQuestionnaire}
+                                        className="flex items-center gap-2 px-5 py-2.5 bg-surface border border-surface-200 rounded-[14px] text-xs font-black text-surface-700 hover:border-primary-300 hover:text-primary-600 transition-all active:scale-95 shadow-sm"
                                     >
                                         <ClipboardList size={16} />
                                         查看问卷
                                     </button>
-                                ) : null}
-
-                                {!isOwnProfile ? (
+                                )}
+                                {!isOwnProfile && (
                                     <button
                                         id="guide-subscribe-entry"
                                         onClick={() => onGoToSubscribe?.()}
-                                        className="inline-flex items-center gap-2 rounded-2xl bg-primary px-5 py-3 text-sm font-black text-white transition hover:opacity-90"
+                                        className="flex items-center gap-2 px-6 py-2.5 bg-primary text-surface rounded-[16px] text-xs font-black shadow-lg shadow-primary-200 dark:shadow-primary-700 hover:bg-primary-600 transition-all active:scale-95"
                                     >
                                         <Zap size={16} />
                                         {userSubscription?.status === 'active'
@@ -264,160 +218,150 @@ const CoachIntroduction: React.FC<CoachIntroductionProps> = ({
                                                 ? '查看进度'
                                                 : '立即订阅'}
                                     </button>
-                                ) : null}
-
+                                )}
                                 <button
-                                    onClick={() => void contactCoach()}
-                                    disabled={loading || isOwnProfile}
-                                    className="inline-flex items-center gap-2 rounded-2xl border border-surface-200 bg-white px-4 py-3 text-sm font-bold text-surface-700 transition hover:border-primary-300 hover:text-primary-700 disabled:cursor-not-allowed disabled:opacity-50"
+                                    onClick={contactCoach}
+                                    className="flex items-center gap-2 px-6 py-2.5 bg-surface border border-surface-200 rounded-[16px] text-xs font-black text-surface-700 hover:border-primary-300 hover:text-primary-600 transition-all active:scale-95 shadow-sm"
                                 >
                                     <MessageCircle size={16} />
                                     联系教练
                                 </button>
-
-                                {isOwnProfile ? (
+                                {isOwnProfile && (
                                     <button
                                         onClick={() => setEditDialogVisible(true)}
-                                        className="inline-flex items-center gap-2 rounded-2xl border border-surface-200 bg-white px-4 py-3 text-sm font-bold text-surface-700 transition hover:border-primary-300 hover:text-primary-700"
+                                        className="p-2.5 bg-surface-50 text-surface-400 rounded-[14px] hover:bg-surface-100 hover:text-surface-900 transition-all"
                                     >
-                                        <Edit3 size={16} />
-                                        编辑资料
+                                        <Edit3 size={18} />
                                     </button>
-                                ) : null}
+                                )}
                             </div>
                         </div>
-                    </div>
 
-                    <div className="border-b border-surface-100 px-5 py-5 sm:px-8">
-                        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-                            {statItems.map((item) => {
-                                const Icon = item.icon;
-                                return (
-                                    <div
-                                        key={item.label}
-                                        className="rounded-3xl border border-surface-200 bg-surface-50 px-4 py-4"
-                                    >
-                                        <div className="flex items-center gap-2 text-surface-400">
-                                            <Icon size={15} />
-                                            <span className="text-[11px] font-black tracking-[0.16em] text-surface-400">
-                                                {item.label}
-                                            </span>
-                                        </div>
-                                        <div className="mt-3 text-2xl font-black tracking-tight text-surface-900">
-                                            {item.value}
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </div>
-
-                    <div className="grid gap-6 px-5 py-6 sm:px-8 lg:grid-cols-[1.2fr_0.8fr]">
-                        <div className="space-y-6">
-                            <section className="rounded-3xl border border-surface-200 bg-white p-5">
-                                <div className="text-[11px] font-black uppercase tracking-[0.22em] text-surface-400">
-                                    擅长领域
+                        {/* 核心统计：数值中心化布局 */}
+                        <div className="grid grid-cols-3 gap-4 mb-10">
+                            {[
+                                { label: '教学内容', value: aggregatedInfo?.contentCount || 0, icon: <BookOpen size={16} /> },
+                                { label: '活跃学员', value: aggregatedInfo?.studentCount || 0, icon: <Users size={16} /> },
+                                { label: '综合评分', value: aggregatedInfo?.averageRating?.toFixed(1) || '0.0', icon: <Star size={16} /> },
+                            ].map((stat, i) => (
+                                <div key={i} className="bg-surface-50/50 border border-surface-100 p-4 rounded-[24px] flex flex-col gap-1 hover:bg-surface hover:shadow-md transition-all">
+                                    <div className="text-surface-400">{stat.icon}</div>
+                                    <div className="text-xl font-black text-surface-900 tracking-tighter">{stat.value}</div>
+                                    <div className="text-[10px] font-bold text-surface-400 uppercase tracking-widest">{stat.label}</div>
                                 </div>
-                                <div className="mt-4 flex flex-wrap gap-2">
-                                    {specialtiesToShow.length ? specialtiesToShow.map((specialty, index) => (
+                            ))}
+                        </div>
+                        <div className="flex flex-col gap-10">
+                            {/* 上部分：擅长领域 */}
+                            <div className="flex flex-col">
+                                <h3 className="text-[11px] font-black text-surface-400 uppercase tracking-[0.2em] mb-4">
+                                    擅长领域
+                                </h3>
+                                <div className="flex flex-wrap gap-2">
+                                    {specialtiesToShow.map((specialty, index) => (
                                         <span
-                                            key={`${specialty}-${index}`}
-                                            className="rounded-full border border-surface-200 bg-surface-50 px-3 py-2 text-xs font-bold text-surface-700"
+                                            key={index}
+                                            className="px-3 py-1.5 bg-surface border border-surface-100 rounded-xl text-[12px] font-bold text-surface-700 shadow-sm"
                                         >
                                             {specialty}
                                         </span>
-                                    )) : (
-                                        <span className="text-sm text-surface-500">暂未填写擅长领域</span>
-                                    )}
+                                    ))}
                                 </div>
-                            </section>
+                            </div>
 
-                            {(serviceModes.length > 0 || targetStudentLevels.length > 0 || supportFocus) ? (
-                                <section className="rounded-3xl border border-surface-200 bg-white p-5">
-                                    <div className="text-[11px] font-black uppercase tracking-[0.22em] text-surface-400">
+                            {(serviceModes.length > 0 || targetStudentLevels.length > 0 || supportFocus) && (
+                                <div className="flex flex-col gap-4">
+                                    <h3 className="text-[11px] font-black text-surface-400 uppercase tracking-[0.2em]">
                                         服务定位
-                                    </div>
-                                    {serviceModes.length > 0 ? (
-                                        <div className="mt-4 flex flex-wrap gap-2">
+                                    </h3>
+                                    {serviceModes.length > 0 && (
+                                        <div className="flex flex-wrap gap-2">
                                             {serviceModes.map((mode: string) => (
                                                 <span
                                                     key={mode}
-                                                    className="rounded-full border border-primary-200 bg-primary-50 px-3 py-2 text-xs font-bold text-primary-700"
+                                                    className="px-3 py-1.5 bg-primary-50 border border-primary-100 rounded-xl text-[12px] font-bold text-primary-700 shadow-sm"
                                                 >
                                                     {getServiceModeLabel(mode)}
                                                 </span>
                                             ))}
                                         </div>
-                                    ) : null}
-                                    {targetStudentLevels.length > 0 ? (
-                                        <div className="mt-3 flex flex-wrap gap-2">
+                                    )}
+                                    {targetStudentLevels.length > 0 && (
+                                        <div className="flex flex-wrap gap-2">
                                             {targetStudentLevels.map((level: string) => (
                                                 <span
                                                     key={level}
-                                                    className="rounded-full border border-surface-200 bg-surface-50 px-3 py-2 text-xs font-bold text-surface-700"
+                                                    className="px-3 py-1.5 bg-surface border border-surface-100 rounded-xl text-[12px] font-bold text-surface-700 shadow-sm"
                                                 >
                                                     适合 {getTargetStudentLevelLabel(level)}
                                                 </span>
                                             ))}
                                         </div>
-                                    ) : null}
-                                    {supportFocus ? (
-                                        <p className="mt-4 whitespace-pre-line text-sm leading-6 text-surface-600">
+                                    )}
+                                    {supportFocus && (
+                                        <p className="text-sm text-surface-600 leading-relaxed whitespace-pre-line max-w-2xl px-1">
                                             {supportFocus}
                                         </p>
-                                    ) : null}
-                                </section>
-                            ) : null}
-                        </div>
+                                    )}
+                                </div>
+                            )}
 
-                        <div className="space-y-6">
-                            <section className="rounded-3xl border border-surface-200 bg-surface-50 p-5">
-                                <div className="text-[11px] font-black uppercase tracking-[0.22em] text-surface-400">
-                                    教练信息
+                            {/* 下部分：简介与核心指标 */}
+                            <div className="flex flex-col gap-8">
+                                <div>
+                                    <h3 className="text-[11px] font-black text-surface-400 uppercase tracking-[0.2em] mb-4">
+                                        教练简介
+                                    </h3>
+                                    <p className="text-surface-600 text-sm leading-relaxed whitespace-pre-line max-w-2xl px-1">
+                                        {coach.bio || '这位教练很神秘，还没有填写简介。'}
+                                    </p>
                                 </div>
-                                <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
-                                    <div className="rounded-2xl border border-surface-200 bg-white px-4 py-4">
-                                        <div className="text-xs font-medium text-surface-500">从业经验</div>
-                                        <div className="mt-2 text-lg font-black text-surface-900">
-                                            {coach.years_experience || 0} 年
-                                        </div>
+
+                                {/* 经验值容器：保持与上方简介的左对齐，并统一圆角风格 */}
+                                <div className="grid grid-cols-2 gap-6 p-6 bg-surface-50/30 rounded-[24px] border border-dashed border-surface-200">
+                                    <div className="flex flex-col gap-1">
+                                        <h3 className="text-[10px] font-black text-surface-400 uppercase tracking-wider">
+                                            从业经验
+                                        </h3>
+                                        <p className="text-sm font-bold text-surface-900">
+                                            {coach.years_experience || 0} 年专业沉淀
+                                        </p>
                                     </div>
-                                    <div className="rounded-2xl border border-surface-200 bg-white px-4 py-4">
-                                        <div className="text-xs font-medium text-surface-500">成功案例</div>
-                                        <div className="mt-2 text-lg font-black text-surface-900">
-                                            {caseStudyCount} 个
-                                        </div>
-                                    </div>
-                                    <div className="rounded-2xl border border-surface-200 bg-white px-4 py-4">
-                                        <div className="text-xs font-medium text-surface-500">学员评价</div>
-                                        <div className="mt-2 text-lg font-black text-surface-900">
-                                            {aggregatedInfo?.reviewCount || 0} 条
-                                        </div>
+                                    <div className="flex flex-col gap-1">
+                                        <h3 className="text-[10px] font-black text-surface-400 uppercase tracking-wider">
+                                            成功案例
+                                        </h3>
+                                        <p className="text-sm font-bold text-surface-900">
+                                            {caseStudyCount} 个学员蜕变
+                                        </p>
                                     </div>
                                 </div>
-                            </section>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
-
+            {/* 编辑教练资料对话框 */}
             <EditCoachProfileDialog
                 visible={editDialogVisible}
                 onHide={() => setEditDialogVisible(false)}
                 coach={coach}
                 onSave={() => {
+                    // 刷新页面以获取更新后的教练信息
                     window.location.reload();
                 }}
             />
 
-            {chatroom ? (
+            {/* 聊天对话框 */}
+            {chatroom && (
                 <ChatDialog
                     visible={chatDialogVisible}
                     onHide={() => setChatDialogVisible(false)}
                     chatroom={chatroom}
                 />
-            ) : null}
+            )}
 
+            {/* 问卷表单 */}
             <QuestionnaireForm
                 coach={coach}
                 visible={questionnaireVisible}

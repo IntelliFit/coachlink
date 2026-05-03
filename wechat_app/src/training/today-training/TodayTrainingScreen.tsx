@@ -58,7 +58,6 @@ import {
   patchTodayTrainingPageCache,
   persistTodayTrainingPageCache
 } from '@/utils/todayTrainingPageCache'
-import { openCoachChat } from '@/utils/coachChat'
 import './index.scss'
 
 type PlanMode = 'coach' | 'self'
@@ -886,10 +885,9 @@ function TodayTrainingScreen() {
         return
       }
       const coachId = activeSubscription?.coach_id || activeSubscription?.coach?.id
-      const coachUserId = activeSubscription?.coach?.user_id || ''
       const coachName = activeSubscription?.coach?.name || ''
       const coachQuery = coachId
-        ? `&coachId=${encodeURIComponent(coachId)}${coachUserId ? `&coachUserId=${encodeURIComponent(coachUserId)}` : ''}${coachName ? `&coachName=${encodeURIComponent(coachName)}` : ''}`
+        ? `&coachId=${encodeURIComponent(coachId)}${coachName ? `&coachName=${encodeURIComponent(coachName)}` : ''}`
         : ''
       const focusQuery = typeof focusAction === 'number' ? `&focusAction=${focusAction}` : ''
       Taro.navigateTo({
@@ -941,16 +939,13 @@ function TodayTrainingScreen() {
 
   const handleContactCoach = useCallback(() => {
     const coachId = activeSubscription?.coach_id || activeSubscription?.coach?.id
-    const coachUserId = activeSubscription?.coach?.user_id || ''
     const coachName = activeSubscription?.coach?.name || ''
-    void openCoachChat({
-      currentUserId,
-      coachId,
-      coachUserId,
-      coachName,
-      fallbackToMessagesList: true
+    Taro.navigateTo({
+      url: coachId
+        ? `/me/messages/index?coachId=${encodeURIComponent(coachId)}${coachName ? `&coachName=${encodeURIComponent(coachName)}` : ''}`
+        : '/me/messages/index'
     })
-  }, [activeSubscription, currentUserId])
+  }, [activeSubscription])
 
   const scrollToScheduleCalendar = useCallback(() => {
     setScheduleScrollIntoView('schedule-calendar-anchor')

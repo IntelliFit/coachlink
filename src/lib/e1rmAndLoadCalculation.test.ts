@@ -5,10 +5,11 @@ import {
     lambdaAverage,
     lambdaBrzycki,
     lambdaEpley,
+    lambdaLombardi,
 } from "@/lib/rmCaculator";
 
 describe("calculateE1RM", () => {
-    it("reps=1 时 e1RM 等于外加重量（不进入双公式分支）", () => {
+    it("reps=1 时 e1RM 等于外加重量（不进入三公式分支）", () => {
         const r = calculateE1RM({
             weight: 100,
             reps: 1,
@@ -18,6 +19,7 @@ describe("calculateE1RM", () => {
         expect(r.e1rm).toBe(100);
         expect(r.epley).toBe(100);
         expect(r.brzycki).toBe(100);
+        expect(r.lombardi).toBe(100);
     });
 
     it("reps<=0 或非有限数时返回全 0", () => {
@@ -54,25 +56,27 @@ describe("calculateE1RM", () => {
         ).toBe(0);
     });
 
-    it("不含自重：100kg×5 次 与双公式平均一致", () => {
+    it("不含自重：100kg×5 次 与三公式平均一致", () => {
         const w = 100;
         const r = 5;
         const epley = w * (1 + 0.0333 * r);
         const brzycki = w * (36 / (37 - r));
-        const expected = Math.round(((epley + brzycki) / 2) * 10) / 10;
+        const lombardi = w * Math.pow(r, 0.1);
+        const expected = Math.round(((epley + brzycki + lombardi) / 3) * 10) / 10;
         const got = calculateE1RM({ weight: w, reps: r });
         expect(got.e1rm).toBe(expected);
         expect(got.epley).toBe(Math.round(epley * 10) / 10);
     });
 
-    it("含自重：总重参与双公式后再减体重", () => {
+    it("含自重：总重参与三公式后再减体重", () => {
         const ext = 20;
         const bw = 80;
         const r = 5;
         const total = ext + bw;
         const epley = total * (1 + 0.0333 * r) - bw;
         const brzycki = total * (36 / (37 - r)) - bw;
-        const expected = Math.round(((epley + brzycki) / 2) * 10) / 10;
+        const lombardi = total * Math.pow(r, 0.1) - bw;
+        const expected = Math.round(((epley + brzycki + lombardi) / 3) * 10) / 10;
         const got = calculateE1RM({
             weight: ext,
             reps: r,
@@ -97,7 +101,8 @@ describe("calculateE1RM", () => {
         const safeReps = 36;
         const epley = w * (1 + 0.0333 * safeReps);
         const brzycki = w * (36 / (37 - safeReps));
-        const expected = Math.round(((epley + brzycki) / 2) * 10) / 10;
+        const lombardi = w * Math.pow(safeReps, 0.1);
+        const expected = Math.round(((epley + brzycki + lombardi) / 3) * 10) / 10;
         expect(calculateE1RM({ weight: w, reps: 40 }).e1rm).toBe(expected);
     });
 });
@@ -133,10 +138,11 @@ describe("calcRecommendedLoad", () => {
         const oneRM = 120;
         const bw = 75;
         const reps = 8;
-        for (const model of ["epley", "brzycki"] as const) {
+        for (const model of ["epley", "brzycki", "lombardi"] as const) {
             let lambda: number;
             if (model === "epley") lambda = lambdaEpley(reps);
-            else lambda = lambdaBrzycki(reps);
+            else if (model === "brzycki") lambda = lambdaBrzycki(reps);
+            else lambda = lambdaLombardi(reps);
             const expected = Number(
                 ((oneRM + bw) / lambda - bw).toFixed(2),
             );

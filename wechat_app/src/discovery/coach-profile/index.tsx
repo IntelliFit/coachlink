@@ -250,12 +250,17 @@ export default function CoachProfile() {
     setScrollIntoView('tab-pricing-anchor')
     if (userSubscription?.status === 'waiting') {
       Taro.showToast({ title: '当前订阅正在处理中，可先查看价格与进度', icon: 'none', duration: 2200 })
-    } else if (userSubscription?.status === 'active' || showRenewBtn) {
-      setRenewMode(true)
-      Taro.showToast({ title: '已进入续费，请选择套餐', icon: 'none', duration: 1500 })
     } else {
       Taro.showToast({ title: '已为您定位到订阅价格', icon: 'none', duration: 1500 })
     }
+    setTimeout(() => setScrollIntoView(''), 600)
+  }
+
+  const handleEnterRenewMode = () => {
+    setActiveTab(TAB_PRICING)
+    setScrollIntoView('tab-pricing-anchor')
+    setRenewMode(true)
+    Taro.showToast({ title: '已进入续费，请选择套餐', icon: 'none', duration: 1500 })
     setTimeout(() => setScrollIntoView(''), 600)
   }
 
@@ -276,7 +281,7 @@ export default function CoachProfile() {
     }
     if (showRenewBtn && !renewMode) {
       Taro.showToast({
-        title: '您已订阅该教练，点击上方【续费】即可延长订阅并且可以续订',
+        title: '您已订阅该教练，点击【续费】即可延长订阅并且可以续订',
         icon: 'none',
         duration: 3000
       })
@@ -339,20 +344,6 @@ export default function CoachProfile() {
       console.error('拉起订阅流程失败:', e)
       Taro.showToast({ title: e?.message || '拉起订阅流程失败', icon: 'none' })
     }
-  }
-
-  const handleGeneratePlan = () => {
-    if (!coachId) {
-      Taro.showToast({ title: '教练信息加载失败', icon: 'none' })
-      return
-    }
-    const user = authService.getCurrentUser()
-    if (!user?.id) {
-      Taro.showToast({ title: '请先登录', icon: 'none' })
-      Taro.navigateTo({ url: `/auth/login?returnTo=${encodeURIComponent(`/discovery/coach-profile?id=${coachId}`)}` })
-      return
-    }
-    Taro.navigateTo({ url: `/discovery/generate-plan?coachId=${coachId}` })
   }
 
   const handleContentItem = (content: CoachContentRow) => {
@@ -461,7 +452,7 @@ export default function CoachProfile() {
   const tabs = [
     { index: TAB_ABOUT, label: '关于教练' },
     { index: TAB_PRICING, label: '订阅价格' },
-    { index: TAB_CONTENT, label: `教学内容(${contentsTotal})` },
+    { index: TAB_CONTENT, label: `教练专栏(${aggregatedInfo?.contentCount ?? contentsTotal})` },
     { index: TAB_REVIEWS, label: `学员评价(${reviewCount})` }
   ]
 
@@ -485,6 +476,7 @@ export default function CoachProfile() {
             coach={displayCoach}
             aggregatedInfo={aggregatedInfo}
             userSubscription={userSubscription}
+            onOpenQuestionnaire={handleOpenQuestionnaire}
           />
 
           <View id='tab-pricing-anchor' className='tab-wrap'>
@@ -510,6 +502,7 @@ export default function CoachProfile() {
               onSelectProduct={handleSelectProduct}
               userSubscription={userSubscription}
               renewMode={renewMode}
+              onEnterRenewMode={handleEnterRenewMode}
             />
           </View>
           <View className={`tab-panel ${activeTab === TAB_CONTENT ? 'tab-panel-active' : ''}`}>
@@ -527,25 +520,16 @@ export default function CoachProfile() {
 
       {!isOwnProfile && (
         <View className='fixed-cta'>
-          {userSubscription?.status === 'active' && (
-            <>
-              <View className='generate-plan-btn' onClick={handleGeneratePlan}>
-                <Text>智能生成计划</Text>
-              </View>
-              <View className='questionnaire-btn' onClick={handleOpenQuestionnaire}>
-                <Text>填写/更新训练需求问卷</Text>
-              </View>
-            </>
-          )}
           <View className='fixed-cta-btn' onClick={handleSubscribe}>
             <Text>
-              {showRenewBtn
-                ? '续费'
+              {userSubscription?.status === 'active'
+                ? '查看订阅'
                 : userSubscription?.status === 'waiting'
                   ? '查看订阅进度'
                   : '立即订阅 / 查看价格'}
             </Text>
           </View>
+          <Text className='fixed-cta-hint'>不用右滑找「订阅价格」，点这里直接跳转</Text>
         </View>
       )}
     </View>

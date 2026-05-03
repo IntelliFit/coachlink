@@ -8,11 +8,16 @@ export function lambdaBrzycki(reps: number): number {
   return 36 / (37 - reps)
 }
 
-export function lambdaAverage(reps: number): number {
-  return (lambdaEpley(reps) + lambdaBrzycki(reps)) / 2
+export function lambdaLombardi(reps: number): number {
+  if (reps <= 0) throw new Error('reps must be positive')
+  return Math.pow(reps, 0.1)
 }
 
-export type LambdaModel = 'average' | 'epley' | 'brzycki'
+export function lambdaAverage(reps: number): number {
+  return (lambdaEpley(reps) + lambdaBrzycki(reps) + lambdaLombardi(reps)) / 3
+}
+
+export type LambdaModel = 'average' | 'epley' | 'brzycki' | 'lombardi'
 
 export function calcRecommendedLoad(
   oneRM: number,
@@ -28,6 +33,7 @@ export function calcRecommendedLoad(
   let lambda = lambdaAverage(reps)
   if (model === 'epley') lambda = lambdaEpley(reps)
   if (model === 'brzycki') lambda = lambdaBrzycki(reps)
+  if (model === 'lombardi') lambda = lambdaLombardi(reps)
 
   const load = (oneRM + alpha * bodyWeight) / lambda - alpha * bodyWeight
   return Number(load.toFixed(1))

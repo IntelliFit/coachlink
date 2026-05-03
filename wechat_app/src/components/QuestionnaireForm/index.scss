@@ -76,6 +76,52 @@
 
   .text-input {
     margin-top: 8px;
+
+    .text-textarea {
+      width: 100%;
+      min-height: 160px;
+      padding: 16px;
+      border-radius: 12px;
+      background: #ffffff;
+      border: 1px solid #dbe4ee;
+      box-sizing: border-box;
+      font-size: 14px;
+      line-height: 1.6;
+      color: #334155;
+    }
+
+    .text-input-hint {
+      display: block;
+      margin-top: 8px;
+      font-size: 12px;
+      line-height: 1.5;
+      color: #64748b;
+    }
+  }
+
+  .option-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+
+    .option-checkbox,
+    .option-radio {
+      padding: 4px 0;
+    }
+  }
+
+  .option-other {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+
+    .option-other-input {
+      margin-top: 4px;
+      padding: 8px 12px;
+      border-radius: 8px;
+      background: #ffffff;
+      border: 1px solid #dbe4ee;
+    }
   }
 }
 

@@ -1,5 +1,27 @@
 # CURRENT_TASK
 
+## WeApp Questionnaire Ready Status Mismatch (`2026-05-03`)
+
+- Task: fix the WeChat mini-program coach `我的` / `概览` surfaces so `学员问卷` reflects the actually published questionnaire.
+- Status: implemented and verified at code/build level.
+- Symptom:
+  - `wechat_app/src/coach/questionnaire/index.tsx` showed a questionnaire as `已发布`.
+  - But `wechat_app/src/coach/my-profile/index.tsx` and `wechat_app/src/coach/overview/index.tsx` still rendered `学员问卷 = 待设置`.
+- Root cause:
+  - The questionnaire management list had already switched to the new publication source of truth `status = 'active'`.
+  - The coach overview payload used by mini-program `我的` / `概览` was still effectively relying on the legacy publication flag chain.
+  - `src/app/api/coach/publish-questionnaire/route.ts` had been publishing by `status`, but older readiness logic and data compatibility around `is_active` were not kept in sync.
+- Implemented:
+  - `src/app/api/coach/get-overview-data/route.ts`
+    - `questionReady` now checks questionnaire rows more defensively and treats either `status = 'active'` or `is_active = true` as ready.
+  - `src/app/api/coach/publish-questionnaire/route.ts`
+    - demoting the old published questionnaire now also writes `is_active = false`
+    - promoting the selected questionnaire now also writes `is_active = true`
+- Verification:
+  - `npm run typecheck`: passed
+  - `npx next build`: passed
+  - `npm test`: failed on unrelated pre-existing `src/components/knowledge/BodyMap/bodyMapTypes.test.ts` export mismatches, not on questionnaire code
+
 ## WeApp Chat Image Caption Parity (`2026-05-02`)
 
 - Task: fix the WeChat mini-program private-message detail view so coach broadcast image messages show their attached caption text instead of only the image, matching the chat-list preview and Web chat behavior.
