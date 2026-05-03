@@ -110,17 +110,21 @@ export async function createAiInstanceForSubscription(params: CreateAiInstancePa
                 .select("id, name, description, execution_notice, type, suitable_for, tags, metadata, training_days")
                 .eq("coach_id", actorUserId);
 
+            // 随机抽取 N 个历史学员计划作为参考，让 AI 能从教练过往交付中学习
+            const HISTORY_SAMPLE_SIZE = 10;
             const { data: recentPlanInstances } = await supabase
                 .from("coach_plan_instances")
                 .select("id, name, description, execution_notice, type, suitable_for, tags, training_days, created_at")
                 .eq("coach_id", actorCoachId)
                 .neq("coach_subscription_id", subscriptionId)
-                .order("created_at", { ascending: false })
-                .limit(12);
+                .limit(50);
+
+            const sampledInstances = shuffleArray(recentPlanInstances || [])
+                .slice(0, HISTORY_SAMPLE_SIZE);
 
             const availableTemplates = [
                 ...(allTemplates || []).map((tpl) => buildTemplateSummary({ ...tpl, __source: "template" })),
-                ...(recentPlanInstances || []).map((inst) => buildTemplateSummary({ ...inst, __source: "instance" })),
+                ...(sampledInstances || []).map((inst) => buildTemplateSummary({ ...inst, __source: "instance" })),
             ]
                 .filter((template) => template.dayCount > 0);
 
@@ -152,7 +156,7 @@ export async function createAiInstanceForSubscription(params: CreateAiInstancePa
             selectedTemplateId = aiResult.templateId;
             selectedTemplateMeta = selectedTemplateId
                 ? (allTemplates || []).find((tpl: any) => tpl.id === selectedTemplateId)
-                    || (recentPlanInstances || []).find((inst: any) => inst.id === selectedTemplateId)
+                    || (sampledInstances || []).find((inst: any) => inst.id === selectedTemplateId)
                     || null
                 : null;
             aiGenerationLog = aiResult.aiGenerationLog;
@@ -352,4 +356,13 @@ function collectTrainingActionIds(trainingDays: any[]): Set<string> {
 
 function hasAnyTrainingAction(trainingDays: any[]): boolean {
     return collectTrainingActionIds(trainingDays).size > 0;
+}
+
+function shuffleArray<T>(arr: T[]): T[] {
+    const copy = [...arr];
+    for (let i = copy.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [copy[i], copy[j]] = [copy[j], copy[i]];
+    }
+    return copy;
 }

@@ -181,7 +181,7 @@ async function handleAutoE1RMCheck(params: {
         includeBodyWeight,
     });
 
-    const { e1rm, epley, brzycki } = result;
+    const { e1rm, epley, brzycki, lombardi } = result;
 
     // 3.2 将自动计算出的 e1RM 回写到学员动作库（只升不降，手动编辑可下调）
     // 这里不覆盖更高的已有值，避免一次状态波动导致全局 1RM 回退。
@@ -240,6 +240,7 @@ async function handleAutoE1RMCheck(params: {
                 bodyWeight: includeBodyWeight ? bodyWeight : undefined,
                 epley,
                 brzycki,
+                lombardi,
             };
 
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -319,6 +320,7 @@ async function handleAutoE1RMCheck(params: {
         bodyWeight: includeBodyWeight ? bodyWeight : undefined,
         epley,
         brzycki,
+        lombardi,
     };
 
     if (todayPR) {

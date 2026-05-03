@@ -636,25 +636,15 @@ function ChatPage() {
     )
   }
 
-  const renderMediaCaption = (msg: MessageItem) => {
-    const caption = (msg.content || '').trim()
-    if (!caption) return null
-    if (caption === msg.mediaUrl) return null
-    return <Text className='message-media-caption'>{caption}</Text>
-  }
-
   const renderMessageBody = (msg: MessageItem) => {
     if (msg.messageType === 'image' && msg.mediaUrl) {
       return (
-        <View className='message-media-block'>
-          <Image
-            src={msg.mediaUrl}
-            className='message-img'
-            mode='widthFix'
-            showMenuByLongpress
-          />
-          {renderMediaCaption(msg)}
-        </View>
+        <Image
+          src={msg.mediaUrl}
+          className="message-img"
+          mode="widthFix"
+          showMenuByLongpress
+        />
       )
     }
     if (msg.messageType === 'video_reference') {

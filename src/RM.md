@@ -33,7 +33,14 @@ $$
 $$
 \text{1RM}_{\text{Brzycki}} = W \times \frac{36}{37 - r}
 $$
-## 最终综合估算（取二者平均值）
+### Lombardi
+
+$$
+\text{1RM}_{\text{Lombardi}} = W \times r^{0.1}
+$$
+---
+
+## 最终综合估算（取三者平均值）
 
 $$
 \text{1RM}_{\text{final}}
@@ -42,7 +49,9 @@ $$
 \text{1RM}_{\text{Epley}}
 +
 \text{1RM}_{\text{Brzycki}}
-}{2}
++
+\text{1RM}_{\text{Lombardi}}
+}{3}
 $$
 ---
 

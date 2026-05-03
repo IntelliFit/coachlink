@@ -296,7 +296,7 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
             // RM 模式
             const rmValue = set.params?.['强度'];
             // 次数必须在 (0, 37) 区间内，因为 Brzycki 公式要求 r < 37
-            // 同时 Epley 要求 r > 0
+            // 同时 Epley 和 Lombardi 要求 r > 0
             if (!rmValue || rmValue <= 0 || rmValue >= 37) return;
 
             // 仅"包含自重"的动作需要体重数据才能计算 RM 推荐重量
@@ -306,6 +306,7 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
             const modelMap: Record<string, LambdaModel> = {
                 'Epley': 'epley',
                 'Brzycki': 'brzycki',
+                'Lombardi': 'lombardi',
                 '综合计算': 'average'
             };
             const model = modelMap[algorithm] || 'average';

@@ -5,8 +5,7 @@ import { InputText } from 'primereact/inputtext';
 import { InputTextarea } from 'primereact/inputtextarea';
 import { MultiSelect } from 'primereact/multiselect';
 import { trainingItemService } from '@/app/service/trainingItemService';
-import { TrainingOptionQuestion } from '@/types/questionnaires';
-import { Info, Target, Calendar } from 'lucide-react';
+import { Info, Calendar } from 'lucide-react';
 
 interface BasicInfoFormProps {
     name: string;
@@ -26,12 +25,6 @@ interface BasicInfoFormProps {
     // 新增props
     weekDays?: number[];
     onWeekDaysChange?: (days: number[]) => void;
-    globalQuestions?: TrainingOptionQuestion[];
-    globalAnswers?: Record<string, number>;
-    /**
-     * Pass `null` to clear (unanswer) a question.
-     */
-    onGlobalAnswerChange?: (question: string, answerIndex: number | null) => void;
     /**
      * 可选的训练项目标签列表（来自教练的问卷配置）
      * 如果提供，则使用此列表作为模板标签的可选项
@@ -59,9 +52,6 @@ const BasicInfoForm: React.FC<BasicInfoFormProps> = ({
     variant = 'template',
     weekDays = [],
     onWeekDaysChange,
-    globalQuestions = [],
-    globalAnswers = {},
-    onGlobalAnswerChange,
     availableTrainingTags,
     hideHeader = false
 }) => {
@@ -112,7 +102,7 @@ const BasicInfoForm: React.FC<BasicInfoFormProps> = ({
                             {isStudent ? '计划配置' : '模板定义'}
                         </h2>
                         <p className="text-sm text-surface-500 mt-0.5">
-                            {isStudent ? '配置计划名称与目标' : '设置模板名称、标签、频率与全局问卷'}
+                            {isStudent ? '配置计划名称与目标' : '设置模板名称、标签与建议频率'}
                         </p>
                     </div>
                     {extraButton && <div className="flex gap-2">{extraButton}</div>}
@@ -215,36 +205,6 @@ const BasicInfoForm: React.FC<BasicInfoFormProps> = ({
                                     })}
                                 </div>
                             </div>
-
-                            {/* 动态全局问题 */}
-                            {globalQuestions.map((question, idx) => (
-                                <div key={idx} className="flex flex-col gap-2">
-                                    <label className="text-[11px] font-black text-surface-500 uppercase tracking-widest px-1">{question.question}</label>
-                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                                        {question.options.map((opt, i) => {
-                                            const selected = globalAnswers[question.question] === i;
-                                            return (
-                                                <button
-                                                    key={i}
-                                                    type="button"
-                                                    onClick={() => onGlobalAnswerChange?.(question.question, selected ? null : i)}
-                                                    className={`
-                                                        p-2.5 rounded-2xl border transition-all cursor-pointer text-center
-                                                        ${selected
-                                                            ? 'border-surface-900 bg-surface-900/5 text-surface-900 font-bold'
-                                                            : 'border-surface-100 bg-surface-50/50 text-surface-500 hover:border-surface-200'}
-                                                    `}
-                                                >
-                                                    <span className="text-[11px] tracking-tight">{opt}</span>
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
-                                    <div className="text-[10px] text-surface-400 px-1">
-                                        可不选；再次点击已选项可取消。
-                                    </div>
-                                </div>
-                            ))}
                         </div>
                     )}
                 </div>
@@ -259,12 +219,12 @@ const BasicInfoForm: React.FC<BasicInfoFormProps> = ({
                             </div>
                             <div className="space-y-3 text-[11px] text-surface-500 leading-relaxed font-medium">
                                 <div className="flex gap-2">
-                                    <Target size={10} className="shrink-0 text-primary-500 mt-0.5" />
-                                    <p>训练项目关联动作库的<span className="text-surface-900 font-bold">自动筛选</span>逻辑。</p>
+                                    <div className="w-2 h-2 rounded-full bg-primary-500/70 shrink-0 mt-1.5" />
+                                    <p>训练项目标签主要用于<span className="text-surface-900 font-bold">归类和搜索</span>，保持少而准即可。</p>
                                 </div>
                                 <div className="flex gap-2">
                                     <div className="w-2 h-2 rounded-full bg-green-500/60 shrink-0 mt-1.5" />
-                                    <p>每周次数用于匹配学员问卷，实现<span className="text-surface-900 font-bold">智能分发</span>。</p>
+                                    <p>如果你主要靠 AI 生成计划，这里不用再维护复杂问卷条件，保持<span className="text-surface-900 font-bold">简单直白</span>就好。</p>
                                 </div>
                             </div>
                         </div>

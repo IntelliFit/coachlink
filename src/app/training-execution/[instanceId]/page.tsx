@@ -737,19 +737,9 @@ function TrainingExecutionContent() {
                         actionMap[item.action_id] = {
                             id: item.action_id,
                             name: item.action_name || "动作",
-                            type: String(item?.type || "STRENGTH").toUpperCase(),
+                            type: "STRENGTH",
                             attrs: ["组数", "次数", "强度", "休息时间"],
                         };
-                    });
-                    Object.values(actionMap).forEach((action: any) => {
-                        const itemType = String(action?.type || "STRENGTH").toUpperCase();
-                        if (itemType === "STRENGTH") {
-                            if (!Array.isArray(action?.attrs) || action.attrs.length === 0) {
-                                action.attrs = ["缁勬暟", "娆℃暟", "寮哄害", "浼戞伅鏃堕棿"];
-                            }
-                            return;
-                        }
-                        action.attrs = [];
                     });
                     setActions(actionMap);
                 }
@@ -1287,27 +1277,16 @@ function TrainingExecutionContent() {
             const cardioDuration = currentState.cardioDuration;
             
             // Call API
-            const res = isImpromptuMode
-                ? await impromptuTrainingService.completeItem({
-                    executionId: execution.id,
-                    actionIndex,
-                    itemType: itemType as any,
-                    completed: true,
-                    actualContent: itemType === 'DIET' ? dietContent : undefined,
-                    actualDistance: itemType === 'CARDIO' && cardioDistance ? cardioDistance * 1000 : undefined,
-                    actualDuration: itemType === 'CARDIO' && cardioDuration ? cardioDuration * 60 : undefined,
-                    notes: sessionNotes,
-                })
-                : await executionService.completeItem({
-                    executionId: execution.id,
-                    actionIndex,
-                    itemType: itemType as any,
-                    completed: true,
-                    actualContent: itemType === 'DIET' ? dietContent : undefined,
-                    actualDistance: itemType === 'CARDIO' && cardioDistance ? cardioDistance * 1000 : undefined, // to meters
-                    actualDuration: itemType === 'CARDIO' && cardioDuration ? cardioDuration * 60 : undefined, // to seconds
-                    notes: sessionNotes // Reuse session notes or add specific field if needed
-                });
+            const res = await executionService.completeItem({
+                executionId: execution.id,
+                actionIndex,
+                itemType: itemType as any,
+                completed: true,
+                actualContent: itemType === 'DIET' ? dietContent : undefined,
+                actualDistance: itemType === 'CARDIO' && cardioDistance ? cardioDistance * 1000 : undefined, // to meters
+                actualDuration: itemType === 'CARDIO' && cardioDuration ? cardioDuration * 60 : undefined, // to seconds
+                notes: sessionNotes // Reuse session notes or add specific field if needed
+            });
 
             if (res) {
                 // Update local state
@@ -1324,7 +1303,7 @@ function TrainingExecutionContent() {
                 };
                 
                 updatedExecution.action_executions[actionIndex].completed_sets = 1;
-                updatedExecution.completed_sets = res.completedItems || res.completedSets || execution.completed_sets + 1;
+                updatedExecution.completed_sets = res.completedSets || execution.completed_sets + 1;
                 setExecution(updatedExecution);
 
                 // Reset form for this action
@@ -1613,15 +1592,6 @@ function TrainingExecutionContent() {
                 // 更新本地状态
                 const updatedExecution = { ...execution };
                 const newActionIndex = data.data.newActionIndex;
-                setActions((prev) => ({
-                    ...prev,
-                    [action.id]: {
-                        id: action.id,
-                        name: action.name || "鍔ㄤ綔",
-                        type: String(action.type || "STRENGTH").toUpperCase(),
-                        attrs: Array.isArray(action.attrs) ? action.attrs : [],
-                    },
-                }));
                 
                 // 添加新动作到本地状态
                 updatedExecution.action_executions.push({

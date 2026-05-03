@@ -25,19 +25,7 @@ const subpackages = [
 
 const compFiles = ['comp.json', 'comp.wxml', 'comp.wxss', 'comp.js']
 const supportFiles = ['base.wxml', 'utils.wxs']
-const rootFilesToCopy = [...compFiles, ...supportFiles]
-
-function readAppConfig() {
-  const appJsonPath = path.join(distDir, 'app.json')
-  if (!fs.existsSync(appJsonPath)) return null
-
-  try {
-    return JSON.parse(fs.readFileSync(appJsonPath, 'utf8'))
-  } catch (error) {
-    console.log('Warning: failed to parse app.json:', error.message)
-    return null
-  }
-}
+const allFilesToCopy = [...compFiles, ...supportFiles]
 
 function copyIfChanged(src, dest) {
   if (!fs.existsSync(src)) return false
@@ -62,7 +50,7 @@ if (!fs.existsSync(rootCompWxss)) {
 }
 
 // Check that source comp/support files exist
-for (const file of rootFilesToCopy) {
+for (const file of allFilesToCopy) {
   const src = path.join(distDir, file)
   if (!fs.existsSync(src)) {
     console.log('Warning: source file not found:', file)
@@ -76,7 +64,7 @@ for (const pkg of subpackages) {
     continue
   }
 
-  for (const file of rootFilesToCopy) {
+  for (const file of allFilesToCopy) {
     const src = path.join(distDir, file)
     const dest = path.join(pkgDir, file)
     if (copyIfChanged(src, dest)) {
@@ -92,79 +80,17 @@ function copyCompFiles(targetDir) {
   if (!fs.existsSync(fullDir)) return false
 
   let copied = false
-  // Nested directories only need comp.* compatibility artifacts.
-  // Copying base.wxml/utils.wxs into every leaf directory duplicates
-  // the Taro runtime template dozens of times and can easily push a
-  // subpackage past WeChat's 2MB source-size limit.
-  for (const file of compFiles) {
+  for (const file of allFilesToCopy) {
     const src = path.join(distDir, file)
     const dest = path.join(fullDir, file)
     if (copyIfChanged(src, dest)) {
       copied = true
     }
   }
-
-  const compWxmlPath = path.join(fullDir, 'comp.wxml')
-  if (fs.existsSync(compWxmlPath)) {
-    const pathSegments = targetDir.split('/').filter(Boolean)
-    const depthToSubpackageRoot = Math.max(0, pathSegments.length - 1)
-    const supportPrefix = '../'.repeat(depthToSubpackageRoot) || './'
-    const expectedBasePath = `${supportPrefix}base.wxml`
-    const expectedUtilsPath = `${supportPrefix}utils.wxs`
-
-    let content = fs.readFileSync(compWxmlPath, 'utf8')
-    const nextContent = content
-      .replace(/src="\.\/base\.wxml"/g, `src="${expectedBasePath}"`)
-      .replace(/src="\.\/utils\.wxs"/g, `src="${expectedUtilsPath}"`)
-
-    if (nextContent !== content) {
-      fs.writeFileSync(compWxmlPath, nextContent)
-      copied = true
-    }
-  }
-
   return copied
 }
 
-function getIndexPageDirs() {
-  const appConfig = readAppConfig()
-  if (!appConfig) return new Set()
-
-  const dirs = new Set()
-  const subPackages = appConfig.subPackages || appConfig.subpackages || []
-
-  for (const pkg of subPackages) {
-    const root = pkg.root
-    const pages = pkg.pages || []
-    if (!root) continue
-
-    for (const page of pages) {
-      if (typeof page !== 'string' || !page.endsWith('/index')) continue
-      const pageDir = page.slice(0, -'/index'.length)
-      if (!pageDir) continue
-      dirs.add(`${root}/${pageDir}`.replace(/\\/g, '/'))
-    }
-  }
-
-  return dirs
-}
-
-function removeCompatibilityFiles(targetDir) {
-  const fullDir = path.join(distDir, targetDir)
-  if (!fs.existsSync(fullDir)) return false
-
-  let removed = false
-  for (const file of compFiles) {
-    const target = path.join(fullDir, file)
-    if (!fs.existsSync(target)) continue
-    fs.unlinkSync(target)
-    removed = true
-  }
-
-  return removed
-}
-
-const legacyNestedDirs = [
+const nestedDirs = [
   'coach/settings',
   'coach/wallet',
   'coach/pricing',
@@ -225,20 +151,10 @@ const legacyNestedDirs = [
   'auth/reset-password',
 ]
 
-const nestedDirs = Array.from(getIndexPageDirs())
-
 for (const dir of nestedDirs) {
   const copied = copyCompFiles(dir)
   if (copied) {
     console.log('Copied comp files to:', dir + '/')
-  }
-}
-
-for (const dir of legacyNestedDirs) {
-  if (nestedDirs.includes(dir)) continue
-  const removed = removeCompatibilityFiles(dir)
-  if (removed) {
-    console.log('Removed stale flat-page comp files from:', dir + '/')
   }
 }
 

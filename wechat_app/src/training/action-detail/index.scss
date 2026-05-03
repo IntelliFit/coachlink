@@ -2,72 +2,37 @@
   min-height: 100vh;
   padding: 24rpx;
   padding-bottom: 48rpx;
-  background: #f5f5f5;
+  background: linear-gradient(180deg, #e8e8e8 0%, #f8f8f8 100%);
   box-sizing: border-box;
 
   .action-card {
-    background: #ffffff;
-    border-radius: 24rpx;
+    background: #fff;
+    border-radius: 32rpx;
     padding: 32rpx;
+    box-shadow: 0 8rpx 32rpx rgba(0, 0, 0, 0.04);
     border: 2rpx solid #f0f0f0;
-    box-shadow: 0 8rpx 32rpx rgba(15, 23, 42, 0.05);
   }
 
   .title {
     display: block;
     font-size: 36rpx;
     font-weight: 700;
-    color: #111827;
-    margin-bottom: 16rpx;
-  }
-
-  .summary-row {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8rpx;
-    margin-bottom: 16rpx;
-  }
-
-  .type-tag,
-  .source-tag {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: 8rpx 16rpx;
-    border-radius: 1000rpx;
-    font-size: 22rpx;
-    font-weight: 600;
+    color: #010101;
+    margin-bottom: 8rpx;
   }
 
   .type-tag {
-    background: #fff7ed;
-    color: #c2410c;
-  }
-
-  .source-tag {
-    background: #f3f4f6;
-    color: #4b5563;
-  }
-
-  .meta-card {
-    display: flex;
-    flex-direction: column;
-    gap: 8rpx;
-    padding: 16rpx;
-    border-radius: 16rpx;
-    background: #faf7f5;
-    border: 2rpx solid #f1e3dc;
+    display: inline-block;
+    background: #eff6ff;
+    color: #2563eb;
+    font-size: 22rpx;
+    border-radius: 1000rpx;
+    padding: 8rpx 16rpx;
     margin-bottom: 16rpx;
   }
 
-  .meta-text {
-    font-size: 22rpx;
-    color: #6b7280;
-    line-height: 1.6;
-  }
-
   .section {
-    margin-top: 24rpx;
+    margin-top: 16rpx;
   }
 
   .section-title {
@@ -104,63 +69,26 @@
     font-size: 24rpx;
     color: #2563eb;
     word-break: break-all;
-    line-height: 1.6;
+    line-height: 1.5;
   }
 
-  .inline-actions {
-    display: flex;
-    gap: 8rpx;
+  .copy-btn {
     margin-top: 16rpx;
-  }
-
-  .detail-actions {
-    display: flex;
-    flex-direction: column;
-    gap: 12rpx;
-    margin-top: 24rpx;
-  }
-
-  .primary-btn,
-  .secondary-btn {
-    min-height: 72rpx;
+    background: #2563eb;
     border-radius: 8rpx;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0 24rpx;
+    padding: 16rpx 16rpx;
+    width: fit-content;
 
     Text {
+      color: #fff;
       font-size: 24rpx;
-      font-weight: 600;
     }
-  }
-
-  .primary-btn {
-    background: #CF6D4E;
-    border: 2rpx solid #CF6D4E;
-
-    Text {
-      color: #ffffff;
-    }
-  }
-
-  .secondary-btn {
-    background: #ffffff;
-    border: 2rpx solid #e5e7eb;
-
-    Text {
-      color: #4b5563;
-    }
-  }
-
-  .disabled {
-    opacity: 0.55;
   }
 
   .empty-state {
     margin-top: 24rpx;
     padding-top: 16rpx;
-    border-top: 2rpx solid #e5e7eb;
+    border-top: 1rpx solid #e5e7eb;
   }
 
   .empty-text {
@@ -175,130 +103,5 @@
     margin-top: 8rpx;
     font-size: 22rpx;
     color: #9ca3af;
-  }
-
-  .dialog {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    z-index: 1000;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
-    .dialog-overlay {
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: rgba(0, 0, 0, 0.5);
-    }
-
-    .dialog-content {
-      position: relative;
-      width: 88%;
-      max-height: 78vh;
-      display: flex;
-      flex-direction: column;
-      background: #ffffff;
-      border-radius: 24rpx;
-      padding: 32rpx;
-    }
-
-    .dialog-title {
-      display: block;
-      font-size: 36rpx;
-      font-weight: 700;
-      color: #111827;
-      margin-bottom: 16rpx;
-    }
-
-    .dialog-desc {
-      display: block;
-      font-size: 24rpx;
-      color: #6b7280;
-      line-height: 1.6;
-      margin-bottom: 24rpx;
-    }
-
-    .dialog-scroll {
-      max-height: 54vh;
-    }
-
-    .dialog-section {
-      margin-bottom: 24rpx;
-    }
-
-    .dialog-label {
-      display: block;
-      font-size: 24rpx;
-      color: #374151;
-      font-weight: 600;
-      margin-bottom: 8rpx;
-    }
-
-    .dialog-input {
-      width: 100%;
-      height: 80rpx;
-      padding: 0 16rpx;
-      border: 2rpx solid #e5e7eb;
-      border-radius: 8rpx;
-      font-size: 28rpx;
-      box-sizing: border-box;
-      background: #ffffff;
-    }
-
-    .dialog-textarea {
-      width: 100%;
-      min-height: 184rpx;
-      padding: 16rpx;
-      border: 2rpx solid #e5e7eb;
-      border-radius: 8rpx;
-      font-size: 28rpx;
-      box-sizing: border-box;
-      background: #ffffff;
-    }
-
-    .option-grid {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8rpx;
-    }
-
-    .option-chip {
-      padding: 8rpx 16rpx;
-      border-radius: 1000rpx;
-      background: #f3f4f6;
-      border: 2rpx solid transparent;
-
-      Text {
-        font-size: 22rpx;
-        color: #4b5563;
-        font-weight: 600;
-      }
-
-      &.selected {
-        background: #fff7ed;
-        border-color: #fdba74;
-
-        Text {
-          color: #c2410c;
-        }
-      }
-    }
-
-    .dialog-buttons {
-      display: flex;
-      gap: 16rpx;
-      margin-top: 8rpx;
-    }
-
-    .dialog-buttons .primary-btn,
-    .dialog-buttons .secondary-btn {
-      flex: 1;
-    }
   }
 }

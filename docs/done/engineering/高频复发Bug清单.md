@@ -312,3 +312,40 @@
 - **根因**：同一页 `loadData` 被 `useDidShow` 与 `useEffect([loadData])` 或「`loadData` 依赖会在加载末尾 `setState` 的字段」重复触发，多段 `Promise` 重叠；先结束的那段在 `finally` 里 `setLoading(false)`，后发起的请求又把 `loading` 设为 `true`，若时序错乱或旧 `finally` 误执行，会出现 `loading` 长期为 `true`。
 - **统一规则**：并发拉数用 **请求序号/AbortController**，仅在 **当前序号** 的 `finally` 里结束 loading；`loadData` 不要依赖「本次加载会改写的 state」；页面展示用 `useDidShow` 与 `useEffect` 二选一去重，避免首屏双击请求。
 - **改动前自检**：`setLoading(false)` 是否只对应「最后一次发起的请求」；`useCallback(loadData)` 依赖里有无 `activeXxxId` 这类会在 `loadData` 末尾被赋值的变量。
+
+## 26) 聚合接口 vs 列表接口口径不一致 → 顶部 stats 与 tab/列表数字打架（中高频）
+
+- **现象**：教练详情/学员详情等页面，顶部统计卡显示 `7 教学内容`，下面 tab 却写 `教学内容(2)`；同一字段在不同视图里前后矛盾。
+- **根因**：`get-aggregated-info` 类聚合接口 `count(*)` 时**不带可见性/状态过滤**，列表接口（如 `get-contents`）按访问权限/可见 tier `lte/eq` 过滤，两端各自正确但口径不同，UI 用同一个 label 渲染就互相打脸。
+- **统一规则**：
+  - 同一页面里 stats 与 list 的"同名指标"必须**显式选定一个口径**（全量发布数 / 当前可见数）并在两个端点上对齐；
+  - 推荐"全量返回 + 列表项 `is_locked` 标记 + 服务端按权限脱敏 body/资源 URL"，避免列表接口 0 数据但聚合数还在的违和感；
+  - label 文案上区分不同口径（"已发布" vs "可查看"），避免共用"教学内容"。
+- **改动前自检**：
+  - 改聚合接口或列表接口任意一端时，搜全工程同字段的另一端是否也改；
+  - 列表接口若按 `accessTier` 过滤，确认 `total/count` 是否需要重新对齐聚合口径；
+  - 取消列表过滤时**必须**在路由层对受限行做字段脱敏（`content`、`media_urls`、付费链接），列表 body 的曝露面不能比详情接口的 403 更宽。
+- **典型案例**（2026-05-04）：
+  - `get-aggregated-info.contentCount` 不过滤 `required_tier`，`get-contents` 按 `accessTier` 过滤；
+  - 教练详情页顶部 7 / tab 2 不一致，Web 与小程序同源同 bug；
+  - 修复：`get-contents` 改为全量返回，未达 tier 的行 `content` 截断为 200 字预览、`media_urls` 清空、追加 `is_locked: true`；前端按 `is_locked` 渲染锁屏样式。
+
+## 27) Web ↔ 小程序 UX 漂移：小程序自行长出 Web 没有的按钮/入口（中频）
+
+- **现象**：同一个用户角色（如订阅中的学员），网站教练主页底部一个「立即订阅 / 查看价格」按钮，小程序却多出「智能生成计划 / 续费 / 填写问卷」等三四个按钮；标签命名也不一致（Web `教练专栏` vs 小程序 `教学内容`）。
+- **根因**：小程序与 Web 各自迭代时，weapp 端独立加 CTA / 改文案，没有同步回 Web；`docs/PROJECT_BIBLE.md` 把它们当作同一产品但缺少"以 Web 为基线"的规则。一旦 Web 改版，weapp 不会自动跟上；反过来 weapp 加的入口（如 `/discovery/generate-plan`）在 Web 上根本不存在。
+- **统一规则**：
+  - 教练主页、学员我的会员、订阅价格等"双端公共页"统一以**Web 为视觉/CTA 基线**，weapp 仅在交互模式（页面栈、tab 容器、底部固定 CTA 行为）层面做适配；
+  - weapp 不得新增 Web 没有的功能性按钮（如「智能生成计划」），如确需要先在 Web 上落地；
+  - 标签/口径文案（"教练专栏"、"学员评价"等）以 Web 文案为准，weapp 直接照搬；
+  - 续费、查看问卷这种带角色门槛的入口，要么放在 Web 同等位置（如简介区/订阅面板内），要么不放；底部 CTA 只允许有"主行动"按钮一个。
+- **改动前自检**：
+  - 新增/调整 weapp 教练或学员主页的按钮、标签时，先打开 `src/app/coach/profile/[id]/page.tsx`、`src/app/me/membership/...` 等对照页，逐项确认 Web 是否有对应元素；
+  - 如果 Web 没有，先和产品/网页端确认是否要补，而不是 weapp 单飞；
+  - 提交前在 weapp 真机回归"匿名"、"waiting"、"active"、"expired" 四种订阅态，每种态的可见按钮数应与 Web 一致；
+  - 任何文案改名（如 `教学内容` → `教练专栏`）必须双端同步改，避免 stats/列表/tab 三处不一致。
+- **典型案例**（2026-05-04）：
+  - 教练详情页底部小程序额外渲染「智能生成计划」「填写/更新训练需求问卷」按钮，Web 无；
+  - 小程序 tab 写 `教学内容(N)`，Web `CoachContent.tsx` 写 `教练专栏(N)`；
+  - 修复：底部 CTA 折成单按钮（active→「查看订阅」/ waiting→「查看订阅进度」/ 默认→「立即订阅 / 查看价格」），「查看问卷」按钮迁入 `CoachIntro` 简介区（与 Web `CoachIntroduction` 同位置），「续费」按钮迁入 `PricingSection` 面板内（与 Web `CoachSubscription` 同位置），tab 文案改为 `教练专栏`。
+

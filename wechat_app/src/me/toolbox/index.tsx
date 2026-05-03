@@ -18,21 +18,21 @@ const TOOLBOX_LINKS = [
     key: 'strength-calculator',
     label: '力量计算器',
     description: '小程序内完整实现，与网页端逻辑一致。',
-    image: '/me/assets/images/toolbox-calculator.jpg',
+    image: '/assets/images/toolbox-calculator.jpg',
     url: '/streetlifting/index/calculator'
   },
   {
     key: 'bar-locations',
     label: '单杠位置',
     description: '查找、分享单杠位置，支持上传图片。',
-    image: '/me/assets/images/toolbox-locations.jpg',
+    image: '/assets/images/toolbox-locations.jpg',
     url: '/streetlifting/index/locations'
   },
   {
     key: 'community-data',
     label: '社区数据',
     description: '查看与提交街健力量数据，支持认领。',
-    image: '/me/assets/images/toolbox-data.jpg',
+    image: '/assets/images/toolbox-data.jpg',
     url: '/streetlifting/index/data'
   }
 ]

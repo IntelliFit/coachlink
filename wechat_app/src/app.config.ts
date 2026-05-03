@@ -2,7 +2,6 @@ export default {
   pages: [
     'pages/index/index',
   ],
-  lazyCodeLoading: 'requiredComponents',
   subPackages: [
     {
       root: 'coach',
@@ -135,8 +134,6 @@ export default {
         'register',
         'onboarding',
         'student-onboarding',
-        'body-metrics',
-        'body-parts',
         'wechat-auth',
       ],
     },

@@ -9,18 +9,10 @@ import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 import type { StudentActionRow } from "@/types/student";
 import { isOneRMEligibleAction } from "@/lib/oneRmEligibility";
 
-function extractVideoStoragePath(url?: string | null) {
-    if (!url) return null;
-    const storageUrl = process.env.NEXT_SUPABASE_URL || process.env.SUPABASE_URL || "";
-    if (!storageUrl || !url.includes(storageUrl)) return null;
-    const parts = url.split("/videos/");
-    if (parts.length !== 2) return null;
-    return parts[1].split("?")[0] || null;
-}
-
 export async function POST(req: Request) {
     const { id, ...updateData } = await req.json() as UpdateStudentActionDto;
 
+    // 检查用户登录
     const session = await getServerSession();
     const userId = session?.user?.id || null;
 
@@ -38,23 +30,11 @@ export async function POST(req: Request) {
         }, { status: 400 });
     }
 
-    const { data: existingAction } = await supabase
-        .from("student_actions")
-        .select("type, attrs, \"enableAutoWeightCompute\", url")
-        .eq("id", id)
-        .eq("user_id", userId)
-        .maybeSingle();
-
-    if (!existingAction) {
-        return NextResponse.json({
-            success: false,
-            message: "动作不存在或无权访问",
-        }, { status: 404 });
-    }
-
+    // 更新动作（确保只能更新自己的动作）
+    console.log("[API] update-action data:", updateData);
     const nextType = updateData.type;
     const sanitizedUpdateData: Record<string, unknown> = { ...updateData };
-
+    // 当明确传入 type 时，按类型纠正/清理不相关字段，避免脏数据残留
     if (nextType && nextType !== "STRENGTH") {
         sanitizedUpdateData.positions = null;
         sanitizedUpdateData.attrs = null;
@@ -62,32 +42,40 @@ export async function POST(req: Request) {
         sanitizedUpdateData.includesBodyWeight = false;
         sanitizedUpdateData.reference_1rm = null;
         sanitizedUpdateData.canonical_action_id = null;
-        sanitizedUpdateData.suggested_time = nextType === "DIET"
-            ? ((updateData as any).suggested_time || null)
-            : null;
-    } else if (nextType === "STRENGTH") {
+        sanitizedUpdateData.suggested_time = nextType === "DIET" ? ((updateData as any).suggested_time || null) : null;
+    } else if (nextType && nextType === "STRENGTH") {
+        // 力量训练不使用 suggested_time
         sanitizedUpdateData.suggested_time = null;
+        // includesBodyWeight 只有在启用自动计算时才有意义
         if (!(updateData.enableAutoWeightCompute || false)) {
             sanitizedUpdateData.includesBodyWeight = false;
         }
     }
 
+    // 1RM 仅对资格动作生效，非资格动作统一置空避免脏数据残留。
+    // 当请求未显式携带 type/attrs/enableAutoWeightCompute 时，需要读取旧值参与判定。
     const needsOneRMSanitization = (
         "reference_1rm" in updateData ||
         "type" in updateData ||
         "attrs" in updateData ||
         "enableAutoWeightCompute" in updateData
     );
-
     if (needsOneRMSanitization) {
-        const candidateType = (sanitizedUpdateData.type as string | undefined)
-            ?? (existingAction?.type as string | undefined)
-            ?? "STRENGTH";
-        const candidateAttrs = (sanitizedUpdateData.attrs as string[] | null | undefined)
-            ?? ((existingAction?.attrs as string[] | null | undefined) ?? null);
-        const candidateAuto = (sanitizedUpdateData.enableAutoWeightCompute as boolean | undefined)
-            ?? ((existingAction as any)?.enableAutoWeightCompute as boolean | undefined)
-            ?? false;
+        const { data: existingAction } = await supabase
+            .from("student_actions")
+            .select("type, attrs, \"enableAutoWeightCompute\"")
+            .eq("id", id)
+            .eq("user_id", userId)
+            .maybeSingle();
+
+        const candidateType = (sanitizedUpdateData.type as string | undefined) ??
+            (existingAction?.type as string | undefined) ??
+            "STRENGTH";
+        const candidateAttrs = (sanitizedUpdateData.attrs as string[] | null | undefined) ??
+            ((existingAction?.attrs as string[] | null | undefined) ?? null);
+        const candidateAuto = (sanitizedUpdateData.enableAutoWeightCompute as boolean | undefined) ??
+            ((existingAction as any)?.enableAutoWeightCompute as boolean | undefined) ??
+            false;
 
         const eligible = isOneRMEligibleAction({
             type: candidateType,
@@ -98,28 +86,10 @@ export async function POST(req: Request) {
         if (!eligible) {
             sanitizedUpdateData.reference_1rm = null;
         } else if ("reference_1rm" in sanitizedUpdateData) {
-            const value = sanitizedUpdateData.reference_1rm;
-            if (!(typeof value === "number" && Number.isFinite(value))) {
+            const v = sanitizedUpdateData.reference_1rm;
+            if (!(typeof v === "number" && Number.isFinite(v))) {
                 sanitizedUpdateData.reference_1rm = null;
             }
-        }
-    }
-
-    const previousUrl = typeof (existingAction as any)?.url === "string"
-        ? String((existingAction as any).url)
-        : "";
-    const nextUrlValue = Object.prototype.hasOwnProperty.call(sanitizedUpdateData, "url")
-        ? sanitizedUpdateData.url
-        : previousUrl;
-    const nextUrl = typeof nextUrlValue === "string" ? nextUrlValue : "";
-    const previousStoragePath = extractVideoStoragePath(previousUrl);
-
-    if (previousStoragePath && previousUrl !== nextUrl) {
-        const { error: storageError } = await supabase.storage
-            .from("videos")
-            .remove([previousStoragePath]);
-        if (storageError) {
-            console.error("Error removing previous student action demo video:", storageError);
         }
     }
 

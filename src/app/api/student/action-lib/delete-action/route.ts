@@ -8,18 +8,10 @@ import type { ApiData } from "@/types/api";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 import { countActionRefs } from "@/lib/actionRefs";
 
-function extractVideoStoragePath(url?: string | null) {
-    if (!url) return null;
-    const storageUrl = process.env.NEXT_SUPABASE_URL || process.env.SUPABASE_URL || "";
-    if (!storageUrl || !url.includes(storageUrl)) return null;
-    const parts = url.split("/videos/");
-    if (parts.length !== 2) return null;
-    return parts[1].split("?")[0] || null;
-}
-
 export async function POST(req: Request) {
     const { id } = await req.json() as DeleteStudentActionDto;
 
+    // 检查用户登录
     const session = await getServerSession();
     const userId = session?.user?.id || null;
 
@@ -37,6 +29,7 @@ export async function POST(req: Request) {
         }, { status: 400 });
     }
 
+    // 删除前：检查该动作是否被学员自己的计划实例引用
     try {
         const actionSet = new Set([id]);
         const { data: instances, error: instError } = await supabase
@@ -45,11 +38,8 @@ export async function POST(req: Request) {
             .eq("student_id", userId);
 
         if (!instError && instances) {
-            const hits = instances
-                .map((item: any) => countActionRefs(item.training_days, actionSet))
-                .filter((count) => count > 0);
-            const matchCount = hits.reduce((sum, count) => sum + count, 0);
-
+            const hits = instances.map((i: any) => countActionRefs(i.training_days, actionSet)).filter((c) => c > 0);
+            const matchCount = hits.reduce((s, x) => s + x, 0);
             if (matchCount > 0) {
                 return NextResponse.json<ApiData<null>>({
                     success: false,
@@ -58,37 +48,11 @@ export async function POST(req: Request) {
                 }, { status: 409 });
             }
         }
-    } catch (error) {
-        console.error("Error checking student action references:", error);
+    } catch (e) {
+        console.error("检查引用异常:", e);
     }
 
-    const { data: existingAction, error: fetchError } = await supabase
-        .from("student_actions")
-        .select("id, url")
-        .eq("id", id)
-        .eq("user_id", userId)
-        .maybeSingle();
-
-    if (fetchError || !existingAction) {
-        return NextResponse.json({
-            success: false,
-            message: "动作不存在或无权访问",
-        }, { status: 404 });
-    }
-
-    const previousStoragePath = extractVideoStoragePath(
-        typeof (existingAction as any)?.url === "string" ? String((existingAction as any).url) : ""
-    );
-
-    if (previousStoragePath) {
-        const { error: storageError } = await supabase.storage
-            .from("videos")
-            .remove([previousStoragePath]);
-        if (storageError) {
-            console.error("Error removing student action demo video:", storageError);
-        }
-    }
-
+    // 删除动作（确保只能删除自己的动作）
     const { error } = await supabase
         .from("student_actions")
         .delete()

@@ -79,7 +79,48 @@ export const Icon: React.FC<IconProps> = ({
     )
   }
 
-  console.warn('Icon component: "component" prop is required. Please import the icon directly from lucide-react.')
+  // 使用 name 方式（需要动态导入）
+  if (name) {
+    const [IconComponent, setIconComponent] = React.useState<LucideIcon | null>(null)
+
+    React.useEffect(() => {
+      import('lucide-react').then((icons) => {
+        const Icon = (icons as any)[name] as LucideIcon
+        if (Icon) {
+          setIconComponent(() => Icon)
+        } else {
+          console.warn(`Icon "${name}" not found in lucide-react`)
+        }
+      })
+    }, [name])
+
+    if (!IconComponent) {
+      return null
+    }
+
+    return (
+      <View
+        className={`icon-wrapper ${className}`}
+        style={{
+          width: `${iconSize}px`,
+          height: `${iconSize}px`,
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          lineHeight: 1,
+          flexShrink: 0,
+        }}
+      >
+        <IconComponent
+          size={iconSize}
+          color={color}
+          strokeWidth={strokeWidth}
+        />
+      </View>
+    )
+  }
+
+  console.warn('Icon component: either "component" or "name" prop is required')
   return null
 }
 

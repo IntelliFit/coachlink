@@ -1,11 +1,12 @@
 import React from 'react';
 import { Dialog } from 'primereact/dialog';
 import { Button } from 'primereact/button';
-import { QuestionType } from '@/types/questionnaires';
+
+export type QuestionnaireComposerType = 'text' | 'option-single' | 'option-multiple';
 
 interface AddQuestionDialogProps {
     visible: boolean;
-    newQuestionType: QuestionType | null;
+    newQuestionType: QuestionnaireComposerType | null;
     renderNewQuestionForm: () => React.ReactNode;
     onAddTextQuestion: () => void;
     onCancel: () => void;
@@ -19,11 +20,16 @@ const AddQuestionDialog: React.FC<AddQuestionDialogProps> = ({
     onCancel
 }) => {
     // 对于选项问题，我们不再使用对话框底部的按钮，因为OptionQuestionManager有自己的按钮
-    const isOptionQuestion = newQuestionType === 'option';
+    const isOptionQuestion = newQuestionType === 'option-single' || newQuestionType === 'option-multiple';
+    const dialogTitle = newQuestionType === 'option-single'
+        ? '添加单选题'
+        : newQuestionType === 'option-multiple'
+            ? '添加多选题'
+            : '添加文本问题';
 
     return (
         <Dialog 
-            header={newQuestionType === 'option' ? "添加选项问题" : "添加文本问题"}
+            header={dialogTitle}
             visible={visible} 
             onHide={onCancel}
             style={{ width: '500px' }}

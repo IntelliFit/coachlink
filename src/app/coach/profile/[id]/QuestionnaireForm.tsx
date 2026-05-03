@@ -175,7 +175,14 @@ const QuestionnaireForm: React.FC<QuestionnaireFormProps> = ({
                 case 'rm':
                     return { ...item, userInputs: sItem.userInputs };
                 case 'times':
+                    return { ...item, userSelection: sItem.userSelection };
                 case 'option':
+                    return {
+                        ...item,
+                        userSelection: sItem.userSelection,
+                        userSelections: (sItem as any).userSelections,
+                        userOtherText: (sItem as any).userOtherText,
+                    };
                 case 'text':
                     return { ...item, userSelection: sItem.userSelection };
                 default:
@@ -212,7 +219,7 @@ const QuestionnaireForm: React.FC<QuestionnaireFormProps> = ({
                 case 'rm':
                     return { ...item, userInputs: value };
                 case 'option':
-                    return { ...item, userSelection: value };
+                    return { ...item, ...value };
                 case 'text':
                     return { ...item, userSelection: value };
                 default:
@@ -227,6 +234,29 @@ const QuestionnaireForm: React.FC<QuestionnaireFormProps> = ({
         setMediaDialogTitle(title);
         setMediaDialogItems(items);
         setMediaDialogVisible(true);
+    };
+
+    const getOptionSelectionMode = (question: TrainingItem) =>
+        (question as any).selectionMode === 'multiple' ? 'multiple' : 'single';
+
+    const isOptionAnswered = (question: TrainingItem) => {
+        if (question.type !== 'option') return true;
+        const selectionMode = getOptionSelectionMode(question);
+        const allowOther = Boolean((question as any).allowOther);
+        const otherText = String((question as any).userOtherText || '').trim();
+
+        if (selectionMode === 'multiple') {
+            const selected = Array.isArray((question as any).userSelections) ? (question as any).userSelections : [];
+            const hasOther = selected.includes(-1);
+            if (selected.length === 0) return false;
+            if (allowOther && hasOther) return otherText.length > 0;
+            return true;
+        }
+
+        const selected = (question as any).userSelection;
+        if (selected === undefined || selected === null) return false;
+        if (allowOther && selected === -1) return otherText.length > 0;
+        return true;
     };
 
     const idToIndex = useMemo(() => {
@@ -313,7 +343,7 @@ const QuestionnaireForm: React.FC<QuestionnaireFormProps> = ({
             case 'rm':
                 return true; // 选填
             case 'option':
-                return (q as any).userSelection !== undefined && (q as any).userSelection !== null;
+                return isOptionAnswered(q);
             case 'text':
                 return typeof (q as any).userSelection === 'string' && (q as any).userSelection.trim().length > 0;
             default:
@@ -329,7 +359,7 @@ const QuestionnaireForm: React.FC<QuestionnaireFormProps> = ({
         const branching = (q as any)?.branching;
         if (branching) {
             const selection =
-                q.type === 'option' ? (q as any).userSelection :
+                q.type === 'option' && getOptionSelectionMode(q) === 'single' ? (q as any).userSelection :
                     q.type === 'times' ? (q as any).userSelection :
                         undefined;
 
@@ -418,7 +448,7 @@ const QuestionnaireForm: React.FC<QuestionnaireFormProps> = ({
             if (q.type === 'rm') {
                 // RM 问题可以选填，不做强制验证
             }
-            if (q.type === 'option' && (q.userSelection === undefined || q.userSelection === null)) {
+            if (q.type === 'option' && !isOptionAnswered(q)) {
                 showToast({ severity: 'error', summary: '提交失败', detail: `请填完 Q${displayIndex + 1}` });
                 return;
             }
@@ -614,6 +644,9 @@ const QuestionnaireForm: React.FC<QuestionnaireFormProps> = ({
                 );
 
             case 'option':
+                const selectionMode = getOptionSelectionMode(question);
+                const allowOther = Boolean((question as any).allowOther);
+                const selectedOptions = Array.isArray((question as any).userSelections) ? (question as any).userSelections : [];
                 return (
                     <div className="mb-8" key={originalIndex}>
                         <div className="flex items-start justify-between gap-3 mb-4">
@@ -633,16 +666,77 @@ const QuestionnaireForm: React.FC<QuestionnaireFormProps> = ({
                         <div className="flex flex-col gap-4">
                             {question.options?.map((option, optionIndex) => (
                                 <div key={optionIndex} className="flex items-center">
-                                    <RadioButton
-                                        inputId={`option${originalIndex}-${optionIndex}`}
-                                        name={`option${originalIndex}`}
-                                        value={optionIndex}
-                                        onChange={(e) => updateAnswer(originalIndex, e.value)}
-                                        checked={question.userSelection === optionIndex}
-                                    />
+                                    {selectionMode === 'multiple' ? (
+                                        <Checkbox
+                                            inputId={`option${originalIndex}-${optionIndex}`}
+                                            checked={selectedOptions.includes(optionIndex)}
+                                            onChange={(e) => {
+                                                const nextSelections = Boolean(e.checked)
+                                                    ? Array.from(new Set([...selectedOptions, optionIndex]))
+                                                    : selectedOptions.filter((value) => value !== optionIndex);
+                                                updateAnswer(originalIndex, {
+                                                    userSelections: nextSelections,
+                                                });
+                                            }}
+                                        />
+                                    ) : (
+                                        <RadioButton
+                                            inputId={`option${originalIndex}-${optionIndex}`}
+                                            name={`option${originalIndex}`}
+                                            value={optionIndex}
+                                            onChange={(e) => updateAnswer(originalIndex, {
+                                                userSelection: e.value,
+                                            })}
+                                            checked={question.userSelection === optionIndex}
+                                        />
+                                    )}
                                     <label htmlFor={`option${originalIndex}-${optionIndex}`} className="ml-2 text-sm">{option}</label>
                                 </div>
                             ))}
+                            {allowOther && (
+                                <div className="space-y-2">
+                                    <div className="flex items-center">
+                                        {selectionMode === 'multiple' ? (
+                                            <Checkbox
+                                                inputId={`option${originalIndex}-other`}
+                                                checked={selectedOptions.includes(-1)}
+                                                onChange={(e) => {
+                                                    const nextSelections = Boolean(e.checked)
+                                                        ? Array.from(new Set([...selectedOptions, -1]))
+                                                        : selectedOptions.filter((value) => value !== -1);
+                                                    updateAnswer(originalIndex, {
+                                                        userSelections: nextSelections,
+                                                        userOtherText: Boolean(e.checked) ? (question as any).userOtherText || '' : '',
+                                                    });
+                                                }}
+                                            />
+                                        ) : (
+                                            <RadioButton
+                                                inputId={`option${originalIndex}-other`}
+                                                name={`option${originalIndex}`}
+                                                value={-1}
+                                                onChange={(e) => updateAnswer(originalIndex, {
+                                                    userSelection: e.value,
+                                                })}
+                                                checked={question.userSelection === -1}
+                                            />
+                                        )}
+                                        <label htmlFor={`option${originalIndex}-other`} className="ml-2 text-sm">其他</label>
+                                    </div>
+                                    {((selectionMode === 'multiple' && selectedOptions.includes(-1))
+                                        || (selectionMode === 'single' && question.userSelection === -1)) && (
+                                        <InputTextarea
+                                            value={(question as any).userOtherText || ''}
+                                            onChange={(e) => updateAnswer(originalIndex, {
+                                                userOtherText: e.target.value,
+                                            })}
+                                            className="w-full"
+                                            rows={3}
+                                            placeholder="请输入补充内容"
+                                        />
+                                    )}
+                                </div>
+                            )}
                         </div>
                     </div>
                 );
@@ -669,8 +763,11 @@ const QuestionnaireForm: React.FC<QuestionnaireFormProps> = ({
                             value={(question as any).userSelection || ''}
                             onChange={(e) => updateAnswer(originalIndex, e.target.value)}
                             className="w-full"
-                            rows={3}
+                            rows={5}
                         />
+                        <div className="mt-2 text-xs text-surface-500">
+                            建议一次性写清训练目标、当前水平、每周训练次数、器械条件、伤痛限制和作息情况，越完整越方便 AI 和教练理解你。
+                        </div>
                     </div>
                 );
         }
@@ -732,14 +829,8 @@ const QuestionnaireForm: React.FC<QuestionnaireFormProps> = ({
                     </h4>
                     <ul className="text-xs text-amber-700 space-y-1.5 list-disc list-inside">
                         <li>请如实填写您的训练情况，这将帮助教练为您制定更精准的计划</li>
-                        <li><strong>关于极限重量（1RM）</strong>：指您在该动作下能完成1次的最大重量</li>
-                        <li><strong>自重类动作</strong>（如引体向上、双杠臂屈伸等）：
-                            <ul className="ml-4 mt-1 space-y-0.5">
-                                <li>填写<strong>正数</strong>表示您能额外负重多少kg完成动作（不含自重）</li>
-                                <li>填写<strong>负数</strong>表示您需要多少kg辅助（如使用辅助带减轻自重）才能完成动作</li>
-                                <li>例如：填 <code className="bg-amber-100 px-1 rounded">-10</code> 表示需要10kg辅助</li>
-                            </ul>
-                        </li>
+                        <li>单选题只能选择 1 项，多选题可以选择多项</li>
+                        <li>如果题目带有“其他”，可以直接补充你自己的文字说明</li>
                     </ul>
                 </div>
 

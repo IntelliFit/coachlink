@@ -33,7 +33,7 @@ interface ProfileData {
         totalTrainingTime: number
     }
     subscriptionLevel: 'basic' | 'advanced' | 'premium'
-    coachApplicationStatus: 'none' | 'draft' | 'pending' | 'reviewing' | 'needs_info' | 'rejected' | 'approved' | 'coach'
+    coachApplicationStatus: 'none' | 'draft' | 'pending' | 'rejected' | 'approved' | 'coach'
     progressData: { dates: string[]; weight: number[]; benchPress: number[]; squat: number[]; deadlift: number[] }
     timelineData: any[]
     coachesData: any[]
