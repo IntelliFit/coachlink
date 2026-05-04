@@ -1,4 +1,5 @@
 export default {
+  navigationStyle: 'custom',
   navigationBarTitleText: '发现',
   navigationBarTextStyle: 'black',
   navigationBarBackgroundColor: '#ffffff',
