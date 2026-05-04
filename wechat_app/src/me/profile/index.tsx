@@ -450,20 +450,17 @@ function Profile() {
             </View>
           </View>
 
-          {/* 统计数据行 */}
+          {/* 功能入口行 */}
           <View className='profile-stats-row'>
-            <View className='profile-stat-item' onClick={() => handleMenuClick(topMenus[0])}>
-              <Text className='profile-stat-value'>{points}</Text>
-              <Text className='profile-stat-label'>积分</Text>
-            </View>
-            <View className='profile-stat-item' onClick={() => handleMenuClick(topMenus[1])}>
-              <Text className='profile-stat-value'>—</Text>
-              <Text className='profile-stat-label'>我的教练</Text>
-            </View>
-            <View className='profile-stat-item' onClick={() => handleMenuClick(topMenus[2])}>
-              <Text className='profile-stat-value'>—</Text>
-              <Text className='profile-stat-label'>我的会员</Text>
-            </View>
+            {topMenus.map((item) => (
+              <View
+                key={item.key}
+                className='profile-stat-item'
+                onClick={() => handleMenuClick(item)}
+              >
+                <Text className='profile-stat-label'>{item.label}</Text>
+              </View>
+            ))}
           </View>
         </View>
 
@@ -476,22 +473,6 @@ function Profile() {
             </Text>
           </View>
         )}
-
-        {/* 核心功能网格 */}
-        <View className='core-grid'>
-          {topMenus.map((item) => (
-            <View
-              key={item.key}
-              className='core-item'
-              onClick={() => handleMenuClick(item)}
-            >
-              <View className='core-icon' style={{ '--icon-color': item.iconBg } as any}>
-                <Text className={`iconfont ${item.icon}`} />
-              </View>
-              <Text className='core-label'>{item.label}</Text>
-            </View>
-          ))}
-        </View>
 
         {/* 更多功能列表 */}
         <View className='menu-list-card'>
