@@ -46,9 +46,11 @@ const FITNESS_GOAL_OPTIONS = [
 ]
 
 const FITNESS_LEVEL_OPTIONS = [
-  { label: '零基础', desc: '从未系统训练过', value: 'beginner' },
-  { label: '有一点基础', desc: '偶尔锻炼或练过几个月', value: 'intermediate' },
-  { label: '有系统训练经验', desc: '持续训练 1 年以上', value: 'advanced' }
+  { label: '零基础', desc: '从未系统训练过', value: 'beginner', wifiLevel: 1 },
+  { label: '入门', desc: '偶尔锻炼，了解基础动作', value: 'novice', wifiLevel: 2 },
+  { label: '进阶', desc: '系统训练 1 年以上', value: 'intermediate', wifiLevel: 3 },
+  { label: '高阶', desc: '多年训练，可自主制定计划', value: 'advanced', wifiLevel: 4 },
+  { label: '精英 / 职业', desc: '健身教练、运动员或竞技水平', value: 'elite', wifiLevel: 5 }
 ]
 
 const INTEREST_OPTIONS = [
@@ -187,6 +189,24 @@ const getDefaultNickname = (user: any) => {
   }
 
   return 'CoachLink 学员'
+}
+
+const WifiSignalIcon: React.FC<{ level: number; active: boolean }> = ({ level, active }) => {
+  const inactiveColor = '#e2e8f0'
+  const activeColor = '#CF6D4E'
+  const c = active ? activeColor : inactiveColor
+
+  return (
+    <View className='wifi-signal'>
+      <svg width='48' height='40' viewBox='0 0 48 40'>
+        <path d='M 4 36 Q 24 16 44 36' stroke={level >= 5 ? c : inactiveColor} fill='none' strokeWidth='3' strokeLinecap='round'/>
+        <path d='M 8 30 Q 24 14 40 30' stroke={level >= 4 ? c : inactiveColor} fill='none' strokeWidth='3' strokeLinecap='round'/>
+        <path d='M 12 24 Q 24 12 36 24' stroke={level >= 3 ? c : inactiveColor} fill='none' strokeWidth='3' strokeLinecap='round'/>
+        <path d='M 16 18 Q 24 10 32 18' stroke={level >= 2 ? c : inactiveColor} fill='none' strokeWidth='3' strokeLinecap='round'/>
+        <path d='M 20 12 Q 24 8 28 12' stroke={level >= 1 ? c : inactiveColor} fill='none' strokeWidth='3' strokeLinecap='round'/>
+      </svg>
+    </View>
+  )
 }
 
 function StudentOnboarding() {
@@ -638,15 +658,18 @@ function StudentOnboarding() {
       )}
 
       {step === 5 && (
-
         <View className='step-content'>
           <View className='option-list'>
             {FITNESS_LEVEL_OPTIONS.map((option) => (
               <View
                 key={option.value}
-                className={`option-card ${formData.fitnessLevel === option.value ? 'option-card--active' : ''}`}
+                className={`option-card option-card--level ${formData.fitnessLevel === option.value ? 'option-card--active' : ''}`}
                 onClick={() => setFormData((prev) => ({ ...prev, fitnessLevel: option.value }))}
               >
+                <WifiSignalIcon
+                  level={option.wifiLevel}
+                  active={formData.fitnessLevel === option.value}
+                />
                 <View className='option-card-main'>
                   <Text className='option-card-title'>{option.label}</Text>
                   <Text className='option-card-desc'>{option.desc}</Text>

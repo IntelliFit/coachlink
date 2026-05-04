@@ -228,6 +228,20 @@
     border-color: #cf6d4e;
     background: rgba(207, 109, 78, 0.04);
   }
+
+  &--level {
+    gap: 20rpx;
+  }
+}
+
+/* WiFi 信号图标 */
+.wifi-signal {
+  width: 48rpx;
+  height: 40rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
 .option-card-main {

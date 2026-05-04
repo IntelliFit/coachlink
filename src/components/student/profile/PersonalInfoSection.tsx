@@ -38,18 +38,22 @@ const FITNESS_GOAL_OPTIONS = [
 
 // 健身水平选项
 const FITNESS_LEVEL_OPTIONS = [
-    { label: '初学者', value: 'beginner' },
-    { label: '中级', value: 'intermediate' },
-    { label: '高级', value: 'advanced' },
+    { label: '零基础', value: 'beginner' },
+    { label: '入门', value: 'novice' },
+    { label: '进阶', value: 'intermediate' },
+    { label: '高阶', value: 'advanced' },
+    { label: '精英 / 职业', value: 'elite' },
 ];
 
 // 辅助函数：转换健身水平显示
 const getFitnessLevelDisplay = (level: string | null) => {
     if (!level) return '未填写';
     const map: Record<string, string> = {
-        'beginner': '初学者',
-        'intermediate': '中级',
-        'advanced': '高级'
+        'beginner': '零基础',
+        'novice': '入门',
+        'intermediate': '进阶',
+        'advanced': '高阶',
+        'elite': '精英 / 职业'
     };
     return map[level] || level;
 };
