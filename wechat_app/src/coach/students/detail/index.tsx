@@ -9,6 +9,14 @@ import { chatService } from '@/services/chatService'
 import { refundAlipayOrder } from '@/services/paymentService'
 import './index.scss'
 
+const FITNESS_LEVEL_LABEL_MAP: Record<string, string> = {
+  beginner: '零基础',
+  novice: '入门',
+  intermediate: '进阶',
+  advanced: '高阶',
+  elite: '精英 / 职业'
+}
+
 interface StudentData {
   id: string
   coach_id?: string
@@ -869,7 +877,7 @@ export default function StudentDetailPage() {
                 <View className='tag'><Text className='tag-text'>{profile.age}岁</Text></View>
               )}
               {profile?.fitness_level && (
-                <View className='tag tag-primary'><Text className='tag-text'>{profile.fitness_level}</Text></View>
+                <View className='tag tag-primary'><Text className='tag-text'>{FITNESS_LEVEL_LABEL_MAP[profile.fitness_level] || profile.fitness_level}</Text></View>
               )}
             </View>
           </View>
