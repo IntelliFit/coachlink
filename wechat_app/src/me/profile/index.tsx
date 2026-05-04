@@ -409,20 +409,10 @@ function Profile() {
   return (
     <View className='profile-page'>
       <View className='myContainer'>
-        {/* 页面左上角主题切换 */}
-        <View className='page-theme-toggle'>
-          <View
-            className='theme-toggle-btn theme-toggle-btn--page'
-            onClick={handleThemeToggle}
-          >
-            <Text className={`iconfont ${themeIconClass} theme-toggle-icon`} />
-          </View>
-        </View>
-
         {/* 用户档案卡片 */}
-        <View className='profile-card' onClick={handleViewProfile}>
+        <View className='profile-card'>
           <View className='profile-card-header'>
-            <View className='avatar-wrapper'>
+            <View className='avatar-wrapper' onClick={handleViewProfile}>
               <View className='avatar-container'>
                 {user?.avatar_url ? (
                   <Image
@@ -442,22 +432,38 @@ function Profile() {
               </View>
             </View>
             <View className='profile-info'>
-              <Text className='profile-name'>{displayName}</Text>
-              <Text className='profile-subtitle'>{displaySubtitle}</Text>
-              <View className='profile-badges'>
-                <Text className='badge-text'>{roleBadgeText}</Text>
-                <Text className='badge-dot'>·</Text>
-                <Text className='badge-text'>{statusBadgeText}</Text>
+              <View className='profile-name-row'>
+                <Text className='profile-name'>{displayName}</Text>
+                <Text className='profile-tag'>{roleBadgeText}</Text>
+              </View>
+              <Text className='profile-edit-link' onClick={handleProfileSettings}>
+                编辑资料 ›
+              </Text>
+            </View>
+            <View className='profile-header-right'>
+              <View
+                className='theme-toggle-btn-round'
+                onClick={handleThemeToggle}
+              >
+                <Text className={`iconfont ${themeIconClass} theme-toggle-icon`} />
               </View>
             </View>
           </View>
-          <View className='profile-actions' onClick={(e) => e.stopPropagation()}>
-            <Text
-              className='profile-settings-btn'
-              onClick={handleProfileSettings}
-            >
-              设置
-            </Text>
+
+          {/* 统计数据行 */}
+          <View className='profile-stats-row'>
+            <View className='profile-stat-item' onClick={() => handleMenuClick(topMenus[0])}>
+              <Text className='profile-stat-value'>{points}</Text>
+              <Text className='profile-stat-label'>积分</Text>
+            </View>
+            <View className='profile-stat-item' onClick={() => handleMenuClick(topMenus[1])}>
+              <Text className='profile-stat-value'>—</Text>
+              <Text className='profile-stat-label'>我的教练</Text>
+            </View>
+            <View className='profile-stat-item' onClick={() => handleMenuClick(topMenus[2])}>
+              <Text className='profile-stat-value'>—</Text>
+              <Text className='profile-stat-label'>我的会员</Text>
+            </View>
           </View>
         </View>
 
