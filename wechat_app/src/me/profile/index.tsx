@@ -452,15 +452,37 @@ function Profile() {
 
           {/* 功能入口行 */}
           <View className='profile-stats-row'>
-            {topMenus.map((item) => (
-              <View
-                key={item.key}
-                className='profile-stat-item'
-                onClick={() => handleMenuClick(item)}
-              >
-                <Text className='profile-stat-label'>{item.label}</Text>
-              </View>
-            ))}
+            <View className='profile-stat-item' onClick={() => handleMenuClick(topMenus[0])}>
+              <Text className='profile-stat-value'>0</Text>
+              <Text className='profile-stat-label'>{topMenus[0].label}</Text>
+            </View>
+            <View className='profile-stat-item' onClick={() => handleMenuClick(middleMenus[1])}>
+              <Text className='profile-stat-value'>0</Text>
+              <Text className='profile-stat-label'>{middleMenus[1].label}</Text>
+            </View>
+            <View className='profile-stat-item' onClick={() => handleMenuClick(topMenus[3])}>
+              <Text className='profile-stat-value'>0</Text>
+              <Text className='profile-stat-label'>{topMenus[3].label}</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* 会员卡片 */}
+        <View className='membership-card' onClick={() => handleMenuClick(topMenus[2])}>
+          <View className='membership-card-header'>
+            <Text className='membership-card-title'>我的会员</Text>
+            <Text className='membership-card-badge'>学员</Text>
+          </View>
+          <View className='membership-progress-row'>
+            <Text className='membership-progress-label'>训练进度</Text>
+            <Text className='membership-progress-value'>0/0</Text>
+          </View>
+          <View className='membership-progress-bar'>
+            <View className='membership-progress-fill' style={{ width: '0%' }} />
+          </View>
+          <View className='membership-points-row'>
+            <Text className='membership-points-label'>积分</Text>
+            <Text className='membership-points-value'>0</Text>
           </View>
         </View>
 
