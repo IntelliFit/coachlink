@@ -14,6 +14,42 @@
   border-radius: 14px;
 }
 
+.pricing-subscribed-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.pricing-subscribed-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.pricing-renew-btn {
+  flex-shrink: 0;
+  padding: 8px 16px;
+  background: #f97316;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pricing-renew-btn-active {
+  background: #fff;
+  border: 1px solid #f97316;
+}
+
+.pricing-renew-btn-text {
+  font-size: 13px;
+  font-weight: 800;
+  color: #fff;
+}
+
+.pricing-renew-btn-active .pricing-renew-btn-text {
+  color: #f97316;
+}
+
 .pricing-subscribed-title {
   display: block;
   font-size: 16px;

@@ -7,33 +7,10 @@ import type {
     GetQuestionnairesResponseDto,
 } from "./entity";
 import { TrainingItem } from "@/types/questionnaires";
-
-function ensureQuestionIds(questions: any[]): { normalized: TrainingItem[]; changed: boolean } {
-    let changed = false;
-    const normalized = (Array.isArray(questions) ? questions : []).map((q: any) => {
-        // 兼容极老数据：字符串数组
-        if (typeof q === "string") {
-            changed = true;
-            return {
-                id: crypto.randomUUID(),
-                type: "text",
-                question: q,
-            } as any;
-        }
-
-        if (!q || typeof q !== "object") return q as any;
-
-        // 确保保留所有字段，包括 branching、media 等
-        if (!q.id) {
-            const normalizedQ = { ...q, id: crypto.randomUUID() };
-            changed = true;
-            return normalizedQ as any;
-        }
-        return q as any;
-    });
-
-    return { normalized: normalized as unknown as TrainingItem[], changed };
-}
+import {
+    ensureQuestionIds,
+    parseQuestionnaireDocument,
+} from "@/lib/questionnaireDocument";
 
 async function enrichRmQuestions(
     questions: TrainingItem[],
@@ -138,15 +115,15 @@ export async function POST(req: Request) {
         userId = coach.user_id;
     }
 
-    // 获取线上问卷（status='active' 或 is_active=true）
-    // 规则：线上版本就是“学员订阅时应用的版本”
-    // 优先使用 status 字段（迁移后更稳定），兼容旧数据用 is_active
-    // 简化逻辑：先获取所有问卷，然后在内存中筛选
-    const { data: allQuestionnaires, error: fetchError } = await supabase
+    // 线上版本就是 status='active' 的那一份；规则保证每个 coach 至多一份。
+    const { data: questionnaire, error: fetchError } = await supabase
         .from("coach_questionnaires")
-        .select("id,questions,is_active,status,updated_at")
+        .select("id,questions,updated_at")
         .eq("coach_id", userId)
-        .order("updated_at", { ascending: false });
+        .eq("status", "active")
+        .order("updated_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
 
     if (fetchError) {
         console.error("[get-questionnaires] fetch error:", fetchError);
@@ -157,60 +134,33 @@ export async function POST(req: Request) {
         }, { status: 500 });
     }
 
-    // 筛选线上版本：必须同时满足 status='active' AND is_active=true
-    const questionnaire = (allQuestionnaires || []).find((q: any) => {
-        // 优先检查 status 和 is_active 的一致性
-        if (q.status) {
-            // 如果 status 存在，必须同时检查 is_active
-            if (q.status === 'active') {
-                return q.is_active === true;  // 必须同时为 true
-            }
-            return false;
-        }
-        // 兼容旧数据：如果 status 为空，使用 is_active
-        return q.is_active === true;
-    }) || null;
-
-    // 注意：training_items 查询已移除，tags 选项现在由教练自定义
-
-    // 默认问题列表：包含用户极限（1RM）问题
-    // 注意：tags 选项现在由教练自定义，默认为空数组
-    const defaultQuestions = [
-        {
-            type: "tags",
-            // 教练自定义训练项目选项，默认为空
-            options: [],
-        }, // 训练项目偏好
-        {
-            type: "times",
-            question: "您希望每周训练几次？",
-            options: [1, 2, 3, 4, 5, 6, 7],
-        }, // 每周训练次数（可配置）
-        {
-            type: "rm",
-            // 由教练在问卷里选择需要填写 1RM 的动作；默认不强制任何动作
-            actionIds: [],
-        }, // 用户极限（1RM）
-    ];
+    const defaultQuestions: TrainingItem[] = [];
 
     const questionnairesData = questionnaire ?? {
         id: "",
         questions: defaultQuestions,
     };
 
+    const document = parseQuestionnaireDocument((questionnairesData as any)?.questions);
+    const sourceQuestions = document.questions.length > 0
+        ? document.questions
+        : defaultQuestions;
+
     // 确保每个问题都有稳定 id（用于分支/历史答案匹配）
-    const { normalized, changed } = ensureQuestionIds(
-        (questionnairesData as any)?.questions || [],
-    );
+    const { normalized, changed } = ensureQuestionIds(sourceQuestions as any);
 
     // 若发现旧数据缺少 id，则自动补齐并持久化（避免每次打开都变）
     if (changed && questionnairesData.id) {
         const { error: patchErr } = await supabase
             .from("coach_questionnaires")
-            .update({ questions: normalized as any })
+            .update({
+                questions: {
+                    editorType: document.editorType,
+                    questions: normalized,
+                } as any,
+            })
             .eq("id", questionnairesData.id);
         if (patchErr) {
-            // 不阻断返回，但打印日志便于排查
             console.error("[get-questionnaires] auto-migrate ids failed:", patchErr);
         }
     }

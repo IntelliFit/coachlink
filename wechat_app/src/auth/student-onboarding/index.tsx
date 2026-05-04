@@ -1,18 +1,11 @@
-import { useEffect, useState, useMemo } from 'react'
-import { View, Text, ScrollView, Image } from '@tarojs/components'
+import React, { useEffect, useMemo, useState } from 'react'
+import { View, Text, ScrollView } from '@tarojs/components'
 import Taro from '@tarojs/taro'
-import { ConfigProvider, Input } from '@nutui/nutui-react-taro'
+import { ConfigProvider, Input, InputNumber } from '@nutui/nutui-react-taro'
 import zhCN from '@nutui/nutui-react-taro/dist/locales/zh-CN'
 import { authService } from '@/services/authService'
 import { studentService } from '@/services/studentService'
 import { buildStudentOnboardingUrl, isCoreStudentProfileComplete } from '@/services/studentOnboardingService'
-import WheelPicker from '@/components/WheelPicker'
-import BodyMapInterestSelector from '@/components/BodyMapInterestSelector'
-import { svgToDataUri } from '@/utils/svgToDataUri'
-import maleFrontSvgRaw from '@/assets/body-map/maleFrontSvg'
-import maleBackSvgRaw from '@/assets/body-map/maleBackSvg'
-import femaleFrontSvgRaw from '@/assets/body-map/femaleFrontSvg'
-import femaleBackSvgRaw from '@/assets/body-map/femaleBackSvg'
 import './index.scss'
 
 interface OnboardingFormData {
@@ -25,13 +18,11 @@ interface OnboardingFormData {
   interestTags: string[]
   equipments: string[]
   sessionDuration: number
-  targetBodyParts: string[]
 }
 
 const GENDER_OPTIONS = [
-  { label: '男性', value: 'male' },
-  { label: '女性', value: 'female' },
-  { label: '暂时不填', value: 'unknown' }
+  { label: '男', value: 'male' },
+  { label: '女', value: 'female' }
 ]
 
 const FITNESS_GOAL_OPTIONS = [
@@ -46,11 +37,9 @@ const FITNESS_GOAL_OPTIONS = [
 ]
 
 const FITNESS_LEVEL_OPTIONS = [
-  { label: '零基础', desc: '从未系统训练过', value: 'beginner', wifiLevel: 1 },
-  { label: '入门', desc: '偶尔锻炼，了解基础动作', value: 'novice', wifiLevel: 2 },
-  { label: '进阶', desc: '系统训练 1 年以上', value: 'intermediate', wifiLevel: 3 },
-  { label: '高阶', desc: '多年训练，可自主制定计划', value: 'advanced', wifiLevel: 4 },
-  { label: '精英 / 职业', desc: '健身教练、运动员或竞技水平', value: 'elite', wifiLevel: 5 }
+  { label: '零基础', desc: '从未系统训练过', value: 'beginner' },
+  { label: '有一点基础', desc: '偶尔锻炼或练过几个月', value: 'intermediate' },
+  { label: '有系统训练经验', desc: '持续训练 1 年以上', value: 'advanced' }
 ]
 
 const INTEREST_OPTIONS = [
@@ -75,60 +64,6 @@ const EQUIPMENT_OPTIONS = [
 
 const DURATION_OPTIONS = [15, 20, 30, 45, 60]
 
-type BodyView = 'front' | 'back'
-type BodyGender = 'male' | 'female' | 'unknown'
-
-const MUSCLE_FILL_ORIGIN_STYLE = 'fill:#222222'
-const MUSCLE_FILL_HIGHLIGHT_STYLE = 'fill:#CF6D4E'
-
-function parseSvgCategoryMap(svg: string): Record<string, string> {
-  const map: Record<string, string> = {}
-  const singleLineRegex = /<g[^>]*data-name="([^"]+)"[^>]*category="([^"]+)"[^>]*>/g
-  let match: RegExpExecArray | null
-  while ((match = singleLineRegex.exec(svg)) !== null) {
-    if (match[1] !== '肌肉' && match[1] !== '关节' && match[1] !== '全身轮廓') {
-      map[match[1]] = match[2]
-    }
-  }
-  const multiLineRegex = /<g\s*\n?\s*data-name="([^"]+)"\s*\n?\s*category="([^"]+)"/g
-  while ((match = multiLineRegex.exec(svg)) !== null) {
-    if (match[1] !== '肌肉' && match[1] !== '关节' && match[1] !== '全身轮廓') {
-      map[match[1]] = match[2]
-    }
-  }
-  return map
-}
-
-function highlightSvgParts(
-  svg: string,
-  selectedParts: string[],
-  categoryMap: Record<string, string>
-): string {
-  let result = svg
-  const dataNamesToHighlight = new Set<string>()
-  for (const part of selectedParts) {
-    for (const [dataName, category] of Object.entries(categoryMap)) {
-      if (category === part) {
-        dataNamesToHighlight.add(dataName)
-      }
-    }
-  }
-  for (const dataName of dataNamesToHighlight) {
-    const regex = new RegExp(
-      `(<g[^>]*data-name="${dataName}"[^>]*>)([\\s\\S]*?)(</g>)`,
-      'g'
-    )
-    result = result.replace(regex, (_match, open, content, close) => {
-      const highlighted = content.replace(
-        new RegExp(MUSCLE_FILL_ORIGIN_STYLE.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'),
-        MUSCLE_FILL_HIGHLIGHT_STYLE
-      )
-      return open + highlighted + close
-    })
-  }
-  return result
-}
-
 const DEFAULT_FORM_DATA: OnboardingFormData = {
   nickname: '',
   gender: '',
@@ -138,41 +73,10 @@ const DEFAULT_FORM_DATA: OnboardingFormData = {
   fitnessLevel: '',
   interestTags: [],
   equipments: [],
-  sessionDuration: 30,
-  targetBodyParts: []
+  sessionDuration: 30
 }
 
-const STEP_TITLES = [
-  { title: '基础信息', desc: '选择你的性别，让我们更了解你。' },
-  { title: '身体数据', desc: '选择你的身高和体重，推荐计划会更精准。' },
-  { title: '目标部位', desc: '选择你感兴趣的肌肉部位。' },
-  { title: '健身目标', desc: '选择你的健身目标，定制专属训练方案。' },
-  { title: '训练水平', desc: '选择你的训练水平，匹配适合难度。' },
-  { title: '训练方向', desc: '选择你感兴趣的肌肉部位。' },
-  { title: '训练偏好', desc: '选择你的器械和训练时长。' }
-]
-
-const HEIGHT_MIN = 100
-const HEIGHT_MAX = 250
-const WEIGHT_MIN = 30
-const WEIGHT_MAX = 200
-const WEIGHT_STEP = 0.5
-
-const heightItems = (() => {
-  const arr: string[] = []
-  for (let h = HEIGHT_MIN; h <= HEIGHT_MAX; h++) {
-    arr.push(`${h} cm`)
-  }
-  return arr
-})()
-
-const weightItems = (() => {
-  const arr: string[] = []
-  for (let w = WEIGHT_MIN; w <= WEIGHT_MAX; w += WEIGHT_STEP) {
-    arr.push(`${w.toFixed(1)} kg`)
-  }
-  return arr
-})()
+const STEP_LABELS = ['基础信息', '健身目标', '训练偏好']
 
 const getDefaultNickname = (user: any) => {
   const nickname = String(user?.nickname || '').trim()
@@ -191,46 +95,13 @@ const getDefaultNickname = (user: any) => {
   return 'CoachLink 学员'
 }
 
-const WifiSignalIcon: React.FC<{ level: number; active: boolean }> = ({ level, active }) => {
-  const inactiveColor = '#e2e8f0'
-  const activeColor = '#CF6D4E'
-  const c = active ? activeColor : inactiveColor
-
-  return (
-    <View className='wifi-signal'>
-      <svg width='48' height='40' viewBox='0 0 48 40'>
-        <path d='M 4 36 Q 24 16 44 36' stroke={level >= 5 ? c : inactiveColor} fill='none' strokeWidth='3' strokeLinecap='round'/>
-        <path d='M 8 30 Q 24 14 40 30' stroke={level >= 4 ? c : inactiveColor} fill='none' strokeWidth='3' strokeLinecap='round'/>
-        <path d='M 12 24 Q 24 12 36 24' stroke={level >= 3 ? c : inactiveColor} fill='none' strokeWidth='3' strokeLinecap='round'/>
-        <path d='M 16 18 Q 24 10 32 18' stroke={level >= 2 ? c : inactiveColor} fill='none' strokeWidth='3' strokeLinecap='round'/>
-        <path d='M 20 12 Q 24 8 28 12' stroke={level >= 1 ? c : inactiveColor} fill='none' strokeWidth='3' strokeLinecap='round'/>
-      </svg>
-    </View>
-  )
-}
-
 function StudentOnboarding() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [step, setStep] = useState(1)
   const [formData, setFormData] = useState<OnboardingFormData>(DEFAULT_FORM_DATA)
 
-  const [heightIndex, setHeightIndex] = useState(() => {
-    const idx = DEFAULT_FORM_DATA.height - HEIGHT_MIN
-    return Math.max(0, Math.min(idx, heightItems.length - 1))
-  })
-
-  const [weightIndex, setWeightIndex] = useState(() => {
-    const idx = Math.round((DEFAULT_FORM_DATA.weight - WEIGHT_MIN) / WEIGHT_STEP)
-    return Math.max(0, Math.min(idx, weightItems.length - 1))
-  })
-
-  const selectedHeight = HEIGHT_MIN + heightIndex
-  const selectedWeight = Number((WEIGHT_MIN + weightIndex * WEIGHT_STEP).toFixed(1))
-
-  const totalSteps = STEP_TITLES.length
-
-  const nextUrl = (() => {
+  const nextUrl = useMemo(() => {
     try {
       const rawNext = (Taro.getCurrentInstance().router?.params as any)?.next
       if (rawNext && typeof rawNext === 'string') {
@@ -241,7 +112,7 @@ function StudentOnboarding() {
       }
     } catch (_) {}
     return '/training/impromptu-training?from=onboarding'
-  })()
+  }, [])
 
   useEffect(() => {
     const bootstrap = async () => {
@@ -268,29 +139,16 @@ function StudentOnboarding() {
           return
         }
 
-        const initHeight = Number(profile?.height || DEFAULT_FORM_DATA.height)
-        const initWeight = Number(profile?.weight || DEFAULT_FORM_DATA.weight)
-
         setFormData({
           nickname: String(profile?.nickname || getDefaultNickname(session.user)).trim(),
           gender: String(profile?.gender || ''),
-          height: initHeight,
-          weight: initWeight,
+          height: Number(profile?.height || DEFAULT_FORM_DATA.height),
+          weight: Number(profile?.weight || DEFAULT_FORM_DATA.weight),
           fitnessGoal: String(profile?.fitness_goal || ''),
           fitnessLevel: String(profile?.fitness_level || ''),
           interestTags: Array.isArray(questionnaire?.interest_tags) ? questionnaire.interest_tags : [],
           equipments: Array.isArray(questionnaire?.equipment) ? questionnaire.equipment : [],
-          sessionDuration: Number(questionnaire?.session_duration || DEFAULT_FORM_DATA.sessionDuration),
-          targetBodyParts: Array.isArray(questionnaire?.target_body_parts) ? questionnaire.target_body_parts : []
-        })
-
-        setHeightIndex(() => {
-          const idx = initHeight - HEIGHT_MIN
-          return Math.max(0, Math.min(idx, heightItems.length - 1))
-        })
-        setWeightIndex(() => {
-          const idx = Math.round((initWeight - WEIGHT_MIN) / WEIGHT_STEP)
-          return Math.max(0, Math.min(idx, weightItems.length - 1))
+          sessionDuration: Number(questionnaire?.session_duration || DEFAULT_FORM_DATA.sessionDuration)
         })
       } catch (error: any) {
         console.error('[student-onboarding] bootstrap failed:', error)
@@ -306,12 +164,18 @@ function StudentOnboarding() {
     void bootstrap()
   }, [nextUrl])
 
+  const progress = (step / STEP_LABELS.length) * 100
+
   const toggleListValue = (key: 'interestTags' | 'equipments', value: string) => {
     setFormData((prev) => {
       const nextValues = prev[key].includes(value)
         ? prev[key].filter((item) => item !== value)
         : [...prev[key], value]
-      return { ...prev, [key]: nextValues }
+
+      return {
+        ...prev,
+        [key]: nextValues
+      }
     })
   }
 
@@ -325,56 +189,41 @@ function StudentOnboarding() {
         Taro.showToast({ title: '请选择性别', icon: 'none' })
         return false
       }
+      if (formData.height < 100 || formData.height > 250) {
+        Taro.showToast({ title: '请填写合理身高', icon: 'none' })
+        return false
+      }
+      if (formData.weight < 30 || formData.weight > 200) {
+        Taro.showToast({ title: '请填写合理体重', icon: 'none' })
+        return false
+      }
       return true
     }
-    if (step === 4) {
+
+    if (step === 2) {
       if (!formData.fitnessGoal) {
         Taro.showToast({ title: '请选择健身目标', icon: 'none' })
         return false
       }
-      return true
-    }
-    if (step === 5) {
       if (!formData.fitnessLevel) {
         Taro.showToast({ title: '请选择训练水平', icon: 'none' })
         return false
       }
-      return true
     }
+
     return true
   }
 
   const handleNext = () => {
     if (loading) return
     if (!validateCurrentStep()) return
-    if (step === 2) {
-      setFormData((prev) => ({ ...prev, height: selectedHeight, weight: selectedWeight }))
-    }
-    setStep((prev) => Math.min(prev + 1, totalSteps))
+    setStep((prev) => Math.min(prev + 1, STEP_LABELS.length))
   }
 
   const handlePrev = () => {
     if (loading) return
     setStep((prev) => Math.max(prev - 1, 1))
   }
-
-  const goBodyParts = () => {
-    const selected = JSON.stringify(formData.targetBodyParts)
-    const gender = formData.gender || 'unknown'
-    Taro.navigateTo({
-      url: `/auth/body-parts?selected=${encodeURIComponent(selected)}&gender=${encodeURIComponent(gender)}`
-    })
-  }
-
-  useEffect(() => {
-    const onBodyParts = (data: { parts: string[] }) => {
-      setFormData((prev) => ({ ...prev, targetBodyParts: data.parts }))
-    }
-    Taro.eventCenter.on('onboarding:bodyParts', onBodyParts)
-    return () => {
-      Taro.eventCenter.off('onboarding:bodyParts', onBodyParts)
-    }
-  }, [])
 
   const handleSubmit = async () => {
     if (!validateCurrentStep()) return
@@ -405,8 +254,7 @@ function StudentOnboarding() {
             flow_version: 'miniapp_v1_aligned',
             interest_tags: formData.interestTags,
             equipment: formData.equipments,
-            session_duration: formData.sessionDuration,
-            target_body_parts: formData.targetBodyParts
+            session_duration: formData.sessionDuration
           },
           baseline_video_urls: []
         })
@@ -433,361 +281,193 @@ function StudentOnboarding() {
     }
   }
 
-
-  const stepInfo = STEP_TITLES[step - 1]
-
-  interface BodyPartsStepProps {
-    gender: string
-    selectedParts: string[]
-    onChange: (parts: string[]) => void
-  }
-
-  const BodyPartsStep: React.FC<BodyPartsStepProps> = ({ gender, selectedParts, onChange }) => {
-    const [view, setView] = useState<BodyView>('front')
-
-    const effectiveGender = gender === 'female' ? 'female' : 'male'
-
-    const svgRaw = useMemo(() => {
-      if (effectiveGender === 'female') {
-        return view === 'front' ? femaleFrontSvgRaw : femaleBackSvgRaw
-      }
-      return view === 'front' ? maleFrontSvgRaw : maleBackSvgRaw
-    }, [view, effectiveGender])
-
-    const categoryMap = useMemo(() => parseSvgCategoryMap(svgRaw), [svgRaw])
-
-    const options = useMemo(() => {
-      const categories = Array.from(new Set(Object.values(categoryMap)))
-        .filter((cat) => cat !== '关节')
-      return categories.map((cat) => ({
-        id: cat,
-        label: cat,
-      }))
-    }, [categoryMap])
-
-    const svgDataUri = useMemo(() => {
-      const baseSvg = svgRaw
-        .replace(/fill:#fff/gi, 'fill:#222222')
-        .replace(/fill="#fff"/gi, 'fill="#222222"')
-      const highlighted = highlightSvgParts(baseSvg, selectedParts, categoryMap)
-      const svgStr = highlighted.replace(
-        /<svg\s/,
-        '<svg style="width:100%;height:100%;display:block;" preserveAspectRatio="xMidYMid meet" '
-      )
-      return svgToDataUri(svgStr)
-    }, [svgRaw, selectedParts, categoryMap])
-
-    const toggleBodyPart = (id: string) => {
-      onChange(
-        selectedParts.includes(id)
-          ? selectedParts.filter((item) => item !== id)
-          : [...selectedParts, id]
-      )
-    }
-
-    return (
-      <View className='step-content body-parts-step'>
-        <View className='bp-view-toggle'>
-          <View
-            className={`bp-view-btn ${view === 'front' ? 'bp-view-btn--active' : ''}`}
-            onClick={() => setView('front')}
-          >
-            <Text className='bp-view-btn-text'>正面</Text>
-          </View>
-          <View
-            className={`bp-view-btn ${view === 'back' ? 'bp-view-btn--active' : ''}`}
-            onClick={() => setView('back')}
-          >
-            <Text className='bp-view-btn-text'>背面</Text>
-          </View>
-        </View>
-
-        <View className='bp-main'>
-          <View className='bp-list'>
-            {options.map((m) => {
-              const isSelected = selectedParts.includes(m.id)
-              return (
-                <View
-                  key={m.id}
-                  className={`bp-muscle-chip ${isSelected ? 'bp-muscle-chip--selected' : ''}`}
-                  onClick={() => toggleBodyPart(m.id)}
-                >
-                  <View className={`bp-check ${isSelected ? 'bp-check--checked' : ''}`}>
-                    {isSelected && <Text className='bp-check-icon'>✓</Text>}
-                  </View>
-                  <Text className={`bp-muscle-label ${isSelected ? 'bp-muscle-label--selected' : ''}`}>{m.label}</Text>
-                </View>
-              )
-            })}
-          </View>
-
-          <View className='bp-map-wrap'>
-            <Image
-              className='bp-map-svg'
-              src={svgDataUri}
-              mode='aspectFit'
-              style={{ width: '100%', height: '100%' }}
-            />
-          </View>
-        </View>
-
-        <View className='bp-count'>
-          <Text className='bp-count-text'>已选 {selectedParts.length} 个部位</Text>
-        </View>
-      </View>
-    )
-  }
-
-  const renderStepDots = () => (
-    <View className='step-dots'>
-      {Array.from({ length: totalSteps }).map((_, i) => (
-        <View
-          key={i}
-          className={`step-dot ${i + 1 === step ? 'step-dot--active' : ''}`}
-        />
-      ))}
-    </View>
-  )
-
-  const renderBody = () => (
-    <View className='onboarding-content'>
-      {renderStepDots()}
-      <Text className='onboarding-title'>{stepInfo.title}</Text>
-      <Text className='onboarding-desc'>{stepInfo.desc}</Text>
-
-      {step === 1 && (
-
-        <View className='step-content'>
-          <View className='field-group'>
-            <Text className='field-label'>昵称</Text>
-            <View className='input-shell'>
-              <Input
-                value={formData.nickname}
-                placeholder='给自己取个名字吧'
-                onChange={(value) => setFormData((prev) => ({ ...prev, nickname: value }))}
-              />
-            </View>
-          </View>
-
-          <View className='field-group'>
-            <Text className='field-label'>性别</Text>
-            <View className='gender-options'>
-              {GENDER_OPTIONS.map((option) => (
-                <View
-                  key={option.value}
-                  className={`gender-card ${formData.gender === option.value ? 'gender-card--active' : ''}`}
-                  onClick={() => setFormData((prev) => ({ ...prev, gender: option.value }))}
-                >
-                  <View className={`gender-dot ${formData.gender === option.value ? 'gender-dot--active' : ''}`} />
-                  <Text className='gender-label'>{option.label}</Text>
-                </View>
-              ))}
-            </View>
-          </View>
-        </View>
-      )}
-
-      {step === 2 && (
-        <View className='step-content' key='step-body-metrics'>
-          <View className='metric-preview'>
-            <View className='metric-preview-card'>
-              <Text className='metric-preview-label'>身高</Text>
-              <Text className='metric-preview-value'>{selectedHeight}</Text>
-              <Text className='metric-preview-unit'>cm</Text>
-            </View>
-            <View className='metric-preview-card'>
-              <Text className='metric-preview-label'>体重</Text>
-              <Text className='metric-preview-value'>{selectedWeight}</Text>
-              <Text className='metric-preview-unit'>kg</Text>
-            </View>
-          </View>
-
-          <View className='metric-pickers'>
-            <View className='metric-picker-col'>
-              <Text className='metric-picker-label'>身高</Text>
-              <WheelPicker
-                key='picker-height'
-                items={heightItems}
-                selectedIndex={heightIndex}
-                onChange={setHeightIndex}
-                indicatorStyle='height: 80rpx;'
-              />
-            </View>
-            <View className='metric-picker-divider' />
-            <View className='metric-picker-col'>
-              <Text className='metric-picker-label'>体重</Text>
-              <WheelPicker
-                key='picker-weight'
-                items={weightItems}
-                selectedIndex={weightIndex}
-                onChange={setWeightIndex}
-                indicatorStyle='height: 80rpx;'
-              />
-            </View>
-          </View>
-        </View>
-      )}
-
-      {step === 3 && (
-        <BodyPartsStep
-          gender={formData.gender}
-          selectedParts={formData.targetBodyParts}
-          onChange={(parts) => setFormData((prev) => ({ ...prev, targetBodyParts: parts }))}
-        />
-      )}
-
-      {step === 4 && (
-
-        <View className='step-content'>
-          <View className='option-list'>
-            {FITNESS_GOAL_OPTIONS.map((option) => (
-              <View
-                key={option.value}
-                className={`option-card ${formData.fitnessGoal === option.value ? 'option-card--active' : ''}`}
-                onClick={() => setFormData((prev) => ({ ...prev, fitnessGoal: option.value }))}
-              >
-                <View className='option-card-main'>
-                  <Text className='option-card-title'>{option.label}</Text>
-                  <Text className='option-card-desc'>{option.desc}</Text>
-                </View>
-                <View className={`option-check ${formData.fitnessGoal === option.value ? 'option-check--active' : ''}`} />
-              </View>
-            ))}
-          </View>
-        </View>
-      )}
-
-      {step === 5 && (
-        <View className='step-content'>
-          <View className='option-list'>
-            {FITNESS_LEVEL_OPTIONS.map((option) => (
-              <View
-                key={option.value}
-                className={`option-card option-card--level ${formData.fitnessLevel === option.value ? 'option-card--active' : ''}`}
-                onClick={() => setFormData((prev) => ({ ...prev, fitnessLevel: option.value }))}
-              >
-                <WifiSignalIcon
-                  level={option.wifiLevel}
-                  active={formData.fitnessLevel === option.value}
-                />
-                <View className='option-card-main'>
-                  <Text className='option-card-title'>{option.label}</Text>
-                  <Text className='option-card-desc'>{option.desc}</Text>
-                </View>
-                <View className={`option-check ${formData.fitnessLevel === option.value ? 'option-check--active' : ''}`} />
-              </View>
-            ))}
-          </View>
-        </View>
-      )}
-
-      {step === 6 && (
-        <View className='step-content'>
-          <BodyMapInterestSelector
-            gender={formData.gender as any}
-            selectedIds={formData.interestTags}
-            onChange={(ids) => setFormData((prev) => ({ ...prev, interestTags: ids }))}
-          />
-        </View>
-      )}
-
-      {step === 7 && (
-        <View className='step-content'>
-          <View className='field-group'>
-            <Text className='field-label'>感兴趣的健身部位</Text>
-            <View className='body-parts-trigger' onClick={goBodyParts}>
-              {formData.targetBodyParts.length === 0 ? (
-                <Text className='body-parts-trigger-placeholder'>点击选择目标部位</Text>
-              ) : (
-                <View className='body-parts-tags'>
-                  {formData.targetBodyParts.slice(0, 4).map((part) => (
-                    <Text key={part} className='body-parts-tag'>{part}</Text>
-                  ))}
-                  {formData.targetBodyParts.length > 4 && (
-                    <Text className='body-parts-tag'>+{formData.targetBodyParts.length - 4}</Text>
-                  )}
-                </View>
-              )}
-              <Text className='body-parts-trigger-arrow'>›</Text>
-            </View>
-          </View>
-
-          <View className='field-group'>
-            <Text className='field-label'>常用器械</Text>
-            <View className='tag-grid'>
-              {EQUIPMENT_OPTIONS.map((option) => (
-                <View
-                  key={option}
-                  className={`tag-chip ${formData.equipments.includes(option) ? 'tag-chip--active' : ''}`}
-                  onClick={() => toggleListValue('equipments', option)}
-                >
-                  <Text className='tag-chip-text'>{option}</Text>
-                </View>
-              ))}
-            </View>
-          </View>
-
-          <View className='field-group'>
-            <Text className='field-label'>单次训练时长</Text>
-            <View className='tag-grid duration-grid'>
-              {DURATION_OPTIONS.map((option) => (
-                <View
-                  key={option}
-                  className={`tag-chip ${formData.sessionDuration === option ? 'tag-chip--active' : ''}`}
-                  onClick={() => setFormData((prev) => ({ ...prev, sessionDuration: option }))}
-                >
-                  <Text className='tag-chip-text'>{option} 分钟</Text>
-                </View>
-              ))}
-            </View>
-          </View>
-        </View>
-      )}
-    </View>
-  )
-
   return (
     <ConfigProvider locale={zhCN}>
       <View className='student-onboarding-page'>
-        {loading ? (
-          <View className='content-scroll'>
-            <View className='loading-state'>
+        <View className='hero-card'>
+          <Text className='hero-eyebrow'>首次登录</Text>
+          <Text className='hero-title'>完善基础档案</Text>
+          <Text className='hero-desc'>先补齐关键信息，后续推荐计划、训练建议和资料同步都会更准确。</Text>
+        </View>
+
+        <View className='progress-card'>
+          <View className='progress-meta'>
+            <Text className='progress-step'>第 {step} 步 / 共 {STEP_LABELS.length} 步</Text>
+            <Text className='progress-label'>{STEP_LABELS[step - 1]}</Text>
+          </View>
+          <View className='progress-track'>
+            <View className='progress-fill' style={{ width: `${progress}%` }} />
+          </View>
+        </View>
+
+        <ScrollView scrollY className='content-scroll'>
+          {loading ? (
+            <View className='loading-card'>
               <Text className='loading-text'>正在加载您的基础信息...</Text>
             </View>
-          </View>
-        ) : step === 2 ? (
-          <View className='content-scroll'>
-            {renderBody()}
-          </View>
-        ) : (
-          <ScrollView scrollY className='content-scroll'>
-            {renderBody()}
-          </ScrollView>
-        )}
+          ) : (
+            <View className='content-card'>
+              {step === 1 && (
+                <View className='section'>
+                  <View className='field'>
+                    <Text className='field-label'>昵称</Text>
+                    <View className='input-shell'>
+                      <Input
+                        value={formData.nickname}
+                        placeholder='给自己取个名字吧'
+                        onChange={(value) => setFormData((prev) => ({ ...prev, nickname: value }))}
+                      />
+                    </View>
+                  </View>
+
+                  <View className='field'>
+                    <Text className='field-label'>性别</Text>
+                    <View className='chip-grid two-columns'>
+                      {GENDER_OPTIONS.map((option) => (
+                        <View
+                          key={option.value}
+                          className={`choice-card ${formData.gender === option.value ? 'choice-card-active' : ''}`}
+                          onClick={() => setFormData((prev) => ({ ...prev, gender: option.value }))}
+                        >
+                          <Text className='choice-title'>{option.label}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  </View>
+
+                  <View className='metric-grid'>
+                    <View className='field'>
+                      <Text className='field-label'>身高 (cm)</Text>
+                      <View className='metric-shell'>
+                        <InputNumber
+                          value={formData.height}
+                          min={100}
+                          max={250}
+                          onChange={(value) => setFormData((prev) => ({ ...prev, height: Number(value || 0) }))}
+                        />
+                      </View>
+                    </View>
+
+                    <View className='field'>
+                      <Text className='field-label'>体重 (kg)</Text>
+                      <View className='metric-shell'>
+                        <InputNumber
+                          value={formData.weight}
+                          min={30}
+                          max={200}
+                          precision={1}
+                          onChange={(value) => setFormData((prev) => ({ ...prev, weight: Number(value || 0) }))}
+                        />
+                      </View>
+                    </View>
+                  </View>
+                </View>
+              )}
+
+              {step === 2 && (
+                <View className='section'>
+                  <View className='field'>
+                    <Text className='field-label'>健身目标</Text>
+                    <View className='stack-grid'>
+                      {FITNESS_GOAL_OPTIONS.map((option) => (
+                        <View
+                          key={option.value}
+                          className={`choice-card choice-card-left ${formData.fitnessGoal === option.value ? 'choice-card-active' : ''}`}
+                          onClick={() => setFormData((prev) => ({ ...prev, fitnessGoal: option.value }))}
+                        >
+                          <Text className='choice-title'>{option.label}</Text>
+                          <Text className='choice-desc'>{option.desc}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  </View>
+
+                  <View className='field'>
+                    <Text className='field-label'>训练水平</Text>
+                    <View className='stack-grid'>
+                      {FITNESS_LEVEL_OPTIONS.map((option) => (
+                        <View
+                          key={option.value}
+                          className={`choice-card choice-card-left ${formData.fitnessLevel === option.value ? 'choice-card-active' : ''}`}
+                          onClick={() => setFormData((prev) => ({ ...prev, fitnessLevel: option.value }))}
+                        >
+                          <Text className='choice-title'>{option.label}</Text>
+                          <Text className='choice-desc'>{option.desc}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  </View>
+                </View>
+              )}
+
+              {step === 3 && (
+                <View className='section'>
+                  <View className='field'>
+                    <Text className='field-label'>感兴趣的训练方向</Text>
+                    <View className='chip-grid'>
+                      {INTEREST_OPTIONS.map((option) => (
+                        <View
+                          key={option}
+                          className={`tag-chip ${formData.interestTags.includes(option) ? 'tag-chip-active' : ''}`}
+                          onClick={() => toggleListValue('interestTags', option)}
+                        >
+                          <Text className='tag-chip-text'>{option}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  </View>
+
+                  <View className='field'>
+                    <Text className='field-label'>常用器械</Text>
+                    <View className='chip-grid'>
+                      {EQUIPMENT_OPTIONS.map((option) => (
+                        <View
+                          key={option}
+                          className={`tag-chip ${formData.equipments.includes(option) ? 'tag-chip-active' : ''}`}
+                          onClick={() => toggleListValue('equipments', option)}
+                        >
+                          <Text className='tag-chip-text'>{option}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  </View>
+
+                  <View className='field'>
+                    <Text className='field-label'>单次训练时长</Text>
+                    <View className='chip-grid duration-grid'>
+                      {DURATION_OPTIONS.map((option) => (
+                        <View
+                          key={option}
+                          className={`tag-chip ${formData.sessionDuration === option ? 'tag-chip-active' : ''}`}
+                          onClick={() => setFormData((prev) => ({ ...prev, sessionDuration: option }))}
+                        >
+                          <Text className='tag-chip-text'>{option} 分钟</Text>
+                        </View>
+                      ))}
+                    </View>
+                  </View>
+                </View>
+              )}
+            </View>
+          )}
+        </ScrollView>
 
         <View className='footer-bar'>
-          <View
-            className={`footer-btn footer-btn--prev ${step <= 1 || loading ? 'footer-btn--disabled' : ''}`}
-            onClick={step <= 1 || loading ? undefined : handlePrev}
-          >
-            <Text className='footer-btn-icon iconfont icon-left'></Text>
-            <Text className='footer-btn-text'>上一步</Text>
-          </View>
-          {step < totalSteps ? (
-            <View
-              className={`footer-btn footer-btn--next ${loading ? 'footer-btn--disabled' : ''}`}
-              onClick={loading ? undefined : handleNext}
-            >
-              <Text className='footer-btn-text'>下一步</Text>
-              <Text className='footer-btn-icon iconfont icon-right'></Text>
+          {step > 1 ? (
+            <View className={`footer-btn footer-btn-secondary ${loading ? 'footer-btn-disabled' : ''}`} onClick={loading ? undefined : handlePrev}>
+              <Text className='footer-btn-text footer-btn-text-secondary'>上一步</Text>
             </View>
           ) : (
-            <View
-              className={`footer-btn footer-btn--next ${(saving || loading) ? 'footer-btn--disabled' : ''}`}
-              onClick={(saving || loading) ? undefined : handleSubmit}
-            >
+            <View className='footer-btn footer-btn-placeholder' />
+          )}
+
+          {step < STEP_LABELS.length ? (
+            <View className={`footer-btn footer-btn-primary ${loading ? 'footer-btn-disabled' : ''}`} onClick={loading ? undefined : handleNext}>
+              <Text className='footer-btn-text'>下一步</Text>
+            </View>
+          ) : (
+            <View className={`footer-btn footer-btn-primary ${(saving || loading) ? 'footer-btn-disabled' : ''}`} onClick={(saving || loading) ? undefined : handleSubmit}>
               <Text className='footer-btn-text'>{saving ? '保存中...' : '开始训练'}</Text>
-              <Text className='footer-btn-icon'>{'>'}</Text>
             </View>
           )}
         </View>

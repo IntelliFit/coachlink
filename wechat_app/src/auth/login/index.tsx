@@ -17,6 +17,8 @@ import ResetPasswordForm from '@/components/ResetPasswordForm'
 import loginBg from '@/assets/images/login-bg.jpg'
 import './index.scss'
 
+const IS_DEV = process.env.NODE_ENV === 'development'
+
 type LoginMode = 'wechat' | 'password' | 'verifyCode'
 
 function Login() {
@@ -354,7 +356,7 @@ function Login() {
                 </>
               )}
 
-              {__DEV_MODE__ && (
+              {IS_DEV && (
                 <View className='dev-onboarding-btn' onClick={() => {
                   const mockUser = {
                     id: 'dev-user-' + Date.now(),

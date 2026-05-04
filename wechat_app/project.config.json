@@ -49,5 +49,5 @@
     "tabSize": 2
   },
   "srcMiniprogramRoot": "dist/",
-  "libVersion": "3.15.0"
+  "libVersion": "3.15.2"
 }

@@ -7,6 +7,7 @@ import type {
     ListQuestionnairesDto,
     ListQuestionnairesResponseDto,
 } from "./entity";
+import { parseQuestionnaireDocument } from "@/lib/questionnaireDocument";
 
 export async function POST(req: Request) {
     const session = await getServerSession();
@@ -24,14 +25,12 @@ export async function POST(req: Request) {
         body = {};
     }
 
-    // 教练端：默认查自己的问卷（coach_questionnaires.coach_id 存的是 users.id）
     let coachUserId = session.user.id;
 
-    // 如需查看某教练的模板（传 coaches.id）
     if (body.coachId) {
         const { data: coach, error } = await supabase
             .from("coaches")
-            .select("user_id, profile")
+            .select("user_id")
             .eq("id", body.coachId)
             .single();
 
@@ -43,7 +42,6 @@ export async function POST(req: Request) {
         }
         coachUserId = coach.user_id;
     } else {
-        // 仅教练可查看自己的问卷列表
         if (!session.user.is_coach) {
             return NextResponse.json<ApiData<null>>(
                 { success: false, message: "用户不是教练", data: null },
@@ -52,8 +50,6 @@ export async function POST(req: Request) {
         }
     }
 
-    // 读取默认问卷 id：统一使用 is_default 字段
-    // 简化逻辑：只使用 is_default，不再依赖 coaches.profile.default_questionnaire_id
     const { data: defaultQuestionnaire } = await supabase
         .from("coach_questionnaires")
         .select("id")
@@ -66,7 +62,7 @@ export async function POST(req: Request) {
     const { data: rows, error } = await supabase
         .from("coach_questionnaires")
         .select(
-            "id, questions, is_active, status, name, is_default, version, created_at, updated_at",
+            "id, questions, status, name, is_default, version, created_at, updated_at",
         )
         .eq("coach_id", coachUserId)
         .order("updated_at", { ascending: false });
@@ -79,35 +75,22 @@ export async function POST(req: Request) {
         );
     }
 
-    // UI 简化为固定两份：
-    // - 线上版本：status='active' 且 is_active=true
-    // - 草稿版本：status='draft' 且 is_active=false
-    //
-    // 兼容旧数据：
-    // - 若 status 为空：用 is_active 推导（true=active，false=draft），并尽量只取一份草稿
-    const all = (rows || []) as any[];
-    const online =
-        all.find((r) => r.status === "active" && r.is_active === true) ||
-        all.find((r) => r.is_active === true) ||
-        null;
+    const items = ((rows || []) as any[]).map((r: any) => {
+        const document = parseQuestionnaireDocument(r.questions);
+        const status = r.status === "active" ? "active" : "draft";
+        const fallbackName = document.editorType === "flow" ? "流程图问卷" : "列表问卷";
 
-    const draft =
-        all.find((r) => r.status === "draft" && r.is_active === false) ||
-        all.find((r) => !r.status && r.is_active === false) ||
-        null;
-
-    const items = [online, draft]
-        .filter(Boolean)
-        .map((r: any) => ({
+        return {
             id: r.id,
-            name: r.name || (r.status === "active" || r.is_active ? "线上版本" : "草稿版本"),
-            is_active: Boolean(r.is_active),
+            name: r.name || fallbackName,
             version: r.version ?? null,
             created_at: r.created_at ?? null,
             updated_at: r.updated_at ?? null,
-            is_default: r.is_default ||
-                (defaultId ? r.id === defaultId : false),
-        }));
+            is_default: Boolean(r.is_default),
+            status,
+            editorType: document.editorType,
+        };
+    });
 
     const resp: ListQuestionnairesResponseDto = {
         items,

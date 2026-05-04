@@ -1,6 +1,6 @@
 import React from 'react'
 import { View, Text, Image } from '@tarojs/components'
-import { Star } from '@nutui/icons-react-taro'
+import { Star, Checklist } from '@nutui/icons-react-taro'
 import type { CoachRow, GetAggregatedInfoResponseDto, QueryCoachSubscription } from '../types'
 import './CoachIntro.scss'
 
@@ -8,13 +8,16 @@ interface CoachIntroProps {
   coach: CoachRow
   aggregatedInfo: GetAggregatedInfoResponseDto | null
   userSubscription: QueryCoachSubscription | null
+  onOpenQuestionnaire?: () => void
 }
 
 export default function CoachIntro({
   coach,
   aggregatedInfo,
-  userSubscription
+  userSubscription,
+  onOpenQuestionnaire
 }: CoachIntroProps) {
+  const canOpenQuestionnaire = onOpenQuestionnaire && ['waiting', 'active'].includes(userSubscription?.status || '')
   const specialties = aggregatedInfo?.specialties?.length ? aggregatedInfo.specialties : (coach.specialties || [])
   const profile = (coach.profile || {}) as Record<string, any>
   const caseStudies = Array.isArray(profile?.caseStudies) ? profile.caseStudies : []
@@ -70,6 +73,15 @@ export default function CoachIntro({
           <Text className='stat-label'>综合评分</Text>
         </View>
       </View>
+
+      {canOpenQuestionnaire && (
+        <View className='intro-actions'>
+          <View className='intro-action-btn' onClick={() => onOpenQuestionnaire?.()}>
+            <Checklist size={14} />
+            <Text className='intro-action-btn-text'>查看问卷</Text>
+          </View>
+        </View>
+      )}
 
       {specialties.length > 0 && (
         <>

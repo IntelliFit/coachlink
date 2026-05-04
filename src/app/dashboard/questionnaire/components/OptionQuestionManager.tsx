@@ -1,23 +1,25 @@
 import React, { useState } from 'react';
 import { InputText } from 'primereact/inputtext';
 import { Button } from 'primereact/button';
-import { RadioButton } from 'primereact/radiobutton';
+import { Checkbox } from 'primereact/checkbox';
 import { TrainingOptionQuestion } from '@/types/questionnaires';
 import { v4 as uuidv4 } from 'uuid';
 
 interface OptionQuestionManagerProps {
     onAddOptionQuestion: (question: TrainingOptionQuestion) => void;
     onCancel: () => void;
+    selectionMode: 'single' | 'multiple';
 }
 
 const OptionQuestionManager: React.FC<OptionQuestionManagerProps> = ({ 
     onAddOptionQuestion,
-    onCancel
+    onCancel,
+    selectionMode
 }) => {
-    const [newOptionQuestion, setNewOptionQuestion] = useState<{ question: string; options: string[]; scope: 'global' | 'action' }>({ 
+    const [newOptionQuestion, setNewOptionQuestion] = useState<{ question: string; options: string[]; allowOther: boolean }>({ 
         question: '', 
         options: [''],
-        scope: 'action'  // 默认为动作选择
+        allowOther: false,
     });
 
     // 更新新选项问题的选项
@@ -50,10 +52,11 @@ const OptionQuestionManager: React.FC<OptionQuestionManagerProps> = ({
                 type: 'option',
                 question: newOptionQuestion.question,
                 options: newOptionQuestion.options.filter(opt => opt.trim()),
-                scope: newOptionQuestion.scope
+                selectionMode,
+                allowOther: newOptionQuestion.allowOther,
             };
             onAddOptionQuestion(optionQuestion);
-            setNewOptionQuestion({ question: '', options: [''], scope: 'action' });
+            setNewOptionQuestion({ question: '', options: [''], allowOther: false });
         }
     };
 
@@ -70,32 +73,8 @@ const OptionQuestionManager: React.FC<OptionQuestionManagerProps> = ({
                 className="w-full mb-2"
             />
 
-            <label className="block text-sm font-medium mb-2">问题作用范围</label>
-            <div className="flex gap-4 mb-4">
-                <div className="flex items-center">
-                    <RadioButton
-                        inputId="scope-global"
-                        name="scope"
-                        value="global"
-                        onChange={(e) => setNewOptionQuestion({ ...newOptionQuestion, scope: e.value })}
-                        checked={newOptionQuestion.scope === 'global'}
-                    />
-                    <label htmlFor="scope-global" className="ml-2 text-sm">
-                        🌐 全局匹配 <span className="text-surface-500">(用于匹配模板)</span>
-                    </label>
-                </div>
-                <div className="flex items-center">
-                    <RadioButton
-                        inputId="scope-action"
-                        name="scope"
-                        value="action"
-                        onChange={(e) => setNewOptionQuestion({ ...newOptionQuestion, scope: e.value })}
-                        checked={newOptionQuestion.scope === 'action'}
-                    />
-                    <label htmlFor="scope-action" className="ml-2 text-sm">
-                        🎯 动作选择 <span className="text-surface-500">(用于筛选动作)</span>
-                    </label>
-                </div>
+            <div className="mb-4 rounded-xl border border-surface-200 bg-surface-50 p-3 text-xs text-surface-600">
+                {selectionMode === 'single' ? '学员只能选择 1 项。' : '学员可以同时选择多项。'}
             </div>
 
             <label className="block text-sm font-medium mb-2">选项</label>
@@ -121,6 +100,20 @@ const OptionQuestionManager: React.FC<OptionQuestionManagerProps> = ({
                 className="w-full md:w-auto mt-2"
                 outlined
             />
+
+            <div className="mt-4 flex items-center gap-2">
+                <Checkbox
+                    inputId="allow-other-option"
+                    checked={newOptionQuestion.allowOther}
+                    onChange={(e) => setNewOptionQuestion({
+                        ...newOptionQuestion,
+                        allowOther: Boolean(e.checked),
+                    })}
+                />
+                <label htmlFor="allow-other-option" className="text-sm text-surface-700">
+                    增加“其他”选项，并允许学员补充文字
+                </label>
+            </div>
             
             <div className="flex justify-end gap-2 mt-4">
                 <Button 

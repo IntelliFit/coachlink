@@ -187,25 +187,6 @@ npm run test:e2e
 4. **即兴训练**：只写训练执行快照，**不写**今日训练首页里的计划 execution 映射（无 `instanceId` 计划上下文）。
 5. **新增「会改 execution 状态」的接口或 UI**：在成功回调里调用与现有 `syncTrainingExecutionToStorage` / `syncExecutionToCaches` 同级的持久化逻辑，避免只改内存不写 storage。
 
-## 部署规范（强制）
-
-### Docker 部署（唯一方式）
-- **生产环境必须通过 Docker 部署**，禁止通过 pm2 直接部署 Node.js 进程。
-- 服务器（`154.8.205.78`）上应通过 Docker Compose 或 `docker run` 运行 `peacesheep/coachlink` 镜像。
-- 禁止在服务器上执行 `pm2 restart coachlink` 或类似的 pm2 命令来更新服务。
-
-### CI/CD 流程
-- GitHub Actions 工作流 `.github/workflows/build-and-push-docker.yml` 会在推送 `main` / `dev` / `gray` 分支时自动构建镜像并推送到 Docker Hub。
-- 镜像标签规则：
-  - `main` 分支 → `peacesheep/coachlink:production`、`peacesheep/coachlink:latest`
-  - `dev` 分支 → `peacesheep/coachlink:staging`
-  - `gray` 分支 → `peacesheep/coachlink:gray`
-- 推送到 Docker Hub 后，需要在服务器上手动或自动拉取最新镜像并重启容器。
-
-### 历史脚本说明
-- `scripts/deploy.js` 和 `scripts/update.sh` 中包含 `pm2 restart` 和 `npm run start` 命令，这些是**旧版 pm2 部署方式，已废弃**。
-- 如需更新部署脚本，应以 Docker 命令（`docker compose pull && docker compose up -d` 或等效命令）替代 pm2 命令。
-
 ## SKILLS
 
 

@@ -1,11 +1,11 @@
 import { CoachLinkTable } from "@/types";
-import { TrainingItem } from "@/types/questionnaires";
+import { QuestionnaireEditorType, TrainingItem } from "@/types/questionnaires";
 
 export interface UpdateQuestionnairesDto {
     id?: string;
+    name?: string;
+    editorType?: QuestionnaireEditorType;
     questionnaires: TrainingItem[];
-    /** 保存模式：'online' = 线上版本, 'draft' = 草稿版本 */
-    mode?: "online" | "draft";
 }
 
 export type CoachQuestionnairesInsert =

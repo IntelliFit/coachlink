@@ -41,7 +41,6 @@ const CreatePlanPage = () => {
     const [tags, setTags] = useState<string[]>([]);
     const [suitableFor, setSuitableFor] = useState<'beginner' | 'intermediate' | 'advanced'>('beginner');
     const [weekDays, setWeekDays] = useState<number[]>([]);  // 新增
-    const [globalAnswers, setGlobalAnswers] = useState<Record<string, number>>({});  // 新增
 
     // Days management
     const [days, setDays] = useState<FormPlanTrainingDay[]>([
@@ -685,19 +684,6 @@ const CreatePlanPage = () => {
                 onSave={handleSave}
                 weekDays={weekDays}
                 onWeekDaysChange={setWeekDays}
-                globalQuestions={questions.filter(q => q.type === 'option' && q.scope === 'global') as any[]}
-                globalAnswers={globalAnswers}
-                onGlobalAnswerChange={(question, answerIndex) => {
-                    setGlobalAnswers(prev => {
-                        const next = { ...prev };
-                        if (answerIndex === null) {
-                            delete next[question];
-                            return next;
-                        }
-                        next[question] = answerIndex;
-                        return next;
-                    });
-                }}
                 availableTrainingTags={
                     (questions.find(q => q.type === 'tags') as any)?.options?.filter((o: string) => o.trim()) || []
                 }
