@@ -177,7 +177,7 @@ function labelOfQuestion(q: any) {
     case 'option':
       return q.question || '选项问题';
     case 'text':
-      return q.question || '文本问题';
+      return q.question || '大段文本问答';
     default:
       return q?.type || '问题';
   }
@@ -272,9 +272,11 @@ function buildGraph(questions: TrainingItem[]) {
   // nodes
   questions.forEach((q: any) => {
     if (!q?.id) return;
-    const isBranch = q.type === 'option' || q.type === 'times';
+    const isMultiOption =
+      q.type === 'option' && (q.selectionMode === 'multiple' || Boolean(q.allowOther));
+    const isBranch = (q.type === 'option' && !isMultiOption) || q.type === 'times';
     const options =
-      q.type === 'option'
+      q.type === 'option' && !isMultiOption
         ? (q.options || []).map((text: string, key: number) => ({ key, text, kind: 'option' as const }))
         : undefined;
     const times =
@@ -340,19 +342,22 @@ function buildGraph(questions: TrainingItem[]) {
       });
     };
 
-    // 分支题：只画“显式分支 / 默认 / 顺序 next”，避免被列表顺序强行串线
+    // 分支题：只画"显式分支 / 默认 / 顺序 next"，避免被列表顺序强行串线
     if (q.type === 'option') {
       const b = q.branching || {};
       const rules = b.rules || {};
       const opts: string[] = Array.isArray(q.options) ? q.options : [];
       const explicitNext = (q as any)?.next;
+      const isMultiOption = q.selectionMode === 'multiple' || Boolean(q.allowOther);
 
-      opts.forEach((opt: string, optIdx: number) => {
-        const v = rules?.[optIdx];
-        const label = `选项${optIdx + 1}`;
-        if (v === null) addEdge(q.id, '__END__', label, '#f59e0b', false, { kind: 'option', order: optIdx });
-        else if (typeof v === 'string') addEdge(q.id, v, label, '#f59e0b', false, { kind: 'option', order: optIdx });
-      });
+      if (!isMultiOption) {
+        opts.forEach((opt: string, optIdx: number) => {
+          const v = rules?.[optIdx];
+          const label = `选项${optIdx + 1}`;
+          if (v === null) addEdge(q.id, '__END__', label, '#f59e0b', false, { kind: 'option', order: optIdx });
+          else if (typeof v === 'string') addEdge(q.id, v, label, '#f59e0b', false, { kind: 'option', order: optIdx });
+        });
+      }
 
       if (b.defaultNext === null) addEdge(q.id, '__END__', '默认', '#60a5fa', false, { kind: 'default', order: 9999 });
       else if (typeof b.defaultNext === 'string') addEdge(q.id, b.defaultNext, '默认', '#60a5fa', false, { kind: 'default', order: 9999 });
@@ -664,4 +669,3 @@ export default function QuestionnaireFlow(props: Props) {
     </div>
   );
 }
-

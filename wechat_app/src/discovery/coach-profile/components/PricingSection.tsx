@@ -8,26 +8,43 @@ export interface PricingSectionProps {
   onSelectProduct?: (product: Product, duration: DurationOption) => void
   userSubscription?: QueryCoachSubscription | null
   renewMode?: boolean
+  onEnterRenewMode?: () => void
 }
 
 export default function PricingSection({
   products,
   onSelectProduct,
   userSubscription,
-  renewMode
+  renewMode,
+  onEnterRenewMode
 }: PricingSectionProps) {
+  const showRenewBtn = ['active', 'expired', 'near_expiry'].includes(userSubscription?.status || '')
   const isActiveSub = userSubscription?.status === 'active'
 
   return (
     <View className='pricing-card'>
       {isActiveSub && (
         <View className='pricing-subscribed-banner'>
-          <Text className='pricing-subscribed-title'>您已订阅该教练</Text>
-          <Text className='pricing-subscribed-hint'>
-            {renewMode
-              ? '续费模式：选择下方套餐并支付即可延长订阅。'
-              : '点击底部【续费】即可延长订阅并且可以续订。'}
-          </Text>
+          <View className='pricing-subscribed-row'>
+            <View className='pricing-subscribed-text'>
+              <Text className='pricing-subscribed-title'>您已订阅该教练</Text>
+              <Text className='pricing-subscribed-hint'>
+                {renewMode
+                  ? '续费模式：选择下方套餐并支付即可延长订阅。'
+                  : '如需延长订阅，请点击右侧【续费】。'}
+              </Text>
+            </View>
+            {showRenewBtn && !renewMode && onEnterRenewMode && (
+              <View className='pricing-renew-btn' onClick={onEnterRenewMode}>
+                <Text className='pricing-renew-btn-text'>续费</Text>
+              </View>
+            )}
+            {renewMode && (
+              <View className='pricing-renew-btn pricing-renew-btn-active'>
+                <Text className='pricing-renew-btn-text'>已开启续费</Text>
+              </View>
+            )}
+          </View>
         </View>
       )}
       <View className='pricing-header'>

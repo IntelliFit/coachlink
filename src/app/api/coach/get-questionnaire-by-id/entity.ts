@@ -1,4 +1,4 @@
-import type { TrainingItem } from "@/types/questionnaires";
+import type { QuestionnaireEditorType, TrainingItem } from "@/types/questionnaires";
 
 export interface GetQuestionnaireByIdDto {
     id: string;
@@ -6,8 +6,9 @@ export interface GetQuestionnaireByIdDto {
 
 export interface GetQuestionnaireByIdResponseDto {
     id: string;
+    name?: string | null;
+    status: "active" | "draft";
     questionnaires: TrainingItem[];
-    is_active: boolean;
+    editorType: QuestionnaireEditorType;
     version: number | null;
 }
-

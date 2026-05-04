@@ -1,5 +1,4 @@
 export default {
-  navigationStyle: 'custom',
   navigationBarTitleText: '我',
   navigationBarBackgroundColor: '#FFFFFF',
   navigationBarTextStyle: 'black' as const,

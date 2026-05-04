@@ -1,44 +1,50 @@
 import React, { useState, useEffect } from 'react'
-import { View, Text, Input, Button, ScrollView, Picker, Checkbox } from '@tarojs/components'
-import { Check, File, List, Calendar, Ticket, Power } from '@nutui/icons-react-taro'
+import { View, Text, Input, Button, ScrollView, Checkbox, Textarea, RadioGroup, Radio } from '@tarojs/components'
+import { File } from '@nutui/icons-react-taro'
 import Taro from '@tarojs/taro'
 import { coachService } from '@/services/coach/coachService'
-import { actionLibService } from '@/services/coach/actionLibService'
 import './index.scss'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 
 type QuestionType = 'text' | 'option' | 'times' | 'tags' | 'rm'
+type EditorType = 'simple' | 'flow'
+type SelectionMode = 'single' | 'multiple'
 
 interface Question {
   id: string
   type: QuestionType
   question?: string
   options?: string[] | number[]
+  selectionMode?: SelectionMode
+  allowOther?: boolean
   actionIds?: string[]
-  scope?: 'global' | 'action'
   branching?: any
   media?: any[]
 }
 
+const LEGACY_TYPES: QuestionType[] = ['tags', 'times', 'rm']
+
+function generateId(): string {
+  return `q_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+}
+
 function CoachQuestionnaireEdit() {
   const routerParams = Taro.getCurrentInstance().router?.params || {}
-  const questionnaireId = routerParams?.id
-  const isEdit = !!questionnaireId && questionnaireId.trim() !== ''
-  const initialMode = routerParams?.mode === 'online' ? 'online' : 'draft'
+  const questionnaireId = routerParams?.id || ''
+
   const [questions, setQuestions] = useState<Question[]>([])
-  const [questionId, setQuestionId] = useState<string>('')
+  const [questionId, setQuestionId] = useState<string>(questionnaireId)
+  const [templateName, setTemplateName] = useState<string>('')
+  const [templateStatus, setTemplateStatus] = useState<'active' | 'draft'>('draft')
+  const [editorType, setEditorType] = useState<EditorType>('simple')
+  const [editorTypeLocked, setEditorTypeLocked] = useState<boolean>(false)
+  const [showTypePicker, setShowTypePicker] = useState<boolean>(false)
+  const [coachId, setCoachId] = useState<string>('')
+
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
-  const [coachId, setCoachId] = useState<string>('')
   const [showAddMenu, setShowAddMenu] = useState(false)
   const [editingIndex, setEditingIndex] = useState<number | null>(null)
-  const [actions, setActions] = useState<any[]>([])
-  const [loadingActions, setLoadingActions] = useState(false)
-  const [showActionSelector, setShowActionSelector] = useState(false)
-  const [selectingQuestionIndex, setSelectingQuestionIndex] = useState<number | null>(null)
-  const [mode, setMode] = useState<'online' | 'draft'>(initialMode)
-  const [templates, setTemplates] = useState<any[]>([])
-  const [loadingTemplates, setLoadingTemplates] = useState(false)
 
   useEffect(() => {
     const token = Taro.getStorageSync('token')
@@ -50,20 +56,16 @@ function CoachQuestionnaireEdit() {
   }, [])
 
   useEffect(() => {
-    if (coachId) {
-      loadTemplates()
-    }
-  }, [coachId])
-
-  useEffect(() => {
-    if (coachId && mode) {
-      loadQuestionnaire()
-    }
-  }, [coachId, mode])
-
-  useEffect(() => {
-    if (coachId) {
-      loadActions()
+    if (!coachId) return
+    if (questionnaireId) {
+      loadQuestionnaire(questionnaireId)
+    } else {
+      // 新建：先弹出"选择问卷类型"
+      setShowTypePicker(true)
+      setEditorTypeLocked(false)
+      setQuestions([])
+      setTemplateStatus('draft')
+      setTemplateName('')
     }
   }, [coachId])
 
@@ -79,91 +81,39 @@ function CoachQuestionnaireEdit() {
     }
   }
 
-  async function loadActions() {
-    try {
-      setLoadingActions(true)
-      const res = await actionLibService.listActions({ page: 1, limit: 100 })
-      if (res?.actions) {
-        setActions(res.actions)
-      }
-    } catch (e) {
-      console.error('[coach/questionnaire/edit] load actions:', e)
-    } finally {
-      setLoadingActions(false)
-    }
-  }
-
-  async function loadTemplates() {
-    if (!coachId) return
-    try {
-      setLoadingTemplates(true)
-      const res = await coachService.listQuestionnaires({ coachId })
-      if (res) {
-        setTemplates(res.items || [])
-        // 根据模式选择对应的模板
-        const targetTemplate = mode === 'draft' 
-          ? res.items.find((i: any) => !i.is_active)
-          : res.items.find((i: any) => i.is_active)
-        
-        if (targetTemplate?.id) {
-          setQuestionId(targetTemplate.id)
-        }
-      }
-    } catch (e) {
-      console.error('[coach/questionnaire/edit] load templates:', e)
-    } finally {
-      setLoadingTemplates(false)
-    }
-  }
-
-  async function loadQuestionnaire() {
-    if (!coachId || !mode) return
+  async function loadQuestionnaire(id: string) {
     try {
       setLoading(true)
-      
-      // 先获取模板列表
-      const templatesRes = await coachService.listQuestionnaires({ coachId })
-      if (!templatesRes) {
-        setLoading(false)
+      const res: any = await coachService.getQuestionnaireById({ id })
+      if (!res) {
+        Taro.showToast({ title: '加载失败', icon: 'none' })
+        setQuestions([])
         return
       }
 
-      const targetTemplate = mode === 'draft' 
-        ? templatesRes.items.find((i: any) => !i.is_active)
-        : templatesRes.items.find((i: any) => i.is_active)
-
-      if (!targetTemplate?.id) {
-        // 如果没有对应模板，创建新的
-        setQuestions([])
-        setQuestionId('')
-        setLoading(false)
-        return
+      const trainingQuestions: Question[] = []
+      const items = Array.isArray(res.questionnaires) ? res.questionnaires : []
+      for (const item of items) {
+        trainingQuestions.push({
+          id: item.id || generateId(),
+          type: item.type,
+          question: item.question || '',
+          options: item.options || [],
+          selectionMode: item.selectionMode === 'multiple' ? 'multiple' : 'single',
+          allowOther: Boolean(item.allowOther),
+          actionIds: item.actionIds || [],
+          branching: item.branching,
+          media: item.media,
+        })
       }
 
-      setQuestionId(targetTemplate.id)
-      
-      // 根据ID获取问卷详情
-      const res = await coachService.getQuestionnaireById({ id: targetTemplate.id })
-      if (res) {
-        const trainingQuestions: Question[] = []
-        if (res.questionnaires && Array.isArray(res.questionnaires)) {
-          for (const item of res.questionnaires) {
-            trainingQuestions.push({
-              id: item.id || `q_${Date.now()}_${Math.random()}`,
-              type: item.type,
-              question: item.question || '',
-              options: item.options || [],
-              actionIds: item.actionIds || [],
-              scope: item.scope,
-              branching: item.branching,
-              media: item.media
-            })
-          }
-        }
-        setQuestions(trainingQuestions)
-      } else {
-        setQuestions([])
-      }
+      setQuestions(trainingQuestions)
+      setQuestionId(res.id)
+      setTemplateName(res.name || (res.editorType === 'flow' ? '流程图问卷' : '列表问卷'))
+      setTemplateStatus(res.status === 'active' ? 'active' : 'draft')
+      setEditorType(res.editorType === 'flow' ? 'flow' : 'simple')
+      setEditorTypeLocked(true)
+      setShowTypePicker(false)
     } catch (e) {
       console.error('[coach/questionnaire/edit] load:', e)
       Taro.showToast({ title: '加载失败', icon: 'none' })
@@ -173,24 +123,35 @@ function CoachQuestionnaireEdit() {
     }
   }
 
-  function generateId(): string {
-    return `q_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+  function pickEditorType(type: EditorType) {
+    setEditorType(type)
+    setEditorTypeLocked(true)
+    setShowTypePicker(false)
+    setTemplateName(type === 'flow' ? '流程图问卷' : '列表问卷')
   }
 
-  function handleAddQuestion(type: QuestionType) {
-    const newQuestion: Question = {
-      id: generateId(),
-      type,
-      question: '',
-      options: type === 'option' ? ['选项1', '选项2'] : type === 'times' ? [1, 2, 3, 4, 5, 6, 7] : type === 'tags' ? [] : undefined,
-      actionIds: type === 'rm' ? [] : undefined,
-      scope: type === 'option' ? 'action' : undefined
-    }
-    
+  function handleAddQuestion(type: 'text' | 'option-single' | 'option-multiple') {
+    let newQuestion: Question
     if (type === 'text') {
-      newQuestion.question = '请输入问题'
-    } else if (type === 'times') {
-      newQuestion.question = '您希望每周训练几次？'
+      newQuestion = { id: generateId(), type: 'text', question: '' }
+    } else if (type === 'option-single') {
+      newQuestion = {
+        id: generateId(),
+        type: 'option',
+        question: '',
+        options: ['选项1', '选项2'],
+        selectionMode: 'single',
+        allowOther: false,
+      }
+    } else {
+      newQuestion = {
+        id: generateId(),
+        type: 'option',
+        question: '',
+        options: ['选项1', '选项2'],
+        selectionMode: 'multiple',
+        allowOther: false,
+      }
     }
 
     setQuestions([...questions, newQuestion])
@@ -228,7 +189,7 @@ function CoachQuestionnaireEdit() {
   function handleAddOption(index: number) {
     const question = questions[index]
     if (question.type === 'option') {
-      const options = Array.isArray(question.options) ? [...question.options] : []
+      const options = Array.isArray(question.options) ? [...(question.options as string[])] : []
       options.push(`选项${options.length + 1}`)
       handleQuestionChange(index, 'options', options)
     }
@@ -237,7 +198,7 @@ function CoachQuestionnaireEdit() {
   function handleRemoveOption(index: number, optionIndex: number) {
     const question = questions[index]
     if (question.type === 'option' && Array.isArray(question.options)) {
-      const options = [...question.options]
+      const options = [...(question.options as string[])]
       if (options.length > 1) {
         options.splice(optionIndex, 1)
         handleQuestionChange(index, 'options', options)
@@ -250,89 +211,10 @@ function CoachQuestionnaireEdit() {
   function handleOptionChange(index: number, optionIndex: number, value: string) {
     const question = questions[index]
     if (question.type === 'option' && Array.isArray(question.options)) {
-      const options = [...question.options]
+      const options = [...(question.options as string[])]
       options[optionIndex] = value
       handleQuestionChange(index, 'options', options)
     }
-  }
-
-  function handleToggleTimesOption(index: number, num: number) {
-    const question = questions[index]
-    if (question.type !== 'times') return
-    
-    const opts: number[] = Array.isArray(question.options) ? [...question.options] : [1, 2, 3, 4, 5, 6, 7]
-    const currentIndex = opts.indexOf(num)
-    
-    if (currentIndex > -1) {
-      // 如果已选中，取消选中（但至少保留一个）
-      if (opts.length > 1) {
-        opts.splice(currentIndex, 1)
-        handleQuestionChange(index, 'options', opts)
-      } else {
-        Taro.showToast({ title: '至少保留一个选项', icon: 'none' })
-      }
-    } else {
-      // 如果未选中，添加
-      opts.push(num)
-      opts.sort((a, b) => a - b)
-      handleQuestionChange(index, 'options', opts)
-    }
-  }
-
-  function handleAddTagOption(index: number) {
-    const question = questions[index]
-    if (question.type !== 'tags') return
-    const options = Array.isArray(question.options) ? [...question.options] : []
-    options.push('')
-    handleQuestionChange(index, 'options', options)
-  }
-
-  function handleRemoveTagOption(index: number, optionIndex: number) {
-    const question = questions[index]
-    if (question.type !== 'tags' || !Array.isArray(question.options)) return
-    const options = [...question.options]
-    options.splice(optionIndex, 1)
-    handleQuestionChange(index, 'options', options)
-  }
-
-  function handleTagOptionChange(index: number, optionIndex: number, value: string) {
-    const question = questions[index]
-    if (question.type !== 'tags' || !Array.isArray(question.options)) return
-    const options = [...question.options]
-    options[optionIndex] = value
-    handleQuestionChange(index, 'options', options)
-  }
-
-  function handleSelectActions(index: number) {
-    setSelectingQuestionIndex(index)
-    setShowActionSelector(true)
-  }
-
-  function handleToggleAction(actionId: string) {
-    if (selectingQuestionIndex === null) return
-    const question = questions[selectingQuestionIndex]
-    const currentIds = Array.isArray(question.actionIds) ? [...question.actionIds] : []
-    const index = currentIds.indexOf(actionId)
-    
-    if (index > -1) {
-      currentIds.splice(index, 1)
-    } else {
-      currentIds.push(actionId)
-    }
-    
-    handleQuestionChange(selectingQuestionIndex, 'actionIds', currentIds)
-  }
-
-  function handleConfirmActionSelection() {
-    setShowActionSelector(false)
-    setSelectingQuestionIndex(null)
-  }
-
-  function handleClearActions() {
-    if (selectingQuestionIndex === null) return
-    handleQuestionChange(selectingQuestionIndex, 'actionIds', [])
-    setShowActionSelector(false)
-    setSelectingQuestionIndex(null)
   }
 
   async function handleSave() {
@@ -341,7 +223,6 @@ function CoachQuestionnaireEdit() {
       return
     }
 
-    // 验证必填项
     for (let i = 0; i < questions.length; i++) {
       const q = questions[i]
       if (q.type === 'text' && !q.question?.trim()) {
@@ -352,23 +233,15 @@ function CoachQuestionnaireEdit() {
         Taro.showToast({ title: `第${i + 1}个问题或选项不能为空`, icon: 'none' })
         return
       }
-      if (q.type === 'times' && (!q.options || !Array.isArray(q.options) || q.options.length === 0)) {
-        Taro.showToast({ title: `第${i + 1}个问题至少选择一个可选次数`, icon: 'none' })
-        return
-      }
-      if (q.type === 'tags' && (!q.options || !Array.isArray(q.options) || q.options.length === 0)) {
-        Taro.showToast({ title: `第${i + 1}个问题至少添加一个训练项目选项`, icon: 'none' })
-        return
-      }
     }
 
     try {
       setSaving(true)
       const res = await coachService.updateQuestionnaires({
-        coachId,
         questionnaires: questions,
         id: questionId || undefined,
-        mode: mode
+        name: templateName.trim() || (editorType === 'flow' ? '流程图问卷' : '列表问卷'),
+        editorType,
       })
       if (res?.success) {
         const newId = res.data?.id || questionId
@@ -376,8 +249,6 @@ function CoachQuestionnaireEdit() {
           setQuestionId(newId)
         }
         Taro.showToast({ title: '保存成功', icon: 'success' })
-        // 刷新模板列表
-        await loadTemplates()
       } else {
         Taro.showToast({ title: res?.message || '保存失败', icon: 'none' })
       }
@@ -390,21 +261,20 @@ function CoachQuestionnaireEdit() {
   }
 
   async function handlePublish() {
-    if (!coachId || !questionId) {
-      Taro.showToast({ title: '问卷信息不完整', icon: 'none' })
+    if (!questionId) {
+      Taro.showToast({ title: '请先保存问卷', icon: 'none' })
       return
     }
-
-    if (mode !== 'draft') {
-      Taro.showToast({ title: '只能发布草稿版本', icon: 'none' })
+    if (templateStatus === 'active') {
+      Taro.showToast({ title: '该问卷已经是已发布版本', icon: 'none' })
       return
     }
 
     const res = await Taro.showModal({
       title: '确认发布',
-      content: '确定要将草稿版本发布为线上版本吗？线上版本将被替换。',
+      content: '确定要发布这份问卷吗？发布后将替换当前生效版本。',
       confirmText: '发布',
-      confirmColor: '#10b981'
+      confirmColor: '#10b981',
     })
 
     if (!res.confirm) return
@@ -414,10 +284,7 @@ function CoachQuestionnaireEdit() {
       const publishRes = await coachService.publishQuestionnaire({ id: questionId })
       if (publishRes?.success) {
         Taro.showToast({ title: '发布成功', icon: 'success' })
-        // 切换到线上模式并重新加载
-        setMode('online')
-        await loadTemplates()
-        await loadQuestionnaire()
+        await loadQuestionnaire(questionId)
       } else {
         Taro.showToast({ title: publishRes?.message || '发布失败', icon: 'none' })
       }
@@ -429,57 +296,51 @@ function CoachQuestionnaireEdit() {
     }
   }
 
-  async function handleCopyFromOnline() {
-    if (!coachId) {
-      Taro.showToast({ title: '教练信息加载失败', icon: 'none' })
-      return
+  function getQuestionTypeLabel(question: Question): string {
+    if (LEGACY_TYPES.includes(question.type)) {
+      if (question.type === 'tags') return '训练项目偏好（已下线）'
+      if (question.type === 'times') return '每周训练次数（已下线）'
+      return '1RM 测试（已下线）'
     }
-
-    const onlineTemplate = templates.find((i: any) => i.is_active)
-    if (!onlineTemplate?.id) {
-      Taro.showToast({ title: '没有线上版本可复制', icon: 'none' })
-      return
+    if (question.type === 'option') {
+      return question.selectionMode === 'multiple' ? '多选题' : '单选题'
     }
-
-    try {
-      setSaving(true)
-      const res = await coachService.duplicateQuestionnaire({ id: onlineTemplate.id })
-      if (res?.success) {
-        Taro.showToast({ title: '复制成功', icon: 'success' })
-        // 切换到草稿模式并重新加载
-        setMode('draft')
-        await loadTemplates()
-        await loadQuestionnaire()
-      } else {
-        Taro.showToast({ title: res?.message || '复制失败', icon: 'none' })
-      }
-    } catch (e) {
-      console.error('[coach/questionnaire/edit] copy:', e)
-      Taro.showToast({ title: '复制失败', icon: 'none' })
-    } finally {
-      setSaving(false)
-    }
+    return '纯文本问答'
   }
 
-  function getQuestionTypeLabel(type: QuestionType): string {
-    const labels: Record<QuestionType, string> = {
-      text: '文本问题',
-      option: '选项问题',
-      times: '训练次数',
-      tags: '训练项目偏好',
-      rm: '1RM测试'
-    }
-    return labels[type] || type
+  function renderLegacyQuestion(question: Question, index: number) {
+    return (
+      <View key={question.id} className="question-card legacy-card">
+        <View className="question-header">
+          <View className="question-info">
+            <Text className="question-type-badge legacy">{getQuestionTypeLabel(question)}</Text>
+            <Text className="question-index">#{index + 1}</Text>
+          </View>
+          <View className="question-actions">
+            <Button className="delete-btn" onClick={() => handleDeleteQuestion(index)}>
+              删除
+            </Button>
+          </View>
+        </View>
+        <View className="legacy-tip">
+          <Text className="legacy-tip-text">该题型已下线，仅可删除。新建问题请使用纯文本/单选/多选。</Text>
+        </View>
+      </View>
+    )
   }
 
   function renderQuestionEditor(question: Question, index: number) {
+    if (LEGACY_TYPES.includes(question.type)) {
+      return renderLegacyQuestion(question, index)
+    }
+
     const isEditing = editingIndex === index
 
     return (
       <View key={question.id} className="question-card">
         <View className="question-header">
           <View className="question-info">
-            <Text className="question-type-badge">{getQuestionTypeLabel(question.type)}</Text>
+            <Text className="question-type-badge">{getQuestionTypeLabel(question)}</Text>
             <Text className="question-index">#{index + 1}</Text>
           </View>
           <View className="question-actions">
@@ -503,11 +364,13 @@ function CoachQuestionnaireEdit() {
             {question.type === 'text' && (
               <View className="form-item">
                 <Text className="label">问题内容</Text>
-                <Input
+                <Textarea
                   className="input"
                   value={question.question || ''}
                   onInput={(e) => handleQuestionChange(index, 'question', e.detail.value)}
-                  placeholder="请输入问题"
+                  placeholder="例如：你目前最大的训练目标是什么？"
+                  maxlength={-1}
+                  autoHeight
                 />
               </View>
             )}
@@ -530,7 +393,7 @@ function CoachQuestionnaireEdit() {
                       + 添加选项
                     </Button>
                   </View>
-                  {Array.isArray(question.options) && question.options.map((opt, optIdx) => (
+                  {Array.isArray(question.options) && (question.options as string[]).map((opt, optIdx) => (
                     <View key={optIdx} className="option-row">
                       <Input
                         className="option-input"
@@ -550,117 +413,15 @@ function CoachQuestionnaireEdit() {
                   ))}
                 </View>
                 <View className="form-item">
-                  <Text className="label">作用范围</Text>
-                  <Picker
-                    mode="selector"
-                    range={['action', 'global']}
-                    rangeKey="label"
-                    value={question.scope === 'global' ? 1 : 0}
-                    onChange={(e) => {
-                      const scope = e.detail.value === 1 ? 'global' : 'action'
-                      handleQuestionChange(index, 'scope', scope)
-                    }}
+                  <View
+                    className="allow-other-row"
+                    onClick={() => handleQuestionChange(index, 'allowOther', !question.allowOther)}
                   >
-                    <View className="picker-view">
-                      <Text>{question.scope === 'global' ? '全局匹配' : '动作选择'}</Text>
-                    </View>
-                  </Picker>
+                    <Checkbox checked={Boolean(question.allowOther)} value="allowOther" />
+                    <Text className="allow-other-label">增加"其他"选项，允许学员自补文字</Text>
+                  </View>
                 </View>
               </>
-            )}
-
-            {question.type === 'times' && (
-              <>
-                <View className="form-item">
-                  <Text className="label">问题内容</Text>
-                  <Input
-                    className="input"
-                    value={question.question || ''}
-                    onInput={(e) => handleQuestionChange(index, 'question', e.detail.value)}
-                    placeholder="例如：您希望每周训练几次？"
-                  />
-                </View>
-                <View className="form-item">
-                  <Text className="label">可选次数</Text>
-                  <View className="times-options">
-                    {[1, 2, 3, 4, 5, 6, 7].map((num) => {
-                      const opts: number[] = Array.isArray(question.options) ? question.options : [1, 2, 3, 4, 5, 6, 7]
-                      const isChecked = opts.includes(num)
-                      return (
-                        <View key={num} className="times-option-item">
-                          <Checkbox
-                            checked={isChecked}
-                            value={String(num)}
-                            onClick={() => handleToggleTimesOption(index, num)}
-                          />
-                          <Text className="times-option-label" onClick={() => handleToggleTimesOption(index, num)}>
-                            {num} 次
-                          </Text>
-                        </View>
-                      )
-                    })}
-                  </View>
-                  <Text className="hint">至少选择1个选项；学员端将只显示您勾选的次数</Text>
-                </View>
-              </>
-            )}
-
-            {question.type === 'tags' && (
-              <View className="form-item">
-                <View className="label-row">
-                  <Text className="label">训练项目选项</Text>
-                  <Button className="add-option-btn" onClick={() => handleAddTagOption(index)}>
-                    + 添加选项
-                  </Button>
-                </View>
-                {Array.isArray(question.options) && question.options.length > 0 ? (
-                  question.options.map((opt, optIdx) => (
-                    <View key={optIdx} className="option-row">
-                      <Input
-                        className="option-input"
-                        value={String(opt)}
-                        onInput={(e) => handleTagOptionChange(index, optIdx, e.detail.value)}
-                        placeholder={`训练项目 ${optIdx + 1}`}
-                      />
-                      <Button
-                        className="remove-option-btn"
-                        onClick={() => handleRemoveTagOption(index, optIdx)}
-                      >
-                        删除
-                      </Button>
-                    </View>
-                  ))
-                ) : (
-                  <Text className="hint">暂无选项，请添加训练项目选项</Text>
-                )}
-                <Text className="hint">建议配置6-15个选项；学员端可多选。这些选项同时会作为模板的可选标签。</Text>
-              </View>
-            )}
-
-            {question.type === 'rm' && (
-              <View className="form-item">
-                <Text className="label">1RM测试动作</Text>
-                <Button
-                  className="select-actions-btn"
-                  onClick={() => handleSelectActions(index)}
-                >
-                  {Array.isArray(question.actionIds) && question.actionIds.length > 0
-                    ? `已选择 ${question.actionIds.length} 个动作`
-                    : '选择动作'}
-                </Button>
-                {Array.isArray(question.actionIds) && question.actionIds.length > 0 && (
-                  <View className="selected-actions">
-                    {question.actionIds.map((actionId) => {
-                      const action = actions.find(a => a.id === actionId)
-                      return action ? (
-                        <View key={actionId} className="action-tag">
-                          <Text>{action.name}</Text>
-                        </View>
-                      ) : null
-                    })}
-                  </View>
-                )}
-              </View>
             )}
           </View>
         )}
@@ -675,34 +436,15 @@ function CoachQuestionnaireEdit() {
                 <Text className="preview-text">{question.question || '（未设置）'}</Text>
                 {Array.isArray(question.options) && question.options.length > 0 && (
                   <View className="preview-options">
-                    {question.options.map((opt, idx) => (
+                    {(question.options as string[]).map((opt, idx) => (
                       <Text key={idx} className="option-tag">{idx + 1}. {opt}</Text>
                     ))}
+                    {question.allowOther && (
+                      <Text className="option-tag">其他（自补）</Text>
+                    )}
                   </View>
                 )}
               </>
-            )}
-            {question.type === 'times' && (
-              <Text className="preview-text">{question.question || '（未设置）'}</Text>
-            )}
-            {question.type === 'tags' && (
-              <>
-                <Text className="preview-text">训练项目偏好（多选）</Text>
-                {Array.isArray(question.options) && question.options.length > 0 && (
-                  <View className="preview-options">
-                    {question.options.map((opt, idx) => (
-                      <Text key={idx} className="option-tag">{opt || `选项${idx + 1}`}</Text>
-                    ))}
-                  </View>
-                )}
-              </>
-            )}
-            {question.type === 'rm' && (
-              <Text className="preview-text">
-                1RM测试动作：{Array.isArray(question.actionIds) && question.actionIds.length > 0
-                  ? `已选择 ${question.actionIds.length} 个动作`
-                  : '未选择'}
-              </Text>
             )}
           </View>
         )}
@@ -718,54 +460,69 @@ function CoachQuestionnaireEdit() {
     )
   }
 
+  if (showTypePicker) {
+    return (
+      <View className="coach-questionnaire-edit-page">
+        <View className="header">
+          <Button className="back-btn" onClick={() => Taro.navigateBack()}>返回</Button>
+          <Text className="title">新建问卷</Text>
+          <View className="header-placeholder"></View>
+        </View>
+
+        <View className="type-picker">
+          <Text className="type-picker-title">请选择问卷类型</Text>
+          <Text className="type-picker-hint">类型一旦确认就不能再修改了，请仔细选择。</Text>
+          <Button className="type-card" onClick={() => pickEditorType('simple')}>
+            <View className="type-card-inner">
+              <Text className="type-card-title">列表式问卷</Text>
+              <Text className="type-card-desc">按顺序提问，最常用，覆盖绝大多数教练场景。</Text>
+            </View>
+          </Button>
+          <Button className="type-card" onClick={() => pickEditorType('flow')}>
+            <View className="type-card-inner">
+              <Text className="type-card-title">流程图式问卷</Text>
+              <Text className="type-card-desc">支持按选项分叉，适合复杂筛查/分级流程。</Text>
+            </View>
+          </Button>
+        </View>
+      </View>
+    )
+  }
+
   return (
     <View className="coach-questionnaire-edit-page">
       <View className="header">
         <Button className="back-btn" onClick={() => Taro.navigateBack()}>返回</Button>
-        <Text className="title">{mode === 'draft' ? '编辑草稿' : '查看线上'}</Text>
+        <Text className="title">{templateStatus === 'active' ? '已发布问卷' : '编辑问卷'}</Text>
         <View className="header-placeholder"></View>
       </View>
 
-      <View className="mode-switcher">
-        <Button
-          className={`mode-btn ${mode === 'online' ? 'active' : ''}`}
-          onClick={() => {
-            setMode('online')
-            loadQuestionnaire()
-          }}
-        >
-          线上版本
-        </Button>
-        <Button
-          className={`mode-btn ${mode === 'draft' ? 'active' : ''}`}
-          onClick={() => {
-            setMode('draft')
-            loadQuestionnaire()
-          }}
-        >
-          草稿版本
-        </Button>
-      </View>
-
-      {mode === 'draft' && (
-        <View className="draft-actions">
-          <Button className="copy-btn" onClick={handleCopyFromOnline}>
-            从线上复制
-          </Button>
-          {questionId && (
-            <Button className="publish-btn" onClick={handlePublish}>
-              发布为线上
-            </Button>
-          )}
+      <View className="meta-section">
+        <View className="form-item">
+          <Text className="label">问卷名称</Text>
+          <Input
+            className="input"
+            value={templateName}
+            onInput={(e) => setTemplateName(e.detail.value)}
+            placeholder="例如：新学员基础问卷"
+          />
         </View>
-      )}
+        <View className="meta-tags">
+          <Text className={`meta-tag status-${templateStatus}`}>
+            {templateStatus === 'active' ? '已发布' : '编辑中'}
+          </Text>
+          <Text className={`meta-tag editor-${editorType}`}>
+            {editorType === 'flow' ? '流程图式' : '列表式'}
+          </Text>
+        </View>
+      </View>
 
       <ScrollView scrollY className="form-content">
         {questions.length === 0 ? (
           <View className="empty-wrap">
             <View className="empty-icon"><File size={48} color="#9CA3AF" /></View>
             <Text className="empty-text">还没有问题</Text>
-            <Text className="empty-hint">点击下方按钮添加第一个问题</Text>
+            <Text className="empty-hint">点下面的「+ 添加问题」开始搭建你的问卷。</Text>
           </View>
         ) : (
           questions.map((q, index) => renderQuestionEditor(q, index))
@@ -779,33 +536,19 @@ function CoachQuestionnaireEdit() {
                 className="menu-item"
                 onClick={() => handleAddQuestion('text')}
               >
-                文本问题
+                纯文本问答
               </Button>
               <Button
                 className="menu-item"
-                onClick={() => handleAddQuestion('option')}
+                onClick={() => handleAddQuestion('option-single')}
               >
-                选项问题
+                单选题
               </Button>
               <Button
                 className="menu-item"
-                onClick={() => handleAddQuestion('times')}
+                onClick={() => handleAddQuestion('option-multiple')}
               >
-                训练次数
-              </Button>
-              <Button
-                className="menu-item"
-                onClick={() => handleAddQuestion('tags')}
-                disabled={questions.some(q => q.type === 'tags')}
-              >
-                训练项目偏好
-              </Button>
-              <Button
-                className="menu-item"
-                onClick={() => handleAddQuestion('rm')}
-                disabled={questions.some(q => q.type === 'rm')}
-              >
-                1RM测试
+                多选题
               </Button>
               <Button
                 className="menu-item cancel"
@@ -829,54 +572,12 @@ function CoachQuestionnaireEdit() {
         <Button className="save-btn" onClick={handleSave} loading={saving}>
           保存
         </Button>
+        {questionId && templateStatus !== 'active' && (
+          <Button className="publish-btn" onClick={handlePublish} loading={saving}>
+            发布
+          </Button>
+        )}
       </View>
-
-      {showActionSelector && (
-        <View className="action-selector-modal">
-          <View className="modal-mask" onClick={handleConfirmActionSelection}></View>
-          <View className="modal-content">
-            <View className="modal-header">
-              <Text className="modal-title">选择1RM测试动作</Text>
-              <Button className="close-btn" onClick={handleConfirmActionSelection}>关闭</Button>
-            </View>
-            <ScrollView scrollY className="modal-body">
-              {loadingActions ? (
-                <View className="loading-text"><LoadingSpinner size={48} /></View>
-              ) : actions.length === 0 ? (
-                <View className="empty-text">暂无动作，请先添加动作</View>
-              ) : (
-                actions.map((action) => {
-                  const question = selectingQuestionIndex !== null ? questions[selectingQuestionIndex] : null
-                  const selectedIds = Array.isArray(question?.actionIds) ? question.actionIds : []
-                  const isSelected = selectedIds.includes(action.id)
-                  
-                  return (
-                    <View
-                      key={action.id}
-                      className={`action-item ${isSelected ? 'selected' : ''}`}
-                      onClick={() => handleToggleAction(action.id)}
-                    >
-                      <View className="action-checkbox">
-                        {isSelected && <View className="checkmark"><Check size={14} color="#fff" /></View>}
-                      </View>
-                      <View className="action-info">
-                        <Text className="action-name">{action.name || '未命名'}</Text>
-                        {action.type && (
-                          <Text className="action-type">{action.type}</Text>
-                        )}
-                      </View>
-                    </View>
-                  )
-                })
-              )}
-            </ScrollView>
-            <View className="modal-footer">
-              <Button className="clear-btn" onClick={handleClearActions}>清除已选</Button>
-              <Button className="confirm-btn" onClick={handleConfirmActionSelection}>确定</Button>
-            </View>
-          </View>
-        </View>
-      )}
     </View>
   )
 }

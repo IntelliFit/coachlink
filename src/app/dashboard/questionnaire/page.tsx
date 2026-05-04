@@ -9,6 +9,7 @@ import { ProgressSpinner } from 'primereact/progressspinner';
 import { Card } from 'primereact/card';
 import { Dialog } from 'primereact/dialog';
 import { InputText } from 'primereact/inputtext';
+import { InputTextarea } from 'primereact/inputtextarea';
 import { Button } from 'primereact/button';
 import { RadioButton } from 'primereact/radiobutton';
 import { OverlayPanel } from 'primereact/overlaypanel';
@@ -17,10 +18,10 @@ import { Tree } from 'primereact/tree';
 import { useToastContext } from '@/context/ToastContext';
 import QuestionPreviewDialog from './components/QuestionPreviewDialog';
 import AddQuestionOverlay from './components/AddQuestionOverlay';
-import AddQuestionDialog from './components/AddQuestionDialog';
+import AddQuestionDialog, { type QuestionnaireComposerType } from './components/AddQuestionDialog';
 import OptionQuestionManager from './components/OptionQuestionManager';
 import QuestionnaireFlow from './components/QuestionnaireFlow';
-import type { TrainingItem, TrainingOptionQuestion, TrainingTextQuestion, QuestionType, QuestionMedia } from '@/types/questionnaires';
+import type { TrainingItem, TrainingOptionQuestion, TrainingTextQuestion, QuestionMedia, QuestionnaireEditorType } from '@/types/questionnaires';
 import { CoachesRow } from '@/types';
 import { DragDropContext, Droppable, Draggable, DropResult } from 'react-beautiful-dnd';
 import { v4 as uuidv4 } from "uuid";
@@ -37,6 +38,8 @@ import type { QuestionnaireTemplateItem } from '@/app/api/coach/list-questionnai
 import { classNames } from 'primereact/utils';
 import type { TreeNode } from 'primereact/treenode';
 
+const EMPTY_QUESTIONNAIRE: TrainingItem[] = [];
+
 const QuestionarePage = () => {
     const { data: session } = useSession();
     const { showToast } = useToastContext();
@@ -47,17 +50,18 @@ const QuestionarePage = () => {
     const [saving, setSaving] = useState<boolean>(false);
     const [addQuestionDialogVisible, setAddQuestionDialogVisible] = useState<boolean>(false);
     const [previewDialogVisible, setPreviewDialogVisible] = useState<boolean>(false);
-    const [newQuestionType, setNewQuestionType] = useState<QuestionType | null>(null);
+    const [newQuestionType, setNewQuestionType] = useState<QuestionnaireComposerType | null>(null);
 
     const [coach, setCoach] = useState<CoachesRow>(null);
 
     // 多问卷模板
     const [templates, setTemplates] = useState<QuestionnaireTemplateItem[]>([]);
-    const [defaultTemplateId, setDefaultTemplateId] = useState<string | null>(null);
     const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
-    const [mode, setMode] = useState<'online' | 'draft'>('online');
+    const [templateName, setTemplateName] = useState<string>('列表问卷');
+    const [templateStatus, setTemplateStatus] = useState<'active' | 'draft'>('draft');
+    const [editorType, setEditorType] = useState<QuestionnaireEditorType>('simple');
     const [loadingTemplates, setLoadingTemplates] = useState(false);
-    const [editorView, setEditorView] = useState<'flow' | 'tree' | 'list'>('flow');
+    const [editorView, setEditorView] = useState<'flow' | 'list'>('list');
     const [highlightQuestionId, setHighlightQuestionId] = useState<string | null>(null);
     const [editDialogVisible, setEditDialogVisible] = useState(false);
     const [editDialogQuestionId, setEditDialogQuestionId] = useState<string | null>(null);
@@ -112,135 +116,122 @@ const QuestionarePage = () => {
         }
     }
 
-    const loadQuestions = async () => {
-        if (!session?.user?.id || !coach) {
+    const normalizeEditorQuestions = (input: TrainingItem[]) => {
+        const trainingQuestions: TrainingItem[] = [];
+
+        for (const item of input || []) {
+            switch (item.type) {
+                case 'tags':
+                    trainingQuestions.push({
+                        id: (item as any).id || uuidv4(),
+                        type: 'tags',
+                        options: Array.isArray((item as any).options) ? (item as any).options : [],
+                        branching: (item as any).branching,
+                        media: (item as any).media,
+                        next: (item as any).next,
+                    });
+                    break;
+                case 'times':
+                    trainingQuestions.push({
+                        id: (item as any).id || uuidv4(),
+                        type: 'times',
+                        question: (item as any).question,
+                        options: (item as any).options,
+                        branching: (item as any).branching,
+                        media: (item as any).media,
+                        next: (item as any).next,
+                    });
+                    break;
+                case 'rm':
+                    trainingQuestions.push({
+                        id: (item as any).id || uuidv4(),
+                        type: 'rm',
+                        actionIds: Array.isArray((item as any).actionIds) ? (item as any).actionIds : [],
+                        media: (item as any).media,
+                        next: (item as any).next,
+                    });
+                    break;
+                case 'option':
+                    trainingQuestions.push({
+                        id: (item as any).id || uuidv4(),
+                        type: 'option',
+                        question: item.question,
+                        options: item.options,
+                        selectionMode: (item as any).selectionMode === 'multiple' ? 'multiple' : 'single',
+                        allowOther: Boolean((item as any).allowOther),
+                        branching: (item as any).branching,
+                        media: (item as any).media,
+                        next: (item as any).next,
+                    });
+                    break;
+                case 'text':
+                    trainingQuestions.push({
+                        id: (item as any).id || uuidv4(),
+                        type: 'text',
+                        question: item.question,
+                        media: (item as any).media,
+                        next: (item as any).next,
+                    });
+                    break;
+                default:
+                    if (typeof item === 'string') {
+                        trainingQuestions.push({
+                            id: uuidv4(),
+                            type: 'text',
+                            question: item,
+                        });
+                    }
+            }
+        }
+
+        return trainingQuestions;
+    };
+
+    const loadQuestionnaireDetail = async (id: string) => {
+        const res = await coachService.getQuestionnaireById({ id });
+        if (!res) {
+            showToast({ severity: 'error', summary: '错误', detail: '加载问卷失败' });
             return;
         }
 
-        const res = await coachService.getQuestionnaires({
-            coachId: coach.id
-        });
+        setQuestionId(res.id);
+        setSelectedTemplateId(res.id);
+        setTemplateName(res.name || (res.editorType === 'flow' ? '流程图问卷' : '列表问卷'));
+        setTemplateStatus(res.status === 'active' ? 'active' : 'draft');
+        setEditorType(res.editorType === 'flow' ? 'flow' : 'simple');
+        setEditorView(res.editorType === 'flow' ? 'flow' : 'list');
+        setQuestions(normalizeEditorQuestions(res.questionnaires as any));
+    };
 
-        if (res) {
-            setQuestionId(res.id);
+    const createNewTemplate = (nextType: QuestionnaireEditorType) => {
+        setQuestionId(null);
+        setSelectedTemplateId(null);
+        setTemplateName(nextType === 'flow' ? '流程图问卷' : '列表问卷');
+        setTemplateStatus('draft');
+        setEditorType(nextType);
+        setEditorView(nextType === 'flow' ? 'flow' : 'list');
+        setQuestions([...EMPTY_QUESTIONNAIRE]);
+        setHighlightQuestionId(null);
+    };
 
-            // 解析问题
-            const trainingQuestions: TrainingItem[] = [];
-
-            for (const item of res.questionnaires) {
-                switch (item.type) {
-                    case 'tags':
-                        trainingQuestions.push({
-                            id: (item as any).id || uuidv4(),
-                            type: 'tags',
-                            // 兼容旧数据：options 仍然存 string[]（训练项目 name）
-                            options: Array.isArray((item as any).options) ? (item as any).options : []
-                        });
-                        break;
-                    case 'times':
-                        trainingQuestions.push({
-                            id: (item as any).id || uuidv4(),
-                            type: 'times'
-                            ,
-                            question: (item as any).question,
-                            options: (item as any).options,
-                            branching: (item as any).branching,
-                            media: (item as any).media,
-                        });
-                        break;
-                    case 'rm':
-                        trainingQuestions.push({
-                            id: (item as any).id || uuidv4(),
-                            type: 'rm',
-                            actionIds: Array.isArray((item as any).actionIds) ? (item as any).actionIds : []
-                        });
-                        break;
-                    case 'option':
-                        trainingQuestions.push({
-                            id: (item as any).id || uuidv4(),
-                            type: 'option',
-                            question: item.question,
-                            options: item.options,
-                            scope: item.scope,  // 保留scope字段
-                            branching: (item as any).branching,
-                            media: (item as any).media,
-                        });
-                        break;
-                    case 'text':
-                        trainingQuestions.push({
-                            id: (item as any).id || uuidv4(),
-                            type: 'text',
-                            question: item.question,
-                            media: (item as any).media,
-                        });
-                        break;
-                    default:
-                        if (typeof item === 'string') {
-                            trainingQuestions.push({
-                                id: uuidv4(),
-                                type: 'text',
-                                question: item,
-                            });
-                        }
-                }
-            }
-            // 确保始终包含用户极限（1RM）问题
-            if (!trainingQuestions.some(q => q.type === 'rm')) {
-                trainingQuestions.push({ id: uuidv4(), type: 'rm', actionIds: [] });
-            }
-
-            setQuestions(trainingQuestions);
-
-        } else {
-            showToast({ severity: 'error', summary: '错误', detail: '加载问卷问题失败' });
-        }
-    }
-
-    const loadTemplates = async (targetMode?: 'online' | 'draft') => {
-        // 仅依赖登录态即可拉取模板列表；避免 coach 尚未就绪时直接 return 导致 UI 残留上一次内容
+    const loadTemplates = async (preferredId?: string | null) => {
         if (!session?.user?.id) return;
         setLoadingTemplates(true);
         try {
-            // 先按“目标模式”清空本地展示，避免因为异步/早退导致草稿页残留线上内容
-            const effectiveMode = targetMode || mode;
-            if (effectiveMode === 'draft') {
-                setSelectedTemplateId(null);
-                setQuestionId(null);
-                setQuestions([]);
-            }
-
             const res = await coachService.listQuestionnaires();
             const items = res?.items || [];
             setTemplates(items);
-            setDefaultTemplateId(res?.defaultId || null);
 
-            const online = items.find(i => i.is_active) || null;
-            const draft = items.find(i => !i.is_active) || null;
+            const nextId = preferredId
+                || selectedTemplateId
+                || items.find((item) => item.status === 'active')?.id
+                || items[0]?.id
+                || null;
 
-            if (effectiveMode === 'draft') {
-                if (draft?.id) {
-                    setSelectedTemplateId(draft.id);
-                    const q = await coachService.getQuestionnaireById({ id: draft.id });
-                    setQuestionId(q?.id || null);
-                    setQuestions((q?.questionnaires as any) || []);
-                } else {
-                    // 草稿版本默认是“空问卷”
-                    setSelectedTemplateId(null);
-                    setQuestionId(null);
-                    setQuestions([]);
-                }
+            if (nextId) {
+                await loadQuestionnaireDetail(nextId);
             } else {
-                if (online?.id) {
-                    setSelectedTemplateId(online.id);
-                    const q = await coachService.getQuestionnaireById({ id: online.id });
-                    setQuestionId(q?.id || null);
-                    setQuestions((q?.questionnaires as any) || []);
-                } else {
-                    // 没有线上版本：回退为空
-                    setSelectedTemplateId(null);
-                    setQuestionId(null);
-                    setQuestions([]);
-                }
+                createNewTemplate('simple');
             }
         } catch (e) {
             console.error('加载问卷模板失败:', e);
@@ -304,64 +295,87 @@ const QuestionarePage = () => {
     const saveQuestions = async () => {
         setSaving(true);
         try {
-            // 基础校验：分支目标必须存在，且不允许指向自己（避免明显死循环）
-            const idSet = new Set(questions.map((q: any) => q.id).filter(Boolean));
-            for (const q of questions as any[]) {
-                const branching = q?.branching;
-                if (!branching) continue;
-                const selfId = q.id;
+            if (editorType === 'flow') {
+                const idSet = new Set(questions.map((q: any) => q.id).filter(Boolean));
+                for (const q of questions as any[]) {
+                    const branching = q?.branching;
+                    if (!branching) continue;
+                    const selfId = q.id;
 
-                // tags 是多选题：暂不支持按选项 rules 分支（否则会有“多选命中多个分支”的歧义）
-                if (q.type === 'tags' && branching.rules && typeof branching.rules === 'object' && Object.keys(branching.rules).length > 0) {
-                    showToast({
-                        severity: 'error',
-                        summary: '分支配置不支持',
-                        detail: `问题「${labelOfQuestion(q)}」为多选题（tags），暂不支持按选项分支。你可以改用“选项问题（单选）”来实现分叉，或仅配置“默认跳转”。`,
-                    });
-                    setSaving(false);
-                    return;
-                }
+                    const isMultiOption =
+                        q.type === 'option'
+                        && ((q.selectionMode === 'multiple') || Boolean((q as any).allowOther));
+                    const branchingHasRules = branching.rules
+                        && typeof branching.rules === 'object'
+                        && Object.keys(branching.rules).length > 0;
+                    const branchingNotAllowed = q.type === 'tags' || isMultiOption;
 
-                const checkTarget = (target: any, label: string) => {
-                    if (target === undefined) return true;
-                    if (target === null) return true; // 结束问卷
-                    if (typeof target !== 'string') return false;
-                    if (target === selfId) {
-                        showToast({ severity: 'error', summary: '分支配置错误', detail: `${label} 不能跳转到自身` });
-                        return false;
+                    if (branchingNotAllowed && branchingHasRules) {
+                        const reason = q.type === 'tags'
+                            ? '为多选题（tags），暂不支持按选项分支'
+                            : '为多选题（含「其他」选项也按多选处理），仅支持配置「默认跳转」';
+                        showToast({
+                            severity: 'error',
+                            summary: '分支配置不支持',
+                            detail: `问题「${labelOfQuestion(q)}」${reason}。请仅配置「默认跳转」。`,
+                        });
+                        setSaving(false);
+                        return;
                     }
-                    if (!idSet.has(target)) {
-                        showToast({ severity: 'error', summary: '分支配置错误', detail: `${label} 的跳转目标不存在（请重新选择）` });
-                        return false;
-                    }
-                    return true;
-                };
 
-                if (!checkTarget(branching.defaultNext, `问题「${labelOfQuestion(q)}」默认跳转`)) {
-                    setSaving(false);
-                    return;
-                }
-                if (q.type !== 'tags' && branching.rules && typeof branching.rules === 'object') {
-                    for (const [k, v] of Object.entries(branching.rules)) {
-                        if (!checkTarget(v as any, `问题「${labelOfQuestion(q)}」选项 ${Number(k) + 1} 跳转`)) {
-                            setSaving(false);
-                            return;
+                    const checkTarget = (target: any, label: string) => {
+                        if (target === undefined) return true;
+                        if (target === null) return true;
+                        if (typeof target !== 'string') return false;
+                        if (target === selfId) {
+                            showToast({ severity: 'error', summary: '分支配置错误', detail: `${label} 不能跳转到自身` });
+                            return false;
+                        }
+                        if (!idSet.has(target)) {
+                            showToast({ severity: 'error', summary: '分支配置错误', detail: `${label} 的跳转目标不存在（请重新选择）` });
+                            return false;
+                        }
+                        return true;
+                    };
+
+                    if (!checkTarget(branching.defaultNext, `问题「${labelOfQuestion(q)}」默认跳转`)) {
+                        setSaving(false);
+                        return;
+                    }
+                    if (!branchingNotAllowed && branching.rules && typeof branching.rules === 'object') {
+                        for (const [k, v] of Object.entries(branching.rules)) {
+                            if (!checkTarget(v as any, `问题「${labelOfQuestion(q)}」选项 ${Number(k) + 1} 跳转`)) {
+                                setSaving(false);
+                                return;
+                            }
                         }
                     }
                 }
             }
 
+            const questionsForSave = editorType === 'simple'
+                ? questions.map((question: any) => {
+                    const { branching, next, scope, ...rest } = question || {};
+                    return rest;
+                })
+                : questions.map((question: any) => {
+                    const { scope, ...rest } = question || {};
+                    return rest;
+                });
+
             const result = await coachService.updateQuestionnaires({
-                id: questionId || '',
-                questionnaires: questions,
-                mode: mode,  // 传递当前模式，实现独立保存
+                id: questionId || undefined,
+                name: templateName.trim() || (editorType === 'flow' ? '流程图问卷' : '列表问卷'),
+                editorType,
+                questionnaires: questionsForSave,
             });
 
             if (result) {
                 setQuestionId(result.id);
+                setSelectedTemplateId(result.id);
+                setTemplateStatus('draft');
                 showToast({ severity: 'success', summary: '成功', detail: '问卷设置已保存' });
-                // 保存后刷新模板（避免回到页面时看到旧数据）
-                await loadTemplates(mode);
+                await loadTemplates(result.id);
             }
         } catch (error) {
             console.error('保存问卷失败:', error);
@@ -371,67 +385,10 @@ const QuestionarePage = () => {
         }
     };
 
-    // 添加训练标签问题（最多只能有一个）
-    const addTagsQuestion = () => {
-        const hasTags = questions.some(q => q.type === 'tags');
-        if (!hasTags) {
-            // 初始化为空数组，让教练自定义选项
-            setQuestions([...questions, { id: uuidv4(), type: 'tags', options: [] }]);
-        }
-        overlayPanel.current?.hide();
-    };
-
-    // 添加训练次数问题（最多只能有一个）
-    const addTimesQuestion = () => {
-        const hasTimes = questions.some(q => q.type === 'times');
-        if (!hasTimes) {
-            setQuestions([...questions, {
-                id: uuidv4(),
-                type: 'times',
-                question: '您希望每周训练几次？',
-                options: [1, 2, 3, 4, 5, 6, 7],
-            }]);
-        }
-        overlayPanel.current?.hide();
-    };
-
-    const updateTimesQuestionText = (questionIndex: number, text: string) => {
-        const newQuestions = [...questions];
-        const q = newQuestions[questionIndex];
-        if (q.type === 'times') {
-            (q as any).question = text;
-            setQuestions(newQuestions);
-        }
-    };
-
-    const toggleTimesOption = (questionIndex: number, num: number, checked: boolean) => {
-        const newQuestions = [...questions];
-        const q = newQuestions[questionIndex];
-        if (q.type !== 'times') return;
-
-        const current: number[] = Array.isArray((q as any).options) ? [...(q as any).options] : [1, 2, 3, 4, 5, 6, 7];
-        const next = checked
-            ? Array.from(new Set([...current, num])).sort((a, b) => a - b)
-            : current.filter(n => n !== num);
-
-        // 至少保留一个选项，避免学员无法选择
-        (q as any).options = next.length > 0 ? next : current;
-        setQuestions(newQuestions);
-    };
-
     // 由于 react-beautiful-dnd 可能将整块区域作为拖拽句柄，交互控件需要阻止事件冒泡，避免点击被当成拖拽
     const stopDndEvent = (e: any) => {
         if (!e) return;
         if (typeof e.stopPropagation === 'function') e.stopPropagation();
-    };
-
-    // 添加RM问题
-    const addRmQuestion = () => {
-        const hasRm = questions.some(q => q.type === 'rm');
-        if (!hasRm) {
-            setQuestions([...questions, { id: uuidv4(), type: 'rm', actionIds: [] }]);
-        }
-        overlayPanel.current?.hide();
     };
 
     // 添加选项问题
@@ -454,8 +411,17 @@ const QuestionarePage = () => {
             setAddQuestionDialogVisible(false);
             setNewQuestionType(null);
         } else {
-            showToast({ severity: 'error', summary: '错误', detail: '请输入有效的文本问题' });
+            showToast({ severity: 'error', summary: '错误', detail: '请输入有效的问题内容' });
         }
+    };
+
+    const openAddQuestionDialog = (type: QuestionnaireComposerType) => {
+        setNewQuestionType(type);
+        setAddQuestionDialogVisible(true);
+        if (type === 'text') {
+            setNewTextQuestion('');
+        }
+        overlayPanel.current?.hide();
     };
 
     // 删除问题
@@ -703,25 +669,35 @@ const QuestionarePage = () => {
         openBranchAddOverlay(e, { fromQuestionId: ctx.fromQuestionId, ruleKey: null, kind: ctx.kind });
     };
 
-    const createQuestionByType = (t: QuestionType): TrainingItem => {
+    const createQuestionByType = (t: QuestionnaireComposerType): TrainingItem => {
         const id = uuidv4();
         switch (t) {
-            case 'option':
-                return { id, type: 'option', question: '请输入问题', options: ['选项1', '选项2'], scope: 'action' };
+            case 'option-single':
+                return {
+                    id,
+                    type: 'option',
+                    question: '请输入问题',
+                    options: ['选项1', '选项2'],
+                    selectionMode: 'single',
+                    allowOther: false,
+                };
+            case 'option-multiple':
+                return {
+                    id,
+                    type: 'option',
+                    question: '请输入问题',
+                    options: ['选项1', '选项2'],
+                    selectionMode: 'multiple',
+                    allowOther: false,
+                };
             case 'text':
                 return { id, type: 'text', question: '请输入问题' };
-            case 'times':
-                return { id, type: 'times', question: '您希望每周训练几次？', options: [1, 2, 3, 4, 5, 6, 7] } as any;
-            case 'rm':
-                return { id, type: 'rm', actionIds: [] } as any;
-            case 'tags':
-                return { id, type: 'tags', options: [] } as any;
             default:
                 return { id, type: 'text', question: '请输入问题' };
         }
     };
 
-    const attachNewQuestionToBranch = (t: QuestionType) => {
+    const attachNewQuestionToBranch = (t: QuestionnaireComposerType) => {
         const ctx = pendingBranchRef.current || pendingBranch;
         if (!ctx?.fromQuestionId) return;
         const fromId = ctx.fromQuestionId;
@@ -1184,364 +1160,42 @@ const QuestionarePage = () => {
     const renderQuestion = (question: TrainingItem, index: number) => {
         switch (question.type) {
             case 'tags':
-                const tagsOptions: string[] = Array.isArray((question as any).options) ? (question as any).options : [];
-                const tagsBranching = (question as any).branching || {};
-                const tagsTargets = questions
-                    .filter(q => q.id && q.id !== question.id)
-                    .map(q => ({ label: labelOfQuestion(q), value: q.id as string }));
-                const tagsBranchOptions = [
-                    { label: '顺序下一题（默认）', value: '__NEXT__' },
-                    { label: '结束问卷', value: '__END__' },
-                    ...tagsTargets,
-                ];
+            case 'times':
+            case 'rm': {
+                const legacyLabel = question.type === 'tags'
+                    ? '训练项目偏好（已下线题型）'
+                    : question.type === 'times'
+                        ? '每周训练次数（已下线题型）'
+                        : '用户极限 1RM（已下线题型）';
                 return (
-                    <div className="mb-4 p-3 bg-surface-100 rounded">
-                        <div className="flex justify-between items-start">
-                            <div className="flex-1">
-                                <h4 className="font-medium">训练项目偏好</h4>
-                                <p className="text-sm text-surface-500">
-                                    学员可以选择偏好的训练项目（智能计划将会根据这些偏好进行匹配）。
-                                    <strong>您可以自定义训练项目选项</strong>，这些选项也将用于模板标签匹配。
-                                </p>
-                                <div className="mt-3">
-                                    <label className="block text-xs font-bold text-surface-600 mb-2">自定义训练项目选项</label>
-                                    
-                                    {/* 已添加的选项列表 */}
-                                    <div className="space-y-2 mb-3">
-                                        {tagsOptions.map((opt, optIdx) => (
-                                            <div 
-                                                key={optIdx} 
-                                                className="flex items-center gap-2"
-                                                onMouseDown={stopDndEvent}
-                                                onTouchStart={stopDndEvent}
-                                            >
-                                                <InputText
-                                                    value={opt}
-                                                    onChange={(e) => {
-                                                        const newQuestions = [...questions];
-                                                        const q = newQuestions[index];
-                                                        if (q.type !== 'tags') return;
-                                                        const newOpts = [...tagsOptions];
-                                                        newOpts[optIdx] = e.target.value;
-                                                        (q as any).options = newOpts;
-                                                        setQuestions(newQuestions);
-                                                    }}
-                                                    placeholder={`训练项目 ${optIdx + 1}`}
-                                                    className="flex-1"
-                                                    onMouseDown={stopDndEvent as any}
-                                                    onTouchStart={stopDndEvent as any}
-                                                />
-                                                <Button
-                                                    icon="pi pi-trash"
-                                                    className="p-button-text p-button-danger p-2"
-                                                    onClick={() => {
-                                                        const newQuestions = [...questions];
-                                                        const q = newQuestions[index];
-                                                        if (q.type !== 'tags') return;
-                                                        const newOpts = tagsOptions.filter((_, i) => i !== optIdx);
-                                                        (q as any).options = newOpts;
-                                                        setQuestions(newQuestions);
-                                                    }}
-                                                />
-                                            </div>
-                                        ))}
-                                    </div>
-                                    
-                                    {/* 添加新选项按钮 */}
-                                    <div className="flex gap-2 flex-wrap">
-                                        <Button
-                                            label="添加选项"
-                                            icon="pi pi-plus"
-                                            size="small"
-                                            outlined
-                                            onClick={() => {
-                                                const newQuestions = [...questions];
-                                                const q = newQuestions[index];
-                                                if (q.type !== 'tags') return;
-                                                (q as any).options = [...tagsOptions, ''];
-                                                setQuestions(newQuestions);
-                                            }}
-                                        />
-                                        
-                                        {/* 从预设库导入按钮 */}
-                                        {trainingItemOptions.length > 0 && (
-                                            <Button
-                                                label="从预设库导入"
-                                                icon="pi pi-download"
-                                                size="small"
-                                                severity="secondary"
-                                                outlined
-                                                onClick={() => {
-                                                    // 打开选择对话框，让用户选择要导入哪些项目
-                                                    setImportTargetIndex(index);
-                                                    setSelectedImportItems([]);
-                                                    setImportDialogVisible(true);
-                                                }}
-                                                tooltip="从系统预设的训练项目库中选择导入"
-                                                tooltipOptions={{ position: 'top' }}
-                                            />
-                                        )}
-                                    </div>
-                                    
-                                    <div className="mt-2 text-[11px] text-surface-500">
-                                        提示：建议配置 6–15 个选项；学员端可多选。这些选项同时会作为模板的可选标签。
-                                    </div>
-                                </div>
-                            </div>
-                            <Button
-                                icon="pi pi-trash"
-                                className="p-button-text p-button-danger p-2"
-                                onClick={() => removeQuestion(index)}
-                            />
-                        </div>
-
-                        {/* 默认跳转（tags：仅支持 defaultNext） */}
-                        <div className="mt-4 p-3 rounded-lg border border-surface-200 bg-surface-50">
-                            <div className="text-xs font-bold text-surface-600 mb-2">默认跳转（可选）</div>
-                            <div className="flex items-center gap-2">
-                                <span className="text-xs text-surface-600 w-20 shrink-0">跳转到</span>
-                                <Dropdown
-                                    value={
-                                        tagsBranching.defaultNext === undefined
-                                            ? '__NEXT__'
-                                            : (tagsBranching.defaultNext === null ? '__END__' : tagsBranching.defaultNext)
-                                    }
-                                    options={tagsBranchOptions}
-                                    onChange={(e) => setBranchDefault(index, e.value)}
-                                    className="w-full"
-                                    placeholder="选择默认跳转"
-                                />
-                            </div>
-                            <div className="mt-2 text-[11px] text-surface-500">
-                                说明：该题为<strong>多选题</strong>，目前仅支持“填完后整体跳转”（defaultNext），不支持按选项分支。
-                                如需根据某个选项分叉，请使用「选项问题（单选）」来建模。
-                            </div>
-                        </div>
-
-                        {renderMediaEditor(question, index)}
-                    </div>
-                );
-
-            case 'times': {
-                const timesBranching = (question as any).branching || {};
-                const timesTargets = questions
-                    .filter(q => q.id && q.id !== question.id)
-                    .map(q => ({ label: labelOfQuestion(q), value: q.id as string }));
-                const timesBranchOptions = [
-                    { label: '顺序下一题（默认）', value: '__NEXT__' },
-                    { label: '结束问卷', value: '__END__' },
-                    ...timesTargets,
-                ];
-                const opts: number[] = Array.isArray((question as any).options)
-                    ? (question as any).options
-                    : [1, 2, 3, 4, 5, 6, 7];
-
-                return (
-                    <div className="mb-4 p-3 bg-surface-100 rounded">
-                        <div className="flex justify-between items-start">
-                            <div>
-                                <h4 className="font-medium">每周训练次数</h4>
-                                <p className="text-sm text-surface-500">学员可以选择每周训练的次数（智能计划将会自动根据这个项目进行匹配）</p>
-                                <div className="mt-3 space-y-3">
-                                    <div>
-                                        <label className="block text-xs font-bold text-surface-500 mb-1">题干（可选）</label>
-                                        <InputText
-                                            value={(question as any).question || ''}
-                                            onChange={(e) => updateTimesQuestionText(index, e.target.value)}
-                                            placeholder="例如：您希望每周训练几次？"
-                                            className="w-full"
-                                            onMouseDown={stopDndEvent as any}
-                                            onTouchStart={stopDndEvent as any}
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-xs font-bold text-surface-500 mb-2">可选次数</label>
-                                        <div className="flex flex-wrap gap-3">
-                                            {[1, 2, 3, 4, 5, 6, 7].map(num => {
-                                                const isChecked = opts.includes(num);
-                                                return (
-                                                    <div
-                                                        key={num}
-                                                        className="flex items-center gap-2"
-                                                        onMouseDown={stopDndEvent}
-                                                        onTouchStart={stopDndEvent}
-                                                    >
-                                                        <Checkbox
-                                                            inputId={`times-opt-${index}-${num}`}
-                                                            checked={isChecked}
-                                                            onChange={(e) => toggleTimesOption(index, num, Boolean(e.checked))}
-                                                            onMouseDown={stopDndEvent as any}
-                                                            onTouchStart={stopDndEvent as any}
-                                                        />
-                                                        <label htmlFor={`times-opt-${index}-${num}`} className="text-sm text-surface-700">{num} 次</label>
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                        <div className="mt-2 text-[11px] text-surface-500">
-                                            提示：至少勾选 1 个选项；学员端将只显示你勾选的次数。
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <Button
-                                icon="pi pi-trash"
-                                className="p-button-text p-button-danger p-2"
-                                onClick={() => removeQuestion(index)}
-                            />
-                        </div>
-
-                        {/* 分支跳转配置（times） */}
-                        <div className="mt-4 p-3 rounded-lg border border-surface-200 bg-surface-50">
-                            <div className="text-xs font-bold text-surface-600 mb-2">条件分支（可选）</div>
-                            <div className="grid grid-cols-1 gap-3">
+                    <div className="mb-4 p-3 bg-surface-100 rounded border border-surface-200">
+                        <div className="flex justify-between items-start gap-3">
+                            <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-2">
-                                    <span className="text-xs text-surface-600 w-20 shrink-0">默认跳转</span>
-                                    <Dropdown
-                                        value={
-                                            timesBranching.defaultNext === undefined
-                                                ? '__NEXT__'
-                                                : (timesBranching.defaultNext === null ? '__END__' : timesBranching.defaultNext)
-                                        }
-                                        options={timesBranchOptions}
-                                        onChange={(e) => setBranchDefault(index, e.value)}
-                                        className="w-full"
-                                        placeholder="选择默认跳转"
-                                    />
+                                    <h4 className="font-medium text-surface-700">{legacyLabel}</h4>
+                                    <span className="text-[11px] px-2 py-0.5 rounded bg-surface-200 text-surface-600">
+                                        只读
+                                    </span>
                                 </div>
-
-                                {opts.map((num) => {
-                                    const cur = timesBranching?.rules?.[num];
-                                    const val = cur === undefined ? '__NEXT__' : (cur === null ? '__END__' : cur);
-                                    return (
-                                        <div key={`times-branch-${num}`} className="flex items-center gap-2">
-                                            <span className="text-xs text-surface-600 w-20 shrink-0">{num} 次</span>
-                                            <Dropdown
-                                                value={val}
-                                                options={timesBranchOptions}
-                                                onChange={(e) => setBranchRule(index, num, e.value)}
-                                                className="w-full"
-                                                placeholder="选择跳转目标"
-                                            />
-                                        </div>
-                                    );
-                                })}
-                                <div className="text-[11px] text-surface-500">
-                                    提示：这里的规则键是“次数值”（例如 3/4/5），不是选项序号。
-                                </div>
+                                <p className="text-sm text-surface-500 mt-1">
+                                    该题型已下线、不再支持编辑;新建问卷时请改用纯文本/单选/多选题。如不需要可直接删除。
+                                </p>
                             </div>
+                            <Button
+                                icon="pi pi-trash"
+                                className="p-button-text p-button-danger p-2"
+                                onClick={() => removeQuestion(index)}
+                                tooltip="删除此题"
+                                tooltipOptions={{ position: 'top' }}
+                            />
                         </div>
-
-                        {renderMediaEditor(question, index)}
                     </div>
                 );
             }
-
-            case 'rm':
-                return (
-                    <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded">
-                        <div className="flex justify-between items-start">
-                            <div>
-                                <div className="flex items-center gap-2">
-                                    <h4 className="font-medium">用户极限（1RM）</h4>
-                                    <span className="text-xs bg-green-500 text-white px-2 py-0.5 rounded">可配置</span>
-                                </div>
-                                <p className="text-sm text-surface-500">
-                                    选择学员需要填写 1RM 的动作（建议 3–8 个即可），不再强制把动作库里所有“自动算重量动作”都塞进问卷。
-                                </p>
-
-                                <div className="mt-3 space-y-3">
-                                    <div>
-                                        <label className="block text-xs font-bold text-surface-600 mb-1">筛选（按动作名）</label>
-                                        <InputText
-                                            value={rmFilter}
-                                            onChange={(e) => setRmFilter(e.target.value)}
-                                            placeholder="例如：深蹲 / 卧推 / 引体"
-                                            className="w-full"
-                                            onMouseDown={stopDndEvent as any}
-                                            onTouchStart={stopDndEvent as any}
-                                        />
-                                    </div>
-
-                                    <div>
-                                        <label className="block text-xs font-bold text-surface-600 mb-2">选择动作（来自动作库：已开启自动算重量）</label>
-                                        {loadingActions ? (
-                                            <div className="space-y-2">
-                                                <Skeleton height="2rem" />
-                                                <Skeleton height="2rem" />
-                                                <Skeleton height="2rem" />
-                                            </div>
-                                        ) : (
-                                            <div className="max-h-[260px] overflow-auto rounded-lg border border-green-200 bg-white p-3 space-y-2">
-                                                {autoComputeActions
-                                                    .filter(a => {
-                                                        const k = rmFilter.trim().toLowerCase();
-                                                        if (!k) return true;
-                                                        return (a.name || '').toLowerCase().includes(k);
-                                                    })
-                                                    .map((a) => {
-                                                        const selectedIds: string[] = Array.isArray((question as any).actionIds) ? (question as any).actionIds : [];
-                                                        const checked = selectedIds.includes(a.id);
-                                                        return (
-                                                            <div
-                                                                key={a.id}
-                                                                className="flex items-center gap-2"
-                                                                onMouseDown={stopDndEvent}
-                                                                onTouchStart={stopDndEvent}
-                                                            >
-                                                                <Checkbox
-                                                                    inputId={`rm-action-${index}-${a.id}`}
-                                                                    checked={checked}
-                                                                    onChange={(e) => {
-                                                                        const newQuestions = [...questions];
-                                                                        const q = newQuestions[index];
-                                                                        if (q.type !== 'rm') return;
-                                                                        const current: string[] = Array.isArray((q as any).actionIds) ? [...(q as any).actionIds] : [];
-                                                                        const next = Boolean(e.checked)
-                                                                            ? Array.from(new Set([...current, a.id]))
-                                                                            : current.filter(id => id !== a.id);
-                                                                        (q as any).actionIds = next;
-                                                                        setQuestions(newQuestions);
-                                                                    }}
-                                                                    onMouseDown={stopDndEvent as any}
-                                                                    onTouchStart={stopDndEvent as any}
-                                                                />
-                                                                <label htmlFor={`rm-action-${index}-${a.id}`} className="text-sm text-surface-700">
-                                                                    {a.name}
-                                                                </label>
-                                                                {a.includesBodyWeight && (
-                                                                    <span className="text-[10px] px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded ml-1">
-                                                                        自重类
-                                                                    </span>
-                                                                )}
-                                                            </div>
-                                                        );
-                                                    })}
-                                                {autoComputeActions.length === 0 && (
-                                                    <div className="text-sm text-surface-500">
-                                                        你的动作库里还没有开启“自动算重量”的动作。你可以先去「动作库」开启后再来选择。
-                                                    </div>
-                                                )}
-                                            </div>
-                                        )}
-
-                                        <div className="mt-2 text-[11px] text-surface-500">
-                                            学员端只会显示你勾选的动作；没勾选则此题不会要求填写任何动作。
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <Button
-                                icon="pi pi-trash"
-                                className="p-button-text p-button-danger p-2"
-                                onClick={() => removeQuestion(index)}
-                            />
-                        </div>
-                        {renderMediaEditor(question, index)}
-                    </div>
-                )
             case 'option':
                 const branching = (question as any).branching || {};
+                const selectionMode = (question as any).selectionMode === 'multiple' ? 'multiple' : 'single';
+                const allowOther = Boolean((question as any).allowOther);
                 const targets = questions
                     .filter(q => q.id && q.id !== question.id)
                     .map(q => ({ label: labelOfQuestion(q), value: q.id as string }));
@@ -1574,12 +1228,23 @@ const QuestionarePage = () => {
                                 </div>
                             }>
                                 <div className="ml-2 pt-2">
+                                    <div className="mb-3 flex flex-wrap items-center gap-2 text-xs text-surface-600">
+                                        <span className="rounded-full bg-surface-200 px-3 py-1">
+                                            {selectionMode === 'multiple' ? '多选题' : '单选题'}
+                                        </span>
+                                        {allowOther && (
+                                            <span className="rounded-full bg-surface-200 px-3 py-1">
+                                                含“其他”补充
+                                            </span>
+                                        )}
+                                    </div>
                                     {question.options.map((option, optionIndex) => (
                                         <div key={optionIndex} className="flex items-center gap-2 mb-1">
-                                            <RadioButton
-                                                name={`question${index}`}
-                                                disabled
-                                            />
+                                            {selectionMode === 'multiple' ? (
+                                                <Checkbox checked={false} onChange={() => undefined} disabled />
+                                            ) : (
+                                                <RadioButton name={`question${index}`} disabled />
+                                            )}
                                             <InputText
                                                 value={option}
                                                 onChange={(e) => updateOption(index, optionIndex, e.target.value)}
@@ -1603,47 +1268,73 @@ const QuestionarePage = () => {
                                         size="small"
                                         outlined
                                     />
+                                    <div className="mt-3 flex items-center gap-2">
+                                        <Checkbox
+                                            inputId={`allow-other-${index}`}
+                                            checked={allowOther}
+                                            onChange={(e) => {
+                                                const newQuestions = [...questions];
+                                                const q = newQuestions[index];
+                                                if (q.type !== 'option') return;
+                                                (q as any).allowOther = Boolean(e.checked);
+                                                setQuestions(newQuestions);
+                                            }}
+                                        />
+                                        <label htmlFor={`allow-other-${index}`} className="text-sm text-surface-700">
+                                            增加“其他”选项，并允许学员补充文字
+                                        </label>
+                                    </div>
 
-                                    {/* 分支跳转配置 */}
-                                    <div className="mt-4 p-3 rounded-lg border border-surface-200 bg-surface-50">
-                                        <div className="text-xs font-bold text-surface-600 mb-2">条件分支（可选）</div>
-                                        <div className="grid grid-cols-1 gap-3">
-                                            <div className="flex items-center gap-2">
-                                                <span className="text-xs text-surface-600 w-20 shrink-0">默认跳转</span>
-                                                <Dropdown
-                                                    value={
-                                                        branching.defaultNext === undefined
-                                                            ? '__NEXT__'
-                                                            : (branching.defaultNext === null ? '__END__' : branching.defaultNext)
-                                                    }
-                                                    options={branchOptions}
-                                                    onChange={(e) => setBranchDefault(index, e.value)}
-                                                    className="w-full"
-                                                    placeholder="选择默认跳转"
-                                                />
-                                            </div>
-
-                                            {question.options.map((opt, optIdx) => {
-                                                const cur = branching?.rules?.[optIdx];
-                                                const val = cur === undefined ? '__NEXT__' : (cur === null ? '__END__' : cur);
-                                                return (
-                                                    <div key={`branch-${optIdx}`} className="flex items-center gap-2">
-                                                        <span className="text-xs text-surface-600 w-20 shrink-0">选项 {optIdx + 1}</span>
+                                    {editorType === 'flow' && (() => {
+                                        const limitedToDefault = selectionMode === 'multiple' || allowOther;
+                                        return (
+                                            <div className="mt-4 p-3 rounded-lg border border-surface-200 bg-surface-50">
+                                                <div className="text-xs font-bold text-surface-600 mb-2">
+                                                    {limitedToDefault ? '默认跳转（可选）' : '条件分支（可选）'}
+                                                </div>
+                                                <div className="grid grid-cols-1 gap-3">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-xs text-surface-600 w-20 shrink-0">默认跳转</span>
                                                         <Dropdown
-                                                            value={val}
+                                                            value={
+                                                                branching.defaultNext === undefined
+                                                                    ? '__NEXT__'
+                                                                    : (branching.defaultNext === null ? '__END__' : branching.defaultNext)
+                                                            }
                                                             options={branchOptions}
-                                                            onChange={(e) => setBranchRule(index, optIdx, e.value)}
+                                                            onChange={(e) => setBranchDefault(index, e.value)}
                                                             className="w-full"
-                                                            placeholder="选择跳转目标"
+                                                            placeholder="选择默认跳转"
                                                         />
                                                     </div>
-                                                );
-                                            })}
-                                            <div className="text-[11px] text-surface-500">
-                                                提示：不配置则按顺序进入下一题；“结束问卷”会提前结束填写流程。
+
+                                                    {!limitedToDefault && question.options.map((opt, optIdx) => {
+                                                        const cur = branching?.rules?.[optIdx];
+                                                        const val = cur === undefined ? '__NEXT__' : (cur === null ? '__END__' : cur);
+                                                        return (
+                                                            <div key={`branch-${optIdx}`} className="flex items-center gap-2">
+                                                                <span className="text-xs text-surface-600 w-20 shrink-0">选项 {optIdx + 1}</span>
+                                                                <Dropdown
+                                                                    value={val}
+                                                                    options={branchOptions}
+                                                                    onChange={(e) => setBranchRule(index, optIdx, e.value)}
+                                                                    className="w-full"
+                                                                    placeholder="选择跳转目标"
+                                                                />
+                                                            </div>
+                                                        );
+                                                    })}
+                                                    <div className="text-[11px] text-surface-500">
+                                                        {limitedToDefault
+                                                            ? (selectionMode === 'multiple'
+                                                                ? '多选题只支持「填完后整体跳转」（默认跳转），不支持按选项分支。'
+                                                                : '勾选了「其他」选项后,该题按多选处理,只支持「填完后整体跳转」(默认跳转),不支持按选项分支。')
+                                                            : '提示：不配置则按顺序进入下一题；“结束问卷”会提前结束填写流程。'}
+                                                    </div>
+                                                </div>
                                             </div>
-                                        </div>
-                                    </div>
+                                        );
+                                    })()}
 
                                     {renderMediaEditor(question, index)}
                                 </div>
@@ -1656,18 +1347,22 @@ const QuestionarePage = () => {
                 return (
                     <div className="mb-4 p-3 bg-surface-100 rounded">
                         <div className="flex justify-between items-start">
-                            <InputText
-                                value={question.question}
-                                onChange={(e) => {
-                                    const newQuestions = [...questions];
-                                    if (newQuestions[index].type === 'text') {
-                                        newQuestions[index].question = e.target.value;
-                                        setQuestions(newQuestions);
-                                    }
-                                }}
-                                placeholder="输入文本问题..."
-                                className="font-medium flex-1 mr-2"
-                            />
+                            <div className="flex-1 mr-2">
+                                <label className="block text-xs font-bold text-surface-600 mb-2">文本问题</label>
+                                <InputTextarea
+                                    value={question.question}
+                                    onChange={(e) => {
+                                        const newQuestions = [...questions];
+                                        if (newQuestions[index].type === 'text') {
+                                            newQuestions[index].question = e.target.value;
+                                            setQuestions(newQuestions);
+                                        }
+                                    }}
+                                    placeholder="例如：你目前最大的训练目标是什么？"
+                                    className="w-full"
+                                    rows={4}
+                                />
+                            </div>
                             <Button
                                 icon="pi pi-trash"
                                 className="p-button-text p-button-danger p-2"
@@ -1685,10 +1380,12 @@ const QuestionarePage = () => {
 
     const renderNewQuestionForm = () => {
         switch (newQuestionType) {
-            case 'option':
+            case 'option-single':
+            case 'option-multiple':
                 return (
                     <OptionQuestionManager
                         onAddOptionQuestion={addOptionQuestion}
+                        selectionMode={newQuestionType === 'option-multiple' ? 'multiple' : 'single'}
                         onCancel={() => {
                             setAddQuestionDialogVisible(false);
                             setNewQuestionType(null);
@@ -1700,16 +1397,15 @@ const QuestionarePage = () => {
                 return (
                     <div className="mb-4">
                         <label className="block text-sm font-medium mb-2">文本问题</label>
-                        <InputText
+                        <InputTextarea
                             value={newTextQuestion}
                             onChange={(e) => setNewTextQuestion(e.target.value)}
-                            placeholder="输入问题..."
+                            placeholder="例如：你目前最大的训练目标是什么？"
                             className="w-full"
+                            rows={4}
                         />
                     </div>
                 );
-
-
 
             default:
                 return null;
@@ -1722,254 +1418,309 @@ const QuestionarePage = () => {
                 <div className="p-4">
                     <div className="mb-6 p-4 bg-yellow-100 border-l-4 border-yellow-500 rounded-r">
                         <p className="text-sm text-yellow-800">
-                            <strong>设置说明：</strong>学员订阅您的服务时，除公共档案（身高/体重/力量数据等）外，还需回答以下问题。
+                            <strong>推荐做法：</strong>大多数教练先用「列表式问卷」就够了，按顺序添加几个问题即可。
                         </p>
                         <p className="text-sm text-yellow-800 mt-1">
-                            建议询问：训练频率、器械限制、特殊需求等。<strong>无需询问基础身体数据</strong>，这些将从学员档案自动获取。
+                            只有你确实需要“答 A 走这条路、答 B 走另一条路”时，再新建「流程图式问卷」。
                         </p>
                     </div>
 
-                    <div className="mb-4 p-4 border border-surface-200 rounded-lg bg-surface-0">
-                        <div className="flex flex-col md:flex-row md:items-center gap-3 md:justify-between">
-                            <div className="flex items-center gap-2">
-                                <div className="text-sm font-bold">问卷模板</div>
+                    <div className="grid grid-cols-1 xl:grid-cols-[320px_minmax(0,1fr)] gap-6">
+                        <div className="border border-surface-200 rounded-lg bg-surface-0 p-4 space-y-4">
+                            <div className="flex items-center justify-between">
+                                <h3 className="font-bold text-lg">我的问卷</h3>
                                 {loadingTemplates && (
                                     <ProgressSpinner style={{ width: '18px', height: '18px' }} strokeWidth="4" />
                                 )}
                             </div>
-                            <div className="flex flex-col md:flex-row gap-2 md:items-center w-full md:w-auto">
-                                <div className="flex items-center gap-2">
-                                    <Button
-                                        label="线上版本"
-                                        icon="pi pi-cloud"
-                                        onClick={async () => {
-                                            setMode('online');
-                                            await loadTemplates('online');
-                                        }}
-                                        className={classNames('w-full md:w-[140px]', {
-                                            'p-button-primary': mode === 'online',
-                                            'p-button-outlined p-button-secondary': mode !== 'online',
-                                        })}
-                                    />
-                                    <Button
-                                        label="草稿版本"
-                                        icon="pi pi-wrench"
-                                        onClick={async () => {
-                                            setMode('draft');
-                                            await loadTemplates('draft');
-                                        }}
-                                        className={classNames('w-full md:w-[140px]', {
-                                            'p-button-primary': mode === 'draft',
-                                            'p-button-outlined p-button-secondary': mode !== 'draft',
-                                        })}
-                                    />
-                                </div>
 
-                                {mode === 'draft' && (
-                                    <div className="flex gap-2">
+                            <div className="grid grid-cols-1 gap-2">
+                                <Button
+                                    label="新建列表式问卷"
+                                    icon="pi pi-list"
+                                    onClick={() => createNewTemplate('simple')}
+                                    className="w-full"
+                                />
+                                <Button
+                                    label="新建流程图式问卷"
+                                    icon="pi pi-share-alt"
+                                    outlined
+                                    onClick={() => createNewTemplate('flow')}
+                                    className="w-full"
+                                />
+                            </div>
+
+                            <div className="text-[12px] text-surface-500">
+                                你可以维护很多份问卷，但同一时间只会有一份是已发布版本，学员实际填写的也是这一份。
+                            </div>
+
+                            <div className="space-y-2">
+                                {templates.length === 0 ? (
+                                    <div className="border border-dashed border-surface-300 rounded-lg p-4 text-sm text-surface-500">
+                                        还没有已保存的问卷。先新建一份列表式问卷最省心。
+                                    </div>
+                                ) : templates.map((item) => {
+                                    const active = selectedTemplateId === item.id;
+                                    return (
+                                        <button
+                                            key={item.id}
+                                            type="button"
+                                            className={classNames(
+                                                'w-full text-left border rounded-lg p-3 transition-colors',
+                                                active
+                                                    ? 'border-primary bg-primary-50'
+                                                    : 'border-surface-200 bg-white hover:border-primary-200 hover:bg-surface-50',
+                                            )}
+                                            onClick={() => loadQuestionnaireDetail(item.id)}
+                                        >
+                                            <div className="flex items-start justify-between gap-2">
+                                                <div className="min-w-0">
+                                                    <div className="font-medium text-surface-900 truncate">{item.name}</div>
+                                                    <div className="text-[12px] text-surface-500 mt-1">
+                                                        {item.editorType === 'flow' ? '流程图式问卷' : '列表式问卷'}
+                                                    </div>
+                                                </div>
+                                                <div className="flex flex-col items-end gap-1 shrink-0">
+                                                    <span className={classNames(
+                                                        'text-[11px] px-2 py-1 rounded-full',
+                                                        item.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-surface-100 text-surface-600',
+                                                    )}>
+                                                        {item.status === 'active' ? '已发布' : '未发布'}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
+                        <div className="space-y-6">
+                            <div className="border border-surface-200 rounded-lg bg-surface-0 p-4">
+                                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                                    <div className="flex-1 space-y-3">
+                                        <div>
+                                            <label className="block text-xs font-bold text-surface-600 mb-2">问卷名称</label>
+                                            <InputText
+                                                value={templateName}
+                                                onChange={(e) => setTemplateName(e.target.value)}
+                                                placeholder="例如：新学员基础问卷"
+                                                className="w-full"
+                                            />
+                                        </div>
+
+                                        <div className="flex flex-wrap gap-2">
+                                            <span className={classNames(
+                                                'text-xs px-3 py-1 rounded-full',
+                                                templateStatus === 'active' ? 'bg-green-100 text-green-700' : 'bg-surface-100 text-surface-600',
+                                            )}>
+                                                {templateStatus === 'active' ? '当前已发布' : '编辑中'}
+                                            </span>
+                                            <span className={classNames(
+                                                'text-xs px-3 py-1 rounded-full border',
+                                                editorType === 'flow'
+                                                    ? 'bg-primary-50 text-primary-700 border-primary-200'
+                                                    : 'bg-orange-50 text-orange-700 border-orange-200',
+                                            )}>
+                                                {editorType === 'flow' ? '流程图式问卷' : '列表式问卷'}
+                                            </span>
+                                        </div>
+
+                                        <div className="text-sm text-surface-600">
+                                            {editorType === 'simple'
+                                                ? '列表式问卷只能按顺序提问，适合绝大多数教练。'
+                                                : '流程图式问卷支持按选项或训练次数分叉，适合复杂筛查流程。'}
+                                        </div>
+                                    </div>
+
+                                    <div className="flex flex-wrap gap-2">
                                         <Button
-                                            label="从线上复制"
-                                            icon="pi pi-copy"
+                                            label="预览"
+                                            icon="pi pi-eye"
                                             outlined
-                                            onClick={async () => {
-                                                const online = templates.find(i => i.is_active) || null;
-                                                if (!online?.id) {
-                                                    showToast({ severity: 'warn', summary: '没有线上版本', detail: '请先保存一份上线问卷' });
-                                                    return;
-                                                }
-                                                const created = await coachService.duplicateQuestionnaire({ id: online.id });
-                                                if (created?.id) {
-                                                    showToast({ severity: 'success', summary: '已复制', detail: '已同步到草稿版本' });
-                                                    setMode('draft');
-                                                    await loadTemplates('draft');
-                                                }
-                                            }}
+                                            onClick={() => setPreviewDialogVisible(true)}
+                                        />
+                                        {questionId && (
+                                            <Button
+                                                label="复制一份"
+                                                icon="pi pi-copy"
+                                                outlined
+                                                onClick={async () => {
+                                                    const copied = await coachService.duplicateQuestionnaire({
+                                                        id: questionId,
+                                                        name: `${templateName || '问卷'} 副本`,
+                                                    });
+                                                    if (copied?.id) {
+                                                        showToast({ severity: 'success', summary: '已复制', detail: '已新建一份问卷副本' });
+                                                        await loadTemplates(copied.id);
+                                                    }
+                                                }}
+                                            />
+                                        )}
+                                        <Button
+                                            label="保存"
+                                            icon="pi pi-save"
+                                            onClick={saveQuestions}
+                                            loading={saving}
                                         />
                                         <Button
-                                            label="发布为线上"
+                                            label={templateStatus === 'active' ? '已发布' : '发布'}
                                             icon="pi pi-upload"
                                             severity="success"
+                                            disabled={templateStatus === 'active'}
                                             onClick={async () => {
-                                                const draft = templates.find(i => !i.is_active) || null;
-                                                if (!draft?.id) {
-                                                    showToast({ severity: 'warn', summary: '草稿版本为空', detail: '请先在草稿版本里编辑或从线上复制' });
+                                                if (!questionId) {
+                                                    showToast({ severity: 'warn', summary: '请先保存', detail: '保存后才能发布这份问卷' });
                                                     return;
                                                 }
-                                                const ok = await coachService.publishQuestionnaire({ id: draft.id });
+                                                const ok = await coachService.publishQuestionnaire({ id: questionId });
                                                 if (ok?.id) {
-                                                    showToast({ severity: 'success', summary: '发布成功', detail: '草稿版本已发布为线上版本' });
-                                                    setMode('online');
-                                                    await loadTemplates('online');
+                                                    showToast({ severity: 'success', summary: '发布成功', detail: '这份问卷已经成为学员会填写的版本' });
+                                                    await loadTemplates(questionId);
                                                 }
                                             }}
                                         />
                                     </div>
-                                )}
-                            </div>
-                        </div>
-                        <div className="mt-2 text-[12px] text-surface-500">
-                            建议：线上版本保持稳定；试验新功能先复制到草稿版本，在草稿里修改验证，满意后再切换默认/上线。
-                        </div>
-                    </div>
-
-                    <div className="mb-6 p-4 bg-primary-50 border border-primary-200 rounded-lg">
-                        <div className="text-sm text-primary-800">
-                            <strong>分支问卷怎么配？</strong> 分支配置入口在题目卡片内部：
-                            <strong>「选项问题」</strong>展开后会出现「条件分支（可选）」。
-                            （我也会把<strong>「每周训练次数」</strong>的分支配置加上）
-                        </div>
-                        <div className="text-[12px] text-primary-700 mt-1">
-                            规则：分支题（选项/次数）可以为每个分支配置跳转目标；若某个分支走到末端，
-                            <strong>想继续往下或回到主干</strong>，需要在末端节点继续点「顺序下一题」新增，或在分支规则里跳转到指定节点。
-                            （否则学员端在该分支末端会默认结束，不会再串到其它分支，避免出现“重复题/逻辑跳跃”。）
-                        </div>
-                    </div>
-
-                    {/* 问题列表 */}
-                    <div className="mb-8 p-4 border border-surface-200 rounded-lg">
-                        <div className="flex justify-between items-center mb-4">
-                            <h3 className="font-bold text-lg">问题设置</h3>
-                            <div className="flex gap-2">
-                                <Button
-                                    label="流程图视图"
-                                    icon="pi pi-share-alt"
-                                    size="small"
-                                    outlined={editorView !== 'flow'}
-                                    onClick={() => setEditorView('flow')}
-                                />
-                                <Button
-                                    label="树形视图"
-                                    icon="pi pi-sitemap"
-                                    size="small"
-                                    outlined={editorView !== 'tree'}
-                                    onClick={() => setEditorView('tree')}
-                                />
-                                <Button
-                                    label="列表视图"
-                                    icon="pi pi-list"
-                                    size="small"
-                                    outlined={editorView !== 'list'}
-                                    onClick={() => setEditorView('list')}
-                                />
-                            </div>
-                        </div>
-
-                        {editorView === 'flow' && (
-                            <div className="mb-6">
-                                <div className="text-sm text-surface-600 mb-2">
-                                    这是“真正的流程图”：节点可点编辑；节点内可对<strong>顺序下一题</strong>或<strong>分支</strong>直接点「+ 新增」；垃圾桶支持删除（含删子树）。
-                                </div>
-                                {questions.length === 0 ? (
-                                    <div className="p-6 rounded-lg border border-surface-200 bg-surface-50 text-surface-500 text-sm">
-                                        还没有问题。请先点下方「添加问题」创建第一题，然后流程图会自动生成。
-                                    </div>
-                                ) : (
-                                    <QuestionnaireFlow
-                                        questions={questions}
-                                        highlightQuestionId={highlightQuestionId}
-                                        onJumpToQuestion={openEditDialog}
-                                        onRequestAdd={(ctx, e) => openFlowAddOverlay(ctx as any, e)}
-                                        onRequestDelete={(ctx, e) => openDeleteOverlay(e, (ctx as any).questionId)}
-                                    />
-                                )}
-                            </div>
-                        )}
-
-                        {editorView === 'tree' && (
-                            <div className="mb-6">
-                                <div className="text-sm text-surface-600 mb-2">
-                                    使用方式：前面可以先是文本/非分支题（顺序执行），当出现<strong>选项问题</strong>或<strong>每周训练次数</strong>时，再在对应分支上点击「在此分支新增下一题」即可。
-                                </div>
-                                <div className="border border-surface-200 rounded-lg p-3 bg-surface-50">
-                                    <Tree value={buildTree()} />
                                 </div>
                             </div>
-                        )}
 
-                        {questions.length === 0 ? (
-                            <div className="space-y-4">
-                                <Skeleton height="3rem" className="mb-2" />
-                                <Skeleton height="4rem" className="mb-2" />
-                                <Skeleton height="4rem" width="80%" className="mb-2" />
-                                <Skeleton height="3rem" width="60%" />
-                                <div className="text-center text-surface-500 mt-4">
-                                    <p className="text-sm">添加问题后，学员订阅时将需要回答这些问题</p>
-                                </div>
-                            </div>
-                        ) : editorView === 'list' ? (
-                            <DragDropContext onDragEnd={onDragEnd}>
-                                <Droppable droppableId="questions"
-                                    direction='vertical'
-                                    isDropDisabled={false}
-                                    isCombineEnabled={false}
-                                    ignoreContainerClipping
-                                >
-                                    {(provided, snapshot) => (
-                                        <div
-                                            {...provided.droppableProps}
-                                            ref={provided.innerRef}
-                                        >
-                                            {/* 使用稳定 id 作为 draggableId，避免拖拽/重排时交互异常 */}
-                                            {questions.map((question, index) => (
-                                                <Draggable key={(question as any).id || `${question.type}-${index}`} draggableId={(question as any).id || `${question.type}-${index}`} index={index}>
-                                                    {(provided, snapshot) => (
-                                                        <div
-                                                            ref={provided.innerRef}
-                                                            {...provided.draggableProps}
-                                                            id={(question as any)?.id ? `question-${(question as any).id}` : undefined}
-                                                            className={classNames(
-                                                                `relative ${snapshot.isDragging ? 'shadow-lg' : ''}`,
-                                                                highlightQuestionId === (question as any)?.id ? 'ring-2 ring-primary-300 rounded-lg' : ''
-                                                            )}
-                                                        >
-                                                            {/* 独立拖拽把手：避免把整块卡片变成 drag handle，导致内部控件无法点击 */}
-                                                            <div
-                                                                {...provided.dragHandleProps}
-                                                                className="absolute right-2 top-2 z-10 w-8 h-8 rounded-full bg-surface-0 border border-surface-200 flex items-center justify-center cursor-grab active:cursor-grabbing text-surface-500 hover:text-primary hover:border-primary-200"
-                                                                title="拖拽排序"
-                                                                onMouseDown={stopDndEvent}
-                                                                onTouchStart={stopDndEvent}
-                                                            >
-                                                                <i className="pi pi-bars text-sm" />
-                                                            </div>
-                                                            {renderQuestion(question, index)}
-                                                        </div>
-                                                    )}
-                                                </Draggable>
-                                            ))}
-                                            {provided.placeholder}
+                            <div className="border border-surface-200 rounded-lg bg-surface-0 p-4">
+                                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
+                                    <h3 className="font-bold text-lg">问题设置</h3>
+                                    {editorType === 'flow' ? (
+                                        <div className="flex gap-2">
+                                            <Button
+                                                label="流程图视图"
+                                                icon="pi pi-share-alt"
+                                                size="small"
+                                                outlined={editorView !== 'flow'}
+                                                onClick={() => setEditorView('flow')}
+                                            />
+                                            <Button
+                                                label="列表视图"
+                                                icon="pi pi-list"
+                                                size="small"
+                                                outlined={editorView !== 'list'}
+                                                onClick={() => setEditorView('list')}
+                                            />
+                                        </div>
+                                    ) : (
+                                        <div className="text-sm text-surface-500">
+                                            列表式问卷按顺序编辑和展示，不需要分支视图。
                                         </div>
                                     )}
-                                </Droppable>
-                            </DragDropContext>
-                        ) : null}
-                    </div>
+                                </div>
 
-                    <div className="flex flex-wrap gap-3 w-full justify-between mt-10">
-                        <div>
-                            <div className="flex gap-2">
-                                <Button
-                                    label="预览问卷"
-                                    icon="pi pi-eye"
-                                    onClick={() => setPreviewDialogVisible(true)}
-                                    className="w-full md:w-auto"
-                                    outlined
-                                />
-                                <Button
-                                    label="添加问题"
-                                    icon="pi pi-plus"
-                                    onClick={(e) => overlayPanel.current?.toggle(e)}
-                                    className="w-full md:w-auto"
-                                />
+                                {editorType === 'flow' && editorView === 'flow' && (
+                                    <div className="mb-6">
+                                        <div className="text-sm text-surface-600 mb-2">
+                                            在流程图里可以直接看到分叉关系，节点上也能继续添加下一题。
+                                        </div>
+                                        {questions.length === 0 ? (
+                                            <div className="p-6 rounded-lg border border-surface-200 bg-surface-50 text-surface-500 text-sm">
+                                                当前还没有问题，请先添加第一个问题。
+                                            </div>
+                                        ) : (
+                                            <QuestionnaireFlow
+                                                questions={questions}
+                                                highlightQuestionId={highlightQuestionId}
+                                                onJumpToQuestion={openEditDialog}
+                                                onRequestAdd={(ctx, e) => openFlowAddOverlay(ctx as any, e)}
+                                                onRequestDelete={(ctx, e) => openDeleteOverlay(e, (ctx as any).questionId)}
+                                            />
+                                        )}
+                                    </div>
+                                )}
+
+                                {questions.length === 0 ? (
+                                    <div className="space-y-4">
+                                        <Skeleton height="3rem" className="mb-2" />
+                                        <Skeleton height="4rem" className="mb-2" />
+                                        <Skeleton height="4rem" width="80%" className="mb-2" />
+                                        <Skeleton height="3rem" width="60%" />
+                                        <div className="text-center text-surface-500 mt-4">
+                                            <p className="text-sm">当前还是空白问卷，请先添加第一个问题。</p>
+                                        </div>
+                                    </div>
+                                ) : (editorType === 'simple' || editorView === 'list') ? (
+                                    <DragDropContext onDragEnd={onDragEnd}>
+                                        <Droppable droppableId="questions"
+                                            direction='vertical'
+                                            isDropDisabled={false}
+                                            isCombineEnabled={false}
+                                            ignoreContainerClipping
+                                        >
+                                            {(provided) => (
+                                                <div
+                                                    {...provided.droppableProps}
+                                                    ref={provided.innerRef}
+                                                >
+                                                    {questions.map((question, index) => (
+                                                        <Draggable key={(question as any).id || `${question.type}-${index}`} draggableId={(question as any).id || `${question.type}-${index}`} index={index}>
+                                                            {(provided, snapshot) => (
+                                                                <div
+                                                                    ref={provided.innerRef}
+                                                                    {...provided.draggableProps}
+                                                                    id={(question as any)?.id ? `question-${(question as any).id}` : undefined}
+                                                                    className={classNames(
+                                                                        `relative ${snapshot.isDragging ? 'shadow-lg' : ''}`,
+                                                                        highlightQuestionId === (question as any)?.id ? 'ring-2 ring-primary-300 rounded-lg' : ''
+                                                                    )}
+                                                                >
+                                                                    <div
+                                                                        {...provided.dragHandleProps}
+                                                                        className="absolute right-2 top-2 z-10 w-8 h-8 rounded-full bg-surface-0 border border-surface-200 flex items-center justify-center cursor-grab active:cursor-grabbing text-surface-500 hover:text-primary hover:border-primary-200"
+                                                                        title="拖拽排序"
+                                                                        onMouseDown={stopDndEvent}
+                                                                        onTouchStart={stopDndEvent}
+                                                                    >
+                                                                        <i className="pi pi-bars text-sm" />
+                                                                    </div>
+                                                                    {renderQuestion(question, index)}
+                                                                </div>
+                                                            )}
+                                                        </Draggable>
+                                                    ))}
+                                                    {provided.placeholder}
+                                                </div>
+                                            )}
+                                        </Droppable>
+                                    </DragDropContext>
+                                ) : null}
+
+                                <div className="flex flex-wrap gap-3 w-full justify-between mt-10">
+                                    <div className="flex gap-2 flex-wrap">
+                                        <Button
+                                            label="预览问卷"
+                                            icon="pi pi-eye"
+                                            onClick={() => setPreviewDialogVisible(true)}
+                                            className="w-full md:w-auto"
+                                            outlined
+                                        />
+                                        <Button
+                                            label="清空所有问题"
+                                            icon="pi pi-refresh"
+                                            onClick={() => setQuestions([])}
+                                            className="w-full md:w-auto"
+                                            outlined
+                                        />
+                                        <Button
+                                            label="添加问题"
+                                            icon="pi pi-plus"
+                                            onClick={(e) => overlayPanel.current?.toggle(e)}
+                                            className="w-full md:w-auto"
+                                        />
+                                    </div>
+                                    <Button
+                                        label="保存当前问卷"
+                                        icon="pi pi-save"
+                                        onClick={saveQuestions}
+                                        loading={saving}
+                                        className="w-full md:w-auto"
+                                    />
+                                </div>
                             </div>
                         </div>
-                        <Button
-                            label="保存问卷设置"
-                            icon="pi pi-save"
-                            onClick={saveQuestions}
-                            loading={saving}
-                            className="w-full md:w-auto"
-                        />
                     </div>
                 </div>
             </Card>
@@ -1978,19 +1729,9 @@ const QuestionarePage = () => {
             <AddQuestionOverlay
                 overlayPanel={overlayPanel}
                 questions={questions}
-                onAddTagsQuestion={addTagsQuestion}
-                onAddTimesQuestion={addTimesQuestion}
-                onAddRmQuestion={addRmQuestion}
-                onAddOptionQuestion={() => {
-                    setNewQuestionType('option');
-                    setAddQuestionDialogVisible(true);
-                    overlayPanel.current?.hide();
-                }}
-                onAddTextQuestion={() => {
-                    setNewQuestionType('text');
-                    setAddQuestionDialogVisible(true);
-                    overlayPanel.current?.hide();
-                }}
+                onAddTextQuestion={() => openAddQuestionDialog('text')}
+                onAddSingleOptionQuestion={() => openAddQuestionDialog('option-single')}
+                onAddMultiOptionQuestion={() => openAddQuestionDialog('option-multiple')}
             />
 
             {/* 树形视图：在某个分支新增下一题 */}
@@ -2008,11 +1749,9 @@ const QuestionarePage = () => {
                             <span className="font-bold ml-1">{pendingBranch?.ruleKey} 次</span>
                         )}
                     </div>
-                    <Button label="选项问题（可继续分支）" icon="pi pi-list" onClick={() => attachNewQuestionToBranch('option')} />
+                    <Button label="单选题" icon="pi pi-circle" onClick={() => attachNewQuestionToBranch('option-single')} />
+                    <Button label="多选题" icon="pi pi-check-square" onClick={() => attachNewQuestionToBranch('option-multiple')} outlined />
                     <Button label="文本问题" icon="pi pi-pencil" onClick={() => attachNewQuestionToBranch('text')} outlined />
-                    <Button label="每周训练次数" icon="pi pi-calendar" onClick={() => attachNewQuestionToBranch('times')} outlined />
-                    <Button label="训练项目偏好" icon="pi pi-tags" onClick={() => attachNewQuestionToBranch('tags')} outlined />
-                    <Button label="用户极限（1RM）" icon="pi pi-chart-bar" onClick={() => attachNewQuestionToBranch('rm')} outlined />
                 </div>
             </OverlayPanel>
 

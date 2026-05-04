@@ -1,5 +1,4 @@
 export default {
-  navigationStyle: 'custom',
   navigationBarTitleText: '发现',
   navigationBarTextStyle: 'black',
   navigationBarBackgroundColor: '#ffffff',
@@ -7,3 +6,4 @@ export default {
   onReachBottomDistance: 100,
   animationType: 'none'
 }
+

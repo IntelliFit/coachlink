@@ -121,16 +121,25 @@ export async function POST(req: Request) {
     */
     let traceNo: string | null = null;
     let tradeStatus: string | null = null;
-    try { 
+    try {
         const result = await getTraceNoAndStatus(orderId);
         traceNo = result.traceNo;
         tradeStatus = result.tradeStatus;
     } catch (error) {
-        return NextResponse.json<ApiData<null>>({
-            success: false,
-            message: error instanceof Error ? error.message : '获取支付宝订单状态失败',
-            data: null
-        }, { status: 500 });
+        console.error('[Alipay Query] 查询支付宝失败，返回本地订单状态:', error);
+        // 支付网关不可用时仍返回本地订单数据，让前端继续轮询而不是崩掉
+        const orderWithYuan = {
+            ...existOrder,
+            total_amount: fenToYuan(existOrder.total_amount ?? 0),
+        };
+        return NextResponse.json<ApiData<QueryAlipayOrderResponseDto>>({
+            success: true,
+            message: '支付网关暂不可用，显示本地订单状态',
+            data: {
+                order: orderWithYuan,
+                tradeStatus: (existOrder.trade_status as TradeStatus) || 'WAIT_BUYER_PAY',
+            }
+        });
     }
 
     let orderStatus: 'pending' | 'paid' | 'closed' = 'pending';

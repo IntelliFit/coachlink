@@ -9,8 +9,13 @@ export interface GetContentsDto {
     required_tier?: number
 }
 
+export type GetContentsListItem = CoachContentRow & {
+    /** 当前查看者无权限阅读时为 true，content/media_urls 在服务端已脱敏 */
+    is_locked: boolean
+}
+
 export interface GetContentsResponseDto {
-    contents: CoachContentRow[],
+    contents: GetContentsListItem[],
     total: number,
     limit: number,
     offset: number,

@@ -97,6 +97,30 @@
   margin-bottom: 16px;
 }
 
+.intro-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.intro-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 16px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.intro-action-btn-text {
+  font-size: 12px;
+  font-weight: 800;
+  color: #374151;
+}
+
 .stat-item {
   flex: 1;
   padding: 12px;

@@ -85,12 +85,12 @@ export async function POST(req: Request) {
         coach
     );
 
-    // 构建查询
+    // 构建查询：返回该教练全部内容（与 get-aggregated-info.contentCount 口径一致）。
+    // 未达到访问 tier 的行在下面统一脱敏 + 标记 is_locked。
     let query = supabase
         .from('coach_contents')
         .select('*', { count: 'exact' })
         .eq('coach_id', coach.id as string)
-        .lte('required_tier', accessTier)
         .order('created_at', { ascending: false })
         .range(offset, offset + limit - 1);
 
@@ -113,11 +113,30 @@ export async function POST(req: Request) {
         });
     }
 
+    const sanitizedContents = (contents || []).map((row: any) => {
+        const requiredTier = row?.required_tier ?? 0;
+        if (requiredTier > accessTier) {
+            const rawBody = typeof row.content === 'string' ? row.content : '';
+            const plainPreview = rawBody
+                .replace(/<[^>]*>/g, ' ')
+                .replace(/\s+/g, ' ')
+                .trim()
+                .slice(0, 200);
+            return {
+                ...row,
+                content: plainPreview,
+                media_urls: [],
+                is_locked: true
+            };
+        }
+        return { ...row, is_locked: false };
+    });
+
     return NextResponse.json<ApiData<GetContentsResponseDto>>({
         success: true,
         message: '获取内容成功',
         data: {
-            contents: contents || [],
+            contents: sanitizedContents,
             total: count || 0,
             limit,
             offset,

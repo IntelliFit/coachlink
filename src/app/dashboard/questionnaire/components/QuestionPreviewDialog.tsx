@@ -79,6 +79,9 @@ const QuestionPreviewDialog: React.FC<QuestionPreviewDialogProps> = ({
         setMediaDialogVisible(true);
     };
 
+    const getOptionSelectionMode = (question: TrainingItem) =>
+        (question as any).selectionMode === 'multiple' ? 'multiple' : 'single';
+
     // 渲染问题预览
     const renderQuestionPreview = (question: TrainingItem, index: number) => {
         const medias = ensureMedia(question);
@@ -228,6 +231,11 @@ const QuestionPreviewDialog: React.FC<QuestionPreviewDialogProps> = ({
                 )
 
             case 'option':
+                const selectionMode = getOptionSelectionMode(question);
+                const allowOther = Boolean((question as any).allowOther);
+                const selectedValues: number[] = Array.isArray(answers[index]?.selectedOptions)
+                    ? answers[index].selectedOptions
+                    : [];
                 return (
                     <div className="mb-4">
                         <div className="flex items-start justify-between gap-3 mb-4">
@@ -247,16 +255,75 @@ const QuestionPreviewDialog: React.FC<QuestionPreviewDialogProps> = ({
                         <div className="flex flex-col gap-4">
                             {question.options.map((option, optionIndex) => (
                                 <div key={optionIndex} className="flex items-center">
-                                    <RadioButton 
-                                        inputId={`option${index}-${optionIndex}`} 
-                                        name={`option${index}`} 
-                                        value={option} 
-                                        onChange={(e) => updateAnswer(index, e.value)} 
-                                        checked={answers[index] === option} 
-                                    />
+                                    {selectionMode === 'multiple' ? (
+                                        <Checkbox
+                                            inputId={`option${index}-${optionIndex}`}
+                                            checked={selectedValues.includes(optionIndex)}
+                                            onChange={(e) => {
+                                                const next = Boolean(e.checked)
+                                                    ? Array.from(new Set([...selectedValues, optionIndex]))
+                                                    : selectedValues.filter((value) => value !== optionIndex);
+                                                updateAnswer(index, {
+                                                    ...answers[index],
+                                                    selectedOptions: next,
+                                                });
+                                            }}
+                                        />
+                                    ) : (
+                                        <RadioButton
+                                            inputId={`option${index}-${optionIndex}`}
+                                            name={`option${index}`}
+                                            value={optionIndex}
+                                            onChange={(e) => updateAnswer(index, {
+                                                ...answers[index],
+                                                selectedOption: e.value,
+                                            })}
+                                            checked={answers[index]?.selectedOption === optionIndex}
+                                        />
+                                    )}
                                     <label htmlFor={`option${index}-${optionIndex}`} className="ml-2 text-sm">{option}</label>
                                 </div>
                             ))}
+                            {allowOther && (
+                                <div className="space-y-2">
+                                    <div className="flex items-center">
+                                        {selectionMode === 'multiple' ? (
+                                            <Checkbox
+                                                inputId={`option${index}-other`}
+                                                checked={Boolean(answers[index]?.otherEnabled)}
+                                                onChange={(e) => updateAnswer(index, {
+                                                    ...answers[index],
+                                                    otherEnabled: Boolean(e.checked),
+                                                })}
+                                            />
+                                        ) : (
+                                            <RadioButton
+                                                inputId={`option${index}-other`}
+                                                name={`option${index}`}
+                                                value="other"
+                                                onChange={() => updateAnswer(index, {
+                                                    ...answers[index],
+                                                    selectedOption: 'other',
+                                                })}
+                                                checked={answers[index]?.selectedOption === 'other'}
+                                            />
+                                        )}
+                                        <label htmlFor={`option${index}-other`} className="ml-2 text-sm">其他</label>
+                                    </div>
+                                    {((selectionMode === 'multiple' && answers[index]?.otherEnabled)
+                                        || (selectionMode === 'single' && answers[index]?.selectedOption === 'other')) && (
+                                        <InputText
+                                            value={answers[index]?.otherText || ''}
+                                            onChange={(e) => updateAnswer(index, {
+                                                ...answers[index],
+                                                otherText: e.target.value,
+                                            })}
+                                            placeholder="请输入补充内容"
+                                            className="w-full"
+                                        />
+                                    )}
+                                </div>
+                            )}
                         </div>
                     </div>
                 );

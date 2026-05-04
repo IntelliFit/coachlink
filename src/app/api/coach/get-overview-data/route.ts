@@ -103,10 +103,8 @@ export async function POST(req: Request) {
 
         supabase
             .from("coach_questionnaires")
-            .select("id")
-            .eq("coach_id", userId)
-            .eq("is_active", true)
-            .maybeSingle(),
+            .select("id, status")
+            .eq("coach_id", userId),
 
         supabase
             .from("coach_pricing")
@@ -226,7 +224,9 @@ export async function POST(req: Request) {
     const contentCount = contentCountResult.count || 0;
     const actionCount = actionCountResult.count || 0;
     const planTemplateCount = planTemplateCountResult.count || 0;
-    const questionReady = Boolean(coachQuestionResult.data);
+    const questionReady = Array.isArray(coachQuestionResult.data)
+        ? coachQuestionResult.data.some((row: any) => row?.status === "active")
+        : false;
     const pricingReady = Boolean(coachPricingResult.data);
 
     const ratings = ratingResult.data || [];
