@@ -505,7 +505,7 @@ function Profile() {
               onClick={() => handleMenuClick(item)}
             >
               <View className='menu-list-left'>
-                <View className='menu-list-icon' style={{ '--icon-color': item.iconBg } as any}>
+                <View className='menu-list-icon' style={{ '--icon-color': '#CF6D4E' } as any}>
                   <Text className={`iconfont ${item.icon}`} />
                 </View>
                 <Text className='menu-list-label'>{item.label}</Text>
@@ -524,7 +524,7 @@ function Profile() {
               onClick={() => handleMenuClick(item)}
             >
               <View className='menu-list-left'>
-                <View className='menu-list-icon' style={{ '--icon-color': item.iconBg } as any}>
+                <View className='menu-list-icon' style={{ '--icon-color': '#CF6D4E' } as any}>
                   <Text className={`iconfont ${item.icon}`} />
                 </View>
                 <Text className='menu-list-label'>{item.label}</Text>
