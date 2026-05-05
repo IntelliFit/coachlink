@@ -2,17 +2,19 @@
 .profile-page {
   min-height: 100vh;
   background: linear-gradient(180deg, #e8e8e8 0%, #f8f8f8 100%);
+  padding-top: constant(safe-area-inset-top);
+  padding-top: env(safe-area-inset-top);
   padding-bottom: 160rpx;
 }
 
 .myContainer {
-  padding: 24rpx;
+  padding: 182rpx 24rpx 24rpx;
 }
 
 /* ===== 用户档案卡片 ===== */
 .profile-card {
   position: relative;
-  background: #FFFFFF;
+  background: transparent;
   border-radius: 32rpx;
   padding: 32rpx;
   margin-bottom: 24rpx;
@@ -66,7 +68,13 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 8rpx;
+  gap: 12rpx;
+}
+
+.profile-name-row {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
 }
 
 .profile-name {
@@ -76,98 +84,167 @@
   line-height: 1.4;
 }
 
-.profile-subtitle {
+.profile-tag {
+  font-size: 22rpx;
+  color: #666666;
+  background: #F0F0F0;
+  padding: 4rpx 12rpx;
+  border-radius: 8rpx;
+  line-height: 1.4;
+}
+
+.profile-edit-link {
   font-size: 24rpx;
   color: #999999;
   line-height: 1.4;
 }
 
-.profile-badges {
-  display: flex;
-  align-items: center;
-  gap: 8rpx;
-  margin-top: 4rpx;
+.profile-header-right {
+  flex-shrink: 0;
 }
 
-.badge-text {
-  font-size: 22rpx;
-  color: #999999;
-  line-height: 1.4;
-}
-
-.badge-dot {
-  font-size: 22rpx;
-  color: #CCCCCC;
-}
-
-.profile-actions {
-  position: absolute;
-  top: 32rpx;
-  right: 32rpx;
-  display: flex;
-  align-items: center;
-  gap: 16rpx;
-}
-
-.profile-settings-btn {
-  font-size: 26rpx;
-  color: #999999;
-  padding: 8rpx 16rpx;
-  border-radius: 8rpx;
-  line-height: 1;
-}
-
-.profile-settings-btn:active {
-  opacity: 0.6;
-}
-
-.theme-toggle-btn {
+.theme-toggle-btn-round {
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: 9999rpx;
+  background: #F5F5F5;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #999999;
-  padding: 8rpx;
-  border-radius: 8rpx;
-  line-height: 1;
 }
 
-.theme-toggle-btn:active {
-  opacity: 0.6;
-}
-
-/* 页面左上角主题切换按钮 */
-.page-theme-toggle {
-  padding: 24rpx 24rpx 0;
-  margin-bottom: 8rpx;
-}
-
-.theme-toggle-btn--page {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 12rpx;
-  border-radius: 16rpx;
-  background: rgba(0, 0, 0, 0.04);
-}
-
-.theme-toggle-btn--page:active {
-  opacity: 0.6;
-  background: rgba(0, 0, 0, 0.08);
+.theme-toggle-btn-round:active {
+  opacity: 0.7;
+  background: #EBEBEB;
 }
 
 .theme-toggle-icon {
-  font-size: 40rpx;
+  font-size: 36rpx;
   color: #CF6D4E;
   line-height: 1;
 }
 
-/* 暗色主题下页面主题按钮适配 */
-.theme-dark .theme-toggle-btn--page {
-  background: rgba(255, 255, 255, 0.06);
+/* 统计数据行 */
+.profile-stats-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  margin-top: 32rpx;
+  padding-top: 24rpx;
+  border-top: 1rpx solid #F0F0F0;
 }
 
-.theme-dark .theme-toggle-btn--page:active {
-  background: rgba(255, 255, 255, 0.10);
+.profile-stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8rpx;
+}
+
+.profile-stat-item:active {
+  opacity: 0.7;
+}
+
+.profile-stat-value {
+  font-size: 40rpx;
+  font-weight: 700;
+  color: #333333;
+  line-height: 1.2;
+}
+
+.profile-stat-label {
+  font-size: 24rpx;
+  color: #999999;
+  line-height: 1.4;
+}
+
+/* 会员卡片 */
+.membership-card {
+  background: #FFFFFF;
+  border-radius: 32rpx;
+  padding: 32rpx;
+  margin-bottom: 24rpx;
+}
+
+.membership-card:active {
+  opacity: 0.92;
+}
+
+.membership-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24rpx;
+}
+
+.membership-card-title {
+  font-size: 32rpx;
+  font-weight: 700;
+  color: #333333;
+  line-height: 1.4;
+}
+
+.membership-card-badge {
+  font-size: 22rpx;
+  color: #FFFFFF;
+  background: #CF6D4E;
+  padding: 4rpx 16rpx;
+  border-radius: 8rpx;
+  line-height: 1.4;
+}
+
+.membership-progress-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12rpx;
+}
+
+.membership-progress-label {
+  font-size: 26rpx;
+  color: #666666;
+  line-height: 1.4;
+}
+
+.membership-progress-value {
+  font-size: 26rpx;
+  color: #333333;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.membership-progress-bar {
+  width: 100%;
+  height: 8rpx;
+  background: #F0F0F0;
+  border-radius: 4rpx;
+  margin-bottom: 24rpx;
+  overflow: hidden;
+}
+
+.membership-progress-fill {
+  height: 100%;
+  background: #CF6D4E;
+  border-radius: 4rpx;
+}
+
+.membership-points-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.membership-points-label {
+  font-size: 26rpx;
+  color: #666666;
+  line-height: 1.4;
+}
+
+.membership-points-value {
+  font-size: 26rpx;
+  color: #333333;
+  font-weight: 600;
+  line-height: 1.4;
 }
 
 /* ===== 未登录提示 ===== */
@@ -192,49 +269,6 @@
   color: #666666;
   line-height: 1.6;
   display: block;
-}
-
-/* ===== 核心功能网格 ===== */
-.core-grid {
-  background: #FFFFFF;
-  border-radius: 32rpx;
-  padding: 24rpx 16rpx;
-  margin-bottom: 24rpx;
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 24rpx 8rpx;
-}
-
-.core-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12rpx;
-  padding: 8rpx 0;
-}
-
-.core-item:active {
-  opacity: 0.7;
-}
-
-.core-icon {
-  width: 80rpx;
-  height: 80rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.core-icon .iconfont {
-  font-size: 48rpx;
-  color: var(--icon-color, #999999);
-}
-
-.core-label {
-  font-size: 24rpx;
-  color: #333333;
-  line-height: 1.3;
-  text-align: center;
 }
 
 /* ===== 更多功能列表卡片 ===== */

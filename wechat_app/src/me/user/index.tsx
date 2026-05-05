@@ -6,6 +6,14 @@ import { request } from '@/utils/request'
 import './index.scss'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 
+const FITNESS_LEVEL_LABEL_MAP: Record<string, string> = {
+  beginner: '零基础',
+  novice: '入门',
+  intermediate: '进阶',
+  advanced: '高阶',
+  elite: '精英 / 职业'
+}
+
 interface UserStats {
   totalWorkouts: number
   streakDays: number
@@ -188,7 +196,7 @@ export default function UserProfilePage() {
               {profile.fitness_level && (
                 <View className='info-item'>
                   <Text className='info-label'>健身水平</Text>
-                  <Text className='info-value'>{profile.fitness_level}</Text>
+                  <Text className='info-value'>{FITNESS_LEVEL_LABEL_MAP[profile.fitness_level] || profile.fitness_level}</Text>
                 </View>
               )}
               {profile.age && (

@@ -77,11 +77,8 @@
 }
 
 .bp-main {
-  flex: 1;
   display: flex;
   gap: 24rpx;
-  min-height: 0;
-  overflow: hidden;
 }
 
 .bp-list {
@@ -99,7 +96,6 @@
   border-radius: 48rpx;
   border: 2rpx solid #e2e8f0;
   background: #ffffff;
-  margin-bottom: 16rpx;
 
   &--selected {
     border-color: #cf6d4e;
@@ -133,6 +129,11 @@
   font-size: 28rpx;
   color: #0f172a;
   font-weight: 500;
+
+  &--selected {
+    color: #cf6d4e;
+    font-weight: 700;
+  }
 }
 
 .bp-map-wrap {

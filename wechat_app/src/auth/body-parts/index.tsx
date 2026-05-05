@@ -1,7 +1,8 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react'
-import { View, Text, ScrollView } from '@tarojs/components'
+import { View, Text, Image } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import './index.scss'
+import { svgToDataUri } from '@/utils/svgToDataUri'
 
 import maleFrontSvgRaw from '@/assets/body-map/maleFrontSvg'
 import maleBackSvgRaw from '@/assets/body-map/maleBackSvg'
@@ -102,29 +103,33 @@ const BodyPartsPage: React.FC = () => {
   // 根据 displayMode 构建可选项列表
   const options = useMemo(() => {
     if (displayMode === 'professional') {
-      // 专业模式：按 data-name 列表
-      return Object.keys(categoryMap).map((name) => ({
-        id: name,
-        label: name,
-      }))
+      // 专业模式：按 data-name 列表，过滤掉关节
+      return Object.entries(categoryMap)
+        .filter(([, category]) => category !== '关节')
+        .map(([name]) => ({
+          id: name,
+          label: name,
+        }))
     }
-    // 普通模式：按 category 去重
+    // 普通模式：按 category 去重，过滤掉关节
     const categories = Array.from(new Set(Object.values(categoryMap)))
+      .filter((cat) => cat !== '关节')
     return categories.map((cat) => ({
       id: cat,
       label: cat,
     }))
   }, [categoryMap, displayMode])
 
-  const svgHtml = useMemo(() => {
-    const highlighted = highlightSvgParts(svgRaw, Array.from(selectedIds), categoryMap, displayMode)
-    return highlighted
-      .replace(
-        /<svg\s/,
-        '<svg style="width:100%;height:100%;display:block;" preserveAspectRatio="xMidYMid meet" '
-      )
+  const svgDataUri = useMemo(() => {
+    const baseSvg = svgRaw
       .replace(/fill:#fff/gi, 'fill:#222222')
       .replace(/fill="#fff"/gi, 'fill="#222222"')
+    const highlighted = highlightSvgParts(baseSvg, Array.from(selectedIds), categoryMap, displayMode)
+    const svgStr = highlighted.replace(
+      /<svg\s/,
+      '<svg style="width:100%;height:100%;display:block;" preserveAspectRatio="xMidYMid meet" '
+    )
+    return svgToDataUri(svgStr)
   }, [svgRaw, selectedIds, categoryMap, displayMode])
 
   const toggleSelection = (id: string) => {
@@ -175,7 +180,7 @@ const BodyPartsPage: React.FC = () => {
       </View>
 
       <View className='bp-main'>
-        <ScrollView scrollY className='bp-list'>
+        <View className='bp-list'>
           {options.map((m) => {
             const isSelected = selectedIds.has(m.id)
             return (
@@ -187,16 +192,18 @@ const BodyPartsPage: React.FC = () => {
                 <View className={`bp-check ${isSelected ? 'bp-check--checked' : ''}`}>
                   {isSelected && <Text className='bp-check-icon'>✓</Text>}
                 </View>
-                <Text className='bp-muscle-label'>{m.label}</Text>
+                <Text className={`bp-muscle-label ${isSelected ? 'bp-muscle-label--selected' : ''}`}>{m.label}</Text>
               </View>
             )
           })}
-        </ScrollView>
+        </View>
 
         <View className='bp-map-wrap'>
-          <View
+          <Image
             className='bp-map-svg'
-            dangerouslySetInnerHTML={{ __html: svgHtml }}
+            src={svgDataUri}
+            mode='aspectFit'
+            style={{ width: '100%', height: '100%' }}
           />
         </View>
       </View>
