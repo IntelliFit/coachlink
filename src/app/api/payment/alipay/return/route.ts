@@ -9,7 +9,7 @@ import {
 /** return 同步跳转后的履约（与 notify/query 共用逻辑，幂等） */
 async function fulfillPaidOrderIfNeeded(order: { id: string; user_id?: string | null; order_type?: string | null; order_data?: unknown }) {
     if (!order?.user_id) return;
-    if (order.order_type === 'subscription' || order.order_type === 'subscription_renew') {
+    if (order.order_type === 'subscription' || order.order_type === 'subscription_renew' || order.order_type === 'coach_subscription' || order.order_type === 'coach_subscription_renew') {
         await fulfillSubscriptionOnPaid(order, order.id, order.user_id);
     }
     await updateTransactionAndWallet(order);

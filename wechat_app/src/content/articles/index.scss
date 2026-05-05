@@ -1,0 +1,242 @@
+.articles-page {
+  min-height: 100vh;
+  background: #f8f8f6;
+  padding: 24rpx 32rpx 64rpx;
+}
+
+.articles-header {
+  margin-bottom: 32rpx;
+}
+
+.articles-page-title {
+  display: block;
+  font-size: 44rpx;
+  line-height: 1.2;
+  font-weight: 800;
+  color: #111111;
+}
+
+.articles-page-sub {
+  display: block;
+  margin-top: 12rpx;
+  font-size: 26rpx;
+  line-height: 1.5;
+  font-weight: 600;
+  color: #7a8190;
+}
+
+.articles-total {
+  display: block;
+  margin-top: 8rpx;
+  font-size: 22rpx;
+  line-height: 1.35;
+  font-weight: 700;
+  color: #99a2b3;
+}
+
+.articles-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+}
+
+.article-card {
+  padding: 24rpx;
+  background: #ffffff;
+  border: 2rpx solid #e4e8ee;
+  border-radius: 24rpx;
+
+  &:active {
+    opacity: 0.8;
+  }
+}
+
+.article-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12rpx;
+  margin-bottom: 12rpx;
+}
+
+.article-coach-info {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+}
+
+.article-coach-avatar {
+  width: 40rpx;
+  height: 40rpx;
+  border-radius: 20rpx;
+  overflow: hidden;
+  border: 2rpx solid #edf0f5;
+  flex-shrink: 0;
+}
+
+.article-coach-avatar-img {
+  width: 100%;
+  height: 100%;
+}
+
+.article-coach-avatar-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--primary-soft-bg);
+  font-size: 18rpx;
+  font-weight: 800;
+  color: var(--primary);
+}
+
+.article-coach-name {
+  font-size: 22rpx;
+  line-height: 1.35;
+  font-weight: 700;
+  color: #5f697a;
+}
+
+.article-badge {
+  height: 36rpx;
+  padding: 0 14rpx;
+  border-radius: 18rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  text {
+    font-size: 18rpx;
+    line-height: 1;
+    font-weight: 800;
+  }
+}
+
+.article-badge-free {
+  background: #edf7ef;
+  color: #2b8a58;
+}
+
+.article-badge-paid {
+  background: #fef3e4;
+  color: #b45309;
+}
+
+.article-badge-locked {
+  background: #f8f8f6;
+  color: #99a2b3;
+}
+
+.article-date {
+  font-size: 20rpx;
+  line-height: 1.35;
+  font-weight: 700;
+  color: #99a2b3;
+}
+
+.article-card-title {
+  display: block;
+  font-size: 28rpx;
+  line-height: 1.45;
+  font-weight: 800;
+  color: #1d2433;
+  margin-bottom: 8rpx;
+}
+
+.article-card-summary {
+  display: block;
+  font-size: 24rpx;
+  line-height: 1.5;
+  color: #667082;
+  margin-bottom: 16rpx;
+}
+
+.article-card-footer {
+  display: flex;
+  align-items: center;
+  gap: 24rpx;
+}
+
+.article-link {
+  min-width: 104rpx;
+  height: 48rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &:active {
+    opacity: 0.72;
+  }
+
+  text {
+    font-size: 22rpx;
+    line-height: 1;
+    font-weight: 700;
+  }
+}
+
+.article-link-primary {
+  text {
+    color: var(--primary);
+  }
+}
+
+.article-link-secondary {
+  text {
+    color: #7c8596;
+  }
+}
+
+.articles-empty {
+  padding: 128rpx 32rpx;
+  text-align: center;
+}
+
+.articles-empty-text {
+  display: block;
+  font-size: 26rpx;
+  line-height: 1.5;
+  font-weight: 700;
+  color: #99a2b3;
+}
+
+.articles-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+}
+
+.skeleton-card {
+  padding: 24rpx;
+  background: #ffffff;
+  border: 2rpx dashed #e4e8ee;
+  border-radius: 24rpx;
+}
+
+.skeleton-line {
+  height: 20rpx;
+  background: #eef1f5;
+  border-radius: 10rpx;
+  animation: skeleton-pulse 1.4s ease-in-out infinite;
+}
+
+.skeleton-line-sm {
+  width: 36%;
+  margin-bottom: 14rpx;
+}
+
+.skeleton-line-md {
+  width: 72%;
+  margin-bottom: 12rpx;
+}
+
+.skeleton-line-lg {
+  width: 90%;
+  margin-bottom: 12rpx;
+}
+
+@keyframes skeleton-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.52; }
+}

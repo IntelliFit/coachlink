@@ -326,10 +326,12 @@ class CoachService extends BaseService {
 
   /** 钱包信息（POST） */
   async getWallet() {
-    const res = await this.post<{ 
+    const res = await this.post<{
       balance: number
       total_income?: number
       frozen_amount?: number
+      huifu_open_status?: string | null
+      huifu_open_msg?: string | null
       transactions?: Array<{
         id: string
         amount: number
@@ -342,6 +344,7 @@ class CoachService extends BaseService {
         student_name?: string | null
         alipay_order_id?: string | null
         refunded_at?: string | null
+        platform_fee?: number | null
       }>
     }>('wallet', {})
     if (res.success && res.data) return res.data

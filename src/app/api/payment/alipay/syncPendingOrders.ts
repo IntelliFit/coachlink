@@ -91,7 +91,9 @@ export async function syncPendingAlipayOrders(): Promise<SyncPendingResult> {
                 const userId = order.user_id ?? "";
                 if (
                     order.order_type === "subscription" ||
-                    order.order_type === "subscription_renew"
+                    order.order_type === "subscription_renew" ||
+                    order.order_type === "coach_subscription" ||
+                    order.order_type === "coach_subscription_renew"
                 ) {
                     await fulfillSubscriptionOnPaid(order, order.id, userId);
                 }

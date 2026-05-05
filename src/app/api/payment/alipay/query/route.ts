@@ -171,7 +171,7 @@ export async function POST(req: Request) {
 
     // 订阅/续费确认 + 钱包入账（与 notify/return 共用逻辑，幂等）
     if (orderStatus === 'paid' && order && userId) {
-        if (order.order_type === 'subscription' || order.order_type === 'subscription_renew') {
+        if (order.order_type === 'subscription' || order.order_type === 'subscription_renew' || order.order_type === 'coach_subscription' || order.order_type === 'coach_subscription_renew') {
             await fulfillSubscriptionOnPaid(order, orderId, userId);
             await updateTransactionAndWallet(order);
         }

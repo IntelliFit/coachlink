@@ -158,6 +158,7 @@ export async function createCoachWechatPayment(params: {
   renew?: boolean
   renewAdditionalWeeks?: number
   subject?: string
+  testAmountFen?: number
 }): Promise<{ success: boolean; data?: CreateCoachWechatPaymentResponse; message?: string }> {
   const res = await request<CreateCoachWechatPaymentResponse>({
     url: '/api/payment/wechat/coach/create',

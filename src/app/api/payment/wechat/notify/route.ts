@@ -4,6 +4,8 @@ import { parseHuifuNotifyContent } from "@/lib/huifuMiniProgramPay";
 import {
     fulfillSubscriptionOnPaid,
     updateTransactionAndWallet,
+    executeBalancePayment,
+    markSettlementWalletCredited,
 } from "@/app/api/payment/alipay/fulfillPaidOrder";
 import { fulfillStudentMembershipOrderOnPaid } from "@/app/api/payment/studentMembershipFulfillment";
 
@@ -67,17 +69,36 @@ export async function POST(request: NextRequest) {
             return new Response("", { status: 500 });
         }
 
-        if (
-            nextStatus === "paid" &&
-            (updatedOrder.order_type === "subscription" || updatedOrder.order_type === "subscription_renew")
-        ) {
+        const isSubscriptionOrder =
+            updatedOrder.order_type === "subscription" ||
+            updatedOrder.order_type === "subscription_renew" ||
+            updatedOrder.order_type === "coach_subscription" ||
+            updatedOrder.order_type === "coach_subscription_renew";
+
+        if (nextStatus === "paid" && isSubscriptionOrder) {
             await fulfillSubscriptionOnPaid(
                 updatedOrder,
                 updatedOrder.id,
                 String(updatedOrder.user_id || ""),
                 "wechat",
             );
-            await updateTransactionAndWallet(updatedOrder);
+
+            // 余额分账：从平台现金户转 80% 给教练，20% 留平台
+            const isCoachSub =
+                updatedOrder.order_type === "coach_subscription" ||
+                updatedOrder.order_type === "coach_subscription_renew";
+
+            if (isCoachSub) {
+                const splitResult = await executeBalancePayment(updatedOrder);
+                if (splitResult.shouldCreditWallet) {
+                    const walletUpdated = await updateTransactionAndWallet(updatedOrder, splitResult.splitInfo);
+                    if (walletUpdated) {
+                        await markSettlementWalletCredited(updatedOrder.id);
+                    }
+                }
+            } else {
+                await updateTransactionAndWallet(updatedOrder);
+            }
         }
 
         if (nextStatus === "paid" && updatedOrder.order_type === "student_membership") {

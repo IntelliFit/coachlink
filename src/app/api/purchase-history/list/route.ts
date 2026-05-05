@@ -83,7 +83,7 @@ export async function GET(req: Request) {
                 let durationMonths = 0;
 
                 // 如果是订阅订单，获取教练信息
-                if ((order.order_type === 'subscription' || order.order_type === 'subscription_renew') && subscriptionId) {
+                if ((order.order_type === 'subscription' || order.order_type === 'subscription_renew' || order.order_type === 'coach_subscription' || order.order_type === 'coach_subscription_renew') && subscriptionId) {
                     try {
                         const { data: subscription } = await serviceRoleSupabase
                             .from('coach_subscriptions')

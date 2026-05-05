@@ -1,21 +1,22 @@
-import { NextResponse } from "next/server";
-import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
+import { NextRequest, NextResponse } from "next/server";
+import { getApiUserId } from "@/lib/getApiUserId";
 import supabase from "@/lib/supabaseClient";
 import { ApiData } from "@/types/api";
 import { StudentMembership } from "@/app/service/studentMembershipService";
 
-export async function POST(request: Request) {
-    const session = await getServerSession();
-    if (!session?.user?.id) {
+export async function POST(request: NextRequest) {
+    const requestUserId = await getApiUserId(request);
+
+    const { userId: bodyUserId } = await request.json().catch(() => ({}));
+    const targetUserId = bodyUserId || requestUserId;
+
+    if (!targetUserId) {
         return NextResponse.json({
             success: false,
             message: "用户未登录",
             data: null,
         }, { status: 401 });
     }
-
-    const { userId } = await request.json();
-    const targetUserId = userId || session.user.id;
 
     // Fetch membership status
     const { data: membership, error } = await supabase

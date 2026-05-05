@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 import supabase from "@/lib/supabaseClient";
+import { yuanToFen, fenToYuan } from "@/lib/moneyUtils";
 import { ApiData } from "@/types/api";
 import {
     CreateOrderDto,
@@ -63,10 +64,10 @@ export async function POST(request: Request) {
     }
 
     const product = PRODUCTS[productKey];
-    const amount = product.price;
+    const amountFen = yuanToFen(product.price);
 
     // Guardrail: prevent accidentally deploying 1-cent pricing to production.
-    if (!TEST_PRICING_ENABLED && process.env.NODE_ENV === "production" && amount < 1) {
+    if (!TEST_PRICING_ENABLED && process.env.NODE_ENV === "production" && amountFen < 100) {
         return NextResponse.json({
             success: false,
             message: "支付金额配置异常，请联系管理员",
@@ -80,8 +81,8 @@ export async function POST(request: Request) {
         .insert({
             user_id: session.user.id,
             product_key: productKey,
-            amount,
-            original_amount: product.price,
+            amount: amountFen,
+            original_amount: amountFen,
             payment_method: paymentMethod,
             status: "pending",
         })
@@ -147,7 +148,7 @@ export async function POST(request: Request) {
         .from("alipay_orders")
         .insert({
             subject: product.name,
-            total_amount: amount,
+            total_amount: amountFen,
             order_type: "student_membership", // New type
             order_data: {
                 related_order_id: orderData.id,
@@ -175,7 +176,7 @@ export async function POST(request: Request) {
             bizContent: {
                 out_trade_no: alipayOrder.id, // Use Alipay Order ID for tracking in Notify
                 // Alipay expects a string with up to 2 decimal places.
-                total_amount: amount.toFixed(2),
+                total_amount: fenToYuan(amountFen).toFixed(2),
                 subject: product.name,
                 product_code: isMobile
                     ? "QUICK_WAP_WAY"

@@ -11,6 +11,8 @@ function CoachWallet() {
     balance: number
     total_income?: number
     frozen_amount?: number
+    huifu_open_status?: string | null
+    huifu_open_msg?: string | null
     transactions?: any[]
   } | null>(null)
   const [loading, setLoading] = useState(true)
@@ -33,6 +35,8 @@ function CoachWallet() {
           balance: res.balance ?? 0,
           total_income: res.total_income,
           frozen_amount: res.frozen_amount,
+          huifu_open_status: res.huifu_open_status,
+          huifu_open_msg: res.huifu_open_msg,
           transactions: res.transactions
         })
       } else {
@@ -69,6 +73,29 @@ function CoachWallet() {
             )}
           </View>
 
+          {/* 汇付账户状态 */}
+          <View className="huifu-status-card">
+            <Text className="huifu-status-title">汇付收款账户</Text>
+            {walletData?.huifu_open_status === 'opened' ? (
+              <View className="huifu-status opened">
+                <Text className="huifu-status-text">已开通</Text>
+                <Text className="huifu-status-desc">学员订阅付款自动分账到您的账户</Text>
+              </View>
+            ) : walletData?.huifu_open_status === 'failed' ? (
+              <View className="huifu-status failed">
+                <Text className="huifu-status-text">开通失败</Text>
+                {walletData?.huifu_open_msg && (
+                  <Text className="huifu-status-msg">{walletData.huifu_open_msg}</Text>
+                )}
+              </View>
+            ) : (
+              <View className="huifu-status pending">
+                <Text className="huifu-status-text">未开通</Text>
+                <Text className="huifu-status-desc">请在电脑端开通收款账户</Text>
+              </View>
+            )}
+          </View>
+
           {/* 功能提示 */}
           <View className="hint-card">
             <Text className="hint-text">绑定收款方式、申请提现、收入明细等功能请到电脑端使用</Text>
@@ -89,9 +116,14 @@ function CoachWallet() {
                       {tx.created_at ? new Date(tx.created_at).toLocaleString('zh-CN') : ''}
                     </Text>
                   </View>
-                  <Text className={`transaction-amount ${tx.type === 'income' ? 'income' : 'outcome'}`}>
-                    {tx.type === 'income' ? '+' : '-'}¥{Math.abs(tx.amount || 0).toFixed(2)}
-                  </Text>
+                  <View className="transaction-amount-wrap">
+                    <Text className={`transaction-amount ${tx.type === 'income' ? 'income' : 'outcome'}`}>
+                      {tx.type === 'income' ? '+' : '-'}¥{Math.abs(tx.amount || 0).toFixed(2)}
+                    </Text>
+                    {tx.platform_fee != null && tx.platform_fee > 0 && (
+                      <Text className="transaction-platform-fee">平台服务费: -{tx.platform_fee.toFixed(2)}</Text>
+                    )}
+                  </View>
                 </View>
               ))}
             </View>

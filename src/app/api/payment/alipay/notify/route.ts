@@ -133,10 +133,13 @@ export async function POST(req: Request) {
             const subscriptionId = orderData?.subscriptionId as string | undefined;
             const contentId = orderData?.contentId as string | undefined;
 
-            if (
-                subscriptionId &&
-                (orderType === "subscription" || orderType === "subscription_renew")
-            ) {
+            const isSubscriptionOrder =
+                orderType === "subscription" ||
+                orderType === "subscription_renew" ||
+                orderType === "coach_subscription" ||
+                orderType === "coach_subscription_renew";
+
+            if (subscriptionId && isSubscriptionOrder) {
                 await fulfillSubscriptionOnPaid(
                     alipayOrder,
                     alipayOrder.id,

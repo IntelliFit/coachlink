@@ -1,5 +1,151 @@
 # CURRENT_TASK
 
+## Huifu Renew Split Failure Follow-up (`2026-05-05`)
+
+- Task: diagnose why a 2026-05-05 13:20 1-yuan coach-renew test payment did not appear in the coach wallet.
+- Status: diagnosed and patched at code/build level; follow-up needed for coach Huifu onboarding rewrite.
+- Finding:
+  - The payment order `c92f87e1-cf01-478e-bc9e-85ff4b2ca3d1` is paid and has `trade_status = S`.
+  - The related `coach_subscription_settlements` row is `split_failed` with Huifu error `商户信息不存在`.
+  - No wallet transaction exists for that order, so the wallet page correctly stayed unchanged instead of crediting local money without real Huifu split success.
+  - The coach row was incorrectly marked `huifu_open_status = opened` while `huifu_card_token` is null, meaning the Huifu business onboarding / card-token step did not complete cleanly.
+- Fix:
+  - `src/app/api/payment/alipay/fulfillPaidOrder.ts`
+    - Balance payment now transfers only the coach net share to the coach Huifu account.
+    - The platform share remains in the platform cash account and is still recorded locally as platform revenue.
+  - `src/app/api/payment/wechat/query/route.ts`
+    - Paid WeChat coach-subscription orders can now retry/compensate settlement when the order is already paid but the settlement is still `pending` or `split_failed`.
+  - `src/app/api/admin/coach-subscription-settlements/retry/route.ts`
+    - Adds an admin-only manual retry endpoint for paid coach subscription settlements.
+    - Requires explicit `confirm: "RETRY_HUIFU_SPLIT"` because it can initiate a real Huifu balance-payment transfer.
+    - On split success, credits the coach wallet and marks the settlement `wallet_credited`; already-credited orders remain idempotent.
+  - `src/lib/huifuMiniProgramPay.ts`
+    - `openHuifuUserBusiness()` now rejects non-success responses and rejects responses that do not return `token_no`.
+  - `src/app/api/coach/merchant/open-huifu-account/route.ts`
+    - A coach marked `opened` but missing `huifu_card_token` can re-run business onboarding instead of being blocked by a false "already opened" response.
+  - `src/app/api/coach/wallet/route.ts`
+    - Wallet API now reports such incomplete Huifu accounts as failed/incomplete so the UI can expose the re-open flow.
+  - `src/app/api/payment/wechat/coach/create/route.ts`
+  - `src/app/api/payment/alipay/fulfillPaidOrder.ts`
+    - New coach subscription payments and settlement retries now require a fully opened Huifu account with `huifu_card_token`.
+- Verification:
+  - `npm run typecheck`: passed.
+  - `npm run lint`: passed, informational script.
+  - `npx next build`: passed.
+  - `npm test`: failed only in the pre-existing `src/components/knowledge/BodyMap/bodyMapTypes.test.ts` export-mismatch tests.
+  - `wechat_app/npm run build:weapp`: passed.
+- Safety note:
+  - Retrying the existing paid order will call real Huifu balance payment for the coach net share, so it should only be triggered after explicit confirmation.
+- Follow-up onboarding decision:
+  - The full Huifu docs confirm coach onboarding should be modeled as two stages: personal user basic opening first, then user business onboarding.
+  - Current code already calls both APIs, but the business onboarding payload still needs to be rewritten for the current product model: Huifu automatic withdrawal is closed, so the coach should be configured with `card_info + cash_config` for manual encashment instead of relying on `settle_config_list`.
+  - A coach must not be considered ready for subscription payment, balance split, or withdrawal unless business onboarding returns and stores `token_no`.
+- Latest fix:
+  - Huifu rejected the business onboarding request with `个人只能是对私结算类型[cardType]`.
+  - Root cause: CoachLink was defaulting `card_type` to `"0"` in `/api/coach/merchant/open-huifu-account`.
+  - Fixed by forcing personal coach bank cards to Huifu `card_type = "1"` and adding Web copy that the withdrawal card must be a本人对私银行卡.
+  - Verification: `npm run lint`, `npm run typecheck`, and `npx next build` passed; `npm test` still fails only on the pre-existing BodyMap export tests. Browser verification was attempted but blocked by the Browser Use node_repl requiring Node >= 22.22 while this runtime is Node 22.14.
+- Settlement verification update:
+  - Manual retry for order `c92f87e1-cf01-478e-bc9e-85ff4b2ca3d1` now succeeded end to end.
+  - `coach_subscription_settlements` row `59042ffd-d2ad-42d0-a2c9-02cd019939e9` is `wallet_credited`, with `trans_stat = S`, `huifu_hf_seq_id = 003500TOP4A260505155355P210ac136b7200000`, and `acct_split_bunch.acct_infos[0].div_amt = 0.80` to coach Huifu user `6666000197050360`.
+  - Local wallet ledger row exists: `wallet_transactions.id = 515089b4-7a7c-45df-b4ae-1bfcfc00e4ce`, `amount = 80` fen, `platform_fee = 20` fen, created at `2026-05-05T07:53:56.871+00:00`.
+  - `retry` endpoint returning `splitStatus = wallet_credited` with `walletCredited = false` is normal on later retries: it means the wallet ledger had already been credited earlier, so the endpoint short-circuited instead of inserting a duplicate wallet transaction.
+- Functional status checkpoint:
+  - Confirmed complete and verified: coach Huifu onboarding, coach subscription payment collection, Huifu balance split, local wallet income booking, platform fee booking, wallet UI display, and 7-day refund-protection freeze display.
+  - Not yet fully closed by real end-to-end validation: refund for Huifu-paid coach subscription orders, and successful Huifu withdrawal after funds become withdrawable.
+  - Important code risk still present: `src/app/api/payment/alipay/refund/route.ts` currently calls Alipay direct refund SDK; this needs explicit validation against Huifu-paid coach subscription orders before treating refund as production-ready for the Huifu path.
+
+## Coach Wallet 7-day Refund Lock & Test Renew Entry (`2026-05-05`)
+
+- Task: make coach wallet withdrawable balance respect the 7-day refund window and add a development-only 1-cent renew test entry for the WeChat coach profile flow.
+- Status: implemented and verified at code/build level.
+- Implemented:
+  - `src/lib/coachWalletLock.ts`
+    - Adds shared 7-day refund-protection math for coach income rows.
+    - Computes withdrawable balance by combining stored frozen balance with refund-protected recent income.
+  - `src/app/api/coach/wallet/route.ts`
+    - Returns dynamic `balance` as the withdrawable amount.
+    - Also exposes `gross_balance`, `withdrawable_balance`, `refund_protected_amount`, and `refund_protection_days` for UI clarity.
+  - `src/app/api/coach/wallet/alipay/withdraw/route.ts`
+    - Rejects withdrawals that exceed the dynamic withdrawable amount and explains that 7-day refundable income is frozen.
+  - `src/app/api/coach/wallet/huifu/withdraw/route.ts`
+    - Applies the same withdrawable-balance guard to Huifu withdrawals.
+  - `src/app/api/payment/wechat/coach/create/route.ts`
+    - Accepts `testAmountFen` and uses it only outside production.
+    - Development-only test payments are blocked from production use.
+  - `wechat_app/src/discovery/coach-profile/*`
+    - Adds a dev-only `1元续费测试（加1个月）` entry for already-subscribed coaches.
+    - The test path starts a 1-yuan renew payment and uses the existing WeChat payment chain, while preserving the normal 1-month renewal unit.
+    - Renewal mode now only allows extending the current subscription package; selecting another package shows a guard message instead of creating an ambiguous renewal order.
+  - `src/app/dashboard/wallet/page.tsx`
+    - Shows gross balance alongside withdrawable balance and frozen amount so the 7-day freeze is visible to coaches.
+- Verification:
+  - `npm run typecheck`: passed.
+  - `npm run lint`: passed (script is informational).
+  - `npx next build`: passed.
+  - `npm test`: failed only on the pre-existing `src/components/knowledge/BodyMap/bodyMapTypes.test.ts` export mismatch.
+  - `wechat_app/npm run build:weapp`: passed.
+- Remaining limitation:
+  - Browser / WeChat DevTools visual verification was not possible in this session because the required `web-devtools` / `weapp-devtools` tool surface is unavailable here.
+
+## Legacy Coach Wallet Split Backfill (`2026-05-05`)
+
+- Task: handle coach wallet balances that were credited before Huifu split-payment rules existed, so historical subscription income is no longer withdrawable at 100% gross.
+- Status: implemented at code/migration level; database migration still needs to be applied before frontend withdrawal validation.
+- Problem:
+  - Some existing coach `wallet_transactions` income rows were created before the 80/20 coach/platform split was enforced.
+  - Those rows can make `coach_wallets.balance` and `total_income` too high, so the coach wallet page may allow withdrawal of the platform share.
+- Implemented:
+  - `supabase/migrations/20260505_backfill_legacy_wallet_split_amounts.sql`
+    - Creates `wallet_split_backfill_adjustments` as an audit table.
+    - Finds legacy coach subscription income rows where wallet income equals the full paid order amount and `platform_fee` is still zero.
+    - Rewrites those income rows to the coach net amount and records the platform fee.
+    - Rewrites matching historical refund rows to the same coach-net amount when they still equal the old gross amount.
+    - Backfills missing `platform_revenue` rows for historical platform fees.
+    - Recomputes `coach_wallets.balance` and `coach_wallets.total_income` from the wallet ledger after adjustment.
+  - `src/app/api/payment/alipay/refund/route.ts`
+    - Coach subscription refunds still refund the student's full external payment amount.
+    - Coach wallet deduction now uses the already-credited coach-net income amount when present, with 80% net fallback for old rows.
+- Verification:
+  - `npm run typecheck`: passed.
+  - `npm run lint`: passed, informational script.
+  - `npx next build`: passed after replacing the old mojibake refund route.
+  - `npm test`: failed only in pre-existing `src/components/knowledge/BodyMap/bodyMapTypes.test.ts` export-mismatch tests, unrelated to payment/wallet work.
+- Remaining next steps:
+  - Apply both Huifu settlement and legacy wallet backfill migrations in Supabase.
+  - Then verify the coach wallet UI against a coach with historical income before allowing Huifu withdrawal.
+
+## Huifu Coach Subscription Settlement Guard (`2026-05-05`)
+
+- Task: confirm whether the proposed coach-subscription settlement/status table exists, then complete the next split-payment safety work.
+- Status: implemented and verified at code/build level.
+- Finding:
+  - Existing migrations had `platform_revenue`, `coaches.huifu_id`, `coaches.huifu_open_status`, `coaches.huifu_open_msg`, and `coaches.huifu_card_token`.
+  - No dedicated `coach_subscription_settlements` / subscription settlement status table existed before this change.
+- Implemented:
+  - `supabase/migrations/20260505_coach_subscription_settlements.sql`
+    - Creates `coach_subscription_settlements` with one row per paid coach-subscription order.
+    - Tracks `pending / processing / split_success / split_failed / wallet_credited`, Huifu request ids, returned split detail, attempts, and timestamps.
+    - Adds a unique index on `platform_revenue.source_order_id` so platform revenue remains idempotent per source order.
+  - `src/app/api/payment/alipay/fulfillPaidOrder.ts`
+    - Reworked `executeBalancePayment()` so the settlement table, not `wallet_transactions`, is the remote-call idempotency guard.
+    - Wallet credit is now blocked unless Huifu split reaches `split_success` and returns `acct_split_bunch`.
+    - Ambiguous exceptions after claiming a remote split request remain `processing` to avoid double transfer retries with a fresh `req_seq_id`.
+    - `updateTransactionAndWallet()` now refuses coach-subscription wallet credit without split details.
+    - Added `markSettlementWalletCredited()` after local wallet/revenue writes succeed.
+  - `src/app/api/payment/wechat/notify/route.ts`
+  - `src/app/api/payment/wechat/query/route.ts`
+    - Coach subscription payments now execute split first; only successful split results can trigger local coach wallet credit.
+- Verification:
+  - `npm run lint`: passed (project lint script is informational).
+  - `npm run typecheck`: passed.
+  - `npx next build`: passed.
+  - `npm test`: failed on pre-existing `src/components/knowledge/BodyMap/bodyMapTypes.test.ts` export mismatch (`BODY_PART_CATEGORY_MAP`, `SVG_BODY_PART_NAMES`, `CATEGORY_TO_BODY_PARTS`, `getCategory`, `isJoint` undefined), unrelated to split-payment changes.
+- Remaining next steps:
+  - Apply the new migration to Supabase before live traffic depends on the settlement table.
+  - Add a Huifu balance-payment query/reconciliation job for rows stuck in `processing`.
+  - Revisit Huifu withdrawal safety; current withdrawal route still calls external encashment before robust local freeze/reconcile semantics.
+
 ## WeApp Questionnaire Ready Status Mismatch (`2026-05-03`)
 
 - Task: fix the WeChat mini-program coach `我的` / `概览` surfaces so `学员问卷` reflects the actually published questionnaire.

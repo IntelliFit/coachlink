@@ -30,6 +30,8 @@ import './index.scss'
 
 type PageState = 'loading' | 'success' | 'error'
 
+const IS_DEV = process.env.NODE_ENV === 'development'
+
 const TAB_ABOUT = 0
 const TAB_PRICING = 1
 const TAB_CONTENT = 2
@@ -217,23 +219,39 @@ export default function CoachProfile() {
     Taro.navigateTo({ url: `/discovery/coach-questionnaire?${query.filter(Boolean).join('&')}` })
   }, [coachDisplayName, coachId, userSubscription?.id])
 
+  const ensureWechatOpenid = useCallback(async () => {
+    const user = authService.getCurrentUser()
+    if (user?.wechat_openid) return true
+    const result = await authService.bindWechatOpenid()
+    if (!result.success) {
+      Taro.showToast({ title: result.message || '绑定微信失败，请使用微信快捷登录', icon: 'none' })
+      return false
+    }
+    return true
+  }, [])
+
   const startCoachWechatPayment = useCallback(async (params: {
     subscriptionId: string
     amount?: number
     renew?: boolean
     renewAdditionalWeeks?: number
+    testAmountFen?: number
   }) => {
+    const ok = await ensureWechatOpenid()
+    if (!ok) return
+
     const payment = await createCoachWechatPayment({
       coachId,
       subscriptionId: params.subscriptionId,
       amount: params.amount,
       renew: params.renew,
       renewAdditionalWeeks: params.renewAdditionalWeeks,
+      testAmountFen: params.testAmountFen,
       subject: `订阅教练 ${coachDisplayName}`.trim()
     })
 
-    if (!payment?.orderId || !payment?.paymentParams) {
-      Taro.showToast({ title: '创建支付单失败，请稍后重试', icon: 'none' })
+    if (!payment || !('orderId' in payment)) {
+      Taro.showToast({ title: (payment as any)?.message || '创建支付单失败，请稍后重试', icon: 'none' })
       return
     }
 
@@ -243,7 +261,7 @@ export default function CoachProfile() {
       amount: payment.amount,
       initialStatus: paymentResult.status === 'success' ? undefined : paymentResult.status
     })
-  }, [coachDisplayName, coachId, navigateToPaymentWaiting])
+  }, [coachDisplayName, coachId, navigateToPaymentWaiting, ensureWechatOpenid])
 
   const handleSubscribe = () => {
     setActiveTab(TAB_PRICING)
@@ -262,6 +280,21 @@ export default function CoachProfile() {
     setRenewMode(true)
     Taro.showToast({ title: '已进入续费，请选择套餐', icon: 'none', duration: 1500 })
     setTimeout(() => setScrollIntoView(''), 600)
+  }
+
+  const handleStartTestRenew = async () => {
+    if (!IS_DEV) return
+    if (!userSubscription?.id) {
+      Taro.showToast({ title: '缺少当前订阅，无法测试续费', icon: 'none' })
+      return
+    }
+    await startCoachWechatPayment({
+      subscriptionId: userSubscription.id,
+      amount: 1,
+      renew: true,
+      renewAdditionalWeeks: 4,
+      testAmountFen: 100
+    })
   }
 
   const handleSelectProduct = async (product: Product, duration: DurationOption) => {
@@ -289,6 +322,14 @@ export default function CoachProfile() {
     }
 
     if (showRenewBtn && renewMode) {
+      if (userSubscription?.product_id && product.id !== userSubscription.product_id) {
+        Taro.showToast({
+          title: '续费只延长当前套餐，切换套餐请重新购买或联系教练',
+          icon: 'none',
+          duration: 2500
+        })
+        return
+      }
       if (userSubscription?.id) {
         await startCoachWechatPayment({
           subscriptionId: userSubscription.id,
@@ -503,6 +544,7 @@ export default function CoachProfile() {
               userSubscription={userSubscription}
               renewMode={renewMode}
               onEnterRenewMode={handleEnterRenewMode}
+              onStartTestRenew={IS_DEV ? handleStartTestRenew : undefined}
             />
           </View>
           <View className={`tab-panel ${activeTab === TAB_CONTENT ? 'tab-panel-active' : ''}`}>

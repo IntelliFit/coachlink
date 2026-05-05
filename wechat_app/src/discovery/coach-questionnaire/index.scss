@@ -111,10 +111,24 @@
   }
 
   .tags-options,
-  .times-options {
+  .times-options,
+  .option-group {
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
+  }
+
+  .option-other {
+    width: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+
+    .other-input {
+      flex: 1;
+      min-width: 160px;
+    }
   }
 
   .rm-inputs {

@@ -130,6 +130,18 @@ class StudentService extends BaseService {
     }
     return null
   }
+
+  async getVisibilityStatus() {
+    const res = await request({
+      url: '/api/student/visibility-status',
+      method: 'GET',
+      showErrorToast: false
+    })
+    if (res.success && res.data) {
+      return res.data
+    }
+    return null
+  }
 }
 
 export const studentService = new StudentService('/api/user')

@@ -9,6 +9,7 @@ export interface PricingSectionProps {
   userSubscription?: QueryCoachSubscription | null
   renewMode?: boolean
   onEnterRenewMode?: () => void
+  onStartTestRenew?: () => void
 }
 
 export default function PricingSection({
@@ -16,7 +17,8 @@ export default function PricingSection({
   onSelectProduct,
   userSubscription,
   renewMode,
-  onEnterRenewMode
+  onEnterRenewMode,
+  onStartTestRenew
 }: PricingSectionProps) {
   const showRenewBtn = ['active', 'expired', 'near_expiry'].includes(userSubscription?.status || '')
   const isActiveSub = userSubscription?.status === 'active'
@@ -30,7 +32,7 @@ export default function PricingSection({
               <Text className='pricing-subscribed-title'>您已订阅该教练</Text>
               <Text className='pricing-subscribed-hint'>
                 {renewMode
-                  ? '续费模式：选择下方套餐并支付即可延长订阅。'
+                  ? '续费模式：选择当前套餐的时长并支付即可延长订阅。'
                   : '如需延长订阅，请点击右侧【续费】。'}
               </Text>
             </View>
@@ -45,6 +47,13 @@ export default function PricingSection({
               </View>
             )}
           </View>
+          {onStartTestRenew && (
+            <View className='pricing-test-row'>
+              <View className='pricing-test-btn' onClick={onStartTestRenew}>
+                <Text className='pricing-test-btn-text'>1元续费测试（加1个月）</Text>
+              </View>
+            </View>
+          )}
         </View>
       )}
       <View className='pricing-header'>

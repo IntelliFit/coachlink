@@ -1,0 +1,137 @@
+import { NextResponse } from "next/server";
+import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
+import supabase, { serviceRoleSupabase } from "@/lib/supabaseClient";
+import type { ApiData } from "@/types/api";
+import { formatYuan, formatYuanFromFen, subtractFen, yuanToFen } from "@/lib/moneyUtils";
+import { encashmentForCoach, formatHuifuReqDate, generateReqSeqId } from "@/lib/huifuMiniProgramPay";
+import { calculateRefundProtectedAmountFen, getWithdrawableWalletAmounts } from "@/lib/coachWalletLock";
+
+async function getCoachIdByUser(userId: string) {
+    const { data: coach } = await supabase.from("coaches").select("id").eq("user_id", userId).single();
+    return coach?.id || null;
+}
+
+/** Coach withdrawal through Huifu encashment to the bound settlement card. */
+export async function POST(req: Request) {
+    const session = await getServerSession();
+    if (!session?.user?.id) {
+        return NextResponse.json<ApiData<null>>({ success: false, message: "用户未登录", data: null }, { status: 401 });
+    }
+
+    const coachId = await getCoachIdByUser(session.user.id);
+    if (!coachId) {
+        return NextResponse.json<ApiData<null>>({ success: false, message: "未找到教练信息", data: null }, { status: 404 });
+    }
+
+    const body = (await req.json()) as { amount?: number };
+    const amountYuan = Number(body?.amount || 0);
+    if (!amountYuan || amountYuan <= 0) {
+        return NextResponse.json<ApiData<null>>({ success: false, message: "提现金额不合法", data: null }, { status: 400 });
+    }
+    if (amountYuan < 0.1) {
+        return NextResponse.json<ApiData<null>>({ success: false, message: "单笔提现金额不能低于 0.10 元", data: null }, { status: 400 });
+    }
+
+    const amountFen = yuanToFen(amountYuan);
+
+    const { data: coach } = await supabase
+        .from("coaches")
+        .select("huifu_id, huifu_open_status, huifu_card_token")
+        .eq("id", coachId)
+        .single();
+
+    if (!coach) {
+        return NextResponse.json<ApiData<null>>({ success: false, message: "未找到教练信息", data: null }, { status: 404 });
+    }
+
+    if (coach.huifu_open_status !== "opened" || !coach.huifu_id) {
+        return NextResponse.json<ApiData<null>>({ success: false, message: "尚未开通汇付收款账户", data: null }, { status: 400 });
+    }
+
+    if (!coach.huifu_card_token) {
+        return NextResponse.json<ApiData<null>>({
+            success: false,
+            message: "未绑定结算银行卡，请重新开通汇付账户",
+            data: null,
+        }, { status: 400 });
+    }
+
+    const { data: wallet } = await supabase
+        .from("coach_wallets")
+        .select("balance, frozen_amount")
+        .eq("coach_id", coachId)
+        .single();
+
+    const refundProtectedFen = await calculateRefundProtectedAmountFen(coachId);
+    const walletAmounts = getWithdrawableWalletAmounts({
+        balanceFen: Number(wallet?.balance ?? 0),
+        storedFrozenFen: Number(wallet?.frozen_amount ?? 0),
+        refundProtectedFen,
+    });
+
+    if (walletAmounts.withdrawableFen < amountFen) {
+        return NextResponse.json<ApiData<null>>({
+            success: false,
+            message: `可提现余额不足，7天内可退款收入会暂时冻结。当前可提现：${formatYuanFromFen(walletAmounts.withdrawableFen)}`,
+            data: null,
+        }, { status: 400 });
+    }
+
+    const now = new Date().toISOString();
+    let encashResult;
+
+    try {
+        encashResult = await encashmentForCoach({
+            reqDate: formatHuifuReqDate(),
+            reqSeqId: generateReqSeqId(),
+            cashAmtYuan: formatYuan(amountYuan),
+            huifuId: coach.huifu_id,
+            tokenNo: coach.huifu_card_token,
+            intoAcctDateType: process.env.HUIFU_COACH_WITHDRAW_DATE_TYPE || process.env.HUIFU_COACH_CASH_TYPE || "D1",
+        });
+    } catch (error: any) {
+        console.error("[Huifu Withdraw] encashment call failed:", error);
+        return NextResponse.json<ApiData<null>>({
+            success: false,
+            message: `提现请求失败: ${error?.message || "未知错误"}`,
+            data: null,
+        }, { status: 500 });
+    }
+
+    if (encashResult.resp_code !== "00000000" && encashResult.resp_code !== "00000100") {
+        return NextResponse.json<ApiData<null>>({
+            success: false,
+            message: encashResult.resp_desc || "提现失败",
+            data: null,
+        }, { status: 500 });
+    }
+
+    try {
+        const newBalanceFen = subtractFen(walletAmounts.balanceFen, amountFen);
+        await serviceRoleSupabase
+            .from("coach_wallets")
+            .update({ balance: newBalanceFen, updated_at: now })
+            .eq("coach_id", coachId);
+
+        await serviceRoleSupabase.from("wallet_transactions").insert({
+            wallet_id: coachId,
+            amount: -amountFen,
+            type: "withdrawal",
+            description: `提现 ${formatYuanFromFen(amountFen)}（汇付到银行卡）`,
+            created_at: now,
+        });
+    } catch (error: any) {
+        console.error("[Huifu Withdraw] deduct wallet failed:", error);
+        return NextResponse.json<ApiData<null>>({
+            success: false,
+            message: "钱包扣款失败，但提现已发起，请联系客服",
+            data: null,
+        }, { status: 500 });
+    }
+
+    return NextResponse.json<ApiData<{ hfSeqId?: string }>>({
+        success: true,
+        message: "提现申请已提交，预计 T+1 到账",
+        data: { hfSeqId: encashResult.hf_seq_id },
+    });
+}
