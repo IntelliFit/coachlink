@@ -370,6 +370,40 @@ class AuthService {
   }
 
   /**
+   * 绑定微信 openid 到当前账号（密码登录用户支付前需要调用）
+   * 调用 wx.login() 获取 code 并发送到后端绑定
+   */
+  async bindWechatOpenid(): Promise<{ success: boolean; message?: string }> {
+    try {
+      const loginRes = await Taro.login()
+      if (!loginRes.code) {
+        return { success: false, message: '获取微信登录凭证失败' }
+      }
+
+      const res = await request<{ openid: string }>({
+        url: '/api/miniapp/bind-wechat',
+        method: 'POST',
+        data: { code: loginRes.code },
+        showErrorToast: false,
+      })
+
+      if (!res.success) {
+        return { success: false, message: res.message || '绑定失败' }
+      }
+
+      const user = this.getCurrentUser()
+      if (user) {
+        user.wechat_openid = res.data?.openid
+        Taro.setStorageSync('user', user)
+      }
+
+      return { success: true }
+    } catch (error: any) {
+      return { success: false, message: error?.message || '绑定微信失败' }
+    }
+  }
+
+  /**
    * 微信登录（同时获取手机号）
    * 调用 wx.login() 获取 code，然后调用后端接口获取用户登录信息和手机号
    * 文档：https://developers.weixin.qq.com/miniprogram/dev/api/open-api/login/wx.login.html

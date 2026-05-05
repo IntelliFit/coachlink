@@ -15,7 +15,9 @@ export async function POST(req: Request) {
     }
 
     const userId = session.user.id;
-    const { page = 1, limit = 20 } = await req.json() as GetChatroomsDto;
+    let body: GetChatroomsDto = {};
+    try { body = await req.json(); } catch { /* body is empty or invalid, use defaults */ }
+    const { page = 1, limit = 20 } = body;
     const offset = (page - 1) * limit;
 
     const { data: chatRooms, error, count } = await supabase

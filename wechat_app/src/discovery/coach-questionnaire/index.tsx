@@ -16,9 +16,18 @@ interface TrainingItem {
   type: string
   question?: string
   options?: any[]
-  userSelections?: string[]
+  /** 单选/多选的选项索引数组（option 题型） */
+  userSelections?: number[]
+  /** 单选的选项索引（times/text/option single 题型） */
   userSelection?: any
+  /** RM 题型的输入 { 动作名: 重量 } */
   userInputs?: Record<string, any>
+  /** option 题型：单选/多选 */
+  selectionMode?: 'single' | 'multiple'
+  /** option 题型：是否允许"其他" */
+  allowOther?: boolean
+  /** option 题型："其他"的自定义文本 */
+  userOtherText?: string
 }
 
 type QuestionnaireMode = 'edit' | 'prepay'
@@ -55,6 +64,24 @@ function isQuestionAnswered(item: TrainingItem): boolean {
     return Array.isArray(item.userSelections) && item.userSelections.length > 0
   }
 
+  if (item.type === 'option') {
+    const selectionMode = item.selectionMode === 'multiple' ? 'multiple' : 'single'
+    if (selectionMode === 'multiple') {
+      const selected = Array.isArray(item.userSelections) ? item.userSelections : []
+      if (selected.length === 0) return false
+      if (item.allowOther && selected.includes(-1)) {
+        return String(item.userOtherText || '').trim().length > 0
+      }
+      return true
+    }
+    // single
+    if (item.userSelection === undefined || item.userSelection === null) return false
+    if (item.allowOther && item.userSelection === -1) {
+      return String(item.userOtherText || '').trim().length > 0
+    }
+    return true
+  }
+
   if (item.type === 'times') {
     return item.userSelection !== undefined && item.userSelection !== null && String(item.userSelection).trim() !== ''
   }
@@ -69,6 +96,7 @@ function isQuestionAnswered(item: TrainingItem): boolean {
     })
   }
 
+  // text
   return item.userSelection !== undefined && item.userSelection !== null && String(item.userSelection).trim() !== ''
 }
 
@@ -353,7 +381,83 @@ export default function CoachQuestionnairePage() {
                     </View>
                   )}
 
-                  {(item.type === 'option' || item.type === 'text') && (
+                  {item.type === 'option' && (() => {
+                    const selectionMode = item.selectionMode === 'multiple' ? 'multiple' : 'single'
+                    const selectedOptions: number[] = Array.isArray(item.userSelections) ? item.userSelections : []
+                    const isOtherSelected = item.allowOther && (
+                      selectionMode === 'multiple'
+                        ? selectedOptions.includes(-1)
+                        : item.userSelection === -1
+                    )
+
+                    return (
+                      <View className='option-group'>
+                        {(item.options || []).map((option: any, optionIndex: number) => {
+                          const optionLabel = getOptionLabel(option)
+                          if (selectionMode === 'multiple') {
+                            return (
+                              <Checkbox
+                                key={`opt-${optionIndex}`}
+                                checked={selectedOptions.includes(optionIndex)}
+                                onChange={(checked) => {
+                                  const next = checked
+                                    ? Array.from(new Set([...selectedOptions, optionIndex]))
+                                    : selectedOptions.filter((v) => v !== optionIndex)
+                                  updateAnswer(index, 'userSelections', next)
+                                }}
+                              >
+                                {optionLabel}
+                              </Checkbox>
+                            )
+                          }
+                          return (
+                            <Radio
+                              key={`opt-${optionIndex}`}
+                              checked={item.userSelection === optionIndex}
+                              onChange={() => updateAnswer(index, 'userSelection', optionIndex)}
+                            >
+                              {optionLabel}
+                            </Radio>
+                          )
+                        })}
+                        {item.allowOther && (
+                          <View className='option-other'>
+                            {selectionMode === 'multiple' ? (
+                              <Checkbox
+                                checked={selectedOptions.includes(-1)}
+                                onChange={(checked) => {
+                                  const next = checked
+                                    ? Array.from(new Set([...selectedOptions, -1]))
+                                    : selectedOptions.filter((v) => v !== -1)
+                                  updateAnswer(index, 'userSelections', next)
+                                  if (!checked) updateAnswer(index, 'userOtherText', '')
+                                }}
+                              >
+                                其他
+                              </Checkbox>
+                            ) : (
+                              <Radio
+                                checked={item.userSelection === -1}
+                                onChange={() => updateAnswer(index, 'userSelection', -1)}
+                              >
+                                其他
+                              </Radio>
+                            )}
+                            {isOtherSelected && (
+                              <Input
+                                className='other-input'
+                                value={item.userOtherText || ''}
+                                onChange={(value) => updateAnswer(index, 'userOtherText', value)}
+                                placeholder='请输入补充内容'
+                              />
+                            )}
+                          </View>
+                        )}
+                      </View>
+                    )
+                  })()}
+
+                  {item.type === 'text' && (
                     <Input
                       value={item.userSelection?.toString() || ''}
                       onChange={(value) => updateAnswer(index, 'userSelection', value)}

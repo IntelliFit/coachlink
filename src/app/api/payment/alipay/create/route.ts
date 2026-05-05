@@ -7,8 +7,13 @@ import type {
     CreateAlipayOrderResponseDto,
 } from "./entity";
 import { createAlipaySdk } from "@/lib/alipaySdk";
-import { yuanToFen, fenToYuan } from "@/lib/moneyUtils";
+import { yuanToFen, fenToYuan, formatYuan } from "@/lib/moneyUtils";
 import { getSubscriptionOrderById } from "@/lib/subscriptionOrders";
+import {
+    createHuifuMiniProgramOrder,
+    formatHuifuReqDate,
+    parseHuifuPayInfo,
+} from "@/lib/huifuMiniProgramPay";
 
 // 文档：https://opendocs.alipay.com/open/59da99d0_alipay.trade.page.pay?pathHash=e26b497f&scene=22
 // 流程和博客：https://kirigaya.cn/blog/article?seq=361
@@ -363,6 +368,106 @@ export async function POST(req: Request) {
         // Do not block payment creation, but log for investigation
         console.error("[Alipay Create] Bind subscription failed:", e);
     }
+
+    // ── 教练订阅：走汇付 A_JSAPI / A_NATIVE 分账 ──
+    const isCoachSubscription =
+        orderType === "subscription" || orderType === "subscription_renew";
+
+    if (isCoachSubscription && subscriptionMeta?.coachId) {
+        const { data: coachRecord } = await serviceRoleSupabase
+            .from("coaches")
+            .select("huifu_id, huifu_open_status, huifu_card_token")
+            .eq("id", subscriptionMeta.coachId)
+            .maybeSingle();
+
+        if (coachRecord?.huifu_id && coachRecord.huifu_open_status === "opened" && coachRecord.huifu_card_token) {
+            const reqDate = formatHuifuReqDate();
+            const huifuTradeType = isMobile ? "A_JSAPI" : "A_NATIVE";
+
+            try {
+                const payResult = await createHuifuMiniProgramOrder({
+                    reqDate,
+                    reqSeqId: order.id,
+                    transAmtYuan: formatYuan(fenToYuan(totalAmountFen)),
+                    goodsDesc: subjectText,
+                    notifyUrl: process.env.WECHAT_PAY_NOTIFY_URL || notifyUrl, // 汇付通知走统一 Huifu notify 处理器
+                    openid: "", // 支付宝不需要 openid
+                    appId: "",  // 支付宝不需要 appId
+                    tradeType: huifuTradeType,
+                    alipayData: { subject: subjectText },
+                    feeFlag: 2,
+                    acctId: process.env.HUIFU_CASH_ACCT_ID || "F22836659",
+                });
+
+                if (payResult.resp_code !== "00000000" && payResult.resp_code !== "00000100") {
+                    throw new Error(payResult.resp_desc || "汇付下单失败");
+                }
+
+                const huifuPayInfo = parseHuifuPayInfo(payResult.pay_info);
+
+                // Update order_data with huifu req_date for query
+                await serviceRoleSupabase
+                    .from("alipay_orders")
+                    .update({
+                        payment_provider: "huifu_alipay",
+                        order_data: { ...od, huifu_req_date: reqDate },
+                    })
+                    .eq("id", order.id);
+
+                return NextResponse.json<ApiData<any>>({
+                    success: true,
+                    message: "订单创建成功",
+                    data: {
+                        order: {
+                            id: order.id.toString(),
+                            out_trade_no: order.id.toString(),
+                            subject: order.subject,
+                            total_amount: fenToYuan(order.total_amount),
+                            status: order.status,
+                            created_at: order.created_at,
+                        },
+                        paymentInfo: {
+                            provider: "huifu_alipay",
+                            tradeType: huifuTradeType,
+                            payInfo: huifuPayInfo,
+                        },
+                    },
+                });
+            } catch (error: any) {
+                await serviceRoleSupabase
+                    .from("alipay_orders")
+                    .update({
+                        status: "failed",
+                        trade_status: error?.message || "CREATE_FAILED",
+                        updated_at: new Date().toISOString(),
+                    })
+                    .eq("id", order.id);
+
+                return NextResponse.json(
+                    { success: false, message: error?.message || "汇付下单失败", data: null },
+                    { status: 500 },
+                );
+            }
+        }
+    }
+
+    if (isCoachSubscription) {
+        await serviceRoleSupabase
+            .from("alipay_orders")
+            .update({
+                status: "failed",
+                trade_status: "COACH_HUIFU_NOT_READY",
+                updated_at: new Date().toISOString(),
+            })
+            .eq("id", order.id);
+
+        return NextResponse.json(
+            { success: false, message: "教练汇付收款账户尚未完整开通，请教练先重新完成收款账户绑定", data: null },
+            { status: 400 },
+        );
+    }
+
+    // ── 非教练订阅：保留原支付宝直连 ──
 
     // 根据设备类型选择支付方式；returnUrlOnly 时传 'GET' 得到跳转 URL，否则得到 form HTML
     const bizCommon = {

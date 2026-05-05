@@ -1,6 +1,6 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import supabase from "@/lib/supabaseClient";
-import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
+import { getApiUserId } from "@/lib/getApiUserId";
 import type { ApiData } from "@/types/api";
 import type {
     GetQuestionnairesDto,
@@ -73,9 +73,9 @@ async function enrichRmQuestions(
     });
 }
 
-export async function POST(req: Request) {
-    const session = await getServerSession();
-    if (!session?.user?.id) {
+export async function POST(req: NextRequest) {
+    const requesterId = await getApiUserId(req);
+    if (!requesterId) {
         return NextResponse.json({
             success: false,
             message: "用户未登录",
@@ -83,28 +83,36 @@ export async function POST(req: Request) {
         }, { status: 401 });
     }
 
-    let userId = session.user.id;
+    let userId: string;
 
     const {
         coachId = "",
     } = await req.json() as GetQuestionnairesDto;
 
     if (!coachId) {
-        if (!session.user.is_coach) {
+        // 网页端：教练查自己的问卷，需要确认 requester 是教练
+        const { data: coachCheck } = await supabase
+            .from("coaches")
+            .select("id")
+            .eq("user_id", requesterId)
+            .maybeSingle();
+
+        if (!coachCheck) {
             return NextResponse.json({
                 success: false,
                 message: "用户不是教练",
                 data: null,
             }, { status: 403 });
         }
+        userId = requesterId;
     } else {
         const { data: coach, error: coachError } = await supabase
             .from("coaches")
-            .select("*")
+            .select("user_id")
             .eq("id", coachId)
             .single();
 
-        if (coachError) {
+        if (coachError || !coach) {
             return NextResponse.json({
                 success: false,
                 message: "获取教练信息失败",

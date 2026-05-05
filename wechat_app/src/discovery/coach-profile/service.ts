@@ -79,10 +79,14 @@ export async function createCoachWechatPayment(reqData: {
   amount?: number
   renew?: boolean
   renewAdditionalWeeks?: number
+  testAmountFen?: number
   subject?: string
 }) {
   const res = await createCoachWechatPaymentRequest(reqData)
-  return res.success ? res.data ?? null : null
+  if (!res.success) {
+    return { message: res.message || '创建支付单失败' }
+  }
+  return res.data ?? null
 }
 
 export async function queryCoachPaymentOrder(orderId: string) {

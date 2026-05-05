@@ -26,7 +26,7 @@ function canRefundTx(tx: { type: string; alipay_order_id?: string | null; order_
     return (
         tx.type === 'income' &&
         Boolean(tx.alipay_order_id) &&
-        (tx.order_type === 'subscription' || tx.order_type === 'subscription_renew') === true
+        (tx.order_type === 'subscription' || tx.order_type === 'subscription_renew' || tx.order_type === 'coach_subscription' || tx.order_type === 'coach_subscription_renew')
     );
 }
 
@@ -147,6 +147,7 @@ export default function CoachWalletPage() {
                     <div className="mt-6 flex justify-between items-end">
                         <div className="space-y-1">
                             <p className="text-xs text-green-100">冻结金额: ¥ {(data?.frozen_amount ?? 0).toFixed(2)}</p>
+                            <p className="text-xs text-green-100">账户总余额: ¥ {(data?.gross_balance ?? data?.balance ?? 0).toFixed(2)}</p>
                             <p className="text-sm font-semibold text-green-50">累计总收入: ¥ {(data?.total_income ?? 0).toFixed(2)}</p>
                         </div>
                         <div className="flex items-center gap-3">
@@ -163,6 +164,47 @@ export default function CoachWalletPage() {
                     </div>
                 </div>
 
+                {/* Huifu account status card */}
+                <div className="bg-surface-0 border border-surface-200 rounded-xl p-6 shadow-sm flex flex-col justify-between">
+                    <div>
+                        <h3 className="text-sm font-semibold text-surface-700 mb-2">汇付收款账户</h3>
+                        {data?.huifu_open_status === 'opened' ? (
+                            <div className="flex items-center gap-2 text-green-600">
+                                <i className="pi pi-check-circle" />
+                                <span className="text-sm font-medium">已开通</span>
+                            </div>
+                        ) : data?.huifu_open_status === 'pending' || !data?.huifu_open_status ? (
+                            <div className="flex items-center gap-2 text-amber-600">
+                                <i className="pi pi-exclamation-triangle" />
+                                <span className="text-sm font-medium">未开通</span>
+                            </div>
+                        ) : (
+                            <div>
+                                <div className="flex items-center gap-2 text-red-600 mb-1">
+                                    <i className="pi pi-times-circle" />
+                                    <span className="text-sm font-medium">开通失败</span>
+                                </div>
+                                {data?.huifu_open_msg && (
+                                    <p className="text-xs text-red-500 mt-1">{data.huifu_open_msg}</p>
+                                )}
+                            </div>
+                        )}
+                        <p className="text-xs text-surface-400 mt-1">
+                            {data?.huifu_open_status === 'opened'
+                                ? '学员订阅付款自动分账到您的账户'
+                                : '开通后学员订阅付款将自动按比例分账'}
+                        </p>
+                    </div>
+                    {data?.huifu_open_status !== 'opened' && (
+                        <Link href="/dashboard/wallet/merchant" className="mt-3">
+                            <Button
+                                label={data?.huifu_open_status === 'failed' ? '重新开通' : '立即开通'}
+                                size="small"
+                                className="w-full bg-primary-600 border-primary-600"
+                            />
+                        </Link>
+                    )}
+                </div>
             </div>
 
             <div className="bg-surface-0 border border-surface-200 rounded-xl p-6 shadow-sm">
@@ -173,7 +215,9 @@ export default function CoachWalletPage() {
                     {showWithdraw ? (
                         <div className="bg-surface-0 border border-surface-200 rounded-xl p-6">
                             <div className="mb-3 text-sm text-surface-700">可提现余额: ¥ {(data?.balance ?? 0).toFixed(2)}</div>
-                            <div className="mb-3 text-xs text-surface-500">提现后预计 48 小时内到账</div>
+                            <div className="mb-3 text-xs text-surface-500">
+                                {data?.huifu_open_status === 'opened' ? '提现后预计 T+1 到账银行卡' : '提现后预计 48 小时内到账'}
+                            </div>
                             <div className="flex flex-col md:flex-row md:items-center md:gap-4">
                                 <input
                                     value={withdrawAmount}
@@ -195,9 +239,14 @@ export default function CoachWalletPage() {
                                             if (!data || amt > data.balance) { setMessage('余额不足'); return; }
                                             setProcessingWithdraw(true);
                                             try {
-                                                const res = await axios.post('/api/coach/wallet/alipay/withdraw', { amount: amt });
+                                                const withdrawUrl = data?.huifu_open_status === 'opened'
+                                                    ? '/api/coach/wallet/huifu/withdraw'
+                                                    : '/api/coach/wallet/alipay/withdraw';
+                                                const res = await axios.post(withdrawUrl, { amount: amt });
                                                 if (res.data && res.data.success) {
-                                                    setMessage('提现申请已提交，预计 48 小时内到账');
+                                                    setMessage(data?.huifu_open_status === 'opened'
+                                                        ? '提现申请已提交，预计 T+1 到账'
+                                                        : '提现申请已提交，预计 48 小时内到账');
                                                     setShowWithdraw(false);
                                                     setWithdrawAmount('');
                                                     await fetchWallet();
@@ -221,7 +270,7 @@ export default function CoachWalletPage() {
                     ) : null}
                     {data?.transactions && data.transactions.length > 0 ? (
                         data.transactions.map((tx) => {
-                            const isSubscriptionIncome = tx.type === 'income' && (tx.order_type === 'subscription' || tx.order_type === 'subscription_renew') && Boolean(tx.student_id);
+                            const isSubscriptionIncome = tx.type === 'income' && (tx.order_type === 'subscription' || tx.order_type === 'subscription_renew' || tx.order_type === 'coach_subscription' || tx.order_type === 'coach_subscription_renew') && Boolean(tx.student_id);
                             const fallbackTitle = tx.description || (tx.type === 'income' ? '课程收入' : tx.type === 'withdrawal' ? '提现' : '退款');
                             const primaryContent = isSubscriptionIncome && tx.student_id ? (
                                 // TODO: 由于学生详情页尚未完成，暂时注释掉链接
@@ -274,9 +323,14 @@ export default function CoachWalletPage() {
                                                 onClick={() => handleRefund(tx.alipay_order_id!)}
                                             />
                                         )}
-                                        <span className={`font-mono font-medium ${tx.type === 'income' ? 'text-green-600' : 'text-surface-900'}`}>
-                                            {tx.type === 'income' ? '+' : '-'}{Math.abs(tx.amount).toFixed(2)}
-                                        </span>
+                                        <div className="text-right">
+                                            <span className={`font-mono font-medium ${tx.type === 'income' ? 'text-green-600' : 'text-surface-900'}`}>
+                                                {tx.type === 'income' ? '+' : '-'}{Math.abs(tx.amount).toFixed(2)}
+                                            </span>
+                                            {tx.platform_fee != null && tx.platform_fee > 0 && (
+                                                <p className="text-xs text-surface-400">平台服务费: -{tx.platform_fee.toFixed(2)}</p>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
                             );

@@ -3,6 +3,7 @@ import { View, Text, ScrollView } from '@tarojs/components'
 import Taro, { useDidShow, useRouter } from '@tarojs/taro'
 import BottomNav from '@/components/BottomNav'
 import { request } from '@/utils/request'
+import { authService } from '@/services/authService'
 import {
   createMembershipWechatPayment,
   requestWechatPayment
@@ -124,6 +125,15 @@ function MembershipSubscribe() {
 
     try {
       setPayingPlanId(plan.id)
+
+      const user = authService.getCurrentUser()
+      if (!user?.wechat_openid) {
+        const bindResult = await authService.bindWechatOpenid()
+        if (!bindResult.success) {
+          throw new Error(bindResult.message || '绑定微信失败，请使用微信快捷登录')
+        }
+      }
+
       const payment = await createMembershipWechatPayment({
         productKey: plan.id
       })

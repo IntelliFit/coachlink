@@ -7,6 +7,8 @@ import { formatHuifuReqDate, queryHuifuMiniProgramOrder } from "@/lib/huifuMiniP
 import {
     fulfillSubscriptionOnPaid,
     updateTransactionAndWallet,
+    executeBalancePayment,
+    markSettlementWalletCredited,
 } from "@/app/api/payment/alipay/fulfillPaidOrder";
 import { fulfillStudentMembershipOrderOnPaid } from "@/app/api/payment/studentMembershipFulfillment";
 
@@ -28,6 +30,42 @@ function mapHuifuTransStatus(value: string | null | undefined): PaymentStatus {
     if (value === "S") return "success";
     if (value === "F") return "failed";
     return "pending";
+}
+
+async function fulfillPaidWechatOrder(latestOrder: any, userId: string) {
+    const isSubscriptionOrder =
+        latestOrder.order_type === "subscription" ||
+        latestOrder.order_type === "subscription_renew" ||
+        latestOrder.order_type === "coach_subscription" ||
+        latestOrder.order_type === "coach_subscription_renew";
+
+    if (isSubscriptionOrder) {
+        await fulfillSubscriptionOnPaid(latestOrder, latestOrder.id, userId, "wechat");
+
+        const isCoachSub =
+            latestOrder.order_type === "coach_subscription" ||
+            latestOrder.order_type === "coach_subscription_renew";
+        if (isCoachSub) {
+            const splitResult = await executeBalancePayment(latestOrder);
+            if (splitResult.shouldCreditWallet) {
+                const walletUpdated = await updateTransactionAndWallet(latestOrder, splitResult.splitInfo);
+                if (walletUpdated) {
+                    await markSettlementWalletCredited(latestOrder.id);
+                }
+            }
+        } else {
+            await updateTransactionAndWallet(latestOrder);
+        }
+    }
+
+    if (latestOrder.order_type === "student_membership") {
+        const orderData = (latestOrder.order_data || {}) as Record<string, any>;
+        await fulfillStudentMembershipOrderOnPaid({
+            relatedOrderId: String(orderData.related_order_id || ""),
+            productKey: String(orderData.product_key || ""),
+            userId,
+        });
+    }
 }
 
 export async function POST(request: NextRequest) {
@@ -117,22 +155,11 @@ export async function POST(request: NextRequest) {
             latestOrder = updatedOrder || latestOrder;
             paymentStatus = mappedStatus;
 
-            if (
-                paymentStatus === "success" &&
-                (latestOrder.order_type === "subscription" || latestOrder.order_type === "subscription_renew")
-            ) {
-                await fulfillSubscriptionOnPaid(latestOrder, latestOrder.id, userId, "wechat");
-                await updateTransactionAndWallet(latestOrder);
+            if (paymentStatus === "success") {
+                await fulfillPaidWechatOrder(latestOrder, userId);
             }
-
-            if (paymentStatus === "success" && latestOrder.order_type === "student_membership") {
-                const orderData = (latestOrder.order_data || {}) as Record<string, any>;
-                await fulfillStudentMembershipOrderOnPaid({
-                    relatedOrderId: String(orderData.related_order_id || ""),
-                    productKey: String(orderData.product_key || ""),
-                    userId,
-                });
-            }
+        } else if (paymentStatus === "success") {
+            await fulfillPaidWechatOrder(latestOrder, userId);
         }
 
         return NextResponse.json<ApiData<QueryWechatPaymentResponse>>({

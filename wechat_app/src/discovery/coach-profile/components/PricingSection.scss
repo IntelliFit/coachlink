@@ -50,6 +50,25 @@
   color: #f97316;
 }
 
+.pricing-test-row {
+  margin-top: 16px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.pricing-test-btn {
+  padding: 8px 16px;
+  background: #ffffff;
+  border: 1px solid #16a34a;
+  border-radius: 12px;
+}
+
+.pricing-test-btn-text {
+  font-size: 13px;
+  font-weight: 800;
+  color: #15803d;
+}
+
 .pricing-subscribed-title {
   display: block;
   font-size: 16px;

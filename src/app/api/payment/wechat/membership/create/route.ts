@@ -123,8 +123,8 @@ export async function POST(request: NextRequest) {
                 .insert({
                     user_id: userId,
                     product_key: productKey,
-                    amount: product.price,
-                    original_amount: product.price,
+                    amount: amountFen,
+                    original_amount: amountFen,
                     payment_method: "wechat",
                     status: "pending",
                 })

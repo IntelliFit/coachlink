@@ -1,5 +1,5 @@
-import { NextResponse } from "next/server";
-import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
+import { NextRequest, NextResponse } from "next/server";
+import { getApiUserId } from "@/lib/getApiUserId";
 import supabase from "@/lib/supabaseClient";
 import { yuanToFen } from "@/lib/moneyUtils";
 
@@ -11,18 +11,15 @@ import type {
 } from "./entity";
 import { Json } from "@/types/database.types";
 
-export async function POST(req: Request) {
-    const session = await getServerSession();
-    if (!session?.user?.id) {
+export async function POST(req: NextRequest) {
+    const userId = await getApiUserId(req);
+    if (!userId) {
         return NextResponse.json({
             success: false,
             message: "用户未登录",
             data: null,
         }, { status: 401 });
     }
-
-    // 通过 session 获取用户 ID
-    const userId = session.user.id;
 
     const {
         coachId,

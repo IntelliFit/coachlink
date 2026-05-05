@@ -119,6 +119,7 @@ export default {
       root: 'content',
       name: 'content',
       pages: [
+        'articles',
         'content-detail',
         'knowledge',
         'knowledge/book-detail',

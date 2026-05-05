@@ -3,12 +3,23 @@ import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 import supabase, { serviceRoleSupabase } from "@/lib/supabaseClient";
 import { ApiData } from "@/types/api";
 import { fenToYuan } from "@/lib/moneyUtils";
+import {
+    calculateRefundProtectedAmountFen,
+    COACH_WALLET_REFUND_PROTECTION_DAYS,
+    getWithdrawableWalletAmounts,
+} from "@/lib/coachWalletLock";
 
 export interface WalletData {
     balance: number;
+    gross_balance: number;
+    withdrawable_balance: number;
     total_income: number;
     frozen_amount: number;
+    refund_protected_amount: number;
+    refund_protection_days: number;
     transactions: Transaction[];
+    huifu_open_status?: string | null;
+    huifu_open_msg?: string | null;
 }
 
 export interface Transaction {
@@ -27,6 +38,8 @@ export interface Transaction {
     related_income_tx_id?: string | null;
     /** 收入流水被退款时写入，非空表示该笔收入已退款；前端据此隐藏退款按钮及显示「查看原订单」 */
     refunded_at?: string | null;
+    /** 平台抽成金额（分），coach_subscription 类型 > 0 */
+    platform_fee?: number | null;
 }
 
 type WalletTransactionRow = {
@@ -39,6 +52,7 @@ type WalletTransactionRow = {
     related_income_tx_id: string | null;
     created_at: string;
     refunded_at?: string | null;
+    platform_fee?: number | null;
 };
 
 export async function POST(request: Request) {
@@ -52,7 +66,7 @@ export async function POST(request: Request) {
     }
 
     // Get coach ID from user ID
-    const { data: coach } = await supabase.from("coaches").select("id").eq(
+    const { data: coach } = await supabase.from("coaches").select("id, huifu_open_status, huifu_open_msg, huifu_card_token").eq(
         "user_id",
         session.user.id,
     ).single();
@@ -70,7 +84,7 @@ export async function POST(request: Request) {
 
     // Get Transactions（alipay_order_id / related_income_tx_id / refunded_at 见 migrations）
     const { data: rawRows } = await supabase.from("wallet_transactions")
-        .select("id, wallet_id, amount, type, description, alipay_order_id, related_income_tx_id, created_at, refunded_at")
+        .select("id, wallet_id, amount, type, description, alipay_order_id, related_income_tx_id, created_at, refunded_at, platform_fee")
         .eq("wallet_id", coach.id)
         .order("created_at", { ascending: false })
         .limit(20);
@@ -147,6 +161,7 @@ export async function POST(request: Request) {
                 created_at: tx.created_at,
                 alipay_order_id: tx.alipay_order_id ?? null,
                 related_income_tx_id: tx.related_income_tx_id ?? null,
+                platform_fee: (tx as any).platform_fee != null ? fenToYuan(Number((tx as any).platform_fee)) : null,
             };
 
             const order = tx.alipay_order_id ? ordersById.get(tx.alipay_order_id) : null;
@@ -179,7 +194,7 @@ export async function POST(request: Request) {
                     base.description = order.subject;
                 }
 
-                if (order.order_type === "subscription" || order.order_type === "subscription_renew") {
+                if (order.order_type === "subscription" || order.order_type === "subscription_renew" || order.order_type === "coach_subscription" || order.order_type === "coach_subscription_renew") {
                     // 退款流水：显示「已退款」+ 原文（如「已退款：订阅教练 xxx」），便于与收入流水对应；收入流水若已退款则显示「来自xxx的订阅（已退款）」
                     if (tx.type === "refund") {
                         base.description = `已退款：${order.subject?.trim() || `来自${displayName}的订阅`}`;
@@ -204,11 +219,31 @@ export async function POST(request: Request) {
     }
 
     // 数据库存储的是分（整数），转换为元（小数）返回给前端
+    const refundProtectedFen = await calculateRefundProtectedAmountFen(coach.id);
+    const walletAmounts = getWithdrawableWalletAmounts({
+        balanceFen: Number(wallet?.balance || 0),
+        storedFrozenFen: Number(wallet?.frozen_amount || 0),
+        refundProtectedFen,
+    });
+
+    const huifuStatus = coach?.huifu_open_status === "opened" && !coach?.huifu_card_token
+        ? "failed"
+        : coach?.huifu_open_status ?? null;
+    const huifuMessage = coach?.huifu_open_status === "opened" && !coach?.huifu_card_token
+        ? "汇付收款账户未完整开通，请重新完成收款账户绑定"
+        : coach?.huifu_open_msg ?? null;
+
     const result: WalletData = {
-        balance: fenToYuan(wallet?.balance || 0),
+        balance: fenToYuan(walletAmounts.withdrawableFen),
+        gross_balance: fenToYuan(walletAmounts.balanceFen),
+        withdrawable_balance: fenToYuan(walletAmounts.withdrawableFen),
         total_income: fenToYuan(wallet?.total_income || 0),
-        frozen_amount: fenToYuan(wallet?.frozen_amount || 0),
+        frozen_amount: fenToYuan(walletAmounts.frozenFen),
+        refund_protected_amount: fenToYuan(walletAmounts.refundProtectedFen),
+        refund_protection_days: COACH_WALLET_REFUND_PROTECTION_DAYS,
         transactions: enrichedTransactions,
+        huifu_open_status: huifuStatus,
+        huifu_open_msg: huifuMessage,
     };
 
     return NextResponse.json<ApiData<WalletData>>({

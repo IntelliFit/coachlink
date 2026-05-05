@@ -29,6 +29,7 @@ interface CreateCoachWechatPaymentDto {
     renew?: boolean;
     renewAdditionalWeeks?: number;
     subject?: string;
+    testAmountFen?: number;
 }
 
 interface CreateCoachWechatPaymentResponse {
@@ -41,6 +42,7 @@ interface CreateCoachWechatPaymentResponse {
 
 export async function POST(request: NextRequest) {
     try {
+        const testPricingEnabled = process.env.NODE_ENV !== "production";
         const userId = await getApiUserId(request);
         if (!userId) {
             return NextResponse.json<ApiData<null>>(
@@ -54,6 +56,7 @@ export async function POST(request: NextRequest) {
         const subscriptionId = String(body.subscriptionId || "").trim();
         const renew = body.renew === true;
         const renewAdditionalWeeks = Number(body.renewAdditionalWeeks || 0);
+        const testAmountFen = Math.round(Number(body.testAmountFen || 0));
 
         if (!coachId || !subscriptionId) {
             return NextResponse.json<ApiData<null>>(
@@ -123,6 +126,20 @@ export async function POST(request: NextRequest) {
             );
         }
 
+        // 查询教练汇付账户状态（分账必需）
+        const { data: coachRecord } = await serviceRoleSupabase
+            .from("coaches")
+            .select("huifu_id, huifu_open_status, huifu_card_token")
+            .eq("id", coachId)
+            .maybeSingle();
+
+        if (!coachRecord?.huifu_id || coachRecord.huifu_open_status !== "opened" || !coachRecord.huifu_card_token) {
+            return NextResponse.json<ApiData<null>>(
+                { success: false, message: "教练汇付收款账户尚未完整开通，请教练先重新完成收款账户绑定", data: null },
+                { status: 400 },
+            );
+        }
+
         const notifyUrl = String(process.env.WECHAT_PAY_NOTIFY_URL || "").trim();
         const miniAppId = String(process.env.WECHAT_MINIAPP_APPID || "").trim();
         if (!notifyUrl || !miniAppId) {
@@ -132,9 +149,18 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        const totalAmountFen = renew
-            ? yuanToFen(body.amount)
-            : Math.round(Number(subscription.monthly_price || 0));
+        if (testAmountFen > 0 && !testPricingEnabled) {
+            return NextResponse.json<ApiData<null>>(
+                { success: false, message: "测试支付仅开发环境可用", data: null },
+                { status: 400 },
+            );
+        }
+
+        const totalAmountFen = testPricingEnabled && testAmountFen > 0
+            ? testAmountFen
+            : renew
+                ? yuanToFen(body.amount)
+                : Math.round(Number(subscription.monthly_price || 0));
 
         if (!Number.isFinite(totalAmountFen) || totalAmountFen <= 0) {
             return NextResponse.json<ApiData<null>>(
@@ -150,7 +176,7 @@ export async function POST(request: NextRequest) {
         ).trim();
 
         const reqDate = formatHuifuReqDate();
-        const orderType = renew ? "subscription_renew" : "subscription";
+        const orderType = renew ? "coach_subscription_renew" : "coach_subscription";
         const clientIp = getClientIp(request);
         const coachName = String((subscription as any)?.coaches?.name || "").trim();
         const baseDurationMonths = Math.max(1, Math.round(Number(subscription.subscribed_weeks || 0) / 4));
@@ -170,6 +196,7 @@ export async function POST(request: NextRequest) {
             duration_months: durationMonths,
             renewAdditionalWeeks: renew ? renewAdditionalWeeks : undefined,
             huifu_req_date: reqDate,
+            is_test_payment: testPricingEnabled && testAmountFen > 0,
         };
 
         const { data: order, error: orderError } = await (serviceRoleSupabase
@@ -215,6 +242,8 @@ export async function POST(request: NextRequest) {
                 remark: order.id,
                 body: subject,
                 clientIp,
+                feeFlag: 2,
+                acctId: process.env.HUIFU_CASH_ACCT_ID || "F22836659",
             });
 
             if (payResult.resp_code !== "00000000" && payResult.resp_code !== "00000100") {
