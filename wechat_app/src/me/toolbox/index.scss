@@ -2,6 +2,8 @@
 .toolbox-page {
   min-height: 100vh;
   background: linear-gradient(180deg, #E8E8E8 0%, #F8F8F8 100%);
+  padding-top: constant(safe-area-inset-top);
+  padding-top: env(safe-area-inset-top);
   padding-bottom: 200rpx;
 }
 
@@ -11,8 +13,7 @@
 }
 
 .page-content {
-  padding: 32rpx 24rpx;
-  padding-bottom: 32rpx;
+  padding: 182rpx 24rpx 32rpx;
   width: 100%;
   box-sizing: border-box;
 }

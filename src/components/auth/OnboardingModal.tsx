@@ -50,9 +50,11 @@ const FITNESS_GOAL_OPTIONS = [
 ];
 
 const FITNESS_LEVEL_OPTIONS = [
-    { emoji: '🌱', label: '零基础', desc: '从未系统训练过', value: 'beginner' },
-    { emoji: '🌿', label: '有一点基础', desc: '偶尔锻炼或练过几个月', value: 'intermediate' },
-    { emoji: '🌳', label: '有系统训练经验', desc: '持续训练 1 年以上', value: 'advanced' },
+    { label: '零基础', desc: '从未系统训练过', value: 'beginner', wifiLevel: 1 },
+    { label: '入门', desc: '偶尔锻炼，了解基础动作', value: 'novice', wifiLevel: 2 },
+    { label: '进阶', desc: '系统训练 1 年以上', value: 'intermediate', wifiLevel: 3 },
+    { label: '高阶', desc: '多年训练，可自主制定计划', value: 'advanced', wifiLevel: 4 },
+    { label: '精英 / 职业', desc: '健身教练、运动员或竞技水平', value: 'elite', wifiLevel: 5 },
 ];
 
 const INTEREST_OPTIONS = [
@@ -441,7 +443,13 @@ export default function OnboardingModal({ isOpen, onClose, initialProfile }: Onb
                                     onClick={() => setFormData((prev) => ({ ...prev, fitnessLevel: opt.value }))}
                                     className="w-full p-4 flex items-center gap-3 text-left"
                                 >
-                                    <span className="text-2xl">{opt.emoji}</span>
+                                    <svg width="40" height="34" viewBox="0 0 48 40" className="flex-shrink-0">
+                                        <path d="M 4 36 Q 24 16 44 36" stroke={opt.wifiLevel >= 5 && formData.fitnessLevel === opt.value ? '#CF6D4E' : '#e2e8f0'} fill="none" strokeWidth="3" strokeLinecap="round"/>
+                                        <path d="M 8 30 Q 24 14 40 30" stroke={opt.wifiLevel >= 4 && formData.fitnessLevel === opt.value ? '#CF6D4E' : '#e2e8f0'} fill="none" strokeWidth="3" strokeLinecap="round"/>
+                                        <path d="M 12 24 Q 24 12 36 24" stroke={opt.wifiLevel >= 3 && formData.fitnessLevel === opt.value ? '#CF6D4E' : '#e2e8f0'} fill="none" strokeWidth="3" strokeLinecap="round"/>
+                                        <path d="M 16 18 Q 24 10 32 18" stroke={opt.wifiLevel >= 2 && formData.fitnessLevel === opt.value ? '#CF6D4E' : '#e2e8f0'} fill="none" strokeWidth="3" strokeLinecap="round"/>
+                                        <path d="M 20 12 Q 24 8 28 12" stroke={opt.wifiLevel >= 1 && formData.fitnessLevel === opt.value ? '#CF6D4E' : '#e2e8f0'} fill="none" strokeWidth="3" strokeLinecap="round"/>
+                                    </svg>
                                     <div>
                                         <div className="text-sm font-semibold text-surface-800">{opt.label}</div>
                                         <div className="text-xs text-surface-500">{opt.desc}</div>

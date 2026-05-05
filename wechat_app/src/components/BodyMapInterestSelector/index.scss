@@ -37,8 +37,6 @@
 .bmis-main {
   display: flex;
   gap: 24rpx;
-  min-height: 0;
-  height: 640rpx;
 }
 
 .bmis-list {
@@ -56,7 +54,6 @@
   border-radius: 48rpx;
   border: 2rpx solid #e2e8f0;
   background: #ffffff;
-  margin-bottom: 16rpx;
 
   &--selected {
     border-color: #cf6d4e;
@@ -99,20 +96,12 @@
   justify-content: center;
 }
 
-.bmis-map-img {
+.bmis-map-svg {
   width: 100%;
-  height: 100%;
-}
+  height: 600rpx;
 
-.bmis-map-placeholder {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  height: 100%;
-}
-
-.bmis-map-placeholder-text {
-  font-size: 28rpx;
-  color: #94a3b8;
+  svg {
+    width: 100%;
+    height: 100%;
+  }
 }

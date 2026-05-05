@@ -50,9 +50,11 @@ const normalizeName = (v?: string | null) => (v || '').trim().toLowerCase()
 const formatFitnessLevel = (value?: string | null) => {
   if (!value) return '未设置水平'
   const dict: Record<string, string> = {
-    beginner: '新手',
+    beginner: '零基础',
+    novice: '入门',
     intermediate: '进阶',
-    advanced: '高级'
+    advanced: '高阶',
+    elite: '精英 / 职业'
   }
   return dict[value] || value
 }

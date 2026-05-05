@@ -27,9 +27,11 @@ const FITNESS_GOAL_OPTIONS = [
 
 // 健身水平选项
 const FITNESS_LEVEL_OPTIONS = [
-  { text: '初学者', value: 'beginner' },
-  { text: '中级', value: 'intermediate' },
-  { text: '高级', value: 'advanced' }
+  { text: '零基础', value: 'beginner' },
+  { text: '入门', value: 'novice' },
+  { text: '进阶', value: 'intermediate' },
+  { text: '高阶', value: 'advanced' },
+  { text: '精英 / 职业', value: 'elite' }
 ]
 
 // 运动类型配置

@@ -1,7 +1,8 @@
 .discovery-page {
   min-height: 100vh;
   background: #f8f8f6;
-  padding-top: 180rpx;
+  padding-top: constant(safe-area-inset-top);
+  padding-top: env(safe-area-inset-top);
   padding-bottom: 144rpx;
 }
 
@@ -10,7 +11,7 @@
   top: 0;
   z-index: 10;
   background: rgba(248, 248, 246, 0.96);
-  padding: 32rpx 32rpx 24rpx;
+  padding: 182rpx 32rpx 24rpx;
 }
 
 .header-content {

@@ -15,6 +15,14 @@ import { buildStrengthPreview } from '@/utils/planStrength'
 import './index.scss'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 
+const FITNESS_LEVEL_LABEL_MAP: Record<string, string> = {
+  beginner: '零基础',
+  novice: '入门',
+  intermediate: '进阶',
+  advanced: '高阶',
+  elite: '精英 / 职业'
+}
+
 // ============ 类型定义 ============
 interface StudentProfile {
   nickname: string
@@ -2156,7 +2164,7 @@ function CoachStudentPlan() {
                 <View className='student-info'>
                   <Text className='student-name'>{studentData.profile.nickname || studentData.profile.full_name || '学员'}</Text>
                   <Text className='student-meta'>
-                    {studentData.profile.gender} · {studentData.profile.age}岁 · {studentData.profile.fitness_level}
+                    {studentData.profile.gender} · {studentData.profile.age}岁 · {FITNESS_LEVEL_LABEL_MAP[studentData.profile.fitness_level] || studentData.profile.fitness_level}
                   </Text>
                 </View>
               </View>
@@ -2435,7 +2443,7 @@ function CoachStudentPlan() {
                   <View className='student-info'>
                     <Text className='student-name'>{studentData.profile.nickname || studentData.profile.full_name || '学员'}</Text>
                     <Text className='student-meta'>
-                      {studentData.profile.gender} · {studentData.profile.age}岁 · {studentData.profile.fitness_level}
+                      {studentData.profile.gender} · {studentData.profile.age}岁 · {FITNESS_LEVEL_LABEL_MAP[studentData.profile.fitness_level] || studentData.profile.fitness_level}
                     </Text>
                   </View>
                 </View>

@@ -409,20 +409,10 @@ function Profile() {
   return (
     <View className='profile-page'>
       <View className='myContainer'>
-        {/* 页面左上角主题切换 */}
-        <View className='page-theme-toggle'>
-          <View
-            className='theme-toggle-btn theme-toggle-btn--page'
-            onClick={handleThemeToggle}
-          >
-            <Text className={`iconfont ${themeIconClass} theme-toggle-icon`} />
-          </View>
-        </View>
-
         {/* 用户档案卡片 */}
-        <View className='profile-card' onClick={handleViewProfile}>
+        <View className='profile-card'>
           <View className='profile-card-header'>
-            <View className='avatar-wrapper'>
+            <View className='avatar-wrapper' onClick={handleViewProfile}>
               <View className='avatar-container'>
                 {user?.avatar_url ? (
                   <Image
@@ -442,22 +432,57 @@ function Profile() {
               </View>
             </View>
             <View className='profile-info'>
-              <Text className='profile-name'>{displayName}</Text>
-              <Text className='profile-subtitle'>{displaySubtitle}</Text>
-              <View className='profile-badges'>
-                <Text className='badge-text'>{roleBadgeText}</Text>
-                <Text className='badge-dot'>·</Text>
-                <Text className='badge-text'>{statusBadgeText}</Text>
+              <View className='profile-name-row'>
+                <Text className='profile-name'>{displayName}</Text>
+                <Text className='profile-tag'>{roleBadgeText}</Text>
+              </View>
+              <Text className='profile-edit-link' onClick={handleProfileSettings}>
+                编辑资料 ›
+              </Text>
+            </View>
+            <View className='profile-header-right'>
+              <View
+                className='theme-toggle-btn-round'
+                onClick={handleThemeToggle}
+              >
+                <Text className={`iconfont ${themeIconClass} theme-toggle-icon`} />
               </View>
             </View>
           </View>
-          <View className='profile-actions' onClick={(e) => e.stopPropagation()}>
-            <Text
-              className='profile-settings-btn'
-              onClick={handleProfileSettings}
-            >
-              设置
-            </Text>
+
+          {/* 功能入口行 */}
+          <View className='profile-stats-row'>
+            <View className='profile-stat-item' onClick={() => handleMenuClick(topMenus[0])}>
+              <Text className='profile-stat-value'>0</Text>
+              <Text className='profile-stat-label'>{topMenus[0].label}</Text>
+            </View>
+            <View className='profile-stat-item' onClick={() => handleMenuClick(middleMenus[1])}>
+              <Text className='profile-stat-value'>0</Text>
+              <Text className='profile-stat-label'>{middleMenus[1].label}</Text>
+            </View>
+            <View className='profile-stat-item' onClick={() => handleMenuClick(topMenus[3])}>
+              <Text className='profile-stat-value'>0</Text>
+              <Text className='profile-stat-label'>{topMenus[3].label}</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* 会员卡片 */}
+        <View className='membership-card' onClick={() => handleMenuClick(topMenus[2])}>
+          <View className='membership-card-header'>
+            <Text className='membership-card-title'>我的会员</Text>
+            <Text className='membership-card-badge'>学员</Text>
+          </View>
+          <View className='membership-progress-row'>
+            <Text className='membership-progress-label'>训练进度</Text>
+            <Text className='membership-progress-value'>0/0</Text>
+          </View>
+          <View className='membership-progress-bar'>
+            <View className='membership-progress-fill' style={{ width: '0%' }} />
+          </View>
+          <View className='membership-points-row'>
+            <Text className='membership-points-label'>积分</Text>
+            <Text className='membership-points-value'>0</Text>
           </View>
         </View>
 
@@ -471,22 +496,6 @@ function Profile() {
           </View>
         )}
 
-        {/* 核心功能网格 */}
-        <View className='core-grid'>
-          {topMenus.map((item) => (
-            <View
-              key={item.key}
-              className='core-item'
-              onClick={() => handleMenuClick(item)}
-            >
-              <View className='core-icon' style={{ '--icon-color': item.iconBg } as any}>
-                <Text className={`iconfont ${item.icon}`} />
-              </View>
-              <Text className='core-label'>{item.label}</Text>
-            </View>
-          ))}
-        </View>
-
         {/* 更多功能列表 */}
         <View className='menu-list-card'>
           {middleMenus.map((item) => (
@@ -496,7 +505,7 @@ function Profile() {
               onClick={() => handleMenuClick(item)}
             >
               <View className='menu-list-left'>
-                <View className='menu-list-icon' style={{ '--icon-color': item.iconBg } as any}>
+                <View className='menu-list-icon' style={{ '--icon-color': '#CF6D4E' } as any}>
                   <Text className={`iconfont ${item.icon}`} />
                 </View>
                 <Text className='menu-list-label'>{item.label}</Text>
@@ -515,7 +524,7 @@ function Profile() {
               onClick={() => handleMenuClick(item)}
             >
               <View className='menu-list-left'>
-                <View className='menu-list-icon' style={{ '--icon-color': item.iconBg } as any}>
+                <View className='menu-list-icon' style={{ '--icon-color': '#CF6D4E' } as any}>
                   <Text className={`iconfont ${item.icon}`} />
                 </View>
                 <Text className='menu-list-label'>{item.label}</Text>
