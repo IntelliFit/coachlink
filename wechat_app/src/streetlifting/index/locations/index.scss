@@ -5,6 +5,37 @@
   padding: 24rpx 24rpx 80rpx;
 }
 
+.share-focus-card {
+  margin-bottom: 24rpx;
+  padding: 24rpx;
+  border-radius: 24rpx;
+  background: #FFF7F2;
+  border: 1rpx solid #F3D7CD;
+}
+
+.share-focus-eyebrow {
+  display: block;
+  margin-bottom: 8rpx;
+  font-size: 20rpx;
+  font-weight: 600;
+  color: #CF6D4E;
+}
+
+.share-focus-title {
+  display: block;
+  margin-bottom: 8rpx;
+  font-size: 32rpx;
+  font-weight: 700;
+  color: #010101;
+}
+
+.share-focus-desc {
+  display: block;
+  font-size: 24rpx;
+  line-height: 1.5;
+  color: #6B7280;
+}
+
 /* ===== Tab 导航 ===== */
 .loc-tab-bar {
   display: flex;
@@ -491,6 +522,10 @@
   box-shadow: 0 4rpx 24rpx rgba(0, 0, 0, 0.04);
 }
 
+.loc-card-shared {
+  box-shadow: 0 8rpx 32rpx rgba(207, 109, 78, 0.16);
+}
+
 .loc-card-image-wrap {
   position: relative;
   width: 100%;
@@ -524,6 +559,18 @@
   font-weight: 500;
 }
 
+.loc-shared-badge {
+  position: absolute;
+  left: 16rpx;
+  bottom: 16rpx;
+  padding: 8rpx 16rpx;
+  border-radius: 9999rpx;
+  background: rgba(207, 109, 78, 0.92);
+  color: #FFFFFF;
+  font-size: 20rpx;
+  font-weight: 600;
+}
+
 .loc-card-img-share {
   position: absolute;
   top: 16rpx;
@@ -535,15 +582,84 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 0;
+  border: none;
 
   &:active {
     background: rgba(0, 0, 0, 0.7);
+  }
+
+  &::after {
+    border: none;
   }
 
   .iconfont {
     color: #FFFFFF;
     font-size: 28rpx;
   }
+}
+
+.share-sheet-box {
+  padding-bottom: 40rpx;
+}
+
+.share-sheet-summary {
+  margin-bottom: 24rpx;
+  padding: 24rpx;
+  border-radius: 24rpx;
+  background: #FAFAFA;
+}
+
+.share-sheet-name {
+  display: block;
+  margin-bottom: 8rpx;
+  font-size: 30rpx;
+  font-weight: 700;
+  color: #010101;
+}
+
+.share-sheet-desc {
+  display: block;
+  font-size: 24rpx;
+  line-height: 1.5;
+  color: #6B7280;
+}
+
+.share-sheet-actions {
+  display: flex;
+  gap: 16rpx;
+}
+
+.share-sheet-btn {
+  flex: 1;
+  height: 88rpx;
+  line-height: 88rpx;
+  border-radius: 24rpx;
+  font-size: 30rpx;
+  font-weight: 600;
+
+  &::after {
+    border: none;
+  }
+}
+
+.share-sheet-btn-primary {
+  background: #CF6D4E;
+  color: #FFFFFF;
+}
+
+.share-sheet-btn-secondary {
+  background: #FFFFFF;
+  color: #CF6D4E;
+  border: 1rpx solid #CF6D4E;
+}
+
+.share-sheet-hint {
+  display: block;
+  margin-top: 24rpx;
+  font-size: 22rpx;
+  line-height: 1.5;
+  color: #9CA3AF;
 }
 
 .loc-card-body {

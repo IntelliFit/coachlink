@@ -50,6 +50,16 @@ export const buildPublicTrainingSharePath = (shareToken?: string | null) => {
   return buildSharePath('/content/public/training', { token })
 }
 
+export const buildStreetliftingLocationSharePath = (locationId?: string | null) => {
+  const normalizedLocationId = String(locationId || '').trim()
+  return buildSharePath('/streetlifting/index/location-share', normalizedLocationId ? { locationId: normalizedLocationId } : undefined)
+}
+
+export const buildStreetliftingLocationListPath = (locationId?: string | null) => {
+  const normalizedLocationId = String(locationId || '').trim()
+  return buildSharePath('/streetlifting/index/locations', normalizedLocationId ? { locationId: normalizedLocationId } : undefined)
+}
+
 export const openCoachLinkShareMenu = (options?: ShareMenuOptions) => {
   const includeTimeline = options?.includeTimeline ?? true
   Taro.showShareMenu({
@@ -105,6 +115,19 @@ export const getTodayTrainingShareTitle = (planName?: string, dayIndex?: number 
 }
 
 export const getToolboxShareTitle = () => 'CoachLink 工具箱：训练、计算与场景急救一站搞定'
+
+export const getStreetliftingLocationShareTitle = (locationName?: string, areaName?: string) => {
+  const safeLocationName = String(locationName || '').trim()
+  const safeAreaName = String(areaName || '').trim()
+
+  if (safeLocationName && safeAreaName) {
+    return `发现单杠训练点：${safeLocationName} · ${safeAreaName}`
+  }
+  if (safeLocationName) {
+    return `发现单杠训练点：${safeLocationName}`
+  }
+  return 'CoachLink 单杠地图：发现附近训练点'
+}
 
 export const getReferralShareTitle = (shareText?: string) => {
   const normalized = String(shareText || '').trim()

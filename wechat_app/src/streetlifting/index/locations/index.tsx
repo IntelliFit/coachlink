@@ -1,9 +1,9 @@
 /**
  * 单杠位置 - 小程序原生实现（列表、筛选、新增/编辑、图片上传）
  */
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { View, Text, ScrollView, Input, Picker, Button, Image } from '@tarojs/components'
-import Taro from '@tarojs/taro'
+import Taro, { useShareAppMessage, useShareTimeline } from '@tarojs/taro'
 import {
   streetliftingIndexService,
   type StreetliftingLocationContributor,
@@ -12,8 +12,23 @@ import {
   type StreetliftingLocationMapPin
 } from '@/services/streetliftingIndexService'
 import { authService } from '@/services/authService'
+import {
+  buildSharePath,
+  buildStreetliftingLocationSharePath,
+  createSharePayload,
+  createTimelinePayload,
+  getStreetliftingLocationShareTitle,
+  openCoachLinkShareMenu
+} from '@/utils/share'
+import { API_BASE_URL } from '@/utils/request'
 import './index.scss'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
+import { useSharePoster } from '@/hooks/useSharePoster'
+import { SharePosterModal } from '@/components/SharePosterModal'
+import {
+  drawStreetliftingLocationPoster,
+  type StreetliftingLocationPosterData
+} from './poster'
 
 const MAX_IMAGES = 4
 const PAGE_SIZE = 20
@@ -113,7 +128,55 @@ function calculateDistanceKm(from: UserLocation, to: UserLocation): number {
   return earthRadiusKm * c
 }
 
+function getLocationPreviewImage(loc?: Partial<StreetliftingLocation> | null): string {
+  const list = Array.isArray(loc?.image_urls) ? loc?.image_urls : []
+  return String(list?.[0] || loc?.image_url || '').trim()
+}
+
+function buildLocationSharePath(loc?: Partial<StreetliftingLocation> | null) {
+  const locationId = String(loc?.id || '').trim()
+  if (!locationId) {
+    return buildStreetliftingLocationSharePath()
+  }
+  return buildSharePath('/streetlifting/index/location-share', { locationId })
+}
+
+function buildSharedLocationPreviewFromParams(params: Record<string, unknown>): StreetliftingLocation | null {
+  const locationId = String(params.locationId || '').trim()
+  const name = String(params.sn || '').trim()
+  const province = String(params.sp || '').trim()
+  const city = String(params.sc || '').trim()
+  const county = String(params.sct || '').trim()
+  const address = String(params.sa || '').trim()
+  const description = String(params.sd || '').trim()
+
+  if (!locationId && !name) return null
+  /* 新分享链接只带 locationId，没有预览参数；此时返回 null，让页面走 loading → API 拉取真实数据 */
+  if (locationId && !name) return null
+
+  return {
+    id: locationId || `shared-${name || 'location'}`,
+    name: name || '分享的单杠点位',
+    description: description || null,
+    address: address || null,
+    city: city || null,
+    province: province || null,
+    county: county || null,
+    image_url: null,
+    image_urls: [],
+    latitude: null,
+    longitude: null,
+    created_at: '',
+    user_contact: null,
+    contributor_user_id: null,
+    contributor_name_snapshot: null
+  }
+}
+
 export default function StreetliftingLocations() {
+  const routerParams = (Taro.getCurrentInstance().router?.params || {}) as Record<string, unknown>
+  const sharedLocationId = String(routerParams.locationId || '').trim()
+  const sharedLocationPreview = useMemo(() => buildSharedLocationPreviewFromParams(routerParams), [])
   const [loading, setLoading] = useState(true)
   const [locations, setLocations] = useState<StreetliftingLocation[]>([])
   const [total, setTotal] = useState(0)
@@ -133,7 +196,12 @@ export default function StreetliftingLocations() {
   const [leaderboardSheetOpen, setLeaderboardSheetOpen] = useState(false)
   const [rightsSheetOpen, setRightsSheetOpen] = useState(false)
   const [activeTab, setActiveTab] = useState(0)
+  const [sharedLocationLoading, setSharedLocationLoading] = useState(false)
+  const [sharedLocation, setSharedLocation] = useState<StreetliftingLocation | null>(sharedLocationPreview)
+  const [shareSheetLocation, setShareSheetLocation] = useState<StreetliftingLocation | null>(null)
+  const [showPosterModal, setShowPosterModal] = useState(false)
   const requestIdRef = useRef(0)
+  const shareTargetLocationRef = useRef<StreetliftingLocation | null>(sharedLocationPreview)
   const firstFilterEffectRef = useRef(true)
 
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -151,6 +219,23 @@ export default function StreetliftingLocations() {
     longitude: null as number | null
   })
   const [imageUrls, setImageUrls] = useState<string[]>([])
+  const posterLoadResultRef = useRef<{ coverLoaded: boolean; qrLoaded: boolean }>({ coverLoaded: false, qrLoaded: false })
+
+  const {
+    generate: generatePoster,
+    generating: posterGenerating,
+    imageUrl: posterImageUrl,
+    reset: resetPoster
+  } = useSharePoster<StreetliftingLocationPosterData>({
+    canvasId: 'streetlifting-location-poster-canvas',
+    width: 750,
+    draw: (ctx, posterData) => drawStreetliftingLocationPoster(ctx, posterData),
+    onDrawResult: (result) => {
+      if (result && typeof result === 'object') {
+        posterLoadResultRef.current = result as { coverLoaded: boolean; qrLoaded: boolean }
+      }
+    }
+  })
 
   const loadOverview = async () => {
     setLoadingOverview(true)
@@ -211,6 +296,33 @@ export default function StreetliftingLocations() {
     void loadOverview()
     void loadContributorLeaderboard()
   }, [])
+
+  useEffect(() => {
+    openCoachLinkShareMenu()
+  }, [])
+
+  useEffect(() => {
+    if (!sharedLocationId) {
+      setSharedLocation(null)
+      return
+    }
+
+    setActiveTab(0)
+    setSharedLocationLoading(true)
+
+    void streetliftingIndexService
+      .getLocation(sharedLocationId)
+      .then((location) => {
+        setSharedLocation(location)
+      })
+      .catch((error) => {
+        console.error('[streetlifting-locations] load shared location failed', error)
+        setSharedLocation(null)
+      })
+      .finally(() => {
+        setSharedLocationLoading(false)
+      })
+  }, [sharedLocationId])
 
   useEffect(() => {
     if (firstFilterEffectRef.current) {
@@ -341,14 +453,223 @@ export default function StreetliftingLocations() {
     }
   }
 
-  const handleShare = (loc: StreetliftingLocation) => {
-    const addressPart = [loc.province, loc.city, loc.county, loc.address].filter(Boolean).join(' ')
-    const text = `发现单杠训练点：${loc.name}\n${addressPart || '暂无详细地址'}\n${loc.description ? `${loc.description}\n` : ''}`
-    Taro.setClipboardData({
-      data: text,
-      success: () => Taro.showToast({ title: '已复制到剪贴板', icon: 'success' })
+  const createLocationSharePayload = (loc?: Partial<StreetliftingLocation> | null) => {
+    if (!loc?.id) {
+      return createSharePayload({
+        title: getStreetliftingLocationShareTitle(),
+        path: buildStreetliftingLocationSharePath()
+      })
+    }
+
+    const areaName = [loc.city, loc.province].filter(Boolean).join(' ')
+    return createSharePayload({
+      title: getStreetliftingLocationShareTitle(loc.name, areaName),
+      path: buildLocationSharePath(loc),
+      imageUrl: getLocationPreviewImage(loc) || undefined
     })
   }
+
+  const sharePayload = useMemo(() => createLocationSharePayload(sharedLocation), [sharedLocation])
+
+  useShareAppMessage((res: any) => {
+    if (res?.from === 'button' && shareTargetLocationRef.current) {
+      return createLocationSharePayload(shareTargetLocationRef.current)
+    }
+    return sharePayload
+  })
+
+  useShareTimeline(() => createTimelinePayload(sharePayload))
+
+  const handleOpenShareOptions = useCallback((loc: StreetliftingLocation) => {
+    shareTargetLocationRef.current = loc
+    setShareSheetLocation(loc)
+  }, [])
+
+  const handleCloseShareSheet = useCallback(() => {
+    setShareSheetLocation(null)
+  }, [])
+
+  const handlePrepareLinkShare = useCallback(() => {
+    if (shareSheetLocation) {
+      shareTargetLocationRef.current = shareSheetLocation
+    }
+  }, [shareSheetLocation])
+
+  const buildPosterData = useCallback((loc: StreetliftingLocation): StreetliftingLocationPosterData => {
+    const area = [loc.province, loc.city, loc.county, loc.address].filter(Boolean).join(' ')
+    return {
+      name: loc.name,
+      area: area || '打开 CoachLink 查看这个单杠点位',
+      description: String(loc.description || '查看地址、环境描述和现场图片').trim(),
+      imageUrl: getLocationImages(loc)[0] || undefined,
+      qrCodeUrl: `${API_BASE_URL}/api/miniapp/qrcode/streetlifting-location?locationId=${encodeURIComponent(loc.id)}`
+    }
+  }, [])
+
+  const handleOpenPoster = useCallback(async () => {
+    if (!shareSheetLocation) return
+    shareTargetLocationRef.current = shareSheetLocation
+    setShareSheetLocation(null)
+    setShowPosterModal(true)
+    posterLoadResultRef.current = { coverLoaded: false, qrLoaded: false }
+    await new Promise<void>((resolve) => Taro.nextTick(() => resolve()))
+    await new Promise<void>((resolve) => setTimeout(() => resolve(), 40))
+
+    /* 清理历史临时文件，避免小程序 100MB 存储上限导致连环失败 */
+    try {
+      const fs = Taro.getFileSystemManager()
+      const userDataPath = (Taro as any).env?.USER_DATA_PATH
+      if (userDataPath) {
+        try {
+          const files = fs.readdirSync(userDataPath)
+          for (const file of files) {
+            if (file.startsWith('cv_') || file.startsWith('tmp_')) {
+              try { fs.unlinkSync(`${userDataPath}/${file}`) } catch { /* ignore */ }
+            }
+          }
+        } catch { /* ignore */ }
+      }
+    } catch { /* ignore */ }
+
+    const posterData = buildPosterData(shareSheetLocation)
+    const token = Taro.getStorageSync('token') || ''
+    const diagnostics: string[] = []
+
+    /* 二维码：Taro.request 带 token 获取 base64，绕过 downloadFile 401 限制 */
+    if (posterData.qrCodeUrl) {
+      try {
+        const qrRes = await Taro.request({
+          url: `${posterData.qrCodeUrl}&format=base64`,
+          method: 'GET',
+          header: token ? { Authorization: `Bearer ${token}` } : {}
+        })
+        if (qrRes.data?.success && qrRes.data?.data?.base64) {
+          posterData.qrCodeUrl = qrRes.data.data.base64
+        } else if (qrRes.data?.success === false) {
+          diagnostics.push(`二维码接口错误：${qrRes.data?.message || JSON.stringify(qrRes.data)}`)
+        }
+      } catch (e: any) {
+        diagnostics.push(`二维码获取异常：${e?.errMsg || String(e)}`)
+      }
+    }
+
+    /* 图片：Taro.request 带 token 获取二进制并写入本地，绕过 downloadFile 限制 */
+    if (posterData.imageUrl) {
+      try {
+        const imgRes = await Taro.request({
+          url: posterData.imageUrl,
+          method: 'GET',
+          responseType: 'arraybuffer',
+          header: token ? { Authorization: `Bearer ${token}` } : {}
+        })
+        if (imgRes.statusCode === 200 && imgRes.data) {
+          const fs = Taro.getFileSystemManager()
+          const userDataPath = (Taro as any).env?.USER_DATA_PATH
+          if (userDataPath) {
+            const ext = posterData.imageUrl.split('.').pop()?.split('?')[0] || 'jpg'
+            const tmpPath = `${userDataPath}/cv_img_${Date.now()}.${ext}`
+            try {
+              fs.writeFileSync(tmpPath, imgRes.data as ArrayBuffer, 'binary')
+              posterData.imageUrl = tmpPath
+            } catch (writeErr: any) {
+              console.warn('[poster] writeFile failed, trying downloadFile fallback', writeErr)
+              const dl = await Taro.downloadFile({ url: posterData.imageUrl })
+              if (dl.statusCode === 200 && dl.tempFilePath) {
+                posterData.imageUrl = dl.tempFilePath
+              } else {
+                diagnostics.push(`现场图片写入失败且 downloadFile 也失败：HTTP ${dl.statusCode}`)
+              }
+            }
+          }
+        } else {
+          diagnostics.push(`现场图片获取失败：HTTP ${imgRes.statusCode}`)
+        }
+      } catch (e: any) {
+        diagnostics.push(`现场图片获取异常：${e?.errMsg || String(e)}`)
+      }
+    }
+
+    await generatePoster(posterData)
+
+    const { coverLoaded, qrLoaded } = posterLoadResultRef.current
+    const hasImage = Boolean(buildPosterData(shareSheetLocation).imageUrl)
+    const hasQr = Boolean(buildPosterData(shareSheetLocation).qrCodeUrl)
+    const missing: string[] = []
+    if (hasImage && !coverLoaded) missing.push('现场图片')
+    if (hasQr && !qrLoaded) missing.push('小程序二维码')
+
+    if (diagnostics.length > 0 || missing.length > 0) {
+      setTimeout(() => {
+        Taro.showModal({
+          title: '海报生成诊断',
+          content: [
+            ...diagnostics,
+            ...(missing.length > 0 ? [`「${missing.join('、')}」未能绘制到海报中`] : [])
+          ].join('\n'),
+          showCancel: false,
+          confirmText: '知道了'
+        })
+      }, 400)
+    }
+  }, [buildPosterData, generatePoster, shareSheetLocation])
+
+  const handleClosePoster = useCallback(() => {
+    setShowPosterModal(false)
+    resetPoster()
+  }, [resetPoster])
+
+  const handleSharePosterImage = useCallback(() => {
+    if (!posterImageUrl) return
+    // @ts-ignore
+    Taro.showShareImageMenu({
+      path: posterImageUrl,
+      fail: (err: { errMsg?: string }) => {
+        if (err.errMsg?.includes('no such file') || err.errMsg?.includes('storage')) {
+          Taro.showModal({
+            title: '分享失败',
+            content: '小程序本地存储空间不足，请关闭并重新打开小程序后再试。',
+            showCancel: false,
+            confirmText: '知道了'
+          })
+          return
+        }
+        Taro.showToast({ title: '请先保存图片后再转发', icon: 'none' })
+      }
+    })
+  }, [posterImageUrl])
+
+  const handleSavePoster = useCallback(() => {
+    if (!posterImageUrl) return
+    Taro.saveImageToPhotosAlbum({
+      filePath: posterImageUrl,
+      success: () => {
+        Taro.showToast({ title: '已保存到相册', icon: 'success' })
+      },
+      fail: (err: { errMsg?: string }) => {
+        if (err.errMsg?.includes('auth deny') || err.errMsg?.includes('authorize')) {
+          Taro.showModal({
+            title: '提示',
+            content: '需要授权后才能保存图片到相册',
+            confirmText: '去设置',
+            success: (res) => {
+              if (res.confirm) Taro.openSetting()
+            }
+          })
+          return
+        }
+        if (err.errMsg?.includes('no such file') || err.errMsg?.includes('storage')) {
+          Taro.showModal({
+            title: '保存失败',
+            content: '小程序本地存储空间不足，请关闭并重新打开小程序后再试。',
+            showCancel: false,
+            confirmText: '知道了'
+          })
+          return
+        }
+        Taro.showToast({ title: '保存失败', icon: 'none' })
+      }
+    })
+  }, [posterImageUrl])
 
   const openLocationInMap = (loc: { name: string; latitude: number; longitude: number; address?: string | null }) => {
     Taro.openLocation({
@@ -458,6 +779,11 @@ export default function StreetliftingLocations() {
   }, [locationOverview])
 
   const displayContributors = useMemo(() => contributors.slice(0, 3), [contributors])
+  const sharedFocusLocation = sharedLocation || sharedLocationPreview
+  const displayLocations = useMemo(() => {
+    if (!sharedLocation) return locations
+    return [sharedLocation, ...locations.filter((item) => item.id !== sharedLocation.id)]
+  }, [locations, sharedLocation])
 
   const hasMore = locations.length < total
 
@@ -543,6 +869,24 @@ export default function StreetliftingLocations() {
 
   return (
     <View className='loc-page'>
+      {(sharedLocationLoading || sharedFocusLocation) && (
+        <View className='share-focus-card'>
+          <Text className='share-focus-eyebrow'>来自分享</Text>
+          {sharedFocusLocation ? (
+            <>
+              <Text className='share-focus-title'>{sharedFocusLocation.name}</Text>
+              <Text className='share-focus-desc'>
+                {[sharedFocusLocation.province, sharedFocusLocation.city, sharedFocusLocation.county, sharedFocusLocation.address]
+                  .filter(Boolean)
+                  .join(' ') || '打开后可继续查看地点详情、图片和导航'}
+              </Text>
+            </>
+          ) : (
+            <Text className='share-focus-desc'>正在定位被分享的单杠地点...</Text>
+          )}
+        </View>
+      )}
+
       {/* ===== 分享按钮 ===== */}
       <View className='btn-share-my-bar' onClick={openCreate}>
         <Text className='iconfont icon-location' />
@@ -603,8 +947,8 @@ export default function StreetliftingLocations() {
                 </View>
               ) : (
                 <View className='loc-list'>
-                  {locations.map((loc) => (
-                    <View key={loc.id} className='loc-card'>
+                  {displayLocations.map((loc) => (
+                    <View key={loc.id} className={`loc-card ${loc.id === sharedLocationId ? 'loc-card-shared' : ''}`}>
                       <View className='loc-card-image-wrap'>
                         {getLocationImages(loc).length > 0 ? (
                           <Image
@@ -622,9 +966,17 @@ export default function StreetliftingLocations() {
                             <Text>{getLocationImages(loc).length} 张图</Text>
                           </View>
                         )}
-                        <View className='loc-card-img-share' onClick={() => handleShare(loc)}>
+                        {loc.id === sharedLocationId && (
+                          <View className='loc-shared-badge'>
+                            <Text>分享点位</Text>
+                          </View>
+                        )}
+                        <Button
+                          className='loc-card-img-share'
+                          onClick={() => handleOpenShareOptions(loc)}
+                        >
                           <Text className='iconfont icon-share' />
-                        </View>
+                        </Button>
                       </View>
                       <View className='loc-card-body'>
                         <View className='loc-card-title-row'>
@@ -999,6 +1351,53 @@ export default function StreetliftingLocations() {
           </View>
         </View>
       )}
+
+      {shareSheetLocation && (
+        <View className='sheet-mask' onClick={handleCloseShareSheet}>
+          <View className='sheet-box share-sheet-box' onClick={(e) => e.stopPropagation()}>
+            <View className='sheet-header'>
+              <Text className='sheet-title'>分享这个单杠点位</Text>
+              <View className='sheet-close' onClick={handleCloseShareSheet}>
+                <Text>脳</Text>
+              </View>
+            </View>
+
+            <View className='share-sheet-summary'>
+              <Text className='share-sheet-name'>{shareSheetLocation.name}</Text>
+              <Text className='share-sheet-desc'>
+                {[shareSheetLocation.province, shareSheetLocation.city, shareSheetLocation.county, shareSheetLocation.address]
+                  .filter(Boolean)
+                  .join(' ') || '分享后可回到 CoachLink 查看完整点位'}
+              </Text>
+            </View>
+
+            <View className='share-sheet-actions'>
+              <Button className='share-sheet-btn share-sheet-btn-primary' openType='share' onClick={handlePrepareLinkShare}>
+                分享链接
+              </Button>
+              <Button className='share-sheet-btn share-sheet-btn-secondary' onClick={handleOpenPoster}>
+                生成海报
+              </Button>
+            </View>
+
+            <Text className='share-sheet-hint'>
+              分享链接适合发群聊并跳回这个点位；生成海报适合保存图片后转发。
+            </Text>
+          </View>
+        </View>
+      )}
+
+      <SharePosterModal
+        visible={showPosterModal}
+        onClose={handleClosePoster}
+        title='单杠点位海报'
+        canvasId='streetlifting-location-poster-canvas'
+        canvasHeight={1100}
+        posterImageUrl={posterImageUrl}
+        onShareImage={handleSharePosterImage}
+        onSaveImage={handleSavePoster}
+        generating={posterGenerating}
+      />
 
       {/* ===== 表单弹窗 ===== */}
       {dialogOpen && (
