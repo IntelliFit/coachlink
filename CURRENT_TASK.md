@@ -1,5 +1,50 @@
 # CURRENT_TASK
 
+## WeApp Streetlifting Location Share Deep Link (`2026-05-08`)
+
+- Task: improve the WeChat mini-program toolbox `单杠位置` share flow so it drives recipients back into CoachLink instead of only copying plain text.
+- Status: implemented in code; per latest user instruction, manual verification is left to the user and no further agent-side UI/manual testing should run for this task.
+- Implemented:
+  - `wechat_app/src/streetlifting/index/locations/index.tsx`
+    - Replaced the single share affordance with two explicit share modes: `分享链接` and `生成海报`.
+    - Link sharing now locks onto the selected location before calling `openType='share'`.
+    - When opened from a shared link, the target location is fetched and surfaced at the top of the page, and the shared card is visually highlighted in the list when full data is available.
+    - Added a location poster generation flow using the existing mini-program canvas/share-poster infrastructure.
+  - `wechat_app/src/streetlifting/index/locations/index.config.ts`
+    - Enabled `shareAppMessage` and `shareTimeline` for the mini-program page.
+  - `wechat_app/src/utils/share.ts`
+    - Added shared helpers for streetlifting-location share paths and titles.
+  - `wechat_app/src/services/streetliftingIndexService.ts`
+    - Added client support for fetching one shared location by id.
+  - `src/app/api/streetlifting-index/locations/get/route.ts`
+    - Added a minimal backend read endpoint so shared mini-program links can resolve a specific location by `id`.
+  - `wechat_app/src/streetlifting/index/locations/poster.ts`
+    - Added a dedicated single-location poster renderer.
+- Major fix round (`2026-05-08` evening):
+  - **Problem 1 — share link opens list instead of location detail**: Root cause was `buildLocationSharePath` embedding six Chinese preview params (`sn/sp/sc/sct/sa/sd`) into the share `path`. After URL encoding, the path could exceed WeChat's share-path length limit, causing the entire path to be discarded and fallback to the default page.
+    - Fix: `buildLocationSharePath` now only carries `locationId`. The `location-share` page loads full data via API instead of relying on URL preview params.
+    - `locations` page already supports `locationId` via `sharedLocation` / `sharedLocationId` as a fallback.
+    - `buildSharedLocationPreviewFromParams` and `buildPreviewLocation` updated to return `null` when only `locationId` is present (no preview params), so the UI shows a loading state while fetching real data.
+  - **Problem 2 — poster missing image / QR code / mojibake**: Root causes were (a) image domain not in mini-program `downloadFile` whitelist causing `getImageInfo`/`downloadFile` to fail, (b) Canvas default `sans-serif` has no Chinese font fallback in WeChat, (c) poster layout was too tall and sparse.
+    - Fix: `weapp-canvas-image.ts` — `downloadFile` success now directly returns `tempFilePath` without a second `getImageInfo` call that could fail.
+    - Fix: `poster.ts` — completely redrawn with:
+      - Explicit Chinese font stack (`PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif`) on every `ctx.font` assignment.
+      - Tighter 750×1100px canvas (was 750×1180).
+      - Larger cover image area (480px tall) with rounded corners and a bottom gradient overlay.
+      - Larger QR code area (128×128px with white background and rounded corners).
+      - QR code load failure fallback: shows `请搜索 CoachLink` text instead of a blank gray box.
+      - No-image fallback: brand-colored gradient background with centered copy instead of the old long placeholder text.
+      - Dark bottom action bar with white text for strong CTA contrast.
+    - Fix: `streetliftingIndexService.ts` — corrected GBK mojibake error message `鍔犺浇鍦扮偣澶辫触` → `加载地点失败`.
+    - `SharePosterModal` canvas height updated from 1180 → 1100 to match new poster size.
+- Code-level verification:
+  - Root `npm run lint`: passed (informational script only).
+  - Root `npm run typecheck`: passed.
+  - Root `npx next build`: passed.
+  - `wechat_app` build (`npm run build:weapp`): passed.
+- User override:
+  - User explicitly asked on `2026-05-08` that the remaining testing be done manually, so mini-program build / DevTools verification was not continued after that point.
+
 ## Huifu Renew Split Failure Follow-up (`2026-05-05`)
 
 - Task: diagnose why a 2026-05-05 13:20 1-yuan coach-renew test payment did not appear in the coach wallet.

@@ -44,3 +44,11 @@ wechat_app/.openclaw/
 
 .playwright-mcp
 screenshots
+
+# Temp images
+temp_*.jpg
+temp_*.png
+
+# Claude settings
+.claude/
+

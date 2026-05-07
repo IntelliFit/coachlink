@@ -11,6 +11,8 @@ export interface UseSharePosterOptions<T> {
    * ctx 已按 dpr 缩放，直接按逻辑坐标绘制即可。
    */
   draw: (ctx: CanvasRenderingContext2D, options: T, canvas: HTMLCanvasElement) => void | Promise<void>
+  /** 绘制完成后的回调，可接收 draw 函数的返回值用于诊断 */
+  onDrawResult?: (result: unknown) => void
 }
 
 /** 小程序 Canvas 2D：绘制后需等待合成再导出，否则首帧常为空白 */
@@ -45,7 +47,7 @@ export interface UseSharePosterResult<T> {
  * 业务方只需提供 draw 函数和 canvasId，即可生成海报图片。
  */
 export function useSharePoster<T>(options: UseSharePosterOptions<T>): UseSharePosterResult<T> {
-  const { canvasId, width, draw } = options
+  const { canvasId, width, draw, onDrawResult } = options
   const [generating, setGenerating] = useState(false)
   const [imageUrl, setImageUrl] = useState<string | null>(null)
   const dprRef = useRef(2)
@@ -102,7 +104,10 @@ export function useSharePoster<T>(options: UseSharePosterOptions<T>): UseSharePo
               }
 
               try {
-                await draw(ctx, drawOptions, canvas)
+                const drawResult = await draw(ctx, drawOptions, canvas)
+                if (onDrawResult) {
+                  try { onDrawResult(drawResult) } catch { /* ignore */ }
+                }
                 await waitForCanvasPaint(canvas, 56)
 
                 Taro.canvasToTempFilePath({

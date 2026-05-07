@@ -130,6 +130,12 @@ class StreetliftingIndexService extends BaseService {
     throw new Error((res as any)?.message || '加载失败')
   }
 
+  async getLocation(id: string) {
+    const res = await this.post<{ location: StreetliftingLocation | null }>('locations/get', { id })
+    if (res.success && res.data?.location) return res.data.location
+    throw new Error((res as any)?.message || '加载地点失败')
+  }
+
   async createLocation(dto: {
     name: string
     description?: string | null

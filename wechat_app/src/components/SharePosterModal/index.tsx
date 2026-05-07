@@ -9,6 +9,7 @@ export interface SharePosterModalProps {
   onClose: () => void
   title?: string
   canvasId: string
+  canvasHeight?: number
   posterImageUrl: string | null
   onShareImage: () => void
   onSaveImage: () => void
@@ -23,6 +24,7 @@ export const SharePosterModal: React.FC<SharePosterModalProps> = ({
   onClose,
   title = '分享卡片',
   canvasId,
+  canvasHeight = STRENGTH_POSTER_DISPLAY_HEIGHT,
   posterImageUrl,
   onShareImage,
   onSaveImage,
@@ -40,7 +42,7 @@ export const SharePosterModal: React.FC<SharePosterModalProps> = ({
           type='2d'
           id={canvasId}
           className='share-poster-canvas'
-          style={{ width: '750px', height: `${STRENGTH_POSTER_DISPLAY_HEIGHT}px` }}
+          style={{ width: '750px', height: `${canvasHeight}px` }}
         />
       </View>
 
