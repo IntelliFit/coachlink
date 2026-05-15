@@ -1,13 +1,14 @@
 import { useEffect, useState, useMemo } from 'react'
-import { View, Text, ScrollView, Image } from '@tarojs/components'
+import { View, Text, ScrollView, Image, Button as TaroButton, Input as TaroInput } from '@tarojs/components'
 import Taro from '@tarojs/taro'
-import { ConfigProvider, Input } from '@nutui/nutui-react-taro'
+import { ConfigProvider } from '@nutui/nutui-react-taro'
 import zhCN from '@nutui/nutui-react-taro/dist/locales/zh-CN'
 import { authService } from '@/services/authService'
 import { studentService } from '@/services/studentService'
 import { buildStudentOnboardingUrl, isCoreStudentProfileComplete } from '@/services/studentOnboardingService'
+import { NEW_USER_AUDIT_STORAGE_KEY } from '@/utils/newUserAudit'
+import { API_BASE_URL } from '@/utils/request'
 import WheelPicker from '@/components/WheelPicker'
-import BodyMapInterestSelector from '@/components/BodyMapInterestSelector'
 import { svgToDataUri } from '@/utils/svgToDataUri'
 import maleFrontSvgRaw from '@/assets/body-map/maleFrontSvg'
 import maleBackSvgRaw from '@/assets/body-map/maleBackSvg'
@@ -15,14 +16,17 @@ import femaleFrontSvgRaw from '@/assets/body-map/femaleFrontSvg'
 import femaleBackSvgRaw from '@/assets/body-map/femaleBackSvg'
 import './index.scss'
 
+const IS_DEV = process.env.NODE_ENV === 'development'
+
 interface OnboardingFormData {
   nickname: string
+  avatarUrl: string
+  avatarLocalPath: string
   gender: string
   height: number
   weight: number
   fitnessGoal: string
   fitnessLevel: string
-  interestTags: string[]
   equipments: string[]
   sessionDuration: number
   targetBodyParts: string[]
@@ -53,33 +57,41 @@ const FITNESS_LEVEL_OPTIONS = [
   { label: '精英 / 职业', desc: '健身教练、运动员或竞技水平', value: 'elite', wifiLevel: 5 }
 ]
 
-const INTEREST_OPTIONS = [
-  '上肢',
-  '下肢',
-  '核心',
-  '体态纠正',
-  '减脂燃脂',
-  '灵活性',
-  '力量举',
-  '心肺有氧'
-]
-
 const EQUIPMENT_OPTIONS = [
   '徒手',
   '哑铃',
   '杠铃',
   '拉力器/弹力带',
-  '器械区',
+  '固定器械',
   '壶铃'
 ]
 
 const DURATION_OPTIONS = [15, 20, 30, 45, 60]
+const FITNESS_GOAL_SEPARATOR = '\u3001'
 
 type BodyView = 'front' | 'back'
 type BodyGender = 'male' | 'female' | 'unknown'
 
 const MUSCLE_FILL_ORIGIN_STYLE = 'fill:#222222'
 const MUSCLE_FILL_HIGHLIGHT_STYLE = 'fill:#CF6D4E'
+const BODY_PART_OPTION_ORDER = ['胸部', '背部', '肩部', '大臂', '小臂', '腹部', '臀部', '大腿', '小腿']
+
+function normalizeFitnessGoals(value: unknown): string[] {
+  const rawValues = Array.isArray(value)
+    ? value
+    : String(value || '').split(/[,\u3001\uff0c]/)
+  return Array.from(
+    new Set(
+      rawValues
+        .map((item) => String(item || '').trim())
+        .filter(Boolean)
+    )
+  )
+}
+
+function formatFitnessGoals(goals: string[]): string {
+  return normalizeFitnessGoals(goals).join(FITNESS_GOAL_SEPARATOR)
+}
 
 function parseSvgCategoryMap(svg: string): Record<string, string> {
   const map: Record<string, string> = {}
@@ -97,6 +109,19 @@ function parseSvgCategoryMap(svg: string): Record<string, string> {
     }
   }
   return map
+}
+
+function buildBodyPartOptions(frontSvg: string, backSvg: string) {
+  const categories = new Set([
+    ...Object.values(parseSvgCategoryMap(frontSvg)),
+    ...Object.values(parseSvgCategoryMap(backSvg)),
+  ])
+  return BODY_PART_OPTION_ORDER
+    .filter((cat) => cat !== '关节' && categories.has(cat))
+    .map((cat) => ({
+      id: cat,
+      label: cat,
+    }))
 }
 
 function highlightSvgParts(
@@ -131,12 +156,13 @@ function highlightSvgParts(
 
 const DEFAULT_FORM_DATA: OnboardingFormData = {
   nickname: '',
+  avatarUrl: '',
+  avatarLocalPath: '',
   gender: '',
   height: 170,
   weight: 65,
   fitnessGoal: '',
   fitnessLevel: '',
-  interestTags: [],
   equipments: [],
   sessionDuration: 30,
   targetBodyParts: []
@@ -145,11 +171,10 @@ const DEFAULT_FORM_DATA: OnboardingFormData = {
 const STEP_TITLES = [
   { title: '基础信息', desc: '选择你的性别，让我们更了解你。' },
   { title: '身体数据', desc: '选择你的身高和体重，推荐计划会更精准。' },
-  { title: '目标部位', desc: '选择你感兴趣的肌肉部位。' },
-  { title: '健身目标', desc: '选择你的健身目标，定制专属训练方案。' },
+  { title: '重点部位', desc: '选择你更想关注或改善的身体部位。' },
+  { title: '健身目标', desc: '选择你现阶段最想完成的目标，可多选。' },
   { title: '训练水平', desc: '选择你的训练水平，匹配适合难度。' },
-  { title: '训练方向', desc: '选择你感兴趣的肌肉部位。' },
-  { title: '训练偏好', desc: '选择你的器械和训练时长。' }
+  { title: '训练条件', desc: '补充你通常能使用的器械和每次可投入时间。' }
 ]
 
 const HEIGHT_MIN = 100
@@ -174,21 +199,22 @@ const weightItems = (() => {
   return arr
 })()
 
-const getDefaultNickname = (user: any) => {
-  const nickname = String(user?.nickname || '').trim()
-  if (nickname) return nickname
+const GENERATED_NICKNAME_PATTERNS = [
+  /^手机用户_\d{4}$/,
+  /^邮箱用户_.+$/,
+  /^CoachLink 学员$/,
+  /^小白体验用户$/,
+]
 
-  const phone = String(user?.phone || '').trim()
-  if (phone && phone !== 'null') {
-    return `手机用户_${phone.slice(-4)}`
-  }
+const getExplicitNickname = (value: unknown) => {
+  const nickname = String(value || '').trim()
+  if (!nickname) return ''
+  if (GENERATED_NICKNAME_PATTERNS.some((pattern) => pattern.test(nickname))) return ''
+  return nickname
+}
 
-  const email = String(user?.email || '').trim()
-  if (email) {
-    return `邮箱用户_${(email.split('@')[0] || '').slice(0, 8)}`
-  }
-
-  return 'CoachLink 学员'
+const getPrefillNickname = (profile: any, user: any) => {
+  return getExplicitNickname(profile?.nickname) || getExplicitNickname(user?.nickname)
 }
 
 const WifiSignalIcon: React.FC<{ level: number; active: boolean }> = ({ level, active }) => {
@@ -230,6 +256,16 @@ function StudentOnboarding() {
 
   const totalSteps = STEP_TITLES.length
 
+  const isAuditMode = (() => {
+    if (!IS_DEV) return false
+    try {
+      const params = Taro.getCurrentInstance().router?.params as any
+      return params?.audit === '1'
+    } catch (_) {
+      return false
+    }
+  })()
+
   const nextUrl = (() => {
     try {
       const rawNext = (Taro.getCurrentInstance().router?.params as any)?.next
@@ -245,6 +281,22 @@ function StudentOnboarding() {
 
   useEffect(() => {
     const bootstrap = async () => {
+      if (isAuditMode) {
+        Taro.setStorageSync(NEW_USER_AUDIT_STORAGE_KEY, {
+          enabled: true,
+          startedAt: new Date().toISOString(),
+        })
+        setFormData({
+          ...DEFAULT_FORM_DATA,
+          nickname: '',
+          gender: 'unknown',
+          fitnessGoal: '增肌',
+          fitnessLevel: 'beginner',
+        })
+        setLoading(false)
+        return
+      }
+
       const session = authService.getAuthSession({ normalize: true })
       if (!session.isAuthenticated || !session.userId) {
         Taro.redirectTo({
@@ -272,13 +324,14 @@ function StudentOnboarding() {
         const initWeight = Number(profile?.weight || DEFAULT_FORM_DATA.weight)
 
         setFormData({
-          nickname: String(profile?.nickname || getDefaultNickname(session.user)).trim(),
+          nickname: getPrefillNickname(profile, session.user),
+          avatarUrl: String(profile?.avatar_url || session.user?.avatar_url || '').trim(),
+          avatarLocalPath: '',
           gender: String(profile?.gender || ''),
           height: initHeight,
           weight: initWeight,
           fitnessGoal: String(profile?.fitness_goal || ''),
           fitnessLevel: String(profile?.fitness_level || ''),
-          interestTags: Array.isArray(questionnaire?.interest_tags) ? questionnaire.interest_tags : [],
           equipments: Array.isArray(questionnaire?.equipment) ? questionnaire.equipment : [],
           sessionDuration: Number(questionnaire?.session_duration || DEFAULT_FORM_DATA.sessionDuration),
           targetBodyParts: Array.isArray(questionnaire?.target_body_parts) ? questionnaire.target_body_parts : []
@@ -304,15 +357,73 @@ function StudentOnboarding() {
     }
 
     void bootstrap()
-  }, [nextUrl])
+  }, [isAuditMode, nextUrl])
 
-  const toggleListValue = (key: 'interestTags' | 'equipments', value: string) => {
+  const toggleListValue = (value: string) => {
     setFormData((prev) => {
-      const nextValues = prev[key].includes(value)
-        ? prev[key].filter((item) => item !== value)
-        : [...prev[key], value]
-      return { ...prev, [key]: nextValues }
+      const nextValues = prev.equipments.includes(value)
+        ? prev.equipments.filter((item) => item !== value)
+        : [...prev.equipments, value]
+      return { ...prev, equipments: nextValues }
     })
+  }
+
+  const selectedFitnessGoals = useMemo(
+    () => normalizeFitnessGoals(formData.fitnessGoal),
+    [formData.fitnessGoal]
+  )
+
+  const toggleFitnessGoal = (value: string) => {
+    setFormData((prev) => {
+      const current = normalizeFitnessGoals(prev.fitnessGoal)
+      const next = current.includes(value)
+        ? current.filter((item) => item !== value)
+        : [...current, value]
+      return { ...prev, fitnessGoal: formatFitnessGoals(next) }
+    })
+  }
+
+  const handleChooseAvatar = (event: any) => {
+    const avatarUrl = event?.detail?.avatarUrl
+    if (!avatarUrl) {
+      Taro.showToast({ title: '未选择头像', icon: 'none' })
+      return
+    }
+    setFormData((prev) => ({
+      ...prev,
+      avatarLocalPath: avatarUrl,
+    }))
+  }
+
+  const uploadWechatAvatar = async (filePath: string) => {
+    const token = authService.getToken()
+    if (!token) {
+      throw new Error('头像上传需要先完成登录')
+    }
+
+    const result = await Taro.uploadFile({
+      url: `${API_BASE_URL}/api/upload/avatar`,
+      filePath,
+      name: 'file',
+      header: {
+        Authorization: `Bearer ${token}`,
+      },
+    })
+
+    let body: any = result.data
+    if (typeof body === 'string') {
+      try {
+        body = JSON.parse(body)
+      } catch {
+        body = null
+      }
+    }
+
+    if (result.statusCode !== 200 || !body?.success || !body?.data?.url) {
+      throw new Error(body?.message || '头像上传失败')
+    }
+
+    return String(body.data.url)
   }
 
   const validateCurrentStep = () => {
@@ -328,7 +439,7 @@ function StudentOnboarding() {
       return true
     }
     if (step === 4) {
-      if (!formData.fitnessGoal) {
+      if (selectedFitnessGoals.length === 0) {
         Taro.showToast({ title: '请选择健身目标', icon: 'none' })
         return false
       }
@@ -358,14 +469,6 @@ function StudentOnboarding() {
     setStep((prev) => Math.max(prev - 1, 1))
   }
 
-  const goBodyParts = () => {
-    const selected = JSON.stringify(formData.targetBodyParts)
-    const gender = formData.gender || 'unknown'
-    Taro.navigateTo({
-      url: `/auth/body-parts?selected=${encodeURIComponent(selected)}&gender=${encodeURIComponent(gender)}`
-    })
-  }
-
   useEffect(() => {
     const onBodyParts = (data: { parts: string[] }) => {
       setFormData((prev) => ({ ...prev, targetBodyParts: data.parts }))
@@ -379,10 +482,27 @@ function StudentOnboarding() {
   const handleSubmit = async () => {
     if (!validateCurrentStep()) return
 
+    if (isAuditMode) {
+      Taro.showToast({
+        title: '体验完成，未写入真实账号',
+        icon: 'success'
+      })
+      setTimeout(() => {
+        Taro.reLaunch({ url: nextUrl })
+      }, 400)
+      return
+    }
+
     setSaving(true)
     try {
+      let avatarUrl = formData.avatarUrl.trim() || undefined
+      if (formData.avatarLocalPath) {
+        avatarUrl = await uploadWechatAvatar(formData.avatarLocalPath)
+      }
+
       const profile = await studentService.updateProfile({
         nickname: formData.nickname.trim(),
+        ...(avatarUrl ? { avatar_url: avatarUrl } : {}),
         gender: formData.gender,
         height: formData.height,
         weight: formData.weight,
@@ -396,14 +516,15 @@ function StudentOnboarding() {
       }
 
       authService.mergeCurrentUser({
-        nickname: formData.nickname.trim()
+        nickname: formData.nickname.trim(),
+        ...(avatarUrl ? { avatar_url: avatarUrl } : {}),
       })
 
       try {
         await studentService.submitOnboarding({
           answers: {
             flow_version: 'miniapp_v1_aligned',
-            interest_tags: formData.interestTags,
+            fitness_goals: selectedFitnessGoals,
             equipment: formData.equipments,
             session_duration: formData.sessionDuration,
             target_body_parts: formData.targetBodyParts
@@ -454,16 +575,10 @@ function StudentOnboarding() {
       return view === 'front' ? maleFrontSvgRaw : maleBackSvgRaw
     }, [view, effectiveGender])
 
+    const frontSvgRaw = effectiveGender === 'female' ? femaleFrontSvgRaw : maleFrontSvgRaw
+    const backSvgRaw = effectiveGender === 'female' ? femaleBackSvgRaw : maleBackSvgRaw
     const categoryMap = useMemo(() => parseSvgCategoryMap(svgRaw), [svgRaw])
-
-    const options = useMemo(() => {
-      const categories = Array.from(new Set(Object.values(categoryMap)))
-        .filter((cat) => cat !== '关节')
-      return categories.map((cat) => ({
-        id: cat,
-        label: cat,
-      }))
-    }, [categoryMap])
+    const options = useMemo(() => buildBodyPartOptions(frontSvgRaw, backSvgRaw), [frontSvgRaw, backSvgRaw])
 
     const svgDataUri = useMemo(() => {
       const baseSvg = svgRaw
@@ -500,6 +615,11 @@ function StudentOnboarding() {
           >
             <Text className='bp-view-btn-text'>背面</Text>
           </View>
+        </View>
+
+        <View className='bp-help-card'>
+          <Text className='bp-help-title'>正面 / 背面只是观察角度</Text>
+          <Text className='bp-help-desc'>左侧是统一肌群列表。比如胸部主要在正面高亮，背部和臀部主要在背面高亮，切换视图不会清掉你的选择。</Text>
         </View>
 
         <View className='bp-main'>
@@ -549,8 +669,16 @@ function StudentOnboarding() {
     </View>
   )
 
-  const renderBody = () => (
-    <View className='onboarding-content'>
+  const renderBody = () => {
+    const profileAvatarSrc = formData.avatarLocalPath || formData.avatarUrl
+
+    return (
+    <View className={`onboarding-content ${step === 1 ? 'onboarding-content--profile-step' : ''}`}>
+      {isAuditMode && (
+        <View className='audit-mode-banner'>
+          <Text className='audit-mode-banner-text'>新用户体验检查：本页不会提交真实资料</Text>
+        </View>
+      )}
       {renderStepDots()}
       <Text className='onboarding-title'>{stepInfo.title}</Text>
       <Text className='onboarding-desc'>{stepInfo.desc}</Text>
@@ -558,14 +686,33 @@ function StudentOnboarding() {
       {step === 1 && (
 
         <View className='step-content'>
-          <View className='field-group'>
-            <Text className='field-label'>昵称</Text>
-            <View className='input-shell'>
-              <Input
-                value={formData.nickname}
-                placeholder='给自己取个名字吧'
-                onChange={(value) => setFormData((prev) => ({ ...prev, nickname: value }))}
-              />
+          <View className='profile-setup-card'>
+            <Text className='profile-setup-title'>头像和昵称</Text>
+            <Text className='profile-setup-desc'>昵称必须由你填写，或点击输入框使用微信昵称建议；系统不会自动生成默认名。</Text>
+            <View className='profile-setup-row'>
+              <TaroButton
+                className='profile-avatar-picker'
+                openType='chooseAvatar'
+                onChooseAvatar={handleChooseAvatar}
+              >
+                {profileAvatarSrc ? (
+                  <Image className='profile-avatar-preview' src={profileAvatarSrc} mode='aspectFill' />
+                ) : (
+                  <Text className='profile-avatar-placeholder'>选头像</Text>
+                )}
+              </TaroButton>
+              <View className='profile-nickname-shell'>
+                <TaroInput
+                  className='profile-nickname-input'
+                  type='nickname'
+                  value={formData.nickname}
+                  placeholder='请输入昵称或使用微信昵称'
+                  onInput={(event) => setFormData((prev) => ({
+                    ...prev,
+                    nickname: String(event.detail.value || ''),
+                  }))}
+                />
+              </View>
             </View>
           </View>
 
@@ -640,19 +787,22 @@ function StudentOnboarding() {
 
         <View className='step-content'>
           <View className='option-list'>
-            {FITNESS_GOAL_OPTIONS.map((option) => (
-              <View
-                key={option.value}
-                className={`option-card ${formData.fitnessGoal === option.value ? 'option-card--active' : ''}`}
-                onClick={() => setFormData((prev) => ({ ...prev, fitnessGoal: option.value }))}
-              >
-                <View className='option-card-main'>
-                  <Text className='option-card-title'>{option.label}</Text>
-                  <Text className='option-card-desc'>{option.desc}</Text>
+            {FITNESS_GOAL_OPTIONS.map((option) => {
+              const active = selectedFitnessGoals.includes(option.value)
+              return (
+                <View
+                  key={option.value}
+                  className={`option-card ${active ? 'option-card--active' : ''}`}
+                  onClick={() => toggleFitnessGoal(option.value)}
+                >
+                  <View className='option-card-main'>
+                    <Text className='option-card-title'>{option.label}</Text>
+                    <Text className='option-card-desc'>{option.desc}</Text>
+                  </View>
+                  <View className={`option-check ${active ? 'option-check--active' : ''}`} />
                 </View>
-                <View className={`option-check ${formData.fitnessGoal === option.value ? 'option-check--active' : ''}`} />
-              </View>
-            ))}
+              )
+            })}
           </View>
         </View>
       )}
@@ -683,43 +833,14 @@ function StudentOnboarding() {
 
       {step === 6 && (
         <View className='step-content'>
-          <BodyMapInterestSelector
-            gender={formData.gender as any}
-            selectedIds={formData.interestTags}
-            onChange={(ids) => setFormData((prev) => ({ ...prev, interestTags: ids }))}
-          />
-        </View>
-      )}
-
-      {step === 7 && (
-        <View className='step-content'>
           <View className='field-group'>
-            <Text className='field-label'>感兴趣的健身部位</Text>
-            <View className='body-parts-trigger' onClick={goBodyParts}>
-              {formData.targetBodyParts.length === 0 ? (
-                <Text className='body-parts-trigger-placeholder'>点击选择目标部位</Text>
-              ) : (
-                <View className='body-parts-tags'>
-                  {formData.targetBodyParts.slice(0, 4).map((part) => (
-                    <Text key={part} className='body-parts-tag'>{part}</Text>
-                  ))}
-                  {formData.targetBodyParts.length > 4 && (
-                    <Text className='body-parts-tag'>+{formData.targetBodyParts.length - 4}</Text>
-                  )}
-                </View>
-              )}
-              <Text className='body-parts-trigger-arrow'>›</Text>
-            </View>
-          </View>
-
-          <View className='field-group'>
-            <Text className='field-label'>常用器械</Text>
+            <Text className='field-label'>可用训练器械</Text>
             <View className='tag-grid'>
               {EQUIPMENT_OPTIONS.map((option) => (
                 <View
                   key={option}
                   className={`tag-chip ${formData.equipments.includes(option) ? 'tag-chip--active' : ''}`}
-                  onClick={() => toggleListValue('equipments', option)}
+                  onClick={() => toggleListValue(option)}
                 >
                   <Text className='tag-chip-text'>{option}</Text>
                 </View>
@@ -728,7 +849,7 @@ function StudentOnboarding() {
           </View>
 
           <View className='field-group'>
-            <Text className='field-label'>单次训练时长</Text>
+            <Text className='field-label'>每次可投入时间</Text>
             <View className='tag-grid duration-grid'>
               {DURATION_OPTIONS.map((option) => (
                 <View
@@ -745,6 +866,7 @@ function StudentOnboarding() {
       )}
     </View>
   )
+  }
 
   return (
     <ConfigProvider locale={zhCN}>

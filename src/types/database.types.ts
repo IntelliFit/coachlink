@@ -164,6 +164,7 @@ export type Database = {
           id: string
           order_data: Json | null
           order_type: string | null
+          payment_provider: string | null
           product_code: string | null
           qr_code: string | null
           status: string
@@ -179,6 +180,7 @@ export type Database = {
           id?: string
           order_data?: Json | null
           order_type?: string | null
+          payment_provider?: string | null
           product_code?: string | null
           qr_code?: string | null
           status?: string
@@ -194,6 +196,7 @@ export type Database = {
           id?: string
           order_data?: Json | null
           order_type?: string | null
+          payment_provider?: string | null
           product_code?: string | null
           qr_code?: string | null
           status?: string

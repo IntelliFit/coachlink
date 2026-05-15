@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Activity, BookOpen, CheckCircle2, ChevronRight, Dumbbell, Edit3, MapPin, Plus, Search, Sparkles, Users } from "lucide-react";
+import { Activity, BookOpen, CheckCircle2, ChevronRight, Dumbbell, Edit3, HeartPulse, MapPin, Plus, Search, ShieldCheck, Sparkles, Target, Users } from "lucide-react";
 import AIChatPanel from "@/components/knowledge/AIChatPanel";
 import BodyMapCanvas, { BODY_REGION_LABELS, type BodyRegion } from "@/components/knowledge/BodyMap/BodyMapCanvas";
 import BodyMapModeSwitch from "@/components/knowledge/BodyMap/BodyMapModeSwitch";
@@ -42,6 +42,30 @@ const AERO_CARD = "rounded-3xl border border-surface-100 dark:border-surface-800
 const AERO_TITLE = "text-xl font-bold tracking-tight text-surface-900 dark:text-surface-0";
 const AERO_SUBTITLE = "text-sm text-surface-600 dark:text-surface-400 mt-1";
 const SHOW_KNOWLEDGE_PILLARS = false;
+
+const PATH_LEARNING_BLOCKS = [
+    {
+        title: "零基础 7 天起步",
+        desc: "先解决怕练错、不会开始和信息太多的问题。",
+        cta: "去今日训练",
+        href: "/today-training",
+        icon: Target,
+    },
+    {
+        title: "疼痛和不适先筛查",
+        desc: "有旧伤或不舒服时，先明确哪些动作要退阶或暂停。",
+        cta: "看筛查内容",
+        href: "/dashboard/knowledge/search?q=疼痛筛查",
+        icon: ShieldCheck,
+    },
+    {
+        title: "没效果先做诊断",
+        desc: "从训练容量、饮食、恢复和坚持反馈里找原因。",
+        cta: "查没效果",
+        href: "/dashboard/knowledge/search?q=没效果",
+        icon: HeartPulse,
+    },
+];
 
 // 自定义非线性动画曲线 - 营造丝滑感
 const ANIMATION_CURVE = "cubic-bezier(0.34, 1.56, 0.64, 1)";
@@ -208,8 +232,8 @@ const KnowledgeBaseHomePage = () => {
                                 <BookOpen className="w-5 h-5 text-primary-600 dark:text-primary-400" />
                             </div>
                             <div>
-                                <h1 className={AERO_TITLE}>知识库</h1>
-                                <p className={AERO_SUBTITLE}>点击身体部位，共建训练知识</p>
+                                <h1 className={AERO_TITLE}>学习路径</h1>
+                                <p className={AERO_SUBTITLE}>内容先回答今天为什么这样练，再进入资料库和身体地图</p>
                             </div>
                         </div>
                     </div>
@@ -223,7 +247,7 @@ const KnowledgeBaseHomePage = () => {
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
                                 onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-                                placeholder="搜索知识点..."
+                                placeholder="搜索动作、饮食、疼痛或没效果..."
                                 className="flex-1 px-3 py-3.5 bg-transparent text-surface-900 dark:text-surface-0 placeholder-surface-400 text-sm focus:outline-none"
                             />
                             <button
@@ -238,7 +262,7 @@ const KnowledgeBaseHomePage = () => {
 
                     {/* Quick Tags */}
                     <div className="flex flex-wrap gap-2 mt-3">
-                        {['深蹲', '拉伸', '减脂', '增肌'].map((tag) => (
+                        {['新手起步', '动作标准', '饮食三原则', '没效果'].map((tag) => (
                             <button
                                 key={tag}
                                 onClick={() => router.push(`/dashboard/knowledge/search?q=${tag}`)}
@@ -247,6 +271,35 @@ const KnowledgeBaseHomePage = () => {
                                 {tag}
                             </button>
                         ))}
+                    </div>
+                </div>
+
+                <div className={`${AERO_CONTAINER} mb-4`}>
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                        {PATH_LEARNING_BLOCKS.map((item) => {
+                            const Icon = item.icon;
+                            return (
+                                <button
+                                    key={item.title}
+                                    onClick={() => router.push(item.href)}
+                                    className={`${AERO_CARD} p-4 text-left active:scale-[0.98]`}
+                                >
+                                    <div className="flex items-start gap-3">
+                                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-primary-50 dark:bg-primary-900/30">
+                                            <Icon className="h-5 w-5 text-primary-600 dark:text-primary-300" />
+                                        </div>
+                                        <div className="min-w-0">
+                                            <h2 className="text-sm font-bold text-surface-900 dark:text-surface-0">{item.title}</h2>
+                                            <p className="mt-1 text-xs leading-relaxed text-surface-500 dark:text-surface-400">{item.desc}</p>
+                                            <span className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-primary-600 dark:text-primary-300">
+                                                {item.cta}
+                                                <ChevronRight className="h-3.5 w-3.5" />
+                                            </span>
+                                        </div>
+                                    </div>
+                                </button>
+                            );
+                        })}
                     </div>
                 </div>
 

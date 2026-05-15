@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getApiUserId } from "@/lib/getApiUserId";
 import supabase from "@/lib/supabaseClient";
-import { yuanToFen } from "@/lib/moneyUtils";
+import {
+    durationMonthsFromPurchasedWeeks,
+    resolveCoachSubscriptionPricing,
+} from "@/lib/coachSubscriptionPricing";
 
 // 重要！必须以 import type 引入接口类型
 import type { ApiData } from "@/types/api";
@@ -23,20 +26,16 @@ export async function POST(req: NextRequest) {
 
     const {
         coachId,
-        tier,
         orderId,
-        monthlyPrice,
-        status = "active",
+        status = "inactive",
         subscribeData,
         // 新增产品字段
         productId,
-        productName,
-        productTier,
         subscribedWeeks,
     } = await req.json() as CreateSubscriptionDto;
 
     // 参数验证
-    if (!coachId || !tier || monthlyPrice === undefined) {
+    if (!coachId || !productId || !subscribedWeeks) {
         return NextResponse.json<ApiData<CreateSubscriptionResponseDto>>({
             success: false,
             message: "缺少必要参数",
@@ -59,6 +58,23 @@ export async function POST(req: NextRequest) {
             data: null,
         }, { status: 400 });
     }
+
+    let pricing;
+    try {
+        pricing = await resolveCoachSubscriptionPricing({
+            coachId,
+            productId,
+            durationMonths: durationMonthsFromPurchasedWeeks(subscribedWeeks),
+        });
+    } catch (error) {
+        return NextResponse.json<ApiData<CreateSubscriptionResponseDto>>({
+            success: false,
+            message: error instanceof Error ? error.message : "套餐价格校验失败，请重新选择套餐",
+            data: null,
+        }, { status: 400 });
+    }
+
+    const normalizedStatus = status === "waiting" ? "waiting" : "inactive";
 
     // 查看是否已经存在订阅
     const { data: subscriptionQuery, error: subscriptionQueryError } =
@@ -106,20 +122,20 @@ export async function POST(req: NextRequest) {
 
         // 更新现有订阅的数据
         const updateData: Record<string, unknown> = {
-            tier,
-            monthly_price: yuanToFen(monthlyPrice),
-            status,
+            tier: pricing.tier,
+            monthly_price: pricing.amountFen,
+            status: normalizedStatus,
             subscribe_data: subscribeData as unknown as Json,
+            product_id: pricing.productId,
+            product_name: pricing.productName,
+            product_tier: pricing.productTier,
+            subscribed_weeks: pricing.purchasedWeeks,
         };
 
         // 如果提供了产品信息，也更新产品字段
-        if (productId) updateData.product_id = productId;
-        if (productName) updateData.product_name = productName;
-        if (productTier) updateData.product_tier = productTier;
         if (orderId) updateData.order_id = orderId;
         // NOTE: do NOT recompute end_date here. Duration changes/renewals should be handled by
         // payment callbacks or dedicated renewal/admin flows to avoid "reset from now" bugs.
-        if (subscribedWeeks) updateData.subscribed_weeks = subscribedWeeks;
 
         const { data: subscriptionEdit, error: subscriptionEditError } =
             await supabase
@@ -145,20 +161,19 @@ export async function POST(req: NextRequest) {
     const insertData: Record<string, unknown> = {
         student_id: userId,
         coach_id: coachId,
-        tier: tier,
-        monthly_price: yuanToFen(monthlyPrice),
-        status,
+        tier: pricing.tier,
+        monthly_price: pricing.amountFen,
+        status: normalizedStatus,
         subscribe_data: subscribeData as unknown as Json,
         start_date: null,
         end_date: null,
+        product_id: pricing.productId,
+        product_name: pricing.productName,
+        product_tier: pricing.productTier,
+        subscribed_weeks: pricing.purchasedWeeks,
     };
 
     // 添加产品字段（如果提供）
-    if (productId) insertData.product_id = productId;
-    if (productName) insertData.product_name = productName;
-    if (productTier) insertData.product_tier = productTier;
-    if (subscribedWeeks) insertData.subscribed_weeks = subscribedWeeks;
-
     // 创建订阅记录
     const { data: subscription, error: subscriptionError } = await supabase
         .from("coach_subscriptions")

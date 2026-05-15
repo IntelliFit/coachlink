@@ -1,5 +1,5 @@
 export default {
-  navigationBarTitleText: '注册',
+  navigationBarTitleText: '账号注册',
   navigationStyle: 'custom',
   animationType: 'none'
 }

@@ -380,7 +380,7 @@ export function parseAcctSplitBunch(raw: string | Record<string, unknown> | unde
     const data = typeof raw === "string" ? JSON.parse(raw) : raw;
     const infos = Array.isArray((data as any)?.acct_infos) ? (data as any).acct_infos : [];
     return infos.map((info: any) => ({
-        huifuId: String(info.huifu_id || ""),
+        huifuId: String(info.huifu_id || info.in_huifu_id || ""),
         divAmtYuan: String(info.div_amt || "0"),
         divAmtFen: Math.round(parseFloat(String(info.div_amt || "0")) * 100),
     }));
@@ -600,7 +600,7 @@ export interface BalanceSplitReceiver {
     divAmt: string; // 单位元，如 "0.80"
 }
 
-export interface BalancePaymentResult {
+export interface BalancePaymentResult extends HuifuPayload {
     resp_code: string;
     resp_desc: string;
     trans_stat?: string;
@@ -608,6 +608,19 @@ export interface BalancePaymentResult {
     out_huifu_id?: string;
     ord_amt?: string;
     acct_split_bunch?: string;
+    acct_payment_split_bunch?: string;
+}
+
+export interface BalancePaymentQueryResult extends HuifuPayload {
+    resp_code: string;
+    resp_desc: string;
+    trans_stat?: string;
+    hf_seq_id?: string;
+    org_req_date?: string;
+    org_req_seq_id?: string;
+    ord_amt?: string;
+    acct_split_bunch?: string;
+    acct_payment_split_bunch?: string;
 }
 
 /** 余额支付：从平台现金户转账到教练/平台账户 */
@@ -652,6 +665,22 @@ export async function transferByBalancePayment(params: {
     }
 
     return huifuPost<BalancePaymentResult>("/v2/trade/acctpayment/pay", payload);
+}
+
+/** 查询余额支付分账结果。用于处理已经发起请求但本地停在 processing 的分账记录。 */
+export async function queryBalancePayment(params: {
+    orgReqDate: string;
+    orgReqSeqId: string;
+    huifuId?: string;
+}): Promise<BalancePaymentQueryResult> {
+    const { customerId } = getHuifuConfig();
+    return huifuPost<BalancePaymentQueryResult>("/v2/trade/acctpayment/pay/query", {
+        req_date: formatHuifuReqDate(),
+        req_seq_id: generateReqSeqId(),
+        huifu_id: params.huifuId || customerId,
+        org_req_date: params.orgReqDate,
+        org_req_seq_id: params.orgReqSeqId,
+    });
 }
 
 // ── 取现 ──

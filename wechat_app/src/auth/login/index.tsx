@@ -13,6 +13,7 @@ import { sesService } from '@/services/sesService'
 import { authService } from '@/services/authService'
 import SliderCaptcha from '@/components/SliderCaptcha'
 import ResetPasswordForm from '@/components/ResetPasswordForm'
+import { enterAuditStudentOnboarding } from '@/utils/newUserAudit'
 
 import loginBg from '@/assets/images/login-bg.jpg'
 import './index.scss'
@@ -80,6 +81,25 @@ function Login() {
 
   const handlePostLoginSuccess = async () => {
     await Taro.reLaunch({ url: authService.buildPostAuthHomeUrl() })
+  }
+
+  const goBackOrHome = async () => {
+    try {
+      const pages = Taro.getCurrentPages()
+
+      if (pages.length > 1) {
+        await Taro.navigateBack()
+        return
+      }
+    } catch {
+      // Fall through to the safe browsing entry.
+    }
+
+    await Taro.reLaunch({ url: '/pages/index/index' })
+  }
+
+  const goBrowseHome = () => {
+    Taro.reLaunch({ url: '/pages/index/index' })
   }
 
   const goToTerms = () => Taro.navigateTo({ url: '/me/terms/index' })
@@ -182,6 +202,10 @@ function Login() {
         <View className='login-hero'>
           <Image className='login-bg' src={loginBg} mode='aspectFill' />
           <View className='login-hero-overlay'>
+            <View className='login-back-pill' onClick={goBackOrHome}>
+              <Text className='login-back-icon'>‹</Text>
+              <Text className='login-back-text'>返回</Text>
+            </View>
             <Text className='login-hero-brand'>教链 CoachLink</Text>
             <Text className='login-hero-slogan'>登录以继续你的训练计划</Text>
           </View>
@@ -204,6 +228,11 @@ function Login() {
           ) : (
             <>
               <Text className='login-card-title'>登录</Text>
+
+              <View className='login-browse-card' onClick={goBrowseHome}>
+                <Text className='login-browse-title'>暂不登录，先逛逛</Text>
+                <Text className='login-browse-desc'>可以先浏览内容，需要保存资料或联系教练时再登录</Text>
+              </View>
 
               <View className='mode-switcher'>
                 <View
@@ -314,7 +343,7 @@ function Login() {
                   )}
 
                   <View
-                    className={`login-button ${loading || !agreed ? 'login-button-disabled' : ''} ${loading ? 'login-button-loading' : ''}`}
+                    className={`login-button ${loading ? 'login-button-loading' : ''}`}
                     onClick={!loading && agreed ? handleLogin : () => {
                       if (!agreed) Toast.show('请阅读并勾选用户服务协议和隐私政策', {})
                     }}
@@ -329,51 +358,28 @@ function Login() {
                     )}
                   </View>
 
-                  <View className='wechat-login-divider'>
-                    <View className='divider-line' />
-                    <Text className='divider-text'>或</Text>
-                    <View className='divider-line' />
-                  </View>
-
-                  <TaroButton
-                    className={`wechat-login-button ${!agreed ? 'wechat-login-button-disabled' : ''}`}
-                    openType='getPhoneNumber'
-                    onGetPhoneNumber={handleWechatLogin}
-                    disabled={loading || !agreed}
-                  >
-                    {loading ? (
-                      <Text className='wechat-login-text'>登录中...</Text>
-                    ) : (
-                      <Text className='wechat-login-text'>手机号快捷登录</Text>
-                    )}
-                  </TaroButton>
-
                   <View className='register-tip'>
-                    <Text className='tip-text'>还没有账户？</Text>
-                    <Text className='tip-link' onClick={goToRegister}>立即注册</Text>
+                    <Text className='tip-text'>还没有备用账号？</Text>
+                    <Text className='tip-link' onClick={goToRegister}>账号注册</Text>
                   </View>
 
                 </>
               )}
 
               {IS_DEV && (
-                <View className='dev-onboarding-btn' onClick={() => {
-                  const mockUser = {
-                    id: 'dev-user-' + Date.now(),
-                    nickname: '开发测试用户',
-                    name: '开发测试用户',
-                    role: 'student',
-                    primary_role: 'student',
-                    avatar_url: '',
-                    phone: '',
-                    email: '',
-                  }
-                  const mockToken = 'dev-token-' + Date.now()
-                  Taro.setStorageSync('token', mockToken)
-                  Taro.setStorageSync('user', mockUser)
-                  Taro.reLaunch({ url: '/auth/student-onboarding' })
-                }}>
-                  <Text className='dev-onboarding-btn-text'>【开发】快速进入初始化引导</Text>
+                <View className='dev-tools-panel'>
+                  <View
+                    className='dev-onboarding-btn'
+                    onClick={() => Taro.navigateTo({ url: '/auth/new-user-audit' })}
+                  >
+                    <Text className='dev-onboarding-btn-text'>【开发】新用户体验检查台</Text>
+                  </View>
+                  <View
+                    className='dev-onboarding-btn dev-onboarding-btn-secondary'
+                    onClick={() => enterAuditStudentOnboarding('/pages/index/index')}
+                  >
+                    <Text className='dev-onboarding-btn-text dev-onboarding-btn-text-secondary'>【开发】直接体验资料完善</Text>
+                  </View>
                 </View>
               )}
 

@@ -5,9 +5,11 @@
  */
 import { serviceRoleSupabase } from "@/lib/supabaseClient";
 import { createAlipaySdk } from "@/lib/alipaySdk";
+import { yuanToFen } from "@/lib/moneyUtils";
 import {
-    fulfillSubscriptionOnPaid,
-    updateTransactionAndWallet,
+    fulfillPaidSubscriptionOrder,
+    isHuifuBackedPaymentOrder,
+    isSubscriptionOrderType,
 } from "@/app/api/payment/alipay/fulfillPaidOrder";
 
 // 只拉取最近 N 小时内的 pending 订单；超出的订单留在库里但不查支付宝（可配 ALIPAY_SYNC_PENDING_WINDOW_HOURS，默认 48）
@@ -17,6 +19,7 @@ const PENDING_WINDOW_HOURS =
 async function queryAlipayTradeStatus(orderId: string): Promise<{
     tradeStatus: string | null;
     tradeNo: string | null;
+    amountFen: number | null;
 }> {
     const alipaySdk = createAlipaySdk();
     const response = await alipaySdk.exec("alipay.trade.query", {
@@ -25,6 +28,9 @@ async function queryAlipayTradeStatus(orderId: string): Promise<{
     return {
         tradeStatus: (response?.tradeStatus as string) ?? null,
         tradeNo: (response?.tradeNo as string) ?? null,
+        amountFen: response?.totalAmount || response?.total_amount
+            ? yuanToFen(String(response.totalAmount || response.total_amount))
+            : null,
     };
 }
 
@@ -41,7 +47,7 @@ export async function syncPendingAlipayOrders(): Promise<SyncPendingResult> {
 
     const { data: pendingOrders, error: listError } = await serviceRoleSupabase
         .from("alipay_orders")
-        .select("id, user_id, order_type, order_data, total_amount, subject")
+        .select("id, user_id, order_type, order_data, total_amount, subject, payment_provider")
         .eq("status", "pending")
         .gte("created_at", sinceIso)
         .order("created_at", { ascending: false })
@@ -61,12 +67,20 @@ export async function syncPendingAlipayOrders(): Promise<SyncPendingResult> {
 
     for (const row of pendingOrders) {
         try {
-            const { tradeStatus, tradeNo } = await queryAlipayTradeStatus(row.id);
+            if (isHuifuBackedPaymentOrder(row)) {
+                continue;
+            }
+
+            const { tradeStatus, tradeNo, amountFen } = await queryAlipayTradeStatus(row.id);
             const isPaid =
                 tradeStatus === "TRADE_SUCCESS" || tradeStatus === "TRADE_FINISHED";
             const isClosed = tradeStatus === "TRADE_CLOSED";
 
             if (!isPaid && !isClosed) continue;
+            if (isPaid && (!amountFen || amountFen !== Math.round(Number(row.total_amount || 0)))) {
+                errors.push(`order ${row.id}: amount mismatch local=${row.total_amount} gateway=${amountFen ?? "missing"}`);
+                continue;
+            }
 
             const orderStatus = isPaid ? "paid" : "closed"; // 数据库约束：pending|paid|failed|closed|refunded
             const { data: order, error: updateOrderError } =
@@ -89,15 +103,9 @@ export async function syncPendingAlipayOrders(): Promise<SyncPendingResult> {
 
             if (orderStatus === "paid") {
                 const userId = order.user_id ?? "";
-                if (
-                    order.order_type === "subscription" ||
-                    order.order_type === "subscription_renew" ||
-                    order.order_type === "coach_subscription" ||
-                    order.order_type === "coach_subscription_renew"
-                ) {
-                    await fulfillSubscriptionOnPaid(order, order.id, userId);
+                if (isSubscriptionOrderType(order.order_type)) {
+                    await fulfillPaidSubscriptionOrder(order, userId);
                 }
-                await updateTransactionAndWallet(order);
                 updated++;
             }
         } catch (e) {
