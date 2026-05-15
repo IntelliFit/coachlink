@@ -121,6 +121,7 @@ export default {
       pages: [
         'articles',
         'content-detail',
+        'path/index',
         'knowledge',
         'knowledge/book-detail',
         'knowledge/node-detail',
@@ -134,6 +135,7 @@ export default {
         'login',
         'register',
         'onboarding',
+        'new-user-audit',
         'student-onboarding',
         'wechat-auth',
       ],

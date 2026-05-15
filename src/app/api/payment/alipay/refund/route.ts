@@ -5,6 +5,7 @@ import { createAlipaySdk } from "@/lib/alipaySdk";
 import type { ApiData } from "@/types/api";
 import type { RefundAlipayOrderDto, RefundAlipayOrderResponseDto } from "./entity";
 import { fenToYuan, subtractFen, ensureNonNegativeFen, formatYuanFromFen } from "@/lib/moneyUtils";
+import { isHuifuBackedPaymentOrder } from "@/app/api/payment/alipay/fulfillPaidOrder";
 
 function isCoachSubscriptionOrderType(orderType: unknown) {
     return (
@@ -39,9 +40,9 @@ export async function POST(req: Request) {
         }, { status: 400 });
     }
 
-    const { data: order, error: orderErr } = await serviceRoleSupabase
+    const { data: order, error: orderErr } = await (serviceRoleSupabase
         .from("alipay_orders")
-        .select("id, status, total_amount, order_type, order_data, user_id, subject")
+        .select("id, status, total_amount, order_type, order_data, user_id, subject, payment_provider") as any)
         .eq("id", orderId)
         .single();
 
@@ -89,6 +90,14 @@ export async function POST(req: Request) {
     }
 
     const isCoachSubscriptionOrder = isCoachSubscriptionOrderType(order.order_type);
+    if (isHuifuBackedPaymentOrder(order as Record<string, unknown>)) {
+        return NextResponse.json<ApiData<RefundAlipayOrderResponseDto>>({
+            success: false,
+            message: "该订单通过汇付/微信通道支付，不能使用支付宝直连退款。请先在汇付后台或汇付退款接口完成原路退款，再做本地对账回滚。",
+            data: null,
+        }, { status: 409 });
+    }
+
     let coachWalletRefundFen = refundAmountFen;
     let incomeTx: { id: string; amount: number | null } | null = null;
 

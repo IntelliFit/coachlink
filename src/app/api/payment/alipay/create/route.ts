@@ -8,6 +8,10 @@ import type {
 } from "./entity";
 import { createAlipaySdk } from "@/lib/alipaySdk";
 import { yuanToFen, fenToYuan, formatYuan } from "@/lib/moneyUtils";
+import {
+    durationMonthsFromPurchasedWeeks,
+    resolveCoachSubscriptionPricing,
+} from "@/lib/coachSubscriptionPricing";
 import { getSubscriptionOrderById } from "@/lib/subscriptionOrders";
 import {
     createHuifuMiniProgramOrder,
@@ -57,6 +61,17 @@ export async function POST(req: Request) {
         }
     }
 
+    let inferredHuifuNotifyUrl = notifyUrl;
+    try {
+        inferredHuifuNotifyUrl = new URL("/api/payment/wechat/notify", notifyUrl).toString();
+    } catch {
+        inferredHuifuNotifyUrl = notifyUrl;
+    }
+    const huifuNotifyUrl =
+        process.env.HUIFU_PAY_NOTIFY_URL ||
+        process.env.WECHAT_PAY_NOTIFY_URL ||
+        inferredHuifuNotifyUrl;
+
     // 读取参数
     const {
         subject,
@@ -84,7 +99,12 @@ export async function POST(req: Request) {
 
     const userId = session.user.id;
 
-    if (!totalAmount) {
+    if (
+        !totalAmount &&
+        orderType !== "subscription" &&
+        orderType !== "subscription_renew" &&
+        orderType !== "content_purchase"
+    ) {
         return NextResponse.json(
             { success: false, message: "缺少必要参数", data: null },
             { status: 400 },
@@ -98,6 +118,8 @@ export async function POST(req: Request) {
     const subscriptionOrderId = od.subscriptionOrderId as string | undefined;
     const coachId = od.coachId as string | undefined;
     const contentId = od.contentId as string | undefined;
+    const isCoachSubscriptionRequest =
+        orderType === "subscription" || orderType === "subscription_renew";
 
     let subjectText = String(subject || "");
     let resolvedTotalAmount = Number(totalAmount);
@@ -110,14 +132,7 @@ export async function POST(req: Request) {
         durationMonths: number;
     } | null = null;
 
-    if (orderType === "subscription" || orderType === "subscription_renew") {
-        if (!subjectText) {
-            return NextResponse.json(
-                { success: false, message: "缺少必要参数", data: null },
-                { status: 400 },
-            );
-        }
-
+    if (isCoachSubscriptionRequest) {
         if (subscriptionOrderId) {
             const subscriptionOrder = await getSubscriptionOrderById(subscriptionOrderId);
             if (!subscriptionOrder) {
@@ -137,6 +152,32 @@ export async function POST(req: Request) {
             if (coachId && subscriptionOrder.coach_id !== coachId) {
                 return NextResponse.json(
                     { success: false, message: "订阅订单与教练不匹配，无法创建支付订单", data: null },
+                    { status: 400 },
+                );
+            }
+
+            if (subscriptionOrder.status !== "pending_payment") {
+                return NextResponse.json(
+                    { success: false, message: "订阅订单当前状态不可发起支付", data: null },
+                    { status: 409 },
+                );
+            }
+
+            try {
+                const pricing = await resolveCoachSubscriptionPricing({
+                    coachId: subscriptionOrder.coach_id,
+                    productId: subscriptionOrder.product_id,
+                    durationMonths: durationMonthsFromPurchasedWeeks(subscriptionOrder.purchased_weeks),
+                });
+                if (pricing.amountFen !== Math.round(Number(subscriptionOrder.amount_fen || 0))) {
+                    return NextResponse.json(
+                        { success: false, message: "套餐价格已更新，请重新选择套餐后再支付", data: null },
+                        { status: 409 },
+                    );
+                }
+            } catch (error) {
+                return NextResponse.json(
+                    { success: false, message: error instanceof Error ? error.message : "套餐价格校验失败，请重新选择套餐", data: null },
                     { status: 400 },
                 );
             }
@@ -179,7 +220,7 @@ export async function POST(req: Request) {
         } else {
             const { data: sub, error: subErr } = await serviceRoleSupabase
                 .from("coach_subscriptions")
-                .select("id, student_id, coach_id, monthly_price, product_name, product_tier, subscribed_weeks, coaches(name)")
+                .select("id, student_id, coach_id, status, monthly_price, product_id, product_name, product_tier, subscribed_weeks, coaches(name)")
                 .eq("id", subscriptionId)
                 .single();
             if (subErr || !sub) {
@@ -203,33 +244,61 @@ export async function POST(req: Request) {
                 );
             }
 
-            // Initial subscription: monthly_price 在 DB 中已存为分（整数），直接作为订单金额（分）
-            // Renewals may have different tiered discounts; we keep client-provided totalAmount (yuan) and convert to fen below.
-            if (orderType === "subscription") {
-                resolvedTotalAmount = Number(sub.monthly_price);
-                resolvedAmountAlreadyFen = true;
+            // Resolve direct subscription payment amount from server-side pricing.
+            if (
+                orderType === "subscription" &&
+                !["inactive", "pending_payment"].includes(String((sub as any)?.status || ""))
+            ) {
+                return NextResponse.json(
+                    { success: false, message: "当前订阅状态不可发起首次支付", data: null },
+                    { status: 400 },
+                );
+            }
+
+            if (
+                orderType === "subscription_renew" &&
+                !["active", "expired", "near_expiry"].includes(String((sub as any)?.status || ""))
+            ) {
+                return NextResponse.json(
+                    { success: false, message: "当前订阅状态不支持续费", data: null },
+                    { status: 400 },
+                );
             }
 
             const coachName = String((sub as any)?.coaches?.name || "");
-            const productName = String((sub as any)?.product_name || "");
-            const productTier = String((sub as any)?.product_tier || "");
-            const baseDurationMonths = Math.max(1, Math.round(Number((sub as any)?.subscribed_weeks || 0) / 4));
             const renewWeeks = Number(od.renewAdditionalWeeks || 0);
-            const durationMonths =
-                orderType === "subscription_renew" && renewWeeks > 0
-                    ? Math.max(1, Math.round(renewWeeks / 4))
-                    : baseDurationMonths;
+            let pricing;
+            try {
+                pricing = await resolveCoachSubscriptionPricing({
+                    coachId: String(sub.coach_id || ""),
+                    productId: String((sub as any)?.product_id || ""),
+                    durationMonths: orderType === "subscription_renew"
+                        ? durationMonthsFromPurchasedWeeks(renewWeeks)
+                        : durationMonthsFromPurchasedWeeks((sub as any)?.subscribed_weeks),
+                });
+            } catch (error) {
+                return NextResponse.json(
+                    { success: false, message: error instanceof Error ? error.message : "套餐价格校验失败，请重新选择套餐", data: null },
+                    { status: 400 },
+                );
+            }
+
+            resolvedTotalAmount = pricing.amountFen;
+            resolvedAmountAlreadyFen = true;
 
             subscriptionMeta = {
                 coachId: String(coachId || sub.coach_id || ""),
                 coachName: coachName.trim(),
-                productName,
-                productTier,
-                durationMonths,
+                productName: pricing.productName,
+                productTier: pricing.productTier,
+                durationMonths: pricing.durationMonths,
             };
         }
 
         if (subscriptionMeta) {
+            if (!subjectText.trim()) {
+                subjectText = `${orderType === "subscription_renew" ? "教练订阅续费" : "教练订阅"} ${subscriptionMeta.productName || ""}`.trim();
+            }
             Object.assign(od, {
                 ...od,
                 subscriptionId,
@@ -242,9 +311,18 @@ export async function POST(req: Request) {
                 product_tier: subscriptionMeta.productTier,
                 durationMonths: subscriptionMeta.durationMonths,
                 duration_months: subscriptionMeta.durationMonths,
+                original_order_type: orderType,
+                requires_huifu_split: true,
             });
         }
     }
+
+    const effectiveOrderType =
+        subscriptionMeta && isCoachSubscriptionRequest
+            ? orderType === "subscription_renew"
+                ? "coach_subscription_renew"
+                : "coach_subscription"
+            : orderType;
 
     // Content purchase: never trust client-provided amount/subject.
     if (orderType === "content_purchase" || orderType === "guest_content_purchase") {
@@ -321,11 +399,12 @@ export async function POST(req: Request) {
             .insert({
                 subject: subjectText,
                 total_amount: totalAmountFen, // 存储分（整数）
-                order_type: orderType,
+                order_type: effectiveOrderType,
                 order_data: od,
                 user_id: userId,
                 status: "pending",
                 qr_code: "",
+                payment_provider: isCoachSubscriptionRequest ? "huifu_alipay" : "alipay",
             })
         .select()
         .single();
@@ -340,7 +419,7 @@ export async function POST(req: Request) {
 
     // Bind platform payment order to subscription (so notify can auto-confirm/renew)
     try {
-        if (subscriptionOrderId && (orderType === "subscription" || orderType === "subscription_renew")) {
+        if (subscriptionOrderId && isCoachSubscriptionRequest) {
             await serviceRoleSupabase
                 .from("coach_subscription_orders" as any)
                 .update({
@@ -354,7 +433,7 @@ export async function POST(req: Request) {
         if (
             !subscriptionOrderId &&
             subscriptionId &&
-            (orderType === "subscription" || orderType === "subscription_renew")
+            isCoachSubscriptionRequest
         ) {
             await serviceRoleSupabase
                 .from("coach_subscriptions")
@@ -370,8 +449,7 @@ export async function POST(req: Request) {
     }
 
     // ── 教练订阅：走汇付 A_JSAPI / A_NATIVE 分账 ──
-    const isCoachSubscription =
-        orderType === "subscription" || orderType === "subscription_renew";
+    const isCoachSubscription = isCoachSubscriptionRequest;
 
     if (isCoachSubscription && subscriptionMeta?.coachId) {
         const { data: coachRecord } = await serviceRoleSupabase
@@ -390,7 +468,7 @@ export async function POST(req: Request) {
                     reqSeqId: order.id,
                     transAmtYuan: formatYuan(fenToYuan(totalAmountFen)),
                     goodsDesc: subjectText,
-                    notifyUrl: process.env.WECHAT_PAY_NOTIFY_URL || notifyUrl, // 汇付通知走统一 Huifu notify 处理器
+                    notifyUrl: huifuNotifyUrl, // 汇付通知走统一 Huifu notify 处理器
                     openid: "", // 支付宝不需要 openid
                     appId: "",  // 支付宝不需要 appId
                     tradeType: huifuTradeType,
@@ -410,7 +488,12 @@ export async function POST(req: Request) {
                     .from("alipay_orders")
                     .update({
                         payment_provider: "huifu_alipay",
-                        order_data: { ...od, huifu_req_date: reqDate },
+                        order_data: {
+                            ...od,
+                            huifu_req_date: reqDate,
+                            payment_provider: "huifu_alipay",
+                            requires_huifu_split: true,
+                        },
                     })
                     .eq("id", order.id);
 

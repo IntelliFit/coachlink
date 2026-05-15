@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
+import { getAuthUser } from "@/lib/auth";
 import supabase, { serviceRoleSupabase } from "@/lib/supabaseClient";
 
 const MAX_SIZE = 2 * 1024 * 1024; // 2MB
@@ -8,8 +8,8 @@ const BUCKET = "avatars";
 
 export async function POST(req: Request) {
     try {
-        const session = await getServerSession();
-        if (!session?.user?.id) {
+        const authResult = await getAuthUser(req);
+        if (!authResult.isAuthenticated || !authResult.userId) {
             return NextResponse.json({ success: false, message: "未登录" }, { status: 401 });
         }
 
@@ -38,7 +38,7 @@ export async function POST(req: Request) {
         const buffer = Buffer.from(arrayBuffer);
 
         const ext = file.type.split("/")[1] || "png";
-        const fileName = `${session.user.id}/${Date.now()}.${ext}`;
+        const fileName = `${authResult.userId}/${Date.now()}.${ext}`;
 
         // 使用 service role 绕过 RLS
         const { error } = await serviceRoleSupabase.storage.from(BUCKET).upload(fileName, buffer, {

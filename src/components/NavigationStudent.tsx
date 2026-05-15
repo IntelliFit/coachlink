@@ -22,25 +22,14 @@ import type { UserProfilesRow } from '@/types';
 import {
     PlayCircle,
     Search,
-    ClipboardList,
-    TrendingUp,
-    Bell,
     Moon,
     Sun,
-    ArrowLeft,
     ChevronDown,
-    Bookmark,
     BookOpen,
     LogIn,
     User,
-    Activity,
-    Users,
     Menu as MenuIcon, // 引入菜单图标
-    Headphones,
     MessageSquare,
-    Receipt,
-    ShoppingCart,
-    Briefcase
 } from 'lucide-react';
 
 export default function NavigationStudent() {
@@ -242,7 +231,16 @@ export default function NavigationStudent() {
     }, [status, session?.user?.id, lastSubscriptionCheck]);
 
     const itemRenderer = (item: any) => {
-        const isActive = pathname === item.url;
+        const isActive =
+            item.url === '/dashboard/knowledge'
+                ? pathname.startsWith('/dashboard/knowledge') || pathname.startsWith('/me/action-lib')
+                : item.url === '/coach/discovery'
+                    ? pathname.startsWith('/coach/discovery')
+                    : item.url === '/today-training'
+                        ? pathname.startsWith('/today-training')
+                        : item.url === '/me/profile'
+                            ? pathname.startsWith('/me/profile')
+                            : pathname === item.url;
         return (
             <div
                 id={item.guideId}
@@ -264,13 +262,10 @@ export default function NavigationStudent() {
 
     const studentMenuItems = useMemo(() => {
         return [
-            { label: '今日训练', icon: PlayCircle, url: '/today-training', command: () => router.push('/today-training'), guideId: 'guide-today-training', template: itemRenderer },
-            { label: '好友动态', icon: Activity, url: '/friends/activity', command: () => router.push('/friends/activity'), template: itemRenderer },
-            { label: '发现', icon: Search, url: '/coach/discovery', command: () => router.push('/coach/discovery'), guideId: 'guide-find-coach', template: itemRenderer },
-            { label: '知识库', icon: BookOpen, url: '/dashboard/knowledge', command: () => router.push('/dashboard/knowledge'), template: itemRenderer },
-            { label: '我的动作库', icon: ClipboardList, url: '/me/action-lib', command: () => router.push('/me/action-lib'), template: itemRenderer },
-            { label: '排行榜', icon: TrendingUp, url: '/ranking', command: () => router.push('/ranking'), template: itemRenderer },
-            { label: '个人档案', icon: User, url: '/me/profile', command: () => router.push('/me/profile'), guideId: 'guide-profile', template: itemRenderer },
+            { label: '今日', icon: PlayCircle, url: '/today-training', command: () => router.push('/today-training'), guideId: 'guide-today-training', template: itemRenderer },
+            { label: '路径', icon: BookOpen, url: '/dashboard/knowledge', command: () => router.push('/dashboard/knowledge'), template: itemRenderer },
+            { label: '教练', icon: Search, url: '/coach/discovery', command: () => router.push('/coach/discovery'), guideId: 'guide-find-coach', template: itemRenderer },
+            { label: '我的', icon: User, url: '/me/profile', command: () => router.push('/me/profile'), guideId: 'guide-profile', template: itemRenderer },
         ];
     }, [router, pathname]);
 
@@ -327,15 +322,15 @@ export default function NavigationStudent() {
     );
 
     const studentTabRoots = useMemo(() => [
-        '/today-training', '/coach/discovery', '/me/profile', '/ranking', '/friends/activity',
+        '/today-training', '/dashboard/knowledge', '/coach/discovery', '/me/profile',
     ], []);
 
     // 1. 移动端顶部的纯文字 Tab 布局
     const mobileTopTabs = useMemo(() => {
         return [
-            { label: '动态', url: '/friends/activity' },
-            { label: '训练', url: '/today-training' },
-            { label: '排行', url: '/ranking' },
+            { label: '今日', url: '/today-training' },
+            { label: '路径', url: '/dashboard/knowledge' },
+            { label: '教练', url: '/coach/discovery' },
         ];
     }, []);
 
@@ -343,25 +338,25 @@ export default function NavigationStudent() {
     const mobileBottomTabs = useMemo(() => {
         return [
             {
-                key: 'discover',
-                label: '发现',
+                key: 'today',
+                label: '今日',
+                icon: PlayCircle,
+                active: pathname.startsWith('/today-training'),
+                onClick: () => router.push('/today-training'),
+            },
+            {
+                key: 'path',
+                label: '路径',
+                icon: BookOpen,
+                active: pathname.startsWith('/dashboard/knowledge') || pathname.startsWith('/me/action-lib'),
+                onClick: () => router.push('/dashboard/knowledge'),
+            },
+            {
+                key: 'coach',
+                label: '教练',
                 icon: Search,
                 active: pathname.startsWith('/coach/discovery'),
                 onClick: () => router.push('/coach/discovery'),
-            },
-            {
-                key: 'toolbox',
-                label: '工具',
-                icon: Briefcase,
-                active: pathname.startsWith('/me/toolbox'),
-                onClick: () => router.push('/me/toolbox'),
-            },
-            {
-                key: 'knowledge',
-                label: '知识库',
-                icon: BookOpen,
-                active: pathname.startsWith('/dashboard/knowledge'),
-                onClick: () => router.push('/dashboard/knowledge'),
             },
             {
                 key: 'profile',
@@ -574,7 +569,10 @@ export default function NavigationStudent() {
                         {/* 中间：文字 Tab */}
                         <div className="flex-[3] flex justify-center gap-6">
                             {mobileTopTabs.map((tab) => {
-                                const isActive = pathname === tab.url;
+                                const isActive =
+                                    tab.url === '/dashboard/knowledge'
+                                        ? pathname.startsWith('/dashboard/knowledge') || pathname.startsWith('/me/action-lib')
+                                        : pathname.startsWith(tab.url);
                                 return (
                                     <button
                                         key={tab.url}

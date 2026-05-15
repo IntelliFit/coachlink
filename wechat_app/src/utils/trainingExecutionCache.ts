@@ -1,7 +1,7 @@
 import Taro from '@tarojs/taro'
 import { patchExecutionInTodayTrainingPageCache } from '@/utils/todayTrainingPageCache'
 
-const SNAPSHOT_KEY = 'training_execution_snapshots_v1'
+export const TRAINING_EXECUTION_SNAPSHOT_KEY = 'training_execution_snapshots_v1'
 /** 与今日训练首页缓存一致：仅保留最近 60 天内的快照条目 */
 const SNAPSHOT_MAX_ENTRY_AGE_MS = 60 * 24 * 60 * 60 * 1000
 
@@ -21,7 +21,7 @@ type SnapshotStoreV1 = {
 function readStore(userId: string): SnapshotStoreV1 | null {
   if (!userId) return null
   try {
-    const raw = Taro.getStorageSync(SNAPSHOT_KEY) as any
+    const raw = Taro.getStorageSync(TRAINING_EXECUTION_SNAPSHOT_KEY) as any
     if (!raw || typeof raw !== 'object' || raw.v !== 1) return null
     if (String(raw.userId || '') !== String(userId)) return null
     return raw as SnapshotStoreV1
@@ -45,7 +45,7 @@ function pruneEntries(entries: Record<string, SnapshotEntry>): Record<string, Sn
 
 function writeStore(userId: string, entries: Record<string, SnapshotEntry>) {
   try {
-    Taro.setStorageSync(SNAPSHOT_KEY, {
+    Taro.setStorageSync(TRAINING_EXECUTION_SNAPSHOT_KEY, {
       v: 1,
       userId,
       entries: pruneEntries(entries)

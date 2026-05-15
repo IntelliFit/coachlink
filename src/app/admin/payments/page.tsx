@@ -19,7 +19,8 @@ const STATUS_OPTIONS = [
     { label: '全部状态', value: null },
     { label: '待支付', value: 'pending' },
     { label: '已支付', value: 'paid' },
-    { label: '已取消', value: 'cancelled' },
+    { label: '已关闭', value: 'closed' },
+    { label: '失败', value: 'failed' },
     { label: '已退款', value: 'refunded' },
 ];
 
@@ -27,6 +28,8 @@ const ORDER_TYPE_OPTIONS = [
     { label: '全部类型', value: null },
     { label: '订阅', value: 'subscription' },
     { label: '续费', value: 'subscription_renew' },
+    { label: '教练订阅', value: 'coach_subscription' },
+    { label: '教练续费', value: 'coach_subscription_renew' },
     { label: '会员', value: 'student_membership' },
 ];
 
@@ -46,8 +49,10 @@ function statusTag(status: string) {
               ? '待支付'
               : status === 'refunded'
                 ? '已退款'
-                : status === 'cancelled'
-                  ? '已取消'
+                : status === 'closed'
+                  ? '已关闭'
+                  : status === 'failed'
+                    ? '失败'
                   : status;
     return <Tag severity={severity} value={label} />;
 }
@@ -57,9 +62,43 @@ function orderTypeLabel(type: string | null) {
     const map: Record<string, string> = {
         subscription: '订阅',
         subscription_renew: '续费',
+        coach_subscription: '教练订阅',
+        coach_subscription_renew: '教练续费',
         student_membership: '会员',
     };
     return map[type] ?? type;
+}
+
+function providerLabel(provider: string | null | undefined) {
+    const value = String(provider || '').toLowerCase();
+    if (value === 'huifu_alipay') return '汇付支付宝';
+    if (value === 'wechat') return '汇付微信';
+    if (value === 'alipay') return '支付宝直连';
+    return provider || '—';
+}
+
+function settlementLabel(status: string | undefined) {
+    const map: Record<string, string> = {
+        pending: '待分账',
+        processing: '处理中',
+        split_success: '已分账',
+        split_failed: '分账失败',
+        wallet_credited: '已入账',
+    };
+    return status ? map[status] ?? status : '—';
+}
+
+function settlementSeverity(status: string | undefined) {
+    if (status === 'wallet_credited' || status === 'split_success') return 'success';
+    if (status === 'processing' || status === 'pending') return 'warning';
+    if (status === 'split_failed') return 'danger';
+    return 'info';
+}
+
+function isHuifuOrder(row: PaymentOrderWithUser) {
+    const provider = String(row.payment_provider || '').toLowerCase();
+    const orderData = (row.order_data || {}) as Record<string, unknown>;
+    return provider.includes('huifu') || provider === 'wechat' || orderData.requires_huifu_split === true;
 }
 
 export default function AdminPaymentsPage() {
@@ -75,6 +114,8 @@ export default function AdminPaymentsPage() {
     const [statusFilter, setStatusFilter] = useState<string | null>(null);
     const [orderTypeFilter, setOrderTypeFilter] = useState<string | null>(null);
     const [refundingOrderId, setRefundingOrderId] = useState<string | null>(null);
+    const [retryingSettlementOrderId, setRetryingSettlementOrderId] = useState<string | null>(null);
+    const [reconcilingSettlementOrderId, setReconcilingSettlementOrderId] = useState<string | null>(null);
 
     const loadOrders = async (page: number = 1, limit: number = rows) => {
         try {
@@ -82,7 +123,7 @@ export default function AdminPaymentsPage() {
             const res = await adminService.listPaymentOrders({
                 page,
                 limit,
-                status: (statusFilter as 'pending' | 'paid' | 'cancelled' | 'refunded') || undefined,
+                status: (statusFilter as 'pending' | 'paid' | 'closed' | 'failed' | 'refunded') || undefined,
                 orderType: orderTypeFilter || undefined,
             });
             if (res) {
@@ -109,6 +150,10 @@ export default function AdminPaymentsPage() {
 
     const handleRefund = async (order: PaymentOrderWithUser) => {
         if (order.status !== 'paid') return;
+        if (isHuifuOrder(order)) {
+            showToast({ severity: 'warn', summary: '需要人工处理', detail: '汇付/分账订单不能走支付宝直连退款，请先按正确通道处理网关退款。' });
+            return;
+        }
         if (!confirm(`确定对订单 ${order.id.substring(0, 8)}... 执行退款吗？订阅类订单将同步取消订阅并扣减教练钱包。`))
             return;
         setRefundingOrderId(order.id);
@@ -129,6 +174,55 @@ export default function AdminPaymentsPage() {
             showToast({ severity: 'error', summary: '退款失败', detail: e instanceof Error ? e.message : '网络错误' });
         } finally {
             setRefundingOrderId(null);
+        }
+    };
+
+    const handleRetrySettlement = async (order: PaymentOrderWithUser) => {
+        if (order.settlement?.status !== 'split_failed') return;
+        if (!confirm(`确定对订单 ${order.id.substring(0, 8)}... 重新发起汇付分账吗？这会调用真实的汇付余额支付接口。`))
+            return;
+
+        setRetryingSettlementOrderId(order.id);
+        try {
+            const res = await fetch('/api/admin/coach-subscription-settlements/retry', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ orderId: order.id, confirm: 'RETRY_HUIFU_SPLIT' }),
+            });
+            const data = await res.json();
+            if (data?.success) {
+                showToast({ severity: 'success', summary: '分账已处理', detail: `当前状态：${settlementLabel(data.data?.splitStatus)}` });
+                loadOrders(Math.floor(first / rows) + 1, rows);
+            } else {
+                showToast({ severity: 'error', summary: '分账重试失败', detail: data?.message || '请稍后重试' });
+            }
+        } catch (e: unknown) {
+            showToast({ severity: 'error', summary: '分账重试失败', detail: e instanceof Error ? e.message : '网络错误' });
+        } finally {
+            setRetryingSettlementOrderId(null);
+        }
+    };
+
+    const handleReconcileSettlement = async (order: PaymentOrderWithUser) => {
+        if (order.settlement?.status !== 'processing') return;
+        setReconcilingSettlementOrderId(order.id);
+        try {
+            const res = await fetch('/api/admin/coach-subscription-settlements/reconcile', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ orderId: order.id, confirm: 'QUERY_HUIFU_SPLIT' }),
+            });
+            const data = await res.json();
+            if (data?.success) {
+                showToast({ severity: 'success', summary: '分账查询完成', detail: `当前状态：${settlementLabel(data.data?.splitStatus)}` });
+                loadOrders(Math.floor(first / rows) + 1, rows);
+            } else {
+                showToast({ severity: 'error', summary: '分账查询失败', detail: data?.message || '请稍后重试' });
+            }
+        } catch (e: unknown) {
+            showToast({ severity: 'error', summary: '分账查询失败', detail: e instanceof Error ? e.message : '网络错误' });
+        } finally {
+            setReconcilingSettlementOrderId(null);
         }
     };
 
@@ -159,18 +253,67 @@ export default function AdminPaymentsPage() {
             second: '2-digit',
         });
 
+    const providerTemplate = (row: PaymentOrderWithUser) => (
+        <span className="text-sm">{providerLabel(row.payment_provider)}</span>
+    );
+
+    const settlementTemplate = (row: PaymentOrderWithUser) => {
+        if (loading) return <Skeleton width="80px" height="1.5rem" />;
+        if (!row.settlement) return <span className="text-surface-400 text-xs">—</span>;
+        return (
+            <div className="flex flex-col gap-1 max-w-[180px]">
+                <Tag
+                    severity={settlementSeverity(row.settlement.status) as any}
+                    value={settlementLabel(row.settlement.status)}
+                />
+                {row.settlement.error_message && (
+                    <span className="text-xs text-red-500 truncate" title={row.settlement.error_message}>
+                        {row.settlement.error_message}
+                    </span>
+                )}
+            </div>
+        );
+    };
+
     const actionTemplate = (row: PaymentOrderWithUser) => {
         if (loading) return <Skeleton width="60px" height="1.5rem" />;
-        if (row.status !== 'paid') return <span className="text-surface-400 text-xs">—</span>;
+        const canRetrySettlement = row.settlement?.status === 'split_failed';
+        const canReconcileSettlement = row.settlement?.status === 'processing';
+        const canRefund = row.status === 'paid' && !isHuifuOrder(row);
+        if (!canRetrySettlement && !canReconcileSettlement && !canRefund) return <span className="text-surface-400 text-xs">—</span>;
         return (
-            <Button
-                label="退款"
-                icon="pi pi-undo"
-                size="small"
-                className="p-button-text p-button-sm text-amber-600"
-                loading={refundingOrderId === row.id}
-                onClick={() => handleRefund(row)}
-            />
+            <div className="flex gap-2">
+                {canReconcileSettlement && (
+                    <Button
+                        label="查询分账"
+                        icon="pi pi-search"
+                        size="small"
+                        className="p-button-text p-button-sm text-blue-600"
+                        loading={reconcilingSettlementOrderId === row.id}
+                        onClick={() => handleReconcileSettlement(row)}
+                    />
+                )}
+                {canRetrySettlement && (
+                    <Button
+                        label="重试分账"
+                        icon="pi pi-refresh"
+                        size="small"
+                        className="p-button-text p-button-sm text-red-600"
+                        loading={retryingSettlementOrderId === row.id}
+                        onClick={() => handleRetrySettlement(row)}
+                    />
+                )}
+                {canRefund && (
+                    <Button
+                        label="退款"
+                        icon="pi pi-undo"
+                        size="small"
+                        className="p-button-text p-button-sm text-amber-600"
+                        loading={refundingOrderId === row.id}
+                        onClick={() => handleRefund(row)}
+                    />
+                )}
+            </div>
         );
     };
 
@@ -181,7 +324,13 @@ export default function AdminPaymentsPage() {
         total_amount: 0,
         status: '',
         order_type: null,
+        payment_provider: null,
+        trade_status: null,
         created_at: '',
+        updated_at: '',
+        alipay_trade_no: null,
+        order_data: null,
+        settlement: null,
     }));
 
     return (
@@ -284,6 +433,14 @@ export default function AdminPaymentsPage() {
                     headerStyle={{ width: '10%' }}
                 />
                 <Column
+                    field="payment_provider"
+                    header="通道"
+                    body={(row) =>
+                        loading ? <Skeleton width="80px" height="1.5rem" /> : providerTemplate(row)
+                    }
+                    headerStyle={{ width: '10%' }}
+                />
+                <Column
                     field="total_amount"
                     header="金额"
                     body={(row) =>
@@ -304,6 +461,11 @@ export default function AdminPaymentsPage() {
                     headerStyle={{ width: '10%' }}
                 />
                 <Column
+                    header="分账"
+                    body={settlementTemplate}
+                    headerStyle={{ width: '12%' }}
+                />
+                <Column
                     field="created_at"
                     header="创建时间"
                     body={(row) =>
@@ -314,7 +476,7 @@ export default function AdminPaymentsPage() {
                 <Column
                     header="操作"
                     body={actionTemplate}
-                    headerStyle={{ width: '80px' }}
+                    headerStyle={{ width: '160px' }}
                 />
             </DataTable>
             </div>

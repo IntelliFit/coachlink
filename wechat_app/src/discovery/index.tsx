@@ -1,7 +1,7 @@
 import React from 'react'
 import { View, Text, Input, Image, ScrollView } from '@tarojs/components'
 import { Star, Search, Heart, Lock, Eye } from '@nutui/icons-react-taro'
-import Taro, { useReachBottom } from '@tarojs/taro'
+import Taro, { useReachBottom, useRouter } from '@tarojs/taro'
 import BottomNav from '@/components/BottomNav'
 import { coachService } from '@/services/coach/coachService'
 import { studentService } from '@/services/studentService'
@@ -27,6 +27,8 @@ interface Coach {
     years_experience?: number
     subscription_price_tier1?: number
     is_featured?: boolean
+    support_focus?: string | null
+    supportFocus?: string | null
 }
 
 interface VisibilityStatus {
@@ -145,7 +147,7 @@ function truncateText(text: string, maxLength: number): string {
     return `${chars.slice(0, maxLength).join('')}...`
 }
 
-function summarizeActionDetail(detail?: string): string {
+function summarizeActionDetail(detail?: string | null): string {
     const plainText = stripHtml(detail || '')
     if (!plainText) return '点击查看动作细节与要点'
     return truncateText(plainText, 56)
@@ -155,7 +157,59 @@ function pickDiscoveryCover(index: number): string {
     return discoveryCoverImages[index % discoveryCoverImages.length]
 }
 
+const supportNeedKeywords: Record<string, string[]> = {
+    beginner: ['新手', '入门', '基础', '起步', '习惯'],
+    form: ['动作', '纠错', '标准', '技术', '视频'],
+    gym: ['健身房', '器械', '社恐', '陪练', '新手'],
+    plateau: ['平台期', '突破', '增肌', '减脂', '力量'],
+    recovery: ['恢复', '疼痛', '伤病', '康复', '肩', '腰', '膝', '手腕'],
+    advanced: ['专项', '进阶', '街健', '引体', '周期', '力量']
+}
+
+const supportNeedCopy: Record<string, { title: string; desc: string }> = {
+    beginner: {
+        title: '先找能把入门讲清楚的人',
+        desc: '新手阶段最怕信息太多、动作做错、被销售推着买课。先看教练是否擅长起步陪跑和基础动作。'
+    },
+    form: {
+        title: '先解决动作是否做对',
+        desc: '动作纠错适合上传视频、获得要点反馈，避免把错误动作重复练成习惯。'
+    },
+    gym: {
+        title: '害怕进健身房也能被支持',
+        desc: '优先找能给低暴露训练、器械第一次使用、健身房路线引导的教练，不急着上强度。'
+    },
+    plateau: {
+        title: '练了没效果时先做诊断',
+        desc: '平台期不一定是意志问题，可能是容量、恢复、饮食或计划节奏出了问题。'
+    },
+    recovery: {
+        title: '有疼痛时先找安全边界',
+        desc: '恢复友好不是线上诊断疾病，而是帮你识别禁忌、退阶动作和是否需要线下专业帮助。'
+    },
+    advanced: {
+        title: '专项进阶需要标准和周期',
+        desc: '高阶训练更需要动作标准、周期安排和数据复盘，不只靠单次训练感觉。'
+    }
+}
+
+function scoreCoachForNeed(coach: Coach, needKey: string): number {
+    const keywords = supportNeedKeywords[needKey] || []
+    if (!keywords.length) return 0
+    const haystack = [
+        coach.name,
+        coach.bio,
+        coach.support_focus,
+        coach.supportFocus,
+        ...(Array.isArray(coach.specialties) ? coach.specialties : [])
+    ].join(' ').toLowerCase()
+    return keywords.reduce((score, keyword) => score + (haystack.includes(keyword.toLowerCase()) ? 1 : 0), 0)
+}
+
 function Discovery() {
+    const router = useRouter()
+    const routeSupportNeed = String(router.params?.supportNeed || '')
+    const initialSupportNeed = supportNeedCopy[routeSupportNeed] ? routeSupportNeed : 'beginner'
     const [coaches, setCoaches] = React.useState<Coach[]>([])
     const [specialties, setSpecialties] = React.useState<{ label: string; value: string }[]>([
         { label: '所有专长', value: 'all' }
@@ -163,6 +217,7 @@ function Discovery() {
     const [searchTerm, setSearchTerm] = React.useState('')
     const [isLoading, setIsLoading] = React.useState(false)
     const [selectedSpecialty, setSelectedSpecialty] = React.useState<string>('all')
+    const [selectedSupportNeed, setSelectedSupportNeed] = React.useState<string>(initialSupportNeed)
     const coachesPerPage = 10
     const [nextCoachPage, setNextCoachPage] = React.useState(1)
     const [coachBuffer, setCoachBuffer] = React.useState<Coach[]>([])
@@ -180,6 +235,7 @@ function Discovery() {
     const [likingActionKey, setLikingActionKey] = React.useState('')
     const [articleHighlights, setArticleHighlights] = React.useState<ArticleHighlightItem[]>([])
     const [articleLoading, setArticleLoading] = React.useState(false)
+    const [moreResourcesOpen, setMoreResourcesOpen] = React.useState(false)
     const hasMoreCoaches = rawHasMoreCoaches || coachBuffer.length > 0
 
     // 先获取视野状态
@@ -222,7 +278,7 @@ function Discovery() {
     // 加载教练列表
     const loadCoaches = async (
         mode: 'reset' | 'append' = 'reset',
-        filters?: { search?: string; specialty?: string }
+        filters?: { search?: string; specialty?: string; supportNeed?: string }
     ) => {
         setIsLoading(true)
         try {
@@ -268,6 +324,11 @@ function Discovery() {
                         rawHasMore = false
                         break
                     }
+                }
+
+                const supportNeed = filters?.supportNeed ?? selectedSupportNeed
+                if (supportNeed) {
+                    visiblePool = [...visiblePool].sort((a, b) => scoreCoachForNeed(b, supportNeed) - scoreCoachForNeed(a, supportNeed))
                 }
 
                 const nextBatch = visiblePool.slice(0, coachesPerPage)
@@ -465,7 +526,7 @@ function Discovery() {
     const onSearchOrFilter = () => {
         // 专注模式下不重新加载
         if (!visibilityStatus?.focusMode) {
-            void loadCoaches('reset', { search: searchTerm, specialty: selectedSpecialty })
+            void loadCoaches('reset', { search: searchTerm, specialty: selectedSpecialty, supportNeed: selectedSupportNeed })
         }
     }
 
@@ -587,26 +648,10 @@ function Discovery() {
     }
 
     const handleCategoryClick = (key: string) => {
-        if (key === 'market') {
-            handleGoMarket()
-            return
-        }
-        if (key === 'actions') {
-            Taro.navigateTo({ url: '/training/actions' })
-            return
-        }
-        if (key === 'coach') {
-            Taro.pageScrollTo({ scrollTop: 1880, duration: 220 })
-            return
-        }
-        if (key === 'articles') {
-            Taro.navigateTo({ url: '/content/knowledge' })
-            return
-        }
-        if (key === 'service') {
-            Taro.navigateTo({ url: '/me/payment/cart/index' })
-            return
-        }
+        setSelectedSupportNeed(key)
+        setSearchTerm('')
+        setSelectedSpecialty('all')
+        void loadCoaches('reset', { search: '', specialty: 'all', supportNeed: key })
         Taro.pageScrollTo({ scrollTop: 0, duration: 220 })
     }
 
@@ -614,7 +659,7 @@ function Discovery() {
         setSelectedSpecialty(value)
         // 专注模式下不重新加载
         if (!visibilityStatus?.focusMode) {
-            void loadCoaches('reset', { search: searchTerm, specialty: value })
+            void loadCoaches('reset', { search: searchTerm, specialty: value, supportNeed: selectedSupportNeed })
         }
     }
 
@@ -629,7 +674,7 @@ function Discovery() {
     useReachBottom(handleLoadMore)
 
     // 渲染教练卡片
-    const renderCoachCard = (coach: Coach, idx: number) => (
+    const renderCoachCard = (coach: Coach) => (
         <View
             key={coach.id}
             className='coach-card'
@@ -682,6 +727,11 @@ function Discovery() {
                                         </View>
                                     ))}
                                 </View>
+                            )}
+                            {(coach.support_focus || coach.supportFocus) && (
+                                <Text className='support-focus-text'>
+                                    {coach.support_focus || coach.supportFocus}
+                                </Text>
                             )}
                         </View>
 
@@ -982,7 +1032,7 @@ function Discovery() {
                     renderSkeleton()
                 ) : coaches.length > 0 ? (
                     <View className='coaches-list'>
-                        {coaches.map((coach, idx) => renderCoachCard(coach, idx))}
+                        {coaches.map((coach) => renderCoachCard(coach))}
                     </View>
                 ) : (
                     <View className='empty-state'>
@@ -998,13 +1048,14 @@ function Discovery() {
     }
 
     const discoveryCategories: DiscoveryCategoryItem[] = [
-        { key: 'all', label: '全部', iconText: '●', active: true, onClick: () => handleCategoryClick('all') },
-        { key: 'market', label: '训练计划', iconText: '计', onClick: () => handleCategoryClick('market') },
-        { key: 'actions', label: '动作库', iconText: '动', onClick: () => handleCategoryClick('actions') },
-        { key: 'coach', label: '教练', iconText: '教', onClick: () => handleCategoryClick('coach') },
-        { key: 'articles', label: '资讯', iconText: '资', onClick: () => handleCategoryClick('articles') },
-        { key: 'service', label: '服务', iconText: '服', onClick: () => handleCategoryClick('service') }
+        { key: 'beginner', label: '新手护航', iconText: '起', active: selectedSupportNeed === 'beginner', onClick: () => handleCategoryClick('beginner') },
+        { key: 'form', label: '动作纠错', iconText: '纠', active: selectedSupportNeed === 'form', onClick: () => handleCategoryClick('form') },
+        { key: 'gym', label: '健身房不慌', iconText: '房', active: selectedSupportNeed === 'gym', onClick: () => handleCategoryClick('gym') },
+        { key: 'plateau', label: '没效果', iconText: '卡', active: selectedSupportNeed === 'plateau', onClick: () => handleCategoryClick('plateau') },
+        { key: 'recovery', label: '恢复友好', iconText: '恢', active: selectedSupportNeed === 'recovery', onClick: () => handleCategoryClick('recovery') },
+        { key: 'advanced', label: '专项进阶', iconText: '进', active: selectedSupportNeed === 'advanced', onClick: () => handleCategoryClick('advanced') }
     ]
+    const currentSupportCopy = supportNeedCopy[selectedSupportNeed] || supportNeedCopy.beginner
 
     return (
         <View className='discovery-page'>
@@ -1012,8 +1063,8 @@ function Discovery() {
             <View className='page-header'>
                     <View className='header-content'>
                         <View className='title-section'>
-                            <Text className='page-title'>发现</Text>
-                            <Text className='page-subtitle'>教练、动作、资讯与服务一站发现</Text>
+                            <Text className='page-title'>教练支持</Text>
+                            <Text className='page-subtitle'>先说你卡在哪里，再找适合的人。服务、动作和资讯都先放到后面。</Text>
                         </View>
                     </View>
 
@@ -1025,7 +1076,7 @@ function Discovery() {
                         </View>
                         <Input
                             className='search-input'
-                            placeholder='搜索姓名或专长、内容、动作...'
+                            placeholder='搜索教练姓名、专长或你遇到的问题'
                             value={searchTerm}
                             onInput={(e) => setSearchTerm(e.detail.value)}
                             confirmType='search'
@@ -1060,13 +1111,16 @@ function Discovery() {
                 </View>
             </View>
 
-            {renderMarketSection()}
-            {renderActionSection()}
-            {articleHighlights.length > 0 && renderArticleSection()}
+            <View className='support-intro-card'>
+                <Text className='support-intro-title'>{currentSupportCopy.title}</Text>
+                <Text className='support-intro-desc'>
+                    {currentSupportCopy.desc}
+                </Text>
+            </View>
 
             <View className='coach-section'>
                 <View className='section-head'>
-                    <Text className='section-title'>推荐教练</Text>
+                    <Text className='section-title'>按当前问题推荐</Text>
                     <View
                         className='section-more'
                         onClick={() => {
@@ -1101,7 +1155,7 @@ function Discovery() {
                     </View>
                 ) : (
                     <View className='coaches-list'>
-                        {coaches.map((coach, idx) => renderCoachCard(coach, idx))}
+                        {coaches.map((coach) => renderCoachCard(coach))}
 
                         {hasMoreCoaches && !visibilityStatus?.focusMode && (
                             <View className='load-more' onClick={handleLoadMore}>
@@ -1123,6 +1177,22 @@ function Discovery() {
                     </View>
                 )}
             </View>
+
+            <View className='support-more-section' onClick={() => setMoreResourcesOpen((v) => !v)}>
+                <View className='support-more-copy'>
+                    <Text className='support-more-title'>更多资源</Text>
+                    <Text className='support-more-desc'>动作、知识和服务商品保留在这里，需要时再打开。</Text>
+                </View>
+                <Text className='support-more-action'>{moreResourcesOpen ? '收起' : '展开'}</Text>
+            </View>
+
+            {moreResourcesOpen && (
+                <>
+                    {renderActionSection()}
+                    {articleHighlights.length > 0 && renderArticleSection()}
+                    {renderMarketSection()}
+                </>
+            )}
 
             {/* 底部导航栏 */}
             <BottomNav />

@@ -1,21 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
-import { serviceRoleSupabase } from "@/lib/supabaseClient";
-import { parseHuifuNotifyContent } from "@/lib/huifuMiniProgramPay";
-import {
-    fulfillSubscriptionOnPaid,
-    updateTransactionAndWallet,
-    executeBalancePayment,
-    markSettlementWalletCredited,
-} from "@/app/api/payment/alipay/fulfillPaidOrder";
-import { fulfillStudentMembershipOrderOnPaid } from "@/app/api/payment/studentMembershipFulfillment";
+import { NextRequest } from "next/server";
+import { processHuifuPaymentNotify } from "@/app/api/payment/huifuPaymentNotify";
 
 export const runtime = "nodejs";
-
-function mapNotifyStatus(transStat: string | undefined) {
-    if (transStat === "S") return "paid";
-    if (transStat === "F") return "failed";
-    return "pending";
-}
 
 export async function POST(request: NextRequest) {
     const rawBody = await request.text();
@@ -39,78 +25,13 @@ export async function POST(request: NextRequest) {
             return new Response("", { status: 400 });
         }
 
-        const notifyData = parseHuifuNotifyContent(content, sign) as Record<string, any>;
-        const reqSeqId = String(notifyData.req_seq_id || "").trim();
+        const result = await processHuifuPaymentNotify({
+            content,
+            sign,
+            defaultPaymentProvider: "wechat",
+        });
 
-        if (!reqSeqId) {
-            return new Response("", { status: 400 });
-        }
-
-        const nextStatus = mapNotifyStatus(String(notifyData.trans_stat || ""));
-        const { data: updatedOrder, error: updateError } = await (serviceRoleSupabase
-            .from("alipay_orders") as any)
-            .update({
-                status: nextStatus,
-                trade_status: notifyData.trans_stat || null,
-                alipay_trade_no:
-                    notifyData.org_hf_seq_id ||
-                    notifyData.out_trans_id ||
-                    notifyData.party_order_id ||
-                    null,
-                payment_provider: "wechat",
-                updated_at: new Date().toISOString(),
-            })
-            .eq("id", reqSeqId)
-            .select()
-            .single();
-
-        if (updateError || !updatedOrder) {
-            console.error("[Huifu Wechat Notify] update order failed:", updateError);
-            return new Response("", { status: 500 });
-        }
-
-        const isSubscriptionOrder =
-            updatedOrder.order_type === "subscription" ||
-            updatedOrder.order_type === "subscription_renew" ||
-            updatedOrder.order_type === "coach_subscription" ||
-            updatedOrder.order_type === "coach_subscription_renew";
-
-        if (nextStatus === "paid" && isSubscriptionOrder) {
-            await fulfillSubscriptionOnPaid(
-                updatedOrder,
-                updatedOrder.id,
-                String(updatedOrder.user_id || ""),
-                "wechat",
-            );
-
-            // 余额分账：从平台现金户转 80% 给教练，20% 留平台
-            const isCoachSub =
-                updatedOrder.order_type === "coach_subscription" ||
-                updatedOrder.order_type === "coach_subscription_renew";
-
-            if (isCoachSub) {
-                const splitResult = await executeBalancePayment(updatedOrder);
-                if (splitResult.shouldCreditWallet) {
-                    const walletUpdated = await updateTransactionAndWallet(updatedOrder, splitResult.splitInfo);
-                    if (walletUpdated) {
-                        await markSettlementWalletCredited(updatedOrder.id);
-                    }
-                }
-            } else {
-                await updateTransactionAndWallet(updatedOrder);
-            }
-        }
-
-        if (nextStatus === "paid" && updatedOrder.order_type === "student_membership") {
-            const orderData = (updatedOrder.order_data || {}) as Record<string, any>;
-            await fulfillStudentMembershipOrderOnPaid({
-                relatedOrderId: String(orderData.related_order_id || ""),
-                productKey: String(orderData.product_key || ""),
-                userId: String(updatedOrder.user_id || ""),
-            });
-        }
-
-        return new Response(`RECV_ORD_ID_${reqSeqId}`, {
+        return new Response(`RECV_ORD_ID_${result.reqSeqId}`, {
             status: 200,
             headers: {
                 "Content-Type": "text/plain; charset=UTF-8",

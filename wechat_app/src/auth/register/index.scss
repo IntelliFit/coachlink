@@ -31,6 +31,37 @@
   padding-bottom: 96rpx;
 }
 
+.register-back-pill {
+  position: absolute;
+  top: calc(env(safe-area-inset-top) + 32rpx);
+  left: 32rpx;
+  height: 64rpx;
+  padding: 0 24rpx 0 16rpx;
+  border-radius: 9999rpx;
+  background: rgba(15, 23, 42, 0.56);
+  border: 1px solid rgba(255, 255, 255, 0.32);
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+
+  &:active {
+    opacity: 0.86;
+  }
+}
+
+.register-back-icon {
+  font-size: 40rpx;
+  line-height: 1;
+  color: #FFFFFF;
+  font-weight: 700;
+}
+
+.register-back-text {
+  font-size: 26rpx;
+  color: #FFFFFF;
+  font-weight: 700;
+}
+
 .register-hero-brand {
   font-size: 60rpx;
   font-weight: 800;
@@ -59,7 +90,16 @@
   font-weight: 800;
   color: #0F172A;
   text-align: center;
-  margin-bottom: 56rpx;
+  margin-bottom: 16rpx;
+}
+
+.register-card-desc {
+  display: block;
+  text-align: center;
+  font-size: 26rpx;
+  line-height: 1.6;
+  color: #6B7280;
+  margin-bottom: 32rpx;
 }
 
 .form-item {

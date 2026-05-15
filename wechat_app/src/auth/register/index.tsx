@@ -89,6 +89,21 @@ function Register() {
     await Taro.reLaunch({ url: authService.buildPostAuthHomeUrl() })
   }
 
+  const goBackOrHome = async () => {
+    try {
+      const pages = Taro.getCurrentPages()
+
+      if (pages.length > 1) {
+        await Taro.navigateBack()
+        return
+      }
+    } catch {
+      // Fall through to the safe browsing entry.
+    }
+
+    await Taro.reLaunch({ url: '/pages/index/index' })
+  }
+
   const handleRegister = async () => {
     const trimmedPhoneOrEmail = phoneOrEmail.trim()
     const trimmedPassword = password.trim()
@@ -131,6 +146,7 @@ function Register() {
         phoneOrEmail: trimmedPhoneOrEmail,
         password: trimmedPassword
       })
+
       Toast.show('登录成功', {})
       setTimeout(() => {
         void handlePostLoginSuccess()
@@ -163,13 +179,18 @@ function Register() {
         <View className='register-hero'>
           <Image className='register-bg' src={loginBg} mode='aspectFill' />
           <View className='register-hero-overlay'>
+            <View className='register-back-pill' onClick={goBackOrHome}>
+              <Text className='register-back-icon'>‹</Text>
+              <Text className='register-back-text'>返回</Text>
+            </View>
             <Text className='register-hero-brand'>教链 CoachLink</Text>
             <Text className='register-hero-slogan'>开启你的专业训练之旅</Text>
           </View>
         </View>
 
-        <View className='register-card'>
-          <Text className='register-card-title'>注册</Text>
+          <View className='register-card'>
+            <Text className='register-card-title'>账号注册</Text>
+            <Text className='register-card-desc'>小程序推荐使用微信手机号快捷登录。本页仅用于创建手机号/邮箱 + 密码的备用账号。</Text>
 
           <View className='form-item'>
             <View className='input-row'>
@@ -283,6 +304,7 @@ function Register() {
             <Text className='tip-text'>已有账号？</Text>
             <Text className='tip-link' onClick={goToLogin}>立即登录</Text>
           </View>
+
         </View>
 
         <SliderCaptcha

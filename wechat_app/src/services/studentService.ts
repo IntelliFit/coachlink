@@ -32,6 +32,9 @@ interface GetStudentStatsResponseDto {
   subscriptionCount: number
   activePlanCount: number
   completedWorkouts: number
+  planHistoryCount?: number
+  actionCount?: number
+  trainingRecordCount?: number
 }
 
 interface GetE1RMHistoryDto {

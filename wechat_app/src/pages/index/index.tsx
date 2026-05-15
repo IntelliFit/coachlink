@@ -1,27 +1,50 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { View, Text } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
 import BottomNav from '@/components/BottomNav'
 import { authService } from '@/services/authService'
-import { Power, Search, Star, Book, ShieldCheck, Target, ArrowUp } from '@nutui/icons-react-taro'
+import { Power, Search, Star, ShieldCheck, Target, ArrowUp } from '@nutui/icons-react-taro'
 import './index.scss'
 
 function Index() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [userName, setUserName] = useState('')
+  const redirectingRef = useRef(false)
 
   const checkAuth = () => {
     const session = authService.getAuthSession({ normalize: true })
     setIsAuthenticated(session.isAuthenticated)
     setUserName(session.user?.nickname || session.user?.name || '')
+    return session
+  }
+
+  const redirectAuthenticatedToToday = async () => {
+    if (redirectingRef.current) return
+    if (!authService.isAuthenticated()) return
+    redirectingRef.current = true
+    try {
+      await Taro.redirectTo({ url: '/training/today-training' })
+    } catch {
+      try {
+        await Taro.reLaunch({ url: '/training/today-training' })
+      } catch {
+        redirectingRef.current = false
+      }
+    }
   }
 
   useDidShow(() => {
-    checkAuth()
+    const session = checkAuth()
+    if (session.isAuthenticated) {
+      void redirectAuthenticatedToToday()
+    }
   })
 
   useEffect(() => {
-    checkAuth()
+    const session = checkAuth()
+    if (session.isAuthenticated) {
+      void redirectAuthenticatedToToday()
+    }
   }, [])
 
   const greeting = useMemo(() => {
@@ -97,12 +120,12 @@ function Index() {
           <View className='hero-card-content'>
             <View className='hero-card-text'>
               <Text className='hero-card-title'>
-                {isAuthenticated ? '从首页开始今天的安排' : '开启你的训练之旅'}
+                {isAuthenticated ? '回到今天要做的事' : '先安全开始，再一步步进阶'}
               </Text>
               <Text className='hero-card-subtitle'>
                 {isAuthenticated
-                  ? '你可以从这里进入今日训练、发现教练、排行榜和知识库。'
-                  : '登录后可查看今日训练、成长记录和教练服务。'}
+                  ? '不用自己在功能里乱找，先看今日路径、完成训练，再决定是否学习或找教练。'
+                  : '不用先去健身房，也不用一次学完所有知识。先做一次低压力起步。'}
               </Text>
             </View>
             <View className='hero-card-icon-wrap'>
@@ -114,51 +137,45 @@ function Index() {
               <View className='progress-fill' style={{ width: '0%' }} />
             </View>
             <Text className='progress-label'>
-              {isAuthenticated ? '从这里选择你接下来要做的事' : '登录后开启你的训练计划'}
+              {isAuthenticated ? '今天先完成一个主行动' : '登录后生成你的第一条起步路径'}
             </Text>
           </View>
         </View>
 
         <View className='home-quick-actions'>
-          <Text className='section-title'>快捷入口</Text>
+          <Text className='section-title'>先选一个起点</Text>
           <View className='quick-actions-grid'>
+            <View className='quick-action-item' onClick={() => void tryNavigate('/content/path/index')}>
+              <View className='quick-action-icon'>
+                <Star width={24} height={24} color='#010101' />
+              </View>
+              <Text className='quick-action-label'>生成路径</Text>
+            </View>
             <View className='quick-action-item' onClick={() => void handleProtectedNav('/training/today-training')}>
               <View className='quick-action-icon'>
                 <Power width={24} height={24} color='#010101' />
               </View>
-              <Text className='quick-action-label'>今日训练</Text>
+              <Text className='quick-action-label'>登录开始</Text>
             </View>
             <View className='quick-action-item' onClick={() => void tryNavigate('/discovery/index')}>
               <View className='quick-action-icon'>
                 <Search width={24} height={24} color='#010101' />
               </View>
-              <Text className='quick-action-label'>发现教练</Text>
-            </View>
-            <View className='quick-action-item' onClick={() => void tryNavigate('/discovery/ranking')}>
-              <View className='quick-action-icon'>
-                <Star width={24} height={24} color='#010101' />
-              </View>
-              <Text className='quick-action-label'>排行榜</Text>
-            </View>
-            <View className='quick-action-item' onClick={() => void handleProtectedNav('/content/knowledge')}>
-              <View className='quick-action-icon'>
-                <Book width={24} height={24} color='#010101' />
-              </View>
-              <Text className='quick-action-label'>知识库</Text>
+              <Text className='quick-action-label'>教练支持</Text>
             </View>
           </View>
         </View>
 
         <View className='home-features'>
-          <Text className='section-title'>平台亮点</Text>
+          <Text className='section-title'>这周只抓重点</Text>
           <View className='features-list'>
-            <View className='feature-item' onClick={() => void tryNavigate('/auth/onboarding')}>
+            <View className='feature-item' onClick={() => void handleProtectedNav('/training/today-training')}>
               <View className='feature-icon-wrap'>
                 <ShieldCheck width={24} height={24} color='#CF6D4E' />
               </View>
               <View className='feature-info'>
-                <Text className='feature-title'>靠谱教练</Text>
-                <Text className='feature-desc'>资质认证，评价透明</Text>
+                <Text className='feature-title'>低压力开始</Text>
+                <Text className='feature-desc'>家里、宿舍、户外或健身房角落都可以完成第一次训练</Text>
               </View>
               <Text className='feature-arrow'>→</Text>
             </View>
@@ -167,18 +184,18 @@ function Index() {
                 <Target width={24} height={24} color='#CF6D4E' />
               </View>
               <View className='feature-info'>
-                <Text className='feature-title'>训练安排</Text>
-                <Text className='feature-desc'>登录后从首页自主进入今日训练，不再强制跳转</Text>
+                <Text className='feature-title'>今日主行动</Text>
+                <Text className='feature-desc'>先完成今天最重要的一件事，再看学习内容和进阶工具</Text>
               </View>
               <Text className='feature-arrow'>→</Text>
             </View>
-            <View className='feature-item' onClick={() => void handleProtectedNav('/me/profile/detail/index')}>
+            <View className='feature-item' onClick={() => void tryNavigate('/discovery/index')}>
               <View className='feature-icon-wrap'>
                 <ArrowUp width={24} height={24} color='#CF6D4E' />
               </View>
               <View className='feature-info'>
-                <Text className='feature-title'>成长档案</Text>
-                <Text className='feature-desc'>记录计划、训练和阶段进展</Text>
+                <Text className='feature-title'>卡住再找人</Text>
+                <Text className='feature-desc'>动作不确定、怕进健身房、练了没效果，再去找对应教练支持</Text>
               </View>
               <Text className='feature-arrow'>→</Text>
             </View>

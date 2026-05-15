@@ -6,7 +6,10 @@ import {
     upsertSubscriptionOrder,
 } from "@/lib/subscriptionOrders";
 import supabase from "@/lib/supabaseClient";
-import { yuanToFen } from "@/lib/moneyUtils";
+import {
+    durationMonthsFromPurchasedWeeks,
+    resolveCoachSubscriptionPricing,
+} from "@/lib/coachSubscriptionPricing";
 import type { ApiData } from "@/types/api";
 import type {
     CreateSubscriptionOrderDto,
@@ -28,16 +31,12 @@ export async function POST(req: Request) {
         coachId,
         orderType,
         subscriptionId,
-        tier,
-        monthlyPrice,
         subscribeData,
         productId,
-        productName,
-        productTier,
         subscribedWeeks,
     } = await req.json() as CreateSubscriptionOrderDto;
 
-    if (!coachId || !orderType || !tier || monthlyPrice === undefined) {
+    if (!coachId || !orderType) {
         return NextResponse.json<ApiData<CreateSubscriptionOrderResponseDto>>({
             success: false,
             message: "缺少必要参数",
@@ -59,6 +58,8 @@ export async function POST(req: Request) {
         }, { status: 400 });
     }
 
+    let renewalSubscriptionProductId: string | null = null;
+
     if (orderType === "renew") {
         if (!subscriptionId) {
             return NextResponse.json<ApiData<CreateSubscriptionOrderResponseDto>>({
@@ -70,7 +71,7 @@ export async function POST(req: Request) {
 
         const { data: subscription, error: subscriptionError } = await supabase
             .from("coach_subscriptions")
-            .select("id, student_id, coach_id")
+            .select("id, student_id, coach_id, status, product_id")
             .eq("id", subscriptionId)
             .single();
 
@@ -88,6 +89,31 @@ export async function POST(req: Request) {
                 message: "无权为该订阅创建续费订单",
                 data: null,
             }, { status: 403 });
+        }
+
+        if (!["active", "expired", "near_expiry"].includes(String(subscription.status || ""))) {
+            return NextResponse.json<ApiData<CreateSubscriptionOrderResponseDto>>({
+                success: false,
+                message: "当前订阅状态不支持续费",
+                data: null,
+            }, { status: 400 });
+        }
+
+        renewalSubscriptionProductId = String(subscription.product_id || "").trim() || null;
+        if (!renewalSubscriptionProductId) {
+            return NextResponse.json<ApiData<CreateSubscriptionOrderResponseDto>>({
+                success: false,
+                message: "当前订阅缺少套餐信息，请重新选择套餐",
+                data: null,
+            }, { status: 400 });
+        }
+
+        if (productId && productId !== renewalSubscriptionProductId) {
+            return NextResponse.json<ApiData<CreateSubscriptionOrderResponseDto>>({
+                success: false,
+                message: "续费只能延长当前套餐，请重新选择",
+                data: null,
+            }, { status: 400 });
         }
     } else {
         const { data: activeSub } = await supabase
@@ -107,18 +133,35 @@ export async function POST(req: Request) {
         }
     }
 
+    let pricing;
+    try {
+        pricing = await resolveCoachSubscriptionPricing({
+            coachId,
+            productId: orderType === "renew"
+                ? renewalSubscriptionProductId
+                : productId,
+            durationMonths: durationMonthsFromPurchasedWeeks(subscribedWeeks),
+        });
+    } catch (error) {
+        return NextResponse.json<ApiData<CreateSubscriptionOrderResponseDto>>({
+            success: false,
+            message: error instanceof Error ? error.message : "套餐价格校验失败，请重新选择套餐",
+            data: null,
+        }, { status: 400 });
+    }
+
     try {
         const subscriptionOrder = await upsertSubscriptionOrder({
             studentId: userId,
             coachId,
             orderType,
             subscriptionId: subscriptionId || null,
-            tier,
-            amountFen: yuanToFen(monthlyPrice),
-            productId: productId || null,
-            productName: productName || null,
-            productTier: productTier || null,
-            purchasedWeeks: subscribedWeeks ?? null,
+            tier: pricing.tier,
+            amountFen: pricing.amountFen,
+            productId: pricing.productId,
+            productName: pricing.productName,
+            productTier: pricing.productTier,
+            purchasedWeeks: pricing.purchasedWeeks,
             subscribeData: subscribeData ?? null,
         });
 

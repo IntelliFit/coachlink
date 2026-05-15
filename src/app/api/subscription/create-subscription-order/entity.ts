@@ -5,8 +5,8 @@ export interface CreateSubscriptionOrderDto {
     coachId: string;
     orderType: "subscribe" | "renew";
     subscriptionId?: string;
-    tier: number;
-    monthlyPrice: number;
+    tier?: number;
+    monthlyPrice?: number;
     subscribeData?: Json | null;
     productId?: string;
     productName?: string;
