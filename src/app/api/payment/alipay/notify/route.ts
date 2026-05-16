@@ -1,19 +1,13 @@
 import { NextResponse } from "next/server";
-import { serviceRoleSupabase } from "@/lib/supabaseClient";
+import supabase, { serviceRoleSupabase } from "@/lib/supabaseClient";
+import type { ApiData } from "@/types/api";
 import { createAlipaySdk } from "@/lib/alipaySdk";
-import { yuanToFen } from "@/lib/moneyUtils";
 import {
-    fulfillPaidSubscriptionOrder,
-    isSubscriptionOrderType,
+    updateTransactionAndWallet,
+    fulfillSubscriptionOnPaid,
 } from "@/app/api/payment/alipay/fulfillPaidOrder";
 import { fulfillContentPurchasePaid } from "../contentPurchaseFulfillment";
 import { fulfillStudentMembershipOrderOnPaid } from "@/app/api/payment/studentMembershipFulfillment";
-import { processHuifuPaymentNotify } from "@/app/api/payment/huifuPaymentNotify";
-
-function alipayNotifyAmountFen(totalAmount: string | undefined) {
-    const amountFen = yuanToFen(totalAmount);
-    return amountFen > 0 ? amountFen : null;
-}
 
 export async function POST(req: Request) {
     const timestamp = new Date().toISOString();
@@ -47,18 +41,6 @@ export async function POST(req: Request) {
 
         console.log("[Alipay Notify] Received params:", params);
 
-        if (params.resp_data && params.sign && !params.out_trade_no) {
-            const result = await processHuifuPaymentNotify({
-                content: params.resp_data,
-                sign: params.sign,
-                defaultPaymentProvider: "huifu_alipay",
-            });
-            return new Response(`RECV_ORD_ID_${result.reqSeqId}`, {
-                status: 200,
-                headers: { "Content-Type": "text/plain; charset=UTF-8" },
-            });
-        }
-
         // 安全：必须验签。支付宝用私钥对通知参数签名，我方用公钥校验，伪造请求无法通过
         const { ALIPAY_PUBLIC_KEY } = process.env;
         if (!ALIPAY_PUBLIC_KEY) {
@@ -90,17 +72,6 @@ export async function POST(req: Request) {
             }, { status: 400 });
         }
 
-        const { data: existingOrder, error: existingOrderError } = await serviceRoleSupabase
-            .from("alipay_orders")
-            .select("id,total_amount")
-            .eq("id", out_trade_no)
-            .maybeSingle();
-
-        if (existingOrderError || !existingOrder) {
-            console.error("[Alipay Notify] order not found before update:", existingOrderError);
-            return new Response("fail", { status: 500 });
-        }
-
         // Determine Status
         let orderStatus = "pending";
         if (
@@ -110,20 +81,6 @@ export async function POST(req: Request) {
             orderStatus = "paid";
         } else if (trade_status === "TRADE_CLOSED") {
             orderStatus = "closed"; // 数据库约束：pending|paid|failed|closed|refunded
-        }
-
-        if (orderStatus === "paid") {
-            const notifyAmountFen = alipayNotifyAmountFen(total_amount);
-            const localAmountFen = Math.round(Number(existingOrder.total_amount || 0));
-            if (!notifyAmountFen || notifyAmountFen !== localAmountFen) {
-                console.error("[Alipay Notify] amount mismatch:", {
-                    out_trade_no,
-                    localAmountFen,
-                    notifyAmountFen: notifyAmountFen ?? "missing",
-                    total_amount,
-                });
-                return new Response("fail", { status: 400 });
-            }
         }
 
         // 1. Update `alipay_orders`
@@ -173,15 +130,22 @@ export async function POST(req: Request) {
         if (orderStatus === "paid") {
             const orderType = alipayOrder.order_type;
             const orderData = (alipayOrder.order_data || {}) as any;
+            const subscriptionId = orderData?.subscriptionId as string | undefined;
             const contentId = orderData?.contentId as string | undefined;
 
-            const isSubscriptionOrder = isSubscriptionOrderType(orderType);
+            const isSubscriptionOrder =
+                orderType === "subscription" ||
+                orderType === "subscription_renew" ||
+                orderType === "coach_subscription" ||
+                orderType === "coach_subscription_renew";
 
-            if (isSubscriptionOrder) {
-                await fulfillPaidSubscriptionOrder(
+            if (subscriptionId && isSubscriptionOrder) {
+                await fulfillSubscriptionOnPaid(
                     alipayOrder,
+                    alipayOrder.id,
                     alipayOrder.user_id ?? ""
                 );
+                await updateTransactionAndWallet(alipayOrder);
             }
 
             // Content purchase (single-article unlock + coach wallet credit)

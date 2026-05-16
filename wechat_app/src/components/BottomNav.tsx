@@ -12,29 +12,35 @@ interface NavItem {
     path: string
 }
 
-/** 学员端底部导航：先收敛成路径系统，不把工具和消息作为一级入口抢注意力 */
+/** 学员端底部导航（首页与「今日训练」合并为「训练」；消息在工具箱右侧） */
 const studentNavItems: NavItem[] = [
     {
         key: 'training',
-        label: '今日',
+        label: '训练',
         iconClass: 'icon-dumbbell',
-        path: '/training/today-training'
+        path: '/pages/index/index'
     },
     {
-        key: 'path',
-        label: '路径',
-        iconClass: 'icon-a-Trainingplan',
-        path: '/content/path/index'
-    },
-    {
-        key: 'coach',
-        label: '教练',
-        iconClass: 'icon-coachline_line',
+        key: 'discovery',
+        label: '发现',
+        iconClass: 'icon-discovery',
         path: '/discovery/index'
     },
     {
+        key: 'toolbox',
+        label: '工具箱',
+        iconClass: 'icon-toolbox',
+        path: '/me/toolbox/index'
+    },
+    {
+        key: 'messages',
+        label: '消息',
+        iconClass: 'icon-messages',
+        path: '/me/messages/index'
+    },
+    {
         key: 'profile',
-        label: '我的',
+        label: '个人',
         iconClass: 'icon-user',
         path: '/me/profile/index'
     }
@@ -167,8 +173,8 @@ function BottomNav() {
 
         if (current === targetPath || navLockRef.current) return
 
-        // 个人中心需要登录，未登录时跳转到登录页
-        if (item.key === 'profile') {
+        // 个人中心、消息需要登录，未登录时跳转到登录页
+        if (item.key === 'profile' || item.key === 'messages') {
             const session = authService.getAuthSession({ normalize: true })
             if (!session.isAuthenticated) {
                 navLockRef.current = true
@@ -208,24 +214,10 @@ function BottomNav() {
                 const isActive =
                     currentNorm === targetNorm ||
                     (item.key === 'training' &&
-                        (currentNorm === '/pages/index/index' ||
-                            currentNorm.startsWith('/training/today-training') ||
-                            currentNorm.startsWith('/training/training-execution') ||
-                            currentNorm.startsWith('/training/impromptu-training') ||
-                            currentNorm.startsWith('/training/plan/current'))) ||
-                    (item.key === 'path' &&
-                        (currentNorm.startsWith('/content/path') ||
-                            currentNorm.startsWith('/content/articles') ||
-                            currentNorm.startsWith('/content/content-detail') ||
-                            currentNorm.startsWith('/content/knowledge') ||
-                            currentNorm.startsWith('/content/public') ||
-                            currentNorm.startsWith('/training/actions') ||
-                            currentNorm.startsWith('/training/action-detail'))) ||
-                    (item.key === 'coach' && currentNorm.startsWith('/discovery')) ||
-                    (item.key === 'profile' && currentNorm.startsWith('/me'))
+                        (currentNorm === 'pages/index/index' || currentNorm === 'training/today-training'))
 
                 const showMsgBadge =
-                    item.key === 'profile' && !isCoachView && studentMessageUnreadTotal > 0
+                    item.key === 'messages' && !isCoachView && studentMessageUnreadTotal > 0
 
                 return (
                     <View
