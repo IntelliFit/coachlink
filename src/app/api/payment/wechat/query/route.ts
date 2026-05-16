@@ -2,11 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import type { ApiData } from "@/types/api";
 import { getApiUserId } from "@/lib/getApiUserId";
 import { serviceRoleSupabase } from "@/lib/supabaseClient";
-import { fenToYuan, yuanToFen } from "@/lib/moneyUtils";
+import { fenToYuan } from "@/lib/moneyUtils";
 import { formatHuifuReqDate, queryHuifuMiniProgramOrder } from "@/lib/huifuMiniProgramPay";
 import {
-    fulfillPaidSubscriptionOrder,
-    isSubscriptionOrderType,
+    fulfillSubscriptionOnPaid,
+    updateTransactionAndWallet,
+    executeBalancePayment,
+    markSettlementWalletCredited,
 } from "@/app/api/payment/alipay/fulfillPaidOrder";
 import { fulfillStudentMembershipOrderOnPaid } from "@/app/api/payment/studentMembershipFulfillment";
 
@@ -30,19 +32,30 @@ function mapHuifuTransStatus(value: string | null | undefined): PaymentStatus {
     return "pending";
 }
 
-function huifuQueryAmountFen(queryResult: { trans_amt?: string; pay_amt?: string }) {
-    const rawAmount = queryResult.trans_amt || queryResult.pay_amt;
-    const amountFen = yuanToFen(rawAmount);
-    return amountFen > 0 ? amountFen : null;
-}
-
 async function fulfillPaidWechatOrder(latestOrder: any, userId: string) {
-    if (isSubscriptionOrderType(latestOrder.order_type)) {
-        await fulfillPaidSubscriptionOrder(
-            latestOrder,
-            userId,
-            latestOrder.payment_provider === "huifu_alipay" ? "alipay" : "wechat",
-        );
+    const isSubscriptionOrder =
+        latestOrder.order_type === "subscription" ||
+        latestOrder.order_type === "subscription_renew" ||
+        latestOrder.order_type === "coach_subscription" ||
+        latestOrder.order_type === "coach_subscription_renew";
+
+    if (isSubscriptionOrder) {
+        await fulfillSubscriptionOnPaid(latestOrder, latestOrder.id, userId, "wechat");
+
+        const isCoachSub =
+            latestOrder.order_type === "coach_subscription" ||
+            latestOrder.order_type === "coach_subscription_renew";
+        if (isCoachSub) {
+            const splitResult = await executeBalancePayment(latestOrder);
+            if (splitResult.shouldCreditWallet) {
+                const walletUpdated = await updateTransactionAndWallet(latestOrder, splitResult.splitInfo);
+                if (walletUpdated) {
+                    await markSettlementWalletCredited(latestOrder.id);
+                }
+            }
+        } else {
+            await updateTransactionAndWallet(latestOrder);
+        }
     }
 
     if (latestOrder.order_type === "student_membership") {
@@ -112,22 +125,6 @@ export async function POST(request: NextRequest) {
             });
 
             const mappedStatus = mapHuifuTransStatus(queryResult.trans_stat);
-            if (mappedStatus === "success") {
-                const gatewayAmountFen = huifuQueryAmountFen(queryResult);
-                const localAmountFen = Math.round(Number(order.total_amount ?? 0));
-                if (!gatewayAmountFen || gatewayAmountFen !== localAmountFen) {
-                    console.error("[Huifu Wechat Query] amount mismatch:", {
-                        orderId: order.id,
-                        localAmountFen,
-                        gatewayAmountFen: gatewayAmountFen ?? "missing",
-                    });
-                    return NextResponse.json<ApiData<null>>(
-                        { success: false, message: "支付网关返回金额与本地订单金额不一致，已拒绝确认支付", data: null },
-                        { status: 409 },
-                    );
-                }
-            }
-
             const nextDbStatus =
                 mappedStatus === "success"
                     ? "paid"
@@ -141,7 +138,7 @@ export async function POST(request: NextRequest) {
                     status: nextDbStatus,
                     trade_status: queryResult.trans_stat || null,
                     alipay_trade_no: queryResult.org_hf_seq_id || null,
-                    payment_provider: String((order as any).payment_provider || "").trim() || "wechat",
+                    payment_provider: "wechat",
                     updated_at: new Date().toISOString(),
                 })
                 .eq("id", order.id)

@@ -2,11 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import type { ApiData } from "@/types/api";
 import { getApiUserId } from "@/lib/getApiUserId";
 import { serviceRoleSupabase } from "@/lib/supabaseClient";
-import { fenToYuan, formatYuan } from "@/lib/moneyUtils";
-import {
-    durationMonthsFromPurchasedWeeks,
-    resolveCoachSubscriptionPricing,
-} from "@/lib/coachSubscriptionPricing";
+import { fenToYuan, formatYuan, yuanToFen } from "@/lib/moneyUtils";
 import {
     createHuifuMiniProgramOrder,
     formatHuifuReqDate,
@@ -91,7 +87,7 @@ export async function POST(request: NextRequest) {
 
         const { data: subscription, error: subError } = await serviceRoleSupabase
             .from("coach_subscriptions")
-            .select("id, student_id, coach_id, status, monthly_price, product_id, product_name, product_tier, subscribed_weeks, coaches(name)")
+            .select("id, student_id, coach_id, status, monthly_price, product_name, product_tier, subscribed_weeks, coaches(name)")
             .eq("id", subscriptionId)
             .single();
 
@@ -112,13 +108,6 @@ export async function POST(request: NextRequest) {
         if (!renew && subscription.status === "waiting") {
             return NextResponse.json<ApiData<null>>(
                 { success: false, message: "当前订阅正在处理中，请稍后再试", data: null },
-                { status: 400 },
-            );
-        }
-
-        if (!renew && !["inactive", "pending_payment"].includes(String(subscription.status || ""))) {
-            return NextResponse.json<ApiData<null>>(
-                { success: false, message: "当前订阅状态不可发起首次支付", data: null },
                 { status: 400 },
             );
         }
@@ -167,25 +156,11 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        let pricing;
-        try {
-            pricing = await resolveCoachSubscriptionPricing({
-                coachId,
-                productId: String((subscription as any)?.product_id || ""),
-                durationMonths: renew
-                    ? durationMonthsFromPurchasedWeeks(renewAdditionalWeeks)
-                    : durationMonthsFromPurchasedWeeks(subscription.subscribed_weeks),
-            });
-        } catch (error) {
-            return NextResponse.json<ApiData<null>>(
-                { success: false, message: error instanceof Error ? error.message : "套餐价格校验失败，请重新选择套餐", data: null },
-                { status: 400 },
-            );
-        }
-
         const totalAmountFen = testPricingEnabled && testAmountFen > 0
             ? testAmountFen
-            : pricing.amountFen;
+            : renew
+                ? yuanToFen(body.amount)
+                : Math.round(Number(subscription.monthly_price || 0));
 
         if (!Number.isFinite(totalAmountFen) || totalAmountFen <= 0) {
             return NextResponse.json<ApiData<null>>(
@@ -204,22 +179,23 @@ export async function POST(request: NextRequest) {
         const orderType = renew ? "coach_subscription_renew" : "coach_subscription";
         const clientIp = getClientIp(request);
         const coachName = String((subscription as any)?.coaches?.name || "").trim();
-        const durationMonths = pricing.durationMonths;
+        const baseDurationMonths = Math.max(1, Math.round(Number(subscription.subscribed_weeks || 0) / 4));
+        const durationMonths = renew
+            ? Math.max(1, Math.round(renewAdditionalWeeks / 4))
+            : baseDurationMonths;
         const orderData = {
             coachId,
             coachName,
             subscriptionId,
             subscription_id: subscriptionId,
-            productName: pricing.productName,
-            product_name: pricing.productName,
-            productTier: pricing.productTier,
-            product_tier: pricing.productTier,
+            productName: String(subscription.product_name || "").trim(),
+            product_name: String(subscription.product_name || "").trim(),
+            productTier: String(subscription.product_tier || "").trim(),
+            product_tier: String(subscription.product_tier || "").trim(),
             durationMonths,
             duration_months: durationMonths,
             renewAdditionalWeeks: renew ? renewAdditionalWeeks : undefined,
             huifu_req_date: reqDate,
-            payment_provider: "wechat",
-            requires_huifu_split: true,
             is_test_payment: testPricingEnabled && testAmountFen > 0,
         };
 

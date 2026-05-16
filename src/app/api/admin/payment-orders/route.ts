@@ -30,7 +30,7 @@ export async function POST(req: Request) {
 
     let q = serviceRoleSupabase
         .from('alipay_orders')
-        .select('id, user_id, subject, total_amount, status, order_type, order_data, payment_provider, trade_status, alipay_trade_no, created_at, updated_at', {
+        .select('id, user_id, subject, total_amount, status, order_type, order_data, alipay_trade_no, created_at, updated_at', {
             count: 'exact',
         })
         .order('created_at', { ascending: false })
@@ -51,35 +51,6 @@ export async function POST(req: Request) {
 
     const orders = (rows ?? []) as PaymentOrderWithUser[];
     const userIds = [...new Set(orders.map((o) => o.user_id).filter(Boolean))];
-    const orderIds = orders.map((o) => o.id).filter(Boolean);
-
-    if (orderIds.length > 0) {
-        const { data: settlements, error: settlementError } = await (serviceRoleSupabase
-            .from('coach_subscription_settlements') as any)
-            .select('alipay_order_id,status,error_message,attempts,last_attempt_at,updated_at')
-            .in('alipay_order_id', orderIds);
-
-        if (settlementError) {
-            console.error('[Admin PaymentOrders] load settlements failed:', settlementError);
-        } else {
-            const settlementMap = new Map(
-                (settlements ?? []).map((item: any) => [
-                    String(item.alipay_order_id),
-                    {
-                        status: item.status,
-                        error_message: item.error_message ?? null,
-                        attempts: item.attempts ?? null,
-                        last_attempt_at: item.last_attempt_at ?? null,
-                        updated_at: item.updated_at ?? null,
-                    },
-                ]),
-            );
-
-            for (const order of orders) {
-                order.settlement = settlementMap.get(order.id) ?? null;
-            }
-        }
-    }
 
     if (userIds.length > 0) {
         const { data: profiles } = await serviceRoleSupabase

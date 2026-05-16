@@ -6,7 +6,6 @@ import { finalizeSubscriptionOrder } from "@/lib/subscriptionOrders";
 import {
     type SplitActual,
     transferByBalancePayment,
-    queryBalancePayment,
     generateReqSeqId,
     formatHuifuReqDate,
     parseAcctSplitBunch,
@@ -26,8 +25,6 @@ interface SettlementRow {
     alipay_order_id: string;
     status: SettlementStatus;
     attempts: number | null;
-    req_date?: string | null;
-    req_seq_id?: string | null;
     acct_split_bunch?: unknown;
 }
 
@@ -54,18 +51,10 @@ function platformRevenueTable() {
     return (serviceRoleSupabase as any).from("platform_revenue");
 }
 
-export function isCoachSubscriptionOrderType(orderType: unknown) {
+function isCoachSubscriptionOrderType(orderType: unknown) {
     return (
         orderType === "coach_subscription" ||
         orderType === "coach_subscription_renew"
-    );
-}
-
-export function isSubscriptionOrderType(orderType: unknown) {
-    return (
-        orderType === "subscription" ||
-        orderType === "subscription_renew" ||
-        isCoachSubscriptionOrderType(orderType)
     );
 }
 
@@ -86,45 +75,6 @@ function amountFenOf(order: {
 }) {
     const orderData = asObject(order.order_data);
     return Math.round(Number(order.total_amount ?? order.amount ?? orderData.amount ?? 0));
-}
-
-export function isHuifuBackedPaymentOrder(order: {
-    order_type?: unknown;
-    order_data?: unknown;
-    payment_provider?: unknown;
-}) {
-    const orderData = asObject(order.order_data);
-    const provider = String(
-        (order as any).payment_provider ||
-        orderData.payment_provider ||
-        "",
-    ).toLowerCase();
-    const hasCoachContext = Boolean(orderData.coachId || orderData.coach_id);
-
-    return (
-        isCoachSubscriptionOrderType(order.order_type) ||
-        orderData.requires_huifu_split === true ||
-        (
-            hasCoachContext &&
-            (order.order_type === "subscription" || order.order_type === "subscription_renew") &&
-            (provider.includes("huifu") || provider === "wechat")
-        )
-    );
-}
-
-function fulfillmentProviderForOrder(
-    order: { payment_provider?: unknown; order_data?: unknown },
-    fallback: PaymentProvider,
-): PaymentProvider {
-    const orderData = asObject(order.order_data);
-    const provider = String(
-        (order as any).payment_provider ||
-        orderData.payment_provider ||
-        "",
-    ).toLowerCase();
-    if (provider.includes("wechat")) return "wechat";
-    if (provider.includes("alipay")) return "alipay";
-    return fallback;
 }
 
 function splitAmountsFen(totalFen: number) {
@@ -412,85 +362,6 @@ export async function executeBalancePayment(order: Record<string, any>): Promise
 }
 
 /**
- * Query Huifu for a settlement that is already marked processing. This does
- * not initiate another transfer; it only reconciles the prior request.
- */
-export async function reconcileProcessingBalancePayment(order: Record<string, any>): Promise<BalancePaymentResult> {
-    const orderId = orderIdOf(order);
-    if (!orderId) {
-        return { status: "skipped", shouldCreditWallet: false, message: "Missing order id" };
-    }
-
-    const settlement = await fetchSettlement(orderId);
-    if (!settlement) {
-        return { status: "skipped", shouldCreditWallet: false, message: "Settlement row not found" };
-    }
-
-    if (settlement.status === "wallet_credited") {
-        return { status: "wallet_credited", shouldCreditWallet: false };
-    }
-
-    if (settlement.status === "split_success") {
-        const splitInfo = parseSavedSplit(settlement.acct_split_bunch);
-        return {
-            status: "split_success",
-            shouldCreditWallet: splitInfo.length > 0,
-            splitInfo,
-            message: splitInfo.length > 0 ? undefined : "Saved split detail is empty",
-        };
-    }
-
-    if (settlement.status !== "processing") {
-        return {
-            status: settlement.status,
-            shouldCreditWallet: false,
-            message: `Settlement status is ${settlement.status}, query reconciliation is only for processing rows`,
-        };
-    }
-
-    if (!settlement.req_date || !settlement.req_seq_id) {
-        await markSettlementSplitFailed(settlement.id, "Processing settlement is missing Huifu request identifiers");
-        return {
-            status: "split_failed",
-            shouldCreditWallet: false,
-            message: "Processing settlement is missing Huifu request identifiers",
-        };
-    }
-
-    const result = await queryBalancePayment({
-        orgReqDate: settlement.req_date,
-        orgReqSeqId: settlement.req_seq_id,
-    });
-    const rawSplit = result.acct_payment_split_bunch || result.acct_split_bunch;
-    const splitInfo = rawSplit ? parseAcctSplitBunch(rawSplit) : [];
-    const isSuccess =
-        result.trans_stat === "S" ||
-        (result.resp_code === "00000000" && splitInfo.length > 0);
-    const isProcessing =
-        result.trans_stat === "P" ||
-        result.trans_stat === "I" ||
-        result.resp_code === "00000100";
-
-    if (isSuccess && splitInfo.length > 0) {
-        await markSettlementSplitSuccess(settlement.id, result, rawSplit);
-        return { status: "split_success", shouldCreditWallet: true, splitInfo };
-    }
-
-    if (isProcessing) {
-        await markSettlementStillProcessing(settlement.id, result, rawSplit);
-        return {
-            status: "processing",
-            shouldCreditWallet: false,
-            message: result.resp_desc || "Huifu split is still processing",
-        };
-    }
-
-    const message = result.resp_desc || "Huifu split query returned failed status";
-    await markSettlementSplitFailed(settlement.id, message);
-    return { status: "split_failed", shouldCreditWallet: false, message };
-}
-
-/**
  * Mark a settlement as locally credited after wallet_transactions and
  * platform_revenue are written successfully.
  */
@@ -533,11 +404,10 @@ export async function updateTransactionAndWallet(
         const amountFen = amountFenOf(order);
         if (!orderId || !coachId || amountFen <= 0) return false;
 
-        if (isHuifuBackedPaymentOrder(order) && (!splitInfo || splitInfo.length === 0)) {
+        if (isCoachSubscriptionOrderType(order.order_type) && (!splitInfo || splitInfo.length === 0)) {
             console.error("[updateTransactionAndWallet] refusing coach wallet credit without splitInfo", {
                 orderId,
                 orderType: order.order_type,
-                paymentProvider: (order as any).payment_provider,
             });
             return false;
         }
@@ -614,31 +484,6 @@ export async function updateTransactionAndWallet(
         console.error("[fulfillPaidOrder] updateTransactionAndWallet:", error);
         return false;
     }
-}
-
-export async function fulfillPaidSubscriptionOrder(
-    order: Record<string, any>,
-    userId: string,
-    fallbackProvider: PaymentProvider = "alipay",
-): Promise<boolean> {
-    if (!isSubscriptionOrderType(order?.order_type)) return false;
-
-    const provider = fulfillmentProviderForOrder(order, fallbackProvider);
-    await fulfillSubscriptionOnPaid(order, order.id, userId, provider);
-
-    if (isHuifuBackedPaymentOrder(order)) {
-        const splitResult = await executeBalancePayment(order);
-        if (splitResult.shouldCreditWallet) {
-            const walletUpdated = await updateTransactionAndWallet(order, splitResult.splitInfo);
-            if (walletUpdated) {
-                await markSettlementWalletCredited(order.id);
-            }
-        }
-        return true;
-    }
-
-    await updateTransactionAndWallet(order);
-    return true;
 }
 
 /**
