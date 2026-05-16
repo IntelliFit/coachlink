@@ -4,21 +4,6 @@ import supabase from "@/lib/supabaseClient";
 import type { ApiData } from "@/types/api";
 import type { UpdatePricingDto, UpdatePricingResponseDto } from "./entity";
 
-function normalizeProductsForSave(products: unknown) {
-    if (!Array.isArray(products)) return products;
-    return products.map((product: any) => ({
-        ...product,
-        duration_options: Array.isArray(product?.duration_options)
-            ? product.duration_options.map((option: any) => ({
-                ...option,
-                months: Number(option?.months || 0),
-                price: Number(option?.price || 0),
-                price_unit: "yuan",
-            }))
-            : [],
-    }));
-}
-
 export async function POST(req: Request) {
     const session = await getServerSession();
     if (!session?.user?.id) {
@@ -103,7 +88,7 @@ export async function POST(req: Request) {
         .single();
 
     const updatePayload: any = {};
-    if (products) updatePayload.products = normalizeProductsForSave(products);
+    if (products) updatePayload.products = products;
     if (pricings) updatePayload.pricings = pricings;
 
     if (existingPricing) {

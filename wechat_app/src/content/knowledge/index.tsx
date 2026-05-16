@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { View, Text, ScrollView, Image, Input } from '@tarojs/components'
-import { ArrowRight, Search, Target } from '@nutui/icons-react-taro'
-import Taro, { useRouter } from '@tarojs/taro'
+import { Search, Target } from '@nutui/icons-react-taro'
+import Taro from '@tarojs/taro'
 import BottomNav from '@/components/BottomNav'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import {
@@ -13,30 +13,6 @@ import { groupKnowledgeBooks, type KnowledgeBookCollection } from '@/utils/knowl
 import './index.scss'
 
 const QUICK_TAGS = ['深蹲', '拉伸', '减脂', '增肌']
-
-const LEARNING_ENTRY_CARDS = [
-  {
-    key: 'form',
-    title: '动作会不会错',
-    desc: '先看合格标准、常见错误和退阶方式。',
-    query: '动作标准',
-    tag: '动作'
-  },
-  {
-    key: 'pain',
-    title: '哪里疼先自检',
-    desc: '训练前判断要退阶、暂停还是找专业人士。',
-    query: '疼痛自检',
-    tag: '安全'
-  },
-  {
-    key: 'nutrition',
-    title: '饮食先抓三件事',
-    desc: '不用一上来算热量，先处理蛋白质、外食和饮水。',
-    query: '饮食原则',
-    tag: '饮食'
-  }
-]
 
 const BODY_REGION_OPTIONS = [
   { key: '斜方肌', label: '颈肩' },
@@ -70,7 +46,6 @@ const BODY_VIEW_OPTIONS = [
 ]
 
 function KnowledgeBase() {
-  const router = useRouter()
   const [bookCollections, setBookCollections] = useState<KnowledgeBookCollection<any>[]>([])
   const [loadingBooks, setLoadingBooks] = useState(true)
   const [searchKeyword, setSearchKeyword] = useState('')
@@ -82,7 +57,6 @@ function KnowledgeBase() {
   const [bodyView, setBodyView] = useState<'front' | 'back'>('front')
   const [bodyRegionNodes, setBodyRegionNodes] = useState<KnowledgeNodeListItem[]>([])
   const [loadingBodyRegion, setLoadingBodyRegion] = useState(false)
-  const [libraryExpanded, setLibraryExpanded] = useState(false)
 
   useEffect(() => {
     const token = Taro.getStorageSync('token')
@@ -91,11 +65,6 @@ function KnowledgeBase() {
       return
     }
     void loadBooks()
-    const initialQuery = String(router.params?.q || router.params?.query || '').trim()
-    if (initialQuery) {
-      setSearchKeyword(initialQuery)
-      void handleSearch(initialQuery)
-    }
   }, [])
 
   useEffect(() => {
@@ -177,38 +146,8 @@ function KnowledgeBase() {
       <ScrollView scrollY className='knowledge-scroll page-scroll'>
         <View className='page-shell'>
           <View className='hero-section'>
-            <Text className='hero-title'>学习路径</Text>
-            <Text className='hero-subtitle'>先看当前问题，再进入动作、饮食和安全内容</Text>
-          </View>
-
-          <View className='path-learning-section'>
-            <View className='section-head'>
-              <View>
-                <Text className='section-title'>先学当前卡点</Text>
-                <Text className='section-caption'>不要从资料库开始翻，先看最容易影响执行的 1-3 件事</Text>
-              </View>
-            </View>
-            <View className='path-learning-list'>
-              {LEARNING_ENTRY_CARDS.map((item) => (
-                <View
-                  key={item.key}
-                  className='path-learning-card'
-                  onClick={() => {
-                    setSearchKeyword(item.query)
-                    void handleSearch(item.query)
-                  }}
-                >
-                  <View className='path-learning-tag'>
-                    <Text>{item.tag}</Text>
-                  </View>
-                  <View className='path-learning-main'>
-                    <Text className='path-learning-title'>{item.title}</Text>
-                    <Text className='path-learning-desc'>{item.desc}</Text>
-                  </View>
-                  <ArrowRight size={16} color='#9CA3AF' />
-                </View>
-              ))}
-            </View>
+            <Text className='hero-title'>知识库</Text>
+            <Text className='hero-subtitle'>点击身体部位，共建训练知识</Text>
           </View>
 
           <View className='search-section'>
@@ -216,7 +155,7 @@ function KnowledgeBase() {
               <Search size={18} color='#9CA3AF' />
               <Input
                 className='search-input'
-                placeholder='搜索动作、饮食、安全或当前卡点'
+                placeholder='搜索知识点...'
                 value={searchKeyword}
                 onInput={(e) => setSearchKeyword(e.detail.value)}
                 onConfirm={() => handleSearch()}
@@ -283,16 +222,6 @@ function KnowledgeBase() {
             </View>
           )}
 
-          <View className='library-toggle-card' onClick={() => setLibraryExpanded((v) => !v)}>
-            <View>
-              <Text className='library-toggle-title'>资料库</Text>
-              <Text className='library-toggle-desc'>书籍笔记和人体地图都保留，但默认不打断学习路径</Text>
-            </View>
-            <Text className='library-toggle-action'>{libraryExpanded ? '收起' : '展开'}</Text>
-          </View>
-
-          {libraryExpanded && (
-            <>
           <View className='section'>
             <View className='section-head'>
               <View>
@@ -425,8 +354,6 @@ function KnowledgeBase() {
               </View>
             )}
           </View>
-            </>
-          )}
         </View>
       </ScrollView>
       <BottomNav />

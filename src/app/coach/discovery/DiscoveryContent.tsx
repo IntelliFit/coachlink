@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import dynamic from 'next/dynamic';
-import { Star, Crown, Search, ArrowRight, UserCheck, HelpCircle, ShoppingCart, BookOpen, ShieldCheck, ChevronRight } from 'lucide-react';
+import { Star, Users, Clock, Crown, Eye, Search, ArrowRight, UserCheck, HelpCircle, Filter, ShoppingCart, Package, User, Layers, BookOpen, ShieldCheck, ChevronRight } from 'lucide-react';
 import { Paginator } from 'primereact/paginator';
 import { InputText } from 'primereact/inputtext';
 import { Button } from 'primereact/button';
@@ -229,7 +229,6 @@ function DiscoveryContentInner() {
     const [isLoading, setIsLoading] = useState(false);
     const [selectedSpecialty, setSelectedSpecialty] = useState<string>('all');
     const [selectedTrack, setSelectedTrack] = useState<string>('all');
-    const [selectedSupportNeed, setSelectedSupportNeed] = useState<string>('beginner');
     const coachesPerPage = 10;
     const router = useRouter();
     const { startGuide, hasCompletedGuide, isLoading: isGuideLoading } = useGuideStore();
@@ -239,10 +238,10 @@ function DiscoveryContentInner() {
 
     const categories = useMemo(
         () => [
-            { key: 'beginner', title: '新手护航', desc: '怕练错/不会开始', icon: UserCheck, query: '新手护航', track: 'buddy' },
-            { key: 'form', title: '动作纠错', desc: '视频反馈/标准动作', icon: ShieldCheck, query: '动作纠错', track: 'growth' },
-            { key: 'gym', title: '健身房不慌', desc: '怕被看见/器械不会', icon: HelpCircle, query: '健身房新手', track: 'buddy' },
-            { key: 'plateau', title: '没效果诊断', desc: '训练饮食恢复一起看', icon: BookOpen, query: '健身没效果', track: 'growth' },
+            { title: '服务商品', desc: '订阅计划/服务', icon: Layers, href: '/market' },
+            { title: '动作库', desc: '动作学习/添加', icon: Users, href: '/me/action-lib?tab=public' },
+            { title: '找教练', desc: '专业认证教练', icon: UserCheck, href: '/coach/discovery?tab=coaches' },
+            { title: '健身资讯', desc: '知识与实践', icon: BookOpen, href: '/articles' },
         ],
         [],
     );
@@ -386,10 +385,7 @@ function DiscoveryContentInner() {
         } catch (e) { console.error(e); }
     };
 
-    const loadCoaches = async (
-        page: number,
-        filters?: { search?: string; specialty?: string; track?: string },
-    ) => {
+    const loadCoaches = async (page: number) => {
         setIsLoading(true);
         try {
             if (visibilityStatus?.focusMode && visibilityStatus?.focusCoachId) {
@@ -399,10 +395,10 @@ function DiscoveryContentInner() {
             } else {
                 const res = await coachService.getAllCoaches({
                     page, limit: coachesPerPage,
-                    search: filters?.search ?? searchTerm ?? '',
-                    specialty: filters?.specialty ?? selectedSpecialty,
-                    coachTrack: filters?.track ?? selectedTrack,
-                    preferredCoachTrack: (filters?.track ?? selectedTrack) === 'all' ? 'buddy' : '',
+                    search: searchTerm || '',
+                    specialty: selectedSpecialty,
+                    coachTrack: selectedTrack,
+                    preferredCoachTrack: selectedTrack === 'all' ? 'buddy' : '',
                 });
                 if (res) setCoaches(res.coaches);
             }
@@ -410,14 +406,6 @@ function DiscoveryContentInner() {
     };
 
     const onSearchOrFilter = () => loadCoaches(1);
-
-    const handleSupportCategoryClick = (category: { key: string; query: string; track: string }) => {
-        setSelectedSupportNeed(category.key);
-        setSearchTerm(category.query);
-        setSelectedSpecialty('all');
-        setSelectedTrack(category.track);
-        void loadCoaches(1, { search: category.query, specialty: 'all', track: category.track });
-    };
 
     const renderMiniCoachCard = (coach: CoachesRow & { studentCount?: number; averageRating?: number }) => (
         <div
@@ -622,34 +610,15 @@ function DiscoveryContentInner() {
             </div>
 
             <div className="max-w-6xl mx-auto px-4 pt-2">
-                <div className="mb-10">
-                    <div className="mb-4 px-1">
-                        <h1 className="text-2xl font-black tracking-tight text-surface-900 md:text-3xl">教练支持</h1>
-                        <p className="mt-1 text-sm text-surface-500">先说你卡在哪里，再找对应的人。服务商品和动作内容放到后面，需要时再打开。</p>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-                        {categories.map((c) => (
-                            <button
-                                key={c.key}
-                                onClick={() => handleSupportCategoryClick(c)}
-                                className={`group rounded-3xl border p-4 text-left transition-all hover:border-primary-200 hover:bg-primary-50/40 active:scale-[0.98] ${
-                                    selectedSupportNeed === c.key
-                                        ? 'border-primary-200 bg-primary-50/70'
-                                        : 'border-surface-100 bg-surface-0'
-                                }`}
-                            >
-                                <div className={`flex h-12 w-12 items-center justify-center rounded-2xl transition-all group-hover:bg-primary-100 ${
-                                    selectedSupportNeed === c.key
-                                        ? 'bg-primary-500 text-white'
-                                        : 'bg-primary-50 text-primary-700'
-                                }`}>
-                                    <c.icon size={22} className="stroke-[2.5]" />
-                                </div>
-                                <span className="mt-4 block text-sm font-black tracking-tight text-surface-900">{c.title}</span>
-                                <span className="mt-1 block text-xs leading-relaxed text-surface-500">{c.desc}</span>
-                            </button>
-                        ))}
-                    </div>
+                <div className="grid grid-cols-4 gap-4 mb-10">
+                    {categories.map((c) => (
+                        <button key={c.href} onClick={() => router.push(c.href)} className="flex flex-col items-center gap-3 group">
+                            <div className="w-16 h-16 md:w-18 md:h-18 rounded-3xl flex items-center justify-center bg-surface-0 text-surface-800 border border-surface-100 group-hover:bg-surface-50 group-hover:text-surface-900 group-hover:border-surface-200 group-active:scale-95 transition-all">
+                                <c.icon size={26} className="stroke-[2.5]" />
+                            </div>
+                            <span className="text-xs font-black text-surface-900 tracking-tight">{c.title}</span>
+                        </button>
+                    ))}
                 </div>
 
                 <div className="mb-8 rounded-3xl border border-surface-100 bg-surface-0 p-4 md:p-5">
@@ -661,12 +630,7 @@ function DiscoveryContentInner() {
                         {selectedTrack !== 'all' && (
                             <button
                                 type="button"
-                                onClick={() => {
-                                    setSelectedSupportNeed('');
-                                    setSearchTerm('');
-                                    setSelectedTrack('all');
-                                    void loadCoaches(1, { search: '', specialty: selectedSpecialty, track: 'all' });
-                                }}
+                                onClick={() => setSelectedTrack('all')}
                                 className="text-xs font-bold text-surface-500 hover:text-surface-900 transition-colors"
                             >
                                 清除筛选
@@ -676,12 +640,7 @@ function DiscoveryContentInner() {
                     <div className="flex flex-wrap gap-2 mt-4">
                         <button
                             type="button"
-                            onClick={() => {
-                                setSelectedSupportNeed('');
-                                setSearchTerm('');
-                                setSelectedTrack('all');
-                                void loadCoaches(1, { search: '', specialty: selectedSpecialty, track: 'all' });
-                            }}
+                            onClick={() => setSelectedTrack('all')}
                             className={`rounded-full border px-4 py-2 text-sm font-bold transition-all ${
                                 selectedTrack === 'all'
                                     ? 'border-surface-900 bg-surface-900 text-white'
@@ -694,10 +653,7 @@ function DiscoveryContentInner() {
                             <button
                                 key={option.value}
                                 type="button"
-                                onClick={() => {
-                                    setSelectedSupportNeed('');
-                                    setSelectedTrack(option.value);
-                                }}
+                                onClick={() => setSelectedTrack(option.value)}
                                 className={`rounded-full border px-4 py-2 text-sm font-bold transition-all ${
                                     selectedTrack === option.value
                                         ? 'border-primary-500 bg-primary-500 text-white'
@@ -709,20 +665,6 @@ function DiscoveryContentInner() {
                         ))}
                     </div>
                 </div>
-
-                {isLoading ? (
-                    <div className="mb-10">
-                        <h2 className="text-xl md:text-2xl font-black text-surface-900 tracking-tight mb-5 px-1">推荐教练</h2>
-                        <div className="flex gap-4 overflow-hidden px-2">{[1,2,3,4].map(i => <CoachSkeletonCard key={i} />)}</div>
-                    </div>
-                ) : coaches.length > 0 ? (
-                    <CarouselSection title="推荐教练" moreLink="/search" items={coaches} itemTemplate={(coach) => renderMiniCoachCard(coach as any)} numVisible={4} />
-                ) : (
-                    <div className="mb-10">
-                        <h2 className="text-xl md:text-2xl font-black text-surface-900 tracking-tight mb-5 px-1">推荐教练</h2>
-                        <div className="w-full py-12 text-center text-surface-400 text-sm font-medium bg-surface-50 rounded-3xl border border-dashed border-surface-200">暂无推荐教练</div>
-                    </div>
-                )}
 
                 {productFeedLoading ? (
                     <div className="mb-10">
@@ -755,6 +697,20 @@ function DiscoveryContentInner() {
                                 });
                             })()}
                         </div>
+                    </div>
+                )}
+
+                {isLoading ? (
+                    <div className="mb-10">
+                        <h2 className="text-xl md:text-2xl font-black text-surface-900 tracking-tight mb-5 px-1">推荐教练</h2>
+                        <div className="flex gap-4 overflow-hidden px-2">{[1,2,3,4].map(i => <CoachSkeletonCard key={i} />)}</div>
+                    </div>
+                ) : coaches.length > 0 ? (
+                    <CarouselSection title="推荐教练" moreLink="/search" items={coaches} itemTemplate={(coach) => renderMiniCoachCard(coach as any)} numVisible={4} />
+                ) : (
+                    <div className="mb-10">
+                        <h2 className="text-xl md:text-2xl font-black text-surface-900 tracking-tight mb-5 px-1">推荐教练</h2>
+                        <div className="w-full py-12 text-center text-surface-400 text-sm font-medium bg-surface-50 rounded-3xl border border-dashed border-surface-200">暂无推荐教练</div>
                     </div>
                 )}
 

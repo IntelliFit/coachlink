@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
-import { serviceRoleSupabase as supabase } from "@/lib/supabaseClient";
+import supabase from "@/lib/supabaseClient";
 import type { ApiData } from "@/types/api";
 import type {
     GetStudentStatsDto,
@@ -20,15 +20,11 @@ export async function POST(req: Request) {
     // 通过 session 获取用户 ID
     const userId = session.user.id;
 
-    // 并行查询个人页需要的统计数据
+    // 并行查询三个统计数据
     const [
         subscriptionCountResult,
         activePlanCountResult,
         completedWorkoutsResult,
-        planHistoryCountResult,
-        actionCountResult,
-        planTrainingRecordCountResult,
-        impromptuTrainingRecordCountResult,
     ] = await Promise.all([
         // 1. 订阅的教练数量：查询 coach_subscriptions 表中 status='active' 的记录数
         supabase
@@ -50,32 +46,6 @@ export async function POST(req: Request) {
             .select("training_date", { count: "exact" })
             .eq("user_id", userId)
             .eq("status", "completed"),
-
-        // 4. 全部计划：与「全部计划」列表保持一致，统计当前 + 历史计划实例
-        supabase
-            .from("coach_plan_instances")
-            .select("*", { count: "exact", head: true })
-            .eq("student_id", userId)
-            .in("status", ["active", "completed", "archived"]),
-
-        // 5. 我的动作库：统计当前学员自己的动作条目
-        supabase
-            .from("student_actions")
-            .select("*", { count: "exact", head: true })
-            .eq("user_id", userId),
-
-        // 6. 训练记录：与小程序训练记录页的数据源保持一致
-        supabase
-            .from("plan_instance_executions")
-            .select("*", { count: "exact", head: true })
-            .eq("student_id", userId)
-            .eq("status", "completed"),
-
-        supabase
-            .from("impromptu_executions")
-            .select("*", { count: "exact", head: true })
-            .eq("student_id", userId)
-            .eq("status", "completed"),
     ]);
 
     // 处理查询错误
@@ -88,18 +58,6 @@ export async function POST(req: Request) {
     if (completedWorkoutsResult.error) {
         console.error("查询已完成训练数量失败:", completedWorkoutsResult.error);
     }
-    if (planHistoryCountResult.error) {
-        console.error("查询全部计划数量失败:", planHistoryCountResult.error);
-    }
-    if (actionCountResult.error) {
-        console.error("查询我的动作库数量失败:", actionCountResult.error);
-    }
-    if (planTrainingRecordCountResult.error) {
-        console.error("查询计划训练记录数量失败:", planTrainingRecordCountResult.error);
-    }
-    if (impromptuTrainingRecordCountResult.error) {
-        console.error("查询即兴训练记录数量失败:", impromptuTrainingRecordCountResult.error);
-    }
 
     // 计算统计数据
     const subscriptionCount = subscriptionCountResult.count || 0;
@@ -110,11 +68,6 @@ export async function POST(req: Request) {
         (completedWorkoutsResult.data || []).map((r: any) => r.training_date)
     );
     const completedWorkouts = completedDates.size;
-    const planHistoryCount = planHistoryCountResult.count || 0;
-    const actionCount = actionCountResult.count || 0;
-    const trainingRecordCount =
-        (planTrainingRecordCountResult.count || 0) +
-        (impromptuTrainingRecordCountResult.count || 0);
 
     return NextResponse.json<ApiData<GetStudentStatsResponseDto>>({
         success: true,
@@ -123,9 +76,6 @@ export async function POST(req: Request) {
             subscriptionCount,
             activePlanCount,
             completedWorkouts,
-            planHistoryCount,
-            actionCount,
-            trainingRecordCount,
         },
     });
 }

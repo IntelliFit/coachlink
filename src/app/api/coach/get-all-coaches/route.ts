@@ -50,7 +50,7 @@ export async function POST(req: Request) {
     if (search.trim()) {
         // 使用 ilike 做模糊匹配（简单方案）：
         query = query.or(
-            `name.ilike.%${search}%,title.ilike.%${search}%,bio.ilike.%${search}%,support_focus.ilike.%${search}%`
+            `name.ilike.%${search}%,title.ilike.%${search}%`
         );
     }
 
@@ -105,7 +105,7 @@ export async function POST(req: Request) {
 
         if (search.trim()) {
             fallbackQuery = fallbackQuery.or(
-                `name.ilike.%${search}%,title.ilike.%${search}%,bio.ilike.%${search}%,support_focus.ilike.%${search}%`
+                `name.ilike.%${search}%,title.ilike.%${search}%`
             );
         }
         if (specialty.trim() && specialty.trim() !== 'all') {

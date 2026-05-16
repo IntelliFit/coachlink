@@ -10,7 +10,7 @@ import { ConfirmDialog, confirmDialog } from 'primereact/confirmdialog';
 import { Dialog } from 'primereact/dialog';
 import { InputText } from 'primereact/inputtext';
 import { InputTextarea } from 'primereact/inputtextarea';
-import { BookOpen, HeartPulse, Info, ShieldCheck, Target } from 'lucide-react';
+import { Info, Target } from 'lucide-react';
 
 import { subscriptionService } from '@/app/service/subscriptionService';
 import { planLibService } from '@/app/service/planLibService';
@@ -43,33 +43,6 @@ import {
 import {
     formatBeijingDate,
 } from '@/lib/beijingTime';
-
-const STUDENT_PATH_TASKS = [
-    '完成今日主训练或一次 10-20 分钟保底训练',
-    '每餐先补一个掌心大小的蛋白质来源',
-    '训练前确认肩、腰、膝、腕没有明显疼痛',
-];
-
-const STUDENT_PATH_LEARNING = [
-    {
-        title: '今天动作做到什么算合格',
-        desc: '只看当前动作标准、常见错误和退阶方式。',
-        href: '/dashboard/knowledge/search?q=动作标准',
-        icon: ShieldCheck,
-    },
-    {
-        title: '练了没效果先查哪里',
-        desc: '先看训练容量、饮食、恢复和睡眠，而不是马上换计划。',
-        href: '/dashboard/knowledge/search?q=没效果',
-        icon: HeartPulse,
-    },
-    {
-        title: '第一次去健身房不慌',
-        desc: '把路线、器械和低暴露训练位先想清楚。',
-        href: '/dashboard/knowledge/search?q=健身房新手',
-        icon: BookOpen,
-    },
-];
 
 const TodayTrainingPage: React.FC = () => {
     const { data: session } = useSession();
@@ -501,74 +474,6 @@ const TodayTrainingPage: React.FC = () => {
             setAddingLightweightTask(false);
         }
     };
-
-    const renderStudentPathOverview = () => (
-        <section className="mb-6 rounded-3xl border border-primary-100/70 bg-surface-0 p-4 shadow-sm sm:p-5">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                <div className="min-w-0">
-                    <div className="inline-flex items-center gap-2 rounded-full bg-primary-50 px-3 py-1 text-xs font-bold text-primary-700">
-                        <Target className="h-3.5 w-3.5" />
-                        当前路径
-                    </div>
-                    <h2 className="mt-3 text-xl font-black tracking-tight text-surface-900 sm:text-2xl">
-                        今天先做一件确定的事
-                    </h2>
-                    <p className="mt-2 max-w-2xl text-sm leading-relaxed text-surface-600">
-                        CoachLink 会先把训练、饮食、安全和学习收成一条路径。高级工具还在，但先围绕今天要完成什么展开。
-                    </p>
-                </div>
-                <div className="flex flex-col gap-2 sm:flex-row lg:shrink-0">
-                    <Button
-                        label="看学习路径"
-                        icon="pi pi-book"
-                        onClick={() => router.push('/dashboard/knowledge')}
-                        className="w-full rounded-2xl border-none bg-primary-500 px-4 py-2.5 sm:w-auto"
-                    />
-                    <Button
-                        label="找对应教练"
-                        icon="pi pi-users"
-                        onClick={() => router.push('/coach/discovery')}
-                        severity="secondary"
-                        outlined
-                        className="w-full rounded-2xl px-4 py-2.5 sm:w-auto"
-                    />
-                </div>
-            </div>
-
-            <div className="mt-5 grid gap-3 lg:grid-cols-[1fr_1.4fr]">
-                <div className="rounded-2xl border border-surface-100 bg-surface-50 p-4">
-                    <div className="mb-3 text-sm font-bold text-surface-900">本周只做这 3 件事</div>
-                    <div className="space-y-2">
-                        {STUDENT_PATH_TASKS.map((task, index) => (
-                            <div key={task} className="flex items-start gap-3 text-sm text-surface-700">
-                                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary-500 text-xs font-black text-white">
-                                    {index + 1}
-                                </span>
-                                <span>{task}</span>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-                <div className="grid gap-3 sm:grid-cols-3">
-                    {STUDENT_PATH_LEARNING.map((item) => {
-                        const Icon = item.icon;
-                        return (
-                            <button
-                                key={item.title}
-                                type="button"
-                                onClick={() => router.push(item.href)}
-                                className="rounded-2xl border border-surface-100 bg-surface-50 p-4 text-left transition-all hover:border-primary-200 hover:bg-primary-50/50 active:scale-[0.98]"
-                            >
-                                <Icon className="h-4 w-4 text-primary-600" />
-                                <div className="mt-3 text-sm font-bold text-surface-900">{item.title}</div>
-                                <div className="mt-1 text-xs leading-relaxed text-surface-500">{item.desc}</div>
-                            </button>
-                        );
-                    })}
-                </div>
-            </div>
-        </section>
-    );
 
     const handleSkipDay = async (dayIndex: number) => {
         if (!instance?.id || !dayIndex) return;
@@ -1044,7 +949,6 @@ const TodayTrainingPage: React.FC = () => {
         if (hasActiveSubscription) {
             return (
                 <div className="max-w-6xl mx-auto px-6 py-12 animate-in fade-in duration-700">
-                    {renderStudentPathOverview()}
                     <Card className="rounded-2xl bg-transparent shadow-none overflow-hidden border border-surface-100/50">
                         <div className="text-center py-16 px-4">
                             <div className="relative inline-block mb-6">
@@ -1161,7 +1065,6 @@ const TodayTrainingPage: React.FC = () => {
 
         return (
             <div className="max-w-6xl mx-auto px-6 py-12 animate-in fade-in duration-700">
-                {renderStudentPathOverview()}
                 {/* 1. 容器与深度：使用 surface 背景与极浅边框，摒弃阴影 */}
                 <Card className="rounded-2xl bg-transparent shadow-none overflow-hidden border border-surface-100/50">
                     <div className="text-center py-16 px-4">
@@ -1229,7 +1132,6 @@ const TodayTrainingPage: React.FC = () => {
         return (
             <div className="min-h-screen pb-12">
                 <div className="max-w-6xl mx-auto px-3 sm:px-4 md:px-6 py-3 sm:py-6 md:py-8">
-                    {renderStudentPathOverview()}
                     {hasBothPlans && (
                         <div className="grid grid-cols-2 gap-2 p-1 bg-surface-50 rounded-2xl mb-6 w-full sm:w-fit border border-surface-100/50">
                             <button
@@ -1264,7 +1166,7 @@ const TodayTrainingPage: React.FC = () => {
                                         <button
                                             key={sub.id}
                                             className={`group relative px-4 py-2.5 rounded-xl transition-all duration-300 flex items-center gap-3 ${isActive
-                                                ? 'bg-primary-500 text-surface shadow-lg shadow-primary/20'
+                                                ? 'bg-gradient-to-r from-primary to-primary-600 text-surface shadow-lg shadow-primary/20'
                                                 : 'bg-surface text-surface-700 border border-surface-200 hover:shadow-md'
                                                 }`}
                                             onClick={() => setActiveCoachSubscriptionId(sub.id)}
@@ -1422,7 +1324,6 @@ const TodayTrainingPage: React.FC = () => {
             )}
 
             <div className="max-w-6xl mx-auto px-3 sm:px-4 md:px-6 py-3 sm:py-6 md:py-8">
-                {renderStudentPathOverview()}
                 {/* --- 计划切换器（当同时有教练计划和自建计划时显示）--- */}
                 {hasBothPlans && (
                     <div className="grid grid-cols-2 gap-2 p-1 bg-surface-50 rounded-2xl mb-6 w-full sm:w-fit border border-surface-100/50">
@@ -1464,7 +1365,7 @@ const TodayTrainingPage: React.FC = () => {
                                     <button
                                         key={sub.id}
                                         className={`group relative px-4 py-2.5 rounded-xl transition-all duration-300 flex items-center gap-3 ${isActive
-                                            ? 'bg-primary-500 text-surface shadow-lg shadow-primary/20'
+                                            ? 'bg-gradient-to-r from-primary to-primary-600 text-surface shadow-lg shadow-primary/20'
                                             : 'bg-surface text-surface-700 border border-surface-200 hover:shadow-md'
                                             }`}
                                         onClick={() => setActiveCoachSubscriptionId(sub.id)}

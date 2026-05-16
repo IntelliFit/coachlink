@@ -68,7 +68,7 @@ function CoachPricingEdit() {
       if (res?.products) {
         const found = res.products.find((p: Product) => p.id === productId)
         if (found) {
-          // price is stored in yuan; keep it numeric for the editor.
+          // 确保 price 是数字类型（API 返回的可能已经是分）
           const productWithNumericPrice = {
             ...found,
             duration_options: found.duration_options.map((opt: any) => ({
@@ -124,9 +124,9 @@ function CoachPricingEdit() {
       const numValue = parseInt(value) || 1
       newOptions[index] = { ...newOptions[index], months: numValue }
     } else {
-      // price is stored in yuan to match Web pricing and payment APIs.
+      // price: 输入的是元，需要转换为分存储
       const numValue = parseFloat(value) || 0
-      newOptions[index] = { ...newOptions[index], price: numValue }
+      newOptions[index] = { ...newOptions[index], price: Math.round(numValue * 100) }
     }
     setProduct({ ...product, duration_options: newOptions })
   }
@@ -137,7 +137,7 @@ function CoachPricingEdit() {
       return
     }
 
-    // price is stored in yuan.
+    // price 存储的是分，所以检查时也要用分
     if (product.duration_options.some(opt => opt.price <= 0)) {
       Taro.showToast({ title: '价格必须大于0', icon: 'none' })
       return
@@ -276,7 +276,7 @@ function CoachPricingEdit() {
                     <Input
                       className="duration-input price-input"
                       type="digit"
-                      value={String(Number(opt.price || 0).toFixed(2))}
+                      value={String((opt.price / 100).toFixed(2))}
                       onInput={(e) => updateDurationOption(idx, 'price', e.detail.value)}
                       placeholder="0.00"
                     />

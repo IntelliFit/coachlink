@@ -14,33 +14,6 @@
   padding: 96rpx 32rpx 32rpx;
 }
 
-.onboarding-content--profile-step {
-  padding-top: 64rpx;
-
-  .step-dots {
-    margin-bottom: 24rpx;
-  }
-
-  .onboarding-desc {
-    margin-bottom: 24rpx;
-  }
-}
-
-.audit-mode-banner {
-  margin-bottom: 32rpx;
-  padding: 24rpx;
-  border-radius: 24rpx;
-  background: #FFF7ED;
-  border: 2rpx solid #FED7AA;
-}
-
-.audit-mode-banner-text {
-  font-size: 26rpx;
-  line-height: 1.6;
-  color: #C2410C;
-  font-weight: 700;
-}
-
 .loading-state {
   display: flex;
   align-items: center;
@@ -108,86 +81,6 @@
   font-size: 28rpx;
   font-weight: 600;
   color: #334155;
-}
-
-.profile-setup-card {
-  padding: 32rpx;
-  border-radius: 32rpx;
-  background: #FFF7ED;
-  border: 2rpx solid #FED7AA;
-}
-
-.profile-setup-title {
-  display: block;
-  font-size: 32rpx;
-  font-weight: 800;
-  color: #0f172a;
-  margin-bottom: 8rpx;
-}
-
-.profile-setup-desc {
-  display: block;
-  font-size: 24rpx;
-  line-height: 1.5;
-  color: #9A3412;
-  margin-bottom: 24rpx;
-}
-
-.profile-setup-row {
-  display: flex;
-  align-items: center;
-  gap: 24rpx;
-}
-
-.profile-avatar-picker {
-  width: 112rpx !important;
-  height: 112rpx !important;
-  padding: 0 !important;
-  margin: 0 !important;
-  border-radius: 32rpx !important;
-  background: #ffffff !important;
-  border: 2rpx solid #cf6d4e !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  overflow: hidden;
-
-  &::after {
-    border: none !important;
-  }
-
-  &:active {
-    opacity: 0.9;
-  }
-}
-
-.profile-avatar-preview {
-  width: 112rpx;
-  height: 112rpx;
-}
-
-.profile-avatar-placeholder {
-  font-size: 24rpx;
-  font-weight: 700;
-  color: #cf6d4e;
-}
-
-.profile-nickname-shell {
-  flex: 1;
-  height: 88rpx;
-  padding: 0 24rpx;
-  border-radius: 9999rpx;
-  background: #ffffff;
-  border: 2rpx solid rgba(207, 109, 78, 0.24);
-  display: flex;
-  align-items: center;
-}
-
-.profile-nickname-input {
-  width: 100%;
-  height: 64rpx;
-  font-size: 30rpx;
-  color: #0f172a;
 }
 
 .input-shell {
@@ -549,7 +442,7 @@
 }
 
 .bp-view-btn {
-  padding: 16rpx 32rpx;
+  padding: 12rpx 32rpx;
   border-radius: 16rpx;
   background: #ffffff;
   border: 1px solid #e2e8f0;
@@ -573,29 +466,6 @@
   }
 }
 
-.bp-help-card {
-  margin-bottom: 32rpx;
-  padding: 24rpx;
-  border-radius: 24rpx;
-  background: #FFF7ED;
-  border: 2rpx solid #FED7AA;
-}
-
-.bp-help-title {
-  display: block;
-  font-size: 28rpx;
-  font-weight: 800;
-  color: #9A3412;
-  margin-bottom: 8rpx;
-}
-
-.bp-help-desc {
-  display: block;
-  font-size: 24rpx;
-  line-height: 1.6;
-  color: #9A3412;
-}
-
 .bp-main {
   display: flex;
   gap: 24rpx;
@@ -612,7 +482,7 @@
   display: flex;
   align-items: center;
   gap: 16rpx;
-  padding: 24rpx;
+  padding: 20rpx 24rpx;
   border-radius: 48rpx;
   border: 2rpx solid #e2e8f0;
   background: #ffffff;
@@ -624,8 +494,8 @@
 }
 
 .bp-check {
-  width: 40rpx;
-  height: 40rpx;
+  width: 36rpx;
+  height: 36rpx;
   border-radius: 999rpx;
   border: 2rpx solid #cbd5e1;
   display: flex;
@@ -640,7 +510,7 @@
 }
 
 .bp-check-icon {
-  font-size: 24rpx;
+  font-size: 20rpx;
   color: #ffffff;
   font-weight: 800;
 }
