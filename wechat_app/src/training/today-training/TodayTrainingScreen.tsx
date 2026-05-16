@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { View, Text, Image, ScrollView, Input, Textarea } from '@tarojs/components'
 import Taro, { useDidShow, useShareAppMessage, useShareTimeline } from '@tarojs/taro'
 import BottomNav from '@/components/BottomNav'
@@ -58,15 +58,6 @@ import {
   patchTodayTrainingPageCache,
   persistTodayTrainingPageCache
 } from '@/utils/todayTrainingPageCache'
-import {
-  buildCoachSupportCards,
-  buildLearningCards,
-  getPainPointLabelList,
-  loadStudentPathDiagnosis,
-  normalizePainPoints,
-  normalizeStage,
-  type StudentPathDiagnosis
-} from '@/utils/studentPathDiagnosis'
 import './index.scss'
 
 type PlanMode = 'coach' | 'self'
@@ -236,20 +227,6 @@ function TodayTrainingScreen() {
   const [newHabitTargetDurationMin, setNewHabitTargetDurationMin] = useState('')
   const [executionNoticeVisible, setExecutionNoticeVisible] = useState(false)
   const [pendingExecutionTarget, setPendingExecutionTarget] = useState<{ dayIndex: number; focusAction?: number } | null>(null)
-  const [pathDiagnosis, setPathDiagnosis] = useState<StudentPathDiagnosis | null>(null)
-
-  const currentUserId = useMemo(() => {
-    const session = authService.getAuthSession({ normalize: true })
-    return session?.userId ? String(session.userId) : null
-  }, [])
-
-  const loadPathDiagnosis = useCallback(() => {
-    setPathDiagnosis(loadStudentPathDiagnosis(currentUserId))
-  }, [currentUserId])
-
-  useEffect(() => {
-    loadPathDiagnosis()
-  }, [loadPathDiagnosis])
 
   const activeSubscription =
     coachSubscriptions.find((item) => item.id === activeCoachSubscriptionId) ||
@@ -281,6 +258,10 @@ function TodayTrainingScreen() {
   const missingDays = planMode === 'coach' ? coachMissingDays : selfMissingDays
 
   const trainingDays = (instance?.training_days || []) as any[]
+  const currentUserId = useMemo(() => {
+    const session = authService.getAuthSession({ normalize: true })
+    return session?.userId ? String(session.userId) : null
+  }, [])
   const progressDayIndex = todayDayIndex
   const progressDay = trainingDays.find((item) => item.dayIndex === progressDayIndex)
   const progressExec = executionsByDayIndex?.[progressDayIndex]
@@ -503,24 +484,8 @@ function TodayTrainingScreen() {
     return { weekPct, monthPct }
   }, [weekMonthStats])
 
+  const selectedHasLightweightTasks = selectedModuleModel.lightweightTasks.length > 0
   const canShareDayCheckin = selectedDay?.type === 'training' && selectedTaskSummary.totalModules > 0
-
-  const diagnosisStage = useMemo(
-    () => normalizeStage(pathDiagnosis?.stage),
-    [pathDiagnosis?.stage]
-  )
-  const diagnosisPainPoints = useMemo(
-    () => normalizePainPoints(pathDiagnosis?.painPoints),
-    [pathDiagnosis?.painPoints]
-  )
-  const pathLearningCards = useMemo(
-    () => buildLearningCards(diagnosisStage, diagnosisPainPoints),
-    [diagnosisStage, diagnosisPainPoints]
-  )
-  const pathCoachSupportCards = useMemo(
-    () => buildCoachSupportCards(diagnosisStage, diagnosisPainPoints),
-    [diagnosisStage, diagnosisPainPoints]
-  )
 
   const dayShareData = useMemo(() => {
     if (!selectedDay || selectedDay.type !== 'training' || !canShareDayCheckin) return null
@@ -895,7 +860,6 @@ function TodayTrainingScreen() {
   }, [])
 
   useDidShow(() => {
-    loadPathDiagnosis()
     void loadData()
     consumeReturnConfirmState()
   })
@@ -1047,9 +1011,8 @@ function TodayTrainingScreen() {
   }, [])
 
   const handleDiscoverCoach = useCallback(() => {
-    const supportNeed = pathCoachSupportCards[0]?.query || 'beginner'
-    Taro.navigateTo({ url: `/discovery/index?supportNeed=${supportNeed}` })
-  }, [pathCoachSupportCards])
+    Taro.navigateTo({ url: '/discovery/index' })
+  }, [])
 
   /** 主行动：进入当前进度日训练执行（与原「开始训练」快捷入口一致） */
   const handleMegaStart = useCallback(() => {
@@ -1595,144 +1558,6 @@ function TodayTrainingScreen() {
     </Popup>
   )
 
-  const renderPathGuidanceCard = () => {
-    const hasPlanNow = !!(coachInstance || selfInstance)
-    const diagnosisPainLabels = getPainPointLabelList(diagnosisPainPoints)
-    const diagnosisHint = diagnosisPainLabels.length > 0
-      ? `当前重点：${diagnosisPainLabels.join('、')}`
-      : '去路径页做一次起点诊断，今日页会按你的卡点收拢。'
-    const pathTitle = hasPlanNow
-      ? planMode === 'coach'
-        ? '教练路径 · 按今天推进'
-        : '自练路径 · 稳定完成'
-      : '安全起步 · 先敢开始'
-    const pathDesc = hasPlanNow
-      ? '不用在工具和内容里来回找，先完成今日主行动，做完再看补充学习。'
-      : '还没有长期计划也没关系，今天先做一次低压力训练，家里、宿舍或健身房角落都可以。'
-    const focusItems = hasPlanNow
-      ? ['完成今日训练', '训练前自检', '做完再复盘']
-      : ['10 分钟起步', '不去健身房也可以', '先记录一次感受']
-
-    return (
-      <View className='path-guidance-card'>
-        <View className='path-guidance-head'>
-          <View className='path-guidance-kicker'>
-            <Target size={15} color='#CF6D4E' />
-            <Text>当前路径</Text>
-          </View>
-          <Text className='path-guidance-title'>{pathTitle}</Text>
-          <Text className='path-guidance-desc'>{pathDesc}</Text>
-          <Text className='path-guidance-note'>{diagnosisHint}</Text>
-        </View>
-        <View className='path-guidance-focus'>
-          {focusItems.map((item) => (
-            <View key={item} className='path-guidance-pill'>
-              <Text>{item}</Text>
-            </View>
-          ))}
-        </View>
-      </View>
-    )
-  }
-
-  const renderContextLearningCard = () => (
-    <View className='context-learning-card'>
-      <View className='path-section-mini-head'>
-        <Text className='path-section-mini-title'>今天只学这些</Text>
-        <Text className='path-section-mini-sub'>学习内容跟着你的卡点走，不再像资料库一样散开。</Text>
-      </View>
-      <View className='context-learning-list'>
-        {pathLearningCards.map((item) => (
-          <View
-            key={item.key}
-            className='context-learning-row'
-            onClick={() => Taro.navigateTo({ url: item.path })}
-            hoverClass='context-learning-row--pressed'
-            hoverStayTime={70}
-          >
-            <View className='context-learning-tag'>
-              <Text>{item.tag}</Text>
-            </View>
-            <View className='context-learning-main'>
-              <Text className='context-learning-title'>{item.title}</Text>
-              <Text className='context-learning-desc'>{item.desc}</Text>
-            </View>
-            <ArrowRight size={15} color='#9CA3AF' />
-          </View>
-        ))}
-      </View>
-    </View>
-  )
-
-  const renderCoachSupportRecommendations = () => {
-    if (pathCoachSupportCards.length === 0) return null
-    return (
-      <View className='coach-support-card'>
-        <View className='path-section-mini-head'>
-          <Text className='path-section-mini-title'>什么时候找教练</Text>
-          <Text className='path-section-mini-sub'>先明确卡点，再找对应支持，不把买课放在第一步。</Text>
-        </View>
-        <View className='coach-support-list'>
-          {pathCoachSupportCards.map((item) => (
-            <View
-              key={item.key}
-              className='coach-support-row'
-              onClick={() => Taro.navigateTo({ url: `/discovery/index?supportNeed=${item.query}` })}
-              hoverClass='coach-support-row--pressed'
-              hoverStayTime={70}
-            >
-              <View className='coach-support-dot'>
-                <Message size={14} color='#CF6D4E' />
-              </View>
-              <View className='coach-support-main'>
-                <Text className='coach-support-title'>{item.title}</Text>
-                <Text className='coach-support-desc'>{item.desc}</Text>
-              </View>
-              <ArrowRight size={15} color='#9CA3AF' />
-            </View>
-          ))}
-        </View>
-      </View>
-    )
-  }
-
-  const renderSupportCards = () => (
-    <View className='support-card-grid'>
-      <View className='support-card' onClick={handleImpromptu} hoverClass='support-card--pressed' hoverStayTime={70}>
-        <View className='support-card-icon'>
-          <Power size={17} color='#CF6D4E' />
-        </View>
-        <View className='support-card-main'>
-          <Text className='support-card-title'>今天很累？</Text>
-          <Text className='support-card-desc'>做一次保底训练也算继续。漏一天不是失败，节奏可以顺延。</Text>
-        </View>
-      </View>
-      <View
-        className='support-card'
-        onClick={() => Taro.navigateTo({ url: '/content/path/index' })}
-        hoverClass='support-card--pressed'
-        hoverStayTime={70}
-      >
-        <View className='support-card-icon'>
-          <Notice size={17} color='#CF6D4E' />
-        </View>
-        <View className='support-card-main'>
-          <Text className='support-card-title'>动作不确定？</Text>
-          <Text className='support-card-desc'>去路径页只看当前该学的动作标准、常见错误和安全边界。</Text>
-        </View>
-      </View>
-      <View className='support-card' onClick={handleDiscoverCoach} hoverClass='support-card--pressed' hoverStayTime={70}>
-        <View className='support-card-icon'>
-          <Message size={17} color='#CF6D4E' />
-        </View>
-        <View className='support-card-main'>
-          <Text className='support-card-title'>卡住再找人</Text>
-          <Text className='support-card-desc'>怕进健身房、动作怕错、练了没效果，再找对应教练支持。</Text>
-        </View>
-      </View>
-    </View>
-  )
-
   const hasAnyPlan = !!(coachInstance || selfInstance)
   const hasBothPlans = !!(coachInstance && selfInstance)
   const hasActiveCoachSubscription = !!activeSubscription?.id
@@ -1751,11 +1576,6 @@ function TodayTrainingScreen() {
         >
           <View className='page-content'>
             {renderDashboardIntro()}
-            {renderDailyProgressCard()}
-            {renderPathGuidanceCard()}
-            {renderContextLearningCard()}
-            {renderCoachSupportRecommendations()}
-            {renderSupportCards()}
             <View id='schedule-calendar-anchor' className='schedule-calendar-anchor'>
               <View className='schedule-calendar-anchor__bar'>
                 <Text className='schedule-calendar-anchor__label'>本周</Text>
@@ -1766,6 +1586,7 @@ function TodayTrainingScreen() {
                 onCellPress={handleWeekStripCell}
               />
             </View>
+            {renderDailyProgressCard()}
             <View className='empty-card waiting-card'>
               <View className='empty-icon-wrapper'>
                 <View className='empty-icon-bg' />
@@ -1903,10 +1724,6 @@ function TodayTrainingScreen() {
             </View>
           )}
           {renderDailyProgressCard()}
-          {renderPathGuidanceCard()}
-          {renderContextLearningCard()}
-          {renderCoachSupportRecommendations()}
-          {renderSupportCards()}
           {renderScheduleCalendarCombined()}
 
           {waitingCoachPage ? (

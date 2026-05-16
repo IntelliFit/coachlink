@@ -14,7 +14,7 @@
   box-shadow: 0 12rpx 36rpx rgba(0, 0, 0, 0.22);
   backdrop-filter: blur(20rpx);
   width: auto;
-  min-width: 560rpx;
+  min-width: 624rpx;
   max-width: 92vw;
   border: 1rpx solid rgba(255, 255, 255, 0.1);
 
@@ -103,7 +103,7 @@
 
   .nav-active {
     background: rgba(255, 255, 255, 0.98);
-    padding: 16rpx 40rpx;
+    padding: 16rpx 48rpx;
     gap: 8rpx;
 
     .nav-icon {

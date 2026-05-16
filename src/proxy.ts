@@ -81,7 +81,6 @@ const PUBLIC_PATHS = new Set([
     "/onboarding",
     "/login",
     "/register",
-    "/dev/new-user-experience",
     "/wechat-auth/bridge",
     "/payment/start",
     "/api/auth",

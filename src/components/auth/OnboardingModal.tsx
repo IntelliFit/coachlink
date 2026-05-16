@@ -26,6 +26,7 @@ interface OnboardingFormData {
     weight: number;
     fitnessGoal: string;
     fitnessLevel: string;
+    interestTags: string[];
     equipments: string[];
     sessionDuration: number;
 }
@@ -56,12 +57,23 @@ const FITNESS_LEVEL_OPTIONS = [
     { label: '精英 / 职业', desc: '健身教练、运动员或竞技水平', value: 'elite', wifiLevel: 5 },
 ];
 
+const INTEREST_OPTIONS = [
+    { emoji: '💪', label: '上肢' },
+    { emoji: '🦵', label: '下肢' },
+    { emoji: '🎯', label: '核心' },
+    { emoji: '🧍', label: '体态纠正' },
+    { emoji: '🔥', label: '减脂燃脂' },
+    { emoji: '🤸', label: '灵活性' },
+    { emoji: '🏋️', label: '力量举' },
+    { emoji: '🫁', label: '心肺有氧' },
+];
+
 const EQUIPMENT_OPTIONS = [
     { emoji: '🤲', label: '徒手' },
     { emoji: '🏋️', label: '哑铃' },
     { emoji: '🏗️', label: '杠铃' },
     { emoji: '🪢', label: '拉力器/弹力带' },
-    { emoji: '🏢', label: '固定器械' },
+    { emoji: '🏢', label: '器械区' },
     { emoji: '⚫', label: '壶铃' },
 ];
 
@@ -74,25 +86,6 @@ const DURATION_OPTIONS = [
 ];
 
 /* ─── 身高体重快选 ─── */
-const FITNESS_GOAL_SEPARATOR = '\u3001';
-
-function normalizeFitnessGoals(value: unknown): string[] {
-    const rawValues = Array.isArray(value)
-        ? value
-        : String(value || '').split(/[,\u3001\uff0c]/);
-    return Array.from(
-        new Set(
-            rawValues
-                .map((item) => String(item || '').trim())
-                .filter(Boolean),
-        ),
-    );
-}
-
-function formatFitnessGoals(goals: string[]): string {
-    return normalizeFitnessGoals(goals).join(FITNESS_GOAL_SEPARATOR);
-}
-
 const HEIGHT_PRESETS = [150, 155, 160, 165, 170, 175, 180, 185, 190];
 const WEIGHT_PRESETS = [40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100];
 
@@ -111,6 +104,7 @@ export default function OnboardingModal({ isOpen, onClose, initialProfile }: Onb
         weight: 65,
         fitnessGoal: '',
         fitnessLevel: '',
+        interestTags: [],
         equipments: [],
         sessionDuration: 30,
     });
@@ -132,29 +126,18 @@ export default function OnboardingModal({ isOpen, onClose, initialProfile }: Onb
 
     const totalSteps = 3;
     const progressValue = useMemo(() => (step / totalSteps) * 100, [step]);
-    const selectedFitnessGoals = useMemo(
-        () => normalizeFitnessGoals(formData.fitnessGoal),
-        [formData.fitnessGoal],
-    );
 
-    const toggleFitnessGoal = (value: string) => {
+    const toggleMultiValue = (
+        key: 'interestTags' | 'equipments',
+        value: string,
+    ) => {
         setFormData((prev) => {
-            const current = normalizeFitnessGoals(prev.fitnessGoal);
-            const next = current.includes(value)
-                ? current.filter((item) => item !== value)
-                : [...current, value];
-            return { ...prev, fitnessGoal: formatFitnessGoals(next) };
-        });
-    };
-
-    const toggleEquipment = (value: string) => {
-        setFormData((prev) => {
-            const exists = prev.equipments.includes(value);
+            const exists = prev[key].includes(value);
             return {
                 ...prev,
-                equipments: exists
-                    ? prev.equipments.filter((v) => v !== value)
-                    : [...prev.equipments, value],
+                [key]: exists
+                    ? prev[key].filter((v) => v !== value)
+                    : [...prev[key], value],
             };
         });
     };
@@ -180,7 +163,7 @@ export default function OnboardingModal({ isOpen, onClose, initialProfile }: Onb
     };
 
     const validateStep2 = () => {
-        if (selectedFitnessGoals.length === 0) {
+        if (!formData.fitnessGoal) {
             showToast({ severity: 'warn', summary: '请选择一个健身目标' });
             return false;
         }
@@ -219,7 +202,7 @@ export default function OnboardingModal({ isOpen, onClose, initialProfile }: Onb
                     userId: session.user.id,
                     answers: {
                         flow_version: 'v2_minimal_first_workout',
-                        fitness_goals: selectedFitnessGoals,
+                        interest_tags: formData.interestTags,
                         equipment: formData.equipments,
                         session_duration: formData.sessionDuration,
                     },
@@ -267,7 +250,7 @@ export default function OnboardingModal({ isOpen, onClose, initialProfile }: Onb
         </button>
     );
 
-    const stepLabels = ['基础信息', '健身目标', '训练条件'];
+    const stepLabels = ['基础信息', '健身目标', '训练偏好'];
 
     return (
         <Dialog
@@ -434,21 +417,18 @@ export default function OnboardingModal({ isOpen, onClose, initialProfile }: Onb
                     <div>
                         <label className="block text-sm font-medium text-surface-700 mb-3">你的健身目标是？</label>
                         <div className="grid grid-cols-2 gap-2.5">
-                            {FITNESS_GOAL_OPTIONS.map((opt) => {
-                                const active = selectedFitnessGoals.includes(opt.value);
-                                return (
-                                    <CardButton
-                                        key={opt.value}
-                                        selected={active}
-                                        onClick={() => toggleFitnessGoal(opt.value)}
-                                        className="p-3 text-left"
-                                    >
-                                        <div className="text-xl mb-1">{opt.emoji}</div>
-                                        <div className="text-sm font-semibold text-surface-800">{opt.label}</div>
-                                        <div className="text-xs text-surface-500 mt-0.5 leading-relaxed">{opt.desc}</div>
-                                    </CardButton>
-                                );
-                            })}
+                            {FITNESS_GOAL_OPTIONS.map((opt) => (
+                                <CardButton
+                                    key={opt.value}
+                                    selected={formData.fitnessGoal === opt.value}
+                                    onClick={() => setFormData((prev) => ({ ...prev, fitnessGoal: opt.value }))}
+                                    className="p-3 text-left"
+                                >
+                                    <div className="text-xl mb-1">{opt.emoji}</div>
+                                    <div className="text-sm font-semibold text-surface-800">{opt.label}</div>
+                                    <div className="text-xs text-surface-500 mt-0.5 leading-relaxed">{opt.desc}</div>
+                                </CardButton>
+                            ))}
                         </div>
                     </div>
 
@@ -481,19 +461,20 @@ export default function OnboardingModal({ isOpen, onClose, initialProfile }: Onb
                 </div>
             )}
 
-            {/* ═══════ Step 3: 训练条件 ═══════ */}
+            {/* ═══════ Step 3: 训练偏好（兴趣 / 器械 / 时长）═══════ */}
             {step === 3 && (
                 <div className="space-y-6">
+                    {/* 兴趣方向 */}
                     <div>
-                        <label className="block text-sm font-medium text-surface-700 mb-2">可用训练器械（可多选）</label>
+                        <label className="block text-sm font-medium text-surface-700 mb-2">感兴趣的方向（可多选）</label>
                         <div className="grid grid-cols-2 gap-2">
-                            {EQUIPMENT_OPTIONS.map((opt) => {
-                                const active = formData.equipments.includes(opt.label);
+                            {INTEREST_OPTIONS.map((opt) => {
+                                const active = formData.interestTags.includes(opt.label);
                                 return (
                                     <CardButton
                                         key={opt.label}
                                         selected={active}
-                                        onClick={() => toggleEquipment(opt.label)}
+                                        onClick={() => toggleMultiValue('interestTags', opt.label)}
                                         className="py-3 px-3 text-center"
                                     >
                                         <span className="text-lg">{opt.emoji}</span>
@@ -504,8 +485,30 @@ export default function OnboardingModal({ isOpen, onClose, initialProfile }: Onb
                         </div>
                     </div>
 
+                    {/* 可用器械 */}
                     <div>
-                        <label className="block text-sm font-medium text-surface-700 mb-2">每次可投入时间</label>
+                        <label className="block text-sm font-medium text-surface-700 mb-2">可用器械（可多选）</label>
+                        <div className="grid grid-cols-2 gap-2">
+                            {EQUIPMENT_OPTIONS.map((opt) => {
+                                const active = formData.equipments.includes(opt.label);
+                                return (
+                                    <CardButton
+                                        key={opt.label}
+                                        selected={active}
+                                        onClick={() => toggleMultiValue('equipments', opt.label)}
+                                        className="py-3 px-3 text-center"
+                                    >
+                                        <span className="text-lg">{opt.emoji}</span>
+                                        <span className="ml-1.5 text-sm">{opt.label}</span>
+                                    </CardButton>
+                                );
+                            })}
+                        </div>
+                    </div>
+
+                    {/* 单次训练时长 */}
+                    <div>
+                        <label className="block text-sm font-medium text-surface-700 mb-2">每次想练多久？</label>
                         <div className="flex flex-wrap gap-2">
                             {DURATION_OPTIONS.map((opt) => (
                                 <CardButton

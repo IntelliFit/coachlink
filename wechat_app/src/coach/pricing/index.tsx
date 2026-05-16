@@ -190,7 +190,7 @@ function CoachPricing() {
                 </View>
 
                 {tierProducts.map((product: any) => {
-                  const priceInYuan = product.duration_options?.[0]?.price || 0
+                  const priceInYuan = (product.duration_options?.[0]?.price || 0) / 100
                   const months = product.duration_options?.[0]?.months || 1
 
                   return (
@@ -234,7 +234,7 @@ function CoachPricing() {
                             {product.duration_options.map((opt: any, idx: number) => (
                               <View key={idx} className="duration-tag">
                                 <Text className="tag-text">
-                                  {opt.months}个月 ¥{Number(opt.price || 0).toFixed(2)}
+                                  {opt.months}个月 ¥{(opt.price / 100).toFixed(2)}
                                 </Text>
                               </View>
                             ))}

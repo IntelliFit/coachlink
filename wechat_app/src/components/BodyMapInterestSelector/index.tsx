@@ -32,20 +32,6 @@ function parseSvgCategoryMap(svg: string): Record<string, string> {
 
 const MUSCLE_FILL_ORIGIN_STYLE = 'fill:#222222'
 const MUSCLE_FILL_HIGHLIGHT_STYLE = 'fill:#CF6D4E'
-const BODY_PART_OPTION_ORDER = ['胸部', '背部', '肩部', '大臂', '小臂', '腹部', '臀部', '大腿', '小腿']
-
-function buildBodyPartOptions(frontSvg: string, backSvg: string) {
-  const categories = new Set([
-    ...Object.values(parseSvgCategoryMap(frontSvg)),
-    ...Object.values(parseSvgCategoryMap(backSvg)),
-  ])
-  return BODY_PART_OPTION_ORDER
-    .filter((cat) => cat !== '关节' && categories.has(cat))
-    .map((cat) => ({
-      id: cat,
-      label: cat,
-    }))
-}
 
 function highlightSvgParts(
   svg: string,
@@ -101,10 +87,16 @@ const BodyMapInterestSelector: React.FC<BodyMapInterestSelectorProps> = ({
     return view === 'front' ? maleFrontSvgRaw : maleBackSvgRaw
   }, [view, effectiveGender])
 
-  const frontSvgRaw = effectiveGender === 'female' ? femaleFrontSvgRaw : maleFrontSvgRaw
-  const backSvgRaw = effectiveGender === 'female' ? femaleBackSvgRaw : maleBackSvgRaw
   const categoryMap = useMemo(() => parseSvgCategoryMap(svgRaw), [svgRaw])
-  const options = useMemo(() => buildBodyPartOptions(frontSvgRaw, backSvgRaw), [frontSvgRaw, backSvgRaw])
+
+  const options = useMemo(() => {
+    const categories = Array.from(new Set(Object.values(categoryMap)))
+      .filter((cat) => cat !== '关节')
+    return categories.map((cat) => ({
+      id: cat,
+      label: cat,
+    }))
+  }, [categoryMap])
 
   const svgDataUri = useMemo(() => {
     const baseSvg = svgRaw
@@ -120,7 +112,17 @@ const BodyMapInterestSelector: React.FC<BodyMapInterestSelectorProps> = ({
 
   const handleSetView = useCallback((nextView: BodyView) => {
     setView(nextView)
-  }, [])
+    // 切换视图时，过滤掉不在新视图选项中的选中项
+    const nextSvgRaw = effectiveGender === 'female'
+      ? (nextView === 'front' ? femaleFrontSvgRaw : femaleBackSvgRaw)
+      : (nextView === 'front' ? maleFrontSvgRaw : maleBackSvgRaw)
+    const nextCategoryMap = parseSvgCategoryMap(nextSvgRaw)
+    const nextCategories = new Set(Object.values(nextCategoryMap))
+    const filtered = selectedIds.filter((id) => nextCategories.has(id))
+    if (filtered.length !== selectedIds.length) {
+      onChange(filtered)
+    }
+  }, [effectiveGender, selectedIds, onChange])
 
   const toggleSelection = useCallback((id: string) => {
     const next = new Set(selectedIds)
@@ -147,11 +149,6 @@ const BodyMapInterestSelector: React.FC<BodyMapInterestSelectorProps> = ({
         >
           <Text className='bmis-view-btn-text'>背面</Text>
         </View>
-      </View>
-
-      <View className='bmis-help-card'>
-        <Text className='bmis-help-title'>正面 / 背面只是观察角度</Text>
-        <Text className='bmis-help-desc'>左侧是统一肌群列表，切换视图不会清掉选择；不同肌群会在最容易看懂的一面高亮。</Text>
       </View>
 
       <View className='bmis-main'>

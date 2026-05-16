@@ -19,25 +19,11 @@ interface MenuItem {
   requiresAuth?: boolean
 }
 
-interface ProfileStats {
-  planHistoryCount: number
-  actionCount: number
-  trainingRecordCount: number
-}
-
-const EMPTY_PROFILE_STATS: ProfileStats = {
-  planHistoryCount: 0,
-  actionCount: 0,
-  trainingRecordCount: 0
-}
-
 function Profile() {
   const { isDark, toggleTheme } = useTheme()
   const [user, setUser] = useState<any>(null)
   const [coachId, setCoachId] = useState<string | null>(null)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
-  const [profileStats, setProfileStats] = useState<ProfileStats>(EMPTY_PROFILE_STATS)
-  const [advancedOpen, setAdvancedOpen] = useState(false)
 
   const openLogin = useCallback((returnTo = '/me/profile/index') => {
     const url = authService.buildLoginUrl(returnTo)
@@ -73,7 +59,6 @@ function Profile() {
 
     if (!session.isAuthenticated || !session.userId) {
       setCoachId(null)
-      setProfileStats(EMPTY_PROFILE_STATS)
       return
     }
 
@@ -84,16 +69,7 @@ function Profile() {
     }
 
     try {
-      const [profileRes, statsRes] = await Promise.all([
-        studentService.getStudentProfile(currentUser.id),
-        studentService.getStudentStats()
-      ])
-      setProfileStats({
-        planHistoryCount: Number(statsRes?.planHistoryCount ?? statsRes?.activePlanCount ?? 0),
-        actionCount: Number(statsRes?.actionCount ?? 0),
-        trainingRecordCount: Number(statsRes?.trainingRecordCount ?? statsRes?.completedWorkouts ?? 0)
-      })
-
+      const profileRes = await studentService.getStudentProfile(currentUser.id)
       const profile = profileRes?.profile
       if (!profile || typeof profile !== 'object') return
 
@@ -138,13 +114,18 @@ function Profile() {
     }
   }
 
+  const points = user?.points ?? 0
   const primaryRole = user?.primary_role === 'coach' ? 'coach' : 'student'
   const isCoach = !!user?.is_coach
   const canSwitchRole = isAuthenticated && isCoach
   const displayName = isAuthenticated
     ? String(user?.nickname || user?.real_name || user?.phone || 'CoachLink 学员')
     : '未登录'
+  const displaySubtitle = isAuthenticated
+    ? String(user?.phone || '已登录，可同步训练、会员与消息')
+    : '登录后同步训练计划、会员、消息与积分'
   const roleBadgeText = isAuthenticated ? (primaryRole === 'coach' ? '教练身份' : '学员身份') : '游客模式'
+  const statusBadgeText = isAuthenticated ? `${points}积分` : '点击登录'
 
   async function handleProfileSettings() {
     if (isCoach) {
@@ -188,7 +169,7 @@ function Profile() {
     }
   }
 
-  const trainingMenus: MenuItem[] = [
+  const topMenus: MenuItem[] = [
     {
       key: 'current-plan',
       label: '全部计划',
@@ -198,11 +179,38 @@ function Profile() {
       requiresAuth: true
     },
     {
+      key: 'my-coaches',
+      label: '我的教练',
+      icon: 'icon-coachline_line',
+      iconBg: '#5C8DFF',
+      path: '/me/my-coaches/index',
+      requiresAuth: true
+    },
+    {
+      key: 'my-membership',
+      label: '我的会员',
+      icon: 'icon-vips',
+      iconBg: '#FFA940',
+      path: '/me/membership/index',
+      requiresAuth: true
+    },
+    {
       key: 'training-history',
       label: '训练记录',
       icon: 'icon-training_history',
       iconBg: '#FF7A7A',
       path: '/me/training-history/index',
+      requiresAuth: true
+    }
+  ]
+
+  const middleMenus: MenuItem[] = [
+    {
+      key: 'my-friends',
+      label: '我的好友',
+      icon: 'icon-friends-o',
+      iconBg: '#7DC8FF',
+      path: '/me/friends/index',
       requiresAuth: true
     },
     {
@@ -214,49 +222,19 @@ function Profile() {
       requiresAuth: true
     },
     {
+      key: 'knowledge',
+      label: '知识库',
+      icon: 'icon-knowledge',
+      iconBg: '#B39DDB',
+      path: '/content/knowledge',
+      requiresAuth: true
+    },
+    {
       key: 'plan-library',
       label: '我的计划库',
       icon: 'icon-a-Trainingplan',
       iconBg: '#FFD666',
       path: '/me/plan-lib/index',
-      requiresAuth: true
-    }
-  ]
-
-  const supportMenus: MenuItem[] = [
-    {
-      key: 'my-coaches',
-      label: '我的教练',
-      icon: 'icon-coachline_line',
-      iconBg: '#5C8DFF',
-      path: '/me/my-coaches/index',
-      requiresAuth: true
-    },
-    {
-      key: 'messages',
-      label: '消息中心',
-      icon: 'icon-messages',
-      iconBg: '#CF6D4E',
-      path: '/me/messages/index',
-      requiresAuth: true
-    },
-    {
-      key: 'my-friends',
-      label: '我的好友',
-      icon: 'icon-friends-o',
-      iconBg: '#7DC8FF',
-      path: '/me/friends/index',
-      requiresAuth: true
-    }
-  ]
-
-  const advancedMenus: MenuItem[] = [
-    {
-      key: 'toolbox',
-      label: '进阶工具',
-      icon: 'icon-toolbox',
-      iconBg: '#29C3A3',
-      path: '/me/toolbox/index',
       requiresAuth: true
     },
     {
@@ -268,78 +246,12 @@ function Profile() {
       requiresAuth: true
     },
     {
-      key: 'knowledge',
-      label: '知识库',
-      icon: 'icon-knowledge',
-      iconBg: '#B39DDB',
-      path: '/content/knowledge',
-      requiresAuth: true
-    }
-  ]
-
-  const accountMenus: MenuItem[] = [
-    {
-      key: 'my-membership',
-      label: '我的会员',
-      icon: 'icon-vips',
-      iconBg: '#FFA940',
-      path: '/me/membership/index',
-      requiresAuth: true
-    },
-    {
       key: 'purchase-history',
       label: '购买记录',
       icon: 'icon-goumaijilu',
       iconBg: '#722ed1',
       path: '/me/purchase-history/index',
       requiresAuth: true
-    }
-  ]
-
-  const renderMenuGroup = (title: string, desc: string, menus: MenuItem[]) => (
-    <View className='menu-group'>
-      <View className='menu-group-head'>
-        <Text className='menu-group-title'>{title}</Text>
-        <Text className='menu-group-desc'>{desc}</Text>
-      </View>
-      <View className='menu-list-card'>
-        {menus.map((item) => (
-          <View
-            key={item.key}
-            className='menu-list-item'
-            onClick={() => handleMenuClick(item)}
-          >
-            <View className='menu-list-left'>
-              <View className='menu-list-icon' style={{ '--icon-color': '#CF6D4E' } as any}>
-                <Text className={`iconfont ${item.icon}`} />
-              </View>
-              <Text className='menu-list-label'>{item.label}</Text>
-            </View>
-            <Text className='menu-list-arrow'>›</Text>
-          </View>
-        ))}
-      </View>
-    </View>
-  )
-
-  const profileStatItems = [
-    {
-      key: 'plans',
-      label: '全部计划',
-      value: profileStats.planHistoryCount,
-      menu: trainingMenus[0]
-    },
-    {
-      key: 'actions',
-      label: '我的动作库',
-      value: profileStats.actionCount,
-      menu: trainingMenus.find(item => item.key === 'action-library') || trainingMenus[0]
-    },
-    {
-      key: 'records',
-      label: '训练记录',
-      value: profileStats.trainingRecordCount,
-      menu: trainingMenus.find(item => item.key === 'training-history') || trainingMenus[0]
     }
   ]
 
@@ -540,16 +452,37 @@ function Profile() {
 
           {/* 功能入口行 */}
           <View className='profile-stats-row'>
-            {profileStatItems.map((item) => (
-              <View
-                key={item.key}
-                className='profile-stat-item'
-                onClick={() => handleMenuClick(item.menu)}
-              >
-                <Text className='profile-stat-value'>{item.value}</Text>
-                <Text className='profile-stat-label'>{item.label}</Text>
-              </View>
-            ))}
+            <View className='profile-stat-item' onClick={() => handleMenuClick(topMenus[0])}>
+              <Text className='profile-stat-value'>0</Text>
+              <Text className='profile-stat-label'>{topMenus[0].label}</Text>
+            </View>
+            <View className='profile-stat-item' onClick={() => handleMenuClick(middleMenus[1])}>
+              <Text className='profile-stat-value'>0</Text>
+              <Text className='profile-stat-label'>{middleMenus[1].label}</Text>
+            </View>
+            <View className='profile-stat-item' onClick={() => handleMenuClick(topMenus[3])}>
+              <Text className='profile-stat-value'>0</Text>
+              <Text className='profile-stat-label'>{topMenus[3].label}</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* 会员卡片 */}
+        <View className='membership-card' onClick={() => handleMenuClick(topMenus[2])}>
+          <View className='membership-card-header'>
+            <Text className='membership-card-title'>我的会员</Text>
+            <Text className='membership-card-badge'>学员</Text>
+          </View>
+          <View className='membership-progress-row'>
+            <Text className='membership-progress-label'>训练进度</Text>
+            <Text className='membership-progress-value'>0/0</Text>
+          </View>
+          <View className='membership-progress-bar'>
+            <View className='membership-progress-fill' style={{ width: '0%' }} />
+          </View>
+          <View className='membership-points-row'>
+            <Text className='membership-points-label'>积分</Text>
+            <Text className='membership-points-value'>0</Text>
           </View>
         </View>
 
@@ -563,17 +496,24 @@ function Profile() {
           </View>
         )}
 
-        {renderMenuGroup('我的训练', '计划、记录和动作库都放在这里，不再散在首页。', trainingMenus)}
-        {renderMenuGroup('我的支持', '教练、消息和好友，用来解决卡点和保持陪伴。', supportMenus)}
-        <View className='advanced-toggle-card' onClick={() => setAdvancedOpen((v) => !v)}>
-          <View>
-            <Text className='advanced-toggle-title'>进阶工具</Text>
-            <Text className='advanced-toggle-desc'>工具箱、排行榜和知识库先收起来，需要时再打开。</Text>
-          </View>
-          <Text className='advanced-toggle-action'>{advancedOpen ? '收起' : '展开'}</Text>
+        {/* 更多功能列表 */}
+        <View className='menu-list-card'>
+          {middleMenus.map((item) => (
+            <View
+              key={item.key}
+              className='menu-list-item'
+              onClick={() => handleMenuClick(item)}
+            >
+              <View className='menu-list-left'>
+                <View className='menu-list-icon' style={{ '--icon-color': '#CF6D4E' } as any}>
+                  <Text className={`iconfont ${item.icon}`} />
+                </View>
+                <Text className='menu-list-label'>{item.label}</Text>
+              </View>
+              <Text className='menu-list-arrow'>›</Text>
+            </View>
+          ))}
         </View>
-        {advancedOpen && renderMenuGroup('进阶工具', '专项、数据和资料入口都在这里。', advancedMenus)}
-        {renderMenuGroup('账户与权益', '会员、购买记录和账户相关信息。', accountMenus)}
 
         {/* 额外功能列表 */}
         <View className='menu-list-card'>
