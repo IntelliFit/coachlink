@@ -104,6 +104,9 @@ const PUBLIC_PATHS = new Set([
     "/api/payment/alipay/query", // guest payment query
     "/api/payment/alipay/guest/create", // guest payment create (public)
     "/api/payment/wechat/notify", // Wechat Pay callback - must be public
+    "/api/og/streetlifting-location",
+    "/api/miniapp/qrcode/streetlifting-location",
+    "/api/streetlifting-index/locations/get",
     "/api/hello-world", // hello world test endpoint (public)
     "/api/system/version", // deploy version info endpoint (public)
     "/docs/agreement",

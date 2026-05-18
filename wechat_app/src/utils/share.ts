@@ -1,4 +1,5 @@
 import Taro from '@tarojs/taro'
+import { API_BASE_URL } from './request'
 
 type ShareParamValue = string | number | boolean | null | undefined
 
@@ -58,6 +59,38 @@ export const buildStreetliftingLocationSharePath = (locationId?: string | null) 
 export const buildStreetliftingLocationListPath = (locationId?: string | null) => {
   const normalizedLocationId = String(locationId || '').trim()
   return buildSharePath('/streetlifting/index/locations', normalizedLocationId ? { locationId: normalizedLocationId } : undefined)
+}
+
+export const getMiniappEnvVersion = () => {
+  // @ts-ignore TARO_APP_ENV_VERSION is injected at build time when configured.
+  const injected = typeof TARO_APP_ENV_VERSION !== 'undefined' ? TARO_APP_ENV_VERSION : ''
+  const normalized = String(injected || '').trim()
+  if (normalized === 'release' || normalized === 'trial' || normalized === 'develop') return normalized
+  return 'release'
+}
+
+export const buildStreetliftingLocationShareImageUrl = (params: {
+  id?: string | null
+  name?: string | null
+  area?: string | null
+  description?: string | null
+  imageUrl?: string | null
+}) => {
+  const apiBase = API_BASE_URL.replace(/\/+$/, '')
+  const locationId = String(params.id || '').trim()
+  const rawImageUrl = String(params.imageUrl || '').trim()
+  const queryParams: Record<string, ShareParamValue> = {
+    id: locationId,
+    name: params.name || undefined,
+    area: params.area || undefined,
+    description: params.description || undefined
+  }
+
+  if (!locationId && rawImageUrl) {
+    queryParams.image = rawImageUrl
+  }
+
+  return `${apiBase}${buildSharePath('/api/og/streetlifting-location', queryParams)}`
 }
 
 export const openCoachLinkShareMenu = (options?: ShareMenuOptions) => {

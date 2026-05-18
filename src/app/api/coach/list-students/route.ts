@@ -168,6 +168,7 @@ async function deriveProjectedEndDate(params: {
         subscribedWeeks: Number(subscription?.subscribed_weeks || 0),
         excludeInstanceId: String(instanceMeta?.instance_id || ""),
         createdBefore: instanceMeta?.created_at || null,
+        subscriptionStartDate: subscription?.start_date || null,
     });
     const projectedEndDate = deriveProjectedSubscriptionEndDate({
         startDate: subscription?.start_date || null,

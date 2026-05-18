@@ -36,6 +36,7 @@ export async function updateEstimatedEndDateForInstance(instanceId: string) {
       subscribedWeeks,
       excludeInstanceId: String((instance as any)?.id || ""),
       createdBefore: (instance as any)?.created_at || null,
+      subscriptionStartDate: (subscription as any)?.start_date || null,
     });
 
     // 3. 获取已完成的训练天数

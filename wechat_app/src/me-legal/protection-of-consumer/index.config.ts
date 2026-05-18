@@ -1,0 +1,4 @@
+export default {
+  navigationBarTitleText: '消费者权益保护',
+  animationType: 'none'
+}

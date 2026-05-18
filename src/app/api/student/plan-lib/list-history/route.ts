@@ -35,7 +35,7 @@ export async function POST(req: Request) {
     let query = supabase
         .from("coach_plan_instances")
         .select(
-            "id, name, description, source, status, start_date, end_date, start_execution_day, created_at, updated_at, training_days",
+            "id, name, description, source, status, start_date, end_date, start_execution_day, created_at, updated_at, training_days, archive_reason, entitlement_consumption_policy",
             { count: "exact" },
         )
         .eq("student_id", userId)
@@ -137,8 +137,14 @@ export async function POST(req: Request) {
                 isLogicallyCompleted
             ? "completed"
             : plan.status;
-        const derivedEndDate = isLogicallyCompleted && !plan.end_date
-            ? (latestResolvedAtByInstanceId.get(plan.id) || null)
+        const shouldDeriveEndDate = !plan.end_date &&
+            (
+                isLogicallyCompleted ||
+                normalizedStatus === "completed" ||
+                normalizedStatus === "archived"
+            );
+        const derivedEndDate = shouldDeriveEndDate
+            ? (latestResolvedAtByInstanceId.get(plan.id) || plan.updated_at || null)
             : plan.end_date;
 
         return {
@@ -152,8 +158,13 @@ export async function POST(req: Request) {
             created_at: plan.created_at,
             updated_at: plan.updated_at,
             total_days: totalTrainingDays,
+            total_training_days: totalTrainingDays,
+            plan_span_days: dayList.length,
             completed_days: completedDays,
             completion_rate: completionRate,
+            archive_reason: plan.archive_reason || null,
+            entitlement_consumption_policy:
+                plan.entitlement_consumption_policy || null,
         };
     });
 

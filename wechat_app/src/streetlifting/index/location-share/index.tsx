@@ -7,6 +7,7 @@ import {
 } from '@/services/streetliftingIndexService'
 import {
   buildSharePath,
+  buildStreetliftingLocationShareImageUrl,
   buildStreetliftingLocationSharePath,
   createSharePayload,
   createTimelinePayload,
@@ -136,10 +137,17 @@ export default function StreetliftingLocationSharePage() {
   const sharePayload = useMemo(() => {
     const target = location || previewLocation
     const areaName = [target?.city, target?.province].filter(Boolean).join(' ')
+    const posterArea = buildAreaLine(target)
     return createSharePayload({
       title: getStreetliftingLocationShareTitle(target?.name, areaName),
       path: getSharePath(target),
-      imageUrl: getLocationImages(target)[0] || undefined
+      imageUrl: buildStreetliftingLocationShareImageUrl({
+        id: target?.id,
+        name: target?.name,
+        area: posterArea || areaName,
+        description: target?.description,
+        imageUrl: getLocationImages(target)[0]
+      })
     })
   }, [location, previewLocation])
 

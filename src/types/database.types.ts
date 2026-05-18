@@ -863,6 +863,9 @@ export type Database = {
           created_at: string | null
           description: string | null
           end_date: string | null
+          archive_reason: string | null
+          entitlement_consumption_note: string | null
+          entitlement_consumption_policy: string
           execution_notice: string | null
           id: string
           name: string
@@ -886,6 +889,9 @@ export type Database = {
           created_at?: string | null
           description?: string | null
           end_date?: string | null
+          archive_reason?: string | null
+          entitlement_consumption_note?: string | null
+          entitlement_consumption_policy?: string
           execution_notice?: string | null
           id?: string
           name: string
@@ -909,6 +915,9 @@ export type Database = {
           created_at?: string | null
           description?: string | null
           end_date?: string | null
+          archive_reason?: string | null
+          entitlement_consumption_note?: string | null
+          entitlement_consumption_policy?: string
           execution_notice?: string | null
           id?: string
           name?: string

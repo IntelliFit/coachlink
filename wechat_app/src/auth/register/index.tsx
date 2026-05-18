@@ -150,11 +150,11 @@ function Register() {
   }
 
   const goToTerms = () => {
-    Taro.navigateTo({ url: '/me/terms/index' })
+    Taro.navigateTo({ url: '/me-legal/terms/index' })
   }
 
   const goToDisclaimer = () => {
-    Taro.navigateTo({ url: '/me/disclaimer/index' })
+    Taro.navigateTo({ url: '/me-legal/disclaimer/index' })
   }
 
   return (

@@ -8,11 +8,6 @@ import type {
 import type { ApiData } from "@/types/api";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 
-/**
- * 获取指定学员的计划历史（教练端）
- *
- * 权限：必须是该学员的订阅教练
- */
 export async function POST(req: Request) {
     const session = await getServerSession();
     const userId = session?.user?.id || null;
@@ -41,7 +36,6 @@ export async function POST(req: Request) {
         }, { status: 400 });
     }
 
-    // 获取教练 ID
     const { data: coach } = await supabase
         .from("coaches")
         .select("id")
@@ -55,7 +49,6 @@ export async function POST(req: Request) {
         }, { status: 404 });
     }
 
-    // 验证该学员是否是教练的订阅学员
     const { data: subscription } = await supabase
         .from("coach_subscriptions")
         .select("id")
@@ -70,7 +63,6 @@ export async function POST(req: Request) {
         }, { status: 403 });
     }
 
-    // 获取学员姓名
     const { data: student } = await supabase
         .from("user_profiles")
         .select("nickname")
@@ -80,18 +72,16 @@ export async function POST(req: Request) {
     const from = (page - 1) * limit;
     const to = from + limit - 1;
 
-    // 构建查询
     let query = supabase
         .from("coach_plan_instances")
         .select(
-            "id, name, description, source, status, start_date, end_date, created_at, updated_at, training_days",
+            "id, name, description, source, status, start_date, end_date, start_execution_day, created_at, updated_at, training_days, archive_reason, entitlement_consumption_policy",
             { count: "exact" },
         )
         .eq("student_id", studentId)
         .order("updated_at", { ascending: false })
         .range(from, to);
 
-    // 按来源筛选
     if (source === "coach") {
         query = query.eq("source", "coach");
     } else if (source === "student") {
@@ -108,25 +98,106 @@ export async function POST(req: Request) {
         }, { status: 500 });
     }
 
-    // 处理结果
+    const planIds = (plans || [])
+        .map((plan: any) => plan?.id)
+        .filter(Boolean);
+    const { data: resolvedExecutions } = planIds.length > 0
+        ? await supabase
+            .from("plan_instance_executions")
+            .select("instance_id, day_index, status, completed_at, updated_at")
+            .in("instance_id", planIds)
+            .in("status", ["completed", "abandoned"])
+        : { data: [] as any[] };
+
+    const resolvedDaySetByInstanceId = new Map<string, Set<number>>();
+    const latestResolvedAtByInstanceId = new Map<string, string>();
+
+    for (const exec of resolvedExecutions || []) {
+        const instanceId = String((exec as any)?.instance_id || "");
+        if (!instanceId) continue;
+        const dayIndex = Number((exec as any)?.day_index ?? 0);
+        if (!dayIndex) continue;
+
+        const existing = resolvedDaySetByInstanceId.get(instanceId) ||
+            new Set<number>();
+        existing.add(dayIndex);
+        resolvedDaySetByInstanceId.set(instanceId, existing);
+
+        const resolvedAt = (exec as any)?.completed_at || (exec as any)?.updated_at;
+        if (resolvedAt) {
+            const current = latestResolvedAtByInstanceId.get(instanceId);
+            if (
+                !current ||
+                new Date(String(resolvedAt)).getTime() >=
+                    new Date(String(current)).getTime()
+            ) {
+                latestResolvedAtByInstanceId.set(instanceId, String(resolvedAt));
+            }
+        }
+    }
+
     const plansWithStats: StudentPlanHistoryItem[] = (plans || []).map(
         (plan: any) => {
-            const trainingDays = plan.training_days || [];
-            const totalDays = Array.isArray(trainingDays)
-                ? trainingDays.length
-                : 0;
+            const dayList = Array.isArray(plan.training_days)
+                ? plan.training_days
+                : [];
+            const startExecutionDay = Number(plan.start_execution_day || 1);
+            const trainingDayIndexes = dayList
+                .map((day: any, index: number) => ({
+                    dayIndex: Number(day?.dayIndex ?? day?.day_index ?? (index + 1)),
+                    type: String(day?.type || "").trim().toLowerCase(),
+                }))
+                .filter((item: any) =>
+                    item.type !== "rest" &&
+                    item.dayIndex >= startExecutionDay &&
+                    item.dayIndex > 0
+                )
+                .map((item: any) => item.dayIndex);
+
+            const resolvedDays = resolvedDaySetByInstanceId.get(plan.id) ||
+                new Set<number>();
+            const completedDays = trainingDayIndexes.filter((dayIndex: number) =>
+                resolvedDays.has(dayIndex)
+            ).length;
+            const totalTrainingDays = trainingDayIndexes.length;
+            const completionRate = totalTrainingDays > 0
+                ? Math.round((completedDays / totalTrainingDays) * 100)
+                : undefined;
+            const isLogicallyCompleted = totalTrainingDays > 0 &&
+                completedDays >= totalTrainingDays;
+            const normalizedStatus = String(plan.status || "").trim().toLowerCase();
+            const displayStatus = normalizedStatus === "active" &&
+                    isLogicallyCompleted
+                ? "completed"
+                : plan.status;
+            const shouldDeriveEndDate = !plan.end_date &&
+                (
+                    isLogicallyCompleted ||
+                    normalizedStatus === "completed" ||
+                    normalizedStatus === "archived"
+                );
+            const derivedEndDate = shouldDeriveEndDate
+                ? (latestResolvedAtByInstanceId.get(plan.id) || plan.updated_at || null)
+                : plan.end_date;
 
             return {
                 id: plan.id,
                 name: plan.name,
                 description: plan.description,
                 source: plan.source,
-                status: plan.status,
+                status: displayStatus,
                 start_date: plan.start_date,
-                end_date: plan.end_date,
+                end_date: derivedEndDate,
                 created_at: plan.created_at,
                 updated_at: plan.updated_at,
-                total_days: totalDays,
+                total_days: totalTrainingDays,
+                total_training_days: totalTrainingDays,
+                plan_span_days: dayList.length,
+                completed_days: completedDays,
+                completion_rate: completionRate,
+                archive_reason: plan.archive_reason || null,
+                entitlement_consumption_policy:
+                    plan.entitlement_consumption_policy || null,
             };
         },
     );

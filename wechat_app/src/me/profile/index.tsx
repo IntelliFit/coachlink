@@ -5,7 +5,11 @@ import BottomNav from '@/components/BottomNav'
 import { useTheme } from '@/hooks/useTheme'
 import { authService } from '@/services/authService'
 import { coachService } from '@/services/coach/coachService'
+import { studentActionLibService } from '@/services/studentActionLibService'
+import { studentPlanLibService } from '@/services/studentPlanLibService'
 import { studentService } from '@/services/studentService'
+import { trainingHistoryService } from '@/services/trainingHistoryService'
+import { request } from '@/utils/request'
 import './index.scss'
 
 interface MenuItem {
@@ -19,11 +23,31 @@ interface MenuItem {
   requiresAuth?: boolean
 }
 
+interface StatMenuItem extends MenuItem {
+  value: number
+  unit: string
+}
+
+interface ProfileStats {
+  friends: number
+  actions: number
+  plans: number
+  trainingActions: number
+}
+
+const EMPTY_PROFILE_STATS: ProfileStats = {
+  friends: 0,
+  actions: 0,
+  plans: 0,
+  trainingActions: 0
+}
+
 function Profile() {
   const { isDark, toggleTheme } = useTheme()
   const [user, setUser] = useState<any>(null)
   const [coachId, setCoachId] = useState<string | null>(null)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [profileStats, setProfileStats] = useState<ProfileStats>(EMPTY_PROFILE_STATS)
 
   const openLogin = useCallback((returnTo = '/me/profile/index') => {
     const url = authService.buildLoginUrl(returnTo)
@@ -36,6 +60,31 @@ function Profile() {
         })
       })
     })
+  }, [])
+
+  const loadProfileStats = useCallback(async () => {
+    try {
+      const [friendsRes, actionsRes, plansRes, trainingSummary] = await Promise.all([
+        request<{ friends?: any[]; total?: number }>({
+          url: '/api/user/friends',
+          method: 'GET',
+          showErrorToast: false
+        }),
+        studentActionLibService.listActions({ page: 1, limit: 1 }),
+        studentPlanLibService.listFavorites({ page: 1, limit: 1 }),
+        trainingHistoryService.getSummary()
+      ])
+
+      const friendsData = friendsRes.success ? friendsRes.data : null
+      setProfileStats({
+        friends: Number(friendsData?.total ?? friendsData?.friends?.length ?? 0),
+        actions: Number(actionsRes?.totalCount ?? actionsRes?.actions?.length ?? 0),
+        plans: Number(plansRes?.totalCount ?? plansRes?.total ?? plansRes?.favorites?.length ?? 0),
+        trainingActions: Number(trainingSummary?.totalActions ?? 0)
+      })
+    } catch (error) {
+      console.error('[profile] load stats:', error)
+    }
   }, [])
 
   const loadCurrentUser = useCallback(async () => {
@@ -59,8 +108,11 @@ function Profile() {
 
     if (!session.isAuthenticated || !session.userId) {
       setCoachId(null)
+      setProfileStats(EMPTY_PROFILE_STATS)
       return
     }
+
+    void loadProfileStats()
 
     if (currentUser?.is_coach && currentUser?.id) {
       void loadCoachId(currentUser.id)
@@ -93,7 +145,7 @@ function Profile() {
     } catch (e) {
       console.error('[profile] sync current user profile:', e)
     }
-  }, [])
+  }, [loadProfileStats])
 
   useEffect(() => {
     void loadCurrentUser()
@@ -169,7 +221,50 @@ function Profile() {
     }
   }
 
-  const topMenus: MenuItem[] = [
+  const topMenus: StatMenuItem[] = [
+    {
+      key: 'my-friends',
+      label: '我的好友',
+      value: profileStats.friends,
+      unit: '人',
+      icon: 'icon-friends-o',
+      iconBg: '#7DC8FF',
+      path: '/me/friends/index',
+      requiresAuth: true
+    },
+    {
+      key: 'action-library',
+      label: '我的动作库',
+      value: profileStats.actions,
+      unit: '个',
+      icon: 'icon-dumbbell',
+      iconBg: '#8FD3FE',
+      path: '/me/action-lib/index',
+      requiresAuth: true
+    },
+    {
+      key: 'plan-library',
+      label: '我的计划库',
+      value: profileStats.plans,
+      unit: '个',
+      icon: 'icon-a-Trainingplan',
+      iconBg: '#FFD666',
+      path: '/me/plan-lib/index',
+      requiresAuth: true
+    },
+    {
+      key: 'training-history',
+      label: '训练记录',
+      value: profileStats.trainingActions,
+      unit: '个动作',
+      icon: 'icon-training_history',
+      iconBg: '#FF7A7A',
+      path: '/me/training-history/index',
+      requiresAuth: true
+    }
+  ]
+
+  const middleMenus: MenuItem[] = [
     {
       key: 'current-plan',
       label: '全部计划',
@@ -195,46 +290,11 @@ function Profile() {
       requiresAuth: true
     },
     {
-      key: 'training-history',
-      label: '训练记录',
-      icon: 'icon-training_history',
-      iconBg: '#FF7A7A',
-      path: '/me/training-history/index',
-      requiresAuth: true
-    }
-  ]
-
-  const middleMenus: MenuItem[] = [
-    {
-      key: 'my-friends',
-      label: '我的好友',
-      icon: 'icon-friends-o',
-      iconBg: '#7DC8FF',
-      path: '/me/friends/index',
-      requiresAuth: true
-    },
-    {
-      key: 'action-library',
-      label: '我的动作库',
-      icon: 'icon-dumbbell',
-      iconBg: '#8FD3FE',
-      path: '/me/action-lib/index',
-      requiresAuth: true
-    },
-    {
       key: 'knowledge',
       label: '知识库',
       icon: 'icon-knowledge',
       iconBg: '#B39DDB',
       path: '/content/knowledge',
-      requiresAuth: true
-    },
-    {
-      key: 'plan-library',
-      label: '我的计划库',
-      icon: 'icon-a-Trainingplan',
-      iconBg: '#FFD666',
-      path: '/me/plan-lib/index',
       requiresAuth: true
     },
     {
@@ -458,7 +518,9 @@ function Profile() {
                 className='profile-stat-item'
                 onClick={() => handleMenuClick(item)}
               >
+                <Text className='profile-stat-value'>{item.value}</Text>
                 <Text className='profile-stat-label'>{item.label}</Text>
+                <Text className='profile-stat-unit'>{item.unit}</Text>
               </View>
             ))}
           </View>

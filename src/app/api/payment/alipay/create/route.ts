@@ -313,6 +313,11 @@ export async function POST(req: Request) {
 
     // 写入订单到数据库，金额存储为分（整数）
     // 订阅首单：resolvedTotalAmount 已是 sub.monthly_price（分）；其他/续费：前端传的是元，需转分
+    const effectiveOrderType =
+        subscriptionMeta?.coachId && (orderType === "subscription" || orderType === "subscription_renew")
+            ? (orderType === "subscription_renew" ? "coach_subscription_renew" : "coach_subscription")
+            : orderType;
+
     const totalAmountFen = resolvedAmountAlreadyFen
         ? Math.round(Number(resolvedTotalAmount))
         : yuanToFen(resolvedTotalAmount);
@@ -321,8 +326,11 @@ export async function POST(req: Request) {
             .insert({
                 subject: subjectText,
                 total_amount: totalAmountFen, // 存储分（整数）
-                order_type: orderType,
-                order_data: od,
+                order_type: effectiveOrderType,
+                order_data: {
+                    ...od,
+                    original_order_type: effectiveOrderType !== orderType ? orderType : undefined,
+                },
                 user_id: userId,
                 status: "pending",
                 qr_code: "",
@@ -410,7 +418,8 @@ export async function POST(req: Request) {
                     .from("alipay_orders")
                     .update({
                         payment_provider: "huifu_alipay",
-                        order_data: { ...od, huifu_req_date: reqDate },
+                        order_type: effectiveOrderType,
+                        order_data: { ...od, huifu_req_date: reqDate, original_order_type: orderType },
                     })
                     .eq("id", order.id);
 

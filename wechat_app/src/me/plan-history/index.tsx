@@ -1,13 +1,13 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react'
-import { View, Text, ScrollView } from '@tarojs/components'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
+import { Text, ScrollView, View } from '@tarojs/components'
 import Taro, { useDidShow, usePullDownRefresh, useReachBottom } from '@tarojs/taro'
+import { Calendar, File } from '@nutui/icons-react-taro'
 import BottomNav from '@/components/BottomNav'
+import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { authService } from '@/services/authService'
 import { request } from '@/utils/request'
 import { formatDateYMD } from '@/utils/dateFormat'
 import './index.scss'
-import { Calendar, File } from '@nutui/icons-react-taro'
-import { LoadingSpinner } from '@/components/LoadingSpinner'
 
 interface PlanHistoryItem {
   id: string
@@ -18,6 +18,8 @@ interface PlanHistoryItem {
   start_date: string | null
   end_date: string | null
   total_days?: number
+  total_training_days?: number
+  plan_span_days?: number
   completion_rate?: number
 }
 
@@ -44,6 +46,7 @@ function PlanHistoryPage() {
         method: 'POST',
         data: { page: targetPage, limit, source: targetSource }
       })
+
       if (res.success && res.data) {
         if (targetPage === 1) {
           setPlans(res.data.plans || [])
@@ -58,7 +61,7 @@ function PlanHistoryPage() {
     } finally {
       setLoading(false)
     }
-  }, [limit])
+  }, [limit, sourceFilter])
 
   useDidShow(() => {
     setPage(1)
@@ -107,6 +110,9 @@ function PlanHistoryPage() {
     return `${startDate} - ${endDate}`
   }
 
+  const getTrainingDayCount = (plan: PlanHistoryItem) =>
+    plan.total_training_days ?? plan.total_days ?? null
+
   const handlePlanClick = (planId: string) => {
     Taro.navigateTo({ url: `/me/plan-history/detail/index?id=${planId}` })
   }
@@ -115,13 +121,12 @@ function PlanHistoryPage() {
     <View className='plan-history-page'>
       <ScrollView className='page-scroll' scrollY>
         <View className='page-content'>
-            <View className='page-header'>
+          <View className='page-header'>
             <View className='calendar-entry' onClick={() => Taro.navigateTo({ url: '/me/training-history/index' })}>
               <Text>训练记录</Text>
             </View>
           </View>
 
-          {/* 筛选器 */}
           <View className='filter-bar'>
             <View
               className={`filter-item ${sourceFilter === 'all' ? 'active' : ''}`}
@@ -150,7 +155,7 @@ function PlanHistoryPage() {
           ) : plans.length === 0 ? (
             <View className='empty-state'>
               <Text className='empty-title'>暂无计划</Text>
-              <Text className='empty-desc'>全部计划（当前 + 历史）会显示在这里</Text>
+              <Text className='empty-desc'>全部计划会显示在这里</Text>
               <View className='empty-actions'>
                 <View className='empty-action primary' onClick={() => Taro.navigateTo({ url: '/pages/index/index' })}>
                   <Text>去今日训练</Text>
@@ -164,6 +169,7 @@ function PlanHistoryPage() {
             <View className='plans-list'>
               {plans.map((plan) => {
                 const statusConfig = getStatusConfig(plan.status)
+                const trainingDayCount = getTrainingDayCount(plan)
                 return (
                   <View
                     key={plan.id}
@@ -186,10 +192,10 @@ function PlanHistoryPage() {
                         <View className='info-icon'><Calendar /></View>
                         <Text className='info-text'>{formatDateRange(plan.start_date, plan.end_date)}</Text>
                       </View>
-                      {plan.total_days && (
+                      {trainingDayCount !== null && (
                         <View className='info-item'>
                           <View className='info-icon'><File /></View>
-                          <Text className='info-text'>共 {plan.total_days} 天</Text>
+                          <Text className='info-text'>共 {trainingDayCount} 个训练日</Text>
                         </View>
                       )}
                     </View>
@@ -200,8 +206,8 @@ function PlanHistoryPage() {
                           <Text className='progress-value'>{plan.completion_rate}%</Text>
                         </View>
                         <View className='progress-bar'>
-                          <View 
-                            className='progress-fill' 
+                          <View
+                            className='progress-fill'
                             style={{ width: `${plan.completion_rate}%` }}
                           />
                         </View>

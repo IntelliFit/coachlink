@@ -4,6 +4,7 @@ import { fillTemplate, matchPlan } from "./match";
 import { sendDirectMessage } from "@/lib/chat";
 import { randomInt } from "crypto";
 import { getSubscriptionCarryoverSummary } from "@/lib/subscriptionCarryover";
+import { archiveCurrentPlanInstancesForSubscription } from "@/lib/subscriptionEntitlement";
 import { syncCoachActionsToStudentLibrary } from "../sync-actions";
 import {
     buildActionLibrary,
@@ -221,6 +222,7 @@ export async function createAiInstanceForSubscription(params: CreateAiInstancePa
         const carryover = await getSubscriptionCarryoverSummary({
             subscriptionId,
             subscribedWeeks: Number(subscription.subscribed_weeks || 0),
+            subscriptionStartDate: (subscription as any)?.start_date || null,
         });
 
         if (carryover.exhausted) {
@@ -247,6 +249,13 @@ export async function createAiInstanceForSubscription(params: CreateAiInstancePa
 
     // DB 约束 check_plan_status 不允许 pending，延迟展示使用 scheduled
     const initialStatus = delayedActivation ? "scheduled" : "active";
+
+    if (initialStatus === "active") {
+        await archiveCurrentPlanInstancesForSubscription({
+            supabase,
+            subscriptionId,
+        });
+    }
 
     const { data: template, error: updateError } = await supabase
         .from("coach_plan_instances")

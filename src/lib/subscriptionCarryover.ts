@@ -1,15 +1,24 @@
 import supabase from "@/lib/supabaseClient";
+import {
+  shouldCountExecutionBeforeSubscriptionStart,
+  shouldCountPlanInstanceForSubscriptionEntitlement,
+} from "@/lib/subscriptionEntitlement";
 
 type CarryoverInstanceLike = {
   id?: string | null;
   start_execution_day?: number | null;
   created_at?: string | null;
+  status?: string | null;
+  entitlement_consumption_policy?: string | null;
 };
 
 type CarryoverExecutionLike = {
   instance_id?: string | null;
   day_index?: number | null;
   status?: string | null;
+  started_at?: string | null;
+  completed_at?: string | null;
+  created_at?: string | null;
 };
 
 export type SubscriptionCarryoverSummary = {
@@ -21,12 +30,27 @@ export type SubscriptionCarryoverSummary = {
   exhausted: boolean;
 };
 
+const CARRYOVER_INSTANCE_STATUSES = new Set([
+  "active",
+  "paused",
+  "completed",
+  "scheduled",
+  "archived",
+]);
+
+function parseFiniteTime(value?: string | null) {
+  if (!value) return null;
+  const time = new Date(value).getTime();
+  return Number.isFinite(time) ? time : null;
+}
+
 export function deriveSubscriptionCarryoverSummaryFromHistory(params: {
   subscribedWeeks?: number | null;
   instances?: CarryoverInstanceLike[] | null;
   executions?: CarryoverExecutionLike[] | null;
   excludeInstanceId?: string | null;
   createdBefore?: string | null;
+  subscriptionStartDate?: string | null;
 }): SubscriptionCarryoverSummary {
   const purchasedWeeks = Math.max(0, Number(params.subscribedWeeks || 0));
   if (purchasedWeeks <= 0) {
@@ -40,28 +64,36 @@ export function deriveSubscriptionCarryoverSummaryFromHistory(params: {
     };
   }
 
-  const createdBeforeTime = params.createdBefore
-    ? new Date(params.createdBefore).getTime()
-    : null;
+  const createdBeforeTime = parseFiniteTime(params.createdBefore);
+  const subscriptionStartTime = parseFiniteTime(params.subscriptionStartDate);
 
-  const instances = (params.instances || []).filter((instance) => {
-    const instanceId = String(instance?.id || "").trim();
-    if (!instanceId) return false;
-    if (params.excludeInstanceId && instanceId === params.excludeInstanceId) {
-      return false;
-    }
-
-    if (createdBeforeTime !== null) {
-      const createdAtTime = instance?.created_at
-        ? new Date(String(instance.created_at)).getTime()
-        : Number.NaN;
-      if (!Number.isFinite(createdAtTime) || createdAtTime >= createdBeforeTime) {
+  const instances = (params.instances || [])
+    .filter((instance) => {
+      const instanceId = String(instance?.id || "").trim();
+      if (!instanceId) return false;
+      if (params.excludeInstanceId && instanceId === params.excludeInstanceId) {
         return false;
       }
-    }
 
-    return true;
-  });
+      const status = String(instance?.status || "").trim().toLowerCase();
+      if (status && !CARRYOVER_INSTANCE_STATUSES.has(status)) {
+        return false;
+      }
+
+      if (createdBeforeTime !== null) {
+        const createdAtTime = parseFiniteTime(instance?.created_at);
+        if (createdAtTime === null || createdAtTime >= createdBeforeTime) {
+          return false;
+        }
+      }
+
+      return shouldCountPlanInstanceForSubscriptionEntitlement(instance);
+    })
+    .sort((a, b) => {
+      const aTime = parseFiniteTime(a.created_at) ?? 0;
+      const bTime = parseFiniteTime(b.created_at) ?? 0;
+      return aTime - bTime;
+    });
 
   if (instances.length === 0) {
     return {
@@ -74,48 +106,91 @@ export function deriveSubscriptionCarryoverSummaryFromHistory(params: {
     };
   }
 
-  const completedDayIndexByInstance = new Map<string, number>();
-  for (const execution of params.executions || []) {
-    if (execution?.status && execution.status !== "completed") continue;
-    const instanceId = String(execution?.instance_id || "").trim();
-    if (!instanceId) continue;
-    const dayIndex = Number(execution?.day_index || 0);
-    if (!Number.isFinite(dayIndex) || dayIndex <= 0) continue;
-    const currentMax = completedDayIndexByInstance.get(instanceId) || 0;
-    if (dayIndex > currentMax) {
-      completedDayIndexByInstance.set(instanceId, dayIndex);
+  const instanceById = new Map<string, CarryoverInstanceLike>();
+  for (const instance of instances) {
+    const instanceId = String(instance?.id || "").trim();
+    if (instanceId) {
+      instanceById.set(instanceId, instance);
     }
   }
 
-  let progressedDayIndex = 0;
+  const completedWeekRangeByInstance = new Map<
+    string,
+    { minWeek: number; maxWeek: number }
+  >();
+
+  for (const execution of params.executions || []) {
+    if (execution?.status && execution.status !== "completed") continue;
+
+    const instanceId = String(execution?.instance_id || "").trim();
+    if (!instanceId) continue;
+
+    const instance = instanceById.get(instanceId);
+    if (!instance) continue;
+
+    const dayIndex = Number(execution?.day_index || 0);
+    if (!Number.isFinite(dayIndex) || dayIndex <= 0) continue;
+
+    if (
+      subscriptionStartTime !== null &&
+      !shouldCountExecutionBeforeSubscriptionStart(instance)
+    ) {
+      const occurredAtTime = parseFiniteTime(
+        execution.completed_at || execution.started_at || execution.created_at,
+      );
+      if (occurredAtTime !== null && occurredAtTime < subscriptionStartTime) {
+        continue;
+      }
+    }
+
+    const weekIndex = Math.ceil(dayIndex / 7);
+    const current = completedWeekRangeByInstance.get(instanceId);
+    if (!current) {
+      completedWeekRangeByInstance.set(instanceId, {
+        minWeek: weekIndex,
+        maxWeek: weekIndex,
+      });
+      continue;
+    }
+
+    current.minWeek = Math.min(current.minWeek, weekIndex);
+    current.maxWeek = Math.max(current.maxWeek, weekIndex);
+  }
+
+  let consumedWeeks = 0;
   let sourceInstanceId: string | null = null;
 
   for (const instance of instances) {
     const instanceId = String(instance?.id || "").trim();
     if (!instanceId) continue;
 
-    const carriedDayIndex = Math.max(
-      0,
-      Number(instance?.start_execution_day || 1) - 1,
+    const startExecutionDay = Math.max(
+      1,
+      Number(instance?.start_execution_day || 1),
     );
-    const completedDayIndex = completedDayIndexByInstance.get(instanceId) || 0;
-    const candidateProgress = Math.max(carriedDayIndex, completedDayIndex);
+    const carriedWeeks = Math.ceil(Math.max(0, startExecutionDay - 1) / 7);
 
-    if (candidateProgress > progressedDayIndex) {
-      progressedDayIndex = candidateProgress;
+    const completedWeekRange = completedWeekRangeByInstance.get(instanceId);
+    const completedWeeks = completedWeekRange
+      ? Math.max(
+        0,
+        completedWeekRange.maxWeek - completedWeekRange.minWeek + 1,
+      )
+      : 0;
+
+    const instanceConsumedWeeks = Math.max(carriedWeeks, completedWeeks);
+    if (instanceConsumedWeeks > 0) {
+      consumedWeeks += instanceConsumedWeeks;
       sourceInstanceId = instanceId;
     }
   }
 
-  const progressedWeeks = Math.min(
-    purchasedWeeks,
-    Math.ceil(progressedDayIndex / 7),
-  );
+  const progressedWeeks = Math.min(purchasedWeeks, consumedWeeks);
   const remainingWeeks = Math.max(0, purchasedWeeks - progressedWeeks);
 
   return {
     purchasedWeeks,
-    progressedDayIndex,
+    progressedDayIndex: progressedWeeks * 7,
     progressedWeeks,
     remainingWeeks,
     sourceInstanceId,
@@ -128,6 +203,7 @@ export async function getSubscriptionCarryoverSummary(params: {
   subscribedWeeks?: number | null;
   excludeInstanceId?: string | null;
   createdBefore?: string | null;
+  subscriptionStartDate?: string | null;
 }): Promise<SubscriptionCarryoverSummary> {
   const purchasedWeeks = Math.max(0, Number(params.subscribedWeeks || 0));
   if (!params.subscriptionId || purchasedWeeks <= 0) {
@@ -143,9 +219,12 @@ export async function getSubscriptionCarryoverSummary(params: {
 
   let query = supabase
     .from("coach_plan_instances")
-    .select("id, start_execution_day, created_at")
+    .select(
+      "id, start_execution_day, created_at, status, entitlement_consumption_policy",
+    )
     .eq("coach_subscription_id", params.subscriptionId)
-    .order("created_at", { ascending: false });
+    .in("status", Array.from(CARRYOVER_INSTANCE_STATUSES))
+    .order("created_at", { ascending: true });
 
   if (params.excludeInstanceId) {
     query = query.neq("id", params.excludeInstanceId);
@@ -173,10 +252,10 @@ export async function getSubscriptionCarryoverSummary(params: {
 
   const { data: executions } = instanceIds.length > 0
     ? await supabase
-        .from("plan_instance_executions")
-        .select("instance_id, day_index, status")
-        .in("instance_id", instanceIds)
-        .eq("status", "completed")
+      .from("plan_instance_executions")
+      .select("instance_id, day_index, status, started_at, completed_at, created_at")
+      .in("instance_id", instanceIds)
+      .eq("status", "completed")
     : { data: [] as CarryoverExecutionLike[] };
 
   return deriveSubscriptionCarryoverSummaryFromHistory({
@@ -185,5 +264,6 @@ export async function getSubscriptionCarryoverSummary(params: {
     executions: executions as CarryoverExecutionLike[],
     excludeInstanceId: params.excludeInstanceId,
     createdBefore: params.createdBefore,
+    subscriptionStartDate: params.subscriptionStartDate,
   });
 }

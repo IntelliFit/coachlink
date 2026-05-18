@@ -14,9 +14,11 @@ import {
 import { authService } from '@/services/authService'
 import {
   buildSharePath,
+  buildStreetliftingLocationShareImageUrl,
   buildStreetliftingLocationSharePath,
   createSharePayload,
   createTimelinePayload,
+  getMiniappEnvVersion,
   getStreetliftingLocationShareTitle,
   openCoachLinkShareMenu
 } from '@/utils/share'
@@ -462,10 +464,17 @@ export default function StreetliftingLocations() {
     }
 
     const areaName = [loc.city, loc.province].filter(Boolean).join(' ')
+    const posterArea = [loc.province, loc.city, loc.county, loc.address].filter(Boolean).join(' ')
     return createSharePayload({
       title: getStreetliftingLocationShareTitle(loc.name, areaName),
       path: buildLocationSharePath(loc),
-      imageUrl: getLocationPreviewImage(loc) || undefined
+      imageUrl: buildStreetliftingLocationShareImageUrl({
+        id: loc.id,
+        name: loc.name,
+        area: posterArea || areaName,
+        description: loc.description,
+        imageUrl: getLocationPreviewImage(loc)
+      })
     })
   }
 
@@ -502,7 +511,7 @@ export default function StreetliftingLocations() {
       area: area || '打开 CoachLink 查看这个单杠点位',
       description: String(loc.description || '查看地址、环境描述和现场图片').trim(),
       imageUrl: getLocationImages(loc)[0] || undefined,
-      qrCodeUrl: `${API_BASE_URL}/api/miniapp/qrcode/streetlifting-location?locationId=${encodeURIComponent(loc.id)}`
+      qrCodeUrl: `${API_BASE_URL}/api/miniapp/qrcode/streetlifting-location?locationId=${encodeURIComponent(loc.id)}&envVersion=${getMiniappEnvVersion()}`
     }
   }, [])
 
