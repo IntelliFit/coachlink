@@ -16,7 +16,12 @@ export interface StudentPlanHistoryItem {
     created_at: string;
     updated_at: string;
     total_days?: number;
+    total_training_days?: number;
+    plan_span_days?: number;
+    completed_days?: number;
     completion_rate?: number;
+    archive_reason?: string | null;
+    entitlement_consumption_policy?: string | null;
 }
 
 export interface GetStudentPlanHistoryResponseDto {

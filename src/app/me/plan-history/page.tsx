@@ -1,12 +1,12 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Button } from 'primereact/button';
 import { Card } from 'primereact/card';
-import { Tag } from 'primereact/tag';
+import { Dropdown } from 'primereact/dropdown';
 import { ProgressBar } from 'primereact/progressbar';
 import { Skeleton } from 'primereact/skeleton';
-import { Dropdown } from 'primereact/dropdown';
+import { Tag } from 'primereact/tag';
 import { useRouter } from 'next/navigation';
 import type { PlanHistoryItem } from '@/app/api/student/plan-lib/list-history/entity';
 
@@ -86,55 +86,65 @@ export default function PlanHistoryPage() {
         return `${startDate} - ${endDate}`;
     };
 
-    const PlanCard = ({ plan }: { plan: PlanHistoryItem }) => (
-        <Card className="mb-3 cursor-pointer hover:shadow-lg transition-shadow duration-200"
-            onClick={() => router.push(`/me/plan-history/${plan.id}`)}
-        >
-            <div className="flex flex-col gap-3">
-                {/* Header */}
-                <div className="flex justify-between items-start">
-                    <div className="flex flex-col gap-2">
-                        <h3 className="text-lg font-semibold m-0">{plan.name}</h3>
-                        <div className="flex gap-2">
-                            {getStatusTag(plan.status)}
-                            {getSourceTag(plan.source)}
-                        </div>
-                    </div>
-                    <i className="pi pi-chevron-right text-gray-400" />
-                </div>
+    const getTrainingDayCount = (plan: PlanHistoryItem) =>
+        plan.total_training_days ?? plan.total_days ?? null;
 
-                {/* Details */}
-                <div className="text-sm text-gray-600">
-                    <div className="flex items-center gap-2 mb-1">
-                        <i className="pi pi-calendar" />
-                        <span>{formatDateRange(plan.start_date, plan.end_date)}</span>
+    const PlanCard = ({ plan }: { plan: PlanHistoryItem }) => {
+        const trainingDayCount = getTrainingDayCount(plan);
+
+        return (
+            <Card
+                className="mb-3 cursor-pointer hover:shadow-lg transition-shadow duration-200"
+                onClick={() => router.push(`/me/plan-history/${plan.id}`)}
+            >
+                <div className="flex flex-col gap-3">
+                    <div className="flex justify-between items-start">
+                        <div className="flex flex-col gap-2">
+                            <h3 className="text-lg font-semibold m-0">{plan.name}</h3>
+                            <div className="flex gap-2">
+                                {getStatusTag(plan.status)}
+                                {getSourceTag(plan.source)}
+                            </div>
+                        </div>
+                        <i className="pi pi-chevron-right text-gray-400" />
                     </div>
-                    {plan.total_days && (
-                        <div className="flex items-center gap-2">
-                            <i className="pi pi-list" />
-                            <span>共 {plan.total_days} 天</span>
+
+                    <div className="text-sm text-gray-600">
+                        <div className="flex items-center gap-2 mb-1">
+                            <i className="pi pi-calendar" />
+                            <span>{formatDateRange(plan.start_date, plan.end_date)}</span>
+                        </div>
+                        {trainingDayCount !== null && (
+                            <div className="flex items-center gap-2">
+                                <i className="pi pi-list" />
+                                <span>共 {trainingDayCount} 个训练日</span>
+                            </div>
+                        )}
+                    </div>
+
+                    {plan.completion_rate !== undefined && (
+                        <div>
+                            <div className="flex justify-between text-sm mb-1">
+                                <span>完成度</span>
+                                <span>{plan.completion_rate}%</span>
+                            </div>
+                            <ProgressBar
+                                value={plan.completion_rate}
+                                showValue={false}
+                                style={{ height: '6px' }}
+                            />
                         </div>
                     )}
+
+                    {plan.description && (
+                        <p className="text-sm text-gray-500 m-0 line-clamp-2">
+                            {plan.description}
+                        </p>
+                    )}
                 </div>
-
-                {/* Progress */}
-                {plan.completion_rate !== undefined && (
-                    <div>
-                        <div className="flex justify-between text-sm mb-1">
-                            <span>完成度</span>
-                            <span>{plan.completion_rate}%</span>
-                        </div>
-                        <ProgressBar value={plan.completion_rate} showValue={false} style={{ height: '6px' }} />
-                    </div>
-                )}
-
-                {/* Description */}
-                {plan.description && (
-                    <p className="text-sm text-gray-500 m-0 line-clamp-2">{plan.description}</p>
-                )}
-            </div>
-        </Card>
-    );
+            </Card>
+        );
+    };
 
     const LoadingSkeleton = () => (
         <div className="flex flex-col gap-3">
@@ -152,7 +162,7 @@ export default function PlanHistoryPage() {
         <div className="flex flex-col items-center justify-center py-12 text-center">
             <i className="pi pi-history text-4xl text-gray-300 mb-4" />
             <h3 className="text-xl font-medium text-gray-600 mb-2">暂无计划</h3>
-            <p className="text-gray-400 mb-4">全部计划（当前 + 历史）会显示在这里</p>
+            <p className="text-gray-400 mb-4">全部计划会显示在这里</p>
             <Button
                 label="开始训练"
                 icon="pi pi-play"
@@ -163,19 +173,13 @@ export default function PlanHistoryPage() {
 
     return (
         <div className="p-4 max-w-2xl mx-auto">
-            {/* Header */}
             <div className="flex justify-between items-center mb-4">
                 <div className="flex items-center gap-2">
-                    <Button
-                        icon="pi pi-arrow-left"
-                        text
-                        onClick={() => router.back()}
-                    />
+                    <Button icon="pi pi-arrow-left" text onClick={() => router.back()} />
                     <h1 className="text-xl font-bold m-0">全部计划</h1>
                 </div>
             </div>
 
-            {/* Filter */}
             <div className="mb-4">
                 <Dropdown
                     value={sourceFilter}
@@ -188,7 +192,6 @@ export default function PlanHistoryPage() {
                 />
             </div>
 
-            {/* Content */}
             {loading ? (
                 <LoadingSkeleton />
             ) : plans.length === 0 ? (
@@ -202,14 +205,13 @@ export default function PlanHistoryPage() {
                         <PlanCard key={plan.id} plan={plan} />
                     ))}
 
-                    {/* Pagination */}
                     {totalCount > limit && (
                         <div className="flex justify-center gap-2 mt-4">
                             <Button
                                 label="上一页"
                                 icon="pi pi-chevron-left"
                                 disabled={page === 1}
-                                onClick={() => setPage(p => p - 1)}
+                                onClick={() => setPage((p) => p - 1)}
                                 text
                             />
                             <span className="flex items-center px-3">
@@ -220,7 +222,7 @@ export default function PlanHistoryPage() {
                                 icon="pi pi-chevron-right"
                                 iconPos="right"
                                 disabled={page >= Math.ceil(totalCount / limit)}
-                                onClick={() => setPage(p => p + 1)}
+                                onClick={() => setPage((p) => p + 1)}
                                 text
                             />
                         </div>

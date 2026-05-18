@@ -69,7 +69,7 @@ class StudentPlanLibService extends BaseService {
    * 对应接口：POST /api/student/plan-lib/list-favorites
    */
   async listFavorites(params?: { page?: number; limit?: number; search?: string }) {
-    const res = await this.post<{ favorites: any[]; total: number }>('list-favorites', {
+    const res = await this.post<{ favorites: any[]; total?: number; totalCount?: number }>('list-favorites', {
       page: params?.page ?? 1,
       limit: params?.limit ?? 50,
       search: params?.search ?? ''

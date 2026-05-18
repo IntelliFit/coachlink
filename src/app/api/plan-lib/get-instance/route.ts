@@ -266,6 +266,8 @@ export async function POST(req: Request) {
                     ),
                     excludeInstanceId: String(instance.id || ""),
                     createdBefore: (instance as any)?.created_at || null,
+                    subscriptionStartDate:
+                        (subscriptionForStudentAccess as any)?.start_date || null,
                 })
             ).remainingWeeks,
         });

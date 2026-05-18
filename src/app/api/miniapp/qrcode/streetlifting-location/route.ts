@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 let cachedAccessToken: string | null = null;
 let cachedAccessTokenExpiresAt = 0;
+const VALID_ENV_VERSIONS = new Set(["release", "trial", "develop"]);
 
 async function getMiniappAccessToken() {
   const now = Date.now();
@@ -44,10 +45,16 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const envVersion = String(
+    const requestedEnvVersion = String(searchParams.get("envVersion") || "").trim();
+    const fallbackEnvVersion = String(
       process.env.WECHAT_MINIAPP_QRCODE_ENV ||
         (process.env.NODE_ENV === "production" ? "release" : "develop"),
     ).trim();
+    const envVersion = VALID_ENV_VERSIONS.has(requestedEnvVersion)
+      ? requestedEnvVersion
+      : VALID_ENV_VERSIONS.has(fallbackEnvVersion)
+        ? fallbackEnvVersion
+        : "release";
 
     const accessToken = await getMiniappAccessToken();
     const qrResp = await fetch(

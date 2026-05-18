@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react'
-import { View, Text, ScrollView } from '@tarojs/components'
-import Taro, { useRouter, useDidShow } from '@tarojs/taro'
+import React, { useState } from 'react'
+import { Text, ScrollView, View } from '@tarojs/components'
+import Taro, { useDidShow, useRouter } from '@tarojs/taro'
+import { Notice } from '@nutui/icons-react-taro'
 import BottomNav from '@/components/BottomNav'
+import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { request } from '@/utils/request'
 import './index.scss'
-import { Notice } from '@nutui/icons-react-taro'
-import { LoadingSpinner } from '@/components/LoadingSpinner'
 
 function PlanHistoryDetail() {
   const router = useRouter()
@@ -36,6 +36,25 @@ function PlanHistoryDetail() {
       setLoading(false)
     }
   }
+
+  const getStatusLabel = (status: string) => {
+    if (status === 'active') return '进行中'
+    if (status === 'completed') return '已完成'
+    if (status === 'archived') return '已归档'
+    return status || '-'
+  }
+
+  const getSourceLabel = (source: string | null) => {
+    return source === 'coach' ? '教练指派' : '我的计划'
+  }
+
+  const formatDate = (value?: string | null) => {
+    return value ? new Date(value).toLocaleDateString('zh-CN') : null
+  }
+
+  const trainingDayCount = plan
+    ? plan.total_training_days ?? plan.total_days ?? null
+    : null
 
   if (loading) {
     return (
@@ -75,28 +94,28 @@ function PlanHistoryDetail() {
           <View className='plan-info-section'>
             <View className='info-item'>
               <Text className='info-label'>状态</Text>
-              <Text className='info-value'>{plan.status === 'active' ? '进行中' : plan.status === 'completed' ? '已完成' : '已归档'}</Text>
+              <Text className='info-value'>{getStatusLabel(plan.status)}</Text>
             </View>
             <View className='info-item'>
               <Text className='info-label'>来源</Text>
-              <Text className='info-value'>{plan.source === 'coach' ? '教练指派' : '我的计划'}</Text>
+              <Text className='info-value'>{getSourceLabel(plan.source)}</Text>
             </View>
             {plan.start_date && (
               <View className='info-item'>
                 <Text className='info-label'>开始时间</Text>
-                <Text className='info-value'>{new Date(plan.start_date).toLocaleDateString('zh-CN')}</Text>
+                <Text className='info-value'>{formatDate(plan.start_date)}</Text>
               </View>
             )}
             {plan.end_date && (
               <View className='info-item'>
                 <Text className='info-label'>结束时间</Text>
-                <Text className='info-value'>{new Date(plan.end_date).toLocaleDateString('zh-CN')}</Text>
+                <Text className='info-value'>{formatDate(plan.end_date)}</Text>
               </View>
             )}
-            {plan.total_days && (
+            {trainingDayCount !== null && (
               <View className='info-item'>
-                <Text className='info-label'>总天数</Text>
-                <Text className='info-value'>{plan.total_days} 天</Text>
+                <Text className='info-label'>训练日</Text>
+                <Text className='info-value'>{trainingDayCount} 个训练日</Text>
               </View>
             )}
             {plan.completion_rate !== undefined && (

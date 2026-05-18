@@ -58,7 +58,7 @@ export default function StudentsPage() {
     const [chatDialogVisible, setChatDialogVisible] = useState(false);
     const [selectedChatroom, setSelectedChatroom] = useState<ChatroomDetail | null>(null);
     const [search, setSearch] = useState('');
-    const [debouncedSearch, setDebouncedSearch] = useState('');
+    const [submittedSearch, setSubmittedSearch] = useState('');
     const [clearPlanDialogVisible, setClearPlanDialogVisible] = useState(false);
     const [clearPlanTarget, setClearPlanTarget] = useState<StudentSubscription | null>(null);
     const [clearPlanMode, setClearPlanMode] = useState<ClearPlanMode>('archive');
@@ -141,7 +141,7 @@ export default function StudentsPage() {
 
             const data = await coachService.listStudents({
                 pagination: { page, limit },
-                search: debouncedSearch?.trim() ? debouncedSearch.trim() : undefined,
+                search: submittedSearch?.trim() ? submittedSearch.trim() : undefined,
                 sort: { mode: sortMode },
             });
 
@@ -178,12 +178,7 @@ export default function StudentsPage() {
         loadCoach();
     }, [status, session, router]);
 
-    // 搜索输入防抖（避免每个字符都触发请求）
-    useEffect(() => {
-        const t = setTimeout(() => setDebouncedSearch(search), 300);
-        return () => clearTimeout(t);
-    }, [search]);
-
+    // 搜索只在 Enter / 搜索按钮 / 清空时提交，避免输入拼音时触发请求
     // 当 rows / search / sort 变化时，重置到第一页并重新加载
     useEffect(() => {
         if (status === 'loading') return;
@@ -193,7 +188,7 @@ export default function StudentsPage() {
         setSelectedStudents([]);
         loadStudents(0, rows);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [status, session, rows, debouncedSearch, sortMode]);
+    }, [status, session, rows, submittedSearch, sortMode]);
 
     useEffect(() => {
         if (coach) {
@@ -213,6 +208,15 @@ export default function StudentsPage() {
 
     // 当前页默认选中“未配置计划”的学员；跨页取消通过 excludedNoPlanIds 生效
     // 注意：这里不要监听 excludedNoPlanIds，否则会在用户点击复选框时立刻“反向覆盖”selection，导致 UI 看起来不变
+    const submitSearch = () => {
+        setSubmittedSearch(search.trim());
+    };
+
+    const clearSearch = () => {
+        setSearch('');
+        setSubmittedSearch('');
+    };
+
     useEffect(() => {
         const noPlan = (students || []).filter(s => s.plan === null);
         const excludeSet = new Set(excludedNoPlanIds || []);
@@ -842,11 +846,36 @@ export default function StudentsPage() {
                         <i className="pi pi-search" />
                         <InputText
                             value={search}
-                            onChange={(e) => setSearch(e.target.value)}
+                            onChange={(e) => {
+                                const value = e.target.value;
+                                setSearch(value);
+                                if (!value) {
+                                    setSubmittedSearch('');
+                                }
+                            }}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                    submitSearch();
+                                }
+                            }}
                             placeholder="搜索学员昵称/手机号"
                             className="w-full rounded-2xl"
                         />
                     </span>
+                    <Button
+                        label={'\u641c\u7d22'}
+                        icon="pi pi-search"
+                        onClick={submitSearch}
+                        className="p-button-primary w-full sm:w-auto rounded-2xl px-5 py-2.5 text-sm"
+                    />
+                    {submittedSearch && (
+                        <Button
+                            label={'\u6e05\u9664'}
+                            icon="pi pi-times"
+                            onClick={clearSearch}
+                            className="p-button-text w-full sm:w-auto rounded-2xl px-4 py-2.5 text-sm"
+                        />
+                    )}
                     <Dropdown
                         value={sortMode}
                         onChange={(e) => setSortMode(e.value)}

@@ -3,8 +3,7 @@ import supabase, { serviceRoleSupabase } from "@/lib/supabaseClient";
 import type { ApiData } from "@/types/api";
 import { createAlipaySdk } from "@/lib/alipaySdk";
 import {
-    updateTransactionAndWallet,
-    fulfillSubscriptionOnPaid,
+    fulfillSubscriptionAndMaybeCreditWallet,
 } from "@/app/api/payment/alipay/fulfillPaidOrder";
 import { fulfillContentPurchasePaid } from "../contentPurchaseFulfillment";
 import { fulfillStudentMembershipOrderOnPaid } from "@/app/api/payment/studentMembershipFulfillment";
@@ -130,7 +129,6 @@ export async function POST(req: Request) {
         if (orderStatus === "paid") {
             const orderType = alipayOrder.order_type;
             const orderData = (alipayOrder.order_data || {}) as any;
-            const subscriptionId = orderData?.subscriptionId as string | undefined;
             const contentId = orderData?.contentId as string | undefined;
 
             const isSubscriptionOrder =
@@ -139,13 +137,12 @@ export async function POST(req: Request) {
                 orderType === "coach_subscription" ||
                 orderType === "coach_subscription_renew";
 
-            if (subscriptionId && isSubscriptionOrder) {
-                await fulfillSubscriptionOnPaid(
+            if (isSubscriptionOrder) {
+                await fulfillSubscriptionAndMaybeCreditWallet(
                     alipayOrder,
-                    alipayOrder.id,
-                    alipayOrder.user_id ?? ""
+                    alipayOrder.user_id ?? "",
+                    (alipayOrder as any).payment_provider === "wechat" ? "wechat" : "alipay",
                 );
-                await updateTransactionAndWallet(alipayOrder);
             }
 
             // Content purchase (single-article unlock + coach wallet credit)

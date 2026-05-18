@@ -398,23 +398,24 @@ export async function POST(req: Request) {
                 // Latest plan instance per subscription (for training_days cadence & start_execution_day)
                 const { data: instances } = await supabase
                     .from('coach_plan_instances')
-                    .select('id, coach_subscription_id, training_days, start_execution_day, created_at, status')
+                    .select('id, coach_subscription_id, training_days, start_execution_day, created_at, status, entitlement_consumption_policy')
                     .in('coach_subscription_id', subscriptionIds)
-                    .in('status', ['active', 'paused', 'completed', 'scheduled'])
+                    .in('status', ['active', 'paused', 'completed', 'scheduled', 'archived'])
                     .order('created_at', { ascending: false });
 
                 const latestInstanceBySub = new Map<string, any>();
                 for (const inst of (instances || []) as any[]) {
                     const sid = inst?.coach_subscription_id;
                     if (!sid) continue;
+                    if (String(inst?.status || '').toLowerCase() === 'archived') continue;
                     if (!latestInstanceBySub.has(sid)) latestInstanceBySub.set(sid, inst);
                 }
 
-                const instanceIds = Array.from(latestInstanceBySub.values()).map((i: any) => i.id).filter(Boolean);
+                const instanceIds = ((instances || []) as any[]).map((i: any) => i.id).filter(Boolean);
                 const { data: execs } = instanceIds.length > 0
                     ? await supabase
                         .from('plan_instance_executions')
-                        .select('instance_id, day_index, status')
+                        .select('instance_id, day_index, status, started_at, completed_at, created_at')
                         .in('instance_id', instanceIds)
                         .eq('status', 'completed')
                     : { data: [] as any[] };
@@ -444,6 +445,7 @@ export async function POST(req: Request) {
                         executions: (execs || []) as any[],
                         excludeInstanceId: String(inst.id || ''),
                         createdBefore: inst.created_at || null,
+                        subscriptionStartDate: s?.start_date || null,
                     });
 
                     const scope = computeCreditsScope({

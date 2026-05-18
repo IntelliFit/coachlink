@@ -6,17 +6,8 @@ import type {
 } from "./entity";
 import type { ApiData } from "@/types/api";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
+import { archiveCurrentPlanInstancesForSubscription } from "@/lib/subscriptionEntitlement";
 
-/**
- * 激活计划实例（带冲突检测）
- *
- * 逻辑：
- * 1. 检查当前是否有 active 计划
- * 2. 若有，根据进度决定设为 completed 或 archived
- * 3. 将指定计划设为 active
- *
- * 权限：学员本人或教练
- */
 export async function POST(req: Request) {
     const session = await getServerSession();
     const userId = session?.user?.id || null;
@@ -38,10 +29,9 @@ export async function POST(req: Request) {
         }, { status: 400 });
     }
 
-    // 获取要激活的计划
     const { data: targetInstance, error: fetchError } = await supabase
         .from("coach_plan_instances")
-        .select("id, student_id, coach_id, status, name")
+        .select("id, student_id, coach_id, status, name, coach_subscription_id")
         .eq("id", instanceId)
         .single();
 
@@ -53,8 +43,6 @@ export async function POST(req: Request) {
     }
 
     const studentId = targetInstance.student_id;
-
-    // 权限检查：学员本人或教练
     let hasPermission = false;
 
     if (studentId === userId) {
@@ -80,45 +68,22 @@ export async function POST(req: Request) {
 
     let previousInstanceInfo: { id: string; newStatus: string } | undefined;
 
-    // 检查当前是否有 active 计划
     if (archiveCurrentIfExists) {
-        const { data: currentActive } = await supabase
-            .from("coach_plan_instances")
-            .select("id, training_days")
-            .eq("student_id", studentId)
-            .eq("status", "active")
-            .neq("id", instanceId) // 排除要激活的计划本身
-            .maybeSingle();
-
-        if (currentActive) {
-            // 简单判断进度：如果没有执行记录，设为 archived；否则设为 completed
-            // 更精确的进度计算需要关联 plan_instance_executions
-            const { count: executionCount } = await supabase
-                .from("plan_instance_executions")
-                .select("id", { count: "exact", head: true })
-                // plan_instance_executions uses `instance_id`
-                .eq("instance_id", currentActive.id);
-
-            const newStatus = (executionCount && executionCount > 0)
-                ? "archived"
-                : "archived";
-
-            await supabase
-                .from("coach_plan_instances")
-                .update({
-                    status: newStatus,
-                    updated_at: new Date().toISOString(),
-                })
-                .eq("id", currentActive.id);
-
+        const archiveResult = await archiveCurrentPlanInstancesForSubscription({
+            supabase,
+            subscriptionId: (targetInstance as any).coach_subscription_id || null,
+            studentId,
+            excludeInstanceId: instanceId,
+        });
+        const previousId = archiveResult.archivedIds[0];
+        if (previousId) {
             previousInstanceInfo = {
-                id: currentActive.id,
-                newStatus,
+                id: previousId,
+                newStatus: "archived",
             };
         }
     }
 
-    // 激活目标计划
     const { data: activated, error: activateError } = await supabase
         .from("coach_plan_instances")
         .update({
@@ -145,8 +110,8 @@ export async function POST(req: Request) {
     return NextResponse.json<ApiData<ActivateInstanceResponseDto>>({
         success: true,
         message: previousInstanceInfo
-            ? `已归档旧计划并激活"${targetInstance.name}"`
-            : `已激活"${targetInstance.name}"`,
+            ? `已归档旧计划并激活 "${targetInstance.name}"`
+            : `已激活 "${targetInstance.name}"`,
         data: {
             success: true,
             newActiveInstance: activated,

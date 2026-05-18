@@ -18,753 +18,6 @@
     padding: 180rpx 24rpx 24rpx;
   }
 
-  // ========== 顶部问候 + 更多（⋯）==========
-  .dashboard-intro-row {
-    display: flex;
-    flex-direction: row;
-    align-items: flex-start;
-    justify-content: space-between;
-    margin-bottom: 16rpx;
-    gap: 16rpx;
-  }
-
-  .dashboard-intro-left {
-    flex: 1;
-    min-width: 0;
-  }
-
-  .dashboard-greeting-row {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    gap: 16rpx;
-    margin-bottom: 8rpx;
-    flex-wrap: wrap;
-  }
-
-  .dashboard-cloud-sync-spin {
-    margin-left: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 40rpx;
-  }
-
-  .dashboard-greeting-icon {
-    font-size: 44rpx;
-    color: #010101;
-    line-height: 1;
-  }
-
-  .dashboard-greeting {
-    font-size: 40rpx;
-    font-weight: 700;
-    color: #010101;
-    display: block;
-    line-height: 1.2;
-    margin-bottom: 0;
-  }
-
-  .dashboard-date {
-    font-size: 26rpx;
-    color: #6b7280;
-    display: block;
-  }
-
-  .dashboard-date-hit {
-    align-self: flex-start;
-    padding: 8rpx 0;
-    margin: 0 0 0 -8rpx;
-    padding-left: 8rpx;
-    padding-right: 16rpx;
-    border-radius: 16rpx;
-
-    &:active,
-    &.dashboard-date-hit--active {
-      opacity: 0.65;
-    }
-  }
-
-  .dashboard-more-hit {
-    flex-shrink: 0;
-    min-width: 64rpx;
-    height: 64rpx;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0 8rpx;
-    border-radius: 16rpx;
-
-    &:active {
-      opacity: 0.65;
-    }
-  }
-
-  .dashboard-more-dots {
-    font-size: 36rpx;
-    color: #9ca3af;
-    line-height: 1;
-    font-weight: 700;
-  }
-
-  /* 今日进度条（仅当天）+ 周/月训练日统计 */
-  .tt-daily-progress-card {
-    position: relative;
-    background: #ffffff;
-    border-radius: 32rpx;
-    padding: 32rpx;
-    margin-bottom: 24rpx;
-    box-shadow: 0 8rpx 32rpx rgba(0, 0, 0, 0.04);
-    border: none;
-    box-sizing: border-box;
-    overflow: hidden;
-  }
-
-  /* 「今日安排」整块：与进度卡同一白卡片、阴影与圆角体系 */
-  .tt-schedule-stack {
-    background: #ffffff;
-    border-radius: 32rpx;
-    padding: 32rpx;
-    margin-bottom: 24rpx;
-    box-shadow: 0 8rpx 32rpx rgba(0, 0, 0, 0.04);
-    border: none;
-    box-sizing: border-box;
-    overflow: hidden;
-
-    .section-header--schedule {
-      margin-bottom: 0;
-      padding-bottom: 24rpx;
-      border-bottom: 2rpx solid #f3f4f6;
-      align-items: flex-start;
-    }
-
-    .section-header--schedule .header-left {
-      flex: 1;
-      min-width: 0;
-    }
-
-    .tt-schedule-stack__head {
-      display: flex;
-      flex-direction: row;
-      align-items: flex-start;
-      gap: 16rpx;
-      min-width: 0;
-    }
-
-    .tt-schedule-stack__icon {
-      flex-shrink: 0;
-      font-size: 40rpx;
-      line-height: 1;
-      color: #cf6d4e;
-    }
-
-    .tt-schedule-stack__titles {
-      flex: 1;
-      min-width: 0;
-      display: flex;
-      flex-direction: column;
-      gap: 8rpx;
-    }
-
-    .section-header--schedule .section-title {
-      margin-left: 0;
-      margin-bottom: 0;
-      font-size: 30rpx;
-      line-height: 1.35;
-    }
-
-    .section-header--schedule .section-subtitle {
-      font-size: 24rpx;
-      color: #6b7280;
-      line-height: 1.4;
-    }
-
-    .rest-day-card {
-      background: transparent;
-      box-shadow: none;
-      border: none;
-      padding: 0 0 24rpx;
-      border-radius: 0;
-      margin-bottom: 24rpx;
-      border-bottom: 2rpx solid #f3f4f6;
-    }
-
-    .share-entry-card {
-      margin-top: 0;
-      padding: 24rpx 0 0;
-      border: none;
-      border-radius: 0;
-      background: transparent;
-      box-shadow: none;
-      border-top: 2rpx solid #f3f4f6;
-    }
-
-    .share-entry-card .inline-actions {
-      margin-top: 0;
-    }
-
-    .empty-card {
-      margin-top: 0;
-      margin-bottom: 0;
-      background: transparent;
-      box-shadow: none;
-      border-radius: 0;
-      padding: 16rpx 0 8rpx;
-    }
-
-    .in-progress-banner {
-      margin-top: 24rpx;
-      margin-bottom: 0;
-      padding-top: 24rpx;
-      border-top: 2rpx solid #f3f4f6;
-      border-radius: 0;
-      background: #f9fafb;
-      border-left: none;
-      border-right: none;
-      border-bottom: none;
-    }
-  }
-
-  .tt-daily-progress-head {
-    display: flex;
-    flex-direction: row;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 16rpx;
-    margin-bottom: 24rpx;
-  }
-
-  .tt-daily-progress-head-main {
-    flex: 1;
-    min-width: 0;
-  }
-
-  .tt-daily-progress-title-row {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    gap: 16rpx;
-    min-width: 0;
-  }
-
-  .tt-daily-progress-title-icon {
-    flex-shrink: 0;
-    font-size: 40rpx;
-    line-height: 1;
-    color: #cf6d4e;
-  }
-
-  .tt-daily-progress-title {
-    font-size: 30rpx;
-    font-weight: 700;
-    color: #010101;
-    display: block;
-    line-height: 1.35;
-    flex: 1;
-    min-width: 0;
-  }
-
-  .tt-daily-progress-coach-trigger {
-    flex-shrink: 0;
-    padding: 8rpx 16rpx;
-    min-height: 48rpx;
-    box-sizing: border-box;
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    justify-content: center;
-    gap: 8rpx;
-    background: #ffffff;
-    border-radius: 9999rpx;
-    border: 2rpx solid #e5e7eb;
-
-    &--pressed {
-      opacity: 0.85;
-    }
-  }
-
-  .tt-daily-progress-coach-trigger-text {
-    font-size: 22rpx;
-    font-weight: 600;
-    color: #cf6d4e;
-  }
-
-  .tt-daily-progress-coach-trigger-icon {
-    font-size: 28rpx;
-    line-height: 1;
-    color: #cf6d4e;
-  }
-
-  .tt-focus-panel {
-    padding: 24rpx;
-    margin-bottom: 24rpx;
-    border-radius: 28rpx;
-    background: linear-gradient(180deg, #fff8f4 0%, #ffffff 100%);
-    border: 2rpx solid rgba(207, 109, 78, 0.12);
-    box-sizing: border-box;
-  }
-
-  .tt-focus-copy {
-    display: flex;
-    flex-direction: column;
-    gap: 10rpx;
-    margin-bottom: 22rpx;
-  }
-
-  .tt-focus-meta {
-    display: block;
-    font-size: 24rpx;
-    color: #6b7280;
-    line-height: 1.45;
-  }
-
-  .tt-focus-title {
-    display: block;
-    font-size: 34rpx;
-    font-weight: 800;
-    color: #111827;
-    line-height: 1.28;
-  }
-
-  .tt-focus-primary-btn {
-    min-height: 96rpx;
-    padding: 0 32rpx;
-    border-radius: 9999rpx;
-    background: #cf6d4e;
-    box-shadow: 0 12rpx 28rpx rgba(207, 109, 78, 0.28);
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    justify-content: center;
-    gap: 12rpx;
-    box-sizing: border-box;
-
-    &--pressed {
-      opacity: 0.9;
-      transform: scale(0.99);
-    }
-  }
-
-  .tt-focus-primary-text {
-    font-size: 30rpx;
-    font-weight: 800;
-    color: #ffffff;
-    line-height: 1;
-  }
-
-  .tt-focus-secondary-row {
-    display: flex;
-    flex-direction: row;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 12rpx;
-    margin-top: 16rpx;
-  }
-
-  .tt-focus-secondary-btn {
-    min-height: 56rpx;
-    padding: 0 20rpx;
-    border-radius: 9999rpx;
-    background: #ffffff;
-    border: 2rpx solid #f3f4f6;
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    justify-content: center;
-    gap: 8rpx;
-    box-sizing: border-box;
-
-    text {
-      font-size: 23rpx;
-      font-weight: 600;
-      color: #6b7280;
-      line-height: 1;
-    }
-
-    &--danger text {
-      color: #b91c1c;
-    }
-
-    &--pressed {
-      opacity: 0.78;
-    }
-  }
-
-  /* 切换教练底部弹层 */
-  .coach-pick-sheet {
-    padding: 16rpx 24rpx 24rpx;
-    padding-bottom: calc(24rpx + constant(safe-area-inset-bottom));
-    padding-bottom: calc(24rpx + env(safe-area-inset-bottom));
-    box-sizing: border-box;
-    max-height: 72vh;
-    display: flex;
-    flex-direction: column;
-  }
-
-  .coach-pick-sheet-handle {
-    width: 64rpx;
-    height: 8rpx;
-    border-radius: 9999rpx;
-    background: #e5e7eb;
-    align-self: center;
-    margin-bottom: 24rpx;
-  }
-
-  .coach-pick-sheet-title {
-    display: block;
-    font-size: 32rpx;
-    font-weight: 700;
-    color: #010101;
-    text-align: center;
-    margin-bottom: 24rpx;
-  }
-
-  .coach-pick-sheet-scroll {
-    flex: 1;
-    max-height: 52vh;
-    margin-bottom: 16rpx;
-  }
-
-  .coach-pick-row {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
-    gap: 16rpx;
-    padding: 24rpx 16rpx;
-    margin-bottom: 16rpx;
-    border-radius: 24rpx;
-    background: #f9fafb;
-    box-sizing: border-box;
-
-    &--active {
-      background: #fdf2ec;
-    }
-
-    &--pressed {
-      opacity: 0.88;
-    }
-  }
-
-  .coach-pick-avatar-wrap {
-    width: 96rpx;
-    height: 96rpx;
-    border-radius: 24rpx;
-    overflow: hidden;
-    flex-shrink: 0;
-    background: #f3f4f6;
-  }
-
-  .coach-pick-avatar-img {
-    width: 96rpx;
-    height: 96rpx;
-    display: block;
-  }
-
-  .coach-pick-avatar-fallback {
-    width: 96rpx;
-    height: 96rpx;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: #fdf2ec;
-  }
-
-  .coach-pick-avatar-letter {
-    font-size: 40rpx;
-    font-weight: 800;
-    color: #cf6d4e;
-  }
-
-  .coach-pick-body {
-    flex: 1;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 8rpx;
-  }
-
-  .coach-pick-name-row {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 8rpx 16rpx;
-  }
-
-  .coach-pick-name {
-    font-size: 28rpx;
-    font-weight: 700;
-    color: #010101;
-  }
-
-  .coach-pick-current {
-    font-size: 20rpx;
-    font-weight: 700;
-    color: #cf6d4e;
-    padding: 4rpx 12rpx;
-    border-radius: 9999rpx;
-    background: rgba(207, 109, 78, 0.12);
-  }
-
-  .coach-pick-plan {
-    font-size: 26rpx;
-    font-weight: 600;
-    color: #374151;
-    line-height: 1.35;
-  }
-
-  .coach-pick-id {
-    font-size: 22rpx;
-    color: #9ca3af;
-    font-weight: 500;
-    letter-spacing: 0.5px;
-  }
-
-  .coach-pick-sub {
-    font-size: 22rpx;
-    color: #6b7280;
-    line-height: 1.4;
-  }
-
-  .coach-pick-badge {
-    font-size: 20rpx;
-    padding: 4rpx 16rpx;
-    border-radius: 9999rpx;
-    background: rgba(0, 0, 0, 0.06);
-    color: #6b7280;
-    font-weight: 600;
-  }
-
-  .coach-pick-check {
-    font-size: 32rpx;
-    color: #cf6d4e;
-    font-weight: 700;
-    flex-shrink: 0;
-    margin-left: 16rpx;
-  }
-
-  .coach-pick-chevron {
-    font-size: 28rpx;
-    color: #d1d5db;
-    flex-shrink: 0;
-    margin-left: 16rpx;
-  }
-
-  .coach-pick-sheet-footer {
-    padding: 24rpx;
-    align-items: center;
-    justify-content: center;
-    display: flex;
-    border-radius: 16rpx;
-    background: #f3f4f6;
-  }
-
-  .coach-pick-footer-text {
-    font-size: 26rpx;
-    font-weight: 600;
-    color: #6b7280;
-  }
-
-  /* 约为悬浮底栏总高度一半（底栏约 96rpx 量级），8 栅格取 48rpx */
-  .tt-daily-progress-track {
-    height: 48rpx;
-    background: #f3f4f6;
-    border-radius: 9999rpx;
-    overflow: hidden;
-    margin-bottom: 16rpx;
-  }
-
-  .tt-daily-progress-fill {
-    height: 100%;
-    background: #cf6d4e;
-    border-radius: 9999rpx;
-  }
-
-  .tt-daily-progress-label-row {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    gap: 8rpx;
-  }
-
-  .tt-daily-progress-label-icon-wrap {
-    width: 32rpx;
-    height: 32rpx;
-    border-radius: 16rpx;
-    background: rgba(207, 109, 78, 0.12);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-  }
-
-  .tt-daily-progress-label {
-    font-size: 24rpx;
-    color: #6b7280;
-    display: block;
-    line-height: 1.4;
-  }
-
-  .tt-period-stats {
-    display: flex;
-    flex-direction: column;
-    gap: 8rpx;
-    margin-top: 16rpx;
-  }
-
-  .tt-period-stats--row {
-    flex-direction: row;
-    align-items: stretch;
-    gap: 16rpx;
-    margin-top: 24rpx;
-  }
-
-  .tt-period-pill {
-    flex: 1;
-    min-width: 0;
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    gap: 16rpx;
-    padding: 24rpx 16rpx;
-    border-radius: 24rpx;
-    background: #f9fafb;
-    border: 2rpx solid #f3f4f6;
-    box-sizing: border-box;
-  }
-
-  .tt-period-pill-icon-wrap {
-    width: 64rpx;
-    height: 64rpx;
-    border-radius: 16rpx;
-    background: rgba(207, 109, 78, 0.1);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-  }
-
-  .tt-period-pill-icon-wrap--month {
-    background: rgba(207, 109, 78, 0.08);
-  }
-
-  .tt-period-pill-icon {
-    font-size: 36rpx;
-    line-height: 1;
-    color: #cf6d4e;
-  }
-
-  .tt-period-pill-main {
-    flex: 1;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 4rpx;
-  }
-
-  .tt-period-pill-caption {
-    font-size: 22rpx;
-    font-weight: 600;
-    color: #9ca3af;
-    line-height: 1.2;
-  }
-
-  .tt-period-pill-percent {
-    font-size: 36rpx;
-    font-weight: 800;
-    color: #010101;
-    line-height: 1.1;
-    letter-spacing: -0.5px;
-  }
-
-  .tt-period-pill-meta {
-    font-size: 22rpx;
-    color: #6b7280;
-    line-height: 1.3;
-  }
-
-  .tt-period-line {
-    font-size: 24rpx;
-    color: #9ca3af;
-    line-height: 1.4;
-  }
-
-  /* 更多训练方式底部弹层 */
-  .more-training-sheet {
-    padding: 24rpx;
-    padding-bottom: calc(24rpx + constant(safe-area-inset-bottom));
-    padding-bottom: calc(24rpx + env(safe-area-inset-bottom));
-    display: flex;
-    flex-direction: column;
-    gap: 8rpx;
-    box-sizing: border-box;
-  }
-
-  .more-training-item {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    gap: 16rpx;
-    padding: 24rpx 16rpx;
-    border-radius: 16rpx;
-    background: #f9fafb;
-
-    &:active {
-      opacity: 0.88;
-    }
-  }
-
-  .more-training-item-text {
-    font-size: 30rpx;
-    font-weight: 600;
-    color: #111827;
-  }
-
-  .today-action-row {
-    display: flex;
-    flex-direction: row;
-    justify-content: flex-start;
-    margin-bottom: 16rpx;
-  }
-
-  .hero-status-badge {
-    padding: 8rpx 16rpx;
-    border-radius: 9999rpx;
-    font-size: 22rpx;
-    font-weight: 600;
-
-    &.completed {
-      background: #f0fdf4;
-      color: #16a34a;
-    }
-
-    &.in-progress {
-      background: #fff7ed;
-      color: #cf6d4e;
-    }
-
-    &.pending {
-      background: #f5f5f5;
-      color: #6b7280;
-    }
-  }
-
-  .unified-home-block--compact {
-    background: #ffffff;
-    border-radius: 32rpx;
-    padding: 32rpx;
-    margin-bottom: 24rpx;
-    box-shadow: 0 8rpx 32rpx rgba(0, 0, 0, 0.04);
-    border: none;
-    box-sizing: border-box;
-  }
-
-  /* ========== 融合原首页区块（与 `pages/index/index.scss` 对齐） ========== */
-  .tt-home-blocks {
-    margin-bottom: 24rpx;
-  }
-
   .section-title {
     display: block;
     font-size: 32rpx;
@@ -1050,84 +303,20 @@
     min-height: 96rpx;
     padding: 0 32rpx;
     margin-bottom: 16rpx;
-    background: #cf6d4e;
-    border: none;
+    background: #ffffff;
+    border: 2rpx solid #cf6d4e;
     border-radius: 9999rpx;
     box-sizing: border-box;
-    box-shadow: 0 8rpx 24rpx rgba(207, 109, 78, 0.35);
 
     &:active {
-      opacity: 0.92;
+      opacity: 0.9;
     }
   }
 
   .today-outline-text {
     font-size: 28rpx;
     font-weight: 700;
-    color: #ffffff;
-  }
-
-  /* 顶部周条 / 月历：无卡片底，直接铺在页面背景上 */
-  .schedule-calendar-anchor {
-    margin-bottom: 24rpx;
-    padding: 0;
-    background: transparent;
-    box-sizing: border-box;
-
-    .week-dashboard-strip {
-      margin-bottom: 0;
-    }
-  }
-
-  .schedule-calendar-anchor__bar {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 16rpx;
-    min-height: 48rpx;
-  }
-
-  .schedule-calendar-anchor__label {
-    font-size: 28rpx;
-    font-weight: 700;
-    color: #010101;
-  }
-
-  .schedule-calendar-anchor__toggle {
-    padding: 8rpx 16rpx;
-    min-height: 48rpx;
-    box-sizing: border-box;
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    justify-content: center;
-    gap: 8rpx;
-    border-radius: 9999rpx;
-    background: #f9fafb;
-    border: 2rpx solid #e5e7eb;
-
-    &--pressed {
-      opacity: 0.88;
-    }
-  }
-
-  .schedule-calendar-anchor__toggle-text {
-    font-size: 22rpx;
-    font-weight: 600;
     color: #cf6d4e;
-  }
-
-  .schedule-calendar-anchor__toggle-icon {
-    font-size: 28rpx;
-    line-height: 1;
-    color: #cf6d4e;
-    display: block;
-    transition: transform 0.2s ease;
-
-    &--expanded {
-      transform: rotate(180deg);
-    }
   }
 
   .renew-inline {
@@ -1486,7 +675,6 @@
   // ========== 加载状态 ==========
   .loading-container {
     padding: 16px;
-    padding-top: 180rpx;
 
     .skeleton-card {
       background: #fff;
@@ -1535,30 +723,17 @@
     box-shadow: 0 4rpx 24rpx rgba(0, 0, 0, 0.04);
 
     .coach-tabs-scroll {
-      width: 100%;
-      min-height: 88rpx;
-      box-sizing: border-box;
-    }
-
-    .coach-tabs-inner {
-      display: flex;
-      flex-direction: row;
-      align-items: center;
-      flex-wrap: nowrap;
-      gap: 12rpx;
-      width: max-content;
-      min-height: 88rpx;
+      white-space: nowrap;
       padding: 16rpx;
-      box-sizing: border-box;
+      width: 100%;
     }
 
     .coach-tab {
-      display: flex;
-      flex-direction: row;
+      display: inline-flex;
       align-items: center;
       gap: 8rpx;
-      flex-shrink: 0;
       padding: 12rpx 20rpx;
+      margin-right: 12rpx;
       border-radius: 9999rpx;
       background: #F5F5F5;
       color: #6B7280;
@@ -1580,15 +755,7 @@
         background: rgba(0, 0, 0, 0.08);
         border-radius: 9999rpx;
       }
-
-      &.coach-tab--pressed {
-        opacity: 0.88;
-      }
     }
-  }
-
-  .schedule-calendar-anchor {
-    scroll-margin-top: 24rpx;
   }
 
   // ========== missingDays 补训提示 ==========
@@ -1665,16 +832,8 @@
     box-shadow: 0 16rpx 48rpx rgba(0, 0, 0, 0.18);
 
     .completion-modal-icon {
+      font-size: 56rpx;
       margin-bottom: 16rpx;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .completion-modal-icon-star {
-      font-size: 96rpx;
-      line-height: 1;
-      color: #cf6d4e;
     }
 
     .completion-modal-title {
@@ -1752,16 +911,6 @@
 
       .switcher-icon {
         font-size: 26rpx;
-      }
-
-      .switcher-icon-star {
-        font-size: 28rpx;
-        line-height: 1;
-        color: #6b7280;
-      }
-
-      &.active .switcher-icon-star {
-        color: #ffffff;
       }
     }
   }
@@ -1962,28 +1111,6 @@
     align-items: center;
     justify-content: space-between;
     margin-bottom: 24rpx;
-
-    &--schedule {
-      margin-bottom: 16rpx;
-      align-items: flex-end;
-
-      .header-left {
-        display: flex;
-        flex-direction: column;
-        gap: 0;
-        width: 100%;
-      }
-
-      .section-title {
-        margin-bottom: 0;
-      }
-
-      .section-subtitle {
-        color: #6b7280;
-        font-size: 24rpx;
-        line-height: 1.4;
-      }
-    }
 
     .header-left {
       .section-title {
@@ -2376,25 +1503,34 @@
   }
 
   .share-entry-card {
-    background: #ffffff;
-    border: 2rpx solid #f0f0f0;
+    background: linear-gradient(135deg, #fff7ed 0%, #ffffff 100%);
+    border: 1rpx solid #fed7aa;
     border-radius: 24rpx;
     padding: 24rpx;
     margin-top: 16rpx;
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
-    gap: 16rpx;
-    box-sizing: border-box;
+
+    .share-entry-tag {
+      display: block;
+      font-size: 20rpx;
+      font-weight: 700;
+      letter-spacing: 1px;
+      color: #c2410c;
+      margin-bottom: 8rpx;
+    }
 
     .share-entry-title {
       display: block;
-      font-size: 28rpx;
+      font-size: 18px;
       font-weight: 700;
-      color: #010101;
-      flex: 1;
-      min-width: 0;
+      color: #1a1a1a;
+      margin-bottom: 8rpx;
+    }
+
+    .share-entry-desc {
+      display: block;
+      font-size: 24rpx;
+      line-height: 1.5;
+      color: #888;
     }
   }
 
@@ -2526,51 +1662,5 @@
       line-height: 1.6;
       color: #555;
     }
-  }
-}
-
-/* ==================== 暗色主题适配 ==================== */
-.theme-dark .today-training-page {
-  background: linear-gradient(180deg, #1c1c1c 0%, #141414 100%) !important;
-
-  .dashboard-greeting-icon,
-  .dashboard-greeting {
-    color: #E0E0E0 !important;
-  }
-
-  .dashboard-date {
-    color: #B0B0B0 !important;
-  }
-
-  .dashboard-more-dots {
-    color: #808080 !important;
-  }
-
-  .tt-daily-progress-card,
-  .tt-schedule-stack {
-    background: #242424 !important;
-    box-shadow: 0 8rpx 32rpx rgba(0, 0, 0, 0.2) !important;
-  }
-
-  .section-title,
-  .tt-schedule-stack__titles .section-title {
-    color: #E0E0E0 !important;
-  }
-
-  .section-subtitle,
-  .tt-schedule-stack__titles .section-subtitle {
-    color: #B0B0B0 !important;
-  }
-
-  .rest-day-card {
-    border-bottom-color: #333333 !important;
-  }
-
-  .share-entry-card {
-    border-top-color: #333333 !important;
-  }
-
-  .progress-track {
-    background: #333333 !important;
   }
 }

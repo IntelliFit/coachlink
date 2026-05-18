@@ -82,8 +82,8 @@ function Login() {
     await Taro.reLaunch({ url: authService.buildPostAuthHomeUrl() })
   }
 
-  const goToTerms = () => Taro.navigateTo({ url: '/me/terms/index' })
-  const goToPrivacy = () => Taro.navigateTo({ url: '/me/privacy/index' })
+  const goToTerms = () => Taro.navigateTo({ url: '/me-legal/terms/index' })
+  const goToPrivacy = () => Taro.navigateTo({ url: '/me-legal/privacy/index' })
 
   const handleLogin = async () => {
     if (!agreed) {

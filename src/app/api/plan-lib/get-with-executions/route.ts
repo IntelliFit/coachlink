@@ -97,7 +97,7 @@ export async function POST(req: NextRequest) {
             // 指定了 subscriptionId，先检查作为学员的订阅
             const { data: studentSub } = await supabase
                 .from("coach_subscriptions")
-                .select("id, coach_id, status, end_date, subscribed_weeks")
+                .select("id, coach_id, status, start_date, end_date, subscribed_weeks")
                 .eq("id", subscriptionId)
                 .eq("student_id", userId)
                 .single();
@@ -146,7 +146,7 @@ export async function POST(req: NextRequest) {
         if (!instance && !subscriptionId && !instanceId) {
             const { data: subs } = await supabase
                 .from("coach_subscriptions")
-                .select("id, coach_id, status, end_date, subscribed_weeks")
+                .select("id, coach_id, status, start_date, end_date, subscribed_weeks")
                 .eq("student_id", userId)
                 .eq("status", "active")
                 .order("created_at", { ascending: false })
@@ -231,7 +231,7 @@ export async function POST(req: NextRequest) {
             ) {
                 const { data: subForAccess } = await supabase
                     .from("coach_subscriptions")
-                    .select("id, student_id, status, end_date, subscribed_weeks")
+                    .select("id, student_id, status, start_date, end_date, subscribed_weeks")
                     .eq("id", instance.coach_subscription_id)
                     .eq("student_id", userId)
                     .maybeSingle();
@@ -268,6 +268,8 @@ export async function POST(req: NextRequest) {
                         ),
                         excludeInstanceId: String(instance.id || ""),
                         createdBefore: (instance as any)?.created_at || null,
+                        subscriptionStartDate:
+                            (subscriptionForStudentAccess as any)?.start_date || null,
                     })
                 ).remainingWeeks,
             });

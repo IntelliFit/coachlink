@@ -18,7 +18,7 @@ const studentNavItems: NavItem[] = [
         key: 'training',
         label: '训练',
         iconClass: 'icon-dumbbell',
-        path: '/pages/index/index'
+        path: '/training/today-training'
     },
     {
         key: 'discovery',

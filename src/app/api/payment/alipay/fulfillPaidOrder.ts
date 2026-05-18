@@ -9,6 +9,7 @@ import {
     generateReqSeqId,
     formatHuifuReqDate,
     parseAcctSplitBunch,
+    queryBalancePayment,
 } from "@/lib/huifuMiniProgramPay";
 
 type PaymentProvider = "alipay" | "wechat";
@@ -18,7 +19,8 @@ type SettlementStatus =
     | "processing"
     | "split_success"
     | "split_failed"
-    | "wallet_credited";
+    | "wallet_credited"
+    | "refunded";
 
 interface SettlementRow {
     id: string;
@@ -26,6 +28,11 @@ interface SettlementRow {
     status: SettlementStatus;
     attempts: number | null;
     acct_split_bunch?: unknown;
+    eligible_at?: string | null;
+    req_date?: string | null;
+    req_seq_id?: string | null;
+    huifu_hf_seq_id?: string | null;
+    trans_stat?: string | null;
 }
 
 export interface BalancePaymentResult {
@@ -51,11 +58,15 @@ function platformRevenueTable() {
     return (serviceRoleSupabase as any).from("platform_revenue");
 }
 
-function isCoachSubscriptionOrderType(orderType: unknown) {
+export function isCoachSubscriptionOrderType(orderType: unknown) {
     return (
         orderType === "coach_subscription" ||
         orderType === "coach_subscription_renew"
     );
+}
+
+function isLegacySubscriptionOrderType(orderType: unknown) {
+    return orderType === "subscription" || orderType === "subscription_renew";
 }
 
 function asObject(value: unknown): Record<string, any> {
@@ -83,6 +94,42 @@ function splitAmountsFen(totalFen: number) {
         coachAmount: totalFen - platformFee,
         platformFee,
     };
+}
+
+function getSettlementDelayDays(order: Record<string, any>) {
+    const orderData = asObject(order.order_data);
+    if (orderData.is_test_payment && process.env.NODE_ENV !== "production") {
+        return 0;
+    }
+
+    const configured = Number(process.env.COACH_SUBSCRIPTION_SETTLEMENT_DELAY_DAYS ?? "7");
+    if (!Number.isFinite(configured)) return 7;
+    return Math.max(0, configured);
+}
+
+function calculateEligibleAt(order: Record<string, any>) {
+    const base = order.paid_at || order.updated_at || order.created_at || new Date().toISOString();
+    const date = new Date(base);
+    if (Number.isNaN(date.getTime())) return new Date().toISOString();
+
+    date.setDate(date.getDate() + getSettlementDelayDays(order));
+    return date.toISOString();
+}
+
+function isFutureIso(iso: string | null | undefined, now: Date) {
+    if (!iso) return false;
+    const date = new Date(iso);
+    return !Number.isNaN(date.getTime()) && date.getTime() > now.getTime();
+}
+
+export function requiresHuifuSettlement(order: Record<string, any>) {
+    const orderData = asObject(order.order_data);
+    const provider = String(order.payment_provider || "").trim();
+    const hasCoach = Boolean(String(orderData.coachId || "").trim());
+    if (!hasCoach) return false;
+    if (isCoachSubscriptionOrderType(order.order_type)) return true;
+    if (!isLegacySubscriptionOrderType(order.order_type)) return false;
+    return provider === "wechat" || provider === "huifu_alipay" || Boolean(orderData.huifu_req_date);
 }
 
 function toJsonObject(value: unknown) {
@@ -137,6 +184,7 @@ async function ensureSettlement(
         total_amount: totalFen,
         coach_amount: coachAmount,
         platform_fee: platformFee,
+        eligible_at: calculateEligibleAt(order),
     };
 
     const { error: insertError } = await settlementTable().insert(payload);
@@ -147,6 +195,15 @@ async function ensureSettlement(
     const settlement = await fetchSettlement(orderId);
     if (!settlement) {
         throw new Error(`Settlement row was not created for order ${orderId}`);
+    }
+    if (!settlement.eligible_at) {
+        await settlementTable()
+            .update({
+                eligible_at: payload.eligible_at,
+                updated_at: new Date().toISOString(),
+            })
+            .eq("id", settlement.id);
+        settlement.eligible_at = payload.eligible_at;
     }
     return settlement;
 }
@@ -204,7 +261,10 @@ async function markSettlementStillProcessing(
  * - coach_subscription_settlements is the remote-call idempotency guard;
  * - no wallet credit is allowed unless Huifu split reaches split_success.
  */
-export async function executeBalancePayment(order: Record<string, any>): Promise<BalancePaymentResult> {
+export async function executeBalancePayment(
+    order: Record<string, any>,
+    options: { force?: boolean; now?: Date } = {},
+): Promise<BalancePaymentResult> {
     const orderId = orderIdOf(order);
 
     try {
@@ -256,6 +316,10 @@ export async function executeBalancePayment(order: Record<string, any>): Promise
             return { status: "wallet_credited", shouldCreditWallet: false };
         }
 
+        if (settlement.status === "refunded") {
+            return { status: "refunded", shouldCreditWallet: false, message: "Settlement was refunded" };
+        }
+
         if (settlement.status === "split_success") {
             const splitInfo = parseSavedSplit(settlement.acct_split_bunch);
             return {
@@ -274,9 +338,18 @@ export async function executeBalancePayment(order: Record<string, any>): Promise
             };
         }
 
+        const now = options.now || new Date();
+        if (!options.force && isFutureIso(settlement.eligible_at, now)) {
+            return {
+                status: "pending",
+                shouldCreditWallet: false,
+                message: `Settlement is not eligible until ${settlement.eligible_at}`,
+            };
+        }
+
         const reqDate = formatHuifuReqDate();
         const reqSeqId = generateReqSeqId();
-        const nowIso = new Date().toISOString();
+        const nowIso = now.toISOString();
 
         const { data: claimed, error: claimError } = await settlementTable()
             .update({
@@ -302,7 +375,7 @@ export async function executeBalancePayment(order: Record<string, any>): Promise
             };
         }
 
-        const { coachAmount, platformFee } = splitAmountsFen(totalFen);
+        const { coachAmount } = splitAmountsFen(totalFen);
         const result = await transferByBalancePayment({
             reqDate,
             reqSeqId,
@@ -361,6 +434,76 @@ export async function executeBalancePayment(order: Record<string, any>): Promise
     }
 }
 
+export async function reconcileBalancePaymentSettlement(
+    settlement: SettlementRow,
+    _order: Record<string, any>,
+): Promise<BalancePaymentResult> {
+    if (!settlement.req_date || !settlement.req_seq_id) {
+        return {
+            status: settlement.status,
+            shouldCreditWallet: false,
+            message: "Missing Huifu request identity",
+        };
+    }
+
+    const result = await queryBalancePayment({
+        orgReqDate: settlement.req_date,
+        orgReqSeqId: settlement.req_seq_id,
+    });
+    const splitInfo = result.acct_split_bunch
+        ? parseAcctSplitBunch(result.acct_split_bunch)
+        : parseSavedSplit(settlement.acct_split_bunch);
+
+    const isSuccess =
+        result.trans_stat === "S" ||
+        (result.resp_code === "00000000" && splitInfo.length > 0);
+    const isProcessing =
+        result.trans_stat === "P" ||
+        result.resp_code === "00000100";
+
+    if (isSuccess && splitInfo.length > 0) {
+        await markSettlementSplitSuccess(
+            settlement.id,
+            result,
+            result.acct_split_bunch || settlement.acct_split_bunch,
+        );
+        return { status: "split_success", shouldCreditWallet: true, splitInfo };
+    }
+
+    if (isProcessing) {
+        await markSettlementStillProcessing(
+            settlement.id,
+            result,
+            result.acct_split_bunch || settlement.acct_split_bunch,
+        );
+        return {
+            status: "processing",
+            shouldCreditWallet: false,
+            message: result.resp_desc || "Huifu split is processing",
+        };
+    }
+
+    const message = result.resp_desc || "Huifu split failed";
+    await markSettlementSplitFailed(settlement.id, message);
+    return { status: "split_failed", shouldCreditWallet: false, message };
+}
+
+export async function markSettlementRefunded(
+    orderId: string,
+    values: Record<string, unknown> = {},
+): Promise<void> {
+    const id = String(orderId || "").trim();
+    if (!id) return;
+
+    await settlementTable()
+        .update({
+            ...values,
+            status: "refunded",
+            updated_at: new Date().toISOString(),
+        })
+        .eq("alipay_order_id", id);
+}
+
 /**
  * Mark a settlement as locally credited after wallet_transactions and
  * platform_revenue are written successfully.
@@ -377,6 +520,33 @@ export async function markSettlementWalletCredited(orderId: string): Promise<voi
         })
         .eq("alipay_order_id", id)
         .in("status", ["split_success", "wallet_credited"]);
+}
+
+export async function fulfillSubscriptionAndMaybeCreditWallet(
+    order: Record<string, any>,
+    userId: string,
+    provider: PaymentProvider = "alipay",
+): Promise<BalancePaymentResult | null> {
+    const orderType = order.order_type;
+    if (!isCoachSubscriptionOrderType(orderType) && !isLegacySubscriptionOrderType(orderType)) {
+        return null;
+    }
+
+    await fulfillSubscriptionOnPaid(order, String(order.id || ""), userId, provider);
+
+    if (requiresHuifuSettlement(order)) {
+        const splitResult = await executeBalancePayment(order);
+        if (splitResult.shouldCreditWallet) {
+            const walletUpdated = await updateTransactionAndWallet(order, splitResult.splitInfo);
+            if (walletUpdated) {
+                await markSettlementWalletCredited(String(order.id || ""));
+            }
+        }
+        return splitResult;
+    }
+
+    await updateTransactionAndWallet(order);
+    return null;
 }
 
 /**
@@ -404,7 +574,7 @@ export async function updateTransactionAndWallet(
         const amountFen = amountFenOf(order);
         if (!orderId || !coachId || amountFen <= 0) return false;
 
-        if (isCoachSubscriptionOrderType(order.order_type) && (!splitInfo || splitInfo.length === 0)) {
+        if (requiresHuifuSettlement(order as Record<string, any>) && (!splitInfo || splitInfo.length === 0)) {
             console.error("[updateTransactionAndWallet] refusing coach wallet credit without splitInfo", {
                 orderId,
                 orderType: order.order_type,
