@@ -15,26 +15,49 @@ function decodeParam(value: string | null, fallback = "") {
 function trimText(value: string, maxLength: number) {
   const normalized = value.trim();
   if (normalized.length <= maxLength) return normalized;
-  return `${normalized.slice(0, maxLength - 1)}…`;
+  return `${normalized.slice(0, maxLength - 1)}...`;
+}
+
+async function getLocationFromApi(req: NextRequest, id: string) {
+  const origin = new URL(req.url).origin;
+  const resp = await fetch(`${origin}/api/streetlifting-index/locations/get`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id }),
+    cache: "no-store",
+  }).catch(() => null);
+
+  if (!resp?.ok) return null;
+  const json = await resp.json().catch(() => null);
+  return json?.success && json?.data ? json.data : null;
 }
 
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
+    const locationId = String(searchParams.get("id") || "").trim();
+    const location = locationId ? await getLocationFromApi(req, locationId) : null;
+    const locationArea = location
+      ? [location.province, location.city, location.county, location.address].filter(Boolean).join(" ")
+      : "";
+    const locationImage = Array.isArray(location?.image_urls) && location.image_urls.length
+      ? location.image_urls[0]
+      : location?.image_url;
 
     const name = trimText(
-      decodeParam(searchParams.get("name"), "发现单杠训练点"),
+      String(location?.name || "").trim() || decodeParam(searchParams.get("name"), "发现单杠训练点"),
       28,
     );
     const area = trimText(
-      decodeParam(searchParams.get("area"), "打开 CoachLink 查看这个单杠点位"),
+      locationArea || decodeParam(searchParams.get("area"), "打开 CoachLink 查看这个单杠点位"),
       40,
     );
     const description = trimText(
-      decodeParam(searchParams.get("description"), "查看图片、地址、导航与现场描述"),
+      String(location?.description || "").trim() ||
+        decodeParam(searchParams.get("description"), "查看图片、地址、导航与现场描述"),
       60,
     );
-    const imageUrl = decodeParam(searchParams.get("image"), "").trim();
+    const imageUrl = String(locationImage || "").trim() || decodeParam(searchParams.get("image"), "").trim();
 
     return new ImageResponse(
       (
@@ -55,8 +78,7 @@ export async function GET(req: NextRequest) {
             style={{
               position: "absolute",
               inset: "0",
-              background:
-                "radial-gradient(circle at top left, rgba(207,109,78,0.22), transparent 38%), radial-gradient(circle at bottom right, rgba(17,24,39,0.08), transparent 34%)",
+              background: "#F6EFEA",
             }}
           />
 
@@ -121,7 +143,7 @@ export async function GET(req: NextRequest) {
                 flexDirection: "column",
                 padding: "40px",
                 borderRadius: "40px",
-                background: "rgba(255,255,255,0.82)",
+                background: "rgba(255,255,255,0.86)",
                 border: "1px solid rgba(207,109,78,0.14)",
               }}
             >
@@ -194,8 +216,7 @@ export async function GET(req: NextRequest) {
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    background:
-                      "linear-gradient(135deg, rgba(207,109,78,0.18), rgba(255,255,255,0.9))",
+                    background: "#FFF8F5",
                     color: "#CF6D4E",
                     fontSize: "40px",
                     fontWeight: 700,

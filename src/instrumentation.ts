@@ -1,31 +1,53 @@
 /**
- * Next.js 会在 Node 运行时启动时调用 register()。
- * 在此启动支付宝 pending 订单的进程内定时同步，无需外部 cron。
+ * Next.js calls register() when the Node.js runtime starts.
+ * We use it to run lightweight in-process background jobs when no external
+ * cron platform is configured.
  */
-// 强制使用 Node 运行时，避免 Edge/Webpack 打包缺少 Node 内置模块
 export const runtime = "nodejs";
+
+function readIntervalMs(envName: string, fallbackMs: number) {
+    const raw = process.env[envName];
+    if (raw == null || raw === "") return fallbackMs;
+    const parsed = parseInt(raw, 10);
+    if (!Number.isFinite(parsed)) return fallbackMs;
+    return parsed;
+}
+
+function postCronEndpoint(
+    baseUrl: string,
+    path: string,
+    secret: string,
+    body?: Record<string, unknown>,
+) {
+    return fetch(`${baseUrl}${path}`, {
+        method: "POST",
+        headers: {
+            "content-type": "application/json",
+            "x-cron-secret": secret,
+        },
+        body: body ? JSON.stringify(body) : undefined,
+    });
+}
+
+function startIntervalJob(
+    name: string,
+    intervalMs: number,
+    run: () => void,
+) {
+    if (intervalMs <= 0) {
+        console.log(`[${name}] disabled; interval=${intervalMs}ms`);
+        return;
+    }
+
+    run();
+    setInterval(run, intervalMs);
+    console.log(`[${name}] started; interval=${intervalMs}ms`);
+}
+
 export async function register() {
     if (process.env.NEXT_RUNTIME !== "nodejs") return;
 
-    const secret = process.env.ALIPAY_SYNC_SECRET || process.env.CRON_SECRET;
-    if (!secret) {
-        console.warn(
-            "[Alipay SyncPending] missing ALIPAY_SYNC_SECRET/CRON_SECRET, skip background sync"
-        );
-        return;
-    }
-
-    // 未设置时默认 10 分钟；设为 0 可关闭定时同步
-    const intervalMs = parseInt(
-        process.env.ALIPAY_SYNC_INTERVAL_MS || "600000",
-        10
-    );
-    if (intervalMs <= 0) {
-        console.log("[Alipay SyncPending] ALIPAY_SYNC_INTERVAL_MS=0，已关闭进程内定时同步");
-        return;
-    }
-
-    const key = "__alipaySyncIntervalStarted";
+    const key = "__coachlinkBackgroundJobsStarted";
     if ((globalThis as unknown as Record<string, boolean>)[key]) return;
     (globalThis as unknown as Record<string, boolean>)[key] = true;
 
@@ -34,41 +56,65 @@ export async function register() {
         process.env.NEXT_PUBLIC_SITE_URL ||
         "http://localhost:3000";
 
-    const run = () => {
-        fetch(`${baseUrl}/api/payment/alipay/sync-pending`, {
-            method: "POST",
-            headers: {
-                "x-cron-secret": secret,
+    const sharedSecret = process.env.CRON_SECRET || "";
+    const alipaySecret = process.env.ALIPAY_SYNC_SECRET || sharedSecret;
+    const huifuSecret = process.env.HUIFU_SETTLEMENT_CRON_SECRET || sharedSecret;
+
+    if (alipaySecret) {
+        startIntervalJob(
+            "Alipay SyncPending",
+            readIntervalMs("ALIPAY_SYNC_INTERVAL_MS", 10 * 60 * 1000),
+            () => {
+                postCronEndpoint(baseUrl, "/api/payment/alipay/sync-pending", alipaySecret).catch((e) => {
+                    console.error("[Alipay SyncPending] background run error:", e);
+                });
             },
-        }).catch((e) => {
-            console.error("[Alipay SyncPending] background run error:", e);
-        });
-    };
+        );
 
-    run(); // 启动时立即执行一次
-    setInterval(run, intervalMs);
-
-    console.log(
-        `[Alipay SyncPending] 进程内定时同步已启动，首次已立即执行，之后每 ${intervalMs}ms 执行`
-    );
-
-    // 激活延迟的计划实例（每1分钟检查一次）
-    const activatePendingPlansIntervalMs = 60 * 1000; // 1分钟
-    const activatePendingPlans = () => {
-        fetch(`${baseUrl}/api/plan-lib/activate-pending-plans`, {
-            method: "POST",
-            headers: {
-                "x-cron-secret": secret,
+        startIntervalJob(
+            "ActivatePendingPlans",
+            readIntervalMs("ACTIVATE_PENDING_PLANS_INTERVAL_MS", 60 * 1000),
+            () => {
+                postCronEndpoint(baseUrl, "/api/plan-lib/activate-pending-plans", alipaySecret).catch((e) => {
+                    console.error("[ActivatePendingPlans] background run error:", e);
+                });
             },
-        }).catch((e) => {
-            console.error("[ActivatePendingPlans] background run error:", e);
-        });
-    };
+        );
+    } else {
+        console.warn("[BackgroundJobs] missing ALIPAY_SYNC_SECRET/CRON_SECRET; skip alipay and plan jobs");
+    }
 
-    activatePendingPlans(); // 启动时立即执行一次
-    setInterval(activatePendingPlans, activatePendingPlansIntervalMs);
+    if (huifuSecret) {
+        startIntervalJob(
+            "HuifuSettlements ProcessDue",
+            readIntervalMs("HUIFU_SETTLEMENT_PROCESS_INTERVAL_MS", 60 * 60 * 1000),
+            () => {
+                postCronEndpoint(
+                    baseUrl,
+                    "/api/admin/coach-subscription-settlements/process-due",
+                    huifuSecret,
+                    { limit: 50 },
+                ).catch((e) => {
+                    console.error("[HuifuSettlements] process due background run error:", e);
+                });
+            },
+        );
 
-    console.log(
-        `[ActivatePendingPlans] 定时激活任务已启动，首次已立即执行，之后每 ${activatePendingPlansIntervalMs}ms 执行`
-    );
+        startIntervalJob(
+            "HuifuSettlements Reconcile",
+            readIntervalMs("HUIFU_SETTLEMENT_RECONCILE_INTERVAL_MS", 60 * 60 * 1000),
+            () => {
+                postCronEndpoint(
+                    baseUrl,
+                    "/api/admin/coach-subscription-settlements/reconcile",
+                    huifuSecret,
+                    { limit: 50 },
+                ).catch((e) => {
+                    console.error("[HuifuSettlements] reconcile background run error:", e);
+                });
+            },
+        );
+    } else {
+        console.warn("[BackgroundJobs] missing HUIFU_SETTLEMENT_CRON_SECRET/CRON_SECRET; skip Huifu settlement jobs");
+    }
 }

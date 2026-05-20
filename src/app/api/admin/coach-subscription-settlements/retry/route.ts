@@ -99,7 +99,7 @@ export async function POST(req: Request) {
         );
     }
 
-    const splitResult = await executeBalancePayment(order);
+    const splitResult = await executeBalancePayment(order, { force: true });
     let walletCredited = false;
 
     if (splitResult.shouldCreditWallet) {

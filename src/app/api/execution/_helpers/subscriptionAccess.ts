@@ -45,7 +45,7 @@ export async function validateExecutionSubscriptionAccess(params: {
 
     const { data: subscription } = await supabase
         .from("coach_subscriptions")
-        .select("id, student_id, status, end_date, subscribed_weeks")
+        .select("id, student_id, status, start_date, end_date, subscribed_weeks")
         .eq("id", subscriptionId)
         .eq("student_id", studentId)
         .maybeSingle();
@@ -70,6 +70,7 @@ export async function validateExecutionSubscriptionAccess(params: {
         subscribedWeeks: Number(subscription.subscribed_weeks || 0),
         excludeInstanceId: instanceId,
         createdBefore: (instance as any)?.created_at || null,
+        subscriptionStartDate: (subscription as any)?.start_date || null,
     });
 
     const decision = evaluateSubscriptionPlanAccess({

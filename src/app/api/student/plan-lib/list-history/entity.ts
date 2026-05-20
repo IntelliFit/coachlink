@@ -17,7 +17,11 @@ export interface PlanHistoryItem {
     // Computed fields
     completion_rate?: number;
     total_days?: number;
+    total_training_days?: number;
+    plan_span_days?: number;
     completed_days?: number;
+    archive_reason?: string | null;
+    entitlement_consumption_policy?: string | null;
 }
 
 export interface ListHistoryResponseDto {

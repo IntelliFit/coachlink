@@ -79,8 +79,9 @@ export async function POST(req: Request) {
     // Load latest plan instance per subscription (needed for credit scope)
     const { data: instances } = await supabase
         .from("coach_plan_instances")
-        .select("id, coach_subscription_id, training_days, start_execution_day, created_at, status")
+        .select("id, coach_subscription_id, training_days, start_execution_day, created_at, status, entitlement_consumption_policy")
         .in("coach_subscription_id", candidateIds)
+        .in("status", ["active", "paused", "completed", "scheduled", "archived"])
         .order("created_at", { ascending: false });
     timings['3_query_instances'] = performance.now() - instancesStart;
 
@@ -90,17 +91,18 @@ export async function POST(req: Request) {
     for (const inst of (instances || []) as any[]) {
         const sid = inst?.coach_subscription_id;
         if (!sid) continue;
+        if (String(inst?.status || "").toLowerCase() === "archived") continue;
         if (!latestInstanceBySub.has(sid)) latestInstanceBySub.set(sid, inst);
     }
     timings['4_build_instance_map'] = performance.now() - instanceMapStart;
 
     // 5. 查询执行记录
     const executionsStart = performance.now();
-    const instanceIds = Array.from(latestInstanceBySub.values()).map((i: any) => i.id).filter(Boolean);
+    const instanceIds = ((instances || []) as any[]).map((i: any) => i.id).filter(Boolean);
     const { data: completedExecs } = instanceIds.length > 0
         ? await supabase
             .from("plan_instance_executions")
-            .select("instance_id, day_index, status")
+            .select("instance_id, day_index, status, started_at, completed_at, created_at")
             .in("instance_id", instanceIds)
             .eq("status", "completed")
         : { data: [] as any[] };
@@ -134,6 +136,7 @@ export async function POST(req: Request) {
             executions: (completedExecs || []) as any[],
             excludeInstanceId: String(inst.id || ""),
             createdBefore: inst.created_at || null,
+            subscriptionStartDate: sub?.start_date || null,
         });
 
         const scope = computeCreditsScope({

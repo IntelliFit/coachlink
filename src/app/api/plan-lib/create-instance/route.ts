@@ -7,6 +7,7 @@ import { sendDirectMessage } from "@/lib/chat";
 import { syncCoachActionsToStudentLibrary } from "../sync-actions";
 import { validateTrainingDaysPresence } from "@/utils/template";
 import { getSubscriptionCarryoverSummary } from "@/lib/subscriptionCarryover";
+import { archiveCurrentPlanInstancesForSubscription } from "@/lib/subscriptionEntitlement";
 
 export async function POST(req: Request) {
     const {
@@ -54,7 +55,7 @@ export async function POST(req: Request) {
 
     const { data: subscription, error: subscriptionError } = await supabase
         .from("coach_subscriptions")
-        .select("coach_id, student_id, subscribed_weeks")
+        .select("coach_id, student_id, subscribed_weeks, start_date")
         .eq("id", subscriptionId)
         .single();
 
@@ -97,6 +98,7 @@ export async function POST(req: Request) {
         const carryover = await getSubscriptionCarryoverSummary({
             subscriptionId,
             subscribedWeeks: Number((subscription as any)?.subscribed_weeks || 0),
+            subscriptionStartDate: (subscription as any)?.start_date || null,
         });
 
         if (carryover.exhausted) {
@@ -123,15 +125,10 @@ export async function POST(req: Request) {
     // Ensure a subscription has at most one "current" plan instance.
     // When creating a new instance for the same subscription, archive any previous active/paused instances.
     try {
-        const nowIso = new Date().toISOString();
-        await supabase
-            .from("coach_plan_instances")
-            .update({
-                status: "archived",
-                updated_at: nowIso,
-            } as any)
-            .eq("coach_subscription_id", subscriptionId)
-            .in("status", ["active", "paused"]);
+        await archiveCurrentPlanInstancesForSubscription({
+            supabase,
+            subscriptionId,
+        });
     } catch (e) {
         // best-effort; do not block instance creation
         console.warn(

@@ -83,6 +83,8 @@ interface PlanHistoryItem {
   end_date?: string | null
   updated_at?: string | null
   total_days?: number | null
+  total_training_days?: number | null
+  plan_span_days?: number | null
 }
 
 type PlanHistorySource = 'all' | 'coach' | 'student'

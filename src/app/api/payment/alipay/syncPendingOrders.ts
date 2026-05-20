@@ -6,8 +6,8 @@
 import { serviceRoleSupabase } from "@/lib/supabaseClient";
 import { createAlipaySdk } from "@/lib/alipaySdk";
 import {
-    fulfillSubscriptionOnPaid,
     updateTransactionAndWallet,
+    fulfillSubscriptionAndMaybeCreditWallet,
 } from "@/app/api/payment/alipay/fulfillPaidOrder";
 
 // 只拉取最近 N 小时内的 pending 订单；超出的订单留在库里但不查支付宝（可配 ALIPAY_SYNC_PENDING_WINDOW_HOURS，默认 48）
@@ -41,7 +41,7 @@ export async function syncPendingAlipayOrders(): Promise<SyncPendingResult> {
 
     const { data: pendingOrders, error: listError } = await serviceRoleSupabase
         .from("alipay_orders")
-        .select("id, user_id, order_type, order_data, total_amount, subject")
+        .select("id, user_id, order_type, order_data, total_amount, subject, payment_provider")
         .eq("status", "pending")
         .gte("created_at", sinceIso)
         .order("created_at", { ascending: false })
@@ -61,6 +61,11 @@ export async function syncPendingAlipayOrders(): Promise<SyncPendingResult> {
 
     for (const row of pendingOrders) {
         try {
+            const provider = String((row as any).payment_provider || "alipay");
+            if (provider === "huifu_alipay" || provider === "wechat") {
+                continue;
+            }
+
             const { tradeStatus, tradeNo } = await queryAlipayTradeStatus(row.id);
             const isPaid =
                 tradeStatus === "TRADE_SUCCESS" || tradeStatus === "TRADE_FINISHED";
@@ -95,9 +100,10 @@ export async function syncPendingAlipayOrders(): Promise<SyncPendingResult> {
                     order.order_type === "coach_subscription" ||
                     order.order_type === "coach_subscription_renew"
                 ) {
-                    await fulfillSubscriptionOnPaid(order, order.id, userId);
+                    await fulfillSubscriptionAndMaybeCreditWallet(order as any, userId);
+                } else {
+                    await updateTransactionAndWallet(order);
                 }
-                await updateTransactionAndWallet(order);
                 updated++;
             }
         } catch (e) {

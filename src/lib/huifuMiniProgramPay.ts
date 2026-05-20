@@ -85,6 +85,21 @@ export interface HuifuQueryOrderResult extends HuifuPayload {
     } | string;
 }
 
+export interface HuifuGenericTradeResult extends HuifuPayload {
+    resp_code: string;
+    resp_desc: string;
+    req_date?: string;
+    req_seq_id?: string;
+    org_req_date?: string;
+    org_req_seq_id?: string;
+    hf_seq_id?: string;
+    org_hf_seq_id?: string;
+    trans_stat?: "P" | "S" | "F" | "C" | string;
+    ord_amt?: string;
+    refund_amt?: string;
+    acct_split_bunch?: string;
+}
+
 function normalizePem(value: string | undefined, label: string) {
     const raw = (value || "").trim();
     if (!raw) throw new Error(`${label} 缺失`);
@@ -331,6 +346,62 @@ export async function queryHuifuMiniProgramOrder(params: HuifuQueryOrderParams) 
     });
 }
 
+function resolveHuifuEndpoint(envName: string, defaultPath: string) {
+    const path = String(process.env[envName] || defaultPath).trim();
+    return path.startsWith("/") ? path : `/${path}`;
+}
+
+export async function refundHuifuPaymentOrder(params: {
+    reqDate: string;
+    reqSeqId: string;
+    orgReqDate: string;
+    orgReqSeqId: string;
+    refundAmtYuan: string;
+    notifyUrl?: string;
+    remark?: string;
+}) {
+    const { customerId } = getHuifuConfig();
+    const payload: HuifuPayload = {
+        req_date: params.reqDate,
+        req_seq_id: params.reqSeqId,
+        huifu_id: customerId,
+        ord_amt: params.refundAmtYuan,
+        org_req_date: params.orgReqDate,
+        org_req_seq_id: params.orgReqSeqId,
+        remark: params.remark,
+    };
+
+    if (params.notifyUrl) {
+        payload.notify_url = params.notifyUrl;
+    }
+
+    return huifuPost<HuifuGenericTradeResult>(
+        resolveHuifuEndpoint("HUIFU_PAYMENT_REFUND_PATH", "/v2/trade/payment/scanpay/refund"),
+        payload,
+    );
+}
+
+export async function queryHuifuPaymentRefund(params: {
+    orgReqDate: string;
+    orgReqSeqId?: string;
+    orgHfSeqId?: string;
+    merOrdId?: string;
+}) {
+    const { customerId } = getHuifuConfig();
+    const payload: HuifuPayload = {
+        huifu_id: customerId,
+        org_req_date: params.orgReqDate,
+    };
+    if (params.orgReqSeqId) payload.org_req_seq_id = params.orgReqSeqId;
+    if (params.orgHfSeqId) payload.org_hf_seq_id = params.orgHfSeqId;
+    if (params.merOrdId) payload.mer_ord_id = params.merOrdId;
+
+    return huifuPost<HuifuGenericTradeResult>(
+        resolveHuifuEndpoint("HUIFU_PAYMENT_REFUND_QUERY_PATH", "/v2/trade/payment/scanpay/refundquery"),
+        payload,
+    );
+}
+
 export function parseHuifuNotify(rawBody: string) {
     const parsed = JSON.parse(rawBody) as HuifuResponseEnvelope<HuifuPayload>;
     if (!parsed?.data || !parsed?.sign) {
@@ -511,7 +582,7 @@ export async function openHuifuUserBusiness(params: {
     certBeginDate: string;
     certEndDate?: string;
     mobileNo: string;
-}): Promise<{ tokenNo: string; applyNo?: string; respBusiness?: unknown }> {
+}): Promise<{ tokenNo?: string; applyNo?: string; respBusiness?: unknown; pending?: boolean }> {
     const { customerId } = getHuifuConfig();
     const cardInfo: HuifuPayload = {
         // Personal Huifu users must use private settlement cards; "0" is rejected
@@ -557,6 +628,14 @@ export async function openHuifuUserBusiness(params: {
     });
     if (result?.resp_code && result.resp_code !== "00000000") {
         throw new Error(result.resp_desc || `汇付业务入驻失败: ${result.resp_code}`);
+    }
+
+    if (!result?.token_no && result?.apply_no) {
+        return {
+            applyNo: result.apply_no,
+            respBusiness: result.resp_business,
+            pending: true,
+        };
     }
 
     if (!result?.token_no) {
@@ -605,6 +684,8 @@ export interface BalancePaymentResult {
     resp_desc: string;
     trans_stat?: string;
     hf_seq_id?: string;
+    req_date?: string;
+    req_seq_id?: string;
     out_huifu_id?: string;
     ord_amt?: string;
     acct_split_bunch?: string;
@@ -652,6 +733,68 @@ export async function transferByBalancePayment(params: {
     }
 
     return huifuPost<BalancePaymentResult>("/v2/trade/acctpayment/pay", payload);
+}
+
+export async function queryBalancePayment(params: {
+    orgReqDate: string;
+    orgReqSeqId?: string;
+    huifuId?: string;
+}) {
+    const { customerId } = getHuifuConfig();
+    const payload: HuifuPayload = {
+        huifu_id: params.huifuId || customerId,
+        org_req_date: params.orgReqDate,
+    };
+    if (params.orgReqSeqId) {
+        payload.org_req_seq_id = params.orgReqSeqId;
+    }
+
+    return huifuPost<BalancePaymentResult>(
+        resolveHuifuEndpoint("HUIFU_BALANCE_PAYMENT_QUERY_PATH", "/v2/trade/acctpayment/pay/query"),
+        payload,
+    );
+}
+
+export async function refundBalancePayment(params: {
+    reqDate: string;
+    reqSeqId: string;
+    orgReqDate: string;
+    orgReqSeqId?: string;
+    orgHfSeqId?: string;
+    refundAmtYuan: string;
+    huifuId?: string;
+}) {
+    const { customerId } = getHuifuConfig();
+    const payload: HuifuPayload = {
+        req_date: params.reqDate,
+        req_seq_id: params.reqSeqId,
+        huifu_id: params.huifuId || customerId,
+        org_req_date: params.orgReqDate,
+        ord_amt: params.refundAmtYuan,
+    };
+    if (params.orgReqSeqId) payload.org_req_seq_id = params.orgReqSeqId;
+    if (params.orgHfSeqId) payload.org_hf_seq_id = params.orgHfSeqId;
+
+    return huifuPost<BalancePaymentResult>(
+        resolveHuifuEndpoint("HUIFU_BALANCE_PAYMENT_REFUND_PATH", "/v2/trade/acctpayment/refund"),
+        payload,
+    );
+}
+
+export async function queryBalancePaymentRefund(params: {
+    orgReqDate: string;
+    orgReqSeqId: string;
+    huifuId?: string;
+}) {
+    const { customerId } = getHuifuConfig();
+    return huifuPost<BalancePaymentResult>(
+        resolveHuifuEndpoint("HUIFU_BALANCE_PAYMENT_REFUND_QUERY_PATH", "/v2/trade/acctpayment/refund/query"),
+        {
+            huifu_id: params.huifuId || customerId,
+            org_req_date: params.orgReqDate,
+            org_req_seq_id: params.orgReqSeqId,
+        },
+    );
 }
 
 // ── 取现 ──

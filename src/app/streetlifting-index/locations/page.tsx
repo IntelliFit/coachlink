@@ -108,6 +108,7 @@ export default function StreetliftingLocationsPage() {
     const rows = 30;
 
     const [search, setSearch] = useState("");
+    const [submittedSearch, setSubmittedSearch] = useState("");
     const [filterProvince, setFilterProvince] = useState("");
     const [filterCity, setFilterCity] = useState("");
     const [filterCounty, setFilterCounty] = useState("");
@@ -149,7 +150,7 @@ export default function StreetliftingLocationsPage() {
             const data = await streetliftingIndexService.listLocations({
                 page,
                 limit: rows,
-                search: search.trim() || undefined,
+                search: submittedSearch.trim() || undefined,
                 province: filterProvince || undefined,
                 city: filterCity || undefined,
                 county: filterCounty || undefined,
@@ -206,7 +207,20 @@ export default function StreetliftingLocationsPage() {
         }, 250);
         return () => clearTimeout(t);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [search, filterProvince, filterCity, filterCounty]);
+    }, [submittedSearch, filterProvince, filterCity, filterCounty]);
+
+    const submitSearch = () => {
+        setSubmittedSearch(search.trim());
+    };
+
+    const clearFilters = () => {
+        setSearch("");
+        setSubmittedSearch("");
+        setFilterCityPickerValue("");
+        setFilterProvince("");
+        setFilterCity("");
+        setFilterCounty("");
+    };
 
     const resetForm = () => {
         setEditing(null);
@@ -513,21 +527,33 @@ export default function StreetliftingLocationsPage() {
                                             </InputIcon>
                                             <InputText
                                                 value={search}
-                                                onChange={(e) => setSearch(e.target.value)}
+                                                onChange={(e) => {
+                                                    const value = e.target.value;
+                                                    setSearch(value);
+                                                    if (!value) {
+                                                        setSubmittedSearch("");
+                                                    }
+                                                }}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === "Enter") {
+                                                        submitSearch();
+                                                    }
+                                                }}
                                                 className={`${textInputClassName} pl-11`}
                                                 placeholder="搜索地点名称/描述…"
                                             />
                                         </IconField>
-                                        {(filterCityPickerValue || search) && (
+                                        <Button
+                                            type="button"
+                                            label={'\u641c\u7d22'}
+                                            icon="pi pi-search"
+                                            onClick={submitSearch}
+                                            className="shrink-0 h-10 rounded-2xl bg-primary border-none text-surface-0 text-sm font-black hover:bg-primary-600 active:opacity-80 transition-all"
+                                        />
+                                        {(filterCityPickerValue || search || submittedSearch) && (
                                             <button
                                                 type="button"
-                                                onClick={() => {
-                                                    setSearch("");
-                                                    setFilterCityPickerValue("");
-                                                    setFilterProvince("");
-                                                    setFilterCity("");
-                                                    setFilterCounty("");
-                                                }}
+                                                onClick={clearFilters}
                                                 className="shrink-0 text-xs text-surface-500 hover:text-surface-800 flex items-center gap-1 transition-colors"
                                             >
                                                 <X size={14} />

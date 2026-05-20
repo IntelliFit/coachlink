@@ -1,30 +1,37 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { View, Text, ScrollView, Image, Input } from '@tarojs/components'
 import { Search, Target } from '@nutui/icons-react-taro'
 import Taro from '@tarojs/taro'
 import BottomNav from '@/components/BottomNav'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
+import maleFrontSvgRaw from '@/assets/body-map/maleFrontSvg'
+import maleBackSvgRaw from '@/assets/body-map/maleBackSvg'
+import femaleFrontSvgRaw from '@/assets/body-map/femaleFrontSvg'
+import femaleBackSvgRaw from '@/assets/body-map/femaleBackSvg'
 import {
   knowledgeService,
   type KnowledgeNodeListItem,
   type KnowledgeSearchResult
 } from '@/services/knowledgeService'
+import { authService } from '@/services/authService'
+import { studentService } from '@/services/studentService'
 import { groupKnowledgeBooks, type KnowledgeBookCollection } from '@/utils/knowledgeBooks'
+import { svgToDataUri } from '@/utils/svgToDataUri'
 import './index.scss'
 
 const QUICK_TAGS = ['深蹲', '拉伸', '减脂', '增肌']
 
 const BODY_REGION_OPTIONS = [
-  { key: '斜方肌', label: '颈肩' },
-  { key: '肩关节', label: '肩关节' },
-  { key: '胸大肌', label: '胸部' },
-  { key: '背阔肌', label: '背部' },
-  { key: '腹直肌', label: '核心' },
-  { key: '髋关节', label: '髋部' },
-  { key: '臀大肌', label: '臀部' },
-  { key: '膝关节', label: '膝关节' },
-  { key: '腓肠肌', label: '小腿' },
-  { key: '踝关节', label: '踝关节' }
+  { key: '胸部', label: '胸部' },
+  { key: '肩部', label: '肩部' },
+  { key: '大臂', label: '大臂' },
+  { key: '小臂', label: '小臂' },
+  { key: '腹部', label: '核心' },
+  { key: '背部', label: '背部' },
+  { key: '臀部', label: '臀部' },
+  { key: '大腿', label: '大腿' },
+  { key: '小腿', label: '小腿' },
+  { key: '关节', label: '关节' }
 ]
 
 const BODY_MODE_OPTIONS = [
@@ -41,9 +48,68 @@ const BODY_MODE_OPTIONS = [
 ]
 
 const BODY_VIEW_OPTIONS = [
-  { key: 'front' as const, label: '前视图', imageUrl: '/assets/body-map/body-front.svg' },
-  { key: 'back' as const, label: '后视图', imageUrl: '/assets/body-map/body-back.svg' }
+  { key: 'front' as const, label: '前视图' },
+  { key: 'back' as const, label: '后视图' }
 ]
+
+const BODY_REGION_HIT_AREAS = {
+  front: [
+    { key: '关节', x: 17, y: 22, width: 66, height: 70 },
+    { key: '肩部', x: 18, y: 19, width: 64, height: 11 },
+    { key: '胸部', x: 27, y: 25, width: 46, height: 13 },
+    { key: '大臂', x: 12, y: 28, width: 76, height: 17 },
+    { key: '小臂', x: 7, y: 39, width: 86, height: 18 },
+    { key: '腹部', x: 34, y: 36, width: 32, height: 24 },
+    { key: '大腿', x: 27, y: 57, width: 46, height: 24 },
+    { key: '小腿', x: 29, y: 78, width: 42, height: 17 }
+  ],
+  back: [
+    { key: '关节', x: 17, y: 22, width: 66, height: 70 },
+    { key: '肩部', x: 18, y: 18, width: 64, height: 12 },
+    { key: '背部', x: 26, y: 24, width: 48, height: 30 },
+    { key: '大臂', x: 11, y: 29, width: 78, height: 18 },
+    { key: '小臂', x: 7, y: 42, width: 86, height: 17 },
+    { key: '臀部', x: 31, y: 53, width: 38, height: 13 },
+    { key: '大腿', x: 27, y: 62, width: 46, height: 21 },
+    { key: '小腿', x: 29, y: 80, width: 42, height: 15 }
+  ]
+} as const
+
+function parseSvgCategoryMap(svg: string): Record<string, string> {
+  const map: Record<string, string> = {}
+  const regex = /<g[^>]*data-name="([^"]+)"[^>]*category="([^"]+)"[^>]*>/g
+  let match: RegExpExecArray | null
+  while ((match = regex.exec(svg)) !== null) {
+    map[match[1]] = match[2]
+  }
+  return map
+}
+
+function highlightSvgCategory(svg: string, selectedRegion: string) {
+  let result = svg
+    .replace(/fill:#fff/gi, 'fill:#222222')
+    .replace(/fill="#fff"/gi, 'fill="#222222"')
+
+  if (!selectedRegion) return result
+
+  const categoryMap = parseSvgCategoryMap(svg)
+  const dataNamesToHighlight = Object.entries(categoryMap)
+    .filter(([, category]) => category === selectedRegion)
+    .map(([dataName]) => dataName)
+
+  for (const dataName of dataNamesToHighlight) {
+    const safeName = dataName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const regex = new RegExp(`(<g[^>]*data-name="${safeName}"[^>]*>)([\\s\\S]*?)(</g>)`, 'g')
+    result = result.replace(regex, (_match, open, content, close) => {
+      const highlighted = content
+        .replace(/fill:#222222/gi, 'fill:#CF6D4E')
+        .replace(/fill="#222222"/gi, 'fill="#CF6D4E"')
+      return open + highlighted + close
+    })
+  }
+
+  return result
+}
 
 function KnowledgeBase() {
   const [bookCollections, setBookCollections] = useState<KnowledgeBookCollection<any>[]>([])
@@ -57,15 +123,40 @@ function KnowledgeBase() {
   const [bodyView, setBodyView] = useState<'front' | 'back'>('front')
   const [bodyRegionNodes, setBodyRegionNodes] = useState<KnowledgeNodeListItem[]>([])
   const [loadingBodyRegion, setLoadingBodyRegion] = useState(false)
+  const [isGuest, setIsGuest] = useState(false)
+  const [bodyMapGender, setBodyMapGender] = useState<'male' | 'female'>('male')
+  const bodyMapImageUrl = useMemo(() => {
+    const svgRaw = bodyMapGender === 'female'
+      ? (bodyView === 'front' ? femaleFrontSvgRaw : femaleBackSvgRaw)
+      : (bodyView === 'front' ? maleFrontSvgRaw : maleBackSvgRaw)
+    const svg = highlightSvgCategory(svgRaw, selectedBodyRegion)
+    return svgToDataUri(
+      svg.replace(
+        /<svg\s/,
+        '<svg style="width:100%;height:100%;display:block;" preserveAspectRatio="xMidYMid meet" '
+      )
+    )
+  }, [bodyMapGender, bodyView, selectedBodyRegion])
+  const bodyMapHitAreas = BODY_REGION_HIT_AREAS[bodyView]
 
   useEffect(() => {
-    const token = Taro.getStorageSync('token')
-    if (!token) {
-      Taro.redirectTo({ url: '/auth/login?returnTo=' + encodeURIComponent('/content/knowledge') })
-      return
-    }
+    const session = authService.getAuthSession({ normalize: true })
+    setIsGuest(!session.isAuthenticated)
     void loadBooks()
+    if (session.userId) {
+      void loadBodyMapGender(session.userId)
+    }
   }, [])
+
+  async function loadBodyMapGender(userId: string) {
+    try {
+      const res = await studentService.getStudentProfile(userId)
+      const gender = String(res?.profile?.gender || '').toLowerCase()
+      setBodyMapGender(gender === 'female' || gender.includes('女') ? 'female' : 'male')
+    } catch (e) {
+      console.warn('[knowledge] load body map gender:', e)
+    }
+  }
 
   useEffect(() => {
     if (!selectedBodyRegion) return
@@ -149,6 +240,14 @@ function KnowledgeBase() {
             <Text className='hero-title'>知识库</Text>
             <Text className='hero-subtitle'>点击身体部位，共建训练知识</Text>
           </View>
+
+          {isGuest && (
+            <View className='empty-panel' style={{ marginBottom: '24rpx' }}>
+              <Text className='empty-panel-text'>
+                这里可以先浏览知识和路径内容，登录后再同步收藏、购买记录和个人训练数据。
+              </Text>
+            </View>
+          )}
 
           <View className='search-section'>
             <View className='search-input-wrap'>
@@ -296,11 +395,30 @@ function KnowledgeBase() {
                   ))}
                 </View>
               </View>
-              <Image
-                className='body-map-image'
-                src={BODY_VIEW_OPTIONS.find((item) => item.key === bodyView)?.imageUrl || BODY_VIEW_OPTIONS[0].imageUrl}
-                mode='aspectFit'
-              />
+              <View className='body-map-stage'>
+                <View className='body-map-zoom'>
+                  <Image
+                    className='body-map-image'
+                    src={bodyMapImageUrl}
+                    mode='aspectFit'
+                  />
+                  <View className='body-map-hit-layer'>
+                    {bodyMapHitAreas.map((area) => (
+                      <View
+                        key={`${bodyView}-${area.key}`}
+                        className={`body-map-hit-area ${area.key === '关节' ? 'joint' : ''} ${selectedBodyRegion === area.key ? 'active' : ''}`}
+                        style={{
+                          left: `${area.x}%`,
+                          top: `${area.y}%`,
+                          width: `${area.width}%`,
+                          height: `${area.height}%`
+                        }}
+                        onClick={() => void handleBodyRegionClick(area.key)}
+                      />
+                    ))}
+                  </View>
+                </View>
+              </View>
             </View>
 
             <View className='region-grid'>

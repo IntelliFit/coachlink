@@ -7,7 +7,7 @@ import './index.scss'
  */
 export default function Contact() {
   const goFeedback = () => {
-    Taro.navigateTo({ url: '/me/feedback/index' })
+    Taro.navigateTo({ url: '/me-legal/feedback/index' })
   }
 
   return (

@@ -42,6 +42,12 @@ export interface GetMonthShareResponse {
   }
 }
 
+export interface GetTrainingHistorySummaryResponse {
+  totalSessions: number
+  totalActions: number
+  totalSets: number
+}
+
 class TrainingHistoryService {
   private readonly baseUrl = '/api/training-history'
 
@@ -72,6 +78,16 @@ class TrainingHistoryService {
       data: { month }
     })
     if (res.success && res.data) return res.data as GetMonthShareResponse
+    return null
+  }
+
+  async getSummary(): Promise<GetTrainingHistorySummaryResponse | null> {
+    const res = await request({
+      url: `${this.baseUrl}/summary`,
+      method: 'GET',
+      showErrorToast: false
+    })
+    if (res.success && res.data) return res.data as GetTrainingHistorySummaryResponse
     return null
   }
 }

@@ -12,7 +12,6 @@ import { getSubscriptionOrderById } from "@/lib/subscriptionOrders";
 import {
     createHuifuMiniProgramOrder,
     formatHuifuReqDate,
-    parseHuifuPayInfo,
 } from "@/lib/huifuMiniProgramPay";
 
 // 文档：https://opendocs.alipay.com/open/59da99d0_alipay.trade.page.pay?pathHash=e26b497f&scene=22
@@ -108,6 +107,12 @@ export async function POST(req: Request) {
         productName: string;
         productTier: string;
         durationMonths: number;
+    } | null = null;
+    let contentPurchaseMeta: {
+        coachId: string;
+        coachName: string;
+        contentId: string;
+        contentTitle: string;
     } | null = null;
 
     if (orderType === "subscription" || orderType === "subscription_renew") {
@@ -262,7 +267,8 @@ export async function POST(req: Request) {
                 id,
                 title,
                 price_cents,
-                coach:coaches(status)
+                coach_id,
+                coach:coaches(id,name,status)
             `,
             )
             .eq("id", contentId)
@@ -290,6 +296,19 @@ export async function POST(req: Request) {
         }
 
         resolvedTotalAmount = priceCents / 100;
+        contentPurchaseMeta = {
+            coachId: String((content as any).coach_id || ""),
+            coachName: String((content as any)?.coach?.name || "").trim(),
+            contentId,
+            contentTitle: String((content as any).title || "").trim(),
+        };
+        Object.assign(od, {
+            contentId,
+            content_id: contentId,
+            coachId: contentPurchaseMeta.coachId,
+            coachName: contentPurchaseMeta.coachName,
+            contentTitle: contentPurchaseMeta.contentTitle,
+        });
         subjectText = `购买文章 ${(content as any).title || ""}`.trim();
     }
 
@@ -313,6 +332,11 @@ export async function POST(req: Request) {
 
     // 写入订单到数据库，金额存储为分（整数）
     // 订阅首单：resolvedTotalAmount 已是 sub.monthly_price（分）；其他/续费：前端传的是元，需转分
+    const effectiveOrderType =
+        subscriptionMeta?.coachId && (orderType === "subscription" || orderType === "subscription_renew")
+            ? (orderType === "subscription_renew" ? "coach_subscription_renew" : "coach_subscription")
+            : orderType;
+
     const totalAmountFen = resolvedAmountAlreadyFen
         ? Math.round(Number(resolvedTotalAmount))
         : yuanToFen(resolvedTotalAmount);
@@ -321,8 +345,11 @@ export async function POST(req: Request) {
             .insert({
                 subject: subjectText,
                 total_amount: totalAmountFen, // 存储分（整数）
-                order_type: orderType,
-                order_data: od,
+                order_type: effectiveOrderType,
+                order_data: {
+                    ...od,
+                    original_order_type: effectiveOrderType !== orderType ? orderType : undefined,
+                },
                 user_id: userId,
                 status: "pending",
                 qr_code: "",
@@ -372,12 +399,15 @@ export async function POST(req: Request) {
     // ── 教练订阅：走汇付 A_JSAPI / A_NATIVE 分账 ──
     const isCoachSubscription =
         orderType === "subscription" || orderType === "subscription_renew";
+    const huifuRevenueCoachId =
+        subscriptionMeta?.coachId ||
+        (orderType === "content_purchase" ? contentPurchaseMeta?.coachId : undefined);
 
-    if (isCoachSubscription && subscriptionMeta?.coachId) {
+    if (huifuRevenueCoachId) {
         const { data: coachRecord } = await serviceRoleSupabase
             .from("coaches")
             .select("huifu_id, huifu_open_status, huifu_card_token")
-            .eq("id", subscriptionMeta.coachId)
+            .eq("id", huifuRevenueCoachId)
             .maybeSingle();
 
         if (coachRecord?.huifu_id && coachRecord.huifu_open_status === "opened" && coachRecord.huifu_card_token) {
@@ -403,14 +433,24 @@ export async function POST(req: Request) {
                     throw new Error(payResult.resp_desc || "汇付下单失败");
                 }
 
-                const huifuPayInfo = parseHuifuPayInfo(payResult.pay_info);
+                const rawHuifuPayInfo =
+                    typeof payResult.pay_info === "string"
+                        ? (() => {
+                              try {
+                                  return JSON.parse(payResult.pay_info);
+                              } catch {
+                                  return payResult.pay_info;
+                              }
+                          })()
+                        : payResult.pay_info || null;
 
                 // Update order_data with huifu req_date for query
                 await serviceRoleSupabase
                     .from("alipay_orders")
                     .update({
                         payment_provider: "huifu_alipay",
-                        order_data: { ...od, huifu_req_date: reqDate },
+                        order_type: effectiveOrderType,
+                        order_data: { ...od, huifu_req_date: reqDate, original_order_type: orderType },
                     })
                     .eq("id", order.id);
 
@@ -429,7 +469,7 @@ export async function POST(req: Request) {
                         paymentInfo: {
                             provider: "huifu_alipay",
                             tradeType: huifuTradeType,
-                            payInfo: huifuPayInfo,
+                            payInfo: rawHuifuPayInfo,
                         },
                     },
                 });
@@ -451,7 +491,7 @@ export async function POST(req: Request) {
         }
     }
 
-    if (isCoachSubscription) {
+    if (isCoachSubscription || orderType === "content_purchase") {
         await serviceRoleSupabase
             .from("alipay_orders")
             .update({
