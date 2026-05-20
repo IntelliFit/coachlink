@@ -35,11 +35,15 @@ export default defineConfig<'vite'>(async (merge, { command, mode }) => {
     },
     copy: {
       patterns: [
-        { from: 'src/assets/favicon.svg', to: 'favicon.svg' },
+
         { from: 'src/assets/iconfont/', to: 'assets/iconfont/' },
-        { from: 'src/assets/images/', to: 'assets/images/' },
         { from: 'src/assets/brand/coachlink-logo.jpg', to: 'assets/brand/coachlink-logo.jpg' },
-        { from: 'src/assets/brand/coachlink-brand-icon.png', to: 'assets/brand/coachlink-brand-icon.png' }
+        { from: 'src/assets/brand/coachlink-brand-icon.png', to: 'assets/brand/coachlink-brand-icon.png' },
+        { from: 'src/assets/images/login-bg.jpg', to: 'assets/images/login-bg.jpg' },
+        { from: 'src/assets/images/toolbox-data.jpg', to: 'assets/images/toolbox-data.jpg' },
+        { from: 'src/assets/images/toolbox-locations.jpg', to: 'assets/images/toolbox-locations.jpg' },
+        { from: 'src/assets/images/toolbox-calculator.jpg', to: 'assets/images/toolbox-calculator.jpg' },
+        { from: 'src/assets/images/toolbox-scenarios/', to: 'me/assets/images/toolbox-scenarios/' }
       ],
       options: {
       }

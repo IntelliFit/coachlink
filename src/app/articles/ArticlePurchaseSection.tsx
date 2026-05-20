@@ -51,7 +51,13 @@ export default function ArticlePurchaseSection({
               <Button
                 className="rounded-2xl"
                 label={`立即购买 ¥${priceYuan}`}
-                onClick={() => setOpen(true)}
+                onClick={() => {
+                  if (isGuest) {
+                    router.push(`/login?redirect=${encodeURIComponent(redirect)}`);
+                    return;
+                  }
+                  setOpen(true);
+                }}
               />
               {!isGuest ? (
                 <Button
@@ -83,8 +89,8 @@ export default function ArticlePurchaseSection({
         title={title}
         priceCents={priceCents}
         redirect={redirect}
-        guestMode={isGuest}
-        autoPay={isGuest}
+        guestMode={false}
+        autoPay={false}
       />
     </>
   );

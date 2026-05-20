@@ -21,16 +21,15 @@
 
     .embed-schedule-top {
       margin-bottom: 0;
-      padding: 24rpx;
-      border-radius: 24rpx;
-      background: #f9fafb;
-      border: 2rpx solid #f3f4f6;
+      padding: 0 0 12rpx;
+      border-radius: 0;
+      background: transparent;
+      border: none;
       box-sizing: border-box;
     }
 
-    .delay-banner--compact {
-      background: #fdf2ec;
-      border: 2rpx solid rgba(207, 109, 78, 0.2);
+    .embed-date-row {
+      display: none;
     }
 
     .done-banner--compact {
@@ -39,10 +38,10 @@
     }
 
     .strength-panel {
-      margin-top: 24rpx;
+      margin-top: 12rpx;
       background: #fdf2ec;
-      border: 2rpx solid rgba(207, 109, 78, 0.14);
-      border-radius: 24rpx;
+      border: 2rpx solid rgba(207, 109, 78, 0.12);
+      border-radius: 20rpx;
     }
 
     .panel-tag {
@@ -67,17 +66,17 @@
     }
 
     .lightweight-panel {
-      margin-top: 24rpx;
-      padding-top: 24rpx;
+      margin-top: 12rpx;
+      padding-top: 12rpx;
       border-top: 2rpx solid #f3f4f6;
     }
 
     .lightweight-header {
-      margin-bottom: 16rpx;
+      margin-bottom: 12rpx;
     }
 
     .lightweight-title {
-      font-size: 28rpx;
+      font-size: 26rpx;
     }
 
     .lightweight-card {
@@ -93,7 +92,7 @@
     .lightweight-empty {
       border: 2rpx dashed #e5e7eb;
       background: #f9fafb;
-      border-radius: 24rpx;
+      border-radius: 20rpx;
     }
 
     .lightweight-add-small {
@@ -175,14 +174,14 @@
   }
 
   .embed-schedule-top {
-    margin-bottom: 24rpx;
+    margin-bottom: 12rpx;
   }
 
   .embed-date-row {
     display: flex;
     align-items: center;
     gap: 8rpx;
-    margin-bottom: 16rpx;
+    margin-bottom: 8rpx;
   }
 
   .embed-date-text {
@@ -195,18 +194,18 @@
     flex-direction: row;
     flex-wrap: wrap;
     align-items: center;
-    gap: 8rpx 16rpx;
-    padding: 8rpx 0 0;
+    gap: 6rpx 12rpx;
+    padding: 0;
   }
 
   .embed-summary-item {
-    font-size: 26rpx;
+    font-size: 22rpx;
     color: #374151;
     font-weight: 600;
   }
 
   .embed-summary-dot {
-    font-size: 24rpx;
+    font-size: 20rpx;
     color: #d1d5db;
     line-height: 1;
   }
@@ -264,14 +263,14 @@
 
   .done-banner--compact {
     border: none;
-    margin-top: 16rpx;
-    padding: 16rpx 24rpx;
+    margin-top: 12rpx;
+    padding: 10rpx 12rpx;
     border-radius: 16rpx;
   }
 
   .done-title {
     display: block;
-    font-size: 16px;
+    font-size: 15px;
     font-weight: 700;
     color: #166534;
     margin-bottom: 4px;
@@ -285,24 +284,11 @@
   }
 
   .strength-panel {
-    margin-top: 16px;
-    border-radius: 24rpx;
+    margin-top: 12px;
+    border-radius: 20rpx;
     background: #fff8f5;
-    border: none;
-    padding: 24rpx;
-  }
-
-  .panel-tag {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    background: #ffedd5;
-    color: #9a3412;
-    border-radius: 999px;
-    padding: 6px 10px;
-    font-size: 11px;
-    font-weight: 700;
-    margin-bottom: 10px;
+    border: 1rpx solid rgba(207, 109, 78, 0.12);
+    padding: 16rpx;
   }
 
   .panel-title-row {
@@ -310,11 +296,11 @@
     flex-wrap: wrap;
     align-items: center;
     gap: 8px;
-    margin-bottom: 6px;
+    margin-bottom: 2px;
   }
 
   .panel-title {
-    font-size: 22px;
+    font-size: 18px;
     font-weight: 800;
     color: #111827;
   }
@@ -324,7 +310,7 @@
     padding: 4px 10px;
 
     text {
-      font-size: 11px;
+      font-size: 10px;
       font-weight: 700;
     }
 
@@ -353,58 +339,30 @@
     }
   }
 
-  .panel-desc {
-    display: block;
-    font-size: 12px;
-    color: #6b7280;
-    line-height: 1.55;
-  }
-
-  .strength-stats {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 8px;
-    margin-top: 12px;
-  }
-
-  .strength-stat {
-    border-radius: 16px;
-    background: #fff;
-    border: 1px solid #e5e7eb;
-    padding: 10px;
-  }
-
-  .stat-label {
+  .panel-inline-meta {
     display: block;
     font-size: 11px;
     color: #6b7280;
-    margin-bottom: 4px;
-  }
-
-  .stat-value {
-    display: block;
-    font-size: 20px;
-    font-weight: 800;
-    color: #111827;
+    line-height: 1.45;
   }
 
   .strength-list {
     display: flex;
     flex-direction: column;
-    gap: 10px;
-    margin-top: 12px;
+    gap: 8px;
+    margin-top: 10px;
   }
 
   .strength-item {
     border-radius: 18px;
     background: rgba(255, 255, 255, 0.92);
     border: 1px solid #e5e7eb;
-    padding: 12px;
+    padding: 10px;
   }
 
   .strength-item-title {
     display: block;
-    font-size: 15px;
+    font-size: 14px;
     font-weight: 700;
     color: #111827;
     margin-bottom: 4px;
@@ -412,9 +370,9 @@
 
   .strength-item-meta {
     display: block;
-    font-size: 12px;
+    font-size: 11px;
     color: #6b7280;
-    line-height: 1.55;
+    line-height: 1.45;
   }
 
   .strength-item-note {
@@ -432,8 +390,8 @@
   .strength-actions {
     display: flex;
     flex-direction: column;
-    gap: 10px;
-    margin-top: 14px;
+    gap: 8px;
+    margin-top: 12px;
   }
 
   .strength-toggle {
@@ -453,11 +411,11 @@
 
   .main-action-btn {
     border-radius: 16px;
-    padding: 14px;
+    padding: 12px;
     text-align: center;
 
     text {
-      font-size: 15px;
+      font-size: 14px;
       font-weight: 800;
       color: #fff;
     }
@@ -495,17 +453,17 @@
   .lightweight-header {
     display: flex;
     justify-content: space-between;
-    gap: 12px;
+    gap: 8px;
     align-items: flex-start;
-    margin-bottom: 12px;
+    margin-bottom: 10px;
   }
 
   .lightweight-title {
     display: block;
-    font-size: 20px;
+    font-size: 18px;
     font-weight: 800;
     color: #111827;
-    margin-bottom: 4px;
+    margin-bottom: 2px;
   }
 
   .lightweight-subtitle {
@@ -519,7 +477,7 @@
     display: flex;
     flex-direction: column;
     align-items: flex-end;
-    gap: 8px;
+    gap: 6px;
   }
 
   .lightweight-progress {
@@ -534,7 +492,7 @@
   .lightweight-toggle {
     border-radius: 12px;
     background: #f3f4f6;
-    padding: 10px 12px;
+    padding: 8px 10px;
     text-align: center;
 
     text {
@@ -556,13 +514,26 @@
     border-radius: 18px;
     border: 1px dashed #d1d5db;
     background: #f9fafb;
-    padding: 18px 14px;
+    padding: 14px 12px;
     text-align: center;
+  }
+
+  .lightweight-empty--compact {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12rpx;
+    text-align: left;
+
+    .empty-title {
+      margin-bottom: 0;
+      font-size: 14px;
+    }
   }
 
   .empty-title {
     display: block;
-    font-size: 16px;
+    font-size: 15px;
     font-weight: 700;
     color: #111827;
     margin-bottom: 6px;
@@ -577,14 +548,14 @@
   }
 
   .lightweight-group + .lightweight-group {
-    margin-top: 14px;
+    margin-top: 10px;
   }
 
   .group-divider {
     display: flex;
     align-items: center;
     gap: 10px;
-    margin-bottom: 10px;
+    margin-bottom: 8px;
   }
 
   .divider-line {
@@ -602,13 +573,13 @@
   .lightweight-list {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 8px;
   }
 
   .lightweight-card {
     border-radius: 20px;
     border: 1px solid #e5e7eb;
-    padding: 12px;
+    padding: 10px;
     background: #fff;
 
     &.diet {
@@ -643,7 +614,7 @@
     display: flex;
     align-items: center;
     gap: 6px;
-    margin-bottom: 4px;
+    margin-bottom: 2px;
   }
 
   .task-icon {
@@ -652,22 +623,22 @@
 
   .task-title {
     display: block;
-    font-size: 15px;
+    font-size: 14px;
     font-weight: 800;
     color: #111827;
   }
 
   .task-summary {
     display: block;
-    font-size: 13px;
+    font-size: 12px;
     color: #111827;
-    line-height: 1.5;
-    margin-bottom: 3px;
+    line-height: 1.4;
+    margin-bottom: 2px;
   }
 
   .task-extra {
     display: block;
-    font-size: 11px;
+    font-size: 10px;
     color: #6b7280;
   }
 
@@ -710,7 +681,7 @@
     justify-content: space-between;
     gap: 10px;
     align-items: center;
-    margin-top: 12px;
+    margin-top: 10px;
   }
 
   .task-actions-left {

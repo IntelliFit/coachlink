@@ -4,14 +4,14 @@ import supabase, { serviceRoleSupabase } from '@/lib/supabaseClient';
 
 import { createAlipaySdk } from '@/lib/alipaySdk';
 import {
-    updateTransactionAndWallet,
-    fulfillSubscriptionOnPaid,
+    fulfillSubscriptionAndMaybeCreditWallet,
 } from '@/app/api/payment/alipay/fulfillPaidOrder';
 
 import type { ApiData } from '@/types/api';
 import type { QueryAlipayOrderDto, QueryAlipayOrderResponseDto, TradeStatus } from './entity';
 import { fenToYuan } from '@/lib/moneyUtils';
 import { fulfillContentPurchasePaid } from '../contentPurchaseFulfillment';
+import { formatHuifuReqDate, queryHuifuMiniProgramOrder } from '@/lib/huifuMiniProgramPay';
 
 // 文档：https://opendocs.alipay.com/open/217dd591_alipay.trade.query?scene=common&pathHash=62ae74aa
 
@@ -98,6 +98,94 @@ export async function POST(req: Request) {
         });
     }
 
+    const existOrderData = (existOrder.order_data || {}) as Record<string, any>;
+    const paymentProvider = String((existOrder as any).payment_provider || '').trim();
+    const isHuifuGatewayOrder =
+        paymentProvider === 'huifu_alipay' ||
+        paymentProvider === 'wechat' ||
+        Boolean(existOrderData.huifu_req_date);
+
+    if (isHuifuGatewayOrder) {
+        const queryResult = await queryHuifuMiniProgramOrder({
+            orgReqDate: String(existOrderData.huifu_req_date || formatHuifuReqDate(new Date(existOrder.created_at))),
+            orgReqSeqId: String(existOrder.id),
+        });
+
+        const orderStatus =
+            queryResult.trans_stat === 'S'
+                ? 'paid'
+                : queryResult.trans_stat === 'F'
+                  ? 'failed'
+                  : 'pending';
+
+        const { data: order, error: orderError } = await (serviceRoleSupabase as any)
+            .from('alipay_orders')
+            .update({
+                status: orderStatus,
+                trade_status: queryResult.trans_stat || null,
+                alipay_trade_no: queryResult.org_hf_seq_id || null,
+                payment_provider: paymentProvider || 'huifu_alipay',
+                updated_at: new Date().toISOString(),
+            })
+            .eq('id', orderId)
+            .select()
+            .single();
+
+        if (orderError) {
+            return NextResponse.json({
+                success: false,
+                message: orderError.message,
+            });
+        }
+
+        if (orderStatus === 'paid' && order && userId) {
+            if (
+                order.order_type === 'subscription' ||
+                order.order_type === 'subscription_renew' ||
+                order.order_type === 'coach_subscription' ||
+                order.order_type === 'coach_subscription_renew'
+            ) {
+                await fulfillSubscriptionAndMaybeCreditWallet(
+                    order as any,
+                    userId,
+                    paymentProvider === 'wechat' ? 'wechat' : 'alipay',
+                );
+            }
+
+            if (order.order_type === 'content_purchase') {
+                const orderData: any = order.order_data || {};
+                const contentId = orderData?.contentId as string | undefined;
+                if (contentId) {
+                    try {
+                        await fulfillContentPurchasePaid({
+                            orderId: order.id,
+                            userId,
+                            contentId,
+                        });
+                    } catch (e) {
+                        console.error('[Alipay Query] Content purchase fulfill failed:', e);
+                    }
+                }
+            }
+        }
+
+        const orderWithYuan = order
+            ? {
+                ...order,
+                total_amount: fenToYuan(order.total_amount ?? 0),
+            }
+            : order;
+
+        return NextResponse.json<ApiData<QueryAlipayOrderResponseDto>>({
+            success: true,
+            message: '支付状态',
+            data: {
+                order: orderWithYuan,
+                tradeStatus: (queryResult.trans_stat as unknown) as TradeStatus,
+            }
+        });
+    }
+
 
     /*
         response 成功输出
@@ -172,8 +260,11 @@ export async function POST(req: Request) {
     // 订阅/续费确认 + 钱包入账（与 notify/return 共用逻辑，幂等）
     if (orderStatus === 'paid' && order && userId) {
         if (order.order_type === 'subscription' || order.order_type === 'subscription_renew' || order.order_type === 'coach_subscription' || order.order_type === 'coach_subscription_renew') {
-            await fulfillSubscriptionOnPaid(order, orderId, userId);
-            await updateTransactionAndWallet(order);
+            await fulfillSubscriptionAndMaybeCreditWallet(
+                order as any,
+                userId,
+                (order as any).payment_provider === 'wechat' ? 'wechat' : 'alipay',
+            );
         }
 
         if (order.order_type === 'content_purchase') {

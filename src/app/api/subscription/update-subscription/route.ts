@@ -306,6 +306,8 @@ export async function POST(req: Request) {
                             subscribedWeeks: nextSubscribedWeeks,
                             excludeInstanceId: String((preferredInstance as any)?.id || ""),
                             createdBefore: (preferredInstance as any)?.created_at || null,
+                            subscriptionStartDate:
+                                (subscription as any)?.start_date || null,
                         })
                     ).remainingWeeks,
                     trainingDays: (preferredInstance as any)?.training_days || [],

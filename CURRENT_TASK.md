@@ -1,5 +1,492 @@
 # CURRENT_TASK
 
+## Coach-Owned Content Purchase Huifu Settlement (`2026-05-20`)
+
+- Task: extend the coach-subscription Huifu split model to other coach-owned revenue, starting with paid coach content / single-article purchases.
+- Status: backend money-rule changes and Web Huifu QR payment display applied; live Huifu verification pending.
+- Implemented:
+  - `src/app/api/payment/alipay/create/route.ts`
+    - Paid `content_purchase` orders now resolve content price/coach from the database and require the coach to have a fully opened Huifu account.
+    - Logged-in paid coach-content purchases are routed through Huifu collection (`huifu_alipay`) instead of direct Alipay.
+    - Order metadata now persists `coachId`, `coachName`, `contentId`, and `contentTitle` so delayed settlement can run later.
+  - `src/app/api/payment/alipay/contentPurchaseFulfillment.ts`
+    - Payment success still unlocks the purchased content immediately in `content_purchases`.
+    - Coach wallet credit now uses the same Huifu delayed settlement ledger as coach subscription; wallet income is recorded only after balance payment succeeds.
+  - `src/app/api/payment/wechat/notify/route.ts` and `src/app/api/payment/wechat/query/route.ts`
+    - Huifu notifications/query compensation now also fulfill `content_purchase`.
+  - `src/app/api/payment/alipay/refund/route.ts`
+    - Refund handling now treats `content_purchase` as coach-owned revenue: if coach share was transferred, it attempts Huifu balance-payment refund/reversal before source-payment refund, and marks `content_purchases` as `refunded`.
+  - `src/app/api/coach/get-overview-data/route.ts` and `src/app/api/coach/get-revenue-details/route.ts`
+    - Paid content revenue is counted from wallet income after settlement, not merely from buyer payment success.
+  - `src/app/articles/ArticlePurchaseSection.tsx`
+    - Guest paid content purchase now routes to login first; guest direct payment remains disabled because it cannot reliably bind the purchase entitlement or settlement ledger.
+  - `src/components/payment/ContentPurchaseDialog.tsx`
+    - Paid content purchase now accepts Huifu `payInfo` in addition to direct-Alipay `formHtml`.
+    - When Huifu returns a QR/pay target, the Web purchase dialog shows an Alipay scan-to-pay QR dialog and then routes to the payment status page for confirmation/unlock.
+  - Added migration `supabase/migrations/20260520_coach_revenue_content_settlement.sql`:
+    - Allows `content_purchases.status = refunded`.
+    - Documents and indexes the existing settlement table as a coach-owned revenue settlement ledger, not subscription-only.
+- Verification:
+  - Targeted TypeScript transpile check passed for the touched payment/revenue files.
+  - `git diff --check` on touched files passed with only standard Windows CRLF warnings.
+  - No full lint/typecheck/build/test or browser verification was run per local preference unless explicitly requested.
+- Important caveat:
+  - The backend settlement/refund ledger and Web QR display are now aligned, but one live Web `content_purchase` still needs to verify the exact Huifu `A_NATIVE/A_JSAPI` `pay_info` shape and the browser-side scan/return flow.
+
+## Huifu In-Process Settlement Scheduler (`2026-05-20`)
+
+- Task: after the user chose scheme 2, make Huifu delayed coach-subscription settlement automatic without introducing an external cron platform yet.
+- Status: code changes applied; deployment/runtime verification pending.
+- Implemented:
+  - `src/instrumentation.ts`
+    - Added in-process hourly job for `POST /api/admin/coach-subscription-settlements/process-due`.
+    - Added in-process hourly job for `POST /api/admin/coach-subscription-settlements/reconcile`.
+    - Jobs run once at service startup and then at the configured interval.
+    - Existing Alipay pending sync and pending-plan activation jobs remain active when `ALIPAY_SYNC_SECRET` or `CRON_SECRET` is configured.
+- Required production configuration:
+  - Configure `CRON_SECRET` or `HUIFU_SETTLEMENT_CRON_SECRET`.
+  - Ensure `NEXTAUTH_URL` or `NEXT_PUBLIC_SITE_URL` points to the deployed app URL.
+  - Keep or explicitly set `COACH_SUBSCRIPTION_SETTLEMENT_DELAY_DAYS=7`.
+  - Optional interval overrides: `HUIFU_SETTLEMENT_PROCESS_INTERVAL_MS`, `HUIFU_SETTLEMENT_RECONCILE_INTERVAL_MS`; set to `0` to disable.
+- Verification:
+  - Targeted TypeScript transpile check for `src/instrumentation.ts` passed.
+  - `git diff --check -- src/instrumentation.ts` passed with only the standard Windows CRLF warning.
+  - No full lint/typecheck/build/test or browser verification was run per local preference unless explicitly requested.
+
+## WeApp Toolbox Strength Calculator Copy Update (`2026-05-20`)
+
+- Task: update the student WeChat mini-program toolbox card copy for `力量计算器`.
+- User direction:
+  - The card subtitle should not describe implementation facts like "小程序内完整实现，与网页端逻辑一致".
+  - It should describe user-facing utility such as calculating max/working-set weight and coefficients.
+- Implemented:
+  - `wechat_app/src/me/toolbox/index.tsx`
+    - Updated the `力量计算器` card description to `可计算极限重量、做组重量和训练系数等。`
+- Verification:
+  - No lint/typecheck/build/test or WeChat DevTools verification was run, following the local workspace preference unless the user explicitly requests it.
+
+## WeApp Knowledge Latest Body Map (`2026-05-20`)
+
+- Task: restore the student WeChat mini-program knowledge page to the latest clickable body-map experience.
+- Finding:
+  - The temporary blank-image fix made the card render, but it used the older `frontSvg/backSvg` body outline and stayed a static `<Image>`, so the actual SVG regions could not be clicked.
+  - The latest body-map asset line is commit `6cff9d9d` from `2026-04-30`: sex-aware SVG modules (`maleFrontSvg/maleBackSvg/femaleFrontSvg/femaleBackSvg`) with category metadata.
+- Fix:
+  - `wechat_app/src/content/knowledge/index.tsx` now imports the latest sex-aware SVG modules and chooses female/male body map from the logged-in student's profile gender, defaulting to male for guests/unknown.
+  - The knowledge body-map options now use the latest category model: `胸部 / 肩部 / 大臂 / 小臂 / 腹部 / 背部 / 臀部 / 大腿 / 小腿 / 关节`.
+  - Added SVG category highlighting by rewriting matching `category` groups to brand color.
+  - Added a transparent mini-program hit-area layer over the image so tapping the body map selects the corresponding category and loads body-region knowledge nodes.
+  - `wechat_app/src/content/knowledge/index.scss` now scales the latest SVG inside the card to reduce the excessive blank space and keeps hit areas aligned with the scaled map.
+- Verification:
+  - Targeted TS transpile check for `wechat_app/src/content/knowledge/index.tsx` passed.
+  - `git diff --check` on the touched knowledge page files passed with only Windows CRLF warnings.
+  - Per local developer preference, no automatic WeChat DevTools visual verification or full lint/typecheck/build/test sequence was run unless explicitly requested.
+
+## Product IA Simplification / Main Path Redesign (`2026-05-19`)
+
+- Task: rethink CoachLink early-stage product framework by doing subtraction and reconnecting the remaining flows clearly.
+- User direction:
+  - Current content/features feel too numerous and confusing.
+  - Prefer reducing visible surfaces and making the remaining links clearer.
+  - Registration and post-registration flow likely need redesign.
+  - After registration, users should clearly know what to see, what to click, which need each path satisfies, and how the flow can naturally trigger willingness to pay.
+- Current recommendation direction:
+  - Move from "show all features" to "task-path first".
+  - Post-auth onboarding should identify the user's current intent and route them to a single next best action.
+  - Student-facing first-stage paths should organize around five bottom tabs:
+    - `训练`
+    - `教练`
+    - `知识`
+    - `工具箱`
+    - `我的`
+  - `工具箱` should remain a first-class bottom-tab surface because it can provide immediate utility even before users fully understand their broader training needs.
+  - Main paths should likely reduce to:
+    - Start training / record today.
+    - Find a coach / get a plan.
+    - Solve a training problem / learn knowledge.
+    - Use a concrete tool for a specific immediate need.
+  - `我的` should be reorganized as account/assets/history/settings, not as a catch-all product homepage.
+- Status: first WeChat mini-program IA simplification pass implemented on `2026-05-20`.
+- Implemented surfaces in this pass:
+  - `wechat_app/src/components/BottomNav.tsx`: student bottom nav reduced/reframed to `训练 / 教练 / 知识 / 工具箱 / 我的`; the old student `消息` bottom-tab slot was removed while coach nav stayed intact.
+  - `wechat_app/src/pages/index/index.tsx`: home entry rewritten around four immediate intents: `开始训练 / 找教练 / 查知识 / 用工具`.
+  - `wechat_app/src/discovery/index.tsx`: the old mixed discovery home was narrowed into the `教练` tab home focused on coach/service discovery; top-level public action and article highlight feeds were removed from equal-status positions.
+  - `wechat_app/src/content/knowledge/index.tsx`: knowledge became browse-first; guests no longer hard-redirect to login before entering the knowledge home.
+  - `wechat_app/src/me/profile/index.tsx`: `我的` was reorganized back toward account/assets/history/settings, and `消息中心` was kept as a secondary entry after removing the old message bottom tab.
+- Verification:
+  - Lightweight code-level sanity checking only: touched files were re-read and TypeScript-transpiled successfully.
+  - Per local workspace preference, no automatic lint/typecheck/build/test or WeChat DevTools/browser verification was run in this pass.
+
+### Today-training compacting pass (`2026-05-20`)
+
+- User direction:
+  - Remove the explanatory "为什么要确认完成 / 为什么要输入重量" content from the top of the student training page.
+  - Compress the training page so schedule/calendar and today's arrangement feel like one compact control surface.
+  - Reduce vertical height across the page, especially the top coach/plan card and repeated section headers.
+- Implemented direction:
+  - `wechat_app/src/training/today-training/index.tsx` now removes the top explanation card and explanation dialog flow.
+  - The return-to-page confirmation banner was shortened to a compact success message.
+  - `ScheduleCalendarPanel` and `TodayTrainingCard` are now visually grouped into one `schedule-training-card` container with a single inline summary instead of separate repeated section headers.
+  - The top coach/self-plan card was compressed into a shorter summary strip.
+  - Month calendar is now collapsed by default while preserving manual expand/collapse.
+- Verification:
+  - Lightweight TypeScript transpile/parse check passed for:
+    - `wechat_app/src/training/today-training/index.tsx`
+    - `wechat_app/src/training/today-training/components/ScheduleCalendarPanel.tsx`
+    - `wechat_app/src/training/today-training/components/TodayTrainingCard.tsx`
+  - No WeChat DevTools/manual verification was run in this pass per local workspace preference unless explicitly requested.
+
+### Discovery-page narrowing note (`2026-05-20`)
+
+- The current mini-program discovery home mixes coach discovery, coach service products, public action highlights, and article/content highlights.
+- Recommended direction:
+  - Narrow it into the future `教练` tab home.
+  - The coach tab main page should now focus on coach discovery itself; mixed-intent guide blocks and coach-service promo sections should be removed from the top-level coach home.
+  - Coach-related service products can still exist elsewhere in the flow, but should not compete with coach cards on the main coach tab surface.
+  - Move article/info discovery primarily under the `知识` tab.
+  - Downgrade or relocate public action-library highlights to action-specific or supporting surfaces rather than keeping them as equal-status discovery feed blocks.
+
+## WeApp Hide Friends Entry Pending Qualification (`2026-05-19`)
+
+- Task: temporarily hide `我的好友` from the WeChat mini-program personal/profile page because displaying the friends/social feature requires additional mini-program qualification that has not been approved yet.
+- Status: code changes applied; user-side mini-program verification pending.
+- Implemented:
+  - `wechat_app/src/me/profile/index.tsx`
+    - Removed the `我的好友` top metric entry from the profile page.
+    - Removed the profile page's `/api/user/friends` count request and `friends` stat field.
+    - Kept the underlying friends pages/API untouched so the entry can be restored after qualification approval.
+  - `wechat_app/src/me/profile/index.scss`
+    - Changed top metric item width from four-column `25%` to three-column `33.3333%`.
+- Verification:
+  - Light grep confirmed the profile page no longer contains `我的好友`, `my-friends`, `/api/user/friends`, or `friends`.
+  - No full lint/typecheck/build/test or WeChat DevTools verification was run per local preference unless explicitly requested.
+
+## Early Product Completion Assessment (`2026-05-18`)
+
+- Task: evaluate CoachLink's current early-stage product completion from the user's priority lenses.
+- User priority lenses:
+  - A strong training experience that makes users willing to record workouts during training.
+  - A stable coach-discovery, student acquisition, subscription, and payment flow.
+  - A genuinely useful toolbox.
+  - A valuable paid/free knowledge base.
+  - A clear complete path for both beginner users and advanced trainees.
+- Current assessment method:
+  - Read project state/memory/decisions first.
+  - Reviewed current Web/WeChat route structure and representative modules for training, coach discovery/subscription, toolbox, and knowledge.
+  - No browser/manual verification was run because the local developer preference is to skip automatic UI verification unless explicitly requested.
+- Status: product assessment prepared; implementation follow-up pending user prioritization.
+
+## Huifu Split Completion Pass (`2026-05-18`)
+
+- Task: complete the unfinished Huifu coach-subscription split work after the user confirmed initial manual verification was already done.
+- Status: code changes applied; user-side end-to-end verification remains pending.
+- Implemented:
+  - Added migration `supabase/migrations/20260518_huifu_refund_delayed_settlement.sql`:
+    - `alipay_orders.payment_provider`
+    - `coach_subscription_settlements.eligible_at`
+    - Huifu original-payment refund fields
+    - Huifu balance-payment refund/reversal fields
+    - settlement status now also supports `refunded`
+    - due/processing indexes for delayed settlement and reconciliation.
+  - Huifu client wrapper now includes original-payment refund/query, balance-payment query, balance-payment refund/query, and endpoint env overrides:
+    - `HUIFU_PAYMENT_REFUND_PATH`
+    - `HUIFU_PAYMENT_REFUND_QUERY_PATH`
+    - `HUIFU_BALANCE_PAYMENT_QUERY_PATH`
+    - `HUIFU_BALANCE_PAYMENT_REFUND_PATH`
+    - `HUIFU_BALANCE_PAYMENT_REFUND_QUERY_PATH`
+  - Coach subscription settlement now delays Huifu balance-payment disbursement until `eligible_at` (`paid_at/updated_at/created_at + COACH_SUBSCRIPTION_SETTLEMENT_DELAY_DAYS`, default 7 days). Development test payments with `order_data.is_test_payment` remain immediate outside production.
+  - Added admin/cron endpoints:
+    - `POST /api/admin/coach-subscription-settlements/process-due`
+    - `POST /api/admin/coach-subscription-settlements/reconcile`
+  - Admin retry endpoint now forces a real retry only after explicit confirmation.
+  - Refund route is provider-aware:
+    - Huifu orders use Huifu original-payment refund.
+    - If coach share was already transferred, it first attempts Huifu balance-payment refund/reversal.
+    - Pending delayed settlements do not deduct coach wallet because no coach wallet income exists yet.
+    - Processing settlements block refund until reconciliation completes.
+    - Direct Alipay orders still use `alipay.trade.refund`.
+  - Web coach-subscription Huifu-Alipay orders now normalize to `coach_subscription` / `coach_subscription_renew`, preventing legacy `subscription*` orders from bypassing the split ledger.
+  - Web Huifu-Alipay order query now uses Huifu order query instead of the direct Alipay SDK query path.
+  - Shared Huifu notify handling now preserves existing `huifu_alipay` provider instead of overwriting every Huifu callback as `wechat`.
+  - Shared fulfillment helper now refuses to credit coach wallets for Huifu-settled coach subscription orders unless Huifu split details exist.
+  - Huifu coach onboarding now treats `apply_no` without `token_no` as `business_pending` instead of failed.
+  - Huifu withdrawal now stores request/date/sequence/global流水/status metadata on wallet withdrawal transactions for later reconciliation.
+- Verification:
+  - `git diff --check` passed with only existing CRLF warnings.
+  - Per local developer preference, no Web/WeChat UI verification and no lint/typecheck/build/test sequence were run automatically.
+- Next verification focus:
+  - Apply the new migration.
+  - Run one paid coach subscription in non-test mode and confirm settlement row stays `pending` with future `eligible_at`.
+  - Trigger `process-due` only after reducing `COACH_SUBSCRIPTION_SETTLEMENT_DELAY_DAYS` in a safe test environment or using a test order.
+  - Test Huifu refund once before and once after settlement.
+
+## Post-Shutdown Memory Recovery (`2026-05-18`)
+
+- Task: check whether recent project notes/content were lost after the user's computer unexpectedly powered off, and restore what can be restored.
+- Status: recovery pass completed for confirmed corrupted/missing items.
+- Follow-up recovery pass in this thread:
+  - Found 8 additional tracked WeApp source files still overwritten with NULL bytes under `wechat_app/src`.
+  - Restored those tracked files from `HEAD`, then re-applied the recoverable recent changes for streetlifting share cards/QR env handling, profile quantified stats, training-history summary usage, and plan-history "training day" wording.
+  - Rechecked `src`, `wechat_app/src`, and `memory` code/markdown files for NULL bytes; no NULL-byte files remain in those scanned paths.
+  - `git diff --check` on the recovered files passed, with only existing CRLF warnings.
+  - Full lint/typecheck/build/test and WeChat DevTools verification were not run per local developer preference unless explicitly requested.
+- Finding:
+  - `memory/2026-05-17.md` had been overwritten entirely with NULL bytes (`24004` NULL bytes).
+  - `supabase/migrations/20260517_plan_instance_entitlement_policy.sql` was also NULL-byte corrupted.
+  - The WeApp profile top-stats code had reverted/lost the final quantified UI changes, and `src/app/api/training-history/summary/route.ts` was missing.
+  - `IDENTITY.md`, `SOUL.md`, `USER.md`, `PROJECT_STATE.md`, `CURRENT_TASK.md`, `DECISIONS.md`, `memory/2026-05-16.md`, and `memory/2026-05-18.md` were readable.
+  - Existing `corrupt-null-files/2026-05-18/` still contains two previously quarantined untracked NULL-byte files from the earlier proxy/build recovery.
+- Fix:
+  - Reconstructed `memory/2026-05-17.md` from `CURRENT_TASK.md`, `DECISIONS.md`, and known session facts.
+  - Re-applied WeApp profile quantified top stats: top metrics are `我的好友`, `我的动作库`, `我的计划库`, and `训练记录`; lower menu restores `全部计划`, `我的教练`, and `我的会员` without duplicating top entries.
+  - Recreated `src/app/api/training-history/summary/route.ts`.
+  - Restored `wechat_app/src/services/trainingHistoryService.ts` `getSummary()` contract and `wechat_app/src/services/studentPlanLibService.ts` `totalCount` typing.
+  - Recreated `supabase/migrations/20260517_plan_instance_entitlement_policy.sql` with explicit entitlement metadata columns/check constraint.
+  - Recreated missing `src/lib/subscriptionEntitlement.ts` and re-applied the subscription entitlement model into carryover, archive/replacement, active-plan activation, delayed activation, subscription check/list/expiry, execution access, projected end-date, and coach/student plan-history paths.
+  - Restored Web/WeApp plan-history wording so plan totals are shown as training days (`共 X 个训练日`) instead of natural calendar days.
+- Verification:
+  - Byte-level checks confirmed restored files no longer contain NULL bytes.
+  - Re-scanned source/markdown/SQL files under `src`, `wechat_app/src`, `memory`, and `supabase`; no NULL-byte code/markdown/SQL files remain. Binary assets may naturally contain zero bytes and were ignored.
+  - No full lint/typecheck/build/test was run per local preference unless explicitly requested.
+
+## Proxy Null-Byte Build Error (`2026-05-18`)
+
+- Task: fix Next.js Turbopack build error `Parsing ecmascript source code failed` in `src/proxy.ts` caused by `Unexpected character '\0'`.
+- Status: fixed locally.
+- Finding:
+  - `src/proxy.ts` and a batch of other `src/**/*.ts(x)` files had been overwritten with NULL bytes and Git treated the tracked ones as binary diffs.
+  - The dev overlay reported the first corrupted module it hit; after `src/proxy.ts`, the next one was `src/app/api/coach/list-students/route.ts`.
+  - The recoverable intended `src/proxy.ts` change from recent task history was only to make streetlifting share-card/QR/location-get endpoints public.
+- Fix:
+  - Restored `src/proxy.ts` from `HEAD`.
+  - Re-applied the three public paths:
+    - `/api/og/streetlifting-location`
+    - `/api/miniapp/qrcode/streetlifting-location`
+    - `/api/streetlifting-index/locations/get`
+  - Scanned `src` source files for NULL bytes.
+  - Restored all tracked `src` files that were fully NULL-byte corrupted back from `HEAD`.
+  - Moved untracked NULL-byte-only files out of the compile path into `corrupt-null-files/2026-05-18/`.
+- Verification:
+  - Confirmed the `src` source tree scan returns no NULL-byte files.
+  - Confirmed `src/proxy.ts` has `0` NULL bytes and Git diff is a normal text diff limited to the three public paths.
+  - Full lint/typecheck/build/test were not run per local developer preference unless explicitly requested.
+
+## Huifu Payment Split Digest (`2026-05-18`)
+
+- Task: digest the user's Huifu/客服 chat records and copied Huifu docs for coach subscription payment split, balance payment, onboarding, withdrawal, and 7-day refund handling.
+- Status: information digested and current code shape reviewed; no code changes requested yet.
+- Newly confirmed external facts:
+  - CoachLink merchant/customer Huifu ID in the chat is `6666000194449179`; mini-program AppID `wx316e39eb71c0e834` was configured by Huifu.
+  - Huifu explicitly described the project as `单商户模式`; coach subscription funds must first be collected through Huifu's payment channel, then funds received into the platform balance can be distributed through balance payment.
+  - Initial JSPay 922 issue was signature/key related. Huifu clarified `922 = 验签失败`; when generating keys, the "系统公钥" field should not be filled, otherwise Huifu cannot obtain the right merchant key material for verification.
+  - Split/balance-payment approval was submitted after payment demo video and bill screenshot. On `2026-04-22`, Huifu said `余额支付已审核通过`; after法人签约, they said it was effective and technical integration could start.
+  - Huifu also said `自动提现已关闭`, which supports the current manual/explicit withdrawal and balance-payment-disbursement model rather than automatic settlement to coaches.
+- Relevant Huifu docs/user-provided API facts:
+  - Coach/personal recipient onboarding uses personal user open `/v2/user/basicdata/indv`, then user business open `/v2/user/busi/open` with `card_info + cash_config`; the business-open response can return `token_no` for withdrawal.
+  - Balance payment `/v2/trade/acctpayment/pay` requires `out_huifu_id`, `ord_amt`, `risk_check_data`, and `acct_split_bunch`; the split amounts in `acct_split_bunch` must sum to `ord_amt`.
+  - If CoachLink uses balance payment only to disburse coach net share, then `ord_amt = coach share` and one coach receiver is valid; platform commission remains in the platform Huifu account and is recorded locally as platform revenue.
+  - Huifu docs also expose balance-payment refund/refund-query entries, so Huifu refund support should not be treated as nonexistent; it is just not implemented in CoachLink yet.
+  - Huifu split guide distinguishes real-time split, delayed split (`delay_acct_flag=Y` + later transaction confirm), and post-collection balance payment. Current CoachLink code is closer to post-collection balance payment, not true Huifu delayed split.
+- Product/implementation implication:
+  - Current wallet withdrawal freeze for 7 days is not equivalent to holding funds from the coach at Huifu level if the balance payment has already moved coach net share to the coach's Huifu account.
+  - For a stricter 7-day refund policy, the safer model is: collect into platform cash account, fulfill subscription, create settlement row with `eligible_at = paid_at + 7 days`, do not call balance payment until the refund window passes, then balance-pay the coach net share if no refund occurred.
+  - Alternative true delayed split would require Huifu collection calls with `delay_acct_flag=Y` and later transaction-confirm API; this is a different integration path from the current balance-payment code.
+- Current code review summary:
+  - Implemented: Huifu signing/request wrapper, mini-program JSPay order creation, Huifu notify/query handling, subscription fulfillment, immediate balance-payment disbursement to coach net share, settlement idempotency ledger, local coach wallet/platform revenue credit, coach Huifu personal/business onboarding, Huifu encashment withdrawal, 7-day local wallet withdrawal lock, and an admin retry endpoint for failed split rows.
+  - Main gaps: Huifu refund and balance-payment refund are not implemented; 7-day protection is only a wallet freeze, not delayed remote settlement; no balance-payment/withdrawal reconciliation job for `P` or uncertain states; Web coach-subscription path still uses legacy `subscription*` order types and can bypass the Huifu split ledger; coach onboarding treats `apply_no`/审核中 as failure instead of pending; admin retry/query paths can initiate real money movement and need careful operator controls.
+- Recommended sequence:
+  - First do no-funds verification: config/schema checks and read-only data audit.
+  - Before broad live testing, add/confirm guards so Huifu-paid orders cannot use the Alipay refund endpoint and Web coach-subscription payments cannot credit wallets without Huifu split success.
+  - Then run one controlled mini-program 1-yuan coach-subscription/renewal payment against an opened coach account to verify the current main chain.
+  - Continue development after that around Huifu refund, 7-day delayed disbursement or explicit wallet-freeze policy, and reconciliation jobs.
+
+## Coach Subscription Entitlement Model (`2026-05-17`)
+
+- Task: finish the first durable implementation pass for coach subscription entitlement after investigating user `18115072586` / Liu Sanle plan history confusion.
+- Status: code model implemented; user-side/manual verification pending per local preference.
+- Implemented:
+  - Added migration `supabase/migrations/20260517_plan_instance_entitlement_policy.sql` for explicit plan-instance entitlement metadata:
+    - `archive_reason`
+    - `entitlement_consumption_policy`
+    - `entitlement_consumption_note`
+  - Added `src/lib/subscriptionEntitlement.ts` as the shared policy helper.
+  - Updated `src/lib/subscriptionCarryover.ts` so carryover only counts plan instances whose entitlement policy permits counting, and pre-subscription imported completions count only when the policy is explicitly `count_all_history`.
+  - Updated subscription end-date/check/list flows to select the new entitlement policy while deriving remaining service weeks.
+  - Updated manual archive, active-plan replacement, manual plan creation, immediate AI plan creation, and delayed AI activation paths so old plans are archived with explicit counted/no-charge policy.
+  - Updated student/coach plan-history APIs to return `total_training_days`, `plan_span_days`, archive metadata, completion stats, and derived end dates for archived/completed plans with missing `end_date`.
+  - Updated student plan-history Web/WeApp display copy so `共 34 天` becomes `共 34 个训练日`, avoiding confusion with natural calendar days or full plan span.
+- Verification:
+  - `git diff --check` on the touched subscription/history files passed, with only existing Windows CRLF warnings.
+  - Full lint/typecheck/build/test and UI verification were intentionally not run per local preference.
+
+## WeApp Profile Quantified Top Stats (`2026-05-17`)
+
+- Task: optimize the WeChat mini-program personal/profile page top shortcut area so it shows quantitative indicators instead of non-quantified shortcuts.
+- Status: code changes applied; user-side mini-program visual verification pending per local preference.
+- Implemented:
+  - `wechat_app/src/me/profile/index.tsx`
+    - Replaced the old top row (`全部计划`, `我的教练`, `我的会员`, `训练记录`) with quantified entries: `我的好友`, `我的动作库`, `我的计划库`, and `训练记录`.
+    - Loads counts from existing data surfaces: friends total, student action-library total, student plan-library total, and training-history action total.
+    - Keeps each stat clickable and routes to its corresponding page.
+    - Follow-up correction after user feedback: top quantified entries should not duplicate lower menu entries and should not remove the old non-quantified options. The lower menu now restores `全部计划`, `我的教练`, and `我的会员`, while removing duplicate `我的好友`, `我的动作库`, and `我的计划库` entries from the list.
+  - `wechat_app/src/me/profile/index.scss`
+    - Added numeric value and unit styling for the top stats row.
+  - `wechat_app/src/services/trainingHistoryService.ts`
+    - Added `getSummary()` for profile-level training-history summary usage.
+  - `src/app/api/training-history/summary/route.ts`
+    - Added a lightweight authenticated summary endpoint that counts completed training sessions, completed sets, and action entries across plan and impromptu training records.
+- Verification:
+  - Full lint/typecheck/build/test and WeChat DevTools verification intentionally not run per local developer preference unless explicitly requested.
+
+## WeApp Streetlifting Location Share Trial Issue (`2026-05-17`)
+
+- Task: diagnose why the WeChat mini-program trial/experience version streetlifting location share link card has no image and location poster has no CoachLink mini-program code, while local testing looked fine.
+- Status: code-level fix applied; user-side trial-version verification pending.
+- Findings:
+  - Link sharing was passing the raw location photo URL directly as `onShareAppMessage.imageUrl`. In local DevTools this can work because domain checks are often relaxed, but the uploaded trial version is stricter and WeChat may fail to fetch/accept the original Supabase image URL, resulting in a gray mini-program card.
+  - The poster QR code endpoint defaulted to `release` in production backend deployments. For an uploaded experience/trial build, the mini-program code should target `env_version=trial`; otherwise code generation can fail or point at the wrong mini-program environment.
+  - The share/recipient support endpoints also needed to be public. WeChat servers fetch `imageUrl` without CoachLink login cookies or JWT, and a recipient may not be logged in when opening a shared location.
+- Implemented:
+  - `wechat_app/src/utils/share.ts`
+    - Added `getMiniappEnvVersion()` to detect `develop` / `trial` / `release` at runtime.
+    - Added `buildStreetliftingLocationShareImageUrl()` to generate a CoachLink-hosted share card image URL.
+  - `wechat_app/src/streetlifting/index/locations/index.tsx`
+    - Location link share now uses the CoachLink OG share-card endpoint instead of the raw uploaded photo URL.
+    - Poster QR code requests now pass the runtime mini-program env version.
+  - `wechat_app/src/streetlifting/index/location-share/index.tsx`
+    - Re-shares from the single-location landing page use the same CoachLink share-card image endpoint.
+  - `src/app/api/miniapp/qrcode/streetlifting-location/route.ts`
+    - Accepts a validated `envVersion` query param so trial builds can generate `trial` mini-program codes.
+  - `src/app/api/og/streetlifting-location/route.tsx`
+    - Can load location data by id server-side and render a share-card image even if the mini-program only sends `id`.
+  - `src/proxy.ts`
+    - Makes `/api/og/streetlifting-location`, `/api/miniapp/qrcode/streetlifting-location`, and `/api/streetlifting-index/locations/get` public so WeChat can fetch the share-card image, posters can load mini-program codes without relying on login, and recipients can open shared location details.
+- Verification:
+  - Full build / mini-program DevTools verification intentionally not run per local developer preference unless explicitly requested.
+
+## Coach Student Tang Renewal Audit (`2026-05-17`)
+
+- Task: answer whether Liu Sanle's student `唐` (`coach_subscriptions.id=8b03677a-8ecb-4cac-84b1-01620a20ab27`, screenshot short id `8B03677A`) has `24` subscribed weeks from a normal package or from renewal, and whether the renewal was platform-paid or offline/private-transfer proof.
+- Status: data audit completed; no code changes requested.
+- Findings:
+  - Current active subscription: student nickname `唐`, coach `刘三乐`, product `引体力量提升`, `subscribed_weeks=24`, `payment_method=personal_qrcode`, `payment_confirmed_by=coach`, `order_id=null`, `last_payment_order_id=null`.
+  - Existing weeks before the latest order were effectively `12` weeks: `payment_data.manual_repair` on `2026-03-22` records `new_subscribed_weeks=12` after correcting `previous_subscribed_weeks=10`.
+  - Latest renewal order: `coach_subscription_orders.id=d38c4ab2-1ef4-433b-9225-a6e7946d76ad`, `order_type=renew`, `status=paid`, `purchased_weeks=12`, `amount_fen=19900`, `payment_method=personal_qrcode`, `payment_confirmed_by=coach`, confirmed at `2026-05-10T08:05:45+00:00`.
+  - The latest order note contains a receipt URL under Supabase storage and says `付款凭证: ...jpg`, so the evidence is a screenshot uploaded into the system for offline/private QR-code payment confirmation.
+  - There is no `alipay_order_id`, no subscription settlement row, and no platform payment order id on the subscription, so this was not a platform split-payment/order-payment renewal.
+
+## Local Agent Rules Override (`2026-05-17`)
+
+- Task: make the AGENTS.md automatic verification/check instructions temporarily inactive for developer `little horse brother` without turning the preference into a shared team rule.
+- Status: implemented locally.
+- Change:
+  - `AGENTS.md` now has a local developer override saying automatic Web / WeChat mini-program verification and post-change lint/typecheck/build/test runs should be skipped unless explicitly requested.
+  - The original `Frontend Verification` section is wrapped in a Markdown comment locally.
+  - The post-change command examples in `修改后检查流程` are locally commented as shell comments.
+  - `USER.md` records the developer alias and local preference.
+- Safety:
+  - `AGENTS.md` and `USER.md` should be treated as local-only changes for this developer and not committed as shared team rules.
+
+## Web Search Submission Behavior (`2026-05-17`)
+
+- Task: stop Web list searches from firing on every typed character/pinyin composition; searches should submit only on Enter, explicit search button, or clear.
+- User clarification: no agent-side UI verification is needed for this task; the user will verify manually.
+- Status: code changes applied; user-side verification pending.
+- Implemented:
+  - `src/app/dashboard/students/page.tsx`
+    - Replaced debounced student search with separate input state and submitted search state.
+    - Student list API now uses only the submitted search value.
+    - Added Enter-to-search, explicit search button, and clear behavior.
+  - `src/app/search/page.tsx`
+    - Replaced debounced coach search with submitted search state.
+    - Coach search now updates on Enter/search button/clear; filter dropdowns still refresh immediately.
+  - `src/app/streetlifting-index/locations/page.tsx`
+    - Replaced location search's input-driven remote reload with submitted search state.
+    - City filters still refresh immediately; text query submits by Enter/search button/clear.
+- Similarity check:
+  - Reviewed action library, plan library, content management, chat search/video picker, and local video/content filters.
+  - Action/plan/content search already used Enter/search button or local filtering; chat/video picker intentionally behaves like live picker search and was left unchanged.
+- Verification:
+  - Before the user's clarification, code-level checks were run: `npm run lint`, `npm run typecheck`, `npx next build`, `npm test` all passed.
+  - Browser/manual verification is intentionally left to the user per latest instruction.
+
+## WeApp Today Training Load Performance (`2026-05-17`)
+
+- Task: improve student-side WeChat mini-program `today-training` -> `training-execution` perceived loading speed and reduce incorrect renewal-blocking copy for coach user `18115072586` / `枭马葛` related flow.
+- User instruction: do not run further tests or manual/UI verification for this task; the user will test manually.
+- Status: paused for subscription-domain model review before further code changes.
+- Current design direction:
+  - User clarified that coach subscriptions should not be modeled as natural calendar days and also should not collapse into a fixed session-count coupon.
+  - `subscribed_weeks` should represent purchased coaching/programming service weeks.
+  - Weekly frequency may change multiple times during one subscription; frequency determines how many scheduled training sessions exist inside a service week, while user delay/pause affects projected calendar remaining days.
+  - Consumed entitlement should be calculated at the subscription level across real served plan phases/instances under the same `coach_subscription_id`, not merely from the currently active plan instance.
+  - Before coding further, produce a clear model and implementation plan for subscription entitlement, plan replacement/archive semantics, frequency changes, delay/pause, and frontend renewal display.
+- Subscription model implementation started:
+  - `src/lib/subscriptionCarryover.ts` now treats carryover as subscription-level consumed service weeks across historical instances instead of a single max historical day index.
+  - Historical `archived` instances can consume entitlement when they have completed executions, but completed executions before the subscription `start_date` are ignored for this subscription's entitlement.
+  - For imported/mid-plan history, completed plan weeks are normalized by the first counted completed week in that instance, so plan day 50 after subscription start counts as the first served week in that subscription phase rather than instantly consuming seven prior weeks.
+  - `coach-subscriptions`, `check-subscription`, `check-expired-subscriptions`, `get-instance`, `get-with-executions`, `execution` access checks, `updateEstimatedEndDate`, `create-instance`, `create-ai-instance`, `update-subscription`, and coach `list-students` now pass subscription start date into carryover where relevant.
+  - Subscription list/expiry jobs now include archived historical instances for consumption but choose the latest non-archived instance as the current cadence source.
+  - If historical carryover already exhausts the purchased service weeks, downstream display/expiry logic treats the subscription as ended instead of leaving a stale future `end_date`.
+- Latest investigation for user `18115072586`:
+  - The user has an active subscription to coach `刘三乐` (`coach_subscriptions.id=44ecb017-34bf-49ad-a46d-faf01e5ceac3`).
+  - The active Liu Sanle coach plan also exists (`coach_plan_instances.id=5613f3d3-f9e3-4f6e-a243-aa277597ee63`, name `枭马葛的计划`, status `active`).
+  - Root cause: `src/lib/subscriptionCarryover.ts` counted an old `archived` coach plan instance for the same subscription when calculating carryover/remaining subscription weeks. That archived plan had many completed days, so `api/plan-lib/get-instance` incorrectly treated the active subscription as exhausted and did not return the current coach plan. The today-training page then fell back to the user's self plan.
+  - Fix applied: carryover calculations now use the same relevant plan statuses as the coach subscription remaining-days logic (`active`, `paused`, `completed`, `scheduled`) and exclude `archived` instances.
+- Implemented:
+  - `wechat_app/src/training/today-training/index.tsx`
+    - Reconnected existing `today_training_page_cache_v1` read/write path so the today-training page can render cached plan/subscription/execution summary immediately, then refresh cloud data in the background.
+    - Removed the duplicate first-load trigger that caused both `useEffect` and `useDidShow` to load the same data on initial entry.
+    - Limited the hard renewal-blocking empty state to cases where the selected coach subscription is in grace/expired state and no coach plan is available; if a plan is present, the page should continue showing the training plan with only the inline grace warning.
+    - Fixed a likely multi-subscription selection bug: after refresh, the page no longer keeps a previously selected coach subscription if that subscription has no executable plan while another subscription does. It now prioritizes subscriptions that actually returned a coach plan, then subscriptions whose `end_date` still has remaining days.
+    - Added a front-end conflict guard: if `end_date` still resolves to positive remaining days, the page does not treat `lifecycle_status=expired_grace` as a renewal-blocking state.
+  - `src/lib/subscriptionCarryover.ts`
+    - Filters carryover history to non-archived subscription plan instances before deriving consumed/remaining weeks.
+    - Selects and checks plan instance `status`, aligning the backend `get-instance` access gate with `/api/subscription/coach-subscriptions`.
+  - `wechat_app/src/training/training-execution/index.tsx`
+    - Reconnected existing `training_execution_snapshots_v1` read path so execution pages can render the last local snapshot immediately before cloud refresh completes.
+    - Centralized first-pending-set focusing so cached and cloud-loaded executions behave consistently.
+    - Added an explicit initial `useEffect` load trigger in addition to `useDidShow`, with a short duplicate-call guard, so the page cannot remain on the initial `loading=true` state if page lifecycle firing is missed.
+    - Added 12-second timeout guards and debug logs around the execution load chain (`getInstance`, `checkToday`, `getExecution`, `startExecution`, and impromptu `get`) so a stuck request exits loading and shows a retryable failure instead of spinning forever.
+    - Follow-up root cause after user provided Next terminal logs: backend calls were returning 200, so the remaining black `加载中...` state was caused by the mini-program execution page throwing during main render after `loading=false`. The rollback source still referenced `getActionTypeMeta`, `formatRestSummary`, and `formatTimerValue` but those helpers had been removed. Restored those helpers in the WeApp page.
+- Verification:
+  - `wechat_app/npm run build:weapp`: passed.
+  - Root `npm run typecheck`: passed.
+  - Direct `wechat_app/npx tsc --noEmit --project tsconfig.json` was attempted and failed on broad pre-existing WeApp type noise (duplicate React types, many unused imports/config typing issues across unrelated pages); the targeted Taro WeApp build still passed.
+  - WeChat DevTools UI verification was not run in this environment.
+
+## WeApp Student Training UI Rollback (`2026-05-16`)
+
+- Task: roll back the student-side WeChat mini-program `today-training` and `training-execution` UI toward the earlier, more efficient version because the newer card/one-set-at-a-time flow was too slow and confusing.
+- Status: implemented and code-level verified.
+- Latest clarification:
+  - User showed the current `today-training` screenshot and clarified that the top home-like content should not exist there: stretch promotion, greeting/date header, plan summary hero, duplicate "enter today's training" CTA, impromptu hero CTA, and `AI 长期计划 / 浏览教练` secondary cards should be removed to move closer to the early-April training page.
+- Implemented:
+  - `wechat_app/src/training/today-training/index.tsx`
+    - Restored the full older `today-training` page implementation instead of the thin `TodayTrainingScreen` re-export introduced by the later UI refactor.
+    - Removed the later home-style header/promo/hero/secondary-card blocks so the page starts from training-specific plan switching, plan identity, calendar, and today's arrangement.
+  - `wechat_app/src/training/today-training/index.scss`
+    - Restored the matching older page styles.
+    - Removed the now-unused dashboard header styles.
+  - `wechat_app/src/training/training-execution/index.tsx`
+    - Restored the older execution UI where actions expand into visible set lists, allowing faster multi-set scanning and entry instead of the later flash-card/current-set-only surface.
+    - Reconnected `syncTrainingExecutionToStorage` so successful execution writes still update the execution snapshot and today's-training page cache.
+    - Fixed a loading deadlock: when `userId` or required route params are missing, the restored page now clears `loading` and shows the error/retry state instead of returning early forever on "加载中...".
+  - `wechat_app/src/training/training-execution/index.scss`
+    - Restored the matching list-style execution page styles.
+  - `wechat_app/src/components/BottomNav.tsx`
+    - Student `训练` tab now points back to `/training/today-training` instead of `/pages/index/index`.
+- Verification:
+  - `npm run lint`: passed (informational lint script only).
+  - Root `npm run typecheck`: passed.
+  - Root `npx next build`: passed; emitted Redis connection timeout logs during build, but exited successfully.
+  - Root `npm test`: passed, 24 files / 134 tests.
+  - `wechat_app/npm run build:weapp`: passed.
+- UI verification blocker:
+  - WeChat DevTools automation could not run in this environment because `mrc` is not installed/available and no automation connection was present on port `9420`.
+- Worktree note:
+  - The workspace already contains many unrelated modified WeApp files. This task intentionally changed only the five files listed above.
+
 ## WeApp Streetlifting Location Share Deep Link (`2026-05-08`)
 
 - Task: improve the WeChat mini-program toolbox `单杠位置` share flow so it drives recipients back into CoachLink instead of only copying plain text.
@@ -3044,3 +3531,32 @@
 - `coachlinkLlm`：默认 `google/gemini-3.1-flash-lite-preview`；开发环境打印 `OFOXAI_MODEL` 与 effective 模型；`COACHLINK_USE_DEEPSEEK=1` 强制 DeepSeek。
 - `parse-actions` / `parse-template`：`maxTokens` 65536 → 16384，减轻 Gemini reasoning 烧 token。
 - 若终端仍显示旧模型：检查 `.env.local` 是否仍写 `OFOXAI_MODEL=...gemini-3-flash-preview`（会覆盖代码默认）。
+---
+
+## Payment Split / Settlement Audit (`2026-05-17`)
+
+- Task: review the coach subscription payment split system, including platform escrow-style payment, coach/platform split, coach onboarding, and 7-day refund protection.
+- Status: code/database audit completed; no code changes made.
+- Current implementation shape:
+  - New intended path is Huifu-backed platform payment:
+    - Mini-program coach subscription payment creates Huifu JSPay order via `/api/payment/wechat/coach/create`.
+    - Paid notify/query then fulfills the subscription and calls Huifu balance payment split from platform cash account to coach.
+    - Local wallet is credited only after `coach_subscription_settlements` reaches split success.
+  - Coach onboarding exists via `/api/coach/merchant/open-huifu-account`, storing `huifu_id`, `huifu_open_status`, and `huifu_card_token`.
+  - Coach withdrawal exists via `/api/coach/wallet/huifu/withdraw`.
+  - 7-day refund protection exists only as wallet withdrawal lock in `src/lib/coachWalletLock.ts`, not as delayed third-party settlement.
+- Key findings:
+  - Database sample showed only 1 `coach_subscription_settlements` row, status `wallet_credited`, amount 100 fen split as 80/20, attempts 3. This suggests one sample path ran through, not a broadly proven production path.
+  - Database sample showed 35 paid subscription-like `alipay_orders`, but only 2 use new `coach_subscription*` order types; 33 still use legacy `subscription*` types.
+  - Only 1 coach currently appears Huifu-opened with card token; 16 are still `pending`.
+  - Web coach subscription payment creation still emits legacy order types `subscription/subscription_renew`, while the Huifu split execution path mainly gates on `coach_subscription/coach_subscription_renew`. This creates a high-risk mismatch where Web paid orders may fulfill subscription but not trigger Huifu split.
+  - `executeBalancePayment` currently transfers only coach net amount as `transAmtYuan` and only one receiver, despite comments/docs describing 80/20 transfer. Platform fee is locally recorded, but the actual Huifu balance-payment call does not appear to move the 20% to a platform receiver.
+  - Huifu refund API is not implemented. Current refund endpoint still calls Alipay `alipay.trade.refund`, so it is not correct for Huifu/WeChat mini-program subscription orders.
+  - There is no automated 7-day delayed split job; payment success attempts split immediately, then wallet withdrawal is frozen for 7 days. This is not the same as "funds stay unsettled for 7 days then split".
+  - Settlement `processing` rows are treated as already claimed; there is manual retry for failed rows, but no clear async callback/query reconciliation for uncertain Huifu balance-payment results.
+- Suggested next implementation priorities:
+  1. Unify coach subscription order type semantics across Web and mini-program, or make split detection provider/metadata based so all platform-paid coach subscriptions enter settlement.
+  2. Fix/confirm Huifu balance-payment amount semantics: either transfer only coach share deliberately and document it, or include platform 20% receiver if actual remote split is required.
+  3. Add Huifu refund support and refund ledger reversal before exposing refund as reliable for Huifu-paid orders.
+  4. Decide product policy for 7-day refund: wallet withdrawal lock only vs true delayed split; implement scheduled settlement if true delayed split is required.
+  5. Add settlement reconciliation job/admin dashboard for `pending/processing/split_failed` rows and broaden integration tests around notify/query idempotency.

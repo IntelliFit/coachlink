@@ -1,0 +1,39 @@
+@use '../about/index.scss' as *;
+.contact-info {
+  margin: 24rpx 0;
+  padding: 24rpx;
+  background: #f9f9f9;
+  border-radius: 8rpx;
+}
+.contact-label {
+  font-size: 26rpx;
+  color: #999;
+  display: block;
+  margin-top: 16rpx;
+  &:first-child { margin-top: 0; }
+}
+.contact-value {
+  font-size: 30rpx;
+  color: #333;
+  display: block;
+  margin-bottom: 8rpx;
+}
+.contact-hint {
+  font-size: 24rpx;
+  color: #999;
+  display: block;
+  margin-top: 0rpx;
+}
+.contact-actions {
+  margin-top: 32rpx;
+}
+.action-btn {
+  padding: 24rpx 32rpx;
+  border-radius: 8rpx;
+  text-align: center;
+  font-size: 30rpx;
+  &.primary {
+    background: #1890ff;
+    color: #fff;
+  }
+}

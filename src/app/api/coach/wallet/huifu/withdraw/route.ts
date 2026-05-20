@@ -79,11 +79,13 @@ export async function POST(req: Request) {
 
     const now = new Date().toISOString();
     let encashResult;
+    const huifuReqDate = formatHuifuReqDate();
+    const huifuReqSeqId = generateReqSeqId();
 
     try {
         encashResult = await encashmentForCoach({
-            reqDate: formatHuifuReqDate(),
-            reqSeqId: generateReqSeqId(),
+            reqDate: huifuReqDate,
+            reqSeqId: huifuReqSeqId,
             cashAmtYuan: formatYuan(amountYuan),
             huifuId: coach.huifu_id,
             tokenNo: coach.huifu_card_token,
@@ -118,6 +120,11 @@ export async function POST(req: Request) {
             amount: -amountFen,
             type: "withdrawal",
             description: `提现 ${formatYuanFromFen(amountFen)}（汇付到银行卡）`,
+            huifu_req_date: huifuReqDate,
+            huifu_req_seq_id: huifuReqSeqId,
+            huifu_hf_seq_id: encashResult.hf_seq_id || null,
+            huifu_trans_stat: encashResult.trans_stat || null,
+            huifu_error_message: encashResult.resp_desc || null,
             created_at: now,
         });
     } catch (error: any) {

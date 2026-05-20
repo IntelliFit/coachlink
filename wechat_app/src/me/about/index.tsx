@@ -7,7 +7,7 @@ import './index.scss'
  */
 export default function About() {
   const goContact = () => {
-    Taro.navigateTo({ url: '/me/contact/index' })
+    Taro.navigateTo({ url: '/me-legal/contact/index' })
   }
 
   return (

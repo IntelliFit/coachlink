@@ -17,7 +17,7 @@ const TOOLBOX_LINKS = [
   {
     key: 'strength-calculator',
     label: '力量计算器',
-    description: '小程序内完整实现，与网页端逻辑一致。',
+    description: '可计算极限重量、做组重量和训练系数等。',
     image: '/assets/images/toolbox-calculator.jpg',
     url: '/streetlifting/index/calculator'
   },

@@ -3,13 +3,8 @@ import { serviceRoleSupabase as supabase } from "@/lib/supabaseClient";
 import type { ArchiveInstanceDto, ArchiveInstanceResponseDto } from "./entity";
 import type { ApiData } from "@/types/api";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
+import { buildArchiveEntitlementPatch } from "@/lib/subscriptionEntitlement";
 
-/**
- * 归档计划实例
- *
- * 将指定计划的 status 设为 'archived'
- * 权限：学员本人或教练
- */
 export async function POST(req: Request) {
     const session = await getServerSession();
     const userId = session?.user?.id || null;
@@ -21,7 +16,12 @@ export async function POST(req: Request) {
         }, { status: 401 });
     }
 
-    const { instanceId } = await req.json() as ArchiveInstanceDto;
+    const {
+        instanceId,
+        archiveReason,
+        entitlementPolicy,
+        entitlementNote,
+    } = await req.json() as ArchiveInstanceDto;
 
     if (!instanceId) {
         return NextResponse.json({
@@ -30,7 +30,6 @@ export async function POST(req: Request) {
         }, { status: 400 });
     }
 
-    // 获取计划实例
     const { data: instance, error: fetchError } = await supabase
         .from("coach_plan_instances")
         .select("id, student_id, coach_id, status")
@@ -44,7 +43,6 @@ export async function POST(req: Request) {
         }, { status: 404 });
     }
 
-    // 权限检查：学员本人或教练
     let hasPermission = false;
 
     if (instance.student_id === userId) {
@@ -68,11 +66,22 @@ export async function POST(req: Request) {
         }, { status: 403 });
     }
 
-    // 更新状态
+    const { count: completedExecutionCount } = await supabase
+        .from("plan_instance_executions")
+        .select("id", { count: "exact", head: true })
+        .eq("instance_id", instanceId)
+        .eq("status", "completed");
+
     const { data: updated, error: updateError } = await supabase
         .from("coach_plan_instances")
         .update({
             status: "archived",
+            ...buildArchiveEntitlementPatch({
+                hasCompletedExecution: Number(completedExecutionCount || 0) > 0,
+                archiveReason,
+                entitlementPolicy,
+                entitlementNote,
+            }),
             updated_at: new Date().toISOString(),
         })
         .eq("id", instanceId)

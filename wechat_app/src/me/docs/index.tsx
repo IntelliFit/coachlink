@@ -8,9 +8,9 @@ import './index.scss'
  * 无 slug 时展示文档入口列表。
  */
 const DOC_ENTRIES = [
-  { title: '免责声明', slug: 'disclaimer', path: '/me/disclaimer/index' },
-  { title: '关于我们', slug: 'about', path: '/me/about/index' },
-  { title: '联系我们', slug: 'contact', path: '/me/contact/index' }
+  { title: '免责声明', slug: 'disclaimer', path: '/me-legal/disclaimer/index' },
+  { title: '关于我们', slug: 'about', path: '/me-legal/about/index' },
+  { title: '联系我们', slug: 'contact', path: '/me-legal/contact/index' }
 ]
 
 export default function Docs() {

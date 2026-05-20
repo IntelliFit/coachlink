@@ -1,12 +1,8 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { serviceRoleSupabase } from "@/lib/supabaseClient";
 import { parseHuifuNotifyContent } from "@/lib/huifuMiniProgramPay";
-import {
-    fulfillSubscriptionOnPaid,
-    updateTransactionAndWallet,
-    executeBalancePayment,
-    markSettlementWalletCredited,
-} from "@/app/api/payment/alipay/fulfillPaidOrder";
+import { fulfillSubscriptionAndMaybeCreditWallet } from "@/app/api/payment/alipay/fulfillPaidOrder";
+import { fulfillContentPurchasePaid } from "@/app/api/payment/alipay/contentPurchaseFulfillment";
 import { fulfillStudentMembershipOrderOnPaid } from "@/app/api/payment/studentMembershipFulfillment";
 
 export const runtime = "nodejs";
@@ -15,6 +11,15 @@ function mapNotifyStatus(transStat: string | undefined) {
     if (transStat === "S") return "paid";
     if (transStat === "F") return "failed";
     return "pending";
+}
+
+function isSubscriptionOrder(orderType: unknown) {
+    return (
+        orderType === "subscription" ||
+        orderType === "subscription_renew" ||
+        orderType === "coach_subscription" ||
+        orderType === "coach_subscription_renew"
+    );
 }
 
 export async function POST(request: NextRequest) {
@@ -41,12 +46,20 @@ export async function POST(request: NextRequest) {
 
         const notifyData = parseHuifuNotifyContent(content, sign) as Record<string, any>;
         const reqSeqId = String(notifyData.req_seq_id || "").trim();
-
         if (!reqSeqId) {
             return new Response("", { status: 400 });
         }
 
         const nextStatus = mapNotifyStatus(String(notifyData.trans_stat || ""));
+        const { data: existingOrder } = await (serviceRoleSupabase
+            .from("alipay_orders") as any)
+            .select("payment_provider")
+            .eq("id", reqSeqId)
+            .maybeSingle();
+        const notifyTradeType = String(notifyData.trade_type || notifyData.trans_type || "").trim();
+        const defaultProvider = notifyTradeType.startsWith("A_") ? "huifu_alipay" : "wechat";
+        const paymentProvider = String(existingOrder?.payment_provider || defaultProvider);
+
         const { data: updatedOrder, error: updateError } = await (serviceRoleSupabase
             .from("alipay_orders") as any)
             .update({
@@ -57,7 +70,7 @@ export async function POST(request: NextRequest) {
                     notifyData.out_trans_id ||
                     notifyData.party_order_id ||
                     null,
-                payment_provider: "wechat",
+                payment_provider: paymentProvider,
                 updated_at: new Date().toISOString(),
             })
             .eq("id", reqSeqId)
@@ -69,36 +82,12 @@ export async function POST(request: NextRequest) {
             return new Response("", { status: 500 });
         }
 
-        const isSubscriptionOrder =
-            updatedOrder.order_type === "subscription" ||
-            updatedOrder.order_type === "subscription_renew" ||
-            updatedOrder.order_type === "coach_subscription" ||
-            updatedOrder.order_type === "coach_subscription_renew";
-
-        if (nextStatus === "paid" && isSubscriptionOrder) {
-            await fulfillSubscriptionOnPaid(
+        if (nextStatus === "paid" && isSubscriptionOrder(updatedOrder.order_type)) {
+            await fulfillSubscriptionAndMaybeCreditWallet(
                 updatedOrder,
-                updatedOrder.id,
                 String(updatedOrder.user_id || ""),
-                "wechat",
+                paymentProvider === "wechat" ? "wechat" : "alipay",
             );
-
-            // 余额分账：从平台现金户转 80% 给教练，20% 留平台
-            const isCoachSub =
-                updatedOrder.order_type === "coach_subscription" ||
-                updatedOrder.order_type === "coach_subscription_renew";
-
-            if (isCoachSub) {
-                const splitResult = await executeBalancePayment(updatedOrder);
-                if (splitResult.shouldCreditWallet) {
-                    const walletUpdated = await updateTransactionAndWallet(updatedOrder, splitResult.splitInfo);
-                    if (walletUpdated) {
-                        await markSettlementWalletCredited(updatedOrder.id);
-                    }
-                }
-            } else {
-                await updateTransactionAndWallet(updatedOrder);
-            }
         }
 
         if (nextStatus === "paid" && updatedOrder.order_type === "student_membership") {
@@ -108,6 +97,18 @@ export async function POST(request: NextRequest) {
                 productKey: String(orderData.product_key || ""),
                 userId: String(updatedOrder.user_id || ""),
             });
+        }
+
+        if (nextStatus === "paid" && updatedOrder.order_type === "content_purchase") {
+            const orderData = (updatedOrder.order_data || {}) as Record<string, any>;
+            const contentId = String(orderData.contentId || orderData.content_id || "");
+            if (contentId) {
+                await fulfillContentPurchasePaid({
+                    orderId: String(updatedOrder.id),
+                    userId: String(updatedOrder.user_id || ""),
+                    contentId,
+                });
+            }
         }
 
         return new Response(`RECV_ORD_ID_${reqSeqId}`, {

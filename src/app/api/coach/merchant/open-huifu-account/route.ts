@@ -220,6 +220,28 @@ export async function POST(request: NextRequest) {
                 certEndDate: clean.certEndDate || undefined,
                 mobileNo: clean.mobileNo,
             });
+            if (bizResult.pending || !bizResult.tokenNo) {
+                const pendingUpdateError = await updateCoachHuifuState(coach.id, {
+                    huifu_open_status: "business_pending",
+                    huifu_open_msg: "汇付用户业务入驻审核中，审核通过并返回取现卡序列号后才能收款分账",
+                    huifu_card_token: null,
+                    huifu_apply_no: bizResult.applyNo ?? null,
+                    huifu_business_status: "pending",
+                    huifu_resp_business: bizResult.respBusiness ?? null,
+                });
+                if (pendingUpdateError) {
+                    console.error("[OpenHuifuAccount] pending db update failed:", pendingUpdateError);
+                    return NextResponse.json<ApiData<null>>(
+                        { success: false, message: "开户审核状态保存失败", data: null },
+                        { status: 500 },
+                    );
+                }
+                return NextResponse.json<ApiData<{ huifu_id: string; apply_no?: string }>>({
+                    success: true,
+                    message: "收款账户已提交汇付审核，审核通过后才能用于分账和提现",
+                    data: { huifu_id: huifuId, apply_no: bizResult.applyNo },
+                });
+            }
             cardToken = bizResult.tokenNo;
             applyNo = bizResult.applyNo;
             respBusiness = bizResult.respBusiness;
