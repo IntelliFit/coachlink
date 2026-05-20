@@ -171,49 +171,38 @@ export async function POST(req: Request) {
         0,
     );
 
-    // 单篇文章购买收入（按当月已支付订单汇总到“本月收入”）
+    // Coach-owned paid content now follows delayed Huifu settlement. Count it as
+    // coach revenue only after local wallet credit exists, not merely after the
+    // buyer's source payment succeeds.
     let contentPurchaseRevenueFen = 0;
     try {
-        // 1) 取该教练的内容 id
-        const { data: contents } = await serviceRoleSupabase
-            .from("coach_contents")
-            .select("id")
-            .eq("coach_id", coachId)
+        const { data: txs } = await serviceRoleSupabase
+            .from("wallet_transactions")
+            .select("amount,created_at,type,alipay_order_id")
+            .eq("wallet_id", coachId)
+            .eq("type", "income")
+            .gte("created_at", monthStart.toISOString())
+            .lt("created_at", nextMonthStart.toISOString())
             .limit(5000);
 
-        const contentIds = (contents || []).map((c: any) => c.id).filter(Boolean);
-        if (contentIds.length > 0) {
-            // 2) 取当月已支付的购买记录（含 order_id）
-            const { data: purchases } = await serviceRoleSupabase
-                .from("content_purchases" as any)
-                .select("order_id,paid_at,status")
-                .in("content_id", contentIds)
-                .eq("status", "paid")
-                .gte("paid_at", monthStart.toISOString())
-                .lt("paid_at", nextMonthStart.toISOString())
-                .limit(5000);
+        const orderIds = Array.from(new Set(
+            (txs || [])
+                .map((tx: any) => tx.alipay_order_id)
+                .filter((id: any) => typeof id === "string" && id.length > 0),
+        ));
 
-            const orderIds = Array.from(
-                new Set(
-                    (purchases || [])
-                        .map((p: any) => p.order_id)
-                        .filter((id: any) => typeof id === "string" && id.length > 0),
-                ),
-            );
-
-            if (orderIds.length > 0) {
-                const { data: orders } = await serviceRoleSupabase
-                    .from("alipay_orders")
-                    .select("id,total_amount,status,order_type")
-                    .in("id", orderIds)
-                    .eq("status", "paid")
-                    .eq("order_type", "content_purchase");
-
-                contentPurchaseRevenueFen = (orders || []).reduce(
-                    (sum: number, o: any) => sum + (Number(o?.total_amount) || 0),
-                    0,
-                );
-            }
+        if (orderIds.length > 0) {
+            const { data: contentOrders } = await serviceRoleSupabase
+                .from("alipay_orders")
+                .select("id,order_type")
+                .in("id", orderIds)
+                .eq("order_type", "content_purchase");
+            const contentOrderIds = new Set((contentOrders || []).map((order: any) => order.id));
+            contentPurchaseRevenueFen = (txs || []).reduce((sum: number, tx: any) => {
+                return contentOrderIds.has(tx.alipay_order_id)
+                    ? sum + (Number(tx?.amount) || 0)
+                    : sum;
+            }, 0);
         }
     } catch (e) {
         console.error("[coach/overview] content purchase revenue calc failed:", e);

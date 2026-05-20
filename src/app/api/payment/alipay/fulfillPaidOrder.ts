@@ -65,6 +65,14 @@ export function isCoachSubscriptionOrderType(orderType: unknown) {
     );
 }
 
+export function isCoachContentPurchaseOrderType(orderType: unknown) {
+    return orderType === "content_purchase";
+}
+
+export function isCoachRevenueOrderType(orderType: unknown) {
+    return isCoachSubscriptionOrderType(orderType) || isCoachContentPurchaseOrderType(orderType);
+}
+
 function isLegacySubscriptionOrderType(orderType: unknown) {
     return orderType === "subscription" || orderType === "subscription_renew";
 }
@@ -127,6 +135,9 @@ export function requiresHuifuSettlement(order: Record<string, any>) {
     const provider = String(order.payment_provider || "").trim();
     const hasCoach = Boolean(String(orderData.coachId || "").trim());
     if (!hasCoach) return false;
+    if (isCoachContentPurchaseOrderType(order.order_type)) {
+        return provider === "wechat" || provider === "huifu_alipay" || Boolean(orderData.huifu_req_date);
+    }
     if (isCoachSubscriptionOrderType(order.order_type)) return true;
     if (!isLegacySubscriptionOrderType(order.order_type)) return false;
     return provider === "wechat" || provider === "huifu_alipay" || Boolean(orderData.huifu_req_date);

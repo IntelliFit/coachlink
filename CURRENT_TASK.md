@@ -1,5 +1,166 @@
 # CURRENT_TASK
 
+## Coach-Owned Content Purchase Huifu Settlement (`2026-05-20`)
+
+- Task: extend the coach-subscription Huifu split model to other coach-owned revenue, starting with paid coach content / single-article purchases.
+- Status: backend money-rule changes and Web Huifu QR payment display applied; live Huifu verification pending.
+- Implemented:
+  - `src/app/api/payment/alipay/create/route.ts`
+    - Paid `content_purchase` orders now resolve content price/coach from the database and require the coach to have a fully opened Huifu account.
+    - Logged-in paid coach-content purchases are routed through Huifu collection (`huifu_alipay`) instead of direct Alipay.
+    - Order metadata now persists `coachId`, `coachName`, `contentId`, and `contentTitle` so delayed settlement can run later.
+  - `src/app/api/payment/alipay/contentPurchaseFulfillment.ts`
+    - Payment success still unlocks the purchased content immediately in `content_purchases`.
+    - Coach wallet credit now uses the same Huifu delayed settlement ledger as coach subscription; wallet income is recorded only after balance payment succeeds.
+  - `src/app/api/payment/wechat/notify/route.ts` and `src/app/api/payment/wechat/query/route.ts`
+    - Huifu notifications/query compensation now also fulfill `content_purchase`.
+  - `src/app/api/payment/alipay/refund/route.ts`
+    - Refund handling now treats `content_purchase` as coach-owned revenue: if coach share was transferred, it attempts Huifu balance-payment refund/reversal before source-payment refund, and marks `content_purchases` as `refunded`.
+  - `src/app/api/coach/get-overview-data/route.ts` and `src/app/api/coach/get-revenue-details/route.ts`
+    - Paid content revenue is counted from wallet income after settlement, not merely from buyer payment success.
+  - `src/app/articles/ArticlePurchaseSection.tsx`
+    - Guest paid content purchase now routes to login first; guest direct payment remains disabled because it cannot reliably bind the purchase entitlement or settlement ledger.
+  - `src/components/payment/ContentPurchaseDialog.tsx`
+    - Paid content purchase now accepts Huifu `payInfo` in addition to direct-Alipay `formHtml`.
+    - When Huifu returns a QR/pay target, the Web purchase dialog shows an Alipay scan-to-pay QR dialog and then routes to the payment status page for confirmation/unlock.
+  - Added migration `supabase/migrations/20260520_coach_revenue_content_settlement.sql`:
+    - Allows `content_purchases.status = refunded`.
+    - Documents and indexes the existing settlement table as a coach-owned revenue settlement ledger, not subscription-only.
+- Verification:
+  - Targeted TypeScript transpile check passed for the touched payment/revenue files.
+  - `git diff --check` on touched files passed with only standard Windows CRLF warnings.
+  - No full lint/typecheck/build/test or browser verification was run per local preference unless explicitly requested.
+- Important caveat:
+  - The backend settlement/refund ledger and Web QR display are now aligned, but one live Web `content_purchase` still needs to verify the exact Huifu `A_NATIVE/A_JSAPI` `pay_info` shape and the browser-side scan/return flow.
+
+## Huifu In-Process Settlement Scheduler (`2026-05-20`)
+
+- Task: after the user chose scheme 2, make Huifu delayed coach-subscription settlement automatic without introducing an external cron platform yet.
+- Status: code changes applied; deployment/runtime verification pending.
+- Implemented:
+  - `src/instrumentation.ts`
+    - Added in-process hourly job for `POST /api/admin/coach-subscription-settlements/process-due`.
+    - Added in-process hourly job for `POST /api/admin/coach-subscription-settlements/reconcile`.
+    - Jobs run once at service startup and then at the configured interval.
+    - Existing Alipay pending sync and pending-plan activation jobs remain active when `ALIPAY_SYNC_SECRET` or `CRON_SECRET` is configured.
+- Required production configuration:
+  - Configure `CRON_SECRET` or `HUIFU_SETTLEMENT_CRON_SECRET`.
+  - Ensure `NEXTAUTH_URL` or `NEXT_PUBLIC_SITE_URL` points to the deployed app URL.
+  - Keep or explicitly set `COACH_SUBSCRIPTION_SETTLEMENT_DELAY_DAYS=7`.
+  - Optional interval overrides: `HUIFU_SETTLEMENT_PROCESS_INTERVAL_MS`, `HUIFU_SETTLEMENT_RECONCILE_INTERVAL_MS`; set to `0` to disable.
+- Verification:
+  - Targeted TypeScript transpile check for `src/instrumentation.ts` passed.
+  - `git diff --check -- src/instrumentation.ts` passed with only the standard Windows CRLF warning.
+  - No full lint/typecheck/build/test or browser verification was run per local preference unless explicitly requested.
+
+## WeApp Toolbox Strength Calculator Copy Update (`2026-05-20`)
+
+- Task: update the student WeChat mini-program toolbox card copy for `力量计算器`.
+- User direction:
+  - The card subtitle should not describe implementation facts like "小程序内完整实现，与网页端逻辑一致".
+  - It should describe user-facing utility such as calculating max/working-set weight and coefficients.
+- Implemented:
+  - `wechat_app/src/me/toolbox/index.tsx`
+    - Updated the `力量计算器` card description to `可计算极限重量、做组重量和训练系数等。`
+- Verification:
+  - No lint/typecheck/build/test or WeChat DevTools verification was run, following the local workspace preference unless the user explicitly requests it.
+
+## WeApp Knowledge Latest Body Map (`2026-05-20`)
+
+- Task: restore the student WeChat mini-program knowledge page to the latest clickable body-map experience.
+- Finding:
+  - The temporary blank-image fix made the card render, but it used the older `frontSvg/backSvg` body outline and stayed a static `<Image>`, so the actual SVG regions could not be clicked.
+  - The latest body-map asset line is commit `6cff9d9d` from `2026-04-30`: sex-aware SVG modules (`maleFrontSvg/maleBackSvg/femaleFrontSvg/femaleBackSvg`) with category metadata.
+- Fix:
+  - `wechat_app/src/content/knowledge/index.tsx` now imports the latest sex-aware SVG modules and chooses female/male body map from the logged-in student's profile gender, defaulting to male for guests/unknown.
+  - The knowledge body-map options now use the latest category model: `胸部 / 肩部 / 大臂 / 小臂 / 腹部 / 背部 / 臀部 / 大腿 / 小腿 / 关节`.
+  - Added SVG category highlighting by rewriting matching `category` groups to brand color.
+  - Added a transparent mini-program hit-area layer over the image so tapping the body map selects the corresponding category and loads body-region knowledge nodes.
+  - `wechat_app/src/content/knowledge/index.scss` now scales the latest SVG inside the card to reduce the excessive blank space and keeps hit areas aligned with the scaled map.
+- Verification:
+  - Targeted TS transpile check for `wechat_app/src/content/knowledge/index.tsx` passed.
+  - `git diff --check` on the touched knowledge page files passed with only Windows CRLF warnings.
+  - Per local developer preference, no automatic WeChat DevTools visual verification or full lint/typecheck/build/test sequence was run unless explicitly requested.
+
+## Product IA Simplification / Main Path Redesign (`2026-05-19`)
+
+- Task: rethink CoachLink early-stage product framework by doing subtraction and reconnecting the remaining flows clearly.
+- User direction:
+  - Current content/features feel too numerous and confusing.
+  - Prefer reducing visible surfaces and making the remaining links clearer.
+  - Registration and post-registration flow likely need redesign.
+  - After registration, users should clearly know what to see, what to click, which need each path satisfies, and how the flow can naturally trigger willingness to pay.
+- Current recommendation direction:
+  - Move from "show all features" to "task-path first".
+  - Post-auth onboarding should identify the user's current intent and route them to a single next best action.
+  - Student-facing first-stage paths should organize around five bottom tabs:
+    - `训练`
+    - `教练`
+    - `知识`
+    - `工具箱`
+    - `我的`
+  - `工具箱` should remain a first-class bottom-tab surface because it can provide immediate utility even before users fully understand their broader training needs.
+  - Main paths should likely reduce to:
+    - Start training / record today.
+    - Find a coach / get a plan.
+    - Solve a training problem / learn knowledge.
+    - Use a concrete tool for a specific immediate need.
+  - `我的` should be reorganized as account/assets/history/settings, not as a catch-all product homepage.
+- Status: first WeChat mini-program IA simplification pass implemented on `2026-05-20`.
+- Implemented surfaces in this pass:
+  - `wechat_app/src/components/BottomNav.tsx`: student bottom nav reduced/reframed to `训练 / 教练 / 知识 / 工具箱 / 我的`; the old student `消息` bottom-tab slot was removed while coach nav stayed intact.
+  - `wechat_app/src/pages/index/index.tsx`: home entry rewritten around four immediate intents: `开始训练 / 找教练 / 查知识 / 用工具`.
+  - `wechat_app/src/discovery/index.tsx`: the old mixed discovery home was narrowed into the `教练` tab home focused on coach/service discovery; top-level public action and article highlight feeds were removed from equal-status positions.
+  - `wechat_app/src/content/knowledge/index.tsx`: knowledge became browse-first; guests no longer hard-redirect to login before entering the knowledge home.
+  - `wechat_app/src/me/profile/index.tsx`: `我的` was reorganized back toward account/assets/history/settings, and `消息中心` was kept as a secondary entry after removing the old message bottom tab.
+- Verification:
+  - Lightweight code-level sanity checking only: touched files were re-read and TypeScript-transpiled successfully.
+  - Per local workspace preference, no automatic lint/typecheck/build/test or WeChat DevTools/browser verification was run in this pass.
+
+### Today-training compacting pass (`2026-05-20`)
+
+- User direction:
+  - Remove the explanatory "为什么要确认完成 / 为什么要输入重量" content from the top of the student training page.
+  - Compress the training page so schedule/calendar and today's arrangement feel like one compact control surface.
+  - Reduce vertical height across the page, especially the top coach/plan card and repeated section headers.
+- Implemented direction:
+  - `wechat_app/src/training/today-training/index.tsx` now removes the top explanation card and explanation dialog flow.
+  - The return-to-page confirmation banner was shortened to a compact success message.
+  - `ScheduleCalendarPanel` and `TodayTrainingCard` are now visually grouped into one `schedule-training-card` container with a single inline summary instead of separate repeated section headers.
+  - The top coach/self-plan card was compressed into a shorter summary strip.
+  - Month calendar is now collapsed by default while preserving manual expand/collapse.
+- Verification:
+  - Lightweight TypeScript transpile/parse check passed for:
+    - `wechat_app/src/training/today-training/index.tsx`
+    - `wechat_app/src/training/today-training/components/ScheduleCalendarPanel.tsx`
+    - `wechat_app/src/training/today-training/components/TodayTrainingCard.tsx`
+  - No WeChat DevTools/manual verification was run in this pass per local workspace preference unless explicitly requested.
+
+### Discovery-page narrowing note (`2026-05-20`)
+
+- The current mini-program discovery home mixes coach discovery, coach service products, public action highlights, and article/content highlights.
+- Recommended direction:
+  - Narrow it into the future `教练` tab home.
+  - The coach tab main page should now focus on coach discovery itself; mixed-intent guide blocks and coach-service promo sections should be removed from the top-level coach home.
+  - Coach-related service products can still exist elsewhere in the flow, but should not compete with coach cards on the main coach tab surface.
+  - Move article/info discovery primarily under the `知识` tab.
+  - Downgrade or relocate public action-library highlights to action-specific or supporting surfaces rather than keeping them as equal-status discovery feed blocks.
+
+## WeApp Hide Friends Entry Pending Qualification (`2026-05-19`)
+
+- Task: temporarily hide `我的好友` from the WeChat mini-program personal/profile page because displaying the friends/social feature requires additional mini-program qualification that has not been approved yet.
+- Status: code changes applied; user-side mini-program verification pending.
+- Implemented:
+  - `wechat_app/src/me/profile/index.tsx`
+    - Removed the `我的好友` top metric entry from the profile page.
+    - Removed the profile page's `/api/user/friends` count request and `friends` stat field.
+    - Kept the underlying friends pages/API untouched so the entry can be restored after qualification approval.
+  - `wechat_app/src/me/profile/index.scss`
+    - Changed top metric item width from four-column `25%` to three-column `33.3333%`.
+- Verification:
+  - Light grep confirmed the profile page no longer contains `我的好友`, `my-friends`, `/api/user/friends`, or `friends`.
+  - No full lint/typecheck/build/test or WeChat DevTools verification was run per local preference unless explicitly requested.
+
 ## Early Product Completion Assessment (`2026-05-18`)
 
 - Task: evaluate CoachLink's current early-stage product completion from the user's priority lenses.

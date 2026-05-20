@@ -97,7 +97,6 @@ function TodayTraining() {
   const [loading, setLoading] = useState(true)
   const [showCompletionModal, setShowCompletionModal] = useState(false)
   const [completedPlanInfo, setCompletedPlanInfo] = useState<{ name: string; rate: number } | null>(null)
-  const [showExplainDialog, setShowExplainDialog] = useState(false)
   const [selectedDayIndex, setSelectedDayIndex] = useState(1)
   const [returnConfirmedDayIndex, setReturnConfirmedDayIndex] = useState<number | null>(null)
   const [activeLightweightTask, setActiveLightweightTask] = useState<NormalizedDayTask | null>(null)
@@ -901,23 +900,6 @@ function TodayTraining() {
     [activeLightweightTask, instance?.id, loadData, selectedDayIndex, selectedExec?.id]
   )
 
-  const handleGoToWeightCalibration = () => {
-    setShowExplainDialog(false)
-    const targetDayIndex =
-      selectedDay?.type === 'training'
-        ? selectedDayIndex
-        : progressDay?.type === 'training'
-          ? progressDayIndex
-          : null
-
-    if (!targetDayIndex) {
-      Taro.showToast({ title: '当前没有可校准的训练日', icon: 'none' })
-      return
-    }
-
-    handleGoToTrainingExecution(targetDayIndex)
-  }
-
   const renderLoading = () => (
     <View className='today-training-page'>
       <ScrollView className='page-scroll' scrollY>
@@ -1143,22 +1125,12 @@ function TodayTraining() {
 
               {returnConfirmedDayIndex && (
                 <View className='return-confirm-banner'>
-                  <Text>
-                    已确认第{returnConfirmedDayIndex}天：训练记录、备注和视频都会沉淀；真实重量会帮助系统更新 e1RM，让下次自动算重量更准。
-                  </Text>
+                  <Text>第{returnConfirmedDayIndex}天已记录</Text>
                   <Text className='banner-link' onClick={() => setReturnConfirmedDayIndex(null)}>
                     收起
                   </Text>
                 </View>
               )}
-
-              <View className='info-tip-card' onClick={() => setShowExplainDialog(true)}>
-                <View>
-                  <Text className='info-tip-title'>为什么要确认完成？为什么要输入重量？</Text>
-                  <Text className='info-tip-desc'>这里会解释休息日顺延、e1RM 校准和为什么确认完成会影响下一次自动算重。</Text>
-                </View>
-                <Text className='banner-link'>查看说明</Text>
-              </View>
 
               {missingDays.length > 0 && (
                 <View className='missing-days-banner'>
@@ -1198,34 +1170,23 @@ function TodayTraining() {
                 </View>
               )}
 
-              {trainingDays.length > 0 && (
-                <ScheduleCalendarPanel
-                  trainingDays={trainingDays}
-                  currentDayIndex={todayDayIndex}
-                  selectedDayIndex={selectedDayIndex}
-                  completionDates={completionDates}
-                  executionsByDayIndex={executionsByDayIndex}
-                  scheduleModel={scheduleModel}
-                  todayCompleted={todayCompleted}
-                  progressDayIndex={progressDayIndex}
-                  planStartDate={effectiveCalendarStartDate || undefined}
-                  startExecutionDay={instance?.start_execution_day || 1}
-                  onSelectedDayChange={setSelectedDayIndex}
-                />
-              )}
+              {trainingDays.length > 0 ? (
+                <View className='schedule-training-card'>
+                  <ScheduleCalendarPanel
+                    trainingDays={trainingDays}
+                    currentDayIndex={todayDayIndex}
+                    selectedDayIndex={selectedDayIndex}
+                    completionDates={completionDates}
+                    executionsByDayIndex={executionsByDayIndex}
+                    scheduleModel={scheduleModel}
+                    todayCompleted={todayCompleted}
+                    progressDayIndex={progressDayIndex}
+                    planStartDate={effectiveCalendarStartDate || undefined}
+                    startExecutionDay={instance?.start_execution_day || 1}
+                    onSelectedDayChange={setSelectedDayIndex}
+                  />
 
-              <View className='section-header'>
-                <View className='header-left'>
-                  <Text className='section-title'>{selectedDayIndex === progressDayIndex ? '今日安排' : '当天安排'}</Text>
-                  <Text className='section-subtitle'>
-                    {selectedDay?.type === 'rest'
-                      ? `第${selectedDayIndex}天 · 恢复与轻任务`
-                      : `第${selectedDayIndex}天 · ${selectedTaskSummary.totalModules} 个模块`}
-                  </Text>
-                </View>
-              </View>
-
-              {selectedDay?.type === 'training' ? (
+                  {selectedDay?.type === 'training' ? (
                 <>
                   <TodayTrainingCard
                     day={selectedDay}
@@ -1235,14 +1196,13 @@ function TodayTraining() {
                     coachId={activeSubscription?.coach_id || activeSubscription?.coach?.id}
                     coachName={activeSubscription?.coach?.name}
                     executionStatus={selectedExecutionStatus}
-                    execution={selectedExec}
-                    heading={selectedDayIndex === progressDayIndex ? '今日安排' : '当天安排'}
-                    subheading={`第${selectedDayIndex}天 · ${selectedTaskSummary.totalModules} 个模块`}
+                    execution={selectedExec}
                     dateLabel={selectedDateLabel}
                     dateMeta={selectedDateMeta}
                     onOpenLightweightTask={handleOpenLightweightTask}
                     onAddLightweightTask={handleOpenLightweightPicker}
                     onDeleteLightweightTask={handleDeleteLightweightTask}
+                    embeddedInSchedule
                   />
 
                   {canShareDayCheckin && (
@@ -1258,7 +1218,7 @@ function TodayTraining() {
                     </View>
                   )}
                 </>
-              ) : selectedDay ? (
+                  ) : selectedDay ? (
                 <>
                   <RestDayCard dayIndex={selectedDayIndex} />
                   <View className='rest-lightweight-wrap'>
@@ -1270,14 +1230,13 @@ function TodayTraining() {
                       coachId={activeSubscription?.coach_id || activeSubscription?.coach?.id}
                       coachName={activeSubscription?.coach?.name}
                       executionStatus={selectedExecutionStatus}
-                      execution={selectedExec}
-                      heading='休息日轻任务'
-                      subheading={`第${selectedDayIndex}天 · ${selectedTaskSummary.lightweightCount} 个轻任务`}
+                      execution={selectedExec}
                       dateLabel={selectedDateLabel}
                       dateMeta={selectedDateMeta}
                       onOpenLightweightTask={handleOpenLightweightTask}
                       onAddLightweightTask={handleOpenLightweightPicker}
                       onDeleteLightweightTask={handleDeleteLightweightTask}
+                      embeddedInSchedule
                     />
                   </View>
 
@@ -1295,7 +1254,7 @@ function TodayTraining() {
                     </View>
                   )}
                 </>
-              ) : (
+                  ) : (
                 <View className='empty-card'>
                   <Text className='empty-title'>当前计划暂无可展示的训练日</Text>
                   <Text className='empty-desc'>可以先去计划库查看，或者做一次即兴锻炼。</Text>
@@ -1310,7 +1269,9 @@ function TodayTraining() {
                     </View>
                   </View>
                 </View>
-              )}
+                  )}
+                </View>
+              ) : null}
             </>
           )}
         </View>
@@ -1490,33 +1451,6 @@ function TodayTraining() {
         </View>
       )}
 
-      {showExplainDialog && (
-        <View className='info-dialog-mask' onClick={() => setShowExplainDialog(false)}>
-          <View className='info-dialog' onClick={(e) => e.stopPropagation()}>
-            <Text className='info-dialog-title'>为什么要点完成？为什么要输入重量？</Text>
-            <View className='info-dialog-section'>
-              <Text className='section-title'>1. 今日推进规则</Text>
-              <Text className='section-text'>休息日会自动顺延；到训练日会停住，直到你完成或跳过，避免进度看起来被推走。</Text>
-            </View>
-            <View className='info-dialog-section'>
-              <Text className='section-title'>2. 输入真实重量 / 次数的意义</Text>
-              <Text className='section-text'>当次训练内，真实输入会让后续组推荐更贴合；跨天训练时，系统会据此更新 e1RM，让下次自动算重量更准。</Text>
-            </View>
-            <View className='info-dialog-section'>
-              <Text className='section-title'>3. 完成与分享打卡</Text>
-              <Text className='section-text'>完成会沉淀训练记录、视频和备注，方便复盘与给教练看；也支持整日打卡图分享。</Text>
-            </View>
-            <View className='info-dialog-actions'>
-              <View className='config-btn secondary' onClick={handleGoToWeightCalibration}>
-                <Text>去输入并校准</Text>
-              </View>
-              <View className='config-btn primary' onClick={() => setShowExplainDialog(false)}>
-                <Text>我知道了</Text>
-              </View>
-            </View>
-          </View>
-        </View>
-      )}
     </View>
   )
 }
