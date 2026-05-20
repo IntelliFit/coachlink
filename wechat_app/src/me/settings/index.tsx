@@ -3,11 +3,17 @@ import { View, Text, ScrollView } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import BottomNav from '@/components/BottomNav'
 import { authService } from '@/services/authService'
+import { studentService } from '@/services/studentService'
 import './index.scss'
 import { Lock, Phone, Power } from '@nutui/icons-react-taro'
 
+const DELETE_ACCOUNT_CONFIRMATION_TEXT = '注销账号'
+
 function SettingsPage() {
   const [passwordVisible, setPasswordVisible] = useState(false)
+  const [deleteAccountVisible, setDeleteAccountVisible] = useState(false)
+  const [deleteAccountLoading, setDeleteAccountLoading] = useState(false)
+  const [deleteConfirmationText, setDeleteConfirmationText] = useState('')
   const [oldPassword, setOldPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -27,7 +33,6 @@ function SettingsPage() {
     }
 
     try {
-      // TODO: 调用修改密码API
       Taro.showToast({ title: '修改密码功能请在网页端完成', icon: 'none', duration: 3000 })
       setPasswordVisible(false)
       setOldPassword('')
@@ -51,11 +56,41 @@ function SettingsPage() {
     })
   }
 
+  const handleDeleteAccount = async () => {
+    if (deleteConfirmationText.trim() !== DELETE_ACCOUNT_CONFIRMATION_TEXT) {
+      Taro.showToast({
+        title: `请输入“${DELETE_ACCOUNT_CONFIRMATION_TEXT}”`,
+        icon: 'none'
+      })
+      return
+    }
+
+    try {
+      setDeleteAccountLoading(true)
+      await studentService.deleteAccount({
+        confirmationText: deleteConfirmationText.trim()
+      })
+      await authService.logout()
+      setDeleteAccountVisible(false)
+      setDeleteConfirmationText('')
+      Taro.showToast({ title: '账号已注销', icon: 'success' })
+      setTimeout(() => {
+        Taro.reLaunch({ url: '/auth/login' })
+      }, 600)
+    } catch (error: any) {
+      Taro.showToast({
+        title: error?.message || '注销失败',
+        icon: 'none'
+      })
+    } finally {
+      setDeleteAccountLoading(false)
+    }
+  }
+
   return (
     <View className='settings-page'>
       <ScrollView className='page-scroll' scrollY>
         <View className='page-content'>
-          {/* 安全设置 */}
           <View className='settings-section'>
             <Text className='section-title'>安全设置</Text>
             <View className='settings-list'>
@@ -64,7 +99,7 @@ function SettingsPage() {
                   <View className='item-icon'><Lock /></View>
                   <View>
                     <Text className='item-title'>修改密码</Text>
-                    <Text className='item-desc'>定期更换密码保护账户安全</Text>
+                    <Text className='item-desc'>定期更换密码保护账号安全</Text>
                   </View>
                 </View>
                 <Text className='item-arrow'>→</Text>
@@ -72,9 +107,8 @@ function SettingsPage() {
             </View>
           </View>
 
-          {/* 账户绑定 */}
           <View className='settings-section'>
-            <Text className='section-title'>账户绑定</Text>
+            <Text className='section-title'>账号绑定</Text>
             <View className='settings-list'>
               <View className='setting-item'>
                 <View className='item-left'>
@@ -89,7 +123,6 @@ function SettingsPage() {
             </View>
           </View>
 
-          {/* 其他 */}
           <View className='settings-section'>
             <Text className='section-title'>其他</Text>
             <View className='settings-list'>
@@ -103,7 +136,19 @@ function SettingsPage() {
             </View>
           </View>
 
-          {/* 修改密码弹窗 */}
+          <View className='settings-section'>
+            <Text className='section-title'>危险操作</Text>
+            <View className='danger-card'>
+              <Text className='danger-title'>注销账号</Text>
+              <Text className='danger-desc'>
+                注销后将禁用当前账号的登录凭据，后续无法再使用原手机号、邮箱或微信直接登录。
+              </Text>
+              <View className='danger-btn' onClick={() => setDeleteAccountVisible(true)}>
+                <Text className='danger-btn-text'>立即注销</Text>
+              </View>
+            </View>
+          </View>
+
           {passwordVisible && (
             <View className='password-modal'>
               <View className='modal-mask' onClick={() => setPasswordVisible(false)} />
@@ -145,6 +190,54 @@ function SettingsPage() {
                   </View>
                   <View className='modal-btn confirm' onClick={handleChangePassword}>
                     <Text>确认</Text>
+                  </View>
+                </View>
+              </View>
+            </View>
+          )}
+
+          {deleteAccountVisible && (
+            <View className='password-modal'>
+              <View
+                className='modal-mask'
+                onClick={() => {
+                  if (deleteAccountLoading) return
+                  setDeleteAccountVisible(false)
+                }}
+              />
+              <View className='modal-content'>
+                <Text className='modal-title'>注销账号</Text>
+                <Text className='delete-warning'>
+                  {`这是不可恢复操作。请输入“${DELETE_ACCOUNT_CONFIRMATION_TEXT}”后继续。`}
+                </Text>
+                <View className='form-group'>
+                  <Text className='form-label'>确认文案</Text>
+                  <input
+                    className='form-input'
+                    type='text'
+                    placeholder={DELETE_ACCOUNT_CONFIRMATION_TEXT}
+                    value={deleteConfirmationText}
+                    onInput={(e: any) => setDeleteConfirmationText(e.detail.value)}
+                  />
+                </View>
+                <View className='modal-actions'>
+                  <View
+                    className='modal-btn cancel'
+                    onClick={() => {
+                      if (deleteAccountLoading) return
+                      setDeleteAccountVisible(false)
+                    }}
+                  >
+                    <Text>取消</Text>
+                  </View>
+                  <View
+                    className={`modal-btn danger${deleteAccountLoading ? ' is-disabled' : ''}`}
+                    onClick={() => {
+                      if (deleteAccountLoading) return
+                      void handleDeleteAccount()
+                    }}
+                  >
+                    <Text>{deleteAccountLoading ? '处理中...' : '确认注销'}</Text>
                   </View>
                 </View>
               </View>

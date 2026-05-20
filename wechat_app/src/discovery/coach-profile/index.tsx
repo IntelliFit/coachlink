@@ -342,17 +342,6 @@ export default function CoachProfile() {
       return
     }
 
-    if (
-      (userSubscription?.status === 'inactive' || userSubscription?.status === 'pending_payment') &&
-      userSubscription?.id &&
-      product.id === userSubscription.product_id
-    ) {
-      await startCoachWechatPayment({
-        subscriptionId: userSubscription.id
-      })
-      return
-    }
-
     try {
       const questions = await fetchQuestionnaires(coachId)
       if (questions && questions.length > 0) {

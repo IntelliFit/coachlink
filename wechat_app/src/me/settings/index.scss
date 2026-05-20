@@ -8,26 +8,7 @@
   }
 
   .page-content {
-    padding: 12px;
-  }
-
-  .page-header {
-    margin-bottom: 16px;
-    padding: 0 4px;
-
-    .page-title {
-      display: block;
-      font-size: 24px;
-      font-weight: 700;
-      color: #1f2937;
-      margin-bottom: 4px;
-    }
-
-    .page-subtitle {
-      display: block;
-      font-size: 13px;
-      color: #6b7280;
-    }
+    padding: 16px;
   }
 
   .settings-section {
@@ -39,12 +20,12 @@
       font-weight: 600;
       color: #6b7280;
       margin-bottom: 8px;
-      padding: 0 4px;
+      padding: 0 8px;
     }
 
     .settings-list {
       background: #fff;
-      border-radius: 12px;
+      border-radius: 16px;
       overflow: hidden;
       box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
 
@@ -66,7 +47,7 @@
         .item-left {
           display: flex;
           align-items: center;
-          gap: 12px;
+          gap: 16px;
           flex: 1;
 
           .item-icon {
@@ -102,6 +83,48 @@
     }
   }
 
+  .danger-card {
+    background: #fff7f5;
+    border: 1px solid #f3c7bd;
+    border-radius: 16px;
+    padding: 16px;
+  }
+
+  .danger-title {
+    display: block;
+    font-size: 16px;
+    font-weight: 700;
+    color: #7a2e1d;
+    margin-bottom: 8px;
+  }
+
+  .danger-desc {
+    display: block;
+    font-size: 13px;
+    line-height: 20px;
+    color: #9a4b39;
+  }
+
+  .danger-btn {
+    margin-top: 16px;
+    height: 40px;
+    border-radius: 16px;
+    background: #CF6D4E;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    &:active {
+      opacity: 0.88;
+    }
+  }
+
+  .danger-btn-text {
+    font-size: 14px;
+    font-weight: 600;
+    color: #fff;
+  }
+
   .password-modal {
     position: fixed;
     top: 0;
@@ -127,7 +150,7 @@
       width: 90%;
       max-width: 400px;
       background: #fff;
-      border-radius: 12px;
+      border-radius: 16px;
       padding: 24px;
       z-index: 1001;
 
@@ -138,6 +161,14 @@
         color: #1f2937;
         margin-bottom: 20px;
         text-align: center;
+      }
+
+      .delete-warning {
+        display: block;
+        font-size: 13px;
+        line-height: 20px;
+        color: #6b7280;
+        margin-bottom: 16px;
       }
 
       .form-group {
@@ -159,9 +190,10 @@
           border-radius: 8px;
           font-size: 14px;
           color: #1f2937;
+          box-sizing: border-box;
 
           &:focus {
-            border-color: #f97316;
+            border-color: #CF6D4E;
             outline: none;
           }
         }
@@ -169,7 +201,7 @@
 
       .modal-actions {
         display: flex;
-        gap: 12px;
+        gap: 16px;
         margin-top: 24px;
 
         .modal-btn {
@@ -186,9 +218,17 @@
           }
 
           &.confirm {
-            background: #f97316;
+            background: #CF6D4E;
             color: #fff;
-            box-shadow: 0 2px 8px rgba(249, 115, 22, 0.3);
+          }
+
+          &.danger {
+            background: #CF6D4E;
+            color: #fff;
+          }
+
+          &.is-disabled {
+            opacity: 0.72;
           }
 
           &:active {
@@ -200,18 +240,17 @@
   }
 }
 
-/* ==================== 暗色主题适配 ==================== */
 .theme-dark .settings-page {
-  background: linear-gradient(180deg, #1c1c1c 0%, #141414 100%) !important;
+  background: #141414 !important;
 
-  .page-title,
-  .item-title {
+  .item-title,
+  .modal-title {
     color: #E0E0E0 !important;
   }
 
-  .page-subtitle,
   .section-title,
-  .item-desc {
+  .item-desc,
+  .delete-warning {
     color: #B0B0B0 !important;
   }
 
@@ -236,11 +275,23 @@
     color: #4ade80 !important;
   }
 
+  .danger-card {
+    background: #33221d !important;
+    border-color: #7a4a3f !important;
+  }
+
+  .danger-title {
+    color: #f3d0c7 !important;
+  }
+
+  .danger-desc {
+    color: #d4a89c !important;
+  }
+
   .modal-content {
     background: #242424 !important;
   }
 
-  .modal-title,
   .form-label {
     color: #E0E0E0 !important;
   }

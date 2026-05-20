@@ -254,24 +254,42 @@ export default function CoachQuestionnairePage() {
         throw new Error('套餐信息已失效，请重新选择')
       }
 
-      const created = await subscriptionService.createSubscription({
-        coachId,
-        tier: productTier === 'basic' ? 1 : productTier === 'standard' ? 2 : 3,
-        monthlyPrice: price,
-        status: 'inactive',
-        subscribeData: answers,
-        productId,
-        productName,
-        productTier,
-        subscribedWeeks: months * 4
-      })
+      let paymentSubscriptionId = subscriptionId
+      if (paymentSubscriptionId) {
+        const updated = await subscriptionService.updateSubscription({
+          id: paymentSubscriptionId,
+          subscribe_data: answers,
+          product_id: productId,
+          product_name: productName,
+          product_tier: productTier,
+          monthly_price: Math.round(price * 100),
+          subscribed_weeks: months * 4
+        })
 
-      const subscription = (created as any)?.subscription
-      if (!subscription?.id) {
-        throw new Error('创建订阅失败')
+        if (!(updated as any)?.subscription?.id) {
+          throw new Error('更新订阅问卷失败，请稍后重试')
+        }
+      } else {
+        const created = await subscriptionService.createSubscription({
+          coachId,
+          tier: productTier === 'basic' ? 1 : productTier === 'standard' ? 2 : 3,
+          monthlyPrice: price,
+          status: 'inactive',
+          subscribeData: answers,
+          productId,
+          productName,
+          productTier,
+          subscribedWeeks: months * 4
+        })
+
+        const subscription = (created as any)?.subscription
+        if (!subscription?.id) {
+          throw new Error('创建订阅失败')
+        }
+        paymentSubscriptionId = subscription.id
       }
 
-      await startCoachPayment(subscription.id)
+      await startCoachPayment(paymentSubscriptionId)
     } catch (error: any) {
       Taro.showToast({ title: error?.message || '提交失败', icon: 'none' })
     } finally {

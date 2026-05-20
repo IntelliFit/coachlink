@@ -34,6 +34,10 @@ interface GetStudentStatsResponseDto {
   completedWorkouts: number
 }
 
+interface DeleteAccountDto {
+  confirmationText: string
+}
+
 interface GetE1RMHistoryDto {
   actionId?: string
   actionName?: string
@@ -129,6 +133,14 @@ class StudentService extends BaseService {
       return res.data
     }
     return null
+  }
+
+  async deleteAccount(data: DeleteAccountDto) {
+    const res = await this.post('delete-account', data)
+    if (res.success) {
+      return res.data ?? true
+    }
+    throw new Error(res.message || '注销账号失败')
   }
 
   async getVisibilityStatus() {
