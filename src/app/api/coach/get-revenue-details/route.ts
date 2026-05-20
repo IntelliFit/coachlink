@@ -223,24 +223,27 @@ export async function POST(req: Request) {
             .map((p: any) => p.order_id)
             .filter((id: any) => typeof id === "string" && id.length > 0);
 
-        const orderAmountMap = new Map<string, number>();
+        const orderIncomeMap = new Map<string, number>();
         if (orderIds.length > 0) {
-            const { data: orders } = await serviceRoleSupabase
-                .from("alipay_orders")
-                .select("id, total_amount")
-                .in("id", orderIds)
-                .eq("status", "paid")
-                .eq("order_type", "content_purchase");
+            const { data: incomeTxs } = await serviceRoleSupabase
+                .from("wallet_transactions")
+                .select("alipay_order_id, amount")
+                .eq("wallet_id", coachId)
+                .eq("type", "income")
+                .in("alipay_order_id", orderIds);
 
-            if (orders) {
-                for (const o of orders) {
-                    orderAmountMap.set(o.id, Number(o.total_amount) || 0);
+            if (incomeTxs) {
+                for (const tx of incomeTxs as any[]) {
+                    const id = String(tx.alipay_order_id || "");
+                    if (!id) continue;
+                    orderIncomeMap.set(id, (orderIncomeMap.get(id) || 0) + (Number(tx.amount) || 0));
                 }
             }
         }
 
         for (const p of purchases) {
-            const amountFen = orderAmountMap.get(p.order_id) || 0;
+            const amountFen = orderIncomeMap.get(p.order_id) || 0;
+            if (amountFen <= 0) continue;
             contentPurchaseRevenueFen += amountFen;
 
             const contentTitle = contentMap.get(p.content_id) || "未命名文章";

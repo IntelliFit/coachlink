@@ -11,6 +11,7 @@ import {
     markSettlementWalletCredited,
 } from "@/app/api/payment/alipay/fulfillPaidOrder";
 import { fulfillStudentMembershipOrderOnPaid } from "@/app/api/payment/studentMembershipFulfillment";
+import { fulfillContentPurchasePaid } from "@/app/api/payment/alipay/contentPurchaseFulfillment";
 
 export const runtime = "nodejs";
 
@@ -65,6 +66,18 @@ async function fulfillPaidWechatOrder(latestOrder: any, userId: string) {
             productKey: String(orderData.product_key || ""),
             userId,
         });
+    }
+
+    if (latestOrder.order_type === "content_purchase") {
+        const orderData = (latestOrder.order_data || {}) as Record<string, any>;
+        const contentId = String(orderData.contentId || orderData.content_id || "");
+        if (contentId) {
+            await fulfillContentPurchasePaid({
+                orderId: latestOrder.id,
+                userId,
+                contentId,
+            });
+        }
     }
 }
 

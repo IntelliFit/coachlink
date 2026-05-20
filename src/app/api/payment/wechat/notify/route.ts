@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { serviceRoleSupabase } from "@/lib/supabaseClient";
 import { parseHuifuNotifyContent } from "@/lib/huifuMiniProgramPay";
 import { fulfillSubscriptionAndMaybeCreditWallet } from "@/app/api/payment/alipay/fulfillPaidOrder";
+import { fulfillContentPurchasePaid } from "@/app/api/payment/alipay/contentPurchaseFulfillment";
 import { fulfillStudentMembershipOrderOnPaid } from "@/app/api/payment/studentMembershipFulfillment";
 
 export const runtime = "nodejs";
@@ -96,6 +97,18 @@ export async function POST(request: NextRequest) {
                 productKey: String(orderData.product_key || ""),
                 userId: String(updatedOrder.user_id || ""),
             });
+        }
+
+        if (nextStatus === "paid" && updatedOrder.order_type === "content_purchase") {
+            const orderData = (updatedOrder.order_data || {}) as Record<string, any>;
+            const contentId = String(orderData.contentId || orderData.content_id || "");
+            if (contentId) {
+                await fulfillContentPurchasePaid({
+                    orderId: String(updatedOrder.id),
+                    userId: String(updatedOrder.user_id || ""),
+                    contentId,
+                });
+            }
         }
 
         return new Response(`RECV_ORD_ID_${reqSeqId}`, {

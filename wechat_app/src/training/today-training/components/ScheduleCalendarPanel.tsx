@@ -56,7 +56,7 @@ function ScheduleCalendarPanel({
   showMonthGrid
 }: ScheduleCalendarPanelProps) {
   const totalWeeks = Math.max(1, Math.ceil(trainingDays.length / 7))
-  const [isMonthExpanded, setIsMonthExpanded] = useState(monthOnly)
+  const [isMonthExpanded, setIsMonthExpanded] = useState(false)
   const [currentWeek, setCurrentWeek] = useState(() => {
     const anchorDay = selectedDayIndex || currentDayIndex || 1
     return Math.max(1, Math.min(Math.ceil(anchorDay / 7), totalWeeks))
@@ -153,10 +153,6 @@ function ScheduleCalendarPanel({
   }
 
   const formatDayLabel = (date: Date) => formatMonthDayWeekday(date)
-
-  const selectedStatusText =
-    selectedDayIndex === progressDayIndex ? '今日推进' : selectedDate < startOfDay(new Date()) ? '历史安排' : '未来安排'
-
   const monthGridVisible =
     typeof showMonthGrid === 'boolean' ? showMonthGrid : monthOnly || isMonthExpanded
 
@@ -164,89 +160,84 @@ function ScheduleCalendarPanel({
     <View className={`schedule-calendar-panel ${monthOnly ? 'schedule-calendar-panel--month-only' : ''}`}>
       {!monthOnly && (
         <>
-      <View className='calendar-head'>
-        <View className='head-left'>
-          <Text className='head-label'>按日期查看每日安排</Text>
-          <Text className='head-title'>安排日历</Text>
-          <Text className='head-meta'>
-            已选第{selectedDayIndex}天 · {formatDayLabel(selectedDate)}
-            {selectedSchedule?.totalDelayDays ? ` · 已顺延 ${selectedSchedule.totalDelayDays} 天` : ''}
-            {selectedDayIndex === progressDayIndex ? ' · 今日推进' : ` · ${selectedStatusText}`}
-          </Text>
-        </View>
-        <View className='head-actions'>
-          <View
-            className={`week-nav-btn ${currentWeek === 1 ? 'disabled' : ''}`}
-            onClick={() => currentWeek > 1 && setCurrentWeek((prev) => prev - 1)}
-          >
-            <Text>‹</Text>
-          </View>
-          <Text className='week-label'>第 {currentWeek} 周</Text>
-          <View
-            className={`week-nav-btn ${currentWeek === totalWeeks ? 'disabled' : ''}`}
-            onClick={() => currentWeek < totalWeeks && setCurrentWeek((prev) => prev + 1)}
-          >
-            <Text>›</Text>
-          </View>
-          <View className='expand-btn' onClick={() => setIsMonthExpanded((prev) => !prev)}>
-            <Text>{isMonthExpanded ? '收起月历' : '展开月历'}</Text>
-          </View>
-        </View>
-      </View>
-
-      <View className='week-strip'>
-        {weekDays.map((dayIndex) => {
-          const day = trainingDays.find((entry: any) => entry.dayIndex === dayIndex)
-          const scheduleInfo = scheduleModel.scheduleByDayIndex.get(dayIndex)
-          const status = getDayStatus(dayIndex)
-          const isSelected = selectedDayIndex === dayIndex
-          const isProgressDay = dayIndex === progressDayIndex
-          const isRecommended = dayIndex === currentDayIndex
-          const isUnlocked = isDayUnlocked(dayIndex, unlockedWeek)
-
-          return (
-            <View
-              key={dayIndex}
-              className={`week-day-card ${isSelected ? 'selected' : ''} ${status} ${!isUnlocked ? 'locked' : ''} ${
-                isRecommended && !isSelected && !todayCompleted ? 'recommended' : ''
-              } ${isProgressDay && !isSelected ? 'progress' : ''}`}
-              onClick={() => selectDay(dayIndex)}
-            >
-              {isProgressDay && (
-                <Text className='card-badge progress-badge'>推进</Text>
-              )}
-              {isProgressDay && (scheduleInfo?.totalDelayDays ?? 0) > 0 && (
-                <Text className='card-badge delay-badge'>+{scheduleInfo?.totalDelayDays}天</Text>
-              )}
-              <Text className='week-day-prefix'>DAY</Text>
-              <Text className='week-day-date'>{dayIndex}</Text>
-              <Text className='week-day-type'>{day?.type === 'rest' ? '恢复' : '训练'}</Text>
-              <Text className='week-day-status'>
-                {status === 'completed' || status === 'before_start'
-                  ? <Check size={10} />
-                  : status === 'in_progress'
-                    ? '进行中'
-                    : status === 'abandoned'
-                      ? '跳过'
-                      : !isUnlocked
-                        ? '未解锁'
-                        : ''}
+          <View className='calendar-head'>
+            <View className='head-left'>
+              <Text className='head-title'>{selectedDayIndex === progressDayIndex ? '今天练什么' : `第${selectedDayIndex}天`}</Text>
+              <Text className='head-meta'>
+                {formatDayLabel(selectedDate)}
+                {` ? ?${currentWeek} ?`}
+                {selectedSchedule?.totalDelayDays ? ` ? ??? ${selectedSchedule.totalDelayDays} ?` : ''}
               </Text>
             </View>
-          )
-        })}
-        {Array.from({ length: 7 - weekDays.length }).map((_, index) => (
-          <View key={`empty-${index}`} className='week-day-card empty' />
-        ))}
-      </View>
+            <View className='head-actions'>
+              <View
+                className={`week-nav-btn ${currentWeek === 1 ? 'disabled' : ''}`}
+                onClick={() => currentWeek > 1 && setCurrentWeek((prev) => prev - 1)}
+              >
+                <Text>{'<'}</Text>
+              </View>
+              <Text className='week-label'>第 {currentWeek} 周</Text>
+              <View
+                className={`week-nav-btn ${currentWeek === totalWeeks ? 'disabled' : ''}`}
+                onClick={() => currentWeek < totalWeeks && setCurrentWeek((prev) => prev + 1)}
+              >
+                <Text>{'>'}</Text>
+              </View>
+              <View className='expand-btn' onClick={() => setIsMonthExpanded((prev) => !prev)}>
+                <Text>{isMonthExpanded ? '??' : '??'}</Text>
+              </View>
+            </View>
+          </View>
 
-      {currentWeek > unlockedWeek && (
-        <View className='unlock-hint'>
-          <Text>
-            第 {currentWeek} 周预计 {formatUnlockDate(getUnlockDate(currentWeek, planStartDate))} 解锁
-          </Text>
-        </View>
-      )}
+          <View className='week-strip'>
+            {weekDays.map((dayIndex) => {
+              const day = trainingDays.find((entry: any) => entry.dayIndex === dayIndex)
+              const scheduleInfo = scheduleModel.scheduleByDayIndex.get(dayIndex)
+              const status = getDayStatus(dayIndex)
+              const isSelected = selectedDayIndex === dayIndex
+              const isProgressDay = dayIndex === progressDayIndex
+              const isRecommended = dayIndex === currentDayIndex
+              const isUnlocked = isDayUnlocked(dayIndex, unlockedWeek)
+
+              return (
+                <View
+                  key={dayIndex}
+                  className={`week-day-card ${isSelected ? 'selected' : ''} ${status} ${!isUnlocked ? 'locked' : ''} ${
+                    isRecommended && !isSelected && !todayCompleted ? 'recommended' : ''
+                  } ${isProgressDay && !isSelected ? 'progress' : ''}`}
+                  onClick={() => selectDay(dayIndex)}
+                >
+                  {isProgressDay && <Text className='card-badge progress-badge'>推进</Text>}
+                  {isProgressDay && (scheduleInfo?.totalDelayDays ?? 0) > 0 && (
+                    <Text className='card-badge delay-badge'>+{scheduleInfo?.totalDelayDays}天</Text>
+                  )}
+                  <Text className='week-day-prefix'>DAY</Text>
+                  <Text className='week-day-date'>{dayIndex}</Text>
+                  <Text className='week-day-type'>{day?.type === 'rest' ? '恢复' : '训练'}</Text>
+                  <Text className='week-day-status'>
+                    {status === 'completed' || status === 'before_start'
+                      ? <Check size={10} />
+                      : status === 'in_progress'
+                        ? '进行中'
+                        : status === 'abandoned'
+                          ? '跳过'
+                          : !isUnlocked
+                            ? '未解锁'
+                            : ''}
+                  </Text>
+                </View>
+              )
+            })}
+            {Array.from({ length: 7 - weekDays.length }).map((_, index) => (
+              <View key={`empty-${index}`} className='week-day-card empty' />
+            ))}
+          </View>
+
+          {currentWeek > unlockedWeek && (
+            <View className='unlock-hint'>
+              <Text>第 {currentWeek} 周预计 {formatUnlockDate(getUnlockDate(currentWeek, planStartDate))} 解锁</Text>
+            </View>
+          )}
         </>
       )}
 
@@ -264,7 +255,7 @@ function ScheduleCalendarPanel({
                 })
               }
             >
-              <Text>‹</Text>
+              <Text>{'<'}</Text>
             </View>
             <Text className='month-title'>
               {formatYearMonth(new Date(monthCursor.year, monthCursor.month - 1, 1))}
@@ -280,7 +271,7 @@ function ScheduleCalendarPanel({
                 })
               }
             >
-              <Text>›</Text>
+              <Text>{'>'}</Text>
             </View>
           </View>
 
@@ -300,7 +291,7 @@ function ScheduleCalendarPanel({
 
               const mappedDayIndex = dayIndexByDateKey.get(toDateKey(dateCell))
               const postponedMarker = scheduleModel.postponedByDateKey.get(toDateKey(dateCell))
-              const isUnlocked = mappedDayIndex ? isDayUnlocked(mappedDayIndex, unlockedWeek) : false
+              const unlocked = mappedDayIndex ? isDayUnlocked(mappedDayIndex, unlockedWeek) : false
               const isSelected = mappedDayIndex === selectedDayIndex
               const status = mappedDayIndex ? getDayStatus(mappedDayIndex) : 'calendar_only'
               const isToday = toDateKey(dateCell) === toDateKey(startOfDay(new Date()))
@@ -310,7 +301,7 @@ function ScheduleCalendarPanel({
                   key={toDateKey(dateCell)}
                   className={`date-cell ${mappedDayIndex ? 'plan' : 'outside'} ${postponedMarker ? 'postponed' : ''} ${isSelected ? 'selected' : ''} ${
                     status
-                  } ${isToday ? 'today' : ''} ${mappedDayIndex && !isUnlocked ? 'locked' : ''}`}
+                  } ${isToday ? 'today' : ''} ${mappedDayIndex && !unlocked ? 'locked' : ''}`}
                   onClick={() => mappedDayIndex && selectDay(mappedDayIndex)}
                 >
                   <Text className='date-num'>{dateCell.getDate()}</Text>
@@ -324,10 +315,10 @@ function ScheduleCalendarPanel({
                           : status === 'abandoned'
                             ? '跳过'
                             : trainingDays.find((day: any) => day.dayIndex === mappedDayIndex)?.type === 'rest'
-                              ? '恢'
-                              : '训'
+                              ? '休'
+                              : '练'
                       : postponedMarker
-                        ? `→D${postponedMarker.targetDayIndex}`
+                        ? `->D${postponedMarker.targetDayIndex}`
                         : '-'}
                   </Text>
                 </View>
@@ -335,26 +326,6 @@ function ScheduleCalendarPanel({
             })}
           </View>
         </View>
-      )}
-
-      {!monthOnly && (
-      <View className='calendar-tip'>
-        <Text className='calendar-tip-text'>
-          当前计划时间：
-          {formatDayLabel(
-            scheduleModel.scheduleByDayIndex.get(1)?.displayDate ||
-              resolvePlanDayDate({
-                dayIndex: 1,
-                effectiveStartDate: planStartDate,
-                fallbackAnchorDayIndex: progressDayIndex || currentDayIndex || 1
-              })
-          )}{' '}
-          开始，已解锁到第 {unlockedWeek} 周。
-        </Text>
-        {scheduleModel.postponedDates.length > 0 && (
-          <Text className='calendar-tip-text delay-tip'>浅橙色日期 = 顺延出来的额外休息日</Text>
-        )}
-      </View>
       )}
     </View>
   )

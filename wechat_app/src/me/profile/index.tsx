@@ -9,7 +9,6 @@ import { studentActionLibService } from '@/services/studentActionLibService'
 import { studentPlanLibService } from '@/services/studentPlanLibService'
 import { studentService } from '@/services/studentService'
 import { trainingHistoryService } from '@/services/trainingHistoryService'
-import { request } from '@/utils/request'
 import './index.scss'
 
 interface MenuItem {
@@ -29,14 +28,12 @@ interface StatMenuItem extends MenuItem {
 }
 
 interface ProfileStats {
-  friends: number
   actions: number
   plans: number
   trainingActions: number
 }
 
 const EMPTY_PROFILE_STATS: ProfileStats = {
-  friends: 0,
   actions: 0,
   plans: 0,
   trainingActions: 0
@@ -51,12 +48,10 @@ function Profile() {
 
   const openLogin = useCallback((returnTo = '/me/profile/index') => {
     const url = authService.buildLoginUrl(returnTo)
-    Taro.navigateTo({ url }).catch((navigateErr) => {
-      console.error('[profile] navigateTo login 失败:', navigateErr)
-      Taro.redirectTo({ url }).catch((redirectErr) => {
-        console.error('[profile] redirectTo login 失败:', redirectErr)
-        Taro.reLaunch({ url }).catch((relaunchErr) => {
-          console.error('[profile] reLaunch login 失败:', relaunchErr)
+    Taro.navigateTo({ url }).catch(() => {
+      Taro.redirectTo({ url }).catch(() => {
+        Taro.reLaunch({ url }).catch((error) => {
+          console.error('[profile] open login:', error)
         })
       })
     })
@@ -64,20 +59,13 @@ function Profile() {
 
   const loadProfileStats = useCallback(async () => {
     try {
-      const [friendsRes, actionsRes, plansRes, trainingSummary] = await Promise.all([
-        request<{ friends?: any[]; total?: number }>({
-          url: '/api/user/friends',
-          method: 'GET',
-          showErrorToast: false
-        }),
+      const [actionsRes, plansRes, trainingSummary] = await Promise.all([
         studentActionLibService.listActions({ page: 1, limit: 1 }),
         studentPlanLibService.listFavorites({ page: 1, limit: 1 }),
         trainingHistoryService.getSummary()
       ])
 
-      const friendsData = friendsRes.success ? friendsRes.data : null
       setProfileStats({
-        friends: Number(friendsData?.total ?? friendsData?.friends?.length ?? 0),
         actions: Number(actionsRes?.totalCount ?? actionsRes?.actions?.length ?? 0),
         plans: Number(plansRes?.totalCount ?? plansRes?.total ?? plansRes?.favorites?.length ?? 0),
         trainingActions: Number(trainingSummary?.totalActions ?? 0)
@@ -87,6 +75,17 @@ function Profile() {
     }
   }, [])
 
+  async function loadCoachId(userId: string) {
+    try {
+      const res = await coachService.getCoach({ userId })
+      if (res?.coach?.id) {
+        setCoachId(res.coach.id)
+      }
+    } catch (error) {
+      console.error('[profile] load coach id:', error)
+    }
+  }
+
   const loadCurrentUser = useCallback(async () => {
     const session = authService.getAuthSession({ normalize: true })
     const currentUser = session.user
@@ -94,16 +93,14 @@ function Profile() {
     setIsAuthenticated(session.isAuthenticated)
 
     if (session.isAuthenticated && session.isCoach && session.primaryRole === 'coach') {
-      Taro.reLaunch({ url: '/coach/my-profile' })
-        .catch((relaunchErr) => {
-          console.error('[profile] reLaunch coach my-profile 失败:', relaunchErr)
-          Taro.redirectTo({ url: '/coach/my-profile' })
-            .catch((redirectErr) => {
-              console.error('[profile] redirectTo coach my-profile 失败:', redirectErr)
-            })
+      Taro.reLaunch({ url: '/coach/my-profile' }).catch(() => {
+        Taro.redirectTo({ url: '/coach/my-profile' }).catch((error) => {
+          console.error('[profile] jump to coach profile:', error)
         })
+      })
       return
     }
+
     setUser(currentUser)
 
     if (!session.isAuthenticated || !session.userId) {
@@ -142,8 +139,8 @@ function Profile() {
 
       authService.setCurrentUser(nextUser)
       setUser(nextUser)
-    } catch (e) {
-      console.error('[profile] sync current user profile:', e)
+    } catch (error) {
+      console.error('[profile] sync current user profile:', error)
     }
   }, [loadProfileStats])
 
@@ -155,17 +152,6 @@ function Profile() {
     void loadCurrentUser()
   })
 
-  async function loadCoachId(userId: string) {
-    try {
-      const res = await coachService.getCoach({ userId })
-      if (res?.coach?.id) {
-        setCoachId(res.coach.id)
-      }
-    } catch (e) {
-      console.error('[profile] load coach id:', e)
-    }
-  }
-
   const points = user?.points ?? 0
   const primaryRole = user?.primary_role === 'coach' ? 'coach' : 'student'
   const isCoach = !!user?.is_coach
@@ -174,8 +160,8 @@ function Profile() {
     ? String(user?.nickname || user?.real_name || user?.phone || 'CoachLink 学员')
     : '未登录'
   const displaySubtitle = isAuthenticated
-    ? String(user?.phone || '已登录，可同步训练、会员与消息')
-    : '登录后同步训练计划、会员、消息与积分'
+    ? String(user?.phone || '训练、服务和消息会在这里持续沉淀')
+    : '登录后同步训练记录、会员、订单和消息'
   const roleBadgeText = isAuthenticated ? (primaryRole === 'coach' ? '教练身份' : '学员身份') : '游客模式'
   const statusBadgeText = isAuthenticated ? `${points}积分` : '点击登录'
 
@@ -190,53 +176,43 @@ function Profile() {
             targetCoachId = res.coach.id
             setCoachId(targetCoachId)
           }
-        } catch (e) {
-          console.error('[profile] load coach id:', e)
+        } catch (error) {
+          console.error('[profile] load coach id for edit:', error)
         }
       }
 
-      if (targetCoachId) {
-        Taro.navigateTo({
-          url: `/coach/profile/[id]?id=${targetCoachId}&edit=1`
-        }).catch((err) => {
-          console.error('导航失败:', err)
-          Taro.showToast({
-            title: '页面跳转失败',
-            icon: 'none',
-            duration: 2000
-          })
-        })
-      } else {
+      if (!targetCoachId) {
         Taro.showToast({
           title: '获取教练信息失败',
           icon: 'none'
         })
+        return
       }
-    } else {
+
       Taro.navigateTo({
-        url: '/me/profile/edit/index'
+        url: `/coach/profile/[id]?id=${targetCoachId}&edit=1`
       }).catch(() => {
-        Taro.showToast({ title: '页面跳转失败', icon: 'none' })
+        Taro.showToast({
+          title: '页面跳转失败',
+          icon: 'none'
+        })
       })
+      return
     }
+
+    Taro.navigateTo({
+      url: '/me/profile/edit/index'
+    }).catch(() => {
+      Taro.showToast({ title: '页面跳转失败', icon: 'none' })
+    })
   }
 
   const topMenus: StatMenuItem[] = [
     {
-      key: 'my-friends',
-      label: '我的好友',
-      value: profileStats.friends,
-      unit: '人',
-      icon: 'icon-friends-o',
-      iconBg: '#7DC8FF',
-      path: '/me/friends/index',
-      requiresAuth: true
-    },
-    {
       key: 'action-library',
       label: '我的动作库',
       value: profileStats.actions,
-      unit: '个',
+      unit: '项',
       icon: 'icon-dumbbell',
       iconBg: '#8FD3FE',
       path: '/me/action-lib/index',
@@ -246,7 +222,7 @@ function Profile() {
       key: 'plan-library',
       label: '我的计划库',
       value: profileStats.plans,
-      unit: '个',
+      unit: '项',
       icon: 'icon-a-Trainingplan',
       iconBg: '#FFD666',
       path: '/me/plan-lib/index',
@@ -290,19 +266,11 @@ function Profile() {
       requiresAuth: true
     },
     {
-      key: 'knowledge',
-      label: '知识库',
-      icon: 'icon-knowledge',
-      iconBg: '#B39DDB',
-      path: '/content/knowledge',
-      requiresAuth: true
-    },
-    {
-      key: 'ranking',
-      label: '排行榜',
-      icon: 'icon-ranking',
+      key: 'messages',
+      label: '消息中心',
+      icon: 'icon-messages',
       iconBg: '#26A69A',
-      path: '/discovery/ranking',
+      path: '/me/messages/index',
       requiresAuth: true
     },
     {
@@ -328,12 +296,12 @@ function Profile() {
             }]
           : []),
         ...(!isCoach ? [{
-          key: 'apply-coach',
-          label: '申请成为教练',
-          icon: 'icon-shenqingquanxian',
-          iconBg: '#FFD700',
-          path: '/coach/application'
-        }] : []),
+            key: 'apply-coach',
+            label: '申请成为教练',
+            icon: 'icon-shenqingquanxian',
+            iconBg: '#FFD700',
+            path: '/coach/application'
+          }] : []),
         {
           key: 'account-settings',
           label: '账户设置',
@@ -376,8 +344,8 @@ function Profile() {
     if (item.action) {
       item.action()
     } else if (item.path) {
-      Taro.navigateTo({ url: item.path }).catch((err) => {
-        console.error('导航失败:', err)
+      Taro.navigateTo({ url: item.path }).catch((error) => {
+        console.error('[profile] navigate menu:', error)
         Taro.showToast({ title: '页面跳转失败', icon: 'none' })
       })
     }
@@ -403,19 +371,14 @@ function Profile() {
       })
       setTimeout(() => {
         const targetUrl = newRole === 'coach' ? '/coach/overview' : '/pages/index/index'
-        Taro.reLaunch({ url: targetUrl })
-          .catch((relaunchErr) => {
-            console.error('[profile] switch role reLaunch 失败:', relaunchErr)
-            Taro.redirectTo({ url: targetUrl })
-              .catch((redirectErr) => {
-                console.error('[profile] switch role redirectTo 失败:', redirectErr)
-                Taro.navigateTo({ url: targetUrl })
-                  .catch((navigateErr) => {
-                    console.error('[profile] switch role navigateTo 失败:', navigateErr)
-                    Taro.showToast({ title: '切换后跳转失败', icon: 'none' })
-                  })
-              })
+        Taro.reLaunch({ url: targetUrl }).catch(() => {
+          Taro.redirectTo({ url: targetUrl }).catch(() => {
+            Taro.navigateTo({ url: targetUrl }).catch((error) => {
+              console.error('[profile] switch role:', error)
+              Taro.showToast({ title: '切换后跳转失败', icon: 'none' })
+            })
           })
+        })
       }, 500)
     } catch (error: any) {
       Taro.showToast({
@@ -434,7 +397,7 @@ function Profile() {
     Taro.showToast({
       title: isDark ? '已切换为浅色模式' : '已切换为深色模式',
       icon: 'none',
-      duration: 1500,
+      duration: 1500
     })
   }
 
@@ -443,33 +406,31 @@ function Profile() {
       title: '退出登录',
       content: '确定要退出登录吗？',
       success: async (res) => {
-        if (res.confirm) {
-          try {
-            await authService.logout()
-            Taro.showToast({
-              title: '已退出登录',
-              icon: 'success'
-            })
-            setTimeout(() => {
-              Taro.reLaunch({ url: '/auth/login' })
-            }, 1000)
-          } catch (error: any) {
-            console.error('退出登录失败:', error)
-            Taro.showToast({
-              title: '退出失败',
-              icon: 'error'
-            })
-          }
+        if (!res.confirm) return
+
+        try {
+          await authService.logout()
+          Taro.showToast({
+            title: '已退出登录',
+            icon: 'success'
+          })
+          setTimeout(() => {
+            Taro.reLaunch({ url: '/auth/login' })
+          }, 1000)
+        } catch (error: any) {
+          console.error('[profile] logout:', error)
+          Taro.showToast({
+            title: '退出失败',
+            icon: 'error'
+          })
         }
       }
     })
   }
 
-
   return (
     <View className='profile-page'>
       <View className='myContainer'>
-        {/* 用户档案卡片 */}
         <View className='profile-card'>
           <View className='profile-card-header'>
             <View className='avatar-wrapper' onClick={handleViewProfile}>
@@ -497,7 +458,10 @@ function Profile() {
                 <Text className='profile-tag'>{roleBadgeText}</Text>
               </View>
               <Text className='profile-edit-link' onClick={handleProfileSettings}>
-                编辑资料 ›
+                {displaySubtitle}
+              </Text>
+              <Text className='profile-edit-link' onClick={isAuthenticated ? handleProfileSettings : () => openLogin('/me/profile/index')}>
+                {isAuthenticated ? `编辑资料 · ${statusBadgeText}` : statusBadgeText}
               </Text>
             </View>
             <View className='profile-header-right'>
@@ -510,7 +474,6 @@ function Profile() {
             </View>
           </View>
 
-          {/* 功能入口行 */}
           <View className='profile-stats-row'>
             {topMenus.map((item) => (
               <View
@@ -526,17 +489,15 @@ function Profile() {
           </View>
         </View>
 
-        {/* 未登录提示 */}
         {!isAuthenticated && (
           <View className='guest-notice-card'>
-            <Text className='guest-notice-title'>登录后解锁个人训练数据</Text>
+            <Text className='guest-notice-title'>登录后解锁你的训练资产</Text>
             <Text className='guest-notice-desc'>
-              全部计划、我的会员、消息中心、购买记录等个人数据，会在登录后自动同步到这里。
+              计划、会员、消息、购买记录和训练历史都会在登录后自动同步到这里。
             </Text>
           </View>
         )}
 
-        {/* 更多功能列表 */}
         <View className='menu-list-card'>
           {middleMenus.map((item) => (
             <View
@@ -555,7 +516,6 @@ function Profile() {
           ))}
         </View>
 
-        {/* 额外功能列表 */}
         <View className='menu-list-card'>
           {extraMenus.map((item) => (
             <View
@@ -581,7 +541,6 @@ function Profile() {
           ))}
         </View>
 
-        {/* 退出登录 */}
         {isAuthenticated && (
           <View className='logout-section'>
             <View className='logout-btn' onClick={handleLogout}>
@@ -590,7 +549,6 @@ function Profile() {
           </View>
         )}
 
-        {/* 底部链接 */}
         <View className='profile-footer-links'>
           <Text className='footer-link' onClick={() => Taro.navigateTo({ url: '/me/about/index' })}>关于</Text>
           <Text className='footer-dot'>·</Text>

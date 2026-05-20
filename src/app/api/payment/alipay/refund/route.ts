@@ -34,6 +34,14 @@ function isCoachSubscriptionOrderType(orderType: unknown) {
     );
 }
 
+function isCoachContentPurchaseOrderType(orderType: unknown) {
+    return orderType === "content_purchase";
+}
+
+function isCoachRevenueOrderType(orderType: unknown) {
+    return isCoachSubscriptionOrderType(orderType) || isCoachContentPurchaseOrderType(orderType);
+}
+
 function coachNetAmountFromGross(totalFen: number) {
     const platformFee = Math.floor((totalFen * 20) / 100);
     return totalFen - platformFee;
@@ -249,7 +257,18 @@ export async function POST(req: Request) {
 
     const isAdmin = Boolean((session.user as { is_admin?: boolean })?.is_admin);
     const orderData = asObject(order.order_data);
-    const orderCoachId = String(orderData.coachId || "").trim();
+    let orderCoachId = String(orderData.coachId || "").trim();
+    if (!orderCoachId && isCoachContentPurchaseOrderType(order.order_type)) {
+        const contentId = String(orderData.contentId || orderData.content_id || "");
+        if (contentId) {
+            const { data: content } = await serviceRoleSupabase
+                .from("coach_contents")
+                .select("coach_id")
+                .eq("id", contentId)
+                .maybeSingle();
+            orderCoachId = String((content as any)?.coach_id || "").trim();
+        }
+    }
 
     if (!isAdmin) {
         const { data: coachRow } = await supabase
@@ -274,12 +293,14 @@ export async function POST(req: Request) {
     }
 
     const isCoachSubscriptionOrder = isCoachSubscriptionOrderType(order.order_type);
+    const isCoachContentPurchaseOrder = isCoachContentPurchaseOrderType(order.order_type);
+    const isCoachRevenueOrder = isCoachRevenueOrderType(order.order_type);
     const huifuOrder = isHuifuOrder(order, orderData);
     let settlement: Record<string, any> | null = null;
     let incomeTx: { id: string; amount: number | null } | null = null;
     let coachWalletRefundFen = orderCoachId ? refundAmountFen : 0;
 
-    if (orderCoachId && isCoachSubscriptionOrder) {
+    if (orderCoachId && isCoachRevenueOrder) {
         settlement = await fetchSettlement(orderId);
         const incomeTxRes = await serviceRoleSupabase
             .from("wallet_transactions")
@@ -334,7 +355,7 @@ export async function POST(req: Request) {
 
     try {
         if (huifuOrder) {
-            if (isCoachSubscriptionOrder && settlement) {
+            if (isCoachRevenueOrder && settlement) {
                 await refundTransferredCoachShare({ orderId, settlement });
             }
             await refundHuifuCollection({
@@ -395,6 +416,28 @@ export async function POST(req: Request) {
                 .from("coach_subscriptions")
                 .update(subscriptionUpdate)
                 .or(`last_payment_order_id.eq.${orderId},order_id.eq.${orderId}`);
+        }
+    }
+
+    if (isCoachContentPurchaseOrder) {
+        const contentId = String(orderData.contentId || orderData.content_id || "");
+        if (contentId) {
+            await serviceRoleSupabase
+                .from("content_purchases" as any)
+                .update({
+                    status: "refunded",
+                    updated_at: new Date().toISOString(),
+                })
+                .eq("order_id", orderId)
+                .eq("content_id", contentId);
+        } else {
+            await serviceRoleSupabase
+                .from("content_purchases" as any)
+                .update({
+                    status: "refunded",
+                    updated_at: new Date().toISOString(),
+                })
+                .eq("order_id", orderId);
         }
     }
 
@@ -467,7 +510,7 @@ export async function POST(req: Request) {
         }
     }
 
-    if (isCoachSubscriptionOrder && orderCoachId) {
+    if (isCoachRevenueOrder && orderCoachId) {
         await (serviceRoleSupabase as any)
             .from("platform_revenue")
             .delete()
