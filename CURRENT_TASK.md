@@ -1,5 +1,36 @@
 # CURRENT_TASK
 
+## WeApp Delete Account Entry (`2026-05-21`)
+
+- Task: connect the WeChat mini-program student-side account cancellation flow to the existing Web/backend `delete-account` capability.
+- Status: implemented in code; user-side mini-program verification pending.
+- Implemented:
+  - `wechat_app/src/services/studentService.ts`
+    - Added `deleteAccount({ confirmationText })`, reusing the existing `/api/user/delete-account` backend route.
+  - `wechat_app/src/me/settings/index.tsx`
+    - Added a `危险操作` section with a `注销账号` entry.
+    - Added a confirmation modal that requires typing `注销账号` before continuing.
+    - On success, the flow clears the local mini-program auth state through `authService.logout()` and returns to `/auth/login`.
+  - `wechat_app/src/me/settings/index.scss`
+    - Added styling for the danger card and cancellation confirmation modal, keeping the primary danger action as a solid brand-color button.
+- Verification:
+  - No WeChat DevTools/manual UI verification or lint/typecheck/build/test was run, per the local workspace preference unless explicitly requested.
+
+## WeApp Coach Package Questionnaire Before Payment (`2026-05-21`)
+
+- Task: fix the mini-program coach-profile package click flow where the first package for coach `枭马葛` could immediately open a 0.01 payment QR instead of requiring the pre-payment questionnaire.
+- Root cause:
+  - The current user had an existing `inactive` / `pending_payment` subscription tied to that first package.
+  - `wechat_app/src/discovery/coach-profile/index.tsx` treated clicking the same package as "continue pending payment" and directly called `startCoachWechatPayment`, bypassing questionnaire loading.
+- Fix:
+  - Package clicks no longer directly continue a pending/inactive payment just because the selected product matches the existing subscription.
+  - The normal package click flow now always checks coach questionnaires first.
+  - `wechat_app/src/discovery/coach-questionnaire/index.tsx` now reuses an existing subscription id in prepay mode by updating its questionnaire/product fields before payment, instead of creating a duplicate subscription.
+- Verification:
+  - Targeted TypeScript transpile check passed for `wechat_app/src/discovery/coach-profile/index.tsx` and `wechat_app/src/discovery/coach-questionnaire/index.tsx`.
+  - `git diff --check` passed with only standard Windows CRLF warnings.
+  - No WeChat DevTools/manual UI verification or full build/test was run per local preference.
+
 ## Coach-Owned Content Purchase Huifu Settlement (`2026-05-20`)
 
 - Task: extend the coach-subscription Huifu split model to other coach-owned revenue, starting with paid coach content / single-article purchases.
