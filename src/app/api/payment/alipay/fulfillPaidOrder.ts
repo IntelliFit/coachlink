@@ -3,6 +3,7 @@ import { sendSystemMessage } from "@/lib/chat";
 import { addFen, fenToYuan, formatYuan } from "@/lib/moneyUtils";
 import { autoMatchPlanForSubscription } from "@/app/api/plan-lib/auto-match-plan/service";
 import { finalizeSubscriptionOrder } from "@/lib/subscriptionOrders";
+import { refreshSubscriptionEntitlementSnapshot } from "@/lib/subscriptionEntitlementSnapshot";
 import {
     type SplitActual,
     transferByBalancePayment,
@@ -727,13 +728,6 @@ export async function fulfillSubscriptionOnPaid(
         const weeks = Number(orderData.renewAdditionalWeeks ?? 0);
         if (weeks > 0) {
             update.subscribed_weeks = Number(sub.subscribed_weeks || 0) + weeks;
-            if (sub.end_date) {
-                const base = new Date(sub.end_date);
-                const now = new Date();
-                const effectiveBase = base.getTime() < now.getTime() ? now : base;
-                effectiveBase.setDate(effectiveBase.getDate() + weeks * 7);
-                update.end_date = effectiveBase.toISOString();
-            }
         }
     }
 
@@ -741,6 +735,10 @@ export async function fulfillSubscriptionOnPaid(
         .from("coach_subscriptions")
         .update(update)
         .eq("id", subscriptionId);
+
+    if (order.order_type === "subscription_renew" || order.order_type === "coach_subscription_renew") {
+        await refreshSubscriptionEntitlementSnapshot(subscriptionId);
+    }
 
     try {
         const { data: coach } = await serviceRoleSupabase

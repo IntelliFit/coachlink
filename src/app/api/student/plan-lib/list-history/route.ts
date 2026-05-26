@@ -7,13 +7,11 @@ import type {
 } from "./entity";
 import type { ApiData } from "@/types/api";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
+import {
+    persistCompletedPlanInstanceIfNeeded,
+    summarizePlanCompletion,
+} from "@/lib/planInstanceCompletion";
 
-/**
- * 获取学员的计划列表（包含当前和历史）
- *
- * 返回所有计划：active（当前）、completed（已完成）、archived（已归档）
- * 支持按 source 筛选（教练指派 / 学员自制）
- */
 export async function POST(req: Request) {
     const { page = 1, limit = 20, source = "all" } = await req
         .json() as ListHistoryDto;
@@ -31,27 +29,39 @@ export async function POST(req: Request) {
     const from = (page - 1) * limit;
     const to = from + limit - 1;
 
-    // 构建查询 - 包含 active, completed, archived
+    const { data: entitlementSubs, error: entitlementError } = await supabase
+        .from("coach_subscriptions")
+        .select("id")
+        .eq("student_id", userId);
+
+    if (entitlementError) {
+        console.error("Error fetching student subscription entitlements:", entitlementError);
+        return NextResponse.json({
+            success: false,
+            message: `鑾峰彇鍘嗗彶璁″垝澶辫触: ${entitlementError.message}`,
+        }, { status: 500 });
+    }
+
+    const entitlementSubscriptionIds = Array.from(
+        new Set((entitlementSubs || []).map((sub: any) => String(sub?.id || "")).filter(Boolean)),
+    );
+
     let query = supabase
         .from("coach_plan_instances")
         .select(
-            "id, name, description, source, status, start_date, end_date, start_execution_day, created_at, updated_at, training_days, archive_reason, entitlement_consumption_policy",
-            { count: "exact" },
+            "id, name, description, source, status, start_date, end_date, start_execution_day, created_at, updated_at, training_days, student_id, coach_subscription_id",
         )
-        .eq("student_id", userId)
         .in("status", ["active", "completed", "archived"])
-        .order("status", { ascending: true }) // active 排在前面（字母序）
-        .order("updated_at", { ascending: false })
-        .range(from, to);
+        .order("status", { ascending: true })
+        .order("updated_at", { ascending: false });
 
-    // 按来源筛选
     if (source === "coach") {
         query = query.eq("source", "coach");
     } else if (source === "student") {
         query = query.or("source.eq.student,source.eq.self");
     }
 
-    const { data: plans, count, error } = await query;
+    const { data: rawPlans, error } = await query;
 
     if (error) {
         console.error("Error fetching plan history:", error);
@@ -61,9 +71,30 @@ export async function POST(req: Request) {
         }, { status: 500 });
     }
 
+    const dedupedPlans = new Map<string, any>();
+    for (const plan of rawPlans || []) {
+        const directStudentMatch = String((plan as any)?.student_id || "") === userId;
+        const entitledSubscriptionMatch = entitlementSubscriptionIds.includes(
+            String((plan as any)?.coach_subscription_id || ""),
+        );
+
+        if (!directStudentMatch && !entitledSubscriptionMatch) {
+            continue;
+        }
+
+        if (!dedupedPlans.has(plan.id)) {
+            dedupedPlans.set(plan.id, plan);
+        }
+    }
+
+    const filteredPlans = Array.from(dedupedPlans.values());
+    const plans = filteredPlans.slice(from, to + 1);
+    const count = filteredPlans.length;
+
     const planIds = (plans || [])
         .map((plan: any) => plan?.id)
         .filter(Boolean);
+
     const { data: resolvedExecutions } = planIds.length > 0
         ? await supabase
             .from("plan_instance_executions")
@@ -72,101 +103,97 @@ export async function POST(req: Request) {
             .in("status", ["completed", "abandoned"])
         : { data: [] as any[] };
 
-    const resolvedDaySetByInstanceId = new Map<string, Set<number>>();
     const latestResolvedAtByInstanceId = new Map<string, string>();
     for (const exec of resolvedExecutions || []) {
         const instanceId = String((exec as any)?.instance_id || "");
         if (!instanceId) continue;
-        const dayIndex = Number((exec as any)?.day_index ?? 0);
-        if (!dayIndex) continue;
-        const existing = resolvedDaySetByInstanceId.get(instanceId) ||
-            new Set<number>();
-        existing.add(dayIndex);
-        resolvedDaySetByInstanceId.set(instanceId, existing);
-
         const resolvedAt = (exec as any)?.completed_at || (exec as any)?.updated_at;
-        if (resolvedAt) {
-            const current = latestResolvedAtByInstanceId.get(instanceId);
-            if (
-                !current ||
-                new Date(String(resolvedAt)).getTime() >=
-                    new Date(String(current)).getTime()
-            ) {
-                latestResolvedAtByInstanceId.set(instanceId, String(resolvedAt));
-            }
+        if (!resolvedAt) continue;
+
+        const current = latestResolvedAtByInstanceId.get(instanceId);
+        if (
+            !current ||
+            new Date(String(resolvedAt)).getTime() >=
+                new Date(String(current)).getTime()
+        ) {
+            latestResolvedAtByInstanceId.set(instanceId, String(resolvedAt));
         }
     }
 
-    // 计算每个计划的真实完成度，并修正“逻辑已完成但状态仍 active”的展示。
-    const plansWithStats: PlanHistoryItem[] = (plans || []).map((plan: any) => {
-        const dayList = Array.isArray(plan.training_days) ? plan.training_days : [];
-        const startExecutionDay = Number(plan.start_execution_day || 1);
-        const getDayIndex = (day: any, index: number) =>
-            Number(day?.dayIndex ?? day?.day_index ?? (index + 1));
-        const isTrainingDay = (day: any) => {
-            const type = String(day?.type || "").trim().toLowerCase();
-            // 兼容旧数据：无 type 时默认按训练日处理；只有 rest 明确排除。
-            return type !== "rest";
-        };
+    const plansWithStats: PlanHistoryItem[] = await Promise.all(
+        (plans || []).map(async (plan: any) => {
+            const dayList = Array.isArray(plan.training_days)
+                ? plan.training_days
+                : [];
+            const completionSummary = summarizePlanCompletion({
+                trainingDays: dayList,
+                startExecutionDay: Number(plan.start_execution_day || 1),
+                executions: (resolvedExecutions || [])
+                    .filter((exec: any) =>
+                        String(exec?.instance_id || "") === String(plan.id)
+                    )
+                    .map((exec: any) => ({
+                        day_index: Number(exec?.day_index ?? 0),
+                        status: exec?.status || null,
+                        completed_at: exec?.completed_at || null,
+                        updated_at: exec?.updated_at || null,
+                    })),
+            });
 
-        const trainingDayIndexes = dayList
-            .map((day: any, index: number) => ({
-                dayIndex: getDayIndex(day, index),
-                isTraining: isTrainingDay(day),
-            }))
-            .filter((item: any) =>
-                item.isTraining &&
-                item.dayIndex >= startExecutionDay &&
-                item.dayIndex > 0
-            )
-            .map((item: any) => item.dayIndex);
+            const persistedPlan = await persistCompletedPlanInstanceIfNeeded({
+                supabase,
+                instance: plan,
+                summary: completionSummary,
+            });
 
-        const resolvedDays = resolvedDaySetByInstanceId.get(plan.id) ||
-            new Set<number>();
-        const completedDays = trainingDayIndexes.filter((dayIndex: number) =>
-            resolvedDays.has(dayIndex)
-        ).length;
-        const totalTrainingDays = trainingDayIndexes.length;
-        const completionRate = totalTrainingDays > 0
-            ? Math.round((completedDays / totalTrainingDays) * 100)
-            : undefined;
-        const isLogicallyCompleted = totalTrainingDays > 0 &&
-            completedDays >= totalTrainingDays;
-        const normalizedStatus = String(plan.status || "").trim().toLowerCase();
-        const displayStatus = normalizedStatus === "active" &&
-                isLogicallyCompleted
-            ? "completed"
-            : plan.status;
-        const shouldDeriveEndDate = !plan.end_date &&
-            (
-                isLogicallyCompleted ||
-                normalizedStatus === "completed" ||
-                normalizedStatus === "archived"
-            );
-        const derivedEndDate = shouldDeriveEndDate
-            ? (latestResolvedAtByInstanceId.get(plan.id) || plan.updated_at || null)
-            : plan.end_date;
+            const normalizedStatus = String(persistedPlan.status || "")
+                .trim()
+                .toLowerCase();
+            const displayStatus = normalizedStatus === "active" &&
+                    completionSummary.isLogicallyCompleted
+                ? "completed"
+                : persistedPlan.status;
+            const completionRate = completionSummary.totalTrainingDays > 0
+                ? Math.round(
+                    (completionSummary.resolvedTrainingDays /
+                        completionSummary.totalTrainingDays) * 100,
+                )
+                : undefined;
+            const shouldDeriveEndDate = !persistedPlan.end_date &&
+                (
+                    completionSummary.isLogicallyCompleted ||
+                    normalizedStatus === "completed" ||
+                    normalizedStatus === "archived"
+                );
+            const derivedEndDate = shouldDeriveEndDate
+                ? (
+                    completionSummary.latestCompletedAt ||
+                    latestResolvedAtByInstanceId.get(plan.id) ||
+                    persistedPlan.updated_at ||
+                    null
+                )
+                : persistedPlan.end_date;
 
-        return {
-            id: plan.id,
-            name: plan.name,
-            description: plan.description,
-            source: plan.source,
-            status: displayStatus,
-            start_date: plan.start_date,
-            end_date: derivedEndDate,
-            created_at: plan.created_at,
-            updated_at: plan.updated_at,
-            total_days: totalTrainingDays,
-            total_training_days: totalTrainingDays,
-            plan_span_days: dayList.length,
-            completed_days: completedDays,
-            completion_rate: completionRate,
-            archive_reason: plan.archive_reason || null,
-            entitlement_consumption_policy:
-                plan.entitlement_consumption_policy || null,
-        };
-    });
+            return {
+                id: persistedPlan.id,
+                name: persistedPlan.name,
+                description: persistedPlan.description,
+                source: persistedPlan.source,
+                status: displayStatus,
+                start_date: persistedPlan.start_date,
+                end_date: derivedEndDate,
+                created_at: persistedPlan.created_at,
+                updated_at: persistedPlan.updated_at,
+                total_days: completionSummary.totalTrainingDays,
+                total_training_days: completionSummary.totalTrainingDays,
+                plan_span_days: dayList.length,
+                completed_days: completionSummary.resolvedTrainingDays,
+                completion_rate: completionRate,
+                archive_reason: null,
+                entitlement_consumption_policy: null,
+            };
+        }),
+    );
 
     return NextResponse.json<ApiData<ListHistoryResponseDto>>({
         success: true,

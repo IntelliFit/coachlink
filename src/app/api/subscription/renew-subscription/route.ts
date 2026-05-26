@@ -6,6 +6,7 @@ import type {
     RenewSubscriptionDto,
     RenewSubscriptionResponseDto,
 } from "./entity";
+import { refreshSubscriptionEntitlementSnapshot } from "@/lib/subscriptionEntitlementSnapshot";
 
 export async function POST(req: Request) {
     const session = await getServerSession();
@@ -85,13 +86,17 @@ export async function POST(req: Request) {
         }, { status: 500 });
     }
 
+    const entitlementModel = await refreshSubscriptionEntitlementSnapshot(subscriptionId);
+
     // TODO: 记录续费订单信息（可后续扩展）
 
     return NextResponse.json<ApiData<RenewSubscriptionResponseDto>>({
         success: true,
         message: `续费成功，已增加 ${additionalWeeks} 周（按训练日次数消耗）`,
         data: {
-            subscription: updatedSubscription,
+            subscription: entitlementModel?.displayEndDate
+                ? { ...updatedSubscription, end_date: entitlementModel.displayEndDate }
+                : updatedSubscription,
         },
     });
 }

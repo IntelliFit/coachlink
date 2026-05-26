@@ -26,7 +26,7 @@ export async function POST(req: Request) {
     if (!session?.user?.id) {
         return NextResponse.json<ApiData<GetStudentResponseDto>>({
             success: false,
-            message: '未登录用户',
+            message: '用户未登录',
             data: null
         }, { status: 401 });
     }
@@ -37,7 +37,6 @@ export async function POST(req: Request) {
         need1RM = false
     } = await req.json() as GetStudentDto;
 
-    // 验证参数
     if (!studentId && !subscriptionId) {
         return NextResponse.json<ApiData<GetStudentResponseDto>>({
             success: false,
@@ -46,7 +45,6 @@ export async function POST(req: Request) {
         }, { status: 400 });
     }
 
-    // 找到教练行
     const { data: coachRow, error: coachErr } = await supabase
         .from('coaches')
         .select('id')
@@ -66,7 +64,6 @@ export async function POST(req: Request) {
         .select('id, coach_id, student_id, tier, status, start_date, end_date, updated_at, subscribe_data, monthly_price, subscribed_weeks, prior_training_weeks, order_id, last_payment_order_id, payment_method')
         .eq('status', 'active');
 
-    // 根据参数类型构建查询
     if (subscriptionId) {
         query = query.eq('id', subscriptionId);
     } else if (studentId) {
@@ -75,7 +72,6 @@ export async function POST(req: Request) {
             .eq('student_id', studentId);
     }
 
-    // 获取订阅信息
     const { data: sub, error: subsErr } = await query.maybeSingle();
 
     if (subsErr) {
@@ -94,14 +90,29 @@ export async function POST(req: Request) {
         }, { status: 404 });
     }
 
-    // 获取用户档案
-    const { data: profile } = await supabase
-        .from('user_profiles')
-        .select('*')
-        .eq('user_id', sub.student_id)
-        .maybeSingle();
+    const [{ data: profile }, { data: userRow }] = await Promise.all([
+        supabase
+            .from('user_profiles')
+            .select('*')
+            .eq('user_id', sub.student_id)
+            .maybeSingle(),
+        supabase
+            .from('users')
+            .select('id, phone, email, wechat_openid')
+            .eq('id', sub.student_id)
+            .maybeSingle(),
+    ]);
 
-    // 获取视频统计数据
+    const isDeactivatedUser = !userRow?.phone && !userRow?.email && !userRow?.wechat_openid;
+    const hasVisibleProfileIdentity = Boolean(profile?.nickname || profile?.full_name);
+    if (isDeactivatedUser || !hasVisibleProfileIdentity) {
+        return NextResponse.json<ApiData<GetStudentResponseDto>>({
+            success: false,
+            message: '未找到该学生或账号已注销',
+            data: null
+        }, { status: 404 });
+    }
+
     const videoStats = await getVideoStats(sub.student_id);
 
     const student = {
@@ -115,20 +126,16 @@ export async function POST(req: Request) {
     if (need1RM) {
         const records = await getCurrent1RMRecords(session.user.id, {
             targetUserId: student.student_id,
-            // 与学员侧计划加载口径保持一致，避免同一计划出现不同推荐重量。
             preferPR: true,
         });
         const rmMap: Record<string, number> = {};
         for (const record of records) {
-            // 1. 存入 ID 映射
             if (record.actionId) {
                 rmMap[record.actionId] = Math.max(rmMap[record.actionId] || 0, record.current1RM);
             }
-            // 2. 存入 名称 映射 (解决 CoachActionID vs StudentActionID 不一致的问题)
             if (record.actionName) {
                 rmMap[record.actionName] = Math.max(rmMap[record.actionName] || 0, record.current1RM);
             }
-            // 3. 存入 canonical_action_id 映射 (教练端计划按 canonical 匹配学员动作)
             if (record.canonicalActionId) {
                 rmMap[record.canonicalActionId] = Math.max(rmMap[record.canonicalActionId] || 0, record.current1RM);
             }

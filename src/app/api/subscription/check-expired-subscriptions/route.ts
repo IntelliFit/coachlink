@@ -6,9 +6,8 @@ import type {
     CheckExpiredSubscriptionsDto,
     CheckExpiredSubscriptionsResponseDto,
 } from "./entity";
-import { computeCreditsScope, computeUsedCredits, estimateRemainingDays } from "@/lib/subscriptionCredits";
-import { getSubscriptionLifecycle } from "@/lib/subscriptionLifecycle";
 import { deriveSubscriptionCarryoverSummaryFromHistory } from "@/lib/subscriptionCarryover";
+import { deriveSubscriptionEntitlementState } from "@/lib/subscriptionEntitlementModel";
 
 export async function POST(req: Request) {
     const startTime = performance.now();
@@ -39,7 +38,7 @@ export async function POST(req: Request) {
     // NOTE: start_date is set at first execution start.
     const { data: candidates, error } = await supabase
         .from("coach_subscriptions")
-        .select("id, student_id, coach_id, status, start_date, subscribed_weeks")
+        .select("id, student_id, coach_id, status, start_date, end_date, subscribed_weeks")
         .eq("status", "active")
         .not("start_date", "is", null)
         .gt("subscribed_weeks", 0);
@@ -71,8 +70,9 @@ export async function POST(req: Request) {
     }
 
     const candidateIds = candidates.map((c: any) => c.id);
-    const toExpire: string[] = [];
+    const toExpire: Array<{ id: string; end_date: string }> = [];
     const toRefresh: Array<{ id: string; end_date: string }> = [];
+    const toAutoCancelByModel: Array<{ id: string; student_id: string | null }> = [];
 
     // 3. 查询计划实例
     const instancesStart = performance.now();
@@ -139,43 +139,46 @@ export async function POST(req: Request) {
             subscriptionStartDate: sub?.start_date || null,
         });
 
-        const scope = computeCreditsScope({
-            trainingDays: (inst.training_days as any[]) || [],
-            startExecutionDay: Number(inst.start_execution_day || 1),
-            subscribedWeeks: carryover.remainingWeeks,
+        const instanceExecutions = ((execsByInstance.get(inst.id) || []) as any[]).map((e) => ({
+            day_index: e.day_index,
+            status: e.status,
+            completed_at: e.completed_at || null,
+            updated_at: e.updated_at || null,
+            started_at: e.started_at || null,
+            created_at: e.created_at || null,
+        }));
+
+        const model = deriveSubscriptionEntitlementState({
+            subscription: sub,
+            planInstance: inst,
+            executions: instanceExecutions as any[],
+            effectiveSubscribedWeeks: carryover.remainingWeeks,
+            now: new Date(nowIso),
         });
 
-        const totalCredits = scope.totalCredits;
-        if (totalCredits <= 0) {
+        if (model.totalCredits <= 0) {
             // Nothing to consume; do not expire.
             continue;
         }
 
-        const usedCredits = computeUsedCredits({
-            eligibleTrainingDayIndexSet: scope.eligibleTrainingDayIndexSet,
-            executions: ((execsByInstance.get(inst.id) || []) as any[]).map((e) => ({
-                day_index: e.day_index,
-                status: e.status,
-            })),
-            startExecutionDay: Number(inst.start_execution_day || 1),
-        });
-
-        const remainingCredits = Math.max(0, totalCredits - usedCredits);
-        if (remainingCredits === 0) {
-            toExpire.push(sub.id);
+        if (model.remainingCredits === 0) {
+            toExpire.push({
+                id: sub.id,
+                end_date: model.displayEndDate || nowIso,
+            });
+            if (model.shouldAutoCancel) {
+                toAutoCancelByModel.push({
+                    id: sub.id,
+                    student_id: sub.student_id || null,
+                });
+            }
             continue;
         }
 
         // Estimate end_date for friendly UI "剩余X天" display
-        const remainingDaysEstimate = estimateRemainingDays({
-            cadenceWeeks: Math.max(1, carryover.remainingWeeks),
-            totalCredits,
-            remainingCredits,
-            fallbackCreditsPerWeek: 3,
-        });
-        const end = new Date();
-        end.setDate(end.getDate() + remainingDaysEstimate);
-        toRefresh.push({ id: sub.id, end_date: end.toISOString() });
+        if (model.displayEndDate) {
+            toRefresh.push({ id: sub.id, end_date: model.displayEndDate });
+        }
     }
     timings['7_calculate_credits'] = performance.now() - creditsCalcStart;
     timings['7a_candidates_count'] = candidates.length;
@@ -200,13 +203,19 @@ export async function POST(req: Request) {
     const updateExpireStart = performance.now();
     if (toExpire.length > 0) {
         // Do not update status (DB constraint). Instead, set end_date to now so UI shows "已到期/已结束".
-        const { error: updateError } = await supabase
-            .from("coach_subscriptions")
-            .update({
-                end_date: nowIso,
-                updated_at: nowIso,
-            })
-            .in("id", toExpire);
+        const expireResults = await Promise.all(
+            toExpire.map((item) =>
+                supabase
+                    .from("coach_subscriptions")
+                    .update({
+                        end_date: item.end_date,
+                        updated_at: nowIso,
+                    })
+                    .eq("id", item.id),
+            ),
+        );
+
+        const updateError = expireResults.find((result) => result.error)?.error;
 
         if (updateError) {
             console.error("更新订阅结束时间失败:", updateError);
@@ -222,7 +231,7 @@ export async function POST(req: Request) {
         // 10. 更新用户邀请教练ID
         const updateUsersStart = performance.now();
         const studentIds = (candidates as any[])
-            .filter((c) => toExpire.includes(c.id))
+            .filter((c) => toAutoCancelByModel.some((item) => item.id === c.id))
             .map((c) => c.student_id);
 
         // 同时清空这些学生的 invitation_coach_id
@@ -244,19 +253,7 @@ export async function POST(req: Request) {
     const autoCancelStart = performance.now();
     let cancelledCount = 0;
     try {
-        const { data: activeExpiredRows } = await supabase
-            .from("coach_subscriptions")
-            .select("id, student_id, status, end_date")
-            .eq("status", "active")
-            .not("end_date", "is", null);
-
-        const toCancel = (activeExpiredRows || []).filter((row: any) => {
-            const lifecycle = getSubscriptionLifecycle({
-                subscription: row,
-                now: new Date(nowIso),
-            });
-            return lifecycle.lifecycleStatus === "expired_cancelled";
-        });
+        const toCancel = toAutoCancelByModel;
 
         if (toCancel.length > 0) {
             const cancelIds = toCancel.map((r: any) => r.id).filter(Boolean);
@@ -305,7 +302,7 @@ export async function POST(req: Request) {
         data: {
             expiredCount: toExpire.length,
             refreshedCount: toRefresh.length,
-            expiredSubscriptionIds: toExpire,
+            expiredSubscriptionIds: toExpire.map((item) => item.id),
         },
     });
 }

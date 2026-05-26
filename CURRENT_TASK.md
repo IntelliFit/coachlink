@@ -1,5 +1,224 @@
 # CURRENT_TASK
 
+## Unified Subscription Entitlement Model (`2026-05-27`)
+
+- Task: implement the real unified subscription entitlement model before building the later same-source blackbox/whitebox simulator.
+- Product facts being fixed:
+  - Student `c844cae9-d271-452f-9b80-e54dd67eb752` and `c844cae9-d271-452f-9b80-e54dd67eb752`-style cases showed that `/today-training`, `/me/plan-history`, coach list, subscription checks, renewals, and execution access were interpreting `status/end_date/subscribed_weeks/has_plan_instance` differently.
+  - Student `c844cae9-d271-452f-9b80-e54dd67eb752` has an active 15-week plan with only `4/60` completed and an in-progress later day, so the plan must be treated as in-progress, not completed.
+  - A purchased `4 weeks` entitlement is a plan-week training-day window, not a natural calendar hard expiry.
+  - Renewal before relationship cancellation accumulates `subscribed_weeks` into the same entitlement pool; after auto-cancel, a later purchase should be treated as a re-subscription/relation restoration path.
+- Implemented:
+  - Added `src/lib/subscriptionEntitlementModel.ts` as the central derivation model. It outputs relation status, entitlement status, plan progress status, credits, remaining entitlement, display end date, `canTrain`, `canViewHistory`, and `shouldAutoCancel`.
+  - Added `src/lib/subscriptionEntitlementSnapshot.ts` to refresh a subscription's derived display `end_date` from the same model after renewal/payment/update flows.
+  - Converted `subscriptionAccess.ts` into a compatibility wrapper around the central model so `get-instance`, `get-with-executions`, skip-day, next-day, and execution start gates stop maintaining a separate credits model.
+  - Updated `coach-subscriptions`, `check-expired-subscriptions`, `check-subscription?action=check-expired`, `renew-subscription`, `update-subscription`, `subscriptionOrders`, `fulfillPaidOrder`, `execution/updateEstimatedEndDate`, `plan-lib/get-instance`, and `coach/list-students` to consume the central model or snapshot refresh.
+  - Removed the unfinished `shouldAutoCancelCoachSubscription` / lifecycle display helper from `subscriptionLifecycle.ts` so auto-cancel is no longer a second policy path.
+  - Renewal compatibility branches now add weeks/order facts and no longer directly add natural days to `end_date`; `end_date` is derived from the model.
+- Verification:
+  - `npx vitest run src/lib/subscriptionAccess.test.ts src/lib/subscriptionEntitlementModel.test.ts src/lib/todayTrainingPlanState.test.ts src/lib/subscriptionLifecycle.test.ts src/app/api/subscription/check-subscription.integration.test.ts` passed (`5` files, `21` tests).
+  - Full gate before push on `2026-05-27`: `npm run lint` passed, `npm run typecheck` passed, `npm test` passed (`26` files, `142` tests).
+  - `npm run test:e2e` is still failing on `e2e/b1-subscription.spec.ts` (`2` failures): one seeded quick-login case could not log in user `13928583186` / `f435c281-66ac-46d5-a29a-df91d2b99e9d`, and one remaining-days assertion never reached the expected subscription page content.
+  - Route import smoke check passed for affected subscription, plan-instance, coach-list, and execution-access modules.
+  - `npm run typecheck -- --pretty false` passed.
+  - `git diff --check` passed with only standard CRLF warnings.
+  - Browser/UI verification was not run per local developer preference unless explicitly requested.
+- Next step:
+  - Build the same-source simulator/blackbox only after this model is stable; simulator must call `deriveSubscriptionEntitlementState` instead of copying judgment logic.
+
+---
+
+## Git Contribution Audit (`2026-05-27`)
+
+- Task: report committed-code contribution for `SmallHorseBrother <2945463110@qq.com>` since project creation.
+- Scope: Git committed history only (`git log --all --author=2945463110@qq.com --numstat`); current uncommitted working-tree changes are not included.
+- Result summary:
+  - Repository first commit: `2025-11-09 350c69da Kirigaya <1193466151@qq.com> save`.
+  - Author first commit: `2025-11-18 d0f4665b SmallHorseBrother <2945463110@qq.com>`.
+  - Author latest committed history entry: `2026-05-21 d893af9e SmallHorseBrother <2945463110@qq.com>`.
+  - All files: 271 commits, 423111 additions, 101692 deletions, net +321419 lines.
+  - Code-like files excluding common lockfiles: 182 commits, 257634 additions, 84256 deletions, net +173378 lines.
+- Status: analysis completed; no code changes made.
+
+---
+
+## Today Training Subscription/Plan State Split (`2026-05-27`)
+
+- Task: fix Web `/today-training` incorrectly showing "当前阶段计划已完成" for student `c844cae9-d271-452f-9b80-e54dd67eb752` while `/me/plan-history` and coach dashboard correctly show active plan progress `4/60` (`7%`).
+- Root cause found:
+  - The student has one active 4-week coach subscription and one active `15周长期计划` with 60 training days.
+  - Execution data shows only days `1,2,4,5` completed and day `8` in progress, so the plan is not complete.
+  - `/today-training` treated `has_plan_instance=true` plus missing current instance as a completed phase, conflating "there is a plan record" with "the plan is completed".
+- Implemented:
+  - Added structured API errors through `ApiServiceError` so frontend callers keep `status/code/data` from failed API responses.
+  - `plan-lib/get-instance` now returns explicit error `code` values for permission/entitlement blocks and includes `completed` instances when loading by `subscriptionId`, while bypassing subscription gate for completed subscription instances.
+  - `/today-training` now tracks coach plan access states: `available`, `plan_completed`, `entitlement_blocked`, `no_plan_assigned`, and `load_failed`.
+  - `/today-training` only shows completed copy when `get-instance` explicitly reports `derivedStatus=completed` or `isLogicallyCompleted=true`; `has_plan_instance` alone no longer triggers completed UI.
+  - Added `src/lib/todayTrainingPlanState.ts` plus tests for runnable/completed state derivation.
+- Verification:
+  - `npx vitest run src/lib/todayTrainingPlanState.test.ts` passed.
+  - `npm run typecheck -- --pretty false` passed.
+  - `git diff --check` passed with only existing CRLF warnings.
+  - Browser verification was not run per local developer preference unless explicitly requested.
+
+## Coach Student List Count Regression (`2026-05-27`)
+
+- Task: fix `/dashboard/students` showing only 9 students while coach overview shows 35 total students.
+- Root cause found:
+  - `src/app/api/coach/list-students/route.ts` had an added visibility filter requiring both a contact-bearing `users` row and a visible profile nickname/full name.
+  - That hid valid active `coach_subscriptions` rows for students with incomplete/empty profile identity, while overview still correctly counted active subscriptions.
+- Implemented:
+  - Removed the extra `users` lookup and profile-identity filter from `list-students`.
+  - Restored pagination total to the Supabase active-subscription count so the student list uses the same business count as overview.
+- Verification:
+  - Code diff inspected; no full lint/typecheck/build/test or browser verification was run per local developer preference unless explicitly requested.
+
+## WeApp Auth State Consistency (`2026-05-27`)
+
+- Task: investigate and reduce the confusing mini-program state where the `我的` page can show cached name/phone/avatar while API calls still toast `用户未登录`.
+- Root cause found:
+  - The mini-program UI treated local `user + token` presence as authenticated.
+  - If the stored JWT had expired or become invalid, API calls returned 401 while the profile header still rendered cached user data.
+- Implemented:
+  - `wechat_app/src/utils/request.ts`
+    - Centralized 401 handling for requests that carried a token.
+    - Clears local `user` and `token` when the server rejects the token.
+    - Emits a shared auth-invalid event and throttles the expired-login toast to avoid repeated popups from parallel requests.
+  - `wechat_app/src/services/authSessionEvents.ts`
+    - Added `AUTH_SESSION_INVALID_EVENT` for mini-program auth-state invalidation.
+  - `wechat_app/src/me/profile/index.tsx`
+    - Listens for the auth-invalid event and immediately resets the `我的` page to guest state.
+- Verification:
+  - No WeChat DevTools/manual verification or full lint/typecheck/build/test was run per local developer preference unless explicitly requested.
+
+## WeApp Knowledge Built-in Training Plan Library (`2026-05-26`)
+
+- Task: Add a student-side WeChat mini-program knowledge-base training plan library with dozens of common plans from beginner to professional, where users can add a plan into `我的计划` and later execute it through the existing plan flow.
+- Status: implemented in code; no WeChat DevTools/manual verification or full lint/typecheck/build/test run per local preference unless explicitly requested.
+- Implemented:
+  - `supabase/migrations/20260526_public_training_plan_templates.sql`
+    - Added `public_training_plan_templates` for platform-managed public plan templates.
+    - Seeded 30+ published templates covering strength, hypertrophy, fat loss, home/bodyweight, running, calisthenics, powerlifting, hybrid conditioning, and sport conditioning.
+    - Stores a 7-day base `training_days` pattern plus `weeks`; API expands this into the full executable plan.
+    - Added `template_kind`, `parameter_schema`, and `action_slots` so templates like `5x5` can later be parameterized by action slots and 1RM inputs instead of being hardcoded per action.
+  - `src/app/api/knowledge/training-plans/*`
+    - Added public list/detail APIs for knowledge training-plan templates.
+    - Added authenticated `copy-to-favorite` route that copies a database template into `student_plan_favorites`.
+    - Follow-up fix: `copy-to-favorite` now resolves template action names into the student's `student_actions` library before saving. It reuses existing student actions, matches canonical/public actions when possible, creates a minimal student action as fallback, and writes both `actionId` and `action_id` into copied `training_days`.
+    - Follow-up fix: copied action sets are normalized with both English-compatible fields (`sets`, `reps`, `rest_seconds`, `intensity`) and editor/execution-friendly Chinese params (`组数`, `次数`, `休息时间`, `强度` where applicable), including `%` / `RM` `intensityConfig` when parsable.
+  - `wechat_app/src/content/knowledge/index.tsx` / `.scss`
+    - Added a `训练计划库` section on the knowledge page with difficulty filters and horizontal plan cards backed by the new API.
+  - `wechat_app/src/content/knowledge/plan-detail/index.tsx` / `.scss` / `.config.ts`
+    - Added database-backed plan detail page with plan metadata, first two weeks preview, notes, login return flow, `加入我的计划`, and parameterized-template/action-slot display.
+  - `wechat_app/src/app.config.ts`
+    - Registered `content/knowledge/plan-detail`.
+- Verification:
+  - Targeted TypeScript transpile syntax check passed for the new/modified files.
+  - Targeted TypeScript transpile syntax check passed for the updated `copy-to-favorite` action-binding route.
+  - `git diff --check` passed for touched files with only standard Windows CRLF warnings.
+
+## WeApp Coach Huifu Wallet Operations (`2026-05-26`)
+
+- Task: replicate the coach Huifu account opening and withdrawal flow in the WeChat mini-program instead of requiring coaches to switch to the Web site.
+- Status: implemented in code; no WeChat DevTools/manual verification run per local preference unless explicitly requested.
+- Implemented:
+  - `wechat_app/src/app.config.ts`
+    - Registered `coach/wallet/merchant` and `coach/wallet/withdraw`.
+  - `wechat_app/src/services/coach/coachService.ts`
+    - Added `openHuifuAccount` and `withdrawHuifu`.
+  - `wechat_app/src/coach/wallet/index.tsx`
+    - Wallet page now exposes native mini-program actions:
+      - Open/reopen Huifu receiving account when not opened.
+      - Apply for withdrawal when the Huifu account is opened.
+    - Removed the prior "please use Web/desktop" product dead-end.
+  - `wechat_app/src/coach/wallet/merchant/index.tsx` / `.scss` / `.config.ts`
+    - Added a two-step mini-program Huifu onboarding form:
+      - Identity information and ID-card front/back image selection.
+      - Withdrawal bank card, bank code, branch code/name, and region codes.
+    - Submits to the existing `/api/coach/merchant/open-huifu-account` backend route.
+  - `wechat_app/src/coach/wallet/withdraw/index.tsx` / `.scss` / `.config.ts`
+    - Added a Huifu withdrawal page with withdrawable balance, frozen amount note, quick amount controls, and submit.
+    - Submits to `/api/coach/wallet/huifu/withdraw`.
+  - `src/app/api/coach/wallet/huifu/withdraw/route.ts`
+    - Switched auth lookup to `getApiUserId(req)`, so the route supports both Web NextAuth sessions and mini-program Bearer JWTs.
+- Verification:
+  - `git diff --check` passed for touched files with only standard Windows CRLF warnings.
+  - Targeted TypeScript transpile syntax check passed for the new/modified wallet files.
+  - A bare `tsc` check was attempted but failed on mini-program `@/*` path aliases because it did not load the WeChat app tsconfig; this was not a syntax failure.
+  - No WeChat DevTools/manual UI verification or full lint/typecheck/build/test was run per local preference.
+
+## Web + WeApp Fitness Profile Card Parity (`2026-05-26`)
+
+- Task: Keep the website and WeChat mini-program student registration/onboarding profile questions nearly identical, while allowing each platform to use its own UI style. The fitness profile card on both platforms must edit the same data model.
+- Status: implemented in code; browser/manual verification and full lint/typecheck/build/test left unrun per local preference unless explicitly requested.
+- Implemented:
+  - `src/components/auth/OnboardingModal.tsx`
+    - Web registration/profile-completion flow now includes `target_body_parts`, matching the mini-program onboarding question set.
+    - Web onboarding now writes `flow_version: miniapp_v1_aligned` plus `target_body_parts`, `interest_tags`, `equipment`, and `session_duration` to onboarding answers.
+    - When reopened, it loads latest onboarding answers to prefill the questionnaire fields.
+  - `src/components/student/profile/FitnessProfileCard.tsx`
+    - Added Web fitness profile card with the same editable fields as the mini-program card: avatar, nickname, gender, height, weight, target body parts, fitness goal, training level, training direction, equipment, and session duration.
+    - Profile fields save through `updateProfile`; onboarding-answer fields save through `submitOnboarding`.
+  - `src/components/student/StudentProfilePage.tsx`
+    - Mounted the Web fitness profile card on the student profile page using latest `getStudentProfile` data.
+  - `src/app/api/user/update-profile/route.ts`
+    - Changed profile updates to patch only explicitly provided fields so single-field edits do not clear unrelated profile data.
+
+## WeApp Fitness Profile Card As Menu Entry (`2026-05-26`)
+
+- Task: Adjust the WeChat mini-program `我的` page fitness profile card flow per user feedback: it should be a normal menu row like `全部计划` / `我的教练`, not an expanded homepage card. Tapping it opens a profile preview page, and tapping a specific field/question edits that field.
+- Status: implemented in code; mini-program manual verification left unrun per local preference unless explicitly requested.
+- Implemented:
+  - `wechat_app/src/me/profile/index.tsx`
+    - Added a normal `健身资料卡` menu entry that navigates to `/me/profile/fitness-card/index`.
+  - `wechat_app/src/app.config.ts`
+    - Registered the `me/profile/fitness-card/index` page.
+  - `wechat_app/src/me/profile/fitness-card/index.tsx`
+    - Added the fitness profile preview page backed by both `user_profiles` and latest `onboarding_questionnaires.answers`.
+    - Mirrors the registration onboarding questions: avatar, nickname, gender, height, weight, target body parts, fitness goal, training level, training direction, equipment, and session duration.
+    - Supports single-field editing; profile fields save through `updateProfile`, and onboarding-answer fields save through `submitOnboarding`.
+  - `wechat_app/src/me/profile/fitness-card/index.scss`
+    - Added preview/list styling that keeps the interaction as normal tappable rows.
+
+## WeApp Onboarding Nickname Must Start Empty (`2026-05-26`)
+
+- Task: fix the mini-program student onboarding page still showing generated default nicknames such as `手机用户_0621`, despite the requirement that nickname should start empty and be user-entered.
+- Root cause:
+  - The previous fix only removed session fallback prefill.
+  - Existing `user_profiles.nickname` rows could already contain generated values such as `手机用户_0621`, and onboarding still loaded `profile.nickname` directly.
+  - Mini-program login APIs also created new `user_profiles` rows with generated nickname placeholders.
+- Implemented:
+  - `wechat_app/src/auth/student-onboarding/index.tsx`
+    - Added generated-nickname normalization for onboarding mode.
+    - Non-edit onboarding now treats generated placeholders as empty.
+    - Non-edit onboarding also starts avatar empty; edit mode can still load the saved avatar/nickname for actual profile editing.
+  - `src/app/api/miniapp/login/route.ts`
+    - New profile creation now writes `nickname: ""`.
+    - Existing generated nickname placeholders are cleaned to empty during mini-program login.
+  - `src/app/api/miniapp/wechat-login/route.ts`
+    - Same empty nickname creation and generated-placeholder cleanup for WeChat quick login.
+- Follow-up fix:
+  - User reported that selecting the WeChat nickname candidate from the native bottom picker did not fill the nickname field, and the candidate area then disappeared back to the onboarding footer controls.
+  - `wechat_app/src/auth/student-onboarding/index.tsx` now uses the native Taro `Input type="nickname"` as an uncontrolled native field (`defaultValue`) and synchronizes nickname through `onInput`, `onBlur`, `onConfirm`, and best-effort `onNickNameReview` instead of relying on a controlled `value`.
+  - The onboarding footer is hidden while the nickname input is focused so the native WeChat nickname candidate area is not visually replaced by the `上一步/下一步` controls.
+- Second follow-up fix:
+  - User reported the prior nickname-picker fix still reproduced the same behavior.
+  - `wechat_app/src/auth/student-onboarding/index.tsx` now keeps the last authoritative nickname in a ref, allows manual empty edits only from `onInput`, and prevents empty `blur` / `confirm` / nickname-review events from overwriting a non-empty candidate value.
+  - After the native nickname picker closes, the page also queries the native input node by id and synchronizes its actual `value` as a fallback before restoring the onboarding footer. This avoids depending entirely on Taro's event order for WeChat nickname selection.
+- Login regression fix:
+  - User reported that tapping `手机一键登录` briefly showed `登录中...` and then did nothing.
+  - Root cause: the login button had been changed from WeChat native `openType='getPhoneNumber'` / `onGetPhoneNumber` to a normal click handler, so no phone authorization code was produced.
+  - `wechat_app/src/auth/login/index.tsx` now restores `openType='getPhoneNumber'` and passes `e.detail.code` into `authService.loginWithWechat(phoneCode)`.
+- Plan detail follow-up:
+  - User reported that the public training plan detail page only showed action names and did not clearly expose sets/reps/rest.
+  - Confirmed the copy-to-favorite backend already resolves template actions into `student_actions` before saving, so missing actions are auto-added to the user's action library rather than left as name-only placeholders.
+  - Rebuilt `wechat_app/src/content/knowledge/plan-detail/index.tsx` and `.scss` so each training day now expands into action cards showing action name, sets, reps, rest, intensity, load, and whether the action is already bound to the action library.
+  - Added explicit page copy stating that missing actions are automatically added to the user's action library when the plan is added to "我的计划".
+- Verification:
+  - `git diff --check` passed for the touched files with only standard Windows CRLF warnings.
+  - Targeted TypeScript transpile syntax check passed for `wechat_app/src/auth/student-onboarding/index.tsx`.
+  - No WeChat DevTools/manual verification or full lint/typecheck/build/test was run per local preference unless explicitly requested.
+
 ## WeApp Delete Account Entry (`2026-05-21`)
 
 - Task: connect the WeChat mini-program student-side account cancellation flow to the existing Web/backend `delete-account` capability.

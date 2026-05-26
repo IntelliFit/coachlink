@@ -1,6 +1,6 @@
 import supabase from "@/lib/supabaseClient";
-import { deriveProjectedSubscriptionEndDate } from "@/lib/subscriptionEstimatedEndDate";
 import { getSubscriptionCarryoverSummary } from "@/lib/subscriptionCarryover";
+import { deriveSubscriptionEntitlementState } from "@/lib/subscriptionEntitlementModel";
 
 /**
  * 更新订阅的预计完成日期（B1：按训练日 credits 消耗）
@@ -22,7 +22,7 @@ export async function updateEstimatedEndDateForInstance(instanceId: string) {
     // 2. 读取订阅信息（subscribed_weeks 决定 credits 作用范围）
     const { data: subscription } = await supabase
       .from("coach_subscriptions")
-      .select("id, start_date, subscribed_weeks, status")
+      .select("id, start_date, end_date, subscribed_weeks, status")
       .eq("id", instance.coach_subscription_id)
       .maybeSingle();
 
@@ -46,16 +46,14 @@ export async function updateEstimatedEndDateForInstance(instanceId: string) {
       .eq("instance_id", instanceId)
       .eq("status", "completed");
 
-    const endDate = deriveProjectedSubscriptionEndDate({
-      startDate: (subscription as any)?.start_date || null,
-      subscribedWeeks,
-      effectiveSubscribedWeeks: carryover.remainingWeeks,
-      trainingDays: (instance.training_days as any[]) || [],
-      startExecutionDay: Number((instance as any).start_execution_day || 1),
+    const model = deriveSubscriptionEntitlementState({
+      subscription: subscription as any,
+      planInstance: instance as any,
       executions: (completedExecutions as any[]) || [],
+      effectiveSubscribedWeeks: carryover.remainingWeeks,
     });
 
-    const nextEndDate = endDate || (carryover.exhausted
+    const nextEndDate = model.displayEndDate || (carryover.exhausted
       ? new Date().toISOString()
       : null);
 

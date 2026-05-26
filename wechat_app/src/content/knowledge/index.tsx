@@ -11,6 +11,8 @@ import femaleBackSvgRaw from '@/assets/body-map/femaleBackSvg'
 import {
   knowledgeService,
   type KnowledgeNodeListItem,
+  type PublicTrainingPlanLevel,
+  type PublicTrainingPlanListItem,
   type KnowledgeSearchResult
 } from '@/services/knowledgeService'
 import { authService } from '@/services/authService'
@@ -20,6 +22,19 @@ import { svgToDataUri } from '@/utils/svgToDataUri'
 import './index.scss'
 
 const QUICK_TAGS = ['深蹲', '拉伸', '减脂', '增肌']
+
+const PLAN_FILTERS: Array<{ key: 'all' | PublicTrainingPlanLevel; label: string }> = [
+  { key: 'all', label: '全部' },
+  { key: 'beginner', label: '入门' },
+  { key: 'intermediate', label: '进阶' },
+  { key: 'advanced', label: '专业' }
+]
+
+const PLAN_LEVEL_LABELS: Record<PublicTrainingPlanLevel, string> = {
+  beginner: '入门',
+  intermediate: '进阶',
+  advanced: '专业'
+}
 
 const BODY_REGION_OPTIONS = [
   { key: '胸部', label: '胸部' },
@@ -125,6 +140,9 @@ function KnowledgeBase() {
   const [loadingBodyRegion, setLoadingBodyRegion] = useState(false)
   const [isGuest, setIsGuest] = useState(false)
   const [bodyMapGender, setBodyMapGender] = useState<'male' | 'female'>('male')
+  const [planFilter, setPlanFilter] = useState<'all' | PublicTrainingPlanLevel>('all')
+  const [trainingPlans, setTrainingPlans] = useState<PublicTrainingPlanListItem[]>([])
+  const [loadingTrainingPlans, setLoadingTrainingPlans] = useState(true)
   const bodyMapImageUrl = useMemo(() => {
     const svgRaw = bodyMapGender === 'female'
       ? (bodyView === 'front' ? femaleFrontSvgRaw : femaleBackSvgRaw)
@@ -143,10 +161,33 @@ function KnowledgeBase() {
     const session = authService.getAuthSession({ normalize: true })
     setIsGuest(!session.isAuthenticated)
     void loadBooks()
+    void loadTrainingPlans('all')
     if (session.userId) {
       void loadBodyMapGender(session.userId)
     }
   }, [])
+
+  async function loadTrainingPlans(level: 'all' | PublicTrainingPlanLevel) {
+    try {
+      setLoadingTrainingPlans(true)
+      const res = await knowledgeService.listTrainingPlans({
+        level,
+        limit: level === 'all' ? 8 : 12,
+        offset: 0
+      })
+      setTrainingPlans(res.plans || [])
+    } catch (e) {
+      console.error('[knowledge] load training plans:', e)
+      setTrainingPlans([])
+    } finally {
+      setLoadingTrainingPlans(false)
+    }
+  }
+
+  function handlePlanFilterChange(level: 'all' | PublicTrainingPlanLevel) {
+    setPlanFilter(level)
+    void loadTrainingPlans(level)
+  }
 
   async function loadBodyMapGender(userId: string) {
     try {
@@ -320,6 +361,67 @@ function KnowledgeBase() {
               )}
             </View>
           )}
+
+          <View className='section'>
+            <View className='section-head section-head-stack'>
+              <View>
+                <Text className='section-title'>训练计划库</Text>
+                <Text className='section-caption'>
+                  常见运动计划模板，先加入我的计划，再编辑或应用执行
+                </Text>
+              </View>
+              <View className='plan-filter-row'>
+                {PLAN_FILTERS.map((filter) => (
+                  <View
+                    key={filter.key}
+                    className={`plan-filter-chip ${planFilter === filter.key ? 'active' : ''}`}
+                    onClick={() => handlePlanFilterChange(filter.key)}
+                  >
+                    <Text>{filter.label}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+            {loadingTrainingPlans ? (
+              <View className='empty-panel'><LoadingSpinner size={48} /></View>
+            ) : trainingPlans.length === 0 ? (
+              <View className='empty-panel'>
+                <Text className='empty-panel-text'>暂无训练计划模板</Text>
+              </View>
+            ) : (
+              <ScrollView scrollX className='builtin-plan-scroll' enhanced showScrollbar={false}>
+                <View className='builtin-plan-track'>
+                  {trainingPlans.map((plan) => (
+                  <View
+                    key={plan.id}
+                    className='builtin-plan-card'
+                    onClick={() => Taro.navigateTo({ url: `/content/knowledge/plan-detail?id=${encodeURIComponent(plan.slug || plan.id)}` })}
+                  >
+                    <View className='builtin-plan-topline'>
+                      <Text className='builtin-plan-sport'>{plan.sport}</Text>
+                      <Text className={`builtin-plan-level ${plan.level}`}>
+                        {PLAN_LEVEL_LABELS[plan.level]}
+                      </Text>
+                    </View>
+                    <Text className='builtin-plan-title' numberOfLines={2}>{plan.name}</Text>
+                    <Text className='builtin-plan-desc' numberOfLines={2}>{plan.description}</Text>
+                    <View className='builtin-plan-meta'>
+                      <Text>{plan.weeks}周</Text>
+                      <Text>{plan.daysPerWeek}天/周</Text>
+                      <Text>{plan.goal}</Text>
+                    </View>
+                    <View className='builtin-plan-tags'>
+                      {plan.tags.slice(0, 2).map((tag) => (
+                        <Text key={tag}>{tag}</Text>
+                      ))}
+                    </View>
+                    <Text className='builtin-plan-link'>查看并加入</Text>
+                  </View>
+                  ))}
+                </View>
+              </ScrollView>
+            )}
+          </View>
 
           <View className='section'>
             <View className='section-head'>

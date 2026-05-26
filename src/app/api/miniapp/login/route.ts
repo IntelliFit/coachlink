@@ -5,10 +5,16 @@ import { signToken } from "@/lib/jwt";
 import redis from "@/lib/redisClient";
 import { toPublicApiMessage } from "@/lib/publicApiError";
 
-function buildDefaultNickname(phoneOrEmail: string, isPhone: boolean) {
-    return isPhone
-        ? `手机用户_${phoneOrEmail.slice(-4)}`
-        : `邮箱用户_${(phoneOrEmail.split("@")[0] || "").slice(0, 8)}`;
+function isGeneratedNickname(value: any) {
+    const nickname = String(value || "").trim();
+    return /^手机用户_\d{4}$/.test(nickname)
+        || /^邮箱用户_.+$/.test(nickname)
+        || /^微信用户_.+$/.test(nickname)
+        || /^CoachLink\s*学员$/.test(nickname)
+        || /^鎵嬫満鐢ㄦ埛_\d{4}$/.test(nickname)
+        || /^閭鐢ㄦ埛_.+$/.test(nickname)
+        || /^寰俊鐢ㄦ埛_.+$/.test(nickname)
+        || /^CoachLink\s*瀛﹀憳$/.test(nickname);
 }
 
 async function ensureUserProfile(user: any, phoneOrEmail: string, isPhone: boolean) {
@@ -24,6 +30,25 @@ async function ensureUserProfile(user: any, phoneOrEmail: string, isPhone: boole
     }
 
     if (existingProfile) {
+        if (isGeneratedNickname(existingProfile.nickname)) {
+            const { data: cleanedProfile, error: cleanError } = await serviceRoleSupabase
+                .from("user_profiles")
+                .update({
+                    nickname: "",
+                    updated_at: new Date().toISOString(),
+                })
+                .eq("user_id", user.id)
+                .select("*")
+                .single();
+
+            if (cleanError) {
+                console.error("娓呯悊榛樿鏄电О澶辫触:", cleanError);
+                return existingProfile;
+            }
+
+            return cleanedProfile;
+        }
+
         return existingProfile;
     }
 
@@ -31,7 +56,7 @@ async function ensureUserProfile(user: any, phoneOrEmail: string, isPhone: boole
         .from("user_profiles")
         .insert({
             user_id: user.id,
-            nickname: buildDefaultNickname(phoneOrEmail, isPhone),
+            nickname: "",
             bio: "",
             onboarding_completed: false,
             created_at: new Date().toISOString(),

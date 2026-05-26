@@ -10,6 +10,7 @@ import { ProgressTimeline } from './profile/ProgressTimeline';
 import { CoachNotesSection } from './profile/CoachNotesSection';
 import { SportCardsDisplay } from './profile/SportCardsDisplay';
 import { PlanPreferencesDisplay } from './profile/PlanPreferencesDisplay';
+import { FitnessProfileCard } from './profile/FitnessProfileCard';
 import { ProfileData } from './profile/types';
 import { Skeleton } from 'primereact/skeleton';
 import { VideoCollectionSection } from './profile/VideoCollectionSection';
@@ -329,6 +330,12 @@ const StudentProfilePage: React.FC<StudentProfilePageProps> = ({ onBack }) => {
                             editingVisible={personalInfoEditing}
                             onEditingChange={setPersonalInfoEditing}
                             hideDisplay={true}
+                        />
+
+                        <FitnessProfileCard
+                            profile={profileData?.profile || null}
+                            questionnaire={profileData?.questionnaire || null}
+                            onUpdate={fetchData}
                         />
                     </>
                 ) : null}

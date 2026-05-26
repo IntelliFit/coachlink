@@ -1,7 +1,7 @@
-import { useEffect, useState, useMemo } from 'react'
-import { View, Text, ScrollView, Image } from '@tarojs/components'
+import { useEffect, useState, useMemo, useRef } from 'react'
+import { View, Text, ScrollView, Image, Input as TaroInput, Button as TaroButton } from '@tarojs/components'
 import Taro from '@tarojs/taro'
-import { ConfigProvider, Input } from '@nutui/nutui-react-taro'
+import { ConfigProvider } from '@nutui/nutui-react-taro'
 import zhCN from '@nutui/nutui-react-taro/dist/locales/zh-CN'
 import { authService } from '@/services/authService'
 import { studentService } from '@/services/studentService'
@@ -16,6 +16,7 @@ import femaleBackSvgRaw from '@/assets/body-map/femaleBackSvg'
 import './index.scss'
 
 interface OnboardingFormData {
+  avatarUrl: string
   nickname: string
   gender: string
   height: number
@@ -130,6 +131,7 @@ function highlightSvgParts(
 }
 
 const DEFAULT_FORM_DATA: OnboardingFormData = {
+  avatarUrl: '',
   nickname: '',
   gender: '',
   height: 170,
@@ -174,21 +176,23 @@ const weightItems = (() => {
   return arr
 })()
 
-const getDefaultNickname = (user: any) => {
-  const nickname = String(user?.nickname || '').trim()
-  if (nickname) return nickname
+function normalizeOnboardingNickname(value: any) {
+  const nickname = String(value || '').trim()
+  if (!nickname) return ''
 
-  const phone = String(user?.phone || '').trim()
-  if (phone && phone !== 'null') {
-    return `手机用户_${phone.slice(-4)}`
-  }
+  const generatedPatterns = [
+    /^手机用户_\d{4}$/,
+    /^邮箱用户_.+$/,
+    /^微信用户_.+$/,
+    /^CoachLink\s*学员$/,
+    /^用户\s*\d{4}$/,
+    /^鎵嬫満鐢ㄦ埛_\d{4}$/,
+    /^閭鐢ㄦ埛_.+$/,
+    /^寰俊鐢ㄦ埛_.+$/,
+    /^CoachLink\s*瀛﹀憳$/,
+  ]
 
-  const email = String(user?.email || '').trim()
-  if (email) {
-    return `邮箱用户_${(email.split('@')[0] || '').slice(0, 8)}`
-  }
-
-  return 'CoachLink 学员'
+  return generatedPatterns.some((pattern) => pattern.test(nickname)) ? '' : nickname
 }
 
 const WifiSignalIcon: React.FC<{ level: number; active: boolean }> = ({ level, active }) => {
@@ -212,8 +216,14 @@ const WifiSignalIcon: React.FC<{ level: number; active: boolean }> = ({ level, a
 function StudentOnboarding() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [avatarUploading, setAvatarUploading] = useState(false)
   const [step, setStep] = useState(1)
   const [formData, setFormData] = useState<OnboardingFormData>(DEFAULT_FORM_DATA)
+  const [nicknameInputFocused, setNicknameInputFocused] = useState(false)
+  const nicknameValueRef = useRef(DEFAULT_FORM_DATA.nickname)
+  const nicknameFooterTimerRef = useRef<any>(null)
+  const routerParams = (Taro.getCurrentInstance().router?.params as any) || {}
+  const isEditMode = String(routerParams.mode || '').trim() === 'edit'
 
   const [heightIndex, setHeightIndex] = useState(() => {
     const idx = DEFAULT_FORM_DATA.height - HEIGHT_MIN
@@ -230,9 +240,21 @@ function StudentOnboarding() {
 
   const totalSteps = STEP_TITLES.length
 
+  useEffect(() => {
+    nicknameValueRef.current = formData.nickname
+  }, [formData.nickname])
+
+  useEffect(() => {
+    return () => {
+      if (nicknameFooterTimerRef.current) {
+        clearTimeout(nicknameFooterTimerRef.current)
+      }
+    }
+  }, [])
+
   const nextUrl = (() => {
     try {
-      const rawNext = (Taro.getCurrentInstance().router?.params as any)?.next
+      const rawNext = routerParams?.next
       if (rawNext && typeof rawNext === 'string') {
         const decoded = decodeURIComponent(rawNext)
         if (decoded.startsWith('/') && !decoded.startsWith('/auth/student-onboarding')) {
@@ -240,15 +262,18 @@ function StudentOnboarding() {
         }
       }
     } catch (_) {}
-    return '/training/impromptu-training?from=onboarding'
+    return isEditMode ? '/me/profile/index' : '/training/impromptu-training?from=onboarding'
   })()
 
   useEffect(() => {
     const bootstrap = async () => {
       const session = authService.getAuthSession({ normalize: true })
       if (!session.isAuthenticated || !session.userId) {
+        const returnTo = isEditMode
+          ? `/auth/student-onboarding?mode=edit&next=${encodeURIComponent(nextUrl)}`
+          : buildStudentOnboardingUrl(nextUrl)
         Taro.redirectTo({
-          url: authService.buildLoginUrl(buildStudentOnboardingUrl(nextUrl))
+          url: authService.buildLoginUrl(returnTo)
         })
         return
       }
@@ -263,7 +288,7 @@ function StudentOnboarding() {
         const profile = profileRes?.profile || null
         const questionnaire = profileRes?.questionnaire?.answers || {}
 
-        if (profile?.onboarding_completed === true && isCoreStudentProfileComplete(profile)) {
+        if (!isEditMode && profile?.onboarding_completed === true && isCoreStudentProfileComplete(profile)) {
           Taro.reLaunch({ url: nextUrl })
           return
         }
@@ -272,7 +297,8 @@ function StudentOnboarding() {
         const initWeight = Number(profile?.weight || DEFAULT_FORM_DATA.weight)
 
         setFormData({
-          nickname: String(profile?.nickname || getDefaultNickname(session.user)).trim(),
+          avatarUrl: isEditMode ? String(profile?.avatar_url || '').trim() : '',
+          nickname: isEditMode ? String(profile?.nickname || '').trim() : normalizeOnboardingNickname(profile?.nickname),
           gender: String(profile?.gender || ''),
           height: initHeight,
           weight: initWeight,
@@ -304,7 +330,7 @@ function StudentOnboarding() {
     }
 
     void bootstrap()
-  }, [nextUrl])
+  }, [isEditMode, nextUrl])
 
   const toggleListValue = (key: 'interestTags' | 'equipments', value: string) => {
     setFormData((prev) => {
@@ -313,6 +339,107 @@ function StudentOnboarding() {
         : [...prev[key], value]
       return { ...prev, [key]: nextValues }
     })
+  }
+
+  const handleChooseAvatar = async (e: any) => {
+    const avatarFilePath = String(e?.detail?.avatarUrl || '').trim()
+    if (!avatarFilePath) {
+      return
+    }
+
+    setAvatarUploading(true)
+    try {
+      const uploadedUrl = await studentService.uploadAvatar(avatarFilePath)
+      setFormData((prev) => ({ ...prev, avatarUrl: uploadedUrl }))
+      Taro.showToast({
+        title: '头像已更新',
+        icon: 'success'
+      })
+    } catch (error: any) {
+      console.error('[student-onboarding] avatar upload failed:', error)
+      Taro.showToast({
+        title: error?.message || '头像上传失败',
+        icon: 'none'
+      })
+    } finally {
+      setAvatarUploading(false)
+    }
+  }
+
+  const syncNicknameFromEvent = (e: any, options: { allowEmpty?: boolean } = {}) => {
+    const rawValue = e?.detail?.value
+    if (typeof rawValue !== 'string') {
+      return nicknameValueRef.current
+    }
+
+    const value = rawValue.trim()
+    if (!value && options.allowEmpty === false) {
+      return nicknameValueRef.current
+    }
+
+    nicknameValueRef.current = value
+    setFormData((prev) => {
+      if (prev.nickname === value) return prev
+      return { ...prev, nickname: value }
+    })
+    return value
+  }
+
+  const handleNicknameFocus = () => {
+    if (nicknameFooterTimerRef.current) {
+      clearTimeout(nicknameFooterTimerRef.current)
+      nicknameFooterTimerRef.current = null
+    }
+    setNicknameInputFocused(true)
+  }
+
+  const syncNicknameFromNativeNode = (afterSync?: () => void) => {
+    const queryFactory = (Taro as any).createSelectorQuery
+    if (typeof queryFactory !== 'function') {
+      afterSync?.()
+      return
+    }
+
+    let finished = false
+    const finish = () => {
+      if (finished) return
+      finished = true
+      afterSync?.()
+    }
+
+    try {
+      queryFactory()
+        .select('#student-onboarding-nickname-input')
+        .fields({ properties: ['value'] }, (res: any) => {
+          const value = String(res?.value || '').trim()
+          if (value) {
+            nicknameValueRef.current = value
+            setFormData((prev) => {
+              if (prev.nickname === value) return prev
+              return { ...prev, nickname: value }
+            })
+          }
+          finish()
+        })
+        .exec()
+
+      setTimeout(finish, 180)
+    } catch (error) {
+      console.warn('[student-onboarding] read native nickname input failed:', error)
+      finish()
+    }
+  }
+
+  const restoreFooterAfterNicknamePicker = () => {
+    if (nicknameFooterTimerRef.current) {
+      clearTimeout(nicknameFooterTimerRef.current)
+    }
+    nicknameFooterTimerRef.current = setTimeout(() => {
+      syncNicknameFromNativeNode(() => {
+        setNicknameInputFocused(false)
+        nicknameFooterTimerRef.current = null
+      })
+    }, 320)
   }
 
   const validateCurrentStep = () => {
@@ -383,6 +510,7 @@ function StudentOnboarding() {
     try {
       const profile = await studentService.updateProfile({
         nickname: formData.nickname.trim(),
+        avatar_url: formData.avatarUrl || null,
         gender: formData.gender,
         height: formData.height,
         weight: formData.weight,
@@ -396,7 +524,8 @@ function StudentOnboarding() {
       }
 
       authService.mergeCurrentUser({
-        nickname: formData.nickname.trim()
+        nickname: formData.nickname.trim(),
+        avatar_url: formData.avatarUrl || null
       })
 
       try {
@@ -415,7 +544,7 @@ function StudentOnboarding() {
       }
 
       Taro.showToast({
-        title: '档案已完善',
+        title: isEditMode ? '档案已更新' : '档案已完善',
         icon: 'success'
       })
 
@@ -559,14 +688,61 @@ function StudentOnboarding() {
 
         <View className='step-content'>
           <View className='field-group'>
+            <Text className='field-label'>头像</Text>
+            <View className='avatar-picker-card'>
+              <View className='avatar-picker-main'>
+                {formData.avatarUrl ? (
+                  <Image className='avatar-preview' src={formData.avatarUrl} mode='aspectFill' />
+                ) : (
+                  <View className='avatar-placeholder'>
+                    <Text className='avatar-placeholder-text'>头像</Text>
+                  </View>
+                )}
+                <View className='avatar-picker-copy'>
+                  <Text className='avatar-picker-title'>使用微信头像</Text>
+                  <Text className='avatar-picker-desc'>
+                    {avatarUploading ? '上传中...' : '点击选择微信头像，后续资料页也会同步显示。'}
+                  </Text>
+                </View>
+              </View>
+              <TaroButton
+                className='avatar-picker-btn'
+                openType='chooseAvatar'
+                onChooseAvatar={handleChooseAvatar}
+                disabled={avatarUploading || saving}
+              >
+                <Text className='avatar-picker-btn-text'>{avatarUploading ? '上传中...' : '选择头像'}</Text>
+              </TaroButton>
+            </View>
+          </View>
+
+          <View className='field-group'>
             <Text className='field-label'>昵称</Text>
-            <View className='input-shell'>
-              <Input
-                value={formData.nickname}
-                placeholder='给自己取个名字吧'
-                onChange={(value) => setFormData((prev) => ({ ...prev, nickname: value }))}
+            <View className='input-shell input-shell--native'>
+              <TaroInput
+                id='student-onboarding-nickname-input'
+                className='native-nickname-input'
+                type='nickname'
+                maxlength={24}
+                defaultValue={formData.nickname}
+                placeholder='点击使用微信昵称，也可以手动修改'
+                onFocus={handleNicknameFocus}
+                onInput={(e) => syncNicknameFromEvent(e, { allowEmpty: true })}
+                onBlur={(e) => {
+                  syncNicknameFromEvent(e, { allowEmpty: false })
+                  restoreFooterAfterNicknamePicker()
+                }}
+                onConfirm={(e) => syncNicknameFromEvent(e, { allowEmpty: false })}
+                onNickNameReview={(e) => {
+                  const detail = (e as any)?.detail || {}
+                  if (typeof detail.value === 'string') {
+                    syncNicknameFromEvent(e, { allowEmpty: false })
+                  }
+                  restoreFooterAfterNicknamePicker()
+                }}
               />
             </View>
+            <Text className='field-tip'>可直接使用微信昵称，也可以在这里再调整</Text>
           </View>
 
           <View className='field-group'>
@@ -765,7 +941,7 @@ function StudentOnboarding() {
           </ScrollView>
         )}
 
-        <View className='footer-bar'>
+        <View className={`footer-bar ${nicknameInputFocused ? 'footer-bar--hidden' : ''}`}>
           <View
             className={`footer-btn footer-btn--prev ${step <= 1 || loading ? 'footer-btn--disabled' : ''}`}
             onClick={step <= 1 || loading ? undefined : handlePrev}
@@ -786,7 +962,7 @@ function StudentOnboarding() {
               className={`footer-btn footer-btn--next ${(saving || loading) ? 'footer-btn--disabled' : ''}`}
               onClick={(saving || loading) ? undefined : handleSubmit}
             >
-              <Text className='footer-btn-text'>{saving ? '保存中...' : '开始训练'}</Text>
+              <Text className='footer-btn-text'>{saving ? '保存中...' : isEditMode ? '保存档案' : '开始训练'}</Text>
               <Text className='footer-btn-icon'>{'>'}</Text>
             </View>
           )}

@@ -393,6 +393,83 @@
   color: #FFFFFF;
 }
 
+.wechat-phone-auth-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.52);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48rpx;
+  z-index: 20;
+}
+
+.wechat-phone-auth-card {
+  width: 100%;
+  background: #FFFFFF;
+  border-radius: 32rpx;
+  padding: 48rpx;
+  box-shadow: 0 24rpx 64rpx rgba(15, 23, 42, 0.18);
+}
+
+.wechat-phone-auth-title {
+  display: block;
+  font-size: 40rpx;
+  font-weight: 800;
+  color: #0F172A;
+}
+
+.wechat-phone-auth-desc {
+  display: block;
+  margin-top: 24rpx;
+  font-size: 28rpx;
+  line-height: 1.6;
+  color: #475569;
+}
+
+.wechat-phone-auth-button {
+  width: 100% !important;
+  height: 96rpx !important;
+  margin-top: 40rpx;
+  border-radius: 9999rpx !important;
+  background: #CF6D4E !important;
+  border: none !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 !important;
+  line-height: 96rpx !important;
+
+  &:active {
+    opacity: 0.92;
+    background: #B85E3F !important;
+  }
+
+  &::after {
+    border: none !important;
+  }
+}
+
+.wechat-phone-auth-button-text {
+  font-size: 30rpx;
+  font-weight: 700;
+  color: #FFFFFF;
+}
+
+.wechat-phone-auth-cancel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 24rpx;
+  min-height: 48rpx;
+}
+
+.wechat-phone-auth-cancel-text {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #64748B;
+}
+
 :global {
   .nut-input {
     border: none !important;

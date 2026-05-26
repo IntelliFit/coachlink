@@ -351,6 +351,34 @@ class CoachService extends BaseService {
     return null
   }
 
+  /** 开通/重新提交汇付收款账户 */
+  async openHuifuAccount(reqData: {
+    name: string
+    certNo: string
+    mobileNo: string
+    certValidityType: string
+    certBeginDate: string
+    certEndDate?: string
+    idCardFront?: string
+    idCardBack?: string
+    cardNo: string
+    cardName: string
+    bankCode: string
+    branchCode: string
+    branchName: string
+    provId: string
+    areaId: string
+  }) {
+    const res = await this.post<{ huifu_id: string; apply_no?: string }>('merchant/open-huifu-account', reqData)
+    return res
+  }
+
+  /** 汇付提现到已绑定银行卡 */
+  async withdrawHuifu(amount: number) {
+    const res = await this.post<{ hfSeqId?: string }>('wallet/huifu/withdraw', { amount })
+    return res
+  }
+
   /** 创建教练申请 */
   async createCoachApplication(reqData: {
     name: string
@@ -585,4 +613,3 @@ class CoachService extends BaseService {
 }
 
 export const coachService = new CoachService('/api/coach')
-

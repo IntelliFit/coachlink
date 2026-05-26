@@ -4,6 +4,7 @@ import { serviceRoleSupabase } from "@/lib/supabaseClient";
 import type { CoachSubscriptionRow } from "@/types";
 import type { Json } from "@/types/database.types";
 import type { CoachSubscriptionOrderRow } from "@/types/subscriptionOrders";
+import { refreshSubscriptionEntitlementSnapshot } from "@/lib/subscriptionEntitlementSnapshot";
 
 const ORDER_TABLE = "coach_subscription_orders" as any;
 const MISSING_ORDER_TABLE_HINT =
@@ -290,20 +291,6 @@ async function applyRenewOrder(
         updateData.order_id = alipayOrderId;
     }
 
-    const offlinePayment = asObject(order.payment_data).offline_payment as
-        | { expires_at?: string }
-        | undefined;
-
-    if (offlinePayment?.expires_at) {
-        updateData.end_date = offlinePayment.expires_at;
-    } else if (extraWeeks > 0) {
-        const base = subscription.end_date ? new Date(subscription.end_date) : new Date();
-        const now = new Date();
-        const effectiveBase = base.getTime() < now.getTime() ? now : base;
-        effectiveBase.setDate(effectiveBase.getDate() + extraWeeks * 7);
-        updateData.end_date = effectiveBase.toISOString();
-    }
-
     const { data: updated, error: updateError } = await serviceRoleSupabase
         .from("coach_subscriptions")
         .update(updateData)
@@ -313,6 +300,14 @@ async function applyRenewOrder(
 
     if (updateError || !updated) {
         throw new Error(updateError?.message || "续费订阅更新失败");
+    }
+
+    const entitlementModel = await refreshSubscriptionEntitlementSnapshot(subscription.id);
+    if (entitlementModel?.displayEndDate) {
+        return {
+            ...(updated as CoachSubscriptionRow),
+            end_date: entitlementModel.displayEndDate,
+        };
     }
 
     return updated as CoachSubscriptionRow;

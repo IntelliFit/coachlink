@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { View, Image, Text, Button as TaroButton } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import {
@@ -11,6 +11,7 @@ import zhCN from '@nutui/nutui-react-taro/dist/locales/zh-CN'
 import { smsService } from '@/services/smsService'
 import { sesService } from '@/services/sesService'
 import { authService } from '@/services/authService'
+import { studentOnboardingService } from '@/services/studentOnboardingService'
 import SliderCaptcha from '@/components/SliderCaptcha'
 import ResetPasswordForm from '@/components/ResetPasswordForm'
 
@@ -19,11 +20,60 @@ import './index.scss'
 
 const IS_DEV = process.env.NODE_ENV === 'development'
 
+const TEXT = {
+  agreeFirst: '\u8bf7\u5148\u52fe\u9009\u7528\u6237\u534f\u8bae',
+  readAndAgree: '\u8bf7\u9605\u8bfb\u5e76\u52fe\u9009\u7528\u6237\u670d\u52a1\u534f\u8bae\u548c\u9690\u79c1\u653f\u7b56',
+  invalidPhoneOrEmail: '\u8bf7\u8f93\u5165\u6b63\u786e\u7684\u624b\u673a\u53f7\u6216\u90ae\u7bb1',
+  codeSent: '\u9a8c\u8bc1\u7801\u5df2\u53d1\u9001',
+  sendFailed: '\u53d1\u9001\u5931\u8d25',
+  enterPhoneOrEmail: '\u8bf7\u8f93\u5165\u624b\u673a\u53f7\u6216\u90ae\u7bb1',
+  enterPassword: '\u8bf7\u8f93\u5165\u5bc6\u7801',
+  enterCode: '\u8bf7\u8f93\u5165\u9a8c\u8bc1\u7801',
+  loginSuccess: '\u767b\u5f55\u6210\u529f',
+  loginFailed: '\u767b\u5f55\u5931\u8d25',
+  quickLoginSuccess: '\u5feb\u6377\u767b\u5f55\u6210\u529f',
+  quickLoginFailed: '\u5feb\u6377\u767b\u5f55\u5931\u8d25',
+  authorizePhoneForFirstLogin: '\u8bf7\u5148\u6388\u6743\u624b\u673a\u53f7\u4ee5\u5b8c\u6210\u9996\u6b21\u767b\u5f55',
+  phoneAuthorizeFailed: '\u624b\u673a\u53f7\u6388\u6743\u5931\u8d25',
+  loginTitle: '\u767b\u5f55',
+  resetPasswordTitle: '\u91cd\u7f6e\u5bc6\u7801',
+  brand: '\u6559\u94fe CoachLink',
+  slogan: '\u767b\u5f55\u4ee5\u7ee7\u7eed\u4f60\u7684\u8bad\u7ec3\u8ba1\u5212',
+  modeQuick: '\u5feb\u6377\u767b\u5f55',
+  modePassword: '\u5bc6\u7801\u767b\u5f55',
+  modeVerifyCode: '\u9a8c\u8bc1\u7801\u767b\u5f55',
+  phoneOneTapLogin: '\u624b\u673a\u4e00\u952e\u767b\u5f55',
+  phoneQuickLogin: '\u624b\u673a\u53f7\u5feb\u6377\u767b\u5f55',
+  loggingIn: '\u767b\u5f55\u4e2d...',
+  sendCode: '\u83b7\u53d6\u9a8c\u8bc1\u7801',
+  sending: '\u53d1\u9001\u4e2d...',
+  immediateLogin: '\u7acb\u5373\u767b\u5f55',
+  or: '\u6216',
+  and: '\u548c',
+  noAccount: '\u8fd8\u6ca1\u6709\u8d26\u6237\uff1f',
+  registerNow: '\u7acb\u5373\u6ce8\u518c',
+  devOnboarding: '\u3010\u5f00\u53d1\u3011\u5feb\u901f\u8fdb\u5165\u521d\u59cb\u5316\u5f15\u5bfc',
+  termsPrefix: '\u540c\u610f',
+  terms: '\u300a\u7528\u6237\u670d\u52a1\u534f\u8bae\u300b',
+  privacy: '\u300a\u9690\u79c1\u653f\u7b56\u300b',
+  completeFirstLogin: '\u5b8c\u6210\u9996\u6b21\u767b\u5f55',
+  firstLoginDesc: '\u5f53\u524d\u8d26\u53f7\u8fd8\u6ca1\u6709\u7ed1\u5b9a\u624b\u673a\u53f7\u3002\u53ea\u6709\u9996\u6b21\u5efa\u53f7\u6216\u8d26\u53f7\u7f3a\u5c11\u624b\u673a\u53f7\u65f6\uff0c\u624d\u9700\u8981\u518d\u6388\u6743\u4e00\u6b21\u624b\u673a\u53f7\u3002',
+  authorizePhoneAndContinue: '\u6388\u6743\u624b\u673a\u53f7\u5e76\u7ee7\u7eed',
+  authorizing: '\u6388\u6743\u4e2d...',
+  notNow: '\u6682\u4e0d\u7ee7\u7eed',
+  forgotPassword: '\u5fd8\u8bb0\u5bc6\u7801\uff1f',
+  inputPhoneOrEmail: '\u8bf7\u8f93\u5165\u624b\u673a\u53f7\u6216\u90ae\u7bb1',
+  inputPassword: '\u8bf7\u8f93\u5165\u767b\u5f55\u5bc6\u7801',
+  inputVerifyCode: '6\u4f4d\u9a8c\u8bc1\u7801',
+  devUser: '\u5f00\u53d1\u6d4b\u8bd5\u7528\u6237'
+} as const
+
 type LoginMode = 'wechat' | 'password' | 'verifyCode'
 
 function Login() {
   const [loginMode, setLoginMode] = useState<LoginMode>('wechat')
   const [showResetPassword, setShowResetPassword] = useState(false)
+  const [showWechatPhoneAuthPrompt, setShowWechatPhoneAuthPrompt] = useState(false)
   const [phoneOrEmail, setPhoneOrEmail] = useState('')
   const [password, setPassword] = useState('')
   const [verificationCode, setVerificationCode] = useState('')
@@ -47,13 +97,40 @@ function Login() {
     return isPhone || isEmail
   }
 
+  const getRequestedReturnTo = () => {
+    try {
+      const instance = Taro.getCurrentInstance()
+      const value = instance?.router?.params?.returnTo
+      if (value && typeof value === 'string') {
+        return decodeURIComponent(value)
+      }
+    } catch {
+      return null
+    }
+    return null
+  }
+
+  const resolvePostLoginUrl = async () => {
+    const currentUser = authService.getCurrentUser()
+    const fallbackUrl = getRequestedReturnTo() || authService.buildPostAuthHomeUrl()
+    return studentOnboardingService.resolvePostLoginUrl({
+      loggedInUser: currentUser,
+      fallbackUrl
+    })
+  }
+
+  const handlePostLoginSuccess = async () => {
+    const targetUrl = await resolvePostLoginUrl()
+    await Taro.reLaunch({ url: targetUrl })
+  }
+
   const sendVerificationCode = () => {
     if (!agreed) {
-      Taro.showToast({ title: '请先勾选用户协议', icon: 'none' })
+      Taro.showToast({ title: TEXT.agreeFirst, icon: 'none' })
       return
     }
     if (!isValidPhoneOrEmail()) {
-      Taro.showToast({ title: '请输入正确的手机号或邮箱', icon: 'none' })
+      Taro.showToast({ title: TEXT.invalidPhoneOrEmail, icon: 'none' })
       return
     }
     setSliderCaptchaVisible(true)
@@ -69,17 +146,13 @@ function Login() {
         await smsService.sendVerificationCode({ phoneNumber: phoneOrEmail, captchaToken: token })
       }
       setCountdown(60)
-      Toast.show('验证码已发送', {})
+      Toast.show(TEXT.codeSent, {})
     } catch (error: any) {
-      console.error('发送验证码失败:', error)
-      Toast.show(error.message || '发送失败', {})
+      console.error('send verification code failed:', error)
+      Toast.show(error.message || TEXT.sendFailed, {})
     } finally {
       setSendingCode(false)
     }
-  }
-
-  const handlePostLoginSuccess = async () => {
-    await Taro.reLaunch({ url: authService.buildPostAuthHomeUrl() })
   }
 
   const goToTerms = () => Taro.navigateTo({ url: '/me-legal/terms/index' })
@@ -87,51 +160,49 @@ function Login() {
 
   const handleLogin = async () => {
     if (!agreed) {
-      Toast.show('请阅读并勾选用户服务协议和隐私政策', {})
+      Toast.show(TEXT.readAndAgree, {})
       return
     }
+
     const trimmedPhoneOrEmail = phoneOrEmail.trim()
     const trimmedPassword = password.trim()
     const trimmedCode = verificationCode.trim()
 
     if (!trimmedPhoneOrEmail) {
-      Toast.show('请输入手机号或邮箱', {})
+      Toast.show(TEXT.enterPhoneOrEmail, {})
       return
     }
 
     if (loginMode === 'password') {
       if (!trimmedPassword) {
-        Toast.show('请输入密码', {})
+        Toast.show(TEXT.enterPassword, {})
         return
       }
-    } else {
-      if (!trimmedCode) {
-        Toast.show('请输入验证码', {})
-        return
-      }
+    } else if (!trimmedCode) {
+      Toast.show(TEXT.enterCode, {})
+      return
     }
 
     setLoading(true)
     try {
-      let data: any
       if (loginMode === 'password') {
-        data = await authService.loginWithPassword({
+        await authService.loginWithPassword({
           phoneOrEmail: trimmedPhoneOrEmail,
           password: trimmedPassword
         })
       } else {
-        data = await authService.loginWithCode({
+        await authService.loginWithCode({
           phoneOrEmail: trimmedPhoneOrEmail,
           verifyCode: trimmedCode
         })
       }
-      Toast.show('登录成功', {})
+      Toast.show(TEXT.loginSuccess, {})
       setTimeout(() => {
         void handlePostLoginSuccess()
       }, 500)
     } catch (error: any) {
-      console.error('登录失败:', error)
-      Toast.show(error.message || '登录失败', {})
+      console.error('login failed:', error)
+      Toast.show(error.message || TEXT.loginFailed, {})
     } finally {
       setLoading(false)
     }
@@ -150,27 +221,65 @@ function Login() {
     setShowResetPassword(true)
   }
 
+  const isWechatPhoneAuthorizationRequired = (error: any) => {
+    const message = String(error?.message || '')
+    return message.includes('\u9996\u6b21\u5feb\u6377\u767b\u5f55\u8bf7\u5148\u6388\u6743\u624b\u673a\u53f7')
+      || message.includes('\u9996\u6b21\u767b\u5f55\u8bf7\u5148\u6388\u6743\u624b\u673a\u53f7')
+  }
+
+  const finishWechatLogin = async (phoneCode?: string | null) => {
+    await authService.loginWithWechat(phoneCode)
+    Toast.show(TEXT.quickLoginSuccess, {})
+    setTimeout(() => {
+      void handlePostLoginSuccess()
+    }, 500)
+  }
+
   const handleWechatLogin = async (e: any) => {
     if (!agreed) {
-      Toast.show('请阅读并勾选用户服务协议和隐私政策', {})
+      Toast.show(TEXT.readAndAgree, {})
       return
     }
+
+    const { code: phoneCode, errMsg } = e?.detail || {}
+    if (!phoneCode) {
+      Toast.show(errMsg || TEXT.authorizePhoneForFirstLogin, {})
+      return
+    }
+
     setLoading(true)
     try {
-      const { code: phoneCode, errMsg, errno } = e.detail || {}
-      if (!phoneCode) {
-        Toast.show(errMsg || '请先授权手机号以完成快捷登录', {})
-        setLoading(false)
+      await finishWechatLogin(phoneCode)
+    } catch (error: any) {
+      if (isWechatPhoneAuthorizationRequired(error)) {
+        setShowWechatPhoneAuthPrompt(true)
         return
       }
-      const wechatData = await authService.loginWithWechat(phoneCode)
-      Toast.show('快捷登录成功', {})
-      setTimeout(() => {
-        void handlePostLoginSuccess()
-      }, 500)
+      console.error('quick login failed:', error)
+      Toast.show(error.message || TEXT.quickLoginFailed, {})
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleWechatPhoneAuthorization = async (e: any) => {
+    if (!agreed) {
+      Toast.show(TEXT.readAndAgree, {})
+      return
+    }
+
+    setLoading(true)
+    try {
+      const { code: phoneCode, errMsg } = e.detail || {}
+      if (!phoneCode) {
+        Toast.show(errMsg || TEXT.authorizePhoneForFirstLogin, {})
+        return
+      }
+      setShowWechatPhoneAuthPrompt(false)
+      await finishWechatLogin(phoneCode)
     } catch (error: any) {
-      console.error('快捷登录失败:', error)
-      Toast.show(error.message || '快捷登录失败', {})
+      console.error('phone authorization login failed:', error)
+      Toast.show(error.message || TEXT.phoneAuthorizeFailed, {})
     } finally {
       setLoading(false)
     }
@@ -182,15 +291,15 @@ function Login() {
         <View className='login-hero'>
           <Image className='login-bg' src={loginBg} mode='aspectFill' />
           <View className='login-hero-overlay'>
-            <Text className='login-hero-brand'>教链 CoachLink</Text>
-            <Text className='login-hero-slogan'>登录以继续你的训练计划</Text>
+            <Text className='login-hero-brand'>{TEXT.brand}</Text>
+            <Text className='login-hero-slogan'>{TEXT.slogan}</Text>
           </View>
         </View>
 
         <View className='login-card'>
           {showResetPassword ? (
             <>
-              <Text className='login-card-title'>重置密码</Text>
+              <Text className='login-card-title'>{TEXT.resetPasswordTitle}</Text>
               <ResetPasswordForm
                 onBackToLogin={() => setShowResetPassword(false)}
                 onSuccess={() => {
@@ -203,7 +312,7 @@ function Login() {
             </>
           ) : (
             <>
-              <Text className='login-card-title'>登录</Text>
+              <Text className='login-card-title'>{TEXT.loginTitle}</Text>
 
               <View className='mode-switcher'>
                 <View
@@ -214,7 +323,7 @@ function Login() {
                     setVerificationCode('')
                   }}
                 >
-                  <Text className='switcher-text'>微信登录</Text>
+                  <Text className='switcher-text'>{TEXT.modeQuick}</Text>
                 </View>
                 <View
                   className={`switcher-pill ${loginMode === 'password' ? 'switcher-active' : ''}`}
@@ -223,7 +332,7 @@ function Login() {
                     setVerificationCode('')
                   }}
                 >
-                  <Text className='switcher-text'>密码登录</Text>
+                  <Text className='switcher-text'>{TEXT.modePassword}</Text>
                 </View>
                 <View
                   className={`switcher-pill ${loginMode === 'verifyCode' ? 'switcher-active' : ''}`}
@@ -232,7 +341,7 @@ function Login() {
                     setPassword('')
                   }}
                 >
-                  <Text className='switcher-text'>验证码登录</Text>
+                  <Text className='switcher-text'>{TEXT.modeVerifyCode}</Text>
                 </View>
               </View>
 
@@ -244,11 +353,7 @@ function Login() {
                     onGetPhoneNumber={handleWechatLogin}
                     disabled={loading || !agreed}
                   >
-                    {loading ? (
-                      <Text className='wechat-primary-text'>登录中...</Text>
-                    ) : (
-                      <Text className='wechat-primary-text'>手机一键登录</Text>
-                    )}
+                    <Text className='wechat-primary-text'>{loading ? TEXT.loggingIn : TEXT.phoneOneTapLogin}</Text>
                   </TaroButton>
                 </View>
               )}
@@ -260,7 +365,7 @@ function Login() {
                       <Text className='input-icon iconfont icon-login' />
                       <Input
                         className='form-input'
-                        placeholder='请输入手机号或邮箱'
+                        placeholder={TEXT.inputPhoneOrEmail}
                         value={phoneOrEmail}
                         onChange={(val) => setPhoneOrEmail(val)}
                       />
@@ -273,7 +378,7 @@ function Login() {
                         <Text className='input-icon iconfont icon-setting' />
                         <Input
                           className='form-input'
-                          placeholder='请输入登录密码'
+                          placeholder={TEXT.inputPassword}
                           type='password'
                           value={password}
                           onChange={(val) => setPassword(val)}
@@ -281,7 +386,7 @@ function Login() {
                       </View>
                       <View className='form-extra'>
                         <Text className='forgot-password' onClick={goToResetPassword}>
-                          忘记密码？
+                          {TEXT.forgotPassword}
                         </Text>
                       </View>
                     </View>
@@ -293,7 +398,7 @@ function Login() {
                         <Text className='input-icon iconfont icon-messages' />
                         <Input
                           className='form-input'
-                          placeholder='6位验证码'
+                          placeholder={TEXT.inputVerifyCode}
                           type='number'
                           maxLength={6}
                           value={verificationCode}
@@ -303,11 +408,9 @@ function Login() {
                           className={`send-code-btn ${(countdown > 0 || sendingCode || sliderCaptchaVisible || !isValidPhoneOrEmail()) ? 'send-code-btn-disabled' : ''}`}
                           onClick={(countdown > 0 || sendingCode || sliderCaptchaVisible || !isValidPhoneOrEmail()) ? undefined : sendVerificationCode}
                         >
-                          {sendingCode ? (
-                            <Text className='send-code-btn-text'>发送中...</Text>
-                          ) : (
-                            <Text className='send-code-btn-text'>{countdown > 0 ? `${countdown}s` : '获取验证码'}</Text>
-                          )}
+                          <Text className='send-code-btn-text'>
+                            {sendingCode ? TEXT.sending : (countdown > 0 ? `${countdown}s` : TEXT.sendCode)}
+                          </Text>
                         </View>
                       </View>
                     </View>
@@ -316,22 +419,22 @@ function Login() {
                   <View
                     className={`login-button ${loading || !agreed ? 'login-button-disabled' : ''} ${loading ? 'login-button-loading' : ''}`}
                     onClick={!loading && agreed ? handleLogin : () => {
-                      if (!agreed) Toast.show('请阅读并勾选用户服务协议和隐私政策', {})
+                      if (!agreed) Toast.show(TEXT.readAndAgree, {})
                     }}
                   >
                     {loading ? (
                       <View className='login-button-loading-content'>
-                        <View className='login-button-spinner'></View>
-                        <Text className='login-button-text'>登录中...</Text>
+                        <View className='login-button-spinner' />
+                        <Text className='login-button-text'>{TEXT.loggingIn}</Text>
                       </View>
                     ) : (
-                      <Text className='login-button-text'>立即登录</Text>
+                      <Text className='login-button-text'>{TEXT.immediateLogin}</Text>
                     )}
                   </View>
 
                   <View className='wechat-login-divider'>
                     <View className='divider-line' />
-                    <Text className='divider-text'>或</Text>
+                    <Text className='divider-text'>{TEXT.or}</Text>
                     <View className='divider-line' />
                   </View>
 
@@ -341,49 +444,47 @@ function Login() {
                     onGetPhoneNumber={handleWechatLogin}
                     disabled={loading || !agreed}
                   >
-                    {loading ? (
-                      <Text className='wechat-login-text'>登录中...</Text>
-                    ) : (
-                      <Text className='wechat-login-text'>手机号快捷登录</Text>
-                    )}
+                    <Text className='wechat-login-text'>{loading ? TEXT.loggingIn : TEXT.phoneQuickLogin}</Text>
                   </TaroButton>
 
                   <View className='register-tip'>
-                    <Text className='tip-text'>还没有账户？</Text>
-                    <Text className='tip-link' onClick={goToRegister}>立即注册</Text>
+                    <Text className='tip-text'>{TEXT.noAccount}</Text>
+                    <Text className='tip-link' onClick={goToRegister}>{TEXT.registerNow}</Text>
                   </View>
-
                 </>
               )}
 
               {IS_DEV && (
-                <View className='dev-onboarding-btn' onClick={() => {
-                  const mockUser = {
-                    id: 'dev-user-' + Date.now(),
-                    nickname: '开发测试用户',
-                    name: '开发测试用户',
-                    role: 'student',
-                    primary_role: 'student',
-                    avatar_url: '',
-                    phone: '',
-                    email: '',
-                  }
-                  const mockToken = 'dev-token-' + Date.now()
-                  Taro.setStorageSync('token', mockToken)
-                  Taro.setStorageSync('user', mockUser)
-                  Taro.reLaunch({ url: '/auth/student-onboarding' })
-                }}>
-                  <Text className='dev-onboarding-btn-text'>【开发】快速进入初始化引导</Text>
+                <View
+                  className='dev-onboarding-btn'
+                  onClick={() => {
+                    const mockUser = {
+                      id: `dev-user-${Date.now()}`,
+                      nickname: TEXT.devUser,
+                      name: TEXT.devUser,
+                      role: 'student',
+                      primary_role: 'student',
+                      avatar_url: '',
+                      phone: '',
+                      email: '',
+                    }
+                    const mockToken = `dev-token-${Date.now()}`
+                    Taro.setStorageSync('token', mockToken)
+                    Taro.setStorageSync('user', mockUser)
+                    Taro.reLaunch({ url: '/auth/student-onboarding' })
+                  }}
+                >
+                  <Text className='dev-onboarding-btn-text'>{TEXT.devOnboarding}</Text>
                 </View>
               )}
 
               <View className='agreement-row'>
                 <Checkbox checked={agreed} onChange={(val) => setAgreed(val)} />
                 <Text className='agreement-text'>
-                  同意
-                  <Text className='agreement-link' onClick={goToTerms}>《用户服务协议》</Text>
-                  和
-                  <Text className='agreement-link' onClick={goToPrivacy}>《隐私政策》</Text>
+                  {TEXT.termsPrefix}
+                  <Text className='agreement-link' onClick={goToTerms}>{TEXT.terms}</Text>
+                  {TEXT.and}
+                  <Text className='agreement-link' onClick={goToPrivacy}>{TEXT.privacy}</Text>
                 </Text>
               </View>
             </>
@@ -395,6 +496,34 @@ function Login() {
           onHide={() => setSliderCaptchaVisible(false)}
           onSuccess={handleCaptchaSuccess}
         />
+
+        {showWechatPhoneAuthPrompt && (
+          <View className='wechat-phone-auth-overlay'>
+            <View className='wechat-phone-auth-card'>
+              <Text className='wechat-phone-auth-title'>{TEXT.completeFirstLogin}</Text>
+              <Text className='wechat-phone-auth-desc'>{TEXT.firstLoginDesc}</Text>
+              <TaroButton
+                className='wechat-phone-auth-button'
+                openType='getPhoneNumber'
+                onGetPhoneNumber={handleWechatPhoneAuthorization}
+                disabled={loading}
+              >
+                <Text className='wechat-phone-auth-button-text'>
+                  {loading ? TEXT.authorizing : TEXT.authorizePhoneAndContinue}
+                </Text>
+              </TaroButton>
+              <View
+                className='wechat-phone-auth-cancel'
+                onClick={() => {
+                  if (loading) return
+                  setShowWechatPhoneAuthPrompt(false)
+                }}
+              >
+                <Text className='wechat-phone-auth-cancel-text'>{TEXT.notNow}</Text>
+              </View>
+            </View>
+          </View>
+        )}
       </View>
     </ConfigProvider>
   )

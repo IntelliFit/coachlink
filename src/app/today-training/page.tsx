@@ -43,6 +43,46 @@ import {
 import {
     formatBeijingDate,
 } from '@/lib/beijingTime';
+import {
+    hasRunnableCoachPlan,
+    shouldShowCoachPlanCompletedState,
+    type TodayTrainingCoachPlanAccessStatus,
+} from '@/lib/todayTrainingPlanState';
+
+type CoachPlanAccessStatus = TodayTrainingCoachPlanAccessStatus;
+
+type CoachPlanState = {
+    instance: any;
+    actions: Record<string, any>;
+    dayIndex: number;
+    todayCompleted: boolean;
+    completionDates: Record<string | number, string>;
+    executionsByDayIndex: Record<string | number, any>;
+    missingDays: number[];
+    accessStatus: CoachPlanAccessStatus;
+    errorCode?: string;
+    errorMessage?: string;
+};
+
+const createEmptyCoachPlanState = (): CoachPlanState => ({
+    instance: null,
+    actions: {},
+    dayIndex: 1,
+    todayCompleted: false,
+    completionDates: {},
+    executionsByDayIndex: {},
+    missingDays: [],
+    accessStatus: 'no_plan_assigned',
+});
+
+const getErrorCode = (error: unknown) =>
+    typeof (error as any)?.code === 'string' ? (error as any).code : undefined;
+
+const getErrorMessage = (error: unknown) =>
+    error instanceof Error ? error.message : '教练计划暂时加载失败，请稍后重试';
+
+const isEntitlementErrorCode = (code?: string) =>
+    code === 'SUBSCRIPTION_EXPIRED' || code === 'PLAN_OUT_OF_SCOPE';
 
 const TodayTrainingPage: React.FC = () => {
     const { data: session } = useSession();
@@ -54,6 +94,7 @@ const TodayTrainingPage: React.FC = () => {
 
     // 教练分配的计划（多订阅支持）
     const [coachSubscriptions, setCoachSubscriptions] = useState<any[]>([]);
+    const [allCoachSubscriptions, setAllCoachSubscriptions] = useState<any[]>([]);
     const [activeCoachSubscriptionId, setActiveCoachSubscriptionId] = useState<string | null>(null);
     const [coachPlanDataBySubId, setCoachPlanDataBySubId] = useState<Record<string, any>>({});
 
@@ -103,14 +144,20 @@ const TodayTrainingPage: React.FC = () => {
         coachSubscriptions.find((s) => s.id === activeCoachSubscriptionId) ||
         coachSubscriptions[0] ||
         null;
+    const latestHistoricalCoachSubscription = allCoachSubscriptions.find((s) => !!s?.id) || null;
+    const selectedCoachSubscription = activeSubscription || latestHistoricalCoachSubscription;
     const activeCoachPlan = activeCoachSubscriptionId ? coachPlanDataBySubId[activeCoachSubscriptionId] : null;
-    const coachInstance = activeCoachPlan?.instance ?? null;
+    const rawCoachInstance = activeCoachPlan?.instance ?? null;
+    const coachInstance = activeCoachPlan?.accessStatus === 'plan_completed' ? null : rawCoachInstance;
     const coachActions = activeCoachPlan?.actions ?? {};
     const coachDayIndex = activeCoachPlan?.dayIndex ?? 1;
     const coachTodayCompleted = activeCoachPlan?.todayCompleted ?? false;
     const coachCompletionDates = activeCoachPlan?.completionDates ?? {};
     const coachExecutionsByDayIndex = activeCoachPlan?.executionsByDayIndex ?? {};
     const coachMissingDays = activeCoachPlan?.missingDays ?? [];
+    const coachAccessStatus: CoachPlanAccessStatus = activeCoachPlan?.accessStatus ?? 'no_plan_assigned';
+    const coachPlanErrorCode = activeCoachPlan?.errorCode;
+    const coachPlanErrorMessage = activeCoachPlan?.errorMessage;
 
     // 当前激活的计划（根据 planMode 动态选择）
     const instance = planMode === 'coach' ? coachInstance : selfInstance;
@@ -547,12 +594,20 @@ const TodayTrainingPage: React.FC = () => {
             setLoading(true);
 
             // 1. 获取订阅
-            const subsResponse = await subscriptionService.getCoachSubscriptions({
-                studentId: session?.user?.id || '',
-            });
+            const [subsResponse, allSubsResponse] = await Promise.all([
+                subscriptionService.getCoachSubscriptions({
+                    studentId: session?.user?.id || '',
+                }),
+                subscriptionService.getCoachSubscriptions({
+                    studentId: session?.user?.id || '',
+                    onlyActive: false,
+                }),
+            ]);
 
             const activeSubs = (subsResponse?.subscriptions || []).filter((s: any) => !!s?.id);
+            const historicalSubs = (allSubsResponse?.subscriptions || []).filter((s: any) => !!s?.id);
             setCoachSubscriptions(activeSubs);
+            setAllCoachSubscriptions(historicalSubs);
 
             // --- 1. 定义并行请求任务 ---
             // 将教练计划的探测逻辑与自建计划的获取逻辑放在同一个并行队列中
@@ -576,20 +631,16 @@ const TodayTrainingPage: React.FC = () => {
                 for (let i = 0; i < settledSubTasks.length; i++) {
                     const sub = activeSubs[i];
                     const r = settledSubTasks[i];
-                    const data = {
-                        instance: null,
-                        actions: {},
-                        dayIndex: 1,
-                        todayCompleted: false,
-                        completionDates: {},
-                        executionsByDayIndex: {},
-                        missingDays: [],
-                    };
+                    const data = createEmptyCoachPlanState();
 
                     if (r.status === 'fulfilled' && r.value?.instance) {
                         const derived = r.value as any;
                         data.instance = derived.instance;
                         data.actions = derived.actions || {};
+                        data.accessStatus =
+                            derived.derivedStatus === 'completed' || derived.isLogicallyCompleted === true
+                                ? 'plan_completed'
+                                : 'available';
 
                         if (typeof (derived.recommendedDayIndex ?? derived.nextDayIndex) === 'number') {
                             data.dayIndex = derived.recommendedDayIndex ?? derived.nextDayIndex;
@@ -625,6 +676,16 @@ const TodayTrainingPage: React.FC = () => {
                                 data.dayIndex = startDay;
                             }
                         }
+                    } else if (r.status === 'fulfilled') {
+                        data.accessStatus = sub?.has_plan_instance ? 'load_failed' : 'no_plan_assigned';
+                        data.errorMessage = sub?.has_plan_instance
+                            ? '已找到教练计划记录，但当前训练实例暂时没有返回，请稍后重试。'
+                            : undefined;
+                    } else {
+                        const code = getErrorCode(r.reason);
+                        data.accessStatus = isEntitlementErrorCode(code) ? 'entitlement_blocked' : 'load_failed';
+                        data.errorCode = code || 'INSTANCE_LOAD_FAILED';
+                        data.errorMessage = getErrorMessage(r.reason);
                     }
 
                     if (sub?.id) {
@@ -644,7 +705,9 @@ const TodayTrainingPage: React.FC = () => {
             setCoachPlanDataBySubId(coachPlanData);
 
             const previousActive = activeSubs.find((s: any) => s.id === activeCoachSubscriptionId);
-            const firstWithPlan = activeSubs.find((s: any) => coachPlanData[s.id]?.instance);
+            const firstWithPlan = activeSubs.find((s: any) =>
+                hasRunnableCoachPlan(coachPlanData[s.id])
+            );
             const nextActiveId = previousActive?.id || firstWithPlan?.id || activeSubs[0]?.id || null;
             setActiveCoachSubscriptionId(nextActiveId);
 
@@ -694,7 +757,9 @@ const TodayTrainingPage: React.FC = () => {
             }
 
             // 设置默认显示模式：优先教练计划，没有则显示自建计划
-            const hasAnyCoachPlan = activeSubs.some((s: any) => coachPlanData[s.id]?.instance);
+            const hasAnyCoachPlan = activeSubs.some((s: any) =>
+                hasRunnableCoachPlan(coachPlanData[s.id])
+            );
             if (hasAnyCoachPlan) {
                 setPlanMode('coach');
             } else if (selfRes?.instance) {
@@ -778,8 +843,8 @@ const TodayTrainingPage: React.FC = () => {
     // 跳转到问卷更新页面（教练主页）
     const handleUpdateProfile = () => {
         // 导航到教练主页，并触发问卷填写对话框
-        if (activeSubscription?.coach_id) {
-            router.push(`/coach/profile/${activeSubscription.coach_id}?action=questionnaire`);
+        if (selectedCoachSubscription?.coach_id) {
+            router.push(`/coach/profile/${selectedCoachSubscription.coach_id}?action=questionnaire`);
         } else {
             // 没有教练订阅，回退到个人档案
             router.push('/me/profile');
@@ -788,8 +853,8 @@ const TodayTrainingPage: React.FC = () => {
 
     const handleGenerateNextPlan = () => {
         // 跳转到智能生成页面或计划库页面
-        if (activeSubscription?.id) {
-            router.push(`/me/plan-lib?subscriptionId=${activeSubscription.id}`);
+        if (selectedCoachSubscription?.id) {
+            router.push(`/me/plan-lib?subscriptionId=${selectedCoachSubscription.id}`);
         } else {
             router.push('/me/plan-lib');
         }
@@ -924,29 +989,59 @@ const TodayTrainingPage: React.FC = () => {
     }
 
     // 判断是否有任何计划
-    const hasAnyCoachPlan = coachSubscriptions.some((s) => coachPlanDataBySubId[s.id]?.instance);
+    const hasAnyCoachPlan = coachSubscriptions.some((s) =>
+        hasRunnableCoachPlan(coachPlanDataBySubId[s.id])
+    );
     const hasAnyPlan = hasAnyCoachPlan || selfInstance;
     const hasBothPlans = hasAnyCoachPlan && selfInstance;
+    const hasCompletedCoachPlan = coachSubscriptions.some((s) =>
+        shouldShowCoachPlanCompletedState(coachPlanDataBySubId[s.id])
+    );
 
     if (!hasAnyPlan) {
         const subscribedCoachName =
-            activeSubscription?.coach?.name ||
-            activeSubscription?.coach?.title ||
-            activeSubscription?.coach_id ||
+            selectedCoachSubscription?.coach?.name ||
+            selectedCoachSubscription?.coach?.title ||
+            selectedCoachSubscription?.coach_id ||
             '';
         const hasActiveSubscription = !!activeSubscription?.id;
-        const subscriptionLifecycle = String(activeSubscription?.lifecycle_status || 'active');
+        const subscriptionLifecycle = String(selectedCoachSubscription?.lifecycle_status || 'active');
         const isExpiredGrace = subscriptionLifecycle === 'expired_grace';
-        const hasHistoricalPlan = !!activeSubscription?.has_plan_instance;
-        const showCompletedState = hasHistoricalPlan && !isExpiredGrace;
-        const graceDaysLeft = Math.max(0, Number(activeSubscription?.grace_days_left || 0));
-        const graceDeadlineLabel = formatShortDate(activeSubscription?.grace_deadline_at);
-        const renewPath = activeSubscription?.coach_id
-            ? `/coach/profile/${activeSubscription.coach_id}?renew=true`
+        const showCompletedState = hasCompletedCoachPlan && !isExpiredGrace;
+        const isEntitlementBlocked = coachAccessStatus === 'entitlement_blocked';
+        const isLoadFailed = coachAccessStatus === 'load_failed';
+        const statusTitle = isExpiredGrace
+            ? '订阅已到期，请尽快续费'
+            : showCompletedState
+                ? '当前阶段计划已完成'
+                : isEntitlementBlocked
+                    ? '当前计划暂时锁定'
+                    : isLoadFailed
+                        ? '教练计划加载失败'
+                        : '计划正在制定中';
+        const statusDescription = isExpiredGrace
+            ? (subscribedCoachName
+                ? `您与教练「${subscribedCoachName}」的订阅已到期。训练计划内容已锁定，请在宽限期内续费后恢复并继续当前进度。`
+                : '您的教练订阅已到期。训练计划内容已锁定，请在宽限期内续费后恢复并继续当前进度。')
+            : showCompletedState
+                ? (subscribedCoachName
+                    ? `您与教练「${subscribedCoachName}」的本阶段计划已完成。可查看历史记录，并联系教练制定下一阶段计划。`
+                    : '您的本阶段计划已完成。可查看历史记录，并联系教练制定下一阶段计划。')
+                : isEntitlementBlocked
+                    ? (coachPlanErrorMessage || '这个教练计划仍然存在，但当前订阅权益暂时不能继续执行训练。您可以查看全部计划，或联系教练处理续费/权益范围。')
+                    : isLoadFailed
+                        ? (coachPlanErrorMessage || '已找到教练计划记录，但当前训练实例暂时没有加载成功。请重试，或从全部计划查看历史记录。')
+                        : (subscribedCoachName
+                            ? `您的教练「${subscribedCoachName}」正在为您制定训练计划，请耐心等待。`
+                            : '您的教练正在为您制定训练计划，请耐心等待。');
+        const graceDaysLeft = Math.max(0, Number(selectedCoachSubscription?.grace_days_left || 0));
+        const graceDeadlineLabel = formatShortDate(selectedCoachSubscription?.grace_deadline_at);
+        const renewPath = selectedCoachSubscription?.coach_id
+            ? `/coach/profile/${selectedCoachSubscription.coach_id}?renew=true`
             : '/coach/subscription';
 
         // 有订阅但暂无计划：展示“教练制定中”的等待页
-        if (hasActiveSubscription) {
+        if (selectedCoachSubscription?.id && (hasActiveSubscription || isExpiredGrace || showCompletedState)) {
             return (
                 <div className="max-w-6xl mx-auto px-6 py-12 animate-in fade-in duration-700">
                     <Card className="rounded-2xl bg-transparent shadow-none overflow-hidden border border-surface-100/50">
@@ -971,25 +1066,17 @@ const TodayTrainingPage: React.FC = () => {
                             </div>
 
                             <h3 className="text-2xl font-bold tracking-tight text-surface-900 mb-3">
-                                {isExpiredGrace
-                                    ? '订阅已到期，请尽快续费'
-                                    : showCompletedState
-                                        ? '当前阶段计划已完成'
-                                        : '计划正在制定中'}
+                                {statusTitle}
                             </h3>
                             <p className="text-surface-500 max-w-sm mx-auto mb-10 leading-relaxed text-balance">
-                                {isExpiredGrace
-                                    ? subscribedCoachName
-                                        ? `您与教练「${subscribedCoachName}」的订阅已到期。训练计划内容已锁定，请在宽限期内续费后恢复并继续当前进度。`
-                                        : '您的教练订阅已到期。训练计划内容已锁定，请在宽限期内续费后恢复并继续当前进度。'
-                                    : showCompletedState
-                                        ? (subscribedCoachName
-                                            ? `您与教练「${subscribedCoachName}」的本阶段计划已完成。可查看历史记录，并联系教练制定下一阶段计划。`
-                                            : '您的本阶段计划已完成。可查看历史记录，并联系教练制定下一阶段计划。')
-                                        : (subscribedCoachName
-                                            ? `您的教练「${subscribedCoachName}」正在为您制定训练计划，请耐心等待。`
-                                            : '您的教练正在为您制定训练计划，请耐心等待。')}
+                                {statusDescription}
                             </p>
+
+                            {(isEntitlementBlocked || isLoadFailed) && coachPlanErrorCode && (
+                                <div className="mx-auto mb-8 max-w-lg rounded-2xl border border-surface-200 bg-surface-50 px-4 py-3 text-surface-600 text-sm">
+                                    状态码：{coachPlanErrorCode}
+                                </div>
+                            )}
 
                             {isExpiredGrace && (
                                 <div className="mx-auto mb-8 max-w-lg rounded-2xl border border-amber-200/80 bg-amber-50 px-4 py-3 text-amber-900 text-sm">
@@ -999,14 +1086,14 @@ const TodayTrainingPage: React.FC = () => {
                             )}
 
                             <div className="flex flex-col sm:flex-row justify-center items-center gap-4">
-                                {isExpiredGrace ? (
+                                {isExpiredGrace || isEntitlementBlocked ? (
                                     <Button
                                         label="去教练主页续费"
                                         icon="pi pi-refresh"
                                         onClick={() => router.push(renewPath)}
                                         className="w-full sm:w-auto px-8 py-3.5 rounded-2xl bg-amber-500 border-none transition-all active:scale-[0.98] duration-200 ease-out"
                                     />
-                                ) : showCompletedState ? (
+                                ) : showCompletedState || isLoadFailed ? (
                                     <Button
                                         label="查看全部计划"
                                         icon="pi pi-history"
@@ -1116,18 +1203,43 @@ const TodayTrainingPage: React.FC = () => {
 
     if (planMode === 'coach' && !coachInstance && activeSubscription?.id) {
         const coachName =
-            activeSubscription?.coach?.name ||
-            activeSubscription?.coach?.title ||
-            activeSubscription?.coach_id ||
+            selectedCoachSubscription?.coach?.name ||
+            selectedCoachSubscription?.coach?.title ||
+            selectedCoachSubscription?.coach_id ||
             '教练';
-        const subscriptionLifecycle = String(activeSubscription?.lifecycle_status || 'active');
+        const subscriptionLifecycle = String(selectedCoachSubscription?.lifecycle_status || 'active');
         const isExpiredGrace = subscriptionLifecycle === 'expired_grace';
-        const hasHistoricalPlan = !!activeSubscription?.has_plan_instance;
-        const showCompletedState = hasHistoricalPlan && !isExpiredGrace;
-        const graceDaysLeft = Math.max(0, Number(activeSubscription?.grace_days_left || 0));
-        const graceDeadlineLabel = formatShortDate(activeSubscription?.grace_deadline_at);
-        const renewPath = activeSubscription?.coach_id
-            ? `/coach/profile/${activeSubscription.coach_id}?renew=true`
+        const showCompletedState = coachAccessStatus === 'plan_completed' && !isExpiredGrace;
+        const isEntitlementBlocked = coachAccessStatus === 'entitlement_blocked';
+        const isLoadFailed = coachAccessStatus === 'load_failed';
+        const statusTitle = isExpiredGrace
+            ? '订阅已到期，请尽快续费'
+            : showCompletedState
+                ? '当前阶段计划已完成'
+                : isEntitlementBlocked
+                    ? '当前计划暂时锁定'
+                    : isLoadFailed
+                        ? '教练计划加载失败'
+                        : '计划正在制定中';
+        const statusDescription = isExpiredGrace
+            ? (coachName
+                ? `您与教练「${coachName}」的订阅已到期。训练计划内容已锁定，请在宽限期内续费后恢复并继续当前进度。`
+                : '您的教练订阅已到期。训练计划内容已锁定，请在宽限期内续费后恢复并继续当前进度。')
+            : showCompletedState
+                ? (coachName
+                    ? `您与教练「${coachName}」的本阶段计划已完成。可查看历史记录，并联系教练制定下一阶段计划。`
+                    : '您的本阶段计划已完成。可查看历史记录，并联系教练制定下一阶段计划。')
+                : isEntitlementBlocked
+                    ? (coachPlanErrorMessage || '这个教练计划仍然存在，但当前订阅权益暂时不能继续执行训练。您可以查看全部计划，或联系教练处理续费/权益范围。')
+                    : isLoadFailed
+                        ? (coachPlanErrorMessage || '已找到教练计划记录，但当前训练实例暂时没有加载成功。请重试，或从全部计划查看历史记录。')
+                        : (coachName
+                            ? `您的教练「${coachName}」正在为您制定训练计划，请耐心等待。`
+                            : '您的教练正在为您制定训练计划，请耐心等待。');
+        const graceDaysLeft = Math.max(0, Number(selectedCoachSubscription?.grace_days_left || 0));
+        const graceDeadlineLabel = formatShortDate(selectedCoachSubscription?.grace_deadline_at);
+        const renewPath = selectedCoachSubscription?.coach_id
+            ? `/coach/profile/${selectedCoachSubscription.coach_id}?renew=true`
             : '/coach/subscription';
         return (
             <div className="min-h-screen pb-12">
@@ -1213,25 +1325,17 @@ const TodayTrainingPage: React.FC = () => {
                                 </div>
                             </div>
                             <h3 className="text-2xl font-bold tracking-tight text-surface-900 mb-3">
-                                {isExpiredGrace
-                                    ? '订阅已到期，请尽快续费'
-                                    : showCompletedState
-                                        ? '当前阶段计划已完成'
-                                        : '计划正在制定中'}
+                                {statusTitle}
                             </h3>
                             <p className="text-surface-500 max-w-sm mx-auto mb-10 leading-relaxed text-balance">
-                                {isExpiredGrace
-                                    ? coachName
-                                        ? `您与教练「${coachName}」的订阅已到期。训练计划内容已锁定，请在宽限期内续费后恢复并继续当前进度。`
-                                        : '您的教练订阅已到期。训练计划内容已锁定，请在宽限期内续费后恢复并继续当前进度。'
-                                    : showCompletedState
-                                        ? (coachName
-                                            ? `您与教练「${coachName}」的本阶段计划已完成。可查看历史记录，并联系教练制定下一阶段计划。`
-                                            : '您的本阶段计划已完成。可查看历史记录，并联系教练制定下一阶段计划。')
-                                        : (coachName
-                                            ? `您的教练「${coachName}」正在为您制定训练计划，请耐心等待。`
-                                            : '您的教练正在为您制定训练计划，请耐心等待。')}
+                                {statusDescription}
                             </p>
+
+                            {(isEntitlementBlocked || isLoadFailed) && coachPlanErrorCode && (
+                                <div className="mx-auto mb-8 max-w-lg rounded-2xl border border-surface-200 bg-surface-50 px-4 py-3 text-surface-600 text-sm">
+                                    状态码：{coachPlanErrorCode}
+                                </div>
+                            )}
 
                             {isExpiredGrace && (
                                 <div className="mx-auto mb-8 max-w-lg rounded-2xl border border-amber-200/80 bg-amber-50 px-4 py-3 text-amber-900 text-sm">
