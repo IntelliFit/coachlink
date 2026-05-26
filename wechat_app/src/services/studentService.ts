@@ -1,4 +1,5 @@
-import { BaseService, request } from '../utils/request'
+import Taro from '@tarojs/taro'
+import { API_BASE_URL, BaseService, request } from '../utils/request'
 
 interface UpdateProfileDto {
   nickname?: string
@@ -72,6 +73,34 @@ class StudentService extends BaseService {
     }
     
     return null
+  }
+
+  async uploadAvatar(filePath: string) {
+    const token = String(Taro.getStorageSync('token') || '').trim()
+    if (!token) {
+      throw new Error('请先登录后再上传头像')
+    }
+
+    const response = await Taro.uploadFile({
+      url: `${API_BASE_URL}/api/upload/avatar`,
+      filePath,
+      name: 'file',
+      header: {
+        Authorization: `Bearer ${token}`,
+      },
+    })
+
+    const result = JSON.parse(response.data || '{}') as {
+      success?: boolean
+      message?: string
+      data?: { url?: string }
+    }
+
+    if (response.statusCode !== 200 || !result.success || !result.data?.url) {
+      throw new Error(result.message || '头像上传失败')
+    }
+
+    return result.data.url
   }
 
   async submitOnboarding(data: SubmitOnboardingDto) {

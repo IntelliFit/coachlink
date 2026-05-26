@@ -22,6 +22,11 @@ import {
     deriveStrictSequentialProgressDay,
 } from "@/lib/planProgress";
 import { getSubscriptionCarryoverSummary } from "@/lib/subscriptionCarryover";
+import {
+    persistCompletedPlanInstanceIfNeeded,
+    summarizePlanCompletion,
+} from "@/lib/planInstanceCompletion";
+import { deriveSubscriptionEntitlementState } from "@/lib/subscriptionEntitlementModel";
 
 export async function POST(req: Request) {
     const startTime = performance.now();
@@ -71,7 +76,7 @@ export async function POST(req: Request) {
         query = query
             .eq("coach_subscription_id", subscriptionId)
             // keep consistent with "current plan" semantics used elsewhere (e.g. get-with-executions)
-            .in("status", ["active", "paused"])
+            .in("status", ["active", "paused", "completed"])
             .order("created_at", { ascending: false })
             .limit(1);
     } else if (subscriptionIds && subscriptionIds.length > 0) {
@@ -93,10 +98,10 @@ export async function POST(req: Request) {
     }
 
     // 获取计划实例
-    const { data: instance, error } = await query.maybeSingle();
+    const { data: rawInstance, error } = await query.maybeSingle();
     timings["2_query_instance"] = performance.now() - queryStart;
 
-    if (!instance) {
+    if (!rawInstance) {
         return NextResponse.json({
             success: true,
             message: "No plan instance found",
@@ -115,6 +120,8 @@ export async function POST(req: Request) {
     }
 
     // Track which subscription matched in batch mode
+    let instance: any = rawInstance;
+
     const matchedSubscriptionId: string | undefined =
         (subscriptionIds && subscriptionIds.length > 0)
             ? ((instance as any).coach_subscription_id as string | undefined)
@@ -171,6 +178,7 @@ export async function POST(req: Request) {
     if (!hasPermission) {
         return NextResponse.json({
             success: false,
+            code: "PERMISSION_DENIED",
             message: "权限不足",
         }, { status: 403 });
     }
@@ -179,8 +187,12 @@ export async function POST(req: Request) {
         ["completed", "archived"].includes(
             String(instance.status ?? "").trim().toLowerCase(),
         );
+    const isCompletedSubscriptionInstance =
+        !id &&
+        !!subscriptionId &&
+        String(instance.status ?? "").trim().toLowerCase() === "completed";
     // 显式按实例 ID 打开的详情页是只读历史查看入口，不应再被订阅门禁直接挡住。
-    let shouldBypassSubscriptionGate = !!id || isHistoricalInstanceView;
+    let shouldBypassSubscriptionGate = !!id || isHistoricalInstanceView || isCompletedSubscriptionInstance;
     if (
         !shouldBypassSubscriptionGate &&
         !!id &&
@@ -238,6 +250,7 @@ export async function POST(req: Request) {
         if (!subscriptionForStudentAccess) {
             return NextResponse.json({
                 success: false,
+                code: "PERMISSION_DENIED",
                 message: "权限不足",
             }, { status: 403 });
         }
@@ -247,6 +260,17 @@ export async function POST(req: Request) {
             .select("day_index, status")
             .eq("instance_id", instance.id)
             .eq("status", "completed");
+
+        const carryover = await getSubscriptionCarryoverSummary({
+            subscriptionId: String(instance.coach_subscription_id || ""),
+            subscribedWeeks: Number(
+                subscriptionForStudentAccess?.subscribed_weeks || 0,
+            ),
+            excludeInstanceId: String(instance.id || ""),
+            createdBefore: (instance as any)?.created_at || null,
+            subscriptionStartDate:
+                (subscriptionForStudentAccess as any)?.start_date || null,
+        });
 
         const decision = evaluateSubscriptionPlanAccess({
             subscription: subscriptionForStudentAccess,
@@ -258,25 +282,25 @@ export async function POST(req: Request) {
                 status: exec?.status || "completed",
             })),
             startExecutionDay: Number((instance as any).start_execution_day || 1),
-            effectiveSubscribedWeeks: (
-                await getSubscriptionCarryoverSummary({
-                    subscriptionId: String(instance.coach_subscription_id || ""),
-                    subscribedWeeks: Number(
-                        subscriptionForStudentAccess?.subscribed_weeks || 0,
-                    ),
-                    excludeInstanceId: String(instance.id || ""),
-                    createdBefore: (instance as any)?.created_at || null,
-                    subscriptionStartDate:
-                        (subscriptionForStudentAccess as any)?.start_date || null,
-                })
-            ).remainingWeeks,
+            effectiveSubscribedWeeks: carryover.remainingWeeks,
         });
         if (!decision.allowed) {
+            const code = decision.reason === "SUBSCRIPTION_EXPIRED"
+                ? "SUBSCRIPTION_EXPIRED"
+                : "PLAN_OUT_OF_SCOPE";
             const message = decision.reason === "SUBSCRIPTION_EXPIRED"
                 ? "订阅已过期，请续费后继续训练"
                 : "当前训练内容不在订阅范围内";
             return NextResponse.json({
                 success: false,
+                code,
+                data: {
+                    accessStatus: "blocked",
+                    reason: decision.reason,
+                    maxAccessibleDayIndex: decision.maxAccessibleDayIndex,
+                    instanceId: instance.id,
+                    subscriptionId: instance.coach_subscription_id,
+                },
                 message,
             }, { status: 403 });
         }
@@ -296,6 +320,14 @@ export async function POST(req: Request) {
     ) {
         return NextResponse.json({
             success: false,
+            code: "PLAN_OUT_OF_SCOPE",
+            data: {
+                accessStatus: "blocked",
+                reason: "PLAN_OUT_OF_SCOPE",
+                maxAccessibleDayIndex,
+                instanceId: instance.id,
+                subscriptionId: instance.coach_subscription_id,
+            },
             message: "当前训练内容不在订阅范围内",
         }, { status: 403 });
     }
@@ -677,11 +709,21 @@ export async function POST(req: Request) {
         a - b
     );
 
-    const trainingResolvedDaySet = new Set<number>();
-    for (const e of trainingResolvedExecs) {
-        const di = Number(e.day_index);
-        if (di) trainingResolvedDaySet.add(di);
-    }
+    const completionSummary = summarizePlanCompletion({
+        trainingDays: trainingOnlyDays,
+        startExecutionDay,
+        executions: (executionsList || []).map((exec: any) => ({
+            day_index: Number(exec?.day_index ?? 0),
+            status: exec?.status || null,
+            completed_at: exec?.completed_at || null,
+            updated_at: exec?.updated_at || null,
+        })),
+    });
+    instance = await persistCompletedPlanInstanceIfNeeded({
+        supabase,
+        instance,
+        summary: completionSummary,
+    });
 
     // todayCompleted + todayExecutionId
     const todayStart = getBeijingDayStart(new Date());
@@ -730,17 +772,32 @@ export async function POST(req: Request) {
         .map((d) => getDayIndex(d))
         .filter((di) =>
             di > 0 && di < recommendedDayIndex &&
-            !trainingResolvedDaySet.has(di)
+            !completionSummary.resolvedDaySet.has(di)
         );
-    const resolvedTrainingDays = trainingResolvedDaySet.size;
-    const isLogicallyCompleted = trainingOnlyDays.length > 0 &&
-        resolvedTrainingDays >= trainingOnlyDays.length;
+    const resolvedTrainingDays = completionSummary.resolvedTrainingDays;
+    const isLogicallyCompleted = completionSummary.isLogicallyCompleted;
     const normalizedStatus = String((instance as any).status || "")
         .trim()
         .toLowerCase();
     const derivedStatus = normalizedStatus === "active" && isLogicallyCompleted
         ? "completed"
         : (instance as any).status;
+
+    const entitlement = subscriptionForStudentAccess && instance.coach_subscription_id
+        ? deriveSubscriptionEntitlementState({
+            subscription: subscriptionForStudentAccess,
+            planInstance: instance as any,
+            executions: (executionsList || []).map((exec: any) => ({
+                day_index: Number(exec?.day_index ?? 0),
+                status: exec?.status || null,
+                completed_at: exec?.completed_at || null,
+                updated_at: exec?.updated_at || null,
+            })),
+            effectiveSubscribedWeeks: maxAccessibleDayIndex !== null
+                ? Math.max(0, Math.floor(maxAccessibleDayIndex / 7))
+                : Number(subscriptionForStudentAccess?.subscribed_weeks || 0),
+        })
+        : null;
 
     // 计算总耗时
     timings["total"] = performance.now() - startTime;
@@ -770,6 +827,7 @@ export async function POST(req: Request) {
             resolvedTrainingDays,
             isLogicallyCompleted,
             derivedStatus,
+            entitlement,
         },
     });
 }

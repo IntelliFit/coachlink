@@ -3,9 +3,9 @@ import supabase from '@/lib/supabaseClient';
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 import { CoachSubscriptionGetDto, QueryCoachSubscription } from './entity';
 import { CoachesRow, CoachSubscriptionRow } from '@/types';
-import { computeCreditsScope, computeUsedCredits, estimateRemainingDays } from '@/lib/subscriptionCredits';
 import { getSubscriptionLifecycle } from '@/lib/subscriptionLifecycle';
 import { deriveSubscriptionCarryoverSummaryFromHistory } from '@/lib/subscriptionCarryover';
+import { deriveSubscriptionEntitlementState } from '@/lib/subscriptionEntitlementModel';
 
 async function embeddingCaochesIntoSubscriptions(subscriptions: CoachSubscriptionRow[]) {
     const coachIds = Array.from(
@@ -145,11 +145,6 @@ export async function POST(req: Request) {
                 const currentWeeks = Number(item.sub.subscribed_weeks || 0);
                 const nextWeeks = currentWeeks + item.weeks;
 
-                const base = item.sub.end_date ? new Date(item.sub.end_date) : nowForRenewFix;
-                const effectiveBase = base.getTime() < nowForRenewFix.getTime() ? nowForRenewFix : base;
-                effectiveBase.setDate(effectiveBase.getDate() + item.weeks * 7);
-                const nextEndDate = effectiveBase.toISOString();
-
                 const nextPaymentData = {
                     ...item.paymentData,
                     pending_renew: null,
@@ -159,7 +154,6 @@ export async function POST(req: Request) {
                     .from("coach_subscriptions")
                     .update({
                         subscribed_weeks: nextWeeks,
-                        end_date: nextEndDate,
                         payment_data: nextPaymentData as any,
                         updated_at: nowForRenewFix.toISOString(),
                     })
@@ -168,7 +162,6 @@ export async function POST(req: Request) {
                 nextSubById.set(item.sub.id, {
                     ...item.sub,
                     subscribed_weeks: nextWeeks,
-                    end_date: nextEndDate,
                     payment_data: nextPaymentData,
                     updated_at: nowForRenewFix.toISOString(),
                 });
@@ -238,7 +231,6 @@ export async function POST(req: Request) {
                     .from("coach_subscriptions")
                     .update({
                         subscribed_weeks: nextWeeks,
-                        end_date: item.expiresAt.toISOString(),
                         payment_data: nextPaymentData as any,
                         updated_at: nowForOfflineRenewFix.toISOString(),
                     })
@@ -247,7 +239,6 @@ export async function POST(req: Request) {
                 nextSubById.set(item.sub.id, {
                     ...item.sub,
                     subscribed_weeks: nextWeeks,
-                    end_date: item.expiresAt.toISOString(),
                     payment_data: nextPaymentData,
                     updated_at: nowForOfflineRenewFix.toISOString(),
                 });
@@ -448,40 +439,26 @@ export async function POST(req: Request) {
                         subscriptionStartDate: s?.start_date || null,
                     });
 
-                    const scope = computeCreditsScope({
-                        trainingDays: (inst.training_days as any[]) || [],
-                        startExecutionDay: Number(inst.start_execution_day || 1),
-                        subscribedWeeks: carryover.remainingWeeks,
-                    });
-
-                    const totalCredits = scope.totalCredits;
-                    if (totalCredits <= 0) return;
-
-                    const usedCredits = computeUsedCredits({
-                        eligibleTrainingDayIndexSet: scope.eligibleTrainingDayIndexSet,
+                    const model = deriveSubscriptionEntitlementState({
+                        subscription: s,
+                        planInstance: inst,
                         executions: ((execsByInstance.get(inst.id) || []) as any[]).map((e) => ({
                             day_index: e.day_index,
                             status: e.status,
-                        })),
-                        startExecutionDay: Number(inst.start_execution_day || 1),
+                            completed_at: e.completed_at || null,
+                            started_at: e.started_at || null,
+                            created_at: e.created_at || null,
+                        })) as any[],
+                        effectiveSubscribedWeeks: carryover.remainingWeeks,
                     });
 
-                    const remainingCredits = Math.max(0, totalCredits - usedCredits);
-                    if (remainingCredits === 0) {
-                        // Credits consumed: mark as ended by setting end_date to now (grace/cancel handled separately).
-                        s.end_date = new Date().toISOString();
-                        return;
-                    }
-
-                    const remainingDaysEstimate = estimateRemainingDays({
-                        cadenceWeeks: Math.max(1, carryover.remainingWeeks),
-                        totalCredits,
-                        remainingCredits,
-                        fallbackCreditsPerWeek: 3,
-                    });
-                    const end = new Date();
-                    end.setDate(end.getDate() + remainingDaysEstimate);
-                    s.end_date = end.toISOString();
+                    s.entitlement_status = model.entitlementStatus;
+                    s.entitlement_total_credits = model.totalCredits;
+                    s.entitlement_used_credits = model.usedCredits;
+                    s.entitlement_remaining_credits = model.remainingCredits;
+                    s.entitlement_exhausted = model.remainingCredits <= 0 && model.totalCredits > 0;
+                    s.plan_progress_status = model.planProgressStatus;
+                    s.end_date = model.displayEndDate;
                 });
             } catch (e) {
                 console.error('[coach-subscriptions] Failed to compute credits-based end_date:', e);
@@ -495,11 +472,8 @@ export async function POST(req: Request) {
     const now = new Date();
     const toAutoCancel = subs.filter((s) => {
         if (s?.status !== 'active') return false;
-        const lifecycle = getSubscriptionLifecycle({
-            subscription: s,
-            now,
-        });
-        return lifecycle.lifecycleStatus === 'expired_cancelled';
+        return s?.entitlement_exhausted === true &&
+            getSubscriptionLifecycle({ subscription: s, now }).lifecycleStatus === 'expired_cancelled';
     });
 
     if (toAutoCancel.length > 0) {

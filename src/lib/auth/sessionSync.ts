@@ -41,8 +41,8 @@ export async function waitForSessionReady(
 
     const {
         expectedUserId,
-        retryDelaysMs = [0, 120, 260, 450, 800],
-        timeoutMs = 3_500,
+        retryDelaysMs = [0, 120, 260, 450, 800, 1200, 1800, 2600],
+        timeoutMs = 8_000,
     } = options;
 
     const startTime = Date.now();
@@ -65,6 +65,10 @@ export async function waitForSessionReady(
         } catch {
             // 静默失败，继续重试直到超时
         }
+    }
+
+    if (expectedUserId) {
+        return null;
     }
 
     return latestSession;

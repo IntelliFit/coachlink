@@ -11,8 +11,7 @@ import type {
 import { sendSystemMessage } from "@/lib/chat";
 import { autoMatchPlanForSubscription } from "@/app/api/plan-lib/auto-match-plan/service";
 import { supportsOfflinePaymentForCoach } from "@/lib/offlinePaymentPolicy";
-import { deriveProjectedSubscriptionEndDate } from "@/lib/subscriptionEstimatedEndDate";
-import { getSubscriptionCarryoverSummary } from "@/lib/subscriptionCarryover";
+import { refreshSubscriptionEntitlementSnapshot } from "@/lib/subscriptionEntitlementSnapshot";
 
 export async function POST(req: Request) {
     const session = await getServerSession();
@@ -185,7 +184,6 @@ export async function POST(req: Request) {
 
             const renewWeeks = Number(pendingRenew?.additional_weeks || 0);
             const now = new Date(nowIso);
-            const DAY_MS = 24 * 60 * 60 * 1000;
 
             if (renewWeeks > 0) {
                 const currentWeeks = Number(subscription.subscribed_weeks || 0);
@@ -193,12 +191,6 @@ export async function POST(req: Request) {
                 const requestedWeeks = Number((updateData as any).subscribed_weeks || 0);
                 (updateData as any).subscribed_weeks = Math.max(expectedWeeks, requestedWeeks || 0);
 
-                if (typeof (updateData as any).end_date === "undefined") {
-                    const base = subscription.end_date ? new Date(subscription.end_date) : now;
-                    const effectiveBase = base.getTime() < now.getTime() ? now : base;
-                    effectiveBase.setDate(effectiveBase.getDate() + renewWeeks * 7);
-                    (updateData as any).end_date = effectiveBase.toISOString();
-                }
             }
 
             // 兼容“老订阅重开”场景：若确认激活但未明确设置 end_date，清理陈旧到期时间，避免刚确认就被判定为过期。
@@ -235,12 +227,10 @@ export async function POST(req: Request) {
                     : null;
 
                 if (offlineExpiresAt && !Number.isNaN(offlineExpiresAt.getTime()) && offlineExpiresAt.getTime() > now.getTime()) {
-                    const rawEndDate = (updateData as any).end_date || subscription.end_date || null;
-                    const baseDate = rawEndDate ? new Date(rawEndDate) : now;
-                    const effectiveBase = baseDate.getTime() > now.getTime() ? baseDate : now;
+                    const baseDate = now;
                     const inferredWeeks = Math.max(
                         0,
-                        Math.ceil((offlineExpiresAt.getTime() - effectiveBase.getTime()) / (7 * DAY_MS)),
+                        Math.ceil((offlineExpiresAt.getTime() - baseDate.getTime()) / (7 * 24 * 60 * 60 * 1000)),
                     );
 
                     if (inferredWeeks > 0) {
@@ -250,10 +240,6 @@ export async function POST(req: Request) {
                             currentWeeks + inferredWeeks,
                             requestedWeeks || 0,
                         );
-                    }
-
-                    if (typeof (updateData as any).end_date === "undefined") {
-                        (updateData as any).end_date = offlineExpiresAt.toISOString();
                     }
 
                     mergedPaymentData = {
@@ -268,58 +254,6 @@ export async function POST(req: Request) {
                     ...mergedPaymentData,
                     pending_renew: null,
                 };
-            }
-        }
-    }
-
-    const shouldRefreshProjectedEndDate =
-        typeof (updateData as any)?.subscribed_weeks !== "undefined" &&
-        typeof (updateData as any)?.end_date === "undefined";
-
-    if (shouldRefreshProjectedEndDate) {
-        const nextSubscribedWeeks = Number((updateData as any)?.subscribed_weeks || 0);
-        if (Number.isFinite(nextSubscribedWeeks) && nextSubscribedWeeks > 0) {
-            const { data: instances } = await supabase
-                .from("coach_plan_instances")
-                .select("id, training_days, start_execution_day, status, created_at")
-                .eq("coach_subscription_id", id)
-                .in("status", ["active", "paused", "completed"])
-                .order("created_at", { ascending: false });
-
-            const preferredInstance =
-                (instances || []).find((item: any) => item.status === "active" || item.status === "paused") ||
-                (instances || [])[0];
-
-            if (preferredInstance) {
-                const { data: completedExecutions } = await supabase
-                    .from("plan_instance_executions")
-                    .select("day_index, status")
-                    .eq("instance_id", preferredInstance.id)
-                    .eq("status", "completed");
-
-                const projectedEndDate = deriveProjectedSubscriptionEndDate({
-                    startDate: (subscription as any)?.start_date || null,
-                    subscribedWeeks: nextSubscribedWeeks,
-                    effectiveSubscribedWeeks: (
-                        await getSubscriptionCarryoverSummary({
-                            subscriptionId: id,
-                            subscribedWeeks: nextSubscribedWeeks,
-                            excludeInstanceId: String((preferredInstance as any)?.id || ""),
-                            createdBefore: (preferredInstance as any)?.created_at || null,
-                            subscriptionStartDate:
-                                (subscription as any)?.start_date || null,
-                        })
-                    ).remainingWeeks,
-                    trainingDays: (preferredInstance as any)?.training_days || [],
-                    startExecutionDay: Number((preferredInstance as any)?.start_execution_day || 1),
-                    executions: (completedExecutions as any[]) || [],
-                });
-
-                if (projectedEndDate) {
-                    (updateData as any).end_date = projectedEndDate;
-                }
-            } else if (!(subscription as any)?.start_date) {
-                (updateData as any).end_date = null;
             }
         }
     }
@@ -374,6 +308,11 @@ export async function POST(req: Request) {
     }
 
     // 教练手动确认支付并激活后，自动尝试匹配计划；失败时明确提示教练手动创建。
+    const entitlementModel = await refreshSubscriptionEntitlementSnapshot(id);
+    const responseSubscription = entitlementModel?.displayEndDate
+        ? { ...updatedSubscription, end_date: entitlementModel.displayEndDate }
+        : updatedSubscription;
+
     if ((updateData as any)?.status === "active" && isCoachOfSubscription) {
         const matchRes = await autoMatchPlanForSubscription(id, userId, subscription.coach_id);
         const matchMsg = matchRes.success
@@ -390,7 +329,7 @@ export async function POST(req: Request) {
         message: "订阅更新成功",
         // UpdateSubscriptionResponseDto 反应的就是这个地方 data 的数据结构
         data: {
-            subscription: updatedSubscription,
+            subscription: responseSubscription,
         },
     });
 }

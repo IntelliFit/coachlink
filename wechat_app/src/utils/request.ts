@@ -1,4 +1,5 @@
 import Taro from '@tarojs/taro'
+import { AUTH_SESSION_INVALID_EVENT } from '../services/authSessionEvents'
 
 // API基础URL配置
 // TARO_APP_API_URL 通过 defineConstants 在编译时注入
@@ -31,6 +32,25 @@ function showErrorToast(message: string, showErrorToastOpt = true) {
       duration: 2500
     })
   }
+}
+
+let lastAuthInvalidToastAt = 0
+
+function clearInvalidAuthSession(message: string) {
+  try {
+    Taro.removeStorageSync('user')
+    Taro.removeStorageSync('token')
+    Taro.eventCenter.trigger(AUTH_SESSION_INVALID_EVENT, { message })
+  } catch (error) {
+    console.debug('清理失效登录态失败:', error)
+  }
+}
+
+function isAuthInvalidMessage(message?: string) {
+  return Boolean(message && (
+    message.includes('\u7528\u6237\u672a\u767b\u5f55') ||
+    message.toLowerCase().includes('unauthorized')
+  ))
 }
 
 /**
@@ -82,16 +102,32 @@ export async function request<T = any>(options: RequestOptions): Promise<ApiResp
       const bodyMessage = body && typeof body === 'object' && 'message' in body && typeof body.message === 'string'
         ? body.message
         : ''
-      const message = bodyMessage || `请求失败: ${response.statusCode}`
+      const isUnauthorized = response.statusCode === 401
+      const message = isUnauthorized && token
+        ? '\u767b\u5f55\u72b6\u6001\u5df2\u8fc7\u671f\uff0c\u8bf7\u91cd\u65b0\u767b\u5f55'
+        : (bodyMessage || `Request failed: ${response.statusCode}`)
       const errResult = { success: false, message }
-      showErrorToast(message, showErrorToastOpt)
+      if (isUnauthorized && token) {
+        clearInvalidAuthSession(message)
+        const now = Date.now()
+        if (now - lastAuthInvalidToastAt > 3000) {
+          lastAuthInvalidToastAt = now
+          showErrorToast(message, showErrorToastOpt)
+        }
+      } else {
+        showErrorToast(message, showErrorToastOpt)
+      }
       return errResult
     }
 
     const result = response.data as ApiResponse<T>
     // 当 API 返回 success:false 时自动显示错误提示
     if (result && typeof result === 'object' && 'success' in result && !result.success) {
-      showErrorToast(result.message || '操作失败', showErrorToastOpt)
+      const resultMessage = result.message || '????'
+      if (token && isAuthInvalidMessage(resultMessage)) {
+        clearInvalidAuthSession('\u767b\u5f55\u72b6\u6001\u5df2\u8fc7\u671f\uff0c\u8bf7\u91cd\u65b0\u767b\u5f55')
+      }
+      showErrorToast(resultMessage, showErrorToastOpt)
     }
     return result
   } catch (error: any) {
@@ -147,4 +183,3 @@ export class BaseService {
     })
   }
 }
-

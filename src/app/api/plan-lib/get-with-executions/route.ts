@@ -11,6 +11,10 @@ import {
     filterTrainingDaysByAccessWindow,
 } from "@/lib/subscriptionAccess";
 import { getSubscriptionCarryoverSummary } from "@/lib/subscriptionCarryover";
+import {
+    persistCompletedPlanInstanceIfNeeded,
+    summarizePlanCompletion,
+} from "@/lib/planInstanceCompletion";
 
 /**
  * GET /api/plan-lib/get-with-executions
@@ -53,6 +57,21 @@ export async function POST(req: NextRequest) {
                 let isAuthorized = isOwner;
                 if (isOwner) {
                     enforceStudentSubscriptionAccess = true;
+                }
+
+                if (!isAuthorized && directInstance.coach_subscription_id) {
+                    const { data: ownedSubscription } = await supabase
+                        .from("coach_subscriptions")
+                        .select("id, student_id, status, start_date, end_date, subscribed_weeks")
+                        .eq("id", directInstance.coach_subscription_id)
+                        .eq("student_id", userId)
+                        .maybeSingle();
+
+                    if (ownedSubscription) {
+                        isAuthorized = true;
+                        enforceStudentSubscriptionAccess = true;
+                        subscriptionForStudentAccess = ownedSubscription;
+                    }
                 }
 
                 if (!isAuthorized && isCoach) {
@@ -367,6 +386,23 @@ export async function POST(req: NextRequest) {
             (instance.training_days as any[]) || [],
             maxAccessibleDayIndex,
         );
+        const completionSummary = summarizePlanCompletion({
+            trainingDays: Array.isArray(instance.training_days)
+                ? (instance.training_days as any[])
+                : [],
+            startExecutionDay: Number(instance.start_execution_day || 1),
+            executions: (executions || []).map((exec: any) => ({
+                day_index: Number(exec?.day_index ?? 0),
+                status: exec?.status || null,
+                completed_at: exec?.completed_at || null,
+                updated_at: exec?.updated_at || null,
+            })),
+        });
+        instance = await persistCompletedPlanInstanceIfNeeded({
+            supabase,
+            instance,
+            summary: completionSummary,
+        });
         instance.training_days = trainingDays;
         const actionIds = new Set<string>();
 

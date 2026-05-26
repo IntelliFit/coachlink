@@ -1,10 +1,10 @@
-import { NextResponse } from "next/server";
-import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
+import { NextRequest, NextResponse } from "next/server";
 import supabase, { serviceRoleSupabase } from "@/lib/supabaseClient";
 import type { ApiData } from "@/types/api";
 import { formatYuan, formatYuanFromFen, subtractFen, yuanToFen } from "@/lib/moneyUtils";
 import { encashmentForCoach, formatHuifuReqDate, generateReqSeqId } from "@/lib/huifuMiniProgramPay";
 import { calculateRefundProtectedAmountFen, getWithdrawableWalletAmounts } from "@/lib/coachWalletLock";
+import { getApiUserId } from "@/lib/getApiUserId";
 
 async function getCoachIdByUser(userId: string) {
     const { data: coach } = await supabase.from("coaches").select("id").eq("user_id", userId).single();
@@ -12,13 +12,13 @@ async function getCoachIdByUser(userId: string) {
 }
 
 /** Coach withdrawal through Huifu encashment to the bound settlement card. */
-export async function POST(req: Request) {
-    const session = await getServerSession();
-    if (!session?.user?.id) {
+export async function POST(req: NextRequest) {
+    const userId = await getApiUserId(req);
+    if (!userId) {
         return NextResponse.json<ApiData<null>>({ success: false, message: "用户未登录", data: null }, { status: 401 });
     }
 
-    const coachId = await getCoachIdByUser(session.user.id);
+    const coachId = await getCoachIdByUser(userId);
     if (!coachId) {
         return NextResponse.json<ApiData<null>>({ success: false, message: "未找到教练信息", data: null }, { status: 404 });
     }

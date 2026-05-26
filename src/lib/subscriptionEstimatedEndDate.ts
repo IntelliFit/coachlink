@@ -13,6 +13,47 @@ function parseOptionalDate(value?: string | null): Date | null {
   return date;
 }
 
+function pickLatestExecutionTimestamp(executions?: ExecutionLike[] | null): Date | null {
+  let latest: Date | null = null;
+
+  for (const execution of executions || []) {
+    const resolvedAt = parseOptionalDate(
+      (execution as any)?.completed_at ||
+      (execution as any)?.updated_at ||
+      (execution as any)?.started_at ||
+      (execution as any)?.created_at ||
+      null,
+    );
+    if (!resolvedAt) continue;
+
+    if (!latest || resolvedAt.getTime() > latest.getTime()) {
+      latest = resolvedAt;
+    }
+  }
+
+  return latest;
+}
+
+export function deriveConsumedSubscriptionEndDate(params: {
+  existingEndDate?: string | null;
+  executions?: ExecutionLike[] | null;
+  now?: Date;
+}): string {
+  const now = params.now ? new Date(params.now) : new Date();
+  const latestExecutionAt = pickLatestExecutionTimestamp(params.executions);
+  const existingEndDate = parseOptionalDate(params.existingEndDate);
+
+  if (latestExecutionAt) {
+    return latestExecutionAt.toISOString();
+  }
+
+  if (existingEndDate && existingEndDate.getTime() <= now.getTime()) {
+    return existingEndDate.toISOString();
+  }
+
+  return now.toISOString();
+}
+
 export function deriveProjectedSubscriptionEndDate(params: {
   startDate?: string | null;
   subscribedWeeks?: number | null;
@@ -20,6 +61,7 @@ export function deriveProjectedSubscriptionEndDate(params: {
   trainingDays?: TrainingDayLike[] | null;
   startExecutionDay?: number | null;
   executions?: ExecutionLike[] | null;
+  existingEndDate?: string | null;
   now?: Date;
 }): string | null {
   const startDate = parseOptionalDate(params.startDate);
@@ -55,7 +97,11 @@ export function deriveProjectedSubscriptionEndDate(params: {
   );
 
   if (remainingCredits === 0) {
-    return projectedEndDate.toISOString();
+    return deriveConsumedSubscriptionEndDate({
+      existingEndDate: params.existingEndDate,
+      executions: params.executions,
+      now: projectedEndDate,
+    });
   }
 
   const remainingDaysEstimate = estimateRemainingDays({

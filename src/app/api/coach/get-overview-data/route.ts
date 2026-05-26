@@ -40,7 +40,7 @@ export async function POST(req: Request) {
 
     // 2. 并行执行聚合查询
     const [
-        activeStudentCountResult,
+        activeSubscriptionsResult,
         subscriptionRevenueResult,
         subscriptionOrderRevenueResult,
         pendingReviewResult,
@@ -54,7 +54,7 @@ export async function POST(req: Request) {
         // 总学员数：与“学员管理”页口径一致（active 订阅数；不应依赖 start_date 是否已设置）
         supabase
             .from("coach_subscriptions")
-            .select("id", { count: "exact", head: true })
+            .select("student_id")
             .eq("coach_id", coachId)
             .eq("status", "active"),
 
@@ -114,7 +114,36 @@ export async function POST(req: Request) {
     ]);
 
     // 3. 内存处理聚合数据
-    const totalStudentCount = activeStudentCountResult.count || 0;
+    const activeStudentIds = Array.from(new Set(
+        (activeSubscriptionsResult.data || [])
+            .map((row: any) => row.student_id)
+            .filter(Boolean),
+    ));
+    let totalStudentCount = 0;
+    if (activeStudentIds.length > 0) {
+        const [{ data: activeUsers }, { data: activeProfiles }] = await Promise.all([
+            supabase
+                .from("users")
+                .select("id")
+                .in("id", activeStudentIds)
+                .or("phone.not.is.null,email.not.is.null,wechat_openid.not.is.null"),
+            supabase
+                .from("user_profiles")
+                .select("user_id, nickname, full_name")
+                .in("user_id", activeStudentIds),
+        ]);
+
+        const activeUserSet = new Set((activeUsers || []).map((user: any) => user.id));
+        const visibleProfileSet = new Set(
+            (activeProfiles || [])
+                .filter((profile: any) => profile?.nickname || profile?.full_name)
+                .map((profile: any) => profile.user_id),
+        );
+
+        totalStudentCount = activeStudentIds.filter((studentId) =>
+            activeUserSet.has(studentId) && visibleProfileSet.has(studentId),
+        ).length;
+    }
     const pendingReviewCount = pendingReviewResult.count || 0;
 
     // monthly_price 在 DB 中为分；按“确认支付时间(优先) / 创建时间(兜底)”过滤到本月

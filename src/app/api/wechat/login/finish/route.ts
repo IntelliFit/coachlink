@@ -145,6 +145,7 @@ export async function POST(req: Request) {
           nickname: userInfo?.nickname || `微信用户_${openid.slice(-4)}`,
           avatar_url: userInfo?.headimgurl || null,
           bio: "",
+          onboarding_completed: false,
         } as any)
         .maybeSingle();
     } else {

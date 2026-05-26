@@ -1,6 +1,20 @@
 import { ApiData } from "@/types/api";
 import axios, { type AxiosResponse, type AxiosRequestConfig } from "axios";
 
+export class ApiServiceError extends Error {
+    status?: number;
+    code?: string;
+    data?: unknown;
+
+    constructor(message: string, options: { status?: number; code?: string; data?: unknown } = {}) {
+        super(message);
+        this.name = "ApiServiceError";
+        this.status = options.status;
+        this.code = options.code;
+        this.data = options.data;
+    }
+}
+
 export class BaseService {
     constructor(
         protected baseUrl: string,
@@ -8,12 +22,21 @@ export class BaseService {
 
     private unwrapApiError(error: unknown): never {
         if (axios.isAxiosError(error)) {
-            const message = (error.response?.data as any)?.message;
+            const responseData = error.response?.data as any;
+            const message = responseData?.message;
             if (typeof message === "string" && message.trim()) {
-                throw new Error(message);
+                throw new ApiServiceError(message, {
+                    status: error.response?.status,
+                    code: typeof responseData?.code === "string" ? responseData.code : undefined,
+                    data: responseData,
+                });
             }
             if (error.message) {
-                throw new Error(error.message);
+                throw new ApiServiceError(error.message, {
+                    status: error.response?.status,
+                    code: typeof responseData?.code === "string" ? responseData.code : undefined,
+                    data: responseData,
+                });
             }
         }
         throw error;

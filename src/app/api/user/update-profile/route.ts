@@ -16,22 +16,30 @@ export async function POST(request: Request) {
     // 获取请求数据
     const body = await request.json();
 
-    // 准备要更新的数据
+    // Only update fields explicitly sent by the client. This keeps single-field
+    // profile edits from accidentally clearing unrelated registration answers.
     const profileData: Record<string, any> = {
-        full_name: body.full_name,
-        nickname: body.nickname,
-        phone: body.phone,
-        avatar_url: body.avatar_url,
-        address: body.address,
-        gender: body.gender,
-        birth_date: body.birth_date,
-        height: body.height != null ? Number(body.height) : null,
-        weight: body.weight != null ? Number(body.weight) : null,
-        fitness_goal: body.fitness_goal,
-        fitness_level: body.fitness_level,
-        bio: body.bio,
         updated_at: new Date().toISOString(),
     };
+
+    const assignIfProvided = (key: string, value: any) => {
+        if (Object.prototype.hasOwnProperty.call(body, key)) {
+            profileData[key] = value;
+        }
+    };
+
+    assignIfProvided("full_name", body.full_name);
+    assignIfProvided("nickname", body.nickname);
+    assignIfProvided("phone", body.phone);
+    assignIfProvided("avatar_url", body.avatar_url);
+    assignIfProvided("address", body.address);
+    assignIfProvided("gender", body.gender);
+    assignIfProvided("birth_date", body.birth_date);
+    assignIfProvided("height", body.height != null ? Number(body.height) : null);
+    assignIfProvided("weight", body.weight != null ? Number(body.weight) : null);
+    assignIfProvided("fitness_goal", body.fitness_goal);
+    assignIfProvided("fitness_level", body.fitness_level);
+    assignIfProvided("bio", body.bio);
 
     // 添加新字段（仅当提供时才更新）
     if (body.age !== undefined) {

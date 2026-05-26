@@ -11,6 +11,33 @@ export interface KnowledgeSearchResult {
   is_free?: boolean
 }
 
+export type PublicTrainingPlanLevel = 'beginner' | 'intermediate' | 'advanced'
+
+export interface PublicTrainingPlanListItem {
+  id: string
+  slug: string
+  name: string
+  description?: string | null
+  sport: string
+  goal: string
+  level: PublicTrainingPlanLevel
+  weeks: number
+  daysPerWeek: number
+  equipment: string[]
+  tags: string[]
+  suitableFor: string
+  audience?: string | null
+  notes: string[]
+  templateKind?: 'fixed' | 'parameterized'
+  parameterSchema?: Record<string, any>
+  actionSlots?: any[]
+  trainingDayCount?: number
+}
+
+export interface PublicTrainingPlanDetail extends PublicTrainingPlanListItem {
+  trainingDays: any[]
+}
+
 export interface KnowledgeTreeNode {
   id: string
   node_type: string
@@ -199,6 +226,50 @@ class KnowledgeService extends BaseService {
       limit: params?.limit ?? 20,
       offset: params?.offset ?? 0,
       content_type: params?.content_type
+    })
+    if (res.success && res.data) return res.data
+    return null
+  }
+
+  async listTrainingPlans(params?: {
+    level?: 'all' | PublicTrainingPlanLevel
+    limit?: number
+    offset?: number
+    search?: string
+  }) {
+    const query: string[] = []
+    query.push(`level=${encodeURIComponent(params?.level || 'all')}`)
+    query.push(`limit=${encodeURIComponent(String(params?.limit ?? 20))}`)
+    query.push(`offset=${encodeURIComponent(String(params?.offset ?? 0))}`)
+    if (params?.search) query.push(`q=${encodeURIComponent(params.search)}`)
+    const res = await request<{
+      plans: PublicTrainingPlanListItem[]
+      total: number
+      limit: number
+      offset: number
+    }>({
+      url: `${this.baseUrl}/training-plans?${query.join('&')}`,
+      method: 'GET',
+      showErrorToast: false
+    })
+    if (res.success && res.data) return res.data
+    return { plans: [], total: 0, limit: params?.limit ?? 20, offset: params?.offset ?? 0 }
+  }
+
+  async getTrainingPlan(idOrSlug: string) {
+    const res = await request<{ plan: PublicTrainingPlanDetail }>({
+      url: `${this.baseUrl}/training-plans/${encodeURIComponent(idOrSlug)}`,
+      method: 'GET',
+      showErrorToast: false
+    })
+    if (res.success && res.data?.plan) return res.data.plan
+    return null
+  }
+
+  async copyTrainingPlanToFavorite(idOrSlug: string) {
+    const res = await request<{ favorite: any }>({
+      url: `${this.baseUrl}/training-plans/${encodeURIComponent(idOrSlug)}/copy-to-favorite`,
+      method: 'POST'
     })
     if (res.success && res.data) return res.data
     return null

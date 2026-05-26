@@ -10,8 +10,8 @@ import {
 import { UserProfilesRow } from "@/types";
 import pLimit from "p-limit";
 import { ApiData } from "@/types/api";
-import { deriveProjectedSubscriptionEndDate } from "@/lib/subscriptionEstimatedEndDate";
 import { getSubscriptionCarryoverSummary } from "@/lib/subscriptionCarryover";
+import { deriveSubscriptionEntitlementState } from "@/lib/subscriptionEntitlementModel";
 
 async function getVideoStats(studentIds: string[]) {
     if (!studentIds?.length) return new Map();
@@ -143,6 +143,7 @@ async function getStudentPlanDataBatch(coachId: string, studentIds: string[]) {
             instanceMeta: {
                 instance_id: inst.id,
                 created_at: inst.created_at || null,
+                status: inst.status || null,
                 training_days: Array.isArray(inst.training_days) ? inst.training_days : [],
                 start_execution_day: startExecutionDay,
                 executions: executionsByInstance.get(inst.id) || [],
@@ -154,12 +155,13 @@ async function getStudentPlanDataBatch(coachId: string, studentIds: string[]) {
 
 async function deriveProjectedEndDate(params: {
     subscription: any;
-    instanceMeta?: {
-        instance_id?: string;
-        created_at?: string | null;
-        training_days: any[];
-        start_execution_day: number;
-        executions: Array<{ day_index: number; status: string | null }>;
+        instanceMeta?: {
+            instance_id?: string;
+            created_at?: string | null;
+            status?: string | null;
+            training_days: any[];
+            start_execution_day: number;
+            executions: Array<{ day_index: number; status: string | null }>;
     } | null;
 }) {
     const { subscription, instanceMeta } = params;
@@ -170,15 +172,20 @@ async function deriveProjectedEndDate(params: {
         createdBefore: instanceMeta?.created_at || null,
         subscriptionStartDate: subscription?.start_date || null,
     });
-    const projectedEndDate = deriveProjectedSubscriptionEndDate({
-        startDate: subscription?.start_date || null,
-        subscribedWeeks: subscription?.subscribed_weeks || null,
-        effectiveSubscribedWeeks: carryover.remainingWeeks,
-        trainingDays: instanceMeta?.training_days || [],
-        startExecutionDay: instanceMeta?.start_execution_day || 1,
+    const model = deriveSubscriptionEntitlementState({
+        subscription,
+        planInstance: instanceMeta
+            ? {
+                id: instanceMeta.instance_id,
+                status: instanceMeta.status || null,
+                training_days: instanceMeta.training_days,
+                start_execution_day: instanceMeta.start_execution_day,
+            }
+            : null,
         executions: instanceMeta?.executions || [],
+        effectiveSubscribedWeeks: carryover.remainingWeeks,
     });
-    return projectedEndDate || subscription?.end_date || null;
+    return model.displayEndDate || subscription?.end_date || null;
 }
 
 export async function POST(req: Request) {

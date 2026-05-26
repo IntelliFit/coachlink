@@ -93,6 +93,114 @@
   align-items: center;
 }
 
+.input-shell--native {
+  padding: 0 24rpx;
+}
+
+.native-nickname-input {
+  width: 100%;
+  font-size: 30rpx;
+  color: #0f172a;
+}
+
+.field-tip {
+  font-size: 24rpx;
+  line-height: 1.5;
+  color: #94a3b8;
+}
+
+.avatar-picker-card {
+  display: flex;
+  flex-direction: column;
+  gap: 24rpx;
+  padding: 24rpx;
+  border-radius: 24rpx;
+  background: #ffffff;
+  border: 2rpx solid #e2e8f0;
+}
+
+.avatar-picker-main {
+  display: flex;
+  align-items: center;
+  gap: 24rpx;
+}
+
+.avatar-preview,
+.avatar-placeholder {
+  width: 112rpx;
+  height: 112rpx;
+  border-radius: 32rpx;
+  flex-shrink: 0;
+}
+
+.avatar-preview {
+  background: #e2e8f0;
+}
+
+.avatar-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f8fafc;
+  border: 2rpx dashed #cbd5e1;
+}
+
+.avatar-placeholder-text {
+  font-size: 24rpx;
+  font-weight: 600;
+  color: #94a3b8;
+}
+
+.avatar-picker-copy {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+}
+
+.avatar-picker-title {
+  font-size: 30rpx;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.avatar-picker-desc {
+  font-size: 24rpx;
+  line-height: 1.5;
+  color: #64748b;
+}
+
+.avatar-picker-btn {
+  width: 100%;
+  height: 80rpx;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 24rpx;
+  background: #cf6d4e;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &::after {
+    border: none;
+  }
+
+  &[disabled] {
+    opacity: 0.6;
+  }
+
+  &:active {
+    opacity: 0.88;
+  }
+}
+
+.avatar-picker-btn-text {
+  font-size: 28rpx;
+  font-weight: 700;
+  color: #ffffff;
+}
+
 /* 性别选择 */
 .gender-options {
   display: flex;
@@ -366,6 +474,10 @@
   gap: 24rpx;
 }
 
+.footer-bar--hidden {
+  display: none;
+}
+
 .footer-btn {
   flex: 1;
   height: 96rpx;
@@ -421,15 +533,6 @@
   color: #ffffff;
 }
 
-:global {
-  .nut-input {
-    width: 100%;
-    border: none !important;
-    padding: 0 !important;
-    background: transparent !important;
-    font-size: 30rpx !important;
-  }
-}
 /* ===== 目标部位 step 样式 ===== */
 .body-parts-step {
   padding: 0;

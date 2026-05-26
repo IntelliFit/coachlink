@@ -156,7 +156,7 @@ export default function NavigationAdmin() {
             label: '退出登录',
             icon: 'pi pi-sign-out',
             className: 'text-rose-500',
-            command: () => signOut({ callbackUrl: '/' }),
+            command: () => signOut({ callbackUrl: '/admin/login' }),
         }
     ], [session, profile, openProfileSetupModal]);
 

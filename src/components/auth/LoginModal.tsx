@@ -17,6 +17,7 @@ import { sesService } from '@/app/service/sesService';
 import WechatIcon from '@/components/icons/wechat';
 import { DEV_USERS, type DevUser } from '@/config/devUsers';
 import { waitForSessionReady } from '@/lib/auth/sessionSync';
+import { resolvePostLoginDestination } from '@/lib/auth/postLoginFlow';
 
 interface LoginModalProps {
     isOpen: boolean;
@@ -47,23 +48,27 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
         redirectOnLoginPage?: string;
         forceRedirectTo?: string;
     }) => {
-        await waitForSessionReady({ expectedUserId: options?.expectedUserId });
+        const session = await waitForSessionReady({ expectedUserId: options?.expectedUserId });
+        const isLoginPage = typeof window !== 'undefined' && window.location.pathname.includes('/login');
+        const resolvedDestination = await resolvePostLoginDestination({
+            session,
+            fallbackPath: options?.redirectOnLoginPage || '/today-training',
+        });
+        const finalDestination =
+            resolvedDestination === '/complete-profile'
+                ? resolvedDestination
+                : options?.forceRedirectTo || resolvedDestination;
 
         if (typeof window === 'undefined') {
             return;
         }
 
-        if (options?.forceRedirectTo) {
-            router.push(options.forceRedirectTo);
+        if (options?.forceRedirectTo || finalDestination === '/complete-profile' || isLoginPage) {
+            router.push(finalDestination);
             return;
         }
 
-        const isLoginPage = window.location.pathname.includes('/login');
-        if (isLoginPage) {
-            router.push(options?.redirectOnLoginPage || '/today-training');
-        } else {
-            router.refresh();
-        }
+        router.refresh();
     };
 
     // 重置视图状态当弹窗关闭
@@ -90,6 +95,40 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
         const handler = async (event: MessageEvent) => {
             if (event.origin !== window.location.origin) return;
             const data = event.data as any;
+
+            if (data?.type === 'coachlink:wechat-login-token') {
+                const loginToken = typeof data.loginToken === 'string' ? data.loginToken : '';
+                const returnTo = typeof data.returnTo === 'string' ? data.returnTo : '/today-training';
+                if (!loginToken) return;
+
+                setShowWechatQr(false);
+                setWechatAuthUrl(null);
+                setLoading(true);
+
+                try {
+                    const result = await signIn('credentials', {
+                        wechatLoginToken: loginToken,
+                        redirect: false,
+                    });
+
+                    if (result?.error) {
+                        showToast({ severity: 'error', summary: '微信登录失败', detail: result.error });
+                        return;
+                    }
+
+                    onClose(false);
+                    await syncSessionThenNavigate({
+                        redirectOnLoginPage: '/today-training',
+                        forceRedirectTo: returnTo === window.location.pathname ? undefined : returnTo,
+                    });
+                } catch (error: any) {
+                    showToast({ severity: 'error', summary: '微信登录失败', detail: error?.message || '未知错误' });
+                } finally {
+                    setLoading(false);
+                }
+                return;
+            }
+
             if (data?.type !== 'coachlink:wechat-auth-complete') return;
 
             const returnTo = typeof data.returnTo === 'string' ? data.returnTo : '/';
@@ -97,19 +136,15 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
             setWechatAuthUrl(null);
 
             onClose(false);
-            await waitForSessionReady();
-
-            // 如果需要跳转（如从 /login 打开登录框）
-            if (returnTo && returnTo !== window.location.pathname) {
-                router.push(returnTo);
-            } else {
-                router.refresh();
-            }
+            await syncSessionThenNavigate({
+                redirectOnLoginPage: '/today-training',
+                forceRedirectTo: returnTo && returnTo !== window.location.pathname ? returnTo : undefined,
+            });
         };
 
         window.addEventListener('message', handler);
         return () => window.removeEventListener('message', handler);
-    }, [onClose, router]);
+    }, [onClose, router, showToast]);
 
     const devUsers = useMemo<DevUser[]>(() => {
         return process.env.NODE_ENV === "development" ? DEV_USERS : [];

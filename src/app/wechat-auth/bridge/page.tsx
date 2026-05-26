@@ -2,6 +2,8 @@
 
 import { useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { waitForSessionReady } from '@/lib/auth/sessionSync';
+import { resolvePostLoginDestination } from '@/lib/auth/postLoginFlow';
 
 export default function WechatAuthBridgePage() {
   const searchParams = useSearchParams();
@@ -21,7 +23,14 @@ export default function WechatAuthBridgePage() {
 
     // 如果不是 iframe 场景（用户单独打开了此页），直接跳回
     if (window.top === window.self) {
-      window.location.replace(returnTo);
+      void (async () => {
+        const session = await waitForSessionReady({ timeoutMs: 8_000 });
+        const destination = await resolvePostLoginDestination({
+          session,
+          fallbackPath: returnTo,
+        });
+        window.location.replace(destination);
+      })();
     }
   }, [searchParams]);
 

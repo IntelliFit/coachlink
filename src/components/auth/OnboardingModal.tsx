@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ChangeEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { Dialog } from 'primereact/dialog';
@@ -20,12 +20,14 @@ interface OnboardingModalProps {
 }
 
 interface OnboardingFormData {
+    avatarUrl: string;
     nickname: string;
     gender: string;
     height: number;
     weight: number;
     fitnessGoal: string;
     fitnessLevel: string;
+    targetBodyParts: string[];
     interestTags: string[];
     equipments: string[];
     sessionDuration: number;
@@ -68,6 +70,18 @@ const INTEREST_OPTIONS = [
     { emoji: '🫁', label: '心肺有氧' },
 ];
 
+const TARGET_BODY_PART_OPTIONS = [
+    { emoji: '🫁', label: '胸部' },
+    { emoji: '🪽', label: '背部' },
+    { emoji: '🧱', label: '肩部' },
+    { emoji: '💪', label: '手臂' },
+    { emoji: '🎯', label: '腹部' },
+    { emoji: '🧍', label: '腰部' },
+    { emoji: '🍑', label: '臀部' },
+    { emoji: '🦵', label: '腿部' },
+    { emoji: '⚡', label: '全身' },
+];
+
 const EQUIPMENT_OPTIONS = [
     { emoji: '🤲', label: '徒手' },
     { emoji: '🏋️', label: '哑铃' },
@@ -97,13 +111,16 @@ export default function OnboardingModal({ isOpen, onClose, initialProfile }: Onb
 
     const [step, setStep] = useState(1);
     const [loading, setLoading] = useState(false);
+    const [uploadingAvatar, setUploadingAvatar] = useState(false);
     const [formData, setFormData] = useState<OnboardingFormData>({
+        avatarUrl: '',
         nickname: '',
         gender: '',
         height: 170,
         weight: 65,
         fitnessGoal: '',
         fitnessLevel: '',
+        targetBodyParts: [],
         interestTags: [],
         equipments: [],
         sessionDuration: 30,
@@ -112,8 +129,10 @@ export default function OnboardingModal({ isOpen, onClose, initialProfile }: Onb
     // 根据传入的已有 profile 预填表单（只在首次打开或 profile 变化时预填）
     useEffect(() => {
         if (!isOpen || !initialProfile) return;
+        let cancelled = false;
         setFormData((prev) => ({
             ...prev,
+            avatarUrl: initialProfile.avatar_url || prev.avatarUrl,
             nickname: initialProfile.nickname?.trim() || prev.nickname,
             gender: initialProfile.gender || prev.gender,
             height: (initialProfile.height && initialProfile.height > 0) ? initialProfile.height : prev.height,
@@ -122,13 +141,32 @@ export default function OnboardingModal({ isOpen, onClose, initialProfile }: Onb
             fitnessLevel: initialProfile.fitness_level || prev.fitnessLevel,
         }));
         setStep(1);
-    }, [isOpen, initialProfile]);
+
+        const loadQuestionnaireAnswers = async () => {
+            if (!session?.user?.id) return;
+            const res = await studentService.getStudentProfile(session.user.id);
+            if (cancelled) return;
+            const answers = (res?.questionnaire?.answers || {}) as Record<string, any>;
+            setFormData((prev) => ({
+                ...prev,
+                targetBodyParts: Array.isArray(answers.target_body_parts) ? answers.target_body_parts : prev.targetBodyParts,
+                interestTags: Array.isArray(answers.interest_tags) ? answers.interest_tags : prev.interestTags,
+                equipments: Array.isArray(answers.equipment) ? answers.equipment : prev.equipments,
+                sessionDuration: Number(answers.session_duration || prev.sessionDuration || 30),
+            }));
+        };
+
+        void loadQuestionnaireAnswers();
+        return () => {
+            cancelled = true;
+        };
+    }, [isOpen, initialProfile, session?.user?.id]);
 
     const totalSteps = 3;
     const progressValue = useMemo(() => (step / totalSteps) * 100, [step]);
 
     const toggleMultiValue = (
-        key: 'interestTags' | 'equipments',
+        key: 'targetBodyParts' | 'interestTags' | 'equipments',
         value: string,
     ) => {
         setFormData((prev) => {
@@ -143,6 +181,10 @@ export default function OnboardingModal({ isOpen, onClose, initialProfile }: Onb
     };
 
     const validateStep1 = () => {
+        if (!formData.avatarUrl.trim()) {
+            showToast({ severity: 'warn', summary: '请先上传头像' });
+            return false;
+        }
         if (!formData.nickname.trim()) {
             showToast({ severity: 'warn', summary: '请填写昵称' });
             return false;
@@ -160,6 +202,45 @@ export default function OnboardingModal({ isOpen, onClose, initialProfile }: Onb
             return false;
         }
         return true;
+    };
+
+    const handleAvatarFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        event.target.value = '';
+
+        if (!file) {
+            return;
+        }
+
+        setUploadingAvatar(true);
+        try {
+            const form = new FormData();
+            form.append('file', file);
+
+            const res = await fetch('/api/upload/avatar', {
+                method: 'POST',
+                body: form,
+            });
+            const data = await res.json().catch(() => ({}));
+
+            if (!data?.success || !data?.data?.url) {
+                throw new Error(data?.message || '头像上传失败');
+            }
+
+            setFormData((prev) => ({
+                ...prev,
+                avatarUrl: data.data.url,
+            }));
+            showToast({ severity: 'success', summary: '头像已上传' });
+        } catch (error: any) {
+            showToast({
+                severity: 'error',
+                summary: '头像上传失败',
+                detail: error?.message || '请稍后再试',
+            });
+        } finally {
+            setUploadingAvatar(false);
+        }
     };
 
     const validateStep2 = () => {
@@ -183,6 +264,7 @@ export default function OnboardingModal({ isOpen, onClose, initialProfile }: Onb
         setLoading(true);
         try {
             const profileResult = await studentService.updateProfile({
+                avatar_url: formData.avatarUrl.trim(),
                 nickname: formData.nickname.trim(),
                 gender: formData.gender,
                 height: formData.height,
@@ -201,7 +283,8 @@ export default function OnboardingModal({ isOpen, onClose, initialProfile }: Onb
                 await studentService.submitOnboarding({
                     userId: session.user.id,
                     answers: {
-                        flow_version: 'v2_minimal_first_workout',
+                        flow_version: 'miniapp_v1_aligned',
+                        target_body_parts: formData.targetBodyParts,
                         interest_tags: formData.interestTags,
                         equipment: formData.equipments,
                         session_duration: formData.sessionDuration,
@@ -316,6 +399,50 @@ export default function OnboardingModal({ isOpen, onClose, initialProfile }: Onb
             {/* ═══════ Step 1: 基础信息（昵称、性别、身高、体重） ═══════ */}
             {step === 1 && (
                 <div className="space-y-5">
+                    <div>
+                        <label className="block text-sm font-medium text-surface-700 mb-2">头像</label>
+                        <div className="flex items-center gap-4">
+                            <div className="w-20 h-20 rounded-full overflow-hidden border border-surface-200 bg-surface-50 flex items-center justify-center">
+                                {formData.avatarUrl ? (
+                                    <img src={formData.avatarUrl} alt="avatar" className="w-full h-full object-cover" />
+                                ) : (
+                                    <span className="text-xs font-bold text-surface-400">上传</span>
+                                )}
+                            </div>
+                            <div className="flex-1 space-y-2">
+                                <InputText
+                                    value={formData.avatarUrl}
+                                    onChange={(e) => setFormData((prev) => ({ ...prev, avatarUrl: e.target.value }))}
+                                    placeholder="可粘贴头像 URL，或上传本地图片"
+                                    className="w-full text-sm"
+                                />
+                                <div className="flex items-center gap-3">
+                                    <label className="inline-flex items-center justify-center px-4 h-10 rounded-xl border border-surface-200 bg-surface-50 text-sm font-medium cursor-pointer hover:bg-surface-100 transition-all">
+                                        <input
+                                            type="file"
+                                            accept="image/png,image/jpeg,image/jpg,image/webp"
+                                            className="hidden"
+                                            onChange={handleAvatarFileChange}
+                                        />
+                                        选择头像
+                                    </label>
+                                    {formData.avatarUrl ? (
+                                        <button
+                                            type="button"
+                                            onClick={() => setFormData((prev) => ({ ...prev, avatarUrl: '' }))}
+                                            className="text-sm text-surface-500 hover:text-surface-700"
+                                        >
+                                            清空
+                                        </button>
+                                    ) : null}
+                                    {uploadingAvatar ? (
+                                        <span className="text-xs text-surface-500">上传中...</span>
+                                    ) : null}
+                                </div>
+                                <p className="text-xs text-surface-500">支持 PNG/JPG/WEBP，2MB 以内</p>
+                            </div>
+                        </div>
+                    </div>
                     {/* 昵称 */}
                     <div>
                         <label className="block text-sm font-medium text-surface-700 mb-2">昵称</label>
@@ -464,6 +591,27 @@ export default function OnboardingModal({ isOpen, onClose, initialProfile }: Onb
             {/* ═══════ Step 3: 训练偏好（兴趣 / 器械 / 时长）═══════ */}
             {step === 3 && (
                 <div className="space-y-6">
+                    {/* 目标部位 */}
+                    <div>
+                        <label className="block text-sm font-medium text-surface-700 mb-2">目标部位（可多选）</label>
+                        <div className="grid grid-cols-3 gap-2">
+                            {TARGET_BODY_PART_OPTIONS.map((opt) => {
+                                const active = formData.targetBodyParts.includes(opt.label);
+                                return (
+                                    <CardButton
+                                        key={opt.label}
+                                        selected={active}
+                                        onClick={() => toggleMultiValue('targetBodyParts', opt.label)}
+                                        className="py-3 px-3 text-center"
+                                    >
+                                        <span className="text-lg">{opt.emoji}</span>
+                                        <span className="ml-1.5 text-sm">{opt.label}</span>
+                                    </CardButton>
+                                );
+                            })}
+                        </div>
+                    </div>
+
                     {/* 兴趣方向 */}
                     <div>
                         <label className="block text-sm font-medium text-surface-700 mb-2">感兴趣的方向（可多选）</label>

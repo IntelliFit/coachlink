@@ -29,4 +29,5 @@ export interface GetInstanceResponseDto {
     resolvedTrainingDays?: number;
     isLogicallyCompleted?: boolean;
     derivedStatus?: string;
+    entitlement?: any;
 }

@@ -9,6 +9,7 @@ import { studentActionLibService } from '@/services/studentActionLibService'
 import { studentPlanLibService } from '@/services/studentPlanLibService'
 import { studentService } from '@/services/studentService'
 import { trainingHistoryService } from '@/services/trainingHistoryService'
+import { AUTH_SESSION_INVALID_EVENT } from '@/services/authSessionEvents'
 import './index.scss'
 
 interface MenuItem {
@@ -148,6 +149,20 @@ function Profile() {
     void loadCurrentUser()
   }, [loadCurrentUser])
 
+  useEffect(() => {
+    const handleAuthInvalid = () => {
+      setUser(null)
+      setCoachId(null)
+      setIsAuthenticated(false)
+      setProfileStats(EMPTY_PROFILE_STATS)
+    }
+
+    Taro.eventCenter.on(AUTH_SESSION_INVALID_EVENT, handleAuthInvalid)
+    return () => {
+      Taro.eventCenter.off(AUTH_SESSION_INVALID_EVENT, handleAuthInvalid)
+    }
+  }, [])
+
   useDidShow(() => {
     void loadCurrentUser()
   })
@@ -241,6 +256,14 @@ function Profile() {
   ]
 
   const middleMenus: MenuItem[] = [
+    {
+      key: 'fitness-card',
+      label: '健身资料卡',
+      icon: 'icon-account-settings-variant',
+      iconBg: '#CF6D4E',
+      path: '/me/profile/fitness-card/index',
+      requiresAuth: true
+    },
     {
       key: 'current-plan',
       label: '全部计划',
