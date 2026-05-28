@@ -165,8 +165,8 @@ function ScheduleCalendarPanel({
               <Text className='head-title'>{selectedDayIndex === progressDayIndex ? '今天练什么' : `第${selectedDayIndex}天`}</Text>
               <Text className='head-meta'>
                 {formatDayLabel(selectedDate)}
-                {` ? ?${currentWeek} ?`}
-                {selectedSchedule?.totalDelayDays ? ` ? ??? ${selectedSchedule.totalDelayDays} ?` : ''}
+                {` · 第${currentWeek}周`}
+                {selectedSchedule?.totalDelayDays ? ` · 顺延${selectedSchedule.totalDelayDays}天` : ''}
               </Text>
             </View>
             <View className='head-actions'>

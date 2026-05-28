@@ -18,9 +18,7 @@ export async function refreshSubscriptionEntitlementSnapshot(
 
   const { data: instances } = await supabase
     .from("coach_plan_instances")
-    .select(
-      "id, coach_subscription_id, training_days, start_execution_day, created_at, status, entitlement_consumption_policy",
-    )
+    .select("id, coach_subscription_id, training_days, start_execution_day, created_at, status")
     .eq("coach_subscription_id", subscriptionId)
     .in("status", ["active", "paused", "completed", "scheduled", "archived"])
     .order("created_at", { ascending: false });
@@ -68,11 +66,15 @@ export async function refreshSubscriptionEntitlementSnapshot(
     now: options.now,
   });
 
-  if (model.displayEndDate) {
+  const subscriptionStatus = String((subscription as any)?.status || "").toLowerCase();
+  const shouldPersistDerivedEndDate =
+    subscriptionStatus === "active" || Boolean(model.displayEndDate);
+
+  if (shouldPersistDerivedEndDate) {
     await supabase
       .from("coach_subscriptions")
       .update({
-        end_date: model.displayEndDate,
+        end_date: model.displayEndDate || null,
         updated_at: new Date().toISOString(),
       } as any)
       .eq("id", subscriptionId);

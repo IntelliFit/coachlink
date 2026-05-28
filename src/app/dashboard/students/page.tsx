@@ -516,7 +516,7 @@ export default function StudentsPage() {
                 ? `已购${student.subscribed_weeks}周`
                 : '购买周期待定';
         const projectedEndDateLabel = student.start_date
-            ? `预计完成 ${formatProjectedEndDate(student.end_date)}`
+            ? `当前计划预计完成 ${formatProjectedEndDate(student.end_date)}`
             : '开始训练后自动计算';
 
         return (
@@ -969,7 +969,7 @@ export default function StudentsPage() {
                                             </span>
                                             {!isOffline && (
                                                 <span className="px-2 py-0.5 rounded-full bg-surface-50 border border-surface-100 text-surface-500 font-medium">
-                                                    {student.start_date ? `预计完成 ${formatProjectedEndDate(student.end_date)}` : '开始训练后自动计算'}
+                                                    {student.start_date ? `当前计划预计完成 ${formatProjectedEndDate(student.end_date)}` : '开始训练后自动计算'}
                                                 </span>
                                             )}
                                             <span
@@ -1227,7 +1227,7 @@ export default function StudentsPage() {
                 >
                     <Column selectionMode="multiple" headerStyle={{ width: '3.25rem' }} bodyStyle={{ width: '3.25rem' }} />
                     <Column header="学员信息" body={studentTemplate} style={{ width: '17%' }} />
-                    <Column header="购买周期 / 预计完成" body={subscribeTemplate} style={{ width: '13%' }} />
+                    <Column header="购买周期 / 当前计划预计完成" body={subscribeTemplate} style={{ width: '13%' }} />
                     <Column header="训练计划" body={trainingPlanTemplate} style={{ width: '30%' }} bodyStyle={{ overflow: 'hidden' }} />
                     <Column header="训练进度" body={trainingProgressTemplate} style={{ width: '20%' }} />
                     <Column header="已评价/视频总数" body={videoStatsTemplate} style={{ width: '16%' }} />

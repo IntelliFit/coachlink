@@ -16,7 +16,7 @@ import { adminService } from '@/app/service/adminService';
 import { userService } from '@/app/service/userService';
 import { useToastContext } from '@/context/ToastContext';
 import type { UserProfilesRow } from '@/types';
-import { Bell, Moon, Sun, CreditCard, UserPlus, Trophy, LogIn, Settings, FileText } from 'lucide-react';
+import { Bell, Moon, Sun, CreditCard, UserPlus, Trophy, LogIn, Settings, FileText, Database } from 'lucide-react';
 
 export default function NavigationAdmin() {
     const pathname = usePathname();
@@ -24,6 +24,7 @@ export default function NavigationAdmin() {
     const { theme, toggleTheme } = useTheme();
     const { openProfileSetupModal } = useProfileSetupModal();
     const { data: session, status } = useSession();
+    const sessionUser = session?.user as { id?: string; is_admin?: boolean } | undefined;
     const menuRef = useRef<Menu>(null);
     const [isClient, setIsClient] = useState(false);
     const { showToast } = useToastContext();
@@ -63,7 +64,7 @@ export default function NavigationAdmin() {
 
     // 获取用户档案
     useEffect(() => {
-        if (status !== 'authenticated' || !session?.user?.id) {
+        if (status !== 'authenticated' || !sessionUser?.id) {
             setProfile(null);
             return;
         }
@@ -78,7 +79,7 @@ export default function NavigationAdmin() {
             }
         };
         loadProfile();
-    }, [status, session?.user?.id]);
+    }, [status, sessionUser?.id]);
 
     const itemRenderer = (item: any) => (
         <div 
@@ -112,6 +113,13 @@ export default function NavigationAdmin() {
             url: '/admin/subscriptions',
             command: () => router.push('/admin/subscriptions'),
             badge: navData?.paymentUnreviewed || 0,
+            template: itemRenderer
+        },
+        {
+            label: '内容导入',
+            icon: Database,
+            url: '/admin/content-import',
+            command: () => router.push('/admin/content-import'),
             template: itemRenderer
         },
         {
@@ -149,7 +157,7 @@ export default function NavigationAdmin() {
         {
             label: '个人设置',
             icon: 'pi pi-cog',
-            command: () => openProfileSetupModal(profile, session?.user?.id),
+            command: () => openProfileSetupModal(profile, sessionUser?.id),
         },
         { separator: true },
         {

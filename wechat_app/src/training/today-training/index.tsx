@@ -145,7 +145,13 @@ function TodayTraining() {
   const activeSubscriptionRemainingDays = getRemainingDays(activeSubscription?.end_date)
   const hasPositiveRemainingDays =
     activeSubscriptionRemainingDays === null || activeSubscriptionRemainingDays > 0
-  const isExpiredGrace = subscriptionLifecycle === 'expired_grace' && !hasPositiveRemainingDays
+  const entitlementRemainingCredits = Number(activeSubscription?.entitlement_remaining_credits ?? NaN)
+  const hasEntitlementRemaining =
+    Number.isFinite(entitlementRemainingCredits) && entitlementRemainingCredits > 0
+  const isExpiredGrace =
+    subscriptionLifecycle === 'expired_grace' &&
+    !hasPositiveRemainingDays &&
+    !hasEntitlementRemaining
   const renewCoachId = activeSubscription?.coach_id || activeSubscription?.coach?.id
   const renewPath = renewCoachId
     ? `/discovery/coach-profile?id=${encodeURIComponent(renewCoachId)}&renew=true`

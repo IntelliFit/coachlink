@@ -145,9 +145,9 @@ describe("subscriptionEntitlementModel", () => {
       },
       planInstance: {
         id: "instance-1",
-        status: "active",
+        status: "completed",
         start_execution_day: 1,
-        training_days: makePlan(1, 2),
+        training_days: makePlan(4, 2),
       },
       executions: [
         { day_index: 1, status: "completed" },
@@ -158,7 +158,53 @@ describe("subscriptionEntitlementModel", () => {
 
     expect(state.planProgressStatus).toBe("completed");
     expect(state.isPlanCompleted).toBe(true);
-    expect(state.remainingCredits).toBe(0);
+    expect(state.entitlementStatus).toBe("available");
+    expect(state.remainingCredits).toBeGreaterThan(0);
+    expect(state.lifecycleStatus).toBe("active");
     expect(state.canTrain).toBe(false);
+  });
+
+  it("keeps active no-plan subscriptions in no_plan instead of completed or grace", () => {
+    const state = deriveSubscriptionEntitlementState({
+      subscription: {
+        status: "active",
+        start_date: "2026-01-01T00:00:00.000Z",
+        end_date: "2025-12-01T00:00:00.000Z",
+        subscribed_weeks: 4,
+      },
+      planInstance: null,
+      executions: [],
+      now: new Date("2026-01-05T00:00:00.000Z"),
+    });
+
+    expect(state.entitlementStatus).toBe("no_plan");
+    expect(state.planProgressStatus).toBe("no_plan");
+    expect(state.lifecycleStatus).toBe("active");
+    expect(state.isPlanCompleted).toBe(false);
+    expect(state.canTrain).toBe(false);
+  });
+
+  it("does not reuse a stale end_date for active not-started plans with credits", () => {
+    const state = deriveSubscriptionEntitlementState({
+      subscription: {
+        status: "active",
+        start_date: null,
+        end_date: "2025-12-01T00:00:00.000Z",
+        subscribed_weeks: 4,
+      },
+      planInstance: {
+        id: "instance-1",
+        status: "active",
+        start_execution_day: 1,
+        training_days: makePlan(4, 3),
+      },
+      executions: [],
+      now: new Date("2026-01-05T00:00:00.000Z"),
+    });
+
+    expect(state.entitlementStatus).toBe("not_started");
+    expect(state.lifecycleStatus).toBe("active");
+    expect(state.displayEndDate).toBeNull();
+    expect(state.canTrain).toBe(true);
   });
 });

@@ -32,4 +32,18 @@ export interface QueryCoachSubscription extends CoachSubscriptionRow {
     grace_days_left?: number;
     /** ISO datetime when grace period ends */
     grace_deadline_at?: string | null;
+    /** Derived entitlement status from the unified subscription model */
+    entitlement_status?: string | null;
+    /** Total trainable-day credits available in the current entitlement window */
+    entitlement_total_credits?: number | null;
+    /** Trainable-day credits already consumed in the current entitlement window */
+    entitlement_used_credits?: number | null;
+    /** Trainable-day credits still available in the current entitlement window */
+    entitlement_remaining_credits?: number | null;
+    /** Whether the current entitlement window is exhausted */
+    entitlement_exhausted?: boolean | null;
+    /** Derived plan progress status from the unified subscription model */
+    plan_progress_status?: string | null;
+    /** Whether the unified model says this relation should be auto-cancelled */
+    should_auto_cancel?: boolean | null;
 }

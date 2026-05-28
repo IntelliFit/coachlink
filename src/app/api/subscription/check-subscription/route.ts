@@ -139,7 +139,7 @@ export async function PUT(req: Request) {
         // NOTE: start_date is set at first execution start.
         const { data: candidates, error } = await supabase
             .from("coach_subscriptions")
-            .select("id, student_id, coach_id, status, start_date, subscribed_weeks")
+            .select("id, student_id, coach_id, status, start_date, end_date, subscribed_weeks")
             .eq("status", "active")
             .not("start_date", "is", null)
             .gt("subscribed_weeks", 0);
@@ -162,7 +162,7 @@ export async function PUT(req: Request) {
             // Load latest plan instance per subscription (needed for credit scope)
             const { data: instances } = await supabase
                 .from("coach_plan_instances")
-                .select("id, coach_subscription_id, training_days, start_execution_day, created_at, status, entitlement_consumption_policy")
+                .select("id, coach_subscription_id, training_days, start_execution_day, created_at, status")
                 .in("coach_subscription_id", candidateIds)
                 .in("status", ["active", "paused", "completed", "scheduled", "archived"])
                 .order("created_at", { ascending: false });
@@ -289,15 +289,18 @@ export async function PUT(req: Request) {
 
                 const studentIds = (candidates as any[])
                     .filter((c) => toAutoCancelByModel.some((item) => item.id === c.id))
-                    .map((c) => c.student_id);
+                    .map((c) => c.student_id)
+                    .filter(Boolean);
 
                 // 同时清空这些学生的 invitation_coach_id
-                const { error: userUpdateError } = await supabase
-                    .from("users")
-                    .update({
-                        invitation_coach_id: null,
-                    })
-                    .in("id", studentIds);
+                const { error: userUpdateError } = studentIds.length > 0
+                    ? await supabase
+                        .from("users")
+                        .update({
+                            invitation_coach_id: null,
+                        })
+                        .in("id", studentIds)
+                    : { error: null };
 
                 if (userUpdateError) {
                     console.error("更新用户邀请教练ID失败:", userUpdateError);

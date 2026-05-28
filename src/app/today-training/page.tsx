@@ -1006,7 +1006,9 @@ const TodayTrainingPage: React.FC = () => {
             '';
         const hasActiveSubscription = !!activeSubscription?.id;
         const subscriptionLifecycle = String(selectedCoachSubscription?.lifecycle_status || 'active');
-        const isExpiredGrace = subscriptionLifecycle === 'expired_grace';
+        const remainingCredits = Number(selectedCoachSubscription?.entitlement_remaining_credits ?? NaN);
+        const hasRemainingCredits = Number.isFinite(remainingCredits) && remainingCredits > 0;
+        const isExpiredGrace = subscriptionLifecycle === 'expired_grace' && !hasRemainingCredits;
         const showCompletedState = hasCompletedCoachPlan && !isExpiredGrace;
         const isEntitlementBlocked = coachAccessStatus === 'entitlement_blocked';
         const isLoadFailed = coachAccessStatus === 'load_failed';
@@ -1208,7 +1210,9 @@ const TodayTrainingPage: React.FC = () => {
             selectedCoachSubscription?.coach_id ||
             '教练';
         const subscriptionLifecycle = String(selectedCoachSubscription?.lifecycle_status || 'active');
-        const isExpiredGrace = subscriptionLifecycle === 'expired_grace';
+        const remainingCredits = Number(selectedCoachSubscription?.entitlement_remaining_credits ?? NaN);
+        const hasRemainingCredits = Number.isFinite(remainingCredits) && remainingCredits > 0;
+        const isExpiredGrace = subscriptionLifecycle === 'expired_grace' && !hasRemainingCredits;
         const showCompletedState = coachAccessStatus === 'plan_completed' && !isExpiredGrace;
         const isEntitlementBlocked = coachAccessStatus === 'entitlement_blocked';
         const isLoadFailed = coachAccessStatus === 'load_failed';

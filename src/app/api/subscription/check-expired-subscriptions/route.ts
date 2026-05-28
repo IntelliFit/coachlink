@@ -79,7 +79,7 @@ export async function POST(req: Request) {
     // Load latest plan instance per subscription (needed for credit scope)
     const { data: instances } = await supabase
         .from("coach_plan_instances")
-        .select("id, coach_subscription_id, training_days, start_execution_day, created_at, status, entitlement_consumption_policy")
+        .select("id, coach_subscription_id, training_days, start_execution_day, created_at, status")
         .in("coach_subscription_id", candidateIds)
         .in("status", ["active", "paused", "completed", "scheduled", "archived"])
         .order("created_at", { ascending: false });
@@ -188,14 +188,28 @@ export async function POST(req: Request) {
     // 8. 更新刷新订阅
     const updateRefreshStart = performance.now();
     if (toRefresh.length > 0) {
-        const refreshPayload = toRefresh.map((r) => ({
-            id: r.id,
-            end_date: r.end_date,
-            updated_at: nowIso,
-        }));
-        await supabase
-            .from("coach_subscriptions")
-            .upsert(refreshPayload as any, { onConflict: "id" });
+        const refreshResults = await Promise.all(
+            toRefresh.map((item) =>
+                supabase
+                    .from("coach_subscriptions")
+                    .update({
+                        end_date: item.end_date,
+                        updated_at: nowIso,
+                    })
+                    .eq("id", item.id),
+            ),
+        );
+        const refreshError = refreshResults.find((result) => result.error)?.error;
+        if (refreshError) {
+            console.error("刷新订阅预计完成日失败:", refreshError);
+            timings['total'] = performance.now() - startTime;
+            console.log('[check-expired-subscriptions] Performance timings:', JSON.stringify(timings, null, 2));
+            return NextResponse.json<ApiData<CheckExpiredSubscriptionsResponseDto>>({
+                success: false,
+                message: "刷新订阅预计完成日失败",
+                data: null,
+            }, { status: 500 });
+        }
     }
     timings['8_update_refresh'] = performance.now() - updateRefreshStart;
 
@@ -232,15 +246,18 @@ export async function POST(req: Request) {
         const updateUsersStart = performance.now();
         const studentIds = (candidates as any[])
             .filter((c) => toAutoCancelByModel.some((item) => item.id === c.id))
-            .map((c) => c.student_id);
+            .map((c) => c.student_id)
+            .filter(Boolean);
 
         // 同时清空这些学生的 invitation_coach_id
-        const { error: userUpdateError } = await supabase
-            .from("users")
-            .update({
-                invitation_coach_id: null,
-            })
-            .in("id", studentIds);
+        const { error: userUpdateError } = studentIds.length > 0
+            ? await supabase
+                .from("users")
+                .update({
+                    invitation_coach_id: null,
+                })
+                .in("id", studentIds)
+            : { error: null };
 
         if (userUpdateError) {
             console.error("更新用户邀请教练ID失败:", userUpdateError);
