@@ -23,11 +23,15 @@ import './index.scss'
 
 const QUICK_TAGS = ['深蹲', '拉伸', '减脂', '增肌']
 
-const PLAN_FILTERS: Array<{ key: 'all' | PublicTrainingPlanLevel; label: string }> = [
-  { key: 'all', label: '全部' },
-  { key: 'beginner', label: '入门' },
-  { key: 'intermediate', label: '进阶' },
-  { key: 'advanced', label: '专业' }
+const PLAN_SPECIALTY_FILTERS = [
+  { key: 'all', label: '专项精选' },
+  { key: 'bench_press', label: '卧推' },
+  { key: 'squat', label: '深蹲' },
+  { key: 'powerlifting', label: '力量举' },
+  { key: 'weighted_pullup', label: '负重引体' },
+  { key: 'weighted_dip', label: '负重双杠' },
+  { key: 'posture', label: '体态纠正' },
+  { key: 'foundation', label: '基础入门' }
 ]
 
 const PLAN_LEVEL_LABELS: Record<PublicTrainingPlanLevel, string> = {
@@ -140,7 +144,7 @@ function KnowledgeBase() {
   const [loadingBodyRegion, setLoadingBodyRegion] = useState(false)
   const [isGuest, setIsGuest] = useState(false)
   const [bodyMapGender, setBodyMapGender] = useState<'male' | 'female'>('male')
-  const [planFilter, setPlanFilter] = useState<'all' | PublicTrainingPlanLevel>('all')
+  const [planSpecialty, setPlanSpecialty] = useState('all')
   const [trainingPlans, setTrainingPlans] = useState<PublicTrainingPlanListItem[]>([])
   const [loadingTrainingPlans, setLoadingTrainingPlans] = useState(true)
   const bodyMapImageUrl = useMemo(() => {
@@ -167,12 +171,13 @@ function KnowledgeBase() {
     }
   }, [])
 
-  async function loadTrainingPlans(level: 'all' | PublicTrainingPlanLevel) {
+  async function loadTrainingPlans(specialty: string) {
     try {
       setLoadingTrainingPlans(true)
       const res = await knowledgeService.listTrainingPlans({
-        level,
-        limit: level === 'all' ? 8 : 12,
+        level: 'all',
+        specialty,
+        limit: specialty === 'all' ? 12 : 16,
         offset: 0
       })
       setTrainingPlans(res.plans || [])
@@ -184,9 +189,9 @@ function KnowledgeBase() {
     }
   }
 
-  function handlePlanFilterChange(level: 'all' | PublicTrainingPlanLevel) {
-    setPlanFilter(level)
-    void loadTrainingPlans(level)
+  function handlePlanSpecialtyChange(specialty: string) {
+    setPlanSpecialty(specialty)
+    void loadTrainingPlans(specialty)
   }
 
   async function loadBodyMapGender(userId: string) {
@@ -365,17 +370,17 @@ function KnowledgeBase() {
           <View className='section'>
             <View className='section-head section-head-stack'>
               <View>
-                <Text className='section-title'>训练计划库</Text>
+                <Text className='section-title'>专项训练计划库</Text>
                 <Text className='section-caption'>
-                  常见运动计划模板，先加入我的计划，再编辑或应用执行
+                  卧推、深蹲、力量举、负重引体、双杠和体态纠正优先展示
                 </Text>
               </View>
               <View className='plan-filter-row'>
-                {PLAN_FILTERS.map((filter) => (
+                {PLAN_SPECIALTY_FILTERS.map((filter) => (
                   <View
                     key={filter.key}
-                    className={`plan-filter-chip ${planFilter === filter.key ? 'active' : ''}`}
-                    onClick={() => handlePlanFilterChange(filter.key)}
+                    className={`plan-filter-chip ${planSpecialty === filter.key ? 'active' : ''}`}
+                    onClick={() => handlePlanSpecialtyChange(filter.key)}
                   >
                     <Text>{filter.label}</Text>
                   </View>
@@ -392,31 +397,31 @@ function KnowledgeBase() {
               <ScrollView scrollX className='builtin-plan-scroll' enhanced showScrollbar={false}>
                 <View className='builtin-plan-track'>
                   {trainingPlans.map((plan) => (
-                  <View
-                    key={plan.id}
-                    className='builtin-plan-card'
-                    onClick={() => Taro.navigateTo({ url: `/content/knowledge/plan-detail?id=${encodeURIComponent(plan.slug || plan.id)}` })}
-                  >
-                    <View className='builtin-plan-topline'>
-                      <Text className='builtin-plan-sport'>{plan.sport}</Text>
-                      <Text className={`builtin-plan-level ${plan.level}`}>
-                        {PLAN_LEVEL_LABELS[plan.level]}
-                      </Text>
+                    <View
+                      key={plan.id}
+                      className='builtin-plan-card'
+                      onClick={() => Taro.navigateTo({ url: `/content/knowledge/plan-detail?id=${encodeURIComponent(plan.slug || plan.id)}` })}
+                    >
+                      <View className='builtin-plan-topline'>
+                        <Text className='builtin-plan-sport'>{plan.specialtyLabel || plan.goal}</Text>
+                        <Text className={`builtin-plan-level ${plan.level}`}>
+                          {PLAN_LEVEL_LABELS[plan.level]}
+                        </Text>
+                      </View>
+                      <Text className='builtin-plan-title' numberOfLines={2}>{plan.name}</Text>
+                      <Text className='builtin-plan-desc' numberOfLines={2}>{plan.description}</Text>
+                      <View className='builtin-plan-meta'>
+                        <Text>{plan.weeks}周</Text>
+                        <Text>{plan.daysPerWeek}天/周</Text>
+                        <Text>{plan.sport}</Text>
+                      </View>
+                      <View className='builtin-plan-tags'>
+                        {[plan.goal, ...plan.tags].filter(Boolean).slice(0, 3).map((tag) => (
+                          <Text key={tag}>{tag}</Text>
+                        ))}
+                      </View>
+                      <Text className='builtin-plan-link'>查看并加入</Text>
                     </View>
-                    <Text className='builtin-plan-title' numberOfLines={2}>{plan.name}</Text>
-                    <Text className='builtin-plan-desc' numberOfLines={2}>{plan.description}</Text>
-                    <View className='builtin-plan-meta'>
-                      <Text>{plan.weeks}周</Text>
-                      <Text>{plan.daysPerWeek}天/周</Text>
-                      <Text>{plan.goal}</Text>
-                    </View>
-                    <View className='builtin-plan-tags'>
-                      {plan.tags.slice(0, 2).map((tag) => (
-                        <Text key={tag}>{tag}</Text>
-                      ))}
-                    </View>
-                    <Text className='builtin-plan-link'>查看并加入</Text>
-                  </View>
                   ))}
                 </View>
               </ScrollView>

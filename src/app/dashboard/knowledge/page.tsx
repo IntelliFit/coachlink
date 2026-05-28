@@ -6,6 +6,7 @@ import { Activity, BookOpen, CheckCircle2, ChevronRight, Dumbbell, Edit3, MapPin
 import AIChatPanel from "@/components/knowledge/AIChatPanel";
 import BodyMapCanvas, { BODY_REGION_LABELS, type BodyRegion } from "@/components/knowledge/BodyMap/BodyMapCanvas";
 import BodyMapModeSwitch from "@/components/knowledge/BodyMap/BodyMapModeSwitch";
+import SpecialtyTrainingPlans from "@/components/knowledge/SpecialtyTrainingPlans";
 import knowledgeService from "@/app/service/knowledgeService";
 import { KnowledgeBookCollection, groupKnowledgeBooks } from "@/lib/knowledgeBooks";
 type BodyMapMode = 'screening' | 'training';
@@ -332,6 +333,8 @@ const KnowledgeBaseHomePage = () => {
                         </button>
                     )}
                 </div>
+
+                <SpecialtyTrainingPlans />
 
                 {/* Body Map - 丝滑动画焦点模式 */}
                 <div className={AERO_CONTAINER}>
