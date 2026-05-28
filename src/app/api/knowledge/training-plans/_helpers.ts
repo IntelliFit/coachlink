@@ -19,6 +19,9 @@ export interface PublicTrainingPlanTemplate {
     template_kind: "fixed" | "parameterized";
     parameter_schema: Record<string, any>;
     action_slots: any[];
+    specialty_key?: string;
+    specialty_label?: string;
+    specialty_priority?: number;
     sort_order: number;
 }
 
@@ -83,6 +86,9 @@ export function toTrainingPlanListItem(template: PublicTrainingPlanTemplate) {
         templateKind: template.template_kind,
         parameterSchema: template.parameter_schema || {},
         actionSlots: template.action_slots || [],
+        specialtyKey: template.specialty_key || "foundation",
+        specialtyLabel: template.specialty_label || "基础入门",
+        specialtyPriority: Number(template.specialty_priority ?? 999),
         trainingDayCount: Math.max(1, Number(template.weeks || 1)) *
             normalizeBaseTrainingDays(template.training_days).filter((day: any) =>
                 String(day?.type || "training") !== "rest"

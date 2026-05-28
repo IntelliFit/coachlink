@@ -155,7 +155,10 @@ function PlanDetailPage() {
         <View className='page-shell'>
           <View className='hero-card'>
             <View className='hero-topline'>
-              <Text className='hero-kicker'>{plan.sport}</Text>
+              <View className='hero-kicker-group'>
+                <Text className='hero-kicker'>{plan.specialtyLabel || plan.goal}</Text>
+                <Text className='hero-subkicker'>{plan.sport}</Text>
+              </View>
               <Text className={`level-badge ${plan.level}`}>{PLAN_LEVEL_LABELS[plan.level]}</Text>
             </View>
             <Text className='hero-title'>{plan.name}</Text>

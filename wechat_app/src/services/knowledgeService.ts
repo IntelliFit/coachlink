@@ -31,6 +31,9 @@ export interface PublicTrainingPlanListItem {
   templateKind?: 'fixed' | 'parameterized'
   parameterSchema?: Record<string, any>
   actionSlots?: any[]
+  specialtyKey?: string
+  specialtyLabel?: string
+  specialtyPriority?: number
   trainingDayCount?: number
 }
 
@@ -233,12 +236,14 @@ class KnowledgeService extends BaseService {
 
   async listTrainingPlans(params?: {
     level?: 'all' | PublicTrainingPlanLevel
+    specialty?: string
     limit?: number
     offset?: number
     search?: string
   }) {
     const query: string[] = []
     query.push(`level=${encodeURIComponent(params?.level || 'all')}`)
+    if (params?.specialty) query.push(`specialty=${encodeURIComponent(params.specialty)}`)
     query.push(`limit=${encodeURIComponent(String(params?.limit ?? 20))}`)
     query.push(`offset=${encodeURIComponent(String(params?.offset ?? 0))}`)
     if (params?.search) query.push(`q=${encodeURIComponent(params.search)}`)

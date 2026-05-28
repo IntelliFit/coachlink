@@ -28,6 +28,27 @@
 
 ---
 
+## Knowledge Specialty Library Sync (`2026-05-28`)
+
+- Task: sync the specialty-first public training-plan library across both Web `/dashboard/knowledge` and the WeChat mini-program knowledge tab, and make the Supabase manual SQL path easier to execute.
+- Implemented:
+  - Added Web specialty plan list/detail support with `src/components/knowledge/SpecialtyTrainingPlans.tsx`, `src/app/dashboard/knowledge/training-plans/[id]/page.tsx`, and matching service methods in `src/app/service/knowledgeService.ts`.
+  - Inserted the specialty-first plan entry section into Web knowledge home so it no longer exists only in the mini-program.
+  - Updated public training-plan API helpers/list route to expose specialty metadata consistently to both clients.
+  - Refined mini-program knowledge list/detail presentation to match the specialty-first structure and preserve the detailed per-action preview.
+  - Split the long specialty migration into four ordered SQL files for easier manual execution in Supabase SQL Editor:
+    - `20260527_001_training_plan_specialties_schema.sql`
+    - `20260527_002_training_plan_specialties_strength_seed.sql`
+    - `20260527_003_training_plan_specialties_weighted_dip_seed.sql`
+    - `20260527_004_training_plan_specialties_posture_seed.sql`
+- Verification:
+  - Lightweight verification only per local preference: targeted TS/TSX transpile checks and `git diff --check` passed.
+  - No full lint/typecheck/build/test or browser/manual verification was run for this follow-up unless explicitly requested.
+- Next step:
+  - If the user wants full release confidence for this slice, run the standard lint/typecheck/test gate and browser/manual knowledge-page verification on both Web and mini-program paths.
+
+---
+
 ## Git Contribution Audit (`2026-05-27`)
 
 - Task: report committed-code contribution for `SmallHorseBrother <2945463110@qq.com>` since project creation.
@@ -94,7 +115,7 @@
 ## WeApp Knowledge Built-in Training Plan Library (`2026-05-26`)
 
 - Task: Add a student-side WeChat mini-program knowledge-base training plan library with dozens of common plans from beginner to professional, where users can add a plan into `我的计划` and later execute it through the existing plan flow.
-- Status: implemented in code; no WeChat DevTools/manual verification or full lint/typecheck/build/test run per local preference unless explicitly requested.
+- Status: implemented in code and adjusted to specialty-first on `2026-05-27`; no WeChat DevTools/manual verification or full lint/typecheck/build/test run per local preference unless explicitly requested.
 - Implemented:
   - `supabase/migrations/20260526_public_training_plan_templates.sql`
     - Added `public_training_plan_templates` for platform-managed public plan templates.
@@ -108,13 +129,30 @@
     - Follow-up fix: copied action sets are normalized with both English-compatible fields (`sets`, `reps`, `rest_seconds`, `intensity`) and editor/execution-friendly Chinese params (`组数`, `次数`, `休息时间`, `强度` where applicable), including `%` / `RM` `intensityConfig` when parsable.
   - `wechat_app/src/content/knowledge/index.tsx` / `.scss`
     - Added a `训练计划库` section on the knowledge page with difficulty filters and horizontal plan cards backed by the new API.
+    - Follow-up adjustment: the knowledge page now presents `专项训练计划库` first, with specialty filters for bench press, squat, powerlifting, weighted pull-up, weighted dip, posture correction, and foundation plans. The horizontal card layout was made fixed-width to avoid the mini-program rendering it as thin vertical columns.
   - `wechat_app/src/content/knowledge/plan-detail/index.tsx` / `.scss` / `.config.ts`
     - Added database-backed plan detail page with plan metadata, first two weeks preview, notes, login return flow, `加入我的计划`, and parameterized-template/action-slot display.
+    - Follow-up adjustment: plan detail hero now shows specialty label plus sport, and action previews expose sets, reps, rest, intensity, load, and action-library binding/autofill status.
   - `wechat_app/src/app.config.ts`
     - Registered `content/knowledge/plan-detail`.
+  - `supabase/migrations/20260527_001_training_plan_specialties_schema.sql`
+  - `supabase/migrations/20260527_002_training_plan_specialties_strength_seed.sql`
+  - `supabase/migrations/20260527_003_training_plan_specialties_weighted_dip_seed.sql`
+  - `supabase/migrations/20260527_004_training_plan_specialties_posture_seed.sql`
+    - Added `specialty_key`, `specialty_label`, and `specialty_priority` to `public_training_plan_templates`.
+    - Classified existing templates and seeded specialty-first plans for bench press, squat, powerlifting, weighted pull-up, weighted dip, rounded-shoulder correction, and anterior-pelvic-tilt correction.
+    - Split from the original long migration into four sub-200-line SQL files so they can be run manually in Supabase SQL Editor.
+  - `src/app/api/knowledge/training-plans/*` / `wechat_app/src/services/knowledgeService.ts`
+    - Exposed specialty metadata and `specialty` filtering while preserving the existing copy-to-favorite action-library auto-fill path.
+  - `src/app/dashboard/knowledge/page.tsx` / `src/components/knowledge/SpecialtyTrainingPlans.tsx`
+    - Follow-up Web sync on `2026-05-28`: added the same specialty-first training-plan library to the Web knowledge homepage between book notes and the body map.
+  - `src/app/dashboard/knowledge/training-plans/[id]/page.tsx` / `src/app/service/knowledgeService.ts`
+    - Added Web plan detail and service methods for list/detail/copy. Web detail shows target, cycle, weekly frequency, training-day structure, sets, reps, rest, intensity, and the action-library auto-fill explanation.
 - Verification:
   - Targeted TypeScript transpile syntax check passed for the new/modified files.
   - Targeted TypeScript transpile syntax check passed for the updated `copy-to-favorite` action-binding route.
+  - Targeted TypeScript transpile syntax check passed for the `2026-05-27` specialty-first API/service/page updates.
+  - Targeted TypeScript transpile syntax check passed for the `2026-05-28` Web sync files.
   - `git diff --check` passed for touched files with only standard Windows CRLF warnings.
 
 ## WeApp Coach Huifu Wallet Operations (`2026-05-26`)

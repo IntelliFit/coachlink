@@ -36,6 +36,36 @@ import {
     ListKnowledgeSubscriptionsResponseDto
 } from "../api/knowledge/list-subscriptions/entity";
 
+export type PublicTrainingPlanLevel = "beginner" | "intermediate" | "advanced";
+
+export interface PublicTrainingPlanListItem {
+    id: string;
+    slug: string;
+    name: string;
+    description?: string | null;
+    sport: string;
+    goal: string;
+    level: PublicTrainingPlanLevel;
+    weeks: number;
+    daysPerWeek: number;
+    equipment: string[];
+    tags: string[];
+    suitableFor: string;
+    audience?: string | null;
+    notes: string[];
+    templateKind?: "fixed" | "parameterized";
+    parameterSchema?: Record<string, any>;
+    actionSlots?: any[];
+    specialtyKey?: string;
+    specialtyLabel?: string;
+    specialtyPriority?: number;
+    trainingDayCount?: number;
+}
+
+export interface PublicTrainingPlanDetail extends PublicTrainingPlanListItem {
+    trainingDays: any[];
+}
+
 
 export class KnowledgeService extends BaseService {
     async getKnowledgeBook(reqData: GetKnowledgeBookDto) {
@@ -92,6 +122,52 @@ export class KnowledgeService extends BaseService {
         if (res.data && res.data.success) {
             return res.data.data || null;
         }
+    }
+
+    async listTrainingPlans(params?: {
+        level?: "all" | PublicTrainingPlanLevel;
+        specialty?: string;
+        limit?: number;
+        offset?: number;
+        search?: string;
+    }) {
+        const query = new URLSearchParams();
+        query.set("level", params?.level || "all");
+        if (params?.specialty) query.set("specialty", params.specialty);
+        query.set("limit", String(params?.limit ?? 20));
+        query.set("offset", String(params?.offset ?? 0));
+        if (params?.search) query.set("q", params.search);
+
+        const res = await this.get<{
+            plans: PublicTrainingPlanListItem[];
+            total: number;
+            limit: number;
+            offset: number;
+        }>(`training-plans?${query.toString()}`);
+        if (res.data && res.data.success) {
+            return res.data.data || null;
+        }
+        return { plans: [], total: 0, limit: params?.limit ?? 20, offset: params?.offset ?? 0 };
+    }
+
+    async getTrainingPlan(idOrSlug: string) {
+        const res = await this.get<{ plan: PublicTrainingPlanDetail }>(
+            `training-plans/${encodeURIComponent(idOrSlug)}`,
+        );
+        if (res.data && res.data.success) {
+            return res.data.data?.plan || null;
+        }
+        return null;
+    }
+
+    async copyTrainingPlanToFavorite(idOrSlug: string) {
+        const res = await this.post<{ favorite: any }>(
+            `training-plans/${encodeURIComponent(idOrSlug)}/copy-to-favorite`,
+        );
+        if (res.data && res.data.success) {
+            return res.data.data || null;
+        }
+        return null;
     }
 }
 

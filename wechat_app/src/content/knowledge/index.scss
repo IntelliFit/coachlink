@@ -130,14 +130,14 @@
 
   .plan-filter-row {
     display: flex;
-    gap: 12rpx;
+    gap: 16rpx;
     width: 100%;
     overflow-x: auto;
   }
 
   .plan-filter-chip {
     flex-shrink: 0;
-    padding: 12rpx 24rpx;
+    padding: 16rpx 24rpx;
     border-radius: 9999rpx;
     background: #fff;
     border: 1px solid #e5e7eb;
@@ -165,19 +165,22 @@
   }
 
   .builtin-plan-track {
-    display: inline-flex;
-    gap: 16rpx;
-    width: max-content;
+    display: block;
+    width: auto;
     min-width: 100%;
+    white-space: nowrap;
     padding-bottom: 8rpx;
   }
 
   .builtin-plan-card {
     display: inline-flex;
     flex-direction: column;
-    flex: 0 0 560rpx;
     width: 560rpx;
+    min-width: 560rpx;
+    max-width: 560rpx;
     min-height: 320rpx;
+    margin-right: 16rpx;
+    box-sizing: border-box;
     background: #fff;
     border: 1px solid #e5e7eb;
     border-radius: 24rpx;
@@ -207,7 +210,7 @@
 
   .builtin-plan-level {
     flex-shrink: 0;
-    padding: 6rpx 14rpx;
+    padding: 8rpx 16rpx;
     border-radius: 9999rpx;
     font-size: 20rpx;
     font-weight: 800;
@@ -255,7 +258,7 @@
 
     Text {
       flex-shrink: 0;
-      padding: 6rpx 12rpx;
+      padding: 8rpx 16rpx;
       border-radius: 9999rpx;
       background: #f3f4f6;
       font-size: 20rpx;
@@ -273,7 +276,7 @@
 
     Text {
       display: inline-flex;
-      padding: 4rpx 12rpx;
+      padding: 8rpx 16rpx;
       border-radius: 9999rpx;
       background: #f9fafb;
       font-size: 20rpx;

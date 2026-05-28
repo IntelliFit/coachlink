@@ -9,6 +9,7 @@ import {
 export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const level = searchParams.get("level") || "all";
+    const specialty = (searchParams.get("specialty") || "all").trim();
     const search = (searchParams.get("q") || "").trim();
     const limit = Math.min(50, Math.max(1, Number(searchParams.get("limit") || 20)));
     const offset = Math.max(0, Number(searchParams.get("offset") || 0));
@@ -17,12 +18,17 @@ export async function GET(req: Request) {
         .from("public_training_plan_templates")
         .select("*", { count: "exact" })
         .eq("status", "published")
+        .order("specialty_priority", { ascending: true })
         .order("sort_order", { ascending: true })
         .order("created_at", { ascending: true })
         .range(offset, offset + limit - 1);
 
     if (level !== "all") {
         query = query.eq("level", level);
+    }
+
+    if (specialty && specialty !== "all") {
+        query = query.eq("specialty_key", specialty);
     }
 
     if (search) {
