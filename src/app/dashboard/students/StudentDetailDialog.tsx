@@ -437,13 +437,13 @@ export const StudentDetailDialog = ({ visible, coach, student, onHide, onShowRev
                                         </div>
                                     )}
                                     <p className="text-[11px] text-surface-500 font-medium">
-                                        预计完成：{formatDate(student.end_date, '系统将按当前训练节奏自动计算')}
+                                        当前计划预计完成：{formatDate(student.end_date, '系统将按当前训练节奏自动计算')}
                                     </p>
                                     <p className="text-[11px] text-surface-400">
                                         {getProjectedRemainingDuration()}
                                     </p>
                                     <p className="text-[11px] text-surface-400">
-                                        购买周期和实际执行时长分开计算，延期执行时这里只会顺延预计完成日。
+                                        购买周期是权益池；这里显示的是当前计划按执行节奏推算的完成日，不是订阅自然到期日。
                                     </p>
                                 </div>
                             </div>

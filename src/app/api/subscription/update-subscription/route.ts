@@ -80,6 +80,13 @@ export async function POST(req: Request) {
         }, { status: 403 });
     }
 
+    const requestedStatus = String((updateData as any)?.status || "").toLowerCase();
+    const allowsExplicitLifecycleEndDate =
+        requestedStatus === "cancelled" || requestedStatus === "expired";
+    if (!allowsExplicitLifecycleEndDate && Object.prototype.hasOwnProperty.call(updateData, "end_date")) {
+        delete (updateData as any).end_date;
+    }
+
     // 线下支付仅允许白名单教练（枭马葛 / 刘三乐）。
     const requestedPaymentMethod = String((updateData as any)?.payment_method || "")
         .trim()
@@ -309,8 +316,8 @@ export async function POST(req: Request) {
 
     // 教练手动确认支付并激活后，自动尝试匹配计划；失败时明确提示教练手动创建。
     const entitlementModel = await refreshSubscriptionEntitlementSnapshot(id);
-    const responseSubscription = entitlementModel?.displayEndDate
-        ? { ...updatedSubscription, end_date: entitlementModel.displayEndDate }
+    const responseSubscription = entitlementModel
+        ? { ...updatedSubscription, end_date: entitlementModel.displayEndDate || null }
         : updatedSubscription;
 
     if ((updateData as any)?.status === "active" && isCoachOfSubscription) {

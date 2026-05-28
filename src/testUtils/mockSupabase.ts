@@ -26,7 +26,9 @@ class MockQuery implements PromiseLike<ExecResult> {
   }
 
   select(...args: any[]) {
-    this.op = "select";
+    if (this.op === "select") {
+      this.op = "select";
+    }
     this.filters.push({ kind: "select", args });
     return this;
   }
@@ -49,6 +51,7 @@ class MockQuery implements PromiseLike<ExecResult> {
   }
 
   eq(...args: any[]) { this.filters.push({ kind: "eq", args }); return this; }
+  neq(...args: any[]) { this.filters.push({ kind: "neq", args }); return this; }
   not(...args: any[]) { this.filters.push({ kind: "not", args }); return this; }
   gt(...args: any[]) { this.filters.push({ kind: "gt", args }); return this; }
   lt(...args: any[]) { this.filters.push({ kind: "lt", args }); return this; }

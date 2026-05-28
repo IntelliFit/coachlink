@@ -42,10 +42,15 @@ const CoachList: React.FC<CoachListProps> = ({ subscriptions }) => {
         if (sub.status === 'inactive') return 'inactive';
         if (sub.status === 'waiting') return 'waiting';
         if (sub.status === 'active') {
+            const remainingCredits = Number((sub as any).entitlement_remaining_credits ?? NaN);
+            const hasRemainingCredits = Number.isFinite(remainingCredits) && remainingCredits > 0;
+            if ((sub as any).lifecycle_status === 'expired_grace' && !hasRemainingCredits) return 'expiring';
+            if ((sub as any).lifecycle_status === 'expired_cancelled' && !hasRemainingCredits) return 'expired';
             // active but coach hasn't assigned plan yet
             if ((sub as any).has_plan_instance === false) return 'preparing';
             // plan assigned but student hasn't started training yet
             if (!sub.start_date) return 'not_started';
+            if (hasRemainingCredits) return 'active';
             // started but no estimated end_date yet
             if (!sub.end_date) return 'active';
         }

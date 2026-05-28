@@ -17,9 +17,14 @@ function getStatusKey(sub: QueryCoachSubscription): StatusThemeKey {
   if (sub.status === 'inactive') return 'inactive'
   if (sub.status === 'waiting') return 'waiting'
   if (sub.status === 'active') {
+    const remainingCredits = Number(sub.entitlement_remaining_credits ?? NaN)
+    const hasRemainingCredits = Number.isFinite(remainingCredits) && remainingCredits > 0
+    if (sub.lifecycle_status === 'expired_grace' && !hasRemainingCredits) return 'expiring'
+    if (sub.lifecycle_status === 'expired_cancelled' && !hasRemainingCredits) return 'expired'
     const hasPlan = (sub as any).has_plan_instance
     if (hasPlan === false) return 'preparing'
     if (!sub.start_date) return 'not_started'
+    if (hasRemainingCredits) return 'active'
     if (!sub.end_date) return 'active'
   }
   if (!sub.end_date) return 'active'

@@ -89,6 +89,13 @@ const startCalendarDay = (d: Date | string) => {
   return x
 }
 
+const getRemainingDays = (endDate?: string | null) => {
+  if (!endDate) return null
+  const ts = new Date(endDate).getTime()
+  if (!Number.isFinite(ts)) return null
+  return Math.ceil((ts - Date.now()) / (24 * 60 * 60 * 1000))
+}
+
 function computeWeekMonthTrainingStats(
   trainingDays: any[],
   scheduleModel: PlanScheduleModel,
@@ -234,7 +241,16 @@ function TodayTrainingScreen() {
     null
 
   const subscriptionLifecycle = String(activeSubscription?.lifecycle_status || 'active')
-  const isExpiredGrace = subscriptionLifecycle === 'expired_grace'
+  const activeSubscriptionRemainingDays = getRemainingDays(activeSubscription?.end_date)
+  const hasPositiveRemainingDays =
+    activeSubscriptionRemainingDays === null || activeSubscriptionRemainingDays > 0
+  const entitlementRemainingCredits = Number(activeSubscription?.entitlement_remaining_credits ?? NaN)
+  const hasEntitlementRemaining =
+    Number.isFinite(entitlementRemainingCredits) && entitlementRemainingCredits > 0
+  const isExpiredGrace =
+    subscriptionLifecycle === 'expired_grace' &&
+    !hasPositiveRemainingDays &&
+    !hasEntitlementRemaining
   const renewCoachId = activeSubscription?.coach_id || activeSubscription?.coach?.id
   const renewPath = renewCoachId
     ? `/discovery/coach-profile?id=${encodeURIComponent(renewCoachId)}&renew=true`
@@ -1316,7 +1332,12 @@ function TodayTrainingScreen() {
           {coachSubscriptions.map((sub: any) => {
             const isActive = activeCoachSubscriptionId === sub.id
             const hasPlan = !!coachPlanDataBySubId[sub.id]?.instance
-            const subGrace = String(sub?.lifecycle_status || '') === 'expired_grace'
+            const subRemainingCredits = Number(sub?.entitlement_remaining_credits ?? NaN)
+            const subHasRemainingCredits =
+              Number.isFinite(subRemainingCredits) && subRemainingCredits > 0
+            const subGrace =
+              String(sub?.lifecycle_status || '') === 'expired_grace' &&
+              !subHasRemainingCredits
             const coach = sub.coach || {}
             const planData = coachPlanDataBySubId[sub.id]
             const planTitle = planData?.instance?.name?.trim() || (hasPlan ? '训练计划' : '计划待制定')

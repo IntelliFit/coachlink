@@ -204,30 +204,11 @@ export const PaymentConfirmationDialog: React.FC<PaymentConfirmationDialogProps>
             status: 'active',
         };
 
-        // 如果是线下支付，设置 end_date 为学员填写的到期日期
-        if (offlinePayment?.expires_at) {
-            updateData.end_date = offlinePayment.expires_at;
-        }
-
-        // 如果是续费待确认：在原 end_date 基础上延长
+        // end_date is derived by the unified entitlement model. Offline payment dates
+        // are kept as payment evidence only and must not become lifecycle truth.
         const weeks = Number(pendingRenew?.additional_weeks || 0);
         if (weeks > 0) {
             updateData.subscribed_weeks = Number(subscription.subscribed_weeks || 0) + weeks;
-            const base = subscription.end_date ? new Date(subscription.end_date) : new Date();
-            const now = new Date();
-            const effectiveBase = base.getTime() < now.getTime() ? now : base;
-            effectiveBase.setDate(effectiveBase.getDate() + weeks * 7);
-            updateData.end_date = effectiveBase.toISOString();
-        }
-
-        // 老订阅重开且没有新到期信息时，避免沿用过期 end_date 导致“确认后仍提示续费”
-        if (
-            weeks <= 0 &&
-            !offlinePayment?.expires_at &&
-            subscription.end_date &&
-            new Date(subscription.end_date).getTime() <= Date.now()
-        ) {
-            updateData.end_date = null;
         }
 
         // 清理 pending_renew，避免重复处理（保留 offline_payment 作为凭证记录）

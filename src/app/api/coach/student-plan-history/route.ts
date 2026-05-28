@@ -75,7 +75,7 @@ export async function POST(req: Request) {
     let query = supabase
         .from("coach_plan_instances")
         .select(
-            "id, name, description, source, status, start_date, end_date, start_execution_day, created_at, updated_at, training_days, archive_reason, entitlement_consumption_policy",
+            "id, name, description, source, status, start_date, end_date, start_execution_day, created_at, updated_at, training_days, archive_reason",
             { count: "exact" },
         )
         .eq("student_id", studentId)
@@ -196,8 +196,7 @@ export async function POST(req: Request) {
                 completed_days: completedDays,
                 completion_rate: completionRate,
                 archive_reason: plan.archive_reason || null,
-                entitlement_consumption_policy:
-                    plan.entitlement_consumption_policy || null,
+                entitlement_consumption_policy: null,
             };
         },
     );

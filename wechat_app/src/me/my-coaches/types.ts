@@ -32,6 +32,18 @@ export interface QueryCoachSubscription extends CoachSubscriptionRow {
   coach: CoachRow | null
   /** 是否已分配计划实例（教练已制定计划） */
   has_plan_instance?: boolean
+  latest_plan_instance_id?: string | null
+  lifecycle_status?: 'active' | 'expired_grace' | 'expired_cancelled'
+  is_in_grace_period?: boolean
+  grace_days_left?: number
+  grace_deadline_at?: string | null
+  entitlement_status?: string | null
+  entitlement_total_credits?: number | null
+  entitlement_used_credits?: number | null
+  entitlement_remaining_credits?: number | null
+  entitlement_exhausted?: boolean | null
+  plan_progress_status?: string | null
+  should_auto_cancel?: boolean | null
   /** TODO: latest_plan_instance_id */
 }
 

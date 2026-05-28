@@ -389,7 +389,7 @@ export async function POST(req: Request) {
                 // Latest plan instance per subscription (for training_days cadence & start_execution_day)
                 const { data: instances } = await supabase
                     .from('coach_plan_instances')
-                    .select('id, coach_subscription_id, training_days, start_execution_day, created_at, status, entitlement_consumption_policy')
+                    .select('id, coach_subscription_id, training_days, start_execution_day, created_at, status')
                     .in('coach_subscription_id', subscriptionIds)
                     .in('status', ['active', 'paused', 'completed', 'scheduled', 'archived'])
                     .order('created_at', { ascending: false });
@@ -458,6 +458,11 @@ export async function POST(req: Request) {
                     s.entitlement_remaining_credits = model.remainingCredits;
                     s.entitlement_exhausted = model.remainingCredits <= 0 && model.totalCredits > 0;
                     s.plan_progress_status = model.planProgressStatus;
+                    s.lifecycle_status = model.lifecycleStatus;
+                    s.is_in_grace_period = model.lifecycleStatus === 'expired_grace';
+                    s.grace_days_left = model.graceDaysLeft;
+                    s.grace_deadline_at = model.graceDeadlineAt;
+                    s.should_auto_cancel = model.shouldAutoCancel;
                     s.end_date = model.displayEndDate;
                 });
             } catch (e) {
@@ -472,6 +477,9 @@ export async function POST(req: Request) {
     const now = new Date();
     const toAutoCancel = subs.filter((s) => {
         if (s?.status !== 'active') return false;
+        if (typeof s?.should_auto_cancel !== 'undefined') {
+            return s.should_auto_cancel === true;
+        }
         return s?.entitlement_exhausted === true &&
             getSubscriptionLifecycle({ subscription: s, now }).lifecycleStatus === 'expired_cancelled';
     });
@@ -518,6 +526,15 @@ export async function POST(req: Request) {
 
     // Attach lifecycle fields for UI copy/behavior.
     subs = subs.map((s) => {
+        if (typeof s?.lifecycle_status === 'string') {
+            return {
+                ...s,
+                is_in_grace_period: s.lifecycle_status === 'expired_grace',
+                grace_days_left: Number(s.grace_days_left || 0),
+                grace_deadline_at: s.grace_deadline_at || null,
+            };
+        }
+
         const lifecycle = getSubscriptionLifecycle({
             subscription: s,
             now,

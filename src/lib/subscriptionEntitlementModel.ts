@@ -202,7 +202,10 @@ export function deriveSubscriptionEntitlementState(params: {
       now,
     });
   }
-  if (!displayEndDate) {
+  if (
+    !displayEndDate &&
+    (relationStatus !== "active" || (totalCredits > 0 && remainingCredits <= 0))
+  ) {
     displayEndDate = subscription.end_date || null;
   }
 
@@ -210,7 +213,8 @@ export function deriveSubscriptionEntitlementState(params: {
     subscription: {
       status: relationStatus === "active" ? "active" : relationStatus,
       end_date:
-        relationStatus === "active" && totalCredits > 0 && remainingCredits > 0
+        relationStatus === "active" &&
+        (!hasPlan || (totalCredits > 0 && remainingCredits > 0))
           ? null
           : displayEndDate,
     },

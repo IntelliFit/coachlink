@@ -1,5 +1,125 @@
 # CURRENT_TASK
 
+## Admin Knowledge Content Import Backend (`2026-05-29`)
+
+- Task: add an administrator-side content import backend so knowledge-base training plans, articles, and book notes can be managed through the database instead of hardcoding content or pasting long SQL files.
+- Implemented:
+  - Added `src/lib/adminContentImport.ts` as the shared import/validation engine.
+  - Added admin APIs:
+    - `POST /api/admin/content-import` for JSON bundle validation/import.
+    - `POST /api/admin/content-import/high-value-pack` for the built-in high-value specialty pack.
+  - Added admin UI page `src/app/admin/content-import/page.tsx` with JSON textarea import, local JSON file selection, dry-run validation, publish/draft toggle, and one-click high-value pack import.
+  - Added `内容导入` to the administrator navigation.
+  - Added `src/content/adminImport/highValueKnowledgePack.ts` with first-batch high-value original content:
+    - 8 specialty-first plan templates: bench press, squat, powerlifting, weighted pull-up, weighted dip, deadlift, round shoulder/scapula, anterior pelvic tilt/core stability.
+    - 3 knowledge articles.
+    - 2 book-note entries.
+  - Added `scripts/import-high-value-knowledge-pack.ts` for CLI import/dry-run using `.env.local` / `.env.development`.
+- Data write:
+  - Executed `npx tsx scripts/import-high-value-knowledge-pack.ts` against the configured Supabase.
+  - Imported/upserted `8` published public training plan templates, `3` knowledge article nodes, and `2` knowledge books.
+  - Imported rows included `bench-press-8w-specialization`, `squat-8w-depth-and-strength`, `powerlifting-12w-total-base`, `weighted-pullup-6w-strength`, `weighted-dip-6w-strength`, `deadlift-8w-lockout-and-start`, `round-shoulder-scapula-4w`, and `anterior-pelvic-tilt-4w`.
+- Verification:
+  - `npx tsx scripts/import-high-value-knowledge-pack.ts --dry-run` passed with `8` plans, `3` articles, `2` books and no validation errors.
+  - `npx tsx scripts/import-high-value-knowledge-pack.ts` succeeded and wrote the same counts to Supabase.
+  - Targeted TypeScript program check passed for the new import engine, content pack, admin routes, admin page, navigation, and CLI script.
+  - `git diff --check` passed for the touched files with standard CRLF warnings only.
+  - Per local preference, no browser UI verification or full lint/typecheck/build/test was run automatically.
+- Next step:
+  - If desired, extend the importer with source attribution fields and a review queue for externally collected material before publishing.
+
+---
+
+## Manual Renewal Stale End-Date Follow-Up (`2026-05-28`)
+
+- Task: fix the remaining stale-writer path where coach manual/offline payment confirmation could write `offline_payment.expires_at` or a natural-day renewal extension into `coach_subscriptions.end_date`.
+- Root cause:
+  - `src/app/dashboard/students/PaymentConfirmationDialog.tsx` still sent `end_date` during offline confirmation and pending-renew confirmation.
+  - `src/app/api/subscription/update-subscription/route.ts` accepted client-provided `end_date` for active/manual confirmation.
+  - `refreshSubscriptionEntitlementSnapshot` only persisted when `model.displayEndDate` was truthy, so active subscriptions with no reliable projection could retain old stale dates instead of clearing them.
+- Implemented:
+  - Manual confirmation no longer sends `end_date`; it only sends status/weeks/payment evidence.
+  - `update-subscription` ignores client `end_date` except explicit cancellation/expired lifecycle updates, then responds with the unified model-derived `end_date`.
+  - Snapshot refresh now persists `end_date: null` for active subscriptions when the unified model cannot project a reliable display date.
+  - Coach student UI copy now says `当前计划预计完成` and clarifies that purchase weeks are an entitlement pool, not a natural expiry date.
+  - Added tests covering snapshot clearing and update-subscription ignoring client supplied `end_date`.
+- Data repair:
+  - Student `鞑靼` subscription `06f07de8-e013-4106-a5ef-0637147a7e0b` is now `subscribed_weeks=40`; refreshed model says `active/available`, `24/32` credits used, `8` remaining, current-plan projected completion `2026-06-11T14:24:15.264Z`.
+  - Repaired the reappeared false-blocked `唐` subscription `8b03677a-8ecb-4cac-84b1-01620a20ab27` from stale `2026-05-23T09:01:57.049+00:00` to model projection `2026-07-06T14:24:32.755Z`.
+  - Follow-up audit returned `falseBlockedByStaleEndDate=[]`; remaining groups are true exhausted/grace (`5`), should-auto-cancel (`6`), and active-no-plan (`11`).
+  - Later audit at `2026-05-28T15:34:44.526Z` showed `唐` false-blocked reappeared again with `updated_at=2026-05-28T14:29:17.52Z`, after local code/data repair. This indicates a still-running old deployed path or background job can still write stale `end_date` until the code fix is deployed everywhere.
+  - Executed repair again at `2026-05-28T15:35:45.333Z`; post-repair audit at `2026-05-28T15:36:06.848Z` returned `falseBlockedByStaleEndDate=[]`, `healthy=72`, `true_grace_or_exhausted_not_complete=5`, `should_auto_cancel=6`, `active_no_plan=11`.
+- Verification:
+  - `npx vitest run src/lib/subscriptionEntitlementSnapshot.test.ts src/app/api/subscription/update-subscription.integration.test.ts` passed.
+  - `npm run lint` passed.
+  - `npm run typecheck` passed.
+  - `npm test` passed (`30` files, `153` tests).
+  - `npx next build` passed; local Redis connection warnings are non-fatal.
+  - `npm run test:e2e` passed (`4` tests).
+
+---
+
+## Subscription Entitlement Repair and Backfill (`2026-05-28`)
+
+- Task: implement the user-approved repair plan so stale `coach_subscriptions.end_date` can no longer put students with remaining credits into grace/expired UI, and repair current cloud false-blocked rows without touching true exhausted relations.
+- Implemented:
+  - Added `src/lib/subscriptionEntitlementAudit.ts` and `scripts/repair-subscription-entitlements.ts` for dry-run/execute auditing and repair.
+  - `coach-subscriptions`, `check-expired-subscriptions`, and `check-subscription?action=check-expired` now use the unified entitlement model fields and update derived `end_date` through normal `update` calls instead of independent stale-lifecycle logic.
+  - Active subscriptions with remaining credits, active no-plan subscriptions, and active not-started plans no longer reuse stale raw `end_date` as lifecycle truth.
+  - Frontend grace displays on Web and WeChat now require unified `expired_grace` plus no remaining credits before showing grace/renewal lock.
+- Data repair:
+  - Dry-run before execute found only `2` remaining false-blocked rows at execution time; earlier audit had found `50`, but most had already been refreshed by the corrected model paths during subsequent usage.
+  - Executed `npx tsx scripts/repair-subscription-entitlements.ts --execute --scope=false-blocked`: updated `2/2` rows (`65aaf5dd-ffc0-4bf0-a07a-c22648c9ee42` cleared stale `end_date`; `8b03677a-8ecb-4cac-84b1-01620a20ab27` refreshed to `2026-07-06T10:37:29.783Z`).
+  - Post-repair dry-run returned `matchedCount=0`; final audit still separates true exhausted/grace rows (`6`) and active no-plan rows (`11`) from false-blocked rows.
+- Verification:
+  - `npm run lint` passed.
+  - `npm run typecheck` passed.
+  - `npm test` passed (`28` files, `151` tests).
+  - `npm run test:e2e` passed (`4` tests, including the previously failing B1 subscription cases).
+  - `npx next build` passed; Redis connection warnings appeared because local Redis is not running, but build exited successfully.
+  - `git diff --check` passed with CRLF warnings only.
+
+---
+
+## WeChat Today-Training Subscription Grace Regression (`2026-05-28`)
+
+- Task: investigate and fix why student/coach-profile `枭马葛` with coach `刘三乐` showed mini-program today-training banner `当前订阅处于宽限期，剩余9天（截至6/6）` while the student was only on week 2 / day 12 and still had an active coach plan.
+- Cloud facts checked read-only:
+  - Student user id: `f9eac5b1-45f9-4479-9ab8-8223a5db8835`.
+  - Coach id for `刘三乐`: `beee4371-efad-4e35-b406-c567954896c2`.
+  - Subscription id: `44ecb017-34bf-49ad-a46d-faf01e5ceac3`, status `active`, `subscribed_weeks=8`, stored `end_date=2026-05-22T16:33:40.913Z`.
+  - Latest active plan instance: `5613f3d3-f9e3-4f6e-a243-aa277597ee63`, 84 total days, 34 training days, completed training days `1,3,5,8,10`, day `12` in progress.
+  - Unified entitlement model at `2026-05-28 15:14 +08:00`: `entitlementStatus=available`, `lifecycleStatus=active`, `canTrain=true`, `remainingCredits=10`, projected `displayEndDate=2026-06-21T07:14:00Z`.
+- Root cause:
+  - Current cloud schema lacks `coach_plan_instances.entitlement_consumption_policy`, but several unified-model query paths selected that optional column. The query failed, so API behavior fell back to legacy lifecycle judgment.
+  - `coach-subscriptions` then used old `getSubscriptionLifecycle` against the stored stale `end_date`, producing `expired_grace` and `grace_days_left=9` even though credits remained.
+- Implemented:
+  - Removed optional `entitlement_consumption_policy` selects from subscription entitlement query paths that must work against the current cloud schema. Missing policy keeps the existing default semantics: `count_service`.
+  - `coach-subscriptions` now carries unified-model lifecycle fields (`lifecycle_status`, `grace_days_left`, `should_auto_cancel`) through to the response instead of recomputing lifecycle from stale/display `end_date`.
+  - Mini-program `TodayTrainingScreen` now suppresses grace UI when the active subscription still has positive remaining days or positive `entitlement_remaining_credits`.
+- Verification:
+  - Read-only simulation of the corrected route for `44ecb017-34bf-49ad-a46d-faf01e5ceac3` returns `lifecycle_status=active`, `is_in_grace_period=false`, `entitlement_remaining_credits=10`, `plan_progress_status=in_progress`.
+  - Targeted TS transpile check passed for modified route/lib/mini-program files.
+  - `npx vitest run src/lib/subscriptionEntitlementModel.test.ts src/lib/subscriptionAccess.test.ts` passed (`12` tests).
+  - `git diff --check` passed with standard CRLF warnings only.
+  - No WeChat DevTools/manual visual verification was run per local preference unless explicitly requested.
+
+---
+
+## WeChat Today-Training Question-Mark Header (`2026-05-28`)
+
+- Task: fix the mini-program `今天练什么` title area showing `????` below the heading.
+- Root cause:
+  - `wechat_app/src/training/today-training/components/ScheduleCalendarPanel.tsx` contained literal placeholder text in the header meta row: ``? ?${currentWeek} ?`` and ``? ??? ${selectedSchedule.totalDelayDays} ?``.
+- Implemented:
+  - Replaced the placeholders with readable Chinese labels: `· 第N周` and `· 顺延N天`.
+  - Restored `wechat_app/src/utils/dateFormat.ts` Chinese date labels to valid UTF-8 for shared date formatting.
+- Verification:
+  - Lightweight TypeScript transpile check passed for `ScheduleCalendarPanel.tsx` and `dateFormat.ts`.
+  - No WeChat DevTools/manual verification or full lint/typecheck/build/test was run per local developer preference unless explicitly requested.
+
+---
+
 ## Unified Subscription Entitlement Model (`2026-05-27`)
 
 - Task: implement the real unified subscription entitlement model before building the later same-source blackbox/whitebox simulator.

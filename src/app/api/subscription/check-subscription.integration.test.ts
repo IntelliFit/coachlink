@@ -122,5 +122,97 @@ describe("PUT /api/subscription/check-subscription?action=check-expired (integra
     const endDateIso = refreshUpdates[0].payload.end_date as string;
     expect(endDateIso.startsWith("2026-01-22")).toBe(true);
   });
+
+  it("does not cancel a stale-end-date subscription while unified credits remain", async () => {
+    dataStore["coach_subscriptions:select"] = {
+      data: [{
+        id: "sub-stale",
+        student_id: "student-1",
+        status: "active",
+        start_date: "2026-01-01",
+        end_date: "2025-12-01T00:00:00.000Z",
+        subscribed_weeks: 4,
+      }],
+      error: null,
+    };
+    dataStore["coach_plan_instances:select"] = {
+      data: [{
+        id: "inst-stale",
+        coach_subscription_id: "sub-stale",
+        start_execution_day: 1,
+        training_days: makePlanTrainingDays({ weeks: 15, sessionsPerWeek: 4 }),
+        created_at: "2026-01-01",
+        status: "active",
+      }],
+      error: null,
+    };
+    dataStore["plan_instance_executions:select"] = {
+      data: [1, 2, 3, 4].map((di) => ({
+        instance_id: "inst-stale",
+        day_index: di,
+        status: "completed",
+        completed_at: "2026-01-01T00:00:00.000Z",
+      })),
+      error: null,
+    };
+
+    const req = new Request("http://localhost/api/subscription/check-subscription?action=check-expired", { method: "PUT" });
+    const res = await PUT(req);
+    const json = await res.json();
+
+    expect(json.success).toBe(true);
+    expect(json.data.expiredCount).toBe(0);
+    expect(json.data.refreshedCount).toBe(1);
+    expect(updates.some((u) => u.payload?.status === "cancelled")).toBe(false);
+    expect(updates.some((u) => u.table === "users")).toBe(false);
+  });
+
+  it("auto-cancels exhausted subscriptions after the 14-day grace deadline", async () => {
+    vi.setSystemTime(new Date("2026-01-30T00:00:00.000Z"));
+    dataStore["coach_subscriptions:select"] = {
+      data: [{
+        id: "sub-exhausted",
+        student_id: "student-1",
+        status: "active",
+        start_date: "2026-01-01",
+        end_date: "2026-01-01T00:00:00.000Z",
+        subscribed_weeks: 1,
+      }],
+      error: null,
+    };
+    dataStore["coach_plan_instances:select"] = {
+      data: [{
+        id: "inst-exhausted",
+        coach_subscription_id: "sub-exhausted",
+        start_execution_day: 1,
+        training_days: makePlanTrainingDays({ weeks: 4, sessionsPerWeek: 2 }),
+        created_at: "2026-01-01",
+        status: "active",
+      }],
+      error: null,
+    };
+    dataStore["plan_instance_executions:select"] = {
+      data: [1, 2].map((di) => ({
+        instance_id: "inst-exhausted",
+        day_index: di,
+        status: "completed",
+        completed_at: "2026-01-01T00:00:00.000Z",
+      })),
+      error: null,
+    };
+
+    const req = new Request("http://localhost/api/subscription/check-subscription?action=check-expired", { method: "PUT" });
+    const res = await PUT(req);
+    const json = await res.json();
+
+    expect(json.success).toBe(true);
+    expect(json.data.expiredCount).toBe(1);
+    expect(updates.some((u) =>
+      u.table === "coach_subscriptions" && u.payload?.status === "cancelled"
+    )).toBe(true);
+    expect(updates.some((u) =>
+      u.table === "users" && u.payload?.invitation_coach_id === null
+    )).toBe(true);
+  });
 });
 
