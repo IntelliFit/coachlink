@@ -2,7 +2,7 @@
 ## Repository Push and Branch Sync (`2026-06-05`)
 
 - Task: commit current CoachLink changes, push to remote, and keep `main` and `dev` synchronized.
-- Status: verification passed; commit/push in progress.
+- Status: completed. Commit `2bb0af70` was pushed to `origin/main` and `origin/dev`; local `dev` was fast-forwarded to the same commit.
 - Verification before push:
   - `npm run lint`: passed (project lint script prints the existing Next 16/no-eslint notice).
   - `npm run typecheck`: passed.
