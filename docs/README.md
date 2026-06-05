@@ -24,6 +24,7 @@
 - `./done/core-business/bugfix-notes-2026-01-20.md`
 
 ### 系统设计（架构与机制）
+- `./done/system-design/runtime-config.md`
 - `./done/system-design/membership_entitlements_system.md`
 - `./done/system-design/organization_system_design.md`
 - `./done/system-design/push-notifications.md`
