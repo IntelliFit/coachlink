@@ -68,7 +68,7 @@ export async function POST(req: Request) {
 
     const { data: coach, error: coachError } = await supabase
         .from("coaches")
-        .select("id, user_id, name, status")
+        .select("id, user_id, name, status, huifu_open_status, huifu_card_token")
         .eq("user_id", userId)
         .single();
 
@@ -81,6 +81,14 @@ export async function POST(req: Request) {
     }
 
     // 检查是否已存在定价记录
+    if (coach.huifu_open_status !== "opened" || !coach.huifu_card_token) {
+        return NextResponse.json<ApiData<null>>({
+            success: false,
+            message: "请先完成收款账户开通和银行卡绑定，再设置订阅套餐价格。",
+            data: null,
+        }, { status: 403 });
+    }
+
     const { data: existingPricing } = await supabase
         .from("coach_pricing")
         .select("id")

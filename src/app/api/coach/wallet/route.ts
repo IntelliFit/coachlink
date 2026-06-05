@@ -16,10 +16,27 @@ export interface WalletData {
     total_income: number;
     frozen_amount: number;
     refund_protected_amount: number;
+    pending_settlement_amount: number;
     refund_protection_days: number;
     transactions: Transaction[];
+    pending_settlements: PendingSettlement[];
     huifu_open_status?: string | null;
     huifu_open_msg?: string | null;
+}
+
+export interface PendingSettlement {
+    id: string;
+    amount: number;
+    platform_fee: number;
+    total_amount: number;
+    status: "pending" | "processing" | "split_failed";
+    eligible_at: string | null;
+    created_at: string;
+    alipay_order_id: string;
+    subject?: string | null;
+    student_id?: string | null;
+    student_name?: string | null;
+    error_message?: string | null;
 }
 
 export interface Transaction {
@@ -53,6 +70,19 @@ type WalletTransactionRow = {
     created_at: string;
     refunded_at?: string | null;
     platform_fee?: number | null;
+};
+
+type PendingSettlementRow = {
+    id: string;
+    alipay_order_id: string;
+    student_id: string | null;
+    coach_amount: number | null;
+    platform_fee: number | null;
+    total_amount: number | null;
+    status: "pending" | "processing" | "split_failed";
+    eligible_at: string | null;
+    created_at: string;
+    error_message?: string | null;
 };
 
 export async function POST(request: Request) {
@@ -219,6 +249,86 @@ export async function POST(request: Request) {
     }
 
     // 数据库存储的是分（整数），转换为元（小数）返回给前端
+    const { data: pendingRows } = await serviceRoleSupabase
+        .from("coach_subscription_settlements" as any)
+        .select("id, alipay_order_id, student_id, coach_amount, platform_fee, total_amount, status, eligible_at, created_at, error_message")
+        .eq("coach_id", coach.id)
+        .in("status", ["pending", "processing", "split_failed"])
+        .order("created_at", { ascending: false })
+        .limit(20);
+
+    const pendingSettlementRows = (pendingRows ?? []) as PendingSettlementRow[];
+    const pendingOrderIds = Array.from(
+        new Set(pendingSettlementRows.map((row) => row.alipay_order_id).filter(Boolean)),
+    );
+    const pendingStudentIds = Array.from(
+        new Set(pendingSettlementRows.map((row) => row.student_id).filter((id): id is string => Boolean(id))),
+    );
+
+    let pendingOrdersById = new Map<string, { subject: string | null; user_id: string | null }>();
+    let pendingProfilesByUserId = new Map<string, { nickname: string | null; full_name: string | null }>();
+
+    if (pendingOrderIds.length > 0) {
+        const { data: orders } = await serviceRoleSupabase
+            .from("alipay_orders")
+            .select("id, subject, user_id")
+            .in("id", pendingOrderIds);
+
+        pendingOrdersById = new Map(
+            (orders ?? []).map((order) => [order.id, {
+                subject: order.subject ?? null,
+                user_id: order.user_id ?? null,
+            }]),
+        );
+    }
+
+    const profileIds = Array.from(
+        new Set([
+            ...pendingStudentIds,
+            ...Array.from(pendingOrdersById.values()).map((order) => order.user_id).filter((id): id is string => Boolean(id)),
+        ]),
+    );
+
+    if (profileIds.length > 0) {
+        const { data: profiles } = await serviceRoleSupabase
+            .from("user_profiles")
+            .select("user_id, nickname, full_name")
+            .in("user_id", profileIds);
+
+        pendingProfilesByUserId = new Map(
+            (profiles ?? []).map((profile) => [profile.user_id, {
+                nickname: profile.nickname ?? null,
+                full_name: profile.full_name ?? null,
+            }]),
+        );
+    }
+
+    const pendingSettlements: PendingSettlement[] = pendingSettlementRows.map((row) => {
+        const order = pendingOrdersById.get(row.alipay_order_id);
+        const studentId = row.student_id ?? order?.user_id ?? null;
+        const profile = studentId ? pendingProfilesByUserId.get(studentId) : null;
+        const studentName = profile?.nickname?.trim() || profile?.full_name?.trim() || null;
+
+        return {
+            id: row.id,
+            amount: fenToYuan(Number(row.coach_amount ?? 0)),
+            platform_fee: fenToYuan(Number(row.platform_fee ?? 0)),
+            total_amount: fenToYuan(Number(row.total_amount ?? 0)),
+            status: row.status,
+            eligible_at: row.eligible_at ?? null,
+            created_at: row.created_at,
+            alipay_order_id: row.alipay_order_id,
+            subject: order?.subject ?? null,
+            student_id: studentId,
+            student_name: studentName,
+            error_message: row.error_message ?? null,
+        };
+    });
+
+    const pendingSettlementFen = pendingSettlementRows.reduce((sum, row) => {
+        return sum + Math.max(0, Math.round(Number(row.coach_amount ?? 0)));
+    }, 0);
+
     const refundProtectedFen = await calculateRefundProtectedAmountFen(coach.id);
     const walletAmounts = getWithdrawableWalletAmounts({
         balanceFen: Number(wallet?.balance || 0),
@@ -240,8 +350,10 @@ export async function POST(request: Request) {
         total_income: fenToYuan(wallet?.total_income || 0),
         frozen_amount: fenToYuan(walletAmounts.frozenFen),
         refund_protected_amount: fenToYuan(walletAmounts.refundProtectedFen),
+        pending_settlement_amount: fenToYuan(pendingSettlementFen),
         refund_protection_days: COACH_WALLET_REFUND_PROTECTION_DAYS,
         transactions: enrichedTransactions,
+        pending_settlements: pendingSettlements,
         huifu_open_status: huifuStatus,
         huifu_open_msg: huifuMessage,
     };

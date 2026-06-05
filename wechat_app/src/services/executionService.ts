@@ -51,6 +51,8 @@ class ExecutionService {
       notes?: string
       videoUrl?: string
       isPR?: boolean
+      actionId?: string
+      hasVideo?: boolean
     }
   ): Promise<any> {
     const res = await request({
@@ -65,7 +67,10 @@ class ExecutionService {
         rpe: data.rpe,
         notes: data.notes || undefined,
         videoUrl: data.videoUrl || undefined,
-        isPR: data.isPR
+        isPR: data.isPR,
+        is_pr: data.isPR,
+        actionId: data.actionId,
+        has_video: data.hasVideo || !!data.videoUrl
       }
     })
     if (res.success && res.data) return res.data

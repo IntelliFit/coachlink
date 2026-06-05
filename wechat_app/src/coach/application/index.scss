@@ -134,6 +134,73 @@
     }
   }
 
+  .option-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 16rpx;
+    margin-bottom: 32rpx;
+  }
+
+  .option-card {
+    padding: 24rpx;
+    border: 1px solid #e5e7eb;
+    border-radius: 16rpx;
+    background: #fff;
+    box-sizing: border-box;
+
+    &.active {
+      border-color: #CF6D4E;
+      background: #fff7f3;
+    }
+  }
+
+  .option-title {
+    display: block;
+    font-size: 15px;
+    font-weight: 800;
+    color: #111827;
+    margin-bottom: 8rpx;
+  }
+
+  .option-desc {
+    display: block;
+    font-size: 13px;
+    color: #6b7280;
+    line-height: 1.45;
+  }
+
+  .choice-chip-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16rpx;
+  }
+
+  .choice-chip {
+    padding: 12rpx 24rpx;
+    border: 1px solid #d1d5db;
+    border-radius: 9999rpx;
+    background: #fff;
+    color: #374151;
+    font-size: 13px;
+
+    &.active {
+      border-color: #CF6D4E;
+      background: #CF6D4E;
+      color: #fff;
+    }
+  }
+
+  .city-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16rpx;
+    margin-bottom: 16rpx;
+  }
+
+  .address-input {
+    margin-top: 16rpx;
+  }
+
   .tag-list {
     display: flex;
     flex-wrap: wrap;
@@ -181,7 +248,7 @@
     .tag-add-btn {
       flex-shrink: 0;
       padding: 8px 16px;
-      background: #3b82f6;
+      background: #CF6D4E;
       color: #fff;
       border-radius: 8px;
       font-size: 14px;
@@ -239,7 +306,7 @@
     .list-add-btn {
       flex-shrink: 0;
       padding: 8px 16px;
-      background: #3b82f6;
+      background: #CF6D4E;
       color: #fff;
       border-radius: 8px;
       font-size: 14px;
@@ -298,7 +365,7 @@
       }
 
       .save-btn {
-        background: #3b82f6;
+        background: #CF6D4E;
         color: #fff;
       }
     }
@@ -360,9 +427,9 @@
           cursor: pointer;
 
           &.active {
-            background: #3b82f6;
+            background: #CF6D4E;
             color: #fff;
-            border-color: #3b82f6;
+            border-color: #CF6D4E;
           }
         }
       }
@@ -388,7 +455,7 @@
       }
 
       .save-btn {
-        background: #3b82f6;
+        background: #CF6D4E;
         color: #fff;
       }
     }
@@ -410,7 +477,7 @@
     .submit-btn {
       width: 100%;
       padding: 14px;
-      background: #3b82f6;
+      background: #CF6D4E;
       color: #fff;
       border-radius: 12px;
       font-size: 16px;

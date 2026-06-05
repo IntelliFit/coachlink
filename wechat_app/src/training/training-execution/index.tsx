@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react'
-import { View, Text, ScrollView, Input, Button, Textarea } from '@tarojs/components'
+import { View, Text, ScrollView, Input, Button, Textarea, Image } from '@tarojs/components'
 import Taro, { useDidShow, usePullDownRefresh } from '@tarojs/taro'
 import { trainingService } from '@/services/trainingService'
 import { executionService } from '@/services/executionService'
@@ -8,6 +8,7 @@ import { authService } from '@/services/authService'
 import { studentActionLibService } from '@/services/studentActionLibService'
 import { chatService } from '@/services/chatService'
 import { buildPublicTrainingSharePath } from '@/utils/share'
+import { svgToDataUri } from '@/utils/svgToDataUri'
 import { formatKgValueForGym } from '@/utils/weightQuantize'
 import {
   readTrainingExecutionSnapshot,
@@ -15,10 +16,56 @@ import {
   trainingExecutionSnapshotKey
 } from '@/utils/trainingExecutionCache'
 import { Clock } from '@nutui/icons-react-taro'
+import maleFrontSvgRaw from '@/assets/body-map/maleFrontSvg'
+import maleBackSvgRaw from '@/assets/body-map/maleBackSvg'
 import './index.scss'
 
 const RETURN_CONFIRM_STORAGE_KEY = 'today_training_last_confirmed_day'
 const EXECUTION_LOAD_TIMEOUT_MS = 12000
+const REST_TIMER_STORAGE_PREFIX = 'training_execution_rest_timer_v1'
+const WEIGHT_STEP_KG = 2.5
+
+type WorkoutKeyboardTarget = 'weight' | 'reps'
+
+interface FilterOption {
+  key: string
+  label: string
+  keywords: string[]
+}
+
+const PICKER_MUSCLE_FILTERS: FilterOption[] = [
+  { key: 'all', label: '全部', keywords: [] },
+  { key: 'chest', label: '胸', keywords: ['胸', '胸部', '上胸', '下胸', '卧推', '推胸'] },
+  { key: 'back', label: '背', keywords: ['背', '背部', '引体', '划船', '下拉'] },
+  { key: 'legs', label: '腿', keywords: ['腿', '腿部', '股四头', '腘绳', '深蹲', '硬拉'] },
+  { key: 'shoulder', label: '肩', keywords: ['肩', '肩部', '三角肌', '推举'] },
+  { key: 'arms', label: '手臂', keywords: ['手臂', '二头', '三头', '肱二头', '肱三头', '弯举', '臂屈伸'] },
+  { key: 'core', label: '核心', keywords: ['核心', '腹', '腹部', '腰腹', '平板'] },
+  { key: 'glutes', label: '臀部', keywords: ['臀', '臀部', '髋'] },
+  { key: 'functional', label: '功能性', keywords: ['功能', '稳定', '灵活', '爆发', '平衡'] }
+]
+
+const PICKER_EQUIPMENT_FILTERS: FilterOption[] = [
+  { key: 'all', label: '全部器械', keywords: [] },
+  { key: 'barbell', label: '杠铃', keywords: ['杠铃'] },
+  { key: 'dumbbell', label: '哑铃', keywords: ['哑铃'] },
+  { key: 'bodyweight', label: '徒手', keywords: ['徒手', '自重', '俯卧撑', '引体'] },
+  { key: 'machine', label: '器械', keywords: ['器械', '固定器械', '史密斯', '坐姿'] },
+  { key: 'cable', label: '绳索', keywords: ['绳索', '龙门架', '滑轮'] }
+]
+
+const MUSCLE_FILL_ORIGIN_STYLE = 'fill:#222222'
+const MUSCLE_FILL_HIGHLIGHT_STYLE = 'fill:#CF6D4E'
+
+const MUSCLE_INFERENCE_RULES: Array<{ label: string; keywords: string[] }> = [
+  { label: '胸部', keywords: ['胸', '卧推', '飞鸟', '夹胸', '俯卧撑', '双杠'] },
+  { label: '背部', keywords: ['背', '引体', '划船', '下拉', '硬拉'] },
+  { label: '肩部', keywords: ['肩', '推举', '侧平举', '三角肌'] },
+  { label: '手臂', keywords: ['手臂', '二头', '三头', '弯举', '臂屈伸'] },
+  { label: '核心', keywords: ['核心', '腹', '卷腹', '平板', '腰腹'] },
+  { label: '腿部', keywords: ['腿', '深蹲', '腿举', '弓步', '股四头', '腘绳'] },
+  { label: '臀部', keywords: ['臀', '臀桥', '髋'] }
+]
 
 function withExecutionLoadTimeout<T>(promise: Promise<T>, label: string): Promise<T> {
   let timer: ReturnType<typeof setTimeout> | null = null
@@ -103,6 +150,98 @@ function formatTimerValue(totalSeconds: number): string {
   return `${String(m).padStart(2, '0')}:${String(r).padStart(2, '0')}`
 }
 
+function parseFirstNumber(value?: string | number | null): number | null {
+  if (value === null || value === undefined) return null
+  const match = String(value).match(/-?\d+(\.\d+)?/)
+  if (!match) return null
+  const parsed = Number(match[0])
+  return Number.isFinite(parsed) ? parsed : null
+}
+
+function asTextList(value?: string[] | null) {
+  return Array.isArray(value) ? value.filter(Boolean) : []
+}
+
+function getActionSearchText(action: any) {
+  return [
+    action?.name,
+    action?.action_name,
+    action?.detail,
+    action?.type,
+    ...asTextList(action?.positions),
+    ...asTextList(action?.attrs)
+  ].filter(Boolean).join(' ').toLowerCase()
+}
+
+function matchesActionFilter(action: any, filter: FilterOption) {
+  if (filter.key === 'all') return true
+  const source = getActionSearchText(action)
+  return filter.keywords.some((keyword) => source.includes(keyword.toLowerCase()))
+}
+
+function parseSvgCategoryMap(svg: string): Record<string, string> {
+  const map: Record<string, string> = {}
+  const singleLineRegex = /<g[^>]*data-name="([^"]+)"[^>]*category="([^"]+)"[^>]*>/g
+  let match: RegExpExecArray | null
+  while ((match = singleLineRegex.exec(svg)) !== null) {
+    if (match[1] !== '肌肉' && match[1] !== '关节' && match[1] !== '全身轮廓') {
+      map[match[1]] = match[2]
+    }
+  }
+  const multiLineRegex = /<g\s*\n?\s*data-name="([^"]+)"\s*\n?\s*category="([^"]+)"/g
+  while ((match = multiLineRegex.exec(svg)) !== null) {
+    if (match[1] !== '肌肉' && match[1] !== '关节' && match[1] !== '全身轮廓') {
+      map[match[1]] = match[2]
+    }
+  }
+  return map
+}
+
+function highlightSvgCategories(svg: string, selectedParts: string[]) {
+  const categoryMap = parseSvgCategoryMap(svg)
+  const dataNamesToHighlight = new Set<string>()
+  selectedParts.forEach((part) => {
+    Object.entries(categoryMap).forEach(([dataName, category]) => {
+      if (category === part) dataNamesToHighlight.add(dataName)
+    })
+  })
+
+  let result = svg
+    .replace(/fill:#fff/gi, MUSCLE_FILL_ORIGIN_STYLE)
+    .replace(/fill="#fff"/gi, 'fill="#222222"')
+
+  dataNamesToHighlight.forEach((dataName) => {
+    const regex = new RegExp(`(<g[^>]*data-name="${dataName}"[^>]*>)([\\s\\S]*?)(</g>)`, 'g')
+    result = result.replace(regex, (_match, open, content, close) => {
+      const highlighted = content.replace(
+        new RegExp(MUSCLE_FILL_ORIGIN_STYLE.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'),
+        MUSCLE_FILL_HIGHLIGHT_STYLE
+      )
+      return open + highlighted + close
+    })
+  })
+
+  return svgToDataUri(result.replace(
+    /<svg\s/,
+    '<svg style="width:100%;height:100%;display:block;" preserveAspectRatio="xMidYMid meet" '
+  ))
+}
+
+function inferMusclesForAction(actionExecution: ActionExecution, actionDetail: any): string[] {
+  const sourceText = getActionSearchText({
+    ...actionDetail,
+    action_name: actionExecution?.action_name
+  })
+  const directPositions = asTextList(actionDetail?.positions)
+    .filter((item) => ['胸部', '背部', '肩部', '手臂', '核心', '腿部', '臀部'].includes(item))
+
+  const inferred = MUSCLE_INFERENCE_RULES
+    .filter((rule) => rule.keywords.some((keyword) => sourceText.includes(keyword.toLowerCase())))
+    .map((rule) => rule.label)
+
+  return Array.from(new Set([...directPositions, ...inferred])).slice(0, 3)
+}
+
 function TrainingExecution() {
   const instance = Taro.getCurrentInstance()
   const instanceId = instance.router?.params?.instanceId as string
@@ -125,6 +264,7 @@ function TrainingExecution() {
   const [completing, setCompleting] = useState(false)
   const [restTimer, setRestTimer] = useState(0)
   const [isResting, setIsResting] = useState(false)
+  const [restTimerMinimized, setRestTimerMinimized] = useState(false)
   
   // 当前组的输入状态
   const [weight, setWeight] = useState<number | null>(null)
@@ -143,6 +283,9 @@ function TrainingExecution() {
   const [showActionPicker, setShowActionPicker] = useState(false)
   const [actionPickerList, setActionPickerList] = useState<any[]>([])
   const [actionKeyword, setActionKeyword] = useState('')
+  const [pickerMuscle, setPickerMuscle] = useState('all')
+  const [pickerEquipment, setPickerEquipment] = useState('all')
+  const [pickerSelectedActionIds, setPickerSelectedActionIds] = useState<string[]>([])
   const [removingSet, setRemovingSet] = useState(false)
   const [removingAction, setRemovingAction] = useState(false)
   const [showFeedbackDialog, setShowFeedbackDialog] = useState(false)
@@ -150,6 +293,9 @@ function TrainingExecution() {
   const [feedbackDifficulty, setFeedbackDifficulty] = useState<number>(3)
   const [feedbackSubmitting, setFeedbackSubmitting] = useState(false)
   const [pendingSharePath, setPendingSharePath] = useState('')
+  const [workoutKeyboardTarget, setWorkoutKeyboardTarget] = useState<WorkoutKeyboardTarget | null>(null)
+  const [showWorkoutSummary, setShowWorkoutSummary] = useState(false)
+  const [workoutSummarySharePath, setWorkoutSummarySharePath] = useState('')
   const startTrainingRef = useRef<() => Promise<void>>(async () => undefined)
   const lastStartTrainingAtRef = useRef(0)
 
@@ -158,6 +304,35 @@ function TrainingExecution() {
   const executionSnapshotScopeKey = useMemo(
     () => trainingExecutionSnapshotKey({ isImpromptuMode, impromptuId, instanceId, dayIndex }),
     [dayIndex, impromptuId, instanceId, isImpromptuMode]
+  )
+
+  const restTimerStorageKey = useMemo(
+    () => (userId && executionSnapshotScopeKey ? `${REST_TIMER_STORAGE_PREFIX}:${userId}:${executionSnapshotScopeKey}` : ''),
+    [executionSnapshotScopeKey, userId]
+  )
+
+  const clearPersistedRestTimer = useCallback(() => {
+    if (!restTimerStorageKey) return
+    try {
+      Taro.removeStorageSync(restTimerStorageKey)
+    } catch {
+      // Best effort only.
+    }
+  }, [restTimerStorageKey])
+
+  const persistRestTimer = useCallback(
+    (seconds: number, executionId?: string) => {
+      if (!restTimerStorageKey || !executionId || seconds <= 0) return
+      try {
+        Taro.setStorageSync(restTimerStorageKey, {
+          executionId,
+          deadlineAt: Date.now() + Math.max(0, Math.round(seconds)) * 1000
+        })
+      } catch {
+        // Best effort only.
+      }
+    },
+    [restTimerStorageKey]
   )
 
   const syncExecutionToCaches = useCallback(
@@ -193,9 +368,13 @@ function TrainingExecution() {
 
   const filteredActionPickerList = useMemo(() => {
     const keyword = actionKeyword.trim().toLowerCase()
-    if (!keyword) return actionPickerList
-    return actionPickerList.filter((action) => String(action?.name || '').toLowerCase().includes(keyword))
-  }, [actionKeyword, actionPickerList])
+    const muscleFilter = PICKER_MUSCLE_FILTERS.find((item) => item.key === pickerMuscle) || PICKER_MUSCLE_FILTERS[0]
+    const equipmentFilter = PICKER_EQUIPMENT_FILTERS.find((item) => item.key === pickerEquipment) || PICKER_EQUIPMENT_FILTERS[0]
+    return actionPickerList.filter((action) => {
+      const matchesKeyword = !keyword || getActionSearchText(action).includes(keyword)
+      return matchesKeyword && matchesActionFilter(action, muscleFilter) && matchesActionFilter(action, equipmentFilter)
+    })
+  }, [actionKeyword, actionPickerList, pickerEquipment, pickerMuscle])
 
   const lightweightProgress = useMemo(() => {
     const list = Array.isArray(execution?.action_executions) ? execution.action_executions : []
@@ -513,6 +692,8 @@ function TrainingExecution() {
       setRestTimer((prev) => {
         if (prev <= 1) {
           setIsResting(false)
+          setRestTimerMinimized(false)
+          clearPersistedRestTimer()
           return 0
         }
         return prev - 1
@@ -520,7 +701,26 @@ function TrainingExecution() {
     }, 1000)
 
     return () => clearInterval(timer)
-  }, [isResting, restTimer])
+  }, [clearPersistedRestTimer, isResting, restTimer])
+
+  useEffect(() => {
+    if (!restTimerStorageKey || !execution?.id || isResting) return
+    try {
+      const stored = Taro.getStorageSync(restTimerStorageKey) as any
+      if (!stored || String(stored.executionId || '') !== String(execution.id)) return
+      const deadlineAt = Number(stored.deadlineAt || 0)
+      const remaining = Math.ceil((deadlineAt - Date.now()) / 1000)
+      if (remaining > 0) {
+        setRestTimer(remaining)
+        setIsResting(true)
+        setRestTimerMinimized(true)
+      } else {
+        clearPersistedRestTimer()
+      }
+    } catch {
+      clearPersistedRestTimer()
+    }
+  }, [clearPersistedRestTimer, execution?.id, isResting, restTimerStorageKey])
 
   // 选择视频（注意：微信小程序本地存储约 10MB 限制，视频过大会触发 writeFile 超限，建议大视频用「粘贴链接」）
   const handleChooseVideo = async () => {
@@ -684,7 +884,9 @@ function TrainingExecution() {
               rpe: rpe,
               notes: setNotes || undefined,
               videoUrl: videoUrl || undefined,
-              isPR: markAsPR
+              isPR: markAsPR,
+              actionId: currentAction.action_id,
+              hasVideo: !!videoUrl
             }
           )
 
@@ -729,6 +931,8 @@ function TrainingExecution() {
           if (Number.isFinite(restSeconds) && restSeconds > 0) {
             setRestTimer(restSeconds)
             setIsResting(true)
+            setRestTimerMinimized(false)
+            persistRestTimer(restSeconds, execution.id)
           }
 
           // 移动到下一组
@@ -766,27 +970,8 @@ function TrainingExecution() {
 
   const handlePostFinishFlow = useCallback((sharePath?: string) => {
     const targetSharePath = String(sharePath || '').trim()
-    if (targetSharePath) {
-      Taro.showModal({
-        title: '训练完成！',
-        content: '是否分享本次训练成果？',
-        confirmText: '去分享',
-        cancelText: '返回',
-        success: (shareRes) => {
-          if (shareRes.confirm) {
-            Taro.navigateTo({ url: targetSharePath })
-          } else {
-            Taro.navigateBack()
-          }
-        }
-      })
-      return
-    }
-
-    Taro.showToast({ title: '训练完成！', icon: 'success' })
-    setTimeout(() => {
-      Taro.navigateBack()
-    }, 1200)
+    setWorkoutSummarySharePath(targetSharePath)
+    setShowWorkoutSummary(true)
   }, [])
 
   const handleSkipFeedback = useCallback(() => {
@@ -967,7 +1152,7 @@ function TrainingExecution() {
             setCompleting(true)
 
             const finishRes = isImpromptuMode
-              ? await impromptuService.finish(impromptuId)
+              ? await impromptuService.finish(impromptuId, { mode: 'quick' })
               : await executionService.finishTraining({ executionId: execution.id, mode: 'quick' })
 
             if (finishRes !== null) {
@@ -1175,6 +1360,9 @@ function TrainingExecution() {
         .sort((a: any, b: any) => String(a?.name || '').localeCompare(String(b?.name || ''), 'zh-CN'))
       setActionPickerList(list)
       setActionKeyword('')
+      setPickerMuscle('all')
+      setPickerEquipment('all')
+      setPickerSelectedActionIds([])
     } catch (error) {
       console.error('[training-execution] load action picker failed:', error)
       setActionPickerList([])
@@ -1264,35 +1452,66 @@ function TrainingExecution() {
     })
   }
 
+  const handleTogglePickerAction = (actionId: string) => {
+    setPickerSelectedActionIds((prev) => (
+      prev.includes(actionId) ? prev.filter((id) => id !== actionId) : [...prev, actionId]
+    ))
+  }
+
   // 添加额外动作
-  const handleAddExtraExercise = async (action: any) => {
+  const handleAddExtraExercises = async (targetActions: any[]) => {
     if (isReadOnly) {
       Taro.showToast({ title: '只读模式不可修改', icon: 'none' })
+      return
+    }
+    const normalizedActions = targetActions.filter((action) => action?.id)
+    if (normalizedActions.length === 0) {
+      Taro.showToast({ title: '请先选择动作', icon: 'none' })
       return
     }
     if (!execution || addingExtraAction) return
     try {
       setAddingExtraAction(true)
-      const res = isImpromptuMode
-        ? await impromptuService.addExtraExercise(execution.id, action.id, action.name || '未知动作', [{ weight: null, reps: null }])
-        : await executionService.addExtraExercise(execution.id, action.id, action.name || '未知动作')
-      if (res) {
-        const updated = { ...execution }
+      const updated = {
+        ...execution,
+        action_executions: [...(execution.action_executions || [])]
+      }
+      const nextActionMap = { ...actions }
+      let latestActionIndex = updated.action_executions.length - 1
+      let addedCount = 0
+
+      for (const action of normalizedActions) {
+        const res = isImpromptuMode
+          ? await impromptuService.addExtraExercise(execution.id, action.id, action.name || '未知动作', [{ weight: null, reps: null }])
+          : await executionService.addExtraExercise(execution.id, action.id, action.name || '未知动作')
+        if (!res) continue
+
+        const nextOrder = Number.isFinite(Number(res.newActionIndex))
+          ? Number(res.newActionIndex) + 1
+          : updated.action_executions.length + 1
         updated.action_executions.push({
           action_id: action.id,
           action_name: action.name || '未知动作',
-          action_order: res.newActionIndex + 1,
+          action_order: nextOrder,
           source: 'student_extra',
           sets: [{ set_number: 1, status: 'pending', planned_weight: '', planned_reps: '', source: 'student_extra' }],
           total_sets: 1,
           completed_sets: 0
         })
+        nextActionMap[action.id] = action
+        latestActionIndex = updated.action_executions.length - 1
+        addedCount += 1
+      }
+
+      if (addedCount > 0) {
+        setActions(nextActionMap)
         setExecution(updated)
         syncExecutionToCaches(updated)
-        setExpandedAction(res.newActionIndex)
+        setExpandedAction(latestActionIndex)
         setCurrentSetIndex(0)
+        setPickerSelectedActionIds([])
         setShowActionPicker(false)
-        Taro.showToast({ title: `已添加：${action.name}`, icon: 'success' })
+        Taro.showToast({ title: `已添加 ${addedCount} 个动作`, icon: 'success' })
       } else {
         Taro.showToast({ title: '添加失败', icon: 'none' })
       }
@@ -1301,6 +1520,12 @@ function TrainingExecution() {
     } finally {
       setAddingExtraAction(false)
     }
+  }
+
+  const handleAddSelectedPickerActions = () => {
+    const selectedSet = new Set(pickerSelectedActionIds)
+    const selectedActions = actionPickerList.filter((action) => selectedSet.has(action.id))
+    void handleAddExtraExercises(selectedActions)
   }
 
   if (loading) {
@@ -1327,6 +1552,118 @@ function TrainingExecution() {
   const actionExecutions = execution.action_executions || []
   const currentAction = actionExecutions[expandedAction]
   const currentSet = currentAction?.sets?.[currentSetIndex]
+  const currentSetNumber = currentSet?.set_number || currentSetIndex + 1
+
+  const setWeightValue = (value: number | null) => {
+    if (value === null || value === undefined || !Number.isFinite(value)) {
+      setWeight(null)
+      setWeightInput('')
+      return
+    }
+    const next = Math.max(0, Math.round(Number(value) * 10) / 10)
+    setWeight(next)
+    setWeightInput(formatInputValue(next))
+  }
+
+  const setRepsValue = (value: number | null) => {
+    if (value === null || value === undefined || !Number.isFinite(value)) {
+      setReps(null)
+      return
+    }
+    setReps(Math.max(0, Math.floor(Number(value))))
+  }
+
+  const handleAdjustWeight = (delta: number) => {
+    const base = weight ?? parseFirstNumber(weightInput) ?? parseFirstNumber(currentSet?.planned_weight) ?? 0
+    setWeightValue(base + delta)
+  }
+
+  const handleAdjustReps = (delta: number) => {
+    const base = reps ?? parseFirstNumber(currentSet?.planned_reps) ?? 0
+    setRepsValue(base + delta)
+  }
+
+  const handleUsePlannedSet = () => {
+    if (!currentSet) return
+    const plannedWeight = isWeightRequiredForSet(currentSet) ? parseFirstNumber(currentSet.planned_weight) : null
+    const plannedReps = parseFirstNumber(currentSet.planned_reps)
+    if (plannedWeight !== null) setWeightValue(plannedWeight)
+    if (plannedReps !== null) setRepsValue(plannedReps)
+    if (plannedWeight === null && plannedReps === null) {
+      Taro.showToast({ title: '本组没有可套用的计划值', icon: 'none' })
+    }
+  }
+
+  const handleCopyPreviousSet = () => {
+    const sets = currentAction?.sets || []
+    const previous = sets
+      .slice(0, currentSetIndex)
+      .reverse()
+      .find((item: SetData) => item.status === 'completed')
+    if (!previous) {
+      Taro.showToast({ title: '还没有上一组记录', icon: 'none' })
+      return
+    }
+    setWeightValue(previous.actual_weight ?? null)
+    setRepsValue(previous.actual_reps ?? null)
+    setRpe(previous.rpe ?? null)
+    setSetNotes(previous.notes || '')
+    setVideoUrl('')
+    Taro.showToast({ title: '已复制上一组', icon: 'success' })
+  }
+
+  const applyKeyboardValue = (target: WorkoutKeyboardTarget, rawValue: string) => {
+    if (target === 'weight') {
+      setWeightInput(rawValue)
+      setWeight(parseInputNumber(rawValue, 'float'))
+      return
+    }
+    const parsed = parseInputNumber(rawValue, 'int')
+    setReps(parsed === null ? null : Math.max(0, Math.floor(parsed)))
+  }
+
+  const getKeyboardRawValue = (target: WorkoutKeyboardTarget) => {
+    if (target === 'weight') return weightInput
+    return reps === null || reps === undefined ? '' : String(reps)
+  }
+
+  const handleKeyboardKey = (key: string) => {
+    if (!workoutKeyboardTarget) return
+    const currentValue = getKeyboardRawValue(workoutKeyboardTarget)
+    if (key === '.' && workoutKeyboardTarget === 'reps') return
+    if (key === '.' && currentValue.includes('.')) return
+    const nextValue = currentValue === '0' && key !== '.' ? key : `${currentValue}${key}`
+    applyKeyboardValue(workoutKeyboardTarget, nextValue)
+  }
+
+  const handleKeyboardBackspace = () => {
+    if (!workoutKeyboardTarget) return
+    const nextValue = getKeyboardRawValue(workoutKeyboardTarget).slice(0, -1)
+    applyKeyboardValue(workoutKeyboardTarget, nextValue)
+  }
+
+  const handleKeyboardClear = () => {
+    if (!workoutKeyboardTarget) return
+    applyKeyboardValue(workoutKeyboardTarget, '')
+  }
+
+  const handleKeyboardAdjust = (delta: number) => {
+    if (workoutKeyboardTarget === 'weight') {
+      handleAdjustWeight(delta)
+      return
+    }
+    if (workoutKeyboardTarget === 'reps') {
+      handleAdjustReps(delta)
+    }
+  }
+
+  const appendSetNoteTag = (tag: string) => {
+    setSetNotes((prev) => {
+      const current = String(prev || '').trim()
+      if (current.includes(tag)) return current
+      return [current, tag].filter(Boolean).join(' · ')
+    })
+  }
 
   const handleExpandAction = (actionIdx: number) => {
     setExpandedAction(actionIdx)
@@ -1375,11 +1712,28 @@ function TrainingExecution() {
   const handleSkipRest = () => {
     setRestTimer(0)
     setIsResting(false)
+    setRestTimerMinimized(false)
+    clearPersistedRestTimer()
   }
 
   const handleAddRestTime = (seconds: number) => {
-    setRestTimer((prev) => Math.max(0, prev + seconds))
-    setIsResting(true)
+    setRestTimer((prev) => {
+      const next = Math.max(0, prev + seconds)
+      if (next <= 0) {
+        setIsResting(false)
+        setRestTimerMinimized(false)
+        clearPersistedRestTimer()
+      } else {
+        persistRestTimer(next, execution.id)
+      }
+      return next
+    })
+    if (seconds > 0) setIsResting(true)
+  }
+
+  const handleMinimizeRestTimer = () => {
+    if (!isResting) return
+    setRestTimerMinimized(true)
   }
 
   // 计算总进度
@@ -1408,6 +1762,69 @@ function TrainingExecution() {
       ].filter(Boolean).join(' · ')
     : ''
   const currentRestLabel = formatRestSummary(currentSet?.planned_rest_seconds)
+  const workoutSummary = (() => {
+    let totalVolume = 0
+    let completedSetTotal = 0
+    const muscleScores: Record<string, number> = {}
+    const actionRows = actionExecutions.map((action: ActionExecution) => {
+      const detail = actions[action.action_id] || {}
+      const completed = (action.sets || []).filter((set: SetData) => set.status === 'completed')
+      const actionVolume = completed.reduce((sum: number, set: SetData) => {
+        const actualWeight = Number(set.actual_weight)
+        const actualReps = Number(set.actual_reps)
+        if (!Number.isFinite(actualWeight) || !Number.isFinite(actualReps)) return sum
+        return sum + Math.max(0, actualWeight) * Math.max(0, actualReps)
+      }, 0)
+      const muscles = inferMusclesForAction(action, detail)
+      const score = actionVolume > 0 ? actionVolume : completed.length * 50
+      muscles.forEach((muscle) => {
+        muscleScores[muscle] = (muscleScores[muscle] || 0) + score
+      })
+      totalVolume += actionVolume
+      completedSetTotal += completed.length
+      return {
+        id: action.action_id,
+        name: action.action_name || detail?.name || '动作',
+        setsCount: completed.length,
+        volume: actionVolume,
+        muscles
+      }
+    }).filter((item) => item.setsCount > 0)
+
+    const startedAt = execution?.started_at ? new Date(execution.started_at).getTime() : NaN
+    const completedAt = execution?.completed_at ? new Date(execution.completed_at).getTime() : Date.now()
+    const durationMin = Number.isFinite(startedAt) && Number.isFinite(completedAt)
+      ? Math.max(1, Math.round((completedAt - startedAt) / 60000))
+      : 0
+    const muscles = Object.entries(muscleScores)
+      .sort((a, b) => b[1] - a[1])
+      .map(([label, score]) => ({ label, score }))
+
+    return {
+      totalVolume,
+      completedSetTotal,
+      durationMin,
+      muscles,
+      actionRows
+    }
+  })()
+  const heatmapMuscles = workoutSummary.muscles.map((item) => item.label)
+  const heatmapFrontSvg = highlightSvgCategories(maleFrontSvgRaw, heatmapMuscles)
+  const heatmapBackSvg = highlightSvgCategories(maleBackSvgRaw, heatmapMuscles)
+  const workoutSummaryMaxScore = Math.max(1, ...workoutSummary.muscles.map((item) => item.score))
+  const handleOpenWorkoutShare = () => {
+    if (!workoutSummarySharePath) {
+      Taro.showToast({ title: '本次训练暂无分享页', icon: 'none' })
+      return
+    }
+    setShowWorkoutSummary(false)
+    Taro.navigateTo({ url: workoutSummarySharePath })
+  }
+
+  const handleLeaveAfterSummary = () => {
+    setShowWorkoutSummary(false)
+    Taro.navigateBack()
+  }
 
   return (
     <View className="training-execution-page">
@@ -1588,33 +2005,50 @@ function TrainingExecution() {
 
                                 {showSetForm && (
                                   <View className="set-input">
+                                    <View className="quick-log-panel">
+                                      <View className="quick-log-copy">
+                                        <Text className="quick-log-eyebrow">当前记录</Text>
+                                        <Text className="quick-log-title">{action.action_name || actionDetail?.name || '动作'} · 第{set.set_number || currentSetNumber}组</Text>
+                                        <Text className="quick-log-plan">计划 {plannedSummary || '未填写'} · {formatRestSummary(set.planned_rest_seconds)}</Text>
+                                      </View>
+                                      <View className="quick-log-actions">
+                                        <Text className="quick-log-chip" onClick={handleUsePlannedSet}>套用计划</Text>
+                                        <Text className="quick-log-chip" onClick={handleCopyPreviousSet}>复制上一组</Text>
+                                      </View>
+                                    </View>
+
                                     <View className="compact-input-grid">
                                       <View className="compact-input-card">
                                         <Text className="compact-input-label">重量</Text>
-                                        <Input
-                                          type="digit"
-                                          className="compact-input-field"
-                                          value={weightInput}
-                                          placeholder={set.planned_weight || '0'}
-                                          onInput={(e) => {
-                                            const nextValue = e.detail.value
-                                            setWeightInput(nextValue)
-                                            setWeight(parseInputNumber(nextValue, 'float'))
-                                          }}
-                                        />
+                                        <View
+                                          className={`compact-input-display ${workoutKeyboardTarget === 'weight' ? 'active' : ''}`}
+                                          onClick={() => setWorkoutKeyboardTarget('weight')}
+                                        >
+                                          <Text className={`compact-input-display-text ${weightInput ? '' : 'placeholder'}`}>
+                                            {weightInput || set.planned_weight || '0'}
+                                          </Text>
+                                          <Text className="compact-input-unit">kg</Text>
+                                        </View>
+                                        <View className="stepper-row">
+                                          <Text className="stepper-btn" onClick={() => handleAdjustWeight(-WEIGHT_STEP_KG)}>-{WEIGHT_STEP_KG}</Text>
+                                          <Text className="stepper-btn" onClick={() => handleAdjustWeight(WEIGHT_STEP_KG)}>+{WEIGHT_STEP_KG}</Text>
+                                        </View>
                                       </View>
                                       <View className="compact-input-card">
                                         <Text className="compact-input-label">次数</Text>
-                                        <Input
-                                          type="number"
-                                          className="compact-input-field"
-                                          value={reps?.toString() || ''}
-                                          placeholder={set.planned_reps || '0'}
-                                          onInput={(e) => {
-                                            const parsed = parseInputNumber(e.detail.value, 'int')
-                                            setReps(parsed === null ? null : Math.max(0, Math.floor(parsed)))
-                                          }}
-                                        />
+                                        <View
+                                          className={`compact-input-display ${workoutKeyboardTarget === 'reps' ? 'active' : ''}`}
+                                          onClick={() => setWorkoutKeyboardTarget('reps')}
+                                        >
+                                          <Text className={`compact-input-display-text ${reps !== null && reps !== undefined ? '' : 'placeholder'}`}>
+                                            {reps !== null && reps !== undefined ? reps : set.planned_reps || '0'}
+                                          </Text>
+                                          <Text className="compact-input-unit">次</Text>
+                                        </View>
+                                        <View className="stepper-row">
+                                          <Text className="stepper-btn" onClick={() => handleAdjustReps(-1)}>-1</Text>
+                                          <Text className="stepper-btn" onClick={() => handleAdjustReps(1)}>+1</Text>
+                                        </View>
                                       </View>
                                       <View className="compact-input-card">
                                         <Text className="compact-input-label">RPE</Text>
@@ -1628,6 +2062,10 @@ function TrainingExecution() {
                                             setRpe(parsed === null ? null : Math.min(10, Math.max(1, Math.floor(parsed))))
                                           }}
                                         />
+                                        <View className="stepper-row">
+                                          <Text className="stepper-btn" onClick={() => setRpe((prev) => Math.max(1, (prev || 7) - 1))}>-1</Text>
+                                          <Text className="stepper-btn" onClick={() => setRpe((prev) => Math.min(10, (prev || 7) + 1))}>+1</Text>
+                                        </View>
                                       </View>
                                     </View>
 
@@ -1845,22 +2283,92 @@ function TrainingExecution() {
         {showActionPicker && (
           <View className="action-picker-mask" onClick={() => setShowActionPicker(false)}>
             <View className="action-picker-panel" onClick={(e) => e.stopPropagation()}>
-              <Text className="picker-title">选择动作</Text>
+              <View className="picker-header">
+                <View>
+                  <Text className="picker-title">添加动作</Text>
+                  <Text className="picker-subtitle">按肌群和器械快速多选</Text>
+                </View>
+                <Text className="picker-close" onClick={() => setShowActionPicker(false)}>关闭</Text>
+              </View>
               <Input
                 className="picker-search-input"
                 value={actionKeyword}
-                placeholder="搜索动作"
+                placeholder="输入动作名字搜索"
                 onInput={(e) => setActionKeyword(e.detail.value)}
               />
-              <ScrollView scrollY className="picker-list">
-                {filteredActionPickerList.map((a) => (
-                  <View key={a.id} className="picker-item" onClick={() => handleAddExtraExercise(a)}>
-                    <Text>{a.name || '未命名'}</Text>
-                  </View>
-                ))}
-                {filteredActionPickerList.length === 0 && <Text className="picker-empty">暂无匹配动作</Text>}
+
+              <ScrollView scrollX className="picker-equipment-scroll" showScrollbar={false}>
+                <View className="picker-equipment-list">
+                  {PICKER_EQUIPMENT_FILTERS.map((item) => (
+                    <Text
+                      key={item.key}
+                      className={`picker-equipment-chip ${pickerEquipment === item.key ? 'active' : ''}`}
+                      onClick={() => setPickerEquipment(item.key)}
+                    >
+                      {item.label}
+                    </Text>
+                  ))}
+                </View>
               </ScrollView>
-              <Button size="mini" onClick={() => setShowActionPicker(false)}>取消</Button>
+
+              <View className="picker-body">
+                <ScrollView scrollY className="picker-muscle-rail">
+                  {PICKER_MUSCLE_FILTERS.map((item) => (
+                    <Text
+                      key={item.key}
+                      className={`picker-muscle-item ${pickerMuscle === item.key ? 'active' : ''}`}
+                      onClick={() => setPickerMuscle(item.key)}
+                    >
+                      {item.label}
+                    </Text>
+                  ))}
+                </ScrollView>
+                <ScrollView scrollY className="picker-card-list">
+                  <View className="picker-card-grid">
+                    {filteredActionPickerList.map((a) => {
+                      const isSelected = pickerSelectedActionIds.includes(a.id)
+                      const meta = [
+                        ...(Array.isArray(a.positions) ? a.positions : []),
+                        ...(Array.isArray(a.attrs) ? a.attrs : [])
+                      ].filter(Boolean).slice(0, 3)
+                      return (
+                        <View
+                          key={a.id}
+                          className={`picker-action-card ${isSelected ? 'selected' : ''}`}
+                          onClick={() => handleTogglePickerAction(a.id)}
+                        >
+                          <View className="picker-action-top">
+                            <Text className="picker-action-initial">{String(a.name || '动').slice(0, 1)}</Text>
+                            <Text className="picker-action-check">{isSelected ? '已选' : '+'}</Text>
+                          </View>
+                          <Text className="picker-action-name">{a.name || '未命名动作'}</Text>
+                          <Text className="picker-action-meta">{meta.length > 0 ? meta.join(' · ') : '力量动作'}</Text>
+                          <Text className="picker-action-link">查看动作要点</Text>
+                        </View>
+                      )
+                    })}
+                  </View>
+                  {filteredActionPickerList.length === 0 && <Text className="picker-empty">暂无匹配动作</Text>}
+                </ScrollView>
+              </View>
+
+              <View className="picker-bottom-bar">
+                <Text className="picker-selected-count">已选 {pickerSelectedActionIds.length} 个</Text>
+                <View className="picker-bottom-actions">
+                  <Button size="mini" className="picker-secondary-btn" onClick={() => setPickerSelectedActionIds([])}>
+                    清空
+                  </Button>
+                  <Button
+                    size="mini"
+                    className="picker-primary-btn"
+                    loading={addingExtraAction}
+                    disabled={pickerSelectedActionIds.length === 0}
+                    onClick={handleAddSelectedPickerActions}
+                  >
+                    加入训练
+                  </Button>
+                </View>
+              </View>
             </View>
           </View>
         )}
@@ -1894,21 +2402,157 @@ function TrainingExecution() {
         </View>
       </ScrollView>
 
-      {isResting && (
-        <View className="rest-timer-mask">
-          <View className="rest-timer-panel">
+      {isResting && restTimerMinimized && (
+        <View className="rest-timer-bubble" onClick={() => setRestTimerMinimized(false)}>
+          <Text className="rest-bubble-label">休息</Text>
+          <Text className="rest-bubble-value">{formatTimerValue(restTimer)}</Text>
+        </View>
+      )}
+
+      {isResting && !restTimerMinimized && (
+        <View className="rest-timer-mask" onClick={handleMinimizeRestTimer}>
+          <View className="rest-timer-panel" onClick={(e) => e.stopPropagation()}>
             <Text className="rest-timer-emoji"><Clock size={20} /></Text>
-            <Text className="rest-timer-value">
-              {Math.floor(restTimer / 60)}:{String(restTimer % 60).padStart(2, '0')}
-            </Text>
+            <Text className="rest-timer-value">{formatTimerValue(restTimer)}</Text>
             <Text className="rest-timer-label">组间休息</Text>
             <View className="rest-timer-actions">
-              <Button size="mini" onClick={() => handleAddRestTime(30)}>
-                +30秒
+              <Button size="mini" className="rest-action-btn" onClick={() => handleAddRestTime(-10)}>
+                -10秒
               </Button>
-              <Button size="mini" onClick={handleSkipRest}>
-                跳过休息
+              <Button size="mini" className="rest-action-btn" onClick={() => handleAddRestTime(10)}>
+                +10秒
               </Button>
+              <Button size="mini" className="rest-action-btn primary" onClick={handleSkipRest}>
+                完成
+              </Button>
+              <Button size="mini" className="rest-action-btn" onClick={handleMinimizeRestTimer}>
+                最小化
+              </Button>
+            </View>
+          </View>
+        </View>
+      )}
+
+      {workoutKeyboardTarget && (
+        <View className="workout-keyboard-mask" onClick={() => setWorkoutKeyboardTarget(null)}>
+          <View className="workout-keyboard-panel" onClick={(e) => e.stopPropagation()}>
+            <View className="keyboard-header">
+              <View>
+                <Text className="keyboard-title">{workoutKeyboardTarget === 'weight' ? '记录重量' : '记录次数'}</Text>
+                <Text className="keyboard-subtitle">
+                  {currentActionName} · 第{currentSetNumber}组
+                </Text>
+              </View>
+              <Text className="keyboard-done" onClick={() => setWorkoutKeyboardTarget(null)}>完成</Text>
+            </View>
+            <View className="keyboard-display">
+              <Text className={`keyboard-display-value ${getKeyboardRawValue(workoutKeyboardTarget) ? '' : 'placeholder'}`}>
+                {getKeyboardRawValue(workoutKeyboardTarget) || '0'}
+              </Text>
+              <Text className="keyboard-display-unit">{workoutKeyboardTarget === 'weight' ? 'kg' : '次'}</Text>
+            </View>
+
+            <View className="keyboard-quick-grid">
+              <Text className="keyboard-chip" onClick={handleUsePlannedSet}>套用计划</Text>
+              <Text className="keyboard-chip" onClick={handleCopyPreviousSet}>复制上一组</Text>
+              <Text className="keyboard-chip" onClick={() => appendSetNoteTag('热身组')}>热身组</Text>
+              <Text className="keyboard-chip" onClick={() => appendSetNoteTag('递减组')}>递减组</Text>
+              <Text className="keyboard-chip" onClick={() => handleKeyboardAdjust(workoutKeyboardTarget === 'weight' ? -WEIGHT_STEP_KG : -1)}>
+                {workoutKeyboardTarget === 'weight' ? `-${WEIGHT_STEP_KG}` : '-1'}
+              </Text>
+              <Text className="keyboard-chip" onClick={() => handleKeyboardAdjust(workoutKeyboardTarget === 'weight' ? WEIGHT_STEP_KG : 1)}>
+                {workoutKeyboardTarget === 'weight' ? `+${WEIGHT_STEP_KG}` : '+1'}
+              </Text>
+            </View>
+
+            <View className="keyboard-number-grid">
+              {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((key) => (
+                <Text key={key} className="keyboard-number-key" onClick={() => handleKeyboardKey(key)}>{key}</Text>
+              ))}
+              <Text
+                className={`keyboard-number-key ${workoutKeyboardTarget === 'reps' ? 'disabled' : ''}`}
+                onClick={() => handleKeyboardKey('.')}
+              >
+                .
+              </Text>
+              <Text className="keyboard-number-key" onClick={() => handleKeyboardKey('0')}>0</Text>
+              <Text className="keyboard-number-key" onClick={handleKeyboardBackspace}>退格</Text>
+            </View>
+
+            <View className="keyboard-bottom-actions">
+              <Text className="keyboard-bottom-btn" onClick={handleKeyboardClear}>清空</Text>
+              <Text className="keyboard-bottom-btn" onClick={() => void handleAddExtraSet(expandedAction)}>加一组</Text>
+              <Text className="keyboard-bottom-btn primary" onClick={() => void handleCompleteSet()}>完成本组</Text>
+            </View>
+          </View>
+        </View>
+      )}
+
+      {showWorkoutSummary && (
+        <View className="workout-summary-mask" onClick={() => setShowWorkoutSummary(false)}>
+          <View className="workout-summary-sheet" onClick={(e) => e.stopPropagation()}>
+            <View className="summary-header">
+              <View>
+                <Text className="summary-eyebrow">TRAINING COMPLETE</Text>
+                <Text className="summary-title">训练完成</Text>
+              </View>
+              <Text className="summary-close" onClick={() => setShowWorkoutSummary(false)}>关闭</Text>
+            </View>
+
+            <View className="summary-heatmap-row">
+              <View className="summary-body-map">
+                <Image className="summary-body-image" src={heatmapFrontSvg} mode="aspectFit" />
+                <Text className="summary-body-caption">正面</Text>
+              </View>
+              <View className="summary-body-map">
+                <Image className="summary-body-image" src={heatmapBackSvg} mode="aspectFit" />
+                <Text className="summary-body-caption">背面</Text>
+              </View>
+            </View>
+
+            <View className="summary-stat-grid">
+              <View className="summary-stat">
+                <Text className="summary-stat-value">{Math.round(workoutSummary.totalVolume)}</Text>
+                <Text className="summary-stat-label">总容量 kg</Text>
+              </View>
+              <View className="summary-stat">
+                <Text className="summary-stat-value">{workoutSummary.completedSetTotal}</Text>
+                <Text className="summary-stat-label">完成组数</Text>
+              </View>
+              <View className="summary-stat">
+                <Text className="summary-stat-value">{workoutSummary.durationMin || '-'}</Text>
+                <Text className="summary-stat-label">分钟</Text>
+              </View>
+            </View>
+
+            <View className="summary-muscle-list">
+              {(workoutSummary.muscles.length > 0 ? workoutSummary.muscles : [{ label: '全身', score: 1 }]).slice(0, 5).map((item) => (
+                <View key={item.label} className="summary-muscle-row">
+                  <Text className="summary-muscle-name">{item.label}</Text>
+                  <View className="summary-muscle-track">
+                    <View className="summary-muscle-fill" style={{ width: `${Math.max(12, Math.round((item.score / workoutSummaryMaxScore) * 100))}%` }} />
+                  </View>
+                </View>
+              ))}
+            </View>
+
+            <ScrollView scrollY className="summary-action-list">
+              {workoutSummary.actionRows.slice(0, 8).map((item) => (
+                <View key={item.id} className="summary-action-row">
+                  <Text className="summary-action-name">{item.name}</Text>
+                  <Text className="summary-action-meta">{item.setsCount}组 · {Math.round(item.volume)}kg</Text>
+                </View>
+              ))}
+              {workoutSummary.actionRows.length === 0 && (
+                <Text className="summary-empty">本次暂无已完成力量组，先保存几组再生成训练热力图。</Text>
+              )}
+            </ScrollView>
+
+            <View className="summary-actions">
+              <Text className="summary-secondary-btn" onClick={handleLeaveAfterSummary}>返回</Text>
+              <Text className={`summary-primary-btn ${workoutSummarySharePath ? '' : 'disabled'}`} onClick={handleOpenWorkoutShare}>
+                查看分享页
+              </Text>
             </View>
           </View>
         </View>

@@ -23,6 +23,11 @@ export interface StartImpromptuResponseDto {
   started_at: string
 }
 
+export interface FinishImpromptuOptions {
+  mode?: 'quick'
+  sessionNotes?: string
+}
+
 class ImpromptuService {
   private readonly baseUrl = '/api/impromptu'
 
@@ -76,11 +81,14 @@ class ImpromptuService {
   }
 
   /** 完成即兴训练 */
-  async finish(impromptuId: string): Promise<any | null> {
+  async finish(impromptuId: string, options?: FinishImpromptuOptions): Promise<any | null> {
     const res = await request({
       url: `${this.baseUrl}/finish`,
       method: 'POST',
-      data: { id: impromptuId }
+      data: {
+        executionId: impromptuId,
+        ...options
+      }
     })
     if (res.success && res.data) return res.data
     return null

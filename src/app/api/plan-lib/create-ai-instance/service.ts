@@ -30,6 +30,7 @@ export interface CreateAiInstanceParams {
     startDay?: number;
     keepOriginalIndex?: boolean;
     delayedActivation?: boolean; // 是否延迟激活（2分钟后才显示给学员）
+    initialStatus?: "active" | "draft" | "scheduled";
     useLLM?: boolean;
 }
 
@@ -41,6 +42,7 @@ export async function createAiInstanceForSubscription(params: CreateAiInstancePa
         startWeek,
         startDay,
         delayedActivation = false,
+        initialStatus: requestedInitialStatus,
         useLLM = false,
     } = params;
 
@@ -247,8 +249,9 @@ export async function createAiInstanceForSubscription(params: CreateAiInstancePa
         ? `${planBaseName}（从第${effectiveStartWeek}周${effectiveStartDay > 1 ? `第${effectiveStartDay}天` : ""}开始）`
         : planBaseName;
 
-    // DB 约束 check_plan_status 不允许 pending，延迟展示使用 scheduled
-    const initialStatus = delayedActivation ? "scheduled" : "active";
+    // DB 约束 check_plan_status 不允许 pending，延迟展示使用 scheduled。
+    // Automation can also create draft plans for coach review.
+    const initialStatus = requestedInitialStatus ?? (delayedActivation ? "scheduled" : "active");
 
     if (initialStatus === "active") {
         await archiveCurrentPlanInstancesForSubscription({
@@ -316,9 +319,9 @@ export async function createAiInstanceForSubscription(params: CreateAiInstancePa
     // 如果延迟激活，计划已创建为 scheduled 状态
     // 激活任务由定时任务 /api/plan-lib/activate-pending-plans 处理（每1分钟检查一次）
     // 这样即使进程被回收，也能可靠地激活计划
-    if (delayedActivation && template) {
+    if (initialStatus === "scheduled" && template) {
         console.log(`[create-ai-instance] 计划 ${template.id} 已创建为 scheduled 状态，将在2分钟后由定时任务激活`);
-    } else {
+    } else if (initialStatus === "active") {
         // 立即激活时，立即通知学员
     try {
         const studentId = subscription.student_id as string | null;

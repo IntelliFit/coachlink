@@ -41,6 +41,14 @@ export async function POST(req: Request) {
         }, { status: 400 });
     }
 
+    if (status === "pending_confirmation") {
+        return NextResponse.json<ApiData<UpdateSubscriptionOrderResponseDto>>({
+            success: false,
+            message: "个人收款码和线下已付已停用，学员给教练的付款请走汇付平台支付",
+            data: null,
+        }, { status: 410 });
+    }
+
     if (coachSeenAt) {
         try {
             const subscriptionOrder = await markSubscriptionOrderSeen(id, userId);
@@ -68,7 +76,7 @@ export async function POST(req: Request) {
             const subscriptionOrder = await submitSubscriptionOrderForConfirmation({
                 orderId: id,
                 studentId: userId,
-                paymentMethod: paymentMethod || "personal_qrcode",
+                paymentMethod: paymentMethod || "platform_huifu",
                 note: note ?? null,
                 paymentData: paymentData ?? null,
             });

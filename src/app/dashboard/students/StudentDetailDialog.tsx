@@ -24,6 +24,7 @@ import { actionLibService } from '@/app/service/actionLibService';
 import type { TrainingItem } from '@/types/questionnaires';
 import { useToastContext } from '@/context/ToastContext';
 import { AeroInputNumber } from '@/components/AeroInputNumber';
+import { AutomationOverridePanel } from './AutomationOverridePanel';
 
 
 interface StudentDetailDialogProps {
@@ -467,6 +468,8 @@ export const StudentDetailDialog = ({ visible, coach, student, onHide, onShowRev
                     </div>
 
                     {/* 训练时长统计栏 - 可编辑 */}
+                    <AutomationOverridePanel subscriptionId={student.id} />
+
                     <div className="mt-4 p-4 rounded-2xl bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-100">
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-3">

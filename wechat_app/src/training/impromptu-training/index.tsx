@@ -1,49 +1,101 @@
-import React, { useState, useEffect, useCallback } from 'react'
-import { View, Text, ScrollView, Input, Button } from '@tarojs/components'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import { View, Text, ScrollView, Input } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { impromptuService, ImpromptuActionInput } from '@/services/impromptuService'
 import { studentActionLibService } from '@/services/studentActionLibService'
+import { listPublicActions } from '@/services/actionLibPageService'
 import { authService } from '@/services/authService'
 import './index.scss'
 
-interface TrainingItem {
-  localId: string
-  actionId: string
-  actionName: string
-  sets: number
-  reps: number
-  restSeconds: number
-  weight: number | null
+interface StudentAction {
+  id: string
+  name?: string
+  type?: string
+  positions?: string[]
+  attrs?: string[]
+  detail?: string | null
+  url?: string | null
+  equipment?: string
+  category?: string
+  primary_muscle?: string
+  target_muscles?: string[]
+  source?: 'mine' | 'public'
+  isAdded?: boolean
+  like_count?: number
+  [key: string]: any
 }
 
-const DEFAULT_SETS = 4
-const DEFAULT_REPS = 8
 const DEFAULT_REST = 90
 
+const asTextList = (value: unknown): string[] => {
+  if (Array.isArray(value)) {
+    return value.map(item => String(item || '').trim()).filter(Boolean)
+  }
+  if (typeof value === 'string' && value.trim()) {
+    return value.split(/[,\s，、]+/).map(item => item.trim()).filter(Boolean)
+  }
+  return []
+}
+
+const getActionName = (action: StudentAction) => action.name || '未命名动作'
+
+const getActionMeta = (action: StudentAction) => {
+  const tags = [
+    ...asTextList(action.positions),
+    ...asTextList(action.target_muscles),
+    action.primary_muscle,
+    action.equipment,
+    action.category
+  ].map(item => String(item || '').trim()).filter(Boolean)
+
+  return tags.slice(0, 3).join(' · ') || '力量动作'
+}
+
+const isStrengthAction = (action: StudentAction) => {
+  const type = String(action.type || 'STRENGTH').toUpperCase()
+  return type === 'STRENGTH'
+}
+
 export default function ImpromptuTraining() {
-  const [actions, setActions] = useState<any[]>([])
+  const [actions, setActions] = useState<StudentAction[]>([])
   const [loadingActions, setLoadingActions] = useState(true)
-  const [trainingItems, setTrainingItems] = useState<TrainingItem[]>([
-    {
-      localId: `item-${Date.now()}`,
-      actionId: '',
-      actionName: '',
-      sets: DEFAULT_SETS,
-      reps: DEFAULT_REPS,
-      restSeconds: DEFAULT_REST,
-      weight: null
-    }
-  ])
-  const [starting, setStarting] = useState(false)
-  const [showActionPicker, setShowActionPicker] = useState(false)
-  const [pickingItemIndex, setPickingItemIndex] = useState<number | null>(null)
+  const [keyword, setKeyword] = useState('')
+  const [selectedActions, setSelectedActions] = useState<StudentAction[]>([])
+  const [startingKey, setStartingKey] = useState<string | null>(null)
 
   const loadActions = useCallback(async () => {
     try {
       setLoadingActions(true)
-      const res = await studentActionLibService.listActions({ page: 1, limit: 1000 })
-      const list = (res?.actions || []).filter((a: any) => a.type === 'STRENGTH' || !a.type)
-      setActions(list)
+      const [myRes, publicRes] = await Promise.allSettled([
+        studentActionLibService.listActions({ page: 1, limit: 1000 }),
+        listPublicActions({ page: 1, limit: 120, viewerActionType: 'student' })
+      ])
+
+      const myActions = myRes.status === 'fulfilled'
+        ? (myRes.value?.actions || []).filter((action: StudentAction) => isStrengthAction(action)).map((action: StudentAction) => ({
+          ...action,
+          source: 'mine' as const
+        }))
+        : []
+      const myNames = new Set(myActions.map((action: StudentAction) => getActionName(action).trim()).filter(Boolean))
+      const publicActions = publicRes.status === 'fulfilled'
+        ? (publicRes.value?.actions || [])
+          .filter((action: StudentAction) => isStrengthAction(action))
+          .filter((action: StudentAction) => !myNames.has(getActionName(action).trim()))
+          .map((action: StudentAction) => ({
+            ...action,
+            source: 'public' as const
+          }))
+        : []
+
+      if (myRes.status === 'rejected') {
+        console.error('加载我的动作失败:', myRes.reason)
+      }
+      if (publicRes.status === 'rejected') {
+        console.error('加载公共动作失败:', publicRes.reason)
+      }
+
+      setActions([...myActions, ...publicActions])
     } catch (e) {
       console.error('加载动作失败:', e)
       Taro.showToast({ title: '无法加载动作库', icon: 'none' })
@@ -63,213 +115,207 @@ export default function ImpromptuTraining() {
     loadActions()
   }, [loadActions])
 
-  const appendItem = () => {
-    setTrainingItems(prev => [
-      ...prev,
-      {
-        localId: `item-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-        actionId: '',
-        actionName: '',
-        sets: DEFAULT_SETS,
-        reps: DEFAULT_REPS,
-        restSeconds: DEFAULT_REST,
-        weight: null
-      }
-    ])
-  }
+  const filteredActions = useMemo(() => {
+    const normalizedKeyword = keyword.trim().toLowerCase()
+    const strengthActions = actions.filter(action => isStrengthAction(action))
 
-  const removeItem = (index: number) => {
-    setTrainingItems(prev => prev.filter((_, i) => i !== index))
-  }
+    if (!normalizedKeyword) return strengthActions
 
-  const handleSelectAction = (index: number, action: any) => {
-    setTrainingItems(prev => prev.map((it, i) =>
-      i === index
-        ? {
-            ...it,
-            actionId: action.id,
-            actionName: action.name || '未命名'
-          }
-        : it
-    ))
-    setShowActionPicker(false)
-    setPickingItemIndex(null)
-    Taro.showToast({ title: `已选择：${action.name}`, icon: 'success' })
-  }
+    return strengthActions.filter(action => {
+      const searchable = [
+        getActionName(action),
+        getActionMeta(action),
+        ...asTextList(action.attrs)
+      ].join(' ').toLowerCase()
+      return searchable.includes(normalizedKeyword)
+    })
+  }, [actions, keyword])
 
-  const handleItemChange = (index: number, field: keyof TrainingItem, value: number | string | null) => {
-    setTrainingItems(prev => prev.map((it, i) => i === index ? { ...it, [field]: value } : it))
-  }
+  const selectedIdSet = useMemo(() => new Set(selectedActions.map(action => action.id)), [selectedActions])
+  const actionSourceStats = useMemo(() => {
+    return actions.reduce((acc, action) => {
+      if (action.source === 'public') acc.public += 1
+      else acc.mine += 1
+      return acc
+    }, { mine: 0, public: 0 })
+  }, [actions])
 
-  const handleStart = async () => {
-    const invalidItem = trainingItems.find(item => !item.actionId)
-    if (invalidItem) {
-      Taro.showToast({ title: '请为所有项目选择动作', icon: 'none' })
+  const buildQuickAction = (action: StudentAction): ImpromptuActionInput => ({
+    actionId: action.id,
+    actionName: getActionName(action),
+    sets: 1,
+    reps: null,
+    weight: null,
+    restSeconds: DEFAULT_REST
+  })
+
+  const startWithActions = async (actionList: StudentAction[], key: string) => {
+    if (startingKey) return
+
+    const validActions = actionList.filter(action => action?.id)
+    if (validActions.length === 0) {
+      Taro.showToast({ title: '先选择一个动作', icon: 'none' })
       return
     }
 
-    setStarting(true)
+    setStartingKey(key)
     try {
-      const payload: ImpromptuActionInput[] = trainingItems.map(item => {
-        const action = actions.find(a => a.id === item.actionId)
-        return {
-          actionId: item.actionId,
-          actionName: action?.name || item.actionName || '未知动作',
-          sets: item.sets,
-          reps: item.reps,
-          weight: item.weight,
-          restSeconds: item.restSeconds
-        }
-      })
-
+      const payload = validActions.map(buildQuickAction)
       const data = await impromptuService.start(payload)
+
       if (!data?.id) {
         throw new Error('创建即兴训练失败')
       }
 
-      Taro.showToast({ title: '开始成功', icon: 'success' })
       Taro.navigateTo({
         url: `/training/training-execution?impromptuId=${data.id}&dayIndex=1`
       })
     } catch (e: any) {
       Taro.showToast({ title: e?.message || '开始失败，请稍后再试', icon: 'none' })
     } finally {
-      setStarting(false)
+      setStartingKey(null)
     }
+  }
+
+  const toggleSelectedAction = (action: StudentAction) => {
+    setSelectedActions(prev => {
+      const exists = prev.some(item => item.id === action.id)
+      if (exists) return prev.filter(item => item.id !== action.id)
+      return [...prev, action]
+    })
+  }
+
+  const removeSelectedAction = (actionId: string) => {
+    setSelectedActions(prev => prev.filter(action => action.id !== actionId))
   }
 
   const handleBack = () => {
     Taro.navigateTo({ url: '/pages/index/index' })
   }
 
-  const openActionPicker = (index: number) => {
-    setPickingItemIndex(index)
-    setShowActionPicker(true)
-  }
-
   return (
     <View className='impromptu-training-page'>
       <View className='page-header'>
         <View className='header-left' onClick={handleBack}>
-          <Text className='back-icon'>←</Text>
-          <Text className='back-text'>返回训练</Text>
+          <Text className='back-icon'>‹</Text>
+          <Text className='back-text'>训练</Text>
         </View>
-        <Text className='page-title'>即兴锻炼</Text>
+        <Text className='page-title'>即兴训练</Text>
         <View className='header-placeholder' />
       </View>
 
-      <View className='intro-card'>
-        <Text className='intro-title'>先选动作与组次，再进入标准执行页训练</Text>
-        <View className='intro-actions'>
-          <View className='intro-btn' onClick={() => Taro.navigateTo({ url: '/me/plan-lib/create/index' })}>
-            <Text>AI 长期计划</Text>
+      <ScrollView scrollY className={`page-scroll ${selectedActions.length > 0 ? 'with-selection' : ''}`}>
+        <View className='quick-panel'>
+          <View className='quick-title-row'>
+            <View>
+              <Text className='quick-kicker'>自由记录</Text>
+              <Text className='quick-title'>选动作，马上开练</Text>
+              <Text className='quick-subtitle'>
+                {actionSourceStats.mine > 0
+                  ? `我的 ${actionSourceStats.mine} 个 · 公共 ${actionSourceStats.public} 个`
+                  : '没有自己的动作也可以直接用公共动作'}
+              </Text>
+            </View>
+            <View className='library-link' onClick={() => Taro.navigateTo({ url: '/me/action-lib?tab=public' })}>
+              <Text>动作库</Text>
+            </View>
           </View>
+
+          <View className='search-box'>
+            <Text className='search-icon'>⌕</Text>
+            <Input
+              className='search-input'
+              value={keyword}
+              placeholder='搜索动作'
+              placeholderClass='search-placeholder'
+              confirmType='search'
+              onInput={e => setKeyword(e.detail.value)}
+            />
+            {!!keyword && (
+              <View className='clear-search' onClick={() => setKeyword('')}>
+                <Text>×</Text>
+              </View>
+            )}
+          </View>
+
+          {selectedActions.length > 0 && (
+            <View className='selected-strip'>
+              {selectedActions.map(action => (
+                <View key={action.id} className='selected-chip' onClick={() => removeSelectedAction(action.id)}>
+                  <Text className='chip-name'>{getActionName(action)}</Text>
+                  <Text className='chip-remove'>×</Text>
+                </View>
+              ))}
+            </View>
+          )}
         </View>
-      </View>
 
-      <ScrollView scrollY className='page-scroll'>
-        <View className='form-card'>
-          <View className='form-actions'>
-            <View className='btn-add' onClick={appendItem} onKeyDown={() => {}}>
-              <Text>+ 添加项目</Text>
-            </View>
-            <View
-              className={`btn-start ${trainingItems.length === 0 || starting || loadingActions ? 'disabled' : ''}`}
-              onClick={handleStart}
-            >
-              <Text>{starting ? '开始中…' : '开始训练'}</Text>
-            </View>
-          </View>
-
-          {trainingItems.length === 0 && (
-            <View className='empty-hint'>
-              <Text>暂无训练项，请先添加项目</Text>
+        <View className='action-list'>
+          {loadingActions && (
+            <View className='state-block'>
+              <Text>正在加载动作...</Text>
             </View>
           )}
 
-          {trainingItems.map((item, idx) => (
-            <View key={item.localId} className='training-item'>
-              <View className='item-header'>
-                <Text className='item-index'>#{idx + 1}</Text>
-                <View className='item-action-row'>
-                  <View
-                    className='action-picker-trigger'
-                    onClick={() => openActionPicker(idx)}
-                  >
-                    <Text className={item.actionId ? 'action-name' : 'action-placeholder'}>
-                      {item.actionName || '选择动作'}
-                    </Text>
-                    <Text className='picker-arrow'>▼</Text>
-                  </View>
-                  <View className='btn-remove' onClick={() => removeItem(idx)}>
-                    <Text>删除</Text>
-                  </View>
-                </View>
-              </View>
-              <View className='item-params'>
-                <View className='param-row'>
-                  <Text className='param-label'>组数</Text>
-                  <Input
-                    className='param-input'
-                    type='number'
-                    value={String(item.sets)}
-                    onInput={e => handleItemChange(idx, 'sets', parseInt(e.detail.value, 10) || 1)}
-                  />
-                </View>
-                <View className='param-row'>
-                  <Text className='param-label'>次数</Text>
-                  <Input
-                    className='param-input'
-                    type='number'
-                    value={String(item.reps)}
-                    onInput={e => handleItemChange(idx, 'reps', parseInt(e.detail.value, 10) || 1)}
-                  />
-                </View>
-                <View className='param-row'>
-                  <Text className='param-label'>休息(秒)</Text>
-                  <Input
-                    className='param-input'
-                    type='number'
-                    value={String(item.restSeconds)}
-                    onInput={e => handleItemChange(idx, 'restSeconds', parseInt(e.detail.value, 10) || 60)}
-                  />
-                </View>
-                <View className='param-row'>
-                  <Text className='param-label'>重量(kg)</Text>
-                  <Input
-                    className='param-input'
-                    type='digit'
-                    placeholder='可选'
-                    value={item.weight != null ? String(item.weight) : ''}
-                    onInput={e => {
-                      const v = e.detail.value
-                      handleItemChange(idx, 'weight', v === '' ? null : parseFloat(v))
-                    }}
-                  />
-                </View>
+          {!loadingActions && filteredActions.length === 0 && (
+            <View className='state-block'>
+              <Text>{keyword ? '没有匹配动作' : '暂时没有可用力量动作'}</Text>
+              <View className='state-action' onClick={() => Taro.navigateTo({ url: '/me/action-lib?tab=public' })}>
+                <Text>去公共动作库看看</Text>
               </View>
             </View>
-          ))}
+          )}
+
+          {!loadingActions && filteredActions.map(action => {
+            const selected = selectedIdSet.has(action.id)
+            const startingThisAction = startingKey === action.id
+            return (
+              <View key={action.id} className='action-row'>
+                <View className='action-main' onClick={() => toggleSelectedAction(action)}>
+                  <View className='action-name-line'>
+                    <Text className='action-name'>{getActionName(action)}</Text>
+                    <Text className={`source-pill ${action.source === 'public' ? 'public' : 'mine'}`}>
+                      {action.source === 'public' ? '公共' : '我的'}
+                    </Text>
+                  </View>
+                  <Text className='action-meta'>{getActionMeta(action)}</Text>
+                  {action.source === 'public' && (
+                    <Text className='action-extra'>
+                      {action.url ? '有演示' : '公共动作'}{typeof action.like_count === 'number' ? ` · ${action.like_count}赞` : ''}
+                    </Text>
+                  )}
+                </View>
+                <View className='row-actions'>
+                  <View
+                    className={`select-btn ${selected ? 'selected' : ''}`}
+                    onClick={() => toggleSelectedAction(action)}
+                  >
+                    <Text>{selected ? '已选' : '加入'}</Text>
+                  </View>
+                  <View
+                    className={`start-btn ${startingKey ? 'disabled' : ''}`}
+                    onClick={() => startWithActions([action], action.id)}
+                  >
+                    <Text>{startingThisAction ? '开始中' : '开始'}</Text>
+                  </View>
+                </View>
+              </View>
+            )
+          })}
         </View>
       </ScrollView>
 
-      {showActionPicker && (
-        <View className='action-picker-mask' onClick={() => { setShowActionPicker(false); setPickingItemIndex(null) }}>
-          <View className='action-picker-panel' onClick={e => e.stopPropagation()}>
-            <Text className='picker-title'>选择动作</Text>
-            <ScrollView scrollY className='picker-list'>
-              {actions.map(a => (
-                <View
-                  key={a.id}
-                  className='picker-item'
-                  onClick={() => pickingItemIndex !== null && handleSelectAction(pickingItemIndex, a)}
-                >
-                  <Text>{a.name || '未命名'}</Text>
-                </View>
-              ))}
-              {actions.length === 0 && <Text className='picker-empty'>暂无力量动作</Text>}
-            </ScrollView>
-            <Button size='mini' onClick={() => { setShowActionPicker(false); setPickingItemIndex(null) }}>取消</Button>
+      {selectedActions.length > 0 && (
+        <View className='selection-footer'>
+          <View className='selection-summary'>
+            <Text className='selection-count'>{selectedActions.length}</Text>
+            <Text className='selection-label'>个动作</Text>
+          </View>
+          <View
+            className={`selection-start ${startingKey ? 'disabled' : ''}`}
+            onClick={() => startWithActions(selectedActions, 'selected')}
+          >
+            <Text>{startingKey === 'selected' ? '开始中' : '开始本次训练'}</Text>
           </View>
         </View>
       )}

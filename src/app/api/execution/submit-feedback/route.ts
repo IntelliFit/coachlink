@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 import supabase from "@/lib/supabaseClient";
 import { sendDirectMessage } from "@/lib/chat";
+import { onExecutionFeedbackSubmitted } from "@/lib/coachingAutomation";
 
 import type { ApiData } from "@/types/api";
 import type {
@@ -173,6 +174,12 @@ export async function POST(req: Request) {
         } catch (dmErr) {
             console.warn("[submit-feedback] send direct message to coach failed:", dmErr);
             // 私信失败不阻塞反馈提交成功
+        }
+
+        try {
+            await onExecutionFeedbackSubmitted(feedback.id);
+        } catch (automationErr) {
+            console.warn("[submit-feedback] feedback automation failed:", automationErr);
         }
 
         return NextResponse.json<ApiData<SubmitFeedbackResponseDto>>({

@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { 
     Users, Video, Star, TrendingUp, CheckCircle2, 
     CircleDashed, Library, Layout, FileText, 
-    Activity, ChevronRight, Loader2 
+    Activity, ChevronRight, Loader2, Wallet
 } from 'lucide-react';
 import { Skeleton } from 'primereact/skeleton';
 import { useSession } from 'next-auth/react';
@@ -22,6 +22,9 @@ interface OverviewData {
     planTemplateCount: number;
     questionReady: boolean;
     pricingReady: boolean;
+    receivingAccountReady: boolean;
+    huifuOpenStatus: string | null;
+    huifuOpenMsg: string | null;
 }
 
 // 统一的卡片组件
@@ -179,6 +182,16 @@ const Overview = () => {
 
     // 配置进度指标
     const configStats = [
+        {
+            title: "收款账户",
+            description: "平台分账和银行卡提现",
+            value: overviewData?.receivingAccountReady ? "已开通" : "待绑定",
+            icon: overviewData?.receivingAccountReady ? CheckCircle2 : Wallet,
+            colorClass: overviewData?.receivingAccountReady ? "bg-emerald-50 text-emerald-600" : "bg-amber-50 text-amber-600",
+            isStatus: true,
+            isComplete: overviewData?.receivingAccountReady,
+            href: "/dashboard/wallet/merchant"
+        },
         {
             title: "订阅定价",
             description: "设置您的会员方案",

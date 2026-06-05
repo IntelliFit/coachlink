@@ -44,17 +44,21 @@ type LlmSelectionResult = {
 
 function buildSelectionPrompt(params: {
     profileGoal: string | null;
+    fitnessGoals: string[];
     fitnessLevel?: string | null;
     interests: string[];
     equipments: string[];
+    weeklyFrequency?: number | null;
     sessionDuration?: number | null;
     candidateActions: CommunityAction[];
 }): string {
     const {
         profileGoal,
+        fitnessGoals,
         fitnessLevel,
         interests,
         equipments,
+        weeklyFrequency,
         sessionDuration,
         candidateActions,
     } = params;
@@ -66,9 +70,11 @@ function buildSelectionPrompt(params: {
     return `你是健身计划助手。请基于用户档案，从候选动作中挑选 3-5 个“即兴训练动作”，并给出每个动作的执行参数。
 
 用户信息：
-- 目标: ${profileGoal || "综合体能"}
+- 主目标: ${profileGoal || "综合体能"}
+- 全部目标: ${fitnessGoals.join("、") || profileGoal || "综合体能"}
 - 训练水平: ${fitnessLevel || "beginner"}
 - 兴趣: ${interests.join("、") || "未指定"}
+- 每周可训练频率: ${weeklyFrequency ? `${weeklyFrequency >= 6 ? "6 天及以上" : `${weeklyFrequency} 天`}` : "未指定"}
 - 器械: ${equipments.join("、") || "未指定"}
 - 单次训练时长(分钟): ${sessionDuration || 30}
 
@@ -90,8 +96,6 @@ ${actionsList}
       "note": "可选，简短建议"
     }
   ]
-}
-
 约束：
 1) selectedActions 长度 3~5。
 2) 不允许返回候选列表之外的 actionId。
@@ -102,6 +106,10 @@ ${actionsList}
    - HABIT 常见: 目标数值, 完成状态, 目标时长
 4) 新手参数保守；若无法可靠给重量，load 置 null 或不返回。
 5) 至少包含 1 个主力力量动作（type=STRENGTH）或 1 个有氧动作（type=CARDIO），按目标合理搭配。`;
+}
+
+function normalizeStringArray(value: unknown): string[] {
+    return Array.isArray(value) ? value.map((item) => String(item || "").trim()).filter(Boolean) : [];
 }
 
 function normalizeDraftItem(
@@ -231,12 +239,12 @@ export async function POST(req: Request) {
         const profileGoal = profileRes.data?.fitness_goal ?? null;
         const fitnessLevel = profileRes.data?.fitness_level ?? null;
         const answers = (onboardingRes.data?.answers || {}) as Record<string, unknown>;
-        const interests = Array.isArray(answers.interest_tags)
-            ? (answers.interest_tags as string[])
-            : [];
-        const equipments = Array.isArray(answers.equipment)
-            ? (answers.equipment as string[])
-            : [];
+        const fitnessGoals = normalizeStringArray(answers.fitness_goals);
+        const interests = normalizeStringArray(answers.interest_tags);
+        const equipments = normalizeStringArray(answers.equipment);
+        const weeklyFrequency = typeof answers.weekly_frequency === "number"
+            ? Number(answers.weekly_frequency)
+            : null;
         const sessionDuration = typeof answers.session_duration === "number"
             ? Number(answers.session_duration)
             : 30;
@@ -275,9 +283,11 @@ export async function POST(req: Request) {
             try {
                 const prompt = buildSelectionPrompt({
                     profileGoal,
+                    fitnessGoals: fitnessGoals.length > 0 ? fitnessGoals : (profileGoal ? [profileGoal] : []),
                     fitnessLevel,
                     interests,
                     equipments,
+                    weeklyFrequency,
                     sessionDuration,
                     candidateActions: llmCandidates,
                 });

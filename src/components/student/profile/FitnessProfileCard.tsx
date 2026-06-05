@@ -13,7 +13,7 @@ import { studentService } from '@/app/service/studentService';
 import { useToastContext } from '@/context/ToastContext';
 
 type ProfileFieldKey = 'avatar_url' | 'nickname' | 'gender' | 'height' | 'weight' | 'fitness_goal' | 'fitness_level';
-type QuestionnaireFieldKey = 'target_body_parts' | 'interest_tags' | 'equipment' | 'session_duration';
+type QuestionnaireFieldKey = 'fitness_goals' | 'target_body_parts' | 'equipment' | 'weekly_frequency' | 'session_duration';
 type FieldKey = ProfileFieldKey | QuestionnaireFieldKey;
 
 interface FitnessProfileCardProps {
@@ -47,10 +47,18 @@ const FITNESS_LEVEL_OPTIONS = [
     { label: '精英 / 职业', value: 'elite' },
 ];
 
-const TARGET_BODY_PART_OPTIONS = ['胸部', '背部', '肩部', '手臂', '腹部', '腰部', '臀部', '腿部', '全身'];
-const INTEREST_OPTIONS = ['上肢', '下肢', '核心', '体态纠正', '减脂燃脂', '灵活性', '力量举', '心肺有氧'];
-const EQUIPMENT_OPTIONS = ['徒手', '哑铃', '杠铃', '拉力器/弹力带', '器械区', '壶铃'];
-const DURATION_OPTIONS = [15, 20, 30, 45, 60].map((value) => ({ label: `${value} 分钟`, value }));
+const TARGET_BODY_PART_OPTIONS = ['胸部', '背部', '肩部', '大臂', '小臂', '腹部 / 核心', '腰部', '臀部', '大腿', '小腿', '全身'];
+const EQUIPMENT_OPTIONS = ['徒手', '单杠', '双杠', '哑铃', '杠铃 / 杠铃片', '壶铃', '弹力带 / 拉力器', '固定器械 / 器械区'];
+const WEEKLY_FREQUENCY_OPTIONS = [1, 2, 3, 4, 5, 6].map((value) => ({ label: value >= 6 ? '6 天及以上' : `${value} 天`, value }));
+const DURATION_OPTIONS = [15, 20, 30, 45, 60, 90].map((value) => ({ label: `${value} 分钟`, value }));
+
+const LEGACY_GOAL_MAP: Record<string, string> = {
+    gain_muscle: '增肌',
+    lose_weight: '减脂',
+    improve_fitness: '体能改善',
+    rehabilitation: '运动恢复',
+    maintain_health: '综合体适能',
+};
 
 const FIELD_LABELS: Record<FieldKey, string> = {
     avatar_url: '头像',
@@ -58,11 +66,12 @@ const FIELD_LABELS: Record<FieldKey, string> = {
     gender: '性别',
     height: '身高',
     weight: '体重',
+    fitness_goals: '健身目标',
     target_body_parts: '目标部位',
     fitness_goal: '健身目标',
     fitness_level: '训练水平',
-    interest_tags: '训练方向',
     equipment: '常用器械',
+    weekly_frequency: '每周训练频率',
     session_duration: '单次训练时长',
 };
 
@@ -72,10 +81,10 @@ const fieldOrder: FieldKey[] = [
     'gender',
     'height',
     'weight',
-    'target_body_parts',
-    'fitness_goal',
+    'fitness_goals',
     'fitness_level',
-    'interest_tags',
+    'target_body_parts',
+    'weekly_frequency',
     'equipment',
     'session_duration',
 ];
@@ -84,12 +93,41 @@ function normalizeArray(value: any): string[] {
     return Array.isArray(value) ? value.map((item) => String(item || '').trim()).filter(Boolean) : [];
 }
 
+function normalizeFitnessGoal(value: any) {
+    const raw = String(value || '').trim();
+    return LEGACY_GOAL_MAP[raw] || raw;
+}
+
+function normalizeFitnessGoals(value: any, fallback?: any) {
+    const source = Array.isArray(value) ? value : (fallback ? [fallback] : []);
+    const validValues = new Set(FITNESS_GOAL_OPTIONS.map((item) => item.value));
+    return Array.from(new Set(
+        source
+            .map(normalizeFitnessGoal)
+            .filter((item) => item && validValues.has(item)),
+    )).slice(0, 3);
+}
+
+function deriveLegacyInterestTags(goals: string[]) {
+    const map: Record<string, string> = {
+        减脂: '减脂燃脂',
+        体态矫正: '体态纠正',
+        灵活柔韧: '灵活性',
+        力量提升: '力量举',
+        体能改善: '心肺有氧',
+    };
+    return goals.map((goal) => map[goal]).filter(Boolean);
+}
+
 function getOptionLabel(options: Array<{ label: string; value: any }>, value: any) {
     return options.find((item) => item.value === value)?.label || String(value || '');
 }
 
 function getFieldValue(profile: Record<string, any> | null, answers: Record<string, any>, field: FieldKey) {
-    if (field === 'target_body_parts' || field === 'interest_tags' || field === 'equipment' || field === 'session_duration') {
+    if (field === 'fitness_goals') {
+        return normalizeFitnessGoals(answers.fitness_goals, profile?.fitness_goal);
+    }
+    if (field === 'target_body_parts' || field === 'equipment' || field === 'weekly_frequency' || field === 'session_duration') {
         return answers[field];
     }
     return profile?.[field];
@@ -100,11 +138,16 @@ function formatFieldValue(profile: Record<string, any> | null, answers: Record<s
     if (field === 'avatar_url') return value ? '已设置' : '未填写';
     if (field === 'gender') return getOptionLabel(GENDER_OPTIONS, value) || '未填写';
     if (field === 'fitness_goal') return getOptionLabel(FITNESS_GOAL_OPTIONS, value) || '未填写';
+    if (field === 'fitness_goals') {
+        const list = normalizeFitnessGoals(value, profile?.fitness_goal);
+        return list.length ? list.map((item) => getOptionLabel(FITNESS_GOAL_OPTIONS, item)).join('、') : '未填写';
+    }
     if (field === 'fitness_level') return getOptionLabel(FITNESS_LEVEL_OPTIONS, value) || '未填写';
     if (field === 'height') return value ? `${value} cm` : '未填写';
     if (field === 'weight') return value ? `${value} kg` : '未填写';
+    if (field === 'weekly_frequency') return value ? (Number(value) >= 6 ? '6 天及以上' : `${value} 天`) : '未填写';
     if (field === 'session_duration') return value ? `${value} 分钟` : '未填写';
-    if (field === 'target_body_parts' || field === 'interest_tags' || field === 'equipment') {
+    if (field === 'target_body_parts' || field === 'equipment') {
         const list = normalizeArray(value);
         return list.length ? list.join('、') : '未填写';
     }
@@ -126,8 +169,10 @@ export function FitnessProfileCard({ profile, questionnaire, onUpdate }: Fitness
 
     const openEditor = (field: FieldKey) => {
         const value = getFieldValue(profile, answers, field);
-        if (field === 'target_body_parts' || field === 'interest_tags' || field === 'equipment') {
+        if (field === 'fitness_goals' || field === 'target_body_parts' || field === 'equipment') {
             setDraftValue(normalizeArray(value));
+        } else if (field === 'weekly_frequency') {
+            setDraftValue(Number(value || 0) || '');
         } else if (field === 'session_duration') {
             setDraftValue(Number(value || 30));
         } else {
@@ -146,7 +191,23 @@ export function FitnessProfileCard({ profile, questionnaire, onUpdate }: Fitness
 
         try {
             setSaving(true);
-            if (isProfileField(editingField)) {
+            if (editingField === 'fitness_goals') {
+                const goals = normalizeFitnessGoals(draftValue);
+                if (goals.length === 0) throw new Error('请至少选择一个健身目标');
+                const savedProfile = await studentService.updateProfile({ fitness_goal: goals[0] });
+                if (!savedProfile) throw new Error('资料保存失败');
+                const saved = await studentService.submitOnboarding({
+                    userId: session.user.id,
+                    answers: {
+                        ...answers,
+                        flow_version: 'registration_unified_v2',
+                        fitness_goals: goals,
+                        interest_tags: deriveLegacyInterestTags(goals),
+                    },
+                    baseline_video_urls: [],
+                });
+                if (!saved) throw new Error('资料保存失败');
+            } else if (isProfileField(editingField)) {
                 const payload: Record<string, any> = {
                     [editingField]: draftValue === '' ? null : draftValue,
                 };
@@ -161,8 +222,10 @@ export function FitnessProfileCard({ profile, questionnaire, onUpdate }: Fitness
             } else {
                 const nextAnswers = {
                     ...answers,
-                    flow_version: 'miniapp_v1_aligned',
-                    [editingField]: editingField === 'session_duration' ? Number(draftValue || 30) : normalizeArray(draftValue),
+                    flow_version: 'registration_unified_v2',
+                    [editingField]: editingField === 'session_duration' || editingField === 'weekly_frequency'
+                        ? Number(draftValue || (editingField === 'session_duration' ? 30 : 0))
+                        : normalizeArray(draftValue),
                 };
                 const saved = await studentService.submitOnboarding({
                     userId: session.user.id,
@@ -216,17 +279,40 @@ export function FitnessProfileCard({ profile, questionnaire, onUpdate }: Fitness
         if (editingField === 'fitness_goal') {
             return <Dropdown value={draftValue} options={FITNESS_GOAL_OPTIONS} onChange={(e) => setDraftValue(e.value)} className="w-full" />;
         }
+        if (editingField === 'fitness_goals') {
+            return (
+                <MultiSelect
+                    value={draftValue}
+                    options={FITNESS_GOAL_OPTIONS}
+                    onChange={(e) => {
+                        if (Array.isArray(e.value) && e.value.length > 3) {
+                            showToast({ severity: 'warn', summary: '健身目标最多选择 3 个' });
+                        }
+                        const incoming = normalizeFitnessGoals(e.value);
+                        setDraftValue((prev: any) => {
+                            const previous = normalizeFitnessGoals(prev);
+                            const kept = previous.filter((item) => incoming.includes(item));
+                            const added = incoming.filter((item) => !kept.includes(item));
+                            return [...kept, ...added].slice(0, 3);
+                        });
+                    }}
+                    className="w-full"
+                    display="chip"
+                    placeholder="最多选择 3 个"
+                />
+            );
+        }
         if (editingField === 'fitness_level') {
             return <Dropdown value={draftValue} options={FITNESS_LEVEL_OPTIONS} onChange={(e) => setDraftValue(e.value)} className="w-full" />;
+        }
+        if (editingField === 'weekly_frequency') {
+            return <Dropdown value={draftValue} options={WEEKLY_FREQUENCY_OPTIONS} onChange={(e) => setDraftValue(e.value)} className="w-full" />;
         }
         if (editingField === 'session_duration') {
             return <Dropdown value={draftValue} options={DURATION_OPTIONS} onChange={(e) => setDraftValue(e.value)} className="w-full" />;
         }
         if (editingField === 'target_body_parts') {
             return <MultiSelect value={draftValue} options={TARGET_BODY_PART_OPTIONS} onChange={(e) => setDraftValue(e.value)} className="w-full" display="chip" />;
-        }
-        if (editingField === 'interest_tags') {
-            return <MultiSelect value={draftValue} options={INTEREST_OPTIONS} onChange={(e) => setDraftValue(e.value)} className="w-full" display="chip" />;
         }
         if (editingField === 'equipment') {
             return <MultiSelect value={draftValue} options={EQUIPMENT_OPTIONS} onChange={(e) => setDraftValue(e.value)} className="w-full" display="chip" />;

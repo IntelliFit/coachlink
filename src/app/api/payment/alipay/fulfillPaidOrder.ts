@@ -2,6 +2,7 @@ import { serviceRoleSupabase } from "@/lib/supabaseClient";
 import { sendSystemMessage } from "@/lib/chat";
 import { addFen, fenToYuan, formatYuan } from "@/lib/moneyUtils";
 import { autoMatchPlanForSubscription } from "@/app/api/plan-lib/auto-match-plan/service";
+import { onRenewalPaid } from "@/lib/coachingAutomation";
 import { finalizeSubscriptionOrder } from "@/lib/subscriptionOrders";
 import { refreshSubscriptionEntitlementSnapshot } from "@/lib/subscriptionEntitlementSnapshot";
 import {
@@ -738,6 +739,9 @@ export async function fulfillSubscriptionOnPaid(
 
     if (order.order_type === "subscription_renew" || order.order_type === "coach_subscription_renew") {
         await refreshSubscriptionEntitlementSnapshot(subscriptionId);
+        await onRenewalPaid(subscriptionId).catch((automationError) => {
+            console.warn("[fulfillPaidOrder] renewal automation failed:", automationError);
+        });
     }
 
     try {
@@ -760,7 +764,7 @@ export async function fulfillSubscriptionOnPaid(
                 sub.coach_id,
             );
             const matchMsg = matchRes.success
-                ? "系统已自动匹配训练计划，学员将在约 5 分钟后看到计划。"
+                ? "系统已自动匹配并发放训练计划，学员现在可以查看计划。"
                 : `自动匹配失败（${matchRes.reason || "未知原因"}），请前往 [我的学员](/dashboard/students) 手动创建计划。`;
             await sendSystemMessage(coach.user_id, {
                 content: `该学员订阅的计划分配结果：${matchMsg}`,

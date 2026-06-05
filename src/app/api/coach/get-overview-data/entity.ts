@@ -11,4 +11,7 @@ export interface GetOverviewDataResponseDto {
     planTemplateCount: number;
     questionReady: boolean;
     pricingReady: boolean;
+    receivingAccountReady: boolean;
+    huifuOpenStatus: string | null;
+    huifuOpenMsg: string | null;
 }

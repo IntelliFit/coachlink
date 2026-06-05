@@ -74,6 +74,8 @@ interface PaymentDialogProps {
     defaultPaymentMethod?: 'qrcode' | 'alipay_api' | 'offline';
     /** Whether offline payment should be available in this dialog */
     allowOfflinePayment?: boolean;
+    /** Whether legacy personal QR-code payment should be available in this dialog */
+    allowPersonalQrcode?: boolean;
     onSuccess?: (note?: string, offlinePaymentData?: OfflinePaymentData) => void;
     onCancel?: () => void;
 }
@@ -91,6 +93,7 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
     amount,
     defaultPaymentMethod,
     allowOfflinePayment = true,
+    allowPersonalQrcode = false,
     onSuccess,
     onCancel
 }) => {
@@ -117,11 +120,12 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
     const [uploadingQrcodeReceipt, setUploadingQrcodeReceipt] = useState(false);
     const qrcodeFileUploadRef = useRef<FileUpload>(null);
     const offlineAllowed = allowOfflinePayment !== false;
+    const personalQrAllowed = allowPersonalQrcode === true;
 
     const getAvailablePaymentMethods = (info?: PaymentInfo | null): PaymentMethodType[] => {
         const methods: PaymentMethodType[] = [];
-        const mode = info?.effectivePaymentMode || 'qrcode';
-        const hasQr = Boolean(info?.qrCodes?.length);
+        const mode = info?.effectivePaymentMode || 'alipay_api';
+        const hasQr = personalQrAllowed && info?.allowPersonalQrcode !== false && Boolean(info?.qrCodes?.length);
 
         if (hasQr) {
             methods.push('qrcode');
@@ -139,7 +143,7 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
             return methods;
         }
 
-        return offlineAllowed ? ['offline'] : ['qrcode'];
+        return offlineAllowed ? ['offline'] : ['alipay_api'];
     };
 
     const normalizePaymentMethod = (
@@ -169,7 +173,7 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
                 res.paymentInfo || null,
             );
             setSelectedPaymentMethod(normalizedMethod);
-            if (normalizedMethod === 'qrcode' && res.paymentInfo?.qrCodes?.length > 0) {
+            if (personalQrAllowed && normalizedMethod === 'qrcode' && res.paymentInfo?.qrCodes?.length > 0) {
                 setSelectedQrCode(res.paymentInfo.qrCodes[0]);
             }
         }
@@ -196,7 +200,7 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
             // 重置扫码支付凭证状态
             setQrcodeReceiptUrl('');
         }
-    }, [visible, coachId, defaultPaymentMethod, allowOfflinePayment]);
+    }, [visible, coachId, defaultPaymentMethod, allowOfflinePayment, allowPersonalQrcode]);
 
     useEffect(() => {
         const normalizedMethod = normalizePaymentMethod(selectedPaymentMethod, paymentInfo);
@@ -206,7 +210,7 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
                 setSelectedQrCode((prev) => prev || paymentInfo.qrCodes[0]);
             }
         }
-    }, [selectedPaymentMethod, paymentInfo, allowOfflinePayment]);
+    }, [selectedPaymentMethod, paymentInfo, allowOfflinePayment, allowPersonalQrcode]);
 
     // 上传支付凭证
     const handleReceiptUpload = async (event: FileUploadHandlerEvent) => {
@@ -397,8 +401,8 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
         }
     };
 
-    const hasQrCodes = paymentInfo?.qrCodes && paymentInfo.qrCodes.length > 0;
-    const effectiveMode = paymentInfo?.effectivePaymentMode || 'qrcode';
+    const hasQrCodes = personalQrAllowed && paymentInfo?.allowPersonalQrcode !== false && paymentInfo?.qrCodes && paymentInfo.qrCodes.length > 0;
+    const effectiveMode = paymentInfo?.effectivePaymentMode || 'alipay_api';
 
     const getFooterContent = () => {
         if (selectedPaymentMethod === 'alipay_api') {

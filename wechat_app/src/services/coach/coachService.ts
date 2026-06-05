@@ -100,6 +100,9 @@ class CoachService extends BaseService {
       planTemplateCount: number
       questionReady: boolean
       pricingReady: boolean
+      receivingAccountReady: boolean
+      huifuOpenStatus: string | null
+      huifuOpenMsg: string | null
     }>('get-overview-data', {})
     if (res.success && res.data) return res.data
     return null
@@ -596,6 +599,69 @@ class CoachService extends BaseService {
   }
 
   /** 获取教练某训练域的规则包（含评估表单 schema） */
+  async getAutomationPolicy() {
+    const res = await this.get<{
+      coachId: string
+      policy: any
+      source: string
+      row: any
+    }>('automation-policy')
+    if (res.success && res.data) return res.data
+    return null
+  }
+
+  async updateAutomationPolicy(policy: any) {
+    const res = await this.put<{
+      coachId: string
+      policy: any
+      source: string
+      row: any
+    }>('automation-policy', policy)
+    if (res.success && res.data) return res.data
+    return null
+  }
+
+  async getAutomationJobs(params?: { subscriptionId?: string; limit?: number }) {
+    const query = [
+      params?.subscriptionId ? `subscriptionId=${encodeURIComponent(params.subscriptionId)}` : null,
+      `limit=${encodeURIComponent(String(params?.limit ?? 30))}`
+    ].filter(Boolean).join('&')
+    const res = await this.get<{ jobs: any[]; drafts: any[] }>(`automation-jobs?${query}`)
+    if (res.success && res.data) return res.data
+    return null
+  }
+
+  async getStudentAutomationOverride(params: { subscriptionId: string }) {
+    const res = await this.get<{
+      subscriptionId: string
+      override: any
+      effectivePolicy: any
+      source: string
+    }>(`student-automation-override?subscriptionId=${encodeURIComponent(params.subscriptionId)}`)
+    if (res.success && res.data) return res.data
+    return null
+  }
+
+  async updateStudentAutomationOverride(payload: any) {
+    const res = await this.put<{
+      subscriptionId: string
+      override: any
+      effectivePolicy: any
+      source: string
+    }>('student-automation-override', payload)
+    if (res.success && res.data) return res.data
+    return null
+  }
+
+  async applyPlanAdjustmentDraft(draftId: string) {
+    const res = await this.post<{ draft: any }>(
+      `plan-adjustment-drafts/${encodeURIComponent(draftId)}/apply`,
+      {}
+    )
+    if (res.success && res.data) return res.data
+    return null
+  }
+
   async getCoachRulepacks(reqData: { coach_id: string; domain: string }) {
     const res = await this.post<{ form_schema: { fields: Array<{
       name: string

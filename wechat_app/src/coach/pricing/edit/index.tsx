@@ -48,8 +48,13 @@ function CoachPricingEdit() {
   const [saving, setSaving] = useState(false)
   const [tierIndex, setTierIndex] = useState(0)
   const [typeIndex, setTypeIndex] = useState(0)
+  const [walletStatus, setWalletStatus] = useState<{
+    huifu_open_status?: string | null
+    huifu_open_msg?: string | null
+  } | null>(null)
 
   useEffect(() => {
+    loadWalletStatus()
     if (productId && productId !== 'new') {
       loadProduct()
     } else {
@@ -60,6 +65,24 @@ function CoachPricingEdit() {
       }
     }
   }, [productId])
+
+  async function loadWalletStatus() {
+    try {
+      const wallet = await coachService.getWallet()
+      setWalletStatus({
+        huifu_open_status: wallet?.huifu_open_status ?? null,
+        huifu_open_msg: wallet?.huifu_open_msg ?? null
+      })
+    } catch (e) {
+      setWalletStatus(null)
+    }
+  }
+
+  function handleOpenMerchant() {
+    Taro.navigateTo({ url: '/coach/wallet/merchant' }).catch(() => {
+      Taro.showToast({ title: '页面暂不可用', icon: 'none' })
+    })
+  }
 
   async function loadProduct() {
     try {
@@ -132,6 +155,11 @@ function CoachPricingEdit() {
   }
 
   async function handleSave() {
+    if (!receivingAccountReady) {
+      Taro.showToast({ title: '请先绑定银行卡', icon: 'none' })
+      return
+    }
+
     if (!product.name.trim()) {
       Taro.showToast({ title: '请输入产品名称', icon: 'none' })
       return
@@ -175,10 +203,32 @@ function CoachPricingEdit() {
     }
   }
 
+  const receivingAccountReady = walletStatus?.huifu_open_status === 'opened'
+
   return (
     <View className="pricing-edit-page">
       <ScrollView scrollY className="edit-scroll">
         <View className="form-section">
+          <View className={`receiving-warning-card ${receivingAccountReady ? 'ready' : 'pending'}`}>
+            <View className="receiving-warning-main">
+              <Text className="receiving-warning-title">
+                {receivingAccountReady ? '收款账户已开通' : '先开通收款账户，学生才能完成付款'}
+              </Text>
+              <Text className="receiving-warning-desc">
+                {receivingAccountReady
+                  ? '当前套餐保存后可正常通过平台收款。'
+                  : '请先完成收款账户开通和银行卡绑定；未绑卡前不能保存订阅套餐价格。'}
+              </Text>
+              {!receivingAccountReady && walletStatus?.huifu_open_msg && (
+                <Text className="receiving-warning-msg">{walletStatus.huifu_open_msg}</Text>
+              )}
+            </View>
+            {!receivingAccountReady && (
+              <View className="receiving-warning-btn" onClick={handleOpenMerchant}>
+                <Text className="receiving-warning-btn-text">去绑定银行卡</Text>
+              </View>
+            )}
+          </View>
           <View className="form-item">
             <Text className="form-label">层级 *</Text>
             <Picker
@@ -301,7 +351,7 @@ function CoachPricingEdit() {
         <Button className="cancel-btn" onClick={() => Taro.navigateBack()}>
           取消
         </Button>
-        <Button className="save-btn" loading={saving} onClick={handleSave}>
+        <Button className="save-btn" loading={saving} disabled={saving || !receivingAccountReady} onClick={handleSave}>
           保存方案
         </Button>
       </View>

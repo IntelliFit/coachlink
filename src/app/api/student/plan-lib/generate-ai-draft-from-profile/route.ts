@@ -42,18 +42,22 @@ type LlmPlanResult = {
 
 function buildPrompt(params: {
     profileGoal: string | null;
+    fitnessGoals: string[];
     fitnessLevel: string | null;
     interests: string[];
     equipments: string[];
+    weeklyFrequency: number | null;
     sessionDuration: number;
     days: number;
     actions: StudentActionLite[];
 }) {
     const {
         profileGoal,
+        fitnessGoals,
         fitnessLevel,
         interests,
         equipments,
+        weeklyFrequency,
         sessionDuration,
         days,
         actions,
@@ -65,9 +69,11 @@ function buildPrompt(params: {
     return `你是训练计划编排助手。请根据用户资料与可用动作库，生成一个可直接编辑保存的 ${days} 天入门计划。
 
 用户信息：
-- 目标: ${profileGoal || "综合体能"}
+- 主目标: ${profileGoal || "综合体能"}
+- 全部目标: ${fitnessGoals.join("、") || profileGoal || "综合体能"}
 - 水平: ${fitnessLevel || "beginner"}
 - 兴趣: ${interests.join("、") || "未指定"}
+- 每周可训练频率: ${weeklyFrequency ? `${weeklyFrequency >= 6 ? "6 天及以上" : `${weeklyFrequency} 天`}` : "未指定"}
 - 器械: ${equipments.join("、") || "未指定"}
 - 单次时长(分钟): ${sessionDuration}
 
@@ -93,8 +99,6 @@ ${actionList}
       ]
     }
   ]
-}
-
 硬性约束：
 1) dayIndex 从 1 开始连续到 ${days}。
 2) 每天必须有记录；休息日 type=rest 且 actionSets 为空。
@@ -106,6 +110,10 @@ ${actionList}
    - DIET: 食物清单, 热量
    - HABIT: 目标数值, 完成状态, 目标时长
 6) 新手参数要保守，无法可靠给重量时 load 用 null。`;
+}
+
+function normalizeStringArray(value: unknown): string[] {
+    return Array.isArray(value) ? value.map((item) => String(item || "").trim()).filter(Boolean) : [];
 }
 
 function normalizeTrainingDays(
@@ -226,15 +234,20 @@ export async function POST(req: Request) {
         }
 
         const answers = (onboardingRes.data?.answers || {}) as Record<string, unknown>;
-        const interests = Array.isArray(answers.interest_tags) ? (answers.interest_tags as string[]) : [];
-        const equipments = Array.isArray(answers.equipment) ? (answers.equipment as string[]) : [];
+        const fitnessGoals = normalizeStringArray(answers.fitness_goals);
+        const interests = normalizeStringArray(answers.interest_tags);
+        const equipments = normalizeStringArray(answers.equipment);
+        const weeklyFrequency = typeof answers.weekly_frequency === "number" ? Number(answers.weekly_frequency) : null;
         const sessionDuration = typeof answers.session_duration === "number" ? Number(answers.session_duration) : 30;
+        const profileGoal = profileRes.data?.fitness_goal ?? null;
 
         const prompt = buildPrompt({
-            profileGoal: profileRes.data?.fitness_goal ?? null,
+            profileGoal,
+            fitnessGoals: fitnessGoals.length > 0 ? fitnessGoals : (profileGoal ? [profileGoal] : []),
             fitnessLevel: profileRes.data?.fitness_level ?? null,
             interests,
             equipments,
+            weeklyFrequency,
             sessionDuration,
             days: dayCount,
             actions: actionPool,

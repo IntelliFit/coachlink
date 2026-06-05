@@ -1,4 +1,5 @@
 import { autoMatchPlanForSubscription } from "@/app/api/plan-lib/auto-match-plan/service";
+import { onRenewalPaid } from "@/lib/coachingAutomation";
 import { sendSystemMessage } from "@/lib/chat";
 import { serviceRoleSupabase } from "@/lib/supabaseClient";
 import type { CoachSubscriptionRow } from "@/types";
@@ -198,7 +199,7 @@ async function notifyCoachAfterSubscribePaid(
         coachId,
     );
     const matchMsg = matchRes.success
-        ? "系统已自动匹配训练计划，学员将在约2分钟后看到计划。"
+        ? "系统已自动匹配并发放训练计划，学员现在可以查看计划。"
         : `自动匹配失败（${matchRes.reason || "未知原因"}），请前往 [我的学员](/dashboard/students) 手动创建计划。`;
 
     await sendSystemMessage(coachUserId, {
@@ -550,6 +551,10 @@ export async function finalizeSubscriptionOrder(
             order.coach_id,
             input.confirmedBy,
         );
+    } else if (order.order_type === "renew") {
+        await onRenewalPaid(subscription.id).catch((automationError) => {
+            console.warn("[subscriptionOrders] renewal automation failed:", automationError);
+        });
     }
 
     return {

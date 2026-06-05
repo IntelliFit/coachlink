@@ -17,6 +17,10 @@ function safeJsonPreview(input: unknown, maxLen = 800): string {
     }
 }
 
+function normalizeStringArray(value: unknown): string[] {
+    return Array.isArray(value) ? value.map((item: any) => String(item || "").trim()).filter(Boolean) : [];
+}
+
 /**
  * 将订阅时的 subscribe_data 数组（问卷步骤）转换为 AI 可读的 key-value 摘要对象。
  */
@@ -69,8 +73,14 @@ function buildTemplateMatchSummary(params: {
     const { templates, fitnessLevel, questionnaireAnswers } = params;
     if (!templates || templates.length === 0) return "暂无可匹配模板。";
     const answers = questionnaireAnswers || {};
-    const interests = Array.isArray(answers.interest_tags) ? answers.interest_tags.map((x: any) => String(x)) : [];
-    const preferredTimes = typeof answers.times === "number" ? answers.times : null;
+    const interests = [
+        ...normalizeStringArray(answers.fitness_goals),
+        ...normalizeStringArray(answers.interest_tags),
+        ...normalizeStringArray(answers.target_body_parts),
+    ];
+    const preferredTimes = typeof answers.weekly_frequency === "number"
+        ? answers.weekly_frequency
+        : (typeof answers.times === "number" ? answers.times : null);
 
     const scored = templates.map((tpl: any) => {
         let score = 0;
@@ -267,6 +277,12 @@ export async function buildBatchOperationContext(params: BuildContextParams): Pr
         sections.push("## 学员问卷");
         if (finalAnswers) {
             enabled.push("学员问卷");
+            const goals = normalizeStringArray((finalAnswers as any).fitness_goals);
+            if (goals.length > 0) sections.push(`- fitness_goals: ${goals.join("、")}`);
+            if (typeof (finalAnswers as any).weekly_frequency === "number") {
+                const freq = Number((finalAnswers as any).weekly_frequency);
+                sections.push(`- weekly_frequency: ${freq >= 6 ? "6 天及以上" : `${freq} 天`}`);
+            }
             sections.push(`- 回答摘要: ${safeJsonPreview(finalAnswers, 700)}`);
         } else {
             sections.push("- 未找到可用问卷回答");

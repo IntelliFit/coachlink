@@ -20,6 +20,10 @@ function CoachPricing() {
   const [products, setProducts] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [deleting, setDeleting] = useState<string | null>(null)
+  const [walletStatus, setWalletStatus] = useState<{
+    huifu_open_status?: string | null
+    huifu_open_msg?: string | null
+  } | null>(null)
 
   useEffect(() => {
     const token = Taro.getStorageSync('token')
@@ -42,8 +46,15 @@ function CoachPricing() {
     try {
       setLoading(true)
       const user = authService.getCurrentUser()
-      const res = await coachService.getPricing({ userId: user?.id })
+      const [res, walletRes] = await Promise.all([
+        coachService.getPricing({ userId: user?.id }),
+        coachService.getWallet().catch(() => null)
+      ])
       const data = res as any
+      setWalletStatus({
+        huifu_open_status: walletRes?.huifu_open_status ?? null,
+        huifu_open_msg: walletRes?.huifu_open_msg ?? null
+      })
       
       // 设置旧版 pricings 数据
       if (data?.pricings && Array.isArray(data.pricings) && data.pricings.length > 0) {
@@ -69,6 +80,11 @@ function CoachPricing() {
   }
 
   async function handleDelete(productId: string) {
+    if (!receivingAccountReady) {
+      Taro.showToast({ title: '请先绑定银行卡', icon: 'none' })
+      return
+    }
+
     const res = await Taro.showModal({
       title: '确认删除',
       content: '确定要删除这个定价方案吗？',
@@ -105,6 +121,10 @@ function CoachPricing() {
   }
 
   function handleEdit(productId: string) {
+    if (!receivingAccountReady) {
+      Taro.showToast({ title: '请先绑定银行卡', icon: 'none' })
+      return
+    }
     console.log('[pricing] edit product:', productId)
     Taro.navigateTo({
       url: `/coach/pricing/edit?id=${productId}`
@@ -115,10 +135,20 @@ function CoachPricing() {
   }
 
   function handleAdd(tier?: PricingTier) {
+    if (!receivingAccountReady) {
+      Taro.showToast({ title: '请先绑定银行卡', icon: 'none' })
+      return
+    }
     const url = tier 
       ? `/coach/pricing/edit?id=new&tier=${tier}`
       : '/coach/pricing/edit?id=new'
     Taro.navigateTo({ url })
+  }
+
+  function handleOpenMerchant() {
+    Taro.navigateTo({ url: '/coach/wallet/merchant' }).catch(() => {
+      Taro.showToast({ title: '页面暂不可用', icon: 'none' })
+    })
   }
 
   // 按层级分组产品
@@ -146,17 +176,41 @@ function CoachPricing() {
 
   const hasProducts = products.length > 0
   const hasLegacyPricings = legacyPricings.length > 0
+  const receivingAccountReady = walletStatus?.huifu_open_status === 'opened'
 
   return (
     <View className="coach-pricing-page">
       <View className="page-header">
         <Text className="page-title">订阅定价</Text>
         <View className="header-actions">
-          <View className="add-all-btn" onClick={() => handleAdd()}>
+          <View className={`add-all-btn ${receivingAccountReady ? '' : 'disabled'}`} onClick={() => handleAdd()}>
             <Text className="add-all-btn-text">+ 添加方案</Text>
           </View>
         </View>
       </View>
+
+      {!loading && (
+        <View className={`receiving-card ${receivingAccountReady ? 'ready' : 'pending'}`}>
+          <View className="receiving-main">
+            <Text className="receiving-title">
+              {receivingAccountReady ? '收款账户已开通' : '先开通收款账户，学生才能完成付款'}
+            </Text>
+            <Text className="receiving-desc">
+              {receivingAccountReady
+                ? '套餐可正常通过平台收款，收入会按结算规则进入钱包。'
+                : '请先完成收款账户开通和银行卡绑定；未绑卡前不能新增、编辑或保存订阅套餐价格。'}
+            </Text>
+            {!receivingAccountReady && walletStatus?.huifu_open_msg && (
+              <Text className="receiving-msg">{walletStatus.huifu_open_msg}</Text>
+            )}
+          </View>
+          {!receivingAccountReady && (
+            <View className="receiving-btn" onClick={handleOpenMerchant}>
+              <Text className="receiving-btn-text">去绑定银行卡</Text>
+            </View>
+          )}
+        </View>
+      )}
 
       {loading ? (
         <View className="loading-wrap"><LoadingSpinner size={48} /></View>
@@ -184,7 +238,7 @@ function CoachPricing() {
                     />
                     <Text className="tier-title">{tierConfig[tier].label}</Text>
                   </View>
-                  <View className="tier-add-btn" onClick={() => handleAdd(tier)}>
+                  <View className={`tier-add-btn ${receivingAccountReady ? '' : 'disabled'}`} onClick={() => handleAdd(tier)}>
                     <Text className="tier-add-btn-text">+ 添加</Text>
                   </View>
                 </View>

@@ -144,6 +144,12 @@ export async function POST(req: Request) {
     if (typeof (updateData as any)?.status !== "undefined") {
         const nextStatus = (updateData as any).status as string;
         if (nextStatus === "waiting") {
+            return NextResponse.json<ApiData<UpdateSubscriptionResponseDto>>({
+                success: false,
+                message: "个人收款码和线下已付已停用，学员给教练的付款请走汇付平台支付",
+                data: null,
+            }, { status: 410 });
+
             if (!isStudentOfSubscription) {
                 return NextResponse.json<ApiData<UpdateSubscriptionResponseDto>>({
                     success: false,
@@ -154,6 +160,17 @@ export async function POST(req: Request) {
         }
 
         if (nextStatus === "active") {
+            const legacyManualPaymentMethod = String(
+                (subscription as any)?.payment_method || (updateData as any)?.payment_method || "",
+            ).trim().toLowerCase();
+            if (legacyManualPaymentMethod === "personal_qrcode" || legacyManualPaymentMethod === "offline") {
+                return NextResponse.json<ApiData<UpdateSubscriptionResponseDto>>({
+                    success: false,
+                    message: "个人收款码和线下已付已停用，学员给教练的付款请走汇付平台支付",
+                    data: null,
+                }, { status: 410 });
+            }
+
             if (!isCoachOfSubscription) {
                 return NextResponse.json<ApiData<UpdateSubscriptionResponseDto>>({
                     success: false,

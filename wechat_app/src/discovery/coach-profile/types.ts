@@ -15,6 +15,8 @@ export interface CoachRow {
   years_experience?: number | null
   profile?: Record<string, any> | null
   is_featured?: boolean | null
+  huifu_open_status?: string | null
+  huifu_open_msg?: string | null
 }
 
 /** 教练聚合信息 */

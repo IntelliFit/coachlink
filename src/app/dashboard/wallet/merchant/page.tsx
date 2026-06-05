@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import axios from 'axios';
@@ -9,6 +9,11 @@ import { InputText } from 'primereact/inputtext';
 import { FloatLabel } from 'primereact/floatlabel';
 import { SelectButton } from 'primereact/selectbutton';
 import { Card } from 'primereact/card';
+import {
+    getHuifuRegionCities,
+    huifuBankOptions,
+    huifuRegionOptions,
+} from '@/config/huifuAccountOptions';
 
 const validityTypeOptions = [
     { label: '长期有效', value: '1' },
@@ -40,6 +45,25 @@ export default function OpenHuifuAccountPage() {
 
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState<string | null>(null);
+    const [showLocalDebugShortcut, setShowLocalDebugShortcut] = useState(false);
+    const cityOptions = getHuifuRegionCities(provId);
+    const selectedBankName = huifuBankOptions.find(option => option.code === bankCode)?.name;
+    const selectedProvinceName = huifuRegionOptions.find(option => option.code === provId)?.name;
+    const selectedCityName = cityOptions.find(option => option.code === areaId)?.name;
+
+    const handleProvinceChange = (value: string) => {
+        setProvId(value);
+        setAreaId('');
+    };
+
+    useEffect(() => {
+        const host = window.location.hostname;
+        setShowLocalDebugShortcut(
+            process.env.NODE_ENV !== 'production'
+            || host === 'localhost'
+            || host === '127.0.0.1',
+        );
+    }, []);
 
     const compressImage = (file: File, maxWidth = 1024, quality = 0.7): Promise<string> =>
         new Promise((resolve, reject) => {
@@ -182,6 +206,21 @@ export default function OpenHuifuAccountPage() {
                 ))}
             </div>
 
+            {showLocalDebugShortcut && step === 0 && (
+                <div className="mb-4 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <p>本地调试入口：仅用于预览银行卡信息表单，不会绕过后端汇付开户校验。</p>
+                        <Button
+                            type="button"
+                            label="跳到银行卡信息"
+                            icon="pi pi-arrow-right"
+                            className="p-button-sm bg-primary-600 border-primary-600"
+                            onClick={() => setStep(1)}
+                        />
+                    </div>
+                </div>
+            )}
+
             {step === 0 && (
                 <Card className="shadow-sm">
                     <div className="space-y-5">
@@ -298,7 +337,7 @@ export default function OpenHuifuAccountPage() {
                 <Card className="shadow-sm">
                     <div className="space-y-5">
                         <h3 className="text-lg font-semibold text-surface-900">提现银行卡</h3>
-                        <p className="text-xs text-surface-500 -mt-2">用于汇付手工取现。个人教练固定绑定本人对私银行卡；开户行编码、支行联行号和地区编码请按汇付/银行编码表填写。</p>
+                        <p className="text-xs text-surface-500 -mt-2">用于汇付结算和提现。请选择银行卡所属银行，系统会自动带出银行编码；支行联行号是具体开户支行的清算编号，需按实际支行填写。</p>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <FloatLabel>
@@ -309,27 +348,76 @@ export default function OpenHuifuAccountPage() {
                                 <InputText id="cardNo" className="w-full" value={cardNo} onChange={e => setCardNo(e.target.value)} />
                                 <label htmlFor="cardNo">银行卡号 *</label>
                             </FloatLabel>
+                            <div>
+                                <label htmlFor="bankSelect" className="block text-sm font-medium text-surface-700 mb-2">开户银行 *</label>
+                                <select
+                                    id="bankSelect"
+                                    className="w-full h-12 rounded-md border border-surface-300 bg-white px-3 text-sm text-surface-900"
+                                    value={huifuBankOptions.some(option => option.code === bankCode) ? bankCode : ''}
+                                    onChange={e => setBankCode(e.target.value)}
+                                >
+                                    <option value="">请选择银行卡所属银行</option>
+                                    {huifuBankOptions.map(option => (
+                                        <option key={option.code} value={option.code}>{option.name}</option>
+                                    ))}
+                                </select>
+                                <p className="mt-1 text-xs text-surface-500">选择后自动提交开户银行编码；列表没有时请联系平台运营补充，不要随便选择相近银行。</p>
+                            </div>
+                            <div className="rounded-md border border-surface-200 bg-surface-50 px-3 py-2">
+                                <p className="text-xs text-surface-500">开户银行编码</p>
+                                <p className="mt-1 text-sm font-semibold text-surface-900">
+                                    {bankCode ? `${selectedBankName || '已选择银行'} · ${bankCode}` : '选择开户银行后自动生成'}
+                                </p>
+                            </div>
                             <FloatLabel>
-                                <InputText id="bankCode" className="w-full" value={bankCode} onChange={e => setBankCode(e.target.value)} />
-                                <label htmlFor="bankCode">开户银行编码 *</label>
-                            </FloatLabel>
-                            <FloatLabel>
-                                <InputText id="branchCode" className="w-full" value={branchCode} onChange={e => setBranchCode(e.target.value)} />
-                                <label htmlFor="branchCode">支行联行号 *</label>
+                                <InputText id="branchCode" className="w-full" value={branchCode} onChange={e => setBranchCode(e.target.value.replace(/\D/g, '').slice(0, 12))} maxLength={12} />
+                                <label htmlFor="branchCode">具体支行联行号 *</label>
                             </FloatLabel>
                             <FloatLabel>
                                 <InputText id="branchName" className="w-full" value={branchName} onChange={e => setBranchName(e.target.value)} />
                                 <label htmlFor="branchName">支行名称 *</label>
                             </FloatLabel>
-                            <div className="grid grid-cols-2 gap-2">
-                                <FloatLabel>
-                                    <InputText id="provId" className="w-full" value={provId} onChange={e => setProvId(e.target.value)} />
-                                    <label htmlFor="provId">省编码 *</label>
-                                </FloatLabel>
-                                <FloatLabel>
-                                    <InputText id="areaId" className="w-full" value={areaId} onChange={e => setAreaId(e.target.value)} />
-                                    <label htmlFor="areaId">市/区编码 *</label>
-                                </FloatLabel>
+                            <div className="md:col-span-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-800">
+                                <p className="font-semibold">不知道支行联行号怎么找？</p>
+                                <p className="mt-1">优先在银行 App/网银查看开户网点，或拨打银行卡背面的银行客服电话，询问“开户支行名称”和“12 位支行联行号/CNAPS 号”。</p>
+                                <p className="mt-1">注意：银行卡所属银行、开户银行选择、支行联行号必须属于同一家银行；不确定时不要用相近银行编码代替。</p>
+                            </div>
+                            <div>
+                                <label htmlFor="provinceSelect" className="block text-sm font-medium text-surface-700 mb-2">开户省份 *</label>
+                                <select
+                                    id="provinceSelect"
+                                    className="w-full h-12 rounded-md border border-surface-300 bg-white px-3 text-sm text-surface-900"
+                                    value={provId}
+                                    onChange={e => handleProvinceChange(e.target.value)}
+                                >
+                                    <option value="">请选择开户省份</option>
+                                    {huifuRegionOptions.map(option => (
+                                        <option key={option.code} value={option.code}>{option.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div>
+                                <label htmlFor="citySelect" className="block text-sm font-medium text-surface-700 mb-2">开户城市/区县 *</label>
+                                <select
+                                    id="citySelect"
+                                    className="w-full h-12 rounded-md border border-surface-300 bg-white px-3 text-sm text-surface-900"
+                                    value={areaId}
+                                    onChange={e => setAreaId(e.target.value)}
+                                    disabled={!provId}
+                                >
+                                    <option value="">{provId ? '请选择开户城市/区县' : '请先选择省份'}</option>
+                                    {cityOptions.map(option => (
+                                        <option key={option.code} value={option.code}>{option.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="md:col-span-2 rounded-md border border-surface-200 bg-surface-50 px-3 py-2">
+                                <p className="text-xs text-surface-500">地区编码</p>
+                                <p className="mt-1 text-sm font-semibold text-surface-900">
+                                    {provId && areaId
+                                        ? `${selectedProvinceName || '已选省份'} ${selectedCityName || '已选城市'} · ${provId} / ${areaId}`
+                                        : '选择省份和城市/区县后自动生成'}
+                                </p>
                             </div>
                         </div>
 
