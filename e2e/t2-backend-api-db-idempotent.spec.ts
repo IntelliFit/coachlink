@@ -41,18 +41,22 @@ async function cleanup(request: any, data: SeedData) {
   }
 }
 
-async function loginByUI(page: any, user: { phone: string; password: string }) {
+async function loginByUI(page: any, user: { id: string; phone: string }) {
+  await page.context().clearCookies();
   await page.goto("/login");
-  const textboxes = page.getByRole("textbox");
-  await textboxes.nth(1).fill(user.phone);
-  await textboxes.nth(2).fill(user.password);
-  await textboxes.nth(2).press("Enter");
-  await page.waitForTimeout(1200);
-  const session = await page.evaluate(async () => {
-    const res = await fetch("/api/auth/session");
-    return res.json();
-  });
-  if (!session?.user?.id) throw new Error("E2E login failed for seeded user");
+  await page.locator("input").first().fill(user.id);
+  await page.locator("xpath=(//input)[1]/following::button[1]").click();
+  let lastSessionUserId: string | null = null;
+  for (let attempt = 0; attempt < 16; attempt += 1) {
+    await page.waitForTimeout(500);
+    const session = await page.evaluate(async () => {
+      const res = await fetch("/api/auth/session");
+      return res.json();
+    });
+    lastSessionUserId = session?.user?.id || null;
+    if (session?.user?.id === user.id) return;
+  }
+  throw new Error(`E2E login failed for seeded user ${user.phone} (${user.id}); last session userId=${lastSessionUserId || "none"}`);
 }
 
 async function runStudentFavoriteCrud(page: any): Promise<FavoriteCrudResult> {
@@ -155,7 +159,7 @@ test("backend API and DB CRUD stays idempotent", async ({ browser, request }) =>
 
     const coachContext = await browser.newContext();
     const coachPage = await coachContext.newPage();
-    await loginByUI(coachPage, data.coach);
+    await loginByUI(coachPage, { id: data.coach.user_id, phone: data.coach.phone });
     const coachResult = await runCoachTemplateCrud(coachPage);
     leakedTemplateId = coachResult.templateId;
     await coachContext.close();
@@ -173,7 +177,7 @@ test("backend API and DB CRUD stays idempotent", async ({ browser, request }) =>
     if (leakedTemplateId) {
       const cleanupCoachContext = await browser.newContext();
       const cleanupCoachPage = await cleanupCoachContext.newPage();
-      await loginByUI(cleanupCoachPage, data.coach);
+      await loginByUI(cleanupCoachPage, { id: data.coach.user_id, phone: data.coach.phone });
       await cleanupCoachPage.request.post("/api/plan-lib/delete-template", {
         data: { id: leakedTemplateId },
       });

@@ -1,4 +1,17 @@
 
+## Coach Automation Settings Tutorial (`2026-06-06`)
+
+- Task: make the coach automation settings page understandable for coaches by adding detailed usage guidance and scenario-based recommended settings.
+- Status: implemented and verified; commit/push in progress.
+- Implemented:
+  - Web `/dashboard/automation` now includes a tutorial section before the policy controls: default recommendation, explanation of the four settings, five scenario presets, and a warning to use per-student overrides instead of changing global settings for one student.
+  - WeChat coach `/coach/automation` now includes the same guidance in a mobile-compressed panel with default recommendation, setting explanations, scenario suggestions, and per-student override reminder.
+- Verification:
+  - Targeted `esbuild` syntax checks passed for `src/app/dashboard/automation/page.tsx` and `wechat_app/src/coach/automation/index.tsx`.
+  - `git diff --check` passed for the touched automation tutorial files with CRLF warnings only.
+  - Push-gate verification on `2026-06-06`: `npm run lint`, `npm run typecheck`, `npm test` (32 files / 158 tests), `npm run test:e2e` (4 tests), and `npx next build` all passed.
+  - While running the push gate, `e2e/t2-backend-api-db-idempotent.spec.ts` was updated to use seed-user quick login by user id instead of fragile password-form textbox positions.
+
 ## Repository Push and Branch Sync (`2026-06-05`)
 
 - Task: commit current CoachLink changes, push to remote, and keep `main` and `dev` synchronized.
