@@ -52,3 +52,4 @@ temp_*.png
 # Claude settings
 .claude/
 
+.env
