@@ -38,6 +38,7 @@ Web runtime config is a strict single-source model documented in `docs/done/syst
 - Root `.env` is the bootstrap file. It selects `CONFIG_SOURCE=local` or `CONFIG_SOURCE=apollo`.
 - `local` loads exactly one business env file: `LOCAL_ENV_FILE`, defaulting to `.env.development` for dev and `.env.production` for production build/start.
 - `apollo` reads only Apollo bootstrap settings from `.env`, then fetches all business config from Apollo. It must not load or merge `.env.development`, `.env.production`, or `.env.local`.
+- `APOLLO_CONFIG_SERVER_URL` must be the final URL, preferably `https://...`. Do not use an `http://` URL that redirects to HTTPS, because Node fetch can drop `Authorization` / `Timestamp` across cross-protocol redirects and Apollo will log them as null.
 - Normal Web commands (`npm run dev`, `npm run build`, `npm run start`) all go through `scripts/config/bootstrap-env.mjs`, which marks Next env loading as already processed so Next.js does not auto-merge local `.env*` files.
 - `NEXT_PUBLIC_*` values are build-time client values. If Apollo owns them, Apollo must be reachable and correct before `npm run build`.
 

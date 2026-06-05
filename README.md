@@ -25,6 +25,8 @@ CoachLink Web 运行时配置采用严格单源模型：
 
 根目录 `.env` 应只放配置源选择和 Apollo bootstrap 信息，不应放 Supabase、支付、短信、LLM 等业务密钥。详见 [Runtime Configuration](./docs/done/system-design/runtime-config.md)。
 
+Apollo 地址必须填写最终可访问地址，例如 `https://apollo-configservice...`。不要填写会 301/302 跳转的 `http://` 地址；跨协议跳转会导致 `Authorization` / `Timestamp` 签名头丢失。
+
 ## 📂 目录结构
 
 *   `src/app`: 路由与 API
