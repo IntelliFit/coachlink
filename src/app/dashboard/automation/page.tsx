@@ -4,12 +4,14 @@ import React, { useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
   Bot,
+  BookOpen,
   CheckCircle2,
   Clock3,
   FileEdit,
   Loader2,
   RefreshCw,
   Save,
+  ShieldCheck,
   XCircle,
 } from "lucide-react";
 
@@ -72,6 +74,57 @@ const nextPhaseOptions = [
 const riskOptions = [
   { value: "strict", label: "严格" },
   { value: "normal", label: "普通" },
+];
+
+const settingGuide = [
+  {
+    title: "首个计划",
+    value: "建议：自动发放",
+    body: "新学员支付或确认后，系统会根据订阅问卷直接生成并发放首个训练计划。只有你想逐份检查首个计划时，才改成生成草稿。",
+  },
+  {
+    title: "反馈调整",
+    value: "建议：草稿并通知",
+    body: "学员训练后反馈偏重、偏轻、时间不够时，系统先生成调整草稿。你确认后应用，适合大多数教练。",
+  },
+  {
+    title: "下一阶段",
+    value: "建议：草稿并通知",
+    body: "当前阶段完成后，系统生成下一阶段草稿。有额度才会生成；额度不足时会提醒续费。",
+  },
+  {
+    title: "风险保护",
+    value: "建议：严格",
+    body: "疼痛、伤病、麻木、头晕、明显异常等反馈永远不会自动改计划，只会提醒教练人工判断。",
+  },
+];
+
+const scenarioGuide = [
+  {
+    title: "普通线上教练",
+    settings: "首个计划：自动发放；反馈调整：草稿并通知；下一阶段：草稿并通知；风险保护：严格。",
+    reason: "这是默认方案。省掉首个计划的手工发放，同时把后续调整留给教练把关。",
+  },
+  {
+    title: "新教练或高客单学员",
+    settings: "首个计划：生成草稿；反馈调整：草稿并通知；下一阶段：草稿并通知；风险保护：严格。",
+    reason: "适合你想保留完整人工确认的服务。系统负责起草，你负责最后判断。",
+  },
+  {
+    title: "稳定老学员",
+    settings: "首个计划：自动发放；反馈调整：低风险自动应用；下一阶段：草稿并通知；风险保护：严格。",
+    reason: "适合训练习惯稳定、反馈质量高的学员。低风险小调整自动处理，高风险仍然拦住。",
+  },
+  {
+    title: "康复、疼痛、伤病倾向学员",
+    settings: "首个计划：生成草稿；反馈调整：草稿并通知；下一阶段：草稿并通知；风险保护：严格。",
+    reason: "不要开自动应用。任何疼痛或异常反馈都应该由教练先沟通确认。",
+  },
+  {
+    title: "想尽量全自动",
+    settings: "首个计划：自动发放；反馈调整：低风险自动应用；下一阶段：额度足够自动发布；风险保护：严格。",
+    reason: "只建议给成熟教练和稳定学员使用。安全规则仍不可绕过，高风险不会自动应用。",
+  },
 ];
 
 const statusMeta: Record<string, { label: string; className: string; icon: React.ElementType }> = {
@@ -256,6 +309,57 @@ export default function CoachAutomationPage() {
             {message}
           </div>
         )}
+
+        <section className="rounded-lg border border-surface-200 bg-white p-5 shadow-sm">
+          <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+            <div>
+              <div className="mb-2 inline-flex items-center gap-2 rounded-md bg-emerald-50 px-2 py-1 text-xs font-bold text-emerald-700">
+                <ShieldCheck size={14} />
+                推荐默认
+              </div>
+              <h2 className="text-lg font-black text-surface-950">不知道怎么选，就保持默认</h2>
+              <p className="mt-1 max-w-3xl text-sm font-semibold leading-6 text-surface-500">
+                默认策略已经适合大多数线上教练：新学员自动发首个计划，训练反馈生成草稿提醒你确认，下一阶段先生成草稿，所有疼痛和伤病风险都必须人工确认。
+              </p>
+            </div>
+            <div className="inline-flex items-center gap-2 rounded-lg border border-[#CF6D4E]/20 bg-[#CF6D4E]/10 px-3 py-2 text-sm font-black text-[#CF6D4E]">
+              <BookOpen size={16} />
+              设置教程
+            </div>
+          </div>
+
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            {settingGuide.map((item) => (
+              <div key={item.title} className="rounded-lg border border-surface-200 bg-surface-50 p-4">
+                <div className="text-sm font-black text-surface-950">{item.title}</div>
+                <div className="mt-1 text-xs font-black text-[#CF6D4E]">{item.value}</div>
+                <p className="mt-2 text-xs font-semibold leading-5 text-surface-500">{item.body}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-5">
+            <h3 className="mb-3 text-sm font-black text-surface-950">不同情况下怎么设置</h3>
+            <div className="grid gap-3 lg:grid-cols-2">
+              {scenarioGuide.map((item) => (
+                <div key={item.title} className="rounded-lg border border-surface-200 bg-white p-4">
+                  <div className="text-sm font-black text-surface-950">{item.title}</div>
+                  <p className="mt-2 text-xs font-bold leading-5 text-surface-700">{item.settings}</p>
+                  <p className="mt-2 text-xs font-semibold leading-5 text-surface-500">{item.reason}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="mt-5 rounded-lg border border-amber-200 bg-amber-50 p-4">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+              <p className="text-xs font-semibold leading-5 text-amber-800">
+                单个学员需要特殊规则时，不要改全局设置。去学员详情里设置“单学员自动化覆盖”，空值表示继续继承这里的全局策略。
+              </p>
+            </div>
+          </div>
+        </section>
 
         <div className="grid gap-5 lg:grid-cols-[420px_1fr]">
           <section className="rounded-lg border border-surface-200 bg-white p-5 shadow-sm">
