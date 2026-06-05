@@ -19,16 +19,29 @@ Both products talk to the same Supabase backend. The mini-program calls Web API 
 | --- | --- |
 | `npm run dev` | Dev server via `scripts/start-dev.mjs`. Auto-cleans `.next/dev` cache and restarts on `ENOENT`/manifest errors (up to 5 times). Defaults to Webpack; set `COACHLINK_FAST_DEV=1` for Turbopack + larger heap. |
 | `npm run build` | Production build via `scripts/build-prod.js`. Wipes `.next/`, runs `next build` (Turbopack default; `COACHLINK_BUILD_USE_WEBPACK=1` to fall back), then copies `static/`, `public/`, and `docs/assets/` into `.next/standalone/` (deployable artifact). |
+| `npm run start` | Production start via `scripts/start-prod.mjs`. It runs the same config bootstrap before `next start` or standalone `server.js`. |
 | `npm run typecheck` | `tsc --noEmit -p tsconfig.typecheck.json`. **This is the real lint gate** — `ignoreBuildErrors: true` in `next.config.ts` means production build will not catch type errors. The `tsconfig.typecheck.json` excludes `wechat_app/`, `.next/`, and other historical noise so the gate stays green; new errors in the maintained surface must be fixed. |
 | `npm run lint` | **No-op stub.** Next 16 removed `next lint` and ESLint isn't installed here. The script just prints a hint to run typecheck. Don't add ESLint without team agreement. |
 | `npm test` | `vitest run` — unit tests in `src/**/*.test.ts` and `tests/**/*.test.ts`. Reports go to `test-results/vitest/`. Run a single file with `npx vitest run path/to/file.test.ts`. |
 | `npm run test:watch` | Vitest watch mode. |
 | `npm run test:e2e` | `playwright test` — specs in `e2e/`. The runner spawns `node scripts/start-dev.mjs` on port 3000 with `reuseExistingServer: true` (uses your already-running `npm run dev` if present, avoiding `.next/dev/lock` collisions). |
-| `npm run check-env` | Verify presence of `.env.development` / `.env.production`. |
+| `npm run check-env` | Legacy env-file presence check. Runtime source selection is now governed by root `.env`; see Runtime configuration below. |
 | `npm run pre-deploy-check` | Pre-deploy validation. |
 | `npm run push-docker-ccr` | Build & push the Docker image to Tencent Cloud CCR (`ccr.ccs.tencentyun.com/coachlink/coachlink:production`). |
 
 **Push gate (required before `git push`):** `npm run typecheck && npm test && npm run test:e2e` — `npm run lint` is a no-op so the typecheck step replaces it.
+
+### Runtime configuration
+
+Web runtime config is a strict single-source model documented in `docs/done/system-design/runtime-config.md`.
+
+- Root `.env` is the bootstrap file. It selects `CONFIG_SOURCE=local` or `CONFIG_SOURCE=apollo`.
+- `local` loads exactly one business env file: `LOCAL_ENV_FILE`, defaulting to `.env.development` for dev and `.env.production` for production build/start.
+- `apollo` reads only Apollo bootstrap settings from `.env`, then fetches all business config from Apollo. It must not load or merge `.env.development`, `.env.production`, or `.env.local`.
+- Normal Web commands (`npm run dev`, `npm run build`, `npm run start`) all go through `scripts/config/bootstrap-env.mjs`, which marks Next env loading as already processed so Next.js does not auto-merge local `.env*` files.
+- `NEXT_PUBLIC_*` values are build-time client values. If Apollo owns them, Apollo must be reachable and correct before `npm run build`.
+
+Do not tell collaborators to copy `.env.example` to `.env.local` for Web runtime setup. The correct answer is to configure root `.env` and then populate either the selected local env file or Apollo.
 
 ### WeChat Mini Program (run from `wechat_app/`)
 

@@ -6,9 +6,9 @@
         "node": ">=22.0.0"
     },
     "scripts": {
-        "dev": "next dev",
+        "dev": "node scripts/start-dev.mjs",
         "build": "node scripts/build-prod.js",
-        "start": "next start",
+        "start": "node scripts/start-prod.mjs",
         "dev:custom": "node scripts/start-dev.mjs",
         "lint": "node -e \"console.log('Lint 未配置：Next v16 已移除 next lint，且项目未安装 eslint。可运行 npm run typecheck（当前会暴露历史类型错误）。')\"",
         "typecheck": "tsc --noEmit -p tsconfig.typecheck.json",

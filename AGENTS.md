@@ -122,6 +122,16 @@ This workspace is dedicated to the `coachlink` project.
 - 使用 `npm run dev` 启动（已配置自动缓存清理和错误恢复）
 - 如遇崩溃，脚本会自动清理 .next/dev 缓存并重启
 
+## Web 运行配置（强制）
+
+- Web 主站运行时配置采用严格单源模型，权威文档是 `docs/done/system-design/runtime-config.md`。
+- 根目录 `.env` 是主配置/bootstrap 文件，只负责选择 `CONFIG_SOURCE=local|apollo`，以及该来源需要的少量 bootstrap 字段。
+- `CONFIG_SOURCE=local` 时，只读取一个本地业务配置文件：`LOCAL_ENV_FILE` 指定的文件；未指定时开发默认 `.env.development`，生产 build/start 默认 `.env.production`。
+- `CONFIG_SOURCE=apollo` 时，只读取 `.env` 里的 Apollo bootstrap 字段，然后从 Apollo 拉取全部业务配置；不得再读取 `.env.development`、`.env.production`、`.env.local` 或把本地业务配置和 Apollo 合并。
+- 正常 Web 入口必须走 `scripts/config/bootstrap-env.mjs`：`npm run dev`、`npm run build`、`npm run start` 都已接入该 bootstrap。不要把脚本改回直接 `next dev` / `next build` / `next start`。
+- 不要在 Web runtime 入口新增 `dotenv.config()`。如果用户或协作者问“配置怎么生效”，回答时应先说明 `.env` 决定 source，再按 local/apollo 分支说明，不能说“复制 `.env.example` 到 `.env.local`”。
+- `NEXT_PUBLIC_*` 是构建期注入。若这些值来自 Apollo，Apollo 必须在 `npm run build` 前可用并包含正确值；构建后改 Apollo 不会更新已构建的浏览器 JS。
+
 ## 测试与 Push 前门禁
 
 ### 三类测试必须同时存在
