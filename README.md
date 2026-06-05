@@ -49,7 +49,7 @@ git remote set-url --add --push origin https://github.com/IntelliFit/coachlink
 
 目前项目配置了自动化部署，只需提交到main分支即可。
 
-以下是手动构建并推送的步骤。构建前请确认 `.env` 的 `CONFIG_SOURCE` 指向正确环境；如果使用 Apollo，`NEXT_PUBLIC_*` 配置会在 `npm run build` 时固化进前端产物。
+以下是手动构建并推送的步骤。Docker 镜像构建阶段默认不读取运行时 `.env`；K8s/容器运行阶段再挂载 `.env` 并由 `scripts/start-prod.mjs` 解析 `CONFIG_SOURCE`。如果某个 `NEXT_PUBLIC_*` 必须在构建期来自 Apollo，需要显式设置 `COACHLINK_BUILD_LOAD_RUNTIME_CONFIG=1`，否则应通过 build arg / CI 环境变量传入。
 
 **1. 登录腾讯云 CCR（如果还未登录）：**
 

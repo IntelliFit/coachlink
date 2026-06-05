@@ -23,7 +23,8 @@ RUN npm ci --legacy-peer-deps
 
 # 复制源码并构建
 COPY . .
-# 前端构建所需的环境变量（从 GitHub Secrets 作为 build-arg 传入）
+# 前端构建所需的公开环境变量（从 CI build-arg 传入）。
+# 运行时业务配置由 K8s/容器启动时挂载 .env 后通过 scripts/start-prod.mjs 加载。
 ARG NEXT_PUBLIC_SUPABASE_ANON_KEY
 ENV NEXT_PUBLIC_SUPABASE_ANON_KEY=$NEXT_PUBLIC_SUPABASE_ANON_KEY
 # 清理旧的构建产物，确保每次构建都是全新的
@@ -57,5 +58,5 @@ USER nextjs
 
 EXPOSE 3000
 
-# 环境变量通过 docker run --env-file 或 docker compose env_file 传入
-CMD ["node", "server.js"]
+# 运行时通过 K8s Secret/ConfigMap 挂载 .env，启动脚本会按 CONFIG_SOURCE=local|apollo 加载配置。
+CMD ["node", "scripts/start-prod.mjs"]

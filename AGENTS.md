@@ -129,9 +129,10 @@ This workspace is dedicated to the `coachlink` project.
 - `CONFIG_SOURCE=local` 时，只读取一个本地业务配置文件：`LOCAL_ENV_FILE` 指定的文件；未指定时开发默认 `.env.development`，生产 build/start 默认 `.env.production`。
 - `CONFIG_SOURCE=apollo` 时，只读取 `.env` 里的 Apollo bootstrap 字段，然后从 Apollo 拉取全部业务配置；不得再读取 `.env.development`、`.env.production`、`.env.local` 或把本地业务配置和 Apollo 合并。
 - `APOLLO_CONFIG_SERVER_URL` 必须填写最终地址，优先使用 `https://...`。不要使用会被 Nginx/Ingress 301 到 HTTPS 的 `http://...`，否则 Node fetch 跨协议重定向会丢失 `Authorization` / `Timestamp`，Apollo 日志会显示二者为 null。
-- 正常 Web 入口必须走 `scripts/config/bootstrap-env.mjs`：`npm run dev`、`npm run build`、`npm run start` 都已接入该 bootstrap。不要把脚本改回直接 `next dev` / `next build` / `next start`。
+- 运行时 Web 入口必须走 `scripts/config/bootstrap-env.mjs`：`npm run dev`、`npm run start` 和 Docker `CMD` 都已接入该 bootstrap。不要把运行入口改回直接 `next dev` / `next start` / `node server.js`。
+- `npm run build` 默认不读取运行时 `.env`，因为 Docker/K8s 镜像构建阶段通常还没有挂载运行时配置。只有明确设置 `COACHLINK_BUILD_LOAD_RUNTIME_CONFIG=1` 时，构建才会读取本地/Apollo runtime config。
 - 不要在 Web runtime 入口新增 `dotenv.config()`。如果用户或协作者问“配置怎么生效”，回答时应先说明 `.env` 决定 source，再按 local/apollo 分支说明，不能说“复制 `.env.example` 到 `.env.local`”。
-- `NEXT_PUBLIC_*` 是构建期注入。若这些值来自 Apollo，Apollo 必须在 `npm run build` 前可用并包含正确值；构建后改 Apollo 不会更新已构建的浏览器 JS。
+- `NEXT_PUBLIC_*` 是构建期注入。Docker/K8s 构建应通过 build arg / CI 环境变量提供这些公开值，或显式设置 `COACHLINK_BUILD_LOAD_RUNTIME_CONFIG=1` 从 Apollo 获取；构建后改 Apollo 不会更新已构建的浏览器 JS。
 
 ## 测试与 Push 前门禁
 
