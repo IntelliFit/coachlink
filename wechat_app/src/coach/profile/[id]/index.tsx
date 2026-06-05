@@ -394,6 +394,19 @@ function CoachProfile() {
           </View>
         )}
 
+        {isOwnProfile && isEditMode && (
+          <View className="section">
+            <Text className="section-title">证明材料</Text>
+            <Text className="section-content">成就、案例、证书、图片和视频材料请在教练申请资料中统一维护，保存后会同步展示到教练主页。</Text>
+            <Button
+              className="add-btn"
+              onClick={() => Taro.navigateTo({ url: '/coach/application' })}
+            >
+              管理证明材料
+            </Button>
+          </View>
+        )}
+
         {/* 主要成就 */}
         {((isEditMode && formData.achievements.length > 0) || (!isEditMode && profile.achievements && profile.achievements.length > 0)) && (
           <View className="section">

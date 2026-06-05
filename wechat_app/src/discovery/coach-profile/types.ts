@@ -80,6 +80,7 @@ export interface CoachProfileDetail {
   achievements?: string[]
   credentials?: Array<{ name?: string; url?: string }>
   caseStudies?: string[]
+  applicationMaterials?: any[]
   contactEmail?: string
   contactPhone?: string
   socialLinks?: Record<string, string>

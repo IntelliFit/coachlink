@@ -8,19 +8,16 @@ import { ProfileHeaderMerged } from './profile/ProfileHeaderMerged';
 import { PersonalInfoSection } from './profile/PersonalInfoSection';
 import { ProgressTimeline } from './profile/ProgressTimeline';
 import { CoachNotesSection } from './profile/CoachNotesSection';
-import { SportCardsDisplay } from './profile/SportCardsDisplay';
 import { PlanPreferencesDisplay } from './profile/PlanPreferencesDisplay';
 import { FitnessProfileCard } from './profile/FitnessProfileCard';
 import { ProfileData } from './profile/types';
 import { Skeleton } from 'primereact/skeleton';
 import { VideoCollectionSection } from './profile/VideoCollectionSection';
-import { E1RMProgressChart } from './profile/E1RMProgressChart';
 import QuestionnaireForm from '@/app/coach/profile/[id]/QuestionnaireForm';
 import { coachService } from '@/app/service/coachService';
 import type { TrainingItem } from '@/types/questionnaires';
 import { useToastContext } from '@/context/ToastContext';
-import { TabView, TabPanel } from 'primereact/tabview';
-import { BarChart3, FileText, History, Video as VideoIcon } from 'lucide-react';
+import { ChevronDown, FileText, History, Video as VideoIcon } from 'lucide-react';
 import { StrengthProgressSection } from './profile/StrengthProgressSection';
 import type { QueryCoachSubscription } from '@/app/api/subscription/coach-subscriptions/entity';
 
@@ -47,7 +44,7 @@ const StudentProfilePage: React.FC<StudentProfilePageProps> = ({ onBack }) => {
     const router = useRouter();
     const searchParams = useSearchParams();
     const { showToast } = useToastContext();
-    const [activeTab, setActiveTab] = useState(0);
+    const [openArchiveSection, setOpenArchiveSection] = useState<'progress' | 'questionnaire' | 'videos' | null>(null);
 
     const checkWechatBindStatus = async () => {
         const wechatBind = searchParams.get('wechatBind');
@@ -288,6 +285,35 @@ const StudentProfilePage: React.FC<StudentProfilePageProps> = ({ onBack }) => {
 
     // 判断是否所有关键数据都已加载（至少要有 profile 才能显示页面）
     const isInitialLoading = loadingProfile && loadingSubscription && loadingStats;
+    const archiveSections: Array<{
+        key: 'progress' | 'questionnaire' | 'videos';
+        title: string;
+        description: string;
+        meta: string;
+        icon: typeof History;
+    }> = [
+        {
+            key: 'progress',
+            title: '进步足迹',
+            description: '训练中的 PR、突破和重要记录',
+            meta: '突破记录',
+            icon: History,
+        },
+        {
+            key: 'questionnaire',
+            title: '需求问卷',
+            description: '与教练服务相关的训练需求',
+            meta: loadingSubscription || loadingPlanStatus ? '加载中' : subscriptions.length > 0 ? `${subscriptions.length} 份` : '暂无',
+            icon: FileText,
+        },
+        {
+            key: 'videos',
+            title: '训练视频',
+            description: '技术参考、反馈素材和精选视频',
+            meta: '视频集',
+            icon: VideoIcon,
+        },
+    ];
 
     if (isInitialLoading) {
         return (
@@ -330,6 +356,7 @@ const StudentProfilePage: React.FC<StudentProfilePageProps> = ({ onBack }) => {
                             editingVisible={personalInfoEditing}
                             onEditingChange={setPersonalInfoEditing}
                             hideDisplay={true}
+                            basicOnly={true}
                         />
 
                         <FitnessProfileCard
@@ -340,15 +367,8 @@ const StudentProfilePage: React.FC<StudentProfilePageProps> = ({ onBack }) => {
                     </>
                 ) : null}
 
-                {/* 首屏：高频信息尽量上移（运动数据 + 教练评语） */}
+                {/* 首屏：高频信息尽量上移 */}
                 <div className="space-y-3 sm:space-y-4">
-                    {/* 运动卡片 - 依赖 profile */}
-                    {loadingProfile ? (
-                        <Skeleton height="150px" className="rounded-2xl" />
-                    ) : profileData?.profile?.sport_cards ? (
-                        <SportCardsDisplay sportCards={profileData.profile.sport_cards as any} />
-                    ) : null}
-
                     {/* 教练评语 - 独立组件，自己管理 loading */}
                     {data && session?.user.id && (
                         <CoachNotesSection data={data} userId={session.user.id} />
@@ -362,75 +382,85 @@ const StudentProfilePage: React.FC<StudentProfilePageProps> = ({ onBack }) => {
                     )}
                 </div>
 
-                {/* 方案B：Tab 分页，避免无限下滑 */}
-                <div className="bg-surface rounded-2xl shadow-sm border border-surface-200 overflow-hidden">
-                    <TabView
-                        activeIndex={activeTab}
-                        onTabChange={(e) => setActiveTab(e.index)}
-                        scrollable
-                        className="transparent-tabs"
-                    >
-                        <TabPanel
-                            header={
-                                <div className="flex items-center gap-2">
-                                    <History className="w-4 h-4" />
-                                    <span>进步足迹</span>
-                                </div>
-                            }
-                        >
-                            <div className="p-4 sm:p-6">
-                                <ProgressTimeline data={data} />
-                            </div>
-                        </TabPanel>
+                <div className="space-y-3">
+                    <section className="rounded-2xl border border-surface-200 bg-surface p-4 shadow-sm sm:p-5">
+                        <div className="mb-3">
+                            <h2 className="text-base font-black text-surface-900">训练档案</h2>
+                            <p className="mt-1 text-sm text-surface-500">
+                                低频查看的记录已收纳，需要时再展开。
+                            </p>
+                        </div>
+                        <div className="space-y-2">
+                            {archiveSections.map((section) => {
+                                const Icon = section.icon;
+                                const active = openArchiveSection === section.key;
+                                return (
+                                    <button
+                                        key={section.key}
+                                        type="button"
+                                        onClick={() => setOpenArchiveSection(active ? null : section.key)}
+                                        className={`flex w-full items-center gap-3 rounded-xl border px-3 py-3 text-left transition-colors ${
+                                            active
+                                                ? 'border-primary-200 bg-primary-50/40'
+                                                : 'border-surface-100 bg-surface-50 hover:border-primary-100 hover:bg-primary-50/20'
+                                        }`}
+                                        aria-expanded={active}
+                                    >
+                                        <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
+                                            active ? 'bg-primary-500 text-white' : 'bg-surface text-surface-500'
+                                        }`}>
+                                            <Icon size={18} />
+                                        </span>
+                                        <span className="min-w-0 flex-1">
+                                            <span className="block text-sm font-black text-surface-900">{section.title}</span>
+                                            <span className="mt-0.5 block truncate text-xs text-surface-500">{section.description}</span>
+                                        </span>
+                                        <span className="shrink-0 text-xs font-bold text-surface-500">{section.meta}</span>
+                                        <ChevronDown
+                                            size={16}
+                                            className={`shrink-0 text-surface-400 transition-transform ${active ? 'rotate-180 text-primary-500' : ''}`}
+                                        />
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </section>
 
-                        <TabPanel
-                            header={
-                                <div className="flex items-center gap-2">
-                                    <FileText className="w-4 h-4" />
-                                    <span>需求问卷</span>
-                                </div>
-                            }
-                        >
-                            <div className="p-4 sm:p-6">
-                                {loadingSubscription || loadingPlanStatus ? (
-                                    <Skeleton height="200px" className="rounded-2xl" />
-                                ) : subscriptions.length > 0 ? (
-                                    <div className="space-y-4">
-                                        {subscriptions.map((sub, index) => (
-                                            <div key={sub.id} className="space-y-2">
-                                                <div className="text-sm text-surface-600 font-medium px-1">
-                                                    教练 {index + 1}：{getCoachDisplayName(sub)}
-                                                </div>
-                                                <PlanPreferencesDisplay
-                                                    subscribeData={Array.isArray(sub.subscribe_data) ? sub.subscribe_data : []}
-                                                    coachId={sub.coach?.user_id || sub.coach_id}
-                                                    planStatus={planStatusMap[sub.id]}
-                                                    onEditQuestionnaire={() => handleEditQuestionnaire(sub)}
-                                                />
+                    {openArchiveSection === 'progress' ? (
+                        <ProgressTimeline data={data} />
+                    ) : null}
+
+                    {openArchiveSection === 'questionnaire' ? (
+                        <section className="rounded-2xl border border-surface-200 bg-surface p-4 shadow-sm sm:p-5">
+                            {loadingSubscription || loadingPlanStatus ? (
+                                <Skeleton height="200px" className="rounded-2xl" />
+                            ) : subscriptions.length > 0 ? (
+                                <div className="space-y-4">
+                                    {subscriptions.map((sub, index) => (
+                                        <div key={sub.id} className="space-y-2">
+                                            <div className="text-sm font-medium text-surface-600">
+                                                教练 {index + 1}：{getCoachDisplayName(sub)}
                                             </div>
-                                        ))}
-                                    </div>
-                                ) : (
-                                    <div className="text-center py-10 text-surface-500">
-                                        暂无训练需求问卷数据
-                                    </div>
-                                )}
-                            </div>
-                        </TabPanel>
-
-                        <TabPanel
-                            header={
-                                <div className="flex items-center gap-2">
-                                    <VideoIcon className="w-4 h-4" />
-                                    <span>训练视频</span>
+                                            <PlanPreferencesDisplay
+                                                subscribeData={Array.isArray(sub.subscribe_data) ? sub.subscribe_data : []}
+                                                coachId={sub.coach?.user_id || sub.coach_id}
+                                                planStatus={planStatusMap[sub.id]}
+                                                onEditQuestionnaire={() => handleEditQuestionnaire(sub)}
+                                            />
+                                        </div>
+                                    ))}
                                 </div>
-                            }
-                        >
-                            <div className="p-4 sm:p-6">
-                                <VideoCollectionSection />
-                            </div>
-                        </TabPanel>
-                    </TabView>
+                            ) : (
+                                <div className="py-8 text-center text-sm text-surface-500">
+                                    暂无训练需求问卷数据
+                                </div>
+                            )}
+                        </section>
+                    ) : null}
+
+                    {openArchiveSection === 'videos' ? (
+                        <VideoCollectionSection />
+                    ) : null}
                 </div>
             </div>
 

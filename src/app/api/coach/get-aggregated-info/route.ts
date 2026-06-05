@@ -7,6 +7,7 @@ import type {
     GetAggregatedInfoResponseDto,
 } from "./entity";
 import redis from "@/lib/redisClient";
+import { filterPublicCoachApplicationMaterials } from "@/lib/coachApplicationMaterials";
 
 function stripSensitiveCoachFieldsForPublicView(coach: any) {
     if (!coach) return coach;
@@ -28,10 +29,31 @@ function stripSensitiveCoachFieldsForPublicView(coach: any) {
         delete (p as any).contactEmail;
         delete (p as any).contactPhone;
         delete (p as any).socialLinks;
+        if ((p as any).applicationMaterials) {
+            (p as any).applicationMaterials = filterPublicCoachApplicationMaterials(
+                (p as any).applicationMaterials,
+            );
+        }
         next.profile = p;
     }
 
     return next;
+}
+
+function filterCoachMaterialsForViewer(coach: any, canViewPrivate: boolean) {
+    if (!coach?.profile || typeof coach.profile !== "object" || canViewPrivate) {
+        return coach;
+    }
+
+    return {
+        ...coach,
+        profile: {
+            ...coach.profile,
+            applicationMaterials: filterPublicCoachApplicationMaterials(
+                coach.profile.applicationMaterials,
+            ),
+        },
+    };
 }
 
 /**
@@ -192,6 +214,7 @@ export async function POST(req: Request) {
                 contactEmail: latestApplication.contact_email,
                 contactPhone: latestApplication.contact_phone,
                 socialLinks: latestApplication.social_links,
+                applicationMaterials: (latestApplication as any).application_materials,
                 supportFocus: latestApplication.support_focus,
                 coachTrack: latestApplication.coach_track,
                 serviceModes: latestApplication.service_modes,
@@ -264,12 +287,18 @@ export async function POST(req: Request) {
             ...(templateSpecialties || []),
         ]),
     );
+    const canViewPrivateMaterials = Boolean(
+        session?.user?.is_admin || session?.user?.id === enrichedCoach.user_id,
+    );
+    const visibleCoach = isAuthenticated
+        ? filterCoachMaterialsForViewer(enrichedCoach, canViewPrivateMaterials)
+        : stripSensitiveCoachFieldsForPublicView(enrichedCoach);
 
     return NextResponse.json<ApiData<GetAggregatedInfoResponseDto>>({
         success: true,
         message: "获取成功",
         data: {
-            coach: isAuthenticated ? enrichedCoach : stripSensitiveCoachFieldsForPublicView(enrichedCoach),
+            coach: visibleCoach,
             contentCount,
             studentCount,
             reviewCount,

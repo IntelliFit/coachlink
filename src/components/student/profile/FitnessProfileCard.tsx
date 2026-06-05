@@ -8,7 +8,7 @@ import { Dropdown } from 'primereact/dropdown';
 import { InputNumber } from 'primereact/inputnumber';
 import { InputText } from 'primereact/inputtext';
 import { MultiSelect } from 'primereact/multiselect';
-import { Dumbbell, Pencil } from 'lucide-react';
+import { Activity, CalendarDays, ChevronDown, Clock, Dumbbell, Pencil, Target } from 'lucide-react';
 import { studentService } from '@/app/service/studentService';
 import { useToastContext } from '@/context/ToastContext';
 
@@ -165,7 +165,33 @@ export function FitnessProfileCard({ profile, questionnaire, onUpdate }: Fitness
     const [draftValue, setDraftValue] = useState<any>('');
     const [saving, setSaving] = useState(false);
     const [uploadingAvatar, setUploadingAvatar] = useState(false);
+    const [expanded, setExpanded] = useState(false);
     const answers = useMemo(() => (questionnaire?.answers || {}) as Record<string, any>, [questionnaire]);
+    const filledFieldCount = useMemo(() => (
+        fieldOrder.filter((field) => formatFieldValue(profile, answers, field) !== '未填写').length
+    ), [profile, answers]);
+    const summaryItems = useMemo(() => [
+        {
+            label: '目标',
+            value: formatFieldValue(profile, answers, 'fitness_goals'),
+            icon: Target,
+        },
+        {
+            label: '水平',
+            value: formatFieldValue(profile, answers, 'fitness_level'),
+            icon: Activity,
+        },
+        {
+            label: '频率',
+            value: formatFieldValue(profile, answers, 'weekly_frequency'),
+            icon: CalendarDays,
+        },
+        {
+            label: '时长',
+            value: formatFieldValue(profile, answers, 'session_duration'),
+            icon: Clock,
+        },
+    ], [profile, answers]);
 
     const openEditor = (field: FieldKey) => {
         const value = getFieldValue(profile, answers, field);
@@ -365,40 +391,95 @@ export function FitnessProfileCard({ profile, questionnaire, onUpdate }: Fitness
 
     return (
         <>
-            <section className="rounded-2xl border border-surface-200 bg-surface shadow-sm p-4 sm:p-6">
-                <div className="flex items-start justify-between gap-4 mb-5">
+            <section className="rounded-2xl border border-surface-200 bg-surface shadow-sm p-4 sm:p-5">
+                <div className="flex items-start justify-between gap-4">
                     <div>
                         <div className="flex items-center gap-2 text-surface-900 font-black text-lg">
                             <Dumbbell size={20} className="text-primary-500" />
                             健身资料卡
                         </div>
-                        <p className="mt-1 text-sm text-surface-500">
-                            与注册引导保持同一套问题。点击任意字段即可单独修改。
+                        <p className="mt-1 text-sm text-surface-500 leading-snug">
+                            训练目标、身体基础和训练条件都集中在这里。
                         </p>
                     </div>
+                    <button
+                        type="button"
+                        onClick={() => setExpanded((value) => !value)}
+                        className="inline-flex shrink-0 items-center gap-1 rounded-xl border border-surface-200 bg-surface-50 px-3 py-2 text-sm font-bold text-surface-700 hover:border-primary-200 hover:bg-primary-50/40 transition-colors"
+                        aria-expanded={expanded}
+                    >
+                        <span>{expanded ? '收起' : '展开'}</span>
+                        <ChevronDown
+                            size={16}
+                            className={`transition-transform ${expanded ? 'rotate-180' : ''}`}
+                        />
+                    </button>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {fieldOrder.map((field) => {
-                        const value = formatFieldValue(profile, answers, field);
+                <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                    {summaryItems.map((item) => {
+                        const Icon = item.icon;
+                        const isEmpty = item.value === '未填写';
                         return (
                             <button
-                                key={field}
+                                key={item.label}
                                 type="button"
-                                onClick={() => openEditor(field)}
-                                className="text-left rounded-2xl border border-surface-100 bg-surface-50 px-4 py-3 hover:border-primary-200 hover:bg-primary-50/40 transition-colors"
+                                onClick={() => {
+                                    if (item.label === '目标') openEditor('fitness_goals');
+                                    if (item.label === '水平') openEditor('fitness_level');
+                                    if (item.label === '频率') openEditor('weekly_frequency');
+                                    if (item.label === '时长') openEditor('session_duration');
+                                }}
+                                className="min-h-[76px] rounded-xl border border-surface-100 bg-surface-50 px-3 py-3 text-left transition-colors hover:border-primary-200 hover:bg-primary-50/30"
                             >
-                                <div className="flex items-center justify-between gap-3">
-                                    <span className="text-xs font-bold text-surface-500">{FIELD_LABELS[field]}</span>
-                                    <Pencil size={14} className="text-surface-400" />
+                                <div className="flex items-center gap-1.5 text-[11px] font-bold text-surface-500">
+                                    <Icon size={13} className="text-primary-500" />
+                                    {item.label}
                                 </div>
-                                <div className={`mt-1 text-sm font-black ${value === '未填写' ? 'text-surface-400' : 'text-surface-900'}`}>
-                                    {value}
+                                <div className={`mt-2 text-sm font-black leading-snug ${isEmpty ? 'text-surface-400' : 'text-surface-900'}`}>
+                                    {item.value}
                                 </div>
                             </button>
                         );
                     })}
                 </div>
+
+                <div className="mt-3 flex items-center justify-between gap-3 border-t border-surface-100 pt-3">
+                    <span className="text-xs font-medium text-surface-500">
+                        已完善 {filledFieldCount}/{fieldOrder.length} 项
+                    </span>
+                    <button
+                        type="button"
+                        onClick={() => setExpanded((value) => !value)}
+                        className="text-xs font-bold text-primary-600 hover:text-primary-700"
+                    >
+                        {expanded ? '隐藏完整资料' : '编辑完整资料'}
+                    </button>
+                </div>
+
+                {expanded ? (
+                    <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {fieldOrder.map((field) => {
+                            const value = formatFieldValue(profile, answers, field);
+                            return (
+                                <button
+                                    key={field}
+                                    type="button"
+                                    onClick={() => openEditor(field)}
+                                    className="text-left rounded-2xl border border-surface-100 bg-surface-50 px-4 py-3 hover:border-primary-200 hover:bg-primary-50/40 transition-colors"
+                                >
+                                    <div className="flex items-center justify-between gap-3">
+                                        <span className="text-xs font-bold text-surface-500">{FIELD_LABELS[field]}</span>
+                                        <Pencil size={14} className="text-surface-400" />
+                                    </div>
+                                    <div className={`mt-1 text-sm font-black ${value === '未填写' ? 'text-surface-400' : 'text-surface-900'}`}>
+                                        {value}
+                                    </div>
+                                </button>
+                            );
+                        })}
+                    </div>
+                ) : null}
             </section>
 
             <Dialog

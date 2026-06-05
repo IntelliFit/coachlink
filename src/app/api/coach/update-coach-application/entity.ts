@@ -1,4 +1,5 @@
 import { CoachApplicationRow } from "@/types";
+import type { CoachApplicationMaterial } from "@/lib/coachApplicationMaterials";
 
 // 请求参数的接口类型（地址平铺：省 province、市 city、区 county）
 export interface UpdateCoachApplicationDto {
@@ -19,6 +20,7 @@ export interface UpdateCoachApplicationDto {
     resumeUrl?: string | null;
     portfolioUrl?: string | null;
     socialLinks?: object | null;
+    applicationMaterials?: CoachApplicationMaterial[] | null;
     coachTrack?: string | null;
     serviceModes?: string[] | null;
     targetStudentLevels?: string[] | null;
