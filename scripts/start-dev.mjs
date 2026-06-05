@@ -1,16 +1,15 @@
-import dotenv from 'dotenv';
 import gradient from 'gradient-string';
 import os from 'os';
 import { spawn } from 'child_process';
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { bootstrapEnv, nextEnvForChild } from './config/bootstrap-env.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.join(__dirname, '..');
 
-dotenv.config({ path: `.env.${process.env.NODE_ENV || 'development'}` });
-dotenv.config({ path: '.env.local' });
+const envBootstrap = await bootstrapEnv({ mode: 'development', projectRoot });
 
 // 定义橙色系列渐变色
 const orangeGradient = gradient(['#FFA500', '#FF8C00', '#FF6347', '#FF4500']);
@@ -36,7 +35,8 @@ console.log(yellowOrangeGradient('🚀 COACHLINK DEVELOPMENT SERVER 🚀'));
 console.log(createSeparator(60));
 console.log(warmGradient('📋 Environment Configuration:'));
 console.log(orangeGradient(`📍 NODE_ENV: ${process.env.NODE_ENV || 'development'}`));
-console.log(orangeGradient(`📁 Environment file: .env.${process.env.NODE_ENV || 'development'}`));
+console.log(orangeGradient(`📁 Config source: ${envBootstrap.source}`));
+console.log(orangeGradient(`📄 Loaded files: ${envBootstrap.loadedFiles.join(', ')}`));
 console.log(orangeGradient(`🔗 Supabase URL: ${process.env.NEXT_SUPABASE_URL ? '✅ [SET]' : '❌ [NOT SET]'}`));
 console.log(createSeparator(60));
 
@@ -96,7 +96,7 @@ async function startDev() {
     const nextArgs = useFastDev ? ['next', 'dev'] : ['next', 'dev', '--webpack'];
     
     const spawnEnv = {
-        ...process.env,
+        ...nextEnvForChild(),
         // 增加内存限制
         NODE_OPTIONS: '--max-old-space-size=4096',
         // 使用轮询而非原生文件系统事件（更稳定）
