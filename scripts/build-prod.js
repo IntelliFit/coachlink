@@ -9,12 +9,19 @@ async function main() {
     console.log('='.repeat(50));
 
     const { bootstrapEnv, nextEnvForChild } = await import('./config/bootstrap-env.mjs');
-    const envBootstrap = await bootstrapEnv({
-        mode: 'production',
-        projectRoot: path.join(__dirname, '..'),
-    });
-    console.log(`Loaded config source: ${envBootstrap.source}`);
-    console.log(`Loaded files: ${envBootstrap.loadedFiles.join(', ')}`);
+    const buildLoadsRuntimeConfig = process.env.COACHLINK_BUILD_LOAD_RUNTIME_CONFIG === '1';
+    if (buildLoadsRuntimeConfig) {
+        const envBootstrap = await bootstrapEnv({
+            mode: 'production',
+            projectRoot: path.join(__dirname, '..'),
+        });
+        console.log(`Loaded config source: ${envBootstrap.source}`);
+        console.log(`Loaded files: ${envBootstrap.loadedFiles.join(', ')}`);
+    } else {
+        process.env.__NEXT_PROCESSED_ENV = 'true';
+        console.log('Skipped runtime config bootstrap during build.');
+        console.log('Set COACHLINK_BUILD_LOAD_RUNTIME_CONFIG=1 only when build-time NEXT_PUBLIC_* values must be loaded from .env/Apollo.');
+    }
 
     // 清理旧的构建产物，确保每次构建都是全新的
     const nextDir = path.join(__dirname, '..', '.next');
@@ -63,8 +70,12 @@ async function main() {
 
             // 3. 拷贝人体地图 SVG 素材到 standalone/docs/assets
             const targetBodyMapAssetsPath = path.join(standalonePath, 'docs', 'assets');
-            console.log('  - Copying docs/assets to standalone...');
-            copyFolderSync(bodyMapAssetsPath, targetBodyMapAssetsPath);
+            if (fs.existsSync(bodyMapAssetsPath)) {
+                console.log('  - Copying docs/assets to standalone...');
+                copyFolderSync(bodyMapAssetsPath, targetBodyMapAssetsPath);
+            } else {
+                console.log('  - Skipping docs/assets copy; source directory not present in this build context.');
+            }
 
             // 4. 拷贝配置启动包装脚本，保证 standalone 运行时也先执行本地/Apollo 二选一配置加载。
             console.log('  - Copying config bootstrap scripts to standalone...');

@@ -63,19 +63,20 @@ JSON Apollo responses with a `configurations` object are also supported, but `.e
 
 ## Startup Path
 
-All normal Web entry points run through `scripts/config/bootstrap-env.mjs`:
+Runtime entry points run through `scripts/config/bootstrap-env.mjs`:
 
 - `npm run dev` -> `scripts/start-dev.mjs`
-- `npm run build` -> `scripts/build-prod.js`
 - `npm run start` -> `scripts/start-prod.mjs`
 
 The bootstrap sets `__NEXT_PROCESSED_ENV=true` before launching Next.js. This prevents Next.js from auto-loading `.env.development`, `.env.production`, `.env.local`, or `.env` after the selected source has already been applied.
 
 The standalone build copies `scripts/start-prod.mjs` and `scripts/config/` into `.next/standalone/`, and rewrites the standalone `package.json` start script to preserve the same bootstrap behavior after deployment.
 
+`npm run build` does not load runtime config by default. Docker image builds normally do not have the runtime `.env` mounted yet, so build-time config must come from normal build args or process env. Set `COACHLINK_BUILD_LOAD_RUNTIME_CONFIG=1` only for environments that intentionally want the build to fetch local/Apollo runtime config before `next build`.
+
 ## Public Env Caveat
 
-`NEXT_PUBLIC_*` values are compiled into the browser bundle during `next build`. If a public value is managed by Apollo, Apollo must be reachable and contain the correct value before the production build runs. Runtime changes to `NEXT_PUBLIC_*` after build do not update already-built client JavaScript.
+`NEXT_PUBLIC_*` values are compiled into the browser bundle during `next build`. Runtime changes to `NEXT_PUBLIC_*` after build do not update already-built client JavaScript. For Docker/K8s builds, pass required public values as build args or CI environment variables, or explicitly opt in to `COACHLINK_BUILD_LOAD_RUNTIME_CONFIG=1`.
 
 Server-only values such as service-role keys, payment secrets, cron secrets, Redis credentials, and LLM keys are read at process startup.
 

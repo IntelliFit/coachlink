@@ -2,7 +2,6 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import dotenv from "dotenv";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(__dirname, "../..");
@@ -87,7 +86,7 @@ function readEnvFile(filePath, options = {}) {
         return {};
     }
     const raw = fs.readFileSync(filePath, "utf8");
-    return dotenv.parse(raw);
+    return parseEnvContent(raw);
 }
 
 function applyEnv(values, options = {}) {
@@ -269,12 +268,64 @@ function parseApolloContent(namespace, content) {
         return stringifyValues(parsed);
     }
 
-    const env = dotenv.parse(trimmed);
+    const env = parseEnvContent(trimmed);
     if (Object.keys(env).length > 0) {
         return unescapeEnvValues(env);
     }
 
     throw new Error(`Apollo namespace ${namespace} is not valid .env/properties or JSON content`);
+}
+
+function parseEnvContent(content) {
+    const out = {};
+    for (const rawLine of String(content || "").split(/\r?\n/)) {
+        const line = rawLine.trim();
+        if (!line || line.startsWith("#")) {
+            continue;
+        }
+        const normalized = line.startsWith("export ") ? line.slice("export ".length).trim() : line;
+        const eqIndex = normalized.indexOf("=");
+        if (eqIndex <= 0) {
+            continue;
+        }
+        const key = normalized.slice(0, eqIndex).trim();
+        if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(key)) {
+            continue;
+        }
+        out[key] = parseEnvValue(normalized.slice(eqIndex + 1));
+    }
+    return out;
+}
+
+function parseEnvValue(rawValue) {
+    let value = String(rawValue || "").trim();
+    if (!value) {
+        return "";
+    }
+    const quote = value[0];
+    if ((quote === '"' || quote === "'") && value.endsWith(quote)) {
+        value = value.slice(1, -1);
+        if (quote === '"') {
+            value = value.replace(/\\n/g, "\n").replace(/\\r/g, "\r").replace(/\\t/g, "\t");
+        }
+        return value;
+    }
+    return stripInlineComment(value).trim();
+}
+
+function stripInlineComment(value) {
+    let quote = "";
+    for (let i = 0; i < value.length; i++) {
+        const ch = value[i];
+        if ((ch === '"' || ch === "'") && value[i - 1] !== "\\") {
+            quote = quote === ch ? "" : quote || ch;
+            continue;
+        }
+        if (ch === "#" && !quote && (i === 0 || /\s/.test(value[i - 1]))) {
+            return value.slice(0, i);
+        }
+    }
+    return value;
 }
 
 function unescapeEnvValues(values) {
