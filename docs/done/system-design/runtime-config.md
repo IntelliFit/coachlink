@@ -40,7 +40,7 @@ In Apollo mode, `.env` contains only Apollo bootstrap settings:
 
 ```env
 CONFIG_SOURCE=apollo
-APOLLO_CONFIG_SERVER_URL=http://apollo-configservice.example.com
+APOLLO_CONFIG_SERVER_URL=https://apollo-configservice.example.com
 APOLLO_APP_ID=coachlink
 APOLLO_CLUSTER=local
 APOLLO_NAMESPACES=application.env

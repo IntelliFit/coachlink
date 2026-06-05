@@ -162,10 +162,11 @@ async function fetchApolloNamespace(options) {
     const headers = apolloAuthHeaders(rawUrl, options.appId, options.accessKeySecret);
     let rawResp;
     try {
-        rawResp = await fetch(rawUrl, { headers });
+        rawResp = await fetch(rawUrl, { headers, redirect: "manual" });
     } catch (error) {
         throw new Error(`fetch Apollo namespace ${options.namespace} failed at ${rawUrl}: ${error.message}`);
     }
+    assertNoApolloRedirect(rawResp, rawUrl, options.namespace);
     if (rawResp.ok) {
         return decodeApolloRawConfigBody(await rawResp.text());
     }
@@ -175,10 +176,12 @@ async function fetchApolloNamespace(options) {
     try {
         jsonResp = await fetch(jsonUrl, {
             headers: apolloAuthHeaders(jsonUrl, options.appId, options.accessKeySecret),
+            redirect: "manual",
         });
     } catch (error) {
         throw new Error(`fetch Apollo namespace ${options.namespace} failed at ${jsonUrl}: ${error.message}`);
     }
+    assertNoApolloRedirect(jsonResp, jsonUrl, options.namespace);
     const body = await jsonResp.text();
     if (!jsonResp.ok) {
         throw new Error(
@@ -188,11 +191,21 @@ async function fetchApolloNamespace(options) {
     return body;
 }
 
-function buildApolloRawConfigUrl(options) {
-    const url = new URL(
-        `configfiles/${encodeURIComponent(options.appId)}/${encodeURIComponent(options.cluster)}/${encodeURIComponent(options.namespace)}`,
-        `${options.configServerUrl}/`,
+function assertNoApolloRedirect(response, requestUrl, namespace) {
+    if (response.status < 300 || response.status >= 400) {
+        return;
+    }
+    const location = response.headers.get("location") || "";
+    throw new Error(
+        `Apollo namespace ${namespace} request was redirected: ${requestUrl} -> ${location}. ` +
+            "Set APOLLO_CONFIG_SERVER_URL to the final URL, usually https://..., because Authorization/Timestamp headers are not preserved across redirects.",
     );
+}
+
+function buildApolloRawConfigUrl(options) {
+    const base = new URL(`${options.configServerUrl}/`);
+    const url = new URL("configfiles/", base);
+    url.pathname = joinUrlPath(url.pathname, options.appId, options.cluster, options.namespace);
     url.searchParams.set("ip", "127.0.0.1");
     if (options.label) {
         url.searchParams.set("label", options.label);
@@ -201,15 +214,20 @@ function buildApolloRawConfigUrl(options) {
 }
 
 function buildApolloJsonConfigUrl(options) {
-    const url = new URL(
-        `configs/${encodeURIComponent(options.appId)}/${encodeURIComponent(options.cluster)}/${encodeURIComponent(options.namespace)}`,
-        `${options.configServerUrl}/`,
-    );
+    const base = new URL(`${options.configServerUrl}/`);
+    const url = new URL("configs/", base);
+    url.pathname = joinUrlPath(url.pathname, options.appId, options.cluster, options.namespace);
     url.searchParams.set("ip", "127.0.0.1");
     if (options.label) {
         url.searchParams.set("label", options.label);
     }
     return url.toString();
+}
+
+function joinUrlPath(prefix, ...parts) {
+    const cleanPrefix = String(prefix || "").replace(/\/+$/, "");
+    const cleanParts = parts.map((part) => String(part || "").replace(/^\/+|\/+$/g, ""));
+    return [cleanPrefix, ...cleanParts].filter(Boolean).join("/");
 }
 
 function apolloAuthHeaders(requestUrl, appId, secret) {
