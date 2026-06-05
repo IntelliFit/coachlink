@@ -1,5 +1,26 @@
-import { BaseService } from '../../utils/request'
+import { API_BASE_URL, BaseService } from '../../utils/request'
 import Taro from '@tarojs/taro'
+
+interface CoachApplicationMaterial {
+  id: string
+  category: 'achievement' | 'case' | 'credential' | 'media'
+  title: string
+  summary?: string | null
+  detail?: string | null
+  isPublic: boolean
+  media: Array<{
+    id: string
+    type: 'image' | 'video'
+    url: string
+    thumbnailUrl?: string | null
+    storageBucket?: string | null
+    storagePath?: string | null
+    fileName?: string | null
+    fileSizeBytes?: number | null
+    contentType?: string | null
+  }>
+  links: Array<{ id: string; label?: string | null; url: string }>
+}
 
 interface GetAllCoachesDto {
   page?: number
@@ -399,6 +420,7 @@ class CoachService extends BaseService {
     resumeUrl?: string | null
     portfolioUrl?: string | null
     socialLinks?: Record<string, string> | null
+    applicationMaterials?: CoachApplicationMaterial[] | null
     coachTrack?: string | null
     serviceModes?: string[] | null
     targetStudentLevels?: string[] | null
@@ -433,6 +455,7 @@ class CoachService extends BaseService {
     resumeUrl?: string | null
     portfolioUrl?: string | null
     socialLinks?: Record<string, string> | null
+    applicationMaterials?: CoachApplicationMaterial[] | null
     coachTrack?: string | null
     serviceModes?: string[] | null
     targetStudentLevels?: string[] | null
@@ -488,12 +511,56 @@ class CoachService extends BaseService {
       contactEmail?: string | null
       contactPhone?: string | null
       socialLinks?: Record<string, string> | null
+      applicationMaterials?: CoachApplicationMaterial[] | null
     }
     invitationCode?: string
     invitationMode?: 'exclusive' | 'open'
   }) {
     const res = await this.post<{ success: boolean; message?: string }>('update-coach-profile', reqData)
     return res
+  }
+
+  /** 上传教练申请/主页材料（小程序专用） */
+  async uploadApplicationMediaMiniApp(filePath: string) {
+    let token = ''
+    try {
+      token = Taro.getStorageSync('token') || ''
+    } catch (e) {
+      console.error('获取token失败:', e)
+    }
+
+    return new Promise<{
+      type: 'image' | 'video'
+      url: string
+      thumbnailUrl?: string | null
+      storageBucket: string
+      storagePath: string
+      fileName: string
+      fileSizeBytes: number
+      contentType: string
+    } | null>((resolve, reject) => {
+      Taro.uploadFile({
+        url: `${API_BASE_URL}${this.baseUrl}/upload-application-media`,
+        filePath,
+        name: 'file',
+        header: {
+          Authorization: token ? `Bearer ${token}` : ''
+        },
+        success: (res: any) => {
+          try {
+            const data = JSON.parse(res.data)
+            if (data.success && data.data) {
+              resolve(data.data)
+            } else {
+              reject(new Error(data.message || '上传失败'))
+            }
+          } catch (e) {
+            reject(e)
+          }
+        },
+        fail: reject
+      })
+    })
   }
 
   /** 获取学员计划历史 */

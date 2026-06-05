@@ -15,6 +15,10 @@ import {
     sanitizeServiceModes,
     sanitizeTargetStudentLevels,
 } from "@/lib/coachApplicationOptions";
+import {
+    deriveLegacyFieldsFromMaterials,
+    normalizeCoachApplicationMaterials,
+} from "@/lib/coachApplicationMaterials";
 
 function buildCoachProfileFromApplication(application: any) {
     const profile: Record<string, any> = {};
@@ -39,6 +43,9 @@ function buildCoachProfileFromApplication(application: any) {
     }
     if (application?.social_links !== undefined) {
         profile.socialLinks = application.social_links;
+    }
+    if (application?.application_materials !== undefined) {
+        profile.applicationMaterials = application.application_materials;
     }
 
     return profile;
@@ -95,6 +102,26 @@ export async function POST(req: Request) {
         }, { status: 403 });
     }
 
+    const applicationMaterialsInput =
+        body.applicationMaterials !== undefined
+            ? body.applicationMaterials
+            : (existingApplication as any).application_materials;
+    const applicationMaterials = normalizeCoachApplicationMaterials(
+        applicationMaterialsInput,
+        {
+            achievements: body.achievements ?? existingApplication.achievements,
+            caseStudies: body.caseStudies ?? existingApplication.case_studies,
+            credentials: (body.credentials ?? existingApplication.credentials) as any,
+            socialLinks: (body.socialLinks ?? existingApplication.social_links) as any,
+        },
+    );
+    const legacyFields = deriveLegacyFieldsFromMaterials(applicationMaterials, {
+        achievements: body.achievements ?? existingApplication.achievements,
+        caseStudies: body.caseStudies ?? existingApplication.case_studies,
+        credentials: (body.credentials ?? existingApplication.credentials) as any,
+        socialLinks: (body.socialLinks ?? existingApplication.social_links) as any,
+    });
+
     // 构建更新对象
     const updateData: any = {};
 
@@ -110,16 +137,22 @@ export async function POST(req: Request) {
         updateData.years_experience = body.yearsExperience;
     }
     if (body.achievements !== undefined) {
-        updateData.achievements = body.achievements;
+        updateData.achievements = legacyFields.achievements;
     }
     if (body.teachingPhilosophy !== undefined) {
         updateData.teaching_philosophy = body.teachingPhilosophy;
     }
     if (body.credentials !== undefined) {
-        updateData.credentials = body.credentials;
+        updateData.credentials = legacyFields.credentials;
     }
     if (body.caseStudies !== undefined) {
-        updateData.case_studies = body.caseStudies;
+        updateData.case_studies = legacyFields.caseStudies;
+    }
+    if (body.applicationMaterials !== undefined) {
+        updateData.application_materials = applicationMaterials;
+        updateData.achievements = legacyFields.achievements;
+        updateData.credentials = legacyFields.credentials;
+        updateData.case_studies = legacyFields.caseStudies;
     }
     if (body.contactEmail !== undefined) {
         updateData.contact_email = body.contactEmail;
@@ -132,7 +165,7 @@ export async function POST(req: Request) {
         updateData.portfolio_url = body.portfolioUrl;
     }
     if (body.socialLinks !== undefined) {
-        updateData.social_links = body.socialLinks;
+        updateData.social_links = legacyFields.socialLinks;
     }
     if (body.coachTrack !== undefined) {
         updateData.coach_track = sanitizeCoachTrack(body.coachTrack);

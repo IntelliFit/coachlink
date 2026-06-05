@@ -60,7 +60,6 @@ export async function POST(req: Request) {
         .from("coach_questionnaires")
         .update({
             status: "draft",
-            is_active: false,
             updated_at: new Date().toISOString(),
         } as any)
         .eq("coach_id", userId)
@@ -84,7 +83,6 @@ export async function POST(req: Request) {
         .from("coach_questionnaires")
         .update({
             status: "active",
-            is_active: true,
             version: nextVersion,
             updated_at: new Date().toISOString(),
         } as any)

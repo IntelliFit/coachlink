@@ -17,12 +17,14 @@ import {
   MapPin,
   Share2,
   Sparkles,
+  Zap,
 } from 'lucide-react';
 import { STUDENT_TOOLBOX_LINKS } from '@/config/toolbox';
 import { AERO_CONTAINER_6XL, AERO_SUBTITLE } from '@/components/streetlifting-index/aero';
 import { useToastContext } from '@/context/ToastContext';
 
 const TOOL_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
+  'power-analysis': Zap,
   'strength-calculator': Calculator,
   'bar-locations': MapPin,
   'community-data': Database,

@@ -5,6 +5,7 @@ import { Dialog } from 'primereact/dialog';
 import { Button } from 'primereact/button';
 import { QRCodeSVG } from 'qrcode.react';
 import { useToastContext } from '@/context/ToastContext';
+import { extractHuifuPayTarget, isHttpUrl } from './huifuPayInfo';
 
 type Props = {
   visible: boolean;
@@ -22,30 +23,6 @@ function isMobileDevice() {
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
     navigator.userAgent,
   );
-}
-
-function extractHuifuPayTarget(payInfo: unknown): string {
-  if (!payInfo) return '';
-  if (typeof payInfo === 'string') return payInfo.trim();
-  if (typeof payInfo !== 'object') return '';
-
-  const value = payInfo as Record<string, unknown>;
-  const directValue =
-    value.qr_code ??
-    value.qrcode ??
-    value.qrCode ??
-    value.code_url ??
-    value.codeUrl ??
-    value.pay_url ??
-    value.payUrl ??
-    value.url ??
-    value.paymentUrl;
-
-  return typeof directValue === 'string' ? directValue.trim() : '';
-}
-
-function isHttpUrl(value: string): boolean {
-  return /^https?:\/\//i.test(value);
 }
 
 export default function ContentPurchaseDialog({

@@ -65,6 +65,9 @@ const CoachIntroduction: React.FC<CoachIntroductionProps> = ({ coach, userSubscr
 
     const aboutProfile = (coach.profile || {}) as Record<string, any>;
     const caseStudyCount = Array.isArray(aboutProfile.caseStudies) ? aboutProfile.caseStudies.length : 0;
+    const publicMaterialCount = Array.isArray(aboutProfile.applicationMaterials)
+        ? aboutProfile.applicationMaterials.length
+        : 0;
     const coachTrack = (coach as any).coach_track;
     const serviceModes = Array.isArray((coach as any).service_modes) ? (coach as any).service_modes : [];
     const targetStudentLevels = Array.isArray((coach as any).target_student_levels) ? (coach as any).target_student_levels : [];
@@ -238,11 +241,12 @@ const CoachIntroduction: React.FC<CoachIntroductionProps> = ({ coach, userSubscr
                         </div>
 
                         {/* 核心统计：数值中心化布局 */}
-                        <div className="grid grid-cols-3 gap-4 mb-10">
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
                             {[
                                 { label: '教学内容', value: aggregatedInfo?.contentCount || 0, icon: <BookOpen size={16} /> },
                                 { label: '活跃学员', value: aggregatedInfo?.studentCount || 0, icon: <Users size={16} /> },
                                 { label: '综合评分', value: aggregatedInfo?.averageRating?.toFixed(1) || '0.0', icon: <Star size={16} /> },
+                                { label: '公开材料', value: publicMaterialCount, icon: <Award size={16} /> },
                             ].map((stat, i) => (
                                 <div key={i} className="bg-surface-50/50 border border-surface-100 p-4 rounded-[24px] flex flex-col gap-1 hover:bg-surface hover:shadow-md transition-all">
                                     <div className="text-surface-400">{stat.icon}</div>

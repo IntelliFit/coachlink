@@ -1,4 +1,5 @@
 import { CoachApplicationRow } from "@/types";
+import type { CoachApplicationMaterial } from "@/lib/coachApplicationMaterials";
 
 export interface CredentialItem {
     name: string;
@@ -27,6 +28,7 @@ export interface CreateCoachApplicationDto {
     resumeUrl?: string | null;
     portfolioUrl?: string | null;
     socialLinks?: object | null;
+    applicationMaterials?: CoachApplicationMaterial[] | null;
     coachTrack?: string | null;
     serviceModes?: string[] | null;
     targetStudentLevels?: string[] | null;

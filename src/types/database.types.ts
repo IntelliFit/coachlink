@@ -568,6 +568,7 @@ export type Database = {
         Row: {
           achievements: string[] | null
           address: string | null
+          application_materials: Json
           applied_at: string
           avatar_url: string | null
           bio: string | null
@@ -604,6 +605,7 @@ export type Database = {
         Insert: {
           achievements?: string[] | null
           address?: string | null
+          application_materials?: Json
           applied_at?: string
           avatar_url?: string | null
           bio?: string | null
@@ -640,6 +642,7 @@ export type Database = {
         Update: {
           achievements?: string[] | null
           address?: string | null
+          application_materials?: Json
           applied_at?: string
           avatar_url?: string | null
           bio?: string | null
