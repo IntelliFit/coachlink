@@ -14,9 +14,15 @@ import { useToastContext } from '@/context/ToastContext';
 import { useAnalytics } from '@/hooks/useAnalytics';
 import type { Product, PricingTier, DurationOption } from '@/app/api/coach/get-pricing/entity';
 import { AeroInputNumber } from '@/components/AeroInputNumber';
+import Link from 'next/link';
 
 interface PricingSettingsProps {
     coachId: string;
+}
+
+interface ReceivingAccountStatus {
+    huifu_open_status?: string | null;
+    huifu_open_msg?: string | null;
 }
 
 const PricingSettings: React.FC<PricingSettingsProps> = ({ coachId }) => {
@@ -26,6 +32,7 @@ const PricingSettings: React.FC<PricingSettingsProps> = ({ coachId }) => {
     const [loading, setLoading] = useState<boolean>(true);
     const [editDialog, setEditDialog] = useState(false);
     const [currentProduct, setCurrentProduct] = useState<Product | null>(null);
+    const [receivingAccount, setReceivingAccount] = useState<ReceivingAccountStatus | null>(null);
     const { showToast } = useToastContext();
     const { trackEvent } = useAnalytics();
 
@@ -44,14 +51,38 @@ const PricingSettings: React.FC<PricingSettingsProps> = ({ coachId }) => {
     const loadPricing = async () => {
         if (!coachId) { setLoading(false); return; }
         try {
-            const res = await coachService.getPricing({ userId: coachId });
+            const [res, walletRes] = await Promise.all([
+                coachService.getPricing({ userId: coachId }),
+                fetch('/api/coach/wallet', { method: 'POST' })
+                    .then((response) => response.ok ? response.json() : null)
+                    .catch(() => null),
+            ]);
             if (res?.products) setProducts(res.products);
+            if (walletRes?.success && walletRes?.data) {
+                setReceivingAccount({
+                    huifu_open_status: walletRes.data.huifu_open_status ?? null,
+                    huifu_open_msg: walletRes.data.huifu_open_msg ?? null,
+                });
+            }
         } catch (error) {
             showToast({ severity: 'error', summary: '获取定价信息失败' });
         } finally { setLoading(false); }
     };
 
+    const requireReceivingAccount = () => {
+        if (receivingAccount?.huifu_open_status === 'opened') {
+            return true;
+        }
+        showToast({
+            severity: 'warn',
+            summary: '请先绑定银行卡',
+            detail: '完成收款账户开通和银行卡绑定后，才能设置订阅套餐价格。',
+        });
+        return false;
+    };
+
     const handleAddProduct = (tier: PricingTier) => {
+        if (!requireReceivingAccount()) return;
         const newProduct: Product = {
             id: `prod_${Date.now()}`,
             tier,
@@ -65,11 +96,13 @@ const PricingSettings: React.FC<PricingSettingsProps> = ({ coachId }) => {
     };
 
     const handleEditProduct = (product: Product) => {
+        if (!requireReceivingAccount()) return;
         setCurrentProduct({ ...product });
         setEditDialog(true);
     };
 
     const handleDeleteProduct = (productId: string) => {
+        if (!requireReceivingAccount()) return;
         setProducts(products.filter(p => p.id !== productId));
         trackEvent('coach_product_delete', 'business', { product_id: productId });
         showToast({ severity: 'success', summary: '已删除产品' });
@@ -109,6 +142,7 @@ const PricingSettings: React.FC<PricingSettingsProps> = ({ coachId }) => {
     };
 
     const handleSaveAll = async () => {
+        if (!requireReceivingAccount()) return;
         setSaving(true);
         try {
             const result = await coachService.updatePricing({ products });
@@ -146,6 +180,7 @@ const PricingSettings: React.FC<PricingSettingsProps> = ({ coachId }) => {
     };
 
     // --- 渲染组件 ---
+    const receivingAccountReady = receivingAccount?.huifu_open_status === 'opened';
 
     const renderProductCard = (product: Product) => (
         <div key={product.id} className="group relative bg-white border border-surface-200 rounded-2xl p-5 hover:border-primary-400 hover:shadow-md transition-all duration-300">
@@ -196,6 +231,7 @@ const PricingSettings: React.FC<PricingSettingsProps> = ({ coachId }) => {
                         icon="pi pi-plus" 
                         size="small" 
                         text 
+                        disabled={!receivingAccountReady}
                         onClick={() => handleAddProduct(tier)} 
                         className="font-bold rounded-lg"
                     />
@@ -219,6 +255,35 @@ const PricingSettings: React.FC<PricingSettingsProps> = ({ coachId }) => {
     return (
         <div className=" overflow-hidden">
             <div className="">
+                <div className={`mb-6 rounded-2xl border p-4 sm:p-5 ${
+                    receivingAccountReady
+                        ? 'border-emerald-100 bg-emerald-50/70'
+                        : 'border-amber-200 bg-amber-50'
+                }`}>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div>
+                            <div className={`text-sm font-black ${receivingAccountReady ? 'text-emerald-700' : 'text-amber-800'}`}>
+                                {receivingAccountReady ? '收款账户已开通' : '先开通收款账户，学生才能完成付款'}
+                            </div>
+                            <p className={`mt-1 text-xs sm:text-sm leading-relaxed ${receivingAccountReady ? 'text-emerald-700/80' : 'text-amber-800/80'}`}>
+                                {receivingAccountReady
+                                    ? '套餐可以正常通过平台收款，收入会按结算规则进入钱包。'
+                                    : '请先完成收款账户开通和银行卡绑定；未绑卡前不能新增、编辑或保存订阅套餐价格。'}
+                            </p>
+                            {!receivingAccountReady && receivingAccount?.huifu_open_msg && (
+                                <p className="mt-2 text-[11px] text-amber-700">{receivingAccount.huifu_open_msg}</p>
+                            )}
+                        </div>
+                        {!receivingAccountReady && (
+                            <Link
+                                href="/dashboard/wallet/merchant"
+                                className="inline-flex items-center justify-center rounded-xl bg-[#CF6D4E] px-4 py-2.5 text-sm font-bold text-white transition-opacity hover:opacity-90"
+                            >
+                                去绑定银行卡
+                            </Link>
+                        )}
+                    </div>
+                </div>
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
                     <div>
                         <h2 className="text-2xl font-black text-surface-900 tracking-tight">服务方案定价</h2>
@@ -228,7 +293,7 @@ const PricingSettings: React.FC<PricingSettingsProps> = ({ coachId }) => {
                         label="更新定价" 
                         icon="pi pi-check-circle" 
                         loading={saving} 
-                        disabled={saving}
+                        disabled={saving || !receivingAccountReady}
                         onClick={handleSaveAll}
                         className="shadow-lg shadow-primary-200 rounded-xl px-6 py-3"
                     />

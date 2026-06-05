@@ -56,6 +56,7 @@ export default function CoachProfile() {
   } | null>(null)
 
   const coachDisplayName = aggregatedInfo?.coach?.name || coach?.name || ''
+  const receivingAccountReady = (aggregatedInfo?.coach?.huifu_open_status || coach?.huifu_open_status) === 'opened'
 
   const load = useCallback(async () => {
     const instance = Taro.getCurrentInstance()
@@ -321,6 +322,15 @@ export default function CoachProfile() {
       return
     }
 
+    if (!receivingAccountReady) {
+      Taro.showToast({
+        title: '教练收款账户尚未开通，暂时不能购买/续费',
+        icon: 'none',
+        duration: 2500
+      })
+      return
+    }
+
     if (showRenewBtn && renewMode) {
       if (userSubscription?.product_id && product.id !== userSubscription.product_id) {
         Taro.showToast({
@@ -532,6 +542,7 @@ export default function CoachProfile() {
               onSelectProduct={handleSelectProduct}
               userSubscription={userSubscription}
               renewMode={renewMode}
+              receivingAccountReady={receivingAccountReady}
               onEnterRenewMode={handleEnterRenewMode}
               onStartTestRenew={IS_DEV ? handleStartTestRenew : undefined}
             />

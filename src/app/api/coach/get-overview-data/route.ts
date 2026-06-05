@@ -21,7 +21,7 @@ export async function POST(req: Request) {
     // 1. 获取教练基础信息（可添加缓存逻辑）
     const { data: coach, error: coachError } = await supabase
         .from("coaches")
-        .select("id")
+        .select("id, huifu_open_status, huifu_card_token, huifu_open_msg")
         .eq("user_id", userId)
         .single();
 
@@ -246,6 +246,9 @@ export async function POST(req: Request) {
         ? coachQuestionResult.data.some((row: any) => row?.status === "active")
         : false;
     const pricingReady = Boolean(coachPricingResult.data);
+    const receivingAccountReady = Boolean(
+        coach.huifu_open_status === "opened" && coach.huifu_card_token,
+    );
 
     const ratings = ratingResult.data || [];
     const averageRating = ratings.length > 0
@@ -267,6 +270,9 @@ export async function POST(req: Request) {
             planTemplateCount,
             questionReady,
             pricingReady,
+            receivingAccountReady,
+            huifuOpenStatus: coach.huifu_open_status ?? null,
+            huifuOpenMsg: coach.huifu_open_msg ?? null,
         },
     });
 }

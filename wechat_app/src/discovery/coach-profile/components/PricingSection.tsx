@@ -8,6 +8,7 @@ export interface PricingSectionProps {
   onSelectProduct?: (product: Product, duration: DurationOption) => void
   userSubscription?: QueryCoachSubscription | null
   renewMode?: boolean
+  receivingAccountReady?: boolean
   onEnterRenewMode?: () => void
   onStartTestRenew?: () => void
 }
@@ -17,6 +18,7 @@ export default function PricingSection({
   onSelectProduct,
   userSubscription,
   renewMode,
+  receivingAccountReady = true,
   onEnterRenewMode,
   onStartTestRenew
 }: PricingSectionProps) {
@@ -60,6 +62,12 @@ export default function PricingSection({
         <Text className='section-title'>订阅价格</Text>
         <Text className='pricing-hint'>点击套餐后将在小程序内打开与网站一致的购买页，优先使用支付宝完成支付</Text>
       </View>
+      {!receivingAccountReady && (
+        <View className='pricing-receiving-warning'>
+          <Text className='pricing-receiving-title'>教练收款账户尚未开通</Text>
+          <Text className='pricing-receiving-desc'>暂时不能通过平台购买或续费，请稍后再试或联系教练。</Text>
+        </View>
+      )}
       {products.length === 0 ? (
         <Text className='pricing-empty'>暂无套餐</Text>
       ) : (
@@ -73,8 +81,10 @@ export default function PricingSection({
               {(p.duration_options || []).map((opt, i) => (
                 <View
                   key={i}
-                  className={`duration-option duration-option-clickable ${opt.is_recommend ? 'duration-option-rec' : ''}`}
-                  onClick={() => onSelectProduct?.(p, opt)}
+                  className={`duration-option ${receivingAccountReady ? 'duration-option-clickable' : 'duration-option-disabled'} ${opt.is_recommend ? 'duration-option-rec' : ''}`}
+                  onClick={() => {
+                    if (receivingAccountReady) onSelectProduct?.(p, opt)
+                  }}
                 >
                   <Text>{opt.months}个月 ¥{opt.price}</Text>
                 </View>

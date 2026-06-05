@@ -32,7 +32,8 @@ import {
     Sun,
     Bell,
     Search,
-    User
+    User,
+    Bot
 } from 'lucide-react';
 
 export default function NavigationCoach() {
@@ -156,6 +157,7 @@ export default function NavigationCoach() {
             { label: '概览', icon: LayoutDashboard, url: '/dashboard/overview', command: () => router.push('/dashboard/overview'), template: itemRenderer },
             { label: '视频点评', icon: PlayCircle, url: '/dashboard/videos', command: () => router.push('/dashboard/videos'), template: itemRenderer },
             { label: '我的学员', icon: Users, url: '/dashboard/students', command: () => router.push('/dashboard/students'), template: itemRenderer },
+            { label: '自动化', icon: Bot, url: '/dashboard/automation', command: () => router.push('/dashboard/automation'), template: itemRenderer },
             { label: '内容管理', icon: FileEdit, url: '/dashboard/content', command: () => router.push('/dashboard/content'), template: itemRenderer },
             { label: '计划库', icon: ClipboardList, url: '/dashboard/plan-lib', command: () => router.push('/dashboard/plan-lib'), template: itemRenderer },
         ];
@@ -168,9 +170,10 @@ export default function NavigationCoach() {
         { label: '动作库', icon: 'pi pi-database', command: () => { router.push('/dashboard/action-lib'); setVisibleLeft(false); } },
         { separator: true },
         { label: '订阅设置', icon: 'pi pi-tags', command: () => { router.push('/dashboard/pricing'); setVisibleLeft(false); } },
+        { label: '自动化设置', icon: 'pi pi-bolt', command: () => { router.push('/dashboard/automation'); setVisibleLeft(false); } },
         { label: '邀请学员', icon: 'pi pi-user-plus', command: () => { router.push('/coach/settings/invitation'); setVisibleLeft(false); } },
         { label: '学员问卷', icon: 'pi pi-file', command: () => { router.push('/dashboard/questionnaire'); setVisibleLeft(false); } },
-        { label: '收款码设置', icon: 'pi pi-qrcode', command: () => { router.push('/coach/settings/payment'); setVisibleLeft(false); } },
+        { label: '收款账户', icon: 'pi pi-wallet', command: () => { router.push('/dashboard/wallet/merchant'); setVisibleLeft(false); } },
         { separator: true },
         {
             label: '切换至学员端', icon: 'pi pi-user', command: async () => {

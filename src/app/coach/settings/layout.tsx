@@ -10,7 +10,7 @@ interface CoachSettingsLayoutProps {
 // 采用 PrimeIcons 字符串定义
 const SETTINGS_TABS = [
     { label: '邀请设置', path: '/coach/settings/invitation', icon: 'pi pi-link' },
-    { label: '收款设置', path: '/coach/settings/payment', icon: 'pi pi-qrcode' },
+    { label: '收款账户', path: '/dashboard/wallet/merchant', icon: 'pi pi-wallet' },
     { label: '账号安全', path: '/coach/settings/security', icon: 'pi pi-shield' }
 ];
 

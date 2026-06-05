@@ -132,6 +132,10 @@ export default function CoachWalletPage() {
         return <div className="flex justify-center items-center h-96"><i className="pi pi-spin pi-spinner text-4xl text-primary-500"></i></div>;
     }
 
+    const pendingSettlementAmount = data?.pending_settlement_amount ?? 0;
+    const displayedFrozenAmount = (data?.frozen_amount ?? 0) + pendingSettlementAmount;
+    const hasPendingSettlements = Boolean(data?.pending_settlements?.length);
+
     return (
         <div className="container mx-auto p-4 space-y-6">
             <h1 className="text-2xl font-bold mb-4 text-surface-900">我的钱包</h1>
@@ -146,7 +150,10 @@ export default function CoachWalletPage() {
                     </div>
                     <div className="mt-6 flex justify-between items-end">
                         <div className="space-y-1">
-                            <p className="text-xs text-green-100">冻结金额: ¥ {(data?.frozen_amount ?? 0).toFixed(2)}</p>
+                            <p className="text-xs text-green-100">冻结金额: ¥ {displayedFrozenAmount.toFixed(2)}</p>
+                            {pendingSettlementAmount > 0 ? (
+                                <p className="text-xs text-green-100">待结算收入: ¥ {pendingSettlementAmount.toFixed(2)}</p>
+                            ) : null}
                             <p className="text-xs text-green-100">账户总余额: ¥ {(data?.gross_balance ?? data?.balance ?? 0).toFixed(2)}</p>
                             <p className="text-sm font-semibold text-green-50">累计总收入: ¥ {(data?.total_income ?? 0).toFixed(2)}</p>
                         </div>
@@ -268,8 +275,53 @@ export default function CoachWalletPage() {
                             {message ? <div className={`text-sm mt-3 ${message.includes('成功') || message.includes('提交') ? 'text-green-600' : 'text-red-600'}`}>{message}</div> : null}
                         </div>
                     ) : null}
-                    {data?.transactions && data.transactions.length > 0 ? (
-                        data.transactions.map((tx) => {
+                    {hasPendingSettlements || (data?.transactions && data.transactions.length > 0) ? (
+                        <>
+                        {data?.pending_settlements?.map((settlement) => {
+                            const statusLabel = settlement.status === 'split_failed'
+                                ? '待重试结算'
+                                : settlement.status === 'processing'
+                                    ? '结算处理中'
+                                    : '待结算';
+                            const availableAt = settlement.eligible_at
+                                ? format(new Date(settlement.eligible_at), 'yyyy-MM-dd HH:mm')
+                                : null;
+
+                            return (
+                                <div key={settlement.id} className="flex items-center justify-between py-3 border-b border-surface-100 last:border-0">
+                                    <div className="flex items-start gap-3">
+                                        <div className="p-2 rounded-full bg-amber-100">
+                                            <ArrowDownLeft className="w-4 h-4 text-amber-600" />
+                                        </div>
+                                        <div>
+                                            <p className="font-medium text-sm text-surface-900">
+                                                来自{settlement.student_name || '学员'}的订阅
+                                            </p>
+                                            {settlement.subject ? (
+                                                <p className="text-xs text-surface-500">{settlement.subject}</p>
+                                            ) : null}
+                                            <p className="text-xs text-surface-500">{format(new Date(settlement.created_at), 'yyyy-MM-dd HH:mm')}</p>
+                                            {availableAt ? (
+                                                <p className="text-xs text-amber-600">预计可结算: {availableAt}</p>
+                                            ) : null}
+                                            <Link href={`/dashboard/wallet/order/${settlement.alipay_order_id}`} className="text-xs text-primary-600 hover:underline mt-0.5 inline-block">
+                                                查看订单详情
+                                            </Link>
+                                        </div>
+                                    </div>
+                                    <div className="text-right">
+                                        <span className="inline-flex items-center rounded-full bg-amber-50 px-2 py-1 text-xs font-medium text-amber-700 mb-1">
+                                            {statusLabel}
+                                        </span>
+                                        <p className="font-mono font-medium text-amber-600">+{settlement.amount.toFixed(2)}</p>
+                                        {settlement.platform_fee > 0 ? (
+                                            <p className="text-xs text-surface-400">平台服务费: -{settlement.platform_fee.toFixed(2)}</p>
+                                        ) : null}
+                                    </div>
+                                </div>
+                            );
+                        })}
+                        {data?.transactions?.map((tx) => {
                             const isSubscriptionIncome = tx.type === 'income' && (tx.order_type === 'subscription' || tx.order_type === 'subscription_renew' || tx.order_type === 'coach_subscription' || tx.order_type === 'coach_subscription_renew') && Boolean(tx.student_id);
                             const fallbackTitle = tx.description || (tx.type === 'income' ? '课程收入' : tx.type === 'withdrawal' ? '提现' : '退款');
                             const primaryContent = isSubscriptionIncome && tx.student_id ? (
@@ -334,7 +386,8 @@ export default function CoachWalletPage() {
                                     </div>
                                 </div>
                             );
-                        })
+                        })}
+                        </>
                     ) : (
                         <div className="text-center py-10 text-surface-500">暂无交易记录</div>
                     )}

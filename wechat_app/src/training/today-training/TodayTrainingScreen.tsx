@@ -1039,6 +1039,10 @@ function TodayTrainingScreen() {
     Taro.navigateTo({ url: '/training/impromptu-training' })
   }, [])
 
+  const handleFindCoach = useCallback(() => {
+    Taro.navigateTo({ url: '/discovery/index' })
+  }, [])
+
   const handleUpdateProfile = useCallback(() => {
     Taro.navigateTo({ url: '/me/profile/detail/index' })
   }, [])
@@ -1655,6 +1659,13 @@ function TodayTrainingScreen() {
                   <View className='action-btn action-btn-outline' onClick={handleContactCoach}>
                     <Text><Message size={20} /></Text>
                     <Text>联系教练</Text>
+                  </View>
+                )}
+
+                {!activeSubscription?.id && (
+                  <View className='action-btn action-btn-outline' onClick={handleFindCoach}>
+                    <Text><Target size={20} /></Text>
+                    <Text>找教练</Text>
                   </View>
                 )}
               </View>

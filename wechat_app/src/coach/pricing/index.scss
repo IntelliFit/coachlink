@@ -24,7 +24,7 @@
   }
 
   .add-all-btn {
-    background: #3b82f6;
+    background: #CF6D4E;
     color: #fff;
     border-radius: 8px;
     padding: 8px 16px;
@@ -34,6 +34,10 @@
     cursor: pointer;
     user-select: none;
     -webkit-tap-highlight-color: transparent;
+
+    &.disabled {
+      opacity: 0.45;
+    }
   }
 
   .add-all-btn-text {
@@ -78,7 +82,7 @@
   }
 
   .tier-add-btn {
-    background: #3b82f6;
+    background: #CF6D4E;
     color: #fff;
     border-radius: 6px;
     padding: 6px 12px;
@@ -88,6 +92,10 @@
     cursor: pointer;
     user-select: none;
     -webkit-tap-highlight-color: transparent;
+
+    &.disabled {
+      opacity: 0.45;
+    }
   }
 
   .tier-add-btn-text {
@@ -135,7 +143,7 @@
   }
 
   .edit-btn {
-    background: #3b82f6;
+    background: #CF6D4E;
     color: #fff;
     border-radius: 6px;
     padding: 6px 12px;
@@ -203,7 +211,7 @@
 
   .price-value {
     font-size: 16px;
-    color: #3b82f6;
+    color: #CF6D4E;
   }
 
   .duration-text {
@@ -247,7 +255,7 @@
   }
 
   .empty-add-btn {
-    background: #3b82f6;
+    background: #CF6D4E;
     color: #fff;
     border: none;
     border-radius: 8px;
@@ -261,5 +269,67 @@
     padding: 40px 20px;
     color: #9ca3af;
     font-size: 14px;
+  }
+
+  .receiving-card {
+    margin: 0 24rpx 32rpx;
+    padding: 32rpx;
+    border-radius: 24rpx;
+    background: #fff;
+    border: 1px solid #fde68a;
+    box-sizing: border-box;
+  }
+
+  .receiving-card.ready {
+    border-color: #bbf7d0;
+    background: #f0fdf4;
+  }
+
+  .receiving-card.pending {
+    background: #fffbeb;
+  }
+
+  .receiving-main {
+    display: flex;
+    flex-direction: column;
+    gap: 8rpx;
+  }
+
+  .receiving-title {
+    font-size: 15px;
+    font-weight: 800;
+    color: #92400e;
+  }
+
+  .receiving-card.ready .receiving-title {
+    color: #166534;
+  }
+
+  .receiving-desc,
+  .receiving-msg {
+    font-size: 13px;
+    color: #92400e;
+    line-height: 1.5;
+  }
+
+  .receiving-card.ready .receiving-desc {
+    color: #166534;
+  }
+
+  .receiving-btn {
+    margin-top: 24rpx;
+    height: 72rpx;
+    padding: 0 24rpx;
+    border-radius: 16rpx;
+    background: #CF6D4E;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .receiving-btn-text {
+    font-size: 14px;
+    font-weight: 700;
+    color: #fff;
   }
 }

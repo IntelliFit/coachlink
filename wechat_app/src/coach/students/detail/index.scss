@@ -5,7 +5,7 @@
   padding-bottom: 48rpx;
 
   // 通用卡片样式
-  .info-card, .questionnaire-card, .plan-card, .plan-history-card, .manage-card, .feedbacks-card {
+  .info-card, .automation-card, .questionnaire-card, .plan-card, .plan-history-card, .manage-card, .feedbacks-card {
     background: #fff;
     border-radius: 16rpx;
     padding: 24rpx;
@@ -332,6 +332,59 @@
     .question-empty {
       font-size: 24rpx;
       color: #6b7280;
+    }
+  }
+
+  .automation-card {
+    .automation-list {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .automation-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16rpx;
+      min-height: 80rpx;
+      border-bottom: 1rpx solid #f0f0f0;
+
+      &:last-child {
+        border-bottom: none;
+      }
+    }
+
+    .automation-label {
+      font-size: 28rpx;
+      color: #333333;
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+
+    .automation-value {
+      min-width: 280rpx;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 8rpx;
+      font-size: 28rpx;
+      font-weight: 700;
+      color: #CF6D4E;
+      text-align: right;
+    }
+
+    .automation-chevron {
+      font-size: 36rpx;
+      color: #c4c4c4;
+      line-height: 1;
+    }
+
+    .automation-note {
+      display: block;
+      margin-top: 16rpx;
+      font-size: 24rpx;
+      color: #999999;
+      line-height: 36rpx;
     }
   }
 

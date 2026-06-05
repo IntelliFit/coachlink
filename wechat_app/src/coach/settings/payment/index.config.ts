@@ -1,5 +1,5 @@
 export default {
-  navigationBarTitleText: '收款码设置',
+  navigationBarTitleText: '个人收款码已停用',
   navigationBarBackgroundColor: '#FFFFFF',
   navigationBarTextStyle: 'black' as const,
   animationType: 'none'

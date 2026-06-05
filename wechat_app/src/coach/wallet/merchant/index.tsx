@@ -1,6 +1,11 @@
 import React, { useState } from 'react'
-import { Button, Image, Input, ScrollView, Text, View } from '@tarojs/components'
+import { Button, Image, Input, Picker, ScrollView, Text, View } from '@tarojs/components'
 import Taro from '@tarojs/taro'
+import {
+  getHuifuRegionCities,
+  huifuBankOptions,
+  huifuRegionOptions,
+} from '@/config/huifuAccountOptions'
 import { coachService } from '@/services/coach/coachService'
 import './index.scss'
 
@@ -64,6 +69,10 @@ function CoachWalletMerchant() {
   const [step, setStep] = useState<0 | 1>(0)
   const [form, setForm] = useState<FormState>(initialForm)
   const [submitting, setSubmitting] = useState(false)
+  const selectedBankIndex = huifuBankOptions.findIndex(option => option.code === form.bankCode)
+  const cityOptions = getHuifuRegionCities(form.provId)
+  const selectedProvinceIndex = huifuRegionOptions.findIndex(option => option.code === form.provId)
+  const selectedCityIndex = cityOptions.findIndex(option => option.code === form.areaId)
 
   function update<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm(prev => ({ ...prev, [key]: value }))
@@ -208,7 +217,7 @@ function CoachWalletMerchant() {
         ) : (
           <View className="form-card">
             <Text className="section-title">提现银行卡</Text>
-            <Text className="section-hint">个人教练固定绑定本人对私银行卡。银行编码、支行联行号、省市编码请按汇付/银行编码表填写。</Text>
+            <Text className="section-hint">个人教练固定绑定本人对私银行卡。请选择银行卡所属银行，系统会自动带出银行编码；支行联行号是具体开户支行的清算编号。</Text>
             <View className="field">
               <Text className="label">银行卡户名 *</Text>
               <Input className="input" value={form.cardName} placeholder="通常与身份证姓名一致" onInput={e => update('cardName', e.detail.value)} />
@@ -218,25 +227,81 @@ function CoachWalletMerchant() {
               <Input className="input" type="number" value={form.cardNo} placeholder="请输入银行卡号" onInput={e => update('cardNo', e.detail.value)} />
             </View>
             <View className="field">
-              <Text className="label">开户银行编码 *</Text>
-              <Input className="input" value={form.bankCode} placeholder="例如 01030000" onInput={e => update('bankCode', e.detail.value)} />
+              <Text className="label">开户银行 *</Text>
+              <Picker
+                mode="selector"
+                range={huifuBankOptions}
+                rangeKey="name"
+                value={selectedBankIndex >= 0 ? selectedBankIndex : 0}
+                onChange={e => {
+                  const option = huifuBankOptions[Number(e.detail.value)]
+                  if (option) update('bankCode', option.code)
+                }}
+              >
+                <View className={`picker-field ${selectedBankIndex >= 0 ? '' : 'placeholder'}`}>
+                  {selectedBankIndex >= 0 ? huifuBankOptions[selectedBankIndex].name : '请选择银行卡所属银行'}
+                </View>
+              </Picker>
+              <Text className="field-hint">选择后自动提交开户银行编码；列表没有时请联系平台运营补充，不要随便选择相近银行。</Text>
             </View>
             <View className="field">
-              <Text className="label">支行联行号 *</Text>
-              <Input className="input" value={form.branchCode} placeholder="请输入支行联行号" onInput={e => update('branchCode', e.detail.value)} />
+              <Text className="label">开户银行编码</Text>
+              <View className={`code-preview ${form.bankCode ? '' : 'placeholder'}`}>
+                {form.bankCode || '选择银行后自动生成'}
+              </View>
+            </View>
+            <View className="field">
+              <Text className="label">具体支行联行号 *</Text>
+              <Input className="input" type="number" maxlength={12} value={form.branchCode} placeholder="请输入 12 位支行联行号" onInput={e => update('branchCode', e.detail.value.replace(/\D/g, '').slice(0, 12))} />
             </View>
             <View className="field">
               <Text className="label">支行名称 *</Text>
               <Input className="input" value={form.branchName} placeholder="例如 中国农业银行xx支行" onInput={e => update('branchName', e.detail.value)} />
             </View>
-            <View className="two-cols">
-              <View className="field half">
-                <Text className="label">省编码 *</Text>
-                <Input className="input" value={form.provId} placeholder="例如 310000" onInput={e => update('provId', e.detail.value)} />
-              </View>
-              <View className="field half">
-                <Text className="label">市/区编码 *</Text>
-                <Input className="input" value={form.areaId} placeholder="例如 310100" onInput={e => update('areaId', e.detail.value)} />
+            <View className="help-card">
+              <Text className="help-title">不知道支行联行号怎么找？</Text>
+              <Text className="help-text">优先在银行 App/网银查看开户网点，或拨打银行卡背面的银行客服电话，询问“开户支行名称”和“12 位支行联行号/CNAPS 号”。</Text>
+              <Text className="help-text">银行卡所属银行、开户银行选择、支行联行号必须属于同一家银行；不确定时不要用相近银行编码代替。</Text>
+            </View>
+            <View className="field">
+              <Text className="label">开户省份 *</Text>
+              <Picker
+                mode="selector"
+                range={huifuRegionOptions}
+                rangeKey="name"
+                value={selectedProvinceIndex >= 0 ? selectedProvinceIndex : 0}
+                onChange={e => {
+                  const option = huifuRegionOptions[Number(e.detail.value)]
+                  if (option) setForm(prev => ({ ...prev, provId: option.code, areaId: '' }))
+                }}
+              >
+                <View className={`picker-field ${selectedProvinceIndex >= 0 ? '' : 'placeholder'}`}>
+                  {selectedProvinceIndex >= 0 ? huifuRegionOptions[selectedProvinceIndex].name : '请选择开户省份'}
+                </View>
+              </Picker>
+            </View>
+            <View className="field">
+              <Text className="label">开户城市/区县 *</Text>
+              <Picker
+                mode="selector"
+                range={cityOptions}
+                rangeKey="name"
+                value={selectedCityIndex >= 0 ? selectedCityIndex : 0}
+                disabled={!form.provId}
+                onChange={e => {
+                  const option = cityOptions[Number(e.detail.value)]
+                  if (option) update('areaId', option.code)
+                }}
+              >
+                <View className={`picker-field ${selectedCityIndex >= 0 ? '' : 'placeholder'}`}>
+                  {selectedCityIndex >= 0 ? cityOptions[selectedCityIndex].name : (form.provId ? '请选择开户城市/区县' : '请先选择省份')}
+                </View>
+              </Picker>
+            </View>
+            <View className="field">
+              <Text className="label">地区编码</Text>
+              <View className={`code-preview ${form.provId && form.areaId ? '' : 'placeholder'}`}>
+                {form.provId && form.areaId ? `${form.provId} / ${form.areaId}` : '选择省份和城市/区县后自动生成'}
               </View>
             </View>
             <View className="action-row">

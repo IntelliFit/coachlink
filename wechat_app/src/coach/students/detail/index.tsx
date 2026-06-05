@@ -1,4 +1,4 @@
-import { View, Text, Image, Input, Textarea } from '@tarojs/components'
+import { View, Text, Image, Input, Textarea, Picker } from '@tarojs/components'
 import { useState, useEffect } from 'react'
 import Taro, { useRouter } from '@tarojs/taro'
 import { coachService } from '@/services/coach/coachService'
@@ -89,6 +89,47 @@ interface PlanHistoryItem {
 
 type PlanHistorySource = 'all' | 'coach' | 'student'
 
+type AutomationOverride = {
+  initialPlanMode: string | null
+  feedbackAdjustmentMode: string | null
+  nextPhaseMode: string | null
+  riskGuardMode: string | null
+}
+
+const AUTOMATION_DEFAULT_OVERRIDE: AutomationOverride = {
+  initialPlanMode: null,
+  feedbackAdjustmentMode: null,
+  nextPhaseMode: null,
+  riskGuardMode: null
+}
+
+const AUTOMATION_OPTIONS = {
+  initialPlanMode: [
+    { value: '', label: '继承全局' },
+    { value: 'auto_publish', label: '自动发放' },
+    { value: 'draft', label: '生成草稿' },
+    { value: 'off', label: '关闭' }
+  ],
+  feedbackAdjustmentMode: [
+    { value: '', label: '继承全局' },
+    { value: 'draft_notify', label: '草稿并通知' },
+    { value: 'auto_apply_low_risk', label: '低风险自动应用' },
+    { value: 'auto_apply_safe', label: '安全反馈自动应用' },
+    { value: 'off', label: '关闭' }
+  ],
+  nextPhaseMode: [
+    { value: '', label: '继承全局' },
+    { value: 'draft_notify', label: '草稿并通知' },
+    { value: 'auto_publish_if_credits', label: '额度足够自动发布' },
+    { value: 'off', label: '关闭' }
+  ],
+  riskGuardMode: [
+    { value: '', label: '继承全局' },
+    { value: 'strict', label: '严格' },
+    { value: 'normal', label: '普通' }
+  ]
+}
+
 type QuestionnaireItem = Record<string, any> & {
   id?: string
   type?: 'tags' | 'times' | 'rm' | 'option' | 'text' | string
@@ -106,6 +147,30 @@ const FEEDBACK_DIFFICULTY_MAP: Record<number, string> = {
   3: '刚好',
   4: '有点难',
   5: '太难了'
+}
+
+function normalizeAutomationOverride(row: any): AutomationOverride {
+  return {
+    initialPlanMode: row?.initial_plan_mode ?? null,
+    feedbackAdjustmentMode: row?.feedback_adjustment_mode ?? null,
+    nextPhaseMode: row?.next_phase_mode ?? null,
+    riskGuardMode: row?.risk_guard_mode ?? null
+  }
+}
+
+function getAutomationOptionIndex(
+  options: Array<{ value: string; label: string }>,
+  value: string | null
+) {
+  const index = options.findIndex((item) => item.value === (value || ''))
+  return index >= 0 ? index : 0
+}
+
+function getAutomationOptionLabel(
+  options: Array<{ value: string; label: string }>,
+  value: string | null
+) {
+  return options[getAutomationOptionIndex(options, value)]?.label || options[0]?.label || ''
 }
 
 export default function StudentDetailPage() {
@@ -134,6 +199,8 @@ export default function StudentDetailPage() {
   const [planHistoryLoading, setPlanHistoryLoading] = useState(false)
   const [planHistoryPage, setPlanHistoryPage] = useState(1)
   const [planHistorySource, setPlanHistorySource] = useState<PlanHistorySource>('all')
+  const [automationOverride, setAutomationOverride] = useState<AutomationOverride>(AUTOMATION_DEFAULT_OVERRIDE)
+  const [automationSaving, setAutomationSaving] = useState(false)
 
   useEffect(() => {
     if (!subscriptionId) {
@@ -148,11 +215,14 @@ export default function StudentDetailPage() {
       setLoading(true)
       
       // 并行加载学员数据、计划实例
-      const [studentRes, instanceRes, reviewsRes] = await Promise.all([
+      const [studentRes, instanceRes, reviewsRes, automationRes] = await Promise.all([
         coachService.getStudent({ subscriptionId, need1RM: true }),
         planLibService.getInstance({ subscriptionId }),
-        subscriptionService.getCoachReviews({ subscriptionId }).catch(() => null)
+        subscriptionService.getCoachReviews({ subscriptionId }).catch(() => null),
+        coachService.getStudentAutomationOverride({ subscriptionId }).catch(() => null)
       ])
+
+      setAutomationOverride(normalizeAutomationOverride((automationRes as any)?.override))
 
       if (studentRes?.student) {
         setStudent(studentRes.student)
@@ -504,6 +574,28 @@ export default function StudentDetailPage() {
       console.error('[coach/students/detail] go assign plan failed:', err)
       Taro.showToast({ title: '页面跳转失败', icon: 'none' })
     })
+  }
+
+  const handleSaveAutomationOverride = async () => {
+    if (!subscriptionId) return
+    setAutomationSaving(true)
+    try {
+      const res = await coachService.updateStudentAutomationOverride({
+        subscriptionId,
+        initialPlanMode: automationOverride.initialPlanMode || null,
+        feedbackAdjustmentMode: automationOverride.feedbackAdjustmentMode || null,
+        nextPhaseMode: automationOverride.nextPhaseMode || null,
+        riskGuardMode: automationOverride.riskGuardMode || null
+      })
+      if (!res) throw new Error('save automation override failed')
+      setAutomationOverride(normalizeAutomationOverride((res as any).override))
+      Taro.showToast({ title: '自动化设置已保存', icon: 'success' })
+    } catch (error) {
+      console.error('[coach/student-detail] save automation override failed:', error)
+      Taro.showToast({ title: '保存失败', icon: 'none' })
+    } finally {
+      setAutomationSaving(false)
+    }
   }
 
   const normalizeWeeks = (value: string, fallback = 0) => {
@@ -905,6 +997,52 @@ export default function StudentDetailPage() {
             <Text className='value'>{formatDate(student.start_date)}</Text>
           </View>
         </View>
+      </View>
+
+      <View className='automation-card'>
+        <View className='card-header'>
+          <Text className='card-title'>单学员自动化覆盖</Text>
+          <View
+            className={`btn-small-primary ${automationSaving ? 'disabled' : ''}`}
+            onClick={() => {
+              if (automationSaving) return
+              handleSaveAutomationOverride()
+            }}
+          >
+            <Text className='btn-text'>{automationSaving ? '保存中' : '保存'}</Text>
+          </View>
+        </View>
+        <View className='automation-list'>
+          {([
+            ['initialPlanMode', '首个计划', AUTOMATION_OPTIONS.initialPlanMode],
+            ['feedbackAdjustmentMode', '反馈调整', AUTOMATION_OPTIONS.feedbackAdjustmentMode],
+            ['nextPhaseMode', '下一阶段', AUTOMATION_OPTIONS.nextPhaseMode],
+            ['riskGuardMode', '风险保护', AUTOMATION_OPTIONS.riskGuardMode]
+          ] as const).map(([key, label, options]) => (
+            <View className='automation-row' key={key}>
+              <Text className='automation-label'>{label}</Text>
+              <Picker
+                mode='selector'
+                range={options.map((option) => option.label)}
+                value={getAutomationOptionIndex(options, automationOverride[key])}
+                onChange={(event) => {
+                  const index = Number(event.detail.value || 0)
+                  const nextValue = options[index]?.value || null
+                  setAutomationOverride((prev) => ({
+                    ...prev,
+                    [key]: nextValue || null
+                  }))
+                }}
+              >
+                <View className='automation-value'>
+                  <Text>{getAutomationOptionLabel(options, automationOverride[key])}</Text>
+                  <Text className='automation-chevron'>›</Text>
+                </View>
+              </Picker>
+            </View>
+          ))}
+        </View>
+        <Text className='automation-note'>疼痛、伤病等高风险反馈始终需要教练确认。</Text>
       </View>
 
       <View className='questionnaire-card'>

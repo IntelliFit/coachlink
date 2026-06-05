@@ -11,6 +11,7 @@ import zhCN from '@nutui/nutui-react-taro/dist/locales/zh-CN'
 import { authService } from '@/services/authService'
 import { smsService } from '@/services/smsService'
 import { sesService } from '@/services/sesService'
+import { studentOnboardingService } from '@/services/studentOnboardingService'
 import SliderCaptcha from '@/components/SliderCaptcha'
 import { User, Lock, Ticket, Message } from '@nutui/icons-react-taro'
 import loginBg from '@/assets/images/login-bg.jpg'
@@ -86,7 +87,11 @@ function Register() {
   }
 
   const handlePostLoginSuccess = async () => {
-    await Taro.reLaunch({ url: authService.buildPostAuthHomeUrl() })
+    const targetUrl = await studentOnboardingService.resolvePostLoginUrl({
+      loggedInUser: authService.getCurrentUser(),
+      fallbackUrl: authService.buildPostAuthHomeUrl()
+    })
+    await Taro.reLaunch({ url: targetUrl })
   }
 
   const handleRegister = async () => {

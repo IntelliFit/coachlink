@@ -8,7 +8,7 @@ import { studentService } from '@/services/studentService'
 import './index.scss'
 
 type ProfileFieldKey = 'avatar_url' | 'nickname' | 'gender' | 'height' | 'weight' | 'fitness_goal' | 'fitness_level'
-type QuestionnaireFieldKey = 'target_body_parts' | 'interest_tags' | 'equipment' | 'session_duration'
+type QuestionnaireFieldKey = 'fitness_goals' | 'target_body_parts' | 'equipment' | 'weekly_frequency' | 'session_duration'
 type FieldKey = ProfileFieldKey | QuestionnaireFieldKey
 
 interface FitnessProfile {
@@ -23,8 +23,10 @@ interface FitnessProfile {
 
 interface QuestionnaireAnswers {
   flow_version?: string
+  fitness_goals?: string[]
   interest_tags?: string[]
   equipment?: string[]
+  weekly_frequency?: number
   session_duration?: number
   target_body_parts?: string[]
 }
@@ -88,35 +90,37 @@ const TARGET_BODY_PART_OPTIONS = [
   '\u80f8\u90e8',
   '\u80cc\u90e8',
   '\u80a9\u90e8',
-  '\u624b\u81c2',
-  '\u8179\u90e8',
+  '\u5927\u81c2',
+  '\u5c0f\u81c2',
+  '\u8179\u90e8 / \u6838\u5fc3',
   '\u8170\u90e8',
   '\u81c0\u90e8',
-  '\u817f\u90e8',
+  '\u5927\u817f',
+  '\u5c0f\u817f',
   '\u5168\u8eab'
-]
-
-const INTEREST_OPTIONS = [
-  '\u4e0a\u80a2',
-  '\u4e0b\u80a2',
-  '\u6838\u5fc3',
-  '\u4f53\u6001\u7ea0\u6b63',
-  '\u51cf\u8102\u71c3\u8102',
-  '\u7075\u6d3b\u6027',
-  '\u529b\u91cf\u4e3e',
-  '\u5fc3\u80ba\u6709\u6c27'
 ]
 
 const EQUIPMENT_OPTIONS = [
   '\u5f92\u624b',
+  '\u5355\u6760',
+  '\u53cc\u6760',
   '\u54d1\u94c3',
-  '\u6760\u94c3',
-  '\u62c9\u529b\u5668/\u5f39\u529b\u5e26',
-  '\u5668\u68b0\u533a',
-  '\u58f6\u94c3'
+  '\u6760\u94c3 / \u6760\u94c3\u7247',
+  '\u58f6\u94c3',
+  '\u5f39\u529b\u5e26 / \u62c9\u529b\u5668',
+  '\u56fa\u5b9a\u5668\u68b0 / \u5668\u68b0\u533a'
 ]
 
-const DURATION_OPTIONS = [15, 20, 30, 45, 60]
+const WEEKLY_FREQUENCY_OPTIONS = [1, 2, 3, 4, 5, 6]
+const DURATION_OPTIONS = [15, 20, 30, 45, 60, 90]
+
+const LEGACY_GOAL_MAP: Record<string, string> = {
+  gain_muscle: '\u589e\u808c',
+  lose_weight: '\u51cf\u8102',
+  improve_fitness: '\u4f53\u80fd\u6539\u5584',
+  rehabilitation: '\u8fd0\u52a8\u6062\u590d',
+  maintain_health: '\u7efc\u5408\u4f53\u9002\u80fd'
+}
 
 const FIELD_LABELS: Record<FieldKey, string> = {
   avatar_url: '\u5934\u50cf',
@@ -124,11 +128,12 @@ const FIELD_LABELS: Record<FieldKey, string> = {
   gender: '\u6027\u522b',
   height: '\u8eab\u9ad8',
   weight: '\u4f53\u91cd',
+  fitness_goals: '\u5065\u8eab\u76ee\u6807',
   target_body_parts: '\u76ee\u6807\u90e8\u4f4d',
   fitness_goal: '\u5065\u8eab\u76ee\u6807',
   fitness_level: '\u8bad\u7ec3\u6c34\u5e73',
-  interest_tags: '\u8bad\u7ec3\u65b9\u5411',
   equipment: '\u5e38\u7528\u5668\u68b0',
+  weekly_frequency: '\u6bcf\u5468\u8bad\u7ec3\u9891\u7387',
   session_duration: '\u5355\u6b21\u8bad\u7ec3\u65f6\u957f'
 }
 
@@ -141,12 +146,41 @@ function normalizeStringArray(value: any): string[] {
   return Array.isArray(value) ? value.map((item) => String(item || '').trim()).filter(Boolean) : []
 }
 
+function normalizeFitnessGoal(value: any) {
+  const raw = String(value || '').trim()
+  return LEGACY_GOAL_MAP[raw] || raw
+}
+
+function normalizeFitnessGoals(value: any, fallback?: any) {
+  const source = Array.isArray(value) ? value : (fallback ? [fallback] : [])
+  const validValues = new Set(FITNESS_GOAL_OPTIONS.map((option) => option.value))
+  return Array.from(new Set(
+    source
+      .map(normalizeFitnessGoal)
+      .filter((item) => item && validValues.has(item))
+  )).slice(0, 3)
+}
+
+function deriveLegacyInterestTags(goals: string[]) {
+  const map: Record<string, string> = {
+    '\u51cf\u8102': '\u51cf\u8102\u71c3\u8102',
+    '\u4f53\u6001\u77eb\u6b63': '\u4f53\u6001\u7ea0\u6b63',
+    '\u7075\u6d3b\u67d4\u97e7': '\u7075\u6d3b\u6027',
+    '\u529b\u91cf\u63d0\u5347': '\u529b\u91cf\u4e3e',
+    '\u4f53\u80fd\u6539\u5584': '\u5fc3\u80ba\u6709\u6c27'
+  }
+  return goals.map((goal) => map[goal]).filter(Boolean)
+}
+
 function isProfileField(field: FieldKey): field is ProfileFieldKey {
   return ['nickname', 'gender', 'height', 'weight', 'fitness_goal', 'fitness_level'].includes(field)
 }
 
 function getFieldValue(data: FitnessCardData | null, field: FieldKey) {
   if (!data) return ''
+  if (field === 'fitness_goals') {
+    return normalizeFitnessGoals(data.answers.fitness_goals, data.profile.fitness_goal)
+  }
   if (isProfileField(field)) return data.profile[field]
   return data.answers[field]
 }
@@ -162,10 +196,15 @@ function formatFieldValue(data: FitnessCardData | null, field: FieldKey) {
   if (field === 'gender') return findOptionText(GENDER_OPTIONS, String(value || '')) || text.empty
   if (field === 'height') return value ? `${value} cm` : text.empty
   if (field === 'weight') return value ? `${value} kg` : text.empty
+  if (field === 'fitness_goals') {
+    const list = normalizeFitnessGoals(value, data.profile.fitness_goal)
+    return list.length ? list.map((item) => findOptionText(FITNESS_GOAL_OPTIONS, item)).join('\u3001') : text.empty
+  }
   if (field === 'fitness_level') return findOptionText(FITNESS_LEVEL_OPTIONS, String(value || '')) || text.empty
-  if (field === 'target_body_parts' || field === 'interest_tags' || field === 'equipment') {
+  if (field === 'target_body_parts' || field === 'equipment') {
     return formatArrayValue(normalizeStringArray(value))
   }
+  if (field === 'weekly_frequency') return value ? (Number(value) >= 6 ? '6 \u5929\u53ca\u4ee5\u4e0a' : `${value} \u5929`) : text.empty
   if (field === 'session_duration') return value ? `${value} \u5206\u949f` : text.empty
   return String(value || '').trim() || text.empty
 }
@@ -188,10 +227,10 @@ function FitnessCardPage() {
       'gender',
       'height',
       'weight',
-      'target_body_parts',
-      'fitness_goal',
+      'fitness_goals',
       'fitness_level',
-      'interest_tags',
+      'target_body_parts',
+      'weekly_frequency',
       'equipment',
       'session_duration'
     ],
@@ -214,9 +253,11 @@ function FitnessCardPage() {
       setData({
         profile: (res?.profile || {}) as FitnessProfile,
         answers: {
-          flow_version: String(answers.flow_version || 'miniapp_v1_aligned'),
+          flow_version: String(answers.flow_version || 'registration_unified_v2'),
+          fitness_goals: normalizeFitnessGoals(answers.fitness_goals, res?.profile?.fitness_goal),
           interest_tags: normalizeStringArray(answers.interest_tags),
           equipment: normalizeStringArray(answers.equipment),
+          weekly_frequency: Number(answers.weekly_frequency || 0) || undefined,
           session_duration: Number(answers.session_duration || 30),
           target_body_parts: normalizeStringArray(answers.target_body_parts)
         }
@@ -243,10 +284,10 @@ function FitnessCardPage() {
     setEditingField(field)
     setDraftValue(value == null ? '' : String(value))
     setDraftList(normalizeStringArray(value))
-    if (field === 'gender' || field === 'fitness_goal' || field === 'fitness_level' || field === 'session_duration') {
+    if (field === 'gender' || field === 'fitness_goal' || field === 'fitness_level' || field === 'weekly_frequency' || field === 'session_duration') {
       setPickerVisible(true)
     }
-    if (field === 'target_body_parts' || field === 'interest_tags' || field === 'equipment') {
+    if (field === 'fitness_goals' || field === 'target_body_parts' || field === 'equipment') {
       setMultiVisible(true)
     }
   }
@@ -281,7 +322,7 @@ function FitnessCardPage() {
 
   const buildNextAnswers = (field: QuestionnaireFieldKey, value: any) => ({
     ...(data?.answers || {}),
-    flow_version: 'miniapp_v1_aligned',
+    flow_version: 'registration_unified_v2',
     [field]: value
   })
 
@@ -290,7 +331,24 @@ function FitnessCardPage() {
 
     try {
       setSaving(true)
-      if (isProfileField(editingField)) {
+      if (editingField === 'fitness_goals') {
+        const goals = normalizeFitnessGoals(value)
+        if (goals.length === 0) {
+          throw new Error('\u8bf7\u81f3\u5c11\u9009\u62e9\u4e00\u4e2a\u5065\u8eab\u76ee\u6807')
+        }
+        const profilePayload = { fitness_goal: goals[0] }
+        const updated = await studentService.updateProfile(profilePayload)
+        if (!updated) throw new Error(text.saveFailed)
+
+        const nextAnswers = buildNextAnswers(editingField, goals)
+        nextAnswers.interest_tags = deriveLegacyInterestTags(goals)
+        const saved = await studentService.submitOnboarding({
+          answers: nextAnswers,
+          baseline_video_urls: []
+        })
+        if (!saved) throw new Error(text.saveFailed)
+        setData((prev) => prev ? { ...prev, profile: { ...prev.profile, ...profilePayload }, answers: nextAnswers } : prev)
+      } else if (isProfileField(editingField)) {
         const payload: Record<string, any> = {}
         if (editingField === 'height' || editingField === 'weight') {
           const parsed = Number(value)
@@ -309,7 +367,9 @@ function FitnessCardPage() {
       } else {
         const normalizedValue = editingField === 'session_duration'
           ? Number(value || 30)
-          : normalizeStringArray(value)
+          : editingField === 'weekly_frequency'
+            ? Number(value || 0)
+            : normalizeStringArray(value)
         const nextAnswers = buildNextAnswers(editingField, normalizedValue)
         const saved = await studentService.submitOnboarding({
           answers: nextAnswers,
@@ -333,8 +393,13 @@ function FitnessCardPage() {
     setDraftList((prev) => (
       prev.includes(item)
         ? prev.filter((value) => value !== item)
+        : editingField === 'fitness_goals' && prev.length >= 3
+          ? prev
         : [...prev, item]
     ))
+    if (editingField === 'fitness_goals' && !draftList.includes(item) && draftList.length >= 3) {
+      Taro.showToast({ title: '\u5065\u8eab\u76ee\u6807\u6700\u591a\u9009\u62e9 3 \u4e2a', icon: 'none' })
+    }
   }
 
   const pickerOptions: OptionItem[] =
@@ -344,13 +409,15 @@ function FitnessCardPage() {
         ? FITNESS_GOAL_OPTIONS
         : editingField === 'fitness_level'
           ? FITNESS_LEVEL_OPTIONS
-          : DURATION_OPTIONS.map((option) => ({ text: `${option} \u5206\u949f`, value: String(option) }))
+          : editingField === 'weekly_frequency'
+            ? WEEKLY_FREQUENCY_OPTIONS.map((option) => ({ text: option >= 6 ? '6 \u5929\u53ca\u4ee5\u4e0a' : `${option} \u5929`, value: String(option) }))
+            : DURATION_OPTIONS.map((option) => ({ text: `${option} \u5206\u949f`, value: String(option) }))
 
   const multiOptions =
-    editingField === 'target_body_parts'
-      ? TARGET_BODY_PART_OPTIONS
-      : editingField === 'interest_tags'
-        ? INTEREST_OPTIONS
+    editingField === 'fitness_goals'
+      ? FITNESS_GOAL_OPTIONS.map((option) => option.value)
+      : editingField === 'target_body_parts'
+        ? TARGET_BODY_PART_OPTIONS
         : EQUIPMENT_OPTIONS
 
   return (

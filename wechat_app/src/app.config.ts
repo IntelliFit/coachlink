@@ -9,6 +9,7 @@ export default {
       pages: [
         'index',
         'overview',
+        'automation',
         'videos',
         'videos/review',
         'students',

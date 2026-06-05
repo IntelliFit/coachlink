@@ -19,6 +19,11 @@ import { authService } from '@/services/authService'
 import { studentService } from '@/services/studentService'
 import { groupKnowledgeBooks, type KnowledgeBookCollection } from '@/utils/knowledgeBooks'
 import { svgToDataUri } from '@/utils/svgToDataUri'
+import {
+  knowledgeCoreTopics,
+  type KnowledgeCoreTopic,
+  type KnowledgeCoreTopicKey
+} from '@/config/knowledgeCoreTopics'
 import './index.scss'
 
 const QUICK_TAGS = ['深蹲', '拉伸', '减脂', '增肌']
@@ -38,6 +43,18 @@ const PLAN_LEVEL_LABELS: Record<PublicTrainingPlanLevel, string> = {
   beginner: '入门',
   intermediate: '进阶',
   advanced: '专业'
+}
+
+type KnowledgeShelf = 'body-map' | 'plans' | 'books' | null
+
+const PLAN_LABELS: Record<string, string> = {
+  'weighted-pullup-6w-strength': '负重引体 6 周力量专项',
+  'weighted-dip-6w-strength': '负重臂屈伸 6 周专项',
+  'bench-press-8w-specialization': '卧推 8 周专项提升',
+  'squat-8w-depth-and-strength': '深蹲 8 周深度与力量专项',
+  'powerlifting-12w-total-base': '力量举 12 周基础周期',
+  'round-shoulder-scapula-4w': '圆肩/肩胛控制 4 周',
+  'anterior-pelvic-tilt-4w': '骨盆前倾/核心稳定 4 周'
 }
 
 const BODY_REGION_OPTIONS = [
@@ -62,7 +79,7 @@ const BODY_MODE_OPTIONS = [
   {
     key: 'training' as const,
     label: '再训练',
-    description: '再看动作选择、发力路径和逐步加量'
+    description: '再看动作选择、发力路径和逐步加减'
   }
 ]
 
@@ -147,6 +164,9 @@ function KnowledgeBase() {
   const [planSpecialty, setPlanSpecialty] = useState('all')
   const [trainingPlans, setTrainingPlans] = useState<PublicTrainingPlanListItem[]>([])
   const [loadingTrainingPlans, setLoadingTrainingPlans] = useState(true)
+  const [activeTopicKey, setActiveTopicKey] = useState<KnowledgeCoreTopicKey>('injury')
+  const [expandedShelf, setExpandedShelf] = useState<KnowledgeShelf>(null)
+  const activeTopic = knowledgeCoreTopics.find((topic) => topic.topicKey === activeTopicKey) || knowledgeCoreTopics[0]
   const bodyMapImageUrl = useMemo(() => {
     const svgRaw = bodyMapGender === 'female'
       ? (bodyView === 'front' ? femaleFrontSvgRaw : femaleBackSvgRaw)
@@ -192,6 +212,11 @@ function KnowledgeBase() {
   function handlePlanSpecialtyChange(specialty: string) {
     setPlanSpecialty(specialty)
     void loadTrainingPlans(specialty)
+  }
+
+  function selectTopic(topic: KnowledgeCoreTopic) {
+    setActiveTopicKey(topic.topicKey)
+    setExpandedShelf(null)
   }
 
   async function loadBodyMapGender(userId: string) {
@@ -284,7 +309,7 @@ function KnowledgeBase() {
         <View className='page-shell'>
           <View className='hero-section'>
             <Text className='hero-title'>知识库</Text>
-            <Text className='hero-subtitle'>点击身体部位，共建训练知识</Text>
+            <Text className='hero-subtitle'>先选问题，再看资料、计划和人体地图</Text>
           </View>
 
           {isGuest && (
@@ -295,12 +320,19 @@ function KnowledgeBase() {
             </View>
           )}
 
+          <View className='construction-notice'>
+            <Text className='construction-notice-title'>知识库正在建设中</Text>
+            <Text className='construction-notice-copy'>
+              先开放核心入口和部分资料，后续会继续补齐文章、计划和人体地图内容。涉及疼痛或伤病时，请优先线下就医或做运动康复评估。
+            </Text>
+          </View>
+
           <View className='search-section'>
             <View className='search-input-wrap'>
               <Search size={18} color='#9CA3AF' />
               <Input
                 className='search-input'
-                placeholder='搜索知识点...'
+                placeholder='搜索知识点、部位或动作...'
                 value={searchKeyword}
                 onInput={(e) => setSearchKeyword(e.detail.value)}
                 onConfirm={() => handleSearch()}
@@ -328,7 +360,7 @@ function KnowledgeBase() {
           </View>
 
           {searched && (
-            <View className='search-results-section'>
+            <View id='knowledge-search-results' className='search-results-section'>
               <View className='section-head'>
                 <Text className='section-title'>搜索结果</Text>
                 <Text
@@ -339,14 +371,14 @@ function KnowledgeBase() {
                     setSearchResults([])
                   }}
                 >
-                  收起
+                  清空
                 </Text>
               </View>
               {searching ? (
                 <View className='search-loading'>搜索中...</View>
               ) : searchResults.length === 0 ? (
                 <View className='empty-panel'>
-                  <Text className='empty-panel-text'>没有找到相关内容，试试其他关键词。</Text>
+                  <Text className='empty-panel-text'>暂无内容。</Text>
                 </View>
               ) : (
                 <View className='entry-list'>
@@ -357,9 +389,9 @@ function KnowledgeBase() {
                         {!!result.description && (
                           <Text className='entry-desc' numberOfLines={2}>{result.description}</Text>
                         )}
-                        <Text className='entry-helper'>点击查看内容</Text>
+                          <Text className='entry-helper'>点击查看内容</Text>
                       </View>
-                      <Text className='entry-arrow'>›</Text>
+                        <Text className='entry-arrow'>›</Text>
                     </View>
                   ))}
                 </View>
@@ -367,12 +399,124 @@ function KnowledgeBase() {
             </View>
           )}
 
-          <View className='section'>
+          <View className='core-topic-section'>
+            <View className='section-head section-head-stack'>
+              <View>
+                <Text className='section-kicker'>Start Here</Text>
+                <Text className='section-title'>你现在最想解决什么？</Text>
+              </View>
+            </View>
+            <View className='core-topic-grid'>
+              {knowledgeCoreTopics.map((topic) => {
+                const isActive = topic.topicKey === activeTopicKey
+                return (
+                  <View
+                    key={topic.topicKey}
+                    className={`core-topic-card ${isActive ? 'active' : ''}`}
+                    onClick={() => selectTopic(topic)}
+                  >
+                    <Image className='core-topic-image' src={topic.imageUrl} mode='aspectFill' />
+                    <View className='core-topic-body'>
+                      <View className='core-topic-topline'>
+                        <Text className='core-topic-eyebrow'>{topic.eyebrow}</Text>
+                        {isActive && <Text className='core-topic-state'>已选</Text>}
+                      </View>
+                      <Text className='core-topic-title' numberOfLines={1}>{topic.shortTitle}</Text>
+                      <Text className='core-topic-desc' numberOfLines={2}>{topic.description}</Text>
+                      <View
+                        className='core-topic-cta'
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          selectTopic(topic)
+                        }}
+                      >
+                        <Text>{isActive ? '正在查看' : '查看推荐'}</Text>
+                      </View>
+                    </View>
+                  </View>
+                )
+              })}
+            </View>
+          </View>
+
+          <View className='topic-resource-panel'>
+            <View className='topic-resource-head'>
+              <View>
+                <Text className='topic-resource-label'>当前推荐</Text>
+                <Text className='topic-resource-title'>{activeTopic.title}</Text>
+              </View>
+            </View>
+            <View className='topic-resource-columns'>
+              <View className='topic-resource-column'>
+                <Text className='topic-resource-column-title'>文章</Text>
+                {activeTopic.linkedArticles.map((item) => (
+                  <Text
+                    key={item}
+                    className='topic-resource-link'
+                    numberOfLines={1}
+                    onClick={() => {
+                      setSearchKeyword(item)
+                    }}
+                  >
+                    {item}
+                  </Text>
+                ))}
+              </View>
+              <View className='topic-resource-column'>
+                <Text className='topic-resource-column-title'>计划</Text>
+                {activeTopic.linkedPlans.slice(0, 4).map((item) => (
+                  <Text
+                    key={item}
+                    className='topic-resource-link'
+                    numberOfLines={1}
+                    onClick={() => Taro.navigateTo({ url: `/content/knowledge/plan-detail?id=${encodeURIComponent(item)}` })}
+                  >
+                    {PLAN_LABELS[item] || item}
+                  </Text>
+                ))}
+              </View>
+              <View className='topic-resource-column'>
+                <Text className='topic-resource-column-title'>深度资料</Text>
+                {activeTopic.linkedBooks.map((item) => (
+                  <Text
+                    key={item}
+                    className='topic-resource-link'
+                    numberOfLines={1}
+                    onClick={() => setExpandedShelf('books')}
+                  >
+                    {item}
+                  </Text>
+                ))}
+              </View>
+            </View>
+            <View className='topic-shelf-actions'>
+              <View
+                className='topic-shelf-action'
+                onClick={() => setExpandedShelf(expandedShelf === 'body-map' ? null : 'body-map')}
+              >
+                <Text>{expandedShelf === 'body-map' ? '收起人体地图' : '展开人体地图'}</Text>
+              </View>
+              <View
+                className='topic-shelf-action'
+                onClick={() => setExpandedShelf(expandedShelf === 'plans' ? null : 'plans')}
+              >
+                <Text>{expandedShelf === 'plans' ? '收起计划库' : '展开计划库'}</Text>
+              </View>
+              <View
+                className='topic-shelf-action'
+                onClick={() => setExpandedShelf(expandedShelf === 'books' ? null : 'books')}
+              >
+                <Text>{expandedShelf === 'books' ? '收起书籍' : '展开书籍'}</Text>
+              </View>
+            </View>
+          </View>
+
+          {expandedShelf === 'plans' && <View id='knowledge-plans' className='section'>
             <View className='section-head section-head-stack'>
               <View>
                 <Text className='section-title'>专项训练计划库</Text>
                 <Text className='section-caption'>
-                  卧推、深蹲、力量举、负重引体、双杠和体态纠正优先展示
+                  从平台期、专项力量和体态问题出发，直接复制一个可执行计划。
                 </Text>
               </View>
               <View className='plan-filter-row'>
@@ -391,7 +535,7 @@ function KnowledgeBase() {
               <View className='empty-panel'><LoadingSpinner size={48} /></View>
             ) : trainingPlans.length === 0 ? (
               <View className='empty-panel'>
-                <Text className='empty-panel-text'>暂无训练计划模板</Text>
+                  <Text className='empty-panel-text'>暂无内容。</Text>
               </View>
             ) : (
               <ScrollView scrollX className='builtin-plan-scroll' enhanced showScrollbar={false}>
@@ -426,13 +570,13 @@ function KnowledgeBase() {
                 </View>
               </ScrollView>
             )}
-          </View>
+          </View>}
 
-          <View className='section'>
+          {expandedShelf === 'books' && <View id='knowledge-books' className='section'>
             <View className='section-head'>
               <View>
                 <Text className='section-title'>书籍笔记</Text>
-                <Text className='section-caption'>先看每一本书，再进入书内章节</Text>
+                <Text className='section-caption'>把书和长文下沉成深度资料，需要原理时再打开。</Text>
               </View>
             </View>
             {loadingBooks ? (
@@ -446,7 +590,7 @@ function KnowledgeBase() {
                     onClick={() => Taro.navigateTo({ url: `/content/knowledge/book-detail?id=${collection.representativeBook.id}` })}
                   >
                     <View className='book-row-icon'>
-                      <Text>📙</Text>
+                      <Text>书</Text>
                     </View>
                     <View className='book-row-main'>
                       <View className='book-row-title-wrap'>
@@ -462,11 +606,11 @@ function KnowledgeBase() {
                 ))}
               </View>
             ) : (
-              <View className='empty-panel'><Text className='empty-panel-text'>暂无书籍</Text></View>
+                  <Text className='empty-panel-text'>暂无内容。</Text>
             )}
-          </View>
+          </View>}
 
-          <View className='section'>
+          {expandedShelf === 'body-map' && <View id='knowledge-body-map' className='section'>
             <View className='section-head section-head-stack'>
               <View>
                 <Text className='section-title'>人体地图</Text>
@@ -550,12 +694,12 @@ function KnowledgeBase() {
                   <Text className='collection-action' onClick={() => {
                     setSelectedBodyRegion('')
                     setBodyRegionNodes([])
-                  }}>收起</Text>
+                  }}>清空</Text>
                 </View>
                 {loadingBodyRegion ? (
                   <View className='empty-panel'><LoadingSpinner size={48} /></View>
                 ) : bodyRegionNodes.length === 0 ? (
-                  <View className='empty-panel'><Text className='empty-panel-text'>这个部位暂时还没有内容。</Text></View>
+                  <Text className='empty-panel-text'>暂无内容。</Text>
                 ) : (
                   <View className='entry-list'>
                     {bodyRegionNodes.map((item) => (
@@ -578,7 +722,7 @@ function KnowledgeBase() {
                 )}
               </View>
             )}
-          </View>
+          </View>}
         </View>
       </ScrollView>
       <BottomNav />

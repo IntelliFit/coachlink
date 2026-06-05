@@ -6,6 +6,7 @@ import type {
     RenewSubscriptionDto,
     RenewSubscriptionResponseDto,
 } from "./entity";
+import { onRenewalPaid } from "@/lib/coachingAutomation";
 import { refreshSubscriptionEntitlementSnapshot } from "@/lib/subscriptionEntitlementSnapshot";
 
 export async function POST(req: Request) {
@@ -87,6 +88,12 @@ export async function POST(req: Request) {
     }
 
     const entitlementModel = await refreshSubscriptionEntitlementSnapshot(subscriptionId);
+
+    try {
+        await onRenewalPaid(subscriptionId);
+    } catch (automationError) {
+        console.warn("[renew-subscription] renewal automation failed:", automationError);
+    }
 
     // TODO: 记录续费订单信息（可后续扩展）
 

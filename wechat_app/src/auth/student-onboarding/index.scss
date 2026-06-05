@@ -5,6 +5,11 @@
   flex-direction: column;
 }
 
+.student-onboarding-form {
+  min-height: 100vh;
+  display: block;
+}
+
 .content-scroll {
   flex: 1;
   min-height: 0;
@@ -481,12 +486,20 @@
 .footer-btn {
   flex: 1;
   height: 96rpx;
+  margin: 0;
+  padding: 0;
+  border: none;
   border-radius: 48rpx;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 12rpx;
+  line-height: 1;
   transition: all 0.2s ease;
+
+  &::after {
+    border: none;
+  }
 
   &--prev {
     background: #ffffff;
@@ -503,7 +516,7 @@
   }
 
   &:active {
-    transform: scale(0.98);
+    opacity: 0.88;
   }
 }
 

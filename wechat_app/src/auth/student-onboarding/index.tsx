@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo, useRef } from 'react'
-import { View, Text, ScrollView, Image, Input as TaroInput, Button as TaroButton } from '@tarojs/components'
+import { View, Text, ScrollView, Image, Input as TaroInput, Button as TaroButton, Form as TaroForm } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { ConfigProvider } from '@nutui/nutui-react-taro'
 import zhCN from '@nutui/nutui-react-taro/dist/locales/zh-CN'
@@ -7,7 +7,6 @@ import { authService } from '@/services/authService'
 import { studentService } from '@/services/studentService'
 import { buildStudentOnboardingUrl, isCoreStudentProfileComplete } from '@/services/studentOnboardingService'
 import WheelPicker from '@/components/WheelPicker'
-import BodyMapInterestSelector from '@/components/BodyMapInterestSelector'
 import { svgToDataUri } from '@/utils/svgToDataUri'
 import maleFrontSvgRaw from '@/assets/body-map/maleFrontSvg'
 import maleBackSvgRaw from '@/assets/body-map/maleBackSvg'
@@ -21,10 +20,10 @@ interface OnboardingFormData {
   gender: string
   height: number
   weight: number
-  fitnessGoal: string
+  fitnessGoals: string[]
   fitnessLevel: string
-  interestTags: string[]
   equipments: string[]
+  weeklyFrequency: number | null
   sessionDuration: number
   targetBodyParts: string[]
 }
@@ -54,27 +53,53 @@ const FITNESS_LEVEL_OPTIONS = [
   { label: '精英 / 职业', desc: '健身教练、运动员或竞技水平', value: 'elite', wifiLevel: 5 }
 ]
 
-const INTEREST_OPTIONS = [
-  '上肢',
-  '下肢',
-  '核心',
-  '体态纠正',
-  '减脂燃脂',
-  '灵活性',
-  '力量举',
-  '心肺有氧'
-]
-
 const EQUIPMENT_OPTIONS = [
   '徒手',
+  '单杠',
+  '双杠',
   '哑铃',
-  '杠铃',
-  '拉力器/弹力带',
-  '器械区',
-  '壶铃'
+  '杠铃 / 杠铃片',
+  '壶铃',
+  '弹力带 / 拉力器',
+  '固定器械 / 器械区'
 ]
 
-const DURATION_OPTIONS = [15, 20, 30, 45, 60]
+const WEEKLY_FREQUENCY_OPTIONS = [1, 2, 3, 4, 5, 6]
+const DURATION_OPTIONS = [15, 20, 30, 45, 60, 90]
+
+const LEGACY_GOAL_MAP: Record<string, string> = {
+  gain_muscle: '增肌',
+  lose_weight: '减脂',
+  improve_fitness: '体能改善',
+  rehabilitation: '运动恢复',
+  maintain_health: '综合体适能'
+}
+
+function normalizeFitnessGoal(value: any) {
+  const raw = String(value || '').trim()
+  return LEGACY_GOAL_MAP[raw] || raw
+}
+
+function normalizeFitnessGoals(value: any, fallback?: any) {
+  const source = Array.isArray(value) ? value : (fallback ? [fallback] : [])
+  const validValues = new Set(FITNESS_GOAL_OPTIONS.map((item) => item.value))
+  return Array.from(new Set(
+    source
+      .map(normalizeFitnessGoal)
+      .filter((item) => item && validValues.has(item))
+  )).slice(0, 3)
+}
+
+function deriveLegacyInterestTags(goals: string[]) {
+  const map: Record<string, string> = {
+    减脂: '减脂燃脂',
+    体态矫正: '体态纠正',
+    灵活柔韧: '灵活性',
+    力量提升: '力量举',
+    体能改善: '心肺有氧'
+  }
+  return goals.map((goal) => map[goal]).filter(Boolean)
+}
 
 type BodyView = 'front' | 'back'
 type BodyGender = 'male' | 'female' | 'unknown'
@@ -136,22 +161,20 @@ const DEFAULT_FORM_DATA: OnboardingFormData = {
   gender: '',
   height: 170,
   weight: 65,
-  fitnessGoal: '',
+  fitnessGoals: [],
   fitnessLevel: '',
-  interestTags: [],
   equipments: [],
+  weeklyFrequency: null,
   sessionDuration: 30,
   targetBodyParts: []
 }
 
 const STEP_TITLES = [
-  { title: '基础信息', desc: '选择你的性别，让我们更了解你。' },
+  { title: '基础信息', desc: '头像可选，昵称和性别用于完善你的训练档案。' },
   { title: '身体数据', desc: '选择你的身高和体重，推荐计划会更精准。' },
-  { title: '目标部位', desc: '选择你感兴趣的肌肉部位。' },
-  { title: '健身目标', desc: '选择你的健身目标，定制专属训练方案。' },
-  { title: '训练水平', desc: '选择你的训练水平，匹配适合难度。' },
-  { title: '训练方向', desc: '选择你感兴趣的肌肉部位。' },
-  { title: '训练偏好', desc: '选择你的器械和训练时长。' }
+  { title: '训练目标', desc: '目标可多选，第一项会作为主目标。' },
+  { title: '重点部位', desc: '选择你重点练或容易不舒服的部位，可跳过。' },
+  { title: '训练条件', desc: '选择你的训练频率、器械和单次训练时长。' }
 ]
 
 const HEIGHT_MIN = 100
@@ -193,6 +216,67 @@ function normalizeOnboardingNickname(value: any) {
   ]
 
   return generatedPatterns.some((pattern) => pattern.test(nickname)) ? '' : nickname
+}
+
+function hashSeed(input: string) {
+  let hash = 2166136261
+  for (let i = 0; i < input.length; i += 1) {
+    hash ^= input.charCodeAt(i)
+    hash = Math.imul(hash, 16777619)
+  }
+  return Math.abs(hash >>> 0)
+}
+
+const COMMUNITY_NICKNAME_PREFIXES = [
+  '晨练记录员',
+  '深蹲练习生',
+  '街健探索者',
+  '训练合伙人',
+  '力量观察员',
+  '动作打磨者',
+  '热身研究员',
+  '计划执行者'
+]
+
+const DEFAULT_AVATAR_PALETTES = [
+  { bg: '#F7EDE7', primary: '#CF6D4E', secondary: '#334155', accent: '#F2B880' },
+  { bg: '#EAF4F1', primary: '#2F7D68', secondary: '#0F172A', accent: '#9AD6C5' },
+  { bg: '#F3F0FF', primary: '#6D5BD0', secondary: '#1E293B', accent: '#B7A7FF' },
+  { bg: '#EEF6FF', primary: '#2563A8', secondary: '#172554', accent: '#93C5FD' },
+  { bg: '#FFF7E8', primary: '#B45309', secondary: '#1F2937', accent: '#FCD34D' }
+]
+
+function buildGeneratedAvatar(seed: number) {
+  const palette = DEFAULT_AVATAR_PALETTES[seed % DEFAULT_AVATAR_PALETTES.length]
+  const rotate = (seed % 28) - 14
+  const svg = `
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160">
+  <rect width="160" height="160" rx="48" fill="${palette.bg}"/>
+  <circle cx="122" cy="34" r="28" fill="${palette.accent}" opacity="0.45"/>
+  <circle cx="34" cy="132" r="36" fill="${palette.primary}" opacity="0.12"/>
+  <g transform="rotate(${rotate} 80 80)">
+    <path d="M40 104c12-28 28-42 48-42 18 0 31 10 38 30" fill="none" stroke="${palette.secondary}" stroke-width="10" stroke-linecap="round"/>
+    <path d="M50 96h60" fill="none" stroke="${palette.primary}" stroke-width="12" stroke-linecap="round"/>
+    <circle cx="64" cy="68" r="12" fill="${palette.primary}"/>
+    <circle cx="104" cy="68" r="12" fill="${palette.primary}"/>
+  </g>
+  <path d="M50 124c16 10 44 10 60 0" fill="none" stroke="${palette.secondary}" stroke-width="7" stroke-linecap="round" opacity="0.78"/>
+</svg>`
+  return svgToDataUri(svg)
+}
+
+function buildDefaultCommunityIdentity(userId?: string | null) {
+  const seed = hashSeed(userId || `coachlink-${Date.now()}`)
+  const prefix = COMMUNITY_NICKNAME_PREFIXES[seed % COMMUNITY_NICKNAME_PREFIXES.length]
+  const suffix = String(seed % 10000).padStart(4, '0')
+  return {
+    nickname: `${prefix}${suffix}`,
+    avatarUrl: buildGeneratedAvatar(seed)
+  }
+}
+
+function isGeneratedCommunityAvatar(value?: string | null) {
+  return String(value || '').startsWith('data:image/svg+xml')
 }
 
 const WifiSignalIcon: React.FC<{ level: number; active: boolean }> = ({ level, active }) => {
@@ -262,7 +346,7 @@ function StudentOnboarding() {
         }
       }
     } catch (_) {}
-    return isEditMode ? '/me/profile/index' : '/training/impromptu-training?from=onboarding'
+    return isEditMode ? '/me/profile/index' : '/pages/index/index'
   })()
 
   useEffect(() => {
@@ -295,17 +379,20 @@ function StudentOnboarding() {
 
         const initHeight = Number(profile?.height || DEFAULT_FORM_DATA.height)
         const initWeight = Number(profile?.weight || DEFAULT_FORM_DATA.weight)
+        const generatedIdentity = buildDefaultCommunityIdentity(session.userId)
+        const normalizedNickname = normalizeOnboardingNickname(profile?.nickname)
+        const existingAvatarUrl = String(profile?.avatar_url || '').trim()
 
         setFormData({
-          avatarUrl: isEditMode ? String(profile?.avatar_url || '').trim() : '',
-          nickname: isEditMode ? String(profile?.nickname || '').trim() : normalizeOnboardingNickname(profile?.nickname),
+          avatarUrl: isEditMode ? existingAvatarUrl : (existingAvatarUrl || generatedIdentity.avatarUrl),
+          nickname: isEditMode ? String(profile?.nickname || '').trim() : (normalizedNickname || generatedIdentity.nickname),
           gender: String(profile?.gender || ''),
           height: initHeight,
           weight: initWeight,
-          fitnessGoal: String(profile?.fitness_goal || ''),
+          fitnessGoals: normalizeFitnessGoals(questionnaire?.fitness_goals, profile?.fitness_goal),
           fitnessLevel: String(profile?.fitness_level || ''),
-          interestTags: Array.isArray(questionnaire?.interest_tags) ? questionnaire.interest_tags : [],
           equipments: Array.isArray(questionnaire?.equipment) ? questionnaire.equipment : [],
+          weeklyFrequency: Number(questionnaire?.weekly_frequency || 0) || null,
           sessionDuration: Number(questionnaire?.session_duration || DEFAULT_FORM_DATA.sessionDuration),
           targetBodyParts: Array.isArray(questionnaire?.target_body_parts) ? questionnaire.target_body_parts : []
         })
@@ -332,8 +419,12 @@ function StudentOnboarding() {
     void bootstrap()
   }, [isEditMode, nextUrl])
 
-  const toggleListValue = (key: 'interestTags' | 'equipments', value: string) => {
+  const toggleListValue = (key: 'fitnessGoals' | 'equipments', value: string) => {
     setFormData((prev) => {
+      if (key === 'fitnessGoals' && !prev.fitnessGoals.includes(value) && prev.fitnessGoals.length >= 3) {
+        Taro.showToast({ title: '健身目标最多选择 3 个', icon: 'none' })
+        return prev
+      }
       const nextValues = prev[key].includes(value)
         ? prev[key].filter((item) => item !== value)
         : [...prev[key], value]
@@ -366,8 +457,7 @@ function StudentOnboarding() {
     }
   }
 
-  const syncNicknameFromEvent = (e: any, options: { allowEmpty?: boolean } = {}) => {
-    const rawValue = e?.detail?.value
+  const syncNicknameValue = (rawValue: any, options: { allowEmpty?: boolean } = {}) => {
     if (typeof rawValue !== 'string') {
       return nicknameValueRef.current
     }
@@ -383,6 +473,10 @@ function StudentOnboarding() {
       return { ...prev, nickname: value }
     })
     return value
+  }
+
+  const syncNicknameFromEvent = (e: any, options: { allowEmpty?: boolean } = {}) => {
+    return syncNicknameValue(e?.detail?.value, options)
   }
 
   const handleNicknameFocus = () => {
@@ -411,14 +505,7 @@ function StudentOnboarding() {
       queryFactory()
         .select('#student-onboarding-nickname-input')
         .fields({ properties: ['value'] }, (res: any) => {
-          const value = String(res?.value || '').trim()
-          if (value) {
-            nicknameValueRef.current = value
-            setFormData((prev) => {
-              if (prev.nickname === value) return prev
-              return { ...prev, nickname: value }
-            })
-          }
+          syncNicknameValue(res?.value, { allowEmpty: false })
           finish()
         })
         .exec()
@@ -442,28 +529,37 @@ function StudentOnboarding() {
     }, 320)
   }
 
-  const validateCurrentStep = () => {
+  const validateCurrentStep = (override: Partial<OnboardingFormData> = {}) => {
+    const current = { ...formData, ...override }
     if (step === 1) {
-      if (!formData.nickname.trim()) {
+      if (!current.nickname.trim()) {
         Taro.showToast({ title: '请先填写昵称', icon: 'none' })
         return false
       }
-      if (!formData.gender) {
+      if (current.nickname.trim().length > 24) {
+        Taro.showToast({ title: '昵称最多 24 个字', icon: 'none' })
+        return false
+      }
+      if (!current.gender) {
         Taro.showToast({ title: '请选择性别', icon: 'none' })
         return false
       }
       return true
     }
-    if (step === 4) {
-      if (!formData.fitnessGoal) {
+    if (step === 3) {
+      if (formData.fitnessGoals.length === 0) {
         Taro.showToast({ title: '请选择健身目标', icon: 'none' })
+        return false
+      }
+      if (!formData.fitnessLevel) {
+        Taro.showToast({ title: '请选择训练水平', icon: 'none' })
         return false
       }
       return true
     }
     if (step === 5) {
-      if (!formData.fitnessLevel) {
-        Taro.showToast({ title: '请选择训练水平', icon: 'none' })
+      if (!formData.weeklyFrequency) {
+        Taro.showToast({ title: '请选择每周可训练频率', icon: 'none' })
         return false
       }
       return true
@@ -471,13 +567,20 @@ function StudentOnboarding() {
     return true
   }
 
-  const handleNext = () => {
+  const handleNext = (override: Partial<OnboardingFormData> = {}) => {
     if (loading) return
-    if (!validateCurrentStep()) return
+    if (!validateCurrentStep(override)) return
     if (step === 2) {
       setFormData((prev) => ({ ...prev, height: selectedHeight, weight: selectedWeight }))
     }
     setStep((prev) => Math.min(prev + 1, totalSteps))
+  }
+
+  const handleStepOneSubmit = (e: any) => {
+    syncNicknameValue(e?.detail?.value?.nickname, { allowEmpty: false })
+    syncNicknameFromNativeNode(() => {
+      handleNext({ nickname: nicknameValueRef.current })
+    })
   }
 
   const handlePrev = () => {
@@ -485,36 +588,22 @@ function StudentOnboarding() {
     setStep((prev) => Math.max(prev - 1, 1))
   }
 
-  const goBodyParts = () => {
-    const selected = JSON.stringify(formData.targetBodyParts)
-    const gender = formData.gender || 'unknown'
-    Taro.navigateTo({
-      url: `/auth/body-parts?selected=${encodeURIComponent(selected)}&gender=${encodeURIComponent(gender)}`
-    })
-  }
-
-  useEffect(() => {
-    const onBodyParts = (data: { parts: string[] }) => {
-      setFormData((prev) => ({ ...prev, targetBodyParts: data.parts }))
-    }
-    Taro.eventCenter.on('onboarding:bodyParts', onBodyParts)
-    return () => {
-      Taro.eventCenter.off('onboarding:bodyParts', onBodyParts)
-    }
-  }, [])
-
   const handleSubmit = async () => {
     if (!validateCurrentStep()) return
 
     setSaving(true)
     try {
+      const primaryGoal = formData.fitnessGoals[0] || ''
+      const persistedAvatarUrl = isGeneratedCommunityAvatar(formData.avatarUrl)
+        ? null
+        : (formData.avatarUrl || null)
       const profile = await studentService.updateProfile({
         nickname: formData.nickname.trim(),
-        avatar_url: formData.avatarUrl || null,
+        avatar_url: persistedAvatarUrl,
         gender: formData.gender,
         height: formData.height,
         weight: formData.weight,
-        fitness_goal: formData.fitnessGoal,
+        fitness_goal: primaryGoal,
         fitness_level: formData.fitnessLevel,
         onboarding_completed: true
       })
@@ -525,15 +614,17 @@ function StudentOnboarding() {
 
       authService.mergeCurrentUser({
         nickname: formData.nickname.trim(),
-        avatar_url: formData.avatarUrl || null
+        avatar_url: persistedAvatarUrl
       })
 
       try {
         await studentService.submitOnboarding({
           answers: {
-            flow_version: 'miniapp_v1_aligned',
-            interest_tags: formData.interestTags,
+            flow_version: 'registration_unified_v2',
+            fitness_goals: formData.fitnessGoals,
+            interest_tags: deriveLegacyInterestTags(formData.fitnessGoals),
             equipment: formData.equipments,
+            weekly_frequency: formData.weeklyFrequency,
             session_duration: formData.sessionDuration,
             target_body_parts: formData.targetBodyParts
           },
@@ -699,9 +790,9 @@ function StudentOnboarding() {
                   </View>
                 )}
                 <View className='avatar-picker-copy'>
-                  <Text className='avatar-picker-title'>使用微信头像</Text>
+                  <Text className='avatar-picker-title'>默认社区头像</Text>
                   <Text className='avatar-picker-desc'>
-                    {avatarUploading ? '上传中...' : '点击选择微信头像，后续资料页也会同步显示。'}
+                    {avatarUploading ? '正在上传...' : '系统已生成一个训练社区头像；想换成微信头像时点下方按钮即可。'}
                   </Text>
                 </View>
               </View>
@@ -711,7 +802,7 @@ function StudentOnboarding() {
                 onChooseAvatar={handleChooseAvatar}
                 disabled={avatarUploading || saving}
               >
-                <Text className='avatar-picker-btn-text'>{avatarUploading ? '上传中...' : '选择头像'}</Text>
+                <Text className='avatar-picker-btn-text'>{avatarUploading ? '上传中...' : '改用微信头像'}</Text>
               </TaroButton>
             </View>
           </View>
@@ -722,10 +813,11 @@ function StudentOnboarding() {
               <TaroInput
                 id='student-onboarding-nickname-input'
                 className='native-nickname-input'
+                name='nickname'
                 type='nickname'
                 maxlength={24}
                 defaultValue={formData.nickname}
-                placeholder='点击使用微信昵称，也可以手动修改'
+                placeholder='点击可改用微信昵称，也可以手动修改'
                 onFocus={handleNicknameFocus}
                 onInput={(e) => syncNicknameFromEvent(e, { allowEmpty: true })}
                 onBlur={(e) => {
@@ -742,7 +834,7 @@ function StudentOnboarding() {
                 }}
               />
             </View>
-            <Text className='field-tip'>可直接使用微信昵称，也可以在这里再调整</Text>
+            <Text className='field-tip'>已为你生成一个社区昵称；点击输入框可选择微信昵称，或直接改成喜欢的名字。</Text>
           </View>
 
           <View className='field-group'>
@@ -804,7 +896,7 @@ function StudentOnboarding() {
         </View>
       )}
 
-      {step === 3 && (
+      {step === 4 && (
         <BodyPartsStep
           gender={formData.gender}
           selectedParts={formData.targetBodyParts}
@@ -812,29 +904,35 @@ function StudentOnboarding() {
         />
       )}
 
-      {step === 4 && (
+      {step === 3 && (
 
         <View className='step-content'>
+          <View className='field-group'>
+            <Text className='field-label'>健身目标（最多 3 个）</Text>
+            <Text className='field-tip'>第一项会作为主目标，用于兼容旧资料和计划生成。</Text>
+          </View>
           <View className='option-list'>
             {FITNESS_GOAL_OPTIONS.map((option) => (
               <View
                 key={option.value}
-                className={`option-card ${formData.fitnessGoal === option.value ? 'option-card--active' : ''}`}
-                onClick={() => setFormData((prev) => ({ ...prev, fitnessGoal: option.value }))}
+                className={`option-card ${formData.fitnessGoals.includes(option.value) ? 'option-card--active' : ''}`}
+                onClick={() => toggleListValue('fitnessGoals', option.value)}
               >
                 <View className='option-card-main'>
                   <Text className='option-card-title'>{option.label}</Text>
                   <Text className='option-card-desc'>{option.desc}</Text>
+                  {formData.fitnessGoals.includes(option.value) && (
+                    <Text className='option-card-desc'>第 {formData.fitnessGoals.indexOf(option.value) + 1} 目标</Text>
+                  )}
                 </View>
-                <View className={`option-check ${formData.fitnessGoal === option.value ? 'option-check--active' : ''}`} />
+                <View className={`option-check ${formData.fitnessGoals.includes(option.value) ? 'option-check--active' : ''}`} />
               </View>
             ))}
           </View>
-        </View>
-      )}
 
-      {step === 5 && (
-        <View className='step-content'>
+          <View className='field-group'>
+            <Text className='field-label'>训练水平</Text>
+          </View>
           <View className='option-list'>
             {FITNESS_LEVEL_OPTIONS.map((option) => (
               <View
@@ -857,34 +955,20 @@ function StudentOnboarding() {
         </View>
       )}
 
-      {step === 6 && (
-        <View className='step-content'>
-          <BodyMapInterestSelector
-            gender={formData.gender as any}
-            selectedIds={formData.interestTags}
-            onChange={(ids) => setFormData((prev) => ({ ...prev, interestTags: ids }))}
-          />
-        </View>
-      )}
-
-      {step === 7 && (
+      {step === 5 && (
         <View className='step-content'>
           <View className='field-group'>
-            <Text className='field-label'>感兴趣的健身部位</Text>
-            <View className='body-parts-trigger' onClick={goBodyParts}>
-              {formData.targetBodyParts.length === 0 ? (
-                <Text className='body-parts-trigger-placeholder'>点击选择目标部位</Text>
-              ) : (
-                <View className='body-parts-tags'>
-                  {formData.targetBodyParts.slice(0, 4).map((part) => (
-                    <Text key={part} className='body-parts-tag'>{part}</Text>
-                  ))}
-                  {formData.targetBodyParts.length > 4 && (
-                    <Text className='body-parts-tag'>+{formData.targetBodyParts.length - 4}</Text>
-                  )}
+            <Text className='field-label'>每周可训练频率</Text>
+            <View className='tag-grid duration-grid'>
+              {WEEKLY_FREQUENCY_OPTIONS.map((option) => (
+                <View
+                  key={option}
+                  className={`tag-chip ${formData.weeklyFrequency === option ? 'tag-chip--active' : ''}`}
+                  onClick={() => setFormData((prev) => ({ ...prev, weeklyFrequency: option }))}
+                >
+                  <Text className='tag-chip-text'>{option >= 6 ? '6 天及以上' : `${option} 天`}</Text>
                 </View>
-              )}
-              <Text className='body-parts-trigger-arrow'>›</Text>
+              ))}
             </View>
           </View>
 
@@ -924,6 +1008,7 @@ function StudentOnboarding() {
 
   return (
     <ConfigProvider locale={zhCN}>
+      <TaroForm className='student-onboarding-form' onSubmit={handleStepOneSubmit}>
       <View className='student-onboarding-page'>
         {loading ? (
           <View className='content-scroll'>
@@ -950,24 +1035,27 @@ function StudentOnboarding() {
             <Text className='footer-btn-text'>上一步</Text>
           </View>
           {step < totalSteps ? (
-            <View
+            <TaroButton
               className={`footer-btn footer-btn--next ${loading ? 'footer-btn--disabled' : ''}`}
-              onClick={loading ? undefined : handleNext}
+              formType={step === 1 ? 'submit' : undefined}
+              disabled={loading}
+              onClick={loading || step === 1 ? undefined : () => handleNext()}
             >
               <Text className='footer-btn-text'>下一步</Text>
               <Text className='footer-btn-icon iconfont icon-right'></Text>
-            </View>
+            </TaroButton>
           ) : (
             <View
               className={`footer-btn footer-btn--next ${(saving || loading) ? 'footer-btn--disabled' : ''}`}
               onClick={(saving || loading) ? undefined : handleSubmit}
             >
-              <Text className='footer-btn-text'>{saving ? '保存中...' : isEditMode ? '保存档案' : '开始训练'}</Text>
+              <Text className='footer-btn-text'>{saving ? '保存中...' : isEditMode ? '保存档案' : '完成注册'}</Text>
               <Text className='footer-btn-icon'>{'>'}</Text>
             </View>
           )}
         </View>
       </View>
+      </TaroForm>
     </ConfigProvider>
   )
 }

@@ -1,6 +1,6 @@
 import supabase from "@/lib/supabaseClient";
 import { NextResponse } from "next/server";
-import { GetCoachDto, GetCoachResponseDto, QrCodeItem } from "./entity";
+import { GetCoachDto, GetCoachResponseDto } from "./entity";
 import { ApiData } from "@/types/api";
 import { CoachesRow } from "@/types";
 
@@ -15,6 +15,12 @@ async function getDefaultPaymentMode(): Promise<
         .single();
 
     return (data?.value as any)?.default_mode || "qrcode";
+}
+
+function normalizeCoachPaymentMode(
+    mode: "qrcode" | "alipay_api" | "both" | null | undefined,
+): "alipay_api" | "both" {
+    return mode === "both" ? "both" : "alipay_api";
 }
 
 export async function POST(req: Request) {
@@ -86,19 +92,19 @@ export async function POST(req: Request) {
         const defaultMode = await getDefaultPaymentMode();
 
         // 确定生效的支付模式
-        const effectivePaymentMode = coach.payment_mode || (
-            coach.allow_personal_qrcode ? "qrcode" : defaultMode
+        const effectivePaymentMode = normalizeCoachPaymentMode(
+            (coach.payment_mode as "qrcode" | "alipay_api" | "both" | null) || defaultMode,
         );
 
         // 获取收款码列表（仅当允许使用个人二维码时才返回）
-        const allowQr = coach.allow_personal_qrcode ?? true;
+        const allowQr = false;
         const qrCodes = allowQr
             ? ((coach.payment_qr_codes as any[]) || [])
             : [];
 
         responseData.paymentInfo = {
-            effectivePaymentMode: effectivePaymentMode as "qrcode" | "alipay_api" | "both",
-            allowPersonalQrcode: coach.allow_personal_qrcode ?? true,
+            effectivePaymentMode,
+            allowPersonalQrcode: false,
             qrCodes,
         };
     }

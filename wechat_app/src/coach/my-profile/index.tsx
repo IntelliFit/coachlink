@@ -8,7 +8,6 @@ import {
   Wallet,
   FileEdit,
   FileText,
-  QrCode,
   Shield,
   ChevronRight,
   Repeat,
@@ -245,11 +244,11 @@ function CoachMyProfile() {
     },
     {
       key: 'payment-settings',
-      title: '收款码设置',
-      description: '配置微信与支付宝收款码',
-      icon: QrCode,
+      title: '收款账户',
+      description: '开通汇付账户并绑定银行卡',
+      icon: Wallet,
       tone: 'emerald',
-      path: '/coach/settings/payment'
+      path: '/coach/wallet/merchant'
     }
   ], [contentCount, pricingReady, questionReady])
 

@@ -22,9 +22,8 @@ import type { CoachSubscriptionOrderRow } from '@/types/subscriptionOrders';
 
 // 组件引用
 import QuestionnaireForm from './QuestionnaireForm';
-import PaymentDialog, { OfflinePaymentData } from '@/components/payment/paymentDialog';
+import PaymentDialog from '@/components/payment/paymentDialog';
 import { useGuideStore } from '@/stores/useGuideStore';
-import { supportsOfflinePaymentForCoach } from '@/lib/offlinePaymentPolicy';
 
 interface CoachSubscriptionProps {
     coach: CoachesRow;
@@ -109,9 +108,8 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
     const activeSub = mySubscriptions.find(
         (sub) => sub.coach_id === coach?.id && sub.status === 'active',
     );
-    const allowOfflinePayment = supportsOfflinePaymentForCoach({
-        coachName: coach?.name || coach?.title,
-    });
+    const allowOfflinePayment = false;
+    const receivingAccountReady = (coach as any)?.huifu_open_status === 'opened';
 
     useEffect(() => {
         if (isRenewFromUrl) setRenewMode(true);
@@ -183,6 +181,15 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
                 return;
             }
 
+            if (!receivingAccountReady) {
+                showToast({
+                    severity: 'warn',
+                    summary: '教练收款账户尚未开通',
+                    detail: '暂时不能通过平台购买或续费，请稍后再试或联系教练。',
+                });
+                return;
+            }
+
             if (renewMode || activeSub) {
                 await createPendingOrder(product, duration);
                 setPaymentDialogVisible(true);
@@ -233,33 +240,12 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
         void handleSelectProduct(product, duration);
     }, [loading, products]);
 
-    const handlePaymentSuccess = async (note?: string, offlinePaymentData?: OfflinePaymentData) => {
-        if (!pendingOrder?.id) return;
-
-        // NOTE: 平台支付（alipay_api）不再走 onSuccess；只会在支付成功回调中自动确认并生效。
-        // 这里的 onSuccess 仅用于“个人收款码/线下已支付”这类无法自动验款的流程。
-        try {
-            const res = await subscriptionService.updateSubscriptionOrder({
-                id: pendingOrder.id,
-                status: 'pending_confirmation',
-                paymentMethod: offlinePaymentData ? 'offline' : 'personal_qrcode',
-                note: note || '',
-                paymentData: {
-                    offline_payment: offlinePaymentData || null,
-                },
-            });
-
-            if (res) {
-                onSubscribeSuccess(undefined);
-                setPaymentDialogVisible(false);
-            }
-        } catch (error) {
-            showToast({
-                severity: 'error',
-                summary: '提交支付凭证失败',
-                detail: error instanceof Error ? error.message : '请稍后重试',
-            });
-        }
+    const handlePaymentSuccess = async () => {
+        showToast({
+            severity: 'warn',
+            summary: '请使用平台支付',
+            detail: '个人收款码和线下已付已停用，学员给教练的付款统一走汇付平台通道。',
+        });
     };
 
     const handleOfflineEntry = () => {
@@ -323,8 +309,12 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
                         <div key={idx} className="flex gap-2">
                             <button
                                 onClick={() => handleSelectProduct(product, opt)}
-                                disabled={subscribing}
-                                className="flex-1 flex justify-between items-center p-3 rounded-xl border border-surface-100 bg-surface-50/50 hover:bg-primary-50 hover:border-primary-200 dark:hover:bg-primary-800/50 dark:hover:border-primary-700 transition-all group"
+                                disabled={subscribing || !receivingAccountReady}
+                                className={`flex-1 flex justify-between items-center p-3 rounded-xl border transition-all group ${
+                                    receivingAccountReady
+                                        ? 'border-surface-100 bg-surface-50/50 hover:bg-primary-50 hover:border-primary-200 dark:hover:bg-primary-800/50 dark:hover:border-primary-700'
+                                        : 'border-amber-100 bg-amber-50/60 opacity-70 cursor-not-allowed'
+                                }`}
                             >
                                 <div className="flex items-center gap-2">
                                     <span className="text-sm font-bold text-surface-700">{opt.months}个月</span>
@@ -458,6 +448,17 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
                     onClick={() => startGuide('STUDENT_SUBSCRIBE_FLOW_GUIDE')}
                 />
             </div>
+            {!receivingAccountReady && (
+                <div className="mb-6 rounded-3xl border border-amber-200 bg-amber-50 p-5">
+                    <div className="text-xs font-black uppercase tracking-widest text-amber-700/80">收款账户待开通</div>
+                    <div className="text-lg font-black text-surface-900 tracking-tight mt-1">
+                        暂时不能通过平台购买该教练套餐
+                    </div>
+                    <div className="text-sm text-amber-800/80 mt-1">
+                        教练完成汇付收款账户和银行卡绑定后，学生即可正常订阅和续费。
+                    </div>
+                </div>
+            )}
             {allowOfflinePayment ? (
                 <div className="mb-6 rounded-3xl border border-green-200/60 bg-green-50/40 p-5 flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
                     <div className="min-w-0">
@@ -546,8 +547,9 @@ const CoachSubscription: React.FC<CoachSubscriptionProps> = ({
                 subscriptionId={renewMode ? (activeSub?.id || pendingOrder?.subscription_id || undefined) : undefined}
                 subscriptionFlow={renewMode ? 'renew' : 'subscribe'}
                 renewAdditionalWeeks={renewMode ? (selectedDuration?.months || 1) * 4 : undefined}
-                defaultPaymentMethod={isOfflinePaymentMode && allowOfflinePayment ? 'offline' : undefined}
-                allowOfflinePayment={allowOfflinePayment}
+                defaultPaymentMethod="alipay_api"
+                allowOfflinePayment={false}
+                allowPersonalQrcode={false}
                 onSuccess={handlePaymentSuccess}
                 onCancel={() => {
                     setPaymentDialogVisible(false);

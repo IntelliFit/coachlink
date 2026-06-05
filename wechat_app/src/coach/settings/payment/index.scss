@@ -33,6 +33,26 @@
       display: block;
     }
 
+    .card-desc {
+      display: block;
+      margin-bottom: 24rpx;
+      color: #6b7280;
+      font-size: 14px;
+      line-height: 1.7;
+    }
+
+    .upload-btn {
+      padding: 16rpx 24rpx;
+      background: #CF6D4E;
+      color: #fff;
+      border-radius: 16rpx;
+      font-size: 14px;
+      font-weight: 700;
+      border: none;
+      box-sizing: border-box;
+      max-width: 100%;
+    }
+
     .qrcode-section {
       display: flex;
       flex-direction: column;

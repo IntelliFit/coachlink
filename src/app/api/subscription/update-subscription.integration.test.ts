@@ -51,8 +51,9 @@ describe("POST /api/subscription/update-subscription", () => {
         start_date: null,
         end_date: "2025-12-01T00:00:00.000Z",
         subscribed_weeks: 4,
+        payment_method: "platform_wechat",
         payment_data: {
-          offline_payment: { expires_at: "2026-06-01T00:00:00.000Z" },
+          provider: "wechat",
         },
       },
       error: null,
@@ -73,7 +74,7 @@ describe("POST /api/subscription/update-subscription", () => {
         id: "sub-1",
         status: "active",
         end_date: "2026-06-01T00:00:00.000Z",
-        payment_method: "offline",
+        payment_method: "platform_wechat",
       }),
     }));
     const json = await res.json();

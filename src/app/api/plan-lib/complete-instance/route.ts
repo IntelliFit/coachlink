@@ -6,6 +6,7 @@ import type {
 } from "./entity";
 import type { ApiData } from "@/types/api";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
+import { onPlanProgressChanged } from "@/lib/coachingAutomation";
 
 /**
  * 完成计划实例
@@ -91,6 +92,12 @@ export async function POST(req: Request) {
             success: false,
             message: `完成计划失败: ${updateError.message}`,
         }, { status: 500 });
+    }
+
+    try {
+        await onPlanProgressChanged(instanceId, "plan_completed");
+    } catch (automationError) {
+        console.warn("[complete-instance] next-phase automation failed:", automationError);
     }
 
     return NextResponse.json<ApiData<CompleteInstanceResponseDto>>({

@@ -17,6 +17,24 @@ interface SocialLink {
   url?: string
 }
 
+const coachTrackOptions = [
+  { value: 'buddy', label: '训练搭子', desc: '适合带新手熟悉器械、环境和基础动作' },
+  { value: 'growth', label: '进阶教练', desc: '适合已有训练经验的学员做计划调整和动作修正' },
+  { value: 'professional', label: '专业教练', desc: '适合周期化训练、专项表现和高客单服务' }
+]
+
+const serviceModeOptions = [
+  { value: 'online', label: '线上指导' },
+  { value: 'offline', label: '线下带练' },
+  { value: 'hybrid', label: '线上+线下' }
+]
+
+const targetStudentLevelOptions = [
+  { value: 'beginner', label: '小白入门' },
+  { value: 'intermediate', label: '进阶提升' },
+  { value: 'advanced', label: '高阶表现' }
+]
+
 function CoachApplication() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -32,7 +50,15 @@ function CoachApplication() {
     achievements: [] as string[],
     caseStudies: [] as string[],
     credentials: [] as Credential[],
-    socialLinks: [] as SocialLink[]
+    socialLinks: [] as SocialLink[],
+    coachTrack: '',
+    serviceModes: [] as string[],
+    targetStudentLevels: [] as string[],
+    supportFocus: '',
+    province: '',
+    city: '',
+    county: '',
+    address: ''
   })
   const [reviewInfo, setReviewInfo] = useState<{
     status?: string
@@ -100,7 +126,15 @@ function CoachApplication() {
             }
             const name = platformMap[key] || key
             return { name, url: value as string }
-          }) : []
+          }) : [],
+          coachTrack: app.coach_track || '',
+          serviceModes: Array.isArray(app.service_modes) ? app.service_modes : [],
+          targetStudentLevels: Array.isArray(app.target_student_levels) ? app.target_student_levels : [],
+          supportFocus: app.support_focus || '',
+          province: app.province || '',
+          city: app.city || '',
+          county: app.county || '',
+          address: app.address || ''
         })
         setReviewInfo({
           status: app.status,
@@ -213,9 +247,30 @@ function CoachApplication() {
     })
   }
 
+  function toggleArrayField(field: 'serviceModes' | 'targetStudentLevels', value: string) {
+    setFormData(prev => {
+      const current = prev[field]
+      return {
+        ...prev,
+        [field]: current.includes(value)
+          ? current.filter(item => item !== value)
+          : [...current, value]
+      }
+    })
+  }
+
   async function handleSubmit() {
     if (!formData.name.trim()) {
       Taro.showToast({ title: '请输入姓名', icon: 'none' })
+      return
+    }
+
+    if (!formData.coachTrack) {
+      Taro.showToast({ title: '请选择教练层级', icon: 'none' })
+      return
+    }
+    if (![formData.province, formData.city, formData.county].some(Boolean)) {
+      Taro.showToast({ title: '请填写常住城市', icon: 'none' })
       return
     }
 
@@ -258,7 +313,15 @@ function CoachApplication() {
           achievements: formData.achievements.length > 0 ? formData.achievements : null,
           caseStudies: formData.caseStudies.length > 0 ? formData.caseStudies : null,
           credentials: formData.credentials.length > 0 ? formData.credentials : null,
-          socialLinks: Object.keys(socialLinksObj).length > 0 ? socialLinksObj : null
+          socialLinks: Object.keys(socialLinksObj).length > 0 ? socialLinksObj : null,
+          coachTrack: formData.coachTrack,
+          serviceModes: formData.serviceModes,
+          targetStudentLevels: formData.targetStudentLevels,
+          supportFocus: formData.supportFocus || null,
+          province: formData.province || null,
+          city: formData.city || null,
+          county: formData.county || null,
+          address: formData.address || null
         })
         Taro.showToast({ title: '申请已更新', icon: 'success' })
       } else {
@@ -275,7 +338,15 @@ function CoachApplication() {
           achievements: formData.achievements.length > 0 ? formData.achievements : null,
           caseStudies: formData.caseStudies.length > 0 ? formData.caseStudies : null,
           credentials: formData.credentials.length > 0 ? formData.credentials : null,
-          socialLinks: Object.keys(socialLinksObj).length > 0 ? socialLinksObj : null
+          socialLinks: Object.keys(socialLinksObj).length > 0 ? socialLinksObj : null,
+          coachTrack: formData.coachTrack,
+          serviceModes: formData.serviceModes,
+          targetStudentLevels: formData.targetStudentLevels,
+          supportFocus: formData.supportFocus || null,
+          province: formData.province || null,
+          city: formData.city || null,
+          county: formData.county || null,
+          address: formData.address || null
         })
         Taro.showToast({ title: '申请已提交', icon: 'success' })
       }
@@ -322,6 +393,94 @@ function CoachApplication() {
             )}
           </View>
         )}
+
+        <View className="form-section">
+          <Text className="section-title">教练层级与服务定位</Text>
+
+          <View className="option-grid">
+            {coachTrackOptions.map(option => (
+              <View
+                key={option.value}
+                className={`option-card ${formData.coachTrack === option.value ? 'active' : ''}`}
+                onClick={() => setFormData(prev => ({ ...prev, coachTrack: option.value }))}
+              >
+                <Text className="option-title">{option.label}</Text>
+                <Text className="option-desc">{option.desc}</Text>
+              </View>
+            ))}
+          </View>
+
+          <View className="form-item">
+            <Text className="label">服务方式</Text>
+            <View className="choice-chip-list">
+              {serviceModeOptions.map(option => (
+                <Text
+                  key={option.value}
+                  className={`choice-chip ${formData.serviceModes.includes(option.value) ? 'active' : ''}`}
+                  onClick={() => toggleArrayField('serviceModes', option.value)}
+                >
+                  {option.label}
+                </Text>
+              ))}
+            </View>
+          </View>
+
+          <View className="form-item">
+            <Text className="label">适合学员阶段</Text>
+            <View className="choice-chip-list">
+              {targetStudentLevelOptions.map(option => (
+                <Text
+                  key={option.value}
+                  className={`choice-chip ${formData.targetStudentLevels.includes(option.value) ? 'active' : ''}`}
+                  onClick={() => toggleArrayField('targetStudentLevels', option.value)}
+                >
+                  {option.label}
+                </Text>
+              ))}
+            </View>
+          </View>
+
+          <View className="form-item">
+            <Text className="label">阶段问题聚焦</Text>
+            <Textarea
+              className="textarea"
+              value={formData.supportFocus}
+              onInput={(e) => setFormData(prev => ({ ...prev, supportFocus: e.detail.value }))}
+              placeholder="例如：新手动作入门、减脂平台期、力量专项突破"
+              maxlength={300}
+            />
+          </View>
+
+          <View className="form-item">
+            <Text className="label">常住城市 *</Text>
+            <View className="city-grid">
+              <Input
+                className="input"
+                value={formData.province}
+                onInput={(e) => setFormData(prev => ({ ...prev, province: e.detail.value }))}
+                placeholder="省"
+              />
+              <Input
+                className="input"
+                value={formData.city}
+                onInput={(e) => setFormData(prev => ({ ...prev, city: e.detail.value }))}
+                placeholder="市"
+              />
+              <Input
+                className="input"
+                value={formData.county}
+                onInput={(e) => setFormData(prev => ({ ...prev, county: e.detail.value }))}
+                placeholder="区/县"
+              />
+            </View>
+            <Input
+              className="input address-input"
+              value={formData.address}
+              onInput={(e) => setFormData(prev => ({ ...prev, address: e.detail.value }))}
+              placeholder="详细地址（选填）"
+            />
+          </View>
+        </View>
 
         <View className="form-section">
           <Text className="section-title">基本信息</Text>

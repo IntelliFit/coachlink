@@ -1,4 +1,398 @@
+
+## Repository Push and Branch Sync (`2026-06-05`)
+
+- Task: commit current CoachLink changes, push to remote, and keep `main` and `dev` synchronized.
+- Status: verification passed; commit/push in progress.
+- Verification before push:
+  - `npm run lint`: passed (project lint script prints the existing Next 16/no-eslint notice).
+  - `npm run typecheck`: passed.
+  - `npm test`: passed, 32 files / 158 tests.
+  - `npm run test:e2e`: passed, 4 tests.
+  - `npx next build`: passed after stopping the local `next dev` process that had locked `.next` during an earlier build attempt.
+- Notes:
+  - Fixed a real automation patch bug where set/reps adjustments were made on a local copy and not written back.
+  - Updated the backend CRUD e2e to use seeded temporary users instead of real `.env.development` users, because current real coach-test accounts may be intentionally modified for certification-flow testing.
+
+## Xunji-Style Student Training UX Gap Analysis (`2026-06-05`)
+
+- Task: compare the current CoachLink WeChat student training experience against the user's detailed `训记` interaction teardown and identify the next product/code changes.
+- Status: four highest-priority quick-pass changes implemented at code level in `wechat_app/src/training/training-execution`; no WeChat DevTools/manual verification or full lint/typecheck/build/test run per local preference.
+- Implemented quick pass:
+  - Rest timer can now be minimized into a right-edge floating countdown bubble and restored by tapping the bubble; expanded timer supports `-10秒`, `+10秒`, `完成`, and `最小化`.
+  - In-execution add-action picker now uses a `训记`-style selector: muscle rail, equipment chips, search, two-column action cards, multi-select, and batch add.
+  - Weight/reps recording now uses a bottom custom workout keyboard with large number keys, quick adjust, planned value, copy previous set, warmup/drop-set note tags, add-set, and complete-set shortcuts.
+  - Finishing a workout now opens a training summary sheet with body-map heatmap, total volume, completed sets, duration, muscle intensity bars, action summaries, and share-page entry when available.
+  - Follow-up fix: impromptu training entry now loads public strength actions from the public/community action library alongside the student's personal actions. When the personal library is empty, users can still select public actions and start training immediately; cards show `我的` / `公共` source badges.
+  - Follow-up fix: the no-long-term-plan state on today's training page now shows both primary `开始即兴首练` and secondary `找教练` actions. If the student already has an active coach subscription but no issued plan yet, the secondary action remains `联系教练`.
+- Current product concern:
+  - User feels the action library still has deeper issues and should not be modified further casually without a larger design/content pass.
+  - Key gap: action preview cards do not reliably show actual exercise demos. For beginner users, action names, tags, and text are not enough to understand what the movement is.
+  - Next action-library work should be planned around demo assets / thumbnails / movement previews and beginner comprehension, not only list layout styling.
+- Confirmed benchmark:
+  - Entry hub: bottom/FAB overlay with multiple record types.
+  - Strength flow: fast exercise selection, dense set logging, custom numeric keyboard, per-set actions, automatic rest timer, and minimized timer bubble.
+  - Completion flow: finish confirmation plus a share card centered on muscle heatmap, total volume, duration, and action summaries.
+  - Cardio/HIIT: dedicated lightweight but real record/config flows, not only generic task forms.
+- Current gaps found:
+  - The action library was redesigned toward `训记`, but the in-execution add-action picker still uses a simple search list instead of the richer muscle/equipment multi-select selector.
+  - The execution page still uses normal `Input` fields for weight/reps/RPE; it does not yet have a large custom workout keyboard.
+  - The rest timer is persisted and auto-starts, but it is still a blocking modal with skip/+30s actions, not a minimizable right-edge countdown bubble with +/- controls.
+  - The finish/share flow has share-token support and a day check-in card, but not a `训记`-style muscle heatmap share poster.
+  - Dedicated cardio and HIIT training record/config pages are not present; cardio currently exists as lightweight task inputs and HIIT is not a real surface yet.
+- Recommended implementation order:
+  1. Add minimizable/floating rest timer controls in `training-execution`.
+  2. Replace the execution-page add-action picker with the redesigned muscle/equipment selector and multi-select behavior.
+  3. Add a custom numeric workout keyboard for weight/reps and high-frequency set operations.
+  4. Add a heatmap-based completion/share card using existing body-map assets plus action volume data.
+  5. Add dedicated cardio record and HIIT interval-timer flows.
+
+## WeChat Registration Default Community Identity (`2026-06-05`)
+
+- Task: make WeChat mini-program student registration/onboarding automatically provide an elegant CoachLink community-style default avatar and nickname, while keeping the option to switch to the user's WeChat avatar/nickname.
+- Status: implemented at code level; no WeChat DevTools/manual verification or full lint/typecheck/build/test run per local preference.
+- Scope:
+  - `wechat_app/src/auth/student-onboarding/index.tsx`
+- Implemented:
+  - New incomplete student onboarding now generates a stable default identity from `userId`.
+  - Default nickname uses community-style training names such as `晨练记录员`, `街健探索者`, and `训练合伙人` plus a deterministic 4-digit suffix.
+  - Default avatar is a generated CoachLink-style SVG data URI using brand-compatible palettes and abstract training marks.
+  - Existing profile avatar/nickname are preserved, and edit mode still shows the user's existing profile.
+  - The first-step UI now explains that the default avatar/nickname are generated and that the user can replace them with WeChat avatar/nickname through the existing WeChat controls.
+  - Follow-up fix: onboarding completion now defaults to `/pages/index/index` instead of impromptu training, and the final button says `完成注册`.
+  - Follow-up fix: the generated SVG avatar is treated as onboarding-page display only and is not persisted to `user_profiles.avatar_url`; only a user-selected/uploaded WeChat avatar URL is saved.
+- Verification:
+  - Lightweight diff/content self-check only. Full lint/typecheck/build/test and WeChat DevTools verification intentionally not run.
+
+## Knowledge Base Entry Polish (`2026-06-05`)
+
+- Task: fix visible mojibake on the knowledge-base entry page and add an explicit under-construction reminder.
+- Status: implemented at code level; no full Web/WeChat visual verification or full lint/typecheck/build/test run per local preference.
+- Scope: Web `/dashboard/knowledge` and WeChat mini-program `/content/knowledge`.
+- Implemented: cleaned remaining corrupted Chinese UI strings, added a compact ?knowledge base is under construction? notice, kept the pain-point-first four-entry layout and collapsed shelves behavior.
+- Verification: targeted esbuild parse checks passed for the Web and WeChat knowledge TSX entries; `git diff --check` passed for touched knowledge entry files with CRLF warnings only.
 # CURRENT_TASK
+
+## WeChat Action Library UX Rework (`2026-06-05`)
+
+- Task: reorganize the WeChat mini-program action library UI using the provided `训记` reference.
+- Status: implemented at code level; no WeChat DevTools/manual visual verification or full lint/typecheck/build/test run per local preference.
+- Scope:
+  - `wechat_app/src/me/action-lib/index.tsx`
+  - `wechat_app/src/me/action-lib/index.scss`
+  - `wechat_app/src/training/actions/index.tsx`
+  - `wechat_app/src/training/actions/index.config.ts`
+  - `wechat_app/src/training/impromptu-training/index.tsx`
+- Implemented:
+  - Reworked the main action library from long article-style cards into a dark training-selector layout inspired by `训记`.
+  - Added left-side muscle/body-part rail, horizontal equipment filters, compact search, public presets, and dense two-column public action cards.
+  - Public action cards now show short decision fields only: action name, primary body part, tags, like count, demo/key-point marker, action detail entry, like/correction/add controls.
+  - My-action cards were reorganized as compact rows with action name, body part/type, tags, 1RM badge, and quick actions for key points, references, contribution, and deletion.
+  - Old `/training/actions` route now redirects to the redesigned `/me/action-lib?tab=public` page so users do not land on the legacy ugly list.
+  - The impromptu training entry now opens `/me/action-lib?tab=public` for action-library management.
+- Verification:
+  - `git diff --check` passed for touched action-library files with CRLF warnings only.
+  - Targeted `esbuild` checks passed for `wechat_app/src/me/action-lib/index.tsx`, `wechat_app/src/training/actions/index.tsx`, and `wechat_app/src/training/impromptu-training/index.tsx`.
+
+## Student Training Execution UX Optimization Follow-up (`2026-06-05`)
+
+- Task: optimize the student-side WeChat mini-program training execution and impromptu workout flow toward a `训记`-style fast workout logging experience.
+- Status: second optimization pass implemented at code level; no WeChat DevTools/manual verification or full lint/typecheck/build/test run per local preference.
+- Scope:
+  - `wechat_app/src/training/training-execution`
+  - `wechat_app/src/training/impromptu-training`
+  - `wechat_app/src/services/impromptuService.ts`
+- Implemented:
+  - Replaced the impromptu workout entry from a prefilled mini-plan form with a quick action search/list.
+  - Students can one-tap start a single action, or select multiple actions and start the session immediately.
+  - Impromptu entry now seeds each selected action as one pending set with blank reps/weight and default 90s rest, leaving real logging to the shared execution page.
+  - Fixed mini-program `impromptuService.finish()` to send backend-aligned `{ executionId }` instead of `{ id }`.
+  - Quick-finish in impromptu execution mode now calls `impromptuService.finish(..., { mode: 'quick' })` so pending sets can be completed by the backend quick-finish path.
+- Verification:
+  - `git diff --check` passed for touched execution/impromptu files with CRLF warnings only.
+  - Targeted `esbuild` checks passed for `wechat_app/src/training/impromptu-training/index.tsx` and `wechat_app/src/training/training-execution/index.tsx`.
+- Next step:
+  - Run WeChat DevTools/manual visual verification when requested.
+  - After verification, consider richer in-execution action search/add flow and editable history polish.
+
+## Student Training Execution UX Audit (`2026-06-05`)
+
+- Task: explain the current student-side WeChat mini-program training execution UI/interaction in full detail and evaluate it against the product direction of mimicking `训记`.
+- Status: first optimization pass implemented; no WeChat DevTools/manual verification or full lint/typecheck/build/test run per local preference.
+- Scope:
+  - Primary surface is `wechat_app/src/training/training-execution`.
+  - Related entry/caching surfaces include `wechat_app/src/training/today-training`, `wechat_app/src/utils/trainingExecutionCache.ts`, and `wechat_app/src/utils/todayTrainingPageCache.ts`.
+- Implemented:
+  - Added a compact quick-log panel in the current set form with `套用计划` and `复制上一组`.
+  - Added weight/reps/RPE steppers for faster set entry.
+  - Persisted rest timer deadlines to local storage so leaving/re-entering the execution page can restore active rest countdowns.
+  - Fixed mini-program complete-set payload to send backend-aligned `is_pr`, `actionId`, and `has_video` fields so manual PR/video state can persist more reliably.
+  - Changed execution page primary complete/finish buttons to pure brand-color backgrounds instead of gradients.
+- Verification:
+  - `git diff --check` passed for touched execution files with CRLF warnings only.
+  - Targeted `esbuild` check passed for `wechat_app/src/training/training-execution/index.tsx`.
+- Product direction:
+  - Student training execution experience is high priority.
+  - Future iteration should move closer to a `训记`-style fast workout logging experience while preserving CoachLink-specific coach plan, execution notice, feedback, and coach automation context.
+
+- Current finding:
+  - WeChat impromptu training currently uses a separate `impromptu_executions` table and then reuses the shared `training-execution` UI.
+  - Entry first requires choosing actions and planned sets/reps/rest/weight, then starts an execution and records sets one by one.
+  - Impromptu records are included in training-history calendar/day/month summary alongside plan executions.
+  - A likely bug exists in the WeChat impromptu finish path: `impromptuService.finish()` sends `{ id }`, while `/api/impromptu/finish` expects `executionId`.
+  - Product gap: current impromptu is "prepare a mini plan, then execute it", not yet a `璁`-style "open and log immediately / add while training" experience.
+
+## Coach Personal QR Payment Retirement (`2026-06-05`)
+
+- Task: verify current Huifu/bank-card readiness and retire legacy coach personal QR-code payment because student-to-coach money should only go through Huifu/platform payment.
+- Status: implemented in code and database; no full lint/typecheck/build/test or browser/WeChat DevTools verification run per local preference.
+- Data finding:
+  - Current coaches total: 17.
+  - Huifu receiving-account ready coaches: 2 (`枭马葛`, `刘三乐`), both with `huifu_open_status='opened'` and bank-card token present.
+  - Before cleanup, 16 coaches still had `allow_personal_qrcode` enabled and 3 coaches had QR codes configured (`刘三乐`, `枭马葛`, `刘孝烨`).
+- Operational DB update:
+  - Set `allow_personal_qrcode=false` for all 17 coach rows.
+  - Cleared `payment_qr_codes=[]` for all 17 coach rows.
+  - After cleanup: personal QR allowed count is 0 and configured QR count is 0.
+- Implemented:
+  - Student-facing coach payment info no longer exposes personal QR codes; QR-only modes are normalized to platform payment.
+  - Web `PaymentDialog` defaults away from personal QR and offline payment; student subscription page passes platform-only payment options.
+  - Student manual confirmation paths (`personal_qrcode`, `offline`, and waiting/pending confirmation submissions) now return a stopped-policy error.
+  - Coach QR-code GET/POST/upload APIs are retained for compatibility but return disabled/empty or 410 stopped-policy responses.
+  - Web `/coach/settings/payment` and WeChat `/coach/settings/payment` were converted to disabled notices with CTA to Huifu receiving-account setup.
+  - Web and WeChat coach menu entries now point to receiving-account setup instead of old QR-code settings.
+- Verification:
+  - Web touched files passed targeted `esbuild` bundle check.
+  - WeChat touched TSX files passed targeted `esbuild` bundle check with `.scss` loader; only stylesheet side-effect warnings appeared.
+  - `git diff --check` passed for touched payment-retirement files with CRLF warnings only.
+
+## Coach Automation V1 Implementation (`2026-06-05`)
+
+- Task: implement the coach-service automation V1 plan: coach-global policy + per-subscription override, job tracking, first-plan auto publish, feedback adjustment drafts, next-phase/renewal automation, and coach-facing settings entries.
+- Status: implemented at code level; database migration must be applied before the feature works online. Full lint/typecheck/build/test and browser/WeChat DevTools verification were not run per local preference.
+- Implemented:
+  - Added migration `supabase/migrations/20260605_coach_automation_v1.sql` with `coach_automation_policies`, `subscription_automation_overrides`, `coach_automation_jobs`, and `coach_plan_adjustment_drafts`.
+  - Added `src/lib/coachingAutomation/` service layer for policy resolution, idempotent jobs, subscription activation, feedback adjustment, next-phase generation, renewal handling, and draft application.
+  - Reworked the legacy `autoMatchPlanForSubscription(...)` path to delegate to `onSubscriptionActivated(...)`; first automatic plan defaults to `active` and does not depend on `CRON_SECRET`.
+  - Wired feedback submission, plan completion, platform renewal, and subscription-order renewal to the new automation hooks.
+  - Added coach APIs for global policy, per-student override, automation job/draft history, and applying adjustment drafts.
+  - Added Web coach automation settings page, Web navigation entry, Web student-detail override panel, WeChat coach automation page, WeChat overview entry, and WeChat student-detail override controls.
+  - Added focused tests for policy resolution and feedback patch safety behavior.
+- Safety/behavior notes:
+  - High-risk feedback (pain, injury, numbness, dizziness, obvious abnormality) is always review-only and never auto-applied.
+  - Feedback patches only target future unexecuted training days and skip completed/in-progress/abandoned execution days.
+  - Next-phase automation creates draft by default; auto-publish requires policy opt-in and archives the completed previous phase best-effort after the new active phase is created.
+  - Feedback draft generation is currently a conservative deterministic patch generator with explicit safety guards. The existing interactive AI modifier remains available manually, but its core still needs to be extracted from the SSE route before it can safely replace the background job generator.
+- Verification:
+  - Targeted `esbuild` syntax checks passed for the new automation service/API/UI files and modified WeChat automation/student-detail files.
+  - `git diff --check` passed for the touched automation files with CRLF warnings only.
+
+## Coach Certification Flow Test Reset (`2026-06-05`)
+
+- Task: support end-to-end testing of the upgraded coach certification / application review flow by temporarily removing coach access for selected approved coaches and nudging approved coaches with incomplete certification/profile data.
+- Status: operational database update completed; no code changes or browser/build verification were requested.
+- Completed:
+  - Temporarily removed coach access for `沈妈妈` and `MAX`.
+  - Set their `users.is_coach=false`, `users.coach_status='pending'`, and `users.primary_role='student'`.
+  - Set their `coaches.status='suspended'` so they no longer appear as approved coaches in discovery/purchase paths that filter `coaches.status='approved'`.
+  - Set their `coach_applications.status='needs_info'` with review notes instructing them to open `申请成为教练`, complete missing/updated fields, and resubmit for review.
+  - Sent both users system private messages explaining this is a platform flow test / data completion pass and that coach access will recover after re-approval.
+  - Sent non-blocking system reminders to 13 other approved, non-E2E coaches whose application/profile/payment-readiness data had gaps. Their coach access was not changed.
+- Important follow-up:
+  - The current product flow reuses the existing `coach_applications` row for resubmission; it does not create a brand-new application record unless the old row is deleted/archived manually.
+  - When `沈妈妈` or `MAX` resubmit, their application should move back toward `pending`; admin approval should upsert `coaches.status='approved'` and restore `users.is_coach=true`.
+
+## Coach Pricing Requires Bank Binding (`2026-06-05`)
+
+- Task: confirm and enforce whether coaches can set subscription package pricing before Huifu receiving-account / bank-card binding.
+- Status: hard pricing gate implemented in code; no full lint/typecheck/build/test or browser/WeChat verification run per local preference.
+- Finding:
+  - The earlier `2026-06-04` optimization added receiving-account reminders and blocked student payment for unready coaches, but still allowed coaches to save pricing drafts.
+- Implemented:
+  - `/api/coach/update-pricing` now requires `coaches.huifu_open_status='opened'` and a non-empty `coaches.huifu_card_token`; otherwise it returns 403 and refuses to create/update `coach_pricing`.
+  - Web `/dashboard/pricing` now blocks add/edit/delete/save pricing actions when the receiving account is not ready, disables add/update controls, and shows a binding CTA.
+  - WeChat `/coach/pricing` now blocks add/edit/delete pricing actions, visually dims add controls, and shows the same binding CTA.
+  - WeChat `/coach/pricing/edit` now blocks and disables saving when the receiving account is not ready.
+- Verification:
+  - `git diff --check` passed for the touched pricing files with CRLF warnings only.
+  - Full lint/typecheck/build/test and UI verification were intentionally not run.
+
+## WeChat Registration Nickname Autofill (`2026-06-05`)
+
+- Task: fix the recurring WeChat mini-program student registration/onboarding issue where tapping the native WeChat nickname candidate may not reliably fill/sync the nickname.
+- Status: implemented code-level fix; no WeChat DevTools/browser verification or full lint/typecheck/build/test sequence run per local preference.
+- Implemented:
+  - `wechat_app/src/auth/student-onboarding/index.tsx` now wraps the onboarding page in a native `Form` and gives the `type="nickname"` input `name="nickname"`.
+  - The first-step `下一步` footer control is now a `TaroButton` with `formType="submit"` so WeChat's native nickname value can be read from form submission even when `onInput` / `onBlur` do not report the selected candidate.
+  - Reused a single nickname synchronization helper for event values, form values, and native-node fallback reads; step-1 validation can receive the freshly synced nickname before React state catches up.
+  - `wechat_app/src/auth/student-onboarding/index.scss` resets the Taro button default border/margins for the footer button and changes active feedback to opacity only.
+- Verification:
+  - Targeted `esbuild` parse/bundle check passed for `wechat_app/src/auth/student-onboarding/index.tsx`.
+  - `git diff --check -- wechat_app/src/auth/student-onboarding/index.tsx wechat_app/src/auth/student-onboarding/index.scss` passed with CRLF warnings only.
+  - Manual WeChat nickname-candidate tapping was not verified automatically per local preference.
+
+## Coach Huifu Bank Binding UX (`2026-06-05`)
+
+- Task: reduce coach friction in Huifu receiving-account onboarding by replacing avoidable machine-code inputs with human-readable choices.
+- Status: implemented bank and region selector flow; no full lint/typecheck/build/test or Web/WeChat verification run per local preference.
+- Implemented:
+  - Added shared Huifu account option config for Web and WeChat mini-program: bank-code options plus 31 province-level and 450 city/district-level administrative code options.
+  - Web `/dashboard/wallet/merchant` now shows selectors for `开户银行`, `开户省份`, and `开户城市/区县`; `bankCode`, `provId`, and `areaId` are generated and shown as read-only previews.
+  - WeChat mini-program `/coach/wallet/merchant` mirrors the same selection flow with Taro `Picker` controls and read-only code previews.
+  - Copy now distinguishes `银行编码` as the bank-level code and `具体支行联行号` as the branch-level clearing number.
+  - `支行联行号` remains manual because it identifies the exact bank branch clearing node and cannot be safely inferred from bank + province/city alone.
+- Next step:
+  - Longer term, replace manual `支行联行号` with a searchable branch selector backed by a maintained bank/branch code dataset.
+- Follow-up diagnosis:
+  - User shared a failed binding screenshot for coach `刘三乐`: bank code `01040000`, branch clearing number `105138000194`, branch name `张家口市民支行`, and Huifu returned `银行编码有误`.
+  - Likely cause is field mismatch, not missing environment variables: `01040000` is Bank of China, while `105...` branch clearing numbers and the visible card BIN appear to be China Construction Bank. The bank code should likely be `01050000` if the card/branch is CCB.
+  - Huifu binding depends on core `HUIFU_*` credentials; missing envs would usually surface as config/sign/request failures rather than this specific bank-code validation error.
+  - Added a Web-only local debug shortcut on `/dashboard/wallet/merchant`: when running on localhost or non-production, step 0 shows `跳到银行卡信息` so the bank/region selector UI can be previewed without uploading ID images. This only changes client navigation and does not bypass backend Huifu validation.
+  - Downloaded Huifu official bank-code and area-code attachments for a local comparison. Current built-in 23 bank options all match Huifu bank codes; 31 province options and 450 city/district options all match Huifu area codes.
+  - Corrected several bank codes to Huifu attachment values: Ping An Bank, Beijing Bank, Shanghai Bank, Jiangsu Bank, Nanjing Bank, Ningbo Bank, and Bohai Bank.
+  - Added Web and WeChat guidance for the only remaining manual bank field: `具体支行联行号`. The UI now tells coaches to find the opening branch and 12-digit CNAPS/联行号 through bank app/online banking or bank customer service, and warns not to mix bank code with another bank's branch number.
+
+## Subscription-To-Plan Automation Audit (`2026-06-04`)
+
+- Task: inspect the student journey from coach discovery, subscription, coach questionnaire, payment, plan delivery, execution feedback, plan adjustment, renewal, and end/next-phase behavior.
+- Status: analysis completed; follow-up code direction is to refactor the automation loop into explicit policy, event, job, and state-machine services rather than scattered one-off calls.
+- Product/code direction (`2026-06-05`):
+  - Keep deployment env unchanged for now. The main automatic first-plan path should be code-driven and not depend on `CRON_SECRET`.
+  - Full automation should be modeled as a "coaching automation engine" with explicit stages: subscription activated, questionnaire ready, initial plan issued, execution finished, feedback received, adjustment evaluated, patch drafted/applied, phase completed, renewal/next phase resolved.
+  - Add durable automation policy at coach/package/student levels, durable automation job records, and backend services for initial plan issue, feedback adjustment, next-phase generation, renewal handling, and safety escalation.
+  - The existing direct calls to `autoMatchPlanForSubscription(...)`, feedback notification-only flow, manual AI modifier, and stub next-phase route should be reorganized around these services.
+- Deployment follow-up (`2026-06-05`):
+  - User checked `littlehorse-deployment/coachlink`: both production `main/.env.main -> ConfigMap coachlink-main-env` and development `dev/.env.dev -> ConfigMap coachlink-dev-env` currently lack `CRON_SECRET` and `ALIPAY_SYNC_SECRET`.
+  - Code confirmation: these variables are internal cron/background-job authorization secrets, not payment-provider credentials. Coach mini-program subscription payment still uses Huifu-created WeChat JSPay (`/api/payment/wechat/coach/create`) and Huifu notify (`/api/payment/wechat/notify`).
+  - Practical impact: without `CRON_SECRET` or `ALIPAY_SYNC_SECRET`, `src/instrumentation.ts` skips the in-process `ActivatePendingPlans` job, so AI-created `coach_plan_instances.status='scheduled'` plans can remain scheduled instead of becoming active automatically.
+  - Huifu delayed settlement background jobs use `HUIFU_SETTLEMENT_CRON_SECRET` or fall back to `CRON_SECRET`; configuring only `CRON_SECRET` would currently unlock both pending-plan activation and Huifu settlement processors through the shared fallback.
+  - Follow-up implemented: changed `autoMatchPlanForSubscription(...)` to create the first automatically matched plan with `delayedActivation: false`, so successful auto-generation publishes an `active` plan immediately and sends the student notification without waiting for cron. Coach-facing success messages were updated from "visible after a few minutes" to "student can view now".
+  - Verification note: no full lint/typecheck/build/test run was requested or run per local preference.
+- Current implementation:
+  - Student subscription flow exists on Web and WeChat mini-program. Coach questionnaire answers are persisted into `coach_subscriptions.subscribe_data` before payment/activation.
+  - Platform-paid new subscriptions are system-confirmed by payment notify/query and then call `autoMatchPlanForSubscription(...)`.
+  - Coach/manual confirmed offline payments also call `autoMatchPlanForSubscription(...)` after status becomes `active`.
+  - Initial automatic plan generation only runs when the subscription is active, has questionnaire data, and has no existing plan instance. After the 2026-06-05 fix, it publishes the first generated plan as `active` immediately and notifies the student; `/api/plan-lib/activate-pending-plans` remains a fallback for existing or future explicitly scheduled rows.
+  - In-process activation for leftover `scheduled` rows still depends on `ALIPAY_SYNC_SECRET` or `CRON_SECRET` being configured in `src/instrumentation.ts`.
+  - Student training execution records sets/items and can update e1RM/PR state; after completion the student can submit one feedback row to `execution_feedbacks`, which is also sent to the coach as a direct message.
+  - Coach-side Web and WeChat plan editors can manually use AI generation and AI modifier. The AI modifier context can include recent feedbacks, execution history, profile, questionnaire, actions, and templates.
+- Gaps against the desired fully automated coaching loop:
+  - There is no durable coach/package setting such as "auto issue plan" / "auto adjust from feedback".
+  - No backend job consumes `execution_feedbacks` to automatically create or apply plan adjustment patches.
+  - Feedback-driven AI adjustment is currently a coach-triggered workflow: feedback opens/prefills the AI modifier, and the coach still applies/saves the result.
+  - Renewal only extends `subscribed_weeks` and refreshes entitlement snapshot; it does not auto-generate a next phase.
+  - `/api/plan-lib/generate-next-phase` exists but is a stub/TODO and is not the reliable next-phase automation path.
+  - Auto-match skips if any plan instance already exists under the subscription, so completed/archived prior phases can still force manual intervention.
+- Recommended next implementation:
+  1. Make initial auto-plan delivery reliable and visible: add explicit coach/package policy, job status, service-role generation, and robust activation fallback.
+  2. Add feedback-to-adjustment jobs that generate reviewed patches for future plan days first; later allow auto-apply under coach-approved rules.
+  3. Add completed-plan/renewal next-phase automation using the existing personalized AI generation path plus execution/feedback context, not the current stub route.
+
+## WeChat Coach Profile / Overview UI Alignment (`2026-06-04`)
+
+- Task: align WeChat mini-program coach-side `/coach/my-profile` and `/coach/overview` visual style with the student-side `/me/profile/index` "My" page while preserving coach functionality.
+- Status: implemented with lightweight code checks; no full lint/typecheck/build/test or WeChat DevTools verification run per local preference.
+- Implemented:
+  - Reworked `wechat_app/src/coach/my-profile/index.scss` from the cold blue desktop-like card system to the student-side rpx card rhythm: gray page gradient, round avatar, white profile card, summary pills, grouped white menu cards, brand color `#CF6D4E`, and 8rpx-grid spacing.
+  - Reworked `wechat_app/src/coach/overview/index.scss` so the metrics and configuration entries use the same lightweight white-card/list style as the student "My" page.
+  - Updated coach overview non-state icon colors toward brand/student-side palette while keeping existing data, click handlers, routes, role switching, wallet, pricing, questionnaire, invitation, security, and logout behavior unchanged.
+  - Follow-up: removed the accidental `182rpx` top content padding from both coach pages because they use native navigation bars; content now starts at normal `24rpx` below the nav bar.
+- Verification:
+  - Targeted `esbuild` parse/bundle checks passed for `wechat_app/src/coach/my-profile/index.tsx` and `wechat_app/src/coach/overview/index.tsx` with stylesheet side-effect warnings only.
+  - `git diff --check` passed for touched files with CRLF warnings only.
+
+## Coach Receiving Account Readiness (`2026-06-04`)
+
+- Task: optimize coach application / package setup flow so coaches are reminded to open Huifu receiving account and bind a bank card before their packages can be sold; align Web and WeChat mini-program surfaces.
+- Status: implemented with lightweight code checks; no full lint/typecheck/build/test or browser/WeChat DevTools verification run per local preference.
+- Implemented:
+  - Coach overview API now returns `receivingAccountReady`, `huifuOpenStatus`, and `huifuOpenMsg` based on the coach's Huifu opening/card-token state.
+  - Web coach overview shows `收款账户` before pricing in the configuration checklist.
+  - Web pricing settings page shows a receiving-account readiness card and links to `/dashboard/wallet/merchant`; pricing drafts can still be saved.
+  - Web student coach profile blocks direct platform subscribe/renew actions when the coach Huifu receiving account is not opened and shows a student-facing warning in the pricing area.
+  - WeChat coach overview shows `收款账户` before pricing and links to `/coach/wallet/merchant`.
+  - WeChat coach pricing list and pricing edit page show the same receiving-account warning/CTA and keep draft editing available.
+  - WeChat student coach profile pricing section shows a warning and disables package selection until `huifu_open_status='opened'`.
+  - WeChat coach application page now collects the Web-aligned layered fields: coach track, service modes, target student levels, support focus, and province/city/county/address.
+- Verification:
+  - Targeted `esbuild` parse/transpile check passed for touched TS/TSX files.
+  - `git diff --check` passed with CRLF warnings only.
+
+## Registration Flow Audit (`2026-06-04`)
+
+- Task: inspect current Web / WeChat mini-program registration, login-created-account, student onboarding, and coach application flow for duplication and optimization points.
+- Status: analysis completed; no business code changes requested or made.
+- Current shape:
+  - Web explicit registration uses `/register` -> `/api/auth/register` -> NextAuth password login -> `/complete-profile` -> `OnboardingModal`.
+  - Web verification-code login can also auto-create a user through NextAuth credentials, so it behaves as an implicit registration path.
+  - Web WeChat QR login has WeChat-openid-only account creation paths and does not currently bind by phone or unionid.
+  - Mini-program has three account-entry paths: phone quick login via `/api/miniapp/wechat-login`, password / verification-code login via `/api/miniapp/login`, and explicit register via `/api/auth/register`.
+  - Student onboarding generally uses `onboarding_completed === true` plus core profile completeness, but mini-program explicit register currently relaunches to the default home URL instead of reusing the shared post-login onboarding resolver.
+  - Coach application has Web and mini-program implementations, but Web is the newer layered flow while the mini-program page still sends an older, smaller field set.
+- Key findings:
+  - Account creation logic is duplicated across `/api/auth/register`, NextAuth verification-code login, Web WeChat OAuth/bridge login, `/api/miniapp/login`, and `/api/miniapp/wechat-login`.
+  - Passwordless accounts created by verification-code / WeChat flows store blank or `"null"` password hashes; later password login can produce poor failure behavior and should route users to password setup/reset instead.
+  - A single `users.wechat_openid` field is being used for both Web Open Platform and mini-program openids, while unionid is fetched but not persisted, creating duplicate-account and binding-overwrite risk.
+  - Generated nicknames are cleaned in mini-program login helpers but can still be prefilled in Web onboarding after explicit registration / Web verification-code auto-registration.
+  - Coach application creation is frontend-guarded but not backend-idempotent; duplicate rows would break `maybeSingle()` reads.
+- Suggested next step:
+  - Refactor around shared identity helpers: `findOrCreateUserByContact`, `ensureUserProfile`, `resolvePostLoginDestination`, and idempotent `upsertCoachApplication`, then align mini-program coach application with the Web layered schema.
+- Follow-up fix after user clarified focus:
+  - Updated `wechat_app/src/auth/register/index.tsx` so explicit mini-program registration now reuses `studentOnboardingService.resolvePostLoginUrl(...)` after auto-login, matching the login page behavior. New incomplete students should be sent to `/auth/student-onboarding` instead of defaulting straight to `/pages/index/index`.
+  - Removed the duplicate `targetBodyParts` prompt from mini-program student onboarding step 7. Step 3 remains the single body-part selection step; step 7 now only asks common equipment and session duration.
+  - No build / WeChat DevTools verification was run automatically per local preference.
+- Unified questionnaire implementation:
+  - Web `OnboardingModal` and WeChat `student-onboarding` now use the same registration question model: optional avatar, nickname, gender, height, weight, multi-select fitness goals, fitness level, target body parts, weekly frequency, equipment, and session duration.
+  - Fitness goals are multi-select with a 3-goal cap. The first goal is saved to legacy `user_profiles.fitness_goal`; the full list is saved to `onboarding_questionnaires.answers.fitness_goals`.
+  - Removed the visible `interest_tags` / "训练方向" question from registration while continuing to write derived compatibility tags for legacy AI/profile consumers.
+  - Web and WeChat fitness profile cards now show/edit the unified goal/frequency/body/equipment/duration answers and fall back from old `fitness_goal` when `fitness_goals` is missing.
+  - AI profile-based plan/action bootstrapping and batch-operation context now read latest questionnaire `fitness_goals` / `weekly_frequency` with old-field fallback.
+  - Lightweight verification: touched TS/TSX files passed esbuild transform checks; `git diff --check` reported only CRLF warnings.
+
+---
+
+## Coach Wallet Missing Income Check (`2026-06-04`)
+
+- Task: answer why coach `枭马葛` cannot see wallet income for student `最终航行`.
+- Result:
+  - Student did pay. Subscription `3b734f5d-0f1b-44a9-a611-7812429d626f` is active and linked to paid platform WeChat order `76c0dedd-6ba8-4a98-b943-68016de5ac0b`.
+  - Payment was confirmed by system at `2026-05-28T15:36:10.438+00:00`; order total is `19900` fen.
+  - Coach wallet has no transaction for this order yet because Huifu settlement `438f9deb-8714-47bf-b63b-ec16b26352fd` is still `pending`, with coach net share `15920` fen and platform fee `3980` fen.
+  - Settlement becomes eligible at `2026-06-04T15:36:10.549+00:00` UTC (`2026-06-04 23:36:10` Asia/Shanghai). Wallet income appears only after the settlement processor succeeds and inserts `wallet_transactions`.
+- Next step:
+  - If it remains invisible after the eligible time plus processor run, inspect or run the admin due-settlement processor/reconciliation path rather than manually editing wallet balances.
+- Follow-up implemented:
+  - Wallet API now returns paid-but-not-yet-wallet-credited Huifu settlement rows as `pending_settlements` plus `pending_settlement_amount`.
+  - Web wallet page now adds pending settlement amount into the displayed frozen line, shows a separate `待结算收入` line, and renders pending settlement records at the top of income details.
+  - This keeps withdrawable balance unchanged while making paid delayed-settlement orders visible to coaches.
+
+---
+
+## Knowledge Base Product Direction (`2026-06-03`)
+
+- Task context: user shared a fitness-community and public-platform pain-point research report and asked what CoachLink knowledge base should prioritize, how to present it, and how to collect content.
+- Working product direction:
+  - Knowledge base should be pain-point/problem oriented first, not a generic article shelf.
+  - Highest-value first categories: injury/pain prevention and return-to-training, plateau diagnosis and specialty plans, movement standards/video review criteria, periodization/plan application, recovery/nutrition basics, and accountability/community practice.
+  - Existing surfaces should be reused: books as source/reference, public plans as executable templates, and BodyMap as a body-part/action-problem landing surface that can mount articles and plans.
+  - Content collection should combine user behavior signals, coach/student Q&A, execution-data bottlenecks, community hot topics, and curated external research, then go through review before publishing.
+- Implemented on `2026-06-03`:
+  - Reworked Web `/dashboard/knowledge` into four pain-point entry cards: injury/risk, plateau/no results, movement standards, and start training.
+  - Added generated static entry images under `public/images/knowledge-core/`.
+  - Added shared Web topic config at `src/config/knowledgeCoreTopics.ts`.
+  - Reworked WeChat mini-program `/content/knowledge` to show the same four entries first, with topic tags, primary CTA, and a topic resource panel above existing plans/books/body-map modules.
+  - Added mini-program static entry images under `wechat_app/src/assets/knowledge-core/` and topic config at `wechat_app/src/config/knowledgeCoreTopics.ts`.
+  - Extended `src/content/adminImport/highValueKnowledgePack.ts` from 3 to 11 original articles, adding injury-boundary, plateau, and movement-standard first-batch content; injury/rehab articles include non-medical-diagnosis and offline-evaluation boundary copy.
+- Verification:
+  - `npx tsx scripts/import-high-value-knowledge-pack.ts --dry-run` passed with 8 plans, 11 articles, 2 books.
+  - `git diff --check` passed with CRLF warnings only.
+  - Per local preference, no browser/WeChat DevTools verification or full lint/typecheck/build/test was run automatically.
+- Follow-up UX simplification on `2026-06-04`:
+  - User observed the knowledge page was too long and that mobile / mini-program interactions felt odd because clicking top entries jumped to lower same-page sections, sometimes with no useful content.
+  - Web `/dashboard/knowledge` and WeChat `/content/knowledge` were lightly simplified into a compact gateway: four topic cards only select the active pain point, and BodyMap / plan library / books are hidden behind explicit expand buttons.
+  - Plan resource links now use readable plan names and open plan detail directly where possible; article links fill the search box instead of navigating to empty multi-keyword search results.
+  - Lightweight verification: both touched TSX files parsed with `esbuild`; `git diff --check` passed with CRLF warnings only. Full lint/typecheck/build/test and browser/WeChat visual verification were not run per local preference.
+
+---
 
 ## Admin Knowledge Content Import Backend (`2026-05-29`)
 
