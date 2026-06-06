@@ -3,7 +3,7 @@
 ## WeChat Mini-Program Login Audit Visibility Follow-up (`2026-06-07`)
 
 - Task: make the login cancel/refuse/return path obvious in the actual WeChat mini-program login screenshot.
-- Status: code updated; user will run/build manually.
+- Status: code updated; repository push gate in progress.
 - Follow-up:
   - The prior top floating `返回` / `先逛逛` controls were not visible enough in the custom-nav/capsule top area.
   - `wechat_app/src/auth/login/index.tsx` now places full-width `返回上一页` and `不登录，先逛逛` actions directly below the quick-login button.
@@ -14,6 +14,11 @@
 - Verification:
   - Targeted `esbuild` check passed.
   - Per user instruction, no `npm run build:weapp` or further DevTools verification was run; user will build manually.
+- Push-gate follow-up:
+  - E2E dev-server stability required localizing Driver.js CSS into `src/assets/globals.css`.
+  - Playwright now uses `COACHLINK_FAST_DEV=1` for E2E webServer startup.
+  - `e2e/t2-backend-api-db-idempotent.spec.ts` now uses CSRF + NextAuth credentials callback for seeded-user login instead of UI form assumptions.
+  - Targeted `t2-backend-api-db-idempotent` E2E passed.
 
 ---
 

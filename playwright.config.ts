@@ -20,6 +20,7 @@ export default defineConfig({
       NEXTAUTH_URL: baseURL,
       E2E_SECRET: process.env.E2E_SECRET || "local-e2e",
       NODE_ENV: "development",
+      COACHLINK_FAST_DEV: process.env.COACHLINK_FAST_DEV || "1",
     },
   },
   use: {
