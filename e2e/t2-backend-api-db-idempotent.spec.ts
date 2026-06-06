@@ -41,11 +41,20 @@ async function cleanup(request: any, data: SeedData) {
   }
 }
 
-async function loginByUI(page: any, user: { id: string; phone: string }) {
+async function login(page: any, user: { id: string; phone: string }) {
   await page.context().clearCookies();
-  await page.goto("/login");
-  await page.locator("input").first().fill(user.id);
-  await page.locator("xpath=(//input)[1]/following::button[1]").click();
+  const csrfRes = await page.request.get("/api/auth/csrf");
+  const csrfJson = JSON.parse(await csrfRes.text());
+  const loginRes = await page.request.post("/api/auth/callback/credentials?json=true", {
+    form: {
+      csrfToken: csrfJson.csrfToken,
+      userId: user.id,
+      redirect: "false",
+      callbackUrl: "/",
+    },
+  });
+  expect(loginRes.ok()).toBeTruthy();
+  await page.goto("/");
   let lastSessionUserId: string | null = null;
   for (let attempt = 0; attempt < 16; attempt += 1) {
     await page.waitForTimeout(500);
@@ -152,14 +161,14 @@ test("backend API and DB CRUD stays idempotent", async ({ browser, request }) =>
   try {
     const studentContext = await browser.newContext();
     const studentPage = await studentContext.newPage();
-    await loginByUI(studentPage, data.student);
+    await login(studentPage, data.student);
     const studentResult = await runStudentFavoriteCrud(studentPage);
     leakedFavoriteId = studentResult.favoriteId;
     await studentContext.close();
 
     const coachContext = await browser.newContext();
     const coachPage = await coachContext.newPage();
-    await loginByUI(coachPage, { id: data.coach.user_id, phone: data.coach.phone });
+    await login(coachPage, { id: data.coach.user_id, phone: data.coach.phone });
     const coachResult = await runCoachTemplateCrud(coachPage);
     leakedTemplateId = coachResult.templateId;
     await coachContext.close();
@@ -167,7 +176,7 @@ test("backend API and DB CRUD stays idempotent", async ({ browser, request }) =>
     if (leakedFavoriteId) {
       const cleanupStudentContext = await browser.newContext();
       const cleanupStudentPage = await cleanupStudentContext.newPage();
-      await loginByUI(cleanupStudentPage, data.student);
+      await login(cleanupStudentPage, data.student);
       await cleanupStudentPage.request.post("/api/student/plan-lib/delete-favorite", {
         data: { id: leakedFavoriteId },
       });
@@ -177,7 +186,7 @@ test("backend API and DB CRUD stays idempotent", async ({ browser, request }) =>
     if (leakedTemplateId) {
       const cleanupCoachContext = await browser.newContext();
       const cleanupCoachPage = await cleanupCoachContext.newPage();
-      await loginByUI(cleanupCoachPage, { id: data.coach.user_id, phone: data.coach.phone });
+      await login(cleanupCoachPage, { id: data.coach.user_id, phone: data.coach.phone });
       await cleanupCoachPage.request.post("/api/plan-lib/delete-template", {
         data: { id: leakedTemplateId },
       });
