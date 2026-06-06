@@ -1,3 +1,5 @@
+import type { CoachApplicationMaterial } from "@/lib/coachApplicationMaterials";
+
 export interface UpdateCoachProfileDto {
     id?: string;
     userId?: string;
@@ -12,6 +14,7 @@ export interface UpdateCoachProfileDto {
         achievements?: string[];
         caseStudies?: string[];
         credentials?: { name: string; url?: string }[];
+        applicationMaterials?: CoachApplicationMaterial[];
         contactEmail?: string | null;
         contactPhone?: string | null;
         socialLinks?: Record<string, string>;

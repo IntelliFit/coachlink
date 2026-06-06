@@ -9,6 +9,7 @@ import { Calendar } from 'primereact/calendar';
 import { addLocale } from 'primereact/api';
 import { FileUpload, FileUploadHandlerEvent } from 'primereact/fileupload';
 import { Image } from 'primereact/image';
+import { QRCodeSVG } from 'qrcode.react';
 import { useToastContext } from '@/context/ToastContext';
 import { coachService } from '@/app/service/coachService';
 import { CoachesRow } from '@/types';
@@ -18,6 +19,7 @@ import { AeroInputNumber } from '../AeroInputNumber';
 import PaymentSkeleton from './PaymentSkeleton';
 import TermDialog from './TermDialog';
 import { yuanToFen } from '@/lib/moneyUtils';
+import { extractHuifuPayTarget, isHttpUrl } from './huifuPayInfo';
 
 // 中文语言包配置
 addLocale('zh-CN', {
@@ -106,6 +108,12 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
     const [selectedQrCode, setSelectedQrCode] = useState<QrCodeItem | null>(null);
     const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethodType>('qrcode');
     const [processingAlipay, setProcessingAlipay] = useState(false);
+    const [huifuQrOrder, setHuifuQrOrder] = useState<{
+        orderId: string;
+        qrValue: string;
+        amountText: string;
+        redirect: string;
+    } | null>(null);
 
     // 线下支付相关状态
     const [offlineExpiresAt, setOfflineExpiresAt] = useState<Date | null>(null);
@@ -185,6 +193,7 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
         if (visible && coachId) {
             setLoading(true);
             setSelectedQrCode(null);
+            setHuifuQrOrder(null);
             // 初始先做一次默认方法兜底（最终会在 loadCoach 后按可用方式校正）
             setSelectedPaymentMethod(normalizePaymentMethod(defaultPaymentMethod));
             loadCoach();
@@ -371,23 +380,54 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
 
             const data = await res.json();
 
-            if (data.success && data.data?.paymentInfo?.formHtml) {
+            const paymentInfo = data?.data?.paymentInfo;
+            if (data.success && (paymentInfo?.formHtml || paymentInfo?.payInfo)) {
                 const createdOrderId: string | undefined = data.data?.order?.id;
+                const payInfo = paymentInfo?.payInfo;
+
+                if (payInfo) {
+                    if (!createdOrderId) {
+                        showToast({ severity: 'error', summary: '错误', detail: '缺少支付订单号，请稍后重试' });
+                        return;
+                    }
+
+                    const payTarget = extractHuifuPayTarget(payInfo);
+                    onHide();
+
+                    if (payTarget) {
+                        if (mobile && isHttpUrl(payTarget)) {
+                            window.location.assign(payTarget);
+                            return;
+                        }
+
+                        setHuifuQrOrder({
+                            orderId: createdOrderId,
+                            qrValue: payTarget,
+                            amountText: amount.toFixed(2),
+                            redirect,
+                        });
+                        return;
+                    }
+
+                    window.location.assign(`/payment/${createdOrderId}?redirect=${encodeURIComponent(redirect)}`);
+                    return;
+                }
+
                 if (mobile) {
                     document.open();
-                    document.write(data.data.paymentInfo.formHtml);
+                    document.write(paymentInfo.formHtml);
                     document.close();
                 } else {
                     const newWindow = window.open('', '_blank');
                     if (newWindow) {
-                        newWindow.document.write(data.data.paymentInfo.formHtml);
+                        newWindow.document.write(paymentInfo.formHtml);
                         newWindow.document.close();
                     }
                     showToast({ severity: 'info', summary: '正在跳转', detail: '请在新窗口完成支付；本页将展示支付结果' });
                     onHide();
                     // Redirect current tab to payment status page for reliable polling/auto-confirm
                     if (createdOrderId) {
-                        window.location.assign(`/payment/${createdOrderId}`);
+                        window.location.assign(`/payment/${createdOrderId}?redirect=${encodeURIComponent(redirect)}`);
                     }
                 }
             } else {
@@ -986,6 +1026,55 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
                 onAccept={handleTermsAccept}
                 onCancel={handleTermsReject}
             />
+
+            <Dialog
+                header="支付宝扫码支付"
+                visible={Boolean(huifuQrOrder)}
+                onHide={() => setHuifuQrOrder(null)}
+                modal
+                draggable={false}
+                resizable={false}
+                style={{ width: '92vw', maxWidth: '420px' }}
+                pt={{
+                    header: { className: 'border-none bg-surface' },
+                    content: { className: 'bg-surface' },
+                    footer: { className: 'bg-surface' },
+                }}
+                footer={
+                    <div className="flex justify-end gap-2">
+                        <Button
+                            outlined
+                            className="rounded-2xl"
+                            label="取消"
+                            onClick={() => setHuifuQrOrder(null)}
+                        />
+                        <Button
+                            className="rounded-2xl"
+                            label="我已完成支付"
+                            onClick={() => {
+                                if (!huifuQrOrder) return;
+                                window.location.assign(
+                                    `/payment/${huifuQrOrder.orderId}?redirect=${encodeURIComponent(huifuQrOrder.redirect)}`,
+                                );
+                            }}
+                        />
+                    </div>
+                }
+            >
+                {huifuQrOrder ? (
+                    <div className="flex flex-col items-center gap-4 py-2 text-center">
+                        <div className="rounded-2xl border border-surface-200 bg-white p-4">
+                            <QRCodeSVG value={huifuQrOrder.qrValue} size={220} level="M" />
+                        </div>
+                        <div className="text-sm font-black text-surface-900">
+                            请使用支付宝扫码支付 ¥{huifuQrOrder.amountText}
+                        </div>
+                        <div className="text-xs leading-relaxed text-surface-500">
+                            支付完成后点击确认，系统会查询订单状态并自动确认订阅。
+                        </div>
+                    </div>
+                ) : null}
+            </Dialog>
         </>
     );
 };

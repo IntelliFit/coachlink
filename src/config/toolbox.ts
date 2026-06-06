@@ -28,6 +28,13 @@ export type ToolboxLink = {
  */
 export const STUDENT_TOOLBOX_LINKS: ToolboxLink[] = [
   {
+    key: 'power-analysis',
+    label: '引体 / 双力臂功率测试',
+    description: '上传视频估算上升功率、马力和最大速度；分析视频可下载，服务器仅临时保留 24 小时。',
+    url: '/toolbox/power-analysis',
+    icon: 'pi pi-bolt',
+  },
+  {
     key: 'strength-calculator',
     label: '力量计算器（极限/做组/水平评估）',
     description: '算负重引体/臂屈伸/三大项/弯举的极限与做组重量，并判断你是菜鸡还是大神。',

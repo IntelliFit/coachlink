@@ -22,6 +22,7 @@ export default function CoachIntro({
   const profile = (coach.profile || {}) as Record<string, any>
   const caseStudies = Array.isArray(profile?.caseStudies) ? profile.caseStudies : []
   const caseCount = caseStudies.length
+  const materialCount = Array.isArray(profile?.applicationMaterials) ? profile.applicationMaterials.length : 0
 
   return (
     <View className='intro-wrap'>
@@ -107,6 +108,10 @@ export default function CoachIntro({
         <View className='exp-item'>
           <Text className='exp-label'>成功案例</Text>
           <Text className='exp-value'>{caseCount} 个学员蜕变</Text>
+        </View>
+        <View className='exp-item'>
+          <Text className='exp-label'>公开材料</Text>
+          <Text className='exp-value'>{materialCount} 个可查证明</Text>
         </View>
       </View>
     </View>

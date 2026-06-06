@@ -45,6 +45,52 @@ const riskOptions = [
   { value: 'normal', label: '普通' }
 ]
 
+const settingGuide = [
+  {
+    title: '首个计划',
+    value: '建议自动发放',
+    body: '新学员支付或确认后，系统直接生成并发放首个计划。想逐份检查时再改成草稿。'
+  },
+  {
+    title: '反馈调整',
+    value: '建议草稿通知',
+    body: '学员反馈偏重、偏轻、时间不够时，系统先生成调整草稿，由教练确认后应用。'
+  },
+  {
+    title: '下一阶段',
+    value: '建议草稿通知',
+    body: '当前阶段完成后，有额度则生成下一阶段草稿；额度不足时提醒续费。'
+  },
+  {
+    title: '风险保护',
+    value: '建议严格',
+    body: '疼痛、伤病、麻木、头晕等反馈不会自动改计划，必须教练人工判断。'
+  }
+]
+
+const scenarioGuide = [
+  {
+    title: '普通线上教练',
+    settings: '首个计划自动发放；反馈和下一阶段都先生成草稿；风险保护严格。'
+  },
+  {
+    title: '新教练或高客单学员',
+    settings: '首个计划也生成草稿，所有关键动作都由教练确认。'
+  },
+  {
+    title: '稳定老学员',
+    settings: '可把反馈调整改成低风险自动应用，但风险保护仍保持严格。'
+  },
+  {
+    title: '康复/疼痛/伤病倾向',
+    settings: '不要开自动应用，反馈调整和下一阶段都保持草稿确认。'
+  },
+  {
+    title: '尽量全自动',
+    settings: '首个计划自动发放，低风险自动应用，下一阶段额度足够自动发布。只建议给稳定学员使用。'
+  }
+]
+
 const statusMap: Record<string, { label: string; className: string; icon: any }> = {
   pending: { label: '待执行', className: 'muted', icon: Clock3 },
   running: { label: '执行中', className: 'info', icon: RefreshCw },
@@ -211,6 +257,42 @@ export default function CoachAutomationPage() {
           <View className='header-copy'>
             <Text className='title'>自动化设置</Text>
             <Text className='subtitle'>当前来源：{source === 'coach' ? '教练自定义' : '系统默认'}</Text>
+          </View>
+        </View>
+
+        <View className='panel guide-panel'>
+          <View className='guide-head'>
+            <Text className='guide-kicker'>推荐默认</Text>
+            <Text className='panel-title'>不知道怎么选，就保持默认</Text>
+            <Text className='guide-copy'>
+              默认会自动发首个计划，反馈和下一阶段先生成草稿提醒教练确认，疼痛和伤病风险永远不会自动应用。
+            </Text>
+          </View>
+
+          <View className='guide-grid'>
+            {settingGuide.map((item) => (
+              <View className='guide-item' key={item.title}>
+                <Text className='guide-item-title'>{item.title}</Text>
+                <Text className='guide-item-value'>{item.value}</Text>
+                <Text className='guide-item-body'>{item.body}</Text>
+              </View>
+            ))}
+          </View>
+
+          <View className='scenario-section'>
+            <Text className='scenario-title'>不同情况下怎么设置</Text>
+            {scenarioGuide.map((item) => (
+              <View className='scenario-card' key={item.title}>
+                <Text className='scenario-name'>{item.title}</Text>
+                <Text className='scenario-settings'>{item.settings}</Text>
+              </View>
+            ))}
+          </View>
+
+          <View className='guide-warning'>
+            <Text>
+              单个学员需要特殊规则时，去学员详情里设置“单学员自动化覆盖”；不要为了一个学员改全局设置。
+            </Text>
           </View>
         </View>
 

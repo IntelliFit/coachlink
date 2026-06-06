@@ -32,8 +32,7 @@ import {
     Sun,
     Bell,
     Search,
-    User,
-    Bot
+    User
 } from 'lucide-react';
 
 export default function NavigationCoach() {
@@ -157,7 +156,6 @@ export default function NavigationCoach() {
             { label: '概览', icon: LayoutDashboard, url: '/dashboard/overview', command: () => router.push('/dashboard/overview'), template: itemRenderer },
             { label: '视频点评', icon: PlayCircle, url: '/dashboard/videos', command: () => router.push('/dashboard/videos'), template: itemRenderer },
             { label: '我的学员', icon: Users, url: '/dashboard/students', command: () => router.push('/dashboard/students'), template: itemRenderer },
-            { label: '自动化', icon: Bot, url: '/dashboard/automation', command: () => router.push('/dashboard/automation'), template: itemRenderer },
             { label: '内容管理', icon: FileEdit, url: '/dashboard/content', command: () => router.push('/dashboard/content'), template: itemRenderer },
             { label: '计划库', icon: ClipboardList, url: '/dashboard/plan-lib', command: () => router.push('/dashboard/plan-lib'), template: itemRenderer },
         ];

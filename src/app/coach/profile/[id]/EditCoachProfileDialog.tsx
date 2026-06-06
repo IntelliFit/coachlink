@@ -19,6 +19,12 @@ import {
     SERVICE_MODE_OPTIONS,
     TARGET_STUDENT_LEVEL_OPTIONS,
 } from '@/lib/coachApplicationOptions';
+import ApplicationMaterialEditor from '../../application/ApplicationMaterialEditor';
+import {
+    deriveLegacyFieldsFromMaterials,
+    normalizeCoachApplicationMaterials,
+    type CoachApplicationMaterial,
+} from '@/lib/coachApplicationMaterials';
 
 /** 将接口/网络错误信息转为用户可读的中文提示 */
 function getErrorMessageForUser(raw: string | undefined): string {
@@ -69,6 +75,7 @@ const EditCoachProfileDialog: React.FC<EditCoachProfileDialogProps> = ({ visible
     const [caseStudies, setCaseStudies] = useState<string[]>([]);
     const [newCaseStudy, setNewCaseStudy] = useState('');
     const [credentials, setCredentials] = useState<{ name: string; url?: string }[]>([]);
+    const [applicationMaterials, setApplicationMaterials] = useState<CoachApplicationMaterial[]>([]);
     const [newCredName, setNewCredName] = useState('');
     const [newCredUrl, setNewCredUrl] = useState('');
     const [contactEmail, setContactEmail] = useState<string | null>(null);
@@ -119,6 +126,12 @@ const EditCoachProfileDialog: React.FC<EditCoachProfileDialogProps> = ({ visible
                 setAchievements(Array.isArray(profile.achievements) ? profile.achievements : []);
                 setCaseStudies(Array.isArray(profile.caseStudies) ? profile.caseStudies : []);
                 setCredentials(Array.isArray(profile.credentials) ? profile.credentials : []);
+                setApplicationMaterials(normalizeCoachApplicationMaterials(profile.applicationMaterials, {
+                    achievements: profile.achievements || [],
+                    caseStudies: profile.caseStudies || [],
+                    credentials: profile.credentials || [],
+                    socialLinks: profile.socialLinks || {},
+                }));
                 setContactEmail(profile.contactEmail ?? null);
                 setContactPhone(profile.contactPhone ?? null);
                 setSupportFocus((coach as any).support_focus || profile.supportFocus || '');
@@ -146,6 +159,7 @@ const EditCoachProfileDialog: React.FC<EditCoachProfileDialogProps> = ({ visible
                 setAchievements([]);
                 setCaseStudies([]);
                 setCredentials([]);
+                setApplicationMaterials([]);
                 setContactEmail(null);
                 setContactPhone(null);
                 setSupportFocus((coach as any).support_focus || '');
@@ -359,14 +373,28 @@ const EditCoachProfileDialog: React.FC<EditCoachProfileDialogProps> = ({ visible
                 }
             });
 
-            const profile = {
-                teachingPhilosophy,
+            const normalizedMaterials = normalizeCoachApplicationMaterials(applicationMaterials, {
                 achievements,
                 caseStudies,
                 credentials,
+                socialLinks: Object.keys(socialLinksObj).length > 0 ? socialLinksObj : null,
+            });
+            const legacyFields = deriveLegacyFieldsFromMaterials(normalizedMaterials, {
+                achievements,
+                caseStudies,
+                credentials,
+                socialLinks: Object.keys(socialLinksObj).length > 0 ? socialLinksObj : null,
+            });
+
+            const profile = {
+                teachingPhilosophy,
+                achievements: legacyFields.achievements,
+                caseStudies: legacyFields.caseStudies,
+                credentials: legacyFields.credentials,
+                applicationMaterials: normalizedMaterials,
                 contactEmail,
                 contactPhone,
-                socialLinks: Object.keys(socialLinksObj).length > 0 ? socialLinksObj : null,
+                socialLinks: Object.keys(legacyFields.socialLinks).length > 0 ? legacyFields.socialLinks : null,
             };
 
             const provinceValue = province?.trim() || null;
@@ -679,125 +707,11 @@ const EditCoachProfileDialog: React.FC<EditCoachProfileDialogProps> = ({ visible
 
                     </div>
 
-                    <div>
-                        <label className="block text-sm font-medium text-surface-900 mb-2">
-                            成就奖项
-                        </label>
-                        <div className="flex flex-wrap gap-2 mb-2">
-                            {achievements.map((achievement, index) => (
-                                <Chip
-                                    key={index}
-                                    label={achievement}
-                                    removable
-                                    onRemove={() => handleRemoveAchievement(index)}
-                                />
-                            ))}
-                        </div>
-                        <div className="flex gap-2">
-                            <InputText
-                                value={newAchievement}
-                                onChange={(e) => setNewAchievement(e.target.value)}
-                                placeholder="输入成就奖项"
-                                className="flex-1"
-                                onKeyDown={(e) => {
-                                    if (e.key === 'Enter' && newAchievement.trim()) {
-                                        e.preventDefault();
-                                        handleAddAchievement();
-                                    }
-                                }}
-                            />
-                            <Button
-                                type="button"
-                                icon="pi pi-plus"
-                                onClick={handleAddAchievement}
-                                disabled={!newAchievement.trim()}
-                            />
-                        </div>
-                    </div>
-
-                    <div>
-                        <label className="block text-sm font-medium text-surface-900 mb-2">
-                            成功案例
-                        </label>
-                        <div className="flex flex-wrap gap-2 mb-2">
-                            {caseStudies.map((item, index) => (
-                                <Chip
-                                    key={index}
-                                    label={item}
-                                    removable
-                                    onRemove={() => handleRemoveCaseStudy(index)}
-                                />
-                            ))}
-                        </div>
-                        <div className="flex gap-2">
-                            <InputText
-                                value={newCaseStudy}
-                                onChange={(e) => setNewCaseStudy(e.target.value)}
-                                placeholder="输入案例描述"
-                                className="flex-1"
-                                onKeyDown={(e) => {
-                                    if (e.key === 'Enter' && newCaseStudy.trim()) {
-                                        e.preventDefault();
-                                        handleAddCaseStudy();
-                                    }
-                                }}
-                            />
-                            <Button
-                                type="button"
-                                icon="pi pi-plus"
-                                onClick={handleAddCaseStudy}
-                                disabled={!newCaseStudy.trim()}
-                            />
-                        </div>
-                    </div>
-
-                    <div>
-                        <label className="block text-sm font-medium text-surface-900 mb-2">
-                            资质证书
-                        </label>
-                        <div className="space-y-2 mb-2">
-                            {credentials.map((cred, index) => (
-                                <div key={index} className="flex gap-2 items-center">
-                                    <InputText
-                                        value={cred.name}
-                                        onChange={(e) => {
-                                            const next = [...credentials];
-                                            next[index] = { ...next[index], name: e.target.value };
-                                            setCredentials(next);
-                                        }}
-                                        placeholder="证书名称"
-                                        className="flex-1"
-                                    />
-                                    <InputText
-                                        value={cred.url || ''}
-                                        onChange={(e) => {
-                                            const next = [...credentials];
-                                            next[index] = { ...next[index], url: e.target.value };
-                                            setCredentials(next);
-                                        }}
-                                        placeholder="证书链接（可选）"
-                                        className="flex-1"
-                                    />
-                                    <Button icon="pi pi-times" outlined rounded onClick={() => handleRemoveCredential(index)} />
-                                </div>
-                            ))}
-                        </div>
-                        <div className="flex gap-2">
-                            <InputText
-                                value={newCredName}
-                                onChange={(e) => setNewCredName(e.target.value)}
-                                placeholder="证书名称"
-                                className="flex-1"
-                            />
-                            <InputText
-                                value={newCredUrl}
-                                onChange={(e) => setNewCredUrl(e.target.value)}
-                                placeholder="证书链接（可选）"
-                                className="flex-1"
-                            />
-                            <Button type="button" icon="pi pi-plus" onClick={handleAddCredential} disabled={!newCredName.trim()} />
-                        </div>
-                    </div>
+                    <ApplicationMaterialEditor
+                        materials={applicationMaterials}
+                        onChange={setApplicationMaterials}
+                        helperText="维护教练主页可展示的精选材料，也可以保留仅审核可见的私密证明。"
+                    />
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>

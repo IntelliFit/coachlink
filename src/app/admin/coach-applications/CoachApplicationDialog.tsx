@@ -11,6 +11,10 @@ import {
     getServiceModeLabel,
     getTargetStudentLevelLabel,
 } from '@/lib/coachApplicationOptions';
+import {
+    COACH_APPLICATION_MATERIAL_CATEGORIES,
+    groupCoachApplicationMaterials,
+} from '@/lib/coachApplicationMaterials';
 
 interface CoachApplicationDialogProps {
     visible: boolean;
@@ -122,6 +126,54 @@ const CoachApplicationDialog: React.FC<CoachApplicationDialogProps> = ({
         );
     };
 
+    const renderApplicationMaterials = (materials: any) => {
+        const grouped = groupCoachApplicationMaterials(materials);
+        if (!grouped.all.length) return null;
+        const labelMap = Object.fromEntries(COACH_APPLICATION_MATERIAL_CATEGORIES.map((item) => [item.value, item.label]));
+
+        return (
+            <div className="space-y-4">
+                {grouped.all.map((item) => (
+                    <div key={item.id} className="rounded-xl border border-surface-200 bg-surface-0 p-4">
+                        <div className="flex flex-wrap items-center gap-2 mb-2">
+                            <Chip label={labelMap[item.category] || '材料'} className="bg-primary-100 text-primary-700" />
+                            {!item.isPublic && <Chip label="仅审核可见" className="bg-yellow-100 text-yellow-700" />}
+                        </div>
+                        <div className="font-semibold text-surface-900">{item.title}</div>
+                        {item.summary && <div className="text-sm text-surface-600 mt-1">{item.summary}</div>}
+                        {item.detail && <div className="text-sm text-surface-700 mt-2 whitespace-pre-line">{item.detail}</div>}
+                        {(item.media.length > 0 || item.links.length > 0) && (
+                            <div className="mt-3 flex flex-wrap gap-2">
+                                {item.media.map((media) => (
+                                    <a
+                                        key={media.id}
+                                        href={media.url}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="rounded-lg border border-surface-200 px-3 py-1.5 text-xs font-bold text-surface-700 hover:text-primary-600"
+                                    >
+                                        {media.type === 'video' ? '视频' : '图片'}：{media.fileName || '查看'}
+                                    </a>
+                                ))}
+                                {item.links.map((link) => (
+                                    <a
+                                        key={link.id}
+                                        href={link.url}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="rounded-lg border border-surface-200 px-3 py-1.5 text-xs font-bold text-surface-700 hover:text-primary-600"
+                                    >
+                                        {link.label || '外部链接'}
+                                    </a>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                ))}
+            </div>
+        );
+    };
+
     const renderSection = (title: string, children: React.ReactNode) => {
         if (!children) return null;
         
@@ -187,6 +239,7 @@ const CoachApplicationDialog: React.FC<CoachApplicationDialogProps> = ({
                         <>
                             {renderArrayField("成就奖项", application.achievements)}
                             {renderArrayField("代表案例", application.case_studies)}
+                            {renderApplicationMaterials((application as any).application_materials)}
                         </>
                     ))}
 

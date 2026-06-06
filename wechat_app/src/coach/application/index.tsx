@@ -6,6 +6,14 @@ import { authService } from '@/services/authService'
 import BottomNav from '@/components/BottomNav'
 import './index.scss'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
+import {
+  createEmptyCoachMaterial,
+  deriveLegacyFieldsFromMaterials,
+  MATERIAL_CATEGORY_OPTIONS,
+  normalizeCoachApplicationMaterials,
+  type CoachApplicationMaterial,
+  type CoachApplicationMaterialCategory
+} from '@/utils/coachApplicationMaterials'
 
 interface Credential {
   name: string
@@ -50,6 +58,7 @@ function CoachApplication() {
     achievements: [] as string[],
     caseStudies: [] as string[],
     credentials: [] as Credential[],
+    applicationMaterials: [] as CoachApplicationMaterial[],
     socialLinks: [] as SocialLink[],
     coachTrack: '',
     serviceModes: [] as string[],
@@ -70,6 +79,10 @@ function CoachApplication() {
   const [currentCaseStudy, setCurrentCaseStudy] = useState('')
   const [editingCredential, setEditingCredential] = useState<Credential | null>(null)
   const [editingSocialLink, setEditingSocialLink] = useState<SocialLink | null>(null)
+  const [editingMaterialIndex, setEditingMaterialIndex] = useState<number | null>(null)
+  const [materialDraft, setMaterialDraft] = useState<CoachApplicationMaterial | null>(null)
+  const [materialLinkDraft, setMaterialLinkDraft] = useState({ label: '', url: '' })
+  const [uploadingMaterial, setUploadingMaterial] = useState(false)
   const [role, setRole] = useState<'coach' | 'gym'>('coach')
 
   useEffect(() => {
@@ -115,6 +128,11 @@ function CoachApplication() {
             name: cred.name || '',
             url: cred.url || ''
           })) : [],
+          applicationMaterials: normalizeCoachApplicationMaterials((app as any).application_materials, {
+            achievements: app.achievements || [],
+            caseStudies: app.case_studies || [],
+            credentials: app.credentials || []
+          }),
           socialLinks: app.social_links ? Object.entries(app.social_links).map(([key, value]) => {
             const platformMap: Record<string, string> = {
               'douyin': '抖音',
@@ -259,6 +277,129 @@ function CoachApplication() {
     })
   }
 
+  function openNewMaterial(category: CoachApplicationMaterialCategory = 'achievement') {
+    setEditingMaterialIndex(null)
+    setMaterialDraft(createEmptyCoachMaterial(category))
+    setMaterialLinkDraft({ label: '', url: '' })
+  }
+
+  function openEditMaterial(index: number) {
+    setEditingMaterialIndex(index)
+    setMaterialDraft({ ...formData.applicationMaterials[index] })
+    setMaterialLinkDraft({ label: '', url: '' })
+  }
+
+  function cancelMaterialEdit() {
+    setEditingMaterialIndex(null)
+    setMaterialDraft(null)
+    setMaterialLinkDraft({ label: '', url: '' })
+  }
+
+  function saveMaterialDraft() {
+    if (!materialDraft?.title.trim()) {
+      Taro.showToast({ title: '请输入材料标题', icon: 'none' })
+      return
+    }
+    const nextMaterial = {
+      ...materialDraft,
+      title: materialDraft.title.trim(),
+      summary: materialDraft.summary?.trim() || null,
+      detail: materialDraft.detail?.trim() || null
+    }
+    setFormData(prev => ({
+      ...prev,
+      applicationMaterials: editingMaterialIndex === null
+        ? [...prev.applicationMaterials, nextMaterial]
+        : prev.applicationMaterials.map((item, idx) => idx === editingMaterialIndex ? nextMaterial : item)
+    }))
+    cancelMaterialEdit()
+  }
+
+  function removeMaterial(index: number) {
+    setFormData(prev => ({
+      ...prev,
+      applicationMaterials: prev.applicationMaterials.filter((_, idx) => idx !== index)
+    }))
+  }
+
+  function addMaterialLink() {
+    if (!materialDraft || !materialLinkDraft.url.trim()) return
+    setMaterialDraft(prev => prev ? ({
+      ...prev,
+      links: [
+        ...prev.links,
+        {
+          id: `link_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+          label: materialLinkDraft.label.trim() || '相关链接',
+          url: materialLinkDraft.url.trim()
+        }
+      ]
+    }) : prev)
+    setMaterialLinkDraft({ label: '', url: '' })
+  }
+
+  function removeMaterialLink(id: string) {
+    setMaterialDraft(prev => prev ? ({ ...prev, links: prev.links.filter(item => item.id !== id) }) : prev)
+  }
+
+  function removeMaterialMedia(id: string) {
+    setMaterialDraft(prev => prev ? ({ ...prev, media: prev.media.filter(item => item.id !== id) }) : prev)
+  }
+
+  async function chooseAndUploadMaterialMedia() {
+    if (!materialDraft || uploadingMaterial) return
+    try {
+      setUploadingMaterial(true)
+      const res = await Taro.chooseMedia({
+        count: 1,
+        mediaType: ['image', 'video'],
+        sourceType: ['album', 'camera']
+      } as any)
+      const filePath = (res as any)?.tempFiles?.[0]?.tempFilePath
+      if (!filePath) return
+      const uploaded = await coachService.uploadApplicationMediaMiniApp(filePath)
+      if (!uploaded) throw new Error('上传失败')
+      setMaterialDraft(prev => prev ? ({
+        ...prev,
+        media: [
+          ...prev.media,
+          {
+            id: `media_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+            type: uploaded.type,
+            url: uploaded.url,
+            thumbnailUrl: uploaded.thumbnailUrl || null,
+            storageBucket: uploaded.storageBucket,
+            storagePath: uploaded.storagePath,
+            fileName: uploaded.fileName,
+            fileSizeBytes: uploaded.fileSizeBytes,
+            contentType: uploaded.contentType
+          }
+        ]
+      }) : prev)
+      Taro.showToast({ title: '上传成功', icon: 'success' })
+    } catch (e: any) {
+      console.error('[coach/application] upload material:', e)
+      Taro.showToast({ title: e?.message || '上传失败', icon: 'none' })
+    } finally {
+      setUploadingMaterial(false)
+    }
+  }
+
+  function openMaterialMedia(media: CoachApplicationMaterial['media'][number]) {
+    if (media.type === 'image') {
+      Taro.previewImage({ urls: [media.url], current: media.url })
+      return
+    }
+    Taro.navigateTo({ url: `/common/common/video-player?url=${encodeURIComponent(media.url)}` })
+  }
+
+  function copyExternalLink(url: string) {
+    Taro.setClipboardData({
+      data: url,
+      success: () => Taro.showToast({ title: '链接已复制', icon: 'success' })
+    })
+  }
+
   async function handleSubmit() {
     if (!formData.name.trim()) {
       Taro.showToast({ title: '请输入姓名', icon: 'none' })
@@ -295,6 +436,16 @@ function CoachApplication() {
           }
         }
       })
+      const normalizedMaterials = normalizeCoachApplicationMaterials(formData.applicationMaterials, {
+        achievements: formData.achievements,
+        caseStudies: formData.caseStudies,
+        credentials: formData.credentials
+      })
+      const legacyFields = deriveLegacyFieldsFromMaterials(normalizedMaterials, {
+        achievements: formData.achievements,
+        caseStudies: formData.caseStudies,
+        credentials: formData.credentials
+      })
 
       const existingApp = await coachService.getCoachApplication()
 
@@ -310,9 +461,10 @@ function CoachApplication() {
           contactEmail: formData.contactEmail || null,
           contactPhone: formData.contactPhone || null,
           specialties: formData.specialties.length > 0 ? formData.specialties : null,
-          achievements: formData.achievements.length > 0 ? formData.achievements : null,
-          caseStudies: formData.caseStudies.length > 0 ? formData.caseStudies : null,
-          credentials: formData.credentials.length > 0 ? formData.credentials : null,
+          achievements: legacyFields.achievements.length > 0 ? legacyFields.achievements : null,
+          caseStudies: legacyFields.caseStudies.length > 0 ? legacyFields.caseStudies : null,
+          credentials: legacyFields.credentials.length > 0 ? legacyFields.credentials as any : null,
+          applicationMaterials: normalizedMaterials,
           socialLinks: Object.keys(socialLinksObj).length > 0 ? socialLinksObj : null,
           coachTrack: formData.coachTrack,
           serviceModes: formData.serviceModes,
@@ -335,9 +487,10 @@ function CoachApplication() {
           contactEmail: formData.contactEmail || null,
           contactPhone: formData.contactPhone || null,
           specialties: formData.specialties.length > 0 ? formData.specialties : null,
-          achievements: formData.achievements.length > 0 ? formData.achievements : null,
-          caseStudies: formData.caseStudies.length > 0 ? formData.caseStudies : null,
-          credentials: formData.credentials.length > 0 ? formData.credentials : null,
+          achievements: legacyFields.achievements.length > 0 ? legacyFields.achievements : null,
+          caseStudies: legacyFields.caseStudies.length > 0 ? legacyFields.caseStudies : null,
+          credentials: legacyFields.credentials.length > 0 ? legacyFields.credentials as any : null,
+          applicationMaterials: normalizedMaterials,
           socialLinks: Object.keys(socialLinksObj).length > 0 ? socialLinksObj : null,
           coachTrack: formData.coachTrack,
           serviceModes: formData.serviceModes,
@@ -579,76 +732,136 @@ function CoachApplication() {
         </View>
 
         <View className="form-section">
-          <Text className="section-title">主要成就</Text>
-          {formData.achievements.map((a, i) => (
-            <View key={i} className="list-item">
-              <Text>{a}</Text>
-              <Text className="list-item-remove" onClick={() => removeAchievement(i)}>删除</Text>
+          <View className="section-head">
+            <View>
+              <Text className="section-title">证明材料</Text>
+              <Text className="section-desc">成就、案例、证书、图片和视频都可以放在这里。关闭公开后仅审核可见。</Text>
             </View>
-          ))}
-          <View className="list-input-row">
-            <Input
-              className="list-input"
-              value={currentAchievement}
-              onInput={(e) => setCurrentAchievement(e.detail.value)}
-              placeholder="输入成就"
-              onConfirm={addAchievement}
-            />
-            <Button className="list-add-btn" onClick={addAchievement}>添加</Button>
           </View>
-        </View>
 
-        <View className="form-section">
-          <Text className="section-title">案例研究</Text>
-          {formData.caseStudies.map((c, i) => (
-            <View key={i} className="list-item">
-              <Text>{c}</Text>
-              <Text className="list-item-remove" onClick={() => removeCaseStudy(i)}>删除</Text>
-            </View>
-          ))}
-          <View className="list-input-row">
-            <Input
-              className="list-input"
-              value={currentCaseStudy}
-              onInput={(e) => setCurrentCaseStudy(e.detail.value)}
-              placeholder="输入案例"
-              onConfirm={addCaseStudy}
-            />
-            <Button className="list-add-btn" onClick={addCaseStudy}>添加</Button>
+          <View className="material-type-row">
+            {MATERIAL_CATEGORY_OPTIONS.map(option => (
+              <Text
+                key={option.value}
+                className="material-type-chip"
+                onClick={() => openNewMaterial(option.value)}
+              >
+                + {option.label}
+              </Text>
+            ))}
           </View>
-        </View>
 
-        <View className="form-section">
-          <Text className="section-title">资质证书</Text>
-          {formData.credentials.map((c, i) => (
-            <View key={i} className="credential-item">
-              <Text className="credential-name">{c.name}</Text>
-              {c.url && <Text className="credential-url">{c.url}</Text>}
-              <Text className="credential-remove" onClick={() => removeCredential(i)}>删除</Text>
+          {formData.applicationMaterials.length === 0 ? (
+            <View className="material-empty">
+              <Text>还没有添加材料，建议至少补充 1 个代表案例和 1 个证书或视频。</Text>
             </View>
-          ))}
-          {!editingCredential ? (
-            <Button className="add-btn" onClick={() => setEditingCredential({ name: '', url: '' })}>
-              添加证书
-            </Button>
           ) : (
-            <View className="credential-form">
+            <View className="material-list">
+              {formData.applicationMaterials.map((item, index) => (
+                <View key={item.id || index} className="material-card">
+                  <View className="material-card-top">
+                    <Text className="material-category">
+                      {MATERIAL_CATEGORY_OPTIONS.find(opt => opt.value === item.category)?.label || '材料'}
+                    </Text>
+                    <Text className={`material-public ${item.isPublic ? 'public' : 'private'}`}>
+                      {item.isPublic ? '主页公开' : '仅审核'}
+                    </Text>
+                  </View>
+                  <Text className="material-title">{item.title}</Text>
+                  {item.summary ? <Text className="material-summary">{item.summary}</Text> : null}
+                  <View className="material-meta-row">
+                    <Text>{item.media.length} 个媒体</Text>
+                    <Text>{item.links.length} 个链接</Text>
+                  </View>
+                  <View className="material-actions">
+                    <Text onClick={() => openEditMaterial(index)}>编辑</Text>
+                    <Text onClick={() => removeMaterial(index)}>删除</Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+          )}
+
+          {materialDraft && (
+            <View className="material-editor">
+              <View className="material-editor-types">
+                {MATERIAL_CATEGORY_OPTIONS.map(option => (
+                  <Text
+                    key={option.value}
+                    className={`material-editor-type ${materialDraft.category === option.value ? 'active' : ''}`}
+                    onClick={() => setMaterialDraft(prev => prev ? { ...prev, category: option.value } : prev)}
+                  >
+                    {option.label}
+                  </Text>
+                ))}
+              </View>
               <Input
                 className="input"
-                value={editingCredential.name}
-                onInput={(e) => setEditingCredential(prev => prev ? { ...prev, name: e.detail.value } : null)}
-                placeholder="证书名称"
+                value={materialDraft.title}
+                onInput={(e) => setMaterialDraft(prev => prev ? { ...prev, title: e.detail.value } : prev)}
+                placeholder="材料标题"
               />
               <Input
-                className="input"
-                style={{ marginTop: 8 }}
-                value={editingCredential.url || ''}
-                onInput={(e) => setEditingCredential(prev => prev ? { ...prev, url: e.detail.value } : null)}
-                placeholder="证书链接（可选）"
+                className="input material-input-gap"
+                value={materialDraft.summary || ''}
+                onInput={(e) => setMaterialDraft(prev => prev ? { ...prev, summary: e.detail.value } : prev)}
+                placeholder="一句话摘要"
               />
-              <View className="credential-form-actions">
-                <Button className="cancel-btn" onClick={() => setEditingCredential(null)}>取消</Button>
-                <Button className="save-btn" onClick={addCredential}>保存</Button>
+              <Textarea
+                className="textarea material-input-gap"
+                value={materialDraft.detail || ''}
+                onInput={(e) => setMaterialDraft(prev => prev ? { ...prev, detail: e.detail.value } : prev)}
+                placeholder="详细说明"
+                maxlength={1000}
+              />
+              <View className="material-public-toggle" onClick={() => setMaterialDraft(prev => prev ? { ...prev, isPublic: !prev.isPublic } : prev)}>
+                <Text>公开展示到教练主页</Text>
+                <Text className={`toggle-pill ${materialDraft.isPublic ? 'on' : ''}`}>
+                  {materialDraft.isPublic ? '开启' : '关闭'}
+                </Text>
+              </View>
+
+              <View className="material-sub-block">
+                <View className="material-sub-head">
+                  <Text>图片 / 视频</Text>
+                  <Text className="sub-action" onClick={chooseAndUploadMaterialMedia}>
+                    {uploadingMaterial ? '上传中...' : '上传'}
+                  </Text>
+                </View>
+                {materialDraft.media.map(media => (
+                  <View key={media.id} className="material-media-row">
+                    <Text onClick={() => openMaterialMedia(media)}>{media.type === 'video' ? '视频' : '图片'} {media.fileName || '素材'}</Text>
+                    <Text onClick={() => removeMaterialMedia(media.id)}>删除</Text>
+                  </View>
+                ))}
+              </View>
+
+              <View className="material-sub-block">
+                <Text className="material-sub-title">外部链接</Text>
+                {materialDraft.links.map(link => (
+                  <View key={link.id} className="material-link-row">
+                    <Text onClick={() => copyExternalLink(link.url)}>{link.label || '相关链接'}</Text>
+                    <Text onClick={() => removeMaterialLink(link.id)}>删除</Text>
+                  </View>
+                ))}
+                <Input
+                  className="input"
+                  value={materialLinkDraft.label}
+                  onInput={(e) => setMaterialLinkDraft(prev => ({ ...prev, label: e.detail.value }))}
+                  placeholder="链接名称"
+                />
+                <Input
+                  className="input material-input-gap"
+                  value={materialLinkDraft.url}
+                  onInput={(e) => setMaterialLinkDraft(prev => ({ ...prev, url: e.detail.value }))}
+                  placeholder="https://..."
+                />
+                <Button className="add-btn material-input-gap" onClick={addMaterialLink}>添加链接</Button>
+              </View>
+
+              <View className="material-editor-actions">
+                <Button className="cancel-btn" onClick={cancelMaterialEdit}>取消</Button>
+                <Button className="save-btn" onClick={saveMaterialDraft}>保存材料</Button>
               </View>
             </View>
           )}
