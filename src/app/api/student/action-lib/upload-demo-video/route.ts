@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server'
-import { v4 as uuidv4 } from 'uuid'
 import { getServerSession } from '@/app/api/auth/[...nextauth]/auth'
-import { serviceRoleSupabase as supabase } from '@/lib/supabaseClient'
+import { cosUpload, buildDatedKey } from '@/lib/cos'
 import type { ApiData } from '@/types/api'
 
 export const runtime = 'nodejs'
@@ -27,23 +26,6 @@ export async function POST(req: Request) {
       return NextResponse.json<ApiData<null>>(
         { success: false, message: '用户未登录', data: null },
         { status: 401 }
-      )
-    }
-
-    if (
-      !process.env.NEXT_SUPABASE_SERVICE_ROLE_KEY &&
-      !process.env.SUPABASE_SERVICE_ROLE_KEY
-    ) {
-      console.error(
-        `[student-action-lib/upload-demo-video][${requestId}] missing service role key`
-      )
-      return NextResponse.json<ApiData<null>>(
-        {
-          success: false,
-          message: '服务器配置缺失，暂时无法上传视频',
-          data: null
-        },
-        { status: 500 }
       )
     }
 
@@ -73,18 +55,16 @@ export async function POST(req: Request) {
     }
 
     const ext = (file.name.split('.').pop() || 'mp4').toLowerCase()
-    const safeName = `${Date.now()}-${uuidv4()}.${ext}`
-    const filePath = `${userId}/student-actions/${safeName}`
+    const filePath = buildDatedKey(ext, userId, 'student-actions')
     const buffer = new Uint8Array(await file.arrayBuffer())
 
-    const { error: uploadError } = await supabase.storage
-      .from('videos')
-      .upload(filePath, buffer, {
-        contentType: file.type,
-        upsert: false
+    let publicUrl: string
+    try {
+      const uploaded = await cosUpload('videos', filePath, buffer, {
+        contentType: file.type
       })
-
-    if (uploadError) {
+      publicUrl = uploaded.url
+    } catch (uploadError: any) {
       console.error(
         `[student-action-lib/upload-demo-video][${requestId}] upload failed:`,
         uploadError
@@ -92,16 +72,12 @@ export async function POST(req: Request) {
       return NextResponse.json<ApiData<null>>(
         {
           success: false,
-          message: uploadError.message || '上传失败',
+          message: uploadError?.message || '上传失败',
           data: null
         },
         { status: 500 }
       )
     }
-
-    const {
-      data: { publicUrl }
-    } = supabase.storage.from('videos').getPublicUrl(filePath)
 
     return NextResponse.json<ApiData<{ url: string; storage_bucket: string; storage_path: string }>>({
       success: true,

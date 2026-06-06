@@ -23,14 +23,12 @@
         "test-push": "tsx scripts/test-push.ts",
         "pre-deploy-check": "node scripts/pre-deploy-check.js",
         "context-preview-report": "npx tsx scripts/context-preview-report.ts",
-<<<<<<< HEAD
         "migrate:supabase-to-pg": "npx tsx scripts/migrate-supabase-to-postgres.ts",
         "migrate:storage-to-cos": "npx tsx scripts/migrate-supabase-storage-to-cos.ts",
-=======
+        "replace:storage-urls": "npx tsx scripts/replace-storage-urls.ts",
         "power-analysis:worker": "node scripts/power-analysis-worker.mjs --poll",
         "power-analysis:work-once": "node scripts/power-analysis-worker.mjs",
         "power-analysis:cleanup": "node scripts/power-analysis-worker.mjs --cleanup",
->>>>>>> a72384a6f6b249084371d2cecba754da70a4bed9
         "push-docker-ccr": "node scripts/push-docker-ccr.mjs"
     },
     "dependencies": {

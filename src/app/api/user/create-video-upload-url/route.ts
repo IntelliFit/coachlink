@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
-import { serviceRoleSupabase as supabase } from "@/lib/supabaseClient";
-import { v4 as uuidv4 } from "uuid";
+import { cosPresignedPutUrl, buildDatedKey } from "@/lib/cos";
 import type { ApiData } from "@/types/api";
 import type {
     CreateVideoUploadUrlDto,
@@ -18,24 +17,6 @@ export async function POST(req: Request) {
         return NextResponse.json<ApiData<null>>(
             { success: false, message: "用户未登录", data: null },
             { status: 401 },
-        );
-    }
-
-    if (
-        !process.env.NEXT_SUPABASE_SERVICE_ROLE_KEY &&
-        !process.env.SUPABASE_SERVICE_ROLE_KEY
-    ) {
-        console.error(
-            "[create-video-upload-url] Missing service role key env. Expect one of NEXT_SUPABASE_SERVICE_ROLE_KEY / SUPABASE_SERVICE_ROLE_KEY.",
-        );
-        return NextResponse.json<ApiData<null>>(
-            {
-                success: false,
-                message:
-                    "服务器配置缺失：未设置 Supabase Service Role Key，无法创建上传链接",
-                data: null,
-            },
-            { status: 500 },
         );
     }
 
@@ -91,39 +72,33 @@ export async function POST(req: Request) {
     }
 
     const ext = (originalFilename.split(".").pop() || "mp4").toLowerCase();
-    const safeName = `${Date.now()}-${uuidv4()}.${ext}`;
-    const path = `${userId}/${safeName}`;
+    const path = buildDatedKey(ext, userId);
 
-    const { data: signed, error: signedError } = await supabase.storage
-        .from("videos")
-        .createSignedUploadUrl(path, { upsert: false });
-
-    if (signedError || !signed?.token) {
-        console.error("[create-video-upload-url] Failed:", signedError);
+    let uploadUrl: string;
+    let publicUrl: string;
+    try {
+        const signed = await cosPresignedPutUrl("videos", path, {
+            contentType,
+            expiresSec: 3600,
+        });
+        uploadUrl = signed.uploadUrl;
+        publicUrl = signed.url;
+    } catch (e: any) {
+        console.error("[create-video-upload-url] Failed:", e);
         return NextResponse.json<ApiData<null>>(
             {
                 success: false,
-                message: signedError?.message || "创建上传链接失败",
+                message: e?.message || "创建上传链接失败",
                 data: null,
             },
             { status: 500 },
         );
     }
 
-    const {
-        data: { publicUrl },
-    } = supabase.storage.from("videos").getPublicUrl(path);
-
-    const supabaseUrl = (process.env.NEXT_SUPABASE_URL || process.env.SUPABASE_URL || "").replace(/\/+$/, "");
-    const encodedPath = path.split("/").map((seg) => encodeURIComponent(seg)).join("/");
-    const uploadUrl = supabaseUrl
-        ? `${supabaseUrl}/storage/v1/object/upload/sign/videos/${encodedPath}?token=${encodeURIComponent(signed.token)}`
-        : "";
-
     const resp: CreateVideoUploadUrlResponseDto = {
         bucket: "videos",
         path,
-        token: signed.token,
+        token: "",
         publicUrl,
         uploadUrl,
     };

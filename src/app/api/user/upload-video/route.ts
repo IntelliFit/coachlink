@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
-import { serviceRoleSupabase as supabase } from "@/lib/supabaseClient";
-import { v4 as uuidv4 } from "uuid";
+import { cosUpload, buildDatedKey } from "@/lib/cos";
 import { createTrainingVideoRecord } from "../_helpers/videoRecord";
 import type { ApiData } from "@/types/api";
 import type { UploadVideoResponseDto } from "./entity";
@@ -36,24 +35,6 @@ export async function POST(req: Request) {
     const userId = session.user.id;
 
     try {
-        // Service role key is required for Storage upload on server.
-        // Without it, uploads may fail due to Storage RLS/Policy differences across environments.
-        if (
-            !process.env.NEXT_SUPABASE_SERVICE_ROLE_KEY &&
-            !process.env.SUPABASE_SERVICE_ROLE_KEY
-        ) {
-            console.error(
-                "[upload-video] Missing service role key env. Expect one of NEXT_SUPABASE_SERVICE_ROLE_KEY / SUPABASE_SERVICE_ROLE_KEY.",
-            );
-            return NextResponse.json({
-                success: false,
-                message:
-                    "服务器配置缺失：未设置 Supabase Service Role Key，无法上传视频",
-                data: null,
-                requestId,
-            }, { status: 500 });
-        }
-
         // 获取表单数据
         const formData = await req.formData();
         const file = formData.get("file") as File;
@@ -91,10 +72,9 @@ export async function POST(req: Request) {
             }, { status: 413 });
         }
 
-        // 上传到 Supabase Storage
+        // 上传到 COS
         const ext = (file.name.split(".").pop() || "mp4").toLowerCase();
-        const safeName = `${Date.now()}-${uuidv4()}.${ext}`;
-        const filePath = `${userId}/${safeName}`;
+        const filePath = buildDatedKey(ext, userId);
 
         const arrayBuffer = await file.arrayBuffer();
         const uint8Array = new Uint8Array(arrayBuffer);
@@ -114,25 +94,14 @@ export async function POST(req: Request) {
             }, { status: 403 });
         }
 
-        const { error: uploadError } = await supabase.storage
-            .from("videos")
-            .upload(filePath, uint8Array, {
-                contentType: file.type,
-                upsert: false,
-            });
-
-        if (uploadError) {
-            throw uploadError;
-        }
+        const { url: publicUrl } = await cosUpload("videos", filePath, uint8Array, {
+            contentType: file.type,
+        });
 
         // Increment storage usage
         await incrementStorageUsage(userId, file.size).catch((e) =>
             console.error("Failed to update storage usage", e)
         );
-
-        const { data: { publicUrl } } = supabase.storage
-            .from("videos")
-            .getPublicUrl(filePath);
 
         const videoRecord = await createTrainingVideoRecord({
             userId,

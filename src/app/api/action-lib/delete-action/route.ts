@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import supabase from '@/lib/supabaseClient';
+import { cosRemoveByUrl } from '@/lib/cos';
 import { getServerSession } from '@/app/api/auth/[...nextauth]/auth';
 import type { DeleteActionDto, DeleteActionResponseDto } from "./entity";
 import type { ApiData } from "@/types/api";
@@ -150,24 +151,11 @@ export async function POST(req: NextRequest) {
         console.error("检查/移除引用异常:", e);
     }
 
-    // 如果演示视频来自本项目 Storage，则尝试删除文件
+    // 删除 COS 上的演示视频文件（无法识别的 URL 会被忽略）
     try {
-        const storageUrl = process.env.NEXT_SUPABASE_URL;
         const prevUrl = (existingAction as any)?.url;
-        if (storageUrl && prevUrl && typeof prevUrl === "string" && prevUrl.includes(storageUrl)) {
-            const parts = prevUrl.split("/videos/");
-            if (parts.length === 2) {
-                const rawPath = parts[1];
-                const filePath = rawPath.split("?")[0];
-                if (filePath) {
-                    const { error: storageError } = await supabase.storage
-                        .from("videos")
-                        .remove([filePath]);
-                    if (storageError) {
-                        console.error("删除动作演示视频失败:", storageError);
-                    }
-                }
-            }
+        if (prevUrl && typeof prevUrl === "string") {
+            await cosRemoveByUrl([prevUrl]);
         }
     } catch (e) {
         console.error("删除动作演示视频异常:", e);
