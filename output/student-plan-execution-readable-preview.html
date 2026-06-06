@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CoachLink 学生执行计划解释图</title>
+  <style>
+    :root {
+      color: #1f2937;
+      background: #f8fafc;
+      font-family: "Microsoft YaHei", "PingFang SC", Arial, sans-serif;
+    }
+
+    body {
+      margin: 0;
+    }
+
+    main {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 32px;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: 28px;
+      font-weight: 700;
+    }
+
+    .intro {
+      margin: 0 0 24px;
+      color: #64748b;
+      font-size: 15px;
+      line-height: 1.7;
+    }
+
+    section {
+      margin: 24px 0;
+      padding: 24px;
+      background: #ffffff;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+    }
+
+    h2 {
+      margin: 0 0 16px;
+      font-size: 20px;
+    }
+
+    .hint {
+      margin: -8px 0 16px;
+      color: #64748b;
+      font-size: 14px;
+    }
+
+    .links {
+      display: flex;
+      gap: 12px;
+      margin: 0 0 16px;
+      font-size: 14px;
+    }
+
+    .links a {
+      color: #2563eb;
+      text-decoration: none;
+    }
+
+    .image-wrap {
+      overflow: auto;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      background: #ffffff;
+    }
+
+    img {
+      display: block;
+      min-width: 960px;
+      max-width: none;
+      width: auto;
+      height: auto;
+    }
+
+    @media (max-width: 720px) {
+      main {
+        padding: 16px;
+      }
+
+      section {
+        padding: 16px;
+      }
+
+      img {
+        min-width: 900px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>CoachLink 学生执行计划解释图</h1>
+    <p class="intro">这版不用 Mermaid 插件，直接加载已渲染的 SVG。每张图都可以横向滚动或在浏览器里放大查看。</p>
+
+    <section>
+      <h2>1. 概念关系</h2>
+      <p class="hint">完整计划蓝图、当前付费执行窗口、实际执行时长、预计完成日必须拆开讲。</p>
+      <div class="links">
+        <a href="./student-plan-execution-01-concepts.png">打开 PNG</a>
+        <a href="./student-plan-execution-01-concepts.svg">打开 SVG 原图</a>
+      </div>
+      <div class="image-wrap">
+        <img src="./student-plan-execution-01-concepts.png" alt="概念关系">
+      </div>
+    </section>
+
+    <section>
+      <h2>2. 执行与 Credits</h2>
+      <p class="hint">只统计当前付费窗口内的训练日 credit；完整长计划后面的内容可以先存在。</p>
+      <div class="links">
+        <a href="./student-plan-execution-02-credits.png">打开 PNG</a>
+        <a href="./student-plan-execution-02-credits.svg">打开 SVG 原图</a>
+      </div>
+      <div class="image-wrap">
+        <img src="./student-plan-execution-02-credits.png" alt="执行与 credits">
+      </div>
+    </section>
+
+    <section>
+      <h2>3. 完成与续费等待</h2>
+      <p class="hint">当前窗口用完后，优先判断能否继续解锁同一长计划后续内容。</p>
+      <div class="links">
+        <a href="./student-plan-execution-03-renewal.png">打开 PNG</a>
+        <a href="./student-plan-execution-03-renewal.svg">打开 SVG 原图</a>
+      </div>
+      <div class="image-wrap">
+        <img src="./student-plan-execution-03-renewal.png" alt="完成与续费等待">
+      </div>
+    </section>
+
+    <section>
+      <h2>4. 典型场景</h2>
+      <p class="hint">覆盖两个月长计划只执行前一个月、拖延、频率变化、旧 end_date、权益不足。</p>
+      <div class="links">
+        <a href="./student-plan-execution-04-scenarios.png">打开 PNG</a>
+        <a href="./student-plan-execution-04-scenarios.svg">打开 SVG 原图</a>
+      </div>
+      <div class="image-wrap">
+        <img src="./student-plan-execution-04-scenarios.png" alt="典型场景">
+      </div>
+    </section>
+  </main>
+</body>
+</html>

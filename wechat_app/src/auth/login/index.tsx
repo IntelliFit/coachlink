@@ -34,6 +34,7 @@ const TEXT = {
   quickLoginSuccess: '\u5feb\u6377\u767b\u5f55\u6210\u529f',
   quickLoginFailed: '\u5feb\u6377\u767b\u5f55\u5931\u8d25',
   authorizePhoneForFirstLogin: '\u8bf7\u5148\u6388\u6743\u624b\u673a\u53f7\u4ee5\u5b8c\u6210\u9996\u6b21\u767b\u5f55',
+  phoneAuthorizationCancelled: '\u5df2\u53d6\u6d88\u624b\u673a\u53f7\u6388\u6743\uff0c\u53ef\u4ee5\u7a0d\u540e\u518d\u767b\u5f55',
   phoneAuthorizeFailed: '\u624b\u673a\u53f7\u6388\u6743\u5931\u8d25',
   loginTitle: '\u767b\u5f55',
   resetPasswordTitle: '\u91cd\u7f6e\u5bc6\u7801',
@@ -57,10 +58,13 @@ const TEXT = {
   terms: '\u300a\u7528\u6237\u670d\u52a1\u534f\u8bae\u300b',
   privacy: '\u300a\u9690\u79c1\u653f\u7b56\u300b',
   completeFirstLogin: '\u5b8c\u6210\u9996\u6b21\u767b\u5f55',
-  firstLoginDesc: '\u5f53\u524d\u8d26\u53f7\u8fd8\u6ca1\u6709\u7ed1\u5b9a\u624b\u673a\u53f7\u3002\u53ea\u6709\u9996\u6b21\u5efa\u53f7\u6216\u8d26\u53f7\u7f3a\u5c11\u624b\u673a\u53f7\u65f6\uff0c\u624d\u9700\u8981\u518d\u6388\u6743\u4e00\u6b21\u624b\u673a\u53f7\u3002',
+  firstLoginDesc: '\u53ea\u6709\u9996\u6b21\u5efa\u53f7\u6216\u5f53\u524d\u8d26\u53f7\u7f3a\u5c11\u624b\u673a\u53f7\u65f6\uff0c\u624d\u9700\u8981\u6388\u6743\u624b\u673a\u53f7\u3002\u4f60\u53ef\u4ee5\u62d2\u7edd\u5e76\u8fd4\u56de\u7ee7\u7eed\u6d4f\u89c8\u516c\u5f00\u5185\u5bb9\u3002',
   authorizePhoneAndContinue: '\u6388\u6743\u624b\u673a\u53f7\u5e76\u7ee7\u7eed',
   authorizing: '\u6388\u6743\u4e2d...',
   notNow: '\u6682\u4e0d\u7ee7\u7eed',
+  back: '\u8fd4\u56de',
+  browseFirst: '\u5148\u901b\u901b',
+  loginOptionalDesc: '\u4e0d\u767b\u5f55\u4e5f\u53ef\u4ee5\u5148\u6d4f\u89c8\u77e5\u8bc6\u3001\u627e\u6559\u7ec3\u548c\u516c\u5f00\u5de5\u5177\uff1b\u9700\u8981\u540c\u6b65\u8bad\u7ec3\u8bb0\u5f55\u65f6\u518d\u767b\u5f55\u3002',
   forgotPassword: '\u5fd8\u8bb0\u5bc6\u7801\uff1f',
   inputPhoneOrEmail: '\u8bf7\u8f93\u5165\u624b\u673a\u53f7\u6216\u90ae\u7bb1',
   inputPassword: '\u8bf7\u8f93\u5165\u767b\u5f55\u5bc6\u7801',
@@ -157,6 +161,21 @@ function Login() {
 
   const goToTerms = () => Taro.navigateTo({ url: '/me-legal/terms/index' })
   const goToPrivacy = () => Taro.navigateTo({ url: '/me-legal/privacy/index' })
+  const goToPublicHome = () => {
+    void Taro.reLaunch({ url: authService.buildPostAuthHomeUrl() })
+  }
+  const goBackOrPublicHome = () => {
+    try {
+      const pages = (Taro as any).getCurrentPages?.() || []
+      if (pages.length > 1) {
+        void Taro.navigateBack({ delta: 1 }).catch(goToPublicHome)
+        return
+      }
+    } catch {
+      // Fall through to the public home fallback.
+    }
+    goToPublicHome()
+  }
 
   const handleLogin = async () => {
     if (!agreed) {
@@ -235,21 +254,15 @@ function Login() {
     }, 500)
   }
 
-  const handleWechatLogin = async (e: any) => {
+  const handleWechatLogin = async () => {
     if (!agreed) {
       Toast.show(TEXT.readAndAgree, {})
       return
     }
 
-    const { code: phoneCode, errMsg } = e?.detail || {}
-    if (!phoneCode) {
-      Toast.show(errMsg || TEXT.authorizePhoneForFirstLogin, {})
-      return
-    }
-
     setLoading(true)
     try {
-      await finishWechatLogin(phoneCode)
+      await finishWechatLogin(null)
     } catch (error: any) {
       if (isWechatPhoneAuthorizationRequired(error)) {
         setShowWechatPhoneAuthPrompt(true)
@@ -272,7 +285,8 @@ function Login() {
     try {
       const { code: phoneCode, errMsg } = e.detail || {}
       if (!phoneCode) {
-        Toast.show(errMsg || TEXT.authorizePhoneForFirstLogin, {})
+        setShowWechatPhoneAuthPrompt(false)
+        Toast.show(errMsg || TEXT.phoneAuthorizationCancelled, {})
         return
       }
       setShowWechatPhoneAuthPrompt(false)
@@ -288,6 +302,14 @@ function Login() {
   return (
     <ConfigProvider locale={zhCN}>
       <View className='login-page'>
+        <View className='login-top-actions'>
+          <View className='login-nav-action' onClick={goBackOrPublicHome}>
+            <Text className='login-nav-action-text'>{TEXT.back}</Text>
+          </View>
+          <View className='login-nav-action login-nav-action-secondary' onClick={goToPublicHome}>
+            <Text className='login-nav-action-text'>{TEXT.browseFirst}</Text>
+          </View>
+        </View>
         <View className='login-hero'>
           <Image className='login-bg' src={loginBg} mode='aspectFill' />
           <View className='login-hero-overlay'>
@@ -348,13 +370,16 @@ function Login() {
               {loginMode === 'wechat' && (
                 <View className='wechat-login-panel'>
                   <TaroButton
-                    className={`wechat-primary-button ${!agreed ? 'wechat-primary-button-disabled' : ''}`}
-                    openType='getPhoneNumber'
-                    onGetPhoneNumber={handleWechatLogin}
-                    disabled={loading || !agreed}
+                    className={`wechat-primary-button ${loading ? 'wechat-primary-button-disabled' : ''}`}
+                    onClick={handleWechatLogin}
+                    disabled={loading}
                   >
                     <Text className='wechat-primary-text'>{loading ? TEXT.loggingIn : TEXT.phoneOneTapLogin}</Text>
                   </TaroButton>
+                  <Text className='wechat-login-hint'>{TEXT.loginOptionalDesc}</Text>
+                  <View className='wechat-skip-row' onClick={goToPublicHome}>
+                    <Text className='wechat-skip-text'>{TEXT.browseFirst}</Text>
+                  </View>
                 </View>
               )}
 
@@ -439,10 +464,9 @@ function Login() {
                   </View>
 
                   <TaroButton
-                    className={`wechat-login-button ${!agreed ? 'wechat-login-button-disabled' : ''}`}
-                    openType='getPhoneNumber'
-                    onGetPhoneNumber={handleWechatLogin}
-                    disabled={loading || !agreed}
+                    className={`wechat-login-button ${loading ? 'wechat-login-button-disabled' : ''}`}
+                    onClick={handleWechatLogin}
+                    disabled={loading}
                   >
                     <Text className='wechat-login-text'>{loading ? TEXT.loggingIn : TEXT.phoneQuickLogin}</Text>
                   </TaroButton>
@@ -520,6 +544,16 @@ function Login() {
                 }}
               >
                 <Text className='wechat-phone-auth-cancel-text'>{TEXT.notNow}</Text>
+              </View>
+              <View
+                className='wechat-phone-auth-back'
+                onClick={() => {
+                  if (loading) return
+                  setShowWechatPhoneAuthPrompt(false)
+                  goBackOrPublicHome()
+                }}
+              >
+                <Text className='wechat-phone-auth-back-text'>{TEXT.back}</Text>
               </View>
             </View>
           </View>

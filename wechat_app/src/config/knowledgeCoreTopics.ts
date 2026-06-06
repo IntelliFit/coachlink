@@ -1,7 +1,4 @@
-import injuryImage from '@/assets/knowledge-core/injury.png'
-import plateauImage from '@/assets/knowledge-core/plateau.png'
-import standardImage from '@/assets/knowledge-core/standard.png'
-import startImage from '@/assets/knowledge-core/start.png'
+const KNOWLEDGE_CORE_ASSET_BASE = '/content/assets/knowledge-core'
 
 export type KnowledgeCoreTopicKey = 'injury' | 'plateau' | 'standard' | 'start'
 
@@ -34,7 +31,7 @@ export const knowledgeCoreTopics: KnowledgeCoreTopic[] = [
     shortTitle: '不舒服',
     eyebrow: '先排风险',
     description: '手腕、肩、腰背不舒服时，先判断能不能练，再找替代动作和恢复路径。',
-    imageUrl: injuryImage,
+    imageUrl: `${KNOWLEDGE_CORE_ASSET_BASE}/injury.jpg`,
     primaryCta: '查看肩腕腰痛入口',
     primaryKind: 'body-map',
     primaryValue: '肩部',
@@ -53,7 +50,7 @@ export const knowledgeCoreTopics: KnowledgeCoreTopic[] = [
     shortTitle: '卡住了',
     eyebrow: '先诊断瓶颈',
     description: '重量、次数、体型或神技进度停住时，先拆原因，再选择专项计划。',
-    imageUrl: plateauImage,
+    imageUrl: `${KNOWLEDGE_CORE_ASSET_BASE}/plateau.jpg`,
     primaryCta: '诊断平台期',
     primaryKind: 'search',
     primaryValue: '平台期 瓶颈 负重引体 卧推',
@@ -72,7 +69,7 @@ export const knowledgeCoreTopics: KnowledgeCoreTopic[] = [
     shortTitle: '练标准',
     eyebrow: '先看动作',
     description: '用统一标准看动作幅度、借力、代偿和视频角度，减少无效争论。',
-    imageUrl: standardImage,
+    imageUrl: `${KNOWLEDGE_CORE_ASSET_BASE}/standard.jpg`,
     primaryCta: '看动作标准',
     primaryKind: 'search',
     primaryValue: '动作 标准 自查 引体 臂屈伸',
@@ -91,7 +88,7 @@ export const knowledgeCoreTopics: KnowledgeCoreTopic[] = [
     shortTitle: '开练',
     eyebrow: '先执行一版',
     description: '不想先读长文时，直接选一个可复制计划，从今天开始记录。',
-    imageUrl: startImage,
+    imageUrl: `${KNOWLEDGE_CORE_ASSET_BASE}/start.jpg`,
     primaryCta: '复制训练计划',
     primaryKind: 'plans',
     primaryValue: 'all',

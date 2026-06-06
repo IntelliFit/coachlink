@@ -431,7 +431,11 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
                     }
                 }
             } else {
-                showToast({ severity: 'error', summary: '错误', detail: data.message || '创建支付订单失败' });
+                const detail =
+                    data?.success
+                        ? '订单已创建，但支付参数缺失，请稍后重试或联系管理员'
+                        : data.message || '创建支付订单失败';
+                showToast({ severity: 'error', summary: '错误', detail });
             }
         } catch (error) {
             console.error('支付宝支付失败:', error);
