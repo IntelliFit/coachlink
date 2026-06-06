@@ -23,6 +23,8 @@
         "test-push": "tsx scripts/test-push.ts",
         "pre-deploy-check": "node scripts/pre-deploy-check.js",
         "context-preview-report": "npx tsx scripts/context-preview-report.ts",
+        "migrate:supabase-to-pg": "npx tsx scripts/migrate-supabase-to-postgres.ts",
+        "migrate:storage-to-cos": "npx tsx scripts/migrate-supabase-storage-to-cos.ts",
         "push-docker-ccr": "node scripts/push-docker-ccr.mjs"
     },
     "dependencies": {
@@ -104,11 +106,14 @@
         "@types/jsonwebtoken": "^9.0.10",
         "@types/lodash": "^4.17.21",
         "@types/pako": "^2.0.4",
+        "@types/pg": "^8.20.0",
         "@types/react-beautiful-dnd": "^13.1.8",
         "@types/uuid": "^10.0.0",
         "@vitest/ui": "^2.1.9",
         "adm-zip": "^0.5.16",
         "baseline-browser-mapping": "^2.10.8",
+        "cos-nodejs-sdk-v5": "^2.15.4",
+        "pg": "^8.21.0",
         "supabase": "^2.67.2",
         "vite": "^5.4.21",
         "vite-tsconfig-paths": "^5.1.4",
