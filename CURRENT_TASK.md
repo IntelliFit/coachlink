@@ -1,5 +1,22 @@
 ## Huifu Split Source Material Recovery (`2026-06-06`)
 
+## WeChat Mini-Program Login Audit Visibility Follow-up (`2026-06-07`)
+
+- Task: make the login cancel/refuse/return path obvious in the actual WeChat mini-program login screenshot.
+- Status: code updated; user will run/build manually.
+- Follow-up:
+  - The prior top floating `返回` / `先逛逛` controls were not visible enough in the custom-nav/capsule top area.
+  - `wechat_app/src/auth/login/index.tsx` now places full-width `返回上一页` and `不登录，先逛逛` actions directly below the quick-login button.
+  - The same actions also appear below the secondary WeChat quick-login button in password/code login modes.
+  - Quick-login copy remains the original `手机一键登录` / `手机号快捷登录`; only the visible cancel/return choices were added.
+- Correction:
+  - A brief mistaken wording change to `微信快捷登录` was reverted immediately after user correction.
+- Verification:
+  - Targeted `esbuild` check passed.
+  - Per user instruction, no `npm run build:weapp` or further DevTools verification was run; user will build manually.
+
+---
+
 - Task: recover the long Huifu/payment-split source material from the raw Codex conversation file because the UI could no longer scroll back to it.
 - Status: completed.
 - Result:

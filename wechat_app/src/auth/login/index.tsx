@@ -40,7 +40,7 @@ const TEXT = {
   resetPasswordTitle: '\u91cd\u7f6e\u5bc6\u7801',
   brand: '\u6559\u94fe CoachLink',
   slogan: '\u767b\u5f55\u4ee5\u7ee7\u7eed\u4f60\u7684\u8bad\u7ec3\u8ba1\u5212',
-  modeQuick: '\u5feb\u6377\u767b\u5f55',
+  modeQuick: '\u624b\u673a\u53f7\u5feb\u6377\u767b\u5f55',
   modePassword: '\u5bc6\u7801\u767b\u5f55',
   modeVerifyCode: '\u9a8c\u8bc1\u7801\u767b\u5f55',
   phoneOneTapLogin: '\u624b\u673a\u4e00\u952e\u767b\u5f55',
@@ -63,7 +63,9 @@ const TEXT = {
   authorizing: '\u6388\u6743\u4e2d...',
   notNow: '\u6682\u4e0d\u7ee7\u7eed',
   back: '\u8fd4\u56de',
+  backPrevious: '\u8fd4\u56de\u4e0a\u4e00\u9875',
   browseFirst: '\u5148\u901b\u901b',
+  browseWithoutLogin: '\u4e0d\u767b\u5f55\uff0c\u5148\u901b\u901b',
   loginOptionalDesc: '\u4e0d\u767b\u5f55\u4e5f\u53ef\u4ee5\u5148\u6d4f\u89c8\u77e5\u8bc6\u3001\u627e\u6559\u7ec3\u548c\u516c\u5f00\u5de5\u5177\uff1b\u9700\u8981\u540c\u6b65\u8bad\u7ec3\u8bb0\u5f55\u65f6\u518d\u767b\u5f55\u3002',
   forgotPassword: '\u5fd8\u8bb0\u5bc6\u7801\uff1f',
   inputPhoneOrEmail: '\u8bf7\u8f93\u5165\u624b\u673a\u53f7\u6216\u90ae\u7bb1',
@@ -302,14 +304,6 @@ function Login() {
   return (
     <ConfigProvider locale={zhCN}>
       <View className='login-page'>
-        <View className='login-top-actions'>
-          <View className='login-nav-action' onClick={goBackOrPublicHome}>
-            <Text className='login-nav-action-text'>{TEXT.back}</Text>
-          </View>
-          <View className='login-nav-action login-nav-action-secondary' onClick={goToPublicHome}>
-            <Text className='login-nav-action-text'>{TEXT.browseFirst}</Text>
-          </View>
-        </View>
         <View className='login-hero'>
           <Image className='login-bg' src={loginBg} mode='aspectFill' />
           <View className='login-hero-overlay'>
@@ -334,6 +328,15 @@ function Login() {
             </>
           ) : (
             <>
+              <View className='login-card-actions'>
+                <View className='login-card-action' onClick={goBackOrPublicHome}>
+                  <Text className='login-card-action-text'>{TEXT.backPrevious}</Text>
+                </View>
+                <View className='login-card-action login-card-action-primary' onClick={goToPublicHome}>
+                  <Text className='login-card-action-primary-text'>{TEXT.browseWithoutLogin}</Text>
+                </View>
+              </View>
+
               <Text className='login-card-title'>{TEXT.loginTitle}</Text>
 
               <View className='mode-switcher'>
@@ -377,9 +380,6 @@ function Login() {
                     <Text className='wechat-primary-text'>{loading ? TEXT.loggingIn : TEXT.phoneOneTapLogin}</Text>
                   </TaroButton>
                   <Text className='wechat-login-hint'>{TEXT.loginOptionalDesc}</Text>
-                  <View className='wechat-skip-row' onClick={goToPublicHome}>
-                    <Text className='wechat-skip-text'>{TEXT.browseFirst}</Text>
-                  </View>
                 </View>
               )}
 
@@ -456,20 +456,6 @@ function Login() {
                       <Text className='login-button-text'>{TEXT.immediateLogin}</Text>
                     )}
                   </View>
-
-                  <View className='wechat-login-divider'>
-                    <View className='divider-line' />
-                    <Text className='divider-text'>{TEXT.or}</Text>
-                    <View className='divider-line' />
-                  </View>
-
-                  <TaroButton
-                    className={`wechat-login-button ${loading ? 'wechat-login-button-disabled' : ''}`}
-                    onClick={handleWechatLogin}
-                    disabled={loading}
-                  >
-                    <Text className='wechat-login-text'>{loading ? TEXT.loggingIn : TEXT.phoneQuickLogin}</Text>
-                  </TaroButton>
 
                   <View className='register-tip'>
                     <Text className='tip-text'>{TEXT.noAccount}</Text>
