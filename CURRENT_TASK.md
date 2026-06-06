@@ -1,4 +1,14 @@
+## Huifu Split Source Material Recovery (`2026-06-06`)
 
+- Task: recover the long Huifu/payment-split source material from the raw Codex conversation file because the UI could no longer scroll back to it.
+- Status: completed.
+- Result:
+  - Original source found at `C:\Users\hp\.codex\sessions\2026\05\17\rollout-2026-05-17T23-57-38-019e36a8-4701-7612-a071-41d815ee2118.jsonl`, line `218`; line `219` is the duplicate event mirror.
+  - Exported full recovered material to `recovered/huifu-payment-split-original-2026-05-18.md`.
+  - Added `recovered/README.md` with source path, line number, timestamp, and preview.
+- Content includes:
+  - WeChat group chat record for `智健启能(北京)科技6666000194449179` with 266 messages.
+  - Copied Huifu docs/API material for user onboarding, business open, balance payment, withdrawal, refund/refund-query, and split/delayed-split guidance.
 
 ## Coach Automation Settings Tutorial (`2026-06-06`)
 
@@ -235,6 +245,25 @@
 - Implemented: cleaned remaining corrupted Chinese UI strings, added a compact ?knowledge base is under construction? notice, kept the pain-point-first four-entry layout and collapsed shelves behavior.
 - Verification: targeted esbuild parse checks passed for the Web and WeChat knowledge TSX entries; `git diff --check` passed for touched knowledge entry files with CRLF warnings only.
 # CURRENT_TASK
+
+## Knowledge Base Entry Simplification (`2026-06-06`)
+
+- Task: simplify the Web and WeChat knowledge-base entry pages after the user judged the four-card/body-map/resource-switching layout confusing.
+- Status: implemented, verified, and ready to commit/push.
+- Scope:
+  - `src/app/dashboard/knowledge/page.tsx`
+  - `wechat_app/src/content/knowledge/index.tsx`
+  - `wechat_app/src/content/knowledge/index.scss`
+- Implemented:
+  - Removed BodyMap from the knowledge entry page for now.
+  - Removed the large four-image topic cards and the "click topic, update lower recommendation panel" interaction.
+  - Replaced the entry structure with search, construction notice, three compact focus topics, featured training plans, and book notes.
+  - Changed copy to a more formal, less colloquial tone and kept a non-medical boundary for pain/injury content.
+- Verification:
+  - Targeted `esbuild` checks passed for Web and WeChat knowledge entry TSX files.
+  - `git diff --check` passed for the touched knowledge entry files with CRLF warnings only.
+  - Repeat push-gate verification on `2026-06-07` passed: `npm run lint`, `npm run typecheck`, `npm test` (33 files / 162 tests), `npm run test:e2e` (4 tests), and `npx next build`.
+  - During the repeat gate, `e2e/b1-subscription.spec.ts` was made more stable by logging seeded users in through the NextAuth credentials callback with CSRF instead of relying on the visible quick-login form.
 
 # Web Coach Automation Nav Dedup (`2026-06-06`)
 

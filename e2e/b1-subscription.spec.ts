@@ -44,9 +44,18 @@ async function cleanup(request: any, data: any) {
 
 async function login(page: any, user: { id: string; phone: string }) {
   await page.context().clearCookies();
-  await page.goto("/login");
-  await page.getByPlaceholder("输入用户 ID").fill(user.id);
-  await page.getByRole("button", { name: "快速登录" }).click();
+  const csrfRes = await page.request.get("/api/auth/csrf");
+  const csrfJson = JSON.parse(await csrfRes.text());
+  const loginRes = await page.request.post("/api/auth/callback/credentials?json=true", {
+    form: {
+      csrfToken: csrfJson.csrfToken,
+      userId: user.id,
+      redirect: "false",
+      callbackUrl: "/today-training",
+    },
+  });
+  expect(loginRes.ok()).toBeTruthy();
+  await page.goto("/");
   let lastSessionUserId: string | null = null;
   for (let attempt = 0; attempt < 16; attempt += 1) {
     await page.waitForTimeout(500);
