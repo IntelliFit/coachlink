@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
-import { serviceRoleSupabase as supabase } from "@/lib/supabaseClient";
+import { cosUpload, buildDatedKey } from "@/lib/cos";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
-import { v4 as uuidv4 } from "uuid";
 
 import type { ApiData } from "@/types/api";
 import type { UploadQuestionMediaResponseDto } from "./entity";
@@ -30,21 +29,6 @@ export async function POST(req: Request) {
             return NextResponse.json<ApiData<null>>(
                 { success: false, message: "仅教练可上传问卷示例媒体", data: null },
                 { status: 403 },
-            );
-        }
-
-        if (
-            !process.env.NEXT_SUPABASE_SERVICE_ROLE_KEY &&
-            !process.env.SUPABASE_SERVICE_ROLE_KEY
-        ) {
-            return NextResponse.json<ApiData<null>>(
-                {
-                    success: false,
-                    message:
-                        "服务器配置缺失：未设置 Supabase Service Role Key，无法上传媒体",
-                    data: null,
-                },
-                { status: 500 },
             );
         }
 
@@ -81,33 +65,17 @@ export async function POST(req: Request) {
         }
 
         const ext = (file.name.split(".").pop() || (isImage ? "png" : "mp4")).toLowerCase();
-        const safeName = `${Date.now()}-${uuidv4()}.${ext}`;
-        const filePath = `${userId}/questionnaire-media/${safeName}`;
+        const filePath = buildDatedKey(ext, userId, "questionnaire-media");
 
         const arrayBuffer = await file.arrayBuffer();
         const uint8Array = new Uint8Array(arrayBuffer);
 
-        const { error: uploadError } = await supabase.storage
-            .from(BUCKET)
-            .upload(filePath, uint8Array, {
-                contentType: file.type || "application/octet-stream",
-                upsert: false,
-            });
-
-        if (uploadError) {
-            console.error("[upload-question-media] upload failed:", uploadError);
-            return NextResponse.json<ApiData<null>>(
-                { success: false, message: uploadError.message || "上传失败", data: null },
-                { status: 500 },
-            );
-        }
-
-        const {
-            data: { publicUrl },
-        } = supabase.storage.from(BUCKET).getPublicUrl(filePath);
+        const { url } = await cosUpload(BUCKET, filePath, uint8Array, {
+            contentType: file.type || "application/octet-stream",
+        });
 
         const resp: UploadQuestionMediaResponseDto = {
-            url: publicUrl,
+            url,
             storage_bucket: BUCKET,
             storage_path: filePath,
         };

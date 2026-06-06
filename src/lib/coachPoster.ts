@@ -1,4 +1,5 @@
 import { serviceRoleSupabase } from "@/lib/supabaseClient";
+import { cosUpload, buildDatedKey } from "@/lib/cos";
 
 export const COACH_POSTER_BUCKET = "coach-posters";
 export const INVITATION_POSTER_TYPE = "invitation_hd";
@@ -71,18 +72,6 @@ export interface CoachPosterRow {
   last_error: string | null;
   created_at: string;
   updated_at: string;
-}
-
-async function ensureBucketPublic(bucketId: string) {
-  // Best-effort: the SQL migrations should create buckets/policies in prod.
-  // This helps local/dev environments that didn't run migrations yet.
-  const { data: buckets } = await serviceRoleSupabase.storage.listBuckets();
-  const exists = buckets?.some((b) => b.id === bucketId || b.name === bucketId);
-  if (exists) return;
-
-  await serviceRoleSupabase.storage.createBucket(bucketId, {
-    public: true,
-  });
 }
 
 export async function upsertCoachPosterQueued(params: {
@@ -251,36 +240,20 @@ export async function generateInvitationPoster(params: {
   const uint8 = new Uint8Array(arrayBuffer);
   heartbeatInMemoryPosterJob(params.coachId, INVITATION_POSTER_TYPE);
 
-  // 2) Upload to Storage
-  await ensureBucketPublic(COACH_POSTER_BUCKET);
+  // 2) Upload to COS（每次生成使用带年月日的唯一 key，避免 CDN 缓存旧图）
   heartbeatInMemoryPosterJob(params.coachId, INVITATION_POSTER_TYPE);
 
-  const storagePath = `${params.coachId}/${INVITATION_POSTER_TYPE}.png`;
-  
-  // Upload new file (upsert will overwrite if exists)
+  const storagePath = buildDatedKey("png", params.coachId, INVITATION_POSTER_TYPE);
+
   console.log(`[coach-poster] Uploading poster to ${storagePath} for coach ${params.coachId}`);
-  const { error: uploadError } = await serviceRoleSupabase.storage
-    .from(COACH_POSTER_BUCKET)
-    .upload(storagePath, uint8, {
-      contentType: "image/png",
-      upsert: true, // Ensure overwrite if file exists
-      cacheControl: "0", // No cache to ensure fresh image
-    });
+  const { url: publicUrl } = await cosUpload(COACH_POSTER_BUCKET, storagePath, uint8, {
+    contentType: "image/png",
+    cacheControl: "no-cache",
+  });
 
-  if (uploadError) {
-    console.error(`[coach-poster] Upload failed for coach ${params.coachId}:`, uploadError);
-    throw uploadError;
-  }
-  
   console.log(`[coach-poster] Successfully uploaded poster to ${storagePath} for coach ${params.coachId}`);
-  
-  heartbeatInMemoryPosterJob(params.coachId, INVITATION_POSTER_TYPE);
 
-  const {
-    data: { publicUrl },
-  } = serviceRoleSupabase.storage
-    .from(COACH_POSTER_BUCKET)
-    .getPublicUrl(storagePath);
+  heartbeatInMemoryPosterJob(params.coachId, INVITATION_POSTER_TYPE);
 
   // 3) Persist status + metadata
   const now = new Date().toISOString();

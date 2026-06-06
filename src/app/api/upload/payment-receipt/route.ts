@@ -1,12 +1,10 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "../../auth/[...nextauth]/auth";
-import { serviceRoleSupabase as supabaseAdmin } from "@/lib/supabaseClient";
-
-const BUCKET_NAME = "receipts";
+import { cosUpload, buildDatedKey } from "@/lib/cos";
 
 /**
  * 支付凭证上传 API
- * 上传支付凭证图片到 Supabase Storage
+ * 上传支付凭证图片到腾讯云 COS
  */
 export async function POST(req: Request) {
     const session = await getServerSession();
@@ -56,61 +54,20 @@ export async function POST(req: Request) {
             }, { status: 400 });
         }
 
-        // 检查并创建 bucket（如果不存在）
-        const { data: buckets } = await supabaseAdmin.storage.listBuckets();
-        const bucketExists = buckets?.some((b) => b.name === BUCKET_NAME);
-
-        if (!bucketExists) {
-            const { error: createError } = await supabaseAdmin.storage
-                .createBucket(BUCKET_NAME, {
-                    public: true,
-                    fileSizeLimit: 5 * 1024 * 1024, // 5MB
-                    allowedMimeTypes: allowedTypes,
-                });
-
-            if (createError) {
-                console.error("Create bucket error:", createError);
-                // 继续尝试上传，bucket 可能已存在但 listBuckets 有权限问题
-            }
-        }
-
-        // 生成唯一文件名
         const ext = file.name.split(".").pop() || "jpg";
-        const filename =
-            `${userId}/${Date.now()}_${crypto.randomUUID()}.${ext}`;
+        const key = buildDatedKey(ext, userId);
 
-        // 转换 File 为 ArrayBuffer
         const arrayBuffer = await file.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);
 
-        // 上传到 Supabase Storage
-        const { error: uploadError } = await supabaseAdmin.storage
-            .from(BUCKET_NAME)
-            .upload(filename, buffer, {
-                contentType: file.type,
-                upsert: false,
-            });
-
-        if (uploadError) {
-            console.error("Upload error:", uploadError);
-            return NextResponse.json({
-                success: false,
-                message: "上传失败: " + uploadError.message,
-                data: null,
-            }, { status: 500 });
-        }
-
-        // 获取公开 URL
-        const { data: { publicUrl } } = supabaseAdmin.storage
-            .from(BUCKET_NAME)
-            .getPublicUrl(filename);
+        const { url } = await cosUpload("receipts", key, buffer, { contentType: file.type });
 
         return NextResponse.json({
             success: true,
             message: "上传成功",
             data: {
-                url: publicUrl,
-                filename: filename,
+                url,
+                filename: key,
             },
         });
     } catch (error) {

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 import { serviceRoleSupabase as supabase } from "@/lib/supabaseClient";
-import { v4 as uuidv4 } from "uuid";
+import { cosUpload, cosRemove, buildDatedKey } from "@/lib/cos";
 import type { ApiData } from "@/types/api";
 import type { UploadSetVideoResponseDto } from "./entity";
 
@@ -25,23 +25,6 @@ export async function POST(req: Request) {
                 message: "未登录",
                 data: null,
             }, { status: 401 });
-        }
-
-        // Service role key is required for Storage upload on server.
-        // In production this is a common misconfiguration; fail fast with a clear message.
-        if (
-            !process.env.NEXT_SUPABASE_SERVICE_ROLE_KEY &&
-            !process.env.SUPABASE_SERVICE_ROLE_KEY
-        ) {
-            console.error(
-                "[upload-set-video] Missing service role key env. Expect one of NEXT_SUPABASE_SERVICE_ROLE_KEY / SUPABASE_SERVICE_ROLE_KEY.",
-            );
-            return NextResponse.json<ApiData<UploadSetVideoResponseDto>>({
-                success: false,
-                message:
-                    "服务器配置缺失：未设置 Supabase Service Role Key，无法上传视频",
-                data: null,
-            }, { status: 500 });
         }
 
         const userId = session.user.id;
@@ -120,26 +103,24 @@ export async function POST(req: Request) {
             );
         }
 
-        // 上传到Supabase Storage
+        // 上传到 COS
         const ext = file.name.split(".").pop() || "mp4";
-        const safeName = `${Date.now()}-${uuidv4()}.${ext}`;
-        const filePath = `${userId}/executions/${safeName}`;
+        const filePath = buildDatedKey(ext, userId, "executions");
 
         const arrayBuffer = await file.arrayBuffer();
         const uint8Array = new Uint8Array(arrayBuffer);
 
-        const { error: uploadError } = await supabase.storage
-            .from("videos")
-            .upload(filePath, uint8Array, {
+        let publicUrl: string;
+        try {
+            const uploaded = await cosUpload("videos", filePath, uint8Array, {
                 contentType: file.type,
-                upsert: false,
             });
-
-        if (uploadError) {
+            publicUrl = uploaded.url;
+        } catch (uploadError: any) {
             console.error("上传失败:", uploadError);
             return NextResponse.json<ApiData<UploadSetVideoResponseDto>>({
                 success: false,
-                message: uploadError.message || "上传失败",
+                message: uploadError?.message || "上传失败",
                 data: null,
             }, { status: 500 });
         }
@@ -149,11 +130,6 @@ export async function POST(req: Request) {
             console.error("Failed to update storage usage", e)
         );
         // --------------------
-
-        // 获取公开URL
-        const { data: { publicUrl } } = supabase.storage
-            .from("videos")
-            .getPublicUrl(filePath);
 
         // 检查是否已存在视频
         const { data: existing } = await supabase
@@ -166,9 +142,11 @@ export async function POST(req: Request) {
 
         if (existing) {
             // 删除旧视频
-            await supabase.storage.from("videos").remove([
-                existing.storage_path,
-            ]);
+            if (existing.storage_path) {
+                await cosRemove("videos", [existing.storage_path]).catch((e) =>
+                    console.error("删除旧视频失败:", e)
+                );
+            }
 
             // 更新记录
             const { data, error: updateError } = await supabase

@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
-import { v4 as uuidv4 } from "uuid";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
-import { serviceRoleSupabase as supabase } from "@/lib/supabaseClient";
+import { cosUpload, buildDatedKey } from "@/lib/cos";
 import type { ApiData } from "@/types/api";
 import { validateCoachApplicationMediaUpload } from "@/lib/coachApplicationMaterials";
 import type { UploadCoachApplicationMediaResponseDto } from "./entity";
@@ -36,52 +35,22 @@ export async function POST(req: Request) {
             );
         }
 
-        if (
-            !process.env.NEXT_SUPABASE_SERVICE_ROLE_KEY &&
-            !process.env.SUPABASE_SERVICE_ROLE_KEY
-        ) {
-            return NextResponse.json<ApiData<null>>(
-                {
-                    success: false,
-                    message: "服务器配置缺失：未设置 Supabase Service Role Key，无法上传申请材料",
-                    data: null,
-                },
-                { status: 500 },
-            );
-        }
-
         const ext = (file.name.split(".").pop() ||
             (validation.mediaType === "image" ? "png" : "mp4")).toLowerCase();
-        const safeName = `${Date.now()}-${uuidv4()}.${ext}`;
-        const storagePath = `${userId}/application/${safeName}`;
+        const storagePath = buildDatedKey(ext, userId ?? undefined, "application");
         const arrayBuffer = await file.arrayBuffer();
         const uint8Array = new Uint8Array(arrayBuffer);
 
-        const { error: uploadError } = await supabase.storage
-            .from(BUCKET)
-            .upload(storagePath, uint8Array, {
-                contentType: file.type || "application/octet-stream",
-                upsert: false,
-            });
-
-        if (uploadError) {
-            console.error("[upload-application-media] upload failed:", uploadError);
-            return NextResponse.json<ApiData<null>>(
-                { success: false, message: uploadError.message || "上传失败", data: null },
-                { status: 500 },
-            );
-        }
-
-        const {
-            data: { publicUrl },
-        } = supabase.storage.from(BUCKET).getPublicUrl(storagePath);
+        const { url } = await cosUpload(BUCKET, storagePath, uint8Array, {
+            contentType: file.type || "application/octet-stream",
+        });
 
         return NextResponse.json<ApiData<UploadCoachApplicationMediaResponseDto>>({
             success: true,
             message: "上传成功",
             data: {
                 type: validation.mediaType,
-                url: publicUrl,
+                url,
                 thumbnailUrl: null,
                 storageBucket: BUCKET,
                 storagePath,

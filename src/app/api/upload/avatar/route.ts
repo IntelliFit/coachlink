@@ -1,10 +1,9 @@
 import { NextResponse } from 'next/server'
 import { getAuthUser } from '@/lib/auth'
-import { serviceRoleSupabase } from '@/lib/supabaseClient'
+import { cosUpload, buildDatedKey } from '@/lib/cos'
 
 const MAX_SIZE = 2 * 1024 * 1024
 const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp']
-const BUCKET = 'avatars'
 
 export async function POST(req: Request) {
   try {
@@ -13,14 +12,6 @@ export async function POST(req: Request) {
       return NextResponse.json(
         { success: false, message: '用户未登录' },
         { status: 401 }
-      )
-    }
-
-    if (!process.env.NEXT_SUPABASE_SERVICE_ROLE_KEY) {
-      console.error('missing NEXT_SUPABASE_SERVICE_ROLE_KEY for avatar upload')
-      return NextResponse.json(
-        { success: false, message: '服务端未配置 service role key' },
-        { status: 500 }
       )
     }
 
@@ -51,46 +42,9 @@ export async function POST(req: Request) {
     const arrayBuffer = await file.arrayBuffer()
     const buffer = Buffer.from(arrayBuffer)
     const ext = file.type.split('/')[1] || 'png'
-    const fileName = `${authResult.userId}/${Date.now()}.${ext}`
+    const key = buildDatedKey(ext, authResult.userId)
 
-    const { error } = await serviceRoleSupabase.storage.from(BUCKET).upload(fileName, buffer, {
-      contentType: file.type,
-      upsert: true,
-    })
-
-    if (error) {
-      console.error('upload avatar error', error)
-      return NextResponse.json(
-        { success: false, message: error.message || '上传失败，请稍后重试' },
-        { status: 500 }
-      )
-    }
-
-    const { data: publicUrlData } = serviceRoleSupabase.storage.from(BUCKET).getPublicUrl(fileName)
-    let url = publicUrlData?.publicUrl
-
-    if (!url) {
-      const { data: signed, error: signError } = await serviceRoleSupabase.storage
-        .from(BUCKET)
-        .createSignedUrl(fileName, 60 * 60 * 24 * 365 * 10)
-
-      if (signError) {
-        console.error('create avatar signed url error', signError)
-        return NextResponse.json(
-          { success: false, message: signError.message || '生成访问链接失败' },
-          { status: 500 }
-        )
-      }
-
-      url = signed?.signedUrl
-    }
-
-    if (!url) {
-      return NextResponse.json(
-        { success: false, message: '无法生成访问链接' },
-        { status: 500 }
-      )
-    }
+    const { url } = await cosUpload('avatars', key, buffer, { contentType: file.type })
 
     return NextResponse.json({
       success: true,

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "../../auth/[...nextauth]/auth";
-import supabase, { serviceRoleSupabase } from "@/lib/supabaseClient";
+import { cosUpload, buildDatedKey } from "@/lib/cos";
 
 import type { ApiData } from "@/types/api";
 import type { StreetliftingUploadLocationImageResponseDto } from "./entity";
@@ -39,52 +39,21 @@ export async function POST(req: Request) {
             }, { status: 413 });
         }
 
-        const adminClient = serviceRoleSupabase;
-        try {
-            const { data: buckets } = await adminClient.storage.listBuckets();
-            const bucketExists = buckets?.some((bucket) => bucket.name === BUCKET_NAME);
-            if (!bucketExists) {
-                await adminClient.storage.createBucket(BUCKET_NAME, {
-                    public: true,
-                    fileSizeLimit: MAX_IMAGE_BYTES,
-                    allowedMimeTypes: ALLOWED_TYPES,
-                });
-            }
-        } catch (bucketError) {
-            console.warn("[streetlifting-index][upload] bucket check error:", bucketError);
-        }
-
         const ext = (file.name.split(".").pop() || "png").toLowerCase();
-        const filePath = `locations/${Date.now()}-${crypto.randomUUID()}.${ext}`;
+        const filePath = buildDatedKey(ext, "locations");
 
         const arrayBuffer = await file.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);
 
-        const { error: uploadError } = await adminClient.storage
-            .from(BUCKET_NAME)
-            .upload(filePath, buffer, {
-                contentType: file.type,
-                upsert: false,
-            });
-
-        if (uploadError) {
-            console.error("[streetlifting-index][upload] upload error:", uploadError);
-            return NextResponse.json<ApiData<StreetliftingUploadLocationImageResponseDto>>({
-                success: false,
-                message: uploadError.message || "上传失败",
-                data: null,
-            }, { status: 500 });
-        }
-
-        const { data: { publicUrl } } = supabase.storage
-            .from(BUCKET_NAME)
-            .getPublicUrl(filePath);
+        const { url } = await cosUpload(BUCKET_NAME, filePath, buffer, {
+            contentType: file.type,
+        });
 
         return NextResponse.json<ApiData<StreetliftingUploadLocationImageResponseDto>>({
             success: true,
             message: "上传成功",
             data: {
-                url: publicUrl,
+                url,
                 storage_bucket: BUCKET_NAME,
                 storage_path: filePath,
             },
