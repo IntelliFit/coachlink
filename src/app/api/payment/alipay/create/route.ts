@@ -14,6 +14,48 @@ import {
     formatHuifuReqDate,
 } from "@/lib/huifuMiniProgramPay";
 
+function parseMaybeJson(value: unknown) {
+    if (typeof value !== "string") return value || null;
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+    try {
+        return JSON.parse(trimmed);
+    } catch {
+        return trimmed;
+    }
+}
+
+function extractHuifuPayInfo(payResult: Record<string, any>) {
+    const parsedPayInfo = parseMaybeJson(payResult.pay_info);
+    if (parsedPayInfo) return parsedPayInfo;
+
+    const directValue =
+        payResult.qr_code ??
+        payResult.qrcode ??
+        payResult.qrCode ??
+        payResult.code_url ??
+        payResult.codeUrl ??
+        payResult.pay_url ??
+        payResult.payUrl ??
+        payResult.pay_qr_code ??
+        payResult.payQrCode ??
+        payResult.alipay_qr_code ??
+        payResult.alipayQrCode ??
+        payResult.url ??
+        payResult.paymentUrl;
+
+    if (typeof directValue === "string" && directValue.trim()) {
+        return directValue.trim();
+    }
+
+    const nestedData = payResult.data && typeof payResult.data === "object"
+        ? extractHuifuPayInfo(payResult.data as Record<string, any>)
+        : null;
+    if (nestedData) return nestedData;
+
+    return null;
+}
+
 // 文档：https://opendocs.alipay.com/open/59da99d0_alipay.trade.page.pay?pathHash=e26b497f&scene=22
 // 流程和博客：https://kirigaya.cn/blog/article?seq=361
 export async function POST(req: Request) {
@@ -324,6 +366,12 @@ export async function POST(req: Request) {
         subscriptionMeta?.coachId && (orderType === "subscription" || orderType === "subscription_renew")
             ? (orderType === "subscription_renew" ? "coach_subscription_renew" : "coach_subscription")
             : orderType;
+    const isCoachSubscription =
+        orderType === "subscription" || orderType === "subscription_renew";
+    const huifuRevenueCoachId =
+        subscriptionMeta?.coachId ||
+        (orderType === "content_purchase" ? contentPurchaseMeta?.coachId : undefined);
+    const pendingHuifuReqDate = huifuRevenueCoachId ? formatHuifuReqDate() : undefined;
 
     const totalAmountFen = resolvedAmountAlreadyFen
         ? Math.round(Number(resolvedTotalAmount))
@@ -336,6 +384,7 @@ export async function POST(req: Request) {
                 order_type: effectiveOrderType,
                 order_data: {
                     ...od,
+                    ...(pendingHuifuReqDate ? { huifu_req_date: pendingHuifuReqDate } : {}),
                     original_order_type: effectiveOrderType !== orderType ? orderType : undefined,
                 },
                 user_id: userId,
@@ -385,12 +434,6 @@ export async function POST(req: Request) {
     }
 
     // ── 教练订阅：走汇付 A_JSAPI / A_NATIVE 分账 ──
-    const isCoachSubscription =
-        orderType === "subscription" || orderType === "subscription_renew";
-    const huifuRevenueCoachId =
-        subscriptionMeta?.coachId ||
-        (orderType === "content_purchase" ? contentPurchaseMeta?.coachId : undefined);
-
     if (huifuRevenueCoachId) {
         const { data: coachRecord } = await serviceRoleSupabase
             .from("coaches")
@@ -399,8 +442,13 @@ export async function POST(req: Request) {
             .maybeSingle();
 
         if (coachRecord?.huifu_id && coachRecord.huifu_open_status === "opened" && coachRecord.huifu_card_token) {
-            const reqDate = formatHuifuReqDate();
-            const huifuTradeType = isMobile ? "A_JSAPI" : "A_NATIVE";
+            const reqDate = String(((order.order_data as any)?.huifu_req_date || pendingHuifuReqDate || formatHuifuReqDate())).trim();
+            const alipayBuyerId = String(od.alipayBuyerId || od.buyerId || "").trim();
+            const alipayBuyerLogonId = String(od.alipayBuyerLogonId || od.buyerLogonId || "").trim();
+            // Web browsers do not normally know the Alipay buyer id/logon id. A_JSAPI requires one of
+            // those buyer identifiers, so the web flow must default to A_NATIVE QR payment.
+            const huifuTradeType =
+                isMobile && (alipayBuyerId || alipayBuyerLogonId) ? "A_JSAPI" : "A_NATIVE";
 
             try {
                 const payResult = await createHuifuMiniProgramOrder({
@@ -412,7 +460,11 @@ export async function POST(req: Request) {
                     openid: "", // 支付宝不需要 openid
                     appId: "",  // 支付宝不需要 appId
                     tradeType: huifuTradeType,
-                    alipayData: { subject: subjectText },
+                    alipayData: {
+                        subject: subjectText,
+                        buyer_id: alipayBuyerId || undefined,
+                        buyer_logon_id: alipayBuyerLogonId || undefined,
+                    },
                     feeFlag: 2,
                     acctId: process.env.HUIFU_CASH_ACCT_ID || "F22836659",
                 });
@@ -421,26 +473,33 @@ export async function POST(req: Request) {
                     throw new Error(payResult.resp_desc || "汇付下单失败");
                 }
 
-                const rawHuifuPayInfo =
-                    typeof payResult.pay_info === "string"
-                        ? (() => {
-                              try {
-                                  return JSON.parse(payResult.pay_info);
-                              } catch {
-                                  return payResult.pay_info;
-                              }
-                          })()
-                        : payResult.pay_info || null;
+                const rawHuifuPayInfo = extractHuifuPayInfo(payResult as Record<string, any>);
 
-                // Update order_data with huifu req_date for query
-                await serviceRoleSupabase
+                if (!rawHuifuPayInfo) {
+                    console.error("[Alipay Create] Huifu order created without usable pay info", {
+                        orderId: order.id,
+                        tradeType: huifuTradeType,
+                        responseKeys: Object.keys(payResult || {}),
+                        respCode: payResult.resp_code,
+                        respDesc: payResult.resp_desc,
+                    });
+                    throw new Error("汇付下单成功但未返回可展示的支付参数");
+                }
+
+                // Keep local query/reconciliation on the Huifu gateway even if callbacks are delayed.
+                const { error: markHuifuOrderError } = await serviceRoleSupabase
                     .from("alipay_orders")
                     .update({
-                        payment_provider: "huifu_alipay",
                         order_type: effectiveOrderType,
                         order_data: { ...od, huifu_req_date: reqDate, original_order_type: orderType },
                     })
                     .eq("id", order.id);
+                if (markHuifuOrderError) {
+                    console.error("[Alipay Create] Failed to mark Huifu order locally:", {
+                        orderId: order.id,
+                        message: markHuifuOrderError.message,
+                    });
+                }
 
                 return NextResponse.json<ApiData<any>>({
                     success: true,

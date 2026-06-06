@@ -1,0 +1,185 @@
+﻿%%{init: {"theme": "base", "themeVariables": {"fontFamily": "Microsoft YaHei, PingFang SC, Arial", "primaryColor": "#eef6ff", "primaryBorderColor": "#3b82f6", "primaryTextColor": "#1f2937", "lineColor": "#64748b", "secondaryColor": "#fff7ed", "tertiaryColor": "#f0fdf4", "noteBkgColor": "#fff7ed", "noteTextColor": "#1f2937"}, "flowchart": {"htmlLabels": false, "curve": "basis", "nodeSpacing": 55, "rankSpacing": 70}}}%%
+flowchart TD
+    Start(["学员进入教练主页；查看教练资料、服务包、价格、购买周期"]) --> LoginCheck{"是否已登录?"}
+    LoginCheck -- "否" --> Login["注册/登录；完成基础档案：昵称、身高、体重、训练目标"]
+    LoginCheck -- "是" --> Product
+    Login --> Product["选择服务包；确认 coachId / productId / subscribedWeeks / price"]
+
+    Product --> Questionnaire["填写教练问卷；目标、水平、每周训练次数、器械、伤病禁忌、时间限制、体重、1RM/RM、备注"]
+    Questionnaire --> QuestionnaireSnapshot["形成问卷快照 subscribe_data；这是后续计划生成的核心输入"]
+
+    QuestionnaireSnapshot --> OrderCreate["创建订阅订单；coach_subscription_orders 或兼容订阅创建入口"]
+    OrderCreate --> OrderPending["订单状态 pending_payment；等待平台支付"]
+    OrderPending --> PayCheck{"支付是否成功?"}
+    PayCheck -- "否：取消/失败/未支付" --> PayRetry["停留支付等待页；允许重新支付或返回修改"]
+    PayRetry --> OrderPending
+    PayCheck -- "是" --> OrderPaid["订单状态 paid；系统确认支付事实"]
+
+    OrderPaid --> SubscriptionActive["创建/更新 coach_subscriptions；status=active；subscribe_data=问卷快照；subscribed_weeks=购买周期"]
+    SubscriptionActive --> SubscriptionSemantics["订阅语义；start_date 通常等第一次真实训练开始写入；end_date 是预计完成展示；是否继续主要看训练日 credits"]
+
+    SubscriptionSemantics --> InitialTrigger["触发 onSubscriptionActivated(subscriptionId)；创建 initial_plan 自动化 job；idempotencyKey=initial_plan:subscriptionId"]
+    InitialTrigger --> PolicyResolve["解析自动化策略；优先级：平台默认 -> 教练全局 -> 学员订阅覆盖"]
+    PolicyResolve --> InitialPolicy{"首个计划策略 initialPlanMode"}
+    InitialPolicy -- "off" --> InitialOff["跳过自动生成；job=skipped；教练手动创建计划"]
+    InitialPolicy -- "draft" --> InitialDraft["AI 生成计划草稿；coach_plan_instances.status=draft；job=needs_coach_review"]
+    InitialPolicy -- "auto_publish 默认" --> InitialAuto["AI 生成并自动发布；coach_plan_instances.status=active；job=succeeded"]
+
+    InitialDraft --> CoachReviewFirst["系统消息提醒教练；请审核首个计划草稿"]
+    CoachReviewFirst --> CoachPublishCheck{"教练是否发布?"}
+    CoachPublishCheck -- "否" --> StudentWaitPlan["学员等待计划；今日训练展示等待制定"]
+    CoachPublishCheck -- "是" --> PlanActive
+    InitialAuto --> PlanActive["计划实例 active；写入 training_days / start_execution_day / ai_generation_log"]
+
+    PlanActive --> ArchiveOld["若新计划为 active；归档同订阅下旧 active/paused 计划实例"]
+    ArchiveOld --> SyncActions["同步教练动作到学员动作库；避免执行页动作缺失"]
+    SyncActions --> NotifyStudent["私信通知学员；训练计划已制定完成，进入今日训练"]
+
+    NotifyStudent --> TodayTraining["学员进入今日训练；读取当前 active 计划与当前 day_index"]
+    TodayTraining --> FirstStartCheck{"是否第一次真实开始训练?"}
+    FirstStartCheck -- "是" --> SetStartDate["写入订阅 start_date；建立 credits 起算口径"]
+    FirstStartCheck -- "否" --> ExecutionStart
+    SetStartDate --> ExecutionStart["开始/继续 plan_instance_execution；instance_id + day_index"]
+
+    ExecutionStart --> ExecuteSets["执行训练；记录动作组、实际重量、实际次数、RPE、视频、备注"]
+    ExecuteSets --> SetProgress["更新 action_executions；completed_sets / total_sets / last_saved_at"]
+    SetProgress --> DayCompleteCheck{"当天训练是否完成?"}
+    DayCompleteCheck -- "否" --> ExecuteSets
+    DayCompleteCheck -- "是" --> FinishExecution["/api/execution/finish；execution.status=completed；写入 completed_at"]
+
+    FinishExecution --> CreditConsume["completed 的训练日计入 usedCredits；in_progress 不计入；按 day_index 去重"]
+    CreditConsume --> RefreshEndDate["刷新预计完成日 end_date；只用于展示/生命周期辅助，不是 active 硬阻断"]
+    RefreshEndDate --> FeedbackCheck{"学员是否提交训练反馈?"}
+    FeedbackCheck -- "否" --> RemainingDayCheck
+    FeedbackCheck -- "是" --> FeedbackSubmit["写入 execution_feedbacks；触发 onExecutionFeedbackSubmitted"]
+
+    FeedbackSubmit --> FeedbackPolicy["读取 feedbackAdjustmentMode；默认 draft_notify"]
+    FeedbackPolicy --> RiskClassify{"反馈风险分类"}
+    RiskClassify -- "高风险：疼痛/伤病/麻木/头晕" --> HighRisk["只提醒教练复核；不自动修改计划"]
+    RiskClassify -- "中风险：疲劳/恢复差/连续失败" --> MediumRisk["生成调整草稿；默认需要教练审核"]
+    RiskClassify -- "低风险：太轻/太难/时间不够" --> LowRisk["只改未来训练日；跳过 completed/in_progress/abandoned"]
+    LowRisk --> FeedbackModeCheck{"教练是否允许低风险自动应用?"}
+    FeedbackModeCheck -- "否：默认 draft_notify" --> FeedbackDraft["写入 coach_plan_adjustment_drafts；提醒教练审核"]
+    FeedbackModeCheck -- "是" --> FeedbackApply["小幅调整未来训练；最多改少量动作项；job=succeeded"]
+    HighRisk --> RemainingDayCheck
+    MediumRisk --> RemainingDayCheck
+    FeedbackDraft --> RemainingDayCheck
+    FeedbackApply --> RemainingDayCheck
+
+    RemainingDayCheck{"计划内是否还有未完成训练日?"}
+    RemainingDayCheck -- "有" --> TodayTraining
+    RemainingDayCheck -- "没有" --> CompleteInstance["计划实例完成；coach_plan_instances.status=completed；触发 onPlanProgressChanged"]
+
+    CompleteInstance --> NextJob["创建 next_phase 自动化 job；idempotencyKey=next_phase:instanceId"]
+    NextJob --> NextPolicy["解析 nextPhaseMode；默认 draft_notify"]
+    NextPolicy --> EntitlementCheck{"订阅是否还有剩余 credits?"}
+
+    EntitlementCheck -- "有" --> NextMode{"下一阶段策略"}
+    NextMode -- "off" --> NextOff["不自动生成下一阶段；教练手动处理"]
+    NextMode -- "draft_notify 默认" --> NextDraft["AI 生成下一阶段草稿；job=needs_coach_review；系统消息提醒教练"]
+    NextMode -- "auto_publish_if_credits" --> NextAuto["AI 生成并自动发布下一阶段；job=succeeded"]
+    NextDraft --> CoachReviewNext["教练审核下一阶段草稿"]
+    CoachReviewNext --> PublishNextCheck{"教练是否发布?"}
+    PublishNextCheck -- "否" --> StudentWaitNext["学员等待下一阶段计划"]
+    PublishNextCheck -- "是" --> PlanActive
+    NextAuto --> ArchivePrev["归档上一阶段 completed 计划；archive_reason=served_phase；entitlement_policy=count_service"]
+    ArchivePrev --> PlanActive
+
+    EntitlementCheck -- "没有" --> RenewalWaiting["进入续费等待；next_phase job=skipped；reason=insufficient_entitlement"]
+    RenewalWaiting --> CoachRenewNotice["系统消息提醒教练；学员阶段已完成但额度不足，请引导续费"]
+    RenewalWaiting --> StudentRenewEntry["学员端展示当前阶段已完成；显示续费入口"]
+
+    StudentRenewEntry --> RenewOrder["学员创建续费订单；orderType=renew"]
+    RenewOrder --> RenewPending["续费订单 pending_payment"]
+    RenewPending --> RenewPayCheck{"续费支付是否成功?"}
+    RenewPayCheck -- "否" --> RenewPending
+    RenewPayCheck -- "是" --> RenewPaid["续费订单 paid；增加 subscribed_weeks；订阅保持 active"]
+    RenewPaid --> RenewalTrigger["触发 onRenewalPaid(subscriptionId)"]
+    RenewalTrigger --> CompletedPhaseCheck{"是否存在最近 completed 阶段?"}
+    CompletedPhaseCheck -- "否" --> RenewalSkip["续费检查跳过；等待当前阶段后续进展"]
+    CompletedPhaseCheck -- "是" --> NextJob
+
+    %% AI generation engine, expanded
+    InitialDraft -. "调用 createAiInstanceForSubscription(useLLM=true)" .-> AIStart
+    InitialAuto -. "调用 createAiInstanceForSubscription(useLLM=true)" .-> AIStart
+    NextDraft -. "调用 createAiInstanceForSubscription(useLLM=true)" .-> AIStart
+    NextAuto -. "调用 createAiInstanceForSubscription(useLLM=true)" .-> AIStart
+
+    subgraph AIEngine["AI 计划生成算法细节"]
+        AIStart["AI 生成入口；校验订阅 active、教练权限、是否已有计划实例"] --> AIGather["采集输入数据"]
+        AIGather --> AIInput1["问卷 subscribe_data；目标/训练次数/禁忌/1RM/RM/备注"]
+        AIGather --> AIInput2["学员档案；身高/体重/年龄/性别/训练水平/生活方式"]
+        AIGather --> AIInput3["购买周期 subscribed_weeks；要求生成完整周历"]
+        AIGather --> AIInput4["教练动作库 coach_actions；只能使用存在的动作"]
+        AIGather --> AIInput5["计划模板 + 最近历史计划抽样；作为可复用骨架"]
+        AIGather --> AIInput6["当前 1RM/PR；PR 历史 + 动作库 reference_1RM + 问卷兜底"]
+
+        AIInput1 --> IntentExtract["提炼问卷意图；专项偏好、每周次数、禁忌动作、器械限制"]
+        AIInput2 --> IntentExtract
+        AIInput3 --> SpanNeed["计算目标天数；targetDays=subscribedWeeks*7"]
+        AIInput4 --> ActionSummary["构建动作库摘要；actionId/name/type/description"]
+        AIInput5 --> TemplateSummary["构建模板/历史骨架摘要；name/type/weekCount/dayCount/focus"]
+        AIInput6 --> PRSummary["构建 1RM 摘要；actionName/actionId/current1RM"]
+
+        IntentExtract --> StageA["Stage A：LLM 选择计划骨架；优先复用最接近模板/历史计划"]
+        TemplateSummary --> StageA
+        StageA --> SkeletonCheck{"是否选中有效骨架?"}
+        SkeletonCheck -- "是" --> SkeletonLoad["读取骨架 training_days；来源：模板或历史计划实例"]
+        SkeletonCheck -- "否" --> FromScratch["没有骨架；允许从零生成，但必须使用动作库"]
+
+        SkeletonLoad --> StageB["Stage B：LLM 输出 plan_script；不是直接输出数据库 JSON"]
+        FromScratch --> StageB
+        IntentExtract --> StageB
+        SpanNeed --> StageB
+        ActionSummary --> StageB
+        PRSummary --> StageB
+
+        StageB --> ScriptCompile["编译 plan_script；parsePlanScript -> training_days"]
+        ScriptCompile --> HardValidate["硬约束校验；专项偏好/禁忌动作/每周次数/动作存在性"]
+        HardValidate --> ViolationCheck{"是否违反硬约束?"}
+        ViolationCheck -- "第一次违反" --> RetryOnce["带纠偏提示重试一次；要求完全删除冲突项"]
+        RetryOnce --> StageB
+        ViolationCheck -- "重试后仍违反" --> AIFail["失败，交给教练人工处理"]
+        ViolationCheck -- "无违反" --> Sanitize["清洗输出；过滤不存在 actionId；只保留安全 params；修正 dayIndex"]
+
+        Sanitize --> EmptyCheck{"清洗后是否还有有效动作?"}
+        EmptyCheck -- "无动作且有骨架" --> FallbackSkeleton["回退到模板骨架；避免空计划"]
+        EmptyCheck -- "无动作且无骨架" --> AIFail
+        EmptyCheck -- "有动作" --> SpanCheck
+        FallbackSkeleton --> SpanCheck["周期长度保护"]
+
+        SpanCheck --> TooShortCheck{"是否覆盖完整 subscribedWeeks*7 天?"}
+        TooShortCheck -- "太短" --> AIFailShort["失败：计划周期过短"]
+        TooShortCheck -- "太长" --> TrimSpan["截断到购买周期；重新修正 dayIndex"]
+        TooShortCheck -- "刚好" --> LoadCalc
+        TrimSpan --> LoadCalc["自动计算训练负荷"]
+
+        LoadCalc --> LoadInput["匹配当前 1RM；canonical_action_id -> 动作名 -> actionId"]
+        LoadInput --> LoadMode{"强度类型"}
+        LoadMode -- "RM" --> RMFormula["RM 计算；外部负重=(1RM+α*体重)/λ(次数)-α*体重"]
+        LoadMode -- "%" --> PercentFormula["百分比计算；推荐重量=1RM*百分比"]
+        LoadMode -- "固定重量" --> FixedLoad["保留固定重量"]
+        RMFormula --> LoadWrite
+        PercentFormula --> LoadWrite
+        FixedLoad --> LoadWrite["写回 load/loadUnit/loadSource/loadDisplayText"]
+
+        LoadWrite --> InsertInstance["写入 coach_plan_instances；training_days + ai_generation_log + status"]
+        InsertInstance --> ActiveCheck{"status 是否 active?"}
+        ActiveCheck -- "active" --> AINotifyStudent["归档旧计划、同步动作库、私信通知学员"]
+        ActiveCheck -- "draft" --> AINotifyCoach["提醒教练审核草稿"]
+    end
+
+    classDef student fill:#fff7ed,stroke:#fb923c,stroke-width:2px,color:#1f2937;
+    classDef system fill:#eef6ff,stroke:#3b82f6,stroke-width:2px,color:#1f2937;
+    classDef ai fill:#f0fdf4,stroke:#22c55e,stroke-width:2px,color:#1f2937;
+    classDef coach fill:#f7f2ff,stroke:#8b5cf6,stroke-width:2px,color:#1f2937;
+    classDef wait fill:#fff1f2,stroke:#f43f5e,stroke-width:2px,color:#1f2937;
+    classDef decision fill:#fffbeb,stroke:#f59e0b,stroke-width:2px,color:#1f2937;
+
+    class Start,Login,Product,Questionnaire,QuestionnaireSnapshot,PayRetry,TodayTraining,ExecuteSets,StudentWaitPlan,StudentWaitNext,StudentRenewEntry,RenewOrder student;
+    class OrderCreate,OrderPending,OrderPaid,SubscriptionActive,SubscriptionSemantics,InitialTrigger,PolicyResolve,ArchiveOld,SyncActions,NotifyStudent,ExecutionStart,SetProgress,FinishExecution,CreditConsume,RefreshEndDate,FeedbackSubmit,CompleteInstance,NextJob,NextPolicy,RenewPending,RenewPaid,RenewalTrigger,CompletedPhaseCheck,RenewalSkip,SetStartDate system;
+    class InitialDraft,InitialAuto,PlanActive,AIStart,AIGather,AIInput1,AIInput2,AIInput3,AIInput4,AIInput5,AIInput6,IntentExtract,SpanNeed,ActionSummary,TemplateSummary,PRSummary,StageA,SkeletonLoad,FromScratch,StageB,ScriptCompile,HardValidate,RetryOnce,Sanitize,FallbackSkeleton,SpanCheck,TrimSpan,LoadCalc,LoadInput,RMFormula,PercentFormula,FixedLoad,LoadWrite,InsertInstance,AINotifyStudent,AINotifyCoach ai;
+    class CoachReviewFirst,CoachPublishCheck,CoachReviewNext,PublishNextCheck,CoachRenewNotice,InitialOff,NextOff coach;
+    class RenewalWaiting wait;
+    class LoginCheck,PayCheck,InitialPolicy,FirstStartCheck,DayCompleteCheck,FeedbackCheck,RiskClassify,FeedbackModeCheck,RemainingDayCheck,EntitlementCheck,NextMode,RenewPayCheck,SkeletonCheck,ViolationCheck,EmptyCheck,TooShortCheck,LoadMode,ActiveCheck decision;
+

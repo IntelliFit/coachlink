@@ -20,7 +20,7 @@ interface HuifuCreateMiniProgramOrderParams {
     body?: string;
     clientIp?: string;
     tradeType?: string;            // "T_MINIAPP" (默认) | "A_JSAPI" | "A_NATIVE"
-    alipayData?: { subject: string; body?: string; buyer_id?: string };
+    alipayData?: { subject: string; body?: string; buyer_id?: string; buyer_logon_id?: string };
     acctSplitBunch?: string;       // JSON，实时分账时传入（新方案不再使用）
     delayAcctFlag?: string;        // "Y" | "N"，默认 "N"
     feeFlag?: number;              // 1=外扣, 2=内扣，默认 2
@@ -304,11 +304,15 @@ export async function createHuifuMiniProgramOrder(params: HuifuCreateMiniProgram
 
     // 渠道专属参数
     if (isAlipay && params.alipayData) {
-        payload.alipay_data = JSON.stringify({
+        const alipayData: Record<string, string> = {
             subject: params.alipayData.subject,
             body: params.alipayData.body || params.alipayData.subject,
-            buyer_id: params.alipayData.buyer_id || "",
-        });
+        };
+        const buyerId = String(params.alipayData.buyer_id || "").trim();
+        const buyerLogonId = String(params.alipayData.buyer_logon_id || "").trim();
+        if (buyerId) alipayData.buyer_id = buyerId;
+        if (buyerLogonId) alipayData.buyer_logon_id = buyerLogonId;
+        payload.alipay_data = JSON.stringify(alipayData);
     } else {
         payload.wx_data = JSON.stringify({
             openid: params.openid,

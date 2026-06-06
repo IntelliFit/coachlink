@@ -15,6 +15,13 @@ import { formatHuifuReqDate, queryHuifuMiniProgramOrder } from '@/lib/huifuMiniP
 
 // 文档：https://opendocs.alipay.com/open/217dd591_alipay.trade.query?scene=common&pathHash=62ae74aa
 
+function isCoachRevenueHuifuCandidate(orderType: string | null | undefined, orderData: Record<string, any>) {
+    return (
+        orderType === 'coach_subscription' ||
+        orderType === 'coach_subscription_renew'
+    ) && Boolean(orderData.coachId || orderData.coach_id);
+}
+
 const getTraceNoAndStatus = async (orderId: string): Promise<{ traceNo: string | null; tradeStatus: string | null }> => {
     // if (false) {
     //     // Mock response for non-production environments
@@ -100,14 +107,22 @@ export async function POST(req: Request) {
 
     const existOrderData = (existOrder.order_data || {}) as Record<string, any>;
     const paymentProvider = String((existOrder as any).payment_provider || '').trim();
+    const huifuReqDate = String(
+        existOrderData.huifu_req_date || formatHuifuReqDate(new Date(existOrder.created_at)),
+    ).trim();
+    const isCoachRevenueCandidate = isCoachRevenueHuifuCandidate(
+        String(existOrder.order_type || ''),
+        existOrderData,
+    );
     const isHuifuGatewayOrder =
         paymentProvider === 'huifu_alipay' ||
         paymentProvider === 'wechat' ||
-        Boolean(existOrderData.huifu_req_date);
+        Boolean(existOrderData.huifu_req_date) ||
+        isCoachRevenueCandidate;
 
     if (isHuifuGatewayOrder) {
         const queryResult = await queryHuifuMiniProgramOrder({
-            orgReqDate: String(existOrderData.huifu_req_date || formatHuifuReqDate(new Date(existOrder.created_at))),
+            orgReqDate: huifuReqDate,
             orgReqSeqId: String(existOrder.id),
         });
 
@@ -124,7 +139,9 @@ export async function POST(req: Request) {
                 status: orderStatus,
                 trade_status: queryResult.trans_stat || null,
                 alipay_trade_no: queryResult.org_hf_seq_id || null,
-                payment_provider: paymentProvider || 'huifu_alipay',
+                order_data: existOrderData.huifu_req_date
+                    ? existOrderData
+                    : { ...existOrderData, huifu_req_date: huifuReqDate },
                 updated_at: new Date().toISOString(),
             })
             .eq('id', orderId)

@@ -1,0 +1,27 @@
+%%{init: {"theme": "base", "themeVariables": {"fontFamily": "Microsoft YaHei, PingFang SC, Arial", "primaryColor": "#f8fafc", "primaryBorderColor": "#64748b", "primaryTextColor": "#1f2937", "lineColor": "#64748b"}, "flowchart": {"htmlLabels": true, "curve": "basis", "nodeSpacing": 36, "rankSpacing": 44}}}%%
+flowchart TB
+    A["场景 A：教练做 2 个月计划<br/>学生只买 / 只执行前 1 个月"] --> A1["完整 training_days 可能有 8 周<br/>当前窗口只覆盖前 4 周"]
+    A1 --> A2["第 1 个月用完后<br/>不是说整份计划完成<br/>而是进入续费等待或解锁第 2 个月"]
+
+    B["场景 B：买 4 周，计划每周 3 练"] --> B1["权益不是 28 个训练动作日<br/>而是当前窗口内约 12 个训练日 credit"]
+    B1 --> B2["学生 6 个自然周才练完<br/>不应因自然日超过 4 周而拦截<br/>预计完成日顺延"]
+
+    C["场景 C：买 8 周，当前窗口先执行 4 周"] --> C1["若后 4 周已经包含在权益里<br/>第 1 窗口用完后可继续解锁后续窗口"]
+    C1 --> C2["若没有后续权益<br/>才进入续费等待"]
+
+    D["场景 D：下一窗口训练频率改变"] --> D1["前 4 周每周 2 练<br/>后 4 周每周 4 练"]
+    D1 --> D2["credits 密度和预计完成日都按新窗口重算<br/>不能沿用旧频率"]
+
+    E["场景 E：旧 end_date 已过"] --> E1["如果 status=active 且 remainingCredits > 0"]
+    E1 --> E2["正确结果：仍允许训练<br/>end_date 只是展示 / 生命周期辅助"]
+
+    F["场景 F：当前窗口用完但权益不足"] --> F1["不是整份计划失败<br/>也不一定要重做计划"]
+    F1 --> F2["正确结果：续费后继续解锁原长计划后续内容<br/>或按教练策略生成新阶段"]
+
+    classDef scenario fill:#fff7ed,stroke:#CF6D4E,stroke-width:2px,color:#1f2937;
+    classDef result fill:#f0fdf4,stroke:#22c55e,stroke-width:2px,color:#1f2937;
+    classDef wait fill:#fff1f2,stroke:#f43f5e,stroke-width:2px,color:#1f2937;
+
+    class A,B,C,D,E,F scenario;
+    class A1,A2,B1,B2,C1,C2,D1,D2,E1,E2 result;
+    class F1,F2 wait;

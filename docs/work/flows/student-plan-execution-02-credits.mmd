@@ -1,0 +1,37 @@
+%%{init: {"theme": "base", "themeVariables": {"fontFamily": "Microsoft YaHei, PingFang SC, Arial", "primaryColor": "#eef6ff", "primaryBorderColor": "#3b82f6", "primaryTextColor": "#1f2937", "lineColor": "#64748b"}, "flowchart": {"htmlLabels": true, "curve": "basis", "nodeSpacing": 36, "rankSpacing": 46}}}%%
+flowchart TB
+    W["先确定当前付费执行窗口<br/>可能只是完整 2 个月计划里的前 1 个月"] --> A["学生进入今日训练"]
+    A --> B{"第一次真实开始训练?"}
+    B -- "是" --> C["写入 start_date<br/>付款日不等于训练起点"]
+    B -- "否" --> D["打开当前 day_index"]
+    C --> D
+
+    D --> E["开始 / 继续 execution<br/>status = in_progress"]
+    E --> F{"当天结果"}
+    F -- "完成" --> G["completed<br/>扣 1 个训练日 credit"]
+    F -- "离开 / 拖延" --> H["不扣 credit<br/>下次继续同一进度<br/>预计完成日顺延"]
+    F -- "放弃 / 跳过" --> I["abandoned<br/>当前模型不按 completed 扣 credit<br/>如要扣需改规则"]
+
+    G --> J["usedCredits = 唯一 completed day_index 数"]
+    I --> K["计划进度可 resolved<br/>但 credit 口径需单独判断"]
+    H --> D
+
+    J --> L["totalCredits = 当前付费窗口内的训练日数量<br/>例：完整计划 8 周，但本轮只买 4 周<br/>只统计前 4 周窗口"]
+    L --> M["remainingCredits = totalCredits - usedCredits"]
+    M --> N{"remainingCredits > 0?"}
+    N -- "是" --> O["可继续训练<br/>即使旧 end_date 已过也不能误拦截"]
+    N -- "否" --> P["不能继续新训练<br/>可续费 / 宽限 / 后续自动取消"]
+
+    classDef student fill:#fff7ed,stroke:#CF6D4E,stroke-width:2px,color:#1f2937;
+    classDef exec fill:#f7f2ff,stroke:#8b5cf6,stroke-width:2px,color:#1f2937;
+    classDef model fill:#ecfeff,stroke:#06b6d4,stroke-width:2px,color:#1f2937;
+    classDef good fill:#f0fdf4,stroke:#22c55e,stroke-width:2px,color:#1f2937;
+    classDef wait fill:#fff1f2,stroke:#f43f5e,stroke-width:2px,color:#1f2937;
+    classDef decision fill:#fffbeb,stroke:#f59e0b,stroke-width:2px,color:#1f2937;
+
+    class W,A,D student;
+    class E,G,H,I,K exec;
+    class C,J,L,M model;
+    class O good;
+    class P wait;
+    class B,F,N decision;

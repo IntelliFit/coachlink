@@ -1,0 +1,44 @@
+%%{init: {"theme": "base", "themeVariables": {"fontFamily": "Microsoft YaHei, PingFang SC, Arial", "primaryColor": "#f0fdf4", "primaryBorderColor": "#22c55e", "primaryTextColor": "#1f2937", "lineColor": "#64748b"}, "flowchart": {"htmlLabels": true, "curve": "basis", "nodeSpacing": 40, "rankSpacing": 48}}}%%
+flowchart TB
+    A["学生完成当前付费执行窗口<br/>例：2 个月计划里的前 1 个月"] --> B["刷新权益模型<br/>completed executions / subscribed_weeks"]
+    B --> C{"当前窗口 credits 是否用完?"}
+
+    C -- "否" --> D["继续当前窗口训练<br/>仍有未完成训练日"]
+    C -- "是" --> E{"完整计划后面还有内容吗?"}
+
+    E -- "有" --> F{"是否已有后续执行权益?"}
+    F -- "有" --> G["继续解锁同一长计划后续窗口<br/>例：执行第 2 个月"]
+    F -- "没有" --> H["进入续费等待<br/>计划内容存在<br/>但后续窗口未付费"]
+
+    E -- "没有" --> I{"是否还有剩余权益?"}
+    I -- "有" --> J{"下一阶段策略"}
+    J -- "draft_notify 默认" --> K["生成下一阶段草稿<br/>提醒教练审核发布"]
+    J -- "auto_publish_if_credits" --> L["直接发布下一阶段计划"]
+    J -- "off" --> M["教练手动处理"]
+    K --> N["学生继续计划 B"]
+    L --> N
+    M --> N
+
+    I -- "没有" --> H
+
+    H --> O["学生端<br/>显示续费入口 / 当前窗口已完成"]
+    H --> P["教练端<br/>提醒学员当前窗口已完成但权益不足"]
+
+    O --> Q["创建续费订单<br/>pending_payment"]
+    Q --> R{"支付成功?"}
+    R -- "否" --> Q
+    R -- "是" --> S["续费 paid<br/>subscribed_weeks += additionalWeeks<br/>不要直接叠加 end_date"]
+    S --> T["触发 onRenewalPaid<br/>重新计算可执行窗口"]
+    T --> E
+
+    classDef plan fill:#f0fdf4,stroke:#22c55e,stroke-width:2px,color:#1f2937;
+    classDef model fill:#ecfeff,stroke:#06b6d4,stroke-width:2px,color:#1f2937;
+    classDef wait fill:#fff1f2,stroke:#f43f5e,stroke-width:2px,color:#1f2937;
+    classDef pay fill:#eef6ff,stroke:#3b82f6,stroke-width:2px,color:#1f2937;
+    classDef decision fill:#fffbeb,stroke:#f59e0b,stroke-width:2px,color:#1f2937;
+
+    class A,D,G,K,L,M,N plan;
+    class B,T model;
+    class H,O,P wait;
+    class Q,S pay;
+    class C,E,F,I,J,R decision;
