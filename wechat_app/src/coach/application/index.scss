@@ -77,6 +77,21 @@
       display: block;
     }
 
+    .section-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 16rpx;
+      margin-bottom: 24rpx;
+    }
+
+    .section-desc {
+      display: block;
+      margin-top: 8rpx;
+      font-size: 12px;
+      line-height: 1.5;
+      color: #6b7280;
+    }
+
     .textarea {
       width: 100%;
       min-height: 120px;
@@ -469,6 +484,223 @@
     border-radius: 8px;
     font-size: 14px;
     border: 1px dashed #d1d5db;
+  }
+
+  .material-type-row,
+  .material-editor-types,
+  .material-meta-row,
+  .material-actions,
+  .material-editor-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16rpx;
+  }
+
+  .material-type-row {
+    margin-bottom: 24rpx;
+  }
+
+  .material-type-chip,
+  .material-editor-type {
+    padding: 12rpx 24rpx;
+    border-radius: 9999rpx;
+    border: 1px solid #CF6D4E;
+    color: #CF6D4E;
+    background: #fff;
+    font-size: 13px;
+    font-weight: 700;
+  }
+
+  .material-editor-type.active {
+    background: #CF6D4E;
+    color: #fff;
+  }
+
+  .material-empty {
+    padding: 32rpx;
+    border: 1px dashed #d1d5db;
+    border-radius: 16rpx;
+    background: #f9fafb;
+    color: #6b7280;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+
+  .material-list {
+    display: flex;
+    flex-direction: column;
+    gap: 16rpx;
+  }
+
+  .material-card {
+    padding: 24rpx;
+    border: 1px solid #e5e7eb;
+    border-radius: 16rpx;
+    background: #fff;
+  }
+
+  .material-card-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16rpx;
+    margin-bottom: 12rpx;
+  }
+
+  .material-category,
+  .material-public {
+    padding: 8rpx 16rpx;
+    border-radius: 9999rpx;
+    font-size: 11px;
+    font-weight: 800;
+  }
+
+  .material-category {
+    background: #fff7f3;
+    color: #CF6D4E;
+  }
+
+  .material-public.public {
+    background: #ecfdf5;
+    color: #047857;
+  }
+
+  .material-public.private {
+    background: #fffbeb;
+    color: #b45309;
+  }
+
+  .material-title {
+    display: block;
+    font-size: 15px;
+    font-weight: 800;
+    color: #111827;
+    line-height: 1.45;
+  }
+
+  .material-summary {
+    display: block;
+    margin-top: 8rpx;
+    color: #6b7280;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+
+  .material-meta-row {
+    margin-top: 16rpx;
+    color: #9ca3af;
+    font-size: 12px;
+  }
+
+  .material-actions {
+    margin-top: 16rpx;
+    color: #CF6D4E;
+    font-size: 13px;
+    font-weight: 800;
+  }
+
+  .material-editor {
+    margin-top: 24rpx;
+    padding: 24rpx;
+    border: 1px solid #e5e7eb;
+    border-radius: 16rpx;
+    background: #f9fafb;
+  }
+
+  .material-input-gap {
+    margin-top: 16rpx;
+  }
+
+  .material-public-toggle {
+    margin-top: 16rpx;
+    padding: 16rpx;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16rpx;
+    border-radius: 16rpx;
+    background: #fff;
+    color: #374151;
+    font-size: 13px;
+  }
+
+  .toggle-pill {
+    padding: 8rpx 16rpx;
+    border-radius: 9999rpx;
+    background: #e5e7eb;
+    color: #374151;
+    font-size: 12px;
+    font-weight: 800;
+
+    &.on {
+      background: #CF6D4E;
+      color: #fff;
+    }
+  }
+
+  .material-sub-block {
+    margin-top: 24rpx;
+    padding: 16rpx;
+    border-radius: 16rpx;
+    background: #fff;
+  }
+
+  .material-sub-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16rpx;
+    margin-bottom: 16rpx;
+    font-size: 13px;
+    font-weight: 800;
+    color: #111827;
+  }
+
+  .sub-action {
+    color: #CF6D4E;
+  }
+
+  .material-sub-title {
+    display: block;
+    margin-bottom: 16rpx;
+    font-size: 13px;
+    font-weight: 800;
+    color: #111827;
+  }
+
+  .material-media-row,
+  .material-link-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 16rpx;
+    padding: 16rpx 0;
+    border-top: 1px solid #f3f4f6;
+    color: #374151;
+    font-size: 13px;
+  }
+
+  .material-editor-actions {
+    margin-top: 24rpx;
+
+    .cancel-btn,
+    .save-btn {
+      flex: 1;
+      padding: 20rpx;
+      border-radius: 16rpx;
+      font-size: 14px;
+      border: none;
+    }
+
+    .cancel-btn {
+      background: #fff;
+      color: #374151;
+      border: 1px solid #d1d5db;
+    }
+
+    .save-btn {
+      background: #CF6D4E;
+      color: #fff;
+    }
   }
 
   .submit-section {

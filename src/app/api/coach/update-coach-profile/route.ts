@@ -10,6 +10,10 @@ import {
     sanitizeTargetStudentLevels,
 } from "@/lib/coachApplicationOptions";
 import {
+    deriveLegacyFieldsFromMaterials,
+    normalizeCoachApplicationMaterials,
+} from "@/lib/coachApplicationMaterials";
+import {
     upsertCoachPosterQueued,
     tryAcquireCoachPosterJob,
     generateInvitationPosterInBackground,
@@ -145,6 +149,31 @@ export async function POST(request: Request) {
 
     // 更新教练信息（以申请页字段为准）
     let mergedProfile = mergeProfile(coach.profile, profile);
+    let derivedMaterialLegacy: ReturnType<typeof deriveLegacyFieldsFromMaterials> | null = null;
+    if (profile?.applicationMaterials !== undefined) {
+        const applicationMaterials = normalizeCoachApplicationMaterials(
+            profile.applicationMaterials,
+            {
+                achievements: profile.achievements,
+                caseStudies: profile.caseStudies,
+                credentials: profile.credentials,
+                socialLinks: profile.socialLinks as any,
+            },
+        );
+        derivedMaterialLegacy = deriveLegacyFieldsFromMaterials(applicationMaterials, {
+            achievements: profile.achievements,
+            caseStudies: profile.caseStudies,
+            credentials: profile.credentials,
+            socialLinks: profile.socialLinks as any,
+        });
+        mergedProfile = {
+            ...(mergedProfile || {}),
+            applicationMaterials,
+            achievements: derivedMaterialLegacy.achievements,
+            caseStudies: derivedMaterialLegacy.caseStudies,
+            credentials: derivedMaterialLegacy.credentials,
+        };
+    }
     if (supportFocus !== undefined) {
         if (!mergedProfile || typeof mergedProfile !== "object") {
             mergedProfile = { supportFocus };
@@ -162,6 +191,7 @@ export async function POST(request: Request) {
     if (specialties !== undefined) updateData.specialties = specialties;
     if (yearsExperience !== undefined) updateData.years_experience = yearsExperience;
     if (bio !== undefined) updateData.bio = bio || null;
+    if (derivedMaterialLegacy) updateData.achievements = derivedMaterialLegacy.achievements;
     if (profile !== undefined || supportFocus !== undefined) updateData.profile = mergedProfile;
     if (invitationCode !== undefined) updateData.invitation_code = invitationCode;
     if (invitationMode !== undefined) updateData.invitation_mode = invitationMode;

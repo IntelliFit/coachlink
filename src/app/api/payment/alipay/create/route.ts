@@ -56,6 +56,12 @@ export async function POST(req: Request) {
         }
     }
 
+    const huifuNotifyUrl = String(
+        process.env.HUIFU_PAY_NOTIFY_URL ||
+        process.env.WECHAT_PAY_NOTIFY_URL ||
+        notifyUrl.replace(/\/api\/payment\/alipay\/notify$/, "/api/payment/wechat/notify"),
+    ).trim();
+
     // 读取参数
     const {
         subject,
@@ -312,24 +318,6 @@ export async function POST(req: Request) {
         subjectText = `购买文章 ${(content as any).title || ""}`.trim();
     }
 
-    // 读取支付宝配置
-    const {
-        ALIPAY_APP_ID,
-        ALIPAY_PRIVATE_KEY,
-        ALIPAY_PUBLIC_KEY,
-        ALIPAY_GATEWAY,
-    } = process.env;
-
-    if (!ALIPAY_APP_ID || !ALIPAY_PRIVATE_KEY || !ALIPAY_PUBLIC_KEY) {
-        return NextResponse.json(
-            { success: false, message: "支付宝配置不完整", data: null },
-            { status: 500 },
-        );
-    }
-
-    // 初始化 alipay-sdk（使用统一的初始化工具，支持代理配置）
-    const alipaySdk = createAlipaySdk();
-
     // 写入订单到数据库，金额存储为分（整数）
     // 订阅首单：resolvedTotalAmount 已是 sub.monthly_price（分）；其他/续费：前端传的是元，需转分
     const effectiveOrderType =
@@ -420,7 +408,7 @@ export async function POST(req: Request) {
                     reqSeqId: order.id,
                     transAmtYuan: formatYuan(fenToYuan(totalAmountFen)),
                     goodsDesc: subjectText,
-                    notifyUrl: process.env.WECHAT_PAY_NOTIFY_URL || notifyUrl, // 汇付通知走统一 Huifu notify 处理器
+                    notifyUrl: huifuNotifyUrl,
                     openid: "", // 支付宝不需要 openid
                     appId: "",  // 支付宝不需要 appId
                     tradeType: huifuTradeType,
@@ -508,6 +496,22 @@ export async function POST(req: Request) {
     }
 
     // ── 非教练订阅：保留原支付宝直连 ──
+
+    const {
+        ALIPAY_APP_ID,
+        ALIPAY_PRIVATE_KEY,
+        ALIPAY_PUBLIC_KEY,
+    } = process.env;
+
+    if (!ALIPAY_APP_ID || !ALIPAY_PRIVATE_KEY || !ALIPAY_PUBLIC_KEY) {
+        return NextResponse.json(
+            { success: false, message: "支付宝配置不完整", data: null },
+            { status: 500 },
+        );
+    }
+
+    // 初始化 alipay-sdk（使用统一的初始化工具，支持代理配置）
+    const alipaySdk = createAlipaySdk();
 
     // 根据设备类型选择支付方式；returnUrlOnly 时传 'GET' 得到跳转 URL，否则得到 form HTML
     const bizCommon = {

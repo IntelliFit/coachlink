@@ -32,6 +32,7 @@ import type {
     GetStudentFeedbacksDto,
     GetStudentFeedbacksResponseDto
 } from '@/app/api/coach/get-student-feedbacks/entity';
+import type { UploadCoachApplicationMediaResponseDto } from '@/app/api/coach/upload-application-media/entity';
 
 // 内容管理相关接口
 import type {
@@ -414,6 +415,30 @@ class CoachService extends BaseService {
             data = JSON.parse(text);
         } catch (e) {
             throw new Error(`上传失败（HTTP ${resp.status}）：无法解析服务器返回的 JSON 数据。内容：${text.slice(0, 100)}`);
+        }
+
+        if (data?.success) return data.data || null;
+        throw new Error(data?.message || "上传失败");
+    }
+
+    async uploadApplicationMedia(file: File) {
+        const uploadFile = file.type?.startsWith("video/")
+            ? (await prepareVideoForUpload(file)).file
+            : file;
+
+        const formData = new FormData();
+        formData.append("file", uploadFile);
+
+        const resp = await fetch("/api/coach/upload-application-media", {
+            method: "POST",
+            body: formData,
+        });
+        const text = await resp.text();
+        let data: ApiData<UploadCoachApplicationMediaResponseDto>;
+        try {
+            data = JSON.parse(text);
+        } catch {
+            throw new Error(`上传失败（HTTP ${resp.status}）：${text.slice(0, 100)}`);
         }
 
         if (data?.success) return data.data || null;

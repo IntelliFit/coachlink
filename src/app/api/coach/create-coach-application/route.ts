@@ -7,6 +7,10 @@ import {
     sanitizeServiceModes,
     sanitizeTargetStudentLevels,
 } from '@/lib/coachApplicationOptions';
+import {
+    deriveLegacyFieldsFromMaterials,
+    normalizeCoachApplicationMaterials,
+} from '@/lib/coachApplicationMaterials';
 
 // 重要！必须以 import type 引入接口类型
 import type { ApiData } from '@/types/api';
@@ -32,6 +36,21 @@ export async function POST(req: Request) {
     const coachTrack = sanitizeCoachTrack(body.coachTrack);
     const serviceModes = sanitizeServiceModes(body.serviceModes);
     const targetStudentLevels = sanitizeTargetStudentLevels(body.targetStudentLevels);
+    const applicationMaterials = normalizeCoachApplicationMaterials(
+        body.applicationMaterials,
+        {
+            achievements: body.achievements,
+            caseStudies: body.caseStudies,
+            credentials: body.credentials as any,
+            socialLinks: body.socialLinks as any,
+        },
+    );
+    const legacyFields = deriveLegacyFieldsFromMaterials(applicationMaterials, {
+        achievements: body.achievements,
+        caseStudies: body.caseStudies,
+        credentials: body.credentials as any,
+        socialLinks: body.socialLinks as any,
+    });
 
     // 插入教练申请记录
     const { data, error } = await supabase
@@ -44,15 +63,16 @@ export async function POST(req: Request) {
             specialties: body.specialties,
             bio: body.bio,
             years_experience: body.yearsExperience,
-            achievements: body.achievements,
+            achievements: legacyFields.achievements,
             teaching_philosophy: body.teachingPhilosophy,
-            credentials: body.credentials,
-            case_studies: body.caseStudies,
+            credentials: legacyFields.credentials,
+            case_studies: legacyFields.caseStudies,
+            application_materials: applicationMaterials,
             contact_email: body.contactEmail,
             contact_phone: body.contactPhone,
             resume_url: body.resumeUrl,
             portfolio_url: body.portfolioUrl,
-            social_links: body.socialLinks,
+            social_links: legacyFields.socialLinks,
             coach_track: coachTrack,
             service_modes: serviceModes,
             target_student_levels: targetStudentLevels,

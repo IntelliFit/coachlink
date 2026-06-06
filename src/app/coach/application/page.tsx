@@ -11,10 +11,10 @@ import { InputNumberValueChangeEvent } from 'primereact/inputnumber';
 // 导入新创建的组件
 import CoachFormField from './CoachFormField';
 import TagListField from './TagListField';
-import CredentialField from './CredentialField';
 import SocialLinkField from './SocialLinkField';
 import SubmitButton from './SubmitButton';
 import ReviewInfoDisplay from './ReviewInfoDisplay';
+import ApplicationMaterialEditor from './ApplicationMaterialEditor';
 import MapLocationPicker from '@/components/MapLocationPicker';
 import { getCurrentLocation } from '@/lib/locationService';
 
@@ -35,6 +35,11 @@ import {
     getServiceModeLabel,
     getTargetStudentLevelLabel,
 } from '@/lib/coachApplicationOptions';
+import {
+    deriveLegacyFieldsFromMaterials,
+    normalizeCoachApplicationMaterials,
+    type CoachApplicationMaterial,
+} from '@/lib/coachApplicationMaterials';
 
 // 定义资质证书和社交媒体的类型
 interface Credential {
@@ -81,6 +86,7 @@ const CoachApplicationPage = () => {
         achievements: [] as string[],
         caseStudies: [] as string[],
         credentials: [] as Credential[], // 资质证书
+        applicationMaterials: [] as CoachApplicationMaterial[],
         socialLinks: [] as SocialLink[], // 社交媒体链接
         coachTrack: '',
         serviceModes: [] as string[],
@@ -286,6 +292,15 @@ const CoachApplicationPage = () => {
                             name: cred.name || '',
                             url: cred.url || ''
                         })) : [],
+                        applicationMaterials: normalizeCoachApplicationMaterials(
+                            (app as any).application_materials,
+                            {
+                                achievements: app.achievements || [],
+                                caseStudies: app.case_studies || [],
+                                credentials: app.credentials || [],
+                                socialLinks: app.social_links || {},
+                            },
+                        ),
                         socialLinks: app.social_links ? Object.entries(app.social_links).map(([key, value]) => {
                             const platformMap: Record<string, string> = {
                                 'douyin': '抖音',
@@ -560,6 +575,21 @@ const CoachApplicationPage = () => {
             const province = formData.province?.trim() || null;
             const cityValue = formData.city?.trim() || null;
             const county = formData.county?.trim() || null;
+            const normalizedMaterials = normalizeCoachApplicationMaterials(
+                formData.applicationMaterials,
+                {
+                    achievements: formData.achievements,
+                    caseStudies: formData.caseStudies,
+                    credentials: formData.credentials,
+                    socialLinks: Object.keys(socialLinksObj).length > 0 ? socialLinksObj : null,
+                },
+            );
+            const legacyFields = deriveLegacyFieldsFromMaterials(normalizedMaterials, {
+                achievements: formData.achievements,
+                caseStudies: formData.caseStudies,
+                credentials: formData.credentials,
+                socialLinks: Object.keys(socialLinksObj).length > 0 ? socialLinksObj : null,
+            });
 
             if (existingApplication?.application) {
                 // 更新现有申请
@@ -573,10 +603,11 @@ const CoachApplicationPage = () => {
                     contactEmail: formData.contactEmail || null,
                     contactPhone: formData.contactPhone || null,
                     specialties: formData.specialties.length > 0 ? formData.specialties : null,
-                    achievements: formData.achievements.length > 0 ? formData.achievements : null,
-                    caseStudies: formData.caseStudies.length > 0 ? formData.caseStudies : null,
-                    credentials: formData.credentials.length > 0 ? formData.credentials : null,
-                    socialLinks: Object.keys(socialLinksObj).length > 0 ? socialLinksObj : null,
+                    achievements: legacyFields.achievements.length > 0 ? legacyFields.achievements : null,
+                    caseStudies: legacyFields.caseStudies.length > 0 ? legacyFields.caseStudies : null,
+                    credentials: legacyFields.credentials.length > 0 ? legacyFields.credentials : null,
+                    applicationMaterials: normalizedMaterials,
+                    socialLinks: Object.keys(legacyFields.socialLinks).length > 0 ? legacyFields.socialLinks : null,
                     coachTrack: formData.coachTrack,
                     serviceModes: formData.serviceModes,
                     targetStudentLevels: formData.targetStudentLevels,
@@ -606,10 +637,11 @@ const CoachApplicationPage = () => {
                     contactEmail: formData.contactEmail || null,
                     contactPhone: formData.contactPhone || null,
                     specialties: formData.specialties.length > 0 ? formData.specialties : null,
-                    achievements: formData.achievements.length > 0 ? formData.achievements : null,
-                    caseStudies: formData.caseStudies.length > 0 ? formData.caseStudies : null,
-                    credentials: formData.credentials.length > 0 ? formData.credentials : null,
-                    socialLinks: Object.keys(socialLinksObj).length > 0 ? socialLinksObj : null,
+                    achievements: legacyFields.achievements.length > 0 ? legacyFields.achievements : null,
+                    caseStudies: legacyFields.caseStudies.length > 0 ? legacyFields.caseStudies : null,
+                    credentials: legacyFields.credentials.length > 0 ? legacyFields.credentials : null,
+                    applicationMaterials: normalizedMaterials,
+                    socialLinks: Object.keys(legacyFields.socialLinks).length > 0 ? legacyFields.socialLinks : null,
                     coachTrack: formData.coachTrack,
                     serviceModes: formData.serviceModes,
                     targetStudentLevels: formData.targetStudentLevels,
@@ -900,32 +932,9 @@ const CoachApplicationPage = () => {
                         rows={3}
                     />
 
-                    {/* 成就奖项 */}
-                    <TagListField
-                        label="成就奖项"
-                        tags={formData.achievements}
-                        onAdd={addAchievement}
-                        onRemove={removeAchievement}
-                        placeholder="输入成就奖项，按回车添加"
-                        colorClass="bg-green-100 text-green-700"
-                    />
-
-                    {/* 代表案例 */}
-                    <TagListField
-                        label="代表案例"
-                        tags={formData.caseStudies}
-                        onAdd={addCaseStudy}
-                        onRemove={removeCaseStudy}
-                        placeholder="输入代表案例，按回车添加"
-                        colorClass="bg-purple-100 text-purple-700"
-                    />
-
-                    {/* 资质证书 */}
-                    <CredentialField
-                        credentials={formData.credentials}
-                        onAdd={addCredential}
-                        onRemove={removeCredential}
-                        onUpdate={handleCredentialChange}
+                    <ApplicationMaterialEditor
+                        materials={formData.applicationMaterials}
+                        onChange={(applicationMaterials) => setFormData((prev) => ({ ...prev, applicationMaterials }))}
                     />
 
                     {/* 社交媒体链接 */}

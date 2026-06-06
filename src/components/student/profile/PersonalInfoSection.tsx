@@ -20,6 +20,7 @@ interface PersonalInfoSectionProps {
     editingVisible?: boolean;
     onEditingChange?: (visible: boolean) => void;
     hideDisplay?: boolean;
+    basicOnly?: boolean;
 }
 
 // 性别选项
@@ -63,7 +64,8 @@ export const PersonalInfoSection: React.FC<PersonalInfoSectionProps> = ({
     onUpdate, 
     editingVisible,
     onEditingChange,
-    hideDisplay = false
+    hideDisplay = false,
+    basicOnly = false
 }) => {
     const { profile } = data;
     const [isEditing, setIsEditing] = useState(false);
@@ -81,6 +83,7 @@ export const PersonalInfoSection: React.FC<PersonalInfoSectionProps> = ({
     const [uploading, setUploading] = useState(false);
     const [step, setStep] = useState(1);
     const { showToast } = useToastContext();
+    const totalSteps = basicOnly ? 1 : 3;
 
     // Form state
     const [formData, setFormData] = useState({
@@ -144,7 +147,7 @@ export const PersonalInfoSection: React.FC<PersonalInfoSectionProps> = ({
     const handleSave = async () => {
         try {
             setLoading(true);
-            await studentService.updateProfile({
+            const payload: Record<string, any> = {
                 nickname: formData.nickname,
                 avatar_url: formData.avatar_url || null,
                 age: formData.age,
@@ -154,8 +157,11 @@ export const PersonalInfoSection: React.FC<PersonalInfoSectionProps> = ({
                 lifestyle: formData.lifestyle,
                 fitness_goal: formData.fitness_goal,
                 fitness_level: formData.fitness_level,
-                sport_cards: formData.sport_cards
-            });
+            };
+            if (!basicOnly) {
+                payload.sport_cards = formData.sport_cards;
+            }
+            await studentService.updateProfile(payload);
             showToast({ severity: 'success', summary: '保存成功', detail: '个人信息已更新' });
             setEditingState(false);
             setStep(1); // Reset to first step when closing
@@ -215,7 +221,7 @@ export const PersonalInfoSection: React.FC<PersonalInfoSectionProps> = ({
 
     // 处理下一步
     const handleNext = () => {
-        if (step < 3) {
+        if (step < totalSteps) {
             setStep(step + 1);
         }
     };
@@ -304,7 +310,7 @@ export const PersonalInfoSection: React.FC<PersonalInfoSectionProps> = ({
                             />
                         )}
 
-                        {step < 3 ? (
+                        {step < totalSteps ? (
                             <Button
                                 label="下一步"
                                 icon="pi pi-arrow-right"
@@ -337,18 +343,19 @@ export const PersonalInfoSection: React.FC<PersonalInfoSectionProps> = ({
                     }
                 }}
             >
-                {/* 进度导航：采用非线性平滑过渡 */}
-                <div className="mb-10 px-1">
-                    <div className="flex justify-between items-end mb-3">
-                        <span className="text-[10px] font-black text-primary-500 uppercase tracking-[0.3em]">
-                            第 {step} 步 / 共 3 步
-                        </span>
-                        <span className="text-sm font-black text-surface-900 tracking-tight">
-                            {step === 1 ? '基本信息' : step === 2 ? '练习领域' : '历史成绩'}
-                        </span>
+                {!basicOnly && (
+                    <div className="mb-10 px-1">
+                        <div className="flex justify-between items-end mb-3">
+                            <span className="text-[10px] font-black text-primary-500 uppercase tracking-[0.3em]">
+                                第 {step} 步 / 共 {totalSteps} 步
+                            </span>
+                            <span className="text-sm font-black text-surface-900 tracking-tight">
+                                {step === 1 ? '基本信息' : step === 2 ? '练习领域' : '历史成绩'}
+                            </span>
+                        </div>
+                        <ProgressBar value={(step / totalSteps) * 100} showValue={false} className="h-1.5 bg-surface-50" color="#F28631" />
                     </div>
-                    <ProgressBar value={(step / 3) * 100} showValue={false} className="h-1.5 bg-surface-50" color="#F28631" />
-                </div>
+                )}
 
                 {/* 步骤内容 */}
                 <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
