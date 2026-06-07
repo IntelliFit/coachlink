@@ -1,10 +1,21 @@
 ## Branch Sync: Commit Dev And Merge To Main (`2026-06-08`)
 
 - Task: commit current working tree, then merge the development branch into `main` so `main` and `dev` are consistent.
-- Status: in progress.
+- Status: completed locally.
 - Current branch before commit: `dev`.
 - Current branch heads before commit: local/remote `main` and `dev` were both at `549cbb7e` before the new commit.
-- Next step: run checks, commit current changes on `dev`, switch to `main`, merge `dev`, and verify branch equality.
+- Result:
+  - Committed current work on `dev` as `500591f6 chore: sync current coachlink updates`.
+  - Fetched and merged newer `origin/dev` into local `dev`, producing merge commit `a76ddd5f`.
+  - Fast-forwarded local `main` to `dev`.
+  - Added final branch-sync state note commit after the merge and fast-forwarded `dev` to match `main`.
+- Verification:
+  - `npm run lint`: passed.
+  - `npm run typecheck`: passed.
+  - `npm test`: passed, 33 files / 163 tests.
+  - `npx next build`: passed after stopping stale local coachlink dev/watch processes that were locking `.next`.
+  - `cd wechat_app; npm run build:weapp`: passed before the final `origin/dev` merge; the final merge did not change WeChat mini-program source.
+- Remote note: no push was performed in this task.
 
 ## Student Renewal Still Shows Expired (`2026-06-08`)
 
