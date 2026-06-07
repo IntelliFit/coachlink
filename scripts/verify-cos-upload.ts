@@ -43,6 +43,15 @@ async function main() {
     await purge();
     process.exit(0);
   }
+  const rmIdx = process.argv.indexOf("--rm");
+  if (rmIdx !== -1) {
+    const { cosRemove } = await import("../src/lib/cos");
+    const logical = process.argv[rmIdx + 1] as Parameters<typeof cosRemove>[0];
+    const key = process.argv[rmIdx + 2];
+    await cosRemove(logical, [key]);
+    console.log(`已删除 ${logical} / ${key}`);
+    process.exit(0);
+  }
   // 动态 import：确保 .env 已加载后再求值 cos.ts 顶层的 BUCKET_MAP
   const { cosUpload, cosRemove, buildDatedKey, BUCKET_MAP } = await import("../src/lib/cos");
 
