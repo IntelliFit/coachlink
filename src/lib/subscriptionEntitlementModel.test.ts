@@ -164,6 +164,41 @@ describe("subscriptionEntitlementModel", () => {
     expect(state.canTrain).toBe(false);
   });
 
+  it("keeps renewed entitlement active when the current plan is shorter than purchased weeks", () => {
+    const trainingDays = makePlan(15, 3);
+    const completedExecutions = trainingDays
+      .filter((day) => day.type === "training")
+      .map((day) => ({
+        day_index: day.dayIndex,
+        status: "completed",
+        completed_at: "2026-05-30T00:00:00.000Z",
+      }));
+
+    const state = deriveSubscriptionEntitlementState({
+      subscription: {
+        status: "active",
+        start_date: "2026-02-02T13:00:10.880Z",
+        end_date: "2026-05-23T09:01:57.049Z",
+        subscribed_weeks: 24,
+      },
+      planInstance: {
+        id: "instance-renewed-short-plan",
+        status: "completed",
+        start_execution_day: 1,
+        training_days: trainingDays,
+      },
+      executions: completedExecutions,
+      now: new Date("2026-06-08T00:00:00.000Z"),
+    });
+
+    expect(state.planProgressStatus).toBe("completed");
+    expect(state.entitlementStatus).toBe("available");
+    expect(state.lifecycleStatus).toBe("active");
+    expect(state.remainingCredits).toBeGreaterThan(0);
+    expect(state.displayEndDate).toBeNull();
+    expect(state.canTrain).toBe(false);
+  });
+
   it("keeps active no-plan subscriptions in no_plan instead of completed or grace", () => {
     const state = deriveSubscriptionEntitlementState({
       subscription: {

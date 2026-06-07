@@ -370,12 +370,22 @@ function Login() {
                 </View>
               </View>
 
+              <View className='agreement-row'>
+                <Checkbox checked={agreed} onChange={(val) => setAgreed(val)} />
+                <Text className='agreement-text'>
+                  {TEXT.termsPrefix}
+                  <Text className='agreement-link' onClick={goToTerms}>{TEXT.terms}</Text>
+                  {TEXT.and}
+                  <Text className='agreement-link' onClick={goToPrivacy}>{TEXT.privacy}</Text>
+                </Text>
+              </View>
+
               {loginMode === 'wechat' && (
                 <View className='wechat-login-panel'>
                   <TaroButton
-                    className={`wechat-primary-button ${loading ? 'wechat-primary-button-disabled' : ''}`}
+                    className={`wechat-primary-button ${loading || !agreed ? 'wechat-primary-button-disabled' : ''}`}
                     onClick={handleWechatLogin}
-                    disabled={loading}
+                    disabled={loading || !agreed}
                   >
                     <Text className='wechat-primary-text'>{loading ? TEXT.loggingIn : TEXT.phoneOneTapLogin}</Text>
                   </TaroButton>
@@ -488,15 +498,6 @@ function Login() {
                 </View>
               )}
 
-              <View className='agreement-row'>
-                <Checkbox checked={agreed} onChange={(val) => setAgreed(val)} />
-                <Text className='agreement-text'>
-                  {TEXT.termsPrefix}
-                  <Text className='agreement-link' onClick={goToTerms}>{TEXT.terms}</Text>
-                  {TEXT.and}
-                  <Text className='agreement-link' onClick={goToPrivacy}>{TEXT.privacy}</Text>
-                </Text>
-              </View>
             </>
           )}
         </View>

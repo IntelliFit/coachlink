@@ -573,21 +573,21 @@ function Profile() {
         )}
 
         <View className='profile-footer-links'>
-          <Text className='footer-link' onClick={() => Taro.navigateTo({ url: '/me/about/index' })}>关于</Text>
+          <Text className='footer-link' onClick={() => Taro.navigateTo({ url: '/me-legal/about/index' })}>关于</Text>
           <Text className='footer-dot'>·</Text>
-          <Text className='footer-link' onClick={() => Taro.navigateTo({ url: '/me/disclaimer/index' })}>免责声明</Text>
+          <Text className='footer-link' onClick={() => Taro.navigateTo({ url: '/me-legal/disclaimer/index' })}>免责声明</Text>
           <Text className='footer-dot'>·</Text>
-          <Text className='footer-link' onClick={() => Taro.navigateTo({ url: '/me/contact/index' })}>联系</Text>
+          <Text className='footer-link' onClick={() => Taro.navigateTo({ url: '/me-legal/contact/index' })}>联系</Text>
           <Text className='footer-dot'>·</Text>
-          <Text className='footer-link' onClick={() => Taro.navigateTo({ url: '/me/docs/index' })}>文档</Text>
+          <Text className='footer-link' onClick={() => Taro.navigateTo({ url: '/me-legal/docs/index' })}>文档</Text>
           <Text className='footer-dot'>·</Text>
           <Text className='footer-link' onClick={() => Taro.navigateTo({ url: '/auth/onboarding' })}>入驻说明</Text>
           <Text className='footer-dot'>·</Text>
-          <Text className='footer-link' onClick={() => Taro.navigateTo({ url: '/me/protection-of-consumer/index' })}>消费者权益保护</Text>
+          <Text className='footer-link' onClick={() => Taro.navigateTo({ url: '/me-legal/protection-of-consumer/index' })}>消费者权益保护</Text>
           <Text className='footer-dot'>·</Text>
-          <Text className='footer-link' onClick={() => Taro.navigateTo({ url: '/me/terms/index' })}>用户服务协议</Text>
+          <Text className='footer-link' onClick={() => Taro.navigateTo({ url: '/me-legal/terms/index' })}>用户服务协议</Text>
           <Text className='footer-dot'>·</Text>
-          <Text className='footer-link' onClick={() => Taro.navigateTo({ url: '/me/platform-agreement/index' })}>平台入驻协议</Text>
+          <Text className='footer-link' onClick={() => Taro.navigateTo({ url: '/me-legal/platform-agreement/index' })}>平台入驻协议</Text>
         </View>
       </View>
 
