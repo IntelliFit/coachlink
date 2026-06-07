@@ -1,0 +1,221 @@
+# CoachLink 学生执行计划解释图：有效期、续费等待、计划长度与执行拖延
+
+> 目的：给产品、运营、教练和研发统一解释“学生执行计划”这条链路。重点是把 **订阅时长**、**计划长度**、**实际执行时长**、**展示有效期** 和 **续费等待** 拆开，避免把它们误当成一个自然日到期模型。
+
+> 2026-06-07 口径修正：下方早期大图适合作为全量背景，但更推荐使用可阅读拆分版 `docs/work/flows/student-plan-execution-readable.md`。新的拆分版已补充“教练可以做两个月完整计划，学员当前只执行/解锁前一个月”的关键语义：续费等待应基于 **当前付费执行窗口用完**，不等于整份 `training_days` 全部完成。
+
+配套图源：
+
+- Mermaid 源图：`docs/work/flows/student-plan-execution-entitlement-renewal.mmd`
+- PNG 图片：`output/student-plan-execution-entitlement-renewal.png`
+- SVG 源图：`output/student-plan-execution-entitlement-renewal.svg`
+
+## 1. 核心结论
+
+1. **订阅时长不是计划长度**：`subscribed_weeks` 是累计购买的服务周数/权益池；`training_days` 是当前计划阶段内容。
+2. **计划长度不是实际执行时长**：学生可能拖延，完成 4 周计划可能花 5-8 个自然周。
+3. **有效期不是自然日硬到期**：`end_date` 是根据剩余 credits 和当前计划节奏推出来的预计完成日，不应拦截仍有权益的 active 订阅。
+4. **续费等待不是计划生成失败**：阶段完成后如果剩余权益不足，下一阶段自动化会跳过并进入续费等待。
+5. **每周训练次数会改变 credits 密度**：同样 4 周，2 练和 4 练的训练日数量不同；新阶段频率变化时必须重算。
+
+## 2. 总图
+
+```mermaid
+%%{init: {"theme": "base", "themeVariables": {"fontFamily": "Microsoft YaHei, PingFang SC, Arial", "primaryColor": "#eef6ff", "primaryBorderColor": "#3b82f6", "primaryTextColor": "#1f2937", "lineColor": "#64748b", "secondaryColor": "#fff7ed", "tertiaryColor": "#f0fdf4", "noteBkgColor": "#fff7ed", "noteTextColor": "#1f2937"}, "flowchart": {"htmlLabels": true, "curve": "basis", "nodeSpacing": 52, "rankSpacing": 62}}}%%
+flowchart TB
+    Title(["CoachLink 学生执行计划解释图<br/>订阅额度、计划阶段、实际执行、续费等待"])
+
+    subgraph Concepts["一、先把三个概念拆开：它们不是同一个东西"]
+        C1["订阅时长 / 购买周期<br/>字段：coach_subscriptions.subscribed_weeks<br/>含义：累计购买的服务周数 / 权益池<br/>续费只增加这个池子"]
+        C2["计划长度 / 阶段长度<br/>字段：coach_plan_instances.training_days<br/>含义：当前阶段交付内容<br/>可以是 2 周、4 周、8 周，也可以后续换计划"]
+        C3["实际执行时长<br/>字段：plan_instance_executions.completed_at 等<br/>含义：学生真实完成训练的自然日期<br/>拖延会拉长自然日，不直接等于计划长度"]
+        C4["展示有效期 / 预计完成日<br/>字段：coach_subscriptions.end_date<br/>含义：根据剩余 credits 和当前计划节奏推算<br/>不是 active 订阅的硬到期拦截"]
+    end
+
+    Title --> Concepts
+
+    subgraph SubscriptionLane["二、订阅与续费事实：订单负责钱，订阅负责服务权益"]
+        P0["学生选择教练服务包<br/>选择购买周数 / 价格"]
+        P1["创建订单 pending_payment<br/>尚未支付不增加权益"]
+        P2{"平台支付成功?"}
+        P3["订单 paid<br/>记录支付事实"]
+        P4["创建或更新订阅<br/>status=active<br/>subscribed_weeks=本次购买周数 或 累加续费周数<br/>subscribe_data=问卷快照"]
+        P5["注意<br/>续费成功后只累加 subscribed_weeks<br/>不要直接 end_date += weeks*7"]
+    end
+
+    C1 --> P0
+    P0 --> P1 --> P2
+    P2 -- "否：等待 / 失败 / 取消" --> P1
+    P2 -- "是" --> P3 --> P4 --> P5
+
+    subgraph PlanLane["三、计划阶段：计划是当前交付，不是订阅本身"]
+        G0{"当前订阅是否已有可执行计划?"}
+        G1["没有计划<br/>entitlementStatus=no_plan<br/>学生不能训练<br/>但订阅仍可 active"]
+        G2["生成 / 发布计划实例<br/>status=draft / active / scheduled<br/>training_days 包含训练日和休息日"]
+        G3["计划每周训练次数<br/>来自问卷或教练编辑<br/>每周 X 练是当前计划硬约束<br/>其余天补 rest"]
+        G4["每周次数变化<br/>新计划或教练修改后重新计算当前阶段节奏<br/>影响 totalCredits、预计完成日、训练密度<br/>不能用旧频率硬套"]
+        G5["一个订阅可覆盖多个阶段<br/>计划 A 完成后，如果权益还剩，可以生成计划 B<br/>计划完成 != 订阅结束"]
+    end
+
+    P5 --> G0
+    G0 -- "否" --> G1
+    G0 -- "是 / 自动生成 / 教练发布" --> G2 --> G3 --> G4 --> G5
+
+    subgraph ExecutionLane["四、学生执行：只有真实完成的训练日才消耗 credits"]
+        E0["学生进入今日训练<br/>读取当前 active 计划和 day_index"]
+        E1{"是否第一次真实开始训练?"}
+        E2["写入订阅 start_date<br/>付款日不一定是训练起点"]
+        E3["开始 / 继续当天 execution<br/>status=in_progress"]
+        E4["记录动作组<br/>重量、次数、RPE、视频、备注、反馈"]
+        E5{"当天如何结束?"}
+        E6["completed<br/>完成训练日<br/>计入 usedCredits"]
+        E7["abandoned<br/>计划进度可视为 resolved<br/>当前 credit 模型不按 completed 扣减<br/>若业务要扣需改模型"]
+        E8["未完成 / 拖延<br/>不扣 credit<br/>day_index 等待下次继续<br/>自然日被顺延"]
+        E9["刷新展示预计完成日<br/>按 remainingCredits / 当前计划节奏估算"]
+    end
+
+    G2 --> E0 --> E1
+    E1 -- "是" --> E2 --> E3
+    E1 -- "否" --> E3
+    E3 --> E4 --> E5
+    E5 -- "完成" --> E6 --> E9
+    E5 -- "放弃 / 跳过" --> E7 --> E9
+    E5 -- "离开 / 延后" --> E8 --> E0
+
+    subgraph EntitlementLane["五、权益核心计算：不要用自然日硬判定"]
+        M0["当前权益模型入口<br/>deriveSubscriptionEntitlementState"]
+        M1["作用窗口<br/>scopeStartDayIndex=1<br/>scopeEndDayIndex=min(subscribed_weeks*7, 当前计划最大 dayIndex)"]
+        M2["totalCredits<br/>作用窗口内 type=training 的 day_index 数量<br/>每周 2 练和 4 练会得到不同 credits 密度"]
+        M3["usedCredits<br/>唯一 completed day_index 数量<br/>加上 start_execution_day 之前的迁移消耗"]
+        M4["remainingCredits<br/>totalCredits - usedCredits"]
+        M5{"remainingCredits > 0?"}
+        M6["entitlementStatus=available / not_started<br/>可以继续当前计划训练<br/>raw end_date 过期也不能误拦截"]
+        M7["entitlementStatus=grace / exhausted<br/>不能继续训练<br/>可以续费<br/>超过宽限期才可自动取消"]
+        M8["planProgressStatus 单独判断<br/>no_plan / not_started / in_progress / completed<br/>不要用 has_plan_instance 冒充 completed"]
+    end
+
+    E9 --> M0 --> M1 --> M2 --> M3 --> M4 --> M5
+    M5 -- "是" --> M6
+    M5 -- "否" --> M7
+    M0 --> M8
+
+    subgraph CompletionLane["六、计划完成后的分叉：剩余额度决定下一阶段还是续费等待"]
+        F0{"当前计划所有训练日是否 resolved?"}
+        F1["仍有未完成训练日<br/>回到今日训练"]
+        F2["计划实例 completed<br/>触发 onPlanProgressChanged"]
+        F3["跨阶段结转<br/>已服务阶段按 count_service 计入<br/>remainingWeeks = subscribed_weeks - progressedWeeks"]
+        F4{"订阅是否还有剩余服务周 / credits?"}
+        F5["还有权益<br/>生成下一阶段计划<br/>默认草稿提醒教练<br/>也可 auto_publish_if_credits"]
+        F6["没有权益<br/>进入续费等待<br/>next_phase job=skipped<br/>reason=insufficient_entitlement"]
+    end
+
+    M8 --> F0
+    F0 -- "否" --> F1 --> E0
+    F0 -- "是" --> F2 --> F3 --> F4
+    F4 -- "有" --> F5 --> G2
+    F4 -- "没有" --> F6
+
+    subgraph RenewalLane["七、续费等待：不是计划失败，而是权益池耗尽"]
+        R0["学生端状态<br/>当前阶段已完成<br/>展示续费入口 / 联系教练"]
+        R1["教练端提醒<br/>学员阶段完成但额度不足<br/>引导续费"]
+        R2["续费订单 pending_payment<br/>未支付不恢复权益"]
+        R3{"续费支付成功?"}
+        R4["续费 paid<br/>subscribed_weeks += additionalWeeks<br/>订阅保持 active"]
+        R5["触发 onRenewalPaid<br/>查找最近 completed 阶段"]
+        R6{"是否存在 completed 阶段?"}
+        R7["存在<br/>重新走下一阶段生成逻辑"]
+        R8["不存在<br/>只更新权益池<br/>等待当前计划后续执行"]
+    end
+
+    F6 --> R0
+    F6 --> R1
+    R0 --> R2 --> R3
+    R3 -- "否" --> R2
+    R3 -- "是" --> R4 --> R5 --> R6
+    R6 -- "是" --> R7 --> F3
+    R6 -- "否" --> R8
+
+    subgraph Scenarios["八、最容易讲错的四个场景"]
+        S1["场景 A：买 4 周，计划每周 3 练<br/>totalCredits 通常是 12 个训练日<br/>学生拖到 6 周才练完：不因自然日超过 4 周而硬拦截，预计完成日会顺延"]
+        S2["场景 B：买 8 周，当前阶段计划 4 周<br/>计划完成时订阅可能仍有权益<br/>应生成下一阶段，而不是要求续费"]
+        S3["场景 C：下一阶段从每周 2 练改成每周 4 练<br/>训练密度改变，credits 与预计完成日要重算<br/>不能把上阶段频率延用到新阶段"]
+        S4["场景 D：raw end_date 已过，但 active 且 remainingCredits > 0<br/>仍允许训练<br/>end_date 只是展示/生命周期辅助"]
+    end
+
+    C2 --> S2
+    C3 --> S1
+    G4 --> S3
+    C4 --> S4
+
+    classDef concept fill:#fff7ed,stroke:#fb923c,stroke-width:2px,color:#1f2937;
+    classDef pay fill:#eef6ff,stroke:#3b82f6,stroke-width:2px,color:#1f2937;
+    classDef plan fill:#f0fdf4,stroke:#22c55e,stroke-width:2px,color:#1f2937;
+    classDef exec fill:#f7f2ff,stroke:#8b5cf6,stroke-width:2px,color:#1f2937;
+    classDef model fill:#ecfeff,stroke:#06b6d4,stroke-width:2px,color:#1f2937;
+    classDef wait fill:#fff1f2,stroke:#f43f5e,stroke-width:2px,color:#1f2937;
+    classDef decision fill:#fffbeb,stroke:#f59e0b,stroke-width:2px,color:#1f2937;
+    classDef scenario fill:#f8fafc,stroke:#64748b,stroke-width:2px,color:#1f2937;
+
+    class C1,C2,C3,C4 concept;
+    class P0,P1,P3,P4,P5 pay;
+    class G1,G2,G3,G4,G5,F5 plan;
+    class E0,E2,E3,E4,E6,E7,E8,E9 exec;
+    class M0,M1,M2,M3,M4,M6,M7,M8,F3 model;
+    class F6,R0,R1,R2,R4,R5,R7,R8 wait;
+    class P2,G0,E1,E5,M5,F0,F4,R3,R6 decision;
+    class S1,S2,S3,S4 scenario;
+```
+
+## 3. 讲解稿
+
+这张图的第一层是概念拆分。`subscribed_weeks` 表示学员买了多少服务周，它是权益池；`training_days` 是当前阶段计划，它是教练这一次交付给学员的内容；`plan_instance_executions` 才是学生真实执行出来的事实。三者不能互相替代。
+
+学生买课后，订单先进入 `pending_payment`。只有支付成功变成 `paid`，系统才创建或更新 active 订阅。续费也是一样：续费未支付时不增加权益；续费成功后增加 `subscribed_weeks`，而不是简单把 `end_date` 往后加自然天。
+
+计划生成后，系统会根据问卷或教练设置安排每周训练次数。每周 2 练、3 练、4 练，会直接改变当前阶段的训练密度。也就是说，同样买 4 周，如果计划每周 3 练，通常就是 12 个训练日 credit；如果改成每周 4 练，就会变成更高训练密度。后续新阶段改变频率时，必须重新计算，不要沿用上一阶段。
+
+学生执行时，只有 `completed` 的训练日计入 `usedCredits`。如果学生拖延、离开、隔了几天才回来，不会因为自然日过去而直接扣 credit，而是把实际完成日往后推，预计完成日也随之变化。当前模型里 `abandoned` 可以让计划进度视为 resolved，但 credit 消耗只统计 completed；如果将来产品认为“放弃也算服务交付”，需要同步修改 credit 模型。
+
+计划完成后，系统不是立刻要求续费，而是先看订阅权益是否还有剩余。如果还有剩余服务周/credits，就生成下一阶段计划；默认是草稿提醒教练，也可以按策略自动发布。如果没有剩余权益，才进入续费等待。续费成功后，系统会找最近 completed 阶段，并重新尝试生成下一阶段。
+
+## 4. 判断规则速查
+
+| 问题 | 正确判断 |
+|---|---|
+| 学生还能不能训练？ | 看 `deriveSubscriptionEntitlementState.canTrain`，不是只看 `end_date`。 |
+| 订阅是不是过期？ | active 订阅优先看 credits；`end_date` 是展示和生命周期辅助。 |
+| 当前计划是不是完成？ | 看计划完成度/执行日 resolved，不要用 `has_plan_instance` 代替。 |
+| 为什么进入续费等待？ | 当前阶段 completed 且剩余权益不足，下一阶段 job 被 `insufficient_entitlement` 跳过。 |
+| 续费后做什么？ | 累加 `subscribed_weeks`，触发 `onRenewalPaid`，再走下一阶段判断。 |
+| 学生拖延怎么办？ | 未 completed 不扣 credit，实际自然日顺延，预计完成日重算。 |
+| 每周训练次数变化怎么办？ | 基于新计划 `training_days` 重算 credits 密度和预计完成日。 |
+
+## 5. 四个典型例子
+
+### 例子 A：买 4 周，计划每周 3 练，学生拖延
+
+- 购买周期：4 周。
+- 当前计划：4 周，每周 3 练。
+- 当前阶段 credits：通常 12 个训练日。
+- 学生实际用了 6 个自然周才完成 12 次训练。
+- 结果：不应因为自然日超过 4 周就拦截；系统应展示预计完成日顺延，直到 credits 真正耗尽。
+
+### 例子 B：买 8 周，当前阶段只有 4 周
+
+- 购买周期：8 周。
+- 当前计划：4 周阶段计划。
+- 阶段完成后：订阅可能仍有剩余权益。
+- 结果：进入下一阶段生成，而不是进入续费等待。
+
+### 例子 C：下一阶段每周训练次数变化
+
+- 阶段 A：每周 2 练。
+- 阶段 B：教练改成每周 4 练。
+- 结果：阶段 B 的 credits 密度、预计完成日、今日训练节奏都要按新 `training_days` 重新计算。
+
+### 例子 D：`end_date` 已过，但 credits 还剩
+
+- 订阅状态：active。
+- 历史 `end_date`：已经过期。
+- credits：仍有剩余。
+- 结果：允许继续训练；不能用 stale `end_date` 阻断。

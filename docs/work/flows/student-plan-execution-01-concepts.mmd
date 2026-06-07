@@ -1,0 +1,26 @@
+%%{init: {"theme": "base", "themeVariables": {"fontFamily": "Microsoft YaHei, PingFang SC, Arial", "primaryColor": "#fff7ed", "primaryBorderColor": "#CF6D4E", "primaryTextColor": "#1f2937", "lineColor": "#64748b"}, "flowchart": {"htmlLabels": true, "curve": "basis", "nodeSpacing": 42, "rankSpacing": 48}}}%%
+flowchart LR
+    A["订阅时长 / 购买周期<br/><b>subscribed_weeks</b><br/>学生买了多少服务权益<br/>续费只增加这个池子"] --> B["权益池<br/>决定当前可执行窗口<br/>不是自然日会员"]
+
+    C["完整计划蓝图<br/><b>training_days</b><br/>教练可一次做 2 个月<br/>甚至更长"] --> D["当前付费执行窗口<br/>例：只解锁前 1 个月<br/>窗口内训练日才消耗 credits"]
+
+    B --> D
+    D --> E{"当前窗口用完后<br/>后面还有计划内容吗?"}
+    E -- "有" --> F{"是否已续费 / 有新权益?"}
+    F -- "有" --> G["继续解锁同一长计划<br/>后一个月 / 后续周"]
+    F -- "没有" --> H["进入续费等待<br/>计划内容还在<br/>但暂无执行权益"]
+    E -- "没有" --> I["可生成下一阶段计划<br/>计划 B / C / ..."]
+
+    J["实际执行时长<br/><b>plan_instance_executions</b><br/>学生真实完成的日期<br/>拖延会顺延自然日"] --> K["预计完成日<br/><b>end_date</b><br/>由窗口剩余 credits + 当前节奏推算<br/>不是 active 硬到期"]
+
+    classDef orange fill:#fff7ed,stroke:#CF6D4E,stroke-width:2px,color:#1f2937;
+    classDef blue fill:#eef6ff,stroke:#3b82f6,stroke-width:2px,color:#1f2937;
+    classDef green fill:#f0fdf4,stroke:#22c55e,stroke-width:2px,color:#1f2937;
+    classDef red fill:#fff1f2,stroke:#f43f5e,stroke-width:2px,color:#1f2937;
+    classDef decision fill:#fffbeb,stroke:#f59e0b,stroke-width:2px,color:#1f2937;
+
+    class A,C,J orange;
+    class B,D,K blue;
+    class G,I green;
+    class H red;
+    class E,F decision;
