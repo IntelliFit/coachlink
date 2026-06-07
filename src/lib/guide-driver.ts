@@ -26,10 +26,7 @@ export interface GuideInstance {
 
 // Load driver.js only when a guide is started (dynamic import avoids "import outside module" in some bundles)
 export async function createGuide(config: GuideConfig): Promise<GuideInstance> {
-    const [{ driver }] = await Promise.all([
-        import("driver.js"),
-        import("driver.js/dist/driver.css"),
-    ]);
+    const { driver } = await import("driver.js");
     const driverInstance = driver({
         showProgress: true,
         animate: true,

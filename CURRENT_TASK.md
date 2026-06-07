@@ -1,3 +1,139 @@
+## Huifu Split Source Material Recovery (`2026-06-06`)
+
+## WeChat Mini-Program Login Audit Visibility Follow-up (`2026-06-07`)
+
+- Task: make the login cancel/refuse/return path obvious in the actual WeChat mini-program login screenshot.
+- Status: code updated; repository push gate in progress.
+- Follow-up:
+  - The prior top floating `返回` / `先逛逛` controls were not visible enough in the custom-nav/capsule top area.
+  - `wechat_app/src/auth/login/index.tsx` now places full-width `返回上一页` and `不登录，先逛逛` actions directly below the quick-login button.
+  - The same actions also appear below the secondary WeChat quick-login button in password/code login modes.
+  - Quick-login copy remains the original `手机一键登录` / `手机号快捷登录`; only the visible cancel/return choices were added.
+- Correction:
+  - A brief mistaken wording change to `微信快捷登录` was reverted immediately after user correction.
+- Verification:
+  - Targeted `esbuild` check passed.
+  - Per user instruction, no `npm run build:weapp` or further DevTools verification was run; user will build manually.
+- Push-gate follow-up:
+  - E2E dev-server stability required localizing Driver.js CSS into `src/assets/globals.css`.
+  - Playwright now uses `COACHLINK_FAST_DEV=1` for E2E webServer startup.
+  - `e2e/t2-backend-api-db-idempotent.spec.ts` now uses CSRF + NextAuth credentials callback for seeded-user login instead of UI form assumptions.
+  - Targeted `t2-backend-api-db-idempotent` E2E passed.
+
+---
+
+- Task: recover the long Huifu/payment-split source material from the raw Codex conversation file because the UI could no longer scroll back to it.
+- Status: completed.
+- Result:
+  - Original source found at `C:\Users\hp\.codex\sessions\2026\05\17\rollout-2026-05-17T23-57-38-019e36a8-4701-7612-a071-41d815ee2118.jsonl`, line `218`; line `219` is the duplicate event mirror.
+  - Exported full recovered material to `recovered/huifu-payment-split-original-2026-05-18.md`.
+  - Added `recovered/README.md` with source path, line number, timestamp, and preview.
+- Content includes:
+  - WeChat group chat record for `智健启能(北京)科技6666000194449179` with 266 messages.
+  - Copied Huifu docs/API material for user onboarding, business open, balance payment, withdrawal, refund/refund-query, and split/delayed-split guidance.
+=======
+## Meeting Transcript CoachLink Work Summary (`2026-06-07`)
+
+- Task: summarize CoachLink/教链 work content from the user's attached meeting transcript.
+- Status: completed as a text summary; no application code changes were requested or made.
+- Durable summary was appended to `memory/2026-06-07.md`.
+
+## Student Plan Execution / Entitlement Diagram (`2026-06-06`)
+
+- Task: draw a detailed explanation diagram for student plan execution, validity, renewal waiting, plan length vs subscription length, student delays, and changing weekly training frequency.
+- Status: completed as documentation/artifact output; original dense chart was followed by a readable split version after user reported the PNG text was unreadable and Mermaid source did not preview.
+- Output:
+  - `docs/work/flows/student-plan-execution-entitlement-renewal.md`
+  - `docs/work/flows/student-plan-execution-entitlement-renewal.mmd`
+  - `output/student-plan-execution-entitlement-renewal.svg`
+  - `output/student-plan-execution-entitlement-renewal.png`
+  - Readable split version:
+    - `docs/work/flows/student-plan-execution-readable.md`
+    - `docs/work/flows/student-plan-execution-01-concepts.mmd`
+    - `docs/work/flows/student-plan-execution-02-credits.mmd`
+    - `docs/work/flows/student-plan-execution-03-renewal.mmd`
+    - `docs/work/flows/student-plan-execution-04-scenarios.mmd`
+    - `output/student-plan-execution-readable-preview.html`
+    - `output/student-plan-execution-01-concepts.{svg,png}`
+    - `output/student-plan-execution-02-credits.{svg,png}`
+    - `output/student-plan-execution-03-renewal.{svg,png}`
+    - `output/student-plan-execution-04-scenarios.{svg,png}`
+- Product/system口径:
+  - `subscribed_weeks` is the purchased service entitlement pool, not the concrete plan length.
+  - `training_days` belongs to the current plan phase and can change between phases.
+  - Actual execution duration follows completed execution dates; student delay should extend the projected completion date instead of hard-expiring by natural days.
+  - `end_date` is a projected/display completion date and lifecycle helper, not the active-subscription hard gate when credits remain.
+  - Renewal waiting means the current phase is complete and remaining entitlement is insufficient, not that plan generation failed.
+- Verification:
+  - Rendered the Mermaid source to SVG/PNG with Playwright and visually inspected the PNG.
+  - Rendered the four split Mermaid diagrams to readable SVG/PNG assets and visually inspected them.
+  - Verified the HTML preview loads all four PNG images with non-zero natural dimensions.
+  - No Web/WeChat UI verification was required because this was documentation/artifact generation only.
+- `2026-06-07` correction:
+  - User clarified that a coach-authored plan may be two months long while the student only executes/unlocks the first month under the current entitlement.
+  - Updated the readable split diagrams and preview copy to distinguish full coach-authored plan blueprint from the current paid execution window.
+  - The renewal/waiting decision now describes "current paid execution window consumed" rather than "entire plan completed".
+  - Added a note to the original dense document that the readable split version is the corrected recommended version.
+
+## Production Web Huifu Alipay Polling Recovery (`2026-06-06`)
+
+- Task: fix Web coach subscription Alipay QR payments that can be scanned but stay on `/payment/:id` waiting for payment result.
+- Status: implemented and verified at code/build/test level; production redeploy required.
+- Root cause:
+  - A production Web order (`1bfa6750-6be1-4fa9-8f0e-7927e0aa2fd2`) was inserted as `status='pending'`, `order_type='coach_subscription'`, but had `payment_provider=null` and no `order_data.huifu_req_date`.
+  - The payment result page then treated it as a legacy direct-Alipay order and called `alipay.trade.query` instead of Huifu `scanpay/query`, so it kept waiting even after the user scanned/paid.
+- Fix:
+  - `/api/payment/alipay/create` now writes `order_data.huifu_req_date` before remote Huifu payment creation and does not write `payment_provider='huifu_alipay'`, because production `alipay_orders_payment_provider_check` rejects that value.
+  - `/api/payment/alipay/query` now self-recovers historical Web coach subscription orders: `coach_subscription` / `coach_subscription_renew` with `coachId` are queried through Huifu even if provider/date are missing, and the inferred `huifu_req_date` is written back.
+  - `/api/payment/alipay/syncPendingOrders` now also reconciles Huifu pending orders, including the same historical Web coach-subscription fallback, instead of skipping Huifu provider/date-marked orders.
+  - `/api/payment/wechat/notify` no longer writes `payment_provider='huifu_alipay'` for Huifu Alipay callbacks; A_* callbacks leave provider unchanged/empty and rely on `huifu_req_date`.
+- Huifu docs note:
+  - The provided Huifu split document confirms payment must go through Huifu first so balance/split can work. It also describes delayed transaction-confirm split (`delay_acct_flag=Y` + transaction confirmation) separately from the current CoachLink balance-payment settlement path.
+- Verification:
+  - `npm run lint`: passed.
+  - `npm run typecheck`: passed.
+  - `npm test`: passed (33 files / 162 tests).
+  - `npx next build`: passed.
+  - `git diff --check`: passed with CRLF warnings only.
+- Next step:
+  - Redeploy Web. The existing waiting order should be recoverable on the next `/api/payment/alipay/query` call because the route can infer `org_req_date` from `created_at` and use the order id as `org_req_seq_id`.
+
+## WeChat Mini-Program Content Package Size Fix (`2026-06-06`)
+
+- Task: fix WeChat DevTools upload failure where the `content` subpackage reported about `10276KB`, exceeding the 2048KB subpackage limit.
+- Status: implemented; package-size verification passed; runtime screenshot verification was attempted but blocked by a DevTools automation white-screen state affecting even the home page.
+- Root cause:
+  - `wechat_app/src/config/knowledgeCoreTopics.ts` imported four large `knowledge-core/*.png` images.
+  - Taro inlined those PNGs as base64 into `content/knowledge.js`, inflating that single JS file to about 10.2MB.
+- Fix:
+  - Converted the four knowledge-core images to compressed JPG assets.
+  - Changed `knowledgeCoreTopics` to use static `/content/assets/knowledge-core/*.jpg` paths instead of importing images into JS.
+  - Added Taro copy rules so those JPGs are copied into the `content` subpackage.
+- Verification:
+  - `cd wechat_app; npm run build:weapp:release`: passed; `dist-release/content/knowledge.js` is about 26.57KB.
+  - `cd wechat_app; npm run build:weapp`: passed; `dist/content` is about 0.447MB and `dist/content/knowledge.js` is about 25.95KB.
+  - `dist` total is about 8.555MB; main package about 1.46MB; `coach` about 1.835MB; `me` about 1.852MB.
+  - Root checks passed: `npm run lint`, `npm run typecheck`, `npx next build`, `npm test` (33 files / 162 tests).
+  - WeChat DevTools automation started on port 9420 and could navigate to `/content/knowledge`, but screenshots were blank and element tree was empty for both `/content/knowledge` and `/pages/index/index`, indicating a DevTools automation/runtime-load issue rather than a content-page-only failure.
+
+## Production Slider Captcha Redis Config Hotfix (`2026-06-06`)
+
+- Task: diagnose why Web login SMS slider captcha on `https://coachlink.fit` kept showing `加载验证码失败 / Request failed with status code 500`.
+- Status: completed; production captcha service restored.
+- Root cause:
+  - `/api/captcha/slider/create` depends on Redis for `captcha:slider:*` storage.
+  - Production `coachlink-main` was reading Apollo `REDIS_URL=redis://154.8.205.78:6379`, so app Pods tried to connect to the node/public IP and timed out.
+  - K8s Redis itself was running normally behind the internal `redis` Service on port 6379 and requires `redis-secret` password.
+- Fix applied:
+  - Updated Apollo `coachlink/app-config` for `local`, `dev`, and `main`: `REDIS_URL=redis://redis:6379`.
+  - Synchronized Apollo `REDIS_PASSWORD` with the current K8s `redis-secret`.
+  - Inserted Apollo release messages for the updated app-config clusters.
+  - Rolled out `deployment/coachlink-main`.
+- Verification:
+  - Production logs now show `[Redis] Connecting to redis://:****@redis:6379` and `[Redis] Connected`.
+  - `POST https://coachlink.fit/api/captcha/slider/create` returns `success=true`.
+  - Captcha image URL returns `200 image/svg+xml`.
+  - `POST https://coachlink.fit/api/captcha/slider/verify` returns `success=true` with a token.
 
 
 ## Coach Automation Settings Tutorial (`2026-06-06`)
@@ -104,7 +240,7 @@
 - Status: audit completed and Web Huifu Alipay launch fix implemented.
 - Code finding:
   - Web `PaymentDialog` posts coach subscription payments to `/api/payment/alipay/create` with legacy UI order types `subscription` / `subscription_renew`.
-  - The backend maps coach-owned subscription payments to `coach_subscription` / `coach_subscription_renew` and, when the coach has Huifu account + card token ready, creates a Huifu Alipay order with `payment_provider='huifu_alipay'`.
+  - The backend maps coach-owned subscription payments to `coach_subscription` / `coach_subscription_renew` and, when the coach has Huifu account + card token ready, creates a Huifu Alipay order. The response provider label is `huifu_alipay`, while the database must use `order_data.huifu_req_date` as the durable Huifu marker because production rejects `payment_provider='huifu_alipay'`.
   - Paid Huifu gateway orders are fulfilled through the shared `fulfillSubscriptionAndMaybeCreditWallet` path, which creates/uses `coach_subscription_settlements`, waits until `eligible_at`, then executes Huifu balance-payment settlement before crediting the coach wallet.
   - This is delayed Huifu settlement, not Alipay-native realtime `royalty_info` split.
 - Runtime data finding:
@@ -128,6 +264,42 @@
   - `npx next build`: passed after stopping a stale local `next build` process that held `.next/lock`.
   - Browser smoke test: Playwright loaded local `/coach/profile/02db8c38-dc64-490b-9b78-e002a13811df` on port 3100 with no page/console errors and saved `test-results/manual/web-coach-profile-huifu-payment-smoke.png`; full payment-dialog interaction was not exercised because it requires an authenticated student and a real/sandbox Huifu payment order.
 
+### Production Web Huifu Alipay 500 Follow-up (`2026-06-06`)
+
+- Symptom: after deploying the Web Huifu Alipay launch fix, production Web payment POST `/api/payment/alipay/create` returned 500. UI toast showed `业务执行失败 [buyerId与buyerLogonId不能同时为空]`.
+- Root cause:
+  - The Web route selected Huifu `A_JSAPI` whenever the browser looked mobile (`isMobile=true`).
+  - Normal Web browsers do not have Alipay `buyerId` / `buyerLogonId`; `A_JSAPI` requires one of them, so Huifu rejected the request.
+- Fix:
+  - Web Huifu Alipay now defaults to `A_NATIVE` QR payment.
+  - It only uses `A_JSAPI` when the request explicitly includes `alipayBuyerId` / `buyerId` or `alipayBuyerLogonId` / `buyerLogonId`.
+  - `createHuifuMiniProgramOrder` now omits empty buyer fields instead of sending `buyer_id: ""`, and can pass `buyer_logon_id` when provided.
+- Verification:
+  - Targeted esbuild checks passed for `/api/payment/alipay/create` and `src/lib/huifuMiniProgramPay.ts`.
+  - `git diff --check`: passed with CRLF warnings only.
+  - `npm run lint`: passed (script notice only).
+  - `npm run typecheck`: passed.
+  - `npm test`: passed (33 files / 162 tests).
+  - `npx next build`: passed.
+
+### Production Web Huifu PayInfo Missing Follow-up (`2026-06-06`)
+
+- Symptom: after the `A_NATIVE` fix, production no longer showed the buyer-id error, but Web UI still showed an error toast with detail `订单创建成功`.
+- Interpretation:
+  - The create-order API likely returned `success: true` and message `订单创建成功`, but the frontend did not receive `paymentInfo.formHtml` or `paymentInfo.payInfo`, so it treated the response as unusable.
+  - Likely cause is Huifu `A_NATIVE` returning QR/pay target in a top-level field such as `qr_code`, `code_url`, or `pay_url` instead of `pay_info`.
+- Fix:
+  - `/api/payment/alipay/create` now extracts Huifu pay targets from `pay_info`, `qr_code`, `qrcode`, `qrCode`, `code_url`, `codeUrl`, `pay_url`, `payUrl`, `pay_qr_code`, `alipay_qr_code`, `url`, and `paymentUrl`, including a nested `data` object fallback.
+  - If Huifu returns success without any usable pay target, the backend throws a clear `汇付下单成功但未返回可展示的支付参数` error and logs response keys for diagnosis.
+  - Web `PaymentDialog` now shows a clearer frontend fallback if an order is created but payment parameters are missing.
+- Verification:
+  - Targeted esbuild checks passed for `/api/payment/alipay/create` and `PaymentDialog`.
+  - `git diff --check`: passed with CRLF warnings only.
+  - `npm run lint`: passed (script notice only).
+  - `npm run typecheck`: passed.
+  - `npm test`: passed (33 files / 162 tests).
+  - `npx next build`: passed.
+
 ## Web Fitness Profile Card Collapse (`2026-06-06`)
 
 - Task: make the Web student `健身资料卡` collapsible so it does not occupy the whole profile screen by default.
@@ -147,6 +319,30 @@
   - Screenshots saved:
     - `test-results/manual/fitness-profile-card-collapsed.png`
     - `test-results/manual/fitness-profile-card-expanded.png`
+
+---
+
+## WeChat Mini-Program Login Audit Fix (`2026-06-06`)
+
+- Task: fix WeChat Mini Program audit rejection for login flow: login must provide a prominent cancel/refuse/return path and must not repeatedly force phone authorization before users can experience the mini-program.
+- Status: implemented and verified at code/build/test level; WeChat DevTools interaction partially verified.
+- Implemented:
+  - `wechat_app/src/auth/login/index.tsx`: quick login primary buttons no longer directly use `openType='getPhoneNumber'`; they first call normal WeChat login without phone authorization.
+  - Phone-number authorization now appears only as a second-step prompt when the backend says this is a first-time quick login or an account missing phone binding.
+  - Login page now has visible `返回` and `先逛逛` actions at the top, plus a `先逛逛` entry in the quick-login panel.
+  - Phone authorization prompt now explains that authorization is only needed for first account creation/missing phone, and provides `暂不继续` plus `返回`.
+  - Rejecting/canceling the native phone authorization closes the prompt and does not loop the user back into repeated popups.
+  - Login button active styles now use opacity or pure-color darkening instead of scale transforms.
+- Verification:
+  - Targeted `esbuild` check for `wechat_app/src/auth/login/index.tsx`: passed.
+  - `cd wechat_app; npm run build:weapp`: passed.
+  - Root `npm run lint`: passed (informational script).
+  - Root `npm run typecheck`: passed.
+  - Root `npm test`: passed, 33 files / 162 tests.
+  - Root `npx next build`: passed.
+  - WeChat DevTools automation: started via `D:\software\微信web开发者工具\cli.bat auto --project D:\files\coachlink\wechat_app --auto-port 9420`, opened `auth/login`, clicked `.wechat-skip-row`, and verified navigation to `pages/index/index`.
+- Blocker:
+  - `mrc screenshot` timed out and `mrc elements` reported elements as not displayed even while the route was `auth/login`, so no screenshot artifact was produced. This matches the DevTools automation visibility/screenshot flakiness previously observed in this workspace.
 
 ---
 
@@ -235,6 +431,25 @@
 - Implemented: cleaned remaining corrupted Chinese UI strings, added a compact ?knowledge base is under construction? notice, kept the pain-point-first four-entry layout and collapsed shelves behavior.
 - Verification: targeted esbuild parse checks passed for the Web and WeChat knowledge TSX entries; `git diff --check` passed for touched knowledge entry files with CRLF warnings only.
 # CURRENT_TASK
+
+## Knowledge Base Entry Simplification (`2026-06-06`)
+
+- Task: simplify the Web and WeChat knowledge-base entry pages after the user judged the four-card/body-map/resource-switching layout confusing.
+- Status: implemented, verified, and ready to commit/push.
+- Scope:
+  - `src/app/dashboard/knowledge/page.tsx`
+  - `wechat_app/src/content/knowledge/index.tsx`
+  - `wechat_app/src/content/knowledge/index.scss`
+- Implemented:
+  - Removed BodyMap from the knowledge entry page for now.
+  - Removed the large four-image topic cards and the "click topic, update lower recommendation panel" interaction.
+  - Replaced the entry structure with search, construction notice, three compact focus topics, featured training plans, and book notes.
+  - Changed copy to a more formal, less colloquial tone and kept a non-medical boundary for pain/injury content.
+- Verification:
+  - Targeted `esbuild` checks passed for Web and WeChat knowledge entry TSX files.
+  - `git diff --check` passed for the touched knowledge entry files with CRLF warnings only.
+  - Repeat push-gate verification on `2026-06-07` passed: `npm run lint`, `npm run typecheck`, `npm test` (33 files / 162 tests), `npm run test:e2e` (4 tests), and `npx next build`.
+  - During the repeat gate, `e2e/b1-subscription.spec.ts` was made more stable by logging seeded users in through the NextAuth credentials callback with CSRF instead of relying on the visible quick-login form.
 
 # Web Coach Automation Nav Dedup (`2026-06-06`)
 
@@ -4572,3 +4787,29 @@
 
 ---
 
+---
+
+## Flow Documentation (`2026-06-06`, questionnaire to plan completion and renewal)
+
+- Task: User asked for the first system flowchart covering the path from a student filling a coach questionnaire, through plan generation/execution/completion, to renewal waiting, plus a very detailed explanation of how the AI algorithm works.
+- Status: documentation and downloadable artifacts completed.
+- Output:
+  - Added `docs/work/flows/coach-service-questionnaire-plan-renewal-ai.md`.
+  - Added `docs/work/flows/coach-service-flow-explainer.md`.
+  - Added downloadable image artifacts:
+    - `output/coachlink-questionnaire-plan-renewal-ai-flow.png`
+    - `output/coachlink-questionnaire-plan-renewal-ai-flow.svg`
+  - Added Word explainer:
+    - `output/coachlink-questionnaire-plan-renewal-ai-explainer.docx`
+  - Added detailed Mermaid artifacts:
+    - `docs/work/flows/coach-service-detailed-mermaid-flow.mmd`
+    - `output/coachlink-detailed-mermaid-flow.png`
+    - `output/coachlink-detailed-mermaid-flow.svg`
+- Contents:
+  - Business flow Mermaid chart: coach homepage/subscription entry, questionnaire, payment/order state, active subscription, initial plan automation, student execution, plan completion, next phase generation, insufficient-entitlement renewal waiting, and renewal recovery.
+  - AI algorithm Mermaid chart: automation trigger, data gathering, Stage A template/history skeleton selection, Stage B plan_script generation, deterministic parsing/validation, plan span enforcement, 1RM/load calculation, instance insertion, notification, feedback adjustment, and next-phase/renewal automation.
+- Verification:
+  - Rendered SVG to PNG with Playwright and visually inspected the PNG.
+  - Rendered detailed Mermaid via browser Mermaid runtime; switched to pure SVG labels (`htmlLabels=false`) so the standalone SVG can be opened/downloaded reliably.
+  - Generated `.docx` explainer with python-docx.
+  - No app/browser verification required because this was documentation/artifact generation only.

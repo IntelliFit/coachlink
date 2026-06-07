@@ -1,150 +1,46 @@
-import React, { useEffect, useMemo, useState } from 'react'
-import { View, Text, ScrollView, Image, Input } from '@tarojs/components'
-import { Search, Target } from '@nutui/icons-react-taro'
+import React, { useEffect, useState } from 'react'
+import { View, Text, ScrollView, Input } from '@tarojs/components'
+import { Search } from '@nutui/icons-react-taro'
 import Taro from '@tarojs/taro'
 import BottomNav from '@/components/BottomNav'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
-import maleFrontSvgRaw from '@/assets/body-map/maleFrontSvg'
-import maleBackSvgRaw from '@/assets/body-map/maleBackSvg'
-import femaleFrontSvgRaw from '@/assets/body-map/femaleFrontSvg'
-import femaleBackSvgRaw from '@/assets/body-map/femaleBackSvg'
 import {
   knowledgeService,
-  type KnowledgeNodeListItem,
   type PublicTrainingPlanLevel,
   type PublicTrainingPlanListItem,
   type KnowledgeSearchResult
 } from '@/services/knowledgeService'
 import { authService } from '@/services/authService'
-import { studentService } from '@/services/studentService'
 import { groupKnowledgeBooks, type KnowledgeBookCollection } from '@/utils/knowledgeBooks'
-import { svgToDataUri } from '@/utils/svgToDataUri'
-import {
-  knowledgeCoreTopics,
-  type KnowledgeCoreTopic,
-  type KnowledgeCoreTopicKey
-} from '@/config/knowledgeCoreTopics'
 import './index.scss'
 
-const QUICK_TAGS = ['深蹲', '拉伸', '减脂', '增肌']
+const QUICK_TAGS = ['平台期', '动作标准', '肩腕腰痛', '训练计划']
 
-const PLAN_SPECIALTY_FILTERS = [
-  { key: 'all', label: '专项精选' },
-  { key: 'bench_press', label: '卧推' },
-  { key: 'squat', label: '深蹲' },
-  { key: 'powerlifting', label: '力量举' },
-  { key: 'weighted_pullup', label: '负重引体' },
-  { key: 'weighted_dip', label: '负重双杠' },
-  { key: 'posture', label: '体态纠正' },
-  { key: 'foundation', label: '基础入门' }
+const FOCUS_TOPICS = [
+  {
+    title: '训练计划与平台期',
+    description: '负重引体、卧推、深蹲、力量举与体态纠正等高需求方向。',
+    actionLabel: '搜索相关计划',
+    query: '平台期 训练计划 负重引体 卧推 深蹲'
+  },
+  {
+    title: '动作标准与自查',
+    description: '引体、臂屈伸、深蹲、卧推、硬拉的检查表与常见代偿。',
+    actionLabel: '查看动作自查',
+    query: '动作标准 自查 引体 臂屈伸 深蹲 卧推 硬拉'
+  },
+  {
+    title: '伤病避险与恢复',
+    description: '肩、腕、肘、腰背等高频不适的训练调整和避险边界。',
+    actionLabel: '查看避险资料',
+    query: '伤病 康复 疼痛 肩 手腕 肘 腰背'
+  }
 ]
 
 const PLAN_LEVEL_LABELS: Record<PublicTrainingPlanLevel, string> = {
   beginner: '入门',
   intermediate: '进阶',
-  advanced: '专业'
-}
-
-type KnowledgeShelf = 'body-map' | 'plans' | 'books' | null
-
-const PLAN_LABELS: Record<string, string> = {
-  'weighted-pullup-6w-strength': '负重引体 6 周力量专项',
-  'weighted-dip-6w-strength': '负重臂屈伸 6 周专项',
-  'bench-press-8w-specialization': '卧推 8 周专项提升',
-  'squat-8w-depth-and-strength': '深蹲 8 周深度与力量专项',
-  'powerlifting-12w-total-base': '力量举 12 周基础周期',
-  'round-shoulder-scapula-4w': '圆肩/肩胛控制 4 周',
-  'anterior-pelvic-tilt-4w': '骨盆前倾/核心稳定 4 周'
-}
-
-const BODY_REGION_OPTIONS = [
-  { key: '胸部', label: '胸部' },
-  { key: '肩部', label: '肩部' },
-  { key: '大臂', label: '大臂' },
-  { key: '小臂', label: '小臂' },
-  { key: '腹部', label: '核心' },
-  { key: '背部', label: '背部' },
-  { key: '臀部', label: '臀部' },
-  { key: '大腿', label: '大腿' },
-  { key: '小腿', label: '小腿' },
-  { key: '关节', label: '关节' }
-]
-
-const BODY_MODE_OPTIONS = [
-  {
-    key: 'screening' as const,
-    label: '先筛查',
-    description: '先看是不是当前动作受限或疼痛的关键环节'
-  },
-  {
-    key: 'training' as const,
-    label: '再训练',
-    description: '再看动作选择、发力路径和逐步加减'
-  }
-]
-
-const BODY_VIEW_OPTIONS = [
-  { key: 'front' as const, label: '前视图' },
-  { key: 'back' as const, label: '后视图' }
-]
-
-const BODY_REGION_HIT_AREAS = {
-  front: [
-    { key: '关节', x: 17, y: 22, width: 66, height: 70 },
-    { key: '肩部', x: 18, y: 19, width: 64, height: 11 },
-    { key: '胸部', x: 27, y: 25, width: 46, height: 13 },
-    { key: '大臂', x: 12, y: 28, width: 76, height: 17 },
-    { key: '小臂', x: 7, y: 39, width: 86, height: 18 },
-    { key: '腹部', x: 34, y: 36, width: 32, height: 24 },
-    { key: '大腿', x: 27, y: 57, width: 46, height: 24 },
-    { key: '小腿', x: 29, y: 78, width: 42, height: 17 }
-  ],
-  back: [
-    { key: '关节', x: 17, y: 22, width: 66, height: 70 },
-    { key: '肩部', x: 18, y: 18, width: 64, height: 12 },
-    { key: '背部', x: 26, y: 24, width: 48, height: 30 },
-    { key: '大臂', x: 11, y: 29, width: 78, height: 18 },
-    { key: '小臂', x: 7, y: 42, width: 86, height: 17 },
-    { key: '臀部', x: 31, y: 53, width: 38, height: 13 },
-    { key: '大腿', x: 27, y: 62, width: 46, height: 21 },
-    { key: '小腿', x: 29, y: 80, width: 42, height: 15 }
-  ]
-} as const
-
-function parseSvgCategoryMap(svg: string): Record<string, string> {
-  const map: Record<string, string> = {}
-  const regex = /<g[^>]*data-name="([^"]+)"[^>]*category="([^"]+)"[^>]*>/g
-  let match: RegExpExecArray | null
-  while ((match = regex.exec(svg)) !== null) {
-    map[match[1]] = match[2]
-  }
-  return map
-}
-
-function highlightSvgCategory(svg: string, selectedRegion: string) {
-  let result = svg
-    .replace(/fill:#fff/gi, 'fill:#222222')
-    .replace(/fill="#fff"/gi, 'fill="#222222"')
-
-  if (!selectedRegion) return result
-
-  const categoryMap = parseSvgCategoryMap(svg)
-  const dataNamesToHighlight = Object.entries(categoryMap)
-    .filter(([, category]) => category === selectedRegion)
-    .map(([dataName]) => dataName)
-
-  for (const dataName of dataNamesToHighlight) {
-    const safeName = dataName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-    const regex = new RegExp(`(<g[^>]*data-name="${safeName}"[^>]*>)([\\s\\S]*?)(</g>)`, 'g')
-    result = result.replace(regex, (_match, open, content, close) => {
-      const highlighted = content
-        .replace(/fill:#222222/gi, 'fill:#CF6D4E')
-        .replace(/fill="#222222"/gi, 'fill="#CF6D4E"')
-      return open + highlighted + close
-    })
-  }
-
-  return result
+  advanced: '高阶'
 }
 
 function KnowledgeBase() {
@@ -154,50 +50,24 @@ function KnowledgeBase() {
   const [searchResults, setSearchResults] = useState<KnowledgeSearchResult[]>([])
   const [searching, setSearching] = useState(false)
   const [searched, setSearched] = useState(false)
-  const [selectedBodyRegion, setSelectedBodyRegion] = useState('')
-  const [bodyMode, setBodyMode] = useState<'screening' | 'training'>('screening')
-  const [bodyView, setBodyView] = useState<'front' | 'back'>('front')
-  const [bodyRegionNodes, setBodyRegionNodes] = useState<KnowledgeNodeListItem[]>([])
-  const [loadingBodyRegion, setLoadingBodyRegion] = useState(false)
   const [isGuest, setIsGuest] = useState(false)
-  const [bodyMapGender, setBodyMapGender] = useState<'male' | 'female'>('male')
-  const [planSpecialty, setPlanSpecialty] = useState('all')
   const [trainingPlans, setTrainingPlans] = useState<PublicTrainingPlanListItem[]>([])
   const [loadingTrainingPlans, setLoadingTrainingPlans] = useState(true)
-  const [activeTopicKey, setActiveTopicKey] = useState<KnowledgeCoreTopicKey>('injury')
-  const [expandedShelf, setExpandedShelf] = useState<KnowledgeShelf>(null)
-  const activeTopic = knowledgeCoreTopics.find((topic) => topic.topicKey === activeTopicKey) || knowledgeCoreTopics[0]
-  const bodyMapImageUrl = useMemo(() => {
-    const svgRaw = bodyMapGender === 'female'
-      ? (bodyView === 'front' ? femaleFrontSvgRaw : femaleBackSvgRaw)
-      : (bodyView === 'front' ? maleFrontSvgRaw : maleBackSvgRaw)
-    const svg = highlightSvgCategory(svgRaw, selectedBodyRegion)
-    return svgToDataUri(
-      svg.replace(
-        /<svg\s/,
-        '<svg style="width:100%;height:100%;display:block;" preserveAspectRatio="xMidYMid meet" '
-      )
-    )
-  }, [bodyMapGender, bodyView, selectedBodyRegion])
-  const bodyMapHitAreas = BODY_REGION_HIT_AREAS[bodyView]
 
   useEffect(() => {
     const session = authService.getAuthSession({ normalize: true })
     setIsGuest(!session.isAuthenticated)
     void loadBooks()
-    void loadTrainingPlans('all')
-    if (session.userId) {
-      void loadBodyMapGender(session.userId)
-    }
+    void loadTrainingPlans()
   }, [])
 
-  async function loadTrainingPlans(specialty: string) {
+  async function loadTrainingPlans() {
     try {
       setLoadingTrainingPlans(true)
       const res = await knowledgeService.listTrainingPlans({
         level: 'all',
-        specialty,
-        limit: specialty === 'all' ? 12 : 16,
+        specialty: 'all',
+        limit: 8,
         offset: 0
       })
       setTrainingPlans(res.plans || [])
@@ -208,31 +78,6 @@ function KnowledgeBase() {
       setLoadingTrainingPlans(false)
     }
   }
-
-  function handlePlanSpecialtyChange(specialty: string) {
-    setPlanSpecialty(specialty)
-    void loadTrainingPlans(specialty)
-  }
-
-  function selectTopic(topic: KnowledgeCoreTopic) {
-    setActiveTopicKey(topic.topicKey)
-    setExpandedShelf(null)
-  }
-
-  async function loadBodyMapGender(userId: string) {
-    try {
-      const res = await studentService.getStudentProfile(userId)
-      const gender = String(res?.profile?.gender || '').toLowerCase()
-      setBodyMapGender(gender === 'female' || gender.includes('女') ? 'female' : 'male')
-    } catch (e) {
-      console.warn('[knowledge] load body map gender:', e)
-    }
-  }
-
-  useEffect(() => {
-    if (!selectedBodyRegion) return
-    void loadBodyRegion(selectedBodyRegion, bodyMode)
-  }, [bodyMode, selectedBodyRegion])
 
   async function loadBooks() {
     try {
@@ -252,27 +97,10 @@ function KnowledgeBase() {
     }
   }
 
-  async function loadBodyRegion(regionKey: string, mode: 'screening' | 'training') {
-    setLoadingBodyRegion(true)
-    try {
-      const res = await knowledgeService.listNodes({
-        bodyRegion: regionKey,
-        mode,
-        limit: 6
-      })
-      setBodyRegionNodes(res.nodes || [])
-    } catch (e) {
-      console.error('[knowledge] load body region:', e)
-      setBodyRegionNodes([])
-      Taro.showToast({ title: '加载部位内容失败', icon: 'none' })
-    } finally {
-      setLoadingBodyRegion(false)
-    }
-  }
-
   async function handleSearch(keyword?: string) {
     const q = (keyword ?? searchKeyword).trim()
     if (!q) return
+    setSearchKeyword(q)
     setSearching(true)
     setSearched(true)
     try {
@@ -292,38 +120,27 @@ function KnowledgeBase() {
     }
   }
 
-  async function handleBodyRegionClick(regionKey: string) {
-    if (selectedBodyRegion === regionKey) {
-      setSelectedBodyRegion('')
-      setBodyRegionNodes([])
-      return
-    }
-
-    setSelectedBodyRegion(regionKey)
-    await loadBodyRegion(regionKey, bodyMode)
-  }
-
   return (
     <View className='knowledge-page page-with-float-nav'>
       <ScrollView scrollY className='knowledge-scroll page-scroll'>
         <View className='page-shell'>
           <View className='hero-section'>
             <Text className='hero-title'>知识库</Text>
-            <Text className='hero-subtitle'>先选问题，再看资料、计划和人体地图</Text>
+            <Text className='hero-subtitle'>训练计划、动作标准、伤病避险与书籍资料。</Text>
           </View>
 
           {isGuest && (
-            <View className='empty-panel' style={{ marginBottom: '24rpx' }}>
+            <View className='empty-panel guest-panel'>
               <Text className='empty-panel-text'>
-                这里可以先浏览知识和路径内容，登录后再同步收藏、购买记录和个人训练数据。
+                当前可先浏览公开资料。登录后可继续使用收藏、购买记录和个人训练数据。
               </Text>
             </View>
           )}
 
           <View className='construction-notice'>
-            <Text className='construction-notice-title'>知识库正在建设中</Text>
+            <Text className='construction-notice-title'>知识库仍在建设中</Text>
             <Text className='construction-notice-copy'>
-              先开放核心入口和部分资料，后续会继续补齐文章、计划和人体地图内容。涉及疼痛或伤病时，请优先线下就医或做运动康复评估。
+              当前先开放最核心的训练与学习资料。涉及疼痛、麻木、放射痛、急性损伤或长期不适时，本页内容不能替代医疗诊断，应优先线下就医或做运动康复评估。
             </Text>
           </View>
 
@@ -332,7 +149,7 @@ function KnowledgeBase() {
               <Search size={18} color='#9CA3AF' />
               <Input
                 className='search-input'
-                placeholder='搜索知识点、部位或动作...'
+                placeholder='搜索动作、计划、伤病或书籍...'
                 value={searchKeyword}
                 onInput={(e) => setSearchKeyword(e.detail.value)}
                 onConfirm={() => handleSearch()}
@@ -350,7 +167,6 @@ function KnowledgeBase() {
                 key={term}
                 className='quick-tag'
                 onClick={() => {
-                  setSearchKeyword(term)
                   void handleSearch(term)
                 }}
               >
@@ -378,7 +194,7 @@ function KnowledgeBase() {
                 <View className='search-loading'>搜索中...</View>
               ) : searchResults.length === 0 ? (
                 <View className='empty-panel'>
-                  <Text className='empty-panel-text'>暂无内容。</Text>
+                  <Text className='empty-panel-text'>暂无匹配内容。</Text>
                 </View>
               ) : (
                 <View className='entry-list'>
@@ -389,9 +205,9 @@ function KnowledgeBase() {
                         {!!result.description && (
                           <Text className='entry-desc' numberOfLines={2}>{result.description}</Text>
                         )}
-                          <Text className='entry-helper'>点击查看内容</Text>
+                        <Text className='entry-helper'>点击查看内容</Text>
                       </View>
-                        <Text className='entry-arrow'>›</Text>
+                      <Text className='entry-arrow'>›</Text>
                     </View>
                   ))}
                 </View>
@@ -399,155 +215,55 @@ function KnowledgeBase() {
             </View>
           )}
 
-          <View className='core-topic-section'>
+          <View className='focus-topic-section'>
             <View className='section-head section-head-stack'>
               <View>
-                <Text className='section-kicker'>Start Here</Text>
-                <Text className='section-title'>你现在最想解决什么？</Text>
+                <Text className='section-kicker'>精选专题</Text>
+                <Text className='section-title'>先看最常见的问题</Text>
               </View>
             </View>
-            <View className='core-topic-grid'>
-              {knowledgeCoreTopics.map((topic) => {
-                const isActive = topic.topicKey === activeTopicKey
-                return (
-                  <View
-                    key={topic.topicKey}
-                    className={`core-topic-card ${isActive ? 'active' : ''}`}
-                    onClick={() => selectTopic(topic)}
-                  >
-                    <Image className='core-topic-image' src={topic.imageUrl} mode='aspectFill' />
-                    <View className='core-topic-body'>
-                      <View className='core-topic-topline'>
-                        <Text className='core-topic-eyebrow'>{topic.eyebrow}</Text>
-                        {isActive && <Text className='core-topic-state'>已选</Text>}
-                      </View>
-                      <Text className='core-topic-title' numberOfLines={1}>{topic.shortTitle}</Text>
-                      <Text className='core-topic-desc' numberOfLines={2}>{topic.description}</Text>
-                      <View
-                        className='core-topic-cta'
-                        onClick={(event) => {
-                          event.stopPropagation()
-                          selectTopic(topic)
-                        }}
-                      >
-                        <Text>{isActive ? '正在查看' : '查看推荐'}</Text>
-                      </View>
-                    </View>
+            <View className='focus-topic-list'>
+              {FOCUS_TOPICS.map((topic, index) => (
+                <View key={topic.title} className='focus-topic-card' onClick={() => void handleSearch(topic.query)}>
+                  <View className='focus-topic-index'>
+                    <Text>{index + 1}</Text>
                   </View>
-                )
-              })}
+                  <View className='focus-topic-main'>
+                    <Text className='focus-topic-title'>{topic.title}</Text>
+                    <Text className='focus-topic-desc' numberOfLines={2}>{topic.description}</Text>
+                    <Text className='focus-topic-action'>{topic.actionLabel}</Text>
+                  </View>
+                </View>
+              ))}
             </View>
           </View>
 
-          <View className='topic-resource-panel'>
-            <View className='topic-resource-head'>
-              <View>
-                <Text className='topic-resource-label'>当前推荐</Text>
-                <Text className='topic-resource-title'>{activeTopic.title}</Text>
-              </View>
-            </View>
-            <View className='topic-resource-columns'>
-              <View className='topic-resource-column'>
-                <Text className='topic-resource-column-title'>文章</Text>
-                {activeTopic.linkedArticles.map((item) => (
-                  <Text
-                    key={item}
-                    className='topic-resource-link'
-                    numberOfLines={1}
-                    onClick={() => {
-                      setSearchKeyword(item)
-                    }}
-                  >
-                    {item}
-                  </Text>
-                ))}
-              </View>
-              <View className='topic-resource-column'>
-                <Text className='topic-resource-column-title'>计划</Text>
-                {activeTopic.linkedPlans.slice(0, 4).map((item) => (
-                  <Text
-                    key={item}
-                    className='topic-resource-link'
-                    numberOfLines={1}
-                    onClick={() => Taro.navigateTo({ url: `/content/knowledge/plan-detail?id=${encodeURIComponent(item)}` })}
-                  >
-                    {PLAN_LABELS[item] || item}
-                  </Text>
-                ))}
-              </View>
-              <View className='topic-resource-column'>
-                <Text className='topic-resource-column-title'>深度资料</Text>
-                {activeTopic.linkedBooks.map((item) => (
-                  <Text
-                    key={item}
-                    className='topic-resource-link'
-                    numberOfLines={1}
-                    onClick={() => setExpandedShelf('books')}
-                  >
-                    {item}
-                  </Text>
-                ))}
-              </View>
-            </View>
-            <View className='topic-shelf-actions'>
-              <View
-                className='topic-shelf-action'
-                onClick={() => setExpandedShelf(expandedShelf === 'body-map' ? null : 'body-map')}
-              >
-                <Text>{expandedShelf === 'body-map' ? '收起人体地图' : '展开人体地图'}</Text>
-              </View>
-              <View
-                className='topic-shelf-action'
-                onClick={() => setExpandedShelf(expandedShelf === 'plans' ? null : 'plans')}
-              >
-                <Text>{expandedShelf === 'plans' ? '收起计划库' : '展开计划库'}</Text>
-              </View>
-              <View
-                className='topic-shelf-action'
-                onClick={() => setExpandedShelf(expandedShelf === 'books' ? null : 'books')}
-              >
-                <Text>{expandedShelf === 'books' ? '收起书籍' : '展开书籍'}</Text>
-              </View>
-            </View>
-          </View>
-
-          {expandedShelf === 'plans' && <View id='knowledge-plans' className='section'>
+          <View id='knowledge-plans' className='section'>
             <View className='section-head section-head-stack'>
               <View>
-                <Text className='section-title'>专项训练计划库</Text>
+                <Text className='section-title'>重点训练计划</Text>
                 <Text className='section-caption'>
-                  从平台期、专项力量和体态问题出发，直接复制一个可执行计划。
+                  优先展示平台期、专项力量和体态纠正方向，便于直接复制使用。
                 </Text>
-              </View>
-              <View className='plan-filter-row'>
-                {PLAN_SPECIALTY_FILTERS.map((filter) => (
-                  <View
-                    key={filter.key}
-                    className={`plan-filter-chip ${planSpecialty === filter.key ? 'active' : ''}`}
-                    onClick={() => handlePlanSpecialtyChange(filter.key)}
-                  >
-                    <Text>{filter.label}</Text>
-                  </View>
-                ))}
               </View>
             </View>
             {loadingTrainingPlans ? (
               <View className='empty-panel'><LoadingSpinner size={48} /></View>
             ) : trainingPlans.length === 0 ? (
               <View className='empty-panel'>
-                  <Text className='empty-panel-text'>暂无内容。</Text>
+                <Text className='empty-panel-text'>暂无训练计划。</Text>
               </View>
             ) : (
               <ScrollView scrollX className='builtin-plan-scroll' enhanced showScrollbar={false}>
                 <View className='builtin-plan-track'>
-                  {trainingPlans.map((plan) => (
+                  {trainingPlans.slice(0, 8).map((plan) => (
                     <View
                       key={plan.id}
                       className='builtin-plan-card'
                       onClick={() => Taro.navigateTo({ url: `/content/knowledge/plan-detail?id=${encodeURIComponent(plan.slug || plan.id)}` })}
                     >
                       <View className='builtin-plan-topline'>
-                        <Text className='builtin-plan-sport'>{plan.specialtyLabel || plan.goal}</Text>
+                        <Text className='builtin-plan-sport' numberOfLines={1}>{plan.specialtyLabel || plan.goal}</Text>
                         <Text className={`builtin-plan-level ${plan.level}`}>
                           {PLAN_LEVEL_LABELS[plan.level]}
                         </Text>
@@ -559,24 +275,19 @@ function KnowledgeBase() {
                         <Text>{plan.daysPerWeek}天/周</Text>
                         <Text>{plan.sport}</Text>
                       </View>
-                      <View className='builtin-plan-tags'>
-                        {[plan.goal, ...plan.tags].filter(Boolean).slice(0, 3).map((tag) => (
-                          <Text key={tag}>{tag}</Text>
-                        ))}
-                      </View>
                       <Text className='builtin-plan-link'>查看并加入</Text>
                     </View>
                   ))}
                 </View>
               </ScrollView>
             )}
-          </View>}
+          </View>
 
-          {expandedShelf === 'books' && <View id='knowledge-books' className='section'>
+          <View id='knowledge-books' className='section'>
             <View className='section-head'>
               <View>
                 <Text className='section-title'>书籍笔记</Text>
-                <Text className='section-caption'>把书和长文下沉成深度资料，需要原理时再打开。</Text>
+                <Text className='section-caption'>深度资料保留在这里，适合需要理解原理时阅读。</Text>
               </View>
             </View>
             {loadingBooks ? (
@@ -596,133 +307,21 @@ function KnowledgeBase() {
                       <View className='book-row-title-wrap'>
                         <Text className='book-row-title'>{collection.displayTitle}</Text>
                         {collection.chapterCount > 0 && (
-                          <Text className='book-row-badge'>{collection.chapterCount} 篇章节</Text>
+                          <Text className='book-row-badge'>{collection.chapterCount} 篇</Text>
                         )}
                       </View>
                       <Text className='book-row-summary' numberOfLines={2}>{collection.summary}</Text>
-                      <Text className='book-row-link'>进入本书</Text>
+                      <Text className='book-row-link'>进入阅读</Text>
                     </View>
                   </View>
                 ))}
               </View>
             ) : (
-                  <Text className='empty-panel-text'>暂无内容。</Text>
-            )}
-          </View>}
-
-          {expandedShelf === 'body-map' && <View id='knowledge-body-map' className='section'>
-            <View className='section-head section-head-stack'>
-              <View>
-                <Text className='section-title'>人体地图</Text>
-                <Text className='section-caption'>
-                  {BODY_MODE_OPTIONS.find((item) => item.key === bodyMode)?.description}
-                </Text>
-              </View>
-              <View className='mode-switch'>
-                {BODY_MODE_OPTIONS.map((option) => (
-                  <View
-                    key={option.key}
-                    className={`mode-chip ${bodyMode === option.key ? 'active' : ''}`}
-                    onClick={() => setBodyMode(option.key)}
-                  >
-                    <Text>{option.label}</Text>
-                  </View>
-                ))}
-              </View>
-            </View>
-
-            <View className='body-map-card'>
-              <View className='body-map-toolbar'>
-                <Text className='body-map-toolbar-label'>人体图</Text>
-                <View className='body-view-switch'>
-                  {BODY_VIEW_OPTIONS.map((option) => (
-                    <View
-                      key={option.key}
-                      className={`body-view-chip ${bodyView === option.key ? 'active' : ''}`}
-                      onClick={() => setBodyView(option.key)}
-                    >
-                      <Text>{option.label}</Text>
-                    </View>
-                  ))}
-                </View>
-              </View>
-              <View className='body-map-stage'>
-                <View className='body-map-zoom'>
-                  <Image
-                    className='body-map-image'
-                    src={bodyMapImageUrl}
-                    mode='aspectFit'
-                  />
-                  <View className='body-map-hit-layer'>
-                    {bodyMapHitAreas.map((area) => (
-                      <View
-                        key={`${bodyView}-${area.key}`}
-                        className={`body-map-hit-area ${area.key === '关节' ? 'joint' : ''} ${selectedBodyRegion === area.key ? 'active' : ''}`}
-                        style={{
-                          left: `${area.x}%`,
-                          top: `${area.y}%`,
-                          width: `${area.width}%`,
-                          height: `${area.height}%`
-                        }}
-                        onClick={() => void handleBodyRegionClick(area.key)}
-                      />
-                    ))}
-                  </View>
-                </View>
-              </View>
-            </View>
-
-            <View className='region-grid'>
-              {BODY_REGION_OPTIONS.map((region) => (
-                <View
-                  key={region.key}
-                  className={`region-card ${selectedBodyRegion === region.key ? 'active' : ''}`}
-                  onClick={() => void handleBodyRegionClick(region.key)}
-                >
-                  <View className='region-icon'>
-                    <Target size={20} color='#CF6D4E' />
-                  </View>
-                  <Text className='region-label'>{region.label}</Text>
-                </View>
-              ))}
-            </View>
-
-            {selectedBodyRegion && (
-              <View className='collection-panel'>
-                <View className='collection-head'>
-                  <Text className='collection-title'>{selectedBodyRegion} 相关文章</Text>
-                  <Text className='collection-action' onClick={() => {
-                    setSelectedBodyRegion('')
-                    setBodyRegionNodes([])
-                  }}>清空</Text>
-                </View>
-                {loadingBodyRegion ? (
-                  <View className='empty-panel'><LoadingSpinner size={48} /></View>
-                ) : bodyRegionNodes.length === 0 ? (
-                  <Text className='empty-panel-text'>暂无内容。</Text>
-                ) : (
-                  <View className='entry-list'>
-                    {bodyRegionNodes.map((item) => (
-                      <View
-                        key={item.id}
-                        className='entry-card'
-                        onClick={() => Taro.navigateTo({ url: `/content/knowledge/node-detail?id=${item.id}` })}
-                      >
-                        <View className='entry-main'>
-                          <Text className='entry-title' numberOfLines={1}>{item.title}</Text>
-                          {!!item.description && (
-                            <Text className='entry-desc' numberOfLines={2}>{item.description}</Text>
-                          )}
-                          <Text className='entry-helper'>点击查看内容</Text>
-                        </View>
-                        <Text className='entry-arrow'>›</Text>
-                      </View>
-                    ))}
-                  </View>
-                )}
+              <View className='empty-panel'>
+                <Text className='empty-panel-text'>暂无书籍笔记。</Text>
               </View>
             )}
-          </View>}
+          </View>
         </View>
       </ScrollView>
       <BottomNav />

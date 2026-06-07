@@ -57,22 +57,26 @@ export async function POST(request: NextRequest) {
             .eq("id", reqSeqId)
             .maybeSingle();
         const notifyTradeType = String(notifyData.trade_type || notifyData.trans_type || "").trim();
-        const defaultProvider = notifyTradeType.startsWith("A_") ? "huifu_alipay" : "wechat";
-        const paymentProvider = String(existingOrder?.payment_provider || defaultProvider);
+        const defaultProvider = notifyTradeType.startsWith("A_") ? "" : "wechat";
+        const paymentProvider = String(existingOrder?.payment_provider || defaultProvider).trim();
+
+        const updatePayload: Record<string, any> = {
+            status: nextStatus,
+            trade_status: notifyData.trans_stat || null,
+            alipay_trade_no:
+                notifyData.org_hf_seq_id ||
+                notifyData.out_trans_id ||
+                notifyData.party_order_id ||
+                null,
+            updated_at: new Date().toISOString(),
+        };
+        if (paymentProvider) {
+            updatePayload.payment_provider = paymentProvider;
+        }
 
         const { data: updatedOrder, error: updateError } = await (serviceRoleSupabase
             .from("alipay_orders") as any)
-            .update({
-                status: nextStatus,
-                trade_status: notifyData.trans_stat || null,
-                alipay_trade_no:
-                    notifyData.org_hf_seq_id ||
-                    notifyData.out_trans_id ||
-                    notifyData.party_order_id ||
-                    null,
-                payment_provider: paymentProvider,
-                updated_at: new Date().toISOString(),
-            })
+            .update(updatePayload)
             .eq("id", reqSeqId)
             .select()
             .single();

@@ -1,0 +1,255 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="3400" viewBox="0 0 2400 3400">
+  <defs>
+    <style>
+      .bg { fill: #f8fafc; }
+      .title { font-family: "Microsoft YaHei", "PingFang SC", Arial, sans-serif; font-size: 58px; font-weight: 800; fill: #1f2937; }
+      .subtitle { font-family: "Microsoft YaHei", "PingFang SC", Arial, sans-serif; font-size: 28px; fill: #64748b; }
+      .laneTitle { font-family: "Microsoft YaHei", "PingFang SC", Arial, sans-serif; font-size: 30px; font-weight: 800; fill: #334155; }
+      .sectionTitle { font-family: "Microsoft YaHei", "PingFang SC", Arial, sans-serif; font-size: 38px; font-weight: 800; fill: #1f2937; }
+      .nodeTitle { font-family: "Microsoft YaHei", "PingFang SC", Arial, sans-serif; font-size: 25px; font-weight: 800; color: #1f2937; line-height: 1.22; }
+      .nodeBody { font-family: "Microsoft YaHei", "PingFang SC", Arial, sans-serif; font-size: 21px; color: #475569; line-height: 1.28; }
+      .smallText { font-family: "Microsoft YaHei", "PingFang SC", Arial, sans-serif; font-size: 20px; color: #475569; line-height: 1.28; }
+      .pillText { font-family: "Microsoft YaHei", "PingFang SC", Arial, sans-serif; font-size: 20px; font-weight: 700; fill: #ffffff; }
+      .box { rx: 22; ry: 22; stroke-width: 3; filter: url(#shadow); }
+      .student { fill: #fff7ed; stroke: #fb923c; }
+      .system { fill: #eef6ff; stroke: #3b82f6; }
+      .coach { fill: #f7f2ff; stroke: #8b5cf6; }
+      .ai { fill: #f0fdf4; stroke: #22c55e; }
+      .wait { fill: #fff1f2; stroke: #f43f5e; }
+      .decision { fill: #fffbeb; stroke: #f59e0b; stroke-width: 3; filter: url(#shadow); }
+      .line { stroke: #64748b; stroke-width: 4; fill: none; marker-end: url(#arrow); }
+      .lineSoft { stroke: #94a3b8; stroke-width: 3; fill: none; stroke-dasharray: 10 10; marker-end: url(#arrowSoft); }
+      .band { fill: #ffffff; stroke: #e2e8f0; stroke-width: 2; rx: 32; ry: 32; filter: url(#shadow); }
+      .lane { fill: #ffffff; stroke: #e2e8f0; stroke-width: 2; rx: 24; ry: 24; }
+      .note { fill: #fff7ed; stroke: #fed7aa; stroke-width: 2; rx: 20; ry: 20; }
+    </style>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="10" stdDeviation="10" flood-color="#0f172a" flood-opacity="0.10"/>
+    </filter>
+    <marker id="arrow" markerWidth="16" markerHeight="16" refX="13" refY="8" orient="auto" markerUnits="strokeWidth">
+      <path d="M2,2 L14,8 L2,14 Z" fill="#64748b"/>
+    </marker>
+    <marker id="arrowSoft" markerWidth="16" markerHeight="16" refX="13" refY="8" orient="auto" markerUnits="strokeWidth">
+      <path d="M2,2 L14,8 L2,14 Z" fill="#94a3b8"/>
+    </marker>
+  </defs>
+
+  <rect class="bg" x="0" y="0" width="2400" height="3400"/>
+
+  <text class="title" x="120" y="100">CoachLink：问卷到计划完成、续费等待与 AI 计划生成流程</text>
+  <text class="subtitle" x="120" y="150">一张图讲清楚：学员填写教练问卷 -> 购买/支付 -> AI 生成计划 -> 执行完成 -> 下一阶段或续费等待</text>
+
+  <rect class="lane" x="80" y="200" width="620" height="2180"/>
+  <rect class="lane" x="770" y="200" width="860" height="2180"/>
+  <rect class="lane" x="1700" y="200" width="620" height="2180"/>
+
+  <text class="laneTitle" x="120" y="255">学员侧</text>
+  <text class="laneTitle" x="810" y="255">系统 / AI / 数据状态</text>
+  <text class="laneTitle" x="1740" y="255">教练侧 / 审核 / 续费</text>
+
+  <!-- Student nodes -->
+  <rect class="box student" x="120" y="320" width="540" height="128"/>
+  <foreignObject x="150" y="342" width="480" height="90">
+    <div xmlns="http://www.w3.org/1999/xhtml" class="nodeTitle">1. 进入教练主页</div>
+    <div xmlns="http://www.w3.org/1999/xhtml" class="nodeBody">查看教练资料、服务包、价格与购买周期。</div>
+  </foreignObject>
+
+  <rect class="box student" x="120" y="520" width="540" height="150"/>
+  <foreignObject x="150" y="542" width="480" height="112">
+    <div xmlns="http://www.w3.org/1999/xhtml" class="nodeTitle">2. 填写教练问卷</div>
+    <div xmlns="http://www.w3.org/1999/xhtml" class="nodeBody">目标、水平、每周训练次数、器械、伤病禁忌、体重、1RM/RM、备注。</div>
+  </foreignObject>
+
+  <rect class="box student" x="120" y="720" width="540" height="128"/>
+  <foreignObject x="150" y="742" width="480" height="90">
+    <div xmlns="http://www.w3.org/1999/xhtml" class="nodeTitle">3. 提交购买并支付</div>
+    <div xmlns="http://www.w3.org/1999/xhtml" class="nodeBody">创建订单，进入平台支付等待。</div>
+  </foreignObject>
+
+  <rect class="box student" x="120" y="1320" width="540" height="128"/>
+  <foreignObject x="150" y="1342" width="480" height="90">
+    <div xmlns="http://www.w3.org/1999/xhtml" class="nodeTitle">6. 收到计划通知</div>
+    <div xmlns="http://www.w3.org/1999/xhtml" class="nodeBody">进入今日训练，看到当前阶段计划。</div>
+  </foreignObject>
+
+  <rect class="box student" x="120" y="1520" width="540" height="150"/>
+  <foreignObject x="150" y="1542" width="480" height="112">
+    <div xmlns="http://www.w3.org/1999/xhtml" class="nodeTitle">7. 执行训练</div>
+    <div xmlns="http://www.w3.org/1999/xhtml" class="nodeBody">记录动作组、实际重量、次数、RPE、视频、备注和训练反馈。</div>
+  </foreignObject>
+
+  <rect class="box student" x="120" y="2100" width="540" height="150"/>
+  <foreignObject x="150" y="2122" width="480" height="112">
+    <div xmlns="http://www.w3.org/1999/xhtml" class="nodeTitle">10. 额度不足时续费</div>
+    <div xmlns="http://www.w3.org/1999/xhtml" class="nodeBody">当前阶段已完成，点击续费，购买更多训练日 credits。</div>
+  </foreignObject>
+
+  <!-- System nodes -->
+  <rect class="box system" x="830" y="720" width="740" height="128"/>
+  <foreignObject x="865" y="742" width="670" height="90">
+    <div xmlns="http://www.w3.org/1999/xhtml" class="nodeTitle">订单：pending_payment -> paid</div>
+    <div xmlns="http://www.w3.org/1999/xhtml" class="nodeBody">支付成功后系统确认订单，进入正式服务交付。</div>
+  </foreignObject>
+
+  <rect class="box system" x="830" y="920" width="740" height="158"/>
+  <foreignObject x="865" y="942" width="670" height="120">
+    <div xmlns="http://www.w3.org/1999/xhtml" class="nodeTitle">4. 创建 active 订阅</div>
+    <div xmlns="http://www.w3.org/1999/xhtml" class="nodeBody">写入 coach_subscriptions；保存 subscribe_data 问卷快照；subscribed_weeks 决定训练日额度。</div>
+  </foreignObject>
+
+  <rect class="box ai" x="830" y="1120" width="740" height="150"/>
+  <foreignObject x="865" y="1142" width="670" height="112">
+    <div xmlns="http://www.w3.org/1999/xhtml" class="nodeTitle">5. 触发首计划自动化</div>
+    <div xmlns="http://www.w3.org/1999/xhtml" class="nodeBody">默认 auto_publish：AI 生成 active 计划；若配置 draft，则生成草稿等教练审核。</div>
+  </foreignObject>
+
+  <rect class="box system" x="830" y="1320" width="740" height="150"/>
+  <foreignObject x="865" y="1342" width="670" height="112">
+    <div xmlns="http://www.w3.org/1999/xhtml" class="nodeTitle">计划实例入库</div>
+    <div xmlns="http://www.w3.org/1999/xhtml" class="nodeBody">coach_plan_instances 写入 training_days、status、start_execution_day、ai_generation_log。</div>
+  </foreignObject>
+
+  <rect class="box system" x="830" y="1520" width="740" height="150"/>
+  <foreignObject x="865" y="1542" width="670" height="112">
+    <div xmlns="http://www.w3.org/1999/xhtml" class="nodeTitle">执行记录驱动进度</div>
+    <div xmlns="http://www.w3.org/1999/xhtml" class="nodeBody">plan_instance_executions status=completed 才计入已完成训练日和 usedCredits。</div>
+  </foreignObject>
+
+  <rect class="box system" x="830" y="1720" width="740" height="130"/>
+  <foreignObject x="865" y="1742" width="670" height="92">
+    <div xmlns="http://www.w3.org/1999/xhtml" class="nodeTitle">8. 阶段计划完成</div>
+    <div xmlns="http://www.w3.org/1999/xhtml" class="nodeBody">所有训练日完成后，计划实例 status=completed。</div>
+  </foreignObject>
+
+  <path class="decision" d="M1200 1910 L1470 2030 L1200 2150 L930 2030 Z"/>
+  <foreignObject x="1010" y="1975" width="380" height="120">
+    <div xmlns="http://www.w3.org/1999/xhtml" class="nodeTitle" style="text-align:center;">9. 是否还有剩余 credits?</div>
+    <div xmlns="http://www.w3.org/1999/xhtml" class="nodeBody" style="text-align:center;">按训练日额度判断，不按自然日硬过期。</div>
+  </foreignObject>
+
+  <rect class="box wait" x="830" y="2200" width="740" height="138"/>
+  <foreignObject x="865" y="2222" width="670" height="100">
+    <div xmlns="http://www.w3.org/1999/xhtml" class="nodeTitle">无额度：进入续费等待</div>
+    <div xmlns="http://www.w3.org/1999/xhtml" class="nodeBody">下一阶段自动化跳过，原因是 insufficient_entitlement。</div>
+  </foreignObject>
+
+  <!-- Coach nodes -->
+  <rect class="box coach" x="1740" y="1320" width="540" height="150"/>
+  <foreignObject x="1770" y="1342" width="480" height="112">
+    <div xmlns="http://www.w3.org/1999/xhtml" class="nodeTitle">草稿模式：教练审核发布</div>
+    <div xmlns="http://www.w3.org/1999/xhtml" class="nodeBody">首计划或下一阶段若为 draft，会提醒教练确认。</div>
+  </foreignObject>
+
+  <rect class="box coach" x="1740" y="1900" width="540" height="150"/>
+  <foreignObject x="1770" y="1922" width="480" height="112">
+    <div xmlns="http://www.w3.org/1999/xhtml" class="nodeTitle">有额度：生成下一阶段</div>
+    <div xmlns="http://www.w3.org/1999/xhtml" class="nodeBody">默认 draft_notify；也可配置 auto_publish_if_credits 自动发布。</div>
+  </foreignObject>
+
+  <rect class="box coach" x="1740" y="2200" width="540" height="138"/>
+  <foreignObject x="1770" y="2222" width="480" height="100">
+    <div xmlns="http://www.w3.org/1999/xhtml" class="nodeTitle">提醒教练引导续费</div>
+    <div xmlns="http://www.w3.org/1999/xhtml" class="nodeBody">系统消息提示：阶段完成但额度不足。</div>
+  </foreignObject>
+
+  <!-- Arrows business -->
+  <path class="line" d="M390 448 L390 520"/>
+  <path class="line" d="M390 670 L390 720"/>
+  <path class="line" d="M660 784 L830 784"/>
+  <path class="line" d="M1200 848 L1200 920"/>
+  <path class="line" d="M1200 1078 L1200 1120"/>
+  <path class="line" d="M1200 1270 L1200 1320"/>
+  <path class="line" d="M830 1384 L660 1384"/>
+  <path class="line" d="M390 1448 L390 1520"/>
+  <path class="line" d="M660 1595 L830 1595"/>
+  <path class="line" d="M1200 1670 L1200 1720"/>
+  <path class="line" d="M1200 1850 L1200 1910"/>
+  <path class="line" d="M1470 2030 L1740 1975"/>
+  <path class="line" d="M1200 2150 L1200 2200"/>
+  <path class="line" d="M1570 2269 L1740 2269"/>
+  <path class="line" d="M830 2269 L660 2175"/>
+  <path class="lineSoft" d="M390 2100 C390 1980 390 1780 390 1670"/>
+  <path class="lineSoft" d="M2010 1900 C2010 1760 2010 1510 1570 1395"/>
+  <path class="lineSoft" d="M120 2175 C40 2175 40 760 120 760"/>
+  <path class="lineSoft" d="M2010 2338 C2010 2410 1200 2410 1200 2150"/>
+
+  <text class="subtitle" x="1505" y="2010">有额度</text>
+  <text class="subtitle" x="1230" y="2180">无额度</text>
+
+  <!-- AI engine section -->
+  <rect class="band" x="80" y="2460" width="2240" height="810"/>
+  <text class="sectionTitle" x="120" y="2535">AI 算法引擎：不是黑箱生成，而是“选骨架 -> 写脚本 -> 编译校验 -> 负荷计算 -> 入库通知”</text>
+
+  <rect class="box ai" x="120" y="2600" width="330" height="170"/>
+  <foreignObject x="145" y="2622" width="280" height="132">
+    <div xmlns="http://www.w3.org/1999/xhtml" class="nodeTitle">输入数据</div>
+    <div xmlns="http://www.w3.org/1999/xhtml" class="smallText">问卷、档案、购买周期、动作库、模板、历史计划、1RM/PR。</div>
+  </foreignObject>
+
+  <rect class="box ai" x="500" y="2600" width="330" height="170"/>
+  <foreignObject x="525" y="2622" width="280" height="132">
+    <div xmlns="http://www.w3.org/1999/xhtml" class="nodeTitle">Stage A 选骨架</div>
+    <div xmlns="http://www.w3.org/1999/xhtml" class="smallText">从教练模板和历史计划中选最合适骨架，减少自由生成风险。</div>
+  </foreignObject>
+
+  <rect class="box ai" x="880" y="2600" width="330" height="170"/>
+  <foreignObject x="905" y="2622" width="280" height="132">
+    <div xmlns="http://www.w3.org/1999/xhtml" class="nodeTitle">Stage B 写脚本</div>
+    <div xmlns="http://www.w3.org/1999/xhtml" class="smallText">输出 plan_script，不直接写数据库 JSON；必须完整覆盖购买周期。</div>
+  </foreignObject>
+
+  <rect class="box ai" x="1260" y="2600" width="330" height="170"/>
+  <foreignObject x="1285" y="2622" width="280" height="132">
+    <div xmlns="http://www.w3.org/1999/xhtml" class="nodeTitle">编译与校验</div>
+    <div xmlns="http://www.w3.org/1999/xhtml" class="smallText">解析为 training_days；校验专项、禁忌、每周次数、动作 ID。</div>
+  </foreignObject>
+
+  <rect class="box ai" x="1640" y="2600" width="330" height="170"/>
+  <foreignObject x="1665" y="2622" width="280" height="132">
+    <div xmlns="http://www.w3.org/1999/xhtml" class="nodeTitle">负荷计算</div>
+    <div xmlns="http://www.w3.org/1999/xhtml" class="smallText">聚合当前 1RM；RM/%/固定重量；自重动作按体重抵扣。</div>
+  </foreignObject>
+
+  <rect class="box ai" x="2020" y="2600" width="260" height="170"/>
+  <foreignObject x="2045" y="2622" width="210" height="132">
+    <div xmlns="http://www.w3.org/1999/xhtml" class="nodeTitle">入库通知</div>
+    <div xmlns="http://www.w3.org/1999/xhtml" class="smallText">写实例、同步动作、通知学员或提醒教练。</div>
+  </foreignObject>
+
+  <path class="line" d="M450 2685 L500 2685"/>
+  <path class="line" d="M830 2685 L880 2685"/>
+  <path class="line" d="M1210 2685 L1260 2685"/>
+  <path class="line" d="M1590 2685 L1640 2685"/>
+  <path class="line" d="M1970 2685 L2020 2685"/>
+
+  <rect class="note" x="120" y="2845" width="1020" height="160"/>
+  <foreignObject x="150" y="2870" width="960" height="112">
+    <div xmlns="http://www.w3.org/1999/xhtml" class="nodeTitle">安全保护</div>
+    <div xmlns="http://www.w3.org/1999/xhtml" class="nodeBody">如果 AI 结果违反问卷硬约束，会带纠偏提示重试一次；如果仍失败，则停止并交给教练。清洗后空计划会被阻止，必要时回退到模板骨架。</div>
+  </foreignObject>
+
+  <rect class="note" x="1200" y="2845" width="1080" height="160"/>
+  <foreignObject x="1230" y="2870" width="1020" height="112">
+    <div xmlns="http://www.w3.org/1999/xhtml" class="nodeTitle">训练反馈自动化</div>
+    <div xmlns="http://www.w3.org/1999/xhtml" class="nodeBody">反馈先做风险分类。疼痛/伤病等高风险只提醒教练；低风险才可能按策略小幅调整未来训练，默认仍是草稿提醒。</div>
+  </foreignObject>
+
+  <rect class="note" x="120" y="3055" width="2160" height="150"/>
+  <foreignObject x="150" y="3082" width="2100" height="92">
+    <div xmlns="http://www.w3.org/1999/xhtml" class="nodeTitle">讲解重点</div>
+    <div xmlns="http://www.w3.org/1999/xhtml" class="nodeBody">CoachLink 的核心不是“付费后按天倒计时”，而是“按训练日 credits 交付服务”。计划完成后先判断剩余额度：有额度就进入下一阶段，没有额度就进入续费等待。</div>
+  </foreignObject>
+
+  <rect x="120" y="3305" width="154" height="42" rx="21" fill="#fb923c"/>
+  <text class="pillText" x="148" y="3333">学员侧</text>
+  <rect x="300" y="3305" width="154" height="42" rx="21" fill="#3b82f6"/>
+  <text class="pillText" x="328" y="3333">系统侧</text>
+  <rect x="480" y="3305" width="154" height="42" rx="21" fill="#22c55e"/>
+  <text class="pillText" x="508" y="3333">AI 引擎</text>
+  <rect x="660" y="3305" width="154" height="42" rx="21" fill="#8b5cf6"/>
+  <text class="pillText" x="688" y="3333">教练侧</text>
+  <rect x="840" y="3305" width="154" height="42" rx="21" fill="#f43f5e"/>
+  <text class="pillText" x="868" y="3333">等待态</text>
+
+  <text class="subtitle" x="1570" y="3336">本图配套文档：docs/work/flows/coach-service-flow-explainer.md</text>
+</svg>

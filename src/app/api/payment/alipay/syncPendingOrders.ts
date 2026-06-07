@@ -9,6 +9,8 @@ import {
     updateTransactionAndWallet,
     fulfillSubscriptionAndMaybeCreditWallet,
 } from "@/app/api/payment/alipay/fulfillPaidOrder";
+import { fulfillContentPurchasePaid } from "@/app/api/payment/alipay/contentPurchaseFulfillment";
+import { formatHuifuReqDate, queryHuifuMiniProgramOrder } from "@/lib/huifuMiniProgramPay";
 
 // 只拉取最近 N 小时内的 pending 订单；超出的订单留在库里但不查支付宝（可配 ALIPAY_SYNC_PENDING_WINDOW_HOURS，默认 48）
 const PENDING_WINDOW_HOURS =
@@ -34,6 +36,13 @@ export type SyncPendingResult = {
     errors: string[];
 };
 
+function isCoachRevenueHuifuCandidate(orderType: string | null | undefined, orderData: Record<string, any>) {
+    return (
+        orderType === "coach_subscription" ||
+        orderType === "coach_subscription_renew"
+    ) && Boolean(orderData.coachId || orderData.coach_id);
+}
+
 export async function syncPendingAlipayOrders(): Promise<SyncPendingResult> {
     const since = new Date();
     since.setHours(since.getHours() - PENDING_WINDOW_HOURS);
@@ -41,7 +50,7 @@ export async function syncPendingAlipayOrders(): Promise<SyncPendingResult> {
 
     const { data: pendingOrders, error: listError } = await serviceRoleSupabase
         .from("alipay_orders")
-        .select("id, user_id, order_type, order_data, total_amount, subject, payment_provider")
+        .select("id, user_id, order_type, order_data, total_amount, subject, payment_provider, created_at")
         .eq("status", "pending")
         .gte("created_at", sinceIso)
         .order("created_at", { ascending: false })
@@ -61,8 +70,83 @@ export async function syncPendingAlipayOrders(): Promise<SyncPendingResult> {
 
     for (const row of pendingOrders) {
         try {
-            const provider = String((row as any).payment_provider || "alipay");
-            if (provider === "huifu_alipay" || provider === "wechat") {
+            const paymentProvider = String((row as any).payment_provider || "").trim();
+            const provider = paymentProvider || "alipay";
+            const rowOrderData = ((row as any).order_data || {}) as Record<string, any>;
+            const isHuifuGatewayOrder =
+                provider === "huifu_alipay" ||
+                provider === "wechat" ||
+                Boolean(rowOrderData.huifu_req_date) ||
+                isCoachRevenueHuifuCandidate(String((row as any).order_type || ""), rowOrderData);
+
+            if (isHuifuGatewayOrder) {
+                const huifuReqDate = String(
+                    rowOrderData.huifu_req_date || formatHuifuReqDate(new Date((row as any).created_at)),
+                ).trim();
+                const queryResult = await queryHuifuMiniProgramOrder({
+                    orgReqDate: huifuReqDate,
+                    orgReqSeqId: String(row.id),
+                });
+                const orderStatus =
+                    queryResult.trans_stat === "S"
+                        ? "paid"
+                        : queryResult.trans_stat === "F"
+                          ? "failed"
+                          : "pending";
+
+                if (orderStatus === "pending") {
+                    continue;
+                }
+
+                const { data: order, error: updateOrderError } =
+                    await serviceRoleSupabase
+                        .from("alipay_orders")
+                        .update({
+                            status: orderStatus,
+                            trade_status: queryResult.trans_stat || null,
+                            alipay_trade_no: queryResult.org_hf_seq_id || null,
+                            order_data: rowOrderData.huifu_req_date
+                                ? rowOrderData
+                                : { ...rowOrderData, huifu_req_date: huifuReqDate },
+                            updated_at: new Date().toISOString(),
+                        })
+                        .eq("id", row.id)
+                        .select()
+                        .single();
+
+                if (updateOrderError || !order) {
+                    errors.push(`order ${row.id}: update failed ${updateOrderError?.message}`);
+                    continue;
+                }
+
+                if (orderStatus === "paid") {
+                    const userId = order.user_id ?? "";
+                    if (
+                        order.order_type === "subscription" ||
+                        order.order_type === "subscription_renew" ||
+                        order.order_type === "coach_subscription" ||
+                        order.order_type === "coach_subscription_renew"
+                    ) {
+                        await fulfillSubscriptionAndMaybeCreditWallet(
+                            order as any,
+                            userId,
+                            provider === "wechat" ? "wechat" : "alipay",
+                        );
+                    } else if (order.order_type === "content_purchase") {
+                        const orderData = (order.order_data || {}) as Record<string, any>;
+                        const contentId = orderData.contentId as string | undefined;
+                        if (contentId) {
+                            await fulfillContentPurchasePaid({
+                                orderId: order.id,
+                                userId,
+                                contentId,
+                            });
+                        }
+                    } else {
+                        await updateTransactionAndWallet(order);
+                    }
+                    updated++;
+                }
                 continue;
             }
 
