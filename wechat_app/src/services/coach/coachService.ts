@@ -352,10 +352,29 @@ class CoachService extends BaseService {
   async getWallet() {
     const res = await this.post<{
       balance: number
+      gross_balance?: number
+      withdrawable_balance?: number
       total_income?: number
       frozen_amount?: number
+      refund_protected_amount?: number
+      pending_settlement_amount?: number
+      refund_protection_days?: number
       huifu_open_status?: string | null
       huifu_open_msg?: string | null
+      pending_settlements?: Array<{
+        id: string
+        amount: number
+        platform_fee: number
+        total_amount: number
+        status: 'pending' | 'processing' | 'split_failed'
+        eligible_at: string | null
+        created_at: string
+        alipay_order_id: string
+        subject?: string | null
+        student_id?: string | null
+        student_name?: string | null
+        error_message?: string | null
+      }>
       transactions?: Array<{
         id: string
         amount: number

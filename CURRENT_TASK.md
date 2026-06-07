@@ -1,3 +1,158 @@
+## Branch Sync: Commit Dev And Merge To Main (`2026-06-08`)
+
+- Task: commit current working tree, then merge the development branch into `main` so `main` and `dev` are consistent.
+- Status: in progress.
+- Current branch before commit: `dev`.
+- Current branch heads before commit: local/remote `main` and `dev` were both at `549cbb7e` before the new commit.
+- Next step: run checks, commit current changes on `dev`, switch to `main`, merge `dev`, and verify branch equality.
+
+## Student Renewal Still Shows Expired (`2026-06-08`)
+
+- Task: investigate student `f08872b0` reporting that they renewed with coach `刘三乐` but the WeChat training home still showed `订阅已到期，请尽快续费`.
+- Cloud facts:
+  - Student `75a60512-4f0c-465f-815e-2bb6f08872b0`, subscription `8b03677a-8ecb-4cac-84b1-01620a20ab27`, coach `刘三乐`.
+  - Renewal order `d38c4ab2-1ef4-433b-9225-a6e7946d76ad` is `renew/paid`, confirmed by coach on `2026-05-10`, `purchased_weeks=12`, amount `¥199.00`.
+  - The subscription row is still `status='active'` and `subscribed_weeks=24`; the user really had renewed.
+  - Stored `end_date` remained stale at `2026-05-23T09:01:57.049+00:00`.
+  - The only current student/coach plan instance has 105 calendar days / 44 training days and is now marked `completed`; this exposed a model edge case where purchased entitlement can exceed the current plan's length.
+- Root cause:
+  - `deriveSubscriptionEntitlementState` capped total/remaining credits at the current plan's max day index. When a renewed subscription had more purchased weeks than the current plan covered, completing or nearing completion of that plan could make the whole subscription look exhausted/grace even though extra renewed entitlement remained for the next phase.
+- Fix:
+  - `src/lib/subscriptionEntitlementModel.ts` now estimates future unassigned credits when `effectiveWeeks` exceeds the current plan's covered weeks, keeping the active subscription lifecycle active instead of falling back to stale `end_date`/grace.
+  - `src/lib/subscriptionEntitlementModel.test.ts` adds a regression covering a 24-week renewed subscription with a completed 15-week plan and stale `end_date`; expected state is `available/active`, with remaining credits and no display end date.
+- Verification:
+  - Targeted tests passed: `subscriptionEntitlementModel.test.ts` and `subscriptionAccess.test.ts`.
+  - `npm run lint`: passed informational script.
+  - `npm run typecheck`: passed.
+  - `npm test`: passed, 33 files / 163 tests.
+  - `npx next build`: passed on rerun; first run compiled/static-generated successfully but hit a transient Windows `.next/standalone` EBUSY copy lock.
+
+## Coach Wallet Pending Settlement Display / Due Job (`2026-06-08`)
+
+- Task: investigate why a coach subscription paid on `2026-05-28 23:36` still showed `冻结金额 ¥159.20` on Web wallet after the 7-day protection window.
+- Finding:
+  - The order `76c0dedd-6ba8-4a98-b943-68016de5ac0b` is `paid`, order type `coach_subscription`, total `¥199.00`, coach share `¥159.20`, platform fee `¥39.80`.
+  - Its settlement row `438f9deb-8714-47bf-b63b-ec16b26352fd` is still `status='pending'`, `eligible_at='2026-06-04T15:36:10.549Z'`, `attempts=0`, and has no `error_message`.
+  - Coach `枭马葛` has `huifu_open_status='opened'` and a card token; `coach_wallets.frozen_amount=0`, so this is not an account-readiness or wallet-freeze issue.
+  - Local Apollo-loaded production startup logs show `[BackgroundJobs] missing HUIFU_SETTLEMENT_CRON_SECRET/CRON_SECRET; skip Huifu settlement jobs`, matching `attempts=0`.
+- Implemented UI correction:
+  - Web `/dashboard/wallet` now displays `冻结金额` from `frozen_amount` only and keeps `待结算收入` separate.
+  - WeChat mini-program coach wallet now uses the same display口径.
+  - Pending settlements past `eligible_at` now show `结算待处理` / `已到期，等待系统结算`.
+- Verification:
+  - `npm run lint`: passed.
+  - `npm run typecheck`: passed.
+  - `npm test`: passed, 33 files / 162 tests.
+  - `npx next build`: passed.
+  - `cd wechat_app; npm run build:weapp`: passed.
+- Browser verification:
+  - Attempted with Playwright against a temporary `next start` on port 3004, but page verification was blocked because `NEXTAUTH_URL` points to `localhost:3000` and production Secure NextAuth cookies did not authenticate `/dashboard/wallet` on `localhost:3004`; middleware redirected to `/login`.
+- Next step:
+  - Configure `HUIFU_SETTLEMENT_CRON_SECRET` or `CRON_SECRET` in the runtime config/Apollo and restart/redeploy so due settlement jobs run.
+  - The currently due settlement should then be processed by `/api/admin/coach-subscription-settlements/process-due`.
+  - Do not manually trigger this route without explicit confirmation because it initiates real Huifu balance-payment settlement.
+
+## WeChat Coach Wallet Web Alignment (`2026-06-08`)
+
+- Task: align WeChat mini-program coach wallet with Web `/dashboard/wallet` because the mini-program lacked withdrawable/frozen/pending-settlement balance details and recent transaction entries did not match Web.
+- Status: implemented and partially visually verified.
+- Implemented:
+  - `wechat_app/src/services/coach/coachService.ts` wallet response typing now includes `gross_balance`, `withdrawable_balance`, `refund_protected_amount`, `pending_settlement_amount`, `refund_protection_days`, and `pending_settlements`.
+  - `wechat_app/src/coach/wallet/index.tsx` now renders the same wallet balance口径 as Web: 可提现余额, 冻结金额, 待结算收入, 账户总余额, 累计总收入.
+  - The mini-program wallet transaction list is now `收支明细` and prepends pending settlements before normal wallet transactions, including settlement status, estimated settlement time, order link copy, and platform service fee.
+  - Mini-program wallet transaction time formatting now uses `yyyy-MM-dd HH:mm`, matching the Web page more closely.
+- Verification:
+  - `cd wechat_app; npm run build:weapp`: passed.
+  - `npm run lint`: passed informational lint script.
+  - `npm run typecheck`: passed.
+  - `npm test`: passed, 33 files / 162 tests.
+  - `npx next build`: passed.
+  - WeChat DevTools automation opened `/coach/wallet` and screenshot `screenshots/weapp/wallet-aligned.png` confirmed the new four wallet metrics render. DevTools error logs were empty before the automation port disconnected.
+- Blocker:
+  - Full transaction mock/interaction verification was blocked because `mrc mock` failed with `mp.mockJson is not a function`, and the DevTools automation port disconnected during the follow-up click check.
+
+## Coach Acquisition Notice And Guide (`2026-06-07`)
+
+- Task: prepare a system notice for approved coaches to start recruiting students and write a coach-facing tutorial for how to operate.
+- Status: implemented as documentation + dry-run notification script; no real notifications sent yet.
+- Output:
+  - `docs/work/coach-operations/coach-student-acquisition-guide.md`
+  - `docs/work/coach-operations/assets/01-coach-overview.png`
+  - `docs/work/coach-operations/assets/02-pricing-settings.png`
+  - `docs/work/coach-operations/assets/03-questionnaire.png`
+  - `docs/work/coach-operations/assets/04-plan-library.png`
+  - `docs/work/coach-operations/assets/05-students.png`
+  - `docs/work/coach-operations/assets/06-coach-profile.png`
+  - `scripts/send-coach-acquisition-notice.ts`
+- Script behavior:
+  - `npx tsx scripts/send-coach-acquisition-notice.ts` runs dry-run only.
+  - Default target is approved/active, non-`E2E Coach` coach rows.
+  - `--ready-only` restricts to coaches with Huifu opened + card token.
+  - `--coach-id=` and `--user-id=` can narrow targets.
+  - `--execute` is required to actually send system chat notices.
+- Dry-run result:
+  - Default target count: 18 approved/active real coaches.
+  - Ready-only target count implied by dry-run labels: 2 receiving-ready coaches.
+- `2026-06-07` follow-up:
+  - User asked whether notifications had been sent and requested a product-screenshot-rich tutorial.
+  - Clarified no real notifications had been sent; only dry-run was run.
+  - Captured 6 Web product screenshots using a temporary E2E coach account, then cleaned up the temporary account/subscription/plan.
+  - Updated the guide into an image-rich walkthrough with screenshots for overview, pricing, questionnaire, plan library, students, and coach profile.
+  - Local dev servers started for screenshots were stopped afterward.
+- Verification:
+  - Script dry-run passed.
+  - Targeted script TypeScript check passed.
+  - `npm run lint` passed informational lint script.
+  - `npm run typecheck` passed.
+  - `npm test` passed, 33 files / 162 tests.
+  - `npx next build` passed on rerun; first parallel build attempt hit transient Windows `.next/standalone` EBUSY lock after successful compile/static generation.
+
+## WeChat Mini-Program Privacy / Agreement Audit Fix (`2026-06-07`)
+
+- Task: fix WeChat audit rejection that said the mini-program collects/uses/stores user personal information while the User Service Agreement and Privacy Policy pages were blank or insufficient, and that personal-information purpose/method/scope/authorization must be clearly stated before collection.
+- Status: implemented and verified; `2026-06-08` UX correction applied.
+- Implemented:
+  - `wechat_app/src/auth/login/index.tsx` now shows a first-screen "个人信息收集使用说明" before the login button, explaining collected categories, collection methods, purpose, usage scope, and no third-party sale.
+  - WeChat quick login is disabled until the user checks agreement consent; phone authorization remains a second-step prompt only after login requires it.
+  - `wechat_app/src/me-legal/privacy/index.tsx` now contains a full privacy policy covering collection scope, purposes, methods, sharing/disclosure, consent/refusal, retention/security, user rights, minors, updates, and contact details.
+  - `wechat_app/src/me-legal/terms/index.tsx` now has a visible page title.
+  - `wechat_app/src/auth/register/index.tsx` now includes the Privacy Policy in the registration consent row and no longer only references user agreement/disclaimer.
+  - `wechat_app/src/me/profile/index.tsx` footer legal links now point to registered `/me-legal/*` routes instead of unregistered `/me/*` legal pages, reducing blank-page risk.
+- Verification:
+  - `cd wechat_app; npm run build:weapp`: passed.
+  - `npm run lint`: passed informational lint script.
+  - `npm run typecheck`: passed.
+  - `npm test`: passed, 33 files / 162 tests.
+  - `npx next build`: passed.
+  - `git diff --check`: passed with CRLF warnings only.
+  - WeChat DevTools automation (`mrc` on port 9420) opened `/auth/login`, `/me-legal/terms/index`, and `/me-legal/privacy/index`; screenshots saved to `screenshots/weapp/login-privacy-notice.png`, `screenshots/weapp/legal-terms.png`, and `screenshots/weapp/legal-privacy.png`.
+- Note:
+  - `mrc elements text` and direct `checkbox` selector inspection still report no displayed text / checkbox selector timeout in this environment, but screenshots confirm the pages are rendered and not blank; clicking `.agreement-row` succeeded.
+- `2026-06-08` correction:
+  - User clarified that the agreement/privacy content should not be displayed directly as a large block on the login page; full text should appear only after tapping the agreement/privacy links.
+  - Removed the first-screen "个人信息收集使用说明" card from `wechat_app/src/auth/login/index.tsx`.
+  - Login page now keeps only the checkbox consent row with clickable `《用户服务协议》` and `《隐私政策》` links before the login button; full disclosure remains in the dedicated legal pages.
+  - Verified with WeChat DevTools screenshot `screenshots/weapp/login-agreement-link-only.png`.
+  - Checks passed: `cd wechat_app; npm run build:weapp`, `npm run lint`, `npm run typecheck`, `npm test`, `npx next build`, and `git diff --check` (CRLF warnings only).
+
+## Admin Standalone Password Reset (`2026-06-07`)
+
+- Task: reset the standalone Web admin password because the original password was forgotten.
+- Status: completed.
+- Result:
+  - `admin.main` exists, is active, and is bound to an admin user.
+  - Password hash was reset directly in `admin_users`.
+  - Plaintext password was intentionally not written to durable memory.
+
+## Coach Usage Statistics (`2026-06-07`)
+
+- Task: summarize coach-side coach usage from the current CoachLink data source.
+- Status: completed as a data analysis; no application code changes requested or made.
+- Data source: Apollo local config loaded the Supabase project `uhlqribpagvklpqmcqvo`.
+- Notes:
+  - Excluded 6 `E2E Coach ...` test coach rows from the main business summary.
+  - Report separates real coach-login activity from business-table activity because chat/message rows can make every coach look recently active even when coach `last_login_at` is old.
+
 ## Huifu Split Source Material Recovery (`2026-06-06`)
 
 ## WeChat Mini-Program Login Audit Visibility Follow-up (`2026-06-07`)

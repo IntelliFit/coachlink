@@ -7,6 +7,7 @@ export default function Terms() {
     <View className='doc-page'>
       <ScrollView scrollY className='doc-scroll'>
         <View className='doc-card'>
+          <Text className='doc-title'>用户服务协议</Text>
           <Text className='doc-meta'>
             {'版本号：1.0\n适用范围：平台用户\n平台运营主体：智健启能（北京）科技有限公司'}
           </Text>

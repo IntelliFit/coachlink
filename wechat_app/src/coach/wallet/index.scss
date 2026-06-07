@@ -36,12 +36,41 @@
       margin-bottom: 12px;
     }
 
-    .frozen-amount,
-    .total-income {
-      font-size: 12px;
-      opacity: 0.8;
+    .wallet-metrics {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 16px;
+    }
+
+    .wallet-metric {
+      flex: 1 1 40%;
+      min-height: 48px;
+      padding: 8px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.12);
+      box-sizing: border-box;
+    }
+
+    .metric-label,
+    .metric-value {
       display: block;
-      margin-top: 4px;
+    }
+
+    .metric-label {
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.72);
+      margin-bottom: 4px;
+    }
+
+    .metric-value {
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.92);
+      font-weight: 700;
+
+      &.strong {
+        color: #fff;
+      }
     }
 
     .balance-actions {
@@ -121,6 +150,11 @@
             background: #fee2e2;
             color: #dc2626;
           }
+
+          &.pending {
+            background: #fef3c7;
+            color: #d97706;
+          }
         }
 
         .transaction-desc {
@@ -132,10 +166,35 @@
           word-break: break-all;
         }
 
+        .transaction-subject {
+          font-size: 12px;
+          color: #6b7280;
+          display: block;
+          margin-bottom: 4px;
+          word-break: break-all;
+        }
+
         .transaction-time {
           font-size: 12px;
           color: #9ca3af;
           display: block;
+        }
+
+        .transaction-eligible,
+        .transaction-link,
+        .transaction-error {
+          font-size: 12px;
+          display: block;
+          margin-top: 4px;
+        }
+
+        .transaction-eligible,
+        .transaction-link {
+          color: #d97706;
+        }
+
+        .transaction-error {
+          color: #dc2626;
         }
       }
 
@@ -150,6 +209,10 @@
 
         &.outcome {
           color: #111827;
+        }
+
+        &.pending {
+          color: #d97706;
         }
       }
     }
