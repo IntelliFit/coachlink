@@ -148,6 +148,43 @@ export function resolveStorageUrl(value: string | null | undefined): string {
 }
 
 /**
+ * 仅把"历史 Supabase Storage URL"就地解析为 CDN URL（用于 API 出口的兼容层）。
+ * - 命中我们桶映射的 Supabase 链接 → 转成 CDN；
+ * - 其它字符串（已是 CDN、外部链接、普通文本）→ 原样返回；
+ * 不处理"裸 key"，避免把普通文本误判（safe_equiv 下新数据存的就是完整 CDN URL）。
+ */
+function resolveSupabaseUrlOnly(value: string): string {
+  if (value.indexOf("/storage/v1/") === -1) return value;
+  const extracted = extractFromSupabaseUrl(value);
+  if (!extracted) return value;
+  try {
+    return buildPublicUrl(extracted.logical, extracted.key);
+  } catch {
+    return value;
+  }
+}
+
+/**
+ * 深度遍历对象/数组，把其中所有"历史 Supabase Storage URL"字符串就地替换为 CDN URL。
+ * 用于在 API 返回前统一规整媒体字段，避免前端再去访问 supabase。原值非媒体则原样保留。
+ */
+export function resolveMediaDeep<T>(input: T, depth = 0): T {
+  if (depth > 12 || input == null) return input;
+  if (typeof input === "string") return resolveSupabaseUrlOnly(input) as unknown as T;
+  if (Array.isArray(input)) {
+    return input.map((v) => resolveMediaDeep(v, depth + 1)) as unknown as T;
+  }
+  if (typeof input === "object") {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(input as Record<string, unknown>)) {
+      out[k] = resolveMediaDeep(v, depth + 1);
+    }
+    return out as unknown as T;
+  }
+  return input;
+}
+
+/**
  * 由逻辑桶 + 业务 key 计算最终访问 URL。
  * 强制走 CDN 域名：未配置对应 COS_CDN_* 时直接抛错，**绝不回退到 COS 源站域名**（*.myqcloud.com 源站对外不可用）。
  */
