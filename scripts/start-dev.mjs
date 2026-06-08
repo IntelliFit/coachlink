@@ -34,7 +34,9 @@ console.log(createSeparator(60));
 console.log(yellowOrangeGradient('🚀 COACHLINK DEVELOPMENT SERVER 🚀'));
 console.log(createSeparator(60));
 console.log(warmGradient('📋 Environment Configuration:'));
-console.log(orangeGradient(`📍 NODE_ENV: ${process.env.NODE_ENV || 'development'}`));
+// 这里固定显示 development：dev 入口会强制给 `next dev` 子进程设 NODE_ENV=development
+// （见下方 spawnEnv），与父进程从 shell/Apollo 继承到的值无关，避免横幅误导排查。
+console.log(orangeGradient(`📍 NODE_ENV: development${process.env.NODE_ENV && process.env.NODE_ENV !== 'development' ? `（已忽略继承的 ${process.env.NODE_ENV}）` : ''}`));
 console.log(orangeGradient(`📁 Config source: ${envBootstrap.source}`));
 console.log(orangeGradient(`📄 Loaded files: ${envBootstrap.loadedFiles.join(', ')}`));
 console.log(orangeGradient(`🔗 Supabase URL: ${process.env.NEXT_SUPABASE_URL ? '✅ [SET]' : '❌ [NOT SET]'}`));
@@ -97,6 +99,12 @@ async function startDev() {
     
     const spawnEnv = {
         ...nextEnvForChild(),
+        // 强制开发模式：必须放在 nextEnvForChild() 之后覆盖它。
+        // 否则当 CONFIG_SOURCE=apollo 时，Apollo 的生产配置可能带 NODE_ENV=production
+        // 并被写进进程环境，传给 `next dev` 后会按生产行为运行：
+        //   - CSS loader 失效 → node_modules 里的 primeicons.css 报 "Module parse failed: Unexpected character '@'"
+        //   - 去找生产产物 .next/dev/required-server-files.json → ENOENT → 启动脚本反复重启（崩溃循环）。
+        NODE_ENV: 'development',
         // 增加内存限制
         NODE_OPTIONS: '--max-old-space-size=4096',
         // 使用轮询而非原生文件系统事件（更稳定）
