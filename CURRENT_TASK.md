@@ -1,3 +1,29 @@
+## Pull Latest Code (`2026-06-10`)
+
+- Task: pull latest code into local workspace.
+- Status: completed locally.
+- Starting branch: `main`.
+- Local state before pull:
+  - `main` was ahead of `origin/main` by 5 commits.
+  - Two local durable-state files had uncommitted notes, so they were stashed as `tmp-before-pull-latest-2026-06-10` before fetching.
+- Remote updates:
+  - `origin/main` had no new commits.
+  - `origin/dev` advanced to `8029de1e` with Power Analysis worker queue / Python worker updates.
+- Result:
+  - Merged latest `origin/dev` into local `main` with merge commit `73e3a66c`.
+  - Resolved conflicts by keeping the renamed `docs/codex对话-集成功率视频分析.txt` and preserving both sides of `memory/2026-06-08.md`.
+  - Restored the pre-pull durable-state stash.
+- Next step: sync local `dev` to the updated `main` head.
+- Remote note: no push was performed.
+
+## WeChat Mini-Program Service Category Planning (`2026-06-08`)
+
+- Task: advise which WeChat mini-program service categories CoachLink should proactively apply for based on current mini-program features and WeChat review/category constraints.
+- Status: analysis-only completed; no code changes requested.
+- Current approved categories shown by user: `工具 > 健康管理` as primary and `工具 > 信息查询`.
+- Product surfaces considered: online training execution, action/plan libraries, coach discovery and paid coaching service, coach-student messaging, training videos/content, rankings/location pages, and wallet/payment flows.
+- Recommendation snapshot: keep the two approved categories; use remaining category slots first for `体育 > 在线健身`, `体育 > 体育培训`, and one relationship/community safety category such as `社交 > 熟人交友/IM熟人社交` if available or `社交 > 社区/论坛` if review focuses on UGC/public exchange. Do not pre-apply for medical, finance, education, live streaming, or e-commerce categories unless those regulated product surfaces are actually launched.
+
 ## Branch Sync: Commit Dev And Merge To Main (`2026-06-08`)
 
 - Task: commit current working tree, then merge the development branch into `main` so `main` and `dev` are consistent.
@@ -197,7 +223,6 @@
 - Content includes:
   - WeChat group chat record for `智健启能(北京)科技6666000194449179` with 266 messages.
   - Copied Huifu docs/API material for user onboarding, business open, balance payment, withdrawal, refund/refund-query, and split/delayed-split guidance.
-=======
 ## Meeting Transcript CoachLink Work Summary (`2026-06-07`)
 
 - Task: summarize CoachLink/教链 work content from the user's attached meeting transcript.
