@@ -59,7 +59,7 @@ async function patchResponseJson() {
     const g = globalThis as unknown as Record<string, boolean>;
     if (g[flag]) return;
 
-    const { resolveMediaDeep } = await import("@/lib/cos");
+    const { resolveMediaDeep } = await import("@/lib/storageUrl");
 
     const ResponseCtor = (globalThis as unknown as { Response: { json: (body: unknown, init?: ResponseInit) => Response } }).Response;
     const originalJson = ResponseCtor.json;
