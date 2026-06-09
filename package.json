@@ -26,10 +26,13 @@
         "migrate:supabase-to-pg": "npx tsx scripts/migrate-supabase-to-postgres.ts",
         "migrate:storage-to-cos": "npx tsx scripts/migrate-supabase-storage-to-cos.ts",
         "replace:storage-urls": "npx tsx scripts/replace-storage-urls.ts",
-        "power-analysis:worker": "node scripts/power-analysis-worker.mjs --poll",
+        "power-analysis:setup": "node scripts/setup-power-analysis-venv.mjs",
+        "power-analysis:worker": "node scripts/power-analysis-worker.mjs --queue",
+        "power-analysis:poll-worker": "node scripts/power-analysis-worker.mjs --poll",
         "power-analysis:work-once": "node scripts/power-analysis-worker.mjs",
         "power-analysis:cleanup": "node scripts/power-analysis-worker.mjs --cleanup",
-        "push-docker-ccr": "node scripts/push-docker-ccr.mjs"
+        "push-docker-ccr": "node scripts/push-docker-ccr.mjs",
+        "push-power-worker-ccr": "node scripts/push-power-worker-ccr.mjs"
     },
     "dependencies": {
         "@dagrejs/dagre": "^1.1.8",
@@ -73,6 +76,7 @@
         "i18next": "^23.16.4",
         "isolated-vm": "^6.1.2",
         "jsonwebtoken": "^9.0.2",
+        "kafkajs": "^2.2.4",
         "lenis": "^1.3.15",
         "lodash": "^4.17.21",
         "lucide-react": "^0.553.0",
@@ -100,6 +104,7 @@
         "tailwindcss": "^3.4.14",
         "tencentcloud-sdk-nodejs": "^4.1.155",
         "tiptap-markdown": "^0.9.0",
+        "tsx": "^4.22.4",
         "typescript": "^5.6.3",
         "web-push": "^3.6.7",
         "xlsx": "^0.18.5"

@@ -73,10 +73,20 @@ async function patchResponseJson() {
     console.log("[MediaCompat] 全局 Response.json 已接入 Supabase→CDN 兼容层");
 }
 
+async function startPowerAnalysisMemoryWorker() {
+    const { getTaskQueueConfig } = await import("@/lib/taskqueue/config");
+    const config = getTaskQueueConfig();
+    if (config.driver !== "memory") return;
+
+    const { ensureEmbeddedPowerAnalysisWorker } = await import("@/lib/powerAnalysis/embeddedWorker");
+    ensureEmbeddedPowerAnalysisWorker();
+}
+
 export async function register() {
     if (process.env.NEXT_RUNTIME !== "nodejs") return;
 
     await patchResponseJson();
+    await startPowerAnalysisMemoryWorker();
 
     const key = "__coachlinkBackgroundJobsStarted";
     if ((globalThis as unknown as Record<string, boolean>)[key]) return;
