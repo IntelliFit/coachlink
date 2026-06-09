@@ -1,4 +1,4 @@
-FROM node:22-bookworm-slim
+FROM python:3.11-slim-bookworm
 
 WORKDIR /app
 
@@ -6,13 +6,16 @@ ENV NODE_ENV=production
 ENV POWER_ANALYSIS_PYTHON_BIN=python3
 
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-      python3 \
-      python3-pip \
-      python3-venv \
-      ffmpeg \
+    apt-get install -y --no-install-recommends -o Acquire::Retries=5 \
+      ca-certificates \
+      curl \
       libgl1 \
       libglib2.0-0 && \
+    rm -rf /var/lib/apt/lists/*
+
+RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends -o Acquire::Retries=5 nodejs && \
     rm -rf /var/lib/apt/lists/*
 
 COPY package.json package-lock.json ./

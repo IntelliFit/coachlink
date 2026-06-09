@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
-import { ensureEmbeddedPowerAnalysisWorker } from "@/lib/powerAnalysis/embeddedWorker";
 import { publishTask } from "@/lib/taskqueue/factory";
 import { serviceRoleSupabase } from "@/lib/supabaseClient";
 import type { ApiData } from "@/types/api";
@@ -74,7 +73,6 @@ export async function POST(
   }
 
   try {
-    ensureEmbeddedPowerAnalysisWorker();
     await publishTask({ taskId: data.id, taskType: "power_analysis" });
   } catch (queueError) {
     console.error("[power-analysis/enqueue] publish failed:", queueError);

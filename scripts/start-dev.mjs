@@ -47,6 +47,7 @@ const MAX_RESTARTS = 5;
 const RESTART_DELAY = 3000;
 let restartCount = 0;
 let nextProcess = null;
+let powerWorkerProcess = null;
 
 // 清理缓存
 async function cleanCache() {
@@ -86,6 +87,36 @@ function crossSpawn(command, args, options = {}) {
     );
 }
 
+function shouldStartLocalPowerWorker() {
+    const driver = String(process.env.TASK_QUEUE_DRIVER || 'memory').trim().toLowerCase();
+    return ['memory', 'local', 'in_memory', 'in-memory'].includes(driver);
+}
+
+function startLocalPowerWorker(spawnEnv) {
+    if (!shouldStartLocalPowerWorker()) {
+        console.log(warmGradient('[PowerAnalysisWorker] 本地内存 worker 未启用（TASK_QUEUE_DRIVER 非 memory）'));
+        return;
+    }
+    if (powerWorkerProcess) return;
+    console.log(warmGradient('[PowerAnalysisWorker] 启动本地 memory worker...'));
+    powerWorkerProcess = crossSpawn('node', ['scripts/power-analysis-worker.mjs', '--queue'], {
+        env: {
+            ...spawnEnv,
+            NODE_ENV: 'development',
+        },
+    });
+    powerWorkerProcess.stdout.on('data', (data) => {
+        process.stdout.write(data);
+    });
+    powerWorkerProcess.stderr.on('data', (data) => {
+        process.stderr.write(data);
+    });
+    powerWorkerProcess.on('close', (code) => {
+        console.log(warmGradient(`[PowerAnalysisWorker] 已退出 (code: ${code})`));
+        powerWorkerProcess = null;
+    });
+}
+
 async function startDev() {
     console.log(warmGradient('\n🔄 Starting Next.js development server...'));
     
@@ -118,6 +149,8 @@ async function startDev() {
         spawnEnv.NODE_OPTIONS += ' --max-old-space-size=4096';
         console.log(warmGradient('⚡ 快速开发模式已启用'));
     }
+
+    startLocalPowerWorker(spawnEnv);
 
     nextProcess = crossSpawn('npx', nextArgs, { env: spawnEnv });
 
@@ -174,12 +207,14 @@ async function restart() {
 // 进程退出处理
 process.on('SIGINT', () => {
     console.log(warmGradient('\n👋 正在关闭开发服务器...'));
+    if (powerWorkerProcess) powerWorkerProcess.kill('SIGINT');
     if (nextProcess) nextProcess.kill('SIGINT');
     process.exit(0);
 });
 
 process.on('SIGTERM', () => {
     console.log(orangeGradient('\n🔚 开发服务器已终止'));
+    if (powerWorkerProcess) powerWorkerProcess.kill('SIGTERM');
     if (nextProcess) nextProcess.kill('SIGTERM');
     process.exit(0);
 });
