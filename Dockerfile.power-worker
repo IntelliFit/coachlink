@@ -1,0 +1,33 @@
+FROM python:3.11-slim-bookworm
+
+WORKDIR /app
+
+ENV NODE_ENV=production
+ENV POWER_ANALYSIS_PYTHON_BIN=python3
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends -o Acquire::Retries=5 \
+      ca-certificates \
+      curl \
+      libgl1 \
+      libglib2.0-0 && \
+    rm -rf /var/lib/apt/lists/*
+
+RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends -o Acquire::Retries=5 nodejs && \
+    rm -rf /var/lib/apt/lists/*
+
+COPY package.json package-lock.json ./
+RUN npm ci --legacy-peer-deps
+
+COPY scripts ./scripts
+COPY src ./src
+COPY tsconfig.json ./
+
+RUN python3 -m venv /opt/power-analysis-venv && \
+    /opt/power-analysis-venv/bin/pip install --no-cache-dir -r scripts/power-analysis/requirements.txt
+
+ENV POWER_ANALYSIS_PYTHON_BIN=/opt/power-analysis-venv/bin/python
+
+CMD ["node", "scripts/power-analysis-worker.mjs", "--queue"]

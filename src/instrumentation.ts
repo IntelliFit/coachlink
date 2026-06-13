@@ -44,8 +44,39 @@ function startIntervalJob(
     console.log(`[${name}] started; interval=${intervalMs}ms`);
 }
 
+/**
+ * 全局媒体 URL 兼容层：patch 全局 Response.json，使所有 API 响应在序列化前
+ * 把历史 Supabase Storage URL 就地转成 CDN URL（迁移保留 key 路径，1:1 转换；
+ * 非媒体字符串原样保留）。一处接入、不漏任何接口，前端不再访问 supabase。
+ *
+ * 之所以 patch 全局 Response.json 而非 NextResponse.json：
+ * - NextResponse.json(body, init) 内部委托给全局 Response.json（见 next 源码）；
+ * - 全局 Response 是 Node 运行时单例，所有 Turbopack bundle 共享同一对象，patch 必然命中；
+ *   而经 instrumentation 直接 patch NextResponse 因模块被独立打包，路由侧拿到的是另一份，patch 不生效。
+ */
+async function patchResponseJson() {
+    const flag = "__coachlinkMediaJsonPatched";
+    const g = globalThis as unknown as Record<string, boolean>;
+    if (g[flag]) return;
+
+    const { resolveMediaDeep } = await import("@/lib/storageUrl");
+
+    const ResponseCtor = (globalThis as unknown as { Response: { json: (body: unknown, init?: ResponseInit) => Response } }).Response;
+    const originalJson = ResponseCtor.json;
+    Object.defineProperty(ResponseCtor, "json", {
+        value: (body: unknown, init?: ResponseInit) => originalJson.call(ResponseCtor, resolveMediaDeep(body), init),
+        writable: true,
+        configurable: true,
+    });
+
+    g[flag] = true;
+    console.log("[MediaCompat] 全局 Response.json 已接入 Supabase→CDN 兼容层");
+}
+
 export async function register() {
     if (process.env.NEXT_RUNTIME !== "nodejs") return;
+
+    await patchResponseJson();
 
     const key = "__coachlinkBackgroundJobsStarted";
     if ((globalThis as unknown as Record<string, boolean>)[key]) return;
