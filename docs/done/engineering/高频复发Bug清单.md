@@ -349,3 +349,17 @@
   - 小程序 tab 写 `教学内容(N)`，Web `CoachContent.tsx` 写 `教练专栏(N)`；
   - 修复：底部 CTA 折成单按钮（active→「查看订阅」/ waiting→「查看订阅进度」/ 默认→「立即订阅 / 查看价格」），「查看问卷」按钮迁入 `CoachIntro` 简介区（与 Web `CoachIntroduction` 同位置），「续费」按钮迁入 `PricingSection` 面板内（与 Web `CoachSubscription` 同位置），tab 文案改为 `教练专栏`。
 
+## 28) 异步队列任务：先 Ack/commit 再写 DB 终态 → 丢任务或重复处理（高风险）
+
+- **现象**：视频分析/AI 生成/批处理任务在 worker 崩溃、Kafka 重平衡或网络抖动后，前端长时间停在 `queued/processing`，或者同一任务被多个 worker 重复处理。
+- **根因**：队列消息被当作任务状态源；consumer 收到消息后先 ack/commit，或没有用 DB 状态做幂等 claim。队列只保证投递语义，不等于业务终态已经落库。
+- **统一规则**：
+  - DB 任务表是 source of truth，队列只传轻量 `{ taskId, taskType }` 唤醒 worker；
+  - worker 收到消息后必须通过 DB 乐观锁/lease 把 `queued` claim 成 `processing`；
+  - 只有成功写入 `done/failed/expired` 等业务终态后，才 ack/commit Kafka offset；
+  - memory/local 队列应在 Web 进程内嵌 worker 或同进程测试环境中使用，并配 recover loop，从 DB 中扫描可恢复的 `queued` 任务重新 publish，避免进程重启丢内存消息。
+- **改动前自检**：
+  - 新增队列 consumer 时，检查 ack/commit 是否发生在 DB 终态写入之后；
+  - 搜索任务表状态流转，确认重复消息只会有一个 worker claim 成功；
+  - 本地 memory 模式是否明确说明只适合同进程/内嵌 worker，并配了 DB recovery。
+

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
+import { publishTask } from "@/lib/taskqueue/factory";
 import { serviceRoleSupabase } from "@/lib/supabaseClient";
 import type { ApiData } from "@/types/api";
 import type { PowerAnalysisJobDto } from "../../../types";
@@ -68,6 +69,26 @@ export async function POST(
     return NextResponse.json<ApiData<null>>(
       { success: false, message: error?.message || "任务入队失败", data: null },
       { status: 500 },
+    );
+  }
+
+  try {
+    await publishTask({ taskId: data.id, taskType: "power_analysis" });
+  } catch (queueError) {
+    console.error("[power-analysis/enqueue] publish failed:", queueError);
+    await db
+      .from("tool_power_analysis_jobs")
+      .update({
+        status: "failed",
+        progress: 100,
+        error_message: "任务入队失败，请稍后重试",
+        completed_at: new Date().toISOString(),
+      })
+      .eq("id", data.id)
+      .eq("status", "queued");
+    return NextResponse.json<ApiData<null>>(
+      { success: false, message: "任务入队失败，请稍后重试", data: null },
+      { status: 503 },
     );
   }
 

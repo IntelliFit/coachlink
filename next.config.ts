@@ -31,6 +31,7 @@ const BUILD_TIME = process.env.NEXT_PUBLIC_BUILD_TIME || new Date().toISOString(
 const nextConfig: NextConfig = {
     output: 'standalone',
     reactStrictMode: false,
+    serverExternalPackages: ['kafkajs'],
     env: {
         NEXT_PUBLIC_APP_VERSION: APP_VERSION,
         NEXT_PUBLIC_GIT_COMMIT_ID: GIT_COMMIT_ID,
