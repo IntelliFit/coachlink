@@ -5,6 +5,7 @@ import { addAction, handleApiError } from '@/services/actionLibPageService'
 import type { ItemType, StudentActionInsert } from '@/types/action'
 import { TYPE_META } from '@/constants/action'
 import './index.scss'
+import { useTheme } from '@/hooks/useTheme'
 
 const TYPE_OPTIONS: { value: ItemType; label: string }[] = [
   { value: 'STRENGTH', label: '力量' },
@@ -14,6 +15,7 @@ const TYPE_OPTIONS: { value: ItemType; label: string }[] = [
 ]
 
 export default function ActionEditPage() {
+  const { effectiveTheme } = useTheme()
   const router = useRouter()
   const id = router.params?.id
   const isAdd = !id
@@ -57,7 +59,7 @@ export default function ActionEditPage() {
   }
 
   return (
-    <View className="action-edit-page">
+    <View className={`action-edit-page theme-${effectiveTheme}`}>
       <View className="form-group">
         <Text className="form-label">
           动作名称<Text className="required">*</Text>

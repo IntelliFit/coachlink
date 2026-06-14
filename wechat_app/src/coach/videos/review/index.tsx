@@ -5,8 +5,10 @@ import { coachVideoService } from '@/services/coach/coachVideoService'
 import type { ExecutionSetVideoWithDetails } from '@/services/coach/coachVideoService'
 import './index.scss'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
+import { useTheme } from '@/hooks/useTheme'
 
 function CoachVideosReview() {
+  const { effectiveTheme } = useTheme()
   const videoId = Taro.getCurrentInstance().router?.params?.id
   const [video, setVideo] = useState<ExecutionSetVideoWithDetails | null>(null)
   const [loading, setLoading] = useState(true)
@@ -128,7 +130,7 @@ function CoachVideosReview() {
 
   if (loading) {
     return (
-      <View className="review-page">
+      <View className={`review-page theme-${effectiveTheme}`}>
         <View className="loading-wrap"><LoadingSpinner size={48} /></View>
       </View>
     )
@@ -136,7 +138,7 @@ function CoachVideosReview() {
 
   if (!video) {
     return (
-      <View className="review-page">
+      <View className={`review-page theme-${effectiveTheme}`}>
         <View className="empty-wrap">视频不存在</View>
       </View>
     )
@@ -145,7 +147,7 @@ function CoachVideosReview() {
   const executionDetails = video.execution_details
 
   return (
-    <View className="review-page">
+    <View className={`review-page theme-${effectiveTheme}`}>
       <ScrollView scrollY className="review-scroll">
         {/* 视频播放区域 */}
         <View className="video-section">

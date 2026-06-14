@@ -14,6 +14,7 @@ import { buildExecutionSummary } from '@/utils/planEditor'
 import { buildStrengthPreview } from '@/utils/planStrength'
 import './index.scss'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
+import { useTheme } from '@/hooks/useTheme'
 
 const FITNESS_LEVEL_LABEL_MAP: Record<string, string> = {
   beginner: '零基础',
@@ -314,6 +315,7 @@ interface PlanInstanceWithExtras extends PlanInstance {
 
 // ============ 主组件 ============
 function CoachStudentPlan() {
+  const { effectiveTheme } = useTheme()
   const routeParams = Taro.getCurrentInstance().router?.params || {}
   const subscriptionId = routeParams.id
   const historyInstanceId = routeParams.instanceId || routeParams.planInstanceId || ''
@@ -2143,7 +2145,7 @@ function CoachStudentPlan() {
   // 渲染加载状态
   if (loading) {
     return (
-      <View className='coach-student-plan-page'>
+      <View className={`coach-student-plan-page theme-${effectiveTheme}`}>
         <View className='loading-container'>
           <LoadingSpinner size={48} />
         </View>
@@ -2154,7 +2156,7 @@ function CoachStudentPlan() {
   // 渲染空状态（没有计划）
   if (!instance) {
     return (
-      <View className='coach-student-plan-page'>
+      <View className={`coach-student-plan-page theme-${effectiveTheme}`}>
         <ScrollView scrollY className='page'>
           {/* 学员信息卡片 */}
           {studentData && (
@@ -2424,7 +2426,7 @@ function CoachStudentPlan() {
   }
 
   return (
-    <ScrollView scrollY className='coach-student-plan-page'>
+    <ScrollView scrollY className={`coach-student-plan-page theme-${effectiveTheme}`}>
       <View className='page'>
         {/* 学员信息卡片 */}
         {studentData && (

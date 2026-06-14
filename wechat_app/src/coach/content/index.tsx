@@ -5,6 +5,7 @@ import BottomNav from '@/components/BottomNav'
 import { coachService } from '@/services/coach/coachService'
 import './index.scss'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
+import { useTheme } from '@/hooks/useTheme'
 
 type ContentType = 'text' | 'video' | 'image' | 'live' | 'plan'
 type TierFilter = 'all' | 0 | 1 | 2 | 3
@@ -69,6 +70,7 @@ function formatPrice(priceCents?: number | null) {
 }
 
 function CoachContent() {
+  const { effectiveTheme } = useTheme()
   const [list, setList] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [searchKeyword, setSearchKeyword] = useState('')
@@ -166,7 +168,7 @@ function CoachContent() {
   }, [loadContent])
 
   return (
-    <View className='coach-content-page'>
+    <View className={`coach-content-page theme-${effectiveTheme}`}>
       <ScrollView scrollY className='page-scroll'>
         <View className='hero-card'>
           <View className='hero-card__content'>

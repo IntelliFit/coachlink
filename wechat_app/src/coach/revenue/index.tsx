@@ -5,8 +5,10 @@ import BottomNav from '@/components/BottomNav'
 import { coachService } from '@/services/coach/coachService'
 import './index.scss'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
+import { useTheme } from '@/hooks/useTheme'
 
 function CoachRevenue() {
+  const { effectiveTheme } = useTheme()
   const [data, setData] = useState<{ totalRevenue: number; subscriptionRevenue: number; contentPurchaseRevenue: number; items: any[] } | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -44,7 +46,7 @@ function CoachRevenue() {
   }
 
   return (
-    <View className="coach-revenue-page">
+    <View className={`coach-revenue-page theme-${effectiveTheme}`}>
       {loading ? (
         <View className="loading-wrap"><LoadingSpinner size={48} /></View>
       ) : !data ? (

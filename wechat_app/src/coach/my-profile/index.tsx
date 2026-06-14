@@ -22,6 +22,7 @@ import { authService } from '@/services/authService'
 import { coachService } from '@/services/coach/coachService'
 import './index.scss'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
+import { useTheme } from '@/hooks/useTheme'
 
 interface ProfileActionItem {
   key: string
@@ -36,6 +37,7 @@ interface ProfileActionItem {
 }
 
 function CoachMyProfile() {
+  const { effectiveTheme } = useTheme()
   const [user, setUser] = useState<any>(null)
   const [coach, setCoach] = useState<any>(null)
   const [overview, setOverview] = useState<any>(null)
@@ -299,7 +301,7 @@ function CoachMyProfile() {
 
   if (loading) {
     return (
-      <View className='coach-my-profile-page'>
+      <View className={`coach-my-profile-page theme-${effectiveTheme}`}>
         <View className="loading-wrap"><LoadingSpinner size={48} /></View>
         <BottomNav />
       </View>
@@ -308,7 +310,7 @@ function CoachMyProfile() {
 
   if (!user?.is_coach) {
     return (
-      <View className='coach-my-profile-page'>
+      <View className={`coach-my-profile-page theme-${effectiveTheme}`}>
         <View className='empty-state-card'>
           <Text className='empty-state-title'>当前还不是教练身份</Text>
           <Text className='empty-state-desc'>完成教练申请并审核通过后，这里会显示教练端的个人中心。</Text>
@@ -323,7 +325,7 @@ function CoachMyProfile() {
 
   if (error) {
     return (
-      <View className='coach-my-profile-page'>
+      <View className={`coach-my-profile-page theme-${effectiveTheme}`}>
         <View className='empty-state-card'>
           <Text className='empty-state-title'>{error}</Text>
           <View className='empty-state-action' onClick={() => void loadData()}>
@@ -353,7 +355,7 @@ function CoachMyProfile() {
   )
 
   return (
-    <View className='coach-my-profile-page'>
+    <View className={`coach-my-profile-page theme-${effectiveTheme}`}>
       <ScrollView scrollY className='profile-scroll'>
         <View className='hero-card'>
           <View className='hero-top'>

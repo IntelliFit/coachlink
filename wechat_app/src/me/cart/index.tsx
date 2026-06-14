@@ -7,6 +7,7 @@ import { request } from '@/utils/request'
 import './index.scss'
 import { File, Notice } from '@nutui/icons-react-taro'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
+import { useTheme } from '@/hooks/useTheme'
 
 interface CartItem {
   id: string
@@ -20,6 +21,7 @@ interface CartItem {
 }
 
 function CartPage() {
+  const { effectiveTheme } = useTheme()
   const [items, setItems] = useState<CartItem[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -109,7 +111,7 @@ function CartPage() {
 
   if (loading) {
     return (
-      <View className='cart-page'>
+      <View className={`cart-page theme-${effectiveTheme}`}>
         <ScrollView className='page-scroll' scrollY>
           <View className='loading-wrap'>
             <LoadingSpinner size={48} />
@@ -121,7 +123,7 @@ function CartPage() {
   }
 
   return (
-    <View className='cart-page'>
+    <View className={`cart-page theme-${effectiveTheme}`}>
       <ScrollView className='page-scroll' scrollY>
         <View className='page-content'>
           <View className='page-header'>

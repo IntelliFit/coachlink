@@ -19,6 +19,7 @@ import { studentService } from '@/services/studentService'
 import { drawStrengthPoster, type StrengthPosterData } from '../poster'
 import './index.scss'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
+import { useTheme } from '@/hooks/useTheme'
 
 const EXERCISE_OPTIONS: { label: string; value: ExerciseType }[] = [
   { label: '负重引体向上', value: 'weighted_pullup' },
@@ -58,6 +59,7 @@ interface ResultData {
 const STORAGE_KEY = 'sl_calc_result'
 
 export default function CalculatorResultPage() {
+  const { effectiveTheme } = useTheme()
   const router = useRouter()
   const [data, setData] = useState<ResultData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -257,7 +259,7 @@ export default function CalculatorResultPage() {
 
   if (loading) {
     return (
-      <View className='calc-result-page'>
+      <View className={`calc-result-page theme-${effectiveTheme}`}>
         <View className='calc-result-loading'>
           <LoadingSpinner size={48} />
         </View>
@@ -267,7 +269,7 @@ export default function CalculatorResultPage() {
 
   if (!result) {
     return (
-      <View className='calc-result-page'>
+      <View className={`calc-result-page theme-${effectiveTheme}`}>
         <View className='calc-result-empty'>
           <Text>未找到计算结果</Text>
           <View className='calc-result-back-btn' onClick={handleBack}>
@@ -279,7 +281,7 @@ export default function CalculatorResultPage() {
   }
 
   return (
-    <View className='calc-result-page'>
+    <View className={`calc-result-page theme-${effectiveTheme}`}>
       <ScrollView className='calc-result-scroll' scrollY>
         <View className='calc-result-content'>
           <View className='result-actions-top'>

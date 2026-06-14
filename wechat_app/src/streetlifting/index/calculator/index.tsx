@@ -26,6 +26,7 @@ import { streetliftingIndexService, type StreetliftingFormula } from '@/services
 import { studentService } from '@/services/studentService'
 import { authService } from '@/services/authService'
 import './index.scss'
+import { useTheme } from '@/hooks/useTheme'
 
 const EXERCISE_OPTIONS: { label: string; value: ExerciseType }[] = [
   { label: '负重引体向上', value: 'weighted_pullup' },
@@ -183,6 +184,7 @@ function getPenaltyPreset(formQuality: string) {
 }
 
 export default function StreetliftingCalculator() {
+  const { effectiveTheme } = useTheme()
   const [draft, setDraft] = useState<CalcDraft>(DEFAULT_DRAFT)
   const [formulaMap, setFormulaMap] = useState<Record<string, StreetliftingFormula>>({})
   const [loadingFormula, setLoadingFormula] = useState(true)
@@ -724,7 +726,7 @@ export default function StreetliftingCalculator() {
   )
 
   return (
-    <View className='calc-page'>
+    <View className={`calc-page theme-${effectiveTheme}`}>
       <ScrollView className='calc-scroll' scrollY>
         <View className='calc-card'>
           <View className='calc-form-wrap'>

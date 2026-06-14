@@ -5,8 +5,10 @@ import BottomNav from '@/components/BottomNav'
 import { actionLibService } from '@/services/coach/actionLibService'
 import './index.scss'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
+import { useTheme } from '@/hooks/useTheme'
 
 function CoachActionLib() {
+  const { effectiveTheme } = useTheme()
   const [list, setList] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -67,7 +69,7 @@ function CoachActionLib() {
   }
 
   return (
-    <View className="coach-action-lib-page">
+    <View className={`coach-action-lib-page theme-${effectiveTheme}`}>
       <View className="header">
         <Text className="title">动作库</Text>
         <Button className="add-btn" onClick={handleCreate}>+ 新建</Button>

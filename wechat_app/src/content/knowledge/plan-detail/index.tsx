@@ -10,6 +10,7 @@ import {
 } from '@/services/knowledgeService'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import './index.scss'
+import { useTheme } from '@/hooks/useTheme'
 
 const PLAN_LEVEL_LABELS: Record<PublicTrainingPlanLevel, string> = {
   beginner: '入门',
@@ -60,6 +61,7 @@ function getActionDetail(action: any) {
 }
 
 function PlanDetailPage() {
+  const { effectiveTheme } = useTheme()
   const router = useRouter()
   const planId = String(router.params.id || '')
   const [plan, setPlan] = useState<PublicTrainingPlanDetail | null>(null)
@@ -125,7 +127,7 @@ function PlanDetailPage() {
 
   if (loading) {
     return (
-      <View className='builtin-plan-detail-page'>
+      <View className={`builtin-plan-detail-page theme-${effectiveTheme}`}>
         <View className='loading-state'>
           <LoadingSpinner size={56} />
         </View>
@@ -135,7 +137,7 @@ function PlanDetailPage() {
 
   if (!plan) {
     return (
-      <View className='builtin-plan-detail-page'>
+      <View className={`builtin-plan-detail-page theme-${effectiveTheme}`}>
         <View className='empty-state'>
           <Text className='empty-title'>计划不存在</Text>
           <Text className='empty-desc'>这个训练计划可能已经下线，先返回知识库看看其他计划。</Text>
@@ -150,7 +152,7 @@ function PlanDetailPage() {
   const trainingDayCount = getTrainingDayCount(plan)
 
   return (
-    <View className='builtin-plan-detail-page'>
+    <View className={`builtin-plan-detail-page theme-${effectiveTheme}`}>
       <ScrollView className='page-scroll' scrollY>
         <View className='page-shell'>
           <View className='hero-card'>

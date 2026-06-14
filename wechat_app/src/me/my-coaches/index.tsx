@@ -8,10 +8,12 @@ import type { QueryCoachSubscription, GetAggregatedInfoResponseDto } from './typ
 import CoachCard from './components/CoachCard'
 import './index.scss'
 import { User } from '@nutui/icons-react-taro'
+import { useTheme } from '@/hooks/useTheme'
 
 type PageState = 'loading' | 'success' | 'empty' | 'error'
 
 export default function MyCoaches() {
+  const { effectiveTheme } = useTheme()
   const [subscriptions, setSubscriptions] = useState<QueryCoachSubscription[]>([])
   const [aggregatedMap, setAggregatedMap] = useState<Record<string, GetAggregatedInfoResponseDto>>({})
   const [pageState, setPageState] = useState<PageState>('loading')
@@ -139,7 +141,7 @@ export default function MyCoaches() {
   )
 
   return (
-    <View className='my-coaches-page'>
+    <View className={`my-coaches-page theme-${effectiveTheme}`}>
       <View className='page-header'>
         <View className='header-row'>
           <View className='btn-discovery' onClick={goDiscovery}>

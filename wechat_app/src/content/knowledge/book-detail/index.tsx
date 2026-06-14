@@ -8,6 +8,7 @@ import { Notice, Lock } from '@nutui/icons-react-taro'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { getKnowledgeBookSource, groupKnowledgeBooks } from '@/utils/knowledgeBooks'
 import './index.scss'
+import { useTheme } from '@/hooks/useTheme'
 
 type StructuredBookContent = {
   markdown?: string
@@ -61,6 +62,7 @@ function normalizeBookContent(content: unknown) {
 }
 
 export default function BookDetail() {
+  const { effectiveTheme } = useTheme()
   const router = useRouter()
   const bookId = router.params?.id
   const [book, setBook] = useState<any>(null)
@@ -121,7 +123,7 @@ export default function BookDetail() {
 
   if (loading) {
     return (
-      <View className='book-detail-page'>
+      <View className={`book-detail-page theme-${effectiveTheme}`}>
         <View className='nav-bar'>
           <Text className='nav-back' onClick={() => Taro.navigateBack()}>返回</Text>
           <Text className='nav-title'>书籍详情</Text>
@@ -135,7 +137,7 @@ export default function BookDetail() {
 
   if (errorMsg && !book) {
     return (
-      <View className='book-detail-page'>
+      <View className={`book-detail-page theme-${effectiveTheme}`}>
         <View className='nav-bar'>
           <Text className='nav-back' onClick={() => Taro.navigateBack()}>返回</Text>
           <Text className='nav-title'>书籍详情</Text>
@@ -151,7 +153,7 @@ export default function BookDetail() {
 
   if (!book) {
     return (
-      <View className='book-detail-page'>
+      <View className={`book-detail-page theme-${effectiveTheme}`}>
         <View className='nav-bar'>
           <Text className='nav-back' onClick={() => Taro.navigateBack()}>返回</Text>
           <Text className='nav-title'>书籍详情</Text>
@@ -166,7 +168,7 @@ export default function BookDetail() {
 
   if (!canReadContent) {
     return (
-      <View className='book-detail-page'>
+      <View className={`book-detail-page theme-${effectiveTheme}`}>
         <View className='nav-bar'>
           <Text className='nav-back' onClick={() => Taro.navigateBack()}>返回</Text>
           <Text className='nav-title'>{book.title || '书籍详情'}</Text>
@@ -184,7 +186,7 @@ export default function BookDetail() {
   }
 
   return (
-    <View className='book-detail-page'>
+    <View className={`book-detail-page theme-${effectiveTheme}`}>
       <View className='nav-bar'>
         <Text className='nav-back' onClick={() => Taro.navigateBack()}>返回</Text>
         <Text className='nav-title'>书籍详情</Text>

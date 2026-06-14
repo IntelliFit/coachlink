@@ -77,12 +77,15 @@ const coachNavItems: NavItem[] = [
   }
 ]
 
+const BOTTOM_NAV_SWITCH_KEY = 'bottom_nav_switching'
+
 function BottomNav() {
   const [currentPath, setCurrentPath] = useState('')
   const [isCoachView, setIsCoachView] = useState(() => {
     const session = authService.getAuthSession({ normalize: true })
     return !!(session.isAuthenticated && session.isCoach && session.primaryRole === 'coach')
   })
+  const [playSwitchAnimation, setPlaySwitchAnimation] = useState(false)
   const navLockRef = useRef(false)
 
   const normalizePath = (route: string) => {
@@ -110,6 +113,18 @@ function BottomNav() {
   useEffect(() => {
     syncCurrentPath()
     syncRole()
+
+    // 只有真正通过底部导航栏切换 tab 时才播放入场动画
+    const switching = Taro.getStorageSync(BOTTOM_NAV_SWITCH_KEY)
+    if (switching) {
+      Taro.removeStorageSync(BOTTOM_NAV_SWITCH_KEY)
+      setPlaySwitchAnimation(true)
+      // 延迟到下一渲染帧再切回 active，确保浏览器/小程序有一帧的 inactive 状态，触发 CSS transition
+      const timer = setTimeout(() => {
+        setPlaySwitchAnimation(false)
+      }, 16)
+      return () => clearTimeout(timer)
+    }
   }, [])
 
   useEffect(() => {
@@ -169,6 +184,7 @@ function BottomNav() {
     }
 
     navLockRef.current = true
+    Taro.setStorageSync(BOTTOM_NAV_SWITCH_KEY, '1')
     const success = await tryNavigate(item.path)
     if (success) {
       setTimeout(() => {
@@ -178,6 +194,7 @@ function BottomNav() {
       return
     }
 
+    Taro.removeStorageSync(BOTTOM_NAV_SWITCH_KEY)
     navLockRef.current = false
   }
 
@@ -224,11 +241,13 @@ function BottomNav() {
         const isActive = isCoachView
           ? isCoachTabActive(item, currentNorm)
           : isStudentTabActive(item, currentNorm)
+        // 通过底部导航切换时，先强制 inactive 一帧，再切到 active，触发 CSS transition
+        const showActive = playSwitchAnimation ? false : isActive
 
         return (
           <View
             key={item.key}
-            className={`nav-item ${isActive ? 'nav-active' : ''}`}
+            className={`nav-item ${showActive ? 'nav-active' : ''}`}
             onClick={() => void handleNavClick(item)}
           >
             <View className='nav-icon-badge-wrap'>

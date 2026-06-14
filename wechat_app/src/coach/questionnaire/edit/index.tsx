@@ -5,6 +5,7 @@ import Taro from '@tarojs/taro'
 import { coachService } from '@/services/coach/coachService'
 import './index.scss'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
+import { useTheme } from '@/hooks/useTheme'
 
 type QuestionType = 'text' | 'option' | 'times' | 'tags' | 'rm'
 type EditorType = 'simple' | 'flow'
@@ -29,6 +30,7 @@ function generateId(): string {
 }
 
 function CoachQuestionnaireEdit() {
+  const { effectiveTheme } = useTheme()
   const routerParams = Taro.getCurrentInstance().router?.params || {}
   const questionnaireId = routerParams?.id || ''
 
@@ -454,7 +456,7 @@ function CoachQuestionnaireEdit() {
 
   if (loading) {
     return (
-      <View className="coach-questionnaire-edit-page">
+      <View className={`coach-questionnaire-edit-page theme-${effectiveTheme}`}>
         <View className="loading-wrap"><LoadingSpinner size={48} /></View>
       </View>
     )
@@ -462,7 +464,7 @@ function CoachQuestionnaireEdit() {
 
   if (showTypePicker) {
     return (
-      <View className="coach-questionnaire-edit-page">
+      <View className={`coach-questionnaire-edit-page theme-${effectiveTheme}`}>
         <View className="header">
           <Button className="back-btn" onClick={() => Taro.navigateBack()}>返回</Button>
           <Text className="title">新建问卷</Text>
@@ -490,7 +492,7 @@ function CoachQuestionnaireEdit() {
   }
 
   return (
-    <View className="coach-questionnaire-edit-page">
+    <View className={`coach-questionnaire-edit-page theme-${effectiveTheme}`}>
       <View className="header">
         <Button className="back-btn" onClick={() => Taro.navigateBack()}>返回</Button>
         <Text className="title">{templateStatus === 'active' ? '已发布问卷' : '编辑问卷'}</Text>

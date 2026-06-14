@@ -16,6 +16,7 @@ import {
 } from '@/utils/share'
 import './index.scss'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
+import { useTheme } from '@/hooks/useTheme'
 
 function getLocationImages(loc?: Partial<StreetliftingLocation> | null): string[] {
   if (Array.isArray(loc?.image_urls) && loc?.image_urls.length) return loc.image_urls
@@ -89,6 +90,7 @@ function buildMetaLine(loc?: Partial<StreetliftingLocation> | null) {
 }
 
 export default function StreetliftingLocationSharePage() {
+  const { effectiveTheme } = useTheme()
   const routerParams = (Taro.getCurrentInstance().router?.params || {}) as Record<string, unknown>
   const previewLocation = useMemo(() => buildPreviewLocation(routerParams), [])
   const scene = parseScene(routerParams.scene)
@@ -179,7 +181,7 @@ export default function StreetliftingLocationSharePage() {
   const contributorLine = formatContributor(current)
 
   return (
-    <View className='location-share-page'>
+    <View className={`location-share-page theme-${effectiveTheme}`}>
       <ScrollView className='location-share-scroll' scrollY>
         <View className='location-share-content'>
           {current && (
