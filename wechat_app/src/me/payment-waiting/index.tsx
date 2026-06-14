@@ -9,10 +9,12 @@ import {
 import './index.scss'
 import { ArrowRight } from '@nutui/icons-react-taro'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
+import { useTheme } from '@/hooks/useTheme'
 
 const POLL_INTERVAL = 5000
 
 export default function PaymentWaiting() {
+  const { effectiveTheme } = useTheme()
   const router = useRouter()
   const [orderId, setOrderId] = useState('')
   const [amount, setAmount] = useState(0)
@@ -118,7 +120,7 @@ export default function PaymentWaiting() {
 
   if (!orderId) {
     return (
-      <View className="payment-waiting-page">
+      <View className={`payment-waiting-page theme-${effectiveTheme}`}>
         <View className="payment-waiting-card">
           <LoadingSpinner size={48} />
         </View>
@@ -127,7 +129,7 @@ export default function PaymentWaiting() {
   }
 
   return (
-    <View className="payment-waiting-page">
+    <View className={`payment-waiting-page theme-${effectiveTheme}`}>
       <View className="payment-waiting-header">
         <Text className="label">支付确认中</Text>
         <View className="amount-wrap">

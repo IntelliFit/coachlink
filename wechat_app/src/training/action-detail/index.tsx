@@ -2,6 +2,7 @@ import { View, Text } from '@tarojs/components'
 import { useEffect, useMemo, useState } from 'react'
 import Taro, { useRouter } from '@tarojs/taro'
 import './index.scss'
+import { useTheme } from '@/hooks/useTheme'
 
 interface ActionDetailData {
   id: string
@@ -14,6 +15,7 @@ interface ActionDetailData {
 }
 
 export default function ActionDetailPage() {
+  const { effectiveTheme } = useTheme()
   const router = useRouter()
   const id = router.params?.id || ''
   const [action, setAction] = useState<ActionDetailData | null>(null)
@@ -43,7 +45,7 @@ export default function ActionDetailPage() {
   }
 
   return (
-    <View className="action-detail-page">
+    <View className={`action-detail-page theme-${effectiveTheme}`}>
       <View className="action-card">
         <Text className="title">{action?.name || '动作详情'}</Text>
         {action?.type ? <Text className="type-tag">{action.type}</Text> : null}

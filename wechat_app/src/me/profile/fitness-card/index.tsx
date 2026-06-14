@@ -6,6 +6,7 @@ import zhCN from '@nutui/nutui-react-taro/dist/locales/zh-CN'
 import { authService } from '@/services/authService'
 import { studentService } from '@/services/studentService'
 import './index.scss'
+import { useTheme } from '@/hooks/useTheme'
 
 type ProfileFieldKey = 'avatar_url' | 'nickname' | 'gender' | 'height' | 'weight' | 'fitness_goal' | 'fitness_level'
 type QuestionnaireFieldKey = 'fitness_goals' | 'target_body_parts' | 'equipment' | 'weekly_frequency' | 'session_duration'
@@ -210,6 +211,7 @@ function formatFieldValue(data: FitnessCardData | null, field: FieldKey) {
 }
 
 function FitnessCardPage() {
+  const { effectiveTheme } = useTheme()
   const [data, setData] = useState<FitnessCardData | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)

@@ -6,6 +6,7 @@ import { coachService } from '@/services/coach/coachService'
 import { authService } from '@/services/authService'
 import { request } from '@/utils/request'
 import './index.scss'
+import { useTheme } from '@/hooks/useTheme'
 
 type PricingTier = 'basic' | 'standard' | 'vip'
 type TierFilter = 'all' | PricingTier
@@ -106,6 +107,7 @@ function tierLabel(tier: PricingTier): string {
 }
 
 function Market() {
+  const { effectiveTheme } = useTheme()
   const [marketItems, setMarketItems] = useState<MarketItem[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
@@ -366,7 +368,7 @@ function Market() {
   )
 
   return (
-    <View className='market-page'>
+    <View className={`market-page theme-${effectiveTheme}`}>
       <View className='page-header'>
         <Text className='page-title'>服务市场</Text>
         <Text className='page-subtitle'>按商品筛选服务，支持直接购买或加入购物车</Text>

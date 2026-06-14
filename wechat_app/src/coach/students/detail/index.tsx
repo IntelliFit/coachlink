@@ -8,6 +8,7 @@ import { authService } from '@/services/authService'
 import { chatService } from '@/services/chatService'
 import { refundAlipayOrder } from '@/services/paymentService'
 import './index.scss'
+import { useTheme } from '@/hooks/useTheme'
 
 const FITNESS_LEVEL_LABEL_MAP: Record<string, string> = {
   beginner: '零基础',
@@ -174,6 +175,7 @@ function getAutomationOptionLabel(
 }
 
 export default function StudentDetailPage() {
+  const { effectiveTheme } = useTheme()
   const router = useRouter()
   const subscriptionId = router.params.id as string
 
@@ -930,7 +932,7 @@ export default function StudentDetailPage() {
 
   if (!student) {
     return (
-      <View className='student-detail-page'>
+      <View className={`student-detail-page theme-${effectiveTheme}`}>
         <Text className='error-text'>无法加载学员信息</Text>
       </View>
     )
@@ -942,7 +944,7 @@ export default function StudentDetailPage() {
   const questionnaireItems = questionnaireEditing ? questionnaireDraft : normalizeQuestionnaireData(student.subscribe_data)
 
   return (
-    <View className='student-detail-page'>
+    <View className={`student-detail-page theme-${effectiveTheme}`}>
       {/* 学员基本信息卡片 */}
       <View className='info-card'>
         <View className='profile-header'>

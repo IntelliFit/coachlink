@@ -623,6 +623,33 @@
 - Verification: targeted esbuild parse checks passed for the Web and WeChat knowledge TSX entries; `git diff --check` passed for touched knowledge entry files with CRLF warnings only.
 # CURRENT_TASK
 
+## WeChat Mini-Program Dark Theme Page Binding (`2026-06-13`)
+
+- Status: implemented and verified.
+- Problem: toggling dark mode only changed system UI; page backgrounds/cards/text stayed light.
+- Fix:
+  - `wechat_app/scripts/add-theme-class-to-pages.js`: batch script that adds `theme-${effectiveTheme}` to every page root JSX element.
+  - Applied to all 117 WeChat mini-program page files under `wechat_app/src/`.
+  - Manually patched `wechat_app/src/training/actions/index.tsx` (root View had no className) and `wechat_app/src/training/today-training/index.tsx` `renderLoading`.
+  - `wechat_app/src/app.scss`: `.theme-dark` now sets `background: var(--bg-page)` so any page root with the class gets the dark background.
+- Verification:
+  - `npm run build:weapp` passed.
+  - Babel parse check on all modified `.tsx` files passed.
+  - WeChat DevTools automation on port 9421; `/me/profile/index` showed dark mode initially and switched to light mode after tapping the theme toggle.
+  - `mrc screenshot` flaked after the first capture; no runtime errors in logs.
+- Next step: if desired, run the full push gate (`npm run lint`, `npm run typecheck`, `npm test`, `npm run test:e2e`) before committing.
+
+## WeChat Mini-Program BottomNav Switch Animation (`2026-06-13`)
+
+- Status: implemented.
+- Problem: active item in `BottomNav` animates on first load, but tab switching feels instant because each page re-mounts its own `BottomNav` and applies the active state immediately on mount.
+- Fix:
+  - `wechat_app/src/components/BottomNav.tsx`: added a `mounted` state (initial `false`). After mount, `syncCurrentPath()` runs and a `setTimeout(..., 0)` flips `mounted` to `true`. Active state is forced to `false` while `mounted` is `false`; once `true`, the active item transitions from inactive to active, triggering the existing CSS transition.
+- Verification:
+  - `npm run build:weapp` passed after the change.
+  - WeChat DevTools automation on port 9421: navigated from `/training/today-training` to `/discovery/index` by tapping the discovery nav icon; no runtime errors.
+  - `mrc screenshot` remained flaky, so the animation was not captured visually.
+
 ## Knowledge Base Entry Simplification (`2026-06-06`)
 
 - Task: simplify the Web and WeChat knowledge-base entry pages after the user judged the four-card/body-map/resource-switching layout confusing.

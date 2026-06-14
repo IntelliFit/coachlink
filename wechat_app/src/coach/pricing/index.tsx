@@ -6,6 +6,7 @@ import { coachService } from '@/services/coach/coachService'
 import { authService } from '@/services/authService'
 import './index.scss'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
+import { useTheme } from '@/hooks/useTheme'
 
 type PricingTier = 'basic' | 'standard' | 'vip'
 
@@ -16,6 +17,7 @@ const tierConfig = {
 }
 
 function CoachPricing() {
+  const { effectiveTheme } = useTheme()
   const [pricings, setPricings] = useState<any[]>([])
   const [products, setProducts] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -179,7 +181,7 @@ function CoachPricing() {
   const receivingAccountReady = walletStatus?.huifu_open_status === 'opened'
 
   return (
-    <View className="coach-pricing-page">
+    <View className={`coach-pricing-page theme-${effectiveTheme}`}>
       <View className="page-header">
         <Text className="page-title">订阅定价</Text>
         <View className="header-actions">

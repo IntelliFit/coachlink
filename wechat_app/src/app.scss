@@ -71,28 +71,45 @@ page {
   --shadow-float: 0 8rpx 32rpx rgba(0, 0, 0, 0.4);
 }
 
+/* ==================== 主要 Tab 页面背景统一（亮色主题） ==================== */
+.user-profile-page,
+.today-training-page,
+.discovery-page,
+.knowledge-page,
+.toolbox-page,
+.coach-overview-page {
+  background: linear-gradient(180deg, #E8E8E8 0%, #F8F8F8 100%) !important;
+}
+
 /* ==================== 全局暗色硬编码颜色批量覆盖 ==================== */
 .theme-dark {
-  /* 页面根背景 */
-  .profile-page,
-  .page-with-nav,
-  .page-with-float-nav,
-  .doc-page,
-  .doc-scroll {
-    background: linear-gradient(180deg, #1c1c1c 0%, #141414 100%) !important;
-  }
+  /* 页面根背景：所有带 theme-dark 的页面根节点 */
+  background: var(--bg-page) !important;
+}
 
-  .profile-detail-page,
-  .knowledge-page,
-  .ranking-page,
-  .plan-history-page,
-  .settings-page,
-  .edit-profile-page,
-  .today-training-page,
-  .home-page {
-    background: var(--bg-page) !important;
-  }
+/* 页面根节点同时带有 theme-dark 和页面类名时，强制覆盖页面内联/硬编码背景 */
+.theme-dark.user-profile-page,
+.theme-dark.today-training-page,
+.theme-dark.discovery-page,
+.theme-dark.knowledge-page,
+.theme-dark.toolbox-page,
+.theme-dark.coach-overview-page,
+.theme-dark.profile-page,
+.theme-dark.page-with-nav,
+.theme-dark.page-with-float-nav,
+.theme-dark.doc-page,
+.theme-dark.doc-scroll,
+.theme-dark.profile-detail-page,
+.theme-dark.ranking-page,
+.theme-dark.plan-history-page,
+.theme-dark.settings-page,
+.theme-dark.edit-profile-page,
+.theme-dark.home-page {
+  background: var(--bg-page) !important;
+}
 
+/* ==================== 全局暗色主题内部元素批量覆盖 ==================== */
+.theme-dark {
   /* 白色/浅灰卡片背景 → 暗色卡片 */
   .profile-card,
   .menu-list-card,

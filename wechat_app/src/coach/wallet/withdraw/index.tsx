@@ -3,8 +3,10 @@ import { Button, Input, Text, View } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { coachService } from '@/services/coach/coachService'
 import './index.scss'
+import { useTheme } from '@/hooks/useTheme'
 
 function CoachWalletWithdraw() {
+  const { effectiveTheme } = useTheme()
   const [balance, setBalance] = useState(0)
   const [frozenAmount, setFrozenAmount] = useState(0)
   const [huifuStatus, setHuifuStatus] = useState<string | null>(null)
@@ -78,7 +80,7 @@ function CoachWalletWithdraw() {
   }
 
   return (
-    <View className="withdraw-page">
+    <View className={`withdraw-page theme-${effectiveTheme}`}>
       <View className="balance-card">
         <Text className="label">可提现余额</Text>
         <Text className="amount">¥{loading ? '--' : balance.toFixed(2)}</Text>

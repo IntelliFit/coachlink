@@ -6,6 +6,7 @@ import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { authService } from '@/services/authService'
 import { request } from '@/utils/request'
 import './index.scss'
+import { useTheme } from '@/hooks/useTheme'
 
 interface Friend {
   userId: string
@@ -21,6 +22,7 @@ interface FriendRequest {
 }
 
 function FriendsPage() {
+  const { effectiveTheme } = useTheme()
   const router = useRouter()
   const [friends, setFriends] = useState<Friend[]>([])
   const [requests, setRequests] = useState<FriendRequest[]>([])
@@ -181,7 +183,7 @@ function FriendsPage() {
   }
 
   return (
-    <View className='friends-page'>
+    <View className={`friends-page theme-${effectiveTheme}`}>
       <ScrollView className='page-scroll' scrollY>
         <View className='page-content'>
           {/* 搜索区域 */}

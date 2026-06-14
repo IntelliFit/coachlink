@@ -5,6 +5,7 @@ import BottomNav from '@/components/BottomNav'
 import { coachService } from '@/services/coach/coachService'
 import './index.scss'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
+import { useTheme } from '@/hooks/useTheme'
 
 interface QuestionnaireTemplateItem {
   id: string
@@ -61,6 +62,7 @@ function buildSummary(questions: any[]): QuestionnaireSummary {
 }
 
 function CoachQuestionnaire() {
+  const { effectiveTheme } = useTheme()
   const [templates, setTemplates] = useState<QuestionnaireTemplateItem[]>([])
   const [summaryMap, setSummaryMap] = useState<Record<string, QuestionnaireSummary>>({})
   const [loading, setLoading] = useState(true)
@@ -256,7 +258,7 @@ function CoachQuestionnaire() {
 
   if (loading) {
     return (
-      <View className='coach-questionnaire-page'>
+      <View className={`coach-questionnaire-page theme-${effectiveTheme}`}>
         <View className="loading-wrap"><LoadingSpinner size={48} /></View>
         <BottomNav />
       </View>
@@ -264,7 +266,7 @@ function CoachQuestionnaire() {
   }
 
   return (
-    <View className='coach-questionnaire-page'>
+    <View className={`coach-questionnaire-page theme-${effectiveTheme}`}>
       <ScrollView scrollY className='page-scroll'>
         <View className='hero-card'>
           <View className='hero-card__content'>

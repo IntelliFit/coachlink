@@ -4,11 +4,13 @@ import Taro from '@tarojs/taro'
 import { Check, Close, Clock } from '@nutui/icons-react-taro'
 import { request } from '@/utils/request'
 import './index.scss'
+import { useTheme } from '@/hooks/useTheme'
 
 // 页面状态（后端当前无任务轮询接口，保留 async_pending 作为“已提交”态）
 type PollStatus = 'idle' | 'polling' | 'success' | 'error' | 'async_pending'
 
 export default function GeneratePlanWaiting() {
+  const { effectiveTheme } = useTheme()
   const [loading, setLoading] = useState(false)
   const [tip, setTip] = useState<string>('正在为您制定训练计划...')
   const [pollStatus, setPollStatus] = useState<PollStatus>('idle')
@@ -169,7 +171,7 @@ export default function GeneratePlanWaiting() {
   }
 
   return (
-    <View className='generate-plan-waiting-page'>
+    <View className={`generate-plan-waiting-page theme-${effectiveTheme}`}>
       <View className='waiting-card'>
         <View className='icon-wrap'>
           {renderStatusIcon()}

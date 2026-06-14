@@ -6,10 +6,12 @@ import { coachVideoService } from '@/services/coach/coachVideoService'
 import type { ExecutionSetVideoWithDetails } from '@/services/coach/coachVideoService'
 import './index.scss'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
+import { useTheme } from '@/hooks/useTheme'
 
 type FilterStatus = 'pending' | 'reviewed' | ''
 
 function CoachVideos() {
+  const { effectiveTheme } = useTheme()
   const [videos, setVideos] = useState<ExecutionSetVideoWithDetails[]>([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<FilterStatus>('pending')
@@ -63,7 +65,7 @@ function CoachVideos() {
   }
 
   return (
-    <View className="coach-videos-page">
+    <View className={`coach-videos-page theme-${effectiveTheme}`}>
       <View className="filter-bar">
         <Text
           className={'filter-btn ' + (filter === 'pending' ? 'active' : '')}

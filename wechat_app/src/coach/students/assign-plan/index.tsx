@@ -9,6 +9,7 @@ import { actionLibService } from '@/services/coach/actionLibService'
 import { isOneRMEligibleAction } from '@/utils/oneRmEligibility'
 import './index.scss'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
+import { useTheme } from '@/hooks/useTheme'
 
 interface CoachAction {
   id: string
@@ -68,6 +69,7 @@ const calculateStartedDays = (startDate?: string | null) => {
 }
 
 export default function AssignPlanPage() {
+  const { effectiveTheme } = useTheme()
   const router = useRouter()
   const subscriptionId = String(router.params.subscriptionId || '')
   const [loading, setLoading] = useState(true)
@@ -389,14 +391,14 @@ export default function AssignPlanPage() {
 
   if (loading) {
     return (
-      <View className='assign-plan-page'>
+      <View className={`assign-plan-page theme-${effectiveTheme}`}>
         <View className="loading"><LoadingSpinner size={48} /></View>
       </View>
     )
   }
 
   return (
-    <ScrollView className='assign-plan-page' scrollY>
+    <ScrollView className={`assign-plan-page theme-${effectiveTheme}`} scrollY>
       <View className='assign-plan-page__inner'>
         <View className='assign-plan-hero'>
           <Text className='assign-plan-hero__eyebrow'>计划导入工作台</Text>

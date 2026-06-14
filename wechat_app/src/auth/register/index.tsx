@@ -16,10 +16,12 @@ import SliderCaptcha from '@/components/SliderCaptcha'
 import { User, Lock, Ticket, Message } from '@nutui/icons-react-taro'
 import loginBg from '@/assets/images/login-bg.jpg'
 import './index.scss'
+import { useTheme } from '@/hooks/useTheme'
 
 const IS_DEV = process.env.NODE_ENV === 'development'
 
 function Register() {
+  const { effectiveTheme } = useTheme()
   const [phoneOrEmail, setPhoneOrEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')

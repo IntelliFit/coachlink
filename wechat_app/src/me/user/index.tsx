@@ -5,6 +5,7 @@ import { studentService } from '@/services/studentService'
 import { request } from '@/utils/request'
 import './index.scss'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
+import { useTheme } from '@/hooks/useTheme'
 
 const FITNESS_LEVEL_LABEL_MAP: Record<string, string> = {
   beginner: '零基础',
@@ -41,6 +42,7 @@ interface PendingFriendsData {
 }
 
 export default function UserProfilePage() {
+  const { effectiveTheme } = useTheme()
   const router = useRouter()
   const userId = router.params.userId as string
   
@@ -123,14 +125,14 @@ export default function UserProfilePage() {
 
   if (loading) {
     return (
-      <View className='user-profile-page'>
+      <View className={`user-profile-page theme-${effectiveTheme}`}>
         <View className="loading"><LoadingSpinner size={48} /></View>
       </View>
     )
   }
 
   return (
-    <View className='user-profile-page'>
+    <View className={`user-profile-page theme-${effectiveTheme}`}>
       <ScrollView className='page-scroll' scrollY>
         {/* 用户信息卡片 */}
         <View className='profile-card'>
