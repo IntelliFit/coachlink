@@ -2,8 +2,10 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { View, Text } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import './index.scss'
+import { useTheme } from '@/hooks/useTheme'
 
 function CoachDashboardTrainingExecution() {
+  const { effectiveTheme } = useTheme()
   const params = Taro.getCurrentInstance().router?.params || {}
   const planId = String(params.id || params.planId || '').trim()
   const dayIndexRaw = String(params.dayIndex || params.day || '1')
@@ -43,7 +45,7 @@ function CoachDashboardTrainingExecution() {
   }, [coachId, coachName, dayIndex, isReadOnly, planId])
 
   return (
-    <View className='training-execution-entry-page'>
+    <View className={`training-execution-entry-page theme-${effectiveTheme}`}>
       <View className='entry-card'>
         <Text className='entry-title'>正在进入训练执行页...</Text>
         {errorMsg ? (

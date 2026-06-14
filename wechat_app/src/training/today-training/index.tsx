@@ -48,6 +48,7 @@ import {
   type NormalizedDayTask
 } from './lib/dayModules'
 import './index.scss'
+import { useTheme } from '@/hooks/useTheme'
 
 type PlanMode = 'coach' | 'self'
 type ExecutionStatus = 'none' | 'in_progress' | 'completed'
@@ -81,6 +82,7 @@ const getRemainingDays = (endDate?: string | null) => {
 }
 
 function TodayTraining() {
+  const { effectiveTheme } = useTheme()
   const [coachSubscriptions, setCoachSubscriptions] = useState<any[]>([])
   const [activeCoachSubscriptionId, setActiveCoachSubscriptionId] = useState<string | null>(null)
   const [coachPlanDataBySubId, setCoachPlanDataBySubId] = useState<Record<string, any>>({})
@@ -949,7 +951,7 @@ function TodayTraining() {
 
   if (!hasAnyPlan) {
     return (
-      <View className='today-training-page'>
+      <View className={`today-training-page theme-${effectiveTheme}`}>
         <ScrollView className='page-scroll' scrollY>
           <View className='page-content'>
             <View className='empty-card waiting-card'>
@@ -1024,7 +1026,7 @@ function TodayTraining() {
 
   const waitingCoachPage = planMode === 'coach' && !coachInstance && activeSubscription?.id
   return (
-    <View className='today-training-page'>
+    <View className={`today-training-page theme-${effectiveTheme}`}>
       <ScrollView className='page-scroll' scrollY>
         <View className='page-content'>
           {hasBothPlans && (

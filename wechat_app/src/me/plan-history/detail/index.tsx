@@ -6,8 +6,10 @@ import BottomNav from '@/components/BottomNav'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { request } from '@/utils/request'
 import './index.scss'
+import { useTheme } from '@/hooks/useTheme'
 
 function PlanHistoryDetail() {
+  const { effectiveTheme } = useTheme()
   const router = useRouter()
   const planId = router.params?.id
   const [plan, setPlan] = useState<any>(null)
@@ -58,7 +60,7 @@ function PlanHistoryDetail() {
 
   if (loading) {
     return (
-      <View className='plan-history-detail-page'>
+      <View className={`plan-history-detail-page theme-${effectiveTheme}`}>
         <ScrollView className='page-scroll' scrollY>
           <View className='loading-wrap'>
             <LoadingSpinner size={48} />
@@ -71,7 +73,7 @@ function PlanHistoryDetail() {
 
   if (!plan) {
     return (
-      <View className='plan-history-detail-page'>
+      <View className={`plan-history-detail-page theme-${effectiveTheme}`}>
         <ScrollView className='page-scroll' scrollY>
           <View className='empty-wrap'>
             <Text>计划不存在</Text>
@@ -83,7 +85,7 @@ function PlanHistoryDetail() {
   }
 
   return (
-    <View className='plan-history-detail-page'>
+    <View className={`plan-history-detail-page theme-${effectiveTheme}`}>
       <ScrollView className='page-scroll' scrollY>
         <View className='page-content'>
           <View className='plan-header'>

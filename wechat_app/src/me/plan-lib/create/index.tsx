@@ -6,8 +6,10 @@ import { studentActionLibService } from '@/services/studentActionLibService'
 import { studentPlanLibService } from '@/services/studentPlanLibService'
 import { studentService } from '@/services/studentService'
 import type { PlanActionOption, PlanEditorValue } from '@/types/plan'
+import { useTheme } from '@/hooks/useTheme'
 
 export default function StudentPlanLibCreate() {
+  const { effectiveTheme } = useTheme()
   const [actions, setActions] = useState<PlanActionOption[]>([])
   const [initialValue, setInitialValue] = useState<Partial<PlanEditorValue> | null>(null)
   const [studentProfile, setStudentProfile] = useState<Record<string, any> | null>(null)

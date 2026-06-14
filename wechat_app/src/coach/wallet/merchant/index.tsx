@@ -8,6 +8,7 @@ import {
 } from '@/config/huifuAccountOptions'
 import { coachService } from '@/services/coach/coachService'
 import './index.scss'
+import { useTheme } from '@/hooks/useTheme'
 
 type FormState = {
   name: string
@@ -66,6 +67,7 @@ async function fileToBase64(filePath: string) {
 }
 
 function CoachWalletMerchant() {
+  const { effectiveTheme } = useTheme()
   const [step, setStep] = useState<0 | 1>(0)
   const [form, setForm] = useState<FormState>(initialForm)
   const [submitting, setSubmitting] = useState(false)
@@ -158,7 +160,7 @@ function CoachWalletMerchant() {
   }
 
   return (
-    <View className="merchant-page">
+    <View className={`merchant-page theme-${effectiveTheme}`}>
       <ScrollView scrollY className="merchant-scroll">
         <View className="notice-card">
           <Text className="notice-title">汇付收款账户</Text>

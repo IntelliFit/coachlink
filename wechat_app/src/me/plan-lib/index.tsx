@@ -7,6 +7,7 @@ import { studentActionLibService } from '@/services/studentActionLibService'
 import { studentPlanLibService } from '@/services/studentPlanLibService'
 import './index.scss'
 import { Book, Calendar, Clock, Close } from '@nutui/icons-react-taro'
+import { useTheme } from '@/hooks/useTheme'
 
 interface PlanFavorite {
   id: string
@@ -24,6 +25,7 @@ interface Action {
 }
 
 export default function PlanLibPage() {
+  const { effectiveTheme } = useTheme()
   const [favorites, setFavorites] = useState<PlanFavorite[]>([])
   const [actions, setActions] = useState<Action[]>([])
   const [loading, setLoading] = useState(true)
@@ -214,7 +216,7 @@ export default function PlanLibPage() {
 
   if (loading) {
     return (
-      <View className='plan-lib-page'>
+      <View className={`plan-lib-page theme-${effectiveTheme}`}>
         <ScrollView className='page-scroll' scrollY>
           <View className='loading-container'>
             {[1, 2, 3].map(i => (
@@ -231,7 +233,7 @@ export default function PlanLibPage() {
   }
 
   return (
-    <View className='plan-lib-page'>
+    <View className={`plan-lib-page theme-${effectiveTheme}`}>
       <ScrollView className='page-scroll' scrollY>
         <View className='page-content'>
           <View className='page-header'>

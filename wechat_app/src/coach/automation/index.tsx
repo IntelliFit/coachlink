@@ -6,6 +6,7 @@ import { Icon } from '@/components/Icon'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { coachService } from '@/services/coach/coachService'
 import './index.scss'
+import { useTheme } from '@/hooks/useTheme'
 
 type Policy = {
   initialPlanMode: string
@@ -163,6 +164,7 @@ function canApplyDraft(draft: any) {
 }
 
 export default function CoachAutomationPage() {
+  const { effectiveTheme } = useTheme()
   const [policy, setPolicy] = useState<Policy>(DEFAULT_POLICY)
   const [source, setSource] = useState('default')
   const [jobs, setJobs] = useState<any[]>([])
@@ -239,7 +241,7 @@ export default function CoachAutomationPage() {
 
   if (loading) {
     return (
-      <View className='automation-page'>
+      <View className={`automation-page theme-${effectiveTheme}`}>
         <View className='loading-wrap'>
           <LoadingSpinner size={48} />
         </View>
@@ -248,7 +250,7 @@ export default function CoachAutomationPage() {
   }
 
   return (
-    <View className='automation-page'>
+    <View className={`automation-page theme-${effectiveTheme}`}>
       <ScrollView scrollY className='automation-scroll'>
         <View className='header'>
           <View className='header-icon'>

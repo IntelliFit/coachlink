@@ -12,6 +12,7 @@ import {
   openCoachLinkShareMenu
 } from '@/utils/share'
 import './index.scss'
+import { useTheme } from '@/hooks/useTheme'
 
 const TOOLBOX_LINKS = [
   {
@@ -38,6 +39,7 @@ const TOOLBOX_LINKS = [
 ]
 
 function ToolboxPage() {
+  const { effectiveTheme } = useTheme()
   const sharePayload = useMemo(
     () =>
       createSharePayload({
@@ -63,7 +65,7 @@ function ToolboxPage() {
   }
 
   return (
-    <View className='toolbox-page'>
+    <View className={`toolbox-page theme-${effectiveTheme}`}>
       <ScrollView className='page-scroll' scrollY>
         <View className='page-content'>
           <View className='tools-grid'>

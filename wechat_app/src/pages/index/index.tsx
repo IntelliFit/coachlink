@@ -5,8 +5,10 @@ import BottomNav from '@/components/BottomNav'
 import { authService } from '@/services/authService'
 import { Power, Search, Setting, Book, ShieldCheck, Target, ArrowUp } from '@nutui/icons-react-taro'
 import './index.scss'
+import { useTheme } from '@/hooks/useTheme'
 
 function Index() {
+  const { effectiveTheme } = useTheme()
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [userName, setUserName] = useState('')
 
@@ -126,7 +128,7 @@ function Index() {
   ]
 
   return (
-    <View className='home-page page-with-float-nav'>
+    <View className={`home-page page-with-float-nav theme-${effectiveTheme}`}>
       <View className='home-header'>
         <View className='home-header-left'>
           <Text className='home-greeting'>

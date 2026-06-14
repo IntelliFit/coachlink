@@ -3,6 +3,7 @@ import { View, Text, Textarea, Button, ScrollView } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { request } from '@/utils/request'
 import './index.scss'
+import { useTheme } from '@/hooks/useTheme'
 
 /** 常问问题（与网页端 feedback 一致） */
 const FAQ_QUESTIONS = [
@@ -15,6 +16,7 @@ const FAQ_QUESTIONS = [
 ]
 
 export default function Feedback() {
+  const { effectiveTheme } = useTheme()
   const [content, setContent] = useState('')
   const [selectedQuestion, setSelectedQuestion] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -68,7 +70,7 @@ export default function Feedback() {
   }
 
   return (
-    <View className="feedback-page">
+    <View className={`feedback-page theme-${effectiveTheme}`}>
       <ScrollView scrollY className="feedback-scroll">
         <View className="feedback-header">
           <Text className="feedback-title">意见反馈</Text>

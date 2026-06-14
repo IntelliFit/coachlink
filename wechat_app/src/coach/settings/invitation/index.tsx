@@ -5,8 +5,10 @@ import { coachService } from '@/services/coach/coachService'
 import BottomNav from '@/components/BottomNav'
 import './index.scss'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
+import { useTheme } from '@/hooks/useTheme'
 
 function CoachInvitationSettings() {
+  const { effectiveTheme } = useTheme()
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [coach, setCoach] = useState<any>(null)
@@ -196,7 +198,7 @@ function CoachInvitationSettings() {
 
   if (loading) {
     return (
-      <View className="invitation-settings-page">
+      <View className={`invitation-settings-page theme-${effectiveTheme}`}>
         <View className="loading-wrap"><LoadingSpinner size={48} /></View>
         <BottomNav />
       </View>
@@ -204,7 +206,7 @@ function CoachInvitationSettings() {
   }
 
   return (
-    <View className="invitation-settings-page">
+    <View className={`invitation-settings-page theme-${effectiveTheme}`}>
       <ScrollView scrollY className="settings-scroll" style={{ paddingBottom: '70px' }}>
         <View className="settings-card">
           <Text className="card-title">邀请码</Text>

@@ -14,6 +14,7 @@ import {
 } from '@/utils/share'
 import './index.scss'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
+import { useTheme } from '@/hooks/useTheme'
 
 const getMonthKey = (date: Date) => {
   const year = date.getFullYear()
@@ -28,6 +29,7 @@ const getSourceLabel = (sourceType: string) => {
 }
 
 export default function TrainingHistoryPage() {
+  const { effectiveTheme } = useTheme()
   const [currentMonth, setCurrentMonth] = useState(() => new Date())
   const [calendarDays, setCalendarDays] = useState<Record<string, number>>({})
   const [selectedDate, setSelectedDate] = useState<string>('')
@@ -139,7 +141,7 @@ export default function TrainingHistoryPage() {
   }, [])
 
   return (
-    <View className='training-history-page'>
+    <View className={`training-history-page theme-${effectiveTheme}`}>
       <View className='page-header'>
         <View className='header-left' onClick={() => Taro.navigateBack()}>
           <Text className='back-icon'>←</Text>

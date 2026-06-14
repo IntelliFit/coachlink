@@ -5,6 +5,7 @@ import BottomNav from '@/components/BottomNav'
 import { trainingService, PlanInstance } from '@/services/trainingService'
 import { executionService } from '@/services/executionService'
 import './index.scss'
+import { useTheme } from '@/hooks/useTheme'
 
 interface DayExecutionSummary {
   id?: string
@@ -24,6 +25,7 @@ const getStartOfDay = (date: Date) => {
 }
 
 function CoachPlanDashboard() {
+  const { effectiveTheme } = useTheme()
   const params = Taro.getCurrentInstance().router?.params || {}
   const planId = String(params.id || '').trim()
   const coachId = params.coachId ? decodeURIComponent(String(params.coachId)) : ''
@@ -210,7 +212,7 @@ function CoachPlanDashboard() {
 
   if (!planId) {
     return (
-      <View className='plan-dashboard-page'>
+      <View className={`plan-dashboard-page theme-${effectiveTheme}`}>
         <View className='loading-wrap'>参数错误</View>
         <BottomNav />
       </View>
@@ -219,7 +221,7 @@ function CoachPlanDashboard() {
 
   if (loading) {
     return (
-      <View className='plan-dashboard-page'>
+      <View className={`plan-dashboard-page theme-${effectiveTheme}`}>
         <ScrollView scrollY className='dashboard-scroll'>
           <View className='skeleton-card'>
             <View className='skeleton-line title' />
@@ -239,7 +241,7 @@ function CoachPlanDashboard() {
 
   if (!instance) {
     return (
-      <View className='plan-dashboard-page'>
+      <View className={`plan-dashboard-page theme-${effectiveTheme}`}>
         <ScrollView scrollY className='dashboard-scroll'>
           <View className='empty-card'>
             <Text className='empty-title'>未找到训练计划</Text>
@@ -269,7 +271,7 @@ function CoachPlanDashboard() {
           : '开始训练'
 
   return (
-    <View className='plan-dashboard-page'>
+    <View className={`plan-dashboard-page theme-${effectiveTheme}`}>
       <ScrollView scrollY className='dashboard-scroll'>
         <View className='plan-card'>
           <Text className='plan-title'>{instance.name || '训练计划'}</Text>

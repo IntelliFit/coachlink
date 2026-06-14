@@ -4,8 +4,10 @@ import PlanEditorWorkbench from '@/components/PlanEditorWorkbench'
 import { actionLibService } from '@/services/coach/actionLibService'
 import { planLibService } from '@/services/coach/planLibService'
 import type { PlanActionOption, PlanEditorValue } from '@/types/plan'
+import { useTheme } from '@/hooks/useTheme'
 
 export default function CoachPlanLibEdit() {
+  const { effectiveTheme } = useTheme()
   const templateId = Taro.getCurrentInstance().router?.params?.id || ''
   const [actions, setActions] = useState<PlanActionOption[]>([])
   const [loading, setLoading] = useState(true)

@@ -12,6 +12,7 @@ import {
 } from '@/services/actionLibPageService'
 import type { PublicActionItemDto } from '@/types/action'
 import './index.scss'
+import { useTheme } from '@/hooks/useTheme'
 
 interface Action {
   id: string
@@ -158,6 +159,7 @@ function cacheAndOpenActionDetail(action: {
 }
 
 export default function ActionLibPage() {
+  const { effectiveTheme } = useTheme()
   const router = useRouter()
   const [activeTab, setActiveTab] = useState<TabKey>('mine')
   const [actions, setActions] = useState<Action[]>([])
@@ -618,7 +620,7 @@ export default function ActionLibPage() {
   }
 
   return (
-    <View className='action-lib-page'>
+    <View className={`action-lib-page theme-${effectiveTheme}`}>
       <View className='top-bar'>
         <View className='close-btn' onClick={() => Taro.navigateBack().catch(() => Taro.reLaunch({ url: '/pages/index/index' }))}>
           <Text>×</Text>

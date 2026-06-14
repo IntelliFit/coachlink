@@ -20,6 +20,7 @@ import QuestionnaireForm from '@/components/QuestionnaireForm'
 import BottomNav from '@/components/BottomNav'
 import './index.scss'
 import { Edit, Video, Clock } from '@nutui/icons-react-taro'
+import { useTheme } from '@/hooks/useTheme'
 
 type ProfileTab = 'timeline' | 'questionnaire' | 'video'
 
@@ -41,6 +42,7 @@ interface ProfileData {
 }
 
 function ProfileDetail() {
+    const { effectiveTheme } = useTheme()
     const [profileData, setProfileData] = useState<any>(null)
     const [subscription, setSubscription] = useState<any>(null)
     const [statsData, setStatsData] = useState<any>(null)

@@ -14,6 +14,7 @@ import { API_BASE_URL } from '@/utils/request'
 import './index.scss'
 import { Image as ImageIcon } from '@nutui/icons-react-taro'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
+import { useTheme } from '@/hooks/useTheme'
 
 function buildMessagePreview(message: MessageItem): string {
   const text = (message.content || '').trim()
@@ -47,6 +48,7 @@ function normalizeVideoReference(video: VideoItem): VideoReferenceItem {
 }
 
 function ChatPage() {
+  const { effectiveTheme } = useTheme()
   const router = useRouter()
   const roomId = router.params?.roomId || ''
   const peerName = router.params?.peerName ? decodeURIComponent(router.params.peerName) : '聊天'
@@ -681,7 +683,7 @@ function ChatPage() {
 
   if (!roomId) {
     return (
-      <View className="chat-page">
+      <View className={`chat-page theme-${effectiveTheme}`}>
         <View className="loading-wrap">
           <Text>缺少会话信息</Text>
         </View>
@@ -690,7 +692,7 @@ function ChatPage() {
   }
 
   return (
-    <View className="chat-page">
+    <View className={`chat-page theme-${effectiveTheme}`}>
       <View className="chat-search-bar">
         <Input
           className="chat-search-input"

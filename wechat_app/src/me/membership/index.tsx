@@ -5,6 +5,7 @@ import BottomNav from '@/components/BottomNav'
 import { request } from '@/utils/request'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import './index.scss'
+import { useTheme } from '@/hooks/useTheme'
 
 type MembershipTier = 'free' | 'basic' | 'premium' | 'trial'
 
@@ -42,6 +43,7 @@ const TIER_TONE_CLASS: Record<MembershipTier, string> = {
 }
 
 export default function MembershipPage() {
+  const { effectiveTheme } = useTheme()
   const [membership, setMembership] = useState<MembershipData | null>(null)
   const [quota, setQuota] = useState<QuotaData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -94,7 +96,7 @@ export default function MembershipPage() {
 
   if (loading) {
     return (
-      <View className='membership-page'>
+      <View className={`membership-page theme-${effectiveTheme}`}>
         <View className='loading-wrap'>
           <LoadingSpinner size={48} />
         </View>
@@ -116,7 +118,7 @@ export default function MembershipPage() {
       : ''
 
   return (
-    <View className='membership-page'>
+    <View className={`membership-page theme-${effectiveTheme}`}>
       <ScrollView className='page-scroll' scrollY>
         <View className='page-content'>
           <View className='status-card'>

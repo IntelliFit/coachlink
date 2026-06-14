@@ -4,8 +4,10 @@ import Taro, { useRouter } from '@tarojs/taro'
 import { getScenarioQuickFix, type ScenarioQuickFix } from '@/constants/scenarioQuickFixes'
 import { ScenarioNutIcon } from '@/components/ScenarioNutIcon'
 import './index.scss'
+import { useTheme } from '@/hooks/useTheme'
 
 export default function ScenarioDetailPage() {
+  const { effectiveTheme } = useTheme()
   const router = useRouter()
   const slug = String(router.params?.slug || '')
   const [scenario, setScenario] = useState<ScenarioQuickFix | null>(null)
@@ -42,7 +44,7 @@ export default function ScenarioDetailPage() {
 
   if (!scenario) {
     return (
-      <View className='scenario-page'>
+      <View className={`scenario-page theme-${effectiveTheme}`}>
         <View className='nav-bar'>
           <Text className='nav-back' onClick={handleBack}>返回</Text>
           <Text className='nav-title'>场景放松</Text>
@@ -59,7 +61,7 @@ export default function ScenarioDetailPage() {
   const finished = completedSteps.length === scenario.steps.length && scenario.steps.length > 0
 
   return (
-    <View className='scenario-page'>
+    <View className={`scenario-page theme-${effectiveTheme}`}>
       <View className='nav-bar'>
         <Text className='nav-back' onClick={handleBack}>返回</Text>
         <Text className='nav-title'>{scenario.title}</Text>
