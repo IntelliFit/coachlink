@@ -19,6 +19,7 @@ import { Clock } from '@nutui/icons-react-taro'
 import maleFrontSvgRaw from '@/assets/body-map/maleFrontSvg'
 import maleBackSvgRaw from '@/assets/body-map/maleBackSvg'
 import './index.scss'
+import { useTheme } from '@/hooks/useTheme'
 
 const RETURN_CONFIRM_STORAGE_KEY = 'today_training_last_confirmed_day'
 const EXECUTION_LOAD_TIMEOUT_MS = 12000
@@ -243,6 +244,7 @@ function inferMusclesForAction(actionExecution: ActionExecution, actionDetail: a
 }
 
 function TrainingExecution() {
+  const { effectiveTheme } = useTheme()
   const instance = Taro.getCurrentInstance()
   const instanceId = instance.router?.params?.instanceId as string
   const impromptuId = instance.router?.params?.impromptuId as string
@@ -1530,7 +1532,7 @@ function TrainingExecution() {
 
   if (loading) {
     return (
-      <View className="training-execution-page">
+      <View className={`training-execution-page theme-${effectiveTheme}`}>
         <View className="loading-wrap">
           <Text>加载中...</Text>
         </View>
@@ -1540,7 +1542,7 @@ function TrainingExecution() {
 
   if (!execution) {
     return (
-      <View className="training-execution-page">
+      <View className={`training-execution-page theme-${effectiveTheme}`}>
         <View className="error-wrap">
           <Text>加载失败，请重试</Text>
           <Button onClick={startTraining}>重试</Button>
@@ -1827,7 +1829,7 @@ function TrainingExecution() {
   }
 
   return (
-    <View className="training-execution-page">
+    <View className={`training-execution-page theme-${effectiveTheme}`}>
       <ScrollView scrollY className="execution-scroll">
         <View className="execution-shell">
           <View className="hero-section">

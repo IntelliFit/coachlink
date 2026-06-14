@@ -6,10 +6,12 @@ import { planLibService } from '@/services/coach/planLibService'
 import { formatDateYMD } from '@/utils/dateFormat'
 import './index.scss'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
+import { useTheme } from '@/hooks/useTheme'
 
 type TemplateType = '' | 'beginner' | 'strength'
 
 export default function CoachPlanLib() {
+  const { effectiveTheme } = useTheme()
   const [templates, setTemplates] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -155,7 +157,7 @@ export default function CoachPlanLib() {
   }
 
   return (
-    <View className='coach-plan-lib-page'>
+    <View className={`coach-plan-lib-page theme-${effectiveTheme}`}>
       <ScrollView scrollY className='coach-plan-lib-page__scroll'>
         <View className='coach-plan-lib-page__content'>
           <View className='coach-plan-lib-page__hero'>

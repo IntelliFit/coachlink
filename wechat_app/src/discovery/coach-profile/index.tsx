@@ -27,6 +27,7 @@ import PricingSection from './components/PricingSection'
 import ReviewsSection from './components/ReviewsSection'
 import { authService } from '@/services/authService'
 import './index.scss'
+import { useTheme } from '@/hooks/useTheme'
 
 type PageState = 'loading' | 'success' | 'error'
 
@@ -38,6 +39,7 @@ const TAB_CONTENT = 2
 const TAB_REVIEWS = 3
 
 export default function CoachProfile() {
+  const { effectiveTheme } = useTheme()
   const [coachId, setCoachId] = useState<string>('')
   const [coach, setCoach] = useState<CoachRow | null>(null)
   const [aggregatedInfo, setAggregatedInfo] = useState<GetAggregatedInfoResponseDto | null>(null)
@@ -443,7 +445,7 @@ export default function CoachProfile() {
 
   if (pageState === 'loading') {
     return (
-      <View className='coach-profile-page'>
+      <View className={`coach-profile-page theme-${effectiveTheme}`}>
         <View className='skeleton-wrap'>
           <View className='skeleton-header'>
             <View className='skeleton-avatar' />
@@ -462,7 +464,7 @@ export default function CoachProfile() {
 
   if (pageState === 'error') {
     return (
-      <View className='coach-profile-page'>
+      <View className={`coach-profile-page theme-${effectiveTheme}`}>
         <View className='error-wrap'>
           <Text className='error-text'>{errorMsg}</Text>
           <View className='btn-retry' onClick={load}>
@@ -497,7 +499,7 @@ export default function CoachProfile() {
   ]
 
   return (
-    <View className='coach-profile-page'>
+    <View className={`coach-profile-page theme-${effectiveTheme}`}>
       <ScrollView
         scrollY
         className='scroll-wrap'

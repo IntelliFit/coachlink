@@ -5,8 +5,10 @@ import { authService } from '@/services/authService'
 import { coachService } from '@/services/coach/coachService'
 import BottomNav from '@/components/BottomNav'
 import './index.scss'
+import { useTheme } from '@/hooks/useTheme'
 
 function CoachProfile() {
+  const { effectiveTheme } = useTheme()
   const [message, setMessage] = useState('正在跳转...')
 
   useEffect(() => {
@@ -69,7 +71,7 @@ function CoachProfile() {
   }
 
   return (
-    <View className='coach-profile-page'>
+    <View className={`coach-profile-page theme-${effectiveTheme}`}>
       <View className='loading-wrap'>
         <Text>{message}</Text>
       </View>

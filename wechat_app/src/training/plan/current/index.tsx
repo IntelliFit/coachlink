@@ -6,8 +6,10 @@ import { trainingService, PlanInstance } from '@/services/trainingService'
 import { subscriptionService } from '@/services/subscriptionService'
 import { Calendar, Location, Star, Target, User } from '@nutui/icons-react-taro'
 import './index.scss'
+import { useTheme } from '@/hooks/useTheme'
 
 function PlanCurrent() {
+  const { effectiveTheme } = useTheme()
   const [loading, setLoading] = useState(true)
   const [subscription, setSubscription] = useState<any>(null)
 
@@ -149,7 +151,7 @@ function PlanCurrent() {
 
   if (loading) {
     return (
-      <View className="plan-current-page">
+      <View className={`plan-current-page theme-${effectiveTheme}`}>
         <ScrollView className="page-scroll" scrollY>
           <View className="loading-container">
             <View className="skeleton-card">
@@ -180,7 +182,7 @@ function PlanCurrent() {
 
     if (hasActiveSubscription) {
       return (
-        <View className="plan-current-page">
+        <View className={`plan-current-page theme-${effectiveTheme}`}>
           <ScrollView className="page-scroll" scrollY>
             <View className="page-content">
               <View className="empty-card waiting-card">
@@ -211,7 +213,7 @@ function PlanCurrent() {
     }
 
     return (
-      <View className="plan-current-page">
+      <View className={`plan-current-page theme-${effectiveTheme}`}>
         <ScrollView className="page-scroll" scrollY>
           <View className="page-content">
             <View className="empty-card">
@@ -249,7 +251,7 @@ function PlanCurrent() {
   const completedCount = Object.keys(completionDates).length
 
   return (
-    <View className="plan-current-page">
+    <View className={`plan-current-page theme-${effectiveTheme}`}>
       <ScrollView className="page-scroll" scrollY>
         <View className="page-content">
           {hasBothPlans && (

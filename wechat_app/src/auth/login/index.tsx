@@ -17,6 +17,7 @@ import ResetPasswordForm from '@/components/ResetPasswordForm'
 
 import loginBg from '@/assets/images/login-bg.jpg'
 import './index.scss'
+import { useTheme } from '@/hooks/useTheme'
 
 const IS_DEV = process.env.NODE_ENV === 'development'
 
@@ -77,6 +78,7 @@ const TEXT = {
 type LoginMode = 'wechat' | 'password' | 'verifyCode'
 
 function Login() {
+  const { effectiveTheme } = useTheme()
   const [loginMode, setLoginMode] = useState<LoginMode>('wechat')
   const [showResetPassword, setShowResetPassword] = useState(false)
   const [showWechatPhoneAuthPrompt, setShowWechatPhoneAuthPrompt] = useState(false)

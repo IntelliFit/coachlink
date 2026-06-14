@@ -5,6 +5,7 @@ import BottomNav from '@/components/BottomNav'
 import { coachService } from '@/services/coach/coachService'
 import './index.scss'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
+import { useTheme } from '@/hooks/useTheme'
 
 type WalletData = {
   balance: number
@@ -16,6 +17,7 @@ type WalletData = {
 }
 
 function CoachWallet() {
+  const { effectiveTheme } = useTheme()
   const [walletData, setWalletData] = useState<WalletData | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -70,7 +72,7 @@ function CoachWallet() {
   const isHuifuOpened = walletData?.huifu_open_status === 'opened'
 
   return (
-    <View className="coach-wallet-page">
+    <View className={`coach-wallet-page theme-${effectiveTheme}`}>
       {loading ? (
         <View className="loading-wrap"><LoadingSpinner size={48} /></View>
       ) : (

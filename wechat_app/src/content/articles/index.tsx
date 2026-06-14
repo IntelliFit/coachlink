@@ -5,6 +5,7 @@ import Taro from '@tarojs/taro'
 import { knowledgeService } from '@/services/knowledgeService'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import './index.scss'
+import { useTheme } from '@/hooks/useTheme'
 
 interface ArticleListItem {
   id: string
@@ -34,6 +35,7 @@ function formatDate(dateText?: string): string {
 }
 
 export default function ArticlesPage() {
+  const { effectiveTheme } = useTheme()
   const [articles, setArticles] = useState<ArticleListItem[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -87,7 +89,7 @@ export default function ArticlesPage() {
   }
 
   return (
-    <View className='articles-page'>
+    <View className={`articles-page theme-${effectiveTheme}`}>
       <View className='articles-header'>
         <Text className='articles-page-title'>教练专栏</Text>
         <Text className='articles-page-sub'>精选教练文章，持续输出训练认知</Text>

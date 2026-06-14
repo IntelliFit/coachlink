@@ -6,11 +6,13 @@ import { useState } from 'react'
 import { View, Text, WebView } from '@tarojs/components'
 import Taro, { useRouter } from '@tarojs/taro'
 import './index.scss'
+import { useTheme } from '@/hooks/useTheme'
 
 const WEB_BASE = 'https://coachlink.fit'
 const COACH_SUBSCRIBE_TAB_INDEX = '1'
 
 export default function PaymentWebview() {
+  const { effectiveTheme } = useTheme()
   const router = useRouter()
   const [webviewError, setWebviewError] = useState(false)
   const [reloadKey, setReloadKey] = useState(0)
@@ -106,7 +108,7 @@ export default function PaymentWebview() {
 
   if (webviewError || missingRequiredParam) {
     return (
-      <View className='payment-webview-fallback'>
+      <View className={`payment-webview-fallback theme-${effectiveTheme}`}>
         <View className='fallback-card'>
           <Text className='fallback-title'>{fallbackTitle}</Text>
           <Text className='fallback-desc'>{fallbackDesc}</Text>
@@ -126,7 +128,7 @@ export default function PaymentWebview() {
   }
 
   return (
-    <View className='payment-webview-page'>
+    <View className={`payment-webview-page theme-${effectiveTheme}`}>
       <WebView
         key={reloadKey}
         src={url}

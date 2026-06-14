@@ -8,8 +8,10 @@ import BottomNav from '@/components/BottomNav'
 import { rankingService } from '@/services/rankingService'
 import type { ListLeaderboardItem } from '@/types/leaderboard'
 import './index.scss'
+import { useTheme } from '@/hooks/useTheme'
 
 function RankingIndex() {
+  const { effectiveTheme } = useTheme()
   const [leaderboards, setLeaderboards] = useState<ListLeaderboardItem[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -91,7 +93,7 @@ function RankingIndex() {
   )
 
   return (
-    <View className="ranking-page">
+    <View className={`ranking-page theme-${effectiveTheme}`}>
       {loading ? (
         renderSkeleton()
       ) : leaderboards.length === 0 ? (

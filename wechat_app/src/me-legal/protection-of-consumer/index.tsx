@@ -1,10 +1,12 @@
 import React from 'react'
 import { View, Text, ScrollView } from '@tarojs/components'
 import './index.scss'
+import { useTheme } from '@/hooks/useTheme'
 
 export default function ProtectionOfConsumer() {
+  const { effectiveTheme } = useTheme()
   return (
-    <View className='doc-page'>
+    <View className={`doc-page theme-${effectiveTheme}`}>
       <ScrollView scrollY className='doc-scroll'>
         <View className='doc-card'>
           <Text className='doc-meta'>

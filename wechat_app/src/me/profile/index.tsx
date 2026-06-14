@@ -41,6 +41,7 @@ const EMPTY_PROFILE_STATS: ProfileStats = {
 }
 
 function Profile() {
+  const { effectiveTheme } = useTheme()
   const { isDark, toggleTheme } = useTheme()
   const [user, setUser] = useState<any>(null)
   const [coachId, setCoachId] = useState<string | null>(null)
@@ -452,7 +453,7 @@ function Profile() {
   }
 
   return (
-    <View className='profile-page'>
+    <View className={`profile-page theme-${effectiveTheme}`}>
       <View className='myContainer'>
         <View className='profile-card'>
           <View className='profile-card-header'>

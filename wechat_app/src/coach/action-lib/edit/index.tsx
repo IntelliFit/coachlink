@@ -5,6 +5,7 @@ import Taro from '@tarojs/taro'
 import { actionLibService } from '@/services/coach/actionLibService'
 import './index.scss'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
+import { useTheme } from '@/hooks/useTheme'
 
 const ACTION_TYPES = [
   { label: '力量训练', value: 'STRENGTH' },
@@ -17,6 +18,7 @@ const POSITIONS = ['胸部', '背部', '腿部', '肩部', '手臂', '核心', '
 const ATTRS = ['组数', '次数', '强度', '持续时间', '休息时间']
 
 function CoachActionLibEdit() {
+  const { effectiveTheme } = useTheme()
   const actionId = Taro.getCurrentInstance().router?.params?.id
   const isEdit = !!actionId
   const [name, setName] = useState('')
@@ -146,14 +148,14 @@ function CoachActionLibEdit() {
 
   if (loading) {
     return (
-      <View className="coach-action-lib-edit-page">
+      <View className={`coach-action-lib-edit-page theme-${effectiveTheme}`}>
         <View className="loading-wrap"><LoadingSpinner size={48} /></View>
       </View>
     )
   }
 
   return (
-    <View className="coach-action-lib-edit-page">
+    <View className={`coach-action-lib-edit-page theme-${effectiveTheme}`}>
       <View className="header">
         <Button className="back-btn" onClick={() => Taro.navigateBack()}>返回</Button>
         <Text className="title">{isEdit ? '编辑动作' : '新建动作'}</Text>

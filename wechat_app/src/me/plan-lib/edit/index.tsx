@@ -6,8 +6,10 @@ import { studentActionLibService } from '@/services/studentActionLibService'
 import { studentPlanLibService } from '@/services/studentPlanLibService'
 import { studentService } from '@/services/studentService'
 import type { PlanActionOption, PlanEditorValue } from '@/types/plan'
+import { useTheme } from '@/hooks/useTheme'
 
 export default function StudentPlanLibEdit() {
+  const { effectiveTheme } = useTheme()
   const router = useRouter()
   const favoriteId = String(router.params.id || '')
   const [actions, setActions] = useState<PlanActionOption[]>([])

@@ -23,6 +23,7 @@ import {
 import { coachService } from '@/services/coach/coachService'
 import './index.scss'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
+import { useTheme } from '@/hooks/useTheme'
 
 interface OverviewData {
   totalStudentCount: number
@@ -77,6 +78,7 @@ function normalizeOverviewData(payload: any): OverviewData | null {
 }
 
 function CoachOverview() {
+  const { effectiveTheme } = useTheme()
   const [data, setData] = useState<OverviewData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -132,7 +134,7 @@ function CoachOverview() {
 
   if (loading) {
     return (
-      <View className="coach-overview-page">
+      <View className={`coach-overview-page theme-${effectiveTheme}`}>
         <View className="loading-wrap"><LoadingSpinner size={48} /></View>
         <BottomNav />
       </View>
@@ -141,7 +143,7 @@ function CoachOverview() {
 
   if (error) {
     return (
-      <View className="coach-overview-page">
+      <View className={`coach-overview-page theme-${effectiveTheme}`}>
         <View className="error-wrap">{error}</View>
         <BottomNav />
       </View>
@@ -150,7 +152,7 @@ function CoachOverview() {
 
   if (!data) {
     return (
-      <View className="coach-overview-page">
+      <View className={`coach-overview-page theme-${effectiveTheme}`}>
         <View className="loading-wrap">暂无数据</View>
         <BottomNav />
       </View>
@@ -158,7 +160,7 @@ function CoachOverview() {
   }
 
   return (
-    <View className="coach-overview-page">
+    <View className={`coach-overview-page theme-${effectiveTheme}`}>
     <ScrollView scrollY className="coach-overview-scroll">
       {/* 业务概览 */}
       <View className="section">

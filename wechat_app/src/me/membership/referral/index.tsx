@@ -19,6 +19,7 @@ import {
 import './index.scss'
 import { File, Star } from '@nutui/icons-react-taro'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
+import { useTheme } from '@/hooks/useTheme'
 
 interface ReferralData {
   code: string
@@ -44,6 +45,7 @@ interface ReferralStatsData {
 }
 
 function MembershipReferral() {
+  const { effectiveTheme } = useTheme()
   const [referralData, setReferralData] = useState<ReferralData | null>(null)
   const [loading, setLoading] = useState(true)
   const inviteFromParams = useMemo(() => {
@@ -169,7 +171,7 @@ function MembershipReferral() {
 
   if (loading) {
     return (
-      <View className='referral-page'>
+      <View className={`referral-page theme-${effectiveTheme}`}>
         <ScrollView className='page-scroll' scrollY>
           <View className='loading-wrap'>
             <LoadingSpinner size={48} />
@@ -181,7 +183,7 @@ function MembershipReferral() {
   }
 
   return (
-    <View className='referral-page'>
+    <View className={`referral-page theme-${effectiveTheme}`}>
       <ScrollView className='page-scroll' scrollY>
         <View className='page-content'>
           <View className='page-header'>

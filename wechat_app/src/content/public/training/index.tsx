@@ -11,6 +11,7 @@ import {
 } from '@/utils/share'
 import './index.scss'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
+import { useTheme } from '@/hooks/useTheme'
 
 interface ActionExecutionSummary {
   actionName: string
@@ -51,6 +52,7 @@ function formatDateTime(input: string) {
  * 无需登录，通过公开接口展示一次训练的概要数据
  */
 export default function PublicTrainingPage() {
+  const { effectiveTheme } = useTheme()
   const [loading, setLoading] = useState(true)
   const [data, setData] = useState<PublicTrainingData | null>(null)
   const params = Taro.getCurrentInstance().router?.params || {}
@@ -109,7 +111,7 @@ export default function PublicTrainingPage() {
 
   if (loading) {
     return (
-      <View className="public-training-page">
+      <View className={`public-training-page theme-${effectiveTheme}`}>
         <View className="loading-wrap">
           <LoadingSpinner size={48} />
         </View>
@@ -119,7 +121,7 @@ export default function PublicTrainingPage() {
 
   if (error || !data) {
     return (
-      <View className="public-training-page">
+      <View className={`public-training-page theme-${effectiveTheme}`}>
         <View className="error-wrap">
           <Text className="error-title">{error || '内容不可见'}</Text>
           <View className="error-btn" onClick={() => Taro.reLaunch({ url: '/pages/index/index' })}>
@@ -134,7 +136,7 @@ export default function PublicTrainingPage() {
   const totalVolumeTons = Math.round((data.totalVolume / 1000) * 10) / 10
 
   return (
-    <View className="public-training-page">
+    <View className={`public-training-page theme-${effectiveTheme}`}>
       <ScrollView scrollY className="scroll">
         <View className="scroll-inner">
           {/* 头部 Banner */}

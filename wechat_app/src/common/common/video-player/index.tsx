@@ -3,8 +3,10 @@ import { View, Text, Video } from '@tarojs/components'
 import { Notice } from '@nutui/icons-react-taro'
 import Taro, { useRouter, useDidHide } from '@tarojs/taro'
 import './index.scss'
+import { useTheme } from '@/hooks/useTheme'
 
 export default function VideoPlayer() {
+  const { effectiveTheme } = useTheme()
   const router = useRouter()
   const url =
     router.params?.source === 'pr'
@@ -20,7 +22,7 @@ export default function VideoPlayer() {
 
   if (!url) {
     return (
-      <View className='video-player-page'>
+      <View className={`video-player-page theme-${effectiveTheme}`}>
         <View className='error-wrap'>
           <Text className='error-text'>视频地址无效</Text>
           <Text className='back-btn' onClick={() => Taro.navigateBack()}>返回</Text>
@@ -37,7 +39,7 @@ export default function VideoPlayer() {
   }
 
   return (
-    <View className='video-player-page'>
+    <View className={`video-player-page theme-${effectiveTheme}`}>
       <View className='nav-bar'>
         <Text className='nav-back' onClick={() => Taro.navigateBack()}>返回</Text>
         <Text className='nav-title'>PR 视频</Text>
