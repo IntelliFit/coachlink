@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { getTaskQueueConfig } from "../src/lib/taskqueue/config";
 import { getMemoryTaskQueue } from "../src/lib/taskqueue/memorySingleton";
 import type { Delivery, TaskQueue } from "../src/lib/taskqueue/types";
 
@@ -68,7 +69,7 @@ async function updateJob(id: string, patch: Record<string, unknown>) {
   }
 }
 
-async function claimJob(jobId?: string) {
+async function claimJob(jobId?: string, queueTopic?: string) {
   const now = new Date().toISOString();
   let query = supabase
     .from("tool_power_analysis_jobs")
@@ -79,13 +80,14 @@ async function claimJob(jobId?: string) {
     .limit(1);
 
   if (jobId) query = query.eq("id", jobId);
+  if (queueTopic) query = query.eq("queue_topic", queueTopic);
 
   const { data: rows, error } = await query;
   if (error) throw error;
   const candidate = rows?.[0];
   if (!candidate) return null;
 
-  const { data: claimed, error: updateError } = await supabase
+  let updateQuery = supabase
     .from("tool_power_analysis_jobs")
     .update({
       status: "processing",
@@ -94,7 +96,11 @@ async function claimJob(jobId?: string) {
       error_message: null,
     })
     .eq("id", candidate.id)
-    .eq("status", "queued")
+    .eq("status", "queued");
+
+  if (queueTopic) updateQuery = updateQuery.eq("queue_topic", queueTopic);
+
+  const { data: claimed, error: updateError } = await updateQuery
     .select("*")
     .maybeSingle();
 
@@ -202,8 +208,8 @@ async function runAnalyzer(job: any, workDir: string) {
   return { metrics, outputStoragePath };
 }
 
-async function processJob(jobId?: string) {
-  const job = await claimJob(jobId);
+async function processJob(jobId?: string, queueTopic?: string) {
+  const job = await claimJob(jobId, queueTopic);
   if (!job) {
     if (jobId) console.log(`[power-worker] job not claimable ${jobId}`);
     else console.log("[power-worker] no queued jobs");
@@ -292,12 +298,13 @@ async function runOnceFallback() {
   return processJob();
 }
 
-export async function recoverQueuedJobs(queue: TaskQueue) {
+async function recoverQueuedJobs(queue: TaskQueue, queueTopic: string) {
   const now = new Date().toISOString();
   const { data: rows, error } = await supabase
     .from("tool_power_analysis_jobs")
     .select("id")
     .eq("status", "queued")
+    .eq("queue_topic", queueTopic)
     .gt("expires_at", now)
     .order("created_at", { ascending: true })
     .limit(Number(process.env.POWER_ANALYSIS_RECOVER_BATCH_SIZE || 50));
@@ -312,18 +319,25 @@ export async function recoverQueuedJobs(queue: TaskQueue) {
     });
   }
   if (rows?.length) {
-    console.log(`[power-worker] recovered queued jobs=${rows.length}`);
+    console.log(`[power-worker] recovered queued jobs=${rows.length} topic=${queueTopic}`);
   }
 }
 
-async function handleDelivery(delivery: Delivery) {
+function getRecoverIntervalMs() {
+  const raw = Number(process.env.POWER_ANALYSIS_RECOVER_INTERVAL_MS || 60_000);
+  if (!Number.isFinite(raw)) return 60_000;
+  if (raw <= 0) return 0;
+  return Math.max(1_000, raw);
+}
+
+async function handleDelivery(delivery: Delivery, queueTopic: string) {
   if (delivery.message.taskType !== "power_analysis") {
     await delivery.ack();
     return;
   }
 
   try {
-    await processJob(delivery.message.taskId);
+    await processJob(delivery.message.taskId, queueTopic);
     await delivery.ack();
   } catch (error) {
     await delivery.nack(error);
@@ -333,18 +347,15 @@ async function handleDelivery(delivery: Delivery) {
 
 export async function runPowerAnalysisQueueWorker(options: {
   queue?: TaskQueue;
-  enableRecover?: boolean;
+  queueTopic?: string;
   installSignalHandlers?: boolean;
 } = {}) {
+  const queueTopic = options.queueTopic || getTaskQueueConfig(process.env, { requireTopic: true }).topic;
   const queue = options.queue || getMemoryTaskQueue();
-  const enableRecover = options.enableRecover ?? true;
-  const recoverIntervalMs = Math.max(
-    1_000,
-    Number(process.env.POWER_ANALYSIS_RECOVER_INTERVAL_MS || 5_000),
-  );
-  const recoverTimer = enableRecover
+  const recoverIntervalMs = getRecoverIntervalMs();
+  const recoverTimer = recoverIntervalMs > 0
     ? setInterval(() => {
-        void recoverQueuedJobs(queue);
+        void recoverQueuedJobs(queue, queueTopic);
       }, recoverIntervalMs)
     : null;
 
@@ -359,11 +370,11 @@ export async function runPowerAnalysisQueueWorker(options: {
     });
   }
 
-  if (enableRecover) {
-    await recoverQueuedJobs(queue);
+  if (recoverIntervalMs > 0) {
+    await recoverQueuedJobs(queue, queueTopic);
   }
   for await (const delivery of queue.subscribe({ taskTypes: ["power_analysis"] })) {
-    await handleDelivery(delivery);
+    await handleDelivery(delivery, queueTopic);
   }
 }
 
