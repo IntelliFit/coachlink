@@ -11,6 +11,7 @@ import {
 import './index.scss'
 import { Check, Notice } from '@nutui/icons-react-taro'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
+import { useTheme } from '@/hooks/useTheme'
 
 type MembershipTier = 'free' | 'basic' | 'premium' | 'trial'
 
@@ -66,6 +67,7 @@ const PLAN_ITEMS: PlanItem[] = [
 ]
 
 function MembershipSubscribe() {
+  const { effectiveTheme } = useTheme()
   const router = useRouter()
   const [loading, setLoading] = useState(true)
   const [plans, setPlans] = useState<PlanItem[]>([])
@@ -158,7 +160,7 @@ function MembershipSubscribe() {
   }
 
   return (
-    <View className='membership-subscribe-page'>
+    <View className={`membership-subscribe-page theme-${effectiveTheme}`}>
       <ScrollView className='page-scroll' scrollY>
         <View className='page-content'>
           <View className='subscribe-status'>

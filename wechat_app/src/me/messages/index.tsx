@@ -8,6 +8,7 @@ import { chatService, type ChatroomItem, CHAT_UNREAD_BADGE_REFRESH_EVENT } from 
 import { request } from '@/utils/request'
 import { Location, Message } from '@nutui/icons-react-taro'
 import './index.scss'
+import { useTheme } from '@/hooks/useTheme'
 
 interface FriendRequestBrief {
   friendshipId: string
@@ -65,6 +66,7 @@ function ChatroomRowAvatar({
 }
 
 function MessagesPage() {
+  const { effectiveTheme } = useTheme()
   const router = useRouter()
   const pendingCoachId = router.params?.coachId ? decodeURIComponent(router.params.coachId) : ''
   const pendingCoachName = router.params?.coachName ? decodeURIComponent(router.params.coachName) : ''
@@ -248,7 +250,7 @@ function MessagesPage() {
   }
 
   return (
-    <View className='messages-page'>
+    <View className={`messages-page theme-${effectiveTheme}`}>
       <ScrollView className='page-scroll' scrollY>
         <View className='page-inner'>
           <View

@@ -16,10 +16,12 @@ import SliderCaptcha from '@/components/SliderCaptcha'
 import { User, Lock, Ticket, Message } from '@nutui/icons-react-taro'
 import loginBg from '@/assets/images/login-bg.jpg'
 import './index.scss'
+import { useTheme } from '@/hooks/useTheme'
 
 const IS_DEV = process.env.NODE_ENV === 'development'
 
 function Register() {
+  const { effectiveTheme } = useTheme()
   const [phoneOrEmail, setPhoneOrEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -57,7 +59,7 @@ function Register() {
 
   const sendVerificationCode = () => {
     if (!agreed) {
-      Taro.showToast({ title: '请先同意用户协议', icon: 'none' })
+      Taro.showToast({ title: '请先同意用户协议和隐私政策', icon: 'none' })
       return
     }
     if (!isValidPhoneOrEmail()) {
@@ -118,7 +120,7 @@ function Register() {
       return
     }
     if (!agreed) {
-      Toast.show('请阅读并同意用户协议与免责声明', {})
+      Toast.show('请阅读并同意用户协议、隐私政策与免责声明', {})
       return
     }
 
@@ -156,6 +158,10 @@ function Register() {
 
   const goToTerms = () => {
     Taro.navigateTo({ url: '/me-legal/terms/index' })
+  }
+
+  const goToPrivacy = () => {
+    Taro.navigateTo({ url: '/me-legal/privacy/index' })
   }
 
   const goToDisclaimer = () => {
@@ -265,6 +271,8 @@ function Register() {
             <Text className='agreement-text'>
               同意
               <Text className='agreement-link' onClick={goToTerms}>《用户协议》</Text>
+              与
+              <Text className='agreement-link' onClick={goToPrivacy}>《隐私政策》</Text>
               与
               <Text className='agreement-link' onClick={goToDisclaimer}>《免责声明》</Text>
             </Text>

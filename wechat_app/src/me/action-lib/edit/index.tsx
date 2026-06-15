@@ -5,12 +5,14 @@ import BottomNav from '@/components/BottomNav'
 import { studentActionLibService } from '@/services/studentActionLibService'
 import './index.scss'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
+import { useTheme } from '@/hooks/useTheme'
 
 const POSITIONS = ['胸部', '背部', '肩部', '手臂', '核心', '腿部', '臀部', '全身']
 const ATTRS = ['力量', '耐力', '爆发力', '柔韧性', '平衡', '强度']
 const TYPES = ['STRENGTH', 'CARDIO', 'FLEXIBILITY', 'BALANCE']
 
 export default function ActionEditPage() {
+  const { effectiveTheme } = useTheme()
   const router = useRouter()
   const actionId = router.params.id as string
   const isEdit = !!actionId
@@ -110,7 +112,7 @@ export default function ActionEditPage() {
 
   if (loading) {
     return (
-      <View className='action-edit-page'>
+      <View className={`action-edit-page theme-${effectiveTheme}`}>
         <View className="loading"><LoadingSpinner size={48} /></View>
         <BottomNav />
       </View>
@@ -118,7 +120,7 @@ export default function ActionEditPage() {
   }
 
   return (
-    <View className='action-edit-page'>
+    <View className={`action-edit-page theme-${effectiveTheme}`}>
       <ScrollView className='page-scroll' scrollY>
         <View className='page-content'>
           <View className='page-header'>

@@ -5,8 +5,10 @@ import { coachService } from '@/services/coach/coachService'
 import BottomNav from '@/components/BottomNav'
 import './index.scss'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
+import { useTheme } from '@/hooks/useTheme'
 
 function CoachProfile() {
+  const { effectiveTheme } = useTheme()
   const coachId = Taro.getCurrentInstance().router?.params?.id
   const editParam = Taro.getCurrentInstance().router?.params?.edit
   const shouldEnterEditMode = editParam === '1' || editParam === 'true'
@@ -263,7 +265,7 @@ function CoachProfile() {
 
   if (loading) {
     return (
-      <View className="coach-profile-page">
+      <View className={`coach-profile-page theme-${effectiveTheme}`}>
         <View className="loading-wrap"><LoadingSpinner size={48} /></View>
         <BottomNav />
       </View>
@@ -272,7 +274,7 @@ function CoachProfile() {
 
   if (!coach) {
     return (
-      <View className="coach-profile-page">
+      <View className={`coach-profile-page theme-${effectiveTheme}`}>
         <View className="error-wrap">教练信息不存在</View>
         <BottomNav />
       </View>
@@ -290,7 +292,7 @@ function CoachProfile() {
   } : null
 
   return (
-    <View className="coach-profile-page">
+    <View className={`coach-profile-page theme-${effectiveTheme}`}>
       <ScrollView scrollY className="profile-scroll" style={{ paddingBottom: isOwnProfile && isEditMode ? '100px' : '70px' }}>
         {/* 头部信息 */}
         <View className="profile-header">

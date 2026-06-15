@@ -8,6 +8,7 @@ import { authService } from '@/services/authService'
 import { request } from '@/utils/request'
 import { formatDateYMD } from '@/utils/dateFormat'
 import './index.scss'
+import { useTheme } from '@/hooks/useTheme'
 
 interface PlanHistoryItem {
   id: string
@@ -24,6 +25,7 @@ interface PlanHistoryItem {
 }
 
 function PlanHistoryPage() {
+  const { effectiveTheme } = useTheme()
   const [plans, setPlans] = useState<PlanHistoryItem[]>([])
   const [loading, setLoading] = useState(true)
   const [page, setPage] = useState(1)
@@ -118,7 +120,7 @@ function PlanHistoryPage() {
   }
 
   return (
-    <View className='plan-history-page'>
+    <View className={`plan-history-page theme-${effectiveTheme}`}>
       <ScrollView className='page-scroll' scrollY>
         <View className='page-content'>
           <View className='page-header'>

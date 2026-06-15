@@ -7,6 +7,7 @@ import { coachService } from '@/services/coach/coachService'
 import { studentService } from '@/services/studentService'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import './index.scss'
+import { useTheme } from '@/hooks/useTheme'
 
 interface Coach {
   id: string
@@ -36,6 +37,7 @@ function isTestCoach(coach?: Partial<Coach> | null): boolean {
 }
 
 function Discovery() {
+  const { effectiveTheme } = useTheme()
   const [coaches, setCoaches] = React.useState<Coach[]>([])
   const [specialties, setSpecialties] = React.useState<{ label: string; value: string }[]>([
     { label: '全部方向', value: 'all' }
@@ -280,7 +282,7 @@ function Discovery() {
 
   if (visibilityStatus?.focusMode) {
     return (
-      <View className='discovery-page'>
+      <View className={`discovery-page theme-${effectiveTheme}`}>
         <View className='page-header'>
           <View className='header-content'>
             <View className='title-section'>
@@ -311,7 +313,7 @@ function Discovery() {
   }
 
   return (
-    <View className='discovery-page'>
+    <View className={`discovery-page theme-${effectiveTheme}`}>
       <View className='page-header'>
         <View className='header-content'>
           <View className='title-section'>

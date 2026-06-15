@@ -11,6 +11,7 @@ import locationPinIcon from '@/assets/map/location-pin.png'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 
 import './index.scss'
+import { useTheme } from '@/hooks/useTheme'
 
 type ClusterMarkerMeta =
   | {
@@ -199,6 +200,7 @@ function getCurrentCenter(mapId: string): Promise<UserLocation | null> {
 }
 
 export default function StreetliftingLocationsMapPage() {
+  const { effectiveTheme } = useTheme()
   const mapIdRef = useRef(`streetlifting-map-${Date.now()}`)
   const markerMetaRef = useRef(new globalThis.Map<number, ClusterMarkerMeta>())
 
@@ -301,7 +303,7 @@ export default function StreetliftingLocationsMapPage() {
   }
 
   return (
-    <View className='locations-map-page'>
+    <View className={`locations-map-page theme-${effectiveTheme}`}>
       <View className='locations-map-toolbar'>
         <View className='locations-map-btn' onClick={handleBackToList}>
           <Text>返回列表</Text>

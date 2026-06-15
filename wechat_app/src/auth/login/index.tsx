@@ -17,6 +17,7 @@ import ResetPasswordForm from '@/components/ResetPasswordForm'
 
 import loginBg from '@/assets/images/login-bg.jpg'
 import './index.scss'
+import { useTheme } from '@/hooks/useTheme'
 
 const IS_DEV = process.env.NODE_ENV === 'development'
 
@@ -77,6 +78,7 @@ const TEXT = {
 type LoginMode = 'wechat' | 'password' | 'verifyCode'
 
 function Login() {
+  const { effectiveTheme } = useTheme()
   const [loginMode, setLoginMode] = useState<LoginMode>('wechat')
   const [showResetPassword, setShowResetPassword] = useState(false)
   const [showWechatPhoneAuthPrompt, setShowWechatPhoneAuthPrompt] = useState(false)
@@ -370,12 +372,22 @@ function Login() {
                 </View>
               </View>
 
+              <View className='agreement-row'>
+                <Checkbox checked={agreed} onChange={(val) => setAgreed(val)} />
+                <Text className='agreement-text'>
+                  {TEXT.termsPrefix}
+                  <Text className='agreement-link' onClick={goToTerms}>{TEXT.terms}</Text>
+                  {TEXT.and}
+                  <Text className='agreement-link' onClick={goToPrivacy}>{TEXT.privacy}</Text>
+                </Text>
+              </View>
+
               {loginMode === 'wechat' && (
                 <View className='wechat-login-panel'>
                   <TaroButton
-                    className={`wechat-primary-button ${loading ? 'wechat-primary-button-disabled' : ''}`}
+                    className={`wechat-primary-button ${loading || !agreed ? 'wechat-primary-button-disabled' : ''}`}
                     onClick={handleWechatLogin}
-                    disabled={loading}
+                    disabled={loading || !agreed}
                   >
                     <Text className='wechat-primary-text'>{loading ? TEXT.loggingIn : TEXT.phoneOneTapLogin}</Text>
                   </TaroButton>
@@ -488,15 +500,6 @@ function Login() {
                 </View>
               )}
 
-              <View className='agreement-row'>
-                <Checkbox checked={agreed} onChange={(val) => setAgreed(val)} />
-                <Text className='agreement-text'>
-                  {TEXT.termsPrefix}
-                  <Text className='agreement-link' onClick={goToTerms}>{TEXT.terms}</Text>
-                  {TEXT.and}
-                  <Text className='agreement-link' onClick={goToPrivacy}>{TEXT.privacy}</Text>
-                </Text>
-              </View>
             </>
           )}
         </View>

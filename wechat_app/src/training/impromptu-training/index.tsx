@@ -6,6 +6,7 @@ import { studentActionLibService } from '@/services/studentActionLibService'
 import { listPublicActions } from '@/services/actionLibPageService'
 import { authService } from '@/services/authService'
 import './index.scss'
+import { useTheme } from '@/hooks/useTheme'
 
 interface StudentAction {
   id: string
@@ -57,6 +58,7 @@ const isStrengthAction = (action: StudentAction) => {
 }
 
 export default function ImpromptuTraining() {
+  const { effectiveTheme } = useTheme()
   const [actions, setActions] = useState<StudentAction[]>([])
   const [loadingActions, setLoadingActions] = useState(true)
   const [keyword, setKeyword] = useState('')
@@ -194,7 +196,7 @@ export default function ImpromptuTraining() {
   }
 
   return (
-    <View className='impromptu-training-page'>
+    <View className={`impromptu-training-page theme-${effectiveTheme}`}>
       <View className='page-header'>
         <View className='header-left' onClick={handleBack}>
           <Text className='back-icon'>‹</Text>

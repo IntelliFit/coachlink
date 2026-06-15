@@ -7,6 +7,7 @@ import { request } from '@/utils/request'
 import './index.scss'
 import { Edit } from '@nutui/icons-react-taro'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
+import { useTheme } from '@/hooks/useTheme'
 
 // 与后端 PurchaseHistoryItem 对齐，兼容 orders 列表
 interface PurchaseItem {
@@ -25,6 +26,7 @@ interface PurchaseItem {
 }
 
 function PurchaseHistoryPage() {
+  const { effectiveTheme } = useTheme()
   const [purchases, setPurchases] = useState<PurchaseItem[]>([])
   const [loading, setLoading] = useState(true)
   const [page, setPage] = useState(1)
@@ -102,7 +104,7 @@ function PurchaseHistoryPage() {
   }
 
   return (
-    <View className='purchase-history-page'>
+    <View className={`purchase-history-page theme-${effectiveTheme}`}>
       <ScrollView className='page-scroll' scrollY>
         <View className='page-content'>
           {loading && page === 1 ? (

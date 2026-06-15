@@ -6,10 +6,12 @@ import { authService } from '@/services/authService'
 import { studentService } from '@/services/studentService'
 import './index.scss'
 import { Lock, Phone, Power } from '@nutui/icons-react-taro'
+import { useTheme } from '@/hooks/useTheme'
 
 const DELETE_ACCOUNT_CONFIRMATION_TEXT = '注销账号'
 
 function SettingsPage() {
+  const { effectiveTheme } = useTheme()
   const [passwordVisible, setPasswordVisible] = useState(false)
   const [deleteAccountVisible, setDeleteAccountVisible] = useState(false)
   const [deleteAccountLoading, setDeleteAccountLoading] = useState(false)
@@ -88,7 +90,7 @@ function SettingsPage() {
   }
 
   return (
-    <View className='settings-page'>
+    <View className={`settings-page theme-${effectiveTheme}`}>
       <ScrollView className='page-scroll' scrollY>
         <View className='page-content'>
           <View className='settings-section'>

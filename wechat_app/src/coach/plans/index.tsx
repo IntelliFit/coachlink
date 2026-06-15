@@ -7,8 +7,10 @@ import { subscriptionService } from '@/services/subscriptionService'
 import { trainingService } from '@/services/trainingService'
 import { authService } from '@/services/authService'
 import './index.scss'
+import { useTheme } from '@/hooks/useTheme'
 
 function CoachPlans() {
+  const { effectiveTheme } = useTheme()
   const [subscriptions, setSubscriptions] = useState<any[]>([])
   const [activeSubscriptionId, setActiveSubscriptionId] = useState<string | null>(null)
   const [instances, setInstances] = useState<Record<string, any>>({})
@@ -120,7 +122,7 @@ function CoachPlans() {
 
   if (loading || selfPlanLoading) {
     return (
-      <View className='coach-plans-page'>
+      <View className={`coach-plans-page theme-${effectiveTheme}`}>
         <ScrollView className='page-scroll' scrollY>
           <View className='loading-container'>
             <View className='skeleton-card'>
@@ -142,7 +144,7 @@ function CoachPlans() {
 
   if (!hasAnyPlan) {
     return (
-      <View className='coach-plans-page'>
+      <View className={`coach-plans-page theme-${effectiveTheme}`}>
         <ScrollView className='page-scroll' scrollY>
           <View className='empty-state'>
             <View className='empty-icon'><File size={48} color="#9CA3AF" /></View>
@@ -165,7 +167,7 @@ function CoachPlans() {
     : selfPlan
 
   return (
-    <View className='coach-plans-page'>
+    <View className={`coach-plans-page theme-${effectiveTheme}`}>
       <ScrollView className='page-scroll' scrollY>
         <View className='page-content'>
           {/* 计划类型切换器 */}

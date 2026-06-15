@@ -10,6 +10,7 @@ import ActivityNotice from './components/ActivityNotice'
 import RankingsTable from './components/RankingsTable'
 import SubmissionDialog from './components/SubmissionDialog'
 import './index.scss'
+import { useTheme } from '@/hooks/useTheme'
 
 interface Leaderboard {
   id: string
@@ -30,6 +31,7 @@ interface Leaderboard {
 }
 
 function RankingDetail() {
+  const { effectiveTheme } = useTheme()
   const [templateId, setTemplateId] = useState<string>('')
   const [leaderboard, setLeaderboard] = useState<Leaderboard | null>(null)
   const [entries, setEntries] = useState<any[]>([])
@@ -102,7 +104,7 @@ function RankingDetail() {
 
   if (loading && !leaderboard) {
     return (
-      <View className="ranking-detail-page">
+      <View className={`ranking-detail-page theme-${effectiveTheme}`}>
         <View className="skeleton-detail section" style={{ margin: 16 }}>
           <View className="skeleton-block title" />
           <View className="skeleton-block desc" />
@@ -118,7 +120,7 @@ function RankingDetail() {
 
   if (!leaderboard) {
     return (
-      <View className="ranking-detail-page">
+      <View className={`ranking-detail-page theme-${effectiveTheme}`}>
         <View className="empty-detail">
           <View className="empty-icon"><Star size={40} /></View>
           <Text className="empty-text">排行榜不存在</Text>
@@ -131,7 +133,7 @@ function RankingDetail() {
   }
 
   return (
-    <View className="ranking-detail-page">
+    <View className={`ranking-detail-page theme-${effectiveTheme}`}>
       <LeaderboardHeader
         title={leaderboard.title}
         description="月度排行榜挑战赛"

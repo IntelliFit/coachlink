@@ -13,6 +13,7 @@ import {
 import { authService } from '@/services/authService'
 import { groupKnowledgeBooks, type KnowledgeBookCollection } from '@/utils/knowledgeBooks'
 import './index.scss'
+import { useTheme } from '@/hooks/useTheme'
 
 const QUICK_TAGS = ['平台期', '动作标准', '肩腕腰痛', '训练计划']
 
@@ -44,6 +45,7 @@ const PLAN_LEVEL_LABELS: Record<PublicTrainingPlanLevel, string> = {
 }
 
 function KnowledgeBase() {
+  const { effectiveTheme } = useTheme()
   const [bookCollections, setBookCollections] = useState<KnowledgeBookCollection<any>[]>([])
   const [loadingBooks, setLoadingBooks] = useState(true)
   const [searchKeyword, setSearchKeyword] = useState('')
@@ -121,7 +123,7 @@ function KnowledgeBase() {
   }
 
   return (
-    <View className='knowledge-page page-with-float-nav'>
+    <View className={`knowledge-page page-with-float-nav theme-${effectiveTheme}`}>
       <ScrollView scrollY className='knowledge-scroll page-scroll'>
         <View className='page-shell'>
           <View className='hero-section'>
