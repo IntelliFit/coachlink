@@ -72,6 +72,23 @@
   - Web/Next.js must be redeployed because the upload/enqueue APIs now write `queue_topic` ownership fields and require explicit `TASK_QUEUE_TOPIC`.
   - Worker must be redeployed because queue delivery claim and recovery now filter by the configured topic.
   - Prefer deploying Web first, then worker, so newly enqueued jobs include `queue_topic` before the topic-scoped worker starts claiming.
+
+## Dashboard Videos Client Crash Hotfix (`2026-06-16`)
+
+- Task: diagnose production client-side exception when opening the video analysis/review page.
+- Status: implemented and verified locally at code/build level.
+- Finding:
+  - The crash signature `Cannot read properties of undefined (reading 'completed_at')` matches `src/app/dashboard/videos/page.tsx`, where the video card rendered `video.execution_details.completed_at` without checking whether `execution_details` exists.
+  - `git blame` shows the unsafe line predates the power-analysis queue-topic change; the redeploy likely exposed existing data with missing execution details rather than the queue-topic logic directly causing it.
+- Fix:
+  - Added `formatVideoTimestamp()` and changed the video card to fall back from `execution_details.completed_at` to `video.created_at`.
+- Verification:
+  - `npm run typecheck`: passed.
+  - `npm run lint`: passed.
+  - `npm test`: passed, 33 files / 163 tests.
+  - `npx next build`: passed.
+  - Browser verification was not run because this session does not expose the required `web-devtools` capability and production login/session data is needed to reproduce the exact coach video list.
+
 ## Push Current Code To Main And Dev (`2026-06-16`)
 
 - Task: commit current local code and push so remote `main` and `dev` are consistent.
