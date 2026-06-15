@@ -1,3 +1,195 @@
+## Push Current Code To Main And Dev (`2026-06-16`)
+
+- Task: commit current local code and push so remote `main` and `dev` are consistent.
+- Status: in progress.
+- Starting branch: `main`.
+- Current local branch state before commit:
+  - Local `main` and `dev` point to the same merge head from the latest `origin/dev` pull.
+  - Working tree contains the accumulated coach revenue, E2E cleanup, WeChat Power Analysis native page/preview, plan-history detail, and durable-state changes.
+- Required before push:
+  - User explicitly asked to skip further tests/builds and push directly.
+  - Already completed before the user interruption: `npm run lint`, `npm run typecheck`, and `npm test`.
+  - Skipped by user instruction: `npm run test:e2e`, `npx next build`, and `cd wechat_app; npm run build:weapp`.
+- Remote note: push has not happened yet.
+
+## Local Power Analysis Debug Setup (`2026-06-16`)
+
+- Task: fix local Web Power Analysis failure where the analyzer reported `ModuleNotFoundError: No module named 'mediapipe'`, and free the occupied local `3000` port.
+- Status: local debugging environment recovered.
+- Findings:
+  - `3000` was occupied by a stale Next.js dev process; a second dev chain was also running on `3001`.
+  - `.venv-power-analysis\Scripts\python.exe` was already correctly configured and could import `mediapipe 0.10.21`, `cv2`, and `numpy`.
+  - The failure was therefore caused by a stale/incorrect worker process using the wrong Python environment, not by the venv lacking `mediapipe`.
+  - For local Power Analysis testing, relying only on the auto-started `--queue` worker is brittle because the in-memory queue does not cross process boundaries; a `--poll` worker that scans queued DB jobs is the reliable local path.
+- Actions:
+  - Stopped stale processes occupying `3000` and the duplicate `3001` local dev chain.
+  - Restarted local Web on `http://localhost:3000` with `POWER_ANALYSIS_PYTHON_BIN=D:\files\coachlink\.venv-power-analysis\Scripts\python.exe`.
+  - Started a background poll worker with the same `POWER_ANALYSIS_PYTHON_BIN`.
+  - Verified `http://localhost:3000/toolbox/power-analysis` returned 200.
+  - Verified `http://localhost:3000/api/system/version` returned 200.
+- Logs:
+  - Web dev log: `logs/local-dev-3000.log`.
+  - Power Analysis poll worker log: `logs/power-analysis-poll-worker.log`.
+- Next user action:
+  - Open `http://localhost:3000/toolbox/power-analysis`, log in if needed, and submit a new analysis job. The old failed job will remain failed; a new submit is required after the worker/env fix.
+
+## WeChat Mini-Program Copy Link Diagnosis (`2026-06-16`)
+
+- Task: diagnose why Food Link can produce/copy a `#小程序://...` mini-program link while CoachLink appears unable to use the share-sheet `复制链接` entry.
+- Status: analysis completed; no business code changed.
+- Finding:
+  - CoachLink WeChat pages such as `me/toolbox/index` and `me/toolbox/power-analysis/index` already enable normal sharing with `enableShareAppMessage`, `enableShareTimeline`, `useShareAppMessage`, `useShareTimeline`, and `Taro.showShareMenu`.
+  - The codebase has no `Taro.onCopyUrl` / `Taro.offCopyUrl` registration. Taro's WeChat share typings describe `onCopyUrl` as the separate callback for the right-menu `复制链接` action and note it should be registered on page enter and removed on page exit.
+  - Therefore the likely app-side gap is not ordinary sharing, but missing Copy URL / short-link handling. Platform-side availability may still depend on WeChat client/platform rules and backend mini-program short-link permissions.
+- Suggested next step:
+  - Add a shared mini-program `useCopyUrl` helper that registers `Taro.onCopyUrl` with the current page query/path, wire it into public/shareable pages first, then verify on an Android real device or WeChat DevTools if the platform exposes the menu.
+
+## WeChat Power Analysis Video Preview Fix (`2026-06-16`)
+
+- Task: fix the WeChat mini-program Power Analysis page where the selected local video's built-in enlarge/fullscreen control could fail.
+- Status: implemented and verified as far as automation allows.
+- Fix:
+  - Added an explicit `全屏预览` action for selected videos on `wechat_app/src/me/toolbox/power-analysis/index.tsx`.
+  - The preview action first uses `Taro.previewMedia({ sources: [{ type: 'video' }] })` for WeChat's global media preview, then falls back to opening the shared full-page video player with a `视频预览` title.
+  - Hid the native video fullscreen button on the inline preview (`showFullscreenBtn={false}`) so users are guided to the stable preview path instead of the failing built-in enlarge control.
+  - Updated `wechat_app/src/common/common/video-player/index.tsx` to accept an optional `title` query param while preserving `PR 视频` for the existing PR source path.
+- Verification:
+  - `npm run lint`: passed informational lint script.
+  - `npm run typecheck`: passed.
+  - `cd wechat_app; npm run build:weapp`: passed and compiled `me/toolbox/power-analysis/index.js` with `preview-video-btn`, `Taro.previewMedia`, and `showFullscreenBtn: false`.
+  - `npm test`: passed, 33 files / 163 tests.
+  - `npx next build`: first run compiled/static-generated but hit known Windows `.next/standalone` EBUSY copy lock; rerun passed.
+  - WeChat DevTools/MRC port 9430: relaunched `/me/toolbox/power-analysis/index`, `.select-video-btn` and `.mode-card-muscleup` existed, switching to `双力臂` worked, height input command reported success, and final error/warning logs were empty.
+- Verification limitation:
+  - MRC screenshot failed repeatedly with `fail to capture screenshot`.
+  - Native local video selection opens a system picker and could not be automated, so the actual selected-video global preview path still needs a real-device/manual check.
+
+## WeChat Native Power Analysis Tool (`2026-06-15`)
+
+- Task: investigate why the previously built Power Calculator / Power Analysis tool was not visible in the mini-program toolbox, confirm deployment commands, and expose it as a real native mini-program tool rather than a WebView jump.
+- Status: implemented and verified.
+- Findings:
+  - Web already exposes Power Analysis through `src/config/toolbox.ts`, `/toolbox`, `/me/toolbox`, and `/toolbox/power-analysis`.
+  - Live `https://coachlink.fit/toolbox` and `https://coachlink.fit/toolbox/power-analysis` return 200 and render the Power Analysis entry/page in browser automation.
+  - The WeChat mini-program toolbox only had 3 native cards (`力量计算器`, `单杠位置`, `社区数据`), so the user's screenshot matched current code: the Power Analysis tool was Web-only and not wired into the mini-program UI.
+  - Deployment commands are:
+    - Web image: `npm run push-docker-ccr`.
+    - Power Analysis worker/algorithm image: `npm run push-power-worker-ccr`.
+    - If an algorithm change also changes Web/API/page code, both images may need pushing; analyzer/worker-only changes need the worker image.
+- Fix:
+  - Replaced the temporary WebView entry with native route `me/toolbox/power-analysis/index`.
+  - Removed the generic `me/webview/index` page that had been added for the temporary jump.
+  - Added native mini-program UI for mode selection, height/weight inputs, video selection/preview, task creation, upload, enqueue, polling, result summary, per-rep metrics, AI interpretation, and saving/copying the analyzed video.
+  - Added authenticated same-domain mini-program upload route `POST /api/toolbox/power-analysis/jobs/[id]/upload`, so the mini-program can use native `Taro.uploadFile` instead of directly `PUT`-ing to the Supabase signed URL.
+  - The native page reuses the existing Power Analysis job model and worker queue: `create-upload-url` creates the transient job/path, the new upload route stores the video to the job input path, then `enqueue`, job polling, `llm-summary`, and `download-url` finish the flow.
+- Verification:
+  - `npm run lint`: passed informational lint script.
+  - `npm run typecheck`: passed.
+  - `cd wechat_app; npm run build:weapp`: passed and generated `dist/me/toolbox/power-analysis/index.*`.
+  - `npm test`: passed, 33 files / 163 tests.
+  - `npx next build`: passed and included `/api/toolbox/power-analysis/jobs/[id]/upload` in the route table.
+  - `git diff --check`: passed with existing CRLF warnings only.
+  - Live browser automation confirmed Web `/toolbox` shows `引体 / 双力臂功率测试` and `/toolbox/power-analysis` shows the analysis page.
+  - WeChat DevTools/MRC port 9430: `/me/toolbox/index` reported 4 `.tool-card` elements; clicking the first card navigated to `me/toolbox/power-analysis/index`, not WebView; `.height-input` and `.select-video-btn` existed; switching to `双力臂` and typing height `180` worked; final relaunch/click verification after the upload-route change still navigated to the native page with 0 error logs.
+  - Screenshots:
+    - `screenshots/weapp/toolbox-native-power-analysis-entry-9430.png`
+    - `screenshots/weapp/power-analysis-native-page-9430.png`
+    - `screenshots/weapp/power-analysis-native-interaction-9430.png`
+
+## WeChat Plan History Detail Crash (`2026-06-15`)
+
+- Task: fix the WeChat mini-program issue where tapping a plan in `全部计划` / plan history could stay loading and then show `计划不存在`, even though the same coach-assigned plan was visible on today's training/list surfaces.
+- Status: implemented and verified.
+- Root cause:
+  - `wechat_app/src/me/plan-history/detail/index.tsx` requested `/api/student/plan-lib/history/{id}`.
+  - That route does not exist in the Web API tree, while the list page correctly loaded the plan through `/api/student/plan-lib/list-history`.
+  - Result: list could show a coach-assigned plan, but detail failed to load the instance and rendered `计划不存在`.
+- Fix:
+  - Switched the detail page to POST `/api/plan-lib/get-instance` with `{ id }`, reusing the canonical plan-instance permission and subscription-aware loader.
+  - Normalized the response into the existing detail page fields, including derived status, total training days, and completion rate.
+- Verification:
+  - `npm run lint`: passed informational lint script.
+  - `npm run typecheck`: passed.
+  - `npm test`: passed, 33 files / 163 tests.
+  - `npx next build`: first run compiled/static-generated successfully but hit the known Windows `.next/standalone` EBUSY copy lock; rerun passed.
+  - `cd wechat_app; npm run build:weapp`: passed.
+  - WeChat DevTools automation opened the exact reported plan `14eed820-11b2-4a51-ac48-6389a14e2378` for student `30d1f188...`; list showed 1 card, tapping/opening detail rendered the plan header and fields instead of `计划不存在`.
+  - Screenshot saved: `screenshots/weapp/plan-history-detail-after-fix-devtools.png`.
+
+## Pull Latest Code (`2026-06-15`)
+
+- Task: pull latest code into local workspace again.
+- Status: completed locally.
+- Starting branch: `main`.
+- Local state before pull:
+  - `main` was ahead of `origin/main` by 6 commits.
+  - Working tree contained restored uncommitted coach revenue / E2E cleanup changes from prior work.
+- Result:
+  - Protected local uncommitted changes with stash `tmp-before-pull-latest-2026-06-15`.
+  - Fetched `origin` and `gitee`.
+  - `origin/main` had no new commits; `origin/dev` advanced to `06731f1f` with WeChat mini-program dark theme / BottomNav fixes.
+  - Merged latest `origin/dev` into local `main` successfully.
+  - Restored the protected local uncommitted changes; `memory/2026-06-13.md` had become tracked upstream, so the local stashed content was manually merged into that memory file.
+  - Updated local `dev` pointer to match the updated `main` merge commit.
+- Current note:
+  - Local working tree still contains uncommitted coach revenue / E2E cleanup changes plus the pull-state memory updates.
+  - Temporary stash is intentionally retained as a backup.
+- Remote note: no push was performed.
+
+## Pull Latest Code (`2026-06-14`)
+
+- Task: pull latest code into local workspace.
+- Status: completed locally.
+- Starting branch: `main`.
+- Local state before pull:
+  - `main` was ahead of `origin/main` by 11 commits.
+  - There were uncommitted local code/state changes from the coach revenue consistency and E2E cleanup work.
+- Result:
+  - Protected local uncommitted changes with stash `tmp-before-pull-latest-2026-06-14`.
+  - Fetched `origin` and `gitee`.
+  - Merged latest `origin/main` (`e8f7b092`) into local `main`; new remote change updated `Dockerfile.power-worker`.
+  - Restored the protected local uncommitted changes without conflicts.
+  - Updated local `dev` pointer to match the updated `main` merge commit.
+- Current note:
+  - Local working tree still contains the restored uncommitted coach revenue / E2E cleanup changes.
+  - Temporary stash is intentionally retained as a backup until those restored local changes are committed or discarded.
+- Remote note: no push was performed.
+
+## E2E Fake Coach Cleanup (`2026-06-13`)
+
+- Task: stop E2E/API tests from leaving new fake coach rows after every run.
+- Status: implemented and verified.
+- Fix:
+  - Expanded `/api/test/e2e/cleanup` so every cleanup call also discovers and removes all seeded `E2E Coach%` rows.
+  - Cleanup now removes dependent test data before deleting the coach/user rows, including subscription orders, settlement rows, wallet transactions, withdrawals/accounts, chat rooms/messages, plan executions, questionnaire responses, carts, reviews, legacy training-plan rows, pricing/content/action/template rows, and profiles.
+  - Existing historical `E2E Coach%` leftovers were cleaned from the current database.
+- Verification:
+  - Direct database check after cleanup: `coaches where name ilike 'E2E Coach%'` returned `0`.
+  - `npx playwright test e2e/t2-backend-api-db-idempotent.spec.ts --workers=1`: passed, and the post-test database check still returned `0`.
+  - `npm run typecheck`, `npm run lint`, `npm test`, and `npx next build`: passed.
+
+## Coach Revenue / Wallet Amount Consistency (`2026-06-13`)
+
+- Task: fix inconsistent coach income/revenue and wallet amounts on Web, and keep WeChat mini-program aligned.
+- Status: implemented and verified.
+- Root cause:
+  - Web coach overview/revenue details were still aggregating monthly subscription income from older subscription/order sources, including `coach_subscription_orders.amount_fen`.
+  - Wallet displayed the newer wallet/settlement口径: wallet income transactions plus `coach_subscription_settlements.coach_amount` pending settlement net income.
+  - Result: overview/revenue could show gross, stale, or unit-drifted values while wallet showed coach net receivable amounts.
+- Implemented:
+  - Added shared helper `src/lib/coachRevenueSummary.ts`.
+  - Updated `/api/coach/get-overview-data` and `/api/coach/get-revenue-details` to compute monthly revenue from wallet income transactions + pending/processing/split-failed settlement coach net amounts, with pre-2026-04-22 legacy subscription rows only as historical fallback.
+  - Updated Web overview amount formatting to always show two decimals.
+  - Updated WeChat mini-program coach overview/revenue amount formatting to two decimals; mini-program already consumes the same backend APIs, so backend口径 is now aligned.
+- Verification:
+  - `npm run typecheck`: passed.
+  - `npm run lint`: passed informational lint script.
+  - `npm test`: passed, 33 files / 163 tests.
+  - `npx next build`: passed after running `npm install` to restore missing local `kafkajs` dependency that was already declared in `package.json` / `package-lock.json`.
+  - `cd wechat_app; npm run build:weapp`: passed.
+  - Browser verification with temporary E2E coach and pending settlement net amount `¥161.60` confirmed `/dashboard/overview`, `/dashboard/revenue`, and `/dashboard/wallet` all displayed `161.60`; screenshots saved in `screenshots/web/`.
+  - Temporary seed user/subscription, test order, and settlement rows were cleaned up.
+
 ## Pull Latest Code (`2026-06-10`)
 
 - Task: pull latest code into local workspace.

@@ -7,6 +7,10 @@ import './index.scss'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { useTheme } from '@/hooks/useTheme'
 
+function formatMoney(value?: number | null) {
+  return Number(value ?? 0).toFixed(2)
+}
+
 function CoachRevenue() {
   const { effectiveTheme } = useTheme()
   const [data, setData] = useState<{ totalRevenue: number; subscriptionRevenue: number; contentPurchaseRevenue: number; items: any[] } | null>(null)
@@ -56,15 +60,15 @@ function CoachRevenue() {
           <View className="summary">
             <View className="row">
               <Text>本月总收入</Text>
-              <Text className="total">¥{(data.totalRevenue ?? 0).toFixed(2)}</Text>
+              <Text className="total">¥{formatMoney(data.totalRevenue)}</Text>
             </View>
             <View className="row">
               <Text>订阅收入</Text>
-              <Text>¥{(data.subscriptionRevenue ?? 0).toFixed(2)}</Text>
+              <Text>¥{formatMoney(data.subscriptionRevenue)}</Text>
             </View>
             <View className="row">
               <Text>内容收入</Text>
-              <Text>¥{(data.contentPurchaseRevenue ?? 0).toFixed(2)}</Text>
+              <Text>¥{formatMoney(data.contentPurchaseRevenue)}</Text>
             </View>
           </View>
           {data.items?.length > 0 && (
@@ -73,7 +77,7 @@ function CoachRevenue() {
                 <View key={item.id || i} className="item">
                   <View className="row">
                     <Text className="desc">{item.description || item.subject || '收入'}</Text>
-                    <Text className="amount">+¥{(item.amount ?? 0).toFixed(2)}</Text>
+                    <Text className="amount">+¥{formatMoney(item.amount)}</Text>
                   </View>
                   {(item.createdAt || item.created_at) && (
                     <Text className="desc">{new Date(item.createdAt || item.created_at).toLocaleString()}</Text>

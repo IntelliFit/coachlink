@@ -65,6 +65,7 @@ export default {
         'cart/index',
         'purchase-history/index',
         'toolbox/index',
+        'toolbox/power-analysis/index',
         'toolbox/scenario/index',
         'settings/index',
         'profile/detail/index',
