@@ -1,3 +1,77 @@
+## Power Analysis Architecture Explanation (`2026-06-16`)
+
+- Task: explain how the toolbox power-analysis feature works, including Python analysis, queue/worker design, and Docker image push to Tencent CCR.
+- Status: code and docs inspected; explanation provided in chat.
+- Key implementation references:
+  - `src/app/api/toolbox/power-analysis/*`
+  - `src/lib/taskqueue/*`
+  - `scripts/power-analysis/analyze_video.py`
+  - `scripts/power-analysis-worker.*`
+  - `Dockerfile.power-worker`
+  - `scripts/push-power-worker-ccr.mjs`
+  - `docs/done/system-design/power-analysis-worker-queue.md`
+
+## Power Analysis Production Failure Diagnosis (`2026-06-16`)
+
+- Task: diagnose reported online power-analysis failure showing `D:\files\coachlink\scripts\power-analysis\analyze_video.py` and `ModuleNotFoundError: No module named 'mediapipe'`.
+- Status: SSH/K8s/DB inspection completed; no production changes made.
+- Findings:
+  - Current Ubuntu/K8s power-worker main/dev containers include `/opt/power-analysis-venv` and `mediapipe 0.10.21`.
+  - Current production Apollo app-config has Kafka queue settings for `coachlink-power-analysis-tasks-main`.
+  - Kafka main topic had no produced messages, and main worker logs did not show processing the failed jobs.
+  - Recent failed DB rows on `2026-06-15` contain the Windows `D:\files\coachlink\...` traceback, indicating a Windows-native local process, not the K8s worker, claimed and failed those jobs.
+- Most likely root cause: a local Windows dev server or local power-analysis worker was connected to the production Supabase database and processed queued jobs via memory/poll DB recovery without MediaPipe installed.
+
+## Power Analysis Queue History Clarification (`2026-06-16`)
+
+- Task: answer when `tool_power_analysis_jobs` and the worker/queue code were introduced, and clarify whether polling was replaced by queue push.
+- Status: Git history inspected.
+- Timeline:
+  - `2026-06-06 05:16:37 +0800`, commit `a72384a`: created `tool_power_analysis_jobs`, first worker, first enqueue API; worker was DB polling (`--poll`) and enqueue only marked DB row `queued`.
+  - `2026-06-09 22:59:58 +0800`, commit `5306611`: added task queue abstraction, Kafka/memory queue, queue worker CLI, and enqueue `publishTask`.
+  - `2026-06-09 23:57:51 +0800`, commit `8029de1`: removed embedded Web worker from enqueue and switched local dev to a separate child worker process.
+- Important nuance: current queue push path still has memory-mode DB recovery (`recoverQueuedJobs`) that scans shared `tool_power_analysis_jobs.status='queued'`; therefore local memory worker is not isolated if it shares the same Supabase DB with production.
+
+## Power Analysis Local Worker DB Recovery Removed (`2026-06-16`)
+
+- Task: remove memory worker recovery that scans shared DB `queued` jobs and confirm whether it caused production analysis failures.
+- Status: implemented and verified locally.
+- Changes:
+  - Removed `recoverQueuedJobs()` from `scripts/power-analysis-worker.ts`.
+  - Removed `enableRecover` option and memory-mode recovery startup from `scripts/power-analysis-worker-cli.ts`.
+  - Updated `docs/done/system-design/power-analysis-worker-queue.md`.
+- Confirmation:
+  - Yes, the failure pattern matches this bug: local Apollo memory queue + shared Supabase allowed a local Windows worker to claim production queued jobs; the failed DB rows have Windows `D:\files\coachlink\...` traceback while production Kafka main had no messages.
+- Verification:
+  - `npm run lint`: passed.
+  - `npm run typecheck`: passed.
+  - `npx next build`: passed.
+  - `npm test`: passed, 33 files / 162 tests.
+
+## Power Analysis Topic-Scoped Recovery (`2026-06-16`)
+
+- Task: add a safer fallback so missed queue jobs can be recovered without local workers claiming production jobs.
+- Status: implemented and verified locally.
+- Changes:
+  - Added `supabase/migrations/20260616_power_analysis_queue_topic.sql`.
+  - Added `queue_driver`, `queue_topic`, `queue_consumer_group`, and `enqueued_at` ownership fields to `tool_power_analysis_jobs`.
+  - `create-upload-url` and `enqueue` now write the current queue config into the job row.
+  - Queue worker recovery is restored, but filters by `queue_topic = TASK_QUEUE_TOPIC`.
+  - Queue delivery claim also filters by `queue_topic`.
+  - `poll-worker` remains explicit manual full-DB fallback.
+- Clarification:
+  - Topic values are runtime-configured via `TASK_QUEUE_TOPIC`, not hard-coded by environment name.
+  - Power-analysis task creation and queue workers now require an explicit `TASK_QUEUE_TOPIC`; if local/Apollo bootstrap does not provide it, they fail fast instead of using the generic queue default.
+- Verification:
+  - `npm run typecheck`: passed.
+  - `npm run lint`: passed.
+  - `npm test`: passed, 33 files / 162 tests.
+  - `npx next build`: passed.
+- Deployment note:
+  - After applying `supabase/migrations/20260616_power_analysis_queue_topic.sql`, redeploy both Web/Next.js and the Power Analysis worker image.
+  - Web/Next.js must be redeployed because the upload/enqueue APIs now write `queue_topic` ownership fields and require explicit `TASK_QUEUE_TOPIC`.
+  - Worker must be redeployed because queue delivery claim and recovery now filter by the configured topic.
+  - Prefer deploying Web first, then worker, so newly enqueued jobs include `queue_topic` before the topic-scoped worker starts claiming.
 ## Push Current Code To Main And Dev (`2026-06-16`)
 
 - Task: commit current local code and push so remote `main` and `dev` are consistent.
