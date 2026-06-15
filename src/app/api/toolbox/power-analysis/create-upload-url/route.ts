@@ -2,6 +2,7 @@ import { randomUUID } from "crypto";
 import { NextResponse } from "next/server";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 import { serviceRoleSupabase } from "@/lib/supabaseClient";
+import { getTaskQueueConfig } from "@/lib/taskqueue/config";
 import type { ApiData } from "@/types/api";
 import type {
   CreatePowerAnalysisUploadUrlDto,
@@ -112,6 +113,7 @@ export async function POST(req: Request) {
   }
 
   const jobId = randomUUID();
+  const queueConfig = getTaskQueueConfig(process.env, { requireTopic: true });
   const inputPath = buildPowerAnalysisPath({ userId, jobId, filename: originalFilename });
   const outputPath = buildPowerAnalysisOutputPath({ userId, jobId });
   const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
@@ -148,6 +150,9 @@ export async function POST(req: Request) {
       input_storage_path: inputPath,
       output_storage_bucket: POWER_ANALYSIS_BUCKET,
       output_storage_path: outputPath,
+      queue_driver: queueConfig.driver,
+      queue_topic: queueConfig.topic,
+      queue_consumer_group: queueConfig.consumerGroup,
       original_filename: originalFilename,
       original_file_size_bytes: Math.round(fileSizeBytes),
       metadata: {
