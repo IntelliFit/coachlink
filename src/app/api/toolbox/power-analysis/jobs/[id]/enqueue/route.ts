@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 import { publishTask } from "@/lib/taskqueue/factory";
 import { serviceRoleSupabase } from "@/lib/supabaseClient";
+import { getTaskQueueConfig } from "@/lib/taskqueue/config";
 import type { ApiData } from "@/types/api";
 import type { PowerAnalysisJobDto } from "../../../types";
 import {
@@ -51,12 +52,17 @@ export async function POST(
     });
   }
 
+  const queueConfig = getTaskQueueConfig(process.env, { requireTopic: true });
   const { data, error } = await db
     .from("tool_power_analysis_jobs")
     .update({
       status: "queued",
       progress: 5,
       error_message: null,
+      queue_driver: queueConfig.driver,
+      queue_topic: queueConfig.topic,
+      queue_consumer_group: queueConfig.consumerGroup,
+      enqueued_at: new Date().toISOString(),
     })
     .eq("id", id)
     .eq("user_id", session.user.id)

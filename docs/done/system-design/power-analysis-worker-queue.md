@@ -23,7 +23,9 @@ POWER_ANALYSIS_RECOVER_INTERVAL_MS=60000
 POWER_ANALYSIS_RECOVER_BATCH_SIZE=50
 ```
 
-Memory mode is process-local and intended for local development. When Web runs with `TASK_QUEUE_DRIVER=memory`, the enqueue API lazily starts an embedded in-process worker, so `npm run dev` is enough for the local happy path. The embedded worker also periodically republishes `queued` DB rows into memory so local development survives restarts and missed in-process messages.
+Memory mode is process-local and intended for local development. `npm run dev` starts a separate local worker child process when `TASK_QUEUE_DRIVER=memory`, so the local happy path works without Kafka.
+
+Every job stores the queue topic that created it in `tool_power_analysis_jobs.queue_topic`. Local memory recovery may republish `queued` rows only when `queue_topic` matches the local worker's configured `TASK_QUEUE_TOPIC`. The topic value comes from runtime config (`getTaskQueueConfig()` / `TASK_QUEUE_TOPIC`), not from hard-coded environment names. Power-analysis job ownership paths require an explicit `TASK_QUEUE_TOPIC`; if local/Apollo bootstrap fails to provide one, task creation and queue workers fail fast instead of silently falling back to a default topic. This keeps independently configured environments isolated even if they share the same Supabase project.
 
 ## Kafka Queue
 
@@ -39,7 +41,9 @@ POWER_ANALYSIS_RECOVER_INTERVAL_MS=60000
 POWER_ANALYSIS_RECOVER_BATCH_SIZE=50
 ```
 
-Kafka topic must exist before the worker starts. In Kafka mode, Web only publishes messages; it does not start an embedded worker. The Kubernetes worker Deployment consumes Kafka messages and commits offsets only after the DB task is claimed and processed into a terminal state. The Kafka worker does not do periodic DB polling/recovery by default.
+Kafka topic must exist before the worker starts. In Kafka mode, Web only publishes messages. The Kubernetes worker Deployment consumes Kafka messages and commits offsets only after the DB task is claimed and processed into a terminal state.
+
+Queue workers perform topic-scoped DB recovery: on startup and then every `POWER_ANALYSIS_RECOVER_INTERVAL_MS`, a worker republishes only non-expired `queued` jobs whose `queue_topic` equals its explicitly configured `TASK_QUEUE_TOPIC`. This covers lost publish attempts, worker restarts, and uncommitted queue deliveries without allowing one differently configured worker to claim another topic's jobs.
 
 ## Commands
 
@@ -109,3 +113,16 @@ TASK_QUEUE_CONSUMER_GROUP=coachlink-power-workers
 ```
 
 `NEXT_SUPABASE_SERVICE_ROLE_KEY` is required because the worker updates jobs and reads/writes transient storage artifacts.
+
+## Database Ownership Fields
+
+`tool_power_analysis_jobs` includes queue ownership fields:
+
+```sql
+queue_driver text
+queue_topic text
+queue_consumer_group text
+enqueued_at timestamptz
+```
+
+The Web/API writes these fields when the upload job is created and refreshes them when the job is enqueued. The values are derived from the active queue runtime config, so changing Apollo/local `TASK_QUEUE_TOPIC` changes ownership for newly created jobs without code changes. Power-analysis task creation and queue workers require that topic to be explicitly present in the loaded runtime config. Queue workers must filter and claim by `queue_topic` in queue mode. The legacy `npm run power-analysis:poll-worker` command remains an explicit manual fallback and may process any queued job in the configured database.
