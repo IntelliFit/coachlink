@@ -1,16 +1,21 @@
 ## Push Current Code To Main And Dev (`2026-06-16`)
 
 - Task: commit current local code and push so remote `main` and `dev` are consistent.
-- Status: in progress.
+- Status: completed.
 - Starting branch: `main`.
 - Current local branch state before commit:
   - Local `main` and `dev` point to the same merge head from the latest `origin/dev` pull.
   - Working tree contains the accumulated coach revenue, E2E cleanup, WeChat Power Analysis native page/preview, plan-history detail, and durable-state changes.
-- Required before push:
+- Verification / user instruction:
   - User explicitly asked to skip further tests/builds and push directly.
   - Already completed before the user interruption: `npm run lint`, `npm run typecheck`, and `npm test`.
   - Skipped by user instruction: `npm run test:e2e`, `npx next build`, and `cd wechat_app; npm run build:weapp`.
-- Remote note: push has not happened yet.
+- Result:
+  - Created commit `c1bc9e43 feat: sync power analysis and coach revenue fixes`.
+  - Fast-forwarded local `dev` to match local `main`.
+  - Pushed both `main` and `dev` to `origin`, whose push URLs include Gitee and GitHub.
+  - After push, both remote branches pointed to `c1bc9e43`.
+  - GitHub reported existing Dependabot vulnerability warnings during push; push itself succeeded.
 
 ## Local Power Analysis Debug Setup (`2026-06-16`)
 
