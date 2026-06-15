@@ -2,12 +2,14 @@ import React from 'react'
 import { View, Text, ScrollView } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import './index.scss'
+import { useTheme } from '@/hooks/useTheme'
 
 /**
  * 新用户引导/入驻说明。引导教练/健身房申请，需登录后跳转申请页。
  * 与网页端一致：教练与健身房均跳转同一申请页，通过 role 区分。
  */
 export default function Onboarding() {
+  const { effectiveTheme } = useTheme()
   const goApply = (role: 'coach' | 'gym') => {
     const query = role === 'gym' ? '?role=gym' : ''
     const url = '/coach/application' + query
@@ -22,7 +24,7 @@ export default function Onboarding() {
   }
 
   return (
-    <View className="onboarding-page">
+    <View className={`onboarding-page theme-${effectiveTheme}`}>
       <ScrollView scrollY className="onboarding-scroll">
         <View className="doc-card">
           <Text className="doc-title">加入教链</Text>

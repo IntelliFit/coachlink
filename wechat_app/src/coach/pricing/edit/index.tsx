@@ -4,6 +4,7 @@ import Taro from '@tarojs/taro'
 import { coachService } from '@/services/coach/coachService'
 import { authService } from '@/services/authService'
 import './index.scss'
+import { useTheme } from '@/hooks/useTheme'
 
 type PricingTier = 'basic' | 'standard' | 'vip'
 type ProductType = 'single' | 'combo'
@@ -35,6 +36,7 @@ const typeOptions = [
 ]
 
 function CoachPricingEdit() {
+  const { effectiveTheme } = useTheme()
   const productId = Taro.getCurrentInstance().router?.params?.id
   const tier = Taro.getCurrentInstance().router?.params?.tier as PricingTier | undefined
   const [product, setProduct] = useState<Product>({
@@ -206,7 +208,7 @@ function CoachPricingEdit() {
   const receivingAccountReady = walletStatus?.huifu_open_status === 'opened'
 
   return (
-    <View className="pricing-edit-page">
+    <View className={`pricing-edit-page theme-${effectiveTheme}`}>
       <ScrollView scrollY className="edit-scroll">
         <View className="form-section">
           <View className={`receiving-warning-card ${receivingAccountReady ? 'ready' : 'pending'}`}>

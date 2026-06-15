@@ -23,6 +23,7 @@ import {
 import { coachService } from '@/services/coach/coachService'
 import './index.scss'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
+import { useTheme } from '@/hooks/useTheme'
 
 interface OverviewData {
   totalStudentCount: number
@@ -54,6 +55,10 @@ function toSafeBoolean(value: any): boolean {
   return false
 }
 
+function formatMoney(value?: number | null): string {
+  return Number(value ?? 0).toFixed(2)
+}
+
 function normalizeOverviewData(payload: any): OverviewData | null {
   if (!payload || typeof payload !== 'object') return null
 
@@ -77,6 +82,7 @@ function normalizeOverviewData(payload: any): OverviewData | null {
 }
 
 function CoachOverview() {
+  const { effectiveTheme } = useTheme()
   const [data, setData] = useState<OverviewData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -132,7 +138,7 @@ function CoachOverview() {
 
   if (loading) {
     return (
-      <View className="coach-overview-page">
+      <View className={`coach-overview-page theme-${effectiveTheme}`}>
         <View className="loading-wrap"><LoadingSpinner size={48} /></View>
         <BottomNav />
       </View>
@@ -141,7 +147,7 @@ function CoachOverview() {
 
   if (error) {
     return (
-      <View className="coach-overview-page">
+      <View className={`coach-overview-page theme-${effectiveTheme}`}>
         <View className="error-wrap">{error}</View>
         <BottomNav />
       </View>
@@ -150,7 +156,7 @@ function CoachOverview() {
 
   if (!data) {
     return (
-      <View className="coach-overview-page">
+      <View className={`coach-overview-page theme-${effectiveTheme}`}>
         <View className="loading-wrap">暂无数据</View>
         <BottomNav />
       </View>
@@ -158,7 +164,7 @@ function CoachOverview() {
   }
 
   return (
-    <View className="coach-overview-page">
+    <View className={`coach-overview-page theme-${effectiveTheme}`}>
     <ScrollView scrollY className="coach-overview-scroll">
       {/* 业务概览 */}
       <View className="section">
@@ -198,7 +204,7 @@ function CoachOverview() {
               </View>
             </View>
             <Text className="tile-label">本月收入</Text>
-            <Text className="tile-value">¥{data.monthlyRevenue.toLocaleString()}</Text>
+            <Text className="tile-value">¥{formatMoney(data.monthlyRevenue)}</Text>
           </View> */}
           <View className="stat-tile" onClick={() => navTo('/coach/wallet')}>
             <View className="tile-header">

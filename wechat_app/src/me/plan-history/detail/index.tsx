@@ -5,9 +5,24 @@ import { Notice } from '@nutui/icons-react-taro'
 import BottomNav from '@/components/BottomNav'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { request } from '@/utils/request'
+import type { PlanTrainingDay } from '@/types/plan'
 import './index.scss'
+import { useTheme } from '@/hooks/useTheme'
+
+interface GetInstanceResponse {
+  instance: any | null
+  totalTrainingDays?: number
+  resolvedTrainingDays?: number
+  derivedStatus?: string
+}
+
+const countTrainingDays = (days?: PlanTrainingDay[] | null) => {
+  if (!Array.isArray(days)) return 0
+  return days.filter(day => day?.type === 'training').length
+}
 
 function PlanHistoryDetail() {
+  const { effectiveTheme } = useTheme()
   const router = useRouter()
   const planId = router.params?.id
   const [plan, setPlan] = useState<any>(null)
@@ -16,22 +31,41 @@ function PlanHistoryDetail() {
   useDidShow(() => {
     if (planId) {
       loadPlanDetail()
+    } else {
+      setPlan(null)
+      setLoading(false)
     }
   })
 
   const loadPlanDetail = async () => {
     try {
       setLoading(true)
-      const res = await request({
-        url: `/api/student/plan-lib/history/${planId}`,
-        method: 'GET'
+      const res = await request<GetInstanceResponse>({
+        url: '/api/plan-lib/get-instance',
+        method: 'POST',
+        data: { id: planId }
       })
-      if (res.success && res.data) {
-        setPlan(res.data)
+      if (res.success && res.data?.instance) {
+        const instance = res.data.instance
+        const totalTrainingDays = res.data.totalTrainingDays ?? countTrainingDays(instance.training_days)
+        const resolvedTrainingDays = res.data.resolvedTrainingDays ?? 0
+        const completionRate = totalTrainingDays > 0
+          ? Math.round((resolvedTrainingDays / totalTrainingDays) * 100)
+          : undefined
+
+        setPlan({
+          ...instance,
+          status: res.data.derivedStatus || instance.status,
+          total_training_days: totalTrainingDays,
+          completion_rate: completionRate
+        })
+      } else {
+        setPlan(null)
       }
     } catch (error) {
       console.error('加载计划详情失败:', error)
       Taro.showToast({ title: '加载失败，请稍后重试', icon: 'none' })
+      setPlan(null)
     } finally {
       setLoading(false)
     }
@@ -58,7 +92,7 @@ function PlanHistoryDetail() {
 
   if (loading) {
     return (
-      <View className='plan-history-detail-page'>
+      <View className={`plan-history-detail-page theme-${effectiveTheme}`}>
         <ScrollView className='page-scroll' scrollY>
           <View className='loading-wrap'>
             <LoadingSpinner size={48} />
@@ -71,7 +105,7 @@ function PlanHistoryDetail() {
 
   if (!plan) {
     return (
-      <View className='plan-history-detail-page'>
+      <View className={`plan-history-detail-page theme-${effectiveTheme}`}>
         <ScrollView className='page-scroll' scrollY>
           <View className='empty-wrap'>
             <Text>计划不存在</Text>
@@ -83,7 +117,7 @@ function PlanHistoryDetail() {
   }
 
   return (
-    <View className='plan-history-detail-page'>
+    <View className={`plan-history-detail-page theme-${effectiveTheme}`}>
       <ScrollView className='page-scroll' scrollY>
         <View className='page-content'>
           <View className='plan-header'>

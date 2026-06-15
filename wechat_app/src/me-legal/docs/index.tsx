@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { View, Text, ScrollView } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import './index.scss'
+import { useTheme } from '@/hooks/useTheme'
 
 /**
  * 文档列表/详情。可通过 query slug 展示单篇（如 ?slug=terms）。
@@ -14,6 +15,7 @@ const DOC_ENTRIES = [
 ]
 
 export default function Docs() {
+  const { effectiveTheme } = useTheme()
   const [slug, setSlug] = useState<string | null>(null)
 
   useEffect(() => {
@@ -27,7 +29,7 @@ export default function Docs() {
   }
 
   return (
-    <View className="docs-page">
+    <View className={`docs-page theme-${effectiveTheme}`}>
       <ScrollView scrollY className="docs-scroll">
         <View className="doc-list">
           <Text className="list-title">文档</Text>

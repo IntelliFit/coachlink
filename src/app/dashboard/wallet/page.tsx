@@ -133,7 +133,7 @@ export default function CoachWalletPage() {
     }
 
     const pendingSettlementAmount = data?.pending_settlement_amount ?? 0;
-    const displayedFrozenAmount = (data?.frozen_amount ?? 0) + pendingSettlementAmount;
+    const frozenAmount = data?.frozen_amount ?? 0;
     const hasPendingSettlements = Boolean(data?.pending_settlements?.length);
 
     return (
@@ -150,7 +150,7 @@ export default function CoachWalletPage() {
                     </div>
                     <div className="mt-6 flex justify-between items-end">
                         <div className="space-y-1">
-                            <p className="text-xs text-green-100">冻结金额: ¥ {displayedFrozenAmount.toFixed(2)}</p>
+                            <p className="text-xs text-green-100">冻结金额: ¥ {frozenAmount.toFixed(2)}</p>
                             {pendingSettlementAmount > 0 ? (
                                 <p className="text-xs text-green-100">待结算收入: ¥ {pendingSettlementAmount.toFixed(2)}</p>
                             ) : null}
@@ -278,13 +278,20 @@ export default function CoachWalletPage() {
                     {hasPendingSettlements || (data?.transactions && data.transactions.length > 0) ? (
                         <>
                         {data?.pending_settlements?.map((settlement) => {
+                            const eligibleDate = settlement.eligible_at ? new Date(settlement.eligible_at) : null;
+                            const isOverdue = settlement.status === 'pending'
+                                && eligibleDate
+                                && !Number.isNaN(eligibleDate.getTime())
+                                && eligibleDate.getTime() <= Date.now();
                             const statusLabel = settlement.status === 'split_failed'
                                 ? '待重试结算'
                                 : settlement.status === 'processing'
                                     ? '结算处理中'
+                                    : isOverdue
+                                        ? '结算待处理'
                                     : '待结算';
-                            const availableAt = settlement.eligible_at
-                                ? format(new Date(settlement.eligible_at), 'yyyy-MM-dd HH:mm')
+                            const availableAt = eligibleDate
+                                ? format(eligibleDate, 'yyyy-MM-dd HH:mm')
                                 : null;
 
                             return (
@@ -302,7 +309,9 @@ export default function CoachWalletPage() {
                                             ) : null}
                                             <p className="text-xs text-surface-500">{format(new Date(settlement.created_at), 'yyyy-MM-dd HH:mm')}</p>
                                             {availableAt ? (
-                                                <p className="text-xs text-amber-600">预计可结算: {availableAt}</p>
+                                                <p className="text-xs text-amber-600">
+                                                    {isOverdue ? '已到期，等待系统结算' : `预计可结算: ${availableAt}`}
+                                                </p>
                                             ) : null}
                                             <Link href={`/dashboard/wallet/order/${settlement.alipay_order_id}`} className="text-xs text-primary-600 hover:underline mt-0.5 inline-block">
                                                 查看订单详情

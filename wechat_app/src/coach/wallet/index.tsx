@@ -5,17 +5,84 @@ import BottomNav from '@/components/BottomNav'
 import { coachService } from '@/services/coach/coachService'
 import './index.scss'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
+import { useTheme } from '@/hooks/useTheme'
 
 type WalletData = {
   balance: number
+  gross_balance?: number
+  withdrawable_balance?: number
   total_income?: number
   frozen_amount?: number
+  refund_protected_amount?: number
+  pending_settlement_amount?: number
+  refund_protection_days?: number
   huifu_open_status?: string | null
   huifu_open_msg?: string | null
-  transactions?: any[]
+  pending_settlements?: PendingSettlement[]
+  transactions?: WalletTransaction[]
+}
+
+type PendingSettlement = {
+  id: string
+  amount: number
+  platform_fee: number
+  total_amount: number
+  status: 'pending' | 'processing' | 'split_failed'
+  eligible_at: string | null
+  created_at: string
+  alipay_order_id: string
+  subject?: string | null
+  student_name?: string | null
+  error_message?: string | null
+}
+
+type WalletTransaction = {
+  id: string
+  amount: number
+  type: 'income' | 'withdrawal' | 'refund'
+  description?: string | null
+  created_at: string
+  subject?: string | null
+  order_type?: string | null
+  student_name?: string | null
+  alipay_order_id?: string | null
+  platform_fee?: number | null
+}
+
+function formatMoney(value?: number | null) {
+  return Number(value ?? 0).toFixed(2)
+}
+
+function formatDateTime(value?: string | null) {
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+  const pad = (part: number) => String(part).padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`
+}
+
+function isSettlementOverdue(settlement: PendingSettlement) {
+  if (settlement.status !== 'pending' || !settlement.eligible_at) return false
+  const eligibleAt = new Date(settlement.eligible_at).getTime()
+  return Number.isFinite(eligibleAt) && eligibleAt <= Date.now()
+}
+
+function getSettlementStatusLabel(settlement: PendingSettlement) {
+  if (isSettlementOverdue(settlement)) return '结算待处理'
+  const status = settlement.status
+  if (status === 'split_failed') return '待重试结算'
+  if (status === 'processing') return '结算处理中'
+  return '待结算'
+}
+
+function getTransactionTypeLabel(type: WalletTransaction['type']) {
+  if (type === 'income') return '收入'
+  if (type === 'withdrawal') return '提现'
+  return '退款'
 }
 
 function CoachWallet() {
+  const { effectiveTheme } = useTheme()
   const [walletData, setWalletData] = useState<WalletData | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -40,10 +107,16 @@ function CoachWallet() {
       const res = await coachService.getWallet()
       setWalletData(res ? {
         balance: res.balance ?? 0,
+        gross_balance: res.gross_balance,
+        withdrawable_balance: res.withdrawable_balance,
         total_income: res.total_income,
         frozen_amount: res.frozen_amount,
+        refund_protected_amount: res.refund_protected_amount,
+        pending_settlement_amount: res.pending_settlement_amount,
+        refund_protection_days: res.refund_protection_days,
         huifu_open_status: res.huifu_open_status,
         huifu_open_msg: res.huifu_open_msg,
+        pending_settlements: res.pending_settlements || [],
         transactions: res.transactions
       } : { balance: 0 })
     } catch (e) {
@@ -68,22 +141,38 @@ function CoachWallet() {
   }
 
   const isHuifuOpened = walletData?.huifu_open_status === 'opened'
+  const pendingSettlementAmount = walletData?.pending_settlement_amount ?? 0
+  const frozenAmount = walletData?.frozen_amount ?? 0
+  const hasPendingSettlements = Boolean(walletData?.pending_settlements?.length)
+  const hasTransactions = Boolean(walletData?.transactions?.length)
 
   return (
-    <View className="coach-wallet-page">
+    <View className={`coach-wallet-page theme-${effectiveTheme}`}>
       {loading ? (
         <View className="loading-wrap"><LoadingSpinner size={48} /></View>
       ) : (
         <ScrollView scrollY className="wallet-scroll" style={{ paddingBottom: '70px' }}>
           <View className="balance-card">
             <Text className="label">可提现余额（元）</Text>
-            <Text className="amount">¥{(walletData?.balance ?? 0).toFixed(2)}</Text>
-            {walletData?.frozen_amount !== undefined && walletData.frozen_amount > 0 && (
-              <Text className="frozen-amount">冻结金额：¥{walletData.frozen_amount.toFixed(2)}</Text>
-            )}
-            {walletData?.total_income !== undefined && (
-              <Text className="total-income">累计总收入：¥{walletData.total_income.toFixed(2)}</Text>
-            )}
+            <Text className="amount">¥{formatMoney(walletData?.balance)}</Text>
+            <View className="wallet-metrics">
+              <View className="wallet-metric">
+                <Text className="metric-label">冻结金额</Text>
+                <Text className="metric-value">¥{formatMoney(frozenAmount)}</Text>
+              </View>
+              <View className="wallet-metric">
+                <Text className="metric-label">待结算收入</Text>
+                <Text className="metric-value">¥{formatMoney(pendingSettlementAmount)}</Text>
+              </View>
+              <View className="wallet-metric">
+                <Text className="metric-label">账户总余额</Text>
+                <Text className="metric-value">¥{formatMoney(walletData?.gross_balance ?? walletData?.balance)}</Text>
+              </View>
+              <View className="wallet-metric">
+                <Text className="metric-label">累计总收入</Text>
+                <Text className="metric-value strong">¥{formatMoney(walletData?.total_income)}</Text>
+              </View>
+            </View>
             <View className="balance-actions">
               {isHuifuOpened ? (
                 <Text className="balance-action primary" onClick={goWithdraw}>申请提现</Text>
@@ -128,29 +217,64 @@ function CoachWallet() {
           </View>
 
           <View className="hint-card">
-            <Text className="hint-text">开户后，教练订阅和教练内容收入会按规则进入您的汇付收款账户；7天退款保护期内的收入会暂时冻结。</Text>
+            <Text className="hint-text">
+              开户后，教练订阅和教练内容收入会按规则进入您的汇付收款账户；{walletData?.refund_protection_days ?? 7}天退款保护期内的收入会暂时冻结，待结算收入不会计入可提现余额。
+            </Text>
           </View>
 
-          {walletData?.transactions && walletData.transactions.length > 0 && (
+          {(hasPendingSettlements || hasTransactions) && (
             <View className="transactions-section">
-              <Text className="section-title">最近交易</Text>
-              {walletData.transactions.map((tx: any) => (
+              <Text className="section-title">收支明细</Text>
+              {walletData?.pending_settlements?.map((settlement) => (
+                <View key={settlement.id} className="transaction-item pending" onClick={() => settlement.alipay_order_id && goOrderDetail(settlement.alipay_order_id)}>
+                  <View className="transaction-left">
+                    <Text className="transaction-type pending">{getSettlementStatusLabel(settlement)}</Text>
+                    <Text className="transaction-desc">来自{settlement.student_name || '学员'}的订阅</Text>
+                    {settlement.subject && (
+                      <Text className="transaction-subject">{settlement.subject}</Text>
+                    )}
+                    <Text className="transaction-time">{formatDateTime(settlement.created_at)}</Text>
+                    {settlement.eligible_at && (
+                      <Text className="transaction-eligible">
+                        {isSettlementOverdue(settlement) ? '已到期，等待系统结算' : `预计可结算：${formatDateTime(settlement.eligible_at)}`}
+                      </Text>
+                    )}
+                    {settlement.error_message && (
+                      <Text className="transaction-error">{settlement.error_message}</Text>
+                    )}
+                    <Text className="transaction-link">查看订单详情</Text>
+                  </View>
+                  <View className="transaction-amount-wrap">
+                    <Text className="transaction-amount pending">+¥{formatMoney(settlement.amount)}</Text>
+                    {settlement.platform_fee > 0 && (
+                      <Text className="transaction-platform-fee">平台服务费 -{formatMoney(settlement.platform_fee)}</Text>
+                    )}
+                  </View>
+                </View>
+              ))}
+              {walletData?.transactions?.map((tx) => (
                 <View key={tx.id} className="transaction-item" onClick={() => tx.alipay_order_id && goOrderDetail(tx.alipay_order_id)}>
                   <View className="transaction-left">
                     <Text className={`transaction-type ${tx.type === 'income' ? 'income' : tx.type === 'withdrawal' ? 'withdrawal' : 'refund'}`}>
-                      {tx.type === 'income' ? '收入' : tx.type === 'withdrawal' ? '提现' : '退款'}
+                      {getTransactionTypeLabel(tx.type)}
                     </Text>
                     <Text className="transaction-desc">{tx.description || tx.subject || '交易'}</Text>
+                    {tx.subject && tx.subject !== tx.description && (
+                      <Text className="transaction-subject">{tx.subject}</Text>
+                    )}
                     <Text className="transaction-time">
-                      {tx.created_at ? new Date(tx.created_at).toLocaleString('zh-CN') : ''}
+                      {formatDateTime(tx.created_at)}
                     </Text>
+                    {tx.alipay_order_id && (
+                      <Text className="transaction-link">查看订单详情</Text>
+                    )}
                   </View>
                   <View className="transaction-amount-wrap">
                     <Text className={`transaction-amount ${tx.type === 'income' ? 'income' : 'outcome'}`}>
-                      {tx.type === 'income' ? '+' : '-'}¥{Math.abs(tx.amount || 0).toFixed(2)}
+                      {tx.type === 'income' ? '+' : '-'}¥{formatMoney(Math.abs(tx.amount || 0))}
                     </Text>
                     {tx.platform_fee != null && tx.platform_fee > 0 && (
-                      <Text className="transaction-platform-fee">平台服务费 -{tx.platform_fee.toFixed(2)}</Text>
+                      <Text className="transaction-platform-fee">平台服务费 -{formatMoney(tx.platform_fee)}</Text>
                     )}
                   </View>
                 </View>
@@ -158,7 +282,7 @@ function CoachWallet() {
             </View>
           )}
 
-          {(!walletData?.transactions || walletData.transactions.length === 0) && (
+          {!hasPendingSettlements && !hasTransactions && (
             <View className="empty-transactions">
               <Text className="empty-text">暂无交易记录</Text>
             </View>

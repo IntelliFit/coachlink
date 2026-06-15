@@ -6,8 +6,10 @@ import { Notice, Lock } from '@nutui/icons-react-taro'
 import { authService } from '@/services/authService'
 import './index.scss'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
+import { useTheme } from '@/hooks/useTheme'
 
 export default function ContentDetail() {
+  const { effectiveTheme } = useTheme()
   const router = useRouter()
   const contentId = router.params?.id
   const [content, setContent] = useState<any>(null)
@@ -55,7 +57,7 @@ export default function ContentDetail() {
 
   if (loading) {
     return (
-      <View className="content-detail-page">
+      <View className={`content-detail-page theme-${effectiveTheme}`}>
         <View className="nav-bar">
           <Text className="nav-title">内容</Text>
         </View>
@@ -68,7 +70,7 @@ export default function ContentDetail() {
 
   if (errorMsg && !content) {
     return (
-      <View className="content-detail-page">
+      <View className={`content-detail-page theme-${effectiveTheme}`}>
         <View className="nav-bar">
           <Text className="nav-title">内容</Text>
         </View>
@@ -83,7 +85,7 @@ export default function ContentDetail() {
 
   if (forbidden || (content && !canView)) {
     return (
-      <View className="content-detail-page">
+      <View className={`content-detail-page theme-${effectiveTheme}`}>
         <View className="nav-bar">
           <Text className="nav-title">教学内容</Text>
         </View>
@@ -98,7 +100,7 @@ export default function ContentDetail() {
 
   if (!content) {
     return (
-      <View className="content-detail-page">
+      <View className={`content-detail-page theme-${effectiveTheme}`}>
         <View className="nav-bar">
           <Text className="nav-back" onClick={() => Taro.navigateBack()}>返回</Text>
           <Text className="nav-title">内容</Text>
@@ -115,7 +117,7 @@ export default function ContentDetail() {
   const isVideo = content.content_type === 'video'
 
   return (
-    <View className="content-detail-page">
+    <View className={`content-detail-page theme-${effectiveTheme}`}>
       <View className="nav-bar">
         <Text className="nav-title">教学内容</Text>
       </View>

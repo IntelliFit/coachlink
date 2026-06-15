@@ -2,8 +2,10 @@ import React, { useEffect } from 'react'
 import { View, Text } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import './index.scss'
+import { useTheme } from '@/hooks/useTheme'
 
 export default function RouteAliasPage() {
+  const { effectiveTheme } = useTheme()
   useEffect(() => {
     const params = Taro.getCurrentInstance().router?.params || {}
     const url = '/coach/overview'
@@ -14,7 +16,7 @@ export default function RouteAliasPage() {
   }, [])
 
   return (
-    <View className='route-alias-page'>
+    <View className={`route-alias-page theme-${effectiveTheme}`}>
       <Text className='route-alias-text'>正在跳转...</Text>
     </View>
   )

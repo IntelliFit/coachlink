@@ -2,6 +2,7 @@ import {
   computeCreditsScope,
   computeUsedCredits,
   estimateRemainingDays,
+  getDayIndex,
   type ExecutionLike,
   type TrainingDayLike,
 } from "./subscriptionCredits";
@@ -109,6 +110,27 @@ function getMaxAccessibleDayIndex(weeks: number) {
   return Math.floor(weeks) * 7;
 }
 
+function estimateFutureUnassignedCredits(params: {
+  trainingDays: TrainingDayLike[];
+  currentPlanCredits: number;
+  effectiveWeeks: number;
+}) {
+  const maxDayIndex = Math.max(
+    0,
+    ...params.trainingDays.map((day) => getDayIndex(day)).filter((n) => n > 0),
+  );
+  if (maxDayIndex <= 0) return 0;
+
+  const currentPlanWeeks = Math.max(1, Math.ceil(maxDayIndex / 7));
+  const extraWeeks = Math.max(0, params.effectiveWeeks - currentPlanWeeks);
+  if (extraWeeks <= 0 || params.currentPlanCredits <= 0) return 0;
+
+  const creditsPerWeek = params.currentPlanCredits / currentPlanWeeks;
+  if (!Number.isFinite(creditsPerWeek) || creditsPerWeek <= 0) return 0;
+
+  return Math.ceil(extraWeeks * creditsPerWeek);
+}
+
 export function deriveSubscriptionEntitlementState(params: {
   subscription: SubscriptionSource | null | undefined;
   planInstance?: PlanInstanceSource | null;
@@ -171,19 +193,37 @@ export function deriveSubscriptionEntitlementState(params: {
       totalCredits: 0,
     };
 
-  const usedCredits = hasPlan
+  const usedCurrentPlanCredits = hasPlan
     ? computeUsedCredits({
       eligibleTrainingDayIndexSet: scope.eligibleTrainingDayIndexSet,
       executions,
       startExecutionDay,
     })
     : 0;
-  const totalCredits = scope.totalCredits;
-  const remainingCredits = Math.max(0, totalCredits - usedCredits);
+  const currentPlanTotalCredits = scope.totalCredits;
+  const currentPlanRemainingCredits = Math.max(
+    0,
+    currentPlanTotalCredits - usedCurrentPlanCredits,
+  );
+  const futureUnassignedCredits = hasPlan
+    ? estimateFutureUnassignedCredits({
+      trainingDays,
+      currentPlanCredits: currentPlanTotalCredits,
+      effectiveWeeks,
+    })
+    : 0;
+  const totalCredits = currentPlanTotalCredits + futureUnassignedCredits;
+  const usedCredits = usedCurrentPlanCredits;
+  const remainingCredits = currentPlanRemainingCredits + futureUnassignedCredits;
   const maxAccessibleDayIndex = getMaxAccessibleDayIndex(effectiveWeeks);
 
   let displayEndDate: string | null = null;
-  if (relationStatus === "active" && hasPlan && purchasedWeeks > 0) {
+  if (
+    relationStatus === "active" &&
+    hasPlan &&
+    purchasedWeeks > 0 &&
+    currentPlanRemainingCredits > 0
+  ) {
     displayEndDate = deriveProjectedSubscriptionEndDate({
       startDate: subscription.start_date || null,
       subscribedWeeks: purchasedWeeks,

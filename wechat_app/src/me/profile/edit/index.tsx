@@ -10,6 +10,7 @@ import { authService } from '@/services/authService'
 import { getEmptySportCards, getTotalWeight, showTotalWeight, typicalActionMaps, type SportCards } from '@/utils/sportsCollections'
 import './index.scss'
 import { List } from '@nutui/icons-react-taro'
+import { useTheme } from '@/hooks/useTheme'
 
 // 性别选项
 const GENDER_OPTIONS = [
@@ -46,6 +47,7 @@ const SportTypes = [
 ]
 
 function EditProfile() {
+  const { effectiveTheme } = useTheme()
   const [step, setStep] = useState(1)
   const [loading, setLoading] = useState(false)
   const [profile, setProfile] = useState<any>(null)

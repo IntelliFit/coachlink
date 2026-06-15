@@ -31,6 +31,7 @@ import {
   drawStreetliftingLocationPoster,
   type StreetliftingLocationPosterData
 } from './poster'
+import { useTheme } from '@/hooks/useTheme'
 
 const MAX_IMAGES = 4
 const PAGE_SIZE = 20
@@ -176,6 +177,7 @@ function buildSharedLocationPreviewFromParams(params: Record<string, unknown>): 
 }
 
 export default function StreetliftingLocations() {
+  const { effectiveTheme } = useTheme()
   const routerParams = (Taro.getCurrentInstance().router?.params || {}) as Record<string, unknown>
   const sharedLocationId = String(routerParams.locationId || '').trim()
   const sharedLocationPreview = useMemo(() => buildSharedLocationPreviewFromParams(routerParams), [])
@@ -877,7 +879,7 @@ export default function StreetliftingLocations() {
   }
 
   return (
-    <View className='loc-page'>
+    <View className={`loc-page theme-${effectiveTheme}`}>
       {(sharedLocationLoading || sharedFocusLocation) && (
         <View className='share-focus-card'>
           <Text className='share-focus-eyebrow'>来自分享</Text>

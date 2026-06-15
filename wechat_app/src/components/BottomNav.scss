@@ -127,4 +127,20 @@
   .nav-item:not(.nav-active):active {
     background: rgba(255, 255, 255, 0.06);
   }
+
+  .nav-active {
+    background: #CF6D4E;
+
+    .nav-icon {
+      color: #FFFFFF;
+    }
+
+    .nav-label {
+      color: #FFFFFF;
+    }
+
+    .nav-msg-badge {
+      border-color: #CF6D4E;
+    }
+  }
 }

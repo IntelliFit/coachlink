@@ -14,6 +14,7 @@ import {
   type CoachApplicationMaterial,
   type CoachApplicationMaterialCategory
 } from '@/utils/coachApplicationMaterials'
+import { useTheme } from '@/hooks/useTheme'
 
 interface Credential {
   name: string
@@ -44,6 +45,7 @@ const targetStudentLevelOptions = [
 ]
 
 function CoachApplication() {
+  const { effectiveTheme } = useTheme()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [formData, setFormData] = useState({
@@ -516,7 +518,7 @@ function CoachApplication() {
 
   if (loading) {
     return (
-      <View className="coach-application-page">
+      <View className={`coach-application-page theme-${effectiveTheme}`}>
         <View className="loading-wrap"><LoadingSpinner size={48} /></View>
         <BottomNav />
       </View>
@@ -530,7 +532,7 @@ function CoachApplication() {
   }
 
   return (
-    <View className="coach-application-page">
+    <View className={`coach-application-page theme-${effectiveTheme}`}>
       <ScrollView scrollY className="application-scroll" style={{ paddingBottom: '100px' }}>
         {reviewInfo?.status && (
           <View className="review-status-card">

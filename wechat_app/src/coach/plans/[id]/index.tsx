@@ -2,8 +2,10 @@ import React, { useEffect, useState } from 'react'
 import { View, Text } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import './index.scss'
+import { useTheme } from '@/hooks/useTheme'
 
 function CoachPlanDetail() {
+  const { effectiveTheme } = useTheme()
   const params = Taro.getCurrentInstance().router?.params || {}
   const planId = String(params.id || '').trim()
   const coachId = params.coachId ? decodeURIComponent(String(params.coachId)) : ''
@@ -32,7 +34,7 @@ function CoachPlanDetail() {
   }, [coachId, coachName, planId])
 
   return (
-    <View className='plan-detail-entry-page'>
+    <View className={`plan-detail-entry-page theme-${effectiveTheme}`}>
       <View className='entry-card'>
         <Text className='entry-title'>正在进入计划看板...</Text>
         {errorMsg ? (

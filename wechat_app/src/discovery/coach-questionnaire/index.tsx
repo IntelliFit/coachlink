@@ -10,6 +10,7 @@ import {
   type PaymentStatus
 } from '@/services/paymentService'
 import './index.scss'
+import { useTheme } from '@/hooks/useTheme'
 
 interface TrainingItem {
   id?: string
@@ -101,6 +102,7 @@ function isQuestionAnswered(item: TrainingItem): boolean {
 }
 
 export default function CoachQuestionnairePage() {
+  const { effectiveTheme } = useTheme()
   const router = useRouter()
   const [answers, setAnswers] = useState<TrainingItem[]>([])
   const [loading, setLoading] = useState(true)
@@ -298,7 +300,7 @@ export default function CoachQuestionnairePage() {
   }
 
   return (
-    <View className='coach-questionnaire-page'>
+    <View className={`coach-questionnaire-page theme-${effectiveTheme}`}>
       <ScrollView scrollY className='coach-questionnaire-scroll'>
         <View className='coach-questionnaire-content'>
           <View className='coach-questionnaire-hero'>

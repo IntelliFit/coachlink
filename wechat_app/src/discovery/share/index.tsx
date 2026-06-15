@@ -5,6 +5,7 @@ import { Star } from '@nutui/icons-react-taro'
 import { request } from '@/utils/request'
 import './index.scss'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
+import { useTheme } from '@/hooks/useTheme'
 
 interface ShareData {
   workoutName: string
@@ -30,6 +31,7 @@ interface ShareInfoData {
 }
 
 export default function SharePage() {
+  const { effectiveTheme } = useTheme()
   const router = useRouter()
   const executionId = router.params.executionId as string
   
@@ -137,14 +139,14 @@ export default function SharePage() {
 
   if (loading) {
     return (
-      <View className='share-page'>
+      <View className={`share-page theme-${effectiveTheme}`}>
         <View className="loading"><LoadingSpinner size={48} /></View>
       </View>
     )
   }
 
   return (
-    <View className='share-page'>
+    <View className={`share-page theme-${effectiveTheme}`}>
       <Canvas id='shareCanvas' type='2d' className='share-canvas' style={{ position: 'absolute', left: '-9999px' }} />
       
       {/* 预览卡片 */}

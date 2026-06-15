@@ -1,12 +1,9 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
-import { isSubscriptionOrderTableMissingError } from "@/lib/subscriptionOrders";
-import supabase, { serviceRoleSupabase } from "@/lib/supabaseClient";
+import supabase from "@/lib/supabaseClient";
 import type { ApiData } from "@/types/api";
-import { fenToYuan } from "@/lib/moneyUtils";
+import { buildCoachMonthlyRevenueSummary } from "@/lib/coachRevenueSummary";
 import { GetOverviewDataResponseDto } from "./entity";
-
-const SUBSCRIPTION_ORDER_CUTOVER_AT = new Date("2026-04-22T00:00:00+08:00").getTime();
 
 export async function POST(req: Request) {
     const session = await getServerSession();
@@ -41,8 +38,6 @@ export async function POST(req: Request) {
     // 2. 并行执行聚合查询
     const [
         activeSubscriptionsResult,
-        subscriptionRevenueResult,
-        subscriptionOrderRevenueResult,
         pendingReviewResult,
         ratingResult,
         contentCountResult,
@@ -57,20 +52,6 @@ export async function POST(req: Request) {
             .select("student_id")
             .eq("coach_id", coachId)
             .eq("status", "active"),
-
-        // 订阅收入：沿用历史口径（active 订阅月费），但按月份过滤到“本月”
-        supabase
-            .from("coach_subscriptions")
-            .select("monthly_price,created_at,payment_confirmed_at,payment_confirmed_by,status")
-            .eq("coach_id", coachId)
-            .limit(5000),
-
-        serviceRoleSupabase
-            .from("coach_subscription_orders" as any)
-            .select("amount_fen,payment_confirmed_at,status")
-            .eq("coach_id", coachId)
-            .eq("status", "paid")
-            .limit(5000),
 
         // 假设 training_videos 表有 coach_id 或可以通过关联查询
         supabase
@@ -146,99 +127,22 @@ export async function POST(req: Request) {
     }
     const pendingReviewCount = pendingReviewResult.count || 0;
 
-    // monthly_price 在 DB 中为分；按“确认支付时间(优先) / 创建时间(兜底)”过滤到本月
-    const legacySubscriptionRevenueFen = (subscriptionRevenueResult.data || []).reduce(
-        (sum, row: any) => {
-            const isPaidLike = Boolean(
-                row?.payment_confirmed_at ||
-                row?.payment_confirmed_by ||
-                row?.status === "active",
-            );
-            if (!isPaidLike) return sum;
-            const revenueAtRaw = row?.payment_confirmed_at || row?.created_at;
-            if (!revenueAtRaw) return sum;
-            const revenueAtMs = new Date(revenueAtRaw).getTime();
-            if (Number.isNaN(revenueAtMs)) return sum;
-            if (revenueAtMs >= SUBSCRIPTION_ORDER_CUTOVER_AT) return sum;
-            if (
-                revenueAtMs < monthStart.getTime() ||
-                revenueAtMs >= nextMonthStart.getTime()
-            ) {
-                return sum;
-            }
-            return sum + (Number(row?.monthly_price) || 0);
-        },
-        0,
-    );
-
-    if (
-        subscriptionOrderRevenueResult.error &&
-        !isSubscriptionOrderTableMissingError(subscriptionOrderRevenueResult.error.message)
-    ) {
-        return NextResponse.json({
-            success: false,
-            message: subscriptionOrderRevenueResult.error.message,
-        }, {
-            status: 500,
-        });
-    }
-
-    const subscriptionOrderRevenueFen = ((subscriptionOrderRevenueResult.data || []) as any[]).reduce(
-        (sum: number, row: any) => {
-            const revenueAtRaw = row?.payment_confirmed_at;
-            if (!revenueAtRaw) return sum;
-            const revenueAtMs = new Date(revenueAtRaw).getTime();
-            if (Number.isNaN(revenueAtMs)) return sum;
-            if (
-                revenueAtMs < monthStart.getTime() ||
-                revenueAtMs >= nextMonthStart.getTime()
-            ) {
-                return sum;
-            }
-            return sum + (Number(row?.amount_fen) || 0);
-        },
-        0,
-    );
-
-    // Coach-owned paid content now follows delayed Huifu settlement. Count it as
-    // coach revenue only after local wallet credit exists, not merely after the
-    // buyer's source payment succeeds.
-    let contentPurchaseRevenueFen = 0;
+    let revenueSummary = {
+        subscriptionRevenue: 0,
+        contentPurchaseRevenue: 0,
+        totalRevenue: 0,
+        items: [],
+    };
     try {
-        const { data: txs } = await serviceRoleSupabase
-            .from("wallet_transactions")
-            .select("amount,created_at,type,alipay_order_id")
-            .eq("wallet_id", coachId)
-            .eq("type", "income")
-            .gte("created_at", monthStart.toISOString())
-            .lt("created_at", nextMonthStart.toISOString())
-            .limit(5000);
-
-        const orderIds = Array.from(new Set(
-            (txs || [])
-                .map((tx: any) => tx.alipay_order_id)
-                .filter((id: any) => typeof id === "string" && id.length > 0),
-        ));
-
-        if (orderIds.length > 0) {
-            const { data: contentOrders } = await serviceRoleSupabase
-                .from("alipay_orders")
-                .select("id,order_type")
-                .in("id", orderIds)
-                .eq("order_type", "content_purchase");
-            const contentOrderIds = new Set((contentOrders || []).map((order: any) => order.id));
-            contentPurchaseRevenueFen = (txs || []).reduce((sum: number, tx: any) => {
-                return contentOrderIds.has(tx.alipay_order_id)
-                    ? sum + (Number(tx?.amount) || 0)
-                    : sum;
-            }, 0);
-        }
+        revenueSummary = await buildCoachMonthlyRevenueSummary({
+            coachId,
+            monthStart,
+            nextMonthStart,
+        });
     } catch (e) {
-        console.error("[coach/overview] content purchase revenue calc failed:", e);
+        console.error("[coach/overview] revenue calc failed:", e);
     }
 
-    const subscriptionRevenue = fenToYuan(legacySubscriptionRevenueFen + subscriptionOrderRevenueFen);
-    const contentPurchaseRevenue = fenToYuan(contentPurchaseRevenueFen);
     const contentCount = contentCountResult.count || 0;
     const actionCount = actionCountResult.count || 0;
     const planTemplateCount = planTemplateCountResult.count || 0;
@@ -264,7 +168,7 @@ export async function POST(req: Request) {
             totalStudentCount,
             pendingReviewCount,
             averageRating,
-            monthlyRevenue: subscriptionRevenue + contentPurchaseRevenue,
+            monthlyRevenue: revenueSummary.totalRevenue,
             contentCount,
             actionCount,
             planTemplateCount,

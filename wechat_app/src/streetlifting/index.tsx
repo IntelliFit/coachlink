@@ -5,8 +5,10 @@ import { request } from '@/utils/request'
 import { Book, Calendar, Calculator, Edit, List, Location } from '@nutui/icons-react-taro'
 import './index.scss'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
+import { useTheme } from '@/hooks/useTheme'
 
 export default function StreetliftingIndex() {
+  const { effectiveTheme } = useTheme()
   const [stats, setStats] = useState<{ totalCount: number; lastUpdated: string | null }>({ totalCount: 0, lastUpdated: null })
   const [loading, setLoading] = useState(true)
 
@@ -36,7 +38,7 @@ export default function StreetliftingIndex() {
   const nav = (path: string) => Taro.navigateTo({ url: path })
 
   return (
-    <View className="streetlifting-page">
+    <View className={`streetlifting-page theme-${effectiveTheme}`}>
       <ScrollView scrollY className="streetlifting-scroll">
         <View className="hero">
           <Text className="hero-title">街健力量指数</Text>

@@ -9,6 +9,7 @@ import { subscriptionService } from '@/services/subscriptionService'
 import { authService } from '@/services/authService'
 import { chatService } from '@/services/chatService'
 import './index.scss'
+import { useTheme } from '@/hooks/useTheme'
 
 type SortMode = 'subscription_created_desc' | 'subscription_created_asc' | 'subscription_updated_desc'
 type PaymentTab = 'pending' | 'history'
@@ -46,6 +47,7 @@ const SORT_OPTIONS: Array<{ label: string; value: SortMode }> = [
 ]
 
 function CoachStudents() {
+  const { effectiveTheme } = useTheme()
   const [students, setStudents] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [page, setPage] = useState(0)
@@ -973,7 +975,7 @@ function CoachStudents() {
   }
 
   return (
-    <View className='coach-students-page'>
+    <View className={`coach-students-page theme-${effectiveTheme}`}>
       <View className='page-header'>
         <View className='header-main'>
           <Text className='header-title'>学员管理</Text>

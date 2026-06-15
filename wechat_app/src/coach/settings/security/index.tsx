@@ -5,8 +5,10 @@ import BottomNav from '@/components/BottomNav'
 import { request } from '@/utils/request'
 import { authService } from '@/services/authService'
 import './index.scss'
+import { useTheme } from '@/hooks/useTheme'
 
 function CoachSecuritySettings() {
+  const { effectiveTheme } = useTheme()
   const [loading, setLoading] = useState(false)
   const [sending, setSending] = useState(false)
   const [countdown, setCountdown] = useState(0)
@@ -151,7 +153,7 @@ function CoachSecuritySettings() {
   const currentContactValue = verifyType === 'phone' ? user?.phone : user?.email
 
   return (
-    <View className="security-settings-page">
+    <View className={`security-settings-page theme-${effectiveTheme}`}>
       <ScrollView scrollY className="settings-scroll" style={{ paddingBottom: '70px' }}>
         <View className="settings-card">
           <Text className="card-title">修改密码</Text>

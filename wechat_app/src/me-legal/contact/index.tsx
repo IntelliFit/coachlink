@@ -1,17 +1,19 @@
 import { View, Text, ScrollView } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import './index.scss'
+import { useTheme } from '@/hooks/useTheme'
 
 /**
  * 联系我们，文案与网页端 public/docs/contact.md 对齐
  */
 export default function Contact() {
+  const { effectiveTheme } = useTheme()
   const goFeedback = () => {
     Taro.navigateTo({ url: '/me-legal/feedback/index' })
   }
 
   return (
-    <View className="doc-page">
+    <View className={`doc-page theme-${effectiveTheme}`}>
       <ScrollView scrollY className="doc-scroll">
         <View className="doc-card">
           <Text className="doc-content">

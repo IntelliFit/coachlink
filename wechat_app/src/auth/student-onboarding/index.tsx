@@ -13,6 +13,7 @@ import maleBackSvgRaw from '@/assets/body-map/maleBackSvg'
 import femaleFrontSvgRaw from '@/assets/body-map/femaleFrontSvg'
 import femaleBackSvgRaw from '@/assets/body-map/femaleBackSvg'
 import './index.scss'
+import { useTheme } from '@/hooks/useTheme'
 
 interface OnboardingFormData {
   avatarUrl: string
@@ -298,6 +299,7 @@ const WifiSignalIcon: React.FC<{ level: number; active: boolean }> = ({ level, a
 }
 
 function StudentOnboarding() {
+  const { effectiveTheme } = useTheme()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [avatarUploading, setAvatarUploading] = useState(false)

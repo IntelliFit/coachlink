@@ -14,6 +14,7 @@ import { authService } from '@/services/authService'
 import { computeCoefficient, calculateAdded1RM } from '@/utils/streetliftingCalc'
 import { validateStreetliftingSubmissionWeights } from '@/utils/streetliftingSubmissionLimits'
 import './index.scss'
+import { useTheme } from '@/hooks/useTheme'
 
 const EXERCISE_OPTIONS = [
   { label: '全部动作', value: 'all' },
@@ -77,6 +78,7 @@ function formatSubmissionTime(iso: string | undefined | null): string {
 }
 
 export default function StreetliftingData() {
+  const { effectiveTheme } = useTheme()
   const [loading, setLoading] = useState(true)
   const [submissions, setSubmissions] = useState<StreetliftingSubmission[]>([])
   const [formulaMap, setFormulaMap] = useState<Record<string, StreetliftingFormula>>({})
@@ -384,7 +386,7 @@ export default function StreetliftingData() {
   )
 
   return (
-    <View className='data-page'>
+    <View className={`data-page theme-${effectiveTheme}`}>
       <View className='data-page-inner'>
         <View className='btn-add' onClick={openSubmit}>
           <Text className='iconfont icon-pencil btn-add-icon' />

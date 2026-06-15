@@ -27,6 +27,13 @@ interface OverviewData {
     huifuOpenMsg: string | null;
 }
 
+function formatMoney(value?: number | null) {
+    return (Number(value ?? 0) || 0).toLocaleString("zh-CN", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+    });
+}
+
 // 统一的卡片组件
 const StatCard = ({
     title,
@@ -173,7 +180,7 @@ const Overview = () => {
         },
         {
             title: "本月收入",
-            value: `¥${overviewData?.monthlyRevenue?.toLocaleString() || 0}`,
+            value: `¥${formatMoney(overviewData?.monthlyRevenue)}`,
             icon: TrendingUp,
             colorClass: "bg-purple-50 text-purple-600",
             href: "/dashboard/revenue"

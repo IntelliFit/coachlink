@@ -3,10 +3,12 @@ import { View, Text, ScrollView, Button } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import BottomNav from '@/components/BottomNav'
 import './index.scss'
+import { useTheme } from '@/hooks/useTheme'
 
 function CoachPaymentSettings() {
+  const { effectiveTheme } = useTheme()
   return (
-    <View className="payment-settings-page">
+    <View className={`payment-settings-page theme-${effectiveTheme}`}>
       <ScrollView scrollY className="settings-scroll" style={{ paddingBottom: '70px' }}>
         <View className="settings-card">
           <Text className="card-title">个人收款码已停用</Text>

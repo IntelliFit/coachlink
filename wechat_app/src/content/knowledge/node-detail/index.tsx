@@ -7,8 +7,10 @@ import { FileText, Video as VideoIcon } from 'lucide-react'
 import { Notice } from '@nutui/icons-react-taro'
 import './index.scss'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
+import { useTheme } from '@/hooks/useTheme'
 
 export default function NodeDetail() {
+  const { effectiveTheme } = useTheme()
   const router = useRouter()
   const nodeId = router.params?.id
   const [node, setNode] = useState<any>(null)
@@ -60,7 +62,7 @@ export default function NodeDetail() {
 
   if (loading) {
     return (
-      <View className="node-detail-page">
+      <View className={`node-detail-page theme-${effectiveTheme}`}>
         <View className="nav-bar">
           <Text className="nav-back" onClick={() => Taro.navigateBack()}>返回</Text>
           <Text className="nav-title">节点详情</Text>
@@ -74,7 +76,7 @@ export default function NodeDetail() {
 
   if (errorMsg && !node) {
     return (
-      <View className="node-detail-page">
+      <View className={`node-detail-page theme-${effectiveTheme}`}>
         <View className="nav-bar">
           <Text className="nav-back" onClick={() => Taro.navigateBack()}>返回</Text>
           <Text className="nav-title">节点详情</Text>
@@ -90,7 +92,7 @@ export default function NodeDetail() {
 
   if (!node) {
     return (
-      <View className="node-detail-page">
+      <View className={`node-detail-page theme-${effectiveTheme}`}>
         <View className="nav-bar">
           <Text className="nav-back" onClick={() => Taro.navigateBack()}>返回</Text>
           <Text className="nav-title">节点详情</Text>
@@ -104,7 +106,7 @@ export default function NodeDetail() {
   }
 
   return (
-    <View className="node-detail-page">
+    <View className={`node-detail-page theme-${effectiveTheme}`}>
       <View className="nav-bar">
         <Text className="nav-back" onClick={() => Taro.navigateBack()}>返回</Text>
         <Text className="nav-title" numberOfLines={1}>{node.title || '详情'}</Text>

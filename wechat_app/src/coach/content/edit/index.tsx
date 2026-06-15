@@ -5,6 +5,7 @@ import Taro from '@tarojs/taro'
 import { coachService } from '@/services/coach/coachService'
 import './index.scss'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
+import { useTheme } from '@/hooks/useTheme'
 
 type ContentType = 'text' | 'video' | 'image' | 'live' | 'plan'
 
@@ -24,6 +25,7 @@ const TIER_OPTIONS: Array<{ label: string; value: number; desc: string }> = [
 ]
 
 function CoachContentEdit() {
+  const { effectiveTheme } = useTheme()
   const contentId = Taro.getCurrentInstance().router?.params?.id
   const isEdit = !!contentId
   const [title, setTitle] = useState('')
@@ -166,14 +168,14 @@ function CoachContentEdit() {
 
   if (loading) {
     return (
-      <View className="coach-content-edit-page">
+      <View className={`coach-content-edit-page theme-${effectiveTheme}`}>
         <View className="loading-wrap"><LoadingSpinner size={48} /></View>
       </View>
     )
   }
 
   return (
-    <View className="coach-content-edit-page">
+    <View className={`coach-content-edit-page theme-${effectiveTheme}`}>
       <View className="header">
         <Button className="back-btn" onClick={() => Taro.navigateBack()}>返回</Button>
         <Text className="title">{isEdit ? '编辑内容' : '新建内容'}</Text>

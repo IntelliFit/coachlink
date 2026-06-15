@@ -6,6 +6,7 @@ import { authService } from '@/services/authService'
 import AssessmentForm from './AssessmentForm'
 import './index.scss'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
+import { useTheme } from '@/hooks/useTheme'
 
 const DOMAINS = [
   {
@@ -42,6 +43,7 @@ const DIFFICULTY_MAP = {
  * 流程：选择训练域 → 填写评估表单（与网页端一致）→ 提交后跳转 waiting 页。
  */
 export default function GeneratePlan() {
+  const { effectiveTheme } = useTheme()
   const [coachId, setCoachId] = useState<string>('')
   const [selectedDomain, setSelectedDomain] = useState<string | null>(null)
   const [showForm, setShowForm] = useState(false)
@@ -86,7 +88,7 @@ export default function GeneratePlan() {
 
   if (!coachId) {
     return (
-      <View className="generate-plan-page">
+      <View className={`generate-plan-page theme-${effectiveTheme}`}>
         <View className="loading-wrap"><LoadingSpinner size={48} /></View>
       </View>
     )
@@ -94,7 +96,7 @@ export default function GeneratePlan() {
 
   if (showForm && selectedDomain) {
     return (
-      <View className="generate-plan-page">
+      <View className={`generate-plan-page theme-${effectiveTheme}`}>
         <AssessmentForm
           coachId={coachId}
           domain={selectedDomain}
@@ -106,7 +108,7 @@ export default function GeneratePlan() {
   }
 
   return (
-    <View className="generate-plan-page">
+    <View className={`generate-plan-page theme-${effectiveTheme}`}>
       <ScrollView scrollY className="page-scroll">
         <View className="domain-header">
           <View className="header-icon-wrap">

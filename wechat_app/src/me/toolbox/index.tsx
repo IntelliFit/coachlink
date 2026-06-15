@@ -12,8 +12,24 @@ import {
   openCoachLinkShareMenu
 } from '@/utils/share'
 import './index.scss'
+import { useTheme } from '@/hooks/useTheme'
 
-const TOOLBOX_LINKS = [
+type ToolboxLink = {
+  key: string
+  label: string
+  description: string
+  image: string
+  url: string
+}
+
+const TOOLBOX_LINKS: ToolboxLink[] = [
+  {
+    key: 'power-analysis',
+    label: '功率视频分析',
+    description: '上传引体或双力臂视频，估算功率、马力和最大速度。',
+    image: '/assets/images/toolbox-calculator.jpg',
+    url: '/me/toolbox/power-analysis/index'
+  },
   {
     key: 'strength-calculator',
     label: '力量计算器',
@@ -38,6 +54,7 @@ const TOOLBOX_LINKS = [
 ]
 
 function ToolboxPage() {
+  const { effectiveTheme } = useTheme()
   const sharePayload = useMemo(
     () =>
       createSharePayload({
@@ -54,7 +71,7 @@ function ToolboxPage() {
     openCoachLinkShareMenu()
   }, [])
 
-  const handleToolClick = (tool: typeof TOOLBOX_LINKS[0]) => {
+  const handleToolClick = (tool: ToolboxLink) => {
     Taro.navigateTo({ url: tool.url })
   }
 
@@ -63,7 +80,7 @@ function ToolboxPage() {
   }
 
   return (
-    <View className='toolbox-page'>
+    <View className={`toolbox-page theme-${effectiveTheme}`}>
       <ScrollView className='page-scroll' scrollY>
         <View className='page-content'>
           <View className='tools-grid'>

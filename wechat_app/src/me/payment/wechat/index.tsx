@@ -8,8 +8,10 @@ import { View, Text } from '@tarojs/components'
 import Taro, { useRouter } from '@tarojs/taro'
 import './index.scss'
 import { Lock } from '@nutui/icons-react-taro'
+import { useTheme } from '@/hooks/useTheme'
 
 export default function WechatPaymentPlaceholder() {
+  const { effectiveTheme } = useTheme()
   const router = useRouter()
 
   const handleOpenPayment = () => {
@@ -26,7 +28,7 @@ export default function WechatPaymentPlaceholder() {
   }
 
   return (
-    <View className='wechat-payment-page'>
+    <View className={`wechat-payment-page theme-${effectiveTheme}`}>
       <View className='icon-wrap'>
         <View className='icon-text'><Lock /></View>
       </View>

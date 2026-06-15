@@ -5,8 +5,10 @@ import { listCoachActions, copyCoachAction, handleApiError } from '@/services/ac
 import type { CoachActionWithAdded } from '@/types/action'
 import { TYPE_META } from '@/constants/action'
 import './index.scss'
+import { useTheme } from '@/hooks/useTheme'
 
 export default function CopyFromCoachPage() {
+  const { effectiveTheme } = useTheme()
   const [actions, setActions] = useState<CoachActionWithAdded[]>([])
   const [coachName, setCoachName] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -64,7 +66,7 @@ export default function CopyFromCoachPage() {
 
   if (loading && actions.length === 0) {
     return (
-      <View className="copy-from-coach-page">
+      <View className={`copy-from-coach-page theme-${effectiveTheme}`}>
         <View className="skeleton-card">
           <View className="skeleton-line skeleton-title" />
           <View className="skeleton-line skeleton-subtitle" />
@@ -79,7 +81,7 @@ export default function CopyFromCoachPage() {
 
   if (error && actions.length === 0) {
     return (
-      <View className="copy-from-coach-page">
+      <View className={`copy-from-coach-page theme-${effectiveTheme}`}>
         <View className="error-wrap">
           <Text className="empty-desc">{error}</Text>
           <Text className="retry-btn" onClick={() => load()}>
@@ -92,7 +94,7 @@ export default function CopyFromCoachPage() {
 
   if (actions.length === 0) {
     return (
-      <View className="copy-from-coach-page">
+      <View className={`copy-from-coach-page theme-${effectiveTheme}`}>
         <Text className="header-hint">选择您订阅的教练分享的动作，一键复制到我的动作库</Text>
         <View className="empty-wrap">
           <Text className="empty-title">暂无教练动作</Text>
@@ -103,7 +105,7 @@ export default function CopyFromCoachPage() {
   }
 
   return (
-    <View className="copy-from-coach-page">
+    <View className={`copy-from-coach-page theme-${effectiveTheme}`}>
       <Text className="header-hint">选择您订阅的教练分享的动作，一键复制到我的动作库</Text>
       {coachName && <Text className="coach-name">教练：{coachName}</Text>}
       {actions.map(a => {

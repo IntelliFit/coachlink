@@ -4,6 +4,7 @@ import Taro, { useDidShow } from '@tarojs/taro'
 import { studentService } from '@/services/studentService'
 import { studentActionLibService } from '@/services/studentActionLibService'
 import './index.scss'
+import { useTheme } from '@/hooks/useTheme'
 
 interface E1RMDataPoint {
   date: string
@@ -19,6 +20,7 @@ interface PRRecord {
 }
 
 export default function E1RMChartPage() {
+  const { effectiveTheme } = useTheme()
   const [actions, setActions] = useState<Array<{ id: string; name: string }>>([])
   const [selectedActionId, setSelectedActionId] = useState('')
   const [e1rmData, setE1rmData] = useState<E1RMDataPoint[]>([])
@@ -83,7 +85,7 @@ export default function E1RMChartPage() {
   useEffect(() => { if (e1rmData.length > 0) drawChart() }, [e1rmData])
 
   return (
-    <View className='e1rm-chart-page'>
+    <View className={`e1rm-chart-page theme-${effectiveTheme}`}>
       <ScrollView className='page-scroll' scrollY>
         <View className='action-selector'>
           <Text className='label'>选择动作:</Text>
