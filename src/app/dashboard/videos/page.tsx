@@ -17,6 +17,20 @@ import { Rating } from 'primereact/rating';
 import { InputTextarea } from 'primereact/inputtextarea';
 import { Skeleton } from 'primereact/skeleton';
 
+function formatVideoTimestamp(video: ExecutionSetVideoWithDetails) {
+    const completedAt = video.execution_details?.completed_at || null;
+    const raw = completedAt || video.created_at;
+    if (!raw) return '';
+
+    const date = new Date(raw);
+    if (Number.isNaN(date.getTime())) return '';
+
+    const dateLabel = date.toLocaleDateString();
+    if (!completedAt) return dateLabel;
+
+    return `${dateLabel} ${date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}`;
+}
+
 const Videos: React.FC = () => {
     const { data: session } = useSession();
     const coach = getCoach(session);
@@ -196,7 +210,7 @@ const Videos: React.FC = () => {
                                             </span>
                                             <div className="flex items-center gap-1 text-surface-400 text-[10px] font-medium">
                                                 <Clock size={12} />
-                                                {new Date(video.created_at).toLocaleDateString() + ' ' + new Date(video.execution_details.completed_at).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}
+                                                {formatVideoTimestamp(video)}
                                             </div>
                                         </div>
                                         <div className="flex items-center gap-2 mb-3">
