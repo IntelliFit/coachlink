@@ -12,6 +12,11 @@ export default function VideoPlayer() {
     router.params?.source === 'pr'
       ? (Taro.getStorageSync('pr_video_url') || '')
       : (router.params?.url ? decodeURIComponent(router.params.url) : '')
+  const pageTitle = router.params?.title
+    ? decodeURIComponent(router.params.title)
+    : router.params?.source === 'pr'
+      ? 'PR 视频'
+      : '视频预览'
   const [loadError, setLoadError] = useState(false)
 
   useDidHide(() => {
@@ -42,7 +47,7 @@ export default function VideoPlayer() {
     <View className={`video-player-page theme-${effectiveTheme}`}>
       <View className='nav-bar'>
         <Text className='nav-back' onClick={() => Taro.navigateBack()}>返回</Text>
-        <Text className='nav-title'>PR 视频</Text>
+        <Text className='nav-title'>{pageTitle}</Text>
       </View>
       <View className='video-wrap'>
         {!loadError ? (

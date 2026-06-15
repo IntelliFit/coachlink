@@ -55,6 +55,10 @@ function toSafeBoolean(value: any): boolean {
   return false
 }
 
+function formatMoney(value?: number | null): string {
+  return Number(value ?? 0).toFixed(2)
+}
+
 function normalizeOverviewData(payload: any): OverviewData | null {
   if (!payload || typeof payload !== 'object') return null
 
@@ -200,7 +204,7 @@ function CoachOverview() {
               </View>
             </View>
             <Text className="tile-label">本月收入</Text>
-            <Text className="tile-value">¥{data.monthlyRevenue.toLocaleString()}</Text>
+            <Text className="tile-value">¥{formatMoney(data.monthlyRevenue)}</Text>
           </View> */}
           <View className="stat-tile" onClick={() => navTo('/coach/wallet')}>
             <View className="tile-header">
