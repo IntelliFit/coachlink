@@ -120,16 +120,28 @@
 }
 
 /* 暗色主题适配 */
-.theme-dark .bottom-nav {
-  background: rgba(30, 30, 30, 0.80);
-  border-color: rgba(255, 255, 255, 0.08);
+.bottom-nav--dark,
+.theme-dark .bottom-nav,
+.page-theme-root--dark .bottom-nav {
+  background: rgba(232, 229, 222, 0.78);
+  border-color: rgba(232, 229, 222, 0.36);
+  box-shadow: 0 12rpx 36rpx rgba(0, 0, 0, 0.28);
+
+  .nav-icon {
+    color: rgba(31, 31, 30, 0.64);
+  }
+
+  .nav-icon-active {
+    color: #CF6D4E;
+  }
 
   .nav-item:not(.nav-active):active {
-    background: rgba(255, 255, 255, 0.06);
+    background: rgba(207, 109, 78, 0.08);
   }
 
   .nav-active {
-    background: #CF6D4E;
+    background: #1f1f1e;
+    box-shadow: inset 0 0 0 1rpx rgba(255, 255, 255, 0.08);
 
     .nav-icon {
       color: #FFFFFF;
@@ -140,7 +152,7 @@
     }
 
     .nav-msg-badge {
-      border-color: #CF6D4E;
+      border-color: #1d1c1b;
     }
   }
 }

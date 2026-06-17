@@ -35,9 +35,9 @@ function getDevApiUrl(): string {
   const port = process.env.PORT || "3000";
   // 默认本地调试走 localhost，只有明确需要真机调试时才切到局域网 IP。
   const useLocalhost = process.env.USE_LOCALHOST === "1" || process.env.USE_LOCALHOST === "true";
-  if (useLocalhost) return `http://127.0.0.1:${port}`;
+  if (useLocalhost) return `http://localhost:${port}`;
   const useLan = process.env.USE_LAN === "1" || process.env.USE_LAN === "true";
-  if (!useLan) return `http://127.0.0.1:${port}`;
+  if (!useLan) return `http://localhost:${port}`;
   const ip = getLocalIP();
   return ip ? `http://${ip}:${port}` : `http://localhost:${port}`;
 }
@@ -64,5 +64,11 @@ export default {
     TARO_APP_API_URL: JSON.stringify(devApiUrl)
   },
   mini: {},
-  h5: {}
+  h5: {
+    // 10086 常被本机其他工具占用，H5 调试固定走 10087
+    devServer: {
+      port: 10087,
+      host: '0.0.0.0'
+    }
+  }
 } satisfies UserConfigExport<'vite'>

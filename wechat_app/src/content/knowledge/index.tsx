@@ -13,6 +13,7 @@ import {
 import { authService } from '@/services/authService'
 import { groupKnowledgeBooks, type KnowledgeBookCollection } from '@/utils/knowledgeBooks'
 import './index.scss'
+import { PageThemeRoot } from '@/components/PageThemeRoot'
 import { useTheme } from '@/hooks/useTheme'
 
 const QUICK_TAGS = ['平台期', '动作标准', '肩腕腰痛', '训练计划']
@@ -123,6 +124,7 @@ function KnowledgeBase() {
   }
 
   return (
+    <PageThemeRoot>
     <View className={`knowledge-page page-with-float-nav theme-${effectiveTheme}`}>
       <ScrollView scrollY className='knowledge-scroll page-scroll'>
         <View className='page-shell'>
@@ -328,6 +330,7 @@ function KnowledgeBase() {
       </ScrollView>
       <BottomNav />
     </View>
+    </PageThemeRoot>
   )
 }
 

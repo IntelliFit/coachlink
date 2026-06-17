@@ -1,3 +1,339 @@
+## WeChat Training Execution UI Simplification (2026-06-18)
+
+- Task: user requested implementing the approved UI plan for the shared WeChat mini-program training execution page used by both impromptu training and coach/planned execution.
+- Scope:
+  - Keep one shared `/training/training-execution` implementation for impromptu and planned training.
+  - Add at least `180rpx` top spacing to avoid the WeChat mini-program toolbar overlap.
+  - Simplify toward a practical training-record board: top timer/status board, action card stream, and bottom floating toolbar.
+  - Keep the design restrained; do not implement competitor PRD extras such as full history dashboards, anatomy heatmaps, or verbose explanation blocks in this pass.
+- Changes:
+  - `wechat_app/src/training/training-execution/index.tsx`
+    - added live total training duration based on `execution.started_at` / `completed_at`;
+    - moved the primary finish action into the top board as `完成` / `一键完成`;
+    - changed top stats to action progress, set progress, volume progress, and pending sets;
+    - added an action-card settings affordance and a fixed bottom toolbar: `最小化` / `加动作` / `心得` / `设置`;
+    - reused existing action picker, rest-timer minimize, set note focus/editing, and expanded set behavior without adding backend APIs.
+  - `wechat_app/src/training/training-execution/index.scss`
+    - set execution shell/loading top padding to `184rpx`;
+    - replaced the heavy gradient-heavy dark execution shell with restrained solid dark surfaces;
+    - added light-theme overrides for the new top finish button and bottom toolbar;
+    - kept brand actions as solid `#CF6D4E` and avoided button gradients.
+- Verification:
+  - `npm run typecheck`: passed.
+  - `cd wechat_app && npm run build:weapp`: passed.
+  - `npm run lint`: passed informational Next16 lint script.
+  - `npm test`: passed, 33 files / 163 tests.
+  - `git diff --check`: passed.
+  - `npx next build`: passed.
+  - WeChat DevTools CLI `auto --project /Users/kirigaya/project/coachlink/wechat_app --auto-port 9420` reported success, but `mrc where` and screenshot still failed with `Failed connecting to ws://localhost:9420`; automated screenshot/interaction verification remains blocked by local DevTools automation connectivity.
+
+## WeChat Training Home Greeting Fix (2026-06-18)
+
+- Task: user reported the training homepage greeting changed to show the phone number instead of nickname; requested nickname display, removal of visible "本周" wording, and local-time-based greeting/icon.
+- Changes:
+  - `wechat_app/src/training/today-training/TodayTrainingScreen.tsx`
+    - added `getLocalGreetingModel()` using the device/local `Date` hour:
+      - `05:00-10:59` -> `早上好` + `icon-zaoshang`;
+      - `11:00-17:59` -> `中午好` + `icon-zhongwu`;
+      - otherwise -> `晚上好` + `icon-wanshang`.
+    - refreshes the greeting every minute and on `useDidShow`, so returning to the mini-program after a time change updates immediately.
+    - added `resolveStudentDisplayName()` and removed `phone` from the training-home greeting fallback; missing nickname now displays `CoachLink 学员` instead of the user's phone number.
+    - reused the same display-name resolver for day check-in share data.
+    - removed visible `本周` labels from the training homepage; the weekly progress caption is now `周进度`, and the week-strip header no longer renders `本周`.
+- Verification:
+  - `npm run typecheck`: passed.
+  - `cd wechat_app && npm run build:weapp`: passed.
+  - `npm run lint`: passed informational Next16 lint script.
+  - `npm test`: passed, 33 files / 163 tests.
+  - `git diff --check`: passed.
+  - `npx next build`: passed.
+  - WeChat DevTools/MRC verification still blocked: CLI reports automation started on port 9420, but `mrc where` and screenshot both fail with `Failed connecting to ws://localhost:9420`.
+
+## WeChat Mini-program OpenID Login Fix (2026-06-18)
+
+- Task: user reported mini-program login again failed with logs `未提供 phoneCode，手机号将设置为 "null"` and `查询用户失败: TypeError: fetch failed`; clarified that for compliance the UI must still display phone-login wording, but the actual login logic must remain WeChat openid login.
+- Diagnosis:
+  - Frontend default quick-login path already calls `authService.loginWithWechat(null)` and posts to `/api/miniapp/wechat-login`; it is not the password/verification-code `/api/miniapp/login` path and does not request `getPhoneNumber` on the main button.
+  - Backend `/api/miniapp/wechat-login` still treated missing `phoneCode` as string `"null"` and blocked first-time openid login by returning `首次快捷登录请先授权手机号`.
+  - This conflicts with the product rule that mini-program login should first use normal WeChat login without phone authorization.
+  - The reported `fetch failed` happens at the Supabase user query step after WeChat code2Session; the API now returns a clearer database-connectivity message if that specific failure recurs.
+- Changes:
+  - `src/app/api/miniapp/wechat-login/route.ts`
+    - missing/failed phone auth now keeps `phoneNumber = null` and continues openid login;
+    - first-time WeChat users can be created with `wechat_openid` and `phone: null`;
+    - removed the mandatory first-login phone authorization gate;
+    - only updates/binds phone when a real phone number is returned;
+    - logs Supabase query failures with structured fields and returns a clearer message for `fetch failed`.
+  - `wechat_app/src/auth/login/index.tsx`
+    - kept compliance-facing quick-login UI text as `手机号快捷登录` / `手机号一键登录`;
+    - removed the stale first-login phone authorization prompt branch, so the main button still displays phone wording but executes WeChat openid login directly.
+- Verification:
+  - `npm run typecheck`: passed.
+  - `npm run lint`: passed informational Next16 lint script.
+  - `npm test`: passed, 33 files / 163 tests.
+  - `cd wechat_app && npm run build:weapp`: passed.
+  - `npx next build`: passed.
+  - `git diff --check`: passed.
+  - WeChat DevTools automation remained blocked: port 9420 listens, but `mrc where --port 9420 --json` still fails with `Failed connecting to ws://localhost:9420`.
+
+## WeChat Impromptu Execution Stuck Loading Root Cause (2026-06-17)
+
+- Task: analyze user-provided console output for homepage `即兴训练` -> action picker -> `开始` -> training execution page stuck on `加载中...`.
+- Root cause:
+  - The execution page logged `useDidShow requestStartTraining` and `requestStartTraining executing startTrainingRef`, but did not log `startTraining enter`.
+  - This means `useDidShow` fired before the `useEffect` that assigned `startTrainingRef.current = startTraining`, so the ref still pointed at its initial async no-op.
+  - That no-op updated `lastStartTrainingAtRef`; 28ms later the normal initial `useEffect` call was skipped by the 500ms debounce.
+  - Result: no snapshot read, no `impromptuService.get()`, and no `setExecution`; the UI stayed on the loading screen even though the earlier `POST /api/impromptu/start` had succeeded.
+- Fix:
+  - `wechat_app/src/training/training-execution/index.tsx` now assigns `startTrainingRef.current = startTraining` synchronously during render, before any lifecycle callback can call `requestStartTraining`.
+  - This preserves the debounce/ref pattern while ensuring `useDidShow` cannot consume the first load with a stale no-op function.
+- Request sequence clarified:
+  - Action picker `开始`: `POST /api/impromptu/start` with `{ actions: [{ actionId, actionName, sets, reps, weight, restSeconds }] }`; response creates and returns the impromptu execution with `id` and `action_executions`.
+  - Training execution page: `POST /api/impromptu/get` with `{ id: impromptuId }`; response should return the execution details used by the board.
+- Verification:
+  - `npm run typecheck`: passed.
+  - `cd wechat_app && npm run build:weapp`: passed.
+  - `npm run lint`: passed informational Next16 lint script.
+  - `npm test`: passed, 33 files / 163 tests.
+  - `npx next build`: passed.
+  - `git diff --check`: passed.
+
+## WeChat Impromptu Training Execution Diagnostics (2026-06-17)
+
+- Task: user clarified the stuck loading path is homepage `即兴训练` -> impromptu action picker -> choose any action -> tap `开始` -> `/training/training-execution?...`, where the page still shows `加载中...`.
+- Status: diagnostic logs added; awaiting user-run console output.
+- Changes:
+  - `wechat_app/src/training/impromptu-training/index.tsx`
+    - added `[CL-IMPROMPTU-DEBUG]` logs for action selection/start invocation, start payload, `impromptuService.start()` execution summary, snapshot persist key/user, and navigation target URL.
+  - `wechat_app/src/training/training-execution/index.tsx`
+    - added `[CL-EXEC-DEBUG]` logs for route params, render state changes, startTraining entry/guards, snapshot read result, impromptu get start/resolve, execution apply/cache sync, debounce behavior, lifecycle triggers, and loading-screen render state.
+- Verification:
+  - `npm run typecheck`: passed.
+  - `cd wechat_app && npm run build:weapp`: passed.
+  - `npm run lint`: passed informational Next16 lint script.
+  - `npm test`: passed, 33 files / 163 tests.
+  - `npx next build`: passed.
+  - `git diff --check`: passed.
+- Next step:
+  - User will reproduce the flow manually and send console lines containing `[CL-IMPROMPTU-DEBUG]` and `[CL-EXEC-DEBUG]`.
+
+## WeChat Training Execution Loading Follow-Up (2026-06-17)
+
+- Task: user reported that after selecting an impromptu action and tapping start, all network requests succeed but the UI still remains on the `加载中...` screen.
+- Status: fixed at code/build level; DevTools interaction verification remains blocked by MRC websocket connection.
+- Change:
+  - `wechat_app/src/training/training-execution/index.tsx`
+    - the full-screen loading page now renders only when `loading && !execution`;
+    - after successful impromptu `impromptuService.get()` response, the page calls `setExecution(data)` and immediately `setLoading(false)` before cache sync/action-map side effects;
+    - plan execution data loading now also clears loading immediately after `setExecution(data)`;
+    - if impromptu cloud refresh returns empty while a local snapshot exists, loading is cleared and the local execution remains visible.
+- Verification:
+  - `npm run typecheck`: passed.
+  - `git diff --check`: passed.
+  - `npm run lint`: passed informational Next16 lint script.
+  - `npm test`: passed, 33 files / 163 tests.
+  - `npx next build`: passed.
+  - `cd wechat_app && npm run build:weapp`: passed.
+  - Compiled `wechat_app/dist/training/training-execution.js` contains `W(t),K(!1)` after impromptu data load and the `loading && !execution` render gate.
+  - WeChat DevTools CLI `auto --project /Users/kirigaya/project/coachlink/wechat_app --auto-port 9420` reported success, but `mrc where/errors/screenshot --port 9420` still failed with `Failed connecting to ws://localhost:9420`, so screenshot/interaction verification could not be completed.
+
+## WeChat Impromptu Execution Loading And Theme Fix (2026-06-17)
+
+- Task: fix WeChat mini-program impromptu training getting stuck on the training-execution loading page after selecting an action and pressing start, and align the training execution board with light/dark themes.
+- Status: completed at code/build level; DevTools screenshot/interaction verification remains blocked by MRC websocket connection.
+- Changes:
+  - `wechat_app/src/training/impromptu-training/index.tsx`
+    - after `impromptuService.start()` succeeds, immediately persists the returned execution into `training_execution_snapshots_v1` using `persistTrainingExecutionSnapshot`;
+    - writes an impromptu `planInstance` and action map so `/training/training-execution?impromptuId=...` can render from local storage immediately instead of waiting on the follow-up `impromptu/get` request.
+  - `wechat_app/src/training/training-execution/index.tsx`
+    - reduced execution-load timeout from 12s to 8s;
+    - if impromptu cloud refresh returns empty while a local snapshot exists, keeps the local rendered execution and shows a non-blocking local-record toast instead of dropping back to an empty loading/error state;
+    - syncs cloud-refreshed impromptu execution back to storage together with the correct impromptu action map.
+  - `wechat_app/src/training/training-execution/index.scss`
+    - added `.training-execution-page.theme-light` overrides so light mode uses white background and dark foreground across the execution board, cards, inputs, modals, buttons, chips, progress, and rest timer;
+    - dark mode remains the existing black/dark background with light foreground.
+- Verification:
+  - `npm run lint`: passed informational Next16 lint script.
+  - `npm run typecheck`: passed.
+  - `git diff --check`: passed.
+  - `npm test`: passed, 33 files / 163 tests.
+  - `npx next build`: passed.
+  - `cd wechat_app && npm run build:weapp`: passed.
+  - Compiled output contains `persistTrainingExecutionSnapshot` usage in `training/impromptu-training.js` and `.training-execution-page.theme-light` rules in `training/training-execution.wxss`.
+  - WeChat DevTools port 9420 was listening, but `mrc where --port 9420 --json` still failed with `Failed connecting to ws://localhost:9420`, so automated screenshot/interaction verification could not be completed.
+
+## WeChat Dark Theme Resume And Verification (2026-06-17)
+
+- Task: resume the interrupted WeChat mini-program UI theme polish and continue execution.
+- Status: completed at code/build level; DevTools screenshot verification remains blocked by MRC websocket connection.
+- Resume actions:
+  - Re-read project state files and confirmed the active task is the WeChat dark-theme/style consolidation for training home/profile surfaces.
+  - Reconciled the dark theme palette so `theme-dark.scss`, `app.scss`, and `themeNativeUi.ts` all use the same low-saturation warm dark shell (`#20201f -> #181817 -> #121211`) with native fallback `#181817`.
+  - Confirmed compiled mini-program output contains `page-theme-root--dark`, `bottom-nav--dark`, the warm dark tokens, and coach-waiting text/style changes.
+- Verification:
+  - `npm run lint`: passed informational Next16 lint script.
+  - `npm run typecheck`: passed.
+  - `git diff --check`: passed.
+  - `npm test`: passed, 33 files / 163 tests.
+  - `npx next build`: passed.
+  - `cd wechat_app && npm run build:weapp`: passed.
+  - WeChat DevTools CLI `auto --project /Users/kirigaya/project/coachlink/wechat_app --port 9420` started and port listened, but `mrc where/screenshot/sysinfo --port 9420` still failed with `Failed connecting to ws://localhost:9420`, so screenshot/interaction verification could not be completed in this session.
+
+## WeChat Dark Theme Final Polish (2026-06-17)
+
+- Task: continue refining mini-program training home dark-mode readability and remove remaining white-backed blocks (waiting card + profile header chips).
+- Status: implemented + typecheck passed.
+- Changes in this pass:
+  - Added dedicated `wechat_app/src/styles/theme-dark.scss` theme overlay for homepage/training/profile surfaces:
+    - dark palette tuned to lower saturation (`#1c1c1c` / `#242424` family),
+    - dashboard/week/date text and coach switch text forced to light foreground in dark mode,
+    - weekly/date pills and schedule modules forced to dark surfaces with white selected state preserved,
+    - waiting-card variants forced transparent in dark mode and icon backgrounds removed.
+  - Added dark-mode native bar/background sync through `wechat_app/src/utils/themeNativeUi.ts`.
+  - Added stronger page-level dark background plumbing in `wechat_app/src/app.scss` and removed duplicate hardcoded page-level dark overrides from app-level base to centralize in theme file.
+  - Ensured profile top container/avatars and plan/waiting text/buttons have dedicated dark-mode selectors to avoid white blocks and stale black text.
+- Verification:
+  - `npm run typecheck` ✅
+
+## WeChat Training Home Merge (`2026-06-17`)
+
+- Task: fix WeChat mini-program where app entry `/pages/index/index` and training entry `/training/today-training` show different UIs.
+- Status: completed for both routes.
+- Changes:
+  - Replaced `wechat_app/src/pages/index/index.tsx` with a direct re-export of `TodayTrainingScreen` to keep app launch and default home render the same training dashboard that includes greeting/plan flow.
+  - Replaced legacy `wechat_app/src/training/today-training/index.tsx` with a thin wrapper that also re-exports `TodayTrainingScreen`, removing the duplicate legacy implementation from routing paths.
+- Result (复核):
+  - `BottomNav` 的训练 tab 已回退到 `/pages/index/index`；
+  - `training-execution` 的返回动作也统一回到 `/pages/index/index`；
+  - `/training/today-training` 与 `/pages/index/index` 仍保留为同一 `TodayTrainingScreen` 组件入口，不再出现两个不同渲染分支。
+- Result:
+  - `/pages/index/index` and `/training/today-training` now share one concrete page component, so entering training from any path enters one unified screen.
+
+
+## WeChat Training Home Polish Continuation (`2026-06-17`)
+
+- Task: continue polishing the merged training page and dark-mode contrast/spacing issues.
+- Status: finalized in this pass.
+- Changes:
+  - ensured dashboard greeting and coach-waiting states use nickname-only greeting copy and split-line wording for "教练正在制定计划，请耐心等待。"
+  - kept waiting-card icon/text spacing and action icon/text gap at stable 32rpx / 16rpx.
+  - added/retained dark-mode support for today's plan text and waiting/empty state text so no black text appears on dark background.
+  - restored app-level CSS variable defaults/fallbacks in `wechat_app/src/app.scss` so light/dark pages always inherit stable backgrounds from theme variables even if page-root classes are not explicit.
+- Verification:
+  - `npm run lint`: informational Next16 notice.
+  - `npm run typecheck`: ✅
+  - `npm test`: ✅ (33 files / 163 tests)
+  - `npx next build`: blocked by Turbopack process-binding env issue (`Operation not permitted`), unchanged by this UI refactor.
+  - `cd wechat_app && npm run build:weapp`: started and generated `dist`, with non-blocking macOS Rust `system-configuration` panic as expected in this environment.
+
+## WeChat Mini-program Training Homepage Polish (2026-06-17)
+
+- Task: refine merged training homepage UI for dark mode/readability and spacing in coach-waiting/plan sections.
+- Status: completed in code; UI screenshot verification remains unavailable in this session.
+- Scope:
+  - greeting/header text and spacing:
+    - keep greeting as `早上好 / 下午好 / 晚上好 + 昵称` (already done in `renderDashboardIntro`)
+    - slightly increase `.dashboard-greeting` font size for visibility
+  - waiting card/text wrapping and spacing:
+    - keep split-line rendering for waiting copy (`renderWrappedEmptyDesc` + `empty-desc-line` blocks)
+    - increase icon-to-text spacing in waiting header and button-to-text spacing inside `empty-actions`
+  - dark theme contrast polish:
+    - tune dark theme background/overlay variables in `wechat_app/src/styles/theme-dark.scss`
+    - lighten/neutralize black tones used in dark-mode page/page-with-nav fill
+    - force training-page text to light theme variables to avoid black-on-dark text in sections like “我的计划”
+    - align native nav/background color fallback in `wechat_app/src/utils/themeNativeUi.ts` with the same low-saturation dark palette
+- Verification:
+  - `npm run lint` (informational on Next16 project)
+  - `npm run typecheck` ✅
+  - `npm test` ✅ (33 files / 163 tests)
+  - `npx next build` ❌ blocked by Turbopack subprocess `Operation not permitted (os error 1)` in this environment
+
+## WeChat Today-Training UI Polish (`2026-06-17`)
+
+- Task: improve the current-plan status block on mini-program today-training, especially coach progress switch UI and waiting texts.
+- Status: completed.
+- Changes:
+  - fixed `.action-btn` nested styles under `.empty-actions` in `wechat_app/src/training/today-training/index.scss` so `primary` / `secondary` / `action-btn-outline` variants render correctly;
+  - set 8rpx text-to-icon gap for action rows to align with the existing 8-grid spacing and preserve button readability;
+  - kept and reused `renderWrappedEmptyDesc` so “教练正在制定计划，请耐心等待。” and similar lines wrap into two lines.
+- Current file touch:
+  - `wechat_app/src/training/today-training/TodayTrainingScreen.tsx` (waiting text wrapping + empty state line rendering helper)
+  - `wechat_app/src/training/today-training/index.scss` (button style nesting and spacing tweaks)
+
+## WeChat Training Home Merge复核 (`2026-06-17`)
+
+- Task: confirm every training entry renders only one page/state path after user-reported split behavior.
+- Status: verified at code/build level and prepared for UI sanity check.
+- Checks run:
+  - `npm run lint` (informational Next16 message)
+  - `npm run typecheck` ✅
+  - `npm test` ✅ (33 files / 163 tests)
+  - `npx next build` ✅
+  - `cd wechat_app && npm run build:weapp` attempted; build process starts successfully, emits build markers, and updates `wechat_app/dist` artifacts, but the environment also logs a non-blocking `system-configuration` Rust panic line during toolchain init.
+- Notes:
+  - WeChat DevTools/interaction verification remains blocked in this session (no usable automation websocket available in `mrc` on the expected port), so please run a manual app-path check for the “默认页/我的/训练” switch sequence if you want final UI confirmation.
+
+
+## WeChat Dark Theme Initialization And Bottom Nav (`2026-06-17`)
+
+- Task: fix CoachLink WeChat mini-program dark theme initialization after refresh and make the bottom navigation use a white-style bar in dark theme.
+- Status: revised after user reported the first fix was incomplete; implemented and verified at code/build level.
+- Changes:
+  - Added `wechat_app/src/utils/themeNativeUi.ts` to centralize native navigation/background theme syncing, based on the verified Food Link pattern.
+  - Updated `wechat_app/src/context/ThemeContext.tsx` so startup state initialization, post-mount storage reread, theme changes, system-theme changes, auto-theme ticks, and effective-theme effects all apply native UI sync through the shared helper.
+  - Updated `wechat_app/src/app.ts` so initial mount and `useDidShow` replay native UI sync, preventing refresh from temporarily falling back to light native/page background until the next route change.
+  - Wrapped `wechat_app/src/pages/index/index.tsx` in `PageThemeRoot` and fixed `wechat_app/src/pages/index/index.scss` so the home page dark rule matches both `.home-page.theme-dark` and `.theme-dark .home-page`.
+  - Updated `wechat_app/src/components/BottomNav.tsx` to add an explicit `bottom-nav--dark` class from theme context, and updated both `BottomNav.scss` and `styles/theme-dark.scss` so dark mode uses a white/near-white floating bar with brand-colored active state instead of a black bar.
+- Verification:
+  - `npm run lint`: passed informational lint script.
+  - `npm run typecheck`: passed.
+  - `npm test`: passed, 33 files / 163 tests.
+  - `cd wechat_app; npm run build:weapp`: passed.
+  - `npx next build`: passed.
+  - `git diff --check` for the touched theme files: passed.
+  - Compiled output contains `PageThemeRoot`, `bottom-nav--dark`, and the white dark-mode bottom-nav styling.
+  - WeChat DevTools CLI automation was attempted on port 9420, but `mrc` could not connect to the project window (`Failed connecting to ws://localhost:9420`); restarting `cli auto --project ... --port 9420` did not expose a usable websocket, so screenshot/interaction verification remains blocked by DevTools automation connectivity.
+
+### Follow-up: Dark Background And Active Nav (`2026-06-17`)
+
+- Task: in dark mode, make the active bottom-nav item black/dark, and make every page background use the same low-saturation dark gradient rather than pure black or divergent dark fills.
+- Status: implemented and verified at code/build level.
+- Changes:
+  - Updated global dark background in `wechat_app/src/styles/theme-dark.scss` to `linear-gradient(180deg, #20201f 0%, #181817 48%, #121211 100%)`.
+  - Applied the same background to both `.app-root.theme-dark` and `.page-theme-root--dark`.
+  - Added global dark-mode page-root transparency rules so page roots inherit the single gradient background.
+  - Changed dark-mode bottom-nav active item to low-saturation solid dark `#1f1f1e` with white icon/text, keeping the nav bar itself white/near-white.
+  - Removed divergent dark page-root backgrounds from home, settings, plan history, training history, profile detail, and profile edit pages.
+- Verification:
+  - `npm run typecheck`: passed.
+  - `npm run lint`: passed informational lint script.
+  - `npm test`: passed, 33 files / 163 tests.
+  - `cd wechat_app; npm run build:weapp`: passed.
+  - `npx next build`: passed.
+  - `git diff --check` for the touched theme files: passed.
+  - Search found no remaining page-root background overrides using the old `#1c1c1c/#141414/#161616` dark colors; remaining `#000` matches are media/video surfaces rather than page theme backgrounds.
+  - WeChat DevTools/MRC screenshot verification remained blocked because `mrc` could not connect to `ws://localhost:9420` and no DevTools automation listener was available.
+
+### Follow-up: Low-Saturation Dark Bottom Nav And Profile Header (`2026-06-17`)
+
+- Task: reduce the dark-mode bottom nav bar's white contrast and remove the separate colored background from the profile top avatar/name/intro area.
+- Status: implemented and verified at code/build level.
+- Changes:
+  - Changed dark-mode bottom nav bar background from high-contrast white to low-saturation warm translucent white `rgba(232, 229, 222, 0.78)`.
+  - Changed dark-mode bottom nav border to `rgba(232, 229, 222, 0.36)` and icon inactive color to `rgba(31, 31, 30, 0.64)`.
+  - Kept the active bottom nav item as low-saturation dark `#1f1f1e` with white text/icon.
+  - Updated native dark background fallback in `themeNativeUi.ts` to `#181817` so native page edges match the unified dark gradient more closely.
+  - Explicitly made `.profile-card` and its `.avatar-container` transparent/no-shadow in dark mode so the top avatar/name/intro area does not have a separate colored block.
+- Verification:
+  - `npm run typecheck`: passed.
+  - `npm run lint`: passed informational lint script.
+  - `npm test`: passed, 33 files / 163 tests.
+  - `cd wechat_app; npm run build:weapp`: passed.
+  - `npx next build`: passed.
+  - `git diff --check` for touched files: passed.
+  - Compiled output contains the new bottom-nav color and native fallback color.
+  - MRC UI verification remains blocked: `mrc where --port 9420 --json` fails with `Failed connecting to ws://localhost:9420`.
+
 ## Power Analysis Architecture Explanation (`2026-06-16`)
 
 - Task: explain how the toolbox power-analysis feature works, including Python analysis, queue/worker design, and Docker image push to Tencent CCR.
@@ -5292,6 +5628,23 @@
   - Student-facing WeChat discovery profile could not be data-verified in DevTools because the current local discovery list returned 0 coaches and `mrc mock` failed with `mp.mockJson is not a function`; route opened but showed `获取教练信息失败`.
 
 ---
+
+---
+
+## WeChat Dark Theme Readability Tuning（2026-06-17）
+
+- Task: finalize dark-mode polish for consolidated training/home entry and my-profile containers.
+- Status: in code. `npm run typecheck` 已通过。
+- Scope / changes:
+  - Dark background restored to opaque, non-tinted black shell (`#1c1b1a` / `#181817`), including native UI background sync.
+  - Training home: date/weekday and switcher text are forced into light-theme tokens in dark mode.
+  - Week dashboard / month calendar / coach-switching modules now use dark surfaces, with selected pills using white/active contrast as requested.
+  - Waiting state card backgrounds (`计划正在制定中`) removed and made transparent to match dark shell.
+  - 我的页头部“头像 + 昵称 + 积分”容器背景/卡片阴影在暗色模式去掉。
+- Files:
+  - `wechat_app/src/styles/theme-dark.scss`
+  - `wechat_app/src/app.scss`
+  - `wechat_app/src/utils/themeNativeUi.ts`
 
 ---
 

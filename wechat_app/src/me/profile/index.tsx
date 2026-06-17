@@ -11,7 +11,7 @@ import { studentService } from '@/services/studentService'
 import { trainingHistoryService } from '@/services/trainingHistoryService'
 import { AUTH_SESSION_INVALID_EVENT } from '@/services/authSessionEvents'
 import './index.scss'
-
+import { PageThemeRoot } from '@/components/PageThemeRoot'
 interface MenuItem {
   key: string
   label: string
@@ -453,6 +453,7 @@ function Profile() {
   }
 
   return (
+    <PageThemeRoot>
     <View className={`profile-page theme-${effectiveTheme}`}>
       <View className='myContainer'>
         <View className='profile-card'>
@@ -594,6 +595,7 @@ function Profile() {
 
       <BottomNav />
     </View>
+    </PageThemeRoot>
   )
 }
 

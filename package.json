@@ -120,7 +120,7 @@
         "@types/uuid": "^10.0.0",
         "@vitest/ui": "^2.1.9",
         "adm-zip": "^0.5.16",
-        "baseline-browser-mapping": "^2.10.8",
+        "baseline-browser-mapping": "^2.10.37",
         "cos-nodejs-sdk-v5": "^2.15.4",
         "pg": "^8.21.0",
         "supabase": "^2.67.2",

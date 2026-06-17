@@ -5,6 +5,10 @@ import { impromptuService, ImpromptuActionInput } from '@/services/impromptuServ
 import { studentActionLibService } from '@/services/studentActionLibService'
 import { listPublicActions } from '@/services/actionLibPageService'
 import { authService } from '@/services/authService'
+import {
+  persistTrainingExecutionSnapshot,
+  trainingExecutionSnapshotKey
+} from '@/utils/trainingExecutionCache'
 import './index.scss'
 import { useTheme } from '@/hooks/useTheme'
 
@@ -27,6 +31,7 @@ interface StudentAction {
 }
 
 const DEFAULT_REST = 90
+const DEBUG_PREFIX = '[CL-IMPROMPTU-DEBUG]'
 
 const asTextList = (value: unknown): string[] => {
   if (Array.isArray(value)) {
@@ -151,10 +156,56 @@ export default function ImpromptuTraining() {
     restSeconds: DEFAULT_REST
   })
 
+  const buildQuickActionMap = (actionList: StudentAction[]) => (
+    actionList.reduce<Record<string, any>>((acc, action) => {
+      if (!action?.id) return acc
+      acc[action.id] = {
+        ...action,
+        id: action.id,
+        name: getActionName(action),
+        type: 'STRENGTH',
+        attrs: ['组数', '次数', '重量', '休息时间']
+      }
+      return acc
+    }, {})
+  )
+
+  const summarizeExecution = (execution: any) => ({
+    id: execution?.id,
+    status: execution?.status,
+    dayIndex: execution?.day_index,
+    actionCount: Array.isArray(execution?.action_executions) ? execution.action_executions.length : -1,
+    firstAction: execution?.action_executions?.[0]
+      ? {
+        actionId: execution.action_executions[0].action_id,
+        actionName: execution.action_executions[0].action_name,
+        setCount: Array.isArray(execution.action_executions[0].sets)
+          ? execution.action_executions[0].sets.length
+          : -1
+      }
+      : null
+  })
+
   const startWithActions = async (actionList: StudentAction[], key: string) => {
+    console.log(DEBUG_PREFIX, 'startWithActions invoked', {
+      key,
+      blockedByStartingKey: startingKey,
+      incomingCount: actionList.length,
+      incomingIds: actionList.map(action => action?.id).filter(Boolean)
+    })
     if (startingKey) return
 
     const validActions = actionList.filter(action => action?.id)
+    console.log(DEBUG_PREFIX, 'valid actions prepared', {
+      key,
+      validCount: validActions.length,
+      validActions: validActions.map(action => ({
+        id: action.id,
+        name: getActionName(action),
+        source: action.source,
+        type: action.type
+      }))
+    })
     if (validActions.length === 0) {
       Taro.showToast({ title: '先选择一个动作', icon: 'none' })
       return
@@ -163,18 +214,65 @@ export default function ImpromptuTraining() {
     setStartingKey(key)
     try {
       const payload = validActions.map(buildQuickAction)
+      console.log(DEBUG_PREFIX, 'calling impromptuService.start', {
+        key,
+        payload
+      })
       const data = await impromptuService.start(payload)
+      console.log(DEBUG_PREFIX, 'impromptuService.start resolved', summarizeExecution(data))
 
       if (!data?.id) {
         throw new Error('创建即兴训练失败')
       }
 
+      const userId = authService.getCurrentUser()?.id
+      const scopeKey = trainingExecutionSnapshotKey({ isImpromptuMode: true, impromptuId: data.id, dayIndex: 1 })
+      console.log(DEBUG_PREFIX, 'before persist snapshot', {
+        userId,
+        scopeKey,
+        executionId: data.id
+      })
+      if (userId) {
+        persistTrainingExecutionSnapshot(
+          userId,
+          scopeKey,
+          {
+            execution: data,
+            planInstance: {
+              id: 'impromptu',
+              name: '即兴锻炼',
+              description: '即兴训练模式',
+              source: 'impromptu'
+            },
+            actions: buildQuickActionMap(validActions)
+          }
+        )
+        console.log(DEBUG_PREFIX, 'persist snapshot finished', {
+          userId,
+          scopeKey,
+          executionId: data.id
+        })
+      } else {
+        console.log(DEBUG_PREFIX, 'skip persist snapshot because userId missing', {
+          executionId: data.id
+        })
+      }
+
+      const targetUrl = `/training/training-execution?impromptuId=${data.id}&dayIndex=1`
+      console.log(DEBUG_PREFIX, 'navigateTo training execution', {
+        targetUrl
+      })
       Taro.navigateTo({
-        url: `/training/training-execution?impromptuId=${data.id}&dayIndex=1`
+        url: targetUrl
       })
     } catch (e: any) {
+      console.error(DEBUG_PREFIX, 'startWithActions failed', {
+        message: e?.message,
+        stack: e?.stack
+      })
       Taro.showToast({ title: e?.message || '开始失败，请稍后再试', icon: 'none' })
     } finally {
+      console.log(DEBUG_PREFIX, 'startWithActions finally', { key })
       setStartingKey(null)
     }
   }
