@@ -1,5 +1,6 @@
 import React, { createContext, useState, useCallback, useEffect, useRef, type ReactNode } from 'react'
 import Taro from '@tarojs/taro'
+import { applyThemeNativeUi, THEME_NATIVE_UI_CHANGED_EVENT } from '@/utils/themeNativeUi'
 
 export type ThemeMode = 'light' | 'dark' | 'system' | 'auto'
 export type EffectiveTheme = 'light' | 'dark'
@@ -67,21 +68,39 @@ function getSavedMode(): ThemeMode {
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [themeMode, setThemeModeState] = useState<ThemeMode>(getSavedMode)
-  const [effectiveTheme, setEffectiveTheme] = useState<EffectiveTheme>(() =>
-    computeEffectiveTheme(getSavedMode())
-  )
+  const [themeMode, setThemeModeState] = useState<ThemeMode>(() => getSavedMode())
+  const [effectiveTheme, setEffectiveTheme] = useState<EffectiveTheme>(() => {
+    const savedMode = getSavedMode()
+    const savedEffectiveTheme = computeEffectiveTheme(savedMode)
+    applyThemeNativeUi(savedEffectiveTheme)
+    return savedEffectiveTheme
+  })
   const systemListenerRef = useRef<any>(null)
   const autoTimerRef = useRef<any>(null)
 
+  useEffect(() => {
+    const savedMode = getSavedMode()
+    const savedEffectiveTheme = computeEffectiveTheme(savedMode)
+    setThemeModeState(savedMode)
+    setEffectiveTheme(savedEffectiveTheme)
+    applyThemeNativeUi(savedEffectiveTheme)
+  }, [])
+
   const setThemeMode = useCallback((mode: ThemeMode) => {
+    const nextEffectiveTheme = computeEffectiveTheme(mode)
     setThemeModeState(mode)
     try {
       Taro.setStorageSync(STORAGE_KEY, mode)
     } catch {
       // ignore
     }
-    setEffectiveTheme(computeEffectiveTheme(mode))
+    setEffectiveTheme(nextEffectiveTheme)
+    applyThemeNativeUi(nextEffectiveTheme)
+    try {
+      Taro.eventCenter.trigger(THEME_NATIVE_UI_CHANGED_EVENT, { theme: nextEffectiveTheme, mode })
+    } catch {
+      // ignore
+    }
   }, [])
 
   const toggleTheme = useCallback(() => {
@@ -103,7 +122,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
     if (themeMode === 'system') {
       const handler = (res: any) => {
-        setEffectiveTheme(res.theme === 'dark' ? 'dark' : 'light')
+        const nextEffectiveTheme = res.theme === 'dark' ? 'dark' : 'light'
+        setEffectiveTheme(nextEffectiveTheme)
+        applyThemeNativeUi(nextEffectiveTheme)
       }
       try {
         Taro.onThemeChange?.(handler)
@@ -134,7 +155,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
     if (themeMode === 'auto') {
       autoTimerRef.current = setInterval(() => {
-        setEffectiveTheme(getAutoTheme())
+        const nextEffectiveTheme = getAutoTheme()
+        setEffectiveTheme(nextEffectiveTheme)
+        applyThemeNativeUi(nextEffectiveTheme)
       }, 60000) // 每分钟检查
     }
 
@@ -159,25 +182,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       // ignore
     }
 
-    // 同步微信原生导航栏与下拉刷新样式
-    const isDark = effectiveTheme === 'dark'
     const syncNativeUI = () => {
-      try {
-        Taro.setNavigationBarColor({
-          frontColor: isDark ? '#ffffff' : '#000000',
-          backgroundColor: isDark ? '#1c1c1c' : '#ffffff',
-          animation: { duration: 300, timingFunc: 'easeIn' },
-        })
-      } catch {
-        // ignore
-      }
-      try {
-        Taro.setBackgroundTextStyle({
-          textStyle: isDark ? 'dark' : 'light',
-        })
-      } catch {
-        // ignore
-      }
+      applyThemeNativeUi(effectiveTheme)
     }
     syncNativeUI()
 

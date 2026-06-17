@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { View, Text } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { authService } from '@/services/authService'
+import { useTheme } from '@/hooks/useTheme'
 import './BottomNav.scss'
 
 interface NavItem {
@@ -16,7 +17,7 @@ const studentNavItems: NavItem[] = [
     key: 'training',
     label: '训练',
     iconClass: 'icon-dumbbell',
-    path: '/training/today-training'
+    path: '/pages/index/index'
   },
   {
     key: 'coach',
@@ -80,6 +81,7 @@ const coachNavItems: NavItem[] = [
 const BOTTOM_NAV_SWITCH_KEY = 'bottom_nav_switching'
 
 function BottomNav() {
+  const { isDark } = useTheme()
   const [currentPath, setCurrentPath] = useState('')
   const [isCoachView, setIsCoachView] = useState(() => {
     const session = authService.getAuthSession({ normalize: true })
@@ -236,7 +238,7 @@ function BottomNav() {
   const currentNorm = normalizePath(currentPath)
 
   return (
-    <View className='bottom-nav'>
+    <View className={`bottom-nav ${isDark ? 'bottom-nav--dark' : ''}`}>
       {navItems.map((item) => {
         const isActive = isCoachView
           ? isCoachTabActive(item, currentNorm)

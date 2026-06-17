@@ -1,0 +1,1688 @@
+/**
+ * 深色主题：仅作用于 `.page-theme-root--dark` 包裹下的页面，不影响默认浅色。
+ * 以暖灰暗色为基调，与品牌色 #CF6D4E 协调。
+ * 参考 food_link 的 fl-color-scheme-dark.scss 模式。
+ */
+
+// ── SCSS 变量 ──
+$dark-bg: linear-gradient(180deg, #20201f 0%, #181817 48%, #121211 100%);
+$dark-active-bg: #181817;
+$dark-surface: #242321;
+$dark-surface2: #2d2b28;
+$dark-border: rgba(232, 229, 222, 0.14);
+$dark-text: #f3f0ea;
+$dark-text2: #d2ccc3;
+$dark-text3: #9f988e;
+$dark-accent: #CF6D4E;
+$dark-warning-bg: #3a302d;
+
+// ── 主题壳背景 ──
+.app-root.theme-dark,
+.page-theme-root--dark {
+  background: $dark-bg;
+  color: $dark-text;
+}
+
+.app-root.theme-dark .home-date,
+.app-root.theme-dark .home-greeting,
+.app-root.theme-dark .dashboard-greeting,
+.app-root.theme-dark .dashboard-greeting-icon,
+.app-root.theme-dark .dashboard-more-dots,
+.app-root.theme-dark .week-dashboard-strip__wd,
+.app-root.theme-dark .week-dashboard-strip__num,
+.app-root.theme-dark .week-label,
+.app-root.theme-dark .month-title,
+.app-root.theme-dark .switcher-icon,
+.app-root.theme-dark .switcher-icon-star,
+.app-root.theme-dark .tt-daily-progress-coach-trigger-text,
+.app-root.theme-dark .tt-daily-progress-coach-trigger-icon,
+.app-root.theme-dark .tt-daily-progress-coach-trigger,
+.app-root.theme-dark .coach-pick-name,
+.app-root.theme-dark .coach-pick-sub,
+.app-root.theme-dark .coach-pick-current {
+  color: $dark-text !important;
+}
+
+.app-root.theme-dark .today-training-page .home-date,
+.app-root.theme-dark .today-training-page .dashboard-greeting,
+.app-root.theme-dark .today-training-page .dashboard-more-dots,
+.app-root.theme-dark .today-training-page .week-dashboard-strip__wd,
+.app-root.theme-dark .today-training-page .week-dashboard-strip__num,
+.app-root.theme-dark .today-training-page .week-label,
+.app-root.theme-dark .today-training-page .month-title,
+.app-root.theme-dark .today-training-page .schedule-calendar-anchor__label,
+.app-root.theme-dark .today-training-page .schedule-calendar-anchor__toggle-text,
+.app-root.theme-dark .today-training-page .schedule-calendar-anchor__toggle-icon,
+.app-root.theme-dark .today-training-page .tt-daily-progress-coach-trigger-icon,
+.app-root.theme-dark .today-training-page .tt-daily-progress-coach-trigger-text,
+.app-root.theme-dark .today-training-page .tt-daily-progress-title,
+.app-root.theme-dark .today-training-page .coach-pick-name,
+.app-root.theme-dark .today-training-page .coach-pick-sub,
+.app-root.theme-dark .today-training-page .coach-pick-current,
+.app-root.theme-dark .today-training-page .coach-pick-badge,
+.app-root.theme-dark .today-training-page .coach-pick-footer-text,
+.app-root.theme-dark .today-training-page .day-summary-row .summary-label,
+.app-root.theme-dark .today-training-page .day-summary-row .summary-value,
+.app-root.theme-dark .today-training-page .day-summary-row .summary-tip,
+.app-root.theme-dark .today-training-page .section-title,
+.app-root.theme-dark .today-training-page .section-subtitle,
+.app-root.theme-dark .today-training-page .section-text,
+.app-root.theme-dark .today-training-page .empty-title,
+.app-root.theme-dark .today-training-page .empty-desc,
+.app-root.theme-dark .today-training-page .empty-desc-line,
+.app-root.theme-dark .today-training-page .profile-name,
+.app-root.theme-dark .today-training-page .tt-focus-meta,
+.app-root.theme-dark .today-training-page .tt-focus-title,
+.app-root.theme-dark .today-training-page .card-title,
+.app-root.theme-dark .today-training-page .card-subtitle,
+.app-root.theme-dark .today-training-page .task-open-btn,
+.app-root.theme-dark .today-training-page .config-title,
+.app-root.theme-dark .today-training-page .config-label,
+.app-root.theme-dark .today-training-page .config-static,
+.app-root.theme-dark .today-training-page .config-input,
+.app-root.theme-dark .today-training-page .tt-focus-secondary-btn,
+.app-root.theme-dark .today-training-page .coach-pick-plan,
+.app-root.theme-dark .today-training-page .coach-pick-id,
+.app-root.theme-dark .today-training-page .coach-pick-check,
+.app-root.theme-dark .today-training-page .coach-pick-chevron,
+.app-root.theme-dark .today-training-page .tt-period-pill-icon,
+.app-root.theme-dark .today-training-page .selected-day-inline-title,
+.app-root.theme-dark .today-training-page .selected-day-inline-subtitle,
+.app-root.theme-dark .today-training-page .selected-day-inline-status,
+.app-root.theme-dark .today-training-page .completion-modal-title,
+.app-root.theme-dark .today-training-page .completion-modal-plan,
+.app-root.theme-dark .today-training-page .completion-modal-rate,
+.app-root.theme-dark .today-training-page .share-entry-title,
+.app-root.theme-dark .today-training-page .share-entry-tag,
+.app-root.theme-dark .today-training-page .share-entry-desc {
+  color: $dark-text !important;
+}
+
+.theme-dark .user-profile-page,
+.app-root.theme-dark .user-profile-page {
+  background: transparent !important;
+  color: $dark-text;
+}
+
+.app-root.theme-dark .coach-pick-row,
+.app-root.theme-dark .coach-pick-sheet,
+.app-root.theme-dark .coach-pick-sheet-footer {
+  background: $dark-surface2 !important;
+}
+
+.app-root.theme-dark .coach-pick-row--active {
+  border-color: rgba(207, 109, 78, 0.45) !important;
+  background: rgba(207, 109, 78, 0.16) !important;
+}
+
+// ── 各 Tab 页根节点原渐变改为透明，透出主题壳 ──
+.app-root.theme-dark [class$="-page"],
+.page-theme-root--dark [class$="-page"],
+.page-theme-root--dark .profile-page,
+.page-theme-root--dark .today-training-page,
+.page-theme-root--dark .discovery-page,
+.page-theme-root--dark .knowledge-page,
+.page-theme-root--dark .toolbox-page,
+.page-theme-root--dark .home-page {
+  background: transparent !important;
+}
+
+.app-root.theme-dark .today-training-page .home-date,
+.app-root.theme-dark .today-training-page .home-greeting,
+.app-root.theme-dark .today-training-page .dashboard-greeting {
+  color: $dark-text !important;
+}
+
+.app-root.theme-dark .today-training-page .home-date {
+  color: $dark-text2 !important;
+}
+
+.theme-dark .user-profile-page .loading,
+.theme-dark .user-profile-page .profile-card,
+.theme-dark .user-profile-page .stats-card,
+.theme-dark .user-profile-page .info-card,
+.theme-dark .user-profile-page .info-list {
+  background: transparent !important;
+  color: $dark-text !important;
+}
+
+.theme-dark .user-profile-page .profile-card,
+.theme-dark .user-profile-page .avatar-wrapper,
+.theme-dark .user-profile-page .avatar-container,
+.theme-dark .user-profile-page .avatar-placeholder,
+.theme-dark .user-profile-page .nickname,
+.theme-dark .user-profile-page .goal,
+.theme-dark .user-profile-page .friend-btn {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+// ═══════════════════════════════════════════
+// 通用规则：卡片、文字、边框、阴影
+// ═══════════════════════════════════════════
+
+// 白色/浅灰背景 → 暗色表面
+.page-theme-root--dark {
+  [class*="card"],
+  .profile-card,
+  .menu-list-card,
+  .home-hero-card,
+  .quick-action-item,
+  .feature-item,
+  .feed-card,
+  .coach-card,
+  .action-list-card,
+  .feed-empty,
+  .empty-state,
+  .focus-topic-card,
+  .builtin-plan-card,
+  .book-row-card,
+  .entry-card,
+  .empty-panel,
+  .search-loading,
+  .tool-card,
+  .scene-card,
+  .today-outline-btn,
+  .quick-tag,
+  .search-container,
+  .skeleton-card,
+  .load-more,
+  .tt-daily-progress-card,
+  .tt-schedule-stack,
+  .empty-card,
+  .summary-pill {
+    background: $dark-surface !important;
+  }
+
+  // 搜索输入框背景
+  .search-input-wrap {
+    background: $dark-surface !important;
+    border-color: $dark-border !important;
+  }
+
+  // 标签背景
+  .profile-tag {
+    background: $dark-surface2 !important;
+  }
+
+  // 头像占位符
+  .avatar-placeholder {
+    background: $dark-surface2 !important;
+  }
+
+  // 主题切换按钮背景
+  .theme-toggle-btn-round {
+    background: $dark-surface2 !important;
+  }
+
+  // 进度条轨道
+  .progress-track {
+    background: $dark-border !important;
+  }
+
+  // 统一的英雄卡片背景
+  .unified-hero-card {
+    background: $dark-surface2 !important;
+  }
+
+  // 退出登录按钮
+  .logout-btn {
+    background: $dark-surface !important;
+  }
+
+  // 骨架屏背景
+  .avatar-container,
+  .skeleton-avatar,
+  .skeleton-cover,
+  .skeleton-line,
+  .article-avatar-wrap,
+  .action-author-avatar {
+    background: $dark-surface2 !important;
+  }
+
+  // 搜索容器背景
+  .search-container,
+  .search-input-wrap {
+    background: $dark-surface !important;
+    border-color: $dark-border !important;
+  }
+
+  // 场景封面、操作封面
+  .scene-cover,
+  .action-list-cover {
+    background: $dark-surface2 !important;
+  }
+}
+
+// ── 训练页内的关键按钮/模块（保留首页融合块的深色风格）
+.page-theme-root--dark {
+  .home-hero-card,
+  .unified-hero-card,
+  .feature-item,
+  .quick-action-item,
+  .secondary-cta-tile,
+  .home-secondary-cta .action-btn.secondary,
+  .today-outline-btn {
+    background: $dark-surface !important;
+  }
+
+  .today-outline-text {
+    color: $dark-text !important;
+  }
+
+  .plan-switcher {
+    background: $dark-surface2 !important;
+  }
+
+  .plan-switcher .switcher-btn {
+    color: $dark-text2 !important;
+    background: $dark-surface !important;
+  }
+
+  .plan-switcher .switcher-btn.active {
+    color: #ffffff !important;
+    background: $dark-accent !important;
+  }
+
+  .plan-switcher .switcher-icon,
+  .plan-switcher .switcher-icon-star {
+    color: inherit !important;
+  }
+
+  .coach-pick-row {
+    gap: 8rpx !important;
+  }
+
+  .coach-pick-current,
+  .coach-pick-check,
+  .coach-pick-chevron {
+    color: $dark-text !important;
+  }
+
+  .coach-pick-current {
+    background: $dark-border !important;
+  }
+
+  .schedule-calendar-anchor__bar,
+  .schedule-calendar-anchor__toggle {
+    background: $dark-surface !important;
+  }
+
+  .week-dashboard-strip__pill {
+    background: $dark-surface2 !important;
+    border-color: $dark-border !important;
+  }
+
+  .dashboard-more-hit {
+    background: $dark-surface2 !important;
+    color: $dark-text2 !important;
+  }
+
+  .week-dashboard-strip__pill--selected {
+    background: #ffffff !important;
+    border-color: #ffffff !important;
+  }
+
+  .month-title,
+  .week-day-prefix,
+  .week-day-type,
+  .week-day-status,
+  .month-nav-btn {
+    color: $dark-text !important;
+  }
+
+  .coach-pick-row,
+  .coach-pick-sheet,
+  .coach-pick-sheet-footer {
+    background: $dark-surface2 !important;
+  }
+
+  .coach-pick-row--pressed {
+    background: $dark-surface !important;
+  }
+
+  .coach-pick-row--active {
+    border-color: rgba(207, 109, 78, 0.4) !important;
+    background: rgba(207, 109, 78, 0.12) !important;
+  }
+
+  .summary-pill {
+    border-color: $dark-border !important;
+  }
+
+  .summary-pill .summary-value {
+    color: $dark-text !important;
+  }
+
+  .summary-pill .summary-label,
+  .summary-pill .summary-tip {
+    color: $dark-text2 !important;
+  }
+}
+
+// ── 主要文字 → 浅色 ──
+.page-theme-root--dark {
+  .profile-name,
+  .profile-stat-value,
+  .menu-list-label,
+  .guest-notice-title,
+  .hero-card-title,
+  .hero-card-subtitle,
+  .feature-title,
+  .quick-action-label,
+  .section-title,
+  .coach-name,
+  .action-name,
+  .article-title,
+  .article-coach-name,
+  .focus-topic-title,
+  .builtin-plan-title,
+  .page-title,
+  .page-subtitle,
+  .hero-title,
+  .hero-subtitle,
+  .unified-home-headline,
+  .unified-stat-title,
+  .empty-title,
+  .dashboard-greeting,
+  .tt-daily-progress-title,
+  .dashboard-more-hit,
+  .home-hero-brand,
+  .home-hero-slogan,
+  .tt-hero-card-title,
+  .tool-name,
+  .scene-name,
+  .section-head .section-title,
+  .focus-topic-action,
+  .builtin-plan-link,
+  .book-row-link,
+  .entry-helper,
+  .tt-focus-title,
+  .schedule-calendar-anchor__label,
+  .dashboard-greeting,
+  .home-date,
+  .week-label,
+  .switcher-icon,
+  .switcher-icon-star {
+    color: $dark-text !important;
+  }
+
+  // 深色文字（#010101, #111827, #1d2433 等）
+  .home-hero-slogan,
+  .section-title,
+  .profile-name,
+  .menu-list-label,
+  .empty-title {
+    color: $dark-text !important;
+  }
+}
+
+// ── 次要文字 → 中灰 ──
+.page-theme-root--dark {
+  .profile-stat-label,
+  .profile-edit-link,
+  .guest-notice-desc,
+  .section-caption,
+  .section-action,
+  .action-desc,
+  .article-summary,
+  .focus-topic-desc,
+  .builtin-plan-desc,
+  .empty-panel-text,
+  .empty-desc,
+  .book-row-summary,
+  .entry-desc,
+  .stats-text,
+  .action-meta-text,
+  .feed-empty-text,
+  .empty-text,
+  .article-coach-name,
+  .action-save-btn text,
+  .detail-btn text,
+  .section-more text,
+  .tag-text,
+  .builtin-plan-meta Text,
+  .quick-tag Text,
+  .hero-plan-hint,
+  .hero-card-subtitle,
+  .feature-desc,
+  .unified-stat-value,
+  .search-input,
+  .quick-action-label,
+  .scene-desc,
+  .tool-desc,
+  .tt-daily-progress-label,
+  .tt-focus-meta,
+  .tt-focus-secondary-btn {
+    color: $dark-text2 !important;
+  }
+}
+
+// ── 第三级文字 → 深灰 ──
+.page-theme-root--dark {
+  .profile-stat-unit,
+  .profile-settings-btn,
+  .footer-link,
+  .footer-dot,
+  .menu-list-arrow,
+  .scene-subtitle,
+  .article-date,
+  .price-label,
+  .list-end-text,
+  .tt-progress-label,
+  .feature-arrow {
+    color: $dark-text3 !important;
+  }
+}
+
+// ── 边框颜色 ──
+.page-theme-root--dark {
+  .menu-list-item,
+  .profile-stats-row,
+  .search-container,
+  .search-input-wrap,
+  .feed-card,
+  .coach-card,
+  .action-list-card,
+  .feed-empty,
+  .empty-state,
+  .focus-topic-card,
+  .builtin-plan-card,
+  .book-row-card,
+  .entry-card,
+  .empty-panel,
+  .search-loading,
+  .quick-tag,
+  .action-save-btn,
+  .detail-btn,
+  .load-more,
+  .article-avatar-wrap,
+  .action-author-avatar,
+  .tag-item {
+    border-color: $dark-border !important;
+  }
+
+  // 分割线
+  .list-end-line {
+    background: $dark-border !important;
+  }
+}
+
+// ── 阴影 ──
+.page-theme-root--dark {
+  .home-hero-card,
+  .quick-action-item,
+  .feature-item,
+  .feed-card,
+  .coach-card,
+  .focus-topic-card,
+  .builtin-plan-card,
+  .book-row-card,
+  .entry-card,
+  .empty-panel,
+  .tool-card,
+  .scene-card,
+  .search-input-wrap,
+  .tt-daily-progress-card,
+  .tt-schedule-stack {
+    box-shadow: 0 4rpx 24rpx rgba(0, 0, 0, 0.3) !important;
+  }
+}
+
+// ── 按钮按下态 ──
+.page-theme-root--dark {
+  .menu-list-item:active {
+    background: $dark-surface2 !important;
+  }
+
+  .logout-btn:active {
+    background: $dark-surface2 !important;
+  }
+
+  .theme-toggle-btn-round:active {
+    background: $dark-border !important;
+  }
+
+  .action-btn.primary {
+    background: $dark-accent !important;
+    color: #ffffff !important;
+  }
+
+  .action-btn.secondary {
+    background: $dark-surface2 !important;
+    color: $dark-text !important;
+    border-color: $dark-border !important;
+  }
+
+  .action-btn.action-btn-outline {
+    background: transparent !important;
+    color: $dark-text !important;
+    border-color: $dark-border !important;
+  }
+}
+
+// ═══════════════════════════════════════════
+// 页面特定覆盖
+// ═══════════════════════════════════════════
+
+// ── 训练页 (today-training) ──
+.page-theme-root--dark {
+  // 品牌色保留（promo 卡片、CTA 按钮等已有自己的深色适配）
+  .home-promo-card {
+    background: $dark-accent !important;
+  }
+
+  // 透明背景的卡片保持透明
+  .profile-card {
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+
+  .profile-card .avatar-container {
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+
+  // 训练页空状态
+  .empty-card {
+    background: transparent !important;
+    box-shadow: none !important;
+    border-color: transparent !important;
+  }
+
+  .empty-card.waiting-card {
+    border-bottom-color: transparent !important;
+  }
+
+  .waiting-card {
+    background: transparent !important;
+    box-shadow: none !important;
+    border: none !important;
+    isolation: isolate;
+
+    .waiting-card-header {
+      gap: 40rpx !important;
+    }
+
+    .empty-actions,
+    .empty-actions-pair {
+      gap: 16rpx !important;
+    }
+
+    .empty-actions .action-btn,
+    .empty-actions-pair .action-btn {
+      gap: 16rpx !important;
+    }
+
+    .empty-icon-bg {
+      background: transparent !important;
+    }
+
+    .empty-icon-inner {
+      background: transparent !important;
+    }
+
+    .empty-icon-bg,
+    .empty-icon-inner {
+      background: transparent !important;
+    }
+  }
+
+  // 品牌软底
+  .hero-card-icon-wrap {
+    background: $dark-surface2 !important;
+  }
+
+  .focus-topic-index {
+    background: $dark-surface2 !important;
+  }
+
+  .book-row-icon {
+    background: $dark-surface2 !important;
+  }
+
+  .book-row-badge {
+    background: $dark-surface2 !important;
+  }
+
+  .scene-icon-wrap {
+    background: $dark-surface2 !important;
+  }
+
+  .dashboard-greeting {
+    color: $dark-text !important;
+  }
+
+  .dashboard-more-hit {
+    background: $dark-surface2 !important;
+    color: $dark-text2 !important;
+  }
+
+  .home-hero-card,
+  .quick-action-item,
+  .home-secondary-cta .action-btn.secondary,
+  .tt-daily-progress-card,
+  .tt-schedule-stack,
+  .tt-completion-card,
+  .summary-pill {
+    background: $dark-surface !important;
+  }
+
+  .tt-daily-progress-title {
+    color: $dark-text !important;
+  }
+
+  .plan-switcher {
+    .switcher-btn {
+      color: $dark-text2 !important;
+      background: $dark-surface !important;
+
+      text,
+      Text {
+        color: $dark-text2 !important;
+      }
+
+      .switcher-icon {
+        color: $dark-text2 !important;
+      }
+
+      .switcher-icon-star {
+        color: $dark-text2 !important;
+      }
+    }
+
+    .switcher-btn.active {
+      color: #ffffff !important;
+      background: $dark-accent !important;
+
+      .switcher-icon,
+      .switcher-icon-star {
+        color: #ffffff !important;
+      }
+
+      text,
+      Text {
+        color: #ffffff !important;
+      }
+    }
+  }
+
+  // 骨架屏 shimmer 动画
+  .skeleton-header,
+  .skeleton-line {
+    background: linear-gradient(90deg, #333 25%, #444 50%, #333 75%) !important;
+    background-size: 200% 100% !important;
+  }
+
+  // 训练页特定背景
+  .tt-hero-card,
+  .tt-daily-progress-card,
+  .tt-focus-primary-btn {
+    // 主按钮保持品牌色
+  }
+
+  .today-training-page {
+    .schedule-calendar-anchor {
+      &__bar {
+        background: $dark-surface !important;
+        border: 1rpx solid $dark-border !important;
+      }
+
+      &__label,
+      &__toggle-text {
+        color: $dark-text !important;
+      }
+
+      &__toggle {
+        background: $dark-surface !important;
+      }
+
+      &__toggle-icon {
+        color: $dark-text2 !important;
+      }
+    }
+
+    .week-dashboard-strip {
+      &__pill {
+        background: $dark-surface2 !important;
+        border-color: $dark-border !important;
+      }
+
+      &__pill--today:not(.week-dashboard-strip__pill--selected) {
+        .week-dashboard-strip__wd,
+        .week-dashboard-strip__num {
+          color: $dark-text2 !important;
+        }
+      }
+
+      &__pill--selected {
+        background: #ffffff !important;
+        border-color: #ffffff !important;
+
+        .week-dashboard-strip__wd,
+        .week-dashboard-strip__num,
+        .week-dashboard-strip__dot,
+        .week-dashboard-strip__dot-placeholder {
+          color: #111827 !important;
+        }
+      }
+    }
+
+    .week-label,
+    .month-title,
+    .month-nav-btn,
+    .day-summary-row .summary-label,
+    .day-summary-row .summary-value,
+    .day-summary-row .summary-tip,
+    .summary-pill {
+      color: $dark-text !important;
+    }
+
+    .coach-pick-sheet {
+      background: $dark-surface2 !important;
+      border-color: $dark-border !important;
+    }
+
+    .coach-pick-row {
+      background: $dark-surface !important;
+      border-color: $dark-border !important;
+    }
+
+    .coach-pick-sheet-footer {
+      background: $dark-surface2 !important;
+      border-top-color: $dark-border !important;
+    }
+
+    .card-title,
+    .card-subtitle,
+    .date-text,
+    .delay-banner-title,
+    .delay-banner-desc,
+    .embed-date-text,
+    .embed-summary-item,
+    .embed-summary-dot,
+    .metric-label,
+    .metric-value,
+    .done-title,
+    .done-desc,
+    .panel-title,
+    .panel-inline-meta,
+    .strength-item-title,
+    .strength-item-meta,
+    .strength-item-note,
+    .lightweight-title,
+    .lightweight-subtitle,
+    .lightweight-progress,
+    .lightweight-title-row,
+    .task-title,
+    .task-summary,
+    .task-extra,
+    .task-badge,
+    .task-note,
+    .task-actions,
+    .section-title,
+    .section-text,
+    .summary-card-title,
+    .summary-cell-value,
+    .summary-cell-label,
+    .tt-period-pill-caption,
+    .tt-period-pill-percent,
+    .tt-period-pill-meta,
+    .selected-day-inline-title,
+    .selected-day-inline-subtitle,
+    .tt-focus-title {
+      color: $dark-text !important;
+    }
+
+    .coach-pick-name,
+    .coach-pick-plan,
+    .coach-pick-id,
+    .coach-pick-sub,
+    .coach-pick-footer-text,
+    .tt-focus-meta,
+    .tt-daily-progress-label,
+    .coach-name,
+    .coach-title,
+    .status-text {
+      color: $dark-text2 !important;
+    }
+
+    .tt-focus-primary-btn {
+      color: #ffffff !important;
+    }
+
+    .tt-focus-secondary-btn {
+      background: $dark-surface2 !important;
+      color: $dark-text !important;
+    }
+
+    .tt-daily-progress-coach-trigger {
+      color: $dark-text !important;
+      background: $dark-surface !important;
+      border-radius: 16rpx !important;
+      border: 1rpx solid $dark-border !important;
+      gap: 12rpx !important;
+      padding: 0 20rpx !important;
+      padding-left: 16rpx !important;
+      padding-right: 16rpx !important;
+
+      .tt-daily-progress-coach-trigger-icon,
+      .tt-daily-progress-coach-trigger-text,
+      text {
+        color: $dark-text !important;
+      }
+
+      .tt-daily-progress-coach-trigger-text {
+        margin-left: 2rpx !important;
+      }
+    }
+
+    .tt-daily-progress-coach-trigger--pressed {
+      background: $dark-surface2 !important;
+    }
+
+    .empty-card,
+    .empty-card.waiting-card {
+      background: transparent !important;
+      border: none !important;
+      box-shadow: none !important;
+    }
+
+    .empty-card.waiting-card {
+      .waiting-card-header {
+        gap: 28rpx !important;
+      }
+
+      .empty-title,
+      .empty-desc,
+      .empty-desc-line {
+        color: $dark-text !important;
+      }
+
+      .empty-desc,
+      .empty-desc-line {
+        white-space: normal !important;
+        word-break: break-word !important;
+      }
+
+      .empty-icon-wrapper {
+        margin-top: 4rpx !important;
+      }
+    }
+
+    .empty-card.waiting-card {
+      border-top: none !important;
+    }
+
+    .empty-card.waiting-card .empty-icon-bg,
+    .empty-card.waiting-card .empty-icon-inner {
+      background: transparent !important;
+    }
+
+    .tt-period-pill {
+      .tt-period-pill-icon-wrap {
+        background: rgba(242, 236, 229, 0.12) !important;
+      }
+
+      .tt-period-pill-caption,
+      .tt-period-pill-percent,
+      .tt-period-pill-meta,
+      .tt-period-pill-icon {
+        color: $dark-text !important;
+      }
+    }
+
+  .schedule-calendar-anchor {
+    margin-bottom: 16rpx;
+
+      &__bar {
+        margin-bottom: 16rpx;
+      }
+
+      &__label {
+        color: $dark-text !important;
+        font-size: 34rpx;
+        font-weight: 700;
+      }
+
+      &__toggle {
+        min-height: 56rpx;
+        padding: 0 16rpx;
+        border-radius: 9999rpx;
+        background: $dark-surface !important;
+        display: inline-flex;
+        align-items: center;
+        gap: 8rpx;
+
+        &--pressed {
+          background: $dark-surface2 !important;
+        }
+      }
+
+      &__toggle-icon {
+        color: $dark-text2 !important;
+      }
+
+      &__toggle-text {
+        color: $dark-text !important;
+      }
+    }
+
+    .today-completed-banner,
+    .return-confirm-banner,
+    .grace-warning-banner,
+    .grace-card,
+    .in-progress-banner {
+      background: $dark-surface2 !important;
+      border: 1rpx solid $dark-border !important;
+      color: $dark-text !important;
+    }
+  }
+
+  .week-dashboard-strip {
+    &__pill {
+      background: $dark-surface2 !important;
+      border-color: $dark-border !important;
+      border-width: 1rpx !important;
+
+      .week-dashboard-strip__wd,
+      .week-dashboard-strip__num {
+        color: $dark-text2 !important;
+      }
+    }
+
+    &__pill--active {
+      opacity: 0.88 !important;
+    }
+
+    &__pill--today:not(.week-dashboard-strip__pill--selected) {
+      border-color: $dark-accent !important;
+    }
+
+    &__pill--selected {
+      background: #ffffff !important;
+      border-color: #ffffff !important;
+
+      .week-dashboard-strip__wd,
+      .week-dashboard-strip__num {
+        color: #111827 !important;
+      }
+
+      .week-dashboard-strip__dot,
+      .week-dashboard-strip__dot-placeholder {
+        background: #111827 !important;
+      }
+    }
+  }
+
+  .week-dashboard-strip__dot {
+    background: $dark-accent !important;
+  }
+
+  .week-dashboard-strip__dot-placeholder {
+    background: transparent !important;
+  }
+
+  .schedule-calendar-panel {
+    .calendar-head {
+      .head-title {
+        color: $dark-text !important;
+      }
+
+      .head-meta {
+        color: $dark-text2 !important;
+      }
+
+      .week-label {
+        color: $dark-text !important;
+      }
+
+      .week-nav-btn,
+      .expand-btn {
+        background: $dark-surface !important;
+        border-color: $dark-border !important;
+        color: $dark-text !important;
+      }
+    }
+
+    .week-strip {
+      background: $dark-surface !important;
+      border-color: $dark-border !important;
+    }
+
+    .week-day-card {
+      background: $dark-surface2 !important;
+      border-color: $dark-border !important;
+
+      .week-day-prefix,
+      .week-day-date,
+      .week-day-type,
+      .week-day-status {
+        color: $dark-text2 !important;
+      }
+
+      .week-day-prefix {
+        color: $dark-text3 !important;
+      }
+
+      &.selected {
+        background: #ffffff !important;
+        border-color: #ffffff !important;
+
+        .week-day-prefix,
+        .week-day-date,
+        .week-day-type,
+        .week-day-status {
+          color: #111827 !important;
+        }
+      }
+
+      &.completed:not(.selected),
+      &.in_progress:not(.selected),
+      &.abandoned:not(.selected),
+      &.before_start:not(.selected),
+      &.progress:not(.selected),
+      &.recommended:not(.selected) {
+        background: $dark-surface2 !important;
+        border-color: $dark-border !important;
+
+        .week-day-date,
+        .week-day-status {
+          color: $dark-text !important;
+        }
+      }
+
+      &.empty {
+        background: transparent !important;
+        border-color: $dark-border !important;
+      }
+    }
+
+    .month-board {
+      border-color: $dark-border !important;
+      background: $dark-surface !important;
+    }
+
+    .month-title {
+      color: $dark-text !important;
+    }
+
+    .month-nav-btn {
+      border-color: $dark-border !important;
+      background: $dark-surface2 !important;
+      color: $dark-text !important;
+    }
+
+    .month-weekdays {
+      .weekday-cell {
+        color: $dark-text2 !important;
+      }
+    }
+
+    .date-cell {
+      background: $dark-surface2 !important;
+      border-color: $dark-border !important;
+
+      .date-num,
+      .date-day-index,
+      .date-type {
+        color: $dark-text !important;
+      }
+
+      &.in_progress:not(.selected),
+      &.abandoned:not(.selected),
+      &.before_start:not(.selected),
+      &.completed:not(.selected),
+      &.plan:not(.selected),
+      &.postponed:not(.selected) {
+        background: $dark-surface2 !important;
+        border-color: $dark-border !important;
+      }
+
+      &.selected {
+        background: #ffffff !important;
+        border-color: #ffffff !important;
+
+        .date-num,
+        .date-day-index,
+        .date-type {
+          color: #111827 !important;
+        }
+      }
+
+      &.outside {
+        background: transparent !important;
+
+        .date-num,
+        .date-day-index,
+        .date-type {
+          color: $dark-text3 !important;
+        }
+      }
+    }
+
+    .calendar-tip,
+    .unlock-hint {
+      background: $dark-surface2 !important;
+
+      .calendar-tip-text,
+      .delay-tip {
+        color: $dark-text2 !important;
+      }
+    }
+
+    &.schedule-calendar-panel--month-only {
+      .month-board {
+        background: transparent !important;
+        border: none !important;
+      }
+
+      .month-nav-btn {
+        border-color: $dark-border !important;
+        background: $dark-surface2 !important;
+        color: $dark-text !important;
+      }
+
+      .month-head,
+      .month-weekdays,
+      .month-grid {
+        color: $dark-text !important;
+      }
+
+      .date-cell {
+        background: $dark-surface2 !important;
+        border-color: $dark-border !important;
+      }
+
+      .date-cell.outside {
+        background: transparent !important;
+      }
+
+      .date-cell.selected {
+        background: #ffffff !important;
+        border-color: #ffffff !important;
+
+        .date-num,
+        .date-day-index,
+        .date-type {
+          color: #111827 !important;
+        }
+      }
+
+      .month-title {
+        color: $dark-text !important;
+      }
+
+      .month-weekdays .weekday-cell {
+        color: $dark-text2 !important;
+      }
+    }
+  }
+
+  .training-card {
+    background: $dark-surface !important;
+    box-shadow: none !important;
+  }
+
+  .training-card,
+  .rest-day-card {
+    .rest-main,
+    .rest-tips,
+    .tip-item,
+    .dialog-card,
+    .dialog-foot,
+    .rest-info-dialog,
+    .embed-summary-item,
+    .embed-summary-dot,
+    .card-head,
+    .metric-card,
+    .strength-panel,
+    .strength-item,
+    .lightweight-card,
+    .lightweight-stat,
+    .lightweight-empty,
+    .lightweight-add-small {
+      background: $dark-surface2 !important;
+      border-color: $dark-border !important;
+      color: $dark-text !important;
+    }
+
+    .date-text,
+    .card-title,
+    .card-subtitle,
+    .metric-label,
+    .metric-value,
+    .done-title,
+    .done-desc,
+    .panel-title,
+    .panel-inline-meta,
+    .strength-item-title,
+    .strength-item-meta,
+    .strength-item-note,
+    .strength-item,
+    .lightweight-title,
+    .lightweight-toggle-text,
+    .lightweight-desc,
+    .rest-title,
+    .rest-subtitle,
+    .rest-desc,
+    .rest-quote,
+    .tips-title,
+    .tip-text,
+    .dialog-title,
+    .dialog-card-title,
+    .dialog-card-text,
+    .dialog-foot-title,
+    .dialog-foot-text {
+      color: $dark-text !important;
+    }
+  }
+
+  .profile-page {
+    .profile-card {
+      background: transparent !important;
+      box-shadow: none !important;
+    }
+
+    .myContainer,
+    .avatar-container,
+    .avatar-placeholder,
+    .avatar-wrapper,
+    .avatar-text,
+    .profile-tag,
+    .friend-btn,
+    .theme-toggle-btn-round,
+    .profile-card-header,
+    .profile-name-row,
+    .profile-info,
+    .profile-stats-row,
+    .profile-card-header,
+    .profile-header-right,
+    .friend-btn {
+      background: transparent !important;
+      box-shadow: none !important;
+    }
+
+    .profile-name,
+  .profile-stat-value,
+  .avatar-text,
+  .profile-tag,
+  .profile-stat-label,
+  .profile-stat-unit {
+    color: $dark-text !important;
+  }
+
+    .profile-stats-row {
+      border-top-color: $dark-border !important;
+    }
+
+    .profile-edit-link {
+      color: $dark-text2 !important;
+    }
+
+    .profile-name-row {
+      background: transparent !important;
+    }
+
+    .guest-notice-title {
+      color: $dark-text !important;
+    }
+
+    .guest-notice-desc {
+      color: $dark-text2 !important;
+    }
+
+    .footer-link,
+    .footer-dot {
+      color: $dark-text3 !important;
+    }
+  }
+
+  .user-profile-page {
+    .profile-card,
+    .avatar-wrapper,
+    .avatar-container,
+    .avatar-placeholder,
+    .friend-btn,
+    .friend-btn.friends,
+    .friend-btn.pending {
+      background: transparent !important;
+      box-shadow: none !important;
+    }
+
+    .nickname,
+    .goal,
+    .profile-card {
+      color: $dark-text !important;
+    }
+
+    .friend-btn {
+      background: transparent !important;
+      border: 1rpx solid $dark-border !important;
+
+      Text {
+        color: $dark-text !important;
+      }
+    }
+
+    .friend-btn.friends,
+    .friend-btn.pending {
+      background: transparent !important;
+    }
+
+    .stats-card,
+    .info-card {
+      background: $dark-surface2 !important;
+      border: 1rpx solid $dark-border !important;
+      box-shadow: none !important;
+    }
+
+    .card-title,
+    .stat-item,
+    .stat-label,
+    .info-label,
+    .info-value {
+      color: $dark-text !important;
+    }
+
+    .stat-label,
+    .info-label {
+      color: $dark-text2 !important;
+    }
+  }
+}
+
+// ── 发现页 (discovery) ──
+.page-theme-root--dark {
+  // 粘性 header
+  .page-header {
+    background: rgba(22, 22, 22, 0.96) !important;
+  }
+
+  // 标签背景
+  .tag-item {
+    background: $dark-surface2 !important;
+  }
+}
+
+// ── 知识页 (knowledge) ──
+.page-theme-root--dark {
+  .knowledge-page {
+    // 去掉原 radial 渐变，让主题壳透出
+    background: transparent !important;
+  }
+
+  .builtin-plan-level {
+    // 保持品牌色但调暗
+    background: $dark-surface2 !important;
+  }
+}
+
+// ── 工具箱 (toolbox) ──
+.page-theme-root--dark {
+  // 工具箱卡片覆盖图保持原样（依赖图片）
+  .tool-gradient {
+    // 保持原暗色渐变
+  }
+}
+
+// ── 我的页 (profile) ──
+.page-theme-root--dark {
+  // 未登录提示
+  .guest-notice-card {
+    background: $dark-surface2 !important;
+  }
+
+  .guest-notice-title {
+    color: $dark-text !important;
+  }
+
+  .guest-notice-desc {
+    color: $dark-text2 !important;
+  }
+}
+
+// ── 底部导航栏 ──
+.page-theme-root--dark .bottom-nav,
+.bottom-nav--dark {
+  background: $dark-surface !important;
+  border-color: $dark-border !important;
+  box-shadow: 0 12rpx 36rpx rgba(0, 0, 0, 0.28) !important;
+
+  .nav-icon {
+    color: $dark-text2 !important;
+  }
+
+  .nav-label {
+    color: $dark-text2 !important;
+  }
+
+  .nav-icon-active {
+    color: $dark-accent !important;
+  }
+
+  .nav-item:not(.nav-active):active {
+    background: rgba(207, 109, 78, 0.08) !important;
+  }
+
+  .nav-active {
+    background: #ffffff !important;
+    box-shadow: 0 6rpx 18rpx rgba(0, 0, 0, 0.22) !important;
+
+    .nav-icon,
+    .nav-label {
+      color: #111827 !important;
+    }
+
+    .nav-msg-badge {
+      border-color: #111827 !important;
+    }
+  }
+}
+
+// ── 导航栏下方的实色填充 ──
+.page-theme-root--dark {
+  .page-with-nav::after {
+    background: $dark-bg !important;
+  }
+}
+
+// ═══════════════════════════════════════════
+// 内联样式安全网（仅影响内联 style 属性）
+// ═══════════════════════════════════════════
+.page-theme-root--dark {
+  .today-training-page,
+  .home-page.theme-dark,
+  .theme-dark .today-training-page {
+    color: $dark-text;
+  }
+
+  .today-training-page {
+    .home-date,
+    .dashboard-more-dots {
+      color: $dark-text2 !important;
+    }
+
+    text,
+    Text {
+      color: $dark-text !important;
+    }
+
+    .section-title,
+    .summary-card-title,
+    .summary-cell-value,
+    .summary-cell-label,
+    .section-subtitle,
+    .tt-schedule-stack__icon,
+    .coach-name,
+    .coach-title,
+    .status-text,
+    .schedule-overview .overview-title,
+    .schedule-overview .overview-subtitle,
+    .schedule-overview .overview-detail,
+    .schedule-overview .overview-status,
+    .day-summary-row .summary-label,
+    .day-summary-row .summary-value,
+    .day-summary-row .summary-tip,
+    .completed-title,
+    .completed-desc,
+    .empty-title,
+    .empty-desc,
+    .empty-desc-line,
+    .card-title,
+    .card-subtitle,
+    .date-text,
+    .delay-banner-title,
+    .delay-banner-desc,
+    .embed-date-text,
+    .embed-summary-item,
+    .embed-summary-dot,
+    .metric-label,
+    .metric-value,
+    .done-title,
+    .done-desc,
+    .panel-title,
+    .panel-inline-meta,
+    .strength-item-title,
+    .strength-item-meta,
+    .strength-item-note,
+    .lightweight-title,
+    .lightweight-subtitle,
+    .lightweight-progress,
+    .task-title,
+    .task-summary,
+    .task-extra,
+    .task-badge,
+    .task-note,
+    .task-open-btn,
+    .task-open-btn text,
+    .action-btn.secondary,
+    .action-btn.action-btn-outline,
+    .info-dialog-title,
+    .info-dialog-section .section-title,
+    .info-dialog-section .section-text,
+    .completion-modal-title,
+    .completion-modal-plan,
+    .completion-modal-rate,
+    .share-entry-title,
+    .share-entry-tag,
+    .share-entry-desc,
+    .coach-pick-sheet-title,
+    .coach-pick-name,
+    .coach-pick-current,
+    .coach-pick-badge,
+    .coach-pick-plan,
+    .coach-pick-id,
+    .coach-pick-sub,
+    .coach-pick-footer-text,
+    .config-title,
+    .config-label,
+    .config-static,
+    .config-textarea,
+    .config-input,
+    .section-text,
+    .selected-day-inline-title,
+    .selected-day-inline-subtitle,
+    .selected-day-inline-status text,
+    .tt-daily-progress-title,
+    .tt-daily-progress-label,
+    .tt-focus-title,
+    .tt-focus-meta,
+    .tt-focus-secondary-btn,
+    .dashboard-greeting,
+    .dashboard-more-dots,
+    .dashboard-greeting-icon,
+    .plan-switcher .switcher-btn,
+    .plan-switcher .switcher-icon,
+    .plan-switcher .switcher-icon-star {
+      color: $dark-text !important;
+    }
+
+    .action-btn.primary,
+    .action-btn.primary text {
+      color: #ffffff !important;
+    }
+
+    .action-btn.secondary,
+    .action-btn.secondary text,
+    .action-btn.action-btn-outline,
+    .action-btn.action-btn-outline text {
+      color: $dark-text !important;
+      border-color: $dark-border !important;
+    }
+
+    .action-btn.secondary {
+      background: $dark-surface2 !important;
+    }
+
+    .action-btn.action-btn-outline {
+      background: transparent !important;
+    }
+
+    .tt-focus-primary-btn {
+      color: #ffffff !important;
+    }
+  }
+  
+  [style*="background: #fff"],
+  [style*="background:#fff"],
+  [style*="background: #ffffff"],
+  [style*="background:#ffffff"],
+  [style*="background: #f5f5f5"],
+  [style*="background:#f5f5f5"],
+  [style*="background: #f8f8f8"],
+  [style*="background:#f8f8f8"],
+  [style*="background-color:#fff"],
+  [style*="background-color: #fff"],
+  [style*="background-color:#ffffff"],
+  [style*="background-color: #ffffff"],
+  [style*="background-color:#f5f5f5"],
+  [style*="background-color: #f5f5f5"],
+  [style*="background-color:#f8f8f8"],
+  [style*="background-color: #f8f8f8"],
+  [style*="background: rgba(255, 255, 255"],
+  [style*="background:rgba(255,255,255"],
+  [style*="background:rgba(255, 255, 255"],
+  [style*="background: #fff"],
+  [style*="background: #ffffff"],
+  [style*="background-color:rgba(255, 255, 255"] {
+    background: $dark-surface !important;
+  }
+
+  [style*="color: #333"],
+  [style*="color:#333"],
+  [style*="color: #333333"],
+  [style*="color:#333333"] {
+    color: $dark-text !important;
+  }
+
+  [style*="color: #010101"],
+  [style*="color:#010101"],
+  [style*="color: #6b7280"],
+  [style*="color:#6b7280"],
+  [style*="color: #111827"],
+  [style*="color:#111827"],
+  [style*="color: #374151"],
+  [style*="color:#374151"] {
+    color: $dark-text !important;
+  }
+
+  [style*="color: #666"],
+  [style*="color:#666"],
+  [style*="color: #666666"],
+  [style*="color:#666666"] {
+    color: $dark-text2 !important;
+  }
+
+  [style*="color: #9ca3af"],
+  [style*="color:#9ca3af"] {
+    color: $dark-text3 !important;
+  }
+
+  [style*="color: #999"],
+  [style*="color:#999"],
+  [style*="color: #999999"],
+  [style*="color:#999999"] {
+    color: $dark-text3 !important;
+  }
+}

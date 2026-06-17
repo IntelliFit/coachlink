@@ -1,207 +1,28 @@
-@import './components/BottomNav.scss';
+@use './components/BottomNav.scss';
+@use './styles/theme-dark.scss';
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* ==================== 新版设计系统变量（v2 Dashboard） ==================== */
+/* ==================== 全局字体 ==================== */
 page {
-  /* 全局字体：优先使用思源黑体（Noto Sans SC / Source Han Sans CN），
-     已安装该字体的设备（Windows / 部分安卓）直接生效；
-     iOS 回退到苹方（PingFang SC），质量相当；
-     最终回退到系统默认无衬线字体栈。 */
   font-family: 'Noto Sans SC', 'Source Han Sans SC', 'Source Han Sans CN', 'PingFang SC', -apple-system-font, 'Helvetica Neue', sans-serif;
-
   --bg-page: linear-gradient(180deg, #E8E8E8 0%, #F5F5F5 100%);
   --bg-card: #FFFFFF;
   --primary: #CF6D4E;
-  --primary-light: #E08F76;
-  --primary-gradient: linear-gradient(135deg, #CF6D4E 0%, #E08F76 100%);
-  --text-primary: #010101;
+  --text-primary: #111827;
   --text-secondary: #6B7280;
   --text-tertiary: #9CA3AF;
-  --border-color: #E5E5E5;
-  --border-radius-card: 32rpx;
-  --border-radius-pill: 9999rpx;
-  --shadow-card: 0 4rpx 24rpx rgba(0, 0, 0, 0.04);
-  --shadow-float: 0 8rpx 32rpx rgba(207, 109, 78, 0.22);
-}
-
-/*
- * 小程序内页面节点未必包裹在 App 的 View 之外，暗色变量若只写在 `.theme-dark page` 下
- * 可能无法被子树继承。将同一套变量挂在 `.app-root.theme-*` 上，保证子组件能读到。
- */
-.app-root.theme-light {
-  --bg-page: linear-gradient(180deg, #E8E8E8 0%, #F5F5F5 100%);
-  --bg-card: #FFFFFF;
-  --primary: #CF6D4E;
-  --primary-light: #E08F76;
-  --text-primary: #010101;
-  --text-secondary: #6B7280;
-  --text-tertiary: #9CA3AF;
-  --border-color: #E5E5E5;
-  --shadow-card: 0 4rpx 24rpx rgba(0, 0, 0, 0.04);
-  --shadow-float: 0 8rpx 32rpx rgba(207, 109, 78, 0.22);
 }
 
 .app-root.theme-dark {
-  --bg-page: linear-gradient(180deg, #1c1c1c 0%, #141414 100%);
-  --bg-card: #242424;
+  --bg-page: linear-gradient(180deg, #20201f 0%, #181817 48%, #121211 100%);
+  --bg-card: #242321;
   --primary: #CF6D4E;
-  --primary-light: #E08F76;
-  --text-primary: #FFFFFF;
-  --text-secondary: #B0B0B0;
-  --text-tertiary: #808080;
-  --border-color: #333333;
-  --shadow-card: 0 4rpx 24rpx rgba(0, 0, 0, 0.3);
-  --shadow-float: 0 8rpx 32rpx rgba(0, 0, 0, 0.4);
-}
-
-/* ==================== 暗色主题变量覆盖 ==================== */
-.theme-dark page {
-  --bg-page: linear-gradient(180deg, #1c1c1c 0%, #141414 100%);
-  --bg-card: #242424;
-  --primary: #CF6D4E;
-  --primary-light: #E08F76;
-  --text-primary: #FFFFFF;
-  --text-secondary: #B0B0B0;
-  --text-tertiary: #808080;
-  --border-color: #333333;
-  --shadow-card: 0 4rpx 24rpx rgba(0, 0, 0, 0.3);
-  --shadow-float: 0 8rpx 32rpx rgba(0, 0, 0, 0.4);
-}
-
-/* ==================== 主要 Tab 页面背景统一（亮色主题） ==================== */
-.user-profile-page,
-.today-training-page,
-.discovery-page,
-.knowledge-page,
-.toolbox-page,
-.coach-overview-page {
-  background: linear-gradient(180deg, #E8E8E8 0%, #F8F8F8 100%) !important;
-}
-
-/* ==================== 全局暗色硬编码颜色批量覆盖 ==================== */
-.theme-dark {
-  /* 页面根背景：所有带 theme-dark 的页面根节点 */
-  background: var(--bg-page) !important;
-}
-
-/* 页面根节点同时带有 theme-dark 和页面类名时，强制覆盖页面内联/硬编码背景 */
-.theme-dark.user-profile-page,
-.theme-dark.today-training-page,
-.theme-dark.discovery-page,
-.theme-dark.knowledge-page,
-.theme-dark.toolbox-page,
-.theme-dark.coach-overview-page,
-.theme-dark.profile-page,
-.theme-dark.page-with-nav,
-.theme-dark.page-with-float-nav,
-.theme-dark.doc-page,
-.theme-dark.doc-scroll,
-.theme-dark.profile-detail-page,
-.theme-dark.ranking-page,
-.theme-dark.plan-history-page,
-.theme-dark.settings-page,
-.theme-dark.edit-profile-page,
-.theme-dark.home-page {
-  background: var(--bg-page) !important;
-}
-
-/* ==================== 全局暗色主题内部元素批量覆盖 ==================== */
-.theme-dark {
-  /* 白色/浅灰卡片背景 → 暗色卡片 */
-  .profile-card,
-  .menu-list-card,
-  .core-grid,
-  .guest-notice-card,
-  .doc-card,
-  .home-hero-card,
-  .quick-action-item,
-  .feature-item,
-  .tt-daily-progress-card,
-  .tt-schedule-stack {
-    background: #242424 !important;
-  }
-
-  /* 主要文字 #333 → 浅灰 */
-  .profile-name,
-  .core-label,
-  .menu-list-label,
-  .doc-title,
-  .doc-subtitle {
-    color: #E0E0E0 !important;
-  }
-
-  /* 次要文字 #666 → 中灰 */
-  .profile-subtitle,
-  .guest-notice-desc,
-  .doc-content {
-    color: #B0B0B0 !important;
-  }
-
-  /* 第三级文字 #999 → 深灰 */
-  .badge-text,
-  .badge-dot,
-  .profile-settings-btn,
-  .footer-link,
-  .footer-dot {
-    color: #808080 !important;
-  }
-
-  /* 分割线/边框 */
-  .menu-list-item {
-    border-bottom-color: #333333 !important;
-  }
-
-  /* 退出登录按钮背景 */
-  .logout-btn {
-    background: #242424 !important;
-  }
-
-  /* 导航栏背后填充 */
-  .page-with-nav::after {
-    background: #141414 !important;
-  }
-
-  /* ===== 通用批量覆盖：捕获未使用变量的页面 ===== */
-  /* 任何硬编码白色/浅灰背景 → 暗色 */
-  [style*="background: #fff"],
-  [style*="background:#fff"],
-  [style*="background: #ffffff"],
-  [style*="background:#ffffff"],
-  [style*="background: #f5f5f5"],
-  [style*="background:#f5f5f5"],
-  [style*="background: #f8f8f8"],
-  [style*="background:#f8f8f8"],
-  [style*="background: #f3f4f6"],
-  [style*="background:#f3f4f6"] {
-    background: #242424 !important;
-  }
-
-  /* 硬编码 #333 文字 → 浅灰 */
-  [style*="color: #333"],
-  [style*="color:#333"],
-  [style*="color: #333333"],
-  [style*="color:#333333"] {
-    color: #E0E0E0 !important;
-  }
-
-  /* 硬编码 #666 文字 → 中灰 */
-  [style*="color: #666"],
-  [style*="color:#666"],
-  [style*="color: #666666"],
-  [style*="color:#666666"] {
-    color: #B0B0B0 !important;
-  }
-
-  /* 硬编码 #999 文字 → 深灰 */
-  [style*="color: #999"],
-  [style*="color:#999"],
-  [style*="color: #999999"],
-  [style*="color:#999999"] {
-    color: #808080 !important;
-  }
+  --text-primary: #f3f0ea;
+  --text-secondary: #d2ccc3;
+  --text-tertiary: #9f988e;
 }
 
 /* ==================== 带底部导航栏的页面布局（全局） ====================
@@ -215,7 +36,7 @@ $bottom-nav-height-rpx: 140rpx;
 .page-with-nav {
   min-height: 100vh;
   position: relative;
-  background: var(--bg-page);
+  background: var(--bg-page, linear-gradient(180deg, #E8E8E8 0%, #F5F5F5 100%));
 
   /* 导航栏背后用白色填充，避免出现灰色底边 */
   &::after {
@@ -225,7 +46,7 @@ $bottom-nav-height-rpx: 140rpx;
     left: 0;
     right: 0;
     height: $bottom-nav-height-px;
-    background: #fff;
+    background: var(--bg-page, linear-gradient(180deg, #E8E8E8 0%, #F5F5F5 100%));
     z-index: 99;
     pointer-events: none;
   }
@@ -240,7 +61,7 @@ $bottom-nav-height-rpx: 140rpx;
 /* 新版悬浮导航适配：为悬浮导航留更少底部空间 */
 .page-with-float-nav {
   min-height: 100vh;
-  background: var(--bg-page);
+  background: var(--bg-page, linear-gradient(180deg, #E8E8E8 0%, #F5F5F5 100%));
 
   .page-scroll {
     min-height: 100vh;
@@ -252,7 +73,7 @@ $bottom-nav-height-rpx: 140rpx;
 /* 文档页通用样式（服务条款/免责声明/隐私政策/关于我们），保证小程序端生效 */
 .doc-page {
   min-height: 100vh;
-  background: var(--bg-page);
+  background: var(--bg-page, linear-gradient(180deg, #E8E8E8 0%, #F5F5F5 100%));
   width: 100%;
   box-sizing: border-box;
   overflow-x: hidden;

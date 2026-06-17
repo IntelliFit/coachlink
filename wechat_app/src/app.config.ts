@@ -179,6 +179,8 @@ export default {
     backgroundTextStyle: 'light',
     navigationBarBackgroundColor: '#fff',
     navigationBarTitleText: '教链 CoachLink',
-    navigationBarTextStyle: 'black'
+    navigationBarTextStyle: 'black',
+    // 禁止微信宿主自动切换深色模式，由应用手动控制
+    darkmode: false,
   }
 }

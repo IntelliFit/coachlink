@@ -3,6 +3,7 @@ import { View } from '@tarojs/components'
 import { useDidShow, useDidHide } from '@tarojs/taro'
 import { authService } from '@/services/authService'
 import { ThemeProvider, ThemeContext } from '@/context/ThemeContext'
+import { applyThemeNativeUi } from '@/utils/themeNativeUi'
 // 全局样式
 import './app.scss'
 import './assets/iconfont/iconfont.css'
@@ -12,10 +13,12 @@ function AppContent(props: { children: React.ReactNode }) {
 
   useEffect(() => {
     authService.normalizeAuthSession()
-  }, [])
+    applyThemeNativeUi(effectiveTheme)
+  }, [effectiveTheme])
 
   useDidShow(() => {
     authService.normalizeAuthSession()
+    applyThemeNativeUi(effectiveTheme)
   })
 
   useDidHide(() => {})

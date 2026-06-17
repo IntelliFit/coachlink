@@ -8,6 +8,7 @@ import { studentService } from '@/services/studentService'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import './index.scss'
 import { useTheme } from '@/hooks/useTheme'
+import { PageThemeRoot } from '@/components/PageThemeRoot'
 
 interface Coach {
   id: string
@@ -313,6 +314,7 @@ function Discovery() {
   }
 
   return (
+    <PageThemeRoot>
     <View className={`discovery-page theme-${effectiveTheme}`}>
       <View className='page-header'>
         <View className='header-content'>
@@ -409,6 +411,7 @@ function Discovery() {
 
       <BottomNav />
     </View>
+    </PageThemeRoot>
   )
 }
 

@@ -13,6 +13,7 @@ import {
 } from '@/utils/share'
 import './index.scss'
 import { useTheme } from '@/hooks/useTheme'
+import { PageThemeRoot } from '@/components/PageThemeRoot'
 
 type ToolboxLink = {
   key: string
@@ -80,6 +81,7 @@ function ToolboxPage() {
   }
 
   return (
+    <PageThemeRoot>
     <View className={`toolbox-page theme-${effectiveTheme}`}>
       <ScrollView className='page-scroll' scrollY>
         <View className='page-content'>
@@ -135,6 +137,7 @@ function ToolboxPage() {
       </ScrollView>
       <BottomNav />
     </View>
+    </PageThemeRoot>
   )
 }
 
