@@ -1,4 +1,4 @@
-## Commit Current Work And Sync Main/Dev (`2026-06-18`)
+﻿## Commit Current Work And Sync Main/Dev (`2026-06-18`)
 
 - Task: commit current latest local code, merge the latest development branch changes, and make `main` and `dev` consistent.
 - Status: in progress.
@@ -5570,3 +5570,14 @@
   - Rendered detailed Mermaid via browser Mermaid runtime; switched to pure SVG labels (`htmlLabels=false`) so the standalone SVG can be opened/downloaded reliably.
   - Generated `.docx` explainer with python-docx.
   - No app/browser verification required because this was documentation/artifact generation only.
+
+## Merged Origin Dev State (`2026-06-18`)
+
+- Source: merged `origin/dev` commit `5326a92c fix wechat training execution and theme flow` while syncing `main` and `dev`.
+- Remote dev work preserved in this merge includes:
+  - WeChat mini-program OpenID-first login fix while retaining compliance-facing phone-login wording.
+  - Training home greeting fix: nickname-only fallback, local-time greeting/icon, and removal of visible `本周` wording.
+  - Shared WeChat training execution UI simplification with top duration/status board, finish action, and bottom toolbar.
+  - Impromptu training execution loading/theme fixes from 2026-06-17.
+  - Dark-theme and native UI synchronization decisions for WeChat mini-program surfaces.
+- Verification recorded upstream for those remote-dev changes included lint/typecheck/unit tests/builds where noted; WeChat DevTools screenshot verification remained blocked by local MRC websocket connectivity.
