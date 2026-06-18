@@ -22,9 +22,10 @@ import './index.scss'
 import { useTheme } from '@/hooks/useTheme'
 
 const RETURN_CONFIRM_STORAGE_KEY = 'today_training_last_confirmed_day'
-const EXECUTION_LOAD_TIMEOUT_MS = 12000
+const EXECUTION_LOAD_TIMEOUT_MS = 8000
 const REST_TIMER_STORAGE_PREFIX = 'training_execution_rest_timer_v1'
 const WEIGHT_STEP_KG = 2.5
+const EXEC_DEBUG_PREFIX = '[CL-EXEC-DEBUG]'
 
 type WorkoutKeyboardTarget = 'weight' | 'reps'
 
@@ -80,6 +81,26 @@ function withExecutionLoadTimeout<T>(promise: Promise<T>, label: string): Promis
   return Promise.race([promise, timeout]).finally(() => {
     if (timer) clearTimeout(timer)
   }) as Promise<T>
+}
+
+function summarizeExecutionForDebug(execution: any) {
+  const actionExecutions = Array.isArray(execution?.action_executions) ? execution.action_executions : []
+  const firstAction = actionExecutions[0]
+  return {
+    id: execution?.id,
+    status: execution?.status,
+    dayIndex: execution?.day_index,
+    actionCount: actionExecutions.length,
+    firstAction: firstAction
+      ? {
+        actionId: firstAction.action_id,
+        actionName: firstAction.action_name,
+        setCount: Array.isArray(firstAction.sets) ? firstAction.sets.length : -1,
+        completedSets: firstAction.completed_sets,
+        totalSets: firstAction.total_sets
+      }
+      : null
+  }
 }
 
 interface SetData {
@@ -298,6 +319,8 @@ function TrainingExecution() {
   const [workoutKeyboardTarget, setWorkoutKeyboardTarget] = useState<WorkoutKeyboardTarget | null>(null)
   const [showWorkoutSummary, setShowWorkoutSummary] = useState(false)
   const [workoutSummarySharePath, setWorkoutSummarySharePath] = useState('')
+  const [elapsedTrainingSeconds, setElapsedTrainingSeconds] = useState(0)
+  const [noteFocusKey, setNoteFocusKey] = useState<string | null>(null)
   const startTrainingRef = useRef<() => Promise<void>>(async () => undefined)
   const lastStartTrainingAtRef = useRef(0)
 
@@ -312,6 +335,42 @@ function TrainingExecution() {
     () => (userId && executionSnapshotScopeKey ? `${REST_TIMER_STORAGE_PREFIX}:${userId}:${executionSnapshotScopeKey}` : ''),
     [executionSnapshotScopeKey, userId]
   )
+
+  useEffect(() => {
+    console.log(EXEC_DEBUG_PREFIX, 'page mounted / route params', {
+      rawParams: instance.router?.params || {},
+      instanceId,
+      impromptuId,
+      dayIndex,
+      isImpromptuMode,
+      isReadOnly,
+      userId,
+      executionSnapshotScopeKey,
+      restTimerStorageKey
+    })
+  }, [
+    dayIndex,
+    executionSnapshotScopeKey,
+    impromptuId,
+    instance.router?.params,
+    instanceId,
+    isImpromptuMode,
+    isReadOnly,
+    restTimerStorageKey,
+    userId
+  ])
+
+  useEffect(() => {
+    console.log(EXEC_DEBUG_PREFIX, 'render state changed', {
+      loading,
+      hasExecution: !!execution,
+      execution: summarizeExecutionForDebug(execution),
+      actionMapCount: Object.keys(actions || {}).length,
+      hasPlanInstance: !!planInstance,
+      expandedAction,
+      currentSetIndex
+    })
+  }, [actions, currentSetIndex, execution, expandedAction, loading, planInstance])
 
   const clearPersistedRestTimer = useCallback(() => {
     if (!restTimerStorageKey) return
@@ -532,13 +591,28 @@ function TrainingExecution() {
 
   // 开始或恢复训练（T03：先 checkToday 判断今日是否已有进行中记录，若有则恢复；即兴模式直接 get）
   const startTraining = useCallback(async () => {
+    console.log(EXEC_DEBUG_PREFIX, 'startTraining enter', {
+      userId,
+      instanceId,
+      impromptuId,
+      dayIndex,
+      isImpromptuMode,
+      isReadOnly,
+      executionSnapshotScopeKey
+    })
     if (!userId) {
+      console.log(EXEC_DEBUG_PREFIX, 'startTraining stop: missing userId')
       setExecution(null)
       setLoading(false)
       Taro.showToast({ title: '请先登录', icon: 'none' })
       return
     }
     if (!isImpromptuMode && !instanceId) {
+      console.log(EXEC_DEBUG_PREFIX, 'startTraining stop: missing instanceId in plan mode', {
+        instanceId,
+        impromptuId,
+        isImpromptuMode
+      })
       setExecution(null)
       setLoading(false)
       Taro.showToast({ title: '参数错误', icon: 'none' })
@@ -554,25 +628,47 @@ function TrainingExecution() {
         scopeKey: executionSnapshotScopeKey
       })
       const snapshot = readTrainingExecutionSnapshot(userId, executionSnapshotScopeKey)
+      console.log(EXEC_DEBUG_PREFIX, 'snapshot read result', {
+        scopeKey: executionSnapshotScopeKey,
+        hasSnapshot: !!snapshot,
+        hasExecution: !!snapshot?.execution,
+        execution: summarizeExecutionForDebug(snapshot?.execution),
+        actionMapCount: snapshot?.actions ? Object.keys(snapshot.actions).length : 0,
+        hasPlanInstance: !!snapshot?.planInstance
+      })
       if (snapshot?.execution) {
+        console.log(EXEC_DEBUG_PREFIX, 'apply snapshot execution before cloud refresh')
         setExecution(snapshot.execution)
         if (snapshot.actions) setActions(snapshot.actions)
         if (snapshot.planInstance) setPlanInstance(snapshot.planInstance)
         focusFirstPendingSet(snapshot.execution)
         setLoading(false)
       } else {
+        console.log(EXEC_DEBUG_PREFIX, 'no snapshot execution, keep full loading before request')
         setLoading(true)
       }
 
       if (isImpromptuMode && impromptuId) {
         // 即兴训练：直接获取执行记录
+        console.log(EXEC_DEBUG_PREFIX, 'impromptu get request start', {
+          impromptuId
+        })
         const data = await withExecutionLoadTimeout(impromptuService.get(impromptuId), '加载即兴训练')
+        console.log(EXEC_DEBUG_PREFIX, 'impromptu get request resolved', {
+          hasData: !!data,
+          execution: summarizeExecutionForDebug(data)
+        })
         if (!data) {
-          Taro.showToast({ title: '无法加载即兴执行记录', icon: 'none' })
+          if (!snapshot?.execution) {
+            setExecution(null)
+          }
+          setLoading(false)
+          console.log(EXEC_DEBUG_PREFIX, 'impromptu get returned empty', {
+            fallbackToSnapshot: !!snapshot?.execution
+          })
+          Taro.showToast({ title: snapshot?.execution ? '已使用本地训练记录' : '无法加载即兴执行记录', icon: 'none' })
           return
         }
-        setExecution(data)
-        syncExecutionToCaches(data)
         setPlanInstance({
           id: 'impromptu',
           name: '即兴锻炼',
@@ -591,6 +687,27 @@ function TrainingExecution() {
             }
           }
         })
+        console.log(EXEC_DEBUG_PREFIX, 'apply impromptu cloud execution', {
+          execution: summarizeExecutionForDebug(data),
+          actionMapCount: Object.keys(actionMap).length
+        })
+        setExecution(data)
+        setLoading(false)
+        syncTrainingExecutionToStorage({
+          userId,
+          scopeKey: executionSnapshotScopeKey,
+          dayIndex,
+          isImpromptuMode: true,
+          execution: data,
+          planInstance: {
+            id: 'impromptu',
+            name: '即兴锻炼',
+            description: '即兴训练模式',
+            source: 'impromptu'
+          },
+          actions: actionMap
+        })
+        console.log(EXEC_DEBUG_PREFIX, 'impromptu execution synced to cache')
         setActions(actionMap)
         focusFirstPendingSet(data)
       } else {
@@ -629,7 +746,11 @@ function TrainingExecution() {
         }
 
         if (data) {
+          console.log(EXEC_DEBUG_PREFIX, 'apply plan execution', {
+            execution: summarizeExecutionForDebug(data)
+          })
           setExecution(data)
+          setLoading(false)
           syncExecutionToCaches(data)
           focusFirstPendingSet(data)
         } else {
@@ -637,9 +758,15 @@ function TrainingExecution() {
         }
       }
     } catch (e: any) {
+      console.error(EXEC_DEBUG_PREFIX, 'startTraining failed', {
+        message: e?.message,
+        stack: e?.stack,
+        name: e?.name
+      })
       console.error('开始训练失败:', e)
       Taro.showToast({ title: e.message || '加载失败', icon: 'none' })
     } finally {
+      console.log(EXEC_DEBUG_PREFIX, 'startTraining finally -> setLoading(false)')
       setLoading(false)
     }
   }, [
@@ -655,28 +782,36 @@ function TrainingExecution() {
     syncExecutionToCaches
   ])
 
-  useEffect(() => {
-    startTrainingRef.current = startTraining
-  }, [startTraining])
+  startTrainingRef.current = startTraining
 
   const requestStartTraining = useCallback(() => {
     const now = Date.now()
+    console.log(EXEC_DEBUG_PREFIX, 'requestStartTraining called', {
+      now,
+      lastStartTrainingAt: lastStartTrainingAtRef.current,
+      delta: now - lastStartTrainingAtRef.current
+    })
     if (now - lastStartTrainingAtRef.current < 500) {
+      console.log(EXEC_DEBUG_PREFIX, 'requestStartTraining skipped by debounce')
       return Promise.resolve()
     }
     lastStartTrainingAtRef.current = now
+    console.log(EXEC_DEBUG_PREFIX, 'requestStartTraining executing startTrainingRef')
     return startTrainingRef.current()
   }, [])
 
   useEffect(() => {
+    console.log(EXEC_DEBUG_PREFIX, 'useEffect initial requestStartTraining')
     void requestStartTraining()
   }, [requestStartTraining])
 
   useDidShow(() => {
+    console.log(EXEC_DEBUG_PREFIX, 'useDidShow requestStartTraining')
     void requestStartTraining()
   })
 
   usePullDownRefresh(() => {
+    console.log(EXEC_DEBUG_PREFIX, 'pullDownRefresh requestStartTraining')
     requestStartTraining().finally(() => Taro.stopPullDownRefresh())
   })
 
@@ -723,6 +858,26 @@ function TrainingExecution() {
       clearPersistedRestTimer()
     }
   }, [clearPersistedRestTimer, execution?.id, isResting, restTimerStorageKey])
+
+  useEffect(() => {
+    const startedAt = execution?.started_at ? new Date(execution.started_at).getTime() : NaN
+    const completedAt = execution?.completed_at ? new Date(execution.completed_at).getTime() : NaN
+
+    const updateElapsed = () => {
+      if (!Number.isFinite(startedAt)) {
+        setElapsedTrainingSeconds(0)
+        return
+      }
+      const endAt = Number.isFinite(completedAt) ? completedAt : Date.now()
+      setElapsedTrainingSeconds(Math.max(0, Math.floor((endAt - startedAt) / 1000)))
+    }
+
+    updateElapsed()
+    if (Number.isFinite(completedAt)) return undefined
+
+    const timer = setInterval(updateElapsed, 1000)
+    return () => clearInterval(timer)
+  }, [execution?.completed_at, execution?.started_at])
 
   // 选择视频（注意：微信小程序本地存储约 10MB 限制，视频过大会触发 writeFile 超限，建议大视频用「粘贴链接」）
   const handleChooseVideo = async () => {
@@ -835,8 +990,8 @@ function TrainingExecution() {
 
   const handleBackToTodayTraining = useCallback(() => {
     Taro.navigateBack().catch(() => {
-      Taro.redirectTo({ url: '/training/today-training' }).catch(() => {
-        Taro.switchTab({ url: '/training/today-training' }).catch(() => {
+      Taro.redirectTo({ url: '/pages/index/index' }).catch(() => {
+        Taro.switchTab({ url: '/pages/index/index' }).catch(() => {
           Taro.showToast({ title: '跳转失败，请手动返回', icon: 'none' })
         })
       })
@@ -1530,7 +1685,16 @@ function TrainingExecution() {
     void handleAddExtraExercises(selectedActions)
   }
 
-  if (loading) {
+  if (loading && !execution) {
+    console.log(EXEC_DEBUG_PREFIX, 'render loading screen', {
+      loading,
+      hasExecution: !!execution,
+      impromptuId,
+      instanceId,
+      isImpromptuMode,
+      userId,
+      executionSnapshotScopeKey
+    })
     return (
       <View className={`training-execution-page theme-${effectiveTheme}`}>
         <View className="loading-wrap">
@@ -1738,18 +1902,86 @@ function TrainingExecution() {
     setRestTimerMinimized(true)
   }
 
+  const handleToolbarMinimize = () => {
+    if (isResting) {
+      handleMinimizeRestTimer()
+      return
+    }
+    Taro.showToast({ title: '暂无休息计时', icon: 'none' })
+  }
+
+  const handleToolbarAddAction = async () => {
+    if (isReadOnly || addingExtraAction) return
+    setShowActionPicker(true)
+    await loadActionPicker()
+  }
+
+  const handleToolbarNote = () => {
+    const targetAction = actionExecutions?.[expandedAction]
+    const targetSet = targetAction?.sets?.[currentSetIndex]
+    if (!targetAction || !targetSet) {
+      Taro.showToast({ title: '暂无可记录的组', icon: 'none' })
+      return
+    }
+    const targetKey = setKeyOf(expandedAction, currentSetIndex)
+    if (targetSet.status === 'completed') {
+      setExpandedSetKey(targetKey)
+      setEditingSetKey(targetKey)
+      hydrateSetInputs(targetSet, { allowCompleted: true })
+    } else {
+      setExpandedSetKey(null)
+      setEditingSetKey(null)
+    }
+    setNoteFocusKey(targetKey)
+    setTimeout(() => setNoteFocusKey(null), 800)
+  }
+
+  const handleToolbarSettings = () => {
+    const targetAction = actionExecutions?.[expandedAction]
+    const targetSet = targetAction?.sets?.[currentSetIndex]
+    if (!targetAction) {
+      Taro.showToast({ title: '暂无动作', icon: 'none' })
+      return
+    }
+    if (targetSet) {
+      setExpandedSetKey(setKeyOf(expandedAction, currentSetIndex))
+    }
+  }
+
   // 计算总进度
   const totalSets = actionExecutions.reduce((sum: number, a: ActionExecution) => sum + (a.total_sets || 0), 0)
   const completedSets = actionExecutions.reduce((sum: number, a: ActionExecution) => sum + (a.completed_sets || 0), 0)
   const pendingSetsCount = Math.max(0, totalSets - completedSets)
   const progress = totalSets > 0 ? (completedSets / totalSets) * 100 : 0
   const shouldShowQuickFinishButton = !isImpromptuMode && canFinishWholeDay && pendingSetsCount > 0
+  const handlePrimaryFinish = !canFinishWholeDay && !isImpromptuMode
+    ? handleBackToTodayTraining
+    : shouldShowQuickFinishButton
+      ? handleQuickFinishTraining
+      : handleFinishTraining
   const completedActions = actionExecutions.reduce((sum: number, a: ActionExecution) => {
     return sum + ((a.completed_sets || 0) >= (a.total_sets || 0) ? 1 : 0)
   }, 0)
   const planTitle = String(planInstance?.name || (isImpromptuMode ? '即兴锻炼' : '训练执行')).trim()
-  const heroTimerValue = isResting ? formatTimerValue(restTimer) : '00:00'
-  const heroTimerLabel = isResting ? '自动休息中' : pendingSetsCount > 0 ? '准备下一组' : '今日已完成'
+  const heroTimerValue = formatTimerValue(elapsedTrainingSeconds)
+  const totalVolume = actionExecutions.reduce((sum: number, action: ActionExecution) => {
+    const actionVolume = (action.sets || []).reduce((setSum: number, set: SetData) => {
+      const actualWeight = Number(set.actual_weight)
+      const actualReps = Number(set.actual_reps)
+      if (!Number.isFinite(actualWeight) || !Number.isFinite(actualReps)) return setSum
+      return setSum + Math.max(0, actualWeight) * Math.max(0, actualReps)
+    }, 0)
+    return sum + actionVolume
+  }, 0)
+  const plannedVolume = actionExecutions.reduce((sum: number, action: ActionExecution) => {
+    const actionVolume = (action.sets || []).reduce((setSum: number, set: SetData) => {
+      const plannedWeight = parseFirstNumber(set.planned_weight)
+      const plannedReps = parseFirstNumber(set.planned_reps)
+      if (plannedWeight === null || plannedReps === null) return setSum
+      return setSum + Math.max(0, plannedWeight) * Math.max(0, plannedReps)
+    }, 0)
+    return sum + actionVolume
+  }, 0)
   const currentActionName = String(currentAction?.action_name || '').trim() || '等待选择动作'
   const currentActionType = String(actions?.[currentAction?.action_id]?.type || 'STRENGTH').toUpperCase()
   const currentActionMeta = getActionTypeMeta(currentActionType)
@@ -1836,20 +2068,26 @@ function TrainingExecution() {
             <View className="hero-topbar">
               <Text className="back-btn" onClick={() => Taro.navigateBack()}>返回</Text>
               <Text className="hero-day-label">{isImpromptuMode ? '即兴锻炼' : `${isReadOnly ? '只读查看 · ' : ''}第${dayIndex}天`}</Text>
-              <View className="hero-top-actions">
-                {!isImpromptuMode && !!coachId && coachId !== userId && (
-                  <Text className="hero-link-btn" onClick={() => void handleContactCoach()}>联系教练</Text>
-                )}
-                {!isImpromptuMode && !isReadOnly && (
-                  <Text className="hero-link-btn muted" onClick={handleSkipDay}>跳过</Text>
-                )}
-              </View>
+              {!isReadOnly ? (
+                <Text
+                  className={`hero-finish-btn ${!canFinishWholeDay && !isImpromptuMode ? 'warning' : ''}`}
+                  onClick={() => void handlePrimaryFinish()}
+                >
+                  {shouldShowQuickFinishButton ? '一键完成' : '完成'}
+                </Text>
+              ) : (
+                <View className="hero-top-actions">
+                  {!isImpromptuMode && !!coachId && coachId !== userId && (
+                    <Text className="hero-link-btn" onClick={() => void handleContactCoach()}>联系教练</Text>
+                  )}
+                </View>
+              )}
             </View>
 
             <View className="hero-main">
               <View className="hero-timer-card">
                 <Text className="hero-timer-value">{heroTimerValue}</Text>
-                <Text className="hero-timer-label">{heroTimerLabel}</Text>
+                <Text className="hero-timer-label">训练时长</Text>
               </View>
               <View className="hero-summary">
                 <Text className="hero-title">{planTitle || '训练执行'}</Text>
@@ -1860,6 +2098,7 @@ function TrainingExecution() {
                 <View className="hero-chip-row">
                   <Text className="hero-chip">{currentActionMeta.label}</Text>
                   <Text className="hero-chip">{currentRestLabel}</Text>
+                  {isResting ? <Text className="hero-chip warning">休息 {formatTimerValue(restTimer)}</Text> : null}
                   {currentActualSummary ? <Text className="hero-chip success">{currentActualSummary}</Text> : null}
                   {isReadOnly ? <Text className="hero-chip warning">只读模式</Text> : null}
                 </View>
@@ -1869,19 +2108,19 @@ function TrainingExecution() {
             <View className="hero-stats">
               <View className="hero-stat-card">
                 <Text className="hero-stat-label">动作</Text>
-                <Text className="hero-stat-value">{actionExecutions.length}</Text>
+                <Text className="hero-stat-value">{completedActions}/{actionExecutions.length}</Text>
               </View>
               <View className="hero-stat-card">
-                <Text className="hero-stat-label">组进度</Text>
+                <Text className="hero-stat-label">组数</Text>
                 <Text className="hero-stat-value">{completedSets}/{totalSets}</Text>
               </View>
               <View className="hero-stat-card">
-                <Text className="hero-stat-label">已完成</Text>
-                <Text className="hero-stat-value">{completedActions}</Text>
+                <Text className="hero-stat-label">容量</Text>
+                <Text className="hero-stat-value">{Math.round(totalVolume)}/{Math.round(plannedVolume)}</Text>
               </View>
               <View className="hero-stat-card">
-                <Text className="hero-stat-label">轻任务</Text>
-                <Text className="hero-stat-value">{lightweightProgress.pending}</Text>
+                <Text className="hero-stat-label">待完成</Text>
+                <Text className="hero-stat-value">{pendingSetsCount}</Text>
               </View>
             </View>
 
@@ -1928,6 +2167,15 @@ function TrainingExecution() {
                     </View>
                     <View className="action-progress">
                       <Text className={`action-progress-pill ${isCompleted ? 'done' : ''}`}>{action.completed_sets}/{action.total_sets}组</Text>
+                      <Text
+                        className="action-setting-btn"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleExpandAction(actionIdx)
+                        }}
+                      >
+                        ⋯
+                      </Text>
                       {!isReadOnly && action.source === 'student_extra' && (
                         <Text
                           className="action-delete-btn"
@@ -2077,6 +2325,7 @@ function TrainingExecution() {
                                         className="compact-note-input"
                                         value={setNotes}
                                         placeholder="记录手感、节奏或动作问题"
+                                        focus={noteFocusKey === setKey}
                                         onInput={(e) => setSetNotes(e.detail.value)}
                                       />
                                     </View>
@@ -2266,21 +2515,6 @@ function TrainingExecution() {
           })}
         </View>
 
-        {!isReadOnly && (
-          <View className="add-action-wrap">
-            <Button
-              size="mini"
-              className="add-action-btn"
-              onClick={async () => {
-                setShowActionPicker(true)
-                await loadActionPicker()
-              }}
-              disabled={addingExtraAction}
-            >
-              {addingExtraAction ? '添加中...' : '+ 添加动作'}
-            </Button>
-          </View>
-        )}
         {/* 动作选择弹层 */}
         {showActionPicker && (
           <View className="action-picker-mask" onClick={() => setShowActionPicker(false)}>
@@ -2375,34 +2609,29 @@ function TrainingExecution() {
           </View>
         )}
 
-        {/* 完成训练按钮 */}
-        {!isReadOnly && (
-          <View className="footer-section">
-            {!canFinishWholeDay && !isImpromptuMode && (
-              <Text className="finish-hint">仍有 {lightweightProgress.pending} 个轻任务待完成</Text>
-            )}
-            <Button
-              type="primary"
-              className={`finish-btn ${!canFinishWholeDay && !isImpromptuMode ? 'warning' : ''}`}
-              onClick={
-                !canFinishWholeDay && !isImpromptuMode
-                  ? handleBackToTodayTraining
-                  : shouldShowQuickFinishButton
-                    ? handleQuickFinishTraining
-                    : handleFinishTraining
-              }
-              loading={completing}
-            >
-              {!canFinishWholeDay && !isImpromptuMode
-                ? '返回今日安排继续轻任务'
-                : shouldShowQuickFinishButton
-                  ? '一键完成训练'
-                  : '完成训练'}
-            </Button>
-          </View>
-        )}
         </View>
       </ScrollView>
+
+      {!isReadOnly && (
+        <View className="execution-toolbar">
+          <View className="toolbar-item" onClick={handleToolbarMinimize}>
+            <Text className="toolbar-icon">−</Text>
+            <Text className="toolbar-label">最小化</Text>
+          </View>
+          <View className="toolbar-item" onClick={() => void handleToolbarAddAction()}>
+            <Text className="toolbar-icon">＋</Text>
+            <Text className="toolbar-label">加动作</Text>
+          </View>
+          <View className="toolbar-item" onClick={handleToolbarNote}>
+            <Text className="toolbar-icon">✎</Text>
+            <Text className="toolbar-label">心得</Text>
+          </View>
+          <View className="toolbar-item" onClick={handleToolbarSettings}>
+            <Text className="toolbar-icon">⋯</Text>
+            <Text className="toolbar-label">设置</Text>
+          </View>
+        </View>
+      )}
 
       {isResting && restTimerMinimized && (
         <View className="rest-timer-bubble" onClick={() => setRestTimerMinimized(false)}>

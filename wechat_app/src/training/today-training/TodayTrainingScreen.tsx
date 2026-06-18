@@ -53,6 +53,8 @@ import {
   hasReadExecutionPlanNotice,
   markExecutionPlanNoticeRead
 } from '@/utils/executionPlanNotice'
+import { useTheme } from '@/hooks/useTheme'
+import { PageThemeRoot } from '@/components/PageThemeRoot'
 import {
   getTodayTrainingBootFromCache,
   patchTodayTrainingPageCache,
@@ -62,6 +64,10 @@ import './index.scss'
 
 type PlanMode = 'coach' | 'self'
 type ExecutionStatus = 'none' | 'in_progress' | 'completed'
+type GreetingModel = {
+  label: '早上好' | '中午好' | '晚上好'
+  iconClass: 'icon-zaoshang' | 'icon-zhongwu' | 'icon-wanshang'
+}
 const RETURN_CONFIRM_STORAGE_KEY = 'today_training_last_confirmed_day'
 /** 学员在今日训练页选中的教练订阅，刷新后仍优先展示该教练计划 */
 const PREFERRED_COACH_SUB_STORAGE_KEY = 'today_training_preferred_coach_sub_id'
@@ -73,6 +79,36 @@ function isStudentTrainingHomeUrl(url: string) {
   const pathOnly = (url || '').split('?')[0]
   return pathOnly === TODAY_TRAINING_HOME_PATH || pathOnly === LEGACY_TODAY_TRAINING_PATH
 }
+
+function getLocalGreetingModel(date = new Date()): GreetingModel {
+  const hour = date.getHours()
+  if (hour >= 5 && hour < 11) {
+    return { label: '早上好', iconClass: 'icon-zaoshang' }
+  }
+  if (hour >= 11 && hour < 18) {
+    return { label: '中午好', iconClass: 'icon-zhongwu' }
+  }
+  return { label: '晚上好', iconClass: 'icon-wanshang' }
+}
+
+function resolveStudentDisplayName(user: any) {
+  const candidates = [
+    user?.nickname,
+    user?.real_name,
+    user?.name,
+    user?.profile?.nickname,
+    user?.user_profile?.nickname,
+    user?.user_profiles?.nickname
+  ]
+
+  for (const candidate of candidates) {
+    const value = String(candidate || '').trim()
+    if (value) return value
+  }
+
+  return 'CoachLink 学员'
+}
+
 /** 小程序 Image 需要可访问的绝对 URL；后端若返回相对路径则拼 API 根 */
 function resolveCoachAvatarUrl(raw: string | null | undefined): string {
   const s = raw != null ? String(raw).trim() : ''
@@ -166,6 +202,7 @@ const formatShortDate = (ts?: string | null) => {
 const getExecutionId = (value: any) => value?.id || value?.data?.id || null
 
 function TodayTrainingScreen() {
+  const { effectiveTheme } = useTheme()
   const bootRef = useRef<ReturnType<typeof getTodayTrainingBootFromCache> | null>(null)
   if (!bootRef.current) {
     bootRef.current = getTodayTrainingBootFromCache()
@@ -310,27 +347,11 @@ function TodayTrainingScreen() {
     return Math.round((progressDayModuleModel.completedModuleCount / t) * 100)
   }, [instance, todayCompleted, progressDay?.type, progressDayModuleModel])
 
-  const greeting = useMemo(() => {
-    const hour = new Date().getHours()
-    if (hour < 12) return '早上好'
-    if (hour < 18) return '下午好'
-    return '晚上好'
-  }, [])
+  const [greetingModel, setGreetingModel] = useState<GreetingModel>(() => getLocalGreetingModel())
 
-  const greetingIconClass = useMemo(() => {
-    const hour = new Date().getHours()
-    if (hour < 12) return 'icon-zaoshang'
-    if (hour < 18) return 'icon-zhongwu'
-    return 'icon-wanshang'
-  }, [])
-
-  const todayDateText = useMemo(() => {
-    const now = new Date()
-    const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
-    const month = now.getMonth() + 1
-    const date = now.getDate()
-    const weekday = weekdays[now.getDay()]
-    return `${month}月${date}日 · ${weekday}`
+  const userDisplayName = useMemo(() => {
+    const user = authService.getAuthSession({ normalize: true }).user
+    return resolveStudentDisplayName(user)
   }, [])
 
   const inProgressExec = useMemo(() => {
@@ -348,6 +369,12 @@ function TodayTrainingScreen() {
     if (!instance?.id) return
     setSelectedDayIndex(progressDayIndex || 1)
   }, [instance?.id, progressDayIndex])
+
+  useEffect(() => {
+    const refreshGreeting = () => setGreetingModel(getLocalGreetingModel())
+    const timer = setInterval(refreshGreeting, 60 * 1000)
+    return () => clearInterval(timer)
+  }, [])
 
   const selectedDay = trainingDays.find((day) => day.dayIndex === selectedDayIndex) || progressDay || trainingDays[0]
   const selectedExec = selectedDay ? executionsByDayIndex?.[selectedDay.dayIndex] : null
@@ -515,9 +542,9 @@ function TodayTrainingScreen() {
             effectiveStartDate: effectiveCalendarStartDate,
             fallbackAnchorDayIndex: progressDayIndex || 1
           })
-        ),
+      ),
       planName: instance?.name || '今日安排',
-      nickname: String(user?.nickname || user?.name || user?.phone || 'CoachLink 学员'),
+      nickname: resolveStudentDisplayName(user),
       completedAt: selectedExec?.completed_at || null,
       dayIndex: selectedDayIndex,
       moduleCount: selectedTaskSummary.totalModules,
@@ -876,6 +903,7 @@ function TodayTrainingScreen() {
   }, [])
 
   useDidShow(() => {
+    setGreetingModel(getLocalGreetingModel())
     void loadData()
     consumeReturnConfirmState()
   })
@@ -967,15 +995,6 @@ function TodayTrainingScreen() {
     setScheduleScrollIntoView('schedule-calendar-anchor')
     setTimeout(() => setScheduleScrollIntoView(''), 480)
   }, [])
-
-  const handleHeaderDatePress = useCallback(() => {
-    if (!instance || !trainingDays.length) {
-      Taro.showToast({ title: '暂无计划日历', icon: 'none' })
-      return
-    }
-    setCalendarExpanded(true)
-    scrollToScheduleCalendar()
-  }, [instance, trainingDays.length, scrollToScheduleCalendar])
 
   const handleWeekStripCell = useCallback(
     (cell: WeekStripCell) => {
@@ -1309,16 +1328,13 @@ function TodayTrainingScreen() {
     <View className='dashboard-intro-row'>
       <View className='dashboard-intro-left'>
         <View className='dashboard-greeting-row'>
-          <Text className={`dashboard-greeting-icon iconfont ${greetingIconClass}`} />
-          <Text className='dashboard-greeting'>{greeting}</Text>
+          <Text className={`dashboard-greeting-icon iconfont ${greetingModel.iconClass}`} />
+          <Text className='dashboard-greeting'>{`${greetingModel.label}，${userDisplayName}`}</Text>
           {cloudSyncing ? (
             <View className='dashboard-cloud-sync-spin'>
               <LoadingSpinner size={24} className='dashboard-cloud-sync-spin-inner' />
             </View>
           ) : null}
-        </View>
-        <View className='dashboard-date-hit' onClick={handleHeaderDatePress} hoverClass='dashboard-date-hit--active' hoverStayTime={70}>
-          <Text className='dashboard-date'>{todayDateText}</Text>
         </View>
       </View>
       <View className='dashboard-more-hit' onClick={() => setMoreTrainingOpen(true)}>
@@ -1521,7 +1537,7 @@ function TodayTrainingScreen() {
                 <Text className='tt-period-pill-icon iconfont icon-time' />
               </View>
               <View className='tt-period-pill-main'>
-                <Text className='tt-period-pill-caption'>本周进度</Text>
+                <Text className='tt-period-pill-caption'>周进度</Text>
                 <Text className='tt-period-pill-percent'>{weekMonthProgressPercent.weekPct}%</Text>
                 <Text className='tt-period-pill-meta'>
                   训练日 {weekMonthStats.weekDone}/{weekMonthStats.weekTotal}
@@ -1545,6 +1561,35 @@ function TodayTrainingScreen() {
       </View>
     )
   }
+
+  const renderWrappedEmptyDesc = (lines: string[]) => (
+    <View className='empty-desc'>
+      {lines.filter(Boolean).map((line, index) => (
+        <Text key={`${line}-${index}`} className='empty-desc-line'>
+          {line}
+        </Text>
+      ))}
+    </View>
+  )
+
+  const renderWaitingStatusHeader = (
+    iconNode: React.ReactNode,
+    title: string,
+    descLines: string[]
+  ) => (
+    <View className='waiting-card-header'>
+      <View className='empty-icon-wrapper'>
+        <View className='empty-icon-bg' />
+        <View className='empty-icon-inner'>
+          <Text className='empty-icon'>{iconNode}</Text>
+        </View>
+      </View>
+      <View className='waiting-card-copy'>
+        <Text className='empty-title'>{title}</Text>
+        {renderWrappedEmptyDesc(descLines)}
+      </View>
+    </View>
+  )
 
   const renderMoreTrainingPopup = () => (
     <Popup visible={moreTrainingOpen} position='bottom' round onClose={() => setMoreTrainingOpen(false)}>
@@ -1591,91 +1636,81 @@ function TodayTrainingScreen() {
 
   if (!hasAnyPlan) {
     return (
-      <View className='today-training-page'>
-        <ScrollView
-          className='page-scroll'
-          scrollY
-          scrollIntoView={scheduleScrollIntoView}
-          scrollWithAnimation
-          scrollIntoViewAlignment='start'
-        >
-          <View className='page-content'>
-            {renderDashboardIntro()}
-            <View id='schedule-calendar-anchor' className='schedule-calendar-anchor'>
-              <View className='schedule-calendar-anchor__bar'>
-                <Text className='schedule-calendar-anchor__label'>本周</Text>
+      <PageThemeRoot>
+        <View className={`today-training-page theme-${effectiveTheme}`}>
+          <ScrollView
+            className='page-scroll'
+            scrollY
+            scrollIntoView={scheduleScrollIntoView}
+            scrollWithAnimation
+            scrollIntoViewAlignment='start'
+          >
+            <View className='page-content'>
+              {renderDashboardIntro()}
+              <View id='schedule-calendar-anchor' className='schedule-calendar-anchor'>
+                <WeekDashboardStrip
+                  cells={weekStripCells}
+                  selectedDateKey={stripSelectedDateKey}
+                  onCellPress={handleWeekStripCell}
+                />
               </View>
-              <WeekDashboardStrip
-                cells={weekStripCells}
-                selectedDateKey={stripSelectedDateKey}
-                onCellPress={handleWeekStripCell}
-              />
-            </View>
-            {renderDailyProgressCard()}
-            <View className='empty-card waiting-card'>
-              <View className='empty-icon-wrapper'>
-                <View className='empty-icon-bg' />
-                <View className='empty-icon-inner'>
-                  <Text className='empty-icon'>
-                    {hasActiveCoachSubscription ? (isExpiredGrace ? <Notice size={20} /> : <Target size={20} />) : <Location size={20} />}
-                  </Text>
+              {renderDailyProgressCard()}
+              <View className='empty-card waiting-card'>
+                {renderWaitingStatusHeader(
+                  hasActiveCoachSubscription ? (isExpiredGrace ? <Notice size={20} /> : <Target size={20} />) : <Location size={20} />,
+                  hasActiveCoachSubscription
+                    ? (isExpiredGrace ? '订阅已到期，请尽快续费' : '计划正在制定中')
+                    : '还没有长期计划',
+                  activeSubscription?.id
+                    ? isExpiredGrace
+                      ? ['订阅已到期，请续费。', '训练计划内容已锁定，请在宽限期内完成续费。']
+                    : ['教练正在制定计划，', '请耐心等待。']
+                    : ['暂无长期计划，', '可以先做一次即兴训练。']
+                )}
+
+                {isExpiredGrace && (
+                  <View className='grace-card'>
+                    <Text>
+                      宽限期剩余 {graceDaysLeft} 天{graceDeadlineLabel ? `（截至 ${graceDeadlineLabel}）` : ''}，逾期将自动取消订阅关系。
+                    </Text>
+                  </View>
+                )}
+
+                <View className='empty-actions'>
+                  {activeSubscription?.id && isExpiredGrace ? (
+                    <View className='action-btn primary' onClick={() => Taro.navigateTo({ url: renewPath })}>
+                      <Text><ArrowRight size={20} /></Text>
+                      <Text>去教练主页续费</Text>
+                    </View>
+                  ) : (
+                    <View className='action-btn primary' onClick={handleImpromptu}>
+                      <Text><Power size={20} /></Text>
+                      <Text>{activeSubscription?.id ? '即兴锻炼' : '开始即兴首练'}</Text>
+                    </View>
+                  )}
+
+                  {activeSubscription?.id && !isExpiredGrace && (
+                    <View className='action-btn action-btn-outline' onClick={handleContactCoach}>
+                      <Text><Message size={20} /></Text>
+                      <Text>联系教练</Text>
+                    </View>
+                  )}
+
+                  {!activeSubscription?.id && (
+                    <View className='action-btn action-btn-outline' onClick={handleFindCoach}>
+                      <Text><Target size={20} /></Text>
+                      <Text>找教练</Text>
+                    </View>
+                  )}
                 </View>
               </View>
-              <Text className='empty-title'>
-                {hasActiveCoachSubscription
-                  ? (isExpiredGrace ? '订阅已到期，请尽快续费' : '计划正在制定中')
-                  : '还没有长期计划'}
-              </Text>
-              <Text className='empty-desc'>
-                {activeSubscription?.id
-                  ? isExpiredGrace
-                    ? '订阅已到期，请续费。'
-                    : '教练正在制定计划。'
-                  : '暂无长期计划。'}
-              </Text>
-
-              {isExpiredGrace && (
-                <View className='grace-card'>
-                  <Text>
-                    宽限期剩余 {graceDaysLeft} 天{graceDeadlineLabel ? `（截至 ${graceDeadlineLabel}）` : ''}，逾期将自动取消订阅关系。
-                  </Text>
-                </View>
-              )}
-
-              <View className='empty-actions'>
-                {activeSubscription?.id && isExpiredGrace ? (
-                  <View className='action-btn primary' onClick={() => Taro.navigateTo({ url: renewPath })}>
-                    <Text><ArrowRight size={20} /></Text>
-                    <Text>去教练主页续费</Text>
-                  </View>
-                ) : (
-                  <View className='action-btn primary' onClick={handleImpromptu}>
-                    <Text><Power size={20} /></Text>
-                    <Text>{activeSubscription?.id ? '即兴锻炼' : '开始即兴首练'}</Text>
-                  </View>
-                )}
-
-                {activeSubscription?.id && !isExpiredGrace && (
-                  <View className='action-btn action-btn-outline' onClick={handleContactCoach}>
-                    <Text><Message size={20} /></Text>
-                    <Text>联系教练</Text>
-                  </View>
-                )}
-
-                {!activeSubscription?.id && (
-                  <View className='action-btn action-btn-outline' onClick={handleFindCoach}>
-                    <Text><Target size={20} /></Text>
-                    <Text>找教练</Text>
-                  </View>
-                )}
-              </View>
             </View>
-          </View>
-        </ScrollView>
-        {renderMoreTrainingPopup()}
-        {planMode === 'coach' && coachSubscriptions.length > 0 ? renderCoachPickSheet() : null}
-        <BottomNav />
-      </View>
+          </ScrollView>
+          {renderMoreTrainingPopup()}
+          {planMode === 'coach' && coachSubscriptions.length > 0 ? renderCoachPickSheet() : null}
+          <BottomNav />
+        </View>
+      </PageThemeRoot>
     )
   }
 
@@ -1685,9 +1720,9 @@ function TodayTrainingScreen() {
   const renderScheduleCalendarCombined = () => (
     <View id='schedule-calendar-anchor' className='schedule-calendar-anchor'>
       <View className='schedule-calendar-anchor__bar'>
-        <Text className='schedule-calendar-anchor__label'>
-          {enableScheduleMonthExpand && calendarExpanded ? '月历' : '本周'}
-        </Text>
+        {enableScheduleMonthExpand && calendarExpanded ? (
+          <Text className='schedule-calendar-anchor__label'>月历</Text>
+        ) : null}
         {enableScheduleMonthExpand ? (
           <View
             className='schedule-calendar-anchor__toggle'
@@ -1701,7 +1736,8 @@ function TodayTrainingScreen() {
               }`}
             />
             <Text className='schedule-calendar-anchor__toggle-text'>
-              {calendarExpanded ? '收起月历' : '展开月历'}
+              {calendarExpanded ? '收起' : '展开'}
+              月历
             </Text>
           </View>
         ) : null}
@@ -1730,10 +1766,12 @@ function TodayTrainingScreen() {
         />
       )}
     </View>
+
   )
 
   return (
-    <View className='today-training-page'>
+    <PageThemeRoot>
+    <View className={`today-training-page theme-${effectiveTheme}`}>
       <ScrollView
         className='page-scroll'
         scrollY
@@ -1760,16 +1798,11 @@ function TodayTrainingScreen() {
 
           {waitingCoachPage ? (
             <View className='empty-card waiting-card'>
-              <View className='empty-icon-wrapper'>
-                <View className='empty-icon-bg' />
-                <View className='empty-icon-inner'>
-                  <Text className='empty-icon'>{isExpiredGrace ? <Notice size={20} /> : <Target size={20} />}</Text>
-                </View>
-              </View>
-              <Text className='empty-title'>{isExpiredGrace ? '订阅已到期，请尽快续费' : '教练计划正在制定中'}</Text>
-              <Text className='empty-desc'>
-                {isExpiredGrace ? '订阅已到期，请续费。' : '教练正在制定计划。'}
-              </Text>
+              {renderWaitingStatusHeader(
+                isExpiredGrace ? <Notice size={20} /> : <Target size={20} />,
+                isExpiredGrace ? '订阅已到期，请尽快续费' : '教练计划正在制定中',
+                isExpiredGrace ? ['订阅已到期，请续费。', '训练计划内容已锁定。'] : ['教练正在制定计划，', '请耐心等待。']
+              )}
 
               {isExpiredGrace && (
                 <View className='grace-card'>
@@ -1938,7 +1971,7 @@ function TodayTrainingScreen() {
               ) : (
                 <View className='empty-card'>
                   <Text className='empty-title'>当前计划暂无可展示的训练日</Text>
-                  <Text className='empty-desc'>可以先去计划库查看，或者做一次即兴锻炼。</Text>
+                  {renderWrappedEmptyDesc(['可以先去计划库查看，或者做一次即兴锻炼。'])}
                   <View className='empty-actions'>
                     <View className='action-btn primary' onClick={handleImpromptu}>
                       <Text><Power size={20} /></Text>
@@ -2171,6 +2204,7 @@ function TodayTrainingScreen() {
         </View>
       )}
     </View>
+    </PageThemeRoot>
   )
 }
 

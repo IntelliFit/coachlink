@@ -18,6 +18,67 @@
     padding: 168rpx 20rpx 20rpx;
   }
 
+  .dashboard-intro-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16rpx;
+    margin-bottom: 24rpx;
+
+    .dashboard-intro-left {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .dashboard-greeting-row {
+      display: flex;
+      align-items: center;
+      gap: 16rpx;
+      flex-wrap: nowrap;
+    }
+
+    .dashboard-greeting-icon {
+      font-size: 44rpx;
+      color: #cf6d4e;
+      flex-shrink: 0;
+      line-height: 1;
+    }
+
+    .dashboard-greeting {
+      font-size: 44rpx;
+      font-weight: 700;
+      color: #111827;
+      line-height: 1.2;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .dashboard-cloud-sync-spin {
+      margin-left: 8rpx;
+      flex-shrink: 0;
+    }
+
+    .dashboard-more-hit {
+      width: 56rpx;
+      height: 56rpx;
+      border-radius: 9999rpx;
+      background: #f3f4f6;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: #9ca3af;
+      flex-shrink: 0;
+      margin-top: 4rpx;
+    }
+
+    .dashboard-more-dots {
+      font-size: 30rpx;
+      line-height: 1;
+      color: #6b7280;
+    }
+  }
+
   .section-title {
     display: block;
     font-size: 32rpx;
@@ -880,6 +941,479 @@
     }
   }
 
+
+  // ========== 今日训练进度卡片 ==========
+  .tt-daily-progress-card {
+    background: #ffffff;
+    border-radius: 32rpx;
+    padding: 32rpx 24rpx;
+    margin-bottom: 24rpx;
+    box-shadow: 0 4rpx 24rpx rgba(0, 0, 0, 0.04);
+
+    .tt-daily-progress-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16rpx;
+      margin-bottom: 16rpx;
+
+      .tt-daily-progress-head-main {
+        min-width: 0;
+        flex: 1;
+      }
+
+      .tt-daily-progress-title-row {
+        display: flex;
+        align-items: center;
+        gap: 16rpx;
+        min-width: 0;
+      }
+
+      .tt-daily-progress-title-icon {
+        font-size: 34rpx;
+        color: #cf6d4e;
+      }
+
+      .tt-daily-progress-title {
+        font-size: 32rpx;
+        color: #010101;
+        font-weight: 700;
+        display: block;
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+    }
+
+    .tt-daily-progress-coach-trigger {
+      flex-shrink: 0;
+      height: 64rpx;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8rpx;
+      padding: 0 16rpx;
+      border-radius: 9999rpx;
+      background: #fef4ef;
+      border: 2rpx solid rgba(207, 109, 78, 0.16);
+      color: #cf6d4e;
+      box-sizing: border-box;
+
+      .tt-daily-progress-coach-trigger-icon {
+        font-size: 28rpx;
+      }
+
+      .tt-daily-progress-coach-trigger-text {
+        font-size: 24rpx;
+        font-weight: 600;
+        color: #cf6d4e;
+      }
+
+      &--pressed {
+        opacity: 0.9;
+      }
+    }
+
+    .tt-daily-progress-label-row {
+      display: flex;
+      align-items: center;
+      gap: 16rpx;
+      margin-bottom: 16rpx;
+
+      .tt-daily-progress-label-icon-wrap {
+        width: 48rpx;
+        height: 48rpx;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 9999rpx;
+        background: #fff4ee;
+
+        .tt-daily-progress-label {
+          font-size: 24rpx;
+          color: #cf6d4e;
+          font-weight: 700;
+        }
+      }
+
+      .tt-daily-progress-label {
+        font-size: 24rpx;
+        color: #6b7280;
+        line-height: 1.4;
+      }
+
+      .tt-period-pill {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        align-items: center;
+        gap: 8rpx;
+
+        .tt-period-pill-main {
+          font-size: 24rpx;
+          color: #6b7280;
+          line-height: 1.4;
+          display: block;
+          word-break: break-all;
+        }
+
+        .tt-period-pill-caption {
+          display: block;
+          font-size: 20rpx;
+          color: #6b7280;
+          margin-bottom: 8rpx;
+          line-height: 1.35;
+        }
+
+        .tt-period-pill-percent {
+          flex-shrink: 0;
+          font-size: 20rpx;
+          color: #9ca3af;
+        }
+
+        .tt-period-pill-meta {
+          color: #9ca3af;
+          font-size: 20rpx;
+          line-height: 1.35;
+          margin-top: 8rpx;
+        }
+      }
+
+      .tt-period-pill-icon-wrap {
+        width: 44rpx;
+        height: 44rpx;
+        border-radius: 9999rpx;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: #f5f5f5;
+
+        &--month {
+          background: #fff4ee;
+          color: #cf6d4e;
+        }
+      }
+    }
+
+    .tt-daily-progress-track {
+      margin-bottom: 24rpx;
+      height: 8rpx;
+      background: #f3f4f6;
+      border-radius: 9999rpx;
+      overflow: hidden;
+
+      .tt-daily-progress-fill {
+        height: 100%;
+        background: #cf6d4e;
+        border-radius: 9999rpx;
+      }
+    }
+
+    .tt-period-stats {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16rpx;
+      margin-bottom: 16rpx;
+
+      &--row {
+        width: 100%;
+        justify-content: space-between;
+        gap: 8rpx;
+      }
+    }
+
+    .tt-focus-panel {
+      .tt-focus-copy {
+        margin-bottom: 16rpx;
+
+        .hero-status-badge {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          min-height: 48rpx;
+          padding: 0 16rpx;
+          border-radius: 9999rpx;
+          font-size: 22rpx;
+          color: #fff;
+
+          &.completed {
+            background: #10b981;
+          }
+
+          &.in-progress {
+            background: #3b82f6;
+          }
+
+          &.pending {
+            background: #f59e0b;
+          }
+        }
+
+        .tt-focus-meta {
+          display: block;
+          margin-top: 16rpx;
+          font-size: 24rpx;
+          color: #6b7280;
+          line-height: 1.4;
+        }
+
+        .tt-focus-title {
+          display: block;
+          margin-top: 8rpx;
+          font-size: 28rpx;
+          font-weight: 600;
+          color: #111827;
+          line-height: 1.45;
+        }
+      }
+
+      .tt-focus-primary-btn {
+        height: 96rpx;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8rpx;
+        padding: 0 24rpx;
+        border-radius: 9999rpx;
+        background: #cf6d4e;
+        color: #ffffff;
+        font-size: 30rpx;
+        font-weight: 600;
+
+        .nut-icon {
+          line-height: 1;
+        }
+
+        &--pressed {
+          opacity: 0.92;
+        }
+      }
+
+      .tt-focus-secondary-row {
+        margin-top: 16rpx;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 16rpx;
+
+        .tt-focus-secondary-btn {
+          height: 72rpx;
+          padding: 0 24rpx;
+          border-radius: 9999rpx;
+          background: #f5f5f5;
+          color: #374151;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8rpx;
+          font-size: 24rpx;
+          font-weight: 600;
+
+          &--danger {
+            color: #dc2626;
+            background: #fef2f2;
+          }
+        }
+      }
+    }
+  }
+
+  // ========== 切换教练弹层 ==========
+  .coach-pick-sheet {
+    width: 100%;
+    box-sizing: border-box;
+    background: #ffffff;
+    border-radius: 32rpx 32rpx 0 0;
+    padding: 24rpx;
+    max-height: 84vh;
+    display: flex;
+    flex-direction: column;
+    gap: 16rpx;
+
+    .coach-pick-sheet-handle {
+      width: 96rpx;
+      height: 8rpx;
+      border-radius: 9999rpx;
+      margin: 0 auto 8rpx;
+      background: #e5e7eb;
+    }
+
+    .coach-pick-sheet-title {
+      display: block;
+      font-size: 30rpx;
+      font-weight: 700;
+      color: #111827;
+      margin-bottom: 8rpx;
+    }
+
+    .coach-pick-sheet-scroll {
+      width: 100%;
+      max-height: 64vh;
+      box-sizing: border-box;
+    }
+
+      .coach-pick-row {
+      min-height: 136rpx;
+      display: flex;
+      align-items: center;
+      gap: 16rpx;
+      padding: 16rpx;
+      margin-bottom: 16rpx;
+      border-radius: 24rpx;
+      border: 1rpx solid rgba(0, 0, 0, 0.08);
+      background: #ffffff;
+      box-sizing: border-box;
+
+      &--active {
+        border-color: rgba(207, 109, 78, 0.35);
+        background: #fff8f4;
+      }
+
+      &--pressed {
+        background: #f8f8f8;
+      }
+
+      .coach-pick-avatar-wrap {
+        width: 88rpx;
+        height: 88rpx;
+        border-radius: 9999rpx;
+        overflow: hidden;
+        flex-shrink: 0;
+        background: #f5f5f5;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        .coach-pick-avatar-img {
+          width: 100%;
+          height: 100%;
+        }
+
+        .coach-pick-avatar-fallback {
+          width: 100%;
+          height: 100%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: #cf6d4e;
+          background: #fef2ec;
+          font-size: 34rpx;
+          font-weight: 700;
+
+          .coach-pick-avatar-letter {
+            line-height: 1;
+            font-size: 34rpx;
+            color: #cf6d4e;
+          }
+        }
+      }
+
+      .coach-pick-body {
+        min-width: 0;
+        flex: 1;
+
+        .coach-pick-name-row {
+          display: flex;
+          align-items: center;
+          gap: 8rpx;
+          margin-bottom: 8rpx;
+          min-width: 0;
+
+          .coach-pick-name {
+            font-size: 28rpx;
+            font-weight: 700;
+            color: #111827;
+            max-width: calc(100% - 112rpx);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+          }
+
+      .coach-pick-current {
+        font-size: 20rpx;
+        color: #0f766e;
+        background: #d1fae5;
+        border-radius: 9999rpx;
+        padding: 8rpx;
+        font-weight: 700;
+      }
+
+        .coach-pick-badge {
+          font-size: 20rpx;
+          color: #b45309;
+          background: #fde68a;
+          border-radius: 9999rpx;
+          padding: 8rpx;
+          font-weight: 700;
+        }
+        }
+
+        .coach-pick-plan {
+          font-size: 24rpx;
+          color: #374151;
+          line-height: 1.45;
+          margin-bottom: 8rpx;
+          display: block;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .coach-pick-id {
+          font-size: 20rpx;
+          color: #9ca3af;
+          margin-bottom: 8rpx;
+          display: block;
+        }
+
+        .coach-pick-sub {
+          font-size: 22rpx;
+          color: #6b7280;
+          display: block;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+      }
+
+      .coach-pick-check,
+      .coach-pick-chevron {
+        font-size: 36rpx;
+        color: #cf6d4e;
+        flex-shrink: 0;
+      }
+    }
+
+    .coach-pick-sheet-footer {
+      margin-top: 8rpx;
+      border-top: 1rpx solid #f1f5f9;
+      padding-top: 16rpx;
+      font-size: 24rpx;
+      color: #374151;
+      text-align: center;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 64rpx;
+      border-radius: 9999rpx;
+
+      .coach-pick-footer-text {
+        color: #374151;
+        font-size: 24rpx;
+        font-weight: 600;
+      }
+    }
+  }
+
+  .coach-pick-row--pressed {
+    background: #f8f8f8;
+  }
+
+  .coach-pick-row--active {
+    border-color: rgba(207, 109, 78, 0.4);
+  }
+
   // ========== 计划切换器 ==========
   .plan-switcher {
     display: flex;
@@ -978,7 +1512,7 @@
             display: flex;
             align-items: center;
             gap: 8rpx;
-            margin-bottom: 4rpx;
+            margin-bottom: 8rpx;
 
           .pro-badge {
             padding: 0rpx 8rpx;
@@ -1256,6 +1790,16 @@
       max-width: 560rpx;
       margin-left: auto;
       margin-right: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 8rpx;
+
+      .empty-desc-line {
+        display: block;
+        font-size: 26rpx;
+        color: #9CA3AF;
+        line-height: 1.6;
+      }
     }
 
     .empty-actions-pair {
@@ -1282,15 +1826,20 @@
       gap: 16rpx;
 
       .action-btn {
-        display: flex;
+        min-height: 72rpx;
+        padding: 24rpx 32rpx;
+        display: inline-flex;
         align-items: center;
         justify-content: center;
-        gap: 8rpx;
-        padding: 24rpx 32rpx;
+        gap: 16rpx;
         border-radius: 9999rpx;
         font-size: 28rpx;
         font-weight: 600;
         transition: all 0.2s ease;
+
+        > text {
+          line-height: 1;
+        }
 
         &.primary {
           background: #CF6D4E;
@@ -1328,10 +1877,69 @@
 
   // ========== 等待教练制定计划卡片 ==========
   .waiting-card {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+
+    &.theme-dark,
+    .theme-dark &,
+    .today-training-page.theme-dark & {
+      background: transparent !important;
+      border: none !important;
+      box-shadow: none !important;
+
+      .empty-icon-bg,
+      .empty-icon-inner {
+        background: transparent !important;
+      }
+    }
+
+    .waiting-card-header {
+      display: flex;
+      align-items: flex-start;
+      gap: 32rpx;
+      margin-bottom: 24rpx;
+      text-align: left;
+    }
+
+    .waiting-card-copy {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      min-width: 0;
+      gap: 8rpx;
+    }
+
     .empty-icon-inner {
       .empty-icon {
         color: #CF6D4E;
       }
+    }
+
+    .empty-icon-wrapper {
+      margin-bottom: 0;
+      flex-shrink: 0;
+    }
+
+    .empty-title {
+      margin-bottom: 0;
+      text-align: left;
+    }
+
+    .empty-desc {
+      margin-bottom: 32rpx;
+      max-width: none;
+      margin-left: 0;
+      margin-right: 0;
+      align-items: flex-start;
+    }
+
+    .empty-desc-line {
+      text-align: left;
+    }
+
+    .empty-actions {
+      margin-top: 8rpx;
     }
   }
 

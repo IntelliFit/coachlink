@@ -207,7 +207,7 @@ export async function POST(req: NextRequest) {
 
         const { openid, session_key, unionid } = result;
 
-        // 获取手机号（如果提供了 phoneCode）
+        // 获取手机号（如果提供了 phoneCode）。微信登录本身以 openid 为主，手机号只是可选绑定信息。
         let phoneNumber: string | null = null;
         if (phoneCode) {
             try {
@@ -220,16 +220,16 @@ export async function POST(req: NextRequest) {
                     phoneNumber = phoneNumber.replace(/^\+86\s*/, '');
                     console.log('✅ 获取到手机号:', phoneNumber.substring(0, 3) + '****' + phoneNumber.substring(7));
                 } else {
-                    console.warn('⚠️ 未获取到手机号，将设置为 "null"');
-                    phoneNumber = 'null'; // 设置为字符串 "null"
+                    console.warn('⚠️ 未获取到手机号，将继续使用 openid 登录');
+                    phoneNumber = null;
                 }
             } catch (error: any) {
                 console.error('❌ 获取手机号失败:', error);
-                phoneNumber = 'null'; // 获取失败，设置为字符串 "null"
+                phoneNumber = null;
             }
         } else {
-            console.log('ℹ️ 未提供 phoneCode，手机号将设置为 "null"');
-            phoneNumber = 'null'; // 未提供 phoneCode，设置为字符串 "null"
+            console.log('ℹ️ 未提供 phoneCode，将继续使用 openid 登录');
+            phoneNumber = null;
         }
 
         // 检查用户是否已存在（通过 wechat_openid）
@@ -240,17 +240,26 @@ export async function POST(req: NextRequest) {
             .maybeSingle();
 
         if (queryError) {
-            console.error('❌ 查询用户失败:', queryError);
+            console.error('❌ 查询用户失败:', {
+                message: queryError.message,
+                details: queryError.details,
+                hint: queryError.hint,
+                code: queryError.code,
+                hasOpenid: !!openid,
+            });
+            const isFetchFailed = String(queryError.message || queryError.details || '').includes('fetch failed');
             return NextResponse.json({
                 success: false,
-                message: '查询用户信息失败'
+                message: isFetchFailed
+                    ? '查询用户信息失败：后端无法连接 Supabase，请检查服务端数据库配置或网络'
+                    : '查询用户信息失败'
             }, { status: 500 });
         }
 
         let user;
         if (existingUser) {
-            // 用户已存在（通过 openid 匹配），更新手机号（如果获取到了新的手机号且原手机号为 null 或 "null"）
-            if (phoneNumber && phoneNumber !== 'null' && (!existingUser.phone || existingUser.phone === 'null')) {
+            // 用户已存在（通过 openid 匹配），仅在本次确实拿到手机号时补绑定手机号。
+            if (phoneNumber && (!existingUser.phone || existingUser.phone === 'null')) {
                 const { data: updatedUser, error: updateError } = await serviceRoleSupabase
                     .from('users')
                     .update({ phone: phoneNumber })
@@ -270,17 +279,10 @@ export async function POST(req: NextRequest) {
             }
             console.log('✅ 用户已存在（通过 openid 匹配）');
         } else {
-            if (!phoneNumber || phoneNumber === 'null') {
-                return NextResponse.json({
-                    success: false,
-                    message: '首次快捷登录请先授权手机号',
-                }, { status: 400 });
-            }
-
             // 通过 openid 没有找到用户，检查手机号是否已存在
             // 场景：用户可能通过其他方式注册（如手机号注册），但尚未绑定小程序 openid
             let userByPhone = null;
-            if (phoneNumber && phoneNumber !== 'null') {
+            if (phoneNumber) {
                 const { data: existingUserByPhone, error: phoneQueryError } = await serviceRoleSupabase
                     .from('users')
                     .select('*')
@@ -313,15 +315,14 @@ export async function POST(req: NextRequest) {
                 }
             } else {
                 // 用户确实不存在，创建新用户
-                // password_hash 是 NOT NULL 字段，设置为字符串 "null"
-                // phone 设置为获取到的手机号，如果未获取到则设置为字符串 "null"
-                // 其他可以为空的字段都设置为 null
+                // password_hash 是 NOT NULL 字段，设置为字符串 "wechat_openid" 标记该账号由微信登录创建。
+                // phone 是可选绑定字段：未授权手机号时写入数据库 NULL，避免多个微信账号争用字符串 "null"。
                 const { data: newUser, error: createError } = await serviceRoleSupabase
                     .from('users')
                     .insert({
                         wechat_openid: openid,
-                        password_hash: 'null', // NOT NULL 字段，设置为字符串 "null"
-                        phone: phoneNumber, // 设置为获取到的手机号或字符串 "null"
+                        password_hash: 'wechat_openid',
+                        phone: phoneNumber ?? null,
                         email: null,
                         has_drawn: null,
                         last_login_at: new Date().toISOString(),

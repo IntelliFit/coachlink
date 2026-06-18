@@ -8,6 +8,7 @@ import { bootstrapEnv, nextEnvForChild } from './config/bootstrap-env.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.join(__dirname, '..');
+const explicitNextAuthUrl = process.env.NEXTAUTH_URL;
 
 const envBootstrap = await bootstrapEnv({ mode: 'development', projectRoot });
 
@@ -146,6 +147,10 @@ async function startDev() {
         CHOKIDAR_INTERVAL: '500',
         // 禁用遥测
         NEXT_TELEMETRY_DISABLED: '1',
+        // Playwright and similar callers may intentionally run dev on a non-default port.
+        // Apollo/local runtime config can provide a default NEXTAUTH_URL, but an explicit
+        // process env from the caller must win so auth redirects stay on the test server.
+        ...(explicitNextAuthUrl ? { NEXTAUTH_URL: explicitNextAuthUrl } : {}),
     };
     
     if (useFastDev) {
