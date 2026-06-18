@@ -62,7 +62,7 @@ export function computeCoefficient(
 }
 
 export function meanLoadFactorForReps(reps: number) {
-  if (reps < 1 || reps >= 37) throw new Error('Reps must be between 1 and 36')
+  if (reps < 1 || reps >= 37) throw new Error('完成次数必须在 1 到 36 之间')
   const fE = 1 + 0.0333 * reps
   const fB = 36 / (37 - reps)
   const fL = Math.pow(reps, 0.1)
@@ -76,7 +76,7 @@ export function estimateTotal1RMFromTotalWeightAndReps(totalWeight: number, reps
 
 export function invertTotalWeightForTarget1RM(targetTotal1RM: number, reps: number) {
   if (reps === 1) return targetTotal1RM
-  if (reps < 1 || reps >= 37) throw new Error('Reps must be between 1 and 36')
+  if (reps < 1 || reps >= 37) throw new Error('完成次数必须在 1 到 36 之间')
   return targetTotal1RM / meanLoadFactorForReps(reps)
 }
 
@@ -106,32 +106,32 @@ export function calculateAdded1RM(bodyweight: number, addedWeight: number, reps:
 export function getScoreLevel(score: number, exerciseType: ExerciseType): { level: string } {
   if (isPowerliftingExercise(exerciseType)) {
     if (exerciseType === 'squat') {
-      if (score >= 182) return { level: 'World Class' }
-      if (score >= 158) return { level: 'National Elite' }
-      if (score >= 133) return { level: 'Advanced' }
-      if (score >= 105) return { level: 'Intermediate' }
-      return { level: 'Beginner' }
+      if (score >= 182) return { level: '世界一线' }
+      if (score >= 158) return { level: '国内一线' }
+      if (score >= 133) return { level: '大佬' }
+      if (score >= 105) return { level: '爱好者' }
+      return { level: '菜就多练' }
     }
     if (exerciseType === 'bench') {
-      if (score >= 130) return { level: 'World Class' }
-      if (score >= 113) return { level: 'National Elite' }
-      if (score >= 95) return { level: 'Advanced' }
-      if (score >= 75) return { level: 'Intermediate' }
-      return { level: 'Beginner' }
+      if (score >= 130) return { level: '世界一线' }
+      if (score >= 113) return { level: '国内一线' }
+      if (score >= 95) return { level: '大佬' }
+      if (score >= 75) return { level: '爱好者' }
+      return { level: '菜就多练' }
     }
     if (exerciseType === 'deadlift') {
-      if (score >= 208) return { level: 'World Class' }
-      if (score >= 180) return { level: 'National Elite' }
-      if (score >= 152) return { level: 'Advanced' }
-      if (score >= 120) return { level: 'Intermediate' }
-      return { level: 'Beginner' }
+      if (score >= 208) return { level: '世界一线' }
+      if (score >= 180) return { level: '国内一线' }
+      if (score >= 152) return { level: '大佬' }
+      if (score >= 120) return { level: '爱好者' }
+      return { level: '菜就多练' }
     }
   }
-  if (score >= 500) return { level: 'World Class' }
-  if (score >= 450) return { level: 'National Elite' }
-  if (score >= 400) return { level: 'Advanced' }
-  if (score >= 300) return { level: 'Intermediate' }
-  return { level: 'Beginner' }
+  if (score >= 500) return { level: '世界级' }
+  if (score >= 450) return { level: '国内顶级' }
+  if (score >= 400) return { level: '大佬' }
+  if (score >= 300) return { level: '爱好者水平' }
+  return { level: '菜就多练' }
 }
 
 export function generateRMTable(bodyweightForTotal: number, external1rm: number) {
@@ -200,7 +200,7 @@ export function estimateDayMaxFromSets(params: {
   const adjustedAdded = addedWeight - penaltyWeight
   const totalWorkingWeight = bodyweight + adjustedAdded
   if (!Number.isFinite(totalWorkingWeight) || totalWorkingWeight <= 0) {
-    throw new Error('Total working weight is invalid')
+    throw new Error('用于计算的总重量无效')
   }
 
   const fatigueMultiplier = restMultiplier(restCat)
@@ -234,7 +234,7 @@ export function estimateDayMaxFromSets(params: {
   } else if (lastEstimate !== null) {
     day1RM = lastEstimate
   } else {
-    throw new Error('Please provide first-set or last-set feedback')
+    throw new Error('请至少填写首组或末组表现')
   }
 
   return {

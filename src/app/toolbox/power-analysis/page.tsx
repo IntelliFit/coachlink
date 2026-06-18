@@ -12,7 +12,9 @@ import type {
   PowerAnalysisMode,
 } from "@/app/api/toolbox/power-analysis/types";
 
-type UploadPhase = "idle" | "creating" | "uploading" | "enqueueing" | "queued" | "done";
+type UploadPhase = "idle" | "creating" | "uploading" | "uploaded" | "enqueueing" | "queued" | "done";
+
+const ACTIVE_JOB_STORAGE_KEY = "coachlink:power-analysis:active-job";
 
 const MODE_OPTIONS: Array<{ label: string; value: PowerAnalysisMode; hint: string }> = [
   { label: "引体向上", value: "pullup", hint: "适合连续引体、爆发引体、停顿引体测试" },
@@ -68,10 +70,13 @@ export default function PowerAnalysisToolPage() {
   const { showToast } = useToastContext();
   const pollTimerRef = useRef<number | null>(null);
   const llmRequestedRef = useRef<string | null>(null);
+  const pollFailuresRef = useRef(0);
+  const pollWarningShownRef = useRef(false);
 
   const [mode, setMode] = useState<PowerAnalysisMode>("pullup");
   const [heightCm, setHeightCm] = useState("175");
   const [weightKg, setWeightKg] = useState("70");
+  const [externalLoadKg, setExternalLoadKg] = useState("0");
   const [file, setFile] = useState<File | null>(null);
   const [phase, setPhase] = useState<UploadPhase>("idle");
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -85,19 +90,70 @@ export default function PowerAnalysisToolPage() {
   );
 
   const metrics = job?.metrics || null;
-  const canSubmit =
-    Boolean(file) &&
+  const formReady =
     Number(heightCm) >= 100 &&
     Number(heightCm) <= 250 &&
     Number(weightKg) >= 30 &&
     Number(weightKg) <= 250 &&
-    !["creating", "uploading", "enqueueing", "queued"].includes(phase);
+    Number(externalLoadKg) >= 0 &&
+    Number(externalLoadKg) <= 250;
+  const isUploading = ["creating", "uploading"].includes(phase);
+  const isAnalyzing = ["enqueueing", "queued"].includes(phase) || job?.status === "queued" || job?.status === "processing";
+  const settingsLocked = isUploading || isAnalyzing || phase === "uploaded";
+  const canSubmit =
+    formReady &&
+    phase === "uploaded" &&
+    job?.status === "awaiting_upload";
 
   useEffect(() => {
     return () => {
       if (pollTimerRef.current) window.clearInterval(pollTimerRef.current);
     };
   }, []);
+
+  useEffect(() => {
+    const restoreJob = async () => {
+      const raw = window.sessionStorage.getItem(ACTIVE_JOB_STORAGE_KEY);
+      if (!raw) return;
+
+      let jobId = "";
+      try {
+        const parsed = JSON.parse(raw);
+        jobId = String(parsed?.jobId || "");
+      } catch {
+        window.sessionStorage.removeItem(ACTIVE_JOB_STORAGE_KEY);
+        return;
+      }
+      if (!jobId) return;
+
+      try {
+        const restored = await readApi<PowerAnalysisJobDto>(
+          await fetch(`/api/toolbox/power-analysis/jobs/${jobId}`, { method: "GET" }),
+        );
+        setJob(restored);
+        if (restored.status === "awaiting_upload") setPhase("uploaded");
+        else if (restored.status === "queued" || restored.status === "processing") {
+          setPhase("queued");
+          pollJob(restored.id);
+        } else if (["done", "failed", "expired"].includes(restored.status)) {
+          setPhase("done");
+        }
+      } catch {
+        window.sessionStorage.removeItem(ACTIVE_JOB_STORAGE_KEY);
+      }
+    };
+
+    void restoreJob();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (!job?.id) return;
+    window.sessionStorage.setItem(
+      ACTIVE_JOB_STORAGE_KEY,
+      JSON.stringify({ jobId: job.id, updatedAt: Date.now() }),
+    );
+  }, [job?.id, job?.status]);
 
   useEffect(() => {
     if (!job?.id || job.status !== "done" || job.llmSummary || llmRequestedRef.current === job.id) return;
@@ -108,11 +164,15 @@ export default function PowerAnalysisToolPage() {
 
   const pollJob = (jobId: string) => {
     if (pollTimerRef.current) window.clearInterval(pollTimerRef.current);
+    pollFailuresRef.current = 0;
+    pollWarningShownRef.current = false;
     pollTimerRef.current = window.setInterval(async () => {
       try {
         const next = await readApi<PowerAnalysisJobDto>(
           await fetch(`/api/toolbox/power-analysis/jobs/${jobId}`, { method: "GET" }),
         );
+        pollFailuresRef.current = 0;
+        pollWarningShownRef.current = false;
         setJob(next);
         if (["done", "failed", "expired"].includes(next.status)) {
           if (pollTimerRef.current) window.clearInterval(pollTimerRef.current);
@@ -120,10 +180,15 @@ export default function PowerAnalysisToolPage() {
           setPhase("done");
         }
       } catch (error: any) {
-        if (pollTimerRef.current) window.clearInterval(pollTimerRef.current);
-        pollTimerRef.current = null;
-        setPhase("idle");
-        showToast({ severity: "error", summary: "轮询失败", detail: error?.message || "请稍后重试" });
+        pollFailuresRef.current += 1;
+        if (pollFailuresRef.current < 4) return;
+        if (pollWarningShownRef.current) return;
+        pollWarningShownRef.current = true;
+        showToast({
+          severity: "warn",
+          summary: "状态刷新暂时失败",
+          detail: error?.message || "后台任务可能仍在处理，页面会继续尝试刷新。",
+        });
       }
     }, 1800);
   };
@@ -144,8 +209,15 @@ export default function PowerAnalysisToolPage() {
     }
   };
 
-  const handleStart = async () => {
-    if (!file) return;
+  const prepareUpload = async (nextFile: File) => {
+    if (!formReady) {
+      showToast({ severity: "warn", summary: "参数不完整", detail: "请先填写有效的身高、体重和额外负重。" });
+      return;
+    }
+
+    if (pollTimerRef.current) window.clearInterval(pollTimerRef.current);
+    pollTimerRef.current = null;
+    setFile(nextFile);
     setUploadProgress(0);
     setJob(null);
     llmRequestedRef.current = null;
@@ -160,20 +232,47 @@ export default function PowerAnalysisToolPage() {
             mode,
             heightCm: Number(heightCm),
             weightKg: Number(weightKg),
-            originalFilename: file.name,
-            contentType: file.type || "video/mp4",
-            fileSizeBytes: file.size,
+            externalLoadKg: Number(externalLoadKg),
+            originalFilename: nextFile.name,
+            contentType: nextFile.type || "video/mp4",
+            fileSizeBytes: nextFile.size,
           }),
         }),
       );
       setJob(created.job);
 
       setPhase("uploading");
-      await putFile(created.upload.uploadUrl, file, setUploadProgress);
+      await putFile(created.upload.uploadUrl, nextFile, setUploadProgress);
+      setPhase("uploaded");
+      showToast({ severity: "success", summary: "视频已上传", detail: "现在可以点击开始分析。" });
+    } catch (error: any) {
+      setPhase("idle");
+      setJob(null);
+      setUploadProgress(0);
+      showToast({ severity: "error", summary: "上传失败", detail: error?.message || "请稍后重试" });
+    }
+  };
 
+  const handleFileChange = (nextFile: File | null) => {
+    if (!nextFile) {
+      resetForm();
+      return;
+    }
+    void prepareUpload(nextFile);
+  };
+
+  const handleStart = async () => {
+    if (!canSubmit || !job?.id) {
+      showToast({ severity: "warn", summary: "请先上传视频", detail: "选择视频后会自动上传，上传完成后再开始分析。" });
+      return;
+    }
+    llmRequestedRef.current = null;
+
+    try {
       setPhase("enqueueing");
+
       const queued = await readApi<PowerAnalysisJobDto>(
-        await fetch(`/api/toolbox/power-analysis/jobs/${created.job.id}/enqueue`, {
+        await fetch(`/api/toolbox/power-analysis/jobs/${job.id}/enqueue`, {
           method: "POST",
         }),
       );
@@ -182,8 +281,8 @@ export default function PowerAnalysisToolPage() {
       pollJob(queued.id);
       showToast({ severity: "success", summary: "已开始分析", detail: "视频会作为临时任务处理，完成后可下载。" });
     } catch (error: any) {
-      setPhase("idle");
-      showToast({ severity: "error", summary: "提交失败", detail: error?.message || "请稍后重试" });
+      setPhase("uploaded");
+      showToast({ severity: "error", summary: "提交分析失败", detail: error?.message || "请稍后重试" });
     }
   };
 
@@ -197,7 +296,7 @@ export default function PowerAnalysisToolPage() {
         }),
       );
       const a = document.createElement("a");
-      a.href = data.url;
+      a.href = data.proxyUrl || data.url;
       a.download = data.filename;
       document.body.appendChild(a);
       a.click();
@@ -215,6 +314,9 @@ export default function PowerAnalysisToolPage() {
     setUploadProgress(0);
     setJob(null);
     llmRequestedRef.current = null;
+    pollFailuresRef.current = 0;
+    pollWarningShownRef.current = false;
+    window.sessionStorage.removeItem(ACTIVE_JOB_STORAGE_KEY);
     if (pollTimerRef.current) window.clearInterval(pollTimerRef.current);
     pollTimerRef.current = null;
   };
@@ -222,13 +324,24 @@ export default function PowerAnalysisToolPage() {
   const statusText = (() => {
     if (phase === "creating") return "正在创建临时上传任务";
     if (phase === "uploading") return `正在上传 ${uploadProgress}%`;
+    if (phase === "uploaded") return "视频已上传，点击开始分析";
     if (phase === "enqueueing") return "正在提交分析任务";
     if (job?.status === "queued") return "排队中";
     if (job?.status === "processing") return `分析中 ${job.progress}%`;
     if (job?.status === "done") return "分析完成";
     if (job?.status === "failed") return "分析失败";
     if (job?.status === "expired") return "任务已过期";
-    return "等待上传";
+    return "选择视频后会自动上传";
+  })();
+
+  const progressValue = (() => {
+    if (job?.status === "done") return 100;
+    if (job?.status === "processing" || job?.status === "queued") return Math.max(5, job.progress || 5);
+    if (phase === "uploaded") return 100;
+    if (phase === "enqueueing") return 100;
+    if (phase === "uploading") return uploadProgress;
+    if (phase === "creating") return 5;
+    return 0;
   })();
 
   return (
@@ -265,7 +378,8 @@ export default function PowerAnalysisToolPage() {
                     <button
                       key={item.value}
                       type="button"
-                      onClick={() => setMode(item.value)}
+                      disabled={settingsLocked}
+                      onClick={() => !settingsLocked && setMode(item.value)}
                       className={[
                         "rounded-xl border px-3 py-3 text-left transition-colors",
                         mode === item.value
@@ -282,12 +396,13 @@ export default function PowerAnalysisToolPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 <label className="block">
                   <span className="mb-1.5 block text-sm font-bold text-surface-800">身高 cm</span>
                   <input
                     value={heightCm}
                     onChange={(e) => setHeightCm(e.target.value)}
+                    disabled={settingsLocked}
                     inputMode="decimal"
                     className="h-11 w-full rounded-xl border border-surface-200 bg-surface-0 px-3 text-sm outline-none focus:border-[#CF6D4E]"
                   />
@@ -297,6 +412,17 @@ export default function PowerAnalysisToolPage() {
                   <input
                     value={weightKg}
                     onChange={(e) => setWeightKg(e.target.value)}
+                    disabled={settingsLocked}
+                    inputMode="decimal"
+                    className="h-11 w-full rounded-xl border border-surface-200 bg-surface-0 px-3 text-sm outline-none focus:border-[#CF6D4E]"
+                  />
+                </label>
+                <label className="block">
+                  <span className="mb-1.5 block text-sm font-bold text-surface-800">额外负重 kg</span>
+                  <input
+                    value={externalLoadKg}
+                    onChange={(e) => setExternalLoadKg(e.target.value)}
+                    disabled={settingsLocked}
                     inputMode="decimal"
                     className="h-11 w-full rounded-xl border border-surface-200 bg-surface-0 px-3 text-sm outline-none focus:border-[#CF6D4E]"
                   />
@@ -311,8 +437,9 @@ export default function PowerAnalysisToolPage() {
                 <input
                   type="file"
                   accept="video/*"
+                  disabled={isUploading || isAnalyzing}
                   className="block w-full text-sm text-surface-700 file:mr-3 file:rounded-lg file:border-0 file:bg-surface-900 file:px-3 file:py-2 file:text-sm file:font-bold file:text-white"
-                  onChange={(event) => setFile(event.target.files?.[0] || null)}
+                  onChange={(event) => handleFileChange(event.target.files?.[0] || null)}
                 />
                 {file && (
                   <div className="mt-3 rounded-xl border border-surface-200 bg-surface-0 px-3 py-2 text-xs text-surface-600">
@@ -324,12 +451,12 @@ export default function PowerAnalysisToolPage() {
               <div className="rounded-xl border border-surface-200 bg-surface-50 p-3">
                 <div className="mb-2 flex items-center justify-between text-sm">
                   <span className="font-bold text-surface-800">{statusText}</span>
-                  <span className="text-surface-500">{job?.progress ?? (phase === "uploading" ? uploadProgress : 0)}%</span>
+                  <span className="text-surface-500">{progressValue}%</span>
                 </div>
                 <div className="h-2 overflow-hidden rounded-full bg-surface-200">
                   <div
                     className="h-full rounded-full bg-[#CF6D4E] transition-all"
-                    style={{ width: `${Math.max(job?.progress ?? 0, phase === "uploading" ? uploadProgress : 0)}%` }}
+                    style={{ width: `${progressValue}%` }}
                   />
                 </div>
               </div>
@@ -342,12 +469,12 @@ export default function PowerAnalysisToolPage() {
 
               <div className="flex gap-2">
                 <Button
-                  label={phase === "idle" || phase === "done" ? "开始分析" : "处理中"}
+                  label={isUploading ? "正在上传" : isAnalyzing ? "处理中" : "开始分析"}
                   icon={
-                    phase === "idle" || phase === "done" ? (
-                      <Play className="mr-2 h-4 w-4" />
-                    ) : (
+                    isUploading || isAnalyzing ? (
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Play className="mr-2 h-4 w-4" />
                     )
                   }
                   disabled={!canSubmit}

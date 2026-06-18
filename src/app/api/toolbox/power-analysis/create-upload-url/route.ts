@@ -49,13 +49,14 @@ export async function POST(req: Request) {
   const mode = normalizeMode(body?.mode);
   const heightCm = numberInRange(body?.heightCm, 100, 250);
   const weightKg = numberInRange(body?.weightKg, 30, 250);
+  const externalLoadKg = numberInRange(body?.externalLoadKg ?? 0, 0, 250);
   const originalFilename = String(body?.originalFilename || "").trim();
   const contentType = String(body?.contentType || "").trim();
   const fileSizeBytes = Number(body?.fileSizeBytes || 0);
 
-  if (!mode || heightCm === null || weightKg === null) {
+  if (!mode || heightCm === null || weightKg === null || externalLoadKg === null) {
     return NextResponse.json<ApiData<null>>(
-      { success: false, message: "请填写有效的动作类型、身高和体重", data: null },
+      { success: false, message: "请填写有效的动作类型、身高、体重和额外负重", data: null },
       { status: 400 },
     );
   }
@@ -99,6 +100,7 @@ export async function POST(req: Request) {
     .from("tool_power_analysis_jobs")
     .select("id", { count: "exact", head: true })
     .eq("user_id", userId)
+    .in("status", ["queued", "processing", "done"])
     .gte("created_at", since);
 
   if ((dailyCount || 0) >= limits.dailyLimit) {
@@ -157,6 +159,8 @@ export async function POST(req: Request) {
       original_file_size_bytes: Math.round(fileSizeBytes),
       metadata: {
         content_type: contentType,
+        external_load_kg: externalLoadKg,
+        effective_weight_kg: weightKg + externalLoadKg,
         upload_strategy: "signed_upload_transient",
         retention_hours: 24,
       },

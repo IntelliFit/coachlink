@@ -13,7 +13,7 @@ import './index.scss'
 
 type PowerAnalysisMode = 'pullup' | 'muscleup'
 type PowerAnalysisJobStatus = 'awaiting_upload' | 'queued' | 'processing' | 'done' | 'failed' | 'expired'
-type UploadPhase = 'idle' | 'creating' | 'uploading' | 'enqueueing' | 'queued' | 'done'
+type UploadPhase = 'idle' | 'creating' | 'uploading' | 'uploaded' | 'enqueueing' | 'queued' | 'done'
 
 interface PowerAnalysisRepMetric {
   repIndex: number
@@ -26,6 +26,11 @@ interface PowerAnalysisRepMetric {
 
 interface PowerAnalysisMetrics {
   mode: PowerAnalysisMode
+  mass?: {
+    bodyWeightKg: number
+    externalLoadKg: number
+    effectiveMassKg: number
+  }
   repCount: number
   summary: {
     avgPowerW: number
@@ -44,6 +49,7 @@ interface PowerAnalysisJobDto {
   mode: PowerAnalysisMode
   heightCm: number
   weightKg: number
+  externalLoadKg: number
   status: PowerAnalysisJobStatus
   progress: number
   metrics: PowerAnalysisMetrics | null
@@ -72,6 +78,7 @@ interface CreatePowerAnalysisUploadUrlResponseDto {
 
 interface PowerAnalysisDownloadUrlResponseDto {
   url: string
+  proxyUrl?: string
   expiresInSeconds: number
   filename: string
 }
@@ -213,6 +220,7 @@ export default function WechatPowerAnalysisPage() {
   const [mode, setMode] = useState<PowerAnalysisMode>('pullup')
   const [heightCm, setHeightCm] = useState('175')
   const [weightKg, setWeightKg] = useState('70')
+  const [externalLoadKg, setExternalLoadKg] = useState('0')
   const [video, setVideo] = useState<SelectedVideo | null>(null)
   const [phase, setPhase] = useState<UploadPhase>('idle')
   const [uploadProgress, setUploadProgress] = useState(0)
@@ -237,19 +245,27 @@ export default function WechatPowerAnalysisPage() {
   const metrics = job?.metrics || null
   const heightValue = Number(heightCm)
   const weightValue = Number(weightKg)
-  const isBusy =
-    ['creating', 'uploading', 'enqueueing', 'queued'].includes(phase) ||
-    job?.status === 'queued' ||
-    job?.status === 'processing'
-  const canSubmit =
-    Boolean(video) &&
+  const externalLoadValue = Number(externalLoadKg)
+  const formReady =
     Number.isFinite(heightValue) &&
     heightValue >= 100 &&
     heightValue <= 250 &&
     Number.isFinite(weightValue) &&
     weightValue >= 30 &&
     weightValue <= 250 &&
-    !isBusy
+    Number.isFinite(externalLoadValue) &&
+    externalLoadValue >= 0 &&
+    externalLoadValue <= 250
+  const isBusy =
+    ['creating', 'uploading', 'enqueueing', 'queued'].includes(phase) ||
+    job?.status === 'queued' ||
+    job?.status === 'processing'
+  const settingsLocked = isBusy || phase === 'uploaded'
+  const canSubmit =
+    Boolean(video) &&
+    formReady &&
+    phase === 'uploaded' &&
+    job?.status === 'awaiting_upload'
 
   useShareAppMessage(() => sharePayload)
   useShareTimeline(() => createTimelinePayload(sharePayload))
@@ -326,6 +342,58 @@ export default function WechatPowerAnalysisPage() {
     })
   }
 
+  const prepareUpload = async (nextVideo: SelectedVideo) => {
+    if (!formReady) {
+      Taro.showToast({ title: '请先填写有效身高体重', icon: 'none' })
+      return
+    }
+
+    stopPolling()
+    setVideo(nextVideo)
+    setJob(null)
+    setUploadProgress(0)
+    llmRequestedRef.current = null
+
+    try {
+      setPhase('creating')
+      const created = await callPowerApi<CreatePowerAnalysisUploadUrlResponseDto>({
+        url: '/api/toolbox/power-analysis/create-upload-url',
+        method: 'POST',
+        data: {
+          mode,
+          heightCm: heightValue,
+          weightKg: weightValue,
+          externalLoadKg: externalLoadValue,
+          originalFilename: nextVideo.name,
+          contentType: nextVideo.contentType,
+          fileSizeBytes: nextVideo.size
+        }
+      })
+      setJob(created.job)
+
+      setPhase('uploading')
+      setUploadProgress(1)
+      await uploadPowerAnalysisVideo({
+        jobId: created.job.id,
+        filePath: nextVideo.tempFilePath,
+        contentType: nextVideo.contentType,
+        onProgress: setUploadProgress
+      })
+
+      setPhase('uploaded')
+      Taro.showToast({ title: '视频已上传', icon: 'success' })
+    } catch (error: any) {
+      setPhase('idle')
+      setJob(null)
+      setUploadProgress(0)
+      Taro.showToast({
+        title: error?.message || '上传失败',
+        icon: 'none',
+        duration: 3000
+      })
+    }
+  }
+
   const handleChooseVideo = async () => {
     if (isBusy) {
       Taro.showToast({ title: '当前任务处理中', icon: 'none' })
@@ -340,7 +408,7 @@ export default function WechatPowerAnalysisPage() {
         camera: 'back'
       })
       const name = inferVideoName(res.tempFilePath)
-      setVideo({
+      const nextVideo = {
         tempFilePath: res.tempFilePath,
         name,
         contentType: inferContentType(name),
@@ -348,11 +416,8 @@ export default function WechatPowerAnalysisPage() {
         duration: Number(res.duration || 0),
         width: Number(res.width || 0),
         height: Number(res.height || 0)
-      })
-      setJob(null)
-      setPhase('idle')
-      setUploadProgress(0)
-      llmRequestedRef.current = null
+      }
+      void prepareUpload(nextVideo)
     } catch (error: any) {
       const message = String(error?.errMsg || error?.message || '')
       if (message.includes('cancel')) return
@@ -388,44 +453,18 @@ export default function WechatPowerAnalysisPage() {
   }
 
   const handleStart = async () => {
-    if (!canSubmit || !video) {
-      Taro.showToast({ title: '请先选择视频并填写身高体重', icon: 'none' })
+    if (!canSubmit || !job?.id) {
+      Taro.showToast({ title: '请先等待视频上传完成', icon: 'none' })
       return
     }
 
     stopPolling()
-    setJob(null)
-    setUploadProgress(0)
     llmRequestedRef.current = null
 
     try {
-      setPhase('creating')
-      const created = await callPowerApi<CreatePowerAnalysisUploadUrlResponseDto>({
-        url: '/api/toolbox/power-analysis/create-upload-url',
-        method: 'POST',
-        data: {
-          mode,
-          heightCm: heightValue,
-          weightKg: weightValue,
-          originalFilename: video.name,
-          contentType: video.contentType,
-          fileSizeBytes: video.size
-        }
-      })
-      setJob(created.job)
-
-      setPhase('uploading')
-      setUploadProgress(1)
-      await uploadPowerAnalysisVideo({
-        jobId: created.job.id,
-        filePath: video.tempFilePath,
-        contentType: video.contentType,
-        onProgress: setUploadProgress
-      })
-
       setPhase('enqueueing')
       const queued = await callPowerApi<PowerAnalysisJobDto>({
-        url: `/api/toolbox/power-analysis/jobs/${created.job.id}/enqueue`,
+        url: `/api/toolbox/power-analysis/jobs/${job.id}/enqueue`,
         method: 'POST'
       })
       setJob(queued)
@@ -433,9 +472,9 @@ export default function WechatPowerAnalysisPage() {
       pollJob(queued.id)
       Taro.showToast({ title: '已开始分析', icon: 'success' })
     } catch (error: any) {
-      setPhase('idle')
+      setPhase('uploaded')
       Taro.showToast({
-        title: error?.message || '提交失败',
+        title: error?.message || '提交分析失败',
         icon: 'none',
         duration: 3000
       })
@@ -459,7 +498,14 @@ export default function WechatPowerAnalysisPage() {
         url: `/api/toolbox/power-analysis/jobs/${job.id}/download-url`,
         method: 'POST'
       })
-      const downloaded = await Taro.downloadFile({ url: data.url })
+      const token = String(Taro.getStorageSync('token') || '').trim()
+      const downloadUrl = data.proxyUrl
+        ? `${API_BASE_URL.replace(/\/+$/, '')}${data.proxyUrl}`
+        : data.url
+      const downloaded = await Taro.downloadFile({
+        url: downloadUrl,
+        header: data.proxyUrl && token ? { Authorization: `Bearer ${token}` } : undefined
+      })
       if (downloaded.statusCode !== 200 || !downloaded.tempFilePath) {
         throw new Error(`下载失败（${downloaded.statusCode}）`)
       }
@@ -488,19 +534,21 @@ export default function WechatPowerAnalysisPage() {
   const statusText = (() => {
     if (phase === 'creating') return '创建临时任务'
     if (phase === 'uploading') return `上传视频 ${uploadProgress}%`
+    if (phase === 'uploaded') return '视频已上传，点击开始分析'
     if (phase === 'enqueueing') return '提交分析任务'
     if (job?.status === 'queued') return '排队中'
     if (job?.status === 'processing') return `分析中 ${job.progress}%`
     if (job?.status === 'done') return '分析完成'
     if (job?.status === 'failed') return '分析失败'
     if (job?.status === 'expired') return '任务已过期'
-    return '等待视频'
+    return '选择视频后会自动上传'
   })()
 
   const progressValue = (() => {
     if (job?.status === 'done') return 100
     if (job?.status === 'processing' || job?.status === 'queued') return Math.max(5, job.progress || 5)
-    if (phase === 'enqueueing') return 90
+    if (phase === 'uploaded') return 100
+    if (phase === 'enqueueing') return 100
     if (phase === 'uploading') return uploadProgress
     if (phase === 'creating') return 5
     return 0
@@ -528,7 +576,7 @@ export default function WechatPowerAnalysisPage() {
                 <View
                   key={item.value}
                   className={`mode-card mode-card-${item.value} ${mode === item.value ? 'active' : ''}`}
-                  onClick={() => !isBusy && setMode(item.value)}
+                  onClick={() => !settingsLocked && setMode(item.value)}
                 >
                   <Text className='mode-label'>{item.label}</Text>
                   <Text className='mode-hint'>{item.hint}</Text>
@@ -543,7 +591,7 @@ export default function WechatPowerAnalysisPage() {
                   className='metric-input height-input'
                   type='digit'
                   value={heightCm}
-                  disabled={isBusy}
+                  disabled={settingsLocked}
                   onInput={(event) => setHeightCm(String(event.detail.value || ''))}
                 />
               </View>
@@ -553,8 +601,18 @@ export default function WechatPowerAnalysisPage() {
                   className='metric-input weight-input'
                   type='digit'
                   value={weightKg}
-                  disabled={isBusy}
+                  disabled={settingsLocked}
                   onInput={(event) => setWeightKg(String(event.detail.value || ''))}
+                />
+              </View>
+              <View className='input-cell'>
+                <Text className='input-label'>额外负重 kg</Text>
+                <Input
+                  className='metric-input load-input'
+                  type='digit'
+                  value={externalLoadKg}
+                  disabled={settingsLocked}
+                  onInput={(event) => setExternalLoadKg(String(event.detail.value || ''))}
                 />
               </View>
             </View>
@@ -609,7 +667,7 @@ export default function WechatPowerAnalysisPage() {
 
             <View className='action-row'>
               <View className={`primary-action start-analysis-btn ${canSubmit ? '' : 'disabled'}`} onClick={handleStart}>
-                <Text>{isBusy ? '处理中' : '开始分析'}</Text>
+                <Text>{['creating', 'uploading'].includes(phase) ? '上传中' : isBusy ? '处理中' : '开始分析'}</Text>
               </View>
               <View className={`secondary-action reset-btn ${isBusy ? 'disabled' : ''}`} onClick={() => !isBusy && handleReset()}>
                 <Text>重置</Text>

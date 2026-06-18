@@ -18,6 +18,11 @@ export interface PowerAnalysisRepMetric {
 
 export interface PowerAnalysisMetrics {
   mode: PowerAnalysisMode;
+  mass?: {
+    bodyWeightKg: number;
+    externalLoadKg: number;
+    effectiveMassKg: number;
+  };
   repCount: number;
   summary: {
     avgPowerW: number;
@@ -36,6 +41,7 @@ export interface PowerAnalysisJobDto {
   mode: PowerAnalysisMode;
   heightCm: number;
   weightKg: number;
+  externalLoadKg: number;
   status: PowerAnalysisJobStatus;
   progress: number;
   metrics: PowerAnalysisMetrics | null;
@@ -51,6 +57,7 @@ export interface CreatePowerAnalysisUploadUrlDto {
   mode: PowerAnalysisMode;
   heightCm: number;
   weightKg: number;
+  externalLoadKg?: number;
   originalFilename: string;
   contentType: string;
   fileSizeBytes: number;
@@ -73,6 +80,8 @@ export interface CreatePowerAnalysisUploadUrlResponseDto {
 
 export interface PowerAnalysisDownloadUrlResponseDto {
   url: string;
+  proxyUrl?: string;
+  signedUrl?: string;
   expiresInSeconds: number;
   filename: string;
 }

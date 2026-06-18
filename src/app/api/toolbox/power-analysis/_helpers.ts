@@ -66,6 +66,10 @@ export function isSupportedVideoContentType(contentType: string) {
 
 export function mapPowerAnalysisJob(row: any): PowerAnalysisJobDto {
   const metrics = normalizeMetrics(row?.metrics_json);
+  const metadata = normalizeObject(row?.metadata);
+  const externalLoadKg = nonNegativeNumber(
+    metadata.external_load_kg ?? metadata.externalLoadKg,
+  );
   const expiresAt = String(row?.expires_at || "");
   const expired = expiresAt ? new Date(expiresAt).getTime() <= Date.now() : false;
   const status = expired && row?.status !== "done" ? "expired" : row?.status;
@@ -75,6 +79,7 @@ export function mapPowerAnalysisJob(row: any): PowerAnalysisJobDto {
     mode: normalizeMode(row?.mode) || "pullup",
     heightCm: Number(row?.height_cm || 0),
     weightKg: Number(row?.weight_kg || 0),
+    externalLoadKg,
     status,
     progress: Number(row?.progress || 0),
     metrics,
@@ -91,10 +96,22 @@ export function mapPowerAnalysisJob(row: any): PowerAnalysisJobDto {
   };
 }
 
+function normalizeObject(value: unknown) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  return value as Record<string, unknown>;
+}
+
+function nonNegativeNumber(value: unknown) {
+  const n = Number(value ?? 0);
+  if (!Number.isFinite(n) || n < 0) return 0;
+  return n;
+}
+
 export function normalizeMetrics(value: unknown): PowerAnalysisMetrics | null {
   if (!value || typeof value !== "object") return null;
   const raw = value as any;
   const mode = normalizeMode(raw.mode) || "pullup";
+  const mass = raw.mass && typeof raw.mass === "object" ? raw.mass : null;
   const reps = Array.isArray(raw.reps)
     ? raw.reps.map((item: any, index: number) => ({
         repIndex: Number(item.repIndex ?? item.rep_index ?? index + 1),
@@ -109,6 +126,13 @@ export function normalizeMetrics(value: unknown): PowerAnalysisMetrics | null {
   const summary = raw.summary || {};
   return {
     mode,
+    mass: mass
+      ? {
+          bodyWeightKg: Number(mass.bodyWeightKg ?? mass.body_weight_kg ?? 0),
+          externalLoadKg: Number(mass.externalLoadKg ?? mass.external_load_kg ?? 0),
+          effectiveMassKg: Number(mass.effectiveMassKg ?? mass.effective_mass_kg ?? 0),
+        }
+      : undefined,
     repCount: Number(raw.repCount ?? raw.rep_count ?? reps.length),
     summary: {
       avgPowerW: Number(summary.avgPowerW ?? summary.avg_power_w ?? 0),

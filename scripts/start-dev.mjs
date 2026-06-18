@@ -88,6 +88,9 @@ function crossSpawn(command, args, options = {}) {
 }
 
 function shouldStartLocalPowerWorker() {
+    if (process.env.COACHLINK_DISABLE_LOCAL_POWER_WORKER === '1') {
+        return false;
+    }
     const driver = String(process.env.TASK_QUEUE_DRIVER || 'memory').trim().toLowerCase();
     return ['memory', 'local', 'in_memory', 'in-memory'].includes(driver);
 }

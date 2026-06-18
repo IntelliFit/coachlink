@@ -32,7 +32,16 @@
         "power-analysis:work-once": "node scripts/power-analysis-worker.mjs",
         "power-analysis:cleanup": "node scripts/power-analysis-worker.mjs --cleanup",
         "push-docker-ccr": "node scripts/push-docker-ccr.mjs",
-        "push-power-worker-ccr": "node scripts/push-power-worker-ccr.mjs"
+        "push-power-worker-ccr": "node scripts/push-power-worker-ccr.mjs",
+        "weapp:release:upload": "npm --prefix wechat_app run release:upload",
+        "weapp:release:audit": "npm --prefix wechat_app run release:audit",
+        "weapp:release:status": "npm --prefix wechat_app run release:status",
+        "weapp:release:wait-audit": "npm --prefix wechat_app run release:wait-audit",
+        "weapp:release:publish": "npm --prefix wechat_app run release:publish",
+        "weapp:release:auto": "npm --prefix wechat_app run release:auto",
+        "weapp:release:full": "npm --prefix wechat_app run release:full",
+        "weapp:release:categories": "npm --prefix wechat_app run release:categories",
+        "weapp:release:pages": "npm --prefix wechat_app run release:pages"
     },
     "dependencies": {
         "@dagrejs/dagre": "^1.1.8",

@@ -13,5 +13,10 @@ export interface CompleteImpromptuSetResponseDto {
     totalSets: number;
     status: string;
     action_executions: any[];
+    autoE1RM?: {
+        e1rm: number;
+        isPR: boolean;
+        previousPR?: number;
+    };
 }
 

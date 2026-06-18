@@ -4,7 +4,6 @@ import { getAuthUser } from "@/lib/auth";
 import type { ApiData } from "@/types/api";
 import {
     calculateE1RM,
-    E1RMCalculationParams,
     requiresBodyWeightFallback,
 } from "@/lib/e1rmCalculator";
 
@@ -36,6 +35,85 @@ export interface GetE1RMHistoryResponseDto {
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const isUuid = (value?: string | null): value is string =>
     !!value && UUID_REGEX.test(value);
+
+function collectExecutionHistoryPoints(params: {
+    rows: Array<{ action_executions?: any; updated_at?: string; created_at?: string }> | null | undefined;
+    actionId?: string;
+    actionName: string;
+    includeBodyWeight: boolean;
+    userWeight: number;
+}): E1RMHistoryPoint[] {
+    const { rows, actionId, actionName, includeBodyWeight, userWeight } = params;
+    const allPoints: E1RMHistoryPoint[] = [];
+
+    (rows || []).forEach((exec: any) => {
+        if (!exec?.action_executions || !Array.isArray(exec.action_executions)) return;
+
+        const actionExecs = exec.action_executions.filter((ae: any) =>
+            (actionId ? ae.action_id === actionId : false) ||
+            ae.action_name === actionName || ae.name === actionName
+        );
+
+        if (actionExecs.length === 0) return;
+
+        actionExecs.forEach((ae: any) => {
+            if (!ae?.sets || !Array.isArray(ae.sets)) return;
+
+            let bestSetForSession = { e1rm: 0, weight: 0, reps: 0 };
+            let sessionDate = exec.updated_at
+                ? String(exec.updated_at).split("T")[0]
+                : "";
+
+            ae.sets.forEach((set: any) => {
+                if (set.status !== "completed" && !set.actual_weight) {
+                    return;
+                }
+
+                const w = Number(set.actual_weight);
+                const r = Number(set.actual_reps);
+                if (!(w > 0 && r > 0)) return;
+
+                if (set.completed_at) {
+                    sessionDate = String(set.completed_at).split("T")[0];
+                } else if (!sessionDate && exec.created_at) {
+                    sessionDate = String(exec.created_at).split("T")[0];
+                }
+
+                let currentE1RM = Number(set.e1rm);
+                if (!currentE1RM || Number.isNaN(currentE1RM)) {
+                    const calc = calculateE1RM({
+                        weight: w,
+                        reps: r,
+                        bodyWeight: userWeight,
+                        includeBodyWeight,
+                    });
+                    currentE1RM = calc.e1rm;
+                }
+
+                if (currentE1RM > bestSetForSession.e1rm) {
+                    bestSetForSession = {
+                        e1rm: currentE1RM,
+                        weight: w,
+                        reps: r,
+                    };
+                }
+            });
+
+            if (bestSetForSession.e1rm > 0 && sessionDate) {
+                allPoints.push({
+                    date: sessionDate,
+                    e1rm: bestSetForSession.e1rm,
+                    isPR: false,
+                    source: "execution",
+                    weight: bestSetForSession.weight,
+                    reps: bestSetForSession.reps,
+                });
+            }
+        });
+    });
+
+    return allPoints;
+}
 
 /**
  * POST /api/student/get-e1rm-history
@@ -231,10 +309,20 @@ export async function POST(request: NextRequest) {
 
         if (startDate) execQuery = execQuery.gte("created_at", startDate);
 
-        const { data: executions } = await execQuery;
+        let impromptuQuery = supabase
+            .from("impromptu_executions")
+            .select("id, action_executions, updated_at, created_at")
+            .eq("student_id", userId)
+            .order("created_at", { ascending: true });
 
-        if (executions) {
-            // Get user profile once for calc fallback
+        if (startDate) impromptuQuery = impromptuQuery.gte("created_at", startDate);
+
+        const [{ data: executions }, { data: impromptuExecutions }] = await Promise.all([
+            execQuery,
+            impromptuQuery,
+        ]);
+
+        if (executions || impromptuExecutions) {
             let userWeight = 0;
             if (includeBodyWeight) {
                 const { data: profile } = await supabase
@@ -245,85 +333,22 @@ export async function POST(request: NextRequest) {
                 userWeight = profile?.weight || 0;
             }
 
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            executions.forEach((exec: any) => {
-                if (
-                    !exec.action_executions ||
-                    !Array.isArray(exec.action_executions)
-                ) return;
-
-                // Find matching action(s) in this session
-                // Match by ID preferred, falling back to Name
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                const actionExecs = exec.action_executions.filter((ae: any) =>
-                    (actionId ? ae.action_id === actionId : false) ||
-                    ae.action_name === actionName || ae.name === actionName
-                );
-
-                if (actionExecs.length === 0) return;
-
-                // For each execution of this action, find the best set
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                actionExecs.forEach((ae: any) => {
-                    if (!ae.sets || !Array.isArray(ae.sets)) return;
-
-                    let bestSetForSession = { e1rm: 0, weight: 0, reps: 0 };
-                    let sessionDate = exec.updated_at
-                        ? exec.updated_at.split("T")[0]
-                        : "";
-
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    ae.sets.forEach((set: any) => {
-                        if (set.status !== "completed" && !set.actual_weight) {
-                            return; // Only count completed sets
-                        }
-
-                        const w = Number(set.actual_weight);
-                        const r = Number(set.actual_reps);
-
-                        if (w > 0 && r > 0) {
-                            // Determine date: prefer set completed_at, then exec updated_at, then exec created_at
-                            if (set.completed_at) {
-                                sessionDate = set.completed_at.split("T")[0];
-                            } else if (!sessionDate) {
-                                sessionDate = exec.created_at.split("T")[0];
-                            }
-
-                            // Use stored e1rm or calculate it
-                            let currentE1RM = Number(set.e1rm);
-                            if (!currentE1RM || isNaN(currentE1RM)) {
-                                // Calculate on the fly
-                                const calc = calculateE1RM({
-                                    weight: w,
-                                    reps: r,
-                                    bodyWeight: userWeight,
-                                    includeBodyWeight,
-                                });
-                                currentE1RM = calc.e1rm;
-                            }
-
-                            if (currentE1RM > bestSetForSession.e1rm) {
-                                bestSetForSession = {
-                                    e1rm: currentE1RM,
-                                    weight: w,
-                                    reps: r,
-                                };
-                            }
-                        }
-                    });
-
-                    if (bestSetForSession.e1rm > 0 && sessionDate) {
-                        allPoints.push({
-                            date: sessionDate,
-                            e1rm: bestSetForSession.e1rm,
-                            isPR: false, // calculate later
-                            source: "execution",
-                            weight: bestSetForSession.weight,
-                            reps: bestSetForSession.reps,
-                        });
-                    }
-                });
-            });
+            allPoints.push(
+                ...collectExecutionHistoryPoints({
+                    rows: executions,
+                    actionId,
+                    actionName,
+                    includeBodyWeight,
+                    userWeight,
+                }),
+                ...collectExecutionHistoryPoints({
+                    rows: impromptuExecutions,
+                    actionId,
+                    actionName,
+                    includeBodyWeight,
+                    userWeight,
+                }),
+            );
         }
 
         // ------------------------------------------------------------------

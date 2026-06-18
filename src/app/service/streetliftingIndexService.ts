@@ -49,6 +49,18 @@ import type {
     StreetliftingLocationContributorsResponseDto,
 } from "@/app/api/streetlifting-index/locations/contributors/entity";
 import type { StreetliftingUploadLocationImageResponseDto } from "@/app/api/streetlifting-index/upload-location-image/entity";
+import type {
+    SaveStreetliftingCalcResultDto,
+    SaveStreetliftingCalcResultResponseDto,
+} from "@/app/api/streetlifting-index/calculator/save-result/entity";
+import type {
+    StreetliftingCalcHistoryDto,
+    StreetliftingCalcHistoryResponseDto,
+} from "@/app/api/streetlifting-index/calculator/history/entity";
+import type {
+    StreetliftingCalcSummaryRequestDto,
+    StreetliftingCalcSummaryResponseDto,
+} from "@/app/api/streetlifting-index/calculator/summary/entity";
 
 class StreetliftingIndexService extends BaseService {
     async getStats(reqData?: StreetliftingStatsDto) {
@@ -154,6 +166,30 @@ class StreetliftingIndexService extends BaseService {
             return res.data.data || null;
         }
         return null;
+    }
+
+    async saveCalculatorResult(reqData: SaveStreetliftingCalcResultDto) {
+        const res = await this.post<SaveStreetliftingCalcResultResponseDto>("calculator/save-result", reqData);
+        if (res.data?.success && res.data.data) {
+            return res.data.data;
+        }
+        throw new Error(res.data?.message || "保存力量计算结果失败");
+    }
+
+    async getCalculatorHistory(reqData?: StreetliftingCalcHistoryDto) {
+        const res = await this.post<StreetliftingCalcHistoryResponseDto>("calculator/history", reqData || {});
+        if (res.data?.success && res.data.data) {
+            return res.data.data;
+        }
+        throw new Error(res.data?.message || "获取力量计算历史失败");
+    }
+
+    async getCalculatorSummary(reqData?: StreetliftingCalcSummaryRequestDto) {
+        const res = await this.post<StreetliftingCalcSummaryResponseDto>("calculator/summary", reqData || {});
+        if (res.data?.success && res.data.data) {
+            return res.data.data;
+        }
+        throw new Error(res.data?.message || "获取力量计算摘要失败");
     }
 
     async uploadLocationImage(file: File) {

@@ -1,3 +1,218 @@
+## Commit Current Work And Sync Main/Dev (`2026-06-18`)
+
+- Task: commit current latest local code, merge the latest development branch changes, and make `main` and `dev` consistent.
+- Status: in progress.
+- Starting branch: `main`.
+- Remote status before commit:
+  - `origin/main` is at `82d46467`.
+  - `origin/dev` advanced to `5326a92c fix wechat training execution and theme flow`.
+- Local state before commit:
+  - Working tree contains the accumulated Power Analysis realtime/auto-upload fixes, impromptu e1RM tracking, streetlifting calculator history/ranking work, WeChat release automation files, and durable-state updates.
+  - Generated Python cache under `scripts/power-analysis/__pycache__/` is intentionally excluded from commit.
+
+## Power Analysis Realtime Overlay And Auto Upload (`2026-06-18`)
+
+- Task: user reported that downloaded Power Analysis videos were not showing realtime per-frame data and only had a general title; also reported that Web/mini-program upload did not visibly begin until clicking start analysis, which made the upload flow misleading.
+- Status: implemented and verified locally at algorithm, Web UI, build, and test levels. Follow-up Web result-disappearing bug was also fixed on 2026-06-18.
+- Changes:
+  - `scripts/power-analysis/analyze_video.py` now keeps per-rep `startFrame`, `endFrame`, and `peakFrame` metadata, draws a visible pose bounding box, and overlays live per-frame rep velocity, estimated power, displacement, and elapsed time during the ascent.
+  - The output video also holds each completed rep's result panel for a short window, showing displacement, ascent time, average power, horsepower, and max velocity in the frame instead of only a top summary.
+  - Web `/toolbox/power-analysis` now starts upload immediately after file selection: create temporary upload task -> PUT file with progress -> show `视频已上传，点击开始分析`; the start button then only enqueues analysis.
+  - WeChat mini-program `me/toolbox/power-analysis/index` now uses the same auto-upload state model: choosing a video creates the temporary job, uploads through the same-domain mini upload route, then leaves `开始分析` for enqueue only.
+  - After a video is uploaded, mode/height/body weight/external load inputs are locked until reset/reselect so the user cannot see changed parameters while the already-created job still contains old metadata.
+- Verification:
+  - Python compile check: passed.
+  - Local analyzer run with `D:\我的健身素材\2026训练\20260614\4985f32ad151e6b1c5e1360692cd5d1a.mp4`: passed, 5 reps detected, output video generated under `screenshots/power-analysis/realtime/`.
+  - Visual frame inspection confirmed `LIVE REP` and `REP RESULT` panels are present in the generated video.
+  - Web Playwright check on temporary `http://localhost:3017/toolbox/power-analysis` with mocked upload APIs: passed; selecting a file automatically uploaded, showed `视频已上传，点击开始分析`, enabled the start button, and produced no console errors. Screenshot: `screenshots/power-analysis/web-auto-upload-3017.png`.
+  - `npm run lint`: passed informational script.
+  - `npm run typecheck`: passed.
+  - `npm test`: passed, 33 files / 163 tests.
+  - `cd wechat_app && npm run build:weapp`: passed.
+  - `npx next build`: first run hit transient Windows `.next/standalone` EBUSY after successful compile/static generation; rerun passed.
+- Cleanup:
+  - Temporary local dev server on `3017` was stopped.
+  - Stale local listeners on `3000`/`3001` were stopped per the user's earlier port cleanup request.
+
+### Web Result Disappearing Follow-up (`2026-06-18`)
+
+- User report: Web upload succeeded and backend analysis completed, but the page did not show the final result; during analysis the UI disappeared/reset back to the initial state.
+- Root cause found in Web state handling:
+  - `pollJob()` treated any polling failure as fatal and called `setPhase("idle")`, so a transient job-status request failure could make the page look like it reset even while the backend job continued or completed.
+  - The page kept the active job only in React memory, so a remount/reload during analysis could lose the job state and return to the initial UI.
+- Fix:
+  - Polling now retries through transient failures, shows at most one warning after repeated failures, and continues polling instead of clearing the page state.
+  - The active Power Analysis job id is persisted in `sessionStorage`; on page mount the Web page fetches that job, restores `uploaded`/`queued`/`processing`/`done` state, and resumes polling when needed.
+  - `canSubmit` no longer depends on a still-present `File` object, so a restored uploaded job can still be submitted for analysis.
+- Verification:
+  - Playwright against stable `next start` on temporary `http://localhost:3017`: mocked upload/enqueue/poll/done flow showed final metrics on the page, then reload restored the done metrics. Screenshots:
+    - `screenshots/power-analysis/web-result-persists-3017.png`
+    - `screenshots/power-analysis/web-result-restored-3017.png`
+  - Console errors: none.
+  - `npm run typecheck`: passed.
+  - `npm test`: passed, 33 files / 163 tests.
+  - `npx next build`: first run hit transient Windows `.next/standalone` EBUSY after successful compile/static generation; rerun passed.
+
+## Streetlifting Calculator History And Fun Ranking (`2026-06-18`)
+
+- Task: implement the previously designed streetlifting strength-calculator history and fun-ranking feature across the mini-program toolbox flow and the Web `/streetlifting-index/calculator` page.
+- Status: implemented in code and verified at build/check level. Web page-level verification passed via Playwright because the dedicated `web-devtools` tool is not exposed in this session; WeChat DevTools automation was attempted but remains blocked by the current local automation bridge state.
+- Product direction now landed:
+  - Calculator results are no longer local-only; every successful save writes a canonical cloud history row.
+  - Ranking is a `趣味榜`, not a strict verified competition leaderboard.
+  - Ranking buckets are split by `exercise_type + gender`.
+  - Only `forward` calculations are ranking-eligible in V1; `reverse_weight` / `reverse_reps` stay out of the fun ranking for now.
+- Backend changes:
+  - Added canonical history table migration `supabase/migrations/20260618_streetlifting_calc_records.sql`.
+  - Added shared server-side recomputation helper `src/lib/streetliftingCalculator.ts` so saved results are recalculated on the server instead of trusting client payloads.
+  - Added history/summary/ranking aggregation helper `src/lib/streetliftingCalcHistory.ts`.
+  - Added authenticated APIs:
+    - `POST /api/streetlifting-index/calculator/save-result`
+    - `GET /api/streetlifting-index/calculator/history`
+    - `GET /api/streetlifting-index/calculator/summary`
+- Mini-program changes:
+  - `wechat_app/src/streetlifting/index/calculator/index.tsx`
+    - Saving a calculation now persists to cloud, caches the returned summary, and exposes a new history/ranking entry.
+  - `wechat_app/src/streetlifting/index/calculator/result/index.tsx`
+    - Result page now shows personal-best, delta-vs-previous, and ranking insight cards, plus a history jump entry.
+  - Added new page `wechat_app/src/streetlifting/index/calculator/history/*`
+    - Shows recent history, best score, latest result, and fun-ranking summary.
+  - Added local 60-day cache helper `wechat_app/src/utils/streetliftingCalcHistoryCache.ts`.
+- Web changes:
+  - `src/app/service/streetliftingIndexService.ts`
+    - Added Web service calls for calculator save-result, history, and summary APIs.
+  - `src/app/streetlifting-index/calculator/page.tsx`
+    - Saving a calculation now writes Web results to the same cloud history table with `sourceSurface: "web"`.
+    - The result card now shows a larger playful level badge such as `国内顶级`.
+    - The result card now shows `当前趣味排名`, `个人历史最佳`, `较上次变化`, and `我的历史记录`.
+    - Fixed Web save payload normalization so empty optional fields are sent as `null` instead of `""`, avoiding database check-constraint failures.
+- Verification:
+  - `npm run lint`: passed informational script.
+  - `npm run typecheck`: passed.
+  - `npm test`: passed, 33 files / 163 tests.
+  - `npx next build`: passed.
+  - Web Playwright verification on temporary `http://localhost:3020/streetlifting-index/calculator`: passed; screenshot `screenshots/streetlifting-calculator-web-fixed-history-ranking.png` confirms the larger `国内顶级` badge, ranking card, and history table are visible after calculation.
+  - `cd wechat_app && npm run build:weapp`: passed.
+  - WeChat DevTools automation:
+    - `mrc` connection attempts on `9420` / `9430` failed.
+    - Local WeChat DevTools CLI was found at `D:\software\微信web开发者工具\cli.bat`.
+    - `cli.bat auto --project D:\files\coachlink\wechat_app --port 59471` succeeded against an already-running IDE HTTP service.
+    - Even after that, `mrc` still could not attach to a usable WebSocket automation endpoint, so page-level screenshot/interaction verification is still blocked on the current machine/session.
+- Deliverables:
+  - Added design doc `docs/work/streetlifting-calculator-history-ranking-design-2026-06-18.md`.
+
+## Impromptu Strength Sync To E1RM Curve (`2026-06-18`)
+
+- Task: investigate why a student's WeChat mini-program `即兴锻炼` records did not show up in `力量进步曲线`, then repair the sync path.
+- Status: fixed in code and verified at build/check level; WeChat DevTools automation could not be run in this session because no local DevTools automation port or CLI installation was available. Also repaired one live historical student dataset on 2026-06-18 so the 2026-06-17 impromptu `负重引体（底部暂停）` `47.5 x 1` record now backfills into `impromptu_executions`, `personal_records_history`, and `student_actions.reference_1rm=47.5`.
+- Root cause:
+  - `src/app/api/impromptu/complete-set/route.ts` only persisted set completion into `impromptu_executions`, but did not run the same automatic e1RM / PR tracking flow used by `src/app/api/execution/complete-set/route.ts`.
+  - `src/app/api/student/get-e1rm-history/route.ts` only scanned `plan_instance_executions` and `personal_records_history`, so impromptu sessions were excluded from the trend curve source.
+- Changes:
+  - Added shared server helper `src/lib/autoE1rmTracking.ts` for automatic e1RM calculation, `student_actions.reference_1rm` bumping, AUTO_STATE maintenance, and PR row upsert.
+  - Wired `src/app/api/impromptu/complete-set/route.ts` into that helper so impromptu strength sets now write `e1rm` / `is_auto_pr` back into the execution JSON and update the same strength-tracking sources as normal plan execution.
+  - Extended `src/app/api/student/get-e1rm-history/route.ts` to aggregate history points from `impromptu_executions` in addition to `plan_instance_executions`.
+- Verification:
+  - `npm run lint`: passed informational script.
+  - `npm run typecheck`: passed.
+  - `npm test`: passed, 33 files / 163 tests.
+  - `npx next build`: passed.
+  - `cd wechat_app; npm run build:weapp`: passed.
+  - Attempted WeChat DevTools automation with `mrc` on ports `9420` and `9430`, but no automation endpoint or local DevTools CLI installation was available.
+
+## WeChat Strength Calculator Result Labels (`2026-06-17`)
+
+- Task: user reported that the mini-program toolbox strength calculator lost the original playful result labels such as `菜就多练` / `大佬`, and that the result text sometimes looked garbled.
+- Status: fixed in code and verified at build/check level; WeChat DevTools automation could not be run in this session because no local DevTools automation port or CLI installation was available.
+- Root cause:
+  - `wechat_app/src/utils/streetliftingCalc.ts` had drifted to English score labels (`World Class`, `Advanced`, `Beginner`, etc.), so the mini-program result page no longer had the original Chinese grade copy.
+  - The same helper also still contained English runtime error messages, which increased the chance of mixed-language/strange text on the mini-program side.
+- Changes:
+  - Restored Chinese result labels in `wechat_app/src/utils/streetliftingCalc.ts`:
+    - `菜就多练`
+    - `爱好者` / `爱好者水平`
+    - `大佬`
+    - `国内一线` / `国内顶级`
+    - `世界一线` / `世界级`
+  - Localized related calculator error messages in the same helper to Chinese for mini-program consistency.
+- Verification:
+  - `npm run lint`: passed informational script.
+  - `npm run typecheck`: passed.
+  - `npm test`: passed, 33 files / 163 tests.
+  - `cd wechat_app; npm run build:weapp`: passed.
+  - `npx next build`: passed.
+  - Attempted WeChat DevTools automation with `mrc`, but `ws://localhost:9430` was unavailable and no local WeChat DevTools CLI path was found on this machine.
+
+## WeChat Mini-Program Release Automation (`2026-06-16`)
+
+- Task: automate WeChat mini-program release operations so the agent can upload experience builds, submit audit, poll audit status, and publish official releases by command without manual DevTools clicking.
+- Status: implemented at script/documentation level; real upload/audit/publish not executed because private WeChat upload key, AppSecret, and real audit category config are not present in the workspace.
+- Changes:
+  - Added `wechat_app/scripts/weapp-release.js`.
+  - Added `miniprogram-ci` to `wechat_app` dev dependencies.
+  - Added root commands:
+    - `npm run weapp:release:upload`
+    - `npm run weapp:release:auto`
+    - `npm run weapp:release:full`
+    - `npm run weapp:release:audit`
+    - `npm run weapp:release:status`
+    - `npm run weapp:release:wait-audit`
+    - `npm run weapp:release:publish`
+    - `npm run weapp:release:categories`
+    - `npm run weapp:release:pages`
+  - Added `wechat_app/.env.weapp-release.example`, `wechat_app/release.weapp.example.json`, and `wechat_app/docs/小程序自动发布.md`.
+  - Updated `wechat_app/.gitignore` to keep `.env.weapp-release.local`, `release.weapp.json`, and private key files out of Git.
+- Behavior:
+  - Upload uses `miniprogram-ci` and `dist-release/`.
+  - During upload, the script temporarily sets `project.private.config.json` `miniprogramRoot/srcMiniprogramRoot` to `dist-release/`, then restores it.
+  - Audit/release uses WeChat server APIs with `WEAPP_APP_SECRET`.
+  - `release:auto` uploads/submits/waits but does not publish unless `WEAPP_AUTO_RELEASE=1` is set.
+  - `release:full` uploads/submits/waits and publishes after audit passes.
+- Verification:
+  - `node --check scripts/weapp-release.js`: passed.
+  - JSON parse check for `wechat_app/package.json` and `release.weapp.example.json`: passed.
+  - `node scripts/weapp-release.js help`: passed.
+  - `npm run lint`: passed informational script.
+  - `npm run typecheck`: passed.
+  - `npm test`: passed, 33 files / 163 tests.
+  - `cd wechat_app; npm run build:weapp:release`: passed.
+  - `npx next build`: first run hit known Windows `.next/standalone` EBUSY after compile/static generation; rerun passed.
+- Setup needed before first real release:
+  - Download WeChat mini-program upload private key.
+  - Create `wechat_app/.env.weapp-release.local` from the example and fill `WEAPP_UPLOAD_PRIVATE_KEY_PATH` and `WEAPP_APP_SECRET`.
+  - Run `npm run weapp:release:categories` / `npm run weapp:release:pages`, then create `wechat_app/release.weapp.json` with real audit category ids.
+
+## Power Analysis Local E2E Fixes (`2026-06-16`, latest)
+
+- Task: independently test the Power Analysis toolbox with user-provided videos from:
+  - `D:\我的健身素材\2026训练\20260614`
+  - `D:\我的健身素材\20250805双力臂训练`
+- Status: implemented and locally verified on Web/API/worker plus mini-program upload API path.
+- Key fixes:
+  - Daily quota now counts only `queued`, `processing`, and `done` jobs from the last 24h, excluding abandoned `awaiting_upload`, `failed`, and `expired` rows.
+  - Download is now served through authenticated same-domain route `GET /api/toolbox/power-analysis/jobs/[id]/download`; `download-url` returns that same-domain URL as the primary URL. Supabase signed download URL returned 404 in local E2E and should not be the primary download path.
+  - Added `externalLoadKg` to Web and WeChat Power Analysis forms, API DTO, job metadata, worker invocation, and Python metrics so weighted pull-ups use `bodyWeightKg + externalLoadKg`.
+  - Python analyzer filters obvious partial startup detections for muscle-up videos; this corrected the 9-rep sample that was previously counted as 10 because the initial small upward movement was counted as a rep.
+  - Added safer local testing controls:
+    - `COACHLINK_DISABLE_LOCAL_POWER_WORKER=1` disables auto-started local memory worker in `npm run dev`.
+    - `POWER_ANALYSIS_SKIP_QUEUE_PUBLISH=1` in development lets enqueue mark the DB job queued without publishing to the configured queue.
+    - `scripts/power-analysis-worker.mjs --job-id <id>` processes only one explicit job.
+- Verified samples:
+  - Web signed upload path, `4985f32ad151e6b1c5e1360692cd5d1a.mp4`: 5 pull-ups, output download succeeded.
+  - Web signed upload path, `aca2074f6d5f1394ce51211def72178b.mp4`: 1 pull-up with `externalLoadKg=60`, effective mass 130kg, output download succeeded.
+  - Web signed upload path, `d31388deeca8c9106167608a2a0a4740_raw.mp4`: 9 muscle-ups after partial-start filtering, output download succeeded.
+  - Mini-program multipart upload API path, `4985f32ad151e6b1c5e1360692cd5d1a.mp4`: 5 pull-ups, output download succeeded.
+- Verification:
+  - Power Analysis API/worker E2E used local `http://localhost:3015` with `POWER_ANALYSIS_SKIP_QUEUE_PUBLISH=1`, then cleaned seeded E2E user/job rows and transient storage files.
+  - Download artifacts saved under `screenshots/power-analysis/e2e-downloads/`.
+  - Web Playwright verification on `http://localhost:3015/toolbox/power-analysis`: extra-load input accepted `60`, selected the weighted pull-up video, start button enabled, no console errors; screenshot `screenshots/power-analysis/web-extra-load-form-3015.png`.
+  - WeChat DevTools/MRC port `9430`: navigated to `me/toolbox/power-analysis/index` via `wx.navigateTo`, `.load-input`, `.height-input`, `.select-video-btn`, and `.save-video-btn` existed; typing `60` into `.load-input` succeeded; errors/warnings were empty.
+  - `mrc screenshot` still timed out in the current DevTools session.
+  - Passed `npm run lint`, `npm run typecheck`, `npm test`, `cd wechat_app; npm run build:weapp`, and `npx next build`.
+- Local cleanup:
+  - Temporary dev server on port `3015` was stopped.
+  - Port `3000` had a listener afterward, but it was not started by this run and was left untouched because the user said they would start their own server.
+
 ## Power Analysis Architecture Explanation (`2026-06-16`)
 
 - Task: explain how the toolbox power-analysis feature works, including Python analysis, queue/worker design, and Docker image push to Tencent CCR.
@@ -89,6 +304,19 @@
   - `npx next build`: passed.
   - Browser verification was not run because this session does not expose the required `web-devtools` capability and production login/session data is needed to reproduce the exact coach video list.
 
+## Pull Latest Code (`2026-06-16`, latest)
+
+- Task: pull current latest remote code into the local workspace.
+- Status: completed locally.
+- Starting branch: `main`.
+- Result:
+  - `git fetch --all --prune` completed for `origin` and `gitee`.
+  - Local `main` fast-forwarded from `a2e4f8f4` to `82d46467`.
+  - Remote `origin/main` includes `origin/dev` commit `13a4bad4 feat: 修复视频分析白屏问题` through merge commit `82d46467`.
+  - Local `dev` was updated to track `origin/dev` at `13a4bad4`.
+- Verification:
+  - No tests or builds were run; this was a git sync-only task.
+
 ## Push Current Code To Main And Dev (`2026-06-16`)
 
 - Task: commit current local code and push so remote `main` and `dev` are consistent.
@@ -128,6 +356,29 @@
   - Power Analysis poll worker log: `logs/power-analysis-poll-worker.log`.
 - Next user action:
   - Open `http://localhost:3000/toolbox/power-analysis`, log in if needed, and submit a new analysis job. The old failed job will remain failed; a new submit is required after the worker/env fix.
+
+## WeChat Home Share Alignment With FoodLink (`2026-06-16`)
+
+- Task: compare FoodLink's mini-program share/copy-link behavior with CoachLink and make CoachLink's screenshot home page shareable the same way.
+- Status: implemented and partially verified.
+- Finding:
+  - FoodLink's `apps/wechat/src/pages/index/index.tsx` uses `useShareAppMessage`, `useShareTimeline`, and `Taro.showShareMenu({ withShareTicket: true, menus: ['shareAppMessage', 'shareTimeline'] })`.
+  - FoodLink's `apps/wechat/src/pages/index/index.config.ts` sets `enableShareAppMessage: true` and `enableShareTimeline: true`.
+  - FoodLink does not implement `onCopyUrl` / `offCopyUrl`; its visible `#小程序://食探/...` copy-link behavior is therefore from WeChat's platform/system share menu once normal sharing is enabled for that AppID/page.
+  - CoachLink already had this pattern on some pages, but not on the screenshot home page `wechat_app/src/pages/index/index`.
+- Fix:
+  - Added home-page `useShareAppMessage`, `useShareTimeline`, `openCoachLinkShareMenu()`, and share payload path `/pages/index/index`.
+  - Added `enableShareAppMessage` and `enableShareTimeline` to `wechat_app/src/pages/index/index.config.ts`.
+- Verification:
+  - `npm run lint`: passed informational lint script.
+  - `npm run typecheck`: passed.
+  - `npm test`: passed, 33 files / 163 tests.
+  - `cd wechat_app; npm run build:weapp`: passed.
+  - `npx next build`: passed.
+  - Compiled `wechat_app/dist/pages/index/index.js` contains `openCoachLinkShareMenu`, `useShareAppMessage`, `useShareTimeline`, and `enableShareAppMessage/enableShareTimeline`.
+  - WeChat DevTools/MRC port 9430 connected and page stack reported `pages/index/index`; error/warn logs were empty.
+- Verification limitation:
+  - MRC screenshot rendered blank and selector enumeration returned 0 elements in the existing DevTools session, so visual share-menu verification still needs a real-device/manual check. The share-menu `复制链接` item is a host WeChat UI action and is not directly inspectable by MRC.
 
 ## WeChat Mini-Program Copy Link Diagnosis (`2026-06-16`)
 

@@ -5,3 +5,7 @@ deploy_versions/
 node_modules/
 .DS_Store
 .swc
+.env.weapp-release.local
+release.weapp.json
+private.*.key
+*.private.key

@@ -3,6 +3,7 @@
  */
 import Taro from '@tarojs/taro'
 import { BaseService } from '@/utils/request'
+import type { CalcMode, ExerciseType, Gender } from '@/utils/streetliftingCalc'
 
 // @ts-ignore
 const API_BASE = typeof TARO_APP_API_URL !== 'undefined' ? TARO_APP_API_URL : 'http://localhost:3000'
@@ -105,6 +106,92 @@ export interface StreetliftingSubmission {
   video_url: string | null
   pullup_type: 'Overhand' | 'Underhand' | null
   exercise_type: 'weighted_pullup' | 'weighted_dips'
+}
+
+export interface StreetliftingCalcRecord {
+  id: string
+  sourceSurface: 'web' | 'weapp'
+  exerciseType: ExerciseType
+  calcMode: CalcMode
+  gender: Gender
+  bodyweightKg: number
+  reps: number | null
+  sets: number | null
+  restCat: string | null
+  formQuality: string | null
+  penaltyWeightKg: number | null
+  addedWeightKg: number | null
+  added1RMKg: number | null
+  workingAddedWeightKg: number | null
+  liftWeightKg: number | null
+  target1RMKg: number | null
+  workingLiftWeightKg: number | null
+  estimated1RMKg: number
+  finalScore: number
+  coefficient: number
+  adjustedUsedWeightKg: number | null
+  computedAddedWeightKg: number | null
+  computedReps: number | null
+  resultLevel: string | null
+  isRankingEligible: boolean
+  verifiedLevel: string
+  createdAt: string
+}
+
+export interface StreetliftingCalcRankingSummary {
+  eligible: boolean
+  bucketTitle: string
+  rank: number | null
+  percentile: number | null
+  totalParticipants: number
+  userBestScore: number | null
+  userBestRecordId: string | null
+  notice?: string
+}
+
+export interface StreetliftingCalcSummary {
+  latestRecord: StreetliftingCalcRecord | null
+  previousRecord: StreetliftingCalcRecord | null
+  personalBestRecord: StreetliftingCalcRecord | null
+  deltaScore: number | null
+  delta1RMKg: number | null
+  ranking: StreetliftingCalcRankingSummary
+}
+
+export interface SaveStreetliftingCalcResultDto {
+  sourceSurface: 'web' | 'weapp'
+  exerciseType: ExerciseType
+  mode: CalcMode
+  gender: Gender
+  bodyweight: number
+  addedWeight?: number | null
+  added1RM?: number | null
+  workingAddedWeight?: number | null
+  liftWeight?: number | null
+  target1RM?: number | null
+  workingLiftWeight?: number | null
+  reps?: number | null
+  sets?: number | null
+  restCat?: 'short' | 'moderate' | 'long' | 'very_long' | null
+  dayFirstType?: 'RIR' | 'Achieved' | null
+  dayFirstValue?: number | null
+  dayLastType?: 'RIR' | 'Achieved' | null
+  dayLastValue?: number | null
+  formQuality: 'Competition' | 'Minor_Cheat' | 'Major_Cheat' | 'Extreme_Cheat'
+  penaltyWeight?: number | null
+}
+
+export interface SaveStreetliftingCalcResultRes {
+  record: StreetliftingCalcRecord
+  summary: StreetliftingCalcSummary
+}
+
+export interface StreetliftingCalcHistoryRes {
+  records: StreetliftingCalcRecord[]
+  total: number
+  page: number
+  limit: number
+  summary: StreetliftingCalcSummary | null
 }
 
 class StreetliftingIndexService extends BaseService {
@@ -267,6 +354,31 @@ class StreetliftingIndexService extends BaseService {
     }>('submissions/check-existing', {})
     if (res.success && res.data) return res.data
     return null
+  }
+
+  async saveCalculatorResult(dto: SaveStreetliftingCalcResultDto) {
+    const res = await this.post<SaveStreetliftingCalcResultRes>('calculator/save-result', dto)
+    if (res.success && res.data) return res.data
+    throw new Error((res as any)?.message || '保存力量计算结果失败')
+  }
+
+  async getCalculatorHistory(params?: {
+    exerciseType?: ExerciseType | null
+    page?: number
+    limit?: number
+  }) {
+    const res = await this.post<StreetliftingCalcHistoryRes>('calculator/history', params || {})
+    if (res.success && res.data) return res.data
+    throw new Error((res as any)?.message || '加载力量计算历史失败')
+  }
+
+  async getCalculatorSummary(params?: {
+    recordId?: string | null
+    exerciseType?: ExerciseType | null
+  }) {
+    const res = await this.post<{ summary: StreetliftingCalcSummary | null }>('calculator/summary', params || {})
+    if (res.success && res.data) return res.data
+    throw new Error((res as any)?.message || '加载力量计算摘要失败')
   }
 }
 

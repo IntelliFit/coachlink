@@ -12,10 +12,19 @@ import {
   getScoreLevel,
   generateRMTable
 } from '@/utils/streetliftingCalc'
+import {
+  streetliftingIndexService,
+  type StreetliftingCalcRecord,
+  type StreetliftingCalcSummary
+} from '@/services/streetliftingIndexService'
 import { useSharePoster } from '@/hooks/useSharePoster'
 import { SharePosterModal } from '@/components/SharePosterModal'
 import { authService } from '@/services/authService'
 import { studentService } from '@/services/studentService'
+import {
+  persistStreetliftingCalcSummaryCache,
+  readStreetliftingCalcSummaryCache
+} from '@/utils/streetliftingCalcHistoryCache'
 import { drawStrengthPoster, type StrengthPosterData } from '../poster'
 import './index.scss'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
@@ -54,6 +63,8 @@ interface ResultData {
   bodyweight: string
   reps: string
   workingWeight?: number | null
+  summary?: StreetliftingCalcSummary | null
+  record?: StreetliftingCalcRecord | null
 }
 
 const STORAGE_KEY = 'sl_calc_result'
@@ -64,12 +75,15 @@ export default function CalculatorResultPage() {
   const [data, setData] = useState<ResultData | null>(null)
   const [loading, setLoading] = useState(true)
   const [showShareModal, setShowShareModal] = useState(false)
+  const [summary, setSummary] = useState<StreetliftingCalcSummary | null>(null)
 
   useEffect(() => {
     try {
       const raw = Taro.getStorageSync(STORAGE_KEY)
       if (raw) {
-        setData(JSON.parse(raw))
+        const parsed = JSON.parse(raw) as ResultData
+        setData(parsed)
+        setSummary(parsed.summary || null)
       }
     } catch (e) {
       console.error('[calculator-result] load data error:', e)
@@ -77,6 +91,36 @@ export default function CalculatorResultPage() {
       setLoading(false)
     }
   }, [router])
+
+  useEffect(() => {
+    if (!data?.exerciseType) return
+
+    const cachedSummary = readStreetliftingCalcSummaryCache(data.exerciseType)
+    if (!summary && cachedSummary) {
+      setSummary(cachedSummary)
+    }
+
+    let cancelled = false
+    const run = async () => {
+      try {
+        const res = await streetliftingIndexService.getCalculatorSummary({
+          recordId: data.record?.id || null,
+          exerciseType: data.exerciseType
+        })
+        if (!cancelled && res.summary) {
+          setSummary(res.summary)
+          persistStreetliftingCalcSummaryCache(data.exerciseType, res.summary)
+        }
+      } catch (e) {
+        console.error('[calculator-result] load summary error:', e)
+      }
+    }
+
+    run()
+    return () => {
+      cancelled = true
+    }
+  }, [data?.exerciseType, data?.record?.id])
 
   const result = data?.result
   const exerciseType = data?.exerciseType || 'weighted_pullup'
@@ -257,6 +301,10 @@ export default function CalculatorResultPage() {
     Taro.navigateBack()
   }
 
+  const handleViewHistory = () => {
+    Taro.navigateTo({ url: `/streetlifting/index/calculator/history?exerciseType=${exerciseType}` })
+  }
+
   if (loading) {
     return (
       <View className={`calc-result-page theme-${effectiveTheme}`}>
@@ -334,6 +382,67 @@ export default function CalculatorResultPage() {
               <Text className='result-metric-value brand'>{result.final_score.toFixed(scoreDecimals)}</Text>
             </View>
           </View>
+
+          {summary?.personalBestRecord || summary?.previousRecord || summary?.ranking ? (
+            <View className='result-insight-section'>
+              <Text className='result-section-title'>历史反馈</Text>
+
+              <View className='result-insight-grid'>
+                <View className='result-insight-card'>
+                  <Text className='result-insight-label'>历史最佳</Text>
+                  <Text className='result-insight-value'>
+                    {summary?.personalBestRecord
+                      ? summary.personalBestRecord.finalScore.toFixed(scoreDecimals)
+                      : '--'}
+                  </Text>
+                  <Text className='result-insight-desc'>
+                    {summary?.personalBestRecord
+                      ? `${summary.personalBestRecord.estimated1RMKg.toFixed(1)} kg 估算 1RM`
+                      : '还没有历史最佳'}
+                  </Text>
+                </View>
+
+                <View className='result-insight-card'>
+                  <Text className='result-insight-label'>较上次变化</Text>
+                  <Text className='result-insight-value'>
+                    {summary?.deltaScore === null
+                      ? '--'
+                      : `${summary.deltaScore > 0 ? '+' : ''}${summary.deltaScore.toFixed(scoreDecimals)}`}
+                  </Text>
+                  <Text className='result-insight-desc'>
+                    {summary?.delta1RMKg === null
+                      ? '这是当前动作的首条记录'
+                      : `1RM ${summary.delta1RMKg > 0 ? '+' : ''}${summary.delta1RMKg.toFixed(1)} kg`}
+                  </Text>
+                </View>
+              </View>
+
+              <View className='result-ranking-card'>
+                <Text className='result-ranking-title'>当前动作趣味排名</Text>
+                <Text className='result-ranking-bucket'>{summary?.ranking.bucketTitle || '趣味榜'}</Text>
+                {summary?.ranking.eligible ? (
+                  <>
+                    <Text className='result-ranking-value'>
+                      {summary.ranking.rank ? `第 ${summary.ranking.rank} 名` : '--'}
+                    </Text>
+                    <Text className='result-ranking-desc'>
+                      {summary.ranking.percentile !== null
+                        ? `超过 ${summary.ranking.percentile}% 的同动作用户 · 共 ${summary.ranking.totalParticipants} 人`
+                        : `共 ${summary.ranking.totalParticipants} 人`}
+                    </Text>
+                  </>
+                ) : (
+                  <Text className='result-ranking-desc'>
+                    {summary?.ranking.notice || '当前模式暂不参与趣味排名'}
+                  </Text>
+                )}
+              </View>
+
+              <View className='result-history-link' onClick={handleViewHistory}>
+                <Text className='result-history-link-text'>查看我的历史</Text>
+              </View>
+            </View>
+          ) : null}
 
           <View className='rm-table-wrap'>
             <Text className='rm-table-title'>RM 对照表</Text>
