@@ -1,0 +1,143 @@
+.calc-history-page {
+  min-height: 100vh;
+  background: linear-gradient(180deg, #E8E8E8 0%, #F8F8F8 100%);
+}
+
+.calc-history-scroll {
+  height: 100vh;
+}
+
+.calc-history-content {
+  padding: 24rpx 24rpx 40rpx;
+}
+
+.calc-history-loading,
+.calc-history-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 40rpx;
+
+  Text {
+    font-size: 28rpx;
+    color: #6B7280;
+  }
+}
+
+.calc-history-filter-card,
+.calc-history-summary-card,
+.calc-history-ranking-card,
+.calc-history-record-card {
+  background: #FFFFFF;
+  border-radius: 24rpx;
+  box-shadow: 0 4rpx 24rpx rgba(0, 0, 0, 0.04);
+}
+
+.calc-history-filter-card {
+  margin-bottom: 24rpx;
+  padding: 24rpx;
+}
+
+.calc-history-filter-label {
+  display: block;
+  margin-bottom: 8rpx;
+  font-size: 24rpx;
+  color: #6B7280;
+}
+
+.calc-history-picker {
+  height: 80rpx;
+  line-height: 80rpx;
+  padding: 0 24rpx;
+  background: #F8F8F8;
+  border-radius: 16rpx;
+  font-size: 28rpx;
+  color: #111827;
+}
+
+.calc-history-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16rpx;
+  margin-bottom: 16rpx;
+}
+
+.calc-history-summary-card {
+  padding: 24rpx;
+}
+
+.calc-history-summary-label,
+.calc-history-ranking-title {
+  display: block;
+  margin-bottom: 8rpx;
+  font-size: 22rpx;
+  color: #9CA3AF;
+}
+
+.calc-history-summary-value,
+.calc-history-ranking-value,
+.calc-history-record-score {
+  display: block;
+  margin-bottom: 8rpx;
+  font-size: 36rpx;
+  font-weight: 700;
+  color: #111827;
+}
+
+.calc-history-summary-desc,
+.calc-history-ranking-desc,
+.calc-history-ranking-bucket,
+.calc-history-record-meta,
+.calc-history-record-date {
+  display: block;
+  font-size: 22rpx;
+  line-height: 1.6;
+  color: #6B7280;
+}
+
+.calc-history-ranking-card {
+  margin-bottom: 24rpx;
+  padding: 24rpx;
+}
+
+.calc-history-ranking-bucket {
+  margin-bottom: 16rpx;
+  color: #CF6D4E;
+}
+
+.calc-history-section-title {
+  display: block;
+  margin-bottom: 16rpx;
+  font-size: 28rpx;
+  font-weight: 700;
+  color: #010101;
+}
+
+.calc-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+}
+
+.calc-history-record-card {
+  padding: 24rpx;
+}
+
+.calc-history-record-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
+  margin-bottom: 8rpx;
+}
+
+.calc-history-record-level {
+  font-size: 22rpx;
+  color: #CF6D4E;
+}
+
+.calc-history-record-date {
+  margin-top: 8rpx;
+}

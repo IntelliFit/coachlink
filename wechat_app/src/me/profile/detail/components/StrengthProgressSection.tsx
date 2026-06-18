@@ -112,6 +112,23 @@ const StrengthProgressSection: React.FC<StrengthProgressSectionProps> = ({ user 
     return records.find((item) => item.key === selectedRecordKey) || records[0]
   }, [records, selectedRecordKey])
 
+  const historySummary = useMemo(() => {
+    if (!history.length) {
+      return {
+        current1RM: selectedRecord?.current1RM || 0,
+        lastUpdated: selectedRecord?.lastUpdated
+      }
+    }
+
+    const peak = history.reduce((max, item) => Math.max(max, Number(item.e1rm) || 0), 0)
+    const latestPoint = history[history.length - 1]
+
+    return {
+      current1RM: Math.max(selectedRecord?.current1RM || 0, peak),
+      lastUpdated: latestPoint?.date || selectedRecord?.lastUpdated
+    }
+  }, [history, selectedRecord?.current1RM, selectedRecord?.lastUpdated])
+
   useEffect(() => {
     if (!selectedRecord) {
       setHistory([])
@@ -343,11 +360,11 @@ const StrengthProgressSection: React.FC<StrengthProgressSectionProps> = ({ user 
               <View className='summary-row'>
                 <View className='summary-item'>
                   <Text className='summary-label'>当前 E1RM</Text>
-                  <Text className='summary-value'>{(selectedRecord?.current1RM || 0).toFixed(1)}kg</Text>
+                  <Text className='summary-value'>{historySummary.current1RM.toFixed(1)}kg</Text>
                 </View>
                 <View className='summary-item align-right'>
                   <Text className='summary-label'>最近更新</Text>
-                  <Text className='summary-value date'>{formatDate(selectedRecord?.lastUpdated)}</Text>
+                  <Text className='summary-value date'>{formatDate(historySummary.lastUpdated)}</Text>
                 </View>
               </View>
 

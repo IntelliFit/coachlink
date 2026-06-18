@@ -1,9 +1,15 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { View, Text } from '@tarojs/components'
-import Taro, { useDidShow } from '@tarojs/taro'
+import Taro, { useDidShow, useShareAppMessage, useShareTimeline } from '@tarojs/taro'
 import BottomNav from '@/components/BottomNav'
 import { authService } from '@/services/authService'
 import { Power, Search, Setting, Book, ShieldCheck, Target, ArrowUp } from '@nutui/icons-react-taro'
+import {
+  buildSharePath,
+  createSharePayload,
+  createTimelinePayload,
+  openCoachLinkShareMenu
+} from '@/utils/share'
 import './index.scss'
 import { useTheme } from '@/hooks/useTheme'
 
@@ -24,6 +30,7 @@ function Index() {
 
   useEffect(() => {
     checkAuth()
+    openCoachLinkShareMenu()
   }, [])
 
   const greeting = useMemo(() => {
@@ -41,6 +48,18 @@ function Index() {
     const weekday = weekdays[now.getDay()]
     return `${month}月${date}日 · ${weekday}`
   }, [])
+
+  const sharePayload = useMemo(
+    () =>
+      createSharePayload({
+        title: 'CoachLink 教链：训练、教练与工具都在这里',
+        path: buildSharePath('/pages/index/index')
+      }),
+    []
+  )
+
+  useShareAppMessage(() => sharePayload)
+  useShareTimeline(() => createTimelinePayload(sharePayload))
 
   const tryNavigate = async (url: string) => {
     try {

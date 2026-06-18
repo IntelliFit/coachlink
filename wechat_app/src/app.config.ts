@@ -163,6 +163,7 @@ export default {
       pages: [
         'index',
         'index/calculator',
+        'index/calculator/history',
         'index/calculator/result',
         'index/data',
         'index/location-share',

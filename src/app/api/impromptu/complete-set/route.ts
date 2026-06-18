@@ -6,6 +6,7 @@ import type {
     CompleteImpromptuSetDto,
     CompleteImpromptuSetResponseDto,
 } from "./entity";
+import { handleAutoE1RMCheck } from "@/lib/autoE1rmTracking";
 
 export async function POST(req: Request) {
     try {
@@ -72,6 +73,34 @@ export async function POST(req: Request) {
             }, { status: 400 });
         }
 
+        const currentAction = actions[actionIndex];
+        const currentSet = Array.isArray(currentAction?.sets)
+            ? currentAction.sets[setIndex]
+            : null;
+        const actionName = String(
+            currentAction?.action_name || currentAction?.name || `动作${actionIndex + 1}`,
+        ).trim() || `动作${actionIndex + 1}`;
+        const actionId = String(currentAction?.action_id || "").trim() || null;
+
+        let autoE1RMResult:
+            | { isPR: boolean; e1rm: number; previousPR?: number }
+            | null = null;
+        if (
+            actualWeight !== null && actualWeight !== undefined &&
+            actualReps !== null && actualReps !== undefined
+        ) {
+            autoE1RMResult = await handleAutoE1RMCheck({
+                userId,
+                actionId,
+                actionName,
+                weight: Number(actualWeight),
+                reps: Number(actualReps),
+                executionId,
+                setNumber: setIndex + 1,
+                sourceType: "impromptu_execution",
+            });
+        }
+
         const nowIso = new Date().toISOString();
         const nextActions = actions.map((action: any, idx: number) => {
             if (idx !== actionIndex) return action;
@@ -85,6 +114,10 @@ export async function POST(req: Request) {
                     actual_reps: actualReps ?? set?.actual_reps ?? null,
                     notes: notes ?? set?.notes ?? null,
                     completed_at: nowIso,
+                    e1rm: autoE1RMResult?.e1rm ?? set?.e1rm ?? null,
+                    is_auto_pr: autoE1RMResult?.isPR || false,
+                    planned_weight: set?.planned_weight ?? currentSet?.planned_weight ?? null,
+                    planned_reps: set?.planned_reps ?? currentSet?.planned_reps ?? null,
                 };
             });
             return {
@@ -135,6 +168,13 @@ export async function POST(req: Request) {
                 totalSets: updated.total_sets,
                 status: updated.status,
                 action_executions: updated.action_executions,
+                autoE1RM: autoE1RMResult
+                    ? {
+                        e1rm: autoE1RMResult.e1rm,
+                        isPR: autoE1RMResult.isPR,
+                        previousPR: autoE1RMResult.previousPR,
+                    }
+                    : undefined,
             },
         });
     } catch (error) {

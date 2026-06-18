@@ -22,9 +22,15 @@ import {
   STRICT_PRESS_MULTIPLIER,
   BARBELL_CURL_MULTIPLIER
 } from '@/utils/streetliftingCalc'
-import { streetliftingIndexService, type StreetliftingFormula } from '@/services/streetliftingIndexService'
+import {
+  streetliftingIndexService,
+  type StreetliftingFormula,
+  type StreetliftingCalcRecord,
+  type StreetliftingCalcSummary
+} from '@/services/streetliftingIndexService'
 import { studentService } from '@/services/studentService'
 import { authService } from '@/services/authService'
+import { persistStreetliftingCalcSummaryCache } from '@/utils/streetliftingCalcHistoryCache'
 import './index.scss'
 import { useTheme } from '@/hooks/useTheme'
 
@@ -104,6 +110,18 @@ type CalcSnapshot = {
   timestamp: number
   draft: CalcDraft
   result: CalcResult
+}
+
+type SavedCalcResultPayload = {
+  result: CalcResult
+  exerciseType: ExerciseType
+  mode: CalcMode
+  gender: string
+  bodyweight: string
+  reps: string
+  workingWeight?: number | null
+  summary?: StreetliftingCalcSummary | null
+  record?: StreetliftingCalcRecord | null
 }
 
 const STORAGE_KEY = 'sl_calc_form_data'
@@ -424,10 +442,14 @@ export default function StreetliftingCalculator() {
     return `上次 ${fmt(previous)}`
   }
 
-  const handleCalculate = () => {
+  const openHistoryPage = useCallback(() => {
+    Taro.navigateTo({ url: `/streetlifting/index/calculator/history?exerciseType=${exerciseType}` })
+  }, [exerciseType])
+
+  const handleCalculate = async () => {
     setSubmitting(true)
 
-    const finish = (result: CalcResult) => {
+    const finish = async (result: CalcResult) => {
       let workingWeightForPoster: number | null = null
       if (mode === 'forward') {
         workingWeightForPoster = isUpperBodyExercise(exerciseType) ? Number(addedWeight) : Number(liftWeight)
@@ -442,16 +464,54 @@ export default function StreetliftingCalculator() {
           : null
       }
 
+      let savedSummary: StreetliftingCalcSummary | null = null
+      let savedRecord: StreetliftingCalcRecord | null = null
+
       try {
-        Taro.setStorageSync(RESULT_KEY, JSON.stringify({
+        const saveRes = await streetliftingIndexService.saveCalculatorResult({
+          sourceSurface: 'weapp',
+          exerciseType,
+          mode,
+          gender: gender as Gender,
+          bodyweight: Number(bodyweight),
+          addedWeight: addedWeight ? Number(addedWeight) : null,
+          added1RM: added1RM ? Number(added1RM) : null,
+          workingAddedWeight: workingAddedWeight ? Number(workingAddedWeight) : null,
+          liftWeight: liftWeight ? Number(liftWeight) : null,
+          target1RM: target1RM ? Number(target1RM) : null,
+          workingLiftWeight: workingLiftWeight ? Number(workingLiftWeight) : null,
+          reps: reps ? Number(reps) : null,
+          sets: sets ? Number(sets) : null,
+          restCat: restCat || null,
+          dayFirstType: dayFirstType || null,
+          dayFirstValue: dayFirstValue ? Number(dayFirstValue) : null,
+          dayLastType: dayLastType || null,
+          dayLastValue: dayLastValue ? Number(dayLastValue) : null,
+          formQuality: formQuality as 'Competition' | 'Minor_Cheat' | 'Major_Cheat' | 'Extreme_Cheat',
+          penaltyWeight
+        })
+        savedSummary = saveRes.summary
+        savedRecord = saveRes.record
+        if (savedSummary) {
+          persistStreetliftingCalcSummaryCache(exerciseType, savedSummary)
+        }
+      } catch (e) {
+        console.error('[calculator] save cloud history error:', e)
+      }
+
+      try {
+        const payload: SavedCalcResultPayload = {
           result,
           exerciseType,
           mode,
           gender,
           bodyweight,
           reps,
-          workingWeight: workingWeightForPoster
-        }))
+          workingWeight: workingWeightForPoster,
+          summary: savedSummary,
+          record: savedRecord
+        }
+        Taro.setStorageSync(RESULT_KEY, JSON.stringify(payload))
       } catch (e) {
         console.error('[calculator] save result error:', e)
       }
@@ -487,7 +547,7 @@ export default function StreetliftingCalculator() {
           const adjusted = workingWeight - penalty
           if (adjusted <= 0) throw new Error('惩罚重量过高，调整后的重量必须大于 0')
           const estimated1RM = estimateTotal1RMFromTotalWeightAndReps(adjusted, repCount)
-          finish({
+          await finish({
             estimated_1rm: estimated1RM,
             final_score: estimated1RM * coeff,
             coefficient: coeff,
@@ -502,7 +562,7 @@ export default function StreetliftingCalculator() {
           if (!Number.isFinite(existing1RM) || existing1RM <= 0) throw new Error('请填写有效的现有 1RM')
           if (!Number.isFinite(repCount) || repCount <= 0) throw new Error('请填写有效的完成次数')
           const computedWeight = invertTotalWeightForTarget1RM(existing1RM, repCount)
-          finish({
+          await finish({
             estimated_1rm: existing1RM,
             final_score: existing1RM * coeff,
             coefficient: coeff,
@@ -518,7 +578,7 @@ export default function StreetliftingCalculator() {
           if (!Number.isFinite(workingWeight) || workingWeight <= 0) throw new Error('请填写有效的做组重量')
           if (workingWeight >= existing1RM) throw new Error('做组重量必须小于 1RM')
           const estimatedReps = estimateRepsFromTotalWeightAndTarget1RM(existing1RM, workingWeight)
-          finish({
+          await finish({
             estimated_1rm: existing1RM,
             final_score: existing1RM * coeff,
             coefficient: coeff,
@@ -611,12 +671,12 @@ export default function StreetliftingCalculator() {
         const added1RMValue = total1RM - bw
         const rawScore = total1RM * coefficient
         const finalScore = exerciseType === 'weighted_dips' ? rawScore / 1.3 : rawScore
-        finish({
-          estimated_1rm: added1RMValue,
-          final_score: finalScore,
-          coefficient,
-          adjusted_used_weight: adjustedAdded
-        })
+          await finish({
+            estimated_1rm: added1RMValue,
+            final_score: finalScore,
+            coefficient,
+            adjusted_used_weight: adjustedAdded
+          })
         return
       }
 
@@ -631,12 +691,12 @@ export default function StreetliftingCalculator() {
         const computedAdded = adjustedAdded + penalty
         const rawScore = targetTotal1RM * coefficient
         const finalScore = exerciseType === 'weighted_dips' ? rawScore / 1.3 : rawScore
-        finish({
-          estimated_1rm: existingAdded1RM,
-          final_score: finalScore,
-          coefficient,
-          computed_added_weight: computedAdded,
-          adjusted_used_weight: adjustedAdded
+          await finish({
+            estimated_1rm: existingAdded1RM,
+            final_score: finalScore,
+            coefficient,
+            computed_added_weight: computedAdded,
+            adjusted_used_weight: adjustedAdded
         })
         return
       }
@@ -653,12 +713,12 @@ export default function StreetliftingCalculator() {
         const estimatedReps = estimateRepsForTarget1RMContinuous(targetTotal1RM, totalWorkingWeight)
         const rawScore = targetTotal1RM * coefficient
         const finalScore = exerciseType === 'weighted_dips' ? rawScore / 1.3 : rawScore
-        finish({
-          estimated_1rm: existingAdded1RM,
-          final_score: finalScore,
-          coefficient,
-          computed_reps: Number(estimatedReps.toFixed(1)),
-          adjusted_used_weight: adjustedAdded
+          await finish({
+            estimated_1rm: existingAdded1RM,
+            final_score: finalScore,
+            coefficient,
+            computed_reps: Number(estimatedReps.toFixed(1)),
+            adjusted_used_weight: adjustedAdded
         })
         return
       }
@@ -701,7 +761,7 @@ export default function StreetliftingCalculator() {
 
         const rawScore = total1RM * coefficient
         const finalScore = exerciseType === 'weighted_dips' ? rawScore / 1.3 : rawScore
-        finish({
+        await finish({
           estimated_1rm: dayMaxAdded1RM,
           final_score: finalScore,
           coefficient,
@@ -981,6 +1041,11 @@ export default function StreetliftingCalculator() {
                 </Text>
               </View>
             ) : null}
+
+            <View className='calc-history-row' onClick={openHistoryPage}>
+              <Text className='calc-history-title'>我的历史与趣味排名</Text>
+              <Text className='calc-history-subtitle'>查看历史最佳、较上次变化和当前动作排名</Text>
+            </View>
           </View>
         </View>
       </ScrollView>

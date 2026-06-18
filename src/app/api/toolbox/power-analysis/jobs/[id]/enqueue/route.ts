@@ -78,6 +78,17 @@ export async function POST(
     );
   }
 
+  if (
+    process.env.NODE_ENV !== "production" &&
+    process.env.POWER_ANALYSIS_SKIP_QUEUE_PUBLISH === "1"
+  ) {
+    return NextResponse.json<ApiData<PowerAnalysisJobDto>>({
+      success: true,
+      message: "任务已入队",
+      data: mapPowerAnalysisJob(data),
+    });
+  }
+
   try {
     await publishTask({ taskId: data.id, taskType: "power_analysis" });
   } catch (queueError) {

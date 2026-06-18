@@ -126,6 +126,13 @@ async function uploadObject(bucket: string, objectPath: string, sourcePath: stri
   if (error) throw error;
 }
 
+function getExternalLoadKg(job: any) {
+  const metadata = job?.metadata && typeof job.metadata === "object" ? job.metadata : {};
+  const value = Number(metadata.external_load_kg ?? metadata.externalLoadKg ?? 0);
+  if (!Number.isFinite(value) || value < 0) return 0;
+  return value;
+}
+
 async function runAnalyzer(job: any, workDir: string) {
   const inputExt = path.extname(job.input_storage_path || "") || ".mp4";
   const inputPath = path.join(workDir, `input${inputExt}`);
@@ -152,6 +159,8 @@ async function runAnalyzer(job: any, workDir: string) {
     String(job.height_cm),
     "--weight-kg",
     String(job.weight_kg),
+    "--external-load-kg",
+    String(getExternalLoadKg(job)),
   ];
 
   await new Promise<void>((resolve, reject) => {
@@ -393,7 +402,7 @@ async function main() {
   }
 
   if (!hasArg("--poll") && !hasArg("--queue")) {
-    await runOnceFallback();
+    await processJob(getArg("--job-id", null) || undefined);
     return;
   }
 

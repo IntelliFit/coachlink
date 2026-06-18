@@ -9,7 +9,7 @@ import {
     type StreetliftingCalculatorFormState,
 } from "@/app/streetlifting-index/calculator/calculatorDraft";
 import Link from "next/link";
-import { AlertTriangle, Calculator as CalcIcon, Info } from "lucide-react";
+import { AlertTriangle, Calculator as CalcIcon, Clock3, History, Info, Medal, Trophy } from "lucide-react";
 import { Card } from "primereact/card";
 import { Button } from "primereact/button";
 import { Dropdown } from "primereact/dropdown";
@@ -22,6 +22,7 @@ import { streetliftingIndexService } from "@/app/service/streetliftingIndexServi
 
 import type { StreetliftingFormula } from "@/app/api/streetlifting-index/formulas/list/entity";
 import type { ExerciseType, CalcMode } from "@/app/streetlifting-index/_utils";
+import type { StreetliftingCalcRecordDto, StreetliftingCalcSummaryDto } from "@/lib/streetliftingCalcHistory";
 import {
     BARBELL_CURL_MULTIPLIER,
     STRICT_PRESS_MULTIPLIER,
@@ -86,6 +87,46 @@ const REST_OPTIONS: Array<{ label: string; value: FormState["restCat"] }> = [
     { label: "3-5分钟", value: "long" },
     { label: ">5分钟", value: "very_long" },
 ];
+
+const EXERCISE_LABEL_MAP: Record<ExerciseType, string> = {
+    weighted_pullup: "负重引体向上",
+    weighted_dips: "负重双杠臂屈伸",
+    strict_press: "实力推",
+    barbell_curl: "杠铃弯举",
+    squat: "深蹲",
+    bench: "卧推",
+    deadlift: "硬拉",
+};
+
+const MODE_LABEL_MAP: Record<CalcMode, string> = {
+    forward: "正向计算",
+    reverse_weight: "反推重量",
+    reverse_reps: "反推次数",
+    day_max: "做组极限估算",
+};
+
+function formatCalcScore(value: number | null | undefined, exerciseType: ExerciseType) {
+    if (typeof value !== "number" || !Number.isFinite(value)) return "--";
+    return value.toFixed(isUpperBodyExercise(exerciseType) ? 0 : 1);
+}
+
+function formatCalcKg(value: number | null | undefined) {
+    if (typeof value !== "number" || !Number.isFinite(value)) return "--";
+    return `${value.toFixed(1)} kg`;
+}
+
+function formatCalcDate(value: string) {
+    try {
+        return new Date(value).toLocaleString("zh-CN", {
+            month: "2-digit",
+            day: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit",
+        });
+    } catch {
+        return value;
+    }
+}
 
 function restMultiplier(cat: NonNullable<FormState["restCat"]>) {
     switch (cat) {
@@ -189,6 +230,10 @@ export default function StreetliftingCalculatorPage() {
 
     const [submitting, setSubmitting] = useState(false);
     const [result, setResult] = useState<CalcResult | null>(null);
+    const [savingResult, setSavingResult] = useState(false);
+    const [historyLoading, setHistoryLoading] = useState(false);
+    const [historyRecords, setHistoryRecords] = useState<StreetliftingCalcRecordDto[]>([]);
+    const [historySummary, setHistorySummary] = useState<StreetliftingCalcSummaryDto | null>(null);
 
     const persistDraftNow = useCallback(() => {
         if (typeof window === "undefined") return;
@@ -310,6 +355,82 @@ export default function StreetliftingCalculatorPage() {
 
     const canUseDayMax = isUpperBodyExercise(exerciseType);
 
+    const loadCalculatorHistory = useCallback(
+        async (targetExerciseType: ExerciseType = exerciseType) => {
+            setHistoryLoading(true);
+            try {
+                const data = await streetliftingIndexService.getCalculatorHistory({
+                    exerciseType: targetExerciseType,
+                    page: 1,
+                    limit: 8,
+                });
+                setHistoryRecords(data.records || []);
+                setHistorySummary(data.summary || null);
+            } catch (e: any) {
+                if (e?.status !== 401) {
+                    console.warn("[streetlifting-index][calculator] load history failed:", e);
+                }
+                setHistoryRecords([]);
+                setHistorySummary(null);
+            } finally {
+                setHistoryLoading(false);
+            }
+        },
+        [exerciseType],
+    );
+
+    useEffect(() => {
+        loadCalculatorHistory(exerciseType);
+    }, [exerciseType, loadCalculatorHistory]);
+
+    const finishCalculation = useCallback(
+        async (nextResult: CalcResult) => {
+            setResult(nextResult);
+            setSavingResult(true);
+            try {
+                const restCat = form.restCat || null;
+                const dayFirstType = form.dayFirstType || null;
+                const dayLastType = form.dayLastType || null;
+                const saved = await streetliftingIndexService.saveCalculatorResult({
+                    sourceSurface: "web",
+                    exerciseType,
+                    mode,
+                    gender: form.gender!,
+                    bodyweight: Number(form.bodyweight),
+                    addedWeight: form.addedWeight ?? null,
+                    added1RM: form.added1RM ?? null,
+                    workingAddedWeight: form.workingAddedWeight ?? null,
+                    liftWeight: form.liftWeight ?? null,
+                    target1RM: form.target1RM ?? null,
+                    workingLiftWeight: form.workingLiftWeight ?? null,
+                    reps: form.reps ?? null,
+                    sets: form.sets ?? null,
+                    restCat,
+                    dayFirstType,
+                    dayFirstValue: form.dayFirstValue ?? null,
+                    dayLastType,
+                    dayLastValue: form.dayLastValue ?? null,
+                    formQuality: form.formQuality,
+                    penaltyWeight: ["Minor_Cheat", "Major_Cheat", "Extreme_Cheat"].includes(form.formQuality)
+                        ? form.penaltyWeight
+                        : 0,
+                });
+                setHistorySummary(saved.summary);
+                await loadCalculatorHistory(exerciseType);
+            } catch (e: any) {
+                console.warn("[streetlifting-index][calculator] save result failed:", e);
+                showToast({
+                    severity: e?.status === 401 ? "info" : "warn",
+                    summary: e?.status === 401 ? "已完成计算" : "历史保存失败",
+                    detail: e?.status === 401 ? "登录后可保存历史记录与参与趣味排名" : e?.message || "本次结果已展示，但没有写入历史",
+                });
+            } finally {
+                setSavingResult(false);
+            }
+        },
+        [exerciseType, form, loadCalculatorHistory, mode, showToast],
+    );
+
     const handleCalculate = async () => {
         setSubmitting(true);
         setResult(null);
@@ -341,7 +462,7 @@ export default function StreetliftingCalculatorPage() {
                     const estimated1RM = estimateTotal1RMFromTotalWeightAndReps(adjusted, reps);
                     const score = estimated1RM * coeff;
 
-                    setResult({
+                    await finishCalculation({
                         estimated_1rm: estimated1RM,
                         final_score: score,
                         coefficient: coeff,
@@ -356,7 +477,7 @@ export default function StreetliftingCalculatorPage() {
                     if (!Number.isFinite(target1RM) || target1RM <= 0) throw new Error("请填写有效的现有1RM");
                     if (!Number.isFinite(reps) || reps <= 0) throw new Error("请填写有效的完成次数");
                     const computedWeight = invertTotalWeightForTarget1RM(target1RM, reps);
-                    setResult({
+                    await finishCalculation({
                         estimated_1rm: target1RM,
                         final_score: target1RM * coeff,
                         coefficient: coeff,
@@ -373,7 +494,7 @@ export default function StreetliftingCalculatorPage() {
                     if (workingWeight >= target1RM) throw new Error("做组重量必须小于1RM");
 
                     const repsAvg = estimateRepsFromTotalWeightAndTarget1RM(target1RM, workingWeight);
-                    setResult({
+                    await finishCalculation({
                         estimated_1rm: target1RM,
                         final_score: target1RM * coeff,
                         coefficient: coeff,
@@ -400,7 +521,7 @@ export default function StreetliftingCalculatorPage() {
                     if (adjusted <= 0) throw new Error("惩罚重量过高，调整后的重量必须大于0");
                     const estimated1RM = estimateTotal1RMFromTotalWeightAndReps(adjusted, reps);
                     const score = estimated1RM * dots * multiplier;
-                    setResult({
+                    await finishCalculation({
                         estimated_1rm: estimated1RM,
                         final_score: score,
                         coefficient: dots,
@@ -415,7 +536,7 @@ export default function StreetliftingCalculatorPage() {
                     if (!Number.isFinite(target1RM) || target1RM <= 0) throw new Error("请填写有效的现有1RM");
                     if (!Number.isFinite(reps) || reps <= 0) throw new Error("请填写有效的完成次数");
                     const computedWeight = invertTotalWeightForTarget1RM(target1RM, reps);
-                    setResult({
+                    await finishCalculation({
                         estimated_1rm: target1RM,
                         final_score: target1RM * dots * multiplier,
                         coefficient: dots,
@@ -431,7 +552,7 @@ export default function StreetliftingCalculatorPage() {
                     if (!Number.isFinite(workingWeight) || workingWeight <= 0) throw new Error("请填写有效的做组重量");
                     if (workingWeight >= target1RM) throw new Error("做组重量必须小于1RM");
                     const repsAvg = estimateRepsFromTotalWeightAndTarget1RM(target1RM, workingWeight);
-                    setResult({
+                    await finishCalculation({
                         estimated_1rm: target1RM,
                         final_score: target1RM * dots * multiplier,
                         coefficient: dots,
@@ -471,7 +592,7 @@ export default function StreetliftingCalculatorPage() {
                 const rawScore = total1RM * coefficient;
                 const finalScore = exerciseType === "weighted_dips" ? rawScore / 1.3 : rawScore;
 
-                setResult({
+                await finishCalculation({
                     estimated_1rm: added1RM,
                     final_score: finalScore,
                     coefficient,
@@ -493,7 +614,7 @@ export default function StreetliftingCalculatorPage() {
                 const rawScore = targetTotal1RM * coefficient;
                 const finalScore = exerciseType === "weighted_dips" ? rawScore / 1.3 : rawScore;
 
-                setResult({
+                await finishCalculation({
                     estimated_1rm: added1RM,
                     final_score: finalScore,
                     coefficient,
@@ -518,7 +639,7 @@ export default function StreetliftingCalculatorPage() {
                 const rawScore = targetTotal1RM * coefficient;
                 const finalScore = exerciseType === "weighted_dips" ? rawScore / 1.3 : rawScore;
 
-                setResult({
+                await finishCalculation({
                     estimated_1rm: added1RM,
                     final_score: finalScore,
                     coefficient,
@@ -561,7 +682,7 @@ export default function StreetliftingCalculatorPage() {
                 const rawScore = total1RM * coefficient;
                 const finalScore = exerciseType === "weighted_dips" ? rawScore / 1.3 : rawScore;
 
-                setResult({
+                await finishCalculation({
                     estimated_1rm: added1RM,
                     final_score: finalScore,
                     coefficient,
@@ -577,6 +698,15 @@ export default function StreetliftingCalculatorPage() {
     };
 
     const scoreLevel = result ? getScoreLevel(result.final_score, exerciseType) : null;
+    const ranking = historySummary?.ranking ?? null;
+    const latestRecord = historySummary?.latestRecord ?? null;
+    const personalBestRecord = historySummary?.personalBestRecord ?? null;
+    const deltaScore = historySummary?.deltaScore ?? null;
+    const delta1RMKg = historySummary?.delta1RMKg ?? null;
+    const rankingPercentText =
+        ranking?.eligible && typeof ranking.percentile === "number"
+            ? `超过 ${ranking.percentile.toFixed(1)}% 用户`
+            : ranking?.notice || "完成一次正向计算后进入趣味排名";
     const showPenalty = ["Minor_Cheat", "Major_Cheat", "Extreme_Cheat"].includes(form.formQuality);
     const penaltyRange =
         form.formQuality === "Minor_Cheat"
@@ -1120,11 +1250,16 @@ export default function StreetliftingCalculatorPage() {
                         {/* 结果 */}
                         {result && (
                             <div className="rounded-2xl border border-surface-100 bg-surface-50 p-5 space-y-3">
-                                <div className="flex items-center justify-between">
-                                    <div className="text-base font-semibold text-surface-900">计算结果</div>
+                                <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                                    <div className="flex items-center gap-2">
+                                        <div className="text-base font-semibold text-surface-900">计算结果</div>
+                                        {savingResult && <span className="text-xs font-semibold text-surface-500">正在写入历史...</span>}
+                                    </div>
                                     {scoreLevel && (
-                                        <div className="flex items-center gap-2 text-xs font-black text-surface-700 bg-surface-0 border border-surface-200 rounded-full px-3 py-1">
-                                            <span className="inline-block w-1.5 h-1.5 rounded-full bg-primary-500" />
+                                        <div
+                                            className={`inline-flex w-fit items-center gap-2 rounded-2xl border border-primary-100 bg-surface-0 px-4 py-2 text-lg font-black shadow-sm md:text-xl ${scoreLevel.colorClass}`}
+                                        >
+                                            <Medal className="h-5 w-5" />
                                             {scoreLevel.level}
                                         </div>
                                     )}
@@ -1178,6 +1313,102 @@ export default function StreetliftingCalculatorPage() {
                                             {result.final_score.toFixed(isUpperBodyExercise(exerciseType) ? 0 : 1)}
                                         </div>
                                     </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 gap-3 pt-1 lg:grid-cols-3">
+                                    <div className="rounded-2xl border border-surface-100 bg-surface-0 p-4">
+                                        <div className="mb-2 flex items-center gap-2 text-xs font-bold text-surface-500">
+                                            <Trophy className="h-4 w-4 text-primary-600" />
+                                            当前趣味排名
+                                        </div>
+                                        <div className="text-2xl font-black text-surface-900">
+                                            {ranking?.eligible && ranking.rank ? `第 ${ranking.rank} 名` : "--"}
+                                        </div>
+                                        <div className="mt-1 text-xs font-semibold text-surface-500">
+                                            {ranking?.eligible
+                                                ? `${ranking.bucketTitle} · 共 ${ranking.totalParticipants} 人`
+                                                : ranking?.bucketTitle || `${EXERCISE_LABEL_MAP[exerciseType]} 分榜`}
+                                        </div>
+                                        <div className="mt-2 text-sm font-bold text-primary-700">{rankingPercentText}</div>
+                                    </div>
+
+                                    <div className="rounded-2xl border border-surface-100 bg-surface-0 p-4">
+                                        <div className="mb-2 flex items-center gap-2 text-xs font-bold text-surface-500">
+                                            <Medal className="h-4 w-4 text-primary-600" />
+                                            个人历史最佳
+                                        </div>
+                                        <div className="text-2xl font-black text-surface-900">
+                                            {personalBestRecord ? formatCalcScore(personalBestRecord.finalScore, personalBestRecord.exerciseType) : "--"}
+                                        </div>
+                                        <div className="mt-1 text-xs font-semibold text-surface-500">
+                                            {personalBestRecord
+                                                ? `${formatCalcKg(personalBestRecord.estimated1RMKg)} · ${formatCalcDate(personalBestRecord.createdAt)}`
+                                                : "完成并保存后出现历史最佳"}
+                                        </div>
+                                    </div>
+
+                                    <div className="rounded-2xl border border-surface-100 bg-surface-0 p-4">
+                                        <div className="mb-2 flex items-center gap-2 text-xs font-bold text-surface-500">
+                                            <History className="h-4 w-4 text-primary-600" />
+                                            较上次变化
+                                        </div>
+                                        <div className="text-2xl font-black text-surface-900">
+                                            {typeof deltaScore === "number" ? `${deltaScore >= 0 ? "+" : ""}${deltaScore.toFixed(1)}` : "--"}
+                                        </div>
+                                        <div className="mt-1 text-xs font-semibold text-surface-500">
+                                            {typeof delta1RMKg === "number"
+                                                ? `1RM ${delta1RMKg >= 0 ? "+" : ""}${delta1RMKg.toFixed(1)} kg`
+                                                : latestRecord
+                                                  ? "这是当前动作第一条历史对比"
+                                                  : "暂无历史对比"}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="rounded-2xl border border-surface-100 bg-surface-0 p-4">
+                                    <div className="mb-3 flex items-center justify-between gap-3">
+                                        <div className="flex items-center gap-2 text-sm font-black text-surface-900">
+                                            <Clock3 className="h-4 w-4 text-primary-600" />
+                                            我的历史记录
+                                        </div>
+                                        <div className="text-xs font-semibold text-surface-500">
+                                            {historyLoading ? "加载中..." : `最近 ${historyRecords.length} 次`}
+                                        </div>
+                                    </div>
+                                    {historyRecords.length > 0 ? (
+                                        <div className="overflow-x-auto">
+                                            <table className="min-w-full text-sm">
+                                                <thead>
+                                                    <tr className="border-b border-surface-100 text-left text-xs font-bold text-surface-500">
+                                                        <th className="py-2 pr-4">时间</th>
+                                                        <th className="py-2 pr-4">动作</th>
+                                                        <th className="py-2 pr-4">模式</th>
+                                                        <th className="py-2 pr-4">1RM</th>
+                                                        <th className="py-2 pr-4">分数</th>
+                                                        <th className="py-2 pr-4">等级</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {historyRecords.map((record) => (
+                                                        <tr key={record.id} className="border-b border-surface-100 last:border-0">
+                                                            <td className="py-2 pr-4 text-surface-600">{formatCalcDate(record.createdAt)}</td>
+                                                            <td className="py-2 pr-4 font-semibold text-surface-900">{EXERCISE_LABEL_MAP[record.exerciseType]}</td>
+                                                            <td className="py-2 pr-4 text-surface-600">{MODE_LABEL_MAP[record.calcMode as CalcMode] || record.calcMode}</td>
+                                                            <td className="py-2 pr-4 font-semibold text-surface-900">{formatCalcKg(record.estimated1RMKg)}</td>
+                                                            <td className="py-2 pr-4 font-black text-primary-700">
+                                                                {formatCalcScore(record.finalScore, record.exerciseType)}
+                                                            </td>
+                                                            <td className="py-2 pr-4 text-surface-700">{record.resultLevel || "--"}</td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    ) : (
+                                        <div className="rounded-2xl bg-surface-50 p-4 text-sm font-semibold text-surface-500">
+                                            {historyLoading ? "正在读取历史记录..." : "当前动作暂无历史记录，完成一次计算后会自动保存。"}
+                                        </div>
+                                    )}
                                 </div>
 
                                 {/* RM 表格（主要给上肢更有意义；三大项也可用） */}

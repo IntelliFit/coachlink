@@ -3,5 +3,7 @@ export default {
   navigationBarTitleText: '',
   navigationBarTextStyle: 'black',
   navigationBarBackgroundColor: '#FFF5EB',
+  enableShareAppMessage: true,
+  enableShareTimeline: true,
   animationType: 'none'
 }

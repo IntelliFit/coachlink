@@ -151,7 +151,7 @@ def detect_reps(
     y_track: List[Optional[float]],
     fps: float,
     scale_m_per_px: float,
-    weight_kg: float,
+    effective_mass_kg: float,
     mode: str,
 ) -> List[Dict[str, float]]:
     start_threshold = 0.22 if mode == "pullup" else 0.32
@@ -202,7 +202,7 @@ def detect_reps(
                 displacement_m = max(0.0, (start_y - min_y) * scale_m_per_px)
                 ascent_time_s = max(dt, elapsed)
                 if displacement_m >= min_displacement and min_time <= ascent_time_s <= max_time:
-                    work_j = weight_kg * G * displacement_m
+                    work_j = effective_mass_kg * G * displacement_m
                     avg_power_w = work_j / ascent_time_s
                     max_velocity_mps = max(velocities) if velocities else 0.0
                     reps.append(
@@ -213,6 +213,9 @@ def detect_reps(
                             "avgPowerW": round_float(avg_power_w, 2),
                             "horsepowerHp": round_float(avg_power_w / HP_WATT, 3),
                             "maxVelocityMps": round_float(max_velocity_mps, 3),
+                            "startFrame": int(start_frame),
+                            "endFrame": int(idx),
+                            "peakFrame": int(max(start_frame, idx - still_frames)),
                         }
                     )
                 in_ascent = False
@@ -221,13 +224,53 @@ def detect_reps(
 
         prev_y = y
 
-    return reps
+    return filter_partial_startup_reps(reps, mode)
 
 
-def build_metrics(mode: str, reps: List[Dict[str, float]]) -> Dict[str, Any]:
+def filter_partial_startup_reps(reps: List[Dict[str, float]], mode: str) -> List[Dict[str, float]]:
+    if mode != "muscleup" or len(reps) < 3:
+        return reps
+
+    displacements = [float(rep.get("displacementM") or 0) for rep in reps]
+    median_displacement = float(np.median(np.array(displacements)))
+    if median_displacement <= 0:
+        return reps
+
+    min_full_rep_displacement = median_displacement * 0.55
+    filtered = [
+        rep
+        for rep in reps
+        if float(rep.get("displacementM") or 0) >= min_full_rep_displacement
+    ]
+    if not filtered or len(filtered) == len(reps):
+        return reps
+
+    for index, rep in enumerate(filtered, start=1):
+        rep["repIndex"] = index
+    return filtered
+
+
+def build_mass_metrics(body_weight_kg: float, external_load_kg: float) -> Dict[str, float]:
+    body_weight = max(0.0, float(body_weight_kg))
+    external_load = max(0.0, float(external_load_kg))
+    return {
+        "bodyWeightKg": round_float(body_weight, 2),
+        "externalLoadKg": round_float(external_load, 2),
+        "effectiveMassKg": round_float(body_weight + external_load, 2),
+    }
+
+
+def build_metrics(
+    mode: str,
+    reps: List[Dict[str, float]],
+    body_weight_kg: float,
+    external_load_kg: float,
+) -> Dict[str, Any]:
+    mass = build_mass_metrics(body_weight_kg, external_load_kg)
     if not reps:
         return {
             "mode": mode,
+            "mass": mass,
             "repCount": 0,
             "summary": {
                 "avgPowerW": 0,
@@ -247,8 +290,14 @@ def build_metrics(mode: str, reps: List[Dict[str, float]]) -> Dict[str, Any]:
     velocities = [float(r["maxVelocityMps"]) for r in reps]
     times = [float(r["ascentTimeS"]) for r in reps]
     displacements = [float(r["displacementM"]) for r in reps]
+    load_note = (
+        "Power is estimated from body weight plus external load, vertical shoulder displacement, and ascent time."
+        if mass["externalLoadKg"] > 0
+        else "Power is estimated from body weight, vertical shoulder displacement, and ascent time."
+    )
     return {
         "mode": mode,
+        "mass": mass,
         "repCount": len(reps),
         "summary": {
             "avgPowerW": round_float(float(np.mean(powers)), 2),
@@ -260,7 +309,7 @@ def build_metrics(mode: str, reps: List[Dict[str, float]]) -> Dict[str, Any]:
         },
         "reps": reps,
         "notes": [
-            "Power is estimated from body weight, vertical shoulder displacement, and ascent time.",
+            load_note,
             "Camera angle, occlusion, body landmark stability, and height calibration affect accuracy.",
         ],
     }
@@ -289,13 +338,95 @@ def render_output_video(
     draw = mp.solutions.drawing_utils
     style = mp.solutions.drawing_styles
     summary = metrics.get("summary", {})
+    mass = metrics.get("mass") if isinstance(metrics.get("mass"), dict) else {}
+    effective_mass_kg = float(mass.get("effectiveMassKg") or 0)
     mode_label = "Muscle-up" if metrics.get("mode") == "muscleup" else "Pull-up"
     rep_count = int(metrics.get("repCount") or 0)
+    reps = metrics.get("reps") if isinstance(metrics.get("reps"), list) else []
+    hold_frames = max(1, int(round(fps * 1.4)))
     header_lines = [
         f"CoachLink {mode_label} Power Test",
         f"Reps: {rep_count}  Best: {summary.get('bestPowerW', 0):.0f} W / {summary.get('bestHorsepowerHp', 0):.2f} hp",
         f"Best velocity: {summary.get('bestVelocityMps', 0):.2f} m/s  Scale: {scale_m_per_px:.5f} m/px",
     ]
+
+    def frame_y(frame_index: int) -> Optional[float]:
+        if 0 <= frame_index < len(y_track):
+            return y_track[frame_index]
+        return None
+
+    def velocity_at(frame_index: int) -> float:
+        current_y = frame_y(frame_index)
+        prev_y = frame_y(frame_index - 1)
+        if current_y is None or prev_y is None:
+            return 0.0
+        return ((prev_y - current_y) * scale_m_per_px) * fps
+
+    def rep_frame(rep: Dict[str, Any], key: str, default: int) -> int:
+        value = rep.get(key)
+        try:
+            return int(value)
+        except Exception:
+            return default
+
+    def active_rep_at(frame_index: int) -> Optional[Dict[str, Any]]:
+        for rep in reps:
+            if not isinstance(rep, dict):
+                continue
+            start = rep_frame(rep, "startFrame", -1)
+            end = rep_frame(rep, "endFrame", -1)
+            if start <= frame_index <= end:
+                return rep
+        return None
+
+    def recent_rep_at(frame_index: int) -> Optional[Dict[str, Any]]:
+        recent: Optional[Dict[str, Any]] = None
+        recent_end = -1
+        for rep in reps:
+            if not isinstance(rep, dict):
+                continue
+            end = rep_frame(rep, "endFrame", -1)
+            if end <= frame_index <= end + hold_frames and end > recent_end:
+                recent = rep
+                recent_end = end
+        return recent
+
+    def draw_panel(frame: Any, x: int, y: int, lines: List[str], color: Tuple[int, int, int]) -> None:
+        if not lines:
+            return
+        font_scale = 0.72 if frame_width < 900 else 0.82
+        line_h = 30 if frame_width < 900 else 34
+        width = min(frame_width - x - 24, 560 if frame_width < 900 else 640)
+        height = 24 + line_h * len(lines)
+        overlay = frame.copy()
+        cv2.rectangle(overlay, (x, y), (x + width, y + height), (0, 0, 0), -1)
+        cv2.addWeighted(overlay, 0.58, frame, 0.42, 0, frame)
+        cv2.rectangle(frame, (x, y), (x + width, y + height), color, 2)
+        for i, text in enumerate(lines):
+            cv2.putText(
+                frame,
+                text,
+                (x + 18, y + 32 + i * line_h),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                font_scale,
+                (255, 255, 255),
+                2,
+                cv2.LINE_AA,
+            )
+
+    def draw_pose_box(frame: Any, landmarks: Any) -> None:
+        visible = [
+            lm
+            for lm in landmarks
+            if getattr(lm, "visibility", 1.0) >= 0.25
+        ]
+        if not visible:
+            return
+        x_min = max(0, int(min(lm.x * frame_width for lm in visible) - 18))
+        x_max = min(frame_width - 1, int(max(lm.x * frame_width for lm in visible) + 18))
+        y_min = max(0, int(min(lm.y * frame_height for lm in visible) - 18))
+        y_max = min(frame_height - 1, int(max(lm.y * frame_height for lm in visible) + 18))
+        cv2.rectangle(frame, (x_min, y_min), (x_max, y_max), (0, 220, 255), 2)
 
     with pose_mod.Pose(
         static_image_mode=False,
@@ -312,6 +443,7 @@ def render_output_video(
             rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             result = pose.process(rgb)
             if result.pose_landmarks:
+                draw_pose_box(frame, result.pose_landmarks.landmark)
                 draw.draw_landmarks(
                     frame,
                     result.pose_landmarks,
@@ -334,6 +466,45 @@ def render_output_video(
                     cv2.LINE_AA,
                 )
 
+            current_velocity = velocity_at(index)
+            active_rep = active_rep_at(index)
+            recent_rep = None if active_rep else recent_rep_at(index)
+            panel_y = max(168, min(max(168, frame_height - 210), 176))
+
+            if active_rep:
+                start = rep_frame(active_rep, "startFrame", index)
+                start_y = frame_y(start)
+                current_y = frame_y(index)
+                elapsed = max((index - start) / fps, 1.0 / fps)
+                displacement = 0.0
+                if start_y is not None and current_y is not None:
+                    displacement = max(0.0, (start_y - current_y) * scale_m_per_px)
+                live_power = (effective_mass_kg * G * displacement / elapsed) if effective_mass_kg > 0 else 0.0
+                panel_lines = [
+                    f"LIVE REP #{int(active_rep.get('repIndex') or 0)}",
+                    f"Velocity: {max(0.0, current_velocity):.2f} m/s",
+                    f"Power: {live_power:.0f} W / {live_power / HP_WATT:.2f} hp",
+                    f"Displacement: {displacement:.2f} m",
+                    f"Time: {elapsed:.2f} s",
+                ]
+                draw_panel(frame, 28, panel_y, panel_lines, (0, 220, 255))
+            elif recent_rep:
+                panel_lines = [
+                    f"REP #{int(recent_rep.get('repIndex') or 0)} RESULT",
+                    f"Displacement: {float(recent_rep.get('displacementM') or 0):.2f} m",
+                    f"Time: {float(recent_rep.get('ascentTimeS') or 0):.2f} s",
+                    f"Power: {float(recent_rep.get('avgPowerW') or 0):.0f} W / {float(recent_rep.get('horsepowerHp') or 0):.2f} hp",
+                    f"Max velocity: {float(recent_rep.get('maxVelocityMps') or 0):.2f} m/s",
+                ]
+                draw_panel(frame, 28, panel_y, panel_lines, (0, 180, 255))
+            else:
+                panel_lines = [
+                    "LIVE TRACKING",
+                    f"Velocity: {max(0.0, current_velocity):.2f} m/s",
+                    "Waiting for upward phase",
+                ]
+                draw_panel(frame, 28, max(168, min(max(168, frame_height - 120), 176)), panel_lines, (80, 180, 80))
+
             if index < len(y_track) and y_track[index] is not None:
                 y = int(y_track[index] or 0)
                 cv2.circle(frame, (frame_width - 64, max(32, min(frame_height - 32, y))), 8, (0, 220, 255), -1)
@@ -351,8 +522,10 @@ def run(args: argparse.Namespace) -> Dict[str, Any]:
     emit_progress(8)
     fps, width, height, scale, y_track = collect_pose_track(args.input, args.height_cm)
     emit_progress(48)
-    reps = detect_reps(y_track, fps, scale, args.weight_kg, args.mode)
-    metrics = build_metrics(args.mode, reps)
+    external_load_kg = max(0.0, float(args.external_load_kg or 0))
+    effective_mass_kg = max(0.0, float(args.weight_kg)) + external_load_kg
+    reps = detect_reps(y_track, fps, scale, effective_mass_kg, args.mode)
+    metrics = build_metrics(args.mode, reps, args.weight_kg, external_load_kg)
     metrics["video"] = {
         "fps": round_float(fps, 3),
         "width": width,
@@ -373,6 +546,7 @@ def main() -> int:
     parser.add_argument("--mode", choices=["pullup", "muscleup"], default="pullup")
     parser.add_argument("--height-cm", type=float, required=True)
     parser.add_argument("--weight-kg", type=float, required=True)
+    parser.add_argument("--external-load-kg", type=float, default=0)
     args = parser.parse_args()
 
     try:

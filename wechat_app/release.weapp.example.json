@@ -1,0 +1,15 @@
+{
+  "audit": {
+    "item_list": [
+      {
+        "address": "pages/index/index",
+        "tag": "fitness,training,coach",
+        "title": "CoachLink",
+        "first_id": 0,
+        "first_class": "replace-with-real-category",
+        "second_id": 0,
+        "second_class": "replace-with-real-category"
+      }
+    ]
+  }
+}
