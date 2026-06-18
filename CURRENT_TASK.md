@@ -5587,3 +5587,29 @@
   - Impromptu training execution loading/theme fixes from 2026-06-17.
   - Dark-theme and native UI synchronization decisions for WeChat mini-program surfaces.
 - Verification recorded upstream for those remote-dev changes included lint/typecheck/unit tests/builds where noted; WeChat DevTools screenshot verification remained blocked by local MRC websocket connectivity.
+
+## WeChat Training Home Design Exploration (`2026-06-18`)
+
+- Task: discuss improved design directions for the student mini-program training home when an active coach plan exists.
+- Status: design discussion only; user explicitly requested no code changes.
+- Context:
+  - Current screenshots show the active-plan home feeling too crowded: plan ownership/status, coach switch, resume/impromptu/contact actions, daily/weekly/monthly progress, calendar strip, today arrangement, detailed action cards, light tasks, and bottom navigation all compete in one scroll.
+  - Product principle from existing decisions still applies: the training home should prioritize "what do I do now" over browsing tools, with calendar/progress/secondary actions kept compact.
+- Next step: align on one preferred information architecture before implementation.
+
+## WeChat Mini-Program Main Package Size Fix (`2026-06-18`)
+
+- Task: fix WeChat DevTools build warning that the mini-program main package source size exceeded the 2MB limit by a small amount.
+- Status: implemented and build-verified; DevTools/MRC screenshot verification remains blocked by local automation websocket connectivity.
+- Fix:
+  - Moved toolbox cover images from root package assets into `me/assets/images/`.
+  - Moved login background from root package assets into `auth/assets/images/` and stopped importing it from TSX.
+  - Moved streetlifting poster brand images into `streetlifting/assets/brand/` and stopped importing them from TS.
+  - This avoids Taro inlining small bitmap imports into root `common.js` and keeps page-owned assets inside their subpackages.
+- Verification:
+  - `cd wechat_app && npm run build:weapp`: passed.
+  - `cd wechat_app && npm run build:weapp:release`: passed.
+  - Local `dist` main-package raw file total measured about `1887.6KB`.
+  - Release `dist-release` main-package raw file total measured about `1746.0KB`.
+  - `npm run lint`, `npm run typecheck`, and `npm test` passed.
+  - `npx next build` compiled and generated all 510 static pages, but failed during final standalone copy because existing local `coachlink` Node/Next processes kept `.next` files locked with Windows `EBUSY`.
