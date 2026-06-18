@@ -1,7 +1,7 @@
 ﻿## Commit Current Work And Sync Main/Dev (`2026-06-18`)
 
 - Task: commit current latest local code, merge the latest development branch changes, and make `main` and `dev` consistent.
-- Status: in progress.
+- Status: completed.
 - Starting branch: `main`.
 - Remote status before commit:
   - `origin/main` is at `82d46467`.
@@ -9,6 +9,12 @@
 - Local state before commit:
   - Working tree contains the accumulated Power Analysis realtime/auto-upload fixes, impromptu e1RM tracking, streetlifting calculator history/ranking work, WeChat release automation files, and durable-state updates.
   - Generated Python cache under `scripts/power-analysis/__pycache__/` is intentionally excluded from commit.
+- Result:
+  - Created local commit `95a9627d feat: sync analysis tools and calculator updates`.
+  - Merged `origin/dev` into `main`, resolving durable-state conflicts by preserving both sides' notes and keeping the `origin/dev` unified training-home entry for `wechat_app/src/pages/index/index.tsx`.
+  - Will fast-forward local `dev` to the final `main` head and push both branches together.
+- Verification:
+  - No tests/builds were run in this merge turn.
 
 ## Power Analysis Realtime Overlay And Auto Upload (`2026-06-18`)
 
