@@ -15,11 +15,11 @@ import { studentOnboardingService } from '@/services/studentOnboardingService'
 import SliderCaptcha from '@/components/SliderCaptcha'
 import ResetPasswordForm from '@/components/ResetPasswordForm'
 
-import loginBg from '@/assets/images/login-bg.jpg'
 import './index.scss'
 import { useTheme } from '@/hooks/useTheme'
 
 const IS_DEV = process.env.NODE_ENV === 'development'
+const LOGIN_BG = '/auth/assets/images/login-bg.jpg'
 
 const TEXT = {
   agreeFirst: '请先勾选用户协议',
@@ -264,7 +264,7 @@ function Login() {
     <ConfigProvider locale={zhCN}>
       <View className='login-page'>
         <View className='login-hero'>
-          <Image className='login-bg' src={loginBg} mode='aspectFill' />
+          <Image className='login-bg' src={LOGIN_BG} mode='aspectFill' />
           <View className='login-hero-overlay'>
             <Text className='login-hero-brand'>{TEXT.brand}</Text>
             <Text className='login-hero-slogan'>{TEXT.slogan}</Text>

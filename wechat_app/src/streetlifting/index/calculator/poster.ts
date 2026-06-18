@@ -3,8 +3,6 @@
  */
 
 import Taro from '@tarojs/taro'
-import coachlinkLogo from '@/assets/brand/coachlink-logo.jpg'
-import coachlinkBrandIcon from '@/assets/brand/coachlink-brand-icon.png'
 import { resolveCanvasImageSrc } from '@/utils/weapp-canvas-image'
 
 import qrcode from 'qrcode-generator'
@@ -16,8 +14,13 @@ const POSTER_DPR = 2
 const COACHLINK_FAVICON_URL = 'https://coachlink.fit/favicon.jpg'
 
 const COACHLINK_LOGO_PACKAGE_PATHS = [
-  '/assets/brand/coachlink-logo.jpg',
-  'assets/brand/coachlink-logo.jpg'
+  '/streetlifting/assets/brand/coachlink-logo.jpg',
+  'streetlifting/assets/brand/coachlink-logo.jpg'
+]
+
+const COACHLINK_BRAND_ICON_PACKAGE_PATHS = [
+  '/streetlifting/assets/brand/coachlink-brand-icon.png',
+  'streetlifting/assets/brand/coachlink-brand-icon.png'
 ]
 
 const BRAND = '#CF6D4E'
@@ -137,23 +140,12 @@ async function loadCanvasImage(canvas: HTMLCanvasElement, src: string) {
   return image
 }
 
-function resolveImportedAsset(mod: unknown): string {
-  if (typeof mod === 'string') return mod
-  if (mod && typeof (mod as { default?: string }).default === 'string') return (mod as { default: string }).default
-  return ''
-}
-
 /** 优先包内品牌图（与线上 favicon 一致），避免依赖 download 合法域名 */
 function getCoachlinkLogoCandidates(): string[] {
-  const fromLogo = resolveImportedAsset(coachlinkLogo as unknown)
-  const fromBrand = resolveImportedAsset(coachlinkBrandIcon as unknown)
   return Array.from(
     new Set(
       [
-        fromBrand,
-        '/assets/brand/coachlink-brand-icon.png',
-        'assets/brand/coachlink-brand-icon.png',
-        fromLogo,
+        ...COACHLINK_BRAND_ICON_PACKAGE_PATHS,
         ...COACHLINK_LOGO_PACKAGE_PATHS,
         COACHLINK_FAVICON_URL
       ].filter(Boolean)

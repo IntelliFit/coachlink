@@ -28,28 +28,28 @@ const TOOLBOX_LINKS: ToolboxLink[] = [
     key: 'power-analysis',
     label: '功率视频分析',
     description: '上传引体或双力臂视频，估算功率、马力和最大速度。',
-    image: '/assets/images/toolbox-calculator.jpg',
+    image: '/me/assets/images/toolbox-calculator.jpg',
     url: '/me/toolbox/power-analysis/index'
   },
   {
     key: 'strength-calculator',
     label: '力量计算器',
     description: '可计算极限重量、做组重量和训练系数等。',
-    image: '/assets/images/toolbox-calculator.jpg',
+    image: '/me/assets/images/toolbox-calculator.jpg',
     url: '/streetlifting/index/calculator'
   },
   {
     key: 'bar-locations',
     label: '单杠位置',
     description: '查找、分享单杠位置，支持上传图片。',
-    image: '/assets/images/toolbox-locations.jpg',
+    image: '/me/assets/images/toolbox-locations.jpg',
     url: '/streetlifting/index/locations'
   },
   {
     key: 'community-data',
     label: '社区数据',
     description: '查看与提交街健力量数据，支持认领。',
-    image: '/assets/images/toolbox-data.jpg',
+    image: '/me/assets/images/toolbox-data.jpg',
     url: '/streetlifting/index/data'
   }
 ]

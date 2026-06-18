@@ -14,11 +14,11 @@ import { sesService } from '@/services/sesService'
 import { studentOnboardingService } from '@/services/studentOnboardingService'
 import SliderCaptcha from '@/components/SliderCaptcha'
 import { User, Lock, Ticket, Message } from '@nutui/icons-react-taro'
-import loginBg from '@/assets/images/login-bg.jpg'
 import './index.scss'
 import { useTheme } from '@/hooks/useTheme'
 
 const IS_DEV = process.env.NODE_ENV === 'development'
+const LOGIN_BG = '/auth/assets/images/login-bg.jpg'
 
 function Register() {
   const { effectiveTheme } = useTheme()
@@ -172,7 +172,7 @@ function Register() {
     <ConfigProvider locale={zhCN}>
       <View className='register-page'>
         <View className='register-hero'>
-          <Image className='register-bg' src={loginBg} mode='aspectFill' />
+          <Image className='register-bg' src={LOGIN_BG} mode='aspectFill' />
           <View className='register-hero-overlay'>
             <Text className='register-hero-brand'>教链 CoachLink</Text>
             <Text className='register-hero-slogan'>开启你的专业训练之旅</Text>
