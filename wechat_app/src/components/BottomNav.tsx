@@ -35,7 +35,7 @@ const studentNavItems: NavItem[] = [
     key: 'toolbox',
     label: '工具箱',
     iconClass: 'icon-toolbox',
-    path: '/me/toolbox/index'
+    path: '/toolbox/index'
   },
   {
     key: 'profile',
@@ -209,9 +209,9 @@ function BottomNav() {
       case 'knowledge':
         return matchesPrefix(pathname, ['/content'])
       case 'toolbox':
-        return matchesPrefix(pathname, ['/me/toolbox', '/streetlifting'])
+        return matchesPrefix(pathname, ['/toolbox', '/streetlifting'])
       case 'profile':
-        return matchesPrefix(pathname, ['/me']) && !matchesPrefix(pathname, ['/me/toolbox'])
+        return matchesPrefix(pathname, ['/me'])
       default:
         return pathname === normalizePath(item.path)
     }

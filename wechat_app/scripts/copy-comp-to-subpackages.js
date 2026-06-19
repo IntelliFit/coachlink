@@ -21,6 +21,7 @@ const subpackages = [
   'auth',
   'common',
   'streetlifting',
+  'toolbox',
 ]
 
 const compFiles = ['comp.json', 'comp.wxml', 'comp.wxss', 'comp.js']
@@ -116,7 +117,6 @@ const nestedDirs = [
   'me/user',
   'me/cart',
   'me/friends',
-  'me/toolbox',
   'me/purchase-history',
   'me/training-history',
   'me/feedback',
@@ -146,6 +146,8 @@ const nestedDirs = [
   'training/copy-from-coach',
   'streetlifting/index',
   'streetlifting/index/submit',
+  'toolbox/power-analysis',
+  'toolbox/scenario',
   'auth/login',
   'auth/register',
   'auth/reset-password',

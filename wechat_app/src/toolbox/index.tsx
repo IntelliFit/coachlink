@@ -28,28 +28,28 @@ const TOOLBOX_LINKS: ToolboxLink[] = [
     key: 'power-analysis',
     label: '功率视频分析',
     description: '上传引体、双力臂、臂屈伸、俯卧撑或深蹲视频，估算功率与速度。',
-    image: '/me/assets/images/toolbox-power-analysis.jpg',
-    url: '/me/toolbox/power-analysis/index'
+    image: '/toolbox/assets/images/toolbox-power-analysis.jpg',
+    url: '/toolbox/power-analysis/index'
   },
   {
     key: 'strength-calculator',
     label: '力量计算器',
     description: '可计算极限重量、做组重量和训练系数等。',
-    image: '/me/assets/images/toolbox-calculator.jpg',
+    image: '/toolbox/assets/images/toolbox-calculator.jpg',
     url: '/streetlifting/index/calculator'
   },
   {
     key: 'bar-locations',
     label: '单杠位置',
     description: '查找、分享单杠位置，支持上传图片。',
-    image: '/me/assets/images/toolbox-locations.jpg',
+    image: '/toolbox/assets/images/toolbox-locations.jpg',
     url: '/streetlifting/index/locations'
   },
   {
     key: 'community-data',
     label: '社区数据',
     description: '查看与提交街健力量数据，支持认领。',
-    image: '/me/assets/images/toolbox-data.jpg',
+    image: '/toolbox/assets/images/toolbox-data.jpg',
     url: '/streetlifting/index/data'
   }
 ]
@@ -60,7 +60,7 @@ function ToolboxPage() {
     () =>
       createSharePayload({
         title: getToolboxShareTitle(),
-        path: buildSharePath('/me/toolbox/index')
+        path: buildSharePath('/toolbox/index')
       }),
     []
   )
@@ -77,7 +77,7 @@ function ToolboxPage() {
   }
 
   const handleScenarioClick = (slug: string) => {
-    Taro.navigateTo({ url: `/me/toolbox/scenario/index?slug=${slug}` })
+    Taro.navigateTo({ url: `/toolbox/scenario/index?slug=${slug}` })
   }
 
   return (
