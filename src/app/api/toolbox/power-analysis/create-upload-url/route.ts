@@ -13,6 +13,7 @@ import {
   buildPowerAnalysisOutputPath,
   buildPowerAnalysisPath,
   getPowerAnalysisLimits,
+  isPowerAnalysisDailyLimitBypassed,
   isSupportedVideoContentType,
   mapPowerAnalysisJob,
   normalizeMode,
@@ -35,6 +36,7 @@ export async function POST(req: Request) {
 
   const userId = session.user.id;
   const limits = getPowerAnalysisLimits();
+  const dailyLimitBypassed = isPowerAnalysisDailyLimitBypassed(userId);
 
   let body: CreatePowerAnalysisUploadUrlDto;
   try {
@@ -96,22 +98,24 @@ export async function POST(req: Request) {
     );
   }
 
-  const { count: dailyCount } = await db
-    .from("tool_power_analysis_jobs")
-    .select("id", { count: "exact", head: true })
-    .eq("user_id", userId)
-    .in("status", ["queued", "processing", "done"])
-    .gte("created_at", since);
+  if (!dailyLimitBypassed) {
+    const { count: dailyCount } = await db
+      .from("tool_power_analysis_jobs")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .in("status", ["queued", "processing", "done"])
+      .gte("created_at", since);
 
-  if ((dailyCount || 0) >= limits.dailyLimit) {
-    return NextResponse.json<ApiData<null>>(
-      {
-        success: false,
-        message: `今天已经分析 ${limits.dailyLimit} 次了，明天再来测一次`,
-        data: null,
-      },
-      { status: 429 },
-    );
+    if ((dailyCount || 0) >= limits.dailyLimit) {
+      return NextResponse.json<ApiData<null>>(
+        {
+          success: false,
+          message: `今天已经分析 ${limits.dailyLimit} 次了，明天再来测一次`,
+          data: null,
+        },
+        { status: 429 },
+      );
+    }
   }
 
   const jobId = randomUUID();
@@ -189,7 +193,10 @@ export async function POST(req: Request) {
         token: signed.token,
         expiresAt,
       },
-      limits,
+      limits: {
+        ...limits,
+        dailyLimitBypassed,
+      },
     },
   });
 }

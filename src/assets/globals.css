@@ -648,7 +648,12 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 .batch-operation-dialog-fullscreen .p-dialog-content {
     background: #ffffff !important;
     padding: 0 !important;
-    overflow: visible;
+    overflow: hidden;
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    height: 100%;
 }
 
 .dark .batch-operation-dialog-fullscreen.p-dialog {

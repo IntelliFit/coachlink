@@ -16,6 +16,86 @@ G = 9.80665
 HP_WATT = 735.499
 
 
+MODE_PRESETS: Dict[str, Dict[str, Any]] = {
+    "pullup": {
+        "label": "Pull-up",
+        "labelZh": "引体向上",
+        "anchor": "shoulder",
+        "anchorLabel": "shoulder line",
+        "startThreshold": 0.22,
+        "endThreshold": 0.06,
+        "minDisplacement": 0.12,
+        "minTime": 0.12,
+        "maxTime": 5.5,
+        "stillSeconds": 0.12,
+        "bodyMassFactor": 1.0,
+        "viewHint": "Use a side or front 45-degree full-body view with the bar and feet visible.",
+    },
+    "muscleup": {
+        "label": "Muscle-up",
+        "labelZh": "双力臂",
+        "anchor": "shoulder",
+        "anchorLabel": "shoulder line",
+        "startThreshold": 0.32,
+        "endThreshold": 0.06,
+        "minDisplacement": 0.18,
+        "minTime": 0.12,
+        "maxTime": 5.5,
+        "stillSeconds": 0.12,
+        "bodyMassFactor": 1.0,
+        "viewHint": "Use a side or front 45-degree full-body view; avoid hiding the transition over the bar.",
+    },
+    "dip": {
+        "label": "Dip",
+        "labelZh": "双杠臂屈伸",
+        "anchor": "shoulder",
+        "anchorLabel": "shoulder line",
+        "startThreshold": 0.18,
+        "endThreshold": 0.05,
+        "minDisplacement": 0.09,
+        "minTime": 0.12,
+        "maxTime": 5.0,
+        "stillSeconds": 0.14,
+        "bodyMassFactor": 1.0,
+        "viewHint": "Use a side/front 45-degree view with shoulders, hips, and bars unobstructed.",
+    },
+    "pushup": {
+        "label": "Push-up",
+        "labelZh": "俯卧撑",
+        "anchor": "shoulder",
+        "anchorLabel": "shoulder line",
+        "startThreshold": 0.10,
+        "endThreshold": 0.035,
+        "minDisplacement": 0.045,
+        "minTime": 0.12,
+        "maxTime": 4.5,
+        "stillSeconds": 0.14,
+        "bodyMassFactor": 0.65,
+        "viewHint": "Use a clean side view; keep shoulders and hips visible throughout the rep.",
+    },
+    "squat": {
+        "label": "Squat",
+        "labelZh": "深蹲起身",
+        "anchor": "hip",
+        "anchorLabel": "hip line",
+        "startThreshold": 0.16,
+        "endThreshold": 0.045,
+        "minDisplacement": 0.10,
+        "minTime": 0.20,
+        "maxTime": 7.0,
+        "stillSeconds": 0.18,
+        "bodyMassFactor": 1.0,
+        "viewHint": "Use a side 45-degree full-body view; keep hips, shoulders, and feet in frame.",
+    },
+}
+
+SUPPORTED_MODES = list(MODE_PRESETS.keys())
+
+
+def get_mode_preset(mode: str) -> Dict[str, Any]:
+    return MODE_PRESETS.get(mode, MODE_PRESETS["pullup"])
+
+
 def emit_progress(value: int) -> None:
     print(json.dumps({"progress": max(0, min(100, int(value)))}), flush=True)
 
@@ -75,20 +155,54 @@ def infer_scale_m_per_px(landmarks: Any, frame_height: int, height_cm: float) ->
     return (height_cm / 100.0) / pixel_height
 
 
-def shoulder_y(landmarks: Any, frame_height: int) -> Optional[float]:
-    pose = mp.solutions.pose
-    items = [pose.PoseLandmark.LEFT_SHOULDER, pose.PoseLandmark.RIGHT_SHOULDER]
+def average_landmark_y(
+    landmarks: Any,
+    frame_height: int,
+    items: List[Any],
+    min_visibility: float = 0.35,
+) -> Optional[float]:
     ys: List[float] = []
     for item in items:
         lm = landmarks[item]
-        if getattr(lm, "visibility", 1.0) >= 0.35:
+        if getattr(lm, "visibility", 1.0) >= min_visibility:
             ys.append(lm.y * frame_height)
     if not ys:
         return None
     return sum(ys) / len(ys)
 
 
-def collect_pose_track(video_path: str, height_cm: float) -> Tuple[float, int, int, float, List[Optional[float]]]:
+def shoulder_y(landmarks: Any, frame_height: int) -> Optional[float]:
+    pose = mp.solutions.pose
+    items = [pose.PoseLandmark.LEFT_SHOULDER, pose.PoseLandmark.RIGHT_SHOULDER]
+    return average_landmark_y(landmarks, frame_height, items)
+
+
+def hip_y(landmarks: Any, frame_height: int) -> Optional[float]:
+    pose = mp.solutions.pose
+    items = [pose.PoseLandmark.LEFT_HIP, pose.PoseLandmark.RIGHT_HIP]
+    return average_landmark_y(landmarks, frame_height, items)
+
+
+def torso_y(landmarks: Any, frame_height: int) -> Optional[float]:
+    pose = mp.solutions.pose
+    items = [
+        pose.PoseLandmark.LEFT_SHOULDER,
+        pose.PoseLandmark.RIGHT_SHOULDER,
+        pose.PoseLandmark.LEFT_HIP,
+        pose.PoseLandmark.RIGHT_HIP,
+    ]
+    return average_landmark_y(landmarks, frame_height, items, min_visibility=0.3)
+
+
+def anchor_y(landmarks: Any, frame_height: int, anchor: str) -> Optional[float]:
+    if anchor == "hip":
+        return hip_y(landmarks, frame_height) or torso_y(landmarks, frame_height)
+    if anchor == "torso":
+        return torso_y(landmarks, frame_height) or shoulder_y(landmarks, frame_height)
+    return shoulder_y(landmarks, frame_height)
+
+
+def collect_pose_track(video_path: str, height_cm: float, mode: str) -> Tuple[float, int, int, float, List[Optional[float]]]:
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
         raise RuntimeError("Cannot open input video")
@@ -104,6 +218,8 @@ def collect_pose_track(video_path: str, height_cm: float) -> Tuple[float, int, i
 
     y_track: List[Optional[float]] = []
     scales: List[float] = []
+    preset = get_mode_preset(mode)
+    anchor = str(preset["anchor"])
 
     pose_mod = mp.solutions.pose
     with pose_mod.Pose(
@@ -122,7 +238,7 @@ def collect_pose_track(video_path: str, height_cm: float) -> Tuple[float, int, i
             result = pose.process(rgb)
             if result.pose_landmarks:
                 landmarks = result.pose_landmarks.landmark
-                y_track.append(shoulder_y(landmarks, frame_height))
+                y_track.append(anchor_y(landmarks, frame_height, anchor))
                 scale = infer_scale_m_per_px(landmarks, frame_height, height_cm)
                 if scale:
                     scales.append(scale)
@@ -154,12 +270,13 @@ def detect_reps(
     effective_mass_kg: float,
     mode: str,
 ) -> List[Dict[str, float]]:
-    start_threshold = 0.22 if mode == "pullup" else 0.32
-    end_threshold = 0.06
-    min_displacement = 0.12 if mode == "pullup" else 0.18
-    min_time = 0.12
-    max_time = 5.5
-    still_frames_needed = max(3, int(round(fps * 0.12)))
+    preset = get_mode_preset(mode)
+    start_threshold = float(preset["startThreshold"])
+    end_threshold = float(preset["endThreshold"])
+    min_displacement = float(preset["minDisplacement"])
+    min_time = float(preset["minTime"])
+    max_time = float(preset["maxTime"])
+    still_frames_needed = max(3, int(round(fps * float(preset["stillSeconds"]))))
 
     reps: List[Dict[str, float]] = []
     in_ascent = False
@@ -250,13 +367,19 @@ def filter_partial_startup_reps(reps: List[Dict[str, float]], mode: str) -> List
     return filtered
 
 
-def build_mass_metrics(body_weight_kg: float, external_load_kg: float) -> Dict[str, float]:
+def build_mass_metrics(
+    body_weight_kg: float,
+    external_load_kg: float,
+    body_mass_factor: float = 1.0,
+) -> Dict[str, float]:
     body_weight = max(0.0, float(body_weight_kg))
     external_load = max(0.0, float(external_load_kg))
+    factor = min(1.0, max(0.1, float(body_mass_factor)))
     return {
         "bodyWeightKg": round_float(body_weight, 2),
         "externalLoadKg": round_float(external_load, 2),
-        "effectiveMassKg": round_float(body_weight + external_load, 2),
+        "bodyMassFactor": round_float(factor, 2),
+        "effectiveMassKg": round_float(body_weight * factor + external_load, 2),
     }
 
 
@@ -266,7 +389,8 @@ def build_metrics(
     body_weight_kg: float,
     external_load_kg: float,
 ) -> Dict[str, Any]:
-    mass = build_mass_metrics(body_weight_kg, external_load_kg)
+    preset = get_mode_preset(mode)
+    mass = build_mass_metrics(body_weight_kg, external_load_kg, float(preset["bodyMassFactor"]))
     if not reps:
         return {
             "mode": mode,
@@ -282,7 +406,8 @@ def build_metrics(
             },
             "reps": [],
             "notes": [
-                "No complete upward phase was detected. Try a clearer full-body video with less occlusion."
+                "No complete upward phase was detected. Try a clearer full-body video with less occlusion.",
+                f"Recommended view: {preset['viewHint']}",
             ],
         }
 
@@ -291,9 +416,9 @@ def build_metrics(
     times = [float(r["ascentTimeS"]) for r in reps]
     displacements = [float(r["displacementM"]) for r in reps]
     load_note = (
-        "Power is estimated from body weight plus external load, vertical shoulder displacement, and ascent time."
+        f"Power is estimated from effective mass, vertical {preset['anchorLabel']} displacement, and ascent time."
         if mass["externalLoadKg"] > 0
-        else "Power is estimated from body weight, vertical shoulder displacement, and ascent time."
+        else f"Power is estimated from effective body mass, vertical {preset['anchorLabel']} displacement, and ascent time."
     )
     return {
         "mode": mode,
@@ -310,6 +435,7 @@ def build_metrics(
         "reps": reps,
         "notes": [
             load_note,
+            f"Recommended view: {preset['viewHint']}",
             "Camera angle, occlusion, body landmark stability, and height calibration affect accuracy.",
         ],
     }
@@ -340,7 +466,8 @@ def render_output_video(
     summary = metrics.get("summary", {})
     mass = metrics.get("mass") if isinstance(metrics.get("mass"), dict) else {}
     effective_mass_kg = float(mass.get("effectiveMassKg") or 0)
-    mode_label = "Muscle-up" if metrics.get("mode") == "muscleup" else "Pull-up"
+    preset = get_mode_preset(str(metrics.get("mode") or "pullup"))
+    mode_label = str(preset["label"])
     rep_count = int(metrics.get("repCount") or 0)
     reps = metrics.get("reps") if isinstance(metrics.get("reps"), list) else []
     hold_frames = max(1, int(round(fps * 1.4)))
@@ -520,10 +647,13 @@ def render_output_video(
 
 def run(args: argparse.Namespace) -> Dict[str, Any]:
     emit_progress(8)
-    fps, width, height, scale, y_track = collect_pose_track(args.input, args.height_cm)
+    fps, width, height, scale, y_track = collect_pose_track(args.input, args.height_cm, args.mode)
     emit_progress(48)
     external_load_kg = max(0.0, float(args.external_load_kg or 0))
-    effective_mass_kg = max(0.0, float(args.weight_kg)) + external_load_kg
+    preset = get_mode_preset(args.mode)
+    effective_mass_kg = float(
+        build_mass_metrics(args.weight_kg, external_load_kg, float(preset["bodyMassFactor"]))["effectiveMassKg"]
+    )
     reps = detect_reps(y_track, fps, scale, effective_mass_kg, args.mode)
     metrics = build_metrics(args.mode, reps, args.weight_kg, external_load_kg)
     metrics["video"] = {
@@ -543,7 +673,7 @@ def main() -> int:
     parser.add_argument("--input", required=True)
     parser.add_argument("--output", required=True)
     parser.add_argument("--metrics", required=True)
-    parser.add_argument("--mode", choices=["pullup", "muscleup"], default="pullup")
+    parser.add_argument("--mode", choices=SUPPORTED_MODES, default="pullup")
     parser.add_argument("--height-cm", type=float, required=True)
     parser.add_argument("--weight-kg", type=float, required=True)
     parser.add_argument("--external-load-kg", type=float, default=0)

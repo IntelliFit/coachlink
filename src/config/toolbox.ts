@@ -29,8 +29,8 @@ export type ToolboxLink = {
 export const STUDENT_TOOLBOX_LINKS: ToolboxLink[] = [
   {
     key: 'power-analysis',
-    label: '引体 / 双力臂功率测试',
-    description: '上传视频估算上升功率、马力和最大速度；分析视频可下载，服务器仅临时保留 24 小时。',
+    label: '多动作功率视频分析',
+    description: '上传引体、双力臂、臂屈伸、俯卧撑或深蹲视频，估算上升功率、马力和最大速度。',
     url: '/toolbox/power-analysis',
     icon: 'pi pi-bolt',
   },

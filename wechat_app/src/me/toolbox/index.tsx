@@ -27,8 +27,8 @@ const TOOLBOX_LINKS: ToolboxLink[] = [
   {
     key: 'power-analysis',
     label: '功率视频分析',
-    description: '上传引体或双力臂视频，估算功率、马力和最大速度。',
-    image: '/me/assets/images/toolbox-calculator.jpg',
+    description: '上传引体、双力臂、臂屈伸、俯卧撑或深蹲视频，估算功率与速度。',
+    image: '/me/assets/images/toolbox-power-analysis.jpg',
     url: '/me/toolbox/power-analysis/index'
   },
   {

@@ -1389,7 +1389,7 @@ export function BatchOperationDialog({
             header={null}
             visible={visible}
             onHide={handleHide}
-            style={{ width: '95vw', maxWidth: '1400px' }}
+            style={{ width: '95vw', maxWidth: '1400px', height: '90vh', maxHeight: '900px' }}
             modal
             closable={!isProcessing && !isApplying}
             draggable={false}

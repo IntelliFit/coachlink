@@ -103,11 +103,15 @@ class ExecutionService {
   /**
    * 添加额外组
    */
-  async addExtraSet(executionId: string, actionIndex: number): Promise<{ newSetIndex: number; totalSets: number } | null> {
+  async addExtraSet(
+    executionId: string,
+    actionIndex: number,
+    params?: { weight?: number | string | null; reps?: number | string | null; restSeconds?: number | null }
+  ): Promise<{ newSetIndex: number; totalSets: number } | null> {
     const res = await request({
       url: `${this.baseUrl}/extra-content/add-extra-set`,
       method: 'POST',
-      data: { executionId, actionIndex }
+      data: { executionId, actionIndex, ...params }
     })
     if (res.success && res.data) return res.data
     return null
@@ -151,7 +155,7 @@ class ExecutionService {
     actionId: string,
     actionName: string,
     options?: {
-      sets?: Array<{ weight?: number | null; reps?: number | string | null; restSeconds?: number | null }>
+      sets?: Array<{ weight?: number | string | null; reps?: number | string | null; restSeconds?: number | null }>
       customData?: Record<string, any>
       suggestedTime?: string
       notes?: string

@@ -40,6 +40,8 @@ const EMPTY_PROFILE_STATS: ProfileStats = {
   trainingActions: 0
 }
 
+const STUDENT_BETA_GROUP_IMAGE = 'https://cdn-assets.coachlink.fit/beta-groups/student-wechat-group.png'
+
 function Profile() {
   const { effectiveTheme } = useTheme()
   const { isDark, toggleTheme } = useTheme()
@@ -274,6 +276,14 @@ function Profile() {
       requiresAuth: true
     },
     {
+      key: 'ranking',
+      label: '排行榜',
+      icon: 'icon-ranking',
+      iconBg: '#CF6D4E',
+      path: '/discovery/ranking',
+      requiresAuth: true
+    },
+    {
       key: 'my-coaches',
       label: '我的教练',
       icon: 'icon-coachline_line',
@@ -304,6 +314,13 @@ function Profile() {
       iconBg: '#722ed1',
       path: '/me/purchase-history/index',
       requiresAuth: true
+    },
+    {
+      key: 'join-beta-group',
+      label: '加入内测群',
+      icon: 'icon-messages',
+      iconBg: '#CF6D4E',
+      action: handleJoinBetaGroup
     }
   ]
 
@@ -410,6 +427,16 @@ function Profile() {
         icon: 'none'
       })
     }
+  }
+
+  function handleJoinBetaGroup() {
+    Taro.previewImage({
+      current: STUDENT_BETA_GROUP_IMAGE,
+      urls: [STUDENT_BETA_GROUP_IMAGE],
+    }).catch((error) => {
+      console.error('[profile] join beta group:', error)
+      Taro.showToast({ title: '打开内测群失败', icon: 'none' })
+    })
   }
 
   const themeIconClass = useMemo(() => {

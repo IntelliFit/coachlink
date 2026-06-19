@@ -18,6 +18,16 @@ interface DayCheckinShareData {
   strengthTaskCount: number
   strengthCompletedSetCount: number
   strengthTotalSetCount: number
+  strengthItems?: Array<{
+    title: string
+    completedSetCount: number
+    setCount: number
+  }>
+  lightweightItems?: Array<{
+    title: string
+    type: string
+    isCompleted: boolean
+  }>
 }
 
 interface DayCheckinShareSheetProps {
@@ -317,6 +327,39 @@ function DayCheckinShareSheet({
                   </Text>
                   <Text className='grid-desc'>饮食 / 有氧 / 习惯</Text>
                 </View>
+              </View>
+
+              <View className='preview-detail-panel'>
+                <View className='detail-panel-head'>
+                  <Text className='detail-panel-title'>今日内容</Text>
+                  <Text className='detail-panel-meta'>
+                    {data.completedModuleCount}/{data.moduleCount} 模块
+                  </Text>
+                </View>
+                {(data.strengthItems || []).length > 0 && (
+                  <View className='detail-block'>
+                    <Text className='detail-block-label'>训练</Text>
+                    {(data.strengthItems || []).map((item, index) => (
+                      <View key={`${item.title}-${index}`} className='detail-row'>
+                        <Text className='detail-name'>{item.title}</Text>
+                        <Text className='detail-status'>{item.completedSetCount}/{item.setCount}组</Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
+                {(data.lightweightItems || []).length > 0 && (
+                  <View className='detail-block'>
+                    <Text className='detail-block-label'>轻任务</Text>
+                    {(data.lightweightItems || []).map((item, index) => (
+                      <View key={`${item.title}-${index}`} className='detail-row'>
+                        <Text className='detail-name'>{item.title}</Text>
+                        <Text className={`detail-status ${item.isCompleted ? 'done' : ''}`}>
+                          {item.isCompleted ? '已完成' : '待完成'}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
               </View>
             </View>
 

@@ -223,6 +223,9 @@ function TodayTrainingCard({
                 const meta = buildStrengthMeta(task)
                 return (
                   <View key={`${task.index}-${task.title}`} className='strength-item' onClick={() => openExecution(task.executionIndex)}>
+                    <View className='strength-item-visual'>
+                      <Text className='strength-item-icon iconfont icon-a-Trainingplan' />
+                    </View>
                     <View className='strength-item-main'>
                       <Text className='strength-item-title'>{task.title}</Text>
                       <Text className='strength-item-meta'>
@@ -231,7 +234,11 @@ function TodayTrainingCard({
                         {meta.restText ? ` · ${meta.restText}` : ''}
                       </Text>
                     </View>
-                    {task.noteText && <Text className='strength-item-note'>{task.noteText}</Text>}
+                    <View className='strength-item-side'>
+                      <Text className='strength-item-progress'>{task.completedSetCount}/{task.setCount}组</Text>
+                      {task.noteText && <Text className='strength-item-note'>{task.noteText}</Text>}
+                    </View>
+                    <Text className='strength-item-chevron'>›</Text>
                   </View>
                 )
               })}
@@ -247,16 +254,18 @@ function TodayTrainingCard({
               </View>
             )}
 
-            <View className='strength-actions'>
-              <View
-                className={`main-action-btn ${
-                  trainingCompleted ? 'ghost' : trainingInProgress ? 'warning' : 'success'
-                }`}
-                onClick={() => openExecution()}
-              >
-                <Text>{trainingCompleted ? '查看训练记录' : trainingInProgress ? '继续训练' : '开始训练'}</Text>
+            {!embeddedInSchedule && (
+              <View className='strength-actions'>
+                <View
+                  className={`main-action-btn ${
+                    trainingCompleted ? 'ghost' : trainingInProgress ? 'warning' : 'success'
+                  }`}
+                  onClick={() => openExecution()}
+                >
+                  <Text>{trainingCompleted ? '查看训练记录' : trainingInProgress ? '继续训练' : '开始训练'}</Text>
+                </View>
               </View>
-            </View>
+            )}
           </View>
         )}
 

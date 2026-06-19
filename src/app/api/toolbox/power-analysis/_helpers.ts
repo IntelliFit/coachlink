@@ -7,6 +7,13 @@ import type {
 
 export const POWER_ANALYSIS_BUCKET = "videos" as const;
 export const POWER_ANALYSIS_RETENTION_HOURS = 24;
+export const POWER_ANALYSIS_MODE_VALUES: PowerAnalysisMode[] = [
+  "pullup",
+  "muscleup",
+  "dip",
+  "pushup",
+  "squat",
+];
 
 const db = serviceRoleSupabase as any;
 
@@ -22,9 +29,30 @@ export function getPowerAnalysisLimits() {
   return { maxVideoSizeMb, dailyLimit };
 }
 
+function truthyEnv(value: string | undefined) {
+  return ["1", "true", "yes", "on"].includes(String(value || "").trim().toLowerCase());
+}
+
+function envList(value: string | undefined) {
+  return String(value || "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+export function isPowerAnalysisDailyLimitBypassed(userId: string) {
+  if (truthyEnv(process.env.POWER_ANALYSIS_DISABLE_DAILY_LIMIT)) return true;
+  if (process.env.NODE_ENV !== "production") return true;
+
+  const bypassUserIds = envList(process.env.POWER_ANALYSIS_DAILY_LIMIT_BYPASS_USER_IDS);
+  return bypassUserIds.includes(userId);
+}
+
 export function normalizeMode(value: unknown): PowerAnalysisMode | null {
   const mode = String(value || "").trim().toLowerCase();
-  return mode === "pullup" || mode === "muscleup" ? mode : null;
+  return POWER_ANALYSIS_MODE_VALUES.includes(mode as PowerAnalysisMode)
+    ? (mode as PowerAnalysisMode)
+    : null;
 }
 
 export function numberInRange(value: unknown, min: number, max: number): number | null {

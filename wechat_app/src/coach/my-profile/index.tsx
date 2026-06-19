@@ -14,7 +14,8 @@ import {
   LogOut,
   BadgeCheck,
   Activity,
-  Settings
+  Settings,
+  MessageCircle
 } from 'lucide-react'
 import BottomNav from '@/components/BottomNav'
 import { Icon } from '@/components/Icon'
@@ -35,6 +36,8 @@ interface ProfileActionItem {
   value?: string
   badge?: string
 }
+
+const COACH_BETA_GROUP_IMAGE = 'https://cdn-assets.coachlink.fit/beta-groups/coach-wechat-group.png'
 
 function CoachMyProfile() {
   const { effectiveTheme } = useTheme()
@@ -90,6 +93,16 @@ function CoachMyProfile() {
           Taro.showToast({ title: '退出失败', icon: 'none' })
         }
       }
+    })
+  }, [])
+
+  const handleJoinBetaGroup = useCallback(() => {
+    Taro.previewImage({
+      current: COACH_BETA_GROUP_IMAGE,
+      urls: [COACH_BETA_GROUP_IMAGE],
+    }).catch((error) => {
+      console.error('[coach/my-profile] join beta group:', error)
+      Taro.showToast({ title: '打开内测群失败', icon: 'none' })
     })
   }, [])
 
@@ -272,6 +285,14 @@ function CoachMyProfile() {
       path: '/me/settings/index'
     },
     {
+      key: 'join-beta-group',
+      title: '加入内测群',
+      description: '加入教练端内测群，接收教练端更新和反馈沟通',
+      icon: MessageCircle,
+      tone: 'indigo',
+      action: handleJoinBetaGroup
+    },
+    {
       key: 'switch-role',
       title: '切换到学员端',
       description: '返回学员视角继续使用训练功能',
@@ -287,7 +308,7 @@ function CoachMyProfile() {
       tone: 'rose',
       action: handleLogout
     }
-  ], [handleLogout, switchToStudent])
+  ], [handleJoinBetaGroup, handleLogout, switchToStudent])
 
   const handleActionClick = useCallback((item: ProfileActionItem) => {
     if (item.action) {

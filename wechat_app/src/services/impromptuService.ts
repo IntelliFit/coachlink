@@ -98,7 +98,7 @@ class ImpromptuService {
   async addExtraSet(
     executionId: string,
     actionIndex: number,
-    params?: { weight?: number | null; reps?: number | null; restSeconds?: number | null }
+    params?: { weight?: number | string | null; reps?: number | string | null; restSeconds?: number | null }
   ): Promise<{ newSetIndex: number; totalSets: number } | null> {
     const res = await request({
       url: `${this.baseUrl}/extra-content/add-extra-set`,
@@ -133,7 +133,7 @@ class ImpromptuService {
     executionId: string,
     actionId: string,
     actionName: string,
-    sets?: Array<{ weight?: number | null; reps?: number | null; restSeconds?: number | null }>
+    sets?: Array<{ weight?: number | string | null; reps?: number | string | null; restSeconds?: number | null }>
   ): Promise<{ newActionIndex: number; totalSets: number } | null> {
     const res = await request({
       url: `${this.baseUrl}/extra-content/add-extra-exercise`,

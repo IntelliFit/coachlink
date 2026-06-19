@@ -9,6 +9,9 @@ import {
   getPublicTrainingShareTitle,
   openCoachLinkShareMenu
 } from '@/utils/share'
+import { svgToDataUri } from '@/utils/svgToDataUri'
+import maleFrontSvgRaw from '@/assets/body-map/maleFrontSvg'
+import maleBackSvgRaw from '@/assets/body-map/maleBackSvg'
 import './index.scss'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { useTheme } from '@/hooks/useTheme'
@@ -44,6 +47,87 @@ function formatDateTime(input: string) {
     hour: '2-digit',
     minute: '2-digit'
   })
+}
+
+const MUSCLE_FILL_ORIGIN_STYLE = 'fill:#222222'
+const MUSCLE_FILL_HIGHLIGHT_STYLE = 'fill:#CF6D4E'
+
+const MUSCLE_INFERENCE_RULES: Array<{ label: string; keywords: string[] }> = [
+  { label: '胸部', keywords: ['胸', '卧推', '飞鸟', '夹胸', '俯卧撑', '双杠', '臂屈伸'] },
+  { label: '背部', keywords: ['背', '引体', '划船', '下拉', '硬拉', '高位下拉'] },
+  { label: '肩部', keywords: ['肩', '推举', '侧平举', '三角肌', '面拉'] },
+  { label: '手臂', keywords: ['手臂', '二头', '三头', '肱二头', '肱三头', '弯举', '臂屈伸'] },
+  { label: '核心', keywords: ['核心', '腹', '卷腹', '平板', '腰腹', '悬垂举腿'] },
+  { label: '腿部', keywords: ['腿', '深蹲', '腿举', '弓步', '股四头', '腘绳', '蹲'] },
+  { label: '臀部', keywords: ['臀', '臀桥', '髋', '硬拉'] }
+]
+
+function parseSvgCategoryMap(svg: string): Record<string, string> {
+  const map: Record<string, string> = {}
+  const singleLineRegex = /<g[^>]*data-name="([^"]+)"[^>]*category="([^"]+)"[^>]*>/g
+  let match: RegExpExecArray | null
+  while ((match = singleLineRegex.exec(svg)) !== null) {
+    if (match[1] !== '肌肉' && match[1] !== '关节' && match[1] !== '全身轮廓') {
+      map[match[1]] = match[2]
+    }
+  }
+  const multiLineRegex = /<g\s*\n?\s*data-name="([^"]+)"\s*\n?\s*category="([^"]+)"/g
+  while ((match = multiLineRegex.exec(svg)) !== null) {
+    if (match[1] !== '肌肉' && match[1] !== '关节' && match[1] !== '全身轮廓') {
+      map[match[1]] = match[2]
+    }
+  }
+  return map
+}
+
+function highlightSvgCategories(svg: string, selectedParts: string[]) {
+  const categoryMap = parseSvgCategoryMap(svg)
+  const dataNamesToHighlight = new Set<string>()
+  selectedParts.forEach((part) => {
+    Object.entries(categoryMap).forEach(([dataName, category]) => {
+      if (category === part) dataNamesToHighlight.add(dataName)
+    })
+  })
+
+  let result = svg
+    .replace(/fill:#fff/gi, MUSCLE_FILL_ORIGIN_STYLE)
+    .replace(/fill="#fff"/gi, 'fill="#222222"')
+
+  dataNamesToHighlight.forEach((dataName) => {
+    const regex = new RegExp(`(<g[^>]*data-name="${dataName}"[^>]*>)([\\s\\S]*?)(</g>)`, 'g')
+    result = result.replace(regex, (_match, open, content, close) => {
+      const highlighted = content.replace(
+        new RegExp(MUSCLE_FILL_ORIGIN_STYLE.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'),
+        MUSCLE_FILL_HIGHLIGHT_STYLE
+      )
+      return open + highlighted + close
+    })
+  })
+
+  return svgToDataUri(result.replace(
+    /<svg\s/,
+    '<svg style="width:100%;height:100%;display:block;" preserveAspectRatio="xMidYMid meet" '
+  ))
+}
+
+function inferMusclesForAction(action: ActionExecutionSummary): string[] {
+  const sourceText = String(action?.actionName || '').toLowerCase()
+  return MUSCLE_INFERENCE_RULES
+    .filter((rule) => rule.keywords.some((keyword) => sourceText.includes(keyword.toLowerCase())))
+    .map((rule) => rule.label)
+}
+
+function buildMuscleScores(actions: ActionExecutionSummary[]) {
+  const scores = new Map<string, number>()
+  actions.forEach((action) => {
+    const muscles = inferMusclesForAction(action)
+    const score = Math.max(1, Number(action.setsCount || 0)) + Math.max(0, Math.round(Number(action.volume || 0) / 1000))
+    muscles.forEach((muscle) => scores.set(muscle, (scores.get(muscle) || 0) + score))
+  })
+
+  return Array.from(scores.entries())
+    .map(([label, score]) => ({ label, score }))
+    .sort((a, b) => b.score - a.score)
 }
 
 /**
@@ -134,15 +218,18 @@ export default function PublicTrainingPage() {
 
   const dateStr = formatDateTime(data.completedAt)
   const totalVolumeTons = Math.round((data.totalVolume / 1000) * 10) / 10
+  const muscleScores = buildMuscleScores(data.actionExecutions || [])
+  const highlightedMuscles = muscleScores.map((item) => item.label)
+  const heatmapFrontSvg = highlightSvgCategories(maleFrontSvgRaw, highlightedMuscles)
+  const heatmapBackSvg = highlightSvgCategories(maleBackSvgRaw, highlightedMuscles)
+  const maxMuscleScore = Math.max(1, ...muscleScores.map((item) => item.score))
 
   return (
     <View className={`public-training-page theme-${effectiveTheme}`}>
       <ScrollView scrollY className="scroll">
         <View className="scroll-inner">
-          {/* 头部 Banner */}
-          <View className="banner">
-            <View className="banner-bg" />
-            <View className="banner-content">
+          <View className="result-card">
+            <View className="result-header">
               <View className="avatar-wrap">
                 {data.user.avatarUrl ? (
                   <Image className="avatar" src={data.user.avatarUrl} mode="aspectFill" />
@@ -154,42 +241,51 @@ export default function PublicTrainingPage() {
                   </View>
                 )}
               </View>
-              <Text className="banner-title">
-                {data.user.nickname}{' '}
-                <Text className="banner-sub">Training DONE</Text>
-              </Text>
-              <Text className="banner-meta">
-                {dateStr} · {data.planName}
-              </Text>
+              <View className="result-title-wrap">
+                <Text className="result-eyebrow">TRAINING COMPLETE</Text>
+                <Text className="result-title">{data.user.nickname} 完成训练</Text>
+                <Text className="result-meta">{dateStr} · {data.planName}</Text>
+              </View>
+            </View>
+
+            <View className="heatmap-row">
+              <View className="body-map">
+                <Image className="body-image" src={heatmapFrontSvg} mode="aspectFit" />
+                <Text className="body-caption">正面</Text>
+              </View>
+              <View className="body-map">
+                <Image className="body-image" src={heatmapBackSvg} mode="aspectFit" />
+                <Text className="body-caption">背面</Text>
+              </View>
+            </View>
+
+            <View className="stats-row">
+              <View className="stat-card">
+                <Text className="stat-value">{totalVolumeTons}</Text>
+                <Text className="stat-label">总容量 t</Text>
+              </View>
+              <View className="stat-card">
+                <Text className="stat-value">{data.totalSets}</Text>
+                <Text className="stat-label">完成组数</Text>
+              </View>
+              <View className="stat-card">
+                <Text className="stat-value">{data.durationMinutes || '-'}</Text>
+                <Text className="stat-label">分钟</Text>
+              </View>
+            </View>
+
+            <View className="muscle-list">
+              {(muscleScores.length > 0 ? muscleScores : [{ label: '全身', score: 1 }]).slice(0, 5).map((item) => (
+                <View key={item.label} className="muscle-row">
+                  <Text className="muscle-name">{item.label}</Text>
+                  <View className="muscle-track">
+                    <View className="muscle-fill" style={{ width: `${Math.max(12, Math.round((item.score / maxMuscleScore) * 100))}%` }} />
+                  </View>
+                </View>
+              ))}
             </View>
           </View>
 
-          {/* 统计卡片 */}
-          <View className="stats-row">
-            <View className="stat-card">
-              <Text className="stat-label">总训练量</Text>
-              <Text className="stat-value">
-                {totalVolumeTons}
-                <Text className="stat-unit"> t</Text>
-              </Text>
-            </View>
-            <View className="stat-card">
-              <Text className="stat-label">完成组数</Text>
-              <Text className="stat-value">
-                {data.totalSets}
-                <Text className="stat-unit"> 组</Text>
-              </Text>
-            </View>
-            <View className="stat-card">
-              <Text className="stat-label">训练时长</Text>
-              <Text className="stat-value">
-                {data.durationMinutes}
-                <Text className="stat-unit"> 分钟</Text>
-              </Text>
-            </View>
-          </View>
-
-          {/* 训练明细 */}
           <View className="section">
             <Text className="section-title">训练明细</Text>
             {data.actionExecutions && data.actionExecutions.length > 0 ? (
@@ -218,7 +314,6 @@ export default function PublicTrainingPage() {
             )}
           </View>
 
-          {/* 引导卡片 */}
           <View className="cta-card">
             <Text className="cta-title">想要同款训练计划？</Text>
             <Text className="cta-text">
@@ -240,7 +335,6 @@ export default function PublicTrainingPage() {
             </View>
           </View>
 
-          {/* 分享按钮 */}
           <View className="share-section">
             <Button
               className="share-btn"

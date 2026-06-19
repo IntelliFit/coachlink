@@ -4,9 +4,9 @@
 export interface AddExtraSetDto {
     executionId: string;
     actionIndex: number;
-    weight?: number;
-    reps?: number | string;
-    restSeconds?: number;
+    weight?: number | string | null;
+    reps?: number | string | null;
+    restSeconds?: number | null;
 }
 
 export interface AddExtraSetResponseDto {
@@ -29,9 +29,9 @@ export interface AddExtraExerciseDto {
     suggestedTime?: string;
     notes?: string;
     sets: Array<{
-        weight?: number;
-        reps?: number | string;
-        restSeconds?: number;
+        weight?: number | string | null;
+        reps?: number | string | null;
+        restSeconds?: number | null;
     }>;
 }
 
