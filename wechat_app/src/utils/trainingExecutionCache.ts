@@ -18,6 +18,12 @@ type SnapshotStoreV1 = {
   entries: Record<string, SnapshotEntry>
 }
 
+function isPreviewExecution(execution: any): boolean {
+  const status = String(execution?.status || '').toLowerCase()
+  const id = String(execution?.id || '')
+  return status === 'preview' || id.startsWith('preview-')
+}
+
 function readStore(userId: string): SnapshotStoreV1 | null {
   if (!userId) return null
   try {
@@ -88,13 +94,20 @@ export function persistTrainingExecutionSnapshot(
   if (!userId || !scopeKey || !payload?.execution) return
   const store = readStore(userId)
   const prev = store?.userId === userId ? store.entries || {} : {}
+  const previousEntry = prev[scopeKey]
+  const previousExecution = previousEntry?.execution
+  const shouldKeepExistingExecution =
+    isPreviewExecution(payload.execution) &&
+    previousExecution &&
+    !isPreviewExecution(previousExecution)
+
   const nextEntries = {
     ...prev,
     [scopeKey]: {
       savedAt: Date.now(),
-      execution: payload.execution,
-      planInstance: payload.planInstance,
-      actions: payload.actions
+      execution: shouldKeepExistingExecution ? previousExecution : payload.execution,
+      planInstance: payload.planInstance ?? previousEntry?.planInstance,
+      actions: payload.actions ?? previousEntry?.actions
     }
   }
   writeStore(userId, nextEntries)

@@ -8,6 +8,47 @@ import type {
 } from "../entity";
 import { computeExecutionProgress } from "@/lib/executionProgress";
 
+function hasRecordValue(value: unknown): boolean {
+    return value !== null && value !== undefined && String(value).trim() !== "";
+}
+
+function formatPlanWeight(value: unknown): number | string | null {
+    if (!hasRecordValue(value)) return null;
+    if (typeof value === "number") {
+        return Number.isFinite(value) ? `${value}kg` : null;
+    }
+    return String(value).trim();
+}
+
+function formatPlanReps(value: unknown): number | string | null {
+    if (!hasRecordValue(value)) return null;
+    if (typeof value === "number") {
+        return Number.isFinite(value) ? String(Math.max(0, Math.floor(value))) : null;
+    }
+    return String(value).trim();
+}
+
+function findInheritedSetDefaults(sets: any[]) {
+    let fallbackRestSeconds: number | null = null;
+    for (let i = sets.length - 1; i >= 0; i -= 1) {
+        const set = sets[i] || {};
+        const plannedWeight = formatPlanWeight(set.actual_weight ?? set.planned_weight);
+        const plannedReps = formatPlanReps(set.actual_reps ?? set.planned_reps);
+        const restSeconds = Number(set.planned_rest_seconds ?? set.rest_seconds);
+        if (fallbackRestSeconds === null && Number.isFinite(restSeconds) && restSeconds > 0) {
+            fallbackRestSeconds = Math.round(restSeconds);
+        }
+        if (plannedWeight !== null || plannedReps !== null) {
+            return {
+                plannedWeight,
+                plannedReps,
+                restSeconds: Number.isFinite(restSeconds) && restSeconds > 0 ? Math.round(restSeconds) : fallbackRestSeconds,
+            };
+        }
+    }
+    return { plannedWeight: null, plannedReps: null, restSeconds: fallbackRestSeconds };
+}
+
 export async function POST(request: NextRequest) {
     try {
         const session = await getServerSession();
@@ -61,12 +102,17 @@ export async function POST(request: NextRequest) {
         const action = actionExecutions[actionIndex];
         const sets = Array.isArray(action.sets) ? action.sets : [];
         const newSetIndex = sets.length;
+        const inherited = findInheritedSetDefaults(sets);
+        const plannedWeight = formatPlanWeight(weight) ?? inherited.plannedWeight;
+        const plannedReps = formatPlanReps(reps) ?? inherited.plannedReps;
+        const inheritedRestSeconds = restSeconds ?? inherited.restSeconds ?? 60;
         sets.push({
             set_number: newSetIndex + 1,
             set_index: newSetIndex,
-            planned_weight: weight ?? null,
-            planned_reps: reps ?? null,
-            planned_rest_seconds: restSeconds || 60,
+            planned_weight: plannedWeight,
+            planned_reps: plannedReps,
+            planned_rest_seconds: inheritedRestSeconds,
+            rest_seconds: inheritedRestSeconds,
             status: "pending",
             source: "student_extra",
             created_at: new Date().toISOString(),

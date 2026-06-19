@@ -1,4 +1,4 @@
-export type PowerAnalysisMode = "pullup" | "muscleup";
+export type PowerAnalysisMode = "pullup" | "muscleup" | "dip" | "pushup" | "squat";
 export type PowerAnalysisJobStatus =
   | "awaiting_upload"
   | "queued"
@@ -21,6 +21,7 @@ export interface PowerAnalysisMetrics {
   mass?: {
     bodyWeightKg: number;
     externalLoadKg: number;
+    bodyMassFactor?: number;
     effectiveMassKg: number;
   };
   repCount: number;
@@ -75,6 +76,7 @@ export interface CreatePowerAnalysisUploadUrlResponseDto {
   limits: {
     maxVideoSizeMb: number;
     dailyLimit: number;
+    dailyLimitBypassed?: boolean;
   };
 }
 

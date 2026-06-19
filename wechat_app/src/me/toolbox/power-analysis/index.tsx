@@ -11,7 +11,7 @@ import {
 import { useTheme } from '@/hooks/useTheme'
 import './index.scss'
 
-type PowerAnalysisMode = 'pullup' | 'muscleup'
+type PowerAnalysisMode = 'pullup' | 'muscleup' | 'dip' | 'pushup' | 'squat'
 type PowerAnalysisJobStatus = 'awaiting_upload' | 'queued' | 'processing' | 'done' | 'failed' | 'expired'
 type UploadPhase = 'idle' | 'creating' | 'uploading' | 'uploaded' | 'enqueueing' | 'queued' | 'done'
 
@@ -94,8 +94,11 @@ interface SelectedVideo {
 }
 
 const MODE_OPTIONS: Array<{ label: string; value: PowerAnalysisMode; hint: string }> = [
-  { label: '引体向上', value: 'pullup', hint: '连续引体、爆发引体、停顿引体' },
-  { label: '双力臂', value: 'muscleup', hint: '上升阶段爆发力与过杠速度' }
+  { label: '引体向上', value: 'pullup', hint: '正面或侧前方，全身入镜' },
+  { label: '双力臂', value: 'muscleup', hint: '保留过杠阶段，避免遮挡' },
+  { label: '双杠臂屈伸', value: 'dip', hint: '肩、髋和双杠无遮挡' },
+  { label: '俯卧撑', value: 'pushup', hint: '侧面拍摄，肩髋都要清楚' },
+  { label: '深蹲起身', value: 'squat', hint: '侧前方全身，髋部可见' }
 ]
 
 const TERMINAL_STATUSES: PowerAnalysisJobStatus[] = ['done', 'failed', 'expired']
@@ -564,7 +567,7 @@ export default function WechatPowerAnalysisPage() {
       <ScrollView scrollY className='analysis-scroll'>
         <View className='page-content'>
           <View className='intro-card'>
-            <Text className='intro-kicker'>引体 / 双力臂</Text>
+            <Text className='intro-kicker'>多动作功率测试</Text>
             <Text className='intro-title'>上传视频，估算功率、马力与最大速度</Text>
             <Text className='intro-desc'>视频仅作为临时分析任务处理，完成后可保存带标注的视频结果。</Text>
           </View>

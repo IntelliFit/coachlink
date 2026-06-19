@@ -43,6 +43,7 @@ export default defineConfig<'vite'>(async (merge, { command, mode }) => {
         { from: 'src/assets/images/toolbox-data.jpg', to: 'me/assets/images/toolbox-data.jpg' },
         { from: 'src/assets/images/toolbox-locations.jpg', to: 'me/assets/images/toolbox-locations.jpg' },
         { from: 'src/assets/images/toolbox-calculator.jpg', to: 'me/assets/images/toolbox-calculator.jpg' },
+        { from: 'src/assets/images/toolbox-power-analysis.jpg', to: 'me/assets/images/toolbox-power-analysis.jpg' },
         { from: 'src/assets/knowledge-core/injury.jpg', to: 'content/assets/knowledge-core/injury.jpg' },
         { from: 'src/assets/knowledge-core/plateau.jpg', to: 'content/assets/knowledge-core/plateau.jpg' },
         { from: 'src/assets/knowledge-core/standard.jpg', to: 'content/assets/knowledge-core/standard.jpg' },

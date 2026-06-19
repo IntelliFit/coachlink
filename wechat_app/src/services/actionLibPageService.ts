@@ -29,13 +29,13 @@
 import Taro from '@tarojs/taro'
 import { request } from '@/utils/request'
 import type {
+  StudentActionRow,
   ListMyActionsRes,
   ListPublicActionsRes,
   PublishFromMyActionRes,
   SubmitPublicActionEditInput,
   ToggleLikeRes,
   ListCoachActionsRes,
-  StudentActionRow,
   StudentActionInsert
 } from '@/types/action'
 
@@ -88,15 +88,16 @@ export async function listPublicActions(params: {
 }
 
 /** 将公共动作加入我的动作库 */
-export async function addPublicToMyLib(actionId: string): Promise<void> {
-  const res = await request<{ success?: boolean }>({
+export async function addPublicToMyLib(actionId: string): Promise<StudentActionRow> {
+  const res = await request<{ action: StudentActionRow }>({
     url: `${PUBLIC_BASE}/add-to-my-lib`,
     method: 'POST',
     data: { actionId }
   })
-  if (!res?.success) {
+  if (!res?.success || !res.data?.action) {
     throw new Error((res as any)?.message || '加入失败')
   }
+  return res.data.action
 }
 
 /** 公共动作点赞/取消点赞 */

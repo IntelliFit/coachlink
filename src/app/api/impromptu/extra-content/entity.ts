@@ -1,8 +1,8 @@
 export interface AddImpromptuExtraSetDto {
     executionId: string;
     actionIndex: number;
-    weight?: number | null;
-    reps?: number | null;
+    weight?: number | string | null;
+    reps?: number | string | null;
     restSeconds?: number | null;
 }
 
@@ -18,8 +18,8 @@ export interface AddImpromptuExtraExerciseDto {
     actionId: string;
     actionName: string;
     sets?: Array<{
-        weight?: number | null;
-        reps?: number | null;
+        weight?: number | string | null;
+        reps?: number | string | null;
         restSeconds?: number | null;
     }>;
 }

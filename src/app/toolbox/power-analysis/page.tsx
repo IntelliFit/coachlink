@@ -17,8 +17,11 @@ type UploadPhase = "idle" | "creating" | "uploading" | "uploaded" | "enqueueing"
 const ACTIVE_JOB_STORAGE_KEY = "coachlink:power-analysis:active-job";
 
 const MODE_OPTIONS: Array<{ label: string; value: PowerAnalysisMode; hint: string }> = [
-  { label: "引体向上", value: "pullup", hint: "适合连续引体、爆发引体、停顿引体测试" },
-  { label: "双力臂", value: "muscleup", hint: "适合双力臂上升阶段爆发力测试" },
+  { label: "引体向上", value: "pullup", hint: "正面或侧前方，全身入镜" },
+  { label: "双力臂", value: "muscleup", hint: "保留过杠阶段，避免遮挡" },
+  { label: "双杠臂屈伸", value: "dip", hint: "肩、髋和双杠无遮挡" },
+  { label: "俯卧撑", value: "pushup", hint: "侧面拍摄，肩髋都要清楚" },
+  { label: "深蹲起身", value: "squat", hint: "侧前方全身，髋部可见" },
 ];
 
 function formatMetric(value: number | undefined, digits = 1) {
@@ -366,7 +369,7 @@ export default function PowerAnalysisToolPage() {
             <div className="mb-5">
               <h1 className="text-2xl font-black tracking-tight text-surface-900">功率与速度测试</h1>
               <p className="mt-2 text-sm leading-6 text-surface-600">
-                上传引体或双力臂视频，分析完成后可下载带标注的视频。
+                上传自重或负重动作视频，分析完成后可下载带实时标注的视频。
               </p>
             </div>
 

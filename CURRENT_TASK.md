@@ -1,4 +1,77 @@
-﻿## Commit Current Work And Sync Main/Dev (`2026-06-18`)
+﻿## Commit Current Code And Sync Main/Dev (`2026-06-19`)
+
+- Task: commit the current workspace code and make `main` and `dev` consistent.
+- Status: in progress.
+- Starting branch: `main`.
+- Remote status before commit:
+  - `origin/main` and `origin/dev` are both at `d6c232d3`.
+  - Local `main` is already ahead by `df59a575 fix: move miniapp assets into subpackages`.
+- Local state before commit:
+  - Working tree contains the 2026-06-19 training execution, day/workout share, action-library styling, ranking/contact/toolbox, power-analysis multi-mode, and durable-state updates.
+  - Generated Python cache under `scripts/power-analysis/__pycache__/` is intentionally excluded from commit.
+## WeChat Day Check-In Vs Workout Share Concept Split (`2026-06-19`)
+
+- Task: clarify the product boundary between `整日打卡图` and `训练打卡图 / 训练成果页`.
+- Status: concept confirmed; first interaction cleanup implemented; follow-up training-execution startup crash fixed.
+- Current finding:
+  - The code currently has a local `DayCheckinShareSheet` for `整日打卡图`.
+  - The direct share link inside that sheet still reuses `/content/public/training?token=...`, which is workout-execution scoped.
+  - Therefore the UI is only partially separated: image/card preview is day-scoped, but the shareable public page is still training-scoped.
+- Implemented follow-up:
+  - `查看今日记录` now targets the selected completed day in read-only mode, instead of always navigating to the backend recommended/progress day after completion.
+  - The completed training execution page now exposes a `训练打卡图` action so the user can reopen the workout completion/share sheet later if they dismissed it immediately after training.
+  - The full-day check-in sheet now includes more day contents: strength action rows and lightweight task rows, not only a 1/1 module summary.
+- Product requirement:
+  - `训练打卡图 / 训练成果页`: one workout execution, including sets, volume, duration, PR/video/notes, body-map heat.
+  - `整日打卡图`: one selected day, including the training summary when present plus other daily/light tasks such as cardio, diet, habits, recovery, or coach-assigned chores.
+  - The day card can include or summarize the training card, but must not silently share the workout-only page as if it were a full-day check-in.
+- Verification:
+  - `npm run typecheck`: passed.
+  - `npm run lint`: passed informational script.
+  - `cd wechat_app && npm run build:weapp` with `NODE_OPTIONS=--max-old-space-size=8192`: passed.
+  - `npm test`: passed, 33 files / 163 tests.
+  - `npx next build`: passed.
+
+### Follow-up: Training Execution Loading Screen Returned (`2026-06-19`)
+
+- User reported `查看今日训练 / 查看今日记录` was again stuck on `正在进入训练` with stage `等待页面启动`.
+- Diagnosis:
+  - The latest log included a mini-program React runtime crash during `training-execution` mount, so this was not primarily an API/network wait.
+  - The newly added workout-share hook/effect sat after conditional `loading && !execution` / `!execution` returns, violating React hook ordering when the page first rendered with no execution.
+  - Taro/React crashed before startup could run, leaving the outer page on the boot loading copy.
+- Fix:
+  - Moved the training-execution loading/error early returns to after all `React.use*` hooks.
+  - Made `actionExecutions` null-safe while the page has no execution yet: `execution?.action_executions || []`.
+- Verification after this hotfix:
+  - `npm run typecheck`: passed.
+  - `cd wechat_app && NODE_OPTIONS=--max-old-space-size=8192 npm run build:weapp`: passed.
+  - `npm run lint`: passed informational script.
+  - `npm test`: passed, 33 files / 163 tests.
+  - `npx next build`: compile/static generation passed, but final standalone copy failed with the known local Windows `.next` `EBUSY` file-lock issue.
+  - Frontend/DevTools verification remains left to the user per durable preference.
+
+### Follow-up: Direct Workout Share Image Generation (`2026-06-19`)
+
+- User reported the workout completion share path was too long: completed sheet -> preview -> `查看分享页` -> share.
+- Product decision:
+  - `生成分享图` should generate a shareable image directly from the completed workout summary.
+  - The user should not need to open the public training page just to share the workout card.
+- Fix:
+  - Added an offscreen Canvas poster generator to `training-execution`.
+  - The completed/read-only footer action now says `生成分享图` and directly generates a workout poster.
+  - The workout completion sheet primary action now says `生成分享图`; it creates the image and calls `Taro.showShareImageMenu`.
+  - If direct image sharing is unavailable in the current environment/base library, the flow falls back to saving the generated image to the photo album.
+  - Removed the old summary path prefetch / `查看分享页` navigation from this in-app share flow.
+- Verification:
+  - `npm run typecheck`: passed.
+  - `cd wechat_app && NODE_OPTIONS=--max-old-space-size=8192 npm run build:weapp`: passed.
+  - `npm run lint`: passed informational script.
+  - `npm test`: passed, 33 files / 163 tests.
+  - `git diff --check -- wechat_app/src/training/training-execution/index.tsx wechat_app/src/training/training-execution/index.scss`: passed with CRLF warnings only.
+  - Built `dist/training/training-execution.js/.wxss` contains `生成分享图`, `showShareImageMenu`, and `workout-poster-canvas`; source no longer contains `查看分享页`.
+  - Frontend/DevTools verification remains left to the user per durable preference.
+
+## Commit Current Work And Sync Main/Dev (`2026-06-18`)
 
 - Task: commit current latest local code, merge the latest development branch changes, and make `main` and `dev` consistent.
 - Status: completed.
@@ -5591,11 +5664,29 @@
 ## WeChat Training Home Design Exploration (`2026-06-18`)
 
 - Task: discuss improved design directions for the student mini-program training home when an active coach plan exists.
-- Status: design discussion only; user explicitly requested no code changes.
+- Status: design direction selected; still design discussion unless the user explicitly asks to implement code.
 - Context:
   - Current screenshots show the active-plan home feeling too crowded: plan ownership/status, coach switch, resume/impromptu/contact actions, daily/weekly/monthly progress, calendar strip, today arrangement, detailed action cards, light tasks, and bottom navigation all compete in one scroll.
   - Product principle from existing decisions still applies: the training home should prioritize "what do I do now" over browsing tools, with calendar/progress/secondary actions kept compact.
-- Next step: align on one preferred information architecture before implementation.
+- Latest requirement:
+  - User chose the "version 6" direction for the training home redesign.
+  - The UI system must stay consistent between users with an active plan and users without a plan.
+  - Preserve the original expandable calendar design: it must still show delayed/rescheduled days and allow tapping other training days to inspect that day's plan.
+  - Functionality must not be dropped; the redesign should reorganize hierarchy rather than remove existing capabilities.
+- Implementation:
+  - Updated `wechat_app/src/training/today-training/TodayTrainingScreen.tsx` so the top training home card now covers active-plan, waiting-for-coach-plan, no-plan, and expired-grace states with one unified visual/action model.
+  - Preserved active-plan functions: resume/start training, impromptu training, contact coach, switch coach, self-plan removal, progress stats, today/selected-day arrangement, lightweight tasks, day check-in share, and bottom navigation.
+  - Kept the calendar as an active-plan function layer: default compact week strip plus expandable month calendar, still driven by `ScheduleCalendarPanel` and `buildPlanScheduleModel` so delayed/rescheduled days and clicking other training days remain supported.
+  - Replaced the old duplicated no-plan/waiting empty card with a unified support panel for impromptu training, coach contact/find coach, and plan library.
+  - Updated `wechat_app/src/training/today-training/index.scss` for the new unified card/support panel and dark-theme coverage while keeping buttons solid-color.
+- Verification:
+  - `npm run lint`: passed informational script.
+  - `npm run typecheck`: passed.
+  - `npm test`: passed, 33 files / 163 tests.
+  - `cd wechat_app && npm run build:weapp`: passed.
+  - `npx next build`: first run hit known Windows `.next` standalone copy `EBUSY`; rerun passed.
+  - WeChat DevTools automation on port `9420`: connected; clearing storage and relaunching `/pages/index/index` stayed on the home page with 0 error logs. Screenshot capture still failed with `fail to capture screenshot`, matching the current local MRC screenshot limitation.
+- Next step: user should visually review the real mini-program page; if the first screen still feels crowded, tune copy density and vertical spacing rather than changing the preserved function set.
 
 ## WeChat Mini-Program Main Package Size Fix (`2026-06-18`)
 
@@ -5613,3 +5704,512 @@
   - Release `dist-release` main-package raw file total measured about `1746.0KB`.
   - `npm run lint`, `npm run typecheck`, and `npm test` passed.
   - `npx next build` compiled and generated all 510 static pages, but failed during final standalone copy because existing local `coachlink` Node/Next processes kept `.next` files locked with Windows `EBUSY`.
+## Pull Latest And Audit WeChat Training Execution UI (`2026-06-19`)
+
+- Task: pull latest code and check whether the student-side concrete plan execution interface in the WeChat mini-program has been optimized in the last few days.
+- Status: completed.
+- Scope: `wechat_app/src/training/training-execution/*` plus recent commits and durable notes related to training execution UI.
+- Result: `git pull --ff-only` reported `Already up to date`; local `main` is one commit ahead of `origin/main`. Recent relevant commits are `5326a92c` on `2026-06-18` and `06731f1f` on `2026-06-15`. The training execution page was optimized on `2026-06-18` with a top duration/status board, finish action, concise progress stats, a fixed bottom toolbar, local snapshot-before-cloud loading behavior, and light/dark theme alignment.
+
+## WeChat Audit Login-Gate Fix (`2026-06-19`)
+
+- Task: fix WeChat mini-program audit failure caused by homepage login restriction / inability to fully experience functionality.
+- Status: implemented and verified at code/build/check level; partial DevTools runtime verification completed.
+- Root cause:
+  - The mini-program homepage `/pages/index/index` directly reused `TodayTrainingScreen`.
+  - `TodayTrainingScreen` redirected unauthenticated users to `/auth/login`.
+  - The login page's `不登录，先逛逛` returned to the same homepage, so reviewers could be put into a login loop and could not see public features.
+- Fix:
+  - `wechat_app/src/training/today-training/TodayTrainingScreen.tsx` now tracks `isGuestHome`.
+  - Missing/expired auth on the homepage no longer redirects to login; it renders a public guest home instead.
+  - The guest home exposes public routes for finding coaches, knowledge, and the streetlifting strength calculator, plus a clear login CTA for training sync.
+  - Auth-error responses from the homepage subscription load also return to guest home instead of forcing login.
+  - `wechat_app/src/training/today-training/index.scss` adds the guest-home layout with solid-color buttons and 8rpx-aligned spacing.
+- Verification:
+  - `npm run typecheck`: passed.
+  - `cd wechat_app && npm run build:weapp`: passed.
+  - `npm run lint`: passed informational script.
+  - `npm test`: passed, 33 files / 163 tests.
+  - `npx next build`: first run compiled and generated static pages but hit Windows `.next` copy `EBUSY`; rerun passed.
+  - WeChat DevTools/MRC on port `9420`: connected; after `wx.clearStorageSync()` and `wx.reLaunch({ url: '/pages/index/index' })`, current page stayed `pages/index/index` instead of redirecting to `auth/login`; error logs were empty.
+- Verification limitation:
+  - MRC screenshot failed with `fail to capture screenshot`.
+  - MRC `relaunch`/direct navigation commands failed to open subpackage routes such as `content/knowledge` from the tool, although those paths exist in `dist/app.json`; public entry navigation remains code/build verified but not screenshot-verified in this session.
+## WeChat Training Execution Loading And UI Repair (`2026-06-19`)
+
+- Task: user reported the concrete training execution page stays on a dark `加载中...` screen for too long / cannot enter, and that the training-side UI is too dark, dense, and visually chaotic.
+- Status: completed at code/check level; user explicitly said they will verify frontend manually, so no further DevTools screenshot verification was run.
+- Changes:
+  - `wechat_app/src/training/training-execution/index.tsx` now only shows the full-screen loading state when there is no existing execution data. If local cache already provided an execution, cloud refresh failures no longer cover the usable page.
+  - Added `loadError` state, shorter 8s load timeout, clearer error copy, and `重试` / `返回` actions instead of leaving the user stuck on a black loading screen.
+  - `wechat_app/src/training/training-execution/index.scss` adds a light visual override for the execution page: warm light background, white cards, readable dark text, softer chips, lighter input panels, and less oppressive overlays.
+- Verification:
+  - `npm run typecheck`: passed.
+  - `cd wechat_app && npm run build:weapp`: initially hit interrupted/leftover Taro build state; after clearing generated `wechat_app/dist` and using `NODE_OPTIONS=--max-old-space-size=8192`, passed.
+  - `npm run lint`: passed informational script.
+  - `npm test`: passed, 33 files / 163 tests.
+  - `npx next build`: first attempt saw an existing `.next/lock`; after the background build worker exited, rerun passed.
+  - `git diff --check`: passed.
+
+## Revert LSTM WeChat Training Execution UI Change (`2026-06-19`)
+
+- Task: user reported the recent LSTM training execution UI change made the concrete plan execution page unusable and asked to directly revert it.
+- Status: completed.
+- Scope: restore `wechat_app/src/training/training-execution/index.tsx` and `index.scss` to the versions before `5326a92c fix wechat training execution and theme flow`, without reverting unrelated homepage/login/theme changes.
+- Verification: `npm run typecheck`, `cd wechat_app && npm run build:weapp`, `npm run lint`, `npm test`, `npx next build`, and `git diff --check` passed. WeChat DevTools/MRC connected on port `9420` and current page/errors could be read, but `mrc relaunch /training/training-execution?...` still failed with `page "training/training-execution?... is not found`, so direct screenshot verification of the subpackage page remains blocked by MRC navigation behavior.
+## WeChat Web Ranking Feature Migration To Profile (`2026-06-19`)
+
+- Task: user clarified the requested leaderboard was the Web `/ranking` challenge leaderboard shown in the screenshot, not the streetlifting calculator fun ranking. Put that feature in WeChat mini-program `我的`.
+- Status: corrected implementation and code/build verified.
+- Correction:
+  - Replaced the previously wrong `力量排行榜` profile entry that pointed to `/streetlifting/index/calculator/history`.
+  - Added a `排行榜` profile entry in `wechat_app/src/me/profile/index.tsx` that points to `/discovery/ranking`.
+  - Updated `wechat_app/src/discovery/ranking/index.tsx` and `index.scss` so the mini-program leaderboard homepage now mirrors Web `/ranking`: CoachLink Ranking hero, `挑战已开启` badge, challenge cards, participants count, `立即挑战`, empty/loading states, and dark-theme support.
+  - The page continues to use the existing challenge leaderboard APIs through `rankingService` (`/api/ranking/list-leaderboard`, detail routing to `/discovery/ranking/detail`).
+- Verification:
+  - `npm run lint`: passed informational script.
+  - `npm run typecheck`: passed.
+  - `npm test`: passed, 33 files / 163 tests.
+  - `cd wechat_app && $env:NODE_OPTIONS='--max-old-space-size=8192'; npm run build:weapp`: passed.
+  - `git diff --check -- ...`: passed with CRLF warnings only.
+- UI verification:
+  - Skipped by user preference; user will manually verify frontend/mini-program behavior.
+## Power Analysis Multi-Movement Upgrade (`2026-06-19`)
+
+- Task: extend the Power Analysis tool beyond pull-up and muscle-up, replace the duplicated mini-program toolbox background image, and check whether the mini-program calculator/tool entry was reverted.
+- Status: implemented at code/build level; frontend visual verification intentionally left to the user per their explicit instruction.
+- Findings:
+  - The mini-program native Power Analysis page was not reverted. Route `/me/toolbox/power-analysis/index` still exists under the `me` subpackage, and the toolbox tab still routes to `/me/toolbox/index`.
+  - The public/guest training homepage previously exposed `力量计算器` but not `功率视频分析`, which made the tool feel missing if the user entered from the homepage instead of the toolbox.
+- Changes:
+  - `scripts/power-analysis/analyze_video.py` now uses mode presets instead of hard-coded pull-up/muscle-up thresholds.
+  - Supported modes are now `pullup`, `muscleup`, `dip`, `pushup`, and `squat`.
+  - Each preset declares tracking anchor, trigger/end velocity thresholds, minimum displacement, timing limits, effective body-mass factor, and recommended camera view.
+  - Push-up uses a reduced body-mass factor (`0.65`) for rough effective mass; squat tracks hip-line vertical movement; pull-up/muscle-up/dip/push-up track shoulder-line vertical movement.
+  - Web and API types/validation now accept all five modes, and LLM summary mode labels cover all five modes.
+  - Web `/toolbox/power-analysis` and mini-program `me/toolbox/power-analysis/index` now show all five action choices with short camera-angle hints.
+  - Mini-program toolbox `功率视频分析` now uses a distinct generated raster asset `wechat_app/src/assets/images/toolbox-power-analysis.jpg`; Taro copy config includes it.
+  - Mini-program guest homepage now exposes `功率视频分析` alongside `力量计算器`.
+- Verification:
+  - `python -m py_compile scripts/power-analysis/analyze_video.py`: passed.
+  - `npm run typecheck`: passed.
+  - `npm run lint`: passed informational script.
+  - `npm test`: passed, 33 files / 163 tests.
+  - `cd wechat_app && npm run build:weapp`: passed.
+  - `npx next build`: initially hit Windows `.next/standalone` `EBUSY` while local coachlink Next dev/start processes were running; after stopping those processes, rerun passed.
+- Operational note:
+  - Because this changes the Power Analysis Python algorithm, production worker rollout still requires `npm run push-power-worker-ccr`.
+  - The database also needs migration `supabase/migrations/20260619_power_analysis_multi_modes.sql`; otherwise `dip` / `pushup` / `squat` inserts fail with `tool_power_analysis_jobs_mode_check`.
+  - Local development now bypasses the daily 5-analysis quota automatically (`NODE_ENV !== "production"`). Production can also bypass via `POWER_ANALYSIS_DISABLE_DAILY_LIMIT=1` or per-account `POWER_ANALYSIS_DAILY_LIMIT_BYPASS_USER_IDS`.
+## Move Beta Group Entry To WeChat My Page (`2026-06-19`)
+
+- Task update: user rejected hiding the beta group QR codes in "联系我们" and asked for one visible `加入内测群` button directly on the mini-program `我的` page.
+- Status: implemented and code/build verified; frontend visual verification intentionally left to the user.
+- Changes:
+  - Removed the beta-group entry from contact surfaces; `/contact` and `me-legal/contact` no longer carry the QR entry.
+  - Added a `加入内测群` menu item to `wechat_app/src/me/profile/index.tsx`.
+  - Corrected the role-side behavior: student-side `我的 -> 加入内测群` now directly previews only the student beta group QR code; it no longer shows a chooser containing the coach group.
+  - Added a matching `加入内测群` entry to `wechat_app/src/coach/my-profile/index.tsx`; coach-side `我的` directly previews only the coach beta group QR code.
+  - QR images were uploaded to Tencent COS/CDN and are referenced as remote images:
+    - `https://cdn-assets.coachlink.fit/beta-groups/student-wechat-group.png`
+    - `https://cdn-assets.coachlink.fit/beta-groups/coach-wechat-group.png`
+  - Local mini-program QR image assets and copy rules were removed so the QR screenshots do not enter the `me` subpackage.
+- Package-size note:
+  - The mini-program package no longer gains the two QR PNG files; the roughly `466KB` is loaded remotely on demand.
+  - No Web static QR assets are kept after this change.
+- Verification:
+  - `npm run lint`: passed informational script.
+  - `npm run typecheck`: passed.
+  - `cd wechat_app && $env:NODE_OPTIONS='--max-old-space-size=8192'; npm run build:weapp`: passed after the remote-CDN adjustment.
+  - Confirmed `wechat_app/dist/me/assets/beta-groups/` does not exist after build; QR PNGs are not packaged.
+  - `npm test`: passed, 33 files / 163 tests.
+  - Latest `npx next build`: compiled and generated all 510 static pages, but still failed at final `.next/standalone` copy due Windows `EBUSY` locks while local `coachlink` dev/worker processes were running.
+  - Remote CDN HEAD checks returned `200 OK` for both QR images.
+  - No browser/DevTools visual verification was run because the user said they would verify frontend manually.
+
+## WeChat Training Home Reference-Image Redesign (`2026-06-19`)
+
+- Task: user rejected the looser "version 6 direction" implementation because it did not match the provided UI reference and still looked cluttered; rebuild the student training homepage to follow the reference image strictly.
+- Status: implemented at code/build level; frontend visual verification intentionally left to the user per durable preference.
+- Requirements preserved:
+  - Active-plan and no-plan/waiting states keep one consistent home system.
+  - Expandable calendar remains and still uses `ScheduleCalendarPanel` / `WeekDashboardStrip`, preserving delayed/rescheduled day display and tapping other training days.
+  - No functional loss for main plan execution, impromptu training, contact coach, switch coach, plan library, lightweight tasks, day detail selection, and bottom navigation.
+- Changes:
+  - `wechat_app/src/training/today-training/TodayTrainingScreen.tsx` now follows the reference hierarchy: greeting/tabs, plan identity row, large "今天重点" focus card, three-point progress axis, "本周日历", then "今日安排" card.
+  - Removed the duplicated lower "继续训练" button path from the schedule section; the primary continue/start action now appears only in the focus card.
+  - Contact and switch actions moved into the plan identity row, matching the reference image.
+  - `wechat_app/src/training/today-training/components/TodayTrainingCard.tsx` embedded mode now renders strength actions as compact rows with icon, action metadata, `完成/总组` count, and chevron instead of another start/continue button.
+  - `index.scss` and `TodayTrainingCard.scss` were restyled to match the provided light UI: orange identity/focus emphasis, clean white panels, progress axis, week calendar header, and a quieter embedded action list. Buttons remain solid-color per project rules.
+- Verification:
+  - `npm run typecheck`: passed.
+  - `npm run lint`: passed informational script.
+  - `cd wechat_app && npm run build:weapp`: passed.
+  - `git diff --check -- today-training files`: passed with CRLF warnings only.
+  - `npm test`: passed, 33 files / 163 tests.
+  - `npx next build`: compiled and generated 510 static pages, but failed twice during final `.next/standalone` copy with Windows `EBUSY` file locks (`interception-route-rewrite-manifest.js`, then `server-reference-manifest.js`). No compile/static-generation failure was reported.
+
+### Follow-up: Plan Owner And Coach Switch Clarity (`2026-06-19`)
+
+- User reported that both `教练计划` and `我的计划` showed `刘三乐的训练安排`, and asked whether the `切换` action is needed because it only seems to switch between coaches.
+- Fix:
+  - Self-plan mode now shows `我的训练安排` instead of the active coach's name.
+  - Contact action is hidden for self-plan mode.
+  - Coach switching is renamed to `换教练` and only appears in coach-plan mode when there is more than one coach subscription.
+  - The top tabs remain responsible for switching between `教练计划` and `我的计划`.
+- Training history location clarified:
+  - Main entry is `我的 -> 训练记录`, route `/me/training-history/index`.
+  - Plan history also has a `训练记录` shortcut.
+- Verification:
+  - `npm run typecheck`: passed.
+  - `npm run lint`: passed informational script.
+  - `cd wechat_app && npm run build:weapp`: passed.
+
+### Follow-up: Simplify Student Progress Display (`2026-06-19`)
+
+- User questioned whether the three displayed values (`今日` sets, `本周` training days, `本月` training days) are necessary or even clear, and suggested showing only one overall progress value like the coach-side student execution progress.
+- Decision: student training home should show one `当前计划进度` summary instead of mixing day/week/month metrics in the first screen.
+- Implementation:
+  - Removed the three-point progress axis.
+  - Added a single overall progress bar using completed training days divided by total training days in the current plan.
+  - Kept specific set-level progress in the `今日安排` action rows where it belongs.
+  - Removed obsolete week/month progress and today-progress calculation helpers from `TodayTrainingScreen`.
+- Verification:
+  - `npm run typecheck`: passed.
+  - `npm run lint`: passed informational script.
+  - `cd wechat_app && npm run build:weapp`: passed before final dead-code cleanup.
+## WeChat Training Execution Preview-First Entry Fix (`2026-06-19`)
+
+- Task: user reported the concrete training execution page still stayed on `正在进入训练` for a long time even though the page content should be simple.
+- Status: implemented at code/check level; frontend/DevTools verification intentionally left to the user per their explicit preference.
+- Root cause:
+  - The execution page still coupled "show the plan content" with "load/check/create the server execution record".
+  - Normal entry could refetch `/api/plan-lib/get-instance` after the training home had already loaded the same plan, then wait for `checkToday` and possibly `startExecution`, so a simple UI was blocked by a network waterfall and dev cold compilation.
+- Changes:
+  - `wechat_app/src/training/today-training/TodayTrainingScreen.tsx` now prewarms `training_execution_snapshots_v1` before navigating to `/training/training-execution`, using the already-loaded `instance` and `actions` to build a local preview execution for the selected day.
+  - `wechat_app/src/training/training-execution/index.tsx` now uses the snapshot's `planInstance/actions` to avoid an immediate duplicate `get-instance` request when entering from the training home.
+  - If no snapshot exists, the execution page still renders a preview as soon as `get-instance` returns, then continues checking/creating the real execution in the background.
+  - While the page is showing a preview execution, write actions such as completing sets/items, finishing, skipping, adding/deleting extra sets/actions, and video upload are blocked with `训练同步中，请稍后再记录` so temporary preview ids are not sent to backend APIs.
+- Verification:
+  - `npm run typecheck`: passed.
+  - `cd wechat_app && npm run build:weapp` with `NODE_OPTIONS=--max-old-space-size=8192`: passed.
+  - `npm run lint`: passed informational script.
+  - `npm test`: passed, 33 files / 163 tests.
+  - `git diff --check`: passed with existing CRLF warnings only.
+  - `npx next build` was not run for this follow-up to avoid rewriting `.next` while the user was actively running the local dev server for manual verification.
+
+### Follow-up: DevTools Startup Race Fix (`2026-06-19`)
+
+- User confirmed the stuck page path was really `training/training-execution`, and noted production seemed able to open the page while local debug mode stayed on the loading screen.
+- Result update: user confirmed the fix worked; local debug mode can now open the training execution page quickly.
+- New diagnosis:
+  - This looked like a local WeChat DevTools/Taro lifecycle race, not a backend or route problem.
+  - `requestStartTraining` could be invoked by `useDidShow` before `startTrainingRef` was populated by its `useEffect`. That early call hit the initial empty function and also consumed the 500ms throttle window, so the later real `useEffect` start could be skipped.
+- Fix:
+  - `startTrainingRef.current` is now assigned synchronously during render after `startTraining` is created, instead of waiting for a separate effect.
+  - Initial `useEffect`, `useDidShow`, pull-down refresh, and error retry now force startup rather than being blocked by the short duplicate-call throttle.
+  - Added visible `loadStage` text on the loading/error screen so manual verification can identify whether the page is waiting on startup, snapshot, plan, execution check, restore, or create.
+  - Added a 10s boot watchdog independent of API request timeouts; if the page stays in loading without an execution, it shows a retryable error instead of staying stuck.
+- Verification:
+  - `npm run typecheck`: passed.
+  - `cd wechat_app && npm run build:weapp` with `NODE_OPTIONS=--max-old-space-size=8192`: passed.
+  - `npm run lint`: passed informational script.
+  - `npm test`: passed, 33 files / 163 tests.
+  - `git diff --check -- wechat_app/src/training/training-execution/index.tsx wechat_app/src/training/training-execution/index.scss`: passed with CRLF warnings only.
+
+## WeChat Training Execution UI Density Cleanup (`2026-06-19`)
+
+- Task: user reported the execution page still had too much leftover complexity and repeated information from the prior redesign, including `套用计划`, `复制上一组`, repeated action names, repeated `70kg x 8` plan values, and oversized weight/reps steppers.
+- Status: implemented at code/check level; frontend visual verification left to the user.
+- Product Design brief locked:
+  - The execution page should optimize for a lifter recording the current set mid-workout: glanceable, one-hand friendly, and low-density.
+  - The current set should read as one record row, not a small spreadsheet.
+  - Plan data is only a default/reference for the input value; it should not create a repeated `计划 vs 实际` block in the current set.
+  - Weight, reps, and RPE belong in one compact row. Weight and reps keep quick adjustment through a small vertical split button beside the value: upper half increments, lower half decrements.
+- Changes:
+  - Removed visible `套用计划`, `复制上一组`, `热身组`, `递减组`, oversized weight/reps +/- rows, and the keyboard `加一组` shortcut from the strength-set recording flow.
+  - Replaced the noisy weight/reps controls with compact vertical split adjusters beside the value: weight uses `+/-2.5kg`, reps use `+/-1`; if the current input is empty, adjustment starts from the planned value.
+  - Kept weight, reps, and RPE in one compact row instead of making RPE a separate row.
+  - Follow-up fix: removed the old custom `workout-keyboard` sheet entirely. Adjusting weight/reps no longer calls `setWorkoutKeyboardTarget`, and tapping the value uses an inline `Input` instead of opening a white bottom sheet.
+  - Collapsed each set card to one main summary plus rest/tags; it no longer shows `计划：70kg x 8` directly under another `70kg x 8`.
+  - Removed the verbose `当前记录` / separate plan input panel entirely; plan values are used as defaults/reference without occupying another visual block.
+  - Top hero subtitle no longer repeats the action name when the plan title already equals the current action name.
+  - Simplified input layout styling into one quiet record bar with fewer nested card/button layers.
+- Verification:
+  - `npm run typecheck`: passed.
+  - `cd wechat_app && npm run build:weapp` with `NODE_OPTIONS=--max-old-space-size=8192`: passed.
+  - `npm run lint`: passed informational script.
+  - `npm test`: passed, 33 files / 163 tests.
+  - `git diff --check -- wechat_app/src/training/training-execution/index.tsx wechat_app/src/training/training-execution/index.scss`: passed with CRLF warnings only.
+  - Confirmed removed shortcut texts, old popup/mini-adjust remnants, old stepper CSS, old `workout-keyboard` / `记录重量` / `记录次数` sheet, and `quick-log` no longer appear in the execution-page source or built `dist/training/training-execution.js`.
+  - `npx next build`: compiled successfully and generated all 510 static pages, then failed during final `.next/standalone` copy because Windows locked `.next/server/server-reference-manifest.js` (`EBUSY`).
+
+### Follow-up: Session Timer And Hero Action Cleanup (`2026-06-19`)
+
+- User reported the top-left `00:00` timer did not work, was unclear in meaning, and should keep counting after leaving/re-entering the training execution page. User also reported the hero `联系教练` action caused a navigation trap and that `联系教练` / `跳过` are unnecessary on the in-workout execution page.
+- Product decision:
+  - The top-left timer is now the total duration of the current training session.
+  - Group rest and future pre-set rest should remain separate set-level states; the session timer should not double as a rest timer.
+  - The execution hero should focus on recording the workout, not coach contact or skip actions.
+- Changes:
+  - Added a local persisted session timer keyed by the execution snapshot scope. It starts from the stored local `startedAt`, falls back to the server `execution.started_at`, and continues across page exit/re-entry.
+  - When the execution is completed, the timer freezes and the label changes from `训练总时长` to `本次用时`.
+  - Removed top `联系教练` and `跳过` hero actions from `wechat_app/src/training/training-execution/index.tsx`.
+  - Removed the associated contact-coach and skip-day handlers/import usage from the execution page.
+- Verification:
+  - `npm run typecheck`: passed.
+  - `cd wechat_app && $env:NODE_OPTIONS='--max-old-space-size=8192'; npm run build:weapp`: passed.
+  - `npm run lint`: passed informational script.
+  - `npm test`: passed, 33 files / 163 tests.
+  - `git diff --check -- wechat_app/src/training/training-execution/index.tsx wechat_app/src/training/training-execution/index.scss`: passed with CRLF warnings only.
+  - Confirmed source and built `wechat_app/dist/training/training-execution.js` no longer contain `联系教练`, `跳过今日`, `handleSkipDay`, `handleContactCoach`, or the removed keyboard sheet strings.
+  - Frontend/DevTools click verification remains left to the user per durable preference.
+
+### Follow-up: Extra Set Defaults And Real Action Library Add (`2026-06-19`)
+
+- User reported:
+  - `新增一组` produced a current set with empty/incorrect defaults instead of copying the previous set's weight/reps.
+  - `添加动作` looked like a fake placeholder page instead of adding from the real personal/public action library.
+- Product/behavior decision:
+  - Adding a set should inherit from the previous set of the same action. If that previous set has actual completed weight/reps, use those as the default; otherwise use planned weight/reps/rest.
+  - Adding a new action should not inherit the previous action's load; it should start as one pending set for the selected real action.
+  - Public actions must be copied into the student's own action library before being added to an execution, because the execution extra-action API validates `student_actions`.
+- Changes:
+  - `wechat_app/src/training/training-execution/index.tsx`
+    - Added inherited-set helpers for previous-set weight/reps/rest.
+    - `新增一组` now sends inherited defaults to the add-extra-set API, updates local execution state with those values, and hydrates the current input row immediately.
+    - Current pending-set inputs now hydrate from planned defaults when actual values are not present.
+    - Action picker now loads personal actions plus public actions, removes public duplicates by name, and labels rows as `我的` / `公共`.
+    - Selecting a public action first calls `addPublicToMyLib`, with a duplicate-name fallback to find the existing personal action, then adds the resulting student action to the execution.
+    - Action picker UI changed from oversized two-column cards to compact rows.
+  - `wechat_app/src/services/actionLibPageService.ts`
+    - `addPublicToMyLib` now returns the created `StudentActionRow` instead of `void`.
+  - `wechat_app/src/services/executionService.ts` and `wechat_app/src/services/impromptuService.ts`
+    - Add-extra-set and add-extra-exercise payload types now allow inherited string weights such as `70kg`.
+  - `src/app/api/execution/extra-content/*` and `src/app/api/impromptu/extra-content/*`
+    - Add-extra-set/exercise now persist `planned_rest_seconds` plus compatible `rest_seconds`, and preserve `0`/string values with `??` rather than dropping them via `||`.
+- Verification:
+  - `npm run typecheck`: passed.
+  - `cd wechat_app && $env:NODE_OPTIONS='--max-old-space-size=8192'; npm run build:weapp`: passed.
+  - `npm run lint`: passed informational script.
+  - `npm test`: passed, 33 files / 163 tests.
+  - `git diff --check -- changed training execution/action-library/extra-content files`: passed with CRLF warnings only.
+  - Confirmed built `wechat_app/dist/training/training-execution.js` contains public-action-library add flow and new `picker-action-row` list UI.
+  - Frontend/DevTools click verification remains left to the user per durable preference.
+
+### Follow-up: Remove CheckToday Startup Waterfall (`2026-06-19`)
+
+- User reported mini-program console errors on `/training/training-execution`:
+  - request payload `{ instanceId, dayIndex }` to the execution check path;
+  - `开始训练失败: Error: 检查今日执行记录超时，请检查网络或后端服务`;
+  - tapping set completion showed `训练同步中，请稍后再记录`.
+- Root cause:
+  - The page could render a preview execution quickly, but background sync still required `checkToday` before `startExecution`.
+  - In local DevTools/dev-server conditions, `checkToday` could time out, leaving the page in preview-only mode so all write actions were blocked.
+  - Startup could also be invoked concurrently by mount/show/retry paths, producing duplicate failure logs.
+- Fix:
+  - Planned normal entry now calls idempotent `executionService.startExecution(instanceId, dayIndex)` directly after preview render; it no longer calls `checkToday` or a separate `getExecution` first.
+  - Read-only history mode still stays non-mutating and uses snapshot/preview data only.
+  - Added a strict in-flight startup lock so repeated mount/show/pull-refresh/retry calls share the same request instead of racing.
+  - Increased the execution sync timeout to 30s and changed the blocked-write toast to `正在同步训练记录，稍等几秒`.
+  - Kept the boot watchdog at 12s so a truly stuck startup surfaces as retryable UI instead of an infinite loading screen.
+- Verification:
+  - `npm run typecheck`: passed.
+  - `cd wechat_app && $env:NODE_OPTIONS='--max-old-space-size=8192'; npm run build:weapp`: passed.
+  - `npm run lint`: passed informational script.
+  - `npm test`: passed, 33 files / 163 tests.
+  - Source and built `wechat_app/dist/training/training-execution.js` no longer contain `checkToday`, `检查今日执行记录`, or `检查训练记录`.
+  - Frontend/DevTools verification remains left to the user per durable preference.
+
+### Follow-up: Fix Training Execution React Hook Runtime Crash (`2026-06-19`)
+
+- User reported the training execution page still could not open and pasted mini-program runtime error:
+  - `TypeError: Cannot read property 'useState' of undefined`
+  - stack pointed at `training-execution.js` during page mount.
+- Root cause:
+  - The execution page's named React hook imports were compiled into `taro.useState(...)` / related hook calls in the subpackage bundle.
+  - The generated `dist/taro.js` for this build does not expose those hooks as direct top-level exports; the valid runtime path is under React exports, such as `u.React.useState(...)`.
+- Fix:
+  - Changed `wechat_app/src/training/training-execution/index.tsx` to import only `React` and call hooks explicitly as `React.useState`, `React.useEffect`, `React.useMemo`, `React.useCallback`, and `React.useRef`.
+  - This does not change training startup or recording behavior; it only fixes the hook runtime binding.
+- Verification:
+  - `npm run typecheck`: passed.
+  - `cd wechat_app && $env:NODE_OPTIONS='--max-old-space-size=8192'; npm run build:weapp`: passed.
+  - Built `wechat_app/dist/training/training-execution.js` now uses `u.React.useState(...)` and no longer contains `taro.useState` / `taro.useEffect` / `taro.useMemo` / `taro.useCallback` / `taro.useRef` calls.
+  - `npm run lint`: passed informational script.
+  - `npm test`: passed, 33 files / 163 tests.
+  - Frontend/DevTools verification remains left to the user per durable preference.
+
+### Follow-up: Training Execution Web-Style Compact Recording And Video Visibility (`2026-06-19`)
+
+- User reported that after uploading a set video, the mini-program execution page jumped elsewhere, showed upload success, but the video was not visible in the current set. User also asked why entry briefly showed planned `60kg` and then changed to actual `77.5kg`, and requested the mini-program execution UI to follow the cleaner Web execution design where each set is mostly a single row and notes/video are folded.
+- Root cause / product diagnosis:
+  - `chooseVideo` can trigger `useDidShow`; the page was too eager to restart execution load on show, which could refocus/jump the page after native picker return.
+  - Upload success updated the local input `videoUrl`, but the visible `execution.action_executions[].sets[].video_url` and caches were not patched immediately, so the page could toast success without showing the video on that set.
+  - The `60kg -> 77.5kg` flicker came from plan-preview data rendering first, then real execution/snapshot data replacing it. Preview data must not overwrite a real execution snapshot.
+  - The current-set UI still exposed too much surface area at once; the Web reference is the preferred direction: one-line weight/reps/RPE/complete recording, with notes/video and action detail as secondary disclosure.
+- Fixes:
+  - `trainingExecutionCache.persistTrainingExecutionSnapshot` now preserves an existing real execution when the incoming payload is a plan preview, while still refreshing plan/actions metadata.
+  - Today training prewarm now persists a real execution from `executionsByDayIndex` when available; only falls back to a plan preview when no full execution exists.
+  - Training execution now stores last route params as a DevTools/native-picker resilience fallback.
+  - `useDidShow` skips forced startup when an execution is already loaded and suppresses reload around video picker return.
+  - Uploading or pasting a video now patches the current set's `video_url` into `execution` and storage immediately after the API succeeds.
+  - Reworked the strength current-set UI to match the Web compact recording model:
+    - weight, reps, RPE, and `完成/保存` now sit on one compact row;
+    - weight and reps keep small vertical `+/-` adjusters beside the value;
+    - `标记进步组` and `备注 / 视频（可选）` are secondary controls;
+    - notes/video controls are folded by default, and uploaded videos show `视频已附加`;
+    - action headers now expose `动作要点` / `演示` and navigate through the existing action-detail page cache.
+- Verification:
+  - `npm run typecheck`: passed.
+  - `npm run lint`: passed informational script.
+  - `cd wechat_app && $env:NODE_OPTIONS='--max-old-space-size=8192'; npm run build:weapp`: passed.
+  - `npm test`: passed, 33 files / 163 tests.
+  - `git diff --check -- relevant training execution/cache files`: passed with CRLF warnings only.
+  - Confirmed built `wechat_app/dist/training/training-execution.js` and `.wxss` contain the new compact row, folded note/video controls, action detail chips, and video attached state.
+- Frontend/DevTools verification remains left to the user per durable preference.
+
+### Follow-up: Training Execution Drafts, Video Preview, And Extra-Set Inheritance (`2026-06-19`)
+
+- User reported three remaining execution-page issues:
+  - after uploading a set video, there was no immediate preview entry;
+  - `新增一组` still did not inherit the prior set correctly in some cases;
+  - multiple blank pending sets all displayed as `待记录`, and switching from one pending set to another could wipe the unsaved weight/reps just typed into the first set.
+- Fixes:
+  - Current-set video chip now opens video preview via `Taro.previewMedia`, falling back to the existing `/common/common/video-player` page if native preview fails; completed-set video links also open preview instead of only copying the URL.
+  - Pending-set inputs now maintain per-set local drafts keyed by `actionIndex:setIndex`, so weight/reps/RPE/notes/progress/video values survive switching between pending sets before the user taps `完成/保存`.
+  - Pending-set card summaries now show draft values when present, then planned values, then `填写本组` / `未填写` instead of the ambiguous `待记录`.
+  - Extra-set inheritance now skips blank extra sets when looking for a source group. The frontend and both backend add-extra-set APIs prefer the nearest prior set with weight or reps; rest time may be inherited as a fallback but no longer makes an otherwise blank set the source.
+- Verification:
+  - `npm run typecheck`: passed.
+  - `git diff --check -- training execution/add-extra-set files`: passed with CRLF warnings only.
+  - `cd wechat_app && $env:NODE_OPTIONS='--max-old-space-size=8192'; npm run build:weapp`: passed.
+  - `npm run lint`: passed informational script.
+  - `npm test`: passed, 33 files / 163 tests.
+
+### Follow-up: Training Execution Quick Finish Runtime Crash (`2026-06-19`)
+
+- User reported that tapping `一键完成训练` waited for a long time without visible progress.
+- Log diagnosis:
+  - The actual fatal error was `module 'training/@nutui/icons-react-taro.js' is not defined, require args is '@nutui/icons-react-taro'`.
+  - The crash happened after quick-finish completed far enough to render the coach-feedback modal; that modal used dynamic `require("@nutui/icons-react-taro")[item.icon]`, which Taro compiled incorrectly inside the `training` subpackage.
+  - `writeFile:fail the maximum size of the file storage limit is exceeded` is a DevTools log-storage issue and not the root cause of the quick-finish hang.
+- Fix:
+  - Removed `@nutui/icons-react-taro` from `wechat_app/src/training/training-execution/index.tsx`.
+  - Replaced the feedback difficulty dynamic icons with local text marks.
+  - Replaced the rest timer `Clock` icon with a local text mark, so the execution page no longer depends on that icon module.
+- Verification:
+  - `npm run typecheck`: passed.
+  - `git diff --check -- wechat_app/src/training/training-execution/index.tsx wechat_app/src/training/training-execution/index.scss`: passed with CRLF warnings only.
+  - `npm run lint`: passed informational script.
+  - `cd wechat_app && $env:NODE_OPTIONS='--max-old-space-size=8192'; npm run build:weapp`: passed.
+  - Built `wechat_app/dist/training/training-execution.js` / `.wxss` contain no `@nutui/icons-react-taro`, `training/@nutui`, `item.icon`, or `difficulty-emoji`.
+  - `npm test`: passed, 33 files / 163 tests.
+  - `npx next build`: passed.
+
+### Follow-up: Self-Plan Feedback Prompt And Feedback Sheet Layout (`2026-06-19`)
+
+- User reported:
+  - completing a self-authored plan still opened a feedback box that says `发送给教练`;
+  - after typing in the feedback textarea, the `发送给教练` button disappeared from view.
+- Product decision:
+  - Completion feedback is reasonable only for coach-assigned plans.
+  - Self-authored / `我的计划` completion should go straight to the training summary and must not infer coach feedback from a stale route `coachId`.
+- Fix:
+  - Replaced the old feedback condition `planInstance.source === 'coach' || route coachId !== userId` with `shouldAskCoachFeedback`.
+  - `shouldAskCoachFeedback` only returns true for explicit coach-plan markers: `source/plan_source === coach`, `coach_subscription_id/coachSubscriptionId`, or `coach_id/coachId` not equal to the current user.
+  - Removed route `coachId` from feedback gating.
+  - Feedback modal now has bounded height, fixed-size textarea, visible character count, and a stable bottom action row.
+  - `发送给教练` is styled as a solid brand primary button and remains visible while typing; `跳过` remains secondary.
+- Verification:
+  - `npm run typecheck`: passed.
+  - `git diff --check -- wechat_app/src/training/training-execution/index.tsx wechat_app/src/training/training-execution/index.scss`: passed with CRLF warnings only.
+  - `npm run lint`: passed informational script.
+  - `cd wechat_app && $env:NODE_OPTIONS='--max-old-space-size=8192'; npm run build:weapp`: passed.
+  - `npm test`: passed, 33 files / 163 tests.
+  - Built `wechat_app/dist/training/training-execution.js/.wxss` contain the new feedback gating and feedback button styles.
+  - `npx next build`: first run compiled/generated all pages but failed at final standalone copy with Windows `.next` EBUSY; rerun passed.
+## Web AI Modifier Long Response Scroll Fix (`2026-06-19`)
+
+- Task: user reported that on Web `/dashboard/students/plan/[id]`, long AI modifier answers cannot be scrolled; mouse wheel scrolls the dimmed background page instead of the AI answer area.
+- Status: implemented and code/build verified.
+- Root cause:
+  - `BatchOperationDialog` used a fullscreen-style internal flex layout, but the PrimeReact dialog itself did not have an explicit bounded height and its content area allowed overflow to escape.
+  - Long AI responses could therefore exceed the modal body instead of being contained by the chat timeline's `overflow-y-auto` region.
+- Fix:
+  - `src/components/BatchOperationDialog.tsx` now gives the modal a bounded height (`90vh`, max `900px`) in addition to the existing width.
+  - `src/assets/globals.css` now makes `.batch-operation-dialog-fullscreen .p-dialog-content` a hidden-overflow flex column with `min-height: 0`, so the top bar and input/footer stay fixed while the middle chat timeline owns vertical scrolling.
+- Verification:
+  - `npm run lint`: passed informational script.
+  - `npm run typecheck`: passed.
+  - `npm test`: passed, 33 files / 163 tests.
+  - `npx next build`: passed.
+  - Browser/manual visual verification was left to the user per durable preference.
+## Pending Follow-up: Web AI Modifier Conversation History (`2026-06-19`)
+
+- User raised the idea of saving all Web plan AI modifier conversation history.
+- Status: pending / not implementing now.
+- Why it may be useful:
+  - Let coaches review the reasoning behind AI plan changes.
+  - Support resuming prior AI modifier sessions.
+  - Keep accepted/rejected suggestions auditable for later debugging.
+- Open design questions:
+  - Scope: store history by plan instance, subscription, or coach/student pair.
+  - Payload: whether to persist only visible messages or also AI input snapshots/context prompts.
+  - Retention/privacy: how long to keep logs, and what happens when a plan is archived or deleted.
+
+## WeChat Public Training Share Report Redesign (`2026-06-19`)
+
+- Task: user said the public training share page looked much worse than the post-finish modal and should include the body-map report style.
+- Status: implemented and code/build verified.
+- Changes:
+  - Reworked `wechat_app/src/content/public/training/index.tsx` from the old dark-blue banner/share landing into a compact training-completion report.
+  - Added front/back body-map SVG rendering on the share page, using the existing male body-map assets and brand-color highlights.
+  - Added a lightweight muscle-score list under the body maps.
+  - Simplified stats/action details and changed CTA/share buttons to solid CoachLink brand color instead of the old bright-blue styling.
+  - Current public share API does not return exact action-muscle metadata, so the page infers muscle groups from action names for now.
+- Verification:
+  - `cd wechat_app && $env:NODE_OPTIONS='--max-old-space-size=8192'; npm run build:weapp`: passed.
+  - `npm run lint`: passed informational script.
+  - `npm run typecheck`: passed.
+  - `npm test`: passed, 33 files / 163 tests.
+  - `npx next build`: passed.
+  - Built `wechat_app/dist/content/public/training.js/.wxss` contains `heatmap-row` / `body-map` and no longer contains the old `Training DONE` copy or bright-blue share colors.
+  - Frontend visual verification was left to the user per durable preference.
+
+## WeChat Today Training Post-Completion Day Selection (`2026-06-19`)
+
+- Task: user reported that after completing today's training, the mini-program homepage immediately showed the day as a recovery/rest day, which made it hard to re-enter today's completed training and generate/share the new share page.
+- Diagnosis:
+  - `/api/plan-lib/get-instance` returns `recommendedDayIndex` using strict sequential plan progress, which can advance from the completed training day to the next plan day immediately.
+  - If the next plan day is `rest`, the mini-program default selected day also moved there, hiding the completed training day's share entry.
+  - Web uses the same recommendation concept, but its page has more surrounding status copy so the jump is less obvious.
+- Fix:
+  - `wechat_app/src/training/today-training/TodayTrainingScreen.tsx` now finds a completed execution whose `completed_at` is today.
+  - When such an execution exists, the homepage default selected day remains that completed training day instead of the next recovery/rest day.
+  - The `今日训练已完成` banner now also works from local execution data, not only the API boolean.
+  - The section title treats that completed training day as `今日安排`, so the `整日打卡图` entry remains reachable for generating/sharing the public training page.
+- Verification:
+  - `npm run typecheck`: passed.
+  - `cd wechat_app && $env:NODE_OPTIONS='--max-old-space-size=8192'; npm run build:weapp`: passed.
+  - `npm run lint`: passed informational script.
+  - `npm test`: passed, 33 files / 163 tests.
+  - `npx next build`: compiled, collected data, and generated all 510 static pages twice, but both runs failed only at the final `.next/standalone` copy due Windows `EBUSY` file locks.
+  - Frontend visual verification was left to the user per durable preference.
+
+## WeChat Action Library Light UI Alignment (`2026-06-19`)
+
+- Task: user reported the mini-program action library UI was too black and did not match the rest of the current CoachLink UI.
+- Status: implemented at style level; manual visual verification left to the user per durable preference.
+- Change:
+  - `wechat_app/src/me/action-lib/index.scss` now uses the same warm-light CoachLink workbench direction as the training execution page: `#f6f3ef` page background, white cards/search/chips, soft warm borders, brand-orange primary controls, and light green supplemental chips.
+  - Removed the old fixed dark action-library surface colors such as `#242429`, `#333338`, `#444449`, `#1f3a2c`, and `#83d37b` from the source/built action-library stylesheet.
+  - Kept functionality and action-library data flow unchanged.
+- Verification:
+  - `npm run typecheck`: passed.
+  - `npm run lint`: passed informational script.
+  - `cd wechat_app && $env:NODE_OPTIONS='--max-old-space-size=8192'; npm run build:weapp`: passed.
+  - `npm test`: passed, 33 files / 163 tests.
+  - `git diff --check -- wechat_app/src/me/action-lib/index.scss`: passed with the existing CRLF warning.
+  - `npx next build`: compiled successfully and generated all 510 static pages twice, but both runs failed at final standalone copy with Windows `EBUSY` on `.next/server/middleware-build-manifest.js`; this appears to be the known local file-lock issue rather than a compile error.
+

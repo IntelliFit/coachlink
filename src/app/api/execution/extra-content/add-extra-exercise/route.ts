@@ -101,9 +101,10 @@ export async function POST(request: NextRequest) {
         const newSets = (sets || [{ weight: null, reps: null }]).map((s, idx) => ({
             set_number: idx + 1,
             set_index: idx,
-            planned_weight: s.weight || null,
-            planned_reps: s.reps || null,
-            rest_seconds: s.restSeconds || 60,
+            planned_weight: s.weight ?? null,
+            planned_reps: s.reps ?? null,
+            planned_rest_seconds: s.restSeconds ?? 60,
+            rest_seconds: s.restSeconds ?? 60,
             status: "pending",
             source: "student_extra",
         }));

@@ -154,7 +154,7 @@ function cacheAndOpenActionDetail(action: {
     url: action.url
   })
   Taro.navigateTo({
-    url: `/training/action-detail/index?id=${encodeURIComponent(action.id)}`
+    url: `/training/action-detail?id=${encodeURIComponent(action.id)}`
   })
 }
 

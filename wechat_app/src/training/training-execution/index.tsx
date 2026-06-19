@@ -1,12 +1,12 @@
-import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react'
-import { View, Text, ScrollView, Input, Button, Textarea, Image } from '@tarojs/components'
+import React from 'react'
+import { View, Text, ScrollView, Input, Button, Textarea, Image, Canvas } from '@tarojs/components'
 import Taro, { useDidShow, usePullDownRefresh } from '@tarojs/taro'
 import { trainingService } from '@/services/trainingService'
 import { executionService } from '@/services/executionService'
 import { impromptuService } from '@/services/impromptuService'
 import { authService } from '@/services/authService'
 import { studentActionLibService } from '@/services/studentActionLibService'
-import { chatService } from '@/services/chatService'
+import { addPublicToMyLib, listPublicActions } from '@/services/actionLibPageService'
 import { buildPublicTrainingSharePath } from '@/utils/share'
 import { svgToDataUri } from '@/utils/svgToDataUri'
 import { formatKgValueForGym } from '@/utils/weightQuantize'
@@ -15,19 +15,24 @@ import {
   syncTrainingExecutionToStorage,
   trainingExecutionSnapshotKey
 } from '@/utils/trainingExecutionCache'
-import { Clock } from '@nutui/icons-react-taro'
 import maleFrontSvgRaw from '@/assets/body-map/maleFrontSvg'
 import maleBackSvgRaw from '@/assets/body-map/maleBackSvg'
 import './index.scss'
 import { useTheme } from '@/hooks/useTheme'
+import { useSharePoster } from '@/hooks/useSharePoster'
+import { resolveCanvasImageSrc } from '@/utils/weapp-canvas-image'
 
 const RETURN_CONFIRM_STORAGE_KEY = 'today_training_last_confirmed_day'
-const EXECUTION_LOAD_TIMEOUT_MS = 8000
+const EXECUTION_LOAD_TIMEOUT_MS = 30000
+const EXECUTION_BOOT_WATCHDOG_MS = 12000
 const REST_TIMER_STORAGE_PREFIX = 'training_execution_rest_timer_v1'
+const TRAINING_TIMER_STORAGE_PREFIX = 'training_execution_total_timer_v1'
+const ROUTE_PARAM_STORAGE_KEY = 'training_execution_last_route_params_v1'
 const WEIGHT_STEP_KG = 2.5
-const EXEC_DEBUG_PREFIX = '[CL-EXEC-DEBUG]'
-
-type WorkoutKeyboardTarget = 'weight' | 'reps'
+const REPS_STEP = 1
+const WORKOUT_POSTER_CANVAS_ID = 'workout-share-poster-canvas'
+const WORKOUT_POSTER_WIDTH = 750
+const WORKOUT_POSTER_HEIGHT = 1184
 
 interface FilterOption {
   key: string
@@ -83,28 +88,9 @@ function withExecutionLoadTimeout<T>(promise: Promise<T>, label: string): Promis
   }) as Promise<T>
 }
 
-function summarizeExecutionForDebug(execution: any) {
-  const actionExecutions = Array.isArray(execution?.action_executions) ? execution.action_executions : []
-  const firstAction = actionExecutions[0]
-  return {
-    id: execution?.id,
-    status: execution?.status,
-    dayIndex: execution?.day_index,
-    actionCount: actionExecutions.length,
-    firstAction: firstAction
-      ? {
-        actionId: firstAction.action_id,
-        actionName: firstAction.action_name,
-        setCount: Array.isArray(firstAction.sets) ? firstAction.sets.length : -1,
-        completedSets: firstAction.completed_sets,
-        totalSets: firstAction.total_sets
-      }
-      : null
-  }
-}
-
 interface SetData {
   set_number: number
+  set_index?: number
   status: 'pending' | 'completed' | 'skipped'
   planned_reps?: string
   planned_weight?: string
@@ -123,6 +109,16 @@ interface SetData {
   source?: string // 'student_extra' = 学员自行添加
 }
 
+interface SetRecordDraft {
+  weight: number | null
+  weightInput: string
+  reps: number | null
+  rpe: number | null
+  notes: string
+  markAsPR: boolean
+  videoUrl: string
+}
+
 interface ActionExecution {
   action_id: string
   action_name: string
@@ -133,12 +129,51 @@ interface ActionExecution {
   completed_sets: number
 }
 
+interface WorkoutPosterActionRow {
+  id: string
+  name: string
+  setsCount: number
+  volume: number
+}
+
+interface WorkoutPosterMuscleRow {
+  label: string
+  score: number
+}
+
+interface WorkoutPosterData {
+  title: string
+  subtitle: string
+  totalVolume: number
+  completedSetTotal: number
+  durationMin: number
+  muscles: WorkoutPosterMuscleRow[]
+  actionRows: WorkoutPosterActionRow[]
+  frontBodyMap: string
+  backBodyMap: string
+}
+
+type PickerActionSource = 'mine' | 'public'
+
+interface PickerAction {
+  id: string
+  name: string
+  type?: string | null
+  positions?: string[] | null
+  attrs?: string[] | null
+  url?: string | null
+  detail?: string | null
+  source: PickerActionSource
+  isAdded?: boolean
+  [key: string]: any
+}
+
 const FEEDBACK_DIFFICULTY_OPTIONS = [
-  { value: 1, label: '太轻松', icon: 'Clock' },
-  { value: 2, label: '轻松', icon: 'Heart' },
-  { value: 3, label: '刚好', icon: 'Power' },
-  { value: 4, label: '有点难', icon: 'Target' },
-  { value: 5, label: '太难了', icon: 'Power' }
+  { value: 1, label: '太轻松', mark: '轻' },
+  { value: 2, label: '轻松', mark: '松' },
+  { value: 3, label: '刚好', mark: '中' },
+  { value: 4, label: '有点难', mark: '挑' },
+  { value: 5, label: '太难了', mark: '难' }
 ]
 
 function getActionTypeMeta(type: string): { label: string; cue: string } {
@@ -174,10 +209,83 @@ function formatTimerValue(totalSeconds: number): string {
 
 function parseFirstNumber(value?: string | number | null): number | null {
   if (value === null || value === undefined) return null
-  const match = String(value).match(/-?\d+(\.\d+)?/)
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null
+  const match = String(value).match(/-?\d+(?:\.\d+)?/)
   if (!match) return null
-  const parsed = Number(match[0])
+  const parsed = parseFloat(match[0])
   return Number.isFinite(parsed) ? parsed : null
+}
+
+function isConcreteWeightValue(value?: string | number | null): boolean {
+  if (value === null || value === undefined) return false
+  if (typeof value === 'number') return Number.isFinite(value)
+  const text = String(value).trim().toLowerCase()
+  if (!text) return false
+  if (text.includes('rm') || text.includes('%')) return false
+  return parseFirstNumber(text) !== null
+}
+
+function normalizeActionName(action: any): string {
+  return String(action?.name || action?.action_name || '').trim()
+}
+
+function getSetWeightDefault(set?: SetData | null): number | null {
+  if (!set) return null
+  if (set.actual_weight !== null && set.actual_weight !== undefined && Number.isFinite(Number(set.actual_weight))) {
+    return Number(set.actual_weight)
+  }
+  if (!isConcreteWeightValue(set.planned_weight)) return null
+  return parseFirstNumber(set.planned_weight)
+}
+
+function getSetRepsDefault(set?: SetData | null): number | null {
+  if (!set) return null
+  if (set.actual_reps !== null && set.actual_reps !== undefined && Number.isFinite(Number(set.actual_reps))) {
+    return Math.max(0, Math.floor(Number(set.actual_reps)))
+  }
+  const plannedReps = parseFirstNumber(set.planned_reps)
+  return plannedReps === null ? null : Math.max(0, Math.floor(plannedReps))
+}
+
+function getSetRestDefault(set?: SetData | null): number | null {
+  const rest = Number(set?.planned_rest_seconds ?? (set as any)?.rest_seconds)
+  return Number.isFinite(rest) && rest > 0 ? Math.round(rest) : null
+}
+
+function buildInheritedExtraSet(sourceSet?: SetData | null): SetData {
+  const inheritedWeight = getSetWeightDefault(sourceSet)
+  const inheritedReps = getSetRepsDefault(sourceSet)
+  const inheritedRest = getSetRestDefault(sourceSet)
+
+  return {
+    set_number: 1,
+    status: 'pending',
+    planned_weight: inheritedWeight !== null ? `${formatKgValueForGym(inheritedWeight)}kg` : (sourceSet?.planned_weight || ''),
+    planned_reps: inheritedReps !== null ? String(inheritedReps) : (sourceSet?.planned_reps || ''),
+    planned_rest_seconds: inheritedRest ?? sourceSet?.planned_rest_seconds,
+    source: 'student_extra'
+  }
+}
+
+function findInheritableSourceSet(sets: SetData[]): SetData | null {
+  for (let i = sets.length - 1; i >= 0; i -= 1) {
+    const set = sets[i]
+    if (
+      getSetWeightDefault(set) !== null ||
+      getSetRepsDefault(set) !== null ||
+      String(set?.planned_weight || '').trim() ||
+      String(set?.planned_reps || '').trim()
+    ) {
+      return set
+    }
+  }
+  return sets.length > 0 ? sets[sets.length - 1] : null
+}
+
+function parseTimestamp(value?: string | number | Date | null): number | null {
+  if (!value) return null
+  const timestamp = value instanceof Date ? value.getTime() : new Date(value).getTime()
+  return Number.isFinite(timestamp) && timestamp > 0 ? timestamp : null
 }
 
 function asTextList(value?: string[] | null) {
@@ -190,8 +298,12 @@ function getActionSearchText(action: any) {
     action?.action_name,
     action?.detail,
     action?.type,
+    action?.equipment,
+    action?.category,
+    action?.primary_muscle,
     ...asTextList(action?.positions),
-    ...asTextList(action?.attrs)
+    ...asTextList(action?.attrs),
+    ...asTextList(action?.target_muscles)
   ].filter(Boolean).join(' ').toLowerCase()
 }
 
@@ -264,115 +376,273 @@ function inferMusclesForAction(actionExecution: ActionExecution, actionDetail: a
   return Array.from(new Set([...directPositions, ...inferred])).slice(0, 3)
 }
 
+function drawPosterRoundedRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
+  const radius = Math.min(r, w / 2, h / 2)
+  ctx.beginPath()
+  ctx.moveTo(x + radius, y)
+  ctx.arcTo(x + w, y, x + w, y + h, radius)
+  ctx.arcTo(x + w, y + h, x, y + h, radius)
+  ctx.arcTo(x, y + h, x, y, radius)
+  ctx.arcTo(x, y, x + w, y, radius)
+  ctx.closePath()
+}
+
+function posterText(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, maxWidth: number) {
+  const source = String(text || '')
+  let current = source
+  while (current.length > 0 && ctx.measureText(current).width > maxWidth) {
+    current = current.slice(0, -1)
+  }
+  ctx.fillText(current.length < source.length ? `${current.slice(0, Math.max(0, current.length - 1))}…` : current, x, y)
+}
+
+async function loadPosterImage(canvas: HTMLCanvasElement, src: string): Promise<CanvasImageSource | null> {
+  if (!src) return null
+  try {
+    const localSrc = await resolveCanvasImageSrc(src)
+    if (typeof (canvas as any).createImage !== 'function') return null
+    const image = (canvas as any).createImage()
+    await new Promise<void>((resolve, reject) => {
+      image.onload = () => resolve()
+      image.onerror = () => reject(new Error('poster image load failed'))
+      image.src = localSrc
+    })
+    return image as CanvasImageSource
+  } catch (error) {
+    console.warn('[training-execution] workout poster image load failed', error)
+    return null
+  }
+}
+
+async function drawWorkoutPoster(ctx: CanvasRenderingContext2D, data: WorkoutPosterData, canvas: HTMLCanvasElement) {
+  const dpr = 2
+  canvas.width = WORKOUT_POSTER_WIDTH * dpr
+  canvas.height = WORKOUT_POSTER_HEIGHT * dpr
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+
+  ctx.fillStyle = '#f6f3ef'
+  ctx.fillRect(0, 0, WORKOUT_POSTER_WIDTH, WORKOUT_POSTER_HEIGHT)
+
+  drawPosterRoundedRect(ctx, 40, 40, 670, 1104, 32)
+  ctx.fillStyle = '#ffffff'
+  ctx.fill()
+
+  ctx.fillStyle = '#cf6d4e'
+  ctx.font = 'bold 22px sans-serif'
+  ctx.fillText('TRAINING COMPLETE', 72, 100)
+  ctx.fillStyle = '#111827'
+  ctx.font = 'bold 46px sans-serif'
+  posterText(ctx, data.title || '训练完成', 72, 156, 440)
+  ctx.fillStyle = '#6b7280'
+  ctx.font = '24px sans-serif'
+  posterText(ctx, data.subtitle || 'CoachLink 训练记录', 72, 196, 520)
+
+  const frontImage = await loadPosterImage(canvas, data.frontBodyMap)
+  const backImage = await loadPosterImage(canvas, data.backBodyMap)
+  if (frontImage) ctx.drawImage(frontImage, 128, 236, 174, 260)
+  if (backImage) ctx.drawImage(backImage, 448, 236, 174, 260)
+  ctx.fillStyle = '#6b7280'
+  ctx.font = '22px sans-serif'
+  ctx.fillText('正面', 192, 528)
+  ctx.fillText('背面', 512, 528)
+
+  const stats = [
+    { label: '总容量', value: `${Math.round(data.totalVolume || 0)}kg` },
+    { label: '完成组数', value: `${data.completedSetTotal || 0}组` },
+    { label: '训练时长', value: data.durationMin > 0 ? `${data.durationMin}分钟` : '-' }
+  ]
+  stats.forEach((stat, index) => {
+    const x = 72 + index * 208
+    drawPosterRoundedRect(ctx, x, 576, 182, 124, 24)
+    ctx.fillStyle = index === 0 ? '#fff7ed' : '#f9fafb'
+    ctx.fill()
+    ctx.fillStyle = '#111827'
+    ctx.font = 'bold 34px sans-serif'
+    posterText(ctx, stat.value, x + 20, 626, 142)
+    ctx.fillStyle = '#6b7280'
+    ctx.font = '22px sans-serif'
+    ctx.fillText(stat.label, x + 20, 666)
+  })
+
+  const muscles = data.muscles.length > 0 ? data.muscles.slice(0, 5) : [{ label: '全身', score: 1 }]
+  const maxScore = Math.max(1, ...muscles.map((item) => item.score || 0))
+  muscles.forEach((item, index) => {
+    const y = 750 + index * 44
+    ctx.fillStyle = '#374151'
+    ctx.font = 'bold 24px sans-serif'
+    ctx.fillText(item.label, 72, y)
+    drawPosterRoundedRect(ctx, 168, y - 22, 510, 16, 8)
+    ctx.fillStyle = '#f1eee9'
+    ctx.fill()
+    drawPosterRoundedRect(ctx, 168, y - 22, Math.max(48, Math.round(((item.score || 0) / maxScore) * 510)), 16, 8)
+    ctx.fillStyle = '#cf6d4e'
+    ctx.fill()
+  })
+
+  const actionStartY = 986
+  ctx.fillStyle = '#111827'
+  ctx.font = 'bold 28px sans-serif'
+  ctx.fillText('训练明细', 72, actionStartY)
+  data.actionRows.slice(0, 4).forEach((item, index) => {
+    const y = actionStartY + 54 + index * 44
+    ctx.fillStyle = '#111827'
+    ctx.font = 'bold 24px sans-serif'
+    posterText(ctx, item.name, 72, y, 390)
+    ctx.fillStyle = '#6b7280'
+    ctx.font = '22px sans-serif'
+    ctx.fillText(`${item.setsCount}组 · ${Math.round(item.volume)}kg`, 536, y)
+  })
+
+  ctx.fillStyle = '#cf6d4e'
+  ctx.font = 'bold 22px sans-serif'
+  ctx.fillText('COACHLINK', 72, 1112)
+  ctx.fillStyle = '#9ca3af'
+  ctx.font = '20px sans-serif'
+  ctx.fillText('训练完成后，留下这一张就够了。', 414, 1112)
+}
+
 function TrainingExecution() {
   const { effectiveTheme } = useTheme()
   const instance = Taro.getCurrentInstance()
-  const instanceId = instance.router?.params?.instanceId as string
-  const impromptuId = instance.router?.params?.impromptuId as string
+  const routeParams = instance.router?.params || {}
+  let routeFallback: any = {}
+  try {
+    routeFallback = Taro.getStorageSync(ROUTE_PARAM_STORAGE_KEY) || {}
+  } catch {
+    routeFallback = {}
+  }
+  const rawInstanceId = routeParams.instanceId as string
+  const rawImpromptuId = routeParams.impromptuId as string
+  const instanceId = rawInstanceId || (!rawImpromptuId ? String(routeFallback.instanceId || '') : '')
+  const impromptuId = rawImpromptuId || (!rawInstanceId ? String(routeFallback.impromptuId || '') : '')
   const isImpromptuMode = !!impromptuId
-  const dayIndex = parseInt(instance.router?.params?.dayIndex || '1')
-  const readOnlyParam = String(instance.router?.params?.readOnly || '').toLowerCase()
+  const parsedDayIndex = parseInt(String(routeParams.dayIndex || routeFallback.dayIndex || '1'))
+  const dayIndex = Number.isFinite(parsedDayIndex) && parsedDayIndex > 0 ? parsedDayIndex : 1
+  const readOnlyParam = String(routeParams.readOnly || routeFallback.readOnly || '').toLowerCase()
   const isReadOnly = !isImpromptuMode && (readOnlyParam === 'true' || readOnlyParam === '1')
-  const coachId = instance.router?.params?.coachId ? decodeURIComponent(instance.router.params.coachId) : ''
-  const coachName = instance.router?.params?.coachName ? decodeURIComponent(instance.router.params.coachName) : ''
   
-  const [loading, setLoading] = useState(true)
-  const [execution, setExecution] = useState<any>(null)
-  const [actions, setActions] = useState<Record<string, any>>({})
-  const [planInstance, setPlanInstance] = useState<any>(null)
-  const [expandedAction, setExpandedAction] = useState<number>(0)
-  const [currentSetIndex, setCurrentSetIndex] = useState(0)
-  const [expandedSetKey, setExpandedSetKey] = useState<string | null>(null)
-  const [editingSetKey, setEditingSetKey] = useState<string | null>(null)
-  const [completing, setCompleting] = useState(false)
-  const [restTimer, setRestTimer] = useState(0)
-  const [isResting, setIsResting] = useState(false)
-  const [restTimerMinimized, setRestTimerMinimized] = useState(false)
+  const [loading, setLoading] = React.useState(true)
+  const [loadError, setLoadError] = React.useState('')
+  const [loadStage, setLoadStage] = React.useState('等待页面启动')
+  const [execution, setExecution] = React.useState<any>(null)
+  const [actions, setActions] = React.useState<Record<string, any>>({})
+  const [planInstance, setPlanInstance] = React.useState<any>(null)
+  const [expandedAction, setExpandedAction] = React.useState<number>(0)
+  const [currentSetIndex, setCurrentSetIndex] = React.useState(0)
+  const [expandedSetKey, setExpandedSetKey] = React.useState<string | null>(null)
+  const [openSetMoreKey, setOpenSetMoreKey] = React.useState<string | null>(null)
+  const [editingSetKey, setEditingSetKey] = React.useState<string | null>(null)
+  const [completing, setCompleting] = React.useState(false)
+  const [restTimer, setRestTimer] = React.useState(0)
+  const [isResting, setIsResting] = React.useState(false)
+  const [restTimerMinimized, setRestTimerMinimized] = React.useState(false)
+  const [elapsedTrainingSeconds, setElapsedTrainingSeconds] = React.useState(0)
   
   // 当前组的输入状态
-  const [weight, setWeight] = useState<number | null>(null)
-  const [weightInput, setWeightInput] = useState('')
-  const [reps, setReps] = useState<number | null>(null)
-  const [rpe, setRpe] = useState<number | null>(null)
-  const [setNotes, setSetNotes] = useState('')
-  const [markAsPR, setMarkAsPR] = useState(false)
-  const [videoUrl, setVideoUrl] = useState('')
-  const [uploadingVideo, setUploadingVideo] = useState(false)
+  const [weight, setWeight] = React.useState<number | null>(null)
+  const [weightInput, setWeightInput] = React.useState('')
+  const [reps, setReps] = React.useState<number | null>(null)
+  const [rpe, setRpe] = React.useState<number | null>(null)
+  const [setNotes, setSetNotes] = React.useState('')
+  const [markAsPR, setMarkAsPR] = React.useState(false)
+  const [videoUrl, setVideoUrl] = React.useState('')
+  const [setDrafts, setSetDrafts] = React.useState<Record<string, SetRecordDraft>>({})
+  const [uploadingVideo, setUploadingVideo] = React.useState(false)
 
   // 非力量项目（饮食/有氧/习惯）表单状态
-  const [itemStates, setItemStates] = useState<Record<number, { dietContent?: string; cardioDistance?: number | null; cardioDuration?: number | null }>>({})
-  const [addingExtraSet, setAddingExtraSet] = useState(false)
-  const [addingExtraAction, setAddingExtraAction] = useState(false)
-  const [showActionPicker, setShowActionPicker] = useState(false)
-  const [actionPickerList, setActionPickerList] = useState<any[]>([])
-  const [actionKeyword, setActionKeyword] = useState('')
-  const [pickerMuscle, setPickerMuscle] = useState('all')
-  const [pickerEquipment, setPickerEquipment] = useState('all')
-  const [pickerSelectedActionIds, setPickerSelectedActionIds] = useState<string[]>([])
-  const [removingSet, setRemovingSet] = useState(false)
-  const [removingAction, setRemovingAction] = useState(false)
-  const [showFeedbackDialog, setShowFeedbackDialog] = useState(false)
-  const [feedbackContent, setFeedbackContent] = useState('')
-  const [feedbackDifficulty, setFeedbackDifficulty] = useState<number>(3)
-  const [feedbackSubmitting, setFeedbackSubmitting] = useState(false)
-  const [pendingSharePath, setPendingSharePath] = useState('')
-  const [workoutKeyboardTarget, setWorkoutKeyboardTarget] = useState<WorkoutKeyboardTarget | null>(null)
-  const [showWorkoutSummary, setShowWorkoutSummary] = useState(false)
-  const [workoutSummarySharePath, setWorkoutSummarySharePath] = useState('')
-  const [elapsedTrainingSeconds, setElapsedTrainingSeconds] = useState(0)
-  const [noteFocusKey, setNoteFocusKey] = useState<string | null>(null)
-  const startTrainingRef = useRef<() => Promise<void>>(async () => undefined)
-  const lastStartTrainingAtRef = useRef(0)
+  const [itemStates, setItemStates] = React.useState<Record<number, { dietContent?: string; cardioDistance?: number | null; cardioDuration?: number | null }>>({})
+  const [addingExtraSet, setAddingExtraSet] = React.useState(false)
+  const [addingExtraAction, setAddingExtraAction] = React.useState(false)
+  const [showActionPicker, setShowActionPicker] = React.useState(false)
+  const [actionPickerList, setActionPickerList] = React.useState<PickerAction[]>([])
+  const [actionKeyword, setActionKeyword] = React.useState('')
+  const [pickerMuscle, setPickerMuscle] = React.useState('all')
+  const [pickerEquipment, setPickerEquipment] = React.useState('all')
+  const [pickerSelectedActionIds, setPickerSelectedActionIds] = React.useState<string[]>([])
+  const [removingSet, setRemovingSet] = React.useState(false)
+  const [removingAction, setRemovingAction] = React.useState(false)
+  const [showFeedbackDialog, setShowFeedbackDialog] = React.useState(false)
+  const [feedbackContent, setFeedbackContent] = React.useState('')
+  const [feedbackDifficulty, setFeedbackDifficulty] = React.useState<number>(3)
+  const [feedbackSubmitting, setFeedbackSubmitting] = React.useState(false)
+  const [pendingSharePath, setPendingSharePath] = React.useState('')
+  const [showWorkoutSummary, setShowWorkoutSummary] = React.useState(false)
+  const startTrainingRef = React.useRef<(() => Promise<void>) | null>(null)
+  const startTrainingInFlightRef = React.useRef<Promise<void> | null>(null)
+  const lastStartTrainingAtRef = React.useRef(0)
+  const executionRef = React.useRef<any>(null)
+  const loadingRef = React.useRef(true)
+  const suppressAutoRefreshUntilRef = React.useRef(0)
 
   const userId = authService.getCurrentUser()?.id
 
-  const executionSnapshotScopeKey = useMemo(
+  const shouldAskCoachFeedback = React.useMemo(() => {
+    if (isImpromptuMode || !planInstance) return false
+    const source = String(planInstance.source || planInstance.plan_source || '').toLowerCase()
+    if (source === 'coach') return true
+
+    const coachPlanMarkers = [
+      planInstance.coach_subscription_id,
+      planInstance.coachSubscriptionId,
+      planInstance.coach_id,
+      planInstance.coachId
+    ]
+    return coachPlanMarkers.some((value) => {
+      const text = String(value || '').trim()
+      return !!text && text !== userId
+    })
+  }, [isImpromptuMode, planInstance, userId])
+
+  React.useEffect(() => {
+    if (!rawInstanceId && !rawImpromptuId) return
+    try {
+      Taro.setStorageSync(ROUTE_PARAM_STORAGE_KEY, {
+        instanceId: rawInstanceId || '',
+        impromptuId: rawImpromptuId || '',
+        dayIndex,
+        readOnly: readOnlyParam
+      })
+    } catch {
+      // Route-param fallback is only for DevTools hot reload / native picker return resilience.
+    }
+  }, [dayIndex, rawImpromptuId, rawInstanceId, readOnlyParam])
+
+  const executionSnapshotScopeKey = React.useMemo(
     () => trainingExecutionSnapshotKey({ isImpromptuMode, impromptuId, instanceId, dayIndex }),
     [dayIndex, impromptuId, instanceId, isImpromptuMode]
   )
 
-  const restTimerStorageKey = useMemo(
+  const restTimerStorageKey = React.useMemo(
     () => (userId && executionSnapshotScopeKey ? `${REST_TIMER_STORAGE_PREFIX}:${userId}:${executionSnapshotScopeKey}` : ''),
     [executionSnapshotScopeKey, userId]
   )
 
-  useEffect(() => {
-    console.log(EXEC_DEBUG_PREFIX, 'page mounted / route params', {
-      rawParams: instance.router?.params || {},
-      instanceId,
-      impromptuId,
-      dayIndex,
-      isImpromptuMode,
-      isReadOnly,
-      userId,
-      executionSnapshotScopeKey,
-      restTimerStorageKey
-    })
-  }, [
-    dayIndex,
-    executionSnapshotScopeKey,
-    impromptuId,
-    instance.router?.params,
-    instanceId,
-    isImpromptuMode,
-    isReadOnly,
-    restTimerStorageKey,
-    userId
-  ])
+  const trainingTimerStorageKey = React.useMemo(
+    () => (userId && executionSnapshotScopeKey ? `${TRAINING_TIMER_STORAGE_PREFIX}:${userId}:${executionSnapshotScopeKey}` : ''),
+    [executionSnapshotScopeKey, userId]
+  )
 
-  useEffect(() => {
-    console.log(EXEC_DEBUG_PREFIX, 'render state changed', {
-      loading,
-      hasExecution: !!execution,
-      execution: summarizeExecutionForDebug(execution),
-      actionMapCount: Object.keys(actions || {}).length,
-      hasPlanInstance: !!planInstance,
-      expandedAction,
-      currentSetIndex
-    })
-  }, [actions, currentSetIndex, execution, expandedAction, loading, planInstance])
+  const isPreviewExecution = React.useMemo(() => {
+    const status = String(execution?.status || '').toLowerCase()
+    const executionId = String(execution?.id || '')
+    return status === 'preview' || executionId.startsWith('preview-')
+  }, [execution?.id, execution?.status])
 
-  const clearPersistedRestTimer = useCallback(() => {
+  React.useEffect(() => {
+    executionRef.current = execution
+  }, [execution])
+
+  React.useEffect(() => {
+    loadingRef.current = loading
+  }, [loading])
+
+  const blockUntilExecutionReady = React.useCallback(() => {
+    if (!isPreviewExecution) return false
+    Taro.showToast({ title: '正在同步训练记录，稍等几秒', icon: 'none' })
+    return true
+  }, [isPreviewExecution])
+
+  const clearPersistedRestTimer = React.useCallback(() => {
     if (!restTimerStorageKey) return
     try {
       Taro.removeStorageSync(restTimerStorageKey)
@@ -381,7 +651,7 @@ function TrainingExecution() {
     }
   }, [restTimerStorageKey])
 
-  const persistRestTimer = useCallback(
+  const persistRestTimer = React.useCallback(
     (seconds: number, executionId?: string) => {
       if (!restTimerStorageKey || !executionId || seconds <= 0) return
       try {
@@ -396,7 +666,7 @@ function TrainingExecution() {
     [restTimerStorageKey]
   )
 
-  const syncExecutionToCaches = useCallback(
+  const syncExecutionToCaches = React.useCallback(
     (nextExecution: any) => {
       if (!userId || !executionSnapshotScopeKey || !nextExecution) return
       syncTrainingExecutionToStorage({
@@ -413,7 +683,7 @@ function TrainingExecution() {
     [actions, dayIndex, executionSnapshotScopeKey, instanceId, isImpromptuMode, planInstance, userId]
   )
 
-  const parseInputNumber = useCallback((value: string, mode: 'int' | 'float' = 'float') => {
+  const parseInputNumber = React.useCallback((value: string, mode: 'int' | 'float' = 'float') => {
     const trimmed = String(value ?? '').trim()
     if (!trimmed || trimmed === '-' || trimmed === '.' || trimmed === '-.') {
       return null
@@ -423,11 +693,11 @@ function TrainingExecution() {
     return parsed
   }, [])
 
-  const formatInputValue = useCallback((value?: number | null) => {
+  const formatInputValue = React.useCallback((value?: number | null) => {
     return value === null || value === undefined || !Number.isFinite(value) ? '' : String(value)
   }, [])
 
-  const filteredActionPickerList = useMemo(() => {
+  const filteredActionPickerList = React.useMemo(() => {
     const keyword = actionKeyword.trim().toLowerCase()
     const muscleFilter = PICKER_MUSCLE_FILTERS.find((item) => item.key === pickerMuscle) || PICKER_MUSCLE_FILTERS[0]
     const equipmentFilter = PICKER_EQUIPMENT_FILTERS.find((item) => item.key === pickerEquipment) || PICKER_EQUIPMENT_FILTERS[0]
@@ -437,7 +707,7 @@ function TrainingExecution() {
     })
   }, [actionKeyword, actionPickerList, pickerEquipment, pickerMuscle])
 
-  const lightweightProgress = useMemo(() => {
+  const lightweightProgress = React.useMemo(() => {
     const list = Array.isArray(execution?.action_executions) ? execution.action_executions : []
     return list.reduce((acc, item: ActionExecution) => {
       const actionType = String(actions?.[item?.action_id]?.type || 'STRENGTH').toUpperCase()
@@ -461,9 +731,45 @@ function TrainingExecution() {
 
   const canFinishWholeDay = isImpromptuMode || lightweightProgress.pending <= 0
 
-  const setKeyOf = useCallback((actionIndex: number, setIndex: number) => `${actionIndex}:${setIndex}`, [])
+  const setKeyOf = React.useCallback((actionIndex: number, setIndex: number) => `${actionIndex}:${setIndex}`, [])
+  const activeSetKey = React.useMemo(
+    () => setKeyOf(expandedAction, currentSetIndex),
+    [currentSetIndex, expandedAction, setKeyOf]
+  )
 
-  const focusFirstPendingSet = useCallback((nextExecution: any) => {
+  const updateSetDraft = React.useCallback((setKey: string, patch: Partial<SetRecordDraft>) => {
+    if (!setKey) return
+    setSetDrafts((prev) => {
+      const current = prev[setKey] || {
+        weight,
+        weightInput,
+        reps,
+        rpe,
+        notes: setNotes,
+        markAsPR,
+        videoUrl
+      }
+      return {
+        ...prev,
+        [setKey]: {
+          ...current,
+          ...patch
+        }
+      }
+    })
+  }, [markAsPR, reps, rpe, setNotes, videoUrl, weight, weightInput])
+
+  const clearSetDraft = React.useCallback((setKey: string) => {
+    if (!setKey) return
+    setSetDrafts((prev) => {
+      if (!prev[setKey]) return prev
+      const next = { ...prev }
+      delete next[setKey]
+      return next
+    })
+  }, [])
+
+  const focusFirstPendingSet = React.useCallback((nextExecution: any) => {
     const actionExecutions = nextExecution?.action_executions || []
     if (actionExecutions.length > 0) {
       const firstPendingActionIdx = actionExecutions.findIndex((action: ActionExecution) =>
@@ -480,7 +786,7 @@ function TrainingExecution() {
     }
   }, [])
 
-  const isWeightRequiredForSet = useCallback((set?: SetData | null) => {
+  const isWeightRequiredForSet = React.useCallback((set?: SetData | null) => {
     const planned = String(set?.planned_weight || '').trim().toLowerCase()
     if (!planned) return true
     if (planned.includes('kg')) return true
@@ -489,7 +795,7 @@ function TrainingExecution() {
     return true
   }, [])
 
-  const hydrateSetInputs = useCallback((set?: SetData | null, options?: { allowCompleted?: boolean }) => {
+  const hydrateSetInputs = React.useCallback((set?: SetData | null, options?: { allowCompleted?: boolean }) => {
     const allowCompleted = !!options?.allowCompleted
     if (!set || (set.status === 'completed' && !allowCompleted)) {
       setWeight(null)
@@ -499,19 +805,22 @@ function TrainingExecution() {
       setSetNotes('')
       setMarkAsPR(false)
       setVideoUrl('')
+      setOpenSetMoreKey(null)
       return
     }
 
-    setWeight(set.actual_weight ?? null)
-    setWeightInput(formatInputValue(set.actual_weight))
-    setReps(set.actual_reps ?? null)
+    const defaultWeight = getSetWeightDefault(set)
+    const defaultReps = getSetRepsDefault(set)
+    setWeight(defaultWeight)
+    setWeightInput(formatInputValue(defaultWeight))
+    setReps(defaultReps)
     setRpe(set.rpe ?? null)
     setSetNotes(set.notes || '')
     setMarkAsPR(!!set.is_pr)
     setVideoUrl(set.video_url || '')
   }, [formatInputValue])
 
-  const buildPreviewExecution = useCallback(
+  const buildPreviewExecution = React.useCallback(
     (targetInstance: any, actionMap: Record<string, any>, targetDayIndex: number) => {
       const trainingDays = Array.isArray(targetInstance?.training_days) ? targetInstance.training_days : []
       const day = trainingDays.find((item: any) => Number(item?.dayIndex) === Number(targetDayIndex))
@@ -566,7 +875,12 @@ function TrainingExecution() {
           set_number: setIdx + 1,
           status: 'pending',
           planned_weight: plannedWeight,
-          planned_reps: plannedReps
+          planned_reps: plannedReps,
+          planned_rest_seconds: (() => {
+            const rawRest = params?.['休息时间'] ?? params?.rest_seconds ?? item?.rest_seconds
+            const restSeconds = Number(rawRest)
+            return Number.isFinite(restSeconds) && restSeconds > 0 ? restSeconds : undefined
+          })()
         }))
 
         return {
@@ -589,36 +903,28 @@ function TrainingExecution() {
     []
   )
 
-  // 开始或恢复训练（T03：先 checkToday 判断今日是否已有进行中记录，若有则恢复；即兴模式直接 get）
-  const startTraining = useCallback(async () => {
-    console.log(EXEC_DEBUG_PREFIX, 'startTraining enter', {
-      userId,
-      instanceId,
-      impromptuId,
-      dayIndex,
-      isImpromptuMode,
-      isReadOnly,
-      executionSnapshotScopeKey
-    })
+  // 开始或恢复训练：先展示本地/计划预览，再用幂等 start 接口拿到真实执行记录。
+  const startTraining = React.useCallback(async () => {
+    setLoadError('')
+    setLoadStage('启动训练页')
     if (!userId) {
-      console.log(EXEC_DEBUG_PREFIX, 'startTraining stop: missing userId')
       setExecution(null)
       setLoading(false)
+      setLoadStage('缺少登录态')
+      setLoadError('请先登录后再进入训练')
       Taro.showToast({ title: '请先登录', icon: 'none' })
       return
     }
     if (!isImpromptuMode && !instanceId) {
-      console.log(EXEC_DEBUG_PREFIX, 'startTraining stop: missing instanceId in plan mode', {
-        instanceId,
-        impromptuId,
-        isImpromptuMode
-      })
       setExecution(null)
       setLoading(false)
+      setLoadStage('缺少计划参数')
+      setLoadError('缺少计划参数，请从今日训练重新进入')
       Taro.showToast({ title: '参数错误', icon: 'none' })
       return
     }
 
+    let hasDisplayableExecution = !!executionRef.current
     try {
       console.log('[training-execution] start load', {
         instanceId,
@@ -627,48 +933,39 @@ function TrainingExecution() {
         isImpromptuMode,
         scopeKey: executionSnapshotScopeKey
       })
+      setLoadStage('读取本地训练快照')
       const snapshot = readTrainingExecutionSnapshot(userId, executionSnapshotScopeKey)
-      console.log(EXEC_DEBUG_PREFIX, 'snapshot read result', {
-        scopeKey: executionSnapshotScopeKey,
-        hasSnapshot: !!snapshot,
-        hasExecution: !!snapshot?.execution,
-        execution: summarizeExecutionForDebug(snapshot?.execution),
-        actionMapCount: snapshot?.actions ? Object.keys(snapshot.actions).length : 0,
-        hasPlanInstance: !!snapshot?.planInstance
-      })
       if (snapshot?.execution) {
-        console.log(EXEC_DEBUG_PREFIX, 'apply snapshot execution before cloud refresh')
+        executionRef.current = snapshot.execution
+        hasDisplayableExecution = true
+        setLoadStage('已展示本地训练内容')
         setExecution(snapshot.execution)
         if (snapshot.actions) setActions(snapshot.actions)
         if (snapshot.planInstance) setPlanInstance(snapshot.planInstance)
         focusFirstPendingSet(snapshot.execution)
         setLoading(false)
       } else {
-        console.log(EXEC_DEBUG_PREFIX, 'no snapshot execution, keep full loading before request')
         setLoading(true)
       }
 
       if (isImpromptuMode && impromptuId) {
         // 即兴训练：直接获取执行记录
-        console.log(EXEC_DEBUG_PREFIX, 'impromptu get request start', {
-          impromptuId
-        })
+        setLoadStage('同步即兴训练记录')
         const data = await withExecutionLoadTimeout(impromptuService.get(impromptuId), '加载即兴训练')
-        console.log(EXEC_DEBUG_PREFIX, 'impromptu get request resolved', {
-          hasData: !!data,
-          execution: summarizeExecutionForDebug(data)
-        })
         if (!data) {
-          if (!snapshot?.execution) {
-            setExecution(null)
+          if (snapshot?.execution) {
+            Taro.showToast({ title: '已使用本地训练记录', icon: 'none' })
+            return
           }
-          setLoading(false)
-          console.log(EXEC_DEBUG_PREFIX, 'impromptu get returned empty', {
-            fallbackToSnapshot: !!snapshot?.execution
-          })
-          Taro.showToast({ title: snapshot?.execution ? '已使用本地训练记录' : '无法加载即兴执行记录', icon: 'none' })
+          setLoadStage('未找到即兴训练记录')
+          setLoadError('没有找到这次即兴训练记录')
+          Taro.showToast({ title: '无法加载即兴执行记录', icon: 'none' })
           return
         }
+        executionRef.current = data
+        hasDisplayableExecution = true
+        setExecution(data)
+        syncExecutionToCaches(data)
         setPlanInstance({
           id: 'impromptu',
           name: '即兴锻炼',
@@ -687,86 +984,75 @@ function TrainingExecution() {
             }
           }
         })
-        console.log(EXEC_DEBUG_PREFIX, 'apply impromptu cloud execution', {
-          execution: summarizeExecutionForDebug(data),
-          actionMapCount: Object.keys(actionMap).length
-        })
-        setExecution(data)
-        setLoading(false)
-        syncTrainingExecutionToStorage({
-          userId,
-          scopeKey: executionSnapshotScopeKey,
-          dayIndex,
-          isImpromptuMode: true,
-          execution: data,
-          planInstance: {
-            id: 'impromptu',
-            name: '即兴锻炼',
-            description: '即兴训练模式',
-            source: 'impromptu'
-          },
-          actions: actionMap
-        })
-        console.log(EXEC_DEBUG_PREFIX, 'impromptu execution synced to cache')
         setActions(actionMap)
         focusFirstPendingSet(data)
       } else {
         // 计划训练
-        console.log('[training-execution] load plan instance', { instanceId, dayIndex })
-        const instanceRes = await withExecutionLoadTimeout(
+        const cachedInstanceRes = snapshot?.planInstance
+          ? { instance: snapshot.planInstance, actions: snapshot.actions || {} }
+          : null
+        if (cachedInstanceRes) {
+          console.log('[training-execution] use snapshot plan instance', { instanceId, dayIndex })
+          setLoadStage('复用本地计划内容')
+        } else {
+          console.log('[training-execution] load plan instance', { instanceId, dayIndex })
+          setLoadStage('加载计划内容')
+        }
+        const instanceRes = cachedInstanceRes || (await withExecutionLoadTimeout(
           trainingService.getInstance({ id: instanceId }),
           '加载训练计划'
-        )
+        ))
         const instanceActions = instanceRes?.actions || {}
         if (instanceRes?.actions) setActions(instanceRes.actions)
         if (instanceRes?.instance) setPlanInstance(instanceRes.instance)
-
-        console.log('[training-execution] check existing execution', { instanceId, dayIndex })
-        const checkRes = await withExecutionLoadTimeout(
-          executionService.checkToday(instanceId, dayIndex),
-          '检查今日执行记录'
-        )
-        let data: any = null
-        if (checkRes?.id) {
-          console.log('[training-execution] load execution record', { executionId: checkRes.id })
-          data = await withExecutionLoadTimeout(
-            executionService.getExecution(checkRes.id),
-            '加载执行记录'
-          )
+        if (!snapshot?.execution && instanceRes?.instance) {
+          const previewExecution = buildPreviewExecution(instanceRes.instance, instanceActions, dayIndex)
+          if (previewExecution?.action_executions?.length) {
+            executionRef.current = previewExecution
+            hasDisplayableExecution = true
+            setLoadStage('已展示计划预览')
+            setExecution(previewExecution)
+            focusFirstPendingSet(previewExecution)
+            setLoading(false)
+          }
         }
-        if (!data && !isReadOnly) {
-          console.log('[training-execution] start execution record', { instanceId, dayIndex })
+
+        let data: any = null
+        if (!isReadOnly) {
+          console.log('[training-execution] sync execution record', { instanceId, dayIndex })
+          setLoadStage('同步训练记录')
           data = await withExecutionLoadTimeout(
             executionService.startExecution(instanceId, dayIndex),
-            '创建执行记录'
+            '同步训练记录'
           )
         }
         if (!data && isReadOnly) {
-          data = buildPreviewExecution(instanceRes?.instance, instanceActions, dayIndex)
+          data = snapshot?.execution || buildPreviewExecution(instanceRes?.instance, instanceActions, dayIndex)
         }
 
         if (data) {
-          console.log(EXEC_DEBUG_PREFIX, 'apply plan execution', {
-            execution: summarizeExecutionForDebug(data)
-          })
+          executionRef.current = data
+          hasDisplayableExecution = true
+          setLoadStage('已进入训练')
           setExecution(data)
-          setLoading(false)
           syncExecutionToCaches(data)
           focusFirstPendingSet(data)
         } else {
+          setLoadStage('没有找到当天训练内容')
+          setLoadError('没有找到当天训练内容')
           Taro.showToast({ title: '加载失败', icon: 'none' })
         }
       }
     } catch (e: any) {
-      console.error(EXEC_DEBUG_PREFIX, 'startTraining failed', {
-        message: e?.message,
-        stack: e?.stack,
-        name: e?.name
-      })
       console.error('开始训练失败:', e)
-      Taro.showToast({ title: e.message || '加载失败', icon: 'none' })
+      if (!hasDisplayableExecution && !executionRef.current) {
+        setLoadStage('进入训练失败')
+        setLoadError(e?.message || '加载失败，请检查网络后重试')
+      } else {
+        setLoadStage('云端刷新失败，已保留本地内容')
+        Taro.showToast({ title: '云端刷新失败，已保留本地记录', icon: 'none' })
+      }
     } finally {
-      console.log(EXEC_DEBUG_PREFIX, 'startTraining finally -> setLoading(false)')
       setLoading(false)
     }
   }, [
@@ -784,46 +1070,72 @@ function TrainingExecution() {
 
   startTrainingRef.current = startTraining
 
-  const requestStartTraining = useCallback(() => {
+  const requestStartTraining = React.useCallback((options?: { force?: boolean }) => {
+    const runner = startTrainingRef.current
+    if (!runner) {
+      setLoadStage('等待启动函数')
+      return Promise.resolve()
+    }
+    if (startTrainingInFlightRef.current) {
+      return startTrainingInFlightRef.current
+    }
     const now = Date.now()
-    console.log(EXEC_DEBUG_PREFIX, 'requestStartTraining called', {
-      now,
-      lastStartTrainingAt: lastStartTrainingAtRef.current,
-      delta: now - lastStartTrainingAtRef.current
-    })
-    if (now - lastStartTrainingAtRef.current < 500) {
-      console.log(EXEC_DEBUG_PREFIX, 'requestStartTraining skipped by debounce')
+    if (!options?.force && now - lastStartTrainingAtRef.current < 500) {
       return Promise.resolve()
     }
     lastStartTrainingAtRef.current = now
-    console.log(EXEC_DEBUG_PREFIX, 'requestStartTraining executing startTrainingRef')
-    return startTrainingRef.current()
+    const runPromise = runner().finally(() => {
+      startTrainingInFlightRef.current = null
+    })
+    startTrainingInFlightRef.current = runPromise
+    return runPromise
   }, [])
 
-  useEffect(() => {
-    console.log(EXEC_DEBUG_PREFIX, 'useEffect initial requestStartTraining')
-    void requestStartTraining()
+  React.useEffect(() => {
+    void requestStartTraining({ force: true })
   }, [requestStartTraining])
 
   useDidShow(() => {
-    console.log(EXEC_DEBUG_PREFIX, 'useDidShow requestStartTraining')
-    void requestStartTraining()
+    if (Date.now() < suppressAutoRefreshUntilRef.current) return
+    if (executionRef.current) return
+    void requestStartTraining({ force: true })
   })
+
+  React.useEffect(() => {
+    if (!loading || execution) return undefined
+    const timer = setTimeout(() => {
+      if (executionRef.current || !loadingRef.current) return
+      setLoadStage('页面启动超时')
+      setLoadError('页面启动没有完成，请点击重试；如果仍然失败，请从今日训练页重新进入。')
+      setLoading(false)
+    }, EXECUTION_BOOT_WATCHDOG_MS)
+    return () => clearTimeout(timer)
+  }, [execution, loading])
 
   usePullDownRefresh(() => {
-    console.log(EXEC_DEBUG_PREFIX, 'pullDownRefresh requestStartTraining')
-    requestStartTraining().finally(() => Taro.stopPullDownRefresh())
+    requestStartTraining({ force: true }).finally(() => Taro.stopPullDownRefresh())
   })
 
-  useEffect(() => {
+  React.useEffect(() => {
     const current = execution?.action_executions?.[expandedAction]?.sets?.[currentSetIndex]
     const currentKey = current ? setKeyOf(expandedAction, currentSetIndex) : null
+    const draft = currentKey ? setDrafts[currentKey] : null
+    if (current && draft && !(current.status === 'completed' && editingSetKey !== currentKey)) {
+      setWeight(draft.weight)
+      setWeightInput(draft.weightInput)
+      setReps(draft.reps)
+      setRpe(draft.rpe)
+      setSetNotes(draft.notes)
+      setMarkAsPR(draft.markAsPR)
+      setVideoUrl(draft.videoUrl)
+      return
+    }
     hydrateSetInputs(current, {
       allowCompleted: !!currentKey && editingSetKey === currentKey
     })
-  }, [editingSetKey, execution, expandedAction, currentSetIndex, hydrateSetInputs, setKeyOf])
+  }, [editingSetKey, execution, expandedAction, currentSetIndex, hydrateSetInputs, setDrafts, setKeyOf])
 
-  useEffect(() => {
+  React.useEffect(() => {
     if (!isResting || restTimer <= 0) return
     const timer = setInterval(() => {
       setRestTimer((prev) => {
@@ -840,7 +1152,7 @@ function TrainingExecution() {
     return () => clearInterval(timer)
   }, [clearPersistedRestTimer, isResting, restTimer])
 
-  useEffect(() => {
+  React.useEffect(() => {
     if (!restTimerStorageKey || !execution?.id || isResting) return
     try {
       const stored = Taro.getStorageSync(restTimerStorageKey) as any
@@ -859,25 +1171,55 @@ function TrainingExecution() {
     }
   }, [clearPersistedRestTimer, execution?.id, isResting, restTimerStorageKey])
 
-  useEffect(() => {
-    const startedAt = execution?.started_at ? new Date(execution.started_at).getTime() : NaN
-    const completedAt = execution?.completed_at ? new Date(execution.completed_at).getTime() : NaN
+  React.useEffect(() => {
+    if (!trainingTimerStorageKey || !execution) {
+      setElapsedTrainingSeconds(0)
+      return undefined
+    }
+
+    const executionStartedAt = parseTimestamp(execution?.started_at)
+    const executionCompletedAt = parseTimestamp(execution?.completed_at)
+    let storedStartedAt: number | null = null
+
+    try {
+      const stored = Taro.getStorageSync(trainingTimerStorageKey) as any
+      storedStartedAt = parseTimestamp(stored?.startedAt || stored?.started_at || stored)
+    } catch {
+      storedStartedAt = null
+    }
+
+    const startedAt = storedStartedAt || executionStartedAt || Date.now()
+
+    if (!storedStartedAt && !executionCompletedAt) {
+      try {
+        Taro.setStorageSync(trainingTimerStorageKey, {
+          startedAt,
+          executionId: execution?.id || '',
+          scopeKey: executionSnapshotScopeKey
+        })
+      } catch {
+        // Timer persistence is a UX aid; never block the workout page on storage failure.
+      }
+    }
 
     const updateElapsed = () => {
-      if (!Number.isFinite(startedAt)) {
-        setElapsedTrainingSeconds(0)
-        return
-      }
-      const endAt = Number.isFinite(completedAt) ? completedAt : Date.now()
+      const endAt = executionCompletedAt || Date.now()
       setElapsedTrainingSeconds(Math.max(0, Math.floor((endAt - startedAt) / 1000)))
     }
 
     updateElapsed()
-    if (Number.isFinite(completedAt)) return undefined
+    if (executionCompletedAt) return undefined
 
     const timer = setInterval(updateElapsed, 1000)
     return () => clearInterval(timer)
-  }, [execution?.completed_at, execution?.started_at])
+  }, [
+    execution,
+    execution?.completed_at,
+    execution?.id,
+    execution?.started_at,
+    executionSnapshotScopeKey,
+    trainingTimerStorageKey
+  ])
 
   // 选择视频（注意：微信小程序本地存储约 10MB 限制，视频过大会触发 writeFile 超限，建议大视频用「粘贴链接」）
   const handleChooseVideo = async () => {
@@ -886,9 +1228,37 @@ function TrainingExecution() {
       return
     }
     if (!execution?.id) return
+    if (blockUntilExecutionReady()) return
     const actionId = execution?.action_executions?.[expandedAction]?.action_id
     if (!actionId) return
+    const targetExecutionId = execution.id
+    const targetActionIndex = expandedAction
+    const targetSetIndex = currentSetIndex
+    const patchCurrentSetVideoUrl = (url: string) => {
+      const baseExecution = executionRef.current || execution
+      const actionExecutions = Array.isArray(baseExecution?.action_executions) ? baseExecution.action_executions : []
+      const targetAction = actionExecutions[targetActionIndex]
+      const targetSet = targetAction?.sets?.[targetSetIndex]
+      if (!targetAction || !targetSet) return
+
+      const updatedExecution = { ...baseExecution }
+      const updatedActionExecutions = [...actionExecutions]
+      const updatedAction = { ...targetAction }
+      const updatedSets = [...(targetAction.sets || [])]
+      updatedSets[targetSetIndex] = {
+        ...targetSet,
+        video_url: url
+      }
+      updatedAction.sets = updatedSets
+      updatedActionExecutions[targetActionIndex] = updatedAction
+      updatedExecution.action_executions = updatedActionExecutions
+      executionRef.current = updatedExecution
+      setExecution(updatedExecution)
+      syncExecutionToCaches(updatedExecution)
+    }
+
     try {
+      suppressAutoRefreshUntilRef.current = Date.now() + 120000
       const res = await Taro.chooseVideo({
         sourceType: ['album', 'camera'],
         maxDuration: 30, // 缩短以减小体积，避免本地存储超限
@@ -898,13 +1268,15 @@ function TrainingExecution() {
       setUploadingVideo(true)
       const uploadRes = await executionService.uploadSetVideo(
         res.tempFilePath,
-        execution.id,
+        targetExecutionId,
         actionId,
-        currentSetIndex + 1
+        targetSetIndex + 1
       )
       const url = uploadRes?.video_url || uploadRes?.url
       if (url) {
         setVideoUrl(url)
+        updateSetDraft(setKeyOf(targetActionIndex, targetSetIndex), { videoUrl: url })
+        patchCurrentSetVideoUrl(url)
         Taro.showToast({ title: '视频上传成功', icon: 'success' })
       } else {
         Taro.showToast({ title: '上传失败', icon: 'none' })
@@ -918,6 +1290,7 @@ function TrainingExecution() {
       Taro.showToast({ title: hint, icon: 'none', duration: 3000 })
     } finally {
       setUploadingVideo(false)
+      suppressAutoRefreshUntilRef.current = Date.now() + 3000
     }
   }
 
@@ -928,8 +1301,34 @@ function TrainingExecution() {
       return
     }
     if (!execution?.id) return
+    if (blockUntilExecutionReady()) return
     const actionId = execution?.action_executions?.[expandedAction]?.action_id
     if (!actionId) return
+    const targetActionIndex = expandedAction
+    const targetSetIndex = currentSetIndex
+    const patchCurrentSetVideoUrl = (url: string) => {
+      const baseExecution = executionRef.current || execution
+      const actionExecutions = Array.isArray(baseExecution?.action_executions) ? baseExecution.action_executions : []
+      const targetAction = actionExecutions[targetActionIndex]
+      const targetSet = targetAction?.sets?.[targetSetIndex]
+      if (!targetAction || !targetSet) return
+
+      const updatedExecution = { ...baseExecution }
+      const updatedActionExecutions = [...actionExecutions]
+      const updatedAction = { ...targetAction }
+      const updatedSets = [...(targetAction.sets || [])]
+      updatedSets[targetSetIndex] = {
+        ...targetSet,
+        video_url: url
+      }
+      updatedAction.sets = updatedSets
+      updatedActionExecutions[targetActionIndex] = updatedAction
+      updatedExecution.action_executions = updatedActionExecutions
+      executionRef.current = updatedExecution
+      setExecution(updatedExecution)
+      syncExecutionToCaches(updatedExecution)
+    }
+
     Taro.showModal({
       title: '粘贴视频链接',
       editable: true,
@@ -944,7 +1343,10 @@ function TrainingExecution() {
               res.content
             )
             if (linkRes) {
-              setVideoUrl(linkRes.video_url || res.content)
+              const url = linkRes.video_url || res.content
+              setVideoUrl(url)
+              updateSetDraft(setKeyOf(targetActionIndex, targetSetIndex), { videoUrl: url })
+              patchCurrentSetVideoUrl(url)
               Taro.showToast({ title: '链接添加成功', icon: 'success' })
             } else {
               Taro.showToast({ title: '添加失败', icon: 'none' })
@@ -957,41 +1359,10 @@ function TrainingExecution() {
     })
   }
 
-  const handleContactCoach = useCallback(async () => {
-    if (isImpromptuMode) {
-      Taro.showToast({ title: '即兴锻炼暂无教练会话', icon: 'none' })
-      return
-    }
-    if (!coachId || !userId) {
-      Taro.showToast({ title: '教练信息缺失', icon: 'none' })
-      return
-    }
-    if (coachId === userId) {
-      Taro.showToast({ title: '无法与自己发起会话', icon: 'none' })
-      return
-    }
-
-    try {
-      const room = await chatService.getChatroom({ members: [userId, coachId] })
-      if (room?.id) {
-        await Taro.navigateTo({
-          url: `/me/messages/chat/index?roomId=${room.id}&peerName=${encodeURIComponent(coachName || '教练')}`
-        })
-        return
-      }
-    } catch (error) {
-      console.error('[training-execution] open coach chat failed:', error)
-    }
-
-    await Taro.navigateTo({
-      url: `/me/messages/index?coachId=${encodeURIComponent(coachId)}${coachName ? `&coachName=${encodeURIComponent(coachName)}` : ''}`
-    })
-  }, [coachId, coachName, isImpromptuMode, userId])
-
-  const handleBackToTodayTraining = useCallback(() => {
+  const handleBackToTodayTraining = React.useCallback(() => {
     Taro.navigateBack().catch(() => {
-      Taro.redirectTo({ url: '/pages/index/index' }).catch(() => {
-        Taro.switchTab({ url: '/pages/index/index' }).catch(() => {
+      Taro.redirectTo({ url: '/training/today-training' }).catch(() => {
+        Taro.switchTab({ url: '/training/today-training' }).catch(() => {
           Taro.showToast({ title: '跳转失败，请手动返回', icon: 'none' })
         })
       })
@@ -1005,6 +1376,7 @@ function TrainingExecution() {
       return
     }
     if (!execution) return
+    if (blockUntilExecutionReady()) return
 
     const actionExecutions = execution.action_executions || []
     const currentAction = actionExecutions[expandedAction]
@@ -1080,8 +1452,10 @@ function TrainingExecution() {
         setSetNotes('')
         setMarkAsPR(false)
         setVideoUrl('')
+        setOpenSetMoreKey(null)
         setEditingSetKey(null)
         setExpandedSetKey(currentSetKey)
+        clearSetDraft(currentSetKey)
 
         if (!isEditing) {
           const restSeconds = Number(currentSet.planned_rest_seconds || 90)
@@ -1125,13 +1499,13 @@ function TrainingExecution() {
     }
   }
 
-  const handlePostFinishFlow = useCallback((sharePath?: string) => {
+  const handlePostFinishFlow = React.useCallback((sharePath?: string) => {
     const targetSharePath = String(sharePath || '').trim()
     setWorkoutSummarySharePath(targetSharePath)
     setShowWorkoutSummary(true)
   }, [])
 
-  const handleSkipFeedback = useCallback(() => {
+  const handleSkipFeedback = React.useCallback(() => {
     const sharePath = pendingSharePath
     setShowFeedbackDialog(false)
     setFeedbackContent('')
@@ -1140,7 +1514,7 @@ function TrainingExecution() {
     handlePostFinishFlow(sharePath)
   }, [handlePostFinishFlow, pendingSharePath])
 
-  const handleSubmitFeedback = useCallback(async () => {
+  const handleSubmitFeedback = React.useCallback(async () => {
     if (!execution?.id || feedbackSubmitting) return
 
     const content = feedbackContent.trim()
@@ -1186,6 +1560,7 @@ function TrainingExecution() {
       return
     }
     if (!execution) return
+    if (blockUntilExecutionReady()) return
 
     if (!isImpromptuMode && !canFinishWholeDay) {
       Taro.showModal({
@@ -1244,11 +1619,7 @@ function TrainingExecution() {
                 }
               }
 
-              const shouldAskFeedback = !isImpromptuMode && (
-                planInstance?.source === 'coach' ||
-                (!!coachId && coachId !== userId)
-              )
-              if (shouldAskFeedback) {
+              if (shouldAskCoachFeedback) {
                 setPendingSharePath(sharePath)
                 setShowFeedbackDialog(true)
                 return
@@ -1274,6 +1645,7 @@ function TrainingExecution() {
       return
     }
     if (!execution) return
+    if (blockUntilExecutionReady()) return
 
     if (!isImpromptuMode && !canFinishWholeDay) {
       Taro.showModal({
@@ -1334,11 +1706,7 @@ function TrainingExecution() {
                 }
               }
 
-              const shouldAskFeedback = !isImpromptuMode && (
-                planInstance?.source === 'coach' ||
-                (!!coachId && coachId !== userId)
-              )
-              if (shouldAskFeedback) {
+              if (shouldAskCoachFeedback) {
                 setPendingSharePath(sharePath)
                 setShowFeedbackDialog(true)
                 return
@@ -1358,30 +1726,6 @@ function TrainingExecution() {
     })
   }
 
-  // 跳过今日
-  const handleSkipDay = async () => {
-    if (isReadOnly) {
-      Taro.showToast({ title: '只读模式不可修改', icon: 'none' })
-      return
-    }
-    if (!instanceId || !dayIndex) return
-    Taro.showModal({
-      title: '跳过今日',
-      content: '确定要跳过今天的训练吗？',
-      success: async (res) => {
-        if (res.confirm) {
-          const ok = await executionService.skipDay(instanceId, dayIndex)
-          if (ok) {
-            Taro.showToast({ title: '已跳过', icon: 'success' })
-            setTimeout(() => Taro.navigateBack(), 800)
-          } else {
-            Taro.showToast({ title: '操作失败', icon: 'none' })
-          }
-        }
-      }
-    })
-  }
-
   // 完成非力量项目（饮食/有氧/习惯）
   const handleCompleteItem = async (actionIndex: number) => {
     if (isReadOnly) {
@@ -1389,6 +1733,7 @@ function TrainingExecution() {
       return
     }
     if (!execution) return
+    if (blockUntilExecutionReady()) return
     const actionExec = execution.action_executions[actionIndex]
     const action = actions[actionExec?.action_id]
     const itemType = (action?.type || 'STRENGTH') as 'DIET' | 'CARDIO' | 'HABIT'
@@ -1478,25 +1823,43 @@ function TrainingExecution() {
       return
     }
     if (!execution || addingExtraSet) return
+    if (blockUntilExecutionReady()) return
+    const actionExec = execution.action_executions[actionIndex]
+    const existingSets = Array.isArray(actionExec?.sets) ? actionExec.sets : []
+    const sourceSet = findInheritableSourceSet(existingSets)
+    const inheritedSet = buildInheritedExtraSet(sourceSet)
+    const inheritedWeight = getSetWeightDefault(sourceSet)
+    const inheritedReps = getSetRepsDefault(sourceSet)
+    const inheritedRest = getSetRestDefault(sourceSet)
+    const inheritedPlanWeight = inheritedSet.planned_weight || inheritedWeight
+    const inheritedPlanReps = inheritedSet.planned_reps || inheritedReps
     try {
       setAddingExtraSet(true)
       const res = isImpromptuMode
-        ? await impromptuService.addExtraSet(execution.id, actionIndex, undefined)
-        : await executionService.addExtraSet(execution.id, actionIndex)
+        ? await impromptuService.addExtraSet(execution.id, actionIndex, {
+            weight: inheritedPlanWeight,
+            reps: inheritedPlanReps,
+            restSeconds: inheritedRest
+          })
+        : await executionService.addExtraSet(execution.id, actionIndex, {
+            weight: inheritedPlanWeight,
+            reps: inheritedPlanReps,
+            restSeconds: inheritedRest
+          })
       if (res) {
         const updated = { ...execution }
         const ae = updated.action_executions[actionIndex]
         ae.sets.push({
+          ...inheritedSet,
           set_number: res.newSetIndex + 1,
-          status: 'pending',
-          planned_weight: '',
-          planned_reps: '',
+          set_index: res.newSetIndex,
           source: 'student_extra'
         })
         ae.total_sets = ae.sets.length
         setExecution(updated)
         syncExecutionToCaches(updated)
         setCurrentSetIndex(res.newSetIndex)
+        hydrateSetInputs(ae.sets[res.newSetIndex])
         Taro.showToast({ title: `已添加第${res.newSetIndex + 1}组`, icon: 'success' })
       } else {
         Taro.showToast({ title: '添加失败', icon: 'none' })
@@ -1509,17 +1872,53 @@ function TrainingExecution() {
   }
 
   // 加载动作列表（用于添加动作）
-  const loadActionPicker = useCallback(async () => {
+  const loadActionPicker = React.useCallback(async () => {
     try {
-      const res = await studentActionLibService.listActions({ page: 1, limit: 100 })
-      const list = (res?.actions || [])
-        .filter((a: any) => a.type === 'STRENGTH' || !a.type)
-        .sort((a: any, b: any) => String(a?.name || '').localeCompare(String(b?.name || ''), 'zh-CN'))
+      const [myRes, publicRes] = await Promise.allSettled([
+        studentActionLibService.listActions({ page: 1, limit: 1000 }),
+        listPublicActions({ page: 1, limit: 200, viewerActionType: 'student' })
+      ])
+
+      if (myRes.status === 'rejected') {
+        console.error('[training-execution] load my actions failed:', myRes.reason)
+      }
+      if (publicRes.status === 'rejected') {
+        console.error('[training-execution] load public actions failed:', publicRes.reason)
+      }
+
+      const myActions: PickerAction[] = myRes.status === 'fulfilled'
+        ? (myRes.value?.actions || [])
+          .filter((a: any) => String(a?.type || 'STRENGTH').toUpperCase() === 'STRENGTH')
+          .map((a: any) => ({
+            ...a,
+            name: normalizeActionName(a) || '未命名动作',
+            source: 'mine' as const
+          }))
+        : []
+      const myNameSet = new Set(myActions.map((a) => normalizeActionName(a)).filter(Boolean))
+      const publicActions: PickerAction[] = publicRes.status === 'fulfilled'
+        ? (publicRes.value?.actions || [])
+          .filter((a: any) => String(a?.type || 'STRENGTH').toUpperCase() === 'STRENGTH')
+          .filter((a: any) => !myNameSet.has(normalizeActionName(a)))
+          .map((a: any) => ({
+            ...a,
+            name: normalizeActionName(a) || '未命名动作',
+            source: 'public' as const
+          }))
+        : []
+      const list = [...myActions, ...publicActions]
+        .sort((a, b) => {
+          if (a.source !== b.source) return a.source === 'mine' ? -1 : 1
+          return String(a?.name || '').localeCompare(String(b?.name || ''), 'zh-CN')
+        })
       setActionPickerList(list)
       setActionKeyword('')
       setPickerMuscle('all')
       setPickerEquipment('all')
       setPickerSelectedActionIds([])
+      if (list.length === 0) {
+        Taro.showToast({ title: '动作库暂无可添加动作', icon: 'none' })
+      }
     } catch (error) {
       console.error('[training-execution] load action picker failed:', error)
       setActionPickerList([])
@@ -1534,6 +1933,7 @@ function TrainingExecution() {
       return
     }
     if (!execution || removingSet) return
+    if (blockUntilExecutionReady()) return
     const actionExec = execution.action_executions[actionIndex]
     const set = actionExec?.sets?.[setIdx]
     if (set?.source !== 'student_extra') return
@@ -1577,6 +1977,7 @@ function TrainingExecution() {
       return
     }
     if (!execution || removingAction) return
+    if (blockUntilExecutionReady()) return
     const actionExec = execution.action_executions[actionIndex]
     if (actionExec?.source !== 'student_extra') return
     Taro.showModal({
@@ -1627,6 +2028,7 @@ function TrainingExecution() {
       return
     }
     if (!execution || addingExtraAction) return
+    if (blockUntilExecutionReady()) return
     try {
       setAddingExtraAction(true)
       const updated = {
@@ -1638,24 +2040,48 @@ function TrainingExecution() {
       let addedCount = 0
 
       for (const action of normalizedActions) {
+        let actionForTraining = action
+        if (action.source === 'public') {
+          try {
+            actionForTraining = await addPublicToMyLib(action.id) as PickerAction
+          } catch (error: any) {
+            if (!String(error?.message || '').includes('同名动作')) throw error
+            const fallback = await studentActionLibService.listActions({
+              page: 1,
+              limit: 10,
+              search: normalizeActionName(action)
+            })
+            const matched = (fallback?.actions || []).find((item: any) => normalizeActionName(item) === normalizeActionName(action))
+            if (!matched?.id) throw error
+            actionForTraining = { ...matched, source: 'mine' }
+          }
+        }
+        const actionId = actionForTraining.id
+        const actionName = normalizeActionName(actionForTraining) || normalizeActionName(action) || '未知动作'
+
         const res = isImpromptuMode
-          ? await impromptuService.addExtraExercise(execution.id, action.id, action.name || '未知动作', [{ weight: null, reps: null }])
-          : await executionService.addExtraExercise(execution.id, action.id, action.name || '未知动作')
+          ? await impromptuService.addExtraExercise(execution.id, actionId, actionName, [{ weight: null, reps: null }])
+          : await executionService.addExtraExercise(execution.id, actionId, actionName)
         if (!res) continue
 
         const nextOrder = Number.isFinite(Number(res.newActionIndex))
           ? Number(res.newActionIndex) + 1
           : updated.action_executions.length + 1
         updated.action_executions.push({
-          action_id: action.id,
-          action_name: action.name || '未知动作',
+          action_id: actionId,
+          action_name: actionName,
           action_order: nextOrder,
           source: 'student_extra',
           sets: [{ set_number: 1, status: 'pending', planned_weight: '', planned_reps: '', source: 'student_extra' }],
           total_sets: 1,
           completed_sets: 0
         })
-        nextActionMap[action.id] = action
+        nextActionMap[actionId] = {
+          ...actionForTraining,
+          id: actionId,
+          name: actionName,
+          source: 'mine'
+        }
         latestActionIndex = updated.action_executions.length - 1
         addedCount += 1
       }
@@ -1685,150 +2111,80 @@ function TrainingExecution() {
     void handleAddExtraExercises(selectedActions)
   }
 
-  if (loading && !execution) {
-    console.log(EXEC_DEBUG_PREFIX, 'render loading screen', {
-      loading,
-      hasExecution: !!execution,
-      impromptuId,
-      instanceId,
-      isImpromptuMode,
-      userId,
-      executionSnapshotScopeKey
-    })
-    return (
-      <View className={`training-execution-page theme-${effectiveTheme}`}>
-        <View className="loading-wrap">
-          <Text>加载中...</Text>
-        </View>
-      </View>
-    )
-  }
-
-  if (!execution) {
-    return (
-      <View className={`training-execution-page theme-${effectiveTheme}`}>
-        <View className="error-wrap">
-          <Text>加载失败，请重试</Text>
-          <Button onClick={startTraining}>重试</Button>
-        </View>
-      </View>
-    )
-  }
-
-  const actionExecutions = execution.action_executions || []
+  const actionExecutions = execution?.action_executions || []
   const currentAction = actionExecutions[expandedAction]
   const currentSet = currentAction?.sets?.[currentSetIndex]
-  const currentSetNumber = currentSet?.set_number || currentSetIndex + 1
 
-  const setWeightValue = (value: number | null) => {
-    if (value === null || value === undefined || !Number.isFinite(value)) {
-      setWeight(null)
-      setWeightInput('')
-      return
-    }
-    const next = Math.max(0, Math.round(Number(value) * 10) / 10)
+  const adjustWeightValue = (set: SetData | null | undefined, delta: number) => {
+    const currentValue = parseInputNumber(weightInput, 'float')
+    const plannedValue = parseFirstNumber(set?.planned_weight)
+    const base = currentValue ?? weight ?? plannedValue ?? 0
+    const next = Math.max(0, Math.round((base + delta) * 10) / 10)
+    const nextInput = formatKgValueForGym(next)
     setWeight(next)
-    setWeightInput(formatInputValue(next))
+    setWeightInput(nextInput)
+    updateSetDraft(activeSetKey, { weight: next, weightInput: nextInput })
   }
 
-  const setRepsValue = (value: number | null) => {
-    if (value === null || value === undefined || !Number.isFinite(value)) {
-      setReps(null)
+  const handleOpenActionDetail = (actionExec: ActionExecution, actionDetail: any) => {
+    const actionId = String(actionExec?.action_id || actionDetail?.id || '')
+    if (!actionId) {
+      Taro.showToast({ title: '暂无动作详情', icon: 'none' })
       return
     }
-    setReps(Math.max(0, Math.floor(Number(value))))
-  }
 
-  const handleAdjustWeight = (delta: number) => {
-    const base = weight ?? parseFirstNumber(weightInput) ?? parseFirstNumber(currentSet?.planned_weight) ?? 0
-    setWeightValue(base + delta)
-  }
-
-  const handleAdjustReps = (delta: number) => {
-    const base = reps ?? parseFirstNumber(currentSet?.planned_reps) ?? 0
-    setRepsValue(base + delta)
-  }
-
-  const handleUsePlannedSet = () => {
-    if (!currentSet) return
-    const plannedWeight = isWeightRequiredForSet(currentSet) ? parseFirstNumber(currentSet.planned_weight) : null
-    const plannedReps = parseFirstNumber(currentSet.planned_reps)
-    if (plannedWeight !== null) setWeightValue(plannedWeight)
-    if (plannedReps !== null) setRepsValue(plannedReps)
-    if (plannedWeight === null && plannedReps === null) {
-      Taro.showToast({ title: '本组没有可套用的计划值', icon: 'none' })
+    try {
+      Taro.setStorageSync(`action_detail_${actionId}`, {
+        id: actionId,
+        name: actionExec?.action_name || actionDetail?.name || '动作详情',
+        detail: actionDetail?.detail || '',
+        positions: actionDetail?.positions || null,
+        attrs: actionDetail?.attrs || null,
+        type: actionDetail?.type || null,
+        url: actionDetail?.url || null
+      })
+    } catch {
+      // Detail cache is a convenience for the detail page; navigation can still proceed.
     }
+
+    Taro.navigateTo({ url: `/training/action-detail?id=${encodeURIComponent(actionId)}` })
   }
 
-  const handleCopyPreviousSet = () => {
-    const sets = currentAction?.sets || []
-    const previous = sets
-      .slice(0, currentSetIndex)
-      .reverse()
-      .find((item: SetData) => item.status === 'completed')
-    if (!previous) {
-      Taro.showToast({ title: '还没有上一组记录', icon: 'none' })
-      return
-    }
-    setWeightValue(previous.actual_weight ?? null)
-    setRepsValue(previous.actual_reps ?? null)
-    setRpe(previous.rpe ?? null)
-    setSetNotes(previous.notes || '')
-    setVideoUrl('')
-    Taro.showToast({ title: '已复制上一组', icon: 'success' })
-  }
-
-  const applyKeyboardValue = (target: WorkoutKeyboardTarget, rawValue: string) => {
-    if (target === 'weight') {
-      setWeightInput(rawValue)
-      setWeight(parseInputNumber(rawValue, 'float'))
-      return
-    }
-    const parsed = parseInputNumber(rawValue, 'int')
-    setReps(parsed === null ? null : Math.max(0, Math.floor(parsed)))
-  }
-
-  const getKeyboardRawValue = (target: WorkoutKeyboardTarget) => {
-    if (target === 'weight') return weightInput
-    return reps === null || reps === undefined ? '' : String(reps)
-  }
-
-  const handleKeyboardKey = (key: string) => {
-    if (!workoutKeyboardTarget) return
-    const currentValue = getKeyboardRawValue(workoutKeyboardTarget)
-    if (key === '.' && workoutKeyboardTarget === 'reps') return
-    if (key === '.' && currentValue.includes('.')) return
-    const nextValue = currentValue === '0' && key !== '.' ? key : `${currentValue}${key}`
-    applyKeyboardValue(workoutKeyboardTarget, nextValue)
-  }
-
-  const handleKeyboardBackspace = () => {
-    if (!workoutKeyboardTarget) return
-    const nextValue = getKeyboardRawValue(workoutKeyboardTarget).slice(0, -1)
-    applyKeyboardValue(workoutKeyboardTarget, nextValue)
-  }
-
-  const handleKeyboardClear = () => {
-    if (!workoutKeyboardTarget) return
-    applyKeyboardValue(workoutKeyboardTarget, '')
-  }
-
-  const handleKeyboardAdjust = (delta: number) => {
-    if (workoutKeyboardTarget === 'weight') {
-      handleAdjustWeight(delta)
-      return
-    }
-    if (workoutKeyboardTarget === 'reps') {
-      handleAdjustReps(delta)
-    }
-  }
-
-  const appendSetNoteTag = (tag: string) => {
-    setSetNotes((prev) => {
-      const current = String(prev || '').trim()
-      if (current.includes(tag)) return current
-      return [current, tag].filter(Boolean).join(' · ')
+  const handleCopyVideoUrl = (url?: string | null) => {
+    const value = String(url || '').trim()
+    if (!value) return
+    Taro.setClipboardData({
+      data: value,
+      success: () => {
+        Taro.showToast({ title: '视频链接已复制', icon: 'success' })
+      }
     })
+  }
+
+  const handlePreviewSetVideo = async (url?: string | null) => {
+    const value = String(url || '').trim()
+    if (!value) {
+      Taro.showToast({ title: '暂无视频', icon: 'none' })
+      return
+    }
+    try {
+      await Taro.previewMedia({
+        sources: [{ url: value, type: 'video' }],
+        current: 0
+      })
+    } catch {
+      Taro.navigateTo({
+        url: `/common/common/video-player?url=${encodeURIComponent(value)}&title=${encodeURIComponent('本组视频')}`
+      }).catch(() => handleCopyVideoUrl(value))
+    }
+  }
+
+  const adjustRepsValue = (set: SetData | null | undefined, delta: number) => {
+    const plannedValue = parseFirstNumber(set?.planned_reps)
+    const base = reps ?? plannedValue ?? 0
+    const next = Math.max(0, Math.floor(base + delta))
+    setReps(next)
+    updateSetDraft(activeSetKey, { reps: next })
   }
 
   const handleExpandAction = (actionIdx: number) => {
@@ -1857,6 +2213,7 @@ function TrainingExecution() {
     setExpandedAction(actionIdx)
     setCurrentSetIndex(setIdx)
     setExpandedSetKey(null)
+    setOpenSetMoreKey(null)
     setEditingSetKey(null)
   }
 
@@ -1866,11 +2223,13 @@ function TrainingExecution() {
     setCurrentSetIndex(setIdx)
     setExpandedSetKey(targetKey)
     setEditingSetKey(targetKey)
+    setOpenSetMoreKey(set.notes || set.video_url ? targetKey : null)
     hydrateSetInputs(set, { allowCompleted: true })
   }
 
   const handleCancelEditCompletedSet = () => {
     setEditingSetKey(null)
+    setOpenSetMoreKey(null)
     const current = actionExecutions?.[expandedAction]?.sets?.[currentSetIndex]
     hydrateSetInputs(current)
   }
@@ -1902,92 +2261,27 @@ function TrainingExecution() {
     setRestTimerMinimized(true)
   }
 
-  const handleToolbarMinimize = () => {
-    if (isResting) {
-      handleMinimizeRestTimer()
-      return
-    }
-    Taro.showToast({ title: '暂无休息计时', icon: 'none' })
-  }
-
-  const handleToolbarAddAction = async () => {
-    if (isReadOnly || addingExtraAction) return
-    setShowActionPicker(true)
-    await loadActionPicker()
-  }
-
-  const handleToolbarNote = () => {
-    const targetAction = actionExecutions?.[expandedAction]
-    const targetSet = targetAction?.sets?.[currentSetIndex]
-    if (!targetAction || !targetSet) {
-      Taro.showToast({ title: '暂无可记录的组', icon: 'none' })
-      return
-    }
-    const targetKey = setKeyOf(expandedAction, currentSetIndex)
-    if (targetSet.status === 'completed') {
-      setExpandedSetKey(targetKey)
-      setEditingSetKey(targetKey)
-      hydrateSetInputs(targetSet, { allowCompleted: true })
-    } else {
-      setExpandedSetKey(null)
-      setEditingSetKey(null)
-    }
-    setNoteFocusKey(targetKey)
-    setTimeout(() => setNoteFocusKey(null), 800)
-  }
-
-  const handleToolbarSettings = () => {
-    const targetAction = actionExecutions?.[expandedAction]
-    const targetSet = targetAction?.sets?.[currentSetIndex]
-    if (!targetAction) {
-      Taro.showToast({ title: '暂无动作', icon: 'none' })
-      return
-    }
-    if (targetSet) {
-      setExpandedSetKey(setKeyOf(expandedAction, currentSetIndex))
-    }
-  }
-
   // 计算总进度
   const totalSets = actionExecutions.reduce((sum: number, a: ActionExecution) => sum + (a.total_sets || 0), 0)
   const completedSets = actionExecutions.reduce((sum: number, a: ActionExecution) => sum + (a.completed_sets || 0), 0)
   const pendingSetsCount = Math.max(0, totalSets - completedSets)
   const progress = totalSets > 0 ? (completedSets / totalSets) * 100 : 0
   const shouldShowQuickFinishButton = !isImpromptuMode && canFinishWholeDay && pendingSetsCount > 0
-  const handlePrimaryFinish = !canFinishWholeDay && !isImpromptuMode
-    ? handleBackToTodayTraining
-    : shouldShowQuickFinishButton
-      ? handleQuickFinishTraining
-      : handleFinishTraining
   const completedActions = actionExecutions.reduce((sum: number, a: ActionExecution) => {
     return sum + ((a.completed_sets || 0) >= (a.total_sets || 0) ? 1 : 0)
   }, 0)
   const planTitle = String(planInstance?.name || (isImpromptuMode ? '即兴锻炼' : '训练执行')).trim()
   const heroTimerValue = formatTimerValue(elapsedTrainingSeconds)
-  const totalVolume = actionExecutions.reduce((sum: number, action: ActionExecution) => {
-    const actionVolume = (action.sets || []).reduce((setSum: number, set: SetData) => {
-      const actualWeight = Number(set.actual_weight)
-      const actualReps = Number(set.actual_reps)
-      if (!Number.isFinite(actualWeight) || !Number.isFinite(actualReps)) return setSum
-      return setSum + Math.max(0, actualWeight) * Math.max(0, actualReps)
-    }, 0)
-    return sum + actionVolume
-  }, 0)
-  const plannedVolume = actionExecutions.reduce((sum: number, action: ActionExecution) => {
-    const actionVolume = (action.sets || []).reduce((setSum: number, set: SetData) => {
-      const plannedWeight = parseFirstNumber(set.planned_weight)
-      const plannedReps = parseFirstNumber(set.planned_reps)
-      if (plannedWeight === null || plannedReps === null) return setSum
-      return setSum + Math.max(0, plannedWeight) * Math.max(0, plannedReps)
-    }, 0)
-    return sum + actionVolume
-  }, 0)
+  const heroTimerLabel = execution?.completed_at ? '本次用时' : '训练总时长'
   const currentActionName = String(currentAction?.action_name || '').trim() || '等待选择动作'
   const currentActionType = String(actions?.[currentAction?.action_id]?.type || 'STRENGTH').toUpperCase()
   const currentActionMeta = getActionTypeMeta(currentActionType)
   const currentPlannedSummary = currentSet
     ? [currentSet.planned_weight || null, currentSet.planned_reps ? `${currentSet.planned_reps}次` : null].filter(Boolean).join(' × ')
     : ''
+  const heroSubtitle = planTitle && currentActionName && planTitle === currentActionName
+    ? currentPlannedSummary || '按计划完成本组'
+    : [currentActionName, currentPlannedSummary || null].filter(Boolean).join(' · ')
   const currentActualSummary = currentSet
     ? [
         currentSet.actual_weight !== null && currentSet.actual_weight !== undefined ? `${currentSet.actual_weight}kg` : null,
@@ -2046,18 +2340,141 @@ function TrainingExecution() {
   const heatmapFrontSvg = highlightSvgCategories(maleFrontSvgRaw, heatmapMuscles)
   const heatmapBackSvg = highlightSvgCategories(maleBackSvgRaw, heatmapMuscles)
   const workoutSummaryMaxScore = Math.max(1, ...workoutSummary.muscles.map((item) => item.score))
-  const handleOpenWorkoutShare = () => {
-    if (!workoutSummarySharePath) {
-      Taro.showToast({ title: '本次训练暂无分享页', icon: 'none' })
+  const isWorkoutCompleted = String(execution?.status || '').toLowerCase() === 'completed' || !!execution?.completed_at
+  const canOpenWorkoutSummary = isWorkoutCompleted && workoutSummary.completedSetTotal > 0
+  const workoutPosterData = React.useMemo<WorkoutPosterData>(() => ({
+    title: planTitle || '训练完成',
+    subtitle: `${isImpromptuMode ? '即兴锻炼' : `第${dayIndex}天`} · ${workoutSummary.completedSetTotal}组完成`,
+    totalVolume: workoutSummary.totalVolume,
+    completedSetTotal: workoutSummary.completedSetTotal,
+    durationMin: workoutSummary.durationMin,
+    muscles: workoutSummary.muscles,
+    actionRows: workoutSummary.actionRows,
+    frontBodyMap: heatmapFrontSvg,
+    backBodyMap: heatmapBackSvg
+  }), [
+    dayIndex,
+    heatmapBackSvg,
+    heatmapFrontSvg,
+    isImpromptuMode,
+    planTitle,
+    workoutSummary.actionRows,
+    workoutSummary.completedSetTotal,
+    workoutSummary.durationMin,
+    workoutSummary.muscles,
+    workoutSummary.totalVolume
+  ])
+  const {
+    generate: generateWorkoutPoster,
+    generating: workoutPosterGenerating,
+    imageUrl: workoutPosterImageUrl
+  } = useSharePoster<WorkoutPosterData>({
+    canvasId: WORKOUT_POSTER_CANVAS_ID,
+    width: WORKOUT_POSTER_WIDTH,
+    draw: (ctx, data, canvas) => drawWorkoutPoster(ctx, data, canvas)
+  })
+
+  const saveWorkoutPosterImage = React.useCallback((imagePath: string) => {
+    if (!imagePath) return
+    Taro.saveImageToPhotosAlbum({
+      filePath: imagePath,
+      success: () => Taro.showToast({ title: '已保存到相册', icon: 'success' }),
+      fail: (err: { errMsg?: string }) => {
+        if (err.errMsg?.includes('auth deny') || err.errMsg?.includes('authorize')) {
+          Taro.showModal({
+            title: '需要相册权限',
+            content: '请允许保存图片到相册。',
+            confirmText: '去设置',
+            success: (res) => {
+              if (res.confirm) Taro.openSetting()
+            }
+          })
+          return
+        }
+        Taro.showToast({ title: '保存失败，请稍后重试', icon: 'none' })
+      }
+    })
+  }, [])
+
+  const handleGenerateWorkoutPoster = React.useCallback(async () => {
+    if (!canOpenWorkoutSummary) {
+      Taro.showToast({ title: '暂无可分享的训练记录', icon: 'none' })
       return
     }
-    setShowWorkoutSummary(false)
-    Taro.navigateTo({ url: workoutSummarySharePath })
-  }
+
+    Taro.showLoading({ title: '生成分享图' })
+    const imagePath = workoutPosterImageUrl || await generateWorkoutPoster(workoutPosterData)
+    Taro.hideLoading()
+    if (!imagePath) return
+
+    const showShareImageMenu = (Taro as any).showShareImageMenu
+    if (typeof showShareImageMenu === 'function') {
+      showShareImageMenu({
+        path: imagePath,
+        fail: (err: { errMsg?: string }) => {
+          const message = String(err?.errMsg || '')
+          if (message.includes('cancel')) return
+          console.error('[training-execution] showShareImageMenu failed', err)
+          Taro.showModal({
+            title: '分享图已生成',
+            content: '当前环境不能直接调起图片分享，先保存到相册再发送。',
+            confirmText: '保存图片',
+            success: (res) => {
+              if (res.confirm) saveWorkoutPosterImage(imagePath)
+            }
+          })
+        }
+      })
+      return
+    }
+
+    Taro.showModal({
+      title: '分享图已生成',
+      content: '当前基础库不支持直接图片分享，先保存到相册再发送。',
+      confirmText: '保存图片',
+      success: (res) => {
+        if (res.confirm) saveWorkoutPosterImage(imagePath)
+      }
+    })
+  }, [
+    canOpenWorkoutSummary,
+    generateWorkoutPoster,
+    saveWorkoutPosterImage,
+    workoutPosterData,
+    workoutPosterImageUrl
+  ])
 
   const handleLeaveAfterSummary = () => {
     setShowWorkoutSummary(false)
     Taro.navigateBack()
+  }
+
+  if (loading && !execution) {
+    return (
+      <View className={`training-execution-page theme-${effectiveTheme}`}>
+        <View className="loading-wrap">
+          <Text className="loading-title">正在进入训练</Text>
+          <Text className="loading-stage">{loadStage}</Text>
+          <Text className="loading-desc">如果网络较慢，稍后会自动给出重试入口。</Text>
+        </View>
+      </View>
+    )
+  }
+
+  if (!execution) {
+    return (
+      <View className={`training-execution-page theme-${effectiveTheme}`}>
+        <View className="error-wrap">
+          <Text className="error-title">暂时进不去训练</Text>
+          <Text className="loading-stage">{loadStage}</Text>
+          <Text className="error-desc">{loadError || '加载失败，请从今日训练重新进入或稍后重试。'}</Text>
+          <View className="error-actions">
+            <Button className="error-primary-btn" onClick={() => void requestStartTraining({ force: true })}>重试</Button>
+            <Button className="error-secondary-btn" onClick={() => Taro.navigateBack()}>返回</Button>
+          </View>
+        </View>
+      </View>
+    )
   }
 
   return (
@@ -2068,37 +2485,20 @@ function TrainingExecution() {
             <View className="hero-topbar">
               <Text className="back-btn" onClick={() => Taro.navigateBack()}>返回</Text>
               <Text className="hero-day-label">{isImpromptuMode ? '即兴锻炼' : `${isReadOnly ? '只读查看 · ' : ''}第${dayIndex}天`}</Text>
-              {!isReadOnly ? (
-                <Text
-                  className={`hero-finish-btn ${!canFinishWholeDay && !isImpromptuMode ? 'warning' : ''}`}
-                  onClick={() => void handlePrimaryFinish()}
-                >
-                  {shouldShowQuickFinishButton ? '一键完成' : '完成'}
-                </Text>
-              ) : (
-                <View className="hero-top-actions">
-                  {!isImpromptuMode && !!coachId && coachId !== userId && (
-                    <Text className="hero-link-btn" onClick={() => void handleContactCoach()}>联系教练</Text>
-                  )}
-                </View>
-              )}
+              <View className="hero-top-actions" />
             </View>
 
             <View className="hero-main">
               <View className="hero-timer-card">
                 <Text className="hero-timer-value">{heroTimerValue}</Text>
-                <Text className="hero-timer-label">训练时长</Text>
+                <Text className="hero-timer-label">{heroTimerLabel}</Text>
               </View>
               <View className="hero-summary">
                 <Text className="hero-title">{planTitle || '训练执行'}</Text>
-                <Text className="hero-subtitle">
-                  {currentActionName}
-                  {currentPlannedSummary ? ` · ${currentPlannedSummary}` : ''}
-                </Text>
+                <Text className="hero-subtitle">{heroSubtitle}</Text>
                 <View className="hero-chip-row">
                   <Text className="hero-chip">{currentActionMeta.label}</Text>
                   <Text className="hero-chip">{currentRestLabel}</Text>
-                  {isResting ? <Text className="hero-chip warning">休息 {formatTimerValue(restTimer)}</Text> : null}
                   {currentActualSummary ? <Text className="hero-chip success">{currentActualSummary}</Text> : null}
                   {isReadOnly ? <Text className="hero-chip warning">只读模式</Text> : null}
                 </View>
@@ -2108,19 +2508,19 @@ function TrainingExecution() {
             <View className="hero-stats">
               <View className="hero-stat-card">
                 <Text className="hero-stat-label">动作</Text>
-                <Text className="hero-stat-value">{completedActions}/{actionExecutions.length}</Text>
+                <Text className="hero-stat-value">{actionExecutions.length}</Text>
               </View>
               <View className="hero-stat-card">
-                <Text className="hero-stat-label">组数</Text>
+                <Text className="hero-stat-label">组进度</Text>
                 <Text className="hero-stat-value">{completedSets}/{totalSets}</Text>
               </View>
               <View className="hero-stat-card">
-                <Text className="hero-stat-label">容量</Text>
-                <Text className="hero-stat-value">{Math.round(totalVolume)}/{Math.round(plannedVolume)}</Text>
+                <Text className="hero-stat-label">已完成</Text>
+                <Text className="hero-stat-value">{completedActions}</Text>
               </View>
               <View className="hero-stat-card">
-                <Text className="hero-stat-label">待完成</Text>
-                <Text className="hero-stat-value">{pendingSetsCount}</Text>
+                <Text className="hero-stat-label">轻任务</Text>
+                <Text className="hero-stat-value">{lightweightProgress.pending}</Text>
               </View>
             </View>
 
@@ -2148,6 +2548,8 @@ function TrainingExecution() {
                     formatRestSummary(firstSet?.planned_rest_seconds)
                   ].filter(Boolean).join(' · ')
                 : actionMeta.cue
+              const hasActionDetail = !!(actionDetail?.detail || actionDetail?.url || actionDetail?.positions?.length || actionDetail?.attrs?.length)
+              const hasActionDemo = !!actionDetail?.url
 
               return (
                 <View
@@ -2163,19 +2565,36 @@ function TrainingExecution() {
                           <Text className="action-type-pill">{actionMeta.label}</Text>
                           {actionSummary ? <Text className="action-summary">{actionSummary}</Text> : null}
                         </View>
+                        {(hasActionDetail || hasActionDemo) && (
+                          <View className="action-reference-row">
+                            {hasActionDetail && (
+                              <Text
+                                className="action-reference-chip"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleOpenActionDetail(action, actionDetail)
+                                }}
+                              >
+                                动作要点
+                              </Text>
+                            )}
+                            {hasActionDemo && (
+                              <Text
+                                className="action-reference-chip demo"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleOpenActionDetail(action, actionDetail)
+                                }}
+                              >
+                                演示
+                              </Text>
+                            )}
+                          </View>
+                        )}
                       </View>
                     </View>
                     <View className="action-progress">
                       <Text className={`action-progress-pill ${isCompleted ? 'done' : ''}`}>{action.completed_sets}/{action.total_sets}组</Text>
-                      <Text
-                        className="action-setting-btn"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          handleExpandAction(actionIdx)
-                        }}
-                      >
-                        ⋯
-                      </Text>
                       {!isReadOnly && action.source === 'student_extra' && (
                         <Text
                           className="action-delete-btn"
@@ -2202,13 +2621,25 @@ function TrainingExecution() {
                             const isExpandedSet = expandedSetKey === setKey
                             const isEditingThisSet = editingSetKey === setKey
                             const showSetForm = isCurrentSet && !isReadOnly && (!isCompletedSet || isEditingThisSet)
-                            const plannedRepsText = String(set.planned_reps || '').trim() ? `${set.planned_reps}次` : '自选'
-                            const plannedSummary = [set.planned_weight || null, plannedRepsText].filter(Boolean).join(' × ')
+                            const setDraft = setDrafts[setKey]
+                            const plannedWeightText = String(set.planned_weight || '').trim()
+                            const plannedRepsText = String(set.planned_reps || '').trim() ? `${set.planned_reps}次` : ''
+                            const plannedSummary = [plannedWeightText || null, plannedRepsText || null].filter(Boolean).join(' × ')
                             const actualSummary = [
                               set.actual_weight !== null && set.actual_weight !== undefined ? `${set.actual_weight}kg` : null,
                               set.actual_reps !== null && set.actual_reps !== undefined ? `${set.actual_reps}次` : null,
                               set.rpe ? `RPE ${set.rpe}` : null
                             ].filter(Boolean).join(' · ')
+                            const draftSummary = setDraft
+                              ? [
+                                  setDraft.weight !== null && setDraft.weight !== undefined ? `${formatKgValueForGym(setDraft.weight)}kg` : null,
+                                  setDraft.reps !== null && setDraft.reps !== undefined ? `${setDraft.reps}次` : null,
+                                  setDraft.rpe ? `RPE ${setDraft.rpe}` : null
+                                ].filter(Boolean).join(' · ')
+                              : ''
+                            const mainSummary = isCompletedSet
+                              ? actualSummary || '已完成'
+                              : draftSummary || plannedSummary || (isCurrentSet ? '填写本组' : '未填写')
                             const stateText = isEditingThisSet
                               ? '编辑中'
                               : isCompletedSet
@@ -2216,6 +2647,14 @@ function TrainingExecution() {
                                 : isCurrentSet
                                   ? '当前组'
                                   : '待完成'
+                            const isMoreOpen = openSetMoreKey === setKey
+                            const draftVideoUrl = setDraft?.videoUrl || ''
+                            const activeVideoUrl = (isCurrentSet ? videoUrl : '') || draftVideoUrl || set.video_url || ''
+                            const hasAttachedVideo = !!activeVideoUrl
+                            const moreSummary = [
+                              (isCurrentSet ? setNotes : '') || setDraft?.notes || set.notes ? '有备注' : null,
+                              hasAttachedVideo ? '有视频' : null
+                            ].filter(Boolean).join(' · ')
 
                             return (
                               <View
@@ -2229,11 +2668,10 @@ function TrainingExecution() {
                                   </View>
                                   <View className="set-header-main">
                                     <View className="set-header-top">
-                                      <Text className="set-main-summary">{isCompletedSet ? actualSummary || '已完成' : plannedSummary || '待输入本组数据'}</Text>
+                                      <Text className="set-main-summary">{mainSummary}</Text>
                                       <Text className={`set-state-pill ${isCompletedSet ? 'done' : isCurrentSet ? 'active' : ''}`}>{stateText}</Text>
                                     </View>
                                     <View className="set-header-bottom">
-                                      <Text className="set-subline">计划：{plannedSummary || '未填写'}</Text>
                                       <Text className="set-subline">{formatRestSummary(set.planned_rest_seconds)}</Text>
                                       {set.is_pr && <Text className="set-tag pr">PR</Text>}
                                       {set.is_auto_pr && <Text className="set-tag auto">新纪录</Text>}
@@ -2254,109 +2692,144 @@ function TrainingExecution() {
                                 </View>
 
                                 {showSetForm && (
-                                  <View className="set-input">
-                                    <View className="quick-log-panel">
-                                      <View className="quick-log-copy">
-                                        <Text className="quick-log-eyebrow">当前记录</Text>
-                                        <Text className="quick-log-title">{action.action_name || actionDetail?.name || '动作'} · 第{set.set_number || currentSetNumber}组</Text>
-                                        <Text className="quick-log-plan">计划 {plannedSummary || '未填写'} · {formatRestSummary(set.planned_rest_seconds)}</Text>
-                                      </View>
-                                      <View className="quick-log-actions">
-                                        <Text className="quick-log-chip" onClick={handleUsePlannedSet}>套用计划</Text>
-                                        <Text className="quick-log-chip" onClick={handleCopyPreviousSet}>复制上一组</Text>
-                                      </View>
-                                    </View>
-
-                                    <View className="compact-input-grid">
-                                      <View className="compact-input-card">
-                                        <Text className="compact-input-label">重量</Text>
-                                        <View
-                                          className={`compact-input-display ${workoutKeyboardTarget === 'weight' ? 'active' : ''}`}
-                                          onClick={() => setWorkoutKeyboardTarget('weight')}
-                                        >
-                                          <Text className={`compact-input-display-text ${weightInput ? '' : 'placeholder'}`}>
-                                            {weightInput || set.planned_weight || '0'}
-                                          </Text>
-                                          <Text className="compact-input-unit">kg</Text>
-                                        </View>
-                                        <View className="stepper-row">
-                                          <Text className="stepper-btn" onClick={() => handleAdjustWeight(-WEIGHT_STEP_KG)}>-{WEIGHT_STEP_KG}</Text>
-                                          <Text className="stepper-btn" onClick={() => handleAdjustWeight(WEIGHT_STEP_KG)}>+{WEIGHT_STEP_KG}</Text>
-                                        </View>
-                                      </View>
-                                      <View className="compact-input-card">
-                                        <Text className="compact-input-label">次数</Text>
-                                        <View
-                                          className={`compact-input-display ${workoutKeyboardTarget === 'reps' ? 'active' : ''}`}
-                                          onClick={() => setWorkoutKeyboardTarget('reps')}
-                                        >
-                                          <Text className={`compact-input-display-text ${reps !== null && reps !== undefined ? '' : 'placeholder'}`}>
-                                            {reps !== null && reps !== undefined ? reps : set.planned_reps || '0'}
-                                          </Text>
-                                          <Text className="compact-input-unit">次</Text>
-                                        </View>
-                                        <View className="stepper-row">
-                                          <Text className="stepper-btn" onClick={() => handleAdjustReps(-1)}>-1</Text>
-                                          <Text className="stepper-btn" onClick={() => handleAdjustReps(1)}>+1</Text>
+                                  <View className="set-record-form">
+                                    <View className="record-inline-row">
+                                      <View className="record-input-cell weight">
+                                        <Text className="record-input-label">重量</Text>
+                                        <View className="record-adjust-input">
+                                          <View className="record-value-wrap">
+                                            <Input
+                                              type="digit"
+                                              className="record-inline-input"
+                                              value={weightInput}
+                                              placeholder={String(set.planned_weight || '0')}
+                                              onInput={(e) => {
+                                                const rawValue = e.detail.value
+                                                const parsed = parseInputNumber(rawValue, 'float')
+                                                setWeightInput(rawValue)
+                                                setWeight(parsed)
+                                                updateSetDraft(setKey, { weightInput: rawValue, weight: parsed })
+                                              }}
+                                            />
+                                            <Text className="record-unit">kg</Text>
+                                          </View>
+                                          <View className="record-stepper">
+                                            <Text className="record-stepper-hit" onClick={(e) => {
+                                              e.stopPropagation()
+                                              adjustWeightValue(set, WEIGHT_STEP_KG)
+                                            }}>+</Text>
+                                            <Text className="record-stepper-divider" />
+                                            <Text className="record-stepper-hit" onClick={(e) => {
+                                              e.stopPropagation()
+                                              adjustWeightValue(set, -WEIGHT_STEP_KG)
+                                            }}>-</Text>
+                                          </View>
                                         </View>
                                       </View>
-                                      <View className="compact-input-card">
-                                        <Text className="compact-input-label">RPE</Text>
+                                      <View className="record-input-cell reps">
+                                        <Text className="record-input-label">次数</Text>
+                                        <View className="record-adjust-input">
+                                          <View className="record-value-wrap">
+                                            <Input
+                                              type="number"
+                                              className="record-inline-input"
+                                              value={reps !== null && reps !== undefined ? String(reps) : ''}
+                                              placeholder={String(set.planned_reps || '0')}
+                                              onInput={(e) => {
+                                                const parsed = parseInputNumber(e.detail.value, 'int')
+                                                const nextReps = parsed === null ? null : Math.max(0, Math.floor(parsed))
+                                                setReps(nextReps)
+                                                updateSetDraft(setKey, { reps: nextReps })
+                                              }}
+                                            />
+                                            <Text className="record-unit">次</Text>
+                                          </View>
+                                          <View className="record-stepper">
+                                            <Text className="record-stepper-hit" onClick={(e) => {
+                                              e.stopPropagation()
+                                              adjustRepsValue(set, REPS_STEP)
+                                            }}>+</Text>
+                                            <Text className="record-stepper-divider" />
+                                            <Text className="record-stepper-hit" onClick={(e) => {
+                                              e.stopPropagation()
+                                              adjustRepsValue(set, -REPS_STEP)
+                                            }}>-</Text>
+                                          </View>
+                                        </View>
+                                      </View>
+                                      <View className="record-input-cell rpe">
+                                        <Text className="record-input-label">RPE</Text>
                                         <Input
                                           type="number"
-                                          className="compact-input-field"
+                                          className="record-rpe-input"
                                           value={rpe?.toString() || ''}
                                           placeholder="1-10"
                                           onInput={(e) => {
                                             const parsed = parseInputNumber(e.detail.value, 'int')
-                                            setRpe(parsed === null ? null : Math.min(10, Math.max(1, Math.floor(parsed))))
+                                            const nextRpe = parsed === null ? null : Math.min(10, Math.max(1, Math.floor(parsed)))
+                                            setRpe(nextRpe)
+                                            updateSetDraft(setKey, { rpe: nextRpe })
                                           }}
                                         />
-                                        <View className="stepper-row">
-                                          <Text className="stepper-btn" onClick={() => setRpe((prev) => Math.max(1, (prev || 7) - 1))}>-1</Text>
-                                          <Text className="stepper-btn" onClick={() => setRpe((prev) => Math.min(10, (prev || 7) + 1))}>+1</Text>
-                                        </View>
                                       </View>
-                                    </View>
-
-                                    <View className="compact-note-row">
-                                      <Text className="compact-input-label">备注</Text>
-                                      <Input
-                                        className="compact-note-input"
-                                        value={setNotes}
-                                        placeholder="记录手感、节奏或动作问题"
-                                        focus={noteFocusKey === setKey}
-                                        onInput={(e) => setSetNotes(e.detail.value)}
-                                      />
-                                    </View>
-
-                                    <View className="set-tool-row">
-                                      <Button size="mini" className="ghost-tool-btn" onClick={handleChooseVideo} loading={uploadingVideo}>
-                                        选视频
-                                      </Button>
-                                      <Button size="mini" className="ghost-tool-btn" onClick={handlePasteVideoLink}>
-                                        贴链接
-                                      </Button>
-                                      <Text
-                                        className={`pr-toggle-chip ${markAsPR ? 'active' : ''}`}
-                                        onClick={() => setMarkAsPR(!markAsPR)}
+                                      <Button
+                                        type="primary"
+                                        className="record-complete-btn"
+                                        onClick={() => handleCompleteSet(actionIdx, setIdx)}
+                                        loading={completing}
                                       >
-                                        {markAsPR ? '已标记 PR' : '标记 PR'}
+                                        {isEditingThisSet ? '保存' : '完成'}
+                                      </Button>
+                                    </View>
+
+                                    <View className="set-secondary-row">
+                                      <Text
+                                        className={`progress-toggle ${markAsPR ? 'active' : ''}`}
+                                        onClick={() => {
+                                          const next = !markAsPR
+                                          setMarkAsPR(next)
+                                          updateSetDraft(setKey, { markAsPR: next })
+                                        }}
+                                      >
+                                        {markAsPR ? '已标记进步组' : '标记进步组'}
+                                      </Text>
+                                      <Text
+                                        className={`set-more-toggle ${isMoreOpen ? 'open' : ''}`}
+                                        onClick={() => setOpenSetMoreKey(isMoreOpen ? null : setKey)}
+                                      >
+                                        备注 / 视频（可选）{moreSummary ? ` · ${moreSummary}` : ''}
                                       </Text>
                                     </View>
 
-                                    {videoUrl && <Text className="video-url">{videoUrl.substring(0, 60)}...</Text>}
-
-                                    <Button
-                                      type="primary"
-                                      className="complete-btn"
-                                      onClick={handleCompleteSet}
-                                      loading={completing}
-                                    >
-                                      完成本组
-                                    </Button>
+                                    {isMoreOpen && (
+                                      <View className="set-more-panel">
+                                        <Input
+                                          className="compact-note-input"
+                                          value={setNotes}
+                                          placeholder="备注：手感、节奏或动作问题"
+                                          onInput={(e) => {
+                                            setSetNotes(e.detail.value)
+                                            updateSetDraft(setKey, { notes: e.detail.value })
+                                          }}
+                                        />
+                                        <View className="set-more-actions">
+                                          <Button size="mini" className="ghost-tool-btn" onClick={handleChooseVideo} loading={uploadingVideo}>
+                                            {hasAttachedVideo ? '换视频' : '选视频'}
+                                          </Button>
+                                          <Button size="mini" className="ghost-tool-btn" onClick={handlePasteVideoLink}>
+                                            贴链接
+                                          </Button>
+                                          {hasAttachedVideo && (
+                                            <Text className="video-attached-chip" onClick={() => void handlePreviewSetVideo(activeVideoUrl)}>
+                                              预览视频
+                                            </Text>
+                                          )}
+                                        </View>
+                                      </View>
+                                    )}
                                   </View>
                                 )}
+
 
                                 {isCurrentSet && !isCompletedSet && isReadOnly && (
                                   <View className="readonly-set-tip">
@@ -2368,11 +2841,7 @@ function TrainingExecution() {
                                   <View className="set-details">
                                     <View className="detail-grid">
                                       <View className="detail-cell">
-                                        <Text className="detail-label">计划</Text>
-                                        <Text className="detail-value">{plannedSummary || '未填写'}</Text>
-                                      </View>
-                                      <View className="detail-cell">
-                                        <Text className="detail-label">实际</Text>
+                                        <Text className="detail-label">本组记录</Text>
                                         <Text className="detail-value">{actualSummary || '未填写'}</Text>
                                       </View>
                                       <View className="detail-cell">
@@ -2397,7 +2866,9 @@ function TrainingExecution() {
                                     {!!set.video_url && (
                                       <View className="detail-note">
                                         <Text className="detail-label">视频</Text>
-                                        <Text className="detail-link">{set.video_url}</Text>
+                                        <Text className="detail-link" onClick={() => void handlePreviewSetVideo(set.video_url)}>
+                                          预览本组视频
+                                        </Text>
                                       </View>
                                     )}
 
@@ -2515,6 +2986,21 @@ function TrainingExecution() {
           })}
         </View>
 
+        {!isReadOnly && (
+          <View className="add-action-wrap">
+            <Button
+              size="mini"
+              className="add-action-btn"
+              onClick={async () => {
+                setShowActionPicker(true)
+                await loadActionPicker()
+              }}
+              disabled={addingExtraAction}
+            >
+              {addingExtraAction ? '添加中...' : '+ 添加动作'}
+            </Button>
+          </View>
+        )}
         {/* 动作选择弹层 */}
         {showActionPicker && (
           <View className="action-picker-mask" onClick={() => setShowActionPicker(false)}>
@@ -2560,7 +3046,7 @@ function TrainingExecution() {
                   ))}
                 </ScrollView>
                 <ScrollView scrollY className="picker-card-list">
-                  <View className="picker-card-grid">
+                  <View className="picker-action-list">
                     {filteredActionPickerList.map((a) => {
                       const isSelected = pickerSelectedActionIds.includes(a.id)
                       const meta = [
@@ -2570,16 +3056,19 @@ function TrainingExecution() {
                       return (
                         <View
                           key={a.id}
-                          className={`picker-action-card ${isSelected ? 'selected' : ''}`}
+                          className={`picker-action-row ${isSelected ? 'selected' : ''}`}
                           onClick={() => handleTogglePickerAction(a.id)}
                         >
-                          <View className="picker-action-top">
-                            <Text className="picker-action-initial">{String(a.name || '动').slice(0, 1)}</Text>
-                            <Text className="picker-action-check">{isSelected ? '已选' : '+'}</Text>
+                          <View className="picker-action-main">
+                            <View className="picker-action-title-line">
+                              <Text className="picker-action-name">{a.name || '未命名动作'}</Text>
+                              <Text className={`picker-action-source ${a.source === 'public' ? 'public' : ''}`}>
+                                {a.source === 'public' ? '公共' : '我的'}
+                              </Text>
+                            </View>
+                            <Text className="picker-action-meta">{meta.length > 0 ? meta.join(' · ') : '力量动作'}</Text>
                           </View>
-                          <Text className="picker-action-name">{a.name || '未命名动作'}</Text>
-                          <Text className="picker-action-meta">{meta.length > 0 ? meta.join(' · ') : '力量动作'}</Text>
-                          <Text className="picker-action-link">查看动作要点</Text>
+                          <Text className="picker-action-check">{isSelected ? '已选' : '+'}</Text>
                         </View>
                       )
                     })}
@@ -2609,29 +3098,47 @@ function TrainingExecution() {
           </View>
         )}
 
+        {/* 完成训练按钮 */}
+        {!isReadOnly && (
+          <View className="footer-section">
+            {!canFinishWholeDay && !isImpromptuMode && (
+              <Text className="finish-hint">仍有 {lightweightProgress.pending} 个轻任务待完成</Text>
+            )}
+            <Button
+              type="primary"
+              className={`finish-btn ${!canFinishWholeDay && !isImpromptuMode ? 'warning' : ''}`}
+              onClick={
+                !canFinishWholeDay && !isImpromptuMode
+                  ? handleBackToTodayTraining
+                  : shouldShowQuickFinishButton
+                    ? handleQuickFinishTraining
+                    : handleFinishTraining
+              }
+              loading={completing}
+            >
+              {!canFinishWholeDay && !isImpromptuMode
+                ? '返回今日安排继续轻任务'
+                : shouldShowQuickFinishButton
+                  ? '一键完成训练'
+                  : '完成训练'}
+            </Button>
+          </View>
+        )}
+        {(isReadOnly || isWorkoutCompleted) && canOpenWorkoutSummary && (
+          <View className="footer-section review-share-section">
+            <Text className="finish-hint">本次训练已完成，可直接生成训练分享图。</Text>
+            <Button
+              type="primary"
+              className="finish-btn"
+              loading={workoutPosterGenerating}
+              onClick={handleGenerateWorkoutPoster}
+            >
+              生成分享图
+            </Button>
+          </View>
+        )}
         </View>
       </ScrollView>
-
-      {!isReadOnly && (
-        <View className="execution-toolbar">
-          <View className="toolbar-item" onClick={handleToolbarMinimize}>
-            <Text className="toolbar-icon">−</Text>
-            <Text className="toolbar-label">最小化</Text>
-          </View>
-          <View className="toolbar-item" onClick={() => void handleToolbarAddAction()}>
-            <Text className="toolbar-icon">＋</Text>
-            <Text className="toolbar-label">加动作</Text>
-          </View>
-          <View className="toolbar-item" onClick={handleToolbarNote}>
-            <Text className="toolbar-icon">✎</Text>
-            <Text className="toolbar-label">心得</Text>
-          </View>
-          <View className="toolbar-item" onClick={handleToolbarSettings}>
-            <Text className="toolbar-icon">⋯</Text>
-            <Text className="toolbar-label">设置</Text>
-          </View>
-        </View>
-      )}
 
       {isResting && restTimerMinimized && (
         <View className="rest-timer-bubble" onClick={() => setRestTimerMinimized(false)}>
@@ -2643,7 +3150,7 @@ function TrainingExecution() {
       {isResting && !restTimerMinimized && (
         <View className="rest-timer-mask" onClick={handleMinimizeRestTimer}>
           <View className="rest-timer-panel" onClick={(e) => e.stopPropagation()}>
-            <Text className="rest-timer-emoji"><Clock size={20} /></Text>
+            <Text className="rest-timer-emoji">休</Text>
             <Text className="rest-timer-value">{formatTimerValue(restTimer)}</Text>
             <Text className="rest-timer-label">组间休息</Text>
             <View className="rest-timer-actions">
@@ -2659,61 +3166,6 @@ function TrainingExecution() {
               <Button size="mini" className="rest-action-btn" onClick={handleMinimizeRestTimer}>
                 最小化
               </Button>
-            </View>
-          </View>
-        </View>
-      )}
-
-      {workoutKeyboardTarget && (
-        <View className="workout-keyboard-mask" onClick={() => setWorkoutKeyboardTarget(null)}>
-          <View className="workout-keyboard-panel" onClick={(e) => e.stopPropagation()}>
-            <View className="keyboard-header">
-              <View>
-                <Text className="keyboard-title">{workoutKeyboardTarget === 'weight' ? '记录重量' : '记录次数'}</Text>
-                <Text className="keyboard-subtitle">
-                  {currentActionName} · 第{currentSetNumber}组
-                </Text>
-              </View>
-              <Text className="keyboard-done" onClick={() => setWorkoutKeyboardTarget(null)}>完成</Text>
-            </View>
-            <View className="keyboard-display">
-              <Text className={`keyboard-display-value ${getKeyboardRawValue(workoutKeyboardTarget) ? '' : 'placeholder'}`}>
-                {getKeyboardRawValue(workoutKeyboardTarget) || '0'}
-              </Text>
-              <Text className="keyboard-display-unit">{workoutKeyboardTarget === 'weight' ? 'kg' : '次'}</Text>
-            </View>
-
-            <View className="keyboard-quick-grid">
-              <Text className="keyboard-chip" onClick={handleUsePlannedSet}>套用计划</Text>
-              <Text className="keyboard-chip" onClick={handleCopyPreviousSet}>复制上一组</Text>
-              <Text className="keyboard-chip" onClick={() => appendSetNoteTag('热身组')}>热身组</Text>
-              <Text className="keyboard-chip" onClick={() => appendSetNoteTag('递减组')}>递减组</Text>
-              <Text className="keyboard-chip" onClick={() => handleKeyboardAdjust(workoutKeyboardTarget === 'weight' ? -WEIGHT_STEP_KG : -1)}>
-                {workoutKeyboardTarget === 'weight' ? `-${WEIGHT_STEP_KG}` : '-1'}
-              </Text>
-              <Text className="keyboard-chip" onClick={() => handleKeyboardAdjust(workoutKeyboardTarget === 'weight' ? WEIGHT_STEP_KG : 1)}>
-                {workoutKeyboardTarget === 'weight' ? `+${WEIGHT_STEP_KG}` : '+1'}
-              </Text>
-            </View>
-
-            <View className="keyboard-number-grid">
-              {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((key) => (
-                <Text key={key} className="keyboard-number-key" onClick={() => handleKeyboardKey(key)}>{key}</Text>
-              ))}
-              <Text
-                className={`keyboard-number-key ${workoutKeyboardTarget === 'reps' ? 'disabled' : ''}`}
-                onClick={() => handleKeyboardKey('.')}
-              >
-                .
-              </Text>
-              <Text className="keyboard-number-key" onClick={() => handleKeyboardKey('0')}>0</Text>
-              <Text className="keyboard-number-key" onClick={handleKeyboardBackspace}>退格</Text>
-            </View>
-
-            <View className="keyboard-bottom-actions">
-              <Text className="keyboard-bottom-btn" onClick={handleKeyboardClear}>清空</Text>
-              <Text className="keyboard-bottom-btn" onClick={() => void handleAddExtraSet(expandedAction)}>加一组</Text>
-              <Text className="keyboard-bottom-btn primary" onClick={() => void handleCompleteSet()}>完成本组</Text>
             </View>
           </View>
         </View>
@@ -2781,13 +3233,22 @@ function TrainingExecution() {
 
             <View className="summary-actions">
               <Text className="summary-secondary-btn" onClick={handleLeaveAfterSummary}>返回</Text>
-              <Text className={`summary-primary-btn ${workoutSummarySharePath ? '' : 'disabled'}`} onClick={handleOpenWorkoutShare}>
-                查看分享页
+              <Text className={`summary-primary-btn ${workoutPosterGenerating ? 'disabled' : ''}`} onClick={handleGenerateWorkoutPoster}>
+                {workoutPosterGenerating ? '生成中...' : '生成分享图'}
               </Text>
             </View>
           </View>
         </View>
       )}
+
+      <View className="workout-poster-canvas-wrap">
+        <Canvas
+          id={WORKOUT_POSTER_CANVAS_ID}
+          type="2d"
+          className="workout-poster-canvas"
+          style={{ width: `${WORKOUT_POSTER_WIDTH}px`, height: `${WORKOUT_POSTER_HEIGHT}px` }}
+        />
+      </View>
 
       {showFeedbackDialog && (
         <View className="feedback-modal-mask">
@@ -2806,7 +3267,7 @@ function TrainingExecution() {
                     if (!feedbackSubmitting) setFeedbackDifficulty(item.value)
                   }}
                 >
-                  {(() => { const Icon = require("@nutui/icons-react-taro")[item.icon]; return <Icon size={20} />; })()}
+                  <Text className="difficulty-mark">{item.mark}</Text>
                   <Text className="difficulty-label">{item.label}</Text>
                 </View>
               ))}
@@ -2816,6 +3277,8 @@ function TrainingExecution() {
               className="feedback-input"
               maxlength={500}
               value={feedbackContent}
+              cursorSpacing={96}
+              showConfirmBar={false}
               placeholder="例如：深蹲感觉可以加一点重量，卧推动作还不稳定..."
               onInput={(e) => setFeedbackContent(String(e.detail.value || '').slice(0, 500))}
             />

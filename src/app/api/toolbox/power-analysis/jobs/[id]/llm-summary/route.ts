@@ -17,6 +17,17 @@ export const maxDuration = 60;
 
 const db = serviceRoleSupabase as any;
 
+function getModeLabel(mode: string) {
+  const labels: Record<string, string> = {
+    pullup: "引体向上",
+    muscleup: "双力臂",
+    dip: "双杠臂屈伸",
+    pushup: "俯卧撑",
+    squat: "深蹲起身",
+  };
+  return labels[mode] || "引体向上";
+}
+
 export async function POST(
   _req: Request,
   context: { params: Promise<{ id: string }> },
@@ -81,7 +92,7 @@ export async function POST(
             "3. 下一次训练建议",
             "4. 误差与拍摄提醒",
             "",
-            `动作类型: ${metrics.mode === "muscleup" ? "双力臂" : "引体向上"}`,
+            `动作类型: ${getModeLabel(metrics.mode)}`,
             `结构化指标 JSON: ${JSON.stringify(metrics)}`,
           ].join("\n"),
         },
