@@ -1,7 +1,7 @@
 ﻿## Commit Current Code And Sync Main/Dev (`2026-06-19`)
 
 - Task: commit the current workspace code and make `main` and `dev` consistent.
-- Status: in progress.
+- Status: completed.
 - Starting branch: `main`.
 - Remote status before commit:
   - `origin/main` and `origin/dev` are both at `d6c232d3`.
@@ -9,6 +9,12 @@
 - Local state before commit:
   - Working tree contains the 2026-06-19 training execution, day/workout share, action-library styling, ranking/contact/toolbox, power-analysis multi-mode, and durable-state updates.
   - Generated Python cache under `scripts/power-analysis/__pycache__/` is intentionally excluded from commit.
+- Result:
+  - Created commit `ab9bd41f feat: update training share and miniapp flows`.
+  - Local `main` now includes prior `df59a575 fix: move miniapp assets into subpackages` plus the new 2026-06-19 work.
+  - Local `dev` will be fast-forwarded to match local `main`.
+- Verification:
+  - No new tests/builds were run before this commit in this turn.
 ## WeChat Day Check-In Vs Workout Share Concept Split (`2026-06-19`)
 
 - Task: clarify the product boundary between `整日打卡图` and `训练打卡图 / 训练成果页`.
@@ -82,6 +88,12 @@
 - Local state before commit:
   - Working tree contains the accumulated Power Analysis realtime/auto-upload fixes, impromptu e1RM tracking, streetlifting calculator history/ranking work, WeChat release automation files, and durable-state updates.
   - Generated Python cache under `scripts/power-analysis/__pycache__/` is intentionally excluded from commit.
+- Result:
+  - Created commit `ab9bd41f feat: update training share and miniapp flows`.
+  - Local `main` now includes prior `df59a575 fix: move miniapp assets into subpackages` plus the new 2026-06-19 work.
+  - Local `dev` will be fast-forwarded to match local `main`.
+- Verification:
+  - No new tests/builds were run before this commit in this turn.
 - Result:
   - Created local commit `95a9627d feat: sync analysis tools and calculator updates`.
   - Merged `origin/dev` into `main`, resolving durable-state conflicts by preserving both sides' notes and keeping the `origin/dev` unified training-home entry for `wechat_app/src/pages/index/index.tsx`.
@@ -6212,4 +6224,5 @@
   - `npm test`: passed, 33 files / 163 tests.
   - `git diff --check -- wechat_app/src/me/action-lib/index.scss`: passed with the existing CRLF warning.
   - `npx next build`: compiled successfully and generated all 510 static pages twice, but both runs failed at final standalone copy with Windows `EBUSY` on `.next/server/middleware-build-manifest.js`; this appears to be the known local file-lock issue rather than a compile error.
+
 
