@@ -1135,7 +1135,7 @@ function TodayTrainingScreen() {
   }, [])
 
   const handleGuestPowerAnalysis = useCallback(() => {
-    Taro.navigateTo({ url: '/me/toolbox/power-analysis/index' })
+    Taro.navigateTo({ url: '/toolbox/power-analysis/index' })
   }, [])
 
   const handleUpdateProfile = useCallback(() => {

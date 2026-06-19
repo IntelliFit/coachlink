@@ -20,7 +20,7 @@ export interface ScenarioQuickFix {
   steps: ScenarioQuickFixStep[]
 }
 
-const SCENARIO_IMAGE_BASE = '/me/assets/images/toolbox-scenarios'
+const SCENARIO_IMAGE_BASE = '/toolbox/assets/images/toolbox-scenarios'
 
 export const SCENARIO_QUICK_FIXES: ScenarioQuickFix[] = [
   {

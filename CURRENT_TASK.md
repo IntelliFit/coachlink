@@ -1,4 +1,29 @@
-﻿## Commit Current Code And Sync Main/Dev (`2026-06-19`)
+﻿## WeChat `/me` Subpackage Size Split (`2026-06-19`)
+
+- Task: user reported WeChat DevTools error that subpackage `/me` source size was `2161KB`, slightly over the `2048KB` limit.
+- Status: implemented and verified at build/check level.
+- Root cause:
+  - The `me` subpackage included toolbox pages plus all toolbox bitmap assets.
+  - Each Taro page also carries supporting `base.wxml` artifacts, so adding a few `me` pages/assets can repeatedly push the subpackage just over 2MB.
+- Fix:
+  - Moved mini-program toolbox pages from `wechat_app/src/me/toolbox/*` to a new independent subpackage root `wechat_app/src/toolbox/*`.
+  - Updated mini-program routes from `/me/toolbox/...` to `/toolbox/...`.
+  - Moved toolbox copied static assets from `me/assets/images/...` to `toolbox/assets/images/...`.
+  - Updated bottom navigation and today-training Power Analysis entry to the new toolbox routes.
+  - Updated `copy-comp-to-subpackages.js` so the new `toolbox` subpackage gets required Taro support files during build post-processing.
+- Size result:
+  - `wechat_app/dist-release` `/me`: `1422.2KB` (`1.389MB`), down from the user's reported `2161KB`.
+  - New `/toolbox`: `930.7KB` (`0.909MB`).
+  - Root files: `1739.3KB` (`1.699MB`).
+- Verification:
+  - `cd wechat_app && npm run build:weapp`: passed.
+  - `cd wechat_app && npm run build:weapp:release`: passed.
+  - `npm run lint`: passed informational script.
+  - `npm run typecheck`: passed.
+  - `npm test`: passed, 33 files / 163 tests.
+  - `npx next build`: first run compiled/static-generated but hit known Windows `.next` `EBUSY`; second run passed.
+- Frontend/WeChat DevTools manual verification remains left to the user per durable preference.
+## Commit Current Code And Sync Main/Dev (`2026-06-19`)
 
 - Task: commit the current workspace code and make `main` and `dev` consistent.
 - Status: completed.

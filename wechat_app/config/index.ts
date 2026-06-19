@@ -40,15 +40,15 @@ export default defineConfig<'vite'>(async (merge, { command, mode }) => {
         { from: 'src/assets/brand/coachlink-logo.jpg', to: 'streetlifting/assets/brand/coachlink-logo.jpg' },
         { from: 'src/assets/brand/coachlink-brand-icon.png', to: 'streetlifting/assets/brand/coachlink-brand-icon.png' },
         { from: 'src/assets/images/login-bg.jpg', to: 'auth/assets/images/login-bg.jpg' },
-        { from: 'src/assets/images/toolbox-data.jpg', to: 'me/assets/images/toolbox-data.jpg' },
-        { from: 'src/assets/images/toolbox-locations.jpg', to: 'me/assets/images/toolbox-locations.jpg' },
-        { from: 'src/assets/images/toolbox-calculator.jpg', to: 'me/assets/images/toolbox-calculator.jpg' },
-        { from: 'src/assets/images/toolbox-power-analysis.jpg', to: 'me/assets/images/toolbox-power-analysis.jpg' },
+        { from: 'src/assets/images/toolbox-data.jpg', to: 'toolbox/assets/images/toolbox-data.jpg' },
+        { from: 'src/assets/images/toolbox-locations.jpg', to: 'toolbox/assets/images/toolbox-locations.jpg' },
+        { from: 'src/assets/images/toolbox-calculator.jpg', to: 'toolbox/assets/images/toolbox-calculator.jpg' },
+        { from: 'src/assets/images/toolbox-power-analysis.jpg', to: 'toolbox/assets/images/toolbox-power-analysis.jpg' },
         { from: 'src/assets/knowledge-core/injury.jpg', to: 'content/assets/knowledge-core/injury.jpg' },
         { from: 'src/assets/knowledge-core/plateau.jpg', to: 'content/assets/knowledge-core/plateau.jpg' },
         { from: 'src/assets/knowledge-core/standard.jpg', to: 'content/assets/knowledge-core/standard.jpg' },
         { from: 'src/assets/knowledge-core/start.jpg', to: 'content/assets/knowledge-core/start.jpg' },
-        { from: 'src/assets/images/toolbox-scenarios/', to: 'me/assets/images/toolbox-scenarios/' }
+        { from: 'src/assets/images/toolbox-scenarios/', to: 'toolbox/assets/images/toolbox-scenarios/' }
       ],
       options: {
       }

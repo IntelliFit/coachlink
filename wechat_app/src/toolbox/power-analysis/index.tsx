@@ -235,7 +235,7 @@ export default function WechatPowerAnalysisPage() {
     () =>
       createSharePayload({
         title: '功率视频分析',
-        path: buildSharePath('/me/toolbox/power-analysis/index')
+        path: buildSharePath('/toolbox/power-analysis/index')
       }),
     []
   )
