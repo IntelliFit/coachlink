@@ -6251,3 +6251,83 @@
   - `npx next build`: compiled successfully and generated all 510 static pages twice, but both runs failed at final standalone copy with Windows `EBUSY` on `.next/server/middleware-build-manifest.js`; this appears to be the known local file-lock issue rather than a compile error.
 
 
+
+---
+
+## Merged Apps Workspace Remote State (`2026-06-20`)
+
+- Source: merged `origin/main` commit `c28cb224 feat: finalize mobile app workspace updates` before pushing current local code.
+- Final directory model for this merge: WeChat mini-program source lives under `apps/wechat/`; native APP source lives under `apps/mobile/`; toolbox remains an independent WeChat subpackage at `apps/wechat/src/toolbox/`.
+- Remote apps/mobile and workspace/package changes were preserved; local toolbox split, Power Analysis, training/share, and 2026-06-19 work were replayed into the new `apps/wechat/` location.
+
+### Upstream apps workspace notes
+## Apps Structure And Mobile APP Initialization (`2026-06-20`)
+
+- Task: restructure the project to match the `food_link/apps` model, move the WeChat mini-program under `apps/wechat`, initialize a same-stack Expo/React Native APP under `apps/mobile`, and document the migration approach for future mini-program-to-APP work.
+- Status: implemented, verified at code/build level, and committed locally.
+- Key changes:
+  - Moved mini-program source from `wechat_app/` to `apps/wechat/`.
+  - Added root npm workspaces for `apps/*` and `packages/*`.
+  - Added `apps/mobile` with Expo SDK 56, React Native 0.85, React 19.2, React Navigation 7, AsyncStorage, Expo file/image/clipboard modules, and CoachLink default app identity.
+  - Added shared packages `packages/core` and `packages/api-client` for platform-neutral types and adapter-based API access.
+  - Added `scripts/start-mobile-dev.cjs` for LAN-aware Expo development, defaulting API port to `3000`.
+  - `scripts/start-mobile-dev.cjs` now falls back to `127.0.0.1` / `--localhost` when no LAN IPv4 is detected, while still supporting `MOBILE_DEV_LAN_IP` for real-device testing.
+  - Added `docs/work/mobile-app-structure-and-migration.md`.
+  - Added a WeChat workspace dependency compatibility helper so Taro/NutUI resolve required packages correctly under npm workspaces.
+- Git:
+  - Fetched `origin/main` before committing.
+  - `HEAD` and `origin/main` were already aligned before the local commit, so there were no remote functional updates to merge or resolve.
+  - Created local commit `feat: restructure mobile apps workspace`.
+  - Local `main` is ahead of `origin/main` by one commit; no push has been run.
+- Verification:
+  - `npm install --fetch-timeout=120000 --fetch-retry-maxtimeout=120000`: passed after one initial registry idle timeout.
+  - `npm run typecheck:mobile`: passed.
+  - `npm --workspace packages/core run typecheck`: passed.
+  - `npm --workspace packages/api-client run typecheck`: passed.
+  - `npm --workspace apps/wechat run build:weapp`: passed.
+  - `npm run lint`: passed informational script.
+  - `npm run typecheck`: passed.
+  - `npm test`: passed, 33 files / 163 tests.
+  - `npx next build`: passed.
+  - `npx expo export --platform ios --output-dir /tmp/coachlink-mobile-export --clear`: passed.
+  - `npm run dev:mobile`: started successfully on `exp://127.0.0.1:8081` / `http://localhost:8081`, then stopped after verification.
+- Notes:
+  - npm audit currently reports dependency-tree vulnerabilities from installed packages; no automatic audit fix was run.
+  - No browser/Web UI page was changed. Mobile APP runtime was verified by Expo export rather than simulator/manual device launch.
+
+## WeChat Home And Training Execution Design Baseline (`2026-06-20`)
+
+- Task: ensure the current mini-program homepage and training execution page designs are fully reverted to SmallHorseBrother's latest commit version.
+- Status: confirmed; no page file changes were required.
+- Baseline commit: `d6c232d3 chore: record main dev sync` by `SmallHorseBrother`.
+- Result:
+  - The requested author name was spelled `SmallHorseBorther` in the prompt, but the matching Git author is `SmallHorseBrother`.
+  - Current `apps/wechat/` files are content-identical to `d6c232d3:wechat_app/` for the checked homepage, today-training, training-execution, global app style, dark theme, and bottom navigation files.
+  - The only difference from that baseline is the intentional monorepo path migration from `wechat_app/` to `apps/wechat/`; the design file contents are unchanged.
+- Checked files included:
+  - `src/pages/index/*`
+  - `src/training/today-training/**/*`
+  - `src/training/training-execution/*`
+  - `src/app.scss`
+  - `src/styles/theme-dark.scss`
+  - `src/styles/theme.ts`
+  - `src/components/BottomNav.*`
+
+## Pull Latest Main (`2026-06-20`)
+
+- Task: pull the latest code from `origin/main`.
+- Status: completed again after the apps/mobile work.
+- Branch: `main`.
+- Result:
+  - Latest run: `git fetch origin` then `git pull --ff-only origin main` reported `Already up to date`.
+  - `origin/main` remains at `d6c232d3`; local `main` remains ahead by local commit `79474a67`.
+  - No remote files changed during this sync.
+
+## Commit Current Work And Sync Main/Dev (`2026-06-18`)
+
+- Task: commit current latest local code, merge the latest development branch changes, and make `main` and `dev` consistent.
+- Status: completed.
+- Starting branch: `main`.
+- Remote status before commit:
+  - `origin/main` is at `82d46467`.
+  - `origin/dev` advanced to `5326a92c fix wechat training execution and theme flow`.

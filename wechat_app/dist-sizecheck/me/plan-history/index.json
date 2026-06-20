@@ -1,8 +1,0 @@
-{
-  "navigationBarTitleText": "全部计划",
-  "enablePullDownRefresh": true,
-  "animationType": "none",
-  "usingComponents": {
-    "comp": "../../comp"
-  }
-}

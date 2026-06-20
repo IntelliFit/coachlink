@@ -1,9 +1,0 @@
-{
-  "navigationBarTitleText": "绑定收款",
-  "navigationBarBackgroundColor": "#FFFFFF",
-  "navigationBarTextStyle": "black",
-  "animationType": "none",
-  "usingComponents": {
-    "comp": "../../../comp"
-  }
-}

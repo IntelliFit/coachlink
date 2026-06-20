@@ -1,9 +1,0 @@
-{
-  "navigationBarTitleText": "动作库",
-  "navigationBarBackgroundColor": "#FFFFFF",
-  "navigationBarTextStyle": "black",
-  "animationType": "none",
-  "usingComponents": {
-    "comp": "../../comp"
-  }
-}

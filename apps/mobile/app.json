@@ -1,0 +1,28 @@
+{
+  "expo": {
+    "name": "CoachLink",
+    "slug": "coachlink-mobile",
+    "scheme": "coachlink",
+    "version": "0.0.1",
+    "icon": "./assets/icon.png",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "cn.coachlink.app"
+    },
+    "android": {
+      "package": "cn.coachlink.app",
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#F8F5F3"
+      }
+    },
+    "extra": {
+      "apiBaseUrl": "http://127.0.0.1:3000"
+    },
+    "plugins": ["expo-status-bar"]
+  }
+}

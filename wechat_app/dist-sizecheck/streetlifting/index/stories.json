@@ -1,7 +1,0 @@
-{
-  "navigationBarTitleText": "故事",
-  "animationType": "none",
-  "usingComponents": {
-    "comp": "../../../comp"
-  }
-}

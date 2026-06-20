@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 This is a **monorepo with two products** sharing one git history:
 
 - **Web (主站)** — Next.js 16 App Router. All code under `src/`. This is what `npm run dev` / `npm run build` operate on.
-- **WeChat Mini Program (微信小程序)** — Taro 4.x React project under `wechat_app/`. Has its own `package.json`, build pipeline, and `node_modules`. Never put a top-level `app/` directory at the repo root — Next.js will treat it as App Router and clobber `src/app/` routes.
+- **WeChat Mini Program (微信小程序)** — Taro 4.x React project under `apps/wechat/`. Has its own `package.json`, build pipeline, and `node_modules`. Never put a top-level `app/` directory at the repo root — Next.js will treat it as App Router and clobber `src/app/` routes.
 
 Both products talk to the same Supabase backend. The mini-program calls Web API routes; do not invent mini-program-only API contracts when a Web one exists (see `DECISIONS.md` for the long list of parity calls).
 
@@ -20,7 +20,7 @@ Both products talk to the same Supabase backend. The mini-program calls Web API 
 | `npm run dev` | Dev server via `scripts/start-dev.mjs`. Auto-cleans `.next/dev` cache and restarts on `ENOENT`/manifest errors (up to 5 times). Defaults to Webpack; set `COACHLINK_FAST_DEV=1` for Turbopack + larger heap. |
 | `npm run build` | Production build via `scripts/build-prod.js`. Wipes `.next/`, runs `next build` (Turbopack default; `COACHLINK_BUILD_USE_WEBPACK=1` to fall back), then copies `static/`, `public/`, and `docs/assets/` into `.next/standalone/` (deployable artifact). |
 | `npm run start` | Production start via `scripts/start-prod.mjs`. It runs the same config bootstrap before `next start` or standalone `server.js`. |
-| `npm run typecheck` | `tsc --noEmit -p tsconfig.typecheck.json`. **This is the real lint gate** — `ignoreBuildErrors: true` in `next.config.ts` means production build will not catch type errors. The `tsconfig.typecheck.json` excludes `wechat_app/`, `.next/`, and other historical noise so the gate stays green; new errors in the maintained surface must be fixed. |
+| `npm run typecheck` | `tsc --noEmit -p tsconfig.typecheck.json`. **This is the real lint gate** — `ignoreBuildErrors: true` in `next.config.ts` means production build will not catch type errors. The `tsconfig.typecheck.json` excludes `apps/wechat/`, `.next/`, and other historical noise so the gate stays green; new errors in the maintained surface must be fixed. |
 | `npm run lint` | **No-op stub.** Next 16 removed `next lint` and ESLint isn't installed here. The script just prints a hint to run typecheck. Don't add ESLint without team agreement. |
 | `npm test` | `vitest run` — unit tests in `src/**/*.test.ts` and `tests/**/*.test.ts`. Reports go to `test-results/vitest/`. Run a single file with `npx vitest run path/to/file.test.ts`. |
 | `npm run test:watch` | Vitest watch mode. |
@@ -45,7 +45,7 @@ Web runtime config is a strict single-source model documented in `docs/done/syst
 
 Do not tell collaborators to copy `.env.example` to `.env.local` for Web runtime setup. The correct answer is to configure root `.env` and then populate either the selected local env file or Apollo.
 
-### WeChat Mini Program (run from `wechat_app/`)
+### WeChat Mini Program (run from `apps/wechat/`)
 
 | Command | Purpose |
 | --- | --- |
@@ -54,7 +54,7 @@ Do not tell collaborators to copy `.env.example` to `.env.local` for Web runtime
 | `npm run build:weapp:release` | Release build for upload. |
 | `npm run build:h5` / `:alipay` / `:tt` / `:swan` | Cross-platform Taro builds. |
 
-The mini-program is built into `wechat_app/dist/`; do not edit `dist/` by hand. After changing pages or component paths, you may need `npm run fix:weapp-wxml` or `npm run fix:weapp-comp` (the dev script normally chains these automatically).
+The mini-program is built into `apps/wechat/dist/`; do not edit `dist/` by hand. After changing pages or component paths, you may need `npm run fix:weapp-wxml` or `npm run fix:weapp-comp` (the dev script normally chains these automatically).
 
 ## High-level architecture
 
@@ -65,7 +65,7 @@ Page / Component  →  src/app/service/*Service.ts  →  src/app/api/*/route.ts 
                           (web-side service)             (Next.js Route Handler)
 ```
 
-The mini-program has its own service layer at `wechat_app/src/services/` that calls the same Web API routes via `wechat_app/src/utils/request.ts`. Frontend code (Web or mini-program) **must not** hit Supabase directly. Identity comes from the session/JWT — never trust user-supplied user IDs in API handlers, and always enforce coach/student boundary checks server-side.
+The mini-program has its own service layer at `apps/wechat/src/services/` that calls the same Web API routes via `apps/wechat/src/utils/request.ts`. Frontend code (Web or mini-program) **must not** hit Supabase directly. Identity comes from the session/JWT — never trust user-supplied user IDs in API handlers, and always enforce coach/student boundary checks server-side.
 
 ### Five business primitives (memorize these — see `docs/PROJECT_BIBLE.md` for the full bible)
 
@@ -114,8 +114,8 @@ Local-first, cloud wins on conflict, 60-day retention. Two well-known cache surf
 
 | Use | Storage key | Utility |
 | --- | --- | --- |
-| Today's training page aggregate (subscription + plan + per-day execution summaries) | `today_training_page_cache_v1` | `wechat_app/src/utils/todayTrainingPageCache.ts` |
-| Training execution snapshot (full execution + planInstance + actions) | `training_execution_snapshots_v1` | `wechat_app/src/utils/trainingExecutionCache.ts` |
+| Today's training page aggregate (subscription + plan + per-day execution summaries) | `today_training_page_cache_v1` | `apps/wechat/src/utils/todayTrainingPageCache.ts` |
+| Training execution snapshot (full execution + planInstance + actions) | `training_execution_snapshots_v1` | `apps/wechat/src/utils/trainingExecutionCache.ts` |
 
 When adding any UI that mutates execution state, the success callback **must** persist via the existing `syncTrainingExecutionToStorage` / `syncExecutionToCaches` style helpers and call `patchExecutionInTodayTrainingPageCache` for the matching `instanceId` — otherwise users see stale progress when returning to the today-training page on weak networks.
 
