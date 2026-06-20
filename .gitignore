@@ -48,6 +48,8 @@ apps/wechat/.openclaw/
 # Expo mobile app local state and native build outputs
 apps/mobile/.expo/
 apps/mobile/.expo-shared/
+apps/mobile/android/
+apps/mobile/ios/
 apps/mobile/android/.gradle/
 apps/mobile/android/app/build/
 apps/mobile/ios/build/
