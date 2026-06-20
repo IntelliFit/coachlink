@@ -32,12 +32,33 @@
   - npm audit currently reports dependency-tree vulnerabilities from installed packages; no automatic audit fix was run.
   - No browser/Web UI page was changed. Mobile APP runtime was verified by Expo export rather than simulator/manual device launch.
 
+## WeChat Home And Training Execution Design Baseline (`2026-06-20`)
+
+- Task: ensure the current mini-program homepage and training execution page designs are fully reverted to SmallHorseBrother's latest commit version.
+- Status: confirmed; no page file changes were required.
+- Baseline commit: `d6c232d3 chore: record main dev sync` by `SmallHorseBrother`.
+- Result:
+  - The requested author name was spelled `SmallHorseBorther` in the prompt, but the matching Git author is `SmallHorseBrother`.
+  - Current `apps/wechat/` files are content-identical to `d6c232d3:wechat_app/` for the checked homepage, today-training, training-execution, global app style, dark theme, and bottom navigation files.
+  - The only difference from that baseline is the intentional monorepo path migration from `wechat_app/` to `apps/wechat/`; the design file contents are unchanged.
+- Checked files included:
+  - `src/pages/index/*`
+  - `src/training/today-training/**/*`
+  - `src/training/training-execution/*`
+  - `src/app.scss`
+  - `src/styles/theme-dark.scss`
+  - `src/styles/theme.ts`
+  - `src/components/BottomNav.*`
+
 ## Pull Latest Main (`2026-06-20`)
 
 - Task: pull the latest code from `origin/main`.
-- Status: completed.
+- Status: completed again after the apps/mobile work.
 - Branch: `main`.
-- Result: `git pull --ff-only origin main` reported `Already up to date`; no files changed.
+- Result:
+  - Latest run: `git fetch origin` then `git pull --ff-only origin main` reported `Already up to date`.
+  - `origin/main` remains at `d6c232d3`; local `main` remains ahead by local commit `79474a67`.
+  - No remote files changed during this sync.
 
 ## Commit Current Work And Sync Main/Dev (`2026-06-18`)
 

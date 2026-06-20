@@ -55,6 +55,9 @@ apps/mobile/ios/build/
 .playwright-mcp
 screenshots
 
+# Local skill drafts and extracted playbooks
+skill-factory/
+
 # Temp images
 temp_*.jpg
 temp_*.png

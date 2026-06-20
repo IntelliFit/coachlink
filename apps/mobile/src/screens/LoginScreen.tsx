@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Alert, KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, View } from 'react-native'
 import { LockKeyhole, MessageSquareText } from 'lucide-react-native'
 import { AppButton } from '../components/AppButton'
@@ -14,6 +14,8 @@ export function LoginScreen() {
   const [password, setPassword] = useState('')
   const [verifyCode, setVerifyCode] = useState('')
   const [loading, setLoading] = useState(false)
+  const passwordInputRef = useRef<TextInput>(null)
+  const codeInputRef = useRef<TextInput>(null)
 
   const canSubmit = phoneOrEmail.trim().length > 0 && (mode === 'password' ? password.trim().length > 0 : verifyCode.trim().length > 0)
 
@@ -64,25 +66,53 @@ export function LoginScreen() {
             value={phoneOrEmail}
             onChangeText={setPhoneOrEmail}
             autoCapitalize="none"
+            autoCorrect={false}
+            autoComplete="email"
+            inputMode="email"
             keyboardType="email-address"
+            returnKeyType="next"
+            submitBehavior="submit"
+            onSubmitEditing={() => {
+              if (mode === 'password') {
+                passwordInputRef.current?.focus()
+              } else {
+                codeInputRef.current?.focus()
+              }
+            }}
             placeholder="手机号或邮箱"
             placeholderTextColor={colors.textMuted}
             style={styles.input}
           />
           {mode === 'password' ? (
             <TextInput
+              ref={passwordInputRef}
               value={password}
               onChangeText={setPassword}
+              autoCapitalize="none"
+              autoCorrect={false}
+              autoComplete="current-password"
+              textContentType="password"
               secureTextEntry
+              returnKeyType="done"
+              submitBehavior="submit"
+              onSubmitEditing={submit}
               placeholder="密码"
               placeholderTextColor={colors.textMuted}
               style={styles.input}
             />
           ) : (
             <TextInput
+              ref={codeInputRef}
               value={verifyCode}
               onChangeText={setVerifyCode}
+              autoCorrect={false}
+              autoComplete="one-time-code"
+              textContentType="oneTimeCode"
+              inputMode="numeric"
               keyboardType="number-pad"
+              returnKeyType="done"
+              submitBehavior="submit"
+              onSubmitEditing={submit}
               placeholder="验证码"
               placeholderTextColor={colors.textMuted}
               style={styles.input}
