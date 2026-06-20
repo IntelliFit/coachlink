@@ -1,7 +1,0 @@
-{
-  "navigationBarTitleText": "编辑个人资料",
-  "animationType": "none",
-  "usingComponents": {
-    "comp": "../../../comp"
-  }
-}

@@ -1,8 +1,0 @@
-{
-  "navigationBarTitleText": "聊天",
-  "enablePullDownRefresh": false,
-  "animationType": "none",
-  "usingComponents": {
-    "comp": "../../../comp"
-  }
-}

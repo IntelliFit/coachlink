@@ -1,9 +1,0 @@
-{
-  "navigationBarTitleText": "编辑计划",
-  "navigationBarBackgroundColor": "#FFFFFF",
-  "navigationBarTextStyle": "black",
-  "animationType": "none",
-  "usingComponents": {
-    "comp": "../../../comp"
-  }
-}

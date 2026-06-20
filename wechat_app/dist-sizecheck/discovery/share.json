@@ -1,8 +1,0 @@
-{
-  "navigationBarTitleText": "分享",
-  "navigationStyle": "default",
-  "animationType": "none",
-  "usingComponents": {
-    "comp": "../../comp"
-  }
-}

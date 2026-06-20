@@ -18,6 +18,9 @@
   "exclude": [
     "node_modules",
     ".next",
+    "apps/wechat",
+    "apps/mobile",
+    "packages",
     "wechat_app",
     "wechat-app",
     "**/*.backup"

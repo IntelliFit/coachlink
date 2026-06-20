@@ -1,7 +1,0 @@
-{
-  "navigationBarTitleText": "新用户引导",
-  "animationType": "none",
-  "usingComponents": {
-    "comp": "../../comp"
-  }
-}

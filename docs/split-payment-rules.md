@@ -125,7 +125,7 @@
 | `page.tsx` | 提现自动切换：`huifu_open_status === 'opened'` → `/api/coach/wallet/huifu/withdraw`，否则 → 旧支付宝提现。提现提示文案适配（"T+1 到账银行卡" vs "48 小时内到账"）。交易流水展示 `platform_fee` |
 | `merchant/page.tsx` | 教练汇付开户表单（两步向导：身份信息 + 银行卡信息） |
 
-#### 小程序端（`wechat_app/src/coach/wallet/`）
+#### 小程序端（`apps/wechat/src/coach/wallet/`）
 
 | 页面 | 变更 |
 |---|---|

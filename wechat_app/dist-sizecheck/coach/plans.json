@@ -1,7 +1,0 @@
-{
-  "navigationBarTitleText": "当前计划",
-  "animationType": "none",
-  "usingComponents": {
-    "comp": "../../comp"
-  }
-}

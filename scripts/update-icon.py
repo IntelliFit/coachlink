@@ -3,6 +3,10 @@ import os
 import shutil
 import zipfile
 
+ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+SCRIPT_TMP_DIR = os.path.join(ROOT_DIR, 'scripts')
+ICONFONT_DIR = os.path.join(ROOT_DIR, 'apps', 'wechat', 'src', 'assets', 'iconfont')
+
 # 下载 压缩包
 headers = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36',
@@ -15,15 +19,15 @@ url = 'https://www.iconfont.cn/api/project/download.zip?spm=a313x.manage_type_my
 res = r.get(url, headers=headers)
 
 if res.status_code:
-    with open('./scripts/tmp.zip', 'wb') as fp:
+    with open(os.path.join(SCRIPT_TMP_DIR, 'tmp.zip'), 'wb') as fp:
         fp.write(res.content)
 
 # 解压文件
-with zipfile.ZipFile('./scripts/tmp.zip', 'r') as zipf:
-    zipf.extractall('./scripts/tmp')
+with zipfile.ZipFile(os.path.join(SCRIPT_TMP_DIR, 'tmp.zip'), 'r') as zipf:
+    zipf.extractall(os.path.join(SCRIPT_TMP_DIR, 'tmp'))
 
 # 将文件搬运至工作区，我的 css 全放在 public 下面了，你的视情况而定
-for parent, _, files in os.walk('./scripts/tmp'):
+for parent, _, files in os.walk(os.path.join(SCRIPT_TMP_DIR, 'tmp')):
     for file in files:
         filepath = os.path.join(parent, file)
         if file.startswith('demo'):
@@ -31,10 +35,10 @@ for parent, _, files in os.walk('./scripts/tmp'):
         if file.endswith('.css'):
             content = open(filepath, 'r', encoding='utf-8').read().replace('font-size: 16px;', '')
             open(filepath, 'w', encoding='utf-8').write(content)
-            shutil.move(filepath, os.path.join('wechat_app/src/assets/iconfont', file))
+            shutil.move(filepath, os.path.join(ICONFONT_DIR, file))
         elif file.endswith('.woff2') or file.endswith('.woff') or file.endswith('ttf'):
-            shutil.move(filepath, os.path.join('wechat_app/src/assets/iconfont', file))
+            shutil.move(filepath, os.path.join(ICONFONT_DIR, file))
 
 # 删除压缩包和解压区域
-os.remove('./scripts/tmp.zip')
-shutil.rmtree('./scripts/tmp')
+os.remove(os.path.join(SCRIPT_TMP_DIR, 'tmp.zip'))
+shutil.rmtree(os.path.join(SCRIPT_TMP_DIR, 'tmp'))
