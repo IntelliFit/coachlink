@@ -1,0 +1,25 @@
+{
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": {
+    "target": "es2020",
+    "module": "esnext",
+    "jsx": "react-native",
+    "strict": true,
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "noEmit": true,
+    "paths": {
+      "@coachlink/core": ["../../packages/core/src"],
+      "@coachlink/api-client": ["../../packages/api-client/src"]
+    }
+  },
+  "include": [
+    "App.tsx",
+    "index.ts",
+    "src",
+    "../../packages/core/src",
+    "../../packages/api-client/src"
+  ]
+}

@@ -1,7 +1,0 @@
-{
-  "navigationBarTitleText": "用户主页",
-  "animationType": "none",
-  "usingComponents": {
-    "comp": "../../comp"
-  }
-}

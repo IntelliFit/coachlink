@@ -38,13 +38,25 @@ test-results
 temp
 tsconfig.tsbuildinfo
 
-# WeChat mini-program (`wechat_app/`) build outputs — keep repo lean; rebuild locally
-wechat_app/dist-release/
-wechat_app/deploy_versions/
-wechat_app/.openclaw/
+# WeChat mini-program (`apps/wechat/`) build outputs — keep repo lean; rebuild locally
+apps/wechat/dist/
+apps/wechat/dist-release/
+apps/wechat/dist-sizecheck/
+apps/wechat/deploy_versions/
+apps/wechat/.openclaw/
+
+# Expo mobile app local state and native build outputs
+apps/mobile/.expo/
+apps/mobile/.expo-shared/
+apps/mobile/android/.gradle/
+apps/mobile/android/app/build/
+apps/mobile/ios/build/
 
 .playwright-mcp
 screenshots
+
+# Local skill drafts and extracted playbooks
+skill-factory/
 
 # Temp images
 temp_*.jpg

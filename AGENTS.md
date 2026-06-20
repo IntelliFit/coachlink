@@ -5,8 +5,9 @@ This workspace is dedicated to the `coachlink` project.
 ## 仓库结构（Monorepo）
 
 - **主站（Web）**：Next.js 应用，路由目录为 `src/app/`。
-- **微信小程序**：源码位于仓库根目录下的 **`wechat_app/`** 目录。根目录禁止再使用 `app/` 存放小程序，以免被 Next.js 当成主站 App Router 目录并覆盖 `src/app/` 路由。
-- **Git 管理**：主站与小程序统一在仓库根目录提交与推送；`wechat_app/` 内不再保留嵌套 `.git`。
+- **微信小程序**：源码位于仓库根目录下的 **`apps/wechat/`** 目录。根目录禁止再使用 `app/` 存放小程序，以免被 Next.js 当成主站 App Router 目录并覆盖 `src/app/` 路由。
+- **移动 APP**：源码位于仓库根目录下的 **`apps/mobile/`** 目录，技术栈采用 Expo + React Native，与 `food_link/apps/mobile` 保持同类工程方案。
+- **Git 管理**：主站、小程序与 APP 统一在仓库根目录提交与推送；`apps/wechat/` 与 `apps/mobile/` 内不再保留嵌套 `.git`。
 
 ## Session Startup
 
@@ -27,7 +28,7 @@ This workspace is dedicated to the `coachlink` project.
 ## Frontend Verification
 
 - **Web 主站**：必须使用 `web-devtools` skill 做浏览器端验证。
-- **微信小程序（`app/`）**：若改动涉及小程序页面、构建或真机/开发者工具行为，应使用 `weapp-devtools` skill 做验证（与 Web 的验证方式不同）。
+- **微信小程序（`apps/wechat/`）**：若改动涉及小程序页面、构建或真机/开发者工具行为，应使用 `weapp-devtools` skill 做验证（与 Web 的验证方式不同）。
 - After any page, component, style, routing, or interaction change, you must attempt browser-based verification.
 - Prefer screenshot evidence plus at least one interaction path that covers the changed behavior.
 - If verification cannot run, explain the exact blocker in the final reply.
@@ -184,12 +185,12 @@ npm run test:e2e
 
 ### 微信小程序：今日训练页与训练执行页（落地规则）
 
-以下与 `wechat_app/` 中学员 **今日训练首页**、**训练执行** 相关；后续迭代**不得**在业务页里再写一套互不相认的 storage 键或 60 天规则，应复用或扩展既有工具。
+以下与 `apps/wechat/` 中学员 **今日训练首页**、**训练执行** 相关；后续迭代**不得**在业务页里再写一套互不相认的 storage 键或 60 天规则，应复用或扩展既有工具。
 
 | 用途 | Storage 键（常量见代码） | 工具模块 |
 |------|--------------------------|----------|
-| 今日训练首页聚合数据（订阅、计划、按天的 execution 摘要等） | `today_training_page_cache_v1` | `wechat_app/src/utils/todayTrainingPageCache.ts` |
-| 训练执行页「按次打开」的快照（整份 execution + planInstance + actions） | `training_execution_snapshots_v1` | `wechat_app/src/utils/trainingExecutionCache.ts` |
+| 今日训练首页聚合数据（订阅、计划、按天的 execution 摘要等） | `today_training_page_cache_v1` | `apps/wechat/src/utils/todayTrainingPageCache.ts` |
+| 训练执行页「按次打开」的快照（整份 execution + planInstance + actions） | `training_execution_snapshots_v1` | `apps/wechat/src/utils/trainingExecutionCache.ts` |
 
 **统一规则**
 

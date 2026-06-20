@@ -1,7 +1,0 @@
-{
-  "navigationBarTitleText": "智能生成计划",
-  "animationType": "none",
-  "usingComponents": {
-    "comp": "../../comp"
-  }
-}

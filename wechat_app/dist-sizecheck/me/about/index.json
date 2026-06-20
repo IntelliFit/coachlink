@@ -1,7 +1,0 @@
-{
-  "navigationBarTitleText": "关于我们",
-  "animationType": "none",
-  "usingComponents": {
-    "comp": "../../comp"
-  }
-}

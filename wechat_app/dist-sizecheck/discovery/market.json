@@ -1,7 +1,0 @@
-{
-  "navigationBarTitleText": "市场",
-  "animationType": "none",
-  "usingComponents": {
-    "comp": "../../comp"
-  }
-}

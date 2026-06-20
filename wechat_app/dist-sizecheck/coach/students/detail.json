@@ -1,7 +1,0 @@
-{
-  "navigationBarTitleText": "学员详情",
-  "animationType": "none",
-  "usingComponents": {
-    "comp": "../../../comp"
-  }
-}

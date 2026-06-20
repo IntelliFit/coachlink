@@ -1,9 +1,0 @@
-{
-  "navigationBarTitleText": "内容管理",
-  "navigationBarBackgroundColor": "#FFFFFF",
-  "navigationBarTextStyle": "black",
-  "animationType": "none",
-  "usingComponents": {
-    "comp": "../../comp"
-  }
-}
