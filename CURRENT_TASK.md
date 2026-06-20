@@ -102,6 +102,20 @@
   - Built `dist/training/training-execution.js/.wxss` contains `生成分享图`, `showShareImageMenu`, and `workout-poster-canvas`; source no longer contains `查看分享页`.
   - Frontend/DevTools verification remains left to the user per durable preference.
 
+## Push Current Mobile Workspace Updates (`2026-06-20`)
+
+- Task: commit and push the current local work to `origin/main`.
+- Status: completed.
+- Result:
+  - Created local commit `c28cb224 feat: finalize mobile app workspace updates`.
+  - Pushed `main` to `origin/main`; remote advanced from `d6c232d3` to `c28cb224`.
+  - This push included the apps workspace restructure commit `79474a67` and the final local update commit `c28cb224`.
+- Push gate before `c28cb224`:
+  - `npm run lint`: passed informational script.
+  - `npm run typecheck`: passed.
+  - `npm test`: passed, 33 files / 163 tests.
+  - `npm run test:e2e`: passed, 4 Playwright tests.
+
 ## Commit Current Work And Sync Main/Dev (`2026-06-18`)
 
 - Task: commit current latest local code, merge the latest development branch changes, and make `main` and `dev` consistent.
