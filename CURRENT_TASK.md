@@ -116,6 +116,18 @@
   - `npm test`: passed, 33 files / 163 tests.
   - `npm run test:e2e`: passed, 4 Playwright tests.
 
+## Expo Native Artifact Ignore Fix (`2026-06-20`)
+
+- Task: continue after push and handle unexpected local mobile native artifacts.
+- Status: in progress.
+- Finding:
+  - After the successful push, a local untracked `apps/mobile/android/` directory appeared with Gradle/native prebuild files and local caches.
+  - A transient local package diff changed `expo-constants` from the intended Expo SDK 56-compatible `~18.0.13` to `~56.0.18`; this was restored and `npm install` confirmed the lockfile is clean.
+- Decision:
+  - Keep Expo managed/source-first mode and ignore generated `apps/mobile/android/` and `apps/mobile/ios/` directories.
+- Current pending change:
+  - `.gitignore` now ignores `apps/mobile/android/` and `apps/mobile/ios/`.
+
 ## Commit Current Work And Sync Main/Dev (`2026-06-18`)
 
 - Task: commit current latest local code, merge the latest development branch changes, and make `main` and `dev` consistent.
