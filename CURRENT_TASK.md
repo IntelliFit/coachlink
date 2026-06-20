@@ -1,4 +1,45 @@
-﻿## Commit Current Work And Sync Main/Dev (`2026-06-18`)
+﻿## Apps Structure And Mobile APP Initialization (`2026-06-20`)
+
+- Task: restructure the project to match the `food_link/apps` model, move the WeChat mini-program under `apps/wechat`, initialize a same-stack Expo/React Native APP under `apps/mobile`, and document the migration approach for future mini-program-to-APP work.
+- Status: implemented, verified at code/build level, and committed locally.
+- Key changes:
+  - Moved mini-program source from `wechat_app/` to `apps/wechat/`.
+  - Added root npm workspaces for `apps/*` and `packages/*`.
+  - Added `apps/mobile` with Expo SDK 56, React Native 0.85, React 19.2, React Navigation 7, AsyncStorage, Expo file/image/clipboard modules, and CoachLink default app identity.
+  - Added shared packages `packages/core` and `packages/api-client` for platform-neutral types and adapter-based API access.
+  - Added `scripts/start-mobile-dev.cjs` for LAN-aware Expo development, defaulting API port to `3000`.
+  - `scripts/start-mobile-dev.cjs` now falls back to `127.0.0.1` / `--localhost` when no LAN IPv4 is detected, while still supporting `MOBILE_DEV_LAN_IP` for real-device testing.
+  - Added `docs/work/mobile-app-structure-and-migration.md`.
+  - Added a WeChat workspace dependency compatibility helper so Taro/NutUI resolve required packages correctly under npm workspaces.
+- Git:
+  - Fetched `origin/main` before committing.
+  - `HEAD` and `origin/main` were already aligned before the local commit, so there were no remote functional updates to merge or resolve.
+  - Created local commit `feat: restructure mobile apps workspace`.
+  - Local `main` is ahead of `origin/main` by one commit; no push has been run.
+- Verification:
+  - `npm install --fetch-timeout=120000 --fetch-retry-maxtimeout=120000`: passed after one initial registry idle timeout.
+  - `npm run typecheck:mobile`: passed.
+  - `npm --workspace packages/core run typecheck`: passed.
+  - `npm --workspace packages/api-client run typecheck`: passed.
+  - `npm --workspace apps/wechat run build:weapp`: passed.
+  - `npm run lint`: passed informational script.
+  - `npm run typecheck`: passed.
+  - `npm test`: passed, 33 files / 163 tests.
+  - `npx next build`: passed.
+  - `npx expo export --platform ios --output-dir /tmp/coachlink-mobile-export --clear`: passed.
+  - `npm run dev:mobile`: started successfully on `exp://127.0.0.1:8081` / `http://localhost:8081`, then stopped after verification.
+- Notes:
+  - npm audit currently reports dependency-tree vulnerabilities from installed packages; no automatic audit fix was run.
+  - No browser/Web UI page was changed. Mobile APP runtime was verified by Expo export rather than simulator/manual device launch.
+
+## Pull Latest Main (`2026-06-20`)
+
+- Task: pull the latest code from `origin/main`.
+- Status: completed.
+- Branch: `main`.
+- Result: `git pull --ff-only origin main` reported `Already up to date`; no files changed.
+
+## Commit Current Work And Sync Main/Dev (`2026-06-18`)
 
 - Task: commit current latest local code, merge the latest development branch changes, and make `main` and `dev` consistent.
 - Status: completed.

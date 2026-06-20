@@ -2,6 +2,10 @@
     "name": "coachlink",
     "version": "0.1.0",
     "private": true,
+    "workspaces": [
+        "apps/*",
+        "packages/*"
+    ],
     "engines": {
         "node": ">=22.0.0"
     },
@@ -33,15 +37,21 @@
         "power-analysis:cleanup": "node scripts/power-analysis-worker.mjs --cleanup",
         "push-docker-ccr": "node scripts/push-docker-ccr.mjs",
         "push-power-worker-ccr": "node scripts/push-power-worker-ccr.mjs",
-        "weapp:release:upload": "npm --prefix wechat_app run release:upload",
-        "weapp:release:audit": "npm --prefix wechat_app run release:audit",
-        "weapp:release:status": "npm --prefix wechat_app run release:status",
-        "weapp:release:wait-audit": "npm --prefix wechat_app run release:wait-audit",
-        "weapp:release:publish": "npm --prefix wechat_app run release:publish",
-        "weapp:release:auto": "npm --prefix wechat_app run release:auto",
-        "weapp:release:full": "npm --prefix wechat_app run release:full",
-        "weapp:release:categories": "npm --prefix wechat_app run release:categories",
-        "weapp:release:pages": "npm --prefix wechat_app run release:pages"
+        "dev:mobile": "node scripts/start-mobile-dev.cjs",
+        "typecheck:mobile": "npm --workspace apps/mobile run typecheck",
+        "mobile:android": "npm --workspace apps/mobile run android",
+        "mobile:ios": "npm --workspace apps/mobile run ios",
+        "build:mobile:ios:preview": "npm --workspace apps/mobile run build:ios:preview",
+        "build:mobile:ios:production": "npm --workspace apps/mobile run build:ios:production",
+        "weapp:release:upload": "npm --workspace apps/wechat run release:upload",
+        "weapp:release:audit": "npm --workspace apps/wechat run release:audit",
+        "weapp:release:status": "npm --workspace apps/wechat run release:status",
+        "weapp:release:wait-audit": "npm --workspace apps/wechat run release:wait-audit",
+        "weapp:release:publish": "npm --workspace apps/wechat run release:publish",
+        "weapp:release:auto": "npm --workspace apps/wechat run release:auto",
+        "weapp:release:full": "npm --workspace apps/wechat run release:full",
+        "weapp:release:categories": "npm --workspace apps/wechat run release:categories",
+        "weapp:release:pages": "npm --workspace apps/wechat run release:pages"
     },
     "dependencies": {
         "@dagrejs/dagre": "^1.1.8",

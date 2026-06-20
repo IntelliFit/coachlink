@@ -1,7 +1,0 @@
-{
-  "navigationBarTitleText": "邀请好友",
-  "animationType": "none",
-  "usingComponents": {
-    "comp": "../../../comp"
-  }
-}

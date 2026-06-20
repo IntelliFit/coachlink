@@ -1,7 +1,0 @@
-{
-  "navigationBarTitleText": "训练记录",
-  "animationType": "none",
-  "usingComponents": {
-    "comp": "../../comp"
-  }
-}

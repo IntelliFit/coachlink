@@ -1,8 +1,0 @@
-{
-  "navigationBarTitleText": "我的好友",
-  "enablePullDownRefresh": true,
-  "animationType": "none",
-  "usingComponents": {
-    "comp": "../../comp"
-  }
-}

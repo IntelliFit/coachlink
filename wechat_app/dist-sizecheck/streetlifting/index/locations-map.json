@@ -1,9 +1,0 @@
-{
-  "navigationBarTitleText": "单杠地图",
-  "navigationBarBackgroundColor": "#ffffff",
-  "navigationBarTextStyle": "black",
-  "animationType": "none",
-  "usingComponents": {
-    "comp": "../../../comp"
-  }
-}

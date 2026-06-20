@@ -1,0 +1,46 @@
+{
+  "name": "@coachlink/mobile",
+  "version": "0.0.0",
+  "private": true,
+  "description": "CoachLink mobile app",
+  "main": "index.ts",
+  "scripts": {
+    "start": "expo start",
+    "start:lan": "node ../../scripts/start-mobile-dev.cjs",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
+    "web": "expo start --web",
+    "typecheck": "tsc --project tsconfig.typecheck.json --noEmit --pretty false",
+    "prebuild": "expo prebuild",
+    "run:android": "expo run:android",
+    "run:ios": "expo run:ios",
+    "build:ios:preview": "npx eas-cli build -p ios --profile preview",
+    "build:ios:production": "npx eas-cli build -p ios --profile production"
+  },
+  "dependencies": {
+    "@coachlink/api-client": "0.0.0",
+    "@coachlink/core": "0.0.0",
+    "@react-native-async-storage/async-storage": "2.2.0",
+    "@react-navigation/bottom-tabs": "^7.18.0",
+    "@react-navigation/native": "^7.3.1",
+    "@react-navigation/native-stack": "^7.17.3",
+    "expo": "~56.0.0",
+    "expo-clipboard": "~56.0.4",
+    "expo-constants": "~18.0.13",
+    "expo-file-system": "~56.0.8",
+    "expo-image-picker": "~56.0.17",
+    "expo-status-bar": "~56.0.4",
+    "lucide-react-native": "^1.20.0",
+    "qrcode-generator": "^2.0.4",
+    "react": "19.2.3",
+    "react-native": "0.85.3",
+    "react-native-safe-area-context": "~5.7.0",
+    "react-native-screens": "4.25.2",
+    "react-native-svg": "15.15.4"
+  },
+  "devDependencies": {
+    "@types/react": "~19.2.14",
+    "babel-preset-expo": "~56.0.15",
+    "typescript": "~6.0.3"
+  }
+}

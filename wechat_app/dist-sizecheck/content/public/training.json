@@ -1,8 +1,0 @@
-{
-  "navigationBarTitleText": "训练成果",
-  "enablePullDownRefresh": false,
-  "animationType": "none",
-  "usingComponents": {
-    "comp": "../../../comp"
-  }
-}

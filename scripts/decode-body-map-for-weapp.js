@@ -47,12 +47,12 @@ const root = path.resolve(__dirname, '..');
 
 decodeBodyMap(
   path.join(root, 'public/body-map/front.bin'),
-  path.join(root, 'wechat_app/src/assets/body-map/front.svg')
+  path.join(root, 'apps/wechat/src/assets/body-map/front.svg')
 );
 
 decodeBodyMap(
   path.join(root, 'public/body-map/back.bin'),
-  path.join(root, 'wechat_app/src/assets/body-map/back.svg')
+  path.join(root, 'apps/wechat/src/assets/body-map/back.svg')
 );
 
 console.log('Done. SVG files are ready for the mini-program.');
