@@ -1,3 +1,15 @@
+## APP Documentation Migration Pack (`2026-06-21`)
+
+- Task: organize a reusable migration package and test-user index for current APP/小程序对齐工作.
+- Status: completed.
+- Changes:
+  - Added `docs/test-accounts/APP-DEV-TEST-ACCOUNTS.md` containing the current local development test users and a verification checklist.
+  - Created `skill-factory/coachlink-mobile-app-migration/`（多文件结构）用于 APP 小程序对齐迁移与复用，包含路径、API、图标、登录态、模拟器等章节。
+  - Kept `skill-factory` intentionally untracked via `.gitignore` per你的要求（本地知识资产，不入 Git）。
+- Notes:
+  - 当前工作以“文档和可复用技能沉淀”为主线，APP 代码迁移的执行细节与关键配置已同步到 skill 内。
+  - 你将手动验证前端交互与键盘/粘贴行为（已在说明中保留手动校验清单）。
+
 ## Anatomy Model Persona Sheet (`2026-06-21`)
 
 - Mobile APP video review + authentication compatibility (`2026-06-21`)
