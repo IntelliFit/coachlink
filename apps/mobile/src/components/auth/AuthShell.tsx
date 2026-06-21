@@ -17,7 +17,14 @@ export function AuthShell({ title, slogan, cardTitle, children, compactHero = fa
   return (
     <SafeAreaView style={styles.safe} edges={[]}>
       <KeyboardAvoidingView style={styles.safe} behavior={Platform.select({ ios: 'padding', android: undefined })}>
-        <ScrollView style={styles.safe} contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+        <ScrollView
+          style={styles.safe}
+          contentContainerStyle={styles.scroll}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+          contentInsetAdjustmentBehavior="never"
+          automaticallyAdjustContentInsets={false}
+        >
           <ImageBackground source={loginBg} resizeMode="cover" style={[styles.hero, compactHero && styles.heroCompact]}>
             <View style={styles.heroOverlay}>
               <Text style={styles.heroBrand}>{title}</Text>

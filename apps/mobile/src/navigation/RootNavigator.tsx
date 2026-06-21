@@ -107,7 +107,7 @@ const navigationTheme = {
   },
 }
 
-function MainTabs() {
+function MainTabs({ isCoachMode }: { isCoachMode: boolean }) {
   return (
     <Tab.Navigator
       screenOptions={{
@@ -118,52 +118,100 @@ function MainTabs() {
       }}
       tabBar={(props) => <FloatingTabBar {...props} />}
     >
-      <Tab.Screen
-        name="TrainingTab"
-        component={TrainingScreen}
-        options={{
-          title: '训练',
-          tabBarIcon: ({ color, size }) => <IconFont name="icon-dumbbell" color={color} size={size} />,
-        }}
-      />
-      <Tab.Screen
-        name="CoachesTab"
-        component={CoachesScreen}
-        options={{
-          title: '教练',
-          tabBarIcon: ({ color, size }) => <IconFont name="icon-search" color={color} size={size} />,
-        }}
-      />
-      <Tab.Screen
-        name="KnowledgeTab"
-        component={KnowledgeScreen}
-        options={{
-          title: '知识',
-          tabBarIcon: ({ color, size }) => <IconFont name="icon-knowledge" color={color} size={size} />,
-        }}
-      />
-      <Tab.Screen
-        name="ToolboxTab"
-        component={ToolboxScreen}
-        options={{
-          title: '工具箱',
-          tabBarIcon: ({ color, size }) => <IconFont name="icon-toolbox" color={color} size={size} />,
-        }}
-      />
-      <Tab.Screen
-        name="ProfileTab"
-        component={ProfileScreen}
-        options={{
-          title: '我的',
-          tabBarIcon: ({ color, size }) => <IconFont name="icon-user" color={color} size={size} />,
-        }}
-      />
+      {isCoachMode ? (
+        <>
+          <Tab.Screen
+            name="CoachOverviewTab"
+            component={CoachDashboardScreen}
+            options={{
+              title: '总览',
+              tabBarIcon: ({ color, size }) => <IconFont name="icon-dashboard" color={color} size={size} />,
+            }}
+          />
+          <Tab.Screen
+            name="CoachVideosTab"
+            component={CoachVideosScreen}
+            options={{
+              title: '视频',
+              tabBarIcon: ({ color, size }) => <IconFont name="icon-video" color={color} size={size} />,
+            }}
+          />
+          <Tab.Screen
+            name="CoachStudentsTab"
+            component={CoachStudentsScreen}
+            options={{
+              title: '学员',
+              tabBarIcon: ({ color, size }) => <IconFont name="icon-friends-o" color={color} size={size} />,
+            }}
+          />
+          <Tab.Screen
+            name="CoachPlanTemplatesTab"
+            component={CoachPlanTemplatesScreen}
+            options={{
+              title: '计划',
+              tabBarIcon: ({ color, size }) => <IconFont name="icon-a-Trainingplan" color={color} size={size} />,
+            }}
+          />
+          <Tab.Screen
+            name="CoachProfileTab"
+            component={CoachProfileScreen}
+            options={{
+              title: '我的',
+              tabBarIcon: ({ color, size }) => <IconFont name="icon-account-settings-variant" color={color} size={size} />,
+            }}
+          />
+        </>
+      ) : (
+        <>
+          <Tab.Screen
+            name="TrainingTab"
+            component={TrainingScreen}
+            options={{
+              title: '训练',
+              tabBarIcon: ({ color, size }) => <IconFont name="icon-dumbbell" color={color} size={size} />,
+            }}
+          />
+          <Tab.Screen
+            name="CoachesTab"
+            component={CoachesScreen}
+            options={{
+              title: '教练',
+              tabBarIcon: ({ color, size }) => <IconFont name="icon-discovery" color={color} size={size} />,
+            }}
+          />
+          <Tab.Screen
+            name="KnowledgeTab"
+            component={KnowledgeScreen}
+            options={{
+              title: '知识',
+              tabBarIcon: ({ color, size }) => <IconFont name="icon-knowledge" color={color} size={size} />,
+            }}
+          />
+          <Tab.Screen
+            name="ToolboxTab"
+            component={ToolboxScreen}
+            options={{
+              title: '工具箱',
+              tabBarIcon: ({ color, size }) => <IconFont name="icon-toolbox" color={color} size={size} />,
+            }}
+          />
+          <Tab.Screen
+            name="ProfileTab"
+            component={ProfileScreen}
+            options={{
+              title: '我的',
+              tabBarIcon: ({ color, size }) => <IconFont name="icon-user" color={color} size={size} />,
+            }}
+          />
+        </>
+      )}
     </Tab.Navigator>
   )
 }
 
 export function RootNavigator() {
-  const { isBootstrapping, isAuthenticated, isGuest } = useAuth()
+  const { isBootstrapping, isAuthenticated, isGuest, user } = useAuth()
+  const isCoachMode = isAuthenticated && (user?.is_coach === true || user?.primary_role === 'coach')
 
   if (isBootstrapping) {
     return (
@@ -184,7 +232,7 @@ export function RootNavigator() {
       >
         {isAuthenticated || isGuest ? (
           <>
-            <Stack.Screen name="MainTabs" component={MainTabs} />
+            <Stack.Screen name="MainTabs" children={() => <MainTabs isCoachMode={isCoachMode} />} />
             <Stack.Screen name="ProfileDetail" component={ProfileDetailScreen} />
             <Stack.Screen name="ProfileEdit" component={ProfileEditScreen} />
             <Stack.Screen name="FitnessCard" component={FitnessCardScreen} />

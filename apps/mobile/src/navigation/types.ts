@@ -6,6 +6,11 @@ export type MainTabParamList = {
   KnowledgeTab: undefined
   ToolboxTab: undefined
   ProfileTab: undefined
+  CoachOverviewTab: undefined
+  CoachVideosTab: undefined
+  CoachStudentsTab: undefined
+  CoachPlanTemplatesTab: undefined
+  CoachProfileTab: undefined
 }
 
 export type RootStackParamList = {

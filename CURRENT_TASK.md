@@ -1,5 +1,20 @@
 ## APP Documentation Migration Pack (`2026-06-21`)
 
+## 当前任务（`2026-06-21`）
+
+- 已完成：实现 APP 登录与开发测试账号链路和移动端角色化首页导航切换。
+- 已完成：`AuthProvider` 从 `src/config/devUsers.ts` 读取测试账号（支持 `NEXT_PUBLIC_DEV_USERS`/`NEXT_PUBLIC_DEV_ACCOUNTS`），并移除 mock token 登录；登录页提供账号按钮直接登录，同时保留手动切换登录模式、无返回入口。
+- 已完成：`RootNavigator` 现在根据用户身份进入学生/教练两套底部 Tab 结构；`FloatingTabBar` 匹配 `iconfont` 图标映射。
+- 已完成：`AuthShell` 通过 `contentInsetAdjustmentBehavior="never"`/`automaticallyAdjustContentInsets={false}` 修复登录页顶部空白间隙。
+- 已完成：补齐 `apps/mobile/src/screens/coach/CoachProfileScreen.tsx` 的 props 类型兼容（支持作为 tab 入口），并通过本轮 `npm --workspace apps/mobile run typecheck`。
+- 验证结果：
+  - `npm run lint`（项目脚本提示 Next v16 无 lint）
+  - `npm run typecheck` ✅
+  - `npm test` ✅
+  - `npx next build` ✅
+  - `npm --workspace apps/mobile run typecheck` ✅
+  - `npm run test:e2e` 失败：`bootstrap-env` 无法访问 Apollo 命名空间（同历史阻塞）。
+
 - Task: organize a reusable migration package and test-user index for current APP/小程序对齐工作.
 - Status: completed.
 - Changes:

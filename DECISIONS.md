@@ -1,5 +1,9 @@
 ﻿# DECISIONS
 - `2026-06-21`: APP 迁移文档体系与测试账号索引采用本地可复用资产包：新增 `skill-factory/coachlink-mobile-app-migration/` 作为多文件迁移技能，`docs/test-accounts/APP-DEV-TEST-ACCOUNTS.md` 作为正式账号清单；其中 `skill-factory` 保持在 `.gitignore` 中不入 Git，以便复用但不污染主仓库历史。
+- `2026-06-21`: 移动端底部导航改为角色分流：教练身份显示教练端 Tab（总览/视频/学员/计划/我的），学生身份显示训练/教练/知识/工具箱/我的；`FloatingTabBar` 使用两套 iconfont 映射。
+- `2026-06-21`: 开发测试号登录改为真实鉴权链路：`src/config/devUsers.ts` 读环境变量 `NEXT_PUBLIC_DEV_USERS`/`NEXT_PUBLIC_DEV_ACCOUNTS`（含去重回退）；`AuthProvider.loginAsDevUser` 调用 `loginWithPassword`，不再注入 mock token。
+- `2026-06-21`: 登录页顶部空白通过 `AuthShell` 的 ScrollView inset 配置修复，不改动 app 主题布局；登录页不显示返回按钮。
+- `2026-06-21`: 因 `CoachProfileScreen` 既作为 stack 也作为 tab 使用，已将其 Props 改为兼容可选路由/导航参数并加入安全 fallback，修正类型兼容问题并避免运行时 crash。
 - `2026-06-21`: Standard action reference images live on `canonical_actions.reference_image_url`. Generated images should be uploaded through COS logical bucket `action-reference-images`, which maps to the shared assets bucket under `action-reference-images/`. Batch production must dry-run first, default to fill-empty-only DB updates, and skip ambiguous/generic canonical action names into a manifest instead of inventing unreliable poses.
 - `2026-06-21`: APP training share parity uses the same `/api/execution/share-info` source as mini-program `discovery/share`. Until a native screenshot/canvas poster pipeline is added, `TrainingShare` should render the same stats preview and provide system share + copy text actions, with completed execution/history entries routing into it instead of placeholder alerts.
 - `2026-06-21`: APP coach content-management parity uses the same `/api/coach/get-contents`, `/api/coach/publish-content`, `/api/coach/update-content`, and `/api/coach/delete-content` APIs as the mini-program `coach/content` flow. APP token users must be accepted via `getAuthUser(req)`, and destructive operations must verify the target content belongs to the current coach.

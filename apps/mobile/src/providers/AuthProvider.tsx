@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type PropsWithChildren } from 'react'
 import type { AuthSession, CoachLinkUser } from '@coachlink/core'
-import { apiClient, getStoredUser, hasStoredToken, persistSession } from '../api'
+import { apiClient, getStoredUser, hasStoredToken } from '../api'
+import { DEV_USERS, type DevUser } from '../../../../src/config/devUsers'
 
 type AuthContextValue = {
   isBootstrapping: boolean
@@ -11,7 +12,7 @@ type AuthContextValue = {
   loginWithCode: (phoneOrEmail: string, verifyCode: string) => Promise<void>
   register: (phoneOrEmail: string, password: string, verifyCode: string, invitationCode?: string) => Promise<void>
   continueAsGuest: () => void
-  loginAsDevUser: () => Promise<void>
+  loginAsDevUser: (devUser?: DevUser) => Promise<void>
   refreshUser: () => Promise<void>
   setLocalUser: (user: CoachLinkUser | null) => void
   logout: () => Promise<void>
@@ -61,23 +62,13 @@ export function AuthProvider({ children }: PropsWithChildren) {
     setUser(storedUser)
   }, [])
 
-  const loginAsDevUser = useCallback(async () => {
-    const suffix = Date.now()
-    const session: AuthSession = {
-      token: `dev-token-${suffix}`,
-      user: {
-        id: `dev-user-${suffix}`,
-        nickname: '开发测试用户',
-        name: '开发测试用户',
-        primary_role: 'student',
-        avatar_url: '',
-        phone: '',
-        email: '',
-      },
+  const loginAsDevUser = useCallback(async (devUser?: DevUser) => {
+    const target = devUser || DEV_USERS[0]
+    if (!target) {
+      throw new Error('未配置开发测试账号')
     }
-    await persistSession(session)
-    markAuthenticated(session)
-  }, [markAuthenticated])
+    await loginWithPassword(target.phone, target.password)
+  }, [loginWithPassword])
 
   const logout = useCallback(async () => {
     await apiClient.clearSession()

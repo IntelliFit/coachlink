@@ -10,7 +10,12 @@ import { colors, radius, shadow, spacing } from '../../theme'
 import type { RootStackParamList } from '../../navigation/types'
 import { createCoachPaymentWaitingParams, subscriptionAmountYuan } from './coachPayment'
 
-type Props = NativeStackScreenProps<RootStackParamList, 'CoachProfile'>
+type Props = {
+  navigation?: any
+  route?: {
+    params?: NativeStackScreenProps<RootStackParamList, 'CoachProfile'>['route']['params']
+  }
+}
 
 type TabKey = 'about' | 'pricing' | 'content' | 'reviews'
 
@@ -65,7 +70,11 @@ function profileArray(profile: any, key: string, fallback: any[] = []) {
 }
 
 export function CoachProfileScreen({ navigation, route }: Props) {
-  const coachId = route.params?.id || ''
+  const safeNavigation = {
+    navigate: navigation?.navigate ? navigation.navigate.bind(navigation) : () => {},
+    goBack: navigation?.goBack ? navigation.goBack.bind(navigation) : () => {},
+  }
+  const coachId = route?.params?.id || ''
   const { isAuthenticated, user } = useAuth()
   const [activeTab, setActiveTab] = useState<TabKey>('about')
   const [coach, setCoach] = useState<any>(null)
@@ -135,7 +144,7 @@ export function CoachProfileScreen({ navigation, route }: Props) {
     if (!isAuthenticated || !user?.id) {
       Alert.alert('请先登录', '登录后可以订阅教练服务。', [
         { text: '取消', style: 'cancel' },
-        { text: '去登录', onPress: () => navigation.navigate('Login') },
+        { text: '去登录', onPress: () => safeNavigation.navigate('Login') },
       ])
       return
     }
@@ -159,7 +168,7 @@ export function CoachProfileScreen({ navigation, route }: Props) {
         .catch(() => [])
 
       if (questionnaires.length > 0) {
-        navigation.navigate('CoachQuestionnaire', {
+        safeNavigation.navigate('CoachQuestionnaire', {
           coachId,
           coachName: displayCoach?.name || '',
           mode: 'prepay',
@@ -197,7 +206,7 @@ export function CoachProfileScreen({ navigation, route }: Props) {
         subscriptionId: nextSubscription?.id || '',
         amount: duration.price,
       })
-      navigation.navigate('PaymentWaiting', waitingParams)
+      safeNavigation.navigate('PaymentWaiting', waitingParams)
     } catch (err) {
       Alert.alert('订阅失败', err instanceof Error ? err.message : '请稍后重试')
     } finally {
@@ -227,7 +236,7 @@ export function CoachProfileScreen({ navigation, route }: Props) {
           <Text style={styles.errorTitle}>教练主页加载失败</Text>
           <Text style={styles.errorText}>{error || '教练不存在或已下线。'}</Text>
           <Pressable onPress={load} style={styles.primaryButton}><Text style={styles.primaryButtonText}>重试</Text></Pressable>
-          <Pressable onPress={() => navigation.goBack()} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>返回</Text></Pressable>
+          <Pressable onPress={() => safeNavigation.goBack()} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>返回</Text></Pressable>
         </View>
       </SafeAreaView>
     )
@@ -242,7 +251,7 @@ export function CoachProfileScreen({ navigation, route }: Props) {
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {hasPendingPayment ? (
           <Pressable
-            onPress={() => navigation.navigate('PaymentWaiting', {
+            onPress={() => safeNavigation.navigate('PaymentWaiting', {
               orderId: subscription?.order_id || undefined,
               amount: subscriptionAmountYuan(subscription),
               coachId,
@@ -285,7 +294,7 @@ export function CoachProfileScreen({ navigation, route }: Props) {
           <Text style={styles.bioText}>{displayCoach.bio || '这位教练还没有填写简介。'}</Text>
           {['waiting', 'active'].includes(subscription?.status || '') ? (
             <Pressable
-              onPress={() => navigation.navigate('CoachQuestionnaire', {
+              onPress={() => safeNavigation.navigate('CoachQuestionnaire', {
                 coachId,
                 coachName: displayCoach?.name || '',
                 mode: 'edit',
@@ -317,12 +326,12 @@ export function CoachProfileScreen({ navigation, route }: Props) {
 
         {activeTab === 'about' ? <AboutTab coach={displayCoach} /> : null}
         {activeTab === 'pricing' ? <PricingTab products={products} subscription={subscription} receivingAccountReady={receivingAccountReady} submitting={submitting} onSelect={selectProduct} /> : null}
-        {activeTab === 'content' ? <ContentTab contents={contents} total={contentsTotal} navigation={navigation} /> : null}
+        {activeTab === 'content' ? <ContentTab contents={contents} total={contentsTotal} navigation={safeNavigation} /> : null}
         {activeTab === 'reviews' ? <ReviewsTab count={reviewCount} /> : null}
       </ScrollView>
 
       <View style={styles.fixedCta}>
-        <Pressable onPress={() => navigation.navigate('GeneratePlan', { coachId })} style={styles.aiPlanButton}>
+        <Pressable onPress={() => safeNavigation.navigate('GeneratePlan', { coachId })} style={styles.aiPlanButton}>
           <IconFont name="icon-a-Trainingplan" color={colors.brand} size={18} />
           <Text style={styles.aiPlanButtonText}>AI 生成计划</Text>
         </Pressable>
@@ -410,7 +419,7 @@ function PricingTab({ products, subscription, receivingAccountReady, submitting,
   )
 }
 
-function ContentTab({ contents, total, navigation }: { contents: any[]; total: number; navigation: Props['navigation'] }) {
+function ContentTab({ contents, total, navigation }: { contents: any[]; total: number; navigation: { navigate: (screen: any, params?: any) => void } }) {
   return (
     <SectionCard title="教学内容" description={`共 ${total} 条`}>
       {contents.length === 0 ? <Text style={styles.emptyText}>暂无内容</Text> : null}
