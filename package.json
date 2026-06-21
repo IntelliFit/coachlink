@@ -30,6 +30,7 @@
         "migrate:supabase-to-pg": "npx tsx scripts/migrate-supabase-to-postgres.ts",
         "migrate:storage-to-cos": "npx tsx scripts/migrate-supabase-storage-to-cos.ts",
         "replace:storage-urls": "npx tsx scripts/replace-storage-urls.ts",
+        "canonical-actions:reference-images": "npx tsx scripts/generate-canonical-action-reference-images.ts",
         "power-analysis:setup": "node scripts/setup-power-analysis-venv.mjs",
         "power-analysis:worker": "node scripts/power-analysis-worker.mjs --queue",
         "power-analysis:poll-worker": "node scripts/power-analysis-worker.mjs --poll",

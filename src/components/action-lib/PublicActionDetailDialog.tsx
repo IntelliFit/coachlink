@@ -377,6 +377,20 @@ export default function PublicActionDetailDialog(props: {
                         )}
                     </div>
 
+                    {/* Reference image */}
+                    <div className="flex flex-col gap-2">
+                        <div className="text-xs font-semibold text-surface-600">参考图</div>
+                        {localAction.reference_image_url ? (
+                            <img
+                                src={localAction.reference_image_url}
+                                alt={`${localAction.name} 参考图`}
+                                className="w-full rounded-xl border border-surface-200 bg-surface-50 object-contain"
+                            />
+                        ) : (
+                            <div className="text-sm text-surface-500">暂无</div>
+                        )}
+                    </div>
+
                     {/* Video */}
                     <div className="flex flex-col gap-2">
                         <div className="text-xs font-semibold text-surface-600">演示视频</div>
@@ -727,4 +741,3 @@ function buildStudentAction(action: PublicActionItemDto | null) {
         canonical_action_id: action.canonical_action_id ?? undefined,
     } as StudentActionRow;
 }
-

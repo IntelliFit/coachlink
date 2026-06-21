@@ -1,20 +1,24 @@
 import { NextResponse } from "next/server";
 import supabase from "@/lib/supabaseClient";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
+import { getAuthUser } from "@/lib/auth";
 
 import type { ApiData } from "@/types/api";
 import type { SetDefaultQuestionnaireDto, SetDefaultQuestionnaireResponseDto } from "./entity";
 
 export async function POST(req: Request) {
     const session = await getServerSession();
-    if (!session?.user?.id) {
+    const authResult = session?.user?.id
+        ? { isAuthenticated: true, userId: session.user.id, user: session.user }
+        : await getAuthUser(req);
+    if (!authResult.userId) {
         return NextResponse.json<ApiData<null>>(
             { success: false, message: "用户未登录", data: null },
             { status: 401 },
         );
     }
 
-    if (!session.user.is_coach) {
+    if (authResult.user?.is_coach !== true) {
         return NextResponse.json<ApiData<null>>(
             { success: false, message: "用户不是教练", data: null },
             { status: 403 },
@@ -29,7 +33,7 @@ export async function POST(req: Request) {
         );
     }
 
-    const userId = session.user.id;
+    const userId = authResult.userId;
 
     const { data: q, error: qErr } = await supabase
         .from("coach_questionnaires")

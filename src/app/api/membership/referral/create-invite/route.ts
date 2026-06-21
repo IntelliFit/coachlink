@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
+import { getAuthUser } from "@/lib/auth";
 import { ApiData } from "@/types/api";
 import { serviceRoleSupabase } from "@/lib/supabaseClient";
 
@@ -52,7 +53,10 @@ function minusDaysBeijingDateKey(days: number) {
 
 export async function POST(request: Request) {
     const session = await getServerSession();
-    if (!session?.user?.id) {
+    const authResult = session?.user?.id
+        ? { isAuthenticated: true, userId: session.user.id }
+        : await getAuthUser(request);
+    if (!authResult.isAuthenticated || !authResult.userId) {
         return NextResponse.json({
             success: false,
             message: "用户未登录",
@@ -60,7 +64,7 @@ export async function POST(request: Request) {
         }, { status: 401 });
     }
 
-    const userId = session.user.id;
+    const userId = authResult.userId;
     // For MVP, we use userId as the invite code.
     // In future, we can generate a short alphanumeric code and store it in user_profiles.
     const inviteCode = userId;

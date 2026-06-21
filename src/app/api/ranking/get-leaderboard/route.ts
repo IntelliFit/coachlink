@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from '@/app/api/auth/[...nextauth]/auth';
+import { getAuthUser } from '@/lib/auth';
 import supabase from '@/lib/supabaseClient';
 
 // 重要！必须以 import type 引入接口类型
@@ -8,7 +9,10 @@ import type { GetLeaderboardDto, GetLeaderboardResponseDto } from './entity';
 
 export async function POST(req: Request) {
     const session = await getServerSession();
-    if (!session?.user?.id) {
+    const authResult = session?.user?.id
+        ? { isAuthenticated: true, userId: session.user.id }
+        : await getAuthUser(req);
+    if (!authResult.isAuthenticated || !authResult.userId) {
         return NextResponse.json({
             success: false,
             message: '用户未登录',

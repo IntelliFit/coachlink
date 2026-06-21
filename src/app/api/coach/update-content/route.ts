@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import supabase from '@/lib/supabaseClient';
 import { getServerSession } from '@/app/api/auth/[...nextauth]/auth';
 import type { UpdateContentDto, UpdateContentResponseDto } from './entity';
+import { getAuthUser } from '@/lib/auth';
 
 export async function POST(req: Request) {
     const {
@@ -24,7 +25,10 @@ export async function POST(req: Request) {
 
     // 获取当前登录用户
     const session = await getServerSession();
-    const userId = session?.user?.id || null;
+    const authResult = session?.user?.id
+        ? { isAuthenticated: true, userId: session.user.id }
+        : await getAuthUser(req);
+    const userId = authResult.userId || null;
 
     if (!userId) {
         return NextResponse.json({

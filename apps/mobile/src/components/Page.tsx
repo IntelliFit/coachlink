@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import type { StyleProp, ViewStyle } from 'react-native'
 import { ScrollView, StyleSheet, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { colors, spacing } from '../theme'
@@ -7,12 +8,13 @@ type PageProps = {
   title?: string
   subtitle?: string
   children: ReactNode
+  contentContainerStyle?: StyleProp<ViewStyle>
 }
 
-export function Page({ title, subtitle, children }: PageProps) {
+export function Page({ title, subtitle, children, contentContainerStyle }: PageProps) {
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={[styles.content, contentContainerStyle]} showsVerticalScrollIndicator={false}>
         {(title || subtitle) && (
           <View style={styles.header}>
             {title ? <Text style={styles.title}>{title}</Text> : null}
@@ -32,7 +34,7 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: spacing.sm,
-    paddingBottom: spacing.xl,
+    paddingBottom: 128,
     gap: spacing.sm,
   },
   header: {

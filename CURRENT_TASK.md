@@ -1,4 +1,327 @@
-﻿## WeChat `/me` Subpackage Size Split (`2026-06-19`)
+## Anatomy Model Persona Sheet (`2026-06-21`)
+
+- Mobile APP video review + authentication compatibility (`2026-06-21`)
+
+- Task: complete mini-program aligned video review migration into mobile APP and provide a hardening pass for emulator input/clipboard.
+- Status: implemented in code, awaiting your manual UI/input verification.
+- Changes made:
+  - Added auth-compatible video execution pending/review API support for APP bearer-token users.
+  - Added `CoachVideosScreen` and `CoachVideoReviewScreen`, plus navigation wiring from coach dashboard.
+  - Kept manual verification flag for simulator interactions per your preference.
+- Validation:
+  - `npm --workspace apps/mobile run typecheck` ✅
+  - `npm run lint` (informational script) ✅
+  - `npm run typecheck` ✅
+  - `npm test` ✅
+  - `npm run test:e2e` blocked: start script failed resolving Apollo namespace `app-config` from `https://apollo-configservice.paper2ppt.work/...` during bootstrap; local `CONFIG_SOURCE=local` did not override because bootstrap source is fixed in `.env`.
+
+- Task: find the current standard-action-library character reference in `design/image-workspace`, identify the matching three-key-frame barbell/bench-press reference image, and generate the CoachLink anatomy-model persona sheet from the documented requirements.
+- Status: completed.
+- Source found:
+  - `design/image-workspace/references/model-reference-latest.jpg` is the three-key-frame bench-press/barbell reference image. It shows start position, lowering, and press-up frames, with pectoralis major as red primary muscle and anterior deltoid/triceps as orange assisting muscles.
+  - `design/image-workspace/docs/anatomy-model-character-guide.md` defines the reusable anonymous male anatomy model requirements.
+- Output:
+  - Generated `design/image-workspace/outputs/anatomy-model-persona-sheet-v1.png`.
+  - The output is a horizontal persona sheet with front, side, three-quarter, and bench-press thumbnail views, preserving the anonymous face, short dark hair, lean athletic proportions, translucent gray-white body/skeleton treatment, red/orange muscle highlights, and black equipment accent language.
+  - Revised per initial user feedback and generated `design/image-workspace/outputs/anatomy-model-persona-sheet-v2.png` as a previous revision.
+  - V2 keeps the left three main character views clean with translucent gray-white body/skeleton only, no red/orange muscle highlights, and keeps red/orange muscle display only in the right-side bench-press action reference. The face treatment is also more natural and less like a smeared blur.
+  - V2 is no longer the target because the user clarified that shoulder/arm orange regions should remain and only the red chest/pectoralis color should be removed from the standing model views.
+  - Revised again per user clarification and generated `design/image-workspace/outputs/anatomy-model-persona-sheet-v3.png` as a previous revision.
+  - V3 is based on the user's provided reference image and preserves its layout/color distribution more closely: the standing model views keep orange shoulder/arm highlights, remove only the red chest/pectoralis highlight, remove shoes in favor of bare feet, and replace the blurred face with a natural faceless male mannequin head. The right-side bench-press reference keeps action-specific red/orange muscle highlights.
+  - V3 is no longer the target because the user clarified that the left-side standing views should have no colored muscle markings anywhere, including no orange shoulder/arm regions.
+  - Revised per latest user clarification and generated `design/image-workspace/outputs/anatomy-model-persona-sheet-v4.png` as the current recommended persona sheet.
+  - V4 removes all colored muscle markings from the three standing character views, including the orange shoulder/arm regions. The standing views are now fully translucent white/gray with skeleton hints only, barefoot, and faceless. The right-side bench-press reference keeps action-specific red/orange muscle highlights.
+  - Updated `design/image-workspace/README.md` and `design/image-workspace/docs/anatomy-model-character-guide.md` to make V4 the recommended target.
+- Verification:
+  - Visually inspected the source reference and generated image.
+  - Confirmed output file is PNG, `1717 x 916`.
+  - Confirmed V2 output file is PNG, `1693 x 929`.
+  - Confirmed V3 output file is PNG, `1717 x 916`.
+  - Confirmed V4 output file is PNG, `1717 x 916`.
+
+## Standard Action Library Sequence Image Pilot (`2026-06-21`)
+
+- Task: find the current standard action library, plan 10 sub-agents, and start generating three-key-frame sequence images for an initial 50-action pilot before scaling to the full 300+ action set.
+- Status: in progress; not complete.
+- Source of truth found:
+  - Production Supabase `canonical_actions` currently has **383** standard actions.
+  - Production Supabase `community_actions` currently has **144** public action rows with richer action metadata such as target positions/muscles.
+  - Exported full standard action dictionary to `design/image-workspace/action-library/standard-actions-export.json`.
+- Pilot scope prepared:
+  - Selected 50 unique `STRENGTH` public actions with target muscle positions for the first visual pilot.
+  - Wrote manifest to `design/image-workspace/action-library/pilot-50-actions.json`.
+  - Wrote production plan to `design/image-workspace/action-library/production-plan.md`.
+  - Wrote production status to `design/image-workspace/action-library/production-status.json`.
+- 10 sub-agent plan executed:
+  - Spawned 10 sub-agents, each responsible for 5 pilot actions.
+  - Persisted returned frame specs to:
+    - `design/image-workspace/action-library/batches/batch-01-frame-spec.md`
+    - `design/image-workspace/action-library/batches/batch-02-frame-spec.md`
+    - `design/image-workspace/action-library/batches/batch-03-frame-spec.md`
+    - `design/image-workspace/action-library/batches/batch-04-frame-spec.md`
+    - `design/image-workspace/action-library/batches/batch-05-frame-spec.md`
+    - `design/image-workspace/action-library/batches/batch-06-frame-spec.md`
+    - `design/image-workspace/action-library/batches/batch-07-frame-spec.md`
+    - `design/image-workspace/action-library/batches/batch-08-frame-spec.md`
+    - `design/image-workspace/action-library/batches/batch-09-frame-spec.md`
+    - `design/image-workspace/action-library/batches/batch-10-frame-spec.md`
+- First image generated:
+  - Generated and visually inspected `design/image-workspace/action-library/outputs/001-负重臂屈伸-sequence.png`.
+  - The output is a horizontal 3-key-frame PNG (`1773 x 887`) using the v4 barefoot/faceless anatomy model and action-specific muscle highlights.
+  - Note for next prompts: for cyclic actions, make frame 3 visually distinct enough from frame 1 when useful for downstream video interpolation.
+- Pilot images generated in follow-up:
+  - Generated, copied into the workspace, and visually inspected:
+    - `design/image-workspace/action-library/outputs/002-负重引体-底部暂停-sequence.png`
+    - `design/image-workspace/action-library/outputs/003-弹力带肩部热身-sequence.png`
+    - `design/image-workspace/action-library/outputs/004-手腕热身-sequence.png`
+    - `design/image-workspace/action-library/outputs/005-臂屈伸-sequence.png`
+  - QA notes: 002 is usable but the rear-view back highlight is strong and may be tightened in a consistency pass; 003 is usable but rotator-cuff specificity could improve with a slightly oblique/rear angle; 004 and 005 are usable for the pilot. All four preserve the no-shoes/no-text/no-watermark requirement.
+- Remaining scope:
+  - Generate and review pilot outputs `006` through `050`.
+  - Then decide whether to scale the same pipeline to all 383 `canonical_actions`.
+
+## Canonical Action Reference Image Pipeline (`2026-06-21`)
+
+- Task: implement the pipeline for standard-action reference images: add a `canonical_actions.reference_image_url` field, upload generated action sequence images to COS, and write the public URL back to the standard action dictionary.
+- Status: implemented at code level; production migration/upload/write execution still pending.
+- Scope decision:
+  - Only concrete, drawable canonical actions should be processed in the first pass.
+  - Generic/ambiguous names such as auxiliary items or unclear holds should be skipped and recorded in the manifest for later manual handling.
+  - Production DB direct write is allowed after dry-run and small-batch validation.
+- Code changes:
+  - Added migration `supabase/migrations/20260621_canonical_action_reference_images.sql` for `canonical_actions.reference_image_url`.
+  - Added COS logical bucket `action-reference-images`, mapped to the assets bucket with prefix `action-reference-images/`.
+  - Added `reference_image_url` to database/canonical/public-action DTO types.
+  - Public action list/detail APIs now read `canonical_actions.reference_image_url` by `canonical_action_id` and return it.
+  - Public action detail dialog now shows a reference-image block when available.
+  - Added `scripts/generate-canonical-action-reference-images.ts` and npm script `canonical-actions:reference-images`.
+- Script behavior:
+  - Default `--dry-run`: reads `canonical_actions`, classifies concrete/skipped actions, looks for local images, and writes manifest without upload/write.
+  - `--execute`: uploads existing local images to COS logical bucket `action-reference-images` and updates `canonical_actions.reference_image_url`; default is fill-empty-only unless `--overwrite` is passed.
+  - Supports `--limit`, `--offset`, `--shard=i/n`, `--concurrency`, `--manifest`, and `--image-dir`.
+  - Does not call built-in image generation from Node; missing local images are recorded with standardized image prompts for sub-agent/imagegen generation, then the script can be rerun.
+- Verification:
+  - `npm run canonical-actions:reference-images -- --dry-run --limit=5 --manifest=/tmp/coachlink-canonical-reference-dry-run.json`: passed; detected 383 canonical actions and produced a dry-run manifest. Because production DB has not run the migration yet, it warned that `reference_image_url` is missing and continued in dry-run mode.
+  - `git diff --check`: passed.
+  - `npm run lint`: passed informational script.
+  - `npm run typecheck`: passed.
+  - `npm test`: passed, 33 files / 163 tests.
+  - `npx next build`: passed.
+- Next steps:
+  - Apply the new Supabase migration in production before any `--execute`.
+  - Run COS verification for `action-reference-images`.
+  - Generate/copy concrete canonical action images into `design/image-workspace/action-library/canonical-outputs/`.
+  - Run a small production batch, for example `npm run canonical-actions:reference-images -- --execute --limit=10`, inspect COS URLs and DB writes, then shard the remaining concrete actions.
+
+## Mobile WeChat Module Migration (`2026-06-21`)
+
+- Task: continue migrating remaining WeChat mini-program modules into `apps/mobile` with matching style and behavior, including bottom navigation parity and every nested module path.
+- Status: in progress; not complete.
+- Current progress in this turn:
+  - Verified current `ProfileTab` already uses the full `apps/mobile/src/screens/me/MeScreens.tsx` `ProfileScreen`, so the earlier simplified `ProfileScreen.tsx` is no longer the active "我的" tab.
+  - Updated `apps/mobile/src/screens/CoachesScreen.tsx` to match the mini-program discovery page behavior more closely: `/api/student/visibility-status` focus/exclusive coach mode, paginated coach loading with local buffer, test coach filtering, specialty filtering, search, rating badge, featured badge, start price, load-more and list-end states.
+  - Added `apps/mobile/src/screens/coach/CoachMarketScreen.tsx` for the mini-program `discovery/market` service market: coach pricing aggregation, tier filters, keyword search, product/month price cards, buy navigation, and add-to-cart flow.
+  - Wired `CoachMarket` into `RootNavigator`, `RootStackParamList`, and the Coaches tab service entrance.
+  - Added `apps/mobile/src/screens/coach/GeneratePlanScreen.tsx` and `GeneratePlanWaitingScreen.tsx` for the mini-program `discovery/generate-plan` flow: domain selection, rulepack/default assessment fields, step validation, `/api/user/submit-onboarding`, waiting/progress state, `/api/user/generate-quick-plan`, success/async/error actions, and plan-history redirect.
+  - Wired `GeneratePlan` / `GeneratePlanWaiting` into `RootNavigator` and added an `AI 生成计划` CTA on the coach profile bottom action panel.
+  - Added `apps/mobile/src/screens/training/TrainingShareScreen.tsx` for mini-program `discovery/share`: loads `/api/execution/share-info`, renders the training completion preview card, exposes system share and copy-share-text actions, and is reachable from completed training execution and training history items.
+  - Extended `Page` to accept an optional `contentContainerStyle` for special pages such as the training share card background without changing default layouts.
+  - Migrated the mini-program training action detail/copy-from-coach gap into APP:
+    - Added `ActionDetail` route and screen for action name/type/detail/positions/attrs/video-link display, plus video URL copy and personal-action edit entry.
+    - Added `CopyCoachActions` route and screen using `/api/student/action-lib/list-coach-actions` and `/api/student/action-lib/copy-coach-action`, with coach action cards, added/copying states, empty/loading/error states.
+    - Updated APP action library to show a `从教练复制动作` entry and route personal actions to `ActionDetail`.
+    - Updated Training tab recent actions to open `ActionDetail` instead of jumping straight to edit.
+  - Migrated more of the mini-program `me/plan-history` flow into APP:
+    - Replaced the generic APP plan-history list with a mini-program-aligned `全部计划 / 教练指派 / 我的计划` segmented filter, plan cards, status/source badges, date range, training-day count, completion progress, load-more, and empty-state actions.
+    - Enhanced plan-history detail with completion progress, execution notice action, and direct `TrainingExecution` entry for active incomplete plans.
+  - Migrated more of the mini-program `me/plan-lib` flow into APP:
+    - Replaced the generic APP plan-library list with a functional plan-template library: create entry, template cards, edit navigation, apply action, delete action, and 1RM configuration modal for auto-weight actions.
+    - Reworked APP `PlanEdit` from a single text field into a structure-aware editor that loads existing favorites, can generate an AI draft from profile, can parse pasted plan text through `/api/student/plan-lib/parse-template`, shows training/rest day previews, and saves structured `training_days`.
+    - Added Bearer-token compatibility for APP access to student plan-library APIs used by this flow: list/get/save/update/delete/apply favorite, parse actions/template, and AI draft generation.
+  - Improved APP coach-content / knowledge article migration:
+    - Confirmed `CoachContentDetail` exists and is wired from `CoachProfile` content cards.
+    - Added Bearer-token auth compatibility to `/api/coach/get-contents`, so APP coach profile content list uses the correct subscriber tier instead of treating APP users as guests.
+    - Added Bearer-token auth compatibility to `/api/knowledge/list-coach-contents`.
+    - Added a `教练专栏` section to APP `KnowledgeScreen`, loading `/api/knowledge/list-coach-contents` and routing items to `CoachContentDetail`.
+    - Wired `KnowledgeSearchScreen` related coach articles to `CoachContentDetail`.
+  - Began coach-side APP module migration:
+    - Added APP-native `CoachDashboard` route/screen aligned with mini-program `coach/overview`.
+    - `CoachDashboard` renders business overview stat tiles, teaching asset rows, and settings rows.
+    - APP `ProfileScreen` now shows `教练工作台` for coach users instead of the coach-application entry.
+    - `/api/coach/get-overview-data` now accepts APP Bearer-token auth in addition to NextAuth session auth.
+  - Migrated the first coach dashboard child module, mini-program `coach/students`, into APP:
+    - Added APP-native `CoachStudents` route/screen with search, sort, paging, student cards, tier/status/video review chips, plan progress, and projected end-date display.
+    - Added `CoachStudentDetail` route/screen for profile, subscription/training data, and questionnaire summary.
+    - Wired the `CoachDashboard` `学员管理` row into `CoachStudents`.
+    - Added APP Bearer-token auth compatibility to `/api/coach/list-students` and `/api/coach/get-student`.
+    - Tightened `/api/coach/get-student` so subscription-id lookups are also constrained to the current coach.
+  - Migrated mini-program `coach/action-lib` into APP:
+    - Added APP-native `CoachActions` route/screen with search, type filtering, paging, action cards, edit and delete actions.
+    - Added `CoachActionEdit` route/screen covering the mini-program fields for strength/diet/cardio/habit actions, including positions, attrs, auto-weight compute, body-weight inclusion, item schema, detail, and demo video URL.
+    - Wired `CoachDashboard` `动作库` row into `CoachActions`.
+    - Added APP Bearer-token auth compatibility to `/api/action-lib/list-actions`, `get-action`, `add-action`, `update-action`, and `delete-action`.
+  - Migrated the first layer of mini-program `coach/plan-lib` into APP:
+    - Added APP-native `CoachPlanTemplates` route/screen with search, type filters, tag filters, template cards, export-to-clipboard, copy, delete, and edit navigation.
+    - Added `CoachPlanTemplateEdit` route/screen for template base fields, execution notice, tags, suitable audience/type, and editable `trainingDays` JSON.
+    - Wired `CoachDashboard` `计划库` row into `CoachPlanTemplates`.
+    - Added APP Bearer-token auth compatibility to `/api/plan-lib/list-templates`, `get-template`, `create-template`, `update-template`, `delete-template`, `copy-template`, `get-unique-template-tags`, and `export-template-text`.
+  - Migrated mini-program `coach/content` into APP:
+    - Added APP-native `CoachContents` route/screen with content stats, title/body search, tier filters, content-type filters, content cards, tags, view/like/comment metrics, edit, and delete.
+    - Added APP-native `CoachContentEdit` route/screen covering title, body, content type, required tier, price, tags, featured state, draft save, and publish/update actions.
+    - Wired `CoachDashboard` `内容库` row into `CoachContents`.
+    - Added APP Bearer-token auth compatibility to `/api/coach/publish-content`, `/api/coach/update-content`, and `/api/coach/delete-content`.
+    - Tightened `/api/coach/delete-content` so deletion is constrained to content owned by the current coach, instead of only checking that the session user is a coach.
+  - Migrated mini-program `coach/pricing` into APP:
+    - Added APP-native `CoachPricing` route/screen with receiving-account readiness banner, tier grouping (`basic / standard / vip`), product cards, duration/price tags, combo included items, legacy pricing read-only display, add, edit, and delete.
+    - Added APP-native `CoachPricingEdit` route/screen covering tier, service type, name, description, combo included items, multi-duration options, price editing, validation, and save.
+    - Wired `CoachDashboard` `订阅定价` row into `CoachPricing`.
+    - Added APP Bearer-token auth compatibility to `/api/coach/update-pricing`.
+    - Kept the existing server-side restriction that pricing cannot be saved until Huifu receiving account / card binding is complete; APP currently shows the same readiness warning while full wallet/merchant onboarding remains a later module.
+  - Migrated mini-program `coach/questionnaire` into APP:
+    - Added APP-native `CoachQuestionnaires` route/screen with questionnaire list, status/default/editor-type/version badges, question-count/type/branch summaries, edit, duplicate, and set-default actions.
+    - Added APP-native `CoachQuestionnaireEdit` route/screen covering new-questionnaire type picking, template name, status/editor badges, text questions, single-choice questions, multiple-choice questions, allow-other option, legacy type display/delete, save, and publish.
+    - Wired `CoachDashboard` `学员问卷` row into `CoachQuestionnaires`.
+    - Added APP Bearer-token auth compatibility to `/api/coach/list-questionnaires`, `get-questionnaire-by-id`, `duplicate-questionnaire`, `set-default-questionnaire`, `update-questionnaires`, and `publish-questionnaire`.
+    - Tightened `/api/coach/update-questionnaires` so editing an existing questionnaire is constrained to `coach_id = current userId`.
+  - Migrated mini-program `coach/automation` into APP:
+    - Added APP-native `CoachAutomation` route/screen with the same business guidance-first shape as the mini-program: default recommendation, scenario guidance, global policy selectors, pending adjustment drafts, automation history, and draft apply action.
+    - Wired `CoachDashboard` `自动化设置` row into `CoachAutomation`.
+    - Added APP Bearer-token auth compatibility to `/api/coach/automation-policy`, `/api/coach/automation-jobs`, and `/api/coach/plan-adjustment-drafts/[id]/apply`, while keeping the existing Web/NextAuth session path.
+  - Migrated mini-program `coach/revenue` into APP:
+    - Added APP-native `CoachRevenue` route/screen for month switching, total revenue, subscription revenue, content revenue, and income item list.
+    - Wired the `CoachDashboard` `本月收入` stat tile into `CoachRevenue`.
+    - Added APP Bearer-token auth compatibility to `/api/coach/get-revenue-details`, while keeping the existing Web/NextAuth session path.
+  - Migrated the main mini-program `coach/wallet` module into APP:
+    - Added APP-native `CoachWallet` route/screen for withdrawable balance, frozen amount, pending settlement amount, gross balance, total income, Huifu account status, refund-protection hint, pending settlements, wallet transactions, and Huifu withdrawal modal.
+    - Wired the `CoachDashboard` `收款账户` row into `CoachWallet`.
+    - Added APP Bearer-token auth compatibility to `/api/coach/wallet`, while preserving the existing Web/NextAuth session path.
+  - Migrated mini-program `coach/wallet/merchant` into APP:
+    - Added APP-native `CoachWalletMerchant` route/screen for Huifu receiving-account onboarding.
+    - The APP screen covers the same two-step flow as the mini-program: identity information, ID-card front/back image upload, certificate validity dates, bank card holder/card number, bank-code picker, branch code/name, province/city picker, generated region code preview, and submit-to-Huifu action.
+    - Wired `CoachWallet` `开通收款账户 / 重新开通收款账户 / 立即开通` actions into `CoachWalletMerchant`.
+    - Reused the existing `/api/coach/merchant/open-huifu-account` API, which already supports APP Bearer-token auth through `getApiUserId`.
+- Verification:
+  - `npm run typecheck --workspace @coachlink/mobile`: passed after action detail/copy migration.
+  - `npm run typecheck --workspace @coachlink/mobile`: passed after plan-history migration.
+  - `npm run typecheck --workspace @coachlink/mobile`: passed after plan-library migration.
+  - `npm run typecheck --workspace @coachlink/mobile`: passed after coach-content/knowledge-article routing migration.
+  - `npm --workspace apps/mobile run typecheck`: passed after `CoachDashboard` migration.
+  - `git diff --check` on `CoachDashboard` migration files: passed.
+  - `npm --workspace apps/mobile run typecheck`: passed after `CoachStudents` migration.
+  - `git diff --check` on `CoachStudents` migration files: passed.
+  - `npm --workspace apps/mobile run typecheck`: passed after `CoachActions` migration.
+  - `git diff --check` on `CoachActions` migration files: passed.
+  - `npm --workspace apps/mobile run typecheck`: passed after `CoachPlanTemplates` migration.
+  - `git diff --check` on `CoachPlanTemplates` migration files: passed.
+  - `npm run typecheck --workspace @coachlink/mobile`: passed.
+  - `git diff --check` on current APP migration files: passed.
+  - `npm run lint`: passed informational script.
+  - `npm run typecheck`: passed.
+  - `npm test`: passed, 33 files / 163 tests.
+  - `npx next build`: passed.
+  - `npm --workspace apps/mobile run typecheck`: passed after `CoachQuestionnaires` migration.
+  - `git diff --check` on `CoachQuestionnaires` migration files: passed.
+  - `npm run lint`: passed informational script.
+  - `npm run typecheck`: passed.
+  - `npm test`: passed, 33 files / 163 tests.
+  - `npx next build`: passed.
+  - `npm --workspace apps/mobile run typecheck`: passed after `CoachPricing` migration.
+  - `git diff --check` on `CoachPricing` migration files: passed.
+  - `npm run lint`: passed informational script.
+  - `npm run typecheck`: passed.
+  - `npm test`: passed, 33 files / 163 tests.
+  - `npx next build`: passed.
+  - `npm --workspace apps/mobile run typecheck`: passed after `CoachContents` migration.
+  - `git diff --check` on `CoachContents` migration files: passed.
+  - `npm run lint`: passed informational script.
+  - `npm run typecheck`: passed.
+  - `npm test`: passed, 33 files / 163 tests.
+  - `npx next build`: passed.
+  - `npm --workspace apps/mobile run typecheck`: passed after `CoachAutomation` migration.
+  - `git diff --check` on `CoachAutomation` migration files: passed.
+  - `npm run lint`: passed informational script.
+  - `npm run typecheck`: passed.
+  - `npm test`: passed, 33 files / 163 tests.
+  - `npx next build`: passed.
+  - `npm --workspace apps/mobile run typecheck`: passed after `CoachRevenue` migration.
+  - `git diff --check` on `CoachRevenue` migration files: passed.
+  - `npm run lint`: passed informational script.
+  - `npm run typecheck`: passed.
+  - `npm test`: passed, 33 files / 163 tests.
+  - `npx next build`: passed.
+  - `npm --workspace apps/mobile run typecheck`: passed after `CoachWallet` migration.
+  - `git diff --check` on `CoachWallet` migration files: passed.
+  - `npm run lint`: passed informational script.
+  - `npm run typecheck`: passed.
+  - `npm test`: passed, 33 files / 163 tests.
+  - `npx next build`: passed.
+  - `npm --workspace apps/mobile run typecheck`: passed after `CoachWalletMerchant` migration.
+  - `git diff --check` on `CoachWalletMerchant` migration files: passed.
+  - `npm run lint`: passed informational script.
+  - `npm run typecheck`: passed.
+  - `npm test`: passed, 33 files / 163 tests.
+  - `npx next build`: passed.
+- Remaining scope:
+  - Full parity is still unproven and incomplete. Continue auditing WeChat routes against APP routes, especially full native PlanEditorWorkbench parity (batch action replace/detail editing and visual multi-day editing), deeper coach questionnaire flow-branch visual editing / media upload, student automation override detail, coach video/settings pages behind the new coach dashboard, coach action-library merge/video-upload/reference workflows, wallet order-detail parity, image-saving parity for training share posters, action-library public edit/review depth, and any still-lightweight payment/webview surfaces.
+
+## Android Emulator Input + Clipboard Repair (`2026-06-21` )
+
+- Task: make Android simulator keyboard letters/numbers and copy/paste work in Pixel_6_API_34, using local emulator/AVD config only.
+- Status: completed and revalidated on local host.
+- Changes:
+  - Confirmed AVD flags: `hw.keyboard=yes`, `hw.keyboard.lid=yes`, `hw.keyboard.charmap=qwerty2`.
+  - Confirmed snapshot/hardware overrides align and include keycode/clipboard forwarding (`set/enforceKeycodeForwarding`, `set/forwardShortcutsToDevice`, `set/clipboardSharing`).
+  - Emulator launch should include `-use-keycode-forwarding -no-snapshot -no-snapshot-load -no-snapshot-save`.
+  - Runtime checks show `show_ime_with_hard_keyboard=1`, `LatinIME` selected, and `dumpsys input` reports `qwerty2` with `KeyboardType: 2`.
+- Scope: local machine-only config tuning; no repository source changes.
+
+## Android Emulator Keyboard/Clipboard Re-hardening (`2026-06-21` )
+
+- Task: user reported physical keyboard and paste still not working in the simulator when testing app flows.
+- Status: re-applied, cold-started visible emulator, and revalidated for local `Pixel_6_API_34`; manual APP-level verification is left to the user.
+- Changes made locally (no repo change):
+  - Fixed `~/.android/avd/Pixel_6_API_34.avd/emu-launch-params.txt`, which had accidentally mixed emulator launch arguments with a shell `sed` script. It now contains only the emulator executable metadata and arguments.
+  - Rewrote `~/.android/avd/Pixel_6_API_34.avd/AVD.conf` so `set\clipboardSharing`, `set\enforceKeycodeForwarding`, and `set\forwardShortcutsToDevice` are explicitly `true`.
+  - Reasserted `/Users/kirigaya/.android/avd/Pixel_6_API_34.avd/{config.ini,hardware-qemu.ini,snapshots/default_boot/hardware.ini}` for `hw.keyboard=yes`, `hw.keyboard.charmap=qwerty2`, `hw.keyboard.lid=true`, `showKeyboard=yes`, cold boot, and no snapshot reuse.
+  - Rewrote `~/.android/avd/Pixel_6_API_34.avd/emu-launch-params.txt` to include `-use-keycode-forwarding -no-snapshot -no-snapshot-load -no-snapshot-save`.
+  - Re-wrote/normalized `com.android.Emulator` flags (`defaults write`) for slash/dot key variants so forwarding and clipboard are enabled in the host prefs.
+- Verification on host config level:
+  - Files are now consistently set to the same keyboard/clipboard values.
+  - Cold-started `Pixel_6_API_34` under detached `screen` session `coachlink_pixel6`.
+  - ADB reports `emulator-5554 device`; process args include `-use-keycode-forwarding -no-snapshot -no-snapshot-load -no-snapshot-save`.
+  - Android runtime shows `show_ime_with_hard_keyboard=1`, default IME `com.google.android.inputmethod.latin/com.android.inputmethod.latin.LatinIME`, and `dumpsys input` shows `Device 0: qwerty2` with `KeyboardType: 2`.
+  - No code changes in app source were made for this fix; local-machine verification should be done by launching this AVD and re-testing input in the emulator.
+
+### Follow-up: Android Emulator Input Repair (`2026-06-21`)
+
+- Task: fix Android emulator letters/numbers and copy/paste for current APP manual testing.
+- Status: completed at local config/runtime level; user will manually verify inside the APP.
+- Actions:
+  - Rewrote/reasserted `~/.android/avd/Pixel_6_API_34.avd/{config.ini,hardware-qemu.ini,snapshots/default_boot/hardware.ini}` for `hw.keyboard=yes`, `hw.keyboard.charmap=qwerty2`, `hw.keyboard.lid=yes`, `showKeyboard=yes`, cold boot, and no snapshot reuse.
+  - Rewrote `~/.android/avd/Pixel_6_API_34.avd/AVD.conf` with `set\clipboardSharing=true`, `set\enforceKeycodeForwarding=true`, and `set\forwardShortcutsToDevice=true`.
+  - Rewrote `~/.android/avd/Pixel_6_API_34.avd/emu-launch-params.txt` to use `-use-keycode-forwarding -no-snapshot -no-snapshot-load -no-snapshot-save`.
+  - Rewrote macOS `com.android.Emulator` preferences for clipboard sharing, keycode forwarding, and shortcut forwarding in slash and dot key forms.
+  - Started visible `Pixel_6_API_34` in detached `screen` session `coachlink_pixel6`.
+- Verification:
+  - `adb devices` reports `emulator-5554 device`.
+  - Android runtime reports `show_ime_with_hard_keyboard=1`.
+  - Default input method is `com.google.android.inputmethod.latin/com.android.inputmethod.latin.LatinIME`.
+  - `adb shell dumpsys input` reports `Device 0: qwerty2` with keyboard sources.
+  - No repository source files were changed for this local-machine fix.
+
+
+﻿## Android Emulator Keyboard/Clipboard Fix (`2026-06-21`)
+
+- Task: fix Android simulator text input (letters/numbers) and clipboard copy/paste not working, based on local emulator config.
+- Status: completed (local machine-only).
+- Actions taken:
+  - Re-asserted `Pixel_6_API_34` AVD hardware/input keys (`config.ini`, `hardware-qemu.ini`, `snapshots/default_boot/hardware.ini`, `AVD.conf`) for `hw.keyboard`, `hw.keyboard.charmap`, and keycode forwarding/clipboard sharing.
+  - Verified `com.android.Emulator` preferences include `set/clipboardSharing`, `set.enforceKeycodeForwarding`, and `set.forwardShortcutsToDevice` (slash + dot forms).
+  - Restarted emulator with `-use-keycode-forwarding -no-snapshot -no-snapshot-load -no-snapshot-save`.
+  - Runtime checks: `show_ime_with_hard_keyboard=1`, default IME `LatinIME`, and built-in `qwerty2` key device in `dumpsys input`.
+- No app/web code changes were made; no repository commit was required.
+
+## WeChat `/me` Subpackage Size Split (`2026-06-19`)
 
 - Task: user reported WeChat DevTools error that subpackage `/me` source size was `2161KB`, slightly over the `2048KB` limit.
 - Status: implemented and verified at build/check level.
@@ -6357,3 +6680,863 @@
 - Remote status before commit:
   - `origin/main` is at `82d46467`.
   - `origin/dev` advanced to `5326a92c fix wechat training execution and theme flow`.
+## Mobile APP Auth Flow Mini-Program Alignment (`2026-06-20`)
+
+- Task: make the current APP login/register/reset-password surfaces match the WeChat mini-program auth flow, including its background asset, mode switching, public browse action, agreement gate, and development shortcut buttons.
+- Status: implemented at code/build level; simulator/manual UI verification is left to the user per durable preference.
+- Implemented:
+  - Copied the mini-program auth background image into `apps/mobile/assets/login-bg.jpg`.
+  - Rebuilt the APP login screen around the same auth hierarchy as `apps/wechat/src/auth/login`: hero background, top browse/back actions, `手机号快捷登录` / `密码登录` / `验证码登录` modes, agreement checkbox, register entry, reset-password entry, and development quick-entry button.
+  - Added APP register and reset-password screens using the same visual shell and verification-code flow.
+  - Added shared auth components under `apps/mobile/src/components/auth/` for the shell, inputs, pill buttons, mode switcher, agreement row, and slider captcha modal.
+  - Extended `packages/api-client` with email-code, reset-password, and slider-captcha API methods used by the mobile auth flow.
+  - Extended APP auth state with `continueAsGuest` and `loginAsDevUser`, so the mini-program-style browse/dev actions are functional.
+  - Preserved hardware keyboard input ergonomics for simulator/computer testing via normal `TextInput` focus and submit behavior.
+- Product/API note:
+  - The APP displays the WeChat-style `手机号快捷登录` entry, but actual WeChat Open Platform SDK/login is intentionally not wired yet. The placeholder explains that users should use password or verification-code login for now.
+- Verification:
+  - `npm run lint`: passed informational script.
+  - `npm run typecheck`: passed.
+  - `npx next build`: passed.
+  - `npm test`: passed, 33 files / 163 tests.
+  - `npx expo export --platform ios --output-dir /tmp/coachlink-mobile-auth-export --clear`: passed and bundled `assets/login-bg.jpg`.
+  - `git diff --check`: passed.
+
+## WeChat APP Review Icon Export (`2026-06-20`)
+
+- Task: prepare the two PNG icon files required for WeChat APP review: 28x28 and 108x108.
+- Status: corrected and completed.
+- Source asset: `apps/wechat/src/assets/brand/coachlink-brand-icon.png`, per user correction that the review icon should include the triangle mark and `coachlink` wordmark, not the `CL` mobile placeholder icon.
+- Output files:
+  - `/Users/kirigaya/Downloads/coachlink-app-icon-28.png`
+  - `/Users/kirigaya/Downloads/coachlink-app-icon-108.png`
+- Verification:
+  - `sips -g pixelWidth -g pixelHeight` confirmed exact `28 x 28` and `108 x 108` dimensions.
+  - `file` confirmed both outputs are PNG images.
+  - `npm run lint`: passed informational script.
+  - `npm run typecheck`: passed.
+  - `npx next build`: passed.
+  - `npm test`: passed, 33 files / 163 tests.
+
+## Mobile APP `me` And Auth Layout Migration (`2026-06-20`)
+
+- Task: fully migrate the WeChat mini-program `我的`/legal area into the APP, keep the APP icon system on the downloaded mini-program iconfont, and remove the login-page top gap that existed only because the mini-program has a native top toolbar.
+- Status: implemented at code/build level; frontend/manual simulator verification remains left to the user unless explicitly requested.
+- Implemented:
+  - Copied `apps/wechat/src/assets/iconfont/` into `apps/mobile/assets/iconfont/`, loaded `iconfont.ttf` with `expo-font`, and replaced APP tab/auth icons with `IconFont` glyph names.
+  - Removed `lucide-react-native` from the mobile package after switching APP icons to iconfont.
+  - Added APP `我的` section screens under `apps/mobile/src/screens/me/`, covering profile/detail/edit, fitness/e1RM, action library/edit, plan library/edit/history/detail, training history, membership/referral/subscribe, cart, purchase history, settings, friends/activity, messages/chat, coaches, ranking, coach application, feedback, public user home, and legal/about/contact/privacy/terms/agreement/consumer-protection pages.
+  - Extended APP navigation with the migrated `me` and legal routes.
+  - Extended APP auth state/API helpers so stored token/user are restored and local user profile updates can refresh persisted state.
+  - Fixed the APP login/register/reset-password shell by removing the mini-program-only top safe-area/tool-bar reservation (`SafeAreaView edges={[]}`) and reducing hero heights, so the image starts at the top of the mobile screen.
+  - Removed the `返回上一页` action from the APP login page; login should only expose the intended auth modes and `不登录，先逛逛`, not a previous-page back affordance.
+- Test user discovery:
+  - Found the configured development test accounts in `.env.development`; the student test user is phone `13921064643` with password `123456`.
+  - Read-only database lookup confirmed that phone exists as a student account; private identifiers were not written into durable memory.
+- Verification:
+  - `npm --workspace apps/mobile run typecheck`: passed.
+  - `npm run lint`: passed informational script.
+  - `npm run typecheck`: passed.
+  - `npx expo export --platform ios --output-dir /tmp/coachlink-mobile-me-export --clear`: passed and bundled `assets/iconfont/iconfont.ttf` plus `assets/login-bg.jpg`.
+  - `npx next build`: passed after an initial lock wait for another local build process.
+  - `npm test`: passed, 33 files / 163 tests.
+  - `git diff --check`: passed.
+
+## Mobile APP Remaining WeChat Module Migration (`2026-06-20`)
+
+- Task: continue migrating the remaining WeChat mini-program modules into the mobile APP with matching bottom navigation style, module IA, and functional entry points.
+- Status: in progress; not complete. This batch moved the APP from placeholder tabs toward the mini-program IA, but deep feature pages still need full one-by-one migration.
+- Implemented in this batch:
+  - Added an APP floating pill bottom tab bar matching the mini-program `BottomNav` visual pattern: dark translucent rounded bar, white active capsule, brand active icon, iconfont icons, and five student tabs `训练 / 教练 / 知识 / 工具箱 / 我的`.
+  - Increased shared APP page bottom padding so content is not hidden behind the floating nav.
+  - Migrated the four remaining student first-level APP tab screens from static placeholders into WeChat-aligned entry pages:
+    - `训练`: hero, today-training entry, impromptu training entry, action library, plan history, training history, e1RM curve, and recent actions loaded from the student action API.
+    - `教练`: search, specialty chips, recommended coach list loaded from coach APIs, ranking and my-coaches entries.
+    - `知识`: construction notice, search, quick tags, focus topics, public training plans, and book notes loaded from knowledge APIs.
+    - `工具箱`: four image-backed tool cards for power analysis, strength calculator, locations, and community data, plus scenario quick-fix entries.
+  - Copied the mini-program toolbox card images into `apps/mobile/assets/toolbox/` and verified they are bundled by Expo export.
+  - Added APP routes for the next layer of migrated modules: `TrainingExecution`, `ImpromptuTraining`, `CoachProfile`, `KnowledgeSearch`, `KnowledgePlanDetail`, `KnowledgeBookDetail`, `PowerAnalysis`, `StreetliftingCalculator`, `StreetliftingData`, `StreetliftingLocations`, and `ToolboxScenario`.
+  - Added temporary APP-native migration detail pages for those subroutes so navigation is no longer a dead end; these are explicitly not the final full-feature implementations.
+- Remaining required work before the long-running goal can be considered complete:
+  - Fully migrate training execution and impromptu training logic, including local 60-day cache behavior, execution snapshots, set logging, add action/set, timers, completion and share image generation.
+  - Fully migrate coach profile, questionnaire, subscription/payment flow, market/ranking/share pages.
+  - Fully migrate knowledge detail pages, public training plan detail/copy flow, book detail, and content detail pages.
+  - Fully migrate toolbox deep pages: Power Analysis upload/result flow, streetlifting calculator/history/result/data/locations/map/methodology/stories/submit, and scenario detail execution.
+  - Audit and finish the APP `我的` pages against the mini-program source instead of treating the current broad migration as verified.
+- Verification for this batch:
+  - `npm --workspace apps/mobile run typecheck`: passed.
+  - `npx expo export --platform ios --output-dir /tmp/coachlink-mobile-hubs-export --clear`: passed and bundled `assets/toolbox/*.jpg`, `assets/iconfont/iconfont.ttf`, and `assets/login-bg.jpg`.
+  - `npm run typecheck`: passed.
+  - `npm run lint`: passed informational script.
+  - `git diff --check`: passed.
+
+### Follow-up Batch: APP Training Core (`2026-06-20`)
+
+- Task: replace the training-related placeholder routes with functional APP pages aligned to the mini-program immediate training model.
+- Status: implemented at code/export level; still not a full training-execution parity migration.
+- Implemented:
+  - Added APP training execution snapshot cache helper using storage key `training_execution_snapshots_v1`, matching the mini-program key and enforcing 60-day retention.
+  - Added APP execution normalization helpers so plan and impromptu execution payloads render through the same recording UI.
+  - Implemented `ImpromptuTrainingScreen`:
+    - loads personal actions from `/api/student/action-lib/list-actions`;
+    - loads public actions from `/api/public-action-lib/list-actions` as fallback/supplement;
+    - supports search, multi-select, and starting `/api/impromptu/start`;
+    - persists the returned execution snapshot locally before navigating to execution.
+  - Implemented `TrainingExecutionScreen`:
+    - reads local execution snapshot first, then syncs cloud state;
+    - supports impromptu execution loading via `/api/impromptu/get`;
+    - supports plan execution start/resume via `/api/execution/start` when `instanceId/dayIndex` are provided;
+    - supports completing sets through `/api/impromptu/complete-set` or `/api/execution/complete-set`;
+    - supports adding an extra set through the matching extra-content API;
+    - supports finishing training through `/api/impromptu/finish` or `/api/execution/finish`;
+    - patches local plan execution state when the plan complete-set API returns only counters, avoiding loss of action rows.
+  - Replaced the `TrainingExecution` and `ImpromptuTraining` placeholder routes with the real APP screens.
+  - Updated the training tab to use `/api/plan-lib/get-today-training-instance` instead of the legacy `/api/training/get-hub-data` endpoint, and passes `instanceId/dayIndex` into the execution route when available.
+- Remaining training parity gaps:
+  - The APP execution page still lacks the full mini-program interaction depth: add extra action, delete extra set/action, rest timer, lightweight task completion, execution notice popup, read-only completed share flow, direct share image generation, set video upload/linking, local today-page cache patching, and detailed workout-card/body-map summary.
+  - The APP today-training screen still lacks the full calendar/week strip, rest-day card, coach/self plan switching, day-checkin sheet, and weak-network preview behavior from the mini-program.
+- Verification:
+  - `npm --workspace apps/mobile run typecheck`: passed.
+  - `npx expo export --platform ios --output-dir /tmp/coachlink-mobile-training-export --clear`: passed.
+  - `npm run typecheck`: passed.
+  - `npm run lint`: passed informational script.
+  - `git diff --check`: passed.
+
+### Follow-up Batch: APP Training Execution Actions (`2026-06-20`)
+
+- Task: continue closing the APP training-execution parity gap with mini-program interaction behavior.
+- Status: implemented at code/export level; still not full parity.
+- Implemented:
+  - Added APP execution-page training total-duration timer, derived from `started_at` / `created_at`, and freezes display semantics after completion.
+  - Added execution action picker modal:
+    - loads personal actions from `/api/student/action-lib/list-actions`;
+    - loads public actions from `/api/public-action-lib/list-actions`;
+    - for public actions, first calls `/api/public-action-lib/add-to-my-lib`, then uses the resulting student action id; if the action already exists, falls back to searching the personal action library by name.
+  - Added extra-action insertion through `/api/impromptu/extra-content/add-extra-exercise` or `/api/execution/extra-content/add-extra-exercise`.
+  - Added delete controls for extra sets and extra actions through the matching delete-extra endpoints. The APP shows deletion failures from the backend when a planned/non-extra item cannot be deleted.
+  - Added an execution notice card when `execution.execution_notice` is present.
+  - Added a completed-state `训练打卡图` placeholder card so the completion/share surface exists in APP navigation; full image generation is still pending.
+- Remaining training parity gaps:
+  - Full poster/share image generation, set video upload/linking, rest timer/minimized timer, lightweight task completion, detailed completed workout summary/body-map, today-training calendar/week strip/day-checkin, execution-plan read confirmation persistence, and today-page cache patching.
+- Verification:
+  - `npm --workspace apps/mobile run typecheck`: passed.
+  - `npx expo export --platform ios --output-dir /tmp/coachlink-mobile-training-actions-export --clear`: passed.
+  - `npm run typecheck`: passed.
+  - `npm run lint`: passed informational script.
+  - `git diff --check`: passed.
+
+### Follow-up Batch: APP Toolbox Scenario And Streetlifting Calculator (`2026-06-20`)
+
+- Task: continue replacing APP toolbox deep-route placeholders with functional WeChat-aligned pages.
+- Status: implemented at code/export level; broader toolbox parity is still not complete.
+- Implemented:
+  - Copied the mini-program scene quick-fix images into `apps/mobile/assets/toolbox/scenarios/`.
+  - Added APP scene quick-fix data mirroring `apps/wechat/src/constants/scenarioQuickFixes.ts`.
+  - Replaced the `ToolboxScenario` placeholder with a real APP screen:
+    - displays the selected scenario hero image, icon, duration, and description;
+    - supports `开始跟练`;
+    - tracks the current step and completed steps;
+    - advances step-by-step with `完成这一步`;
+    - shows an all-steps list and final completion state.
+  - Added APP-local streetlifting calculator math copied from the shared Web/mini-program formula model:
+    - supports `forward`, `reverse_weight`, `reverse_reps`, and upper-body-only `day_max`;
+    - supports weighted pull-up, weighted dips, strict press, barbell curl, squat, bench, and deadlift;
+    - keeps DOTS, streetlifting coefficient, strict-press/curl multipliers, penalty-weight handling, score-level labels, and RM table generation aligned with the existing Web/mini-program logic.
+  - Replaced the `StreetliftingCalculator` placeholder with a real APP screen:
+    - project/mode/gender/action-quality/rest chips;
+    - numeric inputs with hardware keyboard-compatible React Native `TextInput`;
+    - local draft persistence under `sl_calc_form_data`;
+    - local last result persistence under `sl_calc_last_run`;
+    - formula loading from `/api/streetlifting-index/formulas/list`;
+    - best-effort cloud history save through `/api/streetlifting-index/calculator/save-result` using the existing `weapp` source-surface contract.
+  - Wired `RootNavigator` to the new real screens and removed these two routes from `FeaturePlaceholderScreen`.
+- Remaining toolbox parity gaps:
+  - Power Analysis upload/result/download flow still needs full APP migration.
+  - Streetlifting calculator result/history pages are currently folded into the calculator screen; the separate mini-program result/history screens and richer ranking summary still need parity work.
+  - Streetlifting data, locations, map, methodology, stories, submit, and submit-success pages are still placeholders.
+- Verification:
+  - `npm --workspace apps/mobile run typecheck`: passed.
+  - `npx expo export --platform ios --output-dir /tmp/coachlink-mobile-toolbox-streetlifting-export --clear`: passed and bundled all 12 `assets/toolbox/scenarios/*.jpg` files.
+  - `npm run typecheck`: passed.
+  - `npm run lint`: passed informational script.
+  - `git diff --check`: passed.
+
+### Follow-up Batch: APP Streetlifting Data And Locations (`2026-06-20`)
+
+- Task: continue replacing APP toolbox/streetlifting deep-route placeholders with functional pages.
+- Status: implemented at code/export level; still not full streetlifting toolbox parity.
+- Implemented:
+  - Replaced the `StreetliftingData` placeholder with a real APP community data screen:
+    - loads `/api/streetlifting-index/submissions/list`;
+    - loads `/api/streetlifting-index/formulas/list`;
+    - computes submitted-record added 1RM and streetlifting score locally using the same coefficient math as the mini-program;
+    - supports search, exercise/gender/grip/quality/video filters, and weight/score/date sorting;
+    - shows result stats, submission cards, video presence, grip type, quality label, and rank order;
+    - supports basic data submission through `/api/streetlifting-index/submissions/create`;
+    - supports claim flow for unclaimed rows through `/api/streetlifting-index/submissions/claim`.
+  - Replaced the `StreetliftingLocations` placeholder with a real APP locations screen:
+    - loads `/api/streetlifting-index/locations/list`;
+    - loads `/api/streetlifting-index/stats`;
+    - supports search, province chips, apply-filter, load-more pagination, overview stats, and top-province summary;
+    - renders image-backed location cards with area, description, address, contributor, date, and map-ready state;
+    - supports basic location creation through `/api/streetlifting-index/locations/create`.
+  - Wired `RootNavigator` to the new pages and removed these routes from `FeaturePlaceholderScreen`.
+- Remaining streetlifting/toolbox parity gaps:
+  - Locations image upload/editing, map clustering/navigation, share sheet/share poster, contributor leaderboard sheets, nearby detection, and rights/analysis sheets still need APP parity work.
+  - Streetlifting data submission currently covers the basic form; duplicate-check dialog, profile-locked autofill, weight-limit validation, video upload, and richer claim dialog still need APP parity work.
+  - Streetlifting methodology, stories, submit-success, and dedicated map/detail/share routes are still not migrated.
+  - Power Analysis is still a placeholder.
+- Verification:
+  - `npm --workspace apps/mobile run typecheck`: passed.
+  - `npx expo export --platform ios --output-dir /tmp/coachlink-mobile-streetlifting-data-locations-export --clear`: passed.
+  - `npm run typecheck`: passed.
+  - `npm run lint`: passed informational script.
+  - `git diff --check`: passed.
+
+### Follow-up Batch: APP Power Analysis (`2026-06-20`)
+
+- Task: replace the APP `PowerAnalysis` placeholder with the functional upload/analyze/result flow from the mini-program/Web implementation.
+- Status: implemented at code/export level; still not full mini-program parity.
+- Implemented:
+  - Added `apps/mobile/src/screens/toolbox/PowerAnalysisScreen.tsx`.
+  - Replaced the `PowerAnalysis` placeholder route with the real APP screen and removed it from `FeaturePlaceholderScreen`.
+  - Implemented APP-native Power Analysis flow:
+    - mode chips for `pullup`, `muscleup`, `dip`, `pushup`, and `squat`;
+    - height/bodyweight/external-load inputs;
+    - video selection through `expo-image-picker`;
+    - create temporary upload task through `/api/toolbox/power-analysis/create-upload-url`;
+    - upload selected video to the backend signed upload URL;
+    - mark uploaded state and enable `开始分析`;
+    - enqueue through `/api/toolbox/power-analysis/jobs/[id]/enqueue`;
+    - poll `/api/toolbox/power-analysis/jobs/[id]` until terminal state;
+    - request `/llm-summary` after `done`;
+    - render summary metrics and per-rep rows;
+    - request `/download-url` and copy the result URL through `expo-clipboard`.
+  - Kept the same transient-video product model as mini-program/Web: users upload a short video for a temporary analysis job, then retrieve the annotated output.
+- Remaining Power Analysis parity gaps:
+  - APP upload currently uses signed-url direct upload without real byte-level progress; progress is staged rather than exact.
+  - Download currently copies a link instead of saving the video into the device album.
+  - APP does not yet provide camera capture, inline video preview/fullscreen preview, result video player, or native share/save action.
+  - APP does not yet persist/restore an active Power Analysis job across screen remounts like Web sessionStorage.
+- Verification:
+  - `npm --workspace apps/mobile run typecheck`: passed.
+  - `npx expo export --platform ios --output-dir /tmp/coachlink-mobile-power-analysis-export --clear`: passed.
+  - `npm run typecheck`: passed.
+  - `npm run lint`: passed informational script.
+  - `git diff --check`: passed.
+
+### Local Environment: Android Emulator Keyboard And Clipboard (`2026-06-20`)
+
+- Task: user reported the current Android emulator could not receive hardware keyboard letters/numbers and copy/paste had no effect.
+- Status: repaired at local emulator configuration level.
+- Affected local AVD:
+  - `Pixel_6_API_34`
+  - running as `emulator-5554`
+- Changes made outside the repository:
+  - Rewrote hardware keyboard settings in `/Users/kirigaya/.android/avd/Pixel_6_API_34.avd/config.ini`.
+  - Rewrote generated hardware settings in `/Users/kirigaya/.android/avd/Pixel_6_API_34.avd/hardware-qemu.ini`.
+  - Rewrote snapshot hardware settings in `/Users/kirigaya/.android/avd/Pixel_6_API_34.avd/snapshots/default_boot/hardware.ini`.
+  - Ensured all three use `hw.keyboard` enabled, `hw.keyboard.lid` enabled, and `qwerty2`.
+  - Rewrote Emulator preference `set.clipboardSharing=1` in `/Users/kirigaya/Library/Preferences/com.android.Emulator.plist`.
+  - Set Android secure setting `show_ime_with_hard_keyboard=1`.
+  - Enabled and selected default IME `com.google.android.inputmethod.latin/com.android.inputmethod.latin.LatinIME`.
+  - Cold-restarted the emulator under detached `screen` session `coachlink_pixel6`.
+- Verification:
+  - `adb devices -l`: `emulator-5554` online.
+  - `adb shell settings get secure show_ime_with_hard_keyboard`: `1`.
+  - `adb shell settings get secure default_input_method`: LatinIME.
+  - `adb shell dumpsys input`: `Device 0: qwerty2`, `KeyboardType: 2`.
+- Notes:
+  - This was not a repository code change.
+  - If the emulator is recreated or switched to another AVD, repeat the same local AVD configuration for that device.
+
+### Follow-up Batch: APP Knowledge Deep Pages (`2026-06-20`)
+
+- Task: continue replacing APP knowledge-module placeholders with functional pages that match the WeChat mini-program knowledge flow.
+- Status: implemented at code/export level; still not full knowledge-module parity.
+- Implemented:
+  - Added `apps/mobile/src/screens/knowledge/KnowledgeSearchScreen.tsx`.
+    - Supports keyword search through `/api/knowledge/search`.
+    - Supports direct node loading through `/api/knowledge/nodes/[id]`.
+    - Renders node title, description, type badge, free badge, body-region tags, video URL reference, normalized article/body content, and related coach articles.
+    - Keeps search input and result drill-in behavior aligned with mini-program `/content/knowledge` and `/content/knowledge/node-detail`.
+  - Added `apps/mobile/src/screens/knowledge/KnowledgePlanDetailScreen.tsx`.
+    - Loads public plan detail through `/api/knowledge/training-plans/[id]`.
+    - Renders hero, cycle/frequency/training-day/level metrics, equipment/tags, action-library explanation, action slots, first 14 days of training arrangement, action set metrics, bound/pending action badges, and notes.
+    - Implements `加入我的计划` through `/api/knowledge/training-plans/[id]/copy-to-favorite`.
+    - On success, offers a jump to `PlanLibrary`; on auth failure, offers login.
+  - Added `apps/mobile/src/screens/knowledge/KnowledgeBookDetailScreen.tsx`.
+    - Loads book detail through `/api/knowledge/books/[id]`.
+    - Renders cover/title/author/summary/free-paid badge/source note type, disclaimer, normalized content text, paywall/login states, related books from the same source collection, and image prompts.
+  - Added `apps/mobile/src/screens/knowledge/knowledgeHelpers.ts` for shared plan metrics, content normalization, HTML-to-text downgrade, and book source extraction.
+  - Wired `RootNavigator` to the real `KnowledgeSearch`, `KnowledgePlanDetail`, and `KnowledgeBookDetail` screens.
+  - Removed the three knowledge routes from `FeaturePlaceholderScreen`; `CoachProfile` remains the only route in that placeholder component.
+- Remaining knowledge parity gaps:
+  - APP does not yet render rich HTML with a native rich-text renderer; content is normalized to readable text for now.
+  - APP does not yet include a native inline video player for knowledge node videos.
+  - APP does not yet include a native audio player for book `audio_url`.
+  - Book APIs still rely on server session semantics; APP currently handles login/paywall states gracefully but may need backend Bearer-token compatibility for full authenticated reading parity.
+  - Coach article detail route from related articles is still not migrated.
+- Verification:
+  - `npm --workspace apps/mobile run typecheck`: passed.
+  - `npx expo export --platform ios --output-dir /tmp/coachlink-mobile-knowledge-export --clear`: passed.
+  - `npm run typecheck`: passed.
+  - `npm run lint`: passed informational script.
+  - `git diff --check`: passed.
+
+### Follow-up Batch: APP Coach Profile (`2026-06-20`)
+
+- Task: replace the APP `CoachProfile` placeholder with the functional coach detail/profile flow from the WeChat mini-program discovery coach profile.
+- Status: implemented at code/export level; still not full mini-program payment/questionnaire/content parity.
+- Implemented:
+  - Added `apps/mobile/src/screens/coach/CoachProfileScreen.tsx`.
+  - Wired `RootNavigator` so `CoachProfile` now uses the real APP screen.
+  - Deleted the unused `apps/mobile/src/screens/FeaturePlaceholderScreens.tsx`; there is no longer a generic placeholder screen in the main APP navigator.
+  - Implemented APP-native coach profile loading:
+    - `/api/coach/get-coach`;
+    - `/api/coach/get-aggregated-info`;
+    - `/api/coach/get-pricing`;
+    - `/api/coach/get-contents`;
+    - authenticated `/api/subscription/coach-subscriptions` when a local APP user exists.
+  - Matched the mini-program information hierarchy:
+    - top coach intro with avatar, featured badge, title, subscription status, stats, specialties, bio, experience/case/material metrics;
+    - four tabs: `关于教练`, `订阅价格`, `教练专栏`, `学员评价`;
+    - about tab with teaching philosophy, achievements, credentials, case studies, and public materials;
+    - pricing tab with product cards and duration options;
+    - content tab with locked/free state and thumbnail fallback;
+    - reviews tab empty-state behavior;
+    - bottom fixed CTA for `立即订阅 / 查看价格`, matching the mini-program's primary subscription jump.
+  - Implemented basic subscription creation:
+    - selecting a purchasable duration calls `/api/subscription/create-subscription` with `status: inactive`, product metadata, tier, and subscribed weeks;
+    - unauthenticated users are prompted to login;
+    - waiting/active/renewal states are guarded;
+    - missing coach receiving-account state blocks purchase with clear copy;
+    - successful creation offers a jump to `PaymentWaiting`.
+- Remaining coach-profile parity gaps:
+  - Full questionnaire page migration is still missing; the APP does not yet open `/discovery/coach-questionnaire` equivalent.
+  - Full native payment bridge is still missing; `PaymentWaiting` / `PaymentWechat` are still thin APP placeholders and do not yet run Huifu/WeChat native SDK payment.
+  - Coach content detail route is still missing; content rows currently explain locked/unmigrated detail states.
+  - Renewal payment is guarded with a message instead of completing the mini-program renewal flow.
+  - Public material media preview/copy actions are simplified; image/video preview parity still needs APP-native media handling.
+- Verification:
+  - `npm --workspace apps/mobile run typecheck`: passed.
+  - `npx expo export --platform ios --output-dir /tmp/coachlink-mobile-coach-profile-export --clear`: passed.
+  - `npm run typecheck`: passed.
+  - `npm run lint`: passed informational script.
+  - `git diff --check`: passed.
+
+### Follow-up Batch: APP Coach Questionnaire (`2026-06-20`)
+
+- Task: migrate the WeChat mini-program `/discovery/coach-questionnaire` flow into the APP so coach subscription can preserve the prepay questionnaire step.
+- Status: implemented at code/export level; payment SDK handoff remains incomplete.
+- Implemented:
+  - Added `apps/mobile/src/screens/coach/CoachQuestionnaireScreen.tsx`.
+  - Added `CoachQuestionnaire` route params to `apps/mobile/src/navigation/types.ts`.
+  - Registered `CoachQuestionnaire` in `RootNavigator`.
+  - Implemented APP-native questionnaire loading through `/api/coach/get-questionnaires`.
+  - Supports the same question families used by the mini-program:
+    - `tags`;
+    - `times`;
+    - `rm`;
+    - `option` single-select;
+    - `option` multi-select;
+    - `option` with `allowOther`;
+    - text fallback.
+  - Implements answer normalization with existing subscription answers, per-question completion validation, and incomplete-question feedback.
+  - Implements `edit` mode:
+    - available from `CoachProfile` when subscription status is `waiting` or `active`;
+    - submits to `/api/subscription/update-subscription` with `subscribe_data`.
+  - Implements `prepay` mode:
+    - `CoachProfile` now checks `/api/coach/get-questionnaires` before directly creating a subscription;
+    - if questions exist, selecting a product navigates to `CoachQuestionnaire`;
+    - submit creates or updates the inactive subscription with questionnaire answers and product metadata, then offers a jump to `PaymentWaiting`.
+  - Backend compatibility:
+    - `src/app/api/subscription/update-subscription/route.ts` now accepts both NextAuth session and Bearer-token auth via `getAuthUser(req)`, preserving the existing session path while allowing APP token calls.
+- Remaining coach questionnaire / subscription parity gaps:
+  - The APP still does not call native Huifu/WeChat payment SDK after questionnaire submit; it hands off to the existing thin `PaymentWaiting` screen.
+  - The APP does not yet support the mini-program's `autoSubscribe` token/idempotency shortcut path.
+  - The APP question UI is functionally aligned but does not yet support media uploads inside questionnaire questions.
+  - The APP does not yet restore cached questionnaire answers if the user leaves mid-form.
+- Verification:
+  - `npm --workspace apps/mobile run typecheck`: passed.
+  - `npm run typecheck`: passed.
+  - `npx expo export --platform ios --output-dir /tmp/coachlink-mobile-coach-questionnaire-export --clear`: passed.
+  - `npm run lint`: passed informational script.
+  - `git diff --check`: passed.
+
+### Local Android Emulator Keyboard/Clipboard Repair (`2026-06-20`)
+
+- Task: user reported the current Android emulator could not accept physical keyboard letters/numbers and copy/paste was ineffective.
+- Status: repaired local machine configuration; this is not a repository code change.
+- Target AVD: `Pixel_6_API_34`.
+- Changes:
+  - Kept hardware keyboard enabled in `/Users/kirigaya/.android/avd/Pixel_6_API_34.avd/config.ini`, `hardware-qemu.ini`, and `snapshots/default_boot/hardware.ini`.
+  - Changed AVD boot settings to force cold boot and disable snapshot boot/save:
+    - `fastboot.forceColdBoot=yes`;
+    - `fastboot.forceFastBoot=no`;
+    - `firstboot.bootFromDownloadableSnapshot=no`;
+    - `firstboot.bootFromLocalSnapshot=no`;
+    - `firstboot.saveToLocalSnapshot=no`.
+  - Kept host clipboard sharing enabled in `/Users/kirigaya/Library/Preferences/com.android.Emulator.plist` with `set.clipboardSharing=1`.
+  - Set Android `show_ime_with_hard_keyboard=1`.
+  - Selected `com.google.android.inputmethod.latin/com.android.inputmethod.latin.LatinIME`.
+  - Restarted the emulator under detached `screen` session `coachlink_pixel6` with `-no-snapshot -no-snapshot-load -no-snapshot-save`.
+- Verification:
+  - `adb devices -l`: `emulator-5554` is online.
+  - Running process includes `-no-snapshot -no-snapshot-load -no-snapshot-save`.
+  - `adb shell settings get secure default_input_method`: LatinIME.
+  - `adb shell settings get secure show_ime_with_hard_keyboard`: `1`.
+  - `adb shell dumpsys input` shows built-in `qwerty2` keyboard with `KeyboardType: 2`.
+
+### Follow-up Batch: APP Coach Payment Waiting (`2026-06-20`)
+
+- Task: continue migrating the WeChat mini-program coach subscription payment handoff into the APP.
+- Status: implemented at code/export level; real native payment SDK invocation is still not complete.
+- Implemented:
+  - Added a real APP `PaymentWaitingScreen` under `apps/mobile/src/screens/payment/PaymentWaitingScreen.tsx`.
+  - Registered `PaymentWaiting` with typed params for order id, amount, provider, coach/membership target, initial status, and message.
+  - The APP payment waiting page now mirrors the mini-program waiting flow:
+    - shows order amount/order id;
+    - queries `/api/payment/wechat/query` or `/api/payment/alipay/query`;
+    - polls every 5 seconds while pending;
+    - supports manual `我已完成支付`;
+    - handles success/cancelled/failed/no-order states;
+    - routes back to membership, coach profile, or my coaches based on target.
+  - Added `apps/mobile/src/screens/coach/coachPayment.ts` with shared helper logic for coach subscription payment handoff.
+  - `CoachProfileScreen` direct subscribe path now creates/updates the inactive subscription and then best-effort calls `/api/payment/wechat/coach/create`; successful creation passes the real `orderId` and amount into `PaymentWaiting`.
+  - `CoachQuestionnaireScreen` prepay submit path now saves questionnaire/subscription data and then performs the same best-effort coach WeChat payment creation before navigating to `PaymentWaiting`.
+  - Existing pending-payment banner on coach profile now passes the known `order_id`, coach id, amount, provider, and target into `PaymentWaiting` instead of navigating with no context.
+- Remaining payment parity gaps:
+  - APP still does not invoke the native Huifu/WeChat payment SDK using returned `paymentParams`; it only creates/query-polls orders and exposes the waiting/result page.
+  - APP accounts without mini-program `wechat_openid` may fail `/api/payment/wechat/coach/create`; the APP catches that failure and enters `PaymentWaiting` with a clear message rather than silently breaking.
+  - Membership payment handoff still needs the same deeper native treatment.
+- Verification:
+  - `npm --workspace apps/mobile run typecheck`: passed.
+  - `npx expo export --platform ios --output-dir /tmp/coachlink-mobile-payment-waiting-export --clear`: passed.
+  - `npm run typecheck`: passed.
+  - `npm run lint`: passed informational script.
+  - `git diff --check`: passed.
+
+### Follow-up Batch: APP Membership Subscribe Payment (`2026-06-20`)
+
+- Task: replace the APP membership-subscribe placeholder with the WeChat mini-program membership/add-on purchase flow and connect it to the APP payment waiting page.
+- Status: implemented at code/export level; native payment SDK invocation remains incomplete.
+- Implemented:
+  - Updated `MembershipSubscribe` route params to support `tab: membership | addon`.
+  - Replaced the old coupon-list placeholder `MembershipSubscribeScreen` with the mini-program-aligned fixed product model:
+    - `基础会员` `19.9/月`;
+    - `高级会员` `39.9/月`;
+    - `AI 导入加油包` `2.0/3次`;
+    - `存储扩容包` `9.9/1GB`.
+  - Added mini-program-style tab switching between `会员套餐` and `加油包`.
+  - Loads `/api/membership/get-status` and blocks duplicate purchase when the current tier already matches the selected membership tier.
+  - Purchase calls `/api/payment/wechat/membership/create` and navigates to `PaymentWaiting` with `orderId`, amount, provider `wechat`, target `membership`, and membership tab.
+  - If order creation fails, the APP still navigates to the no-order `PaymentWaiting` state with a clear message, matching the current APP limitation around missing `wechat_openid` / native SDK.
+- Remaining membership payment parity gaps:
+  - APP still does not invoke native WeChat/Huifu payment SDK using returned `paymentParams`.
+  - APP status page and purchase history are still simplified compared with the mini-program.
+- Verification:
+  - `npm --workspace apps/mobile run typecheck`: passed.
+  - `npx expo export --platform ios --output-dir /tmp/coachlink-mobile-membership-payment-export --clear`: passed.
+  - `npm run typecheck`: passed.
+  - `npm run lint`: passed informational script.
+  - `git diff --check`: passed.
+
+### Follow-up Batch: APP Cart And Purchase History (`2026-06-20`)
+
+- Task: replace remaining APP placeholders for the mini-program `购物车` and `购买记录` pages.
+- Status: implemented at code/export level; cart checkout still routes back to coach profile instead of a dedicated APP payment-webview bridge.
+- Implemented:
+  - Replaced `CartScreen` placeholder with a real pending-subscription cart screen aligned with `apps/wechat/src/me/cart/index.tsx`:
+    - loads `/api/cart/list`;
+    - shows the same product/coach/duration/price hierarchy;
+    - explains the difference between pending cart items and purchase history;
+    - supports `查看购买记录`;
+    - supports deleting one item through `/api/cart/remove`;
+    - supports clearing all items through `/api/cart/clear`;
+    - shows total pending amount;
+    - routes `立即订阅` to `CoachProfile` for the coach so the user can continue questionnaire/subscription/payment flow in APP.
+  - Replaced `PurchaseHistoryScreen` placeholder with a real paged order-history screen aligned with `apps/wechat/src/me/purchase-history/index.tsx`:
+    - calls `/api/purchase-history/list?page=...&limit=...`;
+    - renders order name, status pill, coach, duration, amount, and created/paid time;
+    - supports `加载更多`;
+    - shows empty state.
+  - Added APP-compatible Bearer-token auth fallback to:
+    - `src/app/api/cart/list/route.ts`;
+    - `src/app/api/cart/remove/route.ts`;
+    - `src/app/api/cart/clear/route.ts`;
+    - `src/app/api/purchase-history/list/route.ts`.
+- Remaining gaps:
+  - The mini-program cart `立即订阅` opened a payment webview entry with product/month params; APP still sends the user to `CoachProfile` to continue the migrated native flow.
+  - Purchase-history detail/refund/deep payment recovery actions are not yet implemented.
+- Verification:
+  - `npm --workspace apps/mobile run typecheck`: passed.
+  - `npx expo export --platform ios --output-dir /tmp/coachlink-mobile-cart-purchase-export --clear`: passed.
+  - `npm run typecheck`: passed.
+  - `npm run lint`: passed informational script.
+  - `git diff --check`: passed.
+
+### Follow-up Batch: APP Membership Home (`2026-06-20`)
+
+- Task: replace the APP membership-status JSON placeholder with the WeChat mini-program `我的会员` page structure and logic.
+- Status: implemented at code/export level.
+- Implemented:
+  - Replaced `MembershipScreen` JSON output with a mini-program-aligned membership dashboard:
+    - current tier card with `免费用户 / 基础会员 / 高级会员 / 试用会员`;
+    - active end-date display;
+    - free-user upgrade panel;
+    - renewal/upgrade entry for paid tiers;
+    - AI import quota card;
+    - cloud storage quota card with progress bar;
+    - add-on purchase entries for AI pack and storage expansion;
+    - referral card with `去邀请` action.
+  - Calls both `/api/membership/get-status` and `/api/membership/get-quota`.
+  - Added APP-friendly API compatibility:
+    - `/api/membership/get-status` now supports both `GET` and `POST`;
+    - `/api/membership/get-quota` now supports both `GET` and `POST`;
+    - `/api/membership/get-quota` now accepts APP Bearer-token auth via `getAuthUser` in addition to Web NextAuth session.
+- Remaining membership gaps:
+  - Referral page is still a generic list placeholder and needs full mini-program parity.
+  - Native payment SDK invocation remains incomplete in membership subscribe/payment waiting.
+- Verification:
+  - `npm --workspace apps/mobile run typecheck`: passed.
+  - `npx expo export --platform ios --output-dir /tmp/coachlink-mobile-membership-home-export --clear`: passed.
+  - `npm run typecheck`: passed.
+  - `npm run lint`: passed informational script.
+  - `git diff --check`: passed.
+
+### Follow-up Batch: APP Membership Referral (`2026-06-20`)
+
+- Task: replace the APP membership referral generic list placeholder with the WeChat mini-program `邀请好友` page.
+- Status: implemented at code/export level.
+- Implemented:
+  - Replaced `MembershipReferralScreen` with a mini-program-aligned invitation page:
+    - loads `/api/membership/referral/create-invite`;
+    - loads `/api/membership/referral/stats`;
+    - shows invitation code in an orange code card;
+    - shows invitation link;
+    - supports copy invite code via `expo-clipboard`;
+    - supports copy invitation link;
+    - supports copy share copy/text;
+    - shows reward rules (`AI 导入次数 +2`, `云存储空间 +200MB`);
+    - shows invitation stats (`已邀请好友`, `累计 AI 次数`, `累计存储`);
+    - supports manual refresh.
+  - Added APP-compatible auth fallback:
+    - `/api/membership/referral/create-invite` now accepts Bearer-token auth via `getAuthUser`;
+    - `/api/membership/referral/stats` now accepts Bearer-token auth via `getAuthUser`;
+    - `/api/membership/referral/stats` now supports both `GET` and `POST`.
+- Remaining referral gaps:
+  - Native share sheet / platform share extension is not yet wired; the APP currently copies share content for manual sharing.
+  - The mini-program timeline/share menu behavior does not map directly to APP and still needs native share integration.
+- Verification:
+  - `npm --workspace apps/mobile run typecheck`: passed.
+  - `npx expo export --platform ios --output-dir /tmp/coachlink-mobile-membership-referral-export --clear`: passed.
+  - `npm run typecheck`: passed.
+  - `npm run lint`: passed informational script.
+  - `git diff --check`: passed.
+
+### Local Android Emulator Keyboard/Clipboard Repair (`2026-06-20`)
+
+- Task: user reported the current Android emulator still could not receive physical keyboard letters/numbers, and copy/paste did not work.
+- Status: local configuration repaired and emulator restarted.
+- Target AVD: `Pixel_6_API_34`.
+- Changes:
+  - Kept AVD hardware keyboard enabled in local AVD files:
+    - `/Users/kirigaya/.android/avd/Pixel_6_API_34.avd/config.ini`;
+    - `/Users/kirigaya/.android/avd/Pixel_6_API_34.avd/hardware-qemu.ini`;
+    - `/Users/kirigaya/.android/avd/Pixel_6_API_34.avd/snapshots/default_boot/hardware.ini`.
+  - Enabled Emulator host preferences in `/Users/kirigaya/Library/Preferences/com.android.Emulator.plist`:
+    - `set.forwardShortcutsToDevice=1`;
+    - `set.enforceKeycodeForwarding=true`;
+    - `perAvd.set.enforceKeycodeForwarding=true`;
+    - `set.clipboardSharing=1`.
+  - Restarted the emulator in `screen` session `coachlink_pixel6` with:
+    - `-use-keycode-forwarding`;
+    - `-no-snapshot -no-snapshot-load -no-snapshot-save`.
+  - Re-applied Android guest settings:
+    - `show_ime_with_hard_keyboard=1`;
+    - default IME `com.google.android.inputmethod.latin/com.android.inputmethod.latin.LatinIME`.
+- Verification:
+  - `adb devices -l`: emulator online.
+  - Boot completed.
+  - Running qemu command contains `-use-keycode-forwarding`.
+  - `dumpsys input` reports `Device 0: qwerty2` and `KeyboardType: 2`.
+- Scope: local machine / AVD / Emulator preference change only; no app source code changed for this fix.
+
+### Follow-up: Android Emulator Host Shortcut/Clipboard Preferences (`2026-06-20`)
+
+- Task: user again reported that letters/numbers and copy/paste were not reaching the current Android emulator.
+- Status: repaired local Emulator host preferences and cold-restarted the AVD.
+- Target AVD: `Pixel_6_API_34`.
+- Root cause refinement:
+  - The AVD hardware keyboard and Android guest input settings were already correct.
+  - The Emulator binary reads QSettings keys in slash form, such as `set/forwardShortcutsToDevice`, while the local plist only had the older dot-form compatibility keys from the previous repair.
+- Fix:
+  - Wrote both slash-form and dot-form keys in `/Users/kirigaya/Library/Preferences/com.android.Emulator.plist`:
+    - `set/forwardShortcutsToDevice=1`;
+    - `set/clipboardSharing=1`;
+    - `set/enforceKeycodeForwarding=1`;
+    - `perAvd/set/enforceKeycodeForwarding=1`;
+    - plus dot-form compatibility keys with the same values.
+  - Reconfirmed AVD config has `hw.keyboard=yes`, `hw.keyboard.lid=yes`, `hw.keyboard.charmap=qwerty2`, and no-snapshot/cold-boot flags.
+  - Restarted `Pixel_6_API_34` under `screen` session `coachlink_pixel6` with `-use-keycode-forwarding -no-snapshot -no-snapshot-load -no-snapshot-save`.
+  - Re-applied Android guest settings: `show_ime_with_hard_keyboard=1` and LatinIME as the default input method.
+- Verification:
+  - ADB device online and `sys.boot_completed=1`.
+  - Running emulator process contains `-use-keycode-forwarding`.
+  - `defaults read com.android.Emulator` shows both slash-form and dot-form keyboard/clipboard keys enabled.
+  - `dumpsys input` shows `Device 0: qwerty2`, `Sources: KEYBOARD | DPAD`, and `KeyboardType: 2`.
+- Scope: local machine / AVD / Emulator preference change only; no repository source code changed for this fix.
+
+### Follow-up Batch: APP Streetlifting Extra Pages (`2026-06-20`)
+
+- Task: continue full WeChat mini-program to native APP migration by filling the remaining streetlifting toolbox pages that were still missing or routed to generic screens.
+- Status: implemented at code/export/build level.
+- Implemented:
+  - Added APP routes and screens for:
+    - `StreetliftingMethodology`;
+    - `StreetliftingStories`;
+    - `StreetliftingSubmit`;
+    - `StreetliftingSubmitSuccess`;
+    - `StreetliftingLocationsMap`;
+    - `StreetliftingLocationDetail`.
+  - `ToolboxScreen` now routes `方法论`, `街健故事`, `提交数据`, and `点位地图` to real APP-native pages instead of recycling `StreetliftingData`.
+  - `StreetliftingSubmitScreen` now provides an independent community-data submission flow:
+    - project/gender/pullup-type selection;
+    - bodyweight, added weight, reps, form quality, penalty, display name, video link fields;
+    - live estimated added 1RM and streetlifting score preview using the shared calculator math;
+    - submit to `/api/streetlifting-index/submissions/create`;
+    - success handoff to `StreetliftingSubmitSuccess`.
+  - `StreetliftingStoriesScreen` loads `/api/streetlifting-index/stories/list`, renders story/event cards, and supports story/event submission through `/api/streetlifting-index/stories/create`.
+  - `StreetliftingLocationsMapScreen` loads `/api/streetlifting-index/locations/map-pins`, summarizes region distribution, lists navigable locations, and opens detail pages.
+  - `StreetliftingLocationDetailScreen` loads `/api/streetlifting-index/locations/get`, renders cover/image fallback, area, address, description, contributor, and opens Apple Maps/system map via deep link when coordinates exist.
+  - `StreetliftingLocationsScreen` now links to the map page and each location card opens its detail page.
+  - `StreetliftingDataScreen` now sends the main `提交数据` action to the independent submit page.
+  - Added APP Bearer-token auth fallback to:
+    - `/api/streetlifting-index/submissions/check-existing`;
+    - `/api/streetlifting-index/submissions/create`.
+- Remaining streetlifting gaps:
+  - Native map clustering is represented by a navigable pin list for now; true in-app map clustering remains a deeper native-map integration task.
+  - Location image upload/edit/share-poster flows are still not fully native.
+  - Calculator result/history subpages are partly represented inside the calculator and data flows, but not yet split into every mini-program subpage.
+- Verification:
+  - `npm --workspace apps/mobile run typecheck`: passed.
+  - `npx expo export --platform ios --output-dir /tmp/coachlink-mobile-streetlifting-extra-export --clear`: passed.
+  - `npm run typecheck`: passed.
+  - `npm run lint`: passed informational script.
+  - `git diff --check`: passed.
+  - `npm test`: passed, 33 files / 163 tests.
+  - `npx next build`: passed.
+
+### Follow-up Batch: APP My Coaches And Chat Chain (`2026-06-20`)
+
+- Task: continue checking and migrating the APP `我的` module by replacing the generic `我的教练` page and making its contact/chat chain usable under APP token auth.
+- Status: implemented at code/export/build/test level.
+- Implemented:
+  - Replaced the APP `MyCoachesScreen` generic data placeholder with a mini-program-aligned coach subscription card page:
+    - subscription status badges and expiring state;
+    - coach avatar/name/title/bio/specialty tags;
+    - content/student/rating metrics from `/api/coach/get-aggregated-info`;
+    - `联系教练`, `查看详情`, `发现更多`, and renew/detail actions.
+  - Fixed APP navigation from `我的教练` to the coach discovery tab by allowing `MainTabs` nested tab params and routing to `{ screen: 'CoachesTab' }`.
+  - Replaced the APP `ChatScreen` JSON preview with a real lightweight message list and send box:
+    - loads `/api/chat/list-messages`;
+    - renders left/right message bubbles;
+    - sends text through `/api/chat/send-message` with the backend's real `roomId/messageType/content` fields.
+  - Added APP Bearer-token compatibility for chat APIs:
+    - `/api/chat/list-chatrooms` now supports `GET` and `POST` and accepts APP Bearer auth;
+    - `/api/chat/list-messages` accepts APP Bearer auth;
+    - `/api/chat/send-message` accepts APP Bearer auth and now checks that the sender belongs to the room.
+  - Kept Web session auth paths intact for the same APIs.
+- Remaining gaps:
+  - The APP chat page is now functional but still lighter than the full Web/mini-program chat: no image/video upload, reply threading UI, unread mark-as-read flow, message search jump, or streaming/coach-AI surfaces.
+  - `我的教练` renewal still routes to coach detail/payment handoff rather than a fully native renewal checkout.
+  - Other generic `我的` subpages remain to be audited and migrated, including friends/activity, ranking, fitness card/e1RM chart, training history, and plan history detail.
+- Verification:
+  - `npm --workspace apps/mobile run typecheck`: passed.
+  - `npx expo export --platform ios --output-dir /tmp/coachlink-mobile-my-coaches-export --clear`: passed.
+  - `npm run typecheck`: passed.
+  - `npm run lint`: passed informational script.
+  - `git diff --check`: passed.
+  - `npm test`: passed, 33 files / 163 tests.
+  - `npx next build`: passed.
+- Manual APP simulator visual verification remains left to the user per durable preference.
+
+### Follow-up: Android Emulator Cmd+V Clipboard Bridge (`2026-06-21`)
+
+- Task: fix the still-failing Android emulator letters/numbers and copy/paste behavior; user will manually verify inside the APP.
+- Status: completed at local AVD/runtime configuration level.
+- Key finding:
+  - `Pixel_6_API_34` already had Android-side hard keyboard input working: `qwerty2`, `KeyboardType: 2`, `show_ime_with_hard_keyboard=1`, and `LatinIME`.
+  - The emulator process already used `-use-keycode-forwarding`.
+  - The likely remaining paste conflict was `forwardShortcutsToDevice=true`: macOS `Cmd+V` was being forwarded into Android instead of being handled by the Emulator host clipboard bridge.
+- Change:
+  - Kept letters/numbers forwarding enabled through `set/enforceKeycodeForwarding=true`, `hw.keyboard=yes`, `hw.keyboard.charmap=qwerty2`, and launch arg `-use-keycode-forwarding`.
+  - Kept host clipboard sharing enabled through `set/clipboardSharing=true`.
+  - Changed `forwardShortcutsToDevice=false` in `~/.android/avd/Pixel_6_API_34.avd/AVD.conf` and `com.android.Emulator` preferences.
+  - Cold-restarted `Pixel_6_API_34` in `screen` session `coachlink_pixel6` with `-no-snapshot -no-snapshot-load -no-snapshot-save -use-keycode-forwarding`.
+- Verification:
+  - `adb -s emulator-5554 emu avd name`: `Pixel_6_API_34`.
+  - `sys.boot_completed=1`.
+  - `show_ime_with_hard_keyboard=1`.
+  - Default IME: `com.google.android.inputmethod.latin/com.android.inputmethod.latin.LatinIME`.
+  - `dumpsys input`: `qwerty2` and `KeyboardType: 2`.
+  - `defaults read com.android.Emulator set/forwardShortcutsToDevice`: `0`.
+  - `defaults read com.android.Emulator set/clipboardSharing`: `1`.
+  - `defaults read com.android.Emulator set/enforceKeycodeForwarding`: `1`.
+  - APP-level visual/input verification is intentionally left to the user.
+
+### Local Android Emulator Keyboard / Clipboard Fix (`2026-06-21`)
+
+- Task: user reported that the current Android emulator could not accept letters/numbers from the computer keyboard and copy/paste had no effect.
+- Status: fixed at local machine configuration level.
+- Root cause found:
+  - Global Emulator preferences and launch flags were already mostly correct, but the AVD-specific file `~/.android/avd/Pixel_6_API_34.avd/AVD.conf` still had `set\enforceKeycodeForwarding=false`.
+  - That AVD-level override can disable keycode forwarding for this emulator even when plist/global settings and launch flags appear enabled.
+- Fix:
+  - Updated `AVD.conf` to enable:
+    - `set\enforceKeycodeForwarding=true`
+    - `set\forwardShortcutsToDevice=true`
+    - `set\clipboardSharing=true`
+  - Confirmed/wrote Emulator global preferences in `/Users/kirigaya/Library/Preferences/com.android.Emulator.plist` for both slash-form and dot-form keys:
+    - `set/clipboardSharing`
+    - `set/forwardShortcutsToDevice`
+    - `set/enforceKeycodeForwarding`
+    - `perAvd/set/enforceKeycodeForwarding`
+  - Cold-restarted `Pixel_6_API_34` with `-no-snapshot -no-snapshot-load -no-snapshot-save -use-keycode-forwarding`.
+  - Reapplied Android input settings:
+    - `show_ime_with_hard_keyboard=1`
+    - default IME `com.google.android.inputmethod.latin/com.android.inputmethod.latin.LatinIME`
+- Verification:
+  - `adb devices -l`: `emulator-5554` online and boot completed.
+  - Emulator process contains `-use-keycode-forwarding`.
+  - `AVD.conf` now has the AVD-specific forwarding/clipboard settings enabled.
+  - `dumpsys input` reports built-in `qwerty2` with `KeyboardType: 2`.
+- Scope:
+  - This is a local machine / Android Emulator configuration fix only; no app source code changed.
+
+### Local Android Emulator Keyboard/Clipboard Fix (`2026-06-21`)
+
+- Task: user reported the current Android emulator could not receive host keyboard letters/numbers and copy/paste did not work.
+- Status: fixed at local machine configuration level.
+- Local AVD: `Pixel_6_API_34`.
+- Changes:
+  - Rewrote AVD hardware keyboard settings in `/Users/kirigaya/.android/avd/Pixel_6_API_34.avd/config.ini`.
+  - Rewrote generated/snapshot hardware keyboard settings in `hardware-qemu.ini` and `snapshots/default_boot/hardware.ini`.
+  - Forced cold boot/no fast boot and disabled snapshot restore/save for this AVD config.
+  - Enabled Emulator host clipboard sharing and keycode forwarding in `/Users/kirigaya/Library/Preferences/com.android.Emulator.plist`, including both slash-form and dot-form QSettings keys.
+  - Cleared stale AVD lock/snapshot marker files and restarted the emulator in detached `screen` session `coachlink_pixel6` with `-use-keycode-forwarding -no-snapshot -no-snapshot-load -no-snapshot-save`.
+  - Wrote Android runtime settings: `show_ime_with_hard_keyboard=1` and selected LatinIME.
+- Verification:
+  - `adb` device online as `emulator-5554`.
+  - `sys.boot_completed=1`.
+  - Emulator process contains `-use-keycode-forwarding`.
+  - `settings get secure show_ime_with_hard_keyboard` returns `1`.
+  - Default input method is `com.google.android.inputmethod.latin/com.android.inputmethod.latin.LatinIME`.
+  - `dumpsys input` shows `Device 0: qwerty2` with `KeyboardType: 2`.
+- Scope:
+  - This is a local emulator configuration fix only; no project source code was changed for this task.
+
+### Follow-up Batch: APP Plan History Detail And Ranking (`2026-06-21`)
+
+- Task: continue the WeChat mini-program to APP migration by replacing remaining generic `我的` placeholders for plan history detail and ranking/challenge flows.
+- Status: implemented at code/export/build/test level.
+- Implemented:
+  - Replaced APP `PlanHistoryDetailScreen` generic list placeholder with a mini-program-aligned plan detail page:
+    - loads `/api/plan-lib/get-instance` by instance id;
+    - renders plan name/description, status, source, start/end dates, training-day count, completion rate, and the same "detailed records on Web" notice as the mini-program;
+    - adds a compact training-day/action overview for APP-native browsing.
+  - Replaced APP `RankingScreen` generic list placeholder with a mini-program-aligned challenge list:
+    - loads `/api/ranking/list-leaderboard` with approved-entry counts;
+    - renders the dark `COACHLINK RANKING` hero, challenge cards, participant counts, CTA row, empty/loading states, and iconfont icons.
+  - Added APP `RankingDetailScreen` and registered `RankingDetail` navigation:
+    - loads `/api/ranking/get-leaderboard` and `/api/ranking/list-entries`;
+    - renders challenge header, activity info/rules, realtime ranking entries, remarks, review status, and an APP-native bottom submission modal;
+    - submission modal supports the mini-program's number/text/video/option schema and submits to `/api/ranking/create-entry`.
+  - Added APP Bearer-token compatibility to `/api/ranking/create-entry`; existing ranking list/detail/entries and plan instance APIs keep Web session auth while accepting APP token auth.
+- Remaining gaps:
+  - Ranking detail is APP-native and functional, but does not yet reproduce the exact mini-program animated/gradient component styling or media preview flow for evidence links.
+  - Remaining clearly generic/lightweight APP `我的` entries include friends, friend activity, messages list, coach application, and the payment webview/wechat placeholder screens.
+- Verification:
+  - `npm --workspace apps/mobile run typecheck`: passed.
+  - `npx expo export --platform ios --output-dir /tmp/coachlink-mobile-plan-ranking-export --clear`: passed.
+  - `npm run typecheck`: passed.
+  - `npm run lint`: passed informational script.
+  - `git diff --check`: passed.
+  - `npm test`: passed, 33 files / 163 tests.
+  - `npx next build`: passed.
+- Manual APP simulator visual verification remains left to the user per durable preference.
+
+### Follow-up Batch: APP Friends, Activity, Messages (`2026-06-21`)
+
+- Task: continue replacing generic APP `我的` placeholders with mini-program-aligned native pages for social and messaging flows.
+- Status: implemented at code/export/build/test level.
+- Implemented:
+  - Replaced `FriendsScreen` generic list placeholder with an APP-native version of the mini-program friends page:
+    - loads accepted friends and pending requests;
+    - supports user search by nickname/search id through `/api/user/search`;
+    - supports sending friend requests, accepting/rejecting incoming requests, and deleting existing friends;
+    - renders search results, segmented `好友列表 / 新请求` tabs, request badges, friend cards, and action buttons using the APP iconfont/style system.
+  - Replaced `FriendActivityScreen` generic list placeholder:
+    - loads `/api/user/friends/activity?limit=20`;
+    - renders friend workout activity cards with avatar/name/time, training content, total volume, duration, day index, and highlight set when available.
+  - Replaced `MessagesScreen` generic list placeholder:
+    - loads `/api/chat/list-chatrooms` and `/api/user/friends/pending`;
+    - renders the mini-program-style friends entry with pending request badge, search input, conversation section header/tag, sorted chatroom rows, last-message preview, relative time, and unread badge;
+    - routes chatroom rows into the existing functional `ChatScreen`.
+  - Updated APP route typing so `Friends` accepts `{ tab?: 'friends' | 'requests' }`, allowing the message center to jump directly to the pending-request tab.
+- Remaining gaps:
+  - Friend profile navigation currently lands on the existing APP `UserHome` route without passing/using a specific friend id; a fully migrated public user-home/profile drill-in remains to be completed.
+  - Message polling/mark-read/search-in-room/media upload remain lighter than the full mini-program chat stack.
+  - Remaining obvious APP placeholders include coach application and payment WebView/WeChat payment handoff screens; `PlanEditScreen` is still text-oriented rather than full plan editor parity.
+- Verification:
+  - `npm --workspace apps/mobile run typecheck`: passed.
+  - `npx expo export --platform ios --output-dir /tmp/coachlink-mobile-friends-messages-export --clear`: passed.
+  - `npm run typecheck`: passed.
+  - `npm run lint`: passed informational script.
+  - `git diff --check`: passed.
+  - `npm test`: passed, 33 files / 163 tests.
+  - `npx next build`: passed.
+- Manual APP simulator visual verification remains left to the user per durable preference.
+
+### Follow-up Batch: APP Fitness Card, e1RM, Training History (`2026-06-20`)
+
+- Task: continue auditing and migrating high-frequency `我的` training-profile pages that were still generic `DataListScreen` placeholders.
+- Status: implemented at code/export/build/test level.
+- Implemented:
+  - Replaced `FitnessCardScreen` with a mini-program-aligned editable fitness profile card:
+    - loads `/api/user/get-student-profile`;
+    - shows avatar/nickname context and field rows for nickname, gender, height, weight, fitness goals, training level, target body parts, weekly frequency, equipment, and session duration;
+    - supports single-value edits, chip selection, and multi-select chips in a bottom modal;
+    - saves profile fields through `/api/user/update-profile`;
+    - saves questionnaire-style fields through `/api/user/submit-onboarding`, preserving the mini-program `registration_unified_v2` answer structure and legacy interest tags for fitness goals.
+  - Replaced `E1RMChartScreen` with an APP-native version of the mini-program strength trend page:
+    - loads student actions from `/api/student/action-lib/list-actions`;
+    - supports horizontal action selection;
+    - loads history from `/api/student/get-e1rm-history` with `actionId/actionName`;
+    - renders current PR, latest value, record count, a compact native bar trend, and PR records.
+  - Replaced `TrainingHistoryScreen` with the mini-program month-calendar/history pattern:
+    - loads `/api/training-history/calendar` and `/api/training-history/month-share`;
+    - renders month navigation, 7-column calendar cells, per-day session counts, monthly stats, and source breakdown;
+    - loads `/api/training-history/day` for selected date;
+    - expands day entries to show per-action completed/total sets;
+    - keeps the `即兴锻炼` entry routed to the APP impromptu-training flow.
+  - Added APP Bearer-token compatibility to:
+    - `/api/training-history/calendar`;
+    - `/api/training-history/day`;
+    - `/api/training-history/month-share`.
+  - Kept Web session auth paths intact for the same APIs.
+- Remaining gaps:
+  - Fitness card avatar upload is displayed but not yet wired to native image picking/upload in this APP page.
+  - e1RM chart uses a native compact bar trend instead of the mini-program canvas line chart; full line-chart parity can be improved later if a charting dependency is adopted.
+  - Training-history share action is currently a placeholder alert; full APP share poster/public training share handoff remains tied to the larger training share migration.
+  - Remaining generic `我的` pages still include friends/activity, ranking, and plan-history detail.
+- Verification:
+  - `npm --workspace apps/mobile run typecheck`: passed.
+  - `npx expo export --platform ios --output-dir /tmp/coachlink-mobile-profile-training-export --clear`: passed.
+  - `npm run typecheck`: passed.
+  - `npm run lint`: passed informational script.
+  - `git diff --check`: passed.
+  - `npm test`: passed, 33 files / 163 tests.
+  - `npx next build`: passed.
+- Manual APP simulator visual verification remains left to the user per durable preference.

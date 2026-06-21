@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
+import { getAuthUser } from "@/lib/auth";
 import supabase from "@/lib/supabaseClient";
 import type { ApiData } from "@/types/api";
 import type {
@@ -11,14 +12,17 @@ import type {
 export async function POST(req: Request) {
     try {
         const session = await getServerSession();
-        if (!session?.user?.id) {
+        const authResult = session?.user?.id
+            ? { isAuthenticated: true, userId: session.user.id }
+            : await getAuthUser(req);
+        if (!authResult.isAuthenticated || !authResult.userId) {
             return NextResponse.json<ApiData<GetTrainingDayHistoryResponseDto>>({
                 success: false,
                 message: "用户未登录",
                 data: null,
             }, { status: 401 });
         }
-        const userId = session.user.id;
+        const userId = authResult.userId;
         const { date } = await req.json() as GetTrainingDayHistoryDto;
         if (!/^\d{4}-\d{2}-\d{2}$/.test(date || "")) {
             return NextResponse.json<ApiData<GetTrainingDayHistoryResponseDto>>({
@@ -130,4 +134,3 @@ export async function POST(req: Request) {
         }, { status: 500 });
     }
 }
-

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import supabase from "@/lib/supabaseClient";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
+import { getAuthUser } from "@/lib/auth";
 import { fenToYuan } from "@/lib/moneyUtils";
 import { ListSubscriptionGetDto, QueryCoachSubscription } from "./entity";
 import { CoachesRow, CoachSubscriptionRow, UserProfilesRow } from "@/types";
@@ -78,8 +79,11 @@ async function embeddingCaochesIntoSubscriptions(
 
 export async function POST(req: Request) {
     const session = await getServerSession();
+    const authResult = session?.user?.id
+        ? { isAuthenticated: true, userId: session.user.id }
+        : await getAuthUser(req);
 
-    if (!session || !session.user?.id) {
+    if (!authResult.isAuthenticated || !authResult.userId) {
         return NextResponse.json({
             success: false,
             message: "Unauthorized",
@@ -87,14 +91,17 @@ export async function POST(req: Request) {
         });
     }
 
+    const body = await req.json().catch(() => ({})) as ListSubscriptionGetDto;
     const {
-        studentId = "",
+        studentId: requestedStudentId = "",
         coachId = "",
         page = 1,
         limit = 10,
         status,
         tier,
-    } = await req.json() as ListSubscriptionGetDto;
+    } = body;
+
+    const studentId = requestedStudentId || (!coachId ? authResult.userId : "");
 
     // 构建基础查询
     let query = supabase

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
+import { getAuthUser } from "@/lib/auth";
 import { serviceRoleSupabase as supabase } from "@/lib/supabaseClient";
 
 import type { ApiData } from "@/types/api";
@@ -10,16 +11,19 @@ export interface ReferralStatsResponseDto {
     rewardedStorageMb: number;
 }
 
-export async function POST() {
+async function handle(request: Request) {
     const session = await getServerSession();
-    if (!session?.user?.id) {
+    const authResult = session?.user?.id
+        ? { isAuthenticated: true, userId: session.user.id }
+        : await getAuthUser(request);
+    if (!authResult.isAuthenticated || !authResult.userId) {
         return NextResponse.json(
             { success: false, message: "用户未登录", data: null },
             { status: 401 },
         );
     }
 
-    const inviterId = session.user.id;
+    const inviterId = authResult.userId;
 
     const { data: rows, error } = await supabase
         .from("referral_rewards")
@@ -51,3 +55,10 @@ export async function POST() {
     });
 }
 
+export async function GET(request: Request) {
+    return handle(request);
+}
+
+export async function POST(request: Request) {
+    return handle(request);
+}

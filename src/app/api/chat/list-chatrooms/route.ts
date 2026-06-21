@@ -1,12 +1,20 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from '@/app/api/auth/[...nextauth]/auth';
+import { getAuthUser } from '@/lib/auth';
 import supabase from '@/lib/supabaseClient';
 import type { ApiData } from '@/types/api';
 import type { GetChatroomsDto, GetChatroomsResponseDto, ChatroomItem } from './entity';
 
-export async function POST(req: Request) {
+async function resolveUserId(req: Request) {
     const session = await getServerSession();
-    if (!session?.user?.id) {
+    if (session?.user?.id) return session.user.id;
+    const authResult = await getAuthUser(req);
+    return authResult.isAuthenticated ? authResult.userId : null;
+}
+
+async function handleListChatrooms(req: Request, body: GetChatroomsDto = {}) {
+    const userId = await resolveUserId(req);
+    if (!userId) {
         return NextResponse.json({
             success: false,
             message: '用户未登录',
@@ -14,9 +22,6 @@ export async function POST(req: Request) {
         }, { status: 401 });
     }
 
-    const userId = session.user.id;
-    let body: GetChatroomsDto = {};
-    try { body = await req.json(); } catch { /* body is empty or invalid, use defaults */ }
     const { page = 1, limit = 20 } = body;
     const offset = (page - 1) * limit;
 
@@ -108,5 +113,19 @@ export async function POST(req: Request) {
             chatRooms: returnChatRooms,
             total: count || 0
         }
+    });
+}
+
+export async function POST(req: Request) {
+    let body: GetChatroomsDto = {};
+    try { body = await req.json(); } catch { /* body is empty or invalid, use defaults */ }
+    return handleListChatrooms(req, body);
+}
+
+export async function GET(req: Request) {
+    const url = new URL(req.url);
+    return handleListChatrooms(req, {
+        page: Number(url.searchParams.get('page') || 1),
+        limit: Number(url.searchParams.get('limit') || 20),
     });
 }

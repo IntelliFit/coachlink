@@ -3,6 +3,7 @@ import { serviceRoleSupabase as supabase } from "@/lib/supabaseClient";
 import { GetInstanceDto, GetInstanceResponseDto } from "./entity";
 import { ApiData } from "@/types/api";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
+import { getAuthUser } from "@/lib/auth";
 import {
     calcIntensityDisplay,
     hasDynamicIntensityTarget,
@@ -35,10 +36,14 @@ export async function POST(req: Request) {
     // Check if user is logged in
     const sessionStart = performance.now();
     const session = await getServerSession();
-    const userId = session?.user?.id || null;
+    const authResult = session?.user?.id
+        ? { isAuthenticated: true, userId: session.user.id, user: session.user }
+        : await getAuthUser(req);
+    const userId = authResult.userId || null;
+    const authUser = authResult.user || null;
     timings["1_auth"] = performance.now() - sessionStart;
 
-    if (!userId) {
+    if (!authResult.isAuthenticated || !userId) {
         return NextResponse.json({
             success: false,
             message: "Unauthorized",
@@ -134,7 +139,7 @@ export async function POST(req: Request) {
     let subscriptionForStudentAccess: any = null;
 
     // 1. 检查是否作为教练有权限（如果用户是教练且该计划属于他创建的）
-    if (session.user.is_coach && instance.coach_id) {
+    if (authUser?.is_coach && instance.coach_id) {
         const coachCheckStart = performance.now();
         const { data: coach } = await supabase
             .from("coaches")

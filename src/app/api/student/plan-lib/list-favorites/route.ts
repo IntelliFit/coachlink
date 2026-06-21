@@ -3,14 +3,18 @@ import { serviceRoleSupabase as supabase } from "@/lib/supabaseClient";
 import type { ListFavoritesDto, ListFavoritesResponseDto } from "./entity";
 import type { ApiData } from "@/types/api";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
+import { getAuthUser } from "@/lib/auth";
 
 export async function POST(req: Request) {
     const { page = 1, limit = 12 } = await req.json() as ListFavoritesDto;
 
     const session = await getServerSession();
-    const userId = session?.user?.id || null;
+    const authResult = session?.user?.id
+        ? { isAuthenticated: true, userId: session.user.id }
+        : await getAuthUser(req);
+    const userId = authResult.userId || null;
 
-    if (!userId) {
+    if (!authResult.isAuthenticated || !userId) {
         return NextResponse.json({
             success: false,
             message: "用户未登录",

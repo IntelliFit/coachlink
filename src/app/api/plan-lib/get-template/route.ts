@@ -3,13 +3,17 @@ import supabase from '@/lib/supabaseClient';
 import { GetTemplateDto, GetTemplateResponseDto } from "./entity";
 import { ApiData } from "@/types/api";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
+import { getAuthUser } from "@/lib/auth";
 
 export async function POST(req: Request) {
     const { id } = await req.json() as GetTemplateDto;
 
     // Check if user is logged in and has coach role
     const session = await getServerSession();
-    const userId = session?.user?.id || null;
+    const authResult = session?.user?.id
+        ? { isAuthenticated: true, userId: session.user.id }
+        : await getAuthUser(req);
+    const userId = authResult.userId || null;
 
     if (!userId) {
         return NextResponse.json({

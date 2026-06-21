@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import supabase from "@/lib/supabaseClient";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
+import { getAuthUser } from "@/lib/auth";
 import { fenToYuan } from "@/lib/moneyUtils";
 import {
     GetStudentsDto,
@@ -190,7 +191,10 @@ async function deriveProjectedEndDate(params: {
 
 export async function POST(req: Request) {
     const session = await getServerSession();
-    if (!session?.user?.id) {
+    const authResult = session?.user?.id
+        ? { isAuthenticated: true, userId: session.user.id }
+        : await getAuthUser(req);
+    if (!authResult.isAuthenticated || !authResult.userId) {
         return NextResponse.json({ success: false, message: "未登录" }, {
             status: 401,
         });
@@ -202,7 +206,7 @@ export async function POST(req: Request) {
     const { data: coachRow } = await supabase
         .from("coaches")
         .select("id")
-        .eq("user_id", session.user.id)
+        .eq("user_id", authResult.userId)
         .maybeSingle();
 
     if (!coachRow?.id) {

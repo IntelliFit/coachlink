@@ -88,6 +88,19 @@ export async function POST(req: Request) {
             }
         }
 
+        let referenceImageUrl: string | null = null;
+        if (action.canonical_action_id) {
+            const { data: canonicalRow, error: canonicalError } = await supabase
+                .from("canonical_actions")
+                .select("id, reference_image_url")
+                .eq("id", action.canonical_action_id)
+                .maybeSingle();
+            if (canonicalError) {
+                console.warn("[public-action-lib] load canonical reference image failed:", canonicalError);
+            }
+            referenceImageUrl = canonicalRow?.reference_image_url ?? null;
+        }
+
         const enriched: PublicActionItemDto = {
             id: action.id,
             contributor_user_id: action.contributor_user_id,
@@ -105,6 +118,7 @@ export async function POST(req: Request) {
             includesBodyWeight:
                 (action.includesBodyWeight as boolean | undefined) ?? null,
             canonical_action_id: action.canonical_action_id ?? null,
+            reference_image_url: referenceImageUrl,
             like_count: Number(action.like_count || 0),
             created_at: action.created_at ?? null,
             updated_at: action.updated_at ?? null,
@@ -126,4 +140,3 @@ export async function POST(req: Request) {
         );
     }
 }
-

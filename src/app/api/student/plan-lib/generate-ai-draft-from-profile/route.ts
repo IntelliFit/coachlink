@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { serviceRoleSupabase as supabase } from "@/lib/supabaseClient";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
+import { getAuthUser } from "@/lib/auth";
 import { callDeepSeek, parseJsonResponse } from "@/lib/deepseek";
 import type { ApiData } from "@/types/api";
 import type { FormPlanTrainingDay } from "@/app/api/plan-lib/create-template/entity";
@@ -193,14 +194,17 @@ function normalizeTrainingDays(
 export async function POST(req: Request) {
     try {
         const session = await getServerSession();
-        if (!session?.user?.id) {
+        const authResult = session?.user?.id
+            ? { isAuthenticated: true, userId: session.user.id }
+            : await getAuthUser(req);
+        if (!authResult.isAuthenticated || !authResult.userId) {
             return NextResponse.json<ApiData<null>>(
                 { success: false, message: "用户未登录", data: null },
                 { status: 401 },
             );
         }
 
-        const userId = session.user.id;
+        const userId = authResult.userId;
         const { days = 7 } = (await req.json().catch(() => ({}))) as GenerateAiDraftFromProfileDto;
         const dayCount = Math.max(3, Math.min(14, Number(days || 7)));
 
@@ -284,5 +288,4 @@ export async function POST(req: Request) {
         );
     }
 }
-
 

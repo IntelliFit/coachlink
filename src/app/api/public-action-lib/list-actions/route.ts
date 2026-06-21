@@ -80,6 +80,9 @@ export async function POST(req: Request) {
         const contributorIds = Array.from(
             new Set(actions.map((a) => a.contributor_user_id).filter(Boolean)),
         );
+        const canonicalIds = Array.from(
+            new Set(actions.map((a) => a.canonical_action_id).filter(Boolean)),
+        );
 
         // 1) isLiked - 仅在用户已登录时查询
         let likedIds = new Set<string>();
@@ -124,6 +127,21 @@ export async function POST(req: Request) {
             }
         }
 
+        // 4) canonical action reference image
+        const canonicalReferenceImageMap = new Map<string, string | null>();
+        if (canonicalIds.length > 0) {
+            const { data: canonicalRows, error: canonicalError } = await supabase
+                .from("canonical_actions")
+                .select("id, reference_image_url")
+                .in("id", canonicalIds);
+            if (canonicalError) {
+                console.warn("[public-action-lib] load canonical reference images failed:", canonicalError);
+            }
+            for (const row of canonicalRows || []) {
+                canonicalReferenceImageMap.set(row.id, row.reference_image_url ?? null);
+            }
+        }
+
         const enriched: PublicActionItemDto[] = actions.map((a) => ({
             id: a.id,
             contributor_user_id: a.contributor_user_id,
@@ -140,6 +158,10 @@ export async function POST(req: Request) {
                 (a.enableAutoWeightCompute as boolean | undefined) ?? null,
             includesBodyWeight: (a.includesBodyWeight as boolean | undefined) ?? null,
             canonical_action_id: a.canonical_action_id ?? null,
+            reference_image_url:
+                a.canonical_action_id
+                    ? canonicalReferenceImageMap.get(a.canonical_action_id) ?? null
+                    : null,
             like_count: Number(a.like_count || 0),
             created_at: a.created_at ?? null,
             updated_at: a.updated_at ?? null,
@@ -166,4 +188,3 @@ export async function POST(req: Request) {
         );
     }
 }
-

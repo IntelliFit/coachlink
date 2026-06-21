@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from '@/app/api/auth/[...nextauth]/auth';
+import { getAuthUser } from '@/lib/auth';
 import supabase from '@/lib/supabaseClient';
 import { serviceRoleSupabase } from '@/lib/supabaseClient';
 import {
@@ -21,7 +22,10 @@ import type {
 
 export async function POST(req: Request) {
     const session = await getServerSession();
-    if (!session?.user?.id) {
+    const authResult = session?.user?.id
+        ? { isAuthenticated: true, userId: session.user.id }
+        : await getAuthUser(req);
+    if (!authResult.isAuthenticated || !authResult.userId) {
         return NextResponse.json({
             success: false,
             message: '用户未登录',
@@ -30,7 +34,7 @@ export async function POST(req: Request) {
     }
 
     // 通过 session 获取用户 ID
-    const userId = session.user.id;
+    const userId = authResult.userId;
 
     const body = await req.json() as CreateCoachApplicationDto;
     const coachTrack = sanitizeCoachTrack(body.coachTrack);

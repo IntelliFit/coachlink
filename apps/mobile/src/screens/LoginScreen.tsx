@@ -1,26 +1,65 @@
-import { useRef, useState } from 'react'
-import { Alert, KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, View } from 'react-native'
-import { LockKeyhole, MessageSquareText } from 'lucide-react-native'
-import { AppButton } from '../components/AppButton'
+import { useEffect, useRef, useState } from 'react'
+import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
+import type { NativeStackScreenProps } from '@react-navigation/native-stack'
+import { apiClient } from '../api'
+import { IconFont } from '../components/IconFont'
+import { AuthInput, AgreementRow, authStyles, ModeSwitcher, PillButton } from '../components/auth/AuthControls'
+import { AuthShell } from '../components/auth/AuthShell'
+import { SliderCaptchaModal } from '../components/auth/SliderCaptchaModal'
 import { useAuth } from '../providers/AuthProvider'
-import { colors, radius, spacing } from '../theme'
+import { colors } from '../theme'
+import type { RootStackParamList } from '../navigation/types'
 
-type LoginMode = 'password' | 'code'
+type LoginMode = 'wechat' | 'password' | 'verifyCode'
+type Props = NativeStackScreenProps<RootStackParamList, 'Login'>
 
-export function LoginScreen() {
-  const { loginWithPassword, loginWithCode } = useAuth()
-  const [mode, setMode] = useState<LoginMode>('password')
+const IS_DEV = process.env.NODE_ENV === 'development'
+
+function isPhone(value: string) {
+  return /^1[3-9]\d{9}$/.test(value.trim())
+}
+
+function isEmail(value: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim())
+}
+
+function isValidPhoneOrEmail(value: string) {
+  return isPhone(value) || isEmail(value)
+}
+
+export function LoginScreen({ navigation }: Props) {
+  const { loginWithPassword, loginWithCode, continueAsGuest, loginAsDevUser } = useAuth()
+  const [mode, setMode] = useState<LoginMode>('wechat')
   const [phoneOrEmail, setPhoneOrEmail] = useState('')
   const [password, setPassword] = useState('')
   const [verifyCode, setVerifyCode] = useState('')
   const [loading, setLoading] = useState(false)
+  const [sendingCode, setSendingCode] = useState(false)
+  const [countdown, setCountdown] = useState(0)
+  const [agreed, setAgreed] = useState(false)
+  const [captchaVisible, setCaptchaVisible] = useState(false)
   const passwordInputRef = useRef<TextInput>(null)
   const codeInputRef = useRef<TextInput>(null)
 
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCountdown((current) => Math.max(0, current - 1))
+    }, 1000)
+    return () => clearInterval(timer)
+  }, [])
+
   const canSubmit = phoneOrEmail.trim().length > 0 && (mode === 'password' ? password.trim().length > 0 : verifyCode.trim().length > 0)
 
+  function requireAgreement() {
+    if (!agreed) {
+      Alert.alert('请先同意协议', '请阅读并勾选用户服务协议和隐私政策')
+      return false
+    }
+    return true
+  }
+
   async function submit() {
-    if (!canSubmit || loading) return
+    if (!requireAgreement() || !canSubmit || loading) return
     setLoading(true)
     try {
       if (mode === 'password') {
@@ -35,172 +74,181 @@ export function LoginScreen() {
     }
   }
 
+  async function sendVerificationCode(captchaToken: string) {
+    const account = phoneOrEmail.trim()
+    setSendingCode(true)
+    try {
+      if (isEmail(account)) {
+        await apiClient.sendEmailCode({ email: account, captchaToken })
+      } else {
+        await apiClient.sendSmsCode({ phoneNumber: account, captchaToken })
+      }
+      setCountdown(60)
+      Alert.alert('验证码已发送', IS_DEV ? '开发环境验证码通常为 123456' : '请查收验证码')
+    } catch (error) {
+      Alert.alert('发送失败', error instanceof Error ? error.message : '请稍后重试')
+    } finally {
+      setSendingCode(false)
+    }
+  }
+
+  function startSendCode() {
+    if (!requireAgreement()) return
+    if (!isValidPhoneOrEmail(phoneOrEmail)) {
+      Alert.alert('格式不正确', '请输入正确的手机号或邮箱')
+      return
+    }
+    setCaptchaVisible(true)
+  }
+
+  function handleWechatPlaceholder() {
+    if (!requireAgreement()) return
+    Alert.alert('手机号快捷登录', 'APP 端微信快捷登录入口已保留，等待微信开放平台能力接入。当前请使用密码登录或验证码登录。')
+  }
+
+  async function handleDevLogin() {
+    try {
+      await loginAsDevUser()
+    } catch (error) {
+      Alert.alert('开发登录失败', error instanceof Error ? error.message : '请稍后重试')
+    }
+  }
+
   return (
-    <KeyboardAvoidingView style={styles.safe} behavior={Platform.select({ ios: 'padding', android: undefined })}>
-      <View style={styles.content}>
-        <View style={styles.brandBlock}>
-          <View style={styles.logo}>
-            <Text style={styles.logoText}>CL</Text>
-          </View>
-          <Text style={styles.title}>CoachLink</Text>
-          <Text style={styles.subtitle}>训练、教练与知识库</Text>
-        </View>
-
-        <View style={styles.form}>
-          <View style={styles.segment}>
-            <Text
-              onPress={() => setMode('password')}
-              style={[styles.segmentItem, mode === 'password' && styles.segmentActive]}
-            >
-              密码
-            </Text>
-            <Text
-              onPress={() => setMode('code')}
-              style={[styles.segmentItem, mode === 'code' && styles.segmentActive]}
-            >
-              验证码
-            </Text>
-          </View>
-
-          <TextInput
-            value={phoneOrEmail}
-            onChangeText={setPhoneOrEmail}
-            autoCapitalize="none"
-            autoCorrect={false}
-            autoComplete="email"
-            inputMode="email"
-            keyboardType="email-address"
-            returnKeyType="next"
-            submitBehavior="submit"
-            onSubmitEditing={() => {
-              if (mode === 'password') {
-                passwordInputRef.current?.focus()
-              } else {
-                codeInputRef.current?.focus()
-              }
-            }}
-            placeholder="手机号或邮箱"
-            placeholderTextColor={colors.textMuted}
-            style={styles.input}
-          />
-          {mode === 'password' ? (
-            <TextInput
-              ref={passwordInputRef}
-              value={password}
-              onChangeText={setPassword}
-              autoCapitalize="none"
-              autoCorrect={false}
-              autoComplete="current-password"
-              textContentType="password"
-              secureTextEntry
-              returnKeyType="done"
-              submitBehavior="submit"
-              onSubmitEditing={submit}
-              placeholder="密码"
-              placeholderTextColor={colors.textMuted}
-              style={styles.input}
-            />
-          ) : (
-            <TextInput
-              ref={codeInputRef}
-              value={verifyCode}
-              onChangeText={setVerifyCode}
-              autoCorrect={false}
-              autoComplete="one-time-code"
-              textContentType="oneTimeCode"
-              inputMode="numeric"
-              keyboardType="number-pad"
-              returnKeyType="done"
-              submitBehavior="submit"
-              onSubmitEditing={submit}
-              placeholder="验证码"
-              placeholderTextColor={colors.textMuted}
-              style={styles.input}
-            />
-          )}
-
-          <AppButton
-            label="登录"
-            onPress={submit}
-            disabled={!canSubmit}
-            loading={loading}
-            icon={mode === 'password' ? <LockKeyhole color={colors.surface} size={18} /> : <MessageSquareText color={colors.surface} size={18} />}
-          />
-        </View>
+    <AuthShell title="教链 CoachLink" slogan="登录以继续你的训练计划" cardTitle="登录">
+      <View style={authStyles.rowActions}>
+        <PillButton label="不登录，先逛逛" variant="soft" onPress={continueAsGuest} />
       </View>
-    </KeyboardAvoidingView>
+
+      <View style={authStyles.form}>
+        <ModeSwitcher
+          value={mode}
+          onChange={(next) => {
+            setMode(next)
+            setPassword('')
+            setVerifyCode('')
+          }}
+          items={[
+            { value: 'wechat', label: '手机号快捷登录' },
+            { value: 'password', label: '密码登录' },
+            { value: 'verifyCode', label: '验证码登录' },
+          ]}
+        />
+
+        <AgreementRow checked={agreed} onToggle={() => setAgreed((value) => !value)} />
+
+        {mode === 'wechat' ? (
+          <View style={styles.wechatPanel}>
+            <PillButton label={loading ? '登录中...' : '手机号一键登录'} disabled={!agreed || loading} loading={loading} onPress={handleWechatPlaceholder} />
+            <Text style={authStyles.hint}>不登录也可以先浏览知识、找教练和公开工具；需要同步训练记录时再登录。</Text>
+          </View>
+        ) : (
+          <>
+            <AuthInput
+              value={phoneOrEmail}
+              onChangeText={setPhoneOrEmail}
+              placeholder="请输入手机号或邮箱"
+              icon={<IconFont name="icon-user" color="#9CA3AF" size={19} />}
+              inputMode="email"
+              keyboardType="email-address"
+              autoComplete="email"
+              returnKeyType="next"
+              onSubmitEditing={() => (mode === 'password' ? passwordInputRef.current?.focus() : codeInputRef.current?.focus())}
+            />
+
+            {mode === 'password' ? (
+              <View style={authStyles.formItem}>
+                <AuthInput
+                  inputRef={passwordInputRef}
+                  value={password}
+                  onChangeText={setPassword}
+                  placeholder="请输入登录密码"
+                  icon={<IconFont name="icon-account-settings-variant" color="#9CA3AF" size={19} />}
+                  secureTextEntry
+                  autoComplete="current-password"
+                  textContentType="password"
+                  returnKeyType="done"
+                  onSubmitEditing={submit}
+                />
+                <View style={authStyles.formExtra}>
+                  <Pressable onPress={() => navigation.navigate('ResetPassword')}>
+                    <Text style={authStyles.link}>忘记密码？</Text>
+                  </Pressable>
+                </View>
+              </View>
+            ) : (
+              <AuthInput
+                inputRef={codeInputRef}
+                value={verifyCode}
+                onChangeText={setVerifyCode}
+                placeholder="6位验证码"
+                icon={<IconFont name="icon-messages" color="#9CA3AF" size={19} />}
+                inputMode="numeric"
+                keyboardType="number-pad"
+                autoComplete="one-time-code"
+                textContentType="oneTimeCode"
+                maxLength={6}
+                returnKeyType="done"
+                onSubmitEditing={submit}
+                right={
+                  <Pressable
+                    disabled={countdown > 0 || sendingCode || !isValidPhoneOrEmail(phoneOrEmail)}
+                    onPress={startSendCode}
+                    style={[styles.sendCode, (countdown > 0 || sendingCode || !isValidPhoneOrEmail(phoneOrEmail)) && styles.sendCodeDisabled]}
+                  >
+                    <Text style={styles.sendCodeText}>{sendingCode ? '发送中...' : countdown > 0 ? `${countdown}s` : '获取验证码'}</Text>
+                  </Pressable>
+                }
+              />
+            )}
+
+            <PillButton label={loading ? '登录中...' : '立即登录'} disabled={!agreed || !canSubmit} loading={loading} onPress={submit} />
+
+            <View style={authStyles.tipRow}>
+              <Text style={authStyles.tipText}>还没有账户？</Text>
+              <Pressable onPress={() => navigation.navigate('Register')}>
+                <Text style={authStyles.tipLink}>立即注册</Text>
+              </Pressable>
+            </View>
+          </>
+        )}
+
+        {IS_DEV ? (
+          <PillButton label="【开发】快速进入初始化引导" onPress={handleDevLogin} />
+        ) : null}
+      </View>
+
+      <SliderCaptchaModal
+        visible={captchaVisible}
+        onCancel={() => setCaptchaVisible(false)}
+        onSuccess={(token) => {
+          setCaptchaVisible(false)
+          void sendVerificationCode(token)
+        }}
+      />
+    </AuthShell>
   )
 }
 
 const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: colors.background,
+  wechatPanel: {
+    marginTop: 8,
+    marginBottom: 16,
   },
-  content: {
-    flex: 1,
-    justifyContent: 'center',
-    padding: spacing.sm,
-    gap: spacing.lg,
-  },
-  brandBlock: {
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  logo: {
-    width: 88,
-    height: 88,
-    borderRadius: radius.lg,
+  sendCode: {
+    minHeight: 40,
+    borderRadius: 999,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: 12,
     backgroundColor: colors.brand,
   },
-  logoText: {
+  sendCodeDisabled: {
+    opacity: 0.5,
+  },
+  sendCodeText: {
     color: colors.surface,
-    fontSize: 30,
-    fontWeight: '900',
-  },
-  title: {
-    color: colors.text,
-    fontSize: 34,
-    fontWeight: '900',
-  },
-  subtitle: {
-    color: colors.textSecondary,
-    fontSize: 15,
-  },
-  form: {
-    gap: spacing.sm,
-  },
-  segment: {
-    flexDirection: 'row',
-    minHeight: 48,
-    padding: 4,
-    borderRadius: radius.md,
-    backgroundColor: colors.surfaceMuted,
-  },
-  segmentItem: {
-    flex: 1,
-    borderRadius: radius.sm,
-    color: colors.textSecondary,
-    fontSize: 15,
+    fontSize: 13,
     fontWeight: '800',
-    textAlign: 'center',
-    textAlignVertical: 'center',
-    paddingVertical: 10,
-  },
-  segmentActive: {
-    color: colors.brand,
-    backgroundColor: colors.surface,
-  },
-  input: {
-    minHeight: 52,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    backgroundColor: colors.surface,
-    color: colors.text,
-    fontSize: 16,
-    paddingHorizontal: spacing.sm,
   },
 })

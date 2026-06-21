@@ -5,6 +5,7 @@ export interface CanonicalAction {
     name: string; // 如 "低杠深蹲"
     aliases: string[]; // 别名数组
     category: string | null; // 分类：下肢、推、拉、核心
+    reference_image_url: string | null; // 标准动作参考图 URL
     created_at: string;
 }
 
@@ -13,4 +14,5 @@ export interface CanonicalActionInsert {
     name: string;
     aliases?: string[];
     category?: string | null;
+    reference_image_url?: string | null;
 }

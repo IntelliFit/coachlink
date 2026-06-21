@@ -3,6 +3,7 @@ import supabase from '@/lib/supabaseClient';
 import { CoachesRow } from '@/types';
 import type { GetContentByIdDto, GetContentByIdResponseDto } from './entity';
 import { getServerSession } from '@/app/api/auth/[...nextauth]/auth';
+import { getAuthUser } from '@/lib/auth';
 import { ApiData } from '@/types/api';
 
 async function getAccessTier(userId: string | null, coach: Partial<CoachesRow> | null) {
@@ -31,7 +32,7 @@ async function getAccessTier(userId: string | null, coach: Partial<CoachesRow> |
 }
 
 export async function POST(req: Request) {
-    const { contentId, viewerId } = await req.json() as GetContentByIdDto;
+    const { contentId } = await req.json() as GetContentByIdDto;
 
     if (!contentId) {
         return NextResponse.json({
@@ -59,8 +60,11 @@ export async function POST(req: Request) {
     }
 
     const session = await getServerSession();
+    const authResult = session?.user?.id
+        ? { isAuthenticated: true, userId: session.user.id }
+        : await getAuthUser(req);
     const accessTier = await getAccessTier(
-        session?.user.id || viewerId || null,
+        authResult.userId || null,
         content.coach
     );
 

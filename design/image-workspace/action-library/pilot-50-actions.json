@@ -1,0 +1,1776 @@
+{
+  "generated_at": "2026-06-20T19:12:09.140Z",
+  "source": {
+    "canonical_actions_count": 383,
+    "community_actions_count": 144,
+    "authority": "Supabase production runtime via scripts/config/bootstrap-env.mjs; canonical_actions is standard action dictionary, community_actions provides public action metadata/muscle positions when linked.",
+    "persona_sheet": "design/image-workspace/outputs/anatomy-model-persona-sheet-v4.png"
+  },
+  "totals": {
+    "standard_actions": 383,
+    "public_actions": 144,
+    "pilot_actions": 50,
+    "pilot_batches": 10
+  },
+  "pilot_selection_rule": "First 50 unique STRENGTH community_actions with target muscle positions, sorted by like_count desc, canonical-linked first, then Chinese name. This favors drawable exercise actions over habit/cardio/diet tasks for the visual pilot.",
+  "pilot_actions": [
+    {
+      "pilot_index": 1,
+      "action_id": "b4fe589e-ba7d-4767-8b76-57eebb9e413e",
+      "canonical_id": "auto_e58c2c40c7ed48bbc5b287f4",
+      "name": "负重臂屈伸",
+      "canonical_name": "负重臂屈伸",
+      "type": "STRENGTH",
+      "category": null,
+      "target_muscles": [
+        "全身"
+      ],
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ],
+      "suggested_time": null,
+      "detail": "目的一：针对胸大肌（增加胸肌厚度）\n核心做法：前倾与张肘。 你需要将上半身主动向前倾斜（约 45 度），下巴微收，双腿可以向后勾起以维持重心前移。下落时，手肘要适度向两侧张开。这种姿态能让胸肌在动作底部获得最大程度的拉伸，从而承载大部分负荷。\n\n目的二：针对肱三头肌（侧重手臂力量与维度）\n核心做法：直立与夹肘。 整个过程躯干要尽可能垂直于地面，眼睛直视前方，不要低头。最关键的是，下落时肘部必须紧贴身体两侧，严禁向外撇。这种姿势强迫肱三头肌在窄路径下完成推起动作，减少胸肌的参与。\n\n目的三：力量举/街铁专项力量（追求极限负重）\n核心做法：核心刚性与肩胛锁死。 当你追求像 150kg 级别那样的推起力量时，身体通常处于微前倾的平衡位。此时重点不在于孤立肌肉，而是全身的刚性——肋骨下沉、核心收紧，且肩胛骨必须全程保持下沉压实，确保力量能高效传导且不伤肩膀。",
+      "like_count": 4,
+      "output_slug": "001-负重臂屈伸",
+      "output_path": "design/image-workspace/action-library/outputs/001-负重臂屈伸-sequence.png"
+    },
+    {
+      "pilot_index": 2,
+      "action_id": "dedc9084-e8e1-4ed4-946d-8ffdc68d5a52",
+      "canonical_id": "auto_137e5cc88fb062bf82c01eba",
+      "name": "负重引体（底部暂停）",
+      "canonical_name": "负重引体（底部暂停）",
+      "type": "STRENGTH",
+      "category": null,
+      "target_muscles": [
+        "手臂",
+        "背部"
+      ],
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ],
+      "suggested_time": null,
+      "detail": "底部停顿1s即可，不用停顿很久。",
+      "like_count": 4,
+      "output_slug": "002-负重引体-底部暂停",
+      "output_path": "design/image-workspace/action-library/outputs/002-负重引体-底部暂停-sequence.png"
+    },
+    {
+      "pilot_index": 3,
+      "action_id": "4502dce8-8ed2-4bb6-af56-1e9107f6344f",
+      "canonical_id": "auto_6dcda68f8429fb6d0765a8c1",
+      "name": "弹力带肩部热身",
+      "canonical_name": "弹力带肩部热身",
+      "type": "STRENGTH",
+      "category": null,
+      "target_muscles": [
+        "肩部"
+      ],
+      "attrs": [
+        "组数",
+        "休息时间",
+        "次数"
+      ],
+      "suggested_time": null,
+      "detail": null,
+      "like_count": 2,
+      "output_slug": "003-弹力带肩部热身",
+      "output_path": "design/image-workspace/action-library/outputs/003-弹力带肩部热身-sequence.png"
+    },
+    {
+      "pilot_index": 4,
+      "action_id": "b362ab79-aa0a-4b89-8329-61f61ef44ae8",
+      "canonical_id": "auto_3f4ab722ee168724eaff2a49",
+      "name": "手腕热身",
+      "canonical_name": "手腕热身",
+      "type": "STRENGTH",
+      "category": null,
+      "target_muscles": [
+        "其他"
+      ],
+      "attrs": [
+        "组数",
+        "休息时间"
+      ],
+      "suggested_time": null,
+      "detail": "尤其是在比较难的动作前  一定要做手腕热身",
+      "like_count": 2,
+      "output_slug": "004-手腕热身",
+      "output_path": "design/image-workspace/action-library/outputs/004-手腕热身-sequence.png"
+    },
+    {
+      "pilot_index": 5,
+      "action_id": "23cfaedc-11ac-4910-b96f-5ca13d2679b4",
+      "canonical_id": "auto_6331ce15650dc5263d7dcdbd",
+      "name": "臂屈伸",
+      "canonical_name": "臂屈伸",
+      "type": "STRENGTH",
+      "category": null,
+      "target_muscles": [
+        "胸部",
+        "手臂"
+      ],
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ],
+      "suggested_time": null,
+      "detail": null,
+      "like_count": 1,
+      "output_slug": "005-臂屈伸",
+      "output_path": "design/image-workspace/action-library/outputs/005-臂屈伸-sequence.png"
+    },
+    {
+      "pilot_index": 6,
+      "action_id": "a2fc5fc5-6542-424f-891d-afc5e9ef0a53",
+      "canonical_id": "auto_4c96ca504fa6e3190376308c",
+      "name": "俄挺",
+      "canonical_name": "俄挺",
+      "type": "STRENGTH",
+      "category": null,
+      "target_muscles": [
+        "肩部",
+        "手臂",
+        "其他"
+      ],
+      "attrs": [
+        "组数",
+        "强度",
+        "休息时间",
+        "持续时间"
+      ],
+      "suggested_time": null,
+      "detail": null,
+      "like_count": 1,
+      "output_slug": "006-俄挺",
+      "output_path": "design/image-workspace/action-library/outputs/006-俄挺-sequence.png"
+    },
+    {
+      "pilot_index": 7,
+      "action_id": "409d48fb-b466-48c2-8788-a3c47f386f86",
+      "canonical_id": "auto_f66707c0677652f7005a1452",
+      "name": "负重臂屈伸-弹力带辅助",
+      "canonical_name": "负重臂屈伸-弹力带辅助",
+      "type": "STRENGTH",
+      "category": null,
+      "target_muscles": [
+        "胸部",
+        "肩部"
+      ],
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ],
+      "suggested_time": null,
+      "detail": "弹力带的作用是让你从底部到锁定这段的阻力  它是逐渐增加的  辅助启动  然后强化锁定",
+      "like_count": 1,
+      "output_slug": "007-负重臂屈伸-弹力带辅助",
+      "output_path": "design/image-workspace/action-library/outputs/007-负重臂屈伸-弹力带辅助-sequence.png"
+    },
+    {
+      "pilot_index": 8,
+      "action_id": "2ec3114d-887b-42cf-996f-65cca03c1886",
+      "canonical_id": "auto_1d2bd780a00aa917757c55b1",
+      "name": "前水平",
+      "canonical_name": "前水平",
+      "type": "STRENGTH",
+      "category": null,
+      "target_muscles": [
+        "肩部",
+        "手臂",
+        "背部"
+      ],
+      "attrs": [
+        "组数",
+        "强度",
+        "休息时间",
+        "持续时间"
+      ],
+      "suggested_time": null,
+      "detail": null,
+      "like_count": 1,
+      "output_slug": "008-前水平",
+      "output_path": "design/image-workspace/action-library/outputs/008-前水平-sequence.png"
+    },
+    {
+      "pilot_index": 9,
+      "action_id": "24e9a180-40cd-4b90-8e43-a7e8ea8cf871",
+      "canonical_id": "auto_dde74120781090dc8994a030",
+      "name": "手肘松解",
+      "canonical_name": "手肘松解",
+      "type": "STRENGTH",
+      "category": null,
+      "target_muscles": [
+        "手臂"
+      ],
+      "attrs": [
+        "组数",
+        "休息时间"
+      ],
+      "suggested_time": null,
+      "detail": null,
+      "like_count": 1,
+      "output_slug": "009-手肘松解",
+      "output_path": "design/image-workspace/action-library/outputs/009-手肘松解-sequence.png"
+    },
+    {
+      "pilot_index": 10,
+      "action_id": "bf60b7d8-6149-480f-be6d-4fbb0795bd04",
+      "canonical_id": "auto_e3d7b528122635980833e9f5",
+      "name": "提膝双力臂",
+      "canonical_name": "提膝双力臂",
+      "type": "STRENGTH",
+      "category": null,
+      "target_muscles": [
+        "背部",
+        "手臂"
+      ],
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ],
+      "suggested_time": null,
+      "detail": "杠上停顿不超过3秒",
+      "like_count": 1,
+      "output_slug": "010-提膝双力臂",
+      "output_path": "design/image-workspace/action-library/outputs/010-提膝双力臂-sequence.png"
+    },
+    {
+      "pilot_index": 11,
+      "action_id": "98af08fa-7292-422c-bfb4-8885ef6cc0cc",
+      "canonical_id": "auto_0b7cbdf0ef2baec0c04b90ed",
+      "name": "团身引体",
+      "canonical_name": "团身引体",
+      "type": "STRENGTH",
+      "category": null,
+      "target_muscles": [
+        "背部"
+      ],
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ],
+      "suggested_time": null,
+      "detail": "含胸和挺胸姿态 一般建议挺胸",
+      "like_count": 1,
+      "output_slug": "011-团身引体",
+      "output_path": "design/image-workspace/action-library/outputs/011-团身引体-sequence.png"
+    },
+    {
+      "pilot_index": 12,
+      "action_id": "c990e905-469d-447f-bc4a-98cd3e764971",
+      "canonical_id": "auto_cd4b2eceaadf1a6d4cc83b0a",
+      "name": "引体向上",
+      "canonical_name": "引体向上",
+      "type": "STRENGTH",
+      "category": null,
+      "target_muscles": [
+        "背部",
+        "手臂"
+      ],
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ],
+      "suggested_time": null,
+      "detail": null,
+      "like_count": 1,
+      "output_slug": "012-引体向上",
+      "output_path": "design/image-workspace/action-library/outputs/012-引体向上-sequence.png"
+    },
+    {
+      "pilot_index": 13,
+      "action_id": "b01da2b5-cc00-4643-81aa-a88b75dcca09",
+      "canonical_id": "auto_673307f6afce6571611e182b",
+      "name": "直体双力臂",
+      "canonical_name": "直体双力臂",
+      "type": "STRENGTH",
+      "category": null,
+      "target_muscles": [
+        "背部",
+        "手臂"
+      ],
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ],
+      "suggested_time": null,
+      "detail": "杠上停顿不超过3秒",
+      "like_count": 1,
+      "output_slug": "013-直体双力臂",
+      "output_path": "design/image-workspace/action-library/outputs/013-直体双力臂-sequence.png"
+    },
+    {
+      "pilot_index": 14,
+      "action_id": "1ef17ee0-4339-41c3-8c24-49220f8278b9",
+      "canonical_id": "auto_ed64da0977cb5206a2113141",
+      "name": "直腿双力臂",
+      "canonical_name": "直腿双力臂",
+      "type": "STRENGTH",
+      "category": null,
+      "target_muscles": [
+        "背部",
+        "手臂"
+      ],
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ],
+      "suggested_time": null,
+      "detail": "杠上停顿不超过3秒",
+      "like_count": 1,
+      "output_slug": "014-直腿双力臂",
+      "output_path": "design/image-workspace/action-library/outputs/014-直腿双力臂-sequence.png"
+    },
+    {
+      "pilot_index": 15,
+      "action_id": "d5c3d794-b65f-49eb-a54f-7fe31ea4b2e1",
+      "canonical_id": "custom_0ee881ce-59ea-4850-86c4-67455780aa09",
+      "name": "吊环澳式引体",
+      "canonical_name": "吊环澳式引体",
+      "type": "STRENGTH",
+      "category": null,
+      "target_muscles": [
+        "背部",
+        "肩部",
+        "手臂"
+      ],
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ],
+      "suggested_time": null,
+      "detail": "底端手臂外旋掌心朝前，底端手臂内旋掌心朝内，胸贴吊环",
+      "like_count": 0,
+      "output_slug": "015-吊环澳式引体",
+      "output_path": "design/image-workspace/action-library/outputs/015-吊环澳式引体-sequence.png"
+    },
+    {
+      "pilot_index": 16,
+      "action_id": "a44fe0b7-6d2d-4f16-bda7-69e9900c0b14",
+      "canonical_id": "custom_ad445e4e-e2dd-454d-8e32-8e15561f6e43",
+      "name": "吊环单手俯卧撑",
+      "canonical_name": "吊环单手俯卧撑",
+      "type": "STRENGTH",
+      "category": null,
+      "target_muscles": [
+        "胸部",
+        "肩部",
+        "手臂"
+      ],
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ],
+      "suggested_time": null,
+      "detail": null,
+      "like_count": 0,
+      "output_slug": "016-吊环单手俯卧撑",
+      "output_path": "design/image-workspace/action-library/outputs/016-吊环单手俯卧撑-sequence.png"
+    },
+    {
+      "pilot_index": 17,
+      "action_id": "dd47b8b3-d888-4f30-a311-34fa1b098a1b",
+      "canonical_id": "auto_57c94fccd110c7326c125d7a",
+      "name": "吊环俯卧撑可加负重",
+      "canonical_name": "吊环俯卧撑",
+      "type": "STRENGTH",
+      "category": null,
+      "target_muscles": [
+        "胸部",
+        "肩部",
+        "手臂"
+      ],
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ],
+      "suggested_time": null,
+      "detail": "推起时手臂外旋掌心向前。放下时手臂对握，胸部要低于吊环底部。",
+      "like_count": 0,
+      "output_slug": "017-吊环俯卧撑可加负重",
+      "output_path": "design/image-workspace/action-library/outputs/017-吊环俯卧撑可加负重-sequence.png"
+    },
+    {
+      "pilot_index": 18,
+      "action_id": "9a42a268-5c63-4377-ae25-7a803de2f3bc",
+      "canonical_id": "custom_6458a464-65f3-48b2-9159-1deef2e8cccc",
+      "name": "吊环靠墙倒立俯卧撑",
+      "canonical_name": "吊环靠墙倒立俯卧撑",
+      "type": "STRENGTH",
+      "category": null,
+      "target_muscles": [
+        "肩部",
+        "手臂",
+        "核心"
+      ],
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ],
+      "suggested_time": null,
+      "detail": null,
+      "like_count": 0,
+      "output_slug": "018-吊环靠墙倒立俯卧撑",
+      "output_path": "design/image-workspace/action-library/outputs/018-吊环靠墙倒立俯卧撑-sequence.png"
+    },
+    {
+      "pilot_index": 19,
+      "action_id": "5a27558f-b29d-4862-842a-efa6298981bf",
+      "canonical_id": "auto_5e85001693bf531631530103",
+      "name": "吊环屈臂撑",
+      "canonical_name": "吊环屈臂撑",
+      "type": "STRENGTH",
+      "category": null,
+      "target_muscles": [
+        "胸部"
+      ],
+      "attrs": [
+        "底端胸口最少低于吊环顶部，顶端手臂外旋手心向前，手臂幅度伸直。"
+      ],
+      "suggested_time": null,
+      "detail": "吊环是做屈臂撑",
+      "like_count": 0,
+      "output_slug": "019-吊环屈臂撑",
+      "output_path": "design/image-workspace/action-library/outputs/019-吊环屈臂撑-sequence.png"
+    },
+    {
+      "pilot_index": 20,
+      "action_id": "99f51e34-ec86-4e2f-baf6-752d937d3504",
+      "canonical_id": "custom_51c6f72a-ccd5-4a90-9e02-7321cd21f201",
+      "name": "吊环团身俯卧撑",
+      "canonical_name": "吊环团身俯卧撑",
+      "type": "STRENGTH",
+      "category": null,
+      "target_muscles": [
+        "胸部",
+        "肩部",
+        "手臂",
+        "核心"
+      ],
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ],
+      "suggested_time": null,
+      "detail": "起始位，手臂外旋伸直掌心向前，双腿弯曲至腹部收紧。下落时手臂弯曲身体保持平衡胸部落于吊环顶部。",
+      "like_count": 0,
+      "output_slug": "020-吊环团身俯卧撑",
+      "output_path": "design/image-workspace/action-library/outputs/020-吊环团身俯卧撑-sequence.png"
+    },
+    {
+      "pilot_index": 21,
+      "action_id": "9fcf7a3f-f2cf-4c6e-8079-9a4b58f96e85",
+      "canonical_id": "custom_f37ed2d3-a436-4bd5-9c66-87f697e9763c",
+      "name": "吊环团身引体",
+      "canonical_name": "吊环团身引体",
+      "type": "STRENGTH",
+      "category": null,
+      "target_muscles": [
+        "胸部",
+        "手臂",
+        "核心",
+        "肩部"
+      ],
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ],
+      "suggested_time": null,
+      "detail": "起始位，手心朝前，手臂伸直。顶端夹肋手臂弯曲，胸部上升吊环底端上方。",
+      "like_count": 0,
+      "output_slug": "021-吊环团身引体",
+      "output_path": "design/image-workspace/action-library/outputs/021-吊环团身引体-sequence.png"
+    },
+    {
+      "pilot_index": 22,
+      "action_id": "ef764e16-1fb3-4a1a-8d7b-d71cf06d354f",
+      "canonical_id": "custom_37009728-3835-45a9-8816-79f07595f196",
+      "name": "吊环引体",
+      "canonical_name": "吊环引体",
+      "type": "STRENGTH",
+      "category": null,
+      "target_muscles": [
+        "手臂",
+        "肩部",
+        "背部",
+        "核心"
+      ],
+      "attrs": [
+        "组数",
+        "次数",
+        "强度",
+        "休息时间"
+      ],
+      "suggested_time": null,
+      "detail": "底端手臂外旋掌心朝前，底端手臂内旋掌心朝内，胸贴吊环",
+      "like_count": 0,
+      "output_slug": "022-吊环引体",
+      "output_path": "design/image-workspace/action-library/outputs/022-吊环引体-sequence.png"
+    },
+    {
+      "pilot_index": 23,
+      "action_id": "adc6def9-f6fc-4342-9c67-fcb9ad31865e",
+      "canonical_id": null,
+      "name": "阿诺德推举",
+      "canonical_name": null,
+      "type": "STRENGTH",
+      "category": null,
+      "target_muscles": [
+        "三角肌前束",
+        "三角肌中束",
+        "肱三头肌"
+      ],
+      "attrs": [
+        "健美",
+        "哑铃",
+        "肩部复合",
+        "增肌"
+      ],
+      "suggested_time": "4组x8-10次",
+      "detail": "推举过程中结合旋转路径，增强肩部全角度刺激。",
+      "like_count": 0,
+      "output_slug": "023-阿诺德推举",
+      "output_path": "design/image-workspace/action-library/outputs/023-阿诺德推举-sequence.png"
+    },
+    {
+      "pilot_index": 24,
+      "action_id": "344bc6d0-e788-43d5-a2d0-194c7bc5942b",
+      "canonical_id": null,
+      "name": "保加利亚分腿蹲",
+      "canonical_name": null,
+      "type": "STRENGTH",
+      "category": null,
+      "target_muscles": [
+        "股四头肌",
+        "臀大肌"
+      ],
+      "attrs": [
+        "进阶",
+        "单侧",
+        "下肢"
+      ],
+      "suggested_time": "4组x8次/侧",
+      "detail": "单腿稳定与力量提升。",
+      "like_count": 0,
+      "output_slug": "024-保加利亚分腿蹲",
+      "output_path": "design/image-workspace/action-library/outputs/024-保加利亚分腿蹲-sequence.png"
+    },
+    {
+      "pilot_index": 25,
+      "action_id": "9db8197b-6d8c-4ca8-b079-62deebf0e65c",
+      "canonical_id": null,
+      "name": "爆发式俯卧撑",
+      "canonical_name": null,
+      "type": "STRENGTH",
+      "category": null,
+      "target_muscles": [
+        "胸大肌",
+        "三头肌",
+        "核心"
+      ],
+      "attrs": [
+        "高阶",
+        "爆发力",
+        "自重"
+      ],
+      "suggested_time": "6组x5次",
+      "detail": "提升上肢爆发力。",
+      "like_count": 0,
+      "output_slug": "025-爆发式俯卧撑",
+      "output_path": "design/image-workspace/action-library/outputs/025-爆发式俯卧撑-sequence.png"
+    },
+    {
+      "pilot_index": 26,
+      "action_id": "3a3cf881-2b04-4f7e-a43d-101c1cd97c8c",
+      "canonical_id": null,
+      "name": "传统硬拉",
+      "canonical_name": null,
+      "type": "STRENGTH",
+      "category": null,
+      "target_muscles": [
+        "臀大肌",
+        "腘绳肌",
+        "背部"
+      ],
+      "attrs": [
+        "进阶",
+        "杠铃",
+        "复合动作"
+      ],
+      "suggested_time": "5组x3次",
+      "detail": "全身后链复合动作。",
+      "like_count": 0,
+      "output_slug": "026-传统硬拉",
+      "output_path": "design/image-workspace/action-library/outputs/026-传统硬拉-sequence.png"
+    },
+    {
+      "pilot_index": 27,
+      "action_id": "768a25b0-587e-4afe-b36d-d132d07c9abb",
+      "canonical_id": null,
+      "name": "锤式弯举",
+      "canonical_name": null,
+      "type": "STRENGTH",
+      "category": null,
+      "target_muscles": [
+        "肱桡肌",
+        "肱肌",
+        "肱二头肌"
+      ],
+      "attrs": [
+        "健美",
+        "哑铃",
+        "手臂训练",
+        "前臂强化"
+      ],
+      "suggested_time": "3组x12次",
+      "detail": "强化肱桡肌与前臂，提升拉类动作的握持能力。",
+      "like_count": 0,
+      "output_slug": "027-锤式弯举",
+      "output_path": "design/image-workspace/action-library/outputs/027-锤式弯举-sequence.png"
+    },
+    {
+      "pilot_index": 28,
+      "action_id": "ea6b5498-d76c-4ffc-8107-0aa9e24cd1b3",
+      "canonical_id": null,
+      "name": "单臂哑铃划船",
+      "canonical_name": null,
+      "type": "STRENGTH",
+      "category": null,
+      "target_muscles": [
+        "背阔肌",
+        "菱形肌",
+        "肱二头肌"
+      ],
+      "attrs": [
+        "健身房",
+        "哑铃",
+        "上肢拉",
+        "单侧训练"
+      ],
+      "suggested_time": "4组x10次/侧",
+      "detail": "单侧背部经典动作，利于修正左右发力不平衡。",
+      "like_count": 0,
+      "output_slug": "028-单臂哑铃划船",
+      "output_path": "design/image-workspace/action-library/outputs/028-单臂哑铃划船-sequence.png"
+    },
+    {
+      "pilot_index": 29,
+      "action_id": "25663426-a112-4096-bd29-e3d0b614987f",
+      "canonical_id": null,
+      "name": "单腿深蹲",
+      "canonical_name": null,
+      "type": "STRENGTH",
+      "category": null,
+      "target_muscles": [
+        "股四头肌",
+        "臀大肌",
+        "核心"
+      ],
+      "attrs": [
+        "高阶",
+        "单侧",
+        "下肢"
+      ],
+      "suggested_time": "5组x5次/侧",
+      "detail": "高难度单腿控制与力量。",
+      "like_count": 0,
+      "output_slug": "029-单腿深蹲",
+      "output_path": "design/image-workspace/action-library/outputs/029-单腿深蹲-sequence.png"
+    },
+    {
+      "pilot_index": 30,
+      "action_id": "9014db02-7d4c-4cec-b199-5722d93dabbf",
+      "canonical_id": null,
+      "name": "弹力带坐姿划船",
+      "canonical_name": null,
+      "type": "STRENGTH",
+      "category": null,
+      "target_muscles": [
+        "背阔肌",
+        "中下斜方肌"
+      ],
+      "attrs": [
+        "新手",
+        "弹力带",
+        "上肢拉"
+      ],
+      "suggested_time": "4组x12次",
+      "detail": "低门槛背部拉力训练。",
+      "like_count": 0,
+      "output_slug": "030-弹力带坐姿划船",
+      "output_path": "design/image-workspace/action-library/outputs/030-弹力带坐姿划船-sequence.png"
+    },
+    {
+      "pilot_index": 31,
+      "action_id": "0bcfbf68-a954-49ea-92c4-795d74738ff5",
+      "canonical_id": null,
+      "name": "地板卧推",
+      "canonical_name": null,
+      "type": "STRENGTH",
+      "category": null,
+      "target_muscles": [
+        "胸大肌",
+        "肱三头肌"
+      ],
+      "attrs": [
+        "力量举",
+        "杠铃",
+        "上肢推",
+        "变式"
+      ],
+      "suggested_time": "4组x6次",
+      "detail": "缩短下放行程，强调中后程发力与肘部控制。适合肩部不适人群作为卧推动作替代。",
+      "like_count": 0,
+      "output_slug": "031-地板卧推",
+      "output_path": "design/image-workspace/action-library/outputs/031-地板卧推-sequence.png"
+    },
+    {
+      "pilot_index": 32,
+      "action_id": "c1ed73fe-7f47-4bbc-8860-807ab74bbd0a",
+      "canonical_id": null,
+      "name": "登山跑慢速版",
+      "canonical_name": null,
+      "type": "STRENGTH",
+      "category": null,
+      "target_muscles": [
+        "核心",
+        "肩部",
+        "下肢"
+      ],
+      "attrs": [
+        "新手",
+        "全身",
+        "自重"
+      ],
+      "suggested_time": "3组x30秒",
+      "detail": "心肺与核心协同的轻量入门。",
+      "like_count": 0,
+      "output_slug": "032-登山跑慢速版",
+      "output_path": "design/image-workspace/action-library/outputs/032-登山跑慢速版-sequence.png"
+    },
+    {
+      "pilot_index": 33,
+      "action_id": "4886d0a8-f165-462f-bf43-d0c359639e44",
+      "canonical_id": null,
+      "name": "低杠深蹲",
+      "canonical_name": null,
+      "type": "STRENGTH",
+      "category": null,
+      "target_muscles": [
+        "股四头肌",
+        "臀大肌",
+        "竖脊肌"
+      ],
+      "attrs": [
+        "力量举",
+        "杠铃",
+        "比赛动作",
+        "下肢复合"
+      ],
+      "suggested_time": "5组x3-5次",
+      "detail": "力量举比赛常见深蹲姿势，杠位更低、髋主导更明显。要点：保持腹压、下蹲路径稳定、起身先推背后推髋。",
+      "like_count": 0,
+      "output_slug": "033-低杠深蹲",
+      "output_path": "design/image-workspace/action-library/outputs/033-低杠深蹲-sequence.png"
+    },
+    {
+      "pilot_index": 34,
+      "action_id": "edace255-fb4e-4e32-9264-cd6ed59da122",
+      "canonical_id": null,
+      "name": "俄挺进阶",
+      "canonical_name": null,
+      "type": "STRENGTH",
+      "category": null,
+      "target_muscles": [
+        "三角肌",
+        "胸肌",
+        "核心"
+      ],
+      "attrs": [
+        "高阶",
+        "体操",
+        "推"
+      ],
+      "suggested_time": "6组x8秒",
+      "detail": "肩前链与核心高强度推撑动作。",
+      "like_count": 0,
+      "output_slug": "034-俄挺进阶",
+      "output_path": "design/image-workspace/action-library/outputs/034-俄挺进阶-sequence.png"
+    },
+    {
+      "pilot_index": 35,
+      "action_id": "cd2e7e2b-6b54-4dad-a6f8-3d97f736063a",
+      "canonical_id": null,
+      "name": "俯身靠墙划船",
+      "canonical_name": null,
+      "type": "STRENGTH",
+      "category": null,
+      "target_muscles": [
+        "背阔肌",
+        "菱形肌",
+        "肱二头"
+      ],
+      "attrs": [
+        "新手",
+        "上肢拉",
+        "自重"
+      ],
+      "suggested_time": "4组x12次",
+      "detail": "新手背部发力启蒙动作。",
+      "like_count": 0,
+      "output_slug": "035-俯身靠墙划船",
+      "output_path": "design/image-workspace/action-library/outputs/035-俯身靠墙划船-sequence.png"
+    },
+    {
+      "pilot_index": 36,
+      "action_id": "b5fca1f0-941b-4bc8-8a93-96b747402689",
+      "canonical_id": null,
+      "name": "俯身哑铃后束飞鸟",
+      "canonical_name": null,
+      "type": "STRENGTH",
+      "category": null,
+      "target_muscles": [
+        "三角肌后束",
+        "菱形肌"
+      ],
+      "attrs": [
+        "健美",
+        "哑铃",
+        "后肩",
+        "姿态改善"
+      ],
+      "suggested_time": "4组x12-15次",
+      "detail": "后束三角肌和肩胛控制训练，改善圆肩体态与肩后链薄弱。",
+      "like_count": 0,
+      "output_slug": "036-俯身哑铃后束飞鸟",
+      "output_path": "design/image-workspace/action-library/outputs/036-俯身哑铃后束飞鸟-sequence.png"
+    },
+    {
+      "pilot_index": 37,
+      "action_id": "ede67756-f5d1-477d-8444-48787e481085",
+      "canonical_id": null,
+      "name": "俯卧腿弯举",
+      "canonical_name": null,
+      "type": "STRENGTH",
+      "category": null,
+      "target_muscles": [
+        "腘绳肌"
+      ],
+      "attrs": [
+        "健身房",
+        "器械",
+        "腿后侧",
+        "增肌"
+      ],
+      "suggested_time": "4组x12-15次",
+      "detail": "腘绳肌孤立训练，控制离心阶段提升肌肉张力。",
+      "like_count": 0,
+      "output_slug": "037-俯卧腿弯举",
+      "output_path": "design/image-workspace/action-library/outputs/037-俯卧腿弯举-sequence.png"
+    },
+    {
+      "pilot_index": 38,
+      "action_id": "39366a5e-9611-4978-9c47-eef632de1716",
+      "canonical_id": null,
+      "name": "负重双杠臂屈伸",
+      "canonical_name": null,
+      "type": "STRENGTH",
+      "category": null,
+      "target_muscles": [
+        "胸大肌",
+        "三头肌",
+        "肩部"
+      ],
+      "attrs": [
+        "高阶",
+        "自重进阶",
+        "推"
+      ],
+      "suggested_time": "6组x3次",
+      "detail": "高阶上肢推力与稳定性训练。",
+      "like_count": 0,
+      "output_slug": "038-负重双杠臂屈伸",
+      "output_path": "design/image-workspace/action-library/outputs/038-负重双杠臂屈伸-sequence.png"
+    },
+    {
+      "pilot_index": 39,
+      "action_id": "7435cbd1-ec34-40dc-a1f2-91bcff89206c",
+      "canonical_id": null,
+      "name": "负重引体向上",
+      "canonical_name": null,
+      "type": "STRENGTH",
+      "category": null,
+      "target_muscles": [
+        "背阔肌",
+        "肱二头",
+        "核心"
+      ],
+      "attrs": [
+        "高阶",
+        "自重进阶",
+        "拉"
+      ],
+      "suggested_time": "6组x3次",
+      "detail": "在标准引体基础上增加外部负重。",
+      "like_count": 0,
+      "output_slug": "039-负重引体向上",
+      "output_path": "design/image-workspace/action-library/outputs/039-负重引体向上-sequence.png"
+    },
+    {
+      "pilot_index": 40,
+      "action_id": "079a3325-c6d0-4f15-b45e-3e867b8ab1ef",
+      "canonical_id": null,
+      "name": "杠铃划船",
+      "canonical_name": null,
+      "type": "STRENGTH",
+      "category": null,
+      "target_muscles": [
+        "背阔肌",
+        "菱形肌",
+        "后束"
+      ],
+      "attrs": [
+        "进阶",
+        "杠铃",
+        "拉"
+      ],
+      "suggested_time": "4组x8次",
+      "detail": "背部厚度与拉力基础。",
+      "like_count": 0,
+      "output_slug": "040-杠铃划船",
+      "output_path": "design/image-workspace/action-library/outputs/040-杠铃划船-sequence.png"
+    },
+    {
+      "pilot_index": 41,
+      "action_id": "cccff707-bbf4-4dde-8c74-666ccd88e8ba",
+      "canonical_id": null,
+      "name": "杠铃深蹲",
+      "canonical_name": null,
+      "type": "STRENGTH",
+      "category": null,
+      "target_muscles": [
+        "股四头肌",
+        "臀大肌",
+        "核心"
+      ],
+      "attrs": [
+        "进阶",
+        "杠铃",
+        "复合动作"
+      ],
+      "suggested_time": "5组x5次",
+      "detail": "经典下肢复合动作，建议从轻重量递进。",
+      "like_count": 0,
+      "output_slug": "041-杠铃深蹲",
+      "output_path": "design/image-workspace/action-library/outputs/041-杠铃深蹲-sequence.png"
+    },
+    {
+      "pilot_index": 42,
+      "action_id": "fbb01321-dd28-44dc-b840-e8fdda2d2554",
+      "canonical_id": null,
+      "name": "杠铃臀推",
+      "canonical_name": null,
+      "type": "STRENGTH",
+      "category": null,
+      "target_muscles": [
+        "臀大肌",
+        "腘绳肌"
+      ],
+      "attrs": [
+        "健身房",
+        "杠铃",
+        "臀腿",
+        "增肌"
+      ],
+      "suggested_time": "4组x8-10次",
+      "detail": "健身房高频臀部训练动作，强调臀伸展峰值收缩。要点：下巴微收、骨盆中立、顶峰停顿1秒。",
+      "like_count": 0,
+      "output_slug": "042-杠铃臀推",
+      "output_path": "design/image-workspace/action-library/outputs/042-杠铃臀推-sequence.png"
+    },
+    {
+      "pilot_index": 43,
+      "action_id": "513df1cd-0034-4af4-9c15-a674ad1b4a6e",
+      "canonical_id": null,
+      "name": "杠铃弯举",
+      "canonical_name": null,
+      "type": "STRENGTH",
+      "category": null,
+      "target_muscles": [
+        "肱二头肌",
+        "肱肌"
+      ],
+      "attrs": [
+        "健美",
+        "杠铃",
+        "手臂孤立",
+        "增肌"
+      ],
+      "suggested_time": "4组x10-12次",
+      "detail": "肱二头肌基础动作，训练时保持上臂相对固定，避免躯干过度后仰。",
+      "like_count": 0,
+      "output_slug": "043-杠铃弯举",
+      "output_path": "design/image-workspace/action-library/outputs/043-杠铃弯举-sequence.png"
+    },
+    {
+      "pilot_index": 44,
+      "action_id": "d466ddfb-f8dc-48fe-b286-a0a779b4c7e9",
+      "canonical_id": null,
+      "name": "高翻",
+      "canonical_name": null,
+      "type": "STRENGTH",
+      "category": null,
+      "target_muscles": [
+        "臀大肌",
+        "股四头肌",
+        "斜方肌"
+      ],
+      "attrs": [
+        "举重",
+        "杠铃",
+        "爆发力",
+        "技术动作"
+      ],
+      "suggested_time": "6组x2次",
+      "detail": "经典举重衍生训练动作，培养髋爆发与接杠速度。",
+      "like_count": 0,
+      "output_slug": "044-高翻",
+      "output_path": "design/image-workspace/action-library/outputs/044-高翻-sequence.png"
+    },
+    {
+      "pilot_index": 45,
+      "action_id": "1e8aabca-cbee-434a-b0f9-e505d086210b",
+      "canonical_id": null,
+      "name": "高杠深蹲",
+      "canonical_name": null,
+      "type": "STRENGTH",
+      "category": null,
+      "target_muscles": [
+        "股四头肌",
+        "臀大肌",
+        "核心"
+      ],
+      "attrs": [
+        "力量举",
+        "杠铃",
+        "下肢复合",
+        "技术基础"
+      ],
+      "suggested_time": "5组x5次",
+      "detail": "更直立的躯干角度，强调股四头肌参与。要点：膝髋同向、全程控制节奏、底部避免塌腰。",
+      "like_count": 0,
+      "output_slug": "045-高杠深蹲",
+      "output_path": "design/image-workspace/action-library/outputs/045-高杠深蹲-sequence.png"
+    },
+    {
+      "pilot_index": 46,
+      "action_id": "03f8daf9-f0d6-4884-850f-8a3660d403bb",
+      "canonical_id": null,
+      "name": "高脚杯深蹲",
+      "canonical_name": null,
+      "type": "STRENGTH",
+      "category": null,
+      "target_muscles": [
+        "股四头肌",
+        "臀大肌",
+        "核心"
+      ],
+      "attrs": [
+        "进阶",
+        "哑铃",
+        "下肢"
+      ],
+      "suggested_time": "4组x10次",
+      "detail": "哑铃前置负重，强化躯干稳定。",
+      "like_count": 0,
+      "output_slug": "046-高脚杯深蹲",
+      "output_path": "design/image-workspace/action-library/outputs/046-高脚杯深蹲-sequence.png"
+    },
+    {
+      "pilot_index": 47,
+      "action_id": "18b3f361-10d4-43f8-a5de-0dce8ae1f224",
+      "canonical_id": null,
+      "name": "高位下拉",
+      "canonical_name": null,
+      "type": "STRENGTH",
+      "category": null,
+      "target_muscles": [
+        "背阔肌",
+        "肱二头"
+      ],
+      "attrs": [
+        "进阶",
+        "器械",
+        "拉"
+      ],
+      "suggested_time": "4组x10次",
+      "detail": "引体向上前的拉力进阶动作。",
+      "like_count": 0,
+      "output_slug": "047-高位下拉",
+      "output_path": "design/image-workspace/action-library/outputs/047-高位下拉-sequence.png"
+    },
+    {
+      "pilot_index": 48,
+      "action_id": "2ddefe1f-4753-4dea-b5f3-2e0eda7633a1",
+      "canonical_id": null,
+      "name": "跪姿俯卧撑",
+      "canonical_name": null,
+      "type": "STRENGTH",
+      "category": null,
+      "target_muscles": [
+        "胸大肌",
+        "三头肌",
+        "前三角"
+      ],
+      "attrs": [
+        "新手",
+        "自重",
+        "上肢推"
+      ],
+      "suggested_time": "4组x8次",
+      "detail": "俯卧撑过渡动作，强化推力基础。",
+      "like_count": 0,
+      "output_slug": "048-跪姿俯卧撑",
+      "output_path": "design/image-workspace/action-library/outputs/048-跪姿俯卧撑-sequence.png"
+    },
+    {
+      "pilot_index": 49,
+      "action_id": "cddd563b-25a2-4ff7-a65a-7c2cf7d9688f",
+      "canonical_id": null,
+      "name": "击掌俯卧撑",
+      "canonical_name": null,
+      "type": "STRENGTH",
+      "category": null,
+      "target_muscles": [
+        "胸大肌",
+        "三头肌",
+        "肩部"
+      ],
+      "attrs": [
+        "高阶",
+        "爆发力",
+        "自重"
+      ],
+      "suggested_time": "5组x4次",
+      "detail": "爆发推力强化。",
+      "like_count": 0,
+      "output_slug": "049-击掌俯卧撑",
+      "output_path": "design/image-workspace/action-library/outputs/049-击掌俯卧撑-sequence.png"
+    },
+    {
+      "pilot_index": 50,
+      "action_id": "1b9e8c28-cdfa-4b47-b6a4-6d40edeac491",
+      "canonical_id": null,
+      "name": "架上拉",
+      "canonical_name": null,
+      "type": "STRENGTH",
+      "category": null,
+      "target_muscles": [
+        "竖脊肌",
+        "斜方肌",
+        "臀大肌"
+      ],
+      "attrs": [
+        "力量举",
+        "杠铃",
+        "后链复合",
+        "锁定强化"
+      ],
+      "suggested_time": "4组x4次",
+      "detail": "从膝下或膝上起拉，重点强化硬拉中后程。适合提高握力与锁定段力量。",
+      "like_count": 0,
+      "output_slug": "050-架上拉",
+      "output_path": "design/image-workspace/action-library/outputs/050-架上拉-sequence.png"
+    }
+  ],
+  "batches": [
+    {
+      "batch_id": "batch-01",
+      "agent_index": 1,
+      "action_range": "1-5",
+      "actions": [
+        {
+          "pilot_index": 1,
+          "name": "负重臂屈伸",
+          "target_muscles": [
+            "全身"
+          ],
+          "output_path": "design/image-workspace/action-library/outputs/001-负重臂屈伸-sequence.png"
+        },
+        {
+          "pilot_index": 2,
+          "name": "负重引体（底部暂停）",
+          "target_muscles": [
+            "手臂",
+            "背部"
+          ],
+          "output_path": "design/image-workspace/action-library/outputs/002-负重引体-底部暂停-sequence.png"
+        },
+        {
+          "pilot_index": 3,
+          "name": "弹力带肩部热身",
+          "target_muscles": [
+            "肩部"
+          ],
+          "output_path": "design/image-workspace/action-library/outputs/003-弹力带肩部热身-sequence.png"
+        },
+        {
+          "pilot_index": 4,
+          "name": "手腕热身",
+          "target_muscles": [
+            "其他"
+          ],
+          "output_path": "design/image-workspace/action-library/outputs/004-手腕热身-sequence.png"
+        },
+        {
+          "pilot_index": 5,
+          "name": "臂屈伸",
+          "target_muscles": [
+            "胸部",
+            "手臂"
+          ],
+          "output_path": "design/image-workspace/action-library/outputs/005-臂屈伸-sequence.png"
+        }
+      ],
+      "spec_path": "design/image-workspace/action-library/batches/batch-01-frame-spec.md"
+    },
+    {
+      "batch_id": "batch-02",
+      "agent_index": 2,
+      "action_range": "6-10",
+      "actions": [
+        {
+          "pilot_index": 6,
+          "name": "俄挺",
+          "target_muscles": [
+            "肩部",
+            "手臂",
+            "其他"
+          ],
+          "output_path": "design/image-workspace/action-library/outputs/006-俄挺-sequence.png"
+        },
+        {
+          "pilot_index": 7,
+          "name": "负重臂屈伸-弹力带辅助",
+          "target_muscles": [
+            "胸部",
+            "肩部"
+          ],
+          "output_path": "design/image-workspace/action-library/outputs/007-负重臂屈伸-弹力带辅助-sequence.png"
+        },
+        {
+          "pilot_index": 8,
+          "name": "前水平",
+          "target_muscles": [
+            "肩部",
+            "手臂",
+            "背部"
+          ],
+          "output_path": "design/image-workspace/action-library/outputs/008-前水平-sequence.png"
+        },
+        {
+          "pilot_index": 9,
+          "name": "手肘松解",
+          "target_muscles": [
+            "手臂"
+          ],
+          "output_path": "design/image-workspace/action-library/outputs/009-手肘松解-sequence.png"
+        },
+        {
+          "pilot_index": 10,
+          "name": "提膝双力臂",
+          "target_muscles": [
+            "背部",
+            "手臂"
+          ],
+          "output_path": "design/image-workspace/action-library/outputs/010-提膝双力臂-sequence.png"
+        }
+      ],
+      "spec_path": "design/image-workspace/action-library/batches/batch-02-frame-spec.md"
+    },
+    {
+      "batch_id": "batch-03",
+      "agent_index": 3,
+      "action_range": "11-15",
+      "actions": [
+        {
+          "pilot_index": 11,
+          "name": "团身引体",
+          "target_muscles": [
+            "背部"
+          ],
+          "output_path": "design/image-workspace/action-library/outputs/011-团身引体-sequence.png"
+        },
+        {
+          "pilot_index": 12,
+          "name": "引体向上",
+          "target_muscles": [
+            "背部",
+            "手臂"
+          ],
+          "output_path": "design/image-workspace/action-library/outputs/012-引体向上-sequence.png"
+        },
+        {
+          "pilot_index": 13,
+          "name": "直体双力臂",
+          "target_muscles": [
+            "背部",
+            "手臂"
+          ],
+          "output_path": "design/image-workspace/action-library/outputs/013-直体双力臂-sequence.png"
+        },
+        {
+          "pilot_index": 14,
+          "name": "直腿双力臂",
+          "target_muscles": [
+            "背部",
+            "手臂"
+          ],
+          "output_path": "design/image-workspace/action-library/outputs/014-直腿双力臂-sequence.png"
+        },
+        {
+          "pilot_index": 15,
+          "name": "吊环澳式引体",
+          "target_muscles": [
+            "背部",
+            "肩部",
+            "手臂"
+          ],
+          "output_path": "design/image-workspace/action-library/outputs/015-吊环澳式引体-sequence.png"
+        }
+      ],
+      "spec_path": "design/image-workspace/action-library/batches/batch-03-frame-spec.md"
+    },
+    {
+      "batch_id": "batch-04",
+      "agent_index": 4,
+      "action_range": "16-20",
+      "actions": [
+        {
+          "pilot_index": 16,
+          "name": "吊环单手俯卧撑",
+          "target_muscles": [
+            "胸部",
+            "肩部",
+            "手臂"
+          ],
+          "output_path": "design/image-workspace/action-library/outputs/016-吊环单手俯卧撑-sequence.png"
+        },
+        {
+          "pilot_index": 17,
+          "name": "吊环俯卧撑可加负重",
+          "target_muscles": [
+            "胸部",
+            "肩部",
+            "手臂"
+          ],
+          "output_path": "design/image-workspace/action-library/outputs/017-吊环俯卧撑可加负重-sequence.png"
+        },
+        {
+          "pilot_index": 18,
+          "name": "吊环靠墙倒立俯卧撑",
+          "target_muscles": [
+            "肩部",
+            "手臂",
+            "核心"
+          ],
+          "output_path": "design/image-workspace/action-library/outputs/018-吊环靠墙倒立俯卧撑-sequence.png"
+        },
+        {
+          "pilot_index": 19,
+          "name": "吊环屈臂撑",
+          "target_muscles": [
+            "胸部"
+          ],
+          "output_path": "design/image-workspace/action-library/outputs/019-吊环屈臂撑-sequence.png"
+        },
+        {
+          "pilot_index": 20,
+          "name": "吊环团身俯卧撑",
+          "target_muscles": [
+            "胸部",
+            "肩部",
+            "手臂",
+            "核心"
+          ],
+          "output_path": "design/image-workspace/action-library/outputs/020-吊环团身俯卧撑-sequence.png"
+        }
+      ],
+      "spec_path": "design/image-workspace/action-library/batches/batch-04-frame-spec.md"
+    },
+    {
+      "batch_id": "batch-05",
+      "agent_index": 5,
+      "action_range": "21-25",
+      "actions": [
+        {
+          "pilot_index": 21,
+          "name": "吊环团身引体",
+          "target_muscles": [
+            "胸部",
+            "手臂",
+            "核心",
+            "肩部"
+          ],
+          "output_path": "design/image-workspace/action-library/outputs/021-吊环团身引体-sequence.png"
+        },
+        {
+          "pilot_index": 22,
+          "name": "吊环引体",
+          "target_muscles": [
+            "手臂",
+            "肩部",
+            "背部",
+            "核心"
+          ],
+          "output_path": "design/image-workspace/action-library/outputs/022-吊环引体-sequence.png"
+        },
+        {
+          "pilot_index": 23,
+          "name": "阿诺德推举",
+          "target_muscles": [
+            "三角肌前束",
+            "三角肌中束",
+            "肱三头肌"
+          ],
+          "output_path": "design/image-workspace/action-library/outputs/023-阿诺德推举-sequence.png"
+        },
+        {
+          "pilot_index": 24,
+          "name": "保加利亚分腿蹲",
+          "target_muscles": [
+            "股四头肌",
+            "臀大肌"
+          ],
+          "output_path": "design/image-workspace/action-library/outputs/024-保加利亚分腿蹲-sequence.png"
+        },
+        {
+          "pilot_index": 25,
+          "name": "爆发式俯卧撑",
+          "target_muscles": [
+            "胸大肌",
+            "三头肌",
+            "核心"
+          ],
+          "output_path": "design/image-workspace/action-library/outputs/025-爆发式俯卧撑-sequence.png"
+        }
+      ],
+      "spec_path": "design/image-workspace/action-library/batches/batch-05-frame-spec.md"
+    },
+    {
+      "batch_id": "batch-06",
+      "agent_index": 6,
+      "action_range": "26-30",
+      "actions": [
+        {
+          "pilot_index": 26,
+          "name": "传统硬拉",
+          "target_muscles": [
+            "臀大肌",
+            "腘绳肌",
+            "背部"
+          ],
+          "output_path": "design/image-workspace/action-library/outputs/026-传统硬拉-sequence.png"
+        },
+        {
+          "pilot_index": 27,
+          "name": "锤式弯举",
+          "target_muscles": [
+            "肱桡肌",
+            "肱肌",
+            "肱二头肌"
+          ],
+          "output_path": "design/image-workspace/action-library/outputs/027-锤式弯举-sequence.png"
+        },
+        {
+          "pilot_index": 28,
+          "name": "单臂哑铃划船",
+          "target_muscles": [
+            "背阔肌",
+            "菱形肌",
+            "肱二头肌"
+          ],
+          "output_path": "design/image-workspace/action-library/outputs/028-单臂哑铃划船-sequence.png"
+        },
+        {
+          "pilot_index": 29,
+          "name": "单腿深蹲",
+          "target_muscles": [
+            "股四头肌",
+            "臀大肌",
+            "核心"
+          ],
+          "output_path": "design/image-workspace/action-library/outputs/029-单腿深蹲-sequence.png"
+        },
+        {
+          "pilot_index": 30,
+          "name": "弹力带坐姿划船",
+          "target_muscles": [
+            "背阔肌",
+            "中下斜方肌"
+          ],
+          "output_path": "design/image-workspace/action-library/outputs/030-弹力带坐姿划船-sequence.png"
+        }
+      ],
+      "spec_path": "design/image-workspace/action-library/batches/batch-06-frame-spec.md"
+    },
+    {
+      "batch_id": "batch-07",
+      "agent_index": 7,
+      "action_range": "31-35",
+      "actions": [
+        {
+          "pilot_index": 31,
+          "name": "地板卧推",
+          "target_muscles": [
+            "胸大肌",
+            "肱三头肌"
+          ],
+          "output_path": "design/image-workspace/action-library/outputs/031-地板卧推-sequence.png"
+        },
+        {
+          "pilot_index": 32,
+          "name": "登山跑慢速版",
+          "target_muscles": [
+            "核心",
+            "肩部",
+            "下肢"
+          ],
+          "output_path": "design/image-workspace/action-library/outputs/032-登山跑慢速版-sequence.png"
+        },
+        {
+          "pilot_index": 33,
+          "name": "低杠深蹲",
+          "target_muscles": [
+            "股四头肌",
+            "臀大肌",
+            "竖脊肌"
+          ],
+          "output_path": "design/image-workspace/action-library/outputs/033-低杠深蹲-sequence.png"
+        },
+        {
+          "pilot_index": 34,
+          "name": "俄挺进阶",
+          "target_muscles": [
+            "三角肌",
+            "胸肌",
+            "核心"
+          ],
+          "output_path": "design/image-workspace/action-library/outputs/034-俄挺进阶-sequence.png"
+        },
+        {
+          "pilot_index": 35,
+          "name": "俯身靠墙划船",
+          "target_muscles": [
+            "背阔肌",
+            "菱形肌",
+            "肱二头"
+          ],
+          "output_path": "design/image-workspace/action-library/outputs/035-俯身靠墙划船-sequence.png"
+        }
+      ],
+      "spec_path": "design/image-workspace/action-library/batches/batch-07-frame-spec.md"
+    },
+    {
+      "batch_id": "batch-08",
+      "agent_index": 8,
+      "action_range": "36-40",
+      "actions": [
+        {
+          "pilot_index": 36,
+          "name": "俯身哑铃后束飞鸟",
+          "target_muscles": [
+            "三角肌后束",
+            "菱形肌"
+          ],
+          "output_path": "design/image-workspace/action-library/outputs/036-俯身哑铃后束飞鸟-sequence.png"
+        },
+        {
+          "pilot_index": 37,
+          "name": "俯卧腿弯举",
+          "target_muscles": [
+            "腘绳肌"
+          ],
+          "output_path": "design/image-workspace/action-library/outputs/037-俯卧腿弯举-sequence.png"
+        },
+        {
+          "pilot_index": 38,
+          "name": "负重双杠臂屈伸",
+          "target_muscles": [
+            "胸大肌",
+            "三头肌",
+            "肩部"
+          ],
+          "output_path": "design/image-workspace/action-library/outputs/038-负重双杠臂屈伸-sequence.png"
+        },
+        {
+          "pilot_index": 39,
+          "name": "负重引体向上",
+          "target_muscles": [
+            "背阔肌",
+            "肱二头",
+            "核心"
+          ],
+          "output_path": "design/image-workspace/action-library/outputs/039-负重引体向上-sequence.png"
+        },
+        {
+          "pilot_index": 40,
+          "name": "杠铃划船",
+          "target_muscles": [
+            "背阔肌",
+            "菱形肌",
+            "后束"
+          ],
+          "output_path": "design/image-workspace/action-library/outputs/040-杠铃划船-sequence.png"
+        }
+      ],
+      "spec_path": "design/image-workspace/action-library/batches/batch-08-frame-spec.md"
+    },
+    {
+      "batch_id": "batch-09",
+      "agent_index": 9,
+      "action_range": "41-45",
+      "actions": [
+        {
+          "pilot_index": 41,
+          "name": "杠铃深蹲",
+          "target_muscles": [
+            "股四头肌",
+            "臀大肌",
+            "核心"
+          ],
+          "output_path": "design/image-workspace/action-library/outputs/041-杠铃深蹲-sequence.png"
+        },
+        {
+          "pilot_index": 42,
+          "name": "杠铃臀推",
+          "target_muscles": [
+            "臀大肌",
+            "腘绳肌"
+          ],
+          "output_path": "design/image-workspace/action-library/outputs/042-杠铃臀推-sequence.png"
+        },
+        {
+          "pilot_index": 43,
+          "name": "杠铃弯举",
+          "target_muscles": [
+            "肱二头肌",
+            "肱肌"
+          ],
+          "output_path": "design/image-workspace/action-library/outputs/043-杠铃弯举-sequence.png"
+        },
+        {
+          "pilot_index": 44,
+          "name": "高翻",
+          "target_muscles": [
+            "臀大肌",
+            "股四头肌",
+            "斜方肌"
+          ],
+          "output_path": "design/image-workspace/action-library/outputs/044-高翻-sequence.png"
+        },
+        {
+          "pilot_index": 45,
+          "name": "高杠深蹲",
+          "target_muscles": [
+            "股四头肌",
+            "臀大肌",
+            "核心"
+          ],
+          "output_path": "design/image-workspace/action-library/outputs/045-高杠深蹲-sequence.png"
+        }
+      ],
+      "spec_path": "design/image-workspace/action-library/batches/batch-09-frame-spec.md"
+    },
+    {
+      "batch_id": "batch-10",
+      "agent_index": 10,
+      "action_range": "46-50",
+      "actions": [
+        {
+          "pilot_index": 46,
+          "name": "高脚杯深蹲",
+          "target_muscles": [
+            "股四头肌",
+            "臀大肌",
+            "核心"
+          ],
+          "output_path": "design/image-workspace/action-library/outputs/046-高脚杯深蹲-sequence.png"
+        },
+        {
+          "pilot_index": 47,
+          "name": "高位下拉",
+          "target_muscles": [
+            "背阔肌",
+            "肱二头"
+          ],
+          "output_path": "design/image-workspace/action-library/outputs/047-高位下拉-sequence.png"
+        },
+        {
+          "pilot_index": 48,
+          "name": "跪姿俯卧撑",
+          "target_muscles": [
+            "胸大肌",
+            "三头肌",
+            "前三角"
+          ],
+          "output_path": "design/image-workspace/action-library/outputs/048-跪姿俯卧撑-sequence.png"
+        },
+        {
+          "pilot_index": 49,
+          "name": "击掌俯卧撑",
+          "target_muscles": [
+            "胸大肌",
+            "三头肌",
+            "肩部"
+          ],
+          "output_path": "design/image-workspace/action-library/outputs/049-击掌俯卧撑-sequence.png"
+        },
+        {
+          "pilot_index": 50,
+          "name": "架上拉",
+          "target_muscles": [
+            "竖脊肌",
+            "斜方肌",
+            "臀大肌"
+          ],
+          "output_path": "design/image-workspace/action-library/outputs/050-架上拉-sequence.png"
+        }
+      ],
+      "spec_path": "design/image-workspace/action-library/batches/batch-10-frame-spec.md"
+    }
+  ]
+}
