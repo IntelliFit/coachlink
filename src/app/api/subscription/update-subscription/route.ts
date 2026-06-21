@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "../../auth/[...nextauth]/auth";
+import { getAuthUser } from "@/lib/auth";
 import supabase from "@/lib/supabaseClient";
 
 // 重要！必须以 import type 引入接口类型
@@ -15,7 +16,10 @@ import { refreshSubscriptionEntitlementSnapshot } from "@/lib/subscriptionEntitl
 
 export async function POST(req: Request) {
     const session = await getServerSession();
-    if (!session?.user?.id) {
+    const authResult = session?.user?.id
+        ? { isAuthenticated: true, userId: session.user.id, user: session.user }
+        : await getAuthUser(req);
+    if (!authResult.isAuthenticated || !authResult.userId) {
         return NextResponse.json({
             success: false,
             message: "用户未登录",
@@ -24,7 +28,8 @@ export async function POST(req: Request) {
     }
 
     // 通过 session 获取用户 ID
-    const userId = session.user.id;
+    const userId = authResult.userId;
+    const authUser = authResult.user || {};
 
     const {
         id,
@@ -56,11 +61,11 @@ export async function POST(req: Request) {
     }
 
     // 验证用户权限（必须是学生、教练或管理员）
-    const isAdmin = session.user.is_admin === true;
+    const isAdmin = authUser.is_admin === true;
 
     // 计算当前用户对应的 coach_id（coaches.id），用于教练权限判断
     let coachIdForSession: string | null = null;
-    if (session.user.is_coach) {
+    if (authUser.is_coach) {
         const { data: coach, error: coachError } = await supabase
             .from("coaches")
             .select("id")

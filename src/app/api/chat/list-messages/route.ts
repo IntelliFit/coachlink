@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
+import { getAuthUser } from "@/lib/auth";
 import type { ApiData } from "@/types/api";
 import type {
     GetMessagesDto,
@@ -12,7 +13,10 @@ const ANCHOR_WINDOW = 25;
 
 export async function POST(req: Request) {
     const session = await getServerSession();
-    if (!session?.user?.id) {
+    const authResult = session?.user?.id
+        ? { isAuthenticated: true, userId: session.user.id }
+        : await getAuthUser(req);
+    if (!authResult.isAuthenticated || !authResult.userId) {
         return NextResponse.json({
             success: false,
             message: "用户未登录",
@@ -20,7 +24,7 @@ export async function POST(req: Request) {
         }, { status: 401 });
     }
 
-    const userId = session.user.id;
+    const userId = authResult.userId;
     const body = await req.json() as GetMessagesDto;
     const { roomId, beforeId, anchorMessageId } = body;
     const limit = Math.min(body.limit ?? 50, 50);

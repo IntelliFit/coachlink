@@ -4,6 +4,7 @@ import { cosRemoveByUrl } from '@/lib/cos';
 import { UpdateActionRequest, UpdateActionResponse } from "./entity";
 import { ApiData } from "@/types/api";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
+import { getAuthUser } from "@/lib/auth";
 
 export async function POST(req: Request) {
     const body: UpdateActionRequest = await req.json();
@@ -11,7 +12,10 @@ export async function POST(req: Request) {
 
     // Check if user is logged in and has coach role
     const session = await getServerSession();
-    const userId = session?.user?.id || null;
+    const authResult = session?.user?.id
+        ? { isAuthenticated: true, userId: session.user.id }
+        : await getAuthUser(req);
+    const userId = authResult.userId || null;
 
     if (!userId) {
         return NextResponse.json({

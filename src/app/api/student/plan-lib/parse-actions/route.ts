@@ -8,6 +8,7 @@ import {
 } from "./entity";
 import { ApiData } from "@/types/api";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
+import { getAuthUser } from "@/lib/auth";
 import { callDeepSeek, parseJsonResponse } from "@/lib/deepseek";
 import {
     findBestExistingActionMatch,
@@ -29,9 +30,12 @@ export async function POST(req: Request) {
 
     // 检查用户登录
     const session = await getServerSession();
-    const userId = session?.user?.id || null;
+    const authResult = session?.user?.id
+        ? { isAuthenticated: true, userId: session.user.id }
+        : await getAuthUser(req);
+    const userId = authResult.userId || null;
 
-    if (!userId) {
+    if (!authResult.isAuthenticated || !userId) {
         return NextResponse.json({
             success: false,
             message: "Unauthorized",
@@ -315,4 +319,3 @@ function normalizeAttrsByType(
         .filter((x) => x && allowedSet.has(x));
     return Array.from(new Set(cleaned));
 }
-

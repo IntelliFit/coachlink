@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from '@/app/api/auth/[...nextauth]/auth';
+import { getAuthUser } from '@/lib/auth';
 import { serviceRoleSupabase } from '@/lib/supabaseClient';
 import { fenToYuan } from '@/lib/moneyUtils';
 import type { ApiData } from '@/types/api';
@@ -30,7 +31,10 @@ export interface PurchaseHistoryResponseDto {
 
 export async function GET(req: Request) {
     const session = await getServerSession();
-    if (!session?.user?.id) {
+    const authResult = session?.user?.id
+        ? { isAuthenticated: true, userId: session.user.id }
+        : await getAuthUser(req);
+    if (!authResult.isAuthenticated || !authResult.userId) {
         return NextResponse.json<ApiData<null>>({
             success: false,
             message: '用户未登录',
@@ -38,7 +42,7 @@ export async function GET(req: Request) {
         }, { status: 401 });
     }
 
-    const userId = session.user.id;
+    const userId = authResult.userId;
     const { searchParams } = new URL(req.url);
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '20');

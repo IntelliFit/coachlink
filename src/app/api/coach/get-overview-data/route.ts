@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
+import { getAuthUser } from "@/lib/auth";
 import supabase from "@/lib/supabaseClient";
 import type { ApiData } from "@/types/api";
 import { buildCoachMonthlyRevenueSummary } from "@/lib/coachRevenueSummary";
@@ -7,13 +8,16 @@ import { GetOverviewDataResponseDto } from "./entity";
 
 export async function POST(req: Request) {
     const session = await getServerSession();
-    if (!session?.user?.id) {
+    const authResult = session?.user?.id
+        ? { isAuthenticated: true, userId: session.user.id }
+        : await getAuthUser(req);
+    if (!authResult.isAuthenticated || !authResult.userId) {
         return NextResponse.json({ success: false, message: "未登录" }, {
             status: 401,
         });
     }
 
-    const userId = session.user.id;
+    const userId = authResult.userId;
 
     // 1. 获取教练基础信息（可添加缓存逻辑）
     const { data: coach, error: coachError } = await supabase

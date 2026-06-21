@@ -4,10 +4,12 @@ import supabase from "@/lib/supabaseClient";
 import { ApiData } from "@/types/api";
 import { StudentMembership } from "@/app/service/studentMembershipService";
 
-export async function POST(request: NextRequest) {
+async function handle(request: NextRequest) {
     const requestUserId = await getApiUserId(request);
 
-    const { userId: bodyUserId } = await request.json().catch(() => ({}));
+    const { userId: bodyUserId } = request.method === "GET"
+        ? { userId: undefined }
+        : await request.json().catch(() => ({}));
     const targetUserId = bodyUserId || requestUserId;
 
     if (!targetUserId) {
@@ -48,4 +50,12 @@ export async function POST(request: NextRequest) {
         message: "获取会员状态成功",
         data: result,
     });
+}
+
+export async function GET(request: NextRequest) {
+    return handle(request);
+}
+
+export async function POST(request: NextRequest) {
+    return handle(request);
 }

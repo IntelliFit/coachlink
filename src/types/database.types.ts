@@ -285,6 +285,7 @@ export type Database = {
           created_at: string | null
           id: string
           name: string
+          reference_image_url: string | null
         }
         Insert: {
           aliases?: string[] | null
@@ -292,6 +293,7 @@ export type Database = {
           created_at?: string | null
           id: string
           name: string
+          reference_image_url?: string | null
         }
         Update: {
           aliases?: string[] | null
@@ -299,6 +301,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           name?: string
+          reference_image_url?: string | null
         }
         Relationships: []
       }

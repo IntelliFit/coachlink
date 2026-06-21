@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 
 import supabase from '@/lib/supabaseClient';
 import { getServerSession } from '@/app/api/auth/[...nextauth]/auth';
+import { getAuthUser } from '@/lib/auth';
 import type { ApiData } from '@/types/api';
 import type { GetExecutionSetVideosDto, GetExecutionSetVideosResponseDto, ExecutionSetVideoWithDetails } from './entity';
 
@@ -12,7 +13,11 @@ import type { GetExecutionSetVideosDto, GetExecutionSetVideosResponseDto, Execut
 export async function POST(req: Request) {
     try {
         const session = await getServerSession();
-        if (!session?.user) {
+        const authResult = session?.user?.id
+            ? { isAuthenticated: true, userId: session.user.id }
+            : await getAuthUser(req);
+
+        if (!authResult?.isAuthenticated || !authResult.userId) {
             return NextResponse.json({ 
                 success: false, 
                 message: '未登录用户' 
@@ -20,7 +25,7 @@ export async function POST(req: Request) {
         }
 
         // 获取教练信息
-        const coachUserId = session.user.id;
+        const coachUserId = authResult.userId;
         const { data: coachRow, error: coachErr } = await supabase
             .from('coaches')
             .select('id, status')
@@ -262,4 +267,3 @@ export async function POST(req: Request) {
         }, { status: 500 });
     }
 }
-

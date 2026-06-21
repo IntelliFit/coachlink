@@ -2,13 +2,17 @@ import { NextResponse } from 'next/server';
 import supabase from '@/lib/supabaseClient';
 import { getServerSession } from '@/app/api/auth/[...nextauth]/auth';
 import type { DeleteContentDto, DeleteContentResponseDto } from './entity';
+import { getAuthUser } from '@/lib/auth';
 
 export async function POST(req: Request) {
     const { id } = await req.json() as DeleteContentDto;
 
     // 获取当前登录用户
     const session = await getServerSession();
-    const userId = session?.user?.id || null;
+    const authResult = session?.user?.id
+        ? { isAuthenticated: true, userId: session.user.id }
+        : await getAuthUser(req);
+    const userId = authResult.userId || null;
 
     if (!userId) {
         return NextResponse.json({
@@ -38,7 +42,14 @@ export async function POST(req: Request) {
         }, { status: 404 });
     }
 
-    if (!session.user.is_coach) {
+    const { data: coach, error: coachError } = await supabase
+        .from('coaches')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('id', existingContent.coach_id)
+        .single();
+
+    if (coachError || !coach) {
         return NextResponse.json({
             success: false,
             message: '无权限删除此内容'

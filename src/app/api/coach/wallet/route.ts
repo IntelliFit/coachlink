@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
+import { getAuthUser } from "@/lib/auth";
 import supabase, { serviceRoleSupabase } from "@/lib/supabaseClient";
 import { ApiData } from "@/types/api";
 import { fenToYuan } from "@/lib/moneyUtils";
@@ -87,7 +88,10 @@ type PendingSettlementRow = {
 
 export async function POST(request: Request) {
     const session = await getServerSession();
-    if (!session?.user?.id) {
+    const authResult = session?.user?.id
+        ? { isAuthenticated: true, userId: session.user.id }
+        : await getAuthUser(request);
+    if (!authResult.isAuthenticated || !authResult.userId) {
         return NextResponse.json({
             success: false,
             message: "用户未登录",
@@ -98,7 +102,7 @@ export async function POST(request: Request) {
     // Get coach ID from user ID
     const { data: coach } = await supabase.from("coaches").select("id, huifu_open_status, huifu_open_msg, huifu_card_token").eq(
         "user_id",
-        session.user.id,
+        authResult.userId,
     ).single();
     if (!coach) {
         return NextResponse.json({

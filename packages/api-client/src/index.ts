@@ -54,6 +54,34 @@ export type SendSmsCodeInput = {
   captchaToken?: string
 }
 
+export type SendEmailCodeInput = {
+  email: string
+  captchaToken?: string
+}
+
+export type ResetPasswordInput = {
+  phone: string
+  verifyCode: string
+  newPassword: string
+}
+
+export type SliderCaptchaChallenge = {
+  id: string
+  trackWidth: number
+  imageUrl: string
+  targetPercent: number
+}
+
+export type VerifySliderCaptchaInput = {
+  id: string
+  percent?: number
+  position?: number
+}
+
+export type VerifySliderCaptchaResult = {
+  token: string
+}
+
 type LoginPayload = {
   user: CoachLinkUser
   token?: string
@@ -154,6 +182,29 @@ export function createCoachLinkApiClient({ baseUrl, adapters }: CoachLinkApiClie
     },
     async sendSmsCode(input: SendSmsCodeInput) {
       return request('/api/sms/send-verification-code', {
+        method: 'POST',
+        body: input,
+      })
+    },
+    async sendEmailCode(input: SendEmailCodeInput) {
+      return request('/api/ses/send-verification-code', {
+        method: 'POST',
+        body: input,
+      })
+    },
+    async resetPassword(input: ResetPasswordInput) {
+      return request('/api/auth/reset-password', {
+        method: 'POST',
+        body: input,
+      })
+    },
+    async createSliderCaptcha() {
+      return request<SliderCaptchaChallenge>('/api/captcha/slider/create', {
+        method: 'POST',
+      })
+    },
+    async verifySliderCaptcha(input: VerifySliderCaptchaInput) {
+      return request<VerifySliderCaptchaResult>('/api/captcha/slider/verify', {
         method: 'POST',
         body: input,
       })

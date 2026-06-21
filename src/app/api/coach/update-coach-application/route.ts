@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
+import { getAuthUser } from "@/lib/auth";
 import supabase from "@/lib/supabaseClient";
 import { serviceRoleSupabase } from "@/lib/supabaseClient";
 
@@ -53,7 +54,10 @@ function buildCoachProfileFromApplication(application: any) {
 
 export async function POST(req: Request) {
     const session = await getServerSession();
-    if (!session?.user?.id) {
+    const authResult = session?.user?.id
+        ? { isAuthenticated: true, userId: session.user.id, user: session.user }
+        : await getAuthUser(req);
+    if (!authResult.isAuthenticated || !authResult.userId) {
         return NextResponse.json({
             success: false,
             message: "用户未登录",
@@ -62,7 +66,7 @@ export async function POST(req: Request) {
     }
 
     // 通过 session 获取用户 ID
-    const userId = session.user.id;
+    const userId = authResult.userId;
     const body = await req.json() as UpdateCoachApplicationDto;
 
     // 首先获取申请记录以检查权限
@@ -91,7 +95,7 @@ export async function POST(req: Request) {
     // 检查权限：
     // 1. 如果是普通用户，只能更新自己的申请，且不能更新状态和审核相关信息
     // 2. 如果是管理员，可以更新任何申请的所有字段
-    const isAdmin = session.user.is_admin;
+    const isAdmin = !!authResult.user?.is_admin;
     const isOwner = existingApplication.user_id === userId;
 
     if (!isAdmin && !isOwner) {

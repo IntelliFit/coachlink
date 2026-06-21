@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from '@/app/api/auth/[...nextauth]/auth';
+import { getAuthUser } from '@/lib/auth';
 import supabase from '@/lib/supabaseClient';
 
 import type { ApiData } from '@/types/api';
@@ -7,7 +8,10 @@ import type { ListEntriesDto, ListEntriesResponseDto, LeaderboardEntryWithProfil
 
 export async function POST(req: Request) {
     const session = await getServerSession();
-    if (!session?.user?.id) {
+    const authResult = session?.user?.id
+        ? { isAuthenticated: true, userId: session.user.id }
+        : await getAuthUser(req);
+    if (!authResult.isAuthenticated || !authResult.userId) {
         return NextResponse.json<ApiData<ListEntriesResponseDto>>({
             success: false,
             message: '用户未登录',

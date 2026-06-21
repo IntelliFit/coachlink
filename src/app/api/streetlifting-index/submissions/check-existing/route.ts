@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "../../../auth/[...nextauth]/auth";
+import { getAuthUser } from "@/lib/auth";
 import { serviceRoleSupabase } from "@/lib/supabaseClient";
 
 import type { ApiData } from "@/types/api";
@@ -8,8 +9,11 @@ import type { StreetliftingCheckExistingResponseDto } from "./entity";
 export async function POST(req: Request) {
     try {
         const session = await getServerSession();
-        const userId = session?.user?.id;
-        if (!userId) {
+        const authResult = session?.user?.id
+            ? { isAuthenticated: true, userId: session.user.id }
+            : await getAuthUser(req);
+        const userId = authResult.userId;
+        if (!authResult.isAuthenticated || !userId) {
             return NextResponse.json<ApiData<StreetliftingCheckExistingResponseDto>>(
                 {
                     success: false,

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
+import { getAuthUser } from "@/lib/auth";
 import { DEFAULT_AUTOMATION_POLICY } from "@/lib/coachingAutomation";
 import { serviceRoleSupabase } from "@/lib/supabaseClient";
 import type {
@@ -14,16 +15,19 @@ const FEEDBACK_MODES = new Set(["off", "draft_notify", "auto_apply_low_risk", "a
 const NEXT_PHASE_MODES = new Set(["off", "draft_notify", "auto_publish_if_credits"]);
 const RISK_MODES = new Set(["strict", "normal"]);
 
-async function getCurrentCoach() {
+async function getCurrentCoach(req: Request) {
   const session = await getServerSession();
-  if (!session?.user?.id) {
+  const authResult = session?.user?.id
+    ? { userId: session.user.id }
+    : await getAuthUser(req);
+  if (!authResult.userId) {
     return { error: NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 }) };
   }
 
   const { data: coach, error } = await (serviceRoleSupabase as any)
     .from("coaches")
     .select("id, user_id")
-    .eq("user_id", session.user.id)
+    .eq("user_id", authResult.userId)
     .maybeSingle();
 
   if (error || !coach?.id) {
@@ -47,8 +51,8 @@ function toPolicyPayload(row: any) {
   };
 }
 
-export async function GET() {
-  const current = await getCurrentCoach();
+export async function GET(req: Request) {
+  const current = await getCurrentCoach(req);
   if (current.error) return current.error;
 
   const { data: row, error } = await (serviceRoleSupabase as any)
@@ -73,7 +77,7 @@ export async function GET() {
 }
 
 export async function PUT(req: Request) {
-  const current = await getCurrentCoach();
+  const current = await getCurrentCoach(req);
   if (current.error) return current.error;
 
   const body = await req.json().catch(() => ({}));

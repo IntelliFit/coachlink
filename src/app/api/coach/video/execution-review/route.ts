@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 
 import supabase from '@/lib/supabaseClient';
 import { getServerSession } from '@/app/api/auth/[...nextauth]/auth';
+import { getAuthUser } from '@/lib/auth';
 import type { ApiData } from '@/types/api';
 import type { ReviewExecutionVideoDto, ReviewExecutionVideoResponseDto } from './entity';
 
@@ -11,14 +12,18 @@ import type { ReviewExecutionVideoDto, ReviewExecutionVideoResponseDto } from '.
  */
 export async function POST(req: Request) {
     const session = await getServerSession();
-    if (!session?.user) {
+    const authResult = session?.user?.id
+        ? { isAuthenticated: true, userId: session.user.id }
+        : await getAuthUser(req);
+
+    if (!authResult?.isAuthenticated || !authResult.userId) {
         return NextResponse.json({ 
             success: false, 
             message: '未登录用户' 
         }, { status: 401 });
     }
 
-    const coachUserId = session.user.id;
+    const coachUserId = authResult.userId;
 
     // 获取教练信息
     const { data: coachRow, error: coachErr } = await supabase
@@ -85,4 +90,3 @@ export async function POST(req: Request) {
         data: updatedVideo
     });
 }
-

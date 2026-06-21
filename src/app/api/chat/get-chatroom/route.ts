@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from '@/app/api/auth/[...nextauth]/auth';
+import { getAuthUser } from '@/lib/auth';
 import type { ApiData } from '@/types/api';
 import type { GetChatroomDto, ChatroomDetail, GetChatroomResponseDto } from './entity';
 import supabase from '@/lib/supabaseClient';
@@ -7,14 +8,17 @@ import supabase from '@/lib/supabaseClient';
 // 修改后的逻辑只接收 members 参数，查找包含所有成员的会话
 export async function POST(req: Request) {
     const session = await getServerSession();
-    if (!session?.user?.id) {
+    const authResult = session?.user?.id
+        ? { isAuthenticated: true, userId: session.user.id }
+        : await getAuthUser(req);
+    if (!authResult.isAuthenticated || !authResult.userId) {
         return NextResponse.json({
             success: false,
             message: '用户未登录',
             data: null
         }, { status: 401 });
     }
-    const userId = session.user.id;
+    const userId = authResult.userId;
     const { members, roomId } = await req.json() as GetChatroomDto;
 
     if (roomId && typeof roomId === 'string') {

@@ -69,3 +69,25 @@ export const apiClient = createCoachLinkApiClient({
 export async function hasStoredToken(): Promise<boolean> {
   return Boolean(await AsyncStorage.getItem(ACCESS_TOKEN_KEY))
 }
+
+export async function getStoredToken(): Promise<string | null> {
+  return AsyncStorage.getItem(ACCESS_TOKEN_KEY)
+}
+
+export async function getStoredUser(): Promise<AuthSession['user'] | null> {
+  const raw = await AsyncStorage.getItem(USER_KEY)
+  if (!raw) return null
+  try {
+    return JSON.parse(raw) as AuthSession['user']
+  } catch {
+    return null
+  }
+}
+
+export async function persistSession(session: AuthSession): Promise<void> {
+  await AsyncStorage.multiSet([
+    [ACCESS_TOKEN_KEY, session.token],
+    [USER_KEY, JSON.stringify(session.user)],
+    [USER_ID_KEY, session.user.id],
+  ])
+}

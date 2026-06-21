@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from '@/app/api/auth/[...nextauth]/auth';
+import { getAuthUser } from '@/lib/auth';
 import supabase from '@/lib/supabaseClient';
 import { maybeCreateCoachAiAutoReply } from '@/lib/coachAiAutoReply';
 import type { ApiData } from '@/types/api';
@@ -21,7 +22,10 @@ function buildReplyPreview(messageType: string, content: string | null, mediaUrl
 
 export async function POST(req: Request) {
     const session = await getServerSession();
-    if (!session?.user?.id) {
+    const authResult = session?.user?.id
+        ? { isAuthenticated: true, userId: session.user.id }
+        : await getAuthUser(req);
+    if (!authResult.isAuthenticated || !authResult.userId) {
         return NextResponse.json(
             {
                 success: false,
@@ -32,7 +36,7 @@ export async function POST(req: Request) {
         );
     }
 
-    const userId = session.user.id;
+    const userId = authResult.userId;
     const {
         roomId,
         messageType,
@@ -104,6 +108,17 @@ export async function POST(req: Request) {
                 data: null,
             },
             { status: 500 },
+        );
+    }
+
+    if (!((chatRoom.members as string[]) || []).includes(userId)) {
+        return NextResponse.json(
+            {
+                success: false,
+                message: '无权限',
+                data: null,
+            },
+            { status: 403 },
         );
     }
 

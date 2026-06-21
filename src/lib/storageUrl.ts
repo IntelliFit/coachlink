@@ -22,6 +22,7 @@ export type LogicalBucket =
   | "videos"
   | "avatars"
   | "chat-images"
+  | "action-reference-images"
   | "coach-posters"
   | "knowledge-assets"
   | "streetlifting-locations"
@@ -43,6 +44,7 @@ export const BUCKET_MAP: Record<LogicalBucket, BucketConfig> = {
   videos: { cosBucket: bucket("videos"), prefix: "", cdnBase: env("COS_CDN_VIDEOS"), isPrivate: false },
   avatars: { cosBucket: bucket("user-avatars"), prefix: "", cdnBase: env("COS_CDN_AVATARS"), isPrivate: false },
   "chat-images": { cosBucket: bucket("chat-images"), prefix: "", cdnBase: env("COS_CDN_CHAT_IMAGES"), isPrivate: false },
+  "action-reference-images": { cosBucket: bucket("assets"), prefix: "action-reference-images/", cdnBase: env("COS_CDN_ASSETS"), isPrivate: false },
   "coach-posters": { cosBucket: bucket("assets"), prefix: "coach-posters/", cdnBase: env("COS_CDN_ASSETS"), isPrivate: false },
   "knowledge-assets": { cosBucket: bucket("assets"), prefix: "knowledge-assets/", cdnBase: env("COS_CDN_ASSETS"), isPrivate: false },
   "streetlifting-locations": { cosBucket: bucket("assets"), prefix: "streetlifting-locations/", cdnBase: env("COS_CDN_ASSETS"), isPrivate: false },

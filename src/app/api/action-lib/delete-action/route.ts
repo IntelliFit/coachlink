@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import supabase from '@/lib/supabaseClient';
 import { cosRemoveByUrl } from '@/lib/cos';
 import { getServerSession } from '@/app/api/auth/[...nextauth]/auth';
+import { getAuthUser } from "@/lib/auth";
 import type { DeleteActionDto, DeleteActionResponseDto } from "./entity";
 import type { ApiData } from "@/types/api";
 import { countActionRefs, removeActionRefs } from "@/lib/actionRefs";
@@ -20,7 +21,10 @@ export async function POST(req: NextRequest) {
 
     // 检查用户登录状态和教练角色
     const session = await getServerSession();
-    const userId = session?.user?.id || null;
+    const authResult = session?.user?.id
+        ? { isAuthenticated: true, userId: session.user.id }
+        : await getAuthUser(req);
+    const userId = authResult.userId || null;
 
     if (!userId) {
         return NextResponse.json<ApiData<null>>({

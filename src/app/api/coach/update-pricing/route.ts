@@ -1,12 +1,16 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
+import { getAuthUser } from "@/lib/auth";
 import supabase from "@/lib/supabaseClient";
 import type { ApiData } from "@/types/api";
 import type { UpdatePricingDto, UpdatePricingResponseDto } from "./entity";
 
 export async function POST(req: Request) {
     const session = await getServerSession();
-    if (!session?.user?.id) {
+    const authResult = session?.user?.id
+        ? { isAuthenticated: true, userId: session.user.id, user: session.user }
+        : await getAuthUser(req);
+    if (!authResult.userId) {
         return NextResponse.json({
             success: false,
             message: "用户未登录",
@@ -14,8 +18,9 @@ export async function POST(req: Request) {
         }, { status: 401 });
     }
 
-    const userId = session.user.id;
-    if (!session.user.is_coach) {
+    const userId = authResult.userId;
+    const isCoach = authResult.user?.is_coach === true;
+    if (!isCoach) {
         return NextResponse.json({
             success: false,
             message: "教练不存在或无权限",

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import supabase from '@/lib/supabaseClient';
 import { getServerSession } from '@/app/api/auth/[...nextauth]/auth';
+import { getAuthUser } from '@/lib/auth';
 import { fenToYuan } from '@/lib/moneyUtils';
 import type { ApiData } from '@/types/api';
 import type { GetStudentDto, GetStudentResponseDto } from './entity';
@@ -23,7 +24,10 @@ async function getVideoStats(studentId: string) {
 
 export async function POST(req: Request) {
     const session = await getServerSession();
-    if (!session?.user?.id) {
+    const authResult = session?.user?.id
+        ? { isAuthenticated: true, userId: session.user.id }
+        : await getAuthUser(req);
+    if (!authResult.isAuthenticated || !authResult.userId) {
         return NextResponse.json<ApiData<GetStudentResponseDto>>({
             success: false,
             message: '用户未登录',
@@ -48,7 +52,7 @@ export async function POST(req: Request) {
     const { data: coachRow, error: coachErr } = await supabase
         .from('coaches')
         .select('id')
-        .eq('user_id', session.user.id)
+        .eq('user_id', authResult.userId)
         .maybeSingle();
 
     if (coachErr || !coachRow?.id) {
@@ -65,7 +69,7 @@ export async function POST(req: Request) {
         .eq('status', 'active');
 
     if (subscriptionId) {
-        query = query.eq('id', subscriptionId);
+        query = query.eq('id', subscriptionId).eq('coach_id', coachRow.id);
     } else if (studentId) {
         query = query
             .eq('coach_id', coachRow.id)
@@ -124,7 +128,7 @@ export async function POST(req: Request) {
     } as GetStudentResponseDto['student'];
 
     if (need1RM) {
-        const records = await getCurrent1RMRecords(session.user.id, {
+        const records = await getCurrent1RMRecords(authResult.userId, {
             targetUserId: student.student_id,
             preferPR: true,
         });

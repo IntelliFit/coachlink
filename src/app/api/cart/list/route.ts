@@ -1,12 +1,16 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from '@/app/api/auth/[...nextauth]/auth';
+import { getAuthUser } from '@/lib/auth';
 import supabase from '@/lib/supabaseClient';
 import type { ApiData } from '@/types/api';
 import type { GetCartItemsResponseDto } from './entity';
 
 export async function POST(req: Request) {
     const session = await getServerSession();
-    if (!session?.user?.id) {
+    const authResult = session?.user?.id
+        ? { isAuthenticated: true, userId: session.user.id }
+        : await getAuthUser(req);
+    if (!authResult.isAuthenticated || !authResult.userId) {
         return NextResponse.json<ApiData<null>>({
             success: false,
             message: '用户未登录',
@@ -14,7 +18,7 @@ export async function POST(req: Request) {
         }, { status: 401 });
     }
 
-    const userId = session.user.id;
+    const userId = authResult.userId;
 
     try {
         const { data, error } = await supabase

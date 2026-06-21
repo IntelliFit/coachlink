@@ -3,6 +3,7 @@ import supabase from '@/lib/supabaseClient';
 import { CoachesRow } from '@/types';
 import type { GetContentsDto, GetContentsResponseDto } from './entity';
 import { getServerSession } from '@/app/api/auth/[...nextauth]/auth';
+import { getAuthUser } from '@/lib/auth';
 import { ApiData } from '@/types/api';
 
 async function getAccessTier(userId: string | null, coach: Partial<CoachesRow> | null) {
@@ -46,6 +47,9 @@ export async function POST(req: Request) {
     }
 
     const session = await getServerSession();
+    const authResult = session?.user?.id
+        ? { isAuthenticated: true, userId: session.user.id }
+        : await getAuthUser(req);
     // 兼容两种传参：
     // - coachId 为 coaches.id（学员端/教练主页）
     // - coachId 误传为 users.id（教练后台当前实现）
@@ -81,7 +85,7 @@ export async function POST(req: Request) {
     }
 
     const accessTier = await getAccessTier(
-        session?.user.id || viewerId || null,
+        authResult.userId || viewerId || null,
         coach
     );
 

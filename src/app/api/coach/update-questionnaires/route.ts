@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import supabase from "@/lib/supabaseClient";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
+import { getAuthUser } from "@/lib/auth";
 import type { ApiData } from "@/types/api";
 import type { QuestionnaireDocument, QuestionnaireEditorType } from "@/types/questionnaires";
 import { ensureQuestionIds } from "@/lib/questionnaireDocument";
@@ -27,7 +28,10 @@ function buildQuestionnaireDocument(
 
 export async function POST(req: Request) {
     const session = await getServerSession();
-    if (!session?.user?.id) {
+    const authResult = session?.user?.id
+        ? { isAuthenticated: true, userId: session.user.id, user: session.user }
+        : await getAuthUser(req);
+    if (!authResult.userId) {
         return NextResponse.json({
             success: false,
             message: "用户未登录",
@@ -35,7 +39,7 @@ export async function POST(req: Request) {
         }, { status: 401 });
     }
 
-    const userId = session.user.id;
+    const userId = authResult.userId;
 
     const {
         id,
@@ -44,7 +48,7 @@ export async function POST(req: Request) {
         questionnaires,
     } = await req.json() as UpdateQuestionnairesDto;
 
-    if (!session.user.is_coach) {
+    if (authResult.user?.is_coach !== true) {
         return NextResponse.json({
             success: false,
             message: "教练不存在或无权限",
@@ -67,6 +71,7 @@ export async function POST(req: Request) {
             .from("coach_questionnaires")
             .update(updatePayload)
             .eq("id", id)
+            .eq("coach_id", userId)
             .select()
             .single();
 

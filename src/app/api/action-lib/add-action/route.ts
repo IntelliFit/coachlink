@@ -3,6 +3,7 @@ import supabase from "@/lib/supabaseClient";
 import type { AddActionDto, AddActionResponseDto } from "./entity";
 import type { ApiData } from "@/types/api";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
+import { getAuthUser } from "@/lib/auth";
 import {
     buildCanonicalLookup,
     resolveCanonicalActionId,
@@ -14,7 +15,10 @@ export async function POST(req: Request) {
 
     // Check if user is logged in and has coach role
     const session = await getServerSession();
-    const userId = session?.user?.id || null;
+    const authResult = session?.user?.id
+        ? { isAuthenticated: true, userId: session.user.id, user: session.user }
+        : await getAuthUser(req);
+    const userId = authResult.userId || null;
 
     if (!userId) {
         return NextResponse.json({
@@ -39,7 +43,8 @@ export async function POST(req: Request) {
         ? ["其他"]
         : addData.positions;
 
-    if (!session.user.is_coach) {
+    const isCoach = authResult.user?.is_coach === true || Boolean((await supabase.from("users").select("is_coach").eq("id", userId).single()).data?.is_coach);
+    if (!isCoach) {
         return NextResponse.json({
             success: false,
             message: "Forbidden",
