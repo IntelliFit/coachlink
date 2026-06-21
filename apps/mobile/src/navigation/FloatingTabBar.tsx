@@ -3,12 +3,24 @@ import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { IconFont } from '../components/IconFont'
 import { colors, radius, spacing } from '../theme'
 
-const iconByRoute: Record<string, string> = {
+const studentIconByRoute: Record<string, string> = {
   TrainingTab: 'icon-dumbbell',
   CoachesTab: 'icon-discovery',
   KnowledgeTab: 'icon-knowledge',
   ToolboxTab: 'icon-toolbox',
   ProfileTab: 'icon-user',
+}
+
+const coachIconByRoute: Record<string, string> = {
+  CoachOverviewTab: 'icon-dashboard',
+  CoachVideosTab: 'icon-video',
+  CoachStudentsTab: 'icon-friends-o',
+  CoachPlanTemplatesTab: 'icon-a-Trainingplan',
+  CoachProfileTab: 'icon-account-settings-variant',
+}
+
+function isCoachTab(name: string) {
+  return Object.prototype.hasOwnProperty.call(coachIconByRoute, name)
 }
 
 export function FloatingTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
@@ -19,7 +31,8 @@ export function FloatingTabBar({ state, descriptors, navigation }: BottomTabBarP
           const isFocused = state.index === index
           const options = descriptors[route.key]?.options
           const label = typeof options?.title === 'string' ? options.title : route.name
-          const iconName = iconByRoute[route.name] || 'icon-circle'
+          const iconMap = isCoachTab(route.name) ? coachIconByRoute : studentIconByRoute
+          const iconName = iconMap[route.name] || 'icon-circle'
 
           const onPress = () => {
             const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true })

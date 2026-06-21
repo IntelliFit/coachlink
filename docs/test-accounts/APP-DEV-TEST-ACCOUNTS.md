@@ -24,6 +24,7 @@ owner: coachlink-mobile
 
 ## 与文档一致性校验
 
+- `src/config/devUsers.ts` 会先读取 `.env.development` 的 `NEXT_PUBLIC_DEV_USERS`（或 `NEXT_PUBLIC_DEV_ACCOUNTS`）并进行去重；若未配置环境变量则自动回退到内置备用账号。
 - `src/config/devUsers.ts` 与 `.env.development` 的记录应保持一致。
 - 若新增测试账号，请同时：
   1. 更新两处配置；

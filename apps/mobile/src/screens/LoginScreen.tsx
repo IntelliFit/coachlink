@@ -7,6 +7,7 @@ import { AuthInput, AgreementRow, authStyles, ModeSwitcher, PillButton } from '.
 import { AuthShell } from '../components/auth/AuthShell'
 import { SliderCaptchaModal } from '../components/auth/SliderCaptchaModal'
 import { useAuth } from '../providers/AuthProvider'
+import { DEV_USERS, type DevUser } from '../../../../src/config/devUsers'
 import { colors } from '../theme'
 import type { RootStackParamList } from '../navigation/types'
 
@@ -49,6 +50,7 @@ export function LoginScreen({ navigation }: Props) {
   }, [])
 
   const canSubmit = phoneOrEmail.trim().length > 0 && (mode === 'password' ? password.trim().length > 0 : verifyCode.trim().length > 0)
+  const hasDevUsers = DEV_USERS.length > 0
 
   function requireAgreement() {
     if (!agreed) {
@@ -114,10 +116,20 @@ export function LoginScreen({ navigation }: Props) {
     }
   }
 
+  async function handleDevLoginWithUser(user: DevUser) {
+    try {
+      await loginAsDevUser(user)
+    } catch (error) {
+      Alert.alert('开发登录失败', error instanceof Error ? error.message : '请稍后重试')
+    }
+  }
+
+  const visibleDevUsers = DEV_USERS
+
   return (
     <AuthShell title="教链 CoachLink" slogan="登录以继续你的训练计划" cardTitle="登录">
       <View style={authStyles.rowActions}>
-        <PillButton label="不登录，先逛逛" variant="soft" onPress={continueAsGuest} />
+        <PillButton label="先逛逛" variant="soft" onPress={continueAsGuest} />
       </View>
 
       <View style={authStyles.form}>
@@ -214,7 +226,20 @@ export function LoginScreen({ navigation }: Props) {
         )}
 
         {IS_DEV ? (
-          <PillButton label="【开发】快速进入初始化引导" onPress={handleDevLogin} />
+          <View style={styles.devSection}>
+            <Text style={styles.devTitle}>开发测试账号（立即登录）</Text>
+            {visibleDevUsers.map((user) => (
+              <PillButton
+                key={user.phone}
+                label={`${user.name} · ${user.phone}`}
+                variant="secondary"
+                onPress={() => {
+                  void handleDevLoginWithUser(user)
+                }}
+              />
+            ))}
+            {hasDevUsers ? null : <PillButton label="使用默认账号登录" variant="soft" onPress={handleDevLogin} />}
+          </View>
         ) : null}
       </View>
 
@@ -250,5 +275,15 @@ const styles = StyleSheet.create({
     color: colors.surface,
     fontSize: 13,
     fontWeight: '800',
+  },
+  devSection: {
+    marginTop: 16,
+    gap: 12,
+  },
+  devTitle: {
+    color: '#64748B',
+    fontSize: 14,
+    textAlign: 'center',
+    marginBottom: 4,
   },
 })
