@@ -60,6 +60,12 @@ export type RootStackParamList = {
   CoachAutomation: undefined
   CoachRevenue: undefined
   CoachWallet: undefined
+  CoachInvitationSettings: undefined
+  CoachPaymentSettings: undefined
+  CoachSecuritySettings: undefined
+  CoachWalletWithdraw: { initialAmount?: number } | undefined
+  CoachWalletBind: undefined
+  CoachWalletOrder: { orderId?: string } | undefined
   CoachWalletMerchant: undefined
   CoachMarket: undefined
   GeneratePlan: { coachId?: string } | undefined

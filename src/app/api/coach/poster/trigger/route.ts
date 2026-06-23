@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
+import { getAuthUser } from "@/lib/auth";
 import { serviceRoleSupabase } from "@/lib/supabaseClient";
 import type { ApiData } from "@/types/api";
 import {
@@ -33,7 +34,9 @@ async function getRequestOrigin(): Promise<string> {
 export async function POST(req: Request) {
   try {
     const session = await getServerSession();
-    if (!session?.user?.id) {
+    const authUser = session?.user?.id ? { userId: session.user.id } : await getAuthUser(req);
+
+    if (!authUser.userId) {
       return NextResponse.json<ApiData<TriggerPosterResponse>>(
         { success: false, message: "未登录", data: null },
         { status: 401 },
@@ -58,7 +61,7 @@ export async function POST(req: Request) {
     const { data: coach, error: coachErr } = await serviceRoleSupabase
       .from("coaches")
       .select("id")
-      .eq("user_id", session.user.id)
+      .eq("user_id", authUser.userId)
       .single();
 
     if (coachErr || !coach?.id) {
@@ -71,14 +74,14 @@ export async function POST(req: Request) {
     const queued = await upsertCoachPosterQueued({
       coachId: coach.id,
       posterType,
-      requestedBy: session.user.id,
+      requestedBy: authUser.userId,
     });
 
-    const acquired = await tryAcquireCoachPosterJob({
-      coachId: coach.id,
-      posterType,
-      requestedBy: session.user.id,
-    });
+      const acquired = await tryAcquireCoachPosterJob({
+        coachId: coach.id,
+        posterType,
+        requestedBy: authUser.userId,
+      });
 
     if (acquired) {
       const origin = await getRequestOrigin();
@@ -86,7 +89,7 @@ export async function POST(req: Request) {
       const cookieHeader = h.get("cookie") || undefined;
       generateInvitationPosterInBackground({
         coachId: coach.id,
-        requestedBy: session.user.id,
+        requestedBy: authUser.userId,
         origin,
         cookieHeader,
       });
@@ -110,4 +113,3 @@ export async function POST(req: Request) {
     );
   }
 }
-

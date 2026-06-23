@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
+import { getAuthUser } from "@/lib/auth";
 import supabase, { serviceRoleSupabase } from "@/lib/supabaseClient";
 import { ApiData } from "@/types/api";
 import { fenToYuan } from "@/lib/moneyUtils";
@@ -23,7 +24,9 @@ export async function GET(
     { params }: { params: Promise<{ orderId: string }> }
 ) {
     const session = await getServerSession();
-    if (!session?.user?.id) {
+    const authUser = session?.user?.id ? { userId: session.user.id } : await getAuthUser(_req);
+
+    if (!authUser.userId) {
         return NextResponse.json({ success: false, message: "用户未登录", data: null }, { status: 401 });
     }
 

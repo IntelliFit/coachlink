@@ -68,6 +68,12 @@ import { CoachRevenueScreen } from '../screens/coach/CoachRevenueScreen'
 import { CoachStudentDetailScreen, CoachStudentsScreen } from '../screens/coach/CoachStudentsScreen'
 import { CoachWalletMerchantScreen } from '../screens/coach/CoachWalletMerchantScreen'
 import { CoachWalletScreen } from '../screens/coach/CoachWalletScreen'
+import {
+  CoachWalletBindScreen,
+  CoachWalletOrderScreen,
+  CoachWalletWithdrawScreen,
+} from '../screens/coach/CoachWalletSettingsScreens'
+import { CoachPaymentSettingsScreen, CoachSecuritySettingsScreen, CoachInvitationSettingsScreen } from '../screens/coach/CoachWalletSettingsScreens'
 import { CoachQuestionnaireScreen } from '../screens/coach/CoachQuestionnaireScreen'
 import { CoachMarketScreen } from '../screens/coach/CoachMarketScreen'
 import { GeneratePlanScreen } from '../screens/coach/GeneratePlanScreen'
@@ -276,6 +282,12 @@ export function RootNavigator() {
             <Stack.Screen name="CoachRevenue" component={CoachRevenueScreen} />
             <Stack.Screen name="CoachWallet" component={CoachWalletScreen} />
             <Stack.Screen name="CoachWalletMerchant" component={CoachWalletMerchantScreen} />
+            <Stack.Screen name="CoachWalletWithdraw" component={CoachWalletWithdrawScreen} />
+            <Stack.Screen name="CoachWalletOrder" component={CoachWalletOrderScreen} />
+            <Stack.Screen name="CoachWalletBind" component={CoachWalletBindScreen} />
+            <Stack.Screen name="CoachPaymentSettings" component={CoachPaymentSettingsScreen} />
+            <Stack.Screen name="CoachSecuritySettings" component={CoachSecuritySettingsScreen} />
+            <Stack.Screen name="CoachInvitationSettings" component={CoachInvitationSettingsScreen} />
             <Stack.Screen name="CoachMarket" component={CoachMarketScreen} />
             <Stack.Screen name="GeneratePlan" component={GeneratePlanScreen} />
             <Stack.Screen name="GeneratePlanWaiting" component={GeneratePlanWaitingScreen} />

@@ -7,7 +7,8 @@
 -- =====================================================
 
 ALTER TABLE canonical_actions
-ADD COLUMN IF NOT EXISTS reference_image_url text;
+ADD COLUMN IF NOT EXISTS reference_image_url text,
+ADD COLUMN IF NOT EXISTS reference_gif_url text;
 
 COMMENT ON COLUMN canonical_actions.reference_image_url IS '标准动作参考图 URL';
-
+COMMENT ON COLUMN canonical_actions.reference_gif_url IS '标准动作参考动图 URL';

@@ -89,16 +89,18 @@ export async function POST(req: Request) {
         }
 
         let referenceImageUrl: string | null = null;
+        let referenceAnimationUrl: string | null = null;
         if (action.canonical_action_id) {
             const { data: canonicalRow, error: canonicalError } = await supabase
                 .from("canonical_actions")
-                .select("id, reference_image_url")
+                .select("id, reference_image_url, reference_animation_url")
                 .eq("id", action.canonical_action_id)
                 .maybeSingle();
             if (canonicalError) {
                 console.warn("[public-action-lib] load canonical reference image failed:", canonicalError);
             }
             referenceImageUrl = canonicalRow?.reference_image_url ?? null;
+            referenceAnimationUrl = canonicalRow?.reference_animation_url ?? null;
         }
 
         const enriched: PublicActionItemDto = {
@@ -119,6 +121,7 @@ export async function POST(req: Request) {
                 (action.includesBodyWeight as boolean | undefined) ?? null,
             canonical_action_id: action.canonical_action_id ?? null,
             reference_image_url: referenceImageUrl,
+            reference_animation_url: referenceAnimationUrl,
             like_count: Number(action.like_count || 0),
             created_at: action.created_at ?? null,
             updated_at: action.updated_at ?? null,

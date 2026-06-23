@@ -4,8 +4,9 @@
  */
 export interface DevUser {
   name: string;
-  phone: string;
-  password: string;
+  phone?: string;
+  password?: string;
+  userId?: string;
 }
 
 function parseDevUsersFromEnv(): DevUser[] {
@@ -20,7 +21,7 @@ function parseDevUsersFromEnv(): DevUser[] {
       return []
     }
 
-    return parsed
+    const users: Array<DevUser | null> = parsed
       .map((value) => {
         if (!value || typeof value !== 'object') {
           return null
@@ -28,10 +29,13 @@ function parseDevUsersFromEnv(): DevUser[] {
         const name = String(value.name || '').trim()
         const phone = String(value.phone || '').trim()
         const password = String(value.password || '').trim()
-        if (!name || !phone || !password) return null
+        const userId = String(value.userId || value.user_id || '').trim()
+        if (!name) return null
+        if (userId) return { name, userId }
+        if (!phone || !password) return null
         return { name, phone, password }
       })
-      .filter((value): value is DevUser => Boolean(value))
+    return users.filter((value): value is DevUser => Boolean(value))
   } catch {
     return []
   }
@@ -40,8 +44,9 @@ function parseDevUsersFromEnv(): DevUser[] {
 function dedupeDevUsers(users: DevUser[]): DevUser[] {
   const seen = new Set<string>()
   return users.filter((user) => {
-    if (seen.has(user.phone)) return false
-    seen.add(user.phone)
+    const key = user.userId ? `user:${user.userId}` : user.phone ? `phone:${user.phone}` : user.name
+    if (seen.has(key)) return false
+    seen.add(key)
     return true
   })
 }
@@ -49,7 +54,7 @@ function dedupeDevUsers(users: DevUser[]): DevUser[] {
 const FALLBACK_DEV_USERS: DevUser[] = [
   { name: '学员(沈妈妈)', phone: '13921064643', password: '123456' },
   { name: '教练(MAX)', phone: '13915850622', password: '123456' },
-  { name: '管理员(小马哥)', phone: '13915850621', password: '123456' },
+  { name: '管理员(教链小助手)', userId: '53677f66-45ca-4800-b45d-2d1d734e4163' },
   { name: '教练(枭马葛助理)', phone: '18115072586', password: '123456' },
 ]
 

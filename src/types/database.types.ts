@@ -285,6 +285,10 @@ export type Database = {
           created_at: string | null
           id: string
           name: string
+          reference_animation_audit_status: string
+          reference_animation_url: string | null
+          reference_gif_url: string | null
+          reference_image_audit_status: string
           reference_image_url: string | null
         }
         Insert: {
@@ -293,6 +297,10 @@ export type Database = {
           created_at?: string | null
           id: string
           name: string
+          reference_animation_audit_status?: string
+          reference_animation_url?: string | null
+          reference_gif_url?: string | null
+          reference_image_audit_status?: string
           reference_image_url?: string | null
         }
         Update: {
@@ -301,6 +309,10 @@ export type Database = {
           created_at?: string | null
           id?: string
           name?: string
+          reference_animation_audit_status?: string
+          reference_animation_url?: string | null
+          reference_gif_url?: string | null
+          reference_image_audit_status?: string
           reference_image_url?: string | null
         }
         Relationships: []

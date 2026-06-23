@@ -127,18 +127,20 @@ export async function POST(req: Request) {
             }
         }
 
-        // 4) canonical action reference image
+        // 4) canonical action reference media
         const canonicalReferenceImageMap = new Map<string, string | null>();
+        const canonicalReferenceAnimationMap = new Map<string, string | null>();
         if (canonicalIds.length > 0) {
             const { data: canonicalRows, error: canonicalError } = await supabase
                 .from("canonical_actions")
-                .select("id, reference_image_url")
+                .select("id, reference_image_url, reference_animation_url")
                 .in("id", canonicalIds);
             if (canonicalError) {
                 console.warn("[public-action-lib] load canonical reference images failed:", canonicalError);
             }
             for (const row of canonicalRows || []) {
                 canonicalReferenceImageMap.set(row.id, row.reference_image_url ?? null);
+                canonicalReferenceAnimationMap.set(row.id, row.reference_animation_url ?? null);
             }
         }
 
@@ -161,6 +163,10 @@ export async function POST(req: Request) {
             reference_image_url:
                 a.canonical_action_id
                     ? canonicalReferenceImageMap.get(a.canonical_action_id) ?? null
+                    : null,
+            reference_animation_url:
+                a.canonical_action_id
+                    ? canonicalReferenceAnimationMap.get(a.canonical_action_id) ?? null
                     : null,
             like_count: Number(a.like_count || 0),
             created_at: a.created_at ?? null,

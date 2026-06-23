@@ -245,17 +245,32 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
     const handleQuickLogin = async (user: DevUser) => {
         setLoading(true);
         try {
-            const result = await signIn('credentials', {
-                phoneOrEmail: user.phone,
-                password: user.password,
-                redirect: false,
-                callbackUrl: '/today-training',
-            });
-            if (!result?.error) {
-                // Close modal and redirect to dashboard/home after successful login
-                onClose(false);
-                await syncSessionThenNavigate({ redirectOnLoginPage: '/' });
+            const result = user.userId
+                ? await signIn('credentials', {
+                    userId: user.userId,
+                    redirect: false,
+                    callbackUrl: '/today-training',
+                })
+                : await signIn('credentials', {
+                    phoneOrEmail: user.phone,
+                    password: user.password,
+                    redirect: false,
+                    callbackUrl: '/today-training',
+                });
+            if (result?.error) {
+                showToast({ severity: 'error', summary: '快捷登录失败', detail: result.error });
+                return;
             }
+
+            if (user.userId || !result?.error) {
+                onClose(false);
+                await syncSessionThenNavigate({
+                    expectedUserId: user.userId,
+                    redirectOnLoginPage: '/',
+                });
+            }
+        } catch (error: any) {
+            showToast({ severity: 'error', summary: '快捷登录失败', detail: error?.message || '请稍后再试' });
         } finally { setLoading(false); }
     };
 

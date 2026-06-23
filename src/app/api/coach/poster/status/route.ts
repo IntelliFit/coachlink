@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
+import { getAuthUser } from "@/lib/auth";
 import { serviceRoleSupabase } from "@/lib/supabaseClient";
 import type { ApiData } from "@/types/api";
 import {
@@ -32,7 +33,9 @@ async function getRequestOrigin(): Promise<string> {
 export async function GET(req: Request) {
   try {
     const session = await getServerSession();
-    if (!session?.user?.id) {
+    const authUser = session?.user?.id ? { userId: session.user.id } : await getAuthUser(req);
+
+    if (!authUser.userId) {
       return NextResponse.json<ApiData<PosterStatusResponse>>(
         { success: false, message: "未登录", data: null },
         { status: 401 },
@@ -52,7 +55,7 @@ export async function GET(req: Request) {
     const { data: coach, error: coachErr } = await serviceRoleSupabase
       .from("coaches")
       .select("id")
-      .eq("user_id", session.user.id)
+      .eq("user_id", authUser.userId)
       .single();
 
     if (coachErr || !coach?.id) {
@@ -78,7 +81,7 @@ export async function GET(req: Request) {
           coach_id: coach.id,
           poster_type: posterType,
           status: "queued",
-          requested_by: session.user.id,
+          requested_by: authUser.userId,
           requested_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         } as any)
@@ -99,7 +102,7 @@ export async function GET(req: Request) {
       const acquired = await tryAcquireCoachPosterJob({
         coachId: coach.id,
         posterType,
-        requestedBy: session.user.id,
+        requestedBy: authUser.userId,
       });
 
       if (acquired) {
@@ -108,7 +111,7 @@ export async function GET(req: Request) {
         const cookieHeader = h.get("cookie") || undefined;
         generateInvitationPosterInBackground({
           coachId: coach.id,
-          requestedBy: session.user.id,
+          requestedBy: authUser.userId,
           origin,
           cookieHeader,
         });
@@ -161,4 +164,3 @@ export async function GET(req: Request) {
     );
   }
 }
-

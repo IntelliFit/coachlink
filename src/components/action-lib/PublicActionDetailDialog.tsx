@@ -391,6 +391,29 @@ export default function PublicActionDetailDialog(props: {
                         )}
                     </div>
 
+                    {/* Reference animation */}
+                    <div className="flex flex-col gap-2">
+                        <div className="text-xs font-semibold text-surface-600">缩略演示动画</div>
+                        {!localAction.reference_animation_url ? (
+                            <div className="text-sm text-surface-500">暂无</div>
+                        ) : isVideoUrl(localAction.reference_animation_url) ? (
+                            <video
+                                controls
+                                muted
+                                loop
+                                playsInline
+                                src={localAction.reference_animation_url}
+                                className="w-full rounded-xl border border-surface-200 bg-black"
+                            />
+                        ) : (
+                            <img
+                                src={localAction.reference_animation_url}
+                                alt={`${localAction.name} 缩略演示动画`}
+                                className="w-full rounded-xl border border-surface-200 bg-surface-50 object-contain"
+                            />
+                        )}
+                    </div>
+
                     {/* Video */}
                     <div className="flex flex-col gap-2">
                         <div className="text-xs font-semibold text-surface-600">演示视频</div>

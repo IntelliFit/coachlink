@@ -33,6 +33,7 @@ export interface PublicActionItemDto {
     includesBodyWeight?: boolean | null;
     canonical_action_id?: string | null;
     reference_image_url?: string | null;
+    reference_animation_url?: string | null;
     like_count: number;
     created_at: string | null;
     updated_at: string | null;

@@ -190,6 +190,15 @@ function normalizeForLookup(value: string): string {
     .replace(/^-|-$/g, "");
 }
 
+function extractActionNameFromOutputFile(filePath: string): string {
+  const base = path.basename(filePath).replace(/\.(png|jpe?g|webp)$/i, "");
+  const numbered = base.match(/^\d{3}-(.+)-sequence$/i);
+  if (numbered?.[1]) return numbered[1];
+  const plain = base.match(/^(.+)-sequence$/i);
+  if (plain?.[1]) return plain[1];
+  return base;
+}
+
 function safeFileStem(name: string): string {
   const normalized = normalizeForLookup(name);
   if (normalized) return normalized.slice(0, 80);
@@ -217,15 +226,11 @@ function findLocalImage(action: CanonicalActionRow, files: string[]): string | n
   const idKey = normalizeForLookup(action.id);
   const nameKey = normalizeForLookup(action.name);
   const exact = files.find((file) => {
-    const base = normalizeForLookup(path.basename(file));
-    return base === idKey || base === nameKey || base === `${idKey}-sequence` || base === `${nameKey}-sequence`;
+    const base = normalizeForLookup(extractActionNameFromOutputFile(file));
+    return base === idKey || base === nameKey;
   });
   if (exact) return exact;
-
-  return files.find((file) => {
-    const base = normalizeForLookup(path.basename(file));
-    return (idKey && base.includes(idKey)) || (nameKey && base.includes(nameKey));
-  }) || null;
+  return null;
 }
 
 function contentTypeFor(filePath: string): string {
@@ -251,6 +256,10 @@ function isAmbiguousAction(action: CanonicalActionRow, exported?: ExportAction):
   if (matched) return { skipped: true, reason: `名称包含泛化词：${matched}` };
 
   if (name.length <= 1) return { skipped: true, reason: "名称过短，无法稳定确定动作" };
+
+  if (/^[一二三四五六七八九十两0-9]+周[一二三四五六七八九十两0-9]*练$/.test(name)) {
+    return { skipped: true, reason: "名称看起来是训练频次描述，不是具体动作" };
+  }
 
   const hasMetadata =
     (exported?.community_action_count || 0) > 0 ||

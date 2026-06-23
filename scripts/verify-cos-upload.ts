@@ -14,7 +14,7 @@ dotenvConfig({ path: resolve(process.cwd(), ".env.development") });
 
 async function purge() {
   const { getCos, BUCKET_MAP, COS_REGION } = await import("../src/lib/cos");
-  const logicals = ["avatars", "chat-images", "action-reference-images", "coach-posters", "receipts"] as const;
+  const logicals = ["avatars", "chat-images", "action-reference-images", "action-reference-animations", "coach-posters", "receipts"] as const;
   for (const logical of logicals) {
     const cfg = BUCKET_MAP[logical];
     const prefix = `${cfg.prefix}__verify__/`;
@@ -59,6 +59,7 @@ async function main() {
     { logical: "avatars", ext: "png", ct: "image/png" },
     { logical: "chat-images", ext: "png", ct: "image/png" },
     { logical: "action-reference-images", ext: "png", ct: "image/png" },
+    { logical: "action-reference-animations", ext: "webp", ct: "image/webp" },
     { logical: "coach-posters", ext: "png", ct: "image/png" }, // 验证合并桶 assets + 前缀
     { logical: "receipts", ext: "png", ct: "image/png" }, // 验证 receipts 公有+CDN
   ];

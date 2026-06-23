@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
+import { getAuthUser } from "@/lib/auth";
 import supabase from "@/lib/supabaseClient";
 import { hashPassword } from "@/app/api/auth/[...nextauth]/verify";
 import { ApiData } from "@/types/api";
@@ -8,7 +9,9 @@ import redis from "@/lib/redisClient";
 
 export async function POST(req: Request) {
     const session = await getServerSession();
-    if (!session?.user?.id) {
+    const authUser = session?.user?.id ? { userId: session.user.id } : await getAuthUser(req);
+
+    if (!authUser.userId) {
         return NextResponse.json({
             success: false,
             message: "用户未登录",
@@ -45,7 +48,7 @@ export async function POST(req: Request) {
     const { data: user, error: userError } = await supabase
         .from("users")
         .select("id, phone, email")
-        .eq("id", session.user.id)
+        .eq("id", authUser.userId)
         .single();
 
     if (userError || !user) {

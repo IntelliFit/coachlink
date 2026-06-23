@@ -1,3 +1,81 @@
+## Standard Action Library Admin Module (`2026-06-22`)
+
+- Task: add a Web admin module for managing standard action library reference media.
+- Status: implemented in code; browser/UI verification intentionally left to user per durable preference.
+- Changes:
+  - Added `canonical_actions.reference_animation_url` migration and local TypeScript DB/canonical types.
+  - Added COS logical bucket `action-reference-animations`, sharing the assets bucket under `action-reference-animations/`.
+  - Added admin-only `/api/admin/canonical-actions` list/update API and `/api/admin/canonical-actions/upload` upload API.
+  - Added `/admin/canonical-actions` page and admin nav entry for searching/filtering canonical actions, previewing reference image/animation, uploading files, manually editing URLs, and saving.
+  - Public action list/detail APIs now include `reference_animation_url`, and the public action detail dialog renders the standard-action thumbnail animation when available.
+- Validation:
+  - `npm run lint` ✅ informational lint script
+  - `npm run typecheck` ✅
+  - `npm test` ✅ 33 files / 163 tests
+  - `npx next build` ✅
+  - `git diff --check` ✅
+- Notes:
+  - Direct `npx tsc --noEmit --pretty false --incremental false` is not a valid repo check because it scans historical `corrupt-null-files/` backups and fails on old invalid-character files.
+  - Production DB needs the new migration applied before deploying code paths that select `reference_animation_url`.
+
+### Follow-up: Media Audit Status (`2026-06-22`)
+
+- Task: add separate review-state controls for standard-action reference images and thumbnail animations in the admin module.
+- Status: implemented in code; DB migration still needs to be applied in the target environment before the new fields can be edited there.
+- Changes:
+  - Added migration `supabase/migrations/20260622_canonical_action_reference_audit_status.sql`.
+  - Added `canonical_actions.reference_image_audit_status` and `canonical_actions.reference_animation_audit_status`.
+  - Both fields are `text not null default 'unreviewed'` with DB check constraints allowing only:
+    - `unreviewed`
+    - `rejected`
+    - `approved`
+  - Updated local DB/canonical/admin DTO types to include both statuses.
+  - Updated `/api/admin/canonical-actions`:
+    - GET now returns both audit statuses.
+    - PATCH now accepts both audit statuses.
+    - If a reference image/animation URL changes and no explicit status is provided in that same save, the corresponding audit status is automatically reset to `unreviewed`.
+  - Updated `/admin/canonical-actions`:
+    - each reference image block now has an audit-status selector;
+    - each animation block now has an audit-status selector;
+    - action cards show current image/animation audit-status tags.
+- Validation:
+  - `npm run lint` ✅ informational script
+  - `npm run typecheck` ✅
+  - `npm test` ✅ 33 files / 163 tests
+  - `npx next build` ✅
+  - `git diff --check` ✅
+
+## Dev Admin Quick Login Fix (`2026-06-22`)
+
+- Task: fix development login modal quick-access admin button returning NextAuth credentials 401.
+- Root cause:
+  - The fallback dev admin account pointed to phone `13915850621` with password `123456`.
+  - Current database has no user with that phone.
+  - The real admin user is `53677f66-45ca-4800-b45d-2d1d734e4163` (`教链小助手` / `管理员`) with `users.is_admin = true` and independent admin credential `admin.main`; its password is not `123456`.
+- Fix:
+  - Extended `DevUser` to support `userId` quick-login entries.
+  - Changed fallback admin quick button to `管理员(教链小助手)` using the real admin `userId`.
+  - `LoginModal` now uses `userId` credentials when a dev user has `userId`; normal student/coach buttons still use phone/password.
+  - Quick-login failures now show a toast instead of silently doing nothing.
+- Validation:
+  - `npm run lint` ✅ informational script
+  - `npm run typecheck` ✅
+  - `npm test` ✅ 33 files / 163 tests
+  - `npx next build` ✅
+
+## Canonical Action Reference Images Batch 06 (`2026-06-21`)
+
+- Task: produce CoachLink v4 standard action reference images for batch 06 from `/tmp/coachlink-canonical-batches.json`.
+- Status: completed for this batch; no database writeback script was run and shared production status files were not modified.
+- Output:
+  - Generated 23 unique action sequence PNGs into `design/image-workspace/action-library/canonical-outputs/` using exact filenames in the form `<动作名>-sequence.png`.
+  - Wrote batch-specific status to `design/image-workspace/action-library/batches/canonical-batch-06-status.md`.
+- Skips:
+  - Existing pilot images skipped: `弹力带肩部热身`, `手肘松解`, `手腕热身`, `提膝双力臂`.
+  - Non-concrete/quality-uncertain names skipped: `弹力带背部募集训练`, `排骨`, `推肩`, `日饮水目标`, `机械递减组`, `扣腕吊杠悬挂`.
+  - Duplicate batch rows ignored for unique-name processing.
+- Final summary in the status file: completed `23`, skipped `15`, blocked `0`.
+
 ## APP Documentation Migration Pack (`2026-06-21`)
 
 ## 当前任务（`2026-06-21`）
@@ -104,8 +182,35 @@
     - `design/image-workspace/action-library/outputs/005-臂屈伸-sequence.png`
   - QA notes: 002 is usable but the rear-view back highlight is strong and may be tightened in a consistency pass; 003 is usable but rotator-cuff specificity could improve with a slightly oblique/rear angle; 004 and 005 are usable for the pilot. All four preserve the no-shoes/no-text/no-watermark requirement.
 - Remaining scope:
-  - Generate and review pilot outputs `006` through `050`.
+  - Generate and review pilot outputs `016` through `050`.
   - Then decide whether to scale the same pipeline to all 383 `canonical_actions`.
+- More pilot images generated in follow-up:
+  - Generated, copied into the workspace, and visually inspected:
+    - `design/image-workspace/action-library/outputs/006-俄挺-sequence.png`
+    - `design/image-workspace/action-library/outputs/007-负重臂屈伸-弹力带辅助-sequence.png`
+    - `design/image-workspace/action-library/outputs/008-前水平-sequence.png`
+    - `design/image-workspace/action-library/outputs/009-手肘松解-sequence.png`
+    - `design/image-workspace/action-library/outputs/010-提膝双力臂-sequence.png`
+  - Pilot set `001` through `010` is now available for style review.
+  - QA notes: 006 has a strong clear tuck-to-full progression; 007 cleanly separates the weight plate and assistance band; 008 reads well as a front lever progression; 009 works as a close-up mobility/release reference; 010 clearly shows the bar transition and above-bar support finish.
+- Additional pilot generation and canonical backfill:
+  - Generated:
+    - `design/image-workspace/action-library/outputs/011-团身引体-sequence.png`
+    - `design/image-workspace/action-library/outputs/012-引体向上-sequence.png`
+    - `design/image-workspace/action-library/outputs/013-直体双力臂-sequence.png`
+    - `design/image-workspace/action-library/outputs/014-直腿双力臂-sequence.png`
+    - `design/image-workspace/action-library/outputs/015-吊环澳式引体-sequence.png`
+  - Tightened `scripts/generate-canonical-action-reference-images.ts` local-image matching so only exact action-name matches are auto-uploaded; removed loose substring matching that could mis-assign `引体` / `臂屈伸`-like names to the wrong image.
+  - Executed the canonical backfill script against production:
+    - First pass uploaded/backfilled `20` canonical rows from the first 10 approved images.
+    - Second pass uploaded/backfilled another `11` canonical rows after 011-015 and the exact-match tightening.
+  - Current production DB status:
+    - `canonical_actions.reference_image_url`: `31` non-null rows
+    - `canonical_actions.reference_gif_url`: `0` non-null rows
+  - Current full dry-run/execute state:
+    - `15` local generated PNG outputs
+    - `346` canonical rows still missing local images
+    - `6` canonical rows currently classified as ambiguous and skipped
 
 ## Canonical Action Reference Image Pipeline (`2026-06-21`)
 
@@ -139,6 +244,7 @@
   - Run COS verification for `action-reference-images`.
   - Generate/copy concrete canonical action images into `design/image-workspace/action-library/canonical-outputs/`.
   - Run a small production batch, for example `npm run canonical-actions:reference-images -- --execute --limit=10`, inspect COS URLs and DB writes, then shard the remaining concrete actions.
+  - Latest remote-schema attempt result: tried to add `reference_image_url` / `reference_gif_url` directly on the remote `canonical_actions` table. The current environment does not have Supabase DB direct credentials (`SUPABASE_DB_PASSWORD` / `SOURCE_DB_*` are missing), and `supabase migration list --linked` also returned a 403 privilege error. Repo migration and local types now include both text fields, but the remote production table is still unchanged until DB credentials or an account with the required Supabase CLI privilege is available.
 
 ## Mobile WeChat Module Migration (`2026-06-21`)
 
@@ -7388,6 +7494,88 @@
   - `npm test`: passed, 33 files / 163 tests.
   - `npx next build`: passed.
 - Manual APP simulator visual verification remains left to the user per durable preference.
+
+## Canonical Action Reference Image Full Batch Orchestration (`2026-06-21`)
+
+- Task: split the remaining 300+ standard-action reference images into 10 supervised parallel groups and drive generation in background subthreads.
+- Status: in progress.
+- Current coordinator state:
+  - Copied batch manifest into the workspace at `design/image-workspace/action-library/batches/canonical-batches.json`.
+  - Split **377 actionable canonical rows** into **10 batches**:
+    - batch 01: 38 items, `Lsit引体` -> `俯身飞鸟`
+    - batch 02: 38 items, `倒立撑` -> `单手顶点维持`
+    - batch 03: 38 items, `单手顶点维持+离心` -> `吊环半程二头弯举`
+    - batch 04: 38 items, `吊环半程俯卧撑` -> `后水平上压`
+    - batch 05: 38 items, `后水平撞背` -> `引体顶部维持`
+    - batch 06: 38 items, `弹力带下拉` -> `杠铃弯举`
+    - batch 07: 38 items, `杠铃深蹲` -> `热身深蹲`
+    - batch 08: 38 items, `煎龙利鱼` -> `腿屈伸`
+    - batch 09: 38 items, `腿弯举` -> `负重臂屈伸`
+    - batch 10: 35 items, `负重臂屈伸-弹力带辅助` -> `黑咖啡`
+- Background thread mapping:
+  - batch 01 -> `019eeab1-ef18-7a13-9a78-d964fe31ba4d`
+  - batch 02 -> `019eeab1-f261-7320-92ff-b267f8db8ed7`
+  - batch 03 -> `019eeab1-f44b-7353-8f8a-76b784923361`
+  - batch 04 -> `019eeab1-f682-7c80-91b0-9cfe87f019e9`
+  - batch 05 -> `019eeab1-f8c8-7632-ab2a-de327b85180c`
+  - batch 06 -> `019eeab1-fb37-75f1-b759-ac3328514f64`
+  - batch 07 -> `019eeab1-fd37-7f63-b13f-d4a797c98bfa`
+  - batch 08 -> `019eeab1-ff41-7020-9c79-cd67637d60b0`
+  - batch 09 -> `019eeab2-0179-7be0-9856-e832b80f7e22`
+  - batch 10 -> `019eeab2-0374-7d93-975e-4e25e15b851e`
+- Supervision notes:
+  - All 10 background threads are active.
+  - Sent a coordinator follow-up to every batch thread requiring:
+    - per-item updates to its own `canonical-batch-XX-status.md`;
+    - a same-name PNG collision check against both `canonical-outputs/` and `outputs/`;
+    - end-of-batch summary counts for `completed / skipped / blocked`.
+  - Early filesystem signal shows progress is already landing:
+    - `design/image-workspace/action-library/canonical-outputs/` currently has **22** PNGs.
+    - New files already present include `Lsit引体-sequence.png`, `T杠划船-sequence.png`, `倒立撑-sequence.png`, `吊环半程俯卧撑-sequence.png`, `哑铃卧推-sequence.png`, `弹力带下拉-sequence.png`, `杠铃深蹲-sequence.png`, `相扑硬拉-sequence.png`, `腿弯举-sequence.png`, `臀推-sequence.png`, `跑步-sequence.png`, `跳绳-sequence.png`, `高杠深蹲-sequence.png`.
+  - Status markdowns confirmed so far:
+    - `design/image-workspace/action-library/batches/canonical-batch-01-status.md`
+    - `design/image-workspace/action-library/batches/canonical-batch-02-status.md`
+- Next coordinator step:
+  - continue polling subthreads;
+  - wait for more `canonical-batch-XX-status.md` files to appear;
+  - once batch outputs stabilize, run the existing COS upload + DB backfill script against the newly generated exact-name images.
+
+### DB Audit Update (`2026-06-22`)
+
+- Audited the current production DB write-back state for standard-action reference images against local generated files.
+- Current exact counts:
+  - `canonical_actions` total rows: **383**
+  - local generated PNG files:
+    - `design/image-workspace/action-library/canonical-outputs/`: **212**
+    - `design/image-workspace/action-library/outputs/`: **15**
+    - unique local action names across both folders: **225**
+  - production `canonical_actions.reference_image_url` non-null rows: **31**
+- Exact-name cross-check result:
+  - DB rows whose `name` matches a local generated image name: **279**
+  - among those matched rows, `reference_image_url` already filled: **28**
+  - among those matched rows, `reference_image_url` still empty: **251**
+- Conclusion:
+  - The generated standard-action reference images have **not** all been written back to production DB yet.
+  - The image-generation side is far ahead of the upload/write-back side; most newly generated exact-name images still need the COS upload + DB backfill script to be rerun.
+
+### Backfill Execution Update (`2026-06-22`)
+
+- Executed the production backfill for locally generated standard-action reference images.
+- Dry-run result:
+  - local image files found: **227**
+  - `dry_run_ready`: **251**
+  - `dry_run_existing_url`: **31**
+  - `dry_run_missing_image`: **95**
+  - `skipped_ambiguous`: **6**
+- Then ran the real upload + DB write-back flow.
+- Final verified state after backfill:
+  - production `canonical_actions.reference_image_url` non-null rows: **282**
+  - DB rows whose `name` matches a local generated image name: **279**
+  - matched rows with `reference_image_url` filled: **279**
+  - matched rows still missing `reference_image_url`: **0**
+- One leftover exact-name row (`单手俯卧撑`, id `auto_0fc906c0e3ab451245b9c069`) did not finish through the bulk process and was uploaded + updated manually afterward. It is now filled.
+- Conclusion:
+  - All currently generated local standard-action reference images that can be matched by exact action name have now been uploaded to COS and written back to the production DB.
 
 ### Follow-up: Android Emulator Cmd+V Clipboard Bridge (`2026-06-21`)
 
