@@ -57,6 +57,9 @@ apps/mobile/ios/build/
 .playwright-mcp
 screenshots
 
+# Local design workspace and generated visual assets
+design/
+
 # Local skill drafts and extracted playbooks
 skill-factory/
 
