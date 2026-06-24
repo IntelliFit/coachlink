@@ -1,0 +1,68 @@
+.pushup-stage {
+  .pushup-ground {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 14%;
+    height: 12rpx;
+    background: rgba(255, 255, 255, 0.24);
+    z-index: 1;
+  }
+
+  .pushup-wall {
+    position: absolute;
+    border-radius: 24rpx 24rpx 0 0;
+    transform: translateX(-50%);
+    background: linear-gradient(180deg, rgba(107, 79, 63, 0.92) 0%, rgba(239, 127, 89, 0.96) 100%);
+    box-shadow: 0 16rpx 32rpx rgba(75, 49, 36, 0.18);
+    z-index: 2;
+  }
+
+  .pushup-runner {
+    width: 132rpx;
+    height: 72rpx;
+    border-radius: 36rpx;
+    background: #ef7f59;
+    border: 6rpx solid rgba(255, 255, 255, 0.96);
+    box-shadow: 0 16rpx 28rpx rgba(239, 127, 89, 0.28);
+    transition: left 120ms linear;
+    z-index: 3;
+  }
+
+  .pushup-runner--dash {
+    box-shadow: 0 18rpx 32rpx rgba(54, 194, 165, 0.28);
+    background: #36c2a5;
+  }
+
+  .pushup-runner-core {
+    inset: 18rpx 28rpx;
+    border-radius: 20rpx;
+  }
+}
+
+.pushup-phase-card {
+  margin-top: 24rpx;
+  min-height: 96rpx;
+  padding: 20rpx;
+  border-radius: 24rpx;
+  background: #fff1e9;
+  border: 1px solid #ecd5c9;
+  box-sizing: border-box;
+}
+
+.pushup-phase-label {
+  display: block;
+  font-size: 22rpx;
+  font-weight: 700;
+  color: #8f5f4c;
+  line-height: 1.4;
+  margin-bottom: 8rpx;
+}
+
+.pushup-phase-value {
+  display: block;
+  font-size: 28rpx;
+  font-weight: 800;
+  color: #40261b;
+  line-height: 1.4;
+}

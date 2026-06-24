@@ -71,7 +71,7 @@ for (const pagePath of subpackagePagesWithIndex) {
 // 修复占位符 wxml：Taro 可能把占位符放在 page.wxml 或 page/index.wxml，真实内容在另一个里。
 // 微信加载的是「页面路径」对应的文件，可能是平铺的 page.wxml，也可能是 page/index.wxml，需两种情况都修复。
 // 支持任意深度的子目录（如 coach/students/detail）
-const subpackageRoots = ['coach', 'discovery', 'training', 'content', 'common']
+const subpackageRoots = ['coach', 'discovery', 'training', 'content', 'common', 'toolbox']
 function isPlaceholderWxml(content) {
   if (!content) return false
   return (

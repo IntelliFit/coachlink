@@ -8,6 +8,7 @@ import {
     ModificationDiff,
     NewActionDetected,
     PendingActionCandidate,
+    OneRmAdjustmentPreview,
 } from "./entity";
 import { buildBatchOperationContext } from "./context";
 import type { ItemType } from "@/types";
@@ -15,6 +16,8 @@ import { sanitizeActionName } from "@/lib/planImportText";
 import { getCoachlinkPlanLlm } from "@/lib/coachlinkLlm";
 import { tryApplyDeterministicBatchEdit } from "@/lib/batchOperationDeterministic";
 import { formatTemplateToPlanScript, parsePlanScript } from "@/lib/planScript";
+import { resolveOneRmAdjustments, type OneRmAdjustmentDraft } from "@/lib/oneRmAdjustments";
+import { applyLoadAdjustments, type LoadAdjustmentDraft } from "@/lib/loadAdjustments";
 
 // 检查是否为开发环境
 const isDevelopment = process.env.NODE_ENV === 'development';
@@ -30,6 +33,13 @@ function buildPromptMessages(prompt: string): Array<{ role: "system" | "user"; c
             content: prompt,
         },
     ];
+}
+
+function normalizeActionNameKey(name?: string | null) {
+    return String(name || "")
+        .toLowerCase()
+        .replace(/[\s\-_()（）【】\[\]·,，.。]/g, "")
+        .trim();
 }
 
 /**
@@ -250,13 +260,23 @@ function analyzeModifications(
                     });
                 }
 
-                if (origParams.weight !== updParams.weight) {
+                const origFixedLoad = firstDefinedNumber(
+                    origParams.load,
+                    origParams.weight,
+                    origParams.intensityConfig?.fixedWeight?.value,
+                );
+                const updFixedLoad = firstDefinedNumber(
+                    updParams.load,
+                    updParams.weight,
+                    updParams.intensityConfig?.fixedWeight?.value,
+                );
+                if (origFixedLoad !== updFixedLoad && (origFixedLoad != null || updFixedLoad != null)) {
                     modifications.push({
                         dayIndex,
                         actionName,
                         field: '重量',
-                        oldValue: `${origParams.weight || 0}kg`,
-                        newValue: `${updParams.weight || 0}kg`
+                        oldValue: `${origFixedLoad || 0}kg`,
+                        newValue: `${updFixedLoad || 0}kg`
                     });
                 }
 
@@ -538,6 +558,9 @@ type PlanScriptEditResult = {
     success: boolean;
     actionPlan?: string;
     updatedTrainingDays?: any[];
+    oneRmAdjustments?: OneRmAdjustmentDraft[];
+    loadAdjustments?: LoadAdjustmentDraft[];
+    appliedLoadAdjustments?: number;
     promptTokens?: number;
     completionTokens?: number;
     totalTokens?: number;
@@ -580,8 +603,111 @@ function normalizePlanScriptText(script: string): string {
         .join("\n");
 }
 
+async function resolveSubjectUserIdForOneRmAdjustments(params: {
+    userId: string;
+    targetActionType: TargetActionType;
+    contextOptions?: BatchOperationDto["contextOptions"];
+}): Promise<string | null> {
+    const { userId, targetActionType, contextOptions } = params;
+    if (targetActionType === "student") {
+        return userId;
+    }
+
+    const subscriptionId = String(contextOptions?.subscriptionId || "").trim();
+    if (subscriptionId) {
+        const { data: subscription } = await supabase
+            .from("coach_subscriptions")
+            .select("student_id, coach_id, coaches(user_id)")
+            .eq("id", subscriptionId)
+            .maybeSingle();
+        const coachInfo = subscription?.coaches as any;
+        const isOwner = coachInfo?.user_id === userId || String(subscription?.coach_id || "") === userId;
+        return isOwner ? String(subscription?.student_id || "") || null : null;
+    }
+
+    const hintedSubjectUserId = String(contextOptions?.subjectUserId || "").trim();
+    if (!hintedSubjectUserId) return null;
+
+    const { data: ownedRows } = await supabase
+        .from("coach_subscriptions")
+        .select("student_id, coach_id, coaches(user_id)")
+        .eq("student_id", hintedSubjectUserId)
+        .limit(20);
+
+    const isOwner = (ownedRows || []).some((row: any) => {
+        const coachInfo = row?.coaches as any;
+        return coachInfo?.user_id === userId || String(row?.coach_id || "") === userId;
+    });
+    return isOwner ? hintedSubjectUserId : null;
+}
+
+async function resolveOneRmPreviewAdjustments(params: {
+    drafts?: OneRmAdjustmentDraft[];
+    userId: string;
+    targetActionType: TargetActionType;
+    contextOptions?: BatchOperationDto["contextOptions"];
+    actions: any[];
+}): Promise<OneRmAdjustmentPreview[]> {
+    const drafts = params.drafts || [];
+    if (drafts.length === 0) return [];
+
+    const subjectUserId = await resolveSubjectUserIdForOneRmAdjustments({
+        userId: params.userId,
+        targetActionType: params.targetActionType,
+        contextOptions: params.contextOptions,
+    });
+    if (!subjectUserId) return [];
+
+    const { getCurrent1RMRecords } = await import("@/app/api/student/get-current-1rm/route");
+    const rmRecords = await getCurrent1RMRecords(params.userId, {
+        targetUserId: subjectUserId,
+        preferPR: true,
+    });
+
+    const currentOneRMByActionId: Record<string, number> = {};
+    const currentOneRMByCanonicalActionId: Record<string, number> = {};
+    const currentOneRMByActionName: Record<string, number> = {};
+    for (const record of rmRecords || []) {
+        const currentOneRM = Number(record.current1RM);
+        if (!Number.isFinite(currentOneRM) || currentOneRM <= 0) continue;
+        if (record.actionId) currentOneRMByActionId[String(record.actionId)] = currentOneRM;
+        if (record.canonicalActionId) currentOneRMByCanonicalActionId[String(record.canonicalActionId)] = currentOneRM;
+        if (record.actionName) currentOneRMByActionName[normalizeActionNameKey(record.actionName)] = currentOneRM;
+    }
+
+    const { data: studentActions } = await supabase
+        .from("student_actions")
+        .select("id, name, canonical_action_id")
+        .eq("user_id", subjectUserId);
+
+    const studentActionIdByCanonicalActionId: Record<string, string> = {};
+    const studentActionIdByActionName: Record<string, string> = {};
+    for (const action of studentActions || []) {
+        if (action.canonical_action_id) {
+            studentActionIdByCanonicalActionId[String(action.canonical_action_id)] = String(action.id);
+        }
+        if (action.name) {
+            studentActionIdByActionName[normalizeActionNameKey(action.name)] = String(action.id);
+        }
+    }
+
+    return resolveOneRmAdjustments({
+        drafts,
+        actions: (params.actions || []).map((action: any) => ({
+            id: String(action.id),
+            name: String(action.name || ""),
+            canonical_action_id: action.canonical_action_id || action.canonicalActionId || null,
+        })),
+        currentOneRMByActionId,
+        currentOneRMByCanonicalActionId,
+        currentOneRMByActionName,
+        studentActionIdByCanonicalActionId,
+        studentActionIdByActionName,
+    });
+}
+
 async function runPlanScriptEdit(params: {
-    openai: ReturnType<typeof getCoachlinkLlm>["client"];
+    openai: ReturnType<typeof getCoachlinkPlanLlm>["client"];
     llmModel: string;
     trainingDays: any[];
     actions: any[];
@@ -633,7 +759,19 @@ async function runPlanScriptEdit(params: {
 - 必须保留完整计划，不能只返回被修改片段。
 - 除用户要求修改的地方外，其余周、天、动作顺序、备注和参数都必须保持不变。
 - 动作名必须使用动作库中的完整名称，尤其括号变体必须精确保留，例如“负重引体（底部暂停）”不能写成“负重引体”。
-- 如果用户要求的新动作不在动作库中，返回无法执行原因，不要编造动作名。
+- 如果用户要求的新动作不在动作库中，直接在脚本中写用户指定的新动作名；系统会把它转为待确认动作，后续让用户选择“新建动作”或“映射已有动作”。
+- 禁止把新动作硬匹配到相似旧动作；例如“窄距反手引体”不在库中时，保留“窄距反手引体”，不要改写成“反手引体”或其他相近动作。
+- 如果用户表达的是“太重/太轻/做不了/过轻松”等负荷反馈，且当前计划的重量本质依赖全局 1RM，请优先输出 \`oneRmAdjustments\` 来调整动作级全局 1RM，而不是把计划写死成固定重量。
+- 如果用户明确要“直接写成 60kg / 按问卷已知重量回填 / 改成固定重量 / 改成 8RM / 改成 75%1RM”，优先输出 \`loadAdjustments\`，不要为了这类小改动重写整份脚本。
+- \`oneRmAdjustments\` 里的 \`deltaKg\` 必须是 2.5kg 的整数倍。轻微偏差默认用 ±2.5kg，明显偏差可用 ±5kg、±7.5kg、±10kg。
+- \`loadAdjustments\` 里：
+  - \`mode="fixed"\` 表示直接把计划写死成固定重量，不再跟随 1RM 自动重算；
+  - \`mode="rm"\` 表示把该动作改成指定 RM；
+  - \`mode="percentage"\` 表示把该动作改成指定 %1RM；
+  - \`targetKg\` / \`deltaKg\` 仅用于 \`mode="fixed"\`，并且必须是 2.5kg 的整数倍；
+  - \`targetValue\` 仅用于 \`mode="rm"\` 或 \`mode="percentage"\`。
+- 如果只是调整全局 1RM 而不需要改计划脚本结构，\`script\` 可以保持与当前计划脚本一致。
+- 如果只是做 \`loadAdjustments\` 或 \`oneRmAdjustments\`，\`script\` 也可以保持与当前计划脚本一致。
 
 ## 可用动作库
 ${actionLibrary}
@@ -654,7 +792,24 @@ ${deterministicReason ? `\n\n## 已尝试的明确规则未命中原因\n${deter
 {
   "actionPlan": "一句中文说明你做了什么",
   "script": "完整修改后的计划脚本",
-  "cannotApplyReason": "如果无法修改，写明原因；可以修改时为空字符串"
+  "cannotApplyReason": "如果无法修改，写明原因；可以修改时为空字符串",
+  "oneRmAdjustments": [
+    {
+      "actionName": "需要调整 1RM 的动作名",
+      "deltaKg": -2.5,
+      "reason": "为什么要这样调整"
+    }
+  ],
+  "loadAdjustments": [
+    {
+      "actionName": "需要直接改负荷的动作名",
+      "dayIndex": 3,
+      "setIndex": 1,
+      "mode": "fixed",
+      "targetKg": 60,
+      "reason": "问卷已知当前工作重量"
+    }
+  ]
 }`,
         },
     ];
@@ -692,6 +847,8 @@ ${deterministicReason ? `\n\n## 已尝试的明确规则未命中原因\n${deter
                     actionPlan?: string;
                     script?: string;
                     cannotApplyReason?: string;
+                    oneRmAdjustments?: OneRmAdjustmentDraft[];
+                    loadAdjustments?: LoadAdjustmentDraft[];
                 };
 
                 if (response.cannotApplyReason?.trim()) {
@@ -705,27 +862,56 @@ ${deterministicReason ? `\n\n## 已尝试的明确规则未命中原因\n${deter
                     };
                 }
 
-                if (!response.script?.trim()) {
+                const oneRmAdjustments = Array.isArray(response.oneRmAdjustments)
+                    ? response.oneRmAdjustments
+                    : [];
+                const loadAdjustments = Array.isArray(response.loadAdjustments)
+                    ? response.loadAdjustments
+                    : [];
+                const nextScript = response.script?.trim() || (
+                    oneRmAdjustments.length > 0 || loadAdjustments.length > 0
+                        ? currentScript
+                        : ""
+                );
+
+                if (!nextScript.trim()) {
                     throw new Error("AI 返回缺少 script 字段");
                 }
 
-                if (normalizePlanScriptText(response.script) === normalizePlanScriptText(currentScript)) {
+                if (
+                    normalizePlanScriptText(nextScript) === normalizePlanScriptText(currentScript) &&
+                    oneRmAdjustments.length === 0 &&
+                    loadAdjustments.length === 0
+                ) {
                     throw new Error("AI 返回的计划脚本与原脚本相同，没有实际修改");
                 }
 
                 const parsed = parsePlanScript({
-                    script: response.script,
+                    script: nextScript,
                     actions: actions.map((action: any) => ({
                         id: action.id,
                         name: action.name,
                         type: action.type,
+                    })),
+                    allowPendingActions: true,
+                });
+
+                const loadAdjustmentResult = applyLoadAdjustments({
+                    drafts: loadAdjustments,
+                    trainingDays: parsed.days,
+                    actions: actions.map((action: any) => ({
+                        id: action.id,
+                        name: action.name,
                     })),
                 });
 
                 return {
                     success: true,
                     actionPlan: response.actionPlan || "已根据计划脚本完成修改",
-                    updatedTrainingDays: parsed.days,
+                    updatedTrainingDays: loadAdjustmentResult.updatedTrainingDays,
+                    oneRmAdjustments,
+                    loadAdjustments,
+                    appliedLoadAdjustments: loadAdjustmentResult.adjustments.length,
                     promptTokens,
                     completionTokens,
                     totalTokens,
@@ -856,7 +1042,7 @@ export async function POST(req: NextRequest) {
                         getActionOwnerConfig(targetActionType);
                     const { data: actionsData, error: actionsError } = await supabase
                         .from(actionTable)
-                        .select('id, name, type, detail')
+                        .select('id, name, type, detail, canonical_action_id')
                         .eq(actionOwnerColumn, userId);
 
                     if (actionsError) {
@@ -1280,6 +1466,7 @@ ${effectiveInstruction}
                             updatedTrainingDays: normalizedUpdatedTrainingDays,
                             modifications,
                             pendingActions,
+                            oneRmAdjustments: [],
                             message: `分析完成，共发现 ${modifications.length} 处修改${isDevelopment ? ` (总耗时 ${totalDuration}ms)` : ''}`,
                         });
                         return;
@@ -1315,10 +1502,36 @@ ${effectiveInstruction}
                                     scriptResult.updatedTrainingDays,
                                     actions.map(a => ({ id: a.id, name: a.name })),
                                 );
+                                const knownActionIds = new Set(actions.map((a: any) => a.id));
+                                const pendingActions = collectPendingActions(
+                                    scriptResult.updatedTrainingDays || [],
+                                    knownActionIds,
+                                );
+                                const newActionsDetected: NewActionDetected[] = pendingActions.map((p) => ({
+                                    actionId: p.tempActionId,
+                                    suggestedName: p.suggestedName,
+                                }));
+                                if (newActionsDetected.length > 0) {
+                                    const namesList = newActionsDetected
+                                        .map((a) => a.suggestedName || a.actionId)
+                                        .join('、');
+                                    sendMessage({
+                                        type: 'new_actions_detected',
+                                        actions: newActionsDetected,
+                                        message: `修改计划中包含以下不在您动作库中的动作：${namesList}。可以先确认并创建这些动作，再应用计划。`
+                                    });
+                                }
                                 const normalizedUpdatedTrainingDays = normalizeTrainingDaysForEditor(
                                     scriptResult.updatedTrainingDays || [],
                                     actions,
                                 );
+                                const oneRmAdjustments = await resolveOneRmPreviewAdjustments({
+                                    drafts: scriptResult.oneRmAdjustments,
+                                    userId,
+                                    targetActionType,
+                                    contextOptions,
+                                    actions,
+                                });
                                 if (isDevelopment && scriptResult.totalTokens) {
                                     sendMessage({
                                         type: "stats",
@@ -1337,8 +1550,9 @@ ${effectiveInstruction}
                                     originalTrainingDays,
                                     updatedTrainingDays: normalizedUpdatedTrainingDays,
                                     modifications,
-                                    pendingActions: [],
-                                    message: `脚本编辑完成，共发现 ${modifications.length} 处修改${isDevelopment ? ` (总耗时 ${Date.now() - startTime}ms)` : ""}`,
+                                    pendingActions,
+                                    oneRmAdjustments,
+                                    message: `脚本编辑完成，共发现 ${modifications.length} 处修改${scriptResult.appliedLoadAdjustments ? `，并结构化应用 ${scriptResult.appliedLoadAdjustments} 条负荷调整` : ""}${oneRmAdjustments.length > 0 ? `，并调整 ${oneRmAdjustments.length} 个动作的全局1RM` : ""}${isDevelopment ? ` (总耗时 ${Date.now() - startTime}ms)` : ""}`,
                                 });
                                 return;
                             }
@@ -1359,6 +1573,8 @@ ${effectiveInstruction}
 
 ## 你的任务
 根据用户的自然语言指令，生成 TypeScript 代码来修改训练计划。对于动作 ID，请优先复用动作库；若未命中或用户明确要求“新动作”，必须进入待确认流程（使用 \`pending:\` 临时 ID），禁止把“新动作”硬匹配到相似旧动作。
+如果用户表达的是“太重/太轻/做不了/过轻松”等负荷反馈，且当前计划重量主要依赖全局 1RM，请优先通过 \`oneRmAdjustments\` 调整动作级全局 1RM，而不是只把当前计划写死成固定重量。
+如果用户明确说“直接写成多少 kg / 把问卷已知重量填进计划 / 改成固定重量 / 改成 8RM / 改成 75%1RM”，优先使用 \`loadAdjustments\`，这样不需要为了小范围负荷调整去重写整份计划。
 
 ## 训练计划数据结构
 
@@ -1384,10 +1600,12 @@ interface ActionSet {
         action_name?: string;   // 可选，展示用名称
         sets?: number;          // 组数（STRENGTH 常用）
         reps?: number;          // 次数（STRENGTH 常用）
-        weight?: number;       // 重量 kg（STRENGTH 常用）
+        weight?: number;       // 旧字段兼容：固定重量 kg
+        load?: number;         // 当前计划显示/使用的重量 kg
+        loadUnit?: 'kg' | 'lbs';
         rest_seconds?: number;  // 组间休息秒
         note?: string;
-        intensityConfig?: IntensityConfig; // 强度配置（RM、百分比、推荐负重）
+        intensityConfig?: IntensityConfig; // 强度配置（RM、百分比、固定重量、推荐负重）
         '强度'?: number;        // 旧格式兼容：RM 值（如 5 表示 5RM）
         // 有氧/饮食/习惯类动作可能还有 customData，见下
     };
@@ -1397,6 +1615,10 @@ interface IntensityConfig {
     relativeIntensity?: {
         type: 'rm' | 'percentage';  // rm=RM次数, percentage=1RM百分比
         value: number;              // RM时为1-30(如5表示5RM), 百分比时为1-100(如80表示80%)
+    };
+    fixedWeight?: {
+        value: number;
+        unit: 'kg' | 'lbs';
     };
     recommendedLoad?: {
         value: number;  // 推荐重量数值
@@ -1408,6 +1630,7 @@ interface IntensityConfig {
 ### 修改 RM / 强度 的规则
 - 用户说"改成 8RM"时，设置 \`params.intensityConfig = { relativeIntensity: { type: 'rm', value: 8 } }\`，同时设置 \`params['强度'] = 8\`（旧格式兼容）
 - 用户说"改成 80%"时，设置 \`params.intensityConfig = { relativeIntensity: { type: 'percentage', value: 80 } }\`
+- 用户说"直接写成 60kg / 固定 60kg"时，设置 \`params.load = 60\`、\`params.weight = 60\`，并设置 \`params.intensityConfig = { fixedWeight: { value: 60, unit: 'kg' } }\`
 - 如果已有 \`recommendedLoad\`，修改 RM 时保留它不要删除
 - 修改 RM 时不需要修改 \`weight\` 字段（weight 是固定重量模式的值）
 
@@ -1428,6 +1651,12 @@ interface IntensityConfig {
 4. 直接修改 \`trainingDays\` 数组即可，不要 return。
 5. 代码在沙箱中执行，禁止 \`require\`、\`fetch\`、异步、全局变量等。
 6. 处理边界情况：先判断 \`day.actionSets\` 存在再遍历，避免空引用。
+7. \`oneRmAdjustments\` 的 \`deltaKg\` 必须是 2.5kg 的整数倍。轻微偏差默认 ±2.5kg，明显偏差可用 ±5kg、±7.5kg、±10kg。
+8. \`loadAdjustments\` 可用于结构化负荷修改：
+   - \`mode="fixed"\`：直接固定重量，使用 \`targetKg\` 或 \`deltaKg\`；
+   - \`mode="rm"\`：使用 \`targetValue\` 指定新的 RM；
+   - \`mode="percentage"\`：使用 \`targetValue\` 指定新的 %1RM；
+   - 如果只是这类负荷调整，\`code\` 可以为空字符串或 no-op。
 
 ## 可用的辅助函数
 - \`findActionByName(name: string)\`: 仅“规范化后全等”匹配，匹配失败返回 null
@@ -1450,7 +1679,24 @@ ${effectiveInstruction}
 返回 JSON：
 {
     "actionPlan": "一句用户友好的执行计划说明（中文）",
-    "code": "<仅修改 trainingDays 的 TypeScript 代码，不要包含注释外的任何说明>"
+    "code": "<仅修改 trainingDays 的 TypeScript 代码，不要包含注释外的任何说明；如果只需要调整全局1RM且 trainingDays 不变，可返回空字符串或 no-op 代码>",
+    "oneRmAdjustments": [
+        {
+            "actionName": "需要调整 1RM 的动作名",
+            "deltaKg": -2.5,
+            "reason": "为什么要这样调整"
+        }
+    ],
+    "loadAdjustments": [
+        {
+            "actionName": "需要直接改负荷的动作名",
+            "dayIndex": 3,
+            "setIndex": 1,
+            "mode": "fixed",
+            "targetKg": 60,
+            "reason": "问卷已知当前工作重量"
+        }
+    ]
 }`;
 
                     // 4. 调用 AI 并执行代码（支持重试）
@@ -1493,7 +1739,9 @@ ${effectiveInstruction}
 
                             const aiResponse = JSON.parse(responseContent) as {
                                 actionPlan: string;
-                                code: string;
+                                code?: string;
+                                oneRmAdjustments?: OneRmAdjustmentDraft[];
+                                loadAdjustments?: LoadAdjustmentDraft[];
                             };
 
                             // 开发模式：打印 AI 生成的 TypeScript 代码，便于 debug
@@ -1526,15 +1774,31 @@ ${effectiveInstruction}
                             sendMessage({ type: 'progress', message: '正在执行操作...' });
 
                             executionResult = await executeCodeInVM(
-                                aiResponse.code,
+                                aiResponse.code || '',
                                 trainingDays,
                                 actions.map(a => ({ id: a.id, name: a.name }))
                             );
 
                             if (executionResult.success) {
+                                const loadAdjustmentResult = applyLoadAdjustments({
+                                    drafts: Array.isArray(aiResponse.loadAdjustments) ? aiResponse.loadAdjustments : [],
+                                    trainingDays: executionResult.result || [],
+                                    actions: actions.map((action: any) => ({
+                                        id: action.id,
+                                        name: action.name,
+                                    })),
+                                });
+                                executionResult.result = loadAdjustmentResult.updatedTrainingDays;
                                 const originalSnapshot = JSON.stringify(trainingDays);
                                 const resultSnapshot = JSON.stringify(executionResult.result);
-                                if (originalSnapshot === resultSnapshot) {
+                                const oneRmAdjustments = await resolveOneRmPreviewAdjustments({
+                                    drafts: Array.isArray(aiResponse.oneRmAdjustments) ? aiResponse.oneRmAdjustments : [],
+                                    userId,
+                                    targetActionType,
+                                    contextOptions,
+                                    actions,
+                                });
+                                if (originalSnapshot === resultSnapshot && oneRmAdjustments.length === 0 && loadAdjustmentResult.adjustments.length === 0) {
                                     lastError = deterministicResult.matched && deterministicResult.reason
                                         ? `${deterministicResult.reason}\n另外，上一次生成的代码执行成功但没有对 trainingDays 产生任何修改。请严格按用户指令定位并实际改写数组。`
                                         : '上一次生成的代码执行成功，但没有对 trainingDays 产生任何修改。请严格按用户指令定位目标训练日/动作，并实际改写数组。';
@@ -1554,6 +1818,8 @@ ${effectiveInstruction}
                                     throw new Error('操作执行失败：已多次尝试，但生成的代码始终没有对训练计划产生实际修改。请尝试更明确描述范围、动作名和目标参数。');
                                 }
                                 // 执行成功，跳出重试循环
+                                executionResult.oneRmAdjustments = oneRmAdjustments;
+                                executionResult.loadAdjustmentCount = loadAdjustmentResult.adjustments.length;
                                 break;
                             } else {
                                 // 执行失败，准备重试
@@ -1627,7 +1893,8 @@ ${effectiveInstruction}
                         updatedTrainingDays: normalizedUpdatedTrainingDays,
                         modifications,
                         pendingActions,
-                        message: `分析完成，共发现 ${modifications.length} 处修改${isDevelopment ? ` (总耗时 ${totalDuration}ms)` : ''}`
+                        oneRmAdjustments: executionResult.oneRmAdjustments || [],
+                        message: `分析完成，共发现 ${modifications.length} 处修改${executionResult.loadAdjustmentCount ? `，并结构化应用 ${executionResult.loadAdjustmentCount} 条负荷调整` : ''}${(executionResult.oneRmAdjustments || []).length > 0 ? `，并调整 ${(executionResult.oneRmAdjustments || []).length} 个动作的全局1RM` : ''}${isDevelopment ? ` (总耗时 ${totalDuration}ms)` : ''}`
                     });
 
                 } catch (error: any) {

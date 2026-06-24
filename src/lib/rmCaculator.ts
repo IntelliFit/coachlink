@@ -151,6 +151,20 @@ export function normalizeIntensityConfig(
         };
     }
 
+    const rawFixedLoad = params?.load ?? params?.weight ?? params?.intensityConfig?.fixedWeight?.value;
+    if (rawFixedLoad !== null && rawFixedLoad !== undefined && rawFixedLoad !== "") {
+        const fixedLoad = Number(rawFixedLoad);
+        if (!Number.isFinite(fixedLoad)) {
+            return undefined;
+        }
+        return {
+            fixedWeight: {
+                value: fixedLoad,
+                unit: params?.loadUnit === "lbs" ? "lbs" : "kg",
+            },
+        };
+    }
+
     return undefined;
 }
 
@@ -181,8 +195,9 @@ export function hasDynamicIntensityTarget(options: {
  * 优先级：
  * 1. intensityConfig.relativeIntensity + 有1RM → 计算具体重量
  * 2. intensityConfig.relativeIntensity + 无1RM → 显示文字 + 使用 recommendedLoad
- * 3. intensityConfig.recommendedLoad → 直接显示固定重量
- * 4. legacyRm（旧格式兼容）→ 按RM处理
+ * 3. intensityConfig.fixedWeight → 直接显示固定重量
+ * 4. intensityConfig.recommendedLoad → 显示推荐重量
+ * 5. legacyRm（旧格式兼容）→ 按RM处理
  *
  * @param options 计算选项
  * @returns 计算结果
@@ -275,7 +290,17 @@ export function calcIntensityDisplay(
         }
     }
 
-    // 2. 使用推荐数值
+    // 2. 使用固定重量
+    if (intensityConfig?.fixedWeight) {
+        const load = intensityConfig.fixedWeight;
+        return {
+            displayWeight: load.value,
+            displayUnit: load.unit,
+            source: "recommended",
+        };
+    }
+
+    // 3. 使用推荐数值
     if (intensityConfig?.recommendedLoad) {
         const load = intensityConfig.recommendedLoad;
         return {
@@ -285,7 +310,7 @@ export function calcIntensityDisplay(
         };
     }
 
-    // 3. 旧格式兼容：使用 legacyRm（原 params.强度）
+    // 4. 旧格式兼容：使用 legacyRm（原 params.强度）
     if (legacyRm && legacyRm > 0) {
         if (hasOneRM) {
             // For non-bodyweight actions, compute without requiring bodyWeight.
@@ -325,6 +350,6 @@ export function calcIntensityDisplay(
         }
     }
 
-    // 4. 无任何强度配置
+    // 5. 无任何强度配置
     return { source: "none" };
 }

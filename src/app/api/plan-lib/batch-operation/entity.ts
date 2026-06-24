@@ -85,6 +85,17 @@ export interface PendingActionCandidate {
     occurrences: number;
 }
 
+export interface OneRmAdjustmentPreview {
+    actionId: string;
+    actionName: string;
+    canonicalActionId?: string | null;
+    studentActionId?: string | null;
+    currentOneRM: number;
+    nextOneRM: number;
+    deltaKg: number;
+    reason?: string;
+}
+
 // SSE 流式响应的数据格式
 export type SSEMessage =
     | { type: 'progress'; message: string }  // 进度信息（包括重试信息）
@@ -109,6 +120,6 @@ export type SSEMessage =
     | { type: 'need_clarification'; question: string; suggestions?: string[] }  // 指令信息不完整，需用户补全；suggestions 为推荐选项供前端展示
     | { type: 'new_actions_detected'; actions: NewActionDetected[]; message: string }  // 计划中含动作库外动作，询问是否创建
     | { type: 'stats'; tokenUsage?: { prompt: number; completion: number; total: number }; duration?: number }  // 统计信息(开发模式)
-    | { type: 'preview_result'; success: boolean; originalTrainingDays: any; updatedTrainingDays: any; modifications: ModificationDiff[]; pendingActions?: PendingActionCandidate[]; message: string }  // 预览结果(不保存)
+    | { type: 'preview_result'; success: boolean; originalTrainingDays: any; updatedTrainingDays: any; modifications: ModificationDiff[]; pendingActions?: PendingActionCandidate[]; oneRmAdjustments?: OneRmAdjustmentPreview[]; message: string }  // 预览结果(不保存)
     | { type: 'query_result'; answer: string }  // 查询结果（AI 直接回答）
     | { type: 'error'; message: string };  // 错误信息（用户友好格式）

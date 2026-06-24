@@ -25,6 +25,7 @@ import {
     ConversationTurn,
     PendingActionCandidate,
     BatchOperationContextOptions,
+    OneRmAdjustmentPreview,
 } from '@/app/api/plan-lib/batch-operation/entity';
 import MarkdownIt from 'markdown-it';
 import type { CoachActionRow, ItemType } from '@/types';
@@ -47,7 +48,7 @@ interface BatchOperationDialogProps {
     /** modal=弹窗 panel=右侧面板 auto=桌面用面板/移动用弹窗 */
     variant?: 'modal' | 'panel' | 'auto';
     /** 收到 preview_result 时回调，用于在左侧编辑器中展示修改并高亮 */
-    onPreviewResult?: (data: { originalTrainingDays: any; updatedTrainingDays: any; modifications: ModificationDiff[] }) => void;
+    onPreviewResult?: (data: { originalTrainingDays: any; updatedTrainingDays: any; modifications: ModificationDiff[]; oneRmAdjustments?: OneRmAdjustmentPreview[] }) => void;
     /** 用户点击「取消」时回调，用于恢复左侧编辑器为原始数据 */
     onRestart?: () => void;
     /** 确认应用时，优先使用此函数返回的 days（左侧编辑器的当前数据） */
@@ -149,6 +150,7 @@ export function BatchOperationDialog({
         updatedTrainingDays: any;
         modifications: ModificationDiff[];
         pendingActions?: PendingActionCandidate[];
+        oneRmAdjustments?: OneRmAdjustmentPreview[];
     } | null>(null);
     const [queryAnswer, setQueryAnswer] = useState<string | null>(null);
     const [hasStarted, setHasStarted] = useState(false);
@@ -406,6 +408,7 @@ export function BatchOperationDialog({
                         updatedTrainingDays: message.updatedTrainingDays,
                         modifications: message.modifications,
                         pendingActions: nextPending,
+                        oneRmAdjustments: message.oneRmAdjustments || [],
                     });
                     setPendingActions(nextPending);
                     const resolutionMap: Record<string, PendingActionResolution> = {};
@@ -416,7 +419,8 @@ export function BatchOperationDialog({
                     onPreviewResult?.({
                         originalTrainingDays: message.originalTrainingDays,
                         updatedTrainingDays: message.updatedTrainingDays,
-                        modifications: message.modifications
+                        modifications: message.modifications,
+                        oneRmAdjustments: message.oneRmAdjustments || [],
                     });
                 } else {
                     addLog('error', '操作失败');
@@ -641,6 +645,7 @@ export function BatchOperationDialog({
                 originalTrainingDays: nextPreview.originalTrainingDays,
                 updatedTrainingDays: mappedDays,
                 modifications: nextPreview.modifications,
+                oneRmAdjustments: nextPreview.oneRmAdjustments || [],
             });
 
             const createdCount = (confirmResult.data?.createdActions || []).length;

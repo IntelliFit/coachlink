@@ -12,6 +12,19 @@ import {
     validateTrainingDaysAgainstIntent,
 } from "./questionnaire-intent";
 
+const STAGE_B_PRIMARY_OPTIONS = {
+    useReasoner: false,
+    maxTokens: 12000,
+} as const;
+
+const STAGE_B_RETRY_OPTIONS = {
+    useReasoner: false,
+    maxTokens: 16000,
+} as const;
+
+const DEFAULT_PHASE_WEEKS_WITHOUT_TEMPLATE = 8;
+const MAX_PHASE_WEEKS_WITHOUT_TEMPLATE = 16;
+
 export async function personalizePlanWithLLM(
     input: GeneratePersonalizedPlanInput,
 ): Promise<PersonalizePlanResult> {
@@ -25,7 +38,11 @@ export async function personalizePlanWithLLM(
         selectedTemplate,
     } = input;
 
-    const targetWeeks = Math.max(1, Number(subscribedWeeks || 0) || inferWeeksFromTemplate(selectedTemplate));
+    const targetWeeks = inferPlanPhaseWeeks({
+        subscribedWeeks,
+        selectedTemplate,
+        availableTemplates: input.availableTemplates,
+    });
     const questionnaireIntent = extractQuestionnaireIntent(questionnaireAnswers);
     const actionRefs = buildScriptActionRefs(actionLibrary, selectedTemplate);
     const actionNameMap = buildActionNameMap(actionLibrary, selectedTemplate);
@@ -41,6 +58,7 @@ export async function personalizePlanWithLLM(
 
 function buildPersonalizePlanPrompt(params: {
     studentName: string;
+    purchasedWeeks?: number | null;
     subscribedWeeks: number;
     studentProfile: any;
     questionnaireAnswers: any[];
@@ -52,6 +70,7 @@ function buildPersonalizePlanPrompt(params: {
 }): string {
     const {
         studentName,
+        purchasedWeeks,
         subscribedWeeks,
         studentProfile,
         questionnaireAnswers,
@@ -91,8 +110,11 @@ ${questionnaireIntentSection}
 【最新PR记录（1RM）】
 ${JSON.stringify(prRecords ?? [], null, 2)}
 
-【订阅周期要求】
-本次计划必须覆盖 ${subscribedWeeks} 周，也就是完整的 ${subscribedWeeks * 7} 天日历（训练日 + 休息日）。
+【学员已购周期（长期权益参考）】
+${purchasedWeeks && purchasedWeeks > 0 ? `已购 ${purchasedWeeks} 周。` : "未提供已购周数。"}注意：这不是要求你一次性生成满全部已购周数。
+
+【本次计划输出周期】
+本次只需要生成 ${subscribedWeeks} 周，也就是完整的 ${subscribedWeeks * 7} 天日历（训练日 + 休息日）。
 
 【可用动作库（只能使用这些动作名 / actionId）】
 ${actionLibrarySummary}
@@ -103,8 +125,8 @@ ${correctionHint ? `【上一次结果的纠偏要求】\n${correctionHint}\n` :
 
 任务：
 ${hasTemplate
-            ? `根据学员上下文，对已选模板的 plan_script 进行保守个性化调整。优先保留模板结构和模板动作，但如果模板包含与问卷硬约束冲突的专项主项，必须删掉或替换。最终输出应收敛为 ${subscribedWeeks} 周完整计划；若骨架本身更长，只保留最适合当前学员的前 ${subscribedWeeks} 周。`
-            : `当前没有可用模板，请直接基于学员上下文和可用动作库，从零生成一个可执行计划。必须覆盖完整 ${subscribedWeeks} 周，而不是只给几个训练日。`}
+            ? `根据学员上下文，对已选模板的 plan_script 进行保守个性化调整。优先保留模板结构和模板动作，但如果模板包含与问卷硬约束冲突的专项主项，必须删掉或替换。本次输出应以当前骨架周期为准，收敛为 ${subscribedWeeks} 周完整计划。不要为了匹配学员的总已购周数，把 4~16 周模板机械重复扩展成 40 周之类的超长计划。`
+            : `当前没有可用模板，请直接基于学员上下文和可用动作库，从零生成一个可执行计划。本次单阶段计划先生成 ${subscribedWeeks} 周，不要一次性输出超长年度计划。`}
 
 严格规则：
 1. 只能使用“可用动作库 / 已选模板骨架”里存在的动作名称。严禁编造不存在的动作名称或 actionId。
@@ -133,6 +155,7 @@ ${hasTemplate
 11. 不要因为信息不足而把所有训练日都改成休息日；如果已有模板，信息不足时应尽量保留模板训练日；如果没有模板，也必须尽量给出完整可执行计划。
 12. 返回结果必须至少包含 1 个带动作行的训练日。
 13. 严禁写出 \`D2 off !备注\` 这种格式；\`!备注\` 默认用于训练日备注。休息日如果要写说明，请使用 \`D2 off #备注\`。
+14. 学员“已购周数”只代表长期订阅权益，不代表本次单阶段计划必须铺满全部周数。严禁为了对齐已购 40 周，把短骨架重复扩写成 40 周计划。
 
 必须返回 JSON（不要 markdown 代码块，不要额外解释）：
 {
@@ -159,28 +182,12 @@ async function generatePlanScriptAttempt(params: {
         correctionHint,
     } = params;
 
-    const prompt = buildPersonalizePlanPrompt({
-        studentName: input.studentName,
-        subscribedWeeks: targetWeeks,
-        studentProfile: input.studentProfile,
-        questionnaireAnswers: input.questionnaireAnswers,
-        prRecords: input.prRecords,
-        actionLibrary: input.actionLibrary,
-        selectedTemplate: input.selectedTemplate,
+    const result = await requestPlanScriptResult({
+        input,
+        targetWeeks,
         questionnaireIntentSection: buildQuestionnaireIntentSection(questionnaireIntent),
         correctionHint,
     });
-
-    const rawJson = await callDeepSeek(prompt, {
-        useReasoner: true,
-        maxTokens: 6000,
-    });
-
-    const result = parseJsonResponse<{
-        plan_script: string;
-        reasoning: string;
-        changes_summary: string;
-    }>(rawJson, "personalize-plan");
 
     const planScript = String(result.plan_script || "").trim();
     if (!planScript) {
@@ -230,6 +237,75 @@ async function generatePlanScriptAttempt(params: {
         reasoning: result.reasoning || "未提供推理",
         changesSummary: result.changes_summary || "未提供改动摘要",
     };
+}
+
+async function requestPlanScriptResult(params: {
+    input: GeneratePersonalizedPlanInput;
+    targetWeeks: number;
+    questionnaireIntentSection: string;
+    correctionHint?: string;
+}): Promise<{
+    plan_script: string;
+    reasoning: string;
+    changes_summary: string;
+}> {
+    const { input, targetWeeks, questionnaireIntentSection, correctionHint } = params;
+
+    const attempts = [
+        {
+            label: "primary",
+            options: STAGE_B_PRIMARY_OPTIONS,
+            extraCorrectionHint: "",
+        },
+        {
+            label: "retry",
+            options: STAGE_B_RETRY_OPTIONS,
+            extraCorrectionHint:
+                "你上一次的输出疑似被截断、JSON 不完整或内容不符合 JSON 结构。请重新输出一次，严格只返回完整 JSON，不要省略末尾，不要输出任何额外说明。",
+        },
+    ] as const;
+
+    let lastError: unknown = null;
+
+    for (const attempt of attempts) {
+        const prompt = buildPersonalizePlanPrompt({
+            studentName: input.studentName,
+            purchasedWeeks: input.subscribedWeeks,
+            subscribedWeeks: targetWeeks,
+            studentProfile: input.studentProfile,
+            questionnaireAnswers: input.questionnaireAnswers,
+            prRecords: input.prRecords,
+            actionLibrary: input.actionLibrary,
+            selectedTemplate: input.selectedTemplate,
+            questionnaireIntentSection,
+            correctionHint: mergeCorrectionHints(correctionHint, attempt.extraCorrectionHint),
+        });
+
+        try {
+            const rawJson = await callDeepSeek(prompt, attempt.options);
+            return parseJsonResponse<{
+                plan_script: string;
+                reasoning: string;
+                changes_summary: string;
+            }>(rawJson, `personalize-plan-${attempt.label}`);
+        } catch (error) {
+            lastError = error;
+            console.warn(
+                `[personalize-plan] Stage B ${attempt.label} attempt failed:`,
+                error instanceof Error ? error.message : error,
+            );
+        }
+    }
+
+    throw lastError instanceof Error ? lastError : new Error("AI 生成计划脚本失败");
+}
+
+function mergeCorrectionHints(baseHint?: string, extraHint?: string): string | undefined {
+    const hints = [baseHint, extraHint]
+        .map((item) => String(item || "").trim())
+        .filter(Boolean);
+
+    return hints.length > 0 ? hints.join("\n") : undefined;
 }
 
 function buildScriptActionRefs(
@@ -305,5 +381,50 @@ function normalizeItemType(value: unknown): ItemType {
 
 function inferWeeksFromTemplate(selectedTemplate: any): number {
     const dayCount = Array.isArray(selectedTemplate?.training_days) ? selectedTemplate.training_days.length : 0;
-    return Math.max(1, Math.ceil(dayCount / 7) || 1);
+    if (dayCount <= 0) {
+        return 0;
+    }
+    return Math.max(1, Math.ceil(dayCount / 7));
+}
+
+function inferWeeksFromAvailableTemplates(availableTemplates: Array<{ weekCount?: number | null }> = []): number {
+    const weekCounts = availableTemplates
+        .map((template) => Number(template?.weekCount || 0))
+        .filter((value) => Number.isFinite(value) && value > 0);
+
+    if (weekCounts.length === 0) {
+        return 0;
+    }
+
+    return Math.max(...weekCounts);
+}
+
+export function inferPlanPhaseWeeks(params: {
+    subscribedWeeks?: number | null;
+    selectedTemplate?: any;
+    availableTemplates?: Array<{ weekCount?: number | null }>;
+}): number {
+    const templateWeeks = inferWeeksFromTemplate(params.selectedTemplate);
+    if (templateWeeks > 0) {
+        return templateWeeks;
+    }
+
+    const purchasedWeeks = Number(params.subscribedWeeks || 0);
+    const longestAvailableWeeks = inferWeeksFromAvailableTemplates(params.availableTemplates);
+
+    if (longestAvailableWeeks > 0) {
+        if (Number.isFinite(purchasedWeeks) && purchasedWeeks > 0) {
+            return Math.max(
+                1,
+                Math.min(purchasedWeeks, longestAvailableWeeks, MAX_PHASE_WEEKS_WITHOUT_TEMPLATE),
+            );
+        }
+        return Math.max(1, Math.min(longestAvailableWeeks, MAX_PHASE_WEEKS_WITHOUT_TEMPLATE));
+    }
+
+    if (Number.isFinite(purchasedWeeks) && purchasedWeeks > 0) {
+        return Math.max(1, Math.min(purchasedWeeks, DEFAULT_PHASE_WEEKS_WITHOUT_TEMPLATE));
+    }
+
+    return 1;
 }

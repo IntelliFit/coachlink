@@ -1,0 +1,72 @@
+.pullup-stage {
+  .pullup-pipe {
+    position: absolute;
+    border-radius: 24rpx;
+    transform: translateX(-50%);
+    background: linear-gradient(180deg, rgba(243, 185, 72, 0.92) 0%, rgba(47, 128, 237, 0.94) 100%);
+    box-shadow: 0 16rpx 32rpx rgba(47, 128, 237, 0.18);
+    z-index: 2;
+  }
+
+  .pullup-pipe--bottom {
+    background: linear-gradient(180deg, rgba(47, 128, 237, 0.94) 0%, rgba(243, 185, 72, 0.92) 100%);
+  }
+
+  .pullup-bird {
+    width: 72rpx;
+    height: 112rpx;
+    border-radius: 24rpx;
+    background: #2f80ed;
+    border: 6rpx solid rgba(255, 255, 255, 0.96);
+    box-shadow: 0 16rpx 28rpx rgba(47, 128, 237, 0.28);
+    z-index: 3;
+  }
+
+  .pullup-bird-core {
+    inset: 22rpx 16rpx;
+    border-radius: 16rpx;
+  }
+
+  .pullup-gap-line {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 52%;
+    height: 2rpx;
+    background: rgba(255, 255, 255, 0.14);
+    z-index: 1;
+  }
+}
+
+.pullup-stats-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16rpx;
+  margin-top: 16rpx;
+}
+
+.pullup-mini-card {
+  min-height: 96rpx;
+  padding: 20rpx;
+  border-radius: 24rpx;
+  background: #eef5ff;
+  border: 1px solid #d6e1ef;
+  box-sizing: border-box;
+}
+
+.pullup-mini-label {
+  display: block;
+  font-size: 22rpx;
+  font-weight: 700;
+  color: #486382;
+  line-height: 1.4;
+  margin-bottom: 8rpx;
+}
+
+.pullup-mini-value {
+  display: block;
+  font-size: 34rpx;
+  font-weight: 900;
+  color: #10253c;
+  line-height: 1.2;
+}

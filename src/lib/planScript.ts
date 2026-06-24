@@ -14,6 +14,12 @@ export interface ParsePlanScriptParams {
     script: string;
     actions: Array<Pick<CoachActionRow, "id" | "name" | "type">>;
     questions?: PlanScriptQuestionLite[];
+    /**
+     * When true, unknown action names are preserved as pending actions instead of
+     * being force-matched or rejected. The caller can then ask the user to map or
+     * create them before saving.
+     */
+    allowPendingActions?: boolean;
 }
 
 export interface ParsePlanScriptResult {
@@ -117,6 +123,7 @@ function parseVolumeToken(token: string): ParsedVolumeToken | null {
 function resolveScriptAction(
     actionName: string,
     actions: Array<Pick<CoachActionRow, "id" | "name" | "type">>,
+    allowPendingActions = false,
 ): { id: string; name: string; score: number } {
     const exactName = normalizeScriptActionNameForExactMatch(actionName);
     const exactMatches = actions.filter(
@@ -129,6 +136,17 @@ function resolveScriptAction(
 
     if (exactMatches.length > 1) {
         throw new Error(`动作名称存在多个完全匹配项，请先合并或重命名：${actionName}`);
+    }
+
+    if (allowPendingActions) {
+        const pendingKey = exactName
+            .replace(/[^\p{L}\p{N}]+/gu, "")
+            .slice(0, 48);
+        return {
+            id: `pending:${pendingKey || "unnamed"}`,
+            name: actionName,
+            score: 0,
+        };
     }
 
     if (hasVariantMarker(actionName)) {
@@ -145,6 +163,7 @@ function resolveScriptAction(
 function parseActionLine(
     line: string,
     actions: Array<Pick<CoachActionRow, "id" | "name" | "type">>,
+    allowPendingActions = false,
 ): CoachPlanAction {
     let working = line.trim();
     let note = "";
@@ -199,7 +218,7 @@ function parseActionLine(
         throw new Error(`动作行缺少动作名称：${line}`);
     }
 
-    const match = resolveScriptAction(actionName, actions);
+    const match = resolveScriptAction(actionName, actions, allowPendingActions);
 
     if (sets !== null) params["组数"] = sets;
     if (setRangeMin !== null && setRangeMax !== null) {
@@ -209,11 +228,18 @@ function parseActionLine(
     if (reps !== null) params["次数"] = reps;
     if (durationSeconds !== null) params["持续时间"] = durationSeconds;
 
+    const nextParams = match.id.startsWith("pending:")
+        ? {
+            ...params,
+            action_name: actionName,
+        }
+        : params;
+
     return {
         type: "no-filter",
         actionId: match.id,
         setName: actionName,
-        params,
+        params: nextParams,
         itemType: actions.find((action) => action.id === match.id)?.type || "STRENGTH",
     } as CoachPlanAction;
 }
@@ -333,6 +359,7 @@ export function formatTemplateToPlanScript(params: {
 export function parsePlanScript({
     script,
     actions,
+    allowPendingActions = false,
 }: ParsePlanScriptParams): ParsePlanScriptResult {
     const lines = String(script || "").replace(/\r\n/g, "\n").split("\n");
     const descriptionLines: string[] = [];
@@ -399,7 +426,7 @@ export function parsePlanScript({
         }
 
         currentDay.actionSets = currentDay.actionSets || [];
-        currentDay.actionSets.push(parseActionLine(line, actions));
+        currentDay.actionSets.push(parseActionLine(line, actions, allowPendingActions));
     }
 
     const resultDays = Array.from(days.values()).sort(

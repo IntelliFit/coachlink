@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { personalizePlanWithLLM } from "./personalize-plan";
+import { inferPlanPhaseWeeks, personalizePlanWithLLM } from "./personalize-plan";
 import { GeneratePersonalizedPlanInput } from "./entity";
 
 const { mockCallDeepSeek } = vi.hoisted(() => ({
@@ -67,14 +67,36 @@ const mockPlanScript = [
     "D2 off",
 ].join("\n");
 
+const makeCalendarDays = (weeks: number) =>
+    Array.from({ length: weeks * 7 }, (_, index) => ({
+        type: index % 7 === 0 ? "training" : "rest",
+        dayIndex: index + 1,
+        note: index % 7 === 0 ? "" : "休息日",
+        actionSets: index % 7 === 0
+            ? [
+                {
+                    type: "no-filter",
+                    actionId: "act-1",
+                    itemType: "STRENGTH",
+                    setName: "深蹲",
+                    params: {
+                        "组数": 4,
+                        "次数": 8,
+                        "休息时间": 120,
+                    },
+                },
+            ]
+            : [],
+    }));
+
 describe("personalizePlanWithLLM", () => {
     beforeEach(() => {
         vi.clearAllMocks();
     });
 
-    it("基于已有模板调计划时 prompt 包含模板骨架", async () => {
+    it("基于已有模板调计划时，输出周期优先跟模板骨架走而不是已购总周数", async () => {
         const input = makeInput({
-            subscribedWeeks: 4,
+            subscribedWeeks: 40,
             questionnaireAnswers: [
                 { id: "q1", question: "训练目标", userSelection: "减脂", type: "text" },
             ],
@@ -82,7 +104,7 @@ describe("personalizePlanWithLLM", () => {
                 id: "tpl-1",
                 name: "基础增肌",
                 description: "4周计划",
-                training_days: mockTrainingDays,
+                training_days: makeCalendarDays(4),
             } as any,
         });
 
@@ -100,10 +122,12 @@ describe("personalizePlanWithLLM", () => {
         expect(prompt).toContain("可用动作库");
         expect(prompt).toContain("plan_script");
         expect(prompt).toContain("深蹲");
-        expect(prompt).toContain("本次计划必须覆盖 4 周");
+        expect(prompt).toContain("本次只需要生成 4 周");
+        expect(prompt).toContain("已购 40 周");
+        expect(prompt).toContain("不要为了匹配学员的总已购周数");
         expect(mockCallDeepSeek.mock.calls[0][1]).toMatchObject({
-            useReasoner: true,
-            maxTokens: 6000,
+            useReasoner: false,
+            maxTokens: 12000,
         });
         expect(result.trainingDays).toHaveLength(2);
         expect(result.planScript).toContain("W1");
@@ -188,9 +212,41 @@ describe("personalizePlanWithLLM", () => {
     });
 
     it("LLM 异常向上抛出", async () => {
-        mockCallDeepSeek.mockRejectedValueOnce(new Error("网络超时"));
+        mockCallDeepSeek
+            .mockRejectedValueOnce(new Error("网络超时"))
+            .mockRejectedValueOnce(new Error("网络超时"));
 
         await expect(personalizePlanWithLLM(makeInput())).rejects.toThrow("网络超时");
+        expect(mockCallDeepSeek).toHaveBeenCalledTimes(2);
+    });
+
+    it("首轮 JSON 被截断时会自动带纠偏提示重试", async () => {
+        mockCallDeepSeek
+            .mockResolvedValueOnce('{"plan_script":"W1')
+            .mockResolvedValueOnce(JSON.stringify({
+                plan_script: mockPlanScript,
+                reasoning: "第二次返回完整 JSON",
+                changes_summary: "重试成功",
+            }));
+
+        const result = await personalizePlanWithLLM(makeInput({
+            questionnaireAnswers: [
+                { id: "q1", question: "训练目标", userSelection: "减脂", type: "text" },
+            ],
+        }));
+
+        expect(mockCallDeepSeek).toHaveBeenCalledTimes(2);
+        expect(mockCallDeepSeek.mock.calls[0][1]).toMatchObject({
+            useReasoner: false,
+            maxTokens: 12000,
+        });
+        expect(mockCallDeepSeek.mock.calls[1][1]).toMatchObject({
+            useReasoner: false,
+            maxTokens: 16000,
+        });
+        const secondPrompt = mockCallDeepSeek.mock.calls[1][0] as string;
+        expect(secondPrompt).toContain("输出疑似被截断");
+        expect(result.planScript).toContain("W1");
     });
 
     it("问卷明确每周训练 2 次时，首次生成 3 练会自动重试", async () => {
@@ -270,5 +326,28 @@ describe("personalizePlanWithLLM", () => {
         expect(secondPrompt).toContain("问卷明确每周训练 2 次");
         expect(secondPrompt).toContain("W1 实际安排了 3 个训练日");
         expect(result.trainingDays.filter((day: any) => day.type === "training")).toHaveLength(4);
+    });
+
+    it("inferPlanPhaseWeeks 在有模板时优先使用模板长度", () => {
+        expect(inferPlanPhaseWeeks({
+            subscribedWeeks: 40,
+            selectedTemplate: {
+                training_days: makeCalendarDays(16),
+            },
+            availableTemplates: [
+                { weekCount: 8 },
+                { weekCount: 16 },
+            ],
+        })).toBe(16);
+    });
+
+    it("inferPlanPhaseWeeks 在无模板时不会因为长订阅一次性生成超长计划", () => {
+        expect(inferPlanPhaseWeeks({
+            subscribedWeeks: 40,
+            availableTemplates: [
+                { weekCount: 8 },
+                { weekCount: 16 },
+            ],
+        })).toBe(16);
     });
 });

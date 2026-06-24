@@ -46,6 +46,7 @@ import type { FeedbackItem } from '@/app/api/coach/get-student-feedbacks/entity'
 import StudentFeedbackPanel from './components/StudentFeedbackPanel';
 import { BatchOperationDialog } from '@/components/BatchOperationDialog';
 import { formatTemplateToPlanScript, parsePlanScript } from '@/lib/planScript';
+import type { OneRmAdjustmentPreview } from '@/app/api/plan-lib/batch-operation/entity';
 
 const StudentPlanPage = () => {
     const router = useRouter();
@@ -88,6 +89,8 @@ const StudentPlanPage = () => {
     const [scriptDraft, setScriptDraft] = useState('');
     const [scriptError, setScriptError] = useState<string | null>(null);
     const [originalDaysBeforeAi, setOriginalDaysBeforeAi] = useState<FormPlanTrainingDay[] | null>(null);
+    const [pendingOneRmAdjustments, setPendingOneRmAdjustments] = useState<OneRmAdjustmentPreview[]>([]);
+    const [originalOneRmAdjustmentsBeforeAi, setOriginalOneRmAdjustmentsBeforeAi] = useState<OneRmAdjustmentPreview[] | null>(null);
     const [actionSearchId, setActionSearchId] = useState<string | null>(null);
 
     // Student data
@@ -537,6 +540,90 @@ const StudentPlanPage = () => {
         setDays(newDays);
     }
 
+    const normalizeActionName = (name?: string | null) => (name || '')
+        .trim()
+        .toLowerCase()
+        .replace(/[\s\-_()（）【】\[\]·,，.。]/g, '');
+
+    const applyPendingOneRmAdjustments = useCallback(async () => {
+        if (!params.id || pendingOneRmAdjustments.length === 0) {
+            return { applied: 0, skipped: 0 };
+        }
+
+        const studentActionsRes = await fetch('/api/coach/get-student-actions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ subscriptionId: params.id.toString() }),
+        });
+        const studentActionsData = await studentActionsRes.json();
+        if (!studentActionsRes.ok || !studentActionsData.success) {
+            throw new Error(studentActionsData.message || '无法获取学员动作库');
+        }
+
+        const studentActions = Array.isArray(studentActionsData.data?.actions)
+            ? studentActionsData.data.actions as Array<{ id: string; name: string; canonical_action_id?: string | null }>
+            : [];
+
+        const studentActionIdByCanonical = new Map<string, string>();
+        const studentActionIdByName = new Map<string, string>();
+        for (const action of studentActions) {
+            if (action.canonical_action_id) {
+                studentActionIdByCanonical.set(String(action.canonical_action_id), String(action.id));
+            }
+            if (action.name) {
+                studentActionIdByName.set(normalizeActionName(action.name), String(action.id));
+            }
+        }
+
+        const updates: Array<{ actionId: string; reference_1rm: number | null }> = [];
+        const unresolved: OneRmAdjustmentPreview[] = [];
+
+        for (const adjustment of pendingOneRmAdjustments) {
+            const actionId = adjustment.studentActionId ||
+                (adjustment.canonicalActionId ? studentActionIdByCanonical.get(String(adjustment.canonicalActionId)) : undefined) ||
+                studentActionIdByName.get(normalizeActionName(adjustment.actionName));
+
+            if (!actionId) {
+                unresolved.push(adjustment);
+                continue;
+            }
+
+            updates.push({
+                actionId,
+                reference_1rm: adjustment.nextOneRM,
+            });
+        }
+
+        if (updates.length > 0) {
+            const updateRes = await fetch('/api/coach/batch-update-student-1rm', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    subscriptionId: params.id.toString(),
+                    updates,
+                }),
+            });
+            const updateData = await updateRes.json();
+            if (!updateRes.ok || !updateData.success) {
+                throw new Error(updateData.message || '无法保存 1RM 调整');
+            }
+        }
+
+        setPendingOneRmAdjustments(unresolved);
+        setOriginalOneRmAdjustmentsBeforeAi(null);
+
+        const studentRes = await coachService.getStudent({
+            subscriptionId: params.id.toString(),
+            need1RM: true,
+        });
+        setStudentData(studentRes.student || null);
+
+        return {
+            applied: updates.length,
+            skipped: unresolved.length,
+        };
+    }, [params.id, pendingOneRmAdjustments]);
+
     // ==================== 自动保存机制 ====================
     const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'pending' | 'saving' | 'saved' | 'error'>('idle');
@@ -602,11 +689,15 @@ const StudentPlanPage = () => {
             });
 
             if (res) {
+                const adjustmentResult = await applyPendingOneRmAdjustments();
                 setAutoSaveStatus('saved');
                 setHasUnsavedChanges(false);
                 // If this autosave includes an import start config, clear it after first successful persist
                 if (importStartConfig) {
                     setImportStartConfig(null);
+                }
+                if (adjustmentResult.skipped > 0) {
+                    console.warn('部分 1RM 调整未能自动保存，待下次重试:', adjustmentResult.skipped);
                 }
                 // 3秒后恢复空闲状态
                 setTimeout(() => setAutoSaveStatus('idle'), 3000);
@@ -617,7 +708,7 @@ const StudentPlanPage = () => {
             console.error('自动保存失败:', error);
             setAutoSaveStatus('error');
         }
-    }, [coach?.id, params.id, instanceExists, instanceId, name, description, executionNotice, tags, type, suitableFor, days, importStartConfig]);
+    }, [coach?.id, params.id, instanceExists, instanceId, name, description, executionNotice, tags, type, suitableFor, days, importStartConfig, applyPendingOneRmAdjustments]);
 
     // 防抖自动保存 - 2秒后自动保存
     useEffect(() => {
@@ -710,6 +801,8 @@ const StudentPlanPage = () => {
 
         const shouldCreateNewInstance =
             (!instanceExists || !instanceId) || (instanceExists && instanceId && importMode === 'new_instance');
+        let canLeaveAfterSave = true;
+        let saveSucceeded = false;
 
         if (!shouldCreateNewInstance && instanceExists && instanceId) {
             // Overwrite current instance (keeps executions)
@@ -727,7 +820,30 @@ const StudentPlanPage = () => {
             });
 
             if (res) {
-                showToast({ severity: 'success', summary: '保存成功', detail: '训练计划已更新' });
+                saveSucceeded = true;
+                try {
+                    const adjustmentResult = await applyPendingOneRmAdjustments();
+                    if (adjustmentResult.skipped > 0) {
+                        canLeaveAfterSave = false;
+                        showToast({
+                            severity: 'warn',
+                            summary: '计划已保存',
+                            detail: `训练计划已更新，已同步 ${adjustmentResult.applied} 个动作的全局1RM，但仍有 ${adjustmentResult.skipped} 个动作待手动确认`,
+                        });
+                    } else {
+                        const detail = adjustmentResult.applied > 0
+                            ? `训练计划已更新，并同步调整 ${adjustmentResult.applied} 个动作的全局1RM`
+                            : '训练计划已更新';
+                        showToast({ severity: 'success', summary: '保存成功', detail });
+                    }
+                } catch (error: any) {
+                    canLeaveAfterSave = false;
+                    showToast({
+                        severity: 'warn',
+                        summary: '计划已保存',
+                        detail: `训练计划已更新，但 1RM 同步失败：${error?.message || '请重试'}`,
+                    });
+                }
                 if (importStartConfig) setImportStartConfig(null);
             } else {
                 showToast({ severity: 'error', summary: '保存失败', detail: '无法更新训练计划' });
@@ -751,7 +867,30 @@ const StudentPlanPage = () => {
 
             if (res) {
                 setInstanceExists(true);
-                showToast({ severity: 'success', summary: '创建成功', detail: '训练计划已创建' });
+                saveSucceeded = true;
+                try {
+                    const adjustmentResult = await applyPendingOneRmAdjustments();
+                    if (adjustmentResult.skipped > 0) {
+                        canLeaveAfterSave = false;
+                        showToast({
+                            severity: 'warn',
+                            summary: '计划已创建',
+                            detail: `训练计划已创建，已同步 ${adjustmentResult.applied} 个动作的全局1RM，但仍有 ${adjustmentResult.skipped} 个动作待手动确认`,
+                        });
+                    } else {
+                        const detail = adjustmentResult.applied > 0
+                            ? `训练计划已创建，并同步调整 ${adjustmentResult.applied} 个动作的全局1RM`
+                            : '训练计划已创建';
+                        showToast({ severity: 'success', summary: '创建成功', detail });
+                    }
+                } catch (error: any) {
+                    canLeaveAfterSave = false;
+                    showToast({
+                        severity: 'warn',
+                        summary: '计划已创建',
+                        detail: `训练计划已创建，但 1RM 同步失败：${error?.message || '请重试'}`,
+                    });
+                }
             } else {
                 showToast({ severity: 'error', summary: '创建失败' });
             }
@@ -762,7 +901,9 @@ const StudentPlanPage = () => {
         // - 无计划（首次创建）：保持默认 overwrite（后续再编辑即为覆盖更新）
         setImportMode('overwrite');
 
-        router.push('/dashboard/students');
+        if (saveSucceeded && canLeaveAfterSave) {
+            router.push('/dashboard/students');
+        }
 
         setSaving(false);
     };
@@ -980,15 +1121,19 @@ const StudentPlanPage = () => {
     const planReference1RMs = useMemo(() => {
         const map: Record<string, number> = {};
         const agg = studentData?.aggregated1RM;
-        if (!agg) return map;
-        for (const action of actions) {
-            const val = (action.canonical_action_id ? agg[action.canonical_action_id] : undefined)
-                ?? agg[action.name]
-                ?? agg[action.id];
-            if (val != null) map[action.id] = val;
+        if (agg) {
+            for (const action of actions) {
+                const val = (action.canonical_action_id ? agg[action.canonical_action_id] : undefined)
+                    ?? agg[action.name]
+                    ?? agg[action.id];
+                if (val != null) map[action.id] = val;
+            }
+        }
+        for (const adjustment of pendingOneRmAdjustments) {
+            map[adjustment.actionId] = adjustment.nextOneRM;
         }
         return map;
-    }, [studentData?.aggregated1RM, actions]);
+    }, [studentData?.aggregated1RM, actions, pendingOneRmAdjustments]);
 
     const handleBatchApply = (operation: BatchOperation) => {
         if (actions.length === 0) {
@@ -1044,8 +1189,9 @@ const StudentPlanPage = () => {
         showToast({ severity: 'success', summary: '追加成功', detail: `共追加 ${result.affectedSets} 个动作` });
     };
 
-    const handleAiPreviewResult = (data: { updatedTrainingDays: any[] }) => {
-        setOriginalDaysBeforeAi(JSON.parse(JSON.stringify(days)));
+    const handleAiPreviewResult = (data: { updatedTrainingDays: any[]; oneRmAdjustments?: OneRmAdjustmentPreview[] }) => {
+        setOriginalDaysBeforeAi((prev) => prev ?? JSON.parse(JSON.stringify(days)));
+        setOriginalOneRmAdjustmentsBeforeAi((prev) => prev ?? JSON.parse(JSON.stringify(pendingOneRmAdjustments)));
         const converted: FormPlanTrainingDay[] = (data.updatedTrainingDays || []).map((day: any) => ({
             id: day.id,
             dayIndex: day.dayIndex ?? 0,
@@ -1061,12 +1207,21 @@ const StudentPlanPage = () => {
         }
 
         setDays(converted);
+        setPendingOneRmAdjustments(data.oneRmAdjustments || []);
+        if (instanceExists && instanceId && ((data.oneRmAdjustments || []).length > 0 || converted.length > 0)) {
+            setHasUnsavedChanges(true);
+            setAutoSaveStatus('pending');
+        }
     };
 
     const handleAiRestart = () => {
         if (originalDaysBeforeAi) {
             setDays(originalDaysBeforeAi);
             setOriginalDaysBeforeAi(null);
+        }
+        if (originalOneRmAdjustmentsBeforeAi) {
+            setPendingOneRmAdjustments(originalOneRmAdjustmentsBeforeAi);
+            setOriginalOneRmAdjustmentsBeforeAi(null);
         }
     };
 
@@ -1087,12 +1242,23 @@ const StudentPlanPage = () => {
 
         setDays(converted);
         if (converted.length > 0) setSelectedDayIndex(converted[0].dayIndex);
-        showToast({ severity: 'success', summary: 'AI 修改器成功', detail: '修改已应用到当前草稿，请点击更新计划保存' });
+        if (instanceExists && instanceId && pendingOneRmAdjustments.length > 0) {
+            setHasUnsavedChanges(true);
+            setAutoSaveStatus('pending');
+        }
+        showToast({
+            severity: 'success',
+            summary: 'AI 修改器成功',
+            detail: pendingOneRmAdjustments.length > 0
+                ? `修改已应用到当前草稿，并准备同步 ${pendingOneRmAdjustments.length} 个动作的全局1RM`
+                : '修改已应用到当前草稿，请点击更新计划保存',
+        });
     };
 
     const handleAiBatchOperationSuccess = async () => {
         setAiBatchDialogVisible(false);
         setOriginalDaysBeforeAi(null);
+        setOriginalOneRmAdjustmentsBeforeAi(null);
         setActions((prev) => [...prev]);
         const actionsRes = await actionLibService.listActions({ page: 1, limit: 100 });
         if (actionsRes?.actions) {
@@ -1678,9 +1844,9 @@ const StudentPlanPage = () => {
                         // 默认仅必要：学员档案+问卷（知道是谁、要什么）；动作库必选以便改计划；其余由用户自行勾选
                         includeStudentProfile: true,
                         includeStudentQuestionnaire: true,
-                        includeExecutionHistory: false,
-                        includeFeedbacks: false,
-                        includeStudentActionLib: false,
+                        includeExecutionHistory: true,
+                        includeFeedbacks: true,
+                        includeStudentActionLib: true,
                         includeCoachActionLib: true,
                         includePublicActionLib: true,
                         includeCoachTemplates: false,

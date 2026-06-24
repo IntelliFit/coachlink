@@ -99,6 +99,9 @@ export default {
       name: 'toolbox',
       pages: [
         'index',
+        'motion-bean/index',
+        'pullup-rush/index',
+        'pushup-dash/index',
         'power-analysis/index',
         'scenario/index',
       ],

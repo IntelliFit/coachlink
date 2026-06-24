@@ -21,6 +21,9 @@ interface AiInstanceConfigDialogProps {
     onHide: () => void;
     onConfirm: (config: AiInstanceConfig) => void;
     loading?: boolean;
+    errorMessage?: string | null;
+    manualActionLabel?: string;
+    onManualAction?: () => void;
 }
 
 export function AiInstanceConfigDialog({
@@ -30,6 +33,9 @@ export function AiInstanceConfigDialog({
     onHide,
     onConfirm,
     loading = false,
+    errorMessage,
+    manualActionLabel = '改用手动创建',
+    onManualAction,
 }: AiInstanceConfigDialogProps) {
     const [startWeek, setStartWeek] = useState<number>(1);
     const [startDay, setStartDay] = useState<number>(1);
@@ -74,20 +80,33 @@ export function AiInstanceConfigDialog({
     const isFromBeginning = startWeek === 1 && startDay === 1;
 
     const footer = (
-        <div className="flex justify-end gap-2">
-            <Button
-                label="取消"
-                icon="pi pi-times"
-                onClick={handleHide}
-                className="p-button-text"
-                disabled={loading}
-            />
-            <Button
-                label={loading ? '生成中...' : '确认生成'}
-                icon={loading ? 'pi pi-spin pi-spinner' : 'pi pi-check'}
-                onClick={handleConfirm}
-                disabled={loading}
-            />
+        <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+                {onManualAction && (
+                    <Button
+                        label={manualActionLabel}
+                        icon="pi pi-pencil"
+                        onClick={onManualAction}
+                        className="p-button-outlined p-button-secondary"
+                        disabled={loading}
+                    />
+                )}
+            </div>
+            <div className="flex items-center gap-2 ml-auto">
+                <Button
+                    label="取消"
+                    icon="pi pi-times"
+                    onClick={handleHide}
+                    className="p-button-text"
+                    disabled={loading}
+                />
+                <Button
+                    label={loading ? '生成中...' : '确认生成'}
+                    icon={loading ? 'pi pi-spin pi-spinner' : 'pi pi-check'}
+                    onClick={handleConfirm}
+                    disabled={loading}
+                />
+            </div>
         </div>
     );
 
@@ -110,6 +129,21 @@ export function AiInstanceConfigDialog({
                 {studentName && (
                     <div className="text-surface-600 text-sm">
                         为学员 <span className="font-medium text-surface-900">{studentName}</span> 生成训练计划
+                    </div>
+                )}
+
+                {errorMessage && (
+                    <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-3 text-xs leading-relaxed text-red-700">
+                        <div className="flex items-center gap-2 text-sm font-semibold text-red-800">
+                            <i className="pi pi-exclamation-circle" />
+                            智能生成失败
+                        </div>
+                        <div className="mt-1">{errorMessage}</div>
+                        {onManualAction && (
+                            <div className="mt-2 text-red-700/90">
+                                你可以直接点下方“{manualActionLabel}”继续，不用等 AI 恢复。
+                            </div>
+                        )}
                     </div>
                 )}
 

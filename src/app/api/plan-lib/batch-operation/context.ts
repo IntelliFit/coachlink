@@ -367,7 +367,7 @@ export async function buildBatchOperationContext(params: BuildContextParams): Pr
         sections.push("## 学员动作库摘要");
         const { data: studentActions } = await supabase
             .from("student_actions")
-            .select("id,name,type")
+            .select("id,name,type,reference_1rm")
             .eq("user_id", subjectUserId)
             .order("updated_at", { ascending: false })
             .limit(30);
@@ -377,7 +377,11 @@ export async function buildBatchOperationContext(params: BuildContextParams): Pr
             for (const a of sampled as any[]) {
                 actionNameSeen.add(normalizeActionNameKey(a.name));
             }
-            sections.push(sampled.map((a: any) => `- ${a.name} (${a.type || "STRENGTH"})`).join("\n"));
+            sections.push(sampled.map((a: any) => {
+                const oneRM = Number(a.reference_1rm);
+                const suffix = Number.isFinite(oneRM) && oneRM > 0 ? `, 1RM=${oneRM}kg` : "";
+                return `- ${a.name} (${a.type || "STRENGTH"}${suffix})`;
+            }).join("\n"));
         } else {
             sections.push("- 学员动作库为空");
             unavailable.push("学员动作库");

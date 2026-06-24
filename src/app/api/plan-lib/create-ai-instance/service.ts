@@ -34,6 +34,16 @@ export interface CreateAiInstanceParams {
     useLLM?: boolean;
 }
 
+function getLlmFailureMessage(error: unknown): string {
+    if (error instanceof ApiError || error instanceof AiPersonalizeError) {
+        return error.message;
+    }
+    if (error instanceof Error) {
+        return error.message;
+    }
+    return "AI 个性化生成失败";
+}
+
 export async function createAiInstanceForSubscription(params: CreateAiInstanceParams) {
     const {
         actorUserId,
@@ -93,6 +103,7 @@ export async function createAiInstanceForSubscription(params: CreateAiInstancePa
     let selectedTemplateMeta: any = null;
     let aiGenerationLog: any = null;
     let planDescription = "暂无描述";
+    let llmFallbackReason: string | null = null;
 
     if (useLLM) {
         try {
@@ -170,17 +181,17 @@ export async function createAiInstanceForSubscription(params: CreateAiInstancePa
             }
         } catch (llmError) {
             console.error("[create-ai-instance] LLM 生成失败:", llmError);
-            if (llmError instanceof ApiError) {
-                throw llmError;
-            }
-            if (llmError instanceof AiPersonalizeError) {
-                throw new ApiError(llmError.message, llmError.status);
-            }
-            const message = llmError instanceof Error ? llmError.message : "AI 个性化生成失败";
-            throw new ApiError(message, 500);
+            llmFallbackReason = getLlmFailureMessage(llmError);
+            console.warn(`[create-ai-instance] LLM 生成失败，改用规则匹配兜底: ${llmFallbackReason}`);
         }
-    } else if (!trainingDays || trainingDays.length === 0) {
-        console.log("[create-ai-instance] 使用规则匹配生成计划");
+    }
+
+    if (!trainingDays || trainingDays.length === 0) {
+        console.log(
+            llmFallbackReason
+                ? "[create-ai-instance] LLM 失败后使用规则匹配生成计划"
+                : "[create-ai-instance] 使用规则匹配生成计划",
+        );
 
         const templates = await matchPlan(answers, actorUserId);
 
@@ -206,6 +217,16 @@ export async function createAiInstanceForSubscription(params: CreateAiInstancePa
 
         trainingDays = (selectTemplate.training_days as any[]) || [];
         planDescription = selectTemplate.description || "暂无描述";
+
+        if (llmFallbackReason) {
+            aiGenerationLog = {
+                fallback: {
+                    mode: "rule_match",
+                    reason: llmFallbackReason,
+                    createdAt: new Date().toISOString(),
+                },
+            };
+        }
     }
 
     if (!hasAnyTrainingAction(trainingDays)) {

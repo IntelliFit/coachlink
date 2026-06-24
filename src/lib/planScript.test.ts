@@ -143,6 +143,29 @@ D1
         ).toThrow(/未找到精确动作：负重引体（顶端暂停）/);
     });
 
+    it("can preserve missing actions as pending actions for confirmation flows", () => {
+        const result = parsePlanScript({
+            script: `
+W1
+D1
+窄距反手引体 3x8 @8rm r180
+            `,
+            actions,
+            allowPendingActions: true,
+        });
+
+        expect(result.days[0].actionSets?.[0]).toMatchObject({
+            actionId: "pending:窄距反手引体",
+            setName: "窄距反手引体",
+            params: {
+                action_name: "窄距反手引体",
+                组数: 3,
+                次数: 8,
+            },
+            itemType: "STRENGTH",
+        });
+    });
+
     it("supports set range syntax like 1-2x2 and preserves it when formatting", () => {
         const result = parsePlanScript({
             script: `

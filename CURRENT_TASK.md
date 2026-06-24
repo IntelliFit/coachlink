@@ -1,3 +1,114 @@
+## Web 计划 AI 修改器缺失动作创建恢复 (`2026-06-25`)
+
+- Task: 用户反馈教练端学员计划 AI 修改器在替换为动作库不存在的新动作时只报错，不能像以前一样创建新动作后修改计划。
+- Status: completed at code/build level; manual UI verification left to the user per durable preference.
+- Root cause:
+  - 教练学员计划页当前强制使用 `plan_script` AI 修改引擎。
+  - 旧 `code` 引擎仍支持 `pending:` 临时动作和前端“确认并映射动作”流程，但 `plan_script` prompt 要求“新动作不在动作库中则返回无法执行”，且成功分支固定返回 `pendingActions: []`，导致新动作创建流程被绕开。
+- Changes:
+  - `parsePlanScript` 新增 `allowPendingActions` 选项；仅在开启时，动作名精确未命中会生成 `pending:<动作名>`，而不是硬匹配相似旧动作或直接失败。
+  - `/api/plan-lib/batch-operation` 的 `plan_script` 引擎现在允许脚本保留用户指定的新动作名，并把解析出的 pending 动作通过既有 `new_actions_detected` / `preview_result.pendingActions` 返回前端。
+  - 已复用现有 `BatchOperationDialog` 的“确认并映射动作”与 `/api/plan-lib/confirm-batch-actions` 流程，无需重做 UI。
+  - 新增 `planScript` 单测覆盖“窄距反手引体不在动作库时生成待确认动作”的行为。
+- Verification:
+  - `npx vitest run src/lib/planScript.test.ts src/app/api/plan-lib/ai-personalize-plan/personalize-plan.test.ts` ✅
+  - `npm run lint` ✅（信息提示脚本）
+  - `npm run typecheck` ✅
+  - `npm test` ✅（35 files / 174 tests）
+  - `npx next build` ✅
+
+## WeChat 工具箱封面区分优化 (`2026-06-23`)
+
+- Task: 用户反馈小程序工具箱里的 4 个工具加 1 个小游戏封面过于相似，其中 3 个视觉重叠感明显，需要尽量拉开差异。
+- Status: completed at code/build level; manual UI verification left to the user per durable preference.
+- Changes:
+  - `apps/wechat/src/toolbox/index.tsx` 的工具卡从“统一照片 + 黑色蒙版”改成“按工具类型分化的封面系统”：
+    - `动动豆试玩版` 改为无照片的体感游戏风格封面；
+    - `功率视频分析` 保留分析向照片，但叠加折线/数据面板装饰；
+    - `力量计算器` 改成计算面板 / 1RM 风格封面；
+    - `单杠位置` 保留场地照片并加定位波纹装饰；
+    - `社区数据` 改成排行榜/柱状图风格封面。
+  - 移除了 `动动豆试玩版` 与 `社区数据` 共用 `toolbox-data.jpg` 的重复封面问题。
+  - 为每张工具卡新增 badge 与 tag 文案，让 5 张卡片在视觉和语义上都更容易区分。
+- Verification:
+  - `npm run lint` ✅（信息提示脚本）
+  - `npm run typecheck` ✅
+  - `npm test` ✅（35 files / 173 tests）
+  - `npx next build` ✅
+  - `npm run build:weapp`（`apps/wechat`）✅
+
+## Web 计划 AI 改重量 / 1RM 能力核查 (`2026-06-23`)
+
+- Task: 核查教练端“创建计划 / 计划 AI 修改器”是否已经支持根据学员反馈自动调整动作重量或全局 1RM。
+- Status: implemented at code/test level.
+- Findings:
+  - `AI 生成计划 / AI 生成下一阶段` 链路会读取学员最新 PR/1RM 记录作为生成输入，说明“创建时参考 1RM”已存在。
+  - 教练端学员计划页已有手动 `学员动作 1RM 设定` 面板，调用 `/api/coach/batch-update-student-1rm` 回写 `student_actions.reference_1rm`，用于后续自动计算训练负荷。
+  - 当前 `计划 AI 修改器` 能改当前计划 `trainingDays` 内的 `weight` / `RM` / `%1RM`，但接口上下文明确“仅能修改当前计划 trainingDays”；现状没有发现它会直接回写学员动作库里的全局 `reference_1rm`。
+  - 当前学员计划页传给 `计划 AI 修改器` 的默认上下文关闭了 `includeExecutionHistory`、`includeFeedbacks`、`includeStudentActionLib`，因此它默认也拿不到“学员最近反馈太重/太轻”和“当前动作库 1RM 基线”这两类关键信号。
+  - 训练执行链路的现有产品规则仍是“系统自动只会上调，手动可下调”；若要下调全局 1RM，当前依旧需要人工设置。
+- Product direction update:
+  - 用户已明确倾向只保留“全局 1RM 实时调整”主路径：学员反馈太重/太轻时，优先直接调整动作级全局 `reference_1rm`，并让依赖该 1RM 的当前计划负荷自动联动。
+  - 后续实现仍需注意两个边界：
+    - 固定重量处方不要被误当作 1RM 派生负荷去重算；
+    - 每次自动 1RM 调整要保留原因、方向和幅度（例如 `-2.5kg`），便于追溯和撤销。
+- Implemented:
+  - 为 `计划 AI 修改器` 新增 `oneRmAdjustments` 协议：AI 现在除了返回计划草稿修改外，还可以返回“动作级全局 1RM 调整清单”。
+  - 新增 `src/lib/oneRmAdjustments.ts` 负责把 AI 返回的增减量规范化为 `2.5kg` 步进，并结合当前学员 1RM / 动作映射解析成可落库的调整。
+  - 教练端学员计划页现在会把 AI 预览出的 1RM 调整先叠加到本地 `planReference1RMs`，因此依赖 1RM 的处方重量会在编辑页实时联动。
+  - 保存和自动保存现在都会在计划写入成功后，继续调用 `/api/coach/batch-update-student-1rm` 回写学员动作库里的 `reference_1rm`；若部分动作无法映射，会阻止跳走并提示继续处理。
+  - 学员计划页传给 `计划 AI 修改器` 的默认上下文已改为开启 `includeExecutionHistory`、`includeFeedbacks`、`includeStudentActionLib`，并且学员动作库上下文会附带现有 `reference_1rm` 数值。
+  - 本轮继续补齐“重量多能力”结构化协议：新增 `src/lib/loadAdjustments.ts`，支持 AI 直接返回 `loadAdjustments`，把“固定重量回填 / 固定重量 ±2.5kg / 改成 8RM / 改成 75%1RM”这类负荷调整直接落到当前计划，而不再强依赖整份 `trainingDays` / `plan_script` 重写。
+  - `batch-operation/route.ts` 的 `plan_script` 和 `code` 两条 AI 编辑链路现在都支持 `loadAdjustments + oneRmAdjustments` 双协议并存；如果只是小范围负荷调整，AI 可以保持 `script/code` 不变，仅返回结构化负荷调整清单。
+  - 差异分析现在会识别 `load` / `intensityConfig.fixedWeight` 产生的固定重量变化，不会再把“只改固定重量”误判成“没有修改”。
+  - `src/types/intensity.ts` 与 `src/lib/rmCaculator.ts` 已正式补上 `fixedWeight` 能力，避免类型层仍把固定重量当成“半支持”状态。
+- New requirement clarification:
+  - 用户补充确认：“重量”本身是弹性的多能力字段，不能只等价于“调全局 1RM”。
+  - 除了这次已实现的“反馈驱动全局 1RM 调整”外，后续还需要明确支持：
+    - 直接写入固定重量；
+    - 根据问卷/已知测试结果直接把重量腾进计划；
+    - 继续保留 RM / %1RM / recommendedLoad 这类相对强度能力。
+- Verification:
+  - `npm run lint`（项目脚本仅提示 Next 16 未配置 eslint）
+  - `npm run typecheck` ✅
+  - `npm test` ✅（35 files / 173 tests）
+  - `npx next build`：编译与静态页生成通过，但最终 `copyfile .next -> .next/standalone` 仍被本机 Windows 文件锁阻塞，报 `EBUSY`；属于环境问题，不是本次逻辑错误
+
+## 拉取最新代码并与本地改动融合 (`2026-06-23`)
+
+- Task: 按用户要求拉取 `origin/main` 最新代码，并把当前本地未提交改动安全融合回来。
+- Status: completed.
+- Result:
+  - 先执行 `git fetch --all --prune`，确认本地 `main` 落后 `origin/main` 4 个提交，远端最新到 `6eb3423c feat(mobile): align login/nav and dev test account flow`。
+  - 用 `git stash push -u -m "sync-before-pull-2026-06-23"` 暂存当前工作区和未跟踪文件后，执行 `git pull --ff-only origin main`，本地 `main` 已快进到远端最新。
+  - 之后执行 `git stash pop` 恢复本地改动；业务代码改动已成功弹回，`CURRENT_TASK.md` 与 `DECISIONS.md` 的冲突已人工合并，保留远端 APP 迁移状态和本地 2026-06-23 Web/接口修复记录。
+  - 当前仍保留本地未提交改动：Web AI 下一阶段兜底相关文件、`src/app/api/user/update-profile/route.ts`、memory 文件，以及未跟踪的 `wechat_app/`/`scripts/power-analysis/__pycache__/`。
+- Verification:
+  - 本轮只做 Git 同步与文本融合，未重新运行 `npm run lint` / `npm run typecheck` / `npm test` / `npx next build`。
+
+## Web 学员 AI 计划周期过长修复 (`2026-06-23`)
+
+- Task: 用户反馈教练端为学员执行 `AI 生成计划 / AI 生成下一阶段` 时，系统把学员 `已购40周` 误当成单次计划 phase 长度，直接把短模板扩写成 40 周长计划，导致生成时间过长且结果不符合教练实际使用方式。
+- Status: completed at code/test level.
+- Root cause:
+  - `src/app/api/plan-lib/ai-personalize-plan/personalize-plan.ts` 把 `subscribedWeeks` 直接写进 Stage B prompt，强制要求“本次计划必须覆盖已购周数”。
+  - `src/app/api/plan-lib/ai-personalize-plan/service.ts` 又把 `subscribedWeeks` 当成保存前的计划长度校验目标，进一步强化了“按已购周数铺满”的错误逻辑。
+- Fix:
+  - 新增 `inferPlanPhaseWeeks()`：当已有模板/历史骨架时，单次生成周期优先使用骨架自身长度；没有模板时才做保守兜底，避免一次性生成超长年度计划。
+  - Stage B prompt 现在明确区分：
+    - `已购周数` 只是长期订阅权益参考；
+    - `本次计划输出周期` 才是单次 phase 需要生成的长度。
+  - 新增硬规则：禁止为了对齐已购 40 周，把 4~16 周骨架机械重复扩展成 40 周。
+  - 保存前的周期校验改成：
+    - 模板骨架场景：只做“超长裁剪”，不再因为 `subscribed_weeks` 强迫扩写；
+    - 从零生成且明确有购买周期时：仍保留“明显过短计划”拦截。
+- Verification:
+  - `npx vitest run src/app/api/plan-lib/ai-personalize-plan/personalize-plan.test.ts src/app/api/plan-lib/ai-personalize-plan/service.test.ts`: passed.
+  - `npm run lint`: passed informational script.
+  - `npm run typecheck`: passed.
+  - `npm test`: passed, 33 files / 166 tests.
+  - `npx next build`: compile/static generation passed, but final standalone copy仍被本机 Windows `.next` 文件锁阻断，报 `EBUSY copyfile ... .next\\standalone ...`；这是本地运行环境阻塞，不是本次逻辑改动的类型/编译错误。
+
 ## APP Documentation Migration Pack (`2026-06-21`)
 
 ## 当前任务（`2026-06-21`）
@@ -347,6 +458,16 @@
   - Restarted emulator with `-use-keycode-forwarding -no-snapshot -no-snapshot-load -no-snapshot-save`.
   - Runtime checks: `show_ime_with_hard_keyboard=1`, default IME `LatinIME`, and built-in `qwerty2` key device in `dumpsys input`.
 - No app/web code changes were made; no repository commit was required.
+﻿## 小程序基础档案保存接口兼容修复（后端） (2026-06-21)
+
+- Task: 用户反馈线上小程序（体验版和正式版）保存基础档案失败，要求优先只改后端修复，不改前端版本提交流程。
+- Root cause: `/api/user/update-profile` 直接透传前端 `gender` 与 `fitness_level` 到 `user_profiles`，而数据库 `user_profiles` 限定值域较窄（`gender` 限制为 `male|female|other`，`fitness_level` 限制为 `beginner|intermediate|advanced`），与小程序端上报的 `unknown/novice/elite` 等值不兼容。
+- Fix: 在 `src/app/api/user/update-profile/route.ts` 中加入服务端兼容转换：
+  - `gender`：将 `unknown` 映射为 `other`，`男/女` 映射为 `male/female`，并允许空值清空字段；
+  - `fitness_level`：将 `novice/入门/小白/零基础` 映射为 `beginner`，将 `elite/高阶/精英/职业` 映射为 `advanced`；
+  - `height/weight`：增加安全数值转换，避免空字符串导致非预期写入。
+- 状态: 已实现，未改小程序前端和页面。
+- 验证建议: 用线上体验版重放“我的 / 基础档案 / 保存”流程，建议关注后端返回 `success=false` 时的具体 message 是否仍有变化（如果还有失败，再按返回值回溯 `updateError.message`）。
 
 ## WeChat `/me` Subpackage Size Split (`2026-06-19`)
 
@@ -486,6 +607,25 @@
 - Remote status before commit:
   - `origin/main` is at `82d46467`.
   - `origin/dev` advanced to `5326a92c fix wechat training execution and theme flow`.
+
+## Web 学员计划下一阶段 AI 生成失败兜底 (`2026-06-23`)
+
+- Task: 用户反馈 Web 端学员当前阶段完成后，点击 `AI 生成下一阶段` 长时间无响应；当 AI 失败时，也缺少顺手进入手动创建下一阶段的兜底入口。
+- Status: completed at code/check level; local live LLM smoke exposed a separate env blocker; browser-side UI verification could not be completed in this session.
+- Root cause:
+  - `/api/plan-lib/create-ai-instance` 在 `useLLM=true` 时，LLM 返回被 `maxTokens=6000` 截断，`JSON.parse` 失败后直接 500。
+  - `src/app/dashboard/students/page.tsx` 的单个 AI 生成流程只有 `try/finally` 没有 `catch`，所以接口失败后只会结束 loading，不会提示明确错误，也不会给出手动创建路径。
+- Fix:
+  - `src/app/api/plan-lib/ai-personalize-plan/personalize-plan.ts` 将 Stage B 改为更适合长脚本输出的模式：默认关闭 thinking，首轮使用 `maxTokens=12000`，若首轮 JSON 截断/不完整则自动带纠偏提示重试一次，第二轮使用 `maxTokens=16000`。
+  - `src/app/api/plan-lib/create-ai-instance/service.ts` 改为：LLM 个性化生成失败时自动降级到规则模板匹配，不再因为 AI 单点失败直接整单报错。
+  - `src/app/dashboard/students/page.tsx` 为单个 AI 生成补上错误捕获，并把失败信息回传到配置弹窗。
+  - `src/app/dashboard/students/AiInstanceConfigDialog.tsx` 新增明显的失败提示与 `去手动创建` 按钮，让教练可以直接跳到学员计划页手动创建下一阶段。
+- Verification:
+  - `npm run lint`: passed informational script.
+  - `npm run typecheck`: passed.
+  - `npm test`: passed, 33 files / 164 tests.
+  - `npx next build`: passed.
+  - Real LLM smoke via project env loading: local `getCoachlinkPlanLlm()` resolves `provider=deepseek`, `model=deepseek-v4-flash`, but direct `callDeepSeek()` currently fails locally with `401 Authentication Fails` because the loaded DeepSeek API key is invalid. This blocks local end-to-end model verification until env is fixed.
 - Local state before commit:
   - Working tree contains the accumulated Power Analysis realtime/auto-upload fixes, impromptu e1RM tracking, streetlifting calculator history/ranking work, WeChat release automation files, and durable-state updates.
   - Generated Python cache under `scripts/power-analysis/__pycache__/` is intentionally excluded from commit.
@@ -7567,3 +7707,79 @@
   - `npm test`: passed, 33 files / 163 tests.
   - `npx next build`: passed.
 - Manual APP simulator visual verification remains left to the user per durable preference.
+## WeChat 小程序动作小游戏 V1 (`2026-06-23`)
+
+- Task: 按用户要求先在当前 `coachlink` 小程序里实现一个可试玩的 V1 动作小游戏，优先验证“现实动作驱动屏幕角色”的可行性，并保留视频保存能力。
+- Status: completed at code/build level; awaiting your manual device verification.
+- Product scope for this iteration:
+  - 入口放在 `apps/wechat` 工具箱子包，避免侵入主训练链路。
+  - 玩法采用本地轻量“运动检测”而非骨骼关键点 AI：通过 `camera` 实时帧差分估算动作重心，驱动角色接豆子。
+  - 录像能力升级为：优先导出 `带豆子/角色叠层的合成回放视频`；若当前设备不支持 `MediaRecorder + OffscreenCanvas`，再回退到 `原摄像头视频`。
+- Changes:
+  - 新增 `apps/wechat/src/toolbox/motion-bean/` 页面：
+    - 自定义导航、实时摄像头舞台、动作强度条、分数/倒计时/最好成绩、开始试玩、试玩并录回放、停止录制、保存视频、左右反转切换。
+    - 本地游戏循环每轮 30 秒，黄色豆加分、深色豆扣分。
+    - 本轮继续把动作跟随提速：提高相机帧处理频率、降低采样步长、提高动作重心与角色位置的更新权重，并让碰撞判定跟随平滑后的实际角色位置。
+  - 新增 `apps/wechat/src/toolbox/motion-bean/compositeReplayRecorder.ts`：
+    - 用 `Taro.createOffscreenCanvas({ type: '2d' })` 绘制相机帧 + 豆子 + 角色 + HUD。
+    - 再用 `Taro.createOffscreenCanvas({ type: 'webgl' }) + Taro.createMediaRecorder()` 逐帧生成可保存的合成回放视频。
+    - 若该链路不可用，则回退到 `CameraContext.startRecord/stopRecord` 原视频录制。
+  - 在 `apps/wechat/src/toolbox/index.tsx` 增加 `动动豆试玩版` 工具入口。
+  - 在 `apps/wechat/src/app.config.ts` 注册 `toolbox/motion-bean/index` 子包页面。
+  - 更新 `apps/wechat/scripts/copy-comp-to-subpackages.js` 与 `apps/wechat/scripts/fix-weapp-wxml.js`，把新页面纳入小程序兼容后处理脚本，避免 DevTools / Summer Compiler 因 `comp` 产物缺失出错。
+- Verification:
+  - `npm run lint`（根仓，信息提示脚本）✅
+  - `npm run typecheck`（根仓）✅
+  - `npm test`（根仓）✅ 35 files / 173 tests
+  - `npx next build`（根仓）⚠️ 编译与静态页生成通过，但最终 standalone copy 仍被本机 Windows 文件锁阻塞，报 `EBUSY copyfile ... .next\\standalone ...`
+  - `npm run build:weapp`（`apps/wechat`）✅，新页面 `toolbox/motion-bean/index` 已进入构建产物
+  - `npx tsc --noEmit -p apps/wechat/tsconfig.json` ❌，仍被 Taro 类型声明和小程序历史类型噪音阻塞；本次新页面不是唯一报错源
+- Manual verification note:
+  - 按你的长期偏好，这次没有替你跑微信 DevTools / 真机交互验证，留给你手动试玩确认：动作跟随速度、合成回放是否成功生成、以及不支持设备上的原视频回退体验。
+## WeChat 工具箱三小游戏与紧凑分组改版 (`2026-06-23`)
+
+- Task: 按用户确认的方案，把小游戏继续放在微信小程序 `toolbox` 内，但改成更紧凑的小卡片入口，并补齐 3 个可玩的体感小游戏（`接豆派对 / 引体冲刺 / 俯卧撑突围`）。
+- Status: completed at code/build level; manual UI verification left to the user per durable preference.
+- Changes:
+  - `apps/wechat/src/toolbox/index.tsx` / `index.scss`
+    - 工具箱首页改成分组结构：`小游戏`、`实用工具`、压缩版 `场景放松`。
+    - 卡片从原来的大封面 Hero 样式改成更小、更密的双列紧凑卡片，方便后续继续扩展更多小游戏。
+    - 新增 3 个小游戏入口卡：`接豆派对`、`引体冲刺`、`俯卧撑突围`。
+  - 新增共享小游戏底座 `apps/wechat/src/toolbox/games/`
+    - `motionArcadePage.tsx`：统一封装摄像头帧差动作检测、2D 角色/道具碰撞、录制控制、保存视频、镜像切换。
+    - `arcadeReplayRecorder.ts`：抽象原有合成回放录制器，复用到多个小游戏。
+    - `gameConfigs.ts`：用配置方式区分三种玩法文案、道具、方向和主题。
+    - `motionArcade.scss`：统一小游戏页面骨架样式，并给三种玩法提供主题差异。
+  - 现有 `toolbox/motion-bean` 已重构为共享底座页面，名称/文案升级为 `接豆派对`。
+  - 新增两个新页面：
+    - `apps/wechat/src/toolbox/pullup-rush/`
+    - `apps/wechat/src/toolbox/pushup-dash/`
+  - 小程序路由和构建兼容脚本已同步更新：
+    - `apps/wechat/src/app.config.ts`
+    - `apps/wechat/scripts/copy-comp-to-subpackages.js`
+- Verification:
+  - `apps/wechat` `npm run build:weapp` ✅
+  - 根仓 `npm run lint` ✅（信息提示脚本）
+  - 根仓 `npm run typecheck` ✅
+  - 根仓 `npm test` ✅（35 files / 173 tests）
+  - 根仓 `npx next build` ✅
+- Follow-up redesign after user feedback:
+  - 用户随后明确否定了“动作主题换皮”的方向，要求小游戏规则必须直接和动作本身相关，而不是只换名字或皮肤。
+  - `接豆派对` 保持为轻松向体感小游戏，继续承担“放松玩一玩”的角色。
+  - `apps/wechat/src/toolbox/pullup-rush/index.tsx`
+    - 已重做为接近 `Flappy Bird` 的穿障碍玩法：角色会自然下落，用户需要通过明显的上拉/抬升动作触发向上冲刺，穿过上下障碍之间的空隙。
+    - 障碍改为成对的上下立柱，分数按成功穿越计数，而不再是泛化的横向接取/躲避。
+  - `apps/wechat/src/toolbox/pushup-dash/index.tsx`
+    - 已重做为“完整俯卧撑动作驱动推进”的玩法：必须识别到一次较完整的下去再起来动作周期，才会触发一次前冲/破墙。
+    - 玩法目标改成把迎面而来的墙体在时机内击破，而不是与俯卧撑弱相关的普通位移躲避。
+  - `apps/wechat/src/toolbox/games/arcadeReplayRecorder.ts`
+    - 为配合新障碍/墙体玩法，回放录制器已支持圆形以外的 `rect` / `pill` 形状叠层，保证导出视频里能看见完整玩法动画。
+
+## 当前任务（`2026-06-25`）
+
+- 任务：提交当前代码并保证开发分支与主分支一致。
+- 状态：已完成。
+- 说明：
+  - 先完成 `npm run lint`、`npm run typecheck`、`npm test`、`npx next build` 验证。
+  - 清理临时无效文件后，将当前工作树中的代码提交。
+  - 开发分支同步到当前可提交主线版本。

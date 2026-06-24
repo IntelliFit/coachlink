@@ -52,6 +52,7 @@ export default function StudentsPage() {
     const [paymentDialogVisible, setPaymentDialogVisible] = useState(false);
     const [aiConfigDialogVisible, setAiConfigDialogVisible] = useState(false);
     const [aiGenerating, setAiGenerating] = useState(false);
+    const [aiGenerationError, setAiGenerationError] = useState<string | null>(null);
     const [bulkAiConfigDialogVisible, setBulkAiConfigDialogVisible] = useState(false);
     const [bulkAiGenerating, setBulkAiGenerating] = useState(false);
     const [pricingMap, setPricingMap] = useState<Record<number, { is_ai_plan: boolean }>>({});
@@ -226,12 +227,27 @@ export default function StudentsPage() {
     /** 打开AI生成配置对话框 */
     const openAiConfigDialog = (student: StudentSubscription) => {
         setSelectedStudent(student);
+        setAiGenerationError(null);
         setAiConfigDialogVisible(true);
+    };
+
+    const closeAiConfigDialog = () => {
+        setAiConfigDialogVisible(false);
+        setAiGenerationError(null);
+    };
+
+    const openManualPlanEditor = (student: StudentSubscription | null) => {
+        if (!student) {
+            return;
+        }
+        closeAiConfigDialog();
+        router.push(`/dashboard/students/plan/${student.id}`);
     };
 
     /** 执行AI生成（带配置参数） */
     const makeAiInstance = async (student: StudentSubscription, config: AiInstanceConfig) => {
         setAiGenerating(true);
+        setAiGenerationError(null);
         showToast({ severity: 'info', summary: '快速生成中', detail: '正在根据学员问卷自动创建训练计划' });
 
         try {
@@ -253,7 +269,7 @@ export default function StudentsPage() {
                         start_week: config.startWeek
                     });
 
-                    setAiConfigDialogVisible(false);
+                    closeAiConfigDialog();
                     // 当res.template非空时，更新当前表单
                     const defaultPlanName = `${student.profile?.nickname || '学员'}的计划`;
                     const sanitizedName = res.template.name?.trim();
@@ -276,11 +292,20 @@ export default function StudentsPage() {
                         )
                     );
                 } else {
-                    showToast({ severity: 'warn', summary: '创建失败', detail: '无法找到匹配的项' });
+                    const message = '没有找到可直接套用的计划，请改用手动创建';
+                    setAiGenerationError(message);
+                    showToast({ severity: 'warn', summary: '创建失败', detail: message });
                 }
             } else {
-                showToast({ severity: 'error', summary: '创建失败', detail: '无法创建智能实例' });
+                const message = '无法创建智能实例，请改用手动创建';
+                setAiGenerationError(message);
+                showToast({ severity: 'error', summary: '创建失败', detail: message });
             }
+        } catch (e: any) {
+            const baseMessage = e?.message || 'AI 生成失败，请稍后重试';
+            const message = `${baseMessage}。你可以直接改用手动创建。`;
+            setAiGenerationError(baseMessage);
+            showToast({ severity: 'error', summary: 'AI 生成失败', detail: message });
         } finally {
             setAiGenerating(false);
         }
@@ -1383,7 +1408,17 @@ export default function StudentsPage() {
                 }}
                 onConfirm={() => { loadWaitingStudents(); loadStudents(0, rows); }}
             />
-            <AiInstanceConfigDialog visible={aiConfigDialogVisible} studentName={selectedStudent?.profile?.nickname} totalWeeks={12} loading={aiGenerating} onHide={() => setAiConfigDialogVisible(false)} onConfirm={(config) => selectedStudent && makeAiInstance(selectedStudent, config)} />
+            <AiInstanceConfigDialog
+                visible={aiConfigDialogVisible}
+                studentName={selectedStudent?.profile?.nickname}
+                totalWeeks={12}
+                loading={aiGenerating}
+                errorMessage={aiGenerationError}
+                manualActionLabel="去手动创建"
+                onHide={closeAiConfigDialog}
+                onManualAction={() => openManualPlanEditor(selectedStudent)}
+                onConfirm={(config) => selectedStudent && makeAiInstance(selectedStudent, config)}
+            />
             <AiInstanceConfigDialog
                 visible={bulkAiConfigDialogVisible}
                 studentName={selectedStudents.length > 0 ? `${selectedStudents.length}位学员` : undefined}

@@ -39,15 +39,27 @@ export interface RecommendedLoad {
 }
 
 /**
+ * 固定重量配置
+ * 直接写死到计划里，不再跟随 1RM 自动重算
+ */
+export interface FixedWeightLoad {
+    value: number;
+    unit: WeightUnit;
+}
+
+/**
  * 强度配置（完整结构）
  * 两个属性都是可选的，按优先级使用：
  * 1. 有 relativeIntensity + 有1RM → 计算具体重量
  * 2. 有 relativeIntensity + 无1RM → 显示相对强度文字 + 使用 recommendedLoad（如有）
- * 3. 只有 recommendedLoad → 直接显示固定重量
+ * 3. 有 fixedWeight → 直接按固定重量显示
+ * 4. 只有 recommendedLoad → 作为备选推荐重量显示
  */
 export interface IntensityConfig {
     /** 相对强度（优先使用） */
     relativeIntensity?: RelativeIntensity;
+    /** 固定重量（不再跟随 1RM 自动重算） */
+    fixedWeight?: FixedWeightLoad;
     /** 推荐数值（备选，当无法计算时使用） */
     recommendedLoad?: RecommendedLoad;
 }

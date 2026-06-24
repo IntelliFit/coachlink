@@ -2,6 +2,93 @@ import supabase from "@/lib/supabaseClient";
 import { NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/auth";
 
+const normalizeGender = (value: any) => {
+    if (value === null) {
+        return null;
+    }
+    if (value === undefined) {
+        return undefined;
+    }
+
+    const raw = String(value).trim();
+    if (!raw) {
+        return null;
+    }
+
+    const norm = raw.toLowerCase();
+    switch (norm) {
+        case "male":
+        case "男":
+        case "man":
+        case "m":
+            return "male";
+        case "female":
+        case "女":
+        case "woman":
+        case "f":
+            return "female";
+        case "other":
+        case "unknown":
+        case "暂时不填":
+        case "未设置":
+            return "other";
+        default:
+            return undefined;
+    }
+};
+
+const normalizeFitnessLevel = (value: any) => {
+    if (value === null) {
+        return null;
+    }
+    if (value === undefined) {
+        return undefined;
+    }
+
+    const raw = String(value).trim();
+    if (!raw) {
+        return null;
+    }
+
+    const norm = raw.toLowerCase();
+    switch (norm) {
+        case "beginner":
+        case "novice":
+        case "入门":
+        case "小白":
+        case "零基础":
+            return "beginner";
+        case "intermediate":
+        case "进阶":
+            return "intermediate";
+        case "advanced":
+        case "elite":
+        case "高阶":
+        case "精英":
+        case "职业":
+            return "advanced";
+        default:
+            return undefined;
+    }
+};
+
+const toIntOrNull = (value: any) => {
+    if (value === null) {
+        return null;
+    }
+    if (value === undefined) {
+        return undefined;
+    }
+    if (typeof value === "string" && value.trim() === "") {
+        return null;
+    }
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) {
+        return undefined;
+    }
+    return Math.trunc(numeric);
+};
+
 export async function POST(request: Request) {
     const authResult = await getAuthUser(request);
     if (!authResult.isAuthenticated || !authResult.userId) {
@@ -24,6 +111,9 @@ export async function POST(request: Request) {
 
     const assignIfProvided = (key: string, value: any) => {
         if (Object.prototype.hasOwnProperty.call(body, key)) {
+            if (value === undefined) {
+                return;
+            }
             profileData[key] = value;
         }
     };
@@ -33,12 +123,12 @@ export async function POST(request: Request) {
     assignIfProvided("phone", body.phone);
     assignIfProvided("avatar_url", body.avatar_url);
     assignIfProvided("address", body.address);
-    assignIfProvided("gender", body.gender);
+    assignIfProvided("gender", normalizeGender(body.gender));
     assignIfProvided("birth_date", body.birth_date);
-    assignIfProvided("height", body.height != null ? Number(body.height) : null);
-    assignIfProvided("weight", body.weight != null ? Number(body.weight) : null);
+    assignIfProvided("height", toIntOrNull(body.height));
+    assignIfProvided("weight", toIntOrNull(body.weight));
     assignIfProvided("fitness_goal", body.fitness_goal);
-    assignIfProvided("fitness_level", body.fitness_level);
+    assignIfProvided("fitness_level", normalizeFitnessLevel(body.fitness_level));
     assignIfProvided("bio", body.bio);
 
     // 添加新字段（仅当提供时才更新）

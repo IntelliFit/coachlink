@@ -1,7 +1,7 @@
 import supabase from "@/lib/supabaseClient";
 import { fillTemplate } from "../create-ai-instance/match";
 import { selectTemplateWithLLM } from "./select-template";
-import { personalizePlanWithLLM } from "./personalize-plan";
+import { inferPlanPhaseWeeks, personalizePlanWithLLM } from "./personalize-plan";
 import { validateAndSanitizeTrainingDays } from "./validate-output";
 import {
     GeneratePersonalizedPlanInput,
@@ -129,10 +129,17 @@ export async function generatePersonalizedPlan(
         throw new AiPersonalizeError("AI 生成结果没有有效训练动作，无法创建计划", 400);
     }
 
+    const targetPlanWeeks = inferPlanPhaseWeeks({
+        subscribedWeeks: input.subscribedWeeks,
+        selectedTemplate,
+        availableTemplates: input.availableTemplates,
+    });
+    const requireCompletePhase = !selectedTemplate && Number(input.subscribedWeeks || 0) > 0;
+
     effectiveTrainingDays = enforcePlanSpan(
         effectiveTrainingDays,
-        input.subscribedWeeks,
-        Boolean(selectedTemplate),
+        targetPlanWeeks,
+        !requireCompletePhase,
     );
 
     const tempTemplate = {
@@ -227,23 +234,23 @@ export function buildActionLibrary(actions: any[]): ActionLibraryEntry[] {
 
 function enforcePlanSpan(
     trainingDays: any[],
-    subscribedWeeks?: number | null,
-    basedOnExistingSkeleton?: boolean,
+    targetPlanWeeks?: number | null,
+    allowShorterThanTarget?: boolean,
 ): any[] {
-    const targetWeeks = Number(subscribedWeeks || 0);
+    const targetWeeks = Number(targetPlanWeeks || 0);
     if (!Number.isFinite(targetWeeks) || targetWeeks <= 0) {
         return trainingDays;
     }
 
     const targetDays = targetWeeks * 7;
-    if (trainingDays.length < targetDays) {
+    if (!allowShorterThanTarget && trainingDays.length < targetDays) {
         throw new AiPersonalizeError(
-            `AI 生成的计划周期过短：当前只有 ${trainingDays.length} 天，但该学员购买了 ${targetWeeks} 周，至少应生成 ${targetDays} 天的完整计划。`,
+            `AI 生成的计划周期过短：当前只有 ${trainingDays.length} 天，但本次单阶段计划目标是 ${targetWeeks} 周，至少应生成 ${targetDays} 天的完整计划。`,
             400,
         );
     }
 
-    if (trainingDays.length === targetDays) {
+    if (trainingDays.length <= targetDays) {
         return trainingDays;
     }
 
@@ -254,7 +261,7 @@ function enforcePlanSpan(
 
     console.warn(
         `[ai-personalize-plan] plan span trimmed from ${trainingDays.length} to ${targetDays} days` +
-        (basedOnExistingSkeleton ? " based on existing skeleton" : ""),
+        (allowShorterThanTarget ? " with shorter-phase allowance" : ""),
     );
 
     return trimmed;
