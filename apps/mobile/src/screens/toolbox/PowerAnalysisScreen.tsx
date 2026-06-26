@@ -350,7 +350,7 @@ export function PowerAnalysisScreen({ navigation }: Props) {
         <View style={styles.heroIcon}><IconFont name="icon-video" color={colors.brand} size={30} /></View>
       </View>
 
-      <SectionCard title="测试设置" description="视频仅作为临时分析任务处理，默认最多保留 24 小时。">
+      <SectionCard title="测试设置" description="视频仅作为临时分析任务处理，默认最多保留 1 小时。">
         <View style={styles.modeGrid}>
           {MODE_OPTIONS.map((item) => {
             const active = mode === item.value

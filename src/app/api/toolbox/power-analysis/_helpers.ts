@@ -6,7 +6,7 @@ import type {
 } from "./types";
 
 export const POWER_ANALYSIS_BUCKET = "videos" as const;
-export const POWER_ANALYSIS_RETENTION_HOURS = 24;
+export const POWER_ANALYSIS_RETENTION_HOURS = 1;
 export const POWER_ANALYSIS_MODE_VALUES: PowerAnalysisMode[] = [
   "pullup",
   "muscleup",

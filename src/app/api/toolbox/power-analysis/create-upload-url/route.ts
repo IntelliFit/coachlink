@@ -10,6 +10,7 @@ import type {
 } from "../types";
 import {
   POWER_ANALYSIS_BUCKET,
+  POWER_ANALYSIS_RETENTION_HOURS,
   buildPowerAnalysisOutputPath,
   buildPowerAnalysisPath,
   getPowerAnalysisLimits,
@@ -122,7 +123,9 @@ export async function POST(req: Request) {
   const queueConfig = getTaskQueueConfig(process.env, { requireTopic: true });
   const inputPath = buildPowerAnalysisPath({ userId, jobId, filename: originalFilename });
   const outputPath = buildPowerAnalysisOutputPath({ userId, jobId });
-  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+  const expiresAt = new Date(
+    Date.now() + POWER_ANALYSIS_RETENTION_HOURS * 60 * 60 * 1000,
+  ).toISOString();
 
   const { data: signed, error: signedError } = await db.storage
     .from(POWER_ANALYSIS_BUCKET)
@@ -166,7 +169,7 @@ export async function POST(req: Request) {
         external_load_kg: externalLoadKg,
         effective_weight_kg: weightKg + externalLoadKg,
         upload_strategy: "signed_upload_transient",
-        retention_hours: 24,
+        retention_hours: POWER_ANALYSIS_RETENTION_HOURS,
       },
       expires_at: expiresAt,
     })

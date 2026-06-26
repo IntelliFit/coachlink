@@ -360,7 +360,7 @@ export default function PowerAnalysisToolPage() {
             className="text-surface-700"
           />
           <div className="rounded-full border border-surface-200 bg-surface-0 px-3 py-1 text-xs font-semibold text-surface-600">
-            临时视频最多保留 24 小时
+            临时视频最多保留 1 小时
           </div>
         </div>
 
