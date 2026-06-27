@@ -59,12 +59,37 @@ async function patchResponseJson() {
     const g = globalThis as unknown as Record<string, boolean>;
     if (g[flag]) return;
 
-    const { resolveMediaDeep } = await import("@/lib/storageUrl");
+    const [
+        { resolveMediaDeep },
+        { appendActiveTraceHeaders },
+        { recordApiJsonResponse },
+    ] = await Promise.all([
+        import("@/lib/storageUrl"),
+        import("@/lib/observability/requestContext"),
+        import("@/lib/observability/metrics"),
+    ]);
 
     const ResponseCtor = (globalThis as unknown as { Response: { json: (body: unknown, init?: ResponseInit) => Response } }).Response;
     const originalJson = ResponseCtor.json;
     Object.defineProperty(ResponseCtor, "json", {
-        value: (body: unknown, init?: ResponseInit) => originalJson.call(ResponseCtor, resolveMediaDeep(body), init),
+        value: (body: unknown, init?: ResponseInit) => {
+            const resolvedBody = resolveMediaDeep(body);
+            const response = originalJson.call(ResponseCtor, resolvedBody, init);
+            try {
+                appendActiveTraceHeaders(response.headers);
+            } catch {
+                // Some Response instances may have immutable headers; telemetry headers are best-effort.
+            }
+            try {
+                const success = typeof resolvedBody === "object" && resolvedBody !== null && "success" in resolvedBody
+                    ? String(Boolean((resolvedBody as { success?: unknown }).success))
+                    : String(response.status >= 200 && response.status < 400);
+                recordApiJsonResponse(response.status, success, JSON.stringify(resolvedBody).length);
+            } catch {
+                recordApiJsonResponse(response.status, "unknown", 0);
+            }
+            return response;
+        },
         writable: true,
         configurable: true,
     });
@@ -75,6 +100,12 @@ async function patchResponseJson() {
 
 export async function register() {
     if (process.env.NEXT_RUNTIME !== "nodejs") return;
+
+    const { initObservability } = await import("@/lib/observability/init");
+    initObservability();
+
+    const { installConsoleLogCorrelation } = await import("@/lib/observability/logger");
+    installConsoleLogCorrelation();
 
     await patchResponseJson();
 

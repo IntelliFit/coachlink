@@ -1,3 +1,27 @@
+## OpenTelemetry Observability (`2026-06-27`)
+
+- Task: answer whether CoachLink currently has tracing/OTel metrics, compare with FoodLink, and bring CoachLink up to the same practical observability shape.
+- Finding before this change:
+  - CoachLink already had self-built trace/behavior collection through `/api/trace`, Supabase-backed trace/event tables, and mini-program/client trace IDs.
+  - It did not have standard OpenTelemetry traces or metrics exported to an OTLP collector.
+- Status: implemented in code; collector-side/Jaeger runtime validation still depends on enabling `OTEL_*` in the selected local/Apollo runtime config and having an accessible collector.
+- Changes:
+  - Added `src/lib/observability/` with OTel runtime config, Node HTTP tracing, metric instruments, request trace headers, and structured log-to-span-event correlation.
+  - Wired `src/instrumentation.ts` to initialize OTel in the Next.js Node runtime, skip health/version endpoints from tracing, add active `x-trace-id` / `x-request-id` / `x-host-name` headers to JSON API responses, and record JSON response metrics.
+  - Added feedback business metrics/log correlation for feedback submit and feedback screenshot upload APIs.
+  - Updated WeChat feedback screenshot upload diagnostics so `Taro.uploadFile` also sends client trace headers and stores returned server trace/request IDs in `recent_request_traces_v1`.
+  - Added `docs/done/system-design/observability-otel.md` documenting the Apollo/local env mapping from FoodLink-style YAML to CoachLink `OTEL_*`.
+- Verification:
+  - `npm run lint` ✅ informational lint script
+  - `npm run typecheck` ✅
+  - `npm test` ✅ 33 files / 163 tests
+  - `npx next build` ✅
+  - `npm --workspace apps/wechat run build:weapp` ✅
+  - `git diff --check` ✅
+- Notes:
+  - Next build still prints existing baseline-browser-mapping / punycode / edge-runtime warnings, but the new OTel code no longer triggers the earlier Node builtin edge-import warning.
+  - No browser/WeChat DevTools manual verification was run per durable user preference.
+
 ## One-click Feedback Parity (`2026-06-27`)
 
 - Task: mirror `E:\little-horse\food_link` one-click feedback into CoachLink.

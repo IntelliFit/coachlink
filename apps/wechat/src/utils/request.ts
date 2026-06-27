@@ -41,6 +41,19 @@ function randomTraceId(prefix: string) {
   return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`
 }
 
+export function createClientTraceHeaders() {
+  const clientTraceId = randomTraceId('trace')
+  const clientRequestId = randomTraceId('req')
+  return {
+    clientTraceId,
+    clientRequestId,
+    headers: {
+      'X-Client-Trace-Id': clientTraceId,
+      'X-Client-Request-Id': clientRequestId
+    }
+  }
+}
+
 function readRecentRequestTraces(): RecentRequestTrace[] {
   try {
     const value = Taro.getStorageSync(RECENT_REQUEST_TRACE_STORAGE_KEY)
@@ -60,11 +73,15 @@ function appendRecentRequestTrace(trace: RecentRequestTrace) {
   }
 }
 
+export function recordRecentRequestTrace(trace: RecentRequestTrace) {
+  appendRecentRequestTrace(trace)
+}
+
 export function getRecentRequestTraces(limit = RECENT_REQUEST_TRACE_LIMIT) {
   return readRecentRequestTraces().slice(-Math.min(RECENT_REQUEST_TRACE_LIMIT, Math.max(0, limit)))
 }
 
-function getHeaderValue(headers: unknown, name: string) {
+export function getHeaderValue(headers: unknown, name: string) {
   if (!headers || typeof headers !== 'object') return ''
   const target = name.toLowerCase()
   const found = Object.entries(headers as Record<string, unknown>).find(([key]) => key.toLowerCase() === target)
@@ -131,10 +148,8 @@ export async function request<T = any>(options: RequestOptions): Promise<ApiResp
   const fullUrl = `${API_BASE_URL}${url}`
   const startedAtMs = Date.now()
   const startedAt = new Date(startedAtMs).toISOString()
-  const clientTraceId = randomTraceId('trace')
-  const clientRequestId = randomTraceId('req')
-  requestHeaders['X-Client-Trace-Id'] = clientTraceId
-  requestHeaders['X-Client-Request-Id'] = clientRequestId
+  const { clientTraceId, clientRequestId, headers: traceHeaders } = createClientTraceHeaders()
+  Object.assign(requestHeaders, traceHeaders)
   console.log(`🌐 ${method} ${fullUrl}`)
   if (data) {
     console.log('📤 请求数据:', data)

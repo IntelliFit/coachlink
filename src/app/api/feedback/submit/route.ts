@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { getAuthUser } from '@/lib/auth';
 import supabase from '@/lib/supabaseClient';
+import { logError, logInfo, withOperation } from '@/lib/observability/logger';
+import { recordFeedbackSubmission } from '@/lib/observability/metrics';
+import { currentTraceContext } from '@/lib/observability/requestContext';
 import type { ApiData } from '@/types/api';
 import type { Json } from '@/types/database.types';
 import type { FeedbackCategory, RecentRequestTraceDto, SubmitFeedbackDto, SubmitFeedbackResponseDto } from './entity';
@@ -120,11 +123,42 @@ export async function POST(req: Request) {
     }
 
     const relatedQuestion = text(body.relatedQuestion, 240);
+    const category = normalizeCategory(body.category, relatedQuestion);
+    const clientInfo = normalizeClientInfo(body.client_info);
+    const imageUrls = normalizeImageUrls(body.image_urls);
     const recentRequests = normalizeRecentRequests(body.recent_requests);
     const primaryTrace = recentRequests.find((item) => item.trace_id || item.request_id);
-    const submitTraceId = text(header(req, 'x-client-trace-id') || primaryTrace?.trace_id, 100);
-    const submitRequestId = text(header(req, 'x-client-request-id') || header(req, 'x-request-id') || primaryTrace?.request_id, 100);
-    const submitHostName = text(header(req, 'host') || header(req, 'x-forwarded-host'), 160);
+    const activeTrace = currentTraceContext();
+    const submitTraceId = text(
+        activeTrace?.traceId ||
+        header(req, 'x-trace-id') ||
+        header(req, 'x-client-trace-id') ||
+        primaryTrace?.trace_id,
+        100,
+    );
+    const submitRequestId = text(
+        activeTrace?.requestId ||
+        header(req, 'x-request-id') ||
+        header(req, 'x-client-request-id') ||
+        primaryTrace?.request_id,
+        100,
+    );
+    const submitHostName = text(
+        activeTrace?.hostName ||
+        header(req, 'x-host-name') ||
+        header(req, 'host') ||
+        header(req, 'x-forwarded-host'),
+        160,
+    );
+    const operationFields = {
+        user_id: auth.userId,
+        category,
+        legacy_payload: legacySubmitPayload,
+        image_count: imageUrls.length,
+        recent_request_count: recentRequests.length,
+        submit_trace_id: submitTraceId,
+        submit_request_id: submitRequestId,
+    };
 
     try {
         const insertPayload = legacySubmitPayload
@@ -138,13 +172,13 @@ export async function POST(req: Request) {
                 user_id: auth.userId,
                 content,
                 related_question: relatedQuestion || null,
-                category: normalizeCategory(body.category, relatedQuestion),
+                category,
                 contact: text(body.contact, MAX_CONTACT_LENGTH),
                 page_path: text(body.page_path, MAX_PAGE_PATH_LENGTH),
                 app_version: text(body.app_version, MAX_APP_VERSION_LENGTH),
-                client_info: normalizeClientInfo(body.client_info),
+                client_info: clientInfo,
                 recent_requests: recentRequests as Json,
-                image_urls: normalizeImageUrls(body.image_urls) as Json,
+                image_urls: imageUrls as Json,
                 submit_trace_id: submitTraceId,
                 submit_request_id: submitRequestId,
                 submit_host_name: submitHostName,
@@ -152,16 +186,25 @@ export async function POST(req: Request) {
                 updated_at: new Date().toISOString(),
             };
 
-        const { data: feedback, error } = await supabase
-            .from('feedbacks')
-            .insert(insertPayload)
-            .select('id')
-            .single();
+        const feedback = await withOperation('feedback_submit', operationFields, async () => {
+            const { data, error } = await supabase
+                .from('feedbacks')
+                .insert(insertPayload)
+                .select('id')
+                .single();
 
-        if (error || !feedback) {
-            console.error('[feedback/submit] insert error:', error);
-            return jsonResponse(error?.message || '提交反馈失败', 500);
-        }
+            if (error || !data) {
+                throw error || new Error('反馈写入后未返回 id');
+            }
+
+            return data;
+        });
+
+        recordFeedbackSubmission('success', category, imageUrls.length, recentRequests.length);
+        logInfo('用户反馈提交成功', {
+            ...operationFields,
+            feedback_id: feedback.id,
+        });
 
         return NextResponse.json<ApiData<SubmitFeedbackResponseDto>>({
             success: true,
@@ -174,7 +217,8 @@ export async function POST(req: Request) {
             },
         });
     } catch (error: any) {
-        console.error('[feedback/submit] unexpected error:', error);
+        recordFeedbackSubmission('error', category, imageUrls.length, recentRequests.length);
+        logError('用户反馈提交失败', error, operationFields);
         return jsonResponse(error?.message || '提交反馈失败', 500);
     }
 }

@@ -3,7 +3,10 @@ import { authService } from '@/services/authService'
 import {
   API_BASE_URL,
   RECENT_REQUEST_TRACE_LIMIT,
+  createClientTraceHeaders,
+  getHeaderValue,
   getRecentRequestTraces,
+  recordRecentRequestTrace,
   request
 } from '@/utils/request'
 import {
@@ -87,19 +90,65 @@ export async function uploadFeedbackImage(localPath: string) {
     throw new Error('请先登录后再上传截图')
   }
 
-  const response = await Taro.uploadFile({
-    url: `${API_BASE_URL}/api/feedback/upload-image`,
-    filePath: localPath,
-    name: 'file',
-    header: {
-      Authorization: `Bearer ${token}`
-    }
-  })
+  const url = '/api/feedback/upload-image'
+  const fullUrl = `${API_BASE_URL}${url}`
+  const startedAtMs = Date.now()
+  const startedAt = new Date(startedAtMs).toISOString()
+  const { clientTraceId, clientRequestId, headers: traceHeaders } = createClientTraceHeaders()
+  let response: Taro.uploadFile.SuccessCallbackResult
+
+  try {
+    response = await Taro.uploadFile({
+      url: fullUrl,
+      filePath: localPath,
+      name: 'file',
+      header: {
+        Authorization: `Bearer ${token}`,
+        ...traceHeaders
+      }
+    })
+  } catch (error: any) {
+    const message = error?.errMsg || error?.message || '上传失败'
+    recordRecentRequestTrace({
+      id: clientRequestId,
+      method: 'POST',
+      url,
+      status: 'network_error',
+      success: false,
+      duration_ms: Date.now() - startedAtMs,
+      started_at: startedAt,
+      request_id: clientRequestId,
+      trace_id: clientTraceId,
+      message
+    })
+    throw new Error(message)
+  }
 
   let parsed: any = null
+  let parseError = false
   try {
     parsed = typeof response.data === 'string' ? JSON.parse(response.data) : response.data
   } catch {
+    parseError = true
+  }
+
+  const responseTraceId = getHeaderValue(response.header, 'x-trace-id') || clientTraceId
+  const responseRequestId = getHeaderValue(response.header, 'x-request-id') || clientRequestId
+  const responseMessage = parsed?.message || (parseError ? '上传响应解析失败' : '')
+  recordRecentRequestTrace({
+    id: clientRequestId,
+    method: 'POST',
+    url,
+    status: response.statusCode,
+    success: response.statusCode >= 200 && response.statusCode < 300 && Boolean(parsed?.success),
+    duration_ms: Date.now() - startedAtMs,
+    started_at: startedAt,
+    request_id: responseRequestId,
+    trace_id: responseTraceId,
+    message: responseMessage
+  })
+
+  if (parseError) {
     throw new Error('上传响应解析失败')
   }
 
