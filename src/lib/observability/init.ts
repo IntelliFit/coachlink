@@ -8,6 +8,7 @@ import { resourceFromAttributes } from "@opentelemetry/resources";
 import { NodeSDK } from "@opentelemetry/sdk-node";
 import { PeriodicExportingMetricReader } from "@opentelemetry/sdk-metrics";
 import { BatchSpanProcessor } from "@opentelemetry/sdk-trace-base";
+import { hostname } from "node:os";
 import { readOTelConfig, type OTelConfig } from "./config";
 import { logInfo, logWarn } from "./logger";
 import {
@@ -31,7 +32,8 @@ const requestStarts = new WeakMap<IncomingMessage, number>();
 
 function isHealthCheckPath(path: string): boolean {
     const cleanPath = (path || "").split("?")[0];
-    return cleanPath === "/api/health" ||
+    return cleanPath === "/api/healthy" ||
+        cleanPath === "/api/health" ||
         cleanPath === "/api/system/version" ||
         cleanPath === "/api/public/version" ||
         cleanPath === "/api/hello-world";
@@ -54,6 +56,10 @@ function requestMethod(req: IncomingMessage): string {
 
 function statusCode(res: ServerResponse): number {
     return Number(res.statusCode || 0) || 0;
+}
+
+function operationName(method: string, path: string): string {
+    return `${method} ${path || "unknown"}`;
 }
 
 function responseTraceId(span: any): string {
@@ -84,14 +90,19 @@ export function initObservability() {
         "service.name": cfg.serviceName,
         "service.namespace": "coachlink",
         "deployment.environment.name": cfg.environment,
+        "host.name": hostname(),
+        "service.instance.id": hostname(),
     });
+
+    const metricExportIntervalMillis = Math.max(1, cfg.metricExportIntervalSeconds) * 1000;
+    const metricExportTimeoutMillis = Math.min(10_000, metricExportIntervalMillis);
 
     const metricReaders = cfg.metricsEnabled
         ? [
             new PeriodicExportingMetricReader({
                 exporter: new OTLPMetricExporter(exporterOptions(cfg)),
-                exportIntervalMillis: Math.max(1, cfg.metricExportIntervalSeconds) * 1000,
-                exportTimeoutMillis: 10_000,
+                exportIntervalMillis: metricExportIntervalMillis,
+                exportTimeoutMillis: metricExportTimeoutMillis,
             }),
         ]
         : [];
@@ -109,6 +120,8 @@ export function initObservability() {
                     const req = request as IncomingMessage;
                     const path = requestPath(req);
                     const method = requestMethod(req);
+                    const name = operationName(method, path);
+                    span.updateName(name);
                     requestStarts.set(req, Date.now());
                     incHttpInFlight(method, path);
 
@@ -122,9 +135,13 @@ export function initObservability() {
                     });
 
                     span.setAttributes({
+                        "http.route": path,
+                        "http.method": method,
+                        "http.request.method": method,
                         "coachlink.request_id": requestId,
                         "coachlink.client_trace_id": clientTraceId,
                         "coachlink.url.path": path,
+                        "coachlink.operation": name,
                     });
                     span.addEvent("收到请求", {
                         "http.method": method,

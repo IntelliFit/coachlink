@@ -30,8 +30,30 @@ function readString(names: string[], fallback = ""): string {
     return fallback;
 }
 
+function defaultServiceName(environment: string): string {
+    const normalized = environment.trim().toLowerCase();
+    if (normalized === "development" || normalized === "dev" || normalized === "local" || normalized === "test") {
+        return "coachlink-backend-dev";
+    }
+    return "coachlink-backend-main";
+}
+
+function readServiceName(environment: string): string {
+    const appName = readString(["APP_NAME"], "");
+    if (appName) return appName;
+
+    const otelServiceName = readString(["OTEL_SERVICE_NAME"], "");
+    if (otelServiceName && otelServiceName !== "coachlink-web") return otelServiceName;
+
+    return defaultServiceName(environment);
+}
+
 export function readOTelConfig(): OTelConfig {
     const enabled = readBool("OTEL_ENABLED", false);
+    const environment = readString(
+        ["TRACE_ENV", "NEXT_PUBLIC_APP_ENV", "APP_ENV", "NODE_ENV"],
+        "unknown",
+    );
     return {
         enabled,
         tracesEnabled: readBool("OTEL_TRACES_ENABLED", true),
@@ -42,11 +64,8 @@ export function readOTelConfig(): OTelConfig {
         ),
         insecure: readBool("OTEL_INSECURE", true),
         metricExportIntervalSeconds: readNumber("OTEL_METRIC_EXPORT_INTERVAL_SECONDS", 15),
-        serviceName: readString(["OTEL_SERVICE_NAME"], "coachlink-web"),
-        environment: readString(
-            ["TRACE_ENV", "NEXT_PUBLIC_APP_ENV", "APP_ENV", "NODE_ENV"],
-            "unknown",
-        ),
+        serviceName: readServiceName(environment),
+        environment,
     };
 }
 
@@ -58,6 +77,6 @@ export function otelEnvExample(): string {
         "OTEL_COLLECTOR_ENDPOINT=otel-collector.observability.svc.cluster.local:4317",
         "OTEL_INSECURE=true",
         "OTEL_METRIC_EXPORT_INTERVAL_SECONDS=5",
-        "OTEL_SERVICE_NAME=coachlink-web",
+        "APP_NAME=coachlink-backend-main",
     ].join("\n");
 }

@@ -18,9 +18,15 @@ const hostName =
     process.env.COMPUTERNAME ||
     "unknown";
 
+const TRACE_ID_REGEX = /^[0-9a-f]{32}$/i;
+
 function normalizeHeaderValue(value: unknown): string {
     if (Array.isArray(value)) return String(value[0] || "").trim();
     return typeof value === "string" ? value.trim() : "";
+}
+
+function isValidTraceId(traceId: string): boolean {
+    return TRACE_ID_REGEX.test(traceId) && traceId !== "00000000000000000000000000000000";
 }
 
 export function newRequestId(): string {
@@ -33,7 +39,7 @@ export function registerRequestTraceContext(
     traceId: string,
     value: Partial<RequestTraceContext>,
 ): RequestTraceContext | null {
-    if (!traceId) return null;
+    if (!isValidTraceId(traceId)) return null;
     const requestId =
         value.requestId?.trim() ||
         newRequestId();
@@ -49,7 +55,7 @@ export function registerRequestTraceContext(
 }
 
 export function deleteRequestTraceContext(traceId: string) {
-    if (traceId) contexts.delete(traceId);
+    if (isValidTraceId(traceId)) contexts.delete(traceId);
 }
 
 export function requestIdFromHeaders(headers: NodeJS.Dict<string | string[] | undefined>): string {
@@ -67,6 +73,7 @@ export function currentTraceContext(): RequestTraceContext | null {
     const spanContext = trace.getActiveSpan()?.spanContext();
     if (!spanContext?.traceId) return null;
     const traceId = spanContext.traceId;
+    if (!isValidTraceId(traceId)) return null;
     return contexts.get(traceId) || {
         traceId,
         requestId: newRequestId(),

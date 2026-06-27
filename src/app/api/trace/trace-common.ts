@@ -34,6 +34,16 @@ export function safeText(value: unknown, maxLength: number): string | null {
 }
 
 export function shouldSkipTrace(req: NextRequest): boolean {
+    const pathname = req.nextUrl.pathname;
+    if (
+        pathname === "/api/healthy" ||
+        pathname === "/api/health" ||
+        pathname === "/api/system/version" ||
+        pathname === "/api/public/version"
+    ) {
+        return true;
+    }
+
     const hostname = req.headers.get("host") || "";
     const isLocal =
         hostname.includes("localhost") ||

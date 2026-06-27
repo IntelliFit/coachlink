@@ -25,15 +25,18 @@ OTEL_METRICS_ENABLED=true
 OTEL_COLLECTOR_ENDPOINT=otel-collector.observability.svc.cluster.local:4317
 OTEL_INSECURE=true
 OTEL_METRIC_EXPORT_INTERVAL_SECONDS=5
-OTEL_SERVICE_NAME=coachlink-web
+APP_NAME=coachlink-backend-main
 ```
 
 `OTEL_COLLECTOR_ENDPOINT` uses the gRPC OTLP endpoint. For the in-cluster insecure collector above, do not add `http://` or `https://`.
 
+`APP_NAME` maps to OTel `service.name`, matching the FoodLink `app.name -> service.name` convention. Use `coachlink-backend-main` for the main production deployment and `coachlink-backend-dev` for a server-side dev deployment. `OTEL_SERVICE_NAME` is still accepted as a fallback, but the legacy placeholder `coachlink-web` is ignored so the service falls back to the environment-specific backend name.
+
 ## Runtime Behavior
 
 - Startup is wired through `src/instrumentation.ts`, so it runs only in the Next.js Node runtime.
-- `/api/system/version`, `/api/health`, `/api/public/version`, and `/api/hello-world` are excluded from incoming HTTP tracing to keep health checks out of Jaeger.
+- Incoming HTTP spans are renamed to `METHOD /path`, for example `GET /api/feedback`, so Jaeger trace search shows route-level operations similar to FoodLink.
+- `/api/healthy`, `/api/health`, `/api/system/version`, `/api/public/version`, and `/api/hello-world` are excluded from incoming HTTP tracing to keep health checks out of Jaeger.
 - JSON API responses add `x-trace-id`, `x-request-id`, and `x-host-name` when an active server span exists.
 - Server logs are written as structured JSON and also added to the active span as events, so request-scoped logs are visible inside Jaeger spans.
 - WeChat mini-program requests send `X-Client-Trace-Id` and `X-Client-Request-Id`; feedback submissions include recent server trace IDs from normal API requests and screenshot uploads.
@@ -53,4 +56,3 @@ The Web service records these OTel metrics:
 - `coachlink_feedback_submissions`
 - `coachlink_feedback_image_uploads`
 - `coachlink_feedback_image_upload_bytes`
-

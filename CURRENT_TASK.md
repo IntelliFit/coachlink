@@ -1,3 +1,74 @@
+## OTel Trace Naming And Health Probe Cleanup (`2026-06-27`)
+
+- Task: make CoachLink Jaeger traces easier to read like FoodLink, stop using `coachlink-web` as service name, add a dedicated health API, and move Kubernetes probes off page routes.
+- Finding:
+  - FoodLink is a Go/Gin backend and its OTel route operation is naturally `METHOD /api/...`.
+  - CoachLink's initial Next.js/Node OTel integration only exported the default HTTP operation name such as `GET`, while route/path lived in attributes, so Jaeger search results could not directly show routes.
+  - Next.js also emits internal spans such as middleware/page resolution under the HTTP span; that hierarchy is expected for Next, but the root operation name was too generic.
+  - Production `deployment/coachlink-main` was using `/` as liveness/readiness path at the time of inspection; this was still a page route and not a proper health endpoint.
+- Code changes:
+  - Added `GET /api/healthy`, returning lightweight JSON with status, service, environment, version, and time.
+  - Marked `/api/healthy`, `/api/health`, `/api/system/version`, and `/api/public/version` as skipped for both OTel HTTP tracing and legacy `admin_trace_events` API tracing.
+  - Renamed incoming OTel HTTP spans to `METHOD /path`, for example `GET /api/public/articles/list`, and added `http.route` / method attributes.
+  - Changed OTel service-name resolution to prefer `APP_NAME`; legacy placeholder `OTEL_SERVICE_NAME=coachlink-web` is ignored and falls back to environment-specific backend names.
+  - Default service name is now `coachlink-backend-main` for production-like envs and `coachlink-backend-dev` for dev/local/test envs.
+  - Fixed response trace headers so invalid all-zero OTel trace ids are not emitted.
+  - Updated `docs/done/system-design/observability-otel.md` to document `APP_NAME=coachlink-backend-main` and route-level operation names.
+- Verification:
+  - `npm run lint` ✅ informational lint script
+  - `npm run typecheck` ✅
+  - `npm test` ✅ 33 files / 163 tests
+  - `npx next build` ✅
+  - `git diff --check` ✅ warnings only for LF/CRLF normalization
+- Deployment:
+  - Pushed `ccr.ccs.tencentyun.com/littlehorse/coachlink:latest`, `:main`, and `:a6df4fb`.
+  - Final deployed image digest: `sha256:06dd35faaffa72b4b7ed59a7f087a64d0f545fae3c70f263aec40025a9dc1cdd`.
+  - Set production deployment env `APP_NAME=coachlink-backend-main`.
+  - Patched Kubernetes liveness/readiness probes to `GET /api/healthy`.
+  - Rolled `deployment/coachlink-main`; final state is `3/3`, all pods `2/2 Running` on the final digest.
+- Production verification:
+  - `GET https://coachlink.fit/api/healthy` returned HTTP 200 with service `coachlink-backend-main`, buildTime `2026-06-27T09:14:14.315Z`, and no `x-trace-id` / `x-request-id` / `x-host-name` headers.
+  - `GET https://coachlink.fit/` returned HTTP 200.
+  - `GET https://coachlink.fit/api/public/articles/list` returned HTTP 200 with a valid trace id, confirming normal API tracing still works.
+  - `POST https://coachlink.fit/api/coach/get-all-coaches` returned HTTP 200 with a valid trace id.
+  - Pod logs show `OpenTelemetry 已启用` with `service_name: coachlink-backend-main`.
+  - Direct Jaeger API verification was not completed because the Jaeger service requires Basic Auth and returned HTTP 401 without credentials.
+- Apollo note:
+  - Add or keep `APP_NAME=coachlink-backend-main` in Apollo for the main deployment. Use `APP_NAME=coachlink-backend-dev` for a server dev deployment.
+  - `OTEL_SERVICE_NAME` may remain for compatibility, but it should not be set to `coachlink-web`.
+
+## Production 500 / OTel rollout fix (`2026-06-27`)
+
+- Task: respond to production 500 alerts on `154.8.205.78` after OTel deployment.
+- Root cause:
+  - New pod logs showed Next.js failed while loading the instrumentation hook:
+    - `exportIntervalMillis must be greater than or equal to exportTimeoutMillis`
+  - Apollo/runtime config had `OTEL_METRIC_EXPORT_INTERVAL_SECONDS=5`, so the code configured a 5s metric export interval but kept a hardcoded 10s timeout, which OpenTelemetry JS rejects during startup.
+  - This made new Web pods return HTTP 500 on liveness/readiness probes.
+- Mitigation:
+  - Temporarily scaled `deployment/coachlink-main` down to 2 replicas so only the old healthy pods served traffic while the fix was prepared.
+- Fix:
+  - Updated `src/lib/observability/init.ts` so metric export timeout is capped at the configured interval:
+    - `exportIntervalMillis = OTEL_METRIC_EXPORT_INTERVAL_SECONDS * 1000`
+    - `exportTimeoutMillis = min(10000, exportIntervalMillis)`
+  - Local OTel init smoke check passed with the production-like 5s interval.
+- Verification before deploy:
+  - `npm run lint` ✅
+  - `npm run typecheck` ✅
+  - `npm test` ✅ 33 files / 163 tests
+  - `npx next build` ✅
+- Deployment:
+  - `npm run push-docker-ccr` succeeded.
+  - Pushed `ccr.ccs.tencentyun.com/littlehorse/coachlink:latest`, `:main`, and `:a6df4fb`.
+  - Fixed image digest: `sha256:1353f760f910db6bc13cc1140fca726fefe8b6e6cee63159a913395ca6aa276c`.
+  - Scaled `deployment/coachlink-main` back to 3 replicas and restarted rollout.
+- Production verification:
+  - `deployment/coachlink-main` is `3/3`.
+  - All three new pods are `2/2 Running` and use image digest `sha256:1353f760f910db6bc13cc1140fca726fefe8b6e6cee63159a913395ca6aa276c`.
+  - `GET https://coachlink.fit/api/system/version` returned HTTP 200 with buildTime `2026-06-27T08:54:18.871Z`.
+  - `GET https://coachlink.fit/` returned HTTP 200.
+  - New pod logs show `OpenTelemetry 已启用` with `metric_export_interval_seconds: 5` and no instrumentation-hook startup error.
+
 ## OpenTelemetry Observability (`2026-06-27`)
 
 - Task: answer whether CoachLink currently has tracing/OTel metrics, compare with FoodLink, and bring CoachLink up to the same practical observability shape.
