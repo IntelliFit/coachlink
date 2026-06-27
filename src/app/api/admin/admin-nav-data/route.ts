@@ -43,6 +43,11 @@ export async function POST(req: Request) {
         .from('coach_applications')
         .select('*', { count: 'exact', head: true })
         .eq('status', "pending");
+
+    const { count: feedbackOpen } = await supabase
+        .from('feedbacks')
+        .select('*', { count: 'exact', head: true })
+        .in('status', ["open", "pending"]);
     
 
     // 重要！必须声明接口范型位 ApiData<返回参数的接口类型>
@@ -51,10 +56,11 @@ export async function POST(req: Request) {
         message: '教练申请创建成功',
         // CreateCoachApplicationResponseDto 反映的是这里的 data 数据结构
         data: {
-            paymentUnreviewed,
-            coachApplicationUnreviewed,
+            paymentUnreviewed: paymentUnreviewed ?? 0,
+            coachApplicationUnreviewed: coachApplicationUnreviewed ?? 0,
             // TODO: 等待完成提交审核来修改这部分
-            rankingRecordsUnreviewed: 0
+            rankingRecordsUnreviewed: 0,
+            feedbackOpen: feedbackOpen ?? 0
         }
     });
 }

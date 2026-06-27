@@ -35,7 +35,7 @@ export async function getAuthUser(req: NextRequest | Request): Promise<AuthResul
     }
 
     // 方式2：尝试从Authorization header中获取JWT token（小程序端）
-    const authHeader = req.headers.get('authorization');
+    const authHeader = typeof req.headers?.get === 'function' ? req.headers.get('authorization') : null;
     if (authHeader && authHeader.startsWith('Bearer ')) {
         const token = authHeader.substring(7);
         const decoded = verifyToken(token) as { userId?: string; phone?: string; email?: string } | null;

@@ -16,7 +16,7 @@ import { adminService } from '@/app/service/adminService';
 import { userService } from '@/app/service/userService';
 import { useToastContext } from '@/context/ToastContext';
 import type { UserProfilesRow } from '@/types';
-import { Bell, Moon, Sun, CreditCard, UserPlus, Trophy, LogIn, Settings, FileText, Database, Dumbbell } from 'lucide-react';
+import { Bell, Moon, Sun, CreditCard, UserPlus, Trophy, LogIn, Settings, FileText, Database, Dumbbell, MessageSquare } from 'lucide-react';
 
 export default function NavigationAdmin() {
     const pathname = usePathname();
@@ -127,6 +127,14 @@ export default function NavigationAdmin() {
             icon: Dumbbell,
             url: '/admin/canonical-actions',
             command: () => router.push('/admin/canonical-actions'),
+            template: itemRenderer
+        },
+        {
+            label: '意见反馈',
+            icon: MessageSquare,
+            url: '/admin/feedback',
+            command: () => router.push('/admin/feedback'),
+            badge: navData?.feedbackOpen || 0,
             template: itemRenderer
         },
         {

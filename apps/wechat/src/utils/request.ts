@@ -21,6 +21,56 @@ interface ApiResponse<T = any> {
   message?: string
 }
 
+export interface RecentRequestTrace {
+  id: string
+  method: string
+  url: string
+  status: number | string | null
+  success: boolean
+  duration_ms: number
+  started_at: string
+  request_id: string
+  trace_id: string
+  message?: string
+}
+
+export const RECENT_REQUEST_TRACE_LIMIT = 50
+const RECENT_REQUEST_TRACE_STORAGE_KEY = 'recent_request_traces_v1'
+
+function randomTraceId(prefix: string) {
+  return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`
+}
+
+function readRecentRequestTraces(): RecentRequestTrace[] {
+  try {
+    const value = Taro.getStorageSync(RECENT_REQUEST_TRACE_STORAGE_KEY)
+    return Array.isArray(value) ? value.slice(-RECENT_REQUEST_TRACE_LIMIT) : []
+  } catch {
+    return []
+  }
+}
+
+function appendRecentRequestTrace(trace: RecentRequestTrace) {
+  try {
+    const traces = readRecentRequestTraces()
+    traces.push(trace)
+    Taro.setStorageSync(RECENT_REQUEST_TRACE_STORAGE_KEY, traces.slice(-RECENT_REQUEST_TRACE_LIMIT))
+  } catch {
+    // diagnostics are best-effort only
+  }
+}
+
+export function getRecentRequestTraces(limit = RECENT_REQUEST_TRACE_LIMIT) {
+  return readRecentRequestTraces().slice(-Math.min(RECENT_REQUEST_TRACE_LIMIT, Math.max(0, limit)))
+}
+
+function getHeaderValue(headers: unknown, name: string) {
+  if (!headers || typeof headers !== 'object') return ''
+  const target = name.toLowerCase()
+  const found = Object.entries(headers as Record<string, unknown>).find(([key]) => key.toLowerCase() === target)
+  return typeof found?.[1] === 'string' ? found[1] : ''
+}
+
 /**
  * 显示错误提示（当 API 返回 success:false 或请求异常时）
  */
@@ -79,6 +129,12 @@ export async function request<T = any>(options: RequestOptions): Promise<ApiResp
   }
   
   const fullUrl = `${API_BASE_URL}${url}`
+  const startedAtMs = Date.now()
+  const startedAt = new Date(startedAtMs).toISOString()
+  const clientTraceId = randomTraceId('trace')
+  const clientRequestId = randomTraceId('req')
+  requestHeaders['X-Client-Trace-Id'] = clientTraceId
+  requestHeaders['X-Client-Request-Id'] = clientRequestId
   console.log(`🌐 ${method} ${fullUrl}`)
   if (data) {
     console.log('📤 请求数据:', data)
@@ -95,6 +151,10 @@ export async function request<T = any>(options: RequestOptions): Promise<ApiResp
       header: requestHeaders,
       timeout: 30000
     })
+    const duration = Date.now() - startedAtMs
+    const responseHeaders = response.header || {}
+    const responseTraceId = getHeaderValue(responseHeaders, 'x-trace-id') || clientTraceId
+    const responseRequestId = getHeaderValue(responseHeaders, 'x-request-id') || clientRequestId
 
     // 检查HTTP状态码
     if (response.statusCode !== 200) {
@@ -107,6 +167,18 @@ export async function request<T = any>(options: RequestOptions): Promise<ApiResp
         ? '\u767b\u5f55\u72b6\u6001\u5df2\u8fc7\u671f\uff0c\u8bf7\u91cd\u65b0\u767b\u5f55'
         : (bodyMessage || `Request failed: ${response.statusCode}`)
       const errResult = { success: false, message }
+      appendRecentRequestTrace({
+        id: clientRequestId,
+        method,
+        url,
+        status: response.statusCode,
+        success: false,
+        duration_ms: duration,
+        started_at: startedAt,
+        request_id: responseRequestId,
+        trace_id: responseTraceId,
+        message
+      })
       if (isUnauthorized && token) {
         clearInvalidAuthSession(message)
         const now = Date.now()
@@ -121,6 +193,18 @@ export async function request<T = any>(options: RequestOptions): Promise<ApiResp
     }
 
     const result = response.data as ApiResponse<T>
+    appendRecentRequestTrace({
+      id: clientRequestId,
+      method,
+      url,
+      status: response.statusCode,
+      success: Boolean(result?.success),
+      duration_ms: duration,
+      started_at: startedAt,
+      request_id: responseRequestId,
+      trace_id: responseTraceId,
+      message: result?.message
+    })
     // 当 API 返回 success:false 时自动显示错误提示
     if (result && typeof result === 'object' && 'success' in result && !result.success) {
       const resultMessage = result.message || '????'
@@ -131,6 +215,7 @@ export async function request<T = any>(options: RequestOptions): Promise<ApiResp
     }
     return result
   } catch (error: any) {
+    const duration = Date.now() - startedAtMs
     const errMsg = error?.errMsg || error?.message || '网络请求失败'
     const errHint = errMsg.includes('url not in domain list') || errMsg.includes('不在以下 request 合法域名列表中')
       ? '（请在微信开发者工具 详情→本地设置 中勾选「不校验合法域名」）'
@@ -138,6 +223,18 @@ export async function request<T = any>(options: RequestOptions): Promise<ApiResp
         ? '（请确认后端已启动且 API 地址正确，开发时 urlCheck 需为 false）'
         : ''
     const fullMsg = errMsg + errHint
+    appendRecentRequestTrace({
+      id: clientRequestId,
+      method,
+      url,
+      status: 'network_error',
+      success: false,
+      duration_ms: duration,
+      started_at: startedAt,
+      request_id: clientRequestId,
+      trace_id: clientTraceId,
+      message: fullMsg
+    })
     console.error('❌ 请求错误:', error, '→', fullMsg)
     showErrorToast(fullMsg, showErrorToastOpt)
     return {

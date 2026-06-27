@@ -1834,29 +1834,71 @@ export type Database = {
       }
       feedbacks: {
         Row: {
+          app_version: string
+          category: string
+          client_info: Json
+          contact: string
           content: string
           created_at: string | null
+          handled_at: string | null
+          handled_by: string | null
           id: string
+          image_urls: Json
+          page_path: string
+          recent_requests: Json
           related_question: string | null
+          resolution_message: string
+          reward_credits: number
           status: string | null
+          submit_host_name: string
+          submit_request_id: string
+          submit_trace_id: string
           updated_at: string | null
           user_id: string
         }
         Insert: {
+          app_version?: string
+          category?: string
+          client_info?: Json
+          contact?: string
           content: string
           created_at?: string | null
+          handled_at?: string | null
+          handled_by?: string | null
           id?: string
+          image_urls?: Json
+          page_path?: string
+          recent_requests?: Json
           related_question?: string | null
+          resolution_message?: string
+          reward_credits?: number
           status?: string | null
+          submit_host_name?: string
+          submit_request_id?: string
+          submit_trace_id?: string
           updated_at?: string | null
           user_id: string
         }
         Update: {
+          app_version?: string
+          category?: string
+          client_info?: Json
+          contact?: string
           content?: string
           created_at?: string | null
+          handled_at?: string | null
+          handled_by?: string | null
           id?: string
+          image_urls?: Json
+          page_path?: string
+          recent_requests?: Json
           related_question?: string | null
+          resolution_message?: string
+          reward_credits?: number
           status?: string | null
+          submit_host_name?: string
+          submit_request_id?: string
+          submit_trace_id?: string
           updated_at?: string | null
           user_id?: string
         }
@@ -1864,6 +1906,13 @@ export type Database = {
           {
             foreignKeyName: "feedbacks_user_id_fkey1"
             columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "feedbacks_handled_by_fkey"
+            columns: ["handled_by"]
             isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]

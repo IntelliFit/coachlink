@@ -285,6 +285,14 @@ function CoachMyProfile() {
       path: '/me/settings/index'
     },
     {
+      key: 'feedback',
+      title: '意见反馈',
+      description: '提交产品建议、问题截图和诊断信息',
+      icon: MessageCircle,
+      tone: 'indigo',
+      path: '/me-legal/feedback/index'
+    },
+    {
       key: 'join-beta-group',
       title: '加入内测群',
       description: '加入教练端内测群，接收教练端更新和反馈沟通',

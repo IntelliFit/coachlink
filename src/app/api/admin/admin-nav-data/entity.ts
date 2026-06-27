@@ -8,4 +8,5 @@ export interface AdminNavDataResponseDto {
     paymentUnreviewed: number;
     coachApplicationUnreviewed: number;
     rankingRecordsUnreviewed: number;
+    feedbackOpen: number;
 }

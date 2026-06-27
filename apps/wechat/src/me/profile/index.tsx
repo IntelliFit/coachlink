@@ -308,6 +308,13 @@ function Profile() {
       requiresAuth: true
     },
     {
+      key: 'feedback',
+      label: '意见反馈',
+      icon: 'icon-messages',
+      iconBg: '#CF6D4E',
+      path: '/me-legal/feedback/index'
+    },
+    {
       key: 'purchase-history',
       label: '购买记录',
       icon: 'icon-goumaijilu',

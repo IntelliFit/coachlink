@@ -1,3 +1,41 @@
+## One-click Feedback Parity (`2026-06-27`)
+
+- Task: mirror `E:\little-horse\food_link` one-click feedback into CoachLink.
+- Scope:
+  - Add CoachLink WeChat mini-program one-click feedback functionality with matching behavior/layout and CoachLink brand coloring.
+  - Add CoachLink backend feedback API.
+  - Add `/admin` feedback management UI modeled after FoodLink admin management patterns.
+- Status: implemented in code; visual/manual verification intentionally left to the user.
+- Changes:
+  - Replaced the CoachLink WeChat feedback page with a FoodLink-style one-click form: category, content, screenshot upload, optional contact, and diagnostic toggle.
+  - Added bounded mini-program console-log and request-trace buffers for feedback diagnostics.
+  - Added feedback screenshot upload to COS under the `feedback-images` logical bucket.
+  - Added FoodLink-style `POST /api/feedback`, kept legacy `POST /api/feedback/submit`, and added admin feedback list/status APIs.
+  - Added `/admin/feedback` management UI and admin nav badge for open/pending feedback.
+  - Added migration `supabase/migrations/20260627_feedback_management.sql` to extend `feedbacks` with category/contact/page/client diagnostics/images/admin resolution fields.
+- Verification plan:
+  - `npm run lint` ✅ informational lint script
+  - `npm run typecheck` ✅
+  - `npm test` ✅ 33 files / 163 tests
+  - `npx next build` ✅
+  - `npm --workspace apps/wechat run build:weapp` ✅
+  - `git diff --check` ✅
+  - Browser/WeChat DevTools visual verification left to the user per durable preference in `USER.md`.
+- Deployment attempt (`2026-06-27`):
+  - Backend image push completed with `npm run push-docker-ccr`.
+  - Pushed `ccr.ccs.tencentyun.com/littlehorse/coachlink:latest`, `:main`, and `:afb8b05` with digest `sha256:dcfd5cd53b4f52916ce6d3911f6e7186ee70c2341635c09879176dbffefd7b3f`.
+  - Production Kubernetes deployment `deployment/coachlink-main` was rolled/restarted on `TenXunYun-ChuangYe`; short polling confirmed `coachlink-main   3/3   3   3`.
+  - Lightweight production API check `GET https://coachlink.fit/api/system/version` returned HTTP 200 with buildTime `2026-06-27T07:03:56.695Z`.
+  - Database migration `supabase/migrations/20260627_feedback_management.sql` was applied manually through direct Postgres credentials after Apollo was confirmed to lack DDL-capable DB credentials.
+  - The migration was patched before execution to drop legacy `feedbacks_status_check` before normalizing `pending` rows to `open`; the old remote constraint allowed only `pending / reviewed / resolved / closed`.
+  - Remote verification passed: 14/14 new feedback columns found, 5/5 feedback indexes found, and new `category/status/reward_credits` check constraints present. Existing feedback status counts after migration: `open: 6`.
+- UI contrast follow-up (`2026-06-27`):
+  - User reported the selected feedback queue item used a light background with near-white title text, making the left list hard to read in the dark admin theme.
+  - Updated `/admin/feedback` queue selection state to use a dark CoachLink-brand tinted background, a `#CF6D4E` left accent border, and explicit high-contrast selected title/meta text colors.
+  - Checks passed: `npm run lint`, `npm run typecheck`, `git diff --check`, and Docker build inside `npm run push-docker-ccr`.
+  - Deployed the UI fix by pushing `ccr.ccs.tencentyun.com/littlehorse/coachlink:latest|main|afb8b05` with digest `sha256:5e8ddf02e45e02554df18e57f633e382570636c4baee8844b45ce125ec437768`, then rolling `deployment/coachlink-main` back to `3/3`.
+  - Lightweight production API check `GET https://coachlink.fit/api/system/version` returned HTTP 200 with buildTime `2026-06-27T07:54:54.155Z`. No browser/manual UI verification was run per user preference.
+
 ## Standard Action Library Admin Module (`2026-06-22`)
 
 - Task: add a Web admin module for managing standard action library reference media.
