@@ -33,9 +33,11 @@ dist-ssr
 pnpm-lock.yaml
 standalone.tar.gz
 coachlink.tar.gz
+deploy.tar.gz
 
 test-results
 temp
+temp_dir
 tsconfig.tsbuildinfo
 
 # WeChat mini-program (`apps/wechat/`) build outputs — keep repo lean; rebuild locally
@@ -63,6 +65,13 @@ skill-factory/
 # Temp images
 temp_*.jpg
 temp_*.png
+
+# Stray unsplash stock photos
+victor-freitas-nlZTjUZX2qo-unsplash.jpg
+omar-ramadan-TNkNczBYLSA-unsplash.jpg
+
+# Generated documentation output
+output/
 
 # Claude settings
 .claude/
