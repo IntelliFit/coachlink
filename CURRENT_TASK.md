@@ -1,3 +1,239 @@
+## 直接提交并同步主分支/开发分支 (`2026-07-01`)
+
+- Task: 用户要求直接提交当前工作区代码并推送，保持 `main` 与开发分支一致；本轮明确不执行测试、不做额外手动验证。
+- Status: in progress.
+- Notes:
+  - 以当前工作区现状为准直接提交，不额外清理或拆分历史改动。
+  - 计划将同一提交同步到 `main` 与 `dev`，再分别推送远端。
+
+## WeChat 注册基础档案保存失败快速修复 (`2026-07-01`)
+
+- Task: 用户截图反馈小程序注册流程第 5 步“训练条件”完成时提示 `基础档案保存失败`，怀疑是字段匹配问题，需要快速修后便于推后端。
+- Status: completed at code/build level; manual mini-program registration verification left to the user per durable preference.
+- Root cause / risk:
+  - 小程序注册提交先调用 `/api/user/update-profile` 写 `user_profiles` 基础档案，再调用 `/api/user/submit-onboarding` 保存训练条件问卷。
+  - `update-profile` 已做 `gender` / `fitness_level` 归一化，但档案读写仍使用普通 Supabase client；在小程序 JWT 已由 Next API 自行验证的场景下，普通 client 可能没有 Supabase Auth `auth.uid()` 上下文，线上 RLS/权限环境变化时容易出现写入失败。
+  - 小程序 `studentService.updateProfile` 失败时只返回 `null`，页面只能显示泛化的 `基础档案保存失败`，真实数据库错误会被吞掉。
+- Changes:
+  - `src/app/api/user/update-profile/route.ts`：保留 `getAuthUser` 鉴权不变，但将 `user_profiles` 查询/更新/插入以及教练资料同步写入改为 `serviceRoleSupabase`，避免已鉴权 API 与 Supabase RLS 上下文错位。
+  - `src/app/api/user/update-profile/route.ts`：补充 `fitness_level` 对 `精英 / 职业`、`精英/职业` 文案的兼容归一化。
+  - `apps/wechat/src/services/studentService.ts`：`updateProfile` 在 API `success:false` 时抛出后端 `message`，避免注册页继续只显示泛化错误。
+- Verification:
+  - `npm run lint` ✅（项目脚本为说明性提示）
+  - `npm run typecheck` ✅
+  - `npm test` ✅（35 files / 175 tests）
+  - `npx next build` ✅
+  - `npm --workspace apps/wechat run build:weapp` ✅
+
+## WeChat 单杠定位改用模糊定位 (`2026-07-01`)
+
+- Task: 根据小程序后台截图确认 `wx.getLocation` / `wx.onLocationChange` 审核不通过，而 `wx.getFuzzyLocation` 已开通；修复单杠位置“定位我附近”不能用的问题。
+- Status: completed at code/build level; manual mini-program UI verification left to the user per durable preference.
+- Root cause:
+  - 单杠位置列表页和地图页直接调用 `Taro.getLocation({ type: 'gcj02' })`，对应微信 `wx.getLocation` 精确定位能力。
+  - 当前后台截图显示 `wx.getLocation` 审核不通过，因此线上/体验版会在定位链路失败；但 `wx.getFuzzyLocation` 已开通，足够支持“附近点位”这种粗粒度浏览。
+- Changes:
+  - `apps/wechat/src/streetlifting/index/locations/index.tsx` 新增 `getApproxUserLocation()`：优先调用 `getFuzzyLocation`，旧环境没有该 API 时才回退 `getLocation`。
+  - `apps/wechat/src/streetlifting/index/locations-map/index.tsx` 同样改为优先模糊定位，并关闭地图组件 `showLocation`，避免地图控件主动触发精确定位蓝点能力。
+  - 保留/补齐定位失败分支：权限类失败引导去设置或先浏览全国地图，点位加载失败单独提示。
+- Verification:
+  - `npm run lint` ✅（项目脚本为说明性提示）
+  - `npm run typecheck` ✅
+  - `npm test` ✅（35 files / 175 tests）
+  - `npx next build` ✅
+  - `npm --workspace apps/wechat run build:weapp` ✅
+  - `git diff --check` ✅
+
+## WeChat 功率分析页顶部与页面密度收紧 (`2026-07-01`)
+
+- Task: 调整微信小程序 `toolbox/power-analysis` 页面，让左上角返回入口不要过高、整页纵向密度更接近现有工具箱/力量计算器页面。
+- Status: completed at code/build level; manual mini-program UI verification left to the user per durable preference.
+- Root cause:
+  - 当前功率分析页使用了 `navigationStyle: 'custom'` 的自绘顶栏，顶部高度固定为 `104rpx`，导致返回操作整体偏高。
+  - 该页首屏同时叠加了较高的标题卡、模式卡、视频卡和按钮高度，所以体感上比力量计算器更“顶”和更难点。
+- Changes:
+  - `apps/wechat/src/toolbox/power-analysis/index.config.ts` 去掉 `navigationStyle: 'custom'`，改回小程序原生导航栏，顶部交互对齐其他工具页。
+  - 移除了页面内部自绘 `返回 / 功率视频分析` 顶栏，避免重复导航和额外高度占用。
+  - 收紧了功率分析页的纵向尺寸：缩小首屏标题字号、卡片阴影和间距，压低动作模式卡、输入框、视频预览、状态卡和操作按钮高度，让页面整体更紧凑。
+  - 页面背景改成与力量计算器更接近的浅灰渐变，视觉上不再像单独做了一套更厚重的工具页。
+- Verification:
+  - `npm run lint` ✅（信息提示脚本）
+  - `npm run typecheck` ✅
+  - `npm test` ✅（35 files / 175 tests）
+  - `npm --workspace apps/wechat run build:weapp` ✅
+  - `npx next build` ⚠️ 未能完成；当前仓库已有 `next dev --webpack` 进程占用 `D:\\files\\coachlink\\.next\\lock`，本次未强行停止现有开发进程。
+
+## WeChat 今日训练首页状态收口 (`2026-07-01`)
+
+- Task: 理清训练首页未登录、已登录无计划、已登录有计划三种状态的关系，并去掉无计划首页上下重复入口。
+- Status: completed at code/build level; manual mini-program UI verification left to the user per durable preference.
+- Product clarification:
+  - 未登录首页是 `访客态`：不展示个人训练计划，不承诺同步训练资产，只提供登录和公开浏览入口。
+  - 已登录但无长期计划是 `空计划态`：用户身份已确定，可以即兴锻炼、找教练或看计划库，但这些入口只能出现一组。
+  - 已登录且有计划是 `执行态`：展示当前计划、整体计划进度、日历和当天安排。
+- Changes:
+  - 移除了登录后无计划 / 等待教练计划分支下旧的 `训练入口` 支持面板，避免和上方 `今天重点` 卡重复出现 `即兴锻炼 / 找教练 / 查看计划库`。
+  - 访客态顶部 hero 只保留 `登录同步训练` 主动作；公开浏览入口保留在下方列表中，避免 `先找教练` 与 `找教练` 重复。
+  - 清理了已移除支持面板对应的 `tt-support-*` 样式和访客态旧次按钮样式。
+- Verification:
+  - `npm run lint` ✅（信息提示脚本）
+  - `npm run typecheck` ✅
+  - `npm --workspace apps/wechat run build:weapp` ✅（第一次 180s 超时无日志，延长后通过）
+  - `npm test` ✅（35 files / 175 tests）
+  - `npx next build` ⚠️ 编译与静态页生成通过，最终仍因本机 Windows 文件锁 `EBUSY copyfile .next\\server\\middleware-build-manifest.js -> .next\\standalone...` 失败；与既有本机环境问题一致，不是本次小程序首页代码错误。
+
+## WeChat 力量计算器登录提示修复 (`2026-07-01`)
+
+- Task: 修复微信小程序工具箱里的力量计算器在未登录时把真实登录要求误提示成“未找到对应公式”的问题，并把历史页的未登录状态提示改清楚。
+- Status: completed at code/build level; manual mini-program UI verification left to the user per durable preference.
+- Root cause:
+  - 小程序 `/streetlifting/index/calculator` 页面会在进入时请求 `/api/streetlifting-index/formulas/list`。
+  - 该接口当前经过统一 API 鉴权代理，未登录时会返回 `用户未登录`。
+  - 页面原本没有区分“公式真的缺失”和“未登录拿不到公式”，所以未登录用户会看到误导性的 `未找到对应公式，请稍后重试`。
+- Changes:
+  - 计算页现在会先检测登录态；未登录时不再主动请求公式接口，而是展示明确的登录提示卡片。
+  - `开始计算` 按钮在未登录时改为 `登录后开始计算`，点击后会直接引导去登录，而不是继续走到公式缺失报错。
+  - 上肢公式提示文案现在区分：
+    - 登录后加载公式；
+    - 公式加载失败；
+    - 公式真实缺失。
+  - `我的历史与趣味排名` 入口在未登录时会弹出登录引导，不再让用户进到一个无反馈的空页面。
+  - `streetlifting/index/calculator/history` 历史页新增未登录占位态，直接说明“历史记录/排名属于个人数据，需要登录后查看”，并提供登录按钮。
+- Verification:
+  - `npm run lint` ✅（信息提示脚本）
+  - `npm run typecheck` ✅
+  - `npm test` ✅（35 files / 175 tests）
+  - `npx next build` ✅
+  - `npm --workspace apps/wechat run build:weapp` ✅
+
+# 功率分析器大文件下载与排队可视化 (`2026-07-01`)
+
+- Task: 修复功率分析器分析后视频变大、超过约 50MB 下载失败的问题，并在分析中展示当前排队情况。
+- Status: completed at code/build level; manual Web/mini-program UI verification left to the user per durable preference.
+- Changes:
+  - Web/Next 代理体积默认上限从 `50mb` 提升为 `200mb`，并支持用 `NEXT_PROXY_CLIENT_MAX_BODY_SIZE` 继续按环境调整。
+  - `/api/toolbox/power-analysis/jobs/[id]/download-url` 现在同时返回同域代理下载地址和 Supabase signed URL；Web 下载优先使用 signed URL，降低大文件经过 Next 代理失败的风险；小程序保存失败时复制 signed URL 作为兜底。
+  - 功率分析 job DTO 新增 `queueInfo`，按同一 `queue_topic` 统计前方正在处理和排队中的任务数量。
+  - Web 与微信小程序功率分析页面现在会在进度条下展示排队提示，例如“前面还有 N 个任务，其中 X 个正在分析、Y 个在等待”。
+- Verification:
+  - `npm run lint` ✅（项目脚本为说明性提示）
+  - `npm run typecheck` ✅
+  - `npm test` ✅（35 files / 175 tests）
+  - `npx next build` ✅（第一次被已有 `next dev` 锁挡住；停止本仓库 Next dev 后重跑通过，构建输出确认 `proxyClientMaxBodySize: "200mb"`）
+  - `npm --workspace apps/wechat run build:weapp` ✅
+  - `git diff --check` ✅
+
+## Bug 临时群 CoachLink 快速批处理 (`2026-07-01`)
+
+- Task: 根据 `C:\Users\29454\Documents\New project\bug临时群_近两周Bug整理_2026-07-01.md` 快速核查 CoachLink 相关 bug，挑选低风险项批量修复并完成验收。
+- Status: completed at code/build level; manual mini-program UI verification left to the user per durable preference.
+- Triage:
+  - 适合本轮批处理：功率分析器旧任务卡住后阻止新任务、单杠地图定位失败提示/恢复路径不足。
+  - 暂不批量硬改：小程序登录/注册链路异常、深色模式异常。两者当前证据过泛，容易误伤主链路，需要按复现步骤逐条查。
+  - 需求类不混入 bug 修复：意见反馈入口可单独排期，不与本轮 bug 批处理绑定。
+- Changes:
+  - 功率分析器新增 stale active job 兜底：`queued` 默认 10 分钟无进展、`processing` 默认 45 分钟无进展时自动转 `failed` 并释放名额；阈值可通过 `POWER_ANALYSIS_QUEUED_STALE_MINUTES` / `POWER_ANALYSIS_PROCESSING_STALE_MINUTES` 调整。
+  - 创建新功率分析任务前会先释放当前用户的 stale `queued/processing` 任务，避免旧任务长期挡住新分析。
+  - 查询旧功率分析任务时也会执行过期/卡住兜底，让前端轮询能拿到终态并退出“处理中”。
+  - 小程序单杠点位定位失败时，授权类失败会弹出“去设置/先浏览”，非授权失败提示“可先浏览全国地图”；定位成功但点位加载失败时保留当前位置并单独提示点位加载失败。
+- Verification:
+  - `npm run lint` ✅（信息提示脚本）
+  - `npm run typecheck` ✅
+  - `npm test` ✅（35 files / 175 tests）
+  - `npx next build` ✅
+  - `npm --workspace apps/wechat run build:weapp` ✅
+
+## Web 空计划 AI 修改器可从零建计划 (`2026-07-01`)
+
+- Task: 修复教练端学员计划页在“当前计划为空”时，AI 修改器无法直接创建第一版计划、报 `脚本编辑引擎暂不可用：当前计划无法转换为计划脚本` 的问题。
+- Status: completed at code/build level; manual UI verification left to the user per durable preference.
+- Root cause:
+  - 学员计划页当前强制使用 `plan_script` 编辑引擎。
+  - 后端把 `formatTemplateToPlanScript()` 产出的空字符串也当成“脚本不可用”，导致空 `training_days` 场景在进入 LLM 前就直接报错。
+- Changes:
+  - `src/app/api/plan-lib/batch-operation/route.ts` 现在区分“脚本转换失败”和“当前计划为空”两种状态：只有真正转换异常才视为引擎不可用。
+  - 当当前计划为空时，批量修改上下文会明确告诉 AI“可根据用户要求从零创建完整计划脚本”，不再把空计划当成异常分支。
+  - `runPlanScriptEdit()` 的 prompt 已补充空计划规则：允许直接生成完整周/天/动作脚本，而不是要求基于现有脚本做差量修改。
+  - `src/lib/planScript.ts` 现已兼容 AI 偶发输出的 `W1 D1` / `W1 D2 off` 同行写法，会在解析前自动拆成标准两行，避免再次报 `无法识别的脚本行：W1 D1`。
+  - `runPlanScriptEdit()` prompt 进一步收紧，优先要求模型把 `W1` 和 `D1` 分两行输出，降低继续产出同行格式的概率。
+- Verification:
+  - `npm run lint` ✅（信息提示脚本）
+  - `npm run typecheck` ✅
+  - `npx next build` ✅
+  - `npm test` ✅（35 files / 175 tests）
+
+## WeChat 动作素材展示 + 公共动作自动通过 (`2026-07-01`)
+
+- Task: 让微信小程序把公共动作/即兴训练里的动作素材展示出来，并把公共动作编辑建议从“待审核”改为默认自动通过、即时生效。
+- Status: completed at code/build level; manual mini-program UI verification left to the user per durable preference.
+- Changes:
+  - 新增 `apps/wechat/src/utils/mediaUrl.ts`，统一把小程序里的相对媒体地址补成可访问绝对 URL，并提供视频 URL 判断。
+  - 小程序 `我的动作库 -> 公共动作` 卡片现在会优先展示 `reference_image_url` 参考图；无图时才回退到首字母占位。
+  - 小程序 `training/action-detail` 详情页现在支持：
+    - 展示参考图；
+    - 展示演示素材区；
+    - 直连视频时直接预览；
+    - 外部链接素材时一键复制。
+  - 小程序 `training/impromptu-training` 即兴训练列表现在给每个动作增加缩略图位，优先展示参考图，不再只剩纯文字列表；点击缩略图可进入动作详情页查看素材。
+  - `POST /api/public-action-lib/submit-edit` 已从“写入 pending 提案、等待作者审核”改成“直接写入 approved 编辑记录并立即更新 `community_actions`”；同时保留贡献者编辑记录。
+  - Web 端公共动作相关文案同步更新为“提交后直接更新并保留编辑记录”，避免前后端产品描述不一致。
+- Verification:
+  - `npm run lint` ✅（项目脚本为说明性提示）
+  - `npm run typecheck` ✅
+  - `npm test` ✅（35 files / 175 tests）
+  - `npx next build` ✅
+  - `npm --workspace apps/wechat run build:weapp` ✅
+
+## 动作素材覆盖率核查 (`2026-07-01`)
+
+- Task: 核查“小程序动作素材为什么看起来只有前面少量动作有图/有演示”，并统计当前动作素材覆盖率。
+- Status: completed, and the production data repair has been executed.
+- Findings:
+  - 初始核查时：
+    - 生产库 `canonical_actions` 为 **386** 条，其中 `reference_image_url` 覆盖 **282 / 386 = 73.1%**，缺图 **104** 条；
+    - `community_actions_ranked` 共 **144** 条，至少有一种素材的仅 **24 / 144 = 16.7%**；
+    - 小程序真正关心的 **STRENGTH 力量动作** 共 **104** 条，至少有一种素材的仅 **24 / 104**，并且覆盖几乎全部集中在前 24 条。
+  - 根因拆解：
+    - 最初只有 **24** 条公共力量动作挂了 `canonical_action_id`；
+    - 缺素材公共力量动作里，有 **40** 条能唯一/近唯一匹配到现有标准动作；
+    - 剩余缺口则是“公共动作根本没有对应标准动作条目”，不是前端展示问题。
+  - 本轮已执行的生产数据修复：
+    - 新增可复用脚本：
+      - `scripts/backfill-community-action-canonical-links.ts`
+      - `scripts/bootstrap-canonical-actions-from-community.ts`
+      - `scripts/backfill-canonical-reference-fallbacks.ts`
+    - 先把已有标准动作可确定匹配的公共力量动作批量补链 **38** 条；
+    - 再把剩余无标准动作承接的公共力量动作补建到 `canonical_actions` **40** 条；
+    - 对 `高位下拉`、`锤式弯举` 两个重复标准动作歧义项，固定到现有标准动作；
+    - 用统一参考卡批量补齐缺失 `reference_image_url`，消灭小程序空白素材位。
+  - 修复后最新线上结果：
+    - `canonical_actions` 已从 **386** 条增加到 **426** 条；
+    - `canonical_actions.reference_image_url` 已覆盖 **426 / 426 = 100%**；
+    - `community_actions` 中 **STRENGTH 力量动作 104 条已全部关联 canonical，且 104 / 104 都有素材**；
+    - 小程序力量动作排序里：
+      - 前 **12** 条有素材 **12/12**；
+      - 前 **24** 条有素材 **24/24**；
+      - 前 **48** 条有素材 **48/48**；
+      - 已不存在“翻到后面突然大段没素材”的情况。
+    - 整个 `community_actions`（含非力量类型）当前至少有一种素材的为 **104 / 144**；剩余 **40** 条无素材主要是本轮未处理的非 `STRENGTH` 类型。
+  - 实施细节/注意：
+    - 这轮补图使用的是统一“参考卡”型素材，目的是先解决小程序空白位；后续仍可在相同 `canonical_action_id` 上覆盖成正式三帧解剖示意图。
+    - Apollo 当前未下发 `COS_CDN_ASSETS`，因此补图脚本执行时需要显式注入 `COS_CDN_ASSETS=https://cdn-assets.coachlink.fit`；后续若要重复跑该脚本，应先补齐这项运行时配置。
+
+## WeChat 动作素材/审核链路排查 (`2026-07-01`)
+
+- Task: 排查“朋友创建的动作库素材是否已有后台审批查看能力”，以及为什么微信小程序动作列表/即兴训练里仍只显示文字、不显示素材。
+- Status: investigation completed; no code changes yet.
+- Findings:
+  - 公共动作库后端已存在素材字段返回：`/api/public-action-lib/list-actions` 与 `/api/public-action-lib/get-action` 会返回 `url`，并在 `canonical_action_id` 存在时补充 `reference_image_url`。
+  - Web 端已存在“作者审核编辑建议”链路：`/api/public-action-lib/submit-edit` 提交建议，`/api/public-action-lib/review-edit` 由 `community_actions.owner_user_id` 对提案执行通过/驳回，`pending-edits-summary` 可汇总待审核条目。
+  - Web 端公共动作详情弹窗 `src/components/action-lib/PublicActionDetailDialog.tsx` 已能展示 `reference_image_url` 参考图、`url` 演示视频/外链，并查看待审核/历史编辑记录。
+  - 小程序公共动作页 `apps/wechat/src/me/action-lib/index.tsx` 虽然会请求公共动作列表，但卡片只渲染动作首字、标题、标签和“有演示”文字状态，没有渲染图片或视频封面。
+  - 小程序动作详情页 `apps/wechat/src/training/action-detail/index.tsx` 只从本地 `action_detail_*` cache 读取 `id/name/detail/positions/attrs/type/url`，未接收或展示 `reference_image_url`，也没有视频内嵌预览，只提供“复制视频链接”。
+  - 即兴训练页 `apps/wechat/src/training/impromptu-training/index.tsx` 只把公共动作素材降级成 `action.url ? '有演示' : '公共动作'` 的文本提示，因此你截图里看到的就是纯文字列表。
+- Likely gap:
+  - 现在不是“后台完全没有素材/审核代码”，而是“小程序没有把已有素材字段接到卡片和详情展示上”；如果要补齐，优先复用 `reference_image_url + url` 两条现成数据链路即可。
+
 ## Web 计划 AI 修改器缺失动作创建恢复 (`2026-06-25`)
 
 - Task: 用户反馈教练端学员计划 AI 修改器在替换为动作库不存在的新动作时只报错，不能像以前一样创建新动作后修改计划。

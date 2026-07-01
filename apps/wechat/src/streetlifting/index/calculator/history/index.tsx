@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { View, Text, ScrollView, Picker } from '@tarojs/components'
 import Taro, { useRouter } from '@tarojs/taro'
 import { useTheme } from '@/hooks/useTheme'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
+import { authService } from '@/services/authService'
 import {
   streetliftingIndexService,
   type StreetliftingCalcHistoryRes,
@@ -49,6 +50,8 @@ export default function StreetliftingCalculatorHistoryPage() {
   const { effectiveTheme } = useTheme()
   const router = useRouter()
   const initialExerciseType = router.params?.exerciseType
+  const authSession = authService.getAuthSession({ normalize: true })
+  const isAuthenticated = authSession.isAuthenticated
   const [exerciseType, setExerciseType] = useState<ExerciseType>(
     isExerciseType(initialExerciseType) ? initialExerciseType : 'weighted_pullup'
   )
@@ -97,12 +100,34 @@ export default function StreetliftingCalculatorHistoryPage() {
     [exerciseType]
   )
 
+  const openLogin = useCallback(() => {
+    Taro.navigateTo({
+      url: authService.buildLoginUrl(`/streetlifting/index/calculator/history?exerciseType=${exerciseType}`)
+    })
+  }, [exerciseType])
+
   const rankingText = useMemo(() => {
     if (!summary?.ranking) return '暂无排名'
     if (!summary.ranking.eligible) return summary.ranking.notice || '当前模式暂不参与趣味排名'
     if (!summary.ranking.rank) return '暂无排名'
     return `第 ${summary.ranking.rank} 名 · 超过 ${summary.ranking.percentile ?? 0}% 用户`
   }, [summary])
+
+  if (!isAuthenticated) {
+    return (
+      <View className={`calc-history-page theme-${effectiveTheme}`}>
+        <View className='calc-history-empty calc-history-empty--auth'>
+          <Text className='calc-history-empty-title'>登录后查看历史记录</Text>
+          <Text className='calc-history-empty-desc'>
+            力量计算历史、历史最佳和趣味排名都属于个人数据，需要登录后才能查看。
+          </Text>
+          <View className='calc-history-login-btn' onClick={openLogin}>
+            <Text className='calc-history-login-btn-text'>前往登录</Text>
+          </View>
+        </View>
+      </View>
+    )
+  }
 
   return (
     <View className={`calc-history-page theme-${effectiveTheme}`}>

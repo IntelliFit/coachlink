@@ -741,6 +741,7 @@ async function runPlanScriptEdit(params: {
     }
 
     const actionLibrary = buildPlanScriptActionLibrary(actions);
+    const hasCurrentPlanScript = currentScript.trim().length > 0;
     const maxRetries = 2;
     const messages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
         {
@@ -753,11 +754,12 @@ async function runPlanScriptEdit(params: {
 
 ## 计划脚本规则
 - W1 表示第 1 周，D1 表示一周第 1 天，D1 off 表示休息日。
+- 周标题和日标题默认分两行写：先写 \`W1\`，下一行再写 \`D1\`；不要合并成 \`W1 D1\`，除非确实无法避免。
 - !开头表示当天备注，# 后面表示动作备注。
 - 动作格式示例：负重引体（底部暂停） 4x7 @9rm r270。
 - 4x7 表示 4 组 7 次，4x30s 表示 4 组 30 秒，@9rm 表示 9RM，r270 表示休息 270 秒。
 - 必须保留完整计划，不能只返回被修改片段。
-- 除用户要求修改的地方外，其余周、天、动作顺序、备注和参数都必须保持不变。
+- ${hasCurrentPlanScript ? "除用户要求修改的地方外，其余周、天、动作顺序、备注和参数都必须保持不变。" : "当前计划为空时，本次任务等价于从零创建完整计划；请直接生成完整的周/天/动作脚本。"}
 - 动作名必须使用动作库中的完整名称，尤其括号变体必须精确保留，例如“负重引体（底部暂停）”不能写成“负重引体”。
 - 如果用户要求的新动作不在动作库中，直接在脚本中写用户指定的新动作名；系统会把它转为待确认动作，后续让用户选择“新建动作”或“映射已有动作”。
 - 禁止把新动作硬匹配到相似旧动作；例如“窄距反手引体”不在库中时，保留“窄距反手引体”，不要改写成“反手引体”或其他相近动作。
@@ -780,9 +782,9 @@ ${actionLibrary}
 ${contextPrompt}
 
 ## 当前计划脚本
-\`\`\`plan
+${hasCurrentPlanScript ? `\`\`\`plan
 ${currentScript}
-\`\`\`
+\`\`\`` : "（当前计划为空，请根据用户指令直接创建完整计划脚本。）"}
 
 ## 用户指令
 ${effectiveInstruction}
@@ -1085,8 +1087,10 @@ export async function POST(req: NextRequest) {
                     const includePlanBody = contextOptions?.includePlanBody ?? true;
                     const includeActionLibrary = contextOptions?.includeActionLibrary ?? true;
                     const planBodyPrompt = includePlanBody
-                        ? (planScriptBody
-                            ? `（计划脚本格式，已由 training_days 编译而来）\n${planScriptBody}`
+                        ? (planScriptBody !== null
+                            ? (planScriptBody.trim()
+                                ? `（计划脚本格式，已由 training_days 编译而来）\n${planScriptBody}`
+                                : '（当前计划为空，AI 可根据用户要求从零创建完整计划脚本）')
                             : JSON.stringify(trainingDays, null, 2))
                         : '（已关闭：计划/模板本体上下文）';
                     const actionLibraryPrompt = includeActionLibrary
@@ -1473,7 +1477,7 @@ ${effectiveInstruction}
                     }
 
                     if (shouldUsePlanScriptEngine) {
-                        if (!planScriptBody) {
+                        if (planScriptBody === null) {
                             const reason = planScriptUnavailableReason || "当前计划无法转换为计划脚本";
                             if (editEngine === "plan_script") {
                                 throw new Error(`脚本编辑引擎暂不可用：${reason}`);

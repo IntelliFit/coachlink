@@ -114,14 +114,20 @@ export async function POST(req: Request) {
             );
         }
 
+        const reviewerUserId = action.owner_user_id || userId;
+        const reviewedAt = new Date().toISOString();
+
         const { data: edit, error: insertError } = await supabase
             .from("community_action_edits")
             .insert({
                 action_id: actionId,
                 proposer_user_id: userId,
-                status: "pending",
+                reviewer_user_id: reviewerUserId,
+                status: "approved",
+                reviewed_at: reviewedAt,
+                review_note: "auto-approved",
                 ...proposed,
-                created_at: new Date().toISOString(),
+                created_at: reviewedAt,
             } as any)
             .select()
             .single();
@@ -138,9 +144,45 @@ export async function POST(req: Request) {
             );
         }
 
+        const { data: updatedAction, error: updateActionError } = await supabase
+            .from("community_actions")
+            .update({
+                name: proposed.proposed_name,
+                detail: proposed.proposed_detail,
+                positions: proposed.proposed_positions,
+                attrs: proposed.proposed_attrs,
+                url: proposed.proposed_url,
+                type: proposed.proposed_type,
+                item_schema: proposed.proposed_item_schema,
+                suggested_time: proposed.proposed_suggested_time,
+                enableAutoWeightCompute: proposed.proposed_enableAutoWeightCompute,
+                includesBodyWeight: proposed.proposed_includesBodyWeight,
+                canonical_action_id: proposed.proposed_canonical_action_id,
+                last_approved_edit_id: edit.id,
+                updated_at: reviewedAt,
+            } as any)
+            .eq("id", actionId)
+            .select()
+            .single();
+
+        if (updateActionError || !updatedAction) {
+            console.error("[public-action-lib] submit-edit update action error:", updateActionError);
+            return NextResponse.json<ApiData<null>>(
+                { success: false, message: "更新公共动作失败", data: null },
+                { status: 500 },
+            );
+        }
+
+        await upsertContributor({
+            supabase,
+            actionId,
+            userId,
+            role: "editor",
+        });
+
         return NextResponse.json<ApiData<SubmitPublicActionEditResponseDto>>({
             success: true,
-            message: "已提交编辑建议，等待上传者审核",
+            message: "公共动作已直接更新",
             data: { edit },
         });
     } catch (e) {
@@ -150,5 +192,40 @@ export async function POST(req: Request) {
             { status: 500 },
         );
     }
+}
+
+async function upsertContributor(params: {
+    supabase: typeof import("@/lib/supabaseClient").serviceRoleSupabase;
+    actionId: string;
+    userId: string;
+    role: string;
+}) {
+    const { supabase, actionId, userId, role } = params;
+    const { data: existing } = await supabase
+        .from("community_action_contributors")
+        .select("id, contribution_count")
+        .eq("action_id", actionId)
+        .eq("user_id", userId)
+        .maybeSingle();
+
+    if (existing?.id) {
+        await supabase
+            .from("community_action_contributors")
+            .update({
+                contribution_count: Number(existing.contribution_count || 0) + 1,
+                last_contributed_at: new Date().toISOString(),
+                role,
+            })
+            .eq("id", existing.id);
+        return;
+    }
+
+    await supabase.from("community_action_contributors").insert({
+        action_id: actionId,
+        user_id: userId,
+        role,
+        contribution_count: 1,
+        last_contributed_at: new Date().toISOString(),
+    });
 }
 

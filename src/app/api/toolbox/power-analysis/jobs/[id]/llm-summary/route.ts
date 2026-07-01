@@ -8,7 +8,7 @@ import {
   expirePowerAnalysisJobIfNeeded,
   getOwnedPowerAnalysisJob,
   makeFallbackPowerSummary,
-  mapPowerAnalysisJob,
+  mapPowerAnalysisJobWithQueueInfo,
   normalizeMetrics,
 } from "../../../_helpers";
 
@@ -60,7 +60,7 @@ export async function POST(
   if (current.llm_summary) {
     return NextResponse.json<ApiData<PowerAnalysisJobDto>>({
       success: true,
-      data: mapPowerAnalysisJob(current),
+      data: await mapPowerAnalysisJobWithQueueInfo(current),
     });
   }
 
@@ -125,6 +125,6 @@ export async function POST(
 
   return NextResponse.json<ApiData<PowerAnalysisJobDto>>({
     success: true,
-    data: mapPowerAnalysisJob(data),
+    data: await mapPowerAnalysisJobWithQueueInfo(data),
   });
 }

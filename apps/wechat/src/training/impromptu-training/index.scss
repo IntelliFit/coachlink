@@ -190,7 +190,7 @@
 
   .action-row {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 16rpx;
     padding: 24rpx;
     border-radius: 24rpx;
@@ -198,6 +198,40 @@
     border: 2rpx solid #ededed;
     box-shadow: 0 4rpx 20rpx rgba(17, 24, 39, 0.04);
     box-sizing: border-box;
+
+    .action-thumb {
+      width: 112rpx;
+      height: 112rpx;
+      flex-shrink: 0;
+      border-radius: 16rpx;
+      overflow: hidden;
+      background: #f8f5f1;
+      border: 2rpx solid #ebe4dc;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-sizing: border-box;
+    }
+
+    .action-thumb-image {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .action-thumb-fallback {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      Text {
+        font-size: 44rpx;
+        color: #374151;
+        font-weight: 800;
+      }
+    }
 
     .action-main {
       flex: 1;
@@ -269,6 +303,7 @@
       display: flex;
       align-items: center;
       gap: 12rpx;
+      min-height: 112rpx;
     }
 
     .select-btn,

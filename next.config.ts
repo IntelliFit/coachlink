@@ -45,8 +45,8 @@ const nextConfig: NextConfig = {
         ignoreBuildErrors: true,
     },
     experimental: {
-        // 训练执行视频上传需要超过默认 10MB 的 Request Body 限制
-        proxyClientMaxBodySize: '50mb',
+        // 视频工具会产生大于原始输入的分析结果；默认抬到 200MB，仍可用环境变量收紧或放宽。
+        proxyClientMaxBodySize: process.env.NEXT_PROXY_CLIENT_MAX_BODY_SIZE || '200mb',
     },
     images: {
         remotePatterns: [

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import { View, Text, ScrollView, Input, Textarea } from '@tarojs/components'
+import { View, Text, ScrollView, Input, Textarea, Image } from '@tarojs/components'
 import Taro, { useDidShow, usePullDownRefresh, useRouter } from '@tarojs/taro'
 import BottomNav from '@/components/BottomNav'
 import { studentActionLibService } from '@/services/studentActionLibService'
@@ -13,6 +13,7 @@ import {
 import type { PublicActionItemDto } from '@/types/action'
 import './index.scss'
 import { useTheme } from '@/hooks/useTheme'
+import { resolveWeappMediaUrl } from '@/utils/mediaUrl'
 
 interface Action {
   id: string
@@ -24,6 +25,7 @@ interface Action {
   reference_1rm?: number | null
   url?: string | null
   canonical_action_id?: string | null
+  reference_image_url?: string | null
 }
 
 type TabKey = 'mine' | 'public'
@@ -139,6 +141,7 @@ function cacheAndOpenActionDetail(action: {
   attrs?: string[] | null
   type?: string | null
   url?: string | null
+  reference_image_url?: string | null
 }) {
   if (!action?.id) {
     Taro.showToast({ title: '动作信息异常', icon: 'none' })
@@ -151,7 +154,8 @@ function cacheAndOpenActionDetail(action: {
     positions: action.positions,
     attrs: action.attrs,
     type: action.type,
-    url: action.url
+    url: action.url,
+    reference_image_url: action.reference_image_url ?? null
   })
   Taro.navigateTo({
     url: `/training/action-detail?id=${encodeURIComponent(action.id)}`
@@ -460,8 +464,9 @@ export default function ActionLibPage() {
         includesBodyWeight: editingPublicAction.includesBodyWeight ?? false,
         canonical_action_id: editingPublicAction.canonical_action_id ?? null
       })
-      Taro.showToast({ title: '纠错建议已提交', icon: 'success' })
+      Taro.showToast({ title: '公共动作已更新', icon: 'success' })
       closeEditSuggestion()
+      void loadPublicLibrary()
     } catch (error: any) {
       Taro.showToast({ title: error?.message || '提交失败', icon: 'none' })
       setSubmittingEdit(false)
@@ -578,12 +583,19 @@ export default function ActionLibPage() {
           const isAdding = addingPublicId === action.id
           const isLiking = likingPublicId === action.id
           const meta = getActionMeta(action)
+          const referenceImageUrl = resolveWeappMediaUrl(action.reference_image_url)
           return (
             <View key={action.id} className='public-card'>
               <View className='card-marker'><Text>{action.url ? '演示' : '要点'}</Text></View>
               <View className='card-count'><Text>{action.like_count || 0}赞</Text></View>
-              <View className='action-avatar large' onClick={() => cacheAndOpenActionDetail(action)}>
-                <Text>{getActionInitial(action.name)}</Text>
+              <View className='action-cover-wrap' onClick={() => cacheAndOpenActionDetail(action)}>
+                {referenceImageUrl ? (
+                  <Image className='action-cover' src={referenceImageUrl} mode='aspectFill' />
+                ) : (
+                  <View className='action-avatar large'>
+                    <Text>{getActionInitial(action.name)}</Text>
+                  </View>
+                )}
               </View>
               <Text className='card-title' onClick={() => cacheAndOpenActionDetail(action)}>{action.name || '未命名动作'}</Text>
               <Text className='card-subtitle'>{getPrimaryPosition(action)}</Text>
@@ -702,7 +714,7 @@ export default function ActionLibPage() {
           <View className='dialog-overlay' onClick={closeEditSuggestion} />
           <View className='dialog-content large'>
             <Text className='dialog-title'>提交纠错建议</Text>
-            <Text className='dialog-desc'>你的修改会进入审核队列，通过后再更新到公共动作库。</Text>
+            <Text className='dialog-desc'>提交后会直接更新到公共动作库，同时保留一条编辑记录。</Text>
             <ScrollView className='dialog-scroll' scrollY>
               <View className='dialog-section'>
                 <Text className='dialog-label'>动作名称</Text>

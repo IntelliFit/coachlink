@@ -109,6 +109,36 @@ D1 off !有氧：慢走30分钟
         });
     });
 
+    it("accepts combined week/day syntax emitted by LLMs", () => {
+        const result = parsePlanScript({
+            script: `
+W1 D1
+负重引体（底部暂停） 4x6 @8rm r240
+W1 D2 off #主动恢复
+            `,
+            actions,
+        });
+
+        expect(result.days).toHaveLength(2);
+        expect(result.days[0]).toMatchObject({
+            dayIndex: 1,
+            type: "training",
+        });
+        expect(result.days[0].actionSets?.[0]).toMatchObject({
+            actionId: "pullup",
+            params: {
+                组数: 4,
+                次数: 6,
+                休息时间: 240,
+            },
+        });
+        expect(result.days[1]).toMatchObject({
+            dayIndex: 2,
+            type: "rest",
+            note: "主动恢复",
+        });
+    });
+
     it("prefers exact variant names over fuzzy base action matches", () => {
         const result = parsePlanScript({
             script: `

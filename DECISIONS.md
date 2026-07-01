@@ -1,4 +1,8 @@
-﻿# DECISIONS
+# DECISIONS
+- `2026-07-01`: `/api/user/update-profile` 在 Next API 已通过 `getAuthUser` 验证用户身份后，写入 `user_profiles` 应使用 `serviceRoleSupabase` 执行实际查询/更新/插入，避免小程序 Bearer JWT 场景下普通 Supabase client 缺少 Supabase Auth `auth.uid()` 上下文导致 RLS/权限错位。前端调用方不能吞掉该接口的 `message`，否则注册页只会显示泛化的 `基础档案保存失败`，不利于快速定位字段/约束问题。
+- `2026-07-01`: 微信小程序 `toolbox/power-analysis` 应沿用现有工具页的原生导航与更紧凑的纵向密度，不再保留自绘高顶栏。返回入口优先交给小程序原生导航，页面内容区的标题卡、模式卡、视频区和底部按钮应向 `streetlifting/index/calculator` 的紧凑手感靠拢。
+- `2026-07-01`: 微信小程序 `streetlifting` 力量计算器在未登录时，必须把“需要登录”与“公式缺失/加载失败”区分开。未登录用户可以浏览页面和填写参数，但点击计算或查看个人历史/趣味排名时，应直接给出登录引导，不能再用 `未找到对应公式` 这类误导性提示替代真实原因。
+- `2026-07-01`: WeChat 小程序今日训练首页要明确区分三种状态：未登录是访客态，只展示登录与公开浏览；已登录无计划是空计划态，个人训练入口集中在上方 `今天重点` 卡中；已登录有计划是执行态，展示当前计划、整体计划进度、可展开日历和当天安排。不要在空计划态再叠加旧的 `训练入口` 面板，也不要在访客态同时在 hero 和列表重复同一个找教练 CTA。
 - `2026-06-25`: Web 教练端学员计划 `AI 修改器` 遇到动作库不存在的新动作时，不能直接失败，也不能把新动作硬匹配到相似旧动作。`plan_script` 引擎应保留用户指定动作名并生成 `pending:` 临时动作，交给既有“确认并映射动作”流程，由用户选择新建动作或映射已有动作后再应用计划。
 - `2026-06-23`: Web 教练端 `AI 生成计划 / AI 生成下一阶段` 的单次 phase 长度不能直接等于 `coach_subscriptions.subscribed_weeks`。`subscribed_weeks` 只表示长期已购权益；本次生成周期应优先跟随所选模板/骨架本身的周数，若无模板则只生成保守的短 phase，避免把 4~16 周模板机械扩展成 40 周长计划。
 - `2026-06-23`: 对于教练端学员计划里的 AI 负荷调整，产品优先采用“全局 1RM 实时调整”单模式，不单独保留“只改当前 phase 处方重量”作为主路径。前提是当前计划负荷本身与动作级全局 `reference_1rm` 强相关；因此学员反馈“太重/太轻”时，优先回写 `student_actions.reference_1rm`，再让依赖该 1RM 的处方重量实时重算。实现时仍需保留两个保护规则：固定重量处方不要被误重算，且每次 1RM 自动调整都应记录调整原因/幅度，便于回溯与撤销。
@@ -428,8 +432,19 @@
 - `2026-06-21`: APP coach plan-library migration should use the same `/api/plan-lib/*` coach template APIs as the mini-program. Until a full native PlanEditorWorkbench exists, APP may expose `trainingDays` as editable JSON for a functional management bridge, but full parity still requires visual multi-day editing, text import parsing, and batch operation workflows.
 - `2026-06-23`: WeChat 小程序动作小游戏第一版采用“工具箱独立子包页 + 本地轻量运动检测”方案，不接入主训练链路，也不把 LLM / 服务端视觉识别作为实时依赖。V1 通过摄像头实时帧差分估算动作重心来驱动角色移动，优先验证玩法和交互延迟。
 - `2026-06-23`: WeChat 小程序动作小游戏 V1 的录像策略已升级为“本地合成回放优先，原视频回退兜底”。具体为：优先使用 `OffscreenCanvas(2d + webgl) + MediaRecorder` 逐帧导出带角色/豆子叠层的回放视频；仅在当前设备不支持该链路时，才退回 `CameraContext.startRecord/stopRecord` 原摄像头录像。当前合成回放默认不带原声，先优先满足“视频里看得到玩法动画”。
+- `2026-07-01`: `plan_script` 解析层需要兼容 LLM 偶发输出的同行周/天标题，如 `W1 D1`、`W1 D2 off`。系统 prompt 仍应优先要求标准分行格式，但解析器不能因为这种轻微格式漂移就整份计划失败。
 
 - `2026-06-23`: WeChat 小程序工具箱首页的工具封面不应继续复用同一类健身照片，尤其不要让多个工具卡共用同一张底图。工具箱卡片应按功能类型做明显视觉分化（例如体感游戏、视频分析、计算器、地点、社区数据各有自己的封面语言），让用户在首屏就能快速区分入口。
 - `2026-06-23`: WeChat 小程序工具箱中的互动小游戏继续放在 `toolbox`，不并入训练主链路；首页信息架构改为分组式 `小游戏 + 实用工具 + 压缩版场景放松`，并使用更小、更密的卡片入口，方便后续继续扩展多个小游戏。
 - `2026-06-23`: WeChat 小程序小游戏集合的当前 V1 形态固定为 3 个体感小游戏：`接豆派对`、`引体冲刺`、`俯卧撑突围`。三者共用本地轻量动作检测和本地合成回放底座，不把服务端实时识别作为玩法前提。
 - `2026-06-23`: WeChat 小程序训练主题小游戏不能只做“动作名换皮”的泛移动玩法。若游戏名称绑定具体训练动作（如引体、俯卧撑），其核心规则必须直接由该动作的发力方式或动作周期驱动：例如引体应对应向上提拉/抬升来穿越障碍，俯卧撑应对应完整下放-推起周期来触发推进/破墙。`接豆派对` 这类纯放松向玩法则可以保持更自由的体感映射。
+- `2026-07-01`: Web 教练端学员计划页的 `AI 修改器` 在当前计划为空时，也必须能继续使用 `plan_script` 引擎从零生成第一版计划。空 `training_days` 只能视为“可创建的新计划场景”，不能再被判定为“当前计划无法转换为计划脚本”。
+- `2026-07-01`: 公共动作库的编辑建议不再走人工待审核队列。`/api/public-action-lib/submit-edit` 默认自动通过并立即更新 `community_actions`，同时保留一条 `approved` 编辑记录供后续追溯。
+- `2026-07-01`: 微信小程序里的公共动作展示应优先使用后端已返回的 `reference_image_url` 作为动作素材主视觉；演示链接 `url` 作为详情页预览/复制的辅助素材，不再只显示“有演示”文字状态。
+- `2026-07-01`: 当公共 `STRENGTH` 动作没有标准动作承接、又必须在小程序展示素材时，应先把它补建进 `canonical_actions`，使用 `public_tpl_<community_action_id>` 作为标准动作 ID，而不是长期让公共动作保持无 canonical 关联状态。
+- `2026-07-01`: 若标准动作暂时没有正式三帧示意图，可先在 `reference_image_url` 上挂统一 CoachLink 参考卡，保证小程序不会出现空白素材位；后续正式示意图可直接覆盖同一 canonical 记录。
+- `2026-07-01`: 功率分析器不能让旧的 `queued/processing` 任务无限期阻止用户提交新视频。创建新任务和查询旧任务时都应执行 stale active job 兜底：默认 `queued` 10 分钟无进展、`processing` 45 分钟无进展后自动转 `failed` 并释放名额；阈值通过 `POWER_ANALYSIS_QUEUED_STALE_MINUTES` / `POWER_ANALYSIS_PROCESSING_STALE_MINUTES` 可调。
+- `2026-07-01`: 功率分析器输出视频可能大于原始输入，下载链路不能再假设约 50MB 以内。默认 Next 代理上限提升到 `200mb`，并允许 `NEXT_PROXY_CLIENT_MAX_BODY_SIZE` 按部署环境调整；下载 URL 接口应同时返回同域代理地址和 Supabase signed URL，大文件场景 Web 优先走 signed URL，小程序保存失败时复制 signed URL 兜底。
+- `2026-07-01`: 功率分析器排队可视化应展示“用户前方还有多少任务”而不是只展示全局队列长度。`queueInfo.jobsAhead` 由同一 `queue_topic` 下正在处理任务数和更早入队任务数组成；`totalQueued` 可用于处理中状态提示后方仍有多少等待任务。
+- `2026-07-01`: 微信小程序单杠点位“附近浏览/地图定位”不应依赖 `wx.getLocation` 精确定位能力，因为当前小程序后台该接口审核不通过。此类粗粒度附近浏览优先使用已开通的 `wx.getFuzzyLocation`；地图页不要开启会触发精确定位的 `showLocation` 蓝点能力。只有旧环境没有模糊定位 API 时，才把 `getLocation` 作为兼容回退。
+- `2026-07-01`: 微信小程序地理位置接口后续申请采用最小权限策略：单杠“附近浏览/地图定位”继续依赖 `wx.getFuzzyLocation`，暂不重新申请 `wx.getLocation`，除非产品明确需要精确距离、当前蓝点或一键导航前的精确起点；暂不申请 `wx.onLocationChange`，因为 CoachLink 当前没有运动轨迹、实时导航、外卖配送等持续定位场景。若要恢复“新增/编辑单杠点位时从地图选点”，优先申请 `wx.chooseLocation`，理由围绕用户主动选择公共训练点位坐标，而不是后台持续获取用户位置。

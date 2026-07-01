@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import { View, Text, ScrollView, Input } from '@tarojs/components'
+import { View, Text, ScrollView, Input, Image } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { impromptuService, ImpromptuActionInput } from '@/services/impromptuService'
 import { studentActionLibService } from '@/services/studentActionLibService'
@@ -11,6 +11,7 @@ import {
 } from '@/utils/trainingExecutionCache'
 import './index.scss'
 import { useTheme } from '@/hooks/useTheme'
+import { resolveWeappMediaUrl } from '@/utils/mediaUrl'
 
 interface StudentAction {
   id: string
@@ -20,6 +21,7 @@ interface StudentAction {
   attrs?: string[]
   detail?: string | null
   url?: string | null
+  reference_image_url?: string | null
   equipment?: string
   category?: string
   primary_muscle?: string
@@ -44,6 +46,7 @@ const asTextList = (value: unknown): string[] => {
 }
 
 const getActionName = (action: StudentAction) => action.name || '未命名动作'
+const getActionInitial = (action: StudentAction) => getActionName(action).trim().slice(0, 1) || '动'
 
 const getActionMeta = (action: StudentAction) => {
   const tags = [
@@ -60,6 +63,21 @@ const getActionMeta = (action: StudentAction) => {
 const isStrengthAction = (action: StudentAction) => {
   const type = String(action.type || 'STRENGTH').toUpperCase()
   return type === 'STRENGTH'
+}
+
+const openActionDetail = (action: StudentAction) => {
+  if (!action?.id) return
+  Taro.setStorageSync(`action_detail_${action.id}`, {
+    id: action.id,
+    name: getActionName(action),
+    detail: action.detail || null,
+    positions: action.positions || null,
+    attrs: action.attrs || null,
+    type: action.type || null,
+    url: action.url || null,
+    reference_image_url: action.reference_image_url || null
+  })
+  Taro.navigateTo({ url: `/training/action-detail?id=${encodeURIComponent(action.id)}` })
 }
 
 export default function ImpromptuTraining() {
@@ -369,8 +387,18 @@ export default function ImpromptuTraining() {
           {!loadingActions && filteredActions.map(action => {
             const selected = selectedIdSet.has(action.id)
             const startingThisAction = startingKey === action.id
+            const referenceImageUrl = resolveWeappMediaUrl(action.reference_image_url)
             return (
               <View key={action.id} className='action-row'>
+                <View className='action-thumb' onClick={() => openActionDetail(action)}>
+                  {referenceImageUrl ? (
+                    <Image className='action-thumb-image' src={referenceImageUrl} mode='aspectFill' />
+                  ) : (
+                    <View className='action-thumb-fallback'>
+                      <Text>{getActionInitial(action)}</Text>
+                    </View>
+                  )}
+                </View>
                 <View className='action-main' onClick={() => toggleSelectedAction(action)}>
                   <View className='action-name-line'>
                     <Text className='action-name'>{getActionName(action)}</Text>

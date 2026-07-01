@@ -1,0 +1,874 @@
+{
+  "generated_at": "2026-07-01T04:10:06.666Z",
+  "mode": "execute",
+  "overwrite": false,
+  "limit": null,
+  "output_dir": "design\\image-workspace\\action-library\\fallback-outputs",
+  "summary": {
+    "uploaded_and_updated": 36
+  },
+  "items": [
+    {
+      "id": "public_tpl_2d508d22-a3df-49e2-81ac-bb6c8f4fbf60",
+      "name": "上斜哑铃弯举",
+      "category": "拉",
+      "previousReferenceImageUrl": null,
+      "nextReferenceImageUrl": "https://cdn-assets.coachlink.fit/action-reference-images/canonical-actions/public_tpl_2d508d22-a3df-49e2-81ac-bb6c8f4fbf60/fallback-reference-card.png",
+      "localPngPath": "design\\image-workspace\\action-library\\fallback-outputs\\上斜哑铃弯举-public_tpl_2d508d22-a3df-49e2-81ac-bb6c8f4fbf60.png",
+      "cosKey": "canonical-actions/public_tpl_2d508d22-a3df-49e2-81ac-bb6c8f4fbf60/fallback-reference-card.png",
+      "status": "uploaded_and_updated",
+      "metadata": {
+        "positions": [
+          "肱二头肌"
+        ],
+        "attrs": [
+          "健美",
+          "哑铃",
+          "手臂孤立",
+          "拉长位训练"
+        ],
+        "detail": "拉长位二头刺激更明显，适合改善二头峰值与下段薄弱。",
+        "communityActionCount": 1
+      }
+    },
+    {
+      "id": "public_tpl_ab541863-c86b-40fe-a324-4c85c4550f24",
+      "name": "仰卧臂屈伸",
+      "category": "推",
+      "previousReferenceImageUrl": null,
+      "nextReferenceImageUrl": "https://cdn-assets.coachlink.fit/action-reference-images/canonical-actions/public_tpl_ab541863-c86b-40fe-a324-4c85c4550f24/fallback-reference-card.png",
+      "localPngPath": "design\\image-workspace\\action-library\\fallback-outputs\\仰卧臂屈伸-public_tpl_ab541863-c86b-40fe-a324-4c85c4550f24.png",
+      "cosKey": "canonical-actions/public_tpl_ab541863-c86b-40fe-a324-4c85c4550f24/fallback-reference-card.png",
+      "status": "uploaded_and_updated",
+      "metadata": {
+        "positions": [
+          "肱三头肌"
+        ],
+        "attrs": [
+          "健美",
+          "杠铃",
+          "手臂孤立",
+          "增肌"
+        ],
+        "detail": "长头三头肌常见增肌动作。要点：上臂固定、肘部朝上、离心可控。",
+        "communityActionCount": 1
+      }
+    },
+    {
+      "id": "public_tpl_edace255-fb4e-4e32-9264-cd6ed59da122",
+      "name": "俄挺进阶",
+      "category": "推",
+      "previousReferenceImageUrl": null,
+      "nextReferenceImageUrl": "https://cdn-assets.coachlink.fit/action-reference-images/canonical-actions/public_tpl_edace255-fb4e-4e32-9264-cd6ed59da122/fallback-reference-card.png",
+      "localPngPath": "design\\image-workspace\\action-library\\fallback-outputs\\俄挺进阶-public_tpl_edace255-fb4e-4e32-9264-cd6ed59da122.png",
+      "cosKey": "canonical-actions/public_tpl_edace255-fb4e-4e32-9264-cd6ed59da122/fallback-reference-card.png",
+      "status": "uploaded_and_updated",
+      "metadata": {
+        "positions": [
+          "三角肌",
+          "胸肌",
+          "核心"
+        ],
+        "attrs": [
+          "高阶",
+          "体操",
+          "推"
+        ],
+        "detail": "肩前链与核心高强度推撑动作。",
+        "communityActionCount": 1
+      }
+    },
+    {
+      "id": "public_tpl_b5fca1f0-941b-4bc8-8a93-96b747402689",
+      "name": "俯身哑铃后束飞鸟",
+      "category": "推",
+      "previousReferenceImageUrl": null,
+      "nextReferenceImageUrl": "https://cdn-assets.coachlink.fit/action-reference-images/canonical-actions/public_tpl_b5fca1f0-941b-4bc8-8a93-96b747402689/fallback-reference-card.png",
+      "localPngPath": "design\\image-workspace\\action-library\\fallback-outputs\\俯身哑铃后束飞鸟-public_tpl_b5fca1f0-941b-4bc8-8a93-96b747402689.png",
+      "cosKey": "canonical-actions/public_tpl_b5fca1f0-941b-4bc8-8a93-96b747402689/fallback-reference-card.png",
+      "status": "uploaded_and_updated",
+      "metadata": {
+        "positions": [
+          "三角肌后束",
+          "菱形肌"
+        ],
+        "attrs": [
+          "健美",
+          "哑铃",
+          "后肩",
+          "姿态改善"
+        ],
+        "detail": "后束三角肌和肩胛控制训练，改善圆肩体态与肩后链薄弱。",
+        "communityActionCount": 1
+      }
+    },
+    {
+      "id": "public_tpl_cd2e7e2b-6b54-4dad-a6f8-3d97f736063a",
+      "name": "俯身靠墙划船",
+      "category": "拉",
+      "previousReferenceImageUrl": null,
+      "nextReferenceImageUrl": "https://cdn-assets.coachlink.fit/action-reference-images/canonical-actions/public_tpl_cd2e7e2b-6b54-4dad-a6f8-3d97f736063a/fallback-reference-card.png",
+      "localPngPath": "design\\image-workspace\\action-library\\fallback-outputs\\俯身靠墙划船-public_tpl_cd2e7e2b-6b54-4dad-a6f8-3d97f736063a.png",
+      "cosKey": "canonical-actions/public_tpl_cd2e7e2b-6b54-4dad-a6f8-3d97f736063a/fallback-reference-card.png",
+      "status": "uploaded_and_updated",
+      "metadata": {
+        "positions": [
+          "背阔肌",
+          "菱形肌",
+          "肱二头"
+        ],
+        "attrs": [
+          "新手",
+          "上肢拉",
+          "自重"
+        ],
+        "detail": "新手背部发力启蒙动作。",
+        "communityActionCount": 1
+      }
+    },
+    {
+      "id": "public_tpl_cddd563b-25a2-4ff7-a65a-7c2cf7d9688f",
+      "name": "击掌俯卧撑",
+      "category": "推",
+      "previousReferenceImageUrl": null,
+      "nextReferenceImageUrl": "https://cdn-assets.coachlink.fit/action-reference-images/canonical-actions/public_tpl_cddd563b-25a2-4ff7-a65a-7c2cf7d9688f/fallback-reference-card.png",
+      "localPngPath": "design\\image-workspace\\action-library\\fallback-outputs\\击掌俯卧撑-public_tpl_cddd563b-25a2-4ff7-a65a-7c2cf7d9688f.png",
+      "cosKey": "canonical-actions/public_tpl_cddd563b-25a2-4ff7-a65a-7c2cf7d9688f/fallback-reference-card.png",
+      "status": "uploaded_and_updated",
+      "metadata": {
+        "positions": [
+          "胸大肌",
+          "三头肌",
+          "肩部"
+        ],
+        "attrs": [
+          "高阶",
+          "爆发力",
+          "自重"
+        ],
+        "detail": "爆发推力强化。",
+        "communityActionCount": 1
+      }
+    },
+    {
+      "id": "public_tpl_2d84596a-d7a7-490c-9274-13378b97bb7a",
+      "name": "前水平进阶",
+      "category": "推",
+      "previousReferenceImageUrl": null,
+      "nextReferenceImageUrl": "https://cdn-assets.coachlink.fit/action-reference-images/canonical-actions/public_tpl_2d84596a-d7a7-490c-9274-13378b97bb7a/fallback-reference-card.png",
+      "localPngPath": "design\\image-workspace\\action-library\\fallback-outputs\\前水平进阶-public_tpl_2d84596a-d7a7-490c-9274-13378b97bb7a.png",
+      "cosKey": "canonical-actions/public_tpl_2d84596a-d7a7-490c-9274-13378b97bb7a/fallback-reference-card.png",
+      "status": "uploaded_and_updated",
+      "metadata": {
+        "positions": [
+          "背阔肌",
+          "核心",
+          "后肩"
+        ],
+        "attrs": [
+          "高阶",
+          "体操",
+          "静力"
+        ],
+        "detail": "核心抗伸展与背部等长控制。",
+        "communityActionCount": 1
+      }
+    },
+    {
+      "id": "public_tpl_ea6b5498-d76c-4ffc-8107-0aa9e24cd1b3",
+      "name": "单臂哑铃划船",
+      "category": "拉",
+      "previousReferenceImageUrl": null,
+      "nextReferenceImageUrl": "https://cdn-assets.coachlink.fit/action-reference-images/canonical-actions/public_tpl_ea6b5498-d76c-4ffc-8107-0aa9e24cd1b3/fallback-reference-card.png",
+      "localPngPath": "design\\image-workspace\\action-library\\fallback-outputs\\单臂哑铃划船-public_tpl_ea6b5498-d76c-4ffc-8107-0aa9e24cd1b3.png",
+      "cosKey": "canonical-actions/public_tpl_ea6b5498-d76c-4ffc-8107-0aa9e24cd1b3/fallback-reference-card.png",
+      "status": "uploaded_and_updated",
+      "metadata": {
+        "positions": [
+          "背阔肌",
+          "菱形肌",
+          "肱二头肌"
+        ],
+        "attrs": [
+          "健身房",
+          "哑铃",
+          "上肢拉",
+          "单侧训练"
+        ],
+        "detail": "单侧背部经典动作，利于修正左右发力不平衡。",
+        "communityActionCount": 1
+      }
+    },
+    {
+      "id": "public_tpl_62d4ddd7-f104-4eee-bc68-28d591c33e16",
+      "name": "双力臂",
+      "category": "推",
+      "previousReferenceImageUrl": null,
+      "nextReferenceImageUrl": "https://cdn-assets.coachlink.fit/action-reference-images/canonical-actions/public_tpl_62d4ddd7-f104-4eee-bc68-28d591c33e16/fallback-reference-card.png",
+      "localPngPath": "design\\image-workspace\\action-library\\fallback-outputs\\双力臂-public_tpl_62d4ddd7-f104-4eee-bc68-28d591c33e16.png",
+      "cosKey": "canonical-actions/public_tpl_62d4ddd7-f104-4eee-bc68-28d591c33e16/fallback-reference-card.png",
+      "status": "uploaded_and_updated",
+      "metadata": {
+        "positions": [
+          "背阔肌",
+          "胸大肌",
+          "三头肌"
+        ],
+        "attrs": [
+          "高阶",
+          "体操",
+          "综合"
+        ],
+        "detail": "拉推衔接的综合高阶动作。",
+        "communityActionCount": 1
+      }
+    },
+    {
+      "id": "public_tpl_9d301582-4a3a-41df-bf28-6712f2feca6b",
+      "name": "史密斯深蹲",
+      "category": "下肢",
+      "previousReferenceImageUrl": null,
+      "nextReferenceImageUrl": "https://cdn-assets.coachlink.fit/action-reference-images/canonical-actions/public_tpl_9d301582-4a3a-41df-bf28-6712f2feca6b/fallback-reference-card.png",
+      "localPngPath": "design\\image-workspace\\action-library\\fallback-outputs\\史密斯深蹲-public_tpl_9d301582-4a3a-41df-bf28-6712f2feca6b.png",
+      "cosKey": "canonical-actions/public_tpl_9d301582-4a3a-41df-bf28-6712f2feca6b/fallback-reference-card.png",
+      "status": "uploaded_and_updated",
+      "metadata": {
+        "positions": [
+          "股四头肌",
+          "臀大肌"
+        ],
+        "attrs": [
+          "健身房",
+          "史密斯",
+          "下肢复合",
+          "新手友好"
+        ],
+        "detail": "固定轨迹深蹲，适合新手学习下肢发力路径与容量堆叠。",
+        "communityActionCount": 1
+      }
+    },
+    {
+      "id": "public_tpl_91826b4c-6b80-48d0-9dd0-eafac74982ff",
+      "name": "哑铃侧平举",
+      "category": "推",
+      "previousReferenceImageUrl": null,
+      "nextReferenceImageUrl": "https://cdn-assets.coachlink.fit/action-reference-images/canonical-actions/public_tpl_91826b4c-6b80-48d0-9dd0-eafac74982ff/fallback-reference-card.png",
+      "localPngPath": "design\\image-workspace\\action-library\\fallback-outputs\\哑铃侧平举-public_tpl_91826b4c-6b80-48d0-9dd0-eafac74982ff.png",
+      "cosKey": "canonical-actions/public_tpl_91826b4c-6b80-48d0-9dd0-eafac74982ff/fallback-reference-card.png",
+      "status": "uploaded_and_updated",
+      "metadata": {
+        "positions": [
+          "三角肌中束"
+        ],
+        "attrs": [
+          "健美",
+          "哑铃",
+          "肩部孤立",
+          "增肌"
+        ],
+        "detail": "三角肌中束核心增肌动作。要点：手肘略高于手腕、摆动幅度可控、避免耸肩借力。",
+        "communityActionCount": 1
+      }
+    },
+    {
+      "id": "public_tpl_1724ee34-1826-4ec1-b652-16a4b901fa53",
+      "name": "哑铃硬拉",
+      "category": "拉",
+      "previousReferenceImageUrl": null,
+      "nextReferenceImageUrl": "https://cdn-assets.coachlink.fit/action-reference-images/canonical-actions/public_tpl_1724ee34-1826-4ec1-b652-16a4b901fa53/fallback-reference-card.png",
+      "localPngPath": "design\\image-workspace\\action-library\\fallback-outputs\\哑铃硬拉-public_tpl_1724ee34-1826-4ec1-b652-16a4b901fa53.png",
+      "cosKey": "canonical-actions/public_tpl_1724ee34-1826-4ec1-b652-16a4b901fa53/fallback-reference-card.png",
+      "status": "uploaded_and_updated",
+      "metadata": {
+        "positions": [
+          "臀大肌",
+          "腘绳肌",
+          "背部"
+        ],
+        "attrs": [
+          "进阶",
+          "哑铃",
+          "后链"
+        ],
+        "detail": "硬拉入门变式，便于学习发力路径。",
+        "communityActionCount": 1
+      }
+    },
+    {
+      "id": "public_tpl_0bcfbf68-a954-49ea-92c4-795d74738ff5",
+      "name": "地板卧推",
+      "category": "推",
+      "previousReferenceImageUrl": null,
+      "nextReferenceImageUrl": "https://cdn-assets.coachlink.fit/action-reference-images/canonical-actions/public_tpl_0bcfbf68-a954-49ea-92c4-795d74738ff5/fallback-reference-card.png",
+      "localPngPath": "design\\image-workspace\\action-library\\fallback-outputs\\地板卧推-public_tpl_0bcfbf68-a954-49ea-92c4-795d74738ff5.png",
+      "cosKey": "canonical-actions/public_tpl_0bcfbf68-a954-49ea-92c4-795d74738ff5/fallback-reference-card.png",
+      "status": "uploaded_and_updated",
+      "metadata": {
+        "positions": [
+          "胸大肌",
+          "肱三头肌"
+        ],
+        "attrs": [
+          "力量举",
+          "杠铃",
+          "上肢推",
+          "变式"
+        ],
+        "detail": "缩短下放行程，强调中后程发力与肘部控制。适合肩部不适人群作为卧推动作替代。",
+        "communityActionCount": 1
+      }
+    },
+    {
+      "id": "public_tpl_f6da1dd6-fb02-4219-ad2c-30dd19afe4b8",
+      "name": "坐姿器械推胸",
+      "category": "推",
+      "previousReferenceImageUrl": null,
+      "nextReferenceImageUrl": "https://cdn-assets.coachlink.fit/action-reference-images/canonical-actions/public_tpl_f6da1dd6-fb02-4219-ad2c-30dd19afe4b8/fallback-reference-card.png",
+      "localPngPath": "design\\image-workspace\\action-library\\fallback-outputs\\坐姿器械推胸-public_tpl_f6da1dd6-fb02-4219-ad2c-30dd19afe4b8.png",
+      "cosKey": "canonical-actions/public_tpl_f6da1dd6-fb02-4219-ad2c-30dd19afe4b8/fallback-reference-card.png",
+      "status": "uploaded_and_updated",
+      "metadata": {
+        "positions": [
+          "胸大肌",
+          "肱三头肌",
+          "前三角"
+        ],
+        "attrs": [
+          "健身房",
+          "器械",
+          "上肢推",
+          "增肌"
+        ],
+        "detail": "器械胸推动作，轨迹稳定，适合胸部增肌训练和新手推力建立。",
+        "communityActionCount": 1
+      }
+    },
+    {
+      "id": "public_tpl_8c8835fa-a4ae-48f2-8311-df6c3ff17718",
+      "name": "坐姿提踵",
+      "category": "下肢",
+      "previousReferenceImageUrl": null,
+      "nextReferenceImageUrl": "https://cdn-assets.coachlink.fit/action-reference-images/canonical-actions/public_tpl_8c8835fa-a4ae-48f2-8311-df6c3ff17718/fallback-reference-card.png",
+      "localPngPath": "design\\image-workspace\\action-library\\fallback-outputs\\坐姿提踵-public_tpl_8c8835fa-a4ae-48f2-8311-df6c3ff17718.png",
+      "cosKey": "canonical-actions/public_tpl_8c8835fa-a4ae-48f2-8311-df6c3ff17718/fallback-reference-card.png",
+      "status": "uploaded_and_updated",
+      "metadata": {
+        "positions": [
+          "腓肠肌",
+          "比目鱼肌"
+        ],
+        "attrs": [
+          "健身房",
+          "器械",
+          "小腿",
+          "增肌"
+        ],
+        "detail": "小腿比目鱼肌重点训练动作。要点：全程伸展与顶峰停顿，避免借力弹震。",
+        "communityActionCount": 1
+      }
+    },
+    {
+      "id": "public_tpl_1854e9ae-f5ee-47ca-b713-4586c9a5e349",
+      "name": "宽握高位下拉",
+      "category": "拉",
+      "previousReferenceImageUrl": null,
+      "nextReferenceImageUrl": "https://cdn-assets.coachlink.fit/action-reference-images/canonical-actions/public_tpl_1854e9ae-f5ee-47ca-b713-4586c9a5e349/fallback-reference-card.png",
+      "localPngPath": "design\\image-workspace\\action-library\\fallback-outputs\\宽握高位下拉-public_tpl_1854e9ae-f5ee-47ca-b713-4586c9a5e349.png",
+      "cosKey": "canonical-actions/public_tpl_1854e9ae-f5ee-47ca-b713-4586c9a5e349/fallback-reference-card.png",
+      "status": "uploaded_and_updated",
+      "metadata": {
+        "positions": [
+          "背阔肌",
+          "大圆肌"
+        ],
+        "attrs": [
+          "健美",
+          "器械",
+          "背部宽度",
+          "增肌"
+        ],
+        "detail": "强调背阔肌外侧宽度，适合塑造背部V形轮廓。",
+        "communityActionCount": 1
+      }
+    },
+    {
+      "id": "public_tpl_9014db02-7d4c-4cec-b199-5722d93dabbf",
+      "name": "弹力带坐姿划船",
+      "category": "拉",
+      "previousReferenceImageUrl": null,
+      "nextReferenceImageUrl": "https://cdn-assets.coachlink.fit/action-reference-images/canonical-actions/public_tpl_9014db02-7d4c-4cec-b199-5722d93dabbf/fallback-reference-card.png",
+      "localPngPath": "design\\image-workspace\\action-library\\fallback-outputs\\弹力带坐姿划船-public_tpl_9014db02-7d4c-4cec-b199-5722d93dabbf.png",
+      "cosKey": "canonical-actions/public_tpl_9014db02-7d4c-4cec-b199-5722d93dabbf/fallback-reference-card.png",
+      "status": "uploaded_and_updated",
+      "metadata": {
+        "positions": [
+          "背阔肌",
+          "中下斜方肌"
+        ],
+        "attrs": [
+          "新手",
+          "弹力带",
+          "上肢拉"
+        ],
+        "detail": "低门槛背部拉力训练。",
+        "communityActionCount": 1
+      }
+    },
+    {
+      "id": "public_tpl_ff031001-ad2d-486b-bd24-1466a19ce442",
+      "name": "手倒立保持",
+      "category": "推",
+      "previousReferenceImageUrl": null,
+      "nextReferenceImageUrl": "https://cdn-assets.coachlink.fit/action-reference-images/canonical-actions/public_tpl_ff031001-ad2d-486b-bd24-1466a19ce442/fallback-reference-card.png",
+      "localPngPath": "design\\image-workspace\\action-library\\fallback-outputs\\手倒立保持-public_tpl_ff031001-ad2d-486b-bd24-1466a19ce442.png",
+      "cosKey": "canonical-actions/public_tpl_ff031001-ad2d-486b-bd24-1466a19ce442/fallback-reference-card.png",
+      "status": "uploaded_and_updated",
+      "metadata": {
+        "positions": [
+          "肩部",
+          "核心",
+          "上背"
+        ],
+        "attrs": [
+          "高阶",
+          "体操",
+          "稳定"
+        ],
+        "detail": "肩部稳定和全身控制。",
+        "communityActionCount": 1
+      }
+    },
+    {
+      "id": "public_tpl_02e72385-c434-441f-8d8e-4e4b4c61e89e",
+      "name": "抓举高拉",
+      "category": "下肢",
+      "previousReferenceImageUrl": null,
+      "nextReferenceImageUrl": "https://cdn-assets.coachlink.fit/action-reference-images/canonical-actions/public_tpl_02e72385-c434-441f-8d8e-4e4b4c61e89e/fallback-reference-card.png",
+      "localPngPath": "design\\image-workspace\\action-library\\fallback-outputs\\抓举高拉-public_tpl_02e72385-c434-441f-8d8e-4e4b4c61e89e.png",
+      "cosKey": "canonical-actions/public_tpl_02e72385-c434-441f-8d8e-4e4b4c61e89e/fallback-reference-card.png",
+      "status": "uploaded_and_updated",
+      "metadata": {
+        "positions": [
+          "臀大肌",
+          "股四头肌",
+          "斜方肌"
+        ],
+        "attrs": [
+          "举重",
+          "杠铃",
+          "爆发力",
+          "技术动作"
+        ],
+        "detail": "举重衍生动作，提升髋膝踝三关节爆发与上拉节奏。",
+        "communityActionCount": 1
+      }
+    },
+    {
+      "id": "public_tpl_dce64362-597e-42e7-a8e7-5d3de5deec43",
+      "name": "斜板俯卧撑",
+      "category": "推",
+      "previousReferenceImageUrl": null,
+      "nextReferenceImageUrl": "https://cdn-assets.coachlink.fit/action-reference-images/canonical-actions/public_tpl_dce64362-597e-42e7-a8e7-5d3de5deec43/fallback-reference-card.png",
+      "localPngPath": "design\\image-workspace\\action-library\\fallback-outputs\\斜板俯卧撑-public_tpl_dce64362-597e-42e7-a8e7-5d3de5deec43.png",
+      "cosKey": "canonical-actions/public_tpl_dce64362-597e-42e7-a8e7-5d3de5deec43/fallback-reference-card.png",
+      "status": "uploaded_and_updated",
+      "metadata": {
+        "positions": [
+          "胸大肌",
+          "三头肌",
+          "核心"
+        ],
+        "attrs": [
+          "新手",
+          "自重",
+          "上肢推"
+        ],
+        "detail": "通过抬高支撑面降低难度。",
+        "communityActionCount": 1
+      }
+    },
+    {
+      "id": "public_tpl_fbb01321-dd28-44dc-b840-e8fdda2d2554",
+      "name": "杠铃臀推",
+      "category": "下肢",
+      "previousReferenceImageUrl": null,
+      "nextReferenceImageUrl": "https://cdn-assets.coachlink.fit/action-reference-images/canonical-actions/public_tpl_fbb01321-dd28-44dc-b840-e8fdda2d2554/fallback-reference-card.png",
+      "localPngPath": "design\\image-workspace\\action-library\\fallback-outputs\\杠铃臀推-public_tpl_fbb01321-dd28-44dc-b840-e8fdda2d2554.png",
+      "cosKey": "canonical-actions/public_tpl_fbb01321-dd28-44dc-b840-e8fdda2d2554/fallback-reference-card.png",
+      "status": "uploaded_and_updated",
+      "metadata": {
+        "positions": [
+          "臀大肌",
+          "腘绳肌"
+        ],
+        "attrs": [
+          "健身房",
+          "杠铃",
+          "臀腿",
+          "增肌"
+        ],
+        "detail": "健身房高频臀部训练动作，强调臀伸展峰值收缩。要点：下巴微收、骨盆中立、顶峰停顿1秒。",
+        "communityActionCount": 1
+      }
+    },
+    {
+      "id": "public_tpl_1b9e8c28-cdfa-4b47-b6a4-6d40edeac491",
+      "name": "架上拉",
+      "category": "下肢",
+      "previousReferenceImageUrl": null,
+      "nextReferenceImageUrl": "https://cdn-assets.coachlink.fit/action-reference-images/canonical-actions/public_tpl_1b9e8c28-cdfa-4b47-b6a4-6d40edeac491/fallback-reference-card.png",
+      "localPngPath": "design\\image-workspace\\action-library\\fallback-outputs\\架上拉-public_tpl_1b9e8c28-cdfa-4b47-b6a4-6d40edeac491.png",
+      "cosKey": "canonical-actions/public_tpl_1b9e8c28-cdfa-4b47-b6a4-6d40edeac491/fallback-reference-card.png",
+      "status": "uploaded_and_updated",
+      "metadata": {
+        "positions": [
+          "竖脊肌",
+          "斜方肌",
+          "臀大肌"
+        ],
+        "attrs": [
+          "力量举",
+          "杠铃",
+          "后链复合",
+          "锁定强化"
+        ],
+        "detail": "从膝下或膝上起拉，重点强化硬拉中后程。适合提高握力与锁定段力量。",
+        "communityActionCount": 1
+      }
+    },
+    {
+      "id": "public_tpl_9db8197b-6d8c-4ca8-b079-62deebf0e65c",
+      "name": "爆发式俯卧撑",
+      "category": "推",
+      "previousReferenceImageUrl": null,
+      "nextReferenceImageUrl": "https://cdn-assets.coachlink.fit/action-reference-images/canonical-actions/public_tpl_9db8197b-6d8c-4ca8-b079-62deebf0e65c/fallback-reference-card.png",
+      "localPngPath": "design\\image-workspace\\action-library\\fallback-outputs\\爆发式俯卧撑-public_tpl_9db8197b-6d8c-4ca8-b079-62deebf0e65c.png",
+      "cosKey": "canonical-actions/public_tpl_9db8197b-6d8c-4ca8-b079-62deebf0e65c/fallback-reference-card.png",
+      "status": "uploaded_and_updated",
+      "metadata": {
+        "positions": [
+          "胸大肌",
+          "三头肌",
+          "核心"
+        ],
+        "attrs": [
+          "高阶",
+          "爆发力",
+          "自重"
+        ],
+        "detail": "提升上肢爆发力。",
+        "communityActionCount": 1
+      }
+    },
+    {
+      "id": "public_tpl_c1ed73fe-7f47-4bbc-8860-807ab74bbd0a",
+      "name": "登山跑慢速版",
+      "category": "推",
+      "previousReferenceImageUrl": null,
+      "nextReferenceImageUrl": "https://cdn-assets.coachlink.fit/action-reference-images/canonical-actions/public_tpl_c1ed73fe-7f47-4bbc-8860-807ab74bbd0a/fallback-reference-card.png",
+      "localPngPath": "design\\image-workspace\\action-library\\fallback-outputs\\登山跑慢速版-public_tpl_c1ed73fe-7f47-4bbc-8860-807ab74bbd0a.png",
+      "cosKey": "canonical-actions/public_tpl_c1ed73fe-7f47-4bbc-8860-807ab74bbd0a/fallback-reference-card.png",
+      "status": "uploaded_and_updated",
+      "metadata": {
+        "positions": [
+          "核心",
+          "肩部",
+          "下肢"
+        ],
+        "attrs": [
+          "新手",
+          "全身",
+          "自重"
+        ],
+        "detail": "心肺与核心协同的轻量入门。",
+        "communityActionCount": 1
+      }
+    },
+    {
+      "id": "public_tpl_b5e8a49d-db1a-4652-949e-a5bf2cec35b2",
+      "name": "窄握高位下拉",
+      "category": "拉",
+      "previousReferenceImageUrl": null,
+      "nextReferenceImageUrl": "https://cdn-assets.coachlink.fit/action-reference-images/canonical-actions/public_tpl_b5e8a49d-db1a-4652-949e-a5bf2cec35b2/fallback-reference-card.png",
+      "localPngPath": "design\\image-workspace\\action-library\\fallback-outputs\\窄握高位下拉-public_tpl_b5e8a49d-db1a-4652-949e-a5bf2cec35b2.png",
+      "cosKey": "canonical-actions/public_tpl_b5e8a49d-db1a-4652-949e-a5bf2cec35b2/fallback-reference-card.png",
+      "status": "uploaded_and_updated",
+      "metadata": {
+        "positions": [
+          "背阔肌",
+          "肱二头肌"
+        ],
+        "attrs": [
+          "健美",
+          "器械",
+          "上肢拉",
+          "增肌"
+        ],
+        "detail": "更强调背阔肌下部与肘部向下向后发力路径。",
+        "communityActionCount": 1
+      }
+    },
+    {
+      "id": "public_tpl_d92578fb-e434-4bc9-b175-9d7f3f1589f3",
+      "name": "箱式深蹲",
+      "category": "下肢",
+      "previousReferenceImageUrl": null,
+      "nextReferenceImageUrl": "https://cdn-assets.coachlink.fit/action-reference-images/canonical-actions/public_tpl_d92578fb-e434-4bc9-b175-9d7f3f1589f3/fallback-reference-card.png",
+      "localPngPath": "design\\image-workspace\\action-library\\fallback-outputs\\箱式深蹲-public_tpl_d92578fb-e434-4bc9-b175-9d7f3f1589f3.png",
+      "cosKey": "canonical-actions/public_tpl_d92578fb-e434-4bc9-b175-9d7f3f1589f3/fallback-reference-card.png",
+      "status": "uploaded_and_updated",
+      "metadata": {
+        "positions": [
+          "股四头肌",
+          "臀大肌"
+        ],
+        "attrs": [
+          "新手",
+          "下肢",
+          "动作学习"
+        ],
+        "detail": "借助箱子控制深度，降低新手动作焦虑。",
+        "communityActionCount": 1
+      }
+    },
+    {
+      "id": "public_tpl_ba485837-18d8-4804-800b-5a9c060d3993",
+      "name": "绳索过顶臂屈伸",
+      "category": "推",
+      "previousReferenceImageUrl": null,
+      "nextReferenceImageUrl": "https://cdn-assets.coachlink.fit/action-reference-images/canonical-actions/public_tpl_ba485837-18d8-4804-800b-5a9c060d3993/fallback-reference-card.png",
+      "localPngPath": "design\\image-workspace\\action-library\\fallback-outputs\\绳索过顶臂屈伸-public_tpl_ba485837-18d8-4804-800b-5a9c060d3993.png",
+      "cosKey": "canonical-actions/public_tpl_ba485837-18d8-4804-800b-5a9c060d3993/fallback-reference-card.png",
+      "status": "uploaded_and_updated",
+      "metadata": {
+        "positions": [
+          "肱三头肌长头"
+        ],
+        "attrs": [
+          "健美",
+          "绳索",
+          "手臂孤立",
+          "拉长位训练"
+        ],
+        "detail": "长头三头肌拉长位训练，适合与下压组合使用。",
+        "communityActionCount": 1
+      }
+    },
+    {
+      "id": "public_tpl_d96cd24a-82a1-4d6d-a2db-2eccfb0ade3b",
+      "name": "缺口硬拉",
+      "category": "下肢",
+      "previousReferenceImageUrl": null,
+      "nextReferenceImageUrl": "https://cdn-assets.coachlink.fit/action-reference-images/canonical-actions/public_tpl_d96cd24a-82a1-4d6d-a2db-2eccfb0ade3b/fallback-reference-card.png",
+      "localPngPath": "design\\image-workspace\\action-library\\fallback-outputs\\缺口硬拉-public_tpl_d96cd24a-82a1-4d6d-a2db-2eccfb0ade3b.png",
+      "cosKey": "canonical-actions/public_tpl_d96cd24a-82a1-4d6d-a2db-2eccfb0ade3b/fallback-reference-card.png",
+      "status": "uploaded_and_updated",
+      "metadata": {
+        "positions": [
+          "腘绳肌",
+          "臀大肌",
+          "竖脊肌"
+        ],
+        "attrs": [
+          "力量举",
+          "杠铃",
+          "后链复合",
+          "离地强化"
+        ],
+        "detail": "站在垫高台面上增加起始行程，强化硬拉离地第一段力量。",
+        "communityActionCount": 1
+      }
+    },
+    {
+      "id": "public_tpl_d9b2a1ff-04ec-4f43-86e7-e968adeb01d6",
+      "name": "肩上推举",
+      "category": "推",
+      "previousReferenceImageUrl": null,
+      "nextReferenceImageUrl": "https://cdn-assets.coachlink.fit/action-reference-images/canonical-actions/public_tpl_d9b2a1ff-04ec-4f43-86e7-e968adeb01d6/fallback-reference-card.png",
+      "localPngPath": "design\\image-workspace\\action-library\\fallback-outputs\\肩上推举-public_tpl_d9b2a1ff-04ec-4f43-86e7-e968adeb01d6.png",
+      "cosKey": "canonical-actions/public_tpl_d9b2a1ff-04ec-4f43-86e7-e968adeb01d6/fallback-reference-card.png",
+      "status": "uploaded_and_updated",
+      "metadata": {
+        "positions": [
+          "三角肌",
+          "三头肌",
+          "核心"
+        ],
+        "attrs": [
+          "进阶",
+          "杠铃",
+          "推"
+        ],
+        "detail": "提升肩部与核心抗伸展能力。",
+        "communityActionCount": 1
+      }
+    },
+    {
+      "id": "public_tpl_7ba258a0-ff10-4898-bed1-cd739c34f228",
+      "name": "腿举机",
+      "category": "下肢",
+      "previousReferenceImageUrl": null,
+      "nextReferenceImageUrl": "https://cdn-assets.coachlink.fit/action-reference-images/canonical-actions/public_tpl_7ba258a0-ff10-4898-bed1-cd739c34f228/fallback-reference-card.png",
+      "localPngPath": "design\\image-workspace\\action-library\\fallback-outputs\\腿举机-public_tpl_7ba258a0-ff10-4898-bed1-cd739c34f228.png",
+      "cosKey": "canonical-actions/public_tpl_7ba258a0-ff10-4898-bed1-cd739c34f228/fallback-reference-card.png",
+      "status": "uploaded_and_updated",
+      "metadata": {
+        "positions": [
+          "股四头肌",
+          "臀大肌"
+        ],
+        "attrs": [
+          "健身房",
+          "器械",
+          "下肢复合",
+          "增肌"
+        ],
+        "detail": "器械下肢复合动作，适合在可控轨迹下增加训练容量。",
+        "communityActionCount": 1
+      }
+    },
+    {
+      "id": "public_tpl_2ddefe1f-4753-4dea-b5f3-2e0eda7633a1",
+      "name": "跪姿俯卧撑",
+      "category": "推",
+      "previousReferenceImageUrl": null,
+      "nextReferenceImageUrl": "https://cdn-assets.coachlink.fit/action-reference-images/canonical-actions/public_tpl_2ddefe1f-4753-4dea-b5f3-2e0eda7633a1/fallback-reference-card.png",
+      "localPngPath": "design\\image-workspace\\action-library\\fallback-outputs\\跪姿俯卧撑-public_tpl_2ddefe1f-4753-4dea-b5f3-2e0eda7633a1.png",
+      "cosKey": "canonical-actions/public_tpl_2ddefe1f-4753-4dea-b5f3-2e0eda7633a1/fallback-reference-card.png",
+      "status": "uploaded_and_updated",
+      "metadata": {
+        "positions": [
+          "胸大肌",
+          "三头肌",
+          "前三角"
+        ],
+        "attrs": [
+          "新手",
+          "自重",
+          "上肢推"
+        ],
+        "detail": "俯卧撑过渡动作，强化推力基础。",
+        "communityActionCount": 1
+      }
+    },
+    {
+      "id": "public_tpl_adc6def9-f6fc-4342-9c67-fcb9ad31865e",
+      "name": "阿诺德推举",
+      "category": "推",
+      "previousReferenceImageUrl": null,
+      "nextReferenceImageUrl": "https://cdn-assets.coachlink.fit/action-reference-images/canonical-actions/public_tpl_adc6def9-f6fc-4342-9c67-fcb9ad31865e/fallback-reference-card.png",
+      "localPngPath": "design\\image-workspace\\action-library\\fallback-outputs\\阿诺德推举-public_tpl_adc6def9-f6fc-4342-9c67-fcb9ad31865e.png",
+      "cosKey": "canonical-actions/public_tpl_adc6def9-f6fc-4342-9c67-fcb9ad31865e/fallback-reference-card.png",
+      "status": "uploaded_and_updated",
+      "metadata": {
+        "positions": [
+          "三角肌前束",
+          "三角肌中束",
+          "肱三头肌"
+        ],
+        "attrs": [
+          "健美",
+          "哑铃",
+          "肩部复合",
+          "增肌"
+        ],
+        "detail": "推举过程中结合旋转路径，增强肩部全角度刺激。",
+        "communityActionCount": 1
+      }
+    },
+    {
+      "id": "public_tpl_77005ee3-7f19-4c2e-ad8d-cd104c230e52",
+      "name": "靠墙静蹲",
+      "category": "下肢",
+      "previousReferenceImageUrl": null,
+      "nextReferenceImageUrl": "https://cdn-assets.coachlink.fit/action-reference-images/canonical-actions/public_tpl_77005ee3-7f19-4c2e-ad8d-cd104c230e52/fallback-reference-card.png",
+      "localPngPath": "design\\image-workspace\\action-library\\fallback-outputs\\靠墙静蹲-public_tpl_77005ee3-7f19-4c2e-ad8d-cd104c230e52.png",
+      "cosKey": "canonical-actions/public_tpl_77005ee3-7f19-4c2e-ad8d-cd104c230e52/fallback-reference-card.png",
+      "status": "uploaded_and_updated",
+      "metadata": {
+        "positions": [
+          "股四头肌",
+          "臀腿"
+        ],
+        "attrs": [
+          "新手",
+          "静力",
+          "耐力"
+        ],
+        "detail": "提升腿部耐力与姿势控制。",
+        "communityActionCount": 1
+      }
+    },
+    {
+      "id": "public_tpl_3452978c-1e65-4600-8d88-a5c10fd46ae5",
+      "name": "髋内收机",
+      "category": "下肢",
+      "previousReferenceImageUrl": null,
+      "nextReferenceImageUrl": "https://cdn-assets.coachlink.fit/action-reference-images/canonical-actions/public_tpl_3452978c-1e65-4600-8d88-a5c10fd46ae5/fallback-reference-card.png",
+      "localPngPath": "design\\image-workspace\\action-library\\fallback-outputs\\髋内收机-public_tpl_3452978c-1e65-4600-8d88-a5c10fd46ae5.png",
+      "cosKey": "canonical-actions/public_tpl_3452978c-1e65-4600-8d88-a5c10fd46ae5/fallback-reference-card.png",
+      "status": "uploaded_and_updated",
+      "metadata": {
+        "positions": [
+          "髋内收肌群"
+        ],
+        "attrs": [
+          "健身房",
+          "器械",
+          "腿部孤立",
+          "稳定性"
+        ],
+        "detail": "内收肌群孤立训练，有助于深蹲稳定与下肢控制。",
+        "communityActionCount": 1
+      }
+    },
+    {
+      "id": "public_tpl_4cc8eb13-e094-4827-b2f2-0ca84327b7c2",
+      "name": "髋外展机",
+      "category": "下肢",
+      "previousReferenceImageUrl": null,
+      "nextReferenceImageUrl": "https://cdn-assets.coachlink.fit/action-reference-images/canonical-actions/public_tpl_4cc8eb13-e094-4827-b2f2-0ca84327b7c2/fallback-reference-card.png",
+      "localPngPath": "design\\image-workspace\\action-library\\fallback-outputs\\髋外展机-public_tpl_4cc8eb13-e094-4827-b2f2-0ca84327b7c2.png",
+      "cosKey": "canonical-actions/public_tpl_4cc8eb13-e094-4827-b2f2-0ca84327b7c2/fallback-reference-card.png",
+      "status": "uploaded_and_updated",
+      "metadata": {
+        "positions": [
+          "臀中肌",
+          "臀小肌"
+        ],
+        "attrs": [
+          "健身房",
+          "器械",
+          "臀部孤立",
+          "塑形"
+        ],
+        "detail": "臀中肌孤立训练，常用于臀腿塑形与骨盆稳定。",
+        "communityActionCount": 1
+      }
+    },
+    {
+      "id": "public_tpl_03f8daf9-f0d6-4884-850f-8a3660d403bb",
+      "name": "高脚杯深蹲",
+      "category": "下肢",
+      "previousReferenceImageUrl": null,
+      "nextReferenceImageUrl": "https://cdn-assets.coachlink.fit/action-reference-images/canonical-actions/public_tpl_03f8daf9-f0d6-4884-850f-8a3660d403bb/fallback-reference-card.png",
+      "localPngPath": "design\\image-workspace\\action-library\\fallback-outputs\\高脚杯深蹲-public_tpl_03f8daf9-f0d6-4884-850f-8a3660d403bb.png",
+      "cosKey": "canonical-actions/public_tpl_03f8daf9-f0d6-4884-850f-8a3660d403bb/fallback-reference-card.png",
+      "status": "uploaded_and_updated",
+      "metadata": {
+        "positions": [
+          "股四头肌",
+          "臀大肌",
+          "核心"
+        ],
+        "attrs": [
+          "进阶",
+          "哑铃",
+          "下肢"
+        ],
+        "detail": "哑铃前置负重，强化躯干稳定。",
+        "communityActionCount": 1
+      }
+    }
+  ]
+}

@@ -1,38 +1,14 @@
 .power-analysis-page {
   min-height: 100vh;
-  background: #f7f4f1;
-
-  .nav-bar {
-    height: 104rpx;
-    padding: 40rpx 24rpx 16rpx;
-    display: flex;
-    align-items: center;
-    gap: 16rpx;
-    background: rgba(247, 244, 241, 0.96);
-    border-bottom: 1px solid #e5e7eb;
-    box-sizing: border-box;
-  }
-
-  .nav-back {
-    font-size: 28rpx;
-    font-weight: 700;
-    color: #cf6d4e;
-  }
-
-  .nav-title {
-    flex: 1;
-    font-size: 32rpx;
-    font-weight: 800;
-    color: #111827;
-  }
+  background: linear-gradient(180deg, #ededed 0%, #f8f8f8 100%);
 
   .analysis-scroll {
-    height: calc(100vh - 104rpx);
+    height: 100vh;
   }
 
   .page-content {
     padding: 24rpx;
-    padding-bottom: 64rpx;
+    padding-bottom: 40rpx;
     box-sizing: border-box;
   }
 
@@ -44,8 +20,8 @@
     border: 1px solid #e5e7eb;
     border-radius: 24rpx;
     padding: 24rpx;
-    margin-bottom: 24rpx;
-    box-shadow: 0 16rpx 32rpx rgba(15, 23, 42, 0.05);
+    margin-bottom: 16rpx;
+    box-shadow: 0 8rpx 24rpx rgba(15, 23, 42, 0.05);
     box-sizing: border-box;
   }
 
@@ -61,23 +37,23 @@
 
   .intro-title {
     display: block;
-    font-size: 40rpx;
+    font-size: 36rpx;
     font-weight: 900;
     color: #111827;
     line-height: 1.3;
-    margin-bottom: 16rpx;
+    margin-bottom: 8rpx;
   }
 
   .intro-desc {
     display: block;
     font-size: 24rpx;
     color: #6b7280;
-    line-height: 1.7;
+    line-height: 1.6;
   }
 
   .section-title {
     display: block;
-    font-size: 32rpx;
+    font-size: 28rpx;
     font-weight: 900;
     color: #111827;
     line-height: 1.4;
@@ -87,15 +63,15 @@
     display: grid;
     grid-template-columns: repeat(2, 1fr);
     gap: 16rpx;
-    margin-top: 24rpx;
+    margin-top: 16rpx;
   }
 
   .mode-card {
-    min-height: 144rpx;
+    min-height: 128rpx;
     border-radius: 24rpx;
     border: 1px solid #e5e7eb;
     background: #ffffff;
-    padding: 20rpx;
+    padding: 16rpx;
     box-sizing: border-box;
 
     &.active {
@@ -114,7 +90,7 @@
     font-size: 28rpx;
     font-weight: 800;
     color: #111827;
-    margin-bottom: 8rpx;
+    margin-bottom: 4rpx;
     line-height: 1.4;
   }
 
@@ -122,20 +98,20 @@
     display: block;
     font-size: 22rpx;
     color: #6b7280;
-    line-height: 1.5;
+    line-height: 1.4;
   }
 
   .input-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 16rpx;
-    margin-top: 24rpx;
+    margin-top: 16rpx;
   }
 
   .input-cell {
     background: #f9fafb;
     border: 1px solid #e5e7eb;
-    border-radius: 24rpx;
+    border-radius: 16rpx;
     padding: 16rpx;
     box-sizing: border-box;
   }
@@ -149,20 +125,20 @@
   }
 
   .metric-input {
-    height: 64rpx;
-    font-size: 36rpx;
+    height: 56rpx;
+    font-size: 32rpx;
     font-weight: 900;
     color: #111827;
   }
 
   .video-picker {
-    margin-top: 24rpx;
+    margin-top: 16rpx;
   }
 
   .selected-video-wrap,
   .empty-video {
     overflow: hidden;
-    border-radius: 24rpx;
+    border-radius: 16rpx;
     border: 1px solid #e5e7eb;
     background: #f9fafb;
     margin-bottom: 16rpx;
@@ -170,7 +146,7 @@
 
   .selected-video {
     width: 100%;
-    height: 360rpx;
+    height: 320rpx;
     display: block;
     background: #111827;
   }
@@ -198,11 +174,11 @@
   .video-actions {
     display: flex;
     justify-content: flex-end;
-    margin-top: 16rpx;
+    margin-top: 8rpx;
   }
 
   .preview-video-btn {
-    height: 64rpx;
+    height: 56rpx;
     padding: 0 24rpx;
     border-radius: 16rpx;
     border: 1px solid #d1d5db;
@@ -225,7 +201,7 @@
   }
 
   .empty-video {
-    padding: 32rpx;
+    padding: 24rpx;
     box-sizing: border-box;
   }
 
@@ -245,9 +221,9 @@
   }
 
   .status-card {
-    margin-top: 24rpx;
+    margin-top: 16rpx;
     padding: 16rpx;
-    border-radius: 24rpx;
+    border-radius: 16rpx;
     background: #f9fafb;
     border: 1px solid #e5e7eb;
   }
@@ -285,7 +261,7 @@
     border-radius: 9999rpx;
     background: #e5e7eb;
     overflow: hidden;
-    margin-top: 16rpx;
+    margin-top: 12rpx;
   }
 
   .progress-fill {
@@ -295,24 +271,37 @@
     transition: width 0.2s ease;
   }
 
+  .queue-status-text {
+    display: block;
+    margin-top: 12rpx;
+    padding: 16rpx;
+    border-radius: 16rpx;
+    background: #fdf2ec;
+    border: 1px solid #f0c6b9;
+    font-size: 22rpx;
+    line-height: 1.6;
+    font-weight: 700;
+    color: #8f432d;
+  }
+
   .error-text {
     display: block;
-    margin-top: 16rpx;
+    margin-top: 12rpx;
     font-size: 24rpx;
     line-height: 1.6;
     color: #b91c1c;
   }
 
   .action-row {
-    margin-top: 24rpx;
+    margin-top: 16rpx;
   }
 
   .primary-action,
   .secondary-action,
   .save-video-btn,
   .small-secondary-action {
-    height: 88rpx;
-    border-radius: 24rpx;
+    height: 80rpx;
+    border-radius: 16rpx;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -357,12 +346,12 @@
 
   .result-header {
     align-items: flex-start;
-    margin-bottom: 24rpx;
+    margin-bottom: 16rpx;
   }
 
   .save-video-btn,
   .small-secondary-action {
-    height: 64rpx;
+    height: 56rpx;
     padding: 0 24rpx;
     border-radius: 16rpx;
     background: #ffffff;
@@ -376,8 +365,8 @@
   }
 
   .result-empty {
-    padding: 32rpx;
-    border-radius: 24rpx;
+    padding: 24rpx;
+    border-radius: 16rpx;
     background: #f9fafb;
     border: 1px solid #e5e7eb;
 
@@ -395,8 +384,8 @@
   }
 
   .summary-item {
-    min-height: 136rpx;
-    border-radius: 24rpx;
+    min-height: 120rpx;
+    border-radius: 16rpx;
     border: 1px solid #e5e7eb;
     background: #f9fafb;
     padding: 16rpx;
@@ -431,12 +420,12 @@
     display: flex;
     flex-direction: column;
     gap: 16rpx;
-    margin-top: 24rpx;
+    margin-top: 16rpx;
   }
 
   .rep-row {
     padding: 16rpx;
-    border-radius: 24rpx;
+    border-radius: 16rpx;
     background: #ffffff;
     border: 1px solid #e5e7eb;
     align-items: flex-start;
@@ -483,8 +472,8 @@
   .summary-text {
     display: block;
     margin-top: 16rpx;
-    padding: 24rpx;
-    border-radius: 24rpx;
+    padding: 16rpx;
+    border-radius: 16rpx;
     background: #f9fafb;
     border: 1px solid #e5e7eb;
     font-size: 24rpx;

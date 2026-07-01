@@ -59,6 +59,12 @@ interface PowerAnalysisJobDto {
   createdAt: string
   completedAt: string | null
   canDownload: boolean
+  queueInfo?: {
+    jobsAhead: number
+    queuedAhead: number
+    processingAhead: number
+    totalQueued: number
+  } | null
 }
 
 interface CreatePowerAnalysisUploadUrlResponseDto {
@@ -79,6 +85,7 @@ interface CreatePowerAnalysisUploadUrlResponseDto {
 interface PowerAnalysisDownloadUrlResponseDto {
   url: string
   proxyUrl?: string
+  signedUrl?: string
   expiresInSeconds: number
   filename: string
 }
@@ -339,12 +346,6 @@ export default function WechatPowerAnalysisPage() {
     }, 1800)
   }
 
-  const handleBack = () => {
-    Taro.navigateBack().catch(() => {
-      Taro.switchTab({ url: '/me/profile/index' })
-    })
-  }
-
   const prepareUpload = async (nextVideo: SelectedVideo) => {
     if (!formReady) {
       Taro.showToast({ title: '请先填写有效身高体重', icon: 'none' })
@@ -520,7 +521,7 @@ export default function WechatPowerAnalysisPage() {
           url: `/api/toolbox/power-analysis/jobs/${job.id}/download-url`,
           method: 'POST'
         })
-        await Taro.setClipboardData({ data: data.url })
+        await Taro.setClipboardData({ data: data.signedUrl || data.url })
         Taro.showToast({ title: '下载失败，链接已复制', icon: 'none', duration: 3000 })
       } catch {
         Taro.showToast({
@@ -556,14 +557,16 @@ export default function WechatPowerAnalysisPage() {
     if (phase === 'creating') return 5
     return 0
   })()
+  const queueStatusText = (() => {
+    const queueInfo = job?.queueInfo
+    if (!queueInfo || (job?.status !== 'queued' && job?.status !== 'processing')) return ''
+    if (job.status === 'processing') return `正在分析你的视频，后面还有 ${queueInfo.totalQueued} 个任务等待`
+    if (queueInfo.jobsAhead <= 0) return '你排在最前面，马上开始分析'
+    return `前面还有 ${queueInfo.jobsAhead} 个任务，其中 ${queueInfo.processingAhead} 个正在分析、${queueInfo.queuedAhead} 个在等待`
+  })()
 
   return (
     <View className={`power-analysis-page theme-${effectiveTheme}`}>
-      <View className='nav-bar'>
-        <Text className='nav-back' onClick={handleBack}>返回</Text>
-        <Text className='nav-title'>功率视频分析</Text>
-      </View>
-
       <ScrollView scrollY className='analysis-scroll'>
         <View className='page-content'>
           <View className='intro-card'>
@@ -665,6 +668,7 @@ export default function WechatPowerAnalysisPage() {
               <View className='progress-track'>
                 <View className='progress-fill' style={{ width: `${progressValue}%` }} />
               </View>
+              {queueStatusText && <Text className='queue-status-text'>{queueStatusText}</Text>}
               {job?.errorMessage && <Text className='error-text'>{job.errorMessage}</Text>}
             </View>
 

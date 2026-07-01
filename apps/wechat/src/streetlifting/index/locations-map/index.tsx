@@ -52,6 +52,19 @@ type UserLocation = {
   longitude: number
 }
 
+async function getApproxUserLocation(): Promise<UserLocation> {
+  const taroWithFuzzyLocation = Taro as typeof Taro & {
+    getFuzzyLocation?: (options?: { type?: string }) => Promise<UserLocation>
+  }
+  if (typeof taroWithFuzzyLocation.getFuzzyLocation === 'function') {
+    const location = await taroWithFuzzyLocation.getFuzzyLocation({ type: 'gcj02' })
+    return { latitude: location.latitude, longitude: location.longitude }
+  }
+
+  const location = await Taro.getLocation({ type: 'gcj02' })
+  return { latitude: location.latitude, longitude: location.longitude }
+}
+
 const DEFAULT_CENTER = {
   latitude: 35.0,
   longitude: 105.0
@@ -266,7 +279,7 @@ export default function StreetliftingLocationsMapPage() {
 
   const handleLocate = async () => {
     try {
-      const res = await Taro.getLocation({ type: 'gcj02' })
+      const res = await getApproxUserLocation()
       setCenter({ latitude: res.latitude, longitude: res.longitude })
       setScale(13)
       setHint('已定位到你附近，继续缩放可以查看周边更细的单杠分布。')
@@ -335,7 +348,7 @@ export default function StreetliftingLocationsMapPage() {
           latitude={center.latitude}
           scale={scale}
           markers={clustered.markers as any}
-          showLocation
+          showLocation={false}
           enableZoom
           enableScroll
           enableRotate={false}

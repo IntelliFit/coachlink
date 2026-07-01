@@ -12,6 +12,7 @@ import {
   POWER_ANALYSIS_BUCKET,
   buildPowerAnalysisOutputPath,
   buildPowerAnalysisPath,
+  failStalePowerAnalysisJobsForUser,
   getPowerAnalysisLimits,
   isPowerAnalysisDailyLimitBypassed,
   isSupportedVideoContentType,
@@ -83,6 +84,8 @@ export async function POST(req: Request) {
   }
 
   const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+
+  await failStalePowerAnalysisJobsForUser(userId);
 
   const { count: activeCount } = await db
     .from("tool_power_analysis_jobs")

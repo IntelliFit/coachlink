@@ -1,6 +1,7 @@
 import { serviceRoleSupabase } from "@/lib/supabaseClient";
 import type {
   PowerAnalysisJobDto,
+  PowerAnalysisQueueInfoDto,
   PowerAnalysisMetrics,
   PowerAnalysisMode,
 } from "./types";
@@ -27,6 +28,24 @@ export function getPowerAnalysisLimits() {
     Number(process.env.POWER_ANALYSIS_DAILY_LIMIT || 5),
   );
   return { maxVideoSizeMb, dailyLimit };
+}
+
+function positiveEnvNumber(value: string | undefined, fallback: number) {
+  const n = Number(value);
+  return Number.isFinite(n) && n > 0 ? n : fallback;
+}
+
+export function getPowerAnalysisStaleThresholdsMs() {
+  return {
+    queuedMs: positiveEnvNumber(
+      process.env.POWER_ANALYSIS_QUEUED_STALE_MINUTES,
+      10,
+    ) * 60 * 1000,
+    processingMs: positiveEnvNumber(
+      process.env.POWER_ANALYSIS_PROCESSING_STALE_MINUTES,
+      45,
+    ) * 60 * 1000,
+  };
 }
 
 function truthyEnv(value: string | undefined) {
@@ -124,6 +143,77 @@ export function mapPowerAnalysisJob(row: any): PowerAnalysisJobDto {
   };
 }
 
+function applyQueueTopic(query: any, queueTopic: string) {
+  return queueTopic ? query.eq("queue_topic", queueTopic) : query;
+}
+
+export async function getPowerAnalysisQueueInfo(row: any): Promise<PowerAnalysisQueueInfoDto | null> {
+  if (!row || (row.status !== "queued" && row.status !== "processing")) return null;
+
+  const now = new Date().toISOString();
+  const queueTopic = String(row.queue_topic || "").trim();
+  const createdAt = String(row.created_at || "");
+
+  const processingQuery = applyQueueTopic(
+    db
+      .from("tool_power_analysis_jobs")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "processing")
+      .gt("expires_at", now),
+    queueTopic,
+  );
+
+  const totalQueuedQuery = applyQueueTopic(
+    db
+      .from("tool_power_analysis_jobs")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "queued")
+      .gt("expires_at", now),
+    queueTopic,
+  );
+
+  const queuedAheadQueryBase = applyQueueTopic(
+    db
+      .from("tool_power_analysis_jobs")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "queued")
+      .gt("expires_at", now)
+      .neq("id", row.id),
+    queueTopic,
+  );
+  const queuedAheadQuery = createdAt ? queuedAheadQueryBase.lt("created_at", createdAt) : queuedAheadQueryBase;
+
+  const [
+    { count: processingCount, error: processingError },
+    { count: totalQueuedCount, error: totalQueuedError },
+    { count: queuedAheadCount, error: queuedAheadError },
+  ] = await Promise.all([processingQuery, totalQueuedQuery, queuedAheadQuery]);
+
+  if (processingError || totalQueuedError || queuedAheadError) {
+    console.warn("[power-analysis] queue info lookup failed:", {
+      processingError: processingError?.message,
+      totalQueuedError: totalQueuedError?.message,
+      queuedAheadError: queuedAheadError?.message,
+    });
+    return null;
+  }
+
+  const processingAhead = row.status === "queued" ? Number(processingCount || 0) : 0;
+  const queuedAhead = row.status === "queued" ? Number(queuedAheadCount || 0) : 0;
+  return {
+    jobsAhead: processingAhead + queuedAhead,
+    queuedAhead,
+    processingAhead,
+    totalQueued: Number(totalQueuedCount || 0),
+  };
+}
+
+export async function mapPowerAnalysisJobWithQueueInfo(row: any): Promise<PowerAnalysisJobDto> {
+  const dto = mapPowerAnalysisJob(row);
+  dto.queueInfo = await getPowerAnalysisQueueInfo(row);
+  return dto;
+}
+
 function normalizeObject(value: unknown) {
   if (!value || typeof value !== "object" || Array.isArray(value)) return {};
   return value as Record<string, unknown>;
@@ -205,6 +295,96 @@ export async function expirePowerAnalysisJobIfNeeded(row: any) {
     .maybeSingle();
 
   return data || { ...row, status: "expired", progress: 100 };
+}
+
+function getTime(value: unknown) {
+  const time = value ? new Date(String(value)).getTime() : 0;
+  return Number.isFinite(time) ? time : 0;
+}
+
+function getStaleAnchor(row: any) {
+  if (row?.status === "queued") {
+    return getTime(row.enqueued_at) || getTime(row.updated_at) || getTime(row.created_at);
+  }
+  if (row?.status === "processing") {
+    return getTime(row.updated_at) || getTime(row.started_at) || getTime(row.created_at);
+  }
+  return 0;
+}
+
+function isStaleActivePowerAnalysisJob(row: any, now = Date.now()) {
+  if (!row || (row.status !== "queued" && row.status !== "processing")) return false;
+  const { queuedMs, processingMs } = getPowerAnalysisStaleThresholdsMs();
+  const anchor = getStaleAnchor(row);
+  if (!anchor) return false;
+  const threshold = row.status === "queued" ? queuedMs : processingMs;
+  return now - anchor > threshold;
+}
+
+export async function failStalePowerAnalysisJobIfNeeded(row: any) {
+  if (!isStaleActivePowerAnalysisJob(row)) return row;
+
+  const { data } = await db
+    .from("tool_power_analysis_jobs")
+    .update({
+      status: "failed",
+      progress: 100,
+      error_message: "任务长时间没有进展，已自动释放名额，请重新上传分析",
+      completed_at: new Date().toISOString(),
+    })
+    .eq("id", row.id)
+    .in("status", ["queued", "processing"])
+    .select("*")
+    .maybeSingle();
+
+  return data || {
+    ...row,
+    status: "failed",
+    progress: 100,
+    error_message: "任务长时间没有进展，已自动释放名额，请重新上传分析",
+    completed_at: new Date().toISOString(),
+  };
+}
+
+export async function failStalePowerAnalysisJobsForUser(userId: string) {
+  const { data: rows, error } = await db
+    .from("tool_power_analysis_jobs")
+    .select("id, status, progress, created_at, updated_at, enqueued_at, started_at, expires_at")
+    .eq("user_id", userId)
+    .in("status", ["queued", "processing"])
+    .gt("expires_at", new Date().toISOString())
+    .limit(20);
+
+  if (error) {
+    console.warn("[power-analysis] stale job lookup failed:", error.message);
+    return 0;
+  }
+
+  const now = Date.now();
+  const staleIds = (rows || [])
+    .filter((row: any) => isStaleActivePowerAnalysisJob(row, now))
+    .map((row: any) => row.id)
+    .filter(Boolean);
+
+  if (staleIds.length === 0) return 0;
+
+  const { error: updateError } = await db
+    .from("tool_power_analysis_jobs")
+    .update({
+      status: "failed",
+      progress: 100,
+      error_message: "任务长时间没有进展，已自动释放名额，请重新上传分析",
+      completed_at: new Date().toISOString(),
+    })
+    .in("id", staleIds)
+    .in("status", ["queued", "processing"]);
+
+  if (updateError) {
+    console.warn("[power-analysis] stale job release failed:", updateError.message);
+    return 0;
+  }
+
+  return staleIds.length;
 }
 
 export function makeFallbackPowerSummary(metrics: PowerAnalysisMetrics) {

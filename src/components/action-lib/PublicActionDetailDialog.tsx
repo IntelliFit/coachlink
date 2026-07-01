@@ -120,11 +120,11 @@ export default function PublicActionDetailDialog(props: {
                 canonical_action_id:
                     actionData.canonical_action_id ?? localAction.canonical_action_id ?? null,
             });
-            showToast({
-                severity: 'success',
-                summary: '已提交',
-                detail: '编辑建议已提交，等待上传者审核',
-            });
+                showToast({
+                    severity: 'success',
+                    summary: '已提交',
+                    detail: '公共动作已直接更新',
+                });
             setEditVisible(false);
             await refreshEdits();
         } catch (e: any) {
@@ -467,7 +467,7 @@ export default function PublicActionDetailDialog(props: {
 
                     <div className="flex flex-col gap-2">
                         <div className="text-xs font-semibold text-surface-600">
-                            {isOwner ? '待审核/历史编辑' : '历史编辑'}
+                            {isOwner ? '编辑记录' : '历史编辑'}
                         </div>
                         {loadingMeta ? (
                             <div className="flex items-center gap-2 py-1">

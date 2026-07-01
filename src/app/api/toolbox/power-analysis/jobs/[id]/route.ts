@@ -4,8 +4,9 @@ import type { ApiData } from "@/types/api";
 import type { PowerAnalysisJobDto } from "../../types";
 import {
   expirePowerAnalysisJobIfNeeded,
+  failStalePowerAnalysisJobIfNeeded,
   getOwnedPowerAnalysisJob,
-  mapPowerAnalysisJob,
+  mapPowerAnalysisJobWithQueueInfo,
 } from "../../_helpers";
 
 export const runtime = "nodejs";
@@ -31,9 +32,11 @@ export async function GET(
     );
   }
 
-  const current = await expirePowerAnalysisJobIfNeeded(job);
+  const current = await failStalePowerAnalysisJobIfNeeded(
+    await expirePowerAnalysisJobIfNeeded(job),
+  );
   return NextResponse.json<ApiData<PowerAnalysisJobDto>>({
     success: true,
-    data: mapPowerAnalysisJob(current),
+    data: await mapPowerAnalysisJobWithQueueInfo(current),
   });
 }

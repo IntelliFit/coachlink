@@ -461,7 +461,7 @@ const ActionLib = () => {
                             ))}
                         </div>
                         <div className="text-xs text-surface-500">
-                            打开对应动作详情可查看并审核。
+                            打开对应动作详情可查看自动通过后的编辑记录。
                         </div>
                     </div>
                 )}
@@ -659,7 +659,7 @@ const ActionLib = () => {
                         </div>
 
                         <div className="mt-4 rounded-xl border border-surface-200 bg-surface-50 p-3 text-sm text-surface-700">
-                            公共动作库由社区共建。所有人都可以提交修改建议，作者审核通过后覆盖更新。
+                            公共动作库由社区共建。所有人都可以提交修改建议，提交后会直接更新并保留编辑记录。
                             我们希望集中优质资源与训练生态，欢迎完善演示视频与描述信息。
                         </div>
 

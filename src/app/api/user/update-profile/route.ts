@@ -1,4 +1,4 @@
-import supabase from "@/lib/supabaseClient";
+import supabase, { serviceRoleSupabase } from "@/lib/supabaseClient";
 import { NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/auth";
 
@@ -66,6 +66,8 @@ const normalizeFitnessLevel = (value: any) => {
         case "高阶":
         case "精英":
         case "职业":
+        case "精英 / 职业":
+        case "精英/职业":
             return "advanced";
         default:
             return undefined;
@@ -146,16 +148,24 @@ export async function POST(request: Request) {
     }
 
     // 检查用户档案是否已存在
-    const { data: existingProfile } = await supabase
+    const { data: existingProfile, error: existingProfileError } = await serviceRoleSupabase
         .from("user_profiles")
         .select("id")
         .eq("user_id", userId)
         .maybeSingle();
 
+    if (existingProfileError) {
+        console.error("[update-profile] 查询用户档案失败:", existingProfileError);
+        return NextResponse.json({
+            success: false,
+            message: existingProfileError.message || "查询用户档案失败",
+        }, { status: 500 });
+    }
+
     let result;
     if (existingProfile) {
         // 更新现有档案
-        const { data, error: updateError } = await supabase
+        const { data, error: updateError } = await serviceRoleSupabase
             .from("user_profiles")
             .update(profileData)
             .eq("user_id", userId)
@@ -163,16 +173,20 @@ export async function POST(request: Request) {
             .single();
 
         if (updateError) {
+            console.error("[update-profile] 更新用户档案失败:", updateError, {
+                userId,
+                keys: Object.keys(profileData),
+            });
             return NextResponse.json({
                 success: false,
                 message: updateError.message,
-            });
+            }, { status: 500 });
         }
 
         result = data;
     } else {
         // 创建新档案
-        const { data, error: insertError } = await supabase
+        const { data, error: insertError } = await serviceRoleSupabase
             .from("user_profiles")
             .insert({
                 ...profileData,
@@ -183,10 +197,14 @@ export async function POST(request: Request) {
             .single();
 
         if (insertError) {
+            console.error("[update-profile] 创建用户档案失败:", insertError, {
+                userId,
+                keys: Object.keys(profileData),
+            });
             return NextResponse.json({
                 success: false,
                 message: insertError.message,
-            });
+            }, { status: 500 });
         }
 
         result = data;
@@ -198,7 +216,7 @@ export async function POST(request: Request) {
         if (body.nickname !== undefined) coachSync.name = body.nickname;
         if (body.avatar_url !== undefined) coachSync.avatar_url = body.avatar_url;
         if (Object.keys(coachSync).length > 0) {
-            const { error: coachUpdateError } = await supabase
+            const { error: coachUpdateError } = await serviceRoleSupabase
                 .from("coaches")
                 .update({
                     ...coachSync,

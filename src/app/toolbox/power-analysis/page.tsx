@@ -299,7 +299,7 @@ export default function PowerAnalysisToolPage() {
         }),
       );
       const a = document.createElement("a");
-      a.href = data.proxyUrl || data.url;
+      a.href = data.signedUrl || data.proxyUrl || data.url;
       a.download = data.filename;
       document.body.appendChild(a);
       a.click();
@@ -345,6 +345,13 @@ export default function PowerAnalysisToolPage() {
     if (phase === "uploading") return uploadProgress;
     if (phase === "creating") return 5;
     return 0;
+  })();
+  const queueStatusText = (() => {
+    const queueInfo = job?.queueInfo;
+    if (!queueInfo || (job?.status !== "queued" && job?.status !== "processing")) return "";
+    if (job.status === "processing") return `正在分析你的视频，后面还有 ${queueInfo.totalQueued} 个任务等待`;
+    if (queueInfo.jobsAhead <= 0) return "你排在最前面，马上开始分析";
+    return `前面还有 ${queueInfo.jobsAhead} 个任务，其中 ${queueInfo.processingAhead} 个正在分析、${queueInfo.queuedAhead} 个在等待`;
   })();
 
   return (
@@ -462,6 +469,11 @@ export default function PowerAnalysisToolPage() {
                     style={{ width: `${progressValue}%` }}
                   />
                 </div>
+                {queueStatusText && (
+                  <div className="mt-3 rounded-lg border border-[#F0C6B9] bg-[#FDF2EC] px-3 py-2 text-xs font-semibold text-[#8F432D]">
+                    {queueStatusText}
+                  </div>
+                )}
               </div>
 
               {job?.errorMessage && (

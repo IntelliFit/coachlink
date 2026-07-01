@@ -71,8 +71,8 @@ class StudentService extends BaseService {
     if (res.success && res.data) {
       return res.data
     }
-    
-    return null
+
+    throw new Error(res.message || '基础档案保存失败')
   }
 
   async uploadAvatar(filePath: string) {

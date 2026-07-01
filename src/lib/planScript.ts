@@ -361,7 +361,17 @@ export function parsePlanScript({
     actions,
     allowPendingActions = false,
 }: ParsePlanScriptParams): ParsePlanScriptResult {
-    const lines = String(script || "").replace(/\r\n/g, "\n").split("\n");
+    const lines = String(script || "")
+        .replace(/\r\n/g, "\n")
+        .split("\n")
+        .flatMap((rawLine) => {
+            const trimmed = rawLine.trim();
+            const combinedWeekDayMatch = trimmed.match(/^(W\d+)\s+(D\d+(?:\s+off(?:\s+(?:#|!).*)?)?)$/i);
+            if (!combinedWeekDayMatch) {
+                return [rawLine];
+            }
+            return [combinedWeekDayMatch[1], combinedWeekDayMatch[2]];
+        });
     const descriptionLines: string[] = [];
     const days = new Map<number, FormPlanTrainingDay>();
 

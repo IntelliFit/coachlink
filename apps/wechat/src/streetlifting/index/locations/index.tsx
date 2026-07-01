@@ -176,6 +176,33 @@ function buildSharedLocationPreviewFromParams(params: Record<string, unknown>): 
   }
 }
 
+function isLocationPermissionError(error: unknown): boolean {
+  const message = String((error as Error)?.message || (error as any)?.errMsg || '').toLowerCase()
+  return [
+    'auth deny',
+    'authorize',
+    'permission',
+    'scope.userlocation',
+    'userlocation',
+    'denied',
+    '未授权',
+    '权限'
+  ].some((keyword) => message.includes(keyword))
+}
+
+async function getApproxUserLocation(): Promise<UserLocation> {
+  const taroWithFuzzyLocation = Taro as typeof Taro & {
+    getFuzzyLocation?: (options?: { type?: string }) => Promise<UserLocation>
+  }
+  if (typeof taroWithFuzzyLocation.getFuzzyLocation === 'function') {
+    const location = await taroWithFuzzyLocation.getFuzzyLocation({ type: 'gcj02' })
+    return { latitude: location.latitude, longitude: location.longitude }
+  }
+
+  const location = await Taro.getLocation({ type: 'gcj02' })
+  return { latitude: location.latitude, longitude: location.longitude }
+}
+
 export default function StreetliftingLocations() {
   const { effectiveTheme } = useTheme()
   const routerParams = (Taro.getCurrentInstance().router?.params || {}) as Record<string, unknown>
@@ -708,15 +735,35 @@ export default function StreetliftingLocations() {
   const handleLocateNearby = async () => {
     setLocating(true)
     try {
-      const location = await Taro.getLocation({ type: 'gcj02' })
+      const location = await getApproxUserLocation()
       setUserLocation({
         latitude: location.latitude,
         longitude: location.longitude
       })
-      await ensureMapPins()
-      Taro.showToast({ title: '已获取当前位置', icon: 'success' })
+      try {
+        await ensureMapPins()
+        Taro.showToast({ title: '已获取当前位置', icon: 'success' })
+      } catch (error) {
+        Taro.showToast({ title: (error as Error)?.message || '点位加载失败', icon: 'none' })
+      }
     } catch (e) {
-      Taro.showToast({ title: (e as Error)?.message || '定位失败', icon: 'none' })
+      if (isLocationPermissionError(e)) {
+        Taro.showModal({
+          title: '定位权限未开启',
+          content: '需要允许定位后才能计算附近单杠点位。你也可以先继续浏览全国地图。',
+          cancelText: '先浏览',
+          confirmText: '去设置',
+          success: (res) => {
+            if (res.confirm) {
+              Taro.openSetting().catch(() => {
+                Taro.showToast({ title: '打开设置失败', icon: 'none' })
+              })
+            }
+          }
+        })
+      } else {
+        Taro.showToast({ title: (e as Error)?.message || '定位暂不可用，可先浏览全国地图', icon: 'none' })
+      }
     } finally {
       setLocating(false)
     }

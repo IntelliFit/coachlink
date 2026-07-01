@@ -1755,49 +1755,6 @@ function TodayTrainingScreen() {
     </Popup>
   )
 
-  const renderNoPlanSupportPanel = () => (
-    <View className='tt-support-panel'>
-      <View className='tt-support-panel-head'>
-        <Text className='tt-support-panel-title'>训练入口</Text>
-        <Text className='tt-support-panel-subtitle'>没有长期计划时，也保持同一套首页节奏</Text>
-      </View>
-      <View className='tt-support-list'>
-        <View className='tt-support-row tt-support-row--accent' onClick={handleImpromptu} hoverClass='tt-support-row--pressed' hoverStayTime={70}>
-          <View className='tt-support-icon-wrap'>
-            <Power size={18} color='#CF6D4E' />
-          </View>
-          <View className='tt-support-copy'>
-            <Text className='tt-support-title'>即兴锻炼</Text>
-            <Text className='tt-support-desc'>马上开始记录今天的力量训练</Text>
-          </View>
-          <ArrowRight size={16} color='#9CA3AF' />
-        </View>
-        <View className='tt-support-row' onClick={activeSubscription?.id ? handleContactCoach : handleFindCoach} hoverClass='tt-support-row--pressed' hoverStayTime={70}>
-          <View className='tt-support-icon-wrap tt-support-icon-wrap--muted'>
-            {activeSubscription?.id ? <Message size={18} color='#6B7280' /> : <Target size={18} color='#6B7280' />}
-          </View>
-          <View className='tt-support-copy'>
-            <Text className='tt-support-title'>{activeSubscription?.id ? '联系教练' : '找教练'}</Text>
-            <Text className='tt-support-desc'>
-              {activeSubscription?.id ? '确认计划发布时间或训练安排' : '浏览公开教练，建立长期计划'}
-            </Text>
-          </View>
-          <ArrowRight size={16} color='#9CA3AF' />
-        </View>
-        <View className='tt-support-row' onClick={handleGoToPlanLib} hoverClass='tt-support-row--pressed' hoverStayTime={70}>
-          <View className='tt-support-icon-wrap tt-support-icon-wrap--warm'>
-            <Calendar size={18} color='#D97706' />
-          </View>
-          <View className='tt-support-copy'>
-            <Text className='tt-support-title'>我的计划库</Text>
-            <Text className='tt-support-desc'>查看历史计划或自建训练计划</Text>
-          </View>
-          <ArrowRight size={16} color='#9CA3AF' />
-        </View>
-      </View>
-    </View>
-  )
-
   const renderGuestHome = () => (
     <PageThemeRoot>
       <View className={`today-training-page theme-${effectiveTheme}`}>
@@ -1810,9 +1767,6 @@ function TodayTrainingScreen() {
               <View className='guest-hero-actions'>
                 <View className='guest-primary-btn' onClick={handleGuestLogin}>
                   <Text>登录同步训练</Text>
-                </View>
-                <View className='guest-secondary-btn' onClick={handleFindCoach}>
-                  <Text>先找教练</Text>
                 </View>
               </View>
             </View>
@@ -1909,7 +1863,6 @@ function TodayTrainingScreen() {
                   </Text>
                 </View>
               )}
-              {renderNoPlanSupportPanel()}
             </View>
           </ScrollView>
           {renderMoreTrainingPopup()}
@@ -2016,7 +1969,6 @@ function TodayTrainingScreen() {
                   </Text>
                 </View>
               )}
-              {renderNoPlanSupportPanel()}
             </>
           ) : (
             <>

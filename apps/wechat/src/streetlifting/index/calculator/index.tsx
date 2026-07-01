@@ -127,6 +127,7 @@ type SavedCalcResultPayload = {
 const STORAGE_KEY = 'sl_calc_form_data'
 const RESULT_KEY = 'sl_calc_result'
 const LAST_RUN_KEY = 'sl_calc_last_run'
+const CALCULATOR_PATH = '/streetlifting/index/calculator'
 
 const DEFAULT_DRAFT: CalcDraft = {
   exerciseType: 'weighted_pullup',
@@ -201,11 +202,30 @@ function getPenaltyPreset(formQuality: string) {
   return 3
 }
 
+function isAuthErrorMessage(message?: string | null) {
+  if (!message) return false
+  const normalized = String(message).toLowerCase()
+  return (
+    normalized.includes('用户未登录') ||
+    normalized.includes('请先登录') ||
+    normalized.includes('登录状态已过期') ||
+    normalized.includes('unauthorized') ||
+    normalized.includes('token expired') ||
+    normalized.includes('invalid token')
+  )
+}
+
 export default function StreetliftingCalculator() {
   const { effectiveTheme } = useTheme()
+  const authSession = authService.getAuthSession({ normalize: true })
+  const isAuthenticated = authSession.isAuthenticated
   const [draft, setDraft] = useState<CalcDraft>(DEFAULT_DRAFT)
   const [formulaMap, setFormulaMap] = useState<Record<string, StreetliftingFormula>>({})
   const [loadingFormula, setLoadingFormula] = useState(true)
+  const [formulaState, setFormulaState] = useState<'loading' | 'ready' | 'auth_required' | 'error'>(
+    isAuthenticated ? 'loading' : 'auth_required'
+  )
+  const [formulaErrorMessage, setFormulaErrorMessage] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [lastSnapshot, setLastSnapshot] = useState<CalcSnapshot | null>(null)
   const [formHydrated, setFormHydrated] = useState(false)
@@ -234,6 +254,23 @@ export default function StreetliftingCalculator() {
     setDraft((prev) => ({ ...prev, ...patch }))
   }, [])
 
+  const openLogin = useCallback(() => {
+    Taro.navigateTo({ url: authService.buildLoginUrl(CALCULATOR_PATH) })
+  }, [])
+
+  const promptLogin = useCallback((content: string) => {
+    Taro.showModal({
+      title: '登录后可用',
+      content,
+      confirmText: '去登录',
+      success: (res) => {
+        if (res.confirm) {
+          openLogin()
+        }
+      }
+    })
+  }, [openLogin])
+
   const saveDraftNow = useCallback(() => {
     try {
       Taro.setStorageSync(STORAGE_KEY, JSON.stringify(draft))
@@ -258,23 +295,44 @@ export default function StreetliftingCalculator() {
       const lastSnap = parseLastSnapshot(Taro.getStorageSync(LAST_RUN_KEY))
       const lastDraft = lastSnap?.draft
 
-      setLoadingFormula(true)
-      try {
-        const data = await streetliftingIndexService.listFormulas()
-        if (!cancelled && data?.formulas) {
-          const next: Record<string, StreetliftingFormula> = {}
-          data.formulas.forEach((f) => {
-            next[`${f.gender}`] = f
-          })
-          setFormulaMap(next)
-        }
-      } catch (e) {
+      if (!isAuthenticated) {
         if (!cancelled) {
-          console.error('[calculator] listFormulas error:', e)
-          Taro.showToast({ title: (e as Error)?.message || '公式获取失败', icon: 'none' })
+          setFormulaMap({})
+          setFormulaState('auth_required')
+          setFormulaErrorMessage('')
+          setLoadingFormula(false)
         }
-      } finally {
-        if (!cancelled) setLoadingFormula(false)
+      } else {
+        setLoadingFormula(true)
+        setFormulaState('loading')
+        setFormulaErrorMessage('')
+        try {
+          const data = await streetliftingIndexService.listFormulas()
+          if (!cancelled && data?.formulas) {
+            const next: Record<string, StreetliftingFormula> = {}
+            data.formulas.forEach((f) => {
+              next[`${f.gender}`] = f
+            })
+            setFormulaMap(next)
+            setFormulaState('ready')
+          }
+        } catch (e) {
+          if (!cancelled) {
+            console.error('[calculator] listFormulas error:', e)
+            const message = (e as Error)?.message || '公式获取失败'
+            if (isAuthErrorMessage(message)) {
+              setFormulaMap({})
+              setFormulaState('auth_required')
+              setFormulaErrorMessage('')
+            } else {
+              setFormulaState('error')
+              setFormulaErrorMessage(message)
+              Taro.showToast({ title: message, icon: 'none' })
+            }
+          }
+        } finally {
+          if (!cancelled) setLoadingFormula(false)
+        }
       }
 
       let profileGender: Gender | null = null
@@ -361,7 +419,7 @@ export default function StreetliftingCalculator() {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [isAuthenticated])
 
   useEffect(() => {
     if (!formHydrated) return
@@ -443,10 +501,19 @@ export default function StreetliftingCalculator() {
   }
 
   const openHistoryPage = useCallback(() => {
+    if (!isAuthenticated) {
+      promptLogin('登录后才可以查看你的历史记录和趣味排名。')
+      return
+    }
     Taro.navigateTo({ url: `/streetlifting/index/calculator/history?exerciseType=${exerciseType}` })
-  }, [exerciseType])
+  }, [exerciseType, isAuthenticated, promptLogin])
 
   const handleCalculate = async () => {
+    if (!isAuthenticated) {
+      promptLogin('当前页面可以先浏览和填写，但开始计算前需要先登录。')
+      return
+    }
+
     setSubmitting(true)
 
     const finish = async (result: CalcResult) => {
@@ -1009,12 +1076,28 @@ export default function StreetliftingCalculator() {
               </View>
             )}
 
+            {!isAuthenticated && (
+              <View className='auth-notice-card'>
+                <Text className='auth-notice-title'>登录后才可正式计算</Text>
+                <Text className='auth-notice-desc'>
+                  当前页可以先查看和填写参数，但开始计算、保存历史记录、参与趣味排名都需要先登录。
+                </Text>
+                <View className='auth-notice-cta' onClick={openLogin}>
+                  <Text className='auth-notice-cta-text'>前往登录</Text>
+                </View>
+              </View>
+            )}
+
             {isUpperBodyExercise(exerciseType) && (
               <View className='formula-hint'>
                 {loadingFormula ? (
                   <Text className='hint'>正在加载公式…</Text>
                 ) : currentFormula ? (
                   <Text className='hint'>公式已加载（{currentFormula.gender} · {currentFormula.exercise_type}）</Text>
+                ) : formulaState === 'auth_required' ? (
+                  <Text className='hint warn'>登录后会自动加载对应公式并开放计算</Text>
+                ) : formulaState === 'error' ? (
+                  <Text className='hint warn'>{formulaErrorMessage || '公式加载失败，请稍后重试'}</Text>
                 ) : (
                   <Text className='hint warn'>未找到对应公式，请稍后重试</Text>
                 )}
@@ -1025,8 +1108,8 @@ export default function StreetliftingCalculator() {
               <Button className='btn-secondary' onClick={clearPersistedDraft}>
                 清空上次输入
               </Button>
-              <Button className='btn-calc' onClick={handleCalculate} disabled={submitting}>
-                {submitting ? '计算中…' : '开始计算'}
+              <Button className='btn-calc' onClick={handleCalculate} disabled={isAuthenticated && submitting}>
+                {!isAuthenticated ? '登录后开始计算' : submitting ? '计算中…' : '开始计算'}
               </Button>
             </View>
 

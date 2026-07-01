@@ -32,7 +32,7 @@
   }
 
   .section {
-    margin-top: 16rpx;
+    margin-top: 24rpx;
   }
 
   .section-title {
@@ -64,6 +64,31 @@
     padding: 8rpx 16rpx;
   }
 
+  .reference-image {
+    width: 100%;
+    height: 336rpx;
+    border-radius: 24rpx;
+    background: #f8f5f1;
+    border: 1rpx solid #ebe4dc;
+    display: block;
+  }
+
+  .media-card {
+    padding: 24rpx;
+    border-radius: 24rpx;
+    background: #f8f5f1;
+    border: 1rpx solid #ebe4dc;
+    box-sizing: border-box;
+  }
+
+  .media-title {
+    display: block;
+    font-size: 24rpx;
+    color: #4b5563;
+    line-height: 36rpx;
+    margin-bottom: 12rpx;
+  }
+
   .video-url {
     display: block;
     font-size: 24rpx;
@@ -72,16 +97,42 @@
     line-height: 1.5;
   }
 
-  .copy-btn {
+  .media-actions {
+    display: flex;
+    gap: 16rpx;
     margin-top: 16rpx;
-    background: #2563eb;
-    border-radius: 8rpx;
-    padding: 16rpx 16rpx;
-    width: fit-content;
+  }
+
+  .primary-btn,
+  .secondary-btn {
+    flex: 1;
+    height: 72rpx;
+    border-radius: 16rpx;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+
+    Text {
+      font-size: 24rpx;
+      font-weight: 700;
+    }
+  }
+
+  .primary-btn {
+    background: #cf6d4e;
 
     Text {
       color: #fff;
-      font-size: 24rpx;
+    }
+  }
+
+  .secondary-btn {
+    background: #fff;
+    border: 1rpx solid #e5e7eb;
+
+    Text {
+      color: #4b5563;
     }
   }
 

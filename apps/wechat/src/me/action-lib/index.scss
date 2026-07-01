@@ -256,7 +256,7 @@
 
   .public-card {
     position: relative;
-    min-height: 368rpx;
+    min-height: 472rpx;
     padding: 40rpx 16rpx 16rpx;
     border-radius: 24rpx;
     background: #ffffff;
@@ -264,6 +264,26 @@
     box-shadow: 0 8rpx 28rpx rgba(31, 41, 51, 0.06);
     box-sizing: border-box;
     overflow: hidden;
+
+    .action-cover-wrap {
+      width: 100%;
+      height: 160rpx;
+      margin-top: 16rpx;
+      border-radius: 16rpx;
+      overflow: hidden;
+      background: #f8f5f1;
+      border: 1rpx solid #ebe4dc;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-sizing: border-box;
+    }
+
+    .action-cover {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
 
     .card-marker {
       position: absolute;
@@ -383,9 +403,9 @@
     }
 
     &.large {
-      width: 128rpx;
-      height: 128rpx;
-      margin-top: 16rpx;
+      width: 112rpx;
+      height: 112rpx;
+      margin-top: 0;
 
       Text {
         font-size: 48rpx;

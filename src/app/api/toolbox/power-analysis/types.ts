@@ -52,6 +52,14 @@ export interface PowerAnalysisJobDto {
   createdAt: string;
   completedAt: string | null;
   canDownload: boolean;
+  queueInfo?: PowerAnalysisQueueInfoDto | null;
+}
+
+export interface PowerAnalysisQueueInfoDto {
+  jobsAhead: number;
+  queuedAhead: number;
+  processingAhead: number;
+  totalQueued: number;
 }
 
 export interface CreatePowerAnalysisUploadUrlDto {

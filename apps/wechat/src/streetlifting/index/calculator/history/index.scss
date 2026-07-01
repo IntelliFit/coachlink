@@ -26,6 +26,45 @@
   }
 }
 
+.calc-history-empty--auth {
+  gap: 16rpx;
+  text-align: center;
+}
+
+.calc-history-empty-title {
+  font-size: 32rpx;
+  font-weight: 700;
+  color: #111827;
+}
+
+.calc-history-empty-desc {
+  max-width: 560rpx;
+  font-size: 24rpx;
+  line-height: 1.6;
+  color: #6B7280;
+}
+
+.calc-history-login-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 240rpx;
+  height: 80rpx;
+  padding: 0 24rpx;
+  background: #CF6D4E;
+  border-radius: 16rpx;
+
+  &:active {
+    opacity: 0.9;
+  }
+}
+
+.calc-history-login-btn-text {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #FFFFFF;
+}
+
 .calc-history-filter-card,
 .calc-history-summary-card,
 .calc-history-ranking-card,

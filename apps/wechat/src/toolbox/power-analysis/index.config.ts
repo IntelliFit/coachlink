@@ -1,10 +1,8 @@
 export default definePageConfig({
-  navigationStyle: 'custom',
   navigationBarTitleText: '功率视频分析',
-  navigationBarBackgroundColor: '#ffffff',
+  navigationBarBackgroundColor: '#f7f4f1',
   navigationBarTextStyle: 'black',
   enableShareAppMessage: true,
   enableShareTimeline: true,
   animationType: 'none'
 })
-

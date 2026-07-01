@@ -185,6 +185,14 @@ export default {
       ],
     },
   ],
+  requiredPrivateInfos: [
+    'getFuzzyLocation',
+  ],
+  permission: {
+    'scope.userFuzzyLocation': {
+      desc: '用于查找你附近的单杠训练点位',
+    },
+  },
   window: {
     backgroundTextStyle: 'light',
     navigationBarBackgroundColor: '#fff',

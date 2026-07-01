@@ -8,7 +8,7 @@ import type { PowerAnalysisJobDto } from "../../../types";
 import {
   expirePowerAnalysisJobIfNeeded,
   getOwnedPowerAnalysisJob,
-  mapPowerAnalysisJob,
+  mapPowerAnalysisJobWithQueueInfo,
 } from "../../../_helpers";
 
 export const runtime = "nodejs";
@@ -48,7 +48,7 @@ export async function POST(
     return NextResponse.json<ApiData<PowerAnalysisJobDto>>({
       success: true,
       message: "任务已入队",
-      data: mapPowerAnalysisJob(current),
+      data: await mapPowerAnalysisJobWithQueueInfo(current),
     });
   }
 
@@ -85,7 +85,7 @@ export async function POST(
     return NextResponse.json<ApiData<PowerAnalysisJobDto>>({
       success: true,
       message: "任务已入队",
-      data: mapPowerAnalysisJob(data),
+      data: await mapPowerAnalysisJobWithQueueInfo(data),
     });
   }
 
@@ -112,6 +112,6 @@ export async function POST(
   return NextResponse.json<ApiData<PowerAnalysisJobDto>>({
     success: true,
     message: "任务已入队",
-    data: mapPowerAnalysisJob(data),
+    data: await mapPowerAnalysisJobWithQueueInfo(data),
   });
 }
