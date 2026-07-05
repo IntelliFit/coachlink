@@ -1,3 +1,44 @@
+## Web 学员计划百分比强度显示与算重修复 (`2026-07-05`)
+
+- Task: 用户反馈刘三乐给 Wayne Tan 制定的计划里，教练端学员计划页显示 `70%1RMRM`，且无法显示具体重量。
+- Status: completed at code/build level; manual browser verification left to the user per durable preference.
+- Root cause:
+  - 历史计划数据可能只在 `params["强度"]` 旧字段里保存字符串 `70%1RM` / `70%rm`，而不是标准 `intensityConfig.relativeIntensity`。
+  - 前端 `ActionSetForm` 将任意 `params["强度"]` 都当成 RM 次数字段，再追加 `RM`，所以出现 `70%1RMRM`。
+  - 同一个误判会让自动算重逻辑把 `70%1RM` 当 reps 输入计算，得到非数值，最终无法回填具体 kg。
+- Changes:
+  - `src/lib/rmCaculator.ts`：统一兼容解析旧强度字段，支持 `70%1RM`、`70%rm`、`70%`、`5RM`、`"5"`，并在 `calcIntensityDisplay` / `hasDynamicIntensityTarget` 中复用。
+  - `src/app/dashboard/plan-lib/components/ActionSetForm.tsx`：RM 输入与预览改用归一化后的 RM 值，避免把百分比字符串当 RM 展示或计算。
+  - `src/types/intensity.ts`：允许旧字段 `legacyRm` 为字符串。
+  - `src/lib/e1rmAndLoadCalculation.test.ts`：新增百分比字符串和 RM 字符串兼容回归测试。
+- Verification:
+  - `npm run lint` ✅（项目脚本为提示性输出）
+  - `npm run typecheck` ✅
+  - `npm test` ✅（35 files / 177 tests）
+  - `npx next build` ✅
+
+## 融资 BP 后端数据支撑 (`2026-07-03`)
+
+- Task: 用户需要从 CoachLink 后端数据中提取投资人喜欢看的指标；对外 BP 可选择性展示有利数据，但必须把不利或需要谨慎处理的数据单独告诉用户。
+- Status: completed first-pass backend aggregate report.
+- Notes:
+  - 本轮应优先查询真实后端聚合数据，不展示用户隐私明细。
+  - 输出应区分：适合进 BP 的亮点数据、需要包装/解释的数据、不建议主动展示的数据、后续建议补埋点/补口径的数据。
+  - 已生成 `docs/work/bp-backend-data-2026-07-03.md`，包含用户、教练、订阅、收入、训练交付、动作资产、聊天、工具入口、弱项与埋点建议。
+  - 关键注意：`alipay_orders.total_amount` 应按“分”折算，且历史订单混有 1 分/1 元测试订单；正式 BP 不能直接展示未清洗 GMV。
+
+## 融资 BP 核心素材梳理 (`2026-07-02`)
+
+- Task: 用户准备为 CoachLink 拉投融资，需要先从项目真实沉淀中整理出最精华、最核心、较细节的 BP 素材，后续再进一步聚焦和打磨。
+- Status: completed for first-pass material extraction.
+- Notes:
+  - 本轮先做项目资产梳理与核心价值提炼，不直接生成完整 BP。
+  - 输出应贴合 CoachLink 当前 Web / 微信小程序 / 移动 App / AI 训练计划 / 动作库 / 功率分析 / 街健工具等真实能力，避免空泛商业话术。
+  - 初步建议主叙事从旧版“力量训练教练数字化办公室”升级为“线上自由教练商业化操作系统”，但用专业训练系统、计划结构化、自动算重、训练执行和视频上下文证明护城河。
+  - 旧 BP 中 2026 年 4 月运营数据可作为历史验证材料，但正式对外融资前需要用户确认最新真实数据。
+  - 用户已纠偏：不要主要依赖旧文档，需要基于实际代码、Git 历史和当前工程结构做更细的判断。
+  - 二次梳理证据：2026 年以来本地 Git 历史显示高频 feature/fix 迭代；核心改动集中在 `src/app/api`、`apps/wechat/src`、`src/app/dashboard`、`src/app/coach`。当前 API 模块以 `coach`、`user`、`plan-lib`、`student`、`execution`、`subscription`、`streetlifting-index`、`payment` 为重；小程序已按 `coach/me/training/toolbox/streetlifting/content/auth` 等分包组织；移动端 Expo 工程已覆盖训练、教练、知识、街健、工具、支付等 screen。
+
 ## 直接提交并同步主分支/开发分支 (`2026-07-01`)
 
 - Task: 用户要求直接提交当前工作区代码并推送，保持 `main` 与开发分支一致；本轮明确不执行测试、不做额外手动验证。
@@ -83,6 +124,34 @@
   - `npm --workspace apps/wechat run build:weapp` ✅（第一次 180s 超时无日志，延长后通过）
   - `npm test` ✅（35 files / 175 tests）
   - `npx next build` ⚠️ 编译与静态页生成通过，最终仍因本机 Windows 文件锁 `EBUSY copyfile .next\\server\\middleware-build-manifest.js -> .next\\standalone...` 失败；与既有本机环境问题一致，不是本次小程序首页代码错误。
+
+## WeChat 工具箱/Streetlifting 同类登录提示排查 (`2026-07-01`)
+
+- Task: 继续排查微信小程序里“页面能进入，但真正使用时才发现必须登录，而且提示不清楚”的同类问题，优先覆盖 `toolbox` 与 `streetlifting` 相关入口。
+- Status: completed at code/build level; manual mini-program UI verification left to the user per durable preference.
+- Findings:
+  - 这类问题不止力量计算器一个，至少还包括：
+    - `streetlifting` 首页：游客可打开，但初始化 `stats` 数据实际被 API 鉴权挡住，容易表现成静默空数据。
+    - `streetlifting/社区数据`：游客可打开，但列表与公式接口同样被挡住，容易只看到笼统“加载失败”。
+    - `streetlifting/单杠位置`：游客可打开，但列表/统计/贡献榜/地图点位初始化接口原先同样被挡住；新增/编辑入口也缺少前置登录提示。
+    - `toolbox/功率视频分析`：能进入页面，但直到选择视频/开始分析时才会遇到登录错误，缺少明确前置说明。
+- Changes:
+  - `src/proxy.ts` 已把 `streetlifting` 的只读公开接口加入白名单：
+    - `/api/streetlifting-index/stats`
+    - `/api/streetlifting-index/formulas/list`
+    - `/api/streetlifting-index/submissions/list`
+    - `/api/streetlifting-index/locations/list`
+    - `/api/streetlifting-index/locations/contributors`
+    - `/api/streetlifting-index/locations/map-pins`
+  - 这样游客现在可以正常浏览街健首页统计、社区数据列表、地点列表/贡献榜/地图点位，而不是被登录拦截。
+  - `apps/wechat/src/toolbox/power-analysis/index.tsx` 已增加前置登录引导：未登录时选择视频或开始分析会直接弹“去登录”，不再等到上传/分析请求失败后才报错。
+  - `apps/wechat/src/streetlifting/index/locations/index.tsx` 的新增/编辑入口现在也会先检查登录态，并给出明确登录引导。
+- Verification:
+  - `npm run lint` ✅（信息提示脚本）
+  - `npm run typecheck` ✅
+  - `npm test` ✅（35 files / 175 tests）
+  - `npx next build` ✅
+  - `npm --workspace apps/wechat run build:weapp` ✅
 
 ## WeChat 力量计算器登录提示修复 (`2026-07-01`)
 

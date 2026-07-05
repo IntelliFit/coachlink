@@ -98,7 +98,7 @@ export interface CalcIntensityOptions {
     /** 新格式：强度配置 */
     intensityConfig?: IntensityConfig;
     /** 旧格式兼容：RM值（对应原 params.强度） */
-    legacyRm?: number;
+    legacyRm?: number | string | null;
     /** 学员该动作的 1RM（可能为空） */
     oneRM?: number;
     /** 学员体重 (kg) */

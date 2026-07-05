@@ -72,6 +72,14 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
         return 'none';
     }, [existingConfig, set.params]);
 
+    const rmValue = useMemo(() => {
+        if (existingConfig?.relativeIntensity?.type === 'rm') {
+            return existingConfig.relativeIntensity.value;
+        }
+        const raw = Number(set.params?.['强度']);
+        return Number.isFinite(raw) && raw > 0 ? raw : 5;
+    }, [existingConfig, set.params]);
+
     // 百分比值（从 props 派生）
     const percentageValue = useMemo(() => {
         if (existingConfig?.relativeIntensity?.type === 'percentage') {
@@ -153,7 +161,6 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
         const newParams: Record<string, any> = {};
 
         if (newType === 'rm') {
-            const rmValue = set.params?.['强度'] || 5;
             newConfig.relativeIntensity = { type: 'rm', value: rmValue };
             newParams['强度'] = rmValue;
         } else if (newType === 'percentage') {
@@ -177,7 +184,7 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
             intensityConfig: Object.keys(newConfig).length > 0 ? newConfig : undefined,
             ...newParams
         });
-    }, [set.params, existingConfig, recommendedValue, recommendedUnit, updateParams]);
+    }, [existingConfig, recommendedValue, recommendedUnit, rmValue, updateParams]);
 
     // 处理 RM 值变化
     const handleRmChange = useCallback((value: number | null) => {
@@ -294,7 +301,6 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
 
         if (intensityType === 'rm') {
             // RM 模式
-            const rmValue = set.params?.['强度'];
             // 次数必须在 (0, 37) 区间内，因为 Brzycki 公式要求 r < 37
             // 同时 Epley 和 Lombardi 要求 r > 0
             if (!rmValue || rmValue <= 0 || rmValue >= 37) return;
@@ -361,7 +367,7 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
                 });
             }
         }
-    }, [set.params?.['强度'], set.params?.algorithm, studentData, currentAction, intensityType, existingConfig, percentageValue, manual1RM, planReference1RM, updateParams]);
+    }, [rmValue, set.params?.algorithm, studentData, currentAction, intensityType, existingConfig, percentageValue, manual1RM, planReference1RM, updateParams]);
 
     // 检查当前动作是否有"强度"属性
     const hasIntensityAttr = currentAction?.attrs?.includes('强度');
@@ -506,7 +512,7 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
                             <div className="flex flex-col gap-1.5">
                                 <label className="block text-900 text-xs ml-1">RM 值</label>
                                 <AeroInputNumber
-                                    value={set.params?.['强度'] || 5}
+                                    value={rmValue}
                                     onValueChange={e => handleRmChange(e.value)}
                                     suffix="RM"
                                     min={1}
@@ -626,8 +632,8 @@ const ActionSetForm: React.FC<ActionSetFormProps> = ({
 
                                             {/* 强度详情：辅助信息 */}
                                             <div className="flex items-center gap-2 text-[12px] text-surface-500 font-medium border-l border-surface-200 pl-3">
-                                                {intensityType === 'rm' && set.params?.['强度'] && (
-                                                    <span>{set.params?.['强度']}RM</span>
+                                                {intensityType === 'rm' && rmValue && (
+                                                    <span>{rmValue}RM</span>
                                                 )}
                                                 {intensityType === 'percentage' && (
                                                     <span>{percentageValue}%</span>

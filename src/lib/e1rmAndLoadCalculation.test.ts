@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { calculateE1RM } from "@/lib/e1rmCalculator";
 import {
+    calcIntensityDisplay,
     calcRecommendedLoad,
     lambdaAverage,
     lambdaBrzycki,
     lambdaEpley,
     lambdaLombardi,
+    normalizeIntensityConfig,
 } from "@/lib/rmCaculator";
 
 describe("calculateE1RM", () => {
@@ -166,5 +168,44 @@ describe("calcRecommendedLoad", () => {
         const { e1rm } = calculateE1RM({ weight: workKg, reps });
         const back = calcRecommendedLoad(e1rm, 1, reps, 0, "average");
         expect(back).toBeCloseTo(workKg, 0);
+    });
+});
+
+describe("normalizeIntensityConfig / calcIntensityDisplay", () => {
+    it("兼容旧字段中的百分比字符串，避免把 70%1RM 当成 70RM", () => {
+        expect(normalizeIntensityConfig({ 强度: "70%1RM" })).toEqual({
+            relativeIntensity: { type: "percentage", value: 70 },
+        });
+        expect(normalizeIntensityConfig({ 强度: "70%rm" })).toEqual({
+            relativeIntensity: { type: "percentage", value: 70 },
+        });
+
+        expect(
+            calcIntensityDisplay({
+                legacyRm: "70%1RM",
+                oneRM: 30,
+                bodyWeight: 80,
+                includesBodyWeight: true,
+            }),
+        ).toEqual({
+            displayWeight: 21,
+            displayUnit: "kg",
+            source: "calculated",
+        });
+    });
+
+    it("兼容旧字段中的 RM 字符串", () => {
+        expect(normalizeIntensityConfig({ 强度: "5RM" })).toEqual({
+            relativeIntensity: { type: "rm", value: 5 },
+        });
+
+        expect(
+            calcIntensityDisplay({
+                legacyRm: "5RM",
+                oneRM: 100,
+                bodyWeight: 0,
+                includesBodyWeight: false,
+            }).displayWeight,
+        ).toBeCloseTo(88.9, 1);
     });
 });

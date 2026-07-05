@@ -99,7 +99,10 @@ export function calcRecommendedLoad(
 import type {
     CalcIntensityOptions,
     CalcIntensityResult,
+    FixedWeightLoad,
     IntensityConfig,
+    RecommendedLoad,
+    RelativeIntensity,
 } from "@/types/intensity";
 import { normalizeToKg } from "@/types/intensity";
 
@@ -129,6 +132,106 @@ export function percentageToRm(percentage: number): number {
     return Math.round(37 - 36 * p);
 }
 
+function finitePositiveNumber(value: unknown): number | null {
+    if (value === null || value === undefined || value === "") return null;
+    const num = Number(value);
+    return Number.isFinite(num) && num > 0 ? num : null;
+}
+
+function normalizeIntensityText(value: string): string {
+    return value
+        .trim()
+        .replace(/％/g, "%")
+        .replace(/\s+/g, "")
+        .toLowerCase();
+}
+
+function parseLegacyRelativeIntensity(
+    value: unknown,
+): RelativeIntensity | undefined {
+    const numericValue = finitePositiveNumber(value);
+    if (numericValue !== null) {
+        return { type: "rm", value: numericValue };
+    }
+
+    if (typeof value !== "string") return undefined;
+
+    const text = normalizeIntensityText(value).replace(/^@/, "");
+    const percentageMatch = text.match(/^(\d+(?:\.\d+)?)%(?:1?rm)?$/);
+    if (percentageMatch) {
+        const percentage = finitePositiveNumber(percentageMatch[1]);
+        return percentage !== null
+            ? { type: "percentage", value: percentage }
+            : undefined;
+    }
+
+    const rmMatch = text.match(/^(\d+(?:\.\d+)?)rm$/);
+    if (rmMatch) {
+        const rm = finitePositiveNumber(rmMatch[1]);
+        return rm !== null ? { type: "rm", value: rm } : undefined;
+    }
+
+    const plainNumberMatch = text.match(/^(\d+(?:\.\d+)?)$/);
+    if (plainNumberMatch) {
+        const rm = finitePositiveNumber(plainNumberMatch[1]);
+        return rm !== null ? { type: "rm", value: rm } : undefined;
+    }
+
+    return undefined;
+}
+
+function normalizeRelativeIntensity(input: unknown): RelativeIntensity | undefined {
+    if (!input || typeof input !== "object") return undefined;
+    const relative = input as { type?: unknown; value?: unknown };
+    const parsed = parseLegacyRelativeIntensity(relative.value);
+    if (!parsed) return undefined;
+
+    if (relative.type === "percentage") {
+        return { type: "percentage", value: parsed.value };
+    }
+    if (relative.type === "rm") {
+        return { type: "rm", value: parsed.value };
+    }
+
+    return parsed;
+}
+
+function normalizeWeightLoad(input: unknown): RecommendedLoad | FixedWeightLoad | undefined {
+    if (!input || typeof input !== "object") return undefined;
+    const load = input as { value?: unknown; unit?: unknown };
+    const value = Number(load.value);
+    if (!Number.isFinite(value)) return undefined;
+    return {
+        value,
+        unit: load.unit === "lbs" ? "lbs" : "kg",
+    };
+}
+
+function normalizeExistingIntensityConfig(
+    intensityConfig: unknown,
+): IntensityConfig | undefined {
+    if (!intensityConfig || typeof intensityConfig !== "object") return undefined;
+    const raw = intensityConfig as IntensityConfig;
+    const next: IntensityConfig = {};
+
+    const relativeIntensity = normalizeRelativeIntensity(raw.relativeIntensity);
+    if (relativeIntensity) {
+        next.relativeIntensity = relativeIntensity;
+    }
+
+    const fixedWeight = normalizeWeightLoad(raw.fixedWeight);
+    if (fixedWeight) {
+        next.fixedWeight = fixedWeight;
+    }
+
+    const recommendedLoad = normalizeWeightLoad(raw.recommendedLoad);
+    if (recommendedLoad) {
+        next.recommendedLoad = recommendedLoad;
+    }
+
+    return Object.keys(next).length > 0 ? next : undefined;
+}
+
 /**
  * 从旧格式 params 中提取强度配置
  * 用于向后兼容
@@ -136,18 +239,17 @@ export function percentageToRm(percentage: number): number {
 export function normalizeIntensityConfig(
     params: any,
 ): IntensityConfig | undefined {
-    // 新格式：直接返回
+    // 新格式：先标准化，避免历史数据里 value 是 "70%1RM" 这类字符串。
     if (params?.intensityConfig) {
-        return params.intensityConfig;
+        const normalized = normalizeExistingIntensityConfig(params.intensityConfig);
+        if (normalized) return normalized;
     }
 
-    // 旧格式：params.强度 是 RM 值
-    if (params?.强度 && typeof params.强度 === "number" && params.强度 > 0) {
+    // 旧格式：params.强度 可能是数字 RM，也可能是 "70%1RM" / "70%rm"。
+    const legacyRelativeIntensity = parseLegacyRelativeIntensity(params?.强度);
+    if (legacyRelativeIntensity) {
         return {
-            relativeIntensity: {
-                type: "rm",
-                value: params.强度,
-            },
+            relativeIntensity: legacyRelativeIntensity,
         };
     }
 
@@ -178,14 +280,13 @@ export function hasDynamicIntensityTarget(options: {
     legacyRm?: number | string | null;
 }): boolean {
     const { intensityConfig, legacyRm } = options;
-    const ri = intensityConfig?.relativeIntensity;
+    const ri = normalizeExistingIntensityConfig(intensityConfig)?.relativeIntensity;
     if (ri && (ri.type === "rm" || ri.type === "percentage")) {
         const v = Number(ri.value);
         if (Number.isFinite(v) && v > 0) return true;
     }
 
-    const rm = Number(legacyRm);
-    return Number.isFinite(rm) && rm > 0;
+    return !!parseLegacyRelativeIntensity(legacyRm);
 }
 
 /**
@@ -220,9 +321,12 @@ export function calcIntensityDisplay(
         oneRM !== null &&
         Number.isFinite(oneRM);
 
+    const normalizedIntensityConfig = normalizeExistingIntensityConfig(intensityConfig);
+    const legacyRelativeIntensity = parseLegacyRelativeIntensity(legacyRm);
+
     // 1. 优先使用 intensityConfig
-    if (intensityConfig?.relativeIntensity) {
-        const ri = intensityConfig.relativeIntensity;
+    if (normalizedIntensityConfig?.relativeIntensity) {
+        const ri = normalizedIntensityConfig.relativeIntensity;
 
         // With % intensity, we can compute with 1RM alone.
         if (ri.type === "percentage" && hasOneRM) {
@@ -273,8 +377,8 @@ export function calcIntensityDisplay(
             const text = ri.type === "rm" ? `${ri.value}RM` : `${ri.value}%`;
 
             // 尝试使用推荐数值作为备选显示
-            if (intensityConfig.recommendedLoad) {
-                const load = intensityConfig.recommendedLoad;
+            if (normalizedIntensityConfig.recommendedLoad) {
+                const load = normalizedIntensityConfig.recommendedLoad;
                 return {
                     displayWeight: load.value,
                     displayUnit: load.unit,
@@ -291,8 +395,8 @@ export function calcIntensityDisplay(
     }
 
     // 2. 使用固定重量
-    if (intensityConfig?.fixedWeight) {
-        const load = intensityConfig.fixedWeight;
+    if (normalizedIntensityConfig?.fixedWeight) {
+        const load = normalizedIntensityConfig.fixedWeight;
         return {
             displayWeight: load.value,
             displayUnit: load.unit,
@@ -301,8 +405,8 @@ export function calcIntensityDisplay(
     }
 
     // 3. 使用推荐数值
-    if (intensityConfig?.recommendedLoad) {
-        const load = intensityConfig.recommendedLoad;
+    if (normalizedIntensityConfig?.recommendedLoad) {
+        const load = normalizedIntensityConfig.recommendedLoad;
         return {
             displayWeight: load.value,
             displayUnit: load.unit,
@@ -311,11 +415,28 @@ export function calcIntensityDisplay(
     }
 
     // 4. 旧格式兼容：使用 legacyRm（原 params.强度）
-    if (legacyRm && legacyRm > 0) {
+    if (legacyRelativeIntensity) {
+        if (legacyRelativeIntensity.type === "percentage") {
+            if (hasOneRM) {
+                const displayWeight = oneRM * (legacyRelativeIntensity.value / 100);
+                return {
+                    displayWeight: Math.round(displayWeight * 10) / 10,
+                    displayUnit: "kg",
+                    source: "calculated",
+                };
+            }
+
+            return {
+                displayText: `${legacyRelativeIntensity.value}%`,
+                source: "relative-text",
+            };
+        }
+
+        const legacyRmValue = legacyRelativeIntensity.value;
         if (hasOneRM) {
             // For non-bodyweight actions, compute without requiring bodyWeight.
             if (!includesBodyWeight) {
-                const percentage = rmToPercentage(legacyRm);
+                const percentage = rmToPercentage(legacyRmValue);
                 const calculatedWeight = oneRM * percentage;
                 return {
                     displayWeight: Math.round(calculatedWeight * 10) / 10,
@@ -329,7 +450,7 @@ export function calcIntensityDisplay(
                 const calculatedWeight = calcRecommendedLoad(
                     oneRM,
                     bodyWeight,
-                    legacyRm,
+                    legacyRmValue,
                     1,
                     "average",
                 );
@@ -344,7 +465,7 @@ export function calcIntensityDisplay(
 
         {
             return {
-                displayText: `${legacyRm}RM`,
+                displayText: `${legacyRmValue}RM`,
                 source: "relative-text",
             };
         }

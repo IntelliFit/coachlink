@@ -97,6 +97,19 @@ function getCurrentContributorContact(): string | null {
   return user.nickname || user.name || user.phone || user.phoneOrEmail || null
 }
 
+function requireLoginForLocationsAction(content: string) {
+  Taro.showModal({
+    title: '登录后可用',
+    content,
+    confirmText: '去登录',
+    success: (res) => {
+      if (res.confirm) {
+        Taro.navigateTo({ url: authService.buildLoginUrl('/streetlifting/index/locations') })
+      }
+    }
+  })
+}
+
 function getContributorLabel(loc: StreetliftingLocation): string {
   return formatContributorName(loc.contributor_name_snapshot || loc.user_contact)
 }
@@ -373,11 +386,19 @@ export default function StreetliftingLocations() {
   }
 
   const openCreate = () => {
+    if (!authService.isAuthenticated()) {
+      requireLoginForLocationsAction('登录后才能新增你的单杠位置和上传图片。')
+      return
+    }
     resetForm()
     setDialogOpen(true)
   }
 
   const openEdit = (loc: StreetliftingLocation) => {
+    if (!authService.isAuthenticated()) {
+      requireLoginForLocationsAction('登录后才能编辑单杠位置和补充图片。')
+      return
+    }
     const imgs = getLocationImages(loc)
     setEditing(loc)
     setForm({

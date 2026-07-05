@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Input, ScrollView, Text, View, Video } from '@tarojs/components'
 import Taro, { useShareAppMessage, useShareTimeline } from '@tarojs/taro'
 import { API_BASE_URL, request } from '@/utils/request'
+import { authService } from '@/services/authService'
 import {
   buildSharePath,
   createSharePayload,
@@ -222,6 +223,18 @@ function uploadPowerAnalysisVideo(params: {
   })
 }
 
+function isAuthErrorMessage(message?: string | null) {
+  if (!message) return false
+  const normalized = String(message).toLowerCase()
+  return (
+    normalized.includes('用户未登录') ||
+    normalized.includes('请先登录') ||
+    normalized.includes('unauthorized') ||
+    normalized.includes('token expired') ||
+    normalized.includes('invalid token')
+  )
+}
+
 export default function WechatPowerAnalysisPage() {
   const { effectiveTheme } = useTheme()
   const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -289,6 +302,23 @@ export default function WechatPowerAnalysisPage() {
       if (pollTimerRef.current) clearInterval(pollTimerRef.current)
     }
   }, [])
+
+  const openLogin = () => {
+    Taro.navigateTo({ url: authService.buildLoginUrl('/toolbox/power-analysis/index') })
+  }
+
+  const promptLogin = (content: string) => {
+    Taro.showModal({
+      title: '登录后可用',
+      content,
+      confirmText: '去登录',
+      success: (res) => {
+        if (res.confirm) {
+          openLogin()
+        }
+      }
+    })
+  }
 
   const generateSummary = async (jobId: string) => {
     setSummaryLoading(true)
@@ -399,6 +429,11 @@ export default function WechatPowerAnalysisPage() {
   }
 
   const handleChooseVideo = async () => {
+    if (!authService.isAuthenticated()) {
+      promptLogin('功率视频分析需要登录后才能上传和分析视频。')
+      return
+    }
+
     if (isBusy) {
       Taro.showToast({ title: '当前任务处理中', icon: 'none' })
       return
@@ -457,6 +492,11 @@ export default function WechatPowerAnalysisPage() {
   }
 
   const handleStart = async () => {
+    if (!authService.isAuthenticated()) {
+      promptLogin('登录后才可以开始分析并保存结果视频。')
+      return
+    }
+
     if (!canSubmit || !job?.id) {
       Taro.showToast({ title: '请先等待视频上传完成', icon: 'none' })
       return
@@ -477,6 +517,10 @@ export default function WechatPowerAnalysisPage() {
       Taro.showToast({ title: '已开始分析', icon: 'success' })
     } catch (error: any) {
       setPhase('uploaded')
+      if (isAuthErrorMessage(error?.message)) {
+        promptLogin('登录状态失效后无法继续分析，请重新登录。')
+        return
+      }
       Taro.showToast({
         title: error?.message || '提交分析失败',
         icon: 'none',
