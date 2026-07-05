@@ -1,3 +1,13 @@
+## Production Health Probe 401 Recurrence (`2026-07-05`)
+
+- Task: 用户反馈新 `coachlink-main-84d6c579ff-gc4q4` pod 再次出现 `Readiness probe failed: HTTP probe failed with statuscode: 401` 和 `BackOff`，要求检查最近提交、合并提交并推送修复，注意远端可能已有同事改动。
+- Status: in progress; production has been mitigated and code is being committed/deployed.
+- Findings so far:
+  - Production bad `latest` image digest was `sha256:e54e92f3d0cbfd8388a3582854c30d701a893080b2155df6de0dbbd428d3e4aa`; kubelet probes hit `/api/healthy` but proxy returned 401 before the route.
+  - The last healthy production digest was `sha256:f46ec94b886cadefc5da19cfb1ae15e2f324ee79588d72439194e761f771a49f`; deployment was temporarily pinned back to this digest and returned to `3/3`.
+  - Local workspace still had the previous `src/proxy.ts` health allowlist fix staged/uncommitted, while `origin/main` had advanced to `cf887552` without `/api/healthy` or `/api/health` in proxy allowlists.
+  - Therefore the recurrence was caused by building/deploying from remote code that did not include the local uncommitted health-probe proxy fix, not by Kubernetes probe misconfiguration.
+
 ## Web 学员计划百分比强度显示与算重修复 (`2026-07-05`)
 
 - Task: 用户反馈刘三乐给 Wayne Tan 制定的计划里，教练端学员计划页显示 `70%1RMRM`，且无法显示具体重量。
@@ -16,6 +26,37 @@
   - `npm run typecheck` ✅
   - `npm test` ✅（35 files / 177 tests）
   - `npx next build` ✅
+
+## Production Health Probe 401 After Branch Sync (`2026-07-01`)
+
+- Task: investigate production `coachlink-main` pod restart loop where kubelet reported `Liveness probe failed: HTTP probe failed with statuscode: 401` for `Pod/coachlink-main-6984bbbf7-csbsl`.
+- Status: root-caused and code fix reapplied locally; production was mitigated by pinning deployment back to the last healthy digest before this note.
+- Root cause:
+  - Kubernetes probes were correctly configured to `GET /api/healthy`.
+  - Bad image digest `sha256:37cb7fe48d9b97cbb08fe372acf8ff80e6b6e02c18b533a8b0896bb414d473b3` was built around `2026-07-01T06:25:03Z` and pulled by Keel at `2026-07-01T06:28:53Z`.
+  - That image did not include the `/api/healthy` public proxy allowlist, so `src/proxy.ts` handled `/api/healthy` as a protected API and returned `401 {"message":"用户未登录"}` before the health route could run.
+  - Recent history showed `d3a036c7` added `/api/healthy`, `/api/health`, and the proxy allowlist, but `def37074` was based on parent `eff988b8` and did not have `d3a036c7` in its ancestry (`git merge-base def37074 d3a036c7` is the root commit `10d942a`).
+  - `def37074` itself did not modify `src/proxy.ts` relative to its parent; it simply came from a branch line that lacked the health-probe fix.
+  - Merge `92eae67f` restored `src/app/api/healthy/route.ts` from `d3a036c7`, but resolved the `src/proxy.ts` conflict to the first-parent/local `def37074` side, losing four allowlist lines again. This is why GitHub's default merge diff can show no `proxy.ts` change while the merge result still regressed relative to the upstream parent.
+- Mitigation:
+  - Set `deployment/coachlink-main` image back to `ccr.ccs.tencentyun.com/littlehorse/coachlink@sha256:06dd35faaffa72b4b7ed59a7f087a64d0f545fae3c70f263aec40025a9dc1cdd`.
+  - Confirmed production `coachlink-main` returned to `3/3`, all pods `2/2 Running`, and `https://coachlink.fit/api/healthy` returned HTTP 200.
+- Local code fix:
+  - Re-added `/api/healthy` and `/api/health` to `PUBLIC_PATHS` in `src/proxy.ts`.
+  - Re-added `pathname.startsWith("/api/healthy")` and `pathname.startsWith("/api/health")` to the public API short-circuit in `src/proxy.ts`.
+- Verification:
+  - `npm run lint` ✅ informational lint script
+  - `npm run typecheck` ✅
+  - `npm test` ✅ 35 files / 175 tests
+  - `npx next build` ✅
+  - `git diff --check` ✅ warning only for line-ending normalization on `src/proxy.ts`
+- Production restore follow-up:
+  - User pushed a fixed `coachlink:latest` image.
+  - Restored `deployment/coachlink-main` from pinned old digest back to `ccr.ccs.tencentyun.com/littlehorse/coachlink:latest`, preserving Keel annotations (`keel.sh/policy=force`, `keel.sh/trigger=poll`, `keel.sh/pollSchedule=@every 1m`, `keel.sh/match-tag=true`).
+  - Rollout completed successfully with 3/3 available.
+  - New running image digest is `sha256:f46ec94b886cadefc5da19cfb1ae15e2f324ee79588d72439194e761f771a49f`.
+  - Production `GET https://coachlink.fit/api/healthy` and `GET /api/system/version` returned HTTP 200 with buildTime `2026-07-01T07:10:07.615Z`.
+  - Direct pod-IP checks for all three new pods returned HTTP 200 on `/api/healthy`; all pods are `2/2 Running` with restart counts `0`.
 
 ## 融资 BP 后端数据支撑 (`2026-07-03`)
 
@@ -38,7 +79,6 @@
   - 旧 BP 中 2026 年 4 月运营数据可作为历史验证材料，但正式对外融资前需要用户确认最新真实数据。
   - 用户已纠偏：不要主要依赖旧文档，需要基于实际代码、Git 历史和当前工程结构做更细的判断。
   - 二次梳理证据：2026 年以来本地 Git 历史显示高频 feature/fix 迭代；核心改动集中在 `src/app/api`、`apps/wechat/src`、`src/app/dashboard`、`src/app/coach`。当前 API 模块以 `coach`、`user`、`plan-lib`、`student`、`execution`、`subscription`、`streetlifting-index`、`payment` 为重；小程序已按 `coach/me/training/toolbox/streetlifting/content/auth` 等分包组织；移动端 Expo 工程已覆盖训练、教练、知识、街健、工具、支付等 screen。
-
 ## 直接提交并同步主分支/开发分支 (`2026-07-01`)
 
 - Task: 用户要求直接提交当前工作区代码并推送，保持 `main` 与开发分支一致；本轮明确不执行测试、不做额外手动验证。

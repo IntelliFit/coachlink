@@ -110,6 +110,8 @@ const PUBLIC_PATHS = new Set([
     "/api/streetlifting-index/locations/contributors",
     "/api/streetlifting-index/locations/map-pins",
     "/api/hello-world",
+    "/api/healthy",
+    "/api/health",
     "/api/system/version",
     "/docs/agreement",
     "/docs/disclaimer",
@@ -194,6 +196,8 @@ export async function proxy(request: NextRequest) {
 
     if (
         PUBLIC_PATHS.has(pathname) ||
+        pathname.startsWith("/api/healthy") ||
+        pathname.startsWith("/api/health") ||
         pathname.startsWith("/api/system/version") ||
         pathname.startsWith("/api/public/") ||
         pathname.startsWith("/api/public-action-lib/") ||
