@@ -1,12 +1,21 @@
 ## Production Health Probe 401 Recurrence (`2026-07-05`)
 
 - Task: 用户反馈新 `coachlink-main-84d6c579ff-gc4q4` pod 再次出现 `Readiness probe failed: HTTP probe failed with statuscode: 401` 和 `BackOff`，要求检查最近提交、合并提交并推送修复，注意远端可能已有同事改动。
-- Status: in progress; production has been mitigated and code is being committed/deployed.
+- Status: completed; code was merged, committed, pushed to `main` and `dev`, rebuilt as a new CCR image, and deployed back through `:latest`.
 - Findings so far:
   - Production bad `latest` image digest was `sha256:e54e92f3d0cbfd8388a3582854c30d701a893080b2155df6de0dbbd428d3e4aa`; kubelet probes hit `/api/healthy` but proxy returned 401 before the route.
   - The last healthy production digest was `sha256:f46ec94b886cadefc5da19cfb1ae15e2f324ee79588d72439194e761f771a49f`; deployment was temporarily pinned back to this digest and returned to `3/3`.
   - Local workspace still had the previous `src/proxy.ts` health allowlist fix staged/uncommitted, while `origin/main` had advanced to `cf887552` without `/api/healthy` or `/api/health` in proxy allowlists.
   - Therefore the recurrence was caused by building/deploying from remote code that did not include the local uncommitted health-probe proxy fix, not by Kubernetes probe misconfiguration.
+- Resolution:
+  - Commit `ae6c35b2` re-added `/api/healthy` and `/api/health` to both `PUBLIC_PATHS` and the public API prefix allowlist in `src/proxy.ts`, on top of remote `cf887552`.
+  - Pushed `ae6c35b2` to both `origin/main` and `origin/dev`.
+  - Built and pushed `ccr.ccs.tencentyun.com/littlehorse/coachlink:latest`, `:main`, and `:ae6c35b`; new image digest is `sha256:3a3b37523ebc3bf446520f09b150aff24097eeb718b4fe3033564afc6fde984d`.
+  - Restored `deployment/coachlink-main` from the temporary pinned digest back to `ccr.ccs.tencentyun.com/littlehorse/coachlink:latest`, so Keel tag-based auto deployment is active again.
+- Verification:
+  - `npm run lint`, `npm run typecheck`, `npm test`, `npx next build`, `git diff --check`, and `npm run test:e2e` passed.
+  - Production rollout succeeded; three running `coachlink-main-84d6c579ff-*` pods are `2/2 Running`, restart count `0`, and all use image digest `sha256:3a3b37523ebc3bf446520f09b150aff24097eeb718b4fe3033564afc6fde984d`.
+  - External `https://coachlink.fit/api/healthy` and `/api/system/version` return HTTP 200 with buildTime `2026-07-05T07:48:03.234Z`; direct pod-IP `/api/healthy` checks returned 200 for all three new pods.
 
 ## Web 学员计划百分比强度显示与算重修复 (`2026-07-05`)
 
