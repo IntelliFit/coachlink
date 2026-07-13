@@ -1,9 +1,8 @@
-import OpenAI from "openai";
+import type OpenAI from "openai";
 import supabase from "@/lib/supabaseClient";
 import { selectCoachAiKnowledgeForPrompt, type CoachAiKnowledgeDocument } from "@/lib/coachAiKnowledge";
+import { getCoachlinkCoachReplyLlm } from "@/lib/coachlinkLlm";
 
-const DEEPSEEK_BASE_URL = "https://api.deepseek.com";
-const DEFAULT_MODEL = "deepseek-chat";
 const MAX_RECENT_MESSAGES = 12;
 const MAX_KNOWLEDGE_CHARS = 4000;
 const MAX_RETRIEVED_KNOWLEDGE_CHARS = 9000;
@@ -49,18 +48,6 @@ type RuntimeReplyContext = {
     completedDayIndexes: number[];
     actionNameMap: Map<string, string>;
 };
-
-function getDeepSeekClient() {
-    const apiKey = process.env.DEEPSEEK_API_KEY?.trim();
-    if (!apiKey) {
-        throw new Error("DEEPSEEK_API_KEY 未配置");
-    }
-
-    return new OpenAI({
-        baseURL: DEEPSEEK_BASE_URL,
-        apiKey,
-    });
-}
 
 function trimForPrompt(value: string | null | undefined, max: number) {
     const text = (value || "").trim();
@@ -500,8 +487,12 @@ async function generateReply(params: {
     recentMessages: RecentMessage[];
     runtimeContext: RuntimeReplyContext;
 }) {
-    const client = getDeepSeekClient();
-    const model = params.setting.model?.trim() || DEFAULT_MODEL;
+    const { client, model: defaultModel } = getCoachlinkCoachReplyLlm();
+    const configuredModel = params.setting.model?.trim();
+    // 旧设置保存的是 DeepSeek/Ofox/Gemini 模型名，迁移后不能继续拿它请求万界方舟。
+    const model = configuredModel && !/^(deepseek|gemini|google\/)/i.test(configuredModel)
+        ? configuredModel
+        : defaultModel;
     const systemPrompt = buildSystemPrompt({
         setting: params.setting,
         runtimeContext: params.runtimeContext,
@@ -531,6 +522,7 @@ async function generateReply(params: {
 
     return {
         content: completion.choices[0]?.message?.content?.trim() || "",
+        model,
         selectedKnowledgeDocs: systemPrompt.selectedKnowledgeDocs,
     };
 }
@@ -557,7 +549,7 @@ async function insertAiReply(params: {
             content_metadata: {
                 coach_ai_auto_reply: true,
                 virtual_avatar_label: "教练虚拟分身",
-                provider: "deepseek",
+                provider: "wanjie-ark",
                 model: params.model,
                 reply_scope: "latest_user_message",
                 selected_knowledge_docs: params.selectedKnowledgeDocs,
@@ -623,7 +615,7 @@ export async function maybeCreateCoachAiAutoReply(params: {
             coachUserId: coach.coachUserId,
             studentUserId: params.senderUserId,
             content: reply.content,
-            model: setting.model?.trim() || DEFAULT_MODEL,
+            model: reply.model,
             selectedKnowledgeDocs: reply.selectedKnowledgeDocs,
         });
     } catch (error) {

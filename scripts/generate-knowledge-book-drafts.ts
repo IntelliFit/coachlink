@@ -303,14 +303,13 @@ function buildUserPrompt(input: {
   ].join("\n");
 }
 
-async function callDeepSeek(input: {
+async function callOpenAiCompatible(input: {
   apiKey: string;
+  baseUrl: string;
   model: string;
   messages: DeepSeekMessage[];
-  reasoningEffort: string;
-  thinkingEnabled: boolean;
 }) {
-  const response = await fetch("https://api.deepseek.com/chat/completions", {
+  const response = await fetch(`${input.baseUrl.replace(/\/+$/, "")}/chat/completions`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -319,8 +318,6 @@ async function callDeepSeek(input: {
     body: JSON.stringify({
       model: input.model,
       messages: input.messages,
-      thinking: { type: input.thinkingEnabled ? "enabled" : "disabled" },
-      reasoning_effort: input.reasoningEffort,
       stream: false,
       temperature: 0.8,
     }),
@@ -328,7 +325,7 @@ async function callDeepSeek(input: {
 
   if (!response.ok) {
     const text = await response.text();
-    throw new Error(`DeepSeek request failed: ${response.status} ${text}`);
+    throw new Error(`万界方舟请求失败: ${response.status} ${text}`);
   }
 
   const json = (await response.json()) as {
@@ -337,7 +334,7 @@ async function callDeepSeek(input: {
 
   const content = json.choices?.[0]?.message?.content;
   if (!content) {
-    throw new Error("DeepSeek response missing content.");
+    throw new Error("万界方舟响应缺少内容。");
   }
 
   return content;
@@ -352,18 +349,21 @@ async function main() {
   if (!collectionSlug) {
     console.log("Usage:");
     console.log(
-      "  npx tsx scripts/generate-knowledge-book-drafts.ts <collection-slug> [--api-key xxx] [--model deepseek-v4-flash] [--notes overview,chapter-01] [--max-notes 3] [--overwrite]"
+      "  npx tsx scripts/generate-knowledge-book-drafts.ts <collection-slug> [--api-key xxx] [--base-url https://maas-openapi.wanjiedata.com/api/v1] [--model <万界方舟模型ID>] [--notes overview,chapter-01] [--max-notes 3] [--overwrite]"
     );
     process.exit(1);
   }
 
-  const apiKey = getArgValue("--api-key") || process.env.DEEPSEEK_API_KEY || "";
+  const apiKey = getArgValue("--api-key") || process.env.WANJIE_ARK_API_KEY || "";
   if (!apiKey.trim()) {
-    throw new Error("Missing DeepSeek API key. Use --api-key or set DEEPSEEK_API_KEY.");
+    throw new Error("缺少万界方舟 API Key。请传 --api-key 或配置 WANJIE_ARK_API_KEY。");
   }
 
-  const model = getArgValue("--model") || process.env.KNOWLEDGE_BOOK_LLM_MODEL || "deepseek-v4-flash";
-  const reasoningEffort = getArgValue("--reasoning-effort") || "high";
+  const baseUrl = getArgValue("--base-url") || process.env.WANJIE_ARK_BASE_URL || "https://maas-openapi.wanjiedata.com/api/v1";
+  const model = getArgValue("--model") || process.env.KNOWLEDGE_BOOK_LLM_MODEL || process.env.WANJIE_ARK_MODEL || "";
+  if (!model.trim()) {
+    throw new Error("缺少模型 ID。请传 --model 或配置 KNOWLEDGE_BOOK_LLM_MODEL / WANJIE_ARK_MODEL。");
+  }
   const overwrite = process.argv.includes("--overwrite");
   const maxNotes = Number(getArgValue("--max-notes") || "0") || 0;
   const noteSlugFilter = (getArgValue("--notes") || "")
@@ -400,11 +400,10 @@ async function main() {
         ? extractOverviewExcerpt(sourceText)
         : extractChapterExcerpt(sourceText, note, allNotes);
 
-    const content = await callDeepSeek({
+    const content = await callOpenAiCompatible({
       apiKey,
+      baseUrl,
       model,
-      reasoningEffort,
-      thinkingEnabled: true,
       messages: [
         { role: "system", content: buildSystemPrompt() },
         {

@@ -1,10 +1,23 @@
 import { NextResponse } from "next/server";
 import supabase from "@/lib/supabaseClient";
+import { serviceRoleSupabase } from "@/lib/supabaseClient";
 import { UpdateInstanceDto, UpdateInstanceResponseDto } from "./entity";
 import { ApiData } from "@/types/api";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 import { syncCoachActionsToStudentLibrary } from "../sync-actions";
 import { validateTrainingDaysPresence } from "@/utils/template";
+
+function stableJson(value: unknown): string {
+    if (Array.isArray(value)) {
+        return `[${value.map((item) => stableJson(item)).join(",")}]`;
+    }
+    if (value && typeof value === "object") {
+        const entries = Object.entries(value as Record<string, unknown>)
+            .sort(([left], [right]) => left.localeCompare(right));
+        return `{${entries.map(([key, item]) => `${JSON.stringify(key)}:${stableJson(item)}`).join(",")}}`;
+    }
+    return JSON.stringify(value) ?? "null";
+}
 
 export async function POST(req: Request) {
     const {
@@ -85,6 +98,35 @@ export async function POST(req: Request) {
             success: false,
             message: "Forbidden",
         }, { status: 403 });
+    }
+
+    // Once an execution exists, training_days is the master definition for an
+    // immutable execution snapshot. Structural edits must create a new plan
+    // instance/revision; updating in place would make the same day_index mean
+    // two different workouts and corrupt history displays.
+    const trainingDaysChanged = trainingDays !== undefined &&
+        stableJson(trainingDays) !== stableJson((existingInstance as any).training_days || []);
+    if (trainingDaysChanged) {
+        const { count: executionCount, error: executionCountError } = await serviceRoleSupabase
+            .from("plan_instance_executions")
+            .select("id", { count: "exact", head: true })
+            .eq("instance_id", id);
+
+        if (executionCountError) {
+            console.error("Error checking instance executions:", executionCountError);
+            return NextResponse.json({
+                success: false,
+                message: "Failed to verify execution history",
+            }, { status: 500 });
+        }
+
+        if (Number(executionCount || 0) > 0) {
+            return NextResponse.json({
+                success: false,
+                code: "PLAN_REVISION_REQUIRED",
+                message: "当前计划已有训练记录，请保存为新版本；历史记录会独立保留",
+            }, { status: 409 });
+        }
     }
 
     // Normalize & validate start_execution_day if provided

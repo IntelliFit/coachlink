@@ -217,7 +217,7 @@ export function BatchOperationDialog({
         { key: 'includePlanBody', label: '计划/模板本体' },
         { key: 'includeActionLibrary', label: '动作库与类型说明' },
         { key: 'includeStudentProfile', label: '学员基本情况' },
-        { key: 'includeStudentQuestionnaire', label: '学员问卷' },
+        { key: 'includeStudentQuestionnaire', label: '注册及购买计划问卷' },
         { key: 'includeExecutionHistory', label: '执行记录' },
         { key: 'includeStudentActionLib', label: '学员动作库' },
         { key: 'includeCoachActionLib', label: '教练动作库' },

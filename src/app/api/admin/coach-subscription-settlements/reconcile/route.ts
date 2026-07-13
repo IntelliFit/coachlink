@@ -11,11 +11,16 @@ import {
 export const dynamic = "force-dynamic";
 
 function isAuthorized(req: Request, session: Awaited<ReturnType<typeof getServerSession>>) {
-    const secret = String(process.env.CRON_SECRET || process.env.HUIFU_SETTLEMENT_CRON_SECRET || "").trim();
+    const runtimeEnv = process.env as Record<string, string | undefined>;
+    const secrets = new Set(
+        [runtimeEnv["HUIFU_SETTLEMENT_CRON_SECRET"], runtimeEnv["CRON_SECRET"]]
+            .map((value) => String(value || "").trim())
+            .filter(Boolean),
+    );
     const authHeader = req.headers.get("authorization") || "";
     const headerSecret = authHeader.startsWith("Bearer ") ? authHeader.slice("Bearer ".length).trim() : "";
     const explicitSecret = req.headers.get("x-cron-secret") || "";
-    if (secret && (headerSecret === secret || explicitSecret === secret)) return true;
+    if (secrets.has(headerSecret) || secrets.has(explicitSecret)) return true;
     return Boolean((session?.user as { is_admin?: boolean } | undefined)?.is_admin);
 }
 

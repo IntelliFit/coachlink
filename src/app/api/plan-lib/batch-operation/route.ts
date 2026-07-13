@@ -13,7 +13,7 @@ import {
 import { buildBatchOperationContext } from "./context";
 import type { ItemType } from "@/types";
 import { sanitizeActionName } from "@/lib/planImportText";
-import { getCoachlinkPlanLlm } from "@/lib/coachlinkLlm";
+import { getCoachlinkFastLlm, getCoachlinkPlanLlm } from "@/lib/coachlinkLlm";
 import { tryApplyDeterministicBatchEdit } from "@/lib/batchOperationDeterministic";
 import { formatTemplateToPlanScript, parsePlanScript } from "@/lib/planScript";
 import { resolveOneRmAdjustments, type OneRmAdjustmentDraft } from "@/lib/oneRmAdjustments";
@@ -33,6 +33,46 @@ function buildPromptMessages(prompt: string): Array<{ role: "system" | "user"; c
             content: prompt,
         },
     ];
+}
+
+function isRetryableLlmConnectionError(error: any) {
+    const message = `${error?.message || ""} ${error?.cause?.message || ""}`.toLowerCase();
+    const code = String(error?.cause?.code || error?.code || "").toUpperCase();
+    return message.includes("connection error") || message.includes("fetch failed") ||
+        message.includes("other side closed") || code === "UND_ERR_SOCKET" || code === "ECONNRESET";
+}
+
+function formatBatchOperationError(error: any) {
+    if (isRetryableLlmConnectionError(error)) {
+        return '万界方舟连接在返回结果前被中断，系统已自动重试 1 次仍未成功。请稍后重试；若 deepseek-v4-pro 持续超时，可在 Apollo 临时将 WANJIE_ARK_PLAN_MODEL 设为 deepseek-v4-flash。';
+    }
+    return error?.message || '操作失败';
+}
+
+async function createChatCompletionWithRetry(client: any, body: any) {
+    try {
+        return await client.chat.completions.create(body);
+    } catch (error) {
+        if (!isRetryableLlmConnectionError(error)) throw error;
+        await new Promise((resolve) => setTimeout(resolve, 800));
+        return client.chat.completions.create(body);
+    }
+}
+
+async function createJsonChatCompletionWithRetry(client: any, body: any) {
+    const completion = await createChatCompletionWithRetry(client, body);
+    const content = completion.choices?.[0]?.message?.content?.trim();
+    if (content) {
+        try {
+            JSON.parse(content);
+            return completion;
+        } catch {
+            // 部分兼容模型偶发忽略 response_format；快速重试一次。
+        }
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    return createChatCompletionWithRetry(client, body);
 }
 
 function normalizeActionNameKey(name?: string | null) {
@@ -828,7 +868,7 @@ ${deterministicReason ? `\n\n## 已尝试的明确规则未命中原因\n${deter
             message: retry === 0 ? "正在用计划脚本生成修改方案" : "正在微调计划脚本",
         });
 
-        const completion = await openai.chat.completions.create({
+        const completion = await createChatCompletionWithRetry(openai, {
             model: llmModel,
             messages,
             response_format: { type: "json_object" },
@@ -1255,23 +1295,9 @@ ${effectiveInstruction}`;
                     // 首先让 AI 判断用户意图
                     sendMessage({ type: 'progress', message: '正在分析您的需求' });
 
-                    const intentPrompt = `你是一个训练计划助手。请分析用户的指令，判断他们是想要：
+                    const intentPrompt = `你是一个训练计划助手。请仅根据用户的指令，判断他们是想要：
 1. **查询/分析** - 想了解计划中的某些信息，如统计数据、动作分布、强度分析等（不修改计划）
 2. **修改** - 想要对计划进行更改、替换、添加、删除等操作
-
-## 当前训练计划概览
-- 总天数: ${trainingDays.length} 天
-- 训练天数: ${trainingDays.filter((d: any) => d.type === 'training').length} 天
-- 休息天数: ${trainingDays.filter((d: any) => d.type === 'rest').length} 天
-
-## 计划详情
-${planBodyPrompt}
-
-## 可用的动作列表
-${actionLibraryPrompt}
-
-## 额外上下文（档案/问卷/执行/模板）
-${contextPrompt}
 
 ## 用户指令（含多轮对话时此处为完整上下文）
 ${effectiveInstruction}
@@ -1283,15 +1309,16 @@ ${effectiveInstruction}
 }`;
 
                     const { client: openai, model: llmModel, provider: llmProvider } = getCoachlinkPlanLlm();
+                    const { client: fastOpenai, model: fastLlmModel } = getCoachlinkFastLlm();
                     if (isDevelopment) {
                         console.log(`[batch-operation] LLM: ${llmProvider} / ${llmModel}`);
                     }
-                    const intentCompletion = await openai.chat.completions.create({
-                        model: llmModel,
+                    const intentCompletion = await createJsonChatCompletionWithRetry(fastOpenai, {
+                        model: fastLlmModel,
                         messages: buildPromptMessages(intentPrompt),
                         response_format: { type: "json_object" },
                         temperature: 0.1,
-                        max_tokens: 200
+                        max_tokens: 2000
                     });
 
                     const intentContent = intentCompletion.choices[0]?.message?.content;
@@ -1327,11 +1354,11 @@ ${effectiveInstruction}
 
 请用中文回答，格式要清晰易读。如果涉及统计，请给出具体数字。可以使用 markdown 格式（如列表、加粗等）来增强可读性。`;
 
-                        const queryCompletion = await openai.chat.completions.create({
+                        const queryCompletion = await createChatCompletionWithRetry(openai, {
                             model: llmModel,
                             messages: buildPromptMessages(queryPrompt),
                             temperature: 0.3,
-                            max_tokens: 2000
+                            max_tokens: 6000
                         });
 
                         const queryAnswer = queryCompletion.choices[0]?.message?.content || '无法分析该问题';
@@ -1380,9 +1407,6 @@ ${effectiveInstruction}
 ## 当前动作库（供你判断用户是否可能从库中选）
 ${actionLibraryCompactPrompt}
 
-## 额外上下文（档案/问卷/执行/模板）
-${contextPrompt}
-
 ## 用户指令（含多轮对话时此处为完整上下文，请结合用户补充判断是否已完整）
 ${effectiveInstruction}
 
@@ -1392,12 +1416,12 @@ ${effectiveInstruction}
     "clarificationQuestion": "若 complete 为 false，此处写一句简短的中文追问，例如：请说明要改成哪种具体的有氧运动（如跑步、跳绳、骑行等）？",
     "suggestions": ["若 complete 为 false，此处返回 3～6 个具体推荐选项的字符串数组，与追问内容对应。例如有氧类可填 [\"跑步\", \"跳绳\", \"骑行\", \"游泳\", \"划船\"]，力量类可填动作库中的具体动作名。用户可点击直接选用。"]
 }`;
-                    const clarificationCompletion = await openai.chat.completions.create({
-                        model: llmModel,
+                    const clarificationCompletion = await createJsonChatCompletionWithRetry(fastOpenai, {
+                        model: fastLlmModel,
                         messages: buildPromptMessages(clarificationPrompt),
                         response_format: { type: "json_object" },
                         temperature: 0.1,
-                        max_tokens: 400
+                        max_tokens: 3000
                     });
                     const clarificationContent = clarificationCompletion.choices[0]?.message?.content;
                     let clarificationResult: { complete?: boolean; clarificationQuestion?: string; suggestions?: string[] } = { complete: true };
@@ -1727,12 +1751,12 @@ ${effectiveInstruction}
                             }
 
                             const aiStartTime = Date.now();
-                            const completion = await openai.chat.completions.create({
+                            const completion = await createChatCompletionWithRetry(openai, {
                                 model: llmModel,
                                 messages: messages,
                                 response_format: { type: "json_object" },
                                 temperature: 0.2,
-                                max_tokens: 4000
+                                max_tokens: 12000
                             });
                             const aiDuration = Date.now() - aiStartTime;
 
@@ -1905,7 +1929,7 @@ ${effectiveInstruction}
                     console.error('[batch-operation] Error:', error);
                     sendMessage({
                         type: 'error',
-                        message: error.message || '操作失败'
+                        message: formatBatchOperationError(error)
                     });
                 } finally {
                     controller.close();

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import supabase from "@/lib/supabaseClient";
+import { serviceRoleSupabase } from "@/lib/supabaseClient";
 import { CreateInstanceDto, CreateInstanceResponseDto } from "./entity";
 import { ApiData } from "@/types/api";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
@@ -66,6 +67,18 @@ export async function POST(req: Request) {
         }, { status: 500 });
     }
 
+    const { data: subscriptionCoach } = await serviceRoleSupabase
+        .from("coaches")
+        .select("user_id")
+        .eq("id", subscription.coach_id)
+        .maybeSingle();
+    if (!subscriptionCoach || subscriptionCoach.user_id !== userId) {
+        return NextResponse.json({
+            success: false,
+            message: "无权为该订阅创建计划",
+        }, { status: 403 });
+    }
+
     let normalizedExecutionNotice = executionNotice?.trim() || null;
     if (executionNotice === undefined && templateId) {
         const { data: template } = await supabase
@@ -122,23 +135,8 @@ export async function POST(req: Request) {
         }
     }
 
-    // Ensure a subscription has at most one "current" plan instance.
-    // When creating a new instance for the same subscription, archive any previous active/paused instances.
-    try {
-        await archiveCurrentPlanInstancesForSubscription({
-            supabase,
-            subscriptionId,
-        });
-    } catch (e) {
-        // best-effort; do not block instance creation
-        console.warn(
-            "[create-instance] Failed to archive previous instances:",
-            e,
-        );
-    }
-
     // 创建计划实例
-    const { data: instance, error } = await supabase
+    const { data: instance, error } = await serviceRoleSupabase
         .from("coach_plan_instances")
         .insert({
             name,
@@ -170,6 +168,35 @@ export async function POST(req: Request) {
             success: false,
             message: "Failed to create instance",
         }, { status: 500 });
+    }
+
+    // Publish the new row first, then archive every older current row. If the
+    // archive step fails, remove only the newly-created row so the learner is
+    // never left without the previous current plan.
+    const shouldReplaceCurrent = !status || status === "active" || status === "paused";
+    if (shouldReplaceCurrent) {
+        try {
+            await archiveCurrentPlanInstancesForSubscription({
+                supabase: serviceRoleSupabase,
+                subscriptionId,
+                excludeInstanceId: instance.id,
+            });
+        } catch (archiveError: any) {
+            const { error: rollbackError } = await serviceRoleSupabase
+                .from("coach_plan_instances")
+                .delete()
+                .eq("id", instance.id);
+            console.error("[create-instance] Failed to archive previous instances:", {
+                archiveError,
+                rollbackError,
+            });
+            return NextResponse.json({
+                success: false,
+                message: rollbackError
+                    ? "新版本创建失败，且自动回滚失败，请联系管理员"
+                    : "新版本创建失败，旧计划已保留",
+            }, { status: 500 });
+        }
     }
 
     // 同步教练计划中的动作到学员动作库

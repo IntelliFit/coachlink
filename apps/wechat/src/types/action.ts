@@ -19,6 +19,8 @@ export interface StudentActionRow {
   enableAutoWeightCompute?: boolean
   includesBodyWeight?: boolean
   canonical_action_id?: string | null
+  category?: string | null
+  reference_image_url?: string | null
   created_at: string
   updated_at: string
 }

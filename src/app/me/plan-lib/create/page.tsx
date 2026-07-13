@@ -55,8 +55,6 @@ const CreatePlanPage = () => {
     const [actions, setActions] = useState<CoachActionRow[]>([]);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
-    const [generatingAiDraft, setGeneratingAiDraft] = useState(false);
-    const [aiDraftApplied, setAiDraftApplied] = useState(false);
 
     // Smart import dialog
     const [showImportDialog, setShowImportDialog] = useState(false);
@@ -158,54 +156,11 @@ const CreatePlanPage = () => {
     useEffect(() => {
         if (!session?.user?.id) return;
 
+        // 普通创建页只加载编辑所需数据；AI 生成必须由用户主动触发。
         setLoading(true);
         Promise.all([loadActions(), fetchProfile()])
             .finally(() => setLoading(false));
     }, [session?.user?.id]);
-
-    useEffect(() => {
-        if (!session?.user?.id) return;
-        if (loading || generatingAiDraft || aiDraftApplied) return;
-        if (actions.length === 0) return;
-        // 仅在“新建空白计划”时自动预填，避免覆盖用户正在编辑的内容
-        const isBlankPlan = !name.trim() && days.every((d) => (d.actionSets || []).length === 0);
-        if (!isBlankPlan) return;
-
-        const run = async () => {
-            try {
-                setGeneratingAiDraft(true);
-                const draft = await studentPlanLibService.generateAiDraftFromProfile({ days: 7 });
-                if (draft?.trainingDays?.length) {
-                    setName(draft.name || "AI 生成入门计划");
-                    setDescription(draft.description || "");
-                    setDays(draft.trainingDays);
-                    const firstTrainingDay = draft.trainingDays.find((d) => d.type === "training");
-                    setSelectedDayIndex(firstTrainingDay?.dayIndex ?? 1);
-                    setAiDraftApplied(true);
-                    showToast({
-                        severity: "success",
-                        summary: "已生成 AI 计划草稿",
-                        detail: "已预填动作顺序、组次与休息时间，确认后可直接保存应用",
-                    });
-                }
-            } catch (error: any) {
-                console.warn("generate ai draft failed:", error);
-            } finally {
-                setGeneratingAiDraft(false);
-            }
-        };
-
-        run();
-    }, [
-        session?.user?.id,
-        loading,
-        generatingAiDraft,
-        aiDraftApplied,
-        actions.length,
-        name,
-        days,
-        showToast,
-    ]);
 
     const handleAddWeek = () => {
         const currentLength = days.length;

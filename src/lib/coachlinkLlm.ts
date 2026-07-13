@@ -1,157 +1,73 @@
-import { loadEnvConfig } from "@next/env";
 import OpenAI from "openai";
 
-/** OfoxAI OpenAI 兼容端点（见 https://docs.ofox.ai ） */
-const OFOXAI_BASE_URL = "https://api.ofox.ai/v1";
+/** 万界方舟 OpenAI 兼容接口；SDK 会在此地址后追加 /chat/completions。 */
+export const WANJIE_ARK_DEFAULT_BASE_URL = "https://maas-openapi.wanjiedata.com/api/v1";
 
-/**
- * 与 `next dev` 使用同一套 .env 加载顺序（.env* / .env.local）。
- * 部分环境下仅 `import` 的模块会在 Next 注入 env 之前执行，导致 OFOXAI_* 读不到。
- */
-let didLoadNextEnv = false;
-function ensureNextEnvLoaded(): void {
-    if (didLoadNextEnv || typeof window !== "undefined") return;
-    didLoadNextEnv = true;
-    try {
-        loadEnvConfig(process.cwd(), process.env.NODE_ENV !== "production");
-    } catch {
-        /* ignore */
+export type CoachlinkLlmProvider = "wanjie-ark";
+
+type WanjieModelKind = "default" | "plan" | "coachReply" | "vision" | "fast";
+
+function getRequiredEnv(name: string): string {
+    const value = process.env[name]?.trim();
+    if (!value) {
+        throw new Error(`缺少 ${name}。请在 Apollo（或当前选择的本地业务配置文件）中配置万界方舟大模型参数。`);
     }
+    return value;
 }
 
-/**
- * 智能导入、计划 AI 修改等共用 LLM 客户端。
- *
- * - OFOXAI_API_KEY（或别名 OFOX_API_KEY）：通用 OpenAI 兼容后备（主要给多模态/兼容链路）
- * - OFOXAI_MODEL：默认 `google/gemini-3.1-flash-lite-preview`（见 Ofox Models；若 .env 仍写旧 id 会覆盖默认值）
- * - COACHLINK_USE_DEEPSEEK=1：在同时配置了 DEEPSEEK 时强制走 DeepSeek（省成本/省 reasoning tokens）
- * 未配置 Ofox 时回退 DEEPSEEK_API_KEY + deepseek-v4-flash
- */
-export const COACHLINK_DEFAULT_OFOX_MODEL = "google/gemini-3.1-flash-lite-preview";
-export const COACHLINK_DEFAULT_DEEPSEEK_MODEL = "deepseek-v4-flash";
-
-/** 去掉 # 注释、误粘贴的中文/空白，避免请求里出现非法 model id（会 404） */
-function sanitizeLlmModelId(raw: string | undefined): string {  
-    let s = (raw ?? "").trim();
-    if (!s) return COACHLINK_DEFAULT_OFOX_MODEL;
-    s = s.split("#")[0]?.trim() ?? s;
-    s = s.replace(/[\u4e00-\u9fff]+/g, "").trim();
-    s = s.split(/\s+/)[0] ?? s;
-    return s || COACHLINK_DEFAULT_OFOX_MODEL;
+function getWanjieBaseUrl(): string {
+    return (process.env.WANJIE_ARK_BASE_URL?.trim() || WANJIE_ARK_DEFAULT_BASE_URL).replace(/\/+$/, "");
 }
 
-export type CoachlinkLlmProvider = "ofox" | "deepseek";
-
-/** 支持主名 + 别名，避免 .env 里手误后静默回退 DeepSeek */
-function getOfoxApiKey(): string | undefined {
-    const raw =
-        process.env.OFOXAI_API_KEY ?? process.env.OFOX_API_KEY;
-    const k = raw?.trim();
-    return k || undefined;
+function getWanjieModel(kind: WanjieModelKind): string {
+    const override =
+        kind === "plan"
+            ? process.env.WANJIE_ARK_PLAN_MODEL?.trim()
+            : kind === "coachReply"
+                ? process.env.WANJIE_ARK_COACH_REPLY_MODEL?.trim()
+                : kind === "vision"
+                    ? process.env.WANJIE_ARK_VISION_MODEL?.trim()
+                    : kind === "fast"
+                        ? process.env.WANJIE_ARK_FAST_MODEL?.trim() || "deepseek-v4-flash"
+                : undefined;
+    return override || getRequiredEnv("WANJIE_ARK_MODEL");
 }
 
-let devEnvLogged = false;
-
-function preferDeepSeekOverOfox(): boolean {
-    const v = process.env.COACHLINK_USE_DEEPSEEK?.trim().toLowerCase();
-    return v === "1" || v === "true" || v === "yes";
-}
-
-export function getCoachlinkLlm(): {
-    client: OpenAI;
-    model: string;
-    provider: CoachlinkLlmProvider;
-} {
-    ensureNextEnvLoaded();
-
-    const ofoxKey = getOfoxApiKey();
-    const deepseekKey = process.env.DEEPSEEK_API_KEY?.trim();
-    const forceDs = preferDeepSeekOverOfox() && Boolean(deepseekKey);
-
-    if (process.env.NODE_ENV === "development" && !devEnvLogged) {
-        devEnvLogged = true;
-        const hasOfox = Boolean(ofoxKey);
-        const hasDs = Boolean(deepseekKey);
-        const envModelRaw = process.env.OFOXAI_MODEL;
-        const effective = ofoxKey && !forceDs
-            ? sanitizeLlmModelId(envModelRaw ?? COACHLINK_DEFAULT_OFOX_MODEL)
-            : COACHLINK_DEFAULT_DEEPSEEK_MODEL;
-        console.info(
-            `[coachlinkLlm] cwd=${process.cwd()} OFOXAI_API_KEY=${hasOfox ? "set" : "missing"}, DEEPSEEK_API_KEY=${hasDs ? "set" : "missing"}, COACHLINK_USE_DEEPSEEK=${forceDs ? "on" : "off"}`,
-        );
-        console.info(
-            `[coachlinkLlm] model: OFOXAI_MODEL env=${envModelRaw ? `"${envModelRaw.slice(0, 40)}${envModelRaw.length > 40 ? "…" : ""}"` : "(unset)"} → effective=${effective}`,
-        );
-        if (hasOfox && envModelRaw?.includes("gemini-3-flash-preview") && !envModelRaw.includes("lite")) {
-            console.info(
-                `[coachlinkLlm] 提示：当前 OFOXAI_MODEL 为满血 Flash，reasoning_tokens 可能很高；可改为 ${COACHLINK_DEFAULT_LLM_MODEL} 或删掉 OFOXAI_MODEL 用默认 Lite。`,
-            );
-        }
-    }
-
-    if (forceDs) {
-        return {
-            client: new OpenAI({
-                baseURL: "https://api.deepseek.com",
-                apiKey: deepseekKey!,
-            }),
-            model: COACHLINK_DEFAULT_DEEPSEEK_MODEL,
-            provider: "deepseek",
-        };
-    }
-
-    if (ofoxKey) {
-        const model = sanitizeLlmModelId(
-            process.env.OFOXAI_MODEL ?? COACHLINK_DEFAULT_OFOX_MODEL,
-        );
-        return {
-            client: new OpenAI({
-                baseURL: OFOXAI_BASE_URL,
-                apiKey: ofoxKey,
-            }),
-            model,
-            provider: "ofox",
-        };
-    }
-
-    if (!deepseekKey) {
-        throw new Error(
-            `请配置 OFOXAI_API_KEY（后备，默认模型 ${COACHLINK_DEFAULT_OFOX_MODEL}）或 DEEPSEEK_API_KEY（推荐，默认模型 ${COACHLINK_DEFAULT_DEEPSEEK_MODEL}）；或设 COACHLINK_USE_DEEPSEEK=1 强制 DeepSeek`,
-        );
-    }
-
+function createWanjieLlm(kind: WanjieModelKind) {
     return {
         client: new OpenAI({
-            baseURL: "https://api.deepseek.com",
-            apiKey: deepseekKey,
+            baseURL: getWanjieBaseUrl(),
+            apiKey: getRequiredEnv("WANJIE_ARK_API_KEY"),
+            // SDK 默认会在连接断开后长时间重试；业务层做一次快速、可见的重试。
+            maxRetries: 0,
+            timeout: 45_000,
         }),
-        model: COACHLINK_DEFAULT_DEEPSEEK_MODEL,
-        provider: "deepseek",
+        model: getWanjieModel(kind),
+        provider: "wanjie-ark" as const,
     };
 }
 
-/**
- * 计划生成 / 计划解析 / 计划修改等纯文本链路，默认优先使用 DeepSeek v4-flash。
- * 只有在 DeepSeek key 缺失时，才回退通用 LLM 配置。
- */
-export function getCoachlinkPlanLlm(): {
-    client: OpenAI;
-    model: string;
-    provider: CoachlinkLlmProvider;
-} {
-    ensureNextEnvLoaded();
+/** 通用文本、多模态兼容链路使用的万界方舟客户端。 */
+export function getCoachlinkLlm() {
+    return createWanjieLlm("default");
+}
 
-    const deepseekKey = process.env.DEEPSEEK_API_KEY?.trim();
-    if (deepseekKey) {
-        return {
-            client: new OpenAI({
-                baseURL: "https://api.deepseek.com",
-                apiKey: deepseekKey,
-            }),
-            model: COACHLINK_DEFAULT_DEEPSEEK_MODEL,
-            provider: "deepseek",
-        };
-    }
+/** 计划生成、解析和修改使用；可通过 WANJIE_ARK_PLAN_MODEL 单独指定模型。 */
+export function getCoachlinkPlanLlm() {
+    return createWanjieLlm("plan");
+}
 
-    return getCoachlinkLlm();
+/** 教练 AI 自动回复使用；可通过 WANJIE_ARK_COACH_REPLY_MODEL 单独指定模型。 */
+export function getCoachlinkCoachReplyLlm() {
+    return createWanjieLlm("coachReply");
+}
+
+/** 含图片输入的功能使用，当前用于计划图片智能导入。 */
+export function getCoachlinkVisionLlm() {
+    return createWanjieLlm("vision");
+}
+
+/** 意图判断、完整性检查等短任务使用，避免 Pro 模型将小输出预算全部用于 reasoning。 */
+export function getCoachlinkFastLlm() {
+    return createWanjieLlm("fast");
 }

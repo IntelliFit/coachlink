@@ -9,7 +9,6 @@ import { getAuthUser } from "@/lib/auth";
 import { buildShareInfo } from "../share-helper";
 import type { ShareInfoResponseDto } from "../entity";
 import { validateExecutionSubscriptionAccess } from "../_helpers/subscriptionAccess";
-import { syncExecutionPlanWithCurrentConfig } from "../_helpers/syncExecutionPlan";
 
 /**
  * POST /api/execution/get
@@ -83,25 +82,21 @@ export async function POST(req: Request) {
             }, { status: accessDecision.status });
         }
 
-        const { execution: syncedExecution } = await syncExecutionPlanWithCurrentConfig(
-            data as any,
-        );
-
         return NextResponse.json<ApiData<GetExecutionResponseDto>>({
             success: true,
             message: "获取成功",
             data: {
-                id: syncedExecution.id,
-                instance_id: syncedExecution.instance_id,
-                student_id: syncedExecution.student_id,
-                dayIndex: syncedExecution.day_index,
-                status: syncedExecution.status,
-                action_executions: syncedExecution.action_executions as any[],
-                total_sets: syncedExecution.total_sets,
-                completed_sets: syncedExecution.completed_sets,
-                session_notes: syncedExecution.session_notes,
-                started_at: syncedExecution.started_at,
-                completed_at: syncedExecution.completed_at,
+                id: data.id,
+                instance_id: data.instance_id,
+                student_id: data.student_id,
+                dayIndex: data.day_index,
+                status: data.status,
+                action_executions: data.action_executions as any[],
+                total_sets: data.total_sets,
+                completed_sets: data.completed_sets,
+                session_notes: data.session_notes,
+                started_at: data.started_at,
+                completed_at: data.completed_at,
             },
         });
     } catch (error) {

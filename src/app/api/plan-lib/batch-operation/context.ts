@@ -22,28 +22,34 @@ function normalizeStringArray(value: unknown): string[] {
 }
 
 /**
- * 将订阅时的 subscribe_data 数组（问卷步骤）转换为 AI 可读的 key-value 摘要对象。
+ * 将购买计划时的 subscribe_data 数组（问卷步骤）转换为 AI 可读的 key-value 摘要对象。
+ *
+ * 这份数据属于当前订阅/计划，不能与注册时的 onboarding_questionnaires 混为一谈。
  */
-function parseSubscribeDataToQuestionnaire(steps: any[]): Record<string, any> {
+function parseSubscriptionQuestionnaire(steps: any[]): Record<string, any> {
     const result: Record<string, any> = {};
-    for (const step of steps) {
-        if (!step) continue;
-        const q = String(step.question || step.type || "");
+    steps.forEach((step, index) => {
+        if (!step) return;
+        const q = String(step.question || step.title || step.label || step.name || `第${index + 1}题`);
         const type = String(step.type || "");
         if (type === "tags" && Array.isArray(step.userSelections)) {
-            result["训练兴趣标签"] = step.userSelections;
+            result[q] = step.userSelections;
         } else if (type === "rm") {
             if (step.userInputs && typeof step.userInputs === "object") {
-                result["RM测试输入"] = step.userInputs;
+                result[q] = step.userInputs;
             }
         } else if (type === "option" && q && step.userSelection !== undefined) {
             const opts = Array.isArray(step.options) ? step.options : [];
             const selected = opts[step.userSelection];
             result[q] = selected !== undefined ? selected : step.userSelection;
-        } else if (type === "text" && q && step.userSelection !== undefined) {
+        } else if (q && step.userSelection !== undefined) {
             result[q] = step.userSelection;
+        } else if (q && Array.isArray(step.userSelections)) {
+            result[q] = step.userSelections;
+        } else if (q && step.userInputs && typeof step.userInputs === "object") {
+            result[q] = step.userInputs;
         }
-    }
+    });
     return result;
 }
 
@@ -169,7 +175,7 @@ export async function buildBatchOperationContext(params: BuildContextParams): Pr
     }
 
     let subjectUserId: string | null = targetActionType === "student" ? userId : null;
-    let subscriptionQuestionnaires: Record<string, any> | null = null;
+    let subscriptionQuestionnaire: Record<string, any> | null = null;
 
     // 教练端优先接收前端已解析出的学员 user_id（页面已拿到学员信息），
     // 但必须通过归属校验，避免越权读取任意学员上下文。
@@ -220,9 +226,9 @@ export async function buildBatchOperationContext(params: BuildContextParams): Pr
 
         if (subRow?.student_id && passCoachOwnership) {
             subjectUserId = subRow.student_id;
-            // subscribe_data 是订阅时填写的问卷步骤数组，转为 key-value 摘要供 AI 使用
+            // subscribe_data 是购买当前计划时填写的问卷，必须与注册问卷独立注入。
             if (Array.isArray((subRow as any).subscribe_data) && (subRow as any).subscribe_data.length > 0) {
-                subscriptionQuestionnaires = parseSubscribeDataToQuestionnaire((subRow as any).subscribe_data);
+                subscriptionQuestionnaire = parseSubscriptionQuestionnaire((subRow as any).subscribe_data);
             }
         }
     }
@@ -261,9 +267,10 @@ export async function buildBatchOperationContext(params: BuildContextParams): Pr
 
     let onboardingAnswers: Record<string, any> | null = null;
     if (options.includeStudentQuestionnaire && !subjectUserId) {
-        sections.push("## 学员问卷");
+        sections.push("## 注册问卷");
         sections.push("- 未定位到目标学员（请检查 subscriptionId 与归属权限）");
-        unavailable.push("学员问卷");
+        unavailable.push("注册问卷");
+        if (options.subscriptionId) unavailable.push("购买计划问卷");
     } else if (options.includeStudentQuestionnaire && subjectUserId) {
         const { data } = await supabase
             .from("onboarding_questionnaires")
@@ -273,21 +280,40 @@ export async function buildBatchOperationContext(params: BuildContextParams): Pr
             .limit(1)
             .maybeSingle();
         onboardingAnswers = data?.answers && typeof data.answers === "object" ? (data.answers as Record<string, any>) : null;
-        const finalAnswers = onboardingAnswers || subscriptionQuestionnaires;
-        sections.push("## 学员问卷");
-        if (finalAnswers) {
-            enabled.push("学员问卷");
-            const goals = normalizeStringArray((finalAnswers as any).fitness_goals);
+
+        sections.push("## 注册问卷");
+        if (onboardingAnswers) {
+            enabled.push("注册问卷");
+            const goals = normalizeStringArray((onboardingAnswers as any).fitness_goals);
             if (goals.length > 0) sections.push(`- fitness_goals: ${goals.join("、")}`);
-            if (typeof (finalAnswers as any).weekly_frequency === "number") {
-                const freq = Number((finalAnswers as any).weekly_frequency);
+            if (typeof (onboardingAnswers as any).weekly_frequency === "number") {
+                const freq = Number((onboardingAnswers as any).weekly_frequency);
                 sections.push(`- weekly_frequency: ${freq >= 6 ? "6 天及以上" : `${freq} 天`}`);
             }
-            sections.push(`- 回答摘要: ${safeJsonPreview(finalAnswers, 700)}`);
+            sections.push(`- 回答摘要: ${safeJsonPreview(onboardingAnswers, 700)}`);
         } else {
-            sections.push("- 未找到可用问卷回答");
-            unavailable.push("学员问卷");
+            sections.push("- 未找到注册时填写的问卷回答");
+            unavailable.push("注册问卷");
         }
+
+        sections.push("## 购买计划问卷");
+        sections.push("- 数据来源：本次订阅（当前计划）时填写的问卷；它与注册问卷是两份独立数据，优先用于判断本计划的目标、限制与偏好。");
+        if (subscriptionQuestionnaire && Object.keys(subscriptionQuestionnaire).length > 0) {
+            enabled.push("购买计划问卷");
+            sections.push(`- 回答摘要: ${safeJsonPreview(subscriptionQuestionnaire, 900)}`);
+        } else if (options.subscriptionId) {
+            sections.push("- 当前订阅未找到购买计划问卷回答");
+            unavailable.push("购买计划问卷");
+        } else {
+            sections.push("- 未传入当前订阅，无法读取购买计划问卷");
+            unavailable.push("购买计划问卷");
+        }
+
+        sections.push("## 问卷使用规则");
+        sections.push(
+            "- 注册问卷描述学员注册产品时的基础情况；购买计划问卷描述其购买当前计划时的专项目标、限制与偏好。回答问卷来源时必须明确区分两者，不得将任一份称为另一份。\n" +
+            "- 制定或修改当前计划时，优先遵从购买计划问卷中的明确目标、伤病/禁忌和器械限制；若两份问卷冲突，应指出冲突并请教练确认，而不是静默混合或覆盖。",
+        );
     }
 
     let executionRows: any[] = [];
@@ -451,7 +477,8 @@ export async function buildBatchOperationContext(params: BuildContextParams): Pr
             buildTemplateMatchSummary({
                 templates: coachTemplates,
                 fitnessLevel: profileRow?.fitness_level || null,
-                questionnaireAnswers: onboardingAnswers || subscriptionQuestionnaires || null,
+                // 模板匹配保持使用注册问卷的标准字段；购买计划问卷仍会作为独立上下文给模型判断。
+                questionnaireAnswers: onboardingAnswers || null,
             }),
         );
     }

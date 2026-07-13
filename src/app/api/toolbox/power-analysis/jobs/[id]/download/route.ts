@@ -54,7 +54,8 @@ export async function GET(
 
   const { data, error } = await db.storage
     .from(current.output_storage_bucket || POWER_ANALYSIS_BUCKET)
-    .download(current.output_storage_path);
+    .download(current.output_storage_path)
+    .asStream();
 
   if (error || !data) {
     console.error("[power-analysis/download] failed:", error);
@@ -65,10 +66,9 @@ export async function GET(
   }
 
   const filename = makeDownloadFilename(current);
-  return new NextResponse(data, {
+  return new NextResponse(data as any, {
     headers: {
-      "Content-Type": data.type || "video/mp4",
-      "Content-Length": String(data.size),
+      "Content-Type": "video/mp4",
       "Content-Disposition": `attachment; filename="${filename}"`,
       "Cache-Control": "private, no-store",
     },

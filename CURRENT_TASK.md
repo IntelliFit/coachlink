@@ -1,21 +1,115 @@
+## 提交当前工作区并同步 main/dev (`2026-07-14`)
+
+- Task: 提交当前工作区的已完成改动，使用明确提交信息，并将 `main` 与 `dev` 对齐到同一提交。
+- Status: 已完成提交并已将本地 `main` 与 `dev` 对齐；构建缓存 `.tmp/` 已排除，当前正将同一最终提交推送到远端两分支。
+
 ## Production Health Probe 401 Recurrence (`2026-07-05`)
 
-- Task: 用户反馈新 `coachlink-main-84d6c579ff-gc4q4` pod 再次出现 `Readiness probe failed: HTTP probe failed with statuscode: 401` 和 `BackOff`，要求检查最近提交、合并提交并推送修复，注意远端可能已有同事改动。
-- Status: completed; code was merged, committed, pushed to `main` and `dev`, rebuilt as a new CCR image, and deployed back through `:latest`.
-- Findings so far:
-  - Production bad `latest` image digest was `sha256:e54e92f3d0cbfd8388a3582854c30d701a893080b2155df6de0dbbd428d3e4aa`; kubelet probes hit `/api/healthy` but proxy returned 401 before the route.
-  - The last healthy production digest was `sha256:f46ec94b886cadefc5da19cfb1ae15e2f324ee79588d72439194e761f771a49f`; deployment was temporarily pinned back to this digest and returned to `3/3`.
-  - Local workspace still had the previous `src/proxy.ts` health allowlist fix staged/uncommitted, while `origin/main` had advanced to `cf887552` without `/api/healthy` or `/api/health` in proxy allowlists.
-  - Therefore the recurrence was caused by building/deploying from remote code that did not include the local uncommitted health-probe proxy fix, not by Kubernetes probe misconfiguration.
-- Resolution:
-  - Commit `ae6c35b2` re-added `/api/healthy` and `/api/health` to both `PUBLIC_PATHS` and the public API prefix allowlist in `src/proxy.ts`, on top of remote `cf887552`.
-  - Pushed `ae6c35b2` to both `origin/main` and `origin/dev`.
-  - Built and pushed `ccr.ccs.tencentyun.com/littlehorse/coachlink:latest`, `:main`, and `:ae6c35b`; new image digest is `sha256:3a3b37523ebc3bf446520f09b150aff24097eeb718b4fe3033564afc6fde984d`.
-  - Restored `deployment/coachlink-main` from the temporary pinned digest back to `ccr.ccs.tencentyun.com/littlehorse/coachlink:latest`, so Keel tag-based auto deployment is active again.
+- Status: 已完成并已部署；`/api/healthy` 与 `/api/health` 必须同时存在于 `src/proxy.ts` 的公开路径集合与 API 前缀白名单，避免 Kubernetes 探针被代理层 401 拦截。
+- 远端提交 `ae6c35b2` 修复该问题，`f2e64e03` 记录部署恢复；本次分支同步保留两项提交及其修复。
+
+## 功率分析器上传、下载、体积与音频问题复核 (`2026-07-14`)
+
+- Task: 用户反馈线上微信小程序视频直接上传失败；Web 分析视频下载不稳定、输出体积显著增大且音频丢失；另需确认手机浏览器中途停止下载后继续分析下一条视频的问题是否已解决。
+- Status: 已完成诊断与代码侧修复；服务器配置、镜像部署、小程序发布和生产真机验收需由发布/服务器工程师继续执行。代码尚未提交或推送。
+- Remote/deployment check:
+  - 已执行 `git fetch --all --prune`。GitHub `origin/main` 比本地多 2 个健康探针相关提交，均不涉及功率分析；功率分析相关代码与本地 `HEAD` 一致。Gitee `main/dev` 仍停在本地提交。
+  - 线上 `/api/healthy` 显示当前生产构建时间为 `2026-07-05T07:48:03.234Z`；线上功率分析页面 JS 已包含 7 月 1 日加入的 signed URL 下载、活动任务恢复和轮询容错代码。
+- Confirmed unresolved:
+  - 小程序上传走 `Taro.uploadFile -> Next multipart API -> Supabase Storage`，不是 Web 使用的对象存储直传。线上实测 512KB 请求能到应用并返回 401，2MB 请求被 Nginx 直接以 413 拒绝；部署仓库 `coachlink/coachlink.conf` 未设置 `client_max_body_size`，因此当前约 1MB 网关限制会阻断正常视频。Next 的 100MB/200MB 限制无法覆盖上游 Nginx。
+  - Python 分析器用 OpenCV `VideoWriter(mp4v)` 逐帧重写，只输出视频流，没有复用或重新封装输入音轨；音频丢失为确定性问题。
+  - 输出仍使用低压缩效率的 `mp4v` 且保持原分辨率/FPS，没有 H.264/HEVC 转码、码率/CRF 或输出体积门禁。等价 4 秒样本从 1.73MB H.264+AAC 增至 4.75MB MPEG-4 video-only（约 2.75 倍）。
+- Partially/resolved:
+  - Web 下载在 7 月 1 日后优先使用 Supabase signed URL，已绕过旧的 Next 下载代理主路径；线上 JS 已确认包含该逻辑。因此旧的应用代理下载瓶颈在代码层已修，但未用登录态完成真实大文件端到端下载，且大文件根因仍未解决。
+  - “停止下载后无法分析下一条”在当前模型中不再由下载占用任务名额：`done` 不计 active task，新文件会替换客户端 job；并已增加 queued 10 分钟 / processing 45 分钟的 stale job 自动释放。代码和线上构建层面可判定已基本解决，但没有复现原设备场景做最终端到端确认。
+- Verification blocker:
+  - `weapp-devtools` 所需的本机 9420 自动化端口未监听，无法执行小程序页面点击上传验证。
+  - Web 端要求的 `web-devtools` skill 当前会话未提供；本轮使用线上 HTTP/API 探测和已部署 JS bundle 核对，未执行登录态浏览器交互。
+- Repository gates:
+  - `npm run lint` ✅（项目提示性脚本）；`npm run typecheck` ✅；`npm test` ✅（将 TEMP/TMP 切到 D 盘后 35 files / 177 tests）。
+  - `npx next build` ❌ 被当前工作区无关的未提交代码 `src/app/api/plan-lib/extract-file-text/route.ts:123` 语法错误阻断；本轮未修改该文件。首次测试还因系统盘 C: 可用空间为 0 报 ENOSPC，切换临时目录后通过。
+- Implemented code fixes:
+  - 小程序 multipart 上传接口改为 Busboy 流式解析并直接写 Supabase Storage，不再用 `formData()` / `arrayBuffer()` 把整段视频读入 Next 内存；HTTP 413 显示明确的上传限制提示。
+  - Worker 输入下载、结果上传以及 Next 下载兜底接口均改为流式传输，降低大文件的 Node 内存峰值；Web 仍优先走 signed URL。
+  - OpenCV 输出改为临时分析画面，最终由 FFmpeg 编码成 H.264，并从原视频合并/转码 AAC 音轨；有声输入若输出缺音轨会直接失败，不再交付静音文件。
+  - `Dockerfile.power-worker` 已安装 FFmpeg；服务器交接与验收步骤见 `docs/work/power-analysis-code-and-infra-handoff-2026-07-14.md`。
+- Verification after implementation:
+  - `npm run lint` ✅；`npm run typecheck` ✅；`npm test` ✅（35 files / 177 tests）；`npm --workspace apps/wechat run build:weapp` ✅（2754 modules）。
+  - H.264+AAC 样例：有声输入约 1.73MB，输出约 1.59MB，音轨保留；无声输入也可正常生成仅 H.264 视频。
+  - `git diff --check` ✅。
+  - `npx next build` 仍被无关的 `src/app/api/plan-lib/extract-file-text/route.ts:123` 语法错误阻断；微信自动化仍因 9420 无监听而无法执行真机交互。
+- Required infra/release follow-up: 生产 Nginx 增加约 110MB 的专用上传限制并关闭请求缓冲；Supabase `videos` bucket 上限至少 200MB；重新构建并部署 Web/API 与 Power Worker 镜像，发布小程序后用有声 MP4、无声 MP4、iPhone MOV、接近上限视频完成登录态验收。
+- Nginx implementation update (`2026-07-14`):
+  - 已在生产服务器 `ubuntu@154.8.205.78` 的 `/etc/nginx/conf.d/coachlink.conf` 增加功率分析专用 location：`client_max_body_size 110m`、请求/响应关闭缓冲、上传下载超时 360 秒；只影响 `coachlink.fit` 功率分析 API，不修改站点全局或 dev 域名限制。
+  - 已同步服务器真实部署仓库 `/home/ubuntu/littlehorse-deployment/coachlink/coachlink.conf` 和 Windows 快照 `D:\files\littlehorse-deployment-main\coachlink\coachlink.conf`。服务器仓库该文件当前为未提交修改，留给后续部署仓库提交/推送。
+  - 原配置备份：`/etc/nginx/conf.d/coachlink.conf.bak-20260714-054144`。
+  - `sudo nginx -t` ✅，reload 后服务 `active`；2MB multipart 线上探针返回应用 JSON `401 用户未登录`，不再返回 Nginx HTML 413。
+  - 剩余基础设施/发布事项：Supabase 全局与 `videos` bucket 上限、两套镜像构建推送、Keel 自动更新后的 FFmpeg 验证、小程序审核发布和登录态真实视频验收。
+
+## 普通空白计划误触发 AI 自动生成排查 (`2026-07-14`)
+
+- Task: 用户反馈 AI 自动创建计划原本用于“学员订阅教练计划”链路，但学员或兼任教练的用户进入普通“创建空白计划”场景时也会自动生成内容。
+- Status: 已完成 Web 与微信小程序普通创建页的自动 AI 触发收口；代码尚未提交或推送。
+- Confirmed root cause:
+  - Web `src/app/me/plan-lib/create/page.tsx` 在检测到计划为空时，通过 `useEffect` 自动调用 `generateAiDraftFromProfile()` 并回填 7 天计划。
+  - 微信小程序 `apps/wechat/src/me/plan-lib/create/index.tsx` 在页面加载时直接把 `generateAiDraftFromProfile()` 放进 `Promise.all`，因此打开创建页就会触发 AI。
+  - 订阅激活后的自动计划由 `create-subscription` / `auto-match-plan` / `coachingAutomation` 独立触发，不是本次普通创建页误触发的来源。
+  - 移动 APP 当前是用户明确点击生成函数后才请求 AI，没有发现同类自动触发。
+- Intended boundary: 订阅教练计划链路可继续自动生成；普通空白计划只创建空白编辑器，AI 从零生成能力保留为用户明确触发的可选动作。
+- Changes:
+  - Web 普通创建页移除了检测空计划后自动调用 `generateAiDraftFromProfile()` 的 effect，仍保留用户主动使用的 AI 智能导入与 AI 修改器。
+  - 微信小程序普通创建页不再在初始化 `Promise.all` 中请求 AI 草稿，默认进入空白编辑器；智能导入等显式操作不受影响。
+  - AI 草稿接口、订阅激活自动生成链路和移动 APP 的显式“AI 草稿”按钮均未修改。
 - Verification:
-  - `npm run lint`, `npm run typecheck`, `npm test`, `npx next build`, `git diff --check`, and `npm run test:e2e` passed.
-  - Production rollout succeeded; three running `coachlink-main-84d6c579ff-*` pods are `2/2 Running`, restart count `0`, and all use image digest `sha256:3a3b37523ebc3bf446520f09b150aff24097eeb718b4fe3033564afc6fde984d`.
-  - External `https://coachlink.fit/api/healthy` and `/api/system/version` return HTTP 200 with buildTime `2026-07-05T07:48:03.234Z`; direct pod-IP `/api/healthy` checks returned 200 for all three new pods.
+  - `npm run lint`、`npm run typecheck`、`npm test`（35 files / 177 tests）、`npx next build`、`npm --workspace apps/wechat run build:weapp` 均通过。
+  - 按用户长期偏好未运行浏览器或微信开发者工具手动 UI 验证，由用户自行验证实际页面。
+
+## Wayne Tan 覆盖计划后的执行记录错配排查 (`2026-07-14`)
+
+- Task: 用户（教练枭马葛）反馈学员 Wayne Tan 在微信小程序中遇到：今日安排显示 4 个动作/12 组且已完成，进入记录却只有 1 个动作/3 组；下一训练日又显示只读模式。
+- Status: 已完成系统代码修复与 Wayne 线上数据修复；代码尚未提交、推送或部署，小程序自动化真机验证受微信开发者工具 9420 端口未开启阻塞。
+- Confirmed data timeline:
+  - 当前使用实例 `bf765e26-95b3-4b51-ae3f-950c21286f6d` 在 2026-07-11 21:24（北京时间）被覆盖，仍沿用 `start_date=2026-07-05`。
+  - 第 3 天旧 execution `ffec849f-4f03-4af8-bb11-b38a8ae0e52a` 于 2026-07-07 创建，当时只有 1 个动作/3 组；2026-07-11 21:18 被标为 completed。
+  - 覆盖后的第 3 天计划为 4 个动作/12 组。首页按当前 `training_days` 展示结构，但按同一 `instance_id + day_index` 复用了旧 completed execution，因此出现外面 4 个动作、里面 1 个动作。
+  - 同一订阅下还存在一个无执行记录但仍为 active 的重复实例 `2cb2d2d9-f04c-4482-a10c-2908d3a934b2`，需在正式数据修复时一并处理。
+- Root causes:
+  - “覆盖当前（保留执行记录）”直接原地更新 `coach_plan_instances.training_days`，没有计划版本/执行快照版本边界。
+  - `/api/execution/start` 复用旧 execution；`syncExecutionPlanWithCurrentConfig` 仅按动作序号改写旧动作名称和计划参数，不补新增动作/组，也会污染历史记录语义。
+  - 小程序计划看板以 `plannedDate !== today` 判只读。覆盖后第 4 天由旧起始日期映射到 7 月 8 日，虽然它是推荐的下一训练日，仍被错误判为过去只读。
+  - 只读预览仍运行训练计时持久化逻辑，因此会出现无真实 execution 但显示 `01:20` 一类时长。
+- Implemented system fix:
+  - execution 改为不可变计划快照；读取/恢复时不再按当前计划重写动作，并删除危险的按序号同步 helper。
+  - Web 与小程序在已有执行历史时把“覆盖当前”自动转为新 plan instance/revision，从下一未完成训练日继续；API 同时拒绝对已有 execution 的实例原地结构更新。
+  - 新实例先创建、旧 current 实例后归档；归档失败自动回滚新实例，避免出现零 current 或重复 current。
+  - 今日训练遇到旧 execution 与当前计划结构不一致时，按 execution 快照展示；小程序可编辑性改为按 execution/progress 判断；只读预览不再启动或恢复本地计时器。
+- Wayne data repair:
+  - 新建唯一 active 实例 `05c0fa6f-b941-41a9-becf-ade26bdab68d`，`start_date=2026-07-11`、`start_execution_day=4`，第 4 天有 2 个动作。
+  - 旧使用实例 `bf765e26-95b3-4b51-ae3f-950c21286f6d` 与空重复实例 `2cb2d2d9-f04c-4482-a10c-2908d3a934b2` 均已非破坏性归档；旧第 1/3 天完成记录仍绑定旧实例并完整保留。
+  - 权益核验：购买 4 周、已计 1 周、剩余 3 周；第 4 天访问允许，新实例无伪造 execution。
+- Verification:
+  - `npm run lint`、`npm run typecheck`、`npx next build`、`npm test`（35 files / 177 tests）均通过。
+  - `npm --workspace apps/wechat run build:weapp` 通过。
+  - 微信开发者工具自动化未执行：本机 `mrc` 已安装，但 9420 无监听端口。
+- Follow-up:
+  - 线上数据库尚未应用 `20260517_plan_instance_entitlement_policy.sql` 所含归档/权益元数据列；代码已做仅归档 status 的兼容回退，后续仍应正式执行迁移并回填元数据。
+
+## 融资 BP 后端数据支撑：支付口径补强 (`2026-07-05`)
+
+- Task: 用户纠正上一版融资 BP 数据里付费口径不完整；早期订阅学员虽未走平台支付，但都是直接转账给教练，不能因为 `alipay_orders` 里没有订单就视为未付费。
+- Status: completed revised backend aggregate report.
+- Output:
+  - 新增 `docs/work/bp-backend-data-2026-07-05.md`。
+  - 将付费拆成两层：① `coach_subscriptions` 代表已发生付费服务关系；② `coach_subscription_orders` / `alipay_orders` / 结算 / 钱包代表平台支付接入后的可核验订单链路。
+- Key numbers:
+  - 累计教练-学员付费服务关系 138 条，覆盖 122 名付费学员、3 名收款教练。
+  - active 付费服务关系 95 条，active 付费学员 88 名。
+  - 历史/直接收款/线下确认关系 102 条；平台支付宝/微信标记关系 36 条。
+  - `monthly_price >= 99 元` 的订阅关系 97 条；订阅记录首期/套餐金额合计约 16,993 元；按周期粗估合同服务额约 46,742 元，但该估算不建议放 BP 正文。
+  - 平台订单/结算链路已接通：`coach_subscription_orders` paid 6 笔约 500 元；教练相关 `alipay_orders >=100 元` paid 12 笔约 3,498 元；结算记录 10 条，平台费约 180 元。
+- Communication guidance:
+  - BP 正文建议讲“138 条真实教练付费服务关系 + 平台支付正在迁移接入”。
+  - 不建议只展示平台支付金额，因为会低估早期真实付费；也不建议把估算 GMV 放大讲，因为早期直接转账缺少完整平台流水。
 
 ## Web 学员计划百分比强度显示与算重修复 (`2026-07-05`)
 
@@ -35,37 +129,6 @@
   - `npm run typecheck` ✅
   - `npm test` ✅（35 files / 177 tests）
   - `npx next build` ✅
-
-## Production Health Probe 401 After Branch Sync (`2026-07-01`)
-
-- Task: investigate production `coachlink-main` pod restart loop where kubelet reported `Liveness probe failed: HTTP probe failed with statuscode: 401` for `Pod/coachlink-main-6984bbbf7-csbsl`.
-- Status: root-caused and code fix reapplied locally; production was mitigated by pinning deployment back to the last healthy digest before this note.
-- Root cause:
-  - Kubernetes probes were correctly configured to `GET /api/healthy`.
-  - Bad image digest `sha256:37cb7fe48d9b97cbb08fe372acf8ff80e6b6e02c18b533a8b0896bb414d473b3` was built around `2026-07-01T06:25:03Z` and pulled by Keel at `2026-07-01T06:28:53Z`.
-  - That image did not include the `/api/healthy` public proxy allowlist, so `src/proxy.ts` handled `/api/healthy` as a protected API and returned `401 {"message":"用户未登录"}` before the health route could run.
-  - Recent history showed `d3a036c7` added `/api/healthy`, `/api/health`, and the proxy allowlist, but `def37074` was based on parent `eff988b8` and did not have `d3a036c7` in its ancestry (`git merge-base def37074 d3a036c7` is the root commit `10d942a`).
-  - `def37074` itself did not modify `src/proxy.ts` relative to its parent; it simply came from a branch line that lacked the health-probe fix.
-  - Merge `92eae67f` restored `src/app/api/healthy/route.ts` from `d3a036c7`, but resolved the `src/proxy.ts` conflict to the first-parent/local `def37074` side, losing four allowlist lines again. This is why GitHub's default merge diff can show no `proxy.ts` change while the merge result still regressed relative to the upstream parent.
-- Mitigation:
-  - Set `deployment/coachlink-main` image back to `ccr.ccs.tencentyun.com/littlehorse/coachlink@sha256:06dd35faaffa72b4b7ed59a7f087a64d0f545fae3c70f263aec40025a9dc1cdd`.
-  - Confirmed production `coachlink-main` returned to `3/3`, all pods `2/2 Running`, and `https://coachlink.fit/api/healthy` returned HTTP 200.
-- Local code fix:
-  - Re-added `/api/healthy` and `/api/health` to `PUBLIC_PATHS` in `src/proxy.ts`.
-  - Re-added `pathname.startsWith("/api/healthy")` and `pathname.startsWith("/api/health")` to the public API short-circuit in `src/proxy.ts`.
-- Verification:
-  - `npm run lint` ✅ informational lint script
-  - `npm run typecheck` ✅
-  - `npm test` ✅ 35 files / 175 tests
-  - `npx next build` ✅
-  - `git diff --check` ✅ warning only for line-ending normalization on `src/proxy.ts`
-- Production restore follow-up:
-  - User pushed a fixed `coachlink:latest` image.
-  - Restored `deployment/coachlink-main` from pinned old digest back to `ccr.ccs.tencentyun.com/littlehorse/coachlink:latest`, preserving Keel annotations (`keel.sh/policy=force`, `keel.sh/trigger=poll`, `keel.sh/pollSchedule=@every 1m`, `keel.sh/match-tag=true`).
-  - Rollout completed successfully with 3/3 available.
-  - New running image digest is `sha256:f46ec94b886cadefc5da19cfb1ae15e2f324ee79588d72439194e761f771a49f`.
-  - Production `GET https://coachlink.fit/api/healthy` and `GET /api/system/version` returned HTTP 200 with buildTime `2026-07-01T07:10:07.615Z`.
-  - Direct pod-IP checks for all three new pods returned HTTP 200 on `/api/healthy`; all pods are `2/2 Running` with restart counts `0`.
 
 ## 融资 BP 后端数据支撑 (`2026-07-03`)
 
@@ -88,6 +151,7 @@
   - 旧 BP 中 2026 年 4 月运营数据可作为历史验证材料，但正式对外融资前需要用户确认最新真实数据。
   - 用户已纠偏：不要主要依赖旧文档，需要基于实际代码、Git 历史和当前工程结构做更细的判断。
   - 二次梳理证据：2026 年以来本地 Git 历史显示高频 feature/fix 迭代；核心改动集中在 `src/app/api`、`apps/wechat/src`、`src/app/dashboard`、`src/app/coach`。当前 API 模块以 `coach`、`user`、`plan-lib`、`student`、`execution`、`subscription`、`streetlifting-index`、`payment` 为重；小程序已按 `coach/me/training/toolbox/streetlifting/content/auth` 等分包组织；移动端 Expo 工程已覆盖训练、教练、知识、街健、工具、支付等 screen。
+
 ## 直接提交并同步主分支/开发分支 (`2026-07-01`)
 
 - Task: 用户要求直接提交当前工作区代码并推送，保持 `main` 与开发分支一致；本轮明确不执行测试、不做额外手动验证。
@@ -8139,3 +8203,154 @@
   - 先完成 `npm run lint`、`npm run typecheck`、`npm test`、`npx next build` 验证。
   - 清理临时无效文件后，将当前工作树中的代码提交。
   - 开发分支同步到当前可提交主线版本。
+
+## AI 修改器区分注册与购买计划问卷（`2026-07-13`）
+
+- Task: 修复教练端学员计划页的 AI 修改器把两套问卷混成单一“学员问卷”、且注册问卷存在时遗漏购买计划问卷的问题。
+- Status: completed at code level; manual Web verification left to the user per durable preference.
+- Changes:
+  - `batch-operation/context.ts` 将 `onboarding_questionnaires` 作为独立的“注册问卷”注入。
+  - 同时读取当前订阅 `coach_subscriptions.subscribe_data`，作为独立的“购买计划问卷”注入，并保留原题目/答案。
+  - 提示词明确两者来源和优先级：当前计划的目标、限制、器械偏好优先遵从购买计划问卷；冲突时要求 AI 指出并请教练确认。
+  - AI 修改器的上下文开关文案改为“注册及购买计划问卷”。
+- Verification: `npm run lint` ✅（说明性脚本）、`npm run typecheck` ✅、`npm test` ✅（35 files / 177 tests）、`npx next build` ✅。
+## 微信小程序工具箱部分设备点击无响应排查 (`2026-07-13`)
+
+- Task: 用户反馈部分 iPhone 上进入工具箱后，工具卡片点击没有任何反应；本轮仅做代码诊断，尚未修改业务代码。
+- Status: root cause identified in code; awaiting user confirmation to implement the fix.
+- Finding:
+  - `apps/wechat/src/toolbox/index.tsx` 的工具卡片和场景卡片跳转均直接调用 `Taro.navigateTo()`，没有 `await`、失败兜底或错误提示。
+  - 自定义 `BottomNav` 也优先使用 `navigateTo`；持续通过底栏切换会增加页面栈。微信小程序页面栈达到上限时，`navigateTo` 会失败。当前工具箱入口没有捕获该失败，因此用户看到的就是“点了没反应”。
+  - 此问题不是 iOS 专属，但不同用户的导航历史不同，因而很容易被观察成“部分苹果手机”问题；设备端需要在失败时看 `navigateTo:fail page stack overflow` 才能最终确认。
+- Verification:
+  - 已确认所有工具目标路由均在 `apps/wechat/src/app.config.ts` 注册，排除明显的未注册路由。
+  - 已按 `weapp-devtools` 尝试连接本机自动化端口 9420，但当前没有已开启自动化的微信开发者工具会话，无法读取设备/模拟器控制台。
+- Proposed fix:
+  - 将工具箱卡片的跳转统一收口为可感知的导航函数：`navigateTo` 失败后降级 `redirectTo` / `reLaunch`，最终给出明确 toast；同时在底部导航避免无意义地累积页面栈。
+
+## 微信小程序即兴训练完成时报错（`2026-07-13`）
+
+- Task: 修复即兴锻炼点击“完成训练”后出现 `setWorkoutSummarySharePath is not defined` 的运行时错误。
+- Status: completed at code/build level.
+- Root cause: 训练完成收尾函数调用了并未声明、也未被页面消费的 `setWorkoutSummarySharePath`；即兴训练不生成公开分享路径，完成接口成功后会直接走到该分支并抛错。
+- Change: `apps/wechat/src/training/training-execution/index.tsx` 移除了该无效 setter 调用，完成后可正常打开训练总结。
+- Verification: `npm run lint` ✅（说明性脚本）、`npm run typecheck` ✅、`npm test` ✅（35 files / 177 tests）、`npm --workspace apps/wechat run build:weapp` ✅。`npx next build` 已完成编译和 517 页静态生成，但最终被本机 `.next` 文件锁的 `EBUSY` 阻断；`weapp-devtools` 端口 9420 无自动化会话，未能进行模拟器交互验证。
+
+## 教练钱包待结算收入排查（`2026-07-13`）
+
+- Task: 用户询问钱包中的累计收入 944.06 元、待结算 669.60 元以及“等待系统结算”的含义，并担心钱没有到账。
+- Status: root cause identified; no money movement performed.
+- Finding:
+  - 累计收入是已写入 `coach_wallets.total_income` 的历史入账收入；可提现余额是钱包余额扣除冻结款后的金额；待结算收入是已支付订单中尚未写入钱包的教练分成，三者不能直接相加。
+  - 当前待结算 669.60 元由四笔教练分成构成：271.20 元仍在 7 天退款保护期内；80.00 元、159.20 元、159.20 元已经分别在 7 月 12 日、6 月 30 日、6 月 4 日到期。
+  - 三笔已到期订单均仍为 `pending`，`attempts = 0` 且 `last_attempt_at = null`，没有任何结算请求被发起；这不是正常的到账等待。根因是生产环境的汇付到期结算后台任务没有执行/没有被触发。该任务正常应每小时调用 `process-due`，随后再由 `reconcile` 确认分账结果。
+- Next step: 需要用户明确授权后，才可对真实资金执行补跑到期结算任务；同时应修复/确认生产的 `HUIFU_SETTLEMENT_CRON_SECRET`（或 `CRON_SECRET`）和后台定时任务部署，防止后续订单继续卡住。
+
+### 自动结算加固跟进
+
+- 已实现：`process-due` / `reconcile` 同时接受专用 `HUIFU_SETTLEMENT_CRON_SECRET` 和兼容的 `CRON_SECRET`，不再因两者同时存在但值不同而拒绝应用内任务；`instrumentation.ts` 现在会把这些接口的非 2xx 响应写入日志。
+- 已新增：`deploy/k8s/huifu-settlement-cronjob.example.yaml`，提供每 10 分钟独立调用到期分账和对账接口的 CronJob；`docs/ops/huifu-settlement-scheduler.md` 说明 Apollo、Kubernetes Secret 和验收流程。
+- 线上只读验证：从当前 Apollo 加载到 `HUIFU_SETTLEMENT_CRON_SECRET`，但使用同一密钥请求生产 `process-due` 的 `dryRun` 仍返回 401 `用户未登录`。这表明线上 Web 进程未加载该密钥（常见于配置变更后未重启），或运行的不是同一份 Apollo 配置；现有自动任务因此无法获授权执行。
+- Deployment blocker: 本机没有 Kubernetes context，且旧服务器 `154.8.205.78` 的 SSH 公钥认证被拒绝，无法替用户更新生产 Deployment/CronJob 或重启线上进程。未发起真实资金分账。
+- Deployment repository confirmation: `D:\files\littlehorse-deployment-main\coachlink\main\deployment.yaml` uses Apollo bootstrap `coachlink / main / app-config` (not `local`) and contains an `apollo-reloader` sidecar. On each Apollo notification it deletes its current Pod after a 0–74 second delay; the Deployment restores the three replicas. Therefore publishing a production Apollo change is designed to restart Pods automatically. However, a read-only request using the exact current `main` Apollo settlement secret still receives production HTTP 401. The active Pods have not loaded that config, so republishing the key should be followed by log verification and a manual `kubectl -n default rollout restart deployment/coachlink-main` fallback if the endpoint remains 401.
+- Final root cause and fix (`2026-07-14`): the 401 was not a Huifu/Apollo secret mismatch. `src/proxy.ts` intercepted every `/api/*` request for user-JWT authentication before the Node route could validate `x-cron-secret`, so both process-due and reconcile always returned `用户未登录`. Added those two paths to `ROUTE_AUTHENTICATED_CRON_PATHS`; their route handlers remain responsible for dedicated Huifu/cron-secret or admin authorization. Also normalized runtime secret reads/trimming. Local `dryRun` changed from 401 to 200 and returned 10 due rows without initiating any transfer.
+- Wallet consistency follow-up (`2026-07-14`): after three overdue settlements totaling 398.40 yuan were credited, wallet gross balance and total income increased but withdrawable balance stayed at 933.72 because `calculateRefundProtectedAmountFen` used the new wallet transaction timestamp and imposed a second seven-day freeze. It now consults `coach_subscription_settlements.eligible_at`; an order that already passed the delayed-settlement protection window is not frozen again when credited. The verified result for the screenshot wallet is gross 1332.12, frozen 0, withdrawable 1332.12, pending 271.20, historical income 1342.46. Web copy now states the balance formula and renames cumulative income to historical cumulative income.
+## 万界方舟大模型接口迁移 (`2026-07-14`)
+
+- Task: 用户要求将 CoachLink 当前所有大模型调用从 DeepSeek、OfoxAI 与 Gemini 原生接口统一迁移至万界方舟的 OpenAI 兼容接口。
+- Status: code and documentation complete; awaiting Apollo configuration and live API verification.
+- Changes:
+  - `src/lib/coachlinkLlm.ts` 统一使用 `WANJIE_ARK_API_KEY`、`WANJIE_ARK_BASE_URL`（默认 `https://maas-openapi.wanjiedata.com/api/v1`）和 `WANJIE_ARK_MODEL`；计划和教练自动回复可分别用可选模型变量覆盖。
+  - 计划生成/解析、知识库问答、功率解读、教练 AI 自动回复、遗留 Gemini 封装及知识书生成脚本均不再请求旧供应商域名或读取旧 LLM Key。
+  - 教练自动回复数据库中以 `deepseek` / `gemini` / `google/` 开头的历史模型值会自动回退为万界方舟默认模型，避免继续使用旧模型 ID。
+- Required user action:
+  - 当前 Web 开发和线上均使用 Apollo；在 Apollo 新增 `WANJIE_ARK_API_KEY`、`WANJIE_ARK_BASE_URL`、`WANJIE_ARK_MODEL=deepseek-v4-pro`。如未来实现图片输入，使用可选 `WANJIE_ARK_VISION_MODEL=qwen3-vl-flash`；当前没有激活的图片分析调用。旧 `DEEPSEEK_API_KEY`、`OFOXAI_API_KEY`、`GEMINI_API_KEY` 可在确认线上请求成功后删除。
+- Verification:
+  - `git diff --check` ✅
+  - `npm run lint` ✅（提示性脚本）
+  - `npm run typecheck` ✅
+  - `npm test` ✅（35 files / 177 tests）
+  - `npx next build` ⚠️ 未执行完成：已有 Next 进程占用 `.next/lock`，未中断用户进程。
+## 多格式智能计划导入（小程序优先） (`2026-07-14`)
+
+- Task: 用户要求智能计划导入支持文件、图片等多种来源，小程序与 Web 同步接入；原生文本/表格优先确定性提取，图片可使用万界方舟视觉模型。
+- Status: implementation complete at code/build level; awaiting Apollo vision config and real-file verification.
+- Implemented:
+  - `/api/plan-lib/extract-file-text` 支持 txt/csv/md/docx/xlsx/xls/pdf/png/jpg/jpeg/webp，限制 10MB。
+  - Word、文本、文字型 PDF 使用本地确定性提取；Excel 保留工作表、行号、列名后转为可审阅文本；图片走 `WANJIE_ARK_VISION_MODEL` 转写，并明确标出需人工核对的风险。
+  - 扫描 PDF 没有可提取文字时，接口明确提示先导出为图片上传，避免伪造识别结果。
+  - 小程序 `PlanEditorWorkbench` 智能导入弹窗已新增上传计划图片和上传文件入口；Web 学员/教练导入弹窗已扩展接受 PDF 和图片。所有来源仍先回填可编辑文本，再进入既有动作确认和结构化计划解析，避免直接写入。
+- Required user action:
+  - Apollo 必须配置 `WANJIE_ARK_API_KEY`、`WANJIE_ARK_MODEL=deepseek-v4-pro` 和 `WANJIE_ARK_VISION_MODEL=qwen3-vl-flash`，否则图片识别会返回清晰的配置错误。
+- Verification:
+  - `npm run typecheck` ✅
+  - `npm --workspace apps/wechat run build:weapp` ✅
+  - `npm test` ⚠️ 本机磁盘空间耗尽（`ENOSPC`）而未启动测试；并非断言失败。
+  - 手动小程序验证按用户偏好留给用户执行。
+## 微信小程序动作库图片与即兴训练分类统一 (`2026-07-14`)
+
+- Task: 用户要求确认动作库当前图片覆盖情况，并修复即兴训练首次选动作没有部位/器械分类、而训练执行页追加动作有分类的不一致。
+- Status: 已完成代码修改和代码级验证；尚未提交或推送。
+- Image audit:
+  - 线上 `canonical_actions` 共 426 个，426 个均有 `reference_image_url`，并对全部 426 个 CDN URL 做 HEAD 校验，均返回成功。
+  - 其中 282 个为三帧 `sequence` 动作示意图，144 个为 `fallback-reference-card` 兜底参考卡；当前不存在 URL 缺失或 CDN 失效的标准动作。
+  - 线上公共力量动作共 104 个，104 个均关联标准动作并可取得图片。
+- Root cause:
+  - 公共动作列表 API 会按 `canonical_action_id` 补 `reference_image_url`，但学员“我的动作”列表 API 原样返回 `student_actions`，没有补标准图；因此同一个动作在公共库有图、进入我的动作后可能显示首字兜底。
+  - 即兴训练首选页只有关键字搜索，训练执行页的追加动作弹层单独维护肌群/器械筛选，造成两条入口体验不一致。
+- Changes:
+  - 学员动作列表 API 现在同时兼容 Web session 与小程序 Bearer token，并按 `canonical_action_id` 补标准动作的 `category` 和 `reference_image_url`。
+  - 新增共享 `actionPickerFilters`，统一肌群、器械、搜索文本与匹配规则；训练执行页改为复用共享规则。
+  - 即兴训练页新增器械（全部/杠铃/哑铃/徒手/器械/绳索）和部位（全部/胸/背/腿/肩/手臂/核心/臀部/功能性）筛选，并继续支持搜索与多选。
+- Verification:
+  - `npm run lint`、`npm run typecheck`、`npm test`（35 files / 177 tests）、`npm --workspace apps/wechat run build:weapp` 均通过。
+  - `npx next build` 被工作区既有且与本次无关的 `src/app/api/plan-lib/extract-file-text/route.ts:123` JSX/语法错误阻断。
+  - `weapp-devtools` 自动化未执行：`mrc` 已安装，但 9420 端口未监听，且常见安装目录未找到微信开发者工具 CLI。
+## 微信小程序即兴训练总结分享与肌肉高亮修复 (`2026-07-14`)
+
+- Task: 用户完成即兴训练的低杠深蹲和负重臂屈伸各 1 组后，总结正确显示 2 动作/2 组，但点击“生成分享图”提示“暂无可分享的训练记录”，且人体图没有训练部位高亮。
+- Status: 已完成代码修复和代码级验证；尚未提交或推送。
+- Root cause:
+  - `/api/impromptu/finish` 已成功把 execution 更新为 `completed`，但训练执行页完成回调只弹总结，没有把 `finishRes` 合并回页面 `execution` 状态；总结从旧状态仍能统计已完成 sets，而分享门禁 `isWorkoutCompleted` 读取旧 `training` 状态，因而误报没有记录。
+  - 总结使用“腿部/手臂/核心”等粗粒度名称，人体 SVG 的 `category` 使用“大腿/小腿/大臂/小臂/腹部”等细粒度名称；高亮函数只做完全相等匹配，所以柱状统计有数据但 SVG 不变色。
+- Changes:
+  - 普通完成和一键完成成功后，均将服务端完成结果与当前 execution 合并，立即 `setExecution`，并通过 `syncExecutionToCaches` 同步即兴快照/计划缓存。
+  - 增加总结肌群到 SVG category 的映射：手臂→大臂/小臂、核心→腹部、腿部→大腿/小腿等；深蹲/硬拉/弓步额外识别臀部，避免普通腿部动作全部误亮臀部。
+- Verification:
+  - `npm run lint`、`npm run typecheck`、`npm test`（35 files / 177 tests）、`npm --workspace apps/wechat run build:weapp` 均通过。
+  - 静态 SVG 映射验证：截图场景的腿部+手臂可命中正面 9 个、背面 10 个肌肉分区；深蹲还会单独识别臀部。
+  - `npx next build` 仍被工作区既有、与本次无关的 `src/app/api/plan-lib/extract-file-text/route.ts:123` 语法错误阻断。
+  - `weapp-devtools` 无法连接 `ws://localhost:9420`，未能实际点击生成分享图或截图验证。
+## 微信小程序训练分享图临时文件失效修复 (`2026-07-14`)
+
+- Task: 用户在微信开发者工具中生成即兴训练分享图时，`showShareImageMenu` 与后续 `saveImageToPhotosAlbum` 均报 `no such file or directory http://tmp/...png`，并询问是否支持分享到群聊。
+- Status: 已完成代码修复与代码级验证；真机好友/群聊分享仍需用户用真机预览确认，代码尚未提交或推送。
+- Root cause:
+  - 通用 `useSharePoster` 直接返回 Canvas 的 `http://tmp` / `wxfile://tmp` 临时路径，训练执行页还会缓存并复用该路径；微信清理临时文件后，分享菜单和相册保存会连续使用同一失效路径。
+  - 日志环境为 Windows 微信开发者工具。模拟器不能真实打开微信好友/群聊选择器，也没有手机相册，不能用它验证真实聊天分享。
+- Changes:
+  - Canvas 导出成功后立即复制到 `Taro.env.USER_DATA_PATH/<canvasId>.png`，分享、预览和相册保存统一使用稳定的用户文件路径；复制失败会重试生成，避免向业务层交付不存在的临时路径。
+  - 训练总结每次点击“生成并分享”都会重新导出海报，不再复用旧 `workoutPosterImageUrl`。
+  - 开发者工具环境改为明确提示环境限制，并提供稳定本地图片预览；真机继续调用 `showShareImageMenu`，可发送给好友或群聊，也可在菜单中保存。
+  - 保存失败增加 `no such file` 诊断日志与明确提示。
+- Verification:
+  - `npm run lint` ✅（项目提示性脚本）；`npm run typecheck` ✅；`npm test` ✅（35 files / 177 tests）；`npm --workspace apps/wechat run build:weapp` ✅（2754 modules）；`git diff --check` ✅。
+  - 构建产物已确认包含稳定路径复制、开发者工具预览提示和“生成并分享”文案。
+  - `npx next build` ❌ 仍被无关既有 `src/app/api/plan-lib/extract-file-text/route.ts:123` 语法错误阻断。
+  - `weapp-devtools` 自动化连接失败：微信开发者工具已打开，但 9420 自动化端口未启用，无法代替用户执行页面点击和截图。
+  - `WindowInfoChanged` 监听警告的栈位于开发者工具 WASM 初始化，业务源码未发现对应的重复窗口监听注册；当前判断为开发者工具热重载累积警告，不是图片文件失效的原因。
+## 万界方舟计划修改器连接失败修复 (`2026-07-14`)
+
+- Task: 用户连续两次使用 Web 计划 AI 修改器时，万界方舟 `deepseek-v4-pro` 在意图/完整性判断阶段报 `UND_ERR_SOCKET: other side closed`，界面重复显示两条 `Connection error`。
+- Status: 已完成真实端点诊断、代码修复和门禁验证；未做浏览器手动验收，按用户长期偏好由用户本地复测。
+- Evidence:
+  - Apollo 当前 Base URL/Key/模型权限有效：`GET /models` 返回 200，`deepseek-v4-pro` 和 `deepseek-v4-flash` 的 OpenAI 兼容 chat 请求均可返回 200。
+  - 原代码的短判断请求带上整份计划、动作库和 9 组上下文；即使用户只输入 `?` 也会写出约 10KB 请求。
+  - `deepseek-v4-pro` 在 `max_tokens=200`、`deepseek-v4-flash` 在 `max_tokens=800` 时均实测过 HTTP 200 但正文为空，输出预算全部消耗在 reasoning tokens。`deepseek-v4-flash + max_tokens=2000` 连续两次返回有效 JSON，约 5.1s / 6.2s。
+- Changes:
+  - 意图判断和指令完整性检查改用 `WANJIE_ARK_FAST_MODEL`（默认 `deepseek-v4-flash`）；正文计划修改仍默认 `deepseek-v4-pro`。
+  - 短判断 prompt 移除无必要的计划/问卷/执行上下文，输出预算提高到 2000/3000；连接中断、空正文或非法 JSON 均显式快速重试一次。
+  - OpenAI SDK 关闭默认长重试，设置 45s 超时；连续失败时返回可操作的中文错误。SSE 业务错误只记录一次，不再重复展示。
+  - 同时修复多格式导入接口的 Excel 分支语法错误，并绕过 `pdf-parse` 顶层入口在 Turbopack 下的调试副作用。
+- Verification: `npm run lint` ✅；`npm run typecheck` ✅；`npm test` ✅（35 files / 177 tests）；`npx next build` ✅；`git diff --check` ✅。
+- Apollo: `WANJIE_ARK_FAST_MODEL` 可不配，代码默认 `deepseek-v4-flash`。如 Pro 长请求仍经常被万界方舟中断，可临时在 Apollo 设 `WANJIE_ARK_PLAN_MODEL=deepseek-v4-flash`作为稳定性降级。

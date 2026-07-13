@@ -209,7 +209,27 @@ export const buildDayModuleModel = (params: {
     }
   })
 
-  const normalizedTasks: NormalizedDayTask[] = actionSets.map((actionSet: any, index: number) => {
+  const plannedExecutionActions = executionActions.filter((item: any) => item?.source !== 'student_extra')
+  const executionMatchesCurrentPlan =
+    plannedExecutionActions.length === actionSets.length &&
+    actionSets.every((actionSet: any, index: number) => {
+      const executionItem = executionBySourceIndex.get(index) ?? plannedExecutionActions[index]
+      if (!executionItem) return false
+      const planActionId = String(actionSet?.action_id || actionSet?.actionId || '')
+      const executionActionId = String(executionItem?.action_id || '')
+      const planSetCount = parsePositiveIntOrNull(actionSet?.params?.['组数'] ?? actionSet?.sets) ?? 1
+      const executionSetCount =
+        typeof executionItem?.total_sets === 'number'
+          ? executionItem.total_sets
+          : Array.isArray(executionItem?.sets)
+            ? executionItem.sets.length
+            : 1
+      return (!planActionId || !executionActionId || planActionId === executionActionId) &&
+        planSetCount === executionSetCount
+    })
+  const useExecutionSnapshot = executionActions.length > 0 && !executionMatchesCurrentPlan
+
+  const planTasks: NormalizedDayTask[] = actionSets.map((actionSet: any, index: number) => {
     const actionId = actionSet.action_id || actionSet.actionId || ''
     const action = actions[actionId]
     const executionItem = executionBySourceIndex.get(index) ?? executionActions[index]
@@ -250,6 +270,56 @@ export const buildDayModuleModel = (params: {
       isStudentExtra: executionItem?.source === 'student_extra'
     }
   })
+
+  const snapshotTasks: NormalizedDayTask[] = executionActions.map((executionItem: any, executionIndex: number) => {
+    const actionId = executionItem?.action_id || executionItem?.source_action_id || ''
+    const action = actions[actionId]
+    const itemType = getTaskItemType(null, action, executionItem)
+    const sets = Array.isArray(executionItem?.sets) ? executionItem.sets : []
+    const firstSet = sets[0] || {}
+    const setCount =
+      typeof executionItem?.total_sets === 'number'
+        ? executionItem.total_sets
+        : Math.max(1, sets.length)
+    const completedSetCount =
+      typeof executionItem?.completed_sets === 'number'
+        ? executionItem.completed_sets
+        : sets.filter((set: any) => set?.status === 'completed').length
+    const paramsData = executionItem?.params || {
+      组数: setCount,
+      次数: firstSet?.planned_reps ?? null,
+      load: firstSet?.planned_weight ?? null,
+      休息时间: firstSet?.planned_rest_seconds ?? null
+    }
+    const customData = executionItem?.custom_data || paramsData?.custom_data || {}
+    const isTaskCompleted =
+      completedSetCount >= setCount ||
+      executionItem?.status === 'completed' ||
+      executionItem?.completed === true
+
+    return {
+      index: Number.isInteger(executionItem?.source_action_index)
+        ? Number(executionItem.source_action_index)
+        : executionIndex,
+      executionIndex,
+      actionId,
+      title: executionItem?.action_name || action?.name || '未命名任务',
+      itemType,
+      params: paramsData,
+      customData,
+      noteText: String(executionItem?.notes || '').trim(),
+      detailText: String(executionItem?.detail || action?.detail || '').trim(),
+      demoVideoUrl: action?.url || action?.video_url || null,
+      suggestedTime: executionItem?.suggested_time || action?.suggested_time || null,
+      executionItem,
+      setCount,
+      completedSetCount,
+      isCompleted: isTaskCompleted,
+      isStudentExtra: executionItem?.source === 'student_extra'
+    }
+  })
+
+  const normalizedTasks = useExecutionSnapshot ? snapshotTasks : planTasks
 
   const extraExecutionTasks: NormalizedDayTask[] = executionActions
     .map((executionItem: any, executionIndex: number) => {
@@ -302,7 +372,9 @@ export const buildDayModuleModel = (params: {
     })
     .filter(Boolean) as NormalizedDayTask[]
 
-  const mergedTasks = [...normalizedTasks, ...extraExecutionTasks]
+  const mergedTasks = useExecutionSnapshot
+    ? normalizedTasks
+    : [...normalizedTasks, ...extraExecutionTasks]
   const strengthTasks = mergedTasks.filter((task) => task.itemType === 'STRENGTH')
   const lightweightTasks = mergedTasks.filter((task) => task.itemType !== 'STRENGTH')
   const strengthCompleted = strengthTasks.length > 0 && strengthTasks.every((task) => task.isCompleted)

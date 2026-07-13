@@ -11,11 +11,21 @@ import {
 export const dynamic = "force-dynamic";
 
 function isAuthorized(req: Request, session: Awaited<ReturnType<typeof getServerSession>>) {
-    const secret = String(process.env.CRON_SECRET || process.env.HUIFU_SETTLEMENT_CRON_SECRET || "").trim();
+    // Accept both the dedicated Huifu secret and the legacy shared cron secret.
+    // Instrumentation prefers HUIFU_SETTLEMENT_CRON_SECRET; accepting only
+    // CRON_SECRET here made that legitimate request fail when both differed.
+    // Access through the runtime environment object: Apollo supplies this
+    // server-only value when the Node process starts, after `next build`.
+    const runtimeEnv = process.env as Record<string, string | undefined>;
+    const secrets = new Set(
+        [runtimeEnv["HUIFU_SETTLEMENT_CRON_SECRET"], runtimeEnv["CRON_SECRET"]]
+            .map((value) => String(value || "").trim())
+            .filter(Boolean),
+    );
     const authHeader = req.headers.get("authorization") || "";
     const headerSecret = authHeader.startsWith("Bearer ") ? authHeader.slice("Bearer ".length).trim() : "";
     const explicitSecret = req.headers.get("x-cron-secret") || "";
-    if (secret && (headerSecret === secret || explicitSecret === secret)) {
+    if (secrets.has(headerSecret) || secrets.has(explicitSecret)) {
         return { ok: true as const, mode: "secret" as const };
     }
     if ((session?.user as { is_admin?: boolean } | undefined)?.is_admin) {

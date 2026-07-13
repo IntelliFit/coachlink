@@ -1,6 +1,4 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
-
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+import { getCoachlinkLlm } from "@/lib/coachlinkLlm";
 
 /**
  * 调用 Gemini API 生成内容
@@ -8,11 +6,16 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
  * @returns 生成的文本内容
  */
 export async function callGemini(prompt: string): Promise<string> {
-    const model = genAI.getGenerativeModel({
-        model: "gemini-3-flash-preview",
+    const { client, model } = getCoachlinkLlm();
+    const completion = await client.chat.completions.create({
+        model,
+        messages: [{ role: "user", content: prompt }],
     });
-    const result = await model.generateContent(prompt);
-    return result.response.text();
+    const content = completion.choices[0]?.message?.content;
+    if (!content) {
+        throw new Error("万界方舟返回空内容");
+    }
+    return content;
 }
 
 /**

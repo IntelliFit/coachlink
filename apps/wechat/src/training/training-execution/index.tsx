@@ -21,6 +21,12 @@ import './index.scss'
 import { useTheme } from '@/hooks/useTheme'
 import { useSharePoster } from '@/hooks/useSharePoster'
 import { resolveCanvasImageSrc } from '@/utils/weapp-canvas-image'
+import {
+  ACTION_PICKER_EQUIPMENT_FILTERS,
+  ACTION_PICKER_MUSCLE_FILTERS,
+  getActionPickerSearchText,
+  matchesActionPickerFilter
+} from '@/utils/actionPickerFilters'
 
 const RETURN_CONFIRM_STORAGE_KEY = 'today_training_last_confirmed_day'
 const EXECUTION_LOAD_TIMEOUT_MS = 30000
@@ -34,35 +40,18 @@ const WORKOUT_POSTER_CANVAS_ID = 'workout-share-poster-canvas'
 const WORKOUT_POSTER_WIDTH = 750
 const WORKOUT_POSTER_HEIGHT = 1184
 
-interface FilterOption {
-  key: string
-  label: string
-  keywords: string[]
-}
-
-const PICKER_MUSCLE_FILTERS: FilterOption[] = [
-  { key: 'all', label: '全部', keywords: [] },
-  { key: 'chest', label: '胸', keywords: ['胸', '胸部', '上胸', '下胸', '卧推', '推胸'] },
-  { key: 'back', label: '背', keywords: ['背', '背部', '引体', '划船', '下拉'] },
-  { key: 'legs', label: '腿', keywords: ['腿', '腿部', '股四头', '腘绳', '深蹲', '硬拉'] },
-  { key: 'shoulder', label: '肩', keywords: ['肩', '肩部', '三角肌', '推举'] },
-  { key: 'arms', label: '手臂', keywords: ['手臂', '二头', '三头', '肱二头', '肱三头', '弯举', '臂屈伸'] },
-  { key: 'core', label: '核心', keywords: ['核心', '腹', '腹部', '腰腹', '平板'] },
-  { key: 'glutes', label: '臀部', keywords: ['臀', '臀部', '髋'] },
-  { key: 'functional', label: '功能性', keywords: ['功能', '稳定', '灵活', '爆发', '平衡'] }
-]
-
-const PICKER_EQUIPMENT_FILTERS: FilterOption[] = [
-  { key: 'all', label: '全部器械', keywords: [] },
-  { key: 'barbell', label: '杠铃', keywords: ['杠铃'] },
-  { key: 'dumbbell', label: '哑铃', keywords: ['哑铃'] },
-  { key: 'bodyweight', label: '徒手', keywords: ['徒手', '自重', '俯卧撑', '引体'] },
-  { key: 'machine', label: '器械', keywords: ['器械', '固定器械', '史密斯', '坐姿'] },
-  { key: 'cable', label: '绳索', keywords: ['绳索', '龙门架', '滑轮'] }
-]
-
 const MUSCLE_FILL_ORIGIN_STYLE = 'fill:#222222'
 const MUSCLE_FILL_HIGHLIGHT_STYLE = 'fill:#CF6D4E'
+
+const SUMMARY_MUSCLE_TO_SVG_CATEGORIES: Record<string, string[]> = {
+  胸部: ['胸部'],
+  背部: ['背部'],
+  肩部: ['肩部'],
+  手臂: ['大臂', '小臂'],
+  核心: ['腹部'],
+  腿部: ['大腿', '小腿'],
+  臀部: ['臀部']
+}
 
 const MUSCLE_INFERENCE_RULES: Array<{ label: string; keywords: string[] }> = [
   { label: '胸部', keywords: ['胸', '卧推', '飞鸟', '夹胸', '俯卧撑', '双杠'] },
@@ -71,7 +60,7 @@ const MUSCLE_INFERENCE_RULES: Array<{ label: string; keywords: string[] }> = [
   { label: '手臂', keywords: ['手臂', '二头', '三头', '弯举', '臂屈伸'] },
   { label: '核心', keywords: ['核心', '腹', '卷腹', '平板', '腰腹'] },
   { label: '腿部', keywords: ['腿', '深蹲', '腿举', '弓步', '股四头', '腘绳'] },
-  { label: '臀部', keywords: ['臀', '臀桥', '髋'] }
+  { label: '臀部', keywords: ['臀', '臀桥', '髋', '深蹲', '硬拉', '弓步'] }
 ]
 
 function withExecutionLoadTimeout<T>(promise: Promise<T>, label: string): Promise<T> {
@@ -292,27 +281,6 @@ function asTextList(value?: string[] | null) {
   return Array.isArray(value) ? value.filter(Boolean) : []
 }
 
-function getActionSearchText(action: any) {
-  return [
-    action?.name,
-    action?.action_name,
-    action?.detail,
-    action?.type,
-    action?.equipment,
-    action?.category,
-    action?.primary_muscle,
-    ...asTextList(action?.positions),
-    ...asTextList(action?.attrs),
-    ...asTextList(action?.target_muscles)
-  ].filter(Boolean).join(' ').toLowerCase()
-}
-
-function matchesActionFilter(action: any, filter: FilterOption) {
-  if (filter.key === 'all') return true
-  const source = getActionSearchText(action)
-  return filter.keywords.some((keyword) => source.includes(keyword.toLowerCase()))
-}
-
 function parseSvgCategoryMap(svg: string): Record<string, string> {
   const map: Record<string, string> = {}
   const singleLineRegex = /<g[^>]*data-name="([^"]+)"[^>]*category="([^"]+)"[^>]*>/g
@@ -334,10 +302,11 @@ function parseSvgCategoryMap(svg: string): Record<string, string> {
 function highlightSvgCategories(svg: string, selectedParts: string[]) {
   const categoryMap = parseSvgCategoryMap(svg)
   const dataNamesToHighlight = new Set<string>()
-  selectedParts.forEach((part) => {
-    Object.entries(categoryMap).forEach(([dataName, category]) => {
-      if (category === part) dataNamesToHighlight.add(dataName)
-    })
+  const selectedCategories = new Set(
+    selectedParts.flatMap((part) => SUMMARY_MUSCLE_TO_SVG_CATEGORIES[part] || [part])
+  )
+  Object.entries(categoryMap).forEach(([dataName, category]) => {
+    if (selectedCategories.has(category)) dataNamesToHighlight.add(dataName)
   })
 
   let result = svg
@@ -362,7 +331,7 @@ function highlightSvgCategories(svg: string, selectedParts: string[]) {
 }
 
 function inferMusclesForAction(actionExecution: ActionExecution, actionDetail: any): string[] {
-  const sourceText = getActionSearchText({
+  const sourceText = getActionPickerSearchText({
     ...actionDetail,
     action_name: actionExecution?.action_name
   })
@@ -699,11 +668,11 @@ function TrainingExecution() {
 
   const filteredActionPickerList = React.useMemo(() => {
     const keyword = actionKeyword.trim().toLowerCase()
-    const muscleFilter = PICKER_MUSCLE_FILTERS.find((item) => item.key === pickerMuscle) || PICKER_MUSCLE_FILTERS[0]
-    const equipmentFilter = PICKER_EQUIPMENT_FILTERS.find((item) => item.key === pickerEquipment) || PICKER_EQUIPMENT_FILTERS[0]
+    const muscleFilter = ACTION_PICKER_MUSCLE_FILTERS.find((item) => item.key === pickerMuscle) || ACTION_PICKER_MUSCLE_FILTERS[0]
+    const equipmentFilter = ACTION_PICKER_EQUIPMENT_FILTERS.find((item) => item.key === pickerEquipment) || ACTION_PICKER_EQUIPMENT_FILTERS[0]
     return actionPickerList.filter((action) => {
-      const matchesKeyword = !keyword || getActionSearchText(action).includes(keyword)
-      return matchesKeyword && matchesActionFilter(action, muscleFilter) && matchesActionFilter(action, equipmentFilter)
+      const matchesKeyword = !keyword || getActionPickerSearchText(action).includes(keyword)
+      return matchesKeyword && matchesActionPickerFilter(action, muscleFilter) && matchesActionPickerFilter(action, equipmentFilter)
     })
   }, [actionKeyword, actionPickerList, pickerEquipment, pickerMuscle])
 
@@ -1172,13 +1141,31 @@ function TrainingExecution() {
   }, [clearPersistedRestTimer, execution?.id, isResting, restTimerStorageKey])
 
   React.useEffect(() => {
-    if (!trainingTimerStorageKey || !execution) {
+    if (!trainingTimerStorageKey || !execution || isPreviewExecution) {
       setElapsedTrainingSeconds(0)
       return undefined
     }
 
     const executionStartedAt = parseTimestamp(execution?.started_at)
     const executionCompletedAt = parseTimestamp(execution?.completed_at)
+
+    // Read-only previews are not workout sessions. Only a persisted execution
+    // with both timestamps may show a historical duration; never start or
+    // restore a local running timer in read-only mode.
+    if (isReadOnly) {
+      try {
+        Taro.removeStorageSync(trainingTimerStorageKey)
+      } catch {
+        // Best effort only.
+      }
+      if (executionStartedAt && executionCompletedAt) {
+        setElapsedTrainingSeconds(Math.max(0, Math.floor((executionCompletedAt - executionStartedAt) / 1000)))
+      } else {
+        setElapsedTrainingSeconds(0)
+      }
+      return undefined
+    }
+
     let storedStartedAt: number | null = null
 
     try {
@@ -1218,6 +1205,8 @@ function TrainingExecution() {
     execution?.id,
     execution?.started_at,
     executionSnapshotScopeKey,
+    isPreviewExecution,
+    isReadOnly,
     trainingTimerStorageKey
   ])
 
@@ -1499,9 +1488,7 @@ function TrainingExecution() {
     }
   }
 
-  const handlePostFinishFlow = React.useCallback((sharePath?: string) => {
-    const targetSharePath = String(sharePath || '').trim()
-    setWorkoutSummarySharePath(targetSharePath)
+  const handlePostFinishFlow = React.useCallback((_sharePath?: string) => {
     setShowWorkoutSummary(true)
   }, [])
 
@@ -1598,6 +1585,16 @@ function TrainingExecution() {
               : await executionService.finishTraining(execution.id)
 
             if (finishRes !== null) {
+              const finishedExecution = {
+                ...execution,
+                ...finishRes,
+                action_executions: Array.isArray(finishRes?.action_executions)
+                  ? finishRes.action_executions
+                  : execution.action_executions
+              }
+              setExecution(finishedExecution)
+              syncExecutionToCaches(finishedExecution)
+
               if (!isImpromptuMode && dayIndex) {
                 Taro.setStorageSync(RETURN_CONFIRM_STORAGE_KEY, {
                   dayIndex,
@@ -1685,6 +1682,16 @@ function TrainingExecution() {
               : await executionService.finishTraining({ executionId: execution.id, mode: 'quick' })
 
             if (finishRes !== null) {
+              const finishedExecution = {
+                ...execution,
+                ...finishRes,
+                action_executions: Array.isArray(finishRes?.action_executions)
+                  ? finishRes.action_executions
+                  : execution.action_executions
+              }
+              setExecution(finishedExecution)
+              syncExecutionToCaches(finishedExecution)
+
               if (!isImpromptuMode && dayIndex) {
                 Taro.setStorageSync(RETURN_CONFIRM_STORAGE_KEY, {
                   dayIndex,
@@ -2366,8 +2373,7 @@ function TrainingExecution() {
   ])
   const {
     generate: generateWorkoutPoster,
-    generating: workoutPosterGenerating,
-    imageUrl: workoutPosterImageUrl
+    generating: workoutPosterGenerating
   } = useSharePoster<WorkoutPosterData>({
     canvasId: WORKOUT_POSTER_CANVAS_ID,
     width: WORKOUT_POSTER_WIDTH,
@@ -2391,6 +2397,12 @@ function TrainingExecution() {
           })
           return
         }
+        const message = String(err?.errMsg || '')
+        console.error('[training-execution] save workout poster failed', err)
+        if (message.includes('no such file') || message.includes('file not exist')) {
+          Taro.showToast({ title: '图片文件已失效，请重新生成', icon: 'none' })
+          return
+        }
         Taro.showToast({ title: '保存失败，请稍后重试', icon: 'none' })
       }
     })
@@ -2403,9 +2415,32 @@ function TrainingExecution() {
     }
 
     Taro.showLoading({ title: '生成分享图' })
-    const imagePath = workoutPosterImageUrl || await generateWorkoutPoster(workoutPosterData)
+    // 临时图片路径可能被微信清理；每次操作都重新导出并持久化，不复用旧路径。
+    const imagePath = await generateWorkoutPoster(workoutPosterData)
     Taro.hideLoading()
     if (!imagePath) return
+
+    const platform = String(Taro.getDeviceInfo?.().platform || '')
+    if (platform === 'devtools') {
+      Taro.showModal({
+        title: '分享图已生成',
+        content: '微信开发者工具不能打开好友或群聊选择器，也没有手机相册。可先预览生成结果；真机中可直接发送给好友或群聊。',
+        showCancel: false,
+        confirmText: '预览图片',
+        success: (res) => {
+          if (!res.confirm) return
+          Taro.previewImage({
+            current: imagePath,
+            urls: [imagePath],
+            fail: (error) => {
+              console.error('[training-execution] preview workout poster failed', error)
+              Taro.showToast({ title: '预览失败，请重新生成', icon: 'none' })
+            }
+          })
+        }
+      })
+      return
+    }
 
     const showShareImageMenu = (Taro as any).showShareImageMenu
     if (typeof showShareImageMenu === 'function') {
@@ -2417,7 +2452,7 @@ function TrainingExecution() {
           console.error('[training-execution] showShareImageMenu failed', err)
           Taro.showModal({
             title: '分享图已生成',
-            content: '当前环境不能直接调起图片分享，先保存到相册再发送。',
+            content: '当前环境不能直接调起好友或群聊分享，可先保存到相册再发送。',
             confirmText: '保存图片',
             success: (res) => {
               if (res.confirm) saveWorkoutPosterImage(imagePath)
@@ -2430,7 +2465,7 @@ function TrainingExecution() {
 
     Taro.showModal({
       title: '分享图已生成',
-      content: '当前基础库不支持直接图片分享，先保存到相册再发送。',
+      content: '当前基础库不支持直接发送给好友或群聊，可先保存到相册再发送。',
       confirmText: '保存图片',
       success: (res) => {
         if (res.confirm) saveWorkoutPosterImage(imagePath)
@@ -2440,8 +2475,7 @@ function TrainingExecution() {
     canOpenWorkoutSummary,
     generateWorkoutPoster,
     saveWorkoutPosterImage,
-    workoutPosterData,
-    workoutPosterImageUrl
+    workoutPosterData
   ])
 
   const handleLeaveAfterSummary = () => {
@@ -3021,7 +3055,7 @@ function TrainingExecution() {
 
               <ScrollView scrollX className="picker-equipment-scroll" showScrollbar={false}>
                 <View className="picker-equipment-list">
-                  {PICKER_EQUIPMENT_FILTERS.map((item) => (
+                  {ACTION_PICKER_EQUIPMENT_FILTERS.map((item) => (
                     <Text
                       key={item.key}
                       className={`picker-equipment-chip ${pickerEquipment === item.key ? 'active' : ''}`}
@@ -3035,7 +3069,7 @@ function TrainingExecution() {
 
               <View className="picker-body">
                 <ScrollView scrollY className="picker-muscle-rail">
-                  {PICKER_MUSCLE_FILTERS.map((item) => (
+                  {ACTION_PICKER_MUSCLE_FILTERS.map((item) => (
                     <Text
                       key={item.key}
                       className={`picker-muscle-item ${pickerMuscle === item.key ? 'active' : ''}`}
@@ -3126,14 +3160,14 @@ function TrainingExecution() {
         )}
         {(isReadOnly || isWorkoutCompleted) && canOpenWorkoutSummary && (
           <View className="footer-section review-share-section">
-            <Text className="finish-hint">本次训练已完成，可直接生成训练分享图。</Text>
+            <Text className="finish-hint">本次训练已完成，可生成图片发送给好友或群聊。</Text>
             <Button
               type="primary"
               className="finish-btn"
               loading={workoutPosterGenerating}
               onClick={handleGenerateWorkoutPoster}
             >
-              生成分享图
+              生成并分享
             </Button>
           </View>
         )}
@@ -3234,7 +3268,7 @@ function TrainingExecution() {
             <View className="summary-actions">
               <Text className="summary-secondary-btn" onClick={handleLeaveAfterSummary}>返回</Text>
               <Text className={`summary-primary-btn ${workoutPosterGenerating ? 'disabled' : ''}`} onClick={handleGenerateWorkoutPoster}>
-                {workoutPosterGenerating ? '生成中...' : '生成分享图'}
+                {workoutPosterGenerating ? '生成中...' : '生成并分享'}
               </Text>
             </View>
           </View>

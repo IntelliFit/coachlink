@@ -4,4 +4,7 @@
 // 返回参数
 export interface ExtractFileTextResponseDto {
     text: string;
+    sourceType: "text" | "spreadsheet" | "document" | "pdf" | "image";
+    extractionMethod: "deterministic" | "vision";
+    warnings?: string[];
 }

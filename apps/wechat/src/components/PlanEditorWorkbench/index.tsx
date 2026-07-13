@@ -37,6 +37,7 @@ import {
 } from '@/utils/planStrength'
 import './index.scss'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
+import { API_BASE_URL } from '@/utils/request'
 
 type PlanEditorMode = 'coach-template' | 'student-favorite'
 type BatchMode = 'replace' | 'delete' | 'append'
@@ -511,6 +512,50 @@ export default function PlanEditorWorkbench({
       Taro.showToast({ title: '导入失败', icon: 'none' })
     } finally {
       setImporting(false)
+    }
+  }
+
+  const uploadImportFile = async (filePath: string, fileName?: string) => {
+    try {
+      setImporting(true)
+      const token = Taro.getStorageSync('token') || ''
+      const response = await Taro.uploadFile({
+        url: `${API_BASE_URL}/api/plan-lib/extract-file-text`,
+        filePath,
+        name: 'file',
+        header: token ? { Authorization: `Bearer ${token}` } : {}
+      })
+      const body = typeof response.data === 'string' ? JSON.parse(response.data) : response.data as any
+      if (response.statusCode !== 200 || !body?.success || !body?.data?.text) {
+        throw new Error(body?.message || '文件提取失败')
+      }
+      setImportText(body.data.text)
+      const methodHint = body.data.extractionMethod === 'vision' ? '已识别图片，请核对关键数字后再导入' : '已提取文件内容，请确认后导入'
+      Taro.showToast({ title: methodHint, icon: 'none' })
+    } catch (error: any) {
+      Taro.showToast({ title: error?.message || '文件上传失败', icon: 'none' })
+    } finally {
+      setImporting(false)
+    }
+  }
+
+  const handleChooseImportImage = async () => {
+    try {
+      const result = await Taro.chooseMedia({ count: 1, mediaType: ['image'], sourceType: ['album', 'camera'] } as any)
+      const filePath = result.tempFiles?.[0]?.tempFilePath
+      if (filePath) await uploadImportFile(filePath, 'plan-image.jpg')
+    } catch (error: any) {
+      if (!String(error?.errMsg || '').includes('cancel')) Taro.showToast({ title: '选择图片失败', icon: 'none' })
+    }
+  }
+
+  const handleChooseImportFile = async () => {
+    try {
+      const result = await Taro.chooseMessageFile({ count: 1, type: 'file' } as any)
+      const file = result.tempFiles?.[0] as any
+      if (file?.path) await uploadImportFile(file.path, file.name)
+    } catch (error: any) {
+      if (!String(error?.errMsg || '').includes('cancel')) Taro.showToast({ title: '选择文件失败', icon: 'none' })
     }
   }
 
@@ -1547,6 +1592,15 @@ export default function PlanEditorWorkbench({
               maxlength={5000}
               onInput={(event) => setImportText(event.detail.value)}
             />
+            <View className='plan-editor__toolbar wrap'>
+              <View className='plan-editor__toolbar-btn' onClick={() => void handleChooseImportImage()}>
+                <Text>上传计划图片</Text>
+              </View>
+              <View className='plan-editor__toolbar-btn' onClick={() => void handleChooseImportFile()}>
+                <Text>上传文件</Text>
+              </View>
+            </View>
+            <Text className='plan-editor__modal-hint'>支持 txt、CSV、Word、Excel、文字 PDF 和图片；图片识别后会先填入文本框供你核对。</Text>
             <View className='plan-editor__modal-footer'>
               <View className='plan-editor__modal-btn' onClick={() => setShowImportDialog(false)}>
                 <Text>取消</Text>

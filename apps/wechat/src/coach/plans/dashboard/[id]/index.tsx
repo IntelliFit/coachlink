@@ -16,8 +16,6 @@ interface DayExecutionSummary {
   total_sets?: number
 }
 
-type TemporalStatus = 'past' | 'today' | 'future'
-
 const getStartOfDay = (date: Date) => {
   const d = new Date(date)
   d.setHours(0, 0, 0, 0)
@@ -60,20 +58,6 @@ function CoachPlanDashboard() {
     start.setDate(start.getDate() + dayIdx - 1)
     return start
   }, [instance?.start_date])
-
-  const getTemporalStatus = useCallback((dayIdx: number): TemporalStatus => {
-    const plannedDate = getPlannedDate(dayIdx)
-    if (plannedDate) {
-      const today = getStartOfDay(new Date())
-      if (plannedDate.getTime() < today.getTime()) return 'past'
-      if (plannedDate.getTime() > today.getTime()) return 'future'
-      return 'today'
-    }
-
-    if (dayIdx < nextDayIndex) return 'past'
-    if (dayIdx > nextDayIndex) return 'future'
-    return 'today'
-  }, [getPlannedDate, nextDayIndex])
 
   const formatDateLabel = useCallback((dayIdx: number) => {
     const plannedDate = getPlannedDate(dayIdx)
@@ -183,8 +167,9 @@ function CoachPlanDashboard() {
   const selectedProgressText = selectedExecution && (selectedExecution.total_sets || 0) > 0
     ? `${selectedExecution.completed_sets || 0}/${selectedExecution.total_sets || 0} 组`
     : (selectedStatus === 'completed' ? '已完成' : '未开始')
-  const selectedTemporalStatus = selectedDay ? getTemporalStatus(selectedDay.dayIndex) : 'today'
-  const selectedReadOnly = !!selectedDay && selectedDay.type === 'training' && selectedTemporalStatus !== 'today'
+  const selectedCanExecute = !!selectedDay && selectedDay.type === 'training' &&
+    (selectedStatus === 'in_progress' || (selectedStatus !== 'completed' && selectedDay.dayIndex === nextDayIndex))
+  const selectedReadOnly = !!selectedDay && selectedDay.type === 'training' && !selectedCanExecute
 
   const coachQuery = useMemo(() => {
     if (!coachId) return ''
@@ -194,8 +179,10 @@ function CoachPlanDashboard() {
   const goExecution = useCallback((dayIndex: number) => {
     if (!instance?.id) return
 
-    const temporalStatus = getTemporalStatus(dayIndex)
-    const readOnly = temporalStatus !== 'today'
+    const execution = executionMap[dayIndex]
+    const executionStatus = execution?.status || (completionDates[dayIndex] ? 'completed' : 'none')
+    const readOnly = executionStatus === 'completed' ||
+      (executionStatus !== 'in_progress' && dayIndex !== nextDayIndex)
 
     Taro.navigateTo({
       url: `/coach/plans/dashboard/[id]/training-execution?id=${encodeURIComponent(instance.id)}&dayIndex=${dayIndex}&readOnly=${readOnly ? 'true' : 'false'}${coachQuery}`
@@ -203,7 +190,7 @@ function CoachPlanDashboard() {
       console.error('[coach/plans/dashboard] goExecution error:', error)
       Taro.showToast({ title: '页面跳转失败', icon: 'none' })
     })
-  }, [coachQuery, getTemporalStatus, instance?.id])
+  }, [coachQuery, completionDates, executionMap, instance?.id, nextDayIndex])
 
   const handleDayAction = useCallback(() => {
     if (!selectedDay || selectedDay.type !== 'training') return
@@ -309,8 +296,9 @@ function CoachPlanDashboard() {
               const dayExecution = executionMap[day.dayIndex]
               const dayStatus = dayExecution?.status || (completionDates[day.dayIndex] ? 'completed' : 'none')
               const selected = selectedDay?.dayIndex === day.dayIndex
-              const temporal = getTemporalStatus(day.dayIndex)
-              const isReadOnlyDay = day.type === 'training' && temporal !== 'today'
+              const canExecuteDay = day.type === 'training' &&
+                (dayStatus === 'in_progress' || (dayStatus !== 'completed' && day.dayIndex === nextDayIndex))
+              const isReadOnlyDay = day.type === 'training' && !canExecuteDay
 
               return (
                 <View
@@ -358,7 +346,7 @@ function CoachPlanDashboard() {
               : `${selectedProgressText}${selectedReadOnly ? ' · 只读查看' : ''}`}
           </Text>
           {selectedDay?.type === 'training' && selectedReadOnly && (
-            <Text className='readonly-note'>该训练日不是今天，按网页逻辑仅支持只读查看</Text>
+            <Text className='readonly-note'>已完成记录仅供查看；请从当前进度日继续训练</Text>
           )}
           <View
             className={`today-action ${selectedDay?.type !== 'training' ? 'disabled' : ''}`}

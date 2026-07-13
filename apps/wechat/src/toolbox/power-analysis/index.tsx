@@ -189,21 +189,27 @@ function uploadPowerAnalysisVideo(params: {
         Authorization: `Bearer ${token}`
       },
       success: (uploadRes: any) => {
-        try {
-          const data = typeof uploadRes.data === 'string'
-            ? JSON.parse(uploadRes.data || '{}')
-            : uploadRes.data
-
-          if (uploadRes.statusCode >= 200 && uploadRes.statusCode < 300 && data?.success) {
-            params.onProgress(100)
-            resolve()
-            return
+        let data: any = uploadRes.data
+        if (typeof uploadRes.data === 'string') {
+          try {
+            data = JSON.parse(uploadRes.data || '{}')
+          } catch {
+            data = null
           }
-
-          reject(new Error(data?.message || `上传失败（${uploadRes.statusCode}）`))
-        } catch {
-          reject(new Error('上传响应解析失败'))
         }
+
+        if (uploadRes.statusCode >= 200 && uploadRes.statusCode < 300 && data?.success) {
+          params.onProgress(100)
+          resolve()
+          return
+        }
+
+        if (uploadRes.statusCode === 413) {
+          reject(new Error(data?.message || '视频超过服务器上传限制，请压缩后重试'))
+          return
+        }
+
+        reject(new Error(data?.message || `上传失败（${uploadRes.statusCode}）`))
       },
       fail: (error: any) => {
         reject(new Error(error?.errMsg || error?.message || '上传失败'))

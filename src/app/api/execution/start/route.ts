@@ -13,7 +13,6 @@ import { normalizeToKg } from "@/types/intensity";
 import { getCurrent1RMRecords } from "@/app/api/student/get-current-1rm/route";
 import { getAuthUser } from "@/lib/auth";
 import { validateExecutionSubscriptionAccess } from "../_helpers/subscriptionAccess";
-import { syncExecutionPlanWithCurrentConfig } from "../_helpers/syncExecutionPlan";
 import { normalizePlannedRestSeconds } from "@/lib/restTime";
 
 /**
@@ -74,13 +73,12 @@ export async function POST(request: NextRequest) {
             .maybeSingle();
 
         if (existingExecution) {
-            const { execution: syncedExecution, changed } =
-                await syncExecutionPlanWithCurrentConfig(existingExecution as any);
-
             return NextResponse.json<ApiData<StartExecutionResponseDto>>({
                 success: true,
-                message: changed ? "同步执行记录成功" : "获取执行记录成功",
-                data: syncedExecution,
+                message: "获取执行记录成功",
+                // Execution rows are immutable plan snapshots. A later plan edit must
+                // never reinterpret completed sets as another action at the same index.
+                data: existingExecution,
             });
         }
 

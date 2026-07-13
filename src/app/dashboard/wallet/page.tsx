@@ -155,7 +155,10 @@ export default function CoachWalletPage() {
                                 <p className="text-xs text-green-100">待结算收入: ¥ {pendingSettlementAmount.toFixed(2)}</p>
                             ) : null}
                             <p className="text-xs text-green-100">账户总余额: ¥ {(data?.gross_balance ?? data?.balance ?? 0).toFixed(2)}</p>
-                            <p className="text-sm font-semibold text-green-50">累计总收入: ¥ {(data?.total_income ?? 0).toFixed(2)}</p>
+                            <p className="text-sm font-semibold text-green-50">历史累计收入: ¥ {(data?.total_income ?? 0).toFixed(2)}</p>
+                            <p className="max-w-md pt-1 text-xs leading-5 text-green-100">
+                                账户总余额 = 可提现余额 + 冻结金额；待结算收入尚未入账。历史累计收入统计历次入账，不因提现或退款减少。
+                            </p>
                         </div>
                         <div className="flex items-center gap-3">
                             {boundAccount ? (

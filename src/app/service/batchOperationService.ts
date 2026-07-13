@@ -201,12 +201,13 @@ export class BatchOperationService {
                 return;
             }
 
-            onMessage(message);
-
-            // 如果是错误消息,触发错误回调
+            // SSE 业务错误只走 onError，避免 onMessage + onError 各记录一次。
             if (message.type === 'error') {
                 onError(message.message);
+                return;
             }
+
+            onMessage(message);
         } catch (e: any) {
             // 详细的错误日志
             console.error('解析 SSE 消息失败:', {

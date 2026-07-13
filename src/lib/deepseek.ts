@@ -1,11 +1,10 @@
 import {
-    COACHLINK_DEFAULT_DEEPSEEK_MODEL,
     getCoachlinkPlanLlm,
 } from "@/lib/coachlinkLlm";
 
 type DeepSeekOptions = {
     /**
- * 是否使用思考模式（仅 DeepSeek 直连时有效）
+ * 历史兼容字段。万界方舟的通用 OpenAI 接口不发送供应商私有 thinking 参数。
      */
     useReasoner?: boolean;
     /**
@@ -15,7 +14,7 @@ type DeepSeekOptions = {
 };
 
 /**
- * 调用 LLM 生成 JSON（计划纯文本链路默认优先 DeepSeek v4-flash）
+ * 调用 LLM 生成 JSON（通过万界方舟 OpenAI 兼容接口）
  */
 export async function callDeepSeek(
     prompt: string,
@@ -27,33 +26,16 @@ export async function callDeepSeek(
     } = options;
 
     const { client, model, provider } = getCoachlinkPlanLlm();
-    const resolvedModel =
-        provider === "deepseek" ? COACHLINK_DEFAULT_DEEPSEEK_MODEL : model;
+    const resolvedModel = model;
 
-    // Ofox / Gemini 兼容层常只认 max_completion_tokens；仅传 max_tokens 时可能被压成极小上限，导致 JSON 半截
-    const body: Parameters<typeof client.chat.completions.create>[0] =
-        provider === "ofox"
-            ? ({
-                  messages: [{ role: "user", content: prompt }],
-                  model: resolvedModel,
-                  max_tokens: maxTokens,
-                  max_completion_tokens: maxTokens,
-                  response_format: { type: "json_object" },
-                  temperature: 0.2,
-              } as Parameters<typeof client.chat.completions.create>[0])
-            : ({
-                  messages: [{ role: "user", content: prompt }],
-                  model: resolvedModel,
-                  max_tokens: maxTokens,
-                  response_format: { type: "json_object" },
-                  temperature: 0.2,
-                  ...(useReasoner
-                      ? {
-                            thinking: { type: "enabled" },
-                            reasoning_effort: "high",
-                        }
-                      : {}),
-              } as Parameters<typeof client.chat.completions.create>[0]);
+    void useReasoner;
+    const body = {
+        messages: [{ role: "user" as const, content: prompt }],
+        model: resolvedModel,
+        max_tokens: maxTokens,
+        response_format: { type: "json_object" as const },
+        temperature: 0.2,
+    } as Parameters<typeof client.chat.completions.create>[0];
 
     const completion = await client.chat.completions.create(body);
 

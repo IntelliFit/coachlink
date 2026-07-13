@@ -110,8 +110,6 @@ const PUBLIC_PATHS = new Set([
     "/api/streetlifting-index/locations/contributors",
     "/api/streetlifting-index/locations/map-pins",
     "/api/hello-world",
-    "/api/healthy",
-    "/api/health",
     "/api/system/version",
     "/docs/agreement",
     "/docs/disclaimer",
@@ -137,6 +135,15 @@ const AUTH_BASE_URL = "/api/auth";
 const ADMIN_BASE_URL = "/admin";
 const WECHAT_AUTH_BASE_URL = "/wechat-auth";
 const NEXTAUTH_SECRET = process.env.NEXTAUTH_SECRET!;
+
+// These internal jobs authenticate inside their Node route handlers with
+// HUIFU_SETTLEMENT_CRON_SECRET / CRON_SECRET. The proxy runs before routes and
+// can only validate user JWTs, so it must not turn a valid cron request into a
+// generic "用户未登录" response before the route receives its x-cron-secret.
+const ROUTE_AUTHENTICATED_CRON_PATHS = new Set([
+    "/api/admin/coach-subscription-settlements/process-due",
+    "/api/admin/coach-subscription-settlements/reconcile",
+]);
 
 function handleMiddleware(request: NextRequest) {
     const { pathname } = request.nextUrl;
@@ -198,6 +205,7 @@ export async function proxy(request: NextRequest) {
         PUBLIC_PATHS.has(pathname) ||
         pathname.startsWith("/api/healthy") ||
         pathname.startsWith("/api/health") ||
+        ROUTE_AUTHENTICATED_CRON_PATHS.has(pathname) ||
         pathname.startsWith("/api/system/version") ||
         pathname.startsWith("/api/public/") ||
         pathname.startsWith("/api/public-action-lib/") ||

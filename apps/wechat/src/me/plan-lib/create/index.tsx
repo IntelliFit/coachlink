@@ -32,9 +32,9 @@ export default function StudentPlanLibCreate() {
     try {
       setLoading(true)
       const user = authService.getCurrentUser()
-      const [actionsRes, draftRes, profileRes, oneRMRes] = await Promise.all([
+      // 普通创建页只加载编辑所需数据；AI 生成必须由用户主动触发。
+      const [actionsRes, profileRes, oneRMRes] = await Promise.all([
         studentActionLibService.listActions({ page: 1, limit: 1000, search: '' }),
-        studentPlanLibService.generateAiDraftFromProfile({ days: 7 }).catch(() => null),
         user?.id ? studentService.getStudentProfile(user.id).catch(() => null) : Promise.resolve(null),
         studentService.getCurrent1RM().catch(() => null)
       ])
@@ -47,16 +47,7 @@ export default function StudentPlanLibCreate() {
       setActions(nextActions)
       setStudentProfile(profileRes?.profile || null)
       setOneRMRecords(oneRMRes?.records || [])
-
-      if (draftRes?.trainingDays?.length) {
-        setInitialValue({
-          name: draftRes.name || 'AI 生成入门计划',
-          description: draftRes.description || '',
-          days: draftRes.trainingDays || []
-        })
-      } else {
-        setInitialValue(null)
-      }
+      setInitialValue(null)
     } catch (error) {
       console.error('[me/plan-lib/create] load failed:', error)
       Taro.showToast({ title: '加载失败', icon: 'none' })
@@ -113,7 +104,7 @@ export default function StudentPlanLibCreate() {
     <PlanEditorWorkbench
       mode='student-favorite'
       title='创建常用计划'
-      subtitle='支持 AI 草稿、智能导入、批量动作处理和多类型条目'
+      subtitle='支持智能导入、批量动作处理和多类型条目'
       initialValue={initialValue}
       actions={actions}
       loading={loading}

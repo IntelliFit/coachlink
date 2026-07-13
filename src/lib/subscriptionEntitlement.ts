@@ -124,7 +124,10 @@ export async function archiveCurrentPlanInstancesForSubscription(params: {
     query = query.neq("id", params.excludeInstanceId);
   }
 
-  const { data: previousInstances } = await query;
+  const { data: previousInstances, error: previousInstancesError } = await query;
+  if (previousInstancesError) {
+    throw new Error(`查询当前计划失败: ${previousInstancesError.message}`);
+  }
   const previousInstanceIds = (previousInstances || [])
     .map((item: any) => String(item?.id || "").trim())
     .filter(Boolean);
@@ -137,11 +140,14 @@ export async function archiveCurrentPlanInstancesForSubscription(params: {
     };
   }
 
-  const { data: completedRows } = await params.supabase
+  const { data: completedRows, error: completedRowsError } = await params.supabase
     .from("plan_instance_executions")
     .select("instance_id")
     .in("instance_id", previousInstanceIds)
     .eq("status", "completed");
+  if (completedRowsError) {
+    throw new Error(`查询计划执行记录失败: ${completedRowsError.message}`);
+  }
 
   const completedInstanceIds = new Set(
     (completedRows || [])
@@ -156,10 +162,39 @@ export async function archiveCurrentPlanInstancesForSubscription(params: {
     !completedInstanceIds.has(id)
   );
 
-  if (countedIds.length > 0) {
-    await params.supabase
+  const archiveIds = async (
+    ids: string[],
+    patch: Record<string, unknown>,
+    failureLabel: string,
+  ) => {
+    if (ids.length === 0) return;
+
+    let result = await params.supabase
       .from("coach_plan_instances")
-      .update({
+      .update(patch)
+      .in("id", ids);
+
+    // Compatibility for deployments where the entitlement migration has not
+    // reached the database yet. Status archiving is still mandatory; the
+    // optional accounting metadata can be backfilled after the migration.
+    const missingEntitlementColumn = result.error?.code === "PGRST204" &&
+      /archive_reason|entitlement_consumption_/i.test(result.error?.message || "");
+    if (missingEntitlementColumn) {
+      result = await params.supabase
+        .from("coach_plan_instances")
+        .update({ status: "archived", updated_at: nowIso })
+        .in("id", ids);
+    }
+
+    if (result.error) {
+      throw new Error(`${failureLabel}: ${result.error.message}`);
+    }
+  };
+
+  if (countedIds.length > 0) {
+    await archiveIds(
+      countedIds,
+      {
         status: "archived",
         ...buildArchiveEntitlementPatch({
           hasCompletedExecution: true,
@@ -167,14 +202,15 @@ export async function archiveCurrentPlanInstancesForSubscription(params: {
           entitlementPolicy: "count_service",
         }),
         updated_at: nowIso,
-      })
-      .in("id", countedIds);
+      },
+      "归档已执行计划失败",
+    );
   }
 
   if (noChargeIds.length > 0) {
-    await params.supabase
-      .from("coach_plan_instances")
-      .update({
+    await archiveIds(
+      noChargeIds,
+      {
         status: "archived",
         ...buildArchiveEntitlementPatch({
           hasCompletedExecution: false,
@@ -182,8 +218,9 @@ export async function archiveCurrentPlanInstancesForSubscription(params: {
           entitlementPolicy: "no_charge",
         }),
         updated_at: nowIso,
-      })
-      .in("id", noChargeIds);
+      },
+      "归档未执行计划失败",
+    );
   }
 
   return {

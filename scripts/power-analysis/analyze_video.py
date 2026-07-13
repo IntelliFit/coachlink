@@ -3,6 +3,8 @@ import argparse
 import json
 import math
 import os
+import shutil
+import subprocess
 import sys
 from collections import deque
 from typing import Any, Dict, List, Optional, Tuple
@@ -459,6 +461,9 @@ def render_output_video(
     fourcc = cv2.VideoWriter_fourcc(*"mp4v")
     os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
     out = cv2.VideoWriter(output_path, fourcc, fps, (frame_width, frame_height))
+    if not out.isOpened():
+        cap.release()
+        raise RuntimeError("Cannot create intermediate analysis video")
 
     pose_mod = mp.solutions.pose
     draw = mp.solutions.drawing_utils
@@ -645,6 +650,112 @@ def render_output_video(
     out.release()
 
 
+def env_int(name: str, fallback: int, minimum: int, maximum: int) -> int:
+    try:
+        value = int(os.environ.get(name, str(fallback)))
+    except (TypeError, ValueError):
+        return fallback
+    return min(maximum, max(minimum, value))
+
+
+def require_executable(env_name: str, fallback: str) -> str:
+    configured = str(os.environ.get(env_name, fallback)).strip() or fallback
+    resolved = shutil.which(configured)
+    if not resolved:
+        raise RuntimeError(f"Required executable is unavailable: {configured}")
+    return resolved
+
+
+def has_audio_stream(video_path: str, ffprobe_bin: str) -> bool:
+    result = subprocess.run(
+        [
+            ffprobe_bin,
+            "-v",
+            "error",
+            "-select_streams",
+            "a:0",
+            "-show_entries",
+            "stream=index",
+            "-of",
+            "csv=p=0",
+            video_path,
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(result.stderr.strip() or "Cannot inspect video audio stream")
+    return bool(result.stdout.strip())
+
+
+def finalize_output_video(input_path: str, rendered_path: str, output_path: str) -> Dict[str, Any]:
+    ffmpeg_bin = require_executable("POWER_ANALYSIS_FFMPEG_BIN", "ffmpeg")
+    ffprobe_bin = require_executable("POWER_ANALYSIS_FFPROBE_BIN", "ffprobe")
+    input_has_audio = has_audio_stream(input_path, ffprobe_bin)
+    crf = env_int("POWER_ANALYSIS_VIDEO_CRF", 23, 18, 32)
+    preset = str(os.environ.get("POWER_ANALYSIS_VIDEO_PRESET", "medium")).strip().lower()
+    if preset not in {"ultrafast", "superfast", "veryfast", "faster", "fast", "medium", "slow"}:
+        preset = "medium"
+    audio_kbps = env_int("POWER_ANALYSIS_AUDIO_BITRATE_KBPS", 128, 64, 256)
+
+    os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
+    command = [
+        ffmpeg_bin,
+        "-y",
+        "-hide_banner",
+        "-loglevel",
+        "error",
+        "-i",
+        rendered_path,
+        "-i",
+        input_path,
+        "-map",
+        "0:v:0",
+        "-map",
+        "1:a:0?",
+        "-map_metadata",
+        "1",
+        "-c:v",
+        "libx264",
+        "-preset",
+        preset,
+        "-crf",
+        str(crf),
+        "-pix_fmt",
+        "yuv420p",
+        "-c:a",
+        "aac",
+        "-b:a",
+        f"{audio_kbps}k",
+        "-movflags",
+        "+faststart",
+        output_path,
+    ]
+    result = subprocess.run(command, capture_output=True, text=True, check=False)
+    if result.returncode != 0:
+        if os.path.exists(output_path):
+            os.remove(output_path)
+        raise RuntimeError(result.stderr.strip() or "FFmpeg failed to encode analysis video")
+    if not os.path.exists(output_path) or os.path.getsize(output_path) <= 0:
+        raise RuntimeError("FFmpeg did not produce a valid analysis video")
+
+    output_has_audio = has_audio_stream(output_path, ffprobe_bin)
+    if input_has_audio and not output_has_audio:
+        os.remove(output_path)
+        raise RuntimeError("Analysis video lost the original audio stream")
+
+    return {
+        "inputSizeBytes": os.path.getsize(input_path),
+        "outputSizeBytes": os.path.getsize(output_path),
+        "inputHasAudio": input_has_audio,
+        "outputHasAudio": output_has_audio,
+        "audioPreserved": input_has_audio == output_has_audio,
+        "codec": "h264",
+        "crf": crf,
+    }
+
+
 def run(args: argparse.Namespace) -> Dict[str, Any]:
     emit_progress(8)
     fps, width, height, scale, y_track = collect_pose_track(args.input, args.height_cm, args.mode)
@@ -663,8 +774,17 @@ def run(args: argparse.Namespace) -> Dict[str, Any]:
         "scaleMPerPx": round_float(scale, 6),
     }
     emit_progress(55)
-    render_output_video(args.input, args.output, metrics, y_track, scale)
-    emit_progress(95)
+    rendered_path = f"{args.output}.rendered.mp4"
+    try:
+        render_output_video(args.input, rendered_path, metrics, y_track, scale)
+        emit_progress(92)
+        metrics["video"].update(
+            finalize_output_video(args.input, rendered_path, args.output)
+        )
+    finally:
+        if os.path.exists(rendered_path):
+            os.remove(rendered_path)
+    emit_progress(97)
     return metrics
 
 

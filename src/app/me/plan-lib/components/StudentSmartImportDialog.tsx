@@ -286,9 +286,9 @@ export default function StudentSmartImportDialog({
         const file = files[0];
         const ext = (file.name.toLowerCase().split('.').pop() || '').trim();
         const textExts = ['txt', 'csv', 'md'];
-        const docExts = ['docx', 'xlsx', 'xls'];
+        const docExts = ['docx', 'xlsx', 'xls', 'pdf', 'png', 'jpg', 'jpeg', 'webp'];
         if (!textExts.includes(ext) && !docExts.includes(ext)) {
-            setError('仅支持 .txt、.csv、.md、.docx、.xlsx、.xls 格式');
+            setError('仅支持文本、Word、Excel、PDF 或图片格式');
             return;
         }
         try {
@@ -296,7 +296,7 @@ export default function StudentSmartImportDialog({
             if (textExts.includes(ext)) {
                 text = await readFileAsText(file);
             } else {
-                // Word/Excel：调用后端提取文本
+                // Word/Excel/PDF/图片：调用后端提取为可审阅文本
                 setIsLoading(true);
                 setError(null);
                 const formData = new FormData();
@@ -946,7 +946,7 @@ export default function StudentSmartImportDialog({
                                 <input
                                     ref={fileInputRef}
                                     type="file"
-                                    accept=".txt,.csv,.md,.docx,.xlsx,.xls"
+                                    accept=".txt,.csv,.md,.docx,.xlsx,.xls,.pdf,.png,.jpg,.jpeg,.webp"
                                     className="hidden"
                                     onChange={(e) => { handleFileSelect(e.target.files); e.target.value = ''; }}
                                 />
@@ -963,7 +963,7 @@ export default function StudentSmartImportDialog({
                                 >
                                     <i className="pi pi-cloud-upload text-2xl text-surface-500 dark:text-surface-400" />
                                     <span className="text-xs text-surface-600 dark:text-surface-400">
-                                        拖拽或点击选择 .txt、.csv、.md、.docx、.xlsx、.xls
+                                        拖拽或点击选择文本、Word、Excel、PDF 或图片
                                     </span>
                                 </div>
                                 {error && <p className="text-xs text-red-500">{error}</p>}

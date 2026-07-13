@@ -56,7 +56,10 @@ NEXT_SUPABASE_ANON_KEY=...
 NEXT_SUPABASE_SERVICE_ROLE_KEY=...
 NEXTAUTH_SECRET=...
 NEXTAUTH_URL=https://coachlink.fit
-DEEPSEEK_API_KEY=...
+WANJIE_ARK_API_KEY=...
+WANJIE_ARK_BASE_URL=https://maas-openapi.wanjiedata.com/api/v1
+WANJIE_ARK_MODEL=deepseek-v4-pro
+# WANJIE_ARK_FAST_MODEL=deepseek-v4-flash
 ```
 
 JSON Apollo responses with a `configurations` object are also supported, but `.env` style content is preferred because the current codebase reads `process.env.KEY` directly.
@@ -79,6 +82,24 @@ The standalone build copies `scripts/start-prod.mjs` and `scripts/config/` into 
 `NEXT_PUBLIC_*` values are compiled into the browser bundle during `next build`. Runtime changes to `NEXT_PUBLIC_*` after build do not update already-built client JavaScript. For Docker/K8s builds, pass required public values as build args or CI environment variables, or explicitly opt in to `COACHLINK_BUILD_LOAD_RUNTIME_CONFIG=1`.
 
 Server-only values such as service-role keys, payment secrets, cron secrets, Redis credentials, and LLM keys are read at process startup.
+
+## 万界方舟大模型配置
+
+CoachLink 的服务端大模型调用统一使用万界方舟 OpenAI 兼容接口。将以下业务配置放入 Apollo，或放入 local 模式选中的单一业务配置文件：
+
+```env
+WANJIE_ARK_API_KEY=...
+WANJIE_ARK_BASE_URL=https://maas-openapi.wanjiedata.com/api/v1
+WANJIE_ARK_MODEL=deepseek-v4-pro
+# WANJIE_ARK_FAST_MODEL=deepseek-v4-flash       # 意图判断/完整性检查等短任务（代码默认值）
+# WANJIE_ARK_PLAN_MODEL=deepseek-v4-pro        # 可选；未配置时继承 WANJIE_ARK_MODEL
+# WANJIE_ARK_COACH_REPLY_MODEL=deepseek-v4-pro # 可选；未配置时继承 WANJIE_ARK_MODEL
+# WANJIE_ARK_VISION_MODEL=qwen3-vl-flash        # 计划图片导入等视觉输入
+```
+
+`WANJIE_ARK_BASE_URL` 必须包含 `/v1`：项目使用的 OpenAI SDK 会在其后追加 `/chat/completions`，最终请求地址为 `/api/v1/chat/completions`。
+
+计划生成、知识库问答、功率解读和教练自动回复等正文任务默认使用 `deepseek-v4-pro`；计划修改器的意图判断、指令完整性检查默认使用 `deepseek-v4-flash`，避免 Pro 模型把短任务的输出预算全部消耗在内部推理上。不要将视觉模型设为全局 `WANJIE_ARK_MODEL`。计划图片导入通过 `getCoachlinkVisionLlm()` 读取 `WANJIE_ARK_VISION_MODEL`。万界方舟当前模型表中可处理图像的 Qwen 条目为 `qwen3-vl-flash`；`qwen3.5-flash` 是文本模型，`qwen3.6-flash` 不在该模型表中。
 
 ## Adding New Config
 

@@ -88,6 +88,7 @@ export default function AssignPlanPage() {
   const [showScheduleOverview, setShowScheduleOverview] = useState(false)
   const [importMode, setImportMode] = useState<'overwrite' | 'new_instance'>('overwrite')
   const [existingInstanceId, setExistingInstanceId] = useState<string | null>(null)
+  const [existingExecutionsByDayIndex, setExistingExecutionsByDayIndex] = useState<Record<number, any>>({})
   const [startWeek, setStartWeek] = useState(1)
   const [startDay, setStartDay] = useState(1)
 
@@ -136,8 +137,10 @@ export default function AssignPlanPage() {
 
       if (instanceRes?.instance?.id) {
         setExistingInstanceId(instanceRes.instance.id)
+        setExistingExecutionsByDayIndex(instanceRes.executionsByDayIndex || {})
       } else {
         setExistingInstanceId(null)
+        setExistingExecutionsByDayIndex({})
         setImportMode('new_instance')
       }
     } catch (error) {
@@ -350,17 +353,34 @@ export default function AssignPlanPage() {
         ? selectedTemplateDays
         : (await planLibService.getTemplate(selectedTemplateId))?.days || []
 
-      const daysToSubtract = (activeStartWeek - 1) * 7 + (activeStartDay - 1)
+      const resolvedDayIndexes = new Set(
+        Object.values(existingExecutionsByDayIndex)
+          .filter((execution: any) => ['completed', 'abandoned'].includes(String(execution?.status || '').toLowerCase()))
+          .map((execution: any) => Number(execution?.day_index ?? execution?.dayIndex ?? 0))
+          .filter((dayIndex) => dayIndex > 0)
+      )
+      const firstUnresolvedTrainingDay = trainingDays
+        .filter((day: any) => day?.type === 'training')
+        .map((day: any) => Number(day?.dayIndex ?? day?.day_index ?? 0))
+        .filter((dayIndex: number) => dayIndex > 0 && !resolvedDayIndexes.has(dayIndex))
+        .sort((left: number, right: number) => left - right)[0]
+      const hasExecutionHistory = Object.values(existingExecutionsByDayIndex).some(Boolean)
+      const effectiveStartDayIndex = existingInstanceId && importMode === 'overwrite' && hasExecutionHistory
+        ? Math.max(startExecutionDay, firstUnresolvedTrainingDay || startExecutionDay)
+        : startExecutionDay
+      const effectiveStartWeek = Math.floor((effectiveStartDayIndex - 1) / 7) + 1
+      const effectiveStartDay = ((effectiveStartDayIndex - 1) % 7) + 1
+      const daysToSubtract = effectiveStartDayIndex - 1
       const calculatedStartDate = new Date()
       calculatedStartDate.setDate(calculatedStartDate.getDate() - daysToSubtract)
 
-      if (existingInstanceId && importMode === 'overwrite') {
+      if (existingInstanceId && importMode === 'overwrite' && !hasExecutionHistory) {
         const res = await planLibService.updateInstance({
           id: existingInstanceId,
           templateId: selectedTemplateId,
           name: selectedTemplate?.name || '训练计划',
           description: selectedTemplate?.description || null,
-          startExecutionDay,
+          startExecutionDay: effectiveStartDayIndex,
           trainingDays
         })
         if (!res) throw new Error('overwrite instance failed')
@@ -372,8 +392,8 @@ export default function AssignPlanPage() {
           description: selectedTemplate?.description || null,
           trainingDays,
           startDate: calculatedStartDate.toISOString(),
-          startWeek: activeStartWeek,
-          startDay: activeStartDay
+          startWeek: effectiveStartWeek,
+          startDay: effectiveStartDay
         })
         if (!res?.instance) throw new Error('create instance failed')
       }
@@ -545,7 +565,7 @@ export default function AssignPlanPage() {
                   }}
                 >
                   <Text className='mode-card__title'>覆盖当前计划</Text>
-                  <Text className='mode-card__desc'>保留历史执行记录，只替换当前实例的后续内容。</Text>
+                  <Text className='mode-card__desc'>已有记录时自动建立新版本；历史独立保留，并从下一未完成训练日继续。</Text>
                   <Text className='mode-card__meta'>{existingInstanceId ? '适合直接更新学员当前计划' : '当前没有可覆盖的实例'}</Text>
                 </View>
                 <View

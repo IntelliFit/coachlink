@@ -13,13 +13,13 @@ function readIntervalMs(envName: string, fallbackMs: number) {
     return parsed;
 }
 
-function postCronEndpoint(
+async function postCronEndpoint(
     baseUrl: string,
     path: string,
     secret: string,
     body?: Record<string, unknown>,
 ) {
-    return fetch(`${baseUrl}${path}`, {
+    const response = await fetch(`${baseUrl}${path}`, {
         method: "POST",
         headers: {
             "content-type": "application/json",
@@ -27,6 +27,14 @@ function postCronEndpoint(
         },
         body: body ? JSON.stringify(body) : undefined,
     });
+
+    // fetch resolves even for 401/500. Surface non-2xx responses so a missing
+    // cron secret, wrong base URL, or failed settlement endpoint is visible in
+    // the pod logs instead of silently leaving due settlements at attempts=0.
+    if (!response.ok) {
+        const detail = (await response.text()).replace(/\s+/g, " ").slice(0, 500);
+        throw new Error(`${path} returned HTTP ${response.status}${detail ? `: ${detail}` : ""}`);
+    }
 }
 
 function startIntervalJob(
@@ -87,9 +95,15 @@ export async function register() {
         process.env.NEXT_PUBLIC_SITE_URL ||
         "http://localhost:3000";
 
-    const sharedSecret = process.env.CRON_SECRET || "";
-    const alipaySecret = process.env.ALIPAY_SYNC_SECRET || sharedSecret;
-    const huifuSecret = process.env.HUIFU_SETTLEMENT_CRON_SECRET || sharedSecret;
+    // Keep scheduler credentials as runtime reads. Apollo config is loaded only
+    // when the Node process starts, so these values must not rely on build-time
+    // environment replacement; trim also keeps the request header consistent
+    // with the endpoint's credential comparison.
+    const runtimeEnv = process.env as Record<string, string | undefined>;
+    const readRuntimeSecret = (name: string) => String(runtimeEnv[name] || "").trim();
+    const sharedSecret = readRuntimeSecret("CRON_SECRET");
+    const alipaySecret = readRuntimeSecret("ALIPAY_SYNC_SECRET") || sharedSecret;
+    const huifuSecret = readRuntimeSecret("HUIFU_SETTLEMENT_CRON_SECRET") || sharedSecret;
 
     if (alipaySecret) {
         startIntervalJob(

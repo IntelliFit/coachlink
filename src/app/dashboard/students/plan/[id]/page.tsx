@@ -100,6 +100,10 @@ const StudentPlanPage = () => {
     // Execution data
     const [executions, setExecutions] = useState<Record<number, any>>({});
     const [executionActions, setExecutionActions] = useState<Record<string, any>>({});
+    const hasExecutionHistory = useMemo(
+        () => Object.values(executions).some((execution) => !!execution),
+        [executions],
+    );
 
     // 起始执行天数（用于显示"开始"标记）
     const [startExecutionDay, setStartExecutionDay] = useState<number | undefined>(undefined);
@@ -660,6 +664,14 @@ const StudentPlanPage = () => {
             return;
         }
 
+        // Plans with execution history require an explicit versioned save. A
+        // background autosave must never rewrite the master days underneath an
+        // existing execution snapshot.
+        if (hasExecutionHistory) {
+            setAutoSaveStatus('pending');
+            return;
+        }
+
         setAutoSaveStatus('saving');
         
         const daysData = days.map(day => ({
@@ -708,7 +720,7 @@ const StudentPlanPage = () => {
             console.error('自动保存失败:', error);
             setAutoSaveStatus('error');
         }
-    }, [coach?.id, params.id, instanceExists, instanceId, name, description, executionNotice, tags, type, suitableFor, days, importStartConfig, applyPendingOneRmAdjustments]);
+    }, [coach?.id, params.id, instanceExists, instanceId, name, description, executionNotice, tags, type, suitableFor, days, importStartConfig, applyPendingOneRmAdjustments, hasExecutionHistory]);
 
     // 防抖自动保存 - 2秒后自动保存
     useEffect(() => {
@@ -799,8 +811,12 @@ const StudentPlanPage = () => {
             return;
         }
 
+        const shouldCreateRevision =
+            !!instanceExists && !!instanceId && importMode === 'overwrite' && hasExecutionHistory;
         const shouldCreateNewInstance =
-            (!instanceExists || !instanceId) || (instanceExists && instanceId && importMode === 'new_instance');
+            (!instanceExists || !instanceId) ||
+            (instanceExists && instanceId && importMode === 'new_instance') ||
+            shouldCreateRevision;
         let canLeaveAfterSave = true;
         let saveSucceeded = false;
 
@@ -850,6 +866,31 @@ const StudentPlanPage = () => {
             }
         } else {
             // Create new instance (archives previous active/paused instances server-side)
+            const requestedStartDayIndex = importStartConfig
+                ? ((importStartConfig.startWeek - 1) * 7 + importStartConfig.startDay)
+                : Number(rawInstance?.start_execution_day || 1);
+            const resolvedDayIndexes = new Set(
+                Object.values(executions)
+                    .filter((execution: any) => ['completed', 'abandoned'].includes(String(execution?.status || '').toLowerCase()))
+                    .map((execution: any) => Number(execution?.day_index ?? execution?.dayIndex ?? 0))
+                    .filter((dayIndex) => dayIndex > 0),
+            );
+            const firstUnresolvedTrainingDay = daysData
+                .filter((day) => day.type === 'training')
+                .map((day) => Number(day.dayIndex || 0))
+                .filter((dayIndex) => dayIndex > 0 && !resolvedDayIndexes.has(dayIndex))
+                .sort((left, right) => left - right)[0];
+            const revisionStartDayIndex = shouldCreateRevision
+                ? Math.max(requestedStartDayIndex, firstUnresolvedTrainingDay || requestedStartDayIndex)
+                : requestedStartDayIndex;
+            const revisionStartDate = shouldCreateRevision
+                ? (() => {
+                    const date = new Date();
+                    date.setHours(0, 0, 0, 0);
+                    date.setDate(date.getDate() - Math.max(0, revisionStartDayIndex - 1));
+                    return date;
+                })()
+                : customStartDate;
             const res = await planLibService.createInstance({
                 templateId: selectedTemplateId,
                 subscriptionId: params.id.toString(),
@@ -860,9 +901,9 @@ const StudentPlanPage = () => {
                 type: type || null,
                 suitableFor: suitableFor || null,
                 trainingDays: daysData,
-                startDate: customStartDate ? customStartDate.toISOString() : undefined,
-                startWeek: importStartConfig?.startWeek,
-                startDay: importStartConfig?.startDay,
+                startDate: revisionStartDate ? revisionStartDate.toISOString() : undefined,
+                startWeek: Math.floor((revisionStartDayIndex - 1) / 7) + 1,
+                startDay: ((revisionStartDayIndex - 1) % 7) + 1,
             });
 
             if (res) {
@@ -1429,12 +1470,12 @@ const StudentPlanPage = () => {
                             <br />
                             <span className="font-bold">新建阶段</span>：归档旧计划并创建新计划（执行次数会从 0 开始）
                             <br />
-                            <span className="font-bold">覆盖当前</span>：直接覆盖当前计划内容（会保留历史执行记录，所以“已完成X次训练”不会清零）
+                            <span className="font-bold">覆盖当前</span>：已有训练记录时自动建立新版本；旧记录独立保留，新版从下一未完成训练日继续
                         </div>
 
                         <div className="flex justify-end gap-2 pt-2">
                             <Button
-                                label="覆盖当前（保留执行记录）"
+                                label="覆盖当前（历史独立保留）"
                                 className="p-button-text"
                                 onClick={() => {
                                     setImportMode('overwrite');

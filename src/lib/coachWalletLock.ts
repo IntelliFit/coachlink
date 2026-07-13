@@ -20,6 +20,11 @@ type OrderTypeRow = {
     order_type: string | null;
 };
 
+type SettlementProtectionRow = {
+    alipay_order_id: string;
+    eligible_at: string | null;
+};
+
 export async function calculateRefundProtectedAmountFen(
     coachId: string,
     now: Date = new Date(),
@@ -59,8 +64,37 @@ export async function calculateRefundProtectedAmountFen(
             .map((order) => order.id),
     );
 
+    // Huifu orders are already held in coach_subscription_settlements until
+    // eligible_at. When they are finally credited, wallet_transactions gets a
+    // fresh created_at; using that timestamp would start a second seven-day
+    // protection window and keep an already-eligible payout frozen twice.
+    const delayedOrderIds = Array.from(protectedOrderIds);
+    const settlementEligibleAtByOrderId = new Map<string, string | null>();
+
+    if (delayedOrderIds.length > 0) {
+        const { data: settlements, error: settlementError } = await serviceRoleSupabase
+            .from("coach_subscription_settlements")
+            .select("alipay_order_id, eligible_at")
+            .in("alipay_order_id", delayedOrderIds);
+
+        if (settlementError) throw settlementError;
+
+        for (const settlement of (settlements ?? []) as SettlementProtectionRow[]) {
+            settlementEligibleAtByOrderId.set(settlement.alipay_order_id, settlement.eligible_at);
+        }
+    }
+
     return rows.reduce((sum, row) => {
         if (!row.alipay_order_id || !protectedOrderIds.has(row.alipay_order_id)) return sum;
+
+        const eligibleAt = settlementEligibleAtByOrderId.get(row.alipay_order_id);
+        if (eligibleAt) {
+            const eligibleAtMs = new Date(eligibleAt).getTime();
+            if (Number.isFinite(eligibleAtMs) && eligibleAtMs <= now.getTime()) {
+                return sum;
+            }
+        }
+
         return sum + Math.max(0, Math.round(Number(row.amount ?? 0)));
     }, 0);
 }

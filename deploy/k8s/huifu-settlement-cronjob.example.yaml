@@ -1,0 +1,77 @@
+# Apply this template in the deployment repository after replacing the
+# namespace, application URL, and Secret reference with the production values.
+# The same HUIFU_SETTLEMENT_CRON_SECRET must be available to the Web runtime
+# (via Apollo app-config in production) and to these CronJobs.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: coachlink-huifu-settlement-process-due
+  namespace: coachlink
+spec:
+  schedule: "*/10 * * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 5
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: process-due
+              image: curlimages/curl:8.10.1
+              env:
+                - name: COACHLINK_BASE_URL
+                  value: https://coachlink.fit
+                - name: HUIFU_SETTLEMENT_CRON_SECRET
+                  valueFrom:
+                    secretKeyRef:
+                      name: coachlink-runtime-secrets
+                      key: HUIFU_SETTLEMENT_CRON_SECRET
+              command: ["sh", "-ec"]
+              args:
+                - >-
+                  curl --fail --show-error --silent --retry 2 --retry-all-errors
+                  --connect-timeout 10 --max-time 300
+                  -X POST "$COACHLINK_BASE_URL/api/admin/coach-subscription-settlements/process-due"
+                  -H "content-type: application/json"
+                  -H "x-cron-secret: $HUIFU_SETTLEMENT_CRON_SECRET"
+                  --data '{"limit":50}'
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: coachlink-huifu-settlement-reconcile
+  namespace: coachlink
+spec:
+  schedule: "*/10 * * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 5
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: reconcile
+              image: curlimages/curl:8.10.1
+              env:
+                - name: COACHLINK_BASE_URL
+                  value: https://coachlink.fit
+                - name: HUIFU_SETTLEMENT_CRON_SECRET
+                  valueFrom:
+                    secretKeyRef:
+                      name: coachlink-runtime-secrets
+                      key: HUIFU_SETTLEMENT_CRON_SECRET
+              command: ["sh", "-ec"]
+              args:
+                - >-
+                  curl --fail --show-error --silent --retry 2 --retry-all-errors
+                  --connect-timeout 10 --max-time 300
+                  -X POST "$COACHLINK_BASE_URL/api/admin/coach-subscription-settlements/reconcile"
+                  -H "content-type: application/json"
+                  -H "x-cron-secret: $HUIFU_SETTLEMENT_CRON_SECRET"
+                  --data '{"limit":50}'

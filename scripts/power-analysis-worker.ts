@@ -8,6 +8,8 @@ const fs = nodeRequire("fs") as typeof import("fs");
 const fsPromises = nodeRequire("fs/promises") as typeof import("fs/promises");
 const os = nodeRequire("os") as typeof import("os");
 const path = nodeRequire("path") as typeof import("path");
+const stream = nodeRequire("stream") as typeof import("stream");
+const streamPromises = nodeRequire("stream/promises") as typeof import("stream/promises");
 const url = nodeRequire("url") as typeof import("url");
 
 const __filename = url.fileURLToPath(import.meta.url);
@@ -109,16 +111,18 @@ async function claimJob(jobId?: string, queueTopic?: string) {
 }
 
 async function downloadObject(bucket: string, objectPath: string, targetPath: string) {
-  const { data, error } = await supabase.storage.from(bucket).download(objectPath);
+  const { data, error } = await supabase.storage.from(bucket).download(objectPath).asStream();
   if (error || !data) {
     throw new Error(error?.message || `Cannot download ${bucket}/${objectPath}`);
   }
-  const arrayBuffer = await data.arrayBuffer();
-  await fsPromises.writeFile(targetPath, Buffer.from(arrayBuffer));
+  await streamPromises.pipeline(
+    stream.Readable.fromWeb(data as any),
+    fs.createWriteStream(targetPath),
+  );
 }
 
 async function uploadObject(bucket: string, objectPath: string, sourcePath: string) {
-  const body = await fsPromises.readFile(sourcePath);
+  const body = fs.createReadStream(sourcePath);
   const { error } = await supabase.storage.from(bucket).upload(objectPath, body, {
     contentType: "video/mp4",
     upsert: true,

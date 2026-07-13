@@ -12,6 +12,12 @@ import {
 import './index.scss'
 import { useTheme } from '@/hooks/useTheme'
 import { resolveWeappMediaUrl } from '@/utils/mediaUrl'
+import {
+  ACTION_PICKER_EQUIPMENT_FILTERS,
+  ACTION_PICKER_MUSCLE_FILTERS,
+  getActionPickerSearchText,
+  matchesActionPickerFilter
+} from '@/utils/actionPickerFilters'
 
 interface StudentAction {
   id: string
@@ -85,6 +91,8 @@ export default function ImpromptuTraining() {
   const [actions, setActions] = useState<StudentAction[]>([])
   const [loadingActions, setLoadingActions] = useState(true)
   const [keyword, setKeyword] = useState('')
+  const [muscleFilterKey, setMuscleFilterKey] = useState('all')
+  const [equipmentFilterKey, setEquipmentFilterKey] = useState('all')
   const [selectedActions, setSelectedActions] = useState<StudentAction[]>([])
   const [startingKey, setStartingKey] = useState<string | null>(null)
 
@@ -143,18 +151,13 @@ export default function ImpromptuTraining() {
   const filteredActions = useMemo(() => {
     const normalizedKeyword = keyword.trim().toLowerCase()
     const strengthActions = actions.filter(action => isStrengthAction(action))
-
-    if (!normalizedKeyword) return strengthActions
-
+    const muscleFilter = ACTION_PICKER_MUSCLE_FILTERS.find(item => item.key === muscleFilterKey) || ACTION_PICKER_MUSCLE_FILTERS[0]
+    const equipmentFilter = ACTION_PICKER_EQUIPMENT_FILTERS.find(item => item.key === equipmentFilterKey) || ACTION_PICKER_EQUIPMENT_FILTERS[0]
     return strengthActions.filter(action => {
-      const searchable = [
-        getActionName(action),
-        getActionMeta(action),
-        ...asTextList(action.attrs)
-      ].join(' ').toLowerCase()
-      return searchable.includes(normalizedKeyword)
+      const matchesKeyword = !normalizedKeyword || getActionPickerSearchText(action).includes(normalizedKeyword)
+      return matchesKeyword && matchesActionPickerFilter(action, muscleFilter) && matchesActionPickerFilter(action, equipmentFilter)
     })
-  }, [actions, keyword])
+  }, [actions, equipmentFilterKey, keyword, muscleFilterKey])
 
   const selectedIdSet = useMemo(() => new Set(selectedActions.map(action => action.id)), [selectedActions])
   const actionSourceStats = useMemo(() => {
@@ -356,6 +359,40 @@ export default function ImpromptuTraining() {
             )}
           </View>
 
+          <View className='category-section'>
+            <Text className='category-label'>器械</Text>
+            <ScrollView scrollX className='category-scroll' showScrollbar={false}>
+              <View className='category-list'>
+                {ACTION_PICKER_EQUIPMENT_FILTERS.map(item => (
+                  <Text
+                    key={item.key}
+                    className={`category-chip ${equipmentFilterKey === item.key ? 'active' : ''}`}
+                    onClick={() => setEquipmentFilterKey(item.key)}
+                  >
+                    {item.label}
+                  </Text>
+                ))}
+              </View>
+            </ScrollView>
+          </View>
+
+          <View className='category-section'>
+            <Text className='category-label'>部位</Text>
+            <ScrollView scrollX className='category-scroll' showScrollbar={false}>
+              <View className='category-list'>
+                {ACTION_PICKER_MUSCLE_FILTERS.map(item => (
+                  <Text
+                    key={item.key}
+                    className={`category-chip ${muscleFilterKey === item.key ? 'active' : ''}`}
+                    onClick={() => setMuscleFilterKey(item.key)}
+                  >
+                    {item.label}
+                  </Text>
+                ))}
+              </View>
+            </ScrollView>
+          </View>
+
           {selectedActions.length > 0 && (
             <View className='selected-strip'>
               {selectedActions.map(action => (
@@ -377,7 +414,7 @@ export default function ImpromptuTraining() {
 
           {!loadingActions && filteredActions.length === 0 && (
             <View className='state-block'>
-              <Text>{keyword ? '没有匹配动作' : '暂时没有可用力量动作'}</Text>
+              <Text>{keyword || muscleFilterKey !== 'all' || equipmentFilterKey !== 'all' ? '没有匹配动作' : '暂时没有可用力量动作'}</Text>
               <View className='state-action' onClick={() => Taro.navigateTo({ url: '/me/action-lib?tab=public' })}>
                 <Text>去公共动作库看看</Text>
               </View>
