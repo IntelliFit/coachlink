@@ -28,10 +28,53 @@ const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION || readPackageVersion();
 const GIT_COMMIT_ID = process.env.NEXT_PUBLIC_GIT_COMMIT_ID || readGitCommitId();
 const BUILD_TIME = process.env.NEXT_PUBLIC_BUILD_TIME || new Date().toISOString();
 
+// OpenTelemetry's Node SDK and its OTLP/gRPC exporters load Node built-ins at
+// runtime. Keep them out of Next's webpack bundle (including the
+// instrumentation bundle) so Node resolves those built-ins directly.
+const nodeOnlyServerPackages = [
+    'kafkajs',
+    '@grpc/grpc-js',
+    '@opentelemetry/api',
+    '@opentelemetry/exporter-metrics-otlp-grpc',
+    '@opentelemetry/exporter-trace-otlp-grpc',
+    '@opentelemetry/instrumentation-http',
+    '@opentelemetry/resources',
+    '@opentelemetry/sdk-metrics',
+    '@opentelemetry/sdk-node',
+    '@opentelemetry/sdk-trace-base',
+];
+
 const nextConfig: NextConfig = {
     output: 'standalone',
     reactStrictMode: false,
-    serverExternalPackages: ['kafkajs'],
+    // Next 16 uses Turbopack by default. Declare it explicitly so production
+    // builds can coexist with the Node-only webpack externals below.
+    turbopack: {},
+    serverExternalPackages: nodeOnlyServerPackages,
+    webpack(config, { isServer, nextRuntime }) {
+        if (isServer && nextRuntime !== 'edge') {
+            // The instrumentation compiler does not consistently apply
+            // serverExternalPackages. Explicit externals keep gRPC/OTel out of
+            // webpack while preserving CommonJS require() calls for Next's
+            // standalone output-file tracing.
+            config.externals.push(
+                (
+                    { request }: { request?: string },
+                    callback: (error?: Error | null, result?: string) => void,
+                ) => {
+                    const shouldExternalize = request === '@grpc/grpc-js'
+                        || request?.startsWith('@grpc/grpc-js/')
+                        || request?.startsWith('@opentelemetry/');
+                    if (request && shouldExternalize) {
+                        callback(null, `commonjs ${request}`);
+                        return;
+                    }
+                    callback();
+                },
+            );
+        }
+        return config;
+    },
     env: {
         NEXT_PUBLIC_APP_VERSION: APP_VERSION,
         NEXT_PUBLIC_GIT_COMMIT_ID: GIT_COMMIT_ID,

@@ -8,9 +8,8 @@ import { resourceFromAttributes } from "@opentelemetry/resources";
 import { NodeSDK } from "@opentelemetry/sdk-node";
 import { PeriodicExportingMetricReader } from "@opentelemetry/sdk-metrics";
 import { BatchSpanProcessor } from "@opentelemetry/sdk-trace-base";
-import { hostname } from "node:os";
 import { readOTelConfig, type OTelConfig } from "./config";
-import { logInfo, logWarn } from "./logger";
+import { logInfo } from "./logger";
 import {
     clientTraceIdFromHeaders,
     deleteRequestTraceContext,
@@ -37,6 +36,14 @@ function isHealthCheckPath(path: string): boolean {
         cleanPath === "/api/system/version" ||
         cleanPath === "/api/public/version" ||
         cleanPath === "/api/hello-world";
+}
+
+function hostname(): string {
+    // Keep the node: URI out of Next's instrumentation webpack layer. The OTel
+    // packages themselves are externalized in next.config.ts so standalone
+    // tracing can still include their complete runtime dependency trees.
+    const nodeRequire = eval("require") as NodeRequire;
+    return (nodeRequire("node:os") as typeof import("node:os")).hostname();
 }
 
 function exporterOptions(cfg: OTelConfig) {

@@ -3,7 +3,11 @@ import { createTaskQueue } from "../src/lib/taskqueue/factory";
 import { runPowerAnalysisQueueWorker } from "./power-analysis-worker";
 
 export async function runPowerAnalysisCliQueueWorker() {
-  const config = getTaskQueueConfig(process.env, { requireTopic: true });
+  // The in-memory queue is process-local, so its documented default topic is
+  // safe for local development. External Kafka workers still need an explicit
+  // topic to avoid accidentally consuming an unintended queue.
+  const driver = String(process.env.TASK_QUEUE_DRIVER || "memory").trim().toLowerCase();
+  const config = getTaskQueueConfig(process.env, { requireTopic: driver === "kafka" });
   const queue = await createTaskQueue();
   await runPowerAnalysisQueueWorker({
     queue,
