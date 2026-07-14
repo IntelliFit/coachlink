@@ -27,6 +27,32 @@ export async function POST(req: Request) {
             }, { status: 400 });
         }
 
+        const { data: currentExecution, error: currentError } = await supabase
+            .from("impromptu_executions")
+            .select("*")
+            .eq("student_id", userId)
+            .eq("status", "in_progress")
+            .order("started_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+        if (currentError) {
+            console.error("find current impromptu execution error:", currentError);
+            return NextResponse.json<ApiData<StartImpromptuResponseDto>>({
+                success: false,
+                message: "查询进行中的即兴训练失败",
+                data: null,
+            }, { status: 500 });
+        }
+
+        if (currentExecution) {
+            return NextResponse.json<ApiData<StartImpromptuResponseDto>>({
+                success: true,
+                message: "继续未完成的即兴训练",
+                data: currentExecution,
+            });
+        }
+
         const actionExecutions = actions.map((action, actionIndex) => {
             const totalSets = Math.max(1, Number(action.sets || 1));
             const plannedReps = action.reps === null || action.reps === undefined

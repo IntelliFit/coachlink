@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { View, Text, ScrollView, Input, Image } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { impromptuService, ImpromptuActionInput } from '@/services/impromptuService'
@@ -6,6 +6,7 @@ import { studentActionLibService } from '@/services/studentActionLibService'
 import { listPublicActions } from '@/services/actionLibPageService'
 import { authService } from '@/services/authService'
 import {
+  findLatestInProgressImpromptuSnapshot,
   persistTrainingExecutionSnapshot,
   trainingExecutionSnapshotKey
 } from '@/utils/trainingExecutionCache'
@@ -95,6 +96,8 @@ export default function ImpromptuTraining() {
   const [equipmentFilterKey, setEquipmentFilterKey] = useState('all')
   const [selectedActions, setSelectedActions] = useState<StudentAction[]>([])
   const [startingKey, setStartingKey] = useState<string | null>(null)
+  const [checkingCurrent, setCheckingCurrent] = useState(true)
+  const startingRef = useRef(false)
 
   const loadActions = useCallback(async () => {
     try {
@@ -137,7 +140,30 @@ export default function ImpromptuTraining() {
     }
   }, [])
 
+  const resumeExecution = useCallback((execution: any, userId: string) => {
+    if (!execution?.id) return false
+    const scopeKey = trainingExecutionSnapshotKey({
+      isImpromptuMode: true,
+      impromptuId: execution.id,
+      dayIndex: 1
+    })
+    persistTrainingExecutionSnapshot(userId, scopeKey, {
+      execution,
+      planInstance: {
+        id: 'impromptu',
+        name: '即兴锻炼',
+        description: '即兴训练模式',
+        source: 'impromptu'
+      }
+    })
+    Taro.redirectTo({
+      url: `/training/training-execution?impromptuId=${encodeURIComponent(execution.id)}&dayIndex=1`
+    })
+    return true
+  }, [])
+
   useEffect(() => {
+    let cancelled = false
     const user = authService.getCurrentUser()
     if (!user?.id) {
       Taro.redirectTo({
@@ -145,8 +171,24 @@ export default function ImpromptuTraining() {
       })
       return
     }
-    loadActions()
-  }, [loadActions])
+
+    const initialize = async () => {
+      const localSnapshot = findLatestInProgressImpromptuSnapshot(user.id)
+      if (localSnapshot?.execution && resumeExecution(localSnapshot.execution, user.id)) return
+
+      const currentExecution = await impromptuService.getCurrent()
+      if (cancelled) return
+      if (currentExecution && resumeExecution(currentExecution, user.id)) return
+
+      setCheckingCurrent(false)
+      await loadActions()
+    }
+
+    void initialize()
+    return () => {
+      cancelled = true
+    }
+  }, [loadActions, resumeExecution])
 
   const filteredActions = useMemo(() => {
     const normalizedKeyword = keyword.trim().toLowerCase()
@@ -214,7 +256,7 @@ export default function ImpromptuTraining() {
       incomingCount: actionList.length,
       incomingIds: actionList.map(action => action?.id).filter(Boolean)
     })
-    if (startingKey) return
+    if (startingRef.current) return
 
     const validActions = actionList.filter(action => action?.id)
     console.log(DEBUG_PREFIX, 'valid actions prepared', {
@@ -232,6 +274,7 @@ export default function ImpromptuTraining() {
       return
     }
 
+    startingRef.current = true
     setStartingKey(key)
     try {
       const payload = validActions.map(buildQuickAction)
@@ -294,6 +337,7 @@ export default function ImpromptuTraining() {
       Taro.showToast({ title: e?.message || '开始失败，请稍后再试', icon: 'none' })
     } finally {
       console.log(DEBUG_PREFIX, 'startWithActions finally', { key })
+      startingRef.current = false
       setStartingKey(null)
     }
   }
@@ -326,6 +370,14 @@ export default function ImpromptuTraining() {
       </View>
 
       <ScrollView scrollY className={`page-scroll ${selectedActions.length > 0 ? 'with-selection' : ''}`}>
+        {checkingCurrent && (
+          <View className='resume-loading'>
+            <Text>正在查找未完成的即兴训练...</Text>
+          </View>
+        )}
+
+        {!checkingCurrent && (
+          <>
         <View className='quick-panel'>
           <View className='quick-title-row'>
             <View>
@@ -468,9 +520,11 @@ export default function ImpromptuTraining() {
             )
           })}
         </View>
+          </>
+        )}
       </ScrollView>
 
-      {selectedActions.length > 0 && (
+      {!checkingCurrent && selectedActions.length > 0 && (
         <View className='selection-footer'>
           <View className='selection-summary'>
             <Text className='selection-count'>{selectedActions.length}</Text>

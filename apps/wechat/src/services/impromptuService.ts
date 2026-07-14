@@ -53,6 +53,17 @@ class ImpromptuService {
     return null
   }
 
+  /** 获取当前仍在进行中的即兴训练；没有时返回 null。 */
+  async getCurrent(): Promise<StartImpromptuResponseDto | null> {
+    const res = await request<StartImpromptuResponseDto | null>({
+      url: `${this.baseUrl}/current`,
+      method: 'GET',
+      showErrorToast: false
+    })
+    if (res.success && res.data) return res.data
+    return null
+  }
+
   /** 完成一组（注意：使用 actionIndex/setIndex，0-based） */
   async completeSet(
     executionId: string,

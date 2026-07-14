@@ -86,6 +86,25 @@ export function readTrainingExecutionSnapshot(userId: string, scopeKey: string):
   return ent
 }
 
+/** 找到最近一次仍在进行中的即兴训练，用于从入口快速恢复。 */
+export function findLatestInProgressImpromptuSnapshot(
+  userId: string
+): (SnapshotEntry & { scopeKey: string }) | null {
+  const store = readStore(userId)
+  if (!store) return null
+
+  let latest: (SnapshotEntry & { scopeKey: string }) | null = null
+  for (const [scopeKey, entry] of Object.entries(pruneEntries(store.entries || {}))) {
+    if (!scopeKey.startsWith('impromptu:')) continue
+    if (String(entry?.execution?.status || '').toLowerCase() !== 'in_progress') continue
+    if (!entry.execution?.id) continue
+    if (!latest || entry.savedAt > latest.savedAt) {
+      latest = { ...entry, scopeKey }
+    }
+  }
+  return latest
+}
+
 export function persistTrainingExecutionSnapshot(
   userId: string,
   scopeKey: string,

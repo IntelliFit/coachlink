@@ -3,7 +3,7 @@
 - Task: 修复线上微信小程序功率分析选择视频并成功上传后，Worker 直接报 `moov atom not found` / `Cannot open input video`。
 - Root cause: 生产任务 `361eed2d-523d-44e9-b9df-be5cb28c202e` 的小程序与 Next API 均实际传输了 `931569` 字节，但 Busboy 的实时 Node stream 直接交给 Supabase Storage SDK 后，Storage 返回成功却持久化了 0 字节对象（空文件 ETag `d41d8cd98f00b204e9800998ecf8427e`）。Worker 下载到 0 字节 `input.mp4`，因此无法读取 MP4 `moov` 元数据；原视频本身没有损坏。
 - Fix: 上传 API 改为将 multipart 文件流式落到临时磁盘，再以具有明确字节长度的 file-backed Blob 上传到 Storage；上传后通过 Storage `info` 强制比对最终对象大小，不一致即删除对象并返回失败，禁止空文件进入分析队列。临时文件始终在 `finally` 清理，仍不把大视频整体读入 Node 内存。
-- Verification: 同生产 Node/Supabase 环境探针上传 `931569` 字节，回查与下载字节数及 SHA-256 一致；真实 `11186504` 字节引体 MP4 已完整跑通创建任务、multipart 上传、Storage 大小回查、入队、Python/MediaPipe Worker 分析及结果下载，任务状态 `done`、输出视频 `3681030` 字节，测试账号、任务和输入/输出对象均已清理。`npm run lint`、`npm run typecheck`、`npm test`（35 files / 177 tests）、`npm run test:e2e`（4/4）及 `npx next build`（518 pages）通过；待发布 Web/API 镜像并做生产复测。
+- Verification: 同生产 Node/Supabase 环境探针上传 `931569` 字节，回查与下载字节数及 SHA-256 一致；真实 `11186504` 字节引体 MP4 已完整跑通创建任务、multipart 上传、Storage 大小回查、入队、Python/MediaPipe Worker 分析及结果下载，任务状态 `done`、输出视频 `3681030` 字节，测试账号、任务和输入/输出对象均已清理。`npm run lint`、`npm run typecheck`、`npm test`（35 files / 177 tests）、`npm run test:e2e`（4/4）及 `npx next build`（518 pages）通过；Web/API 镜像已推送并由 Keel 自动滚动更新，公网 `https://coachlink.fit/api/healthy` 已回读新 `buildTime=2026-07-14T18:53:59.635Z`，生产 `coachlink-main` 新 Pod 已运行约 6 分钟。该故障根因仅在 Web 上传链路，不需要额外执行 Power Worker 部署命令。
 
 ## 微信小程序教练列表训练方向筛选弹层修复 (`2026-07-14`)
 
@@ -8575,3 +8575,15 @@
 - Changes: 新增统一 `StableInput` / `StableNutInput`；强制同层输入，安卓数字输入关闭微信自动页面上推，数字输入失焦后重建原生组件。直接 Taro 输入与 NutUI 包装输入的 28 个数字输入模块已全部迁移；撤销无效的全局 input 行高覆盖，仅在训练执行与功率分析的固定高度输入保留显式尺寸兜底。
 - Verification: 数字输入审计 `28/28` 已接入稳定组件；`npm run lint`、`npm run typecheck`、`npm test`（35 files / 177 tests）、小程序 local/release 构建和 `git diff --check` 通过。开发者工具在功率分析器完成 3 次输入/失焦循环后因既有登录态跳转离开页面，业务错误日志为 0；模拟器不能复现手机原生键盘图层。Next 构建已编译并生成 518/518 页面，但因工作区已有 `next dev` 占用 `.next`，standalone 最终复制报 Windows `EBUSY`。
 - Status: 代码完成，仍需以安卓手机上的线上体验版/正式包反复聚焦验证为最终验收依据，当前不宣称真机问题已经确认消失。
+## 微信小程序即兴训练未完成会话恢复 (`2026-07-15`)
+
+- Task: 修复学员即兴训练练到一半退出后没有入口返回原训练，再次点击“即兴训练”反而进入新建流程的问题。
+- Status: 代码修复完成，待用户手动验收。即兴训练入口现在先读本地 60 天训练快照，再查询云端最近一条 `in_progress` 记录；发现未完成训练时直接回到原 execution。`/api/impromptu/start` 同时增加服务端兜底，已有进行中记录时返回原记录而不再新建。
+- Scope: 仅修改即兴训练入口、训练快照查询工具、即兴训练服务及相关 API；未改动工作区中已有的训练执行页/Input 修复。
+- Verification: `npm run lint` 通过（项目仅输出未配置 lint 的提示），`npm run typecheck` 通过，`git diff --check` 通过。用户明确要求只改相关 bug、不做其他测试，因此已停止并未继续小程序构建、单元测试、Next build 或开发者工具交互验证。
+## 微信小程序训练执行页重量输入字符悬浮修复 (`2026-07-15`)
+
+- Task: 用户真机截图确认，悬浮的 `5` 来自第二组重量 `5kg` 输入框；普通 `kg` 单位仍停留在正确输入框内，只有微信原生 Input 文字层上浮。
+- Root cause: 训练执行页最外层固定 `100vh` 的纵向 `ScrollView` 与键盘页面调整叠加，使普通 View 内容层和微信原生 Input 文字层在部分安卓真机上使用了不同滚动坐标；此前统一关闭 `adjustPosition` 会进一步放大错位。
+- Changes: 训练执行页恢复直接使用原生 Input，外层改为自然页面滚动；撤回 StableInput/StableNutInput 对安卓数字输入默认关闭 `adjustPosition` 的策略；移除训练输入框中无助于解决大幅坐标漂移的强制行高。
+- Verification: 用户明确由其自行完成检查与真机测试，本轮不再运行构建、测试或 E2E。

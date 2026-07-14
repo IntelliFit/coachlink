@@ -55,6 +55,17 @@
     padding: 24rpx 0 16rpx;
   }
 
+  .resume-loading {
+    min-height: 240rpx;
+    padding: 48rpx 24rpx;
+    color: #6b7280;
+    font-size: 28rpx;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+  }
+
   .quick-title-row {
     display: flex;
     align-items: center;
