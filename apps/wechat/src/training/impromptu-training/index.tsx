@@ -337,7 +337,7 @@ export default function ImpromptuTraining() {
                   : '没有自己的动作也可以直接用公共动作'}
               </Text>
             </View>
-            <View className='library-link' onClick={() => Taro.navigateTo({ url: '/me/action-lib?tab=public' })}>
+            <View className='library-link' onClick={() => Taro.navigateTo({ url: '/me/action-lib/index?tab=public' })}>
               <Text>动作库</Text>
             </View>
           </View>
@@ -415,7 +415,7 @@ export default function ImpromptuTraining() {
           {!loadingActions && filteredActions.length === 0 && (
             <View className='state-block'>
               <Text>{keyword || muscleFilterKey !== 'all' || equipmentFilterKey !== 'all' ? '没有匹配动作' : '暂时没有可用力量动作'}</Text>
-              <View className='state-action' onClick={() => Taro.navigateTo({ url: '/me/action-lib?tab=public' })}>
+              <View className='state-action' onClick={() => Taro.navigateTo({ url: '/me/action-lib/index?tab=public' })}>
                 <Text>去公共动作库看看</Text>
               </View>
             </View>

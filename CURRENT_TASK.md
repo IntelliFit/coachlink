@@ -1,3 +1,10 @@
+## 微信小程序即时训练动作库跳转修复 (`2026-07-14`)
+
+- Task: 修复即时训练页“动作库”点击无反应；用户提供控制台 `page "me/action-lib?tab=public" is not found`。
+- Status: 用户已在小程序中手动验证通过并授权提交。公共动作库页面和接口均已存在，接口请求也已发出；根因是三个前端跳转地址遗漏注册页面的 `/index`，导航目标不存在。
+- Changes: 将即时训练页右上角动作库入口、空状态入口和旧兼容跳转页统一改为 `/me/action-lib/index?tab=public`，与 `app.config.ts` 中 `me` 分包的 `action-lib/index` 注册路径一致。
+- Verification: `npm run lint`、`npm run typecheck`、`npm test`（35 files / 177 tests）与小程序构建（2755 modules）通过，`git diff --check` 通过；`npx next build` 仍被既有 `busboy`、`pdf-parse/lib/pdf-parse.js` 缺失依赖阻断。已按 `weapp-devtools` 检查，`mrc` 可用但 9420 无监听，不能自动化点击验证。
+
 ## 微信小程序注销确认词视觉强化 (`2026-07-14`)
 
 - Task: 强化“账户设置 -> 注销账号”弹窗中的确认词可理解性；用户已确认功能无误并授权提交。
