@@ -13,7 +13,7 @@ import {
 import { buildBatchOperationContext } from "./context";
 import type { ItemType } from "@/types";
 import { sanitizeActionName } from "@/lib/planImportText";
-import { getCoachlinkFastLlm, getCoachlinkPlanLlm } from "@/lib/coachlinkLlm";
+import { getCoachlinkFastLlm, getCoachlinkPlanLlm, getCoachlinkPlanScriptLlm } from "@/lib/coachlinkLlm";
 import { tryApplyDeterministicBatchEdit } from "@/lib/batchOperationDeterministic";
 import { formatTemplateToPlanScript, parsePlanScript } from "@/lib/planScript";
 import { resolveOneRmAdjustments, type OneRmAdjustmentDraft } from "@/lib/oneRmAdjustments";
@@ -43,6 +43,10 @@ function isRetryableLlmConnectionError(error: any) {
 }
 
 function formatBatchOperationError(error: any) {
+    const message = String(error?.message || "").toLowerCase();
+    if (message.includes("timed out") || message.includes("timeout")) {
+        return '万界方舟在限定时间内未返回完整计划。请稍后重试；长周期计划建议在 Apollo 使用 WANJIE_ARK_PLAN_SCRIPT_MODEL=deepseek-v4-flash。';
+    }
     if (isRetryableLlmConnectionError(error)) {
         return '万界方舟连接在返回结果前被中断，系统已自动重试 1 次仍未成功。请稍后重试；若 deepseek-v4-pro 持续超时，可在 Apollo 临时将 WANJIE_ARK_PLAN_MODEL 设为 deepseek-v4-flash。';
     }
@@ -80,6 +84,33 @@ function normalizeActionNameKey(name?: string | null) {
         .toLowerCase()
         .replace(/[\s\-_()（）【】\[\]·,，.。]/g, "")
         .trim();
+}
+
+function inferRequestedPlanWeeks(instruction: string): number | null {
+    const normalized = String(instruction || "").replace(/[０-９]/g, (char) =>
+        String(char.charCodeAt(0) - 0xFF10),
+    );
+    const candidates = [
+        ...Array.from(normalized.matchAll(/(\d{1,2})\s*(?:个)?\s*周/g), (match) => Number(match[1])),
+        ...Array.from(normalized.matchAll(/(\d{1,2})\s*(?:个)?\s*月/g), (match) => Number(match[1]) * 4),
+    ].filter((value) => Number.isFinite(value) && value > 0);
+    return candidates.length > 0 ? Math.max(...candidates) : null;
+}
+
+function extractPlainPlanScript(raw: string): string {
+    const normalized = String(raw || "").replace(/\r\n/g, "\n").trim();
+    const fencedBlocks = Array.from(
+        normalized.matchAll(/```(?:plan|planscript|text)?\s*\n([\s\S]*?)```/gi),
+        (match) => match[1].trim(),
+    );
+    const fencedScript = fencedBlocks.find((block) => /(?:^|\n)\s*W\d+\s*(?:\n|$)/i.test(block));
+    const candidate = fencedScript || normalized;
+    const lines = candidate.split("\n");
+    const firstWeekLine = lines.findIndex((line) => /^\s*W\d+\s*$/i.test(line));
+    const firstOneRmDirective = lines.findIndex((line) => /^\s*1RM\s+/i.test(line));
+    const starts = [firstWeekLine, firstOneRmDirective].filter((index) => index >= 0);
+    const firstScriptLine = starts.length > 0 ? Math.min(...starts) : -1;
+    return (firstScriptLine >= 0 ? lines.slice(firstScriptLine).join("\n") : candidate).trim();
 }
 
 /**
@@ -782,11 +813,20 @@ async function runPlanScriptEdit(params: {
 
     const actionLibrary = buildPlanScriptActionLibrary(actions);
     const hasCurrentPlanScript = currentScript.trim().length > 0;
+    const requestedWeeks = inferRequestedPlanWeeks(effectiveInstruction);
     const maxRetries = 2;
+    const outputFormatPrompt = `## 输出格式（纯 PlanScript 模式）
+- 只输出 PlanScript 纯文本；如有 1RM 指令先输出指令，随后从 W1 开始输出完整计划。
+- 禁止输出 JSON、Markdown 代码块、解释、标题或总结。
+${requestedWeeks ? `- 必须完整输出 W1 到 W${requestedWeeks}，不得使用“同上”“略”“依次类推”等省略写法。` : "- 必须返回修改后的完整计划，不得只返回差异片段。"}
+- W 标记和 D 标记必须各自独占一行。
+- 全局 1RM 绝对设定：\`1RM 负重引体 = 50kg #根据测试成绩设定\`。
+- 全局 1RM 增减：\`1RM 负重引体 += 2.5kg #学员反馈较轻\`或 \`1RM 负重引体 -= 2.5kg #学员反馈较重\`。
+- 1RM 指令放在 W1 之前；即使计划本身不需要改动，也必须输出完整计划。`;
     const messages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
         {
             role: "system",
-            content: "你是 coachlink 的训练计划脚本编辑器。你只输出 JSON，不输出额外说明。",
+            content: "你是 coachlink 的训练计划脚本编辑器。你只输出 PlanScript 纯文本，不输出 JSON、Markdown 或额外说明。",
         },
         {
             role: "user",
@@ -803,17 +843,10 @@ async function runPlanScriptEdit(params: {
 - 动作名必须使用动作库中的完整名称，尤其括号变体必须精确保留，例如“负重引体（底部暂停）”不能写成“负重引体”。
 - 如果用户要求的新动作不在动作库中，直接在脚本中写用户指定的新动作名；系统会把它转为待确认动作，后续让用户选择“新建动作”或“映射已有动作”。
 - 禁止把新动作硬匹配到相似旧动作；例如“窄距反手引体”不在库中时，保留“窄距反手引体”，不要改写成“反手引体”或其他相近动作。
-- 如果用户表达的是“太重/太轻/做不了/过轻松”等负荷反馈，且当前计划的重量本质依赖全局 1RM，请优先输出 \`oneRmAdjustments\` 来调整动作级全局 1RM，而不是把计划写死成固定重量。
-- 如果用户明确要“直接写成 60kg / 按问卷已知重量回填 / 改成固定重量 / 改成 8RM / 改成 75%1RM”，优先输出 \`loadAdjustments\`，不要为了这类小改动重写整份脚本。
-- \`oneRmAdjustments\` 里的 \`deltaKg\` 必须是 2.5kg 的整数倍。轻微偏差默认用 ±2.5kg，明显偏差可用 ±5kg、±7.5kg、±10kg。
-- \`loadAdjustments\` 里：
-  - \`mode="fixed"\` 表示直接把计划写死成固定重量，不再跟随 1RM 自动重算；
-  - \`mode="rm"\` 表示把该动作改成指定 RM；
-  - \`mode="percentage"\` 表示把该动作改成指定 %1RM；
-  - \`targetKg\` / \`deltaKg\` 仅用于 \`mode="fixed"\`，并且必须是 2.5kg 的整数倍；
-  - \`targetValue\` 仅用于 \`mode="rm"\` 或 \`mode="percentage"\`。
-- 如果只是调整全局 1RM 而不需要改计划脚本结构，\`script\` 可以保持与当前计划脚本一致。
-- 如果只是做 \`loadAdjustments\` 或 \`oneRmAdjustments\`，\`script\` 也可以保持与当前计划脚本一致。
+- 如果用户表达“太重/太轻/做不了/过轻松”，且当前计划负荷依赖动作级全局 1RM，请在 W1 之前输出 \`1RM 动作名 += 2.5kg\` 或 \`1RM 动作名 -= 2.5kg\`。相对增减必须使用 2.5kg 的整数倍。
+- 如果用户明确设置全局 1RM，输出 \`1RM 动作名 = 50kg\`；绝对值按用户要求精确设置，不做 2.5kg 步长取整。
+- 如果用户要修改当前计划里的处方负荷，直接改动作行：固定重量写 \`@60kg\`，RM 写 \`@8rm\`，百分比写 \`@75%\`。不要输出 JSON 补丁或额外的数据结构。
+- 即使只调整全局 1RM、计划结构不变，也要保留 1RM 指令并完整输出当前计划脚本。
 
 ## 可用动作库
 ${actionLibrary}
@@ -830,29 +863,7 @@ ${currentScript}
 ${effectiveInstruction}
 ${deterministicReason ? `\n\n## 已尝试的明确规则未命中原因\n${deterministicReason}` : ""}
 
-请严格返回 JSON：
-{
-  "actionPlan": "一句中文说明你做了什么",
-  "script": "完整修改后的计划脚本",
-  "cannotApplyReason": "如果无法修改，写明原因；可以修改时为空字符串",
-  "oneRmAdjustments": [
-    {
-      "actionName": "需要调整 1RM 的动作名",
-      "deltaKg": -2.5,
-      "reason": "为什么要这样调整"
-    }
-  ],
-  "loadAdjustments": [
-    {
-      "actionName": "需要直接改负荷的动作名",
-      "dayIndex": 3,
-      "setIndex": 1,
-      "mode": "fixed",
-      "targetKg": 60,
-      "reason": "问卷已知当前工作重量"
-    }
-  ]
-}`,
+${outputFormatPrompt}`,
         },
     ];
 
@@ -868,13 +879,29 @@ ${deterministicReason ? `\n\n## 已尝试的明确规则未命中原因\n${deter
             message: retry === 0 ? "正在用计划脚本生成修改方案" : "正在微调计划脚本",
         });
 
-        const completion = await createChatCompletionWithRetry(openai, {
-            model: llmModel,
-            messages,
-            response_format: { type: "json_object" },
-            temperature: 0.1,
-            max_tokens: 6000,
-        });
+        const requestStartedAt = Date.now();
+        if (isDevelopment) {
+            console.log(
+                `[batch-operation] plan-script request: model=${llmModel}, attempt=${retry + 1}/${maxRetries}, promptChars=${messages.reduce((sum, message) => sum + message.content.length, 0)}, currentScriptChars=${currentScript.length}, contextChars=${contextPrompt.length}, requestedWeeks=${requestedWeeks ?? "unspecified"}`,
+            );
+        }
+        let completion: any;
+        try {
+            const requestBody: Record<string, unknown> = {
+                model: llmModel,
+                messages,
+                temperature: 0.1,
+                max_tokens: 12000,
+            };
+            completion = await createChatCompletionWithRetry(openai, requestBody);
+        } catch (error) {
+            if (isDevelopment) {
+                console.warn(
+                    `[batch-operation] plan-script request failed: model=${llmModel}, elapsedMs=${Date.now() - requestStartedAt}`,
+                );
+            }
+            throw error;
+        }
 
         promptTokens += completion.usage?.prompt_tokens || 0;
         completionTokens += completion.usage?.completion_tokens || 0;
@@ -885,47 +912,10 @@ ${deterministicReason ? `\n\n## 已尝试的明确规则未命中原因\n${deter
             lastError = "AI 未返回有效脚本";
         } else {
             try {
-                const response = JSON.parse(responseContent) as {
-                    actionPlan?: string;
-                    script?: string;
-                    cannotApplyReason?: string;
-                    oneRmAdjustments?: OneRmAdjustmentDraft[];
-                    loadAdjustments?: LoadAdjustmentDraft[];
-                };
-
-                if (response.cannotApplyReason?.trim()) {
-                    return {
-                        success: false,
-                        error: response.cannotApplyReason.trim(),
-                        promptTokens,
-                        completionTokens,
-                        totalTokens,
-                        duration: Date.now() - startedAt,
-                    };
-                }
-
-                const oneRmAdjustments = Array.isArray(response.oneRmAdjustments)
-                    ? response.oneRmAdjustments
-                    : [];
-                const loadAdjustments = Array.isArray(response.loadAdjustments)
-                    ? response.loadAdjustments
-                    : [];
-                const nextScript = response.script?.trim() || (
-                    oneRmAdjustments.length > 0 || loadAdjustments.length > 0
-                        ? currentScript
-                        : ""
-                );
+                const nextScript = extractPlainPlanScript(responseContent);
 
                 if (!nextScript.trim()) {
-                    throw new Error("AI 返回缺少 script 字段");
-                }
-
-                if (
-                    normalizePlanScriptText(nextScript) === normalizePlanScriptText(currentScript) &&
-                    oneRmAdjustments.length === 0 &&
-                    loadAdjustments.length === 0
-                ) {
-                    throw new Error("AI 返回的计划脚本与原脚本相同，没有实际修改");
+                    throw new Error("AI 未返回有效 PlanScript");
                 }
 
                 const parsed = parsePlanScript({
@@ -937,23 +927,34 @@ ${deterministicReason ? `\n\n## 已尝试的明确规则未命中原因\n${deter
                     })),
                     allowPendingActions: true,
                 });
+                const oneRmAdjustments = parsed.oneRmAdjustments;
 
-                const loadAdjustmentResult = applyLoadAdjustments({
-                    drafts: loadAdjustments,
-                    trainingDays: parsed.days,
-                    actions: actions.map((action: any) => ({
-                        id: action.id,
-                        name: action.name,
-                    })),
-                });
+                if (
+                    normalizePlanScriptText(nextScript) === normalizePlanScriptText(currentScript) &&
+                    oneRmAdjustments.length === 0
+                ) {
+                    throw new Error("AI 返回的计划脚本与原脚本相同，没有实际修改");
+                }
+
+                if (requestedWeeks) {
+                    const parsedMaxWeek = parsed.days.reduce(
+                        (maxWeek, day) => Math.max(maxWeek, Math.ceil(Number(day.dayIndex || 0) / 7)),
+                        0,
+                    );
+                    if (parsedMaxWeek < requestedWeeks) {
+                        throw new Error(
+                            `用户要求 ${requestedWeeks} 周计划，但模型脚本只包含到第 ${parsedMaxWeek || 0} 周`,
+                        );
+                    }
+                }
 
                 return {
                     success: true,
-                    actionPlan: response.actionPlan || "已根据计划脚本完成修改",
-                    updatedTrainingDays: loadAdjustmentResult.updatedTrainingDays,
+                    actionPlan: "已根据计划脚本完成修改",
+                    updatedTrainingDays: parsed.days,
                     oneRmAdjustments,
-                    loadAdjustments,
-                    appliedLoadAdjustments: loadAdjustmentResult.adjustments.length,
+                    loadAdjustments: [],
+                    appliedLoadAdjustments: 0,
                     promptTokens,
                     completionTokens,
                     totalTokens,
@@ -965,7 +966,7 @@ ${deterministicReason ? `\n\n## 已尝试的明确规则未命中原因\n${deter
                     { role: "assistant", content: responseContent },
                     {
                         role: "user",
-                        content: `上一次返回的脚本无法编译或没有实际修改：${lastError}\n请重新返回完整可编译脚本，并且只修改用户要求的部分。`,
+                        content: `上一次返回的纯 PlanScript 不完整、无法编译或没有实际修改：${lastError}\n请重新输出完整可编译的 PlanScript${requestedWeeks ? `，必须覆盖 W1 到 W${requestedWeeks}` : ""}。只输出脚本，禁止 JSON、Markdown、解释或省略。`,
                     },
                 );
             }
@@ -1310,8 +1311,9 @@ ${effectiveInstruction}
 
                     const { client: openai, model: llmModel, provider: llmProvider } = getCoachlinkPlanLlm();
                     const { client: fastOpenai, model: fastLlmModel } = getCoachlinkFastLlm();
+                    const { client: planScriptOpenai, model: planScriptLlmModel } = getCoachlinkPlanScriptLlm();
                     if (isDevelopment) {
-                        console.log(`[batch-operation] LLM: ${llmProvider} / ${llmModel}`);
+                        console.log(`[batch-operation] LLM: ${llmProvider} / ${llmModel}; plan-script / ${planScriptLlmModel}`);
                     }
                     const intentCompletion = await createJsonChatCompletionWithRetry(fastOpenai, {
                         model: fastLlmModel,
@@ -1509,8 +1511,8 @@ ${effectiveInstruction}
                             sendMessage({ type: "progress", message: `计划脚本不可用，已回退旧引擎：${reason}` });
                         } else {
                             const scriptResult = await runPlanScriptEdit({
-                                openai,
-                                llmModel,
+                                openai: planScriptOpenai,
+                                llmModel: planScriptLlmModel,
                                 trainingDays,
                                 actions,
                                 effectiveInstruction,

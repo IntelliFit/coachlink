@@ -4,6 +4,7 @@ import type {
     FormPlanTrainingDay,
 } from "@/app/api/plan-lib/create-template/entity";
 import { findBestExistingActionMatch } from "@/lib/planImportText";
+import type { OneRmAdjustmentDraft } from "@/lib/oneRmAdjustments";
 
 export interface PlanScriptQuestionLite {
     question: string;
@@ -25,6 +26,27 @@ export interface ParsePlanScriptParams {
 export interface ParsePlanScriptResult {
     description: string | null;
     days: FormPlanTrainingDay[];
+    oneRmAdjustments: OneRmAdjustmentDraft[];
+}
+
+function parseOneRmDirective(line: string): OneRmAdjustmentDraft | null {
+    const match = line.match(/^1RM\s+(.+?)\s*(\+=|-=|=)\s*(\d+(?:\.\d+)?)\s*kg(?:\s+#\s*(.*))?$/i);
+    if (!match) return null;
+
+    const actionName = match[1].trim();
+    const operator = match[2];
+    const value = Number(match[3]);
+    const reason = match[4]?.trim() || null;
+    if (!actionName || !Number.isFinite(value) || value <= 0) return null;
+
+    if (operator === "=") {
+        return { actionName, targetOneRM: value, reason };
+    }
+    return {
+        actionName,
+        deltaKg: operator === "-=" ? -value : value,
+        reason,
+    };
 }
 
 function toDayIndex(weekIndex: number, dayOfWeek: number): number {
@@ -374,6 +396,7 @@ export function parsePlanScript({
         });
     const descriptionLines: string[] = [];
     const days = new Map<number, FormPlanTrainingDay>();
+    const oneRmAdjustments: OneRmAdjustmentDraft[] = [];
 
     let currentWeek = 0;
     let currentDay: FormPlanTrainingDay | null = null;
@@ -384,6 +407,12 @@ export function parsePlanScript({
 
         if (line.startsWith(">")) {
             descriptionLines.push(line.slice(1).trim());
+            continue;
+        }
+
+        const oneRmDirective = parseOneRmDirective(line);
+        if (oneRmDirective) {
+            oneRmAdjustments.push(oneRmDirective);
             continue;
         }
 
@@ -446,5 +475,6 @@ export function parsePlanScript({
     return {
         description: descriptionLines.length > 0 ? descriptionLines.join("\n") : null,
         days: resultDays,
+        oneRmAdjustments,
     };
 }

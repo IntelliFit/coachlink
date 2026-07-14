@@ -114,40 +114,70 @@ export function resolveOneRmAdjustments(
     params: ResolveOneRmAdjustmentsParams,
 ): OneRmAdjustmentResolved[] {
     const { drafts, actions } = params;
-    const resolvedByActionId = new Map<string, OneRmAdjustmentResolved>();
+    const stateByActionId = new Map<string, {
+        action: OneRmActionLite;
+        currentOneRM: number;
+        targetOneRM: number | null;
+        relativeDeltaKg: number;
+        reasons: string[];
+    }>();
 
     for (const draft of drafts || []) {
         const action = findActionByDraft(draft, actions);
         if (!action) continue;
 
-        const currentOneRM = getCurrentOneRM(action, params);
-        if (!Number.isFinite(currentOneRM) || Number(currentOneRM) <= 0) continue;
+        const detectedCurrentOneRM = getCurrentOneRM(action, params);
+        const currentOneRM = Number.isFinite(detectedCurrentOneRM) && Number(detectedCurrentOneRM) > 0
+            ? Number(detectedCurrentOneRM)
+            : 0;
+        const state = stateByActionId.get(action.id) || {
+            action,
+            currentOneRM,
+            targetOneRM: null,
+            relativeDeltaKg: 0,
+            reasons: [],
+        };
+        const rawTargetOneRM = Number(draft.targetOneRM);
+        const normalizedDelta = normalizeOneRmDelta(draft.deltaKg);
+        let hasValidOperation = false;
 
-        let normalizedDelta = normalizeOneRmDelta(draft.deltaKg);
-        if (normalizedDelta === null && Number.isFinite(Number(draft.targetOneRM))) {
-            normalizedDelta = normalizeOneRmDelta(Number(draft.targetOneRM) - Number(currentOneRM));
+        if (Number.isFinite(rawTargetOneRM) && rawTargetOneRM > 0) {
+            // “=” 提供精确的绝对基准；同一动作的 += / -= 在该基准上累计。
+            state.targetOneRM = roundToSingleDecimal(Math.max(0.5, rawTargetOneRM));
+            hasValidOperation = true;
         }
-        if (normalizedDelta === null) continue;
+        if (normalizedDelta !== null) {
+            state.relativeDeltaKg = roundToSingleDecimal(state.relativeDeltaKg + normalizedDelta);
+            hasValidOperation = true;
+        }
+        if (!hasValidOperation) continue;
+        if (draft.reason) state.reasons.push(String(draft.reason).trim());
+        stateByActionId.set(action.id, state);
+    }
 
-        const existing = resolvedByActionId.get(action.id);
-        const nextDelta = normalizeOneRmDelta((existing?.deltaKg || 0) + normalizedDelta);
-        if (nextDelta === null) continue;
+    const resolved: OneRmAdjustmentResolved[] = [];
+    for (const state of stateByActionId.values()) {
+        const baseOneRM = state.targetOneRM ?? state.currentOneRM;
+        if (baseOneRM <= 0) continue;
 
-        const nextOneRM = roundToSingleDecimal(Math.max(0.5, Number(currentOneRM) + nextDelta));
-        const reasons = [existing?.reason, draft.reason].filter(Boolean).map((x) => String(x).trim());
+        const nextOneRM = roundToSingleDecimal(Math.max(0.5, baseOneRM + state.relativeDeltaKg));
+        const deltaKg = roundToSingleDecimal(nextOneRM - state.currentOneRM);
+        if (deltaKg === 0) continue;
 
-        resolvedByActionId.set(action.id, {
-            actionId: action.id,
-            actionName: action.name,
-            canonicalActionId: action.canonical_action_id || null,
-            studentActionId: getStudentActionId(action, params),
-            currentOneRM: Number(currentOneRM),
+        resolved.push({
+            actionId: state.action.id,
+            actionName: state.action.name,
+            canonicalActionId: state.action.canonical_action_id || null,
+            studentActionId: getStudentActionId(state.action, params),
+            currentOneRM: state.currentOneRM,
             nextOneRM,
-            deltaKg: nextDelta,
-            reason: reasons.length > 0 ? Array.from(new Set(reasons)).join("；") : undefined,
+            deltaKg,
+            reason: state.reasons.length > 0
+                ? Array.from(new Set(state.reasons.filter(Boolean))).join("；")
+                : undefined,
         });
     }
 
-    return Array.from(resolvedByActionId.values());
+    return resolved;
 }
 

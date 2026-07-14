@@ -5,7 +5,7 @@ export const WANJIE_ARK_DEFAULT_BASE_URL = "https://maas-openapi.wanjiedata.com/
 
 export type CoachlinkLlmProvider = "wanjie-ark";
 
-type WanjieModelKind = "default" | "plan" | "coachReply" | "vision" | "fast";
+type WanjieModelKind = "default" | "plan" | "planScript" | "coachReply" | "vision" | "fast";
 
 function getRequiredEnv(name: string): string {
     const value = process.env[name]?.trim();
@@ -23,6 +23,8 @@ function getWanjieModel(kind: WanjieModelKind): string {
     const override =
         kind === "plan"
             ? process.env.WANJIE_ARK_PLAN_MODEL?.trim()
+            : kind === "planScript"
+                ? process.env.WANJIE_ARK_PLAN_SCRIPT_MODEL?.trim() || "deepseek-v4-flash"
             : kind === "coachReply"
                 ? process.env.WANJIE_ARK_COACH_REPLY_MODEL?.trim()
                 : kind === "vision"
@@ -34,13 +36,18 @@ function getWanjieModel(kind: WanjieModelKind): string {
 }
 
 function createWanjieLlm(kind: WanjieModelKind) {
+    const timeout = kind === "planScript"
+        ? 120_000
+        : kind === "plan" || kind === "vision"
+            ? 90_000
+            : 45_000;
     return {
         client: new OpenAI({
             baseURL: getWanjieBaseUrl(),
             apiKey: getRequiredEnv("WANJIE_ARK_API_KEY"),
             // SDK 默认会在连接断开后长时间重试；业务层做一次快速、可见的重试。
             maxRetries: 0,
-            timeout: 45_000,
+            timeout,
         }),
         model: getWanjieModel(kind),
         provider: "wanjie-ark" as const,
@@ -55,6 +62,11 @@ export function getCoachlinkLlm() {
 /** 计划生成、解析和修改使用；可通过 WANJIE_ARK_PLAN_MODEL 单独指定模型。 */
 export function getCoachlinkPlanLlm() {
     return createWanjieLlm("plan");
+}
+
+/** 长计划脚本需输出完整周期，默认使用更快的 Flash 并放宽超时。 */
+export function getCoachlinkPlanScriptLlm() {
+    return createWanjieLlm("planScript");
 }
 
 /** 教练 AI 自动回复使用；可通过 WANJIE_ARK_COACH_REPLY_MODEL 单独指定模型。 */
