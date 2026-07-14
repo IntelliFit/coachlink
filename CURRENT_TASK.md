@@ -1,3 +1,10 @@
+## 生产功率分析上传空文件热修 (`2026-07-15`)
+
+- Task: 修复线上微信小程序功率分析选择视频并成功上传后，Worker 直接报 `moov atom not found` / `Cannot open input video`。
+- Root cause: 生产任务 `361eed2d-523d-44e9-b9df-be5cb28c202e` 的小程序与 Next API 均实际传输了 `931569` 字节，但 Busboy 的实时 Node stream 直接交给 Supabase Storage SDK 后，Storage 返回成功却持久化了 0 字节对象（空文件 ETag `d41d8cd98f00b204e9800998ecf8427e`）。Worker 下载到 0 字节 `input.mp4`，因此无法读取 MP4 `moov` 元数据；原视频本身没有损坏。
+- Fix: 上传 API 改为将 multipart 文件流式落到临时磁盘，再以具有明确字节长度的 file-backed Blob 上传到 Storage；上传后通过 Storage `info` 强制比对最终对象大小，不一致即删除对象并返回失败，禁止空文件进入分析队列。临时文件始终在 `finally` 清理，仍不把大视频整体读入 Node 内存。
+- Verification: 同生产 Node/Supabase 环境探针上传 `931569` 字节，回查与下载字节数及 SHA-256 一致；真实 `11186504` 字节引体 MP4 已完整跑通创建任务、multipart 上传、Storage 大小回查、入队、Python/MediaPipe Worker 分析及结果下载，任务状态 `done`、输出视频 `3681030` 字节，测试账号、任务和输入/输出对象均已清理。`npm run lint`、`npm run typecheck`、`npm test`（35 files / 177 tests）、`npm run test:e2e`（4/4）及 `npx next build`（518 pages）通过；待发布 Web/API 镜像并做生产复测。
+
 ## 微信小程序教练列表训练方向筛选弹层修复 (`2026-07-14`)
 
 - Task: 修复教练列表“筛选方向”点击无反应；开发者工具报 `showActionSheet:fail parameter error: itemList should not be larger than 6`。
@@ -8561,3 +8568,10 @@
 - Content: 9 个实际功能提交 + 1 个纯合并提交，净变化 24 files / +811 / -52，主要包括小程序清缓存、注销确认文案、动作库路由、教练专栏/套餐排版、教练联系方式、学员评价接口与渲染、训练更多入口弹层、完整训练方向筛选；另含底部导航问题的诊断记录。
 - Local overlap: 当前工作区 25 个修改/未跟踪路径与远端 dev 的 24 个变更路径仅重叠 `CURRENT_TASK.md`、`memory/2026-07-14.md` 和 `TodayTrainingScreen.tsx`。业务文件中，远端修改约 1721 行的“更多训练方式”弹层，当前本地修改约 953 行的训练日只读控制，逻辑区段不同；远端功能并未存在于当前本地未提交代码中。
 - Governance: GitHub `main`、`dev` 和该 codex 分支均显示 `protected=false`；仓库为 private，当前方案没有分支保护/ruleset，允许账号直接 push。CI 又未监听真实 `dev`，所以这次 dev-only 推送没有自动触发 main/dev 一致性门禁。
+## 微信小程序数字输入文字偶发悬浮二次修复 (`2026-07-15`)
+
+- Task: 用户确认上一版全局 `line-height` 修复无效；训练执行、功率分析器等多处数字输入仍偶发出现文字层悬浮，同一输入框可能第一次正常、第二次聚焦触发，且线上比本地更明显。
+- Revised diagnosis: 撤回静态行高根因。现象更符合微信原生 `input` 在数字键盘弹出、`scroll-view` 与页面自动上推叠加时坐标同步竞态，以及失焦后原生文字层残留并在下一次聚焦复用。
+- Changes: 新增统一 `StableInput` / `StableNutInput`；强制同层输入，安卓数字输入关闭微信自动页面上推，数字输入失焦后重建原生组件。直接 Taro 输入与 NutUI 包装输入的 28 个数字输入模块已全部迁移；撤销无效的全局 input 行高覆盖，仅在训练执行与功率分析的固定高度输入保留显式尺寸兜底。
+- Verification: 数字输入审计 `28/28` 已接入稳定组件；`npm run lint`、`npm run typecheck`、`npm test`（35 files / 177 tests）、小程序 local/release 构建和 `git diff --check` 通过。开发者工具在功率分析器完成 3 次输入/失焦循环后因既有登录态跳转离开页面，业务错误日志为 0；模拟器不能复现手机原生键盘图层。Next 构建已编译并生成 518/518 页面，但因工作区已有 `next dev` 占用 `.next`，standalone 最终复制报 Windows `EBUSY`。
+- Status: 代码完成，仍需以安卓手机上的线上体验版/正式包反复聚焦验证为最终验收依据，当前不宣称真机问题已经确认消失。

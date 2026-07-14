@@ -1,5 +1,10 @@
 import busboy from "busboy";
+import { createWriteStream, openAsBlob } from "node:fs";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { Readable } from "node:stream";
+import { pipeline } from "node:stream/promises";
 import { NextResponse } from "next/server";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 import { serviceRoleSupabase } from "@/lib/supabaseClient";
@@ -53,112 +58,131 @@ async function streamMultipartVideoToStorage(params: {
     throw new UploadRequestError("上传内容为空，请重新选择视频", 400);
   }
 
-  return await new Promise<{ contentType: string; size: number }>((resolve, reject) => {
-    const parser = busboy({
-      headers: { "content-type": requestContentType },
-      limits: {
-        fileSize: params.maxSizeBytes,
-        files: 1,
-        fields: 8,
-        parts: 10,
-      },
-    });
+  const tempDirectory = await mkdtemp(join(tmpdir(), "coachlink-power-upload-"));
+  const tempFilePath = join(tempDirectory, "input-video");
 
-    let fileSeen = false;
-    let fileTooLarge = false;
-    let invalidContentType = false;
-    let extraFiles = false;
-    let uploadedBytes = 0;
-    let uploadedContentType = params.fallbackContentType;
-    let uploadPromise: Promise<{ error: any }> | null = null;
-    let settled = false;
-
-    const fail = (error: unknown) => {
-      if (settled) return;
-      settled = true;
-      reject(error);
-    };
-
-    parser.on("file", (fieldName, file, info) => {
-      if (fieldName !== "file" || fileSeen) {
-        file.resume();
-        return;
-      }
-
-      fileSeen = true;
-      uploadedContentType = String(info.mimeType || params.fallbackContentType || "").trim();
-      if (!isSupportedVideoContentType(uploadedContentType)) {
-        invalidContentType = true;
-        file.resume();
-        return;
-      }
-
-      file.on("limit", () => {
-        fileTooLarge = true;
-      });
-      file.on("data", (chunk: Buffer) => {
-        uploadedBytes += chunk.length;
+  try {
+    const parsed = await new Promise<{ contentType: string; size: number }>((resolve, reject) => {
+      const parser = busboy({
+        headers: { "content-type": requestContentType },
+        limits: {
+          fileSize: params.maxSizeBytes,
+          files: 1,
+          fields: 8,
+          parts: 10,
+        },
       });
 
-      // Supabase Storage accepts a Node readable stream. This avoids buffering the
-      // multipart file in Next.js and then allocating a second full-size ArrayBuffer.
-      uploadPromise = db.storage
-        .from(POWER_ANALYSIS_BUCKET)
-        .upload(params.inputPath, file, {
-          contentType: uploadedContentType,
-          upsert: false,
+      let fileSeen = false;
+      let fileTooLarge = false;
+      let invalidContentType = false;
+      let extraFiles = false;
+      let receivedBytes = 0;
+      let receivedContentType = params.fallbackContentType;
+      let writePromise: Promise<void> | null = null;
+      let settled = false;
+
+      const fail = (error: unknown) => {
+        if (settled) return;
+        settled = true;
+        reject(error);
+      };
+
+      parser.on("file", (fieldName, file, info) => {
+        if (fieldName !== "file" || fileSeen) {
+          file.resume();
+          return;
+        }
+
+        fileSeen = true;
+        receivedContentType = String(info.mimeType || params.fallbackContentType || "").trim();
+        if (!isSupportedVideoContentType(receivedContentType)) {
+          invalidContentType = true;
+          file.resume();
+          return;
+        }
+
+        file.on("limit", () => {
+          fileTooLarge = true;
         });
+        file.on("data", (chunk: Buffer) => {
+          receivedBytes += chunk.length;
+        });
+
+        // Do not pass Busboy's live stream directly into Supabase Storage. In the
+        // Next.js runtime that request can succeed while Storage persists an empty
+        // object. Spooling to disk keeps memory bounded and gives the upload a
+        // stable Blob with a known byte length.
+        writePromise = pipeline(file, createWriteStream(tempFilePath));
+      });
+
+      parser.on("filesLimit", () => {
+        extraFiles = true;
+      });
+      parser.on("error", fail);
+      parser.on("close", async () => {
+        try {
+          if (writePromise) await writePromise;
+          if (fileTooLarge) {
+            throw new UploadRequestError(
+              `视频过大，当前最多支持 ${Math.round(params.maxSizeBytes / 1024 / 1024)}MB`,
+              413,
+            );
+          }
+          if (extraFiles) {
+            throw new UploadRequestError("每次只能上传一个视频", 400);
+          }
+          if (invalidContentType) {
+            throw new UploadRequestError("请上传有效的视频文件", 400);
+          }
+          if (!fileSeen || !writePromise || receivedBytes <= 0) {
+            throw new UploadRequestError("上传内容为空，请重新选择视频", 400);
+          }
+
+          if (!settled) {
+            settled = true;
+            resolve({ contentType: receivedContentType, size: receivedBytes });
+          }
+        } catch (error) {
+          fail(error);
+        }
+      });
+
+      const requestStream = Readable.fromWeb(params.req.body as any);
+      requestStream.on("error", fail);
+      requestStream.pipe(parser);
     });
 
-    parser.on("filesLimit", () => {
-      extraFiles = true;
-    });
-    parser.on("error", async (error) => {
-      await removeIncompleteUpload(params.inputPath);
-      fail(error);
-    });
-    parser.on("close", async () => {
-      try {
-        const uploadResult = uploadPromise ? await uploadPromise : null;
-        if (fileTooLarge) {
-          await removeIncompleteUpload(params.inputPath);
-          throw new UploadRequestError(
-            `视频过大，当前最多支持 ${Math.round(params.maxSizeBytes / 1024 / 1024)}MB`,
-            413,
-          );
-        }
-        if (extraFiles) {
-          await removeIncompleteUpload(params.inputPath);
-          throw new UploadRequestError("每次只能上传一个视频", 400);
-        }
-        if (invalidContentType) {
-          throw new UploadRequestError("请上传有效的视频文件", 400);
-        }
-        if (!fileSeen || !uploadResult || uploadedBytes <= 0) {
-          await removeIncompleteUpload(params.inputPath);
-          throw new UploadRequestError("上传内容为空，请重新选择视频", 400);
-        }
-        if (uploadResult.error) {
-          await removeIncompleteUpload(params.inputPath);
-          throw new UploadRequestError(uploadResult.error.message || "上传失败", 500);
-        }
+    const fileBlob = await openAsBlob(tempFilePath, { type: parsed.contentType });
+    if (fileBlob.size !== parsed.size) {
+      throw new UploadRequestError("上传文件大小校验失败，请重新选择视频", 500);
+    }
 
-        if (!settled) {
-          settled = true;
-          resolve({ contentType: uploadedContentType, size: uploadedBytes });
-        }
-      } catch (error) {
-        fail(error);
-      }
-    });
+    const uploadResult = await db.storage
+      .from(POWER_ANALYSIS_BUCKET)
+      .upload(params.inputPath, fileBlob, {
+        contentType: parsed.contentType,
+        upsert: false,
+      });
+    if (uploadResult.error) {
+      throw new UploadRequestError(uploadResult.error.message || "上传失败", 500);
+    }
 
-    const requestStream = Readable.fromWeb(params.req.body as any);
-    requestStream.on("error", async (error) => {
-      await removeIncompleteUpload(params.inputPath);
-      fail(error);
-    });
-    requestStream.pipe(parser);
-  });
+    const { data: storedObject, error: infoError } = await db.storage
+      .from(POWER_ANALYSIS_BUCKET)
+      .info(params.inputPath);
+    const storedSize = Number(storedObject?.size ?? storedObject?.metadata?.size ?? -1);
+    if (infoError || storedSize !== parsed.size) {
+      throw new UploadRequestError("视频写入不完整，请重新上传", 500);
+    }
+
+    return parsed;
+  } catch (error) {
+    await removeIncompleteUpload(params.inputPath);
+    throw error;
+  } finally {
+    await rm(tempDirectory, { recursive: true, force: true }).catch(() => null);
+  }
 }
 
 export async function POST(
