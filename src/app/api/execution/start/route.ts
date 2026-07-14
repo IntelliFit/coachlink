@@ -19,6 +19,30 @@ import {
     deriveStrictSequentialProgressDay,
 } from "@/lib/planProgress";
 
+function canManuallyAdvanceAcrossRestDays(params: {
+    planDays: any[];
+    recommendedDayIndex: number;
+    requestedDayIndex: number;
+}) {
+    const { planDays, recommendedDayIndex, requestedDayIndex } = params;
+    if (requestedDayIndex <= recommendedDayIndex) return false;
+
+    const remainingDays = [...(planDays || [])]
+        .filter((day) => Number(day?.dayIndex || 0) >= recommendedDayIndex)
+        .sort((left, right) => Number(left?.dayIndex || 0) - Number(right?.dayIndex || 0));
+    const firstTrainingDay = remainingDays.find(
+        (day) => String(day?.type || "training").toLowerCase() === "training",
+    );
+    if (Number(firstTrainingDay?.dayIndex || 0) !== requestedDayIndex) return false;
+
+    return remainingDays
+        .filter((day) => {
+            const index = Number(day?.dayIndex || 0);
+            return index >= recommendedDayIndex && index < requestedDayIndex;
+        })
+        .every((day) => String(day?.type || "training").toLowerCase() !== "training");
+}
+
 /**
  * POST /api/execution/start
  *
@@ -198,7 +222,13 @@ export async function POST(request: NextRequest) {
             });
         }
 
-        if (Number(dayIndex) !== Number(recommendedDayIndex)) {
+        const isManualAdvanceAcrossRestDays = canManuallyAdvanceAcrossRestDays({
+            planDays: trainingDays,
+            recommendedDayIndex: Number(recommendedDayIndex),
+            requestedDayIndex: Number(dayIndex),
+        });
+
+        if (Number(dayIndex) !== Number(recommendedDayIndex) && !isManualAdvanceAcrossRestDays) {
             return NextResponse.json({
                 success: false,
                 code: "TRAINING_DAY_NOT_CURRENT",

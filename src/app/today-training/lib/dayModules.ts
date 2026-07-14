@@ -463,7 +463,9 @@ export const buildPlanScheduleModel = (params: {
                 delayAddedDays = lateDays;
                 displayDate = todayStart;
             } else {
-                displayDate = todayStart;
+                // 当前推进日尚未到排期时保持原日期，不能把它强行塞到今天，
+                // 否则会和前一天撞在同一天，并在后面留下一个空白日期。
+                displayDate = scheduledDate;
             }
         } else if (executionDate) {
             const lateDays = diffBeijingCalendarDays(executionDate, scheduledDate);
@@ -503,7 +505,10 @@ export const buildPlanScheduleModel = (params: {
             baselineDate,
             displayDate,
             delayAddedDays,
-            totalDelayDays: diffBeijingCalendarDays(displayDate, baselineDate),
+            totalDelayDays: Math.max(
+                0,
+                diffBeijingCalendarDays(displayDate, baselineDate),
+            ),
         });
     });
 

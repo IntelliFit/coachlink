@@ -8588,3 +8588,30 @@
 - Root cause: 训练执行页最外层固定 `100vh` 的纵向 `ScrollView` 与键盘页面调整叠加，使普通 View 内容层和微信原生 Input 文字层在部分安卓真机上使用了不同滚动坐标；此前统一关闭 `adjustPosition` 会进一步放大错位。
 - Changes: 训练执行页恢复直接使用原生 Input，外层改为自然页面滚动；撤回 StableInput/StableNutInput 对安卓数字输入默认关闭 `adjustPosition` 的策略；移除训练输入框中无助于解决大幅坐标漂移的强制行高。
 - Verification: 用户明确由其自行完成检查与真机测试，本轮不再运行构建、测试或 E2E。
+
+## 痴迷负重引体 12 周计划开始日期与负顺延修复 (`2026-07-15`)
+
+- Task: 用户截图发现直接创建的 12 周计划显示“已顺延 -6 天”，D2 落在 7 月 15 日、D3 却跳到 7 月 22 日，并追问为何 7 月 14 日创建的计划 `start_date` 是 7 月 20 日。
+- Root cause:
+  - 直接创建计划时未经用户授权擅自采用“下一个完整周的周一”，把实例 `3027057e-8975-4791-be9d-e7afd0bdb317` 的 `start_date` 写成 `2026-07-20`；这不是模型输出或用户操作导致。
+  - 小程序日期模型对尚未到排期的当前推进日无条件使用 `today` 作为显示日期，所以 D2 基准为 7 月 21 日却显示 7 月 15 日，`displayDate - baselineDate` 得到 -6；后续日期仍从 7 月 22 日开始，造成断档。
+- Data repair: 已在当前 runtime 对应数据库中把该实例 `start_date` 从 `2026-07-20` 条件更新为 `2026-07-14`，回读确认成功；订阅、84 天训练内容及 D1 execution 均未改动。D1 唯一完成记录为北京时间 7 月 15 日 05:08。
+- Code repair: `buildPlanScheduleModel` 在推进日早于排期时保留 `scheduledDate`，只在真正逾期时移动到今天；`totalDelayDays` 下限固定为 0，禁止任何“顺延 -N 天”。
+- Verification:
+  - 用目标实例真实 D1 时间复算，日期按 D1=7/15、D2=7/16、D3=7/17 连续排列，顺延为 1 天且无负数；1 天来自真实 D1 完成日期晚于 7/14 开始日，不篡改执行历史。
+  - `npm run lint`、`npm run typecheck`、`npm test`（35 files / 177 tests）、`npx next build`（519 pages）、`npm --workspace apps/wechat run build:weapp`（2757 modules）及 `git diff --check` 通过。
+  - `weapp-devtools` 9420 自动化已成功启动，页面加载与错误日志检查通过；开发者工具当前登录的是“力量观察员6380”而非目标学员，未冒充完成目标实例截图验收。
+
+## 恢复日后的训练日允许用户主动提前开始 (`2026-07-15`)
+
+- Requirement: D1 完成后若 D2 是恢复日，系统默认停留 D2 一天，不得自动跳到 D3；但用户主动点击 D3 时必须允许开始训练。
+- Root cause: `/api/execution/start` 之前只允许 `dayIndex === recommendedDayIndex`，因此推荐日为 D2 恢复日时，用户主动点 D3 也被 `TRAINING_DAY_NOT_CURRENT` 拦截。
+- Fix: 启动接口允许从当前推荐日跨过连续恢复日，启动其后的第一个训练日；若范围内存在任何未完成训练日，仍返回 409。系统自动推进规则未改，恢复日不会自行跳过。
+- Verification: 按用户明确要求，本次只修改相关判断，未运行 lint、typecheck、build、test 或 UI 自动化；由用户在快速登录后的目标计划中直接复测。
+
+## Web 训练月历 7 月 16 日空白修复 (`2026-07-15`)
+
+- Task: 用户在 Web `/today-training` 快速登录目标学员后发现月历显示 D1=7月14/15、D2=7月15，但 7月16 日空白，D3 跳到 7月17 日。
+- Root cause: 此前只修复了微信小程序的 `buildPlanScheduleModel`；Web 在 `src/app/today-training/lib/dayModules.ts` 维护了重复的日期计算，仍会把尚未到排期的当前推进日强制映射到今天，造成日期碰撞和后续空白。
+- Fix: Web 同步改为：当前推进日尚未到排期时保留 `scheduledDate`，只有真正逾期才映射到今天；`totalDelayDays` 同样限制为非负数。按目标实例实际 D1 完成时间，预期连续显示 D1=7月15、D2=7月16、D3=7月17。
+- Verification: 用户明确要求小修不运行测试，本次未执行 lint、typecheck、build、test 或 UI 自动化，交由用户刷新 Web 页面直接复测。

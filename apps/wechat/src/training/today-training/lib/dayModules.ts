@@ -531,8 +531,12 @@ export const buildPlanScheduleModel = (params: {
       const lateDays = diffCalendarDays(todayStart, scheduledDate)
       if (lateDays > 0) {
         delayAddedDays = lateDays
+        displayDate = todayStart
+      } else {
+        // 计划日尚未到时保持原排期。旧逻辑无条件写成 today，
+        // 会把未来计划显示到今天并产生“顺延 -N 天”。
+        displayDate = scheduledDate
       }
-      displayDate = todayStart
     } else if (executionDate) {
       const lateDays = diffCalendarDays(executionDate, scheduledDate)
       if (lateDays > 0) {
@@ -569,7 +573,8 @@ export const buildPlanScheduleModel = (params: {
       baselineDate,
       displayDate,
       delayAddedDays,
-      totalDelayDays: diffCalendarDays(displayDate, baselineDate)
+      // 顺延只表示向后推迟，不允许把提前执行显示成负顺延。
+      totalDelayDays: Math.max(0, diffCalendarDays(displayDate, baselineDate))
     })
   })
 
