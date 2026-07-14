@@ -94,13 +94,15 @@ WANJIE_ARK_MODEL=deepseek-v4-pro
 # WANJIE_ARK_FAST_MODEL=deepseek-v4-flash       # 意图判断/完整性检查等短任务（代码默认值）
 # WANJIE_ARK_PLAN_MODEL=deepseek-v4-pro        # 可选；未配置时继承 WANJIE_ARK_MODEL
 # WANJIE_ARK_PLAN_SCRIPT_MODEL=deepseek-v4-flash # 纯 PlanScript 计划编辑（代码默认值）
+# WANJIE_ARK_PLAN_SCRIPT_FALLBACK_MODEL=claude-sonnet-4-6 # 仅用于本地无法确定解析的详细长计划
+# WANJIE_ARK_ANTHROPIC_MESSAGES_URL=https://maas-openapi.wanjiedata.com/api/anthropic/v1/messages
 # WANJIE_ARK_COACH_REPLY_MODEL=deepseek-v4-pro # 可选；未配置时继承 WANJIE_ARK_MODEL
 # WANJIE_ARK_VISION_MODEL=qwen3-vl-flash        # 计划图片导入等视觉输入
 ```
 
 `WANJIE_ARK_BASE_URL` 必须包含 `/v1`：项目使用的 OpenAI SDK 会在其后追加 `/chat/completions`，最终请求地址为 `/api/v1/chat/completions`。
 
-计划分析、知识库问答、功率解读和教练自动回复等正文任务默认使用 `deepseek-v4-pro`；计划修改器的意图判断、指令完整性检查默认使用 `deepseek-v4-flash`。计划编辑统一读取 `WANJIE_ARK_PLAN_SCRIPT_MODEL`，默认 `deepseek-v4-flash`，使用 120 秒超时；无论短修改还是 8～12 周完整计划，模型都只返回纯 PlanScript，不再输出包裹计划的 JSON。不要将视觉模型设为全局 `WANJIE_ARK_MODEL`。计划图片导入通过 `getCoachlinkVisionLlm()` 读取 `WANJIE_ARK_VISION_MODEL`。当前 Key 的 `/models` 虽包含 `qwen3.6-flash`，但图片输入仍应选用名称中明确含 `vl` 的 `qwen3-vl-flash`；不要仅根据 `flash` 名称推断多模态能力。
+计划分析、知识库问答、功率解读和教练自动回复等正文任务默认使用 `deepseek-v4-pro`；计划修改器的意图判断、指令完整性检查默认使用 `deepseek-v4-flash`。普通计划编辑读取 `WANJIE_ARK_PLAN_SCRIPT_MODEL`，默认 `deepseek-v4-flash`，模型只返回纯 PlanScript，不再输出包裹计划的 JSON。对于已经明确写出 8～12 周、每天动作、重量和组次的详细计划，服务端优先做确定性 PlanScript 提取并逐条校验处方数量，不再让模型重新抄写整份计划；只有本地无法确定解析的格式才通过万界方舟 Anthropic 端点按半周分段兜底，默认 `claude-sonnet-4-6`。`WANJIE_ARK_PLAN_SCRIPT_FALLBACK_MODEL` 与 `WANJIE_ARK_ANTHROPIC_MESSAGES_URL` 均为可选项，未配置时使用上面的代码默认值并复用同一 `WANJIE_ARK_API_KEY`。不要将视觉模型设为全局 `WANJIE_ARK_MODEL`。计划图片导入通过 `getCoachlinkVisionLlm()` 读取 `WANJIE_ARK_VISION_MODEL`。当前 Key 的 `/models` 虽包含 `qwen3.6-flash`，但图片输入仍应选用名称中明确含 `vl` 的 `qwen3-vl-flash`；不要仅根据 `flash` 名称推断多模态能力。
 
 PlanScript 同时承载计划结构、处方负荷和动作级全局 1RM：动作行使用 `@60kg`、`@8rm`、`@75%` 表示固定重量、RM、百分比；W1 前可使用 `1RM 负重引体 = 50kg`、`1RM 负重引体 += 2.5kg`、`1RM 负重引体 -= 2.5kg`。解析器会把 1RM 指令转换为现有的内部预览/确认/保存结构，所以模型侧不需要再生成 `oneRmAdjustments` 或 `loadAdjustments` JSON。绝对 1RM 按脚本数值精确设置；相对增减按 2.5kg 步长归一化。
 

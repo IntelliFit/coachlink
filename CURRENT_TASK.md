@@ -65,11 +65,62 @@
 - Task: 在学员端“我的”页的“退出登录”上方增加“清除缓存”按钮，并实现实际清理功能；用户已确认功能无误并授权提交。
 - Status: 已作为独立本地提交完成。清除操作会删除本地训练快照、草稿、计时器及其他可再生 storage 数据，但保留 `token`、`user` 和 `app-theme-mode`，因此不会退出登录或丢失主题偏好。
 - Verification: `npm run lint`、`npm run typecheck`、`npm test`（35 files / 177 tests）与小程序构建通过；`npx next build` 被当前分支既有的 `busboy` 和 `pdf-parse/lib/pdf-parse.js` 缺失依赖阻断。`weapp-devtools` 的 9420 端口未监听，未能完成自动化点击/截图验证。
+## 小程序重复进行中计划与 Day 6 → Day 3 错序排查 (`2026-07-14`)
 
+- Task: 用户截图反馈“力量观察员6380”在小程序“全部计划”同时出现两份进行中的教练计划，训练日历又出现 Day 6 后回到 Day 3；用户意向是保留截图上方第一套计划。
+- Status: 已完成系统代码修复、目标学员线上数据修复、全站教练订阅重复 current 清理、数据库唯一性迁移部署，以及 Web/微信开发者工具双端实测；应用代码尚未提交、推送或发布。
+- Confirmed target data:
+  - 同一订阅 `2b2efa4d-0bb7-457c-811a-ecc931173fde` 下确有两份 active 实例，创建时间仅相差约 35 秒，并非训练数日后换计划造成。
+  - 截图上方、应保留的是实例 `59084a16-ae8c-4091-9c16-7150a0b5c8e7`：56 个日历日、32 个训练日；Day 1 已完成，Day 3 当前 in_progress。
+  - 截图下方、可归档的是实例 `6aac209c-dc14-4b8f-ba58-98cca001e8d0`：56 个日历日、24 个训练日；没有任何 execution。
+  - 错序来自保留实例中的空 Day 6 execution `2c0a5deb-7585-47f2-b632-452c608ee7c5`：在 Day 1 开始后约 1 分 42 秒被创建，0/16 组、一直 in_progress；日历按 execution 的实际开始日期将 Day 6 钉到 7 月 13 日。Day 3 execution `afd0784c-a9be-4caf-a0c9-fcac47b0c767` 才是当前正确训练日。
+- General audit:
+  - 全站当前有 6 个重复 current 分组、共 14 个 active/paused 实例；其中 2 个是教练订阅重复计划，另 4 个是较早的 self plan 重复。
+  - 此类问题有系统性风险，但本截图包含两个独立根因：重复创建 current 实例，以及服务端允许为非当前顺序日创建 execution；并不能简单归因于“执行几天后换计划”。
+- Implemented data repair:
+  - 保留实例 `59084...`；无 execution 的重复实例 `6aac...` 已删除，因此不会继续出现在“全部计划”。
+  - 0/16 的误建 Day 6 execution `2c0a...e7c5` 已删除；Day 1 `14/14 completed` 与 Day 3 `in_progress` 保留。
+  - 后置计算确认严格推荐日为 Day 3。
+  - 另一组明确的教练订阅重复 current（Wayne 旧订阅）已按 newest-wins 收敛：保留 `66a2...` active，旧 `2e7c...` 非破坏性归档。线上教练订阅重复 current 分组现为 0；4 组早期 self plan 未擅自清理，因为个人计划是否允许多 active 需另行产品判断。
+- Implemented system fix:
+  - `/api/execution/start` 在创建或恢复 in-progress execution 前按 `deriveStrictSequentialProgressDay` 校验；非当前日返回 `TRAINING_DAY_NOT_CURRENT`，已完成快照仍可回看。
+  - 小程序今日训练所有动作入口统一把非当前日强制为 read-only，并提示先完成当前日；教练分配/模板创建入口使用同步 ref 防止连点双请求。
+  - create-instance 采用确定性 newest-wins 并发收敛，避免两个请求各自保留自己；唯一约束冲突下相同请求幂等返回，不同请求返回 409。
+  - 新增迁移 `20260714000000_single_current_coach_plan.sql`：部署后通过归档历史重复、数据库 partial unique index 和 trigger，最终保证每个教练订阅至多一个 active/paused 实例。
+- Verification:
+  - `npm run lint`、`npm run typecheck`、`npm test`（35 files / 177 tests）、`npx next build`、`npm --workspace apps/wechat run build:weapp`、`git diff --check` 均通过。
+  - 目标学员“力量观察员6380”的用户 ID 已核实为 `aa0755f7-25d8-4590-a32d-ef483c0d40dc`。
+  - Web 开发模式通过用户 ID 快速登录后，`/me/plan-history` 接口与页面均显示 `共 1 个计划`、仅 1 个“进行中”。
+  - 已通过 `D:\software\微信web开发者工具\cli.bat auto --project D:\files\coachlink\apps\wechat --auto-port 9420` 启动自动化，并将开发者工具调试登录态切换为该学员；小程序“全部计划”显示 1 条记录，今日训练显示 Day 3、32 个训练日、完成度 3%，错误日志为 0。
+- Release note:
+  - 线上数据已经即时修复，数据库唯一索引与归档 trigger 已部署并从数据库层阻止同一教练订阅再次出现两份 current；执行日严格顺序校验及小程序只读/防连点仍需随正常 Web/API 与小程序发布后完整生效。
+
+## Web AI 计划修改器首次发送后输入框残留修复 (`2026-07-14`)
+
+- Task: 用户反馈 AI 计划修改器首次提交内容后，原文字仍留在底部聊天输入框，必须手动删除才能继续输入；本次暂不处理万界方舟超时。
+- Status: 已完成。首次发送时先将文字保存到 `submittedInstruction` 作为首条聊天记录，再立即清空受控输入状态 `instruction`；请求后续即使超时或失败，输入框也不会恢复旧内容。后续多轮发送原有清空逻辑保持不变。
+- Verification: `npm run lint`、`npm run typecheck`、`npx next build`（517 pages）、`npm test`（35 files / 177 tests）及 `git diff --check` 均通过。按用户长期偏好未运行浏览器 UI 验证，实际交互留给用户验收。
+
+## 微信小程序寻找单杠附近结果页面归属修复 (`2026-07-14`)
+
+- Task: 用户反馈“定位我附近”得到的最近单杠显示在“单杠数据”页，不在用户浏览单杠的当前页面，交互归属不合理。
+- Status: 已完成代码修复与全部代码级门禁；附近定位入口、定位提示及“离你最近”列表现统一放在“单杠列表”页，“单杠数据”页只保留统计内容。
+- Verification: `npm run lint`、`npm run typecheck`、`npm test`（35 files / 177 tests）、`npm --workspace apps/wechat run build:weapp`（2754 modules）、`npx next build`（517 pages）和 `git diff --check` 均通过。按用户长期偏好未运行微信开发者工具 UI 验证，实际交互留给用户验收。
+
+## 微信小程序输入字符悬浮修复 (`2026-07-14`)
+
+- Task: 用户反馈微信小程序多个输入框在安卓设备聚焦并弹出键盘后，输入字符悬浮到输入框上方；截图可在即兴锻炼训练执行页的 RPE 输入框稳定观察到。
+- Status: 已完成代码修复与构建验证；因本机微信开发者工具 9420 自动化端口未监听，未完成实际聚焦输入后的模拟器/真机截图验证。
+- Root cause: 单行原生 `input` 继承或显式使用无单位 `line-height`；截图中的 RPE 输入框同时固定为 `72rpx` 高度但使用 `line-height: 1.1`，部分安卓微信内核会把该值当成极小实际行高，导致输入文字基线上浮到边框外。
+- Changes: `apps/wechat/src/app.scss` 为单行原生 `input` 增加全局 `line-height: normal !important` 基线保护（不影响 `textarea`）；训练执行页 RPE 输入框清除内边距并显式使用与高度一致的 `72rpx` 行高。
+- Verification: `git diff --check`、`npm run lint`、`npm run typecheck`、`npm test`（35 files / 177 tests）、`npx next build`、`npm --workspace apps/wechat run build:weapp` 均通过；构建产物确认包含全局 input 规则和 RPE 专用规则。
 ## 提交当前工作区并同步 main/dev (`2026-07-14`)
 
-- Task: 提交当前工作区的已完成改动，使用明确提交信息，并将 `main` 与 `dev` 对齐到同一提交。
-- Status: 已完成提交并已将本地 `main` 与 `dev` 对齐；构建缓存 `.tmp/` 已排除，当前正将同一最终提交推送到远端两分支。
+- Task: 保留 GitHub `dev` 上 `codex/dev-workspace-20260714` 的 9 项小程序改动，融合当前本地已完成工作，并让本地、GitHub、Gitee 的 `main/dev` 全部指向同一最终提交，作为新版本部署基线。
+- Status: 已完成融合、发布门禁、最终提交与两远端四分支对齐；`.tmp/`、`.codex-remote-attachments/`、Next 自动生成改写和 Supabase CLI 临时版本标记均未进入提交。
+- Integration: 本地 `main` 先 fast-forward 到 GitHub `origin/dev=ca410545`，再回放本地工作；唯一冲突位于 `CURRENT_TASK.md` 文件头，采用保留两边完整任务记录解决。业务源码自动合并成功，`TodayTrainingScreen.tsx` 同时保留“更多训练方式”弹层和严格顺序训练日只读控制。
+- Verification: `npm run lint`、`npm run typecheck`、`npm test`（35 files / 177 tests）、`npm run test:e2e`（4/4，覆盖订阅、登录刷新会话保持、API/DB 幂等 CRUD）、`npx next build`（518 pages）、`npm --workspace apps/wechat run build:weapp`（2755 modules）及 `git diff --check` 全部通过。
+- Recovery: 同步前基线保留在本地安全分支 `codex/safety-pre-sync-20260715`，本地工作原始快照保留在 stash `pre-sync-main-dev-20260715-local-work`，待部署确认稳定后可清理。
 
 ## Production Health Probe 401 Recurrence (`2026-07-05`)
 
@@ -8458,3 +8509,55 @@
   - 绝对值是精确基准，相对增减按 2.5kg 步长归一化；同一动作同时出现绝对基准和相对增减时，在该基准上累计。
   - 长计划使用 `WANJIE_ARK_PLAN_SCRIPT_MODEL`（默认 `deepseek-v4-flash`）、120 秒超时、12000 输出 token，并校验用户要求的计划周数是否完整。
 - Verification: 代码级 PlanScript/1RM 组合样例通过；`npm run lint` ✅；`npm run typecheck` ✅；`npm test` ✅（35 files / 177 tests）；`npx next build` ✅（517 pages）；`git diff --check` ✅。
+## Web AI 修改器真实 12 周详细计划可靠导入 (`2026-07-14`)
+
+- Task: 用户提供一份 6599 字的负重引体 12 周详细计划，实际多次在万界方舟返回前出现 `Connection error` / `Request timed out`，要求确认并修到真实 12 周计划可用。
+- Root cause: 万界方舟 OpenAI/Anthropic 兼容端点对需要较长思考或输出的请求会在约 19 秒无响应字节时主动断开；即便逐周、串行和 4 次重试，同一段也可能连续失败。模型输出还会偶发重复日标题、用 `/` 合并多个动作，旧解析会覆盖同一天早先动作或吞掉部分处方。
+- Status: 已完成。对已经明确写出 8～12 周、每天动作/重量/组次的中文 Markdown 计划，服务端优先确定性提取为 PlanScript，并校验原文处方数与结构化结果一致；不再让模型重新抄写整份计划。无法确定解析的布局才走万界方舟 Anthropic Sonnet 半周分段兜底，串行执行、最多 4 次重试，并归一化重复日标题和斜杠动作。
+- Exact prompt verification: 用户原始文本已实际解析为 12 周、84 天、95 条训练处方；第 12 周 16 条，测试日依次保留自重、+10、+20、+30、+35、+40、+42.5、+45、+47.5、+50 kg。
+- Verification: `npm run lint`、`npm run typecheck`、`npm test`（35 files / 177 tests）、`npx next build`（517 pages）及 `git diff --check` 均通过。按用户长期偏好未运行浏览器 UI 验证。
+## 枭马葛为“痴迷负重引体”直接创建12周突破计划 (`2026-07-14`)
+
+- Task: 用户确认自己是教练枭马葛、目标学员是“痴迷负重引体”，要求直接根据附件生成计划；同时最新日志显示长计划仍在前置 JSON 意图判断阶段发生万界方舟断连。
+- Root cause addendum: 之前的确定性长计划解析位于 `runPlanScriptEdit` 内，但请求在进入该函数前仍会调用“意图判断”和“完整性检查”两个 JSON 模型，所以日志停在 `createJsonChatCompletionWithRetry`，根本没有到达本地解析器。
+- Code status: 已在路由层提前识别完整 8～12 周计划；命中后直接按 `modify` 路由并跳过意图判断、完整性检查两次模型调用。确定性编译同时保留训练日中的条件、休息与调整规则到 day note，并在最后一周遇到通用附录标题时正确截断。
+- Data operation: 已对订阅 `f41716eb-9295-4d89-9ceb-9cb3714162f0` 创建唯一 active 实例 `3027057e-8975-4791-be9d-e7afd0bdb317`，名称“负重引体突破 +50 kg｜12周专项训练计划”，开始日期 `2026-07-20`。数据库回读为 12 周 / 84 天 / 97 条处方；第84天负荷依次为自重、+15、+25、+35、+40、+42.5、+45、+47.5、+50 kg。
+- Actions/history: 按精确原名新增并同步 5 个缺失变式（超负荷离心、4秒离心、自重高位、90°暂停、爆发负重引体），学员动作库所需 9 个动作均已存在；旧 55 条 execution 与三个历史实例未修改。
+- Verification: 数据库回读、当前实例唯一性、动作同步均通过；`npm run lint`、`npm run typecheck`、`npm test`（35 files / 177 tests）、`npx next build`（517 pages）和 `git diff --check` 均通过。按用户长期偏好未运行浏览器 UI 验证。
+
+## 现有 12 周计划的 AI 修改改为局部 PlanScript 补丁 (`2026-07-15`)
+
+- Task: 用户已创建 12 周计划，但在计划上做小范围修改时仍遇到“万界方舟连接在返回结果前被中断”，要求确认是 API 格式还是代码问题并修复。
+- Root cause: OpenAI 兼容 Base URL、Key 和请求格式有效；旧修改链路却把一句短指令放大为两次 JSON 前置请求，再把 84 天完整 PlanScript、动作库和 8 项上下文交给模型，且要求完整返回 84 天，因此仍是长输入/长输出，容易被万界方舟在首字节返回前断开。
+- Changes:
+  - 明确修改/查询在本地判定；可执行修改跳过意图 JSON 与完整性 JSON，两次不必要的网络调用被移除。
+  - 现有计划按指令中的周次、D1～D7 或动作名选择局部范围；无明确范围时排除休息日，并按最多 14 天分段。
+  - 模型只返回变化日的完整 PlanScript；服务端校验补丁不得越界，再按 `dayIndex` 合并回原 84 天，未变化周/日不再由模型重写。
+  - OpenAI 兼容小段失败时，用同一万界方舟 Key 切到 Anthropic 端点重试该段；日志记录模型、chunk、prompt 字符数、范围天数和耗时，不记录 Key/正文。
+- Real endpoint evidence: 当前 runtime config 下，`https://maas-openapi.wanjiedata.com/api/v1/chat/completions` + `deepseek-v4-flash` 的真实局部补丁请求 1.582 秒成功返回，正确把 W3/D1 的 `@40kg` 改成 `@37.5kg`（81 prompt tokens / 105 completion tokens）。
+- Verification: `npm run lint` ✅；`npm run typecheck` ✅；`npm test` ✅（35 files / 177 tests）；`npx next build` ✅（517 pages）；`git diff --check` ✅。按用户长期偏好未运行浏览器 UI 验证。
+
+## main / dev 分支一致性审计 (`2026-07-15`)
+
+- Task: 核查当前代码是否保证主分支 `main` 与开发分支 `dev` 一致。
+- Status: 当前不一致，也没有自动保持两分支一致的仓库门禁。
+- Evidence after `git fetch --all --prune`:
+  - 本地 `main` 与本地 `dev` 都是 `007a1dea`；Gitee `main/dev` 也都为 `007a1dea`。
+  - GitHub `origin/main` 是 `007a1dea`，`origin/dev` 是 `ca410545`；`origin/dev` 单向领先 10 个提交。
+  - 当前工作区在本地 `main` 上还有大量未提交修改与未跟踪文件，这些内容不属于任一分支提交，不能视为已同步。
+  - `.github/workflows/test.yml` 监听 `main/master/develop`，没有监听实际使用的 `dev`；单元测试使用 `npm test || true`，E2E 使用 `continue-on-error: true`，且没有 main/dev SHA 或双向差异检查。
+- Next step: 若用户要求重新对齐，需先决定以 GitHub `origin/dev` 为准合入 `main`，还是让 `dev` 回退到 `main`；同时先妥善处理当前脏工作区，再执行分支操作。
+
+### GitHub dev 多出 10 个提交的来源追查
+
+- Chronology:
+  - 2026-07-14 10:04（Asia/Shanghai），账号 `SmallHorseBrother` 将 GitHub `main` 和 `dev` 同步推进到 `007a1dea`；不是 main 漏推。
+  - 10:50～15:20，同一 Git 身份在独立分支 `codex/dev-workspace-20260714` 上连续形成 9 个提交。该分支从 `eff0c6a7` 分出，落后当时 main 一个提交。
+  - 17:27 形成合并提交 `ca410545`，父提交分别是 `007a1dea`（当时 main/dev）和 `0077863d`（独立分支 tip），因此完整保留了 main 的最新提交。
+  - GitHub Events 显示 17:58 由 `SmallHorseBrother` 认证账号直接把 `refs/heads/dev` 从 `007a1dea` 推到 `ca410545`；没有对应 PR。`main` 未推进，Gitee `main/dev` 也未推进。
+- Attribution:
+  - GitHub API 把 9 个功能提交及合并提交的 author/committer 都解析为 `SmallHorseBrother`，并非其他协作者账号；提交均为 unsigned。
+  - 分支名 `codex/dev-workspace-20260714`、状态文档中的逐任务记录以及当前克隆的 remote reflog（直到 7 月 15 日 fetch 才看到该更新）共同表明：高概率是另一套 Codex/远程工作环境用同一 GitHub 账号完成并直推 dev，而不是当前本地 main 忘记 commit/push。仅凭 Git/GitHub 记录不能进一步证明具体是哪一个终端或对话执行了 push。
+- Content: 9 个实际功能提交 + 1 个纯合并提交，净变化 24 files / +811 / -52，主要包括小程序清缓存、注销确认文案、动作库路由、教练专栏/套餐排版、教练联系方式、学员评价接口与渲染、训练更多入口弹层、完整训练方向筛选；另含底部导航问题的诊断记录。
+- Local overlap: 当前工作区 25 个修改/未跟踪路径与远端 dev 的 24 个变更路径仅重叠 `CURRENT_TASK.md`、`memory/2026-07-14.md` 和 `TodayTrainingScreen.tsx`。业务文件中，远端修改约 1721 行的“更多训练方式”弹层，当前本地修改约 953 行的训练日只读控制，逻辑区段不同；远端功能并未存在于当前本地未提交代码中。
+- Governance: GitHub `main`、`dev` 和该 codex 分支均显示 `protected=false`；仓库为 private，当前方案没有分支保护/ruleset，允许账号直接 push。CI 又未监听真实 `dev`，所以这次 dev-only 推送没有自动触发 main/dev 一致性门禁。

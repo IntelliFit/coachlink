@@ -14,6 +14,10 @@ import { getCurrent1RMRecords } from "@/app/api/student/get-current-1rm/route";
 import { getAuthUser } from "@/lib/auth";
 import { validateExecutionSubscriptionAccess } from "../_helpers/subscriptionAccess";
 import { normalizePlannedRestSeconds } from "@/lib/restTime";
+import {
+    deriveEffectiveStartExecutionDay,
+    deriveStrictSequentialProgressDay,
+} from "@/lib/planProgress";
 
 /**
  * POST /api/execution/start
@@ -59,8 +63,10 @@ export async function POST(request: NextRequest) {
             }, { status: accessDecision.status });
         }
 
-        // 3. 检查今天是否已有执行记录
-        const { data: existingExecution } = await supabase
+        // 3. Read an existing snapshot, but do not return it before validating
+        // that an in-progress execution still belongs to the strict current
+        // sequence day. Completed snapshots remain reviewable.
+        const { data: existingExecution, error: existingExecutionError } = await serviceRoleSupabase
             .from("plan_instance_executions")
             .select("*")
             .eq("instance_id", instanceId)
@@ -71,15 +77,12 @@ export async function POST(request: NextRequest) {
             .order("started_at", { ascending: false })
             .limit(1)
             .maybeSingle();
-
-        if (existingExecution) {
-            return NextResponse.json<ApiData<StartExecutionResponseDto>>({
-                success: true,
-                message: "获取执行记录成功",
-                // Execution rows are immutable plan snapshots. A later plan edit must
-                // never reinterpret completed sets as another action at the same index.
-                data: existingExecution,
-            });
+        if (existingExecutionError) {
+            console.error("Error checking existing execution:", existingExecutionError);
+            return NextResponse.json({
+                success: false,
+                message: "检查训练记录失败",
+            }, { status: 500 });
         }
 
         // 4. 获取计划实例和训练日
@@ -99,10 +102,11 @@ export async function POST(request: NextRequest) {
 
         // 5. 验证权限 - 检查学生是否有权访问此计划
         // 方式1: 通过订阅ID验证
+        let subscriptionStartDate: string | null = null;
         if (instance.coach_subscription_id) {
             const { data: subscription, error: subError } = await supabase
                 .from("coach_subscriptions")
-                .select("student_id")
+                .select("student_id, start_date")
                 .eq("id", instance.coach_subscription_id)
                 .single();
 
@@ -114,6 +118,7 @@ export async function POST(request: NextRequest) {
             });
 
             if (subscription && subscription.student_id === userId) {
+                subscriptionStartDate = subscription.start_date || null;
                 // 通过订阅验证
             } else {
                 // 方式2: 如果没有找到订阅，检查是否是直接分配给学生的
@@ -145,6 +150,69 @@ export async function POST(request: NextRequest) {
                 message: "训练日不存在",
                 data: null,
             }, { status: 404 });
+        }
+
+        const { data: sequenceExecutions, error: sequenceExecutionsError } = await serviceRoleSupabase
+            .from("plan_instance_executions")
+            .select("id, day_index, status, started_at, completed_at, updated_at, action_executions")
+            .eq("instance_id", instanceId)
+            .eq("student_id", userId)
+            .order("started_at", { ascending: true });
+        if (sequenceExecutionsError) {
+            console.error("Error checking execution sequence:", sequenceExecutionsError);
+            return NextResponse.json({
+                success: false,
+                message: "检查训练进度失败",
+            }, { status: 500 });
+        }
+
+        const executionsByDayIndex: Record<number, any> = {};
+        for (const execution of sequenceExecutions || []) {
+            const executionDayIndex = Number((execution as any)?.day_index || 0);
+            if (executionDayIndex > 0) {
+                executionsByDayIndex[executionDayIndex] = execution;
+            }
+        }
+        const effectiveStartExecutionDay = deriveEffectiveStartExecutionDay({
+            storedStartExecutionDay: Number((instance as any)?.start_execution_day || 1),
+            planDays: trainingDays,
+            executionsByDayIndex,
+            planStartDate: (instance as any)?.start_date || null,
+            subscriptionStartDate,
+        });
+        const { recommendedDayIndex } = deriveStrictSequentialProgressDay({
+            planDays: trainingDays,
+            startExecutionDay: effectiveStartExecutionDay,
+            executionsByDayIndex,
+            explicitStartDate: (instance as any)?.start_date || null,
+        });
+
+        const existingStatus = String(existingExecution?.status || "").toLowerCase();
+        if (existingExecution && existingStatus === "completed") {
+            return NextResponse.json<ApiData<StartExecutionResponseDto>>({
+                success: true,
+                message: "获取执行记录成功",
+                // Execution rows are immutable plan snapshots. A later plan edit must
+                // never reinterpret completed sets as another action at the same index.
+                data: existingExecution,
+            });
+        }
+
+        if (Number(dayIndex) !== Number(recommendedDayIndex)) {
+            return NextResponse.json({
+                success: false,
+                code: "TRAINING_DAY_NOT_CURRENT",
+                message: `请先完成当前第${recommendedDayIndex}天，再开始第${dayIndex}天`,
+                data: { recommendedDayIndex },
+            }, { status: 409 });
+        }
+
+        if (existingExecution && existingStatus === "in_progress") {
+            return NextResponse.json<ApiData<StartExecutionResponseDto>>({
+                success: true,
+                message: "获取执行记录成功",
+                data: existingExecution,
+            });
         }
 
         // 7. 获取动作库信息（用于获取真实动作名称）

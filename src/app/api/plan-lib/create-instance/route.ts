@@ -8,7 +8,7 @@ import { sendDirectMessage } from "@/lib/chat";
 import { syncCoachActionsToStudentLibrary } from "../sync-actions";
 import { validateTrainingDaysPresence } from "@/utils/template";
 import { getSubscriptionCarryoverSummary } from "@/lib/subscriptionCarryover";
-import { archiveCurrentPlanInstancesForSubscription } from "@/lib/subscriptionEntitlement";
+import { reconcileCurrentPlanInstancesForSubscription } from "@/lib/subscriptionEntitlement";
 
 export async function POST(req: Request) {
     const {
@@ -163,6 +163,35 @@ export async function POST(req: Request) {
         .single();
 
     if (error) {
+        // Once the database single-current constraint is deployed, two truly
+        // concurrent creates may race. The constraint rejects the loser; if
+        // both requests carried the same plan, return the already-published
+        // instance so a double tap remains idempotent.
+        if ((error as any)?.code === "23505" && subscriptionId) {
+            const { data: concurrentCurrent } = await serviceRoleSupabase
+                .from("coach_plan_instances")
+                .select("*")
+                .eq("coach_subscription_id", subscriptionId)
+                .in("status", ["active", "paused"])
+                .order("created_at", { ascending: false })
+                .limit(1)
+                .maybeSingle();
+            const isEquivalentConcurrentCreate = !!concurrentCurrent &&
+                String(concurrentCurrent.name || "") === String(name || "") &&
+                JSON.stringify(concurrentCurrent.training_days || []) === JSON.stringify(trainingDays || []);
+            if (isEquivalentConcurrentCreate) {
+                return NextResponse.json<ApiData<CreateInstanceResponseDto>>({
+                    success: true,
+                    message: "训练计划已创建",
+                    data: { instance: concurrentCurrent as any },
+                });
+            }
+            return NextResponse.json({
+                success: false,
+                code: "PLAN_CREATE_CONFLICT",
+                message: "计划正在被另一项操作更新，请刷新后重试",
+            }, { status: 409 });
+        }
         console.error("Error creating instance:", error);
         return NextResponse.json({
             success: false,
@@ -170,31 +199,34 @@ export async function POST(req: Request) {
         }, { status: 500 });
     }
 
-    // Publish the new row first, then archive every older current row. If the
-    // archive step fails, remove only the newly-created row so the learner is
-    // never left without the previous current plan.
+    // Converge by a deterministic newest-row rule. Every concurrent request
+    // chooses the same winner, so requests cannot archive each other's row and
+    // leave two current plans behind.
     const shouldReplaceCurrent = !status || status === "active" || status === "paused";
+    let publishedInstance = instance;
     if (shouldReplaceCurrent) {
         try {
-            await archiveCurrentPlanInstancesForSubscription({
+            const reconciliation = await reconcileCurrentPlanInstancesForSubscription({
                 supabase: serviceRoleSupabase,
                 subscriptionId,
-                excludeInstanceId: instance.id,
             });
+            if (reconciliation.currentInstanceId && reconciliation.currentInstanceId !== instance.id) {
+                const { data: resolvedCurrent, error: resolvedCurrentError } = await serviceRoleSupabase
+                    .from("coach_plan_instances")
+                    .select("*")
+                    .eq("id", reconciliation.currentInstanceId)
+                    .single();
+                if (resolvedCurrentError || !resolvedCurrent) {
+                    throw new Error(resolvedCurrentError?.message || "无法读取并发创建后的当前计划");
+                }
+                publishedInstance = resolvedCurrent as any;
+            }
         } catch (archiveError: any) {
-            const { error: rollbackError } = await serviceRoleSupabase
-                .from("coach_plan_instances")
-                .delete()
-                .eq("id", instance.id);
-            console.error("[create-instance] Failed to archive previous instances:", {
-                archiveError,
-                rollbackError,
-            });
+            console.error("[create-instance] Failed to converge current instances:", archiveError);
             return NextResponse.json({
                 success: false,
-                message: rollbackError
-                    ? "新版本创建失败，且自动回滚失败，请联系管理员"
-                    : "新版本创建失败，旧计划已保留",
+                code: "PLAN_CURRENT_RECONCILIATION_FAILED",
+                message: "计划已保存，但当前版本校验失败，请刷新后重试",
             }, { status: 500 });
         }
     }
@@ -202,7 +234,7 @@ export async function POST(req: Request) {
     // 同步教练计划中的动作到学员动作库
     try {
         const studentId = subscription.student_id as string | null;
-        if (studentId && Array.isArray(trainingDays)) {
+        if (publishedInstance.id === instance.id && studentId && Array.isArray(trainingDays)) {
             // 提取计划中使用的所有动作ID
             const actionIds = new Set<string>();
             trainingDays.forEach((day: any) => {
@@ -239,7 +271,7 @@ export async function POST(req: Request) {
     // best-effort: notify student via chat message
     try {
         const studentId = subscription.student_id as string | null;
-        if (studentId) {
+        if (publishedInstance.id === instance.id && studentId) {
             const planName = name?.trim() || "训练计划";
             const content = `✅ 你的训练计划已制定完成：**${planName}**\n\n` +
                 `请点击 [今日训练](/today-training) 查看并开始训练。`;
@@ -250,7 +282,7 @@ export async function POST(req: Request) {
                 content,
                 contentMetadata: {
                     kind: "plan_instance_created",
-                    instance_id: instance.id,
+                    instance_id: publishedInstance.id,
                     link: "/today-training",
                 },
             });
@@ -263,7 +295,7 @@ export async function POST(req: Request) {
         success: true,
         message: "创建训练计划实例成功",
         data: {
-            instance,
+            instance: publishedInstance,
         },
     });
 }

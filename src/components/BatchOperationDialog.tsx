@@ -444,6 +444,7 @@ export function BatchOperationDialog({
         if (!firstInstruction && !previewInputOnly) return;
         setHasStarted(true);
         setSubmittedInstruction(firstInstruction);
+        setInstruction('');
         setIsProcessing(true);
         setLogs([]);
         setPreviewData(null);

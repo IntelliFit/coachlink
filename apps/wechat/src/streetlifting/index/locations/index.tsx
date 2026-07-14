@@ -990,33 +990,73 @@ export default function StreetliftingLocations() {
       <View className='loc-tab-content'>
         {/* --- Tab 0: 单杠列表 --- */}
         {activeTab === 0 && (
-          <View className='loc-tab-panel'>
-            <View className='loc-toolbar'>
-              <Input
-                className='search-input'
-                placeholder='搜索名称/省市/地址'
-                value={search}
-                onInput={(e) => setSearch(e.detail.value)}
-              />
-              <Picker
-                mode='selector'
-                range={['全部省份', ...provinces]}
-                value={province === 'all' ? 0 : Math.max(0, provinces.indexOf(province) + 1)}
-                onChange={(e) => {
-                  const i = Number(e.detail.value)
-                  setProvince(i === 0 ? 'all' : (provinces[i - 1] || 'all'))
-                }}
-              >
-                <View className='picker-province'>{province === 'all' ? '全部省份' : province}</View>
-              </Picker>
-            </View>
+          <ScrollView
+            className='loc-tab-panel-scroll'
+            scrollY
+            onScrollToLower={loadMore}
+            lowerThreshold={100}
+          >
+            <View className='loc-list-section'>
+              <View className='loc-header compact'>
+                <View className='loc-header-actions'>
+                  <View className='loc-summary-secondary loc-summary-half' onClick={handleOpenMapMode}>
+                    <Text className='iconfont icon-location' />
+                    <Text>全国地图</Text>
+                  </View>
+                  <View className='loc-summary-action loc-summary-half' onClick={handleLocateNearby}>
+                    <Text>{locating ? '定位中…' : '定位我附近'}</Text>
+                  </View>
+                </View>
+              </View>
 
-            <ScrollView
-              className='loc-scroll'
-              scrollY
-              onScrollToLower={loadMore}
-              lowerThreshold={100}
-            >
+              {userLocation && (
+                <View className='user-location-row'>
+                  <Text className='user-location-text'>
+                    已获取当前位置，可直接在地图中打开最近的单杠点位
+                  </Text>
+                </View>
+              )}
+
+              {nearbyLocations.length > 0 && (
+                <View className='nearby-section'>
+                  <Text className='nearby-title'>离你最近</Text>
+                  <View className='nearby-list'>
+                    {nearbyLocations.map((item) => (
+                      <View key={item.id} className='nearby-item'>
+                        <View className='nearby-item-main'>
+                          <Text className='nearby-name'>{item.name}</Text>
+                          <Text className='nearby-distance'>{item.distanceKm < 1 ? `${Math.round(item.distanceKm * 1000)}m` : `${item.distanceKm.toFixed(1)}km`}</Text>
+                        </View>
+                        <View className='nearby-map-btn' onClick={() => openLocationInMap(item)}>
+                          <Text className='iconfont icon-location' />
+                          <Text>地图查看</Text>
+                        </View>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              )}
+
+              <View className='loc-toolbar'>
+                <Input
+                  className='search-input'
+                  placeholder='搜索名称/省市/地址'
+                  value={search}
+                  onInput={(e) => setSearch(e.detail.value)}
+                />
+                <Picker
+                  mode='selector'
+                  range={['全部省份', ...provinces]}
+                  value={province === 'all' ? 0 : Math.max(0, provinces.indexOf(province) + 1)}
+                  onChange={(e) => {
+                    const i = Number(e.detail.value)
+                    setProvince(i === 0 ? 'all' : (provinces[i - 1] || 'all'))
+                  }}
+                >
+                  <View className='picker-province'>{province === 'all' ? '全部省份' : province}</View>
+                </Picker>
+              </View>
+
               {loading && locations.length === 0 ? (
                 renderSkeleton()
               ) : locations.length === 0 ? (
@@ -1121,26 +1161,14 @@ export default function StreetliftingLocations() {
               {hasMore && !loading && (
                 <View className='load-more' onClick={loadMore}><Text>加载更多</Text></View>
               )}
-            </ScrollView>
-          </View>
+            </View>
+          </ScrollView>
         )}
 
         {/* --- Tab 1: 单杠数据 --- */}
         {activeTab === 1 && (
           <ScrollView className='loc-tab-panel-scroll' scrollY>
             <View className='loc-data-section'>
-              <View className='loc-header compact'>
-                <View className='loc-header-actions'>
-                  <View className='loc-summary-secondary loc-summary-half' onClick={handleOpenMapMode}>
-                    <Text className='iconfont icon-location' />
-                    <Text>全国地图</Text>
-                  </View>
-                  <View className='loc-summary-action loc-summary-half' onClick={handleLocateNearby}>
-                    <Text>{locating ? '定位中…' : '定位我附近'}</Text>
-                  </View>
-                </View>
-              </View>
-
               {loadingOverview ? (
                 renderSkeleton()
               ) : locationOverview ? (
@@ -1214,34 +1242,6 @@ export default function StreetliftingLocations() {
               ) : (
                 <View className='summary-loading'>
                   <Text>暂时没有可展示的总览分析</Text>
-                </View>
-              )}
-
-              {userLocation && (
-                <View className='user-location-row'>
-                  <Text className='user-location-text'>
-                    已获取当前位置，可直接在地图中打开最近的单杠点位
-                  </Text>
-                </View>
-              )}
-
-              {nearbyLocations.length > 0 && (
-                <View className='nearby-section'>
-                  <Text className='nearby-title'>离你最近</Text>
-                  <View className='nearby-list'>
-                    {nearbyLocations.map((item) => (
-                      <View key={item.id} className='nearby-item'>
-                        <View className='nearby-item-main'>
-                          <Text className='nearby-name'>{item.name}</Text>
-                          <Text className='nearby-distance'>{item.distanceKm < 1 ? `${Math.round(item.distanceKm * 1000)}m` : `${item.distanceKm.toFixed(1)}km`}</Text>
-                        </View>
-                        <View className='nearby-map-btn' onClick={() => openLocationInMap(item)}>
-                          <Text className='iconfont icon-location' />
-                          <Text>地图查看</Text>
-                        </View>
-                      </View>
-                    ))}
-                  </View>
                 </View>
               )}
             </View>

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { View, Text, ScrollView, Input, Image, Textarea } from '@tarojs/components'
 import { User, Message } from '@nutui/icons-react-taro'
 import Taro from '@tarojs/taro'
@@ -326,6 +326,7 @@ function CoachStudentPlan() {
   // 加载状态
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const templateCreateInFlightRef = useRef(false)
   const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'pending' | 'saving' | 'saved' | 'error'>('idle')
 
   // 基础数据
@@ -1210,6 +1211,7 @@ function CoachStudentPlan() {
 
   // 从模板创建计划
   const handleCreateFromTemplate = async (templateId: string, startConfig?: { weekIndex: number; dayIndex: number; startDate?: string }) => {
+    if (templateCreateInFlightRef.current) return
     if (isReadonlyPlanView) {
       Taro.showToast({ title: '历史计划仅支持查看', icon: 'none' })
       return
@@ -1219,6 +1221,7 @@ function CoachStudentPlan() {
       return
     }
     try {
+      templateCreateInFlightRef.current = true
       setSaving(true)
       const normalizedStartWeek = Math.max(1, startConfig?.weekIndex || templateStartWeek || 1)
       const normalizedStartDay = Math.max(1, Math.min(7, startConfig?.dayIndex || templateStartDay || 1))
@@ -1271,6 +1274,7 @@ function CoachStudentPlan() {
       console.error('创建计划失败:', error)
       Taro.showToast({ title: '创建失败', icon: 'none' })
     } finally {
+      templateCreateInFlightRef.current = false
       setSaving(false)
     }
   }

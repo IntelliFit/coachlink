@@ -1,5 +1,5 @@
 import { View, Text, ScrollView, Input, Image } from '@tarojs/components'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import Taro, { useRouter } from '@tarojs/taro'
 import PlanCompactWeekCalendar, { PlanCompactWeekDay } from '@/components/PlanCompactWeekCalendar'
 import PlanReferenceOneRMPanel from '@/components/PlanReferenceOneRMPanel'
@@ -74,6 +74,7 @@ export default function AssignPlanPage() {
   const subscriptionId = String(router.params.subscriptionId || '')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const assignInFlightRef = useRef(false)
   const [searchDraft, setSearchDraft] = useState('')
   const [search, setSearch] = useState('')
   const [templates, setTemplates] = useState<Template[]>([])
@@ -340,12 +341,14 @@ export default function AssignPlanPage() {
   }
 
   const handleAssignPlan = async () => {
+    if (assignInFlightRef.current) return
     if (!selectedTemplateId || !subscriptionId) {
       Taro.showToast({ title: '请先选择模板', icon: 'none' })
       return
     }
 
     try {
+      assignInFlightRef.current = true
       setSaving(true)
       Taro.showLoading({ title: '分配中...' })
 
@@ -404,6 +407,7 @@ export default function AssignPlanPage() {
       console.error('[coach/students/assign-plan] assign failed:', error)
       Taro.showToast({ title: '分配失败', icon: 'none' })
     } finally {
+      assignInFlightRef.current = false
       Taro.hideLoading()
       setSaving(false)
     }

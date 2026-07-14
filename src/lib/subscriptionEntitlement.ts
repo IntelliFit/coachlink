@@ -229,3 +229,71 @@ export async function archiveCurrentPlanInstancesForSubscription(params: {
     noChargeIds,
   };
 }
+
+/**
+ * Converge every current row for one coach subscription to one deterministic
+ * winner. This is intentionally independent of the request that created a row:
+ * concurrent requests must choose the same newest winner instead of each
+ * preserving itself and archiving the other.
+ *
+ * The database trigger/unique index is the final authority once its migration
+ * is deployed. This application-side loop keeps older deployments safe and
+ * also repairs legacy duplicates encountered during a normal create request.
+ */
+export async function reconcileCurrentPlanInstancesForSubscription(params: {
+  supabase: any;
+  subscriptionId: string;
+  maxAttempts?: number;
+}) {
+  const maxAttempts = Math.max(1, Math.min(5, params.maxAttempts || 3));
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    const { data: currentRows, error: currentRowsError } = await params.supabase
+      .from("coach_plan_instances")
+      .select("id, created_at, updated_at, status")
+      .eq("coach_subscription_id", params.subscriptionId)
+      .in("status", ["active", "paused"]);
+
+    if (currentRowsError) {
+      throw new Error(`查询当前计划失败: ${currentRowsError.message}`);
+    }
+
+    const sortedRows = [...(currentRows || [])].sort((left: any, right: any) => {
+      const leftTime = new Date(left?.created_at || left?.updated_at || 0).getTime();
+      const rightTime = new Date(right?.created_at || right?.updated_at || 0).getTime();
+      if (leftTime !== rightTime) return rightTime - leftTime;
+      return String(right?.id || "").localeCompare(String(left?.id || ""));
+    });
+    const winner = sortedRows[0] || null;
+
+    if (!winner || sortedRows.length === 1) {
+      return {
+        currentInstanceId: winner?.id || null,
+        archivedIds: [] as string[],
+      };
+    }
+
+    const archiveResult = await archiveCurrentPlanInstancesForSubscription({
+      supabase: params.supabase,
+      subscriptionId: params.subscriptionId,
+      excludeInstanceId: winner.id,
+    });
+
+    const { data: finalRows, error: finalRowsError } = await params.supabase
+      .from("coach_plan_instances")
+      .select("id")
+      .eq("coach_subscription_id", params.subscriptionId)
+      .in("status", ["active", "paused"]);
+    if (finalRowsError) {
+      throw new Error(`复核当前计划失败: ${finalRowsError.message}`);
+    }
+    if ((finalRows || []).length <= 1) {
+      return {
+        currentInstanceId: finalRows?.[0]?.id || winner.id,
+        archivedIds: archiveResult.archivedIds,
+      };
+    }
+  }
+
+  throw new Error("并发创建后仍存在多份当前计划");
+}

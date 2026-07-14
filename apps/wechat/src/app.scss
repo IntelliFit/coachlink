@@ -16,6 +16,15 @@ page {
   --text-tertiary: #9CA3AF;
 }
 
+/*
+ * 微信安卓端会把单行原生 input 的无单位 line-height 当成极小的实际行高，
+ * 聚焦后文字基线会上浮到输入框外。单行输入统一交给原生控件垂直居中；
+ * textarea 不应用此规则，避免影响多行文本排版。
+ */
+input {
+  line-height: normal !important;
+}
+
 .app-root.theme-dark {
   --bg-page: linear-gradient(180deg, #20201f 0%, #181817 48%, #121211 100%);
   --bg-card: #242321;

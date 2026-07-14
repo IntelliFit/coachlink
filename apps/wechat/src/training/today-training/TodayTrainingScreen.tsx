@@ -953,8 +953,19 @@ function TodayTrainingScreen() {
   const handleGoToTrainingExecution = useCallback(
     (dayIndex: number, focusAction?: number, options?: { readOnly?: boolean }) => {
       if (!instance?.id) return
+      const targetExecution = executionsByDayIndex?.[dayIndex]
+      const targetStatus = String(targetExecution?.status || '').toLowerCase()
+      const isStrictCurrentDay = Number(dayIndex) === Number(progressDayIndex)
+      const effectiveReadOnly =
+        !!options?.readOnly || targetStatus === 'completed' || !isStrictCurrentDay
+      if (!options?.readOnly && !isStrictCurrentDay && targetStatus !== 'completed') {
+        Taro.showToast({
+          title: `请先完成第${progressDayIndex}天；第${dayIndex}天仅供预览`,
+          icon: 'none'
+        })
+      }
       if (!hasReadExecutionPlanNotice({ instanceId: instance.id, userId: currentUserId })) {
-        setPendingExecutionTarget({ dayIndex, focusAction, readOnly: !!options?.readOnly })
+        setPendingExecutionTarget({ dayIndex, focusAction, readOnly: effectiveReadOnly })
         setExecutionNoticeVisible(true)
         return
       }
@@ -964,7 +975,7 @@ function TodayTrainingScreen() {
         ? `&coachId=${encodeURIComponent(coachId)}${coachName ? `&coachName=${encodeURIComponent(coachName)}` : ''}`
         : ''
       const focusQuery = typeof focusAction === 'number' ? `&focusAction=${focusAction}` : ''
-      const readOnlyQuery = options?.readOnly ? '&readOnly=1' : ''
+      const readOnlyQuery = effectiveReadOnly ? '&readOnly=1' : ''
       try {
         if (currentUserId) {
           const scopeKey = trainingExecutionSnapshotKey({
@@ -989,7 +1000,7 @@ function TodayTrainingScreen() {
         url: `/training/training-execution?instanceId=${instance.id}&dayIndex=${dayIndex}${coachQuery}${focusQuery}${readOnlyQuery}`
       })
     },
-    [actions, activeSubscription, currentUserId, executionsByDayIndex, instance]
+    [actions, activeSubscription, currentUserId, executionsByDayIndex, instance, progressDayIndex]
   )
 
   const handleConfirmExecutionNotice = useCallback(() => {

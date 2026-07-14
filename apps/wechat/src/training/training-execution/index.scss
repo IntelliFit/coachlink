@@ -1523,7 +1523,6 @@
   .record-rpe-input {
     min-width: 0;
     font-size: 28rpx;
-    line-height: 1.1;
     font-weight: 900;
     color: #111827;
     text-align: center;
@@ -1531,6 +1530,11 @@
 
   .record-inline-input {
     flex: 1;
+  }
+
+  .record-rpe-input {
+    padding: 0;
+    line-height: 72rpx !important;
   }
 
   .record-unit {
