@@ -1,3 +1,9 @@
+## 微信小程序个人中心清除缓存 (`2026-07-14`)
+
+- Task: 在学员端“我的”页的“退出登录”上方增加“清除缓存”按钮，并实现实际清理功能；用户已确认功能无误并授权提交。
+- Status: 已作为独立本地提交完成。清除操作会删除本地训练快照、草稿、计时器及其他可再生 storage 数据，但保留 `token`、`user` 和 `app-theme-mode`，因此不会退出登录或丢失主题偏好。
+- Verification: `npm run lint`、`npm run typecheck`、`npm test`（35 files / 177 tests）与小程序构建通过；`npx next build` 被当前分支既有的 `busboy` 和 `pdf-parse/lib/pdf-parse.js` 缺失依赖阻断。`weapp-devtools` 的 9420 端口未监听，未能完成自动化点击/截图验证。
+
 ## 提交当前工作区并同步 main/dev (`2026-07-14`)
 
 - Task: 提交当前工作区的已完成改动，使用明确提交信息，并将 `main` 与 `dev` 对齐到同一提交。
