@@ -1,5 +1,6 @@
 import React from 'react'
-import { View, Text, ScrollView, Input, Button, Textarea, Image, Canvas } from '@tarojs/components'
+import { View, Text, ScrollView, Button, Textarea, Image, Canvas } from '@tarojs/components'
+import { StableInput as Input } from '@/components/StableInput'
 import Taro, { useDidShow, usePullDownRefresh } from '@tarojs/taro'
 import { trainingService } from '@/services/trainingService'
 import { executionService } from '@/services/executionService'

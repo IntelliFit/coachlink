@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react'
 import { View, Text, ScrollView, Textarea } from '@tarojs/components'
 import Taro from '@tarojs/taro'
-import { Dialog, Button, Checkbox, Radio, Input, Skeleton } from '@nutui/nutui-react-taro'
+import { Dialog, Button, Checkbox, Radio, Skeleton } from '@nutui/nutui-react-taro'
+import { StableNutInput as Input } from '@/components/StableNutInput'
 import './index.scss'
 
 interface TrainingItem {

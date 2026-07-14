@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { View, Text, ScrollView } from '@tarojs/components'
 import Taro, { useRouter } from '@tarojs/taro'
-import { Button, Checkbox, Input, Radio, Skeleton } from '@nutui/nutui-react-taro'
+import { Button, Checkbox, Radio, Skeleton } from '@nutui/nutui-react-taro'
+import { StableNutInput as Input } from '@/components/StableNutInput'
 import { coachService } from '@/services/coach/coachService'
 import { subscriptionService } from '@/services/subscriptionService'
 import {

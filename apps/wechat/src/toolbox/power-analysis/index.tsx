@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Input, ScrollView, Text, View, Video } from '@tarojs/components'
+import { ScrollView, Text, View, Video } from '@tarojs/components'
+import { StableInput as Input } from '@/components/StableInput'
 import Taro, { useShareAppMessage, useShareTimeline } from '@tarojs/taro'
 import { API_BASE_URL, request } from '@/utils/request'
 import { authService } from '@/services/authService'

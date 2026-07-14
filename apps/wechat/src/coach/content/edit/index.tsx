@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
-import { View, Text, Input, Textarea, Button, ScrollView, Picker } from '@tarojs/components'
+import { View, Text, Textarea, Button, ScrollView, Picker } from '@tarojs/components'
+import { StableInput as Input } from '@/components/StableInput'
 import { Check } from '@nutui/icons-react-taro'
 import Taro from '@tarojs/taro'
 import { coachService } from '@/services/coach/coachService'

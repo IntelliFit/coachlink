@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import { View, Text, ScrollView, Input, Image } from '@tarojs/components'
+import { View, Text, ScrollView, Image } from '@tarojs/components'
+import { StableInput as Input } from '@/components/StableInput'
 import { Check, Search } from '@nutui/icons-react-taro'
 import Taro, { useDidShow, usePullDownRefresh } from '@tarojs/taro'
 import BottomNav from '@/components/BottomNav'

@@ -1,4 +1,5 @@
-import { View, Text, Input } from '@tarojs/components'
+import { View, Text } from '@tarojs/components'
+import { StableInput as Input } from '@/components/StableInput'
 import './index.scss'
 
 export interface PlanReferenceOneRMItem {

@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { View, Text, ScrollView, Input, Textarea, Picker } from '@tarojs/components'
+import { View, Text, ScrollView, Textarea, Picker } from '@tarojs/components'
+import { StableInput as Input } from '@/components/StableInput'
 import Taro from '@tarojs/taro'
 import BottomNav from '@/components/BottomNav'
 import PlanCompactWeekCalendar from '@/components/PlanCompactWeekCalendar'

@@ -1,4 +1,5 @@
-import { View, Text, Image, Input, Textarea, Picker } from '@tarojs/components'
+import { View, Text, Image, Textarea, Picker } from '@tarojs/components'
+import { StableInput as Input } from '@/components/StableInput'
 import { useState, useEffect } from 'react'
 import Taro, { useRouter } from '@tarojs/taro'
 import { coachService } from '@/services/coach/coachService'

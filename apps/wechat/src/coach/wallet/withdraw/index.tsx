@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
-import { Button, Input, Text, View } from '@tarojs/components'
+import { Button, Text, View } from '@tarojs/components'
+import { StableInput as Input } from '@/components/StableInput'
 import Taro from '@tarojs/taro'
 import { coachService } from '@/services/coach/coachService'
 import './index.scss'

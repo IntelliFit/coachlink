@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { View, Text, Image, ScrollView, Input, Textarea } from '@tarojs/components'
+import { View, Text, Image, ScrollView, Textarea } from '@tarojs/components'
+import { StableInput as Input } from '@/components/StableInput'
 import Taro, { useDidShow, useShareAppMessage, useShareTimeline } from '@tarojs/taro'
 import BottomNav from '@/components/BottomNav'
 import { authService } from '@/services/authService'

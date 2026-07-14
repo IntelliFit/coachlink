@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
-import { View, Text, ScrollView, Input, Textarea } from '@tarojs/components'
+import { View, Text, ScrollView, Textarea } from '@tarojs/components'
+import { StableInput as Input } from '@/components/StableInput'
 import Taro, { useRouter } from '@tarojs/taro'
 import BottomNav from '@/components/BottomNav'
 import { studentActionLibService } from '@/services/studentActionLibService'

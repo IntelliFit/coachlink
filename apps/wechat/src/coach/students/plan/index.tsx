@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
-import { View, Text, ScrollView, Input, Image, Textarea } from '@tarojs/components'
+import { View, Text, ScrollView, Image, Textarea } from '@tarojs/components'
+import { StableInput as Input } from '@/components/StableInput'
 import { User, Message } from '@nutui/icons-react-taro'
 import Taro from '@tarojs/taro'
 import PlanCompactWeekCalendar from '@/components/PlanCompactWeekCalendar'

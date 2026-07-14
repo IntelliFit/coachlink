@@ -2,7 +2,8 @@
  * 力量分计算器 - 小程序原生实现（逻辑与网页端一致）
  */
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { View, Text, ScrollView, Input, Picker, Button } from '@tarojs/components'
+import { View, Text, ScrollView, Picker, Button } from '@tarojs/components'
+import { StableInput as Input } from '@/components/StableInput'
 import Taro, { useDidHide, useUnload } from '@tarojs/taro'
 import {
   type ExerciseType,

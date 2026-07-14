@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
-import { View, Text, ScrollView, Input, Button } from '@tarojs/components'
+import { View, Text, ScrollView, Button } from '@tarojs/components'
+import { StableInput as Input } from '@/components/StableInput'
 import Taro from '@tarojs/taro'
 import BottomNav from '@/components/BottomNav'
 import { request } from '@/utils/request'

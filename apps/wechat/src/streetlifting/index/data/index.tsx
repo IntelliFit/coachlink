@@ -2,7 +2,8 @@
  * 社区数据 - 小程序原生实现（列表、筛选/排序、提交、认领）
  */
 import { useEffect, useState, useMemo } from 'react'
-import { View, Text, ScrollView, Input, Picker, Button, Image } from '@tarojs/components'
+import { View, Text, ScrollView, Picker, Button, Image } from '@tarojs/components'
+import { StableInput as Input } from '@/components/StableInput'
 import Taro from '@tarojs/taro'
 import {
   streetliftingIndexService,

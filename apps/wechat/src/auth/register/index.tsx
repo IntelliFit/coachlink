@@ -2,11 +2,11 @@ import { useState, useEffect } from 'react'
 import { View, Image, Text } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import {
-  Input,
   ConfigProvider,
   Toast,
   Checkbox
 } from '@nutui/nutui-react-taro'
+import { StableNutInput as Input } from '@/components/StableNutInput'
 import zhCN from '@nutui/nutui-react-taro/dist/locales/zh-CN'
 import { authService } from '@/services/authService'
 import { smsService } from '@/services/smsService'

@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
-import { Button, Image, Input, Picker, ScrollView, Text, View } from '@tarojs/components'
+import { Button, Image, Picker, ScrollView, Text, View } from '@tarojs/components'
+import { StableInput as Input } from '@/components/StableInput'
 import Taro from '@tarojs/taro'
 import {
   getHuifuRegionCities,

@@ -480,3 +480,9 @@
 - 小程序原生单行 `input` 不得使用无单位 `line-height` 控制垂直对齐；安卓微信内核可能把它解析为极小实际行高，导致聚焦后的输入字符悬浮到输入框外。
 - 全局单行输入使用 `line-height: normal !important` 作为兼容基线；固定高度、确需精确垂直居中的输入框可用与控件高度一致的带单位行高覆盖。
 - 多行 `textarea` 不应用这条全局规则，继续按各页面的多行排版设置行高。
+## 微信小程序数字输入统一使用 StableInput (`2026-07-15`)
+
+- 直接使用 Taro 原生数字输入的业务模块统一通过 `apps/wechat/src/components/StableInput/index.tsx`；NutUI 数字输入统一通过 `apps/wechat/src/components/StableNutInput/index.tsx`，不再由各页面分散处理键盘顶起和原生层残留。
+- 安卓数字输入默认关闭微信 `adjustPosition`，避免外层 `scroll-view`、页面自动上推与原生输入层重复位移；需要时由页面显式覆盖。
+- 数字输入失焦后重建底层组件，避免第二次聚焦复用残留文字层；同时启用 `alwaysEmbed`，降低聚焦前后渲染层切换风险。
+- 2026-07-14 将问题归因于无单位 `line-height` 并设置全局 `input { line-height: normal !important; }` 的决定已被用户实测否定，现已废止。固定高度输入仍可使用带单位行高作为样式兜底，但不能视为该偶发问题的根治方案。

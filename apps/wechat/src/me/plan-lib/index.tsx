@@ -8,6 +8,7 @@ import { studentPlanLibService } from '@/services/studentPlanLibService'
 import './index.scss'
 import { Book, Calendar, Clock, Close } from '@nutui/icons-react-taro'
 import { useTheme } from '@/hooks/useTheme'
+import { StableInput as Input } from '@/components/StableInput'
 
 interface PlanFavorite {
   id: string
