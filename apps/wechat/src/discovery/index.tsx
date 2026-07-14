@@ -1,5 +1,5 @@
 import React from 'react'
-import { View, Text, Input, Image } from '@tarojs/components'
+import { View, Text, Input, Image, ScrollView } from '@tarojs/components'
 import { Star, Search, Eye } from '@nutui/icons-react-taro'
 import Taro, { useReachBottom } from '@tarojs/taro'
 import BottomNav from '@/components/BottomNav'
@@ -9,6 +9,7 @@ import { LoadingSpinner } from '@/components/LoadingSpinner'
 import './index.scss'
 import { useTheme } from '@/hooks/useTheme'
 import { PageThemeRoot } from '@/components/PageThemeRoot'
+import { Popup } from '@nutui/nutui-react-taro'
 
 interface Coach {
   id: string
@@ -46,6 +47,7 @@ function Discovery() {
   const [searchTerm, setSearchTerm] = React.useState('')
   const [isLoading, setIsLoading] = React.useState(false)
   const [selectedSpecialty, setSelectedSpecialty] = React.useState<string>('all')
+  const [specialtyPickerOpen, setSpecialtyPickerOpen] = React.useState(false)
   const coachesPerPage = 10
   const [nextCoachPage, setNextCoachPage] = React.useState(1)
   const [coachBuffer, setCoachBuffer] = React.useState<Coach[]>([])
@@ -53,6 +55,10 @@ function Discovery() {
   const [visibilityStatus, setVisibilityStatus] = React.useState<VisibilityStatus | null>(null)
   const [visibilityLoading, setVisibilityLoading] = React.useState(true)
   const hasMoreCoaches = rawHasMoreCoaches || coachBuffer.length > 0
+  const specialtyPickerScrollHeight = Math.min(
+    Math.max(Math.ceil(specialties.length / 3) * 88 + 16, 104),
+    480
+  )
 
   React.useEffect(() => {
     const fetchVisibilityStatus = async () => {
@@ -187,6 +193,7 @@ function Discovery() {
 
   const handleSpecialtyChange = (value: string) => {
     setSelectedSpecialty(value)
+    setSpecialtyPickerOpen(false)
     if (!visibilityStatus?.focusMode) {
       void loadCoaches('reset', { search: searchTerm, specialty: value })
     }
@@ -354,18 +361,7 @@ function Discovery() {
           </View>
           <View
             className='section-more'
-            onClick={() => {
-              Taro.showActionSheet({
-                itemList: specialties.map((item) => item.label),
-                success: (res) => {
-                  if (res.tapIndex === 0) {
-                    handleSpecialtyChange('all')
-                  } else {
-                    handleSpecialtyChange(specialties[res.tapIndex].value)
-                  }
-                }
-              })
-            }}
+            onClick={() => setSpecialtyPickerOpen(true)}
           >
             <Text>{selectedSpecialty === 'all' ? '筛选方向' : '切换筛选'}</Text>
           </View>
@@ -408,6 +404,31 @@ function Discovery() {
           </View>
         )}
       </View>
+
+      <Popup visible={specialtyPickerOpen} position='bottom' round onClose={() => setSpecialtyPickerOpen(false)}>
+        <View className='specialty-picker-sheet'>
+          <View className='specialty-picker-handle' />
+          <View className='specialty-picker-header'>
+            <Text className='specialty-picker-title'>筛选训练方向</Text>
+            <Text className='specialty-picker-subtitle'>选择一个方向，查看更匹配的教练</Text>
+          </View>
+          <ScrollView scrollY className='specialty-picker-scroll' style={{ height: `${specialtyPickerScrollHeight}rpx` }}>
+            <View className='specialty-picker-options'>
+              {specialties.map((item) => (
+                <View
+                  key={item.value}
+                  className={`specialty-picker-option ${selectedSpecialty === item.value ? 'specialty-picker-option--selected' : ''}`}
+                  onClick={() => handleSpecialtyChange(item.value)}
+                  hoverClass='specialty-picker-option--pressed'
+                  hoverStayTime={70}
+                >
+                  <Text>{item.label}</Text>
+                </View>
+              ))}
+            </View>
+          </ScrollView>
+        </View>
+      </Popup>
 
       <BottomNav />
     </View>

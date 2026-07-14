@@ -6,7 +6,7 @@ import { useTheme } from '@/hooks/useTheme'
 export default function TrainingActionsRedirect() {
   const { effectiveTheme } = useTheme()
   useEffect(() => {
-    Taro.redirectTo({ url: '/me/action-lib?tab=public' })
+    Taro.redirectTo({ url: '/me/action-lib/index?tab=public' })
   }, [])
 
   return (

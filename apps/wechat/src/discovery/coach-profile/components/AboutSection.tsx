@@ -46,6 +46,35 @@ export default function AboutSection({ coach }: { coach: CoachRow }) {
     })
   }
 
+  const copyContact = (value: string, successMessage: string) => {
+    const text = value.trim()
+    if (!text) {
+      Taro.showToast({ title: '暂未提供联系方式', icon: 'none' })
+      return
+    }
+    Taro.setClipboardData({
+      data: text,
+      success: () => Taro.showToast({ title: successMessage, icon: 'none' }),
+      fail: () => Taro.showToast({ title: '复制失败，请稍后重试', icon: 'none' })
+    })
+  }
+
+  const callPhone = (phone: string) => {
+    const phoneNumber = phone.trim()
+    if (!phoneNumber) {
+      Taro.showToast({ title: '暂未提供联系电话', icon: 'none' })
+      return
+    }
+    Taro.makePhoneCall({
+      phoneNumber,
+      fail: (error) => {
+        if (!String(error?.errMsg || '').includes('cancel')) {
+          copyContact(phoneNumber, '号码已复制')
+        }
+      }
+    })
+  }
+
   const renderMaterialCard = (item: any) => (
     <View key={item.id} className='rich-material-card'>
       <View className='rich-material-head'>
@@ -167,13 +196,13 @@ export default function AboutSection({ coach }: { coach: CoachRow }) {
           {hasContact ? (
             <View className='contact-list'>
               {profile?.contactEmail && (
-                <View className='contact-item'>
+                <View className='contact-item' onClick={() => copyContact(profile.contactEmail!, '邮箱已复制')}>
                   <View className='icon'><Mail size={16} /></View>
                   <Text selectable>{profile.contactEmail}</Text>
                 </View>
               )}
               {profile?.contactPhone && (
-                <View className='contact-item'>
+                <View className='contact-item' onClick={() => callPhone(profile.contactPhone!)}>
                   <View className='icon'><Phone size={16} /></View>
                   <Text selectable>{profile.contactPhone}</Text>
                 </View>
@@ -190,8 +219,12 @@ export default function AboutSection({ coach }: { coach: CoachRow }) {
         <View className='section-body'>
           {hasSocial ? (
             <View className='social-list'>
-              {Object.entries(socialLinks).map(([platform]) => (
-                <View key={platform} className='social-item'>
+              {Object.entries(socialLinks).map(([platform, url]) => (
+                <View
+                  key={platform}
+                  className='social-item'
+                  onClick={() => copyContact(url, `${SOCIAL_LABELS[platform] || platform}链接已复制`)}
+                >
                   <Text>{SOCIAL_LABELS[platform] || platform}</Text>
                   <View className='arrow'><ArrowUp size={12} /></View>
                 </View>

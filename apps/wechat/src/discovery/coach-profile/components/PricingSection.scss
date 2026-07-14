@@ -111,16 +111,26 @@
 }
 
 .product-name {
+  display: block;
+  max-width: 100%;
   font-size: 15px;
   font-weight: 800;
   color: #1f2937;
-  margin-bottom: 8px;
+  margin-bottom: 8rpx;
+  word-break: break-all;
 }
 
 .product-desc {
+  display: block;
+  width: 100%;
+  max-width: 100%;
   font-size: 12px;
   color: #6b7280;
-  margin-bottom: 12px;
+  line-height: 1.5;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-all;
+  margin-bottom: 16rpx;
 }
 
 .duration-row {

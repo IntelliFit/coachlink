@@ -209,15 +209,17 @@ function SettingsPage() {
               />
               <View className='modal-content'>
                 <Text className='modal-title'>注销账号</Text>
-                <Text className='delete-warning'>
-                  {`这是不可恢复操作。请输入“${DELETE_ACCOUNT_CONFIRMATION_TEXT}”后继续。`}
-                </Text>
+                <View className='delete-warning'>
+                  <Text>这是不可恢复操作。请输入</Text>
+                  <Text className='delete-confirmation-token'>「{DELETE_ACCOUNT_CONFIRMATION_TEXT}」</Text>
+                  <Text>后继续。</Text>
+                </View>
                 <View className='form-group'>
-                  <Text className='form-label'>确认文案</Text>
+                  <Text className='form-label'>输入确认文案</Text>
                   <input
                     className='form-input'
                     type='text'
-                    placeholder={DELETE_ACCOUNT_CONFIRMATION_TEXT}
+                    placeholder={`请输入“${DELETE_ACCOUNT_CONFIRMATION_TEXT}”`}
                     value={deleteConfirmationText}
                     onInput={(e: any) => setDeleteConfirmationText(e.detail.value)}
                   />

@@ -1,3 +1,71 @@
+## 微信小程序教练列表训练方向筛选弹层修复 (`2026-07-14`)
+
+- Task: 修复教练列表“筛选方向”点击无反应；开发者工具报 `showActionSheet:fail parameter error: itemList should not be larger than 6`。
+- Status: 代码修复完成，待验证后提交。方向数据接口、前端筛选状态和列表请求参数均已存在并正确接通；根因是微信原生 `showActionSheet` 仅允许最多 6 项，实际方向列表超过该上限。
+- Changes: 改为自定义底部方向筛选面板，展示全部方向并支持滚动；选择后继续复用原有 `handleSpecialtyChange -> loadCoaches` 筛选请求，不受 6 项限制。
+- Verification: `npm run lint`、`npm run typecheck`、`npm test`（35 files / 177 tests）、小程序构建（2755 modules）与 `git diff --check` 通过；`npx next build` 仍被既有 `busboy`、`pdf-parse/lib/pdf-parse.js` 缺失依赖阻断。`mrc` 可用但 9420 无监听，无法自动化点击验证。
+
+## 微信小程序训练首页更多入口弹层排版优化 (`2026-07-14`)
+
+- Task: 优化训练首页右上角三点菜单的“即兴训练 / AI 长期计划 / 浏览教练”入口，解决内容挤在左上角、留白失衡的问题。
+- Status: 代码修复完成，待验证后提交。根因是 `more-training-sheet` 及其三个入口没有任何样式，导致 Popup 中仅以裸行内内容排列。
+- Changes: 增加底部面板拖拽把手、标题和说明；三个入口改为独立完整的可点击卡片，统一图标容器、主标题、辅助说明、右箭头和按压反馈，使用 8rpx 栅格留白。
+- Verification: `npm run lint`、`npm run typecheck`、`npm test`（35 files / 177 tests）、小程序构建（2755 modules）与 `git diff --check` 通过；`npx next build` 仍被既有 `busboy`、`pdf-parse/lib/pdf-parse.js` 缺失依赖阻断。`mrc` 可用但 9420 无监听，无法自动化点击验证。
+
+## 微信小程序教练详情订阅价格套餐文字排版修复 (`2026-07-14`)
+
+- Task: 修复教练详情“订阅价格”内套餐介绍紧跟标题、长介绍可能越界的问题；用户以枭马葛教练多套餐页面为例反馈。
+- Status: 代码修复完成，待验证后提交。根因是共用 `PricingSection` 中套餐标题和介绍使用默认行内 `Text`；并非教练套餐数据异常，所有教练详情均会受影响。
+- Changes: 标题和介绍均改为块级行；介绍固定从标题下一行开始、占满卡片可用宽度、正常换行，并对无空格长文本启用断行，不使用省略号或截断。
+- Verification: `npm run lint`、`npm run typecheck`、`npm test`（35 files / 177 tests）、小程序构建（2755 modules）与 `git diff --check` 通过；`npx next build` 仍被既有 `busboy`、`pdf-parse/lib/pdf-parse.js` 缺失依赖阻断。`mrc` 可用但 9420 无监听，无法自动化点击验证。
+
+## 微信小程序教练详情学员评价数量与内容一致性修复 (`2026-07-14`)
+
+- Task: 修复教练详情“学员评价(1)”标签与评价面板显示“暂无评价数据”的不一致问题；用户以刘三乐教练为例反馈。
+- Status: 代码修复完成，待验证后提交。聚合接口从 `student_comments` 正确统计到 1 条；根因是小程序评价组件始终渲染空状态，从未请求或展示评论。已有 `get-coach-reviews` 查询另一张 `coach_reviews` 表且不按 coachId 过滤，不能用于此处。
+- Changes: 新增只返回公开昵称、头像、评分、正文及日期的 `get-public-reviews` 接口，按 `student_comments.coach_id` 查询，与数量统计同源；小程序实际加载并渲染列表，加载成功后标签数量直接采用同一列表长度，消除缓存短暂不一致。
+- Verification: `npm run lint`、`npm run typecheck`、`npm test`（35 files / 177 tests）、小程序构建（2755 modules）与 `git diff --check` 通过；`npx next build` 仍被既有 `busboy`、`pdf-parse/lib/pdf-parse.js` 缺失依赖阻断。`mrc` 可用但 9420 无监听，无法自动化点击验证。
+
+## 微信小程序教练详情联系方式与社交链接交互修复 (`2026-07-14`)
+
+- Task: 修复教练详情页的邮箱、电话与社交平台卡片点击无反应，并确认数据链路归属。
+- Status: 代码修复完成，待验证后提交。后端已实现教练申请信息保存与聚合接口返回；截图中的邮箱和抖音已证明数据到达页面。根因是小程序 `AboutSection` 仅展示字段，未给联系方式/社交链接绑定任何点击逻辑，社交 URL 值也未使用。
+- Changes: 邮箱和社交链接点击后复制对应内容并显示明确提示；电话点击调用小程序系统拨号，非用户取消的失败场景降级为复制号码。微信小程序不能可靠直接拉起邮件客户端或抖音 App，复制是可用且符合平台限制的交互方案。
+- Verification: `npm run lint`、`npm run typecheck`、`npm test`（35 files / 177 tests）、小程序构建（2755 modules）与 `git diff --check` 通过；`npx next build` 仍被既有 `busboy`、`pdf-parse/lib/pdf-parse.js` 缺失依赖阻断。`mrc` 可用但 9420 无监听，无法自动化点击验证。
+
+## 微信小程序教练专栏内容卡片排版修复 (`2026-07-14`)
+
+- Task: 修复教练详情“教练专栏”中超长教学内容标题越出卡片，以及“图文/视频”标签有时紧跟标题、有时换行的不一致排版。
+- Status: 代码修复完成，待用户验证后再决定是否提交。问题来自所有教练共用的 `ContentSection`：标题和元信息都是默认行内 `Text`，导致省略号约束与垂直间距失效，并非某位教练的内容数据异常。
+- Changes: 将内容信息区固定为纵向 flex 布局，标题和元信息设为独立块级行；标题宽度受卡片可用空间限制并单行省略，`图文/视频` 统一显示于标题下方，间距为 `8rpx`。
+- Verification: `npm run lint`、`npm run typecheck`、`npm test`（35 files / 177 tests）、小程序构建（2755 modules）与 `git diff --check` 通过；`npx next build` 仍被既有 `busboy`、`pdf-parse/lib/pdf-parse.js` 缺失依赖阻断。`weapp-devtools` 9420 无监听，无法截图点击验证。
+
+## 微信小程序即时训练动作库跳转修复 (`2026-07-14`)
+
+- Task: 修复即时训练页“动作库”点击无反应；用户提供控制台 `page "me/action-lib?tab=public" is not found`。
+- Status: 用户已在小程序中手动验证通过并授权提交。公共动作库页面和接口均已存在，接口请求也已发出；根因是三个前端跳转地址遗漏注册页面的 `/index`，导航目标不存在。
+- Changes: 将即时训练页右上角动作库入口、空状态入口和旧兼容跳转页统一改为 `/me/action-lib/index?tab=public`，与 `app.config.ts` 中 `me` 分包的 `action-lib/index` 注册路径一致。
+- Verification: `npm run lint`、`npm run typecheck`、`npm test`（35 files / 177 tests）与小程序构建（2755 modules）通过，`git diff --check` 通过；`npx next build` 仍被既有 `busboy`、`pdf-parse/lib/pdf-parse.js` 缺失依赖阻断。已按 `weapp-devtools` 检查，`mrc` 可用但 9420 无监听，不能自动化点击验证。
+
+## 微信小程序注销确认词视觉强化 (`2026-07-14`)
+
+- Task: 强化“账户设置 -> 注销账号”弹窗中的确认词可理解性；用户已确认功能无误并授权提交。
+- Status: 已作为独立本地提交完成。正文中的 `注销账号` 已改为独立警示标签（加粗、深红、浅红底、边框），输入字段改为“输入确认文案”和“请输入“注销账号””占位；实际注销校验逻辑未改。
+- Verification: `npm run lint`、`npm run typecheck`、`npm test`（35 files / 177 tests）与小程序构建通过；`npx next build` 仍被既有 `busboy`、`pdf-parse/lib/pdf-parse.js` 缺失依赖阻断。`weapp-devtools` 9420 端口未监听，无法自动化点击/截图验证。
+
+## 微信小程序自定义底部导航切换异常诊断 (`2026-07-14`)
+
+- Task: 用户反馈自定义底部导航首次多次切换会出现方向滑动，反复切换后才变为普通刷新，要求分析根因与可行性；本轮仅诊断，不修改代码。
+- Status: 已定位高置信根因。`apps/wechat/src/components/BottomNav.tsx` 将首页级导航优先走 `Taro.navigateTo`，持续压入页面栈；达到微信页面栈上限后该调用失败，代码再静默退回 `redirectTo`，故出现“前期滑动、后期普通刷新”的不一致行为。`BOTTOM_NAV_SWITCH_KEY` 仅驱动底栏胶囊的 active 状态动画，不是整页方向滑动的主因。
+- Fix direction: 当前所有学生首页（除训练首页）位于分包，不能直接改为原生 `switchTab`。短期应让底栏入口统一直接 `reLaunch`，清空页面栈并得到稳定的无方向刷新；长期若需要原生 Tab 生命周期与缓存能力，应将五个一级入口迁至主包/入口壳页后配置原生或 custom TabBar，再统一使用 `switchTab`。
+- Verification: 已检查打包产物与代码历史；`weapp-devtools` 所需 9420 自动化端口未监听，未能抓取实际页面栈与录像。
+
+## 微信小程序个人中心清除缓存 (`2026-07-14`)
+
+- Task: 在学员端“我的”页的“退出登录”上方增加“清除缓存”按钮，并实现实际清理功能；用户已确认功能无误并授权提交。
+- Status: 已作为独立本地提交完成。清除操作会删除本地训练快照、草稿、计时器及其他可再生 storage 数据，但保留 `token`、`user` 和 `app-theme-mode`，因此不会退出登录或丢失主题偏好。
+- Verification: `npm run lint`、`npm run typecheck`、`npm test`（35 files / 177 tests）与小程序构建通过；`npx next build` 被当前分支既有的 `busboy` 和 `pdf-parse/lib/pdf-parse.js` 缺失依赖阻断。`weapp-devtools` 的 9420 端口未监听，未能完成自动化点击/截图验证。
+
 ## 提交当前工作区并同步 main/dev (`2026-07-14`)
 
 - Task: 提交当前工作区的已完成改动，使用明确提交信息，并将 `main` 与 `dev` 对齐到同一提交。

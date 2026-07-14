@@ -1721,15 +1721,29 @@ function TodayTrainingScreen() {
   const renderMoreTrainingPopup = () => (
     <Popup visible={moreTrainingOpen} position='bottom' round onClose={() => setMoreTrainingOpen(false)}>
       <View className='more-training-sheet'>
+        <View className='more-training-sheet-handle' />
+        <View className='more-training-sheet-header'>
+          <Text className='more-training-sheet-title'>更多训练方式</Text>
+          <Text className='more-training-sheet-subtitle'>按你的当前目标选择开始方式</Text>
+        </View>
+        <View className='more-training-list'>
         <View
           className='more-training-item'
           onClick={() => {
             setMoreTrainingOpen(false)
             handleImpromptu()
           }}
+          hoverClass='more-training-item--pressed'
+          hoverStayTime={70}
         >
-          <Power size={22} color='#CF6D4E' />
-          <Text className='more-training-item-text'>即兴首练</Text>
+          <View className='more-training-item-icon more-training-item-icon--accent'>
+            <Power size={22} color='#CF6D4E' />
+          </View>
+          <View className='more-training-item-copy'>
+            <Text className='more-training-item-title'>即兴训练</Text>
+            <Text className='more-training-item-desc'>自由选择动作，随时开始训练</Text>
+          </View>
+          <ArrowRight size={18} color='#9CA3AF' />
         </View>
         <View
           className='more-training-item'
@@ -1737,9 +1751,17 @@ function TodayTrainingScreen() {
             setMoreTrainingOpen(false)
             handleGoToPlanLib()
           }}
+          hoverClass='more-training-item--pressed'
+          hoverStayTime={70}
         >
-          <Calendar size={22} color='#CF6D4E' />
-          <Text className='more-training-item-text'>AI 长期计划</Text>
+          <View className='more-training-item-icon more-training-item-icon--plan'>
+            <Calendar size={22} color='#3B82F6' />
+          </View>
+          <View className='more-training-item-copy'>
+            <Text className='more-training-item-title'>AI 长期计划</Text>
+            <Text className='more-training-item-desc'>创建并管理你的长期训练安排</Text>
+          </View>
+          <ArrowRight size={18} color='#9CA3AF' />
         </View>
         <View
           className='more-training-item'
@@ -1747,9 +1769,18 @@ function TodayTrainingScreen() {
             setMoreTrainingOpen(false)
             handleDiscoverCoach()
           }}
+          hoverClass='more-training-item--pressed'
+          hoverStayTime={70}
         >
-          <Location size={22} color='#CF6D4E' />
-          <Text className='more-training-item-text'>浏览教练</Text>
+          <View className='more-training-item-icon more-training-item-icon--coach'>
+            <Location size={22} color='#0F766E' />
+          </View>
+          <View className='more-training-item-copy'>
+            <Text className='more-training-item-title'>浏览教练</Text>
+            <Text className='more-training-item-desc'>查看教练服务与订阅方案</Text>
+          </View>
+          <ArrowRight size={18} color='#9CA3AF' />
+        </View>
         </View>
       </View>
     </Popup>

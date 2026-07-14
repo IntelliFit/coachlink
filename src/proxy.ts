@@ -87,6 +87,7 @@ const PUBLIC_PATHS = new Set([
     "/api/coach/get-all-coaches",
     "/api/coach/get-coach",
     "/api/coach/get-aggregated-info",
+    "/api/coach/get-public-reviews",
     "/api/coach/get-pricing",
     "/api/coach/get-specialties",
     "/api/wechat/login/start",

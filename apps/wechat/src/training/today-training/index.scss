@@ -2029,6 +2029,112 @@
     border-color: rgba(207, 109, 78, 0.4);
   }
 
+  // ========== 首页更多训练方式弹层 ===========
+  .more-training-sheet {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 24rpx 24rpx calc(32rpx + env(safe-area-inset-bottom));
+    border-radius: 32rpx 32rpx 0 0;
+    background: #ffffff;
+  }
+
+  .more-training-sheet-handle {
+    width: 96rpx;
+    height: 8rpx;
+    margin: 0 auto 24rpx;
+    border-radius: 9999rpx;
+    background: #e5e7eb;
+  }
+
+  .more-training-sheet-header {
+    display: flex;
+    flex-direction: column;
+    gap: 8rpx;
+    margin: 0 8rpx 24rpx;
+  }
+
+  .more-training-sheet-title {
+    display: block;
+    color: #111827;
+    font-size: 32rpx;
+    font-weight: 800;
+    line-height: 1.3;
+  }
+
+  .more-training-sheet-subtitle {
+    display: block;
+    color: #6b7280;
+    font-size: 24rpx;
+    line-height: 1.4;
+  }
+
+  .more-training-list {
+    display: flex;
+    flex-direction: column;
+    gap: 16rpx;
+  }
+
+  .more-training-item {
+    display: flex;
+    align-items: center;
+    gap: 24rpx;
+    min-height: 120rpx;
+    padding: 16rpx 24rpx;
+    box-sizing: border-box;
+    border: 1rpx solid #edf0f3;
+    border-radius: 24rpx;
+    background: #ffffff;
+
+    &--pressed {
+      opacity: 0.72;
+    }
+  }
+
+  .more-training-item-icon {
+    display: flex;
+    width: 72rpx;
+    height: 72rpx;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    border-radius: 24rpx;
+
+    &--accent {
+      background: #fff0eb;
+    }
+
+    &--plan {
+      background: #eff6ff;
+    }
+
+    &--coach {
+      background: #ecfdf5;
+    }
+  }
+
+  .more-training-item-copy {
+    display: flex;
+    flex: 1;
+    min-width: 0;
+    flex-direction: column;
+    gap: 8rpx;
+  }
+
+  .more-training-item-title {
+    display: block;
+    color: #1f2937;
+    font-size: 28rpx;
+    font-weight: 750;
+    line-height: 1.3;
+  }
+
+  .more-training-item-desc {
+    display: block;
+    color: #6b7280;
+    font-size: 22rpx;
+    line-height: 1.4;
+  }
+
   // ========== 计划切换器 ==========
   .plan-switcher {
     display: flex;

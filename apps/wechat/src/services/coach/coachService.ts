@@ -512,6 +512,23 @@ class CoachService extends BaseService {
     return null
   }
 
+  /** 获取教练主页公开展示的学员评价 */
+  async getPublicReviews(reqData: { coachId: string }) {
+    const res = await this.post<{
+      reviews: Array<{
+        id: string
+        studentId: string
+        studentName: string
+        studentAvatarUrl: string | null
+        comment: string
+        rating: number | null
+        createdAt: string | null
+      }>
+    }>('get-public-reviews', reqData)
+    if (res.success && res.data) return res.data
+    return null
+  }
+
   /** 更新教练资料 */
   async updateCoachProfile(reqData: {
     id?: string

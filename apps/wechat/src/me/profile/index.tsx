@@ -10,6 +10,7 @@ import { studentPlanLibService } from '@/services/studentPlanLibService'
 import { studentService } from '@/services/studentService'
 import { trainingHistoryService } from '@/services/trainingHistoryService'
 import { AUTH_SESSION_INVALID_EVENT } from '@/services/authSessionEvents'
+import { clearLocalCache } from '@/utils/clearLocalCache'
 import './index.scss'
 import { PageThemeRoot } from '@/components/PageThemeRoot'
 interface MenuItem {
@@ -49,6 +50,7 @@ function Profile() {
   const [coachId, setCoachId] = useState<string | null>(null)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [profileStats, setProfileStats] = useState<ProfileStats>(EMPTY_PROFILE_STATS)
+  const [isClearingCache, setIsClearingCache] = useState(false)
 
   const openLogin = useCallback((returnTo = '/me/profile/index') => {
     const url = authService.buildLoginUrl(returnTo)
@@ -452,6 +454,37 @@ function Profile() {
     })
   }
 
+  function handleClearCache() {
+    if (isClearingCache) return
+
+    Taro.showModal({
+      title: '清除缓存',
+      content: '将清除本地缓存和未保存草稿，不会退出登录。',
+      confirmText: '清除',
+      confirmColor: '#CF6D4E',
+      success: (res) => {
+        if (!res.confirm) return
+
+        setIsClearingCache(true)
+        try {
+          const { clearedCount } = clearLocalCache()
+          Taro.showToast({
+            title: clearedCount > 0 ? '缓存已清除' : '暂无缓存可清除',
+            icon: 'success'
+          })
+        } catch (error) {
+          console.error('[profile] clear local cache:', error)
+          Taro.showToast({
+            title: '清除缓存失败',
+            icon: 'none'
+          })
+        } finally {
+          setIsClearingCache(false)
+        }
+      }
+    })
+  }
+
   async function handleLogout() {
     Taro.showModal({
       title: '退出登录',
@@ -595,6 +628,12 @@ function Profile() {
 
         {isAuthenticated && (
           <View className='logout-section'>
+            <View
+              className={`cache-clear-btn${isClearingCache ? ' is-loading' : ''}`}
+              onClick={handleClearCache}
+            >
+              <Text className='cache-clear-text'>{isClearingCache ? '正在清除缓存…' : '清除缓存'}</Text>
+            </View>
             <View className='logout-btn' onClick={handleLogout}>
               <Text className='logout-text'>退出登录</Text>
             </View>
