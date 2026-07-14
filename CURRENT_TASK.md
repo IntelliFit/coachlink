@@ -1,3 +1,10 @@
+## 微信小程序教练专栏内容卡片排版修复 (`2026-07-14`)
+
+- Task: 修复教练详情“教练专栏”中超长教学内容标题越出卡片，以及“图文/视频”标签有时紧跟标题、有时换行的不一致排版。
+- Status: 代码修复完成，待用户验证后再决定是否提交。问题来自所有教练共用的 `ContentSection`：标题和元信息都是默认行内 `Text`，导致省略号约束与垂直间距失效，并非某位教练的内容数据异常。
+- Changes: 将内容信息区固定为纵向 flex 布局，标题和元信息设为独立块级行；标题宽度受卡片可用空间限制并单行省略，`图文/视频` 统一显示于标题下方，间距为 `8rpx`。
+- Verification: `npm run lint`、`npm run typecheck`、`npm test`（35 files / 177 tests）、小程序构建（2755 modules）与 `git diff --check` 通过；`npx next build` 仍被既有 `busboy`、`pdf-parse/lib/pdf-parse.js` 缺失依赖阻断。`weapp-devtools` 9420 无监听，无法截图点击验证。
+
 ## 微信小程序即时训练动作库跳转修复 (`2026-07-14`)
 
 - Task: 修复即时训练页“动作库”点击无反应；用户提供控制台 `page "me/action-lib?tab=public" is not found`。
