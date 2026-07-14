@@ -38,8 +38,8 @@ export const StableNutInput = React.forwardRef<unknown, StableNutInputProps>(
         ref={ref}
         {...restProps}
         type={type}
-        alwaysEmbed={alwaysEmbed ?? true}
-        adjustPosition={adjustPosition ?? !(isAndroidRuntime && isNumericInput)}
+        alwaysEmbed={alwaysEmbed ?? (isNumericInput ? true : undefined)}
+        adjustPosition={adjustPosition ?? (isAndroidRuntime && isNumericInput ? false : undefined)}
         onBlur={handleBlur}
       />
     )

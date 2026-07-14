@@ -153,18 +153,25 @@ This workspace is dedicated to the `coachlink` project.
 - 所有创建数据都必须记录主键并在 `finally`（或等价清理流程）中删除。
 - 即使断言失败，也必须执行清理。
 
-### Push 前必须执行
+### Push 前默认执行
 
-在每次 `git push` 前，必须先执行以下命令并通过：
+在每次 `git push` 前，默认执行以下快速代码门禁并通过：
 
 ```bash
 npm run lint
 npm run typecheck
 npm test
-npm run test:e2e
 ```
 
 若任一命令失败，先修复后再 push，禁止带错提交远端。
+
+`npm run test:e2e` **不再作为普通功能修改或每次 push 的默认门禁**。仅在以下情况运行：
+
+- 用户明确要求执行 E2E；
+- 本次修改直接涉及 E2E 覆盖的登录/会话维持、订阅流程或计划 API/数据库 CRUD；
+- 用户要求发布前做完整回归。
+
+若任务与上述链路无关，不得为了形式上的门禁消耗时间反复运行 E2E；应把时间优先用于当前问题的诊断、实现和针对性验证。
 
 ### 测试文件修改边界
 
