@@ -171,6 +171,17 @@
         margin-bottom: 16px;
       }
 
+      .delete-confirmation-token {
+        display: inline-block;
+        margin: 0 8rpx;
+        padding: 0 8rpx;
+        background: #fff1ec;
+        border: 1rpx solid #e9b2a2;
+        border-radius: 8rpx;
+        color: #b84b30;
+        font-weight: 700;
+      }
+
       .form-group {
         margin-bottom: 16px;
 
@@ -254,6 +265,12 @@
   .item-desc,
   .delete-warning {
     color: #B0B0B0 !important;
+  }
+
+  .delete-confirmation-token {
+    background: #4a2a22 !important;
+    border-color: #a85c49 !important;
+    color: #ffd3c7 !important;
   }
 
   .settings-list {
