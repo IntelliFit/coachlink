@@ -1,3 +1,10 @@
+## 微信小程序教练详情学员评价数量与内容一致性修复 (`2026-07-14`)
+
+- Task: 修复教练详情“学员评价(1)”标签与评价面板显示“暂无评价数据”的不一致问题；用户以刘三乐教练为例反馈。
+- Status: 代码修复完成，待验证后提交。聚合接口从 `student_comments` 正确统计到 1 条；根因是小程序评价组件始终渲染空状态，从未请求或展示评论。已有 `get-coach-reviews` 查询另一张 `coach_reviews` 表且不按 coachId 过滤，不能用于此处。
+- Changes: 新增只返回公开昵称、头像、评分、正文及日期的 `get-public-reviews` 接口，按 `student_comments.coach_id` 查询，与数量统计同源；小程序实际加载并渲染列表，加载成功后标签数量直接采用同一列表长度，消除缓存短暂不一致。
+- Verification: `npm run lint`、`npm run typecheck`、`npm test`（35 files / 177 tests）、小程序构建（2755 modules）与 `git diff --check` 通过；`npx next build` 仍被既有 `busboy`、`pdf-parse/lib/pdf-parse.js` 缺失依赖阻断。`mrc` 可用但 9420 无监听，无法自动化点击验证。
+
 ## 微信小程序教练详情联系方式与社交链接交互修复 (`2026-07-14`)
 
 - Task: 修复教练详情页的邮箱、电话与社交平台卡片点击无反应，并确认数据链路归属。

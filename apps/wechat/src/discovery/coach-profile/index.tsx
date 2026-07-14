@@ -7,6 +7,7 @@ import {
   fetchMySubscriptions,
   fetchPricing,
   fetchContents,
+  fetchPublicReviews,
   fetchQuestionnaires,
   createSubscription,
   createCoachWechatPayment,
@@ -18,6 +19,7 @@ import type {
   QueryCoachSubscription,
   Product,
   CoachContentRow,
+  PublicCoachReview,
   DurationOption
 } from './types'
 import CoachIntro from './components/CoachIntro'
@@ -47,6 +49,9 @@ export default function CoachProfile() {
   const [products, setProducts] = useState<Product[]>([])
   const [contents, setContents] = useState<CoachContentRow[]>([])
   const [contentsTotal, setContentsTotal] = useState(0)
+  const [reviews, setReviews] = useState<PublicCoachReview[]>([])
+  const [reviewsLoading, setReviewsLoading] = useState(false)
+  const [reviewsLoaded, setReviewsLoaded] = useState(false)
   const [pageState, setPageState] = useState<PageState>('loading')
   const [errorMsg, setErrorMsg] = useState('')
   const [activeTab, setActiveTab] = useState(TAB_ABOUT)
@@ -71,6 +76,8 @@ export default function CoachProfile() {
     setCoachId(id)
 
     setPageState('loading')
+    setReviewsLoading(true)
+    setReviewsLoaded(false)
     setErrorMsg('')
     try {
       const [coachRes, aggRes] = await Promise.all([
@@ -95,9 +102,10 @@ export default function CoachProfile() {
         setUserSubscription(null)
       }
 
-      const [pricingRes, contentRes] = await Promise.all([
+      const [pricingRes, contentRes, reviewsRes] = await Promise.all([
         fetchPricing(id),
-        fetchContents(id, 0, 10)
+        fetchContents(id, 0, 10),
+        fetchPublicReviews(id)
       ])
       let productList = pricingRes || []
       if (userSub?.product_id && userSub?.product_name && (userSub.status === 'inactive' || userSub.status === 'waiting')) {
@@ -119,11 +127,15 @@ export default function CoachProfile() {
       setProducts(productList)
       setContents(contentRes.contents || [])
       setContentsTotal(contentRes.total ?? 0)
+      setReviews(reviewsRes || [])
+      setReviewsLoaded(reviewsRes !== null)
       setPageState('success')
     } catch (e) {
       console.error('教练详情加载失败:', e)
       setErrorMsg((e as Error).message || '加载失败，请重试')
       setPageState('error')
+    } finally {
+      setReviewsLoading(false)
     }
   }, [])
 
@@ -479,7 +491,7 @@ export default function CoachProfile() {
 
   const displayCoach = aggregatedInfo?.coach || coach
   const isOwnProfile = false
-  const reviewCount = aggregatedInfo?.reviewCount ?? 0
+  const reviewCount = reviewsLoaded ? reviews.length : (aggregatedInfo?.reviewCount ?? 0)
 
   const handleContinuePendingPayment = () => {
     if (userSubscription?.id) {
@@ -557,7 +569,7 @@ export default function CoachProfile() {
             />
           </View>
           <View className={`tab-panel ${activeTab === TAB_REVIEWS ? 'tab-panel-active' : ''}`}>
-            <ReviewsSection reviewCount={reviewCount} />
+            <ReviewsSection reviews={reviews} loading={reviewsLoading} loadFailed={!reviewsLoaded} />
           </View>
         </View>
       </ScrollView>

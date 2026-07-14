@@ -15,7 +15,8 @@ import type {
   GetAggregatedInfoResponseDto,
   QueryCoachSubscription,
   Product,
-  CoachContentRow
+  CoachContentRow,
+  PublicCoachReview
 } from './types'
 
 export async function fetchCoach(coachId: string): Promise<CoachRow | null> {
@@ -45,6 +46,11 @@ export async function fetchContents(coachId: string, offset: number, limit: numb
     contents: Array.isArray(res?.contents) ? res.contents : [],
     total: res?.total ?? 0
   }
+}
+
+export async function fetchPublicReviews(coachId: string): Promise<PublicCoachReview[] | null> {
+  const res = await coachService.getPublicReviews({ coachId })
+  return Array.isArray(res?.reviews) ? res.reviews : null
 }
 
 export async function updateSubscriptionSubscribeData(subscriptionId: string, subscribeData: any): Promise<boolean> {

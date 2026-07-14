@@ -31,3 +31,76 @@
   font-size: 14px;
   color: #9ca3af;
 }
+
+.review-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+}
+
+.review-item {
+  padding: 24rpx;
+  border: 1px solid #f3f4f6;
+  border-radius: 16rpx;
+  background: #fafafa;
+}
+
+.review-header {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+}
+
+.review-avatar {
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: 9999rpx;
+  flex-shrink: 0;
+}
+
+.review-avatar-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff0eb;
+  color: #CF6D4E;
+  font-size: 24rpx;
+  font-weight: 700;
+}
+
+.review-meta {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: 8rpx;
+}
+
+.review-student-name {
+  color: #1f2937;
+  font-size: 28rpx;
+  font-weight: 700;
+}
+
+.review-date {
+  color: #9ca3af;
+  font-size: 22rpx;
+}
+
+.review-rating {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  color: #CF6D4E;
+  font-size: 24rpx;
+  font-weight: 700;
+}
+
+.review-content {
+  display: block;
+  margin-top: 16rpx;
+  color: #4b5563;
+  font-size: 26rpx;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}

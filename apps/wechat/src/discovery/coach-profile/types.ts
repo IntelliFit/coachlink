@@ -74,6 +74,17 @@ export interface CoachContentRow {
   [key: string]: any
 }
 
+/** 教练主页公开展示的学员评价 */
+export interface PublicCoachReview {
+  id: string
+  studentId: string
+  studentName: string
+  studentAvatarUrl: string | null
+  comment: string
+  rating: number | null
+  createdAt: string | null
+}
+
 /** 关于面板 - profile 扩展 */
 export interface CoachProfileDetail {
   teachingPhilosophy?: string
