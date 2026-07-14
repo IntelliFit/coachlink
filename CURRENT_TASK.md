@@ -1,3 +1,10 @@
+## 微信小程序教练列表训练方向筛选弹层修复 (`2026-07-14`)
+
+- Task: 修复教练列表“筛选方向”点击无反应；开发者工具报 `showActionSheet:fail parameter error: itemList should not be larger than 6`。
+- Status: 代码修复完成，待验证后提交。方向数据接口、前端筛选状态和列表请求参数均已存在并正确接通；根因是微信原生 `showActionSheet` 仅允许最多 6 项，实际方向列表超过该上限。
+- Changes: 改为自定义底部方向筛选面板，展示全部方向并支持滚动；选择后继续复用原有 `handleSpecialtyChange -> loadCoaches` 筛选请求，不受 6 项限制。
+- Verification: `npm run lint`、`npm run typecheck`、`npm test`（35 files / 177 tests）、小程序构建（2755 modules）与 `git diff --check` 通过；`npx next build` 仍被既有 `busboy`、`pdf-parse/lib/pdf-parse.js` 缺失依赖阻断。`mrc` 可用但 9420 无监听，无法自动化点击验证。
+
 ## 微信小程序训练首页更多入口弹层排版优化 (`2026-07-14`)
 
 - Task: 优化训练首页右上角三点菜单的“即兴训练 / AI 长期计划 / 浏览教练”入口，解决内容挤在左上角、留白失衡的问题。
