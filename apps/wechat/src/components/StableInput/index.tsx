@@ -1,23 +1,13 @@
 import React from 'react'
-import Taro from '@tarojs/taro'
 import { Input as TaroInput, type InputProps } from '@tarojs/components'
 
-let isAndroidRuntime = false
-
-try {
-  isAndroidRuntime = Taro.getSystemInfoSync().platform === 'android'
-} catch {
-  // 构建期和非微信运行环境没有完整系统信息，沿用微信默认的页面上推行为。
-}
-
 /**
- * 微信原生 input 在聚焦时可能切换渲染层。数字键盘叠加 scroll-view 与页面自动上推后，
- * 部分安卓设备会偶发出现文字层和输入框坐标不同步。
+ * 微信原生 input 在聚焦时可能切换渲染层。
  *
  * - 数字输入在支持的平台启用同层状态，避免聚焦前后切换渲染层；
- * - 安卓数字输入关闭微信的自动页面上推，避免页面与原生输入层被重复移动；
  * - 数字输入失焦后重建底层 input，避免第二次聚焦复用残留文字层；
- * - 文本输入、密码输入和非安卓环境保留微信默认行为。
+ * - 页面和键盘位置调整完全沿用微信默认行为，避免原生文字层与页面滚动层错位；
+ * - 文本输入和密码输入保留微信默认行为。
  */
 export function StableInput(props: InputProps) {
   const [nativeGeneration, setNativeGeneration] = React.useState(0)
@@ -45,7 +35,7 @@ export function StableInput(props: InputProps) {
       {...restProps}
       type={type}
       alwaysEmbed={alwaysEmbed ?? (isNumericInput ? true : undefined)}
-      adjustPosition={adjustPosition ?? (isAndroidRuntime && isNumericInput ? false : undefined)}
+      adjustPosition={adjustPosition}
       onBlur={handleBlur}
     />
   )

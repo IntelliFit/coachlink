@@ -1,6 +1,5 @@
 import React from 'react'
-import { View, Text, ScrollView, Button, Textarea, Image, Canvas } from '@tarojs/components'
-import { StableInput as Input } from '@/components/StableInput'
+import { View, Text, ScrollView, Input, Button, Textarea, Image, Canvas } from '@tarojs/components'
 import Taro, { useDidShow, usePullDownRefresh } from '@tarojs/taro'
 import { trainingService } from '@/services/trainingService'
 import { executionService } from '@/services/executionService'
@@ -2514,7 +2513,7 @@ function TrainingExecution() {
 
   return (
     <View className={`training-execution-page theme-${effectiveTheme}`}>
-      <ScrollView scrollY className="execution-scroll">
+      <View className="execution-scroll">
         <View className="execution-shell">
           <View className="hero-section">
             <View className="hero-topbar">
@@ -3173,7 +3172,7 @@ function TrainingExecution() {
           </View>
         )}
         </View>
-      </ScrollView>
+      </View>
 
       {isResting && restTimerMinimized && (
         <View className="rest-timer-bubble" onClick={() => setRestTimerMinimized(false)}>

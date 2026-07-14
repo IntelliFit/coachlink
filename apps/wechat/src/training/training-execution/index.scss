@@ -19,7 +19,7 @@
   }
 
   .execution-scroll {
-    height: 100vh;
+    min-height: 100vh;
   }
 
   .execution-shell {
@@ -1532,12 +1532,10 @@
     flex: 1;
     height: 72rpx;
     padding: 0;
-    line-height: 72rpx;
   }
 
   .record-rpe-input {
     padding: 0;
-    line-height: 72rpx !important;
   }
 
   .record-unit {
