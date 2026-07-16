@@ -100,18 +100,32 @@ export default function CoachIntro({
       <Text className='section-title'>教练简介</Text>
       <Text className='bio-text'>{coach.bio || '这位教练很神秘，还没有填写简介。'}</Text>
 
-      <View className='exp-row'>
-        <View className='exp-item'>
-          <Text className='exp-label'>从业经验</Text>
-          <Text className='exp-value'>{coach.years_experience ?? 0} 年专业沉淀</Text>
+      <View className='coach-data-card'>
+        <View className='coach-data-item'>
+          <Text className='coach-data-label'>从业经验</Text>
+          <View className='coach-data-value-row'>
+            <Text className='coach-data-value'>{coach.years_experience ?? 0}</Text>
+            <Text className='coach-data-unit'>年</Text>
+          </View>
+          <Text className='coach-data-description'>训练指导经验</Text>
         </View>
-        <View className='exp-item'>
-          <Text className='exp-label'>成功案例</Text>
-          <Text className='exp-value'>{caseCount} 个学员蜕变</Text>
+        <View className='coach-data-divider' />
+        <View className='coach-data-item'>
+          <Text className='coach-data-label'>成功案例</Text>
+          <View className='coach-data-value-row'>
+            <Text className='coach-data-value'>{caseCount}</Text>
+            <Text className='coach-data-unit'>个</Text>
+          </View>
+          <Text className='coach-data-description'>公开成果案例</Text>
         </View>
-        <View className='exp-item'>
-          <Text className='exp-label'>公开材料</Text>
-          <Text className='exp-value'>{materialCount} 个可查证明</Text>
+        <View className='coach-data-divider' />
+        <View className='coach-data-item'>
+          <Text className='coach-data-label'>公开材料</Text>
+          <View className='coach-data-value-row'>
+            <Text className='coach-data-value'>{materialCount}</Text>
+            <Text className='coach-data-unit'>份</Text>
+          </View>
+          <Text className='coach-data-description'>资质与证明</Text>
         </View>
       </View>
     </View>

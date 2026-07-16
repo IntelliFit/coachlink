@@ -357,7 +357,7 @@ export default function ImpromptuTraining() {
   return (
     <View className={`impromptu-training-page theme-${effectiveTheme}`}>
       <View className='page-header'>
-        <Text className='page-title'>即兴训练</Text>
+        <Text className='page-title'>即兴锻炼</Text>
       </View>
 
       <ScrollView scrollY className={`page-scroll ${selectedActions.length > 0 ? 'with-selection' : ''}`}>
