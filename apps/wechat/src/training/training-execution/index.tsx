@@ -2517,9 +2517,7 @@ function TrainingExecution() {
         <View className="execution-shell">
           <View className="hero-section">
             <View className="hero-topbar">
-              <Text className="back-btn" onClick={() => Taro.navigateBack()}>返回</Text>
               <Text className="hero-day-label">{isImpromptuMode ? '即兴锻炼' : `${isReadOnly ? '只读查看 · ' : ''}第${dayIndex}天`}</Text>
-              <View className="hero-top-actions" />
             </View>
 
             <View className="hero-main">
