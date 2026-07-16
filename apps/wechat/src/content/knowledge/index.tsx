@@ -222,8 +222,7 @@ function KnowledgeBase() {
           <View className='focus-topic-section'>
             <View className='section-head section-head-stack'>
               <View>
-                <Text className='section-kicker'>精选专题</Text>
-                <Text className='section-title'>先看最常见的问题</Text>
+                <Text className='section-title'>精选专题</Text>
               </View>
             </View>
             <View className='focus-topic-list'>

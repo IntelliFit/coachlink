@@ -124,10 +124,6 @@ export default function BookDetail() {
   if (loading) {
     return (
       <View className={`book-detail-page theme-${effectiveTheme}`}>
-        <View className='nav-bar'>
-          <Text className='nav-back' onClick={() => Taro.navigateBack()}>返回</Text>
-          <Text className='nav-title'>书籍详情</Text>
-        </View>
         <View className='loading-wrap'>
           <LoadingSpinner size={48} />
         </View>
@@ -138,10 +134,6 @@ export default function BookDetail() {
   if (errorMsg && !book) {
     return (
       <View className={`book-detail-page theme-${effectiveTheme}`}>
-        <View className='nav-bar'>
-          <Text className='nav-back' onClick={() => Taro.navigateBack()}>返回</Text>
-          <Text className='nav-title'>书籍详情</Text>
-        </View>
         <View className='error-wrap'>
           <View className='error-icon'><Notice size={48} color='#CF6D4E' /></View>
           <Text className='error-text'>{errorMsg}</Text>
@@ -154,10 +146,6 @@ export default function BookDetail() {
   if (!book) {
     return (
       <View className={`book-detail-page theme-${effectiveTheme}`}>
-        <View className='nav-bar'>
-          <Text className='nav-back' onClick={() => Taro.navigateBack()}>返回</Text>
-          <Text className='nav-title'>书籍详情</Text>
-        </View>
         <View className='error-wrap'>
           <Text className='error-text'>书籍不存在或已下架</Text>
           <Text className='error-action' onClick={() => Taro.navigateBack()}>返回</Text>
@@ -169,10 +157,6 @@ export default function BookDetail() {
   if (!canReadContent) {
     return (
       <View className={`book-detail-page theme-${effectiveTheme}`}>
-        <View className='nav-bar'>
-          <Text className='nav-back' onClick={() => Taro.navigateBack()}>返回</Text>
-          <Text className='nav-title'>{book.title || '书籍详情'}</Text>
-        </View>
         <View className='paywall-wrap'>
           <View className='paywall-icon'><Lock size={48} color='#CF6D4E' /></View>
           <Text className='paywall-title'>订阅后可读</Text>
@@ -187,10 +171,6 @@ export default function BookDetail() {
 
   return (
     <View className={`book-detail-page theme-${effectiveTheme}`}>
-      <View className='nav-bar'>
-        <Text className='nav-back' onClick={() => Taro.navigateBack()}>返回</Text>
-        <Text className='nav-title'>书籍详情</Text>
-      </View>
       <ScrollView className='content-scroll' scrollY>
         <View className='book-body'>
           <View className='book-cover-wrap'>
