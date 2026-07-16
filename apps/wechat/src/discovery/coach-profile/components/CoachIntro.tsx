@@ -1,6 +1,6 @@
 import React from 'react'
 import { View, Text, Image } from '@tarojs/components'
-import { Star, Checklist } from '@nutui/icons-react-taro'
+import { Star, Checklist, Calendar, User, File } from '@nutui/icons-react-taro'
 import type { CoachRow, GetAggregatedInfoResponseDto, QueryCoachSubscription } from '../types'
 import './CoachIntro.scss'
 
@@ -23,6 +23,7 @@ export default function CoachIntro({
   const caseStudies = Array.isArray(profile?.caseStudies) ? profile.caseStudies : []
   const caseCount = caseStudies.length
   const materialCount = Array.isArray(profile?.applicationMaterials) ? profile.applicationMaterials.length : 0
+  const yearsExperience = coach.years_experience ?? 0
 
   return (
     <View className='intro-wrap'>
@@ -101,31 +102,40 @@ export default function CoachIntro({
       <Text className='bio-text'>{coach.bio || '这位教练很神秘，还没有填写简介。'}</Text>
 
       <View className='coach-data-card'>
-        <View className='coach-data-item'>
-          <Text className='coach-data-label'>从业经验</Text>
+        <View className={`coach-data-item ${yearsExperience === 0 ? 'is-empty' : ''}`}>
+          <View className='coach-data-heading'>
+            <View className='coach-data-icon'><Calendar size={14} /></View>
+            <Text className='coach-data-label'>从业经验</Text>
+          </View>
           <View className='coach-data-value-row'>
-            <Text className='coach-data-value'>{coach.years_experience ?? 0}</Text>
+            <Text className='coach-data-value'>{yearsExperience}</Text>
             <Text className='coach-data-unit'>年</Text>
           </View>
-          <Text className='coach-data-description'>训练指导经验</Text>
+          <Text className='coach-data-description'>持续服务</Text>
         </View>
         <View className='coach-data-divider' />
-        <View className='coach-data-item'>
-          <Text className='coach-data-label'>成功案例</Text>
+        <View className={`coach-data-item ${caseCount === 0 ? 'is-empty' : ''}`}>
+          <View className='coach-data-heading'>
+            <View className='coach-data-icon'><User size={14} /></View>
+            <Text className='coach-data-label'>成功案例</Text>
+          </View>
           <View className='coach-data-value-row'>
             <Text className='coach-data-value'>{caseCount}</Text>
             <Text className='coach-data-unit'>个</Text>
           </View>
-          <Text className='coach-data-description'>公开成果案例</Text>
+          <Text className='coach-data-description'>成果记录</Text>
         </View>
         <View className='coach-data-divider' />
-        <View className='coach-data-item'>
-          <Text className='coach-data-label'>公开材料</Text>
+        <View className={`coach-data-item ${materialCount === 0 ? 'is-empty' : ''}`}>
+          <View className='coach-data-heading'>
+            <View className='coach-data-icon'><File size={14} /></View>
+            <Text className='coach-data-label'>公开材料</Text>
+          </View>
           <View className='coach-data-value-row'>
             <Text className='coach-data-value'>{materialCount}</Text>
             <Text className='coach-data-unit'>份</Text>
           </View>
-          <Text className='coach-data-description'>资质与证明</Text>
+          <Text className='coach-data-description'>资质证明</Text>
         </View>
       </View>
     </View>
