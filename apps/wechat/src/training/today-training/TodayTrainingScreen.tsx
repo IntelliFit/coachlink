@@ -8,6 +8,7 @@ import { trainingService, PlanInstance } from '@/services/trainingService'
 import { executionService } from '@/services/executionService'
 import { studentActionLibService } from '@/services/studentActionLibService'
 import { studentOnboardingService } from '@/services/studentOnboardingService'
+import { studentService } from '@/services/studentService'
 import { request, API_BASE_URL } from '@/utils/request'
 import { formatMonthDaySlash } from '@/utils/dateFormat'
 import {
@@ -380,8 +381,31 @@ function TodayTrainingScreen() {
 
   const [greetingModel, setGreetingModel] = useState<GreetingModel>(() => getLocalGreetingModel())
 
-  const currentUser = useMemo(() => authService.getAuthSession({ normalize: true }).user, [])
+  const [currentUser, setCurrentUser] = useState(() => authService.getAuthSession({ normalize: true }).user)
   const userDisplayName = useMemo(() => resolveStudentDisplayName(currentUser), [currentUser])
+
+  const syncCurrentUserProfile = useCallback(async () => {
+    const session = authService.getAuthSession({ normalize: true })
+    if (!session.isAuthenticated || !session.userId || !session.user) return
+
+    setCurrentUser(session.user)
+
+    try {
+      const profile = (await studentService.getStudentProfile(session.userId))?.profile
+      if (!profile || typeof profile !== 'object') return
+
+      const nextUser = {
+        ...session.user,
+        ...(Object.prototype.hasOwnProperty.call(profile, 'nickname') ? { nickname: profile.nickname || '' } : {}),
+        ...(Object.prototype.hasOwnProperty.call(profile, 'avatar_url') ? { avatar_url: profile.avatar_url ?? null } : {})
+      }
+
+      authService.setCurrentUser(nextUser)
+      setCurrentUser(nextUser)
+    } catch (error) {
+      console.error('[today-training] sync current user profile:', error)
+    }
+  }, [])
 
   const inProgressExec = useMemo(() => {
     const list = Object.values(executionsByDayIndex || {}) as any[]
@@ -933,6 +957,7 @@ function TodayTrainingScreen() {
 
   useDidShow(() => {
     setGreetingModel(getLocalGreetingModel())
+    void syncCurrentUserProfile()
     void loadData()
     consumeReturnConfirmState()
   })
