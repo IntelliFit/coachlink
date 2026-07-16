@@ -49,7 +49,6 @@ import {
 import WeekDashboardStrip, { buildWeekStripCells, getSundayWeekStart } from './components/WeekDashboardStrip'
 import type { WeekStripCell } from './components/WeekDashboardStrip'
 import { calculateCurrentWeek, getDayWeekNumber, isDayUnlocked } from '@/utils/weekUnlock'
-import { LoadingSpinner } from '@/components/LoadingSpinner'
 import ExecutionPlanNoticePopup from '@/components/ExecutionPlanNoticePopup'
 import {
   hasReadExecutionPlanNotice,
@@ -319,7 +318,6 @@ function TodayTrainingScreen() {
   const [moreTrainingOpen, setMoreTrainingOpen] = useState(false)
   const [coachPickSheetOpen, setCoachPickSheetOpen] = useState(false)
   const [calendarExpanded, setCalendarExpanded] = useState(false)
-  const [cloudSyncing, setCloudSyncing] = useState(false)
   const [scheduleScrollIntoView, setScheduleScrollIntoView] = useState('')
   const [newTaskSuggestedTime, setNewTaskSuggestedTime] = useState('')
   const [newTaskNotes, setNewTaskNotes] = useState('')
@@ -745,7 +743,6 @@ function TodayTrainingScreen() {
   }, [planMode, selectedDayIndex])
 
   const loadData = useCallback(async () => {
-    setCloudSyncing(true)
     try {
       const session = authService.getAuthSession({ normalize: true })
       if (!session.isAuthenticated || !session.userId) {
@@ -927,8 +924,6 @@ function TodayTrainingScreen() {
     } catch (error) {
       console.error('[today-training] load failed', error)
       Taro.showToast({ title: '加载失败，请稍后重试', icon: 'none' })
-    } finally {
-      setCloudSyncing(false)
     }
   }, [handleCompletePlan])
 
@@ -1441,11 +1436,6 @@ function TodayTrainingScreen() {
         <View className='dashboard-greeting-row'>
           <Text className={`dashboard-greeting-icon iconfont ${greetingModel.iconClass}`} />
           <Text className='dashboard-greeting'>{`${greetingModel.label}，${userDisplayName}`}</Text>
-          {cloudSyncing ? (
-            <View className='dashboard-cloud-sync-spin'>
-              <LoadingSpinner size={24} className='dashboard-cloud-sync-spin-inner' />
-            </View>
-          ) : null}
         </View>
       </View>
       <View className='dashboard-more-hit' onClick={() => setMoreTrainingOpen(true)}>

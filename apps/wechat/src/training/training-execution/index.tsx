@@ -2279,6 +2279,7 @@ function TrainingExecution() {
   }, 0)
   const planTitle = String(planInstance?.name || (isImpromptuMode ? '即兴锻炼' : '训练执行')).trim()
   const heroTimerValue = formatTimerValue(elapsedTrainingSeconds)
+  const heroTimerFontSize = Math.max(16, Math.min(54, Math.floor(240 / Math.max(heroTimerValue.length, 1))))
   const heroTimerLabel = execution?.completed_at ? '本次用时' : '训练总时长'
   const currentActionName = String(currentAction?.action_name || '').trim() || '等待选择动作'
   const currentActionType = String(actions?.[currentAction?.action_id]?.type || 'STRENGTH').toUpperCase()
@@ -2522,7 +2523,7 @@ function TrainingExecution() {
 
             <View className="hero-main">
               <View className="hero-timer-card">
-                <Text className="hero-timer-value">{heroTimerValue}</Text>
+                <Text className="hero-timer-value" style={{ fontSize: `${heroTimerFontSize}rpx` }}>{heroTimerValue}</Text>
                 <Text className="hero-timer-label">{heroTimerLabel}</Text>
               </View>
               <View className="hero-summary">

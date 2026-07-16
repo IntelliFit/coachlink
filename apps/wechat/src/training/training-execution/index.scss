@@ -108,6 +108,11 @@
     font-weight: 800;
     letter-spacing: 2rpx;
     color: #fff;
+    max-width: 100%;
+    overflow: hidden;
+    text-align: center;
+    white-space: nowrap;
+
   }
 
   .hero-timer-label {
@@ -1801,7 +1806,7 @@
   }
 
   .hero-timer-value {
-    font-size: 54rpx !important;
+    font-size: 54rpx;
     letter-spacing: 0 !important;
     color: #cf6d4e !important;
   }
