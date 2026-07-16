@@ -116,7 +116,7 @@ function resolveStudentDisplayName(user: any) {
 }
 
 /** 小程序 Image 需要可访问的绝对 URL；后端若返回相对路径则拼 API 根 */
-function resolveCoachAvatarUrl(raw: string | null | undefined): string {
+function resolveAvatarUrl(raw: string | null | undefined): string {
   const s = raw != null ? String(raw).trim() : ''
   if (!s) return ''
   if (/^https?:\/\//i.test(s)) return s
@@ -380,10 +380,8 @@ function TodayTrainingScreen() {
 
   const [greetingModel, setGreetingModel] = useState<GreetingModel>(() => getLocalGreetingModel())
 
-  const userDisplayName = useMemo(() => {
-    const user = authService.getAuthSession({ normalize: true }).user
-    return resolveStudentDisplayName(user)
-  }, [])
+  const currentUser = useMemo(() => authService.getAuthSession({ normalize: true }).user, [])
+  const userDisplayName = useMemo(() => resolveStudentDisplayName(currentUser), [currentUser])
 
   const inProgressExec = useMemo(() => {
     const list = Object.values(executionsByDayIndex || {}) as any[]
@@ -833,7 +831,7 @@ function TodayTrainingScreen() {
         subscriptionCoachId: logTargetSub?.coach_id,
         coachRow: logCoach,
         avatar_url_raw: logCoach?.avatar_url ?? null,
-        avatar_url_resolved: logCoach?.avatar_url ? resolveCoachAvatarUrl(logCoach.avatar_url) : '',
+        avatar_url_resolved: logCoach?.avatar_url ? resolveAvatarUrl(logCoach.avatar_url) : '',
         subscriptionsPreview: activeSubs.map((s: any) => ({
           subId: s.id,
           coach_id: s.coach_id,
@@ -1464,7 +1462,7 @@ function TodayTrainingScreen() {
                 ? specRaw.replace(/\s+/g, ' ').slice(0, 24)
                 : ''
             const subtitle = String(coach.title || '').trim() || specText || ''
-            const avatarUrl = resolveCoachAvatarUrl(coach.avatar_url)
+            const avatarUrl = resolveAvatarUrl(coach.avatar_url)
             const initial = String(coach.name || '教').trim().charAt(0) || '教'
             return (
               <View
@@ -1523,8 +1521,11 @@ function TodayTrainingScreen() {
     const hasCoachWaitingPlan = !hasPlanForCard && !!activeSubscription?.id
     const noPlanForCard = !hasPlanForCard && !activeSubscription?.id
     const coachName = activeSubscription?.coach?.name || ''
-    const identityName = isSelfPlanForCard ? userDisplayName : coachName || userDisplayName
+    const identityName = isSelfPlanForCard ? userDisplayName : coachName || '教练'
     const identityInitial = (identityName || 'C').trim().slice(0, 1).toUpperCase()
+    const identityAvatarUrl = isSelfPlanForCard
+      ? resolveAvatarUrl(currentUser?.avatar_url)
+      : resolveAvatarUrl(activeSubscription?.coach?.avatar_url)
     const focusStatusText = !hasPlanForCard
       ? isExpiredGrace
         ? '待续费'
@@ -1561,7 +1562,9 @@ function TodayTrainingScreen() {
     const cardTitle = hasPlanForCard
       ? isSelfPlanForCard
         ? '我的训练安排'
-        : `${coachName || '教练'}的训练安排`
+        : coachName
+          ? `${coachName}教练的训练安排`
+          : '教练的训练安排'
       : hasCoachWaitingPlan
         ? isExpiredGrace
           ? '计划暂时锁定'
@@ -1612,13 +1615,19 @@ function TodayTrainingScreen() {
       <View className={`tt-daily-progress-card ${!hasPlanForCard ? 'tt-daily-progress-card--empty-state' : ''}`}>
         <View className='tt-plan-identity'>
           <View className='tt-plan-avatar'>
-            <Text>{identityInitial}</Text>
+            {identityAvatarUrl ? (
+              <Image className='tt-plan-avatar-image' src={identityAvatarUrl} mode='aspectFill' />
+            ) : (
+              <Text>{identityInitial}</Text>
+            )}
           </View>
           <View className='tt-plan-identity-main'>
             <Text className='tt-plan-identity-title'>{cardTitle}</Text>
             <Text className='tt-plan-identity-meta'>
               {hasPlanForCard
-                ? `${instance?.name || focusPlanText} · ${focusDayText} · ${focusStatusText}`
+                ? isSelfPlanForCard
+                  ? `${focusPlanText} · ${focusDayText} · ${focusStatusText}`
+                  : `为你制定 · ${focusDayText} · ${focusStatusText}`
                 : `${focusPlanText} · ${focusStatusText}`}
             </Text>
           </View>
