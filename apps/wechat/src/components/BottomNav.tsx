@@ -162,6 +162,19 @@ function BottomNav() {
     }
   }
 
+  const tryRelaunchTab = async (url: string) => {
+    try {
+      await Taro.reLaunch({ url })
+      return true
+    } catch (error) {
+      Taro.showToast({
+        title: (error as any)?.errMsg || '页面跳转失败',
+        icon: 'none'
+      })
+      return false
+    }
+  }
+
   const handleNavClick = async (item: NavItem) => {
     const targetPath = normalizePath(item.path)
     const current = normalizePath(currentPath)
@@ -187,7 +200,9 @@ function BottomNav() {
 
     navLockRef.current = true
     Taro.setStorageSync(BOTTOM_NAV_SWITCH_KEY, '1')
-    const success = await tryNavigate(item.path)
+    // 一级入口不是详情页：始终重启到目标页，避免 navigateTo 持续堆积页面栈，
+    // 使每次切换都保持同一种无横向转场的刷新行为。
+    const success = await tryRelaunchTab(item.path)
     if (success) {
       setTimeout(() => {
         syncCurrentPath()
