@@ -354,19 +354,10 @@ export default function ImpromptuTraining() {
     setSelectedActions(prev => prev.filter(action => action.id !== actionId))
   }
 
-  const handleBack = () => {
-    Taro.navigateTo({ url: '/pages/index/index' })
-  }
-
   return (
     <View className={`impromptu-training-page theme-${effectiveTheme}`}>
       <View className='page-header'>
-        <View className='header-left' onClick={handleBack}>
-          <Text className='back-icon'>‹</Text>
-          <Text className='back-text'>训练</Text>
-        </View>
         <Text className='page-title'>即兴训练</Text>
-        <View className='header-placeholder' />
       </View>
 
       <ScrollView scrollY className={`page-scroll ${selectedActions.length > 0 ? 'with-selection' : ''}`}>
