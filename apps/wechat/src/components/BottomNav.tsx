@@ -80,9 +80,21 @@ const coachNavItems: NavItem[] = [
 
 const BOTTOM_NAV_SWITCH_KEY = 'bottom_nav_switching'
 
+const normalizePath = (route: string) => {
+  if (!route) return ''
+  const path = route.startsWith('/') ? route : `/${route}`
+  return path.replace(/\/+$/, '')
+}
+
+const getCurrentPath = () => {
+  const pages = Taro.getCurrentPages()
+  if (pages.length === 0) return ''
+  return normalizePath((pages[pages.length - 1] as any).route || '')
+}
+
 function BottomNav() {
   const { isDark } = useTheme()
-  const [currentPath, setCurrentPath] = useState('')
+  const [currentPath, setCurrentPath] = useState(getCurrentPath)
   const [isCoachView, setIsCoachView] = useState(() => {
     const session = authService.getAuthSession({ normalize: true })
     return !!(session.isAuthenticated && session.isCoach && session.primaryRole === 'coach')
@@ -90,21 +102,12 @@ function BottomNav() {
   const [playSwitchAnimation, setPlaySwitchAnimation] = useState(false)
   const navLockRef = useRef(false)
 
-  const normalizePath = (route: string) => {
-    if (!route) return ''
-    const path = route.startsWith('/') ? route : `/${route}`
-    return path.replace(/\/+$/, '')
-  }
-
   const matchesPrefix = (pathname: string, prefixes: string[]) => {
     return prefixes.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))
   }
 
   const syncCurrentPath = () => {
-    const pages = Taro.getCurrentPages()
-    if (pages.length === 0) return
-    const route = (pages[pages.length - 1] as any).route
-    setCurrentPath(normalizePath(route || ''))
+    setCurrentPath(getCurrentPath())
   }
 
   const syncRole = () => {
@@ -251,6 +254,11 @@ function BottomNav() {
 
   const navItems = isCoachView ? coachNavItems : studentNavItems
   const currentNorm = normalizePath(currentPath)
+  const isPrimaryNavigationPage = [...studentNavItems, ...coachNavItems]
+    .some((item) => normalizePath(item.path) === currentNorm)
+
+  // 子页面即使误引入 BottomNav，也不能显示一级导航，避免详情/编辑流程被底栏打断。
+  if (!isPrimaryNavigationPage) return null
 
   return (
     <View className={`bottom-nav ${isDark ? 'bottom-nav--dark' : ''}`}>
