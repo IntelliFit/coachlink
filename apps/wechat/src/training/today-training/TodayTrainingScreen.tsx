@@ -64,6 +64,7 @@ import {
 } from '@/utils/todayTrainingPageCache'
 import {
   persistTrainingExecutionSnapshot,
+  syncTrainingExecutionToStorage,
   trainingExecutionSnapshotKey
 } from '@/utils/trainingExecutionCache'
 import { formatKgValueForGym } from '@/utils/weightQuantize'
@@ -261,6 +262,29 @@ const formatShortDate = (ts?: string | null) => {
 
 const getExecutionId = (value: any) => value?.id || value?.data?.id || null
 
+function removeActionFromExecution(execution: any, actionIndex: number) {
+  const actionExecutions = Array.isArray(execution?.action_executions) ? execution.action_executions : []
+  if (!Number.isInteger(actionIndex) || actionIndex < 0 || !actionExecutions[actionIndex]) return null
+
+  const nextActions = actionExecutions
+    .filter((_: any, index: number) => index !== actionIndex)
+    .map((item: any, index: number) => ({
+      ...item,
+      action_order: index + 1,
+      action_index: index
+    }))
+  const totalSets = nextActions.reduce((sum: number, item: any) => {
+    if (Array.isArray(item?.sets)) return sum + item.sets.length
+    return sum + 1
+  }, 0)
+
+  return {
+    ...execution,
+    action_executions: nextActions,
+    total_sets: totalSets
+  }
+}
+
 function TodayTrainingScreen() {
   const { effectiveTheme } = useTheme()
   const bootRef = useRef<ReturnType<typeof getTodayTrainingBootFromCache> | null>(null)
@@ -313,6 +337,7 @@ function TodayTrainingScreen() {
   const [pickerLoading, setPickerLoading] = useState(false)
   const [actionPickerList, setActionPickerList] = useState<any[]>([])
   const [addingLightweightTask, setAddingLightweightTask] = useState(false)
+  const lightweightDeletionRef = useRef(false)
   const [lightweightSheetSaving, setLightweightSheetSaving] = useState(false)
   const [pendingLightweightAction, setPendingLightweightAction] = useState<any | null>(null)
   const [lightweightConfigVisible, setLightweightConfigVisible] = useState(false)
@@ -1348,31 +1373,91 @@ function TodayTrainingScreen() {
     selectedExec?.id
   ])
 
+  const syncSelectedExecutionLocally = useCallback(
+    (nextExecution: any) => {
+      if (!instance?.id || !selectedDayIndex || !nextExecution) return
+
+      if (planMode === 'self') {
+        setSelfExecutionsByDayIndex((previous) => ({ ...previous, [selectedDayIndex]: nextExecution }))
+      } else {
+        setCoachPlanDataBySubId((previous) => {
+          const subscriptionId = Object.keys(previous).find(
+            (key) => previous[key]?.instance?.id === instance.id
+          )
+          if (!subscriptionId) return previous
+          const block = previous[subscriptionId]
+          return {
+            ...previous,
+            [subscriptionId]: {
+              ...block,
+              executionsByDayIndex: {
+                ...(block.executionsByDayIndex || {}),
+                [selectedDayIndex]: nextExecution
+              }
+            }
+          }
+        })
+      }
+
+      const scopeKey = trainingExecutionSnapshotKey({
+        isImpromptuMode: false,
+        instanceId: instance.id,
+        dayIndex: selectedDayIndex
+      })
+      if (currentUserId && scopeKey) {
+        syncTrainingExecutionToStorage({
+          userId: currentUserId,
+          scopeKey,
+          instanceId: instance.id,
+          dayIndex: selectedDayIndex,
+          isImpromptuMode: false,
+          execution: nextExecution,
+          planInstance: instance,
+          actions
+        })
+      }
+    },
+    [actions, currentUserId, instance, planMode, selectedDayIndex]
+  )
+
   const handleDeleteLightweightTask = useCallback(
     (task: NormalizedDayTask) => {
       const executionId = selectedExec?.id
       if (!executionId || !task.isStudentExtra) return
+      if (lightweightDeletionRef.current) {
+        Taro.showToast({ title: '正在删除，请稍候', icon: 'none' })
+        return
+      }
       Taro.showModal({
         title: '删除轻任务',
         content: `确认删除轻任务「${task.title}」吗？`,
         success: async (res) => {
           if (!res.confirm) return
+          const previousExecution = selectedExec
+          const optimisticExecution = removeActionFromExecution(previousExecution, task.executionIndex)
+          if (!optimisticExecution) {
+            Taro.showToast({ title: '任务已刷新，请重试', icon: 'none' })
+            return
+          }
+
+          lightweightDeletionRef.current = true
           try {
-            setAddingLightweightTask(true)
+            // 先更新本地页面与缓存；服务端失败时在 catch 中完整回滚。
+            syncSelectedExecutionLocally(optimisticExecution)
             const deleteRes = await executionService.deleteExtraExercise(executionId, task.executionIndex)
             if (!deleteRes) throw new Error('删除失败')
             Taro.showToast({ title: '已删除', icon: 'success' })
-            await loadData()
           } catch (error) {
+            syncSelectedExecutionLocally(previousExecution)
             console.error('[today-training] delete lightweight task failed', error)
             Taro.showToast({ title: '删除失败，请稍后重试', icon: 'none' })
           } finally {
-            setAddingLightweightTask(false)
+            lightweightDeletionRef.current = false
           }
         }
       })
     },
-    [loadData, selectedExec?.id]
+    [selectedExec, syncSelectedExecutionLocally]
   )
 
   const handleOpenLightweightTask = useCallback((task: NormalizedDayTask) => {
