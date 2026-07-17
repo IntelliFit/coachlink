@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react'
 import { View, Text } from '@tarojs/components'
 import Taro from '@tarojs/taro'
+import { Checklist, Target } from '@nutui/icons-react-taro'
 import {
   buildDayModuleModel,
   buildLightweightSummary,
@@ -203,7 +204,10 @@ function TodayTrainingCard({
             <View className='panel-top'>
               <View className='panel-copy'>
                 <View className='panel-title-row'>
-                  <Text className='panel-title'>连续力量训练</Text>
+                  <View className='module-heading'>
+                    {embeddedInSchedule && <Target size={24} color='#CF6D4E' />}
+                    <Text className='panel-title'>{embeddedInSchedule ? '计划训练' : '连续力量训练'}</Text>
+                  </View>
                   <View
                     className={`panel-status ${
                       trainingCompleted ? 'completed' : trainingInProgress ? 'in-progress' : 'pending'
@@ -272,15 +276,18 @@ function TodayTrainingCard({
         {(lightweightTasks.length > 0 || onAddLightweightTask) && (
           <View className='lightweight-panel'>
             <View className='lightweight-header'>
-              <View>
-                <Text className='lightweight-title'>轻量任务</Text>
-              </View>
-              <View className='lightweight-header-right'>
+              <View className='lightweight-title-copy'>
+                <View className='module-heading'>
+                  {embeddedInSchedule && <Checklist size={24} color='#CF6D4E' />}
+                  <Text className='lightweight-title'>轻量任务</Text>
+                </View>
                 {lightweightTasks.length > 0 && (
                   <Text className='lightweight-progress'>
                     {lightweightCompletedCount}/{lightweightTasks.length} 已完成
                   </Text>
                 )}
+              </View>
+              <View className='lightweight-header-right'>
                 {lightweightTasks.length > 0 && onAddLightweightTask && (
                   <View className='lightweight-add-small' onClick={onAddLightweightTask}>
                     <Text>新增轻任务</Text>

@@ -42,7 +42,8 @@
     }
 
     .panel-top {
-      display: none;
+      display: flex;
+      margin-bottom: 16rpx;
     }
 
     .strength-item {
@@ -846,5 +847,97 @@
       font-weight: 700;
       color: #374151;
     }
+  }
+}
+
+/* 嵌入“今日安排”时，保留任务列表本身，移除浅橙色的额外包裹层。 */
+.training-card--embedded {
+  .strength-panel {
+    margin-top: 24rpx;
+    margin-left: 16rpx;
+    padding: 0;
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+  }
+
+  .panel-top {
+    margin-bottom: 16rpx;
+  }
+
+  .panel-title-row {
+    gap: 8rpx;
+    margin-bottom: 0;
+    justify-content: space-between;
+  }
+
+  .panel-copy {
+    width: 100%;
+  }
+
+  .module-heading {
+    display: flex;
+    align-items: center;
+    gap: 8rpx;
+    min-width: 0;
+  }
+
+  .panel-title {
+    font-size: 28rpx;
+    line-height: 1.3;
+  }
+
+  .panel-inline-meta {
+    margin-top: 8rpx;
+    font-size: 22rpx;
+  }
+
+  .strength-list {
+    gap: 16rpx;
+    margin-top: 0;
+  }
+
+  .strength-item {
+    min-height: 112rpx;
+    padding: 24rpx 16rpx;
+    background: #ffffff;
+    border: 2rpx solid #e5e7eb;
+    border-radius: 16rpx;
+    box-sizing: border-box;
+    box-shadow: 0 4rpx 8rpx rgba(15, 23, 42, 0.02);
+  }
+
+  .lightweight-panel {
+    margin-top: 32rpx;
+    margin-left: 16rpx;
+    padding-top: 0;
+    border-top: 0;
+  }
+
+  .lightweight-header {
+    margin-bottom: 16rpx;
+  }
+
+  .lightweight-title {
+    margin-bottom: 0;
+    font-size: 28rpx;
+    line-height: 1.3;
+  }
+
+  .lightweight-title-copy {
+    min-width: 0;
+  }
+
+  .lightweight-header-right {
+    align-self: flex-start;
+  }
+
+  .lightweight-progress {
+    display: block;
+    margin-top: 8rpx;
+    color: #6b7280;
+    font-size: 20rpx;
+    font-weight: 500;
+    line-height: 1.4;
   }
 }

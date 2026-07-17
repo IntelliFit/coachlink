@@ -1614,7 +1614,7 @@ function TodayTrainingScreen() {
     const focusMetaLine = hasPlanForCard
       ? selectedDay?.type === 'rest'
         ? `${focusDayText} · ${selectedTaskSummary.lightweightCount}个轻任务`
-        : `${selectedModuleModel.strengthTasks.length}个动作 · ${selectedModuleModel.strengthTotalSetCount}组 · 计划进度 ${planProgressStats.percent}%`
+        : `${selectedModuleModel.strengthTasks.length}个动作 · ${selectedModuleModel.strengthTotalSetCount}组`
       : `${focusPlanText} · ${focusDayText}`
     const primaryActionLabel = hasPlanForCard
       ? selectedTaskSummary.dayCompleted
@@ -2101,7 +2101,6 @@ function TodayTrainingScreen() {
                 <View className='section-header section-header--schedule'>
                   <View className='header-left'>
                     <View className='tt-schedule-stack__head'>
-                      <Text className='tt-schedule-stack__icon iconfont icon-a-Trainingplan' />
                       <View className='tt-schedule-stack__titles'>
                         <Text className='section-title'>
                           {selectedDayIndex === progressDayIndex || selectedIsTodayCompletedTraining ? '今日安排' : '当天安排'}
@@ -2118,6 +2117,11 @@ function TodayTrainingScreen() {
                               } · ${selectedModuleModel.strengthTasks.length}个动作 · ${selectedModuleModel.strengthTotalSetCount}组`}
                         </Text>
                       </View>
+                      {selectedDayIndex !== defaultSelectedDayIndex && (
+                        <View className='tt-schedule-stack__return-current' onClick={() => setSelectedDayIndex(defaultSelectedDayIndex)}>
+                          <Text>回到当前安排</Text>
+                        </View>
+                      )}
                     </View>
                   </View>
                 </View>
@@ -2147,7 +2151,13 @@ function TodayTrainingScreen() {
                   {canShareDayCheckin && (
                     <View className='share-entry-card'>
                       <View className='share-entry-header'>
-                        <Text className='share-entry-title'>整日打卡图</Text>
+                        <View className='share-entry-copy'>
+                          <View className='share-entry-title-row'>
+                            <Check size={24} color='#CF6D4E' />
+                            <Text className='share-entry-title'>今日成果</Text>
+                          </View>
+                          <Text className='share-entry-subtitle'>整日打卡图</Text>
+                        </View>
                         <View className='inline-actions'>
                           <View className='inline-action-btn' onClick={() => setDayShareVisible(true)}>
                             <Text>生成</Text>
