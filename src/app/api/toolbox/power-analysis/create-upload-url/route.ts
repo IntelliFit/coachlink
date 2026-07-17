@@ -3,6 +3,11 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 import { serviceRoleSupabase } from "@/lib/supabaseClient";
 import { getTaskQueueConfig } from "@/lib/taskqueue/config";
+import {
+  getPowerAnalysisEntitlements,
+  normalizePowerAnalysisOverlayLanguage,
+  normalizePowerAnalysisQuality,
+} from "@/lib/powerAnalysisEntitlements";
 import type { ApiData } from "@/types/api";
 import type {
   CreatePowerAnalysisUploadUrlDto,
@@ -13,7 +18,6 @@ import {
   buildPowerAnalysisOutputPath,
   buildPowerAnalysisPath,
   failStalePowerAnalysisJobsForUser,
-  getPowerAnalysisLimits,
   isPowerAnalysisDailyLimitBypassed,
   isSupportedVideoContentType,
   mapPowerAnalysisJob,
@@ -36,7 +40,7 @@ export async function POST(req: Request) {
   }
 
   const userId = session.user.id;
-  const limits = getPowerAnalysisLimits();
+  const entitlements = await getPowerAnalysisEntitlements(userId);
   const dailyLimitBypassed = isPowerAnalysisDailyLimitBypassed(userId);
 
   let body: CreatePowerAnalysisUploadUrlDto;
@@ -56,6 +60,9 @@ export async function POST(req: Request) {
   const originalFilename = String(body?.originalFilename || "").trim();
   const contentType = String(body?.contentType || "").trim();
   const fileSizeBytes = Number(body?.fileSizeBytes || 0);
+  const durationSeconds = Number(body?.durationSeconds || 0);
+  const quality = normalizePowerAnalysisQuality(body?.quality) || "compressed";
+  const overlayLanguage = normalizePowerAnalysisOverlayLanguage(body?.overlayLanguage);
 
   if (!mode || heightCm === null || weightKg === null || externalLoadKg === null) {
     return NextResponse.json<ApiData<null>>(
@@ -71,12 +78,34 @@ export async function POST(req: Request) {
     );
   }
 
-  const maxSizeBytes = limits.maxVideoSizeMb * 1024 * 1024;
+  if (quality === "original" && !entitlements.canUseOriginalQuality) {
+    return NextResponse.json<ApiData<null>>(
+      { success: false, message: "原画质分析是会员功能，请升级会员后使用", data: null },
+      { status: 403 },
+    );
+  }
+
+  const maxSizeBytes = entitlements.maxVideoSizeMb * 1024 * 1024;
   if (!Number.isFinite(fileSizeBytes) || fileSizeBytes <= 0 || fileSizeBytes > maxSizeBytes) {
     return NextResponse.json<ApiData<null>>(
       {
         success: false,
-        message: `视频过大或无效，当前最多支持 ${limits.maxVideoSizeMb}MB`,
+        message: `视频过大或无效，当前等级最多支持 ${entitlements.maxVideoSizeMb}MB`,
+        data: null,
+      },
+      { status: 413 },
+    );
+  }
+
+  if (
+    Number.isFinite(durationSeconds) &&
+    durationSeconds > 0 &&
+    durationSeconds > entitlements.maxDurationSeconds
+  ) {
+    return NextResponse.json<ApiData<null>>(
+      {
+        success: false,
+        message: `当前等级最多支持 ${entitlements.maxDurationSeconds} 秒视频`,
         data: null,
       },
       { status: 413 },
@@ -109,11 +138,11 @@ export async function POST(req: Request) {
       .in("status", ["queued", "processing", "done"])
       .gte("created_at", since);
 
-    if ((dailyCount || 0) >= limits.dailyLimit) {
+    if ((dailyCount || 0) >= entitlements.dailyLimit) {
       return NextResponse.json<ApiData<null>>(
         {
           success: false,
-          message: `今天已经分析 ${limits.dailyLimit} 次了，明天再来测一次`,
+          message: `今天已经分析 ${entitlements.dailyLimit} 次了，明天再来测一次`,
           data: null,
         },
         { status: 429 },
@@ -169,6 +198,14 @@ export async function POST(req: Request) {
         external_load_kg: externalLoadKg,
         effective_weight_kg: weightKg + externalLoadKg,
         upload_strategy: "signed_upload_transient",
+        quality,
+        overlay_language: overlayLanguage,
+        membership_tier: entitlements.tier,
+        max_video_size_mb: entitlements.maxVideoSizeMb,
+        max_duration_seconds: entitlements.maxDurationSeconds,
+        duration_seconds: Number.isFinite(durationSeconds) && durationSeconds > 0
+          ? durationSeconds
+          : null,
         retention_hours: 24,
       },
       expires_at: expiresAt,
@@ -197,7 +234,11 @@ export async function POST(req: Request) {
         expiresAt,
       },
       limits: {
-        ...limits,
+        maxVideoSizeMb: entitlements.maxVideoSizeMb,
+        maxDurationSeconds: entitlements.maxDurationSeconds,
+        dailyLimit: entitlements.dailyLimit,
+        canUseOriginalQuality: entitlements.canUseOriginalQuality,
+        tier: entitlements.tier,
         dailyLimitBypassed,
       },
     },

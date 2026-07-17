@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ScrollView, Text, View, Video } from '@tarojs/components'
 import { StableInput as Input } from '@/components/StableInput'
-import Taro, { useShareAppMessage, useShareTimeline } from '@tarojs/taro'
+import Taro, { useDidShow, useShareAppMessage, useShareTimeline } from '@tarojs/taro'
 import { API_BASE_URL, request } from '@/utils/request'
 import { authService } from '@/services/authService'
 import {
@@ -11,9 +11,16 @@ import {
   openCoachLinkShareMenu
 } from '@/utils/share'
 import { useTheme } from '@/hooks/useTheme'
+import PowerCurveChart, {
+  type PowerCurveMetric,
+  type PowerCurvePoint
+} from './PowerCurveChart'
 import './index.scss'
 
 type PowerAnalysisMode = 'pullup' | 'muscleup' | 'dip' | 'pushup' | 'squat'
+type PowerAnalysisQuality = 'compressed' | 'original'
+type OverlayLanguage = 'zh' | 'en'
+type OverlayLanguagePreference = 'auto' | OverlayLanguage
 type PowerAnalysisJobStatus = 'awaiting_upload' | 'queued' | 'processing' | 'done' | 'failed' | 'expired'
 type UploadPhase = 'idle' | 'creating' | 'uploading' | 'uploaded' | 'enqueueing' | 'queued' | 'done'
 
@@ -43,6 +50,15 @@ interface PowerAnalysisMetrics {
     avgDisplacementM: number
   }
   reps: PowerAnalysisRepMetric[]
+  timeSeries?: PowerCurvePoint[]
+  rating?: {
+    level: 'low' | 'steady' | 'powerful' | 'beast'
+    normalizedPowerWPerKg: number
+    labelZh: string
+    labelEn: string
+    descriptionZh: string
+    descriptionEn: string
+  }
   notes?: string[]
 }
 
@@ -61,6 +77,8 @@ interface PowerAnalysisJobDto {
   createdAt: string
   completedAt: string | null
   canDownload: boolean
+  quality?: PowerAnalysisQuality
+  overlayLanguage?: OverlayLanguage
   queueInfo?: {
     jobsAhead: number
     queuedAhead: number
@@ -81,7 +99,19 @@ interface CreatePowerAnalysisUploadUrlResponseDto {
   limits: {
     maxVideoSizeMb: number
     dailyLimit: number
+    maxDurationSeconds?: number
+    canUseOriginalQuality?: boolean
+    tier?: PowerAnalysisEntitlements['tier']
   }
+}
+
+interface PowerAnalysisEntitlements {
+  tier: 'free' | 'basic' | 'premium' | 'trial'
+  canUseOriginalQuality: boolean
+  availableQualities: PowerAnalysisQuality[]
+  maxVideoSizeMb: number
+  maxDurationSeconds: number
+  dailyLimit: number
 }
 
 interface PowerAnalysisDownloadUrlResponseDto {
@@ -112,6 +142,20 @@ const MODE_OPTIONS: Array<{ label: string; value: PowerAnalysisMode; hint: strin
 
 const TERMINAL_STATUSES: PowerAnalysisJobStatus[] = ['done', 'failed', 'expired']
 const SELECTED_VIDEO_ID = 'power-analysis-selected-video'
+const VIDEO_TRANSFER_TIMEOUT_MS = 15 * 60 * 1000
+const DEFAULT_ENTITLEMENTS: PowerAnalysisEntitlements = {
+  tier: 'free',
+  canUseOriginalQuality: false,
+  availableQualities: ['compressed'],
+  maxVideoSizeMb: 100,
+  maxDurationSeconds: 30,
+  dailyLimit: 5
+}
+const CURVE_OPTIONS: Array<{ value: PowerCurveMetric; label: string }> = [
+  { value: 'displacementM', label: '位移' },
+  { value: 'velocityMps', label: '速度' },
+  { value: 'powerW', label: '功率' }
+]
 
 function formatMetric(value: number | undefined, digits = 1) {
   const n = Number(value || 0)
@@ -145,6 +189,22 @@ function inferContentType(filename: string) {
   if (ext === 'mkv') return 'video/x-matroska'
   if (ext === 'avi') return 'video/x-msvideo'
   return 'video/mp4'
+}
+
+function detectSystemOverlayLanguage(): OverlayLanguage {
+  try {
+    const language = String(Taro.getSystemInfoSync().language || '').toLowerCase()
+    return language.startsWith('zh') ? 'zh' : 'en'
+  } catch {
+    return 'zh'
+  }
+}
+
+function membershipLabel(tier: PowerAnalysisEntitlements['tier']) {
+  if (tier === 'basic') return '基础会员'
+  if (tier === 'premium') return '高级会员'
+  if (tier === 'trial') return '试用会员'
+  return '免费用户'
 }
 
 async function callPowerApi<T>(options: {
@@ -183,6 +243,7 @@ function uploadPowerAnalysisVideo(params: {
       url: `${API_BASE_URL}/api/toolbox/power-analysis/jobs/${params.jobId}/upload`,
       filePath: params.filePath,
       name: 'file',
+      timeout: VIDEO_TRANSFER_TIMEOUT_MS,
       formData: {
         contentType: params.contentType
       },
@@ -251,6 +312,10 @@ export default function WechatPowerAnalysisPage() {
   const [heightCm, setHeightCm] = useState('175')
   const [weightKg, setWeightKg] = useState('70')
   const [externalLoadKg, setExternalLoadKg] = useState('0')
+  const [quality, setQuality] = useState<PowerAnalysisQuality>('compressed')
+  const [languagePreference, setLanguagePreference] = useState<OverlayLanguagePreference>('auto')
+  const [entitlements, setEntitlements] = useState<PowerAnalysisEntitlements>(DEFAULT_ENTITLEMENTS)
+  const [curveMetric, setCurveMetric] = useState<PowerCurveMetric>('displacementM')
   const [video, setVideo] = useState<SelectedVideo | null>(null)
   const [phase, setPhase] = useState<UploadPhase>('idle')
   const [uploadProgress, setUploadProgress] = useState(0)
@@ -273,6 +338,9 @@ export default function WechatPowerAnalysisPage() {
   )
 
   const metrics = job?.metrics || null
+  const overlayLanguage = languagePreference === 'auto'
+    ? detectSystemOverlayLanguage()
+    : languagePreference
   const heightValue = Number(heightCm)
   const weightValue = Number(weightKg)
   const externalLoadValue = Number(externalLoadKg)
@@ -304,6 +372,22 @@ export default function WechatPowerAnalysisPage() {
     openCoachLinkShareMenu()
   }, [])
 
+  useDidShow(() => {
+    if (!authService.isAuthenticated()) {
+      setEntitlements(DEFAULT_ENTITLEMENTS)
+      setQuality('compressed')
+      return
+    }
+    void callPowerApi<PowerAnalysisEntitlements>({
+      url: '/api/toolbox/power-analysis/entitlements'
+    })
+      .then((next) => {
+        setEntitlements(next)
+        if (!next.availableQualities.includes(quality)) setQuality('compressed')
+      })
+      .catch(() => setEntitlements(DEFAULT_ENTITLEMENTS))
+  })
+
   useEffect(() => {
     return () => {
       if (pollTimerRef.current) clearInterval(pollTimerRef.current)
@@ -325,6 +409,33 @@ export default function WechatPowerAnalysisPage() {
         }
       }
     })
+  }
+
+  const openMembership = () => {
+    Taro.navigateTo({ url: '/me/membership/subscribe/index?tab=membership' })
+  }
+
+  const handleQualityChange = (nextQuality: PowerAnalysisQuality) => {
+    if (settingsLocked) return
+    if (nextQuality === 'original' && !entitlements.canUseOriginalQuality) {
+      Taro.showModal({
+        title: '会员原画质',
+        content: '开通会员后可上传原画质视频，并获得更大的视频与分析额度。',
+        confirmText: '查看会员',
+        success: (res) => {
+          if (res.confirm) openMembership()
+        }
+      })
+      return
+    }
+    setQuality(nextQuality)
+    if (video) {
+      setVideo(null)
+      setJob(null)
+      setPhase('idle')
+      setUploadProgress(0)
+      llmRequestedRef.current = null
+    }
   }
 
   const generateSummary = async (jobId: string) => {
@@ -389,6 +500,28 @@ export default function WechatPowerAnalysisPage() {
       return
     }
 
+    const maxSizeBytes = entitlements.maxVideoSizeMb * 1024 * 1024
+    if (!Number.isFinite(nextVideo.size) || nextVideo.size <= 0) {
+      Taro.showToast({ title: '无法读取视频大小，请重新选择', icon: 'none' })
+      return
+    }
+    if (nextVideo.size > maxSizeBytes) {
+      Taro.showToast({
+        title: `当前等级最多支持 ${entitlements.maxVideoSizeMb}MB`,
+        icon: 'none',
+        duration: 3000
+      })
+      return
+    }
+    if (Number(nextVideo.duration || 0) > entitlements.maxDurationSeconds) {
+      Taro.showToast({
+        title: `当前等级最多支持 ${entitlements.maxDurationSeconds} 秒`,
+        icon: 'none',
+        duration: 3000
+      })
+      return
+    }
+
     stopPolling()
     setVideo(nextVideo)
     setJob(null)
@@ -407,7 +540,10 @@ export default function WechatPowerAnalysisPage() {
           externalLoadKg: externalLoadValue,
           originalFilename: nextVideo.name,
           contentType: nextVideo.contentType,
-          fileSizeBytes: nextVideo.size
+          fileSizeBytes: nextVideo.size,
+          durationSeconds: nextVideo.duration,
+          quality,
+          overlayLanguage
         }
       })
       setJob(created.job)
@@ -449,8 +585,8 @@ export default function WechatPowerAnalysisPage() {
     try {
       const res = await Taro.chooseVideo({
         sourceType: ['album', 'camera'],
-        maxDuration: 30,
-        compressed: true,
+        maxDuration: entitlements.maxDurationSeconds,
+        compressed: quality === 'compressed',
         camera: 'back'
       })
       const name = inferVideoName(res.tempFilePath)
@@ -559,6 +695,7 @@ export default function WechatPowerAnalysisPage() {
         : data.url
       const downloaded = await Taro.downloadFile({
         url: downloadUrl,
+        timeout: VIDEO_TRANSFER_TIMEOUT_MS,
         header: data.proxyUrl && token ? { Authorization: `Bearer ${token}` } : undefined
       })
       if (downloaded.statusCode !== 200 || !downloaded.tempFilePath) {
@@ -674,6 +811,51 @@ export default function WechatPowerAnalysisPage() {
               </View>
             </View>
 
+            <View className='analysis-option-section'>
+              <View className='option-heading-row'>
+                <Text className='option-heading'>视频画质</Text>
+                <Text className='option-entitlement'>
+                  {membershipLabel(entitlements.tier)} · 最大 {entitlements.maxVideoSizeMb}MB
+                </Text>
+              </View>
+              <View className='quality-options'>
+                <View
+                  className={`analysis-option ${quality === 'compressed' ? 'active' : ''}`}
+                  onClick={() => handleQualityChange('compressed')}
+                >
+                  <Text className='analysis-option-title'>压缩画质</Text>
+                  <Text className='analysis-option-desc'>上传更快，适合日常测试</Text>
+                </View>
+                <View
+                  className={`analysis-option ${quality === 'original' ? 'active' : ''} ${entitlements.canUseOriginalQuality ? '' : 'locked'}`}
+                  onClick={() => handleQualityChange('original')}
+                >
+                  <Text className='analysis-option-title'>原画质</Text>
+                  <Text className='analysis-option-desc'>会员权益 · 保留分辨率与帧率</Text>
+                </View>
+              </View>
+            </View>
+
+            <View className='analysis-option-section'>
+              <Text className='option-heading'>结果视频字幕</Text>
+              <View className='language-options'>
+                {([
+                  { value: 'auto', label: '自动' },
+                  { value: 'zh', label: '中文' },
+                  { value: 'en', label: 'English' }
+                ] as Array<{ value: OverlayLanguagePreference; label: string }>).map((item) => (
+                  <View
+                    key={item.value}
+                    className={`language-option ${languagePreference === item.value ? 'active' : ''}`}
+                    onClick={() => !settingsLocked && setLanguagePreference(item.value)}
+                  >
+                    <Text>{item.label}</Text>
+                  </View>
+                ))}
+              </View>
+              <Text className='language-hint'>自动模式当前将使用{overlayLanguage === 'zh' ? '中文' : '英文'}字幕</Text>
+            </View>
+
             <View className='video-picker'>
               {video ? (
                 <View className='selected-video-wrap'>
@@ -703,7 +885,9 @@ export default function WechatPowerAnalysisPage() {
               ) : (
                 <View className='empty-video'>
                   <Text className='empty-video-title'>还没有选择视频</Text>
-                  <Text className='empty-video-desc'>建议使用 30 秒内、人物无遮挡、全身动作清晰的视频。</Text>
+                  <Text className='empty-video-desc'>
+                    建议使用 {entitlements.maxDurationSeconds} 秒内、人物无遮挡、全身动作清晰的视频。
+                  </Text>
                 </View>
               )}
               <View className={`secondary-action select-video-btn ${isBusy ? 'disabled' : ''}`} onClick={handleChooseVideo}>
@@ -769,6 +953,42 @@ export default function WechatPowerAnalysisPage() {
                   </View>
                 </View>
 
+                {metrics.rating && (
+                  <View className={`power-rating power-rating-${metrics.rating.level}`}>
+                    <View>
+                      <Text className='power-rating-kicker'>综合功率评级</Text>
+                      <Text className='power-rating-title'>
+                        {metrics.rating.labelZh} · {metrics.rating.labelEn}
+                      </Text>
+                    </View>
+                    <Text className='power-rating-desc'>{metrics.rating.descriptionZh}</Text>
+                    <Text className='power-rating-normalized'>
+                      相对功率 {formatMetric(metrics.rating.normalizedPowerWPerKg, 2)} W/kg
+                    </Text>
+                  </View>
+                )}
+
+                {metrics.timeSeries && metrics.timeSeries.length > 1 && (
+                  <View className='power-curve-section'>
+                    <View className='power-curve-header'>
+                      <Text className='power-curve-title'>动作数据曲线</Text>
+                      <Text className='power-curve-note'>来自姿态轨迹，不依赖大模型</Text>
+                    </View>
+                    <View className='power-curve-tabs'>
+                      {CURVE_OPTIONS.map((item) => (
+                        <View
+                          key={item.value}
+                          className={`power-curve-tab ${curveMetric === item.value ? 'active' : ''}`}
+                          onClick={() => setCurveMetric(item.value)}
+                        >
+                          <Text>{item.label}</Text>
+                        </View>
+                      ))}
+                    </View>
+                    <PowerCurveChart points={metrics.timeSeries} metric={curveMetric} />
+                  </View>
+                )}
+
                 <View className='rep-list'>
                   {metrics.reps.map((rep) => (
                     <View key={rep.repIndex} className='rep-row'>
@@ -798,7 +1018,7 @@ export default function WechatPowerAnalysisPage() {
               )}
             </View>
             <Text className='summary-text'>
-              {job?.llmSummary ||
+              {job?.llmSummary?.replace(/\*/g, '') ||
                 (summaryLoading
                   ? '正在根据结构化指标生成解读...'
                   : '分析完成后，这里会给出训练建议。')}

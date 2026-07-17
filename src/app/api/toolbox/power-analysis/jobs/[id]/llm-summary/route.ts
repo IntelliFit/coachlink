@@ -28,6 +28,15 @@ function getModeLabel(mode: string) {
   return labels[mode] || "引体向上";
 }
 
+function sanitizePowerSummary(value: unknown) {
+  return String(value || "")
+    .replace(/\*/g, "")
+    .replace(/^#{1,6}\s*/gm, "")
+    .replace(/^[\t ]*[-+]\s+/gm, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 export async function POST(
   _req: Request,
   context: { params: Promise<{ id: string }> },
@@ -58,9 +67,21 @@ export async function POST(
   }
 
   if (current.llm_summary) {
+    const sanitized = sanitizePowerSummary(current.llm_summary);
+    const row = sanitized !== current.llm_summary
+      ? (
+          await db
+            .from("tool_power_analysis_jobs")
+            .update({ llm_summary: sanitized })
+            .eq("id", current.id)
+            .eq("user_id", session.user.id)
+            .select("*")
+            .single()
+        ).data || { ...current, llm_summary: sanitized }
+      : current;
     return NextResponse.json<ApiData<PowerAnalysisJobDto>>({
       success: true,
-      data: await mapPowerAnalysisJobWithQueueInfo(current),
+      data: await mapPowerAnalysisJobWithQueueInfo(row),
     });
   }
 
@@ -81,7 +102,7 @@ export async function POST(
         {
           role: "system",
           content:
-            "你是 CoachLink 的街健视频测试解读助手。只根据给定结构化指标做训练建议，不要编造视频里没提供的信息。必须强调这是基于视频姿态识别的估算，不是医学诊断或实验室测量。",
+            "你是 CoachLink 的街健视频测试解读助手。只根据给定结构化指标做训练建议，不要编造视频里没提供的信息。必须强调这是基于视频姿态识别的估算，不是医学诊断或实验室测量。只输出纯文本，禁止使用星号、Markdown 标题、Markdown 列表或代码块。",
         },
         {
           role: "user",
@@ -91,6 +112,7 @@ export async function POST(
             "2. 爆发力/速度特点",
             "3. 下一次训练建议",
             "4. 误差与拍摄提醒",
+            "每段使用简短中文标题加全角冒号，标题和正文之间直接换行。不要输出任何星号。",
             "",
             `动作类型: ${getModeLabel(metrics.mode)}`,
             `结构化指标 JSON: ${JSON.stringify(metrics)}`,
@@ -102,11 +124,12 @@ export async function POST(
     });
 
     const content = completion.choices?.[0]?.message?.content?.trim();
-    if (content) summary = content;
+    if (content) summary = sanitizePowerSummary(content);
   } catch (error) {
     console.warn("[power-analysis/llm-summary] fallback summary used:", error);
   }
 
+  summary = sanitizePowerSummary(summary);
   const { data, error } = await db
     .from("tool_power_analysis_jobs")
     .update({ llm_summary: summary })

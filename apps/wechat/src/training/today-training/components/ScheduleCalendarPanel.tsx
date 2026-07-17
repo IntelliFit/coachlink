@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { View, Text } from '@tarojs/components'
 import { Check } from '@nutui/icons-react-taro'
-import { calculateCurrentWeek, formatUnlockDate, getDayWeekNumber, getUnlockDate, isDayUnlocked } from '@/utils/weekUnlock'
+import { getDayWeekNumber, isDayUnlocked } from '@/utils/weekUnlock'
 import { formatMonthDayWeekday, formatYearMonth } from '@/utils/dateFormat'
 import { resolvePlanDayDate, toDateKey, type PlanScheduleModel } from '../lib/dayModules'
 import './ScheduleCalendarPanel.scss'
@@ -63,10 +63,12 @@ function ScheduleCalendarPanel({
   })
 
   const unlockedWeek = useMemo(() => {
-    const byDate = calculateCurrentWeek(planStartDate)
     const byStartExecution = getDayWeekNumber(startExecutionDay || 1)
-    return Math.max(byDate, byStartExecution)
-  }, [planStartDate, startExecutionDay])
+    const byProgress = getDayWeekNumber(progressDayIndex || currentDayIndex || 1)
+    // Show the current logical week and the following week. A postponed plan
+    // stays anchored to real progress instead of unlocking by elapsed dates.
+    return Math.max(byStartExecution, byProgress) + 1
+  }, [startExecutionDay, progressDayIndex, currentDayIndex])
 
   useEffect(() => {
     const targetWeek = Math.max(1, Math.min(Math.ceil((selectedDayIndex || 1) / 7), totalWeeks))
@@ -235,7 +237,7 @@ function ScheduleCalendarPanel({
 
           {currentWeek > unlockedWeek && (
             <View className='unlock-hint'>
-              <Text>第 {currentWeek} 周预计 {formatUnlockDate(getUnlockDate(currentWeek, planStartDate))} 解锁</Text>
+              <Text>第 {currentWeek} 周将随实际训练进度解锁</Text>
             </View>
           )}
         </>

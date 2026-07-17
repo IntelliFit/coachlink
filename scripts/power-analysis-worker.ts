@@ -137,6 +137,20 @@ function getExternalLoadKg(job: any) {
   return value;
 }
 
+function getJobMetadata(job: any) {
+  return job?.metadata && typeof job.metadata === "object" ? job.metadata : {};
+}
+
+function getOutputLanguage(job: any) {
+  return String(getJobMetadata(job).overlay_language || "zh") === "en" ? "en" : "zh";
+}
+
+function getOutputQuality(job: any) {
+  return String(getJobMetadata(job).quality || "compressed") === "original"
+    ? "original"
+    : "compressed";
+}
+
 async function runAnalyzer(job: any, workDir: string) {
   const inputExt = path.extname(job.input_storage_path || "") || ".mp4";
   const inputPath = path.join(workDir, `input${inputExt}`);
@@ -165,6 +179,10 @@ async function runAnalyzer(job: any, workDir: string) {
     String(job.weight_kg),
     "--external-load-kg",
     String(getExternalLoadKg(job)),
+    "--language",
+    getOutputLanguage(job),
+    "--quality",
+    getOutputQuality(job),
   ];
 
   await new Promise<void>((resolve, reject) => {

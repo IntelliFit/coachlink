@@ -4,6 +4,7 @@ import { serviceRoleSupabase as supabase } from "@/lib/supabaseClient";
 import { cosUpload, cosRemove, buildDatedKey } from "@/lib/cos";
 import type { ApiData } from "@/types/api";
 import type { UploadSetVideoResponseDto } from "./entity";
+import { getTrainingVideoSizeError } from "@/lib/trainingVideoLimits";
 
 // 运行在 Node.js，以避免 Edge 运行时的流式限制
 export const runtime = "nodejs";
@@ -45,11 +46,11 @@ export async function POST(req: Request) {
         }
 
         // 防止超大文件导致请求体截断或锁定（Next 默认 10MB）
-        const maxSizeBytes = 200 * 1024 * 1024; // 200MB
-        if (file.size > maxSizeBytes) {
+        const sizeError = getTrainingVideoSizeError(file.size);
+        if (sizeError) {
             return NextResponse.json<ApiData<UploadSetVideoResponseDto>>({
                 success: false,
-                message: "视频过大，单个视频请小于 200MB",
+                message: sizeError,
                 data: null,
             }, { status: 413 });
         }

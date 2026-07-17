@@ -482,13 +482,25 @@ function TrainingExecution() {
   }
   const rawInstanceId = routeParams.instanceId as string
   const rawImpromptuId = routeParams.impromptuId as string
+  const hasCurrentRouteTarget = !!rawInstanceId || !!rawImpromptuId
   const instanceId = rawInstanceId || (!rawImpromptuId ? String(routeFallback.instanceId || '') : '')
   const impromptuId = rawImpromptuId || (!rawInstanceId ? String(routeFallback.impromptuId || '') : '')
   const isImpromptuMode = !!impromptuId
   const parsedDayIndex = parseInt(String(routeParams.dayIndex || routeFallback.dayIndex || '1'))
   const dayIndex = Number.isFinite(parsedDayIndex) && parsedDayIndex > 0 ? parsedDayIndex : 1
-  const readOnlyParam = String(routeParams.readOnly || routeFallback.readOnly || '').toLowerCase()
-  const isReadOnly = !isImpromptuMode && (readOnlyParam === 'true' || readOnlyParam === '1')
+  // A normal navigation target is authoritative. In particular, an omitted
+  // readOnly parameter means editable; it must not inherit readOnly=1 from a
+  // previously opened history/preview page. Only use the stored route when the
+  // whole current target is unavailable (for example after DevTools hot reload
+  // or returning from a native picker).
+  const readOnlyParam = String(
+    Object.prototype.hasOwnProperty.call(routeParams, 'readOnly')
+      ? routeParams.readOnly
+      : hasCurrentRouteTarget
+        ? ''
+        : routeFallback.readOnly || ''
+  ).toLowerCase()
+  const routeRequestsReadOnly = !isImpromptuMode && (readOnlyParam === 'true' || readOnlyParam === '1')
   
   const [loading, setLoading] = React.useState(true)
   const [loadError, setLoadError] = React.useState('')
@@ -596,6 +608,12 @@ function TrainingExecution() {
     const executionId = String(execution?.id || '')
     return status === 'preview' || executionId.startsWith('preview-')
   }, [execution?.id, execution?.status])
+
+  // Cloud-persisted in-progress executions are authoritative. A stale route or
+  // page cache must never turn an active workout into a read-only preview.
+  const isPersistedInProgressExecution =
+    !isImpromptuMode && !isPreviewExecution && String(execution?.status || '').toLowerCase() === 'in_progress'
+  const isReadOnly = routeRequestsReadOnly && !isPersistedInProgressExecution
 
   React.useEffect(() => {
     executionRef.current = execution
@@ -967,10 +985,17 @@ function TrainingExecution() {
           console.log('[training-execution] load plan instance', { instanceId, dayIndex })
           setLoadStage('加载计划内容')
         }
-        const instanceRes = cachedInstanceRes || (await withExecutionLoadTimeout(
-          trainingService.getInstance({ id: instanceId }),
-          '加载训练计划'
-        ))
+        let instanceRes = cachedInstanceRes
+        try {
+          const cloudInstanceRes = await withExecutionLoadTimeout(
+            trainingService.getInstance({ id: instanceId }),
+            '加载训练计划'
+          )
+          if (cloudInstanceRes) instanceRes = cloudInstanceRes
+        } catch (cloudInstanceError) {
+          if (!instanceRes) throw cloudInstanceError
+          console.warn('[training-execution] cloud plan refresh failed; keep local snapshot', cloudInstanceError)
+        }
         const instanceActions = instanceRes?.actions || {}
         if (instanceRes?.actions) setActions(instanceRes.actions)
         if (instanceRes?.instance) setPlanInstance(instanceRes.instance)
@@ -987,7 +1012,7 @@ function TrainingExecution() {
         }
 
         let data: any = null
-        if (!isReadOnly) {
+        if (!routeRequestsReadOnly) {
           console.log('[training-execution] sync execution record', { instanceId, dayIndex })
           setLoadStage('同步训练记录')
           data = await withExecutionLoadTimeout(
@@ -995,8 +1020,23 @@ function TrainingExecution() {
             '同步训练记录'
           )
         }
-        if (!data && isReadOnly) {
-          data = snapshot?.execution || buildPreviewExecution(instanceRes?.instance, instanceActions, dayIndex)
+        if (!data && routeRequestsReadOnly) {
+          const serverExecution = instanceRes?.executionsByDayIndex?.[dayIndex] ||
+            instanceRes?.executionsByDayIndex?.[String(dayIndex)] ||
+            (Array.isArray(instanceRes?.executions)
+              ? instanceRes.executions.find((item: any) => Number(item?.day_index) === Number(dayIndex))
+              : null)
+          let persistedExecution = serverExecution || null
+          const snapshotExecutionId = String(snapshot?.execution?.id || '')
+          const snapshotIsPersisted = !!snapshotExecutionId && !snapshotExecutionId.startsWith('preview-')
+          if (!persistedExecution && snapshotIsPersisted) {
+            persistedExecution = await withExecutionLoadTimeout(
+              executionService.getExecution(snapshotExecutionId),
+              '刷新训练记录'
+            ).catch(() => null)
+          }
+          data = persistedExecution || snapshot?.execution ||
+            buildPreviewExecution(instanceRes?.instance, instanceActions, dayIndex)
         }
 
         if (data) {
@@ -1030,7 +1070,7 @@ function TrainingExecution() {
     isImpromptuMode,
     dayIndex,
     userId,
-    isReadOnly,
+    routeRequestsReadOnly,
     buildPreviewExecution,
     executionSnapshotScopeKey,
     focusFirstPendingSet,
@@ -1254,6 +1294,11 @@ function TrainingExecution() {
         compressed: true, // 压缩后再上传
         camera: 'back'
       })
+      const maxTrainingVideoBytes = 50 * 1024 * 1024
+      if (res.size > maxTrainingVideoBytes) {
+        Taro.showToast({ title: '单个训练视频请小于 50MB', icon: 'none' })
+        return
+      }
       setUploadingVideo(true)
       const uploadRes = await executionService.uploadSetVideo(
         res.tempFilePath,

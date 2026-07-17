@@ -1,3 +1,74 @@
+## 枭马葛 D22 进行中训练被误判只读热修 (`2026-07-17`)
+
+- Status: 根因、生产数据与代码修复均已确认；release 版本 `2026.07.17.1449` 已通过微信开发者工具 CLI 上传，待微信公众平台手工提交审核并发布。
+- Production evidence: 实例 `5613f3d3-f9e3-4f6e-a243-aa277597ee63` 为 active、84 天计划；D22 execution `55d5ecea-b806-492b-9eaa-b36384dc9657` 为真实 `in_progress`，5 个动作/19 组/已完成 2 组，D1-D21 之前的训练日均已完成，服务端当前进度没有损坏。未修改任何 execution 或订阅数据。
+- Latest student evidence: 枭马葛最新分配并处于 active 的实例是 `4ecc92e9-fd0d-4808-8508-54e3e4d512ec`（`BlessingLSH的计划`，8 周/56 天，2026-07-17 从 D1 开始）；D1 execution `6b856f98-2a5e-425c-a5d8-7bdb9387805e` 已是云端真实 `in_progress` 且含 3 个动作，因此 D1 应当可编辑。它显示只读同样属于旧客户端路由缓存污染，并非教练分配或计划数据错误。紧邻创建的实例 `573ef681-46f5-48c8-8d21-2b9d9824c8dd` 已归档且无 execution，不影响 active 实例。
+- Root cause: 线上旧小程序把路由/本地缓存的 `readOnly=1` 当成最终权限；当前入口省略 `readOnly` 时仍会继承上一次预览缓存，首页缓存短暂错位时也可能显式带入只读。页面没有在拉到云端 `in_progress` execution 后撤销错误只读，因此真实进行中训练也会显示“只读模式”。
+- Immediate workaround: 小程序“我的 -> 清除缓存”会保留 token/user，但删除 `training_execution_last_route_params_v1`、首页缓存和训练快照；随后从“今日训练”重新进入 D22，可在正式包发布前即时解除本机缓存污染。
+- Permanent fix: 当前路由带 `instanceId/impromptuId` 时不再继承旧 `readOnly`；训练执行页先展示本地快照、再强制刷新云端计划/execution；云端 execution 为 `in_progress` 时无条件恢复可编辑，覆盖错误路由与首页缓存判断。completed/未来预览仍保持只读。
+- Verification: `npm run lint`、`npm run typecheck`、`npm test`（35 files / 177 tests）、local 小程序构建（2758 modules）与 release 小程序构建（2745 modules）通过。`weapp-devtools` 9420 端口在监听，但 MRC WebSocket 握手超时，未取得模拟器交互截图；微信 CLI 使用 IDE HTTP 端口 28264 上传成功。
+
+## 力量观察员6380 小程序 Day 6 只读修复 (`2026-07-17`)
+
+- Status: 已确认并完成客户端双层根因修复；lint、typecheck、177 项测试、小程序完整构建与 diff 检查均通过。Next 生产构建已完成编译和 520 页静态生成，最后 standalone 复制被当前多个 Next dev 进程占用 `.next` 文件而报 `EBUSY`，不是代码编译错误。
+- Production fact: 用户明确确认当前线上小程序已发布且就是最新版本，因此旧包解释已排除。
+- Data evidence: 用户 `aa0755f7-25d8-4590-a32d-ef483c0d40dc` 的实例 `59084a16-ae8c-4091-9c16-7150a0b5c8e7` 中 D1/D3/D4 已完成，D6 是当前推荐训练日且没有 execution；D6 不是因执行完成而只读。
+- Root cause: 训练执行页在当前可编辑入口没有 `readOnly` 参数时，错误地逐字段复用 `training_execution_last_route_params_v1` 中上一次历史/预览页面留下的 `readOnly=1`，使旧只读状态污染当前训练。
+- Fix: 双层防护。① 只要本次路由带有 `instanceId` 或 `impromptuId`，本次路由即为权威来源；未传 `readOnly` 明确按可编辑处理，仅当整个训练目标路由丢失时才使用本地缓存恢复。② 今日训练进入执行页时始终显式传 `readOnly=0/1`，当前训练日主动用 `0` 覆盖历史预览残留的 `1`。
+
+## 功率分析会员画质、双语字幕、评级与曲线发布 (`2026-07-16`)
+
+- Status: 功能开发、Web/API 与 Power Worker 生产发布、真实生产端到端验证均已完成；微信小程序发布版已上传为 `2026.07.16.0236`，但因本机缺少 `apps/wechat/.env.weapp-release.local`、`WEAPP_APP_SECRET` 和上传私钥，尚不能自动提审/发布为正式线上版。
+- Implemented:
+  - 免费/基础/高级（含试用）分层权益由服务端强制校验。默认额度为免费 `100MB / 30秒 / 5次每天 / 仅压缩`，基础 `200MB / 60秒 / 20次每天 / 可原画质`，高级/试用 `500MB / 120秒 / 100次每天 / 可原画质`；全部支持环境变量覆盖。
+  - 小程序增加压缩/会员原画质、自动/中文/English 选项；从会员页返回会自动刷新权益。功率分析专用上传/下载超时提升为 15 分钟。
+  - 上传 API 在 Storage 写入后校验真实对象大小，入队前再次校验对象存在和字节数；失败阶段和接收字节数写入任务 metadata。
+  - Worker 支持中文/英文视频覆盖层、原画质 CRF 18 与压缩 CRF 23、保留 AAC 音频；视频不烧录动态曲线，保持简洁。
+  - 面部 0～10 号关键点及其连接不再绘制，只保留身体骨架。
+  - 输出确定性功率评级 `待提升 / BUILDING`、`稳健 / SOLID`、`强劲 / POWERFUL`、`野兽 / BEAST`；最高档阈值为最佳功率达到 `12 W/kg`。
+  - Worker 输出位移、速度、正向功率时序；小程序结果页提供三种曲线切换，曲线不依赖 LLM，也不烧进视频。
+  - AI 解读提示词和服务端清洗双重约束为纯文本，删除星号及 Markdown 标记；旧结果返回时也去星号。
+- Production verification:
+  - Web/API 镜像 CCR digest `sha256:df72dd64768c397892de44f87db1d41382edbcb289eff02c48f510b5ce4d230a`；Power Worker digest `sha256:d27ab415dee3039805d89d6b4ce75436bfc2eb8945b956dd6f72cb3976b34c6d`；生产 Deployment rollout 均成功。
+  - Nginx 功率分析专用 location 已从 `110m / 360s` 提升到 `520m / 900s`，原配置备份为 `/etc/nginx/conf.d/coachlink.conf.bak-20260716-power-analysis`，`nginx -t` 通过后 reload。
+  - 生产 E2E 使用临时高级会员与 8 秒真实 MP4：权益返回 `500MB / 120秒`，原画质英文任务完成，识别 6 次、评级 `稳健 / SOLID`、192 个时序点，代理下载 MP4 为 `2,477,073` 字节；测试账号、会员、任务和 Storage 对象在 finally 清理。
+  - Supabase signed URL 在线上仍返回 404，因此小程序继续优先使用带 Bearer 的同域流式代理下载；Nginx 专用上限已覆盖会员大结果。signed URL 只保留为失败时复制链接兜底。
+- Verification: `npm run lint`、`npm run typecheck`、`npm test`（35 files / 177 tests）、本地与 release 小程序构建、Docker 内 Next 生产构建、Python 编译、中文压缩/英文原画质真实视频产出均通过。微信开发者工具自动化端口可启动，但 MRC 在 WebSocket 握手卡住，无法取得本轮页面截图；发布包由微信 CLI 成功上传。
+- Release blocker audit:
+  - 已从生产 Apollo 安全复用 `WECHAT_MINIAPP_SECRET` 查询到账号有效审核类目，其中本功能应选 `体育 / 在线健身`（`first_id=674`、`second_id=682`）。
+  - 对直管小程序调用 `wxa/submit_audit` 实测返回 `errcode=86000, should be called only from third party`；`wxa/get_page` 同样只允许第三方平台。因此仅补 `WEAPP_APP_SECRET` 也不能用现有脚本自动提审，脚本的 audit/status/publish API 路线只适用于第三方平台代开发模式。
+  - Chrome 中已有登录的微信公众平台页面，但自动控制被浏览器安全策略明确禁止，不能绕过或改用其他浏览器自动点击。
+- Next step: 在微信公众平台手工对已上传版本 `2026.07.16.0236` 点击“提交审核”，审核页面填 `toolbox/power-analysis/index`，标题 `CoachLink功率视频分析`，标签 `健身,功率,训练`，类目选 `体育 / 在线健身`；审核通过后再点击发布。除这一后台人工确认外，功能代码和生产服务无需再部署。
+
+## 功率分析下一阶段功能清单与实施顺序 (`2026-07-16`)
+
+- 已完成但尚未发布：修复慢速网络下微信 `uploadFile` / `downloadFile` 默认 60 秒超时，功率分析页定向提高为 5 分钟；本地小程序构建与开发者工具错误日志检查通过。
+- 待开发 1（任务规格与会员权益）：增加 `compressed/original` 画质档位；免费用户默认压缩，付费会员可选原画质；服务端按真实会员状态校验画质、输入大小和输出下载能力。原画质保持输入分辨率/帧率并使用高质量编码，仍保留音频和分析标注，不承诺逐字节无损。
+- 待开发 2（上传完整性与可观测性）：任务入队前再次校验 Storage 输入对象存在且字节数合理；客户端上传失败显示清晰原因，服务端记录中止/超时/空内容等失败阶段，避免只留下长期 `awaiting_upload` 任务。
+- 待开发 3（双语字幕）：字幕语言默认跟随系统语言，中文地区使用中文、其余使用英文；页面允许“自动/中文/English”覆盖；语言随任务写入 metadata 并传给 Worker。Worker 镜像加入稳定 CJK 字体和中文绘字能力。
+- 待开发 4（确定性数据曲线）：Worker 从逐帧姿态轨迹生成平滑的位移、速度、瞬时正向功率时间序列；结果视频烧录动态三曲线小面板，小程序结果区展示可切换的完整曲线。时间序列降采样后写入 metrics，曲线不依赖 LLM。
+- 待开发 5（大模型输出格式）：功率分析 AI 解读必须输出适合直接展示的纯文本，不得出现 `*`、`**` 或其他星号 Markdown 标记。服务端同时采用提示词约束和输出清洗兜底；推荐使用短标题、换行和中文全角冒号组织内容。
+- Pending product values: 基础会员/高级会员分别拥有的原画质权益、最大输入大小、最大时长和日分析次数尚未固定。实施时先抽成服务端权益配置，避免散落硬编码；具体数值在发布前确认。
+- Recommended sequence: 先统一任务 metadata/权益校验/入队完整性，再做 Worker 双语与时间序列、视频曲线和高画质编码，最后接小程序选项/结果图表与纯文本 AI 解读，完成真实视频端到端回归后依次发布 Web/API、Power Worker、小程序。
+
+## 功率分析双语字幕与逐帧数据曲线需求 (`2026-07-16`)
+
+- Requirement: 分析结果视频上的标题、状态和指标字幕应支持中文/英文自动选择；默认跟随小程序系统语言，同时提供中文、English 手动覆盖。语言选择随任务持久化并传入 Worker，不能由 Worker 固定写死英文。
+- Requirement: 功率分析不只输出大模型文字解读，还应直接基于姿态测量数据绘制位移、速度和功率曲线。推荐同时提供：① 结果视频内随播放进度更新的紧凑三曲线面板；② 小程序分析结果区可切换/查看的完整曲线图。
+- Technical finding: 当前 Python Worker 已保留逐帧 `y_track`，并在渲染阶段按帧计算 `velocity_at`、活动重复的位移和功率数值，具备直接生成曲线的原始数据；现有 API 只返回每次动作汇总，尚未持久化时间序列。曲线不依赖 LLM。
+- Calculation rule: 位移以当前动作上升阶段起点为零点；速度使用逐帧垂直速度并做平滑；瞬时功率采用与现有机械功模型一致的 `effectiveMass × g × max(upwardVelocity, 0)`，下降阶段默认不计正向输出。完整曲线按时间降采样后写入 metrics，避免响应和数据库 JSON 过大。
+- Implementation boundary: 中文烧录需要 Worker 镜像加入可控的 CJK 字体与中文绘字方案；功能代码完成后需同时发布微信小程序、Web/API 和 Power Worker，不能只更新小程序。
+- Status: 已完成代码可行性核对与产品方案记录，尚未开始实现。
+
+## 功率分析慢速网络上传超时与会员原画质需求 (`2026-07-16`)
+
+- Incident: 用户反馈微信小程序中压缩后约 2MB、7MB 的功率分析视频也上传失败，而其他用户可正常上传。
+- Evidence: 生产任务显示同一用户多次创建 0.4MB～7.3MB 上传任务成功，但 Storage 对象不存在；Nginx 访问日志中 6.5MB、7.3MB、2.6MB 上传在约 60 秒返回 408/400，Web Pod 同期记录 `Error: aborted` 或“上传内容为空”。这些请求来自同一公网网络下的 iPhone 和 Android 平板；同一时段其他网络的 7.5MB 视频已完成分析，因此不是文件大小上限或分析 Worker 故障。
+- Root cause: 功率分析页的 `Taro.uploadFile` 未设置 `timeout`，微信/Taro 默认上传超时为 60 秒；慢速网络下文件尚未传完就由客户端中止。小程序当前固定 `compressed: true`，服务端当前默认上限仍为 100MB。
+- Fix: 仅对功率分析视频的 `uploadFile` 与结果 `downloadFile` 显式设置 5 分钟超时，避免扩大所有小程序网络请求的全局超时。
+- Product requirement: 后续增加“压缩画质”和“原画质”两档。原画质作为付费会员权益；会员的输入视频上限、结果视频下载能力与日分析额度应高于免费用户，并由服务端按真实会员状态强制校验，不能只靠前端隐藏。输出编码质量需要随任务保存并传给 Worker，原画质仍须保留音频和画面标注。基础/高级会员的具体差异和数值待产品确认。
+- Verification: `npm --workspace apps/wechat run build:weapp` 通过（2757 modules）；微信开发者工具自动化端口 9420 可连接，当前首页运行错误日志为 0。慢速真机网络场景无法用开发者工具完整复现，最终需发布后由原用户复测。
+
 ## 生产功率分析上传空文件热修 (`2026-07-15`)
 
 - Task: 修复线上微信小程序功率分析选择视频并成功上传后，Worker 直接报 `moov atom not found` / `Cannot open input video`。
@@ -2339,6 +2410,10 @@
 - Implemented: cleaned remaining corrupted Chinese UI strings, added a compact ?knowledge base is under construction? notice, kept the pain-point-first four-entry layout and collapsed shelves behavior.
 - Verification: targeted esbuild parse checks passed for the Web and WeChat knowledge TSX entries; `git diff --check` passed for touched knowledge entry files with CRLF warnings only.
 # CURRENT_TASK
+
+## 小程序目录异常删除排查（2026-07-18）
+
+- Status: 已确认 `apps/wechat/` 在本地工作区为空，`git status` 将其全部已跟踪文件（含 `apps/wechat/package.json`）标记为删除。因此在该目录执行 `npm run build:weapp:release` 会因不存在 package.json/脚本而报 `Missing script`；不是 npm 本身故障。恢复前需确认这些删除是否有意，以免覆盖用户工作。
 
 ## WeChat Mini-Program Dark Theme Page Binding (`2026-06-13`)
 
@@ -8615,3 +8690,55 @@
 - Root cause: 此前只修复了微信小程序的 `buildPlanScheduleModel`；Web 在 `src/app/today-training/lib/dayModules.ts` 维护了重复的日期计算，仍会把尚未到排期的当前推进日强制映射到今天，造成日期碰撞和后续空白。
 - Fix: Web 同步改为：当前推进日尚未到排期时保留 `scheduledDate`，只有真正逾期才映射到今天；`totalDelayDays` 同样限制为非负数。按目标实例实际 D1 完成时间，预期连续显示 D1=7月15、D2=7月16、D3=7月17。
 - Verification: 用户明确要求小修不运行测试，本次未执行 lint、typecheck、build、test 或 UI 自动化，交由用户刷新 Web 页面直接复测。
+
+## 痴迷负重引体计划按 7 月 13 日训练记录对齐 (`2026-07-15`)
+
+- Requirement: 暂不处理“同一自然日连续提前训练”的通用产品规则；先把目标学员 7月13日已实际完成的相似训练视为计划 D1，7月14日为 D2 恢复日，7月15日自然推进到 D3。
+- Data change: 实例 `3027057e-8975-4791-be9d-e7afd0bdb317` 的 `start_date` 已从 `2026-07-14` 改为 `2026-07-13`；唯一 D1 execution `9fba53a1-22ca-4bfc-9559-b8b7ac1cb48c` 的 `started_at`、`completed_at` 及 action/set 内完成时间统一平移到北京时间 7月13日，保留原时刻和训练时长。
+- Result: Web 与微信小程序共用该实例数据，都会得到 D1=7月13日、D2恢复=7月14日、D3=7月15日；没有伪造 D3 execution，D3 现为当天可开始并正常记录的训练日。
+- Verification: 数据库写后回读确认实例开始日期为 `2026-07-13`，D1 顶层完成时间为 `2026-07-12T21:08:02.585Z`（北京时间 7月13日 05:08）。按用户要求未运行代码测试或构建。
+
+## 同日多计划日训练的 Web/小程序统一方案调研 (`2026-07-15`)
+
+- Scope: 用户要求先仔细调研、不实施；覆盖 Web `/today-training`、微信小程序今日训练、训练执行 API、计划推进算法、周表/月历及小程序缓存。
+- Confirmed findings:
+  - 数据库允许同一实例的 D1、D3 在同一自然日各有 execution；`executionsByDayIndex` 也能同时保留，但 Web 月历、小程序月历和小程序折叠周表都使用 `Map<dateKey, single dayIndex>`，同日多个计划日会被后写项覆盖。
+  - 服务端 `/api/execution/start` 已允许跨连续恢复日开始后面的第一个训练日，却没有保存“恢复日被主动提前结束”的事件；刷新后严格进度仍可能停留在恢复日。小程序首页又把所有非 `progressDayIndex` 训练强制为只读，与服务端许可不一致；Web 没有这一前端限制。
+  - `todayCompleted` / `todayExecutionId` 仍是单值；同日完成两次时不能完整表达。小程序默认选择当天最后完成日，Web默认选择严格推进日，两端行为不同。
+  - 现有排期算法只会把未来计划向后顺延，不会把提前完成后的未来日重新锚定；因此提前完成可以造成“逻辑进度已到 D4，但月历仍把 D4 放在原未来日期”的冲突。
+  - 当前没有独立的实际训练日期字段。`started_at`/`completed_at` 同时承担审计时间、计时、日历日期、分享月训练天数和 PR 日期；所以历史补录只能错误地回写系统时间，无法区分“今天录入前天训练”和“今天真的练了两次”。
+  - Web 和小程序各有一份 `buildPlanScheduleModel`，周解锁与选中逻辑也分别维护，已经产生行为漂移；小程序本地缓存仍保存旧的单值 `todayCompleted` 与按 dayIndex 映射。
+- Recommended architecture (pending user approval):
+  - execution 增加 `performed_on`（实际训练日）与记录来源 `live/backfill`，保留 `created_at/started_at/completed_at` 的真实审计和计时语义。
+  - 增加恢复日主动提前结束的持久事件，并在开始目标训练时与 execution 原子写入；普通恢复日仍到下一自然日自动推进。
+  - 抽取一套平台无关的 timeline engine，服务端、Web、小程序/离线缓存共用；输出 baselineDate、effectiveDate、performedOn、提前/顺延天数、进度状态，以及 `dateKey -> PlanDay[]` 一对多映射。
+  - 周表按 D1～D7 的逻辑顺序展示，可出现相同实际日期；月历一个日期展示多个 D 标签，空间不足显示 `+N`，点击展开当天列表。正数显示“顺延N天”，负偏差显示“提前N天”，不再产生“顺延-N天”。
+  - 同日开始后续训练只能按连续顺序推进或跨连续恢复日，不能任意跳过未完成训练日；跨恢复日需要明确确认并记录。
+- Status: 仅调研和方案整理，没有修改产品代码、数据库或 UI，也没有运行测试/构建。待用户确认方案后再实施。
+- 2026-07-17：Wayne Tan 计划可见范围问题已定位并修复源码。此前误将订阅 `f278b173-c9c0-4943-9af6-b6432ed28639` 的 `subscribed_weeks` 由 4 改为 5；已立即条件回滚为 4，未改变购买权益。生产回读确认当前计划本体为 8 周/56 天，购买 4 周，旧实例消耗 1 周后当前服务端窗口剩余 3 周（D1-D21）。旧 Web/小程序可见范围只按自然周计算，未使用顺延后的真实进度，也没有下一周预览；现统一改为“实际推进周（至少起始执行周）+ 1 周”，自然日期只负责排期展示，不能在长期顺延时额外解锁后续周。当前 D4 位于第 1 周，因此可看第 1、2 周，第 3 周随实际进度推进后解锁；购买周数/服务端权益上限不变。D4 错误只读另由训练执行页旧 `readOnly=1` 路由缓存污染修复。验证：lint 提示脚本、typecheck、177 个单测、小程序 2758 模块构建通过；Next 编译及 520 页静态生成通过，最终 standalone copy 被本机 `.next` 文件锁 `EBUSY` 阻断。
+## 力量观察员6380 小程序 Day 6 只读复核 (`2026-07-17`)
+
+- Status: 已完成生产数据与本地/生产 API 只读诊断；未修改代码或数据。
+- Target: 用户 `aa0755f7-25d8-4590-a32d-ef483c0d40dc`，当前实例 `59084a16-ae8c-4091-9c16-7150a0b5c8e7`。
+- Evidence:
+  - Day 1、Day 3、Day 4 execution 均为 `completed`；Day 5 是无动作恢复日；Day 6 是 5 个动作的训练日，当前没有任何 execution，因此绝不是“已执行完所以只读”。
+  - 本地与生产 `/api/plan-lib/get-instance` 均返回 `recommendedDayIndex=6`、`nextDayIndex=6`，服务端当前认为 Day 6 就是可执行日。
+  - 当前小程序源码仅在目标日不是 `progressDayIndex` 或 execution 已完成时附加 `readOnly=1`；若线上小程序仍把 Day 6 设为只读，说明客户端拿到的 `progressDayIndex` 不是 6，问题位于旧版小程序包或本地缓存/云端刷新链路，而非计划执行数据。
+- Release context: 项目记录显示包含近期训练日修复的小程序包 `2026.07.16.0236` 仅已上传、尚未正式提审发布；若此后没有人工发布，真实学员仍在使用旧包。Web/API 已在线返回正确 Day 6，因而会出现“网页正常、小程序仍只读”的版本差异。
+- UI attempt: 已按 `weapp-devtools` 启动微信开发者工具自动化，但本轮 MRC WebSocket 握手持续超时，未能取得当前页面的路由参数截图。
+## 训练视频存储与单条上传额度 (`2026-07-17`)
+
+- Status: 已完成代码实现与类型检查；待随下一次 Web/小程序发布生效。
+- Confirmed requirement: 学员默认训练视频总存储额度为 200MB；存在有效教练订阅时总额度提升至至少 1GB；每个训练视频最大 50MB。功率分析视频为独立功能，不受本规则影响。
+## 本地 Web 开发服务依赖修复 (`2026-07-18`)
+
+- Status: 已修复。`npm run dev` 报 `'next' is not recognized` 的原因是本地依赖安装不完整：`node_modules/next` 仍存在，但命令入口 `node_modules/.bin/next.cmd` 缺失。
+- Action: 已执行 `npm install --include=dev --no-audit --no-fund` 修复本地 `node_modules`；随后确认 `next.cmd` 存在且 `next --version` 返回 `Next.js v16.0.1`。安装造成的非必要 `package-lock.json` 重排已撤销，未改动源码或项目配置。
+- Note: 当前机器上仍有多组既存 Node/Next 进程；如启动后遇到 `.next` 锁或路由缓存冲突，先停止重复的本地开发服务，再只启动一组 `npm run dev`。
+
+## P0：worktree Junction 越界删除事故 (`2026-07-18`)
+
+- Status: 根因确认、源码恢复、逐文件哈希审计、依赖 workspace 链接恢复和防复发规则落盘均已完成。
+- Root cause: 临时 worktree 的 `node_modules` Junction 到主工作区；清理 worktree 时沿根依赖目录内的 npm workspace Junction 越界进入 `apps/mobile`、`apps/wechat`、`packages/api-client`、`packages/core`。第一次已出现 34 个异常删除但未止损，第二次清理扩大到 856 个 tracked 文件。
+- Recovery proof: 微信端 757/757 个文件与删除前快照逐文件 Git blob 哈希一致；mobile 94/94、api-client 3/3、core 3/3 与 `origin/main` 一致；全工作区 tracked deletion 为 0。根 `node_modules` 的四个 workspace 链接已通过标准 `npm install` 重建，package/lockfile 无改动。
+- Prevention: 根 `AGENTS.md`、`DECISIONS.md`、当天 memory 及 self-improving 项目规则均已加入禁止跨 worktree 共享 `node_modules`、删除前 reparse 边界审计、首次异常 `D` 立即停止等硬规则。

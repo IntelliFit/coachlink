@@ -47,7 +47,7 @@ import {
 } from './lib/dayModules'
 import WeekDashboardStrip, { buildWeekStripCells, getSundayWeekStart } from './components/WeekDashboardStrip'
 import type { WeekStripCell } from './components/WeekDashboardStrip'
-import { calculateCurrentWeek, getDayWeekNumber, isDayUnlocked } from '@/utils/weekUnlock'
+import { getDayWeekNumber, isDayUnlocked } from '@/utils/weekUnlock'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import ExecutionPlanNoticePopup from '@/components/ExecutionPlanNoticePopup'
 import {
@@ -484,10 +484,13 @@ function TodayTrainingScreen() {
 
   const unlockedWeekForStrip = useMemo(() => {
     if (!instance) return 999
-    const byDate = calculateCurrentWeek(effectiveCalendarStartDate || undefined)
     const byStart = getDayWeekNumber(Number(instance?.start_execution_day || 1))
-    return Math.max(byDate, byStart)
-  }, [effectiveCalendarStartDate, instance])
+    const byProgress = getDayWeekNumber(Number(progressDayIndex || todayDayIndex || 1))
+    // Visibility follows the student's real sequential progress: show the
+    // current logical week plus the next week. Calendar time must not unlock
+    // extra weeks while a training day is postponed.
+    return Math.max(byStart, byProgress) + 1
+  }, [instance, progressDayIndex, todayDayIndex])
 
   const weekStripCells = useMemo(
     () =>
@@ -976,7 +979,10 @@ function TodayTrainingScreen() {
         ? `&coachId=${encodeURIComponent(coachId)}${coachName ? `&coachName=${encodeURIComponent(coachName)}` : ''}`
         : ''
       const focusQuery = typeof focusAction === 'number' ? `&focusAction=${focusAction}` : ''
-      const readOnlyQuery = effectiveReadOnly ? '&readOnly=1' : ''
+      // Always make the intended mode explicit. An editable current day must
+      // actively overwrite any readOnly=1 left by a previous preview/history
+      // route in the mini-program's local fallback cache.
+      const readOnlyQuery = `&readOnly=${effectiveReadOnly ? '1' : '0'}`
       try {
         if (currentUserId) {
           const scopeKey = trainingExecutionSnapshotKey({

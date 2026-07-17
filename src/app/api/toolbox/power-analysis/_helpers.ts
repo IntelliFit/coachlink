@@ -130,7 +130,9 @@ export function mapPowerAnalysisJob(row: any): PowerAnalysisJobDto {
     status,
     progress: Number(row?.progress || 0),
     metrics,
-    llmSummary: row?.llm_summary || null,
+    llmSummary: row?.llm_summary
+      ? String(row.llm_summary).replace(/\*/g, "").trim()
+      : null,
     errorMessage: row?.error_message || null,
     expiresAt,
     createdAt: String(row?.created_at || ""),
@@ -140,6 +142,8 @@ export function mapPowerAnalysisJob(row: any): PowerAnalysisJobDto {
       Boolean(row?.output_storage_path) &&
       Boolean(expiresAt) &&
       !expired,
+    quality: metadata.quality === "original" ? "original" : "compressed",
+    overlayLanguage: metadata.overlay_language === "en" ? "en" : "zh",
   };
 }
 
@@ -242,6 +246,30 @@ export function normalizeMetrics(value: unknown): PowerAnalysisMetrics | null {
     : [];
 
   const summary = raw.summary || {};
+  const timeSeries = Array.isArray(raw.timeSeries ?? raw.time_series)
+    ? (raw.timeSeries ?? raw.time_series)
+        .slice(0, 1200)
+        .map((item: any) => ({
+          timeS: nonNegativeNumber(item.timeS ?? item.time_s),
+          displacementM: nonNegativeNumber(item.displacementM ?? item.displacement_m),
+          velocityMps: nonNegativeNumber(item.velocityMps ?? item.velocity_mps),
+          powerW: nonNegativeNumber(item.powerW ?? item.power_w),
+        }))
+    : undefined;
+  const ratingSource = raw.rating && typeof raw.rating === "object" ? raw.rating : null;
+  const ratingLevel = String(ratingSource?.level || "");
+  const rating = ["low", "steady", "powerful", "beast"].includes(ratingLevel)
+    ? {
+        level: ratingLevel as "low" | "steady" | "powerful" | "beast",
+        normalizedPowerWPerKg: nonNegativeNumber(
+          ratingSource.normalizedPowerWPerKg ?? ratingSource.normalized_power_w_per_kg,
+        ),
+        labelZh: String(ratingSource.labelZh ?? ratingSource.label_zh ?? ""),
+        labelEn: String(ratingSource.labelEn ?? ratingSource.label_en ?? ""),
+        descriptionZh: String(ratingSource.descriptionZh ?? ratingSource.description_zh ?? ""),
+        descriptionEn: String(ratingSource.descriptionEn ?? ratingSource.description_en ?? ""),
+      }
+    : undefined;
   return {
     mode,
     mass: mass
@@ -261,6 +289,8 @@ export function normalizeMetrics(value: unknown): PowerAnalysisMetrics | null {
       avgDisplacementM: Number(summary.avgDisplacementM ?? summary.avg_displacement_m ?? 0),
     },
     reps,
+    timeSeries,
+    rating,
     notes: Array.isArray(raw.notes) ? raw.notes.map(String) : undefined,
   };
 }

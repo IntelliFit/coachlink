@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import supabase from "@/lib/supabaseClient";
 import type { UploadSetVideoDto, UploadSetVideoResponseDto } from "./entity";
+import { getTrainingVideoSizeError } from "@/lib/trainingVideoLimits";
 
 /**
  * POST /api/training/upload-set-video
@@ -48,6 +49,16 @@ export async function POST(request: NextRequest) {
         const { checkStorageAvailable, incrementStorageUsage } = await import(
             "@/lib/membershipLimit"
         );
+
+        const sizeError = file_size_bytes && file_size_bytes > 0
+            ? getTrainingVideoSizeError(file_size_bytes)
+            : null;
+        if (sizeError) {
+            return NextResponse.json<UploadSetVideoResponseDto>(
+                { success: false, message: sizeError, data: null },
+                { status: 413 },
+            );
+        }
 
         // 3.1 检查存储配额 (仅当 file_size_bytes 存在且大于 0 时)
         if (file_size_bytes && file_size_bytes > 0) {

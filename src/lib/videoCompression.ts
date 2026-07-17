@@ -1,5 +1,11 @@
-export const MAX_VIDEO_UPLOAD_BYTES = 200 * 1024 * 1024;
-export const MAX_VIDEO_UPLOAD_MB = Math.round(MAX_VIDEO_UPLOAD_BYTES / 1024 / 1024);
+import {
+    MAX_TRAINING_VIDEO_UPLOAD_BYTES,
+    MAX_TRAINING_VIDEO_UPLOAD_MB,
+    getTrainingVideoSizeError,
+} from "@/lib/trainingVideoLimits";
+
+export const MAX_VIDEO_UPLOAD_BYTES = MAX_TRAINING_VIDEO_UPLOAD_BYTES;
+export const MAX_VIDEO_UPLOAD_MB = MAX_TRAINING_VIDEO_UPLOAD_MB;
 export const AUTO_COMPRESS_THRESHOLD_BYTES = 18 * 1024 * 1024;
 export const DEFAULT_COMPRESSED_TARGET_BYTES = 40 * 1024 * 1024;
 export const MAX_VIDEO_DIMENSION = 1280;
@@ -97,6 +103,10 @@ function getSupportedRecorderMimeType() {
 }
 
 export function getVideoUploadSizeError(file: File, maxBytes = MAX_VIDEO_UPLOAD_BYTES) {
+    if (maxBytes === MAX_TRAINING_VIDEO_UPLOAD_BYTES) {
+        return getTrainingVideoSizeError(file.size);
+    }
+
     if (file.size > maxBytes) {
         return `文件过大。当前最多支持 ${Math.round(maxBytes / 1024 / 1024)}MB 的原视频`;
     }

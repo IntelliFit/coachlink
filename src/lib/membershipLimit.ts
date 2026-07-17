@@ -1,6 +1,10 @@
 import { serviceRoleSupabase as supabase } from "./supabaseClient";
 import { MEMBER_BENEFITS } from "@/app/service/studentMembershipService";
 import { isBefore, startOfMonth } from "date-fns";
+import {
+    COACH_SUBSCRIPTION_TRAINING_VIDEO_STORAGE_MB,
+    DEFAULT_TRAINING_VIDEO_STORAGE_MB,
+} from "@/lib/trainingVideoLimits";
 
 export interface QuotaCheckResult {
     success: boolean;
@@ -8,7 +12,36 @@ export interface QuotaCheckResult {
     message?: string;
 }
 
-async function getOrInitStudentQuota(userId: string) {
+async function getStorageEntitlementMb(userId: string) {
+    const [{ data: membership, error: membershipError }, { data: coachSubscription, error: subscriptionError }] = await Promise.all([
+        supabase
+            .from("student_memberships")
+            .select("tier")
+            .eq("user_id", userId)
+            .maybeSingle(),
+        supabase
+            .from("coach_subscriptions")
+            .select("id")
+            .eq("student_id", userId)
+            .eq("status", "active")
+            .limit(1)
+            .maybeSingle(),
+    ]);
+
+    if (membershipError) throw membershipError;
+    if (subscriptionError) throw subscriptionError;
+
+    const membershipTier = (membership?.tier || "free") as keyof typeof MEMBER_BENEFITS;
+    const membershipStorageMb =
+        MEMBER_BENEFITS[membershipTier]?.storage_mb || DEFAULT_TRAINING_VIDEO_STORAGE_MB;
+    const coachSubscriptionStorageMb = coachSubscription
+        ? COACH_SUBSCRIPTION_TRAINING_VIDEO_STORAGE_MB
+        : DEFAULT_TRAINING_VIDEO_STORAGE_MB;
+
+    return Math.max(membershipStorageMb, coachSubscriptionStorageMb);
+}
+
+export async function getOrInitStudentQuota(userId: string) {
     // 1) Try fetch existing quota row
     const { data: existing, error: fetchError } = await supabase
         .from("student_quotas")
@@ -23,15 +56,7 @@ async function getOrInitStudentQuota(userId: string) {
 
     if (existing) {
         // Repair legacy/bad data: storage_total_mb or ai_import_balance might be null/0 from earlier versions
-        const { data: membership } = await supabase
-            .from("student_memberships")
-            .select("*")
-            .eq("user_id", userId)
-            .maybeSingle();
-
-        const currentTier =
-            (membership?.tier || "free") as keyof typeof MEMBER_BENEFITS;
-        const tierBenefits = MEMBER_BENEFITS[currentTier] || MEMBER_BENEFITS["free"];
+        const storageEntitlementMb = await getStorageEntitlementMb(userId);
 
         const patch: Record<string, any> = {};
         // storage_total_mb: should never be null/0 for usable tiers (free should be 200MB)
@@ -40,7 +65,10 @@ async function getOrInitStudentQuota(userId: string) {
             existing.storage_total_mb === undefined ||
             existing.storage_total_mb <= 0
         ) {
-            patch.storage_total_mb = tierBenefits.storage_mb;
+            patch.storage_total_mb = storageEntitlementMb;
+        } else if (existing.storage_total_mb < storageEntitlementMb) {
+            // An active coach subscription raises the total training-video storage to 1GB.
+            patch.storage_total_mb = storageEntitlementMb;
         }
         // storage_used_mb: normalize null to 0
         if (existing.storage_used_mb === null || existing.storage_used_mb === undefined) {
@@ -70,21 +98,20 @@ async function getOrInitStudentQuota(userId: string) {
     }
 
     // 2) No quota row -> initialize by membership tier (default free)
+    const storageEntitlementMb = await getStorageEntitlementMb(userId);
     const { data: membership } = await supabase
         .from("student_memberships")
-        .select("*")
+        .select("tier")
         .eq("user_id", userId)
         .maybeSingle();
-
-    const currentTier =
-        (membership?.tier || "free") as keyof typeof MEMBER_BENEFITS;
+    const currentTier = (membership?.tier || "free") as keyof typeof MEMBER_BENEFITS;
     const tierBenefits = MEMBER_BENEFITS[currentTier] || MEMBER_BENEFITS["free"];
 
     const now = new Date();
     const initRow = {
         user_id: userId,
         ai_import_balance: tierBenefits.ai_limit_monthly,
-        storage_total_mb: tierBenefits.storage_mb,
+        storage_total_mb: storageEntitlementMb,
         storage_used_mb: 0,
         last_reset_date: now.toISOString(),
     };

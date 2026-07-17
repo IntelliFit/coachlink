@@ -133,6 +133,118 @@
     color: #111827;
   }
 
+  .analysis-option-section {
+    margin-top: 24rpx;
+  }
+
+  .option-heading-row,
+  .power-curve-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16rpx;
+  }
+
+  .option-heading,
+  .power-curve-title {
+    font-size: 24rpx;
+    font-weight: 900;
+    color: #111827;
+    line-height: 1.4;
+  }
+
+  .option-entitlement,
+  .power-curve-note,
+  .language-hint {
+    font-size: 22rpx;
+    color: #6b7280;
+    line-height: 1.4;
+  }
+
+  .quality-options {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16rpx;
+    margin-top: 16rpx;
+  }
+
+  .analysis-option {
+    min-height: 112rpx;
+    padding: 16rpx;
+    border-radius: 16rpx;
+    border: 1px solid #e5e7eb;
+    background: #ffffff;
+    box-sizing: border-box;
+
+    &.active {
+      border-color: #cf6d4e;
+      background: #fdf2ec;
+    }
+
+    &.locked {
+      opacity: 0.64;
+    }
+  }
+
+  .analysis-option-title,
+  .analysis-option-desc {
+    display: block;
+  }
+
+  .analysis-option-title {
+    font-size: 26rpx;
+    font-weight: 900;
+    color: #111827;
+    line-height: 1.4;
+  }
+
+  .analysis-option-desc {
+    margin-top: 8rpx;
+    font-size: 22rpx;
+    color: #6b7280;
+    line-height: 1.4;
+  }
+
+  .language-options,
+  .power-curve-tabs {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8rpx;
+    margin-top: 16rpx;
+  }
+
+  .language-option,
+  .power-curve-tab {
+    height: 64rpx;
+    border-radius: 16rpx;
+    border: 1px solid #d1d5db;
+    background: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+
+    Text {
+      font-size: 22rpx;
+      font-weight: 800;
+      color: #374151;
+    }
+
+    &.active {
+      border-color: #cf6d4e;
+      background: #cf6d4e;
+
+      Text {
+        color: #ffffff;
+      }
+    }
+  }
+
+  .language-hint {
+    display: block;
+    margin-top: 8rpx;
+  }
+
   .video-picker {
     margin-top: 16rpx;
   }
@@ -423,6 +535,89 @@
     flex-direction: column;
     gap: 16rpx;
     margin-top: 16rpx;
+  }
+
+  .power-rating {
+    margin-top: 16rpx;
+    padding: 24rpx;
+    border-radius: 16rpx;
+    border: 1px solid #f0c6b9;
+    background: #fdf2ec;
+
+    &.power-rating-beast {
+      border-color: #cf6d4e;
+      background: #cf6d4e;
+
+      .power-rating-kicker,
+      .power-rating-title,
+      .power-rating-desc,
+      .power-rating-normalized {
+        color: #ffffff;
+      }
+    }
+  }
+
+  .power-rating-kicker,
+  .power-rating-title,
+  .power-rating-desc,
+  .power-rating-normalized {
+    display: block;
+  }
+
+  .power-rating-kicker {
+    font-size: 22rpx;
+    font-weight: 800;
+    color: #8f432d;
+  }
+
+  .power-rating-title {
+    margin-top: 8rpx;
+    font-size: 36rpx;
+    font-weight: 900;
+    color: #cf6d4e;
+    line-height: 1.2;
+  }
+
+  .power-rating-desc {
+    margin-top: 16rpx;
+    font-size: 24rpx;
+    color: #374151;
+    line-height: 1.6;
+  }
+
+  .power-rating-normalized {
+    margin-top: 8rpx;
+    font-size: 22rpx;
+    font-weight: 800;
+    color: #8f432d;
+  }
+
+  .power-curve-section {
+    margin-top: 16rpx;
+    padding: 16rpx;
+    border-radius: 16rpx;
+    border: 1px solid #e5e7eb;
+    background: #ffffff;
+    overflow: hidden;
+  }
+
+  .power-curve-canvas-wrap {
+    margin-top: 16rpx;
+    overflow: hidden;
+  }
+
+  .power-curve-canvas {
+    display: block;
+    max-width: 100%;
+  }
+
+  .power-curve-peak {
+    display: block;
+    margin-top: 8rpx;
+    font-size: 22rpx;
+    font-weight: 800;
+    color: #374151;
+    text-align: right;
   }
 
   .rep-row {

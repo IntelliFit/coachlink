@@ -14,7 +14,6 @@ import {
   POWER_ANALYSIS_BUCKET,
   expirePowerAnalysisJobIfNeeded,
   getOwnedPowerAnalysisJob,
-  getPowerAnalysisLimits,
   isSupportedVideoContentType,
   mapPowerAnalysisJob,
 } from "../../../_helpers";
@@ -221,8 +220,12 @@ export async function POST(
     );
   }
 
-  const limits = getPowerAnalysisLimits();
-  const maxSizeBytes = limits.maxVideoSizeMb * 1024 * 1024;
+  const currentMetadata = normalizeMetadata(current.metadata);
+  const configuredMaxMb = Number(currentMetadata.max_video_size_mb || 100);
+  const maxVideoSizeMb = Number.isFinite(configuredMaxMb) && configuredMaxMb > 0
+    ? configuredMaxMb
+    : 100;
+  const maxSizeBytes = maxVideoSizeMb * 1024 * 1024;
   const inputPath = String(current.input_storage_path || "");
   if (!inputPath) {
     return NextResponse.json<ApiData<null>>(
@@ -236,13 +239,28 @@ export async function POST(
     streamedUpload = await streamMultipartVideoToStorage({
       req,
       inputPath,
-      fallbackContentType: String(normalizeMetadata(current.metadata).content_type || "video/mp4"),
+      fallbackContentType: String(currentMetadata.content_type || "video/mp4"),
       maxSizeBytes,
     });
   } catch (error) {
     const status = error instanceof UploadRequestError ? error.status : 500;
     const message = error instanceof Error ? error.message : "上传失败";
     console.error("[power-analysis/upload] streaming upload failed:", error);
+    await db
+      .from("tool_power_analysis_jobs")
+      .update({
+        metadata: {
+          ...currentMetadata,
+          upload_failed_at: new Date().toISOString(),
+          upload_failure_stage: "multipart_receive_or_storage_write",
+          upload_failure_message: message.slice(0, 500),
+        },
+        error_message: message.slice(0, 1000),
+      })
+      .eq("id", id)
+      .eq("user_id", session.user.id)
+      .eq("status", "awaiting_upload")
+      .catch(() => null);
     return NextResponse.json<ApiData<null>>(
       { success: false, message, data: null },
       { status },
@@ -250,10 +268,13 @@ export async function POST(
   }
 
   const metadata = {
-    ...normalizeMetadata(current.metadata),
+    ...currentMetadata,
     content_type: streamedUpload.contentType,
     upload_strategy: "miniapp_server_streaming_multipart_proxy",
     uploaded_at: new Date().toISOString(),
+    uploaded_size_bytes: Math.round(streamedUpload.size),
+    upload_failure_stage: null,
+    upload_failure_message: null,
   };
 
   const { data, error: updateError } = await db

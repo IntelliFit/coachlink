@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Button } from 'primereact/button';
 import { ChevronLeft, ChevronRight, Check, CalendarDays } from 'lucide-react';
-import { calculateCurrentWeek, formatUnlockDate, getDayWeekNumber, getUnlockDate, isDayUnlocked } from '@/lib/weekUnlock';
+import { getDayWeekNumber, isDayUnlocked } from '@/lib/weekUnlock';
 import {
     formatBeijingDate,
     getBeijingDateFromParts,
@@ -54,11 +54,12 @@ const BrowseSection: React.FC<BrowseSectionProps> = ({
     });
 
     const unlockedWeek = useMemo(() => {
-        const startDate = effectiveStartDate || instance?.start_date;
-        const byDate = calculateCurrentWeek(startDate);
         const byStartExecution = getDayWeekNumber(startExecutionDay || 1);
-        return Math.max(byDate, byStartExecution);
-    }, [effectiveStartDate, instance?.start_date, startExecutionDay]);
+        const byProgress = getDayWeekNumber(progressDayIndex || currentDayIndex || 1);
+        // Show the student's current logical week and the following week.
+        // Elapsed calendar time must not reveal extra weeks during postponement.
+        return Math.max(byStartExecution, byProgress) + 1;
+    }, [startExecutionDay, progressDayIndex, currentDayIndex]);
 
     useEffect(() => {
         const targetWeek = Math.max(1, Math.min(Math.ceil((selectedDayIndex || 1) / 7), totalWeeks));
@@ -358,7 +359,7 @@ const BrowseSection: React.FC<BrowseSectionProps> = ({
                 )}
                 {currentWeek > unlockedWeek && (
                     <span className="text-amber-600">
-                        第 {currentWeek} 周预计 {formatUnlockDate(getUnlockDate(currentWeek, effectiveStartDate || instance?.start_date))} 解锁
+                        第 {currentWeek} 周将随实际训练进度解锁
                     </span>
                 )}
                 <span className="text-surface-400">未来周仍保留逐周发布逻辑。</span>

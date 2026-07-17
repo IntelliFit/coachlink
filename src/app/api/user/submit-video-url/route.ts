@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from '@/app/api/auth/[...nextauth]/auth';
 import { createTrainingVideoRecord } from '../_helpers/videoRecord';
 import type { SubmitVideoUrlDto } from './entity';
+import { getTrainingVideoSizeError } from '@/lib/trainingVideoLimits';
 
 export async function POST(request: Request) {
     const session = await getServerSession();
@@ -49,6 +50,17 @@ export async function POST(request: Request) {
             message: '无效的视频URL',
             data: null
         }, { status: 400 });
+    }
+
+    const sizeError = fileSizeBytes && fileSizeBytes > 0
+        ? getTrainingVideoSizeError(fileSizeBytes)
+        : null;
+    if (sizeError) {
+        return NextResponse.json({
+            success: false,
+            message: sizeError,
+            data: null,
+        }, { status: 413 });
     }
 
     // If this is our own Storage upload, do quota accounting here (to avoid charging for failed uploads).

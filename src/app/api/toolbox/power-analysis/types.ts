@@ -1,4 +1,6 @@
 export type PowerAnalysisMode = "pullup" | "muscleup" | "dip" | "pushup" | "squat";
+export type PowerAnalysisQuality = "compressed" | "original";
+export type PowerAnalysisOverlayLanguage = "zh" | "en";
 export type PowerAnalysisJobStatus =
   | "awaiting_upload"
   | "queued"
@@ -14,6 +16,22 @@ export interface PowerAnalysisRepMetric {
   avgPowerW: number;
   horsepowerHp: number;
   maxVelocityMps: number;
+}
+
+export interface PowerAnalysisTimeSeriesPoint {
+  timeS: number;
+  displacementM: number;
+  velocityMps: number;
+  powerW: number;
+}
+
+export interface PowerAnalysisRating {
+  level: "low" | "steady" | "powerful" | "beast";
+  normalizedPowerWPerKg: number;
+  labelZh: string;
+  labelEn: string;
+  descriptionZh: string;
+  descriptionEn: string;
 }
 
 export interface PowerAnalysisMetrics {
@@ -34,6 +52,8 @@ export interface PowerAnalysisMetrics {
     avgDisplacementM: number;
   };
   reps: PowerAnalysisRepMetric[];
+  timeSeries?: PowerAnalysisTimeSeriesPoint[];
+  rating?: PowerAnalysisRating;
   notes?: string[];
 }
 
@@ -52,6 +72,8 @@ export interface PowerAnalysisJobDto {
   createdAt: string;
   completedAt: string | null;
   canDownload: boolean;
+  quality?: PowerAnalysisQuality;
+  overlayLanguage?: PowerAnalysisOverlayLanguage;
   queueInfo?: PowerAnalysisQueueInfoDto | null;
 }
 
@@ -70,6 +92,18 @@ export interface CreatePowerAnalysisUploadUrlDto {
   originalFilename: string;
   contentType: string;
   fileSizeBytes: number;
+  durationSeconds?: number;
+  quality?: PowerAnalysisQuality;
+  overlayLanguage?: PowerAnalysisOverlayLanguage;
+}
+
+export interface PowerAnalysisEntitlementsDto {
+  tier: "free" | "basic" | "premium" | "trial";
+  canUseOriginalQuality: boolean;
+  availableQualities: PowerAnalysisQuality[];
+  maxVideoSizeMb: number;
+  maxDurationSeconds: number;
+  dailyLimit: number;
 }
 
 export interface CreatePowerAnalysisUploadUrlResponseDto {
@@ -85,6 +119,9 @@ export interface CreatePowerAnalysisUploadUrlResponseDto {
     maxVideoSizeMb: number;
     dailyLimit: number;
     dailyLimitBypassed?: boolean;
+    maxDurationSeconds?: number;
+    canUseOriginalQuality?: boolean;
+    tier?: "free" | "basic" | "premium" | "trial";
   };
 }
 
