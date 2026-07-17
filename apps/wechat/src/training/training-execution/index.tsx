@@ -2517,9 +2517,11 @@ function TrainingExecution() {
       <View className="execution-scroll">
         <View className="execution-shell">
           <View className="hero-section">
-            <View className="hero-topbar">
-              <Text className="hero-day-label">{isImpromptuMode ? '即兴锻炼' : `${isReadOnly ? '只读查看 · ' : ''}第${dayIndex}天`}</Text>
-            </View>
+            {!isImpromptuMode && (
+              <View className="hero-topbar">
+                <Text className="hero-day-label">{`${isReadOnly ? '只读查看 · ' : ''}第${dayIndex}天`}</Text>
+              </View>
+            )}
 
             <View className="hero-main">
               <View className="hero-timer-card">
