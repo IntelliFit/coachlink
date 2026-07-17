@@ -2153,14 +2153,18 @@ function TodayTrainingScreen() {
                       <View className='share-entry-header'>
                         <View className='share-entry-copy'>
                           <View className='share-entry-title-row'>
-                            <Check size={24} color='#CF6D4E' />
+                            <View className='share-entry-heading-icon'>
+                              <Check size={14} color='#CF6D4E' />
+                            </View>
                             <Text className='share-entry-title'>今日成果</Text>
                           </View>
-                          <Text className='share-entry-subtitle'>整日打卡图</Text>
-                        </View>
-                        <View className='inline-actions'>
-                          <View className='inline-action-btn' onClick={() => setDayShareVisible(true)}>
-                            <Text>生成</Text>
+                          <View className='share-entry-action-row'>
+                            <Text className='share-entry-action-label'>整日打卡图</Text>
+                            <View className='inline-actions'>
+                              <View className='inline-action-btn' onClick={() => setDayShareVisible(true)}>
+                                <Text>生成</Text>
+                              </View>
+                            </View>
                           </View>
                         </View>
                       </View>

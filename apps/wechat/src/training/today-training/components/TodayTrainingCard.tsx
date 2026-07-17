@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react'
 import { View, Text } from '@tarojs/components'
 import Taro from '@tarojs/taro'
-import { Checklist, Target } from '@nutui/icons-react-taro'
+import { List, Target } from '@nutui/icons-react-taro'
 import {
   buildDayModuleModel,
   buildLightweightSummary,
@@ -205,7 +205,11 @@ function TodayTrainingCard({
               <View className='panel-copy'>
                 <View className='panel-title-row'>
                   <View className='module-heading'>
-                    {embeddedInSchedule && <Target size={24} color='#CF6D4E' />}
+                    {embeddedInSchedule && (
+                      <View className='module-heading-icon'>
+                        <Target size={14} color='#CF6D4E' />
+                      </View>
+                    )}
                     <Text className='panel-title'>{embeddedInSchedule ? '计划训练' : '连续力量训练'}</Text>
                   </View>
                   <View
@@ -227,9 +231,11 @@ function TodayTrainingCard({
                 const meta = buildStrengthMeta(task)
                 return (
                   <View key={`${task.index}-${task.title}`} className='strength-item' onClick={() => openExecution(task.executionIndex)}>
-                    <View className='strength-item-visual'>
-                      <Text className='strength-item-icon iconfont icon-a-Trainingplan' />
-                    </View>
+                    {!embeddedInSchedule && (
+                      <View className='strength-item-visual'>
+                        <Text className='strength-item-icon iconfont icon-a-Trainingplan' />
+                      </View>
+                    )}
                     <View className='strength-item-main'>
                       <Text className='strength-item-title'>{task.title}</Text>
                       <Text className='strength-item-meta'>
@@ -278,7 +284,11 @@ function TodayTrainingCard({
             <View className='lightweight-header'>
               <View className='lightweight-title-copy'>
                 <View className='module-heading'>
-                  {embeddedInSchedule && <Checklist size={24} color='#CF6D4E' />}
+                  {embeddedInSchedule && (
+                    <View className='module-heading-icon'>
+                      <List size={14} color='#CF6D4E' />
+                    </View>
+                  )}
                   <Text className='lightweight-title'>轻量任务</Text>
                 </View>
                 {lightweightTasks.length > 0 && (

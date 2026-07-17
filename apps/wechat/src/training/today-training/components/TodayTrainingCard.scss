@@ -882,6 +882,17 @@
     min-width: 0;
   }
 
+  .module-heading-icon {
+    width: 32rpx;
+    height: 32rpx;
+    border-radius: 8rpx;
+    background: #fdf2ec;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
   .panel-title {
     font-size: 28rpx;
     line-height: 1.3;
