@@ -510,9 +510,9 @@
   .lightweight-header {
     display: flex;
     justify-content: space-between;
-    gap: 8px;
-    align-items: flex-start;
-    margin-bottom: 10px;
+    gap: 16rpx;
+    align-items: center;
+    margin-bottom: 16rpx;
   }
 
   .lightweight-title {
@@ -532,9 +532,9 @@
 
   .lightweight-header-right {
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     align-items: flex-end;
-    gap: 6px;
+    gap: 16rpx;
   }
 
   .lightweight-progress {
@@ -561,6 +561,12 @@
 
   .lightweight-add-small {
     background: #fff7ed;
+    min-height: 72rpx;
+    padding: 0 24rpx;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
 
     text {
       color: #9a3412;
@@ -579,12 +585,29 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 12rpx;
+    gap: 16rpx;
     text-align: left;
 
     .empty-title {
       margin-bottom: 0;
       font-size: 14px;
+    }
+
+    .empty-action {
+      flex-shrink: 0;
+      min-width: 96rpx;
+      min-height: 72rpx;
+      padding: 0 24rpx;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      box-sizing: border-box;
+      background: #fff7ed;
+      border: 1rpx solid rgba(207, 109, 78, 0.16);
+
+      text {
+        color: #9a3412;
+      }
     }
   }
 

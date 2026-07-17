@@ -281,7 +281,7 @@ function TodayTrainingCard({
                     {lightweightCompletedCount}/{lightweightTasks.length} 已完成
                   </Text>
                 )}
-                {onAddLightweightTask && (
+                {lightweightTasks.length > 0 && onAddLightweightTask && (
                   <View className='lightweight-add-small' onClick={onAddLightweightTask}>
                     <Text>新增轻任务</Text>
                   </View>

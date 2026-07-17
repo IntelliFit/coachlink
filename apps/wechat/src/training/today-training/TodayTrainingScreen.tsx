@@ -2146,10 +2146,12 @@ function TodayTrainingScreen() {
 
                   {canShareDayCheckin && (
                     <View className='share-entry-card'>
-                      <Text className='share-entry-title'>整日打卡图</Text>
-                      <View className='inline-actions'>
-                        <View className='inline-action-btn' onClick={() => setDayShareVisible(true)}>
-                          <Text>生成</Text>
+                      <View className='share-entry-header'>
+                        <Text className='share-entry-title'>整日打卡图</Text>
+                        <View className='inline-actions'>
+                          <View className='inline-action-btn' onClick={() => setDayShareVisible(true)}>
+                            <Text>生成</Text>
+                          </View>
                         </View>
                       </View>
                     </View>
