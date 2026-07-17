@@ -1,5 +1,5 @@
-import React, { useState } from 'react'
-import { View, Text, Canvas, Button } from '@tarojs/components'
+import React, { useEffect, useState } from 'react'
+import { View, Text, Canvas } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { formatMonthDayTime } from '@/utils/dateFormat'
 import './DayCheckinShareSheet.scss'
@@ -34,8 +34,6 @@ interface DayCheckinShareSheetProps {
   visible: boolean
   onClose: () => void
   data: DayCheckinShareData | null
-  directShareReady: boolean
-  directShareLoading: boolean
 }
 
 const CANVAS_ID = 'day-checkin-share-canvas'
@@ -65,16 +63,21 @@ const drawRoundedRect = (
 function DayCheckinShareSheet({
   visible,
   onClose,
-  data,
-  directShareReady,
-  directShareLoading
+  data
 }: DayCheckinShareSheetProps) {
   const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+
+  useEffect(() => {
+    if (visible) {
+      setSaved(false)
+    }
+  }, [visible])
 
   if (!visible) return null
 
   const handleSave = async () => {
-    if (!data || saving) return
+    if (!data || saving || saved) return
     setSaving(true)
 
     try {
@@ -112,7 +115,7 @@ function DayCheckinShareSheet({
 
           ctx.fillStyle = '#ffffff'
           ctx.font = 'bold 24px sans-serif'
-          ctx.fillText('DAILY CHECK-IN', 56, 90)
+          ctx.fillText('整日打卡', 56, 90)
           ctx.font = 'bold 64px sans-serif'
           ctx.fillText(`Day ${data.dayIndex}`, 56, 166)
           ctx.font = '28px sans-serif'
@@ -143,7 +146,7 @@ function DayCheckinShareSheet({
 
           ctx.fillStyle = '#6B7280'
           ctx.font = '22px sans-serif'
-          ctx.fillText('Plan', 88, 584)
+          ctx.fillText('训练计划', 88, 584)
           ctx.fillStyle = '#111827'
           ctx.font = 'bold 38px sans-serif'
           ctx.fillText(data.planName || '今日安排', 88, 642)
@@ -233,7 +236,7 @@ function DayCheckinShareSheet({
           ctx.fill()
           ctx.fillStyle = '#ffffff'
           ctx.font = 'bold 18px sans-serif'
-          ctx.fillText(data.completedModuleCount >= data.moduleCount ? 'ALL DONE' : 'DAY STATUS', 554, 1088)
+          ctx.fillText(data.completedModuleCount >= data.moduleCount ? '已完成' : '今日状态', 554, 1088)
 
           Taro.canvasToTempFilePath({
             canvas,
@@ -242,6 +245,7 @@ function DayCheckinShareSheet({
                 filePath: fileRes.tempFilePath,
                 success: () => {
                   setSaving(false)
+                  setSaved(true)
                   Taro.showToast({ title: '已保存到相册', icon: 'success' })
                 },
                 fail: (err) => {
@@ -277,8 +281,9 @@ function DayCheckinShareSheet({
     <View className='day-share-mask' onClick={onClose}>
       <Canvas id={CANVAS_ID} type='2d' className='day-share-canvas' />
       <View className='day-share-sheet' onClick={(e) => e.stopPropagation()}>
-        <Text className='sheet-eyebrow'>SHARE CHECK-IN</Text>
-        <Text className='sheet-title'>分享整日打卡</Text>
+        <View className='sheet-header'>
+          <Text className='sheet-title'>分享整日打卡</Text>
+        </View>
         {!data ? (
           <Text className='sheet-empty'>暂无可分享的数据</Text>
         ) : (
@@ -367,24 +372,10 @@ function DayCheckinShareSheet({
               <View className='sheet-btn secondary' onClick={onClose}>
                 <Text>取消</Text>
               </View>
-              {directShareReady ? (
-                <Button className='sheet-btn share-btn' openType='share'>
-                  <Text>直接发群/好友</Text>
-                </Button>
-              ) : (
-                <View className={`sheet-btn muted ${directShareLoading ? 'disabled' : ''}`}>
-                  <Text>{directShareLoading ? '正在准备分享卡片...' : '当前仅支持保存图片后发群'}</Text>
-                </View>
-              )}
-              <View className={`sheet-btn primary ${saving ? 'disabled' : ''}`} onClick={handleSave}>
-                <Text>{saving ? '生成中...' : '保存图片'}</Text>
+              <View className={`sheet-btn primary ${saving || saved ? 'disabled' : ''}`} onClick={handleSave}>
+                <Text>{saving ? '生成中...' : saved ? '已保存' : '保存图片'}</Text>
               </View>
             </View>
-            <Text className='sheet-share-hint'>
-              {directShareReady
-                ? '可直接把本次训练成果分享到微信群，也可以保存这张整日打卡图后再发。'
-                : '整日状态快照暂时没有公开卡片链接，建议先保存图片，再发送到微信群。'}
-            </Text>
           </>
         )}
       </View>

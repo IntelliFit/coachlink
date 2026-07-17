@@ -19,24 +19,24 @@
   width: 100%;
   background: #fff;
   border-radius: 24px 24px 0 0;
-  padding: 18px 16px 20px;
+  padding: 24rpx 32rpx 40rpx;
   box-sizing: border-box;
 
-  .sheet-eyebrow {
-    display: block;
-    font-size: 11px;
-    color: #cf6d4e;
-    font-weight: 700;
-    letter-spacing: 1.2px;
-    margin-bottom: 8px;
+  .sheet-header {
+    height: 80rpx;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 24rpx;
+    border-bottom: 1px solid #f1f3f5;
   }
 
   .sheet-title {
     display: block;
-    font-size: 22px;
+    font-size: 32rpx;
+    line-height: 48rpx;
     font-weight: 800;
     color: #111827;
-    margin-bottom: 14px;
   }
 
   .sheet-empty {
@@ -237,14 +237,19 @@
 .day-share-sheet {
   .sheet-actions {
     display: flex;
-    gap: 10px;
-    margin-top: 16px;
+    gap: 16rpx;
+    margin-top: 32rpx;
   }
 
   .sheet-btn {
     flex: 1;
-    border-radius: 14px;
-    padding: 14px 12px;
+    height: 88rpx;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    border-radius: 16rpx;
+    padding: 0 16rpx;
     text-align: center;
     line-height: 1;
 
@@ -273,32 +278,8 @@
       }
     }
 
-    &.share-btn {
-      background: #111827;
-
-      text {
-        color: #fff;
-      }
-    }
-
-    &.muted {
-      background: #eef2f7;
-
-      text {
-        color: #6b7280;
-      }
-    }
-
     &.disabled {
       opacity: 0.7;
     }
-  }
-
-  .sheet-share-hint {
-    display: block;
-    margin-top: 12px;
-    font-size: 12px;
-    line-height: 1.5;
-    color: #6b7280;
   }
 }

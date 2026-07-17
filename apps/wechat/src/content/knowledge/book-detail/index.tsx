@@ -2,6 +2,7 @@ import React, { useState, useCallback } from 'react'
 import { View, Text, ScrollView, Image, RichText } from '@tarojs/components'
 import Taro, { useRouter, useDidShow } from '@tarojs/taro'
 import { knowledgeService } from '@/services/knowledgeService'
+import { authService } from '@/services/authService'
 import { Icon } from '@/components/Icon'
 import { Book as BookIcon } from 'lucide-react'
 import { Notice, Lock } from '@nutui/icons-react-taro'
@@ -78,6 +79,15 @@ export default function BookDetail() {
       return
     }
 
+    if (!authService.getAuthSession({ normalize: true }).isAuthenticated) {
+      // 书籍详情和同书推荐均依赖登录接口；游客不发起必然返回 401 的请求。
+      setBook(null)
+      setRelatedBooks([])
+      setLoading(false)
+      setErrorMsg('登录后可查看书籍内容')
+      return
+    }
+
     setLoading(true)
     setBook(null)
     setErrorMsg('')
@@ -124,10 +134,6 @@ export default function BookDetail() {
   if (loading) {
     return (
       <View className={`book-detail-page theme-${effectiveTheme}`}>
-        <View className='nav-bar'>
-          <Text className='nav-back' onClick={() => Taro.navigateBack()}>返回</Text>
-          <Text className='nav-title'>书籍详情</Text>
-        </View>
         <View className='loading-wrap'>
           <LoadingSpinner size={48} />
         </View>
@@ -136,16 +142,17 @@ export default function BookDetail() {
   }
 
   if (errorMsg && !book) {
+    const returnTo = `/content/knowledge/book-detail?id=${encodeURIComponent(bookId || '')}`
     return (
       <View className={`book-detail-page theme-${effectiveTheme}`}>
-        <View className='nav-bar'>
-          <Text className='nav-back' onClick={() => Taro.navigateBack()}>返回</Text>
-          <Text className='nav-title'>书籍详情</Text>
-        </View>
         <View className='error-wrap'>
           <View className='error-icon'><Notice size={48} color='#CF6D4E' /></View>
           <Text className='error-text'>{errorMsg}</Text>
-          <Text className='error-action' onClick={() => Taro.navigateBack()}>返回上一页</Text>
+          {errorMsg === '登录后可查看书籍内容' ? (
+            <Text className='error-action' onClick={() => Taro.navigateTo({ url: authService.buildLoginUrl(returnTo) })}>去登录</Text>
+          ) : (
+            <Text className='error-action' onClick={() => Taro.navigateBack()}>返回上一页</Text>
+          )}
         </View>
       </View>
     )
@@ -154,10 +161,6 @@ export default function BookDetail() {
   if (!book) {
     return (
       <View className={`book-detail-page theme-${effectiveTheme}`}>
-        <View className='nav-bar'>
-          <Text className='nav-back' onClick={() => Taro.navigateBack()}>返回</Text>
-          <Text className='nav-title'>书籍详情</Text>
-        </View>
         <View className='error-wrap'>
           <Text className='error-text'>书籍不存在或已下架</Text>
           <Text className='error-action' onClick={() => Taro.navigateBack()}>返回</Text>
@@ -169,10 +172,6 @@ export default function BookDetail() {
   if (!canReadContent) {
     return (
       <View className={`book-detail-page theme-${effectiveTheme}`}>
-        <View className='nav-bar'>
-          <Text className='nav-back' onClick={() => Taro.navigateBack()}>返回</Text>
-          <Text className='nav-title'>{book.title || '书籍详情'}</Text>
-        </View>
         <View className='paywall-wrap'>
           <View className='paywall-icon'><Lock size={48} color='#CF6D4E' /></View>
           <Text className='paywall-title'>订阅后可读</Text>
@@ -187,10 +186,6 @@ export default function BookDetail() {
 
   return (
     <View className={`book-detail-page theme-${effectiveTheme}`}>
-      <View className='nav-bar'>
-        <Text className='nav-back' onClick={() => Taro.navigateBack()}>返回</Text>
-        <Text className='nav-title'>书籍详情</Text>
-      </View>
       <ScrollView className='content-scroll' scrollY>
         <View className='book-body'>
           <View className='book-cover-wrap'>

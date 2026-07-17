@@ -68,6 +68,21 @@
 - Fix: 仅对功率分析视频的 `uploadFile` 与结果 `downloadFile` 显式设置 5 分钟超时，避免扩大所有小程序网络请求的全局超时。
 - Product requirement: 后续增加“压缩画质”和“原画质”两档。原画质作为付费会员权益；会员的输入视频上限、结果视频下载能力与日分析额度应高于免费用户，并由服务端按真实会员状态强制校验，不能只靠前端隐藏。输出编码质量需要随任务保存并传给 Worker，原画质仍须保留音频和画面标注。基础/高级会员的具体差异和数值待产品确认。
 - Verification: `npm --workspace apps/wechat run build:weapp` 通过（2757 modules）；微信开发者工具自动化端口 9420 可连接，当前首页运行错误日志为 0。慢速真机网络场景无法用开发者工具完整复现，最终需发布后由原用户复测。
+## Web 视频上传进度回退与中等视频慢修复 (`2026-07-17`)
+
+- Task: 用户在已登录 Chrome 中复测 42MB 视频上传，反馈仍然很慢，进度条来回跳动甚至从大到小；用户提供本地视频 `C:/Users/15537/Desktop/425aa7b98920c999b842dac6da336da3_raw - 副本.mp4`。
+- Diagnosis: 本地文件大小 `42023706` 字节（约 40.1MiB）。Web 动作演示/通用视频上传在 `prepareVideoForUpload` 中对超过 18MB 的视频默认先做浏览器端 MediaRecorder 转码压缩；这会让 40MB 级普通视频先经历完整本地转码，非常慢。若压缩产物收益不够，代码会丢弃压缩结果并上传原视频，但上传阶段百分比重新按 XHR 原始进度从低位开始，导致 UI 从压缩阶段的高百分比回落到低百分比。Chrome 自动化文件选择被扩展权限拦截（需要启用 ChatGPT Chrome Extension 的 “Allow access to file URLs”），因此未完成真实页面文件写入测试。
+- Fix: 将默认自动压缩阈值从 18MB 提高到 80MB，避免 42MB 这类中等视频无谓本地转码；`videoService.uploadVideoFile` 与 `actionLibService.uploadDemoVideo` 改为单调递增进度映射，上传阶段从当前进度继续推进，即使压缩被丢弃也不会回退。
+- Verification: `npm test -- src/lib/videoCompression.test.ts`、`npm run lint`、`npm run typecheck`、完整 `npm test`（35 files / 177 tests）通过；`npx next build` 起初因本机 `node_modules` 缺 `busboy` / `pdf-parse` 失败，执行 `npm install` 恢复已在 lock 中声明的依赖后，`npx next build` 通过（519 pages）。
+- Release: 代码提交 `3e88c873 fix: stabilize web video upload progress` 已推送 GitHub `main`；本地 Docker 已执行 `npm run push-docker-ccr` 并推送 `latest` / `main` / `3e88c87` 到腾讯云 CCR，digest 为 `sha256:16082de222172b9e3b60c1850f99a7f9fa6af93b94504c2d7c664a6b12d32e7c`。Keel 已触发生产 `coachlink-main` 滚动更新，新 Pod 于北京时间 21:50~21:51 启动，公网 `/api/healthy` 回读 `buildTime=2026-07-17T13:47:58.638Z`。
+
+## 教练视频上传 Nginx 413 修复 (`2026-07-17`)
+
+- Task: 用户反馈生产环境中教练上传十几 MB 或几十 MB 视频失败，要求检查 `littlehorse-deployment` 并能修则直接改、推送和部署。
+- Root cause: 生产 Nginx 只给 `/api/toolbox/power-analysis/` 单独放开了大文件上传限制；教练申请/主页材料、问卷示例媒体、动作演示视频、训练组视频等仍走通用 `location /`，未配置 `client_max_body_size`。未登录 multipart 探针显示 2MB 请求在这些路径上直接被 Nginx 以 HTML 413 拦截，无法进入 Next；同一探针打到功率分析专用路径则返回应用 JSON 401，证明问题位于 Nginx 上游限制而非业务鉴权或 COS。
+- Fix/deploy: 已在 `IntelliFit/littlehorse-deployment` 提交 `ec9f39c fix: raise CoachLink video upload nginx limits`，修改 `coachlink/coachlink.conf`：生产保留并纳入 Git 的功率分析 520MB 专用入口；为 `/api/coach/upload-application-media`、`/api/coach/upload-question-media`、`/api/action-lib/upload-demo-video`、`/api/student/action-lib/upload-demo-video`、`/api/execution/upload-set-video`、`/api/training/upload-set-video`、`/api/user/upload-video` 增加 220MB 专用 location、关闭请求缓冲并把上传超时调到 900 秒；dev 域名同步添加 220MB location。
+- Production action: 已同步服务器 `/home/ubuntu/littlehorse-deployment` 到 `ec9f39c`，更新 `/etc/nginx/conf.d/coachlink.conf`，备份旧配置到 `/etc/nginx/conf.d/coachlink.conf.bak-20260717-202515-coach-video-upload` 等文件，`sudo nginx -t` 通过并已 reload，`nginx` 服务为 active。
+- Verification: 修复前 2MB multipart 到 `/api/coach/upload-application-media`、`/api/coach/upload-question-media`、`/api/action-lib/upload-demo-video`、`/api/execution/upload-set-video` 均为 Nginx HTML 413；修复后同样请求均返回应用 JSON `401 用户未登录`。25MB multipart 探针到 `/api/coach/upload-application-media` 与 `/api/action-lib/upload-demo-video` 也返回应用 JSON 401，不再被网关 413 拦截。未使用真实登录态写入业务数据。
 
 ## 生产功率分析上传空文件热修 (`2026-07-15`)
 

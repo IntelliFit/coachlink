@@ -110,7 +110,22 @@ class VideoService extends BaseService {
             // 2) 直接把视频上传到 Supabase Storage（绕开宝塔/Nginx/Next 的大文件限制）
             // 3) 再调用 submit-video-url 写入数据库记录（并更新配额）
 
-            this.emitUploadProgress(onUploadProgress, {
+            let lastPercentage = 0;
+            const emitProgress = (
+                progress: Partial<VideoUploadProgress> & Pick<VideoUploadProgress, "percentage">,
+            ) => {
+                const nextPercentage = Math.min(
+                    100,
+                    Math.max(lastPercentage, Math.round(progress.percentage)),
+                );
+                lastPercentage = nextPercentage;
+                this.emitUploadProgress(onUploadProgress, {
+                    ...progress,
+                    percentage: nextPercentage,
+                });
+            };
+
+            emitProgress({
                 loaded: 0,
                 total: file.size,
                 percentage: 0,
@@ -127,7 +142,7 @@ class VideoService extends BaseService {
                         ? Math.round(10 + progress.percentage * 0.45)
                         : Math.round(progress.percentage * 0.1);
 
-                    this.emitUploadProgress(onUploadProgress, {
+                    emitProgress({
                         loaded: 0,
                         total: file.size,
                         percentage: mappedPercentage,
@@ -156,11 +171,14 @@ class VideoService extends BaseService {
             }
 
             const { path, publicUrl, uploadUrl } = signRes.data.data;
+            const uploadStartPercentage = prepared.compressed
+                ? Math.max(lastPercentage, 55)
+                : Math.max(lastPercentage, 10);
 
-            this.emitUploadProgress(onUploadProgress, {
+            emitProgress({
                 loaded: 0,
                 total: uploadFile.size,
-                percentage: prepared.compressed ? 55 : 5,
+                percentage: uploadStartPercentage,
                 phase: "uploading",
                 statusText: prepared.compressed ? "压缩完成，开始上传…" : "开始上传视频…",
                 originalSizeBytes: prepared.originalFileSizeBytes,
@@ -170,11 +188,10 @@ class VideoService extends BaseService {
 
             // 直传：仅使用服务端下发的 uploadUrl，不暴露 key
             await this.putWithProgress(uploadUrl, uploadFile, (progress) => {
-                const percentage = prepared.compressed
-                    ? Math.round(55 + progress.percentage * 0.45)
-                    : progress.percentage;
+                const percentage = uploadStartPercentage +
+                    (progress.percentage * (100 - uploadStartPercentage)) / 100;
 
-                this.emitUploadProgress(onUploadProgress, {
+                emitProgress({
                     loaded: progress.loaded,
                     total: progress.total,
                     percentage,
@@ -212,7 +229,7 @@ class VideoService extends BaseService {
                 },
             } satisfies SubmitVideoUrlDto);
 
-            this.emitUploadProgress(onUploadProgress, {
+            emitProgress({
                 loaded: uploadFile.size,
                 total: uploadFile.size,
                 percentage: 100,

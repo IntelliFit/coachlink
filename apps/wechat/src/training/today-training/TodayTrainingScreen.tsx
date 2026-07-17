@@ -8,6 +8,7 @@ import { trainingService, PlanInstance } from '@/services/trainingService'
 import { executionService } from '@/services/executionService'
 import { studentActionLibService } from '@/services/studentActionLibService'
 import { studentOnboardingService } from '@/services/studentOnboardingService'
+import { studentService } from '@/services/studentService'
 import { request, API_BASE_URL } from '@/utils/request'
 import { formatMonthDaySlash } from '@/utils/dateFormat'
 import {
@@ -28,6 +29,7 @@ import {
   ArrowRight,
   Calendar,
   Check,
+  Checklist,
   Location,
   Message,
   Notice,
@@ -47,7 +49,7 @@ import {
 } from './lib/dayModules'
 import WeekDashboardStrip, { buildWeekStripCells, getSundayWeekStart } from './components/WeekDashboardStrip'
 import type { WeekStripCell } from './components/WeekDashboardStrip'
-import { getDayWeekNumber, isDayUnlocked } from '@/utils/weekUnlock'
+import { calculateCurrentWeek, getDayWeekNumber, isDayUnlocked } from '@/utils/weekUnlock'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import ExecutionPlanNoticePopup from '@/components/ExecutionPlanNoticePopup'
 import {
@@ -63,6 +65,7 @@ import {
 } from '@/utils/todayTrainingPageCache'
 import {
   persistTrainingExecutionSnapshot,
+  syncTrainingExecutionToStorage,
   trainingExecutionSnapshotKey
 } from '@/utils/trainingExecutionCache'
 import { formatKgValueForGym } from '@/utils/weightQuantize'
@@ -116,7 +119,7 @@ function resolveStudentDisplayName(user: any) {
 }
 
 /** 小程序 Image 需要可访问的绝对 URL；后端若返回相对路径则拼 API 根 */
-function resolveCoachAvatarUrl(raw: string | null | undefined): string {
+function resolveAvatarUrl(raw: string | null | undefined): string {
   const s = raw != null ? String(raw).trim() : ''
   if (!s) return ''
   if (/^https?:\/\//i.test(s)) return s
@@ -260,6 +263,29 @@ const formatShortDate = (ts?: string | null) => {
 
 const getExecutionId = (value: any) => value?.id || value?.data?.id || null
 
+function removeActionFromExecution(execution: any, actionIndex: number) {
+  const actionExecutions = Array.isArray(execution?.action_executions) ? execution.action_executions : []
+  if (!Number.isInteger(actionIndex) || actionIndex < 0 || !actionExecutions[actionIndex]) return null
+
+  const nextActions = actionExecutions
+    .filter((_: any, index: number) => index !== actionIndex)
+    .map((item: any, index: number) => ({
+      ...item,
+      action_order: index + 1,
+      action_index: index
+    }))
+  const totalSets = nextActions.reduce((sum: number, item: any) => {
+    if (Array.isArray(item?.sets)) return sum + item.sets.length
+    return sum + 1
+  }, 0)
+
+  return {
+    ...execution,
+    action_executions: nextActions,
+    total_sets: totalSets
+  }
+}
+
 function TodayTrainingScreen() {
   const { effectiveTheme } = useTheme()
   const bootRef = useRef<ReturnType<typeof getTodayTrainingBootFromCache> | null>(null)
@@ -296,6 +322,10 @@ function TodayTrainingScreen() {
 
   const [planMode, setPlanMode] = useState<PlanMode>(() => (pageCache?.planMode === 'self' ? 'self' : 'coach'))
   const planModeRef = useRef<PlanMode>(pageCache?.planMode === 'self' ? 'self' : 'coach')
+  const updatePlanMode = useCallback((nextMode: PlanMode) => {
+    planModeRef.current = nextMode
+    setPlanMode(nextMode)
+  }, [])
   const [showCompletionModal, setShowCompletionModal] = useState(false)
   const [completedPlanInfo, setCompletedPlanInfo] = useState<{ name: string; rate: number } | null>(null)
   const [showExplainDialog, setShowExplainDialog] = useState(false)
@@ -308,17 +338,15 @@ function TodayTrainingScreen() {
   const [pickerLoading, setPickerLoading] = useState(false)
   const [actionPickerList, setActionPickerList] = useState<any[]>([])
   const [addingLightweightTask, setAddingLightweightTask] = useState(false)
+  const lightweightDeletionRef = useRef(false)
   const [lightweightSheetSaving, setLightweightSheetSaving] = useState(false)
   const [pendingLightweightAction, setPendingLightweightAction] = useState<any | null>(null)
   const [lightweightConfigVisible, setLightweightConfigVisible] = useState(false)
   const [dayShareVisible, setDayShareVisible] = useState(false)
   const [daySharePath, setDaySharePath] = useState('')
-  const [dayShareLoading, setDayShareLoading] = useState(false)
-  const [dayShareShareable, setDayShareShareable] = useState(false)
   const [moreTrainingOpen, setMoreTrainingOpen] = useState(false)
   const [coachPickSheetOpen, setCoachPickSheetOpen] = useState(false)
   const [calendarExpanded, setCalendarExpanded] = useState(false)
-  const [cloudSyncing, setCloudSyncing] = useState(false)
   const [scheduleScrollIntoView, setScheduleScrollIntoView] = useState('')
   const [newTaskSuggestedTime, setNewTaskSuggestedTime] = useState('')
   const [newTaskNotes, setNewTaskNotes] = useState('')
@@ -380,9 +408,30 @@ function TodayTrainingScreen() {
 
   const [greetingModel, setGreetingModel] = useState<GreetingModel>(() => getLocalGreetingModel())
 
-  const userDisplayName = useMemo(() => {
-    const user = authService.getAuthSession({ normalize: true }).user
-    return resolveStudentDisplayName(user)
+  const [currentUser, setCurrentUser] = useState(() => authService.getAuthSession({ normalize: true }).user)
+  const userDisplayName = useMemo(() => resolveStudentDisplayName(currentUser), [currentUser])
+
+  const syncCurrentUserProfile = useCallback(async () => {
+    const session = authService.getAuthSession({ normalize: true })
+    if (!session.isAuthenticated || !session.userId || !session.user) return
+
+    setCurrentUser(session.user)
+
+    try {
+      const profile = (await studentService.getStudentProfile(session.userId))?.profile
+      if (!profile || typeof profile !== 'object') return
+
+      const nextUser = {
+        ...session.user,
+        ...(Object.prototype.hasOwnProperty.call(profile, 'nickname') ? { nickname: profile.nickname || '' } : {}),
+        ...(Object.prototype.hasOwnProperty.call(profile, 'avatar_url') ? { avatar_url: profile.avatar_url ?? null } : {})
+      }
+
+      authService.setCurrentUser(nextUser)
+      setCurrentUser(nextUser)
+    } catch (error) {
+      console.error('[today-training] sync current user profile:', error)
+    }
   }, [])
 
   const inProgressExec = useMemo(() => {
@@ -647,37 +696,21 @@ function TodayTrainingScreen() {
       const executionId = String(selectedExec?.id || '').trim()
       const canDirectShare = !!executionId && selectedExecutionStatus === 'completed'
 
-      if (!dayShareVisible && !canDirectShare) {
-        setDayShareLoading(false)
+      if (!dayShareVisible || !canDirectShare) {
         setDaySharePath('')
-        setDayShareShareable(false)
         return
       }
 
-      if (!canDirectShare) {
-        setDayShareLoading(false)
-        setDaySharePath('')
-        setDayShareShareable(false)
-        return
-      }
-
-      setDayShareLoading(true)
       try {
         const shareInfo = await executionService.getShareInfo(executionId)
         if (cancelled) return
 
         const sharePath = buildPublicTrainingSharePath(shareInfo?.shareToken)
         setDaySharePath(sharePath)
-        setDayShareShareable(!!sharePath)
       } catch (error) {
         if (!cancelled) {
           console.error('[today-training] load share info failed', error)
           setDaySharePath('')
-          setDayShareShareable(false)
-        }
-      } finally {
-        if (!cancelled) {
-          setDayShareLoading(false)
         }
       }
     }
@@ -726,7 +759,6 @@ function TodayTrainingScreen() {
   }, [planMode, selectedDayIndex])
 
   const loadData = useCallback(async () => {
-    setCloudSyncing(true)
     try {
       const session = authService.getAuthSession({ normalize: true })
       if (!session.isAuthenticated || !session.userId) {
@@ -836,7 +868,7 @@ function TodayTrainingScreen() {
         subscriptionCoachId: logTargetSub?.coach_id,
         coachRow: logCoach,
         avatar_url_raw: logCoach?.avatar_url ?? null,
-        avatar_url_resolved: logCoach?.avatar_url ? resolveCoachAvatarUrl(logCoach.avatar_url) : '',
+        avatar_url_resolved: logCoach?.avatar_url ? resolveAvatarUrl(logCoach.avatar_url) : '',
         subscriptionsPreview: activeSubs.map((s: any) => ({
           subId: s.id,
           coach_id: s.coach_id,
@@ -871,17 +903,20 @@ function TodayTrainingScreen() {
         setSelfMissingDays([])
       }
 
-      if (activeSubs.some((item: any) => coachPlanData[item.id]?.instance)) {
-        setPlanMode('coach')
-      } else if (selfRes?.instance) {
-        setPlanMode('self')
-      }
-
-      const persistedPlanMode: PlanMode = activeSubs.some((item: any) => coachPlanData[item.id]?.instance)
-        ? 'coach'
-        : selfRes?.instance
+      const hasCoachPlan = activeSubs.some((item: any) => coachPlanData[item.id]?.instance)
+      const hasSelfPlan = !!selfRes?.instance
+      // 刷新/回到前台时保留用户最后主动选择的有效计划；只有该计划不存在才回退。
+      const persistedPlanMode: PlanMode =
+        planModeRef.current === 'self' && hasSelfPlan
           ? 'self'
-          : planModeRef.current
+          : planModeRef.current === 'coach' && hasCoachPlan
+            ? 'coach'
+            : hasCoachPlan
+              ? 'coach'
+              : hasSelfPlan
+                ? 'self'
+                : planModeRef.current
+      updatePlanMode(persistedPlanMode)
 
       const selfDerivedPersist = selfRes as any
       persistTodayTrainingPageCache({
@@ -908,10 +943,8 @@ function TodayTrainingScreen() {
     } catch (error) {
       console.error('[today-training] load failed', error)
       Taro.showToast({ title: '加载失败，请稍后重试', icon: 'none' })
-    } finally {
-      setCloudSyncing(false)
     }
-  }, [handleCompletePlan])
+  }, [handleCompletePlan, updatePlanMode])
 
   const consumeReturnConfirmState = useCallback(() => {
     const raw = Taro.getStorageSync(RETURN_CONFIRM_STORAGE_KEY)
@@ -938,6 +971,7 @@ function TodayTrainingScreen() {
 
   useDidShow(() => {
     setGreetingModel(getLocalGreetingModel())
+    void syncCurrentUserProfile()
     void loadData()
     consumeReturnConfirmState()
   })
@@ -1024,6 +1058,11 @@ function TodayTrainingScreen() {
     handleGoToTrainingExecution(target.dayIndex, target.focusAction, { readOnly: target.readOnly })
   }, [currentUserId, handleGoToTrainingExecution, instance?.id, pendingExecutionTarget])
 
+  const handleCancelExecutionNotice = useCallback(() => {
+    setExecutionNoticeVisible(false)
+    setPendingExecutionTarget(null)
+  }, [])
+
   const handleSkipDay = useCallback(
     (dayIndex: number) => {
       if (!instance?.id || !dayIndex) return
@@ -1095,7 +1134,7 @@ function TodayTrainingScreen() {
       } catch (e) {
         console.warn('[today-training] persist preferred coach sub failed', e)
       }
-      setPlanMode('coach')
+      updatePlanMode('coach')
       setActiveCoachSubscriptionId(subId)
       const pd = coachPlanDataBySubId[subId]
       const raw = Number(pd?.dayIndex ?? 1)
@@ -1107,7 +1146,7 @@ function TodayTrainingScreen() {
       }
       setSelectedDayIndex(nextDay)
     },
-    [coachPlanDataBySubId]
+    [coachPlanDataBySubId, updatePlanMode]
   )
 
   const handleGoToPlanLib = useCallback(() => {
@@ -1190,7 +1229,7 @@ function TodayTrainingScreen() {
           setSelfMissingDays([])
 
           if (coachInstance) {
-            setPlanMode('coach')
+            updatePlanMode('coach')
           }
 
           Taro.showToast({ title: '已移除自建计划', icon: 'success' })
@@ -1201,7 +1240,7 @@ function TodayTrainingScreen() {
         }
       }
     })
-  }, [coachInstance, loadData, selfInstance?.id])
+  }, [coachInstance, loadData, selfInstance?.id, updatePlanMode])
 
   const loadLightweightActions = useCallback(async () => {
     try {
@@ -1323,31 +1362,91 @@ function TodayTrainingScreen() {
     selectedExec?.id
   ])
 
+  const syncSelectedExecutionLocally = useCallback(
+    (nextExecution: any) => {
+      if (!instance?.id || !selectedDayIndex || !nextExecution) return
+
+      if (planMode === 'self') {
+        setSelfExecutionsByDayIndex((previous) => ({ ...previous, [selectedDayIndex]: nextExecution }))
+      } else {
+        setCoachPlanDataBySubId((previous) => {
+          const subscriptionId = Object.keys(previous).find(
+            (key) => previous[key]?.instance?.id === instance.id
+          )
+          if (!subscriptionId) return previous
+          const block = previous[subscriptionId]
+          return {
+            ...previous,
+            [subscriptionId]: {
+              ...block,
+              executionsByDayIndex: {
+                ...(block.executionsByDayIndex || {}),
+                [selectedDayIndex]: nextExecution
+              }
+            }
+          }
+        })
+      }
+
+      const scopeKey = trainingExecutionSnapshotKey({
+        isImpromptuMode: false,
+        instanceId: instance.id,
+        dayIndex: selectedDayIndex
+      })
+      if (currentUserId && scopeKey) {
+        syncTrainingExecutionToStorage({
+          userId: currentUserId,
+          scopeKey,
+          instanceId: instance.id,
+          dayIndex: selectedDayIndex,
+          isImpromptuMode: false,
+          execution: nextExecution,
+          planInstance: instance,
+          actions
+        })
+      }
+    },
+    [actions, currentUserId, instance, planMode, selectedDayIndex]
+  )
+
   const handleDeleteLightweightTask = useCallback(
     (task: NormalizedDayTask) => {
       const executionId = selectedExec?.id
       if (!executionId || !task.isStudentExtra) return
+      if (lightweightDeletionRef.current) {
+        Taro.showToast({ title: '正在删除，请稍候', icon: 'none' })
+        return
+      }
       Taro.showModal({
         title: '删除轻任务',
         content: `确认删除轻任务「${task.title}」吗？`,
         success: async (res) => {
           if (!res.confirm) return
+          const previousExecution = selectedExec
+          const optimisticExecution = removeActionFromExecution(previousExecution, task.executionIndex)
+          if (!optimisticExecution) {
+            Taro.showToast({ title: '任务已刷新，请重试', icon: 'none' })
+            return
+          }
+
+          lightweightDeletionRef.current = true
           try {
-            setAddingLightweightTask(true)
+            // 先更新本地页面与缓存；服务端失败时在 catch 中完整回滚。
+            syncSelectedExecutionLocally(optimisticExecution)
             const deleteRes = await executionService.deleteExtraExercise(executionId, task.executionIndex)
             if (!deleteRes) throw new Error('删除失败')
             Taro.showToast({ title: '已删除', icon: 'success' })
-            await loadData()
           } catch (error) {
+            syncSelectedExecutionLocally(previousExecution)
             console.error('[today-training] delete lightweight task failed', error)
             Taro.showToast({ title: '删除失败，请稍后重试', icon: 'none' })
           } finally {
-            setAddingLightweightTask(false)
+            lightweightDeletionRef.current = false
           }
         }
       })
     },
-    [loadData, selectedExec?.id]
+    [selectedExec, syncSelectedExecutionLocally]
   )
 
   const handleOpenLightweightTask = useCallback((task: NormalizedDayTask) => {
@@ -1424,11 +1523,6 @@ function TodayTrainingScreen() {
         <View className='dashboard-greeting-row'>
           <Text className={`dashboard-greeting-icon iconfont ${greetingModel.iconClass}`} />
           <Text className='dashboard-greeting'>{`${greetingModel.label}，${userDisplayName}`}</Text>
-          {cloudSyncing ? (
-            <View className='dashboard-cloud-sync-spin'>
-              <LoadingSpinner size={24} className='dashboard-cloud-sync-spin-inner' />
-            </View>
-          ) : null}
         </View>
       </View>
       <View className='dashboard-more-hit' onClick={() => setMoreTrainingOpen(true)}>
@@ -1470,7 +1564,7 @@ function TodayTrainingScreen() {
                 ? specRaw.replace(/\s+/g, ' ').slice(0, 24)
                 : ''
             const subtitle = String(coach.title || '').trim() || specText || ''
-            const avatarUrl = resolveCoachAvatarUrl(coach.avatar_url)
+            const avatarUrl = resolveAvatarUrl(coach.avatar_url)
             const initial = String(coach.name || '教').trim().charAt(0) || '教'
             return (
               <View
@@ -1529,8 +1623,11 @@ function TodayTrainingScreen() {
     const hasCoachWaitingPlan = !hasPlanForCard && !!activeSubscription?.id
     const noPlanForCard = !hasPlanForCard && !activeSubscription?.id
     const coachName = activeSubscription?.coach?.name || ''
-    const identityName = isSelfPlanForCard ? userDisplayName : coachName || userDisplayName
+    const identityName = isSelfPlanForCard ? userDisplayName : coachName || '教练'
     const identityInitial = (identityName || 'C').trim().slice(0, 1).toUpperCase()
+    const identityAvatarUrl = isSelfPlanForCard
+      ? resolveAvatarUrl(currentUser?.avatar_url)
+      : resolveAvatarUrl(activeSubscription?.coach?.avatar_url)
     const focusStatusText = !hasPlanForCard
       ? isExpiredGrace
         ? '待续费'
@@ -1567,7 +1664,9 @@ function TodayTrainingScreen() {
     const cardTitle = hasPlanForCard
       ? isSelfPlanForCard
         ? '我的训练安排'
-        : `${coachName || '教练'}的训练安排`
+        : coachName
+          ? `${coachName}教练的训练安排`
+          : '教练的训练安排'
       : hasCoachWaitingPlan
         ? isExpiredGrace
           ? '计划暂时锁定'
@@ -1589,7 +1688,7 @@ function TodayTrainingScreen() {
     const focusMetaLine = hasPlanForCard
       ? selectedDay?.type === 'rest'
         ? `${focusDayText} · ${selectedTaskSummary.lightweightCount}个轻任务`
-        : `${selectedModuleModel.strengthTasks.length}个动作 · ${selectedModuleModel.strengthTotalSetCount}组 · 计划进度 ${planProgressStats.percent}%`
+        : `${selectedModuleModel.strengthTasks.length}个动作 · ${selectedModuleModel.strengthTotalSetCount}组`
       : `${focusPlanText} · ${focusDayText}`
     const primaryActionLabel = hasPlanForCard
       ? selectedTaskSummary.dayCompleted
@@ -1618,13 +1717,19 @@ function TodayTrainingScreen() {
       <View className={`tt-daily-progress-card ${!hasPlanForCard ? 'tt-daily-progress-card--empty-state' : ''}`}>
         <View className='tt-plan-identity'>
           <View className='tt-plan-avatar'>
-            <Text>{identityInitial}</Text>
+            {identityAvatarUrl ? (
+              <Image className='tt-plan-avatar-image' src={identityAvatarUrl} mode='aspectFill' />
+            ) : (
+              <Text>{identityInitial}</Text>
+            )}
           </View>
           <View className='tt-plan-identity-main'>
             <Text className='tt-plan-identity-title'>{cardTitle}</Text>
             <Text className='tt-plan-identity-meta'>
               {hasPlanForCard
-                ? `${instance?.name || focusPlanText} · ${focusDayText} · ${focusStatusText}`
+                ? isSelfPlanForCard
+                  ? `${focusPlanText} · ${focusDayText} · ${focusStatusText}`
+                  : `为你制定 · ${focusDayText} · ${focusStatusText}`
                 : `${focusPlanText} · ${focusStatusText}`}
             </Text>
           </View>
@@ -1655,7 +1760,7 @@ function TodayTrainingScreen() {
         </View>
         <View className='tt-focus-panel'>
           <View className='tt-focus-art'>
-            <Text className='tt-focus-art-icon iconfont icon-a-Trainingplan' />
+            <Checklist size={28} color='#CF6D4E' />
           </View>
           <View className='tt-focus-copy'>
             <Text className='tt-focus-kicker'>今天重点</Text>
@@ -1993,11 +2098,11 @@ function TodayTrainingScreen() {
           {renderDashboardIntro()}
           {hasBothPlans && (
             <View className='plan-switcher'>
-              <View className={`switcher-btn ${planMode === 'coach' ? 'active' : ''}`} onClick={() => setPlanMode('coach')}>
+              <View className={`switcher-btn ${planMode === 'coach' ? 'active' : ''}`} onClick={() => updatePlanMode('coach')}>
                 <Text className='switcher-icon'><User size={14} /></Text>
                 <Text>教练计划</Text>
               </View>
-              <View className={`switcher-btn ${planMode === 'self' ? 'active' : ''}`} onClick={() => setPlanMode('self')}>
+              <View className={`switcher-btn ${planMode === 'self' ? 'active' : ''}`} onClick={() => updatePlanMode('self')}>
                 <Text className='iconfont icon-star switcher-icon-star' />
                 <Text>我的计划</Text>
               </View>
@@ -2070,7 +2175,6 @@ function TodayTrainingScreen() {
                 <View className='section-header section-header--schedule'>
                   <View className='header-left'>
                     <View className='tt-schedule-stack__head'>
-                      <Text className='tt-schedule-stack__icon iconfont icon-a-Trainingplan' />
                       <View className='tt-schedule-stack__titles'>
                         <Text className='section-title'>
                           {selectedDayIndex === progressDayIndex || selectedIsTodayCompletedTraining ? '今日安排' : '当天安排'}
@@ -2087,6 +2191,11 @@ function TodayTrainingScreen() {
                               } · ${selectedModuleModel.strengthTasks.length}个动作 · ${selectedModuleModel.strengthTotalSetCount}组`}
                         </Text>
                       </View>
+                      {selectedDayIndex !== defaultSelectedDayIndex && (
+                        <View className='tt-schedule-stack__return-current' onClick={() => setSelectedDayIndex(defaultSelectedDayIndex)}>
+                          <Text>回到当前安排</Text>
+                        </View>
+                      )}
                     </View>
                   </View>
                 </View>
@@ -2115,10 +2224,22 @@ function TodayTrainingScreen() {
 
                   {canShareDayCheckin && (
                     <View className='share-entry-card'>
-                      <Text className='share-entry-title'>整日打卡图</Text>
-                      <View className='inline-actions'>
-                        <View className='inline-action-btn' onClick={() => setDayShareVisible(true)}>
-                          <Text>生成</Text>
+                      <View className='share-entry-header'>
+                        <View className='share-entry-copy'>
+                          <View className='share-entry-title-row'>
+                            <View className='share-entry-heading-icon'>
+                              <Check size={14} color='#CF6D4E' />
+                            </View>
+                            <Text className='share-entry-title'>今日成果</Text>
+                          </View>
+                          <View className='share-entry-action-row'>
+                            <Text className='share-entry-action-label'>整日打卡图</Text>
+                            <View className='inline-actions'>
+                              <View className='inline-action-btn' onClick={() => setDayShareVisible(true)}>
+                                <Text>生成</Text>
+                              </View>
+                            </View>
+                          </View>
                         </View>
                       </View>
                     </View>
@@ -2204,15 +2325,15 @@ function TodayTrainingScreen() {
         visible={dayShareVisible}
         onClose={() => setDayShareVisible(false)}
         data={dayShareData}
-        directShareReady={dayShareShareable}
-        directShareLoading={dayShareLoading}
       />
 
       <ExecutionPlanNoticePopup
         visible={executionNoticeVisible}
         executionNotice={(instance as any)?.execution_notice || (instance as any)?.executionNotice || null}
         planName={instance?.name || null}
+        planSource={planMode === 'self' || instance?.source === 'self' ? 'self' : 'coach'}
         onConfirm={handleConfirmExecutionNotice}
+        onClose={handleCancelExecutionNotice}
         confirmLabel='我已阅读，进入训练'
       />
 

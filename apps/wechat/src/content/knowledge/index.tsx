@@ -59,7 +59,18 @@ function KnowledgeBase() {
 
   useEffect(() => {
     const session = authService.getAuthSession({ normalize: true })
-    setIsGuest(!session.isAuthenticated)
+    const guest = !session.isAuthenticated
+    setIsGuest(guest)
+
+    if (guest) {
+      // 游客仅浏览公开专题和搜索结果；书籍与计划列表需要登录态，不应发起必然返回 401 的请求。
+      setBookCollections([])
+      setTrainingPlans([])
+      setLoadingBooks(false)
+      setLoadingTrainingPlans(false)
+      return
+    }
+
     void loadBooks()
     void loadTrainingPlans()
   }, [])
@@ -222,8 +233,7 @@ function KnowledgeBase() {
           <View className='focus-topic-section'>
             <View className='section-head section-head-stack'>
               <View>
-                <Text className='section-kicker'>精选专题</Text>
-                <Text className='section-title'>先看最常见的问题</Text>
+                <Text className='section-title'>精选专题</Text>
               </View>
             </View>
             <View className='focus-topic-list'>
@@ -242,7 +252,7 @@ function KnowledgeBase() {
             </View>
           </View>
 
-          <View id='knowledge-plans' className='section'>
+          {!isGuest && <View id='knowledge-plans' className='section'>
             <View className='section-head section-head-stack'>
               <View>
                 <Text className='section-title'>重点训练计划</Text>
@@ -285,9 +295,9 @@ function KnowledgeBase() {
                 </View>
               </ScrollView>
             )}
-          </View>
+          </View>}
 
-          <View id='knowledge-books' className='section'>
+          {!isGuest && <View id='knowledge-books' className='section'>
             <View className='section-head'>
               <View>
                 <Text className='section-title'>书籍笔记</Text>
@@ -325,7 +335,7 @@ function KnowledgeBase() {
                 <Text className='empty-panel-text'>暂无书籍笔记。</Text>
               </View>
             )}
-          </View>
+          </View>}
         </View>
       </ScrollView>
       <BottomNav />

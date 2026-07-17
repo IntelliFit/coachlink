@@ -379,14 +379,6 @@ export default function PushupDashPage() {
     return () => clearInterval(timer)
   }, [gameStatus])
 
-  const handleBack = () => {
-    Taro.navigateBack({ delta: 1 }).catch(() => {
-      Taro.navigateTo({ url: '/toolbox/index' }).catch(() => {
-        Taro.switchTab({ url: '/pages/index/index' })
-      })
-    })
-  }
-
   const beginCameraFallbackRecording = () => {
     if (!cameraContextRef.current) {
       Taro.showToast({ title: '相机还没准备好', icon: 'none' })
@@ -591,11 +583,6 @@ export default function PushupDashPage() {
   return (
     <PageThemeRoot>
       <View className={`motion-arcade-page motion-arcade-page--pushup theme-${effectiveTheme}`}>
-        <View className='nav-bar'>
-          <Text className='nav-back' onClick={handleBack}>返回</Text>
-          <Text className='nav-title'>俯卧撑突围</Text>
-        </View>
-
         <ScrollView className='page-scroll' scrollY>
           <View className='page-content'>
             <View className='intro-card'>

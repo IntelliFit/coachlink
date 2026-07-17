@@ -162,6 +162,15 @@
   gap: 16rpx;
 }
 
+.execution-plan-notice-actions--split {
+  flex-direction: row;
+}
+
+.execution-plan-notice-actions--split .execution-plan-notice-btn {
+  flex: 1;
+  width: auto;
+}
+
 .execution-plan-notice-btn {
   width: 100%;
   min-height: 88rpx;
