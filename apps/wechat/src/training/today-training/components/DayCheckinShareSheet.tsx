@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { View, Text, Canvas } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { formatMonthDayTime } from '@/utils/dateFormat'
@@ -66,11 +66,18 @@ function DayCheckinShareSheet({
   data
 }: DayCheckinShareSheetProps) {
   const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+
+  useEffect(() => {
+    if (visible) {
+      setSaved(false)
+    }
+  }, [visible])
 
   if (!visible) return null
 
   const handleSave = async () => {
-    if (!data || saving) return
+    if (!data || saving || saved) return
     setSaving(true)
 
     try {
@@ -238,6 +245,7 @@ function DayCheckinShareSheet({
                 filePath: fileRes.tempFilePath,
                 success: () => {
                   setSaving(false)
+                  setSaved(true)
                   Taro.showToast({ title: '已保存到相册', icon: 'success' })
                 },
                 fail: (err) => {
@@ -364,8 +372,8 @@ function DayCheckinShareSheet({
               <View className='sheet-btn secondary' onClick={onClose}>
                 <Text>取消</Text>
               </View>
-              <View className={`sheet-btn primary ${saving ? 'disabled' : ''}`} onClick={handleSave}>
-                <Text>{saving ? '生成中...' : '保存图片'}</Text>
+              <View className={`sheet-btn primary ${saving || saved ? 'disabled' : ''}`} onClick={handleSave}>
+                <Text>{saving ? '生成中...' : saved ? '已保存' : '保存图片'}</Text>
               </View>
             </View>
           </>
