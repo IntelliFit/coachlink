@@ -343,8 +343,6 @@ function TodayTrainingScreen() {
   const [lightweightConfigVisible, setLightweightConfigVisible] = useState(false)
   const [dayShareVisible, setDayShareVisible] = useState(false)
   const [daySharePath, setDaySharePath] = useState('')
-  const [dayShareLoading, setDayShareLoading] = useState(false)
-  const [dayShareShareable, setDayShareShareable] = useState(false)
   const [moreTrainingOpen, setMoreTrainingOpen] = useState(false)
   const [coachPickSheetOpen, setCoachPickSheetOpen] = useState(false)
   const [calendarExpanded, setCalendarExpanded] = useState(false)
@@ -694,37 +692,21 @@ function TodayTrainingScreen() {
       const executionId = String(selectedExec?.id || '').trim()
       const canDirectShare = !!executionId && selectedExecutionStatus === 'completed'
 
-      if (!dayShareVisible && !canDirectShare) {
-        setDayShareLoading(false)
+      if (!dayShareVisible || !canDirectShare) {
         setDaySharePath('')
-        setDayShareShareable(false)
         return
       }
 
-      if (!canDirectShare) {
-        setDayShareLoading(false)
-        setDaySharePath('')
-        setDayShareShareable(false)
-        return
-      }
-
-      setDayShareLoading(true)
       try {
         const shareInfo = await executionService.getShareInfo(executionId)
         if (cancelled) return
 
         const sharePath = buildPublicTrainingSharePath(shareInfo?.shareToken)
         setDaySharePath(sharePath)
-        setDayShareShareable(!!sharePath)
       } catch (error) {
         if (!cancelled) {
           console.error('[today-training] load share info failed', error)
           setDaySharePath('')
-          setDayShareShareable(false)
-        }
-      } finally {
-        if (!cancelled) {
-          setDayShareLoading(false)
         }
       }
     }
@@ -2336,8 +2318,6 @@ function TodayTrainingScreen() {
         visible={dayShareVisible}
         onClose={() => setDayShareVisible(false)}
         data={dayShareData}
-        directShareReady={dayShareShareable}
-        directShareLoading={dayShareLoading}
       />
 
       <ExecutionPlanNoticePopup
