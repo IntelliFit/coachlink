@@ -4,32 +4,8 @@
     radial-gradient(circle at top, rgba(255, 227, 214, 0.72) 0, rgba(255, 227, 214, 0) 28%),
     #f5f1eb;
 
-  .nav-bar {
-    height: 104rpx;
-    padding: 40rpx 24rpx 16rpx;
-    display: flex;
-    align-items: center;
-    gap: 16rpx;
-    background: rgba(245, 241, 235, 0.96);
-    border-bottom: 1px solid #e7ddd2;
-    box-sizing: border-box;
-  }
-
-  .nav-back {
-    font-size: 28rpx;
-    font-weight: 700;
-    color: #cf6d4e;
-  }
-
-  .nav-title {
-    flex: 1;
-    font-size: 32rpx;
-    font-weight: 800;
-    color: #1f2937;
-  }
-
   .page-scroll {
-    height: calc(100vh - 104rpx);
+    height: 100vh;
   }
 
   .page-content {
@@ -533,12 +509,6 @@
     radial-gradient(circle at top, rgba(198, 222, 255, 0.68) 0, rgba(198, 222, 255, 0) 32%),
     #edf3fb;
 
-  .nav-bar {
-    background: rgba(237, 243, 251, 0.96);
-    border-bottom-color: #d6e1ef;
-  }
-
-  .nav-back,
   .intro-kicker,
   .section-kicker,
   .tip-kicker {
@@ -594,12 +564,6 @@
     radial-gradient(circle at top, rgba(255, 221, 206, 0.68) 0, rgba(255, 221, 206, 0) 32%),
     #f8f0ea;
 
-  .nav-bar {
-    background: rgba(248, 240, 234, 0.96);
-    border-bottom-color: #ecd5c9;
-  }
-
-  .nav-back,
   .intro-kicker,
   .section-kicker,
   .tip-kicker {

@@ -4,31 +4,8 @@
     radial-gradient(circle at top, rgba(207, 109, 78, 0.12), transparent 32%),
     #f6f4f2;
 
-  .nav-bar {
-    height: 104rpx;
-    padding: 40rpx 24rpx 16rpx;
-    display: flex;
-    align-items: center;
-    gap: 16rpx;
-    background: rgba(246, 244, 242, 0.96);
-    border-bottom: 1px solid #e5e7eb;
-
-    .nav-back {
-      font-size: 28rpx;
-      font-weight: 700;
-      color: #cf6d4e;
-    }
-
-    .nav-title {
-      flex: 1;
-      font-size: 32rpx;
-      font-weight: 700;
-      color: #111827;
-    }
-  }
-
   .scenario-scroll {
-    height: calc(100vh - 104rpx);
+    height: 100vh;
   }
 
   .page-content {

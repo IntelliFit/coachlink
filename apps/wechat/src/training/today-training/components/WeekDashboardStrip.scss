@@ -38,14 +38,16 @@
   opacity: 0.88;
 }
 
-.week-dashboard-strip__pill--today:not(.week-dashboard-strip__pill--selected) {
+.week-dashboard-strip__pill--today {
   border-color: #cf6d4e;
+  background: #fff8f5;
+  box-shadow: 0 0 0 4rpx rgba(207, 109, 78, 0.1);
 }
 
 /* 低饱和深色选中态，贴近灰底 */
 .week-dashboard-strip__pill--selected {
-  background: #3d3d42;
-  border-color: #3d3d42;
+  background: #3f5e78;
+  border-color: #3f5e78;
 
   .week-dashboard-strip__wd,
   .week-dashboard-strip__num {
@@ -55,6 +57,11 @@
   .week-dashboard-strip__dot {
     background: #ffffff;
   }
+}
+
+.week-dashboard-strip__pill--today.week-dashboard-strip__pill--selected {
+  border-color: #cf6d4e;
+  box-shadow: 0 0 0 4rpx rgba(207, 109, 78, 0.16);
 }
 
 .week-dashboard-strip__dot-placeholder {
@@ -67,6 +74,23 @@
   height: 8rpx;
   border-radius: 9999rpx;
   background: #cf6d4e;
+}
+
+.week-dashboard-strip__pill--completed .week-dashboard-strip__dot {
+  background: #22a06b;
+}
+
+.week-dashboard-strip__pill--in_progress .week-dashboard-strip__dot {
+  background: #cf6d4e;
+  box-shadow: 0 0 0 4rpx rgba(207, 109, 78, 0.14);
+}
+
+.week-dashboard-strip__pill--pending .week-dashboard-strip__dot {
+  background: #d69a32;
+}
+
+.week-dashboard-strip__pill--rest .week-dashboard-strip__dot {
+  background: #94a3b8;
 }
 
 .week-dashboard-strip__wd {

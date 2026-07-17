@@ -5,8 +5,6 @@
   overflow-x: hidden;
   box-sizing: border-box;
   background: linear-gradient(180deg, #e8e8e8 0%, #f8f8f8 100%);
-  padding-top: constant(safe-area-inset-top);
-  padding-top: env(safe-area-inset-top);
   padding-bottom: 200rpx;
 
   .page-scroll {
@@ -20,7 +18,7 @@
     width: 100%;
     max-width: 100%;
     box-sizing: border-box;
-    padding: 182rpx 24rpx 48rpx;
+    padding: 48rpx 24rpx;
   }
 
   .messages-friends-entry {

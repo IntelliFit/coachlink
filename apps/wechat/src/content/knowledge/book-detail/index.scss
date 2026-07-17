@@ -2,32 +2,6 @@
   min-height: 100vh;
   background: #f5f2ef;
 
-  .nav-bar {
-    position: sticky;
-    top: 0;
-    z-index: 10;
-    display: flex;
-    align-items: center;
-    height: 88rpx;
-    padding: 0 24rpx;
-    background: #fff;
-    border-bottom: 1px solid #eee;
-
-    .nav-back {
-      color: #cf6d4e;
-      font-size: 28rpx;
-      margin-right: 16rpx;
-      font-weight: 700;
-    }
-
-    .nav-title {
-      flex: 1;
-      font-size: 32rpx;
-      font-weight: 700;
-      color: #333;
-    }
-  }
-
   .loading-wrap,
   .error-wrap,
   .paywall-wrap {
@@ -91,7 +65,7 @@
   }
 
   .content-scroll {
-    height: calc(100vh - 88rpx);
+    height: 100vh;
   }
 
   .book-body {

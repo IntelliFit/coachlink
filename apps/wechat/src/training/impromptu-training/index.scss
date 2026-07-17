@@ -7,37 +7,14 @@
   .page-header {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: center;
     padding: 24rpx 32rpx 16rpx;
     background: #f6f6f6;
-
-    .header-left {
-      display: flex;
-      align-items: center;
-      gap: 8rpx;
-      min-width: 120rpx;
-
-      .back-icon {
-        font-size: 40rpx;
-        line-height: 40rpx;
-        color: #cf6d4e;
-      }
-
-      .back-text {
-        font-size: 28rpx;
-        color: #cf6d4e;
-      }
-    }
 
     .page-title {
       font-size: 34rpx;
       font-weight: 700;
       color: #111827;
-    }
-
-    .header-placeholder {
-      width: 120rpx;
-      height: 40rpx;
     }
   }
 

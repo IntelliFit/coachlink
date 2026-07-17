@@ -80,9 +80,21 @@ const coachNavItems: NavItem[] = [
 
 const BOTTOM_NAV_SWITCH_KEY = 'bottom_nav_switching'
 
+const normalizePath = (route: string) => {
+  if (!route) return ''
+  const path = route.startsWith('/') ? route : `/${route}`
+  return path.replace(/\/+$/, '')
+}
+
+const getCurrentPath = () => {
+  const pages = Taro.getCurrentPages()
+  if (pages.length === 0) return ''
+  return normalizePath((pages[pages.length - 1] as any).route || '')
+}
+
 function BottomNav() {
   const { isDark } = useTheme()
-  const [currentPath, setCurrentPath] = useState('')
+  const [currentPath, setCurrentPath] = useState(getCurrentPath)
   const [isCoachView, setIsCoachView] = useState(() => {
     const session = authService.getAuthSession({ normalize: true })
     return !!(session.isAuthenticated && session.isCoach && session.primaryRole === 'coach')
@@ -90,21 +102,12 @@ function BottomNav() {
   const [playSwitchAnimation, setPlaySwitchAnimation] = useState(false)
   const navLockRef = useRef(false)
 
-  const normalizePath = (route: string) => {
-    if (!route) return ''
-    const path = route.startsWith('/') ? route : `/${route}`
-    return path.replace(/\/+$/, '')
-  }
-
   const matchesPrefix = (pathname: string, prefixes: string[]) => {
     return prefixes.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))
   }
 
   const syncCurrentPath = () => {
-    const pages = Taro.getCurrentPages()
-    if (pages.length === 0) return
-    const route = (pages[pages.length - 1] as any).route
-    setCurrentPath(normalizePath(route || ''))
+    setCurrentPath(getCurrentPath())
   }
 
   const syncRole = () => {
@@ -162,6 +165,19 @@ function BottomNav() {
     }
   }
 
+  const tryRelaunchTab = async (url: string) => {
+    try {
+      await Taro.reLaunch({ url })
+      return true
+    } catch (error) {
+      Taro.showToast({
+        title: (error as any)?.errMsg || '页面跳转失败',
+        icon: 'none'
+      })
+      return false
+    }
+  }
+
   const handleNavClick = async (item: NavItem) => {
     const targetPath = normalizePath(item.path)
     const current = normalizePath(currentPath)
@@ -187,7 +203,9 @@ function BottomNav() {
 
     navLockRef.current = true
     Taro.setStorageSync(BOTTOM_NAV_SWITCH_KEY, '1')
-    const success = await tryNavigate(item.path)
+    // 一级入口不是详情页：始终重启到目标页，避免 navigateTo 持续堆积页面栈，
+    // 使每次切换都保持同一种无横向转场的刷新行为。
+    const success = await tryRelaunchTab(item.path)
     if (success) {
       setTimeout(() => {
         syncCurrentPath()
@@ -236,6 +254,11 @@ function BottomNav() {
 
   const navItems = isCoachView ? coachNavItems : studentNavItems
   const currentNorm = normalizePath(currentPath)
+  const isPrimaryNavigationPage = [...studentNavItems, ...coachNavItems]
+    .some((item) => normalizePath(item.path) === currentNorm)
+
+  // 子页面即使误引入 BottomNav，也不能显示一级导航，避免详情/编辑流程被底栏打断。
+  if (!isPrimaryNavigationPage) return null
 
   return (
     <View className={`bottom-nav ${isDark ? 'bottom-nav--dark' : ''}`}>

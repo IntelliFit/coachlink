@@ -45,8 +45,8 @@ function WeekDashboardStrip({ cells, selectedDateKey, onCellPress }: WeekDashboa
             return (
               <View
                 key={cell.dateKey}
-                className={`week-dashboard-strip__pill ${selected ? 'week-dashboard-strip__pill--selected' : ''} ${
-                  cell.isToday && !selected ? 'week-dashboard-strip__pill--today' : ''
+                className={`week-dashboard-strip__pill week-dashboard-strip__pill--${cell.status} ${selected ? 'week-dashboard-strip__pill--selected' : ''} ${
+                  cell.isToday ? 'week-dashboard-strip__pill--today' : ''
                 }`}
                 hoverClass='week-dashboard-strip__pill--active'
                 hoverStayTime={70}

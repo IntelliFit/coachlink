@@ -45,10 +45,6 @@ export default function ScenarioDetailPage() {
   if (!scenario) {
     return (
       <View className={`scenario-page theme-${effectiveTheme}`}>
-        <View className='nav-bar'>
-          <Text className='nav-back' onClick={handleBack}>返回</Text>
-          <Text className='nav-title'>场景放松</Text>
-        </View>
         <View className='empty-wrap'>
           <Text className='empty-title'>未找到该场景</Text>
           <Text className='empty-desc'>这个场景可能还没有同步到小程序。</Text>
@@ -62,11 +58,6 @@ export default function ScenarioDetailPage() {
 
   return (
     <View className={`scenario-page theme-${effectiveTheme}`}>
-      <View className='nav-bar'>
-        <Text className='nav-back' onClick={handleBack}>返回</Text>
-        <Text className='nav-title'>{scenario.title}</Text>
-      </View>
-
       <ScrollView scrollY className='scenario-scroll'>
         <View className='page-content'>
           <View className='hero-card'>
