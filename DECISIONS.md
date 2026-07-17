@@ -1,4 +1,5 @@
 # DECISIONS
+- `2026-07-17`: Web 主站镜像发布优先在本机 Docker 可用时执行 `npm run push-docker-ccr` 构建并推送腾讯云 CCR，再由 Keel/K8s 滚动线上服务。除非用户明确要求或本机 Docker 不可用且已获确认，不要把完整 `coachlink` 源码包上传到生产服务器临时目录构建；如临时上传过，必须清理 `/tmp` 中的源码包和解包目录。
 - `2026-07-17`: Web 视频上传的浏览器端自动压缩只应用于真正偏大的视频或需要降分辨率的视频；默认体积阈值为 80MB。40MB 级中等视频应直接走预签名直传或既有上传链路，避免先完整 MediaRecorder 转码再上传。所有上传进度 UI 必须保证百分比单调递增；如果压缩结果因收益不足被丢弃并改传原视频，上传阶段也必须从当前进度继续推进，不能回到 0 或低位。
 - `2026-07-17`: CoachLink 生产 Nginx 不能只为功率分析放开大文件限制。所有仍经由 Next.js multipart 的视频上传入口必须在 `littlehorse-deployment/coachlink/coachlink.conf` 有专用 location，并与应用侧 200MB 限制保持一致：当前网关使用 `client_max_body_size 220m`、`proxy_request_buffering off`、上传超时 900 秒。已覆盖 `/api/coach/upload-application-media`、`/api/coach/upload-question-media`、`/api/action-lib/upload-demo-video`、`/api/student/action-lib/upload-demo-video`、`/api/execution/upload-set-video`、`/api/training/upload-set-video`、`/api/user/upload-video`。
 - `2026-07-15`: Web `/today-training` 与微信小程序今日训练页各自维护一份计划日期计算；任何排期、顺延和恢复日规则修改必须同步核对两端，不能只修一端。当前统一规则为：尚未到排期的推进日保留原排期，只有真正逾期才向后顺延，`totalDelayDays` 永不为负。
