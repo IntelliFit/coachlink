@@ -1,4 +1,5 @@
 # DECISIONS
+- `2026-07-17`: CoachLink 生产 Nginx 不能只为功率分析放开大文件限制。所有仍经由 Next.js multipart 的视频上传入口必须在 `littlehorse-deployment/coachlink/coachlink.conf` 有专用 location，并与应用侧 200MB 限制保持一致：当前网关使用 `client_max_body_size 220m`、`proxy_request_buffering off`、上传超时 900 秒。已覆盖 `/api/coach/upload-application-media`、`/api/coach/upload-question-media`、`/api/action-lib/upload-demo-video`、`/api/student/action-lib/upload-demo-video`、`/api/execution/upload-set-video`、`/api/training/upload-set-video`、`/api/user/upload-video`。
 - `2026-07-15`: Web `/today-training` 与微信小程序今日训练页各自维护一份计划日期计算；任何排期、顺延和恢复日规则修改必须同步核对两端，不能只修一端。当前统一规则为：尚未到排期的推进日保留原排期，只有真正逾期才向后顺延，`totalDelayDays` 永不为负。
 - `2026-07-15`: 计划推进到恢复日时，系统必须停留到下一自然日，不能自动跳过；但用户主动点击恢复日之后的第一个训练日时，允许手动提前结束连续恢复日并开始训练。手动提前只能跨过连续恢复日，绝不能跨过任何尚未完成的训练日。
 - `2026-07-15`: 直接为用户/学员创建并立即可执行的计划时，若用户未明确指定未来开始日，`start_date` 必须使用北京时间当天，禁止擅自对齐到“下周一”或其他未来日期。小程序计划月历的 `totalDelayDays` 语义只允许非负的向后顺延；当前推进日早于原排期时应保留原排期，不得强制映射到今天并产生负顺延。

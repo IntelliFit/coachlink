@@ -1,3 +1,11 @@
+## 教练视频上传 Nginx 413 修复 (`2026-07-17`)
+
+- Task: 用户反馈生产环境中教练上传十几 MB 或几十 MB 视频失败，要求检查 `littlehorse-deployment` 并能修则直接改、推送和部署。
+- Root cause: 生产 Nginx 只给 `/api/toolbox/power-analysis/` 单独放开了大文件上传限制；教练申请/主页材料、问卷示例媒体、动作演示视频、训练组视频等仍走通用 `location /`，未配置 `client_max_body_size`。未登录 multipart 探针显示 2MB 请求在这些路径上直接被 Nginx 以 HTML 413 拦截，无法进入 Next；同一探针打到功率分析专用路径则返回应用 JSON 401，证明问题位于 Nginx 上游限制而非业务鉴权或 COS。
+- Fix/deploy: 已在 `IntelliFit/littlehorse-deployment` 提交 `ec9f39c fix: raise CoachLink video upload nginx limits`，修改 `coachlink/coachlink.conf`：生产保留并纳入 Git 的功率分析 520MB 专用入口；为 `/api/coach/upload-application-media`、`/api/coach/upload-question-media`、`/api/action-lib/upload-demo-video`、`/api/student/action-lib/upload-demo-video`、`/api/execution/upload-set-video`、`/api/training/upload-set-video`、`/api/user/upload-video` 增加 220MB 专用 location、关闭请求缓冲并把上传超时调到 900 秒；dev 域名同步添加 220MB location。
+- Production action: 已同步服务器 `/home/ubuntu/littlehorse-deployment` 到 `ec9f39c`，更新 `/etc/nginx/conf.d/coachlink.conf`，备份旧配置到 `/etc/nginx/conf.d/coachlink.conf.bak-20260717-202515-coach-video-upload` 等文件，`sudo nginx -t` 通过并已 reload，`nginx` 服务为 active。
+- Verification: 修复前 2MB multipart 到 `/api/coach/upload-application-media`、`/api/coach/upload-question-media`、`/api/action-lib/upload-demo-video`、`/api/execution/upload-set-video` 均为 Nginx HTML 413；修复后同样请求均返回应用 JSON `401 用户未登录`。25MB multipart 探针到 `/api/coach/upload-application-media` 与 `/api/action-lib/upload-demo-video` 也返回应用 JSON 401，不再被网关 413 拦截。未使用真实登录态写入业务数据。
+
 ## 生产功率分析上传空文件热修 (`2026-07-15`)
 
 - Task: 修复线上微信小程序功率分析选择视频并成功上传后，Worker 直接报 `moov atom not found` / `Cannot open input video`。
