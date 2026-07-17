@@ -1,3 +1,10 @@
+## Web 视频上传进度回退与中等视频慢修复 (`2026-07-17`)
+
+- Task: 用户在已登录 Chrome 中复测 42MB 视频上传，反馈仍然很慢，进度条来回跳动甚至从大到小；用户提供本地视频 `C:/Users/15537/Desktop/425aa7b98920c999b842dac6da336da3_raw - 副本.mp4`。
+- Diagnosis: 本地文件大小 `42023706` 字节（约 40.1MiB）。Web 动作演示/通用视频上传在 `prepareVideoForUpload` 中对超过 18MB 的视频默认先做浏览器端 MediaRecorder 转码压缩；这会让 40MB 级普通视频先经历完整本地转码，非常慢。若压缩产物收益不够，代码会丢弃压缩结果并上传原视频，但上传阶段百分比重新按 XHR 原始进度从低位开始，导致 UI 从压缩阶段的高百分比回落到低百分比。Chrome 自动化文件选择被扩展权限拦截（需要启用 ChatGPT Chrome Extension 的 “Allow access to file URLs”），因此未完成真实页面文件写入测试。
+- Fix: 将默认自动压缩阈值从 18MB 提高到 80MB，避免 42MB 这类中等视频无谓本地转码；`videoService.uploadVideoFile` 与 `actionLibService.uploadDemoVideo` 改为单调递增进度映射，上传阶段从当前进度继续推进，即使压缩被丢弃也不会回退。
+- Verification: `npm test -- src/lib/videoCompression.test.ts`、`npm run lint`、`npm run typecheck`、完整 `npm test`（35 files / 177 tests）通过；`npx next build` 起初因本机 `node_modules` 缺 `busboy` / `pdf-parse` 失败，执行 `npm install` 恢复已在 lock 中声明的依赖后，`npx next build` 通过（519 pages）。
+
 ## 教练视频上传 Nginx 413 修复 (`2026-07-17`)
 
 - Task: 用户反馈生产环境中教练上传十几 MB 或几十 MB 视频失败，要求检查 `littlehorse-deployment` 并能修则直接改、推送和部署。

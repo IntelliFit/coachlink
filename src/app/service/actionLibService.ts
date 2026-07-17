@@ -140,14 +140,21 @@ export class ActionLibService extends BaseService {
         if (!file) throw new Error("缺少文件");
         if (!file.type?.startsWith("video/")) throw new Error("仅支持上传视频文件");
 
-        onProgress?.(0);
+        let lastPercentage = 0;
+        const emitProgress = (percentage: number) => {
+            const next = Math.min(100, Math.max(lastPercentage, Math.round(percentage)));
+            lastPercentage = next;
+            onProgress?.(next);
+        };
+
+        emitProgress(0);
 
         const prepared = await prepareVideoForUpload(file, {
             onProgress: (progress) => {
                 const mappedPercentage = progress.phase === "compressing"
                     ? Math.round(10 + progress.percentage * 0.45)
                     : Math.round(progress.percentage * 0.1);
-                onProgress?.(mappedPercentage);
+                emitProgress(mappedPercentage);
             },
         });
         const uploadFile = prepared.file;
@@ -166,12 +173,17 @@ export class ActionLibService extends BaseService {
         }
 
         const { bucket, path, publicUrl, uploadUrl } = signRes.data.data;
+        const uploadStartPercentage = prepared.compressed
+            ? Math.max(lastPercentage, 55)
+            : Math.max(lastPercentage, 10);
+        emitProgress(uploadStartPercentage);
+
         await this.putWithProgress(uploadUrl, uploadFile, (percentage) => {
-            const mappedPercentage = prepared.compressed
-                ? Math.round(55 + percentage * 0.45)
-                : percentage;
-            onProgress?.(mappedPercentage);
+            const mappedPercentage = uploadStartPercentage +
+                (percentage * (100 - uploadStartPercentage)) / 100;
+            emitProgress(mappedPercentage);
         });
+        emitProgress(100);
 
         return {
             url: publicUrl,
