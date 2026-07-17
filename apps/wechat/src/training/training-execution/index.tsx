@@ -2517,18 +2517,15 @@ function TrainingExecution() {
       <View className="execution-scroll">
         <View className="execution-shell">
           <View className="hero-section">
-            {!isImpromptuMode && (
-              <View className="hero-topbar">
-                <Text className="hero-day-label">{`${isReadOnly ? '只读查看 · ' : ''}第${dayIndex}天`}</Text>
-              </View>
-            )}
-
             <View className="hero-main">
               <View className="hero-timer-card">
                 <Text className="hero-timer-value" style={{ fontSize: `${heroTimerFontSize}rpx` }}>{heroTimerValue}</Text>
                 <Text className="hero-timer-label">{heroTimerLabel}</Text>
               </View>
               <View className="hero-summary">
+                {!isImpromptuMode && (
+                  <Text className="hero-day-label hero-day-label--context">{`${isReadOnly ? '只读查看 · ' : ''}第${dayIndex}天`}</Text>
+                )}
                 <Text className="hero-title">{planTitle || '训练执行'}</Text>
                 <Text className="hero-subtitle">{heroSubtitle}</Text>
                 <View className="hero-chip-row">

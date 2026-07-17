@@ -1036,6 +1036,11 @@ function TodayTrainingScreen() {
     handleGoToTrainingExecution(target.dayIndex, target.focusAction, { readOnly: target.readOnly })
   }, [currentUserId, handleGoToTrainingExecution, instance?.id, pendingExecutionTarget])
 
+  const handleCancelExecutionNotice = useCallback(() => {
+    setExecutionNoticeVisible(false)
+    setPendingExecutionTarget(null)
+  }, [])
+
   const handleSkipDay = useCallback(
     (dayIndex: number) => {
       if (!instance?.id || !dayIndex) return
@@ -2231,6 +2236,7 @@ function TodayTrainingScreen() {
         executionNotice={(instance as any)?.execution_notice || (instance as any)?.executionNotice || null}
         planName={instance?.name || null}
         onConfirm={handleConfirmExecutionNotice}
+        onClose={handleCancelExecutionNotice}
         confirmLabel='我已阅读，进入训练'
       />
 

@@ -101,10 +101,15 @@ function ExecutionPlanNoticePopup({
           </View>
         )}
 
-        <View className='execution-plan-notice-actions'>
+        <View className={`execution-plan-notice-actions ${requiresConfirm && onClose ? 'execution-plan-notice-actions--split' : ''}`}>
           {!requiresConfirm && (
             <View className='execution-plan-notice-btn execution-plan-notice-btn--primary' onClick={() => (onConfirm || onClose)?.()}>
               <Text>{finalConfirmLabel}</Text>
+            </View>
+          )}
+          {requiresConfirm && onClose && (
+            <View className='execution-plan-notice-btn execution-plan-notice-btn--secondary' onClick={onClose}>
+              <Text>暂不训练</Text>
             </View>
           )}
           {requiresConfirm && (

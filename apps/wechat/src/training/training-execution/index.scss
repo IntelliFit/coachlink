@@ -35,7 +35,6 @@
     box-shadow: 0 18rpx 44rpx rgba(0, 0, 0, 0.28);
   }
 
-  .hero-topbar,
   .action-header,
   .set-header,
   .set-tool-row,
@@ -51,11 +50,6 @@
     align-items: center;
     gap: 12rpx;
     flex-wrap: wrap;
-  }
-
-  .hero-topbar {
-    justify-content: center;
-    margin-bottom: 22rpx;
   }
 
   .hero-top-actions {
@@ -79,8 +73,12 @@
   }
 
   .hero-day-label {
+    display: block;
+    margin-bottom: 8rpx;
     font-size: 24rpx;
-    color: rgba(255, 255, 255, 0.58);
+    line-height: 32rpx;
+    font-weight: 600;
+    color: #f4a64d;
   }
 
   .hero-main {
@@ -113,6 +111,10 @@
     text-align: center;
     white-space: nowrap;
 
+  }
+
+  .hero-day-label--context {
+    letter-spacing: 1rpx;
   }
 
   .hero-timer-label {
@@ -1796,6 +1798,10 @@
   .summary-action-meta,
   .picker-subtitle {
     color: #6b7280 !important;
+  }
+
+  .hero-day-label--context {
+    color: #cf6d4e !important;
   }
 
   .hero-timer-card {
