@@ -7,6 +7,7 @@ type ExecutionPlanNoticeMode = 'confirm' | 'read'
 interface ExecutionPlanNoticePopupProps {
   visible: boolean
   mode?: ExecutionPlanNoticeMode
+  planSource?: 'coach' | 'self'
   executionNotice?: string | null
   planName?: string | null
   confirmLabel?: string
@@ -24,6 +25,7 @@ const SAFETY_BASELINES = [
 function ExecutionPlanNoticePopup({
   visible,
   mode = 'confirm',
+  planSource = 'coach',
   executionNotice,
   planName,
   confirmLabel,
@@ -33,6 +35,7 @@ function ExecutionPlanNoticePopup({
 }: ExecutionPlanNoticePopupProps) {
   const [checked, setChecked] = useState(mode === 'read')
   const requiresConfirm = mode === 'confirm'
+  const isSelfPlan = planSource === 'self'
   const coachNotice = String(executionNotice || '').trim()
 
   useEffect(() => {
@@ -60,7 +63,9 @@ function ExecutionPlanNoticePopup({
 
         <ScrollView scrollY className='execution-plan-notice-scroll'>
           <View className='execution-plan-notice-card execution-plan-notice-card--intro'>
-            <Text className='execution-plan-notice-card-title'>先看教练给这份计划写的执行须知</Text>
+            <Text className='execution-plan-notice-card-title'>
+              {isSelfPlan ? '先看这份计划的执行须知' : '先看教练给这份计划写的执行须知'}
+            </Text>
             <Text className='execution-plan-notice-card-text'>
               {planName
                 ? `开始「${planName}」之前，请先确认这份计划的执行要求、注意事项和记录方式。`
@@ -69,9 +74,11 @@ function ExecutionPlanNoticePopup({
           </View>
 
           <View className='execution-plan-notice-card'>
-            <Text className='execution-plan-notice-card-title'>教练执行须知</Text>
+            <Text className='execution-plan-notice-card-title'>{isSelfPlan ? '计划执行须知' : '教练执行须知'}</Text>
             <Text className='execution-plan-notice-card-text execution-plan-notice-card-text--prewrap'>
-              {coachNotice || '教练暂未填写这份计划的专属执行须知。开始前仍请遵守下面的安全底线，并在不确定时先联系教练。'}
+              {coachNotice || (isSelfPlan
+                ? '这份计划暂未填写专属执行须知。开始前仍请遵守下面的平台安全底线，并按真实情况记录训练反馈。'
+                : '教练暂未填写这份计划的专属执行须知。开始前仍请遵守下面的安全底线，并在不确定时先联系教练。')}
             </Text>
           </View>
 
@@ -96,7 +103,7 @@ function ExecutionPlanNoticePopup({
               <Text>{checked ? '✓' : ''}</Text>
             </View>
             <Text className='execution-plan-notice-check-text'>
-              我已阅读并理解教练设置的执行须知和平台安全底线，会按真实情况安全执行并记录反馈。
+              我已阅读并理解{isSelfPlan ? '这份计划的' : '教练设置的'}执行须知和平台安全底线，会按真实情况安全执行并记录反馈。
             </Text>
           </View>
         )}

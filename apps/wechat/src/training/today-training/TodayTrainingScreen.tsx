@@ -296,6 +296,10 @@ function TodayTrainingScreen() {
 
   const [planMode, setPlanMode] = useState<PlanMode>(() => (pageCache?.planMode === 'self' ? 'self' : 'coach'))
   const planModeRef = useRef<PlanMode>(pageCache?.planMode === 'self' ? 'self' : 'coach')
+  const updatePlanMode = useCallback((nextMode: PlanMode) => {
+    planModeRef.current = nextMode
+    setPlanMode(nextMode)
+  }, [])
   const [showCompletionModal, setShowCompletionModal] = useState(false)
   const [completedPlanInfo, setCompletedPlanInfo] = useState<{ name: string; rate: number } | null>(null)
   const [showExplainDialog, setShowExplainDialog] = useState(false)
@@ -887,17 +891,20 @@ function TodayTrainingScreen() {
         setSelfMissingDays([])
       }
 
-      if (activeSubs.some((item: any) => coachPlanData[item.id]?.instance)) {
-        setPlanMode('coach')
-      } else if (selfRes?.instance) {
-        setPlanMode('self')
-      }
-
-      const persistedPlanMode: PlanMode = activeSubs.some((item: any) => coachPlanData[item.id]?.instance)
-        ? 'coach'
-        : selfRes?.instance
+      const hasCoachPlan = activeSubs.some((item: any) => coachPlanData[item.id]?.instance)
+      const hasSelfPlan = !!selfRes?.instance
+      // 刷新/回到前台时保留用户最后主动选择的有效计划；只有该计划不存在才回退。
+      const persistedPlanMode: PlanMode =
+        planModeRef.current === 'self' && hasSelfPlan
           ? 'self'
-          : planModeRef.current
+          : planModeRef.current === 'coach' && hasCoachPlan
+            ? 'coach'
+            : hasCoachPlan
+              ? 'coach'
+              : hasSelfPlan
+                ? 'self'
+                : planModeRef.current
+      updatePlanMode(persistedPlanMode)
 
       const selfDerivedPersist = selfRes as any
       persistTodayTrainingPageCache({
@@ -925,7 +932,7 @@ function TodayTrainingScreen() {
       console.error('[today-training] load failed', error)
       Taro.showToast({ title: '加载失败，请稍后重试', icon: 'none' })
     }
-  }, [handleCompletePlan])
+  }, [handleCompletePlan, updatePlanMode])
 
   const consumeReturnConfirmState = useCallback(() => {
     const raw = Taro.getStorageSync(RETURN_CONFIRM_STORAGE_KEY)
@@ -1112,7 +1119,7 @@ function TodayTrainingScreen() {
       } catch (e) {
         console.warn('[today-training] persist preferred coach sub failed', e)
       }
-      setPlanMode('coach')
+      updatePlanMode('coach')
       setActiveCoachSubscriptionId(subId)
       const pd = coachPlanDataBySubId[subId]
       const raw = Number(pd?.dayIndex ?? 1)
@@ -1124,7 +1131,7 @@ function TodayTrainingScreen() {
       }
       setSelectedDayIndex(nextDay)
     },
-    [coachPlanDataBySubId]
+    [coachPlanDataBySubId, updatePlanMode]
   )
 
   const handleGoToPlanLib = useCallback(() => {
@@ -1207,7 +1214,7 @@ function TodayTrainingScreen() {
           setSelfMissingDays([])
 
           if (coachInstance) {
-            setPlanMode('coach')
+            updatePlanMode('coach')
           }
 
           Taro.showToast({ title: '已移除自建计划', icon: 'success' })
@@ -1218,7 +1225,7 @@ function TodayTrainingScreen() {
         }
       }
     })
-  }, [coachInstance, loadData, selfInstance?.id])
+  }, [coachInstance, loadData, selfInstance?.id, updatePlanMode])
 
   const loadLightweightActions = useCallback(async () => {
     try {
@@ -2016,11 +2023,11 @@ function TodayTrainingScreen() {
           {renderDashboardIntro()}
           {hasBothPlans && (
             <View className='plan-switcher'>
-              <View className={`switcher-btn ${planMode === 'coach' ? 'active' : ''}`} onClick={() => setPlanMode('coach')}>
+              <View className={`switcher-btn ${planMode === 'coach' ? 'active' : ''}`} onClick={() => updatePlanMode('coach')}>
                 <Text className='switcher-icon'><User size={14} /></Text>
                 <Text>教练计划</Text>
               </View>
-              <View className={`switcher-btn ${planMode === 'self' ? 'active' : ''}`} onClick={() => setPlanMode('self')}>
+              <View className={`switcher-btn ${planMode === 'self' ? 'active' : ''}`} onClick={() => updatePlanMode('self')}>
                 <Text className='iconfont icon-star switcher-icon-star' />
                 <Text>我的计划</Text>
               </View>
@@ -2235,6 +2242,7 @@ function TodayTrainingScreen() {
         visible={executionNoticeVisible}
         executionNotice={(instance as any)?.execution_notice || (instance as any)?.executionNotice || null}
         planName={instance?.name || null}
+        planSource={planMode === 'self' || instance?.source === 'self' ? 'self' : 'coach'}
         onConfirm={handleConfirmExecutionNotice}
         onClose={handleCancelExecutionNotice}
         confirmLabel='我已阅读，进入训练'
