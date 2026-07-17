@@ -29,6 +29,7 @@ import {
   ArrowRight,
   Calendar,
   Check,
+  Checklist,
   Location,
   Message,
   Notice,
@@ -1685,7 +1686,7 @@ function TodayTrainingScreen() {
         </View>
         <View className='tt-focus-panel'>
           <View className='tt-focus-art'>
-            <Text className='tt-focus-art-icon iconfont icon-a-Trainingplan' />
+            <Checklist size={28} color='#CF6D4E' />
           </View>
           <View className='tt-focus-copy'>
             <Text className='tt-focus-kicker'>今天重点</Text>
