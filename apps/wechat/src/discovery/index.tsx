@@ -5,6 +5,7 @@ import Taro, { useReachBottom } from '@tarojs/taro'
 import BottomNav from '@/components/BottomNav'
 import { coachService } from '@/services/coach/coachService'
 import { studentService } from '@/services/studentService'
+import { authService } from '@/services/authService'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import './index.scss'
 import { useTheme } from '@/hooks/useTheme'
@@ -61,6 +62,14 @@ function Discovery() {
   )
 
   React.useEffect(() => {
+    const session = authService.getAuthSession({ normalize: true })
+    if (!session.isAuthenticated) {
+      // 游客没有专属教练可见范围，直接使用公开教练列表，避免请求需要登录态的接口。
+      setVisibilityStatus(null)
+      setVisibilityLoading(false)
+      return
+    }
+
     const fetchVisibilityStatus = async () => {
       try {
         const status = await studentService.getVisibilityStatus()

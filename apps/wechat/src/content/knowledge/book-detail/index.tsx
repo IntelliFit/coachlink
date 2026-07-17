@@ -2,6 +2,7 @@ import React, { useState, useCallback } from 'react'
 import { View, Text, ScrollView, Image, RichText } from '@tarojs/components'
 import Taro, { useRouter, useDidShow } from '@tarojs/taro'
 import { knowledgeService } from '@/services/knowledgeService'
+import { authService } from '@/services/authService'
 import { Icon } from '@/components/Icon'
 import { Book as BookIcon } from 'lucide-react'
 import { Notice, Lock } from '@nutui/icons-react-taro'
@@ -78,6 +79,15 @@ export default function BookDetail() {
       return
     }
 
+    if (!authService.getAuthSession({ normalize: true }).isAuthenticated) {
+      // 书籍详情和同书推荐均依赖登录接口；游客不发起必然返回 401 的请求。
+      setBook(null)
+      setRelatedBooks([])
+      setLoading(false)
+      setErrorMsg('登录后可查看书籍内容')
+      return
+    }
+
     setLoading(true)
     setBook(null)
     setErrorMsg('')
@@ -132,12 +142,17 @@ export default function BookDetail() {
   }
 
   if (errorMsg && !book) {
+    const returnTo = `/content/knowledge/book-detail?id=${encodeURIComponent(bookId || '')}`
     return (
       <View className={`book-detail-page theme-${effectiveTheme}`}>
         <View className='error-wrap'>
           <View className='error-icon'><Notice size={48} color='#CF6D4E' /></View>
           <Text className='error-text'>{errorMsg}</Text>
-          <Text className='error-action' onClick={() => Taro.navigateBack()}>返回上一页</Text>
+          {errorMsg === '登录后可查看书籍内容' ? (
+            <Text className='error-action' onClick={() => Taro.navigateTo({ url: authService.buildLoginUrl(returnTo) })}>去登录</Text>
+          ) : (
+            <Text className='error-action' onClick={() => Taro.navigateBack()}>返回上一页</Text>
+          )}
         </View>
       </View>
     )
