@@ -1304,7 +1304,8 @@ function TrainingExecution() {
         res.tempFilePath,
         targetExecutionId,
         actionId,
-        targetSetIndex + 1
+        targetSetIndex + 1,
+        { fileSize: Number((res as any).size || 0) }
       )
       const url = uploadRes?.video_url || uploadRes?.url
       if (url) {
