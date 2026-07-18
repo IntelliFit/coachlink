@@ -554,6 +554,7 @@ function TrainingExecution() {
   const executionRef = React.useRef<any>(null)
   const loadingRef = React.useRef(true)
   const suppressAutoRefreshUntilRef = React.useRef(0)
+  const restTimerDeadlineAtRef = React.useRef(0)
 
   const userId = authService.getCurrentUser()?.id
 
@@ -630,6 +631,7 @@ function TrainingExecution() {
   }, [isPreviewExecution])
 
   const clearPersistedRestTimer = React.useCallback(() => {
+    restTimerDeadlineAtRef.current = 0
     if (!restTimerStorageKey) return
     try {
       Taro.removeStorageSync(restTimerStorageKey)
@@ -640,17 +642,46 @@ function TrainingExecution() {
 
   const persistRestTimer = React.useCallback(
     (seconds: number, executionId?: string) => {
-      if (!restTimerStorageKey || !executionId || seconds <= 0) return
+      if (!executionId || seconds <= 0) return
+      const deadlineAt = Date.now() + Math.max(0, Math.round(seconds)) * 1000
+      restTimerDeadlineAtRef.current = deadlineAt
+      if (!restTimerStorageKey) return
       try {
         Taro.setStorageSync(restTimerStorageKey, {
           executionId,
-          deadlineAt: Date.now() + Math.max(0, Math.round(seconds)) * 1000
+          deadlineAt
         })
       } catch {
         // Best effort only.
       }
     },
     [restTimerStorageKey]
+  )
+
+  const reconcileRestTimer = React.useCallback(
+    (minimizeWhenRestored = false) => {
+      if (!restTimerStorageKey || !execution?.id) return
+      try {
+        const stored = Taro.getStorageSync(restTimerStorageKey) as any
+        if (!stored || String(stored.executionId || '') !== String(execution.id)) return
+        const deadlineAt = Number(stored.deadlineAt || 0)
+        const remaining = Math.ceil((deadlineAt - Date.now()) / 1000)
+        if (deadlineAt > 0 && remaining > 0) {
+          restTimerDeadlineAtRef.current = deadlineAt
+          setRestTimer(remaining)
+          setIsResting(true)
+          if (minimizeWhenRestored) setRestTimerMinimized(true)
+          return
+        }
+        setRestTimer(0)
+        setIsResting(false)
+        setRestTimerMinimized(false)
+        clearPersistedRestTimer()
+      } catch {
+        clearPersistedRestTimer()
+      }
+    },
+    [clearPersistedRestTimer, execution?.id, restTimerStorageKey]
   )
 
   const syncExecutionToCaches = React.useCallback(
@@ -1105,6 +1136,7 @@ function TrainingExecution() {
   }, [requestStartTraining])
 
   useDidShow(() => {
+    reconcileRestTimer()
     if (Date.now() < suppressAutoRefreshUntilRef.current) return
     if (executionRef.current) return
     void requestStartTraining({ force: true })
@@ -1145,40 +1177,30 @@ function TrainingExecution() {
   }, [editingSetKey, execution, expandedAction, currentSetIndex, hydrateSetInputs, setDrafts, setKeyOf])
 
   React.useEffect(() => {
-    if (!isResting || restTimer <= 0) return
-    const timer = setInterval(() => {
-      setRestTimer((prev) => {
-        if (prev <= 1) {
-          setIsResting(false)
-          setRestTimerMinimized(false)
-          clearPersistedRestTimer()
-          return 0
-        }
-        return prev - 1
-      })
-    }, 1000)
+    if (!isResting) return undefined
+
+    const updateRestTimer = () => {
+      const remaining = Math.ceil((restTimerDeadlineAtRef.current - Date.now()) / 1000)
+      if (remaining <= 0) {
+        setRestTimer(0)
+        setIsResting(false)
+        setRestTimerMinimized(false)
+        clearPersistedRestTimer()
+        return
+      }
+      setRestTimer(remaining)
+    }
+
+    updateRestTimer()
+    const timer = setInterval(updateRestTimer, 1000)
 
     return () => clearInterval(timer)
-  }, [clearPersistedRestTimer, isResting, restTimer])
+  }, [clearPersistedRestTimer, isResting])
 
   React.useEffect(() => {
     if (!restTimerStorageKey || !execution?.id || isResting) return
-    try {
-      const stored = Taro.getStorageSync(restTimerStorageKey) as any
-      if (!stored || String(stored.executionId || '') !== String(execution.id)) return
-      const deadlineAt = Number(stored.deadlineAt || 0)
-      const remaining = Math.ceil((deadlineAt - Date.now()) / 1000)
-      if (remaining > 0) {
-        setRestTimer(remaining)
-        setIsResting(true)
-        setRestTimerMinimized(true)
-      } else {
-        clearPersistedRestTimer()
-      }
-    } catch {
-      clearPersistedRestTimer()
-    }
-  }, [clearPersistedRestTimer, execution?.id, isResting, restTimerStorageKey])
+    reconcileRestTimer(true)
+  }, [execution?.id, isResting, reconcileRestTimer, restTimerStorageKey])
 
   React.useEffect(() => {
     if (!trainingTimerStorageKey || !execution || isPreviewExecution) {
@@ -2294,18 +2316,19 @@ function TrainingExecution() {
   }
 
   const handleAddRestTime = (seconds: number) => {
-    setRestTimer((prev) => {
-      const next = Math.max(0, prev + seconds)
-      if (next <= 0) {
-        setIsResting(false)
-        setRestTimerMinimized(false)
-        clearPersistedRestTimer()
-      } else {
-        persistRestTimer(next, execution.id)
-      }
-      return next
-    })
-    if (seconds > 0) setIsResting(true)
+    const deadlineRemaining = restTimerDeadlineAtRef.current > 0
+      ? Math.ceil((restTimerDeadlineAtRef.current - Date.now()) / 1000)
+      : restTimer
+    const next = Math.max(0, deadlineRemaining + seconds)
+    setRestTimer(next)
+    if (next <= 0) {
+      setIsResting(false)
+      setRestTimerMinimized(false)
+      clearPersistedRestTimer()
+      return
+    }
+    persistRestTimer(next, execution.id)
+    setIsResting(true)
   }
 
   const handleMinimizeRestTimer = () => {

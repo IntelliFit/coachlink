@@ -10,6 +10,10 @@ import {
   openCoachLinkShareMenu
 } from '@/utils/share'
 import { MotionArcadeReplayRecorder, type ArcadeReplayItem } from '../games/arcadeReplayRecorder'
+import {
+  type ArcadeFeedback,
+  vibrateForArcadeFeedback
+} from '../games/arcadeFeedback'
 import '../games/motionArcade.scss'
 import './index.scss'
 
@@ -90,6 +94,8 @@ export default function PushupDashPage() {
   const nextWallIdRef = useRef(1)
   const lastWallSpawnAtRef = useRef(0)
   const isRecordingRef = useRef(false)
+  const replayMirroredRef = useRef(true)
+  const feedbackIdRef = useRef(0)
   const recordingModeRef = useRef<'camera' | 'composite' | null>(null)
   const scoreRef = useRef(0)
   const timeLeftMsRef = useRef(GAME_DURATION_MS)
@@ -113,6 +119,8 @@ export default function PushupDashPage() {
   const [lives, setLives] = useState(MAX_LIVES)
   const [repCount, setRepCount] = useState(0)
   const [phaseLabel, setPhaseLabel] = useState('等待下压')
+  const [replayMirrored, setReplayMirrored] = useState(true)
+  const [feedback, setFeedback] = useState<ArcadeFeedback | null>(null)
 
   const sharePayload = useMemo(
     () =>
@@ -125,6 +133,11 @@ export default function PushupDashPage() {
 
   useShareAppMessage(() => sharePayload)
   useShareTimeline(() => createTimelinePayload(sharePayload))
+
+  const changeReplayDirection = (mirrored: boolean) => {
+    replayMirroredRef.current = mirrored
+    setReplayMirrored(mirrored)
+  }
 
   useEffect(() => {
     openCoachLinkShareMenu()
@@ -150,12 +163,22 @@ export default function PushupDashPage() {
     livesRef.current = lives
   }, [lives])
 
+  useEffect(() => {
+    replayMirroredRef.current = replayMirrored
+  }, [replayMirrored])
+
   const beginDashFromRep = () => {
     const now = Date.now()
     dashUntilRef.current = now + DASH_DURATION_MS
     dashAvailableUntilRef.current = now + DASH_COLLISION_WINDOW_MS
     setDashActive(true)
     setRepCount((prevCount) => prevCount + 1)
+    setFeedback({
+      id: ++feedbackIdRef.current,
+      text: '完整动作，推进！',
+      tone: 'action'
+    })
+    vibrateForArcadeFeedback('action')
   }
 
   useEffect(() => {
@@ -257,7 +280,7 @@ export default function PushupDashPage() {
               frameHeight: height,
               frameWidth: width,
               items: replayItems,
-              mirrored: true,
+              mirrored: replayMirroredRef.current,
               player: {
                 x: dashActive ? PLAYER_X + 0.08 : PLAYER_X,
                 y: 0.78
@@ -336,6 +359,12 @@ export default function PushupDashPage() {
           const hitWindowStart = wall.x - wall.width / 2
           if (hitWindowStart <= collisionPoint && wall.x + wall.width / 2 >= PLAYER_X - 0.02) {
             if (now <= dashAvailableUntilRef.current) {
+              setFeedback({
+                id: ++feedbackIdRef.current,
+                text: '+1 顶开障碍',
+                tone: 'good'
+              })
+              vibrateForArcadeFeedback('good')
               setScore((prevScore) => {
                 const nextScore = prevScore + 1
                 if (nextScore > bestScoreRef.current) {
@@ -351,6 +380,12 @@ export default function PushupDashPage() {
             }
 
             const nextLives = Math.max(0, livesRef.current - 1)
+            setFeedback({
+              id: ++feedbackIdRef.current,
+              text: '撞墙 -1 命',
+              tone: 'bad'
+            })
+            vibrateForArcadeFeedback('bad')
             setLives(nextLives)
             livesRef.current = nextLives
             if (nextLives <= 0) {
@@ -443,8 +478,16 @@ export default function PushupDashPage() {
       } catch (error: any) {
         await replayRecorderRef.current?.destroy()
         replayRecorderRef.current = null
-        console.warn('俯卧撑突围合成回放录制不可用，回退到原视频录制:', error)
+        console.warn('俯卧撑突围合成回放录制不可用:', error)
       }
+    }
+
+    if (replayMirroredRef.current) {
+      Taro.showToast({
+        title: '当前设备不支持镜像合成回放，可切到原始方向后录制',
+        icon: 'none'
+      })
+      return
     }
 
     beginCameraFallbackRecording()
@@ -512,6 +555,7 @@ export default function PushupDashPage() {
     wallsRef.current = []
     nextWallIdRef.current = 1
     setRepCount(0)
+    setFeedback(null)
     setLives(MAX_LIVES)
     livesRef.current = MAX_LIVES
     dashUntilRef.current = 0
@@ -657,6 +701,12 @@ export default function PushupDashPage() {
                   <View className='player-core pushup-runner-core' />
                 </View>
 
+                {feedback ? (
+                  <View key={feedback.id} className={`stage-feedback stage-feedback--${feedback.tone}`}>
+                    <Text className='stage-feedback-text'>{feedback.text}</Text>
+                  </View>
+                ) : null}
+
                 {!cameraReady && !cameraError ? (
                   <View className='stage-note'>
                     <Text className='stage-note-title'>正在准备摄像头</Text>
@@ -771,6 +821,21 @@ export default function PushupDashPage() {
                   <Text className='btn-primary-text'>{videoSaving ? '正在保存' : '保存回放视频'}</Text>
                 </View>
               </View>
+              <View className='toggle-row'>
+                <View
+                  className={`toggle-chip ${replayMirrored ? 'active' : ''}`}
+                  onClick={() => changeReplayDirection(true)}
+                >
+                  <Text className='toggle-chip-text'>镜像同向（推荐）</Text>
+                </View>
+                <View
+                  className={`toggle-chip ${replayMirrored ? '' : 'active'}`}
+                  onClick={() => changeReplayDirection(false)}
+                >
+                  <Text className='toggle-chip-text'>原始方向</Text>
+                </View>
+              </View>
+              <Text className='direction-note'>该方向会同步写入回放；合成回放为 360 × 480、12 fps 的流畅压缩画质。</Text>
             </View>
           </View>
         </ScrollView>

@@ -680,6 +680,8 @@ const CreatePlanPage = () => {
                 onHide={() => setAiBatchDialogVisible(false)}
                 mode="local"
                 targetActionType="student"
+                historyScopeKey="student-favorite:new"
+                historyTitle={name || '新建学员计划'}
                 contextOptions={{
                     // 默认仅必要：学员动作库+公共动作库；档案/问卷/执行记录等由用户自行勾选
                     includeStudentProfile: false,

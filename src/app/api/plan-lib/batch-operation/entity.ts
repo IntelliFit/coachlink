@@ -37,17 +37,19 @@ export interface BatchOperationDto {
     templateId?: string;
     // local 模式可直接传入当前编辑中的 trainingDays
     trainingDays?: any[];
-    // 用户首轮自然语言指令
+    // 当前这一轮的自然语言消息；服务端必须以此判断本轮意图
     instruction: string;
     // 目标动作库类型：教练/学员
     targetActionType?: 'coach' | 'student';
     // 上下文增强选项
     contextOptions?: BatchOperationContextOptions;
-    // 多轮对话历史（助手追问与用户补充），用于 need_clarification 后的续写
+    // 当前消息之前的完整对话历史
     conversationHistory?: ConversationTurn[];
+    // 当前预览相对基线的差异，供“刚才改了什么”等追问使用
+    modificationContext?: ModificationDiff[];
     // 仅预览输入：不调用模型，只返回“会喂给 AI 的输入快照”
     previewInputOnly?: boolean;
-    // 修改引擎：默认旧的 code；plan_script 会优先用紧凑计划脚本作为 AI 底层编辑格式
+    // 修改引擎：默认 auto，优先用紧凑 PlanScript 局部补丁，必要时回退旧 code 引擎
     editEngine?: 'code' | 'plan_script' | 'auto';
 }
 
@@ -122,4 +124,5 @@ export type SSEMessage =
     | { type: 'stats'; tokenUsage?: { prompt: number; completion: number; total: number }; duration?: number }  // 统计信息(开发模式)
     | { type: 'preview_result'; success: boolean; originalTrainingDays: any; updatedTrainingDays: any; modifications: ModificationDiff[]; pendingActions?: PendingActionCandidate[]; oneRmAdjustments?: OneRmAdjustmentPreview[]; message: string }  // 预览结果(不保存)
     | { type: 'query_result'; answer: string }  // 查询结果（AI 直接回答）
+    | { type: 'assistant_message'; content: string } // 修改完成后的自然语言摘要，也进入真实对话历史
     | { type: 'error'; message: string };  // 错误信息（用户友好格式）

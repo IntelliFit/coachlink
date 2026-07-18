@@ -19,7 +19,10 @@ import {
     getCoachlinkPlanScriptFallbackLlm,
     getCoachlinkPlanScriptLlm,
 } from "@/lib/coachlinkLlm";
-import { tryApplyDeterministicBatchEdit } from "@/lib/batchOperationDeterministic";
+import {
+    isWeeklyScheduleMoveInstruction,
+    tryApplyDeterministicBatchEdit,
+} from "@/lib/batchOperationDeterministic";
 import { formatTemplateToPlanScript, parsePlanScript } from "@/lib/planScript";
 import { resolveOneRmAdjustments, type OneRmAdjustmentDraft } from "@/lib/oneRmAdjustments";
 import { applyLoadAdjustments, type LoadAdjustmentDraft } from "@/lib/loadAdjustments";
@@ -116,12 +119,73 @@ function classifyBatchInstructionLocally(instruction: string): "query" | "modify
     const text = String(instruction || "").trim();
     if (!text) return null;
 
+    // 先识别明确执行句；普通疑问句即使包含“改”字，也不能触发计划补丁。
+    const strongModifyPattern = /((把|将|请|继续|再|重新).{0,40}(修改|调整|改成|改为|换成|替换|增加|添加|减少|降低|提高|删除|去掉|移除|设置|设为|改到|改回|换掉|加到|减到)|(修改|调整|替换|增加|添加|减少|降低|提高|删除|移除)(这个|这些|计划|动作|组数|次数|重量|负荷|休息|第|后|前))/;
+    if (strongModifyPattern.test(text)) return "modify";
+
+    const queryPattern = /(查询|分析|统计|看看|查看|告诉我|说明|解释|为什么|为何|怎么|如何|是否|吗[？?]?|呢[？?]?|合理吗|怎么样|有多少|有哪些|哪几|几周|几次|几组|多长|多久|什么|刚才改|改了什么|做了什么)/;
+    if (queryPattern.test(text)) return "query";
+
     const modifyPattern = /(修改|调整|改成|改为|换成|替换|增加|添加|减少|降低|提高|删除|去掉|移除|设置|设为|改到|改回|改一下|换掉|加到|减到)/;
     if (modifyPattern.test(text)) return "modify";
-
-    const queryPattern = /(查询|分析|统计|看看|查看|告诉我|为什么|是否|合理吗|怎么样|有多少|有哪些|几次|几组|多长|多久|什么)/;
-    if (queryPattern.test(text)) return "query";
     return null;
+}
+
+function formatModificationValue(value: unknown): string {
+    if (value === null || value === undefined || value === '') return '空';
+    if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+        return String(value);
+    }
+    try {
+        const json = JSON.stringify(value);
+        return json.length > 120 ? `${json.slice(0, 117)}...` : json;
+    } catch {
+        return String(value);
+    }
+}
+
+function buildModificationSummary(modifications: ModificationDiff[]): string {
+    if (!modifications.length) return '本轮没有产生实际修改。';
+
+    const dayIndexes = Array.from(new Set(modifications.map((item) => item.dayIndex))).sort((a, b) => a - b);
+    const weeks = Array.from(new Set(dayIndexes.map((dayIndex) => Math.ceil(dayIndex / 7)))).sort((a, b) => a - b);
+    const actionNames = Array.from(new Set(
+        modifications
+            .map((item) => item.actionName)
+            .filter((name) => name && !['整个训练日', '训练日类型', '备注'].includes(name)),
+    ));
+    const details = modifications.slice(0, 12).map((item) =>
+        `- 第 ${Math.ceil(item.dayIndex / 7)} 周 D${((item.dayIndex - 1) % 7) + 1} · ${item.actionName} · ${item.field}：${formatModificationValue(item.oldValue)} → ${formatModificationValue(item.newValue)}`,
+    );
+    const remaining = modifications.length - details.length;
+
+    return [
+        `已生成新的预览草稿，共涉及 ${weeks.length} 周、${dayIndexes.length} 个训练日、${modifications.length} 处字段变化。`,
+        `范围：${weeks.map((week) => `第 ${week} 周`).join('、')}。`,
+        actionNames.length > 0
+            ? `主要动作：${actionNames.slice(0, 10).join('、')}${actionNames.length > 10 ? `等 ${actionNames.length} 个动作` : ''}。`
+            : '',
+        '',
+        '主要变化：',
+        ...details,
+        remaining > 0 ? `- 其余 ${remaining} 处变化可在下方“查看完整差异”中展开。` : '',
+        '',
+        '当前只是独立预览，尚未写入计划；点击“确认应用”后才会提交。',
+    ].filter(Boolean).join('\n');
+}
+
+function buildModificationContextPrompt(modifications: ModificationDiff[]): string {
+    if (!modifications.length) return '（当前没有待确认的修改草稿）';
+    const rows = modifications.slice(0, 160).map((item) => ({
+        dayIndex: item.dayIndex,
+        week: Math.ceil(item.dayIndex / 7),
+        dayOfWeek: ((item.dayIndex - 1) % 7) + 1,
+        action: item.actionName,
+        field: item.field,
+        before: formatModificationValue(item.oldValue),
+        after: formatModificationValue(item.newValue),
+    }));
+    return `${JSON.stringify(rows, null, 2)}${modifications.length > rows.length ? `\n（另有 ${modifications.length - rows.length} 处变化未展开）` : ''}`;
 }
 
 function canSkipModificationClarification(instruction: string): boolean {
@@ -890,6 +954,10 @@ function collectActionIdsMentionedInInstruction(instruction: string, actions: an
     return mentioned;
 }
 
+function requiresCompleteWeekPatchScope(instruction: string): boolean {
+    return isWeeklyScheduleMoveInstruction(instruction);
+}
+
 function actionSetContainsId(actionSet: any, ids: Set<string>): boolean {
     if (ids.has(String(actionSet?.actionId || ""))) return true;
     if (actionSet?.type === "one-filter" && Array.isArray(actionSet.actions)) {
@@ -902,15 +970,34 @@ function selectPlanScriptPatchScope(
     instruction: string,
     trainingDays: any[],
     actions: any[],
+    preferredDayIndexes: number[] = [],
 ): PlanScriptPatchScope {
     const maxWeek = (trainingDays || []).reduce(
         (maximum, day) => Math.max(maximum, Math.ceil(Number(day?.dayIndex || 0) / 7)),
         0,
     );
     const explicit = collectExplicitPlanScope(instruction, maxWeek);
+    const completeWeekScope = requiresCompleteWeekPatchScope(instruction);
     const mentionedActionIds = collectActionIdsMentionedInInstruction(instruction, actions);
+    const preferredDays = new Set(preferredDayIndexes.filter((value) => Number.isFinite(value) && value > 0));
     let scoped = [...(trainingDays || [])];
     const reasons: string[] = [];
+
+    // 排期调整必须同时看到源训练日和目标休息日。只发送训练日会让模型无法
+    // 把 D3/D5 清空，也无法把内容移动到原来的 D4/D6 休息日。
+    if (completeWeekScope) {
+        if (explicit.weeks.size > 0) {
+            scoped = scoped.filter((day) => explicit.weeks.has(getDayWeek(Number(day?.dayIndex || 0)).week));
+            reasons.push(`周次 ${Array.from(explicit.weeks).sort((a, b) => a - b).join("、")} 的完整周`);
+        } else {
+            reasons.push("全部完整周");
+        }
+        reasons.push("训练日排期调整（包含休息日）");
+        return {
+            days: scoped.sort((a, b) => Number(a?.dayIndex || 0) - Number(b?.dayIndex || 0)),
+            reason: reasons.join(" + "),
+        };
+    }
 
     if (explicit.weeks.size > 0) {
         scoped = scoped.filter((day) => explicit.weeks.has(getDayWeek(Number(day?.dayIndex || 0)).week));
@@ -926,9 +1013,19 @@ function selectPlanScriptPatchScope(
         );
         reasons.push("指令中提到的动作所在训练日");
     }
+    if (
+        explicit.weeks.size === 0 &&
+        explicit.days.size === 0 &&
+        mentionedActionIds.size === 0 &&
+        preferredDays.size > 0 &&
+        /(继续|再|这些|刚才|它们|同样|一点|一些|上次|上轮)/.test(instruction)
+    ) {
+        scoped = scoped.filter((day) => preferredDays.has(Number(day?.dayIndex || 0)));
+        reasons.push("上轮修改涉及的训练日");
+    }
 
     // 没有明确范围时只发送训练日。休息日无需交给模型重写，可显著缩短长周期计划输入。
-    if (explicit.weeks.size === 0 && explicit.days.size === 0 && mentionedActionIds.size === 0) {
+    if (explicit.weeks.size === 0 && explicit.days.size === 0 && mentionedActionIds.size === 0 && reasons.length === 0) {
         scoped = scoped.filter((day) => day?.type !== "rest");
         reasons.push("全部训练日（不含休息日）");
     }
@@ -944,6 +1041,44 @@ function mergePlanScriptDayPatches(trainingDays: any[], patchedDays: any[]): any
         (patchedDays || []).map((day) => [Number(day?.dayIndex || 0), day]),
     );
     return (trainingDays || []).map((day) => patches.get(Number(day?.dayIndex || 0)) || day);
+}
+
+function splitPlanScriptPatchChunks(
+    days: any[],
+    actionNameById: Record<string, string>,
+    maxWeeks = 2,
+    maxScriptChars = 8_000,
+): any[][] {
+    const chunks: any[][] = [];
+    const daysByWeek = new Map<number, any[]>();
+    for (const day of days || []) {
+        const week = getDayWeek(Number(day?.dayIndex || 0)).week;
+        if (!daysByWeek.has(week)) daysByWeek.set(week, []);
+        daysByWeek.get(week)!.push(day);
+    }
+    let current: any[] = [];
+
+    for (const [, weekDays] of Array.from(daysByWeek.entries()).sort((a, b) => a[0] - b[0])) {
+        const sortedWeekDays = weekDays.sort(
+            (a, b) => Number(a?.dayIndex || 0) - Number(b?.dayIndex || 0),
+        );
+        const candidate = [...current, ...sortedWeekDays];
+        const candidateWeeks = new Set(
+            candidate.map((day) => getDayWeek(Number(day?.dayIndex || 0)).week),
+        );
+        const candidateChars = formatTemplateToPlanScript({
+            trainingDays: candidate,
+            actionNameById,
+        }).length;
+        if (current.length > 0 && (candidateWeeks.size > maxWeeks || candidateChars > maxScriptChars)) {
+            chunks.push(current);
+            current = sortedWeekDays;
+        } else {
+            current = candidate;
+        }
+    }
+    if (current.length > 0) chunks.push(current);
+    return chunks;
 }
 
 function buildPatchActionLibrary(actions: any[], scopedDays: any[], instruction: string): string {
@@ -1095,6 +1230,8 @@ async function runPlanScriptPatchEdit(params: {
     trainingDays: any[];
     actions: any[];
     effectiveInstruction: string;
+    scopeInstruction: string;
+    preferredDayIndexes?: number[];
     contextPrompt: string;
     sendMessage: (message: SSEMessage) => void;
 }): Promise<PlanScriptEditResult> {
@@ -1104,11 +1241,13 @@ async function runPlanScriptPatchEdit(params: {
         trainingDays,
         actions,
         effectiveInstruction,
+        scopeInstruction,
+        preferredDayIndexes = [],
         contextPrompt,
         sendMessage,
     } = params;
     const actionNameById = buildActionNameById(actions);
-    const scope = selectPlanScriptPatchScope(effectiveInstruction, trainingDays, actions);
+    const scope = selectPlanScriptPatchScope(scopeInstruction, trainingDays, actions, preferredDayIndexes);
     if (scope.days.length === 0) {
         return {
             success: false,
@@ -1116,11 +1255,9 @@ async function runPlanScriptPatchEdit(params: {
         };
     }
 
-    // 每段最多 14 个训练/休息日；模型只返回发生变化的完整日，服务端负责合并回 84 天原计划。
-    const chunks: any[][] = [];
-    for (let index = 0; index < scope.days.length; index += 14) {
-        chunks.push(scope.days.slice(index, index + 14));
-    }
+    // 永远在自然周边界切段。同一周被拆开时，模型常会补全该周并回显相邻段的
+    // dayIndex，导致一个有效长任务在最后被整单拒绝。
+    const chunks = splitPlanScriptPatchChunks(scope.days, actionNameById);
     let updatedTrainingDays = trainingDays;
     const oneRmAdjustments: OneRmAdjustmentDraft[] = [];
     let promptTokens = 0;
@@ -1139,6 +1276,7 @@ async function runPlanScriptPatchEdit(params: {
         });
         const relevantActionLibrary = buildPatchActionLibrary(actions, chunk, effectiveInstruction);
         const boundedContext = String(contextPrompt || "").slice(0, 3500);
+        const planWeekCount = Math.max(1, Math.ceil(trainingDays.length / 7));
         const patchPrompt = `你是 coachlink 的 PlanScript 局部补丁编辑器。请执行用户指令，但不要重写整份计划。
 
 ## 输出规则
@@ -1146,7 +1284,8 @@ async function runPlanScriptPatchEdit(params: {
 - 没有变化时只输出 NO_CHANGE。
 - 可输出全局 1RM 指令，例如：1RM 负重引体 = 50kg 或 1RM 负重引体 -= 2.5kg。
 - 禁止输出 JSON、Markdown 代码块、解释和未变化的其他训练日。
-- 不得输出本段以外的周/日；服务端会把补丁按 dayIndex 合并回原来的 12 周计划。
+- 不得输出本段以外的周/日；服务端会把补丁按 dayIndex 合并回原来的 ${planWeekCount} 周计划。
+- 如果是训练日排期调整，必须同时输出被清空的源日（Dn off）和承接训练内容的目标日。
 - 动作格式：动作名 4x7 @9rm r270 #备注；固定重量用 @60kg，百分比用 @75%。
 - 未要求修改的参数、动作顺序和备注必须原样保留。
 
@@ -1171,29 +1310,46 @@ ${effectiveInstruction}`;
 
         let rawContent = "";
         let lastParseError = "";
-        for (let attempt = 0; attempt < 2; attempt += 1) {
+        const maxPatchAttempts = 3;
+        for (let attempt = 0; attempt < maxPatchAttempts; attempt += 1) {
             const correction = lastParseError
-                ? `\n\n上次输出无法解析：${lastParseError}。请严格按 Wn/Dn PlanScript 补丁格式重新输出。`
+                ? `\n\n上次输出无法解析：${lastParseError}。只允许输出 dayIndex ${Array.from(allowedDayIndexes).join("、")}；删除其他周/日后，严格按 Wn/Dn PlanScript 补丁格式重新输出。`
                 : "";
             const messages = buildPromptMessages(patchPrompt + correction);
             const requestStartedAt = Date.now();
             if (isDevelopment) {
                 console.log(
-                    `[batch-operation] plan-script patch request: model=${llmModel}, chunk=${chunkIndex + 1}/${chunks.length}, attempt=${attempt + 1}/2, promptChars=${messages.reduce((sum, message) => sum + message.content.length, 0)}, scopeDays=${chunk.length}, fullPlanDays=${trainingDays.length}`,
+                    `[batch-operation] plan-script patch request: model=${attempt === maxPatchAttempts - 1 ? "fallback" : llmModel}, chunk=${chunkIndex + 1}/${chunks.length}, attempt=${attempt + 1}/${maxPatchAttempts}, promptChars=${messages.reduce((sum, message) => sum + message.content.length, 0)}, scopeDays=${chunk.length}, fullPlanDays=${trainingDays.length}`,
                 );
             }
 
             try {
-                const completion = await createChatCompletionWithRetry(openai, {
-                    model: llmModel,
-                    messages,
-                    temperature: 0.1,
-                    max_tokens: 3000,
-                });
-                rawContent = String(completion.choices?.[0]?.message?.content || "").trim();
-                promptTokens += completion.usage?.prompt_tokens || 0;
-                completionTokens += completion.usage?.completion_tokens || 0;
-                totalTokens += completion.usage?.total_tokens || 0;
+                if (attempt === maxPatchAttempts - 1 && lastParseError) {
+                    sendMessage({
+                        type: "progress",
+                        message: "本段格式连续异常，正在切换独立模型修复输出",
+                    });
+                    const repaired = await fallback.createText({
+                        prompt: patchPrompt + correction,
+                        maxTokens: 7000,
+                        timeoutMs: 90_000,
+                    });
+                    rawContent = repaired.content.trim();
+                    promptTokens += repaired.inputTokens;
+                    completionTokens += repaired.outputTokens;
+                    totalTokens += repaired.inputTokens + repaired.outputTokens;
+                } else {
+                    const completion = await createChatCompletionWithRetry(openai, {
+                        model: llmModel,
+                        messages,
+                        temperature: 0.1,
+                        max_tokens: 7000,
+                    });
+                    rawContent = String(completion.choices?.[0]?.message?.content || "").trim();
+                    promptTokens += completion.usage?.prompt_tokens || 0;
+                    completionTokens += completion.usage?.completion_tokens || 0;
+                    totalTokens += completion.usage?.total_tokens || 0;
+                }
             } catch (error) {
                 if (isDevelopment) {
                     console.warn(
@@ -1206,8 +1362,8 @@ ${effectiveInstruction}`;
                 });
                 const fallbackResult = await fallback.createText({
                     prompt: patchPrompt + correction,
-                    maxTokens: 3000,
-                    timeoutMs: 75_000,
+                    maxTokens: 7000,
+                    timeoutMs: 90_000,
                 });
                 rawContent = fallbackResult.content.trim();
                 promptTokens += fallbackResult.inputTokens;
@@ -1231,14 +1387,28 @@ ${effectiveInstruction}`;
                     })),
                     allowPendingActions: true,
                 });
-                const outsideScope = parsed.days.find(
+                const inScopeDays = parsed.days.filter(
+                    (day) => allowedDayIndexes.has(Number(day?.dayIndex || 0)),
+                );
+                const outsideScopeDays = parsed.days.filter(
                     (day) => !allowedDayIndexes.has(Number(day?.dayIndex || 0)),
                 );
-                if (outsideScope) {
-                    throw new Error(`返回了本段范围外的 dayIndex ${outsideScope.dayIndex}`);
+                if (outsideScopeDays.length > 0 && inScopeDays.length === 0) {
+                    throw new Error(`只返回了本段范围外的 dayIndex ${outsideScopeDays.map((day) => day.dayIndex).join("、")}`);
                 }
-                updatedTrainingDays = mergePlanScriptDayPatches(updatedTrainingDays, parsed.days);
-                changedPatchDays += parsed.days.length;
+                if (outsideScopeDays.length > 0) {
+                    if (isDevelopment) {
+                        console.warn(
+                            `[batch-operation] ignored out-of-scope patch days: chunk=${chunkIndex + 1}/${chunks.length}, dayIndexes=${outsideScopeDays.map((day) => day.dayIndex).join(",")}`,
+                        );
+                    }
+                    sendMessage({
+                        type: "progress",
+                        message: "已忽略本段边界外的重复日期，仅合并允许范围内的修改",
+                    });
+                }
+                updatedTrainingDays = mergePlanScriptDayPatches(updatedTrainingDays, inScopeDays);
+                changedPatchDays += inScopeDays.length;
                 for (const adjustment of parsed.oneRmAdjustments) {
                     const key = `${adjustment.actionName}|${adjustment.targetOneRM ?? ""}|${adjustment.deltaKg ?? ""}`;
                     const exists = oneRmAdjustments.some((existing) =>
@@ -1254,6 +1424,21 @@ ${effectiveInstruction}`;
         }
 
         if (lastParseError) {
+            const weeksInChunk = new Set(
+                chunk.map((day) => getDayWeek(Number(day?.dayIndex || 0)).week),
+            );
+            if (weeksInChunk.size > 1) {
+                const smallerChunks = splitPlanScriptPatchChunks(chunk, actionNameById, 1);
+                if (smallerChunks.length > 1) {
+                    sendMessage({
+                        type: "progress",
+                        message: `第 ${chunkIndex + 1} 段输出仍不稳定，已自动缩小为逐周补丁继续处理`,
+                    });
+                    chunks.splice(chunkIndex, 1, ...smallerChunks);
+                    chunkIndex -= 1;
+                    continue;
+                }
+            }
             return {
                 success: false,
                 error: `第 ${chunkIndex + 1} 段局部补丁解析失败：${lastParseError}`,
@@ -1293,6 +1478,8 @@ async function runPlanScriptEdit(params: {
     trainingDays: any[];
     actions: any[];
     effectiveInstruction: string;
+    latestInstruction: string;
+    preferredDayIndexes?: number[];
     contextPrompt: string;
     deterministicReason?: string;
     sendMessage: (message: SSEMessage) => void;
@@ -1303,6 +1490,8 @@ async function runPlanScriptEdit(params: {
         trainingDays,
         actions,
         effectiveInstruction,
+        latestInstruction,
+        preferredDayIndexes = [],
         contextPrompt,
         deterministicReason,
         sendMessage,
@@ -1323,9 +1512,9 @@ async function runPlanScriptEdit(params: {
 
     const actionLibrary = buildPlanScriptActionLibrary(actions);
     const hasCurrentPlanScript = currentScript.trim().length > 0;
-    const requestedWeeks = inferRequestedPlanWeeks(effectiveInstruction);
+    const requestedWeeks = inferRequestedPlanWeeks(latestInstruction);
     const detailedLongPlan = requestedWeeks
-        ? splitDetailedLongPlanInstruction(effectiveInstruction, requestedWeeks, 1)
+        ? splitDetailedLongPlanInstruction(latestInstruction, requestedWeeks, 1)
         : null;
     const maxRetries = 2;
     const outputFormatPrompt = `## 输出格式（纯 PlanScript 模式）
@@ -1431,6 +1620,8 @@ ${outputFormatPrompt}`,
             trainingDays,
             actions,
             effectiveInstruction,
+            scopeInstruction: latestInstruction,
+            preferredDayIndexes,
             contextPrompt,
             sendMessage,
         });
@@ -1568,10 +1759,11 @@ export async function POST(req: NextRequest) {
             trainingDays: providedTrainingDays,
             instruction,
             conversationHistory = [],
+            modificationContext = [],
             targetActionType = "coach",
             contextOptions,
             previewInputOnly = false,
-            editEngine = "code",
+            editEngine = "auto",
         } = body;
 
         if (targetActionType === "coach" && !session.user.is_coach) {
@@ -1588,16 +1780,23 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        // 合并多轮对话为模型可见的完整指令（首轮 + 助手追问 + 用户补充）
-        const effectiveInstruction =
-            conversationHistory.length === 0
-                ? instruction
-                : [
-                    `【用户首轮指令】\n${instruction}`,
-                    ...conversationHistory.map(
-                        (t) => `【${t.role === 'assistant' ? '助手追问' : '用户补充'}】\n${t.content}`
-                    ),
-                ].join('\n\n');
+        const currentInstruction = String(instruction || '').trim();
+        const conversationTranscript = conversationHistory.length === 0
+            ? '（无历史消息）'
+            : conversationHistory.map(
+                (turn) => `【${turn.role === 'assistant' ? '助手' : '用户'}】\n${turn.content}`,
+            ).join('\n\n');
+        const modificationContextPrompt = buildModificationContextPrompt(modificationContext);
+        const assistantBackground = conversationHistory
+            .filter((turn) => turn.role === 'assistant')
+            .slice(-3)
+            .map((turn) => turn.content)
+            .join('\n\n');
+        const effectiveModificationInstruction = [
+            `【当前轮唯一需要执行的修改指令】\n${currentInstruction}`,
+            assistantBackground ? `【此前助手摘要，仅用于理解“继续/这些/刚才”等指代，禁止重复执行历史指令】\n${assistantBackground}` : '',
+            modificationContext.length > 0 ? `【当前草稿已有变化，仅用于理解指代】\n${modificationContextPrompt}` : '',
+        ].filter(Boolean).join('\n\n');
 
         // 创建 SSE 响应
         const encoder = new TextEncoder();
@@ -1770,8 +1969,8 @@ ${actionLibraryPrompt}
 ## 额外上下文（档案/问卷/执行/模板）
 ${contextPrompt}
 
-## 用户指令（含多轮对话时此处为完整上下文）
-${effectiveInstruction}
+## 用户当前消息
+${currentInstruction}
 
 请返回 JSON 格式:
 {
@@ -1798,8 +1997,14 @@ ${actionLibraryPrompt}
 ## 额外上下文（档案/问卷/执行/模板）
 ${contextPrompt}
 
-## 用户问题（含多轮对话时此处为完整上下文）
-${effectiveInstruction}
+## 对话历史
+${conversationTranscript}
+
+## 用户当前问题
+${currentInstruction}
+
+## 当前待确认修改差异
+${modificationContextPrompt}
 
 请用中文回答，格式要清晰易读。如果涉及统计，请给出具体数字。可以使用 markdown 格式（如列表、加粗等）来增强可读性。`;
 
@@ -1817,8 +2022,8 @@ ${actionLibraryCompactPrompt}
 ## 额外上下文（档案/问卷/执行/模板）
 ${contextPrompt}
 
-## 用户指令（含多轮对话时此处为完整上下文，请结合用户补充判断是否已完整）
-${effectiveInstruction}`;
+## 用户当前指令
+${currentInstruction}`;
 
                         const previewSystemPrompt = `你是一个训练计划批量操作助手。
 
@@ -1834,8 +2039,8 @@ ${contextPrompt}
 ## trainingDays 当前内容示例
 ${includePlanBody ? JSON.stringify(trainingDays.slice(0, 2), null, 2) : '（已关闭：计划/模板本体上下文）'}
 
-## 用户指令（含多轮对话时此处为完整上下文，请按用户最终意图生成代码）
-${effectiveInstruction}`;
+## 用户当前指令
+${effectiveModificationInstruction}`;
 
                         sendMessage({
                             type: 'ai_input_snapshot',
@@ -1863,8 +2068,11 @@ ${effectiveInstruction}`;
 1. **查询/分析** - 想了解计划中的某些信息，如统计数据、动作分布、强度分析等（不修改计划）
 2. **修改** - 想要对计划进行更改、替换、添加、删除等操作
 
-## 用户指令（含多轮对话时此处为完整上下文）
-${effectiveInstruction}
+## 对话历史（只用于理解上下文）
+${conversationTranscript}
+
+## 用户当前消息（以此判断本轮意图）
+${currentInstruction}
 
 请返回 JSON 格式:
 {
@@ -1878,12 +2086,12 @@ ${effectiveInstruction}
                     if (isDevelopment) {
                         console.log(`[batch-operation] LLM: ${llmProvider} / ${llmModel}; plan-script / ${planScriptLlmModel}`);
                     }
-                    const requestedWeeksForRouting = inferRequestedPlanWeeks(effectiveInstruction);
+                    const requestedWeeksForRouting = inferRequestedPlanWeeks(currentInstruction);
                     const detailedLongPlanForRouting = requestedWeeksForRouting
-                        ? splitDetailedLongPlanInstruction(effectiveInstruction, requestedWeeksForRouting, 1)
+                        ? splitDetailedLongPlanInstruction(currentInstruction, requestedWeeksForRouting, 1)
                         : null;
                     let intentCompletion: any = null;
-                    const localIntent = classifyBatchInstructionLocally(effectiveInstruction);
+                    const localIntent = classifyBatchInstructionLocally(currentInstruction);
                     let userIntent: 'query' | 'modify' = localIntent || 'modify';
                     if (detailedLongPlanForRouting) {
                         sendMessage({
@@ -1935,8 +2143,14 @@ ${actionLibraryPrompt}
 ## 额外上下文（档案/问卷/执行/模板）
 ${contextPrompt}
 
-## 用户问题（含多轮对话时此处为完整上下文）
-${effectiveInstruction}
+## 对话历史
+${conversationTranscript}
+
+## 用户当前问题
+${currentInstruction}
+
+## 当前待确认修改差异
+${modificationContextPrompt}
 
 请用中文回答，格式要清晰易读。如果涉及统计，请给出具体数字。可以使用 markdown 格式（如列表、加粗等）来增强可读性。`;
 
@@ -1993,8 +2207,8 @@ ${effectiveInstruction}
 ## 当前动作库（供你判断用户是否可能从库中选）
 ${actionLibraryCompactPrompt}
 
-## 用户指令（含多轮对话时此处为完整上下文，请结合用户补充判断是否已完整）
-${effectiveInstruction}
+## 用户当前修改指令
+${currentInstruction}
 
 请严格返回 JSON（不要其他内容）:
 {
@@ -2003,7 +2217,7 @@ ${effectiveInstruction}
     "suggestions": ["若 complete 为 false，此处返回 3～6 个具体推荐选项的字符串数组，与追问内容对应。例如有氧类可填 [\"跑步\", \"跳绳\", \"骑行\", \"游泳\", \"划船\"]，力量类可填动作库中的具体动作名。用户可点击直接选用。"]
                     }`;
                     let clarificationResult: { complete?: boolean; clarificationQuestion?: string; suggestions?: string[] } = { complete: true };
-                    const skipClarification = detailedLongPlanForRouting || canSkipModificationClarification(effectiveInstruction);
+                    const skipClarification = detailedLongPlanForRouting || canSkipModificationClarification(currentInstruction);
                     if (!skipClarification) {
                         const clarificationCompletion = await createJsonChatCompletionWithRetry(fastOpenai, {
                             model: fastLlmModel,
@@ -2037,7 +2251,7 @@ ${effectiveInstruction}
                     }
 
                     const deterministicResult = tryApplyDeterministicBatchEdit({
-                        instruction: effectiveInstruction,
+                        instruction: currentInstruction,
                         trainingDays,
                         actions: actions as Array<{ id: string; name: string; type?: ItemType | string | null }>,
                     });
@@ -2082,6 +2296,10 @@ ${effectiveInstruction}
                         const totalDuration = Date.now() - startTime;
 
                         sendMessage({
+                            type: 'assistant_message',
+                            content: buildModificationSummary(modifications),
+                        });
+                        sendMessage({
                             type: 'preview_result',
                             success: true,
                             originalTrainingDays,
@@ -2090,6 +2308,14 @@ ${effectiveInstruction}
                             pendingActions,
                             oneRmAdjustments: [],
                             message: `分析完成，共发现 ${modifications.length} 处修改${isDevelopment ? ` (总耗时 ${totalDuration}ms)` : ''}`,
+                        });
+                        return;
+                    }
+
+                    if (deterministicResult.matched && deterministicResult.terminal) {
+                        sendMessage({
+                            type: 'need_clarification',
+                            question: deterministicResult.reason || '已识别为周内排期调整，但当前计划无法安全执行。请确认原训练日和目标训练日。',
                         });
                         return;
                     }
@@ -2107,7 +2333,9 @@ ${effectiveInstruction}
                                 llmModel: planScriptLlmModel,
                                 trainingDays,
                                 actions,
-                                effectiveInstruction,
+                                effectiveInstruction: effectiveModificationInstruction,
+                                latestInstruction: currentInstruction,
+                                preferredDayIndexes: Array.from(new Set(modificationContext.map((item) => item.dayIndex))),
                                 contextPrompt,
                                 deterministicReason: deterministicResult.matched ? deterministicResult.reason : undefined,
                                 sendMessage,
@@ -2166,6 +2394,10 @@ ${effectiveInstruction}
                                     });
                                 }
 
+                                sendMessage({
+                                    type: 'assistant_message',
+                                    content: buildModificationSummary(modifications),
+                                });
                                 sendMessage({
                                     type: "preview_result",
                                     success: true,
@@ -2294,8 +2526,8 @@ ${contextPrompt}
 ## trainingDays 当前内容示例
 ${includePlanBody ? JSON.stringify(trainingDays.slice(0, 2), null, 2) : '（已关闭：计划/模板本体上下文）'}
 
-## 用户指令（含多轮对话时此处为完整上下文，请按用户最终意图生成代码）
-${effectiveInstruction}
+## 用户当前修改指令
+${effectiveModificationInstruction}
 
 ## 请生成 TypeScript 代码
 返回 JSON：
@@ -2507,6 +2739,10 @@ ${effectiveInstruction}
 
                     const totalDuration = Date.now() - startTime;
 
+                    sendMessage({
+                        type: 'assistant_message',
+                        content: buildModificationSummary(modifications),
+                    });
                     // 7. 发送预览结果(不保存到数据库)
                     sendMessage({
                         type: 'preview_result',

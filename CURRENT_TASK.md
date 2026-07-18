@@ -1,3 +1,46 @@
+## 微信小程序组间休息后台计时修复 (`2026-07-19`)
+
+- Status: 代码修复、类型检查、单测与小程序完整构建已通过；微信开发者工具自动化端口已请求启动，但 `mrc` 在 9420 WebSocket 握手超时，未取得模拟器前后台切换截图，最终真机切后台/恢复体验待用户复测。
+- Root cause: 休息计时虽已把绝对 `deadlineAt` 写入 storage，但前台显示仍靠 `setInterval` 每秒从 React state 减 1；小程序进入后台后 interval 暂停，页面 `useDidShow` 又没有按 deadline 校准，因此恢复后仍显示离开前附近的旧秒数。训练总时长本来就按 `startedAt -> Date.now()` 计算，所以不受影响。
+- Fix: 休息计时改为以绝对截止时间为唯一运行基准；每次前台 tick、页面重新显示和 storage 恢复都用 `ceil((deadlineAt - Date.now()) / 1000)` 计算。过期时自动关闭弹窗并清理持久化；`+10/-10 秒`也基于真实剩余时间重写截止时间，弹窗与最小化气泡共用同一结果。
+- Verification: `git diff --check`、`npm run lint`、`npm run typecheck`、`npm test`（35 files / 177 tests）与小程序完整构建（2759 modules）通过。`npx next build` 完成编译和 521 页静态生成，最后 standalone 复制被当前运行中的 Next 进程锁定 `.next/server/middleware-build-manifest.js`，以 `EBUSY` 结束，不是源码编译失败。
+
+## AI 修改历史只读打开不再生成新记录 (`2026-07-19`)
+
+- Status: 已修复并在真实教练页面完成历史交互验证。
+- Root cause: 打开一条已应用历史时，前端立即把会话状态改为 `draft`、清空 session id，并恢复旧消息；900ms 自动保存 effect 随即把纯查看动作插入成新草稿。
+- Fix: 新增明确的历史查看态。打开任何历史都不触发自动保存；恢复草稿后发送消息才更新原草稿；打开已应用历史后发送第一条新消息时才清空 session id 并 fork 新分支。已应用历史的确认按钮显示“已应用”并禁用，避免重复应用。
+- Verification: 真实页面打开“AI 修改器 → 历史 → 已应用记录”并等待 2.2 秒，历史数量保持 3，所有 ID 与 `updatedAt` 均未变化，控制台错误 0。`git diff --check`、lint、typecheck、35 files / 177 tests、Next 521 页生产构建通过。
+
+## AI 计划修改器“每个训练周”误入双模型通道修复 (`2026-07-19`)
+
+- Status: 已修复并用用户截图对应的真实 56 天计划完成不落库预览验证；当前实例仍保持原计划，未替用户点击“确认应用”。
+- Root cause: 周排期确定性解析器只识别“训练日 / 每周”等措辞，没有识别用户原话中的“每个训练周”。因此本可本地原子完成的 D1/D3/D5 → D1/D4/D6 操作错误落入 PlanScript，随后 OpenAI-compatible 与 Anthropic 两个网络通道都在返回中断时失败。
+- Fix: 周排期识别与完整周 scope 改用同一个共享判定函数，新增“训练周 / 每个训练周”等表达；确定性周排期命令标记为 terminal，校验源日不符或目标日冲突时直接追问并停止，禁止再次回落给 LLM 猜测。
+- Real-plan verification: 订阅 `3a71d6a5-924b-4ffb-95c1-c4be34e5b625` 的活跃实例 `0c1d98f6-5e7d-4f25-9a50-c2fa45ea0dd6` 共 56 天，原 8 周均为 D1/D3/D5。登录浏览器调用真实预览接口返回 200，8 周均变为 D1/D4/D6，动作、组数和备注语义保持一致；进度流命中“已按明确规则直接应用修改”，无 OpenAI、Anthropic 或 PlanScript 通道。
+- Verification: `git diff --check`、`npm run lint`、`npm run typecheck`、`npm test`（35 files / 177 tests）及 `npx next build`（521 pages）通过。
+
+## 工具箱小游戏方向、回放与互动反馈修复 (`2026-07-19`)
+
+- Status: 代码修复和全部代码门禁已通过；微信开发者工具自动化服务已启动，但 `mrc` 在 9420 端口 WebSocket 握手超时，未取得模拟器截图/交互证据。真实前置摄像头移动与导出 MP4 的最终同向效果仍需真机短录复测。
+- Root cause: `接豆派对 / 引体冲刺 / 俯卧撑突围` 的合成回放捕获都把 `mirrored` 写死为 `true`；实时方向切换只改变游戏侧状态，没有进入录制帧。接豆页面即使切了方向，录制背景仍固定镜像；引体页面的方向按钮此前甚至只改 UI 状态，完全不影响游戏或回放。
+- Fix: 三款游戏统一为默认 `镜像同向（推荐）` 与 `原始方向`。方向 handler 同步写 state 和 ref，当前选择逐帧传给 `MotionArcadeReplayRecorder`；接豆的角色坐标和录制背景使用同一方向。合成不可用时，镜像模式不再悄悄退回方向不可控的原摄像头录像，而是提示切换原始方向后再录。
+- Interaction: 新增统一的得分/穿越/完整动作/受击浮层与轻重震动反馈，不改原计分、动作阈值和回合规则。
+- Quality fact: 当前带动画的合成回放不是原画质，固定输出画布 `360 × 480`、`12 fps`、MediaRecorder 参数 `videoBitsPerSecond=1600`，且输入相机帧为 `frameSize=small`；原摄像头兜底也使用 `compressed: true`。页面已明确标注为流畅压缩画质。
+- Verification: `git diff --check`、`npm run lint`、`npm run typecheck`、`npm test`（35 files / 177 tests）、`npx next build`（520 pages）与两次小程序完整构建（2759 modules）通过。微信 CLI `auto` 成功启动 9420 自动化服务，但 `mrc where` 持续握手超时。
+
+## 枭马葛订阅刘三乐计划月历错乱诊断 (`2026-07-18`)
+
+- Status: 已用两张真机截图、生产数据和当前 `buildPlanScheduleModel` 完整复现现象；按用户要求暂不修改代码。
+- Scope: 学员枭马葛 `f9eac5b1-45f9-4479-9ab8-8223a5db8835`，教练刘三乐 `beee4371-efad-4e35-b406-c567954896c2`，实例 `5613f3d3-f9e3-4f6e-a243-aa277597ee63`。
+- Data fact: D18、D21 均存在于 `training_days` 且都是休息日；没有数据缺失或被删除。
+- Collision: 当前排期把 D18 与实际在 7 月 14 日完成的 D19 同时映射到 7 月 14 日，把 D21 与实际在 7 月 17 日完成的 D22 同时映射到 7 月 17 日。月历的 `Map<dateKey, dayIndex>` 后写覆盖前写，最终只显示 D19、D22，D18、D21 消失。
+- Moving blank: D24 完成前按累计顺延排在 7 月 20 日，7 月 18 日为空白；D24 于北京时间 7 月 18 日 03:50 完成后，已完成项被改锚到实际完成日 7 月 18 日，但 D25 及后续仍从 7 月 21 日开始，故 7 月 20 日变为空白。计划数据未变化，变化的是前端 displayDate 映射。
+- Root mechanism: 日历混用累计顺延排期与 execution 实际日期；已完成训练可以跳到实际日期，但未重新稳定地重排其相邻休息日/后续日，也未处理多个 Day 映射到同一日期的碰撞，因此产生 Day 消失、空白漂移及“顺延 -> 同一 Day”连续占格。
+- Confirmed target behavior: 计划 Day 是逻辑序列，自然日期是可容纳多个训练 Day 的事件桶。延迟训练时，未完成日期显示 `顺延 -> Dn`，实际完成日显示 Dn；同一天完成多个训练日时在同一个日期桶显示精确 Day 列表（如 `D5 · D7`）。中间纯休息日 D6 只在后台推进计算中被消费，学员前端完全不展示；下一自然日从 D8 继续排，不保留空洞。只有正常走到且未被跨过的休息日才显示 `D6 休`。
+- Current capability: 服务端 `execution/start` 已允许完成当前训练日后手动跨越连续纯休息日进入下一个训练日，因此 D5 完成后同日开始 D7 在 API 层可行；但今日训练页仍以 D6 作为严格当前 Day，并将其他 Day 作为只读预览，完整 UI 流程尚不支持。
+- Required invariants for eventual implementation: ① 同一日期允许多个训练 planDayIndex，禁止 Map 后写覆盖；② 历史实际完成日期不可变；③ 每次进度变化后从首个未解决 Day 重新计算未来排期，提前完成要向前压缩、延迟完成要向后顺延；④ 活跃计划时间轴内每个日期必须是实际训练、未跨过的正常休息、顺延标记或未来排期之一，不应出现算法生成的空白；⑤ 同日多练紧凑月历显示 `D5 · D7`，被跨过的纯休息日不出现在任何学员前端位置。
+
 ## 枭马葛 D22 进行中训练被误判只读热修 (`2026-07-17`)
 
 - Status: 根因、生产数据与代码修复均已确认；release 版本 `2026.07.17.1449` 已通过微信开发者工具 CLI 上传，待微信公众平台手工提交审核并发布。
@@ -8757,3 +8800,37 @@
 - Root cause: 临时 worktree 的 `node_modules` Junction 到主工作区；清理 worktree 时沿根依赖目录内的 npm workspace Junction 越界进入 `apps/mobile`、`apps/wechat`、`packages/api-client`、`packages/core`。第一次已出现 34 个异常删除但未止损，第二次清理扩大到 856 个 tracked 文件。
 - Recovery proof: 微信端 757/757 个文件与删除前快照逐文件 Git blob 哈希一致；mobile 94/94、api-client 3/3、core 3/3 与 `origin/main` 一致；全工作区 tracked deletion 为 0。根 `node_modules` 的四个 workspace 链接已通过标准 `npm install` 重建，package/lockfile 无改动。
 - Prevention: 根 `AGENTS.md`、`DECISIONS.md`、当天 memory 及 self-improving 项目规则均已加入禁止跨 worktree 共享 `node_modules`、删除前 reparse 边界审计、首次异常 `D` 立即停止等硬规则。
+
+## 刘三乐计划小程序训练月历动态压缩与休息日跨越 (`2026-07-18`)
+
+- Status: 代码修复完成，代码级验证与构建通过；目标账号真机/开发者工具页面仍需有登录态后验收。
+- Calendar fix: 小程序排期模型改为 `dateKey -> dayIndexes[]` 日期事件桶，历史 execution 按真实日期锚定；同日多次训练显示 `D5 · D7`，不再后写覆盖。两个真实训练锚点之间有自然日可占的恢复日正常显示；同日提前完成跨过、无独立自然日可占的恢复日保留逻辑顺序但从学员月历隐藏。最新真实执行之后的未来 Day 从次日连续重排，不再沿用旧累计偏移留下空白。
+- Read-only fix: 今日训练入口的可执行判断与 `/api/execution/start` 对齐。当前严格进度是连续恢复日时，后面的第一个训练日可直接以 `readOnly=0` 打开；仍禁止跨过任何未完成训练日。
+- Target replay: 用刘三乐计划 D15/D17/D19/D22/D24 的实际日期复算，D18、D23 因同日跨越隐藏，D20/D21 正常占 7月15/16日，D24 后 D25=7月19日、D26=7月20日连续无空白；D26 可编辑。模拟 D26 在7月18日提前开始后，7月18日聚合 `D24 · D26`，D25 隐藏，7月19日接 D27。
+- Verification: `npm run lint`、`npm run typecheck`、`npm test`（35 files / 177 tests）、`npx next build`（520 pages）与小程序 `build:weapp`（2758 modules）通过。`weapp-devtools` 已在固定端口 9420 启动目标项目，运行错误日志为 0；自动化会话没有目标账号登录态，重启今日训练页后被 `auth/student-onboarding` 拦截，未冒充完成真实账号 UI 验收。
+- `2026-07-19` follow-up: 生产回读确认活跃实例 `5613f3d3-f9e3-4f6e-a243-aa277597ee63` 的 D23/D25 都是无动作休息日，D24 有唯一 completed execution，D26 没有任何 execution。当前截图中 D25 消失不是因为用户执行/开始了 D26，而是动态排期实现把所有 `dayIndex < progressDayIndex` 的尾部休息日都隐藏，错误地把服务端进度指针当作“已被真实训练跨过”。待修正为：只有后续训练 Day 存在真实 execution 锚点且挤占了该休息日的独立自然日期时才隐藏；仅查看/选中 D26 或 progress 指向 D26 不得隐藏 D25。
+- `2026-07-19` fix completed: 已删除基于 `dayIndex < progressDayIndex` 隐藏尾部休息日的条件。复算确认仅预览 D26 时为 D24=7月18日、D25休=7月19日、D26=7月20日，D25 可见；D26 真正产生 `in_progress` 后才变为 D26=7月19日并隐藏 D25。lint、typecheck、177 单测、Next 521 页构建、小程序 2759 模块构建通过；weapp 9420 连接成功且错误日志 0。
+## Web AI 计划修改器伪多轮交互诊断 (`2026-07-19`)
+
+- Status: 已完成交互、历史持久化与长计划修改引擎升级；代码门禁、真实登录 API 回放和浏览器交互验证均通过。
+- Symptom: 首轮计划修改完成后，用户追问“改了什么/是后几周吗”，系统不回答，反而基于已修改预览再次生成 PlanScript 局部补丁。
+- Root cause 1: `BatchOperationDialog` 的所谓多轮对话原本只为 `need_clarification` 后的“助手追问 + 用户补充”设计；底部任意后续输入都会重新调用完整 batch-operation 流水线。
+- Root cause 2: 服务端把首轮指令和全部历史拼成 `effectiveInstruction`，本地意图分类器又优先匹配整段文本中的修改词。只要首轮含“修改/调整/增加”等词，后续即使是“为什么/改了什么”也会被直接判为 `modify`，并跳过模型意图判断。
+- Root cause 3: 首轮 `preview_result` 会立即更新父页面的 `days`；第二轮 local 请求使用更新后的 `initialTrainingDays`，因此会在第一次修改结果上继续执行第二次补丁，非幂等的组次/负荷语义可能被重复调整。
+- Persistence risk: 学员计划页收到 AI `preview_result` 后立即 `setDays`，而页面对无执行历史的实例存在 2 秒防抖自动保存，因此“预览”可能在用户点击“确认应用”前已持久化；只有存在执行历史时后台自动保存会被拦截。当前确认按钮并非所有场景下的真实提交边界。
+- Revert behavior: 弹窗“重新开始”会调用父页面 `onRestart` 恢复 AI 前的 days；普通关闭/返回只清理弹窗自身状态，不调用恢复逻辑，因此不能把“关掉弹窗”视为撤销预览。
+- UX gap: 弹窗不渲染 `modifications` 明细，PlanScript 成功后的 `action_plan` 只是固定模板“合并 N 个训练日”，也不写入助手对话历史；只有 `need_clarification` 会进入 assistant history，`query_result` 也只显示、不进入历史。因此当前不是完整对话式 agent，而是“意图路由 + 修改流水线 + 补充参数输入框”。
+- Recommended fix boundary: 以后续最新消息为主做 `ask_about_result/query/refine_modify/new_modify` 路由；查询只能读取当前预览与结构化 diff，禁止触发 patch；AI 预览必须保存在独立 draft，不得写父页面 `days` 或触发自动保存；修改成功必须生成并展示结构化变更摘要；所有助手结果写入真正的消息历史；新修改必须显式确认是在当前预览上继续还是从基线重算。
+- Implemented: 服务端只用当前消息做本轮意图判断，疑问句优先进入 query；历史只作为理解上下文，历史修改命令不再重新执行。查询提示词会收到当前累计 diff，可正确回答“刚才改了什么/改的是哪几周”。
+- Implemented: 修改成功发送自然语言助手摘要并写入真实对话历史；弹窗增加可展开的累计完整差异，展示周次、D、动作、字段及前后值。
+- Implemented: 预览完全保存在弹窗 draft；首轮和后续 refinement 都不再调用父页面 `onPreviewResult`。local 模式只有点击“确认应用”才把草稿交给父编辑器，因此不会被学员计划页 2 秒 autosave 提前持久化。模板模式后续轮次也基于弹窗草稿，不重新读取数据库基线。
+- Implemented: 默认修改引擎由 `code` 升级为 `auto`（优先 PlanScript、必要时回退）。长计划不再按任意 7 个训练日切段，而是按完整自然周分段（默认最多 2 周且约 8k PlanScript 字符）；格式连续异常时第三次切到独立 fallback 模型，仍失败则自动缩小为逐周补丁。边界外回显若同时包含有效本段内容会被安全丢弃，不再让整单失败。含“继续/再/这些/刚才”的 refinement 优先限定在上一轮涉及的训练日。
+- Verification: `git diff --check`、`npm run lint`、`npm run typecheck`、`npm test`（35 files / 177 tests）、`npx next build`（520 static pages）通过。未修改测试文件。
+- Architecture audit: 当前 Apollo 实际配置为全局 `deepseek-v4-pro`、计划模型 `deepseek-v4-flash`；fast 与 PlanScript 未显式覆盖，按代码默认同为 `deepseek-v4-flash`；PlanScript Anthropic 故障隔离模型未覆盖，按代码默认 `claude-sonnet-4-6`。因此本 AI 修改器正常路径基本全部使用 DeepSeek v4 Flash，Claude 仅在兼容通道连接失败或详细长计划无法确定解析时兜底。
+- Framework audit: 当前没有使用 Vercel AI SDK、LangChain/LangGraph、Mastra 或 XState；只有 `openai@6.15.0`，交互为 React `useState` + 手写 fetch/SSE，服务端为单个大型 Next route 中的自研编排和 PlanScript parser。现状有格式/范围/动作校验与人工确认，但没有服务端 thread/checkpoint、断流续跑、请求幂等、应用版本锁和训练语义验证，可靠性属于中等。
+- History upgrade: AI 修改会话现已支持服务端持久化历史，按计划/模板 scope 保存对话、原始基线、当前草稿、累计 diff、待处理动作、1RM 调整、上下文选项与 `draft/applied` 状态。弹窗可查看并恢复历史；恢复草稿会继续原会话，恢复已应用版本会创建新分支，避免覆盖旧历史；若当前页面计划与历史快照不同，会明确警告。
+- Deployment state: 运行时截图证明 `plan_ai_edit_sessions` 表与 RLS 已在当前 Supabase 环境存在；此前“迁移未部署”的判断已被实际运行证据推翻。
+- History verification: `git diff --check`、`npm run lint`、`npm run typecheck`、`npm test`（35 files / 177 tests）、`npx next build`（521 static pages）通过；未修改测试文件。随后已补充真实浏览器与登录 API 验证。
+- Runtime blocker resolved (`2026-07-19`): 历史 API 已改为服务端 `serviceRoleSupabase`，仍强制从 NextAuth session 获取 `userId` 并在读取/更新条件及插入 payload 中限定所有权。浏览器登录态下实际 GET/POST 均返回 200；创建的验证记录已按精确 UUID 删除，无测试数据残留。
+- Long-plan regression resolved (`2026-07-19`): “训练日 135 换成 146”原错误不是上下文/输出长度超限，而是任意 7 训练日分块把同一周切成两段，第 2 段回显第 1 段的 dayIndex 15 后被整单拒绝；同时旧 scope 排除了目标休息日，无法可靠搬移排期。现对明确周内排期变更使用确定性引擎：先校验每周源日均为训练日且目标无冲突，再按顺序整体搬移训练内容；一般 AI 排期变更则使用包含休息日的完整周 scope。
+- Final verification: 56 天 / 8 周合成计划通过真实登录 API 回放，约 3 秒把 D1/D3/D5 全部搬到 D1/D4/D6，未调用分段 LLM；历史 GET/POST 200 且清理完成。`git diff --check`、lint、typecheck、177 单测、Next 521 页构建和 Playwright E2E 4/4 通过；浏览器打开修改器后无 RLS 红错。仓库指定 `web-devtools` skill 缺失，改用 `frontend-browser-debugger` + Playwright 完成验证。

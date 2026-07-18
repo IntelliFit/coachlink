@@ -29,7 +29,7 @@ export type MotionArcadeGameConfig = {
 export const MOTION_BEAN_CONFIG: MotionArcadeGameConfig = {
   badItemLabel: '深色捣蛋豆',
   bestLabel: '最好成绩',
-  controlsDescription: '优先生成带角色和豆子动画的回放；如果设备不支持，再自动退回原摄像头视频。',
+  controlsDescription: '优先生成带角色和豆子动画的回放；设备不支持合成时，原始方向可退回摄像头视频。',
   goodItemLabel: '能量豆',
   heroDescription:
     '一局 30 秒，身体左右挪、抬肩、挥手都能控角色。先把“人一动，屏幕也跟着动”的快乐做出来。',
@@ -49,7 +49,7 @@ export const MOTION_BEAN_CONFIG: MotionArcadeGameConfig = {
   tips: [
     '站得离镜头稍远一点，让上半身完整入镜，识别会更稳。',
     '当前是轻量运动检测，不是骨骼关键点，所以夸张一点的挥手和挪肩更容易识别。',
-    '如果你感觉左右反了，切一下“左右反转 / 左右同向”就行。'
+    '默认“镜像同向”会让你的移动和屏幕角色同向；需要原摄像头方向时再切换。'
   ],
   travelMode: 'fall',
   visualKey: 'bean'

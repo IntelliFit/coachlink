@@ -10,7 +10,7 @@ import {
 export class BatchOperationService {
     /**
      * 执行批量操作并通过回调处理 SSE 消息
-     * @param conversationHistory 多轮对话历史（助手追问 + 用户补充），用于 need_clarification 后的续写
+     * @param conversationHistory 当前消息之前的完整多轮对话历史
      */
     static async executeBatchOperation(
         templateId: string,
@@ -22,7 +22,8 @@ export class BatchOperationService {
         targetActionType: 'coach' | 'student' = 'coach',
         contextOptions?: BatchOperationContextOptions,
         previewInputOnly = false,
-        editEngine: 'code' | 'plan_script' | 'auto' = 'code'
+        editEngine: 'code' | 'plan_script' | 'auto' = 'auto',
+        modificationContext?: import('@/app/api/plan-lib/batch-operation/entity').ModificationDiff[]
     ): Promise<void> {
         try {
             const body: Record<string, unknown> = {
@@ -39,6 +40,9 @@ export class BatchOperationService {
             }
             if (conversationHistory && conversationHistory.length > 0) {
                 body.conversationHistory = conversationHistory;
+            }
+            if (modificationContext && modificationContext.length > 0) {
+                body.modificationContext = modificationContext;
             }
             const response = await fetch('/api/plan-lib/batch-operation', {
                 method: 'POST',
@@ -106,7 +110,8 @@ export class BatchOperationService {
         targetActionType: 'coach' | 'student' = 'coach',
         contextOptions?: BatchOperationContextOptions,
         previewInputOnly = false,
-        editEngine: 'code' | 'plan_script' | 'auto' = 'code'
+        editEngine: 'code' | 'plan_script' | 'auto' = 'auto',
+        modificationContext?: import('@/app/api/plan-lib/batch-operation/entity').ModificationDiff[]
     ): Promise<void> {
         try {
             const body: Record<string, unknown> = {
@@ -123,6 +128,9 @@ export class BatchOperationService {
             }
             if (conversationHistory && conversationHistory.length > 0) {
                 body.conversationHistory = conversationHistory;
+            }
+            if (modificationContext && modificationContext.length > 0) {
+                body.modificationContext = modificationContext;
             }
             const response = await fetch('/api/plan-lib/batch-operation', {
                 method: 'POST',

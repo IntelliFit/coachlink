@@ -80,23 +80,6 @@ function ScheduleCalendarPanel({
     return Array.from({ length: 7 }, (_, i) => startDay + i).filter((dayIndex) => dayIndex <= trainingDays.length)
   }, [currentWeek, trainingDays.length])
 
-  const dayDateEntries = useMemo(() => {
-    return trainingDays.map((day: any) => {
-      const scheduleInfo = scheduleModel.scheduleByDayIndex.get(day.dayIndex)
-      const date = scheduleInfo?.displayDate || resolvePlanDayDate({
-        dayIndex: day.dayIndex,
-        effectiveStartDate: planStartDate,
-        fallbackAnchorDayIndex: progressDayIndex || currentDayIndex || 1
-      })
-      return {
-        dayIndex: day.dayIndex,
-        type: day.type,
-        date,
-        key: toDateKey(date)
-      }
-    })
-  }, [trainingDays, scheduleModel, planStartDate, progressDayIndex, currentDayIndex])
-
   const selectedSchedule = useMemo(() => {
     return scheduleModel.scheduleByDayIndex.get(selectedDayIndex || 1)
   }, [scheduleModel, selectedDayIndex])
@@ -121,14 +104,6 @@ function ScheduleCalendarPanel({
     })
   }, [selectedDate])
 
-  const dayIndexByDateKey = useMemo(() => {
-    const map = new Map<string, number>()
-    dayDateEntries.forEach((entry) => {
-      map.set(entry.key, entry.dayIndex)
-    })
-    return map
-  }, [dayDateEntries])
-
   const monthGrid = useMemo(() => {
     const leadingBlankCount = (getWeekday(monthCursor.year, monthCursor.month, 1) + 6) % 7
     const totalDays = getMonthDays(monthCursor.year, monthCursor.month)
@@ -147,6 +122,22 @@ function ScheduleCalendarPanel({
     if (execution?.status === 'abandoned') return 'abandoned'
     if (dayIndex < startExecutionDay) return 'before_start'
     return 'pending'
+  }
+
+  const getBucketStatus = (dayIndexes: number[]) => {
+    const statuses = dayIndexes.map(getDayStatus)
+    if (statuses.length > 0 && statuses.every((status) => status === 'completed' || status === 'before_start')) return 'completed'
+    if (statuses.includes('in_progress')) return 'in_progress'
+    if (statuses.includes('pending')) return 'pending'
+    if (statuses.includes('abandoned')) return 'abandoned'
+    return statuses[0] || 'calendar_only'
+  }
+
+  const pickBucketDayIndex = (dayIndexes: number[]) => {
+    return dayIndexes.find((dayIndex) => getDayStatus(dayIndex) === 'in_progress')
+      || dayIndexes.find((dayIndex) => getDayStatus(dayIndex) === 'pending' && trainingDays.find((day: any) => day.dayIndex === dayIndex)?.type !== 'rest')
+      || dayIndexes.find((dayIndex) => getDayStatus(dayIndex) === 'completed')
+      || dayIndexes[0]
   }
 
   const selectDay = (dayIndex: number) => {
@@ -291,32 +282,40 @@ function ScheduleCalendarPanel({
                 return <View key={`blank-${index}`} className='date-cell empty' />
               }
 
-              const mappedDayIndex = dayIndexByDateKey.get(toDateKey(dateCell))
-              const postponedMarker = scheduleModel.postponedByDateKey.get(toDateKey(dateCell))
-              const unlocked = mappedDayIndex ? isDayUnlocked(mappedDayIndex, unlockedWeek) : false
-              const isSelected = mappedDayIndex === selectedDayIndex
-              const status = mappedDayIndex ? getDayStatus(mappedDayIndex) : 'calendar_only'
+              const dateKey = toDateKey(dateCell)
+              const mappedDayIndexes = scheduleModel.dayIndexesByDateKey.get(dateKey) || []
+              const mappedDayIndex = pickBucketDayIndex(mappedDayIndexes)
+              const postponedMarker = scheduleModel.postponedByDateKey.get(dateKey)
+              const unlocked = mappedDayIndexes.some((dayIndex) => isDayUnlocked(dayIndex, unlockedWeek))
+              const isSelected = mappedDayIndexes.includes(selectedDayIndex)
+              const status = mappedDayIndexes.length > 0 ? getBucketStatus(mappedDayIndexes) : 'calendar_only'
               const isToday = toDateKey(dateCell) === toDateKey(startOfDay(new Date()))
+              const allRestDays = mappedDayIndexes.length > 0 && mappedDayIndexes.every(
+                (dayIndex) => trainingDays.find((day: any) => day.dayIndex === dayIndex)?.type === 'rest'
+              )
+              const dayIndexLabel = mappedDayIndexes.map((dayIndex) => `D${dayIndex}`).join(' · ')
 
               return (
                 <View
-                  key={toDateKey(dateCell)}
-                  className={`date-cell ${mappedDayIndex ? 'plan' : 'outside'} ${postponedMarker ? 'postponed' : ''} ${isSelected ? 'selected' : ''} ${
+                  key={dateKey}
+                  className={`date-cell ${mappedDayIndexes.length > 0 ? 'plan' : 'outside'} ${postponedMarker ? 'postponed' : ''} ${isSelected ? 'selected' : ''} ${
                     status
-                  } ${isToday ? 'today' : ''} ${mappedDayIndex && !unlocked ? 'locked' : ''}`}
+                  } ${isToday ? 'today' : ''} ${mappedDayIndexes.length > 0 && !unlocked ? 'locked' : ''}`}
                   onClick={() => mappedDayIndex && selectDay(mappedDayIndex)}
                 >
                   <Text className='date-num'>{dateCell.getDate()}</Text>
-                  <Text className='date-day-index'>{mappedDayIndex ? `D${mappedDayIndex}` : postponedMarker ? '顺延' : '-'}</Text>
+                  <Text className={`date-day-index ${mappedDayIndexes.length > 1 ? 'multiple' : ''}`}>
+                    {mappedDayIndexes.length > 0 ? dayIndexLabel : postponedMarker ? '顺延' : '-'}
+                  </Text>
                   <Text className='date-type'>
-                    {mappedDayIndex
+                    {mappedDayIndexes.length > 0
                       ? status === 'completed' || status === 'before_start'
                         ? <Check size={10} />
                         : status === 'in_progress'
                           ? '进行'
                           : status === 'abandoned'
-                            ? '跳过'
-                            : trainingDays.find((day: any) => day.dayIndex === mappedDayIndex)?.type === 'rest'
+                          ? '跳过'
+                            : allRestDays
                               ? '休'
                               : '练'
                       : postponedMarker

@@ -10,6 +10,10 @@ import {
   openCoachLinkShareMenu
 } from '@/utils/share'
 import { MotionArcadeReplayRecorder, type ArcadeReplayItem } from '../games/arcadeReplayRecorder'
+import {
+  type ArcadeFeedback,
+  vibrateForArcadeFeedback
+} from '../games/arcadeFeedback'
 import '../games/motionArcade.scss'
 import './index.scss'
 
@@ -113,6 +117,8 @@ export default function PullupRushPage() {
   const nextPipeIdRef = useRef(1)
   const lastPipeSpawnAtRef = useRef(0)
   const isRecordingRef = useRef(false)
+  const flipXRef = useRef(true)
+  const feedbackIdRef = useRef(0)
   const recordingModeRef = useRef<'camera' | 'composite' | null>(null)
   const gameStartedAtRef = useRef(0)
   const scoreRef = useRef(0)
@@ -138,6 +144,7 @@ export default function PullupRushPage() {
   const [pipes, setPipes] = useState<PipePair[]>([])
   const [lives, setLives] = useState(MAX_LIVES)
   const [pullCount, setPullCount] = useState(0)
+  const [feedback, setFeedback] = useState<ArcadeFeedback | null>(null)
 
   const sharePayload = useMemo(
     () =>
@@ -150,6 +157,11 @@ export default function PullupRushPage() {
 
   useShareAppMessage(() => sharePayload)
   useShareTimeline(() => createTimelinePayload(sharePayload))
+
+  const changeDirection = (mirrored: boolean) => {
+    flipXRef.current = mirrored
+    setFlipX(mirrored)
+  }
 
   useEffect(() => {
     openCoachLinkShareMenu()
@@ -178,6 +190,10 @@ export default function PullupRushPage() {
   useEffect(() => {
     livesRef.current = lives
   }, [lives])
+
+  useEffect(() => {
+    flipXRef.current = flipX
+  }, [flipX])
 
   useEffect(() => {
     const context = Taro.createCameraContext()
@@ -283,7 +299,7 @@ export default function PullupRushPage() {
               frameHeight: height,
               frameWidth: width,
               items: replayItems,
-              mirrored: true,
+              mirrored: flipXRef.current,
               player: {
                 x: PLAYER_X,
                 y: playerYRef.current
@@ -371,6 +387,12 @@ export default function PullupRushPage() {
           .map((pipe) => {
             if (!pipe.passed && pipe.x + pipe.width / 2 < PLAYER_X) {
               pipe.passed = true
+              setFeedback({
+                id: ++feedbackIdRef.current,
+                text: '+1 穿越',
+                tone: 'good'
+              })
+              vibrateForArcadeFeedback('good')
               setScore((prevScore) => {
                 const nextScore = prevScore + 1
                 if (nextScore > bestScoreRef.current) {
@@ -400,6 +422,12 @@ export default function PullupRushPage() {
       })
 
       if (crashed) {
+        setFeedback({
+          id: ++feedbackIdRef.current,
+          text: '碰撞 -1 命',
+          tone: 'bad'
+        })
+        vibrateForArcadeFeedback('bad')
         const nextLives = Math.max(0, livesRef.current - 1)
         setLives(nextLives)
         livesRef.current = nextLives
@@ -489,8 +517,16 @@ export default function PullupRushPage() {
       } catch (error: any) {
         await replayRecorderRef.current?.destroy()
         replayRecorderRef.current = null
-        console.warn('引体冲刺合成回放录制不可用，回退到原视频录制:', error)
+        console.warn('引体冲刺合成回放录制不可用:', error)
       }
+    }
+
+    if (flipXRef.current) {
+      Taro.showToast({
+        title: '当前设备不支持镜像合成回放，可切到原始方向后录制',
+        icon: 'none'
+      })
+      return
     }
 
     beginCameraFallbackRecording()
@@ -558,6 +594,7 @@ export default function PullupRushPage() {
     pipesRef.current = []
     nextPipeIdRef.current = 1
     setPullCount(0)
+    setFeedback(null)
     motionRef.current = { energy: 0, x: 0.5, y: 0.7 }
     setMotionEnergy(0)
     playerYRef.current = 0.52
@@ -716,6 +753,12 @@ export default function PullupRushPage() {
                   <View className='player-core pullup-bird-core' />
                 </View>
 
+                {feedback ? (
+                  <View key={feedback.id} className={`stage-feedback stage-feedback--${feedback.tone}`}>
+                    <Text className='stage-feedback-text'>{feedback.text}</Text>
+                  </View>
+                ) : null}
+
                 <View className='pullup-gap-line' />
 
                 {!cameraReady && !cameraError ? (
@@ -829,13 +872,14 @@ export default function PullupRushPage() {
               </View>
 
               <View className='toggle-row'>
-                <View className={`toggle-chip ${flipX ? 'active' : ''}`} onClick={() => setFlipX(true)}>
-                  <Text className='toggle-chip-text'>左右反转</Text>
+                <View className={`toggle-chip ${flipX ? 'active' : ''}`} onClick={() => changeDirection(true)}>
+                  <Text className='toggle-chip-text'>镜像同向（推荐）</Text>
                 </View>
-                <View className={`toggle-chip ${flipX ? '' : 'active'}`} onClick={() => setFlipX(false)}>
-                  <Text className='toggle-chip-text'>左右同向</Text>
+                <View className={`toggle-chip ${flipX ? '' : 'active'}`} onClick={() => changeDirection(false)}>
+                  <Text className='toggle-chip-text'>原始方向</Text>
                 </View>
               </View>
+              <Text className='direction-note'>该方向会同步写入回放；合成回放为 360 × 480、12 fps 的流畅压缩画质。</Text>
             </View>
           </View>
         </ScrollView>

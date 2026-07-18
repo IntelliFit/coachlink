@@ -1006,7 +1006,8 @@ const EditPlanPage = () => {
                         onHide={() => setAiBatchDialogVisible(false)}
                         templateId={params.id as string}
                         targetActionType="coach"
-                        editEngine="plan_script"
+                        historyTitle={name || '教练计划模板'}
+                        editEngine="auto"
                         contextOptions={{
                             // 默认仅必要：教练动作库+公共动作库；模板库/匹配等由用户自行勾选
                             includeStudentProfile: false,

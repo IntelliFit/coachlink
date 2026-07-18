@@ -731,6 +731,8 @@ const CreatePlanPage = () => {
                 onHide={() => setAiBatchDialogVisible(false)}
                 mode="local"
                 targetActionType="coach"
+                historyScopeKey="coach-template:new"
+                historyTitle={name || '新建教练模板'}
                 contextOptions={{
                     // 默认仅必要：教练动作库+公共动作库；模板库等由用户自行勾选
                     includeStudentProfile: false,

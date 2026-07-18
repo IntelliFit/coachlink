@@ -1870,7 +1870,9 @@ const StudentPlanPage = () => {
                     }}
                     mode="local"
                     targetActionType="coach"
-                    editEngine="plan_script"
+                    historyScopeKey={`coach-student-plan:${instanceId || String(params.id)}`}
+                    historyTitle={name || '学员计划'}
+                    editEngine="auto"
                     initialTrainingDays={days}
                     existingActions={actions}
                     onApplyLocal={handleAiApplyLocal}

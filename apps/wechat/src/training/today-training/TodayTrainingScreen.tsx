@@ -41,6 +41,7 @@ import { Popup } from '@nutui/nutui-react-taro'
 import {
   buildPlanScheduleModel,
   buildDayModuleModel,
+  canOpenPlanDayForExecution,
   formatPlanDayLabel,
   resolvePlanDayDate,
   toDateKey,
@@ -993,10 +994,14 @@ function TodayTrainingScreen() {
       if (!instance?.id) return
       const targetExecution = executionsByDayIndex?.[dayIndex]
       const targetStatus = String(targetExecution?.status || '').toLowerCase()
-      const isStrictCurrentDay = Number(dayIndex) === Number(progressDayIndex)
+      const isExecutablePlanDay = canOpenPlanDayForExecution({
+        trainingDays,
+        progressDayIndex: Number(progressDayIndex),
+        targetDayIndex: Number(dayIndex)
+      })
       const effectiveReadOnly =
-        !!options?.readOnly || targetStatus === 'completed' || !isStrictCurrentDay
-      if (!options?.readOnly && !isStrictCurrentDay && targetStatus !== 'completed') {
+        !!options?.readOnly || targetStatus === 'completed' || !isExecutablePlanDay
+      if (!options?.readOnly && !isExecutablePlanDay && targetStatus !== 'completed') {
         Taro.showToast({
           title: `请先完成第${progressDayIndex}天；第${dayIndex}天仅供预览`,
           icon: 'none'
@@ -1041,7 +1046,7 @@ function TodayTrainingScreen() {
         url: `/training/training-execution?instanceId=${instance.id}&dayIndex=${dayIndex}${coachQuery}${focusQuery}${readOnlyQuery}`
       })
     },
-    [actions, activeSubscription, currentUserId, executionsByDayIndex, instance, progressDayIndex]
+    [actions, activeSubscription, currentUserId, executionsByDayIndex, instance, progressDayIndex, trainingDays]
   )
 
   const handleConfirmExecutionNotice = useCallback(() => {

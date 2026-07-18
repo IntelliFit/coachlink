@@ -256,6 +256,39 @@
     background: rgba(255, 255, 255, 0.32);
   }
 
+  .stage-feedback {
+    position: absolute;
+    left: 50%;
+    top: 40%;
+    min-height: 64rpx;
+    padding: 0 24rpx;
+    border: 4rpx solid rgba(255, 255, 255, 0.92);
+    border-radius: 9999rpx;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    pointer-events: none;
+    z-index: 6;
+    animation: arcade-feedback-pop 760ms ease-out both;
+  }
+
+  .stage-feedback--good,
+  .stage-feedback--action {
+    background: #cf6d4e;
+  }
+
+  .stage-feedback--bad {
+    background: #27364b;
+  }
+
+  .stage-feedback-text {
+    color: #ffffff;
+    font-size: 28rpx;
+    font-weight: 900;
+    line-height: 1;
+  }
+
   .stage-note,
   .stage-error,
   .stage-tip-card {
@@ -459,6 +492,14 @@
     line-height: 1;
   }
 
+  .direction-note {
+    display: block;
+    margin-top: 16rpx;
+    color: #6b7280;
+    font-size: 22rpx;
+    line-height: 1.6;
+  }
+
   .video-meta {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -501,6 +542,28 @@
 
   .tip-text {
     color: #5b6470;
+  }
+}
+
+@keyframes arcade-feedback-pop {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 24rpx) scale(0.88);
+  }
+
+  24% {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+  }
+
+  76% {
+    opacity: 1;
+    transform: translate(-50%, -8rpx) scale(1);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -32rpx) scale(0.96);
   }
 }
 

@@ -47,11 +47,11 @@ interface BatchOperationDialogProps {
     onSuccess?: () => void;
     /** modal=弹窗 panel=右侧面板 auto=桌面用面板/移动用弹窗 */
     variant?: 'modal' | 'panel' | 'auto';
-    /** 收到 preview_result 时回调，用于在左侧编辑器中展示修改并高亮 */
+    /** 用户确认应用时回调，用于在左侧编辑器中展示修改并高亮 */
     onPreviewResult?: (data: { originalTrainingDays: any; updatedTrainingDays: any; modifications: ModificationDiff[]; oneRmAdjustments?: OneRmAdjustmentPreview[] }) => void;
     /** 用户点击「取消」时回调，用于恢复左侧编辑器为原始数据 */
     onRestart?: () => void;
-    /** 确认应用时，优先使用此函数返回的 days（左侧编辑器的当前数据） */
+    /** @deprecated AI 预览已与父编辑器隔离，确认时使用弹窗内草稿 */
     onGetDaysToApply?: () => any[] | null;
     /** 预填写的指令文本（如学员反馈汇总），打开时自动填入 */
     initialInstruction?: string;
@@ -59,6 +59,10 @@ interface BatchOperationDialogProps {
     contextOptions?: BatchOperationContextOptions;
     /** 底层 AI 修改引擎：教练端计划编辑默认可用紧凑计划脚本减少 token 与 JSON 脆弱性 */
     editEngine?: 'code' | 'plan_script' | 'auto';
+    /** 持久化历史的资源范围；未传时按模板/订阅/用户上下文自动生成 */
+    historyScopeKey?: string;
+    /** 历史会话标题前缀 */
+    historyTitle?: string;
 }
 
 type ContextToggleState = {
@@ -112,6 +116,59 @@ interface PendingActionResolution {
     };
 }
 
+interface AiEditSessionSummary {
+    id: string;
+    title: string;
+    status: 'draft' | 'applied' | 'archived';
+    messageCount: number;
+    modificationCount: number;
+    createdAt: string;
+    updatedAt: string;
+    appliedAt?: string | null;
+}
+
+interface PersistedAiEditSession {
+    id: string;
+    title: string;
+    status: 'draft' | 'applied' | 'archived';
+    messages: ConversationTurn[];
+    baseline_training_days: any[];
+    draft_training_days: any[];
+    modifications: ModificationDiff[];
+    pending_actions: PendingActionCandidate[];
+    one_rm_adjustments: OneRmAdjustmentPreview[];
+    context_options?: Partial<ContextToggleState>;
+}
+
+function formatDiffValue(value: unknown): string {
+    if (value === null || value === undefined || value === '') return '空';
+    if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') return String(value);
+    try {
+        const json = JSON.stringify(value);
+        return json.length > 160 ? `${json.slice(0, 157)}...` : json;
+    } catch {
+        return String(value);
+    }
+}
+
+function mergeModificationDiffs(
+    existing: ModificationDiff[],
+    incoming: ModificationDiff[],
+): ModificationDiff[] {
+    const merged = new Map<string, ModificationDiff>();
+    for (const item of existing) {
+        merged.set(`${item.dayIndex}|${item.actionName}|${item.field}`, item);
+    }
+    for (const item of incoming) {
+        const key = `${item.dayIndex}|${item.actionName}|${item.field}`;
+        const previous = merged.get(key);
+        const next = previous ? { ...item, oldValue: previous.oldValue } : item;
+        if (JSON.stringify(next.oldValue) === JSON.stringify(next.newValue)) merged.delete(key);
+        else merged.set(key, next);
+    }
+    return Array.from(merged.values()).sort((a, b) => a.dayIndex - b.dayIndex);
+}
+
 /**
  * 批量操作对话框组件 - ChatGPT 对话风格
  * 1. 输入框默认居中，发送后移动到底部
@@ -132,10 +189,11 @@ export function BatchOperationDialog({
     variant = 'modal',
     onPreviewResult,
     onRestart,
-    onGetDaysToApply,
     initialInstruction,
     contextOptions,
-    editEngine = 'code',
+    editEngine = 'auto',
+    historyScopeKey,
+    historyTitle,
 }: BatchOperationDialogProps) {
     const isDesktop = useIsDesktop();
     const effectiveVariant = variant === 'auto' ? (isDesktop ? 'panel' : 'modal') : variant;
@@ -161,6 +219,14 @@ export function BatchOperationDialog({
     const [contextPanelOpen, setContextPanelOpen] = useState(false);
     const [contextStatusText, setContextStatusText] = useState<string | null>(null);
     const [aiInputSnapshot, setAiInputSnapshot] = useState<AIInputSnapshot | null>(null);
+    const [historySessions, setHistorySessions] = useState<AiEditSessionSummary[]>([]);
+    const [historyPanelOpen, setHistoryPanelOpen] = useState(false);
+    const [historyLoading, setHistoryLoading] = useState(false);
+    const [historyError, setHistoryError] = useState<string | null>(null);
+    const [currentSessionStatus, setCurrentSessionStatus] = useState<'draft' | 'applied'>('draft');
+    const [restoredHistoryStatus, setRestoredHistoryStatus] = useState<'draft' | 'applied' | null>(null);
+    const sessionIdRef = useRef<string | null>(null);
+    const historySaveQueueRef = useRef<Promise<void>>(Promise.resolve());
     const logsEndRef = useRef<HTMLDivElement>(null);
     const textareaRef = useRef<any>(null);
 
@@ -178,6 +244,12 @@ export function BatchOperationDialog({
         includeFeedbacks: contextOptions?.includeFeedbacks ?? false,
     };
     const [contextToggles, setContextToggles] = useState<ContextToggleState>(initialContextState);
+    const resolvedHistoryScopeKey = useMemo(() => {
+        if (historyScopeKey?.trim()) return historyScopeKey.trim();
+        if (templateId) return `${targetActionType}-template:${templateId}`;
+        const contextualId = contextOptions?.subscriptionId || contextOptions?.subjectUserId || 'draft';
+        return `${targetActionType}-local:${contextualId}`;
+    }, [historyScopeKey, templateId, targetActionType, contextOptions?.subscriptionId, contextOptions?.subjectUserId]);
 
     // Markdown 渲染器
     const md = useMemo(() => new MarkdownIt({ html: true, linkify: true, typographer: true }), []);
@@ -342,6 +414,182 @@ export function BatchOperationDialog({
         setLogs(prev => [...prev, { type, content, timestamp: new Date(), data }]);
     };
 
+    useEffect(() => {
+        if (!visible) return;
+        let cancelled = false;
+        setHistoryLoading(true);
+        setHistoryError(null);
+        fetch(`/api/plan-lib/ai-edit-sessions?scopeKey=${encodeURIComponent(resolvedHistoryScopeKey)}`)
+            .then(async (response) => {
+                const payload = await response.json();
+                if (!response.ok || !payload.success) throw new Error(payload.message || '读取历史失败');
+                if (!cancelled) setHistorySessions(payload.data || []);
+            })
+            .catch((error) => {
+                if (!cancelled) setHistoryError(error.message || '读取历史失败');
+            })
+            .finally(() => {
+                if (!cancelled) setHistoryLoading(false);
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, [visible, resolvedHistoryScopeKey]);
+
+    const persistAiSession = (status: 'draft' | 'applied' = 'draft'): Promise<void> => {
+        const messages = conversationHistory.slice(0, 240);
+        if (messages.length === 0 || !submittedInstruction) return Promise.resolve();
+        const payload = {
+            id: sessionIdRef.current,
+            scopeKey: resolvedHistoryScopeKey,
+            targetActionType,
+            title: historyTitle?.trim()
+                ? `${historyTitle.trim()} · ${submittedInstruction}`.slice(0, 160)
+                : submittedInstruction.slice(0, 160),
+            status,
+            messages,
+            baselineTrainingDays: previewData?.originalTrainingDays ?? initialTrainingDays ?? [],
+            draftTrainingDays: previewData?.updatedTrainingDays ?? initialTrainingDays ?? [],
+            modifications: previewData?.modifications ?? [],
+            pendingActions,
+            oneRmAdjustments: previewData?.oneRmAdjustments ?? [],
+            contextOptions: contextToggles,
+        };
+
+        historySaveQueueRef.current = historySaveQueueRef.current
+            .catch(() => undefined)
+            .then(async () => {
+                const response = await fetch('/api/plan-lib/ai-edit-sessions', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ...payload, id: sessionIdRef.current }),
+                });
+                const result = await response.json();
+                if (!response.ok || !result.success) throw new Error(result.message || '保存历史失败');
+                sessionIdRef.current = result.data.id;
+                setCurrentSessionStatus(status);
+                setHistoryError(null);
+                setHistorySessions((prev) => {
+                    const next: AiEditSessionSummary = {
+                        id: result.data.id,
+                        title: payload.title,
+                        status,
+                        messageCount: messages.length,
+                        modificationCount: payload.modifications.length,
+                        createdAt: prev.find((item) => item.id === result.data.id)?.createdAt || new Date().toISOString(),
+                        updatedAt: result.data.updated_at || new Date().toISOString(),
+                        appliedAt: status === 'applied' ? new Date().toISOString() : null,
+                    };
+                    return [next, ...prev.filter((item) => item.id !== next.id)].slice(0, 30);
+                });
+            })
+            .catch((error) => {
+                setHistoryError(error.message || '保存历史失败');
+            });
+        return historySaveQueueRef.current;
+    };
+
+    useEffect(() => {
+        if (
+            !visible ||
+            !hasStarted ||
+            currentSessionStatus !== 'draft' ||
+            restoredHistoryStatus !== null ||
+            conversationHistory.length === 0
+        ) return;
+        const timer = setTimeout(() => {
+            void persistAiSession('draft');
+        }, 900);
+        return () => clearTimeout(timer);
+    }, [
+        visible,
+        hasStarted,
+        currentSessionStatus,
+        restoredHistoryStatus,
+        conversationHistory,
+        previewData,
+        pendingActions,
+        submittedInstruction,
+        resolvedHistoryScopeKey,
+        contextToggles,
+    ]);
+
+    const handleResumeHistory = async (sessionSummary: AiEditSessionSummary) => {
+        if (isProcessing || isApplying) return;
+        setHistoryLoading(true);
+        setHistoryError(null);
+        try {
+            const response = await fetch(`/api/plan-lib/ai-edit-sessions?id=${encodeURIComponent(sessionSummary.id)}`);
+            const result = await response.json();
+            if (!response.ok || !result.success) throw new Error(result.message || '读取历史失败');
+            const persisted = result.data as PersistedAiEditSession;
+            const messages = Array.isArray(persisted.messages) ? persisted.messages : [];
+            const firstUserIndex = messages.findIndex((message) => message.role === 'user');
+            const firstInstruction = firstUserIndex >= 0 ? messages[firstUserIndex].content : persisted.title;
+            const restoredPending = Array.isArray(persisted.pending_actions) ? persisted.pending_actions : [];
+            const restoredModifications = Array.isArray(persisted.modifications) ? persisted.modifications : [];
+            const restoredBaseline = Array.isArray(persisted.baseline_training_days) ? persisted.baseline_training_days : [];
+            const restoredDraft = Array.isArray(persisted.draft_training_days) ? persisted.draft_training_days : restoredBaseline;
+            const restoredOneRm = Array.isArray(persisted.one_rm_adjustments) ? persisted.one_rm_adjustments : [];
+            const now = new Date();
+            const currentPlanSnapshot = Array.isArray(initialTrainingDays) ? initialTrainingDays : [];
+            const expectedCurrentSnapshot = persisted.status === 'applied' ? restoredDraft : restoredBaseline;
+            const currentPlanChanged = currentPlanSnapshot.length > 0 &&
+                JSON.stringify(currentPlanSnapshot) !== JSON.stringify(expectedCurrentSnapshot);
+            const restoredLogs: LogEntry[] = messages
+                .filter((_, index) => index !== firstUserIndex)
+                .map((message) => ({
+                    type: message.role === 'assistant' ? 'ai_response' : 'user_message',
+                    content: message.content,
+                    timestamp: now,
+                }));
+            restoredLogs.push({
+                type: 'progress',
+                content: persisted.status === 'applied'
+                    ? '已打开这条已应用历史；仅查看不会新增记录，发送新消息后才会创建修改分支'
+                    : '已打开未完成的修改草稿；仅查看不会更新历史，发送新消息后才会继续保存',
+                timestamp: now,
+            });
+            if (currentPlanChanged) {
+                restoredLogs.push({
+                    type: 'error',
+                    content: '当前页面里的计划已与这条历史快照不同。你仍可基于旧内容创建分支，但确认前请检查完整差异，避免覆盖后来修改。',
+                    timestamp: now,
+                });
+            }
+
+            const restoredStatus = persisted.status === 'applied' ? 'applied' : 'draft';
+            sessionIdRef.current = persisted.id;
+            setCurrentSessionStatus(restoredStatus);
+            setRestoredHistoryStatus(restoredStatus);
+            setSubmittedInstruction(firstInstruction);
+            setConversationHistory(messages);
+            setLogs(restoredLogs);
+            setPreviewData({
+                originalTrainingDays: restoredBaseline,
+                updatedTrainingDays: restoredDraft,
+                modifications: restoredModifications,
+                pendingActions: restoredPending,
+                oneRmAdjustments: restoredOneRm,
+            });
+            setPendingActions(restoredPending);
+            setPendingResolutions(Object.fromEntries(
+                restoredPending.map((pending) => [pending.tempActionId, buildDefaultResolution(pending)]),
+            ));
+            if (persisted.context_options) {
+                setContextToggles((prev) => ({ ...prev, ...persisted.context_options }));
+            }
+            setInstruction('');
+            setQueryAnswer(null);
+            setHasStarted(true);
+            setHistoryPanelOpen(false);
+        } catch (error: any) {
+            setHistoryError(error.message || '读取历史失败');
+        } finally {
+            setHistoryLoading(false);
+        }
+    };
+
     // 处理 SSE 消息
     const handleMessage = (message: SSEMessage) => {
         switch (message.type) {
@@ -403,10 +651,14 @@ export function BatchOperationDialog({
                 if (message.success) {
                     addLog('success', `✅ ${message.message}`);
                     const nextPending = message.pendingActions || [];
+                    const cumulativeModifications = mergeModificationDiffs(
+                        previewData?.modifications || [],
+                        message.modifications || [],
+                    );
                     setPreviewData({
-                        originalTrainingDays: message.originalTrainingDays,
+                        originalTrainingDays: previewData?.originalTrainingDays ?? message.originalTrainingDays,
                         updatedTrainingDays: message.updatedTrainingDays,
-                        modifications: message.modifications,
+                        modifications: cumulativeModifications,
                         pendingActions: nextPending,
                         oneRmAdjustments: message.oneRmAdjustments || [],
                     });
@@ -416,12 +668,6 @@ export function BatchOperationDialog({
                         resolutionMap[pending.tempActionId] = buildDefaultResolution(pending);
                     }
                     setPendingResolutions(resolutionMap);
-                    onPreviewResult?.({
-                        originalTrainingDays: message.originalTrainingDays,
-                        updatedTrainingDays: message.updatedTrainingDays,
-                        modifications: message.modifications,
-                        oneRmAdjustments: message.oneRmAdjustments || [],
-                    });
                 } else {
                     addLog('error', '操作失败');
                 }
@@ -431,6 +677,12 @@ export function BatchOperationDialog({
                 addLog('success', '✅ 分析完成');
                 addLog('ai_response', message.answer || '');
                 setQueryAnswer(message.answer);
+                setConversationHistory((prev) => [...prev, { role: 'assistant', content: message.answer || '' }]);
+                break;
+
+            case 'assistant_message':
+                addLog('ai_response', message.content || '');
+                setConversationHistory((prev) => [...prev, { role: 'assistant', content: message.content || '' }]);
                 break;
             
             case 'error':
@@ -442,6 +694,9 @@ export function BatchOperationDialog({
     const runFirstRound = async (previewInputOnly: boolean) => {
         const firstInstruction = instruction.trim() || '（仅预览输入）';
         if (!firstInstruction && !previewInputOnly) return;
+        sessionIdRef.current = null;
+        setCurrentSessionStatus('draft');
+        setRestoredHistoryStatus(null);
         setHasStarted(true);
         setSubmittedInstruction(firstInstruction);
         setInstruction('');
@@ -451,7 +706,7 @@ export function BatchOperationDialog({
         setQueryAnswer(null);
         setPendingActions([]);
         setPendingResolutions({});
-        setConversationHistory([]);
+        setConversationHistory([{ role: 'user', content: firstInstruction }]);
         setClarificationSuggestions(null);
         setAiInputSnapshot(null);
 
@@ -515,10 +770,16 @@ export function BatchOperationDialog({
         const trimmed = instruction.trim();
         if (!trimmed || isProcessing) return;
 
-        const nextHistory: ConversationTurn[] = [
-            ...conversationHistory,
-            { role: 'user', content: trimmed },
-        ];
+        if (restoredHistoryStatus !== null) {
+            if (restoredHistoryStatus === 'applied') {
+                sessionIdRef.current = null;
+            }
+            setCurrentSessionStatus('draft');
+            setRestoredHistoryStatus(null);
+        }
+
+        const previousHistory = conversationHistory;
+        const nextHistory: ConversationTurn[] = [...previousHistory, { role: 'user', content: trimmed }];
         setConversationHistory(nextHistory);
         setClarificationSuggestions(null);
         addLog('user_message', trimmed);
@@ -527,21 +788,23 @@ export function BatchOperationDialog({
 
         const runtimeContextOptions = buildRuntimeContextOptions();
 
-        if (mode === 'local') {
+        // 模板模式在首轮后也基于弹窗内预览草稿继续，避免每轮重新从数据库基线修改。
+        if (mode === 'local' || previewData) {
             await BatchOperationService.executeBatchOperationLocal(
-                initialTrainingDays,
-                submittedInstruction,
+                previewData?.updatedTrainingDays ?? initialTrainingDays,
+                trimmed,
                 handleMessage,
                 () => setIsProcessing(false),
                 (error) => {
                     addLog('error', error);
                     setIsProcessing(false);
                 },
-                nextHistory,
+                previousHistory,
                 targetActionType,
                 runtimeContextOptions,
                 false,
-                editEngine
+                editEngine,
+                previewData?.modifications,
             );
             return;
         }
@@ -554,18 +817,19 @@ export function BatchOperationDialog({
 
         await BatchOperationService.executeBatchOperation(
             templateId,
-            submittedInstruction,
+            trimmed,
             handleMessage,
             () => setIsProcessing(false),
             (error) => {
                 addLog('error', error);
                 setIsProcessing(false);
             },
-            nextHistory,
+            previousHistory,
             targetActionType,
             runtimeContextOptions,
             false,
-            editEngine
+            editEngine,
+            previewData?.modifications,
         );
     };
 
@@ -632,7 +896,7 @@ export function BatchOperationDialog({
             }
 
             const mapping = confirmResult.data?.actionIdMapping || {};
-            const sourceDays = onGetDaysToApply?.() ?? previewData.updatedTrainingDays;
+            const sourceDays = previewData.updatedTrainingDays;
             const mappedDays = remapActionIdsInDays(sourceDays, mapping);
             const nextPreview = {
                 ...previewData,
@@ -642,13 +906,6 @@ export function BatchOperationDialog({
             setPreviewData(nextPreview);
             setPendingActions([]);
             setPendingResolutions({});
-            onPreviewResult?.({
-                originalTrainingDays: nextPreview.originalTrainingDays,
-                updatedTrainingDays: mappedDays,
-                modifications: nextPreview.modifications,
-                oneRmAdjustments: nextPreview.oneRmAdjustments || [],
-            });
-
             const createdCount = (confirmResult.data?.createdActions || []).length;
             addLog('success', createdCount > 0
                 ? `✅ 已创建 ${createdCount} 个新动作，并已映射到计划`
@@ -663,14 +920,25 @@ export function BatchOperationDialog({
     // 应用修改到数据库
     const handleApply = async () => {
         if (!previewData) return;
+        if (restoredHistoryStatus === 'applied') {
+            addLog('error', '这条历史已经应用；如需继续修改，请先发送一条新消息创建分支');
+            return;
+        }
         if (hasPendingActions) {
             addLog('error', '请先执行“确认并映射动作”，再应用计划');
             return;
         }
 
         if (mode === 'local') {
-            const daysToApply = onGetDaysToApply?.() ?? previewData.updatedTrainingDays;
+            const daysToApply = previewData.updatedTrainingDays;
+            onPreviewResult?.({
+                originalTrainingDays: previewData.originalTrainingDays,
+                updatedTrainingDays: daysToApply,
+                modifications: previewData.modifications,
+                oneRmAdjustments: previewData.oneRmAdjustments || [],
+            });
             onApplyLocal?.(daysToApply);
+            await persistAiSession('applied');
             addLog('success', '🎉 修改已应用到当前草稿！');
             if (onSuccess) {
                 setTimeout(() => {
@@ -688,7 +956,7 @@ export function BatchOperationDialog({
 
         setIsApplying(true);
         try {
-            const daysToApply = onGetDaysToApply?.() ?? previewData.updatedTrainingDays;
+            const daysToApply = previewData.updatedTrainingDays;
             const response = await fetch('/api/plan-lib/apply-batch-operation', {
                 method: 'POST',
                 headers: {
@@ -704,6 +972,7 @@ export function BatchOperationDialog({
             const result = await response.json();
 
             if (result.success) {
+                await persistAiSession('applied');
                 addLog('success', '🎉 修改已成功应用！');
                 if (onSuccess) {
                     setTimeout(() => {
@@ -736,6 +1005,10 @@ export function BatchOperationDialog({
             setClarificationSuggestions(null);
             setContextStatusText(null);
             setAiInputSnapshot(null);
+            sessionIdRef.current = null;
+            setCurrentSessionStatus('draft');
+            setRestoredHistoryStatus(null);
+            setHistoryPanelOpen(false);
             onHide();
         }
     };
@@ -755,6 +1028,9 @@ export function BatchOperationDialog({
         setClarificationSuggestions(null);
         setContextStatusText(null);
         setAiInputSnapshot(null);
+        sessionIdRef.current = null;
+        setCurrentSessionStatus('draft');
+        setRestoredHistoryStatus(null);
     };
 
     const renderLogEntry = (entry: LogEntry, index: number) => {
@@ -842,6 +1118,55 @@ export function BatchOperationDialog({
         );
     };
 
+    const historyPanel = historyPanelOpen ? (
+        <div className="flex-shrink-0 px-5 py-3 border-b border-surface-100/60">
+            <div className="rounded-2xl border border-surface-200 bg-surface-50/70 p-3">
+                <div className="flex items-center justify-between gap-3 mb-3">
+                    <div>
+                        <div className="text-sm font-bold text-surface-900">以前的 AI 修改</div>
+                        <div className="text-xs text-surface-500 mt-1">打开历史只会查看；发送新消息后才继续保存或创建分支</div>
+                    </div>
+                    {historyLoading && <i className="pi pi-spin pi-spinner text-surface-400" />}
+                </div>
+                {historyError && (
+                    <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 mb-2">
+                        {historyError}
+                    </div>
+                )}
+                {!historyLoading && !historyError && historySessions.length === 0 && (
+                    <div className="text-xs text-surface-500 py-2">还没有历史记录，首次修改后会自动保存。</div>
+                )}
+                <div className="max-h-64 overflow-y-auto custom-scrollbar space-y-2">
+                    {historySessions.map((item) => (
+                        <button
+                            key={item.id}
+                            type="button"
+                            className="w-full text-left rounded-xl border border-surface-200 bg-surface px-3 py-2 hover:border-primary-300 hover:bg-primary-50/40 transition-colors disabled:opacity-50"
+                            onClick={() => void handleResumeHistory(item)}
+                            disabled={historyLoading || isProcessing || isApplying}
+                        >
+                            <div className="flex items-start justify-between gap-3">
+                                <div className="min-w-0">
+                                    <div className="text-xs font-bold text-surface-800 truncate">{item.title}</div>
+                                    <div className="text-[11px] text-surface-500 mt-1">
+                                        {item.messageCount} 条消息 · {item.modificationCount} 处差异 · {new Date(item.updatedAt).toLocaleString('zh-CN')}
+                                    </div>
+                                </div>
+                                <span className={`shrink-0 rounded-full px-2 py-1 text-[10px] font-bold ${
+                                    item.status === 'applied'
+                                        ? 'bg-green-100 text-green-700'
+                                        : 'bg-amber-100 text-amber-700'
+                                }`}>
+                                    {item.status === 'applied' ? '已应用' : '草稿'}
+                                </span>
+                            </div>
+                        </button>
+                    ))}
+                </div>
+            </div>
+        </div>
+    ) : null;
+
     const content = (
         <div className="flex flex-col h-full min-h-0">
                 {/* 未开始状态：居中显示输入框 */}
@@ -879,6 +1204,14 @@ export function BatchOperationDialog({
                                         className="rounded-xl"
                                         onClick={() => setContextPanelOpen((v) => !v)}
                                     />
+                                    <Button
+                                        label={`历史 ${historySessions.length}`}
+                                        icon="pi pi-history"
+                                        text
+                                        size="small"
+                                        className="rounded-xl"
+                                        onClick={() => setHistoryPanelOpen((value) => !value)}
+                                    />
                                 </div>
                             </div>
 
@@ -911,6 +1244,8 @@ export function BatchOperationDialog({
                                     </div>
                                 </div>
                             )}
+
+                            {historyPanel}
 
                             {/* 示例问题 */}
                             <div className="flex flex-wrap justify-center gap-2">
@@ -1023,6 +1358,15 @@ export function BatchOperationDialog({
                                     onClick={handlePreviewInputOnly}
                                     disabled={isProcessing || isApplying || isResolvingPendingActions}
                                 />
+                                <Button
+                                    label={`历史 ${historySessions.length}`}
+                                    icon="pi pi-history"
+                                    text
+                                    size="small"
+                                    className="rounded-xl"
+                                    onClick={() => setHistoryPanelOpen((value) => !value)}
+                                    disabled={isProcessing || isApplying || isResolvingPendingActions}
+                                />
                             </div>
                         </div>
 
@@ -1058,6 +1402,8 @@ export function BatchOperationDialog({
                                 </div>
                             </div>
                         )}
+
+                        {historyPanel}
 
                         {/* === 聊天滚动区域 === */}
                         <div ref={scrollContainerRef} className="flex-1 min-h-0 overflow-y-auto px-5 py-4 space-y-4 custom-scrollbar">
@@ -1122,6 +1468,33 @@ export function BatchOperationDialog({
                                 <div className="space-y-3">
                                     {logs.map((entry, index) => renderLogEntry(entry, index))}
                                 </div>
+                            )}
+
+                            {previewData && previewData.modifications.length > 0 && (
+                                <details className="rounded-2xl border border-primary-200 bg-primary-50/50 px-4 py-3">
+                                    <summary className="cursor-pointer text-sm font-bold text-primary-700">
+                                        {restoredHistoryStatus === 'applied'
+                                            ? `查看历史差异（${previewData.modifications.length} 处，已应用）`
+                                            : `查看完整差异（${previewData.modifications.length} 处，尚未应用）`}
+                                    </summary>
+                                    <div className="mt-3 max-h-80 overflow-y-auto custom-scrollbar space-y-2">
+                                        {previewData.modifications.map((item, index) => (
+                                            <div
+                                                key={`${item.dayIndex}-${item.actionName}-${item.field}-${index}`}
+                                                className="rounded-xl border border-surface-200 bg-surface px-3 py-2"
+                                            >
+                                                <div className="text-xs font-bold text-surface-800">
+                                                    第 {Math.ceil(item.dayIndex / 7)} 周 D{((item.dayIndex - 1) % 7) + 1} · {item.actionName}
+                                                </div>
+                                                <div className="mt-1 text-xs text-surface-600 break-words">
+                                                    {item.field}：<span className="text-red-600 line-through">{formatDiffValue(item.oldValue)}</span>
+                                                    <span className="mx-2 text-surface-400">→</span>
+                                                    <span className="text-green-700">{formatDiffValue(item.newValue)}</span>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </details>
                             )}
 
                                 {pendingActions.length > 0 && (
@@ -1318,12 +1691,16 @@ export function BatchOperationDialog({
                                     disabled={isProcessing || isApplying || isResolvingPendingActions}
                                 />
                                 {previewData && (
-                                    <Button
-                                        label={isApplying ? '应用中...' : (hasPendingActions ? '2. 确认应用' : '确认应用')}
+                                <Button
+                                    label={restoredHistoryStatus === 'applied'
+                                        ? '已应用'
+                                        : isApplying
+                                            ? '应用中...'
+                                            : (hasPendingActions ? '2. 确认应用' : '确认应用')}
                                         icon={isApplying ? undefined : 'pi pi-check'}
                                         className="rounded-xl py-1.5 px-4 text-[11px] font-bold bg-primary-600 border-none text-white hover:bg-primary-700 active:scale-[0.98] transition-all shadow-sm shadow-primary-200"
                                         onClick={handleApply}
-                                        disabled={isApplying || hasPendingActions || isResolvingPendingActions}
+                                    disabled={restoredHistoryStatus === 'applied' || isApplying || hasPendingActions || isResolvingPendingActions}
                                         loading={isApplying}
                                     />
                                 )}
@@ -1359,9 +1736,13 @@ export function BatchOperationDialog({
                                     onChange={(e) => setInstruction(e.target.value)}
                                     onKeyDown={handleBottomKeyDown}
                                     placeholder={
-                                        conversationHistory.some((t) => t.role === 'assistant')
-                                            ? '请补充信息后发送'
-                                            : '继续输入，进行多轮对话'
+                                        restoredHistoryStatus === 'applied'
+                                            ? '发送新消息后，将基于这条历史创建新分支'
+                                            : previewData
+                                            ? '可以问“刚才改了什么”，或继续调整当前草稿'
+                                            : conversationHistory.some((t) => t.role === 'assistant')
+                                                ? '请补充信息后发送'
+                                                : '继续输入，进行多轮对话'
                                     }
                                     rows={2}
                                     className="w-full rounded-2xl border-surface-200 focus:border-primary-300 text-sm resize-none pr-12"

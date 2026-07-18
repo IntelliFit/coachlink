@@ -13,6 +13,7 @@ export interface WeekStripCell {
   weekdayLabel: string
   dayNum: number
   planDayIndex: number | null
+  planDayIndexes: number[]
   status: WeekStripCellStatus
   isToday: boolean
 }
@@ -82,7 +83,10 @@ function startOfDayTime(dateValue: Date | string) {
 export function buildWeekStripCells(params: {
   now?: Date
   trainingDays: any[]
-  scheduleModel: { scheduleByDayIndex: Map<number, { displayDate: Date }> }
+  scheduleModel: {
+    scheduleByDayIndex: Map<number, { displayDate: Date; hidden?: boolean }>
+    dayIndexesByDateKey?: Map<string, number[]>
+  }
   planStartDate?: string | null
   progressDayIndex: number
   currentDayIndex: number
@@ -107,18 +111,28 @@ export function buildWeekStripCells(params: {
   const weekStart = getSundayWeekStart(now)
   const todayKey = toDateKey(startOfDayTime(now))
 
-  const dayIndexByDateKey = new Map<string, number>()
-  trainingDays.forEach((day: any) => {
-    const info = scheduleModel.scheduleByDayIndex.get(day.dayIndex)
-    const dt =
-      info?.displayDate ||
-      resolvePlanDayDate({
-        dayIndex: day.dayIndex,
-        effectiveStartDate: planStartDate,
-        fallbackAnchorDayIndex: progressDayIndex || currentDayIndex || 1
-      })
-    dayIndexByDateKey.set(toDateKey(startOfDayTime(dt)), day.dayIndex)
-  })
+  const dayIndexesByDateKey = new Map<string, number[]>()
+  if (scheduleModel.dayIndexesByDateKey) {
+    scheduleModel.dayIndexesByDateKey.forEach((dayIndexes, dateKey) => {
+      dayIndexesByDateKey.set(dateKey, [...dayIndexes])
+    })
+  } else {
+    trainingDays.forEach((day: any) => {
+      const info = scheduleModel.scheduleByDayIndex.get(day.dayIndex)
+      if (info?.hidden) return
+      const dt =
+        info?.displayDate ||
+        resolvePlanDayDate({
+          dayIndex: day.dayIndex,
+          effectiveStartDate: planStartDate,
+          fallbackAnchorDayIndex: progressDayIndex || currentDayIndex || 1
+        })
+      const dateKey = toDateKey(startOfDayTime(dt))
+      const dayIndexes = dayIndexesByDateKey.get(dateKey) || []
+      dayIndexes.push(day.dayIndex)
+      dayIndexesByDateKey.set(dateKey, dayIndexes)
+    })
+  }
 
   const cells: WeekStripCell[] = []
   for (let i = 0; i < 7; i += 1) {
@@ -126,27 +140,36 @@ export function buildWeekStripCells(params: {
     date.setDate(weekStart.getDate() + i)
     const dateKey = toDateKey(startOfDayTime(date))
     const weekdayLabel = SUN_FIRST_LABELS[date.getDay()]
-    const planDayIndex = dayIndexByDateKey.get(dateKey) ?? null
-
-    let status: WeekStripCellStatus = 'empty'
-    if (planDayIndex != null) {
+    const planDayIndexes = dayIndexesByDateKey.get(dateKey) || []
+    const getStatus = (planDayIndex: number): WeekStripCellStatus => {
       const ex = executionsByDayIndex[planDayIndex]
       if (planDayIndex < startExecutionDay) {
-        status = completionDates[planDayIndex] || ex?.status === 'completed' ? 'completed' : 'pending'
-      } else if (ex?.status === 'completed' || completionDates[planDayIndex]) {
-        status = 'completed'
-      } else if (ex?.status === 'in_progress') {
-        status = 'in_progress'
-      } else if (ex?.status === 'abandoned') {
-        status = 'pending'
-      } else {
-        const wk = Math.max(1, Math.ceil(planDayIndex / 7))
-        status = wk > unlockedWeek ? 'locked' : 'pending'
+        return completionDates[planDayIndex] || ex?.status === 'completed' ? 'completed' : 'pending'
       }
+      if (ex?.status === 'completed' || completionDates[planDayIndex]) return 'completed'
+      if (ex?.status === 'in_progress') return 'in_progress'
+      const wk = Math.max(1, Math.ceil(planDayIndex / 7))
+      if (wk > unlockedWeek) return 'locked'
       const day = trainingDays.find((x: any) => x.dayIndex === planDayIndex)
-      if (day?.type === 'rest' && status === 'pending') {
-        status = 'rest'
-      }
+      return day?.type === 'rest' ? 'rest' : 'pending'
+    }
+    const statuses = planDayIndexes.map(getStatus)
+    const planDayIndex = planDayIndexes.find((dayIndex) => getStatus(dayIndex) === 'in_progress')
+      || planDayIndexes.find((dayIndex) => {
+        const day = trainingDays.find((entry: any) => entry.dayIndex === dayIndex)
+        return getStatus(dayIndex) === 'pending' && day?.type !== 'rest'
+      })
+      || planDayIndexes[planDayIndexes.length - 1]
+      || null
+
+    let status: WeekStripCellStatus = 'empty'
+    if (statuses.length > 0) {
+      if (statuses.every((entry) => entry === 'completed')) status = 'completed'
+      else if (statuses.includes('in_progress')) status = 'in_progress'
+      else if (statuses.includes('pending')) status = 'pending'
+      else if (statuses.every((entry) => entry === 'rest')) status = 'rest'
+      else if (statuses.includes('rest')) status = 'rest'
+      else status = 'locked'
     }
 
     cells.push({
@@ -155,6 +178,7 @@ export function buildWeekStripCells(params: {
       weekdayLabel,
       dayNum: date.getDate(),
       planDayIndex,
+      planDayIndexes,
       status,
       isToday: dateKey === todayKey
     })

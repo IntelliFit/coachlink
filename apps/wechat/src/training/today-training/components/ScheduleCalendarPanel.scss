@@ -303,6 +303,11 @@
       font-size: 9px;
       line-height: 1;
       color: #94a3b8;
+
+      &.multiple {
+        font-size: 8px;
+        white-space: nowrap;
+      }
     }
 
     .date-type {
@@ -487,6 +492,11 @@
     .date-day-index {
       font-size: 18rpx;
       color: #9ca3af;
+
+      &.multiple {
+        font-size: 14rpx;
+        white-space: nowrap;
+      }
     }
 
     .date-type {

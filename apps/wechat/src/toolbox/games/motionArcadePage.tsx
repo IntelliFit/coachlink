@@ -9,6 +9,10 @@ import {
   createTimelinePayload,
   openCoachLinkShareMenu
 } from '@/utils/share'
+import {
+  type ArcadeFeedback,
+  vibrateForArcadeFeedback
+} from './arcadeFeedback'
 import { MotionArcadeReplayRecorder, type ArcadeReplayItem } from './arcadeReplayRecorder'
 import type { MotionArcadeGameConfig } from './gameConfigs'
 
@@ -127,6 +131,8 @@ export function createMotionArcadePage(config: MotionArcadeGameConfig) {
     const gameStartedAtRef = useRef(0)
     const nextItemIdRef = useRef(1)
     const isRecordingRef = useRef(false)
+    const flipXRef = useRef(true)
+    const feedbackIdRef = useRef(0)
     const motionRef = useRef<MotionSnapshot>({ x: 0.5, y: 0.7, energy: 0 })
     const playerPositionRef = useRef({ x: 0.5, y: 0.78 })
     const recordingModeRef = useRef<'camera' | 'composite' | null>(null)
@@ -147,6 +153,7 @@ export function createMotionArcadePage(config: MotionArcadeGameConfig) {
     const [replayProcessing, setReplayProcessing] = useState(false)
     const [videoSaving, setVideoSaving] = useState(false)
     const [recordedVideo, setRecordedVideo] = useState<RecordedVideo | null>(null)
+    const [feedback, setFeedback] = useState<ArcadeFeedback | null>(null)
 
     const sharePayload = useMemo(
       () =>
@@ -159,6 +166,11 @@ export function createMotionArcadePage(config: MotionArcadeGameConfig) {
 
     useShareAppMessage(() => sharePayload)
     useShareTimeline(() => createTimelinePayload(sharePayload))
+
+    const changeDirection = (mirrored: boolean) => {
+      flipXRef.current = mirrored
+      setFlipX(mirrored)
+    }
 
     useEffect(() => {
       openCoachLinkShareMenu()
@@ -175,6 +187,10 @@ export function createMotionArcadePage(config: MotionArcadeGameConfig) {
     useEffect(() => {
       playerPositionRef.current = playerPosition
     }, [playerPosition])
+
+    useEffect(() => {
+      flipXRef.current = flipX
+    }, [flipX])
 
     useEffect(() => {
       scoreRef.current = score
@@ -262,7 +278,7 @@ export function createMotionArcadePage(config: MotionArcadeGameConfig) {
                 frameHeight: height,
                 frameWidth: width,
                 items: replayItems,
-                mirrored: true,
+                mirrored: flipXRef.current,
                 player: playerPositionRef.current,
                 replayFooterLabel: config.replayFooterLabel,
                 score: scoreRef.current,
@@ -334,18 +350,31 @@ export function createMotionArcadePage(config: MotionArcadeGameConfig) {
           }
 
           let scoreDelta = 0
+          let goodHits = 0
+          let badHits = 0
           itemList = itemList.filter((item) => {
             if (itemOutOfBounds(config, item)) return false
             const hitDistance = distance(item.x, item.y, nextPlayer.x, nextPlayer.y)
             const hitRadius = item.size * 0.55 + PLAYER_SIZE * 0.5
             if (hitDistance <= hitRadius) {
               scoreDelta += item.type === 'good' ? config.scoreGood : config.scoreBad
+              if (item.type === 'good') goodHits += 1
+              else badHits += 1
               return false
             }
             return true
           })
 
           if (scoreDelta !== 0) {
+            const tone: ArcadeFeedback['tone'] = badHits > 0 ? 'bad' : 'good'
+            const hitCount = badHits > 0 ? badHits : goodHits
+            const itemLabel = badHits > 0 ? config.badItemLabel : config.goodItemLabel
+            setFeedback({
+              id: ++feedbackIdRef.current,
+              text: `${badHits > 0 ? '' : '+'}${scoreDelta} ${itemLabel}${hitCount > 1 ? ` ×${hitCount}` : ''}`,
+              tone
+            })
+            vibrateForArcadeFeedback(tone)
             setScore((prevScore) => {
               const nextScore = Math.max(0, prevScore + scoreDelta)
               if (nextScore > bestScoreRef.current) {
@@ -446,8 +475,16 @@ export function createMotionArcadePage(config: MotionArcadeGameConfig) {
         } catch (error: any) {
           await replayRecorderRef.current?.destroy()
           replayRecorderRef.current = null
-          console.warn('小游戏合成回放录制不可用，回退到原视频录制:', error)
+          console.warn('小游戏合成回放录制不可用:', error)
         }
+      }
+
+      if (flipXRef.current) {
+        Taro.showToast({
+          title: '当前设备不支持镜像合成回放，可切到原始方向后录制',
+          icon: 'none'
+        })
+        return
       }
 
       beginCameraFallbackRecording()
@@ -522,6 +559,7 @@ export function createMotionArcadePage(config: MotionArcadeGameConfig) {
       timeLeftMsRef.current = GAME_DURATION_MS
       setItems([])
       itemsRef.current = []
+      setFeedback(null)
       nextItemIdRef.current = 1
       motionRef.current = { energy: 0, x: 0.5, y: 0.72 }
       setMotionEnergy(0)
@@ -672,6 +710,12 @@ export function createMotionArcadePage(config: MotionArcadeGameConfig) {
                     <View className='player-core' />
                   </View>
 
+                  {feedback ? (
+                    <View key={feedback.id} className={`stage-feedback stage-feedback--${feedback.tone}`}>
+                      <Text className='stage-feedback-text'>{feedback.text}</Text>
+                    </View>
+                  ) : null}
+
                   {!cameraReady && !cameraError ? (
                     <View className='stage-note'>
                       <Text className='stage-note-title'>正在准备摄像头</Text>
@@ -785,17 +829,19 @@ export function createMotionArcadePage(config: MotionArcadeGameConfig) {
                 <View className='toggle-row'>
                   <View
                     className={`toggle-chip ${flipX ? 'active' : ''}`}
-                    onClick={() => setFlipX(true)}
+                    onClick={() => changeDirection(true)}
                   >
-                    <Text className='toggle-chip-text'>左右反转</Text>
+                    <Text className='toggle-chip-text'>镜像同向（推荐）</Text>
                   </View>
                   <View
                     className={`toggle-chip ${flipX ? '' : 'active'}`}
-                    onClick={() => setFlipX(false)}
+                    onClick={() => changeDirection(false)}
                   >
-                    <Text className='toggle-chip-text'>左右同向</Text>
+                    <Text className='toggle-chip-text'>原始方向</Text>
                   </View>
                 </View>
+                <Text className='direction-note'>该方向会同时用于实时操作和最终合成回放。</Text>
+                <Text className='direction-note'>合成回放为 360 × 480、12 fps 的流畅压缩画质，不是相机原画质。</Text>
               </View>
 
               {recordedVideo?.tempVideoPath ? (

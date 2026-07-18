@@ -780,6 +780,8 @@ const EditPlanPage = () => {
                 onHide={() => setAiBatchDialogVisible(false)}
                 mode="local"
                 targetActionType="student"
+                historyScopeKey={`student-favorite:${String(params.id)}`}
+                historyTitle={name || '学员计划'}
                 contextOptions={{
                     includeStudentProfile: false,
                     includeStudentQuestionnaire: false,

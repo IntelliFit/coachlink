@@ -47,6 +47,8 @@ export interface PlanDayScheduleInfo {
   displayDate: Date
   totalDelayDays: number
   delayAddedDays: number
+  /** 被同日提前完成跨过的纯休息日不占用自然日，也不在学员日历展示。 */
+  hidden?: boolean
 }
 
 export interface PostponedDateMarker {
@@ -58,6 +60,8 @@ export interface PostponedDateMarker {
 
 export interface PlanScheduleModel {
   scheduleByDayIndex: Map<number, PlanDayScheduleInfo>
+  /** 一个自然日可以承载多个已完成/进行中的训练 Day。 */
+  dayIndexesByDateKey: Map<string, number[]>
   postponedDates: PostponedDateMarker[]
   postponedByDateKey: Map<string, PostponedDateMarker>
 }
@@ -492,6 +496,7 @@ export const buildPlanScheduleModel = (params: {
   } = params
 
   const scheduleByDayIndex = new Map<number, PlanDayScheduleInfo>()
+  const dayIndexesByDateKey = new Map<string, number[]>()
   const postponedDates: PostponedDateMarker[] = []
   const postponedByDateKey = new Map<string, PostponedDateMarker>()
   const todayStart = startOfDay(today)
@@ -502,87 +507,168 @@ export const buildPlanScheduleModel = (params: {
     return left - right
   })
 
-  let cumulativeDelayDays = 0
+  const executionStartDay = Math.max(1, Number(startExecutionDay || 1))
+  const normalizedProgressDay = Math.max(executionStartDay, Number(progressDayIndex || executionStartDay))
 
-  sortedDays.forEach((day) => {
+  const addDateBucketDay = (date: Date, dayIndex: number) => {
+    const key = toDateKey(date)
+    const indexes = dayIndexesByDateKey.get(key) || []
+    if (!indexes.includes(dayIndex)) {
+      indexes.push(dayIndex)
+      indexes.sort((left, right) => left - right)
+    }
+    dayIndexesByDateKey.set(key, indexes)
+  }
+
+  const setScheduleDay = (day: any, displayDate: Date, options?: { hidden?: boolean; delayAddedDays?: number }) => {
     const dayIndex = Number(day?.dayIndex ?? day?.day_index ?? 0)
     if (!Number.isFinite(dayIndex) || dayIndex <= 0) return
-    const isBeforeExecutionStart = dayIndex < Math.max(1, Number(startExecutionDay || 1))
-
     const baselineDate = resolvePlanDayDate({
       dayIndex,
       effectiveStartDate,
       fallbackAnchorDayIndex,
       fallbackAnchorDate
     })
-    const scheduledDate = addDays(baselineDate, cumulativeDelayDays)
-    const execution = executionsByDayIndex?.[dayIndex]
-    const executionStatus = String(execution?.status || '').toLowerCase()
-    const executionDate = getExecutionAnchorDate(execution)
-    const isCurrentProgressDay = !isBeforeExecutionStart && progressDayIndex === dayIndex
-    const isTerminalExecution = executionStatus === 'completed' || executionStatus === 'abandoned'
-
-    let displayDate = scheduledDate
-    let delayAddedDays = 0
-
-    if (isBeforeExecutionStart) {
-      displayDate = scheduledDate
-    } else if (isCurrentProgressDay && !isTerminalExecution) {
-      const lateDays = diffCalendarDays(todayStart, scheduledDate)
-      if (lateDays > 0) {
-        delayAddedDays = lateDays
-        displayDate = todayStart
-      } else {
-        // 计划日尚未到时保持原排期。旧逻辑无条件写成 today，
-        // 会把未来计划显示到今天并产生“顺延 -N 天”。
-        displayDate = scheduledDate
-      }
-    } else if (executionDate) {
-      const lateDays = diffCalendarDays(executionDate, scheduledDate)
-      if (lateDays > 0) {
-        delayAddedDays = lateDays
-      }
-      displayDate = executionDate
-    } else if (isCurrentProgressDay) {
-      const lateDays = diffCalendarDays(todayStart, scheduledDate)
-      if (lateDays > 0) {
-        delayAddedDays = lateDays
-        displayDate = todayStart
-      }
-    }
-
-    if (delayAddedDays > 0) {
-      for (let offset = 0; offset < delayAddedDays; offset += 1) {
-        const postponedDate = addDays(scheduledDate, offset)
-        const key = toDateKey(postponedDate)
-        if (postponedByDateKey.has(key)) continue
-        const marker: PostponedDateMarker = {
-          date: postponedDate,
-          key,
-          targetDayIndex: dayIndex,
-          offset: offset + 1
-        }
-        postponedByDateKey.set(key, marker)
-        postponedDates.push(marker)
-      }
-      cumulativeDelayDays += delayAddedDays
-    }
-
     scheduleByDayIndex.set(dayIndex, {
       dayIndex,
       baselineDate,
       displayDate,
-      delayAddedDays,
+      delayAddedDays: options?.delayAddedDays || 0,
       // 顺延只表示向后推迟，不允许把提前执行显示成负顺延。
-      totalDelayDays: Math.max(0, diffCalendarDays(displayDate, baselineDate))
+      totalDelayDays: Math.max(0, diffCalendarDays(displayDate, baselineDate)),
+      hidden: !!options?.hidden
     })
+    if (!options?.hidden) addDateBucketDay(displayDate, dayIndex)
+  }
+
+  const addPostponedRange = (fromDate: Date, untilDate: Date, targetDayIndex: number) => {
+    let cursor = startOfDay(fromDate)
+    let offset = 1
+    while (diffCalendarDays(untilDate, cursor) > 0) {
+      const key = toDateKey(cursor)
+      if (!postponedByDateKey.has(key) && !dayIndexesByDateKey.has(key)) {
+        const marker: PostponedDateMarker = { date: cursor, key, targetDayIndex, offset }
+        postponedByDateKey.set(key, marker)
+        postponedDates.push(marker)
+      }
+      cursor = addDays(cursor, 1)
+      offset += 1
+    }
+    return offset - 1
+  }
+
+  // 执行起点之前仍按原始计划日期展示，不参与后续的动态压缩。
+  sortedDays
+    .filter((day) => Number(day?.dayIndex ?? day?.day_index ?? 0) < executionStartDay)
+    .forEach((day) => {
+      const dayIndex = Number(day?.dayIndex ?? day?.day_index ?? 0)
+      setScheduleDay(day, resolvePlanDayDate({
+        dayIndex,
+        effectiveStartDate,
+        fallbackAnchorDayIndex,
+        fallbackAnchorDate
+      }))
+    })
+
+  const activeDays = sortedDays.filter(
+    (day) => Number(day?.dayIndex ?? day?.day_index ?? 0) >= executionStartDay
+  )
+  const anchorPositions = activeDays
+    .map((day, position) => ({ day, position, date: getExecutionAnchorDate(executionsByDayIndex?.[Number(day?.dayIndex ?? day?.day_index ?? 0)]) }))
+    .filter((entry): entry is { day: any; position: number; date: Date } => !!entry.date)
+
+  let cursorDate = resolvePlanDayDate({
+    dayIndex: executionStartDay,
+    effectiveStartDate,
+    fallbackAnchorDayIndex,
+    fallbackAnchorDate
+  })
+  let cursorPosition = 0
+
+  anchorPositions.forEach((anchor) => {
+    const anchorDayIndex = Number(anchor.day?.dayIndex ?? anchor.day?.day_index ?? 0)
+    const segment = activeDays.slice(cursorPosition, anchor.position)
+    let availableSlots = Math.max(0, diffCalendarDays(anchor.date, cursorDate))
+
+    segment.forEach((day, segmentIndex) => {
+      const dayIndex = Number(day?.dayIndex ?? day?.day_index ?? 0)
+      const isRestDay = String(day?.type || 'training').toLowerCase() === 'rest'
+      const remainingTrainingDays = segment
+        .slice(segmentIndex + 1)
+        .filter((entry) => String(entry?.type || 'training').toLowerCase() === 'training').length
+      const canOccupyDate = availableSlots > remainingTrainingDays
+
+      if (isRestDay && !canOccupyDate) {
+        // 提前完成后跨过的休息日没有独立自然日可占，逻辑上保留、日历上隐藏。
+        setScheduleDay(day, anchor.date, { hidden: true })
+        return
+      }
+
+      if (availableSlots > 0) {
+        setScheduleDay(day, cursorDate)
+        cursorDate = addDays(cursorDate, 1)
+        availableSlots -= 1
+        return
+      }
+
+      // 异常旧数据中若缺少中间训练执行，不再覆盖后一个 Day；聚合到真实执行日供用户追溯。
+      setScheduleDay(day, anchor.date)
+    })
+
+    const delayAddedDays = addPostponedRange(cursorDate, anchor.date, anchorDayIndex)
+    setScheduleDay(anchor.day, anchor.date, { delayAddedDays })
+    if (diffCalendarDays(anchor.date, cursorDate) >= 0) {
+      cursorDate = addDays(anchor.date, 1)
+    }
+    cursorPosition = anchor.position + 1
+  })
+
+  const trailingDays = activeDays.slice(cursorPosition)
+  trailingDays.forEach((day) => {
+    const dayIndex = Number(day?.dayIndex ?? day?.day_index ?? 0)
+    const isRestDay = String(day?.type || 'training').toLowerCase() === 'rest'
+
+    let delayAddedDays = 0
+    if (dayIndex === normalizedProgressDay && !isRestDay && diffCalendarDays(todayStart, cursorDate) > 0) {
+      delayAddedDays = addPostponedRange(cursorDate, todayStart, dayIndex)
+      cursorDate = todayStart
+    }
+    setScheduleDay(day, cursorDate, { delayAddedDays })
+    cursorDate = addDays(cursorDate, 1)
   })
 
   return {
     scheduleByDayIndex,
+    dayIndexesByDateKey,
     postponedDates,
     postponedByDateKey
   }
+}
+
+/** 与 execution/start 保持一致：当前进度为连续休息日时，可直接训练后面的第一个训练日。 */
+export const canOpenPlanDayForExecution = (params: {
+  trainingDays: any[]
+  progressDayIndex: number
+  targetDayIndex: number
+}) => {
+  const { trainingDays, progressDayIndex, targetDayIndex } = params
+  if (targetDayIndex === progressDayIndex) return true
+  if (targetDayIndex < progressDayIndex) return false
+
+  const remainingDays = [...(trainingDays || [])]
+    .filter((day) => Number(day?.dayIndex ?? day?.day_index ?? 0) >= progressDayIndex)
+    .sort((left, right) => Number(left?.dayIndex ?? left?.day_index ?? 0) - Number(right?.dayIndex ?? right?.day_index ?? 0))
+  const firstTrainingDay = remainingDays.find(
+    (day) => String(day?.type || 'training').toLowerCase() === 'training'
+  )
+  if (Number(firstTrainingDay?.dayIndex ?? firstTrainingDay?.day_index ?? 0) !== targetDayIndex) return false
+
+  return remainingDays
+    .filter((day) => {
+      const dayIndex = Number(day?.dayIndex ?? day?.day_index ?? 0)
+      return dayIndex >= progressDayIndex && dayIndex < targetDayIndex
+    })
+    .every((day) => String(day?.type || 'training').toLowerCase() !== 'training')
 }
 
 export const toDateKey = (date: Date) => {

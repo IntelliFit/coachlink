@@ -10,6 +10,7 @@ type ActionLite = {
 type DeterministicEditResult = {
     matched: boolean;
     applied: boolean;
+    terminal?: boolean;
     actionPlan?: string;
     updatedTrainingDays: any[];
     reason?: string;
@@ -34,6 +35,13 @@ type ParsedDeleteNthOccurrenceInstruction = {
     occurrenceCountEquals: number;
     deleteOccurrenceIndex: number;
     actionName: string;
+};
+
+type ParsedMoveWeeklyScheduleInstruction = {
+    weekStart: number;
+    weekEnd: number;
+    sourceDays: number[];
+    targetDays: number[];
 };
 
 function getWeekDayMeta(dayIndex: number) {
@@ -76,6 +84,101 @@ function findBestActionByMention(mention: string, actions: ActionLite[]): Action
     });
     if (partials.length === 0) return null;
     return partials.sort((a, b) => b.name.length - a.name.length)[0];
+}
+
+const chineseScheduleDayMap: Record<string, number> = {
+    一: 1,
+    二: 2,
+    三: 3,
+    四: 4,
+    五: 5,
+    六: 6,
+    日: 7,
+    天: 7,
+};
+
+function normalizeScheduleDays(days: number[]): number[] {
+    return Array.from(new Set(days)).filter((day) => day >= 1 && day <= 7);
+}
+
+function extractScheduleDaySequence(segment: string, preferLast: boolean): number[] {
+    const text = String(segment || "").replace(/[０-９]/g, (char) =>
+        String(char.charCodeAt(0) - 0xFF10),
+    );
+    const dDays = normalizeScheduleDays(
+        Array.from(text.matchAll(/\bD([1-7])\b/gi)).map((match) => Number(match[1])),
+    );
+    if (dDays.length >= 2) return dDays;
+
+    const compactMatches = Array.from(text.matchAll(/(?:^|[^\d])([1-7]{2,7})(?!\d)/g));
+    if (compactMatches.length > 0) {
+        const match = preferLast ? compactMatches[compactMatches.length - 1] : compactMatches[0];
+        const compactDays = normalizeScheduleDays(match[1].split("").map(Number));
+        if (compactDays.length >= 2) return compactDays;
+    }
+
+    const numberedDays = normalizeScheduleDays(
+        Array.from(text.matchAll(/第\s*([一二三四五六日天])\s*天/g))
+            .map((match) => chineseScheduleDayMap[match[1]]),
+    );
+    if (numberedDays.length >= 2) return numberedDays;
+
+    const weekdayDays = normalizeScheduleDays(
+        Array.from(text.matchAll(/周([一二三四五六日天])/g))
+            .map((match) => chineseScheduleDayMap[match[1]]),
+    );
+    if (weekdayDays.length >= 2) return weekdayDays;
+
+    const compactChinese = Array.from(text.matchAll(/([一二三四五六日天]{2,7})/g));
+    if (compactChinese.length > 0) {
+        const match = preferLast ? compactChinese[compactChinese.length - 1] : compactChinese[0];
+        const days = normalizeScheduleDays(
+            match[1].split("").map((char) => chineseScheduleDayMap[char]),
+        );
+        if (days.length >= 2) return days;
+    }
+
+    return [];
+}
+
+export function isWeeklyScheduleMoveInstruction(instruction: string): boolean {
+    const text = String(instruction || "").replace(/\s+/g, "");
+    if (!text) return false;
+
+    const mentionsWeeklySchedule = /(?:训练日|训练安排|训练频率|周内安排|休息日|训练周|每(?:个|一)?(?:训练)?周)/.test(text);
+    const movesSchedule = /(?:换成|改成|调整为|移到|挪到|安排到|变成|重新排(?:成)?|错开)/.test(text);
+    return mentionsWeeklySchedule && movesSchedule;
+}
+
+function parseMoveWeeklyScheduleInstruction(
+    instruction: string,
+    trainingDays: any[],
+): ParsedMoveWeeklyScheduleInstruction | null {
+    const text = String(instruction || "").replace(/\s+/g, " ").trim();
+    if (!isWeeklyScheduleMoveInstruction(text)) return null;
+
+    const moveVerb = text.match(/(换成|改成|调整为|移到|挪到|安排到|变成|重新排成)/);
+    const moveVerbIndex = moveVerb?.index ?? -1;
+    if (!moveVerb || moveVerbIndex < 0) return null;
+
+    const sourceDays = extractScheduleDaySequence(text.slice(0, moveVerbIndex), true);
+    const targetDays = extractScheduleDaySequence(
+        text.slice(moveVerbIndex + moveVerb[0].length),
+        false,
+    );
+    if (sourceDays.length < 2 || sourceDays.length !== targetDays.length) return null;
+
+    const weekRangeMatch = text.match(/第\s*(\d+)\s*周\s*(?:到|至|~|～|-|—)\s*第?\s*(\d+)\s*周/);
+    const singleWeekMatch = text.match(/第\s*(\d+)\s*周/);
+    const maxWeek = (trainingDays || []).reduce(
+        (maximum, day) => Math.max(maximum, Math.ceil(Number(day?.dayIndex || 0) / 7)),
+        0,
+    );
+    const weekStart = weekRangeMatch ? Number(weekRangeMatch[1]) : Number(singleWeekMatch?.[1] || 1);
+    const weekEnd = weekRangeMatch ? Number(weekRangeMatch[2]) : Number(singleWeekMatch?.[1] || maxWeek);
+    if (!weekStart || !weekEnd || weekStart > weekEnd) return null;
+
+    return { weekStart, weekEnd, sourceDays, targetDays };
 }
 
 function parseReplacementActionName(segment: string, actions: ActionLite[]): string {
@@ -156,12 +259,102 @@ function parseReplaceLastOccurrenceInstruction(
     };
 }
 
+function applyMoveWeeklyScheduleInstruction(
+    parsed: ParsedMoveWeeklyScheduleInstruction,
+    trainingDays: any[],
+): DeterministicEditResult {
+    const originalDays = JSON.parse(JSON.stringify(trainingDays || []));
+    const originalByIndex = new Map<number, any>(
+        originalDays.map((day: any) => [Number(day?.dayIndex || 0), day]),
+    );
+    const sourceDaySet = new Set(parsed.sourceDays);
+
+    // 先完整校验再写入，避免某一周存在额外训练日时覆盖用户数据。
+    for (let week = parsed.weekStart; week <= parsed.weekEnd; week += 1) {
+        const weekDays = new Map<number, any>();
+        for (let dayOfWeek = 1; dayOfWeek <= 7; dayOfWeek += 1) {
+            weekDays.set(dayOfWeek, originalByIndex.get((week - 1) * 7 + dayOfWeek));
+        }
+        if (parsed.sourceDays.some((day) => weekDays.get(day)?.type !== "training")) {
+            return {
+                matched: true,
+                applied: false,
+                terminal: true,
+                updatedTrainingDays: trainingDays,
+                reason: `第 ${week} 周并非全部在 D${parsed.sourceDays.join("/D")} 训练，已停止确定性搬移以避免覆盖。`,
+            };
+        }
+        const conflictingTarget = parsed.targetDays.find(
+            (day) => !sourceDaySet.has(day) && weekDays.get(day)?.type === "training",
+        );
+        if (conflictingTarget) {
+            return {
+                matched: true,
+                applied: false,
+                terminal: true,
+                updatedTrainingDays: trainingDays,
+                reason: `第 ${week} 周目标 D${conflictingTarget} 已有训练内容，已停止确定性搬移以避免覆盖。`,
+            };
+        }
+    }
+
+    const replacements = new Map<number, any>();
+    for (let week = parsed.weekStart; week <= parsed.weekEnd; week += 1) {
+        const weekBase = (week - 1) * 7;
+
+        for (const sourceDay of parsed.sourceDays) {
+            const sourceIndex = weekBase + sourceDay;
+            const original = originalByIndex.get(sourceIndex);
+            replacements.set(sourceIndex, {
+                ...original,
+                dayIndex: sourceIndex,
+                type: "rest",
+                note: "",
+                actionSets: [],
+                actionSetsCount: 0,
+            });
+        }
+
+        parsed.sourceDays.forEach((sourceDay, position) => {
+            const targetDay = parsed.targetDays[position];
+            const sourceIndex = weekBase + sourceDay;
+            const targetIndex = weekBase + targetDay;
+            const source = originalByIndex.get(sourceIndex);
+            const target = originalByIndex.get(targetIndex);
+            replacements.set(targetIndex, {
+                ...target,
+                type: source.type,
+                note: source.note || "",
+                actionSets: JSON.parse(JSON.stringify(source.actionSets || [])),
+                actionSetsCount: source.actionSetsCount ?? source.actionSets?.length ?? 0,
+                dayIndex: targetIndex,
+            });
+        });
+    }
+
+    const nextTrainingDays = originalDays.map((day: any) =>
+        replacements.get(Number(day?.dayIndex || 0)) || day,
+    );
+    return {
+        matched: true,
+        applied: true,
+        terminal: true,
+        actionPlan: `已将第 ${parsed.weekStart}-${parsed.weekEnd} 周的训练日从 D${parsed.sourceDays.join("/D")} 搬移到 D${parsed.targetDays.join("/D")}，训练内容按顺序完整保留。`,
+        updatedTrainingDays: nextTrainingDays,
+    };
+}
+
 export function tryApplyDeterministicBatchEdit(params: {
     instruction: string;
     trainingDays: any[];
     actions: ActionLite[];
 }): DeterministicEditResult {
     const { instruction, trainingDays, actions } = params;
+    const parsedScheduleMove = parseMoveWeeklyScheduleInstruction(instruction, trainingDays);
+    if (parsedScheduleMove) {
+        return applyMoveWeeklyScheduleInstruction(parsedScheduleMove, trainingDays);
+    }
+
     const parsedDelete = parseDeleteNthOccurrenceInstruction(instruction);
     if (parsedDelete) {
         return applyDeleteNthOccurrenceInstruction(parsedDelete, trainingDays, actions);
