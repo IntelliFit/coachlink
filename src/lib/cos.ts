@@ -16,6 +16,8 @@
  *   COS_CDN_VIDEOS / COS_CDN_AVATARS / COS_CDN_CHAT_IMAGES / COS_CDN_ASSETS / COS_CDN_RECEIPTS
  */
 
+import { createReadStream } from "node:fs";
+import { stat as fsStat } from "node:fs/promises";
 import COS from "cos-nodejs-sdk-v5";
 import { v4 as uuidv4 } from "uuid";
 import { BUCKET_MAP, COS_REGION, buildPublicUrl, parseCosUrl, type LogicalBucket } from "./storageUrl";
@@ -82,6 +84,33 @@ export async function cosUpload(
         Key: fullKey,
         Body,
         ContentLength: Body.length,
+        ...(options?.contentType ? { ContentType: options.contentType } : {}),
+        ...(options?.cacheControl !== undefined ? { CacheControl: options.cacheControl } : {}),
+      },
+      (err) => (err ? reject(err) : resolve()),
+    );
+  });
+  return { url: buildPublicUrl(logical, key), bucket: cfg.cosBucket, key };
+}
+
+/** 上传本地文件到 COS，适合后端临时文件/分片合并产物，避免把大文件整体读入内存 */
+export async function cosUploadFile(
+  logical: LogicalBucket,
+  key: string,
+  filePath: string,
+  options?: { contentType?: string; cacheControl?: string },
+): Promise<{ url: string; bucket: string; key: string }> {
+  const cfg = BUCKET_MAP[logical];
+  const fullKey = cfg.prefix + key;
+  const fileStat = await fsStat(filePath);
+  await new Promise<void>((resolve, reject) => {
+    getCos().putObject(
+      {
+        Bucket: cfg.cosBucket,
+        Region: COS_REGION,
+        Key: fullKey,
+        Body: createReadStream(filePath) as any,
+        ContentLength: fileStat.size,
         ...(options?.contentType ? { ContentType: options.contentType } : {}),
         ...(options?.cacheControl !== undefined ? { CacheControl: options.cacheControl } : {}),
       },

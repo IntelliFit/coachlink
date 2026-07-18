@@ -17,8 +17,202 @@ interface PRRecord {
   created_at: string
 }
 
+const UPLOAD_FILE_SAFE_LIMIT_BYTES = 8 * 1024 * 1024
+const SET_VIDEO_CHUNK_SIZE_BYTES = 4 * 1024 * 1024
+
+interface UploadSetVideoOptions {
+  fileSize?: number
+  fileName?: string
+  contentType?: string
+}
+
+interface UploadSetVideoResult {
+  video_url?: string
+  url?: string
+}
+
+function parseApiPayload(raw: any): any {
+  if (!raw) return null
+  if (typeof raw === 'string') {
+    try {
+      return JSON.parse(raw)
+    } catch {
+      return null
+    }
+  }
+  return raw
+}
+
+function getResponseErrorMessage(response: any, fallback: string) {
+  const payload = parseApiPayload(response?.data)
+  return payload?.message || fallback
+}
+
+function createUploadId() {
+  const rand = Math.random().toString(36).slice(2, 12)
+  return `${Date.now()}_${rand}`
+}
+
+function getFileNameFromPath(filePath: string) {
+  const cleanPath = String(filePath || '').split('?')[0]
+  const name = cleanPath.split(/[\\/]/).pop() || `set-video-${Date.now()}.mp4`
+  return /\.[a-z0-9]{1,12}$/i.test(name) ? name : `${name}.mp4`
+}
+
+function inferVideoContentType(fileNameOrPath: string) {
+  const lower = fileNameOrPath.toLowerCase()
+  if (lower.endsWith('.mov')) return 'video/quicktime'
+  if (lower.endsWith('.m4v')) return 'video/x-m4v'
+  if (lower.endsWith('.webm')) return 'video/webm'
+  return 'video/mp4'
+}
+
 class ExecutionService {
   private readonly baseUrl = '/api/execution'
+
+  private getAuthHeader() {
+    const token = Taro.getStorageSync('token') || ''
+    return {
+      Authorization: token ? `Bearer ${token}` : ''
+    }
+  }
+
+  private async getFileSize(filePath: string): Promise<number> {
+    return new Promise((resolve, reject) => {
+      Taro.getFileInfo({
+        filePath,
+        success: (res: any) => resolve(Number(res.size || 0)),
+        fail: (err: any) => reject(new Error(err?.errMsg || '无法读取视频文件信息'))
+      })
+    })
+  }
+
+  private async readFileChunk(filePath: string, position: number, length: number): Promise<ArrayBuffer> {
+    return new Promise((resolve, reject) => {
+      const fs = Taro.getFileSystemManager()
+      ;(fs as any).readFile({
+        filePath,
+        position,
+        length,
+        success: (res: any) => {
+          if (res.data instanceof ArrayBuffer) {
+            resolve(res.data)
+            return
+          }
+          reject(new Error('读取视频分片失败'))
+        },
+        fail: (err: any) => reject(new Error(err?.errMsg || '读取视频分片失败'))
+      })
+    })
+  }
+
+  private async requestJson<T = any>(url: string, data: any, timeout = 300000): Promise<T | null> {
+    const response: any = await Taro.request({
+      url,
+      method: 'POST',
+      data,
+      header: {
+        ...this.getAuthHeader(),
+        'Content-Type': 'application/json'
+      },
+      timeout
+    } as any)
+    const payload = parseApiPayload(response.data)
+    if (response.statusCode !== 200 || !payload?.success) {
+      throw new Error(payload?.message || `请求失败: ${response.statusCode}`)
+    }
+    return payload.data || null
+  }
+
+  private async uploadChunk(url: string, chunk: ArrayBuffer) {
+    const response: any = await Taro.request({
+      url,
+      method: 'POST',
+      data: chunk,
+      header: {
+        ...this.getAuthHeader(),
+        'Content-Type': 'application/octet-stream'
+      },
+      timeout: 120000
+    } as any)
+    const payload = parseApiPayload(response.data)
+    if (response.statusCode !== 200 || !payload?.success) {
+      throw new Error(payload?.message || `分片上传失败: ${response.statusCode}`)
+    }
+  }
+
+  private async uploadSetVideoByChunks(
+    filePath: string,
+    fileSize: number,
+    executionId: string,
+    actionId: string,
+    setNumber: number,
+    options?: UploadSetVideoOptions
+  ): Promise<UploadSetVideoResult | null> {
+    const uploadId = createUploadId()
+    const totalChunks = Math.ceil(fileSize / SET_VIDEO_CHUNK_SIZE_BYTES)
+    const fileName = options?.fileName || getFileNameFromPath(filePath)
+    const contentType = options?.contentType || inferVideoContentType(fileName)
+
+    for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex += 1) {
+      const position = chunkIndex * SET_VIDEO_CHUNK_SIZE_BYTES
+      const length = Math.min(SET_VIDEO_CHUNK_SIZE_BYTES, fileSize - position)
+      const chunk = await this.readFileChunk(filePath, position, length)
+      const query = [
+        ['action', 'chunk'],
+        ['uploadId', uploadId],
+        ['chunkIndex', String(chunkIndex)],
+        ['totalChunks', String(totalChunks)]
+      ]
+        .map(([key, value]) => `${key}=${encodeURIComponent(value)}`)
+        .join('&')
+      await this.uploadChunk(`${API_BASE_URL}${this.baseUrl}/upload-set-video-chunk?${query}`, chunk)
+    }
+
+    return this.requestJson<UploadSetVideoResult>(
+      `${API_BASE_URL}${this.baseUrl}/upload-set-video-chunk?action=complete`,
+      {
+        uploadId,
+        executionId,
+        actionId,
+        setNumber,
+        fileName,
+        contentType,
+        totalSize: fileSize,
+        totalChunks
+      }
+    )
+  }
+
+  private async uploadSetVideoByUploadFile(
+    filePath: string,
+    executionId: string,
+    actionId: string,
+    setNumber: number
+  ): Promise<UploadSetVideoResult | null> {
+    return new Promise((resolve, reject) => {
+      Taro.uploadFile({
+        url: `${API_BASE_URL}${this.baseUrl}/upload-set-video`,
+        filePath,
+        name: 'file',
+        formData: {
+          executionId,
+          actionId,
+          setNumber: String(setNumber)
+        },
+        header: this.getAuthHeader(),
+        success: (uploadRes: any) => {
+          const payload = parseApiPayload(uploadRes.data)
+          if (uploadRes.statusCode !== 200 || !payload?.success) {
+            reject(new Error(getResponseErrorMessage(uploadRes, `上传失败: ${uploadRes.statusCode}`)))
+            return
+          }
+          resolve(payload.data || null)
+        },
+        fail: (err: any) => reject(new Error(err?.errMsg || '上传失败'))
+      })
+    })
+  }
 
   /**
    * 开始或恢复训练
@@ -280,34 +474,15 @@ class ExecutionService {
     filePath: string,
     executionId: string,
     actionId: string,
-    setNumber: number
-  ): Promise<{ video_url?: string; url?: string } | null> {
-    const token = Taro.getStorageSync('token') || ''
-    return new Promise((resolve) => {
-      Taro.uploadFile({
-        url: `${API_BASE_URL}${this.baseUrl}/upload-set-video`,
-        filePath,
-        name: 'file',
-        formData: {
-          executionId,
-          actionId,
-          setNumber: String(setNumber)
-        },
-        header: {
-          Authorization: token ? `Bearer ${token}` : ''
-        },
-        success: (uploadRes: any) => {
-          try {
-            const data = JSON.parse(uploadRes.data)
-            if (data.success && data.data) resolve(data.data)
-            else resolve(null)
-          } catch {
-            resolve(null)
-          }
-        },
-        fail: () => resolve(null)
-      })
-    })
+    setNumber: number,
+    options?: UploadSetVideoOptions
+  ): Promise<UploadSetVideoResult | null> {
+    const providedFileSize = Number(options?.fileSize || 0)
+    const fileSize = providedFileSize > 0 ? providedFileSize : await this.getFileSize(filePath)
+    if (fileSize > UPLOAD_FILE_SAFE_LIMIT_BYTES) {
+      return this.uploadSetVideoByChunks(filePath, fileSize, executionId, actionId, setNumber, options)
+    }
+    return this.uploadSetVideoByUploadFile(filePath, executionId, actionId, setNumber)
   }
 
   /**
