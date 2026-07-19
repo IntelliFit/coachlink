@@ -22,19 +22,159 @@ type StructuredBookContent = {
   }>
 }
 
-function escapeHtml(text: string) {
-  return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;')
+type NormalizedBookContent = {
+  html: string
+  markdown: string
+  disclaimer: string
+  prompts: StructuredBookContent['imagePrompts']
 }
 
-function normalizeBookContent(content: unknown) {
+type MarkdownBlock =
+  | { type: 'heading'; level: number; content: string }
+  | { type: 'paragraph'; content: string }
+  | { type: 'list'; ordered: boolean; items: string[] }
+  | { type: 'quote'; content: string }
+  | { type: 'divider' }
+  | { type: 'code'; content: string }
+
+function parseMarkdownBlocks(markdown: string): MarkdownBlock[] {
+  const lines = markdown.replace(/\r\n?/g, '\n').split('\n')
+  const blocks: MarkdownBlock[] = []
+  let index = 0
+
+  while (index < lines.length) {
+    const line = lines[index].trim()
+    if (!line) {
+      index += 1
+      continue
+    }
+
+    if (line.startsWith('```')) {
+      const codeLines: string[] = []
+      index += 1
+      while (index < lines.length && !lines[index].trim().startsWith('```')) {
+        codeLines.push(lines[index])
+        index += 1
+      }
+      if (index < lines.length) index += 1
+      blocks.push({ type: 'code', content: codeLines.join('\n') })
+      continue
+    }
+
+    const heading = line.match(/^(#{1,6})\s+(.+)$/)
+    if (heading) {
+      blocks.push({ type: 'heading', level: heading[1].length, content: heading[2] })
+      index += 1
+      continue
+    }
+
+    if (/^([-*_])(?:\s*\1){2,}\s*$/.test(line)) {
+      blocks.push({ type: 'divider' })
+      index += 1
+      continue
+    }
+
+    if (/^>\s?/.test(line)) {
+      const quoteLines: string[] = []
+      while (index < lines.length && /^\s*>\s?/.test(lines[index])) {
+        quoteLines.push(lines[index].replace(/^\s*>\s?/, '').trim())
+        index += 1
+      }
+      blocks.push({ type: 'quote', content: quoteLines.join(' ') })
+      continue
+    }
+
+    const unordered = line.match(/^[-*+]\s+(.+)$/)
+    const ordered = line.match(/^\d+[.)]\s+(.+)$/)
+    if (unordered || ordered) {
+      const isOrdered = Boolean(ordered)
+      const items: string[] = []
+      while (index < lines.length) {
+        const item = isOrdered
+          ? lines[index].trim().match(/^\d+[.)]\s+(.+)$/)
+          : lines[index].trim().match(/^[-*+]\s+(.+)$/)
+        if (!item) break
+        items.push(item[1])
+        index += 1
+      }
+      blocks.push({ type: 'list', ordered: isOrdered, items })
+      continue
+    }
+
+    const paragraphLines = [line]
+    index += 1
+    while (index < lines.length) {
+      const nextLine = lines[index].trim()
+      if (!nextLine || nextLine.startsWith('```') || /^(#{1,6})\s+/.test(nextLine) || /^([-*_])(?:\s*\1){2,}\s*$/.test(nextLine) || /^>\s?/.test(nextLine) || /^[-*+]\s+/.test(nextLine) || /^\d+[.)]\s+/.test(nextLine)) {
+        break
+      }
+      paragraphLines.push(nextLine)
+      index += 1
+    }
+    blocks.push({ type: 'paragraph', content: paragraphLines.join(' ') })
+  }
+
+  return blocks
+}
+
+function renderInlineMarkdown(content: string) {
+  const tokenPattern = /(\*\*[^*]+\*\*|__[^_]+__|`[^`]+`|\*[^*]+\*|_[^_]+_)/g
+  const parts = content.split(tokenPattern)
+
+  return parts.map((part, index) => {
+    if (!part) return null
+    if ((part.startsWith('**') && part.endsWith('**')) || (part.startsWith('__') && part.endsWith('__'))) {
+      return <Text key={index} className='markdown-strong'>{part.slice(2, -2)}</Text>
+    }
+    if (part.startsWith('`') && part.endsWith('`')) {
+      return <Text key={index} className='markdown-inline-code'>{part.slice(1, -1)}</Text>
+    }
+    if ((part.startsWith('*') && part.endsWith('*')) || (part.startsWith('_') && part.endsWith('_'))) {
+      return <Text key={index} className='markdown-emphasis'>{part.slice(1, -1)}</Text>
+    }
+    return part
+  })
+}
+
+function BookMarkdown({ markdown }: { markdown: string }) {
+  return (
+    <View className='content-markdown'>
+      {parseMarkdownBlocks(markdown).map((block, index) => {
+        if (block.type === 'heading') {
+          return <Text key={index} className={`markdown-heading markdown-heading-${block.level}`}>{renderInlineMarkdown(block.content)}</Text>
+        }
+        if (block.type === 'list') {
+          return (
+            <View key={index} className='markdown-list'>
+              {block.items.map((item, itemIndex) => (
+                <View key={`${itemIndex}-${item}`} className='markdown-list-item'>
+                  <Text className='markdown-list-marker'>{block.ordered ? `${itemIndex + 1}.` : '•'}</Text>
+                  <Text className='markdown-list-text'>{renderInlineMarkdown(item)}</Text>
+                </View>
+              ))}
+            </View>
+          )
+        }
+        if (block.type === 'quote') {
+          return <View key={index} className='markdown-quote'><Text>{renderInlineMarkdown(block.content)}</Text></View>
+        }
+        if (block.type === 'divider') {
+          return <View key={index} className='markdown-divider' />
+        }
+        if (block.type === 'code') {
+          return <Text key={index} className='markdown-code-block'>{block.content}</Text>
+        }
+        return <Text key={index} className='markdown-paragraph'>{renderInlineMarkdown(block.content)}</Text>
+      })}
+    </View>
+  )
+}
+
+function normalizeBookContent(content: unknown): NormalizedBookContent {
   if (typeof content === 'string') {
     return {
-      html: `<div>${escapeHtml(content).replace(/\n/g, '<br/>')}</div>`,
+      html: '',
+      markdown: content,
       disclaimer: '',
       prompts: [] as StructuredBookContent['imagePrompts']
     }
@@ -42,14 +182,12 @@ function normalizeBookContent(content: unknown) {
 
   if (content && typeof content === 'object') {
     const structured = content as StructuredBookContent
-    const html = typeof structured.html === 'string' && structured.html.trim()
-      ? structured.html
-      : typeof structured.markdown === 'string' && structured.markdown.trim()
-        ? `<div>${escapeHtml(structured.markdown).replace(/\n/g, '<br/>')}</div>`
-        : ''
+    const html = typeof structured.html === 'string' && structured.html.trim() ? structured.html : ''
+    const markdown = typeof structured.markdown === 'string' && structured.markdown.trim() ? structured.markdown : ''
 
     return {
       html,
+      markdown,
       disclaimer: structured.disclaimer || '',
       prompts: Array.isArray(structured.imagePrompts) ? structured.imagePrompts : []
     }
@@ -57,6 +195,7 @@ function normalizeBookContent(content: unknown) {
 
   return {
     html: '',
+    markdown: '',
     disclaimer: '',
     prompts: [] as StructuredBookContent['imagePrompts']
   }
@@ -248,7 +387,9 @@ export default function BookDetail() {
           )}
 
           <Text className='content-section-title'>内容详情</Text>
-          {normalizedContent.html ? (
+          {normalizedContent.markdown ? (
+            <BookMarkdown markdown={normalizedContent.markdown} />
+          ) : normalizedContent.html ? (
             <View className='content-html'>
               <RichText nodes={normalizedContent.html} />
             </View>
