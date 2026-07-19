@@ -67,6 +67,30 @@ function inferVideoContentType(fileNameOrPath: string) {
   return 'video/mp4'
 }
 
+function binaryStringToArrayBuffer(input: string) {
+  const buffer = new ArrayBuffer(input.length)
+  const view = new Uint8Array(buffer)
+  for (let index = 0; index < input.length; index += 1) {
+    view[index] = input.charCodeAt(index) & 0xff
+  }
+  return buffer
+}
+
+function normalizeFileReadData(data: any): ArrayBuffer | null {
+  if (!data) return null
+  if (data instanceof ArrayBuffer) return data
+  if (Object.prototype.toString.call(data) === '[object ArrayBuffer]' || typeof data.byteLength === 'number') {
+    return data as ArrayBuffer
+  }
+  if (ArrayBuffer.isView(data)) {
+    return data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength)
+  }
+  if (typeof data === 'string') {
+    return binaryStringToArrayBuffer(data)
+  }
+  return null
+}
+
 class ExecutionService {
   private readonly baseUrl = '/api/execution'
 
@@ -95,8 +119,9 @@ class ExecutionService {
         position,
         length,
         success: (res: any) => {
-          if (res.data instanceof ArrayBuffer) {
-            resolve(res.data)
+          const data = normalizeFileReadData(res.data)
+          if (data) {
+            resolve(data)
             return
           }
           reject(new Error('读取视频分片失败'))
