@@ -18,7 +18,7 @@ interface PRRecord {
 }
 
 const UPLOAD_FILE_SAFE_LIMIT_BYTES = 8 * 1024 * 1024
-const SET_VIDEO_CHUNK_SIZE_BYTES = 4 * 1024 * 1024
+const SET_VIDEO_CHUNK_SIZE_BYTES = 768 * 1024
 
 interface UploadSetVideoOptions {
   fileSize?: number
