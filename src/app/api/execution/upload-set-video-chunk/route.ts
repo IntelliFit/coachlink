@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { NextResponse } from "next/server";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
-import { buildDatedKey, cosUploadFile } from "@/lib/cos";
+import { buildDatedKey, cosDownloadFile, cosRemove, cosUpload, cosUploadFile } from "@/lib/cos";
 import type { ApiData } from "@/types/api";
 import type { UploadSetVideoResponseDto } from "../upload-set-video/entity";
 import {
@@ -18,6 +18,7 @@ export const preferredRegion = "auto";
 
 const MAX_CHUNK_BYTES = 6 * 1024 * 1024;
 const UPLOAD_ID_PATTERN = /^[a-zA-Z0-9_-]{8,96}$/;
+const TEMP_CHUNK_BUCKET = "videos";
 
 interface CompleteChunkedUploadBody {
     uploadId?: string;
@@ -53,6 +54,22 @@ function getUserUploadRoot(userId: string) {
 
 function getChunkPath(uploadDir: string, chunkIndex: number) {
     return join(uploadDir, `${chunkIndex}.part`);
+}
+
+function getChunkStorageKey(userId: string, uploadId: string, chunkIndex: number) {
+    return [
+        "_tmp",
+        "execution-set-video-chunks",
+        safeSegment(userId),
+        uploadId,
+        `${chunkIndex}.part`,
+    ].join("/");
+}
+
+function getChunkStorageKeys(userId: string, uploadId: string, totalChunks: number) {
+    return Array.from({ length: totalChunks }, (_, index) =>
+        getChunkStorageKey(userId, uploadId, index),
+    );
 }
 
 async function cleanupStaleUploadDirs(userId: string) {
@@ -125,12 +142,14 @@ async function handleChunk(req: Request, userId: string, url: URL) {
         throw new SetVideoUploadError("单个分片过大，请重新上传", 413);
     }
 
-    const uploadDir = getUploadDir(userId, uploadId);
     if (chunkIndex === 0) {
         await cleanupStaleUploadDirs(userId);
     }
-    await mkdir(uploadDir, { recursive: true });
-    await writeFile(getChunkPath(uploadDir, chunkIndex), Buffer.from(body));
+    const chunkBuffer = Buffer.from(body);
+    await cosUpload(TEMP_CHUNK_BUCKET, getChunkStorageKey(userId, uploadId, chunkIndex), chunkBuffer, {
+        contentType: "application/octet-stream",
+        cacheControl: "no-store",
+    });
 
     return NextResponse.json<ApiData<{ chunkIndex: number }>>({
         success: true,
@@ -139,12 +158,56 @@ async function handleChunk(req: Request, userId: string, url: URL) {
     });
 }
 
-async function assertChunksReady(uploadDir: string, totalChunks: number, totalSize: number) {
+function sleep(ms: number) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function downloadChunkWithRetry(
+    userId: string,
+    uploadId: string,
+    chunkIndex: number,
+    chunkPath: string,
+) {
+    let lastError: unknown;
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+        try {
+            await cosDownloadFile(
+                TEMP_CHUNK_BUCKET,
+                getChunkStorageKey(userId, uploadId, chunkIndex),
+                chunkPath,
+            );
+            return;
+        } catch (error) {
+            lastError = error;
+            await sleep(250 * (attempt + 1));
+        }
+    }
+    throw lastError;
+}
+
+async function downloadAndMergeChunks(
+    userId: string,
+    uploadId: string,
+    uploadDir: string,
+    totalChunks: number,
+    totalSize: number,
+    mergedPath: string,
+) {
+    await mkdir(uploadDir, { recursive: true });
+    await writeFile(mergedPath, Buffer.alloc(0));
+
     let receivedSize = 0;
     for (let index = 0; index < totalChunks; index += 1) {
+        const chunkPath = getChunkPath(uploadDir, index);
+        try {
+            await downloadChunkWithRetry(userId, uploadId, index, chunkPath);
+        } catch {
+            throw new SetVideoUploadError(`第 ${index + 1} 个分片缺失，请重新上传`, 400);
+        }
+
         let info;
         try {
-            info = await stat(getChunkPath(uploadDir, index));
+            info = await stat(chunkPath);
         } catch {
             throw new SetVideoUploadError(`第 ${index + 1} 个分片缺失，请重新上传`, 400);
         }
@@ -152,18 +215,12 @@ async function assertChunksReady(uploadDir: string, totalChunks: number, totalSi
             throw new SetVideoUploadError(`第 ${index + 1} 个分片无效，请重新上传`, 400);
         }
         receivedSize += info.size;
+        const chunk = await readFile(chunkPath);
+        await appendFile(mergedPath, chunk);
     }
 
     if (receivedSize !== totalSize) {
         throw new SetVideoUploadError("上传文件大小校验失败，请重新选择视频", 400);
-    }
-}
-
-async function mergeChunks(uploadDir: string, totalChunks: number, mergedPath: string) {
-    await writeFile(mergedPath, Buffer.alloc(0));
-    for (let index = 0; index < totalChunks; index += 1) {
-        const chunk = await readFile(getChunkPath(uploadDir, index));
-        await appendFile(mergedPath, chunk);
     }
 }
 
@@ -190,8 +247,7 @@ async function handleComplete(req: Request, userId: string) {
     });
 
     try {
-        await assertChunksReady(uploadDir, totalChunks, totalSize);
-        await mergeChunks(uploadDir, totalChunks, mergedPath);
+        await downloadAndMergeChunks(userId, uploadId, uploadDir, totalChunks, totalSize, mergedPath);
 
         const mergedInfo = await stat(mergedPath);
         if (!mergedInfo.isFile() || mergedInfo.size !== totalSize) {
@@ -219,7 +275,12 @@ async function handleComplete(req: Request, userId: string) {
             data,
         });
     } finally {
-        await rm(uploadDir, { recursive: true, force: true }).catch(() => null);
+        await Promise.all([
+            rm(uploadDir, { recursive: true, force: true }).catch(() => null),
+            cosRemove(TEMP_CHUNK_BUCKET, getChunkStorageKeys(userId, uploadId, totalChunks)).catch((error) => {
+                console.warn("[upload-set-video-chunk] cleanup temp chunks failed:", error);
+            }),
+        ]);
     }
 }
 

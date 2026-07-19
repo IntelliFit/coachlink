@@ -120,6 +120,30 @@ export async function cosUploadFile(
   return { url: buildPublicUrl(logical, key), bucket: cfg.cosBucket, key };
 }
 
+/** 下载 COS 对象到本地文件 */
+export async function cosDownloadFile(
+  logical: LogicalBucket,
+  key: string,
+  filePath: string,
+): Promise<{ bucket: string; key: string; size: number }> {
+  const cfg = BUCKET_MAP[logical];
+  const fullKey = cfg.prefix + key;
+  await new Promise<void>((resolve, reject) => {
+    getCos().getObject(
+      {
+        Bucket: cfg.cosBucket,
+        Region: COS_REGION,
+        Key: fullKey,
+        Output: filePath as any,
+        Headers: {} as any,
+      } as any,
+      (err) => (err ? reject(err) : resolve()),
+    );
+  });
+  const fileStat = await fsStat(filePath);
+  return { bucket: cfg.cosBucket, key, size: fileStat.size };
+}
+
 /** 删除对象（key 为不含桶前缀的业务 key） */
 export async function cosRemove(logical: LogicalBucket, keys: string[]): Promise<void> {
   if (keys.length === 0) return;
