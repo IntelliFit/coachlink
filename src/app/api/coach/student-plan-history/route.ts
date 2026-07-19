@@ -7,6 +7,7 @@ import type {
 } from "./entity";
 import type { ApiData } from "@/types/api";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
+import { summarizePlanCompletion } from "@/lib/planInstanceCompletion";
 
 export async function POST(req: Request) {
     const session = await getServerSession();
@@ -109,20 +110,11 @@ export async function POST(req: Request) {
             .in("status", ["completed", "abandoned"])
         : { data: [] as any[] };
 
-    const resolvedDaySetByInstanceId = new Map<string, Set<number>>();
     const latestResolvedAtByInstanceId = new Map<string, string>();
 
     for (const exec of resolvedExecutions || []) {
         const instanceId = String((exec as any)?.instance_id || "");
         if (!instanceId) continue;
-        const dayIndex = Number((exec as any)?.day_index ?? 0);
-        if (!dayIndex) continue;
-
-        const existing = resolvedDaySetByInstanceId.get(instanceId) ||
-            new Set<number>();
-        existing.add(dayIndex);
-        resolvedDaySetByInstanceId.set(instanceId, existing);
-
         const resolvedAt = (exec as any)?.completed_at || (exec as any)?.updated_at;
         if (resolvedAt) {
             const current = latestResolvedAtByInstanceId.get(instanceId);
@@ -141,30 +133,26 @@ export async function POST(req: Request) {
             const dayList = Array.isArray(plan.training_days)
                 ? plan.training_days
                 : [];
-            const startExecutionDay = Number(plan.start_execution_day || 1);
-            const trainingDayIndexes = dayList
-                .map((day: any, index: number) => ({
-                    dayIndex: Number(day?.dayIndex ?? day?.day_index ?? (index + 1)),
-                    type: String(day?.type || "").trim().toLowerCase(),
-                }))
-                .filter((item: any) =>
-                    item.type !== "rest" &&
-                    item.dayIndex >= startExecutionDay &&
-                    item.dayIndex > 0
-                )
-                .map((item: any) => item.dayIndex);
-
-            const resolvedDays = resolvedDaySetByInstanceId.get(plan.id) ||
-                new Set<number>();
-            const completedDays = trainingDayIndexes.filter((dayIndex: number) =>
-                resolvedDays.has(dayIndex)
-            ).length;
-            const totalTrainingDays = trainingDayIndexes.length;
+            const completionSummary = summarizePlanCompletion({
+                trainingDays: dayList,
+                startExecutionDay: Number(plan.start_execution_day || 1),
+                executions: (resolvedExecutions || [])
+                    .filter((exec: any) =>
+                        String(exec?.instance_id || "") === String(plan.id)
+                    )
+                    .map((exec: any) => ({
+                        day_index: Number(exec?.day_index ?? 0),
+                        status: exec?.status || null,
+                        completed_at: exec?.completed_at || null,
+                        updated_at: exec?.updated_at || null,
+                    })),
+            });
+            const completedDays = completionSummary.overallResolvedTrainingDays;
+            const totalTrainingDays = completionSummary.overallTotalTrainingDays;
             const completionRate = totalTrainingDays > 0
                 ? Math.round((completedDays / totalTrainingDays) * 100)
                 : undefined;
-            const isLogicallyCompleted = totalTrainingDays > 0 &&
-                completedDays >= totalTrainingDays;
+            const isLogicallyCompleted = completionSummary.isLogicallyCompleted;
             const normalizedStatus = String(plan.status || "").trim().toLowerCase();
             const displayStatus = normalizedStatus === "active" &&
                     isLogicallyCompleted

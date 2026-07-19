@@ -8834,3 +8834,13 @@
 - Runtime blocker resolved (`2026-07-19`): 历史 API 已改为服务端 `serviceRoleSupabase`，仍强制从 NextAuth session 获取 `userId` 并在读取/更新条件及插入 payload 中限定所有权。浏览器登录态下实际 GET/POST 均返回 200；创建的验证记录已按精确 UUID 删除，无测试数据残留。
 - Long-plan regression resolved (`2026-07-19`): “训练日 135 换成 146”原错误不是上下文/输出长度超限，而是任意 7 训练日分块把同一周切成两段，第 2 段回显第 1 段的 dayIndex 15 后被整单拒绝；同时旧 scope 排除了目标休息日，无法可靠搬移排期。现对明确周内排期变更使用确定性引擎：先校验每周源日均为训练日且目标无冲突，再按顺序整体搬移训练内容；一般 AI 排期变更则使用包含休息日的完整周 scope。
 - Final verification: 56 天 / 8 周合成计划通过真实登录 API 回放，约 3 秒把 D1/D3/D5 全部搬到 D1/D4/D6，未调用分段 LLM；历史 GET/POST 200 且清理完成。`git diff --check`、lint、typecheck、177 单测、Next 521 页构建和 Playwright E2E 4/4 通过；浏览器打开修改器后无 RLS 红错。仓库指定 `web-devtools` skill 缺失，改用 `frontend-browser-debugger` + Playwright 完成验证。
+## 教练学员列表续接版本整体进度修复 (`2026-07-20`)
+
+- Status: 已完成代码修复与真实数据回算；无需数据库迁移或修改用户计划数据。按用户长期偏好未运行浏览器自动化，页面最终观感留给用户手工复核。
+- Scope: 订阅 `06f07de8-e013-4106-a5ef-0637147a7e0b`，当前活跃实例 `448cb43f-fa77-4735-85a5-efb47955eb5a`，上一归档实例 `dcbaaa25-b0d5-4efe-921a-11854841531f`。
+- Data fact: 当前计划 JSON 仍是完整 56 个自然日、32 个训练日，没有被截短。上一版本完成 D1-D25 范围内 15 个训练日；2026-07-19（北京时间）保存修改后建立续接版本，从 `start_execution_day=27` 开始，当前版本完成 D27 1 个训练日。连续计划真实总进度应为 `16/32 = 50%`。
+- Root cause: `list-students` 只选最新 active 实例，分母又过滤为 `dayIndex >= start_execution_day` 的 17 个剩余训练日，分子只查该 active instance 的 1 条 completed execution；归档前版本的 15 条完成记录未汇总，因此显示 `1/17 = 6%`。这是版本化保存与列表统计口径脱节，不是 AI 删除计划内容。
+- Trigger scope: 已有 execution 的计划无论经 AI、手动编辑还是模板覆盖后保存，页面都会建立新版本并归档旧实例；AI 只可能是触发编辑的入口，进度错误发生在通用版本续接/列表统计层。当前实例没有可关联的 `plan_ai_edit_sessions` 记录，无法仅凭现存数据证明该次保存具体由 AI 发起。
+- Fix: 扩展共享 `summarizePlanCompletion`，保留“平台内当前段”完成语义用于计划结束判断，同时新增“完整计划”进度：所有 `dayIndex < start_execution_day` 的训练日按既有业务规范计为线下/续接已完成，再与当前实例 completed/resolved Day 去重合并。教练学员列表、计划编辑页、教练/学员计划历史及 `get-instance` 详情统一使用整体进度字段。
+- Design: 不扫描或简单相加归档实例。`start_execution_day` 的数据库注释和既有业务规范本就明确规定“前面的天数视为已完成”，因此它是现有历史数据的可靠 carry-forward 锚点；无需增加 lineage 字段即可修复所有已有续接计划。
+- Verification: 真实实例回算当前段仍为 `1/17`，整体为承接训练日 15 + 当前完成 1 = `16/32`，50%。`npm run lint`、`npm run typecheck`、`npm test`（35 files / 177 tests）、`npx next build`（522 pages）与 `git diff --check` 全部通过。

@@ -715,7 +715,9 @@ export async function POST(req: Request) {
     );
 
     const completionSummary = summarizePlanCompletion({
-        trainingDays: trainingOnlyDays,
+        trainingDays: Array.isArray(instance.training_days)
+            ? (instance.training_days as any[])
+            : [],
         startExecutionDay,
         executions: (executionsList || []).map((exec: any) => ({
             day_index: Number(exec?.day_index ?? 0),
@@ -779,7 +781,6 @@ export async function POST(req: Request) {
             di > 0 && di < recommendedDayIndex &&
             !completionSummary.resolvedDaySet.has(di)
         );
-    const resolvedTrainingDays = completionSummary.resolvedTrainingDays;
     const isLogicallyCompleted = completionSummary.isLogicallyCompleted;
     const normalizedStatus = String((instance as any).status || "")
         .trim()
@@ -825,11 +826,11 @@ export async function POST(req: Request) {
             completedDays,
             resolvedDays,
             missingDays,
-            totalTrainingDays: trainingOnlyDays.length,
+            totalTrainingDays: completionSummary.overallTotalTrainingDays,
             todayCompleted,
             todayExecutionId,
             completionDates,
-            resolvedTrainingDays,
+            resolvedTrainingDays: completionSummary.overallResolvedTrainingDays,
             isLogicallyCompleted,
             derivedStatus,
             entitlement,

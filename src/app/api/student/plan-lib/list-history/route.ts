@@ -153,10 +153,10 @@ export async function POST(req: Request) {
                     completionSummary.isLogicallyCompleted
                 ? "completed"
                 : persistedPlan.status;
-            const completionRate = completionSummary.totalTrainingDays > 0
+            const completionRate = completionSummary.overallTotalTrainingDays > 0
                 ? Math.round(
-                    (completionSummary.resolvedTrainingDays /
-                        completionSummary.totalTrainingDays) * 100,
+                    (completionSummary.overallResolvedTrainingDays /
+                        completionSummary.overallTotalTrainingDays) * 100,
                 )
                 : undefined;
             const shouldDeriveEndDate = !persistedPlan.end_date &&
@@ -184,10 +184,10 @@ export async function POST(req: Request) {
                 end_date: derivedEndDate,
                 created_at: persistedPlan.created_at,
                 updated_at: persistedPlan.updated_at,
-                total_days: completionSummary.totalTrainingDays,
-                total_training_days: completionSummary.totalTrainingDays,
+                total_days: completionSummary.overallTotalTrainingDays,
+                total_training_days: completionSummary.overallTotalTrainingDays,
                 plan_span_days: dayList.length,
-                completed_days: completionSummary.resolvedTrainingDays,
+                completed_days: completionSummary.overallResolvedTrainingDays,
                 completion_rate: completionRate,
                 archive_reason: null,
                 entitlement_consumption_policy: null,

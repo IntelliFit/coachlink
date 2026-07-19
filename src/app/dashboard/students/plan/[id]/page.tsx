@@ -1143,14 +1143,22 @@ const StudentPlanPage = () => {
 
     const maxWeeks = Math.max(1, Math.ceil(days.length / 7));
     const completedTrainingDaysCount = useMemo(() => {
-        const completedDaySet = new Set<number>();
+        const completedDaySet = new Set<number>(
+            days
+                .filter((day) =>
+                    day.type === 'training' &&
+                    Number(day.dayIndex || 0) > 0 &&
+                    Number(day.dayIndex || 0) < startExecutionDay
+                )
+                .map((day) => Number(day.dayIndex)),
+        );
         Object.values(executions || {}).forEach((execution: any) => {
             if (execution?.status !== 'completed') return;
             const dayIndex = Number(execution?.day_index ?? execution?.dayIndex ?? 0);
             if (dayIndex > 0) completedDaySet.add(dayIndex);
         });
         return completedDaySet.size;
-    }, [executions]);
+    }, [days, executions, startExecutionDay]);
     const totalTrainingDaysCount = useMemo(
         () => days.filter((day) => day.type === 'training').length,
         [days],

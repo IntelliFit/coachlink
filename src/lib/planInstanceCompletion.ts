@@ -18,12 +18,19 @@ type PlanInstanceLike = {
 };
 
 export interface PlanCompletionSummary {
+    allTrainingDayIndexes: number[];
+    carriedTrainingDayIndexes: number[];
     trainingDayIndexes: number[];
     completedDaySet: Set<number>;
     resolvedDaySet: Set<number>;
+    overallCompletedDaySet: Set<number>;
+    overallResolvedDaySet: Set<number>;
     totalTrainingDays: number;
     completedTrainingDays: number;
     resolvedTrainingDays: number;
+    overallTotalTrainingDays: number;
+    overallCompletedTrainingDays: number;
+    overallResolvedTrainingDays: number;
     isFullyCompleted: boolean;
     isLogicallyCompleted: boolean;
     latestCompletedAt: string | null;
@@ -43,7 +50,7 @@ export function summarizePlanCompletion(params: {
     executions: ExecutionLike[] | null | undefined;
 }): PlanCompletionSummary {
     const startExecutionDay = Number(params.startExecutionDay || 1);
-    const trainingDayIndexes = (Array.isArray(params.trainingDays)
+    const allTrainingDayIndexes = (Array.isArray(params.trainingDays)
         ? params.trainingDays
         : []
     )
@@ -51,12 +58,14 @@ export function summarizePlanCompletion(params: {
             dayIndex: getDayIndex(day, index),
             isTraining: isTrainingDay(day),
         }))
-        .filter((item) =>
-            item.isTraining &&
-            item.dayIndex >= startExecutionDay &&
-            item.dayIndex > 0
-        )
+        .filter((item) => item.isTraining && item.dayIndex > 0)
         .map((item) => item.dayIndex);
+    const carriedTrainingDayIndexes = allTrainingDayIndexes.filter(
+        (dayIndex) => dayIndex < startExecutionDay,
+    );
+    const trainingDayIndexes = allTrainingDayIndexes.filter(
+        (dayIndex) => dayIndex >= startExecutionDay,
+    );
 
     const trainingDayIndexSet = new Set(trainingDayIndexes);
     const completedDaySet = new Set<number>();
@@ -94,14 +103,36 @@ export function summarizePlanCompletion(params: {
     const resolvedTrainingDays = trainingDayIndexes.filter((dayIndex) =>
         resolvedDaySet.has(dayIndex)
     ).length;
+    const overallCompletedDaySet = new Set<number>([
+        ...carriedTrainingDayIndexes,
+        ...completedDaySet,
+    ]);
+    const overallResolvedDaySet = new Set<number>([
+        ...carriedTrainingDayIndexes,
+        ...resolvedDaySet,
+    ]);
+    const overallTotalTrainingDays = allTrainingDayIndexes.length;
+    const overallCompletedTrainingDays = allTrainingDayIndexes.filter(
+        (dayIndex) => overallCompletedDaySet.has(dayIndex),
+    ).length;
+    const overallResolvedTrainingDays = allTrainingDayIndexes.filter(
+        (dayIndex) => overallResolvedDaySet.has(dayIndex),
+    ).length;
 
     return {
+        allTrainingDayIndexes,
+        carriedTrainingDayIndexes,
         trainingDayIndexes,
         completedDaySet,
         resolvedDaySet,
+        overallCompletedDaySet,
+        overallResolvedDaySet,
         totalTrainingDays,
         completedTrainingDays,
         resolvedTrainingDays,
+        overallTotalTrainingDays,
+        overallCompletedTrainingDays,
+        overallResolvedTrainingDays,
         isFullyCompleted: totalTrainingDays > 0 &&
             completedTrainingDays >= totalTrainingDays,
         isLogicallyCompleted: totalTrainingDays > 0 &&

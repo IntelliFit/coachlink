@@ -13,6 +13,7 @@ import pLimit from "p-limit";
 import { ApiData } from "@/types/api";
 import { getSubscriptionCarryoverSummary } from "@/lib/subscriptionCarryover";
 import { deriveSubscriptionEntitlementState } from "@/lib/subscriptionEntitlementModel";
+import { summarizePlanCompletion } from "@/lib/planInstanceCompletion";
 
 async function getVideoStats(studentIds: string[]) {
     if (!studentIds?.length) return new Map();
@@ -115,15 +116,19 @@ async function getStudentPlanDataBatch(coachId: string, studentIds: string[]) {
             continue;
         }
         const startExecutionDay = Number(inst.start_execution_day || 1);
-        const trainingDayTotal = Array.isArray(inst.training_days)
-            ? inst.training_days.filter((day: any) => {
-                const dayIndex = Number(day?.dayIndex ?? day?.day_index ?? 0);
-                return dayIndex >= startExecutionDay && day?.type === "training";
-            }).length
-            : Number(inst.training_days_count || 0);
-        const completedCount = completedByInstance.get(inst.id) || 0;
-        const isLogicallyCompleted = trainingDayTotal > 0 &&
-            completedCount >= trainingDayTotal;
+        const completionSummary = Array.isArray(inst.training_days)
+            ? summarizePlanCompletion({
+                trainingDays: inst.training_days,
+                startExecutionDay,
+                executions: executionsByInstance.get(inst.id) || [],
+            })
+            : null;
+        const trainingDayTotal = completionSummary?.overallTotalTrainingDays ??
+            Number(inst.training_days_count || 0);
+        const completedCount = completionSummary?.overallCompletedTrainingDays ??
+            (completedByInstance.get(inst.id) || 0);
+        const isLogicallyCompleted = completionSummary?.isLogicallyCompleted ??
+            (trainingDayTotal > 0 && completedCount >= trainingDayTotal);
         const derivedStatus = inst.status === "active" && isLogicallyCompleted
             ? "completed"
             : inst.status;
