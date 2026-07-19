@@ -12,25 +12,10 @@ from typing import Any, Dict, List, Optional, Tuple
 import cv2
 import mediapipe as mp
 import numpy as np
-from PIL import Image, ImageDraw, ImageFont
 
 
 G = 9.80665
 HP_WATT = 735.499
-FACE_LANDMARK_INDEXES = set(range(0, 11))
-BODY_POSE_CONNECTIONS = [
-    connection
-    for connection in mp.solutions.pose.POSE_CONNECTIONS
-    if connection[0] not in FACE_LANDMARK_INDEXES and connection[1] not in FACE_LANDMARK_INDEXES
-]
-FONT_CANDIDATES = [
-    os.environ.get("POWER_ANALYSIS_CJK_FONT", ""),
-    "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
-    "/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc",
-    "C:/Windows/Fonts/msyh.ttc",
-    "C:/Windows/Fonts/simhei.ttf",
-]
-_FONT_CACHE: Dict[int, Any] = {}
 
 
 MODE_PRESETS: Dict[str, Dict[str, Any]] = {
@@ -121,51 +106,6 @@ def round_float(value: float, digits: int = 3) -> float:
     if not math.isfinite(value):
         return 0.0
     return round(float(value), digits)
-
-
-def get_cjk_font(size: int) -> Any:
-    size = max(12, int(size))
-    if size in _FONT_CACHE:
-        return _FONT_CACHE[size]
-    for candidate in FONT_CANDIDATES:
-        if candidate and os.path.exists(candidate):
-            _FONT_CACHE[size] = ImageFont.truetype(candidate, size=size)
-            return _FONT_CACHE[size]
-    _FONT_CACHE[size] = ImageFont.load_default()
-    return _FONT_CACHE[size]
-
-
-def draw_text_commands(frame: Any, commands: List[Dict[str, Any]], language: str) -> Any:
-    if language != "zh":
-        for command in commands:
-            cv2.putText(
-                frame,
-                str(command["text"]),
-                (int(command["x"]), int(command["y"])),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                float(command.get("fontScale", 0.72)),
-                tuple(command.get("color", (255, 255, 255))),
-                int(command.get("thickness", 2)),
-                cv2.LINE_AA,
-            )
-        return frame
-
-    rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    image = Image.fromarray(rgb)
-    painter = ImageDraw.Draw(image)
-    for command in commands:
-        font_size = int(command.get("fontSize", 24))
-        bgr = tuple(command.get("color", (255, 255, 255)))
-        rgb_color = (int(bgr[2]), int(bgr[1]), int(bgr[0]))
-        painter.text(
-            (int(command["x"]), int(command["y"]) - font_size),
-            str(command["text"]),
-            font=get_cjk_font(font_size),
-            fill=rgb_color,
-            stroke_width=1,
-            stroke_fill=(0, 0, 0),
-        )
-    return cv2.cvtColor(np.asarray(image), cv2.COLOR_RGB2BGR)
 
 
 def moving_average(values: List[Optional[float]], window: int = 5) -> List[Optional[float]]:
@@ -503,105 +443,12 @@ def build_metrics(
     }
 
 
-def build_power_rating(metrics: Dict[str, Any]) -> Dict[str, Any]:
-    summary = metrics.get("summary") if isinstance(metrics.get("summary"), dict) else {}
-    mass = metrics.get("mass") if isinstance(metrics.get("mass"), dict) else {}
-    best_power = max(0.0, float(summary.get("bestPowerW") or 0))
-    effective_mass = max(0.0, float(mass.get("effectiveMassKg") or 0))
-    normalized = best_power / effective_mass if effective_mass > 0 else 0.0
-
-    if normalized >= 12.0:
-        level, label_zh, label_en = "beast", "野兽", "BEAST"
-        description_zh = "爆发功率非常突出，属于本次测试中的野兽级表现。"
-        description_en = "Exceptional explosive power. This is a BEAST-level result."
-    elif normalized >= 8.0:
-        level, label_zh, label_en = "powerful", "强劲", "POWERFUL"
-        description_zh = "功率表现很强，启动速度和向上输出都很突出。"
-        description_en = "Strong power output with impressive upward acceleration."
-    elif normalized >= 5.0:
-        level, label_zh, label_en = "steady", "稳健", "SOLID"
-        description_zh = "功率表现稳健，可以继续提高启动和后半程速度。"
-        description_en = "Solid power output with room to improve acceleration and finish speed."
-    else:
-        level, label_zh, label_en = "low", "待提升", "BUILDING"
-        description_zh = "当前功率偏小，建议先提高动作稳定性和主动加速能力。"
-        description_en = "Power is currently modest. Focus on stable technique and intentional acceleration."
-
-    return {
-        "level": level,
-        "normalizedPowerWPerKg": round_float(normalized, 3),
-        "labelZh": label_zh,
-        "labelEn": label_en,
-        "descriptionZh": description_zh,
-        "descriptionEn": description_en,
-    }
-
-
-def build_time_series(
-    y_track: List[Optional[float]],
-    reps: List[Dict[str, Any]],
-    fps: float,
-    scale_m_per_px: float,
-    effective_mass_kg: float,
-    max_points: int = 600,
-) -> List[Dict[str, float]]:
-    frame_count = len(y_track)
-    if frame_count <= 0:
-        return []
-
-    velocities = [0.0] * frame_count
-    for index in range(1, frame_count):
-        current_y = y_track[index]
-        previous_y = y_track[index - 1]
-        if current_y is None or previous_y is None:
-            continue
-        velocities[index] = max(0.0, ((previous_y - current_y) * scale_m_per_px) * fps)
-
-    velocity_window = max(3, int(round(fps * 0.12)))
-    smoothed_velocity: List[float] = []
-    velocity_queue: deque[float] = deque(maxlen=velocity_window)
-    for value in velocities:
-        velocity_queue.append(value)
-        smoothed_velocity.append(float(sum(velocity_queue) / len(velocity_queue)))
-
-    rep_by_frame: List[Optional[Dict[str, Any]]] = [None] * frame_count
-    for rep in reps:
-        start = max(0, int(rep.get("startFrame") or 0))
-        end = min(frame_count - 1, int(rep.get("endFrame") or start))
-        for frame_index in range(start, end + 1):
-            rep_by_frame[frame_index] = rep
-
-    step = max(1, int(math.ceil(frame_count / max(1, max_points))))
-    points: List[Dict[str, float]] = []
-    for index in range(0, frame_count, step):
-        displacement = 0.0
-        rep = rep_by_frame[index]
-        if rep:
-            start = max(0, int(rep.get("startFrame") or 0))
-            start_y = y_track[start] if start < frame_count else None
-            current_y = y_track[index]
-            if start_y is not None and current_y is not None:
-                displacement = max(0.0, (start_y - current_y) * scale_m_per_px)
-        velocity = max(0.0, smoothed_velocity[index])
-        power = effective_mass_kg * G * velocity if effective_mass_kg > 0 else 0.0
-        points.append(
-            {
-                "timeS": round_float(index / max(fps, 1.0), 3),
-                "displacementM": round_float(displacement, 4),
-                "velocityMps": round_float(velocity, 4),
-                "powerW": round_float(power, 2),
-            }
-        )
-    return points
-
-
 def render_output_video(
     input_path: str,
     output_path: str,
     metrics: Dict[str, Any],
     y_track: List[Optional[float]],
     scale_m_per_px: float,
-    language: str,
 ) -> None:
     cap = cv2.VideoCapture(input_path)
     if not cap.isOpened():
@@ -620,30 +467,20 @@ def render_output_video(
 
     pose_mod = mp.solutions.pose
     draw = mp.solutions.drawing_utils
+    style = mp.solutions.drawing_styles
     summary = metrics.get("summary", {})
     mass = metrics.get("mass") if isinstance(metrics.get("mass"), dict) else {}
     effective_mass_kg = float(mass.get("effectiveMassKg") or 0)
     preset = get_mode_preset(str(metrics.get("mode") or "pullup"))
-    is_zh = language == "zh"
-    mode_label = str(preset["labelZh"] if is_zh else preset["label"])
+    mode_label = str(preset["label"])
     rep_count = int(metrics.get("repCount") or 0)
     reps = metrics.get("reps") if isinstance(metrics.get("reps"), list) else []
-    rating = metrics.get("rating") if isinstance(metrics.get("rating"), dict) else {}
-    rating_label = str(rating.get("labelZh") if is_zh else rating.get("labelEn") or "")
     hold_frames = max(1, int(round(fps * 1.4)))
-    header_lines = (
-        [
-            f"CoachLink {mode_label}功率测试",
-            f"有效次数：{rep_count}   最佳功率：{summary.get('bestPowerW', 0):.0f} W",
-            f"等级：{rating_label}   最大速度：{summary.get('bestVelocityMps', 0):.2f} m/s",
-        ]
-        if is_zh
-        else [
-            f"CoachLink {mode_label} Power Test",
-            f"Reps: {rep_count}   Best power: {summary.get('bestPowerW', 0):.0f} W",
-            f"Rating: {rating_label}   Max speed: {summary.get('bestVelocityMps', 0):.2f} m/s",
-        ]
-    )
+    header_lines = [
+        f"CoachLink {mode_label} Power Test",
+        f"Reps: {rep_count}  Best: {summary.get('bestPowerW', 0):.0f} W / {summary.get('bestHorsepowerHp', 0):.2f} hp",
+        f"Best velocity: {summary.get('bestVelocityMps', 0):.2f} m/s  Scale: {scale_m_per_px:.5f} m/px",
+    ]
 
     def frame_y(frame_index: int) -> Optional[float]:
         if 0 <= frame_index < len(y_track):
@@ -686,14 +523,7 @@ def render_output_video(
                 recent_end = end
         return recent
 
-    def draw_panel(
-        frame: Any,
-        text_commands: List[Dict[str, Any]],
-        x: int,
-        y: int,
-        lines: List[str],
-        color: Tuple[int, int, int],
-    ) -> None:
+    def draw_panel(frame: Any, x: int, y: int, lines: List[str], color: Tuple[int, int, int]) -> None:
         if not lines:
             return
         font_scale = 0.72 if frame_width < 900 else 0.82
@@ -705,23 +535,21 @@ def render_output_video(
         cv2.addWeighted(overlay, 0.58, frame, 0.42, 0, frame)
         cv2.rectangle(frame, (x, y), (x + width, y + height), color, 2)
         for i, text in enumerate(lines):
-            text_commands.append(
-                {
-                    "text": text,
-                    "x": x + 18,
-                    "y": y + 32 + i * line_h,
-                    "fontScale": font_scale,
-                    "fontSize": 24 if frame_width < 900 else 28,
-                    "color": (255, 255, 255),
-                    "thickness": 2,
-                }
+            cv2.putText(
+                frame,
+                text,
+                (x + 18, y + 32 + i * line_h),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                font_scale,
+                (255, 255, 255),
+                2,
+                cv2.LINE_AA,
             )
 
     def draw_pose_box(frame: Any, landmarks: Any) -> None:
         visible = [
             lm
-            for index, lm in enumerate(landmarks)
-            if index not in FACE_LANDMARK_INDEXES
+            for lm in landmarks
             if getattr(lm, "visibility", 1.0) >= 0.25
         ]
         if not visible:
@@ -744,7 +572,6 @@ def render_output_video(
             ok, frame = cap.read()
             if not ok:
                 break
-            text_commands: List[Dict[str, Any]] = []
             rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             result = pose.process(rgb)
             if result.pose_landmarks:
@@ -752,36 +579,23 @@ def render_output_video(
                 draw.draw_landmarks(
                     frame,
                     result.pose_landmarks,
-                    BODY_POSE_CONNECTIONS,
-                    landmark_drawing_spec=None,
-                    connection_drawing_spec=draw.DrawingSpec(
-                        color=(255, 190, 80),
-                        thickness=2,
-                        circle_radius=1,
-                    ),
+                    pose_mod.POSE_CONNECTIONS,
+                    landmark_drawing_spec=style.get_default_pose_landmarks_style(),
                 )
-                for landmark_index, landmark in enumerate(result.pose_landmarks.landmark):
-                    if landmark_index in FACE_LANDMARK_INDEXES or getattr(landmark, "visibility", 1.0) < 0.5:
-                        continue
-                    point_x = int(landmark.x * frame_width)
-                    point_y = int(landmark.y * frame_height)
-                    if 0 <= point_x < frame_width and 0 <= point_y < frame_height:
-                        cv2.circle(frame, (point_x, point_y), 4, (0, 220, 255), -1, cv2.LINE_AA)
 
             overlay = frame.copy()
             cv2.rectangle(overlay, (24, 24), (min(frame_width - 24, 760), 150), (0, 0, 0), -1)
             frame = cv2.addWeighted(overlay, 0.55, frame, 0.45, 0)
             for i, text in enumerate(header_lines):
-                text_commands.append(
-                    {
-                        "text": text,
-                        "x": 44,
-                        "y": 62 + i * 34,
-                        "fontScale": 0.78,
-                        "fontSize": 26,
-                        "color": (255, 255, 255),
-                        "thickness": 2,
-                    }
+                cv2.putText(
+                    frame,
+                    text,
+                    (44, 62 + i * 34),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.78,
+                    (255, 255, 255),
+                    2,
+                    cv2.LINE_AA,
                 )
 
             current_velocity = velocity_at(index)
@@ -798,51 +612,34 @@ def render_output_video(
                 if start_y is not None and current_y is not None:
                     displacement = max(0.0, (start_y - current_y) * scale_m_per_px)
                 live_power = (effective_mass_kg * G * displacement / elapsed) if effective_mass_kg > 0 else 0.0
-                panel_lines = (
-                    [
-                        f"第 {int(active_rep.get('repIndex') or 0)} 次上升",
-                        f"实时功率：{live_power:.0f} W   速度：{max(0.0, current_velocity):.2f} m/s",
-                        f"位移：{displacement:.2f} m   时间：{elapsed:.2f} s",
-                    ]
-                    if is_zh
-                    else [
-                        f"LIVE REP #{int(active_rep.get('repIndex') or 0)}",
-                        f"Power: {live_power:.0f} W   Speed: {max(0.0, current_velocity):.2f} m/s",
-                        f"Travel: {displacement:.2f} m   Time: {elapsed:.2f} s",
-                    ]
-                )
-                draw_panel(frame, text_commands, 28, panel_y, panel_lines, (0, 220, 255))
+                panel_lines = [
+                    f"LIVE REP #{int(active_rep.get('repIndex') or 0)}",
+                    f"Velocity: {max(0.0, current_velocity):.2f} m/s",
+                    f"Power: {live_power:.0f} W / {live_power / HP_WATT:.2f} hp",
+                    f"Displacement: {displacement:.2f} m",
+                    f"Time: {elapsed:.2f} s",
+                ]
+                draw_panel(frame, 28, panel_y, panel_lines, (0, 220, 255))
             elif recent_rep:
-                panel_lines = (
-                    [
-                        f"第 {int(recent_rep.get('repIndex') or 0)} 次结果",
-                        f"功率：{float(recent_rep.get('avgPowerW') or 0):.0f} W   速度：{float(recent_rep.get('maxVelocityMps') or 0):.2f} m/s",
-                        f"位移：{float(recent_rep.get('displacementM') or 0):.2f} m   时间：{float(recent_rep.get('ascentTimeS') or 0):.2f} s",
-                    ]
-                    if is_zh
-                    else [
-                        f"REP #{int(recent_rep.get('repIndex') or 0)} RESULT",
-                        f"Power: {float(recent_rep.get('avgPowerW') or 0):.0f} W   Speed: {float(recent_rep.get('maxVelocityMps') or 0):.2f} m/s",
-                        f"Travel: {float(recent_rep.get('displacementM') or 0):.2f} m   Time: {float(recent_rep.get('ascentTimeS') or 0):.2f} s",
-                    ]
-                )
-                draw_panel(frame, text_commands, 28, panel_y, panel_lines, (0, 180, 255))
+                panel_lines = [
+                    f"REP #{int(recent_rep.get('repIndex') or 0)} RESULT",
+                    f"Displacement: {float(recent_rep.get('displacementM') or 0):.2f} m",
+                    f"Time: {float(recent_rep.get('ascentTimeS') or 0):.2f} s",
+                    f"Power: {float(recent_rep.get('avgPowerW') or 0):.0f} W / {float(recent_rep.get('horsepowerHp') or 0):.2f} hp",
+                    f"Max velocity: {float(recent_rep.get('maxVelocityMps') or 0):.2f} m/s",
+                ]
+                draw_panel(frame, 28, panel_y, panel_lines, (0, 180, 255))
             else:
-                panel_lines = (
-                    ["动作追踪中", f"实时速度：{max(0.0, current_velocity):.2f} m/s"]
-                    if is_zh
-                    else ["LIVE TRACKING", f"Speed: {max(0.0, current_velocity):.2f} m/s"]
-                )
-                draw_panel(
-                    frame,
-                    text_commands,
-                    28,
-                    max(168, min(max(168, frame_height - 120), 176)),
-                    panel_lines,
-                    (80, 180, 80),
-                )
+                panel_lines = [
+                    "LIVE TRACKING",
+                    f"Velocity: {max(0.0, current_velocity):.2f} m/s",
+                    "Waiting for upward phase",
+                ]
+                draw_panel(frame, 28, max(168, min(max(168, frame_height - 120), 176)), panel_lines, (80, 180, 80))
 
-            frame = draw_text_commands(frame, text_commands, language)
+            if index < len(y_track) and y_track[index] is not None:
+                y = int(y_track[index] or 0)
+                cv2.circle(frame, (frame_width - 64, max(32, min(frame_height - 32, y))), 8, (0, 220, 255), -1)
 
             out.write(frame)
             index += 1
@@ -892,12 +689,92 @@ def has_audio_stream(video_path: str, ffprobe_bin: str) -> bool:
     return bool(result.stdout.strip())
 
 
-def finalize_output_video(
-    input_path: str,
-    rendered_path: str,
+def get_video_duration_seconds(video_path: str, ffprobe_bin: str) -> float:
+    result = subprocess.run(
+        [
+            ffprobe_bin,
+            "-v",
+            "error",
+            "-show_entries",
+            "format=duration",
+            "-of",
+            "default=noprint_wrappers=1:nokey=1",
+            video_path,
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(result.stderr.strip() or "Cannot inspect video duration")
+    try:
+        duration = float(result.stdout.strip())
+    except (TypeError, ValueError):
+        duration = 0.0
+    if duration <= 0:
+        raise RuntimeError("Cannot determine video duration")
+    return duration
+
+
+def run_ffmpeg(command: List[str], output_path: str, failure_message: str) -> None:
+    result = subprocess.run(command, capture_output=True, text=True, check=False)
+    if result.returncode != 0:
+        if os.path.exists(output_path):
+            os.remove(output_path)
+        raise RuntimeError(result.stderr.strip() or failure_message)
+    if not os.path.exists(output_path) or os.path.getsize(output_path) <= 0:
+        raise RuntimeError(failure_message)
+
+
+def constrain_output_size(
     output_path: str,
-    quality: str,
-) -> Dict[str, Any]:
+    max_output_bytes: int,
+    duration_seconds: float,
+    ffmpeg_bin: str,
+    preset: str,
+) -> bool:
+    if os.path.getsize(output_path) <= max_output_bytes:
+        return False
+
+    limited_path = f"{output_path}.limited.mp4"
+    target_total_bps = max(96_000, int((max_output_bytes * 8 / duration_seconds) * 0.82))
+    target_video_bps = max(64_000, target_total_bps - 128_000)
+    command = [
+        ffmpeg_bin,
+        "-y",
+        "-hide_banner",
+        "-loglevel",
+        "error",
+        "-i",
+        output_path,
+        "-map",
+        "0:v:0",
+        "-map",
+        "0:a:0?",
+        "-c:v",
+        "libx264",
+        "-preset",
+        preset,
+        "-b:v",
+        str(target_video_bps),
+        "-maxrate",
+        str(target_video_bps),
+        "-bufsize",
+        str(target_video_bps * 2),
+        "-pix_fmt",
+        "yuv420p",
+        "-c:a",
+        "copy",
+        "-movflags",
+        "+faststart",
+        limited_path,
+    ]
+    run_ffmpeg(command, limited_path, "FFmpeg failed to limit analysis video size")
+    os.replace(limited_path, output_path)
+    return True
+
+
+def finalize_output_video(input_path: str, rendered_path: str, output_path: str, quality: str) -> Dict[str, Any]:
     ffmpeg_bin = require_executable("POWER_ANALYSIS_FFMPEG_BIN", "ffmpeg")
     ffprobe_bin = require_executable("POWER_ANALYSIS_FFPROBE_BIN", "ffprobe")
     input_has_audio = has_audio_stream(input_path, ffprobe_bin)
@@ -922,6 +799,14 @@ def finalize_output_video(
         64,
         320,
     )
+    output_max_mb = env_int("POWER_ANALYSIS_OUTPUT_MAX_MB", 50, 1, 200)
+    output_max_ratio_percent = env_int("POWER_ANALYSIS_OUTPUT_MAX_RATIO_PERCENT", 100, 50, 100)
+    input_size_bytes = os.path.getsize(input_path)
+    max_output_bytes = min(
+        output_max_mb * 1024 * 1024,
+        max(1, input_size_bytes * output_max_ratio_percent // 100),
+    )
+    duration_seconds = get_video_duration_seconds(input_path, ffprobe_bin)
 
     os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
     command = [
@@ -949,20 +834,29 @@ def finalize_output_video(
         "-pix_fmt",
         "yuv420p",
         "-c:a",
-        "aac",
-        "-b:a",
-        f"{audio_kbps}k",
+        "copy",
         "-movflags",
         "+faststart",
         output_path,
     ]
-    result = subprocess.run(command, capture_output=True, text=True, check=False)
-    if result.returncode != 0:
-        if os.path.exists(output_path):
-            os.remove(output_path)
-        raise RuntimeError(result.stderr.strip() or "FFmpeg failed to encode analysis video")
-    if not os.path.exists(output_path) or os.path.getsize(output_path) <= 0:
-        raise RuntimeError("FFmpeg did not produce a valid analysis video")
+    try:
+        run_ffmpeg(command, output_path, "FFmpeg failed to encode analysis video")
+    except RuntimeError:
+        if not input_has_audio:
+            raise
+        audio_codec_index = command.index("-c:a") + 1
+        command[audio_codec_index] = "aac"
+        movflags_index = command.index("-movflags")
+        command[movflags_index:movflags_index] = ["-b:a", f"{audio_kbps}k"]
+        run_ffmpeg(command, output_path, "FFmpeg failed to encode analysis video with audio fallback")
+
+    size_limited = constrain_output_size(
+        output_path,
+        max_output_bytes,
+        duration_seconds,
+        ffmpeg_bin,
+        preset,
+    )
 
     output_has_audio = has_audio_stream(output_path, ffprobe_bin)
     if input_has_audio and not output_has_audio:
@@ -970,14 +864,15 @@ def finalize_output_video(
         raise RuntimeError("Analysis video lost the original audio stream")
 
     return {
-        "inputSizeBytes": os.path.getsize(input_path),
+        "inputSizeBytes": input_size_bytes,
         "outputSizeBytes": os.path.getsize(output_path),
+        "outputSizeLimitBytes": max_output_bytes,
+        "outputSizeLimited": size_limited,
         "inputHasAudio": input_has_audio,
         "outputHasAudio": output_has_audio,
         "audioPreserved": input_has_audio == output_has_audio,
         "codec": "h264",
         "crf": crf,
-        "quality": quality,
     }
 
 
@@ -989,17 +884,10 @@ def run(args: argparse.Namespace) -> Dict[str, Any]:
     preset = get_mode_preset(args.mode)
     effective_mass_kg = float(
         build_mass_metrics(args.weight_kg, external_load_kg, float(preset["bodyMassFactor"]))["effectiveMassKg"]
+        "quality": quality,
     )
     reps = detect_reps(y_track, fps, scale, effective_mass_kg, args.mode)
     metrics = build_metrics(args.mode, reps, args.weight_kg, external_load_kg)
-    metrics["rating"] = build_power_rating(metrics)
-    metrics["timeSeries"] = build_time_series(
-        y_track,
-        reps,
-        fps,
-        scale,
-        effective_mass_kg,
-    )
     metrics["video"] = {
         "fps": round_float(fps, 3),
         "width": width,
@@ -1009,14 +897,7 @@ def run(args: argparse.Namespace) -> Dict[str, Any]:
     emit_progress(55)
     rendered_path = f"{args.output}.rendered.mp4"
     try:
-        render_output_video(
-            args.input,
-            rendered_path,
-            metrics,
-            y_track,
-            scale,
-            args.language,
-        )
+        render_output_video(args.input, rendered_path, metrics, y_track, scale)
         emit_progress(92)
         metrics["video"].update(
             finalize_output_video(args.input, rendered_path, args.output, args.quality)
@@ -1037,8 +918,6 @@ def main() -> int:
     parser.add_argument("--height-cm", type=float, required=True)
     parser.add_argument("--weight-kg", type=float, required=True)
     parser.add_argument("--external-load-kg", type=float, default=0)
-    parser.add_argument("--language", choices=["zh", "en"], default="zh")
-    parser.add_argument("--quality", choices=["compressed", "original"], default="compressed")
     args = parser.parse_args()
 
     try:
