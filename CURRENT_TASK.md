@@ -8860,3 +8860,9 @@
 - 移除后首个“小游戏”分类会直接展示；为避免标题与状态栏/刘海重叠，内容顶部留白调整为 `96rpx`（8 栅格）。
 - 已用 `weapp-devtools` 的新实例加载最新构建产物验证：标题完整可见、英文横幅不再出现；点击“接豆派对”可进入 `toolbox/motion-bean/index` 并正常返回，控制台 error 为 0。
 - 验证：小程序完整构建（2759 modules）、`npm run lint`（项目未配置 ESLint）、`npm run typecheck`、`npm test`（35 files / 177 tests）、`npx next build`（522 pages）及 `git diff --check` 通过。仅小程序前端，未改 API、数据库或后端，无需重启后端。
+## 微信小程序场景放松图片等比显示 (`2026-07-20`)
+
+- 用户反馈工具箱“场景放松”列表和场景详情的封面/步骤图被横向区域裁切。根因是全部场景素材为竖图 `640×1137`，而 UI 使用横向固定高度加 `aspectFill`。
+- 工具箱列表、详情主封面、当前步骤图和步骤列表图统一改为 `widthFix` 等比模式，并移除固定横向图高；图片按原始比例完整展示，不再截断人物、动作或环境。
+- 已用 `weapp-devtools` 新实例打开“办公后肩颈放松”详情验证完整主图；控制台 error 为 0。自动化工具的内嵌 ScrollView 滑动 API 未实现，因此无法截图到列表底部，但列表使用同一 `widthFix` 规则且小程序构建产物已确认。
+- 验证：小程序完整构建（2759 modules）、`npm run lint`（项目未配置 ESLint）、`npm run typecheck`、`npm test`（35 files / 177 tests）、`npx next build`（522 pages）和 `git diff --check` 通过。仅小程序前端，未改 API、数据库或后端，无需重启后端。
