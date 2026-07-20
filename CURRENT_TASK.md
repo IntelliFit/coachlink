@@ -8844,3 +8844,19 @@
 - Fix: 扩展共享 `summarizePlanCompletion`，保留“平台内当前段”完成语义用于计划结束判断，同时新增“完整计划”进度：所有 `dayIndex < start_execution_day` 的训练日按既有业务规范计为线下/续接已完成，再与当前实例 completed/resolved Day 去重合并。教练学员列表、计划编辑页、教练/学员计划历史及 `get-instance` 详情统一使用整体进度字段。
 - Design: 不扫描或简单相加归档实例。`start_execution_day` 的数据库注释和既有业务规范本就明确规定“前面的天数视为已完成”，因此它是现有历史数据的可靠 carry-forward 锚点；无需增加 lineage 字段即可修复所有已有续接计划。
 - Verification: 真实实例回算当前段仍为 `1/17`，整体为承接训练日 15 + 当前完成 1 = `16/32`，50%。`npm run lint`、`npm run typecheck`、`npm test`（35 files / 177 tests）、`npx next build`（522 pages）与 `git diff --check` 全部通过。
+## 今日开发分支切换 (`2026-07-20`)
+
+- 本地 `main`、`dev` 已同步到远程共同提交 `ae54ce0e`，无 ahead/behind。
+- 当前已切换至从最新 `dev` 创建的 `codex/dev-workspace-20260720`，其上游为 `origin/dev`。
+- 切换前的已修改和未跟踪工作区内容已完整保存在 `stash@{0}`：`codex-auto-stash-before-switch-20260720`，尚未应用，避免将旧分支工作直接带入新基线。
+## 小程序登录控制台 `appServiceSDKScriptError timeout` 诊断 (`2026-07-20`)
+
+- 用户截图显示微信开发者工具基础库 `3.15.2` 的 `SystemError (appServiceSDKScriptError) timeout`；该信息仅来自微信运行时包装层，不含业务代码栈。
+- 已使用 `weapp-devtools` 在当前分支自动化复现：从游客首页进入 `/auth/login`，勾选协议后点击“手机号一键登录”成功完成 `Taro.login()`、`/api/miniapp/wechat-login` 请求及首页跳转；控制台 error/warn 均为 0。结论：当前代码的登录链路不能稳定复现该问题，错误更可能是当时开发者工具 AppService / `wx.login` 与网络或工具进程的瞬态超时，而非前端业务登录逻辑。
+- 自动化测试产生的本地登录态已用 `wx.clearStorageSync()` 清理并回到游客首页；未改业务代码、API、数据库或后端。
+## 微信小程序工具箱顶部横幅移除 (`2026-07-20`)
+
+- 用户确认工具箱顶部的 `TOOLBOX` 英文标签及“小游戏和小工具都留在这里”介绍卡不需要保留。已完全移除该 JSX 与对应样式；它不是编码乱码，而是遗留的英文视觉文案。
+- 移除后首个“小游戏”分类会直接展示；为避免标题与状态栏/刘海重叠，内容顶部留白调整为 `96rpx`（8 栅格）。
+- 已用 `weapp-devtools` 的新实例加载最新构建产物验证：标题完整可见、英文横幅不再出现；点击“接豆派对”可进入 `toolbox/motion-bean/index` 并正常返回，控制台 error 为 0。
+- 验证：小程序完整构建（2759 modules）、`npm run lint`（项目未配置 ESLint）、`npm run typecheck`、`npm test`（35 files / 177 tests）、`npx next build`（522 pages）及 `git diff --check` 通过。仅小程序前端，未改 API、数据库或后端，无需重启后端。
