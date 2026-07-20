@@ -230,6 +230,7 @@ export function normalizeMetrics(value: unknown): PowerAnalysisMetrics | null {
   const raw = value as any;
   const mode = normalizeMode(raw.mode) || "pullup";
   const mass = raw.mass && typeof raw.mass === "object" ? raw.mass : null;
+  const video = raw.video && typeof raw.video === "object" ? raw.video : null;
   const reps = Array.isArray(raw.reps)
     ? raw.reps.map((item: any, index: number) => ({
         repIndex: Number(item.repIndex ?? item.rep_index ?? index + 1),
@@ -262,6 +263,13 @@ export function normalizeMetrics(value: unknown): PowerAnalysisMetrics | null {
     },
     reps,
     notes: Array.isArray(raw.notes) ? raw.notes.map(String) : undefined,
+    video: video
+      ? {
+          inputHasAudio: typeof video.inputHasAudio === "boolean" ? video.inputHasAudio : undefined,
+          outputHasAudio: typeof video.outputHasAudio === "boolean" ? video.outputHasAudio : undefined,
+          audioPreserved: typeof video.audioPreserved === "boolean" ? video.audioPreserved : undefined,
+        }
+      : undefined,
   };
 }
 

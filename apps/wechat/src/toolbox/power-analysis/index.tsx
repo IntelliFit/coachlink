@@ -44,6 +44,11 @@ interface PowerAnalysisMetrics {
   }
   reps: PowerAnalysisRepMetric[]
   notes?: string[]
+  video?: {
+    inputHasAudio?: boolean
+    outputHasAudio?: boolean
+    audioPreserved?: boolean
+  }
 }
 
 interface PowerAnalysisJobDto {
@@ -527,6 +532,7 @@ export default function WechatPowerAnalysisPage() {
       const res = await Taro.chooseVideo({
         sourceType: ['album', 'camera'],
         maxDuration: 30,
+        // 优先上传速度；后端会校验分析产物是否仍保留可用音轨。
         compressed: true,
         camera: 'back'
       })
@@ -850,6 +856,18 @@ export default function WechatPowerAnalysisPage() {
                     <Text className='summary-value'>{formatMetric(metrics.summary.bestVelocityMps, 2)} m/s</Text>
                   </View>
                 </View>
+
+                {typeof metrics.video?.inputHasAudio === 'boolean' && (
+                  <View className={`audio-status ${metrics.video.audioPreserved ? 'preserved' : 'missing'}`}>
+                    <Text>
+                      {metrics.video.inputHasAudio
+                        ? metrics.video.audioPreserved
+                          ? '已保留原视频背景音效'
+                          : '音轨未能保留，请重新上传原视频'
+                        : '上传视频未检测到音轨'}
+                    </Text>
+                  </View>
+                )}
 
                 <View className='rep-list'>
                   {metrics.reps.map((rep) => (

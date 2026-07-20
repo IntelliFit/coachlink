@@ -35,6 +35,11 @@ export interface PowerAnalysisMetrics {
   };
   reps: PowerAnalysisRepMetric[];
   notes?: string[];
+  video?: {
+    inputHasAudio?: boolean;
+    outputHasAudio?: boolean;
+    audioPreserved?: boolean;
+  };
 }
 
 export interface PowerAnalysisJobDto {
