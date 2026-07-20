@@ -34,7 +34,7 @@ function waitForCanvasPaint(canvas: HTMLCanvasElement | undefined, msFallback = 
  * Canvas 导出的 http://tmp / wxfile://tmp 文件可能很快被基础库清理。
  * 立即复制到 USER_DATA_PATH，后续分享菜单和相册保存都使用稳定路径。
  */
-function persistPosterFile(tempFilePath: string, canvasId: string): Promise<string> {
+export function persistSharePosterFile(tempFilePath: string, canvasId: string): Promise<string> {
   const userDataPath = String(Taro.env?.USER_DATA_PATH || '').replace(/\/$/, '')
   if (!userDataPath || typeof Taro.getFileSystemManager !== 'function') {
     return Promise.resolve(tempFilePath)
@@ -149,7 +149,7 @@ export function useSharePoster<T>(options: UseSharePosterOptions<T>): UseSharePo
                   transparent: false,
                   success: async (resp) => {
                     try {
-                      const savedFilePath = await persistPosterFile(resp.tempFilePath, canvasId)
+                      const savedFilePath = await persistSharePosterFile(resp.tempFilePath, canvasId)
                       setImageUrl(savedFilePath)
                       finish(savedFilePath)
                     } catch (error) {

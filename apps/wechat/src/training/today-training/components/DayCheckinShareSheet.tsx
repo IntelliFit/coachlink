@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from 'react'
+import React, { useState } from 'react'
 import { View, Text, Canvas } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { formatMonthDayTime } from '@/utils/dateFormat'
+import { persistSharePosterFile } from '@/hooks/useSharePoster'
 import './DayCheckinShareSheet.scss'
 
 interface DayCheckinShareData {
@@ -60,24 +61,54 @@ const drawRoundedRect = (
   ctx.closePath()
 }
 
+/** Canvas 的 fillText 不会自动换行；统一限制宽度，避免长文案越出卡片。 */
+const drawLimitedText = (
+  ctx: any,
+  text: string,
+  x: number,
+  y: number,
+  maxWidth: number,
+  lineHeight: number,
+  maxLines = 1
+) => {
+  const lines: string[] = []
+  let line = ''
+
+  for (const char of Array.from(String(text || ''))) {
+    const next = `${line}${char}`
+    if (!line || ctx.measureText(next).width <= maxWidth) {
+      line = next
+      continue
+    }
+    lines.push(line)
+    line = char
+  }
+  if (line) lines.push(line)
+
+  const visibleLines = lines.slice(0, maxLines)
+  if (lines.length > maxLines && visibleLines.length > 0) {
+    let lastLine = visibleLines[visibleLines.length - 1]
+    while (lastLine && ctx.measureText(`${lastLine}…`).width > maxWidth) {
+      lastLine = lastLine.slice(0, -1)
+    }
+    visibleLines[visibleLines.length - 1] = `${lastLine}…`
+  }
+
+  visibleLines.forEach((item, index) => ctx.fillText(item, x, y + index * lineHeight))
+  return visibleLines.length
+}
+
 function DayCheckinShareSheet({
   visible,
   onClose,
   data
 }: DayCheckinShareSheetProps) {
   const [saving, setSaving] = useState(false)
-  const [saved, setSaved] = useState(false)
-
-  useEffect(() => {
-    if (visible) {
-      setSaved(false)
-    }
-  }, [visible])
 
   if (!visible) return null
 
-  const handleSave = async () => {
-    if (!data || saving || saved) return
+  const handleShare = async () => {
+    if (!data || saving) return
     setSaving(true)
 
     try {
@@ -138,7 +169,7 @@ function DayCheckinShareSheet({
               : data.completedModuleCount > 0
                 ? `今天已经推进 ${data.completedModuleCount} 个模块，还剩 ${Math.max(0, data.moduleCount - data.completedModuleCount)} 个模块。`
                 : '今天还没完全展开，但也值得先记录当前状态。'
-          ctx.fillText(summaryText, 88, 446)
+          drawLimitedText(ctx, summaryText, 88, 446, 574, 30)
 
           drawRoundedRect(ctx, 52, 520, 646, 610, 34)
           ctx.fillStyle = '#ffffff'
@@ -149,7 +180,7 @@ function DayCheckinShareSheet({
           ctx.fillText('训练计划', 88, 584)
           ctx.fillStyle = '#111827'
           ctx.font = 'bold 38px sans-serif'
-          ctx.fillText(data.planName || '今日安排', 88, 642)
+          drawLimitedText(ctx, data.planName || '今日安排', 88, 642, 574, 44)
 
           const cards = [
             {
@@ -198,10 +229,10 @@ function DayCheckinShareSheet({
             ctx.fillText(card.title, card.x + 24, card.y + 40)
             ctx.fillStyle = card.valueColor
             ctx.font = 'bold 42px sans-serif'
-            ctx.fillText(card.value, card.x + 24, card.y + 92)
+            drawLimitedText(ctx, card.value, card.x + 24, card.y + 92, card.w - 48, 44)
             ctx.fillStyle = card.descColor
             ctx.font = '20px sans-serif'
-            ctx.fillText(card.desc, card.x + 24, card.y + 128)
+            drawLimitedText(ctx, card.desc, card.x + 24, card.y + 128, card.w - 48, 26)
           })
 
           drawRoundedRect(ctx, 88, 884, 574, 166, 28)
@@ -222,11 +253,11 @@ function DayCheckinShareSheet({
               : data.completedModuleCount > 0
                 ? '今天已经推进了一部分计划，进度本身也值得记录。'
                 : '今天还没完全开始，但状态也值得留下一张快照。'
-          ctx.fillText(conclusion, 116, 980)
+          const conclusionLineCount = drawLimitedText(ctx, conclusion, 116, 980, 518, 36, 2)
           ctx.fillStyle = '#9A3412'
           ctx.font = '20px sans-serif'
           const completedLabel = formatMonthDayTime(data.completedAt || new Date())
-          ctx.fillText(`状态时间 · ${completedLabel}`, 116, 1024)
+          ctx.fillText(`状态时间 · ${completedLabel}`, 116, conclusionLineCount > 1 ? 1040 : 1024)
 
           ctx.fillStyle = '#111827'
           ctx.font = 'bold 22px sans-serif'
@@ -241,28 +272,45 @@ function DayCheckinShareSheet({
           Taro.canvasToTempFilePath({
             canvas,
             success: (fileRes) => {
-              Taro.saveImageToPhotosAlbum({
-                filePath: fileRes.tempFilePath,
-                success: () => {
-                  setSaving(false)
-                  setSaved(true)
-                  Taro.showToast({ title: '已保存到相册', icon: 'success' })
-                },
-                fail: (err) => {
-                  if (String(err?.errMsg || '').includes('auth deny')) {
+              void (async () => {
+                try {
+                  const imagePath = await persistSharePosterFile(fileRes.tempFilePath, CANVAS_ID)
+                  const showShareImageMenu = (Taro as any).showShareImageMenu
+                  if (typeof showShareImageMenu !== 'function') {
                     Taro.showModal({
-                      title: '需要相册权限',
-                      content: '请允许保存图片到相册，或先预览后手动保存。',
-                      success: (modalRes) => {
-                        if (modalRes.confirm) Taro.openSetting()
-                      }
+                      title: '图片已生成',
+                      content: '当前微信版本不支持直接分享图片，可在预览中长按保存或发送。',
+                      showCancel: false,
+                      confirmText: '预览图片',
+                      success: () => Taro.previewImage({ current: imagePath, urls: [imagePath] })
                     })
-                  } else {
-                    Taro.previewImage({ urls: [fileRes.tempFilePath] })
+                    return
                   }
+
+                  showShareImageMenu({
+                    path: imagePath,
+                    fail: (err: { errMsg?: string }) => {
+                      if (String(err?.errMsg || '').includes('cancel')) return
+                      console.error('[today-training] showShareImageMenu failed', err)
+                      const isDevtools = String(Taro.getDeviceInfo?.().platform || '') === 'devtools'
+                      Taro.showModal({
+                        title: '图片已生成',
+                        content: isDevtools
+                          ? '开发者工具不支持好友、群聊或朋友圈图片分享，请在真机微信中验证。'
+                          : '暂时无法调起图片分享菜单，可在预览中长按保存或发送。',
+                        showCancel: false,
+                        confirmText: '预览图片',
+                        success: () => Taro.previewImage({ current: imagePath, urls: [imagePath] })
+                      })
+                    }
+                  })
+                } catch (error) {
+                  console.error('[today-training] 持久化整日打卡图失败', error)
+                  Taro.showToast({ title: '图片生成失败，请稍后重试', icon: 'none' })
+                } finally {
                   setSaving(false)
                 }
-              })
+              })()
             },
             fail: () => {
               setSaving(false)
@@ -372,8 +420,8 @@ function DayCheckinShareSheet({
               <View className='sheet-btn secondary' onClick={onClose}>
                 <Text>取消</Text>
               </View>
-              <View className={`sheet-btn primary ${saving || saved ? 'disabled' : ''}`} onClick={handleSave}>
-                <Text>{saving ? '生成中...' : saved ? '已保存' : '保存图片'}</Text>
+              <View className={`sheet-btn primary ${saving ? 'disabled' : ''}`} onClick={handleShare}>
+                <Text>{saving ? '生成中...' : '分享图片'}</Text>
               </View>
             </View>
           </>
