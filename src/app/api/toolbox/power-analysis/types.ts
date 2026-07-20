@@ -63,6 +63,11 @@ export interface PowerAnalysisMetrics {
     quality?: PowerAnalysisQuality;
   };
   notes?: string[];
+  video?: {
+    inputHasAudio?: boolean;
+    outputHasAudio?: boolean;
+    audioPreserved?: boolean;
+  };
 }
 
 export interface PowerAnalysisJobDto {

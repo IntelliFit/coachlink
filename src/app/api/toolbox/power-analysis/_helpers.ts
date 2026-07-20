@@ -304,6 +304,13 @@ export function normalizeMetrics(value: unknown): PowerAnalysisMetrics | null {
         }
       : undefined,
     notes: Array.isArray(raw.notes) ? raw.notes.map(String) : undefined,
+    video: video
+      ? {
+          inputHasAudio: typeof video.inputHasAudio === "boolean" ? video.inputHasAudio : undefined,
+          outputHasAudio: typeof video.outputHasAudio === "boolean" ? video.outputHasAudio : undefined,
+          audioPreserved: typeof video.audioPreserved === "boolean" ? video.audioPreserved : undefined,
+        }
+      : undefined,
   };
 }
 
