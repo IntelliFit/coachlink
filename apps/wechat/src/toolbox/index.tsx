@@ -205,14 +205,6 @@ function ToolboxPage() {
       <View className={`toolbox-page theme-${effectiveTheme}`}>
         <ScrollView className='page-scroll' scrollY>
           <View className='page-content'>
-            <View className='hero-card'>
-              <Text className='hero-kicker'>TOOLBOX</Text>
-              <Text className='hero-title'>小游戏和小工具都留在这里，但入口更轻更好扫</Text>
-              <Text className='hero-desc'>
-                上面先放随手就能开一局的小游戏，下面继续放分析、计算、地图和社区数据。
-              </Text>
-            </View>
-
             <View className='section-block'>
               <View className='section-header'>
                 <Text className='section-title'>小游戏</Text>
