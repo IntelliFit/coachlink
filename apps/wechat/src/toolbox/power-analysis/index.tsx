@@ -112,6 +112,7 @@ const MODE_OPTIONS: Array<{ label: string; value: PowerAnalysisMode; hint: strin
 
 const TERMINAL_STATUSES: PowerAnalysisJobStatus[] = ['done', 'failed', 'expired']
 const SELECTED_VIDEO_ID = 'power-analysis-selected-video'
+const LAST_DOWNLOADABLE_JOB_STORAGE_KEY = 'power-analysis-last-downloadable-job-v1'
 
 function formatMetric(value: number | undefined, digits = 1) {
   const n = Number(value || 0)
@@ -242,6 +243,24 @@ function isAuthErrorMessage(message?: string | null) {
   )
 }
 
+function isDailyLimitMessage(message?: string | null) {
+  return String(message || '').includes('今天已经分析')
+}
+
+async function downloadAndSaveVideo(params: {
+  url: string
+  header?: Record<string, string>
+}) {
+  const downloaded = await Taro.downloadFile({
+    url: params.url,
+    header: params.header
+  })
+  if (downloaded.statusCode !== 200 || !downloaded.tempFilePath) {
+    throw new Error(`下载失败（${downloaded.statusCode}）`)
+  }
+  await Taro.saveVideoToPhotosAlbum({ filePath: downloaded.tempFilePath })
+}
+
 export default function WechatPowerAnalysisPage() {
   const { effectiveTheme } = useTheme()
   const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -257,6 +276,7 @@ export default function WechatPowerAnalysisPage() {
   const [job, setJob] = useState<PowerAnalysisJobDto | null>(null)
   const [summaryLoading, setSummaryLoading] = useState(false)
   const [savingVideo, setSavingVideo] = useState(false)
+  const [downloadRetryAvailable, setDownloadRetryAvailable] = useState(false)
 
   const sharePayload = useMemo(
     () =>
@@ -309,6 +329,43 @@ export default function WechatPowerAnalysisPage() {
       if (pollTimerRef.current) clearInterval(pollTimerRef.current)
     }
   }, [])
+
+  useEffect(() => {
+    let disposed = false
+
+    const restoreLastDownloadableJob = async () => {
+      if (!authService.isAuthenticated()) return
+
+      const jobId = String(Taro.getStorageSync(LAST_DOWNLOADABLE_JOB_STORAGE_KEY) || '').trim()
+      if (!jobId) return
+
+      try {
+        const restored = await callPowerApi<PowerAnalysisJobDto>({
+          url: `/api/toolbox/power-analysis/jobs/${jobId}`
+        })
+        if (disposed) return
+
+        if (restored.status === 'done' && restored.canDownload) {
+          setJob(restored)
+          setPhase('done')
+        } else {
+          Taro.removeStorageSync(LAST_DOWNLOADABLE_JOB_STORAGE_KEY)
+        }
+      } catch {
+        Taro.removeStorageSync(LAST_DOWNLOADABLE_JOB_STORAGE_KEY)
+      }
+    }
+
+    void restoreLastDownloadableJob()
+    return () => {
+      disposed = true
+    }
+  }, [])
+
+  useEffect(() => {
+    if (job?.status !== 'done' || !job.canDownload || !job.id) return
+    Taro.setStorageSync(LAST_DOWNLOADABLE_JOB_STORAGE_KEY, job.id)
+  }, [job?.id, job?.status, job?.canDownload])
 
   const openLogin = () => {
     Taro.navigateTo({ url: authService.buildLoginUrl('/toolbox/power-analysis/index') })
@@ -390,6 +447,7 @@ export default function WechatPowerAnalysisPage() {
     }
 
     stopPolling()
+    const previousDownloadableJob = job?.status === 'done' && job.canDownload ? job : null
     setVideo(nextVideo)
     setJob(null)
     setUploadProgress(0)
@@ -424,11 +482,30 @@ export default function WechatPowerAnalysisPage() {
       setPhase('uploaded')
       Taro.showToast({ title: '视频已上传', icon: 'success' })
     } catch (error: any) {
-      setPhase('idle')
-      setJob(null)
       setUploadProgress(0)
+      const message = error?.message || '上传失败'
+
+      if (previousDownloadableJob) {
+        setVideo(null)
+        setJob(previousDownloadableJob)
+        setPhase('done')
+
+        if (isDailyLimitMessage(message)) {
+          Taro.showModal({
+            title: '今日分析次数已用完',
+            content: `${message}。上一份视频已经分析完成，请先点击“保存视频”重新下载结果，无需重复分析。`,
+            showCancel: false,
+            confirmText: '知道了'
+          })
+          return
+        }
+      } else {
+        setPhase('idle')
+        setJob(null)
+      }
+
       Taro.showToast({
-        title: error?.message || '上传失败',
+        title: message,
         icon: 'none',
         duration: 3000
       })
@@ -543,6 +620,7 @@ export default function WechatPowerAnalysisPage() {
     setPhase('idle')
     setUploadProgress(0)
     llmRequestedRef.current = null
+    setDownloadRetryAvailable(false)
   }
 
   const handleSaveVideo = async () => {
@@ -554,33 +632,37 @@ export default function WechatPowerAnalysisPage() {
         method: 'POST'
       })
       const token = String(Taro.getStorageSync('token') || '').trim()
-      const downloadUrl = data.proxyUrl
+      const proxyUrl = data.proxyUrl
         ? `${API_BASE_URL.replace(/\/+$/, '')}${data.proxyUrl}`
         : data.url
-      const downloaded = await Taro.downloadFile({
-        url: downloadUrl,
-        header: data.proxyUrl && token ? { Authorization: `Bearer ${token}` } : undefined
-      })
-      if (downloaded.statusCode !== 200 || !downloaded.tempFilePath) {
-        throw new Error(`下载失败（${downloaded.statusCode}）`)
-      }
-      await Taro.saveVideoToPhotosAlbum({ filePath: downloaded.tempFilePath })
-      Taro.showToast({ title: '已保存到相册', icon: 'success' })
-    } catch (error: any) {
       try {
-        const data = await callPowerApi<PowerAnalysisDownloadUrlResponseDto>({
-          url: `/api/toolbox/power-analysis/jobs/${job.id}/download-url`,
-          method: 'POST'
+        await downloadAndSaveVideo({
+          url: proxyUrl,
+          header: data.proxyUrl && token ? { Authorization: `Bearer ${token}` } : undefined
         })
-        await Taro.setClipboardData({ data: data.signedUrl || data.url })
-        Taro.showToast({ title: '下载失败，链接已复制', icon: 'none', duration: 3000 })
-      } catch {
-        Taro.showToast({
-          title: error?.message || '保存失败',
-          icon: 'none',
-          duration: 3000
-        })
+      } catch (proxyError) {
+        const signedUrl = String(data.signedUrl || '').trim()
+        if (!signedUrl || signedUrl === proxyUrl) throw proxyError
+
+        try {
+          await downloadAndSaveVideo({ url: signedUrl })
+          Taro.showToast({ title: '已通过备用链接保存', icon: 'success' })
+          setDownloadRetryAvailable(false)
+          return
+        } catch {
+          await Taro.setClipboardData({ data: signedUrl })
+          throw new Error('下载未完成，可再次点击“重新下载”重试；备用链接已复制')
+        }
       }
+      Taro.showToast({ title: '已保存到相册', icon: 'success' })
+      setDownloadRetryAvailable(false)
+    } catch (error: any) {
+      setDownloadRetryAvailable(true)
+      Taro.showToast({
+        title: error?.message || '下载未完成，可点击重新下载',
+        icon: 'none',
+        duration: 3500
+      })
     } finally {
       setSavingVideo(false)
     }
@@ -740,7 +822,7 @@ export default function WechatPowerAnalysisPage() {
                 <Text className='section-title'>分析结果</Text>
               </View>
               <View className={`save-video-btn ${job?.canDownload && !savingVideo ? '' : 'disabled'}`} onClick={handleSaveVideo}>
-                <Text>{savingVideo ? '保存中' : '保存视频'}</Text>
+                <Text>{savingVideo ? '保存中' : downloadRetryAvailable ? '重新下载' : '保存视频'}</Text>
               </View>
             </View>
 
