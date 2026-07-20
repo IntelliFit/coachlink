@@ -798,10 +798,25 @@ export default function WechatPowerAnalysisPage() {
         ? `${API_BASE_URL.replace(/\/+$/, '')}${data.proxyUrl}`
         : data.url
       fallbackUrl = String(data.signedUrl || data.url || '').trim()
-      await downloadAndSaveVideo(
-        downloadUrl,
-        data.proxyUrl && token ? { Authorization: `Bearer ${token}` } : undefined
-      )
+      try {
+        await downloadAndSaveVideo(
+          downloadUrl,
+          data.proxyUrl && token ? { Authorization: `Bearer ${token}` } : undefined
+        )
+      } catch (proxyError) {
+        const signedUrl = String(data.signedUrl || '').trim()
+        if (!signedUrl || signedUrl === downloadUrl) throw proxyError
+
+        try {
+          await downloadAndSaveVideo(signedUrl)
+          Taro.showToast({ title: '已通过备用链接保存', icon: 'success' })
+          setDownloadRetryAvailable(false)
+          return
+        } catch {
+          await Taro.setClipboardData({ data: signedUrl })
+          throw new Error('下载未完成，可再次点击“重新下载”重试；备用链接已复制')
+        }
+      }
       Taro.showToast({ title: '已保存到相册', icon: 'success' })
       setDownloadRetryAvailable(false)
     } catch (error: any) {
