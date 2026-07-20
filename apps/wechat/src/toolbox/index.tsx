@@ -242,16 +242,18 @@ function ToolboxPage() {
                     onClick={() => handleScenarioClick(scenario.slug)}
                   >
                     <Image className='scene-cover' src={scenario.coverImageUrl} mode='widthFix' />
-                    <View className='scene-row'>
-                      <View className='scene-icon-wrap'>
-                        <ScenarioNutIcon name={scenario.icon} size={18} />
+                    <View className='scene-content'>
+                      <View className='scene-row'>
+                        <View className='scene-icon-wrap'>
+                          <ScenarioNutIcon name={scenario.icon} size={18} />
+                        </View>
+                        <View className='scene-texts'>
+                          <Text className='scene-name'>{scenario.title}</Text>
+                          <Text className='scene-desc'>{scenario.description}</Text>
+                        </View>
                       </View>
-                      <View className='scene-texts'>
-                        <Text className='scene-name'>{scenario.title}</Text>
-                        <Text className='scene-desc'>{scenario.description}</Text>
-                      </View>
+                      <Text className='scene-meta'>约 {scenario.durationMinutes} 分钟</Text>
                     </View>
-                    <Text className='scene-meta'>约 {scenario.durationMinutes} 分钟</Text>
                   </View>
                 ))}
               </View>
