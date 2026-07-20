@@ -442,14 +442,15 @@
 
 .scene-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16rpx;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 24rpx;
 }
 
 .scene-card {
+  display: flex;
+  align-items: stretch;
   border-radius: 28rpx;
   overflow: hidden;
-  padding-bottom: 20rpx;
 
   &:active {
     transform: scale(0.98);
@@ -457,15 +458,23 @@
 }
 
 .scene-cover {
-  width: 100%;
+  width: 192rpx;
   display: block;
   background: #f3f4f6;
+  flex-shrink: 0;
+}
+
+.scene-content {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 24rpx 24rpx 16rpx;
 }
 
 .scene-row {
   display: flex;
-  gap: 12rpx;
-  padding: 16rpx 16rpx 0;
+  gap: 16rpx;
 }
 
 .scene-icon-wrap {
@@ -485,22 +494,26 @@
 }
 
 .scene-name {
-  font-size: 24rpx;
+  font-size: 26rpx;
   font-weight: 700;
-  color: #1f2937;
-  line-height: 1.4;
+  color: #273444;
+  line-height: 1.45;
 }
 
 .scene-desc {
   margin-top: 8rpx;
-  font-size: 20rpx;
-  color: #6b7280;
-  line-height: 1.5;
-  min-height: 60rpx;
+  font-size: 22rpx;
+  color: #526273;
+  line-height: 1.55;
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
 }
 
 .scene-meta {
-  padding: 12rpx 16rpx 0;
+  margin-top: auto;
+  padding-top: 16rpx;
   font-size: 20rpx;
   font-weight: 700;
   color: #cf6d4e;
