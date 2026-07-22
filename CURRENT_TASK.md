@@ -8852,3 +8852,10 @@
 - Trigger chain: 点击“完成注册”后由 `handleSubmit` 调用 `studentService.updateProfile`，经 `BaseService.post -> request -> Taro.request` 发起 `/api/user/update-profile`；当微信网络栈在建立 HTTP 连接前返回 `request:fail net::ERR_ADDRESS_UNREACHABLE`，旧 `request` catch 会把 `errMsg` 和开发环境 urlCheck 提示直接拼入 Toast，再由 `updateProfile` 与页面 catch 继续抛出/展示。
 - Fix: 通用 request 将 timeout、address unreachable、DNS、合法域名和其他网络失败映射为简短中文提示，同时只在 console 保留 method、URL 与原始 error。完善档案两次请求关闭通用自动 Toast，由页面统一负责一次提示；主档案请求失败显示友好网络文案，主档案成功但训练偏好问卷失败则显示“档案已保存，训练偏好可稍后补充”，不再假装全部失败或展示英文开发提示。
 - Verification: `git diff --check`、`npm run lint`、`npm run typecheck`、`npm test`（35 files / 177 tests）、小程序完整构建（2759 modules）和 `npx next build`（522 pages）全部通过。`weapp-devtools` 已成功连接 9420 并进入 `auth/student-onboarding`；`mrc screenshot` 连续两次超时，未取得模拟器 Toast 截图，因此最终真机文案展示仍待发布包复测。
+
+## 本地 `main` 与云端同步 (`2026-07-22`)
+
+- Status: 已完成。本地与 GitHub/Gitee 起始提交均为 `ae54ce0e`，但工作区留有一组未提交的微信小程序完善档案网络错误提示修复。
+- Review: 审阅确认业务差异为 `CURRENT_TASK.md`、小程序 onboarding 页面、`studentService`、通用 `request` 和 `memory/2026-07-20.md`，未包含密钥或环境配置；`next-env.d.ts` 仅为生成文件的索引/换行伪脏状态，工作树与 `HEAD` blob 哈希一致，未纳入提交。
+- Verification: 推送前重新执行 `npm run lint`、`npm run typecheck`、`npm test`，35 个测试文件共 177 项测试全部通过。
+- Sync: 业务提交 `bf76f5a5` 已推送至 GitHub `origin/main` 与 Gitee `gitee/main`，并通过远端引用核对确认两端一致。
