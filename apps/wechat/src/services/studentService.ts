@@ -48,6 +48,10 @@ interface GetE1RMHistoryDto {
   limit?: number
 }
 
+interface StudentRequestOptions {
+  showErrorToast?: boolean
+}
+
 class StudentService extends BaseService {
   /**
    * 获取学员档案
@@ -65,8 +69,8 @@ class StudentService extends BaseService {
   /**
    * 更新个人档案
    */
-  async updateProfile(data: UpdateProfileDto) {
-    const res = await this.post('update-profile', data)
+  async updateProfile(data: UpdateProfileDto, options: StudentRequestOptions = {}) {
+    const res = await this.post('update-profile', data, options)
     
     if (res.success && res.data) {
       return res.data
@@ -103,8 +107,8 @@ class StudentService extends BaseService {
     return result.data.url
   }
 
-  async submitOnboarding(data: SubmitOnboardingDto) {
-    const res = await this.post('submit-onboarding', data)
+  async submitOnboarding(data: SubmitOnboardingDto, options: StudentRequestOptions = {}) {
+    const res = await this.post('submit-onboarding', data, options)
 
     if (res.success && res.data) {
       return res.data

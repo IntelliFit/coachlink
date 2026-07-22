@@ -8844,3 +8844,11 @@
 - Fix: 扩展共享 `summarizePlanCompletion`，保留“平台内当前段”完成语义用于计划结束判断，同时新增“完整计划”进度：所有 `dayIndex < start_execution_day` 的训练日按既有业务规范计为线下/续接已完成，再与当前实例 completed/resolved Day 去重合并。教练学员列表、计划编辑页、教练/学员计划历史及 `get-instance` 详情统一使用整体进度字段。
 - Design: 不扫描或简单相加归档实例。`start_execution_day` 的数据库注释和既有业务规范本就明确规定“前面的天数视为已完成”，因此它是现有历史数据的可靠 carry-forward 锚点；无需增加 lineage 字段即可修复所有已有续接计划。
 - Verification: 真实实例回算当前段仍为 `1/17`，整体为承接训练日 15 + 当前完成 1 = `16/32`，50%。`npm run lint`、`npm run typecheck`、`npm test`（35 files / 177 tests）、`npx next build`（522 pages）与 `git diff --check` 全部通过。
+## 微信小程序完善档案网络错误提示修复 (`2026-07-20`)
+
+- Status: 根因链路已定位并完成客户端提示修复；当前证据不支持“用户漏填字段”或生产 API 地址被近期代码改坏。
+- Evidence: 截图为提交档案时底层网络连接失败 `request:fail net::ERR_ADDRESS_UNREACHABLE`。当前第 5 步仅强制校验每周训练频率，截图中已选 4 天；能进入第 5 步也表示昵称、性别、健身目标、训练水平已通过前序校验。字段缺失应产生本地中文校验或服务端 HTTP/JSON 错误，不会产生地址不可达。
+- Config: 小程序生产构建固定使用 `https://coachlink.fit`，`apps/wechat/config/prod.ts` 的该配置自 2026-04 起未变；2026-07-20 的 `dist-release/common.js` 也包含该生产域名。当前从本机访问 `/api/user/update-profile` 可建立连接并返回预期 401，且用户本人同时间实测可完成注册，因此更符合反馈用户设备当时的 Wi-Fi/蜂窝网络、DNS、代理/VPN或临时路由异常。
+- Trigger chain: 点击“完成注册”后由 `handleSubmit` 调用 `studentService.updateProfile`，经 `BaseService.post -> request -> Taro.request` 发起 `/api/user/update-profile`；当微信网络栈在建立 HTTP 连接前返回 `request:fail net::ERR_ADDRESS_UNREACHABLE`，旧 `request` catch 会把 `errMsg` 和开发环境 urlCheck 提示直接拼入 Toast，再由 `updateProfile` 与页面 catch 继续抛出/展示。
+- Fix: 通用 request 将 timeout、address unreachable、DNS、合法域名和其他网络失败映射为简短中文提示，同时只在 console 保留 method、URL 与原始 error。完善档案两次请求关闭通用自动 Toast，由页面统一负责一次提示；主档案请求失败显示友好网络文案，主档案成功但训练偏好问卷失败则显示“档案已保存，训练偏好可稍后补充”，不再假装全部失败或展示英文开发提示。
+- Verification: `git diff --check`、`npm run lint`、`npm run typecheck`、`npm test`（35 files / 177 tests）、小程序完整构建（2759 modules）和 `npx next build`（522 pages）全部通过。`weapp-devtools` 已成功连接 9420 并进入 `auth/student-onboarding`；`mrc screenshot` 连续两次超时，未取得模拟器 Toast 截图，因此最终真机文案展示仍待发布包复测。

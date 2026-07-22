@@ -54,6 +54,44 @@ function isAuthInvalidMessage(message?: string) {
 }
 
 /**
+ * 微信会把底层网络栈错误（例如 ERR_ADDRESS_UNREACHABLE）原样放进 errMsg。
+ * 这些信息只保留在控制台用于诊断，用户端统一显示简短、可操作的中文提示。
+ */
+function getNetworkFailureMessage(error: any) {
+  const rawMessage = String(error?.errMsg || error?.message || '').trim()
+  const normalized = rawMessage.toLowerCase()
+
+  if (normalized.includes('timeout')) {
+    return '网络请求超时，请稍后重试'
+  }
+
+  if (
+    normalized.includes('err_address_unreachable') ||
+    normalized.includes('address unreachable') ||
+    normalized.includes('network is unreachable')
+  ) {
+    return '无法连接服务器，请切换网络后重试'
+  }
+
+  if (
+    normalized.includes('err_name_not_resolved') ||
+    normalized.includes('name resolution') ||
+    normalized.includes('dns')
+  ) {
+    return '网络解析失败，请切换网络后重试'
+  }
+
+  if (
+    normalized.includes('url not in domain list') ||
+    normalized.includes('不在以下 request 合法域名列表中')
+  ) {
+    return '当前版本网络配置异常，请更新后重试'
+  }
+
+  return '网络连接失败，请检查网络后重试'
+}
+
+/**
  * 封装的请求方法
  * 当 API 返回 success:false 或请求异常时，会自动通过 Taro.showToast 显示错误信息（可通过 showErrorToast: false 关闭）
  */
@@ -131,18 +169,16 @@ export async function request<T = any>(options: RequestOptions): Promise<ApiResp
     }
     return result
   } catch (error: any) {
-    const errMsg = error?.errMsg || error?.message || '网络请求失败'
-    const errHint = errMsg.includes('url not in domain list') || errMsg.includes('不在以下 request 合法域名列表中')
-      ? '（请在微信开发者工具 详情→本地设置 中勾选「不校验合法域名」）'
-      : errMsg.includes('fail') && !errMsg.includes('timeout')
-        ? '（请确认后端已启动且 API 地址正确，开发时 urlCheck 需为 false）'
-        : ''
-    const fullMsg = errMsg + errHint
-    console.error('❌ 请求错误:', error, '→', fullMsg)
-    showErrorToast(fullMsg, showErrorToastOpt)
+    const userMessage = getNetworkFailureMessage(error)
+    console.error('❌ 请求错误:', error, '→', {
+      method,
+      url: fullUrl,
+      userMessage
+    })
+    showErrorToast(userMessage, showErrorToastOpt)
     return {
       success: false,
-      message: fullMsg
+      message: userMessage
     }
   }
 }
@@ -153,11 +189,16 @@ export async function request<T = any>(options: RequestOptions): Promise<ApiResp
 export class BaseService {
   constructor(protected baseUrl: string) {}
 
-  protected async post<T = any>(name: string, data?: any): Promise<ApiResponse<T>> {
+  protected async post<T = any>(
+    name: string,
+    data?: any,
+    options: { showErrorToast?: boolean } = {}
+  ): Promise<ApiResponse<T>> {
     return request<T>({
       url: `${this.baseUrl}/${name}`,
       method: 'POST',
-      data
+      data,
+      showErrorToast: options.showErrorToast
     })
   }
 

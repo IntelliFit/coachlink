@@ -599,16 +599,19 @@ function StudentOnboarding() {
       const persistedAvatarUrl = isGeneratedCommunityAvatar(formData.avatarUrl)
         ? null
         : (formData.avatarUrl || null)
-      const profile = await studentService.updateProfile({
-        nickname: formData.nickname.trim(),
-        avatar_url: persistedAvatarUrl,
-        gender: formData.gender,
-        height: formData.height,
-        weight: formData.weight,
-        fitness_goal: primaryGoal,
-        fitness_level: formData.fitnessLevel,
-        onboarding_completed: true
-      })
+      const profile = await studentService.updateProfile(
+        {
+          nickname: formData.nickname.trim(),
+          avatar_url: persistedAvatarUrl,
+          gender: formData.gender,
+          height: formData.height,
+          weight: formData.weight,
+          fitness_goal: primaryGoal,
+          fitness_level: formData.fitnessLevel,
+          onboarding_completed: true
+        },
+        { showErrorToast: false }
+      )
 
       if (!profile) {
         throw new Error('基础档案保存失败')
@@ -619,8 +622,9 @@ function StudentOnboarding() {
         avatar_url: persistedAvatarUrl
       })
 
+      let questionnaireSaved = false
       try {
-        await studentService.submitOnboarding({
+        questionnaireSaved = Boolean(await studentService.submitOnboarding({
           answers: {
             flow_version: 'registration_unified_v2',
             fitness_goals: formData.fitnessGoals,
@@ -631,14 +635,17 @@ function StudentOnboarding() {
             target_body_parts: formData.targetBodyParts
           },
           baseline_video_urls: []
-        })
+        }, { showErrorToast: false }))
       } catch (questionnaireError) {
         console.warn('[student-onboarding] submit questionnaire failed:', questionnaireError)
       }
 
       Taro.showToast({
-        title: isEditMode ? '档案已更新' : '档案已完善',
-        icon: 'success'
+        title: questionnaireSaved
+          ? (isEditMode ? '档案已更新' : '档案已完善')
+          : '档案已保存，训练偏好可稍后补充',
+        icon: questionnaireSaved ? 'success' : 'none',
+        duration: questionnaireSaved ? 1500 : 2500
       })
 
       setTimeout(() => {
