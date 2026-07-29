@@ -7,6 +7,7 @@ import { Page } from '../../components/Page'
 import { SectionCard } from '../../components/SectionCard'
 import { colors, radius, spacing } from '../../theme'
 import type { RootStackParamList } from '../../navigation/types'
+import { useAuth } from '../../providers/AuthProvider'
 import { executionSnapshotKey, persistExecutionSnapshot } from './trainingCache'
 import { pickArray, pickData } from './trainingModel'
 
@@ -20,6 +21,8 @@ type ActionRow = {
 }
 
 export function ImpromptuTrainingScreen({ navigation }: Props) {
+  const { user } = useAuth()
+  const userId = user?.id ? String(user.id) : ''
   const [query, setQuery] = useState('')
   const [loading, setLoading] = useState(true)
   const [starting, setStarting] = useState(false)
@@ -85,7 +88,15 @@ export function ImpromptuTrainingScreen({ navigation }: Props) {
       const res = await apiClient.request('/api/impromptu/start', { method: 'POST', body: { actions: payload }, timeoutMs: 15000 })
       const data = pickData(res)
       if (!data?.id) throw new Error('即兴训练启动失败')
-      await persistExecutionSnapshot(executionSnapshotKey({ mode: 'impromptu', id: data.id }), data)
+      if (userId) {
+        await persistExecutionSnapshot(
+          userId,
+          executionSnapshotKey({ mode: 'impromptu', id: data.id }),
+          data,
+        ).catch((error) => {
+          console.warn('[mobile-training] failed to persist impromptu snapshot', error)
+        })
+      }
       navigation.replace('TrainingExecution', { impromptuId: data.id } as any)
     } catch (error) {
       Alert.alert('开始失败', error instanceof Error ? error.message : '请稍后重试')

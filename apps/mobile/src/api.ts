@@ -7,11 +7,14 @@ const ACCESS_TOKEN_KEY = 'coachlink_mobile_access_token'
 const USER_KEY = 'coachlink_mobile_user'
 const USER_ID_KEY = 'coachlink_mobile_user_id'
 
-function timeoutSignal(timeoutMs?: number): AbortSignal | undefined {
+function timeoutSignal(timeoutMs?: number): { signal: AbortSignal; cancel: () => void } | undefined {
   if (!timeoutMs || typeof AbortController === 'undefined') return undefined
   const controller = new AbortController()
-  setTimeout(() => controller.abort(), timeoutMs)
-  return controller.signal
+  const timer = setTimeout(() => controller.abort(), timeoutMs)
+  return {
+    signal: controller.signal,
+    cancel: () => clearTimeout(timer),
+  }
 }
 
 async function parseJsonResponse(response: Response): Promise<unknown> {
@@ -36,16 +39,21 @@ export const apiClient = createCoachLinkApiClient({
   baseUrl: API_BASE_URL,
   adapters: {
     async request(url: string, options?: ApiClientRequestOptions) {
-      const response = await fetch(url, {
-        method: options?.method || 'GET',
-        headers: options?.headers,
-        body: options?.body == null ? undefined : JSON.stringify(options.body),
-        signal: timeoutSignal(options?.timeoutMs),
-      })
-      return {
-        status: response.status,
-        data: await parseJsonResponse(response),
-        headers: readHeaders(response),
+      const timeout = timeoutSignal(options?.timeoutMs)
+      try {
+        const response = await fetch(url, {
+          method: options?.method || 'GET',
+          headers: options?.headers,
+          body: options?.body == null ? undefined : JSON.stringify(options.body),
+          signal: timeout?.signal,
+        })
+        return {
+          status: response.status,
+          data: await parseJsonResponse(response),
+          headers: readHeaders(response),
+        }
+      } finally {
+        timeout?.cancel()
       }
     },
     tokenStorage: {

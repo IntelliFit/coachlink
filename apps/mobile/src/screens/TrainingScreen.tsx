@@ -5,8 +5,10 @@ import { apiClient } from '../api'
 import { Page } from '../components/Page'
 import { SectionCard } from '../components/SectionCard'
 import { colors, spacing } from '../theme'
+import { useAuth } from '../providers/AuthProvider'
 import { ActionGrid, ActionTile, HeroPanel, RowCard } from './AppHomeShared'
 import type { MainTabParamList, RootStackParamList } from '../navigation/types'
+import { persistTodayTrainingCache, readTodayTrainingCache } from './training/todayTrainingCache'
 
 type Props = BottomTabScreenProps<MainTabParamList, 'TrainingTab'>
 
@@ -20,6 +22,8 @@ function pickArray(data: any, keys: string[]) {
 
 export function TrainingScreen({ navigation }: Props) {
   const rootNav = navigation.getParent<any>()
+  const { user } = useAuth()
+  const userId = user?.id ? String(user.id) : ''
   const [loading, setLoading] = useState(true)
   const [todayPlan, setTodayPlan] = useState<any>(null)
   const [actions, setActions] = useState<any[]>([])
@@ -28,17 +32,50 @@ export function TrainingScreen({ navigation }: Props) {
     let alive = true
     async function load() {
       setLoading(true)
+      setTodayPlan(null)
+      setActions([])
       try {
+        const cached = await readTodayTrainingCache(userId).catch((error) => {
+          console.warn('[mobile-training] failed to read today cache', error)
+          return null
+        })
+        if (alive && cached) {
+          setTodayPlan(cached.todayPlan)
+          setActions(cached.actions)
+          setLoading(false)
+        }
+
         const [todayRes, actionRes] = await Promise.allSettled([
           apiClient.request('/api/plan-lib/get-today-training-instance', { method: 'POST', body: {}, timeoutMs: 12000 }),
           apiClient.request('/api/student/action-lib/list-actions', { method: 'POST', body: { page: 1, limit: 4 }, timeoutMs: 10000 }),
         ])
         if (!alive) return
+
+        let nextTodayPlan = cached?.todayPlan ?? null
+        let nextActions = cached?.actions ?? []
         if (todayRes.status === 'fulfilled') {
           const data = (todayRes.value as any).data?.data || (todayRes.value as any).data || {}
-          setTodayPlan(data.coachPlan || data.selfPlan || null)
+          nextTodayPlan = data.coachPlan || data.selfPlan || null
+          setTodayPlan(nextTodayPlan)
         }
-        if (actionRes.status === 'fulfilled') setActions(pickArray((actionRes.value as any).data, ['actions', 'items', 'data']).slice(0, 4))
+        if (actionRes.status === 'fulfilled') {
+          nextActions = pickArray((actionRes.value as any).data, ['actions', 'items', 'data']).slice(0, 4)
+          setActions(nextActions)
+        }
+
+        // 只有今日计划云端请求成功时才刷新整份缓存 TTL，避免弱网下旧计划被无限续期。
+        if (userId && todayRes.status === 'fulfilled') {
+          const instance = (nextTodayPlan as any)?.instance || nextTodayPlan
+          await persistTodayTrainingCache({
+            userId,
+            activeInstanceId: instance?.id ? String(instance.id) : null,
+            todayPlan: nextTodayPlan,
+            actions: nextActions,
+            executionsByDayIndex: cached?.executionsByDayIndex || {},
+          }).catch((error) => {
+            console.warn('[mobile-training] failed to persist today cache', error)
+          })
+        }
       } finally {
         if (alive) setLoading(false)
       }
@@ -47,7 +84,7 @@ export function TrainingScreen({ navigation }: Props) {
     return () => {
       alive = false
     }
-  }, [])
+  }, [userId])
 
   const stats = useMemo(() => {
     const instance = todayPlan?.instance || todayPlan || {}
