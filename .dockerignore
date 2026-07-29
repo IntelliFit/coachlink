@@ -17,6 +17,7 @@ e2e
 tests
 test-results
 playwright-report
+artifacts
 __tests__
 *.spec.ts
 *.spec.tsx

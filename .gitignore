@@ -79,3 +79,9 @@ output/
 .claude/
 
 .env
+
+# Generated media previews and deployment-only worker secrets
+/artifacts/
+/deploy/k8s/motion-effects-worker/main/.env.worker
+__pycache__/
+*.pyc

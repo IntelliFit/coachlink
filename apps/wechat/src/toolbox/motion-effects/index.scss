@@ -1,0 +1,154 @@
+.motion-page {
+  box-sizing: border-box;
+  min-height: 100vh;
+  padding: 32rpx;
+  background: #f7f3ee;
+}
+
+.motion-hero,
+.motion-card {
+  box-sizing: border-box;
+  border: 2rpx solid #e3d9d0;
+  border-radius: 32rpx;
+  background: #ffffff;
+}
+
+.motion-hero {
+  padding: 40rpx;
+}
+
+.motion-card {
+  margin-top: 24rpx;
+  padding: 32rpx;
+}
+
+.motion-kicker,
+.motion-title,
+.motion-description,
+.motion-section-title,
+.motion-hint,
+.motion-file-name,
+.motion-file-meta,
+.motion-status-text,
+.motion-privacy {
+  display: block;
+}
+
+.motion-kicker {
+  color: #236654;
+  font-size: 24rpx;
+  font-weight: 800;
+  letter-spacing: 2rpx;
+}
+
+.motion-title {
+  margin-top: 16rpx;
+  color: #17211d;
+  font-size: 44rpx;
+  font-weight: 900;
+  line-height: 1.32;
+}
+
+.motion-description {
+  margin-top: 16rpx;
+  color: #626864;
+  font-size: 28rpx;
+  line-height: 1.72;
+}
+
+.motion-section-title {
+  color: #17211d;
+  font-size: 32rpx;
+  font-weight: 900;
+}
+
+.motion-hint {
+  margin-top: 16rpx;
+  color: #6c6f6d;
+  font-size: 26rpx;
+  line-height: 1.64;
+}
+
+.motion-button {
+  display: flex;
+  min-height: 88rpx;
+  align-items: center;
+  justify-content: center;
+  margin-top: 24rpx;
+  border-radius: 24rpx;
+  font-size: 28rpx;
+  font-weight: 800;
+}
+
+.motion-button-primary {
+  background: #cf6d4e;
+  color: #ffffff;
+}
+
+.motion-button-disabled {
+  opacity: 0.42;
+  pointer-events: none;
+}
+
+.motion-file {
+  margin-top: 24rpx;
+  padding: 24rpx;
+  border-radius: 24rpx;
+  background: #fcfaf7;
+}
+
+.motion-file-name {
+  overflow: hidden;
+  color: #303633;
+  font-size: 26rpx;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.motion-file-meta {
+  margin-top: 8rpx;
+  color: #7d807e;
+  font-size: 24rpx;
+}
+
+.motion-status {
+  margin-top: 24rpx;
+}
+
+.motion-progress-track {
+  height: 16rpx;
+  overflow: hidden;
+  border-radius: 8rpx;
+  background: #eee8e2;
+}
+
+.motion-progress-value {
+  height: 16rpx;
+  border-radius: 8rpx;
+  background: #cf6d4e;
+  transition: width 180ms ease;
+}
+
+.motion-status-text {
+  margin-top: 16rpx;
+  color: #4f5753;
+  font-size: 26rpx;
+  line-height: 1.56;
+}
+
+.motion-video {
+  width: 100%;
+  height: 720rpx;
+  margin-top: 24rpx;
+  border-radius: 24rpx;
+  background: #101010;
+}
+
+.motion-privacy {
+  margin-top: 16rpx;
+  color: #7d807e;
+  font-size: 24rpx;
+  line-height: 1.56;
+  text-align: center;
+}

@@ -1,35 +1,54 @@
 'use client';
 
-import React, { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, type ComponentType } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Button } from 'primereact/button';
+import {
+  Activity,
+  ArrowRight,
+  Calculator,
+  Database,
+  LogIn,
+  MapPin,
+  Share2,
+  Sparkles,
+  Target,
+  WandSparkles,
+  Zap,
+} from 'lucide-react';
 import { STUDENT_TOOLBOX_LINKS } from '@/config/toolbox';
-import { ExternalLink, LogIn, Share2 } from 'lucide-react';
 
-const NOVICE_FIRST_STEPS = [
-  '先登录并打开「今天练什么」完成一次训练',
-  '如果到场临时想练，直接用「立即开练（不建计划）」',
-  '练完再使用进阶工具做计算、查地图或看社区数据',
-];
+const TOOL_ICONS: Record<string, ComponentType<{ className?: string }>> = {
+  'one-arm-pull-up': Target,
+  'motion-effects': WandSparkles,
+  'power-analysis': Zap,
+  'strength-calculator': Calculator,
+  'bar-locations': MapPin,
+  'community-data': Database,
+};
+
+const TOOL_META: Record<string, { eyebrow: string; tone: string }> = {
+  'one-arm-pull-up': { eyebrow: '本周主推', tone: '#CF6D4E' },
+  'motion-effects': { eyebrow: 'AI 视觉', tone: '#6D5D8C' },
+  'power-analysis': { eyebrow: '视频分析', tone: '#3F7C6B' },
+  'strength-calculator': { eyebrow: '力量测算', tone: '#B7793D' },
+  'bar-locations': { eyebrow: '训练地图', tone: '#4D7185' },
+  'community-data': { eyebrow: '街举社区', tone: '#64748B' },
+};
 
 export default function PublicToolboxPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const toolKey = searchParams.get('tool');
-
-  const toolRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const toolRefs = useRef<Record<string, HTMLElement | null>>({});
 
   const selectedTool = useMemo(() => {
     if (!toolKey) return null;
-    return STUDENT_TOOLBOX_LINKS.find((t) => t.key === toolKey) || null;
+    return STUDENT_TOOLBOX_LINKS.find((tool) => tool.key === toolKey) || null;
   }, [toolKey]);
 
   useEffect(() => {
     if (!toolKey) return;
-    const el = toolRefs.current[toolKey];
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }
+    toolRefs.current[toolKey]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }, [toolKey]);
 
   const shareUrl = useMemo(() => {
@@ -42,133 +61,147 @@ export default function PublicToolboxPage() {
     const title = 'CoachLink 工具箱';
     const text = selectedTool
       ? `我在 CoachLink 上发现了一个工具：${selectedTool.label}`
-      : '我在 CoachLink 上发现了一个工具箱：力量计算器 / 找单杠 / 社区数据';
+      : '我在 CoachLink 上发现了一组好用的训练工具';
+    const nav = navigator as Navigator & {
+      share?: (data: { title?: string; text?: string; url?: string }) => Promise<void>;
+    };
 
-    const nav: any = navigator;
-    if (nav?.share) {
+    if (nav.share) {
       try {
         await nav.share({ title, text, url: shareUrl });
         return;
       } catch {
-        // ignore; user cancelled or share failed
+        // User cancelled or the share sheet is unavailable.
       }
     }
-    // fallback: go to login page, user can still copy link from browser
-    // (Public page keeps UI simple; /me/toolbox has richer QR + copy)
-    if (shareUrl) {
-      window.prompt('复制分享链接：', shareUrl);
+
+    if (shareUrl) window.prompt('复制分享链接：', shareUrl);
+  };
+
+  const openTool = (url: string) => {
+    if (/^https?:\/\//.test(url)) {
+      window.open(url, '_blank', 'noopener,noreferrer');
+      return;
     }
+    router.push(url);
   };
 
   return (
-    <div className="min-h-screen p-4 md:p-10">
-      <div className="max-w-5xl mx-auto space-y-6">
-        <div className="rounded-3xl border border-primary-100 bg-gradient-to-r from-primary-50 via-surface-0 to-amber-50 p-6 md:p-8 shadow-sm">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-5">
-            <div className="space-y-2">
-              <div className="inline-flex items-center gap-2 rounded-full bg-surface-0/80 border border-surface-200 px-3 py-1 text-xs font-bold text-surface-700">
-                <i className="pi pi-sparkles text-primary-600" />
-                CoachLink 工具箱
+    <main className="min-h-screen bg-[#F7F4EF] text-slate-950">
+      <div className="mx-auto max-w-6xl px-4 py-8 md:px-8 md:py-16">
+        <section className="relative overflow-hidden rounded-[32px] bg-[#18231F] p-6 text-white shadow-[0_24px_80px_rgba(24,35,31,0.14)] md:p-12">
+          <div className="relative z-10 grid gap-8 md:grid-cols-[1fr_auto] md:items-end">
+            <div className="max-w-3xl">
+              <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-2 text-xs font-bold tracking-wide text-[#F0C5B7]">
+                <Activity className="h-4 w-4" />
+                COACHLINK LAB
               </div>
-              <h1 className="text-2xl md:text-3xl font-black text-surface-900">
-                先来平台，再去用工具
-              </h1>
-              <p className="text-surface-600 text-sm md:text-base max-w-2xl">
-                在 CoachLink 里发现好用的街健工具：力量水平评估、找单杠、社区数据共建。登录后还可以继续训练、记录与成长。
+              <h1 className="text-4xl font-black tracking-tight md:text-6xl">把训练问题，变成一个个简单答案</h1>
+              <p className="mt-5 max-w-2xl text-sm leading-7 text-slate-300 md:text-base">
+                测力量、看动作、找场地。所有工具都可以直接打开，登录后还能继续记录训练和成长。
               </p>
             </div>
-
-            <div className="flex flex-col sm:flex-row gap-2">
-              <Button
-                label="登录 / 注册"
-                icon={<LogIn className="w-4 h-4 mr-2" />}
-                className="bg-primary-600 border-primary-600 hover:bg-primary-700 hover:border-primary-700"
+            <div className="flex flex-col gap-3 sm:flex-row md:flex-col">
+              <button
+                type="button"
                 onClick={() => router.push('/login')}
-              />
-              <Button
-                label="分享这个页面"
-                icon={<Share2 className="w-4 h-4 mr-2" />}
-                outlined
+                className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl bg-[#CF6D4E] px-5 text-sm font-black text-white transition hover:bg-[#B95F43] active:opacity-80"
+              >
+                <LogIn className="h-4 w-4" />
+                登录 / 注册
+              </button>
+              <button
+                type="button"
                 onClick={tryNativeShare}
                 disabled={!shareUrl}
-              />
-            </div>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="md:col-span-3 rounded-2xl border border-primary-100 bg-primary-50/50 p-4 md:p-5">
-            <div className="text-base font-black text-surface-900">新手先走这 3 步</div>
-            <div className="mt-2 grid grid-cols-1 md:grid-cols-3 gap-2">
-              {NOVICE_FIRST_STEPS.map((step, index) => (
-                <div key={step} className="rounded-xl border border-primary-100 bg-surface-0 px-3 py-2 text-sm text-surface-700">
-                  <span className="text-primary-700 font-semibold mr-1">{index + 1}.</span>
-                  {step}
-                </div>
-              ))}
-            </div>
-            <div className="mt-3">
-              <Button
-                label="登录后开始今天训练"
-                className="bg-surface-900 border-surface-900 hover:bg-surface-800 hover:border-surface-800"
-                onClick={() => router.push('/login')}
-              />
-            </div>
-          </div>
-
-          {STUDENT_TOOLBOX_LINKS.map((t) => {
-            const isHighlighted = toolKey === t.key;
-            return (
-              <div
-                key={t.key}
-                ref={(el) => {
-                  toolRefs.current[t.key] = el;
-                }}
-                className={[
-                  'rounded-2xl border bg-surface-0 overflow-hidden transition-all',
-                  isHighlighted
-                    ? 'border-primary-300 shadow-md ring-2 ring-primary-200'
-                    : 'border-surface-200 hover:border-primary-200 hover:shadow-md',
-                ].join(' ')}
+                className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl border border-white/30 bg-transparent px-5 text-sm font-black text-white transition hover:bg-white/10 disabled:opacity-40"
               >
-                <div className="p-5">
-                  <div className="flex items-start gap-3">
-                    <div className="w-12 h-12 rounded-2xl bg-primary-50 flex items-center justify-center shrink-0">
-                      <i className={`${t.icon || 'pi pi-external-link'} text-primary-600 text-lg`} />
-                    </div>
-                    <div className="min-w-0">
-                      <div className="text-base font-black text-surface-900 leading-snug">
-                        {t.label}
-                      </div>
-                      {t.description && (
-                        <div className="text-sm text-surface-600 mt-2 line-clamp-3">
-                          {t.description}
-                        </div>
-                      )}
-                    </div>
-                  </div>
+                <Share2 className="h-4 w-4" />
+                分享工具箱
+              </button>
+            </div>
+          </div>
+          <div className="pointer-events-none absolute -bottom-24 -right-16 h-64 w-64 rounded-full border-[48px] border-white/5" />
+        </section>
 
-                  <div className="mt-4 flex gap-2">
-                    <Button
-                      label="打开工具"
-                      icon={<ExternalLink className="w-4 h-4 mr-2" />}
-                      className="flex-1 bg-surface-900 border-surface-900 hover:bg-surface-800 hover:border-surface-800"
-                      onClick={() => window.open(t.url, '_blank', 'noopener,noreferrer')}
-                    />
-                    <Button
-                      label="登录后收藏"
-                      outlined
-                      className="flex-1"
-                      onClick={() => router.push('/login')}
-                    />
+        <section className="mt-12">
+          <div className="mb-6 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+            <div>
+              <div className="text-xs font-black tracking-[0.14em] text-[#CF6D4E]">训练与探索</div>
+              <h2 className="mt-2 text-2xl font-black tracking-tight md:text-3xl">选一个问题，马上开始</h2>
+            </div>
+            <span className="text-sm text-slate-500">{STUDENT_TOOLBOX_LINKS.length} 个工具 · 随开随用</span>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {STUDENT_TOOLBOX_LINKS.map((tool) => {
+              const Icon = TOOL_ICONS[tool.key] || Sparkles;
+              const meta = TOOL_META[tool.key] || { eyebrow: '训练工具', tone: '#64748B' };
+              const isHighlighted = tool.key === toolKey;
+
+              return (
+                <article
+                  key={tool.key}
+                  ref={(element) => {
+                    toolRefs.current[tool.key] = element;
+                  }}
+                  className={[
+                    'group flex min-h-72 flex-col rounded-3xl border bg-white p-6 transition',
+                    isHighlighted
+                      ? 'border-[#CF6D4E] shadow-[0_20px_48px_rgba(207,109,78,0.14)] ring-4 ring-[#CF6D4E]/10'
+                      : 'border-slate-200 hover:-translate-y-1 hover:border-slate-300 hover:shadow-[0_20px_48px_rgba(15,23,42,0.08)]',
+                  ].join(' ')}
+                >
+                  <div
+                    className="flex h-12 w-12 items-center justify-center rounded-2xl text-white"
+                    style={{ backgroundColor: meta.tone }}
+                  >
+                    <Icon className="h-6 w-6" />
                   </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+                  <div className="mt-6 flex-1">
+                    <div className="text-xs font-black tracking-[0.14em]" style={{ color: meta.tone }}>
+                      {meta.eyebrow}
+                    </div>
+                    <h3 className="mt-2 text-xl font-black leading-7 tracking-tight">{tool.label}</h3>
+                    {tool.description && <p className="mt-3 text-sm leading-6 text-slate-600">{tool.description}</p>}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => openTool(tool.url)}
+                    className={[
+                      'mt-6 flex h-12 w-full items-center justify-between rounded-2xl px-4 text-sm font-black transition',
+                      tool.key === 'one-arm-pull-up'
+                        ? 'bg-[#CF6D4E] text-white hover:bg-[#B95F43]'
+                        : 'border border-slate-200 bg-white text-slate-800 hover:border-[#CF6D4E] hover:text-[#CF6D4E]',
+                    ].join(' ')}
+                  >
+                    打开工具
+                    <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                  </button>
+                </article>
+              );
+            })}
+          </div>
+        </section>
+
+        <section className="mt-12 rounded-[32px] border border-slate-200 bg-white p-6 md:p-8">
+          <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
+            <div>
+              <div className="text-xs font-black tracking-[0.14em] text-[#CF6D4E]">继续使用 COACHLINK</div>
+              <h2 className="mt-2 text-xl font-black md:text-2xl">保存训练记录，让每次测算都有上下文</h2>
+              <p className="mt-2 text-sm leading-6 text-slate-600">登录后可以进入今日训练、查看计划，并把工具分享给同伴。</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => router.push('/login')}
+              className="inline-flex h-12 shrink-0 items-center justify-center gap-2 rounded-2xl bg-[#CF6D4E] px-6 text-sm font-black text-white transition hover:bg-[#B95F43]"
+            >
+              进入 CoachLink
+              <ArrowRight className="h-4 w-4" />
+            </button>
+          </div>
+        </section>
       </div>
-    </div>
+    </main>
   );
 }
-

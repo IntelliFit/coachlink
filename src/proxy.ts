@@ -75,6 +75,7 @@ const PUBLIC_PATHS = new Set([
     "/login",
     "/register",
     "/toolbox",
+    "/toolbox/motion-effects",
     "/toolbox/power-analysis",
     "/admin/login",
     "/wechat-auth/bridge",

@@ -1,0 +1,15 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - deployment.yaml
+  - cronjob.yaml
+secretGenerator:
+  - name: coachlink-motion-effects-worker-main-env
+    files:
+      - dotenv=.env.worker
+      - dotenv-production=.env.worker
+    options:
+      disableNameSuffixHash: true
+images:
+  - name: littlehorse/coachlink-motion-effects-worker
+    newName: ccr.ccs.tencentyun.com/littlehorse/coachlink-motion-effects-worker
