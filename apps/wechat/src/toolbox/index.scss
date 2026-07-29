@@ -449,7 +449,8 @@
 .scene-card {
   display: flex;
   align-items: stretch;
-  border-radius: 28rpx;
+  min-height: 344rpx;
+  border-radius: 32rpx;
   overflow: hidden;
 
   &:active {
@@ -459,8 +460,9 @@
 
 .scene-cover {
   width: 192rpx;
+  height: 344rpx;
   display: block;
-  background: #f3f4f6;
+  background: #ede7e2;
   flex-shrink: 0;
 }
 

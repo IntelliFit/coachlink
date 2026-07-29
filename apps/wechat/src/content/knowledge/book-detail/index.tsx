@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from 'react'
 import { View, Text, ScrollView, Image, RichText } from '@tarojs/components'
 import Taro, { useRouter, useDidShow } from '@tarojs/taro'
+import MarkdownIt from 'markdown-it'
 import { knowledgeService } from '@/services/knowledgeService'
 import { authService } from '@/services/authService'
 import { Icon } from '@/components/Icon'
@@ -29,145 +30,15 @@ type NormalizedBookContent = {
   prompts: StructuredBookContent['imagePrompts']
 }
 
-type MarkdownBlock =
-  | { type: 'heading'; level: number; content: string }
-  | { type: 'paragraph'; content: string }
-  | { type: 'list'; ordered: boolean; items: string[] }
-  | { type: 'quote'; content: string }
-  | { type: 'divider' }
-  | { type: 'code'; content: string }
+const markdownRenderer = new MarkdownIt({
+  breaks: true,
+  html: false,
+  linkify: true,
+  typographer: false
+})
 
-function parseMarkdownBlocks(markdown: string): MarkdownBlock[] {
-  const lines = markdown.replace(/\r\n?/g, '\n').split('\n')
-  const blocks: MarkdownBlock[] = []
-  let index = 0
-
-  while (index < lines.length) {
-    const line = lines[index].trim()
-    if (!line) {
-      index += 1
-      continue
-    }
-
-    if (line.startsWith('```')) {
-      const codeLines: string[] = []
-      index += 1
-      while (index < lines.length && !lines[index].trim().startsWith('```')) {
-        codeLines.push(lines[index])
-        index += 1
-      }
-      if (index < lines.length) index += 1
-      blocks.push({ type: 'code', content: codeLines.join('\n') })
-      continue
-    }
-
-    const heading = line.match(/^(#{1,6})\s+(.+)$/)
-    if (heading) {
-      blocks.push({ type: 'heading', level: heading[1].length, content: heading[2] })
-      index += 1
-      continue
-    }
-
-    if (/^([-*_])(?:\s*\1){2,}\s*$/.test(line)) {
-      blocks.push({ type: 'divider' })
-      index += 1
-      continue
-    }
-
-    if (/^>\s?/.test(line)) {
-      const quoteLines: string[] = []
-      while (index < lines.length && /^\s*>\s?/.test(lines[index])) {
-        quoteLines.push(lines[index].replace(/^\s*>\s?/, '').trim())
-        index += 1
-      }
-      blocks.push({ type: 'quote', content: quoteLines.join(' ') })
-      continue
-    }
-
-    const unordered = line.match(/^[-*+]\s+(.+)$/)
-    const ordered = line.match(/^\d+[.)]\s+(.+)$/)
-    if (unordered || ordered) {
-      const isOrdered = Boolean(ordered)
-      const items: string[] = []
-      while (index < lines.length) {
-        const item = isOrdered
-          ? lines[index].trim().match(/^\d+[.)]\s+(.+)$/)
-          : lines[index].trim().match(/^[-*+]\s+(.+)$/)
-        if (!item) break
-        items.push(item[1])
-        index += 1
-      }
-      blocks.push({ type: 'list', ordered: isOrdered, items })
-      continue
-    }
-
-    const paragraphLines = [line]
-    index += 1
-    while (index < lines.length) {
-      const nextLine = lines[index].trim()
-      if (!nextLine || nextLine.startsWith('```') || /^(#{1,6})\s+/.test(nextLine) || /^([-*_])(?:\s*\1){2,}\s*$/.test(nextLine) || /^>\s?/.test(nextLine) || /^[-*+]\s+/.test(nextLine) || /^\d+[.)]\s+/.test(nextLine)) {
-        break
-      }
-      paragraphLines.push(nextLine)
-      index += 1
-    }
-    blocks.push({ type: 'paragraph', content: paragraphLines.join(' ') })
-  }
-
-  return blocks
-}
-
-function renderInlineMarkdown(content: string) {
-  const tokenPattern = /(\*\*[^*]+\*\*|__[^_]+__|`[^`]+`|\*[^*]+\*|_[^_]+_)/g
-  const parts = content.split(tokenPattern)
-
-  return parts.map((part, index) => {
-    if (!part) return null
-    if ((part.startsWith('**') && part.endsWith('**')) || (part.startsWith('__') && part.endsWith('__'))) {
-      return <Text key={index} className='markdown-strong'>{part.slice(2, -2)}</Text>
-    }
-    if (part.startsWith('`') && part.endsWith('`')) {
-      return <Text key={index} className='markdown-inline-code'>{part.slice(1, -1)}</Text>
-    }
-    if ((part.startsWith('*') && part.endsWith('*')) || (part.startsWith('_') && part.endsWith('_'))) {
-      return <Text key={index} className='markdown-emphasis'>{part.slice(1, -1)}</Text>
-    }
-    return part
-  })
-}
-
-function BookMarkdown({ markdown }: { markdown: string }) {
-  return (
-    <View className='content-markdown'>
-      {parseMarkdownBlocks(markdown).map((block, index) => {
-        if (block.type === 'heading') {
-          return <Text key={index} className={`markdown-heading markdown-heading-${block.level}`}>{renderInlineMarkdown(block.content)}</Text>
-        }
-        if (block.type === 'list') {
-          return (
-            <View key={index} className='markdown-list'>
-              {block.items.map((item, itemIndex) => (
-                <View key={`${itemIndex}-${item}`} className='markdown-list-item'>
-                  <Text className='markdown-list-marker'>{block.ordered ? `${itemIndex + 1}.` : '•'}</Text>
-                  <Text className='markdown-list-text'>{renderInlineMarkdown(item)}</Text>
-                </View>
-              ))}
-            </View>
-          )
-        }
-        if (block.type === 'quote') {
-          return <View key={index} className='markdown-quote'><Text>{renderInlineMarkdown(block.content)}</Text></View>
-        }
-        if (block.type === 'divider') {
-          return <View key={index} className='markdown-divider' />
-        }
-        if (block.type === 'code') {
-          return <Text key={index} className='markdown-code-block'>{block.content}</Text>
-        }
-        return <Text key={index} className='markdown-paragraph'>{renderInlineMarkdown(block.content)}</Text>
-      })}
-    </View>
-  )
+function renderBookMarkdown(markdown: string) {
+  return markdownRenderer.render(String(markdown || ''))
 }
 
 function normalizeBookContent(content: unknown): NormalizedBookContent {
@@ -267,6 +138,9 @@ export default function BookDetail() {
   })
 
   const normalizedContent = normalizeBookContent(book?.content)
+  const renderedMarkdown = normalizedContent.markdown
+    ? renderBookMarkdown(normalizedContent.markdown)
+    : ''
   const source = getKnowledgeBookSource(book?.content)
   const canReadContent = hasAccess || book?.is_free
 
@@ -387,8 +261,10 @@ export default function BookDetail() {
           )}
 
           <Text className='content-section-title'>内容详情</Text>
-          {normalizedContent.markdown ? (
-            <BookMarkdown markdown={normalizedContent.markdown} />
+          {renderedMarkdown ? (
+            <View className='content-markdown'>
+              <RichText nodes={renderedMarkdown} />
+            </View>
           ) : normalizedContent.html ? (
             <View className='content-html'>
               <RichText nodes={normalizedContent.html} />

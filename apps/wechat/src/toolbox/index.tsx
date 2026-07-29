@@ -241,7 +241,7 @@ function ToolboxPage() {
                     className='scene-card'
                     onClick={() => handleScenarioClick(scenario.slug)}
                   >
-                    <Image className='scene-cover' src={scenario.coverImageUrl} mode='widthFix' />
+                    <Image className='scene-cover' src={scenario.coverImageUrl} mode='aspectFit' />
                     <View className='scene-content'>
                       <View className='scene-row'>
                         <View className='scene-icon-wrap'>

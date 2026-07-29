@@ -236,65 +236,49 @@
       line-height: 1.9;
       word-break: break-word;
 
-      .markdown-heading,
-      .markdown-paragraph,
-      .markdown-code-block {
-        display: block;
-      }
-
-      .markdown-heading {
+      h1,
+      h2,
+      h3,
+      h4,
+      h5,
+      h6 {
         color: #222;
         font-weight: 800;
         line-height: 1.45;
         margin: 48rpx 0 24rpx;
       }
 
-      .markdown-heading-1 {
+      h1 {
         font-size: 40rpx;
       }
 
-      .markdown-heading-2 {
+      h2 {
         font-size: 36rpx;
       }
 
-      .markdown-heading-3 {
+      h3 {
         font-size: 32rpx;
       }
 
-      .markdown-heading-4,
-      .markdown-heading-5,
-      .markdown-heading-6 {
+      h4,
+      h5,
+      h6 {
         font-size: 28rpx;
       }
 
-      .markdown-paragraph {
+      p,
+      ul,
+      ol,
+      pre,
+      blockquote {
         margin-bottom: 32rpx;
       }
 
-      .markdown-list {
-        margin: 0 0 32rpx;
-      }
-
-      .markdown-list-item {
-        display: flex;
-        align-items: flex-start;
+      li {
         margin-bottom: 16rpx;
       }
 
-      .markdown-list-marker {
-        width: 40rpx;
-        flex-shrink: 0;
-        color: #cf6d4e;
-        font-weight: 700;
-      }
-
-      .markdown-list-text {
-        flex: 1;
-        min-width: 0;
-      }
-
-      .markdown-quote {
-        margin: 0 0 32rpx;
+      blockquote {
         padding: 24rpx;
         border-left: 8rpx solid #cf6d4e;
         background: #fff7f4;
@@ -302,13 +286,12 @@
         color: #59443c;
       }
 
-      .markdown-divider {
+      hr {
         margin: 48rpx 0;
         border-top: 2rpx solid #e8ded8;
       }
 
-      .markdown-code-block {
-        margin: 0 0 32rpx;
+      pre {
         padding: 24rpx;
         background: #f4f1ef;
         border-radius: 16rpx;
@@ -320,22 +303,27 @@
         word-break: break-all;
       }
 
-      .markdown-strong {
+      strong {
         font-weight: 800;
         color: #222;
       }
 
-      .markdown-emphasis {
+      em {
         font-style: italic;
       }
 
-      .markdown-inline-code {
+      code {
         padding: 0 8rpx;
         border-radius: 8rpx;
         background: #f4f1ef;
         color: #9a4e37;
         font-family: Consolas, 'Courier New', monospace;
         font-size: 24rpx;
+      }
+
+      image {
+        max-width: 100%;
+        height: auto;
       }
     }
 

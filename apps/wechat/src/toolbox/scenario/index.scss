@@ -28,7 +28,16 @@
   .step-image {
     width: 100%;
     display: block;
-    background: #f3f4f6;
+    background: #ede7e2;
+  }
+
+  .hero-cover,
+  .current-step-image {
+    height: 720rpx;
+  }
+
+  .step-image {
+    height: 480rpx;
   }
 
   .hero-body,
