@@ -8859,3 +8859,12 @@
 - Review: 审阅确认业务差异为 `CURRENT_TASK.md`、小程序 onboarding 页面、`studentService`、通用 `request` 和 `memory/2026-07-20.md`，未包含密钥或环境配置；`next-env.d.ts` 仅为生成文件的索引/换行伪脏状态，工作树与 `HEAD` blob 哈希一致，未纳入提交。
 - Verification: 推送前重新执行 `npm run lint`、`npm run typecheck`、`npm test`，35 个测试文件共 177 项测试全部通过。
 - Sync: 业务提交 `bf76f5a5` 已推送至 GitHub `origin/main` 与 Gitee `gitee/main`，并通过远端引用核对确认两端一致。
+
+## 飞书需求与实习生分支整合 (`2026-07-30`)
+
+- Status: 已按飞书 Base《coachlink-需求以及bug管理》的 `AI自动创建 / 需求池` 视图审阅近期分支，并在独立分支 `codex/integrate-requirements-20260730` 完成第一批安全整合与加固。目标是先进入 `dev`，微信端完成登录态人工/自动化验收后再进入 `main`。
+- Accepted: 合入知识库 `.md` 内容展示、每日打卡图片分享、工具箱简介精简与场景图片展示相关提交；其中 Markdown 改用项目已有 `markdown-it`（禁用原始 HTML），场景图从会失控放大的 `widthFix` 改为固定 8 栅格容器内 `aspectFit`。
+- Reworked: 手工移植并加固 Expo App 的训练缓存与 Android API 地址；缓存按用户隔离、仅保留 60 天、云端成功后缓存失败不再误报业务失败。功率分析补回可下载任务恢复、代理下载重试/链接兜底和音频保留状态展示。
+- Rejected: 未合入实习生旧提交 `dd2e1995` 的“输出文件不得大于输入文件”方案。该实现与现行会员原画/压缩策略冲突，而且没有二次产物大小校验，重新编码路径还可能破坏音频。
+- Verification: `git diff --check`、`npm run lint`、`npm run typecheck`、`npm test`（35 files / 177 tests）、`npx next build`（522 pages）、`npm --workspace apps/mobile run typecheck` 与微信小程序完整构建（2835 modules）均通过，未修改测试文件。
+- UI blocker: 按 `weapp-devtools` 尝试启动开发者工具自动化，微信 CLI 返回“需要重新登录”，未取得截图和交互证据；因此本轮不直接进入 `main`，也不写回飞书需求状态。
