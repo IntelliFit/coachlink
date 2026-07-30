@@ -54,6 +54,14 @@ export interface PowerAnalysisMetrics {
   reps: PowerAnalysisRepMetric[];
   timeSeries?: PowerAnalysisTimeSeriesPoint[];
   rating?: PowerAnalysisRating;
+  video?: {
+    inputSizeBytes?: number;
+    outputSizeBytes?: number;
+    inputHasAudio?: boolean;
+    outputHasAudio?: boolean;
+    audioPreserved?: boolean;
+    quality?: PowerAnalysisQuality;
+  };
   notes?: string[];
 }
 

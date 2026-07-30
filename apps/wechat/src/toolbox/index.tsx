@@ -253,7 +253,7 @@ export default function ToolboxPage() {
                     onClick={() => handleScenarioClick(scenario.slug)}
                   >
                     <View className='scene-cover-wrap'>
-                      <Image className='scene-cover' src={scenario.coverImageUrl} mode='aspectFill' />
+                      <Image className='scene-cover' src={scenario.coverImageUrl} mode='aspectFit' />
                       <View className='scene-icon-wrap'>
                         <ScenarioNutIcon name={scenario.icon} size={18} />
                       </View>

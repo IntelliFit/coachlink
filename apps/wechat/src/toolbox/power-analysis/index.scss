@@ -530,6 +530,37 @@
     line-height: 1.3;
   }
 
+  .audio-status {
+    margin-top: 16rpx;
+    padding: 16rpx;
+    border-radius: 16rpx;
+    border: 1px solid #e5e7eb;
+    background: #f9fafb;
+
+    Text {
+      font-size: 24rpx;
+      color: #6b7280;
+    }
+
+    &.preserved {
+      border-color: #bbf7d0;
+      background: #f0fdf4;
+
+      Text {
+        color: #15803d;
+      }
+    }
+
+    &.missing {
+      border-color: #fecaca;
+      background: #fef2f2;
+
+      Text {
+        color: #b91c1c;
+      }
+    }
+  }
+
   .rep-list {
     display: flex;
     flex-direction: column;

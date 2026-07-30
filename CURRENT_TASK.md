@@ -8945,3 +8945,12 @@
   - 分离双掌样本识别到 `2` 只手，页面显示“网格已激活”，Canvas 实际产生约 `30k` 个非透明覆盖像素。
 - Verification: 针对新增页面与工具箱配置的 TypeScript 检查通过；`npm run lint` 通过（项目无 ESLint，仅输出提示）；`npm test` 通过（35 files / 177 tests）；`npx next build` 通过并生成 523 个页面，包含 `/toolbox/motion-effects`；`git diff --check` 通过。
 - Next: 用用户准备的真实连续动作素材复测十指交叉、快速运动和遮挡，再决定第二版优先做完整特效视频导出，还是先抽象身体动作事件用于小游戏关卡。
+
+## 飞书需求与实习生分支整合 (`2026-07-30`)
+
+- Status: 已按飞书 Base《coachlink-需求以及bug管理》的 `AI自动创建 / 需求池` 视图审阅近期分支，并在独立分支 `codex/integrate-requirements-20260730` 完成第一批安全整合与加固；集成分支及其完整提交链已推送，远端 `dev` 已安全快进。
+- Accepted: 合入知识库 `.md` 内容展示、每日打卡图片分享、工具箱简介精简与场景图片展示相关提交；其中 Markdown 改用项目已有 `markdown-it`（禁用原始 HTML），场景图从会失控放大的 `widthFix` 改为固定 8 栅格容器内 `aspectFit`。
+- Reworked: 手工移植并加固 Expo App 的训练缓存与 Android API 地址；缓存按用户隔离、仅保留 60 天、云端成功后缓存失败不再误报业务失败。功率分析补回可下载任务恢复、代理下载重试/链接兜底和音频保留状态展示。
+- Rejected: 未合入实习生旧提交 `dd2e1995` 的“输出文件不得大于输入文件”方案。该实现与现行会员原画/压缩策略冲突，而且没有二次产物大小校验，重新编码路径还可能破坏音频。
+- Verification: `git diff --check`、`npm run lint`、`npm run typecheck`、`npm test`（35 files / 177 tests）、`npx next build`（522 pages）、`npm --workspace apps/mobile run typecheck` 与微信小程序完整构建（2835 modules）均通过，未修改测试文件。
+- UI blocker: 当时按 `weapp-devtools` 启动开发者工具自动化时，微信 CLI 返回“需要重新登录”，因此该轮没有取得截图和交互证据。

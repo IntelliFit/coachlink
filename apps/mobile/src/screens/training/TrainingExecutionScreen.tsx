@@ -7,7 +7,8 @@ import { SectionCard } from '../../components/SectionCard'
 import { IconFont } from '../../components/IconFont'
 import { colors, radius, spacing } from '../../theme'
 import type { RootStackParamList } from '../../navigation/types'
-import { executionSnapshotKey, persistExecutionSnapshot, readExecutionSnapshot } from './trainingCache'
+import { useAuth } from '../../providers/AuthProvider'
+import { executionSnapshotKey, readExecutionSnapshot, syncTrainingExecutionToCache } from './trainingCache'
 import { displayLoad, normalizeExecution, parseNumberInput, pickData } from './trainingModel'
 
 type Props = NativeStackScreenProps<RootStackParamList, 'TrainingExecution'>
@@ -20,6 +21,8 @@ function draftKey(actionIndex: number, setIndex: number) {
 
 export function TrainingExecutionScreen({ route, navigation }: Props) {
   const params = route.params || {}
+  const { user } = useAuth()
+  const userId = user?.id ? String(user.id) : ''
   const isImpromptu = Boolean((params as any).impromptuId)
   const [loading, setLoading] = useState(true)
   const [syncing, setSyncing] = useState(false)
@@ -36,6 +39,22 @@ export function TrainingExecutionScreen({ route, navigation }: Props) {
     return executionSnapshotKey({ mode: 'plan', instanceId: params.instanceId, dayIndex: params.dayIndex || 1 })
   }, [params])
 
+  async function syncExecution(next: any) {
+    setExecution(next)
+    if (!userId) return
+    await syncTrainingExecutionToCache({
+      userId,
+      key: cacheKey,
+      isImpromptu,
+      instanceId: params.instanceId,
+      dayIndex: Number(params.dayIndex || next?.day_index || 1),
+      execution: next,
+    }).catch((error) => {
+      // 云端写入已经成功时，本地缓存失败不能误报为业务操作失败。
+      console.warn('[mobile-training] failed to persist execution cache', error)
+    })
+  }
+
   async function hydrateFromCloud() {
     if (!(params as any).impromptuId && !params.instanceId) {
       setLoading(false)
@@ -47,8 +66,7 @@ export function TrainingExecutionScreen({ route, navigation }: Props) {
         ? await apiClient.request('/api/impromptu/get', { method: 'POST', body: { id: (params as any).impromptuId }, timeoutMs: 15000 })
         : await apiClient.request('/api/execution/start', { method: 'POST', body: { instanceId: params.instanceId, dayIndex: params.dayIndex || 1 }, timeoutMs: 15000 })
       const normalized = normalizeExecution(pickData(res))
-      setExecution(normalized)
-      await persistExecutionSnapshot(cacheKey, normalized)
+      await syncExecution(normalized)
     } catch (error) {
       if (!execution) Alert.alert('加载失败', error instanceof Error ? error.message : '请稍后重试')
     } finally {
@@ -64,7 +82,10 @@ export function TrainingExecutionScreen({ route, navigation }: Props) {
   useEffect(() => {
     let alive = true
     async function boot() {
-      const cached = await readExecutionSnapshot(cacheKey)
+      const cached = await readExecutionSnapshot(userId, cacheKey).catch((error) => {
+        console.warn('[mobile-training] failed to read execution cache', error)
+        return null
+      })
       if (alive && cached) {
         setExecution(normalizeExecution(cached))
         setLoading(false)
@@ -75,7 +96,7 @@ export function TrainingExecutionScreen({ route, navigation }: Props) {
     return () => {
       alive = false
     }
-  }, [cacheKey])
+  }, [cacheKey, userId])
 
   useEffect(() => {
     const startedAt = new Date(execution?.started_at || execution?.created_at || Date.now()).getTime()
@@ -133,8 +154,7 @@ export function TrainingExecutionScreen({ route, navigation }: Props) {
           completedSets: data?.completedSets,
           totalSets: data?.totalSets,
         })
-      setExecution(next)
-      await persistExecutionSnapshot(cacheKey, next)
+      await syncExecution(next)
     } catch (error) {
       Alert.alert('记录失败', error instanceof Error ? error.message : '请稍后重试')
     } finally {
@@ -317,8 +337,7 @@ export function TrainingExecutionScreen({ route, navigation }: Props) {
     try {
       const res = await apiClient.request(isImpromptu ? '/api/impromptu/finish' : '/api/execution/finish', { method: 'POST', body: { executionId: execution.id }, timeoutMs: 15000 })
       const next = normalizeExecution(pickData(res) || { ...execution, status: 'completed' })
-      setExecution(next)
-      await persistExecutionSnapshot(cacheKey, next)
+      await syncExecution(next)
       Alert.alert('训练已完成', '本次训练记录已保存。')
     } catch (error) {
       Alert.alert('完成失败', error instanceof Error ? error.message : '请稍后重试')

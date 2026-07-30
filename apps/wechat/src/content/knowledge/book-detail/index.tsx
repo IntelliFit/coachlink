@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from 'react'
 import { View, Text, ScrollView, Image, RichText } from '@tarojs/components'
 import Taro, { useRouter, useDidShow } from '@tarojs/taro'
+import MarkdownIt from 'markdown-it'
 import { knowledgeService } from '@/services/knowledgeService'
 import { authService } from '@/services/authService'
 import { Icon } from '@/components/Icon'
@@ -22,19 +23,29 @@ type StructuredBookContent = {
   }>
 }
 
-function escapeHtml(text: string) {
-  return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;')
+type NormalizedBookContent = {
+  html: string
+  markdown: string
+  disclaimer: string
+  prompts: StructuredBookContent['imagePrompts']
 }
 
-function normalizeBookContent(content: unknown) {
+const markdownRenderer = new MarkdownIt({
+  breaks: true,
+  html: false,
+  linkify: true,
+  typographer: false
+})
+
+function renderBookMarkdown(markdown: string) {
+  return markdownRenderer.render(String(markdown || ''))
+}
+
+function normalizeBookContent(content: unknown): NormalizedBookContent {
   if (typeof content === 'string') {
     return {
-      html: `<div>${escapeHtml(content).replace(/\n/g, '<br/>')}</div>`,
+      html: '',
+      markdown: content,
       disclaimer: '',
       prompts: [] as StructuredBookContent['imagePrompts']
     }
@@ -42,14 +53,12 @@ function normalizeBookContent(content: unknown) {
 
   if (content && typeof content === 'object') {
     const structured = content as StructuredBookContent
-    const html = typeof structured.html === 'string' && structured.html.trim()
-      ? structured.html
-      : typeof structured.markdown === 'string' && structured.markdown.trim()
-        ? `<div>${escapeHtml(structured.markdown).replace(/\n/g, '<br/>')}</div>`
-        : ''
+    const html = typeof structured.html === 'string' && structured.html.trim() ? structured.html : ''
+    const markdown = typeof structured.markdown === 'string' && structured.markdown.trim() ? structured.markdown : ''
 
     return {
       html,
+      markdown,
       disclaimer: structured.disclaimer || '',
       prompts: Array.isArray(structured.imagePrompts) ? structured.imagePrompts : []
     }
@@ -57,6 +66,7 @@ function normalizeBookContent(content: unknown) {
 
   return {
     html: '',
+    markdown: '',
     disclaimer: '',
     prompts: [] as StructuredBookContent['imagePrompts']
   }
@@ -128,6 +138,9 @@ export default function BookDetail() {
   })
 
   const normalizedContent = normalizeBookContent(book?.content)
+  const renderedMarkdown = normalizedContent.markdown
+    ? renderBookMarkdown(normalizedContent.markdown)
+    : ''
   const source = getKnowledgeBookSource(book?.content)
   const canReadContent = hasAccess || book?.is_free
 
@@ -248,7 +261,11 @@ export default function BookDetail() {
           )}
 
           <Text className='content-section-title'>内容详情</Text>
-          {normalizedContent.html ? (
+          {renderedMarkdown ? (
+            <View className='content-markdown'>
+              <RichText nodes={renderedMarkdown} />
+            </View>
+          ) : normalizedContent.html ? (
             <View className='content-html'>
               <RichText nodes={normalizedContent.html} />
             </View>

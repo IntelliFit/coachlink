@@ -61,7 +61,7 @@ export default function ScenarioDetailPage() {
       <ScrollView scrollY className='scenario-scroll'>
         <View className='page-content'>
           <View className='hero-card'>
-            <Image className='hero-cover' src={scenario.coverImageUrl} mode='aspectFill' />
+            <Image className='hero-cover' src={scenario.coverImageUrl} mode='aspectFit' />
             <View className='hero-body'>
               <View className='hero-icon'>
                 <ScenarioNutIcon name={scenario.icon} size={28} />
@@ -80,7 +80,7 @@ export default function ScenarioDetailPage() {
 
           {currentStep && (
             <View className='current-step-card'>
-              <Image className='current-step-image' src={currentStep.imageUrl} mode='aspectFill' />
+              <Image className='current-step-image' src={currentStep.imageUrl} mode='aspectFit' />
               <View className='current-step-body'>
                 <Text className='current-step-meta'>第 {currentStepIndex! + 1} 步 · {currentStep.durationSeconds} 秒</Text>
                 <Text className='current-step-title'>{currentStep.title}</Text>
@@ -103,7 +103,7 @@ export default function ScenarioDetailPage() {
                     key={step.id}
                     className={`step-card ${isCompleted ? 'completed' : ''} ${isCurrent ? 'current' : ''}`}
                   >
-                    <Image className='step-image' src={step.imageUrl} mode='aspectFill' />
+                    <Image className='step-image' src={step.imageUrl} mode='aspectFit' />
                     <View className='step-inner'>
                       <View className='step-index'>
                         <Text>{isCompleted ? '✓' : index + 1}</Text>
