@@ -171,6 +171,9 @@ export function RegisterScreen({ navigation }: Props) {
             </Pressable>
           }
         />
+        <Text style={styles.profileHint}>
+          注册后可直接开始使用；昵称、性别等训练档案可先填两项，其余内容在“健身资料卡”里随时补充。
+        </Text>
         <AgreementRow checked={agreed} onToggle={() => setAgreed((value) => !value)} suffix="与《免责声明》" />
         <PillButton label={loading ? '注册中...' : '立即注册'} loading={loading} disabled={loading || !agreed} onPress={submit} />
         <View style={authStyles.tipRow}>
@@ -209,5 +212,10 @@ const styles = StyleSheet.create({
     color: colors.surface,
     fontSize: 13,
     fontWeight: '800',
+  },
+  profileHint: {
+    color: colors.textSecondary,
+    fontSize: 13,
+    lineHeight: 20,
   },
 })

@@ -33,8 +33,7 @@ export const isCoreStudentProfileComplete = (profile: any) => {
 
 export const requiresStudentOnboarding = (profile: any) => {
   if (!profile) return true
-  if (profile.onboarding_completed !== true) return true
-  return !isCoreStudentProfileComplete(profile)
+  return profile.onboarding_completed !== true
 }
 
 export const buildStudentOnboardingUrl = (nextUrl = DEFAULT_ONBOARDING_NEXT_URL) => {

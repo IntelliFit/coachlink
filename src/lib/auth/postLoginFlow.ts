@@ -3,27 +3,8 @@
 import type { Session } from 'next-auth';
 
 type UserProfileLike = {
-    nickname?: string | null;
-    gender?: string | null;
-    height?: number | null;
-    weight?: number | null;
-    fitness_goal?: string | null;
-    fitness_level?: string | null;
     onboarding_completed?: boolean | null;
 };
-
-function isCoreProfileCompleted(profile?: UserProfileLike | null): boolean {
-    if (!profile) return false;
-
-    const hasNickname = !!profile.nickname?.trim();
-    const hasGender = !!profile.gender;
-    const hasHeight = typeof profile.height === 'number' && profile.height > 0;
-    const hasWeight = typeof profile.weight === 'number' && profile.weight > 0;
-    const hasGoal = !!profile.fitness_goal;
-    const hasLevel = !!profile.fitness_level;
-
-    return hasNickname && hasGender && hasHeight && hasWeight && hasGoal && hasLevel;
-}
 
 export async function resolvePostLoginDestination(options?: {
     session?: Session | null;
@@ -62,7 +43,7 @@ export async function resolvePostLoginDestination(options?: {
 
         const profileJson = await profileRes.json();
         const profile = profileJson?.data?.profile as UserProfileLike | undefined;
-        const done = profile?.onboarding_completed === true && isCoreProfileCompleted(profile);
+        const done = profile?.onboarding_completed === true;
 
         return done ? fallbackPath : '/complete-profile';
     } catch {

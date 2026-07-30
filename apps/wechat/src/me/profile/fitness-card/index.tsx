@@ -210,6 +210,17 @@ function formatFieldValue(data: FitnessCardData | null, field: FieldKey) {
   return String(value || '').trim() || text.empty
 }
 
+const RECOMMENDED_FIELDS: FieldKey[] = [
+  'nickname',
+  'gender',
+  'height',
+  'weight',
+  'fitness_goals',
+  'fitness_level',
+  'weekly_frequency',
+  'session_duration'
+]
+
 function FitnessCardPage() {
   const { effectiveTheme } = useTheme()
   const [data, setData] = useState<FitnessCardData | null>(null)
@@ -260,7 +271,7 @@ function FitnessCardPage() {
           interest_tags: normalizeStringArray(answers.interest_tags),
           equipment: normalizeStringArray(answers.equipment),
           weekly_frequency: Number(answers.weekly_frequency || 0) || undefined,
-          session_duration: Number(answers.session_duration || 30),
+          session_duration: Number(answers.session_duration || 0) || undefined,
           target_body_parts: normalizeStringArray(answers.target_body_parts)
         }
       })
@@ -421,6 +432,9 @@ function FitnessCardPage() {
       : editingField === 'target_body_parts'
         ? TARGET_BODY_PART_OPTIONS
         : EQUIPMENT_OPTIONS
+  const missingRecommendedCount = RECOMMENDED_FIELDS.filter(
+    (field) => formatFieldValue(data, field) === text.empty
+  ).length
 
   return (
     <ConfigProvider locale={zhCN}>
@@ -428,8 +442,20 @@ function FitnessCardPage() {
         <ScrollView className='page-scroll' scrollY>
           <View className='page-inner'>
             <View className='profile-preview'>
-              <Text className='preview-title'>{text.title}</Text>
+              <View className='preview-title-row'>
+                <Text className='preview-title'>{text.title}</Text>
+                <View className={`completion-badge ${missingRecommendedCount === 0 ? 'completion-badge--done' : ''}`}>
+                  <Text className='completion-badge-text'>
+                    {missingRecommendedCount > 0 ? `待完善 ${missingRecommendedCount} 项` : '已完善'}
+                  </Text>
+                </View>
+              </View>
               <Text className='preview-desc'>{text.desc}</Text>
+              {missingRecommendedCount > 0 && (
+                <View className='completion-hint'>
+                  <Text className='completion-hint-text'>不影响正常使用；补齐后，计划推荐和教练沟通会更准确。</Text>
+                </View>
+              )}
             </View>
 
             <View className='field-list'>

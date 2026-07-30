@@ -18,6 +18,13 @@
   margin-bottom: 24rpx;
 }
 
+.preview-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
+}
+
 .preview-title {
   display: block;
   font-size: 36rpx;
@@ -26,12 +33,48 @@
   line-height: 1.4;
 }
 
+.completion-badge {
+  flex-shrink: 0;
+  padding: 8rpx 16rpx;
+  border-radius: 9999rpx;
+  background: #FFF1EC;
+}
+
+.completion-badge--done {
+  background: #EAF7F1;
+}
+
+.completion-badge-text {
+  font-size: 22rpx;
+  font-weight: 700;
+  color: #CF6D4E;
+  line-height: 1.4;
+}
+
+.completion-badge--done .completion-badge-text {
+  color: #2F7D68;
+}
+
 .preview-desc {
   display: block;
   margin-top: 8rpx;
   font-size: 24rpx;
   color: #888888;
   line-height: 1.6;
+}
+
+.completion-hint {
+  margin-top: 16rpx;
+  padding: 16rpx;
+  border-radius: 16rpx;
+  background: #FFF8F5;
+}
+
+.completion-hint-text {
+  display: block;
+  font-size: 24rpx;
+  color: #8A4B38;
+  line-height: 1.5;
 }
 
 .field-list {

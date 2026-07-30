@@ -298,6 +298,94 @@ export default function OnboardingModal({ isOpen, onClose, initialProfile }: Onb
         return true;
     };
 
+    const validateMinimumProfile = () => {
+        if (!formData.nickname.trim()) {
+            showToast({ severity: 'warn', summary: '请先填写昵称' });
+            return false;
+        }
+        if (formData.nickname.trim().length > 24) {
+            showToast({ severity: 'warn', summary: '昵称最多 24 个字' });
+            return false;
+        }
+        if (!formData.gender) {
+            showToast({ severity: 'warn', summary: '请先选择性别' });
+            return false;
+        }
+        return true;
+    };
+
+    const finishOnboarding = async (message: string, destination: string) => {
+        suppressOnboardingModalOnce();
+        try {
+            await updateSession();
+        } catch (sessionErr) {
+            console.warn('[OnboardingModal] updateSession failed:', sessionErr);
+        }
+
+        showToast({ severity: 'success', summary: message });
+        onClose();
+        router.replace(destination);
+    };
+
+    const handleSkip = async () => {
+        if (!session?.user?.id) {
+            showToast({ severity: 'error', summary: '用户状态异常，请重新登录' });
+            return;
+        }
+        if (!validateMinimumProfile()) return;
+
+        setLoading(true);
+        try {
+            const profilePayload: Record<string, any> = {
+                nickname: formData.nickname.trim(),
+                gender: formData.gender,
+                onboarding_completed: true,
+            };
+
+            if (formData.avatarUrl.trim()) profilePayload.avatar_url = formData.avatarUrl.trim();
+            if (formData.height && formData.height >= 100 && formData.height <= 250) profilePayload.height = formData.height;
+            if (formData.weight && formData.weight >= 30 && formData.weight <= 200) profilePayload.weight = formData.weight;
+            if (formData.fitnessGoals[0]) profilePayload.fitness_goal = formData.fitnessGoals[0];
+            if (formData.fitnessLevel) profilePayload.fitness_level = formData.fitnessLevel;
+
+            const profileResult = await studentService.updateProfile(profilePayload);
+            if (!profileResult) throw new Error('档案保存失败');
+
+            const answers: Record<string, any> = {
+                flow_version: 'registration_unified_v2',
+            };
+            if (formData.fitnessGoals.length) {
+                answers.fitness_goals = formData.fitnessGoals;
+                answers.interest_tags = deriveLegacyInterestTags(formData.fitnessGoals);
+            }
+            if (formData.targetBodyParts.length) answers.target_body_parts = formData.targetBodyParts;
+            if (formData.equipments.length) answers.equipment = formData.equipments;
+            if (formData.weeklyFrequency) {
+                answers.weekly_frequency = formData.weeklyFrequency;
+                answers.session_duration = formData.sessionDuration;
+            }
+
+            if (Object.keys(answers).length > 1) {
+                try {
+                    await studentService.submitOnboarding({
+                        userId: session.user.id,
+                        answers,
+                        baseline_video_urls: [],
+                    });
+                } catch (onboardingErr) {
+                    console.warn('[OnboardingModal] partial submitOnboarding failed, continue:', onboardingErr);
+                }
+            }
+
+            await finishOnboarding('基础信息已保存，其余资料可稍后补充', '/impromptu-training?from=onboarding-skip');
+        } catch (error: any) {
+            const message = error?.response?.data?.message || error?.message || '保存失败，请稍后重试';
+            showToast({ severity: 'error', summary: '保存失败', detail: message });
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const handleSubmit = async () => {
         if (!session?.user?.id) {
             showToast({ severity: 'error', summary: '用户状态异常，请重新登录' });
@@ -346,16 +434,7 @@ export default function OnboardingModal({ isOpen, onClose, initialProfile }: Onb
                 console.warn('[OnboardingModal] submitOnboarding failed, continue:', onboardingErr);
             }
 
-            suppressOnboardingModalOnce();
-            try {
-                await updateSession();
-            } catch (sessionErr) {
-                console.warn('[OnboardingModal] updateSession failed:', sessionErr);
-            }
-
-            showToast({ severity: 'success', summary: '档案已完成，开始第一次训练吧 🎉' });
-            onClose();
-            router.replace('/impromptu-training?from=onboarding');
+            await finishOnboarding('档案已完成，开始第一次训练吧 🎉', '/impromptu-training?from=onboarding');
         } catch (error: any) {
             const message = error?.response?.data?.message || error?.message || '保存失败，请稍后重试';
             showToast({ severity: 'error', summary: '保存失败', detail: message });
@@ -392,8 +471,8 @@ export default function OnboardingModal({ isOpen, onClose, initialProfile }: Onb
                 <div className="flex items-center gap-3">
                     <img src="/favicon.jpg" alt="CoachLink Logo" className="h-10 rounded-lg" />
                     <div>
-                        <h2 className="text-lg font-bold">完善基础档案</h2>
-                        <p className="text-xs text-surface-500">完成后即刻开启第一次训练</p>
+                        <h2 className="text-lg font-bold">快速设置训练档案</h2>
+                        <p className="text-xs text-surface-500">先填昵称和性别即可使用，其余内容可稍后补充</p>
                     </div>
                 </div>
             )}
@@ -406,35 +485,45 @@ export default function OnboardingModal({ isOpen, onClose, initialProfile }: Onb
             style={{ maxHeight: '90vh' }}
             contentClassName="overflow-y-auto"
             footer={(
-                <div className="w-full flex gap-2">
-                    {step > 1 && (
-                        <Button
-                            label="上一步"
-                            icon="pi pi-chevron-left"
-                            onClick={() => setStep(step - 1)}
-                            className="flex-1"
-                            outlined
-                        />
-                    )}
-                    {step < totalSteps ? (
-                        <Button
-                            label="下一步"
-                            icon="pi pi-arrow-right"
-                            iconPos="right"
-                            onClick={() => {
-                                if (step === 1 && validateStep1()) setStep(2);
-                                else if (step === 2 && validateStep2()) setStep(3);
-                            }}
-                            className="flex-1"
-                        />
-                    ) : (
-                        <Button
-                            label="🚀 开始第一次训练"
-                            onClick={handleSubmit}
-                            loading={loading}
-                            className="flex-1 font-bold"
-                        />
-                    )}
+                <div className="w-full flex flex-col gap-2">
+                    <Button
+                        label="先使用，稍后补充"
+                        onClick={handleSkip}
+                        loading={loading}
+                        disabled={uploadingAvatar}
+                        outlined
+                        className="w-full"
+                    />
+                    <div className="w-full flex gap-2">
+                        {step > 1 && (
+                            <Button
+                                label="上一步"
+                                icon="pi pi-chevron-left"
+                                onClick={() => setStep(step - 1)}
+                                className="flex-1"
+                                outlined
+                            />
+                        )}
+                        {step < totalSteps ? (
+                            <Button
+                                label="继续完善"
+                                icon="pi pi-arrow-right"
+                                iconPos="right"
+                                onClick={() => {
+                                    if (step === 1 && validateStep1()) setStep(2);
+                                    else if (step === 2 && validateStep2()) setStep(3);
+                                }}
+                                className="flex-1"
+                            />
+                        ) : (
+                            <Button
+                                label="🚀 保存完整档案"
+                                onClick={handleSubmit}
+                                loading={loading}
+                                className="flex-1 font-bold"
+                            />
+                        )}
+                    </div>
                 </div>
             )}
         >

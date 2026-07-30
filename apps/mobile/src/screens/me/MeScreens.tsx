@@ -756,6 +756,21 @@ function getFitnessFieldRawValue(data: FitnessCardData | null, field: FitnessFie
   return String(data.profile[field as keyof FitnessProfile] ?? '')
 }
 
+const RECOMMENDED_FITNESS_FIELDS: FitnessFieldKey[] = [
+  'nickname',
+  'gender',
+  'height',
+  'weight',
+  'fitness_goals',
+  'fitness_level',
+  'weekly_frequency',
+  'session_duration',
+]
+
+function fitnessProfileMissingCount(data: FitnessCardData | null) {
+  return RECOMMENDED_FITNESS_FIELDS.filter((field) => fitnessFieldValue(data, field) === '未填写').length
+}
+
 function deriveInterestTags(goals: string[]) {
   const map: Record<string, string> = {
     减脂: '减脂燃脂',
@@ -1142,14 +1157,18 @@ export function ProfileScreen() {
   const { open } = useProtectedNavigation(navigation)
   const [stats, setStats] = useState({ actions: 0, plans: 0, trainingActions: 0 })
   const [membership, setMembership] = useState<any>(null)
+  const [profileMissingCount, setProfileMissingCount] = useState(0)
 
   async function loadStats() {
     if (!isAuthenticated) return
-    const [actions, plans, history, membershipStatus] = await Promise.allSettled([
+    const [actions, plans, history, membershipStatus, profileStatus] = await Promise.allSettled([
       requestMaybe<any>('/api/student/action-lib/list-actions', { body: { page: 1, limit: 1, search: '' } }),
       requestMaybe<any>('/api/student/plan-lib/list-favorites', { body: { page: 1, limit: 1, search: '' } }),
       requestMaybe<any>('/api/training-history/summary', { method: 'GET' }),
       requestMaybe<any>('/api/membership/get-status', { method: 'GET' }),
+      requestMaybe<{ profile?: FitnessProfile | null; questionnaire?: { answers?: FitnessAnswers } | null }>('/api/user/get-student-profile', {
+        body: user?.id ? { userId: user.id } : {},
+      }),
     ])
     setStats({
       actions: actions.status === 'fulfilled' ? Number(actions.value?.totalCount ?? actions.value?.actions?.length ?? 0) : 0,
@@ -1157,6 +1176,14 @@ export function ProfileScreen() {
       trainingActions: history.status === 'fulfilled' ? Number(history.value?.totalActions ?? 0) : 0,
     })
     if (membershipStatus.status === 'fulfilled') setMembership(membershipStatus.value)
+    if (profileStatus.status === 'fulfilled') {
+      setProfileMissingCount(fitnessProfileMissingCount({
+        profile: profileStatus.value?.profile || {},
+        answers: profileStatus.value?.questionnaire?.answers || {},
+      }))
+    } else {
+      setProfileMissingCount(0)
+    }
   }
 
   useEffect(() => {
@@ -1209,7 +1236,13 @@ export function ProfileScreen() {
       ) : null}
 
       <Card>
-        <MenuRow label="健身资料卡" icon="icon-account-settings-variant" iconBg="#CF6D4E" onPress={() => open('FitnessCard')} />
+        <MenuRow
+          label="健身资料卡"
+          icon="icon-account-settings-variant"
+          iconBg="#CF6D4E"
+          badge={profileMissingCount > 0 ? `待完善 ${profileMissingCount}` : undefined}
+          onPress={() => open('FitnessCard')}
+        />
         <MenuRow label="全部计划" icon="icon-a-Trainingplan" iconBg="#29C3A3" onPress={() => open('PlanHistory')} />
         <MenuRow label="排行榜" icon="icon-ranking" iconBg="#CF6D4E" onPress={() => open('Ranking')} />
         <MenuRow label="我的教练" icon="icon-coachline_line" iconBg="#5C8DFF" onPress={() => open('MyCoaches')} />
@@ -1343,6 +1376,7 @@ export function FitnessCardScreen() {
   const [draftValue, setDraftValue] = useState('')
   const [draftList, setDraftList] = useState<string[]>([])
   const fields: FitnessFieldKey[] = ['nickname', 'gender', 'height', 'weight', 'fitness_goals', 'fitness_level', 'target_body_parts', 'weekly_frequency', 'equipment', 'session_duration']
+  const missingRecommendedCount = fitnessProfileMissingCount(data)
 
   async function load() {
     setLoading(true)
@@ -1451,10 +1485,22 @@ export function FitnessCardScreen() {
             <View style={local.fitnessAvatarRow}>
               <InlineAvatar uri={data?.profile.avatar_url || undefined} label={data?.profile.nickname || user?.nickname || 'C'} size={72} />
               <View style={local.fitnessPreviewText}>
-                <Text style={local.fitnessPreviewTitle}>{data?.profile.nickname || user?.nickname || 'CoachLink 用户'}</Text>
+                <View style={local.fitnessTitleRow}>
+                  <Text style={local.fitnessPreviewTitle}>{data?.profile.nickname || user?.nickname || 'CoachLink 用户'}</Text>
+                  <View style={[local.fitnessCompletionBadge, missingRecommendedCount === 0 && local.fitnessCompletionBadgeDone]}>
+                    <Text style={[local.fitnessCompletionBadgeText, missingRecommendedCount === 0 && local.fitnessCompletionBadgeTextDone]}>
+                      {missingRecommendedCount > 0 ? `待完善 ${missingRecommendedCount} 项` : '已完善'}
+                    </Text>
+                  </View>
+                </View>
                 <Text style={local.fitnessPreviewDesc}>资料越完整，训练计划和教练沟通越准确。</Text>
               </View>
             </View>
+            {missingRecommendedCount > 0 ? (
+              <View style={local.fitnessCompletionHint}>
+                <Text style={local.fitnessCompletionHintText}>注册已完成，不影响使用；点击下方未填写项目即可随时补充。</Text>
+              </View>
+            ) : null}
           </Card>
           <Card style={local.fitnessFieldList}>
             {fields.map((field) => {
@@ -4989,16 +5035,49 @@ const local = StyleSheet.create({
     flex: 1,
     minWidth: 0,
   },
+  fitnessTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
+  },
   fitnessPreviewTitle: {
     color: colors.text,
     fontSize: 22,
     fontWeight: '900',
+  },
+  fitnessCompletionBadge: {
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.xs,
+    paddingVertical: 4,
+    backgroundColor: colors.brandSoft,
+  },
+  fitnessCompletionBadgeDone: {
+    backgroundColor: '#EAF7F1',
+  },
+  fitnessCompletionBadgeText: {
+    color: colors.brand,
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  fitnessCompletionBadgeTextDone: {
+    color: '#2F7D68',
   },
   fitnessPreviewDesc: {
     color: colors.textSecondary,
     fontSize: 13,
     lineHeight: 20,
     marginTop: 4,
+  },
+  fitnessCompletionHint: {
+    borderRadius: radius.md,
+    padding: spacing.sm,
+    backgroundColor: '#FFF8F5',
+  },
+  fitnessCompletionHintText: {
+    color: '#8A4B38',
+    fontSize: 13,
+    lineHeight: 20,
   },
   fitnessFieldList: {
     paddingVertical: 0,

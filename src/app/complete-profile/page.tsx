@@ -61,21 +61,12 @@ export default function CompleteProfilePage() {
                 const profile = res?.profile;
 
                 if (!profile) {
-                    setMessage('未找到资料，正在重试...');
+                    setMessage('先填写昵称和性别即可开始使用。');
                     openOnboardingModal(null);
                     return;
                 }
 
-                const done =
-                    profile.onboarding_completed === true &&
-                    !!profile.nickname?.trim() &&
-                    !!profile.gender &&
-                    typeof profile.height === 'number' &&
-                    profile.height > 0 &&
-                    typeof profile.weight === 'number' &&
-                    profile.weight > 0 &&
-                    !!profile.fitness_goal &&
-                    !!profile.fitness_level;
+                const done = profile.onboarding_completed === true;
 
                 if (done) {
                     router.replace('/impromptu-training?from=complete-profile');
@@ -83,7 +74,7 @@ export default function CompleteProfilePage() {
                 }
 
                 openOnboardingModal(profile);
-                setMessage('请先完成基础资料，我们会马上带你进入首次训练。');
+                setMessage('填写昵称和性别即可开始使用，其余资料可以稍后补充。');
             } catch {
                 setMessage('打开资料填写流程时遇到一点问题，请点击下方按钮继续。');
             } finally {
@@ -101,7 +92,7 @@ export default function CompleteProfilePage() {
                     Profile Setup
                 </div>
                 <h1 className="mt-3 text-3xl font-black tracking-tight text-surface-900">
-                    先把资料补完整
+                    两步即可开始
                 </h1>
                 <p className="mt-3 text-sm leading-6 text-surface-600">{message}</p>
 
