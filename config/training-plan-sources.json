@@ -1,0 +1,202 @@
+{
+  "version": 1,
+  "updatedAt": "2026-07-31",
+  "policy": {
+    "purpose": "CoachLink 内部训练计划来源发现、质量评估和人工归档",
+    "defaultRule": "仅抓取公开可访问内容；不绕过登录、付费墙、验证码或技术限制；任何内容在公开发布或商业化前必须单独完成版权与授权复核。",
+    "republishingRule": "公开可访问不等于允许复制或再发布。reference_only 和 metadata_only 来源不得导入为 CoachLink 公共模板。",
+    "personalDataRule": "不采集账号邮箱、电话等非计划必需个人信息。"
+  },
+  "sources": [
+    {
+      "id": "liftvault",
+      "name": "Lift Vault",
+      "tier": 1,
+      "categories": ["力量举", "力量", "增肌", "健美", "奥举", "跑步", "体能"],
+      "entryUrl": "https://liftvault.com/programs/",
+      "discoveryUrl": "https://liftvault.com/sitemap_index.xml",
+      "acquisitionMode": "public_catalog_and_assets",
+      "rightsMode": "review_before_republication",
+      "enabled": true,
+      "notes": "抓公开文章元数据以及页面直接公开链接的表格/PDF；不进入 /out/ 和商店付费内容。"
+    },
+    {
+      "id": "boostcamp",
+      "name": "Boostcamp",
+      "tier": 1,
+      "categories": ["力量举", "力量", "增肌", "健美", "新人", "徒手"],
+      "entryUrl": "https://www.boostcamp.app/programs",
+      "discoveryUrl": "https://www.boostcamp.app/sitemap.xml",
+      "acquisitionMode": "public_structured_pages",
+      "rightsMode": "review_before_republication",
+      "enabled": true,
+      "notes": "抓公开 sitemap 中的教练与社区计划结构；不绕过 Pro 权限，不直接发布原计划。"
+    },
+    {
+      "id": "fitness-wiki",
+      "name": "The Fitness Wiki / Reddit r/Fitness & r/weightroom",
+      "tier": 1,
+      "categories": ["新人", "力量", "增肌", "体能", "徒手"],
+      "entryUrl": "https://thefitness.wiki/routines/",
+      "discoveryUrl": "https://thefitness.wiki/sitemap.xml",
+      "acquisitionMode": "public_catalog",
+      "rightsMode": "review_before_republication",
+      "enabled": true,
+      "notes": "优先收录推荐计划页和计划评测索引；Reddit 单帖只作为来源线索，不批量复制用户内容。"
+    },
+    {
+      "id": "stronger-by-science",
+      "name": "Stronger By Science",
+      "tier": 2,
+      "categories": ["力量", "增肌", "综合体能"],
+      "entryUrl": "https://www.strongerbyscience.com/program-bundle/",
+      "acquisitionMode": "reference_only",
+      "rightsMode": "reference_only",
+      "enabled": false,
+      "notes": "robots 内容信号允许检索/引用但不允许模型训练；Program Bundle 为付费内容，只记录名称、简介和官方链接。"
+    },
+    {
+      "id": "juggernaut-training-systems",
+      "name": "Juggernaut Training Systems",
+      "tier": 2,
+      "categories": ["力量举", "奥举", "力量", "比赛备战"],
+      "entryUrl": "https://www.jtsstrength.com/",
+      "acquisitionMode": "metadata_only",
+      "rightsMode": "reference_only",
+      "enabled": false,
+      "notes": "计划与 AI 模板多为商业内容，只做目录与授权线索。"
+    },
+    {
+      "id": "renaissance-periodization",
+      "name": "Renaissance Periodization",
+      "tier": 2,
+      "categories": ["增肌", "健美", "减脂"],
+      "entryUrl": "https://rpstrength.com/",
+      "acquisitionMode": "metadata_only",
+      "rightsMode": "reference_only",
+      "enabled": false,
+      "notes": "公开目录可收元数据，模板正文和 App 内容不抓取。"
+    },
+    {
+      "id": "catalyst-athletics",
+      "name": "Catalyst Athletics",
+      "tier": 2,
+      "categories": ["奥举", "比赛备战", "专项力量"],
+      "entryUrl": "https://www.catalystathletics.com/olympic-weightlifting-workouts/training-programs/",
+      "acquisitionMode": "mixed_free_and_paid_metadata",
+      "rightsMode": "review_before_republication",
+      "enabled": false,
+      "notes": "79 个计划多数付费；可收公开目录、免费计划和每日训练链接，付费计划只收元数据。"
+    },
+    {
+      "id": "weightlifting-house",
+      "name": "Weightlifting House",
+      "tier": 2,
+      "categories": ["奥举", "比赛备战"],
+      "entryUrl": "https://weightliftinghouse.com/",
+      "acquisitionMode": "metadata_only",
+      "rightsMode": "reference_only",
+      "enabled": false,
+      "notes": "商业训练内容只做目录与授权线索。"
+    },
+    {
+      "id": "crossfit",
+      "name": "CrossFit Main Site",
+      "tier": 3,
+      "categories": ["CrossFit", "功能体能", "每日训练"],
+      "entryUrl": "https://www.crossfit.com/workout/",
+      "acquisitionMode": "public_daily_catalog",
+      "rightsMode": "review_before_republication",
+      "enabled": false,
+      "notes": "每日 WOD 数量大；先收日期、标题、动作摘要与原始链接，公开发布前复核商标与内容授权。"
+    },
+    {
+      "id": "mayhem-athlete",
+      "name": "Mayhem Athlete",
+      "tier": 3,
+      "categories": ["CrossFit", "比赛备战", "功能体能"],
+      "entryUrl": "https://www.mayhemathletes.com/",
+      "acquisitionMode": "metadata_only",
+      "rightsMode": "reference_only",
+      "enabled": false,
+      "notes": "订阅型内容，不抓取会员计划正文。"
+    },
+    {
+      "id": "hal-higdon",
+      "name": "Hal Higdon",
+      "tier": 3,
+      "categories": ["跑步", "5K", "10K", "半马", "马拉松", "恢复"],
+      "entryUrl": "https://www.halhigdon.com/training/",
+      "acquisitionMode": "public_schedule_catalog",
+      "rightsMode": "review_before_republication",
+      "enabled": false,
+      "notes": "官网约 50 套公开计划；可收目录与公开训练表，商业化发布前需版权复核。"
+    },
+    {
+      "id": "garmin-coach",
+      "name": "Garmin Coach",
+      "tier": 3,
+      "categories": ["跑步", "5K", "10K", "半马"],
+      "entryUrl": "https://www.garmin.com/en-US/garmin-technology/health-science/garmin-coach/",
+      "acquisitionMode": "metadata_only",
+      "rightsMode": "reference_only",
+      "enabled": false,
+      "notes": "计划主要在 Garmin Connect 内按用户动态生成，只记录产品与计划类型。"
+    },
+    {
+      "id": "trainingpeaks",
+      "name": "TrainingPeaks",
+      "tier": 3,
+      "categories": ["跑步", "骑行", "铁三", "耐力"],
+      "entryUrl": "https://www.trainingpeaks.com/training-plans/",
+      "acquisitionMode": "reference_only",
+      "rightsMode": "reference_only",
+      "enabled": false,
+      "notes": "现行条款禁止使用 data mining、robots 等自动方式访问内容；不自动抓取，只保留官方入口和未来授权洽谈项。"
+    },
+    {
+      "id": "exos",
+      "name": "Exos",
+      "tier": 3,
+      "categories": ["运动员体能", "速度", "力量"],
+      "entryUrl": "https://www.teamexos.com/",
+      "acquisitionMode": "metadata_only",
+      "rightsMode": "reference_only",
+      "enabled": false,
+      "notes": "以课程、服务和内容为主，先做体系目录与授权线索。"
+    },
+    {
+      "id": "altis",
+      "name": "ALTIS",
+      "tier": 3,
+      "categories": ["短跑", "跳跃", "速度", "田径体能"],
+      "entryUrl": "https://altis.world/",
+      "acquisitionMode": "metadata_only",
+      "rightsMode": "reference_only",
+      "enabled": false,
+      "notes": "课程和教练教育内容为主，不复制付费课程。"
+    },
+    {
+      "id": "nsca",
+      "name": "NSCA",
+      "tier": 3,
+      "categories": ["运动员体能", "力量", "周期训练"],
+      "entryUrl": "https://www.nsca.com/education/articles/",
+      "acquisitionMode": "metadata_only",
+      "rightsMode": "reference_only",
+      "enabled": false,
+      "notes": "收公开文章和模板目录；会员/书籍内容不抓取。"
+    },
+    {
+      "id": "classic-books",
+      "name": "经典训练书籍计划",
+      "tier": 4,
+      "categories": ["力量", "健美", "力量举"],
+      "entryUrl": null,
+      "acquisitionMode": "manual_bibliography",
+      "rightsMode": "reference_only",
+      "enabled": false,
+      "notes": "Starting Strength、Practical Programming、5/3/1、Westside、Sheiko、Arnold Blueprint、Blood & Guts 等仅建立书目与人工授权/录入任务，不抓取盗版。"
+    }
+  ]
+}
