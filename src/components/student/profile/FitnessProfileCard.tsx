@@ -89,6 +89,17 @@ const fieldOrder: FieldKey[] = [
     'session_duration',
 ];
 
+const recommendedFieldOrder: FieldKey[] = [
+    'nickname',
+    'gender',
+    'height',
+    'weight',
+    'fitness_goals',
+    'fitness_level',
+    'weekly_frequency',
+    'session_duration',
+];
+
 function normalizeArray(value: any): string[] {
     return Array.isArray(value) ? value.map((item) => String(item || '').trim()).filter(Boolean) : [];
 }
@@ -169,6 +180,9 @@ export function FitnessProfileCard({ profile, questionnaire, onUpdate }: Fitness
     const answers = useMemo(() => (questionnaire?.answers || {}) as Record<string, any>, [questionnaire]);
     const filledFieldCount = useMemo(() => (
         fieldOrder.filter((field) => formatFieldValue(profile, answers, field) !== '未填写').length
+    ), [profile, answers]);
+    const missingRecommendedCount = useMemo(() => (
+        recommendedFieldOrder.filter((field) => formatFieldValue(profile, answers, field) === '未填写').length
     ), [profile, answers]);
     const summaryItems = useMemo(() => [
         {
@@ -394,9 +408,18 @@ export function FitnessProfileCard({ profile, questionnaire, onUpdate }: Fitness
             <section className="rounded-2xl border border-surface-200 bg-surface shadow-sm p-4 sm:p-5">
                 <div className="flex items-start justify-between gap-4">
                     <div>
-                        <div className="flex items-center gap-2 text-surface-900 font-black text-lg">
+                        <div className="flex flex-wrap items-center gap-2 text-surface-900 font-black text-lg">
                             <Dumbbell size={20} className="text-primary-500" />
                             健身资料卡
+                            {missingRecommendedCount > 0 ? (
+                                <span className="rounded-full bg-primary-50 px-2 py-1 text-[11px] font-bold text-primary-700">
+                                    待完善 {missingRecommendedCount} 项
+                                </span>
+                            ) : (
+                                <span className="rounded-full bg-emerald-50 px-2 py-1 text-[11px] font-bold text-emerald-700">
+                                    已完善
+                                </span>
+                            )}
                         </div>
                         <p className="mt-1 text-sm text-surface-500 leading-snug">
                             训练目标、身体基础和训练条件都集中在这里。
@@ -415,6 +438,21 @@ export function FitnessProfileCard({ profile, questionnaire, onUpdate }: Fitness
                         />
                     </button>
                 </div>
+
+                {missingRecommendedCount > 0 ? (
+                    <div className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-primary-100 bg-primary-50/60 px-3 py-3">
+                        <p className="text-xs font-medium leading-5 text-primary-800">
+                            注册已完成，不影响使用。补齐资料后，计划推荐和教练沟通会更准确。
+                        </p>
+                        <button
+                            type="button"
+                            onClick={() => setExpanded(true)}
+                            className="shrink-0 rounded-lg border border-primary-200 bg-white px-3 py-2 text-xs font-bold text-primary-700"
+                        >
+                            去补充
+                        </button>
+                    </div>
+                ) : null}
 
                 <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
                     {summaryItems.map((item) => {

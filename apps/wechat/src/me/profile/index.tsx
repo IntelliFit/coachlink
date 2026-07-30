@@ -41,6 +41,23 @@ const EMPTY_PROFILE_STATS: ProfileStats = {
   trainingActions: 0
 }
 
+function getProfileMissingCount(profile: any, answers: any) {
+  const goals = Array.isArray(answers?.fitness_goals) && answers.fitness_goals.length
+    ? answers.fitness_goals
+    : (profile?.fitness_goal ? [profile.fitness_goal] : [])
+  const checks = [
+    String(profile?.nickname || '').trim(),
+    String(profile?.gender || '').trim(),
+    Number(profile?.height || 0) > 0,
+    Number(profile?.weight || 0) > 0,
+    goals.length > 0,
+    String(profile?.fitness_level || '').trim(),
+    Number(answers?.weekly_frequency || 0) > 0,
+    Number(answers?.session_duration || 0) > 0
+  ]
+  return checks.filter((value) => !value).length
+}
+
 const STUDENT_BETA_GROUP_IMAGE = 'https://cdn-assets.coachlink.fit/beta-groups/student-wechat-group.png'
 
 function Profile() {
@@ -50,6 +67,7 @@ function Profile() {
   const [coachId, setCoachId] = useState<string | null>(null)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [profileStats, setProfileStats] = useState<ProfileStats>(EMPTY_PROFILE_STATS)
+  const [profileMissingCount, setProfileMissingCount] = useState(0)
   const [isClearingCache, setIsClearingCache] = useState(false)
 
   const openLogin = useCallback((returnTo = '/me/profile/index') => {
@@ -112,6 +130,7 @@ function Profile() {
     if (!session.isAuthenticated || !session.userId) {
       setCoachId(null)
       setProfileStats(EMPTY_PROFILE_STATS)
+      setProfileMissingCount(0)
       return
     }
 
@@ -127,6 +146,7 @@ function Profile() {
       const profileRes = await studentService.getStudentProfile(currentUser.id)
       const profile = profileRes?.profile
       if (!profile || typeof profile !== 'object') return
+      setProfileMissingCount(getProfileMissingCount(profile, profileRes?.questionnaire?.answers || {}))
 
       let changed = false
       const nextUser = { ...currentUser }
@@ -267,6 +287,7 @@ function Profile() {
       icon: 'icon-account-settings-variant',
       iconBg: '#CF6D4E',
       path: '/me/profile/fitness-card/index',
+      badge: profileMissingCount > 0 ? `待完善 ${profileMissingCount}` : undefined,
       requiresAuth: true
     },
     {
@@ -596,7 +617,14 @@ function Profile() {
                 </View>
                 <Text className='menu-list-label'>{item.label}</Text>
               </View>
-              <Text className='menu-list-arrow'>›</Text>
+              <View className='menu-list-right'>
+                {item.badge && (
+                  <View className='list-badge'>
+                    <Text className='list-badge-text'>{item.badge}</Text>
+                  </View>
+                )}
+                <Text className='menu-list-arrow'>›</Text>
+              </View>
             </View>
           ))}
         </View>

@@ -1,3 +1,25 @@
+## Web / 微信小程序 / APP 注册资料延后补充 (`2026-07-31`)
+
+- Status: 三端实现与验证完成；根 TypeScript、移动 APP TypeScript、微信小程序完整构建、183 项单测与 Next 527 页生产构建均已通过，本次提交同步至 `dev`。
+- Registration rule: 学员完成昵称和性别两项后即可选择“先使用，稍后补充”；身高、体重、训练目标、水平、训练频率、单次时长等不再阻塞首次使用。
+- Web: 首次登录快速设置改为可跳过的三步流程；空档案查询不再返回 404/500；跳过后进入即兴训练。个人档案健身资料卡显示“待完善 N 项”、补充提醒和补充入口。
+- WeChat: 学员 onboarding 同步采用昵称 + 性别最低要求；跳过时保存已有字段并把 onboarding 标记为完成，后续登录不再反复拦截。个人页和健身资料卡显示待完善数量。
+- Mobile APP: 注册页明确告知两项基础资料即可使用；“我的”和健身资料卡加载实际档案并显示待完善数量与补充提醒。
+- Completeness: 待完善计数统一按 8 个推荐字段计算：昵称、性别、身高、体重、训练目标、训练水平、每周频率、单次时长；头像、器械和目标部位保持可选，不制造无必要的注册阻塞。
+- Verification: Web 浏览器已验证新用户自动弹窗、填写昵称与性别后跳过、跳转即兴训练、资料卡显示“待完善 6 项”；微信开发者工具可连接且运行错误日志为 0，但当前开发者工具会话未登录，受保护页最终跳到登录页，未能完成小程序登录后的页面截图。
+
+## 训练计划公开来源批量采集与归档 (`2026-07-31`)
+
+- Status: 第一轮公开来源采集完成，抓取结果位于 git 忽略目录 `artifacts/training-plan-corpus/`；共 3,800 条唯一计划/目录记录，抓取失败 0。
+- Completed sources: Lift Vault 272 个计划页；Boostcamp 670 个唯一公开计划（132 教练计划、538 社区计划）；Fitness Wiki 10 个计划/索引页；Catalyst Athletics 79 个计划目录项；CrossFit 2,769 个 Daily WOD 目录项。
+- Rich structure: Boostcamp 保留 702 个计划变体、6,475 个已编排训练周、26,426 个训练课、152,425 个动作条目和 408,723 个处方组，不是只抓标题。
+- Public assets: Lift Vault 发现 407 个唯一公开表格/PDF 链接，成功下载 395 个（377 XLSX、18 PDF，约 86.9 MB）；5 个只保留链接，7 个因 404/403/410/429、超 50MB 或返回 HTML 而失败/跳过。
+- Outputs: `manifest.json`、`QUALITY_REPORT.md/json`、`catalog.csv`、`review-queue.csv`、各来源 `plans.jsonl`/`failures.jsonl`、Lift Vault 附件与 `asset-index.jsonl`。
+- Code: `scripts/training-plan-collector.mjs` 支持全量、限速、失败补抓和来源级输出；`scripts/summarize-training-plan-corpus.mjs` 生成质量统计与人工审核队列；`config/training-plan-sources.json` 记录所有用户点名来源的获取模式与版权边界。
+- Rights boundary: 所有原始内容仅作为 CoachLink 内部整理语料；公开可访问不等于允许再发布。Stronger by Science、Juggernaut、RP、Weightlifting House、Mayhem、Garmin Coach、TrainingPeaks、Exos、ALTIS、NSCA 和经典书籍当前只建来源/授权清单，不绕过付费墙、登录或站点条款。TrainingPeaks 条款明确禁止自动 data mining/robots，因此不自动抓取；Hal Higdon 当前被站点验证码拦截，尚未抓取。
+- Next: 对 3,800 条目录做跨源去重、中文动作映射、周期/训练日规范化和版权授权分级；优先从 `review-queue.csv` 的教练计划与 Lift Vault 可下载表格开始，不直接批量发布到 `public_training_plan_templates`。
+- Verification: 采集与失败补抓完成后所有 JSONL 可完整解析；`npm run lint`、`npm run typecheck`、37 个测试文件 / 183 项测试和项目标准 `npm run build`（527 个静态页面）通过。直接 `npx next build` 曾在系统低空闲内存时于 page-data worker 无栈退出，释放构建 worker 后标准构建完整通过。
+
 ## Web / 微信小程序手指光膜工具 (`2026-07-30`)
 
 - Status: Web/API、标准与极速视频 Worker、Kafka、定时清理、Supabase 商业化迁移和 Nginx 已部署到生产；高清付费优先任务与公开下载端到端通过。微信小程序本轮 8 风格、画质/加速定价和支付宝付费确认页面已上传体验版 `2026.07.31.0541`，尚未在公众平台手工提交审核或发布正式版。

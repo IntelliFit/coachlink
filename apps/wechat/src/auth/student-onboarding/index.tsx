@@ -5,7 +5,7 @@ import { ConfigProvider } from '@nutui/nutui-react-taro'
 import zhCN from '@nutui/nutui-react-taro/dist/locales/zh-CN'
 import { authService } from '@/services/authService'
 import { studentService } from '@/services/studentService'
-import { buildStudentOnboardingUrl, isCoreStudentProfileComplete } from '@/services/studentOnboardingService'
+import { buildStudentOnboardingUrl } from '@/services/studentOnboardingService'
 import WheelPicker from '@/components/WheelPicker'
 import { svgToDataUri } from '@/utils/svgToDataUri'
 import maleFrontSvgRaw from '@/assets/body-map/maleFrontSvg'
@@ -374,7 +374,7 @@ function StudentOnboarding() {
         const profile = profileRes?.profile || null
         const questionnaire = profileRes?.questionnaire?.answers || {}
 
-        if (!isEditMode && profile?.onboarding_completed === true && isCoreStudentProfileComplete(profile)) {
+        if (!isEditMode && profile?.onboarding_completed === true) {
           Taro.reLaunch({ url: nextUrl })
           return
         }
@@ -588,6 +588,98 @@ function StudentOnboarding() {
   const handlePrev = () => {
     if (loading) return
     setStep((prev) => Math.max(prev - 1, 1))
+  }
+
+  const validateMinimumProfile = () => {
+    const nickname = nicknameValueRef.current.trim() || formData.nickname.trim()
+    if (!nickname) {
+      Taro.showToast({ title: '请先填写昵称', icon: 'none' })
+      return false
+    }
+    if (nickname.length > 24) {
+      Taro.showToast({ title: '昵称最多 24 个字', icon: 'none' })
+      return false
+    }
+    if (!formData.gender) {
+      Taro.showToast({ title: '请先选择性别', icon: 'none' })
+      return false
+    }
+    return true
+  }
+
+  const handleSkip = async () => {
+    if (!validateMinimumProfile()) return
+
+    setSaving(true)
+    try {
+      const nickname = nicknameValueRef.current.trim() || formData.nickname.trim()
+      const persistedAvatarUrl = isGeneratedCommunityAvatar(formData.avatarUrl)
+        ? null
+        : (formData.avatarUrl || null)
+      const profilePayload: Record<string, any> = {
+        nickname,
+        avatar_url: persistedAvatarUrl,
+        gender: formData.gender,
+        onboarding_completed: true
+      }
+
+      if (step >= 2) {
+        profilePayload.height = selectedHeight
+        profilePayload.weight = selectedWeight
+      }
+      if (formData.fitnessGoals[0]) profilePayload.fitness_goal = formData.fitnessGoals[0]
+      if (formData.fitnessLevel) profilePayload.fitness_level = formData.fitnessLevel
+
+      const profile = await studentService.updateProfile(profilePayload, { showErrorToast: false })
+      if (!profile) throw new Error('基础档案保存失败')
+
+      authService.mergeCurrentUser({
+        nickname,
+        avatar_url: persistedAvatarUrl
+      })
+
+      const answers: Record<string, any> = {
+        flow_version: 'registration_unified_v2'
+      }
+      if (formData.fitnessGoals.length) {
+        answers.fitness_goals = formData.fitnessGoals
+        answers.interest_tags = deriveLegacyInterestTags(formData.fitnessGoals)
+      }
+      if (formData.targetBodyParts.length) answers.target_body_parts = formData.targetBodyParts
+      if (formData.equipments.length) answers.equipment = formData.equipments
+      if (formData.weeklyFrequency) {
+        answers.weekly_frequency = formData.weeklyFrequency
+        answers.session_duration = formData.sessionDuration
+      }
+
+      if (Object.keys(answers).length > 1) {
+        try {
+          await studentService.submitOnboarding({
+            answers,
+            baseline_video_urls: []
+          }, { showErrorToast: false })
+        } catch (questionnaireError) {
+          console.warn('[student-onboarding] partial questionnaire save failed:', questionnaireError)
+        }
+      }
+
+      Taro.showToast({
+        title: '基础信息已保存，其余资料可稍后补充',
+        icon: 'none',
+        duration: 2400
+      })
+      setTimeout(() => {
+        Taro.reLaunch({ url: nextUrl })
+      }, 400)
+    } catch (error: any) {
+      console.error('[student-onboarding] skip failed:', error)
+      Taro.showToast({
+        title: error?.message || '保存失败',
+        icon: 'none'
+      })
+    } finally {
+      setSaving(false)
+    }
   }
 
   const handleSubmit = async () => {
@@ -1036,32 +1128,43 @@ function StudentOnboarding() {
         )}
 
         <View className={`footer-bar ${nicknameInputFocused ? 'footer-bar--hidden' : ''}`}>
-          <View
-            className={`footer-btn footer-btn--prev ${step <= 1 || loading ? 'footer-btn--disabled' : ''}`}
-            onClick={step <= 1 || loading ? undefined : handlePrev}
-          >
-            <Text className='footer-btn-icon iconfont icon-left'></Text>
-            <Text className='footer-btn-text'>上一步</Text>
-          </View>
-          {step < totalSteps ? (
-            <TaroButton
-              className={`footer-btn footer-btn--next ${loading ? 'footer-btn--disabled' : ''}`}
-              formType={step === 1 ? 'submit' : undefined}
-              disabled={loading}
-              onClick={loading || step === 1 ? undefined : () => handleNext()}
-            >
-              <Text className='footer-btn-text'>下一步</Text>
-              <Text className='footer-btn-icon iconfont icon-right'></Text>
-            </TaroButton>
-          ) : (
+          {!isEditMode && (
             <View
-              className={`footer-btn footer-btn--next ${(saving || loading) ? 'footer-btn--disabled' : ''}`}
-              onClick={(saving || loading) ? undefined : handleSubmit}
+              className={`footer-skip-btn ${(saving || loading) ? 'footer-btn--disabled' : ''}`}
+              onClick={(saving || loading) ? undefined : handleSkip}
             >
-              <Text className='footer-btn-text'>{saving ? '保存中...' : isEditMode ? '保存档案' : '完成注册'}</Text>
-              <Text className='footer-btn-icon'>{'>'}</Text>
+              <Text className='footer-skip-btn-text'>先使用，稍后补充</Text>
+              <Text className='footer-skip-hint'>最少填写昵称和性别即可</Text>
             </View>
           )}
+          <View className='footer-actions'>
+            <View
+              className={`footer-btn footer-btn--prev ${step <= 1 || loading ? 'footer-btn--disabled' : ''}`}
+              onClick={step <= 1 || loading ? undefined : handlePrev}
+            >
+              <Text className='footer-btn-icon iconfont icon-left'></Text>
+              <Text className='footer-btn-text'>上一步</Text>
+            </View>
+            {step < totalSteps ? (
+              <TaroButton
+                className={`footer-btn footer-btn--next ${loading ? 'footer-btn--disabled' : ''}`}
+                formType={step === 1 ? 'submit' : undefined}
+                disabled={loading}
+                onClick={loading || step === 1 ? undefined : () => handleNext()}
+              >
+                <Text className='footer-btn-text'>继续完善</Text>
+                <Text className='footer-btn-icon iconfont icon-right'></Text>
+              </TaroButton>
+            ) : (
+              <View
+                className={`footer-btn footer-btn--next ${(saving || loading) ? 'footer-btn--disabled' : ''}`}
+                onClick={(saving || loading) ? undefined : handleSubmit}
+              >
+                <Text className='footer-btn-text'>{saving ? '保存中...' : isEditMode ? '保存档案' : '保存完整档案'}</Text>
+                <Text className='footer-btn-icon'>{'>'}</Text>
+              </View>
+            )}
+          </View>
         </View>
       </View>
       </TaroForm>
