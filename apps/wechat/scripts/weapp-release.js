@@ -1,16 +1,16 @@
 #!/usr/bin/env node
 const fs = require('fs')
 const path = require('path')
-const { execSync } = require('child_process')
+const { execFileSync, execSync } = require('child_process')
 
 const ci = require('miniprogram-ci')
 
 const PROJECT_DIR = path.resolve(__dirname, '..')
 const ROOT_DIR = path.resolve(PROJECT_DIR, '..')
 const PROJECT_CONFIG_PATH = path.join(PROJECT_DIR, 'project.config.json')
-const PRIVATE_CONFIG_PATH = path.join(PROJECT_DIR, 'project.private.config.json')
 const DEFAULT_ENV_FILE = path.join(PROJECT_DIR, '.env.weapp-release.local')
 const DEFAULT_AUDIT_CONFIG = path.join(PROJECT_DIR, 'release.weapp.json')
+const RELEASE_DIR = path.join(PROJECT_DIR, 'dist-release')
 const DEPLOY_DIR = path.join(PROJECT_DIR, 'deploy_versions')
 const LATEST_DEPLOY_PATH = path.join(DEPLOY_DIR, 'latest-weapp-release.json')
 
@@ -87,6 +87,7 @@ function boolValue(value) {
 }
 
 function numberValue(value, fallback) {
+  if (value == null || value === '') return fallback
   const parsed = Number(value)
   return Number.isFinite(parsed) ? parsed : fallback
 }
@@ -155,34 +156,44 @@ function updateLatestDeploy(patch) {
   return next
 }
 
-async function withReleasePrivateConfig(fn) {
-  const existed = fs.existsSync(PRIVATE_CONFIG_PATH)
-  const original = existed ? fs.readFileSync(PRIVATE_CONFIG_PATH, 'utf8') : ''
-  const current = existed ? JSON.parse(original) : {}
-  const next = {
-    ...current,
-    miniprogramRoot: 'dist-release/',
-    srcMiniprogramRoot: 'dist-release/',
-  }
-
-  fs.writeFileSync(PRIVATE_CONFIG_PATH, `${JSON.stringify(next, null, 2)}\n`)
-  try {
-    return await fn()
-  } finally {
-    if (existed) {
-      fs.writeFileSync(PRIVATE_CONFIG_PATH, original)
-    } else if (fs.existsSync(PRIVATE_CONFIG_PATH)) {
-      fs.unlinkSync(PRIVATE_CONFIG_PATH)
-    }
-  }
-}
-
 function buildIfNeeded(options) {
   if (boolValue(options['skip-build']) || boolValue(getEnv('WEAPP_RELEASE_SKIP_BUILD'))) {
     console.log('[weapp-release] skip build')
     return
   }
   sh('npm run build:weapp:release')
+}
+
+function ensureReleaseArtifacts() {
+  const required = ['project.config.json', 'app.json', 'app.js']
+  const missing = required.filter((name) => !fs.existsSync(path.join(RELEASE_DIR, name)))
+  if (missing.length > 0) {
+    throw new Error(
+      `Release build is incomplete (${missing.join(', ')} missing). Run npm run build:weapp:release first.`
+    )
+  }
+}
+
+function normalizeReleaseProjectConfig(appid) {
+  const releaseConfigPath = path.join(RELEASE_DIR, 'project.config.json')
+  const releaseConfig = readJson(releaseConfigPath)
+  writeJson(releaseConfigPath, {
+    ...releaseConfig,
+    appid,
+    miniprogramRoot: './',
+    srcMiniprogramRoot: './',
+  })
+}
+
+function resolveDevtoolsCli() {
+  const configured = getEnv('WEAPP_DEVTOOLS_CLI_PATH')
+  const candidates = [
+    configured,
+    'D:\\software\\微信web开发者工具\\cli.bat',
+    'C:\\Program Files (x86)\\Tencent\\微信web开发者工具\\cli.bat',
+    'C:\\Program Files\\Tencent\\微信web开发者工具\\cli.bat',
+  ].filter(Boolean)
+  return candidates.find((candidate) => fs.existsSync(candidate)) || ''
 }
 
 function makeProject(appid) {
@@ -198,7 +209,7 @@ function makeProject(appid) {
   return new ci.Project({
     appid,
     type: 'miniProgram',
-    projectPath: PROJECT_DIR,
+    projectPath: RELEASE_DIR,
     privateKeyPath: privateKeyPath || undefined,
     privateKey: privateKey || undefined,
     ignores: [
@@ -216,15 +227,47 @@ function makeProject(appid) {
 
 async function upload(options, context) {
   buildIfNeeded(options)
+  ensureReleaseArtifacts()
+  normalizeReleaseProjectConfig(context.appid)
 
   const version = options.version || getEnv('WEAPP_VERSION') || defaultVersion()
   const desc = options.desc || getEnv('WEAPP_DESC') || defaultDesc()
   const robot = numberValue(options.robot || getEnv('WEAPP_CI_ROBOT'), 1)
-  const project = makeProject(context.appid)
+  const requestedProvider = options.provider || getEnv('WEAPP_UPLOAD_PROVIDER', 'auto')
+  const devtoolsCli = resolveDevtoolsCli()
+  const useDevtools =
+    requestedProvider === 'devtools' || (requestedProvider === 'auto' && Boolean(devtoolsCli))
 
-  console.log(`[weapp-release] upload appid=${context.appid} version=${version} robot=${robot}`)
-  const result = await withReleasePrivateConfig(() =>
-    ci.upload({
+  let result
+  let provider
+  if (useDevtools) {
+    requireValue(
+      devtoolsCli,
+      'WeChat DevTools CLI not found. Set WEAPP_DEVTOOLS_CLI_PATH or use --provider miniprogram-ci.'
+    )
+    const port = numberValue(options.port || getEnv('WEAPP_DEVTOOLS_CLI_PORT') || 28264, 28264)
+    provider = 'devtools'
+    console.log(
+      `[weapp-release] upload provider=devtools appid=${context.appid} version=${version} port=${port}`
+    )
+    execFileSync(
+      devtoolsCli,
+      ['upload', '--project', RELEASE_DIR, '--port', String(port), '-v', version, '-d', desc],
+      {
+        cwd: PROJECT_DIR,
+        stdio: 'inherit',
+        shell: process.platform === 'win32',
+        env: process.env,
+      }
+    )
+    result = { provider, port }
+  } else {
+    provider = 'miniprogram-ci'
+    const project = makeProject(context.appid)
+    console.log(
+      `[weapp-release] upload provider=miniprogram-ci appid=${context.appid} version=${version} robot=${robot}`
+    )
+    result = await ci.upload({
       project,
       version,
       desc,
@@ -238,13 +281,14 @@ async function upload(options, context) {
         else if (info.message) console.log(`[weapp-release] ${info.status || ''} ${info.message}`)
       },
     })
-  )
+  }
 
   updateLatestDeploy({
     appid: context.appid,
     version,
     desc,
     robot,
+    uploadProvider: provider,
     uploadedAt: new Date().toISOString(),
     uploadResult: result,
   })

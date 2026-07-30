@@ -1,6 +1,6 @@
 ## Web / 微信小程序手指光膜工具 (`2026-07-30`)
 
-- Status: 正式版代码、本地样片和 Supabase 表已完成；根 TypeScript、177 项单测、Next 生产构建和微信小程序 2765 模块完整构建通过。正在完成独立 Worker 镜像、Kafka topic、Kubernetes/Nginx 和 Web/小程序发布。
+- Status: Web/API、独立视频 Worker、Kafka、定时清理和 Nginx 已部署到生产；线上真实任务端到端通过。微信小程序体验版 `2026.07.30.0844` 已上传，待公众平台手工提审与发布。根 TypeScript、177 项单测、Next 生产构建和微信小程序 2752 模块 release 构建通过。
 - Product framing: 定位为“手指运动识别 + 即时视觉反馈”，不是普通滤镜。输入是手指主动伸展/收回状态，输出是连接线、动态膜面或封闭立体光膜，后续可自然扩展为灵活性、反应速度和指定手势挑战。
 - Web: `/toolbox/motion-effects` 只运行 MediaPipe HandLandmarker，不再识别肩、肘、手臂或身体姿态；左右手严格按同名手指配对。采用双阈值与连续帧滞回：连续 2 帧确认伸展、连续 3 帧确认收回，降低遮挡抖动。
 - Dynamic topology: 0 对不绘图、1 对绘制连接线、2 对绘制四点膜面、3–5 对绘制具有侧面和端面的闭合棱柱；未伸展或暂时遮挡的手指不进入拓扑。
@@ -8,6 +8,9 @@
 - WeChat: 小程序 `/toolbox/motion-effects/index` 已改为原生选择、流式上传、排队轮询、成片预览、下载和保存相册，不再依赖 WebView/MediaRecorder。下载不要求分享、关注、口令或挑战文案。
 - Production data: 已通过 Supabase Management API 精确执行并登记 `20260730090000_video_render_jobs.sql`；线上表存在、5 个索引、RLS 已启用。未执行 `supabase db push`，未触碰旧迁移记录。
 - Local sample: 使用用户 15.5 秒竖屏原视频生成服务端样片，928 帧中 813 帧识别双手，最高 5 对同名手指，输出为 H.264 + AAC、音频保留，大小约 17MB。
+- Production runtime: `coachlink-main` 3/3、`coachlink-motion-effects-worker-main` 1/1，均零重启；独立 topic 为 `coachlink-motion-effects-tasks-main`，24 小时清理 CronJob 已成功执行一次。
+- Production smoke: 5 秒竖屏视频线上分析 297 帧，258 帧识别双手，峰值 5 对，成片为 1080×1920 H.264 + AAC、音频保留且仅含“教链”水印；验证后的 Storage 对象与任务行已删除，无测试数据残留。
+- Release tooling: 修复小程序上传器误依赖仓库根 `project.config.json` 的问题，改为直接校验并上传 `dist-release/`；当前 Windows 环境自动使用微信开发者工具 CLI，`miniprogram-ci` 保留为无 DevTools 环境的回退。
 
 ## Web / 微信小程序工具箱单手引体测算与 UI 重做 (`2026-07-30`)
 
