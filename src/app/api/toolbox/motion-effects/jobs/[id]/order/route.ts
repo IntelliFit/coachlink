@@ -32,6 +32,10 @@ export async function POST(
   req: Request,
   context: { params: Promise<{ id: string }> },
 ) {
+  const requestBody = (await req.json().catch(() => ({}))) as {
+    returnUrlOnly?: boolean;
+  };
+  const returnUrlOnly = requestBody?.returnUrlOnly === true;
   const identity = await getMotionEffectRequestIdentity(req);
   const { id } = await context.params;
   const job = await getAccessibleMotionEffectJob(id, identity);
@@ -189,8 +193,10 @@ export async function POST(
       ...(isMobile ? {} : { qr_pay_mode: "0" }),
     },
   };
-  const formHtml = alipaySdk.pageExec(apiName, bizParams) as string;
-  if (!formHtml) {
+  const paymentResult = returnUrlOnly
+    ? (alipaySdk.pageExec(apiName, "GET", bizParams) as string)
+    : (alipaySdk.pageExec(apiName, bizParams) as string);
+  if (!paymentResult) {
     if (createdNewOrder) {
       await db.from("alipay_orders").delete().eq("id", order.id);
     }
@@ -235,7 +241,8 @@ export async function POST(
         status: String(order.status),
       },
       paymentInfo: {
-        formHtml,
+        formHtml: returnUrlOnly ? undefined : paymentResult,
+        paymentUrl: returnUrlOnly ? paymentResult : undefined,
         description: "支付宝支付",
       },
     },

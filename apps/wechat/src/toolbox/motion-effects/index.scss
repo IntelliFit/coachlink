@@ -30,7 +30,12 @@
 .motion-file-name,
 .motion-file-meta,
 .motion-status-text,
-.motion-privacy {
+.motion-privacy,
+.motion-style-name,
+.motion-option-title,
+.motion-option-desc,
+.motion-option-price,
+.motion-payment-price {
   display: block;
 }
 
@@ -85,9 +90,129 @@
   color: #ffffff;
 }
 
+.motion-button-secondary {
+  border: 2rpx solid #d8cec6;
+  background: #ffffff;
+  color: #39413d;
+}
+
 .motion-button-disabled {
   opacity: 0.42;
   pointer-events: none;
+}
+
+.motion-style-grid {
+  display: grid;
+  margin-top: 24rpx;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16rpx;
+}
+
+.motion-style {
+  box-sizing: border-box;
+  padding: 20rpx;
+  border: 2rpx solid #e6dfd9;
+  border-radius: 22rpx;
+  background: #ffffff;
+}
+
+.motion-style-active {
+  border-color: #cf6d4e;
+  background: #fff5f0;
+}
+
+.motion-style-colors {
+  display: flex;
+  overflow: hidden;
+  height: 20rpx;
+  border-radius: 10rpx;
+}
+
+.motion-style-color {
+  flex: 1;
+}
+
+.motion-style-name {
+  margin-top: 14rpx;
+  color: #303633;
+  font-size: 25rpx;
+  font-weight: 800;
+}
+
+.motion-option {
+  display: flex;
+  box-sizing: border-box;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 18rpx;
+  padding: 24rpx;
+  border: 2rpx solid #e6dfd9;
+  border-radius: 24rpx;
+  background: #ffffff;
+}
+
+.motion-option-active {
+  border-color: #cf6d4e;
+  background: #fff5f0;
+}
+
+.motion-option-priority {
+  border-color: #4a8c77;
+  background: #edf7f2;
+}
+
+.motion-option-title {
+  color: #27302c;
+  font-size: 27rpx;
+  font-weight: 900;
+}
+
+.motion-option-desc {
+  margin-top: 8rpx;
+  color: #777d79;
+  font-size: 22rpx;
+}
+
+.motion-option-price {
+  margin-left: 20rpx;
+  color: #cf6d4e;
+  font-size: 27rpx;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.motion-price-total {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 24rpx;
+  padding-top: 22rpx;
+  border-top: 2rpx solid #eee8e2;
+  color: #656b67;
+  font-size: 26rpx;
+  font-weight: 800;
+}
+
+.motion-price-total-value,
+.motion-payment-price {
+  color: #cf6d4e;
+  font-size: 42rpx;
+  font-weight: 900;
+}
+
+.motion-payment-card {
+  border-color: #efc4b5;
+  background: #fff8f4;
+}
+
+.motion-payment-price {
+  margin-top: 14rpx;
+}
+
+.motion-payment-actions {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12rpx;
 }
 
 .motion-file {
