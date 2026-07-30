@@ -24,12 +24,13 @@ RUN ln -s /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm && \
 COPY package.json package-lock.json ./
 RUN npm ci --legacy-peer-deps
 
-COPY scripts ./scripts
-COPY src ./src
-COPY tsconfig.json ./
-
+COPY scripts/power-analysis/requirements.txt ./scripts/power-analysis/requirements.txt
 RUN python3 -m venv /opt/motion-effects-venv && \
     /opt/motion-effects-venv/bin/pip install --no-cache-dir \
       -r scripts/power-analysis/requirements.txt
+
+COPY scripts ./scripts
+COPY src ./src
+COPY tsconfig.json ./
 
 CMD ["node", "scripts/motion-effects-worker.mjs", "--queue"]
