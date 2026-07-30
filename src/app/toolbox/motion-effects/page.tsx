@@ -24,6 +24,12 @@ import type {
   CreateMotionEffectUploadResponseDto,
   MotionEffectJobDto,
 } from "@/app/api/toolbox/motion-effects/types";
+import {
+  buildSideTriangles,
+  lerpPoint,
+  smoothstep,
+  type MotionEffectPoint as Point,
+} from "@/lib/motionEffectsGeometry";
 
 type AnalyzerStatus =
   | "idle"
@@ -33,12 +39,6 @@ type AnalyzerStatus =
   | "paused"
   | "complete"
   | "error";
-
-type Point = {
-  x: number;
-  y: number;
-  z: number;
-};
 
 type FingerState = {
   active: boolean;
@@ -90,14 +90,10 @@ const EMPTY_FINGER_STATE = (): FingerState => ({
   weight: 0,
 });
 
-const PALETTE = [
-  "rgba(21, 221, 196, 0.24)",
-  "rgba(54, 126, 255, 0.25)",
-  "rgba(152, 75, 255, 0.24)",
-  "rgba(255, 84, 157, 0.22)",
-  "rgba(255, 181, 65, 0.22)",
-  "rgba(42, 217, 190, 0.2)",
-];
+const BASE_HUES = [174, 214, 267, 329, 39] as const;
+const PALM_CENTER_INDICES = [0, 5, 9, 13, 17] as const;
+const REVEAL_DISTANCE_START = 0.14;
+const REVEAL_DISTANCE_END = 0.3;
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
@@ -204,64 +200,37 @@ function updateFingerState(state: FingerState, score: number) {
   return state;
 }
 
-function solveAffineTransform(source: Point[], target: Point[]) {
-  const [s0, s1, s2] = source;
-  const [t0, t1, t2] = target;
-  const denominator =
-    s0.x * (s1.y - s2.y) +
-    s1.x * (s2.y - s0.y) +
-    s2.x * (s0.y - s1.y);
-  if (Math.abs(denominator) < 0.0001) return null;
-
-  return {
-    a:
-      (t0.x * (s1.y - s2.y) +
-        t1.x * (s2.y - s0.y) +
-        t2.x * (s0.y - s1.y)) /
-      denominator,
-    b:
-      (t0.y * (s1.y - s2.y) +
-        t1.y * (s2.y - s0.y) +
-        t2.y * (s0.y - s1.y)) /
-      denominator,
-    c:
-      (t0.x * (s2.x - s1.x) +
-        t1.x * (s0.x - s2.x) +
-        t2.x * (s1.x - s0.x)) /
-      denominator,
-    d:
-      (t0.y * (s2.x - s1.x) +
-        t1.y * (s0.x - s2.x) +
-        t2.y * (s1.x - s0.x)) /
-      denominator,
-    e:
-      (t0.x * (s1.x * s2.y - s2.x * s1.y) +
-        t1.x * (s2.x * s0.y - s0.x * s2.y) +
-        t2.x * (s0.x * s1.y - s1.x * s0.y)) /
-      denominator,
-    f:
-      (t0.y * (s1.x * s2.y - s2.x * s1.y) +
-        t1.y * (s2.x * s0.y - s0.x * s2.y) +
-        t2.y * (s0.x * s1.y - s1.x * s0.y)) /
-      denominator,
-  };
+function handSeparationAlpha(
+  hands: NormalizedLandmark[][],
+  width: number,
+  height: number,
+) {
+  const centers = hands.slice(0, 2).map((hand) => {
+    const points = PALM_CENTER_INDICES.map((index) => toPoint(hand[index], width, height));
+    return points.reduce(
+      (center, point) => ({
+        x: center.x + point.x / points.length,
+        y: center.y + point.y / points.length,
+        z: center.z + point.z / points.length,
+      }),
+      { x: 0, y: 0, z: 0 },
+    );
+  });
+  const normalizedDistance =
+    Math.hypot(centers[0].x - centers[1].x, centers[0].y - centers[1].y) /
+    Math.hypot(width, height);
+  return smoothstep(REVEAL_DISTANCE_START, REVEAL_DISTANCE_END, normalizedDistance);
 }
 
 function drawTexturedTriangle(
   context: CanvasRenderingContext2D,
   video: HTMLVideoElement,
   target: Point[],
-  tint: string,
+  hue: number,
   alpha: number,
+  timeSeconds: number,
+  phase: number,
 ) {
-  const source = target.map((point) => ({
-    x: clamp(video.videoWidth - point.x, 0, video.videoWidth),
-    y: clamp(point.y, 0, video.videoHeight),
-    z: point.z,
-  }));
-  const transform = solveAffineTransform(source, target);
-  if (!transform) return;
-
   context.save();
   context.beginPath();
   context.moveTo(target[0].x, target[0].y);
@@ -269,16 +238,10 @@ function drawTexturedTriangle(
   context.lineTo(target[2].x, target[2].y);
   context.closePath();
   context.clip();
-  context.setTransform(
-    transform.a,
-    transform.b,
-    transform.c,
-    transform.d,
-    transform.e,
-    transform.f,
-  );
-  context.globalAlpha = 0.64 * alpha;
-  context.filter = "brightness(0.48) saturate(1.7) contrast(1.08) hue-rotate(145deg)";
+  context.globalAlpha = 0.46 * alpha;
+  context.filter = "brightness(0.58) saturate(1.55) contrast(1.08)";
+  context.translate(video.videoWidth, 0);
+  context.scale(-1, 1);
   context.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
   context.restore();
 
@@ -288,10 +251,30 @@ function drawTexturedTriangle(
   context.lineTo(target[1].x, target[1].y);
   context.lineTo(target[2].x, target[2].y);
   context.closePath();
-  context.fillStyle = tint;
-  context.globalAlpha = alpha;
+  context.fillStyle = `hsl(${hue}, 94%, 58%)`;
+  context.globalAlpha = 0.25 * alpha;
   context.globalCompositeOperation = "screen";
   context.fill();
+  context.restore();
+
+  const sweep = (timeSeconds * 0.38 + phase) % 1;
+  const sweepStart = lerpPoint(target[0], target[2], sweep);
+  const sweepEnd = lerpPoint(target[1], target[2], sweep);
+  context.save();
+  context.beginPath();
+  context.moveTo(target[0].x, target[0].y);
+  context.lineTo(target[1].x, target[1].y);
+  context.lineTo(target[2].x, target[2].y);
+  context.closePath();
+  context.clip();
+  context.beginPath();
+  context.moveTo(sweepStart.x, sweepStart.y);
+  context.lineTo(sweepEnd.x, sweepEnd.y);
+  context.strokeStyle = `hsla(${(hue + 48) % 360}, 100%, 78%, ${0.52 * alpha})`;
+  context.lineWidth = Math.max(1.5, video.videoWidth / 420);
+  context.shadowColor = `hsla(${hue}, 100%, 65%, ${0.8 * alpha})`;
+  context.shadowBlur = 14;
+  context.stroke();
   context.restore();
 }
 
@@ -301,16 +284,31 @@ function drawEdge(
   end: Point,
   width: number,
   alpha: number,
+  hue: number,
+  timeSeconds: number,
+  phase: number,
 ) {
+  const lineWidth = Math.max(1.2, width / 680);
   context.save();
   context.beginPath();
   context.moveTo(start.x, start.y);
   context.lineTo(end.x, end.y);
   context.lineCap = "round";
-  context.strokeStyle = `rgba(229, 255, 252, ${0.5 + alpha * 0.44})`;
-  context.lineWidth = Math.max(1.2, width / 680);
-  context.shadowColor = "rgba(44, 235, 211, 0.78)";
+  context.strokeStyle = `hsla(${hue}, 100%, 88%, ${0.42 + alpha * 0.5})`;
+  context.lineWidth = lineWidth;
+  context.shadowColor = `hsla(${hue}, 100%, 63%, ${0.78 * alpha})`;
   context.shadowBlur = 9;
+  context.stroke();
+
+  const dash = Math.max(6, width / 92);
+  context.beginPath();
+  context.moveTo(start.x, start.y);
+  context.lineTo(end.x, end.y);
+  context.setLineDash([dash, dash * 1.35]);
+  context.lineDashOffset = -(timeSeconds * width * 0.12 + phase * dash * 3);
+  context.strokeStyle = `hsla(${(hue + 54) % 360}, 100%, 72%, ${0.62 * alpha})`;
+  context.lineWidth = lineWidth * 1.7;
+  context.shadowBlur = 12;
   context.stroke();
   context.restore();
 }
@@ -345,6 +343,7 @@ function drawAdaptiveMesh(
   states: FingerState[][],
   width: number,
   height: number,
+  timeSeconds: number,
 ) {
   if (hands.length < 2) return 0;
 
@@ -361,63 +360,91 @@ function drawAdaptiveMesh(
   const stablePairCount = pairs.filter((pair) => pair.weight >= 0.5).length;
   if (!pairs.length) return stablePairCount;
 
+  const revealAlpha = handSeparationAlpha(hands, width, height);
+  if (revealAlpha <= 0.01) return 0;
   const overallAlpha =
-    pairs.reduce((sum, pair) => sum + pair.weight, 0) / Math.max(1, pairs.length);
+    (pairs.reduce((sum, pair) => sum + pair.weight, 0) / Math.max(1, pairs.length)) *
+    revealAlpha;
   const left = pairs.map((pair) => pair.left);
   const right = pairs.map((pair) => pair.right);
-  const triangles: { points: Point[]; color: string; depth: number }[] = [];
-  const edges: [Point, Point][] = [];
+  const triangles: { points: Point[]; hue: number; depth: number; phase: number }[] = [];
+  const edges: { start: Point; end: Point; hue: number; phase: number }[] = [];
+  const hueFor = (fingerIndex: number, offset = 0) =>
+    (BASE_HUES[fingerIndex] + timeSeconds * 28 + offset) % 360;
+  const addTriangle = (
+    points: Point[],
+    fingerIndex: number,
+    offset: number,
+    phase: number,
+  ) => {
+    triangles.push({
+      points,
+      hue: hueFor(fingerIndex, offset),
+      depth: points.reduce((sum, point) => sum + point.z, 0) / points.length,
+      phase,
+    });
+  };
 
   if (pairs.length === 1) {
-    edges.push([left[0], right[0]]);
-  } else if (pairs.length === 2) {
-    triangles.push({
-      points: [left[0], right[0], right[1]],
-      color: PALETTE[0],
-      depth: (left[0].z + right[0].z + right[1].z) / 3,
+    edges.push({
+      start: left[0],
+      end: right[0],
+      hue: hueFor(pairs[0].fingerIndex),
+      phase: pairs[0].fingerIndex,
     });
-    triangles.push({
-      points: [left[0], right[1], left[1]],
-      color: PALETTE[1],
-      depth: (left[0].z + right[1].z + left[1].z) / 3,
-    });
-    edges.push(
-      [left[0], right[0]],
-      [right[0], right[1]],
-      [right[1], left[1]],
-      [left[1], left[0]],
-    );
   } else {
-    for (let index = 0; index < pairs.length; index += 1) {
+    const sideCount = pairs.length === 2 ? 1 : pairs.length;
+    for (let index = 0; index < sideCount; index += 1) {
       const next = (index + 1) % pairs.length;
-      triangles.push({
-        points: [left[index], right[index], right[next]],
-        color: PALETTE[index % PALETTE.length],
-        depth: (left[index].z + right[index].z + right[next].z) / 3,
-      });
-      triangles.push({
-        points: [left[index], right[next], left[next]],
-        color: PALETTE[(index + 1) % PALETTE.length],
-        depth: (left[index].z + right[next].z + left[next].z) / 3,
-      });
+      buildSideTriangles(left[index], right[index], left[next], right[next]).forEach(
+        (points, triangleIndex) =>
+          addTriangle(
+            points,
+            pairs[index].fingerIndex,
+            triangleIndex * 38 + index * 17,
+            index * 0.19 + triangleIndex * 0.31,
+          ),
+      );
       edges.push(
-        [left[index], right[index]],
-        [left[index], left[next]],
-        [right[index], right[next]],
+        {
+          start: left[index],
+          end: left[next],
+          hue: hueFor(pairs[index].fingerIndex, 24),
+          phase: index + 0.25,
+        },
+        {
+          start: right[index],
+          end: right[next],
+          hue: hueFor(pairs[next].fingerIndex, 24),
+          phase: index + 0.65,
+        },
       );
     }
 
-    for (let index = 1; index < pairs.length - 1; index += 1) {
-      triangles.push({
-        points: [left[0], left[index], left[index + 1]],
-        color: "rgba(39, 218, 193, 0.18)",
-        depth: (left[0].z + left[index].z + left[index + 1].z) / 3,
+    pairs.forEach((pair, index) => {
+      edges.push({
+        start: left[index],
+        end: right[index],
+        hue: hueFor(pair.fingerIndex),
+        phase: index,
       });
-      triangles.push({
-        points: [right[0], right[index + 1], right[index]],
-        color: "rgba(134, 83, 255, 0.18)",
-        depth: (right[0].z + right[index + 1].z + right[index].z) / 3,
-      });
+    });
+
+    if (pairs.length >= 3) {
+      for (let index = 1; index < pairs.length - 1; index += 1) {
+        addTriangle(
+          [left[0], left[index], left[index + 1]],
+          pairs[index].fingerIndex,
+          52,
+          index * 0.23,
+        );
+        addTriangle(
+          [right[0], right[index + 1], right[index]],
+          pairs[index].fingerIndex,
+          118,
+          index * 0.23 + 0.41,
+        );
+      }
     }
   }
 
@@ -428,14 +455,29 @@ function drawAdaptiveMesh(
         context,
         video,
         triangle.points,
-        triangle.color,
+        triangle.hue,
         overallAlpha,
+        timeSeconds,
+        triangle.phase,
       ),
     );
-  edges.forEach(([start, end]) => drawEdge(context, start, end, width, overallAlpha));
+  edges.forEach((edge) =>
+    drawEdge(
+      context,
+      edge.start,
+      edge.end,
+      width,
+      overallAlpha,
+      edge.hue,
+      timeSeconds,
+      edge.phase,
+    ),
+  );
   pairs.forEach((pair) => {
-    drawNode(context, pair.left, width, 174 + pair.fingerIndex * 20, pair.weight);
-    drawNode(context, pair.right, width, 174 + pair.fingerIndex * 20, pair.weight);
+    const hue = hueFor(pair.fingerIndex);
+    const nodeAlpha = pair.weight * revealAlpha;
+    drawNode(context, pair.left, width, hue, nodeAlpha);
+    drawNode(context, pair.right, width, hue, nodeAlpha);
   });
 
   return stablePairCount;
@@ -634,6 +676,7 @@ export default function MotionEffectsPage() {
         fingerStatesRef.current,
         canvas.width,
         canvas.height,
+        video.currentTime,
       );
 
       if (isExportingRef.current && exportCanvasRef.current) {
@@ -1008,7 +1051,7 @@ export default function MotionEffectsPage() {
               </h1>
               <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-600 sm:text-base">
                 上传一段双手视频。系统只配对左右手真正伸展的同名手指：拇指对拇指、食指对食指。
-                两对形成膜面，三到五对形成完整立体结构；弯曲或被遮挡的手指不会硬塞进图形。
+                双手靠近时不显示，随着距离拉开，彩色膜面与流光会逐渐生长；弯曲或被遮挡的手指不会硬塞进图形。
               </p>
             </div>
             <div className="rounded-3xl bg-[#17352B] p-5 text-white">
@@ -1260,8 +1303,10 @@ export default function MotionEffectsPage() {
               <ul className="mt-3 space-y-2 text-sm leading-6 text-[#43635A]">
                 <li>· 判断的是手指主动伸展、弯曲与持续状态，不是静态贴纸。</li>
                 <li>· 左右手同名手指严格配对，大拇指只连接大拇指。</li>
+                <li>· 手掌距离控制显隐，靠近消失，拉开后平滑渐显。</li>
+                <li>· 两对指尖交叉时拆成两只三角形，不再错误补成整块凸面。</li>
                 <li>· 2 帧确认伸展、3 帧确认收回，减少遮挡造成的闪烁。</li>
-                <li>· 后续可加入指定手势、反应速度与灵活性小游戏。</li>
+                <li>· 颜色随时间缓慢流动，边缘与膜面带有移动光带。</li>
               </ul>
             </section>
           </aside>

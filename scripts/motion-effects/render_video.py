@@ -8,6 +8,7 @@ Collapsed/occluded fingers stay out of the topology through hysteresis.
 from __future__ import annotations
 
 import argparse
+import colorsys
 import json
 import math
 import shutil
@@ -31,20 +32,10 @@ FINGER_CHAINS = (
     (17, 18, 19, 20),
 )
 TIP_INDICES = (4, 8, 12, 16, 20)
-FACE_COLORS = (
-    (210, 244, 51),
-    (255, 142, 55),
-    (243, 68, 202),
-    (83, 219, 255),
-    (64, 252, 161),
-)
-EDGE_COLORS = (
-    (95, 255, 239),
-    (255, 209, 91),
-    (255, 121, 231),
-    (122, 211, 255),
-    (152, 255, 202),
-)
+BASE_HUES = (174.0, 214.0, 267.0, 329.0, 39.0)
+PALM_CENTER_INDICES = (0, 5, 9, 13, 17)
+REVEAL_DISTANCE_START = 0.14
+REVEAL_DISTANCE_END = 0.30
 FONT_CANDIDATES = (
     "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
     "/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc",
@@ -100,7 +91,7 @@ def fresh_states() -> list[dict[str, Any]]:
     ]
 
 
-def update_state(state: dict[str, Any], score: float) -> bool:
+def update_state(state: dict[str, Any], score: float) -> float:
     if score >= 0.63:
         state["high"] += 1
         state["low"] = 0
@@ -115,7 +106,7 @@ def update_state(state: dict[str, Any], score: float) -> bool:
     if state["active"] and state["low"] >= 3:
         state["active"] = False
     state["weight"] = clamp(state["weight"] + (0.34 if state["active"] else -0.22), 0, 1)
-    return bool(state["active"] and state["weight"] > 0.08)
+    return float(state["weight"]) if state["weight"] > 0.08 else 0.0
 
 
 def smooth(previous: np.ndarray | None, current: np.ndarray, alpha: float = 0.58) -> np.ndarray:
@@ -161,16 +152,112 @@ def draw_watermark(frame: np.ndarray) -> np.ndarray:
     return cv2.cvtColor(np.asarray(output), cv2.COLOR_RGB2BGR)
 
 
-def draw_textured_face(
+def smoothstep(start: float, end: float, value: float) -> float:
+    progress = clamp((value - start) / max(1e-7, end - start), 0.0, 1.0)
+    return progress * progress * (3.0 - 2.0 * progress)
+
+
+def segment_intersection(
+    first_start: tuple[int, int],
+    first_end: tuple[int, int],
+    second_start: tuple[int, int],
+    second_end: tuple[int, int],
+) -> tuple[int, int] | None:
+    first = np.asarray(first_start, dtype=np.float32)
+    first_vector = np.asarray(first_end, dtype=np.float32) - first
+    second = np.asarray(second_start, dtype=np.float32)
+    second_vector = np.asarray(second_end, dtype=np.float32) - second
+
+    def cross2d(a: np.ndarray, b: np.ndarray) -> float:
+        return float(a[0] * b[1] - a[1] * b[0])
+
+    denominator = cross2d(first_vector, second_vector)
+    if abs(denominator) < 1e-5:
+        return None
+    delta = second - first
+    first_amount = cross2d(delta, second_vector) / denominator
+    second_amount = cross2d(delta, first_vector) / denominator
+    margin = 0.025
+    if not (
+        margin < first_amount < 1.0 - margin
+        and margin < second_amount < 1.0 - margin
+    ):
+        return None
+    point = first + first_vector * first_amount
+    return int(round(float(point[0]))), int(round(float(point[1])))
+
+
+def build_side_triangles(
+    left_first: tuple[int, int],
+    right_first: tuple[int, int],
+    left_second: tuple[int, int],
+    right_second: tuple[int, int],
+) -> list[list[tuple[int, int]]]:
+    intersection = segment_intersection(
+        left_first,
+        right_first,
+        left_second,
+        right_second,
+    )
+    if intersection is not None:
+        return [
+            [left_first, left_second, intersection],
+            [right_first, right_second, intersection],
+        ]
+    return [
+        [left_first, right_first, right_second],
+        [left_first, right_second, left_second],
+    ]
+
+
+def animated_color(finger_index: int, timestamp: float, offset: float = 0.0) -> tuple[int, int, int]:
+    hue = ((BASE_HUES[finger_index] + timestamp * 28.0 + offset) % 360.0) / 360.0
+    red, green, blue = colorsys.hsv_to_rgb(hue, 0.82, 1.0)
+    return int(round(blue * 255)), int(round(green * 255)), int(round(red * 255))
+
+
+def palm_separation_alpha(hands: list[np.ndarray], width: int, height: int) -> float:
+    centers = []
+    for hand in hands[:2]:
+        normalized_center = np.mean(hand[list(PALM_CENTER_INDICES), :2], axis=0)
+        centers.append(
+            np.asarray(
+                [normalized_center[0] * width, normalized_center[1] * height],
+                dtype=np.float32,
+            )
+        )
+    normalized_distance = float(np.linalg.norm(centers[0] - centers[1])) / math.hypot(
+        width,
+        height,
+    )
+    return smoothstep(
+        REVEAL_DISTANCE_START,
+        REVEAL_DISTANCE_END,
+        normalized_distance,
+    )
+
+
+def lerp_pixel(
+    start: tuple[int, int],
+    end: tuple[int, int],
+    amount: float,
+) -> tuple[int, int]:
+    return (
+        int(round(start[0] + (end[0] - start[0]) * amount)),
+        int(round(start[1] + (end[1] - start[1]) * amount)),
+    )
+
+
+def draw_textured_triangle(
     canvas: np.ndarray,
     texture: np.ndarray,
-    polygon: list[tuple[int, int]],
+    triangle: list[tuple[int, int]],
     color: tuple[int, int, int],
     alpha: float,
 ) -> None:
-    if len(polygon) < 3:
+    if len(triangle) != 3 or alpha <= 0.0:
         return
-    points = np.asarray(polygon, dtype=np.int32)
+    points = np.asarray(triangle, dtype=np.int32)
     mask = np.zeros(canvas.shape[:2], dtype=np.uint8)
     cv2.fillPoly(mask, [points], 255)
     tinted = cv2.addWeighted(texture, 0.68, np.full_like(texture, color), 0.32, 0)
@@ -181,16 +268,25 @@ def draw_textured_face(
 def draw_effect(
     frame: np.ndarray,
     hands: list[np.ndarray],
-    active_fingers: list[list[bool]],
+    finger_weights: list[list[float]],
+    timestamp: float,
 ) -> tuple[np.ndarray, int]:
     if len(hands) < 2:
         return frame, 0
     height, width = frame.shape[:2]
     left, right = hands[0], hands[1]
-    left_active, right_active = active_fingers[0], active_fingers[1]
-    paired = [index for index in range(5) if left_active[index] and right_active[index]]
+    left_weights, right_weights = finger_weights[0], finger_weights[1]
+    pair_weights = [min(left_weights[index], right_weights[index]) for index in range(5)]
+    paired = [index for index in range(5) if pair_weights[index] > 0.08]
     if not paired:
         return frame, 0
+    reveal_alpha = palm_separation_alpha(hands, width, height)
+    if reveal_alpha <= 0.01:
+        return frame, 0
+    overall_alpha = (
+        sum(pair_weights[index] for index in paired) / max(1, len(paired))
+    ) * reveal_alpha
+    stable_pair_count = sum(1 for index in paired if pair_weights[index] >= 0.5)
 
     def pixel(hand: np.ndarray, finger_index: int) -> tuple[int, int]:
         tip = hand[TIP_INDICES[finger_index]]
@@ -203,64 +299,148 @@ def draw_effect(
     right_points = [pixel(right, index) for index in paired]
     texture = cv2.flip(frame, 1)
     output = frame.copy()
-    faces: list[list[tuple[int, int]]] = []
+    triangles: list[tuple[list[tuple[int, int]], int, float, float]] = []
+    segments: list[tuple[tuple[int, int], tuple[int, int], int, float]] = []
 
-    if len(paired) == 2:
-        faces.append([left_points[0], left_points[1], right_points[1], right_points[0]])
-    elif len(paired) >= 3:
-        # Consecutive quads plus the wraparound face form one closed projected prism.
-        for index in range(len(paired)):
-            nxt = (index + 1) % len(paired)
-            faces.append([
-                left_points[index],
-                left_points[nxt],
-                right_points[nxt],
-                right_points[index],
-            ])
-
-    for index, face in enumerate(faces):
-        draw_textured_face(
-            output,
-            texture,
-            face,
-            FACE_COLORS[(paired[index % len(paired)] + index) % len(FACE_COLORS)],
-            0.38 if len(paired) >= 3 else 0.44,
-        )
-
-    glow = np.zeros_like(output)
-    thin = np.zeros_like(output)
-    base_width = max(2, round(min(width, height) * 0.003))
     if len(paired) == 1:
-        segments = [(left_points[0], right_points[0], paired[0])]
+        segments.append((left_points[0], right_points[0], paired[0], 0.0))
     else:
-        segments = []
-        for index in range(len(paired)):
+        side_count = 1 if len(paired) == 2 else len(paired)
+        for index in range(side_count):
             nxt = (index + 1) % len(paired)
-            segments.extend([
-                (left_points[index], right_points[index], paired[index]),
-                (left_points[index], left_points[nxt], paired[index]),
-                (right_points[index], right_points[nxt], paired[index]),
-            ])
-        # Same-finger crossbars make the correspondence explicit inside the solid.
+            for triangle_index, triangle in enumerate(
+                build_side_triangles(
+                    left_points[index],
+                    right_points[index],
+                    left_points[nxt],
+                    right_points[nxt],
+                )
+            ):
+                triangles.append(
+                    (
+                        triangle,
+                        paired[index],
+                        triangle_index * 38.0 + index * 17.0,
+                        index * 0.19 + triangle_index * 0.31,
+                    )
+                )
+            segments.extend(
+                [
+                    (
+                        left_points[index],
+                        left_points[nxt],
+                        paired[index],
+                        index + 0.25,
+                    ),
+                    (
+                        right_points[index],
+                        right_points[nxt],
+                        paired[nxt],
+                        index + 0.65,
+                    ),
+                ]
+            )
+
         segments.extend(
-            (left_points[index], right_points[index], finger)
+            (
+                left_points[index],
+                right_points[index],
+                finger,
+                float(index),
+            )
             for index, finger in enumerate(paired)
         )
 
-    for start, end, finger in segments:
-        color = EDGE_COLORS[finger]
+        if len(paired) >= 3:
+            for index in range(1, len(paired) - 1):
+                triangles.extend(
+                    [
+                        (
+                            [left_points[0], left_points[index], left_points[index + 1]],
+                            paired[index],
+                            52.0,
+                            index * 0.23,
+                        ),
+                        (
+                            [right_points[0], right_points[index + 1], right_points[index]],
+                            paired[index],
+                            118.0,
+                            index * 0.23 + 0.41,
+                        ),
+                    ]
+                )
+
+    sweep_layer = np.zeros_like(output)
+    for triangle, finger, offset, phase in triangles:
+        draw_textured_triangle(
+            output,
+            texture,
+            triangle,
+            animated_color(finger, timestamp, offset),
+            0.34 * overall_alpha,
+        )
+        sweep = (timestamp * 0.38 + phase) % 1.0
+        sweep_start = lerp_pixel(triangle[0], triangle[2], sweep)
+        sweep_end = lerp_pixel(triangle[1], triangle[2], sweep)
+        cv2.line(
+            sweep_layer,
+            sweep_start,
+            sweep_end,
+            animated_color(finger, timestamp, offset + 48.0),
+            max(2, round(min(width, height) * 0.003)),
+            cv2.LINE_AA,
+        )
+    if triangles:
+        sweep_glow = cv2.GaussianBlur(
+            sweep_layer,
+            (0, 0),
+            sigmaX=max(3, min(width, height) * 0.004),
+        )
+        output = cv2.addWeighted(output, 1.0, sweep_glow, 0.42 * overall_alpha, 0)
+        output = cv2.addWeighted(output, 1.0, sweep_layer, 0.58 * overall_alpha, 0)
+
+    glow = np.zeros_like(output)
+    thin = np.zeros_like(output)
+    moving_nodes = np.zeros_like(output)
+    base_width = max(2, round(min(width, height) * 0.003))
+    for start, end, finger, phase in segments:
+        color = animated_color(finger, timestamp)
         cv2.line(glow, start, end, color, base_width * 5, cv2.LINE_AA)
         cv2.line(thin, start, end, (245, 255, 255), base_width, cv2.LINE_AA)
+        traveling = (timestamp * 0.55 + phase * 0.17) % 1.0
+        cv2.circle(
+            moving_nodes,
+            lerp_pixel(start, end, traveling),
+            base_width * 2,
+            animated_color(finger, timestamp, 54.0),
+            -1,
+            cv2.LINE_AA,
+        )
     glow = cv2.GaussianBlur(glow, (0, 0), sigmaX=max(4, base_width * 2.5))
-    output = cv2.addWeighted(output, 1.0, glow, 0.65, 0)
-    output = cv2.addWeighted(output, 1.0, thin, 0.92, 0)
+    moving_glow = cv2.GaussianBlur(
+        moving_nodes,
+        (0, 0),
+        sigmaX=max(4, base_width * 2.0),
+    )
+    output = cv2.addWeighted(output, 1.0, glow, 0.65 * overall_alpha, 0)
+    output = cv2.addWeighted(output, 1.0, thin, 0.92 * overall_alpha, 0)
+    output = cv2.addWeighted(output, 1.0, moving_glow, 0.72 * overall_alpha, 0)
+    output = cv2.addWeighted(output, 1.0, moving_nodes, 0.9 * overall_alpha, 0)
 
     for index, finger in enumerate(paired):
-        color = EDGE_COLORS[finger]
+        color = animated_color(finger, timestamp)
         for point in (left_points[index], right_points[index]):
-            cv2.circle(output, point, base_width * 4, color, -1, cv2.LINE_AA)
-            cv2.circle(output, point, base_width * 2, (255, 255, 255), -1, cv2.LINE_AA)
-    return output, len(paired)
+            node_layer = output.copy()
+            cv2.circle(node_layer, point, base_width * 4, color, -1, cv2.LINE_AA)
+            cv2.circle(node_layer, point, base_width * 2, (255, 255, 255), -1, cv2.LINE_AA)
+            output = cv2.addWeighted(
+                output,
+                1.0 - pair_weights[finger] * reveal_alpha,
+                node_layer,
+                pair_weights[finger] * reveal_alpha,
+                0,
+            )
+    return output, stable_pair_count
 
 
 def probe(path: Path) -> dict[str, Any]:
@@ -359,7 +539,7 @@ def render(input_path: Path, output_path: Path, result_path: Path) -> None:
                 candidates.sort(key=lambda points: float(points[0, 0]))
 
                 hands: list[np.ndarray] = []
-                active: list[list[bool]] = []
+                active: list[list[float]] = []
                 if len(candidates) >= 2:
                     hand_frames += 1
                     for slot, current in enumerate(candidates[:2]):
@@ -378,7 +558,12 @@ def render(input_path: Path, output_path: Path, result_path: Path) -> None:
                             previous[slot] = None
                             states[slot] = fresh_states()
 
-                rendered, pair_count = draw_effect(frame, hands, active)
+                rendered, pair_count = draw_effect(
+                    frame,
+                    hands,
+                    active,
+                    analyzed_frames / fps,
+                )
                 peak_pairs = max(peak_pairs, pair_count)
                 pair_counts[pair_count] += 1
                 writer.write(draw_watermark(rendered))
@@ -394,7 +579,7 @@ def render(input_path: Path, output_path: Path, result_path: Path) -> None:
 
     result = {
         "effectType": "finger_membrane",
-        "effectVersion": "v4",
+        "effectVersion": "v5",
         "analyzedFrames": analyzed_frames,
         "handFrames": hand_frames,
         "peakPairs": peak_pairs,

@@ -145,7 +145,7 @@ export async function POST(req: Request) {
       id: jobId,
       user_id: userId,
       effect_type: "finger_membrane",
-      effect_version: "v4",
+      effect_version: "v5",
       status: "awaiting_upload",
       progress: 0,
       input_storage_bucket: MOTION_EFFECTS_BUCKET,

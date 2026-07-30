@@ -11,6 +11,7 @@
 - Production runtime: `coachlink-main` 3/3、`coachlink-motion-effects-worker-main` 1/1，均零重启；独立 topic 为 `coachlink-motion-effects-tasks-main`，24 小时清理 CronJob 已成功执行一次。
 - Production smoke: 5 秒竖屏视频线上分析 297 帧，258 帧识别双手，峰值 5 对，成片为 1080×1920 H.264 + AAC、音频保留且仅含“教链”水印；验证后的 Storage 对象与任务行已删除，无测试数据残留。
 - Release tooling: 修复小程序上传器误依赖仓库根 `project.config.json` 的问题，改为直接校验并上传 `dist-release/`；当前 Windows 环境自动使用微信开发者工具 CLI，`miniprogram-ci` 保留为无 DevTools 环境的回退。
+- V5 local revision: 根据用户线上截图修正双指交叉拓扑；两条同名手指连线相交时以真实交点拆成左右两只三角形，不再填满凸包。手掌距离按画面对角线归一化，在 `0.14 → 0.30` 区间平滑渐显；颜色随视频时间轮换，膜面增加扫光，边缘增加流动光带。Web 与 Python Worker 共享同一拓扑、阈值和镜像纹理语义。V5 本地 Docker 样片已通过，尚未部署生产，待用户看样确认。
 
 ## Web / 微信小程序工具箱单手引体测算与 UI 重做 (`2026-07-30`)
 
