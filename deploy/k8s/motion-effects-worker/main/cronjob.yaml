@@ -1,0 +1,53 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: coachlink-motion-effects-worker-cleanup-main
+  labels:
+    app: coachlink-motion-effects-worker-main
+    env: main
+spec:
+  schedule: "15 * * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      ttlSecondsAfterFinished: 600
+      backoffLimit: 2
+      activeDeadlineSeconds: 1800
+      template:
+        metadata:
+          labels:
+            app: coachlink-motion-effects-worker-main
+            env: main
+            component: cleanup
+        spec:
+          restartPolicy: OnFailure
+          imagePullSecrets:
+            - name: ccr-tencent
+          containers:
+            - name: cleanup
+              image: littlehorse/coachlink-motion-effects-worker:latest
+              imagePullPolicy: Always
+              command: ["node"]
+              args: ["scripts/motion-effects-worker.mjs", "--cleanup"]
+              volumeMounts:
+                - name: worker-env
+                  mountPath: /app/.env
+                  subPath: dotenv
+                  readOnly: true
+                - name: worker-env
+                  mountPath: /app/.env.production
+                  subPath: dotenv-production
+                  readOnly: true
+              resources:
+                requests:
+                  cpu: "100m"
+                  memory: "256Mi"
+                limits:
+                  cpu: "1"
+                  memory: "1Gi"
+          volumes:
+            - name: worker-env
+              secret:
+                secretName: coachlink-motion-effects-worker-main-env

@@ -100,9 +100,11 @@ export default {
       pages: [
         'index',
         'motion-bean/index',
+        'motion-effects/index',
         'pullup-rush/index',
         'pushup-dash/index',
         'power-analysis/index',
+        'one-arm-pull-up/index',
         'scenario/index',
       ],
     },

@@ -1,9 +1,11 @@
 import { getTaskQueueConfig } from "./config";
 import { getMemoryTaskQueue } from "./memorySingleton";
-import type { TaskQueue } from "./types";
+import type { TaskQueue, TaskQueueConfig } from "./types";
 
-export async function createTaskQueue(): Promise<TaskQueue> {
-  const config = getTaskQueueConfig();
+export async function createTaskQueue(
+  suppliedConfig?: TaskQueueConfig,
+): Promise<TaskQueue> {
+  const config = suppliedConfig || getTaskQueueConfig();
   if (config.driver === "kafka") {
     const { KafkaTaskQueue } = await import("./kafka");
     return new KafkaTaskQueue(config);
@@ -11,9 +13,12 @@ export async function createTaskQueue(): Promise<TaskQueue> {
   return getMemoryTaskQueue();
 }
 
-export async function publishTask(message: { taskId: string; taskType: string }) {
-  const config = getTaskQueueConfig();
-  const queue = await createTaskQueue();
+export async function publishTask(
+  message: { taskId: string; taskType: string },
+  suppliedConfig?: TaskQueueConfig,
+) {
+  const config = suppliedConfig || getTaskQueueConfig();
+  const queue = await createTaskQueue(config);
   try {
     await queue.publishTask(message);
   } finally {

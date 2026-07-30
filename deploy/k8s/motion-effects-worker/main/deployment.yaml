@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: coachlink-motion-effects-worker-main
+  labels:
+    app: coachlink-motion-effects-worker-main
+    env: main
+  annotations:
+    keel.sh/policy: force
+    keel.sh/trigger: poll
+    keel.sh/pollSchedule: "@every 1m"
+    keel.sh/match-tag: "true"
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: coachlink-motion-effects-worker-main
+  template:
+    metadata:
+      labels:
+        app: coachlink-motion-effects-worker-main
+        env: main
+    spec:
+      terminationGracePeriodSeconds: 120
+      imagePullSecrets:
+        - name: ccr-tencent
+      containers:
+        - name: coachlink-motion-effects-worker-main
+          image: littlehorse/coachlink-motion-effects-worker:latest
+          imagePullPolicy: Always
+          command: ["node"]
+          args: ["scripts/motion-effects-worker.mjs", "--queue"]
+          volumeMounts:
+            - name: worker-env
+              mountPath: /app/.env
+              subPath: dotenv
+              readOnly: true
+            - name: worker-env
+              mountPath: /app/.env.production
+              subPath: dotenv-production
+              readOnly: true
+          resources:
+            requests:
+              cpu: "200m"
+              memory: "1Gi"
+            limits:
+              cpu: "2"
+              memory: "4Gi"
+      volumes:
+        - name: worker-env
+          secret:
+            secretName: coachlink-motion-effects-worker-main-env

@@ -25,6 +25,7 @@ const STATIC_PATHS = [
   '/ranking',
   '/training',
   '/toolbox',
+  '/toolbox/one-arm-pull-up',
   '/generate-plan',
   '/generate-plan/waiting',
   '/docs/agreement',

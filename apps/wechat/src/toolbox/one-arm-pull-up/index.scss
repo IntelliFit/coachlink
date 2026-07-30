@@ -1,0 +1,562 @@
+.oap-page {
+  min-height: 100vh;
+  box-sizing: border-box;
+  background: #f7f4ef;
+  color: #18231f;
+
+  .oap-content {
+    box-sizing: border-box;
+    width: 100%;
+    padding: 24rpx 24rpx 64rpx;
+  }
+
+  .intro-card,
+  .input-card,
+  .result-card,
+  .session-card,
+  .method-card {
+    box-sizing: border-box;
+    border-radius: 32rpx;
+  }
+
+  .intro-card {
+    overflow: hidden;
+    padding: 40rpx 32rpx;
+    background: #18231f;
+    color: #ffffff;
+    box-shadow: 0 24rpx 64rpx rgba(24, 35, 31, 0.14);
+  }
+
+  .intro-kicker,
+  .card-kicker,
+  .section-kicker,
+  .session-kicker,
+  .metric-label,
+  .focus-label,
+  .formula-label,
+  .target-label,
+  .field-label,
+  .field-hint,
+  .intro-stat-value,
+  .intro-stat-label,
+  .result-title,
+  .result-summary,
+  .result-badge,
+  .progress-value,
+  .progress-unit,
+  .target-value,
+  .metric-value,
+  .focus-value,
+  .section-title,
+  .section-desc,
+  .session-title,
+  .training-name,
+  .training-dose,
+  .formula-value,
+  .method-equivalent,
+  .method-note,
+  .input-error {
+    display: block;
+  }
+
+  .intro-kicker,
+  .section-kicker,
+  .card-kicker {
+    font-size: 22rpx;
+    font-weight: 800;
+    letter-spacing: 2rpx;
+  }
+
+  .intro-kicker {
+    color: #f0c5b7;
+  }
+
+  .intro-title {
+    display: block;
+    margin-top: 16rpx;
+    font-size: 48rpx;
+    font-weight: 900;
+    line-height: 1.25;
+  }
+
+  .intro-desc {
+    display: block;
+    margin-top: 24rpx;
+    color: #cbd5e1;
+    font-size: 24rpx;
+    line-height: 1.75;
+  }
+
+  .intro-stats {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8rpx;
+    margin-top: 32rpx;
+  }
+
+  .intro-stat {
+    padding: 16rpx 8rpx;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 16rpx;
+    background: rgba(255, 255, 255, 0.05);
+    text-align: center;
+  }
+
+  .intro-stat-value {
+    font-size: 24rpx;
+    font-weight: 900;
+  }
+
+  .intro-stat-label {
+    margin-top: 8rpx;
+    color: #94a3b8;
+    font-size: 18rpx;
+  }
+
+  .input-card,
+  .result-card,
+  .session-card,
+  .method-card {
+    border: 1px solid #e2ddd6;
+    background: #ffffff;
+  }
+
+  .input-card {
+    margin-top: 24rpx;
+    padding: 32rpx;
+  }
+
+  .card-kicker,
+  .section-kicker {
+    color: #cf6d4e;
+  }
+
+  .card-title {
+    display: block;
+    margin-top: 8rpx;
+    font-size: 30rpx;
+    font-weight: 900;
+    line-height: 1.4;
+  }
+
+  .field-block {
+    margin-top: 32rpx;
+  }
+
+  .field-label {
+    margin-bottom: 16rpx;
+    font-size: 24rpx;
+    font-weight: 800;
+  }
+
+  .input-shell {
+    position: relative;
+    overflow: hidden;
+    height: 96rpx;
+    border: 1px solid #d9d5ce;
+    border-radius: 24rpx;
+    background: #ffffff;
+  }
+
+  .number-input {
+    box-sizing: border-box;
+    width: 100%;
+    height: 96rpx;
+    padding: 0 96rpx 0 24rpx;
+    color: #18231f;
+    font-size: 34rpx;
+    font-weight: 900;
+  }
+
+  .input-unit {
+    position: absolute;
+    top: 0;
+    right: 24rpx;
+    height: 96rpx;
+    color: #94a3b8;
+    font-size: 22rpx;
+    font-weight: 800;
+    line-height: 96rpx;
+  }
+
+  .field-hint {
+    margin-top: 8rpx;
+    color: #7c746d;
+    font-size: 20rpx;
+    line-height: 1.6;
+  }
+
+  .input-error {
+    margin-top: 24rpx;
+    padding: 16rpx;
+    border-radius: 16rpx;
+    background: #fff1f2;
+    color: #be123c;
+    font-size: 22rpx;
+    line-height: 1.6;
+  }
+
+  .result-card {
+    margin-top: 24rpx;
+    padding: 32rpx;
+  }
+
+  .result-heading,
+  .progress-heading,
+  .progress-ends,
+  .session-heading,
+  .formula-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16rpx;
+  }
+
+  .result-heading-copy {
+    min-width: 0;
+    flex: 1;
+  }
+
+  .result-title {
+    margin-top: 8rpx;
+    font-size: 40rpx;
+    font-weight: 900;
+    line-height: 1.3;
+  }
+
+  .result-summary {
+    margin-top: 8rpx;
+    color: #6f655d;
+    font-size: 22rpx;
+    line-height: 1.65;
+  }
+
+  .result-badge {
+    flex-shrink: 0;
+    padding: 12rpx 16rpx;
+    border-radius: 9999rpx;
+    background: #cf6d4e;
+    color: #ffffff;
+    font-size: 20rpx;
+    font-weight: 900;
+  }
+
+  .result-card--foundation .result-badge {
+    background: #64748b;
+  }
+
+  .result-card--strength .result-badge {
+    background: #3f7c6b;
+  }
+
+  .result-card--bridge .result-badge {
+    background: #b7793d;
+  }
+
+  .result-card--ready .result-badge {
+    background: #9d4f3b;
+  }
+
+  .progress-heading {
+    align-items: flex-end;
+    margin-top: 40rpx;
+  }
+
+  .progress-value {
+    display: inline;
+    font-size: 72rpx;
+    font-weight: 900;
+    line-height: 1;
+  }
+
+  .progress-unit {
+    display: inline;
+    margin-left: 8rpx;
+    color: #94a3b8;
+    font-size: 28rpx;
+    font-weight: 800;
+  }
+
+  .target-copy {
+    text-align: right;
+  }
+
+  .target-label {
+    color: #7c746d;
+    font-size: 20rpx;
+  }
+
+  .target-value {
+    margin-top: 8rpx;
+    font-size: 24rpx;
+    font-weight: 900;
+  }
+
+  .progress-track {
+    overflow: hidden;
+    height: 24rpx;
+    margin-top: 24rpx;
+    border-radius: 9999rpx;
+    background: #eeeae4;
+  }
+
+  .progress-fill {
+    height: 24rpx;
+    border-radius: 9999rpx;
+    background: #cf6d4e;
+  }
+
+  .progress-ends {
+    margin-top: 8rpx;
+    color: #8a8179;
+    font-size: 18rpx;
+  }
+
+  .metric-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16rpx;
+    margin-top: 32rpx;
+  }
+
+  .metric-card {
+    padding: 24rpx;
+    border-radius: 24rpx;
+    background: #f7f4ef;
+  }
+
+  .metric-label {
+    color: #7c746d;
+    font-size: 20rpx;
+    line-height: 1.4;
+  }
+
+  .metric-value {
+    margin-top: 8rpx;
+    font-size: 32rpx;
+    font-weight: 900;
+  }
+
+  .focus-card {
+    margin-top: 24rpx;
+    padding: 24rpx;
+    border-radius: 24rpx;
+    background: #18231f;
+    color: #ffffff;
+  }
+
+  .focus-label {
+    color: #f0c5b7;
+    font-size: 20rpx;
+    font-weight: 800;
+  }
+
+  .focus-value {
+    margin-top: 8rpx;
+    font-size: 28rpx;
+    font-weight: 900;
+    line-height: 1.45;
+  }
+
+  .result-note {
+    margin-top: 24rpx;
+    padding: 24rpx;
+    border: 1px solid rgba(207, 109, 78, 0.24);
+    border-radius: 24rpx;
+    background: #fff7f3;
+    color: #584a42;
+    font-size: 22rpx;
+    line-height: 1.7;
+  }
+
+  .plan-section {
+    margin-top: 40rpx;
+  }
+
+  .section-title {
+    margin-top: 8rpx;
+    font-size: 36rpx;
+    font-weight: 900;
+    line-height: 1.35;
+  }
+
+  .section-desc {
+    margin-top: 16rpx;
+    color: #6f655d;
+    font-size: 22rpx;
+    line-height: 1.7;
+  }
+
+  .session-card {
+    margin-top: 24rpx;
+    padding: 32rpx;
+  }
+
+  .session-heading {
+    align-items: center;
+    justify-content: flex-start;
+  }
+
+  .session-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 64rpx;
+    height: 64rpx;
+    flex-shrink: 0;
+    border-radius: 24rpx;
+    color: #ffffff;
+    font-size: 24rpx;
+    font-weight: 900;
+  }
+
+  .session-icon--dark {
+    background: #18231f;
+  }
+
+  .session-icon--brand {
+    background: #cf6d4e;
+  }
+
+  .session-kicker {
+    color: #7c746d;
+    font-size: 18rpx;
+    font-weight: 800;
+  }
+
+  .session-title {
+    margin-top: 8rpx;
+    font-size: 28rpx;
+    font-weight: 900;
+  }
+
+  .training-list {
+    display: flex;
+    flex-direction: column;
+    gap: 24rpx;
+    margin-top: 32rpx;
+  }
+
+  .training-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 16rpx;
+  }
+
+  .training-index {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40rpx;
+    height: 40rpx;
+    flex-shrink: 0;
+    border-radius: 9999rpx;
+    background: #f7f4ef;
+    color: #cf6d4e;
+    font-size: 20rpx;
+    font-weight: 900;
+  }
+
+  .training-copy {
+    min-width: 0;
+    flex: 1;
+  }
+
+  .training-name {
+    font-size: 24rpx;
+    font-weight: 900;
+    line-height: 1.5;
+  }
+
+  .training-dose {
+    margin-top: 8rpx;
+    color: #7c746d;
+    font-size: 20rpx;
+    line-height: 1.6;
+  }
+
+  .method-card {
+    margin-top: 24rpx;
+    padding: 32rpx;
+  }
+
+  .formula-row {
+    align-items: center;
+    margin-top: 24rpx;
+    padding-bottom: 24rpx;
+    border-bottom: 1px solid #eeeae4;
+  }
+
+  .formula-label {
+    color: #7c746d;
+    font-size: 20rpx;
+  }
+
+  .formula-value {
+    color: #18231f;
+    font-family: monospace;
+    font-size: 22rpx;
+    font-weight: 900;
+    text-align: right;
+  }
+
+  .method-equivalent {
+    margin-top: 24rpx;
+    color: #cf6d4e;
+    font-size: 24rpx;
+    font-weight: 900;
+  }
+
+  .method-note {
+    margin-top: 16rpx;
+    color: #7c746d;
+    font-size: 20rpx;
+    line-height: 1.75;
+  }
+
+  &.theme-dark {
+    background: #111714;
+    color: #f8fafc;
+
+    .input-card,
+    .result-card,
+    .session-card,
+    .method-card {
+      border-color: #344039;
+      background: #1a231f;
+    }
+
+    .card-title,
+    .result-title,
+    .section-title,
+    .session-title,
+    .training-name,
+    .formula-value,
+    .metric-value {
+      color: #f8fafc;
+    }
+
+    .input-shell {
+      border-color: #46524c;
+      background: #111714;
+    }
+
+    .number-input {
+      color: #f8fafc;
+    }
+
+    .metric-card,
+    .training-index {
+      background: #111714;
+    }
+
+    .result-note {
+      background: #2e201b;
+      color: #f6ded5;
+    }
+
+    .formula-row {
+      border-bottom-color: #344039;
+    }
+  }
+}

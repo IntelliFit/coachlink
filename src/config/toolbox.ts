@@ -28,6 +28,20 @@ export type ToolboxLink = {
  */
 export const STUDENT_TOOLBOX_LINKS: ToolboxLink[] = [
   {
+    key: 'one-arm-pull-up',
+    label: '离单手引体还有多远',
+    description: '用体重和严格负重引体 1RM 测算单引距离，并获得当前阶段的 8 周简易计划。',
+    url: '/toolbox/one-arm-pull-up',
+    icon: 'pi pi-chart-line',
+  },
+  {
+    key: 'motion-effects',
+    label: '手指光膜',
+    description: '上传双手动作视频，识别真正伸展的同名手指，并生成可保存、可分享的动态光膜特效。',
+    url: '/toolbox/motion-effects',
+    icon: 'pi pi-sparkles',
+  },
+  {
     key: 'power-analysis',
     label: '多动作功率视频分析',
     description: '上传引体、双力臂、臂屈伸、俯卧撑或深蹲视频，估算上升功率、马力和最大速度。',
