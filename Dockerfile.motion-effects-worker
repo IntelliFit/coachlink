@@ -31,6 +31,7 @@ RUN python3 -m venv /opt/motion-effects-venv && \
 
 COPY scripts ./scripts
 COPY src ./src
+COPY config ./config
 COPY tsconfig.json ./
 
 CMD ["node", "scripts/motion-effects-worker.mjs", "--queue"]

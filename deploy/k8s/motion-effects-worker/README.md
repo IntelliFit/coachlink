@@ -10,3 +10,12 @@ change only:
 
 The worker has its own deployment, Kafka topic, database table, and hourly
 cleanup job. It must not consume the Power Analysis topic.
+
+Paid acceleration uses a second deployment with the same secret but explicit
+CLI queue overrides:
+
+- topic: `coachlink-motion-effects-priority-tasks-main`
+- consumer group: `coachlink-motion-effects-priority-workers-main`
+- client id: `coachlink-motion-effects-priority-worker-main`
+
+The standard and priority deployments therefore reserve independent capacity.

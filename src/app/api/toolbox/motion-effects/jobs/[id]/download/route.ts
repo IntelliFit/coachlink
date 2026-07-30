@@ -34,7 +34,7 @@ export async function GET(
       tokenJob &&
       verifyMotionEffectDownloadToken({
         jobId: id,
-        userId: tokenJob.user_id,
+        ownerKey: String(tokenJob.user_id || tokenJob.owner_token_hash || ""),
         expires,
         token,
       })

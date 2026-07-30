@@ -3,6 +3,10 @@ import { serviceRoleSupabase } from "@/lib/supabaseClient";
 import { getTaskQueueConfig } from "@/lib/taskqueue/config";
 import type { TaskQueueConfig } from "@/lib/taskqueue/types";
 import type { MotionEffectJobDto, MotionEffectResult } from "./types";
+import {
+  releaseSignupFreeExport,
+  type MotionEffectQueueTier,
+} from "./_commerce";
 
 export const MOTION_EFFECTS_BUCKET = "videos" as const;
 export const MOTION_EFFECTS_RETENTION_HOURS = 24;
@@ -17,17 +21,17 @@ function getDownloadSecret() {
   ).trim();
 }
 
-export function createMotionEffectDownloadToken(jobId: string, userId: string, expires: number) {
+export function createMotionEffectDownloadToken(jobId: string, ownerKey: string, expires: number) {
   const secret = getDownloadSecret();
   if (!secret) return "";
   return createHmac("sha256", secret)
-    .update(`${jobId}:${userId}:${expires}`)
+    .update(`${jobId}:${ownerKey}:${expires}`)
     .digest("base64url");
 }
 
 export function verifyMotionEffectDownloadToken(params: {
   jobId: string;
-  userId: string;
+  ownerKey: string;
   expires: number;
   token: string;
 }) {
@@ -36,7 +40,7 @@ export function verifyMotionEffectDownloadToken(params: {
   }
   const expected = createMotionEffectDownloadToken(
     params.jobId,
-    params.userId,
+    params.ownerKey,
     params.expires,
   );
   if (!expected || !params.token) return false;
@@ -61,7 +65,10 @@ export function getMotionEffectLimits() {
   };
 }
 
-export function getMotionEffectQueueConfig(): TaskQueueConfig {
+export function getMotionEffectQueueConfig(
+  tier: MotionEffectQueueTier = "standard",
+): TaskQueueConfig {
+  const priority = tier === "priority";
   return getTaskQueueConfig(
     {
       ...process.env,
@@ -70,14 +77,26 @@ export function getMotionEffectQueueConfig(): TaskQueueConfig {
       TASK_QUEUE_BROKERS:
         process.env.MOTION_EFFECTS_TASK_QUEUE_BROKERS || process.env.TASK_QUEUE_BROKERS,
       TASK_QUEUE_TOPIC:
-        process.env.MOTION_EFFECTS_TASK_QUEUE_TOPIC ||
-        "coachlink-motion-effects-tasks-main",
+        (priority
+          ? process.env.MOTION_EFFECTS_PRIORITY_TASK_QUEUE_TOPIC
+          : process.env.MOTION_EFFECTS_TASK_QUEUE_TOPIC) ||
+        (priority
+          ? "coachlink-motion-effects-priority-tasks-main"
+          : "coachlink-motion-effects-tasks-main"),
       TASK_QUEUE_CONSUMER_GROUP:
-        process.env.MOTION_EFFECTS_TASK_QUEUE_CONSUMER_GROUP ||
-        "coachlink-motion-effects-workers",
+        (priority
+          ? process.env.MOTION_EFFECTS_PRIORITY_TASK_QUEUE_CONSUMER_GROUP
+          : process.env.MOTION_EFFECTS_TASK_QUEUE_CONSUMER_GROUP) ||
+        (priority
+          ? "coachlink-motion-effects-priority-workers"
+          : "coachlink-motion-effects-workers"),
       TASK_QUEUE_CLIENT_ID:
-        process.env.MOTION_EFFECTS_TASK_QUEUE_CLIENT_ID ||
-        "coachlink-motion-effects-web",
+        (priority
+          ? process.env.MOTION_EFFECTS_PRIORITY_TASK_QUEUE_CLIENT_ID
+          : process.env.MOTION_EFFECTS_TASK_QUEUE_CLIENT_ID) ||
+        (priority
+          ? "coachlink-motion-effects-priority-web"
+          : "coachlink-motion-effects-web"),
     },
     { requireTopic: true },
   );
@@ -144,6 +163,21 @@ export function mapMotionEffectJob(row: any): MotionEffectJobDto {
       Boolean(row?.output_storage_path) &&
       Boolean(expiresAt) &&
       !expired,
+    exportQuality: row?.export_quality === "hd" ? "hd" : "standard",
+    queueTier: row?.queue_tier === "priority" ? "priority" : "standard",
+    styleKey: String(row?.style_key || "aurora"),
+    bgmKey: String(row?.bgm_key || "original"),
+    paymentStatus: ["pending", "paid", "free", "refunded"].includes(
+      String(row?.payment_status || ""),
+    )
+      ? row.payment_status
+      : "unpaid",
+    priceCents: Number(row?.price_cents || 0),
+    entitlementSource:
+      row?.entitlement_source === "signup_free" ||
+      row?.entitlement_source === "paid_export"
+        ? row.entitlement_source
+        : null,
   };
 }
 
@@ -205,6 +239,9 @@ export async function expireMotionEffectJobIfNeeded(row: any) {
   if (paths.length) {
     await db.storage.from(MOTION_EFFECTS_BUCKET).remove(paths).catch(() => null);
   }
+  if (row.entitlement_source === "signup_free") {
+    await releaseSignupFreeExport(row.id);
+  }
   const { data } = await db
     .from("tool_video_render_jobs")
     .update({ status: "expired", progress: 100 })
@@ -225,15 +262,27 @@ export async function failStaleMotionEffectJobsForUser(userId: string) {
       completed_at: new Date().toISOString(),
     })
     .eq("user_id", userId)
-    .in("status", ["queued", "processing"])
+    .in("status", ["awaiting_upload", "awaiting_payment", "queued", "processing"])
     .lt("updated_at", staleBefore)
     .select("id");
   return data?.length || 0;
 }
 
 export async function failStaleMotionEffectJobIfNeeded(row: any) {
-  if (!row || !["queued", "processing"].includes(row.status)) return row;
-  const threshold = row.status === "queued" ? 15 : 60;
+  if (
+    !row ||
+    !["awaiting_upload", "awaiting_payment", "queued", "processing"].includes(
+      row.status,
+    )
+  ) {
+    return row;
+  }
+  const threshold =
+    row.status === "queued"
+      ? 15
+      : row.status === "processing"
+        ? 60
+        : 60;
   const anchor = new Date(row.updated_at || row.enqueued_at || row.created_at).getTime();
   if (Date.now() - anchor <= threshold * 60 * 1000) return row;
   const { data } = await db
@@ -248,5 +297,8 @@ export async function failStaleMotionEffectJobIfNeeded(row: any) {
     .in("status", ["queued", "processing"])
     .select("*")
     .maybeSingle();
+  if (row.entitlement_source === "signup_free") {
+    await releaseSignupFreeExport(row.id);
+  }
   return data || row;
 }

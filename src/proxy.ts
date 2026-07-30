@@ -211,6 +211,7 @@ export async function proxy(request: NextRequest) {
         pathname.startsWith("/api/system/version") ||
         pathname.startsWith("/api/public/") ||
         pathname.startsWith("/api/public-action-lib/") ||
+        pathname.startsWith("/api/toolbox/motion-effects/") ||
         pathname.startsWith("/articles/") ||
         pathname.startsWith("/coach/discovery") ||
         pathname.startsWith("/coach/profile") ||

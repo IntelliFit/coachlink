@@ -11,7 +11,10 @@
 - Production runtime: `coachlink-main` 3/3、`coachlink-motion-effects-worker-main` 1/1，均零重启；独立 topic 为 `coachlink-motion-effects-tasks-main`，24 小时清理 CronJob 已成功执行一次。
 - Production smoke: 5 秒竖屏视频线上分析 297 帧，258 帧识别双手，峰值 5 对，成片为 1080×1920 H.264 + AAC、音频保留且仅含“教链”水印；验证后的 Storage 对象与任务行已删除，无测试数据残留。
 - Release tooling: 修复小程序上传器误依赖仓库根 `project.config.json` 的问题，改为直接校验并上传 `dist-release/`；当前 Windows 环境自动使用微信开发者工具 CLI，`miniprogram-ci` 保留为无 DevTools 环境的回退。
-- V5 local revision: 根据用户线上截图修正双指交叉拓扑；两条同名手指连线相交时以真实交点拆成左右两只三角形，不再填满凸包。手掌距离按画面对角线归一化，在 `0.14 → 0.30` 区间平滑渐显；颜色随视频时间轮换，膜面增加扫光，边缘增加流动光带。Web 与 Python Worker 共享同一拓扑、阈值和镜像纹理语义。V5 本地 Docker 样片已通过，尚未部署生产，待用户看样确认。
+- V5 + monetization revision: 双指交叉拓扑继续按真实交点拆成两只三角形，双手靠近时隐藏、拉开后渐显；新增 8 套共享风格预设。服务端导出分为 720p 标准版与 1080p 高清版，并增加独立极速 Kafka 队列。定价为标准 ¥2.9、高清 ¥4.9、极速加 ¥1.9；游客预览免费但下载付费，注册账号终身赠送一次标准队列 720p 导出，高清与极速始终收费。
+- Commerce implementation: Web 支持游客匿名任务所有权、支付宝支付后入队、注册赠送权益原子占用、安全下载 token 与真实队列人数；不展示伪造用户数、订单数或排队人数，只展示服务端返回的真实任务信息。页面明确说明收费覆盖服务器计算、24 小时临时存储和下载带宽。
+- Database: 已通过 Supabase Management API 精确执行并登记 `20260731110000_motion_effect_monetization.sql`；线上新增 10 列、`payment_order_id` 按真实线上类型使用 UUID，免费权益表存在。第一次 bigint 外键尝试在事务内完整回滚，未留下半迁移；仍未运行 `supabase db push`。
+- Verification: 720p Cyber 与 1080p Gold Docker 样片均为 H.264 + AAC、保留原音频；浏览器实测 8 种风格、规格与组合价格切换正确，视频可载入且控制台无错误。首次播放的模型加载手势问题已通过“选片后预加载 + 已就绪时立即 play”修复。根 lint 提示、TypeScript、37 个测试文件 / 183 项测试和 Next 527 页生产构建通过；待完成最终重建、发布与生产烟雾测试。
 
 ## Web / 微信小程序工具箱单手引体测算与 UI 重做 (`2026-07-30`)
 

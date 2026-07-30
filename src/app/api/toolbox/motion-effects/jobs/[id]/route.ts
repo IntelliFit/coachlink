@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 import type { ApiData } from "@/types/api";
+import {
+  getAccessibleMotionEffectJob,
+  getMotionEffectRequestIdentity,
+} from "../../_commerce";
 import {
   expireMotionEffectJobIfNeeded,
   failStaleMotionEffectJobIfNeeded,
-  getOwnedMotionEffectJob,
   mapMotionEffectJobWithQueueInfo,
 } from "../../_helpers";
 import type { MotionEffectJobDto } from "../../types";
@@ -12,18 +14,12 @@ import type { MotionEffectJobDto } from "../../types";
 export const runtime = "nodejs";
 
 export async function GET(
-  _req: Request,
+  req: Request,
   context: { params: Promise<{ id: string }> },
 ) {
-  const session = await getServerSession();
-  if (!session?.user?.id) {
-    return NextResponse.json<ApiData<null>>(
-      { success: false, message: "用户未登录", data: null },
-      { status: 401 },
-    );
-  }
+  const identity = await getMotionEffectRequestIdentity(req);
   const { id } = await context.params;
-  const job = await getOwnedMotionEffectJob(id, session.user.id);
+  const job = await getAccessibleMotionEffectJob(id, identity);
   if (!job) {
     return NextResponse.json<ApiData<null>>(
       { success: false, message: "任务不存在", data: null },

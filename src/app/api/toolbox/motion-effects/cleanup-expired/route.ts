@@ -49,6 +49,11 @@ export async function POST(req: Request) {
   }
   if (rows?.length) {
     await db
+      .from("tool_motion_effect_free_exports")
+      .delete()
+      .in("job_id", rows.map((row: any) => row.id))
+      .eq("status", "reserved");
+    await db
       .from("tool_video_render_jobs")
       .update({ status: "expired", progress: 100 })
       .in("id", rows.map((row: any) => row.id));
