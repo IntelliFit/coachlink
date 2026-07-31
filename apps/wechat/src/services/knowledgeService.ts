@@ -35,10 +35,30 @@ export interface PublicTrainingPlanListItem {
   specialtyLabel?: string
   specialtyPriority?: number
   trainingDayCount?: number
+  entryKind?: 'template' | 'reference'
+  canCopy?: boolean
+  author?: string | null
+  sourceName?: string | null
+  sourceUrl?: string | null
+  rightsStatus?: string | null
 }
 
 export interface PublicTrainingPlanDetail extends PublicTrainingPlanListItem {
   trainingDays: any[]
+}
+
+export interface PublicArticleListItem {
+  id: string
+  coachId: string
+  coachName: string
+  coachAvatarUrl: string | null
+  title: string
+  summary: string
+  contentType: string
+  requiredTier: number
+  priceCents: number
+  featured: boolean
+  publishedAt: string | null
 }
 
 export interface KnowledgeTreeNode {
@@ -104,6 +124,29 @@ interface ListKnowledgeBooksResponseDto {
   limit: number
 }
 
+export interface KnowledgeBookDiscussionComment {
+  id: string
+  bookId: string
+  userId: string
+  parentId: string | null
+  body: string
+  createdAt: string
+  updatedAt: string
+  author: {
+    name: string
+    avatarUrl: string | null
+  }
+  isMine: boolean
+}
+
+export interface ListKnowledgeBookCommentsResponse {
+  comments: KnowledgeBookDiscussionComment[]
+  total: number
+  limit: number
+  offset: number
+  available: boolean
+}
+
 interface ListCoachContentsDto {
   limit?: number
   offset?: number
@@ -132,7 +175,7 @@ interface ListCoachContentsResponseDto {
 class KnowledgeService extends BaseService {
   /** 获取单本知识库书籍详情（含权限 hasAccess） */
   async getKnowledgeBook(params: { id: string }) {
-    const res = await this.post<{ book: any; hasAccess: boolean }>('get-book', { id: params.id })
+    const res = await this.post<{ book: any; hasAccess: boolean; collectionBooks: any[] }>('get-book', { id: params.id })
     if (res.success && res.data) return res.data
     return null
   }
@@ -143,10 +186,31 @@ class KnowledgeService extends BaseService {
       is_free: params?.is_free,
       is_published: params?.is_published ?? true,
       page: params?.page ?? 0,
-      limit: params?.limit ?? 20
+      limit: params?.limit ?? 200
     })
     if (res.success && res.data) return res.data
     return null
+  }
+
+  async listBookComments(bookId: string, params?: { limit?: number; offset?: number }) {
+    const res = await this.post<ListKnowledgeBookCommentsResponse>('book-comments/list', {
+      bookId,
+      limit: params?.limit ?? 50,
+      offset: params?.offset ?? 0
+    })
+    if (res.success && res.data) return res.data
+    return null
+  }
+
+  async createBookComment(input: { bookId: string; body: string; parentId?: string | null }) {
+    const res = await this.post<{ comment: KnowledgeBookDiscussionComment }>('book-comments/create', input)
+    if (res.success && res.data) return res.data.comment
+    return null
+  }
+
+  async deleteBookComment(commentId: string) {
+    const res = await this.post<{ commentId: string }>('book-comments/delete', { commentId })
+    return Boolean(res.success)
   }
 
   /** 获取知识节点详情（GET /api/knowledge/nodes/:id） */
@@ -232,6 +296,23 @@ class KnowledgeService extends BaseService {
     })
     if (res.success && res.data) return res.data
     return null
+  }
+
+  async listPublicArticles(params?: { limit?: number; offset?: number }) {
+    const limit = params?.limit ?? 20
+    const offset = params?.offset ?? 0
+    const res = await request<{
+      items: PublicArticleListItem[]
+      total: number
+      limit: number
+      offset: number
+    }>({
+      url: `/api/public/articles/list?limit=${encodeURIComponent(String(limit))}&offset=${encodeURIComponent(String(offset))}`,
+      method: 'GET',
+      showErrorToast: false
+    })
+    if (res.success && res.data) return res.data
+    return { items: [], total: 0, limit, offset }
   }
 
   async listTrainingPlans(params?: {

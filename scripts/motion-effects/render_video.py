@@ -42,10 +42,55 @@ FONT_CANDIDATES = (
     "C:/Windows/Fonts/msyh.ttc",
     "C:/Windows/Fonts/simhei.ttf",
 )
+PRESET_PATH = Path(__file__).resolve().parents[2] / "config" / "motion-effects-presets.json"
+CURRENT_STYLE: dict[str, Any] = {
+    "key": "aurora",
+    "name": "极光流体",
+    "hues": list(BASE_HUES),
+    "hueSpeed": 28.0,
+    "saturation": 94.0,
+    "faceAlpha": 0.25,
+    "textureAlpha": 0.46,
+    "sweepSpeed": 0.38,
+    "edgeGlow": 1.0,
+    "motionSpeed": "balanced",
+    "glowStrength": "balanced",
+    "surfaceDensity": "balanced",
+}
 
 
 def clamp(value: float, minimum: float, maximum: float) -> float:
     return min(maximum, max(minimum, value))
+
+
+def load_style(
+    style_key: str,
+    motion_speed: str,
+    glow_strength: str,
+    surface_density: str,
+) -> dict[str, Any]:
+    payload = json.loads(PRESET_PATH.read_text(encoding="utf-8"))
+    styles = payload.get("styles") or []
+    preset = next((item for item in styles if item.get("key") == style_key), None)
+    if preset is None:
+        preset = next((item for item in styles if item.get("key") == "aurora"), None)
+    if preset is None:
+        raise RuntimeError("motion effect presets are missing")
+
+    speed_scale = {"gentle": 0.72, "balanced": 1.0, "energetic": 1.35}[motion_speed]
+    glow_scale = {"soft": 0.78, "balanced": 1.0, "strong": 1.25}[glow_strength]
+    density_scale = {"transparent": 0.76, "balanced": 1.0, "rich": 1.18}[surface_density]
+    return {
+        **preset,
+        "hueSpeed": float(preset["hueSpeed"]) * speed_scale,
+        "sweepSpeed": float(preset["sweepSpeed"]) * speed_scale,
+        "edgeGlow": float(preset["edgeGlow"]) * glow_scale,
+        "faceAlpha": clamp(float(preset["faceAlpha"]) * density_scale, 0.08, 0.48),
+        "textureAlpha": clamp(float(preset["textureAlpha"]) * density_scale, 0.16, 0.68),
+        "motionSpeed": motion_speed,
+        "glowStrength": glow_strength,
+        "surfaceDensity": surface_density,
+    }
 
 
 def distance3d(a: np.ndarray, b: np.ndarray) -> float:
@@ -211,8 +256,13 @@ def build_side_triangles(
 
 
 def animated_color(finger_index: int, timestamp: float, offset: float = 0.0) -> tuple[int, int, int]:
-    hue = ((BASE_HUES[finger_index] + timestamp * 28.0 + offset) % 360.0) / 360.0
-    red, green, blue = colorsys.hsv_to_rgb(hue, 0.82, 1.0)
+    hues = CURRENT_STYLE["hues"]
+    hue = (
+        (float(hues[finger_index]) + timestamp * float(CURRENT_STYLE["hueSpeed"]) + offset)
+        % 360.0
+    ) / 360.0
+    saturation = clamp(float(CURRENT_STYLE["saturation"]) / 100.0, 0.0, 1.0)
+    red, green, blue = colorsys.hsv_to_rgb(hue, saturation, 1.0)
     return int(round(blue * 255)), int(round(green * 255)), int(round(red * 255))
 
 
@@ -260,7 +310,14 @@ def draw_textured_triangle(
     points = np.asarray(triangle, dtype=np.int32)
     mask = np.zeros(canvas.shape[:2], dtype=np.uint8)
     cv2.fillPoly(mask, [points], 255)
-    tinted = cv2.addWeighted(texture, 0.68, np.full_like(texture, color), 0.32, 0)
+    texture_alpha = float(CURRENT_STYLE["textureAlpha"])
+    tinted = cv2.addWeighted(
+        texture,
+        texture_alpha,
+        np.full_like(texture, color),
+        1.0 - texture_alpha,
+        0,
+    )
     blended = cv2.addWeighted(canvas, 1.0 - alpha, tinted, alpha, 0)
     canvas[mask > 0] = blended[mask > 0]
 
@@ -377,9 +434,9 @@ def draw_effect(
             texture,
             triangle,
             animated_color(finger, timestamp, offset),
-            0.34 * overall_alpha,
+            float(CURRENT_STYLE["faceAlpha"]) * 1.36 * overall_alpha,
         )
-        sweep = (timestamp * 0.38 + phase) % 1.0
+        sweep = (timestamp * float(CURRENT_STYLE["sweepSpeed"]) + phase) % 1.0
         sweep_start = lerp_pixel(triangle[0], triangle[2], sweep)
         sweep_end = lerp_pixel(triangle[1], triangle[2], sweep)
         cv2.line(
@@ -422,7 +479,13 @@ def draw_effect(
         (0, 0),
         sigmaX=max(4, base_width * 2.0),
     )
-    output = cv2.addWeighted(output, 1.0, glow, 0.65 * overall_alpha, 0)
+    output = cv2.addWeighted(
+        output,
+        1.0,
+        glow,
+        0.65 * float(CURRENT_STYLE["edgeGlow"]) * overall_alpha,
+        0,
+    )
     output = cv2.addWeighted(output, 1.0, thin, 0.92 * overall_alpha, 0)
     output = cv2.addWeighted(output, 1.0, moving_glow, 0.72 * overall_alpha, 0)
     output = cv2.addWeighted(output, 1.0, moving_nodes, 0.9 * overall_alpha, 0)
@@ -477,7 +540,17 @@ def emit_progress(value: float) -> None:
     print(json.dumps({"progress": round(value, 1)}, ensure_ascii=False), flush=True)
 
 
-def render(input_path: Path, output_path: Path, result_path: Path) -> None:
+def render(
+    input_path: Path,
+    output_path: Path,
+    result_path: Path,
+    style_key: str,
+    motion_speed: str,
+    glow_strength: str,
+    surface_density: str,
+) -> None:
+    global CURRENT_STYLE
+    CURRENT_STYLE = load_style(style_key, motion_speed, glow_strength, surface_density)
     if not shutil.which("ffmpeg") or not shutil.which("ffprobe"):
         raise RuntimeError("ffmpeg/ffprobe not found")
     capture = cv2.VideoCapture(str(input_path))
@@ -587,6 +660,11 @@ def render(input_path: Path, output_path: Path, result_path: Path) -> None:
         "durationSeconds": analyzed_frames / fps,
         "audioPreserved": audio_preserved,
         "watermark": "教链",
+        "styleKey": CURRENT_STYLE["key"],
+        "styleName": CURRENT_STYLE["name"],
+        "motionSpeed": CURRENT_STYLE["motionSpeed"],
+        "glowStrength": CURRENT_STYLE["glowStrength"],
+        "surfaceDensity": CURRENT_STYLE["surfaceDensity"],
     }
     result_path.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
     emit_progress(95)
@@ -597,8 +675,36 @@ def main() -> None:
     parser.add_argument("--input", required=True)
     parser.add_argument("--output", required=True)
     parser.add_argument("--result", required=True)
+    parser.add_argument(
+        "--style",
+        choices=["aurora", "cyber", "lava", "candy", "ice", "galaxy", "emerald", "gold"],
+        default="aurora",
+    )
+    parser.add_argument(
+        "--motion-speed",
+        choices=["gentle", "balanced", "energetic"],
+        default="balanced",
+    )
+    parser.add_argument(
+        "--glow-strength",
+        choices=["soft", "balanced", "strong"],
+        default="balanced",
+    )
+    parser.add_argument(
+        "--surface-density",
+        choices=["transparent", "balanced", "rich"],
+        default="balanced",
+    )
     args = parser.parse_args()
-    render(Path(args.input), Path(args.output), Path(args.result))
+    render(
+        Path(args.input),
+        Path(args.output),
+        Path(args.result),
+        args.style,
+        args.motion_speed,
+        args.glow_strength,
+        args.surface_density,
+    )
 
 
 if __name__ == "__main__":

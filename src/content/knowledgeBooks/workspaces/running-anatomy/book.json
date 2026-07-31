@@ -1,0 +1,498 @@
+{
+  "format": "book-note-v4-classic-deep-read",
+  "noteStyle": "interpretive-reading-note",
+  "disclaimer": "本页为 CoachLink 原创导读与知识地图，不复制原书正文、插图、表格或完整训练模板，也不替代购买和阅读正版原书。",
+  "source": {
+    "title": "跑步解剖书：提升跑步肌力、速度、耐力的图解指南",
+    "authors": [
+      "Joe Puleo",
+      "Patrick Milroy"
+    ],
+    "originalFilePath": "local-library://running-anatomy",
+    "copyrightMode": "interpretive-notes-only",
+    "collectionSlug": "running-anatomy",
+    "collectionTitle": "《跑步解剖书：提升跑步肌力、速度、耐力的图解指南》原创深读笔记"
+  },
+  "notes": [
+    {
+      "slug": "overview",
+      "file": "notes/00-overview.md",
+      "noteType": "overview",
+      "chapterOrder": 0,
+      "chapterTitle": "深读入口",
+      "title": "《跑步解剖书：提升跑步肌力、速度、耐力的图解指南》深读入口：先建立全书地图，再决定怎么用",
+      "summary": "把跑步阶段、关键肌群、力量练习和表现需求连接起来，适合建立动作—肌群—能力之间的原创关系图。",
+      "sortOrder": 3160,
+      "author": "Joe Puleo、Patrick Milroy",
+      "isFree": true,
+      "isPublished": true,
+      "mindMap": {
+        "title": "《跑步解剖书：提升跑步肌力、速度、耐力的图解指南》全书知识地图",
+        "description": "这是 CoachLink 根据书籍主题绘制的原创导航图，不复制原书插图或版式。",
+        "data": [
+          {
+            "id": "root",
+            "title": "跑步解剖书：提升跑步肌力、速度、耐力的图解指南",
+            "node_type": "domain",
+            "children": [
+              {
+                "id": "question",
+                "title": "核心问题",
+                "description": "跑步各阶段需要哪些关节与肌群协同，力量训练怎样针对能力短板而不是机械模仿跑姿？",
+                "node_type": "category"
+              },
+              {
+                "id": "framework-1",
+                "title": "跑步周期与关节动作",
+                "node_type": "category"
+              },
+              {
+                "id": "framework-2",
+                "title": "肌群协同与力量传递",
+                "node_type": "category"
+              },
+              {
+                "id": "framework-3",
+                "title": "力量练习和跑步能力",
+                "node_type": "category"
+              },
+              {
+                "id": "framework-4",
+                "title": "训练整合、疲劳与伤病风险",
+                "node_type": "category"
+              },
+              {
+                "id": "boundary",
+                "title": "应用边界",
+                "description": "解剖图能帮助理解但不能单凭肌肉图诊断疼痛；平台只使用自绘关系图，不复制原书插图。",
+                "node_type": "category"
+              }
+            ]
+          }
+        ]
+      },
+      "readingGuide": {
+        "estimatedMinutes": 8,
+        "suitableFor": [
+          "关注跑步与功能解剖的训练者",
+          "教练与知识库编辑",
+          "准备精读正版原书的读者"
+        ],
+        "goals": [
+          "掌握全书核心问题",
+          "看懂主题之间的关系",
+          "明确应用边界与复盘方法"
+        ],
+        "prerequisites": [
+          "本页不替代原书，也不提供原文件下载"
+        ]
+      },
+      "keyTakeaways": [
+        "跑步周期与关节动作",
+        "肌群协同与力量传递",
+        "力量练习和跑步能力",
+        "训练整合、疲劳与伤病风险"
+      ],
+      "discussionPrompts": [
+        "这本书最可能改变你当前的哪一个训练决策？",
+        "哪一个观点高度依赖作者的目标人群或训练环境？",
+        "你会用什么训练数据判断它对自己是否有效？"
+      ],
+      "citations": [
+        {
+          "title": "书目：跑步解剖书：提升跑步肌力、速度、耐力的图解指南",
+          "note": "基于本地书目盘点建立原创导读；原始电子文件仅供内部研究，不上传、不公开下载。正式引用前应继续核对正版书的作者、版次、出版社与页码。",
+          "license": "interpretive-notes-only"
+        }
+      ]
+    },
+    {
+      "slug": "topic-01",
+      "file": "notes/01-topic.md",
+      "noteType": "chapter",
+      "chapterOrder": 1,
+      "chapterTitle": "跑步周期与关节动作",
+      "title": "《跑步解剖书：提升跑步肌力、速度、耐力的图解指南》主题深读 1：跑步周期与关节动作",
+      "summary": "跑步周期由支撑与摆动不断交替组成，各阶段对髋、膝、踝的活动方向和肌肉工作方式并不相同。理解阶段性任务有助于判断问题发生在承重、推进、离地还是摆腿回收，而不是只看静态姿势。 本页进一步给出教练决策、反馈记录、微实验和应用边界。",
+      "sortOrder": 3161,
+      "author": "Joe Puleo、Patrick Milroy",
+      "isFree": true,
+      "isPublished": true,
+      "mindMap": {
+        "title": "《跑步解剖书：提升跑步肌力、速度、耐力的图解指南》主题 1 · 跑步周期与关节动作",
+        "description": "CoachLink 原创主题知识地图：概念、决策、验证、误区和边界放在同一张图里。",
+        "data": [
+          {
+            "id": "root",
+            "title": "跑步周期与关节动作",
+            "node_type": "domain",
+            "children": [
+              {
+                "id": "concept",
+                "title": "核心概念",
+                "description": "跑步周期由支撑与摆动不断交替组成，各阶段对髋、膝、踝的活动方向和肌肉工作方式并不相同。理解阶段性任务有助于判断问题发生在承重、推进、离地还是摆腿回收，而不是只看静态姿势。",
+                "node_type": "category"
+              },
+              {
+                "id": "decision",
+                "title": "教练决策",
+                "description": "教练应结合侧面与后方录像、配速和疲劳状态观察关节动作，因为同一跑者在不同速度下会采用不同策略。发现异常时应先确认它是否真的伴随疼痛、效率下降或能力限制，再决定是否干预。",
+                "node_type": "category"
+              },
+              {
+                "id": "practice",
+                "title": "最小实践",
+                "description": "从跑步任务识别需要的力量方向",
+                "node_type": "category"
+              },
+              {
+                "id": "feedback",
+                "title": "记录与复盘",
+                "description": "先留基线，一次只改一个关键变量，再用结果和恢复信号判断。",
+                "node_type": "category"
+              },
+              {
+                "id": "pitfall",
+                "title": "常见误用",
+                "description": "从单帧照片推断完整跑姿，容易把正常的个体差异或瞬时位置误判为技术缺陷。",
+                "node_type": "category"
+              },
+              {
+                "id": "boundary",
+                "title": "应用边界",
+                "description": "解剖图能帮助理解但不能单凭肌肉图诊断疼痛；平台只使用自绘关系图，不复制原书插图。",
+                "node_type": "category"
+              }
+            ]
+          }
+        ]
+      },
+      "readingGuide": {
+        "estimatedMinutes": 10,
+        "suitableFor": [
+          "正在学习跑步与功能解剖的训练者",
+          "需要把理论转成计划的教练",
+          "愿意记录并复盘的读者"
+        ],
+        "goals": [
+          "说清核心概念",
+          "形成可执行决策",
+          "设计一次可验证的小实验"
+        ],
+        "prerequisites": [
+          "先阅读全书深读入口",
+          "本页不替代正版原书或专业诊疗"
+        ]
+      },
+      "keyTakeaways": [
+        "跑步周期与关节动作",
+        "从跑步任务识别需要的力量方向",
+        "一次只改变少量关键变量，并提前定义反馈信号",
+        "从单帧照片推断完整跑姿，容易把正常的个体差异或瞬时位置误判为技术缺陷。"
+      ],
+      "discussionPrompts": [
+        "你当前最接近这个主题的真实问题是什么？",
+        "你会保留哪个变量不变，才看得出干预是否有效？",
+        "如果结果与书中框架不一致，你先检查数据、执行还是原始假设？"
+      ],
+      "citations": [
+        {
+          "title": "书目：跑步解剖书：提升跑步肌力、速度、耐力的图解指南",
+          "note": "本页为 CoachLink 原创解释性笔记；不复制原书正文、插图、表格或完整处方。正式学术或专业引用请回到正版书核对作者、版次、出版社和页码。",
+          "license": "interpretive-notes-only"
+        }
+      ]
+    },
+    {
+      "slug": "topic-02",
+      "file": "notes/02-topic.md",
+      "noteType": "chapter",
+      "chapterOrder": 2,
+      "chapterTitle": "肌群协同与力量传递",
+      "title": "《跑步解剖书：提升跑步肌力、速度、耐力的图解指南》主题深读 2：肌群协同与力量传递",
+      "summary": "跑步中的推进和缓冲来自髋、膝、踝周围肌群按时序协同，并通过躯干与骨盆维持力量传递。单块肌肉的作用会随关节位置、速度和地面接触阶段变化，因此不能用孤立收缩解释完整跑步表现。 本页进一步给出教练决策、反馈记录、微实验和应用边界。",
+      "sortOrder": 3162,
+      "author": "Joe Puleo、Patrick Milroy",
+      "isFree": true,
+      "isPublished": true,
+      "mindMap": {
+        "title": "《跑步解剖书：提升跑步肌力、速度、耐力的图解指南》主题 2 · 肌群协同与力量传递",
+        "description": "CoachLink 原创主题知识地图：概念、决策、验证、误区和边界放在同一张图里。",
+        "data": [
+          {
+            "id": "root",
+            "title": "肌群协同与力量传递",
+            "node_type": "domain",
+            "children": [
+              {
+                "id": "concept",
+                "title": "核心概念",
+                "description": "跑步中的推进和缓冲来自髋、膝、踝周围肌群按时序协同，并通过躯干与骨盆维持力量传递。单块肌肉的作用会随关节位置、速度和地面接触阶段变化，因此不能用孤立收缩解释完整跑步表现。",
+                "node_type": "category"
+              },
+              {
+                "id": "decision",
+                "title": "教练决策",
+                "description": "教练应从任务出发分析需要提高的是承重稳定、髋伸展、膝部控制还是踝部弹性，再选择训练重点。力量练习后还应通过跑姿练习或逐步跑量，让新增能力在真实时序中得到调用。",
+                "node_type": "category"
+              },
+              {
+                "id": "practice",
+                "title": "最小实践",
+                "description": "动作选择兼顾负荷能力和技术水平",
+                "node_type": "category"
+              },
+              {
+                "id": "feedback",
+                "title": "记录与复盘",
+                "description": "先留基线，一次只改一个关键变量，再用结果和恢复信号判断。",
+                "node_type": "category"
+              },
+              {
+                "id": "pitfall",
+                "title": "常见误用",
+                "description": "看到某块肌肉在解剖图中重要就大量孤立训练，未必能改善跑步中的协同与力量传递。",
+                "node_type": "category"
+              },
+              {
+                "id": "boundary",
+                "title": "应用边界",
+                "description": "解剖图能帮助理解但不能单凭肌肉图诊断疼痛；平台只使用自绘关系图，不复制原书插图。",
+                "node_type": "category"
+              }
+            ]
+          }
+        ]
+      },
+      "readingGuide": {
+        "estimatedMinutes": 10,
+        "suitableFor": [
+          "正在学习跑步与功能解剖的训练者",
+          "需要把理论转成计划的教练",
+          "愿意记录并复盘的读者"
+        ],
+        "goals": [
+          "说清核心概念",
+          "形成可执行决策",
+          "设计一次可验证的小实验"
+        ],
+        "prerequisites": [
+          "先阅读全书深读入口",
+          "本页不替代正版原书或专业诊疗"
+        ]
+      },
+      "keyTakeaways": [
+        "肌群协同与力量传递",
+        "动作选择兼顾负荷能力和技术水平",
+        "一次只改变少量关键变量，并提前定义反馈信号",
+        "看到某块肌肉在解剖图中重要就大量孤立训练，未必能改善跑步中的协同与力量传递。"
+      ],
+      "discussionPrompts": [
+        "你当前最接近这个主题的真实问题是什么？",
+        "你会保留哪个变量不变，才看得出干预是否有效？",
+        "如果结果与书中框架不一致，你先检查数据、执行还是原始假设？"
+      ],
+      "citations": [
+        {
+          "title": "书目：跑步解剖书：提升跑步肌力、速度、耐力的图解指南",
+          "note": "本页为 CoachLink 原创解释性笔记；不复制原书正文、插图、表格或完整处方。正式学术或专业引用请回到正版书核对作者、版次、出版社和页码。",
+          "license": "interpretive-notes-only"
+        }
+      ]
+    },
+    {
+      "slug": "topic-03",
+      "file": "notes/03-topic.md",
+      "noteType": "chapter",
+      "chapterOrder": 3,
+      "chapterTitle": "力量练习和跑步能力",
+      "title": "《跑步解剖书：提升跑步肌力、速度、耐力的图解指南》主题深读 3：力量练习和跑步能力",
+      "summary": "跑者力量训练的主要价值是提高组织承载、发力储备和在疲劳下维持动作的能力，而不是机械复制跑步姿势。基础力量、单腿控制、弹性反应和局部耐力对不同跑者的贡献取决于其项目和短板。 本页进一步给出教练决策、反馈记录、微实验和应用边界。",
+      "sortOrder": 3163,
+      "author": "Joe Puleo、Patrick Milroy",
+      "isFree": true,
+      "isPublished": true,
+      "mindMap": {
+        "title": "《跑步解剖书：提升跑步肌力、速度、耐力的图解指南》主题 3 · 力量练习和跑步能力",
+        "description": "CoachLink 原创主题知识地图：概念、决策、验证、误区和边界放在同一张图里。",
+        "data": [
+          {
+            "id": "root",
+            "title": "力量练习和跑步能力",
+            "node_type": "domain",
+            "children": [
+              {
+                "id": "concept",
+                "title": "核心概念",
+                "description": "跑者力量训练的主要价值是提高组织承载、发力储备和在疲劳下维持动作的能力，而不是机械复制跑步姿势。基础力量、单腿控制、弹性反应和局部耐力对不同跑者的贡献取决于其项目和短板。",
+                "node_type": "category"
+              },
+              {
+                "id": "decision",
+                "title": "教练决策",
+                "description": "教练应选择技术门槛合适、能够渐进负荷且不会过度干扰关键跑课的练习。成效应通过跑步经济性、速度保持、坡度能力或伤病耐受等目标指标验证，而不只看健身房重量。",
+                "node_type": "category"
+              },
+              {
+                "id": "practice",
+                "title": "最小实践",
+                "description": "用跑步表现与耐受度验证辅助训练",
+                "node_type": "category"
+              },
+              {
+                "id": "feedback",
+                "title": "记录与复盘",
+                "description": "先留基线，一次只改一个关键变量，再用结果和恢复信号判断。",
+                "node_type": "category"
+              },
+              {
+                "id": "pitfall",
+                "title": "常见误用",
+                "description": "用高复杂度单腿动作模仿跑姿，却无法提供足够负荷或稳定进阶，可能兼失力量刺激与专项价值。",
+                "node_type": "category"
+              },
+              {
+                "id": "boundary",
+                "title": "应用边界",
+                "description": "解剖图能帮助理解但不能单凭肌肉图诊断疼痛；平台只使用自绘关系图，不复制原书插图。",
+                "node_type": "category"
+              }
+            ]
+          }
+        ]
+      },
+      "readingGuide": {
+        "estimatedMinutes": 10,
+        "suitableFor": [
+          "正在学习跑步与功能解剖的训练者",
+          "需要把理论转成计划的教练",
+          "愿意记录并复盘的读者"
+        ],
+        "goals": [
+          "说清核心概念",
+          "形成可执行决策",
+          "设计一次可验证的小实验"
+        ],
+        "prerequisites": [
+          "先阅读全书深读入口",
+          "本页不替代正版原书或专业诊疗"
+        ]
+      },
+      "keyTakeaways": [
+        "力量练习和跑步能力",
+        "用跑步表现与耐受度验证辅助训练",
+        "一次只改变少量关键变量，并提前定义反馈信号",
+        "用高复杂度单腿动作模仿跑姿，却无法提供足够负荷或稳定进阶，可能兼失力量刺激与专项价值。"
+      ],
+      "discussionPrompts": [
+        "你当前最接近这个主题的真实问题是什么？",
+        "你会保留哪个变量不变，才看得出干预是否有效？",
+        "如果结果与书中框架不一致，你先检查数据、执行还是原始假设？"
+      ],
+      "citations": [
+        {
+          "title": "书目：跑步解剖书：提升跑步肌力、速度、耐力的图解指南",
+          "note": "本页为 CoachLink 原创解释性笔记；不复制原书正文、插图、表格或完整处方。正式学术或专业引用请回到正版书核对作者、版次、出版社和页码。",
+          "license": "interpretive-notes-only"
+        }
+      ]
+    },
+    {
+      "slug": "topic-04",
+      "file": "notes/04-topic.md",
+      "noteType": "chapter",
+      "chapterOrder": 4,
+      "chapterTitle": "训练整合、疲劳与伤病风险",
+      "title": "《跑步解剖书：提升跑步肌力、速度、耐力的图解指南》主题深读 4：训练整合、疲劳与伤病风险",
+      "summary": "跑步与力量训练共享恢复资源，伤病风险通常来自负荷变化、组织耐受和恢复失衡的组合，而非某一个动作天然危险。合理整合需要区分高强度跑、长距离、力量和弹跳刺激，避免同一组织连续承受峰值压力。 本页进一步给出教练决策、反馈记录、微实验和应用边界。",
+      "sortOrder": 3164,
+      "author": "Joe Puleo、Patrick Milroy",
+      "isFree": true,
+      "isPublished": true,
+      "mindMap": {
+        "title": "《跑步解剖书：提升跑步肌力、速度、耐力的图解指南》主题 4 · 训练整合、疲劳与伤病风险",
+        "description": "CoachLink 原创主题知识地图：概念、决策、验证、误区和边界放在同一张图里。",
+        "data": [
+          {
+            "id": "root",
+            "title": "训练整合、疲劳与伤病风险",
+            "node_type": "domain",
+            "children": [
+              {
+                "id": "concept",
+                "title": "核心概念",
+                "description": "跑步与力量训练共享恢复资源，伤病风险通常来自负荷变化、组织耐受和恢复失衡的组合，而非某一个动作天然危险。合理整合需要区分高强度跑、长距离、力量和弹跳刺激，避免同一组织连续承受峰值压力。",
+                "node_type": "category"
+              },
+              {
+                "id": "decision",
+                "title": "教练决策",
+                "description": "教练应记录跑量、强度分布、力量训练和疼痛趋势，并在增加新刺激时减少其他变量的同时变化。出现持续疼痛、步态明显改变或功能下降时，应降低负荷并转交合格医疗人员评估。",
+                "node_type": "category"
+              },
+              {
+                "id": "practice",
+                "title": "最小实践",
+                "description": "从跑步任务识别需要的力量方向",
+                "node_type": "category"
+              },
+              {
+                "id": "feedback",
+                "title": "记录与复盘",
+                "description": "先留基线，一次只改一个关键变量，再用结果和恢复信号判断。",
+                "node_type": "category"
+              },
+              {
+                "id": "pitfall",
+                "title": "常见误用",
+                "description": "仅凭解剖图或某处疼痛自行诊断薄弱肌群，会忽略训练负荷、神经症状和其他需要专业排查的原因。",
+                "node_type": "category"
+              },
+              {
+                "id": "boundary",
+                "title": "应用边界",
+                "description": "解剖图能帮助理解但不能单凭肌肉图诊断疼痛；平台只使用自绘关系图，不复制原书插图。",
+                "node_type": "category"
+              }
+            ]
+          }
+        ]
+      },
+      "readingGuide": {
+        "estimatedMinutes": 10,
+        "suitableFor": [
+          "正在学习跑步与功能解剖的训练者",
+          "需要把理论转成计划的教练",
+          "愿意记录并复盘的读者"
+        ],
+        "goals": [
+          "说清核心概念",
+          "形成可执行决策",
+          "设计一次可验证的小实验"
+        ],
+        "prerequisites": [
+          "先阅读全书深读入口",
+          "本页不替代正版原书或专业诊疗"
+        ]
+      },
+      "keyTakeaways": [
+        "训练整合、疲劳与伤病风险",
+        "从跑步任务识别需要的力量方向",
+        "一次只改变少量关键变量，并提前定义反馈信号",
+        "仅凭解剖图或某处疼痛自行诊断薄弱肌群，会忽略训练负荷、神经症状和其他需要专业排查的原因。"
+      ],
+      "discussionPrompts": [
+        "你当前最接近这个主题的真实问题是什么？",
+        "你会保留哪个变量不变，才看得出干预是否有效？",
+        "如果结果与书中框架不一致，你先检查数据、执行还是原始假设？"
+      ],
+      "citations": [
+        {
+          "title": "书目：跑步解剖书：提升跑步肌力、速度、耐力的图解指南",
+          "note": "本页为 CoachLink 原创解释性笔记；不复制原书正文、插图、表格或完整处方。正式学术或专业引用请回到正版书核对作者、版次、出版社和页码。",
+          "license": "interpretive-notes-only"
+        }
+      ]
+    }
+  ]
+}

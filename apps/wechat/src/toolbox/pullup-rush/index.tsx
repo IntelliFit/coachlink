@@ -14,6 +14,7 @@ import {
   type ArcadeFeedback,
   vibrateForArcadeFeedback
 } from '../games/arcadeFeedback'
+import { BodyPointTracker } from '../games/bodyPointTracker'
 import '../games/motionArcade.scss'
 import './index.scss'
 
@@ -41,21 +42,17 @@ type PipePair = {
 }
 
 const GAME_DURATION_MS = 30000
-const GAME_TICK_MS = 64
-const CAMERA_FRAME_COOLDOWN_MS = 72
-const MOTION_SAMPLE_STEP = 6
-const MOTION_THRESHOLD = 24
+const GAME_TICK_MS = 32
 const REPLAY_DURATION_SECONDS = 35
 const REPLAY_FPS = 12
+const REPLAY_FRAME_INTERVAL_MS = 1000 / REPLAY_FPS
 const PLAYER_X = 0.32
 const PLAYER_RADIUS = 0.058
-const GRAVITY = 0.008
-const JUMP_VELOCITY = -0.068
-const PIPE_SPEED = 0.024
+const GRAVITY = 0.002
+const JUMP_VELOCITY = -0.034
+const PIPE_SPEED = 0.012
 const PIPE_SPAWN_MS = 1180
-const PULL_TRIGGER_COOLDOWN_MS = 320
-const PULL_TRIGGER_ENERGY = 0.2
-const PULL_TRIGGER_DELTA = 0.045
+const PULL_TRIGGER_COOLDOWN_MS = 260
 const MAX_LIVES = 2
 
 function clamp(value: number, min: number, max: number) {
@@ -108,9 +105,9 @@ export default function PullupRushPage() {
   const cameraContextRef = useRef<any>(null)
   const replayRecorderRef = useRef<MotionArcadeReplayRecorder | null>(null)
   const frameListenerRef = useRef<any>(null)
-  const prevGrayFrameRef = useRef<Uint8Array | null>(null)
-  const lastCameraProcessRef = useRef(0)
+  const lastReplayCaptureAtRef = useRef(0)
   const motionRef = useRef<MotionSnapshot>({ energy: 0, x: 0.5, y: 0.7 })
+  const gameStatusRef = useRef<GameStatus>('idle')
   const lastPullTriggerAtRef = useRef(0)
   const pendingPullRef = useRef(false)
   const pipesRef = useRef<PipePair[]>([])
@@ -192,12 +189,40 @@ export default function PullupRushPage() {
   }, [lives])
 
   useEffect(() => {
+    gameStatusRef.current = gameStatus
+  }, [gameStatus])
+
+  useEffect(() => {
     flipXRef.current = flipX
   }, [flipX])
 
   useEffect(() => {
     const context = Taro.createCameraContext()
     cameraContextRef.current = context
+    const tracker = new BodyPointTracker({
+      onSnapshot: (snapshot) => {
+        motionRef.current = {
+          energy: snapshot.energy,
+          x: snapshot.x,
+          y: snapshot.y
+        }
+        setMotionEnergy(snapshot.energy)
+
+        const upwardThreshold = snapshot.source === 'pose' ? -0.012 : -0.022
+        const energyThreshold = snapshot.source === 'pose' ? 0.05 : 0.12
+        const now = Date.now()
+        if (
+          gameStatusRef.current === 'playing'
+          && snapshot.energy >= energyThreshold
+          && snapshot.velocityY <= upwardThreshold
+          && now - lastPullTriggerAtRef.current >= PULL_TRIGGER_COOLDOWN_MS
+        ) {
+          pendingPullRef.current = true
+          lastPullTriggerAtRef.current = now
+          setPullCount((prevCount) => prevCount + 1)
+        }
+      }
+    })
 
     let stopped = false
     const startFrameStream = () => {
@@ -205,69 +230,19 @@ export default function PullupRushPage() {
         const listener = context.onCameraFrame((frame: any) => {
           if (stopped) return
           const now = Date.now()
-          if (now - lastCameraProcessRef.current < CAMERA_FRAME_COOLDOWN_MS) return
-          lastCameraProcessRef.current = now
 
           const width = Number(frame?.width || 0)
           const height = Number(frame?.height || 0)
           const data = frame?.data
           if (!width || !height || !(data instanceof ArrayBuffer)) return
-
-          const prev = prevGrayFrameRef.current
-          const current = new Uint8Array(Math.ceil((width / MOTION_SAMPLE_STEP) * (height / MOTION_SAMPLE_STEP)))
-          let sampleIndex = 0
-          let weightedX = 0
-          let weightedY = 0
-          let weightSum = 0
-          const rgba = new Uint8Array(data)
-
-          for (let y = 0; y < height; y += MOTION_SAMPLE_STEP) {
-            for (let x = 0; x < width; x += MOTION_SAMPLE_STEP) {
-              const idx = (y * width + x) * 4
-              const gray = ((rgba[idx] || 0) * 3 + (rgba[idx + 1] || 0) * 4 + (rgba[idx + 2] || 0)) >> 3
-              current[sampleIndex] = gray
-              if (prev) {
-                const diff = Math.abs(gray - prev[sampleIndex])
-                if (diff > MOTION_THRESHOLD) {
-                  weightedX += x * diff
-                  weightedY += y * diff
-                  weightSum += diff
-                }
-              }
-              sampleIndex += 1
-            }
-          }
-
-          prevGrayFrameRef.current = current
-          if (!prev || weightSum <= 0) return
-
-          const rawX = weightedX / weightSum / width
-          const rawY = weightedY / weightSum / height
-          const nextEnergy = clamp(weightSum / 8500, 0, 1)
-          const currentMotion = motionRef.current
-          const nextX = currentMotion.x * 0.42 + clamp(rawX, 0.06, 0.94) * 0.58
-          const nextY = currentMotion.y * 0.42 + clamp(rawY, 0.12, 0.9) * 0.58
-          const pullDelta = currentMotion.y - nextY
-
-          motionRef.current = {
-            energy: nextEnergy,
-            x: nextX,
-            y: nextY
-          }
-          setMotionEnergy(nextEnergy)
+          tracker.processFrame({ data, height, width }, now)
 
           if (
-            gameStatus === 'playing'
-            && nextEnergy >= PULL_TRIGGER_ENERGY
-            && pullDelta >= PULL_TRIGGER_DELTA
-            && now - lastPullTriggerAtRef.current >= PULL_TRIGGER_COOLDOWN_MS
+            recordingModeRef.current === 'composite'
+            && now - lastReplayCaptureAtRef.current >= REPLAY_FRAME_INTERVAL_MS
           ) {
-            pendingPullRef.current = true
-            lastPullTriggerAtRef.current = now
-            setPullCount((prevCount) => prevCount + 1)
-          }
-
-          if (recordingModeRef.current === 'composite') {
+            lastReplayCaptureAtRef.current = now
+            const rgba = new Uint8Array(data)
             const replayItems: ArcadeReplayItem[] = pipesRef.current.flatMap((pipe) => {
               const topHeight = pipe.gapY
               const bottomStart = pipe.gapY + pipe.gapHeight
@@ -329,7 +304,7 @@ export default function PullupRushPage() {
         // ignore cleanup error
       }
       frameListenerRef.current = null
-      prevGrayFrameRef.current = null
+      tracker.destroy()
       void replayRecorderRef.current?.destroy()
       replayRecorderRef.current = null
       if (isRecordingRef.current) {
@@ -340,9 +315,10 @@ export default function PullupRushPage() {
         }
       }
     }
-  }, [gameStatus])
+  }, [])
 
   const endRound = (nextStatus: GameStatus) => {
+    gameStatusRef.current = nextStatus
     setGameStatus(nextStatus)
     if (isRecordingRef.current) {
       void stopRecording()
@@ -595,6 +571,8 @@ export default function PullupRushPage() {
     nextPipeIdRef.current = 1
     setPullCount(0)
     setFeedback(null)
+    lastReplayCaptureAtRef.current = 0
+    lastPullTriggerAtRef.current = 0
     motionRef.current = { energy: 0, x: 0.5, y: 0.7 }
     setMotionEnergy(0)
     playerYRef.current = 0.52
@@ -618,6 +596,7 @@ export default function PullupRushPage() {
     resetForNewGame()
     setRecordedVideo(null)
     setGameStatus('playing')
+    gameStatusRef.current = 'playing'
     gameStartedAtRef.current = Date.now()
     if (withRecording) {
       void beginRecording()
@@ -669,11 +648,7 @@ export default function PullupRushPage() {
           <View className='page-content'>
             <View className='intro-card'>
               <Text className='intro-kicker'>PULLUP FLIGHT</Text>
-              <Text className='intro-title'>像小鸟穿柱子一样往上拉，但每次上升都要靠你的上拉动作触发</Text>
-              <Text className='intro-desc'>
-                这一版不再是“引体主题换皮”，而是改成真正的穿障碍玩法。
-                角色会自然下坠，你做一次明显的上拉式动作，角色就会上冲一下，穿过上下障碍缝隙。
-              </Text>
+              <Text className='intro-title'>向上拉，穿过障碍</Text>
               <View className='intro-tags'>
                 <Text className='intro-tag'>上拉触发上升</Text>
                 <Text className='intro-tag'>穿缝得分</Text>
@@ -775,12 +750,6 @@ export default function PullupRushPage() {
                   </View>
                 ) : null}
 
-                <View className='stage-tip-card'>
-                  <Text className='stage-note-title'>玩法提示</Text>
-                  <Text className='stage-note-desc'>
-                    角色会自动往下掉。你做明显的“往上拉”动作，比如抬肩、上提手臂、上身快速上移，它就会上冲一下。
-                  </Text>
-                </View>
               </View>
             </View>
 
@@ -814,7 +783,7 @@ export default function PullupRushPage() {
 
               <View className='meter-wrap'>
                 <View className='meter-header'>
-                  <Text className='meter-label'>动作感应强度</Text>
+                  <Text className='meter-label'>动作幅度</Text>
                   <Text className='meter-value'>{formatPercent(motionEnergy)}%</Text>
                 </View>
                 <View className='meter-track'>
@@ -825,9 +794,6 @@ export default function PullupRushPage() {
 
             <View className='controls-card'>
               <Text className='section-kicker'>控制台</Text>
-              <Text className='intro-desc'>
-                现在这局的核心不是左右接东西，而是像 `Flappy Bird` 那样找时机穿缝。录像也会优先保存带柱子和角色动画的回放。
-              </Text>
 
               <View className='controls-grid'>
                 <View

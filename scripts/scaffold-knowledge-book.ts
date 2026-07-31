@@ -17,6 +17,11 @@ const LOCAL_SOURCE_ROOT = path.resolve(
   "temp_dir/knowledge-book-workspaces"
 );
 
+// 与训练计划文件抽取接口保持一致，避开 pdf-parse 顶层入口的调试副作用。
+const parsePdf = require("pdf-parse/lib/pdf-parse.js") as (
+  data: Buffer
+) => Promise<{ text?: string }>;
+
 function getArgValue(flag: string) {
   const index = process.argv.indexOf(flag);
   if (index === -1) return null;
@@ -70,7 +75,18 @@ async function readSourceText(sourcePath: string) {
     return fs.readFileSync(sourcePath, "utf8");
   }
 
-  throw new Error(`Unsupported source file: ${ext}. Use .docx, .txt or .md`);
+  if (ext === ".pdf") {
+    const result = await parsePdf(fs.readFileSync(sourcePath));
+    const text = result.text?.trim() || "";
+    if (!text) {
+      throw new Error(
+        "PDF 未提取到可用文字，可能是扫描版。请先做 OCR，或改用同书的 EPUB/DOCX 文本版本。"
+      );
+    }
+    return text;
+  }
+
+  throw new Error(`Unsupported source file: ${ext}. Use .pdf, .docx, .txt or .md`);
 }
 
 function detectChapterHeadings(text: string) {
@@ -196,6 +212,7 @@ function buildNotes(title: string, chapterHeadings: string[]) {
     title: `《${title}》总览：先把这本书真正的主线读懂`,
     summary: "用一篇总览先讲清楚整本书的核心问题、阅读路径和应用框架。",
     sortOrder: 10,
+    isPublished: false,
     imagePrompts: buildDefaultImagePrompts("总览"),
   };
 
@@ -208,6 +225,7 @@ function buildNotes(title: string, chapterHeadings: string[]) {
     title: `《${title}》${heading}：这一部分到底在讲什么`,
     summary: `围绕“${heading}”做一篇深入浅出的章节解读。`,
     sortOrder: 11 + index,
+    isPublished: false,
     imagePrompts: buildDefaultImagePrompts(heading),
   }));
 
@@ -254,7 +272,7 @@ async function main() {
   if (!sourcePath) {
     console.log("Usage:");
     console.log(
-      '  npx tsx scripts/scaffold-knowledge-book.ts --source "D:\\path\\book.docx" [--slug my-book] [--title 书名] [--authors 作者1,作者2] [--force]'
+      '  npx tsx scripts/scaffold-knowledge-book.ts --source "D:\\path\\book.pdf" [--slug my-book] [--title 书名] [--authors 作者1,作者2] [--force]'
     );
     process.exit(1);
   }

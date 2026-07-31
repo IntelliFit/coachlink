@@ -1,0 +1,1855 @@
+{
+  "format": "book-note-v3-public-domain",
+  "noteStyle": "public-domain-original-with-reading-guide",
+  "disclaimer": "本内容用于古籍与医学思想史阅读，不构成现代医学、针刺、康复或训练处方。具体健康问题请咨询有资质的医疗专业人员。",
+  "source": {
+    "title": "黄帝内经",
+    "authors": [
+      "佚名"
+    ],
+    "originalFilePath": "https://zh.wikisource.org/wiki/黃帝內經",
+    "copyrightMode": "public-domain",
+    "collectionSlug": "huangdi-neijing-public-domain",
+    "collectionTitle": "《黄帝内经》公版原文与现代阅读导览"
+  },
+  "notes": [
+    {
+      "slug": "overview",
+      "file": "notes/00-overview.md",
+      "noteType": "overview",
+      "chapterOrder": 0,
+      "chapterTitle": "全书总览",
+      "title": "《黄帝内经》总览：先分清古籍原文、现代证据与训练启发",
+      "summary": "按《素问》24卷与《灵枢》12卷整理的公版原文入口，配套整书阅读路径、现代证据边界和原创思维导图。",
+      "sortOrder": 90,
+      "author": "佚名 · CoachLink 整理",
+      "isFree": true,
+      "isPublished": true,
+      "readingGuide": {
+        "estimatedMinutes": 10,
+        "suitableFor": [
+          "中国医学思想史读者",
+          "关注节律与劳逸观念的教练",
+          "希望阅读公版古籍原文的用户"
+        ],
+        "goals": [
+          "理解《素问》与《灵枢》的结构",
+          "建立原文、解释与现代证据三层框架",
+          "选择适合自己的阅读路径"
+        ],
+        "prerequisites": [
+          "不把古代医学文本当作个人诊疗建议"
+        ]
+      },
+      "keyTakeaways": [
+        "《黄帝内经》由《素问》与《灵枢》两部分构成",
+        "古籍思想具有历史价值，但不等同于现代临床证据",
+        "训练场景只做节律、劳逸和个体观察的启发性转译",
+        "现代点校、翻译和注释不因原作公版而自动公版"
+      ],
+      "discussionPrompts": [
+        "你最想从《黄帝内经》中理解的是文化史、生活节律，还是身体观？",
+        "面对古代经验与现代证据冲突时，你会用什么标准判断？",
+        "教练在引用传统养生观念时，应该明确哪些专业边界？"
+      ],
+      "citations": [
+        {
+          "title": "维基文库：《黄帝内经》",
+          "url": "https://zh.wikisource.org/wiki/黃帝內經",
+          "note": "公版原文与篇目结构来源",
+          "license": "古籍原文 Public Domain；站点文本 CC BY-SA 4.0",
+          "accessedAt": "2026-08-01"
+        },
+        {
+          "title": "Library of Congress: Huang di nei jing su wen",
+          "url": "https://www.loc.gov/item/2021666312/",
+          "note": "金代版本记录与权利状态交叉核验",
+          "license": "馆方未发现版权或其他限制",
+          "accessedAt": "2026-08-01"
+        }
+      ],
+      "mindMap": {
+        "title": "《黄帝内经》全书思维导图",
+        "description": "以文本结构和阅读主题组织，不把古代医理直接等同于现代医学结论。",
+        "data": [
+          {
+            "id": "root",
+            "title": "黄帝内经",
+            "node_type": "domain",
+            "children": [
+              {
+                "id": "suwen",
+                "title": "素问：理论与整体观",
+                "node_type": "category",
+                "children": [
+                  {
+                    "id": "suwen-rhythm",
+                    "title": "四时、起居与节律",
+                    "node_type": "topic"
+                  },
+                  {
+                    "id": "suwen-body",
+                    "title": "身体、脏腑与经脉模型",
+                    "node_type": "topic"
+                  },
+                  {
+                    "id": "suwen-diagnosis",
+                    "title": "诊察、病因与辨析",
+                    "node_type": "topic"
+                  },
+                  {
+                    "id": "suwen-method",
+                    "title": "治则与方法的历史文本",
+                    "node_type": "topic"
+                  }
+                ]
+              },
+              {
+                "id": "lingshu",
+                "title": "灵枢：经脉与针刺体系",
+                "node_type": "category",
+                "children": [
+                  {
+                    "id": "lingshu-meridian",
+                    "title": "经脉、经筋与营卫",
+                    "node_type": "topic"
+                  },
+                  {
+                    "id": "lingshu-acupuncture",
+                    "title": "针刺原则与器具",
+                    "node_type": "topic"
+                  },
+                  {
+                    "id": "lingshu-constitution",
+                    "title": "体质、年龄与个体差异",
+                    "node_type": "topic"
+                  },
+                  {
+                    "id": "lingshu-history",
+                    "title": "古代医学史与概念史",
+                    "node_type": "topic"
+                  }
+                ]
+              },
+              {
+                "id": "modern-reading",
+                "title": "现代阅读边界",
+                "node_type": "category",
+                "children": [
+                  {
+                    "id": "history-not-evidence",
+                    "title": "历史思想 ≠ 现代临床证据",
+                    "node_type": "topic"
+                  },
+                  {
+                    "id": "translation",
+                    "title": "原文、今译与解释分层",
+                    "node_type": "topic"
+                  },
+                  {
+                    "id": "coach-use",
+                    "title": "教练只做生活方式启发",
+                    "node_type": "topic"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "slug": "suwen-volume-01",
+      "file": "notes/suwen-01.md",
+      "noteType": "chapter",
+      "chapterOrder": 101,
+      "chapterTitle": "素问第一卷",
+      "title": "《黄帝内经·素问》第一卷：上古天真論篇第一、四氣調神大論篇第二、生氣通天論篇第三、金匱真言論篇第四",
+      "summary": "收录《素问》第一卷公版原文，共 4 篇，并提供篇目地图、来源和现代阅读边界。",
+      "sortOrder": 101,
+      "author": "佚名 · CoachLink 整理",
+      "isFree": true,
+      "isPublished": true,
+      "readingGuide": {
+        "suitableFor": [
+          "古代医学思想史读者",
+          "需要原文与结构导航的用户"
+        ],
+        "goals": [
+          "辨认本卷篇目主线",
+          "在历史语境中阅读原文",
+          "区分古代模型与现代证据"
+        ],
+        "prerequisites": [
+          "不将古籍原文作为个人诊疗或针刺操作指南"
+        ]
+      },
+      "keyTakeaways": [
+        "上古天真論篇第一",
+        "四氣調神大論篇第二",
+        "生氣通天論篇第三",
+        "金匱真言論篇第四"
+      ],
+      "discussionPrompts": [
+        "本卷哪一个概念最需要结合历史语境才能理解？",
+        "本卷哪些说法属于古代身体模型，不能直接写成现代科学结论？",
+        "如果只提取一般性的劳逸或观察原则，你会如何避免越过教练专业边界？"
+      ],
+      "citations": [
+        {
+          "title": "维基文库：黃帝內經/素問第一卷",
+          "url": "https://zh.wikisource.org/wiki/%E9%BB%83%E5%B8%9D%E5%85%A7%E7%B6%93/%E7%B4%A0%E5%95%8F%E7%AC%AC%E4%B8%80%E5%8D%B7",
+          "note": "公版古籍原文来源",
+          "license": "古籍原文 Public Domain；站点文本 CC BY-SA 4.0",
+          "accessedAt": "2026-08-01"
+        }
+      ]
+    },
+    {
+      "slug": "suwen-volume-02",
+      "file": "notes/suwen-02.md",
+      "noteType": "chapter",
+      "chapterOrder": 102,
+      "chapterTitle": "素问第二卷",
+      "title": "《黄帝内经·素问》第二卷：陰陽應象大論第五、陰陽離合論第六、陰陽別論第七",
+      "summary": "收录《素问》第二卷公版原文，共 3 篇，并提供篇目地图、来源和现代阅读边界。",
+      "sortOrder": 102,
+      "author": "佚名 · CoachLink 整理",
+      "isFree": true,
+      "isPublished": true,
+      "readingGuide": {
+        "suitableFor": [
+          "古代医学思想史读者",
+          "需要原文与结构导航的用户"
+        ],
+        "goals": [
+          "辨认本卷篇目主线",
+          "在历史语境中阅读原文",
+          "区分古代模型与现代证据"
+        ],
+        "prerequisites": [
+          "不将古籍原文作为个人诊疗或针刺操作指南"
+        ]
+      },
+      "keyTakeaways": [
+        "陰陽應象大論第五",
+        "陰陽離合論第六",
+        "陰陽別論第七"
+      ],
+      "discussionPrompts": [
+        "本卷哪一个概念最需要结合历史语境才能理解？",
+        "本卷哪些说法属于古代身体模型，不能直接写成现代科学结论？",
+        "如果只提取一般性的劳逸或观察原则，你会如何避免越过教练专业边界？"
+      ],
+      "citations": [
+        {
+          "title": "维基文库：黃帝內經/素問第二卷",
+          "url": "https://zh.wikisource.org/wiki/%E9%BB%83%E5%B8%9D%E5%85%A7%E7%B6%93/%E7%B4%A0%E5%95%8F%E7%AC%AC%E4%BA%8C%E5%8D%B7",
+          "note": "公版古籍原文来源",
+          "license": "古籍原文 Public Domain；站点文本 CC BY-SA 4.0",
+          "accessedAt": "2026-08-01"
+        }
+      ]
+    },
+    {
+      "slug": "suwen-volume-03",
+      "file": "notes/suwen-03.md",
+      "noteType": "chapter",
+      "chapterOrder": 103,
+      "chapterTitle": "素问第三卷",
+      "title": "《黄帝内经·素问》第三卷：靈蘭秘典論八、六節藏象論九、五藏生成篇十、五藏別論十一",
+      "summary": "收录《素问》第三卷公版原文，共 4 篇，并提供篇目地图、来源和现代阅读边界。",
+      "sortOrder": 103,
+      "author": "佚名 · CoachLink 整理",
+      "isFree": true,
+      "isPublished": true,
+      "readingGuide": {
+        "suitableFor": [
+          "古代医学思想史读者",
+          "需要原文与结构导航的用户"
+        ],
+        "goals": [
+          "辨认本卷篇目主线",
+          "在历史语境中阅读原文",
+          "区分古代模型与现代证据"
+        ],
+        "prerequisites": [
+          "不将古籍原文作为个人诊疗或针刺操作指南"
+        ]
+      },
+      "keyTakeaways": [
+        "靈蘭秘典論八",
+        "六節藏象論九",
+        "五藏生成篇十",
+        "五藏別論十一"
+      ],
+      "discussionPrompts": [
+        "本卷哪一个概念最需要结合历史语境才能理解？",
+        "本卷哪些说法属于古代身体模型，不能直接写成现代科学结论？",
+        "如果只提取一般性的劳逸或观察原则，你会如何避免越过教练专业边界？"
+      ],
+      "citations": [
+        {
+          "title": "维基文库：黃帝內經/素問第三卷",
+          "url": "https://zh.wikisource.org/wiki/%E9%BB%83%E5%B8%9D%E5%85%A7%E7%B6%93/%E7%B4%A0%E5%95%8F%E7%AC%AC%E4%B8%89%E5%8D%B7",
+          "note": "公版古籍原文来源",
+          "license": "古籍原文 Public Domain；站点文本 CC BY-SA 4.0",
+          "accessedAt": "2026-08-01"
+        }
+      ]
+    },
+    {
+      "slug": "suwen-volume-04",
+      "file": "notes/suwen-04.md",
+      "noteType": "chapter",
+      "chapterOrder": 104,
+      "chapterTitle": "素问第四卷",
+      "title": "《黄帝内经·素问》第四卷：異法方宜論十二、移精變氣論十三、湯液醪醴論十四、玉板論要篇十五、診要經終論十六",
+      "summary": "收录《素问》第四卷公版原文，共 5 篇，并提供篇目地图、来源和现代阅读边界。",
+      "sortOrder": 104,
+      "author": "佚名 · CoachLink 整理",
+      "isFree": true,
+      "isPublished": true,
+      "readingGuide": {
+        "suitableFor": [
+          "古代医学思想史读者",
+          "需要原文与结构导航的用户"
+        ],
+        "goals": [
+          "辨认本卷篇目主线",
+          "在历史语境中阅读原文",
+          "区分古代模型与现代证据"
+        ],
+        "prerequisites": [
+          "不将古籍原文作为个人诊疗或针刺操作指南"
+        ]
+      },
+      "keyTakeaways": [
+        "異法方宜論十二",
+        "移精變氣論十三",
+        "湯液醪醴論十四",
+        "玉板論要篇十五",
+        "診要經終論十六"
+      ],
+      "discussionPrompts": [
+        "本卷哪一个概念最需要结合历史语境才能理解？",
+        "本卷哪些说法属于古代身体模型，不能直接写成现代科学结论？",
+        "如果只提取一般性的劳逸或观察原则，你会如何避免越过教练专业边界？"
+      ],
+      "citations": [
+        {
+          "title": "维基文库：黃帝內經/素問第四卷",
+          "url": "https://zh.wikisource.org/wiki/%E9%BB%83%E5%B8%9D%E5%85%A7%E7%B6%93/%E7%B4%A0%E5%95%8F%E7%AC%AC%E5%9B%9B%E5%8D%B7",
+          "note": "公版古籍原文来源",
+          "license": "古籍原文 Public Domain；站点文本 CC BY-SA 4.0",
+          "accessedAt": "2026-08-01"
+        }
+      ]
+    },
+    {
+      "slug": "suwen-volume-05",
+      "file": "notes/suwen-05.md",
+      "noteType": "chapter",
+      "chapterOrder": 105,
+      "chapterTitle": "素问第五卷",
+      "title": "《黄帝内经·素问》第五卷：脈要精微論十七、平人氣象論十八",
+      "summary": "收录《素问》第五卷公版原文，共 2 篇，并提供篇目地图、来源和现代阅读边界。",
+      "sortOrder": 105,
+      "author": "佚名 · CoachLink 整理",
+      "isFree": true,
+      "isPublished": true,
+      "readingGuide": {
+        "suitableFor": [
+          "古代医学思想史读者",
+          "需要原文与结构导航的用户"
+        ],
+        "goals": [
+          "辨认本卷篇目主线",
+          "在历史语境中阅读原文",
+          "区分古代模型与现代证据"
+        ],
+        "prerequisites": [
+          "不将古籍原文作为个人诊疗或针刺操作指南"
+        ]
+      },
+      "keyTakeaways": [
+        "脈要精微論十七",
+        "平人氣象論十八"
+      ],
+      "discussionPrompts": [
+        "本卷哪一个概念最需要结合历史语境才能理解？",
+        "本卷哪些说法属于古代身体模型，不能直接写成现代科学结论？",
+        "如果只提取一般性的劳逸或观察原则，你会如何避免越过教练专业边界？"
+      ],
+      "citations": [
+        {
+          "title": "维基文库：黃帝內經/素問第五卷",
+          "url": "https://zh.wikisource.org/wiki/%E9%BB%83%E5%B8%9D%E5%85%A7%E7%B6%93/%E7%B4%A0%E5%95%8F%E7%AC%AC%E4%BA%94%E5%8D%B7",
+          "note": "公版古籍原文来源",
+          "license": "古籍原文 Public Domain；站点文本 CC BY-SA 4.0",
+          "accessedAt": "2026-08-01"
+        }
+      ]
+    },
+    {
+      "slug": "suwen-volume-06",
+      "file": "notes/suwen-06.md",
+      "noteType": "chapter",
+      "chapterOrder": 106,
+      "chapterTitle": "素问第六卷",
+      "title": "《黄帝内经·素问》第六卷：玉機真藏論十九、三部九候論二十",
+      "summary": "收录《素问》第六卷公版原文，共 2 篇，并提供篇目地图、来源和现代阅读边界。",
+      "sortOrder": 106,
+      "author": "佚名 · CoachLink 整理",
+      "isFree": true,
+      "isPublished": true,
+      "readingGuide": {
+        "suitableFor": [
+          "古代医学思想史读者",
+          "需要原文与结构导航的用户"
+        ],
+        "goals": [
+          "辨认本卷篇目主线",
+          "在历史语境中阅读原文",
+          "区分古代模型与现代证据"
+        ],
+        "prerequisites": [
+          "不将古籍原文作为个人诊疗或针刺操作指南"
+        ]
+      },
+      "keyTakeaways": [
+        "玉機真藏論十九",
+        "三部九候論二十"
+      ],
+      "discussionPrompts": [
+        "本卷哪一个概念最需要结合历史语境才能理解？",
+        "本卷哪些说法属于古代身体模型，不能直接写成现代科学结论？",
+        "如果只提取一般性的劳逸或观察原则，你会如何避免越过教练专业边界？"
+      ],
+      "citations": [
+        {
+          "title": "维基文库：黃帝內經/素問第六卷",
+          "url": "https://zh.wikisource.org/wiki/%E9%BB%83%E5%B8%9D%E5%85%A7%E7%B6%93/%E7%B4%A0%E5%95%8F%E7%AC%AC%E5%85%AD%E5%8D%B7",
+          "note": "公版古籍原文来源",
+          "license": "古籍原文 Public Domain；站点文本 CC BY-SA 4.0",
+          "accessedAt": "2026-08-01"
+        }
+      ]
+    },
+    {
+      "slug": "suwen-volume-07",
+      "file": "notes/suwen-07.md",
+      "noteType": "chapter",
+      "chapterOrder": 107,
+      "chapterTitle": "素问第七卷",
+      "title": "《黄帝内经·素问》第七卷：經脈別論二十一、藏氣法時論二十二、宣明五氣篇二十三、血氣形志篇二十四",
+      "summary": "收录《素问》第七卷公版原文，共 4 篇，并提供篇目地图、来源和现代阅读边界。",
+      "sortOrder": 107,
+      "author": "佚名 · CoachLink 整理",
+      "isFree": true,
+      "isPublished": true,
+      "readingGuide": {
+        "suitableFor": [
+          "古代医学思想史读者",
+          "需要原文与结构导航的用户"
+        ],
+        "goals": [
+          "辨认本卷篇目主线",
+          "在历史语境中阅读原文",
+          "区分古代模型与现代证据"
+        ],
+        "prerequisites": [
+          "不将古籍原文作为个人诊疗或针刺操作指南"
+        ]
+      },
+      "keyTakeaways": [
+        "經脈別論二十一",
+        "藏氣法時論二十二",
+        "宣明五氣篇二十三",
+        "血氣形志篇二十四"
+      ],
+      "discussionPrompts": [
+        "本卷哪一个概念最需要结合历史语境才能理解？",
+        "本卷哪些说法属于古代身体模型，不能直接写成现代科学结论？",
+        "如果只提取一般性的劳逸或观察原则，你会如何避免越过教练专业边界？"
+      ],
+      "citations": [
+        {
+          "title": "维基文库：黃帝內經/素問第七卷",
+          "url": "https://zh.wikisource.org/wiki/%E9%BB%83%E5%B8%9D%E5%85%A7%E7%B6%93/%E7%B4%A0%E5%95%8F%E7%AC%AC%E4%B8%83%E5%8D%B7",
+          "note": "公版古籍原文来源",
+          "license": "古籍原文 Public Domain；站点文本 CC BY-SA 4.0",
+          "accessedAt": "2026-08-01"
+        }
+      ]
+    },
+    {
+      "slug": "suwen-volume-08",
+      "file": "notes/suwen-08.md",
+      "noteType": "chapter",
+      "chapterOrder": 108,
+      "chapterTitle": "素问第八卷",
+      "title": "《黄帝内经·素问》第八卷：寶命全形論二十五、八正神明論二十六、離合真邪論二十七、通評虛實論二十八、太陰陽明論二十九、陽明脈解三十",
+      "summary": "收录《素问》第八卷公版原文，共 6 篇，并提供篇目地图、来源和现代阅读边界。",
+      "sortOrder": 108,
+      "author": "佚名 · CoachLink 整理",
+      "isFree": true,
+      "isPublished": true,
+      "readingGuide": {
+        "suitableFor": [
+          "古代医学思想史读者",
+          "需要原文与结构导航的用户"
+        ],
+        "goals": [
+          "辨认本卷篇目主线",
+          "在历史语境中阅读原文",
+          "区分古代模型与现代证据"
+        ],
+        "prerequisites": [
+          "不将古籍原文作为个人诊疗或针刺操作指南"
+        ]
+      },
+      "keyTakeaways": [
+        "寶命全形論二十五",
+        "八正神明論二十六",
+        "離合真邪論二十七",
+        "通評虛實論二十八",
+        "太陰陽明論二十九",
+        "陽明脈解三十"
+      ],
+      "discussionPrompts": [
+        "本卷哪一个概念最需要结合历史语境才能理解？",
+        "本卷哪些说法属于古代身体模型，不能直接写成现代科学结论？",
+        "如果只提取一般性的劳逸或观察原则，你会如何避免越过教练专业边界？"
+      ],
+      "citations": [
+        {
+          "title": "维基文库：黃帝內經/素問第八卷",
+          "url": "https://zh.wikisource.org/wiki/%E9%BB%83%E5%B8%9D%E5%85%A7%E7%B6%93/%E7%B4%A0%E5%95%8F%E7%AC%AC%E5%85%AB%E5%8D%B7",
+          "note": "公版古籍原文来源",
+          "license": "古籍原文 Public Domain；站点文本 CC BY-SA 4.0",
+          "accessedAt": "2026-08-01"
+        }
+      ]
+    },
+    {
+      "slug": "suwen-volume-09",
+      "file": "notes/suwen-09.md",
+      "noteType": "chapter",
+      "chapterOrder": 109,
+      "chapterTitle": "素问第九卷",
+      "title": "《黄帝内经·素问》第九卷：熱論三十一、刺熱論三十二、評熱病論三十三、逆調論三十四",
+      "summary": "收录《素问》第九卷公版原文，共 4 篇，并提供篇目地图、来源和现代阅读边界。",
+      "sortOrder": 109,
+      "author": "佚名 · CoachLink 整理",
+      "isFree": true,
+      "isPublished": true,
+      "readingGuide": {
+        "suitableFor": [
+          "古代医学思想史读者",
+          "需要原文与结构导航的用户"
+        ],
+        "goals": [
+          "辨认本卷篇目主线",
+          "在历史语境中阅读原文",
+          "区分古代模型与现代证据"
+        ],
+        "prerequisites": [
+          "不将古籍原文作为个人诊疗或针刺操作指南"
+        ]
+      },
+      "keyTakeaways": [
+        "熱論三十一",
+        "刺熱論三十二",
+        "評熱病論三十三",
+        "逆調論三十四"
+      ],
+      "discussionPrompts": [
+        "本卷哪一个概念最需要结合历史语境才能理解？",
+        "本卷哪些说法属于古代身体模型，不能直接写成现代科学结论？",
+        "如果只提取一般性的劳逸或观察原则，你会如何避免越过教练专业边界？"
+      ],
+      "citations": [
+        {
+          "title": "维基文库：黃帝內經/素問第九卷",
+          "url": "https://zh.wikisource.org/wiki/%E9%BB%83%E5%B8%9D%E5%85%A7%E7%B6%93/%E7%B4%A0%E5%95%8F%E7%AC%AC%E4%B9%9D%E5%8D%B7",
+          "note": "公版古籍原文来源",
+          "license": "古籍原文 Public Domain；站点文本 CC BY-SA 4.0",
+          "accessedAt": "2026-08-01"
+        }
+      ]
+    },
+    {
+      "slug": "suwen-volume-10",
+      "file": "notes/suwen-10.md",
+      "noteType": "chapter",
+      "chapterOrder": 110,
+      "chapterTitle": "素问第十卷",
+      "title": "《黄帝内经·素问》第十卷：瘧論三十五、刺瘧篇三十六、氣厥論三十七、欬論三十八",
+      "summary": "收录《素问》第十卷公版原文，共 4 篇，并提供篇目地图、来源和现代阅读边界。",
+      "sortOrder": 110,
+      "author": "佚名 · CoachLink 整理",
+      "isFree": true,
+      "isPublished": true,
+      "readingGuide": {
+        "suitableFor": [
+          "古代医学思想史读者",
+          "需要原文与结构导航的用户"
+        ],
+        "goals": [
+          "辨认本卷篇目主线",
+          "在历史语境中阅读原文",
+          "区分古代模型与现代证据"
+        ],
+        "prerequisites": [
+          "不将古籍原文作为个人诊疗或针刺操作指南"
+        ]
+      },
+      "keyTakeaways": [
+        "瘧論三十五",
+        "刺瘧篇三十六",
+        "氣厥論三十七",
+        "欬論三十八"
+      ],
+      "discussionPrompts": [
+        "本卷哪一个概念最需要结合历史语境才能理解？",
+        "本卷哪些说法属于古代身体模型，不能直接写成现代科学结论？",
+        "如果只提取一般性的劳逸或观察原则，你会如何避免越过教练专业边界？"
+      ],
+      "citations": [
+        {
+          "title": "维基文库：黃帝內經/素問第十卷",
+          "url": "https://zh.wikisource.org/wiki/%E9%BB%83%E5%B8%9D%E5%85%A7%E7%B6%93/%E7%B4%A0%E5%95%8F%E7%AC%AC%E5%8D%81%E5%8D%B7",
+          "note": "公版古籍原文来源",
+          "license": "古籍原文 Public Domain；站点文本 CC BY-SA 4.0",
+          "accessedAt": "2026-08-01"
+        }
+      ]
+    },
+    {
+      "slug": "suwen-volume-11",
+      "file": "notes/suwen-11.md",
+      "noteType": "chapter",
+      "chapterOrder": 111,
+      "chapterTitle": "素问第十一卷",
+      "title": "《黄帝内经·素问》第十一卷：舉痛論三十九、腹中論四十、刺腰論痛四十一",
+      "summary": "收录《素问》第十一卷公版原文，共 3 篇，并提供篇目地图、来源和现代阅读边界。",
+      "sortOrder": 111,
+      "author": "佚名 · CoachLink 整理",
+      "isFree": true,
+      "isPublished": true,
+      "readingGuide": {
+        "suitableFor": [
+          "古代医学思想史读者",
+          "需要原文与结构导航的用户"
+        ],
+        "goals": [
+          "辨认本卷篇目主线",
+          "在历史语境中阅读原文",
+          "区分古代模型与现代证据"
+        ],
+        "prerequisites": [
+          "不将古籍原文作为个人诊疗或针刺操作指南"
+        ]
+      },
+      "keyTakeaways": [
+        "舉痛論三十九",
+        "腹中論四十",
+        "刺腰論痛四十一"
+      ],
+      "discussionPrompts": [
+        "本卷哪一个概念最需要结合历史语境才能理解？",
+        "本卷哪些说法属于古代身体模型，不能直接写成现代科学结论？",
+        "如果只提取一般性的劳逸或观察原则，你会如何避免越过教练专业边界？"
+      ],
+      "citations": [
+        {
+          "title": "维基文库：黃帝內經/素問第十一卷",
+          "url": "https://zh.wikisource.org/wiki/%E9%BB%83%E5%B8%9D%E5%85%A7%E7%B6%93/%E7%B4%A0%E5%95%8F%E7%AC%AC%E5%8D%81%E4%B8%80%E5%8D%B7",
+          "note": "公版古籍原文来源",
+          "license": "古籍原文 Public Domain；站点文本 CC BY-SA 4.0",
+          "accessedAt": "2026-08-01"
+        }
+      ]
+    },
+    {
+      "slug": "suwen-volume-12",
+      "file": "notes/suwen-12.md",
+      "noteType": "chapter",
+      "chapterOrder": 112,
+      "chapterTitle": "素问第十二卷",
+      "title": "《黄帝内经·素问》第十二卷：風論四十二、痺論四十三、痿論四十四、厥論四十五",
+      "summary": "收录《素问》第十二卷公版原文，共 4 篇，并提供篇目地图、来源和现代阅读边界。",
+      "sortOrder": 112,
+      "author": "佚名 · CoachLink 整理",
+      "isFree": true,
+      "isPublished": true,
+      "readingGuide": {
+        "suitableFor": [
+          "古代医学思想史读者",
+          "需要原文与结构导航的用户"
+        ],
+        "goals": [
+          "辨认本卷篇目主线",
+          "在历史语境中阅读原文",
+          "区分古代模型与现代证据"
+        ],
+        "prerequisites": [
+          "不将古籍原文作为个人诊疗或针刺操作指南"
+        ]
+      },
+      "keyTakeaways": [
+        "風論四十二",
+        "痺論四十三",
+        "痿論四十四",
+        "厥論四十五"
+      ],
+      "discussionPrompts": [
+        "本卷哪一个概念最需要结合历史语境才能理解？",
+        "本卷哪些说法属于古代身体模型，不能直接写成现代科学结论？",
+        "如果只提取一般性的劳逸或观察原则，你会如何避免越过教练专业边界？"
+      ],
+      "citations": [
+        {
+          "title": "维基文库：黃帝內經/素問第十二卷",
+          "url": "https://zh.wikisource.org/wiki/%E9%BB%83%E5%B8%9D%E5%85%A7%E7%B6%93/%E7%B4%A0%E5%95%8F%E7%AC%AC%E5%8D%81%E4%BA%8C%E5%8D%B7",
+          "note": "公版古籍原文来源",
+          "license": "古籍原文 Public Domain；站点文本 CC BY-SA 4.0",
+          "accessedAt": "2026-08-01"
+        }
+      ]
+    },
+    {
+      "slug": "suwen-volume-13",
+      "file": "notes/suwen-13.md",
+      "noteType": "chapter",
+      "chapterOrder": 113,
+      "chapterTitle": "素问第十三卷",
+      "title": "《黄帝内经·素问》第十三卷：病能論四十六、奇病論四十七、大奇論四十八、脈解篇四十九",
+      "summary": "收录《素问》第十三卷公版原文，共 4 篇，并提供篇目地图、来源和现代阅读边界。",
+      "sortOrder": 113,
+      "author": "佚名 · CoachLink 整理",
+      "isFree": true,
+      "isPublished": true,
+      "readingGuide": {
+        "suitableFor": [
+          "古代医学思想史读者",
+          "需要原文与结构导航的用户"
+        ],
+        "goals": [
+          "辨认本卷篇目主线",
+          "在历史语境中阅读原文",
+          "区分古代模型与现代证据"
+        ],
+        "prerequisites": [
+          "不将古籍原文作为个人诊疗或针刺操作指南"
+        ]
+      },
+      "keyTakeaways": [
+        "病能論四十六",
+        "奇病論四十七",
+        "大奇論四十八",
+        "脈解篇四十九"
+      ],
+      "discussionPrompts": [
+        "本卷哪一个概念最需要结合历史语境才能理解？",
+        "本卷哪些说法属于古代身体模型，不能直接写成现代科学结论？",
+        "如果只提取一般性的劳逸或观察原则，你会如何避免越过教练专业边界？"
+      ],
+      "citations": [
+        {
+          "title": "维基文库：黃帝內經/素問第十三卷",
+          "url": "https://zh.wikisource.org/wiki/%E9%BB%83%E5%B8%9D%E5%85%A7%E7%B6%93/%E7%B4%A0%E5%95%8F%E7%AC%AC%E5%8D%81%E4%B8%89%E5%8D%B7",
+          "note": "公版古籍原文来源",
+          "license": "古籍原文 Public Domain；站点文本 CC BY-SA 4.0",
+          "accessedAt": "2026-08-01"
+        }
+      ]
+    },
+    {
+      "slug": "suwen-volume-14",
+      "file": "notes/suwen-14.md",
+      "noteType": "chapter",
+      "chapterOrder": 114,
+      "chapterTitle": "素问第十四卷",
+      "title": "《黄帝内经·素问》第十四卷：刺要論五十、刺齊論五十一、刺禁論五十二、刺志論五十三、鍼解五十四、長刺節論五十五",
+      "summary": "收录《素问》第十四卷公版原文，共 6 篇，并提供篇目地图、来源和现代阅读边界。",
+      "sortOrder": 114,
+      "author": "佚名 · CoachLink 整理",
+      "isFree": true,
+      "isPublished": true,
+      "readingGuide": {
+        "suitableFor": [
+          "古代医学思想史读者",
+          "需要原文与结构导航的用户"
+        ],
+        "goals": [
+          "辨认本卷篇目主线",
+          "在历史语境中阅读原文",
+          "区分古代模型与现代证据"
+        ],
+        "prerequisites": [
+          "不将古籍原文作为个人诊疗或针刺操作指南"
+        ]
+      },
+      "keyTakeaways": [
+        "刺要論五十",
+        "刺齊論五十一",
+        "刺禁論五十二",
+        "刺志論五十三",
+        "鍼解五十四",
+        "長刺節論五十五"
+      ],
+      "discussionPrompts": [
+        "本卷哪一个概念最需要结合历史语境才能理解？",
+        "本卷哪些说法属于古代身体模型，不能直接写成现代科学结论？",
+        "如果只提取一般性的劳逸或观察原则，你会如何避免越过教练专业边界？"
+      ],
+      "citations": [
+        {
+          "title": "维基文库：黃帝內經/素問第十四卷",
+          "url": "https://zh.wikisource.org/wiki/%E9%BB%83%E5%B8%9D%E5%85%A7%E7%B6%93/%E7%B4%A0%E5%95%8F%E7%AC%AC%E5%8D%81%E5%9B%9B%E5%8D%B7",
+          "note": "公版古籍原文来源",
+          "license": "古籍原文 Public Domain；站点文本 CC BY-SA 4.0",
+          "accessedAt": "2026-08-01"
+        }
+      ]
+    },
+    {
+      "slug": "suwen-volume-15",
+      "file": "notes/suwen-15.md",
+      "noteType": "chapter",
+      "chapterOrder": 115,
+      "chapterTitle": "素问第十五卷",
+      "title": "《黄帝内经·素问》第十五卷：皮部論五十六、經絡論五十七、氣穴論五十八、氣府論五十九",
+      "summary": "收录《素问》第十五卷公版原文，共 4 篇，并提供篇目地图、来源和现代阅读边界。",
+      "sortOrder": 115,
+      "author": "佚名 · CoachLink 整理",
+      "isFree": true,
+      "isPublished": true,
+      "readingGuide": {
+        "suitableFor": [
+          "古代医学思想史读者",
+          "需要原文与结构导航的用户"
+        ],
+        "goals": [
+          "辨认本卷篇目主线",
+          "在历史语境中阅读原文",
+          "区分古代模型与现代证据"
+        ],
+        "prerequisites": [
+          "不将古籍原文作为个人诊疗或针刺操作指南"
+        ]
+      },
+      "keyTakeaways": [
+        "皮部論五十六",
+        "經絡論五十七",
+        "氣穴論五十八",
+        "氣府論五十九"
+      ],
+      "discussionPrompts": [
+        "本卷哪一个概念最需要结合历史语境才能理解？",
+        "本卷哪些说法属于古代身体模型，不能直接写成现代科学结论？",
+        "如果只提取一般性的劳逸或观察原则，你会如何避免越过教练专业边界？"
+      ],
+      "citations": [
+        {
+          "title": "维基文库：黃帝內經/素問第十五卷",
+          "url": "https://zh.wikisource.org/wiki/%E9%BB%83%E5%B8%9D%E5%85%A7%E7%B6%93/%E7%B4%A0%E5%95%8F%E7%AC%AC%E5%8D%81%E4%BA%94%E5%8D%B7",
+          "note": "公版古籍原文来源",
+          "license": "古籍原文 Public Domain；站点文本 CC BY-SA 4.0",
+          "accessedAt": "2026-08-01"
+        }
+      ]
+    },
+    {
+      "slug": "suwen-volume-16",
+      "file": "notes/suwen-16.md",
+      "noteType": "chapter",
+      "chapterOrder": 116,
+      "chapterTitle": "素问第十六卷",
+      "title": "《黄帝内经·素问》第十六卷：骨空論六十、水熱穴論六十一",
+      "summary": "收录《素问》第十六卷公版原文，共 2 篇，并提供篇目地图、来源和现代阅读边界。",
+      "sortOrder": 116,
+      "author": "佚名 · CoachLink 整理",
+      "isFree": true,
+      "isPublished": true,
+      "readingGuide": {
+        "suitableFor": [
+          "古代医学思想史读者",
+          "需要原文与结构导航的用户"
+        ],
+        "goals": [
+          "辨认本卷篇目主线",
+          "在历史语境中阅读原文",
+          "区分古代模型与现代证据"
+        ],
+        "prerequisites": [
+          "不将古籍原文作为个人诊疗或针刺操作指南"
+        ]
+      },
+      "keyTakeaways": [
+        "骨空論六十",
+        "水熱穴論六十一"
+      ],
+      "discussionPrompts": [
+        "本卷哪一个概念最需要结合历史语境才能理解？",
+        "本卷哪些说法属于古代身体模型，不能直接写成现代科学结论？",
+        "如果只提取一般性的劳逸或观察原则，你会如何避免越过教练专业边界？"
+      ],
+      "citations": [
+        {
+          "title": "维基文库：黃帝內經/素問第十六卷",
+          "url": "https://zh.wikisource.org/wiki/%E9%BB%83%E5%B8%9D%E5%85%A7%E7%B6%93/%E7%B4%A0%E5%95%8F%E7%AC%AC%E5%8D%81%E5%85%AD%E5%8D%B7",
+          "note": "公版古籍原文来源",
+          "license": "古籍原文 Public Domain；站点文本 CC BY-SA 4.0",
+          "accessedAt": "2026-08-01"
+        }
+      ]
+    },
+    {
+      "slug": "suwen-volume-17",
+      "file": "notes/suwen-17.md",
+      "noteType": "chapter",
+      "chapterOrder": 117,
+      "chapterTitle": "素问第十七卷",
+      "title": "《黄帝内经·素问》第十七卷：調經論六十二",
+      "summary": "收录《素问》第十七卷公版原文，共 1 篇，并提供篇目地图、来源和现代阅读边界。",
+      "sortOrder": 117,
+      "author": "佚名 · CoachLink 整理",
+      "isFree": true,
+      "isPublished": true,
+      "readingGuide": {
+        "suitableFor": [
+          "古代医学思想史读者",
+          "需要原文与结构导航的用户"
+        ],
+        "goals": [
+          "辨认本卷篇目主线",
+          "在历史语境中阅读原文",
+          "区分古代模型与现代证据"
+        ],
+        "prerequisites": [
+          "不将古籍原文作为个人诊疗或针刺操作指南"
+        ]
+      },
+      "keyTakeaways": [
+        "調經論六十二"
+      ],
+      "discussionPrompts": [
+        "本卷哪一个概念最需要结合历史语境才能理解？",
+        "本卷哪些说法属于古代身体模型，不能直接写成现代科学结论？",
+        "如果只提取一般性的劳逸或观察原则，你会如何避免越过教练专业边界？"
+      ],
+      "citations": [
+        {
+          "title": "维基文库：黃帝內經/素問第十七卷",
+          "url": "https://zh.wikisource.org/wiki/%E9%BB%83%E5%B8%9D%E5%85%A7%E7%B6%93/%E7%B4%A0%E5%95%8F%E7%AC%AC%E5%8D%81%E4%B8%83%E5%8D%B7",
+          "note": "公版古籍原文来源",
+          "license": "古籍原文 Public Domain；站点文本 CC BY-SA 4.0",
+          "accessedAt": "2026-08-01"
+        }
+      ]
+    },
+    {
+      "slug": "suwen-volume-18",
+      "file": "notes/suwen-18.md",
+      "noteType": "chapter",
+      "chapterOrder": 118,
+      "chapterTitle": "素问第十八卷",
+      "title": "《黄帝内经·素问》第十八卷：繆刺論六十三、四時刺逆從論六十四、標本病傳論六十五",
+      "summary": "收录《素问》第十八卷公版原文，共 3 篇，并提供篇目地图、来源和现代阅读边界。",
+      "sortOrder": 118,
+      "author": "佚名 · CoachLink 整理",
+      "isFree": true,
+      "isPublished": true,
+      "readingGuide": {
+        "suitableFor": [
+          "古代医学思想史读者",
+          "需要原文与结构导航的用户"
+        ],
+        "goals": [
+          "辨认本卷篇目主线",
+          "在历史语境中阅读原文",
+          "区分古代模型与现代证据"
+        ],
+        "prerequisites": [
+          "不将古籍原文作为个人诊疗或针刺操作指南"
+        ]
+      },
+      "keyTakeaways": [
+        "繆刺論六十三",
+        "四時刺逆從論六十四",
+        "標本病傳論六十五"
+      ],
+      "discussionPrompts": [
+        "本卷哪一个概念最需要结合历史语境才能理解？",
+        "本卷哪些说法属于古代身体模型，不能直接写成现代科学结论？",
+        "如果只提取一般性的劳逸或观察原则，你会如何避免越过教练专业边界？"
+      ],
+      "citations": [
+        {
+          "title": "维基文库：黃帝內經/素問第十八卷",
+          "url": "https://zh.wikisource.org/wiki/%E9%BB%83%E5%B8%9D%E5%85%A7%E7%B6%93/%E7%B4%A0%E5%95%8F%E7%AC%AC%E5%8D%81%E5%85%AB%E5%8D%B7",
+          "note": "公版古籍原文来源",
+          "license": "古籍原文 Public Domain；站点文本 CC BY-SA 4.0",
+          "accessedAt": "2026-08-01"
+        }
+      ]
+    },
+    {
+      "slug": "suwen-volume-19",
+      "file": "notes/suwen-19.md",
+      "noteType": "chapter",
+      "chapterOrder": 119,
+      "chapterTitle": "素问第十九卷",
+      "title": "《黄帝内经·素问》第十九卷：天元紀大論六十六、五運行大論六十七、六微旨大論六十八",
+      "summary": "收录《素问》第十九卷公版原文，共 3 篇，并提供篇目地图、来源和现代阅读边界。",
+      "sortOrder": 119,
+      "author": "佚名 · CoachLink 整理",
+      "isFree": true,
+      "isPublished": true,
+      "readingGuide": {
+        "suitableFor": [
+          "古代医学思想史读者",
+          "需要原文与结构导航的用户"
+        ],
+        "goals": [
+          "辨认本卷篇目主线",
+          "在历史语境中阅读原文",
+          "区分古代模型与现代证据"
+        ],
+        "prerequisites": [
+          "不将古籍原文作为个人诊疗或针刺操作指南"
+        ]
+      },
+      "keyTakeaways": [
+        "天元紀大論六十六",
+        "五運行大論六十七",
+        "六微旨大論六十八"
+      ],
+      "discussionPrompts": [
+        "本卷哪一个概念最需要结合历史语境才能理解？",
+        "本卷哪些说法属于古代身体模型，不能直接写成现代科学结论？",
+        "如果只提取一般性的劳逸或观察原则，你会如何避免越过教练专业边界？"
+      ],
+      "citations": [
+        {
+          "title": "维基文库：黃帝內經/素問第十九卷",
+          "url": "https://zh.wikisource.org/wiki/%E9%BB%83%E5%B8%9D%E5%85%A7%E7%B6%93/%E7%B4%A0%E5%95%8F%E7%AC%AC%E5%8D%81%E4%B9%9D%E5%8D%B7",
+          "note": "公版古籍原文来源",
+          "license": "古籍原文 Public Domain；站点文本 CC BY-SA 4.0",
+          "accessedAt": "2026-08-01"
+        }
+      ]
+    },
+    {
+      "slug": "suwen-volume-20",
+      "file": "notes/suwen-20.md",
+      "noteType": "chapter",
+      "chapterOrder": 120,
+      "chapterTitle": "素问第二十卷",
+      "title": "《黄帝内经·素问》第二十卷：氣交變大論六十九、五常政大論七十",
+      "summary": "收录《素问》第二十卷公版原文，共 2 篇，并提供篇目地图、来源和现代阅读边界。",
+      "sortOrder": 120,
+      "author": "佚名 · CoachLink 整理",
+      "isFree": true,
+      "isPublished": true,
+      "readingGuide": {
+        "suitableFor": [
+          "古代医学思想史读者",
+          "需要原文与结构导航的用户"
+        ],
+        "goals": [
+          "辨认本卷篇目主线",
+          "在历史语境中阅读原文",
+          "区分古代模型与现代证据"
+        ],
+        "prerequisites": [
+          "不将古籍原文作为个人诊疗或针刺操作指南"
+        ]
+      },
+      "keyTakeaways": [
+        "氣交變大論六十九",
+        "五常政大論七十"
+      ],
+      "discussionPrompts": [
+        "本卷哪一个概念最需要结合历史语境才能理解？",
+        "本卷哪些说法属于古代身体模型，不能直接写成现代科学结论？",
+        "如果只提取一般性的劳逸或观察原则，你会如何避免越过教练专业边界？"
+      ],
+      "citations": [
+        {
+          "title": "维基文库：黃帝內經/素問第二十卷",
+          "url": "https://zh.wikisource.org/wiki/%E9%BB%83%E5%B8%9D%E5%85%A7%E7%B6%93/%E7%B4%A0%E5%95%8F%E7%AC%AC%E4%BA%8C%E5%8D%81%E5%8D%B7",
+          "note": "公版古籍原文来源",
+          "license": "古籍原文 Public Domain；站点文本 CC BY-SA 4.0",
+          "accessedAt": "2026-08-01"
+        }
+      ]
+    },
+    {
+      "slug": "suwen-volume-21",
+      "file": "notes/suwen-21.md",
+      "noteType": "chapter",
+      "chapterOrder": 121,
+      "chapterTitle": "素问第二十一卷",
+      "title": "《黄帝内经·素问》第二十一卷：六元正紀大論七十一、刺法論七十二、本病論七十三",
+      "summary": "收录《素问》第二十一卷公版原文，共 3 篇，并提供篇目地图、来源和现代阅读边界。",
+      "sortOrder": 121,
+      "author": "佚名 · CoachLink 整理",
+      "isFree": true,
+      "isPublished": true,
+      "readingGuide": {
+        "suitableFor": [
+          "古代医学思想史读者",
+          "需要原文与结构导航的用户"
+        ],
+        "goals": [
+          "辨认本卷篇目主线",
+          "在历史语境中阅读原文",
+          "区分古代模型与现代证据"
+        ],
+        "prerequisites": [
+          "不将古籍原文作为个人诊疗或针刺操作指南"
+        ]
+      },
+      "keyTakeaways": [
+        "六元正紀大論七十一",
+        "刺法論七十二",
+        "本病論七十三"
+      ],
+      "discussionPrompts": [
+        "本卷哪一个概念最需要结合历史语境才能理解？",
+        "本卷哪些说法属于古代身体模型，不能直接写成现代科学结论？",
+        "如果只提取一般性的劳逸或观察原则，你会如何避免越过教练专业边界？"
+      ],
+      "citations": [
+        {
+          "title": "维基文库：黃帝內經/素問第二十一卷",
+          "url": "https://zh.wikisource.org/wiki/%E9%BB%83%E5%B8%9D%E5%85%A7%E7%B6%93/%E7%B4%A0%E5%95%8F%E7%AC%AC%E4%BA%8C%E5%8D%81%E4%B8%80%E5%8D%B7",
+          "note": "公版古籍原文来源",
+          "license": "古籍原文 Public Domain；站点文本 CC BY-SA 4.0",
+          "accessedAt": "2026-08-01"
+        }
+      ]
+    },
+    {
+      "slug": "suwen-volume-22",
+      "file": "notes/suwen-22.md",
+      "noteType": "chapter",
+      "chapterOrder": 122,
+      "chapterTitle": "素问第二十二卷",
+      "title": "《黄帝内经·素问》第二十二卷：至真要大論七十四",
+      "summary": "收录《素问》第二十二卷公版原文，共 1 篇，并提供篇目地图、来源和现代阅读边界。",
+      "sortOrder": 122,
+      "author": "佚名 · CoachLink 整理",
+      "isFree": true,
+      "isPublished": true,
+      "readingGuide": {
+        "suitableFor": [
+          "古代医学思想史读者",
+          "需要原文与结构导航的用户"
+        ],
+        "goals": [
+          "辨认本卷篇目主线",
+          "在历史语境中阅读原文",
+          "区分古代模型与现代证据"
+        ],
+        "prerequisites": [
+          "不将古籍原文作为个人诊疗或针刺操作指南"
+        ]
+      },
+      "keyTakeaways": [
+        "至真要大論七十四"
+      ],
+      "discussionPrompts": [
+        "本卷哪一个概念最需要结合历史语境才能理解？",
+        "本卷哪些说法属于古代身体模型，不能直接写成现代科学结论？",
+        "如果只提取一般性的劳逸或观察原则，你会如何避免越过教练专业边界？"
+      ],
+      "citations": [
+        {
+          "title": "维基文库：黃帝內經/素問第二十二卷",
+          "url": "https://zh.wikisource.org/wiki/%E9%BB%83%E5%B8%9D%E5%85%A7%E7%B6%93/%E7%B4%A0%E5%95%8F%E7%AC%AC%E4%BA%8C%E5%8D%81%E4%BA%8C%E5%8D%B7",
+          "note": "公版古籍原文来源",
+          "license": "古籍原文 Public Domain；站点文本 CC BY-SA 4.0",
+          "accessedAt": "2026-08-01"
+        }
+      ]
+    },
+    {
+      "slug": "suwen-volume-23",
+      "file": "notes/suwen-23.md",
+      "noteType": "chapter",
+      "chapterOrder": 123,
+      "chapterTitle": "素问第二十三卷",
+      "title": "《黄帝内经·素问》第二十三卷：著至教論七十五、示從容論七十六、疏五過論七十七、徵四失論七十八",
+      "summary": "收录《素问》第二十三卷公版原文，共 4 篇，并提供篇目地图、来源和现代阅读边界。",
+      "sortOrder": 123,
+      "author": "佚名 · CoachLink 整理",
+      "isFree": true,
+      "isPublished": true,
+      "readingGuide": {
+        "suitableFor": [
+          "古代医学思想史读者",
+          "需要原文与结构导航的用户"
+        ],
+        "goals": [
+          "辨认本卷篇目主线",
+          "在历史语境中阅读原文",
+          "区分古代模型与现代证据"
+        ],
+        "prerequisites": [
+          "不将古籍原文作为个人诊疗或针刺操作指南"
+        ]
+      },
+      "keyTakeaways": [
+        "著至教論七十五",
+        "示從容論七十六",
+        "疏五過論七十七",
+        "徵四失論七十八"
+      ],
+      "discussionPrompts": [
+        "本卷哪一个概念最需要结合历史语境才能理解？",
+        "本卷哪些说法属于古代身体模型，不能直接写成现代科学结论？",
+        "如果只提取一般性的劳逸或观察原则，你会如何避免越过教练专业边界？"
+      ],
+      "citations": [
+        {
+          "title": "维基文库：黃帝內經/素問第二十三卷",
+          "url": "https://zh.wikisource.org/wiki/%E9%BB%83%E5%B8%9D%E5%85%A7%E7%B6%93/%E7%B4%A0%E5%95%8F%E7%AC%AC%E4%BA%8C%E5%8D%81%E4%B8%89%E5%8D%B7",
+          "note": "公版古籍原文来源",
+          "license": "古籍原文 Public Domain；站点文本 CC BY-SA 4.0",
+          "accessedAt": "2026-08-01"
+        }
+      ]
+    },
+    {
+      "slug": "suwen-volume-24",
+      "file": "notes/suwen-24.md",
+      "noteType": "chapter",
+      "chapterOrder": 124,
+      "chapterTitle": "素问第二十四卷",
+      "title": "《黄帝内经·素问》第二十四卷：陰陽類論七十九、方盛衰論八十、解精微論八十一",
+      "summary": "收录《素问》第二十四卷公版原文，共 3 篇，并提供篇目地图、来源和现代阅读边界。",
+      "sortOrder": 124,
+      "author": "佚名 · CoachLink 整理",
+      "isFree": true,
+      "isPublished": true,
+      "readingGuide": {
+        "suitableFor": [
+          "古代医学思想史读者",
+          "需要原文与结构导航的用户"
+        ],
+        "goals": [
+          "辨认本卷篇目主线",
+          "在历史语境中阅读原文",
+          "区分古代模型与现代证据"
+        ],
+        "prerequisites": [
+          "不将古籍原文作为个人诊疗或针刺操作指南"
+        ]
+      },
+      "keyTakeaways": [
+        "陰陽類論七十九",
+        "方盛衰論八十",
+        "解精微論八十一"
+      ],
+      "discussionPrompts": [
+        "本卷哪一个概念最需要结合历史语境才能理解？",
+        "本卷哪些说法属于古代身体模型，不能直接写成现代科学结论？",
+        "如果只提取一般性的劳逸或观察原则，你会如何避免越过教练专业边界？"
+      ],
+      "citations": [
+        {
+          "title": "维基文库：黃帝內經/素問第二十四卷",
+          "url": "https://zh.wikisource.org/wiki/%E9%BB%83%E5%B8%9D%E5%85%A7%E7%B6%93/%E7%B4%A0%E5%95%8F%E7%AC%AC%E4%BA%8C%E5%8D%81%E5%9B%9B%E5%8D%B7",
+          "note": "公版古籍原文来源",
+          "license": "古籍原文 Public Domain；站点文本 CC BY-SA 4.0",
+          "accessedAt": "2026-08-01"
+        }
+      ]
+    },
+    {
+      "slug": "lingshu-volume-01",
+      "file": "notes/lingshu-01.md",
+      "noteType": "chapter",
+      "chapterOrder": 201,
+      "chapterTitle": "灵枢第一卷",
+      "title": "《黄帝内经·灵枢》第一卷：九鍼十二原第一、本輸第二、小鍼解第三、邪氣藏府病形第四",
+      "summary": "收录《灵枢》第一卷公版原文，共 4 篇，并提供篇目地图、来源和现代阅读边界。",
+      "sortOrder": 201,
+      "author": "佚名 · CoachLink 整理",
+      "isFree": true,
+      "isPublished": true,
+      "readingGuide": {
+        "suitableFor": [
+          "古代医学思想史读者",
+          "需要原文与结构导航的用户"
+        ],
+        "goals": [
+          "辨认本卷篇目主线",
+          "在历史语境中阅读原文",
+          "区分古代模型与现代证据"
+        ],
+        "prerequisites": [
+          "不将古籍原文作为个人诊疗或针刺操作指南"
+        ]
+      },
+      "keyTakeaways": [
+        "九鍼十二原第一",
+        "本輸第二",
+        "小鍼解第三",
+        "邪氣藏府病形第四"
+      ],
+      "discussionPrompts": [
+        "本卷哪一个概念最需要结合历史语境才能理解？",
+        "本卷哪些说法属于古代身体模型，不能直接写成现代科学结论？",
+        "如果只提取一般性的劳逸或观察原则，你会如何避免越过教练专业边界？"
+      ],
+      "citations": [
+        {
+          "title": "维基文库：黃帝內經/靈樞第一卷",
+          "url": "https://zh.wikisource.org/wiki/%E9%BB%83%E5%B8%9D%E5%85%A7%E7%B6%93/%E9%9D%88%E6%A8%9E%E7%AC%AC%E4%B8%80%E5%8D%B7",
+          "note": "公版古籍原文来源",
+          "license": "古籍原文 Public Domain；站点文本 CC BY-SA 4.0",
+          "accessedAt": "2026-08-01"
+        }
+      ]
+    },
+    {
+      "slug": "lingshu-volume-02",
+      "file": "notes/lingshu-02.md",
+      "noteType": "chapter",
+      "chapterOrder": 202,
+      "chapterTitle": "灵枢第二卷",
+      "title": "《黄帝内经·灵枢》第二卷：根結第五、壽天剛柔第六、官鍼第七、本神第八、終始第九",
+      "summary": "收录《灵枢》第二卷公版原文，共 5 篇，并提供篇目地图、来源和现代阅读边界。",
+      "sortOrder": 202,
+      "author": "佚名 · CoachLink 整理",
+      "isFree": true,
+      "isPublished": true,
+      "readingGuide": {
+        "suitableFor": [
+          "古代医学思想史读者",
+          "需要原文与结构导航的用户"
+        ],
+        "goals": [
+          "辨认本卷篇目主线",
+          "在历史语境中阅读原文",
+          "区分古代模型与现代证据"
+        ],
+        "prerequisites": [
+          "不将古籍原文作为个人诊疗或针刺操作指南"
+        ]
+      },
+      "keyTakeaways": [
+        "根結第五",
+        "壽天剛柔第六",
+        "官鍼第七",
+        "本神第八",
+        "終始第九"
+      ],
+      "discussionPrompts": [
+        "本卷哪一个概念最需要结合历史语境才能理解？",
+        "本卷哪些说法属于古代身体模型，不能直接写成现代科学结论？",
+        "如果只提取一般性的劳逸或观察原则，你会如何避免越过教练专业边界？"
+      ],
+      "citations": [
+        {
+          "title": "维基文库：黃帝內經/靈樞第二卷",
+          "url": "https://zh.wikisource.org/wiki/%E9%BB%83%E5%B8%9D%E5%85%A7%E7%B6%93/%E9%9D%88%E6%A8%9E%E7%AC%AC%E4%BA%8C%E5%8D%B7",
+          "note": "公版古籍原文来源",
+          "license": "古籍原文 Public Domain；站点文本 CC BY-SA 4.0",
+          "accessedAt": "2026-08-01"
+        }
+      ]
+    },
+    {
+      "slug": "lingshu-volume-03",
+      "file": "notes/lingshu-03.md",
+      "noteType": "chapter",
+      "chapterOrder": 203,
+      "chapterTitle": "灵枢第三卷",
+      "title": "《黄帝内经·灵枢》第三卷：經脈第十、經別第十一、經水第十二",
+      "summary": "收录《灵枢》第三卷公版原文，共 3 篇，并提供篇目地图、来源和现代阅读边界。",
+      "sortOrder": 203,
+      "author": "佚名 · CoachLink 整理",
+      "isFree": true,
+      "isPublished": true,
+      "readingGuide": {
+        "suitableFor": [
+          "古代医学思想史读者",
+          "需要原文与结构导航的用户"
+        ],
+        "goals": [
+          "辨认本卷篇目主线",
+          "在历史语境中阅读原文",
+          "区分古代模型与现代证据"
+        ],
+        "prerequisites": [
+          "不将古籍原文作为个人诊疗或针刺操作指南"
+        ]
+      },
+      "keyTakeaways": [
+        "經脈第十",
+        "經別第十一",
+        "經水第十二"
+      ],
+      "discussionPrompts": [
+        "本卷哪一个概念最需要结合历史语境才能理解？",
+        "本卷哪些说法属于古代身体模型，不能直接写成现代科学结论？",
+        "如果只提取一般性的劳逸或观察原则，你会如何避免越过教练专业边界？"
+      ],
+      "citations": [
+        {
+          "title": "维基文库：黃帝內經/靈樞第三卷",
+          "url": "https://zh.wikisource.org/wiki/%E9%BB%83%E5%B8%9D%E5%85%A7%E7%B6%93/%E9%9D%88%E6%A8%9E%E7%AC%AC%E4%B8%89%E5%8D%B7",
+          "note": "公版古籍原文来源",
+          "license": "古籍原文 Public Domain；站点文本 CC BY-SA 4.0",
+          "accessedAt": "2026-08-01"
+        }
+      ]
+    },
+    {
+      "slug": "lingshu-volume-04",
+      "file": "notes/lingshu-04.md",
+      "noteType": "chapter",
+      "chapterOrder": 204,
+      "chapterTitle": "灵枢第四卷",
+      "title": "《黄帝内经·灵枢》第四卷：經筋第十三、骨度第十四、五十營第十五、營氣第十六、脈度第十七、營衛生會第十八、四時氣第十九",
+      "summary": "收录《灵枢》第四卷公版原文，共 7 篇，并提供篇目地图、来源和现代阅读边界。",
+      "sortOrder": 204,
+      "author": "佚名 · CoachLink 整理",
+      "isFree": true,
+      "isPublished": true,
+      "readingGuide": {
+        "suitableFor": [
+          "古代医学思想史读者",
+          "需要原文与结构导航的用户"
+        ],
+        "goals": [
+          "辨认本卷篇目主线",
+          "在历史语境中阅读原文",
+          "区分古代模型与现代证据"
+        ],
+        "prerequisites": [
+          "不将古籍原文作为个人诊疗或针刺操作指南"
+        ]
+      },
+      "keyTakeaways": [
+        "經筋第十三",
+        "骨度第十四",
+        "五十營第十五",
+        "營氣第十六",
+        "脈度第十七",
+        "營衛生會第十八"
+      ],
+      "discussionPrompts": [
+        "本卷哪一个概念最需要结合历史语境才能理解？",
+        "本卷哪些说法属于古代身体模型，不能直接写成现代科学结论？",
+        "如果只提取一般性的劳逸或观察原则，你会如何避免越过教练专业边界？"
+      ],
+      "citations": [
+        {
+          "title": "维基文库：黃帝內經/靈樞第四卷",
+          "url": "https://zh.wikisource.org/wiki/%E9%BB%83%E5%B8%9D%E5%85%A7%E7%B6%93/%E9%9D%88%E6%A8%9E%E7%AC%AC%E5%9B%9B%E5%8D%B7",
+          "note": "公版古籍原文来源",
+          "license": "古籍原文 Public Domain；站点文本 CC BY-SA 4.0",
+          "accessedAt": "2026-08-01"
+        }
+      ]
+    },
+    {
+      "slug": "lingshu-volume-05",
+      "file": "notes/lingshu-05.md",
+      "noteType": "chapter",
+      "chapterOrder": 205,
+      "chapterTitle": "灵枢第五卷",
+      "title": "《黄帝内经·灵枢》第五卷：五邪第二十、寒熱病第二十一、癲狂病第二十二、熱病第二十三、厥病第二十四、病本第二十五、雜病第二十六、周痹第二十七、口問第二十八",
+      "summary": "收录《灵枢》第五卷公版原文，共 9 篇，并提供篇目地图、来源和现代阅读边界。",
+      "sortOrder": 205,
+      "author": "佚名 · CoachLink 整理",
+      "isFree": true,
+      "isPublished": true,
+      "readingGuide": {
+        "suitableFor": [
+          "古代医学思想史读者",
+          "需要原文与结构导航的用户"
+        ],
+        "goals": [
+          "辨认本卷篇目主线",
+          "在历史语境中阅读原文",
+          "区分古代模型与现代证据"
+        ],
+        "prerequisites": [
+          "不将古籍原文作为个人诊疗或针刺操作指南"
+        ]
+      },
+      "keyTakeaways": [
+        "五邪第二十",
+        "寒熱病第二十一",
+        "癲狂病第二十二",
+        "熱病第二十三",
+        "厥病第二十四",
+        "病本第二十五"
+      ],
+      "discussionPrompts": [
+        "本卷哪一个概念最需要结合历史语境才能理解？",
+        "本卷哪些说法属于古代身体模型，不能直接写成现代科学结论？",
+        "如果只提取一般性的劳逸或观察原则，你会如何避免越过教练专业边界？"
+      ],
+      "citations": [
+        {
+          "title": "维基文库：黃帝內經/靈樞第五卷",
+          "url": "https://zh.wikisource.org/wiki/%E9%BB%83%E5%B8%9D%E5%85%A7%E7%B6%93/%E9%9D%88%E6%A8%9E%E7%AC%AC%E4%BA%94%E5%8D%B7",
+          "note": "公版古籍原文来源",
+          "license": "古籍原文 Public Domain；站点文本 CC BY-SA 4.0",
+          "accessedAt": "2026-08-01"
+        }
+      ]
+    },
+    {
+      "slug": "lingshu-volume-06",
+      "file": "notes/lingshu-06.md",
+      "noteType": "chapter",
+      "chapterOrder": 206,
+      "chapterTitle": "灵枢第六卷",
+      "title": "《黄帝内经·灵枢》第六卷：師傳第二十九、決氣第三十、腸胃第三十一、平人絕穀第三十二、海論第三十三、五亂第三十四、脹論第三十五、五癃精液別第三十六、五閱五使第三十七、逆順肥瘦第三十八、血絡第三十九、陰陽清濁第四十",
+      "summary": "收录《灵枢》第六卷公版原文，共 12 篇，并提供篇目地图、来源和现代阅读边界。",
+      "sortOrder": 206,
+      "author": "佚名 · CoachLink 整理",
+      "isFree": true,
+      "isPublished": true,
+      "readingGuide": {
+        "suitableFor": [
+          "古代医学思想史读者",
+          "需要原文与结构导航的用户"
+        ],
+        "goals": [
+          "辨认本卷篇目主线",
+          "在历史语境中阅读原文",
+          "区分古代模型与现代证据"
+        ],
+        "prerequisites": [
+          "不将古籍原文作为个人诊疗或针刺操作指南"
+        ]
+      },
+      "keyTakeaways": [
+        "師傳第二十九",
+        "決氣第三十",
+        "腸胃第三十一",
+        "平人絕穀第三十二",
+        "海論第三十三",
+        "五亂第三十四"
+      ],
+      "discussionPrompts": [
+        "本卷哪一个概念最需要结合历史语境才能理解？",
+        "本卷哪些说法属于古代身体模型，不能直接写成现代科学结论？",
+        "如果只提取一般性的劳逸或观察原则，你会如何避免越过教练专业边界？"
+      ],
+      "citations": [
+        {
+          "title": "维基文库：黃帝內經/靈樞第六卷",
+          "url": "https://zh.wikisource.org/wiki/%E9%BB%83%E5%B8%9D%E5%85%A7%E7%B6%93/%E9%9D%88%E6%A8%9E%E7%AC%AC%E5%85%AD%E5%8D%B7",
+          "note": "公版古籍原文来源",
+          "license": "古籍原文 Public Domain；站点文本 CC BY-SA 4.0",
+          "accessedAt": "2026-08-01"
+        }
+      ]
+    },
+    {
+      "slug": "lingshu-volume-07",
+      "file": "notes/lingshu-07.md",
+      "noteType": "chapter",
+      "chapterOrder": 207,
+      "chapterTitle": "灵枢第七卷",
+      "title": "《黄帝内经·灵枢》第七卷：陰陽繫日月第四十一、病傳第四十二、淫邪發夢第四十三、順氣一日分為四時第四十四、外揣第四十五、五變第四十六、本藏第四十七",
+      "summary": "收录《灵枢》第七卷公版原文，共 7 篇，并提供篇目地图、来源和现代阅读边界。",
+      "sortOrder": 207,
+      "author": "佚名 · CoachLink 整理",
+      "isFree": true,
+      "isPublished": true,
+      "readingGuide": {
+        "suitableFor": [
+          "古代医学思想史读者",
+          "需要原文与结构导航的用户"
+        ],
+        "goals": [
+          "辨认本卷篇目主线",
+          "在历史语境中阅读原文",
+          "区分古代模型与现代证据"
+        ],
+        "prerequisites": [
+          "不将古籍原文作为个人诊疗或针刺操作指南"
+        ]
+      },
+      "keyTakeaways": [
+        "陰陽繫日月第四十一",
+        "病傳第四十二",
+        "淫邪發夢第四十三",
+        "順氣一日分為四時第四十四",
+        "外揣第四十五",
+        "五變第四十六"
+      ],
+      "discussionPrompts": [
+        "本卷哪一个概念最需要结合历史语境才能理解？",
+        "本卷哪些说法属于古代身体模型，不能直接写成现代科学结论？",
+        "如果只提取一般性的劳逸或观察原则，你会如何避免越过教练专业边界？"
+      ],
+      "citations": [
+        {
+          "title": "维基文库：黃帝內經/靈樞第七卷",
+          "url": "https://zh.wikisource.org/wiki/%E9%BB%83%E5%B8%9D%E5%85%A7%E7%B6%93/%E9%9D%88%E6%A8%9E%E7%AC%AC%E4%B8%83%E5%8D%B7",
+          "note": "公版古籍原文来源",
+          "license": "古籍原文 Public Domain；站点文本 CC BY-SA 4.0",
+          "accessedAt": "2026-08-01"
+        }
+      ]
+    },
+    {
+      "slug": "lingshu-volume-08",
+      "file": "notes/lingshu-08.md",
+      "noteType": "chapter",
+      "chapterOrder": 208,
+      "chapterTitle": "灵枢第八卷",
+      "title": "《黄帝内经·灵枢》第八卷：禁服第四十八、五色第四十九、論勇第五十、背輸第五十一、衛氣第五十二、論痛第五十三、天年第五十四、逆順第五十五、五味第五十六",
+      "summary": "收录《灵枢》第八卷公版原文，共 9 篇，并提供篇目地图、来源和现代阅读边界。",
+      "sortOrder": 208,
+      "author": "佚名 · CoachLink 整理",
+      "isFree": true,
+      "isPublished": true,
+      "readingGuide": {
+        "suitableFor": [
+          "古代医学思想史读者",
+          "需要原文与结构导航的用户"
+        ],
+        "goals": [
+          "辨认本卷篇目主线",
+          "在历史语境中阅读原文",
+          "区分古代模型与现代证据"
+        ],
+        "prerequisites": [
+          "不将古籍原文作为个人诊疗或针刺操作指南"
+        ]
+      },
+      "keyTakeaways": [
+        "禁服第四十八",
+        "五色第四十九",
+        "論勇第五十",
+        "背輸第五十一",
+        "衛氣第五十二",
+        "論痛第五十三"
+      ],
+      "discussionPrompts": [
+        "本卷哪一个概念最需要结合历史语境才能理解？",
+        "本卷哪些说法属于古代身体模型，不能直接写成现代科学结论？",
+        "如果只提取一般性的劳逸或观察原则，你会如何避免越过教练专业边界？"
+      ],
+      "citations": [
+        {
+          "title": "维基文库：黃帝內經/靈樞第八卷",
+          "url": "https://zh.wikisource.org/wiki/%E9%BB%83%E5%B8%9D%E5%85%A7%E7%B6%93/%E9%9D%88%E6%A8%9E%E7%AC%AC%E5%85%AB%E5%8D%B7",
+          "note": "公版古籍原文来源",
+          "license": "古籍原文 Public Domain；站点文本 CC BY-SA 4.0",
+          "accessedAt": "2026-08-01"
+        }
+      ]
+    },
+    {
+      "slug": "lingshu-volume-09",
+      "file": "notes/lingshu-09.md",
+      "noteType": "chapter",
+      "chapterOrder": 209,
+      "chapterTitle": "灵枢第九卷",
+      "title": "《黄帝内经·灵枢》第九卷：水脹第五十七、賊風第五十八、衛氣失常第五十九、玉版第六十、五禁第六十一、動輸第六十二、五味論第六十三、陰陽二十五人第六十四",
+      "summary": "收录《灵枢》第九卷公版原文，共 8 篇，并提供篇目地图、来源和现代阅读边界。",
+      "sortOrder": 209,
+      "author": "佚名 · CoachLink 整理",
+      "isFree": true,
+      "isPublished": true,
+      "readingGuide": {
+        "suitableFor": [
+          "古代医学思想史读者",
+          "需要原文与结构导航的用户"
+        ],
+        "goals": [
+          "辨认本卷篇目主线",
+          "在历史语境中阅读原文",
+          "区分古代模型与现代证据"
+        ],
+        "prerequisites": [
+          "不将古籍原文作为个人诊疗或针刺操作指南"
+        ]
+      },
+      "keyTakeaways": [
+        "水脹第五十七",
+        "賊風第五十八",
+        "衛氣失常第五十九",
+        "玉版第六十",
+        "五禁第六十一",
+        "動輸第六十二"
+      ],
+      "discussionPrompts": [
+        "本卷哪一个概念最需要结合历史语境才能理解？",
+        "本卷哪些说法属于古代身体模型，不能直接写成现代科学结论？",
+        "如果只提取一般性的劳逸或观察原则，你会如何避免越过教练专业边界？"
+      ],
+      "citations": [
+        {
+          "title": "维基文库：黃帝內經/靈樞第九卷",
+          "url": "https://zh.wikisource.org/wiki/%E9%BB%83%E5%B8%9D%E5%85%A7%E7%B6%93/%E9%9D%88%E6%A8%9E%E7%AC%AC%E4%B9%9D%E5%8D%B7",
+          "note": "公版古籍原文来源",
+          "license": "古籍原文 Public Domain；站点文本 CC BY-SA 4.0",
+          "accessedAt": "2026-08-01"
+        }
+      ]
+    },
+    {
+      "slug": "lingshu-volume-10",
+      "file": "notes/lingshu-10.md",
+      "noteType": "chapter",
+      "chapterOrder": 210,
+      "chapterTitle": "灵枢第十卷",
+      "title": "《黄帝内经·灵枢》第十卷：五音五味第六十五、百病始生第六十六、行鍼第六十七、上膈第六十八、憂恚無言第六十九、寒熱第七十、邪客第七十一、通天第七十二",
+      "summary": "收录《灵枢》第十卷公版原文，共 8 篇，并提供篇目地图、来源和现代阅读边界。",
+      "sortOrder": 210,
+      "author": "佚名 · CoachLink 整理",
+      "isFree": true,
+      "isPublished": true,
+      "readingGuide": {
+        "suitableFor": [
+          "古代医学思想史读者",
+          "需要原文与结构导航的用户"
+        ],
+        "goals": [
+          "辨认本卷篇目主线",
+          "在历史语境中阅读原文",
+          "区分古代模型与现代证据"
+        ],
+        "prerequisites": [
+          "不将古籍原文作为个人诊疗或针刺操作指南"
+        ]
+      },
+      "keyTakeaways": [
+        "五音五味第六十五",
+        "百病始生第六十六",
+        "行鍼第六十七",
+        "上膈第六十八",
+        "憂恚無言第六十九",
+        "寒熱第七十"
+      ],
+      "discussionPrompts": [
+        "本卷哪一个概念最需要结合历史语境才能理解？",
+        "本卷哪些说法属于古代身体模型，不能直接写成现代科学结论？",
+        "如果只提取一般性的劳逸或观察原则，你会如何避免越过教练专业边界？"
+      ],
+      "citations": [
+        {
+          "title": "维基文库：黃帝內經/靈樞第十卷",
+          "url": "https://zh.wikisource.org/wiki/%E9%BB%83%E5%B8%9D%E5%85%A7%E7%B6%93/%E9%9D%88%E6%A8%9E%E7%AC%AC%E5%8D%81%E5%8D%B7",
+          "note": "公版古籍原文来源",
+          "license": "古籍原文 Public Domain；站点文本 CC BY-SA 4.0",
+          "accessedAt": "2026-08-01"
+        }
+      ]
+    },
+    {
+      "slug": "lingshu-volume-11",
+      "file": "notes/lingshu-11.md",
+      "noteType": "chapter",
+      "chapterOrder": 211,
+      "chapterTitle": "灵枢第十一卷",
+      "title": "《黄帝内经·灵枢》第十一卷：官能第七十三、論疾詮尺第七十四、刺節真邪第七十五、衛氣行第七十六、九宮八風第七十七、附註",
+      "summary": "收录《灵枢》第十一卷公版原文，共 6 篇，并提供篇目地图、来源和现代阅读边界。",
+      "sortOrder": 211,
+      "author": "佚名 · CoachLink 整理",
+      "isFree": true,
+      "isPublished": true,
+      "readingGuide": {
+        "suitableFor": [
+          "古代医学思想史读者",
+          "需要原文与结构导航的用户"
+        ],
+        "goals": [
+          "辨认本卷篇目主线",
+          "在历史语境中阅读原文",
+          "区分古代模型与现代证据"
+        ],
+        "prerequisites": [
+          "不将古籍原文作为个人诊疗或针刺操作指南"
+        ]
+      },
+      "keyTakeaways": [
+        "官能第七十三",
+        "論疾詮尺第七十四",
+        "刺節真邪第七十五",
+        "衛氣行第七十六",
+        "九宮八風第七十七",
+        "附註"
+      ],
+      "discussionPrompts": [
+        "本卷哪一个概念最需要结合历史语境才能理解？",
+        "本卷哪些说法属于古代身体模型，不能直接写成现代科学结论？",
+        "如果只提取一般性的劳逸或观察原则，你会如何避免越过教练专业边界？"
+      ],
+      "citations": [
+        {
+          "title": "维基文库：黃帝內經/靈樞第十一卷",
+          "url": "https://zh.wikisource.org/wiki/%E9%BB%83%E5%B8%9D%E5%85%A7%E7%B6%93/%E9%9D%88%E6%A8%9E%E7%AC%AC%E5%8D%81%E4%B8%80%E5%8D%B7",
+          "note": "公版古籍原文来源",
+          "license": "古籍原文 Public Domain；站点文本 CC BY-SA 4.0",
+          "accessedAt": "2026-08-01"
+        }
+      ]
+    },
+    {
+      "slug": "lingshu-volume-12",
+      "file": "notes/lingshu-12.md",
+      "noteType": "chapter",
+      "chapterOrder": 212,
+      "chapterTitle": "灵枢第十二卷",
+      "title": "《黄帝内经·灵枢》第十二卷：九鍼論第七十八、歲露論第七十九、大惑論第八十、癰疽第八十一",
+      "summary": "收录《灵枢》第十二卷公版原文，共 4 篇，并提供篇目地图、来源和现代阅读边界。",
+      "sortOrder": 212,
+      "author": "佚名 · CoachLink 整理",
+      "isFree": true,
+      "isPublished": true,
+      "readingGuide": {
+        "suitableFor": [
+          "古代医学思想史读者",
+          "需要原文与结构导航的用户"
+        ],
+        "goals": [
+          "辨认本卷篇目主线",
+          "在历史语境中阅读原文",
+          "区分古代模型与现代证据"
+        ],
+        "prerequisites": [
+          "不将古籍原文作为个人诊疗或针刺操作指南"
+        ]
+      },
+      "keyTakeaways": [
+        "九鍼論第七十八",
+        "歲露論第七十九",
+        "大惑論第八十",
+        "癰疽第八十一"
+      ],
+      "discussionPrompts": [
+        "本卷哪一个概念最需要结合历史语境才能理解？",
+        "本卷哪些说法属于古代身体模型，不能直接写成现代科学结论？",
+        "如果只提取一般性的劳逸或观察原则，你会如何避免越过教练专业边界？"
+      ],
+      "citations": [
+        {
+          "title": "维基文库：黃帝內經/靈樞第十二卷",
+          "url": "https://zh.wikisource.org/wiki/%E9%BB%83%E5%B8%9D%E5%85%A7%E7%B6%93/%E9%9D%88%E6%A8%9E%E7%AC%AC%E5%8D%81%E4%BA%8C%E5%8D%B7",
+          "note": "公版古籍原文来源",
+          "license": "古籍原文 Public Domain；站点文本 CC BY-SA 4.0",
+          "accessedAt": "2026-08-01"
+        }
+      ]
+    }
+  ]
+}

@@ -1,43 +1,21 @@
 import React, { useEffect, useState } from 'react'
-import { View, Text, ScrollView, Input } from '@tarojs/components'
+import { Image, Input, ScrollView, Text, View } from '@tarojs/components'
 import { Search } from '@nutui/icons-react-taro'
 import Taro from '@tarojs/taro'
 import BottomNav from '@/components/BottomNav'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
-import {
-  knowledgeService,
-  type PublicTrainingPlanLevel,
-  type PublicTrainingPlanListItem,
-  type KnowledgeSearchResult
-} from '@/services/knowledgeService'
-import { authService } from '@/services/authService'
-import { groupKnowledgeBooks, type KnowledgeBookCollection } from '@/utils/knowledgeBooks'
-import './index.scss'
 import { PageThemeRoot } from '@/components/PageThemeRoot'
 import { useTheme } from '@/hooks/useTheme'
-
-const QUICK_TAGS = ['平台期', '动作标准', '肩腕腰痛', '训练计划']
-
-const FOCUS_TOPICS = [
-  {
-    title: '训练计划与平台期',
-    description: '负重引体、卧推、深蹲、力量举与体态纠正等高需求方向。',
-    actionLabel: '搜索相关计划',
-    query: '平台期 训练计划 负重引体 卧推 深蹲'
-  },
-  {
-    title: '动作标准与自查',
-    description: '引体、臂屈伸、深蹲、卧推、硬拉的检查表与常见代偿。',
-    actionLabel: '查看动作自查',
-    query: '动作标准 自查 引体 臂屈伸 深蹲 卧推 硬拉'
-  },
-  {
-    title: '伤病避险与恢复',
-    description: '肩、腕、肘、腰背等高频不适的训练调整和避险边界。',
-    actionLabel: '查看避险资料',
-    query: '伤病 康复 疼痛 肩 手腕 肘 腰背'
-  }
-]
+import { authService } from '@/services/authService'
+import {
+  knowledgeService,
+  type KnowledgeSearchResult,
+  type PublicArticleListItem,
+  type PublicTrainingPlanLevel,
+  type PublicTrainingPlanListItem
+} from '@/services/knowledgeService'
+import { groupKnowledgeBooks, type KnowledgeBookCollection } from '@/utils/knowledgeBooks'
+import './index.scss'
 
 const PLAN_LEVEL_LABELS: Record<PublicTrainingPlanLevel, string> = {
   beginner: '入门',
@@ -45,83 +23,97 @@ const PLAN_LEVEL_LABELS: Record<PublicTrainingPlanLevel, string> = {
   advanced: '高阶'
 }
 
+function formatDate(value?: string | null) {
+  if (!value) return ''
+  const time = new Date(value).getTime()
+  return Number.isFinite(time) ? new Date(time).toLocaleDateString('zh-CN') : ''
+}
+
 function KnowledgeBase() {
   const { effectiveTheme } = useTheme()
-  const [bookCollections, setBookCollections] = useState<KnowledgeBookCollection<any>[]>([])
-  const [loadingBooks, setLoadingBooks] = useState(true)
+  const [isGuest, setIsGuest] = useState(false)
   const [searchKeyword, setSearchKeyword] = useState('')
   const [searchResults, setSearchResults] = useState<KnowledgeSearchResult[]>([])
   const [searching, setSearching] = useState(false)
   const [searched, setSearched] = useState(false)
-  const [isGuest, setIsGuest] = useState(false)
   const [trainingPlans, setTrainingPlans] = useState<PublicTrainingPlanListItem[]>([])
-  const [loadingTrainingPlans, setLoadingTrainingPlans] = useState(true)
+  const [trainingPlanTotal, setTrainingPlanTotal] = useState(0)
+  const [articles, setArticles] = useState<PublicArticleListItem[]>([])
+  const [articleTotal, setArticleTotal] = useState(0)
+  const [bookCollections, setBookCollections] = useState<KnowledgeBookCollection<any>[]>([])
+  const [loadingPlans, setLoadingPlans] = useState(true)
+  const [loadingArticles, setLoadingArticles] = useState(true)
+  const [loadingBooks, setLoadingBooks] = useState(true)
 
   useEffect(() => {
     const session = authService.getAuthSession({ normalize: true })
     const guest = !session.isAuthenticated
     setIsGuest(guest)
-
-    if (guest) {
-      // 游客仅浏览公开专题和搜索结果；书籍与计划列表需要登录态，不应发起必然返回 401 的请求。
-      setBookCollections([])
-      setTrainingPlans([])
-      setLoadingBooks(false)
-      setLoadingTrainingPlans(false)
-      return
-    }
-
-    void loadBooks()
     void loadTrainingPlans()
+    void loadArticles()
+    if (guest) {
+      setLoadingBooks(false)
+    } else {
+      void loadBooks()
+    }
   }, [])
 
   async function loadTrainingPlans() {
     try {
-      setLoadingTrainingPlans(true)
-      const res = await knowledgeService.listTrainingPlans({
+      const result = await knowledgeService.listTrainingPlans({
         level: 'all',
         specialty: 'all',
-        limit: 8,
+        limit: 6,
         offset: 0
       })
-      setTrainingPlans(res.plans || [])
-    } catch (e) {
-      console.error('[knowledge] load training plans:', e)
+      setTrainingPlans(result.plans || [])
+      setTrainingPlanTotal(result.total || 0)
+    } catch (error) {
+      console.error('[knowledge] load training plans:', error)
       setTrainingPlans([])
     } finally {
-      setLoadingTrainingPlans(false)
+      setLoadingPlans(false)
+    }
+  }
+
+  async function loadArticles() {
+    try {
+      const result = await knowledgeService.listPublicArticles({ limit: 4, offset: 0 })
+      setArticles(result.items || [])
+      setArticleTotal(result.total || 0)
+    } catch (error) {
+      console.error('[knowledge] load articles:', error)
+      setArticles([])
+    } finally {
+      setLoadingArticles(false)
     }
   }
 
   async function loadBooks() {
     try {
-      setLoadingBooks(true)
-      const res = await knowledgeService.listKnowledgeBooks({
+      const result = await knowledgeService.listKnowledgeBooks({
         is_published: true,
         page: 0,
-        limit: 20
+        limit: 1000
       })
-      const collections = groupKnowledgeBooks(res?.books || [])
-      setBookCollections(collections.slice(0, 4))
-    } catch (e) {
-      console.error('[knowledge] load books:', e)
+      setBookCollections(groupKnowledgeBooks(result?.books || []).slice(0, 4))
+    } catch (error) {
+      console.error('[knowledge] load books:', error)
       setBookCollections([])
     } finally {
       setLoadingBooks(false)
     }
   }
 
-  async function handleSearch(keyword?: string) {
-    const q = (keyword ?? searchKeyword).trim()
-    if (!q) return
-    setSearchKeyword(q)
+  async function handleSearch() {
+    const query = searchKeyword.trim()
+    if (!query) return
     setSearching(true)
     setSearched(true)
     try {
-      const results = await knowledgeService.search(q)
-      setSearchResults(results)
-    } catch (e) {
-      console.error('[knowledge] search:', e)
+      setSearchResults(await knowledgeService.search(query))
+    } catch (error) {
+      console.error('[knowledge] search:', error)
       setSearchResults([])
     } finally {
       setSearching(false)
@@ -134,212 +126,240 @@ function KnowledgeBase() {
     }
   }
 
+  async function handlePlanClick(plan: PublicTrainingPlanListItem) {
+    if (plan.entryKind === 'reference' && plan.sourceUrl) {
+      const result = await Taro.showModal({
+        title: '来源计划',
+        content: `该条目由 ${plan.author || plan.sourceName || '原作者'} 发布，当前仅保留来源索引，尚未复制第三方完整处方。`,
+        confirmText: '复制链接',
+        cancelText: '取消'
+      })
+      if (result.confirm) {
+        await Taro.setClipboardData({ data: plan.sourceUrl })
+      }
+      return
+    }
+    Taro.navigateTo({
+      url: `/content/knowledge/plan-detail?id=${encodeURIComponent(plan.slug || plan.id)}`
+    })
+  }
+
   return (
     <PageThemeRoot>
-    <View className={`knowledge-page page-with-float-nav theme-${effectiveTheme}`}>
-      <ScrollView scrollY className='knowledge-scroll page-scroll'>
-        <View className='page-shell'>
-          <View className='hero-section'>
-            <Text className='hero-title'>知识库</Text>
-            <Text className='hero-subtitle'>训练计划、动作标准、伤病避险与书籍资料。</Text>
-          </View>
-
-          {isGuest && (
-            <View className='empty-panel guest-panel'>
-              <Text className='empty-panel-text'>
-                当前可先浏览公开资料。登录后可继续使用收藏、购买记录和个人训练数据。
-              </Text>
+      <View className={`knowledge-page page-with-float-nav theme-${effectiveTheme}`}>
+        <ScrollView scrollY className='knowledge-scroll page-scroll'>
+          <View className='page-shell'>
+            <View className='hero-section'>
+              <Text className='hero-title'>知识库</Text>
+              <Text className='hero-subtitle'>训练计划、精选好文和书籍笔记，都集中在这里。</Text>
             </View>
-          )}
 
-          <View className='construction-notice'>
-            <Text className='construction-notice-title'>知识库仍在建设中</Text>
-            <Text className='construction-notice-copy'>
-              当前先开放最核心的训练与学习资料。涉及疼痛、麻木、放射痛、急性损伤或长期不适时，本页内容不能替代医疗诊断，应优先线下就医或做运动康复评估。
-            </Text>
-          </View>
-
-          <View className='search-section'>
-            <View className='search-input-wrap'>
-              <Search size={18} color='#9CA3AF' />
-              <Input
-                className='search-input'
-                placeholder='搜索动作、计划、伤病或书籍...'
-                value={searchKeyword}
-                onInput={(e) => setSearchKeyword(e.detail.value)}
-                onConfirm={() => handleSearch()}
-                focus={false}
-              />
-            </View>
-            <View className='search-btn' onClick={() => handleSearch()}>
-              <Text>搜索</Text>
-            </View>
-          </View>
-
-          <View className='quick-tags'>
-            {QUICK_TAGS.map((term) => (
-              <View
-                key={term}
-                className='quick-tag'
-                onClick={() => {
-                  void handleSearch(term)
-                }}
-              >
-                <Text>{term}</Text>
+            <View className='search-section'>
+              <View className='search-input-wrap'>
+                <Search size={18} color='#9CA3AF' />
+                <Input
+                  className='search-input'
+                  placeholder='搜索计划、文章或书籍'
+                  value={searchKeyword}
+                  onInput={(event) => setSearchKeyword(event.detail.value)}
+                  onConfirm={() => void handleSearch()}
+                />
               </View>
-            ))}
-          </View>
+              <View className='search-btn' onClick={() => void handleSearch()}>
+                <Text>搜索</Text>
+              </View>
+            </View>
 
-          {searched && (
-            <View id='knowledge-search-results' className='search-results-section'>
+            {searched && (
+              <View className='section search-results-section'>
+                <View className='section-head'>
+                  <Text className='section-title'>搜索结果</Text>
+                  <Text
+                    className='section-action'
+                    onClick={() => {
+                      setSearched(false)
+                      setSearchKeyword('')
+                      setSearchResults([])
+                    }}
+                  >
+                    清空
+                  </Text>
+                </View>
+                {searching ? (
+                  <View className='empty-panel'><LoadingSpinner size={48} /></View>
+                ) : searchResults.length > 0 ? (
+                  <View className='entry-list'>
+                    {searchResults.map((result) => (
+                      <View key={result.id} className='entry-card' onClick={() => handleResultClick(result)}>
+                        <View className='entry-main'>
+                          <Text className='entry-title' numberOfLines={1}>{result.title}</Text>
+                          <Text className='entry-desc' numberOfLines={2}>
+                            {result.description || '点击查看内容'}
+                          </Text>
+                        </View>
+                        <Text className='entry-arrow'>›</Text>
+                      </View>
+                    ))}
+                  </View>
+                ) : (
+                  <View className='empty-panel'><Text className='empty-panel-text'>暂无匹配内容。</Text></View>
+                )}
+              </View>
+            )}
+
+            <View className='section'>
               <View className='section-head'>
-                <Text className='section-title'>搜索结果</Text>
+                <View>
+                  <Text className='section-title'>训练计划</Text>
+                  <Text className='section-caption'>
+                    {trainingPlanTotal > 0 ? `${trainingPlanTotal} 套已发布计划` : '按目标与水平挑选计划'}
+                  </Text>
+                </View>
                 <Text
                   className='section-action'
-                  onClick={() => {
-                    setSearched(false)
-                    setSearchKeyword('')
-                    setSearchResults([])
-                  }}
+                  onClick={() => Taro.navigateTo({ url: '/content/knowledge/plans/index' })}
                 >
-                  清空
+                  全部计划
                 </Text>
               </View>
-              {searching ? (
-                <View className='search-loading'>搜索中...</View>
-              ) : searchResults.length === 0 ? (
-                <View className='empty-panel'>
-                  <Text className='empty-panel-text'>暂无匹配内容。</Text>
+              {loadingPlans ? (
+                <View className='empty-panel'><LoadingSpinner size={48} /></View>
+              ) : trainingPlans.length > 0 ? (
+                <ScrollView scrollX className='horizontal-scroll' enhanced showScrollbar={false}>
+                  <View className='horizontal-track'>
+                    {trainingPlans.map((plan) => (
+                      <View
+                        key={plan.id}
+                        className='plan-card'
+                        onClick={() => void handlePlanClick(plan)}
+                      >
+                        <View className='plan-topline'>
+                          <Text className='plan-specialty' numberOfLines={1}>{plan.specialtyLabel || plan.goal}</Text>
+                          <Text className={`plan-level ${plan.level}`}>{PLAN_LEVEL_LABELS[plan.level]}</Text>
+                        </View>
+                        <Text className='plan-title' numberOfLines={2}>{plan.name}</Text>
+                        <Text className='plan-description' numberOfLines={2}>
+                          {plan.description || '查看完整训练安排与适用人群'}
+                        </Text>
+                        <View className='plan-meta'>
+                          <Text>{plan.weeks}周</Text>
+                          <Text>{plan.daysPerWeek}天/周</Text>
+                          {plan.entryKind === 'reference' && <Text>来源索引</Text>}
+                        </View>
+                      </View>
+                    ))}
+                  </View>
+                </ScrollView>
+              ) : (
+                <View className='empty-panel'><Text className='empty-panel-text'>暂无已发布训练计划。</Text></View>
+              )}
+            </View>
+
+            <View className='section'>
+              <View className='section-head'>
+                <View>
+                  <Text className='section-title'>精选好文</Text>
+                  <Text className='section-caption'>
+                    {articleTotal > 0 ? `${articleTotal} 篇平台与教练内容` : '平台编辑与教练的训练经验'}
+                  </Text>
+                </View>
+                <Text
+                  className='section-action'
+                  onClick={() => Taro.navigateTo({ url: '/content/articles' })}
+                >
+                  全部好文
+                </Text>
+              </View>
+              {loadingArticles ? (
+                <View className='empty-panel'><LoadingSpinner size={48} /></View>
+              ) : articles.length > 0 ? (
+                <View className='article-list'>
+                  {articles.map((article) => (
+                    <View
+                      key={article.id}
+                      className='article-card'
+                      onClick={() => Taro.navigateTo({
+                        url: `/content/content-detail?id=${encodeURIComponent(article.id)}`
+                      })}
+                    >
+                      <View className='article-author'>
+                        <View className='article-avatar'>
+                          {article.coachAvatarUrl ? (
+                            <Image className='article-avatar-image' src={article.coachAvatarUrl} mode='aspectFill' />
+                          ) : (
+                            <Text>{article.coachName.slice(0, 1)}</Text>
+                          )}
+                        </View>
+                        <Text className='article-coach-name'>{article.coachName}</Text>
+                        {article.featured && <Text className='article-featured'>精选</Text>}
+                      </View>
+                      <Text className='article-title' numberOfLines={2}>{article.title}</Text>
+                      <Text className='article-summary' numberOfLines={2}>{article.summary || '阅读全文'}</Text>
+                      <Text className='article-date'>{formatDate(article.publishedAt)}</Text>
+                    </View>
+                  ))}
                 </View>
               ) : (
-                <View className='entry-list'>
-                  {searchResults.map((result) => (
-                    <View key={result.id} className='entry-card' onClick={() => handleResultClick(result)}>
-                      <View className='entry-main'>
-                        <Text className='entry-title' numberOfLines={1}>{result.title}</Text>
-                        {!!result.description && (
-                          <Text className='entry-desc' numberOfLines={2}>{result.description}</Text>
-                        )}
-                        <Text className='entry-helper'>点击查看内容</Text>
+                <View className='empty-panel'>
+                  <Text className='empty-panel-text'>教练发布文字内容后，会自动汇入这里。</Text>
+                </View>
+              )}
+            </View>
+
+            <View className='section'>
+              <View className='section-head'>
+                <View>
+                  <Text className='section-title'>书籍笔记</Text>
+                  <Text className='section-caption'>经典训练书籍的重点整理</Text>
+                </View>
+                {!isGuest && (
+                  <Text
+                    className='section-action'
+                    onClick={() => Taro.navigateTo({ url: '/content/knowledge/books/index' })}
+                  >
+                    全部书籍
+                  </Text>
+                )}
+              </View>
+              {loadingBooks ? (
+                <View className='empty-panel'><LoadingSpinner size={48} /></View>
+              ) : isGuest ? (
+                <View className='empty-panel guest-books'>
+                  <Text className='empty-panel-text'>登录后可阅读和保存书籍笔记。</Text>
+                  <View className='login-button' onClick={() => Taro.navigateTo({ url: '/auth/login' })}>
+                    <Text>去登录</Text>
+                  </View>
+                </View>
+              ) : bookCollections.length > 0 ? (
+                <View className='book-list'>
+                  {bookCollections.map((collection) => (
+                    <View
+                      key={collection.slug}
+                      className='book-card'
+                      onClick={() => Taro.navigateTo({
+                        url: `/content/knowledge/book-detail?id=${collection.representativeBook.id}`
+                      })}
+                    >
+                      <View className='book-icon'><Text>书</Text></View>
+                      <View className='book-main'>
+                        <Text className='book-title' numberOfLines={1}>{collection.displayTitle}</Text>
+                        <Text className='book-summary' numberOfLines={2}>{collection.summary}</Text>
+                        <Text className='book-count'>
+                          {collection.chapterCount > 0 ? `${collection.chapterCount} 篇笔记` : '进入阅读'}
+                        </Text>
                       </View>
                       <Text className='entry-arrow'>›</Text>
                     </View>
                   ))}
                 </View>
+              ) : (
+                <View className='empty-panel'><Text className='empty-panel-text'>暂无书籍笔记。</Text></View>
               )}
             </View>
-          )}
-
-          <View className='focus-topic-section'>
-            <View className='section-head section-head-stack'>
-              <View>
-                <Text className='section-title'>精选专题</Text>
-              </View>
-            </View>
-            <View className='focus-topic-list'>
-              {FOCUS_TOPICS.map((topic, index) => (
-                <View key={topic.title} className='focus-topic-card' onClick={() => void handleSearch(topic.query)}>
-                  <View className='focus-topic-index'>
-                    <Text>{index + 1}</Text>
-                  </View>
-                  <View className='focus-topic-main'>
-                    <Text className='focus-topic-title'>{topic.title}</Text>
-                    <Text className='focus-topic-desc' numberOfLines={2}>{topic.description}</Text>
-                    <Text className='focus-topic-action'>{topic.actionLabel}</Text>
-                  </View>
-                </View>
-              ))}
-            </View>
           </View>
-
-          {!isGuest && <View id='knowledge-plans' className='section'>
-            <View className='section-head section-head-stack'>
-              <View>
-                <Text className='section-title'>重点训练计划</Text>
-                <Text className='section-caption'>
-                  优先展示平台期、专项力量和体态纠正方向，便于直接复制使用。
-                </Text>
-              </View>
-            </View>
-            {loadingTrainingPlans ? (
-              <View className='empty-panel'><LoadingSpinner size={48} /></View>
-            ) : trainingPlans.length === 0 ? (
-              <View className='empty-panel'>
-                <Text className='empty-panel-text'>暂无训练计划。</Text>
-              </View>
-            ) : (
-              <ScrollView scrollX className='builtin-plan-scroll' enhanced showScrollbar={false}>
-                <View className='builtin-plan-track'>
-                  {trainingPlans.slice(0, 8).map((plan) => (
-                    <View
-                      key={plan.id}
-                      className='builtin-plan-card'
-                      onClick={() => Taro.navigateTo({ url: `/content/knowledge/plan-detail?id=${encodeURIComponent(plan.slug || plan.id)}` })}
-                    >
-                      <View className='builtin-plan-topline'>
-                        <Text className='builtin-plan-sport' numberOfLines={1}>{plan.specialtyLabel || plan.goal}</Text>
-                        <Text className={`builtin-plan-level ${plan.level}`}>
-                          {PLAN_LEVEL_LABELS[plan.level]}
-                        </Text>
-                      </View>
-                      <Text className='builtin-plan-title' numberOfLines={2}>{plan.name}</Text>
-                      <Text className='builtin-plan-desc' numberOfLines={2}>{plan.description}</Text>
-                      <View className='builtin-plan-meta'>
-                        <Text>{plan.weeks}周</Text>
-                        <Text>{plan.daysPerWeek}天/周</Text>
-                        <Text>{plan.sport}</Text>
-                      </View>
-                      <Text className='builtin-plan-link'>查看并加入</Text>
-                    </View>
-                  ))}
-                </View>
-              </ScrollView>
-            )}
-          </View>}
-
-          {!isGuest && <View id='knowledge-books' className='section'>
-            <View className='section-head'>
-              <View>
-                <Text className='section-title'>书籍笔记</Text>
-                <Text className='section-caption'>深度资料保留在这里，适合需要理解原理时阅读。</Text>
-              </View>
-            </View>
-            {loadingBooks ? (
-              <View className='empty-panel'><LoadingSpinner size={48} /></View>
-            ) : bookCollections.length > 0 ? (
-              <View className='book-list'>
-                {bookCollections.map((collection) => (
-                  <View
-                    key={collection.slug}
-                    className='book-row-card'
-                    onClick={() => Taro.navigateTo({ url: `/content/knowledge/book-detail?id=${collection.representativeBook.id}` })}
-                  >
-                    <View className='book-row-icon'>
-                      <Text>书</Text>
-                    </View>
-                    <View className='book-row-main'>
-                      <View className='book-row-title-wrap'>
-                        <Text className='book-row-title'>{collection.displayTitle}</Text>
-                        {collection.chapterCount > 0 && (
-                          <Text className='book-row-badge'>{collection.chapterCount} 篇</Text>
-                        )}
-                      </View>
-                      <Text className='book-row-summary' numberOfLines={2}>{collection.summary}</Text>
-                      <Text className='book-row-link'>进入阅读</Text>
-                    </View>
-                  </View>
-                ))}
-              </View>
-            ) : (
-              <View className='empty-panel'>
-                <Text className='empty-panel-text'>暂无书籍笔记。</Text>
-              </View>
-            )}
-          </View>}
-        </View>
-      </ScrollView>
-      <BottomNav />
-    </View>
+        </ScrollView>
+        <BottomNav />
+      </View>
     </PageThemeRoot>
   )
 }

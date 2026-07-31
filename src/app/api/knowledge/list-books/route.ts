@@ -8,6 +8,7 @@ import type {
     ListKnowledgeBooksResponseDto,
 } from "./entity";
 import { getServerSession } from "../../auth/[...nextauth]/auth";
+import { sanitizeBookRowForClient } from "../_helpers/bookSanitizer";
 
 export async function POST(req: Request) {
     const session = await getServerSession();
@@ -25,7 +26,7 @@ export async function POST(req: Request) {
         is_free,
         is_published,
         page = 0,
-        limit = 20
+        limit = 200
     } = await req.json() as ListKnowledgeBooksDto;
 
     // 构建查询
@@ -43,8 +44,9 @@ export async function POST(req: Request) {
     }
 
     // 分页
-    if (page !== undefined && limit !== undefined) {
-        query = query.range(page * limit, (page + 1) * limit - 1);
+    const safeLimit = Math.min(Math.max(limit || 200, 1), 1000);
+    if (page !== undefined) {
+        query = query.range(page * safeLimit, (page + 1) * safeLimit - 1);
     }
 
     const { data, count, error } = await query;
@@ -64,10 +66,13 @@ export async function POST(req: Request) {
         message: "获取知识库书籍列表成功",
         // ListKnowledgeBooksResponseDto 反映的就是这个地方 data 的数据结构
         data: {
-            books: data || [],
+            // 列表只返回分组所需的 source 元数据，避免把每章全文和本机路径批量下发。
+            books: (data || []).map((book) =>
+                sanitizeBookRowForClient(book, { includeBody: false })
+            ),
             total: count || 0,
             page,
-            limit,
+            limit: safeLimit,
         },
     });
 }

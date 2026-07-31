@@ -144,6 +144,8 @@ export default {
         'articles',
         'content-detail',
         'knowledge',
+        'knowledge/plans/index',
+        'knowledge/books/index',
         'knowledge/book-detail',
         'knowledge/node-detail',
         'knowledge/plan-detail',

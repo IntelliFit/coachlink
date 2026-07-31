@@ -1,4 +1,8 @@
 import { serviceRoleSupabase } from "@/lib/supabaseClient";
+import {
+    actionIdentityKey,
+    normalizeActionNameIdentity,
+} from "@/lib/actionNameIdentity";
 
 type TrainingLevel = "beginner" | "intermediate" | "advanced";
 type TemplateKind = "fixed" | "parameterized";
@@ -191,6 +195,43 @@ function valueFromParams(actionSet: TrainingPlanImportActionSet, key: string, cn
     return actionSet[key as keyof TrainingPlanImportActionSet] ?? params[key] ?? params[cnKey];
 }
 
+function normalizeSetPrescriptions(
+    value: unknown,
+    errors: string[],
+    prefix: string,
+) {
+    if (value === undefined || value === null) return [];
+    if (!Array.isArray(value)) {
+        errors.push(`${prefix}: params.setPrescriptions 必须是数组`);
+        return [];
+    }
+
+    return value.map((raw, index) => {
+        const prescription = asRecord(raw);
+        const reps = String(prescription.reps ?? "").trim();
+        const restSeconds = normalizeNumber(
+            prescription.restSeconds ?? prescription.rest_seconds,
+            90,
+        );
+        if (!reps) errors.push(`${prefix}: 第 ${index + 1} 组缺少 reps`);
+        if (!Number.isFinite(restSeconds) || restSeconds <= 0) {
+            errors.push(`${prefix}: 第 ${index + 1} 组 restSeconds 必须大于 0`);
+        }
+        return {
+            ...prescription,
+            setIndex: index + 1,
+            reps,
+            intensity: String(prescription.intensity ?? "").trim(),
+            targetType: cleanString(prescription.targetType ?? prescription.target_type) || "reps",
+            targetUnit: cleanNullableString(prescription.targetUnit ?? prescription.target_unit),
+            intensityUnit: cleanNullableString(
+                prescription.intensityUnit ?? prescription.intensity_unit,
+            ),
+            restSeconds,
+        };
+    });
+}
+
 function normalizeActionSet(
     actionSet: TrainingPlanImportActionSet,
     errors: string[],
@@ -232,8 +273,14 @@ function normalizeActionSet(
     const reps = String(repsRaw ?? "").trim();
     const restSeconds = normalizeNumber(restRaw, 90);
     const intensity = String(intensityRaw ?? "").trim();
+    const rawParams = asRecord(actionSet.params);
+    const setPrescriptions = normalizeSetPrescriptions(
+        rawParams.setPrescriptions ?? rawParams.set_prescriptions,
+        errors,
+        prefix,
+    );
     const params = {
-        ...asRecord(actionSet.params),
+        ...rawParams,
         sets,
         reps,
         rest_seconds: restSeconds,
@@ -242,6 +289,7 @@ function normalizeActionSet(
         "次数": reps,
         "休息时间": restSeconds,
         "强度": intensity,
+        ...(setPrescriptions.length > 0 ? { setPrescriptions } : {}),
     };
 
     return {
@@ -424,6 +472,122 @@ export function normalizeAdminContentBundle(
     };
 }
 
+function isExternalTrainingPlan(plan: NormalizedTrainingPlan) {
+    const provenance = asRecord(plan.parameterSchema?.provenance);
+    return plan.tags.some((tag) => tag.startsWith("source:")) ||
+        Boolean(cleanString(provenance.source_url || provenance.source_id));
+}
+
+function validateExternalPlanPublication(plans: NormalizedTrainingPlan[]) {
+    const errors: string[] = [];
+    const externalPlans = plans.filter(isExternalTrainingPlan);
+    if (externalPlans.length === 0) return errors;
+
+    const rightsBlocked = externalPlans.filter((plan) => {
+        const provenance = asRecord(plan.parameterSchema?.provenance);
+        const importStatus = cleanString(provenance.import_status).toLowerCase();
+        return plan.tags.includes("rights:review-required") || importStatus.includes("pending_rights");
+    });
+    if (rightsBlocked.length > 0) {
+        errors.push(
+            `有 ${rightsBlocked.length} 套外部计划尚未完成授权复核，禁止发布：${rightsBlocked
+                .slice(0, 8)
+                .map((plan) => plan.name)
+                .join("、")}${rightsBlocked.length > 8 ? " 等" : ""}`,
+        );
+    }
+
+    const prescriptionProblems: string[] = [];
+    for (const plan of externalPlans) {
+        for (const day of plan.trainingDays as any[]) {
+            for (const actionSet of day?.actionSets || []) {
+                const actionName = cleanString(
+                    actionSet?.actionName || actionSet?.action_name || actionSet?.setName,
+                );
+                if (/^(rest|rest day|休息)$/i.test(actionName)) {
+                    prescriptionProblems.push(`${plan.name}: 「${actionName}」不能作为可执行动作`);
+                    continue;
+                }
+
+                const params = asRecord(actionSet?.params);
+                const prescriptions = Array.isArray(params.setPrescriptions)
+                    ? params.setPrescriptions
+                    : [];
+                const expectedSets = normalizePositiveInt(
+                    actionSet?.sets ?? params.sets ?? params["组数"],
+                    1,
+                );
+                if (prescriptions.length !== expectedSets) {
+                    prescriptionProblems.push(
+                        `${plan.name}: ${actionName || "未命名动作"} 的逐组处方 ${prescriptions.length}/${expectedSets}`,
+                    );
+                }
+            }
+        }
+    }
+    if (prescriptionProblems.length > 0) {
+        errors.push(
+            `外部计划逐组处方未就绪（${prescriptionProblems.length} 处）：${prescriptionProblems
+                .slice(0, 12)
+                .join("；")}${prescriptionProblems.length > 12 ? "；等" : ""}`,
+        );
+    }
+
+    return errors;
+}
+
+async function validateExternalActionLibraryCoverage(plans: NormalizedTrainingPlan[]) {
+    const externalPlans = plans.filter(isExternalTrainingPlan);
+    if (externalPlans.length === 0) return [];
+
+    const canonicalRows: any[] = [];
+    for (let from = 0; ; from += 1000) {
+        const { data, error } = await (serviceRoleSupabase as any)
+            .from("canonical_actions")
+            .select("id,name,aliases")
+            .range(from, from + 999);
+        if (error) {
+            return [`发布前读取标准动作库失败: ${error.message}`];
+        }
+        canonicalRows.push(...(data || []));
+        if ((data || []).length < 1000) break;
+    }
+
+    const canonicalIdentities = new Set<string>();
+    for (const row of canonicalRows) {
+        for (const name of [row?.name, ...(Array.isArray(row?.aliases) ? row.aliases : [])]) {
+            const identity = normalizeActionNameIdentity(name);
+            if (identity) canonicalIdentities.add(identity);
+        }
+    }
+
+    const missingByIdentity = new Map<string, string>();
+    for (const plan of externalPlans) {
+        for (const day of plan.trainingDays as any[]) {
+            for (const actionSet of day?.actionSets || []) {
+                const actionName = cleanString(
+                    actionSet?.actionName || actionSet?.action_name || actionSet?.setName,
+                );
+                const identity = normalizeActionNameIdentity(actionName);
+                if (identity && !canonicalIdentities.has(identity)) {
+                    missingByIdentity.set(
+                        actionIdentityKey(actionSet?.itemType || actionSet?.item_type, actionName),
+                        actionName,
+                    );
+                }
+            }
+        }
+    }
+
+    if (missingByIdentity.size === 0) return [];
+    const examples = Array.from(missingByIdentity.values()).slice(0, 30);
+    return [
+        `外部计划还有 ${missingByIdentity.size} 个动作未进入标准动作库：${examples.join("、")}${
+            missingByIdentity.size > examples.length ? " 等" : ""
+        }`,
+    ];
+}
+
 function contentToJson(content: string | Record<string, unknown>, fallbackTags: string[] = []) {
     if (typeof content === "string") {
         return {
@@ -579,6 +743,10 @@ export async function importAdminContentBundle(
     const publish = options.publish ?? false;
     const dryRun = options.dryRun === true;
     const { normalized, errors } = normalizeAdminContentBundle(input, { publish });
+    if (publish) {
+        errors.push(...validateExternalPlanPublication(normalized.planTemplates));
+        errors.push(...await validateExternalActionLibraryCoverage(normalized.planTemplates));
+    }
     const resultBase = {
         dryRun,
         errors,

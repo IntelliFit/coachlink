@@ -1,0 +1,499 @@
+{
+  "format": "book-note-v4-classic-deep-read",
+  "noteStyle": "interpretive-reading-note",
+  "disclaimer": "本页为 CoachLink 原创导读与知识地图，不复制原书正文、插图、表格或完整训练模板，也不替代购买和阅读正版原书。",
+  "source": {
+    "title": "NSCA Essentials of Strength Training and Conditioning（第4版）",
+    "authors": [
+      "NSCA",
+      "G. Gregory Haff",
+      "N. Travis Triplett"
+    ],
+    "originalFilePath": "local-library://nsca-essentials-4e",
+    "copyrightMode": "interpretive-notes-only",
+    "collectionSlug": "nsca-essentials-4e",
+    "collectionTitle": "《NSCA Essentials of Strength Training and Conditioning（第4版）》原创深读笔记"
+  },
+  "notes": [
+    {
+      "slug": "overview",
+      "file": "notes/00-overview.md",
+      "noteType": "overview",
+      "chapterOrder": 0,
+      "chapterTitle": "深读入口",
+      "title": "《NSCA Essentials of Strength Training and Conditioning（第4版）》深读入口：先建立全书地图，再决定怎么用",
+      "summary": "覆盖运动生理、生物力学、测试评估、力量与爆发力训练、速度敏捷、耐力、周期计划和组织管理，是体能教练知识体系的骨架型教材。",
+      "sortOrder": 3010,
+      "author": "NSCA、G. Gregory Haff、N. Travis Triplett",
+      "isFree": true,
+      "isPublished": true,
+      "mindMap": {
+        "title": "《NSCA Essentials of Strength Training and Conditioning（第4版）》全书知识地图",
+        "description": "这是 CoachLink 根据书籍主题绘制的原创导航图，不复制原书插图或版式。",
+        "data": [
+          {
+            "id": "root",
+            "title": "NSCA Essentials of Strength Training and Conditioning（第4版）",
+            "node_type": "domain",
+            "children": [
+              {
+                "id": "question",
+                "title": "核心问题",
+                "description": "一名体能教练需要用哪些基础学科和决策步骤，把测试结果转成安全、可执行、可监控的训练计划？",
+                "node_type": "category"
+              },
+              {
+                "id": "framework-1",
+                "title": "生理与生物力学基础",
+                "node_type": "category"
+              },
+              {
+                "id": "framework-2",
+                "title": "测试、评估与需求分析",
+                "node_type": "category"
+              },
+              {
+                "id": "framework-3",
+                "title": "训练方法与动作教学",
+                "node_type": "category"
+              },
+              {
+                "id": "framework-4",
+                "title": "计划设计、恢复与风险管理",
+                "node_type": "category"
+              },
+              {
+                "id": "boundary",
+                "title": "应用边界",
+                "description": "教材内容很广，不能把单一章节当成完整处方；特殊人群和伤病场景仍需相应资质与医疗协作。",
+                "node_type": "category"
+              }
+            ]
+          }
+        ]
+      },
+      "readingGuide": {
+        "estimatedMinutes": 8,
+        "suitableFor": [
+          "关注体能训练基础的训练者",
+          "教练与知识库编辑",
+          "准备精读正版原书的读者"
+        ],
+        "goals": [
+          "掌握全书核心问题",
+          "看懂主题之间的关系",
+          "明确应用边界与复盘方法"
+        ],
+        "prerequisites": [
+          "本页不替代原书，也不提供原文件下载"
+        ]
+      },
+      "keyTakeaways": [
+        "生理与生物力学基础",
+        "测试、评估与需求分析",
+        "训练方法与动作教学",
+        "计划设计、恢复与风险管理"
+      ],
+      "discussionPrompts": [
+        "这本书最可能改变你当前的哪一个训练决策？",
+        "哪一个观点高度依赖作者的目标人群或训练环境？",
+        "你会用什么训练数据判断它对自己是否有效？"
+      ],
+      "citations": [
+        {
+          "title": "书目：NSCA Essentials of Strength Training and Conditioning（第4版）",
+          "note": "基于本地书目盘点建立原创导读；原始电子文件仅供内部研究，不上传、不公开下载。正式引用前应继续核对正版书的作者、版次、出版社与页码。",
+          "license": "interpretive-notes-only"
+        }
+      ]
+    },
+    {
+      "slug": "topic-01",
+      "file": "notes/01-topic.md",
+      "noteType": "chapter",
+      "chapterOrder": 1,
+      "chapterTitle": "生理与生物力学基础",
+      "title": "《NSCA Essentials of Strength Training and Conditioning（第4版）》主题深读 1：生理与生物力学基础",
+      "summary": "生理学解释训练刺激如何引起供能、神经肌肉和组织层面的急性反应与长期适应，生物力学则解释外力如何通过身体结构形成运动。两类知识的作用是限定合理假设，而不是从单一机制直接推导唯一动作或计划。 本页进一步给出教练决策、反馈记录、微实验和应用边界。",
+      "sortOrder": 3011,
+      "author": "NSCA、G. Gregory Haff、N. Travis Triplett",
+      "isFree": true,
+      "isPublished": true,
+      "mindMap": {
+        "title": "《NSCA Essentials of Strength Training and Conditioning（第4版）》主题 1 · 生理与生物力学基础",
+        "description": "CoachLink 原创主题知识地图：概念、决策、验证、误区和边界放在同一张图里。",
+        "data": [
+          {
+            "id": "root",
+            "title": "生理与生物力学基础",
+            "node_type": "domain",
+            "children": [
+              {
+                "id": "concept",
+                "title": "核心概念",
+                "description": "生理学解释训练刺激如何引起供能、神经肌肉和组织层面的急性反应与长期适应，生物力学则解释外力如何通过身体结构形成运动。两类知识的作用是限定合理假设，而不是从单一机制直接推导唯一动作或计划。",
+                "node_type": "category"
+              },
+              {
+                "id": "decision",
+                "title": "教练决策",
+                "description": "教练应先明确目标动作需要的力量方向、关节力矩、速度和持续时间，再选择能施加相应刺激的练习。遇到多个可行方案时，应优先选择运动员能稳定执行、可渐进负荷且风险可控的方案。",
+                "node_type": "category"
+              },
+              {
+                "id": "practice",
+                "title": "最小实践",
+                "description": "先做项目与个体需求分析再选动作",
+                "node_type": "category"
+              },
+              {
+                "id": "feedback",
+                "title": "记录与复盘",
+                "description": "先留基线，一次只改一个关键变量，再用结果和恢复信号判断。",
+                "node_type": "category"
+              },
+              {
+                "id": "pitfall",
+                "title": "常见误用",
+                "description": "用某块肌肉的功能或某条生理通路解释全部表现，会忽略技术、经验和任务环境对结果的共同影响。",
+                "node_type": "category"
+              },
+              {
+                "id": "boundary",
+                "title": "应用边界",
+                "description": "教材内容很广，不能把单一章节当成完整处方；特殊人群和伤病场景仍需相应资质与医疗协作。",
+                "node_type": "category"
+              }
+            ]
+          }
+        ]
+      },
+      "readingGuide": {
+        "estimatedMinutes": 10,
+        "suitableFor": [
+          "正在学习体能训练基础的训练者",
+          "需要把理论转成计划的教练",
+          "愿意记录并复盘的读者"
+        ],
+        "goals": [
+          "说清核心概念",
+          "形成可执行决策",
+          "设计一次可验证的小实验"
+        ],
+        "prerequisites": [
+          "先阅读全书深读入口",
+          "本页不替代正版原书或专业诊疗"
+        ]
+      },
+      "keyTakeaways": [
+        "生理与生物力学基础",
+        "先做项目与个体需求分析再选动作",
+        "一次只改变少量关键变量，并提前定义反馈信号",
+        "用某块肌肉的功能或某条生理通路解释全部表现，会忽略技术、经验和任务环境对结果的共同影响。"
+      ],
+      "discussionPrompts": [
+        "你当前最接近这个主题的真实问题是什么？",
+        "你会保留哪个变量不变，才看得出干预是否有效？",
+        "如果结果与书中框架不一致，你先检查数据、执行还是原始假设？"
+      ],
+      "citations": [
+        {
+          "title": "书目：NSCA Essentials of Strength Training and Conditioning（第4版）",
+          "note": "本页为 CoachLink 原创解释性笔记；不复制原书正文、插图、表格或完整处方。正式学术或专业引用请回到正版书核对作者、版次、出版社和页码。",
+          "license": "interpretive-notes-only"
+        }
+      ]
+    },
+    {
+      "slug": "topic-02",
+      "file": "notes/02-topic.md",
+      "noteType": "chapter",
+      "chapterOrder": 2,
+      "chapterTitle": "测试、评估与需求分析",
+      "title": "《NSCA Essentials of Strength Training and Conditioning（第4版）》主题深读 2：测试、评估与需求分析",
+      "summary": "需求分析连接项目要求与个体能力，测试只是为这条决策链提供可比较的证据。有效评估不仅要测得数值，还要确认指标可靠、与目标相关，并能改变后续训练选择。 本页进一步给出教练决策、反馈记录、微实验和应用边界。",
+      "sortOrder": 3012,
+      "author": "NSCA、G. Gregory Haff、N. Travis Triplett",
+      "isFree": true,
+      "isPublished": true,
+      "mindMap": {
+        "title": "《NSCA Essentials of Strength Training and Conditioning（第4版）》主题 2 · 测试、评估与需求分析",
+        "description": "CoachLink 原创主题知识地图：概念、决策、验证、误区和边界放在同一张图里。",
+        "data": [
+          {
+            "id": "root",
+            "title": "测试、评估与需求分析",
+            "node_type": "domain",
+            "children": [
+              {
+                "id": "concept",
+                "title": "核心概念",
+                "description": "需求分析连接项目要求与个体能力，测试只是为这条决策链提供可比较的证据。有效评估不仅要测得数值，还要确认指标可靠、与目标相关，并能改变后续训练选择。",
+                "node_type": "category"
+              },
+              {
+                "id": "decision",
+                "title": "教练决策",
+                "description": "教练应先列出最重要的专项能力和风险，再用少量高质量测试建立基线与优先级。复测应尽量保持时间、流程和疲劳状态一致，并结合最小有意义变化判断训练是否有效。",
+                "node_type": "category"
+              },
+              {
+                "id": "practice",
+                "title": "最小实践",
+                "description": "用测试指标追踪训练是否真的转化",
+                "node_type": "category"
+              },
+              {
+                "id": "feedback",
+                "title": "记录与复盘",
+                "description": "先留基线，一次只改一个关键变量，再用结果和恢复信号判断。",
+                "node_type": "category"
+              },
+              {
+                "id": "pitfall",
+                "title": "常见误用",
+                "description": "测试越多不代表判断越准，若结果不会改变处方，额外测量只会增加噪声与运动员负担。",
+                "node_type": "category"
+              },
+              {
+                "id": "boundary",
+                "title": "应用边界",
+                "description": "教材内容很广，不能把单一章节当成完整处方；特殊人群和伤病场景仍需相应资质与医疗协作。",
+                "node_type": "category"
+              }
+            ]
+          }
+        ]
+      },
+      "readingGuide": {
+        "estimatedMinutes": 10,
+        "suitableFor": [
+          "正在学习体能训练基础的训练者",
+          "需要把理论转成计划的教练",
+          "愿意记录并复盘的读者"
+        ],
+        "goals": [
+          "说清核心概念",
+          "形成可执行决策",
+          "设计一次可验证的小实验"
+        ],
+        "prerequisites": [
+          "先阅读全书深读入口",
+          "本页不替代正版原书或专业诊疗"
+        ]
+      },
+      "keyTakeaways": [
+        "测试、评估与需求分析",
+        "用测试指标追踪训练是否真的转化",
+        "一次只改变少量关键变量，并提前定义反馈信号",
+        "测试越多不代表判断越准，若结果不会改变处方，额外测量只会增加噪声与运动员负担。"
+      ],
+      "discussionPrompts": [
+        "你当前最接近这个主题的真实问题是什么？",
+        "你会保留哪个变量不变，才看得出干预是否有效？",
+        "如果结果与书中框架不一致，你先检查数据、执行还是原始假设？"
+      ],
+      "citations": [
+        {
+          "title": "书目：NSCA Essentials of Strength Training and Conditioning（第4版）",
+          "note": "本页为 CoachLink 原创解释性笔记；不复制原书正文、插图、表格或完整处方。正式学术或专业引用请回到正版书核对作者、版次、出版社和页码。",
+          "license": "interpretive-notes-only"
+        }
+      ]
+    },
+    {
+      "slug": "topic-03",
+      "file": "notes/03-topic.md",
+      "noteType": "chapter",
+      "chapterOrder": 3,
+      "chapterTitle": "训练方法与动作教学",
+      "title": "《NSCA Essentials of Strength Training and Conditioning（第4版）》主题深读 3：训练方法与动作教学",
+      "summary": "力量、爆发力、速度、敏捷和耐力方法分别操纵负荷、速度、持续时间与恢复，以形成不同适应。动作教学则通过清晰目标、合适示范和及时反馈，让训练刺激能够在可重复的技术条件下发生。 本页进一步给出教练决策、反馈记录、微实验和应用边界。",
+      "sortOrder": 3013,
+      "author": "NSCA、G. Gregory Haff、N. Travis Triplett",
+      "isFree": true,
+      "isPublished": true,
+      "mindMap": {
+        "title": "《NSCA Essentials of Strength Training and Conditioning（第4版）》主题 3 · 训练方法与动作教学",
+        "description": "CoachLink 原创主题知识地图：概念、决策、验证、误区和边界放在同一张图里。",
+        "data": [
+          {
+            "id": "root",
+            "title": "训练方法与动作教学",
+            "node_type": "domain",
+            "children": [
+              {
+                "id": "concept",
+                "title": "核心概念",
+                "description": "力量、爆发力、速度、敏捷和耐力方法分别操纵负荷、速度、持续时间与恢复，以形成不同适应。动作教学则通过清晰目标、合适示范和及时反馈，让训练刺激能够在可重复的技术条件下发生。",
+                "node_type": "category"
+              },
+              {
+                "id": "decision",
+                "title": "教练决策",
+                "description": "教练应依据能力目标选方法，再按学习阶段决定动作复杂度、反馈频率和进阶幅度。只有当运动员能在当前负荷下保持关键技术并达到预期输出时，才应增加重量、速度或情境难度。",
+                "node_type": "category"
+              },
+              {
+                "id": "practice",
+                "title": "最小实践",
+                "description": "把技术、安全和负荷管理放在计划模板之前",
+                "node_type": "category"
+              },
+              {
+                "id": "feedback",
+                "title": "记录与复盘",
+                "description": "先留基线，一次只改一个关键变量，再用结果和恢复信号判断。",
+                "node_type": "category"
+              },
+              {
+                "id": "pitfall",
+                "title": "常见误用",
+                "description": "把动作外观统一成单一标准，可能忽略身体比例、项目策略和个体安全范围造成的合理差异。",
+                "node_type": "category"
+              },
+              {
+                "id": "boundary",
+                "title": "应用边界",
+                "description": "教材内容很广，不能把单一章节当成完整处方；特殊人群和伤病场景仍需相应资质与医疗协作。",
+                "node_type": "category"
+              }
+            ]
+          }
+        ]
+      },
+      "readingGuide": {
+        "estimatedMinutes": 10,
+        "suitableFor": [
+          "正在学习体能训练基础的训练者",
+          "需要把理论转成计划的教练",
+          "愿意记录并复盘的读者"
+        ],
+        "goals": [
+          "说清核心概念",
+          "形成可执行决策",
+          "设计一次可验证的小实验"
+        ],
+        "prerequisites": [
+          "先阅读全书深读入口",
+          "本页不替代正版原书或专业诊疗"
+        ]
+      },
+      "keyTakeaways": [
+        "训练方法与动作教学",
+        "把技术、安全和负荷管理放在计划模板之前",
+        "一次只改变少量关键变量，并提前定义反馈信号",
+        "把动作外观统一成单一标准，可能忽略身体比例、项目策略和个体安全范围造成的合理差异。"
+      ],
+      "discussionPrompts": [
+        "你当前最接近这个主题的真实问题是什么？",
+        "你会保留哪个变量不变，才看得出干预是否有效？",
+        "如果结果与书中框架不一致，你先检查数据、执行还是原始假设？"
+      ],
+      "citations": [
+        {
+          "title": "书目：NSCA Essentials of Strength Training and Conditioning（第4版）",
+          "note": "本页为 CoachLink 原创解释性笔记；不复制原书正文、插图、表格或完整处方。正式学术或专业引用请回到正版书核对作者、版次、出版社和页码。",
+          "license": "interpretive-notes-only"
+        }
+      ]
+    },
+    {
+      "slug": "topic-04",
+      "file": "notes/04-topic.md",
+      "noteType": "chapter",
+      "chapterOrder": 4,
+      "chapterTitle": "计划设计、恢复与风险管理",
+      "title": "《NSCA Essentials of Strength Training and Conditioning（第4版）》主题深读 4：计划设计、恢复与风险管理",
+      "summary": "计划设计是在目标、可用时间和恢复能力之间分配训练压力，而非把所有有效方法简单相加。风险管理要求在筛查、技术、环境和负荷变化中持续识别问题，而不是只在计划开始前做一次检查。 本页进一步给出教练决策、反馈记录、微实验和应用边界。",
+      "sortOrder": 3014,
+      "author": "NSCA、G. Gregory Haff、N. Travis Triplett",
+      "isFree": true,
+      "isPublished": true,
+      "mindMap": {
+        "title": "《NSCA Essentials of Strength Training and Conditioning（第4版）》主题 4 · 计划设计、恢复与风险管理",
+        "description": "CoachLink 原创主题知识地图：概念、决策、验证、误区和边界放在同一张图里。",
+        "data": [
+          {
+            "id": "root",
+            "title": "计划设计、恢复与风险管理",
+            "node_type": "domain",
+            "children": [
+              {
+                "id": "concept",
+                "title": "核心概念",
+                "description": "计划设计是在目标、可用时间和恢复能力之间分配训练压力，而非把所有有效方法简单相加。风险管理要求在筛查、技术、环境和负荷变化中持续识别问题，而不是只在计划开始前做一次检查。",
+                "node_type": "category"
+              },
+              {
+                "id": "decision",
+                "title": "教练决策",
+                "description": "教练应从可恢复的起始剂量出发，预先规定进阶、减量和停止训练的条件，并根据反馈滚动调整。高优先级内容应放在运动员状态较好时完成，低收益但高疲劳的内容应首先删减。",
+                "node_type": "category"
+              },
+              {
+                "id": "practice",
+                "title": "最小实践",
+                "description": "先做项目与个体需求分析再选动作",
+                "node_type": "category"
+              },
+              {
+                "id": "feedback",
+                "title": "记录与复盘",
+                "description": "先留基线，一次只改一个关键变量，再用结果和恢复信号判断。",
+                "node_type": "category"
+              },
+              {
+                "id": "pitfall",
+                "title": "常见误用",
+                "description": "写得精细的周期表若没有状态反馈与应急规则，面对疾病、赛程变化或恢复不足时仍会迅速失效。",
+                "node_type": "category"
+              },
+              {
+                "id": "boundary",
+                "title": "应用边界",
+                "description": "教材内容很广，不能把单一章节当成完整处方；特殊人群和伤病场景仍需相应资质与医疗协作。",
+                "node_type": "category"
+              }
+            ]
+          }
+        ]
+      },
+      "readingGuide": {
+        "estimatedMinutes": 10,
+        "suitableFor": [
+          "正在学习体能训练基础的训练者",
+          "需要把理论转成计划的教练",
+          "愿意记录并复盘的读者"
+        ],
+        "goals": [
+          "说清核心概念",
+          "形成可执行决策",
+          "设计一次可验证的小实验"
+        ],
+        "prerequisites": [
+          "先阅读全书深读入口",
+          "本页不替代正版原书或专业诊疗"
+        ]
+      },
+      "keyTakeaways": [
+        "计划设计、恢复与风险管理",
+        "先做项目与个体需求分析再选动作",
+        "一次只改变少量关键变量，并提前定义反馈信号",
+        "写得精细的周期表若没有状态反馈与应急规则，面对疾病、赛程变化或恢复不足时仍会迅速失效。"
+      ],
+      "discussionPrompts": [
+        "你当前最接近这个主题的真实问题是什么？",
+        "你会保留哪个变量不变，才看得出干预是否有效？",
+        "如果结果与书中框架不一致，你先检查数据、执行还是原始假设？"
+      ],
+      "citations": [
+        {
+          "title": "书目：NSCA Essentials of Strength Training and Conditioning（第4版）",
+          "note": "本页为 CoachLink 原创解释性笔记；不复制原书正文、插图、表格或完整处方。正式学术或专业引用请回到正版书核对作者、版次、出版社和页码。",
+          "license": "interpretive-notes-only"
+        }
+      ]
+    }
+  ]
+}

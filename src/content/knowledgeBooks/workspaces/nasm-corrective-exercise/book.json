@@ -1,0 +1,497 @@
+{
+  "format": "book-note-v4-classic-deep-read",
+  "noteStyle": "interpretive-reading-note",
+  "disclaimer": "本页为 CoachLink 原创导读与知识地图，不复制原书正文、插图、表格或完整训练模板，也不替代购买和阅读正版原书。",
+  "source": {
+    "title": "NASM-CES纠正性训练指南",
+    "authors": [
+      "NASM"
+    ],
+    "originalFilePath": "local-library://nasm-corrective-exercise",
+    "copyrightMode": "interpretive-notes-only",
+    "collectionSlug": "nasm-corrective-exercise",
+    "collectionTitle": "《NASM-CES纠正性训练指南》原创深读笔记"
+  },
+  "notes": [
+    {
+      "slug": "overview",
+      "file": "notes/00-overview.md",
+      "noteType": "overview",
+      "chapterOrder": 0,
+      "chapterTitle": "深读入口",
+      "title": "《NASM-CES纠正性训练指南》深读入口：先建立全书地图，再决定怎么用",
+      "summary": "以评估、抑制、拉长、激活和整合等步骤组织纠正性练习，适合用来理解动作观察与训练回归的流程化思维。",
+      "sortOrder": 3040,
+      "author": "NASM",
+      "isFree": true,
+      "isPublished": true,
+      "mindMap": {
+        "title": "《NASM-CES纠正性训练指南》全书知识地图",
+        "description": "这是 CoachLink 根据书籍主题绘制的原创导航图，不复制原书插图或版式。",
+        "data": [
+          {
+            "id": "root",
+            "title": "NASM-CES纠正性训练指南",
+            "node_type": "domain",
+            "children": [
+              {
+                "id": "question",
+                "title": "核心问题",
+                "description": "面对动作代偿和活动受限时，怎样从观察走向假设、练习选择与复测，而不是凭姿态标签直接下结论？",
+                "node_type": "category"
+              },
+              {
+                "id": "framework-1",
+                "title": "静态与动态动作观察",
+                "node_type": "category"
+              },
+              {
+                "id": "framework-2",
+                "title": "过度活跃与低活跃的工作假设",
+                "node_type": "category"
+              },
+              {
+                "id": "framework-3",
+                "title": "抑制、拉长、激活、整合",
+                "node_type": "category"
+              },
+              {
+                "id": "framework-4",
+                "title": "复测、进阶与回归训练",
+                "node_type": "category"
+              },
+              {
+                "id": "boundary",
+                "title": "应用边界",
+                "description": "姿势或动作筛查不能诊断组织损伤；模型中的肌肉失衡解释应结合个体表现和现代证据谨慎使用。",
+                "node_type": "category"
+              }
+            ]
+          }
+        ]
+      },
+      "readingGuide": {
+        "estimatedMinutes": 8,
+        "suitableFor": [
+          "关注纠正性训练的训练者",
+          "教练与知识库编辑",
+          "准备精读正版原书的读者"
+        ],
+        "goals": [
+          "掌握全书核心问题",
+          "看懂主题之间的关系",
+          "明确应用边界与复盘方法"
+        ],
+        "prerequisites": [
+          "本页不替代原书，也不提供原文件下载"
+        ]
+      },
+      "keyTakeaways": [
+        "静态与动态动作观察",
+        "过度活跃与低活跃的工作假设",
+        "抑制、拉长、激活、整合",
+        "复测、进阶与回归训练"
+      ],
+      "discussionPrompts": [
+        "这本书最可能改变你当前的哪一个训练决策？",
+        "哪一个观点高度依赖作者的目标人群或训练环境？",
+        "你会用什么训练数据判断它对自己是否有效？"
+      ],
+      "citations": [
+        {
+          "title": "书目：NASM-CES纠正性训练指南",
+          "note": "基于本地书目盘点建立原创导读；原始电子文件仅供内部研究，不上传、不公开下载。正式引用前应继续核对正版书的作者、版次、出版社与页码。",
+          "license": "interpretive-notes-only"
+        }
+      ]
+    },
+    {
+      "slug": "topic-01",
+      "file": "notes/01-topic.md",
+      "noteType": "chapter",
+      "chapterOrder": 1,
+      "chapterTitle": "静态与动态动作观察",
+      "title": "《NASM-CES纠正性训练指南》主题深读 1：静态与动态动作观察",
+      "summary": "静态观察描述身体在某一姿势中的排列，动态观察则记录完成任务时的运动策略与变化。两者能帮助提出可能限制表现的假设，但无法仅凭外观确认疼痛来源或组织损伤。 本页进一步给出教练决策、反馈记录、微实验和应用边界。",
+      "sortOrder": 3041,
+      "author": "NASM",
+      "isFree": true,
+      "isPublished": true,
+      "mindMap": {
+        "title": "《NASM-CES纠正性训练指南》主题 1 · 静态与动态动作观察",
+        "description": "CoachLink 原创主题知识地图：概念、决策、验证、误区和边界放在同一张图里。",
+        "data": [
+          {
+            "id": "root",
+            "title": "静态与动态动作观察",
+            "node_type": "domain",
+            "children": [
+              {
+                "id": "concept",
+                "title": "核心概念",
+                "description": "静态观察描述身体在某一姿势中的排列，动态观察则记录完成任务时的运动策略与变化。两者能帮助提出可能限制表现的假设，但无法仅凭外观确认疼痛来源或组织损伤。",
+                "node_type": "category"
+              },
+              {
+                "id": "decision",
+                "title": "教练决策",
+                "description": "教练应先用中性语言记录可见现象，再在不同速度、负荷或提示条件下复测其稳定性。若观察结果不影响功能且没有症状，应谨慎权衡干预收益，避免为了外观一致而过度纠正。",
+                "node_type": "category"
+              },
+              {
+                "id": "practice",
+                "title": "最小实践",
+                "description": "把评估结果当作待验证假设",
+                "node_type": "category"
+              },
+              {
+                "id": "feedback",
+                "title": "记录与复盘",
+                "description": "先留基线，一次只改一个关键变量，再用结果和恢复信号判断。",
+                "node_type": "category"
+              },
+              {
+                "id": "pitfall",
+                "title": "常见误用",
+                "description": "把一次筛查中的偏移直接命名为固定代偿，会把正常个体差异误当成需要治疗的问题。",
+                "node_type": "category"
+              },
+              {
+                "id": "boundary",
+                "title": "应用边界",
+                "description": "姿势或动作筛查不能诊断组织损伤；模型中的肌肉失衡解释应结合个体表现和现代证据谨慎使用。",
+                "node_type": "category"
+              }
+            ]
+          }
+        ]
+      },
+      "readingGuide": {
+        "estimatedMinutes": 10,
+        "suitableFor": [
+          "正在学习纠正性训练的训练者",
+          "需要把理论转成计划的教练",
+          "愿意记录并复盘的读者"
+        ],
+        "goals": [
+          "说清核心概念",
+          "形成可执行决策",
+          "设计一次可验证的小实验"
+        ],
+        "prerequisites": [
+          "先阅读全书深读入口",
+          "本页不替代正版原书或专业诊疗"
+        ]
+      },
+      "keyTakeaways": [
+        "静态与动态动作观察",
+        "把评估结果当作待验证假设",
+        "一次只改变少量关键变量，并提前定义反馈信号",
+        "把一次筛查中的偏移直接命名为固定代偿，会把正常个体差异误当成需要治疗的问题。"
+      ],
+      "discussionPrompts": [
+        "你当前最接近这个主题的真实问题是什么？",
+        "你会保留哪个变量不变，才看得出干预是否有效？",
+        "如果结果与书中框架不一致，你先检查数据、执行还是原始假设？"
+      ],
+      "citations": [
+        {
+          "title": "书目：NASM-CES纠正性训练指南",
+          "note": "本页为 CoachLink 原创解释性笔记；不复制原书正文、插图、表格或完整处方。正式学术或专业引用请回到正版书核对作者、版次、出版社和页码。",
+          "license": "interpretive-notes-only"
+        }
+      ]
+    },
+    {
+      "slug": "topic-02",
+      "file": "notes/02-topic.md",
+      "noteType": "chapter",
+      "chapterOrder": 2,
+      "chapterTitle": "过度活跃与低活跃的工作假设",
+      "title": "《NASM-CES纠正性训练指南》主题深读 2：过度活跃与低活跃的工作假设",
+      "summary": "过度活跃与低活跃是解释运动策略的工作假设，描述某些组织可能承担过多或不足，而不是对肌肉状态的直接测量。相似动作表现可能来自活动度、力量、疼痛、习惯或任务理解等不同原因。 本页进一步给出教练决策、反馈记录、微实验和应用边界。",
+      "sortOrder": 3042,
+      "author": "NASM",
+      "isFree": true,
+      "isPublished": true,
+      "mindMap": {
+        "title": "《NASM-CES纠正性训练指南》主题 2 · 过度活跃与低活跃的工作假设",
+        "description": "CoachLink 原创主题知识地图：概念、决策、验证、误区和边界放在同一张图里。",
+        "data": [
+          {
+            "id": "root",
+            "title": "过度活跃与低活跃的工作假设",
+            "node_type": "domain",
+            "children": [
+              {
+                "id": "concept",
+                "title": "核心概念",
+                "description": "过度活跃与低活跃是解释运动策略的工作假设，描述某些组织可能承担过多或不足，而不是对肌肉状态的直接测量。相似动作表现可能来自活动度、力量、疼痛、习惯或任务理解等不同原因。",
+                "node_type": "category"
+              },
+              {
+                "id": "decision",
+                "title": "教练决策",
+                "description": "教练应通过动作提示、活动范围、力量任务和症状反应交叉验证假设，并优先测试最容易改变的变量。若一次干预不能稳定改善目标动作，就应修正解释，而非不断叠加针对同一肌肉的练习。",
+                "node_type": "category"
+              },
+              {
+                "id": "practice",
+                "title": "最小实践",
+                "description": "每次只改变少量变量并安排复测",
+                "node_type": "category"
+              },
+              {
+                "id": "feedback",
+                "title": "记录与复盘",
+                "description": "先留基线，一次只改一个关键变量，再用结果和恢复信号判断。",
+                "node_type": "category"
+              },
+              {
+                "id": "pitfall",
+                "title": "常见误用",
+                "description": "从姿势图直接推断某块肌肉紧或弱，会产生看似精确但未经验证的因果故事。",
+                "node_type": "category"
+              },
+              {
+                "id": "boundary",
+                "title": "应用边界",
+                "description": "姿势或动作筛查不能诊断组织损伤；模型中的肌肉失衡解释应结合个体表现和现代证据谨慎使用。",
+                "node_type": "category"
+              }
+            ]
+          }
+        ]
+      },
+      "readingGuide": {
+        "estimatedMinutes": 10,
+        "suitableFor": [
+          "正在学习纠正性训练的训练者",
+          "需要把理论转成计划的教练",
+          "愿意记录并复盘的读者"
+        ],
+        "goals": [
+          "说清核心概念",
+          "形成可执行决策",
+          "设计一次可验证的小实验"
+        ],
+        "prerequisites": [
+          "先阅读全书深读入口",
+          "本页不替代正版原书或专业诊疗"
+        ]
+      },
+      "keyTakeaways": [
+        "过度活跃与低活跃的工作假设",
+        "每次只改变少量变量并安排复测",
+        "一次只改变少量关键变量，并提前定义反馈信号",
+        "从姿势图直接推断某块肌肉紧或弱，会产生看似精确但未经验证的因果故事。"
+      ],
+      "discussionPrompts": [
+        "你当前最接近这个主题的真实问题是什么？",
+        "你会保留哪个变量不变，才看得出干预是否有效？",
+        "如果结果与书中框架不一致，你先检查数据、执行还是原始假设？"
+      ],
+      "citations": [
+        {
+          "title": "书目：NASM-CES纠正性训练指南",
+          "note": "本页为 CoachLink 原创解释性笔记；不复制原书正文、插图、表格或完整处方。正式学术或专业引用请回到正版书核对作者、版次、出版社和页码。",
+          "license": "interpretive-notes-only"
+        }
+      ]
+    },
+    {
+      "slug": "topic-03",
+      "file": "notes/03-topic.md",
+      "noteType": "chapter",
+      "chapterOrder": 3,
+      "chapterTitle": "抑制、拉长、激活、整合",
+      "title": "《NASM-CES纠正性训练指南》主题深读 3：抑制、拉长、激活、整合",
+      "summary": "这一流程依次尝试降低不必要张力、获得可用活动范围、唤起目标控制并把变化带回完整动作。它更适合作为组织练习的顺序框架，而不是每个人都必须逐项完成的固定治疗链。 本页进一步给出教练决策、反馈记录、微实验和应用边界。",
+      "sortOrder": 3043,
+      "author": "NASM",
+      "isFree": true,
+      "isPublished": true,
+      "mindMap": {
+        "title": "《NASM-CES纠正性训练指南》主题 3 · 抑制、拉长、激活、整合",
+        "description": "CoachLink 原创主题知识地图：概念、决策、验证、误区和边界放在同一张图里。",
+        "data": [
+          {
+            "id": "root",
+            "title": "抑制、拉长、激活、整合",
+            "node_type": "domain",
+            "children": [
+              {
+                "id": "concept",
+                "title": "核心概念",
+                "description": "这一流程依次尝试降低不必要张力、获得可用活动范围、唤起目标控制并把变化带回完整动作。它更适合作为组织练习的顺序框架，而不是每个人都必须逐项完成的固定治疗链。",
+                "node_type": "category"
+              },
+              {
+                "id": "decision",
+                "title": "教练决策",
+                "description": "教练应只保留能改善目标任务的步骤，并在每一步后用简单复测判断是否值得继续。新增活动范围后要通过主动控制和逐渐负荷来巩固，最终让能力回到训练或生活动作中。",
+                "node_type": "category"
+              },
+              {
+                "id": "practice",
+                "title": "最小实践",
+                "description": "疼痛与神经症状优先转介而不是纠正",
+                "node_type": "category"
+              },
+              {
+                "id": "feedback",
+                "title": "记录与复盘",
+                "description": "先留基线，一次只改一个关键变量，再用结果和恢复信号判断。",
+                "node_type": "category"
+              },
+              {
+                "id": "pitfall",
+                "title": "常见误用",
+                "description": "长时间停留在放松和孤立激活，却不进入负荷整合，往往只能获得短暂感受变化。",
+                "node_type": "category"
+              },
+              {
+                "id": "boundary",
+                "title": "应用边界",
+                "description": "姿势或动作筛查不能诊断组织损伤；模型中的肌肉失衡解释应结合个体表现和现代证据谨慎使用。",
+                "node_type": "category"
+              }
+            ]
+          }
+        ]
+      },
+      "readingGuide": {
+        "estimatedMinutes": 10,
+        "suitableFor": [
+          "正在学习纠正性训练的训练者",
+          "需要把理论转成计划的教练",
+          "愿意记录并复盘的读者"
+        ],
+        "goals": [
+          "说清核心概念",
+          "形成可执行决策",
+          "设计一次可验证的小实验"
+        ],
+        "prerequisites": [
+          "先阅读全书深读入口",
+          "本页不替代正版原书或专业诊疗"
+        ]
+      },
+      "keyTakeaways": [
+        "抑制、拉长、激活、整合",
+        "疼痛与神经症状优先转介而不是纠正",
+        "一次只改变少量关键变量，并提前定义反馈信号",
+        "长时间停留在放松和孤立激活，却不进入负荷整合，往往只能获得短暂感受变化。"
+      ],
+      "discussionPrompts": [
+        "你当前最接近这个主题的真实问题是什么？",
+        "你会保留哪个变量不变，才看得出干预是否有效？",
+        "如果结果与书中框架不一致，你先检查数据、执行还是原始假设？"
+      ],
+      "citations": [
+        {
+          "title": "书目：NASM-CES纠正性训练指南",
+          "note": "本页为 CoachLink 原创解释性笔记；不复制原书正文、插图、表格或完整处方。正式学术或专业引用请回到正版书核对作者、版次、出版社和页码。",
+          "license": "interpretive-notes-only"
+        }
+      ]
+    },
+    {
+      "slug": "topic-04",
+      "file": "notes/04-topic.md",
+      "noteType": "chapter",
+      "chapterOrder": 4,
+      "chapterTitle": "复测、进阶与回归训练",
+      "title": "《NASM-CES纠正性训练指南》主题深读 4：复测、进阶与回归训练",
+      "summary": "复测让教练判断改变来自有效干预、自然波动还是测量误差，进阶则逐步提高任务的力量、速度和复杂度。回归训练的终点不是动作看起来更整齐，而是个体能在真实目标任务中稳定承受负荷。 本页进一步给出教练决策、反馈记录、微实验和应用边界。",
+      "sortOrder": 3044,
+      "author": "NASM",
+      "isFree": true,
+      "isPublished": true,
+      "mindMap": {
+        "title": "《NASM-CES纠正性训练指南》主题 4 · 复测、进阶与回归训练",
+        "description": "CoachLink 原创主题知识地图：概念、决策、验证、误区和边界放在同一张图里。",
+        "data": [
+          {
+            "id": "root",
+            "title": "复测、进阶与回归训练",
+            "node_type": "domain",
+            "children": [
+              {
+                "id": "concept",
+                "title": "核心概念",
+                "description": "复测让教练判断改变来自有效干预、自然波动还是测量误差，进阶则逐步提高任务的力量、速度和复杂度。回归训练的终点不是动作看起来更整齐，而是个体能在真实目标任务中稳定承受负荷。",
+                "node_type": "category"
+              },
+              {
+                "id": "decision",
+                "title": "教练决策",
+                "description": "教练应预先定义清楚的功能指标和容许症状范围，并用相同条件比较短期反应与长期趋势。只有在当前任务可重复完成且次日反应可接受时，才增加负荷或减少辅助。",
+                "node_type": "category"
+              },
+              {
+                "id": "practice",
+                "title": "最小实践",
+                "description": "把评估结果当作待验证假设",
+                "node_type": "category"
+              },
+              {
+                "id": "feedback",
+                "title": "记录与复盘",
+                "description": "先留基线，一次只改一个关键变量，再用结果和恢复信号判断。",
+                "node_type": "category"
+              },
+              {
+                "id": "pitfall",
+                "title": "常见误用",
+                "description": "一次复测改善不能证明已解决根因，也不应据此立即恢复高强度训练或比赛。",
+                "node_type": "category"
+              },
+              {
+                "id": "boundary",
+                "title": "应用边界",
+                "description": "姿势或动作筛查不能诊断组织损伤；模型中的肌肉失衡解释应结合个体表现和现代证据谨慎使用。",
+                "node_type": "category"
+              }
+            ]
+          }
+        ]
+      },
+      "readingGuide": {
+        "estimatedMinutes": 10,
+        "suitableFor": [
+          "正在学习纠正性训练的训练者",
+          "需要把理论转成计划的教练",
+          "愿意记录并复盘的读者"
+        ],
+        "goals": [
+          "说清核心概念",
+          "形成可执行决策",
+          "设计一次可验证的小实验"
+        ],
+        "prerequisites": [
+          "先阅读全书深读入口",
+          "本页不替代正版原书或专业诊疗"
+        ]
+      },
+      "keyTakeaways": [
+        "复测、进阶与回归训练",
+        "把评估结果当作待验证假设",
+        "一次只改变少量关键变量，并提前定义反馈信号",
+        "一次复测改善不能证明已解决根因，也不应据此立即恢复高强度训练或比赛。"
+      ],
+      "discussionPrompts": [
+        "你当前最接近这个主题的真实问题是什么？",
+        "你会保留哪个变量不变，才看得出干预是否有效？",
+        "如果结果与书中框架不一致，你先检查数据、执行还是原始假设？"
+      ],
+      "citations": [
+        {
+          "title": "书目：NASM-CES纠正性训练指南",
+          "note": "本页为 CoachLink 原创解释性笔记；不复制原书正文、插图、表格或完整处方。正式学术或专业引用请回到正版书核对作者、版次、出版社和页码。",
+          "license": "interpretive-notes-only"
+        }
+      ]
+    }
+  ]
+}

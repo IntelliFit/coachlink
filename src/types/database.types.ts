@@ -1932,6 +1932,61 @@ export type Database = {
           },
         ]
       }
+      knowledge_book_comments: {
+        Row: {
+          body: string
+          book_id: string
+          created_at: string
+          id: string
+          parent_id: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          body: string
+          book_id: string
+          created_at?: string
+          id?: string
+          parent_id?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          body?: string
+          book_id?: string
+          created_at?: string
+          id?: string
+          parent_id?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "knowledge_book_comments_book_id_fkey"
+            columns: ["book_id"]
+            isOneToOne: false
+            referencedRelation: "knowledge_books"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "knowledge_book_comments_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "knowledge_book_comments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "knowledge_book_comments_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       knowledge_books: {
         Row: {
           audio_url: string | null

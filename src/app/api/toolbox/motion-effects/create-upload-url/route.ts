@@ -21,6 +21,20 @@ import type {
 export const runtime = "nodejs";
 export const maxDuration = 60;
 const db = serviceRoleSupabase as any;
+const MOTION_EFFECT_STYLE_KEYS = new Set([
+  "aurora",
+  "cyber",
+  "lava",
+  "candy",
+  "ice",
+  "galaxy",
+  "emerald",
+  "gold",
+]);
+
+function option<T extends string>(value: unknown, allowed: readonly T[], fallback: T): T {
+  return allowed.includes(value as T) ? (value as T) : fallback;
+}
 
 export async function POST(req: Request) {
   const session = await getServerSession();
@@ -45,6 +59,24 @@ export async function POST(req: Request) {
   const contentType = String(body.contentType || "").trim();
   const fileSizeBytes = Number(body.fileSizeBytes || 0);
   const durationSeconds = Number(body.durationSeconds || 0);
+  const styleKey = MOTION_EFFECT_STYLE_KEYS.has(String(body.styleKey || ""))
+    ? String(body.styleKey)
+    : "aurora";
+  const motionSpeed = option(
+    body.motionSpeed,
+    ["gentle", "balanced", "energetic"] as const,
+    "balanced",
+  );
+  const glowStrength = option(
+    body.glowStrength,
+    ["soft", "balanced", "strong"] as const,
+    "balanced",
+  );
+  const surfaceDensity = option(
+    body.surfaceDensity,
+    ["transparent", "balanced", "rich"] as const,
+    "balanced",
+  );
   const limits = getMotionEffectLimits();
 
   if (!originalFilename || !isSupportedVideoContentType(contentType)) {
@@ -157,12 +189,17 @@ export async function POST(req: Request) {
       queue_driver: queue.driver,
       queue_topic: queue.topic,
       queue_consumer_group: queue.consumerGroup,
+      style_key: styleKey,
       metadata: {
         content_type: contentType,
         duration_seconds: durationSeconds > 0 ? durationSeconds : null,
         retention_hours: 24,
         watermark: "教链",
         topology: "same_finger_dynamic_closed_prism",
+        style_key: styleKey,
+        motion_speed: motionSpeed,
+        glow_strength: glowStrength,
+        surface_density: surfaceDensity,
       },
       expires_at: expiresAt,
     })

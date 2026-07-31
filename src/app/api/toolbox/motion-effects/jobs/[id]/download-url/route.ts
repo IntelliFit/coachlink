@@ -13,6 +13,15 @@ import type { MotionEffectDownloadUrlDto } from "../../../types";
 export const runtime = "nodejs";
 const db = serviceRoleSupabase as any;
 
+function publicBaseUrl(req: Request) {
+  const host =
+    req.headers.get("x-forwarded-host") || req.headers.get("host") || "";
+  const proto =
+    req.headers.get("x-forwarded-proto") ||
+    (host.includes("localhost") ? "http" : "https");
+  return `${proto}://${host}`;
+}
+
 export async function POST(
   req: Request,
   context: { params: Promise<{ id: string }> },
@@ -52,10 +61,11 @@ export async function POST(
     current.user_id,
     expires,
   );
+  const baseUrl = publicBaseUrl(req);
   const tokenizedUrl = downloadToken
     ? new URL(
         `${proxyUrl}?expires=${expires}&token=${encodeURIComponent(downloadToken)}`,
-        req.url,
+        baseUrl,
       ).toString()
     : "";
   const { data: signed } = await db.storage
@@ -66,7 +76,7 @@ export async function POST(
   return NextResponse.json<ApiData<MotionEffectDownloadUrlDto>>({
     success: true,
     data: {
-      url: tokenizedUrl || signed?.signedUrl || new URL(proxyUrl, req.url).toString(),
+      url: tokenizedUrl || signed?.signedUrl || new URL(proxyUrl, baseUrl).toString(),
       proxyUrl,
       signedUrl: signed?.signedUrl,
       expiresInSeconds,

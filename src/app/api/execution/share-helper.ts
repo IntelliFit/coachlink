@@ -10,6 +10,7 @@ const SHARE_SELECT_FIELDS = `
     day_index,
     status,
     action_executions,
+    share_token,
     total_sets,
     completed_sets,
     session_notes,

@@ -10,6 +10,7 @@ import { addPublicToMyLib, listPublicActions } from '@/services/actionLibPageSer
 import { buildPublicTrainingSharePath } from '@/utils/share'
 import { svgToDataUri } from '@/utils/svgToDataUri'
 import { formatKgValueForGym } from '@/utils/weightQuantize'
+import { buildPlannedSetPreviews } from '@/utils/planSetPrescriptions'
 import {
   readTrainingExecutionSnapshot,
   syncTrainingExecutionToStorage,
@@ -20,13 +21,19 @@ import maleBackSvgRaw from '@/assets/body-map/maleBackSvg'
 import './index.scss'
 import { useTheme } from '@/hooks/useTheme'
 import { useSharePoster } from '@/hooks/useSharePoster'
-import { resolveCanvasImageSrc } from '@/utils/weapp-canvas-image'
 import {
   ACTION_PICKER_EQUIPMENT_FILTERS,
   ACTION_PICKER_MUSCLE_FILTERS,
   getActionPickerSearchText,
   matchesActionPickerFilter
 } from '@/utils/actionPickerFilters'
+import {
+  drawWorkoutPoster,
+  formatWorkoutPosterDateLabel,
+  WORKOUT_POSTER_MIN_HEIGHT,
+  WORKOUT_POSTER_WIDTH,
+  type WorkoutPosterData
+} from './workoutPoster'
 
 const RETURN_CONFIRM_STORAGE_KEY = 'today_training_last_confirmed_day'
 const EXECUTION_LOAD_TIMEOUT_MS = 30000
@@ -37,10 +44,8 @@ const ROUTE_PARAM_STORAGE_KEY = 'training_execution_last_route_params_v1'
 const WEIGHT_STEP_KG = 2.5
 const REPS_STEP = 1
 const WORKOUT_POSTER_CANVAS_ID = 'workout-share-poster-canvas'
-const WORKOUT_POSTER_WIDTH = 750
-const WORKOUT_POSTER_HEIGHT = 1184
 
-const MUSCLE_FILL_ORIGIN_STYLE = 'fill:#222222'
+const MUSCLE_FILL_ORIGIN_STYLE = 'fill:#D5D9D5'
 const MUSCLE_FILL_HIGHLIGHT_STYLE = 'fill:#CF6D4E'
 
 const SUMMARY_MUSCLE_TO_SVG_CATEGORIES: Record<string, string[]> = {
@@ -83,6 +88,9 @@ interface SetData {
   status: 'pending' | 'completed' | 'skipped'
   planned_reps?: string
   planned_weight?: string
+  planned_intensity?: string
+  planned_target_type?: string | null
+  planned_target_unit?: string | null
   planned_rest_seconds?: number
   actual_weight?: number
   actual_reps?: number
@@ -116,30 +124,6 @@ interface ActionExecution {
   sets: SetData[]
   total_sets: number
   completed_sets: number
-}
-
-interface WorkoutPosterActionRow {
-  id: string
-  name: string
-  setsCount: number
-  volume: number
-}
-
-interface WorkoutPosterMuscleRow {
-  label: string
-  score: number
-}
-
-interface WorkoutPosterData {
-  title: string
-  subtitle: string
-  totalVolume: number
-  completedSetTotal: number
-  durationMin: number
-  muscles: WorkoutPosterMuscleRow[]
-  actionRows: WorkoutPosterActionRow[]
-  frontBodyMap: string
-  backBodyMap: string
 }
 
 type PickerActionSource = 'mine' | 'public'
@@ -241,6 +225,16 @@ function getSetRestDefault(set?: SetData | null): number | null {
   return Number.isFinite(rest) && rest > 0 ? Math.round(rest) : null
 }
 
+function formatPlannedRepsText(set?: SetData | null): string {
+  const value = String(set?.planned_reps || '').trim()
+  if (!value) return ''
+  const targetType = String(set?.planned_target_type || '').trim().toLowerCase()
+  if (targetType === 'time' || targetType === 'distance' || targetType === 'amrap' || targetType === 'reps_max') {
+    return value
+  }
+  return `${value}次`
+}
+
 function buildInheritedExtraSet(sourceSet?: SetData | null): SetData {
   const inheritedWeight = getSetWeightDefault(sourceSet)
   const inheritedReps = getSetRepsDefault(sourceSet)
@@ -311,7 +305,7 @@ function highlightSvgCategories(svg: string, selectedParts: string[]) {
 
   let result = svg
     .replace(/fill:#fff/gi, MUSCLE_FILL_ORIGIN_STYLE)
-    .replace(/fill="#fff"/gi, 'fill="#222222"')
+    .replace(/fill="#fff"/gi, 'fill="#D5D9D5"')
 
   dataNamesToHighlight.forEach((dataName) => {
     const regex = new RegExp(`(<g[^>]*data-name="${dataName}"[^>]*>)([\\s\\S]*?)(</g>)`, 'g')
@@ -343,131 +337,6 @@ function inferMusclesForAction(actionExecution: ActionExecution, actionDetail: a
     .map((rule) => rule.label)
 
   return Array.from(new Set([...directPositions, ...inferred])).slice(0, 3)
-}
-
-function drawPosterRoundedRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
-  const radius = Math.min(r, w / 2, h / 2)
-  ctx.beginPath()
-  ctx.moveTo(x + radius, y)
-  ctx.arcTo(x + w, y, x + w, y + h, radius)
-  ctx.arcTo(x + w, y + h, x, y + h, radius)
-  ctx.arcTo(x, y + h, x, y, radius)
-  ctx.arcTo(x, y, x + w, y, radius)
-  ctx.closePath()
-}
-
-function posterText(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, maxWidth: number) {
-  const source = String(text || '')
-  let current = source
-  while (current.length > 0 && ctx.measureText(current).width > maxWidth) {
-    current = current.slice(0, -1)
-  }
-  ctx.fillText(current.length < source.length ? `${current.slice(0, Math.max(0, current.length - 1))}…` : current, x, y)
-}
-
-async function loadPosterImage(canvas: HTMLCanvasElement, src: string): Promise<CanvasImageSource | null> {
-  if (!src) return null
-  try {
-    const localSrc = await resolveCanvasImageSrc(src)
-    if (typeof (canvas as any).createImage !== 'function') return null
-    const image = (canvas as any).createImage()
-    await new Promise<void>((resolve, reject) => {
-      image.onload = () => resolve()
-      image.onerror = () => reject(new Error('poster image load failed'))
-      image.src = localSrc
-    })
-    return image as CanvasImageSource
-  } catch (error) {
-    console.warn('[training-execution] workout poster image load failed', error)
-    return null
-  }
-}
-
-async function drawWorkoutPoster(ctx: CanvasRenderingContext2D, data: WorkoutPosterData, canvas: HTMLCanvasElement) {
-  const dpr = 2
-  canvas.width = WORKOUT_POSTER_WIDTH * dpr
-  canvas.height = WORKOUT_POSTER_HEIGHT * dpr
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
-
-  ctx.fillStyle = '#f6f3ef'
-  ctx.fillRect(0, 0, WORKOUT_POSTER_WIDTH, WORKOUT_POSTER_HEIGHT)
-
-  drawPosterRoundedRect(ctx, 40, 40, 670, 1104, 32)
-  ctx.fillStyle = '#ffffff'
-  ctx.fill()
-
-  ctx.fillStyle = '#cf6d4e'
-  ctx.font = 'bold 22px sans-serif'
-  ctx.fillText('TRAINING COMPLETE', 72, 100)
-  ctx.fillStyle = '#111827'
-  ctx.font = 'bold 46px sans-serif'
-  posterText(ctx, data.title || '训练完成', 72, 156, 440)
-  ctx.fillStyle = '#6b7280'
-  ctx.font = '24px sans-serif'
-  posterText(ctx, data.subtitle || 'CoachLink 训练记录', 72, 196, 520)
-
-  const frontImage = await loadPosterImage(canvas, data.frontBodyMap)
-  const backImage = await loadPosterImage(canvas, data.backBodyMap)
-  if (frontImage) ctx.drawImage(frontImage, 128, 236, 174, 260)
-  if (backImage) ctx.drawImage(backImage, 448, 236, 174, 260)
-  ctx.fillStyle = '#6b7280'
-  ctx.font = '22px sans-serif'
-  ctx.fillText('正面', 192, 528)
-  ctx.fillText('背面', 512, 528)
-
-  const stats = [
-    { label: '总容量', value: `${Math.round(data.totalVolume || 0)}kg` },
-    { label: '完成组数', value: `${data.completedSetTotal || 0}组` },
-    { label: '训练时长', value: data.durationMin > 0 ? `${data.durationMin}分钟` : '-' }
-  ]
-  stats.forEach((stat, index) => {
-    const x = 72 + index * 208
-    drawPosterRoundedRect(ctx, x, 576, 182, 124, 24)
-    ctx.fillStyle = index === 0 ? '#fff7ed' : '#f9fafb'
-    ctx.fill()
-    ctx.fillStyle = '#111827'
-    ctx.font = 'bold 34px sans-serif'
-    posterText(ctx, stat.value, x + 20, 626, 142)
-    ctx.fillStyle = '#6b7280'
-    ctx.font = '22px sans-serif'
-    ctx.fillText(stat.label, x + 20, 666)
-  })
-
-  const muscles = data.muscles.length > 0 ? data.muscles.slice(0, 5) : [{ label: '全身', score: 1 }]
-  const maxScore = Math.max(1, ...muscles.map((item) => item.score || 0))
-  muscles.forEach((item, index) => {
-    const y = 750 + index * 44
-    ctx.fillStyle = '#374151'
-    ctx.font = 'bold 24px sans-serif'
-    ctx.fillText(item.label, 72, y)
-    drawPosterRoundedRect(ctx, 168, y - 22, 510, 16, 8)
-    ctx.fillStyle = '#f1eee9'
-    ctx.fill()
-    drawPosterRoundedRect(ctx, 168, y - 22, Math.max(48, Math.round(((item.score || 0) / maxScore) * 510)), 16, 8)
-    ctx.fillStyle = '#cf6d4e'
-    ctx.fill()
-  })
-
-  const actionStartY = 986
-  ctx.fillStyle = '#111827'
-  ctx.font = 'bold 28px sans-serif'
-  ctx.fillText('训练明细', 72, actionStartY)
-  data.actionRows.slice(0, 4).forEach((item, index) => {
-    const y = actionStartY + 54 + index * 44
-    ctx.fillStyle = '#111827'
-    ctx.font = 'bold 24px sans-serif'
-    posterText(ctx, item.name, 72, y, 390)
-    ctx.fillStyle = '#6b7280'
-    ctx.font = '22px sans-serif'
-    ctx.fillText(`${item.setsCount}组 · ${Math.round(item.volume)}kg`, 536, y)
-  })
-
-  ctx.fillStyle = '#cf6d4e'
-  ctx.font = 'bold 22px sans-serif'
-  ctx.fillText('COACHLINK', 72, 1112)
-  ctx.fillStyle = '#9ca3af'
-  ctx.font = '20px sans-serif'
-  ctx.fillText('训练完成后，留下这一张就够了。', 414, 1112)
 }
 
 function TrainingExecution() {
@@ -556,7 +425,8 @@ function TrainingExecution() {
   const suppressAutoRefreshUntilRef = React.useRef(0)
   const restTimerDeadlineAtRef = React.useRef(0)
 
-  const userId = authService.getCurrentUser()?.id
+  const currentUser = authService.getCurrentUser() || {}
+  const userId = currentUser?.id
 
   const shouldAskCoachFeedback = React.useMemo(() => {
     if (isImpromptuMode || !planInstance) return false
@@ -855,51 +725,8 @@ function TrainingExecution() {
       const actionExecutions: ActionExecution[] = actionSets.map((item: any, actionIdx: number) => {
         const actionId = String(item?.action_id || item?.actionId || '')
         const actionDetail = actionMap[actionId] || {}
-        const params = item?.params || {}
-        const rawSetCount = Number(params['组数'] ?? item?.sets ?? 1)
-        const setCount = Number.isFinite(rawSetCount) && rawSetCount > 0 ? Math.max(1, Math.floor(rawSetCount)) : 1
-        const rawLoad = params?.load
-        let plannedWeight = ''
-        if (rawLoad !== null && rawLoad !== undefined && String(rawLoad).trim() !== '') {
-          const directLoad = Number(rawLoad)
-          const parsedLoad = Number.isFinite(directLoad)
-            ? directLoad
-            : (() => {
-                const matched = String(rawLoad).match(/-?\d+(\.\d+)?/)
-                if (!matched) return NaN
-                return Number(matched[0])
-              })()
-
-          if (Number.isFinite(parsedLoad)) {
-            if (parsedLoad < 0) {
-              plannedWeight = `辅助${formatKgValueForGym(Math.abs(parsedLoad))}kg`
-            } else if (parsedLoad > 0) {
-              plannedWeight = `${formatKgValueForGym(parsedLoad)}kg`
-            }
-          }
-        }
-
-        // Do not fallback to legacy "item.weight" to avoid stale action-library values overriding plan load.
-        if (!plannedWeight) {
-          const intensity = Number(params?.['强度'] ?? item?.intensity)
-          if (Number.isFinite(intensity) && intensity > 0) {
-            plannedWeight = `${String(intensity).replace(/\.0+$/, '')}RM`
-          }
-        }
-        const plannedReps = String(params?.['次数'] ?? item?.reps ?? '').trim()
         const actionName = String(actionDetail?.name || item?.action_name || item?.set_name || '动作')
-
-        const sets: SetData[] = Array.from({ length: setCount }).map((_, setIdx) => ({
-          set_number: setIdx + 1,
-          status: 'pending',
-          planned_weight: plannedWeight,
-          planned_reps: plannedReps,
-          planned_rest_seconds: (() => {
-            const rawRest = params?.['休息时间'] ?? params?.rest_seconds ?? item?.rest_seconds
-            const restSeconds = Number(rawRest)
-            return Number.isFinite(restSeconds) && restSeconds > 0 ? restSeconds : undefined
-          })()
-        }))
+        const sets: SetData[] = buildPlannedSetPreviews(item)
 
         return {
           action_id: actionId || `${actionIdx}`,
@@ -2354,7 +2181,11 @@ function TrainingExecution() {
   const currentActionType = String(actions?.[currentAction?.action_id]?.type || 'STRENGTH').toUpperCase()
   const currentActionMeta = getActionTypeMeta(currentActionType)
   const currentPlannedSummary = currentSet
-    ? [currentSet.planned_weight || null, currentSet.planned_reps ? `${currentSet.planned_reps}次` : null].filter(Boolean).join(' × ')
+    ? [
+        currentSet.planned_weight || null,
+        formatPlannedRepsText(currentSet) || null,
+        currentSet.planned_intensity || null
+      ].filter(Boolean).join(' · ')
     : ''
   const heroSubtitle = planTitle && currentActionName && planTitle === currentActionName
     ? currentPlannedSummary || '按计划完成本组'
@@ -2392,6 +2223,38 @@ function TrainingExecution() {
         name: action.action_name || detail?.name || '动作',
         setsCount: completed.length,
         volume: actionVolume,
+        sets: completed.map((set: SetData, setIndex: number) => {
+          const hasActualWeight =
+            set.actual_weight !== null &&
+            set.actual_weight !== undefined &&
+            Number.isFinite(Number(set.actual_weight))
+          const actualWeight = hasActualWeight ? Number(set.actual_weight) : null
+          const plannedWeight = String(set.planned_weight || '').trim()
+          const plannedWeightNumber = isConcreteWeightValue(plannedWeight)
+            ? parseFirstNumber(plannedWeight)
+            : null
+          const weightText = actualWeight !== null
+            ? actualWeight > 0
+              ? `${formatKgValueForGym(actualWeight)}kg`
+              : '自重'
+            : plannedWeightNumber !== null
+              ? `${formatKgValueForGym(plannedWeightNumber)}kg`
+              : plannedWeight || '自重'
+          const hasActualReps =
+            set.actual_reps !== null &&
+            set.actual_reps !== undefined &&
+            Number.isFinite(Number(set.actual_reps))
+          const repsText = hasActualReps
+            ? String(Math.max(0, Math.round(Number(set.actual_reps))))
+            : String(set.planned_reps || '完成').trim()
+
+          return {
+            setNumber: Number(set.set_number || set.set_index || setIndex + 1),
+            weightText,
+            repsText,
+            isPr: !!set.is_pr
+          }
+        }),
         muscles
       }
     }).filter((item) => item.setsCount > 0)
@@ -2419,22 +2282,36 @@ function TrainingExecution() {
   const workoutSummaryMaxScore = Math.max(1, ...workoutSummary.muscles.map((item) => item.score))
   const isWorkoutCompleted = String(execution?.status || '').toLowerCase() === 'completed' || !!execution?.completed_at
   const canOpenWorkoutSummary = isWorkoutCompleted && workoutSummary.completedSetTotal > 0
+  const posterNickname = String(currentUser?.nickname || currentUser?.name || '训练者').trim() || '训练者'
+  const posterAvatarUrl = String(
+    currentUser?.avatar_url || currentUser?.avatarUrl || currentUser?.image || ''
+  ).trim()
   const workoutPosterData = React.useMemo<WorkoutPosterData>(() => ({
+    dateLabel: formatWorkoutPosterDateLabel(execution?.completed_at || execution?.started_at),
+    nickname: posterNickname,
+    trainingDaysLabel: '本次训练已完成',
+    avatarUrl: posterAvatarUrl,
     title: planTitle || '训练完成',
-    subtitle: `${isImpromptuMode ? '即兴锻炼' : `第${dayIndex}天`} · ${workoutSummary.completedSetTotal}组完成`,
+    subtitle: isImpromptuMode ? '即兴锻炼' : `训练计划 · 第 ${dayIndex} 天`,
     totalVolume: workoutSummary.totalVolume,
     completedSetTotal: workoutSummary.completedSetTotal,
     durationMin: workoutSummary.durationMin,
     muscles: workoutSummary.muscles,
     actionRows: workoutSummary.actionRows,
     frontBodyMap: heatmapFrontSvg,
-    backBodyMap: heatmapBackSvg
+    backBodyMap: heatmapBackSvg,
+    shareUrl: 'https://coachlink.fit',
+    shareMode: 'brand'
   }), [
     dayIndex,
+    execution?.completed_at,
+    execution?.started_at,
     heatmapBackSvg,
     heatmapFrontSvg,
     isImpromptuMode,
     planTitle,
+    posterAvatarUrl,
+    posterNickname,
     workoutSummary.actionRows,
     workoutSummary.completedSetTotal,
     workoutSummary.durationMin,
@@ -2485,8 +2362,40 @@ function TrainingExecution() {
     }
 
     Taro.showLoading({ title: '生成分享图' })
+    let enhancedPosterData = workoutPosterData
+    if (!isImpromptuMode && execution?.id && !String(execution.id).startsWith('preview-')) {
+      try {
+        const shareInfo = await executionService.getShareInfo(String(execution.id))
+        if (shareInfo) {
+          const shareToken = String(shareInfo.shareToken || '').trim()
+          const monthlyTrainingDays = Array.isArray(shareInfo.monthlyTrainingDays)
+            ? shareInfo.monthlyTrainingDays.length
+            : 0
+          enhancedPosterData = {
+            ...workoutPosterData,
+            dateLabel: formatWorkoutPosterDateLabel(
+              shareInfo.completedAt || execution?.completed_at || execution?.started_at
+            ),
+            nickname: String(shareInfo.user?.nickname || workoutPosterData.nickname).trim() || workoutPosterData.nickname,
+            avatarUrl: String(shareInfo.user?.avatarUrl || workoutPosterData.avatarUrl).trim(),
+            trainingDaysLabel: monthlyTrainingDays > 0
+              ? `本月训练 ${monthlyTrainingDays} 天`
+              : workoutPosterData.trainingDaysLabel,
+            title: String(shareInfo.planName || workoutPosterData.title).trim() || workoutPosterData.title,
+            subtitle: `训练计划 · 第 ${Number(shareInfo.dayIndex || dayIndex)} 天`,
+            shareUrl: shareToken
+              ? `https://coachlink.fit/public/training/${encodeURIComponent(shareToken)}`
+              : workoutPosterData.shareUrl,
+            shareMode: shareToken ? 'record' : 'brand'
+          }
+        }
+      } catch (error) {
+        console.warn('[training-execution] workout share info unavailable, using local poster data', error)
+      }
+    }
+
     // 临时图片路径可能被微信清理；每次操作都重新导出并持久化，不复用旧路径。
-    const imagePath = await generateWorkoutPoster(workoutPosterData)
+    const imagePath = await generateWorkoutPoster(enhancedPosterData)
     Taro.hideLoading()
     if (!imagePath) return
 
@@ -2543,7 +2452,12 @@ function TrainingExecution() {
     })
   }, [
     canOpenWorkoutSummary,
+    dayIndex,
+    execution?.completed_at,
+    execution?.id,
+    execution?.started_at,
     generateWorkoutPoster,
+    isImpromptuMode,
     saveWorkoutPosterImage,
     workoutPosterData
   ])
@@ -2645,7 +2559,8 @@ function TrainingExecution() {
               const actionSummary = isStrength
                 ? [
                     firstSet?.planned_weight || null,
-                    firstSet?.planned_reps ? `${firstSet.planned_reps}次` : null,
+                    formatPlannedRepsText(firstSet) || null,
+                    firstSet?.planned_intensity || null,
                     formatRestSummary(firstSet?.planned_rest_seconds)
                   ].filter(Boolean).join(' · ')
                 : actionMeta.cue
@@ -2724,8 +2639,12 @@ function TrainingExecution() {
                             const showSetForm = isCurrentSet && !isReadOnly && (!isCompletedSet || isEditingThisSet)
                             const setDraft = setDrafts[setKey]
                             const plannedWeightText = String(set.planned_weight || '').trim()
-                            const plannedRepsText = String(set.planned_reps || '').trim() ? `${set.planned_reps}次` : ''
-                            const plannedSummary = [plannedWeightText || null, plannedRepsText || null].filter(Boolean).join(' × ')
+                            const plannedRepsText = formatPlannedRepsText(set)
+                            const plannedSummary = [
+                              plannedWeightText || null,
+                              plannedRepsText || null,
+                              set.planned_intensity || null
+                            ].filter(Boolean).join(' · ')
                             const actualSummary = [
                               set.actual_weight !== null && set.actual_weight !== undefined ? `${set.actual_weight}kg` : null,
                               set.actual_reps !== null && set.actual_reps !== undefined ? `${set.actual_reps}次` : null,
@@ -3347,7 +3266,7 @@ function TrainingExecution() {
           id={WORKOUT_POSTER_CANVAS_ID}
           type="2d"
           className="workout-poster-canvas"
-          style={{ width: `${WORKOUT_POSTER_WIDTH}px`, height: `${WORKOUT_POSTER_HEIGHT}px` }}
+          style={{ width: `${WORKOUT_POSTER_WIDTH}px`, height: `${WORKOUT_POSTER_MIN_HEIGHT}px` }}
         />
       </View>
 

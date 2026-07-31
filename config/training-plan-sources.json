@@ -85,7 +85,7 @@
       "entryUrl": "https://www.catalystathletics.com/olympic-weightlifting-workouts/training-programs/",
       "acquisitionMode": "mixed_free_and_paid_metadata",
       "rightsMode": "review_before_republication",
-      "enabled": false,
+      "enabled": true,
       "notes": "79 个计划多数付费；可收公开目录、免费计划和每日训练链接，付费计划只收元数据。"
     },
     {
@@ -107,7 +107,7 @@
       "entryUrl": "https://www.crossfit.com/workout/",
       "acquisitionMode": "public_daily_catalog",
       "rightsMode": "review_before_republication",
-      "enabled": false,
+      "enabled": true,
       "notes": "每日 WOD 数量大；先收日期、标题、动作摘要与原始链接，公开发布前复核商标与内容授权。"
     },
     {

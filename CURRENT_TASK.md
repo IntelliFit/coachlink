@@ -1,3 +1,37 @@
+## 微信小程序手指光膜实时拍摄模式 (`2026-07-31`)
+
+- Status: 按用户确认的混合方案完成小程序实现；未提交、未部署、未上传体验版。
+- Product flow: `/toolbox/motion-effects/index` 默认进入“实时拍摄”，也保留“相册上传”。相机上方即时显示手部关键点与同名伸展手指之间的轻量光膜；录像只保存干净原片，停止后自动生成 `jiaolian-finger-live-<timestamp>.mp4`、读取时长/大小并复用现有上传与服务端高清渲染链路。
+- On-device tracking: 采用微信 VisionKit `VKSession.detectHand` 静态帧模式配合 `CameraContext.onCameraFrame`，约 120ms 节流，输出 OpenPose 21 点；前摄坐标镜像、aspect-fill 裁剪、关键点平滑、手指伸展评分和 1–5 对动态拓扑都在小程序本机执行，实时帧不上传。
+- Compatibility: VisionKit、相机帧或设备能力不可用时只关闭实时光膜并显示兼容提示，原片录制和服务器生成仍可用，不会让任务卡死。录制上限 30 秒，前后摄可切换。
+- Style parity: 既有 8 种风格、动态节奏、边缘光强度和膜面浓度仍在；风格配色、光强和膜面浓度会实时反映到相机预览，全部参数继续进入 API / Worker / Python 高清成片。
+- Verification: `npm run lint`、`npm run typecheck`、`npm test`（36 files / 180 tests）通过，小程序完整构建产物已刷新。微信开发者工具确认 8 个风格卡、2 个来源模式、默认实时相机、录制按钮和相册模式来回切换均存在，运行时错误日志为 0。
+- Verification boundary: 微信开发者工具自动化截图接口持续 `timeout waiting for automator response`，且模拟器无法替代真实手机相机验证 VisionKit 手部帧，因此实时光膜贴合度和 30 秒真机录制仍需真机短测；代码有明确降级路径。
+- Next: 真机打开体验版做一条 5–10 秒双手录制，确认前摄镜像、关键点贴合和录后上传后，再决定是否上传新的体验版/提审。
+
+## 微信小程序训练打卡分享图对标训记 (`2026-07-31`)
+
+- Status: 用户确认 V1 视觉方向后，新版微信小程序训练分享长图已完成实现与开发者工具验收；未提交、未发布。
+- Confirmed direction: 打卡图应从“训练结束操作弹窗”升级为可脱离 App 独立阅读的训练成绩单；学习训记的信息层级，不照搬其紫色视觉皮肤。
+- Poster content: 暖灰纸张底、白色分区卡、品牌橙重点色；顺序为日期与身份、计划标题、正反面肌群热区、总容量/完成组数/训练时长、逐动作逐组重量与次数、二维码与品牌召回。
+- Data rules: 二维码是每张海报的必备元素；已持久化的计划训练使用真实 `share_token` 指向脱敏公开详情，其余情况指向 `https://coachlink.fit`，并分别使用“查看本次记录”或“进入教链”的准确文案。不展示没有可靠模型的卡路里；训练天数使用服务端真实月训练天数，不伪造成连续打卡。
+- Compatibility: 海报动作最多完整展示 8 个，超出时显示剩余数量；只有记录二维码才提示扫码查看完整记录。
+- UI fix: 浅色训练完成弹窗的 `.summary-stat-value` 已纳入深色文字覆盖，三个统计值不再白底不可见。
+- Verification: 本地快照在微信开发者工具中打开 9 组、2210kg、48 分钟的已完成训练，成功点击“生成并分享”、导出并预览带二维码长图，错误日志为 0；最终截图为 `artifacts/weapp-verification/checkin-poster-generated-with-qr-v3.png`，二维码经 OpenCV 实际解码为 `https://coachlink.fit`。模拟登录、训练快照和开发者工具临时海报均已清理，未写真实数据库。
+- Checks: `npm run lint`、`npm run typecheck`、`npm test`（36 files / 180 tests）、`npm run build`（527 static pages）及 `npm --workspace apps/wechat run build:weapp` 均通过。
+- Next: 等用户查看带二维码的实际生成图后按反馈微调字号、留白或品牌收尾；如需验证记录深链，可再用一条真实已完成的计划训练做登录态扫码验收。
+
+## 知识库三分区与 200 套训练计划候选 (`2026-07-31`)
+
+- Status: Web 与微信小程序改造完成；200 条来源索引和内部草稿导入包已生成。根 TypeScript、36 个测试文件 / 180 项测试、Next 527 页生产构建和微信小程序 2844 模块完整构建通过。
+- Information architecture: 知识库首页收敛为 `训练计划 / 精选好文 / 书籍笔记` 三个一级内容区；移除首页原有的建设提示、精选专题、快捷标签和 AI 悬浮入口等额外层级，保留统一搜索。
+- Coach content: 教练通过 `coach_contents` 发布的已审核文字内容由 `/api/public/articles/list` 以摘要方式汇入“精选好文”，精选内容优先排序；Web 与小程序文章页同步改名为“精选好文”。
+- Training plan catalog: 从 Boostcamp 631 条可转换公开候选中按质量和类别配额选出 200 条，类别为力量增肌 58、肌肥大 38、力量 28、运动表现 24、女性训练 20、自重 20、奥举 12。部署目录 `src/data/curatedTrainingPlanReferences.json` 只包含事实元数据、作者和来源链接。
+- Rights boundary: 200 条第三方计划在知识库中以 `reference` 来源索引展示，明确不可复制；Web 跳转原出处，小程序说明权利边界后复制来源链接。CoachLink 自有 `published` 模板仍可查看和加入。未把第三方完整处方写入公开模板表。
+- Internal curation: `scripts/select-training-plan-candidates.mjs` 可重复生成选品结果；git 忽略目录 `artifacts/training-plan-corpus/curated-200/` 含人工审核 CSV、结构化元数据和 200 套 `draft` 导入包。草稿基础结构校验为 200/200 通过，正式发布前仍需权利、中文动作和周期进阶复核。
+- New pages: Web 新增 `/dashboard/knowledge/training-plans`；微信小程序新增 `/content/knowledge/plans/index`，均支持搜索、水平筛选和分页/加载更多。
+- Verification: `git diff --check`、`npm run lint`、`npm run typecheck`、`npm test`、`npm run build`、`npm --workspace apps/wechat run build:weapp` 均通过。按用户长期偏好未运行浏览器或微信开发者工具人工 UI 验证。
+
 ## Web / 微信小程序 / APP 注册资料延后补充 (`2026-07-31`)
 
 - Status: 三端实现与验证完成；根 TypeScript、移动 APP TypeScript、微信小程序完整构建、183 项单测与 Next 527 页生产构建均已通过，本次提交同步至 `dev`。
@@ -8922,3 +8956,65 @@
 - Rejected: 未合入实习生旧提交 `dd2e1995` 的“输出文件不得大于输入文件”方案。该实现与现行会员原画/压缩策略冲突，而且没有二次产物大小校验，重新编码路径还可能破坏音频。
 - Verification: `git diff --check`、`npm run lint`、`npm run typecheck`、`npm test`（35 files / 177 tests）、`npx next build`（522 pages）、`npm --workspace apps/mobile run typecheck` 与微信小程序完整构建（2835 modules）均通过，未修改测试文件。
 - UI blocker: 按 `weapp-devtools` 尝试启动开发者工具自动化，微信 CLI 返回“需要重新登录”，未取得截图和交互证据；因此本轮不直接进入 `main`，也不写回飞书需求状态。
+
+## 微信小程序工具箱信息层级与 UI 微调 (`2026-07-31`)
+
+- Status: 已完成代码调整、构建和自动化交互验证，未提交或推送。
+- Information architecture: 移除“单手引体测算”的顶部“本周主推”大卡，将它放入“实用工具”列表，与功率视频分析、力量计算器、单杠位置和社区数据保持等权展示。
+- UI: 工具箱头部改为更紧凑的“工具箱”标题和功能摘要；保留 CoachLink 暖灰、深绿、品牌橙体系；体感小游戏继续使用双列卡片，实用工具改为统一的单列紧凑卡片，身体恢复保持原有图片卡片。
+- Verification: `git diff --check`、`npm run lint`、`npm run typecheck`、`npm test`（36 files / 180 tests）、`npx next build`（527 static pages）和微信小程序完整构建（2845 modules）均通过。
+- WeApp DevTools: 自动化确认新 `.toolbox-list` 存在、旧 `.featured-card` 不存在、5 个实用工具卡片均为 compact 样式；点击单手引体普通卡片可进入 `/toolbox/one-arm-pull-up/index`，运行错误日志为 0。开发者工具重新编译后的截图接口持续报 `timeout waiting for automator response`，因此未取得新版截图文件。
+
+## 手指光膜本地调试任务停在 10% 诊断 (`2026-07-31`)
+
+- Status: 已定位，任务并未卡死；本地页面通过 Apollo 生产配置提交到了线上 `coachlink-motion-effects-tasks-main`，由生产 Worker 处理。
+- Evidence: 当前任务为 60.6MB / 15.53 秒 V5 视频，12:13:02 被 Worker 领取并写入 `processing + progress=10`；约 10 分钟后才完成对象存储输入下载并启动 MediaPipe，随后进度从 10% 连续推进到 67%、82%、88%。生产 Web 3/3、Worker 1/1，Pod 零重启且渲染时约占 1.2–1.3 CPU 核、345–365MiB，无错误信息；线上工具页实测 HTTP 200。
+- Root cause: Worker 在领取任务时固定写入 10%，但下载原视频和初始化模型期间没有上报细分进度；Python 逐帧渲染开始后才继续输出进度。因此网络较慢或原片较大时，UI 会长时间看似停在 10%。
+- Local runtime gap: 当前 `npm run dev` 只自动启动 Web 与功率分析 Worker，没有启动 `motion-effects:worker`；若希望完全本地闭环，需要单独启动并配置手指光膜 Worker/队列，不能把“本地页面”误认为“本地渲染”。
+- Follow-up completed: 小程序已把原先笼统的 10% 状态拆成准备素材、识别绘制、合成视频、上传成片等用户可理解阶段；仍未改变 Worker 下载阶段的数据库心跳频率。
+- WeChat customization: 小程序补回 8 种视觉风格（极光流体、赛博霓虹、熔岩脉冲、糖果派对、冰晶折射、星云跃迁、翡翠能量、鎏金光幕），并新增动态节奏、边缘光强度、膜面浓度三组细节控制。API、任务元数据、Worker 与 Python 渲染器已端到端接通这些参数。
+- Preview/save fix: 成片完成后不再直接把远程下载接口交给 `<Video>`。小程序先下载完整文件，再复制为 `jiaolian-finger-vfx-<job>.mp4` 到 `USER_DATA_PATH`，预览和保存相册复用该本地 MP4；失败时保留任务完成态并提供重新加载，修复黑屏、0:00、无扩展名和 Windows 保存类型显示为 `file` 的问题。
+- Verification: Python 语法与 diff check、根 TypeScript、36 个测试文件 / 180 项测试、小程序 2845 模块完整构建通过。微信开发者工具实际显示 8 张风格卡与三组细节选项，点击赛博霓虹后选中态正确切换，错误日志为 0。5 秒本地样片以赛博霓虹 + 动感 + 高亮 + 浓郁实际渲染成功，输出 1080×1920 H.264/AAC MP4 且保留原音频。项目标准生产构建未完成：运行中的 Next 占用 `.next`，构建脚本清理时返回 `ENOTEMPTY`，且部分缓存被清理后页面短暂 500；已按标准 `scripts/start-dev.mjs` + Apollo bootstrap 重新启动 Web 与本地 Worker，`http://localhost:3000/toolbox/motion-effects` 最终回到 HTTP 200。
+- Release state: 本轮未部署、未提交、未推送，也未上传小程序体验版；新迁移尚未执行到数据库。
+## 微信小程序工具箱体感小游戏追踪与低延迟改造评估 (`2026-07-31`)
+
+- Status: 已完成代码级初步诊断，尚未修改业务代码。
+- Current implementation: `接住能量豆 / 引体冲刺 / 俯卧撑突围` 当前没有识别人体关键点，而是对微信相机相邻帧做灰度差分，取所有变化像素的加权重心；因此背景变化、衣服摆动和多个肢体同时运动都会干扰控制点。
+- Latency sources: 相机帧处理被限制为约每 72ms 一次，游戏状态每 64ms 更新一次，关键点替代值和玩家坐标又各做一次平滑；录制回放时还会复制整帧并合成，低端机更容易积累主线程压力。俯卧撑页的相机监听还会随 `dashActive` 变化重建，可能产生额外断帧。
+- Direction: 用户提出参考手指光膜的关键点追踪思路。结论是应改为设备端人体关键点追踪，但不能把实时相机帧发给服务器 Python；Python MediaPipe 适合上传视频/离线成片。实时小游戏优先验证设备端 Pose Landmarker Lite（或仅头部玩法使用更轻的人脸/头部检测），只输出游戏所需的鼻、肩、髋、腕等少量锚点，并采用最新帧优先、过期帧丢弃和轻量预测平滑。
+- Next: 若用户确认实施，先做一个共用 `BodyPointTracker` 技术样板和真机基准，再逐个替换三个小游戏；以端到端控制延迟、关键点稳定率和中低端机帧率决定小程序原生/WASM、WebView 或移动 App 原生方案。
+## 微信小程序体感小游戏低延迟身体追踪 (`2026-07-31`)
+
+- Status: 接豆派对、引体冲刺、俯卧撑突围三页已完成共享端侧追踪改造、玩法触发调整和界面文案清理；未提交、未部署、未上传体验版。
+- Tracking: 新增共享 `BodyPointTracker`。支持的真机优先使用微信 `createInferenceSession` 运行本地缓存的 MoveNet SinglePose Lightning ONNX，提取 17 个身体关键点并生成头肩/躯干锚点；模型不可用、开发者工具或旧环境自动降级为局部连续运动区域跟踪。
+- Latency: 相机帧只处理最新一帧，不积压历史推理；追踪约 58ms 节流，游戏循环由 64ms 改为 32ms，回放帧复制独立限制为 12fps，且减少二次平滑。引体与俯卧撑不再因游戏状态变化反复重建相机监听。
+- Gameplay: 引体用向上速度触发上冲；俯卧撑必须经过下压→撑起完整周期才推进；接豆角色跟随身体锚点。关键点与降级跟踪分别使用适配阈值。
+- Model delivery: Web 新增 `/api/toolbox/pose-model` 同域模型代理；小程序首次下载后保存到 `USER_DATA_PATH`，后续复用本地模型。来源与许可记录在 `docs/third-party/movenet.md`。
+- UI correction: 按用户反馈，三页不得展示“这一版改成……”“不再是……”等开发/提示词口吻；已删除镜头内大号玩法提示卡、控制台说明、试玩建议和技术阈值，只保留短标题、必要状态、动作标签与按钮。
+- Verification: `npm run lint`、`npm run typecheck`、`npm test`（36 files / 180 tests）、`npx next build`（528 static pages）及微信小程序 2847 模块完整构建均通过。开发者工具重载三页，错误日志均为 0；编译产物检索确认被删除文案不存在。
+- Verification boundary: 微信开发者工具自动化截图接口仍报 `timeout waiting for automator response`，且模拟器不支持真实端侧 ONNX/相机性能验证；最终跟踪速度、动作阈值和模型首次下载仍需真机短测。
+- Next: 真机分别试玩三页约 30 秒，重点观察低端机首次模型加载、引体误触发和俯卧撑完整周期漏判，再按实际数据微调阈值。
+
+## 精选 200 套训练计划执行就绪审计 (`2026-08-01`)
+
+- Status: 执行链路修复、草稿再生成、发布门禁和可清理端到端回归均已完成；200 套外部计划继续保持 `reference-only + draft`，未绕过授权/动作复核发布。
+- Action identity: 新增不会删除括号语义的严格动作身份键，杠铃/哑铃、暂停/常规、负重/自重等变体不再因旧的自由文本清洗规则折叠。复制已发布模板时，未匹配动作只创建学员个人动作，不再运行时污染全局 canonical 动作库；自动补充基础动作类型、属性和训练部位。
+- Prescription: 候选生成器与管理导入统一保留 `params.setPrescriptions`，逐组存储次数/时间/距离、RPE/百分比/RM、休息等；启动执行与小程序预览按组读取，不再把变化组压成斜杠字符串或把 RPE/自由文本伪装成 RM 重量。
+- Runtime: `execution/start` 已改为读取数据库真实列 `student_actions."includesBodyWeight"`；CARDIO/DIET/HABIT 在执行记录中按一个可完成项目建模，保留 `planned_rounds`，避免 `complete-item` 只能完成一项而进度永远无法结束。
+- Publication gate: 外部计划发布时强制检查授权状态、逐组处方数量、休息占位动作和标准动作库覆盖；当前 200 套会因授权待复核和 864 个严格动作身份未进入 canonical 库而被正确阻止发布。
+- Corpus audit: `training-plans:audit-200` 通过：200 套、200 条来源索引、5,523 个动作出现、16,214 条逐组处方、883 个待动作复核项（其中 19 个占位/组合动作标记），错误 0；来源索引仍全部 `canCopy=false`。
+- End-to-end: 新增 `training-plans:verify-pipeline`。使用全新空动作库测试学员完成 `知识库模板 → 加入我的计划 → 自动补 8 个个人动作 → 应用计划 → 启动 3 个动作/14 个执行项 → 完成首组`，随后在 `finally` 删除计划并清理测试用户/动作/实例/执行数据。
+- Verification: `npm run lint`、`npm run typecheck`、`npm test`（36 files / 180 tests）、`npm run test:e2e`（4/4）、`npx next build`（531 static pages）、微信小程序 2,851 模块完整构建均通过。微信开发者工具加载今日训练和训练执行路由，运行时错误日志为 0；会话未登录，数据型训练页验证到明确的缺少登录态降级。
+- Next: 逐条完成外部计划授权、864 个动作 canonical 映射/翻译和教练周期复核后，再分批把通过门禁的计划从草稿发布；当前代码不会允许未就绪计划误发布。
+
+## 书籍知识库扩充、思维导图与讨论区 (`2026-08-01`)
+
+- Status: Web / 微信小程序功能、内容工作区、评论迁移和导入脚本均已完成；用户已在 Supabase 后台手动执行评论迁移，167 条内容已导入当前 Apollo 指向的数据库；未提交、未部署。
+- Local inventory: 本地实体书库 30 个文件、约 23 本不重复书目、约 684 MiB；云盘书库 117 个文件、约 5.75 GiB，其中 112 个为按需下载占位文件，本轮未强制下载整批云文件。
+- Library size: 当前生成 26 个书籍集合、167 个可导入条目、167/167 带思维导图。24 本现代经典各含 1 篇全书导读 + 4 篇原创主题深读（120 条）；《黄帝内经》含总览、《素问》24 卷和《灵枢》12 卷（37 条）；既有《力量训练原理》保留 10 条。
+- Modern notes: 每篇主题深读包含核心概念、教练决策、训练前清单、最小实践、反馈指标、可验证微实验、常见误用、应用边界和讨论题；不复刻原书正文、插图、表格或完整专有模板。
+- Public domain: 《黄帝内经》从维基文库 MediaWiki API 同步公版古籍原文，只保留古籍原文、来源与版本边界，不抓现代翻译/注释；同步脚本带缓存、限速和 429 重试。
+- Product: Web 与小程序书籍详情支持阅读导航、要点、章节/整书思维导图、来源、引导问题和实际评论/回复/删除自己的评论；小程序新增全部书籍搜索与集合分组页。书籍列表上限提高到 1000，详情直接返回同集合章节，避免旧分页截断。
+- Data boundary: 只有评论必须新增最小独立表 `knowledge_book_comments`；迁移为 `20260801120000_knowledge_book_comments.sql`。内容继续放在 `knowledge_books.content` JSONB，无额外内容字段迁移。API 会移除本机绝对路径，导入脚本 dry-run 不加载远端配置，apply 时才按 `.env -> local/Apollo` 单源配置连接。
+- Verification: 数据库只读回查为 167/167 匹配、157 已发布、10 未发布、167 带思维导图、缺失 0、重复 0。全量 dry-run 为 26 集合 / 37 公版，未发现本机绝对路径。`git diff --check`、`npm run lint`、根 TypeScript、36 文件 / 180 单测通过；Web 531 页生产构建和微信小程序 2851 模块完整构建通过。按用户长期偏好未运行浏览器或微信开发者工具人工 UI 验证。
+- Next: 提交并部署 Web / 小程序代码后，由用户抽查书籍列表、详情思维导图和评论回复；10 条《力量训练原理》内容保持未发布，待内容确认后再发布。

@@ -1,0 +1,498 @@
+{
+  "format": "book-note-v4-classic-deep-read",
+  "noteStyle": "interpretive-reading-note",
+  "disclaimer": "本页为 CoachLink 原创导读与知识地图，不复制原书正文、插图、表格或完整训练模板，也不替代购买和阅读正版原书。",
+  "source": {
+    "title": "运动心理学（第7版）",
+    "authors": [
+      "Robert S. Weinberg",
+      "Daniel Gould"
+    ],
+    "originalFilePath": "local-library://sport-exercise-psychology-7e",
+    "copyrightMode": "interpretive-notes-only",
+    "collectionSlug": "sport-exercise-psychology-7e",
+    "collectionTitle": "《运动心理学（第7版）》原创深读笔记"
+  },
+  "notes": [
+    {
+      "slug": "overview",
+      "file": "notes/00-overview.md",
+      "noteType": "overview",
+      "chapterOrder": 0,
+      "chapterTitle": "深读入口",
+      "title": "《运动心理学（第7版）》深读入口：先建立全书地图，再决定怎么用",
+      "summary": "从动机、目标、注意、唤醒、自信、团队、沟通、运动坚持和心理技能训练等方面解释行为与表现。",
+      "sortOrder": 3210,
+      "author": "Robert S. Weinberg、Daniel Gould",
+      "isFree": true,
+      "isPublished": true,
+      "mindMap": {
+        "title": "《运动心理学（第7版）》全书知识地图",
+        "description": "这是 CoachLink 根据书籍主题绘制的原创导航图，不复制原书插图或版式。",
+        "data": [
+          {
+            "id": "root",
+            "title": "运动心理学（第7版）",
+            "node_type": "domain",
+            "children": [
+              {
+                "id": "question",
+                "title": "核心问题",
+                "description": "为什么知道该练仍不一定能坚持，教练又如何用目标、反馈、环境和心理技能支持长期行为与比赛表现？",
+                "node_type": "category"
+              },
+              {
+                "id": "framework-1",
+                "title": "动机、目标与坚持",
+                "node_type": "category"
+              },
+              {
+                "id": "framework-2",
+                "title": "唤醒、压力与注意控制",
+                "node_type": "category"
+              },
+              {
+                "id": "framework-3",
+                "title": "自信、意象与心理技能",
+                "node_type": "category"
+              },
+              {
+                "id": "framework-4",
+                "title": "团队、沟通与教练环境",
+                "node_type": "category"
+              },
+              {
+                "id": "boundary",
+                "title": "应用边界",
+                "description": "心理技能训练不等于心理治疗；持续情绪困扰、进食障碍、自伤风险等情况必须转介专业心理与医疗人员。",
+                "node_type": "category"
+              }
+            ]
+          }
+        ]
+      },
+      "readingGuide": {
+        "estimatedMinutes": 8,
+        "suitableFor": [
+          "关注运动心理的训练者",
+          "教练与知识库编辑",
+          "准备精读正版原书的读者"
+        ],
+        "goals": [
+          "掌握全书核心问题",
+          "看懂主题之间的关系",
+          "明确应用边界与复盘方法"
+        ],
+        "prerequisites": [
+          "本页不替代原书，也不提供原文件下载"
+        ]
+      },
+      "keyTakeaways": [
+        "动机、目标与坚持",
+        "唤醒、压力与注意控制",
+        "自信、意象与心理技能",
+        "团队、沟通与教练环境"
+      ],
+      "discussionPrompts": [
+        "这本书最可能改变你当前的哪一个训练决策？",
+        "哪一个观点高度依赖作者的目标人群或训练环境？",
+        "你会用什么训练数据判断它对自己是否有效？"
+      ],
+      "citations": [
+        {
+          "title": "书目：运动心理学（第7版）",
+          "note": "基于本地书目盘点建立原创导读；原始电子文件仅供内部研究，不上传、不公开下载。正式引用前应继续核对正版书的作者、版次、出版社与页码。",
+          "license": "interpretive-notes-only"
+        }
+      ]
+    },
+    {
+      "slug": "topic-01",
+      "file": "notes/01-topic.md",
+      "noteType": "chapter",
+      "chapterOrder": 1,
+      "chapterTitle": "动机、目标与坚持",
+      "title": "《运动心理学（第7版）》主题深读 1：动机、目标与坚持",
+      "summary": "动机是个人需要、成功预期、任务价值和周围环境持续互动的结果，并非固定性格。目标可以分为结果、表现和过程层次，其中可控制的过程行为最适合指导日常执行。 本页进一步给出教练决策、反馈记录、微实验和应用边界。",
+      "sortOrder": 3211,
+      "author": "Robert S. Weinberg、Daniel Gould",
+      "isFree": true,
+      "isPublished": true,
+      "mindMap": {
+        "title": "《运动心理学（第7版）》主题 1 · 动机、目标与坚持",
+        "description": "CoachLink 原创主题知识地图：概念、决策、验证、误区和边界放在同一张图里。",
+        "data": [
+          {
+            "id": "root",
+            "title": "动机、目标与坚持",
+            "node_type": "domain",
+            "children": [
+              {
+                "id": "concept",
+                "title": "核心概念",
+                "description": "动机是个人需要、成功预期、任务价值和周围环境持续互动的结果，并非固定性格。目标可以分为结果、表现和过程层次，其中可控制的过程行为最适合指导日常执行。",
+                "node_type": "category"
+              },
+              {
+                "id": "decision",
+                "title": "教练决策",
+                "description": "教练应通过共同选择、适度挑战和可见进步支持自主感、胜任感与归属感，再把长期愿望转成近期可观察行为。复盘时既看完成情况，也要识别时间、资源、情绪和环境障碍并调整计划。",
+                "node_type": "category"
+              },
+              {
+                "id": "practice",
+                "title": "最小实践",
+                "description": "把结果目标拆成过程行为",
+                "node_type": "category"
+              },
+              {
+                "id": "feedback",
+                "title": "记录与复盘",
+                "description": "先留基线，一次只改一个关键变量，再用结果和恢复信号判断。",
+                "node_type": "category"
+              },
+              {
+                "id": "pitfall",
+                "title": "常见误用",
+                "description": "长期依赖惩罚、比较榜单或外部奖励，可能削弱内在动机并让暂时失败演变成羞耻感。",
+                "node_type": "category"
+              },
+              {
+                "id": "boundary",
+                "title": "应用边界",
+                "description": "心理技能训练不等于心理治疗；持续情绪困扰、进食障碍、自伤风险等情况必须转介专业心理与医疗人员。",
+                "node_type": "category"
+              }
+            ]
+          }
+        ]
+      },
+      "readingGuide": {
+        "estimatedMinutes": 10,
+        "suitableFor": [
+          "正在学习运动心理的训练者",
+          "需要把理论转成计划的教练",
+          "愿意记录并复盘的读者"
+        ],
+        "goals": [
+          "说清核心概念",
+          "形成可执行决策",
+          "设计一次可验证的小实验"
+        ],
+        "prerequisites": [
+          "先阅读全书深读入口",
+          "本页不替代正版原书或专业诊疗"
+        ]
+      },
+      "keyTakeaways": [
+        "动机、目标与坚持",
+        "把结果目标拆成过程行为",
+        "一次只改变少量关键变量，并提前定义反馈信号",
+        "长期依赖惩罚、比较榜单或外部奖励，可能削弱内在动机并让暂时失败演变成羞耻感。"
+      ],
+      "discussionPrompts": [
+        "你当前最接近这个主题的真实问题是什么？",
+        "你会保留哪个变量不变，才看得出干预是否有效？",
+        "如果结果与书中框架不一致，你先检查数据、执行还是原始假设？"
+      ],
+      "citations": [
+        {
+          "title": "书目：运动心理学（第7版）",
+          "note": "本页为 CoachLink 原创解释性笔记；不复制原书正文、插图、表格或完整处方。正式学术或专业引用请回到正版书核对作者、版次、出版社和页码。",
+          "license": "interpretive-notes-only"
+        }
+      ]
+    },
+    {
+      "slug": "topic-02",
+      "file": "notes/02-topic.md",
+      "noteType": "chapter",
+      "chapterOrder": 2,
+      "chapterTitle": "唤醒、压力与注意控制",
+      "title": "《运动心理学（第7版）》主题深读 2：唤醒、压力与注意控制",
+      "summary": "唤醒描述身心激活程度，而压力反应取决于个体如何评估任务要求和自身资源。注意容量有限，并会在内部与外部、宽广与狭窄焦点之间随任务和压力切换。 本页进一步给出教练决策、反馈记录、微实验和应用边界。",
+      "sortOrder": 3212,
+      "author": "Robert S. Weinberg、Daniel Gould",
+      "isFree": true,
+      "isPublished": true,
+      "mindMap": {
+        "title": "《运动心理学（第7版）》主题 2 · 唤醒、压力与注意控制",
+        "description": "CoachLink 原创主题知识地图：概念、决策、验证、误区和边界放在同一张图里。",
+        "data": [
+          {
+            "id": "root",
+            "title": "唤醒、压力与注意控制",
+            "node_type": "domain",
+            "children": [
+              {
+                "id": "concept",
+                "title": "核心概念",
+                "description": "唤醒描述身心激活程度，而压力反应取决于个体如何评估任务要求和自身资源。注意容量有限，并会在内部与外部、宽广与狭窄焦点之间随任务和压力切换。",
+                "node_type": "category"
+              },
+              {
+                "id": "decision",
+                "title": "教练决策",
+                "description": "先找出运动者在不同任务中的有效激活区间和注意线索，再通过呼吸、赛前流程和情境模拟反复练习。高压时应减少口令数量，把注意拉回节奏、视线或下一步动作等可控制信息。",
+                "node_type": "category"
+              },
+              {
+                "id": "practice",
+                "title": "最小实践",
+                "description": "反馈聚焦可控制因素",
+                "node_type": "category"
+              },
+              {
+                "id": "feedback",
+                "title": "记录与复盘",
+                "description": "先留基线，一次只改一个关键变量，再用结果和恢复信号判断。",
+                "node_type": "category"
+              },
+              {
+                "id": "pitfall",
+                "title": "常见误用",
+                "description": "要求所有人冷静下来或追求同一种最佳状态，忽略了项目、个体和时刻之间的差异。",
+                "node_type": "category"
+              },
+              {
+                "id": "boundary",
+                "title": "应用边界",
+                "description": "心理技能训练不等于心理治疗；持续情绪困扰、进食障碍、自伤风险等情况必须转介专业心理与医疗人员。",
+                "node_type": "category"
+              }
+            ]
+          }
+        ]
+      },
+      "readingGuide": {
+        "estimatedMinutes": 10,
+        "suitableFor": [
+          "正在学习运动心理的训练者",
+          "需要把理论转成计划的教练",
+          "愿意记录并复盘的读者"
+        ],
+        "goals": [
+          "说清核心概念",
+          "形成可执行决策",
+          "设计一次可验证的小实验"
+        ],
+        "prerequisites": [
+          "先阅读全书深读入口",
+          "本页不替代正版原书或专业诊疗"
+        ]
+      },
+      "keyTakeaways": [
+        "唤醒、压力与注意控制",
+        "反馈聚焦可控制因素",
+        "一次只改变少量关键变量，并提前定义反馈信号",
+        "要求所有人冷静下来或追求同一种最佳状态，忽略了项目、个体和时刻之间的差异。"
+      ],
+      "discussionPrompts": [
+        "你当前最接近这个主题的真实问题是什么？",
+        "你会保留哪个变量不变，才看得出干预是否有效？",
+        "如果结果与书中框架不一致，你先检查数据、执行还是原始假设？"
+      ],
+      "citations": [
+        {
+          "title": "书目：运动心理学（第7版）",
+          "note": "本页为 CoachLink 原创解释性笔记；不复制原书正文、插图、表格或完整处方。正式学术或专业引用请回到正版书核对作者、版次、出版社和页码。",
+          "license": "interpretive-notes-only"
+        }
+      ]
+    },
+    {
+      "slug": "topic-03",
+      "file": "notes/03-topic.md",
+      "noteType": "chapter",
+      "chapterOrder": 3,
+      "chapterTitle": "自信、意象与心理技能",
+      "title": "《运动心理学（第7版）》主题深读 3：自信、意象与心理技能",
+      "summary": "稳定自信更多来自成功经验、充分准备和可信反馈，而不是脱离证据的积极口号。意象是对动作、环境、感受和应对方案的多感官预演，心理技能也需要像技术动作一样长期练习。 本页进一步给出教练决策、反馈记录、微实验和应用边界。",
+      "sortOrder": 3213,
+      "author": "Robert S. Weinberg、Daniel Gould",
+      "isFree": true,
+      "isPublished": true,
+      "mindMap": {
+        "title": "《运动心理学（第7版）》主题 3 · 自信、意象与心理技能",
+        "description": "CoachLink 原创主题知识地图：概念、决策、验证、误区和边界放在同一张图里。",
+        "data": [
+          {
+            "id": "root",
+            "title": "自信、意象与心理技能",
+            "node_type": "domain",
+            "children": [
+              {
+                "id": "concept",
+                "title": "核心概念",
+                "description": "稳定自信更多来自成功经验、充分准备和可信反馈，而不是脱离证据的积极口号。意象是对动作、环境、感受和应对方案的多感官预演，心理技能也需要像技术动作一样长期练习。",
+                "node_type": "category"
+              },
+              {
+                "id": "decision",
+                "title": "教练决策",
+                "description": "意象内容应简短、具体并贴近实际情境，同时纳入失误后的应对而不只想象完美结果。可把它嵌入热身或训练复盘，并通过执行质量、注意恢复和压力应对检验价值。",
+                "node_type": "category"
+              },
+              {
+                "id": "practice",
+                "title": "最小实践",
+                "description": "为比赛压力设计可练习的注意与唤醒流程",
+                "node_type": "category"
+              },
+              {
+                "id": "feedback",
+                "title": "记录与复盘",
+                "description": "先留基线，一次只改一个关键变量，再用结果和恢复信号判断。",
+                "node_type": "category"
+              },
+              {
+                "id": "pitfall",
+                "title": "常见误用",
+                "description": "意象不能替代身体训练，反复预演灾难或过度追求完美反而可能增强焦虑。",
+                "node_type": "category"
+              },
+              {
+                "id": "boundary",
+                "title": "应用边界",
+                "description": "心理技能训练不等于心理治疗；持续情绪困扰、进食障碍、自伤风险等情况必须转介专业心理与医疗人员。",
+                "node_type": "category"
+              }
+            ]
+          }
+        ]
+      },
+      "readingGuide": {
+        "estimatedMinutes": 10,
+        "suitableFor": [
+          "正在学习运动心理的训练者",
+          "需要把理论转成计划的教练",
+          "愿意记录并复盘的读者"
+        ],
+        "goals": [
+          "说清核心概念",
+          "形成可执行决策",
+          "设计一次可验证的小实验"
+        ],
+        "prerequisites": [
+          "先阅读全书深读入口",
+          "本页不替代正版原书或专业诊疗"
+        ]
+      },
+      "keyTakeaways": [
+        "自信、意象与心理技能",
+        "为比赛压力设计可练习的注意与唤醒流程",
+        "一次只改变少量关键变量，并提前定义反馈信号",
+        "意象不能替代身体训练，反复预演灾难或过度追求完美反而可能增强焦虑。"
+      ],
+      "discussionPrompts": [
+        "你当前最接近这个主题的真实问题是什么？",
+        "你会保留哪个变量不变，才看得出干预是否有效？",
+        "如果结果与书中框架不一致，你先检查数据、执行还是原始假设？"
+      ],
+      "citations": [
+        {
+          "title": "书目：运动心理学（第7版）",
+          "note": "本页为 CoachLink 原创解释性笔记；不复制原书正文、插图、表格或完整处方。正式学术或专业引用请回到正版书核对作者、版次、出版社和页码。",
+          "license": "interpretive-notes-only"
+        }
+      ]
+    },
+    {
+      "slug": "topic-04",
+      "file": "notes/04-topic.md",
+      "noteType": "chapter",
+      "chapterOrder": 4,
+      "chapterTitle": "团队、沟通与教练环境",
+      "title": "《运动心理学（第7版）》主题深读 4：团队、沟通与教练环境",
+      "summary": "团队表现不仅来自成员能力，还受角色清晰度、共同规范、心理安全和地位关系影响。有效沟通是双向且具体的过程，反馈内容、时机和关系背景都会改变接收效果。 本页进一步给出教练决策、反馈记录、微实验和应用边界。",
+      "sortOrder": 3214,
+      "author": "Robert S. Weinberg、Daniel Gould",
+      "isFree": true,
+      "isPublished": true,
+      "mindMap": {
+        "title": "《运动心理学（第7版）》主题 4 · 团队、沟通与教练环境",
+        "description": "CoachLink 原创主题知识地图：概念、决策、验证、误区和边界放在同一张图里。",
+        "data": [
+          {
+            "id": "root",
+            "title": "团队、沟通与教练环境",
+            "node_type": "domain",
+            "children": [
+              {
+                "id": "concept",
+                "title": "核心概念",
+                "description": "团队表现不仅来自成员能力，还受角色清晰度、共同规范、心理安全和地位关系影响。有效沟通是双向且具体的过程，反馈内容、时机和关系背景都会改变接收效果。",
+                "node_type": "category"
+              },
+              {
+                "id": "decision",
+                "title": "教练决策",
+                "description": "教练应明确角色与反馈渠道，奖励学习和协作行为，并持续观察沉默、排斥和冲突信号。沟通方式需要适配运动者年龄、文化和偏好，同时保护隐私并为敏感问题设置转介路径。",
+                "node_type": "category"
+              },
+              {
+                "id": "practice",
+                "title": "最小实践",
+                "description": "把结果目标拆成过程行为",
+                "node_type": "category"
+              },
+              {
+                "id": "feedback",
+                "title": "记录与复盘",
+                "description": "先留基线，一次只改一个关键变量，再用结果和恢复信号判断。",
+                "node_type": "category"
+              },
+              {
+                "id": "pitfall",
+                "title": "常见误用",
+                "description": "团队凝聚不等于强迫一致，涉及欺凌、歧视或严重心理困扰时不能只靠团建解决。",
+                "node_type": "category"
+              },
+              {
+                "id": "boundary",
+                "title": "应用边界",
+                "description": "心理技能训练不等于心理治疗；持续情绪困扰、进食障碍、自伤风险等情况必须转介专业心理与医疗人员。",
+                "node_type": "category"
+              }
+            ]
+          }
+        ]
+      },
+      "readingGuide": {
+        "estimatedMinutes": 10,
+        "suitableFor": [
+          "正在学习运动心理的训练者",
+          "需要把理论转成计划的教练",
+          "愿意记录并复盘的读者"
+        ],
+        "goals": [
+          "说清核心概念",
+          "形成可执行决策",
+          "设计一次可验证的小实验"
+        ],
+        "prerequisites": [
+          "先阅读全书深读入口",
+          "本页不替代正版原书或专业诊疗"
+        ]
+      },
+      "keyTakeaways": [
+        "团队、沟通与教练环境",
+        "把结果目标拆成过程行为",
+        "一次只改变少量关键变量，并提前定义反馈信号",
+        "团队凝聚不等于强迫一致，涉及欺凌、歧视或严重心理困扰时不能只靠团建解决。"
+      ],
+      "discussionPrompts": [
+        "你当前最接近这个主题的真实问题是什么？",
+        "你会保留哪个变量不变，才看得出干预是否有效？",
+        "如果结果与书中框架不一致，你先检查数据、执行还是原始假设？"
+      ],
+      "citations": [
+        {
+          "title": "书目：运动心理学（第7版）",
+          "note": "本页为 CoachLink 原创解释性笔记；不复制原书正文、插图、表格或完整处方。正式学术或专业引用请回到正版书核对作者、版次、出版社和页码。",
+          "license": "interpretive-notes-only"
+        }
+      ]
+    }
+  ]
+}

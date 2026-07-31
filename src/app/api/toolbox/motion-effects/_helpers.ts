@@ -130,6 +130,8 @@ export function mapMotionEffectJob(row: any): MotionEffectJobDto {
   const expiresAt = String(row?.expires_at || "");
   const expired = expiresAt ? new Date(expiresAt).getTime() <= Date.now() : false;
   const status = expired && row?.status !== "done" ? "expired" : row?.status;
+  const metadata =
+    row?.metadata && typeof row.metadata === "object" ? row.metadata : {};
   return {
     id: String(row?.id || ""),
     status,
@@ -144,6 +146,10 @@ export function mapMotionEffectJob(row: any): MotionEffectJobDto {
       Boolean(row?.output_storage_path) &&
       Boolean(expiresAt) &&
       !expired,
+    styleKey: String(row?.style_key || metadata.style_key || "aurora"),
+    motionSpeed: String(metadata.motion_speed || "balanced"),
+    glowStrength: String(metadata.glow_strength || "balanced"),
+    surfaceDensity: String(metadata.surface_density || "balanced"),
   };
 }
 

@@ -8,6 +8,15 @@ import type {
     GetKnowledgeBookDto,
     GetKnowledgeBookResponseDto,
 } from "./entity";
+import { sanitizeBookRowForClient } from "../_helpers/bookSanitizer";
+
+function getCollectionSlug(content: unknown) {
+    if (!content || typeof content !== "object" || Array.isArray(content)) return null;
+    const source = (content as { source?: unknown }).source;
+    if (!source || typeof source !== "object" || Array.isArray(source)) return null;
+    const slug = (source as { collectionSlug?: unknown }).collectionSlug;
+    return typeof slug === "string" && slug.trim() ? slug.trim() : null;
+}
 
 export async function POST(req: Request) {
     const session = await getServerSession();
@@ -64,14 +73,34 @@ export async function POST(req: Request) {
         }
     }
 
+    const collectionSlug = getCollectionSlug(book.content);
+    let collectionBooks: Record<string, unknown>[] = [];
+    if (collectionSlug) {
+        const { data: siblingRows, error: siblingError } = await supabase
+            .from("knowledge_books")
+            .select("*")
+            .contains("content", { source: { collectionSlug } })
+            .eq("is_published", true)
+            .order("sort_order", { ascending: true });
+
+        if (siblingError) {
+            console.error("获取同书章节失败:", siblingError);
+        } else {
+            collectionBooks = (siblingRows || []).map((sibling) =>
+                sanitizeBookRowForClient(sibling, { includeBody: false })
+            );
+        }
+    }
+
     // 重点！必须申请接口范型位 ApiData<返回参数的接口类型>
     return NextResponse.json<ApiData<GetKnowledgeBookResponseDto>>({
         success: true,
         message: "获取知识库书籍成功",
         // GetKnowledgeBookResponseDto 反映的就是这个地方 data 的数据结构
         data: {
-            book: book,
+            book: sanitizeBookRowForClient(book, { includeBody: true }),
             hasAccess: hasAccess,
+            collectionBooks,
         },
     });
 }

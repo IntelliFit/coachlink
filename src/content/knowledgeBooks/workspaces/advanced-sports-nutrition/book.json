@@ -1,0 +1,497 @@
+{
+  "format": "book-note-v4-classic-deep-read",
+  "noteStyle": "interpretive-reading-note",
+  "disclaimer": "本页为 CoachLink 原创导读与知识地图，不复制原书正文、插图、表格或完整训练模板，也不替代购买和阅读正版原书。",
+  "source": {
+    "title": "高级运动营养学",
+    "authors": [
+      "Dan Benardot"
+    ],
+    "originalFilePath": "local-library://advanced-sports-nutrition",
+    "copyrightMode": "interpretive-notes-only",
+    "collectionSlug": "advanced-sports-nutrition",
+    "collectionTitle": "《高级运动营养学》原创深读笔记"
+  },
+  "notes": [
+    {
+      "slug": "overview",
+      "file": "notes/00-overview.md",
+      "noteType": "overview",
+      "chapterOrder": 0,
+      "chapterTitle": "深读入口",
+      "title": "《高级运动营养学》深读入口：先建立全书地图，再决定怎么用",
+      "summary": "更细致地讨论能量供给时机、营养素代谢、训练与比赛补给、体成分和不同项目需求，适合在基础营养之后进阶。",
+      "sortOrder": 3220,
+      "author": "Dan Benardot",
+      "isFree": true,
+      "isPublished": true,
+      "mindMap": {
+        "title": "《高级运动营养学》全书知识地图",
+        "description": "这是 CoachLink 根据书籍主题绘制的原创导航图，不复制原书插图或版式。",
+        "data": [
+          {
+            "id": "root",
+            "title": "高级运动营养学",
+            "node_type": "domain",
+            "children": [
+              {
+                "id": "question",
+                "title": "核心问题",
+                "description": "当基础饮食已经稳定后，怎样根据项目、训练时段和恢复需求进一步优化能量与营养分配？",
+                "node_type": "category"
+              },
+              {
+                "id": "framework-1",
+                "title": "能量平衡与供能时机",
+                "node_type": "category"
+              },
+              {
+                "id": "framework-2",
+                "title": "宏量营养素与代谢",
+                "node_type": "category"
+              },
+              {
+                "id": "framework-3",
+                "title": "补水、微量营养素与补剂",
+                "node_type": "category"
+              },
+              {
+                "id": "framework-4",
+                "title": "项目差异、体成分与比赛策略",
+                "node_type": "category"
+              },
+              {
+                "id": "boundary",
+                "title": "应用边界",
+                "description": "高阶策略不是越复杂越好；疾病、极端减重和进食障碍风险需要注册营养师与医疗团队介入。",
+                "node_type": "category"
+              }
+            ]
+          }
+        ]
+      },
+      "readingGuide": {
+        "estimatedMinutes": 8,
+        "suitableFor": [
+          "关注运动营养的训练者",
+          "教练与知识库编辑",
+          "准备精读正版原书的读者"
+        ],
+        "goals": [
+          "掌握全书核心问题",
+          "看懂主题之间的关系",
+          "明确应用边界与复盘方法"
+        ],
+        "prerequisites": [
+          "本页不替代原书，也不提供原文件下载"
+        ]
+      },
+      "keyTakeaways": [
+        "能量平衡与供能时机",
+        "宏量营养素与代谢",
+        "补水、微量营养素与补剂",
+        "项目差异、体成分与比赛策略"
+      ],
+      "discussionPrompts": [
+        "这本书最可能改变你当前的哪一个训练决策？",
+        "哪一个观点高度依赖作者的目标人群或训练环境？",
+        "你会用什么训练数据判断它对自己是否有效？"
+      ],
+      "citations": [
+        {
+          "title": "书目：高级运动营养学",
+          "note": "基于本地书目盘点建立原创导读；原始电子文件仅供内部研究，不上传、不公开下载。正式引用前应继续核对正版书的作者、版次、出版社与页码。",
+          "license": "interpretive-notes-only"
+        }
+      ]
+    },
+    {
+      "slug": "topic-01",
+      "file": "notes/01-topic.md",
+      "noteType": "chapter",
+      "chapterOrder": 1,
+      "chapterTitle": "能量平衡与供能时机",
+      "title": "《高级运动营养学》主题深读 1：能量平衡与供能时机",
+      "summary": "运动营养不仅关心全天摄入与消耗，还关心高需求时段是否有足够能量可用。营养时机可以支持训练质量和恢复，但只有在总能量基本充足时才有优化意义。 本页进一步给出教练决策、反馈记录、微实验和应用边界。",
+      "sortOrder": 3221,
+      "author": "Dan Benardot",
+      "isFree": true,
+      "isPublished": true,
+      "mindMap": {
+        "title": "《高级运动营养学》主题 1 · 能量平衡与供能时机",
+        "description": "CoachLink 原创主题知识地图：概念、决策、验证、误区和边界放在同一张图里。",
+        "data": [
+          {
+            "id": "root",
+            "title": "能量平衡与供能时机",
+            "node_type": "domain",
+            "children": [
+              {
+                "id": "concept",
+                "title": "核心概念",
+                "description": "运动营养不仅关心全天摄入与消耗，还关心高需求时段是否有足够能量可用。营养时机可以支持训练质量和恢复，但只有在总能量基本充足时才有优化意义。",
+                "node_type": "category"
+              },
+              {
+                "id": "decision",
+                "title": "教练决策",
+                "description": "先把训练时间、餐食机会、食物可得性和胃肠耐受画成实际日程，再安排训练前后及长时间运动中的补给。表现下降、恢复恶化、情绪变化或生理功能异常应被视为重新评估能量可用性的信号。",
+                "node_type": "category"
+              },
+              {
+                "id": "practice",
+                "title": "最小实践",
+                "description": "先解决全天能量可用性再谈时机优化",
+                "node_type": "category"
+              },
+              {
+                "id": "feedback",
+                "title": "记录与复盘",
+                "description": "先留基线，一次只改一个关键变量，再用结果和恢复信号判断。",
+                "node_type": "category"
+              },
+              {
+                "id": "pitfall",
+                "title": "常见误用",
+                "description": "不能凭单日热量计算或体重变化就长期限制摄入，疑似低能量可用时应由营养与医疗专业人员评估。",
+                "node_type": "category"
+              },
+              {
+                "id": "boundary",
+                "title": "应用边界",
+                "description": "高阶策略不是越复杂越好；疾病、极端减重和进食障碍风险需要注册营养师与医疗团队介入。",
+                "node_type": "category"
+              }
+            ]
+          }
+        ]
+      },
+      "readingGuide": {
+        "estimatedMinutes": 10,
+        "suitableFor": [
+          "正在学习运动营养的训练者",
+          "需要把理论转成计划的教练",
+          "愿意记录并复盘的读者"
+        ],
+        "goals": [
+          "说清核心概念",
+          "形成可执行决策",
+          "设计一次可验证的小实验"
+        ],
+        "prerequisites": [
+          "先阅读全书深读入口",
+          "本页不替代正版原书或专业诊疗"
+        ]
+      },
+      "keyTakeaways": [
+        "能量平衡与供能时机",
+        "先解决全天能量可用性再谈时机优化",
+        "一次只改变少量关键变量，并提前定义反馈信号",
+        "不能凭单日热量计算或体重变化就长期限制摄入，疑似低能量可用时应由营养与医疗专业人员评估。"
+      ],
+      "discussionPrompts": [
+        "你当前最接近这个主题的真实问题是什么？",
+        "你会保留哪个变量不变，才看得出干预是否有效？",
+        "如果结果与书中框架不一致，你先检查数据、执行还是原始假设？"
+      ],
+      "citations": [
+        {
+          "title": "书目：高级运动营养学",
+          "note": "本页为 CoachLink 原创解释性笔记；不复制原书正文、插图、表格或完整处方。正式学术或专业引用请回到正版书核对作者、版次、出版社和页码。",
+          "license": "interpretive-notes-only"
+        }
+      ]
+    },
+    {
+      "slug": "topic-02",
+      "file": "notes/02-topic.md",
+      "noteType": "chapter",
+      "chapterOrder": 2,
+      "chapterTitle": "宏量营养素与代谢",
+      "title": "《高级运动营养学》主题深读 2：宏量营养素与代谢",
+      "summary": "碳水化合物支持较高强度工作和糖原补充，蛋白质参与组织更新，脂肪则承担能量、细胞和激素相关功能。三者需求会随项目、训练量和阶段变化，不能简单分成好与坏。 本页进一步给出教练决策、反馈记录、微实验和应用边界。",
+      "sortOrder": 3222,
+      "author": "Dan Benardot",
+      "isFree": true,
+      "isPublished": true,
+      "mindMap": {
+        "title": "《高级运动营养学》主题 2 · 宏量营养素与代谢",
+        "description": "CoachLink 原创主题知识地图：概念、决策、验证、误区和边界放在同一张图里。",
+        "data": [
+          {
+            "id": "root",
+            "title": "宏量营养素与代谢",
+            "node_type": "domain",
+            "children": [
+              {
+                "id": "concept",
+                "title": "核心概念",
+                "description": "碳水化合物支持较高强度工作和糖原补充，蛋白质参与组织更新，脂肪则承担能量、细胞和激素相关功能。三者需求会随项目、训练量和阶段变化，不能简单分成好与坏。",
+                "node_type": "category"
+              },
+              {
+                "id": "decision",
+                "title": "教练决策",
+                "description": "摄入结构应随高低负荷日调整，同时维持稳定的蛋白质来源并避免脂肪长期不足。优先使用可持续且胃肠耐受的日常食物，再结合文化、预算和比赛条件做细化。",
+                "node_type": "category"
+              },
+              {
+                "id": "practice",
+                "title": "最小实践",
+                "description": "把补给方案放进训练中演练",
+                "node_type": "category"
+              },
+              {
+                "id": "feedback",
+                "title": "记录与复盘",
+                "description": "先留基线，一次只改一个关键变量，再用结果和恢复信号判断。",
+                "node_type": "category"
+              },
+              {
+                "id": "pitfall",
+                "title": "常见误用",
+                "description": "照搬职业运动员菜单或长期极端限制某类营养素，可能牺牲训练质量、健康和饮食可持续性。",
+                "node_type": "category"
+              },
+              {
+                "id": "boundary",
+                "title": "应用边界",
+                "description": "高阶策略不是越复杂越好；疾病、极端减重和进食障碍风险需要注册营养师与医疗团队介入。",
+                "node_type": "category"
+              }
+            ]
+          }
+        ]
+      },
+      "readingGuide": {
+        "estimatedMinutes": 10,
+        "suitableFor": [
+          "正在学习运动营养的训练者",
+          "需要把理论转成计划的教练",
+          "愿意记录并复盘的读者"
+        ],
+        "goals": [
+          "说清核心概念",
+          "形成可执行决策",
+          "设计一次可验证的小实验"
+        ],
+        "prerequisites": [
+          "先阅读全书深读入口",
+          "本页不替代正版原书或专业诊疗"
+        ]
+      },
+      "keyTakeaways": [
+        "宏量营养素与代谢",
+        "把补给方案放进训练中演练",
+        "一次只改变少量关键变量，并提前定义反馈信号",
+        "照搬职业运动员菜单或长期极端限制某类营养素，可能牺牲训练质量、健康和饮食可持续性。"
+      ],
+      "discussionPrompts": [
+        "你当前最接近这个主题的真实问题是什么？",
+        "你会保留哪个变量不变，才看得出干预是否有效？",
+        "如果结果与书中框架不一致，你先检查数据、执行还是原始假设？"
+      ],
+      "citations": [
+        {
+          "title": "书目：高级运动营养学",
+          "note": "本页为 CoachLink 原创解释性笔记；不复制原书正文、插图、表格或完整处方。正式学术或专业引用请回到正版书核对作者、版次、出版社和页码。",
+          "license": "interpretive-notes-only"
+        }
+      ]
+    },
+    {
+      "slug": "topic-03",
+      "file": "notes/03-topic.md",
+      "noteType": "chapter",
+      "chapterOrder": 3,
+      "chapterTitle": "补水、微量营养素与补剂",
+      "title": "《高级运动营养学》主题深读 3：补水、微量营养素与补剂",
+      "summary": "汗液损失和电解质需求具有明显个体及环境差异，缺水与过量饮水都可能损害表现和健康。微量营养素与补剂只有在需求、缺口和证据相匹配时才有意义，并非越多越保险。 本页进一步给出教练决策、反馈记录、微实验和应用边界。",
+      "sortOrder": 3223,
+      "author": "Dan Benardot",
+      "isFree": true,
+      "isPublished": true,
+      "mindMap": {
+        "title": "《高级运动营养学》主题 3 · 补水、微量营养素与补剂",
+        "description": "CoachLink 原创主题知识地图：概念、决策、验证、误区和边界放在同一张图里。",
+        "data": [
+          {
+            "id": "root",
+            "title": "补水、微量营养素与补剂",
+            "node_type": "domain",
+            "children": [
+              {
+                "id": "concept",
+                "title": "核心概念",
+                "description": "汗液损失和电解质需求具有明显个体及环境差异，缺水与过量饮水都可能损害表现和健康。微量营养素与补剂只有在需求、缺口和证据相匹配时才有意义，并非越多越保险。",
+                "node_type": "category"
+              },
+              {
+                "id": "decision",
+                "title": "教练决策",
+                "description": "可在代表性环境中观察体重、饮水和主观口渴变化，形成能够随天气与训练调整的补水方案。补剂使用前应核查必要性、相互作用、污染风险和赛事规则，优先选择经过独立质量认证的产品。",
+                "node_type": "category"
+              },
+              {
+                "id": "practice",
+                "title": "最小实践",
+                "description": "用表现、恢复、消化和健康共同评价",
+                "node_type": "category"
+              },
+              {
+                "id": "feedback",
+                "title": "记录与复盘",
+                "description": "先留基线，一次只改一个关键变量，再用结果和恢复信号判断。",
+                "node_type": "category"
+              },
+              {
+                "id": "pitfall",
+                "title": "常见误用",
+                "description": "只看尿液颜色决定补水或在没有评估时叠加多种补剂，都可能造成误判与安全风险。",
+                "node_type": "category"
+              },
+              {
+                "id": "boundary",
+                "title": "应用边界",
+                "description": "高阶策略不是越复杂越好；疾病、极端减重和进食障碍风险需要注册营养师与医疗团队介入。",
+                "node_type": "category"
+              }
+            ]
+          }
+        ]
+      },
+      "readingGuide": {
+        "estimatedMinutes": 10,
+        "suitableFor": [
+          "正在学习运动营养的训练者",
+          "需要把理论转成计划的教练",
+          "愿意记录并复盘的读者"
+        ],
+        "goals": [
+          "说清核心概念",
+          "形成可执行决策",
+          "设计一次可验证的小实验"
+        ],
+        "prerequisites": [
+          "先阅读全书深读入口",
+          "本页不替代正版原书或专业诊疗"
+        ]
+      },
+      "keyTakeaways": [
+        "补水、微量营养素与补剂",
+        "用表现、恢复、消化和健康共同评价",
+        "一次只改变少量关键变量，并提前定义反馈信号",
+        "只看尿液颜色决定补水或在没有评估时叠加多种补剂，都可能造成误判与安全风险。"
+      ],
+      "discussionPrompts": [
+        "你当前最接近这个主题的真实问题是什么？",
+        "你会保留哪个变量不变，才看得出干预是否有效？",
+        "如果结果与书中框架不一致，你先检查数据、执行还是原始假设？"
+      ],
+      "citations": [
+        {
+          "title": "书目：高级运动营养学",
+          "note": "本页为 CoachLink 原创解释性笔记；不复制原书正文、插图、表格或完整处方。正式学术或专业引用请回到正版书核对作者、版次、出版社和页码。",
+          "license": "interpretive-notes-only"
+        }
+      ]
+    },
+    {
+      "slug": "topic-04",
+      "file": "notes/04-topic.md",
+      "noteType": "chapter",
+      "chapterOrder": 4,
+      "chapterTitle": "项目差异、体成分与比赛策略",
+      "title": "《高级运动营养学》主题深读 4：项目差异、体成分与比赛策略",
+      "summary": "不同项目对持续供能、爆发输出、体重承载和胃肠耐受的要求不同，因此营养方案必须服务于具体任务。体成分只是表现变量之一，改变它可能同时影响力量、恢复、免疫和心理健康。 本页进一步给出教练决策、反馈记录、微实验和应用边界。",
+      "sortOrder": 3224,
+      "author": "Dan Benardot",
+      "isFree": true,
+      "isPublished": true,
+      "mindMap": {
+        "title": "《高级运动营养学》主题 4 · 项目差异、体成分与比赛策略",
+        "description": "CoachLink 原创主题知识地图：概念、决策、验证、误区和边界放在同一张图里。",
+        "data": [
+          {
+            "id": "root",
+            "title": "项目差异、体成分与比赛策略",
+            "node_type": "domain",
+            "children": [
+              {
+                "id": "concept",
+                "title": "核心概念",
+                "description": "不同项目对持续供能、爆发输出、体重承载和胃肠耐受的要求不同，因此营养方案必须服务于具体任务。体成分只是表现变量之一，改变它可能同时影响力量、恢复、免疫和心理健康。",
+                "node_type": "category"
+              },
+              {
+                "id": "decision",
+                "title": "教练决策",
+                "description": "任何体成分目标都应先说明表现目的、时间窗口和不可牺牲的健康指标，并避开关键比赛期的激进调整。比赛饮食、途中补给和旅行安排要在训练中演练，再依据天气、赛程与个人耐受修正。",
+                "node_type": "category"
+              },
+              {
+                "id": "practice",
+                "title": "最小实践",
+                "description": "先解决全天能量可用性再谈时机优化",
+                "node_type": "category"
+              },
+              {
+                "id": "feedback",
+                "title": "记录与复盘",
+                "description": "先留基线，一次只改一个关键变量，再用结果和恢复信号判断。",
+                "node_type": "category"
+              },
+              {
+                "id": "pitfall",
+                "title": "常见误用",
+                "description": "更轻或更瘦不必然带来更好表现，快速减重和临赛尝试新补给尤其容易适得其反。",
+                "node_type": "category"
+              },
+              {
+                "id": "boundary",
+                "title": "应用边界",
+                "description": "高阶策略不是越复杂越好；疾病、极端减重和进食障碍风险需要注册营养师与医疗团队介入。",
+                "node_type": "category"
+              }
+            ]
+          }
+        ]
+      },
+      "readingGuide": {
+        "estimatedMinutes": 10,
+        "suitableFor": [
+          "正在学习运动营养的训练者",
+          "需要把理论转成计划的教练",
+          "愿意记录并复盘的读者"
+        ],
+        "goals": [
+          "说清核心概念",
+          "形成可执行决策",
+          "设计一次可验证的小实验"
+        ],
+        "prerequisites": [
+          "先阅读全书深读入口",
+          "本页不替代正版原书或专业诊疗"
+        ]
+      },
+      "keyTakeaways": [
+        "项目差异、体成分与比赛策略",
+        "先解决全天能量可用性再谈时机优化",
+        "一次只改变少量关键变量，并提前定义反馈信号",
+        "更轻或更瘦不必然带来更好表现，快速减重和临赛尝试新补给尤其容易适得其反。"
+      ],
+      "discussionPrompts": [
+        "你当前最接近这个主题的真实问题是什么？",
+        "你会保留哪个变量不变，才看得出干预是否有效？",
+        "如果结果与书中框架不一致，你先检查数据、执行还是原始假设？"
+      ],
+      "citations": [
+        {
+          "title": "书目：高级运动营养学",
+          "note": "本页为 CoachLink 原创解释性笔记；不复制原书正文、插图、表格或完整处方。正式学术或专业引用请回到正版书核对作者、版次、出版社和页码。",
+          "license": "interpretive-notes-only"
+        }
+      ]
+    }
+  ]
+}

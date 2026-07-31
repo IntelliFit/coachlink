@@ -1,0 +1,497 @@
+{
+  "format": "book-note-v4-classic-deep-read",
+  "noteStyle": "interpretive-reading-note",
+  "disclaimer": "本页为 CoachLink 原创导读与知识地图，不复制原书正文、插图、表格或完整训练模板，也不替代购买和阅读正版原书。",
+  "source": {
+    "title": "功能性训练：提升运动表现的动作练习和方案设计",
+    "authors": [
+      "Juan Carlos Santana"
+    ],
+    "originalFilePath": "local-library://functional-training-santana",
+    "copyrightMode": "interpretive-notes-only",
+    "collectionSlug": "functional-training-santana",
+    "collectionTitle": "《功能性训练：提升运动表现的动作练习和方案设计》原创深读笔记"
+  },
+  "notes": [
+    {
+      "slug": "overview",
+      "file": "notes/00-overview.md",
+      "noteType": "overview",
+      "chapterOrder": 0,
+      "chapterTitle": "深读入口",
+      "title": "《功能性训练：提升运动表现的动作练习和方案设计》深读入口：先建立全书地图，再决定怎么用",
+      "summary": "从人体动作、运动链、多平面控制和专项任务出发组织练习，强调训练效果要回到真实活动与运动表现中检验。",
+      "sortOrder": 3140,
+      "author": "Juan Carlos Santana",
+      "isFree": true,
+      "isPublished": true,
+      "mindMap": {
+        "title": "《功能性训练：提升运动表现的动作练习和方案设计》全书知识地图",
+        "description": "这是 CoachLink 根据书籍主题绘制的原创导航图，不复制原书插图或版式。",
+        "data": [
+          {
+            "id": "root",
+            "title": "功能性训练：提升运动表现的动作练习和方案设计",
+            "node_type": "domain",
+            "children": [
+              {
+                "id": "question",
+                "title": "核心问题",
+                "description": "什么样的训练才算对目标有功能，怎样避免把不稳定器械或复杂动作本身误当成功能性？",
+                "node_type": "category"
+              },
+              {
+                "id": "framework-1",
+                "title": "功能与目标任务的定义",
+                "node_type": "category"
+              },
+              {
+                "id": "framework-2",
+                "title": "动作模式、运动链与多平面控制",
+                "node_type": "category"
+              },
+              {
+                "id": "framework-3",
+                "title": "练习回归与进阶",
+                "node_type": "category"
+              },
+              {
+                "id": "framework-4",
+                "title": "方案设计和专项转化",
+                "node_type": "category"
+              },
+              {
+                "id": "boundary",
+                "title": "应用边界",
+                "description": "功能性取决于目标和个体，不是固定动作清单；新奇、晃动或多器械不自动代表更有效。",
+                "node_type": "category"
+              }
+            ]
+          }
+        ]
+      },
+      "readingGuide": {
+        "estimatedMinutes": 8,
+        "suitableFor": [
+          "关注功能性训练的训练者",
+          "教练与知识库编辑",
+          "准备精读正版原书的读者"
+        ],
+        "goals": [
+          "掌握全书核心问题",
+          "看懂主题之间的关系",
+          "明确应用边界与复盘方法"
+        ],
+        "prerequisites": [
+          "本页不替代原书，也不提供原文件下载"
+        ]
+      },
+      "keyTakeaways": [
+        "功能与目标任务的定义",
+        "动作模式、运动链与多平面控制",
+        "练习回归与进阶",
+        "方案设计和专项转化"
+      ],
+      "discussionPrompts": [
+        "这本书最可能改变你当前的哪一个训练决策？",
+        "哪一个观点高度依赖作者的目标人群或训练环境？",
+        "你会用什么训练数据判断它对自己是否有效？"
+      ],
+      "citations": [
+        {
+          "title": "书目：功能性训练：提升运动表现的动作练习和方案设计",
+          "note": "基于本地书目盘点建立原创导读；原始电子文件仅供内部研究，不上传、不公开下载。正式引用前应继续核对正版书的作者、版次、出版社与页码。",
+          "license": "interpretive-notes-only"
+        }
+      ]
+    },
+    {
+      "slug": "topic-01",
+      "file": "notes/01-topic.md",
+      "noteType": "chapter",
+      "chapterOrder": 1,
+      "chapterTitle": "功能与目标任务的定义",
+      "title": "《功能性训练：提升运动表现的动作练习和方案设计》主题深读 1：功能与目标任务的定义",
+      "summary": "功能性不是动作本身的固定标签，而是某项训练对特定个体、目标和环境是否产生有价值的适应。相同练习可能对一名运动员高度相关，对另一名运动员却只是低效复杂化。 本页进一步给出教练决策、反馈记录、微实验和应用边界。",
+      "sortOrder": 3141,
+      "author": "Juan Carlos Santana",
+      "isFree": true,
+      "isPublished": true,
+      "mindMap": {
+        "title": "《功能性训练：提升运动表现的动作练习和方案设计》主题 1 · 功能与目标任务的定义",
+        "description": "CoachLink 原创主题知识地图：概念、决策、验证、误区和边界放在同一张图里。",
+        "data": [
+          {
+            "id": "root",
+            "title": "功能与目标任务的定义",
+            "node_type": "domain",
+            "children": [
+              {
+                "id": "concept",
+                "title": "核心概念",
+                "description": "功能性不是动作本身的固定标签，而是某项训练对特定个体、目标和环境是否产生有价值的适应。相同练习可能对一名运动员高度相关，对另一名运动员却只是低效复杂化。",
+                "node_type": "category"
+              },
+              {
+                "id": "decision",
+                "title": "教练决策",
+                "description": "教练应先写清目标任务需要的力量方向、速度、持续时间、决策和身体姿势，再反推训练要求。动作入选时必须说明它训练了哪项限制，以及准备如何验证转化。",
+                "node_type": "category"
+              },
+              {
+                "id": "practice",
+                "title": "最小实践",
+                "description": "先写清真实任务再选练习",
+                "node_type": "category"
+              },
+              {
+                "id": "feedback",
+                "title": "记录与复盘",
+                "description": "先留基线，一次只改一个关键变量，再用结果和恢复信号判断。",
+                "node_type": "category"
+              },
+              {
+                "id": "pitfall",
+                "title": "常见误用",
+                "description": "把站在不稳定器械上或同时完成多个动作视为天然更有功能，会用表面复杂度替代目标分析。",
+                "node_type": "category"
+              },
+              {
+                "id": "boundary",
+                "title": "应用边界",
+                "description": "功能性取决于目标和个体，不是固定动作清单；新奇、晃动或多器械不自动代表更有效。",
+                "node_type": "category"
+              }
+            ]
+          }
+        ]
+      },
+      "readingGuide": {
+        "estimatedMinutes": 10,
+        "suitableFor": [
+          "正在学习功能性训练的训练者",
+          "需要把理论转成计划的教练",
+          "愿意记录并复盘的读者"
+        ],
+        "goals": [
+          "说清核心概念",
+          "形成可执行决策",
+          "设计一次可验证的小实验"
+        ],
+        "prerequisites": [
+          "先阅读全书深读入口",
+          "本页不替代正版原书或专业诊疗"
+        ]
+      },
+      "keyTakeaways": [
+        "功能与目标任务的定义",
+        "先写清真实任务再选练习",
+        "一次只改变少量关键变量，并提前定义反馈信号",
+        "把站在不稳定器械上或同时完成多个动作视为天然更有功能，会用表面复杂度替代目标分析。"
+      ],
+      "discussionPrompts": [
+        "你当前最接近这个主题的真实问题是什么？",
+        "你会保留哪个变量不变，才看得出干预是否有效？",
+        "如果结果与书中框架不一致，你先检查数据、执行还是原始假设？"
+      ],
+      "citations": [
+        {
+          "title": "书目：功能性训练：提升运动表现的动作练习和方案设计",
+          "note": "本页为 CoachLink 原创解释性笔记；不复制原书正文、插图、表格或完整处方。正式学术或专业引用请回到正版书核对作者、版次、出版社和页码。",
+          "license": "interpretive-notes-only"
+        }
+      ]
+    },
+    {
+      "slug": "topic-02",
+      "file": "notes/02-topic.md",
+      "noteType": "chapter",
+      "chapterOrder": 2,
+      "chapterTitle": "动作模式、运动链与多平面控制",
+      "title": "《功能性训练：提升运动表现的动作练习和方案设计》主题深读 2：动作模式、运动链与多平面控制",
+      "summary": "人体动作通常由多个关节和肌群以链式方式协作，并在矢状、额状和水平平面之间持续调节。多平面训练的价值在于提高真实任务中的控制与发力选择，而非为了覆盖方向机械地凑齐动作。 本页进一步给出教练决策、反馈记录、微实验和应用边界。",
+      "sortOrder": 3142,
+      "author": "Juan Carlos Santana",
+      "isFree": true,
+      "isPublished": true,
+      "mindMap": {
+        "title": "《功能性训练：提升运动表现的动作练习和方案设计》主题 2 · 动作模式、运动链与多平面控制",
+        "description": "CoachLink 原创主题知识地图：概念、决策、验证、误区和边界放在同一张图里。",
+        "data": [
+          {
+            "id": "root",
+            "title": "动作模式、运动链与多平面控制",
+            "node_type": "domain",
+            "children": [
+              {
+                "id": "concept",
+                "title": "核心概念",
+                "description": "人体动作通常由多个关节和肌群以链式方式协作，并在矢状、额状和水平平面之间持续调节。多平面训练的价值在于提高真实任务中的控制与发力选择，而非为了覆盖方向机械地凑齐动作。",
+                "node_type": "category"
+              },
+              {
+                "id": "decision",
+                "title": "教练决策",
+                "description": "教练应先建立蹲、髋主导、推、拉、跨步和移动等基本模式，再根据专项加入旋转或侧向负荷。若增加平面复杂度后主要动作质量明显下降，应退回更稳定版本并强化缺失环节。",
+                "node_type": "category"
+              },
+              {
+                "id": "practice",
+                "title": "最小实践",
+                "description": "复杂度必须换来可解释的收益",
+                "node_type": "category"
+              },
+              {
+                "id": "feedback",
+                "title": "记录与复盘",
+                "description": "先留基线，一次只改一个关键变量，再用结果和恢复信号判断。",
+                "node_type": "category"
+              },
+              {
+                "id": "pitfall",
+                "title": "常见误用",
+                "description": "把所有训练都改成多关节、多平面组合，会牺牲可负荷性，并使真正的技术限制难以识别。",
+                "node_type": "category"
+              },
+              {
+                "id": "boundary",
+                "title": "应用边界",
+                "description": "功能性取决于目标和个体，不是固定动作清单；新奇、晃动或多器械不自动代表更有效。",
+                "node_type": "category"
+              }
+            ]
+          }
+        ]
+      },
+      "readingGuide": {
+        "estimatedMinutes": 10,
+        "suitableFor": [
+          "正在学习功能性训练的训练者",
+          "需要把理论转成计划的教练",
+          "愿意记录并复盘的读者"
+        ],
+        "goals": [
+          "说清核心概念",
+          "形成可执行决策",
+          "设计一次可验证的小实验"
+        ],
+        "prerequisites": [
+          "先阅读全书深读入口",
+          "本页不替代正版原书或专业诊疗"
+        ]
+      },
+      "keyTakeaways": [
+        "动作模式、运动链与多平面控制",
+        "复杂度必须换来可解释的收益",
+        "一次只改变少量关键变量，并提前定义反馈信号",
+        "把所有训练都改成多关节、多平面组合，会牺牲可负荷性，并使真正的技术限制难以识别。"
+      ],
+      "discussionPrompts": [
+        "你当前最接近这个主题的真实问题是什么？",
+        "你会保留哪个变量不变，才看得出干预是否有效？",
+        "如果结果与书中框架不一致，你先检查数据、执行还是原始假设？"
+      ],
+      "citations": [
+        {
+          "title": "书目：功能性训练：提升运动表现的动作练习和方案设计",
+          "note": "本页为 CoachLink 原创解释性笔记；不复制原书正文、插图、表格或完整处方。正式学术或专业引用请回到正版书核对作者、版次、出版社和页码。",
+          "license": "interpretive-notes-only"
+        }
+      ]
+    },
+    {
+      "slug": "topic-03",
+      "file": "notes/03-topic.md",
+      "noteType": "chapter",
+      "chapterOrder": 3,
+      "chapterTitle": "练习回归与进阶",
+      "title": "《功能性训练：提升运动表现的动作练习和方案设计》主题深读 3：练习回归与进阶",
+      "summary": "回归是调整动作条件以保留训练目标，并非对训练者能力的否定。进阶则应提升负荷、速度、幅度、协调或环境要求中的相关因素，而不是单纯增加步骤。 本页进一步给出教练决策、反馈记录、微实验和应用边界。",
+      "sortOrder": 3143,
+      "author": "Juan Carlos Santana",
+      "isFree": true,
+      "isPublished": true,
+      "mindMap": {
+        "title": "《功能性训练：提升运动表现的动作练习和方案设计》主题 3 · 练习回归与进阶",
+        "description": "CoachLink 原创主题知识地图：概念、决策、验证、误区和边界放在同一张图里。",
+        "data": [
+          {
+            "id": "root",
+            "title": "练习回归与进阶",
+            "node_type": "domain",
+            "children": [
+              {
+                "id": "concept",
+                "title": "核心概念",
+                "description": "回归是调整动作条件以保留训练目标，并非对训练者能力的否定。进阶则应提升负荷、速度、幅度、协调或环境要求中的相关因素，而不是单纯增加步骤。",
+                "node_type": "category"
+              },
+              {
+                "id": "decision",
+                "title": "教练决策",
+                "description": "教练应为关键动作预设较容易和较困难版本，并根据疼痛、稳定性和完成质量即时选择。每次进阶后都要确认目标组织与动作模式仍是主要刺激，否则应降低复杂度。",
+                "node_type": "category"
+              },
+              {
+                "id": "practice",
+                "title": "最小实践",
+                "description": "用表现和动作质量验证所谓转化",
+                "node_type": "category"
+              },
+              {
+                "id": "feedback",
+                "title": "记录与复盘",
+                "description": "先留基线，一次只改一个关键变量，再用结果和恢复信号判断。",
+                "node_type": "category"
+              },
+              {
+                "id": "pitfall",
+                "title": "常见误用",
+                "description": "以动作是否新奇判断进阶，容易出现难度提高但训练目标已经改变的情况。",
+                "node_type": "category"
+              },
+              {
+                "id": "boundary",
+                "title": "应用边界",
+                "description": "功能性取决于目标和个体，不是固定动作清单；新奇、晃动或多器械不自动代表更有效。",
+                "node_type": "category"
+              }
+            ]
+          }
+        ]
+      },
+      "readingGuide": {
+        "estimatedMinutes": 10,
+        "suitableFor": [
+          "正在学习功能性训练的训练者",
+          "需要把理论转成计划的教练",
+          "愿意记录并复盘的读者"
+        ],
+        "goals": [
+          "说清核心概念",
+          "形成可执行决策",
+          "设计一次可验证的小实验"
+        ],
+        "prerequisites": [
+          "先阅读全书深读入口",
+          "本页不替代正版原书或专业诊疗"
+        ]
+      },
+      "keyTakeaways": [
+        "练习回归与进阶",
+        "用表现和动作质量验证所谓转化",
+        "一次只改变少量关键变量，并提前定义反馈信号",
+        "以动作是否新奇判断进阶，容易出现难度提高但训练目标已经改变的情况。"
+      ],
+      "discussionPrompts": [
+        "你当前最接近这个主题的真实问题是什么？",
+        "你会保留哪个变量不变，才看得出干预是否有效？",
+        "如果结果与书中框架不一致，你先检查数据、执行还是原始假设？"
+      ],
+      "citations": [
+        {
+          "title": "书目：功能性训练：提升运动表现的动作练习和方案设计",
+          "note": "本页为 CoachLink 原创解释性笔记；不复制原书正文、插图、表格或完整处方。正式学术或专业引用请回到正版书核对作者、版次、出版社和页码。",
+          "license": "interpretive-notes-only"
+        }
+      ]
+    },
+    {
+      "slug": "topic-04",
+      "file": "notes/04-topic.md",
+      "noteType": "chapter",
+      "chapterOrder": 4,
+      "chapterTitle": "方案设计和专项转化",
+      "title": "《功能性训练：提升运动表现的动作练习和方案设计》主题深读 4：方案设计和专项转化",
+      "summary": "专项转化依赖训练获得的能力能否在目标动作中被调用，而不是健身房动作与比赛画面是否相似。基础力量、速度、能量供应和技术练习需要被合理分工，再通过专项训练完成整合。 本页进一步给出教练决策、反馈记录、微实验和应用边界。",
+      "sortOrder": 3144,
+      "author": "Juan Carlos Santana",
+      "isFree": true,
+      "isPublished": true,
+      "mindMap": {
+        "title": "《功能性训练：提升运动表现的动作练习和方案设计》主题 4 · 方案设计和专项转化",
+        "description": "CoachLink 原创主题知识地图：概念、决策、验证、误区和边界放在同一张图里。",
+        "data": [
+          {
+            "id": "root",
+            "title": "方案设计和专项转化",
+            "node_type": "domain",
+            "children": [
+              {
+                "id": "concept",
+                "title": "核心概念",
+                "description": "专项转化依赖训练获得的能力能否在目标动作中被调用，而不是健身房动作与比赛画面是否相似。基础力量、速度、能量供应和技术练习需要被合理分工，再通过专项训练完成整合。",
+                "node_type": "category"
+              },
+              {
+                "id": "decision",
+                "title": "教练决策",
+                "description": "教练应优先训练限制表现的通用能力，并在接近比赛时增加速度、方向和信息环境的相似性。效果评估应同时查看训练动作进步、专项指标和伤病耐受，避免用单一测试下结论。",
+                "node_type": "category"
+              },
+              {
+                "id": "practice",
+                "title": "最小实践",
+                "description": "先写清真实任务再选练习",
+                "node_type": "category"
+              },
+              {
+                "id": "feedback",
+                "title": "记录与复盘",
+                "description": "先留基线，一次只改一个关键变量，再用结果和恢复信号判断。",
+                "node_type": "category"
+              },
+              {
+                "id": "pitfall",
+                "title": "常见误用",
+                "description": "用轻负荷机械模仿比赛动作，可能既不足以发展基础能力，也无法复制真实专项速度和决策压力。",
+                "node_type": "category"
+              },
+              {
+                "id": "boundary",
+                "title": "应用边界",
+                "description": "功能性取决于目标和个体，不是固定动作清单；新奇、晃动或多器械不自动代表更有效。",
+                "node_type": "category"
+              }
+            ]
+          }
+        ]
+      },
+      "readingGuide": {
+        "estimatedMinutes": 10,
+        "suitableFor": [
+          "正在学习功能性训练的训练者",
+          "需要把理论转成计划的教练",
+          "愿意记录并复盘的读者"
+        ],
+        "goals": [
+          "说清核心概念",
+          "形成可执行决策",
+          "设计一次可验证的小实验"
+        ],
+        "prerequisites": [
+          "先阅读全书深读入口",
+          "本页不替代正版原书或专业诊疗"
+        ]
+      },
+      "keyTakeaways": [
+        "方案设计和专项转化",
+        "先写清真实任务再选练习",
+        "一次只改变少量关键变量，并提前定义反馈信号",
+        "用轻负荷机械模仿比赛动作，可能既不足以发展基础能力，也无法复制真实专项速度和决策压力。"
+      ],
+      "discussionPrompts": [
+        "你当前最接近这个主题的真实问题是什么？",
+        "你会保留哪个变量不变，才看得出干预是否有效？",
+        "如果结果与书中框架不一致，你先检查数据、执行还是原始假设？"
+      ],
+      "citations": [
+        {
+          "title": "书目：功能性训练：提升运动表现的动作练习和方案设计",
+          "note": "本页为 CoachLink 原创解释性笔记；不复制原书正文、插图、表格或完整处方。正式学术或专业引用请回到正版书核对作者、版次、出版社和页码。",
+          "license": "interpretive-notes-only"
+        }
+      ]
+    }
+  ]
+}

@@ -25,6 +25,8 @@ const BooksPage = () => {
       setLoading(true);
       const result = await knowledgeService.listKnowledgeBooks({
         is_published: true,
+        page: 0,
+        limit: 1000,
       });
       
       if (result) {

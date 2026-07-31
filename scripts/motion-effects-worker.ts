@@ -101,12 +101,18 @@ async function runRenderer(job: any, directory: string) {
   const input = path.join(directory, `input${path.extname(job.input_storage_path || "") || ".mp4"}`);
   const output = path.join(directory, "output.mp4");
   const resultPath = path.join(directory, "result.json");
+  const metadata =
+    job.metadata && typeof job.metadata === "object" ? job.metadata : {};
   await downloadObject(job.input_storage_bucket || bucketFallback, job.input_storage_path, input);
   const args = [
     rendererPath,
     "--input", input,
     "--output", output,
     "--result", resultPath,
+    "--style", String(job.style_key || metadata.style_key || "aurora"),
+    "--motion-speed", String(metadata.motion_speed || "balanced"),
+    "--glow-strength", String(metadata.glow_strength || "balanced"),
+    "--surface-density", String(metadata.surface_density || "balanced"),
   ];
   await new Promise<void>((resolve, reject) => {
     const child = spawnRenderer(pythonBin, args);

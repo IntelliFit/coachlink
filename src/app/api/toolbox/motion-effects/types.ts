@@ -25,6 +25,10 @@ export interface MotionEffectJobDto {
   createdAt: string;
   completedAt: string | null;
   canDownload: boolean;
+  styleKey: string;
+  motionSpeed: string;
+  glowStrength: string;
+  surfaceDensity: string;
   queueInfo?: {
     jobsAhead: number;
     queuedAhead: number;
@@ -38,6 +42,10 @@ export interface CreateMotionEffectUploadDto {
   contentType: string;
   fileSizeBytes: number;
   durationSeconds?: number;
+  styleKey?: string;
+  motionSpeed?: "gentle" | "balanced" | "energetic";
+  glowStrength?: "soft" | "balanced" | "strong";
+  surfaceDensity?: "transparent" | "balanced" | "rich";
 }
 
 export interface CreateMotionEffectUploadResponseDto {

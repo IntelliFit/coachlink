@@ -218,6 +218,439 @@
       display: block;
     }
 
+    .reading-card,
+    .rich-section {
+      margin-bottom: 32rpx;
+      padding: 24rpx;
+      border: 1px solid #e5e7eb;
+      border-radius: 24rpx;
+      background: #faf9f7;
+    }
+
+    .reading-card-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16rpx;
+    }
+
+    .reading-time {
+      flex-shrink: 0;
+      padding: 8rpx 16rpx;
+      border-radius: 9999rpx;
+      background: #f1e6e1;
+      font-size: 20rpx;
+      font-weight: 700;
+      color: #9a4e37;
+    }
+
+    .reading-block + .reading-block {
+      margin-top: 24rpx;
+    }
+
+    .reading-label {
+      display: block;
+      margin-bottom: 8rpx;
+      font-size: 22rpx;
+      font-weight: 800;
+      color: #374151;
+    }
+
+    .reading-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8rpx;
+
+      Text {
+        padding: 8rpx 16rpx;
+        border-radius: 9999rpx;
+        background: #ffffff;
+        font-size: 20rpx;
+        color: #6b7280;
+      }
+    }
+
+    .reading-list-item {
+      display: block;
+      margin-bottom: 8rpx;
+      font-size: 22rpx;
+      line-height: 1.7;
+      color: #4b5563;
+    }
+
+    .section-description {
+      display: block;
+      margin-bottom: 16rpx;
+      font-size: 22rpx;
+      line-height: 1.7;
+      color: #6b7280;
+    }
+
+    .takeaway-list,
+    .discussion-prompt-list,
+    .citation-list {
+      display: flex;
+      flex-direction: column;
+      gap: 16rpx;
+    }
+
+    .takeaway-card,
+    .discussion-prompt-card {
+      display: flex;
+      align-items: flex-start;
+      gap: 16rpx;
+      padding: 16rpx;
+      border-radius: 16rpx;
+      background: #ffffff;
+    }
+
+    .takeaway-index,
+    .discussion-index {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 48rpx;
+      height: 48rpx;
+      flex-shrink: 0;
+      border-radius: 16rpx;
+      background: #cf6d4e;
+      font-size: 20rpx;
+      font-weight: 800;
+      color: #ffffff;
+    }
+
+    .takeaway-text,
+    .discussion-text {
+      flex: 1;
+      font-size: 22rpx;
+      line-height: 1.7;
+      color: #374151;
+    }
+
+    .mind-map-tree {
+      overflow-x: auto;
+    }
+
+    .mind-map-node {
+      min-width: 0;
+    }
+
+    .mind-map-node-head {
+      padding: 16rpx;
+      border: 1px solid #e5e7eb;
+      border-radius: 16rpx;
+      background: #ffffff;
+    }
+
+    .mind-map-depth-0 > .mind-map-node-head {
+      border-color: #cf6d4e;
+      background: #cf6d4e;
+
+      .mind-map-node-title,
+      .mind-map-node-desc {
+        color: #ffffff;
+      }
+    }
+
+    .mind-map-depth-1 > .mind-map-node-head {
+      border-color: #e8c4b7;
+      background: #fdf2ec;
+    }
+
+    .mind-map-node-title,
+    .mind-map-node-desc {
+      display: block;
+    }
+
+    .mind-map-node-title {
+      font-size: 24rpx;
+      font-weight: 800;
+      line-height: 1.5;
+      color: #374151;
+    }
+
+    .mind-map-node-desc {
+      margin-top: 8rpx;
+      font-size: 20rpx;
+      line-height: 1.6;
+      color: #6b7280;
+    }
+
+    .mind-map-children {
+      display: flex;
+      flex-direction: column;
+      gap: 16rpx;
+      margin-top: 16rpx;
+      padding-left: 24rpx;
+      border-left: 4rpx solid #e8c4b7;
+    }
+
+    .citation-card {
+      padding: 16rpx;
+      border: 1px solid #e5e7eb;
+      border-radius: 16rpx;
+      background: #ffffff;
+    }
+
+    .citation-title,
+    .citation-note,
+    .citation-meta {
+      display: block;
+    }
+
+    .citation-title {
+      font-size: 24rpx;
+      font-weight: 800;
+      line-height: 1.5;
+      color: #9a4e37;
+    }
+
+    .citation-note {
+      margin-top: 8rpx;
+      font-size: 22rpx;
+      line-height: 1.7;
+      color: #4b5563;
+    }
+
+    .citation-meta {
+      margin-top: 8rpx;
+      font-size: 20rpx;
+      line-height: 1.6;
+      color: #9ca3af;
+    }
+
+    .discussion-unavailable,
+    .discussion-replying,
+    .discussion-error {
+      margin-bottom: 16rpx;
+      padding: 16rpx;
+      border-radius: 16rpx;
+      font-size: 22rpx;
+      line-height: 1.6;
+    }
+
+    .discussion-unavailable {
+      background: #fff7ed;
+      color: #9a3412;
+    }
+
+    .discussion-replying {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16rpx;
+      background: #fdf2ec;
+      color: #9a4e37;
+
+      Text:last-child {
+        flex-shrink: 0;
+        font-weight: 800;
+      }
+    }
+
+    .discussion-error {
+      margin-top: 16rpx;
+      background: #fef2f2;
+      color: #b91c1c;
+    }
+
+    .discussion-prompt-scroll {
+      width: 100%;
+      margin-bottom: 16rpx;
+      white-space: nowrap;
+    }
+
+    .discussion-prompt-track {
+      display: inline-flex;
+      gap: 16rpx;
+      padding-bottom: 8rpx;
+    }
+
+    .discussion-prompt-chip {
+      box-sizing: border-box;
+      width: 480rpx;
+      padding: 16rpx;
+      border: 1px solid #e5e7eb;
+      border-radius: 16rpx;
+      background: #ffffff;
+      white-space: normal;
+
+      Text {
+        font-size: 22rpx;
+        line-height: 1.6;
+        color: #4b5563;
+      }
+    }
+
+    .discussion-textarea {
+      box-sizing: border-box;
+      width: 100%;
+      min-height: 160rpx;
+      padding: 16rpx;
+      border: 1px solid #d1d5db;
+      border-radius: 16rpx;
+      background: #ffffff;
+      font-size: 24rpx;
+      line-height: 1.7;
+      color: #111827;
+    }
+
+    .discussion-submit-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16rpx;
+      margin-top: 16rpx;
+    }
+
+    .discussion-counter {
+      font-size: 20rpx;
+      color: #9ca3af;
+    }
+
+    .discussion-submit {
+      padding: 16rpx 24rpx;
+      border-radius: 16rpx;
+      background: #cf6d4e;
+
+      Text {
+        font-size: 22rpx;
+        font-weight: 800;
+        color: #ffffff;
+      }
+
+      &.disabled {
+        opacity: 0.48;
+      }
+    }
+
+    .discussion-list {
+      margin-top: 24rpx;
+    }
+
+    .discussion-loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 128rpx;
+    }
+
+    .discussion-empty {
+      display: block;
+      padding: 24rpx;
+      text-align: center;
+      font-size: 22rpx;
+      line-height: 1.6;
+      color: #6b7280;
+    }
+
+    .discussion-comment + .discussion-comment {
+      margin-top: 16rpx;
+    }
+
+    .discussion-comment.depth-1,
+    .discussion-comment.depth-2 {
+      margin-top: 16rpx;
+      margin-left: 24rpx;
+    }
+
+    .discussion-comment-card {
+      display: flex;
+      align-items: flex-start;
+      gap: 16rpx;
+      padding: 16rpx;
+      border: 1px solid #e5e7eb;
+      border-radius: 16rpx;
+      background: #ffffff;
+    }
+
+    .discussion-avatar {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 64rpx;
+      height: 64rpx;
+      flex-shrink: 0;
+      overflow: hidden;
+      border-radius: 32rpx;
+      background: #fdf2ec;
+
+      Image {
+        width: 64rpx;
+        height: 64rpx;
+      }
+
+      Text {
+        font-size: 24rpx;
+        font-weight: 800;
+        color: #9a4e37;
+      }
+    }
+
+    .discussion-comment-main {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .discussion-comment-head {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8rpx;
+      margin-bottom: 8rpx;
+    }
+
+    .discussion-author {
+      font-size: 22rpx;
+      font-weight: 800;
+      color: #111827;
+    }
+
+    .discussion-mine {
+      padding: 8rpx;
+      border-radius: 8rpx;
+      background: #fdf2ec;
+      font-size: 18rpx;
+      color: #9a4e37;
+    }
+
+    .discussion-time {
+      font-size: 18rpx;
+      color: #9ca3af;
+    }
+
+    .discussion-body {
+      display: block;
+      font-size: 22rpx;
+      line-height: 1.7;
+      color: #374151;
+      white-space: pre-wrap;
+    }
+
+    .discussion-actions {
+      display: flex;
+      gap: 16rpx;
+      margin-top: 16rpx;
+
+      Text {
+        padding: 8rpx 16rpx;
+        border: 1px solid #d1d5db;
+        border-radius: 16rpx;
+        background: #ffffff;
+        font-size: 20rpx;
+        color: #4b5563;
+
+        &.delete {
+          border-color: #fecaca;
+          color: #b91c1c;
+        }
+      }
+    }
+
+    .discussion-children {
+      border-left: 4rpx solid #e8c4b7;
+    }
+
     .content-html {
       font-size: 26rpx;
       color: #333;
@@ -375,6 +808,69 @@
       color: #9ca3af;
       margin-bottom: 8rpx;
       line-height: 1.6;
+    }
+  }
+}
+
+.book-detail-page.theme-dark {
+  background: #181817;
+
+  .book-body {
+    border-color: #3f3d39;
+    background: #242321;
+
+    .book-title,
+    .content-section-title,
+    .reading-label,
+    .mind-map-node-title,
+    .discussion-author {
+      color: #f5f5f4;
+    }
+
+    .book-author,
+    .book-summary,
+    .section-description,
+    .reading-list-item,
+    .takeaway-text,
+    .discussion-text,
+    .citation-note,
+    .discussion-body,
+    .discussion-empty {
+      color: #d6d3d1;
+    }
+
+    .book-summary,
+    .reading-card,
+    .rich-section,
+    .related-card,
+    .prompt-card {
+      border-color: #3f3d39;
+      background: #2d2b28;
+    }
+
+    .reading-tags Text,
+    .takeaway-card,
+    .discussion-prompt-card,
+    .mind-map-node-head,
+    .citation-card,
+    .discussion-comment-card,
+    .discussion-actions Text,
+    .discussion-textarea {
+      border-color: #4b4843;
+      background: #242321;
+      color: #f5f5f4;
+    }
+
+    .mind-map-depth-0 > .mind-map-node-head {
+      border-color: #cf6d4e;
+      background: #cf6d4e;
+    }
+
+    .mind-map-depth-1 > .mind-map-node-head,
+    .discussion-avatar,
+    .discussion-mine,
+    .discussion-replying {
+      background: #3a2b26;
     }
   }
 }

@@ -1,0 +1,497 @@
+{
+  "format": "book-note-v4-classic-deep-read",
+  "noteStyle": "interpretive-reading-note",
+  "disclaimer": "本页为 CoachLink 原创导读与知识地图，不复制原书正文、插图、表格或完整训练模板，也不替代购买和阅读正版原书。",
+  "source": {
+    "title": "腰肌功能解剖与评估：康复、纠正性和功能性训练",
+    "authors": [
+      "Evan Osar"
+    ],
+    "originalFilePath": "local-library://psoas-function-assessment",
+    "copyrightMode": "interpretive-notes-only",
+    "collectionSlug": "psoas-function-assessment",
+    "collectionTitle": "《腰肌功能解剖与评估：康复、纠正性和功能性训练》原创深读笔记"
+  },
+  "notes": [
+    {
+      "slug": "overview",
+      "file": "notes/00-overview.md",
+      "noteType": "overview",
+      "chapterOrder": 0,
+      "chapterTitle": "深读入口",
+      "title": "《腰肌功能解剖与评估：康复、纠正性和功能性训练》深读入口：先建立全书地图，再决定怎么用",
+      "summary": "聚焦腰大肌相关解剖、呼吸姿势、髋腰盆协同、评估与动作整合，适合辨析单块肌肉叙事与整体功能。",
+      "sortOrder": 3190,
+      "author": "Evan Osar",
+      "isFree": true,
+      "isPublished": true,
+      "mindMap": {
+        "title": "《腰肌功能解剖与评估：康复、纠正性和功能性训练》全书知识地图",
+        "description": "这是 CoachLink 根据书籍主题绘制的原创导航图，不复制原书插图或版式。",
+        "data": [
+          {
+            "id": "root",
+            "title": "腰肌功能解剖与评估：康复、纠正性和功能性训练",
+            "node_type": "domain",
+            "children": [
+              {
+                "id": "question",
+                "title": "核心问题",
+                "description": "怎样理解腰肌在髋、腰椎、骨盆与呼吸控制中的角色，同时避免把复杂症状都归因于一块肌肉？",
+                "node_type": "category"
+              },
+              {
+                "id": "framework-1",
+                "title": "腰肌解剖与邻近结构",
+                "node_type": "category"
+              },
+              {
+                "id": "framework-2",
+                "title": "呼吸、躯干与髋部协同",
+                "node_type": "category"
+              },
+              {
+                "id": "framework-3",
+                "title": "观察、测试与工作假设",
+                "node_type": "category"
+              },
+              {
+                "id": "framework-4",
+                "title": "动作重建、负荷与功能整合",
+                "node_type": "category"
+              },
+              {
+                "id": "boundary",
+                "title": "应用边界",
+                "description": "不能根据疼痛位置自行诊断腰肌问题；出现持续腰腹痛、神经症状或内脏相关警讯应及时就医。",
+                "node_type": "category"
+              }
+            ]
+          }
+        ]
+      },
+      "readingGuide": {
+        "estimatedMinutes": 8,
+        "suitableFor": [
+          "关注功能解剖与康复的训练者",
+          "教练与知识库编辑",
+          "准备精读正版原书的读者"
+        ],
+        "goals": [
+          "掌握全书核心问题",
+          "看懂主题之间的关系",
+          "明确应用边界与复盘方法"
+        ],
+        "prerequisites": [
+          "本页不替代原书，也不提供原文件下载"
+        ]
+      },
+      "keyTakeaways": [
+        "腰肌解剖与邻近结构",
+        "呼吸、躯干与髋部协同",
+        "观察、测试与工作假设",
+        "动作重建、负荷与功能整合"
+      ],
+      "discussionPrompts": [
+        "这本书最可能改变你当前的哪一个训练决策？",
+        "哪一个观点高度依赖作者的目标人群或训练环境？",
+        "你会用什么训练数据判断它对自己是否有效？"
+      ],
+      "citations": [
+        {
+          "title": "书目：腰肌功能解剖与评估：康复、纠正性和功能性训练",
+          "note": "基于本地书目盘点建立原创导读；原始电子文件仅供内部研究，不上传、不公开下载。正式引用前应继续核对正版书的作者、版次、出版社与页码。",
+          "license": "interpretive-notes-only"
+        }
+      ]
+    },
+    {
+      "slug": "topic-01",
+      "file": "notes/01-topic.md",
+      "noteType": "chapter",
+      "chapterOrder": 1,
+      "chapterTitle": "腰肌解剖与邻近结构",
+      "title": "《腰肌功能解剖与评估：康复、纠正性和功能性训练》主题深读 1：腰肌解剖与邻近结构",
+      "summary": "腰大肌连接腰椎区域与股骨，在不同关节位置和固定条件下可参与髋屈曲以及腰盆区域的力学控制。它与膈肌、神经和周围结缔组织关系密切，但空间相邻不等于它必然是症状来源。 本页进一步给出教练决策、反馈记录、微实验和应用边界。",
+      "sortOrder": 3191,
+      "author": "Evan Osar",
+      "isFree": true,
+      "isPublished": true,
+      "mindMap": {
+        "title": "《腰肌功能解剖与评估：康复、纠正性和功能性训练》主题 1 · 腰肌解剖与邻近结构",
+        "description": "CoachLink 原创主题知识地图：概念、决策、验证、误区和边界放在同一张图里。",
+        "data": [
+          {
+            "id": "root",
+            "title": "腰肌解剖与邻近结构",
+            "node_type": "domain",
+            "children": [
+              {
+                "id": "concept",
+                "title": "核心概念",
+                "description": "腰大肌连接腰椎区域与股骨，在不同关节位置和固定条件下可参与髋屈曲以及腰盆区域的力学控制。它与膈肌、神经和周围结缔组织关系密切，但空间相邻不等于它必然是症状来源。",
+                "node_type": "category"
+              },
+              {
+                "id": "decision",
+                "title": "教练决策",
+                "description": "观察时应把髋、腰椎、骨盆和胸廓放在同一任务中，比较不同姿势与负荷下症状如何变化。只有多个信息共同支持腰肌相关假设时，才针对性选择干预并立即复测目标动作。",
+                "node_type": "category"
+              },
+              {
+                "id": "practice",
+                "title": "最小实践",
+                "description": "把单肌肉假设放进整体动作验证",
+                "node_type": "category"
+              },
+              {
+                "id": "feedback",
+                "title": "记录与复盘",
+                "description": "先留基线，一次只改一个关键变量，再用结果和恢复信号判断。",
+                "node_type": "category"
+              },
+              {
+                "id": "pitfall",
+                "title": "常见误用",
+                "description": "不能仅凭疼痛位置、骨盆外观或触诊感受诊断所谓腰肌紧张。",
+                "node_type": "category"
+              },
+              {
+                "id": "boundary",
+                "title": "应用边界",
+                "description": "不能根据疼痛位置自行诊断腰肌问题；出现持续腰腹痛、神经症状或内脏相关警讯应及时就医。",
+                "node_type": "category"
+              }
+            ]
+          }
+        ]
+      },
+      "readingGuide": {
+        "estimatedMinutes": 10,
+        "suitableFor": [
+          "正在学习功能解剖与康复的训练者",
+          "需要把理论转成计划的教练",
+          "愿意记录并复盘的读者"
+        ],
+        "goals": [
+          "说清核心概念",
+          "形成可执行决策",
+          "设计一次可验证的小实验"
+        ],
+        "prerequisites": [
+          "先阅读全书深读入口",
+          "本页不替代正版原书或专业诊疗"
+        ]
+      },
+      "keyTakeaways": [
+        "腰肌解剖与邻近结构",
+        "把单肌肉假设放进整体动作验证",
+        "一次只改变少量关键变量，并提前定义反馈信号",
+        "不能仅凭疼痛位置、骨盆外观或触诊感受诊断所谓腰肌紧张。"
+      ],
+      "discussionPrompts": [
+        "你当前最接近这个主题的真实问题是什么？",
+        "你会保留哪个变量不变，才看得出干预是否有效？",
+        "如果结果与书中框架不一致，你先检查数据、执行还是原始假设？"
+      ],
+      "citations": [
+        {
+          "title": "书目：腰肌功能解剖与评估：康复、纠正性和功能性训练",
+          "note": "本页为 CoachLink 原创解释性笔记；不复制原书正文、插图、表格或完整处方。正式学术或专业引用请回到正版书核对作者、版次、出版社和页码。",
+          "license": "interpretive-notes-only"
+        }
+      ]
+    },
+    {
+      "slug": "topic-02",
+      "file": "notes/02-topic.md",
+      "noteType": "chapter",
+      "chapterOrder": 2,
+      "chapterTitle": "呼吸、躯干与髋部协同",
+      "title": "《腰肌功能解剖与评估：康复、纠正性和功能性训练》主题深读 2：呼吸、躯干与髋部协同",
+      "summary": "呼吸中的膈肌运动、腹压调节和躯干肌协作会改变腰盆区域的稳定策略，腰肌只是其中一个参与者。有效协同不是始终绷紧躯干，而是在呼吸、支撑和髋部运动之间按任务需要分配张力。 本页进一步给出教练决策、反馈记录、微实验和应用边界。",
+      "sortOrder": 3192,
+      "author": "Evan Osar",
+      "isFree": true,
+      "isPublished": true,
+      "mindMap": {
+        "title": "《腰肌功能解剖与评估：康复、纠正性和功能性训练》主题 2 · 呼吸、躯干与髋部协同",
+        "description": "CoachLink 原创主题知识地图：概念、决策、验证、误区和边界放在同一张图里。",
+        "data": [
+          {
+            "id": "root",
+            "title": "呼吸、躯干与髋部协同",
+            "node_type": "domain",
+            "children": [
+              {
+                "id": "concept",
+                "title": "核心概念",
+                "description": "呼吸中的膈肌运动、腹压调节和躯干肌协作会改变腰盆区域的稳定策略，腰肌只是其中一个参与者。有效协同不是始终绷紧躯干，而是在呼吸、支撑和髋部运动之间按任务需要分配张力。",
+                "node_type": "category"
+              },
+              {
+                "id": "decision",
+                "title": "教练决策",
+                "description": "教练可比较自然呼吸、负重呼吸和髋部动作中的肋骨与骨盆控制，找出真正干扰任务的环节。提示语应服务于更顺畅的动作和负荷传递，并在行走、下蹲或提拉等功能任务中验证。",
+                "node_type": "category"
+              },
+              {
+                "id": "practice",
+                "title": "最小实践",
+                "description": "用呼吸、控制和负荷耐受共同观察",
+                "node_type": "category"
+              },
+              {
+                "id": "feedback",
+                "title": "记录与复盘",
+                "description": "先留基线，一次只改一个关键变量，再用结果和恢复信号判断。",
+                "node_type": "category"
+              },
+              {
+                "id": "pitfall",
+                "title": "常见误用",
+                "description": "某种呼吸技巧不能永久重置腰肌位置，也不应被当作处理全部腰痛的通用方法。",
+                "node_type": "category"
+              },
+              {
+                "id": "boundary",
+                "title": "应用边界",
+                "description": "不能根据疼痛位置自行诊断腰肌问题；出现持续腰腹痛、神经症状或内脏相关警讯应及时就医。",
+                "node_type": "category"
+              }
+            ]
+          }
+        ]
+      },
+      "readingGuide": {
+        "estimatedMinutes": 10,
+        "suitableFor": [
+          "正在学习功能解剖与康复的训练者",
+          "需要把理论转成计划的教练",
+          "愿意记录并复盘的读者"
+        ],
+        "goals": [
+          "说清核心概念",
+          "形成可执行决策",
+          "设计一次可验证的小实验"
+        ],
+        "prerequisites": [
+          "先阅读全书深读入口",
+          "本页不替代正版原书或专业诊疗"
+        ]
+      },
+      "keyTakeaways": [
+        "呼吸、躯干与髋部协同",
+        "用呼吸、控制和负荷耐受共同观察",
+        "一次只改变少量关键变量，并提前定义反馈信号",
+        "某种呼吸技巧不能永久重置腰肌位置，也不应被当作处理全部腰痛的通用方法。"
+      ],
+      "discussionPrompts": [
+        "你当前最接近这个主题的真实问题是什么？",
+        "你会保留哪个变量不变，才看得出干预是否有效？",
+        "如果结果与书中框架不一致，你先检查数据、执行还是原始假设？"
+      ],
+      "citations": [
+        {
+          "title": "书目：腰肌功能解剖与评估：康复、纠正性和功能性训练",
+          "note": "本页为 CoachLink 原创解释性笔记；不复制原书正文、插图、表格或完整处方。正式学术或专业引用请回到正版书核对作者、版次、出版社和页码。",
+          "license": "interpretive-notes-only"
+        }
+      ]
+    },
+    {
+      "slug": "topic-03",
+      "file": "notes/03-topic.md",
+      "noteType": "chapter",
+      "chapterOrder": 3,
+      "chapterTitle": "观察、测试与工作假设",
+      "title": "《腰肌功能解剖与评估：康复、纠正性和功能性训练》主题深读 3：观察、测试与工作假设",
+      "summary": "单项动作测试通常只能提供线索，其结果会受疼痛、熟悉度、恐惧和当天状态影响。工作假设应允许被新证据推翻，并通过干预前后的任务变化不断更新。 本页进一步给出教练决策、反馈记录、微实验和应用边界。",
+      "sortOrder": 3193,
+      "author": "Evan Osar",
+      "isFree": true,
+      "isPublished": true,
+      "mindMap": {
+        "title": "《腰肌功能解剖与评估：康复、纠正性和功能性训练》主题 3 · 观察、测试与工作假设",
+        "description": "CoachLink 原创主题知识地图：概念、决策、验证、误区和边界放在同一张图里。",
+        "data": [
+          {
+            "id": "root",
+            "title": "观察、测试与工作假设",
+            "node_type": "domain",
+            "children": [
+              {
+                "id": "concept",
+                "title": "核心概念",
+                "description": "单项动作测试通常只能提供线索，其结果会受疼痛、熟悉度、恐惧和当天状态影响。工作假设应允许被新证据推翻，并通过干预前后的任务变化不断更新。",
+                "node_type": "category"
+              },
+              {
+                "id": "decision",
+                "title": "教练决策",
+                "description": "评估宜结合病史、警讯筛查、主动与被动活动、力量表现、神经相关线索和实际功能。优先选择能够区分不同解释的测试，并记录干预后目标任务是否出现有意义变化。",
+                "node_type": "category"
+              },
+              {
+                "id": "practice",
+                "title": "最小实践",
+                "description": "每次干预后复测目标任务",
+                "node_type": "category"
+              },
+              {
+                "id": "feedback",
+                "title": "记录与复盘",
+                "description": "先留基线，一次只改一个关键变量，再用结果和恢复信号判断。",
+                "node_type": "category"
+              },
+              {
+                "id": "pitfall",
+                "title": "常见误用",
+                "description": "触诊到敏感或测试到髋屈肌短缩，均不能单独证明腰肌存在病理问题。",
+                "node_type": "category"
+              },
+              {
+                "id": "boundary",
+                "title": "应用边界",
+                "description": "不能根据疼痛位置自行诊断腰肌问题；出现持续腰腹痛、神经症状或内脏相关警讯应及时就医。",
+                "node_type": "category"
+              }
+            ]
+          }
+        ]
+      },
+      "readingGuide": {
+        "estimatedMinutes": 10,
+        "suitableFor": [
+          "正在学习功能解剖与康复的训练者",
+          "需要把理论转成计划的教练",
+          "愿意记录并复盘的读者"
+        ],
+        "goals": [
+          "说清核心概念",
+          "形成可执行决策",
+          "设计一次可验证的小实验"
+        ],
+        "prerequisites": [
+          "先阅读全书深读入口",
+          "本页不替代正版原书或专业诊疗"
+        ]
+      },
+      "keyTakeaways": [
+        "观察、测试与工作假设",
+        "每次干预后复测目标任务",
+        "一次只改变少量关键变量，并提前定义反馈信号",
+        "触诊到敏感或测试到髋屈肌短缩，均不能单独证明腰肌存在病理问题。"
+      ],
+      "discussionPrompts": [
+        "你当前最接近这个主题的真实问题是什么？",
+        "你会保留哪个变量不变，才看得出干预是否有效？",
+        "如果结果与书中框架不一致，你先检查数据、执行还是原始假设？"
+      ],
+      "citations": [
+        {
+          "title": "书目：腰肌功能解剖与评估：康复、纠正性和功能性训练",
+          "note": "本页为 CoachLink 原创解释性笔记；不复制原书正文、插图、表格或完整处方。正式学术或专业引用请回到正版书核对作者、版次、出版社和页码。",
+          "license": "interpretive-notes-only"
+        }
+      ]
+    },
+    {
+      "slug": "topic-04",
+      "file": "notes/04-topic.md",
+      "noteType": "chapter",
+      "chapterOrder": 4,
+      "chapterTitle": "动作重建、负荷与功能整合",
+      "title": "《腰肌功能解剖与评估：康复、纠正性和功能性训练》主题深读 4：动作重建、负荷与功能整合",
+      "summary": "动作重建是让髋部与躯干重新在可耐受范围内分担力量，再逐步回到步行、跑跳和负重任务。真正的功能恢复依赖容量与协调的累积，而不是把某块肌肉单独放松到理想状态。 本页进一步给出教练决策、反馈记录、微实验和应用边界。",
+      "sortOrder": 3194,
+      "author": "Evan Osar",
+      "isFree": true,
+      "isPublished": true,
+      "mindMap": {
+        "title": "《腰肌功能解剖与评估：康复、纠正性和功能性训练》主题 4 · 动作重建、负荷与功能整合",
+        "description": "CoachLink 原创主题知识地图：概念、决策、验证、误区和边界放在同一张图里。",
+        "data": [
+          {
+            "id": "root",
+            "title": "动作重建、负荷与功能整合",
+            "node_type": "domain",
+            "children": [
+              {
+                "id": "concept",
+                "title": "核心概念",
+                "description": "动作重建是让髋部与躯干重新在可耐受范围内分担力量，再逐步回到步行、跑跳和负重任务。真正的功能恢复依赖容量与协调的累积，而不是把某块肌肉单独放松到理想状态。",
+                "node_type": "category"
+              },
+              {
+                "id": "decision",
+                "title": "教练决策",
+                "description": "从个体能稳定完成的动作起点出发，逐步增加幅度、阻力、速度和任务复杂度，并观察次日反应。若改变站位、支撑或动作节奏能提高质量，可把这些约束作为过渡工具而非永久规则。",
+                "node_type": "category"
+              },
+              {
+                "id": "practice",
+                "title": "最小实践",
+                "description": "把单肌肉假设放进整体动作验证",
+                "node_type": "category"
+              },
+              {
+                "id": "feedback",
+                "title": "记录与复盘",
+                "description": "先留基线，一次只改一个关键变量，再用结果和恢复信号判断。",
+                "node_type": "category"
+              },
+              {
+                "id": "pitfall",
+                "title": "常见误用",
+                "description": "长期只做按压和拉伸可能反复刺激敏感区域，并延误必要的力量与负荷耐受训练。",
+                "node_type": "category"
+              },
+              {
+                "id": "boundary",
+                "title": "应用边界",
+                "description": "不能根据疼痛位置自行诊断腰肌问题；出现持续腰腹痛、神经症状或内脏相关警讯应及时就医。",
+                "node_type": "category"
+              }
+            ]
+          }
+        ]
+      },
+      "readingGuide": {
+        "estimatedMinutes": 10,
+        "suitableFor": [
+          "正在学习功能解剖与康复的训练者",
+          "需要把理论转成计划的教练",
+          "愿意记录并复盘的读者"
+        ],
+        "goals": [
+          "说清核心概念",
+          "形成可执行决策",
+          "设计一次可验证的小实验"
+        ],
+        "prerequisites": [
+          "先阅读全书深读入口",
+          "本页不替代正版原书或专业诊疗"
+        ]
+      },
+      "keyTakeaways": [
+        "动作重建、负荷与功能整合",
+        "把单肌肉假设放进整体动作验证",
+        "一次只改变少量关键变量，并提前定义反馈信号",
+        "长期只做按压和拉伸可能反复刺激敏感区域，并延误必要的力量与负荷耐受训练。"
+      ],
+      "discussionPrompts": [
+        "你当前最接近这个主题的真实问题是什么？",
+        "你会保留哪个变量不变，才看得出干预是否有效？",
+        "如果结果与书中框架不一致，你先检查数据、执行还是原始假设？"
+      ],
+      "citations": [
+        {
+          "title": "书目：腰肌功能解剖与评估：康复、纠正性和功能性训练",
+          "note": "本页为 CoachLink 原创解释性笔记；不复制原书正文、插图、表格或完整处方。正式学术或专业引用请回到正版书核对作者、版次、出版社和页码。",
+          "license": "interpretive-notes-only"
+        }
+      ]
+    }
+  ]
+}

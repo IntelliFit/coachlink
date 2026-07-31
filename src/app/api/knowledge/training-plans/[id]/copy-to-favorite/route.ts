@@ -7,7 +7,11 @@ import {
     buildCanonicalLookup,
     resolveCanonicalActionId,
 } from "@/lib/canonicalActionResolver";
-import { normalizeActionNameForMatch } from "@/lib/planImportText";
+import {
+    actionIdentityKey,
+    canonicalActionMatchesName,
+    normalizeActionNameIdentity,
+} from "@/lib/actionNameIdentity";
 import {
     expandTrainingDays,
     getPublishedTrainingPlanByIdOrSlug,
@@ -18,6 +22,7 @@ type TemplateActionRequirement = {
     name: string;
     type: ItemType;
     attrs: string[];
+    positions: string[] | null;
 };
 
 const DEFAULT_ATTRS_BY_TYPE: Record<ItemType, string[]> = {
@@ -111,6 +116,44 @@ function inferAttrsForAction(type: ItemType, params: Record<string, any>) {
     }
 
     return DEFAULT_ATTRS_BY_TYPE.STRENGTH;
+}
+
+function inferPositionsForAction(name: string, type: ItemType): string[] | null {
+    if (type !== "STRENGTH") return type === "CARDIO" ? ["全身"] : null;
+    const normalized = String(name || "").toLowerCase();
+    const positions = new Set<string>();
+    const has = (...keywords: string[]) => keywords.some((keyword) => normalized.includes(keyword));
+
+    if (has("squat", "lunge", "leg press", "leg extension", "step up", "深蹲", "弓步", "腿举", "腿屈伸")) {
+        positions.add("大腿");
+    }
+    if (has("deadlift", "romanian", "good morning", "hip hinge", "硬拉", "髋铰链")) {
+        positions.add("大腿");
+        positions.add("臀部");
+        positions.add("背部");
+    }
+    if (has("glute", "hip thrust", "hip bridge", "臀", "臀推", "臀桥")) positions.add("臀部");
+    if (has("calf", "小腿", "提踵")) positions.add("小腿");
+    if (has("bench press", "chest press", "chest fly", "pec fly", "push-up", "push up", "卧推", "飞鸟", "俯卧撑")) {
+        positions.add("胸部");
+    }
+    if (has("row", "pulldown", "pull-up", "pull up", "chin-up", "chin up", "划船", "下拉", "引体")) {
+        positions.add("背部");
+    }
+    if (has("overhead press", "shoulder press", "lateral raise", "front raise", "rear delt", "推举", "侧平举", "前平举", "三角肌")) {
+        positions.add("肩部");
+    }
+    if (has("curl", "tricep", "skull crusher", "extension", "pushdown", "dip", "弯举", "三头", "臂屈伸")) {
+        positions.add("手臂");
+    }
+    if (has("crunch", "plank", "sit-up", "sit up", "core", "abs", "卷腹", "平板", "核心", "腹")) {
+        positions.add("腹部");
+    }
+    if (has("snatch", "clean and jerk", "clean & jerk", "burpee", "thruster", "抓举", "挺举", "波比")) {
+        positions.add("全身");
+    }
+
+    return positions.size > 0 ? Array.from(positions) : ["全身"];
 }
 
 function shouldWriteLegacyStrength(raw: unknown) {
@@ -218,9 +261,15 @@ function collectActionRequirements(template: any, trainingDays: any[]) {
             if (!actionName) continue;
             const itemType = normalizeItemType(actionSet?.itemType || actionSet?.item_type);
             const attrs = inferAttrsForAction(itemType, actionSet?.params || {});
-            const key = `${itemType}:${normalizeActionNameForMatch(actionName)}`;
+            const key = actionIdentityKey(itemType, actionName);
             if (!key || requirements.has(key)) continue;
-            requirements.set(key, { key, name: actionName, type: itemType, attrs });
+            requirements.set(key, {
+                key,
+                name: actionName,
+                type: itemType,
+                attrs,
+                positions: inferPositionsForAction(actionName, itemType),
+            });
         }
     }
 
@@ -233,21 +282,23 @@ async function fetchPublicActionByName(name: string) {
         .select("*")
         .eq("name", name)
         .limit(10);
-    const normalizedTarget = normalizeActionNameForMatch(name);
+    const normalizedTarget = normalizeActionNameIdentity(name);
     return (data || []).find(
-        (row: any) => normalizeActionNameForMatch(row.name || "") === normalizedTarget,
+        (row: any) => normalizeActionNameIdentity(row.name || "") === normalizedTarget,
     ) || null;
 }
 
-async function fetchPublicActionByCanonical(canonicalActionId: string) {
+async function fetchPublicActionByCanonical(canonicalActionId: string, actionName: string) {
     const { data } = await (supabase as any)
         .from("community_actions")
         .select("*")
         .eq("canonical_action_id", canonicalActionId)
         .order("like_count", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-    return data || null;
+        .limit(20);
+    const identity = normalizeActionNameIdentity(actionName);
+    return (data || []).find(
+        (row: any) => normalizeActionNameIdentity(row?.name) === identity,
+    ) || null;
 }
 
 async function resolveAndEnsureStudentActions(
@@ -268,7 +319,7 @@ async function resolveAndEnsureStudentActions(
     const existingByName = new Map<string, any>();
     const existingByCanonical = new Map<string, any>();
     for (const row of existingActions || []) {
-        existingByName.set(normalizeActionNameForMatch(row.name || ""), row);
+        existingByName.set(actionIdentityKey(row.type, row.name), row);
         if (row.canonical_action_id) existingByCanonical.set(row.canonical_action_id, row);
     }
 
@@ -279,10 +330,13 @@ async function resolveAndEnsureStudentActions(
         throw new Error(`读取 canonical 动作库失败: ${canonicalError.message}`);
     }
     const canonicalLookup = buildCanonicalLookup((canonicalActions as any[]) || []);
+    const canonicalById = new Map<string, any>(
+        ((canonicalActions as any[]) || []).map((row: any) => [String(row.id), row]),
+    );
 
     for (const requirement of requirements) {
-        const normalizedName = normalizeActionNameForMatch(requirement.name);
-        const existingByExactName = existingByName.get(normalizedName);
+        const identityKey = actionIdentityKey(requirement.type, requirement.name);
+        const existingByExactName = existingByName.get(identityKey);
         if (existingByExactName) {
             resolvedByKey.set(requirement.key, existingByExactName);
             continue;
@@ -294,15 +348,32 @@ async function resolveAndEnsureStudentActions(
             pickFirstOnAmbiguous: true,
         });
         let canonicalActionId = canonicalResolved.canonicalActionId;
+        if (
+            canonicalActionId &&
+            !canonicalActionMatchesName(canonicalById.get(canonicalActionId), requirement.name)
+        ) {
+            // The broad smart-import matcher intentionally removes parenthesized
+            // text. Structured catalog names use that text for real variants
+            // (e.g. barbell vs dumbbell), so a broad-only match is unsafe here.
+            canonicalActionId = null;
+        }
 
         if (canonicalActionId && existingByCanonical.has(canonicalActionId)) {
-            resolvedByKey.set(requirement.key, existingByCanonical.get(canonicalActionId));
-            continue;
+            const existingCanonicalAction = existingByCanonical.get(canonicalActionId);
+            if (
+                canonicalActionMatchesName(
+                    canonicalById.get(canonicalActionId),
+                    existingCanonicalAction?.name,
+                )
+            ) {
+                resolvedByKey.set(requirement.key, existingCanonicalAction);
+                continue;
+            }
         }
 
         let publicAction = await fetchPublicActionByName(requirement.name);
         if (!publicAction && canonicalActionId) {
-            publicAction = await fetchPublicActionByCanonical(canonicalActionId);
+            publicAction = await fetchPublicActionByCanonical(canonicalActionId, requirement.name);
         }
 
         if (publicAction?.canonical_action_id && existingByCanonical.has(publicAction.canonical_action_id)) {
@@ -313,33 +384,13 @@ async function resolveAndEnsureStudentActions(
             continue;
         }
 
-        if (!canonicalActionId) {
-            if (canonicalResolved.reason && canonicalResolved.reason !== "not_found") {
-                throw new Error(canonicalResolved.errorMessage || `动作 ${requirement.name} 匹配失败`);
-            }
-            const generatedCanonicalId = `public_tpl_${crypto.randomUUID()}`;
-            const { error: createCanonicalError } = await (supabase as any)
-                .from("canonical_actions")
-                .insert({
-                    id: generatedCanonicalId,
-                    name: requirement.name,
-                    aliases: [],
-                    category: null,
-                    created_at: new Date().toISOString(),
-                });
-            if (createCanonicalError) {
-                throw new Error(`创建 canonical 动作失败: ${createCanonicalError.message}`);
-            }
-            canonicalActionId = generatedCanonicalId;
-        }
-
         const publicType = normalizeItemType(publicAction?.type || requirement.type);
         const insertPayload = {
             user_id: userId,
             name: publicAction?.name || requirement.name,
             detail: publicAction?.detail || null,
             positions: publicType === "STRENGTH"
-                ? (publicAction?.positions || ["全身"])
+                ? (publicAction?.positions || requirement.positions || ["全身"])
                 : null,
             attrs: publicAction?.attrs || requirement.attrs || DEFAULT_ATTRS_BY_TYPE[publicType],
             url: publicAction?.url || null,
@@ -352,7 +403,9 @@ async function resolveAndEnsureStudentActions(
             includesBodyWeight: publicType === "STRENGTH"
                 ? Boolean(publicAction?.includesBodyWeight && publicAction?.enableAutoWeightCompute)
                 : false,
-            canonical_action_id: publicAction?.canonical_action_id || canonicalActionId,
+            // Unreviewed variants remain valid personal actions without
+            // polluting the global canonical dictionary at copy time.
+            canonical_action_id: publicAction?.canonical_action_id || canonicalActionId || null,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
         };
@@ -378,7 +431,7 @@ async function resolveAndEnsureStudentActions(
             );
         }
 
-        existingByName.set(normalizeActionNameForMatch(inserted.name || ""), inserted);
+        existingByName.set(actionIdentityKey(inserted.type, inserted.name), inserted);
         if (inserted.canonical_action_id) {
             existingByCanonical.set(inserted.canonical_action_id, inserted);
         }
@@ -397,7 +450,7 @@ async function bindTrainingDaysToStudentActions(userId: string, template: any, t
         const nextActionSets = actionSets.map((actionSet: any) => {
             const actionName = resolveTemplateActionName(template, actionSet);
             const itemType = normalizeItemType(actionSet?.itemType || actionSet?.item_type);
-            const key = `${itemType}:${normalizeActionNameForMatch(actionName)}`;
+            const key = actionIdentityKey(itemType, actionName);
             const action = actionMap.get(key);
 
             return normalizeActionSetForFavorite({
