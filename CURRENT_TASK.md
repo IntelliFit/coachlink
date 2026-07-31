@@ -1,3 +1,12 @@
+## APP 与微信小程序功能对齐审计 (`2026-08-01`)
+
+- Status: 已完成源码级深度审计，详细报告见 `docs/audits/mobile-wechat-parity-audit-2026-08-01.md`；本轮只新增/更新文档，没有修改业务代码，也没有覆盖任务开始前的 APP 训练缓存等未提交改动。
+- Baseline: 小程序不能单独以 dev 或 main 为准。已重新获取的 `origin/dev=610a748d` 与 `origin/main=f77d43ae` 双向分叉（main 独有 5 个提交、dev 独有 14 个提交），本报告以两者功能并集为目标；APP 以当前工作区并对照 dev 更新为基线。
+- P0 findings: ① `is_coach` 用户被强制进入教练端且无角色切换；② 会员/教练订阅只建单和轮询，原生支付未拉起；③ 今日训练仍是单计划/单推荐 Day 简化版；④ 训练执行缺轻量任务和完整离线/只读恢复；⑤ 教练学员计划分配与跟踪未闭环。
+- Other gaps: 工具箱缺单手引体评估、指尖光膜和 3 个体感游戏；功率分析缺权益/画质/字幕/曲线/保存相册；街健缺真实地图定位/图片/分享；知识缺原生音视频与富内容；设置缺账号注销，反馈和聊天媒体能力较薄。
+- Recommended next step: 先执行报告中的 `MOB-000`，在不丢当前未提交改动的前提下整合 dev/main/当前 APP 工作区并确定权威分支；随后按角色与支付、今日训练与执行、教练带训、内容与工具顺序推进。
+- Verification: 文档尾随空白检查与 `git diff --check` 通过；`npm run lint` 按项目配置正常提示改跑 typecheck；`npm run typecheck` 通过；`npm test` 为 35 files / 177 tests 全部通过；`npx next build` 编译成功并生成 522 个静态页面。
+
 ## Web / 微信小程序 / APP 注册资料延后补充 (`2026-07-31`)
 
 - Status: 三端实现与验证完成；根 TypeScript、移动 APP TypeScript、微信小程序完整构建、183 项单测与 Next 527 页生产构建均已通过，本次提交同步至 `dev`。
@@ -8922,3 +8931,9 @@
 - Rejected: 未合入实习生旧提交 `dd2e1995` 的“输出文件不得大于输入文件”方案。该实现与现行会员原画/压缩策略冲突，而且没有二次产物大小校验，重新编码路径还可能破坏音频。
 - Verification: `git diff --check`、`npm run lint`、`npm run typecheck`、`npm test`（35 files / 177 tests）、`npx next build`（522 pages）、`npm --workspace apps/mobile run typecheck` 与微信小程序完整构建（2835 modules）均通过，未修改测试文件。
 - UI blocker: 按 `weapp-devtools` 尝试启动开发者工具自动化，微信 CLI 返回“需要重新登录”，未取得截图和交互证据；因此本轮不直接进入 `main`，也不写回飞书需求状态。
+
+## 开发分支整合与本地改动审查 (`2026-08-01`)
+
+- Status: 本地 `dev` 已快进至 `origin/dev` 的 `610a748d`；`codex/dev-workspace-20260720` 的 3 项已提交小程序工具箱改进、开发代理修复与 APP/微信功能对齐审计正合并到 `dev`。
+- Review: 旧工作区中的 APP 训练缓存改动已由 `origin/dev` 的 `d70542fe` 以更完整的容错、60 天清理和云端失败降级方式覆盖，故不重复提交。其余未提交内容（含私有小程序配置、生成类型文件和历史记录）已完整暂存为 `stash@{0}`：`codex-preserve-local-before-dev-merge-20260801`。
+- Verification: `git diff --check`、lint、typecheck、36 个测试文件 / 180 项测试，以及 526 页 Next 生产构建均通过。构建开始时本机遗漏锁文件已声明的 `@mediapipe/tasks-vision`，补齐该依赖后通过。
