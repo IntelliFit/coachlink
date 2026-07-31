@@ -1,3 +1,9 @@
+## 微信小程序正式版打包修复 (`2026-08-01`)
+
+- Status: 已修复并完成 release 构建。手指光膜页面在分支合并后重复声明 `optionsLocked`，现保留统一且完整的锁定条件：录制中、任务阶段非空闲或已有任务时禁止修改效果参数。
+- Verification: `npm --workspace apps/wechat run build:weapp:release` 通过，Taro/Vite 共构建 2,838 个模块，正式产物位于 `apps/wechat/dist-release/`。
+- Boundary: 用户明确暂不处理 Dev 线上环境部署；本次不上传、不提审微信小程序。
+
 ## 视频功能 Docker 发布构建修复 (`2026-08-01`)
 
 - Status: 已修复、提交并部署生产。`create-upload-url` 路由合并后重复声明 `styleKey` 导致 Turbopack 编译失败，现统一从 `motion-effects-presets.json` 生成允许的风格集合并只声明一次。

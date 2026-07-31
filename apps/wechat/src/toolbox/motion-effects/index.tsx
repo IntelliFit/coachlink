@@ -446,7 +446,7 @@ export default function FingerMotionEffectsPage() {
   const [checkout, setCheckout] = useState<CheckoutResponse | null>(null)
   const [paying, setPaying] = useState(false)
 
-  const optionsLocked = ['creating', 'uploading', 'uploaded', 'enqueueing', 'queued'].includes(phase)
+  const optionsLocked = recording || phase !== 'idle' || Boolean(job)
   const freeStandardSelected = signupFreeAvailable && exportQuality === 'standard'
   const selectedPriceCents =
     (freeStandardSelected
@@ -663,8 +663,6 @@ export default function FingerMotionEffectsPage() {
     if (pollRef.current) clearInterval(pollRef.current)
     pollRef.current = null
   }
-
-  const optionsLocked = recording || phase !== 'idle' || Boolean(job)
 
   const prepareCompletedVideo = async (jobId: string, force = false) => {
     if (!force && previewUrl && previewState === 'ready') {
