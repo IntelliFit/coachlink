@@ -1,7 +1,7 @@
 ## 视频功能 Docker 发布构建修复 (`2026-08-01`)
 
 - Status: 已修复并通过生产构建。`create-upload-url` 路由合并后重复声明 `styleKey` 导致 Turbopack 编译失败，现统一从 `motion-effects-presets.json` 生成允许的风格集合并只声明一次。
-- Build stability: `.dockerignore` 已排除本地 `tmp/`，避免约 1.21GB 临时资料进入 Docker 构建上下文；Next.js 静态生成默认限制为 2 个 CPU Worker，可用 `NEXT_BUILD_CPUS` 调高。
+- Build stability: `.dockerignore` 已排除本地 `tmp/`、Python 虚拟环境、子项目依赖、截图和设计输出等本地产物；Next.js 静态生成默认限制为 2 个 CPU Worker，可用 `NEXT_BUILD_CPUS` 调高。
 - Verification: `npm run lint`、`npm run typecheck`、`npm test`（37 files / 183 tests）和 `npm run build`（532/532 static pages）通过。
 - Next: 修复尚未提交或推送；发布前应提交到 `dev`、同步 `main`，再从 `main` 执行 `npm run push-docker-ccr`。
 
