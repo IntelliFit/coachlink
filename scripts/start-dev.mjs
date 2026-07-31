@@ -9,6 +9,7 @@ import { bootstrapEnv, nextEnvForChild } from './config/bootstrap-env.mjs';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.join(__dirname, '..');
 const explicitNextAuthUrl = process.env.NEXTAUTH_URL;
+const proxyBootstrapPath = path.join(projectRoot, 'scripts', 'urllib-proxy-bootstrap.js');
 
 const envBootstrap = await bootstrapEnv({ mode: 'development', projectRoot });
 
@@ -141,7 +142,7 @@ async function startDev() {
         //   - 去找生产产物 .next/dev/required-server-files.json → ENOENT → 启动脚本反复重启（崩溃循环）。
         NODE_ENV: 'development',
         // 增加内存限制
-        NODE_OPTIONS: '--max-old-space-size=4096',
+        NODE_OPTIONS: `--require=${proxyBootstrapPath} --max-old-space-size=4096`,
         // 使用轮询而非原生文件系统事件（更稳定）
         CHOKIDAR_USEPOLLING: 'true',
         CHOKIDAR_INTERVAL: '500',

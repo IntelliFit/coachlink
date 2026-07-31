@@ -26,7 +26,10 @@ const child = spawn(
   {
     cwd: repoRoot,
     stdio: "inherit",
-    env: nextEnvForChild(),
+    env: {
+      ...nextEnvForChild(),
+      NODE_OPTIONS: `--require=${path.join(repoRoot, "scripts", "urllib-proxy-bootstrap.js")} ${process.env.NODE_OPTIONS || ""}`.trim(),
+    },
   },
 );
 
