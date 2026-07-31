@@ -1,9 +1,10 @@
 ## 视频功能 Docker 发布构建修复 (`2026-08-01`)
 
-- Status: 已修复并通过生产构建。`create-upload-url` 路由合并后重复声明 `styleKey` 导致 Turbopack 编译失败，现统一从 `motion-effects-presets.json` 生成允许的风格集合并只声明一次。
+- Status: 已修复、提交并部署生产。`create-upload-url` 路由合并后重复声明 `styleKey` 导致 Turbopack 编译失败，现统一从 `motion-effects-presets.json` 生成允许的风格集合并只声明一次。
 - Build stability: `.dockerignore` 已排除本地 `tmp/`、Python 虚拟环境、子项目依赖、截图和设计输出等本地产物；Next.js 静态生成默认限制为 2 个 CPU Worker，可用 `NEXT_BUILD_CPUS` 调高。
 - Verification: `npm run lint`、`npm run typecheck`、`npm test`（37 files / 183 tests）和 `npm run build`（532/532 static pages）通过。
-- Next: 修复尚未提交或推送；发布前应提交到 `dev`、同步 `main`，再从 `main` 执行 `npm run push-docker-ccr`。
+- Git: 修复提交 `5cdb2b0f`，Docker 上下文优化提交 `aa3a5738`；`main` / `dev` 已同步到 GitHub、Gitee。
+- Production: Web 镜像 digest `44f353…371a`，功率 Worker `a084c4…5d15`，视频特效 Worker `527b71…758b`。Web 3/3、功率 Worker 1/1、视频标准 Worker 1/1、极速 Worker 1/1 均已成功滚动且零重启，健康接口正常，三个 Worker 已加入对应 Kafka 消费组。
 
 ## `main` / `dev` 代码提交与远端同步 (`2026-08-01`)
 
