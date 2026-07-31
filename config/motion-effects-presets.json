@@ -97,5 +97,12 @@
       "sweepSpeed": 0.24,
       "edgeGlow": 1.2
     }
+  ],
+  "bgm": [
+    {
+      "key": "original",
+      "name": "保留原声",
+      "description": "保留上传视频本身的音频"
+    }
   ]
 }

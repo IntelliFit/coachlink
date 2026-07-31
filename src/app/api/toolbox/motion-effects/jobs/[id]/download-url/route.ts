@@ -1,14 +1,16 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 import { serviceRoleSupabase } from "@/lib/supabaseClient";
 import type { ApiData } from "@/types/api";
 import {
   MOTION_EFFECTS_BUCKET,
   createMotionEffectDownloadToken,
   expireMotionEffectJobIfNeeded,
-  getOwnedMotionEffectJob,
 } from "../../../_helpers";
 import type { MotionEffectDownloadUrlDto } from "../../../types";
+import {
+  getAccessibleMotionEffectJob,
+  getMotionEffectRequestIdentity,
+} from "../../../_commerce";
 
 export const runtime = "nodejs";
 const db = serviceRoleSupabase as any;
@@ -26,15 +28,9 @@ export async function POST(
   req: Request,
   context: { params: Promise<{ id: string }> },
 ) {
-  const session = await getServerSession();
-  if (!session?.user?.id) {
-    return NextResponse.json<ApiData<null>>(
-      { success: false, message: "用户未登录", data: null },
-      { status: 401 },
-    );
-  }
+  const identity = await getMotionEffectRequestIdentity(req);
   const { id } = await context.params;
-  const job = await getOwnedMotionEffectJob(id, session.user.id);
+  const job = await getAccessibleMotionEffectJob(id, identity);
   if (!job) {
     return NextResponse.json<ApiData<null>>(
       { success: false, message: "任务不存在", data: null },
@@ -58,7 +54,7 @@ export async function POST(
   const proxyUrl = `/api/toolbox/motion-effects/jobs/${encodeURIComponent(id)}/download`;
   const downloadToken = createMotionEffectDownloadToken(
     id,
-    current.user_id,
+    String(current.user_id || current.owner_token_hash || ""),
     expires,
   );
   const baseUrl = publicBaseUrl(req);

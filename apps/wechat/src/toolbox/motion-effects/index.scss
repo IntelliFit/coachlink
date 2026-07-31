@@ -555,3 +555,86 @@
   line-height: 1.56;
   text-align: center;
 }
+
+.motion-option-title,
+.motion-option-desc,
+.motion-option-price,
+.motion-payment-price {
+  display: block;
+}
+
+.motion-quality-option {
+  display: flex;
+  box-sizing: border-box;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 16rpx;
+  padding: 24rpx;
+  border: 2rpx solid #e6dfd9;
+  border-radius: 24rpx;
+  background: #ffffff;
+}
+
+.motion-option-active {
+  border-color: #cf6d4e;
+  background: #fff5f0;
+}
+
+.motion-option-priority {
+  border-color: #4a8c77;
+  background: #edf7f2;
+}
+
+.motion-option-title {
+  color: #27302c;
+  font-size: 27rpx;
+  font-weight: 900;
+}
+
+.motion-option-desc {
+  margin-top: 8rpx;
+  color: #777d79;
+  font-size: 22rpx;
+}
+
+.motion-option-price {
+  margin-left: 16rpx;
+  color: #cf6d4e;
+  font-size: 27rpx;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.motion-price-total {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 24rpx;
+  padding-top: 24rpx;
+  border-top: 2rpx solid #eee8e2;
+  color: #656b67;
+  font-size: 26rpx;
+  font-weight: 800;
+}
+
+.motion-price-total-value,
+.motion-payment-price {
+  color: #cf6d4e;
+  font-size: 42rpx;
+  font-weight: 900;
+}
+
+.motion-payment-card {
+  border-color: #efc4b5;
+  background: #fff8f4;
+}
+
+.motion-payment-price {
+  margin-top: 16rpx;
+}
+
+.motion-payment-actions {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16rpx;
+}

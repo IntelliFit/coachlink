@@ -256,12 +256,11 @@ def build_side_triangles(
 
 
 def animated_color(finger_index: int, timestamp: float, offset: float = 0.0) -> tuple[int, int, int]:
-    hues = CURRENT_STYLE["hues"]
-    hue = (
-        (float(hues[finger_index]) + timestamp * float(CURRENT_STYLE["hueSpeed"]) + offset)
-        % 360.0
-    ) / 360.0
-    saturation = clamp(float(CURRENT_STYLE["saturation"]) / 100.0, 0.0, 1.0)
+    hues = CURRENT_STYLE.get("hues") or BASE_HUES
+    base_hue = float(hues[finger_index % len(hues)])
+    hue_speed = float(CURRENT_STYLE.get("hueSpeed", 28.0))
+    saturation = clamp(float(CURRENT_STYLE.get("saturation", 94.0)) / 100.0, 0.0, 1.0)
+    hue = ((base_hue + timestamp * hue_speed + offset) % 360.0) / 360.0
     red, green, blue = colorsys.hsv_to_rgb(hue, saturation, 1.0)
     return int(round(blue * 255)), int(round(green * 255)), int(round(red * 255))
 
@@ -434,9 +433,11 @@ def draw_effect(
             texture,
             triangle,
             animated_color(finger, timestamp, offset),
-            float(CURRENT_STYLE["faceAlpha"]) * 1.36 * overall_alpha,
+            float(CURRENT_STYLE.get("faceAlpha", 0.25)) * 1.36 * overall_alpha,
         )
-        sweep = (timestamp * float(CURRENT_STYLE["sweepSpeed"]) + phase) % 1.0
+        sweep = (
+            timestamp * float(CURRENT_STYLE.get("sweepSpeed", 0.38)) + phase
+        ) % 1.0
         sweep_start = lerp_pixel(triangle[0], triangle[2], sweep)
         sweep_end = lerp_pixel(triangle[1], triangle[2], sweep)
         cv2.line(
@@ -479,11 +480,12 @@ def draw_effect(
         (0, 0),
         sigmaX=max(4, base_width * 2.0),
     )
+    edge_glow = float(CURRENT_STYLE.get("edgeGlow", 1.0))
     output = cv2.addWeighted(
         output,
         1.0,
         glow,
-        0.65 * float(CURRENT_STYLE["edgeGlow"]) * overall_alpha,
+        0.65 * edge_glow * overall_alpha,
         0,
     )
     output = cv2.addWeighted(output, 1.0, thin, 0.92 * overall_alpha, 0)
@@ -540,14 +542,25 @@ def emit_progress(value: float) -> None:
     print(json.dumps({"progress": round(value, 1)}, ensure_ascii=False), flush=True)
 
 
+def target_dimensions(width: int, height: int, quality: str) -> tuple[int, int]:
+    max_short, max_long = (1080, 1920) if quality == "hd" else (720, 1280)
+    short_side = min(width, height)
+    long_side = max(width, height)
+    scale = min(1.0, max_short / max(1, short_side), max_long / max(1, long_side))
+    target_width = max(2, int(round(width * scale / 2) * 2))
+    target_height = max(2, int(round(height * scale / 2) * 2))
+    return target_width, target_height
+
+
 def render(
     input_path: Path,
     output_path: Path,
     result_path: Path,
-    style_key: str,
-    motion_speed: str,
-    glow_strength: str,
-    surface_density: str,
+    quality: str = "hd",
+    style_key: str = "aurora",
+    motion_speed: str = "balanced",
+    glow_strength: str = "balanced",
+    surface_density: str = "balanced",
 ) -> None:
     global CURRENT_STYLE
     CURRENT_STYLE = load_style(style_key, motion_speed, glow_strength, surface_density)
@@ -565,6 +578,7 @@ def render(
     frame_count = int(capture.get(cv2.CAP_PROP_FRAME_COUNT) or 0)
     if width <= 0 or height <= 0:
         raise RuntimeError("无法读取视频尺寸")
+    output_width, output_height = target_dimensions(width, height, quality)
 
     result_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -574,7 +588,7 @@ def render(
             str(silent_path),
             cv2.VideoWriter_fourcc(*"MJPG"),
             fps,
-            (width, height),
+            (output_width, output_height),
         )
         if not writer.isOpened():
             raise RuntimeError("无法创建中间视频")
@@ -599,6 +613,12 @@ def render(
                 ok, frame = capture.read()
                 if not ok:
                     break
+                if frame.shape[1] != output_width or frame.shape[0] != output_height:
+                    frame = cv2.resize(
+                        frame,
+                        (output_width, output_height),
+                        interpolation=cv2.INTER_AREA,
+                    )
                 analyzed_frames += 1
                 rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 detected = detector.process(rgb)
@@ -660,11 +680,14 @@ def render(
         "durationSeconds": analyzed_frames / fps,
         "audioPreserved": audio_preserved,
         "watermark": "教链",
-        "styleKey": CURRENT_STYLE["key"],
-        "styleName": CURRENT_STYLE["name"],
+        "exportQuality": quality,
+        "styleKey": str(CURRENT_STYLE.get("key") or style_key),
+        "styleName": str(CURRENT_STYLE.get("name") or style_key),
         "motionSpeed": CURRENT_STYLE["motionSpeed"],
         "glowStrength": CURRENT_STYLE["glowStrength"],
         "surfaceDensity": CURRENT_STYLE["surfaceDensity"],
+        "outputWidth": output_width,
+        "outputHeight": output_height,
     }
     result_path.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
     emit_progress(95)
@@ -675,6 +698,7 @@ def main() -> None:
     parser.add_argument("--input", required=True)
     parser.add_argument("--output", required=True)
     parser.add_argument("--result", required=True)
+    parser.add_argument("--quality", choices=("standard", "hd"), default="hd")
     parser.add_argument(
         "--style",
         choices=["aurora", "cyber", "lava", "candy", "ice", "galaxy", "emerald", "gold"],
@@ -700,10 +724,11 @@ def main() -> None:
         Path(args.input),
         Path(args.output),
         Path(args.result),
-        args.style,
-        args.motion_speed,
-        args.glow_strength,
-        args.surface_density,
+        quality=args.quality,
+        style_key=args.style,
+        motion_speed=args.motion_speed,
+        glow_strength=args.glow_strength,
+        surface_density=args.surface_density,
     )
 
 

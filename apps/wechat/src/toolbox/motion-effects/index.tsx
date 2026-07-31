@@ -17,7 +17,14 @@ import {
 } from './livePreview'
 import './index.scss'
 
-type JobStatus = 'awaiting_upload' | 'queued' | 'processing' | 'done' | 'failed' | 'expired'
+type JobStatus =
+  | 'awaiting_upload'
+  | 'awaiting_payment'
+  | 'queued'
+  | 'processing'
+  | 'done'
+  | 'failed'
+  | 'expired'
 type Phase = 'idle' | 'creating' | 'uploading' | 'uploaded' | 'enqueueing' | 'queued' | 'done'
 type MotionSpeed = 'gentle' | 'balanced' | 'energetic'
 type GlowStrength = 'soft' | 'balanced' | 'strong'
@@ -39,6 +46,8 @@ interface DetailOption<T extends string> {
   label: string
   description: string
 }
+type ExportQuality = 'standard' | 'hd'
+type QueueTier = 'standard' | 'priority'
 
 interface SelectedVideo {
   tempFilePath: string
@@ -54,6 +63,11 @@ interface MotionJob {
   progress: number
   errorMessage: string | null
   canDownload: boolean
+  exportQuality: ExportQuality
+  queueTier: QueueTier
+  styleKey: string
+  paymentStatus: 'unpaid' | 'pending' | 'paid' | 'free' | 'refunded'
+  priceCents: number
   result?: {
     analyzedFrames: number
     handFrames: number
@@ -75,6 +89,12 @@ interface CreateResponse {
     maxVideoSizeMb: number
     maxDurationSeconds: number
     dailyLimit: number
+  }
+  signupFreeAvailable: boolean
+  prices: {
+    standardCents: number
+    hdCents: number
+    priorityAddonCents: number
   }
 }
 
@@ -159,6 +179,31 @@ const SURFACE_DENSITY_OPTIONS: DetailOption<SurfaceDensity>[] = [
   { value: 'balanced', label: '均衡', description: '光膜与画面平衡' },
   { value: 'rich', label: '浓郁', description: '膜面颜色更饱满' }
 ]
+
+interface CheckoutResponse {
+  job: MotionJob
+  order: {
+    id: string
+    totalAmountCents: number
+    totalAmountYuan: number
+    status: string
+  }
+  paymentInfo: {
+    paymentUrl?: string
+    description: string
+  }
+}
+
+interface QuoteResponse {
+  signedIn: boolean
+  signupFreeAvailable: boolean
+  prices: {
+    standardCents: number
+    hdCents: number
+    priorityAddonCents: number
+  }
+  resourceNotice: string
+}
 
 const MAX_SIZE_MB = 100
 const MAX_DURATION_SECONDS = 30
@@ -299,6 +344,10 @@ function getProcessingPresentation(progress: number): StatusPresentation {
   }
 }
 
+function formatPrice(cents: number) {
+  return `¥${(cents / 100).toFixed(1)}`
+}
+
 function uploadVideo(params: {
   jobId: string
   filePath: string
@@ -386,6 +435,26 @@ export default function FingerMotionEffectsPage() {
     () => STYLE_OPTIONS.find((style) => style.key === selectedStyleKey) || STYLE_OPTIONS[0],
     [selectedStyleKey]
   )
+  const [exportQuality, setExportQuality] = useState<ExportQuality>('standard')
+  const [queueTier, setQueueTier] = useState<QueueTier>('standard')
+  const [signupFreeAvailable, setSignupFreeAvailable] = useState(false)
+  const [prices, setPrices] = useState({
+    standardCents: 290,
+    hdCents: 490,
+    priorityAddonCents: 190
+  })
+  const [checkout, setCheckout] = useState<CheckoutResponse | null>(null)
+  const [paying, setPaying] = useState(false)
+
+  const optionsLocked = ['creating', 'uploading', 'uploaded', 'enqueueing', 'queued'].includes(phase)
+  const freeStandardSelected = signupFreeAvailable && exportQuality === 'standard'
+  const selectedPriceCents =
+    (freeStandardSelected
+      ? 0
+      : exportQuality === 'hd'
+        ? prices.hdCents
+        : prices.standardCents) +
+    (queueTier === 'priority' ? prices.priorityAddonCents : 0)
 
   const sharePayload = useMemo(
     () =>
@@ -420,6 +489,14 @@ export default function FingerMotionEffectsPage() {
 
   useEffect(() => {
     openCoachLinkShareMenu()
+    void callApi<QuoteResponse>({
+      url: '/api/toolbox/motion-effects/quote'
+    }).then((quote) => {
+      setSignupFreeAvailable(quote.signupFreeAvailable)
+      setPrices(quote.prices)
+    }).catch(() => {
+      // 保留页面内置价格；真正创建订单时仍以后端报价为准。
+    })
     return () => {
       if (pollRef.current) clearInterval(pollRef.current)
       if (recordingTimerRef.current) clearInterval(recordingTimerRef.current)
@@ -673,6 +750,7 @@ export default function FingerMotionEffectsPage() {
     stopPolling()
     setVideo(null)
     setJob(null)
+    setCheckout(null)
     setPhase('idle')
     setUploadProgress(0)
     setPreviewUrl('')
@@ -695,6 +773,7 @@ export default function FingerMotionEffectsPage() {
     setPreviewFilename('')
     setPreviewState('idle')
     setJob(null)
+    setCheckout(null)
     setUploadProgress(0)
     setPhase('creating')
     const created = await callApi<CreateResponse>({
@@ -705,13 +784,18 @@ export default function FingerMotionEffectsPage() {
         contentType: nextVideo.contentType,
         fileSizeBytes: nextVideo.size,
         durationSeconds: nextVideo.duration,
+        exportQuality,
+        queueTier,
         styleKey: selectedStyleKey,
+        bgmKey: 'original',
         motionSpeed,
         glowStrength,
         surfaceDensity
       }
     })
     setJob(created.job)
+    setSignupFreeAvailable(created.signupFreeAvailable)
+    setPrices(created.prices)
     setPhase('uploading')
     await uploadVideo({
       jobId: created.job.id,
@@ -871,21 +955,89 @@ export default function FingerMotionEffectsPage() {
     setCameraDevice((current) => current === 'front' ? 'back' : 'front')
   }
 
-  const handleGenerate = async () => {
-    if (!job?.id || phase !== 'uploaded' || recordingRef.current) return
+  const enqueueUploadedJob = async (jobId: string) => {
+    setPhase('enqueueing')
+    const queued = await callApi<MotionJob>({
+      url: `/api/toolbox/motion-effects/jobs/${jobId}/enqueue`,
+      method: 'POST'
+    })
+    setJob(queued)
+    setCheckout(null)
+    setPhase('queued')
+    pollJob(queued.id)
+    Taro.showToast({ title: '已开始生成', icon: 'success' })
+  }
+
+  const copyPaymentLink = async (paymentUrl: string) => {
+    await Taro.setClipboardData({ data: paymentUrl })
+    await Taro.showModal({
+      title: '支付链接已复制',
+      content: '请在手机浏览器中粘贴并打开，完成支付宝支付后回到本页，点击“我已完成支付”。',
+      showCancel: false,
+      confirmText: '知道了'
+    })
+  }
+
+  const createCheckout = async (jobId: string) => {
+    setPaying(true)
     try {
-      setPhase('enqueueing')
-      const queued = await callApi<MotionJob>({
-        url: `/api/toolbox/motion-effects/jobs/${job.id}/enqueue`,
-        method: 'POST'
+      const created = await callApi<CheckoutResponse>({
+        url: `/api/toolbox/motion-effects/jobs/${jobId}/order`,
+        method: 'POST',
+        data: { returnUrlOnly: true }
       })
-      setJob(queued)
-      setPhase('queued')
-      pollJob(queued.id)
-      Taro.showToast({ title: '已开始生成', icon: 'success' })
+      const paymentUrl = String(created.paymentInfo?.paymentUrl || '')
+      if (!paymentUrl) throw new Error('支付链接生成失败，请稍后重试')
+      setCheckout(created)
+      setJob(created.job)
+      await copyPaymentLink(paymentUrl)
+    } finally {
+      setPaying(false)
+    }
+  }
+
+  const handleGenerate = async () => {
+    if (!job?.id || phase !== 'uploaded' || paying) return
+    try {
+      if (selectedPriceCents > 0) {
+        await createCheckout(job.id)
+      } else {
+        await enqueueUploadedJob(job.id)
+      }
     } catch (error: any) {
       setPhase('uploaded')
       Taro.showToast({ title: error?.message || '提交失败', icon: 'none', duration: 3000 })
+    }
+  }
+
+  const handleCopyPayment = async () => {
+    const paymentUrl = String(checkout?.paymentInfo?.paymentUrl || '')
+    if (!paymentUrl) return
+    try {
+      await copyPaymentLink(paymentUrl)
+    } catch (error: any) {
+      Taro.showToast({ title: error?.message || '复制失败', icon: 'none' })
+    }
+  }
+
+  const handleCheckPayment = async () => {
+    if (!job?.id || paying) return
+    setPaying(true)
+    try {
+      const current = await callApi<MotionJob>({
+        url: `/api/toolbox/motion-effects/jobs/${job.id}/payment-status`
+      })
+      setJob(current)
+      if (current.paymentStatus !== 'paid') {
+        Taro.showToast({ title: '暂未收到支付结果，请稍后再试', icon: 'none' })
+        return
+      }
+      await enqueueUploadedJob(current.id)
+    } catch (error: any) {
+      setPhase('uploaded')
+      Taro.showToast({ title: error?.message || '支付状态查询失败', icon: 'none' })
+    } finally {
+      setPaying(false)
     }
   }
 
@@ -1025,6 +1177,57 @@ export default function FingerMotionEffectsPage() {
               </View>
             )
           })}
+        </View>
+      </View>
+
+      <View className='motion-card'>
+        <Text className='motion-section-title'>选择下载规格</Text>
+        <Text className='motion-hint'>
+          预览免费。视频导出会持续占用服务器计算、临时存储和下载带宽，免费资源无法长期支撑，因此下载按规格收费。
+        </Text>
+        <View
+          className={`motion-quality-option ${exportQuality === 'standard' ? 'motion-option-active' : ''}`}
+          onClick={() => changeOption(() => setExportQuality('standard'))}
+        >
+          <View>
+            <Text className='motion-option-title'>标准版 · 720p</Text>
+            <Text className='motion-option-desc'>
+              {signupFreeAvailable ? '注册账号首次标准导出免费' : '适合朋友圈和快速分享'}
+            </Text>
+          </View>
+          <Text className='motion-option-price'>
+            {signupFreeAvailable ? '首次免费' : formatPrice(prices.standardCents)}
+          </Text>
+        </View>
+        <View
+          className={`motion-quality-option ${exportQuality === 'hd' ? 'motion-option-active' : ''}`}
+          onClick={() => changeOption(() => setExportQuality('hd'))}
+        >
+          <View>
+            <Text className='motion-option-title'>高清版 · 1080p</Text>
+            <Text className='motion-option-desc'>更清晰，适合发布短视频</Text>
+          </View>
+          <Text className='motion-option-price'>{formatPrice(prices.hdCents)}</Text>
+        </View>
+        <View
+          className={`motion-quality-option ${queueTier === 'priority' ? 'motion-option-priority' : ''}`}
+          onClick={() =>
+            changeOption(() =>
+              setQueueTier((current) => current === 'priority' ? 'standard' : 'priority')
+            )
+          }
+        >
+          <View>
+            <Text className='motion-option-title'>极速处理</Text>
+            <Text className='motion-option-desc'>进入独立优先队列，按真实任务顺序处理</Text>
+          </View>
+          <Text className='motion-option-price'>+{formatPrice(prices.priorityAddonCents)}</Text>
+        </View>
+        <View className='motion-price-total'>
+          <Text>本次预计</Text>
+          <Text className='motion-price-total-value'>
+            {selectedPriceCents === 0 ? '免费' : formatPrice(selectedPriceCents)}
+          </Text>
         </View>
       </View>
 
@@ -1227,9 +1430,35 @@ export default function FingerMotionEffectsPage() {
           className={`motion-button motion-button-primary ${phase !== 'uploaded' || recording ? 'motion-button-disabled' : ''}`}
           onClick={handleGenerate}
         >
-          <Text>开始生成</Text>
+          <Text>
+            {paying
+              ? '正在处理…'
+              : selectedPriceCents > 0
+                ? `支付 ${formatPrice(selectedPriceCents)} 并生成`
+                : '免费生成'}
+          </Text>
         </View>
       </View>
+
+      {checkout && job?.paymentStatus !== 'paid' && (
+        <View className='motion-card motion-payment-card'>
+          <Text className='motion-section-title'>等待付款</Text>
+          <Text className='motion-payment-price'>
+            {formatPrice(checkout.order.totalAmountCents)}
+          </Text>
+          <Text className='motion-hint'>
+            支付成功后才会占用服务器算力开始生成。请在浏览器完成支付宝支付，再返回这里确认。
+          </Text>
+          <View className='motion-payment-actions'>
+            <View className='motion-button motion-button-secondary' onClick={handleCopyPayment}>
+              <Text>重新复制支付链接</Text>
+            </View>
+            <View className='motion-button motion-button-primary' onClick={handleCheckPayment}>
+              <Text>{paying ? '正在查询…' : '我已完成支付'}</Text>
+            </View>
+          </View>
+        </View>
+      )}
 
       {job?.status === 'done' && (
         <View className='motion-card'>
