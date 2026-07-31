@@ -1,3 +1,10 @@
+## `main` / `dev` 代码提交与远端同步 (`2026-08-01`)
+
+- Status: 已完成。业务提交 `44e91105 feat: expand knowledge, training, and motion tools` 与合并提交 `53c38082 merge: synchronize main into dev` 已创建；`main` 与 `dev` 已合并为同一提交并推送到 GitHub、Gitee。
+- Merge resolution: 同时保留微信小程序手指光膜实时拍摄、8 种风格与细节参数，以及主分支已有的 720p/1080p、首次免费、极速队列、支付宝支付和安全下载链路。
+- Verification: `git diff --check`、Python 渲染器语法、预设 JSON、`npm run lint`、`npm run typecheck`、`npm test`（37 files / 183 tests）通过。
+- Excluded: 本地 `tmp/pdfs/` 为临时资料，未纳入提交或推送。
+
 ## 微信小程序手指光膜实时拍摄模式 (`2026-07-31`)
 
 - Status: 按用户确认的混合方案完成小程序实现；未提交、未部署、未上传体验版。
