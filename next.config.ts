@@ -45,6 +45,8 @@ const nextConfig: NextConfig = {
         ignoreBuildErrors: true,
     },
     experimental: {
+        // 大量静态页面并行生成时会显著抬高内存占用；默认限制构建并发，发布机可按资源调高。
+        cpus: Math.max(1, Number.parseInt(process.env.NEXT_BUILD_CPUS || '2', 10) || 2),
         // 视频工具会产生大于原始输入的分析结果；默认抬到 200MB，仍可用环境变量收紧或放宽。
         proxyClientMaxBodySize: process.env.NEXT_PROXY_CLIENT_MAX_BODY_SIZE || '200mb',
     },

@@ -31,16 +31,7 @@ import {
 export const runtime = "nodejs";
 export const maxDuration = 60;
 const db = serviceRoleSupabase as any;
-const MOTION_EFFECT_STYLE_KEYS = new Set([
-  "aurora",
-  "cyber",
-  "lava",
-  "candy",
-  "ice",
-  "galaxy",
-  "emerald",
-  "gold",
-]);
+const MOTION_EFFECT_STYLE_KEYS = new Set(presets.styles.map((style) => style.key));
 
 function option<T extends string>(value: unknown, allowed: readonly T[], fallback: T): T {
   return allowed.includes(value as T) ? (value as T) : fallback;
@@ -180,10 +171,6 @@ export async function POST(req: Request) {
   const jobId = randomUUID();
   const exportQuality = normalizeExportQuality(body.exportQuality);
   const queueTier = normalizeQueueTier(body.queueTier);
-  const allowedStyles = new Set(presets.styles.map((style) => style.key));
-  const styleKey = allowedStyles.has(String(body.styleKey || ""))
-    ? String(body.styleKey)
-    : "aurora";
   const bgmKey = body.bgmKey === "original" ? "original" : "original";
   const queue = getMotionEffectQueueConfig(queueTier);
   const storageOwner = userId || `guest-${clientKeyHash.slice(0, 18)}`;
