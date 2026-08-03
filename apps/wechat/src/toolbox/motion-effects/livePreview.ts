@@ -7,6 +7,7 @@ export type LivePoint = {
 
 export type LiveHand = {
   confidence?: number[]
+  missedFrames?: number
   points: LivePoint[]
   score?: number
 }
@@ -339,16 +340,29 @@ export function clearLivePreview(canvasId: string, canvas: CanvasSize) {
 }
 
 export function smoothLiveHands(previous: LiveHand[], current: LiveHand[]) {
-  const sorted = current
+  const detected = current
     .filter((hand) => hand.points?.length >= 21)
     .slice(0, 2)
     .sort((first, second) => first.points[0].x - second.points[0].x)
-  if (previous.length !== sorted.length) return sorted
+  const tracked = previous
+    .filter((hand) => hand.points?.length >= 21 && Number(hand.missedFrames || 0) < 5)
+    .slice(0, 2)
 
-  return sorted.map((hand, handIndex) => ({
+  const palmCenter = (hand: LiveHand) => {
+    const indexes = [0, 5, 9, 13, 17]
+    const points = indexes.map((index) => hand.points[index]).filter(Boolean)
+    return {
+      x: points.reduce((sum, point) => sum + point.x, 0) / Math.max(1, points.length),
+      y: points.reduce((sum, point) => sum + point.y, 0) / Math.max(1, points.length)
+    }
+  }
+  const matchDistance = (first: LiveHand, second: LiveHand) =>
+    distance(palmCenter(first), palmCenter(second))
+  const smoothHand = (oldHand: LiveHand | undefined, hand: LiveHand): LiveHand => ({
     ...hand,
+    missedFrames: 0,
     points: hand.points.map((point, pointIndex) => {
-      const oldPoint = previous[handIndex]?.points?.[pointIndex]
+      const oldPoint = oldHand?.points?.[pointIndex]
       if (!oldPoint) return point
       const movement = distance(oldPoint, point)
       const currentWeight = clamp(0.74 + movement * 4.5, 0.74, 0.92)
@@ -357,5 +371,47 @@ export function smoothLiveHands(previous: LiveHand[], current: LiveHand[]) {
         y: oldPoint.y * (1 - currentWeight) + point.y * currentWeight
       }
     })
-  }))
+  })
+
+  if (!detected.length) {
+    return tracked
+      .map((hand) => ({ ...hand, missedFrames: Number(hand.missedFrames || 0) + 1 }))
+      .filter((hand) => Number(hand.missedFrames || 0) <= 5)
+  }
+  if (!tracked.length) return detected.map((hand) => ({ ...hand, missedFrames: 0 }))
+
+  const assignments: Array<{ detectedIndex: number; trackedIndex: number }> = []
+  if (detected.length === 2 && tracked.length === 2) {
+    const direct = matchDistance(detected[0], tracked[0]) + matchDistance(detected[1], tracked[1])
+    const crossed = matchDistance(detected[0], tracked[1]) + matchDistance(detected[1], tracked[0])
+    assignments.push(
+      crossed < direct
+        ? { detectedIndex: 0, trackedIndex: 1 }
+        : { detectedIndex: 0, trackedIndex: 0 },
+      crossed < direct
+        ? { detectedIndex: 1, trackedIndex: 0 }
+        : { detectedIndex: 1, trackedIndex: 1 }
+    )
+  } else {
+    detected.forEach((hand, detectedIndex) => {
+      let trackedIndex = 0
+      if (tracked.length > 1 && matchDistance(hand, tracked[1]) < matchDistance(hand, tracked[0])) {
+        trackedIndex = 1
+      }
+      assignments.push({ detectedIndex, trackedIndex })
+    })
+  }
+
+  const usedTracked = new Set(assignments.map((assignment) => assignment.trackedIndex))
+  const next = assignments.map((assignment) =>
+    smoothHand(tracked[assignment.trackedIndex], detected[assignment.detectedIndex])
+  )
+  tracked.forEach((hand, trackedIndex) => {
+    if (usedTracked.has(trackedIndex)) return
+    const missedFrames = Number(hand.missedFrames || 0) + 1
+    if (missedFrames <= 5) next.push({ ...hand, missedFrames })
+  })
+  return next
+    .slice(0, 2)
+    .sort((first, second) => palmCenter(first).x - palmCenter(second).x)
 }

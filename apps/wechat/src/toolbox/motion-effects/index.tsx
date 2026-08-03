@@ -4,13 +4,16 @@ import Taro, { useShareAppMessage, useShareTimeline } from '@tarojs/taro'
 import { API_BASE_URL, request } from '@/utils/request'
 import { authService } from '@/services/authService'
 import {
+  requestWechatPayment,
+  type WechatPaymentParams
+} from '@/services/paymentService'
+import {
   buildSharePath,
   createSharePayload,
   createTimelinePayload,
   openCoachLinkShareMenu
 } from '@/utils/share'
 import {
-  clearLivePreview,
   drawLivePreview,
   smoothLiveHands,
   type LiveHand
@@ -189,9 +192,14 @@ interface CheckoutResponse {
     status: string
   }
   paymentInfo: {
-    paymentUrl?: string
+    provider?: 'wechat' | 'alipay'
+    paymentParams?: WechatPaymentParams
     description: string
   }
+}
+
+interface WechatPaymentQueryResponse {
+  status: 'pending' | 'success' | 'failed' | 'cancelled'
 }
 
 interface QuoteResponse {
@@ -516,12 +524,6 @@ export default function FingerMotionEffectsPage() {
       if (current.pairCount !== pairCount) setLivePairCount(pairCount)
       liveMetricsRef.current = { handCount, pairCount }
     }
-    const clearDetectedHands = () => {
-      smoothedHandsRef.current = []
-      updateLiveMetrics(0, 0)
-      const canvas = canvasSizeRef.current
-      if (canvas.width) clearLivePreview(LIVE_CANVAS_ID, canvas)
-    }
     const setUnavailable = (message: string, unsupported = false) => {
       if (stopped) return
       setLiveStatus(unsupported ? 'unsupported' : 'error')
@@ -556,6 +558,21 @@ export default function FingerMotionEffectsPage() {
       })
       visionSessionRef.current = session
 
+      const renderTrackedHands = () => {
+        const canvas = canvasSizeRef.current
+        const frame = latestFrameSizeRef.current
+        if (!canvas.width || !frame.width) return
+        const metrics = drawLivePreview({
+          canvas,
+          canvasId: LIVE_CANVAS_ID,
+          frame,
+          hands: smoothedHandsRef.current,
+          mirrored: false,
+          style: liveDrawSettingsRef.current
+        })
+        updateLiveMetrics(metrics.handCount, metrics.pairCount)
+      }
+
       const handleAnchors = (anchors: any[]) => {
         if (stopped) return
         detectionBusyRef.current = false
@@ -573,22 +590,18 @@ export default function FingerMotionEffectsPage() {
           })) satisfies LiveHand[]
 
         smoothedHandsRef.current = smoothLiveHands(smoothedHandsRef.current, hands)
-        const canvas = canvasSizeRef.current
-        const frame = latestFrameSizeRef.current
-        if (!canvas.width || !frame.width) return
-        const metrics = drawLivePreview({
-          canvas,
-          canvasId: LIVE_CANVAS_ID,
-          frame,
-          hands: smoothedHandsRef.current,
-          mirrored: false,
-          style: liveDrawSettingsRef.current
-        })
-        updateLiveMetrics(metrics.handCount, metrics.pairCount)
+        renderTrackedHands()
+      }
+
+      const handleRemovedAnchors = () => {
+        if (stopped) return
+        detectionBusyRef.current = false
+        smoothedHandsRef.current = smoothLiveHands(smoothedHandsRef.current, [])
+        renderTrackedHands()
       }
 
       session.on('updateAnchors', handleAnchors)
-      session.on('removeAnchors', clearDetectedHands)
+      session.on('removeAnchors', handleRemovedAnchors)
       session.start((status: number | null) => {
         if (stopped) return
         if (status && Number(status) !== 0) {
@@ -622,11 +635,13 @@ export default function FingerMotionEffectsPage() {
                 algoMode: 0,
                 frameBuffer: frame.data,
                 height,
-                scoreThreshold: 0.5,
+                scoreThreshold: 0.35,
                 width
               })
               releaseDetectionTimer = setTimeout(() => {
                 detectionBusyRef.current = false
+                smoothedHandsRef.current = smoothLiveHands(smoothedHandsRef.current, [])
+                renderTrackedHands()
               }, 320)
             } catch (error: any) {
               setUnavailable(error?.message || '实时识别暂时不可用，仍可正常录制。')
@@ -967,14 +982,40 @@ export default function FingerMotionEffectsPage() {
     Taro.showToast({ title: '已开始生成', icon: 'success' })
   }
 
-  const copyPaymentLink = async (paymentUrl: string) => {
-    await Taro.setClipboardData({ data: paymentUrl })
-    await Taro.showModal({
-      title: '支付链接已复制',
-      content: '请在手机浏览器中粘贴并打开，完成支付宝支付后回到本页，点击“我已完成支付”。',
-      showCancel: false,
-      confirmText: '知道了'
+  const confirmWechatPayment = async (orderId: string, jobId: string) => {
+    const payment = await callApi<WechatPaymentQueryResponse>({
+      url: '/api/payment/wechat/query',
+      method: 'POST',
+      data: { orderId }
     })
+    if (payment.status !== 'success') return false
+
+    const current = await callApi<MotionJob>({
+      url: `/api/toolbox/motion-effects/jobs/${jobId}/payment-status`
+    })
+    setJob(current)
+    if (current.paymentStatus !== 'paid') return false
+    await enqueueUploadedJob(current.id)
+    return true
+  }
+
+  const openWechatPayment = async (created: CheckoutResponse) => {
+    const paymentParams = created.paymentInfo?.paymentParams
+    if (!paymentParams) throw new Error('微信支付参数缺失，请稍后重试')
+
+    const result = await requestWechatPayment(paymentParams)
+    if (result.status === 'cancelled') {
+      Taro.showToast({ title: '已取消支付，可以稍后重新支付', icon: 'none' })
+      return
+    }
+    if (!result.success) {
+      throw new Error(result.message || '微信支付调起失败')
+    }
+
+    const confirmed = await confirmWechatPayment(created.order.id, created.job.id)
+    if (!confirmed) {
+      Taro.showToast({ title: '支付结果确认中，请稍后刷新', icon: 'none', duration: 3000 })
+    }
   }
 
   const createCheckout = async (jobId: string) => {
@@ -983,13 +1024,11 @@ export default function FingerMotionEffectsPage() {
       const created = await callApi<CheckoutResponse>({
         url: `/api/toolbox/motion-effects/jobs/${jobId}/order`,
         method: 'POST',
-        data: { returnUrlOnly: true }
+        data: { paymentProvider: 'wechat' }
       })
-      const paymentUrl = String(created.paymentInfo?.paymentUrl || '')
-      if (!paymentUrl) throw new Error('支付链接生成失败，请稍后重试')
       setCheckout(created)
       setJob(created.job)
-      await copyPaymentLink(paymentUrl)
+      await openWechatPayment(created)
     } finally {
       setPaying(false)
     }
@@ -1009,13 +1048,15 @@ export default function FingerMotionEffectsPage() {
     }
   }
 
-  const handleCopyPayment = async () => {
-    const paymentUrl = String(checkout?.paymentInfo?.paymentUrl || '')
-    if (!paymentUrl) return
+  const handleRetryPayment = async () => {
+    if (!checkout || paying) return
+    setPaying(true)
     try {
-      await copyPaymentLink(paymentUrl)
+      await openWechatPayment(checkout)
     } catch (error: any) {
-      Taro.showToast({ title: error?.message || '复制失败', icon: 'none' })
+      Taro.showToast({ title: error?.message || '微信支付调起失败', icon: 'none' })
+    } finally {
+      setPaying(false)
     }
   }
 
@@ -1023,17 +1064,13 @@ export default function FingerMotionEffectsPage() {
     if (!job?.id || paying) return
     setPaying(true)
     try {
-      const current = await callApi<MotionJob>({
-        url: `/api/toolbox/motion-effects/jobs/${job.id}/payment-status`
-      })
-      setJob(current)
-      if (current.paymentStatus !== 'paid') {
+      const orderId = checkout?.order.id
+      if (!orderId) throw new Error('支付订单不存在，请重新发起支付')
+      const confirmed = await confirmWechatPayment(orderId, job.id)
+      if (!confirmed) {
         Taro.showToast({ title: '暂未收到支付结果，请稍后再试', icon: 'none' })
-        return
       }
-      await enqueueUploadedJob(current.id)
     } catch (error: any) {
-      setPhase('uploaded')
       Taro.showToast({ title: error?.message || '支付状态查询失败', icon: 'none' })
     } finally {
       setPaying(false)
@@ -1446,14 +1483,14 @@ export default function FingerMotionEffectsPage() {
             {formatPrice(checkout.order.totalAmountCents)}
           </Text>
           <Text className='motion-hint'>
-            支付成功后才会占用服务器算力开始生成。请在浏览器完成支付宝支付，再返回这里确认。
+            支付成功后才会占用服务器算力开始生成。付款将在当前小程序内直接调起微信支付。
           </Text>
           <View className='motion-payment-actions'>
-            <View className='motion-button motion-button-secondary' onClick={handleCopyPayment}>
-              <Text>重新复制支付链接</Text>
+            <View className='motion-button motion-button-secondary' onClick={handleRetryPayment}>
+              <Text>{paying ? '正在调起…' : '重新支付'}</Text>
             </View>
             <View className='motion-button motion-button-primary' onClick={handleCheckPayment}>
-              <Text>{paying ? '正在查询…' : '我已完成支付'}</Text>
+              <Text>{paying ? '正在查询…' : '刷新支付状态'}</Text>
             </View>
           </View>
         </View>

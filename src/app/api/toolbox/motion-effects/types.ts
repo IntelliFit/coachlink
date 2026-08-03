@@ -91,8 +91,17 @@ export interface MotionEffectCheckoutDto {
     status: string;
   };
   paymentInfo: {
+    provider?: "alipay" | "wechat";
     formHtml?: string;
     paymentUrl?: string;
+    paymentParams?: {
+      appId: string;
+      timeStamp: string;
+      nonceStr: string;
+      package: string;
+      signType: "RSA";
+      paySign: string;
+    };
     description: string;
   };
 }
