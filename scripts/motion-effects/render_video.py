@@ -255,6 +255,30 @@ def build_side_triangles(
     ]
 
 
+def build_two_pair_surface(
+    left_first: tuple[int, int],
+    right_first: tuple[int, int],
+    left_second: tuple[int, int],
+    right_second: tuple[int, int],
+) -> tuple[list[list[tuple[int, int]]], list[tuple[tuple[int, int], tuple[int, int]]]]:
+    crosses = segment_intersection(
+        left_first,
+        right_first,
+        left_second,
+        right_second,
+    ) is not None
+    top_right = right_second if crosses else right_first
+    bottom_right = right_first if crosses else right_second
+    triangles = [[left_first, top_right, bottom_right, left_second]]
+    boundary = [
+        (left_first, top_right),
+        (top_right, bottom_right),
+        (bottom_right, left_second),
+        (left_second, left_first),
+    ]
+    return triangles, boundary
+
+
 def animated_color(finger_index: int, timestamp: float, offset: float = 0.0) -> tuple[int, int, int]:
     hues = CURRENT_STYLE.get("hues") or BASE_HUES
     base_hue = float(hues[finger_index % len(hues)])
@@ -304,7 +328,7 @@ def draw_textured_triangle(
     color: tuple[int, int, int],
     alpha: float,
 ) -> None:
-    if len(triangle) != 3 or alpha <= 0.0:
+    if len(triangle) < 3 or alpha <= 0.0:
         return
     points = np.asarray(triangle, dtype=np.int32)
     mask = np.zeros(canvas.shape[:2], dtype=np.uint8)
@@ -333,7 +357,7 @@ def draw_effect(
     left, right = hands[0], hands[1]
     left_weights, right_weights = finger_weights[0], finger_weights[1]
     pair_weights = [min(left_weights[index], right_weights[index]) for index in range(5)]
-    paired = [index for index in range(5) if pair_weights[index] > 0.08]
+    paired = [index for index in range(5) if pair_weights[index] >= 0.5]
     if not paired:
         return frame, 0
     reveal_alpha = palm_separation_alpha(hands, width, height)
@@ -342,7 +366,7 @@ def draw_effect(
     overall_alpha = (
         sum(pair_weights[index] for index in paired) / max(1, len(paired))
     ) * reveal_alpha
-    stable_pair_count = sum(1 for index in paired if pair_weights[index] >= 0.5)
+    stable_pair_count = len(paired)
 
     def pixel(hand: np.ndarray, finger_index: int) -> tuple[int, int]:
         tip = hand[TIP_INDICES[finger_index]]
@@ -360,8 +384,33 @@ def draw_effect(
 
     if len(paired) == 1:
         segments.append((left_points[0], right_points[0], paired[0], 0.0))
+    elif len(paired) == 2:
+        surface_triangles, boundary = build_two_pair_surface(
+            left_points[0],
+            right_points[0],
+            left_points[1],
+            right_points[1],
+        )
+        for triangle_index, triangle in enumerate(surface_triangles):
+            triangles.append(
+                (
+                    triangle,
+                    paired[0],
+                    triangle_index * 38.0,
+                    triangle_index * 0.31,
+                )
+            )
+        for edge_index, (start, end) in enumerate(boundary):
+            segments.append(
+                (
+                    start,
+                    end,
+                    paired[edge_index % 2],
+                    edge_index * 0.23,
+                )
+            )
     else:
-        side_count = 1 if len(paired) == 2 else len(paired)
+        side_count = len(paired)
         for index in range(side_count):
             nxt = (index + 1) % len(paired)
             for triangle_index, triangle in enumerate(
@@ -435,19 +484,20 @@ def draw_effect(
             animated_color(finger, timestamp, offset),
             float(CURRENT_STYLE.get("faceAlpha", 0.25)) * 1.36 * overall_alpha,
         )
-        sweep = (
-            timestamp * float(CURRENT_STYLE.get("sweepSpeed", 0.38)) + phase
-        ) % 1.0
-        sweep_start = lerp_pixel(triangle[0], triangle[2], sweep)
-        sweep_end = lerp_pixel(triangle[1], triangle[2], sweep)
-        cv2.line(
-            sweep_layer,
-            sweep_start,
-            sweep_end,
-            animated_color(finger, timestamp, offset + 48.0),
-            max(2, round(min(width, height) * 0.003)),
-            cv2.LINE_AA,
-        )
+        if len(paired) != 2:
+            sweep = (
+                timestamp * float(CURRENT_STYLE.get("sweepSpeed", 0.38)) + phase
+            ) % 1.0
+            sweep_start = lerp_pixel(triangle[0], triangle[2], sweep)
+            sweep_end = lerp_pixel(triangle[1], triangle[2], sweep)
+            cv2.line(
+                sweep_layer,
+                sweep_start,
+                sweep_end,
+                animated_color(finger, timestamp, offset + 48.0),
+                max(2, round(min(width, height) * 0.003)),
+                cv2.LINE_AA,
+            )
     if triangles:
         sweep_glow = cv2.GaussianBlur(
             sweep_layer,

@@ -29,6 +29,7 @@ import type {
 } from "@/app/api/toolbox/motion-effects/types";
 import {
   buildSideTriangles,
+  buildTwoPairSurface,
   lerpPoint,
   smoothstep,
   type MotionEffectPoint as Point,
@@ -236,12 +237,12 @@ function drawTexturedTriangle(
   timeSeconds: number,
   phase: number,
   style: MotionStyle,
+  showSweep = true,
 ) {
   context.save();
   context.beginPath();
   context.moveTo(target[0].x, target[0].y);
-  context.lineTo(target[1].x, target[1].y);
-  context.lineTo(target[2].x, target[2].y);
+  target.slice(1).forEach((point) => context.lineTo(point.x, point.y));
   context.closePath();
   context.clip();
   context.globalAlpha = style.textureAlpha * alpha;
@@ -254,14 +255,15 @@ function drawTexturedTriangle(
   context.save();
   context.beginPath();
   context.moveTo(target[0].x, target[0].y);
-  context.lineTo(target[1].x, target[1].y);
-  context.lineTo(target[2].x, target[2].y);
+  target.slice(1).forEach((point) => context.lineTo(point.x, point.y));
   context.closePath();
   context.fillStyle = `hsl(${hue}, 94%, 58%)`;
   context.globalAlpha = style.faceAlpha * alpha;
   context.globalCompositeOperation = "screen";
   context.fill();
   context.restore();
+
+  if (!showSweep) return;
 
   const sweep = (timeSeconds * style.sweepSpeed + phase) % 1;
   const sweepStart = lerpPoint(target[0], target[2], sweep);
@@ -363,9 +365,9 @@ function drawAdaptiveMesh(
       left: toPoint(hands[0][finger.chain[3]], width, height),
       right: toPoint(hands[1][finger.chain[3]], width, height),
     };
-  }).filter((pair) => pair.weight > 0.08);
+  }).filter((pair) => pair.weight >= 0.5);
 
-  const stablePairCount = pairs.filter((pair) => pair.weight >= 0.5).length;
+  const stablePairCount = pairs.length;
   if (!pairs.length) return stablePairCount;
 
   const revealAlpha = handSeparationAlpha(hands, width, height);
@@ -375,7 +377,13 @@ function drawAdaptiveMesh(
     revealAlpha;
   const left = pairs.map((pair) => pair.left);
   const right = pairs.map((pair) => pair.right);
-  const triangles: { points: Point[]; hue: number; depth: number; phase: number }[] = [];
+  const triangles: {
+    points: Point[];
+    hue: number;
+    depth: number;
+    phase: number;
+    showSweep: boolean;
+  }[] = [];
   const edges: { start: Point; end: Point; hue: number; phase: number }[] = [];
   const hueFor = (fingerIndex: number, offset = 0) =>
     ((style.hues[fingerIndex] ?? BASE_HUES[fingerIndex]) +
@@ -387,12 +395,14 @@ function drawAdaptiveMesh(
     fingerIndex: number,
     offset: number,
     phase: number,
+    showSweep = true,
   ) => {
     triangles.push({
       points,
       hue: hueFor(fingerIndex, offset),
       depth: points.reduce((sum, point) => sum + point.z, 0) / points.length,
       phase,
+      showSweep,
     });
   };
 
@@ -403,8 +413,25 @@ function drawAdaptiveMesh(
       hue: hueFor(pairs[0].fingerIndex),
       phase: pairs[0].fingerIndex,
     });
+  } else if (pairs.length === 2) {
+    const surface = buildTwoPairSurface(left[0], right[0], left[1], right[1]);
+    addTriangle(
+      surface.face,
+      pairs[0].fingerIndex,
+      0,
+      0,
+      false,
+    );
+    surface.boundary.forEach(([start, end], edgeIndex) => {
+      edges.push({
+        start,
+        end,
+        hue: hueFor(pairs[edgeIndex % 2].fingerIndex, edgeIndex * 12),
+        phase: edgeIndex * 0.23,
+      });
+    });
   } else {
-    const sideCount = pairs.length === 2 ? 1 : pairs.length;
+    const sideCount = pairs.length;
     for (let index = 0; index < sideCount; index += 1) {
       const next = (index + 1) % pairs.length;
       buildSideTriangles(left[index], right[index], left[next], right[next]).forEach(
@@ -471,6 +498,7 @@ function drawAdaptiveMesh(
         timeSeconds,
         triangle.phase,
         style,
+        triangle.showSweep,
       ),
     );
   edges.forEach((edge) =>
@@ -1732,7 +1760,7 @@ export default function MotionEffectsPage() {
                 <li>· 判断的是手指主动伸展、弯曲与持续状态，不是静态贴纸。</li>
                 <li>· 左右手同名手指严格配对，大拇指只连接大拇指。</li>
                 <li>· 手掌距离控制显隐，靠近消失，拉开后平滑渐显。</li>
-                <li>· 两对指尖交叉时拆成两只三角形，不再错误补成整块凸面。</li>
+                <li>· 两对指尖发生自交时自动换边，保持四边形外轮廓，不再出现多余 X 线。</li>
                 <li>· 2 帧确认伸展、3 帧确认收回，减少遮挡造成的闪烁。</li>
                 <li>· 颜色随时间缓慢流动，边缘与膜面带有移动光带。</li>
               </ul>

@@ -1,3 +1,11 @@
+## 手指光膜实时对齐与两指拓扑修复 (`2026-08-04`)
+
+- Status: 已完成代码修复和验证，尚未提交、推送或部署。
+- Live mini-program: 前置 `CameraFrame` 检测点不再重复镜像；检测帧与预览统一使用 `medium`；检测间隔从 120ms 降至 80ms，并采用随移动量变化的低延迟平滑权重。
+- Two-pair topology: 小程序实时预览、Web 预览与 Python Worker 统一为非自交四边形外轮廓；两条配对线相交时自动交换右侧连接；两指面一次性绘制完整四边形且关闭面内扫光，避免交叉 X、共享三角形拼缝和弱第三指形成的幽灵边。只有权重达到 0.5 的稳定指尖对参与 Web/Worker 组网。
+- Verification: `npm run lint`、`npm run typecheck`、`npm test`（37 files / 183 tests）、`npx next build`（532 pages）、`npm --workspace apps/wechat run build:weapp`、Python syntax 与 `git diff --check` 均通过。微信 DevTools 9420 成功进入 `/toolbox/motion-effects/index`，确认 8 种风格区和实时预览区存在且错误日志为 0；模拟器不能提供真实 VisionKit 前置摄像头帧，最终跟手效果仍需真机短录复测。
+- Evidence: `C:\Users\29454\.codex\visualizations\2026\07\31\019fb666-18a9-7d83-84f4-d60fa7bd3467\weapp-motion-effects-fixed.png`；合成的两指交叉输入验证输出为 `two-pair-topology-check.png`，结果只有四边形外轮廓、无内部 X 线。
+
 ## 微信小程序正式版打包修复 (`2026-08-01`)
 
 - Status: 已修复并完成 release 构建。手指光膜页面在分支合并后重复声明 `optionsLocked`，现保留统一且完整的锁定条件：录制中、任务阶段非空闲或已有任务时禁止修改效果参数。

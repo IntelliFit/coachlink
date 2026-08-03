@@ -210,7 +210,7 @@ const MAX_DURATION_SECONDS = 30
 const TERMINAL: JobStatus[] = ['done', 'failed', 'expired']
 const TRANSFER_TIMEOUT = 15 * 60 * 1000
 const LIVE_CANVAS_ID = 'motionLiveCanvas'
-const LIVE_DETECT_INTERVAL_MS = 120
+const LIVE_DETECT_INTERVAL_MS = 80
 const LIVE_RECORDING_SECONDS = 30
 
 const LIVE_STYLE_STRENGTH = {
@@ -481,7 +481,8 @@ export default function FingerMotionEffectsPage() {
         canvasId: LIVE_CANVAS_ID,
         frame,
         hands: smoothedHandsRef.current,
-        mirrored: cameraDevice === 'front',
+        // CameraFrame 的点位已经与前置相机预览同向，不能再次水平镜像。
+        mirrored: false,
         style: liveDrawSettingsRef.current
       })
     }
@@ -580,7 +581,7 @@ export default function FingerMotionEffectsPage() {
           canvasId: LIVE_CANVAS_ID,
           frame,
           hands: smoothedHandsRef.current,
-          mirrored: cameraDevice === 'front',
+          mirrored: false,
           style: liveDrawSettingsRef.current
         })
         updateLiveMetrics(metrics.handCount, metrics.pairCount)
@@ -1310,7 +1311,7 @@ export default function FingerMotionEffectsPage() {
                 className='motion-live-camera'
                 devicePosition={cameraDevice}
                 flash='off'
-                frameSize='small'
+                frameSize='medium'
                 resolution='medium'
                 onInitDone={() => {
                   setCameraReady(true)

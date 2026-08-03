@@ -157,6 +157,77 @@ function drawMembrane(
   context.fill()
 }
 
+function segmentIntersection(
+  firstStart: LivePoint,
+  firstEnd: LivePoint,
+  secondStart: LivePoint,
+  secondEnd: LivePoint
+) {
+  const firstVector = {
+    x: firstEnd.x - firstStart.x,
+    y: firstEnd.y - firstStart.y
+  }
+  const secondVector = {
+    x: secondEnd.x - secondStart.x,
+    y: secondEnd.y - secondStart.y
+  }
+  const denominator = firstVector.x * secondVector.y - firstVector.y * secondVector.x
+  if (Math.abs(denominator) < 0.0001) return false
+  const delta = {
+    x: secondStart.x - firstStart.x,
+    y: secondStart.y - firstStart.y
+  }
+  const firstAmount = (delta.x * secondVector.y - delta.y * secondVector.x) / denominator
+  const secondAmount = (delta.x * firstVector.y - delta.y * firstVector.x) / denominator
+  const margin = 0.025
+  return firstAmount > margin && firstAmount < 1 - margin &&
+    secondAmount > margin && secondAmount < 1 - margin
+}
+
+function drawSurfaceMembrane(
+  context: any,
+  points: LivePoint[],
+  color: string,
+  alpha: number
+) {
+  context.beginPath()
+  context.moveTo(points[0].x, points[0].y)
+  points.slice(1).forEach((point) => context.lineTo(point.x, point.y))
+  context.closePath()
+  context.setFillStyle(hexToRgba(color, alpha))
+  context.setShadow(0, 0, 16, hexToRgba(color, Math.min(0.86, alpha + 0.24)))
+  context.fill()
+}
+
+function drawTwoPairSurface(
+  context: any,
+  pairs: Array<{ color: string; left: LivePoint; right: LivePoint }>,
+  style: LivePreviewStyle
+) {
+  const [first, second] = pairs
+  const crosses = segmentIntersection(first.left, first.right, second.left, second.right)
+  const topRight = crosses ? second.right : first.right
+  const bottomRight = crosses ? first.right : second.right
+  const face = [first.left, topRight, bottomRight, second.left]
+  const boundary: [LivePoint, LivePoint][] = [
+    [first.left, topRight],
+    [topRight, bottomRight],
+    [bottomRight, second.left],
+    [second.left, first.left]
+  ]
+
+  drawSurfaceMembrane(context, face, first.color, style.surfaceAlpha)
+  boundary.forEach(([start, end], index) => {
+    drawLine(
+      context,
+      start,
+      end,
+      pairs[index % pairs.length].color,
+      style.glowAlpha
+    )
+  })
+}
+
 export function drawLivePreview(options: {
   canvas: CanvasSize
   canvasId: string
@@ -218,8 +289,10 @@ export function drawLivePreview(options: {
       pairs[0].color,
       options.style.glowAlpha
     )
-  } else if (pairs.length > 1) {
-    const sectionCount = pairs.length >= 3 ? pairs.length : pairs.length - 1
+  } else if (pairs.length === 2) {
+    drawTwoPairSurface(context, pairs, options.style)
+  } else if (pairs.length > 2) {
+    const sectionCount = pairs.length
     for (let index = 0; index < sectionCount; index += 1) {
       const nextIndex = (index + 1) % pairs.length
       drawMembrane(
@@ -249,7 +322,9 @@ export function drawLivePreview(options: {
   }
 
   pairs.forEach((pair) => {
-    drawLine(context, pair.left, pair.right, pair.color, options.style.glowAlpha)
+    if (pairs.length !== 2) {
+      drawLine(context, pair.left, pair.right, pair.color, options.style.glowAlpha)
+    }
     drawNode(context, pair.left, pair.color, options.style.glowAlpha)
     drawNode(context, pair.right, pair.color, options.style.glowAlpha)
   })
@@ -275,9 +350,11 @@ export function smoothLiveHands(previous: LiveHand[], current: LiveHand[]) {
     points: hand.points.map((point, pointIndex) => {
       const oldPoint = previous[handIndex]?.points?.[pointIndex]
       if (!oldPoint) return point
+      const movement = distance(oldPoint, point)
+      const currentWeight = clamp(0.74 + movement * 4.5, 0.74, 0.92)
       return {
-        x: oldPoint.x * 0.42 + point.x * 0.58,
-        y: oldPoint.y * 0.42 + point.y * 0.58
+        x: oldPoint.x * (1 - currentWeight) + point.x * currentWeight,
+        y: oldPoint.y * (1 - currentWeight) + point.y * currentWeight
       }
     })
   }))
