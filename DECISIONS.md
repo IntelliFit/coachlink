@@ -688,6 +688,12 @@
 - 本地原文件路径永不进入公开 JSONB 或 API 响应；现代书原文件只作内部研究输入。云盘占位文件盘点时不得为了统计而强制下载整批数据。
 - 数据库迁移与批量内容导入必须在目标环境明确后分步执行。当前 Apollo 开发配置可能连接远端资源，因此普通本地实现阶段不得自动 `--apply`。
 
+# 手指光膜 dev 发布采用独立队列与可覆写体验版 API (`2026-08-04`)
+
+- `coachlink-dev` 的手指光膜任务不得再使用默认 main topic；标准与极速任务在 dev 都统一进入 `coachlink-motion-effects-tasks-dev`，由 `coachlink-motion-effects-worker-dev` 的独立 consumer group 消费，避免 dev 测试任务与生产 Worker 竞争。
+- dev Worker 使用 `coachlink-motion-effects-worker:dev`，生产 Worker 继续使用 `:latest`；普通 dev 发布只推 `:dev`，禁止借测试名义更新生产 Worker。
+- 小程序 release 构建默认仍指向 `https://coachlink.fit`，但允许通过构建环境变量 `TARO_APP_API_URL` 显式覆写。dev 体验版必须显式构建为 `https://dev.coachlink.fit`，上传后从 `dist-release` 检查目标地址；体验版上传不等于审核或正式发布。
+
 # Supabase 迁移采用后台网页逐个手动执行 (`2026-08-01`)
 
 - CoachLink 当前 Supabase 迁移由用户在 Supabase 后台 SQL Editor 手动逐个执行；不要默认运行全量 `supabase db push`，避免本地与远程迁移历史分叉导致旧迁移重放。

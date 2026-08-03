@@ -9036,6 +9036,15 @@
 - Verification: `npm run lint`、`npm run typecheck`、`npm test`（36 files / 180 tests）、`npm run test:e2e`（4/4）、`npx next build`（531 static pages）、微信小程序 2,851 模块完整构建均通过。微信开发者工具加载今日训练和训练执行路由，运行时错误日志为 0；会话未登录，数据型训练页验证到明确的缺少登录态降级。
 - Next: 逐条完成外部计划授权、864 个动作 canonical 映射/翻译和教练周期复核后，再分批把通过门禁的计划从草稿发布；当前代码不会允许未就绪计划误发布。
 
+## 手指光膜 dev 后端与微信体验版发布 (`2026-08-04`)
+
+- Status: 已完成 dev 代码提交、双远端推送、Web/API 与独立视频特效 Worker 部署，并上传微信体验版；等待用户真机相机验收实时对齐和相册成片拓扑。
+- Code: `dev` 提交 `4fde745d` 已推送 GitHub/Gitee。Web 镜像 `coachlink:dev` digest 为 `sha256:de7ddc7ad1cd73e118cb3693f777383af8e1b89d0b8a6a713de6cd5818bcf9a7`；Worker 镜像 `coachlink-motion-effects-worker:dev` digest 为 `sha256:f58cdcdc42cfd44f9f968a93f22a33b48311470180956e3c3ec28da51bd2b188`。
+- Dev isolation: 部署仓库提交 `f09d44e` 已推送 GitHub。`coachlink-dev` 的标准/极速任务统一写入隔离 topic `coachlink-motion-effects-tasks-dev`；新增 `coachlink-motion-effects-worker-dev`，复用同一 Supabase 凭据但使用独立 consumer group。Kafka topic 采用与 main 相同的 3 分区、单副本。
+- Runtime verification: `coachlink-dev` 3/3、dev Worker 1/1；Worker 成功读取 local 配置并连接 dev topic。`https://dev.coachlink.fit/api/healthy` 返回 HTTP 200，buildTime `2026-08-03T17:30:09.075Z`。
+- Experience build: 微信体验版 `2026.08.04.0137` 已通过 DevTools CLI 上传，描述为 `dev 手指光膜对齐与四点拓扑修复 4fde745`。release 产物主 API 明确为 `https://dev.coachlink.fit`；未提交审核、未发布正式版。
+- Verification: 发布前 `npm run lint`、`npm run typecheck`、`npm test`（37 files / 183 tests）及两套 Kustomize 渲染检查通过；此前同一修复已通过 532 页 Next build、完整 WeApp build、Python syntax 和微信 DevTools 页面验证。
+
 ## 书籍知识库扩充、思维导图与讨论区 (`2026-08-01`)
 
 - Status: Web / 微信小程序功能、内容工作区、评论迁移和导入脚本均已完成；用户已在 Supabase 后台手动执行评论迁移，167 条内容已导入当前 Apollo 指向的数据库；未提交、未部署。
