@@ -1,3 +1,13 @@
+## 手指光膜双手稳定追踪与小程序微信支付 (`2026-08-04`)
+
+- Status: 已完成代码修复、门禁、dev Web/API 部署和微信体验版上传；等待用户用真机复测双手实时预览，并用可控金额订单验证微信支付面板。正式环境未更新、体验版未提审。
+- Live tracking: 微信 VisionKit 置信阈值从 `0.5` 调整为 `0.35`；`removeAnchors` 和单次检测超时不再立即清空两只手，而是让旧轨迹最多保留 5 个检测周期。轨迹不再按数组下标匹配，改为按掌心空间距离匹配，第二只手瞬时漏检或左右手顺序变化时不再把两条轨迹接错。
+- Native payment: 小程序手指光膜付费导出不再复制支付宝链接。订单接口新增 `paymentProvider=wechat`，复用现有汇付微信小程序支付，返回 `wx.requestPayment` 所需参数；取消后可重新支付，支付成功/返回后主动调用微信查单接口，再同步手指光膜任务并入队。Web 默认支付宝路径保持不变。
+- Git/deploy: `dev` 提交 `d4e6c2ee` 已推送 GitHub/Gitee。dev Web/API 镜像摘要为 `sha256:6c6726591f2436e27db750bfd645e6f15d1195cb52897d4811907a9250147259`，`coachlink-dev` 3/3 完成滚动且新 Pod 0 重启；`https://dev.coachlink.fit/api/healthy` 返回 200。dev Apollo 中微信 AppID、支付回调和汇付所需配置均已确认存在（未输出密钥）。Worker 本轮无改动、未重启。
+- Experience build: 微信体验版 `2026.08.04.0252` 已通过 DevTools CLI 上传，描述为 `dev 双手稳定追踪与微信支付 d4e6c2e`，release 产物主 API 为 `https://dev.coachlink.fit`；未提交审核、未发布正式版。
+- Verification: `npm run lint`、`npm run typecheck`、`npm test`（37 files / 183 tests）、`npx next build`（532 pages）、小程序 local/release 构建和 `git diff --check` 均通过。微信 DevTools 自动化进入 `/toolbox/motion-effects/index`，确认 8 种风格、相机区域存在且 error 日志 0；模拟器不能提供真实 VisionKit 双手帧，也未执行真实扣款。
+- Evidence: `C:\Users\29454\.codex\visualizations\2026\07\31\019fb666-18a9-7d83-84f4-d60fa7bd3467\motion-live-wechat-pay-fix.png`。
+
 ## 手指光膜实时对齐与两指拓扑修复 (`2026-08-04`)
 
 - Status: 已完成代码修复和验证，尚未提交、推送或部署。
