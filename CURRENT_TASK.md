@@ -1,3 +1,10 @@
+## `dev` 合并 `main` 与双远端同步 (`2026-08-05`)
+
+- Status: 已完成。`main` 以 fast-forward 合并 `dev`，纳入 `4fde745d`、`1d0c659e`、`d4e6c2ee`、`c79edae5` 四个提交，内容覆盖手指光膜实时/成片拓扑修复、Dev 独立队列记录、双手稳定追踪及小程序原生微信支付。
+- Verification: 合并前 `git diff --check main..dev`、`npm run lint`、`npm run typecheck`、`npm test`（37 files / 183 tests）通过；GitHub CLI 登录有效，GitHub/Gitee 远端分支在合并前均无额外提交。
+- Sync: 最终同步记录提交后，`main` 与 `dev` 推送到 GitHub、Gitee 并保持同一提交。
+- Excluded: 本地 `tmp/` 临时目录继续保持未跟踪，未纳入提交。
+
 ## 手指光膜双手稳定追踪与小程序微信支付 (`2026-08-04`)
 
 - Status: 已完成代码修复、门禁、dev Web/API 部署和微信体验版上传；等待用户用真机复测双手实时预览，并用可控金额订单验证微信支付面板。正式环境未更新、体验版未提审。
