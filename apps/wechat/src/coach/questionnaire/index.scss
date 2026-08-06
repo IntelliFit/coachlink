@@ -86,8 +86,8 @@
     flex-shrink: 0;
     min-height: 42px;
     padding: 0 18px;
-    background: linear-gradient(135deg, #0f766e 0%, #0ea5a4 100%);
-    box-shadow: 0 12px 20px rgba(15, 118, 110, 0.18);
+    background: #cf6d4e;
+    box-shadow: 0 12px 20px rgba(207, 109, 78, 0.18);
   }
 
   .hero-card__action-text {
@@ -218,8 +218,8 @@
     }
 
     &.default {
-      background: #eef2ff;
-      color: #4338ca;
+      background: #fbf0ec;
+      color: #a6533a;
     }
   }
 
@@ -286,7 +286,7 @@
     border: 1px solid transparent;
 
     &.primary {
-      background: #0f172a;
+      background: #cf6d4e;
       color: #fff;
     }
 
@@ -337,8 +337,8 @@
     min-height: 38px;
     margin-top: 14px;
     padding: 0 16px;
-    background: #eff6ff;
-    border: 1px solid #bfdbfe;
+    background: #fbf0ec;
+    border: 1px solid #ebc5b8;
 
     &.disabled {
       opacity: 0.55;
@@ -346,7 +346,7 @@
   }
 
   .inline-action__text {
-    color: #2563eb;
+    color: #cf6d4e;
     font-size: 12px;
     font-weight: 800;
   }

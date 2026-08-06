@@ -56,8 +56,8 @@ export default function RankingsTableItem({
             {avatar ? (
               <Image src={avatar} mode="aspectFill" style={{ width: '100%', height: '100%' }} />
             ) : (
-              <View style={{ width: '100%', height: '100%', background: '#fef3c7', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Text style={{ fontSize: 16, fontWeight: 800, color: '#f97316' }}>{displayName.charAt(0)}</Text>
+              <View style={{ width: '100%', height: '100%', background: '#FBF0EC', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Text style={{ fontSize: 16, fontWeight: 800, color: '#CF6D4E' }}>{displayName.charAt(0)}</Text>
               </View>
             )}
           </View>
@@ -83,11 +83,11 @@ export default function RankingsTableItem({
           ))}
           {hasVideo && (
             <View
-              style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 10px', background: 'rgba(244,146,39,0.1)', borderRadius: 20 }}
+              style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 10px', background: 'rgba(207,109,78,0.12)', borderRadius: 20 }}
               onClick={() => uniqueLinks[0] && handleVideoClick(uniqueLinks[0][0])}
             >
-              <Icon component={Video} size={12} color="#f97316" />
-              <Text style={{ fontSize: 11, fontWeight: 800, color: '#f97316' }}>点击复制视频链接</Text>
+              <Icon component={Video} size={12} color="#CF6D4E" />
+              <Text style={{ fontSize: 11, fontWeight: 800, color: '#CF6D4E' }}>点击复制视频链接</Text>
             </View>
           )}
         </View>

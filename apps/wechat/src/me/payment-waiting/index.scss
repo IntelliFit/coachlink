@@ -59,7 +59,7 @@
   margin: 0 auto 32rpx;
   width: 96rpx;
   height: 96rpx;
-  background: rgba(59, 130, 246, 0.1);
+  background: rgba(207, 109, 78, 0.1);
   border-radius: 24rpx;
   display: flex;
   align-items: center;
@@ -67,7 +67,7 @@
 
   .icon {
     font-size: 44rpx;
-    color: #3b82f6;
+    color: #cf6d4e;
     animation: spin 2s linear infinite;
   }
 }
@@ -177,7 +177,7 @@
   font-weight: 700;
 
   &.primary {
-    background: #3b82f6;
+    background: #cf6d4e;
     color: #fff;
   }
 

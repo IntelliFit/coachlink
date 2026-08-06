@@ -64,7 +64,7 @@ export default function E1RMChartPage() {
       ctx.strokeStyle = '#e8e8e8'; ctx.lineWidth = 2
       ctx.beginPath(); ctx.moveTo(60, 20); ctx.lineTo(60, height - 40); ctx.lineTo(width - 20, height - 40); ctx.stroke()
 
-      ctx.strokeStyle = '#1890ff'; ctx.lineWidth = 3; ctx.beginPath()
+      ctx.strokeStyle = '#CF6D4E'; ctx.lineWidth = 3; ctx.beginPath()
       e1rmData.forEach((point, index) => {
         const x = 60 + index * xStep
         const y = height - 40 - (point.value - minValue) * yScale
@@ -75,7 +75,7 @@ export default function E1RMChartPage() {
       e1rmData.forEach((point, index) => {
         const x = 60 + index * xStep
         const y = height - 40 - (point.value - minValue) * yScale
-        ctx.fillStyle = '#1890ff'; ctx.beginPath(); ctx.arc(x, y, 6, 0, Math.PI * 2); ctx.fill()
+        ctx.fillStyle = '#CF6D4E'; ctx.beginPath(); ctx.arc(x, y, 6, 0, Math.PI * 2); ctx.fill()
         ctx.fillStyle = '#333'; ctx.font = '24px sans-serif'; ctx.textAlign = 'center'
         ctx.fillText(String(point.value), x, y - 15)
       })

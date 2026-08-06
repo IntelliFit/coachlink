@@ -11,7 +11,7 @@
     .action-tag {
       display: inline-block; padding: 12rpx 24rpx; background: #f5f5f5; border-radius: 8rpx; margin-right: 16rpx;
       Text { font-size: 26rpx; color: #666; }
-      &.selected { background: #1890ff; Text { color: #fff; } }
+      &.selected { background: #cf6d4e; Text { color: #fff; } }
     }
   }
 
@@ -29,10 +29,10 @@
       &:last-child { border-bottom: none; }
       .pr-info {
         .pr-action { font-size: 30rpx; color: #333; font-weight: 500; display: block; margin-bottom: 8rpx; }
-        .pr-value { font-size: 32rpx; color: #1890ff; font-weight: 600; display: block; margin-bottom: 4rpx; }
+        .pr-value { font-size: 32rpx; color: #cf6d4e; font-weight: 600; display: block; margin-bottom: 4rpx; }
         .pr-date { font-size: 24rpx; color: #999; }
       }
-      .video-btn { padding: 12rpx 24rpx; background: #f0f7ff; border-radius: 8rpx; Text { font-size: 26rpx; color: #1890ff; } }
+      .video-btn { padding: 12rpx 24rpx; background: #fbf0ec; border-radius: 8rpx; Text { font-size: 26rpx; color: #cf6d4e; } }
     }
   }
 }

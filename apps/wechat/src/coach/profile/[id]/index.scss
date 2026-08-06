@@ -39,7 +39,7 @@
       width: 80px;
       height: 80px;
       border-radius: 16px;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      background: linear-gradient(135deg, #cf6d4e 0%, #9e4932 100%);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -99,7 +99,7 @@
     .edit-btn {
       margin-top: 16px;
       padding: 8px 20px;
-      background: #3b82f6;
+      background: #cf6d4e;
       color: #fff;
       border-radius: 8px;
       font-size: 14px;
@@ -190,7 +190,7 @@
 
       .tag-add-btn {
         padding: 8px 16px;
-        background: #3b82f6;
+        background: #cf6d4e;
         color: #fff;
         border-radius: 8px;
         font-size: 14px;
@@ -230,7 +230,7 @@
 
       .list-add-btn {
         padding: 8px 16px;
-        background: #3b82f6;
+        background: #cf6d4e;
         color: #fff;
         border-radius: 8px;
         font-size: 14px;
@@ -288,7 +288,7 @@
         }
 
         .save-btn {
-          background: #3b82f6;
+          background: #cf6d4e;
           color: #fff;
         }
       }
@@ -350,9 +350,9 @@
             cursor: pointer;
 
             &.active {
-              background: #3b82f6;
+              background: #cf6d4e;
               color: #fff;
-              border-color: #3b82f6;
+              border-color: #cf6d4e;
             }
           }
         }
@@ -378,7 +378,7 @@
         }
 
         .save-btn {
-          background: #3b82f6;
+          background: #cf6d4e;
           color: #fff;
         }
       }
@@ -401,7 +401,7 @@
     .submit-btn {
       width: 100%;
       padding: 14px;
-      background: #3b82f6;
+      background: #cf6d4e;
       color: #fff;
       border-radius: 12px;
       font-size: 16px;

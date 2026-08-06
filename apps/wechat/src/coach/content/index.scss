@@ -38,7 +38,7 @@
     font-size: 11px;
     font-weight: 700;
     letter-spacing: 0.08em;
-    color: #2563eb;
+    color: #cf6d4e;
   }
 
   .hero-card__title {
@@ -72,8 +72,8 @@
     min-height: 42px;
     padding: 0 18px;
     border-radius: 999px;
-    background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
-    box-shadow: 0 12px 20px rgba(37, 99, 235, 0.18);
+    background: #cf6d4e;
+    box-shadow: 0 12px 20px rgba(207, 109, 78, 0.18);
   }
 
   .hero-card__action-text {
@@ -149,8 +149,8 @@
     border: 1px solid #dbe4f0;
 
     &.active {
-      background: #eff6ff;
-      border-color: #bfdbfe;
+      background: #fbf0ec;
+      border-color: #ebc5b8;
     }
   }
 
@@ -162,7 +162,7 @@
   }
 
   .filter-chip.active .filter-chip__text {
-    color: #2563eb;
+    color: #cf6d4e;
   }
 
   .empty-wrap {
@@ -193,12 +193,12 @@
     margin: 16px auto 0;
     padding: 0 16px;
     border-radius: 999px;
-    background: #eff6ff;
-    border: 1px solid #bfdbfe;
+    background: #fbf0ec;
+    border: 1px solid #ebc5b8;
   }
 
   .empty-action__text {
-    color: #2563eb;
+    color: #cf6d4e;
     font-size: 12px;
     font-weight: 800;
   }
@@ -270,8 +270,8 @@
     }
 
     &.type {
-      background: #eff6ff;
-      color: #2563eb;
+      background: #fbf0ec;
+      color: #cf6d4e;
     }
 
     &.tier {
@@ -335,9 +335,9 @@
     border: 1px solid transparent;
 
     &.edit {
-      background: #eff6ff;
-      border-color: #bfdbfe;
-      color: #2563eb;
+      background: #fbf0ec;
+      border-color: #ebc5b8;
+      color: #cf6d4e;
     }
 
     &.danger {

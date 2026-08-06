@@ -24,7 +24,7 @@
   text-align: center; margin-bottom: 40rpx;
   .header-icon-wrap {
     width: 120rpx; height: 120rpx; border-radius: 50%;
-    background: linear-gradient(135deg, #f97316 0%, #ef4444 100%);
+    background: linear-gradient(135deg, #cf6d4e 0%, #ef4444 100%);
     display: flex; align-items: center; justify-content: center; margin: 0 auto 24rpx;
   }
   .header-icon { display: flex; align-items: center; justify-content: center; }
@@ -48,7 +48,7 @@
   padding: 32rpx;
   box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.06);
   border: 4rpx solid #eee;
-  &.selected { border-color: #f97316; background: #fffaf5; }
+  &.selected { border-color: #cf6d4e; background: #fffaf5; }
   .domain-main {
     display: flex;
     align-items: center;
@@ -70,7 +70,7 @@
     padding: 8rpx 16rpx;
     border-radius: 16rpx;
     &.diff-green { background: #dcfce7; color: #166534; }
-    &.diff-blue { background: #dbeafe; color: #1e40af; }
+    &.diff-blue { background: #f6e2da; color: #a6533a; }
     &.diff-primary { background: #ffedd5; color: #c2410c; }
     &.diff-default { background: #f3f4f6; color: #6b7280; }
   }
@@ -117,7 +117,7 @@
   text-align: center;
   border-radius: 16rpx;
   font-size: 30rpx;
-  &.primary { background: #f97316; color: #fff; }
+  &.primary { background: #cf6d4e; color: #fff; }
   &.primary.disabled { background: #ccc; color: #999; }
   &.secondary { background: #fff; color: #666; border: 2rpx solid #ddd; }
 }

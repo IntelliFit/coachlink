@@ -1855,7 +1855,7 @@ function TodayTrainingScreen() {
           hoverStayTime={70}
         >
           <View className='more-training-item-icon more-training-item-icon--plan'>
-            <Calendar size={22} color='#3B82F6' />
+            <Calendar size={22} color='#CF6D4E' />
           </View>
           <View className='more-training-item-copy'>
             <Text className='more-training-item-title'>AI 长期计划</Text>
@@ -1915,7 +1915,7 @@ function TodayTrainingScreen() {
               </View>
               <View className='guest-entry-card' onClick={handleGuestKnowledge}>
                 <View className='guest-entry-icon-wrap guest-entry-icon-wrap--muted'>
-                  <Notice size={22} color='#3B82F6' />
+                  <Notice size={22} color='#CF6D4E' />
                 </View>
                 <View className='guest-entry-copy'>
                   <Text className='guest-entry-title'>知识库</Text>
@@ -1935,7 +1935,7 @@ function TodayTrainingScreen() {
               </View>
               <View className='guest-entry-card' onClick={handleGuestPowerAnalysis}>
                 <View className='guest-entry-icon-wrap guest-entry-icon-wrap--muted'>
-                  <Power size={22} color='#3B82F6' />
+                  <Power size={22} color='#CF6D4E' />
                 </View>
                 <View className='guest-entry-copy'>
                   <Text className='guest-entry-title'>功率视频分析</Text>

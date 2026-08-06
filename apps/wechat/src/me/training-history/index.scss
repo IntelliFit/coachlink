@@ -17,7 +17,7 @@
 
       .back-icon {
         font-size: 36rpx;
-        color: #1890ff;
+        color: #cf6d4e;
       }
 
       .page-title {
@@ -29,8 +29,8 @@
 
     .impromptu-btn {
       padding: 8rpx 24rpx;
-      border: 1rpx solid #1890ff;
-      color: #1890ff;
+      border: 1rpx solid #cf6d4e;
+      color: #cf6d4e;
       border-radius: 8rpx;
       font-size: 26rpx;
     }
@@ -77,7 +77,7 @@
 
         .nav-btn {
           font-size: 36rpx;
-          color: #1890ff;
+          color: #cf6d4e;
           padding: 0 8rpx;
         }
       }
@@ -110,8 +110,8 @@
         }
 
         &.selected {
-          background: #e6f7ff;
-          border-color: #1890ff;
+          background: #fbf0ec;
+          border-color: #cf6d4e;
         }
 
         .day-num {
@@ -121,7 +121,7 @@
 
         .day-sessions {
           font-size: 20rpx;
-          color: #1890ff;
+          color: #cf6d4e;
           margin-top: 0rpx;
         }
       }
@@ -229,8 +229,8 @@
               border-radius: 8rpx;
 
               &.source {
-                background: #e6f7ff;
-                color: #1890ff;
+                background: #fbf0ec;
+                color: #cf6d4e;
               }
 
               &.sets {
@@ -266,7 +266,7 @@
           .share-action {
             padding: 8rpx 24rpx;
             border-radius: 1000rpx;
-            background: #1890ff;
+            background: #cf6d4e;
 
             text {
               color: #fff;

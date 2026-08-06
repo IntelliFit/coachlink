@@ -101,12 +101,12 @@
   .bulk-select-link {
     padding: 2px 10px;
     border-radius: 999px;
-    border: 1px solid #dbeafe;
-    background: #eff6ff;
+    border: 1px solid #f6e2da;
+    background: #fbf0ec;
 
     text {
       font-size: 11px;
-      color: #2563eb;
+      color: #cf6d4e;
       font-weight: 700;
     }
   }
@@ -220,8 +220,8 @@
     }
 
     &.checked {
-      border-color: #2563eb;
-      background: #2563eb;
+      border-color: #cf6d4e;
+      background: #cf6d4e;
     }
 
     &.disabled {
@@ -235,7 +235,7 @@
     height: 44px;
     border-radius: 22px;
     flex-shrink: 0;
-    background: #eef2ff;
+    background: #fbf0ec;
   }
 
   .avatar.placeholder {
@@ -246,7 +246,7 @@
     text {
       font-size: 18px;
       font-weight: 700;
-      color: #4f46e5;
+      color: #a6533a;
     }
   }
 
@@ -355,10 +355,10 @@
     }
 
     &.weeks {
-      background: #eff6ff;
-      border-color: #bfdbfe;
+      background: #fbf0ec;
+      border-color: #ebc5b8;
       text {
-        color: #1d4ed8;
+        color: #a6533a;
       }
     }
   }
@@ -573,10 +573,10 @@
   }
 
   .action-primary {
-    border: 1px solid #bfdbfe;
-    background: #eff6ff;
+    border: 1px solid #ebc5b8;
+    background: #fbf0ec;
     text {
-      color: #1d4ed8;
+      color: #a6533a;
     }
   }
 
@@ -702,11 +702,11 @@
 .coach-students-page {
   .toolbar-actions {
     .ai-btn {
-      border-color: #bfdbfe;
-      background: #eff6ff;
+      border-color: #ebc5b8;
+      background: #fbf0ec;
 
       .toolbar-btn-text {
-        color: #1d4ed8;
+        color: #a6533a;
       }
     }
   }
@@ -860,12 +860,12 @@
   .payment-select-all {
     padding: 2px 10px;
     border-radius: 999px;
-    border: 1px solid #dbeafe;
-    background: #eff6ff;
+    border: 1px solid #f6e2da;
+    background: #fbf0ec;
 
     text {
       font-size: 11px;
-      color: #2563eb;
+      color: #cf6d4e;
       font-weight: 700;
     }
   }
@@ -904,8 +904,8 @@
     }
 
     &.checked {
-      border-color: #2563eb;
-      background: #2563eb;
+      border-color: #cf6d4e;
+      background: #cf6d4e;
     }
 
     &.placeholder {
@@ -978,10 +978,10 @@
     }
 
     &.info {
-      border-color: #bfdbfe;
-      background: #eff6ff;
+      border-color: #ebc5b8;
+      background: #fbf0ec;
       text {
-        color: #1d4ed8;
+        color: #a6533a;
       }
     }
 
@@ -1043,8 +1043,8 @@
     width: 44px;
     height: 44px;
     border-radius: 8px;
-    border: 1px solid #dbeafe;
-    background: #eff6ff;
+    border: 1px solid #f6e2da;
+    background: #fbf0ec;
     flex-shrink: 0;
   }
 
@@ -1069,7 +1069,7 @@
     }
 
     &.primary {
-      background: #f59e0b;
+      background: #cf6d4e;
       border: 1px solid #f59e0b;
       text {
         color: #ffffff;
@@ -1110,7 +1110,7 @@
     min-width: 96px;
     height: 34px;
     border-radius: 10px;
-    background: #f59e0b;
+    background: #cf6d4e;
     border: 1px solid #f59e0b;
     display: flex;
     align-items: center;
@@ -1214,14 +1214,14 @@
     margin-bottom: 16rpx;
     padding: 16rpx;
     border-radius: 16rpx;
-    border: 2rpx solid #bfdbfe;
-    background: #eff6ff;
+    border: 2rpx solid #ebc5b8;
+    background: #fbf0ec;
   }
 
   .config-start-hint-text {
     display: block;
     font-size: 22rpx;
-    color: #1d4ed8;
+    color: #a6533a;
     line-height: 1.6;
     font-weight: 700;
   }

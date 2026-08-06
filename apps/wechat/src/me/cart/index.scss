@@ -89,8 +89,8 @@
         .item-badge {
           display: inline-block;
           padding: 4px 10px;
-          background: #dbeafe;
-          color: #3b82f6;
+          background: #f6e2da;
+          color: #cf6d4e;
           border-radius: 12px;
           font-size: 11px;
           font-weight: 600;
@@ -120,7 +120,7 @@
             .price-value {
               font-size: 18px;
               font-weight: 700;
-              color: #f97316;
+              color: #cf6d4e;
             }
           }
         }
@@ -141,7 +141,7 @@
           font-weight: 600;
 
           &.subscribe {
-            background: #f97316;
+            background: #cf6d4e;
             color: #fff;
             box-shadow: 0 2px 8px rgba(249, 115, 22, 0.3);
           }
@@ -180,7 +180,7 @@
       .summary-total {
         font-size: 20px;
         font-weight: 700;
-        color: #f97316;
+        color: #cf6d4e;
       }
     }
 
@@ -229,7 +229,7 @@
 
     .empty-btn {
       padding: 12px 32px;
-      background: #f97316;
+      background: #cf6d4e;
       color: #fff;
       border-radius: 12px;
       font-size: 14px;
