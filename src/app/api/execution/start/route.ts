@@ -43,6 +43,50 @@ function canManuallyAdvanceAcrossRestDays(params: {
         .every((day) => String(day?.type || "training").toLowerCase() !== "training");
 }
 
+function getSetPrescriptions(actionSet: any): any[] {
+    const params = actionSet?.params || {};
+    const value = params?.setPrescriptions ?? params?.set_prescriptions;
+    return Array.isArray(value) ? value.filter((item) => item && typeof item === "object") : [];
+}
+
+function formatPrescriptionIntensity(prescription: any, fallback: unknown): string {
+    const explicit = String(prescription?.intensity ?? "").trim();
+    if (explicit) return explicit;
+    return String(fallback ?? "").trim();
+}
+
+function intensityConfigFromPrescription(prescription: any) {
+    if (prescription?.intensityConfig) {
+        return normalizeIntensityConfig({ intensityConfig: prescription.intensityConfig });
+    }
+
+    const unit = String(prescription?.intensityUnit ?? prescription?.intensity_unit ?? "")
+        .trim()
+        .toLowerCase();
+    const rawValue = prescription?.intensityValue ?? prescription?.intensity_value;
+    const firstValue = Array.isArray(rawValue) ? rawValue[0] : rawValue;
+    const value = Number(firstValue);
+    if (!Number.isFinite(value) || value <= 0) return undefined;
+
+    if (unit === "%" || unit === "percent" || unit === "percentage") {
+        return {
+            relativeIntensity: {
+                type: "percentage" as const,
+                value,
+            },
+        };
+    }
+    if (unit === "rm") {
+        return {
+            relativeIntensity: {
+                type: "rm" as const,
+                value,
+            },
+        };
+    }
+    return undefined;
+}
+
 /**
  * POST /api/execution/start
  *
@@ -284,14 +328,14 @@ export async function POST(request: NextRequest) {
             if (remainingIds.length > 0) {
                 const { data: studentActionsData } = await supabase
                     .from("student_actions")
-                    .select("id, name, type, canonical_action_id, includes_body_weight")
+                    .select('id, name, type, canonical_action_id, "includesBodyWeight"')
                     .in("id", remainingIds);
 
                 for (const action of studentActionsData || []) {
                     actionsMap[action.id] = {
                         ...action,
                         canonical_action_id: action.canonical_action_id,
-                        includesBodyWeight: action.includes_body_weight,
+                        includesBodyWeight: action.includesBodyWeight,
                     };
                 }
             }
@@ -334,68 +378,105 @@ export async function POST(request: NextRequest) {
         ) => {
             // 支持两种字段名
             const actionId = actionSet.action_id || actionSet.actionId;
-            // 从 params 对象读取组数/次数等，兼容旧格式
-            const sets = actionSet.params?.["组数"] || actionSet.sets || 1;
-            const reps = actionSet.params?.["次数"] || actionSet.reps;
-            const intensity = actionSet.params?.["强度"] || actionSet.intensity;
-
-            let load = actionSet.params?.load;
             const params = actionSet.params || {};
-            const intensityConfig = normalizeIntensityConfig(params);
-            const legacyRm = params["强度"] ?? intensity;
-            const shouldRefreshExistingLoad = hasDynamicIntensityTarget({
-                intensityConfig,
-                legacyRm,
-            });
-            // 与 today-training/get-instance 统一口径：
-            // RM/% 动态强度优先按当前 1RM 重算；固定重量才沿用实例里已有 load。
-            if (shouldRefreshExistingLoad || load === null || load === undefined) {
-                const actionIdForLookup = actionId;
-                const actionNameForLookup = actionsMap[actionIdForLookup]?.name || actionSet.actionName || actionSet.set_name;
-                const canonicalActionId = actionsMap[actionIdForLookup]?.canonical_action_id;
-                const oneRM = oneRMMap[canonicalActionId] ?? oneRMMap[actionNameForLookup] ?? oneRMMap[actionIdForLookup] ?? undefined;
-                const includesBodyWeight = !!(actionsMap[actionIdForLookup]?.includesBodyWeight);
+            const rawSetCount = Number(params?.["组数"] ?? actionSet.sets ?? 1);
+            const setPrescriptions = getSetPrescriptions(actionSet);
+            const itemType = String(
+                actionSet.itemType || actionsMap[actionId]?.type || "STRENGTH",
+            ).toUpperCase();
+            const isStrength = itemType === "STRENGTH";
+            const sourceSetCount = setPrescriptions.length > 0
+                ? setPrescriptions.length
+                : Number.isFinite(rawSetCount) && rawSetCount > 0
+                    ? Math.max(1, Math.floor(rawSetCount))
+                    : 1;
+            // CARDIO/DIET/HABIT are completed as one item by complete-item.
+            // Keeping multiple strength-style sets here would make progress
+            // impossible to finish because that endpoint marks one item.
+            const setCount = isStrength ? sourceSetCount : 1;
+            const defaultReps = params?.["次数"] ?? actionSet.reps;
+            const defaultIntensity = params?.["强度"] ?? actionSet.intensity;
+            const prescriptionReps = setPrescriptions
+                .map((item) => String(item?.reps || "").trim())
+                .filter(Boolean);
+            const uniquePrescriptionReps = Array.from(new Set(prescriptionReps));
+            const nonStrengthReps = uniquePrescriptionReps.length === 1 && sourceSetCount > 1
+                ? `${sourceSetCount} × ${uniquePrescriptionReps[0]}`
+                : uniquePrescriptionReps.length > 0
+                    ? uniquePrescriptionReps.join(" / ")
+                    : defaultReps;
+            const actionNameForLookup = actionsMap[actionId]?.name ||
+                actionSet.actionName || actionSet.set_name;
+            const canonicalActionId = actionsMap[actionId]?.canonical_action_id;
+            const oneRM = oneRMMap[canonicalActionId] ?? oneRMMap[actionNameForLookup] ??
+                oneRMMap[actionId] ?? undefined;
+            const includesBodyWeight = !!(actionsMap[actionId]?.includesBodyWeight);
 
-                const result = calcIntensityDisplay({
+            const executionSets = Array.from({ length: setCount }, (_, setIndex) => {
+                const prescription = setPrescriptions[setIndex] || null;
+                const reps = isStrength ? (prescription?.reps ?? defaultReps) : nonStrengthReps;
+                const rawIntensity = formatPrescriptionIntensity(prescription, defaultIntensity);
+                const intensityConfig = prescription
+                    ? intensityConfigFromPrescription(prescription)
+                    : normalizeIntensityConfig(params);
+                const legacyRm = prescription ? null : (params["强度"] ?? defaultIntensity);
+                let load = prescription?.load ?? params?.load;
+                let plannedIntensity = rawIntensity || null;
+                const shouldRefreshExistingLoad = hasDynamicIntensityTarget({
                     intensityConfig,
                     legacyRm,
-                    oneRM,
-                    bodyWeight,
-                    includesBodyWeight,
                 });
 
-                if (result.displayWeight !== null && result.displayWeight !== undefined) {
-                    load = normalizeToKg(Number(result.displayWeight), result.displayUnit || "kg");
+                // RM/% targets are recomputed per set. RPE and other text stay
+                // descriptive and are never coerced into a fake kg/RM value.
+                if (shouldRefreshExistingLoad || load === null || load === undefined) {
+                    const result = calcIntensityDisplay({
+                        intensityConfig,
+                        legacyRm,
+                        oneRM,
+                        bodyWeight,
+                        includesBodyWeight,
+                    });
+                    if (result.displayWeight !== null && result.displayWeight !== undefined) {
+                        load = normalizeToKg(Number(result.displayWeight), result.displayUnit || "kg");
+                    }
+                    if (result.displayText) plannedIntensity = result.displayText;
                 }
-            }
-            const restSeconds = normalizePlannedRestSeconds(
-                actionSet.params?.["休息时间"] ?? actionSet.rest_seconds,
-                90,
-            );
 
-            // 优先使用自动计算的重量(load)，否则显示RM值
-            const plannedWeight =
-                load !== null && load !== undefined
-                    ? formatKgForGym(Number(load))
-                : (intensity ? `${intensity}RM` : null);
+                const restSeconds = normalizePlannedRestSeconds(
+                    prescription?.restSeconds ?? prescription?.rest_seconds ??
+                        params?.["休息时间"] ?? actionSet.rest_seconds,
+                    90,
+                );
+
+                return {
+                    set_number: setIndex + 1,
+                    status: "pending",
+                    planned_reps: reps !== null && reps !== undefined && String(reps).trim()
+                        ? String(reps)
+                        : null,
+                    planned_weight: load !== null && load !== undefined && Number.isFinite(Number(load))
+                        ? formatKgForGym(Number(load))
+                        : null,
+                    planned_intensity: plannedIntensity,
+                    planned_target_type: prescription?.targetType ?? prescription?.target_type ?? null,
+                    planned_target_unit: prescription?.targetUnit ?? prescription?.target_unit ?? null,
+                    planned_rest_seconds: restSeconds,
+                    has_video: false,
+                    is_pr: false,
+                };
+            });
 
             return {
                 action_id: actionId,
                 action_name: actionsMap[actionId]?.name ||
                     actionSet.actionName || actionSet.set_name || "未知动作",
                 action_order: idx + 1,
-                item_type: String(actionSet.itemType || actionsMap[actionId]?.type || "STRENGTH").toUpperCase(),
+                item_type: itemType,
+                planned_rounds: isStrength ? undefined : sourceSetCount,
                 source_action_index: idx,
-                sets: Array.from({ length: sets }, (_, i) => ({
-                    set_number: i + 1,
-                    status: "pending",
-                    planned_reps: reps ? `${reps}` : null,
-                    planned_weight: plannedWeight,
-                    planned_rest_seconds: restSeconds,
-                    has_video: false,
-                    is_pr: false,
-                })),
-                total_sets: sets,
+                sets: executionSets,
+                total_sets: executionSets.length,
                 completed_sets: 0,
             };
         });

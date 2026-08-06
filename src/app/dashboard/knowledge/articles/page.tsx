@@ -35,7 +35,7 @@ export default function KnowledgeArticlesPage() {
             const res = await fetch("/api/knowledge/list-coach-contents", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ limit, offset: currentPage * limit }),
+                body: JSON.stringify({ limit, offset: currentPage * limit, content_type: "text" }),
             });
             const json = await res.json();
             if (!json?.success) {
@@ -77,8 +77,8 @@ export default function KnowledgeArticlesPage() {
     return (
         <div className="min-h-screen pb-32">
             <KnowledgeHeader
-                title="技术文章"
-                subtitle={`共 ${total} 篇教练精选文章`}
+                title="精选好文"
+                subtitle={`共 ${total} 篇平台与教练发布内容`}
                 icon={FileText}
                 showBackButton={true}
             />

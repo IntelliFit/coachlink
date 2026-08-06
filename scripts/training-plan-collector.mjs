@@ -19,12 +19,14 @@ const EMAIL_PATTERN = /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi;
 
 function parseArgs(argv) {
     const args = {
-        sources: ["liftvault", "boostcamp", "fitness-wiki"],
+        sources: ["liftvault", "boostcamp", "fitness-wiki", "catalyst-athletics", "crossfit"],
         output: DEFAULT_OUTPUT,
         downloadAssets: false,
         concurrency: 6,
+        delayMs: 0,
         maxPlans: 0,
         maxAssets: 0,
+        retryFailures: false,
     };
 
     for (let index = 0; index < argv.length; index += 1) {
@@ -33,8 +35,10 @@ function parseArgs(argv) {
         else if (value === "--output") args.output = resolve(argv[++index]);
         else if (value === "--download-assets") args.downloadAssets = true;
         else if (value === "--concurrency") args.concurrency = Math.max(1, Number(argv[++index]) || 1);
+        else if (value === "--delay-ms") args.delayMs = Math.max(0, Number(argv[++index]) || 0);
         else if (value === "--max-plans") args.maxPlans = Math.max(0, Number(argv[++index]) || 0);
         else if (value === "--max-assets") args.maxAssets = Math.max(0, Number(argv[++index]) || 0);
+        else if (value === "--retry-failures") args.retryFailures = true;
         else if (value === "--help") {
             console.log(`
 Usage:
@@ -45,8 +49,10 @@ Options:
   --output <directory>
   --download-assets
   --concurrency <number>
+  --delay-ms <number>
   --max-plans <number>   0 means no limit
   --max-assets <number>  0 means no limit
+  --retry-failures       retry only URLs in the existing source failures file
 `);
             process.exit(0);
         } else {
@@ -325,66 +331,76 @@ async function writeJsonl(path, rows) {
     await writeFile(path, body ? `${body}\n` : "", "utf8");
 }
 
-async function collectLiftVault(context) {
-    console.log("[liftvault] Fetching WordPress catalog...");
-    const endpoint = new URL("https://liftvault.com/wp-json/wp/v2/posts");
-    endpoint.searchParams.set("per_page", "100");
-    endpoint.searchParams.set("page", "1");
-    endpoint.searchParams.set("orderby", "id");
-    endpoint.searchParams.set("order", "asc");
-    endpoint.searchParams.set("_embed", "wp:term");
-    endpoint.searchParams.set("_fields", "id,date,modified,slug,link,title,excerpt,content,_links,_embedded");
-    const first = await fetchJson(endpoint.href);
-    const firstRows = first.data;
-    const discoveredTotalPages = Number(first.response.headers.get("x-wp-totalpages") || 1);
-    const requiredPages = context.args.maxPlans
-        ? Math.min(discoveredTotalPages, Math.ceil(context.args.maxPlans / 100))
-        : discoveredTotalPages;
-    const remainingPages = Array.from({ length: requiredPages - 1 }, (_, index) => index + 2);
-    const pageResults = await mapLimit(remainingPages, Math.min(2, context.args.concurrency), async (page) => {
-        const url = new URL(endpoint);
-        url.searchParams.set("page", String(page));
-        await sleep(350);
-        return (await fetchJson(url.href)).data;
-    });
-    const posts = [firstRows, ...pageResults.filter(Array.isArray)].flat();
-    const limited = context.args.maxPlans ? posts.slice(0, context.args.maxPlans) : posts;
-    const records = [];
-    const failures = pageResults.filter((result) => !Array.isArray(result));
+function extractSitemapEntries(xml) {
+    return [...String(xml).matchAll(/<url>([\s\S]*?)<\/url>/gi)].map((match) => {
+        const body = match[1];
+        return {
+            loc: decodeHtml(body.match(/<loc>([\s\S]*?)<\/loc>/i)?.[1] || "").trim(),
+            lastmod: decodeHtml(body.match(/<lastmod>([\s\S]*?)<\/lastmod>/i)?.[1] || "").trim() || null,
+        };
+    }).filter((entry) => entry.loc);
+}
 
-    for (const post of limited) {
-        const contentHtml = post.content?.rendered || "";
-        const termGroups = post._embedded?.["wp:term"] || [];
-        const terms = termGroups.flat().map((term) => ({
-            taxonomy: term.taxonomy,
-            name: decodeHtml(term.name),
-            slug: term.slug,
-        }));
-        const allLinks = extractLinks(contentHtml, post.link);
+async function readJsonl(path) {
+    try {
+        const body = await readFile(path, "utf8");
+        return body.split(/\r?\n/).filter(Boolean).map((line) => JSON.parse(line));
+    } catch (error) {
+        if (error?.code === "ENOENT") return [];
+        throw error;
+    }
+}
+
+async function collectLiftVault(context) {
+    console.log("[liftvault] Fetching official sitemaps...");
+    const sitemapIndex = await fetchText("https://liftvault.com/sitemap_index.xml");
+    const postSitemaps = extractSitemapLocs(sitemapIndex.text).filter((url) => /\/post-sitemap\d*\.xml$/i.test(url));
+    const sitemapBodies = await Promise.all(postSitemaps.map((url) => fetchText(url)));
+    let urls = [...new Set(
+        sitemapBodies
+            .flatMap(({ text }) => extractSitemapLocs(text))
+            .filter((url) => new URL(url).pathname.startsWith("/programs/")),
+    )];
+    if (context.args.maxPlans) urls = urls.slice(0, context.args.maxPlans);
+    console.log(`[liftvault] Fetching ${urls.length} public program pages...`);
+
+    let lastProgress = 0;
+    const results = await mapLimit(urls, Math.min(4, context.args.concurrency), async (url) => {
+        const { text: html } = await fetchText(url);
+        const articleMatch = html.match(/<article\b([^>]*)>([\s\S]*?)<\/article>/i);
+        const articleAttributes = articleMatch?.[1] || "";
+        const contentHtml = articleMatch?.[2] || html.match(/<main\b[^>]*>([\s\S]*?)<\/main>/i)?.[1] || "";
+        const allLinks = extractLinks(contentHtml, url);
         const assetLinks = allLinks.filter(isPlanAssetUrl);
-        const taxonomyText = terms.map((term) => `${term.taxonomy}:${term.slug}`).join(" ");
-        const looksLikePlan = (
-            assetLinks.length > 0 ||
-            /program|routine|workout|spreadsheet|template/i.test(`${post.slug} ${post.title?.rendered || ""}`) ||
-            /program|routine|workout/i.test(taxonomyText)
-        );
-        records.push({
-            ...sourceRecordBase("liftvault", post.link, context.collectedAt),
-            source_plan_id: String(post.id),
-            slug: post.slug,
-            title: decodeHtml(post.title?.rendered || post.slug),
-            summary: stripHtml(post.excerpt?.rendered || ""),
+        const articleClasses = decodeHtml(articleAttributes.match(/\bclass=["']([^"']*)["']/i)?.[1] || "")
+            .split(/\s+/)
+            .filter((className) => /^(category|tag|day_count|experience_level|week_count|progression_rate|program_goal|focus_lift|periodization)-/.test(className));
+        const rawTitle = decodeHtml(html.match(/<title>([\s\S]*?)<\/title>/i)?.[1] || new URL(url).pathname);
+        return {
+            ...sourceRecordBase("liftvault", url, context.collectedAt),
+            source_plan_id: sha256(url).slice(0, 16),
+            slug: new URL(url).pathname.split("/").filter(Boolean).at(-1),
+            title: rawTitle.replace(/\s*[|–-]\s*Lift Vault\s*$/i, "").trim(),
+            summary: extractMeta(html, "description") || extractMeta(html, "og:description"),
             article_text: redactPersonalData(stripHtml(contentHtml)),
-            published_at: post.date,
-            source_updated_at: post.modified,
-            record_kind: looksLikePlan ? "training_plan_or_program_page" : "supporting_article",
-            taxonomies: terms,
+            published_at: extractMeta(html, "article:published_time") || null,
+            source_updated_at: extractMeta(html, "article:modified_time") || null,
+            record_kind: assetLinks.length > 0 ? "program_with_public_asset" : "training_program_page",
+            taxonomy_classes: articleClasses,
             plan_asset_links: assetLinks,
             outbound_links: allLinks,
-        });
-    }
+        };
+    }, (completed, total) => {
+        const percent = Math.floor((completed / total) * 100);
+        if (percent >= lastProgress + 10 || completed === total) {
+            lastProgress = percent;
+            console.log(`[liftvault] ${completed}/${total} (${percent}%)`);
+        }
+    });
 
-    console.log(`[liftvault] Collected ${records.length} pages and found ${new Set(records.flatMap((row) => row.plan_asset_links)).size} unique plan assets.`);
+    const records = results.filter((result) => result && !result.error);
+    const failures = results.filter((result) => result?.error);
+    console.log(`[liftvault] Collected ${records.length} pages and found ${new Set(records.flatMap((row) => row.plan_asset_links)).size} unique plan assets; ${failures.length} failed.`);
     return { records, failures };
 }
 
@@ -415,7 +431,11 @@ function boostcampProgramRecord(pageUrl, pageProps, collectedAt) {
         source_plan_id: program.id,
         catalog_kind: isCoach ? "coach" : "community",
         slug: program.slug || new URL(pageUrl).pathname.split("/").filter(Boolean).at(-1),
-        title: redactPersonalData(program.title || extractMeta(pageProps, "og:title")),
+        title: redactPersonalData(
+            program.title ||
+            new URL(pageUrl).pathname.split("/").filter(Boolean).at(-1)?.replaceAll("-", " ") ||
+            "Untitled program",
+        ),
         author: redactPersonalData(program.instructor_name || ""),
         author_verified: Boolean(program.instructor_verified),
         tagline: redactPersonalData(stripHtml(program.tagline || "")),
@@ -441,12 +461,15 @@ async function collectBoostcamp(context) {
         "https://www.boostcamp.app/sitemap/users-program-sitemap.xml",
     ];
     const sitemapBodies = await Promise.all(sitemapUrls.map((url) => fetchText(url)));
-    let urls = sitemapBodies.flatMap(({ text }) => extractSitemapLocs(text));
+    let urls = context.urlOverrides?.boostcamp?.length
+        ? context.urlOverrides.boostcamp
+        : sitemapBodies.flatMap(({ text }) => extractSitemapLocs(text));
     if (context.args.maxPlans) urls = urls.slice(0, context.args.maxPlans);
     console.log(`[boostcamp] Fetching ${urls.length} public program pages...`);
 
     let lastProgress = 0;
     const results = await mapLimit(urls, context.args.concurrency, async (url) => {
+        if (context.args.delayMs) await sleep(context.args.delayMs);
         const { text: html } = await fetchText(url);
         const rawJson = html.match(/<script id="__NEXT_DATA__" type="application\/json">([\s\S]*?)<\/script>/)?.[1];
         if (!rawJson) throw new Error("Missing __NEXT_DATA__");
@@ -503,6 +526,85 @@ async function collectFitnessWiki(context) {
     const failures = results.filter((result) => result?.error);
     console.log(`[fitness-wiki] Collected ${records.length} pages; ${failures.length} failed.`);
     return { records, failures };
+}
+
+function fieldFromHtml(html, label) {
+    const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const match = html.match(new RegExp(`<strong>${escaped}:<\\/strong>\\s*([\\s\\S]*?)(?=<br|<\\/div>)`, "i"));
+    return stripHtml(match?.[1] || "");
+}
+
+async function collectCatalystAthletics(context) {
+    const url = "https://www.catalystathletics.com/olympic-weightlifting-workouts/training-programs/";
+    console.log("[catalyst-athletics] Fetching public program catalog...");
+    const { text: html } = await fetchText(url);
+    let chunks = [...html.matchAll(/<div class="program_list_container">([\s\S]*?)(?=<div class="program_list_container">|<!-- eof|$)/gi)]
+        .map((match) => match[1]);
+    if (context.args.maxPlans) chunks = chunks.slice(0, context.args.maxPlans);
+    const records = [];
+
+    for (const chunk of chunks) {
+        const anchor = chunk.match(/<h1><a[^>]+href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a><\/h1>/i);
+        if (!anchor) continue;
+        const sourceUrl = new URL(decodeHtml(anchor[1]), url).href;
+        const infoLine = stripHtml(chunk.match(/<span class="programs_list_infoline">([\s\S]*?)<\/span>/i)?.[1] || "");
+        const price = infoLine.match(/\$\s*([0-9.]+)/)?.[1] || (/\bfree\b/i.test(infoLine) ? "free" : null);
+        const tags = fieldFromHtml(chunk, "Tags").split(",").map((tag) => tag.trim()).filter(Boolean);
+        records.push({
+            ...sourceRecordBase("catalyst-athletics", sourceUrl, context.collectedAt),
+            source_plan_id: sourceUrl.match(/\/training-program\/(\d+)\//)?.[1] || sha256(sourceUrl).slice(0, 16),
+            catalog_kind: "coach_catalog",
+            title: stripHtml(anchor[2]),
+            author: "Greg Everett / Catalyst Athletics",
+            formats: infoLine.replace(/\s*\|[\s\S]*$/, "").replace(/^Formats:\s*/i, "").split(",").map((item) => item.trim()).filter(Boolean),
+            price_usd: price === "free" ? 0 : (price ? Number(price) : null),
+            duration: fieldFromHtml(chunk, "Duration"),
+            days_per_week_text: fieldFromHtml(chunk, "Days/Week"),
+            volume: fieldFromHtml(chunk, "Volume"),
+            intensity: fieldFromHtml(chunk, "Intensity"),
+            focus: fieldFromHtml(chunk, "Focus"),
+            tags,
+            summary: redactPersonalData(stripHtml(chunk)),
+            content_availability: "catalog_metadata_only",
+            import_status: "metadata_only_not_publishable",
+        });
+    }
+    console.log(`[catalyst-athletics] Collected ${records.length} program catalog entries.`);
+    return { records, failures: [] };
+}
+
+function crossfitDateFromSlug(slug) {
+    if (!/^\d{6}$/.test(slug)) return null;
+    const year = Number(slug.slice(0, 2));
+    const month = Number(slug.slice(2, 4));
+    const day = Number(slug.slice(4, 6));
+    const fullYear = year >= 90 ? 1900 + year : 2000 + year;
+    if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+    return `${fullYear}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+async function collectCrossfit(context) {
+    console.log("[crossfit] Fetching official daily WOD sitemap...");
+    const { text: xml } = await fetchText("https://www.crossfit.com/cfdaily-sitemap.xml");
+    let entries = extractSitemapEntries(xml);
+    if (context.args.maxPlans) entries = entries.slice(0, context.args.maxPlans);
+    const records = entries.map((entry) => {
+        const slug = new URL(entry.loc).pathname.split("/").filter(Boolean).at(-1) || "";
+        const workoutDate = crossfitDateFromSlug(slug);
+        return {
+            ...sourceRecordBase("crossfit", entry.loc, context.collectedAt),
+            source_plan_id: slug || sha256(entry.loc).slice(0, 16),
+            slug,
+            catalog_kind: "daily_wod",
+            title: workoutDate ? `CrossFit Workout of the Day ${workoutDate}` : `CrossFit Workout of the Day ${slug}`,
+            workout_date: workoutDate,
+            source_updated_at: entry.lastmod,
+            content_availability: "catalog_metadata_only",
+            import_status: "metadata_only_needs_detail_fetch_and_rights_review",
+        };
+    });
+    console.log(`[crossfit] Collected ${records.length} daily WOD catalog entries.`);
+    return { records, failures: [] };
 }
 
 async function downloadAsset(asset, context, index) {
@@ -658,6 +760,8 @@ async function main() {
         liftvault: collectLiftVault,
         boostcamp: collectBoostcamp,
         "fitness-wiki": collectFitnessWiki,
+        "catalyst-athletics": collectCatalystAthletics,
+        crossfit: collectCrossfit,
     };
     const unknown = args.sources.filter((sourceId) => !collectors[sourceId]);
     if (unknown.length) throw new Error(`No collector implemented for: ${unknown.join(", ")}`);
@@ -666,16 +770,34 @@ async function main() {
         args,
         output,
         collectedAt: new Date().toISOString(),
+        urlOverrides: {},
     };
     const results = {};
 
     for (const sourceId of args.sources) {
         const source = sourceById.get(sourceId);
         if (!source) throw new Error(`Source missing from registry: ${sourceId}`);
+        const sourceDirectory = join(output, "sources", sourceId);
+        const existingRecords = args.retryFailures
+            ? await readJsonl(join(sourceDirectory, "plans.jsonl"))
+            : [];
+        if (args.retryFailures) {
+            const existingFailures = await readJsonl(join(sourceDirectory, "failures.jsonl"));
+            context.urlOverrides[sourceId] = existingFailures.map((failure) => failure.input).filter((input) => typeof input === "string");
+            if (context.urlOverrides[sourceId].length === 0) {
+                console.log(`[${sourceId}] No existing failures to retry.`);
+                results[sourceId] = { records: existingRecords, failures: [] };
+                continue;
+            }
+            console.log(`[${sourceId}] Retrying ${context.urlOverrides[sourceId].length} failed URLs.`);
+        }
         const result = await collectors[sourceId](context);
-        results[sourceId] = result;
-        await writeJsonl(join(output, "sources", sourceId, "plans.jsonl"), result.records);
-        await writeJsonl(join(output, "sources", sourceId, "failures.jsonl"), result.failures);
+        const mergedRecords = args.retryFailures
+            ? [...new Map([...existingRecords, ...result.records].map((record) => [record.source_url, record])).values()]
+            : result.records;
+        results[sourceId] = { records: mergedRecords, failures: result.failures };
+        await writeJsonl(join(sourceDirectory, "plans.jsonl"), mergedRecords);
+        await writeJsonl(join(sourceDirectory, "failures.jsonl"), result.failures);
     }
 
     let assetResults = [];
@@ -684,7 +806,19 @@ async function main() {
         await writeJsonl(join(output, "asset-index.jsonl"), assetResults);
     }
 
-    const summaries = args.sources.map((sourceId) => sourceSummary(sourceById.get(sourceId), results[sourceId]));
+    const summarySourceIds = [];
+    for (const sourceId of Object.keys(collectors)) {
+        const plansPath = join(output, "sources", sourceId, "plans.jsonl");
+        const records = results[sourceId]?.records || await readJsonl(plansPath);
+        if (records.length === 0) continue;
+        const failures = results[sourceId]?.failures || await readJsonl(join(output, "sources", sourceId, "failures.jsonl"));
+        results[sourceId] = { records, failures };
+        summarySourceIds.push(sourceId);
+    }
+    if (!args.downloadAssets) {
+        assetResults = await readJsonl(join(output, "asset-index.jsonl"));
+    }
+    const summaries = summarySourceIds.map((sourceId) => sourceSummary(sourceById.get(sourceId), results[sourceId]));
     const manifest = {
         schema_version: 1,
         collected_at: context.collectedAt,
@@ -693,8 +827,10 @@ async function main() {
             sources: args.sources,
             download_assets: args.downloadAssets,
             concurrency: args.concurrency,
+            delay_ms: args.delayMs,
             max_plans: args.maxPlans,
             max_assets: args.maxAssets,
+            retry_failures: args.retryFailures,
         },
         sources: summaries,
         totals: {

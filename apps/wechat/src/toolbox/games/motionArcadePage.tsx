@@ -15,6 +15,7 @@ import {
 } from './arcadeFeedback'
 import { MotionArcadeReplayRecorder, type ArcadeReplayItem } from './arcadeReplayRecorder'
 import type { MotionArcadeGameConfig } from './gameConfigs'
+import { BodyPointTracker } from './bodyPointTracker'
 
 type GameStatus = 'idle' | 'playing' | 'ended'
 
@@ -41,14 +42,11 @@ type MotionSnapshot = {
 }
 
 const GAME_DURATION_MS = 30000
-const GAME_TICK_MS = 64
+const GAME_TICK_MS = 32
 const PLAYER_SIZE = 0.09
-const ENERGY_THRESHOLD = 0.16
-const CAMERA_FRAME_COOLDOWN_MS = 72
-const MOTION_SAMPLE_STEP = 6
-const MOTION_THRESHOLD = 24
 const REPLAY_DURATION_SECONDS = 35
 const REPLAY_FPS = 12
+const REPLAY_FRAME_INTERVAL_MS = 1000 / REPLAY_FPS
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value))
@@ -70,8 +68,8 @@ function distance(aX: number, aY: number, bX: number, bY: number) {
 
 function createMotionItem(config: MotionArcadeGameConfig, id: number): MotionItem {
   const isBad = Math.random() < 0.18
-  const speed = isBad ? 0.03 : 0.024 + Math.random() * 0.02
-  const sway = (Math.random() - 0.5) * 0.02
+  const speed = isBad ? 0.015 : 0.012 + Math.random() * 0.01
+  const sway = (Math.random() - 0.5) * 0.01
 
   if (config.travelMode === 'rise') {
     return {
@@ -124,8 +122,7 @@ export function createMotionArcadePage(config: MotionArcadeGameConfig) {
     const cameraContextRef = useRef<any>(null)
     const replayRecorderRef = useRef<MotionArcadeReplayRecorder | null>(null)
     const frameListenerRef = useRef<any>(null)
-    const prevGrayFrameRef = useRef<Uint8Array | null>(null)
-    const lastCameraProcessRef = useRef(0)
+    const lastReplayCaptureAtRef = useRef(0)
     const bestScoreRef = useRef(0)
     const itemsRef = useRef<MotionItem[]>([])
     const gameStartedAtRef = useRef(0)
@@ -203,6 +200,16 @@ export function createMotionArcadePage(config: MotionArcadeGameConfig) {
     useEffect(() => {
       const context = Taro.createCameraContext()
       cameraContextRef.current = context
+      const tracker = new BodyPointTracker({
+        onSnapshot: (snapshot) => {
+          motionRef.current = {
+            energy: snapshot.energy,
+            x: snapshot.x,
+            y: snapshot.y
+          }
+          setMotionEnergy(snapshot.energy)
+        }
+      })
 
       let stopped = false
 
@@ -211,61 +218,19 @@ export function createMotionArcadePage(config: MotionArcadeGameConfig) {
           const listener = context.onCameraFrame((frame: any) => {
             if (stopped) return
             const now = Date.now()
-            if (now - lastCameraProcessRef.current < CAMERA_FRAME_COOLDOWN_MS) return
-            lastCameraProcessRef.current = now
 
             const width = Number(frame?.width || 0)
             const height = Number(frame?.height || 0)
             const data = frame?.data
             if (!width || !height || !(data instanceof ArrayBuffer)) return
+            tracker.processFrame({ data, height, width }, now)
 
-            const prev = prevGrayFrameRef.current
-            const current = new Uint8Array(Math.ceil((width / MOTION_SAMPLE_STEP) * (height / MOTION_SAMPLE_STEP)))
-            let sampleIndex = 0
-            let weightedX = 0
-            let weightedY = 0
-            let weightSum = 0
-
-            const rgba = new Uint8Array(data)
-
-            for (let y = 0; y < height; y += MOTION_SAMPLE_STEP) {
-              for (let x = 0; x < width; x += MOTION_SAMPLE_STEP) {
-                const idx = (y * width + x) * 4
-                const gray = ((rgba[idx] || 0) * 3 + (rgba[idx + 1] || 0) * 4 + (rgba[idx + 2] || 0)) >> 3
-                current[sampleIndex] = gray
-
-                if (prev) {
-                  const diff = Math.abs(gray - prev[sampleIndex])
-                  if (diff > MOTION_THRESHOLD) {
-                    weightedX += x * diff
-                    weightedY += y * diff
-                    weightSum += diff
-                  }
-                }
-                sampleIndex += 1
-              }
-            }
-
-            prevGrayFrameRef.current = current
-
-            if (!prev || weightSum <= 0) return
-
-            const rawX = weightedX / weightSum / width
-            const rawY = weightedY / weightSum / height
-            const nextEnergy = clamp(weightSum / 8500, 0, 1)
-            const currentMotion = motionRef.current
-            const nextX = currentMotion.x * 0.42 + clamp(rawX, 0.06, 0.94) * 0.58
-            const nextY = currentMotion.y * 0.42 + clamp(rawY, 0.12, 0.9) * 0.58
-
-            motionRef.current = {
-              energy: nextEnergy,
-              x: nextX,
-              y: nextY
-            }
-
-            setMotionEnergy(nextEnergy)
-
-            if (recordingModeRef.current === 'composite') {
+            if (
+              recordingModeRef.current === 'composite'
+              && now - lastReplayCaptureAtRef.current >= REPLAY_FRAME_INTERVAL_MS
+            ) {
+              lastReplayCaptureAtRef.current = now
+              const rgba = new Uint8Array(data)
               const replayItems: ArcadeReplayItem[] = itemsRef.current.map((item) => ({
                 size: item.size,
                 type: item.type,
@@ -305,7 +270,7 @@ export function createMotionArcadePage(config: MotionArcadeGameConfig) {
           // ignore cleanup error
         }
         frameListenerRef.current = null
-        prevGrayFrameRef.current = null
+        tracker.destroy()
         void replayRecorderRef.current?.destroy()
         replayRecorderRef.current = null
         if (isRecordingRef.current) {
@@ -331,8 +296,8 @@ export function createMotionArcadePage(config: MotionArcadeGameConfig) {
 
         setPlayerPosition((prev) => {
           nextPlayer = {
-            x: prev.x * 0.24 + targetX * 0.76,
-            y: prev.y * 0.24 + targetY * 0.76
+            x: prev.x * 0.12 + targetX * 0.88,
+            y: prev.y * 0.12 + targetY * 0.88
           }
           playerPositionRef.current = nextPlayer
           return nextPlayer
@@ -560,6 +525,7 @@ export function createMotionArcadePage(config: MotionArcadeGameConfig) {
       setItems([])
       itemsRef.current = []
       setFeedback(null)
+      lastReplayCaptureAtRef.current = 0
       nextItemIdRef.current = 1
       motionRef.current = { energy: 0, x: 0.5, y: 0.72 }
       setMotionEnergy(0)
@@ -628,11 +594,6 @@ export function createMotionArcadePage(config: MotionArcadeGameConfig) {
       ? (videoSaving ? '正在保存' : '保存回放视频')
       : (videoSaving ? '正在保存' : '保存原视频')
 
-    const stageHint =
-      gameStatus === 'playing'
-        ? config.stageHintPlaying
-        : config.stageHintIdle
-
     return (
       <PageThemeRoot>
         <View className={`motion-arcade-page motion-arcade-page--${config.visualKey} theme-${effectiveTheme}`}>
@@ -641,7 +602,6 @@ export function createMotionArcadePage(config: MotionArcadeGameConfig) {
               <View className='intro-card'>
                 <Text className='intro-kicker'>{config.heroKicker}</Text>
                 <Text className='intro-title'>{config.heroTitle}</Text>
-                <Text className='intro-desc'>{config.heroDescription}</Text>
                 <View className='intro-tags'>
                   <Text className='intro-tag'>30 秒快开一局</Text>
                   <Text className='intro-tag'>支持保存回放</Text>
@@ -719,7 +679,7 @@ export function createMotionArcadePage(config: MotionArcadeGameConfig) {
                   {!cameraReady && !cameraError ? (
                     <View className='stage-note'>
                       <Text className='stage-note-title'>正在准备摄像头</Text>
-                      <Text className='stage-note-desc'>允许相机权限后，我们会用实时运动重心来驱动角色。</Text>
+                      <Text className='stage-note-desc'>请允许使用相机。</Text>
                     </View>
                   ) : null}
 
@@ -730,10 +690,6 @@ export function createMotionArcadePage(config: MotionArcadeGameConfig) {
                     </View>
                   ) : null}
 
-                  <View className='stage-tip-card'>
-                    <Text className='stage-note-title'>操作提示</Text>
-                    <Text className='stage-note-desc'>{stageHint}</Text>
-                  </View>
                 </View>
               </View>
 
@@ -756,7 +712,7 @@ export function createMotionArcadePage(config: MotionArcadeGameConfig) {
 
                 <View className='meter-wrap'>
                   <View className='meter-header'>
-                    <Text className='meter-label'>动作感应强度</Text>
+                    <Text className='meter-label'>动作幅度</Text>
                     <Text className='meter-value'>{formatPercent(motionEnergy)}%</Text>
                   </View>
                   <View className='meter-track'>
@@ -767,20 +723,10 @@ export function createMotionArcadePage(config: MotionArcadeGameConfig) {
                   </View>
                 </View>
 
-                <View className='meter-wrap'>
-                  <View className='meter-header'>
-                    <Text className='meter-label'>可控阈值参考</Text>
-                    <Text className='meter-value'>{formatPercent(ENERGY_THRESHOLD)}%</Text>
-                  </View>
-                  <Text className='stat-subvalue'>
-                    数值太低时，试着把肩膀、手臂或身体左右移动得更明显一些。
-                  </Text>
-                </View>
               </View>
 
               <View className='controls-card'>
                 <Text className='section-kicker'>控制台</Text>
-                <Text className='intro-desc'>{config.controlsDescription}</Text>
 
                 <View className='controls-grid'>
                   <View
@@ -867,16 +813,6 @@ export function createMotionArcadePage(config: MotionArcadeGameConfig) {
                 </View>
               ) : null}
 
-              <View className='tips-card'>
-                <Text className='tip-kicker'>试玩建议</Text>
-                <View className='tip-list'>
-                  {config.tips.map((tip, index) => (
-                    <Text key={tip} className='tip-text'>
-                      {index + 1}. {tip}
-                    </Text>
-                  ))}
-                </View>
-              </View>
             </View>
           </ScrollView>
         </View>

@@ -11,6 +11,7 @@ import { studentOnboardingService } from '@/services/studentOnboardingService'
 import { studentService } from '@/services/studentService'
 import { request, API_BASE_URL } from '@/utils/request'
 import { formatMonthDaySlash } from '@/utils/dateFormat'
+import { buildPlannedSetPreviews } from '@/utils/planSetPrescriptions'
 import {
   buildSharePath,
   buildPublicTrainingSharePath,
@@ -195,36 +196,7 @@ function buildPlanExecutionPreview(
   const actionExecutions = actionSets.map((item: any, actionIdx: number) => {
     const actionId = String(item?.action_id || item?.actionId || '')
     const actionDetail = actionId ? actionMap[actionId] || {} : {}
-    const params = item?.params || {}
-    const rawSetCount = Number(params['组数'] ?? item?.sets ?? 1)
-    const setCount = Number.isFinite(rawSetCount) && rawSetCount > 0 ? Math.max(1, Math.floor(rawSetCount)) : 1
-
-    let plannedWeight = ''
-    const loadValue = parsePlanNumber(params?.load)
-    if (loadValue !== null) {
-      if (loadValue < 0) {
-        plannedWeight = `辅助${formatKgValueForGym(Math.abs(loadValue))}kg`
-      } else if (loadValue > 0) {
-        plannedWeight = `${formatKgValueForGym(loadValue)}kg`
-      }
-    }
-
-    if (!plannedWeight) {
-      const intensity = parsePlanNumber(params?.['强度'] ?? item?.intensity)
-      if (intensity !== null && intensity > 0) {
-        plannedWeight = `${String(intensity).replace(/\.0+$/, '')}RM`
-      }
-    }
-
-    const plannedReps = String(params?.['次数'] ?? item?.reps ?? '').trim()
-    const restSeconds = parsePlanNumber(params?.['休息时间'] ?? params?.rest_seconds ?? item?.rest_seconds)
-    const sets = Array.from({ length: setCount }).map((_, setIdx) => ({
-      set_number: setIdx + 1,
-      status: 'pending',
-      planned_weight: plannedWeight,
-      planned_reps: plannedReps,
-      planned_rest_seconds: restSeconds ?? undefined
-    }))
+    const sets = buildPlannedSetPreviews(item)
 
     return {
       action_id: actionId || `${actionIdx}`,

@@ -1,0 +1,497 @@
+{
+  "format": "book-note-v4-classic-deep-read",
+  "noteStyle": "interpretive-reading-note",
+  "disclaimer": "本页为 CoachLink 原创导读与知识地图，不复制原书正文、插图、表格或完整训练模板，也不替代购买和阅读正版原书。",
+  "source": {
+    "title": "ACSM运动营养学",
+    "authors": [
+      "ACSM"
+    ],
+    "originalFilePath": "local-library://acsm-sports-nutrition",
+    "copyrightMode": "interpretive-notes-only",
+    "collectionSlug": "acsm-sports-nutrition",
+    "collectionTitle": "《ACSM运动营养学》原创深读笔记"
+  },
+  "notes": [
+    {
+      "slug": "overview",
+      "file": "notes/00-overview.md",
+      "noteType": "overview",
+      "chapterOrder": 0,
+      "chapterTitle": "深读入口",
+      "title": "《ACSM运动营养学》深读入口：先建立全书地图，再决定怎么用",
+      "summary": "从能量平衡、宏量与微量营养素、补水、训练与比赛补给、体重管理和特殊人群等角度建立运动营养决策框架。",
+      "sortOrder": 3030,
+      "author": "ACSM",
+      "isFree": true,
+      "isPublished": true,
+      "mindMap": {
+        "title": "《ACSM运动营养学》全书知识地图",
+        "description": "这是 CoachLink 根据书籍主题绘制的原创导航图，不复制原书插图或版式。",
+        "data": [
+          {
+            "id": "root",
+            "title": "ACSM运动营养学",
+            "node_type": "domain",
+            "children": [
+              {
+                "id": "question",
+                "title": "核心问题",
+                "description": "怎样让营养策略服务于训练适应、恢复与长期健康，而不是被单一补剂、极端饮食或短期体重变化带偏？",
+                "node_type": "category"
+              },
+              {
+                "id": "framework-1",
+                "title": "能量可用性与体重变化",
+                "node_type": "category"
+              },
+              {
+                "id": "framework-2",
+                "title": "碳水、蛋白质与脂肪的角色",
+                "node_type": "category"
+              },
+              {
+                "id": "framework-3",
+                "title": "补水、微量营养素与补剂",
+                "node_type": "category"
+              },
+              {
+                "id": "framework-4",
+                "title": "训练周期、比赛与特殊人群",
+                "node_type": "category"
+              },
+              {
+                "id": "boundary",
+                "title": "应用边界",
+                "description": "教练可做一般营养教育，但疾病饮食、进食障碍、药物相互作用和个体化治疗应转介注册营养师或医生。",
+                "node_type": "category"
+              }
+            ]
+          }
+        ]
+      },
+      "readingGuide": {
+        "estimatedMinutes": 8,
+        "suitableFor": [
+          "关注运动营养的训练者",
+          "教练与知识库编辑",
+          "准备精读正版原书的读者"
+        ],
+        "goals": [
+          "掌握全书核心问题",
+          "看懂主题之间的关系",
+          "明确应用边界与复盘方法"
+        ],
+        "prerequisites": [
+          "本页不替代原书，也不提供原文件下载"
+        ]
+      },
+      "keyTakeaways": [
+        "能量可用性与体重变化",
+        "碳水、蛋白质与脂肪的角色",
+        "补水、微量营养素与补剂",
+        "训练周期、比赛与特殊人群"
+      ],
+      "discussionPrompts": [
+        "这本书最可能改变你当前的哪一个训练决策？",
+        "哪一个观点高度依赖作者的目标人群或训练环境？",
+        "你会用什么训练数据判断它对自己是否有效？"
+      ],
+      "citations": [
+        {
+          "title": "书目：ACSM运动营养学",
+          "note": "基于本地书目盘点建立原创导读；原始电子文件仅供内部研究，不上传、不公开下载。正式引用前应继续核对正版书的作者、版次、出版社与页码。",
+          "license": "interpretive-notes-only"
+        }
+      ]
+    },
+    {
+      "slug": "topic-01",
+      "file": "notes/01-topic.md",
+      "noteType": "chapter",
+      "chapterOrder": 1,
+      "chapterTitle": "能量可用性与体重变化",
+      "title": "《ACSM运动营养学》主题深读 1：能量可用性与体重变化",
+      "summary": "能量可用性关注身体在扣除运动消耗后还剩多少资源维持恢复、生殖、骨骼和免疫等功能。体重变化只是能量状态的一个外在结果，短期波动还会受到水分、糖原和消化内容物影响。 本页进一步给出教练决策、反馈记录、微实验和应用边界。",
+      "sortOrder": 3031,
+      "author": "ACSM",
+      "isFree": true,
+      "isPublished": true,
+      "mindMap": {
+        "title": "《ACSM运动营养学》主题 1 · 能量可用性与体重变化",
+        "description": "CoachLink 原创主题知识地图：概念、决策、验证、误区和边界放在同一张图里。",
+        "data": [
+          {
+            "id": "root",
+            "title": "能量可用性与体重变化",
+            "node_type": "domain",
+            "children": [
+              {
+                "id": "concept",
+                "title": "核心概念",
+                "description": "能量可用性关注身体在扣除运动消耗后还剩多少资源维持恢复、生殖、骨骼和免疫等功能。体重变化只是能量状态的一个外在结果，短期波动还会受到水分、糖原和消化内容物影响。",
+                "node_type": "category"
+              },
+              {
+                "id": "decision",
+                "title": "教练决策",
+                "description": "教练应把训练表现、恢复、情绪、月经或性激素相关信号与体重趋势一起观察，而非只追逐秤上的日变化。若长期摄入不足迹象增加，应优先减少能量缺口并协调营养或医疗专业人员，而不是继续加训练量。",
+                "node_type": "category"
+              },
+              {
+                "id": "practice",
+                "title": "最小实践",
+                "description": "先保证总能量与基础饮食质量",
+                "node_type": "category"
+              },
+              {
+                "id": "feedback",
+                "title": "记录与复盘",
+                "description": "先留基线，一次只改一个关键变量，再用结果和恢复信号判断。",
+                "node_type": "category"
+              },
+              {
+                "id": "pitfall",
+                "title": "常见误用",
+                "description": "用更低体重必然带来更好表现的逻辑，会掩盖低能量可用性对健康和长期适应的损害。",
+                "node_type": "category"
+              },
+              {
+                "id": "boundary",
+                "title": "应用边界",
+                "description": "教练可做一般营养教育，但疾病饮食、进食障碍、药物相互作用和个体化治疗应转介注册营养师或医生。",
+                "node_type": "category"
+              }
+            ]
+          }
+        ]
+      },
+      "readingGuide": {
+        "estimatedMinutes": 10,
+        "suitableFor": [
+          "正在学习运动营养的训练者",
+          "需要把理论转成计划的教练",
+          "愿意记录并复盘的读者"
+        ],
+        "goals": [
+          "说清核心概念",
+          "形成可执行决策",
+          "设计一次可验证的小实验"
+        ],
+        "prerequisites": [
+          "先阅读全书深读入口",
+          "本页不替代正版原书或专业诊疗"
+        ]
+      },
+      "keyTakeaways": [
+        "能量可用性与体重变化",
+        "先保证总能量与基础饮食质量",
+        "一次只改变少量关键变量，并提前定义反馈信号",
+        "用更低体重必然带来更好表现的逻辑，会掩盖低能量可用性对健康和长期适应的损害。"
+      ],
+      "discussionPrompts": [
+        "你当前最接近这个主题的真实问题是什么？",
+        "你会保留哪个变量不变，才看得出干预是否有效？",
+        "如果结果与书中框架不一致，你先检查数据、执行还是原始假设？"
+      ],
+      "citations": [
+        {
+          "title": "书目：ACSM运动营养学",
+          "note": "本页为 CoachLink 原创解释性笔记；不复制原书正文、插图、表格或完整处方。正式学术或专业引用请回到正版书核对作者、版次、出版社和页码。",
+          "license": "interpretive-notes-only"
+        }
+      ]
+    },
+    {
+      "slug": "topic-02",
+      "file": "notes/02-topic.md",
+      "noteType": "chapter",
+      "chapterOrder": 2,
+      "chapterTitle": "碳水、蛋白质与脂肪的角色",
+      "title": "《ACSM运动营养学》主题深读 2：碳水、蛋白质与脂肪的角色",
+      "summary": "碳水主要支持较高强度和较大训练量，蛋白质提供组织修复与重塑所需原料，脂肪则参与能量、细胞和激素相关功能。三者的需求随项目、训练阶段和总能量状态变化，不能脱离整体饮食单独评价。 本页进一步给出教练决策、反馈记录、微实验和应用边界。",
+      "sortOrder": 3032,
+      "author": "ACSM",
+      "isFree": true,
+      "isPublished": true,
+      "mindMap": {
+        "title": "《ACSM运动营养学》主题 2 · 碳水、蛋白质与脂肪的角色",
+        "description": "CoachLink 原创主题知识地图：概念、决策、验证、误区和边界放在同一张图里。",
+        "data": [
+          {
+            "id": "root",
+            "title": "碳水、蛋白质与脂肪的角色",
+            "node_type": "domain",
+            "children": [
+              {
+                "id": "concept",
+                "title": "核心概念",
+                "description": "碳水主要支持较高强度和较大训练量，蛋白质提供组织修复与重塑所需原料，脂肪则参与能量、细胞和激素相关功能。三者的需求随项目、训练阶段和总能量状态变化，不能脱离整体饮食单独评价。",
+                "node_type": "category"
+              },
+              {
+                "id": "decision",
+                "title": "教练决策",
+                "description": "教练应先保证总摄入与基础食物质量，再围绕训练时间、消化耐受和恢复需求安排宏量营养素。调整时应观察训练质量、饱腹感和胃肠反应，并给运动员留出个人偏好与生活可执行性。",
+                "node_type": "category"
+              },
+              {
+                "id": "practice",
+                "title": "最小实践",
+                "description": "围绕训练前中后安排补给而非迷信窗口",
+                "node_type": "category"
+              },
+              {
+                "id": "feedback",
+                "title": "记录与复盘",
+                "description": "先留基线，一次只改一个关键变量，再用结果和恢复信号判断。",
+                "node_type": "category"
+              },
+              {
+                "id": "pitfall",
+                "title": "常见误用",
+                "description": "极端压低某一种宏量营养素，可能短期改变体重，却降低高质量训练能力或长期依从性。",
+                "node_type": "category"
+              },
+              {
+                "id": "boundary",
+                "title": "应用边界",
+                "description": "教练可做一般营养教育，但疾病饮食、进食障碍、药物相互作用和个体化治疗应转介注册营养师或医生。",
+                "node_type": "category"
+              }
+            ]
+          }
+        ]
+      },
+      "readingGuide": {
+        "estimatedMinutes": 10,
+        "suitableFor": [
+          "正在学习运动营养的训练者",
+          "需要把理论转成计划的教练",
+          "愿意记录并复盘的读者"
+        ],
+        "goals": [
+          "说清核心概念",
+          "形成可执行决策",
+          "设计一次可验证的小实验"
+        ],
+        "prerequisites": [
+          "先阅读全书深读入口",
+          "本页不替代正版原书或专业诊疗"
+        ]
+      },
+      "keyTakeaways": [
+        "碳水、蛋白质与脂肪的角色",
+        "围绕训练前中后安排补给而非迷信窗口",
+        "一次只改变少量关键变量，并提前定义反馈信号",
+        "极端压低某一种宏量营养素，可能短期改变体重，却降低高质量训练能力或长期依从性。"
+      ],
+      "discussionPrompts": [
+        "你当前最接近这个主题的真实问题是什么？",
+        "你会保留哪个变量不变，才看得出干预是否有效？",
+        "如果结果与书中框架不一致，你先检查数据、执行还是原始假设？"
+      ],
+      "citations": [
+        {
+          "title": "书目：ACSM运动营养学",
+          "note": "本页为 CoachLink 原创解释性笔记；不复制原书正文、插图、表格或完整处方。正式学术或专业引用请回到正版书核对作者、版次、出版社和页码。",
+          "license": "interpretive-notes-only"
+        }
+      ]
+    },
+    {
+      "slug": "topic-03",
+      "file": "notes/03-topic.md",
+      "noteType": "chapter",
+      "chapterOrder": 3,
+      "chapterTitle": "补水、微量营养素与补剂",
+      "title": "《ACSM运动营养学》主题深读 3：补水、微量营养素与补剂",
+      "summary": "补水策略要平衡液体与电解质损失，实际需求受环境、出汗率、运动时长和个体耐受影响。微量营养素与补剂应先解决明确缺口或特定目标，不能代替充足饮食和恢复。 本页进一步给出教练决策、反馈记录、微实验和应用边界。",
+      "sortOrder": 3033,
+      "author": "ACSM",
+      "isFree": true,
+      "isPublished": true,
+      "mindMap": {
+        "title": "《ACSM运动营养学》主题 3 · 补水、微量营养素与补剂",
+        "description": "CoachLink 原创主题知识地图：概念、决策、验证、误区和边界放在同一张图里。",
+        "data": [
+          {
+            "id": "root",
+            "title": "补水、微量营养素与补剂",
+            "node_type": "domain",
+            "children": [
+              {
+                "id": "concept",
+                "title": "核心概念",
+                "description": "补水策略要平衡液体与电解质损失，实际需求受环境、出汗率、运动时长和个体耐受影响。微量营养素与补剂应先解决明确缺口或特定目标，不能代替充足饮食和恢复。",
+                "node_type": "category"
+              },
+              {
+                "id": "decision",
+                "title": "教练决策",
+                "description": "教练可通过训练前后体重趋势、尿液与主观口渴等信息建立个体化补水参考，并在相似环境中验证。使用补剂前应审查证据、剂量安全、药物相互作用与第三方污染检测，必要时转介营养师或医生。",
+                "node_type": "category"
+              },
+              {
+                "id": "practice",
+                "title": "最小实践",
+                "description": "记录饮食、训练表现、恢复与消化反应",
+                "node_type": "category"
+              },
+              {
+                "id": "feedback",
+                "title": "记录与复盘",
+                "description": "先留基线，一次只改一个关键变量，再用结果和恢复信号判断。",
+                "node_type": "category"
+              },
+              {
+                "id": "pitfall",
+                "title": "常见误用",
+                "description": "盲目大量饮水或叠加多种补剂同样可能造成健康风险，天然或常见并不等于安全。",
+                "node_type": "category"
+              },
+              {
+                "id": "boundary",
+                "title": "应用边界",
+                "description": "教练可做一般营养教育，但疾病饮食、进食障碍、药物相互作用和个体化治疗应转介注册营养师或医生。",
+                "node_type": "category"
+              }
+            ]
+          }
+        ]
+      },
+      "readingGuide": {
+        "estimatedMinutes": 10,
+        "suitableFor": [
+          "正在学习运动营养的训练者",
+          "需要把理论转成计划的教练",
+          "愿意记录并复盘的读者"
+        ],
+        "goals": [
+          "说清核心概念",
+          "形成可执行决策",
+          "设计一次可验证的小实验"
+        ],
+        "prerequisites": [
+          "先阅读全书深读入口",
+          "本页不替代正版原书或专业诊疗"
+        ]
+      },
+      "keyTakeaways": [
+        "补水、微量营养素与补剂",
+        "记录饮食、训练表现、恢复与消化反应",
+        "一次只改变少量关键变量，并提前定义反馈信号",
+        "盲目大量饮水或叠加多种补剂同样可能造成健康风险，天然或常见并不等于安全。"
+      ],
+      "discussionPrompts": [
+        "你当前最接近这个主题的真实问题是什么？",
+        "你会保留哪个变量不变，才看得出干预是否有效？",
+        "如果结果与书中框架不一致，你先检查数据、执行还是原始假设？"
+      ],
+      "citations": [
+        {
+          "title": "书目：ACSM运动营养学",
+          "note": "本页为 CoachLink 原创解释性笔记；不复制原书正文、插图、表格或完整处方。正式学术或专业引用请回到正版书核对作者、版次、出版社和页码。",
+          "license": "interpretive-notes-only"
+        }
+      ]
+    },
+    {
+      "slug": "topic-04",
+      "file": "notes/04-topic.md",
+      "noteType": "chapter",
+      "chapterOrder": 4,
+      "chapterTitle": "训练周期、比赛与特殊人群",
+      "title": "《ACSM运动营养学》主题深读 4：训练周期、比赛与特殊人群",
+      "summary": "营养周期化是让摄入随训练负荷、比赛目标和恢复需求变化，而非每天执行同一套饮食规则。特殊人群还需考虑生长发育、妊娠、疾病、饮食限制或进食行为风险等额外约束。 本页进一步给出教练决策、反馈记录、微实验和应用边界。",
+      "sortOrder": 3034,
+      "author": "ACSM",
+      "isFree": true,
+      "isPublished": true,
+      "mindMap": {
+        "title": "《ACSM运动营养学》主题 4 · 训练周期、比赛与特殊人群",
+        "description": "CoachLink 原创主题知识地图：概念、决策、验证、误区和边界放在同一张图里。",
+        "data": [
+          {
+            "id": "root",
+            "title": "训练周期、比赛与特殊人群",
+            "node_type": "domain",
+            "children": [
+              {
+                "id": "concept",
+                "title": "核心概念",
+                "description": "营养周期化是让摄入随训练负荷、比赛目标和恢复需求变化，而非每天执行同一套饮食规则。特殊人群还需考虑生长发育、妊娠、疾病、饮食限制或进食行为风险等额外约束。",
+                "node_type": "category"
+              },
+              {
+                "id": "decision",
+                "title": "教练决策",
+                "description": "教练应从比赛倒推关键补给场景，并在日常训练中提前测试食物种类、时间和胃肠耐受。对未成年人、慢病人群或疑似进食障碍者，应与监护人及合格专业人员协作，不独立制定治疗性饮食。",
+                "node_type": "category"
+              },
+              {
+                "id": "practice",
+                "title": "最小实践",
+                "description": "先保证总能量与基础饮食质量",
+                "node_type": "category"
+              },
+              {
+                "id": "feedback",
+                "title": "记录与复盘",
+                "description": "先留基线，一次只改一个关键变量，再用结果和恢复信号判断。",
+                "node_type": "category"
+              },
+              {
+                "id": "pitfall",
+                "title": "常见误用",
+                "description": "只在比赛日临时采用未经演练的补给方案，容易因胃肠反应或摄入不足抵消训练准备。",
+                "node_type": "category"
+              },
+              {
+                "id": "boundary",
+                "title": "应用边界",
+                "description": "教练可做一般营养教育，但疾病饮食、进食障碍、药物相互作用和个体化治疗应转介注册营养师或医生。",
+                "node_type": "category"
+              }
+            ]
+          }
+        ]
+      },
+      "readingGuide": {
+        "estimatedMinutes": 10,
+        "suitableFor": [
+          "正在学习运动营养的训练者",
+          "需要把理论转成计划的教练",
+          "愿意记录并复盘的读者"
+        ],
+        "goals": [
+          "说清核心概念",
+          "形成可执行决策",
+          "设计一次可验证的小实验"
+        ],
+        "prerequisites": [
+          "先阅读全书深读入口",
+          "本页不替代正版原书或专业诊疗"
+        ]
+      },
+      "keyTakeaways": [
+        "训练周期、比赛与特殊人群",
+        "先保证总能量与基础饮食质量",
+        "一次只改变少量关键变量，并提前定义反馈信号",
+        "只在比赛日临时采用未经演练的补给方案，容易因胃肠反应或摄入不足抵消训练准备。"
+      ],
+      "discussionPrompts": [
+        "你当前最接近这个主题的真实问题是什么？",
+        "你会保留哪个变量不变，才看得出干预是否有效？",
+        "如果结果与书中框架不一致，你先检查数据、执行还是原始假设？"
+      ],
+      "citations": [
+        {
+          "title": "书目：ACSM运动营养学",
+          "note": "本页为 CoachLink 原创解释性笔记；不复制原书正文、插图、表格或完整处方。正式学术或专业引用请回到正版书核对作者、版次、出版社和页码。",
+          "license": "interpretive-notes-only"
+        }
+      ]
+    }
+  ]
+}

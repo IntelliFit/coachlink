@@ -37,6 +37,14 @@ export default function SpecialtyTrainingPlans() {
     const [plans, setPlans] = useState<PublicTrainingPlanListItem[]>([]);
     const [loading, setLoading] = useState(true);
 
+    function openPlan(plan: PublicTrainingPlanListItem) {
+        if (plan.entryKind === "reference" && plan.sourceUrl) {
+            window.open(plan.sourceUrl, "_blank", "noopener,noreferrer");
+            return;
+        }
+        router.push(`/dashboard/knowledge/training-plans/${encodeURIComponent(plan.slug || plan.id)}`);
+    }
+
     useEffect(() => {
         let cancelled = false;
 
@@ -124,7 +132,7 @@ export default function SpecialtyTrainingPlans() {
                             {plans.map((plan) => (
                                 <button
                                     key={plan.id}
-                                    onClick={() => router.push(`/dashboard/knowledge/training-plans/${encodeURIComponent(plan.slug || plan.id)}`)}
+                                    onClick={() => openPlan(plan)}
                                     className="group flex min-h-[240px] flex-col rounded-3xl border border-surface-100 bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-primary-200 hover:shadow-xl"
                                 >
                                     <div className="flex items-start justify-between gap-3">
@@ -172,7 +180,7 @@ export default function SpecialtyTrainingPlans() {
                                     </div>
 
                                     <div className="mt-auto flex items-center justify-between pt-4 text-sm font-black text-primary-600">
-                                        <span>查看动作结构</span>
+                                        <span>{plan.entryKind === "reference" ? "查看原始来源" : "查看动作结构"}</span>
                                         <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" />
                                     </div>
                                 </button>

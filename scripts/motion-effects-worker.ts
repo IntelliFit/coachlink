@@ -101,12 +101,19 @@ async function runRenderer(job: any, directory: string) {
   const input = path.join(directory, `input${path.extname(job.input_storage_path || "") || ".mp4"}`);
   const output = path.join(directory, "output.mp4");
   const resultPath = path.join(directory, "result.json");
+  const metadata =
+    job.metadata && typeof job.metadata === "object" ? job.metadata : {};
   await downloadObject(job.input_storage_bucket || bucketFallback, job.input_storage_path, input);
   const args = [
     rendererPath,
     "--input", input,
     "--output", output,
     "--result", resultPath,
+    "--quality", job.export_quality === "hd" ? "hd" : "standard",
+    "--style", String(job.style_key || metadata.style_key || "aurora"),
+    "--motion-speed", String(metadata.motion_speed || "balanced"),
+    "--glow-strength", String(metadata.glow_strength || "balanced"),
+    "--surface-density", String(metadata.surface_density || "balanced"),
   ];
   await new Promise<void>((resolve, reject) => {
     const child = spawnRenderer(pythonBin, args);
@@ -156,6 +163,19 @@ export async function processMotionEffectJob(jobId?: string, queueTopic?: string
   await fsPromises.mkdir(directory, { recursive: true });
   try {
     const { result, outputPath } = await runRenderer(job, directory);
+    if (job.entitlement_source === "signup_free") {
+      const { error: consumeError } = await supabase
+        .from("tool_motion_effect_free_exports")
+        .update({
+          status: "consumed",
+          consumed_at: new Date().toISOString(),
+        })
+        .eq("job_id", job.id)
+        .eq("status", "reserved");
+      if (consumeError) {
+        throw new Error(`注册赠送权益落账失败: ${consumeError.message}`);
+      }
+    }
     await updateJob(job.id, {
       status: "done",
       progress: 100,
@@ -173,6 +193,13 @@ export async function processMotionEffectJob(jobId?: string, queueTopic?: string
       error_message: message.slice(0, 1000),
       completed_at: new Date().toISOString(),
     });
+    if (job.entitlement_source === "signup_free") {
+      await supabase
+        .from("tool_motion_effect_free_exports")
+        .delete()
+        .eq("job_id", job.id)
+        .eq("status", "reserved");
+    }
     console.error(`[motion-effects-worker] failed ${job.id}: ${message}`);
   } finally {
     await fsPromises.rm(directory, { recursive: true, force: true }).catch(() => null);
@@ -198,6 +225,11 @@ async function cleanupExpired() {
     if (!removeError) removedFiles += paths.length;
   }
   if (data?.length) {
+    await supabase
+      .from("tool_motion_effect_free_exports")
+      .delete()
+      .in("job_id", data.map((job) => job.id))
+      .eq("status", "reserved");
     const { error: updateError } = await supabase
       .from("tool_video_render_jobs")
       .update({ status: "expired", progress: 100 })

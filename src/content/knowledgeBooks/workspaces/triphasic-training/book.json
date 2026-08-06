@@ -1,0 +1,498 @@
+{
+  "format": "book-note-v4-classic-deep-read",
+  "noteStyle": "interpretive-reading-note",
+  "disclaimer": "本页为 CoachLink 原创导读与知识地图，不复制原书正文、插图、表格或完整训练模板，也不替代购买和阅读正版原书。",
+  "source": {
+    "title": "Triphasic Training",
+    "authors": [
+      "Cal Dietz",
+      "Ben Peterson"
+    ],
+    "originalFilePath": "local-library://triphasic-training",
+    "copyrightMode": "interpretive-notes-only",
+    "collectionSlug": "triphasic-training",
+    "collectionTitle": "《Triphasic Training》原创深读笔记"
+  },
+  "notes": [
+    {
+      "slug": "overview",
+      "file": "notes/00-overview.md",
+      "noteType": "overview",
+      "chapterOrder": 0,
+      "chapterTitle": "深读入口",
+      "title": "《Triphasic Training》深读入口：先建立全书地图，再决定怎么用",
+      "summary": "以离心、等长、向心三个动作阶段为主线理解爆发力与专项力量训练，并强调负荷、节奏、恢复和运动项目需求之间的关系。",
+      "sortOrder": 3000,
+      "author": "Cal Dietz、Ben Peterson",
+      "isFree": true,
+      "isPublished": true,
+      "mindMap": {
+        "title": "《Triphasic Training》全书知识地图",
+        "description": "这是 CoachLink 根据书籍主题绘制的原创导航图，不复制原书插图或版式。",
+        "data": [
+          {
+            "id": "root",
+            "title": "Triphasic Training",
+            "node_type": "domain",
+            "children": [
+              {
+                "id": "question",
+                "title": "核心问题",
+                "description": "怎样把力量训练从单纯增加重量，推进到更精细地控制发力阶段、速度表现和专项转化？",
+                "node_type": "category"
+              },
+              {
+                "id": "framework-1",
+                "title": "三种肌肉收缩阶段的训练意义",
+                "node_type": "category"
+              },
+              {
+                "id": "framework-2",
+                "title": "高负荷与高速度刺激的组织",
+                "node_type": "category"
+              },
+              {
+                "id": "framework-3",
+                "title": "训练模块与阶段衔接",
+                "node_type": "category"
+              },
+              {
+                "id": "framework-4",
+                "title": "专项需求、监控与恢复",
+                "node_type": "category"
+              },
+              {
+                "id": "boundary",
+                "title": "应用边界",
+                "description": "属于高阶运动表现体系；普通训练者不应在缺少动作基础、负荷监控和恢复条件时照搬高强度模板。",
+                "node_type": "category"
+              }
+            ]
+          }
+        ]
+      },
+      "readingGuide": {
+        "estimatedMinutes": 8,
+        "suitableFor": [
+          "关注力量与运动表现的训练者",
+          "教练与知识库编辑",
+          "准备精读正版原书的读者"
+        ],
+        "goals": [
+          "掌握全书核心问题",
+          "看懂主题之间的关系",
+          "明确应用边界与复盘方法"
+        ],
+        "prerequisites": [
+          "本页不替代原书，也不提供原文件下载"
+        ]
+      },
+      "keyTakeaways": [
+        "三种肌肉收缩阶段的训练意义",
+        "高负荷与高速度刺激的组织",
+        "训练模块与阶段衔接",
+        "专项需求、监控与恢复"
+      ],
+      "discussionPrompts": [
+        "这本书最可能改变你当前的哪一个训练决策？",
+        "哪一个观点高度依赖作者的目标人群或训练环境？",
+        "你会用什么训练数据判断它对自己是否有效？"
+      ],
+      "citations": [
+        {
+          "title": "书目：Triphasic Training",
+          "note": "基于本地书目盘点建立原创导读；原始电子文件仅供内部研究，不上传、不公开下载。正式引用前应继续核对正版书的作者、版次、出版社与页码。",
+          "license": "interpretive-notes-only"
+        }
+      ]
+    },
+    {
+      "slug": "topic-01",
+      "file": "notes/01-topic.md",
+      "noteType": "chapter",
+      "chapterOrder": 1,
+      "chapterTitle": "三种肌肉收缩阶段的训练意义",
+      "title": "《Triphasic Training》主题深读 1：三种肌肉收缩阶段的训练意义",
+      "summary": "离心阶段负责在外力下吸收并调节负荷，等长阶段承担制动到发力的转换，向心阶段则把已有张力转化为运动输出。三者不是彼此孤立的能力，而是共同决定动作能否在有限时间内完成稳定、快速的力量传递。 本页进一步给出教练决策、反馈记录、微实验和应用边界。",
+      "sortOrder": 3001,
+      "author": "Cal Dietz、Ben Peterson",
+      "isFree": true,
+      "isPublished": true,
+      "mindMap": {
+        "title": "《Triphasic Training》主题 1 · 三种肌肉收缩阶段的训练意义",
+        "description": "CoachLink 原创主题知识地图：概念、决策、验证、误区和边界放在同一张图里。",
+        "data": [
+          {
+            "id": "root",
+            "title": "三种肌肉收缩阶段的训练意义",
+            "node_type": "domain",
+            "children": [
+              {
+                "id": "concept",
+                "title": "核心概念",
+                "description": "离心阶段负责在外力下吸收并调节负荷，等长阶段承担制动到发力的转换，向心阶段则把已有张力转化为运动输出。三者不是彼此孤立的能力，而是共同决定动作能否在有限时间内完成稳定、快速的力量传递。",
+                "node_type": "category"
+              },
+              {
+                "id": "decision",
+                "title": "教练决策",
+                "description": "教练应先从专项动作中判断问题主要出在制动、转换还是推进，再选择强调相应阶段的练习与节奏。训练效果应以跳跃、冲刺或主项输出是否改善来验证，而不能只看局部酸痛或动作完成感。",
+                "node_type": "category"
+              },
+              {
+                "id": "practice",
+                "title": "最小实践",
+                "description": "先识别项目真正需要的速度与力量表现",
+                "node_type": "category"
+              },
+              {
+                "id": "feedback",
+                "title": "记录与复盘",
+                "description": "先留基线，一次只改一个关键变量，再用结果和恢复信号判断。",
+                "node_type": "category"
+              },
+              {
+                "id": "pitfall",
+                "title": "常见误用",
+                "description": "刻意放慢某一阶段会改变动作性质，若长期脱离专项速度与完整动作，阶段训练可能提高局部耐受却不能改善实际表现。",
+                "node_type": "category"
+              },
+              {
+                "id": "boundary",
+                "title": "应用边界",
+                "description": "属于高阶运动表现体系；普通训练者不应在缺少动作基础、负荷监控和恢复条件时照搬高强度模板。",
+                "node_type": "category"
+              }
+            ]
+          }
+        ]
+      },
+      "readingGuide": {
+        "estimatedMinutes": 10,
+        "suitableFor": [
+          "正在学习力量与运动表现的训练者",
+          "需要把理论转成计划的教练",
+          "愿意记录并复盘的读者"
+        ],
+        "goals": [
+          "说清核心概念",
+          "形成可执行决策",
+          "设计一次可验证的小实验"
+        ],
+        "prerequisites": [
+          "先阅读全书深读入口",
+          "本页不替代正版原书或专业诊疗"
+        ]
+      },
+      "keyTakeaways": [
+        "三种肌肉收缩阶段的训练意义",
+        "先识别项目真正需要的速度与力量表现",
+        "一次只改变少量关键变量，并提前定义反馈信号",
+        "刻意放慢某一阶段会改变动作性质，若长期脱离专项速度与完整动作，阶段训练可能提高局部耐受却不能改善实际表现。"
+      ],
+      "discussionPrompts": [
+        "你当前最接近这个主题的真实问题是什么？",
+        "你会保留哪个变量不变，才看得出干预是否有效？",
+        "如果结果与书中框架不一致，你先检查数据、执行还是原始假设？"
+      ],
+      "citations": [
+        {
+          "title": "书目：Triphasic Training",
+          "note": "本页为 CoachLink 原创解释性笔记；不复制原书正文、插图、表格或完整处方。正式学术或专业引用请回到正版书核对作者、版次、出版社和页码。",
+          "license": "interpretive-notes-only"
+        }
+      ]
+    },
+    {
+      "slug": "topic-02",
+      "file": "notes/02-topic.md",
+      "noteType": "chapter",
+      "chapterOrder": 2,
+      "chapterTitle": "高负荷与高速度刺激的组织",
+      "title": "《Triphasic Training》主题深读 2：高负荷与高速度刺激的组织",
+      "summary": "高负荷刺激偏向提升可动员的力量上限，高速度刺激偏向提高在短时间内表达力量的能力。运动表现通常需要两端协同，但不同刺激产生的疲劳、技术要求和恢复时间并不相同。 本页进一步给出教练决策、反馈记录、微实验和应用边界。",
+      "sortOrder": 3002,
+      "author": "Cal Dietz、Ben Peterson",
+      "isFree": true,
+      "isPublished": true,
+      "mindMap": {
+        "title": "《Triphasic Training》主题 2 · 高负荷与高速度刺激的组织",
+        "description": "CoachLink 原创主题知识地图：概念、决策、验证、误区和边界放在同一张图里。",
+        "data": [
+          {
+            "id": "root",
+            "title": "高负荷与高速度刺激的组织",
+            "node_type": "domain",
+            "children": [
+              {
+                "id": "concept",
+                "title": "核心概念",
+                "description": "高负荷刺激偏向提升可动员的力量上限，高速度刺激偏向提高在短时间内表达力量的能力。运动表现通常需要两端协同，但不同刺激产生的疲劳、技术要求和恢复时间并不相同。",
+                "node_type": "category"
+              },
+              {
+                "id": "decision",
+                "title": "教练决策",
+                "description": "教练应依据运动员当前短板和赛程，把重负荷与高速练习安排为有主次的互补刺激，并保留足够恢复间隔。高速训练应以动作意图和实际输出质量为准，一旦速度或技术明显下降就应减少剂量。",
+                "node_type": "category"
+              },
+              {
+                "id": "practice",
+                "title": "最小实践",
+                "description": "把节奏方法当作工具而不是固定教条",
+                "node_type": "category"
+              },
+              {
+                "id": "feedback",
+                "title": "记录与复盘",
+                "description": "先留基线，一次只改一个关键变量，再用结果和恢复信号判断。",
+                "node_type": "category"
+              },
+              {
+                "id": "pitfall",
+                "title": "常见误用",
+                "description": "把轻重量快速移动等同于有效速度训练，或把所有组都做到疲劳，会让目标刺激退化成普通容量训练。",
+                "node_type": "category"
+              },
+              {
+                "id": "boundary",
+                "title": "应用边界",
+                "description": "属于高阶运动表现体系；普通训练者不应在缺少动作基础、负荷监控和恢复条件时照搬高强度模板。",
+                "node_type": "category"
+              }
+            ]
+          }
+        ]
+      },
+      "readingGuide": {
+        "estimatedMinutes": 10,
+        "suitableFor": [
+          "正在学习力量与运动表现的训练者",
+          "需要把理论转成计划的教练",
+          "愿意记录并复盘的读者"
+        ],
+        "goals": [
+          "说清核心概念",
+          "形成可执行决策",
+          "设计一次可验证的小实验"
+        ],
+        "prerequisites": [
+          "先阅读全书深读入口",
+          "本页不替代正版原书或专业诊疗"
+        ]
+      },
+      "keyTakeaways": [
+        "高负荷与高速度刺激的组织",
+        "把节奏方法当作工具而不是固定教条",
+        "一次只改变少量关键变量，并提前定义反馈信号",
+        "把轻重量快速移动等同于有效速度训练，或把所有组都做到疲劳，会让目标刺激退化成普通容量训练。"
+      ],
+      "discussionPrompts": [
+        "你当前最接近这个主题的真实问题是什么？",
+        "你会保留哪个变量不变，才看得出干预是否有效？",
+        "如果结果与书中框架不一致，你先检查数据、执行还是原始假设？"
+      ],
+      "citations": [
+        {
+          "title": "书目：Triphasic Training",
+          "note": "本页为 CoachLink 原创解释性笔记；不复制原书正文、插图、表格或完整处方。正式学术或专业引用请回到正版书核对作者、版次、出版社和页码。",
+          "license": "interpretive-notes-only"
+        }
+      ]
+    },
+    {
+      "slug": "topic-03",
+      "file": "notes/03-topic.md",
+      "noteType": "chapter",
+      "chapterOrder": 3,
+      "chapterTitle": "训练模块与阶段衔接",
+      "title": "《Triphasic Training》主题深读 3：训练模块与阶段衔接",
+      "summary": "训练模块是在一段时间内集中放大某项适应，同时用较低剂量维持其他关键能力。阶段衔接的价值在于让前一阶段形成的基础成为后一阶段的输入，而不是每隔数周彻底更换一套无关训练。 本页进一步给出教练决策、反馈记录、微实验和应用边界。",
+      "sortOrder": 3003,
+      "author": "Cal Dietz、Ben Peterson",
+      "isFree": true,
+      "isPublished": true,
+      "mindMap": {
+        "title": "《Triphasic Training》主题 3 · 训练模块与阶段衔接",
+        "description": "CoachLink 原创主题知识地图：概念、决策、验证、误区和边界放在同一张图里。",
+        "data": [
+          {
+            "id": "root",
+            "title": "训练模块与阶段衔接",
+            "node_type": "domain",
+            "children": [
+              {
+                "id": "concept",
+                "title": "核心概念",
+                "description": "训练模块是在一段时间内集中放大某项适应，同时用较低剂量维持其他关键能力。阶段衔接的价值在于让前一阶段形成的基础成为后一阶段的输入，而不是每隔数周彻底更换一套无关训练。",
+                "node_type": "category"
+              },
+              {
+                "id": "decision",
+                "title": "教练决策",
+                "description": "教练应为每个模块定义可观察的进入条件、退出指标和需要维持的能力，并在阶段交界处保留适度重叠。若目标指标尚未改善或疲劳仍高，应调整模块长度与剂量，而不是被日历强迫推进。",
+                "node_type": "category"
+              },
+              {
+                "id": "practice",
+                "title": "最小实践",
+                "description": "记录跳跃、速度或主项表现与疲劳的共同变化",
+                "node_type": "category"
+              },
+              {
+                "id": "feedback",
+                "title": "记录与复盘",
+                "description": "先留基线，一次只改一个关键变量，再用结果和恢复信号判断。",
+                "node_type": "category"
+              },
+              {
+                "id": "pitfall",
+                "title": "常见误用",
+                "description": "机械照搬固定周数会忽略个体适应速度，也容易在频繁换模块时丢失刚建立的能力。",
+                "node_type": "category"
+              },
+              {
+                "id": "boundary",
+                "title": "应用边界",
+                "description": "属于高阶运动表现体系；普通训练者不应在缺少动作基础、负荷监控和恢复条件时照搬高强度模板。",
+                "node_type": "category"
+              }
+            ]
+          }
+        ]
+      },
+      "readingGuide": {
+        "estimatedMinutes": 10,
+        "suitableFor": [
+          "正在学习力量与运动表现的训练者",
+          "需要把理论转成计划的教练",
+          "愿意记录并复盘的读者"
+        ],
+        "goals": [
+          "说清核心概念",
+          "形成可执行决策",
+          "设计一次可验证的小实验"
+        ],
+        "prerequisites": [
+          "先阅读全书深读入口",
+          "本页不替代正版原书或专业诊疗"
+        ]
+      },
+      "keyTakeaways": [
+        "训练模块与阶段衔接",
+        "记录跳跃、速度或主项表现与疲劳的共同变化",
+        "一次只改变少量关键变量，并提前定义反馈信号",
+        "机械照搬固定周数会忽略个体适应速度，也容易在频繁换模块时丢失刚建立的能力。"
+      ],
+      "discussionPrompts": [
+        "你当前最接近这个主题的真实问题是什么？",
+        "你会保留哪个变量不变，才看得出干预是否有效？",
+        "如果结果与书中框架不一致，你先检查数据、执行还是原始假设？"
+      ],
+      "citations": [
+        {
+          "title": "书目：Triphasic Training",
+          "note": "本页为 CoachLink 原创解释性笔记；不复制原书正文、插图、表格或完整处方。正式学术或专业引用请回到正版书核对作者、版次、出版社和页码。",
+          "license": "interpretive-notes-only"
+        }
+      ]
+    },
+    {
+      "slug": "topic-04",
+      "file": "notes/04-topic.md",
+      "noteType": "chapter",
+      "chapterOrder": 4,
+      "chapterTitle": "专项需求、监控与恢复",
+      "title": "《Triphasic Training》主题深读 4：专项需求、监控与恢复",
+      "summary": "专项需求分析要把比赛动作的方向、持续时间、发力时限和重复方式转成可训练的能力问题。监控则用于区分有效负荷、暂时疲劳与持续性状态下降，使恢复成为训练剂量的一部分。 本页进一步给出教练决策、反馈记录、微实验和应用边界。",
+      "sortOrder": 3004,
+      "author": "Cal Dietz、Ben Peterson",
+      "isFree": true,
+      "isPublished": true,
+      "mindMap": {
+        "title": "《Triphasic Training》主题 4 · 专项需求、监控与恢复",
+        "description": "CoachLink 原创主题知识地图：概念、决策、验证、误区和边界放在同一张图里。",
+        "data": [
+          {
+            "id": "root",
+            "title": "专项需求、监控与恢复",
+            "node_type": "domain",
+            "children": [
+              {
+                "id": "concept",
+                "title": "核心概念",
+                "description": "专项需求分析要把比赛动作的方向、持续时间、发力时限和重复方式转成可训练的能力问题。监控则用于区分有效负荷、暂时疲劳与持续性状态下降，使恢复成为训练剂量的一部分。",
+                "node_type": "category"
+              },
+              {
+                "id": "decision",
+                "title": "教练决策",
+                "description": "教练应选择少量与专项结果有关且能稳定复测的指标，并同时观察表现、主观状态和训练完成质量。若多项指标连续恶化，应先降低非关键训练量或提高恢复资源，再决定是否改变主要刺激。",
+                "node_type": "category"
+              },
+              {
+                "id": "practice",
+                "title": "最小实践",
+                "description": "先识别项目真正需要的速度与力量表现",
+                "node_type": "category"
+              },
+              {
+                "id": "feedback",
+                "title": "记录与复盘",
+                "description": "先留基线，一次只改一个关键变量，再用结果和恢复信号判断。",
+                "node_type": "category"
+              },
+              {
+                "id": "pitfall",
+                "title": "常见误用",
+                "description": "依赖单次跳跃、心率或主观评分下结论，容易把测量波动误判为真实适应或过度疲劳。",
+                "node_type": "category"
+              },
+              {
+                "id": "boundary",
+                "title": "应用边界",
+                "description": "属于高阶运动表现体系；普通训练者不应在缺少动作基础、负荷监控和恢复条件时照搬高强度模板。",
+                "node_type": "category"
+              }
+            ]
+          }
+        ]
+      },
+      "readingGuide": {
+        "estimatedMinutes": 10,
+        "suitableFor": [
+          "正在学习力量与运动表现的训练者",
+          "需要把理论转成计划的教练",
+          "愿意记录并复盘的读者"
+        ],
+        "goals": [
+          "说清核心概念",
+          "形成可执行决策",
+          "设计一次可验证的小实验"
+        ],
+        "prerequisites": [
+          "先阅读全书深读入口",
+          "本页不替代正版原书或专业诊疗"
+        ]
+      },
+      "keyTakeaways": [
+        "专项需求、监控与恢复",
+        "先识别项目真正需要的速度与力量表现",
+        "一次只改变少量关键变量，并提前定义反馈信号",
+        "依赖单次跳跃、心率或主观评分下结论，容易把测量波动误判为真实适应或过度疲劳。"
+      ],
+      "discussionPrompts": [
+        "你当前最接近这个主题的真实问题是什么？",
+        "你会保留哪个变量不变，才看得出干预是否有效？",
+        "如果结果与书中框架不一致，你先检查数据、执行还是原始假设？"
+      ],
+      "citations": [
+        {
+          "title": "书目：Triphasic Training",
+          "note": "本页为 CoachLink 原创解释性笔记；不复制原书正文、插图、表格或完整处方。正式学术或专业引用请回到正版书核对作者、版次、出版社和页码。",
+          "license": "interpretive-notes-only"
+        }
+      ]
+    }
+  ]
+}

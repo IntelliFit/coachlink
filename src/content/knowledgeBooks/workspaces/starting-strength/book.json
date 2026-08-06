@@ -1,0 +1,497 @@
+{
+  "format": "book-note-v4-classic-deep-read",
+  "noteStyle": "interpretive-reading-note",
+  "disclaimer": "本页为 CoachLink 原创导读与知识地图，不复制原书正文、插图、表格或完整训练模板，也不替代购买和阅读正版原书。",
+  "source": {
+    "title": "力量训练基础：用5种杠铃动作发展身体实力",
+    "authors": [
+      "Mark Rippetoe"
+    ],
+    "originalFilePath": "local-library://starting-strength",
+    "copyrightMode": "interpretive-notes-only",
+    "collectionSlug": "starting-strength",
+    "collectionTitle": "《力量训练基础：用5种杠铃动作发展身体实力》原创深读笔记"
+  },
+  "notes": [
+    {
+      "slug": "overview",
+      "file": "notes/00-overview.md",
+      "noteType": "overview",
+      "chapterOrder": 0,
+      "chapterTitle": "深读入口",
+      "title": "《力量训练基础：用5种杠铃动作发展身体实力》深读入口：先建立全书地图，再决定怎么用",
+      "summary": "以深蹲、推举、硬拉、卧推和高翻等杠铃动作的技术与线性进阶为核心，建立新手力量训练的清晰起点。",
+      "sortOrder": 3120,
+      "author": "Mark Rippetoe",
+      "isFree": true,
+      "isPublished": true,
+      "mindMap": {
+        "title": "《力量训练基础：用5种杠铃动作发展身体实力》全书知识地图",
+        "description": "这是 CoachLink 根据书籍主题绘制的原创导航图，不复制原书插图或版式。",
+        "data": [
+          {
+            "id": "root",
+            "title": "力量训练基础：用5种杠铃动作发展身体实力",
+            "node_type": "domain",
+            "children": [
+              {
+                "id": "question",
+                "title": "核心问题",
+                "description": "新手怎样用少量基础动作、稳定技术和逐次加重，在恢复能力允许的范围内快速建立全身力量？",
+                "node_type": "category"
+              },
+              {
+                "id": "framework-1",
+                "title": "基础杠铃动作的力学解释",
+                "node_type": "category"
+              },
+              {
+                "id": "framework-2",
+                "title": "动作教学、纠错与重复标准",
+                "node_type": "category"
+              },
+              {
+                "id": "framework-3",
+                "title": "新手线性进阶",
+                "node_type": "category"
+              },
+              {
+                "id": "framework-4",
+                "title": "停滞、恢复和方案过渡",
+                "node_type": "category"
+              },
+              {
+                "id": "boundary",
+                "title": "应用边界",
+                "description": "这是有影响力的方法体系而非唯一正确动作模型；身体比例、目标、器械与伤病史会改变动作和进阶选择。",
+                "node_type": "category"
+              }
+            ]
+          }
+        ]
+      },
+      "readingGuide": {
+        "estimatedMinutes": 8,
+        "suitableFor": [
+          "关注基础力量的训练者",
+          "教练与知识库编辑",
+          "准备精读正版原书的读者"
+        ],
+        "goals": [
+          "掌握全书核心问题",
+          "看懂主题之间的关系",
+          "明确应用边界与复盘方法"
+        ],
+        "prerequisites": [
+          "本页不替代原书，也不提供原文件下载"
+        ]
+      },
+      "keyTakeaways": [
+        "基础杠铃动作的力学解释",
+        "动作教学、纠错与重复标准",
+        "新手线性进阶",
+        "停滞、恢复和方案过渡"
+      ],
+      "discussionPrompts": [
+        "这本书最可能改变你当前的哪一个训练决策？",
+        "哪一个观点高度依赖作者的目标人群或训练环境？",
+        "你会用什么训练数据判断它对自己是否有效？"
+      ],
+      "citations": [
+        {
+          "title": "书目：力量训练基础：用5种杠铃动作发展身体实力",
+          "note": "基于本地书目盘点建立原创导读；原始电子文件仅供内部研究，不上传、不公开下载。正式引用前应继续核对正版书的作者、版次、出版社与页码。",
+          "license": "interpretive-notes-only"
+        }
+      ]
+    },
+    {
+      "slug": "topic-01",
+      "file": "notes/01-topic.md",
+      "noteType": "chapter",
+      "chapterOrder": 1,
+      "chapterTitle": "基础杠铃动作的力学解释",
+      "title": "《力量训练基础：用5种杠铃动作发展身体实力》主题深读 1：基础杠铃动作的力学解释",
+      "summary": "杠铃动作可以用重心、支撑面、力矩和关节运动来解释，但这些原则不会要求每个人呈现完全相同的外形。身体比例、握距站距和活动能力会改变可行姿势，稳定控制杠铃才是更有意义的共同目标。 本页进一步给出教练决策、反馈记录、微实验和应用边界。",
+      "sortOrder": 3121,
+      "author": "Mark Rippetoe",
+      "isFree": true,
+      "isPublished": true,
+      "mindMap": {
+        "title": "《力量训练基础：用5种杠铃动作发展身体实力》主题 1 · 基础杠铃动作的力学解释",
+        "description": "CoachLink 原创主题知识地图：概念、决策、验证、误区和边界放在同一张图里。",
+        "data": [
+          {
+            "id": "root",
+            "title": "基础杠铃动作的力学解释",
+            "node_type": "domain",
+            "children": [
+              {
+                "id": "concept",
+                "title": "核心概念",
+                "description": "杠铃动作可以用重心、支撑面、力矩和关节运动来解释，但这些原则不会要求每个人呈现完全相同的外形。身体比例、握距站距和活动能力会改变可行姿势，稳定控制杠铃才是更有意义的共同目标。",
+                "node_type": "category"
+              },
+              {
+                "id": "decision",
+                "title": "教练决策",
+                "description": "教练应从杠铃轨迹、平衡和主要关节协同判断技术，而不是先用视觉模板给动作定罪。调整姿势时一次改变一个关键变量，并用更稳定的重复和更低的不适来验证效果。",
+                "node_type": "category"
+              },
+              {
+                "id": "practice",
+                "title": "最小实践",
+                "description": "把每次重复的技术标准放在加重之前",
+                "node_type": "category"
+              },
+              {
+                "id": "feedback",
+                "title": "记录与复盘",
+                "description": "先留基线，一次只改一个关键变量，再用结果和恢复信号判断。",
+                "node_type": "category"
+              },
+              {
+                "id": "pitfall",
+                "title": "常见误用",
+                "description": "把某一种身体比例下的动作模型宣称为唯一正确答案，会让技术教学忽视个体结构与训练目标。",
+                "node_type": "category"
+              },
+              {
+                "id": "boundary",
+                "title": "应用边界",
+                "description": "这是有影响力的方法体系而非唯一正确动作模型；身体比例、目标、器械与伤病史会改变动作和进阶选择。",
+                "node_type": "category"
+              }
+            ]
+          }
+        ]
+      },
+      "readingGuide": {
+        "estimatedMinutes": 10,
+        "suitableFor": [
+          "正在学习基础力量的训练者",
+          "需要把理论转成计划的教练",
+          "愿意记录并复盘的读者"
+        ],
+        "goals": [
+          "说清核心概念",
+          "形成可执行决策",
+          "设计一次可验证的小实验"
+        ],
+        "prerequisites": [
+          "先阅读全书深读入口",
+          "本页不替代正版原书或专业诊疗"
+        ]
+      },
+      "keyTakeaways": [
+        "基础杠铃动作的力学解释",
+        "把每次重复的技术标准放在加重之前",
+        "一次只改变少量关键变量，并提前定义反馈信号",
+        "把某一种身体比例下的动作模型宣称为唯一正确答案，会让技术教学忽视个体结构与训练目标。"
+      ],
+      "discussionPrompts": [
+        "你当前最接近这个主题的真实问题是什么？",
+        "你会保留哪个变量不变，才看得出干预是否有效？",
+        "如果结果与书中框架不一致，你先检查数据、执行还是原始假设？"
+      ],
+      "citations": [
+        {
+          "title": "书目：力量训练基础：用5种杠铃动作发展身体实力",
+          "note": "本页为 CoachLink 原创解释性笔记；不复制原书正文、插图、表格或完整处方。正式学术或专业引用请回到正版书核对作者、版次、出版社和页码。",
+          "license": "interpretive-notes-only"
+        }
+      ]
+    },
+    {
+      "slug": "topic-02",
+      "file": "notes/02-topic.md",
+      "noteType": "chapter",
+      "chapterOrder": 2,
+      "chapterTitle": "动作教学、纠错与重复标准",
+      "title": "《力量训练基础：用5种杠铃动作发展身体实力》主题深读 2：动作教学、纠错与重复标准",
+      "summary": "新手技术学习依赖清晰起始位、可重复动作路径和及时反馈，而不是一次接受大量解剖指令。重复标准让教练能够区分真实力量进步与靠缩短幅度、改变节奏或失去控制完成的假进步。 本页进一步给出教练决策、反馈记录、微实验和应用边界。",
+      "sortOrder": 3122,
+      "author": "Mark Rippetoe",
+      "isFree": true,
+      "isPublished": true,
+      "mindMap": {
+        "title": "《力量训练基础：用5种杠铃动作发展身体实力》主题 2 · 动作教学、纠错与重复标准",
+        "description": "CoachLink 原创主题知识地图：概念、决策、验证、误区和边界放在同一张图里。",
+        "data": [
+          {
+            "id": "root",
+            "title": "动作教学、纠错与重复标准",
+            "node_type": "domain",
+            "children": [
+              {
+                "id": "concept",
+                "title": "核心概念",
+                "description": "新手技术学习依赖清晰起始位、可重复动作路径和及时反馈，而不是一次接受大量解剖指令。重复标准让教练能够区分真实力量进步与靠缩短幅度、改变节奏或失去控制完成的假进步。",
+                "node_type": "category"
+              },
+              {
+                "id": "decision",
+                "title": "教练决策",
+                "description": "教练应优先纠正影响安全、平衡和整组稳定性的最大错误，其余细节可在后续训练逐步处理。重量只有在训练者能连续复现既定幅度与控制时才应上调。",
+                "node_type": "category"
+              },
+              {
+                "id": "practice",
+                "title": "最小实践",
+                "description": "用小幅、可持续的重量进阶",
+                "node_type": "category"
+              },
+              {
+                "id": "feedback",
+                "title": "记录与复盘",
+                "description": "先留基线，一次只改一个关键变量，再用结果和恢复信号判断。",
+                "node_type": "category"
+              },
+              {
+                "id": "pitfall",
+                "title": "常见误用",
+                "description": "每次重复同时给出多个提示，常使新手注意力过载，并让本来可用的动作变得僵硬。",
+                "node_type": "category"
+              },
+              {
+                "id": "boundary",
+                "title": "应用边界",
+                "description": "这是有影响力的方法体系而非唯一正确动作模型；身体比例、目标、器械与伤病史会改变动作和进阶选择。",
+                "node_type": "category"
+              }
+            ]
+          }
+        ]
+      },
+      "readingGuide": {
+        "estimatedMinutes": 10,
+        "suitableFor": [
+          "正在学习基础力量的训练者",
+          "需要把理论转成计划的教练",
+          "愿意记录并复盘的读者"
+        ],
+        "goals": [
+          "说清核心概念",
+          "形成可执行决策",
+          "设计一次可验证的小实验"
+        ],
+        "prerequisites": [
+          "先阅读全书深读入口",
+          "本页不替代正版原书或专业诊疗"
+        ]
+      },
+      "keyTakeaways": [
+        "动作教学、纠错与重复标准",
+        "用小幅、可持续的重量进阶",
+        "一次只改变少量关键变量，并提前定义反馈信号",
+        "每次重复同时给出多个提示，常使新手注意力过载，并让本来可用的动作变得僵硬。"
+      ],
+      "discussionPrompts": [
+        "你当前最接近这个主题的真实问题是什么？",
+        "你会保留哪个变量不变，才看得出干预是否有效？",
+        "如果结果与书中框架不一致，你先检查数据、执行还是原始假设？"
+      ],
+      "citations": [
+        {
+          "title": "书目：力量训练基础：用5种杠铃动作发展身体实力",
+          "note": "本页为 CoachLink 原创解释性笔记；不复制原书正文、插图、表格或完整处方。正式学术或专业引用请回到正版书核对作者、版次、出版社和页码。",
+          "license": "interpretive-notes-only"
+        }
+      ]
+    },
+    {
+      "slug": "topic-03",
+      "file": "notes/03-topic.md",
+      "noteType": "chapter",
+      "chapterOrder": 3,
+      "chapterTitle": "新手线性进阶",
+      "title": "《力量训练基础：用5种杠铃动作发展身体实力》主题深读 3：新手线性进阶",
+      "summary": "新手能在短恢复周期内对简单刺激快速适应，因此逐次小幅增加难度可以高效建立基础力量。线性进阶的有效期来自新手适应速度，而不是该结构能够无限延伸。 本页进一步给出教练决策、反馈记录、微实验和应用边界。",
+      "sortOrder": 3123,
+      "author": "Mark Rippetoe",
+      "isFree": true,
+      "isPublished": true,
+      "mindMap": {
+        "title": "《力量训练基础：用5种杠铃动作发展身体实力》主题 3 · 新手线性进阶",
+        "description": "CoachLink 原创主题知识地图：概念、决策、验证、误区和边界放在同一张图里。",
+        "data": [
+          {
+            "id": "root",
+            "title": "新手线性进阶",
+            "node_type": "domain",
+            "children": [
+              {
+                "id": "concept",
+                "title": "核心概念",
+                "description": "新手能在短恢复周期内对简单刺激快速适应，因此逐次小幅增加难度可以高效建立基础力量。线性进阶的有效期来自新手适应速度，而不是该结构能够无限延伸。",
+                "node_type": "category"
+              },
+              {
+                "id": "decision",
+                "title": "教练决策",
+                "description": "教练应从训练者能稳定掌握的负荷开始，以最小必要增量推进，并同步监测睡眠、食欲和动作质量。若同一负荷反复失败，应先检查增量过大、恢复不足或技术变化，而不是立刻认定天赋有限。",
+                "node_type": "category"
+              },
+              {
+                "id": "practice",
+                "title": "最小实践",
+                "description": "线性进阶结束后及时转向更合适的周期结构",
+                "node_type": "category"
+              },
+              {
+                "id": "feedback",
+                "title": "记录与复盘",
+                "description": "先留基线，一次只改一个关键变量，再用结果和恢复信号判断。",
+                "node_type": "category"
+              },
+              {
+                "id": "pitfall",
+                "title": "常见误用",
+                "description": "为了加快进度而跳过轻负荷技术积累，往往会更早耗尽线性阶段并固化代偿动作。",
+                "node_type": "category"
+              },
+              {
+                "id": "boundary",
+                "title": "应用边界",
+                "description": "这是有影响力的方法体系而非唯一正确动作模型；身体比例、目标、器械与伤病史会改变动作和进阶选择。",
+                "node_type": "category"
+              }
+            ]
+          }
+        ]
+      },
+      "readingGuide": {
+        "estimatedMinutes": 10,
+        "suitableFor": [
+          "正在学习基础力量的训练者",
+          "需要把理论转成计划的教练",
+          "愿意记录并复盘的读者"
+        ],
+        "goals": [
+          "说清核心概念",
+          "形成可执行决策",
+          "设计一次可验证的小实验"
+        ],
+        "prerequisites": [
+          "先阅读全书深读入口",
+          "本页不替代正版原书或专业诊疗"
+        ]
+      },
+      "keyTakeaways": [
+        "新手线性进阶",
+        "线性进阶结束后及时转向更合适的周期结构",
+        "一次只改变少量关键变量，并提前定义反馈信号",
+        "为了加快进度而跳过轻负荷技术积累，往往会更早耗尽线性阶段并固化代偿动作。"
+      ],
+      "discussionPrompts": [
+        "你当前最接近这个主题的真实问题是什么？",
+        "你会保留哪个变量不变，才看得出干预是否有效？",
+        "如果结果与书中框架不一致，你先检查数据、执行还是原始假设？"
+      ],
+      "citations": [
+        {
+          "title": "书目：力量训练基础：用5种杠铃动作发展身体实力",
+          "note": "本页为 CoachLink 原创解释性笔记；不复制原书正文、插图、表格或完整处方。正式学术或专业引用请回到正版书核对作者、版次、出版社和页码。",
+          "license": "interpretive-notes-only"
+        }
+      ]
+    },
+    {
+      "slug": "topic-04",
+      "file": "notes/04-topic.md",
+      "noteType": "chapter",
+      "chapterOrder": 4,
+      "chapterTitle": "停滞、恢复和方案过渡",
+      "title": "《力量训练基础：用5种杠铃动作发展身体实力》主题深读 4：停滞、恢复和方案过渡",
+      "summary": "停滞是当前刺激与恢复关系不再支持原有推进速度的信号，不只是意志不足。随着训练水平提高，同一动作需要更长时间适应，计划也应从逐次加重过渡到更长尺度的负荷组织。 本页进一步给出教练决策、反馈记录、微实验和应用边界。",
+      "sortOrder": 3124,
+      "author": "Mark Rippetoe",
+      "isFree": true,
+      "isPublished": true,
+      "mindMap": {
+        "title": "《力量训练基础：用5种杠铃动作发展身体实力》主题 4 · 停滞、恢复和方案过渡",
+        "description": "CoachLink 原创主题知识地图：概念、决策、验证、误区和边界放在同一张图里。",
+        "data": [
+          {
+            "id": "root",
+            "title": "停滞、恢复和方案过渡",
+            "node_type": "domain",
+            "children": [
+              {
+                "id": "concept",
+                "title": "核心概念",
+                "description": "停滞是当前刺激与恢复关系不再支持原有推进速度的信号，不只是意志不足。随着训练水平提高，同一动作需要更长时间适应，计划也应从逐次加重过渡到更长尺度的负荷组织。",
+                "node_type": "category"
+              },
+              {
+                "id": "decision",
+                "title": "教练决策",
+                "description": "教练应核对近期完成记录、增量大小、热身表现、睡眠摄入和疼痛，再决定回退、减量或改变周期。若多次合理调整仍无法恢复逐次进展，应及时采用中级结构，而不是无限重复新手方案。",
+                "node_type": "category"
+              },
+              {
+                "id": "practice",
+                "title": "最小实践",
+                "description": "把每次重复的技术标准放在加重之前",
+                "node_type": "category"
+              },
+              {
+                "id": "feedback",
+                "title": "记录与复盘",
+                "description": "先留基线，一次只改一个关键变量，再用结果和恢复信号判断。",
+                "node_type": "category"
+              },
+              {
+                "id": "pitfall",
+                "title": "常见误用",
+                "description": "用反复重置掩盖已经结束的新手适应阶段，会让训练者长期停留在同一水平且缺乏新的刺激组织。",
+                "node_type": "category"
+              },
+              {
+                "id": "boundary",
+                "title": "应用边界",
+                "description": "这是有影响力的方法体系而非唯一正确动作模型；身体比例、目标、器械与伤病史会改变动作和进阶选择。",
+                "node_type": "category"
+              }
+            ]
+          }
+        ]
+      },
+      "readingGuide": {
+        "estimatedMinutes": 10,
+        "suitableFor": [
+          "正在学习基础力量的训练者",
+          "需要把理论转成计划的教练",
+          "愿意记录并复盘的读者"
+        ],
+        "goals": [
+          "说清核心概念",
+          "形成可执行决策",
+          "设计一次可验证的小实验"
+        ],
+        "prerequisites": [
+          "先阅读全书深读入口",
+          "本页不替代正版原书或专业诊疗"
+        ]
+      },
+      "keyTakeaways": [
+        "停滞、恢复和方案过渡",
+        "把每次重复的技术标准放在加重之前",
+        "一次只改变少量关键变量，并提前定义反馈信号",
+        "用反复重置掩盖已经结束的新手适应阶段，会让训练者长期停留在同一水平且缺乏新的刺激组织。"
+      ],
+      "discussionPrompts": [
+        "你当前最接近这个主题的真实问题是什么？",
+        "你会保留哪个变量不变，才看得出干预是否有效？",
+        "如果结果与书中框架不一致，你先检查数据、执行还是原始假设？"
+      ],
+      "citations": [
+        {
+          "title": "书目：力量训练基础：用5种杠铃动作发展身体实力",
+          "note": "本页为 CoachLink 原创解释性笔记；不复制原书正文、插图、表格或完整处方。正式学术或专业引用请回到正版书核对作者、版次、出版社和页码。",
+          "license": "interpretive-notes-only"
+        }
+      ]
+    }
+  ]
+}

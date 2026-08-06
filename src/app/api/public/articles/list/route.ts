@@ -12,6 +12,7 @@ export type PublicArticleListItem = {
     contentType: string;
     requiredTier: number;
     priceCents: number;
+    featured: boolean;
     publishedAt: string | null;
 };
 
@@ -53,8 +54,9 @@ export async function GET(req: NextRequest) {
             content_type,
             required_tier,
             price_cents,
+            is_featured,
             created_at,
-            coach:coaches(
+            coach:coaches!inner(
                 id,
                 name,
                 avatar_url,
@@ -63,6 +65,9 @@ export async function GET(req: NextRequest) {
         `,
             { count: "exact" },
         )
+        .eq("content_type", "text")
+        .eq("coach.status", "approved")
+        .order("is_featured", { ascending: false })
         .order("created_at", { ascending: false })
         .range(offset, offset + limit - 1);
 
@@ -75,12 +80,7 @@ export async function GET(req: NextRequest) {
     }
 
     const rows = (data || []) as any[];
-    const items: PublicArticleListItem[] = rows
-        // 只展示已审核教练（publish-content 已限制 approved，但这里再兜底）
-        .filter((r) => (r?.coach?.status || null) === "approved")
-        // 公开文章页优先展示文字类（避免视频/图片导致空白体验）；如果你想混合也可以删掉这行
-        .filter((r) => (r?.content_type || "") === "text")
-        .map((r) => ({
+    const items: PublicArticleListItem[] = rows.map((r) => ({
             id: r.id,
             coachId: r.coach_id,
             coachName: r.coach?.name || "教练",
@@ -90,6 +90,7 @@ export async function GET(req: NextRequest) {
             contentType: r.content_type,
             requiredTier: Number(r.required_tier ?? 0),
             priceCents: Number(r.price_cents ?? 0),
+            featured: Boolean(r.is_featured),
             publishedAt: r.created_at ?? null,
         }));
 

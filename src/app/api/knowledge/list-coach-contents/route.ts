@@ -41,6 +41,7 @@ export async function POST(req: Request) {
         `,
             { count: "exact" },
         )
+        .order("is_featured", { ascending: false })
         .order("created_at", { ascending: false })
         .range(offset, offset + limit - 1);
 

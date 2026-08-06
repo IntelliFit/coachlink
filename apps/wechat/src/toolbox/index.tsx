@@ -84,6 +84,15 @@ const PRACTICAL_TOOLS: ToolboxEntry[] = [
     url: '/streetlifting/index/calculator'
   },
   {
+    badge: '能力测算',
+    description: '根据体重和负重引体能力，看看离单手引体还有多远。',
+    iconClass: 'icon-ranking',
+    key: 'one-arm-pull-up',
+    label: '单手引体测算',
+    tags: ['能力差距', '训练建议'],
+    url: '/toolbox/one-arm-pull-up/index'
+  },
+  {
     badge: '训练地图',
     description: '查找、分享单杠位置，记录训练地点。',
     iconClass: 'icon-location',
@@ -104,12 +113,42 @@ const PRACTICAL_TOOLS: ToolboxEntry[] = [
 ]
 
 function ToolboxCard({
+  compact = false,
   entry,
   onClick
 }: {
+  compact?: boolean
   entry: ToolboxEntry
   onClick: (entry: ToolboxEntry) => void
 }) {
+  if (compact) {
+    return (
+      <View
+        className={`toolbox-card toolbox-card--compact toolbox-card--${entry.key}`}
+        onClick={() => onClick(entry)}
+      >
+        <View className='toolbox-card-main'>
+          <View className='toolbox-icon'>
+            <Text className={`iconfont ${entry.iconClass}`} />
+          </View>
+          <View className='toolbox-card-copy'>
+            <Text className='toolbox-badge'>{entry.badge}</Text>
+            <Text className='toolbox-name'>{entry.label}</Text>
+            <Text className='toolbox-desc'>{entry.description}</Text>
+          </View>
+          <Text className='toolbox-arrow'>→</Text>
+        </View>
+        <View className='toolbox-tags'>
+          {entry.tags.map((tag) => (
+            <Text key={tag} className='toolbox-tag'>
+              {tag}
+            </Text>
+          ))}
+        </View>
+      </View>
+    )
+  }
+
   return (
     <View className={`toolbox-card toolbox-card--${entry.key}`} onClick={() => onClick(entry)}>
       <View className='toolbox-card-top'>
@@ -163,9 +202,19 @@ export default function ToolboxPage() {
       <View className={`toolbox-page theme-${effectiveTheme}`}>
         <ScrollView className='page-scroll' scrollY>
           <View className='page-content'>
+            <View className='toolbox-hero'>
+              <Text className='hero-kicker'>训练辅助</Text>
+              <Text className='hero-title'>工具箱</Text>
+              <Text className='hero-desc'>测算、分析、互动和恢复，把训练里的小问题快速解决。</Text>
+              <View className='hero-stats'>
+                <Text>{MINI_GAMES.length + PRACTICAL_TOOLS.length} 个训练工具</Text>
+                <Text>{SCENARIO_QUICK_FIXES.length} 个恢复场景</Text>
+                <Text>随开随用</Text>
+              </View>
+            </View>
             <View className='section-block'>
               <View className='section-header'>
-                <Text className='section-kicker'>体感小游戏</Text>
+                <Text className='section-kicker'>体感小游戏 · {MINI_GAMES.length}</Text>
                 <Text className='section-title'>动一动，开一局</Text>
                 <Text className='section-subtitle'>使用摄像头识别动作，支持保存回放。</Text>
               </View>
@@ -178,19 +227,25 @@ export default function ToolboxPage() {
 
             <View className='section-block'>
               <View className='section-header'>
-                <Text className='section-kicker'>分析与探索</Text>
-                <Text className='section-title'>再挑一个趁手工具</Text>
+                <Text className='section-kicker'>实用工具 · {PRACTICAL_TOOLS.length}</Text>
+                <Text className='section-title'>算一算、看一看、找一找</Text>
+                <Text className='section-subtitle'>训练中常用的小工具，都放在这里。</Text>
               </View>
-              <View className='toolbox-grid'>
+              <View className='toolbox-list'>
                 {PRACTICAL_TOOLS.map((entry) => (
-                  <ToolboxCard key={entry.key} entry={entry} onClick={handleToolClick} />
+                  <ToolboxCard
+                    key={entry.key}
+                    compact
+                    entry={entry}
+                    onClick={handleToolClick}
+                  />
                 ))}
               </View>
             </View>
 
             <View className='scene-section'>
               <View className='section-header'>
-                <Text className='section-kicker'>身体恢复</Text>
+                <Text className='section-kicker'>身体恢复 · {SCENARIO_QUICK_FIXES.length}</Text>
                 <Text className='section-title'>不训练的时候，也可以照顾身体</Text>
                 <Text className='section-subtitle'>不需要器械，跟着步骤慢慢完成。</Text>
               </View>

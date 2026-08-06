@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
-import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
+import presets from "../../../../../../config/motion-effects-presets.json";
 import { serviceRoleSupabase } from "@/lib/supabaseClient";
 import type { ApiData } from "@/types/api";
 import {
@@ -17,19 +17,28 @@ import type {
   CreateMotionEffectUploadDto,
   CreateMotionEffectUploadResponseDto,
 } from "../types";
+import {
+  createMotionEffectClientKey,
+  createMotionEffectOwnerToken,
+  getMotionEffectPrices,
+  getMotionEffectRequestIdentity,
+  hasSignupFreeExport,
+  hashMotionEffectOwnerToken,
+  normalizeExportQuality,
+  normalizeQueueTier,
+} from "../_commerce";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
 const db = serviceRoleSupabase as any;
+const MOTION_EFFECT_STYLE_KEYS = new Set(presets.styles.map((style) => style.key));
+
+function option<T extends string>(value: unknown, allowed: readonly T[], fallback: T): T {
+  return allowed.includes(value as T) ? (value as T) : fallback;
+}
 
 export async function POST(req: Request) {
-  const session = await getServerSession();
-  if (!session?.user?.id) {
-    return NextResponse.json<ApiData<null>>(
-      { success: false, message: "请先登录后再生成特效视频", data: null },
-      { status: 401 },
-    );
-  }
+  const identity = await getMotionEffectRequestIdentity(req);
 
   let body: CreateMotionEffectUploadDto;
   try {
@@ -45,6 +54,24 @@ export async function POST(req: Request) {
   const contentType = String(body.contentType || "").trim();
   const fileSizeBytes = Number(body.fileSizeBytes || 0);
   const durationSeconds = Number(body.durationSeconds || 0);
+  const styleKey = MOTION_EFFECT_STYLE_KEYS.has(String(body.styleKey || ""))
+    ? String(body.styleKey)
+    : "aurora";
+  const motionSpeed = option(
+    body.motionSpeed,
+    ["gentle", "balanced", "energetic"] as const,
+    "balanced",
+  );
+  const glowStrength = option(
+    body.glowStrength,
+    ["soft", "balanced", "strong"] as const,
+    "balanced",
+  );
+  const surfaceDensity = option(
+    body.surfaceDensity,
+    ["transparent", "balanced", "rich"] as const,
+    "balanced",
+  );
   const limits = getMotionEffectLimits();
 
   if (!originalFilename || !isSupportedVideoContentType(contentType)) {
@@ -81,44 +108,78 @@ export async function POST(req: Request) {
     );
   }
 
-  const userId = session.user.id;
-  await failStaleMotionEffectJobsForUser(userId);
-  const { count: activeCount } = await db
+  const userId = identity.userId;
+  const clientKeyHash = createMotionEffectClientKey(req);
+  const ownerToken = userId ? "" : createMotionEffectOwnerToken();
+  const ownerTokenHash = ownerToken ? hashMotionEffectOwnerToken(ownerToken) : null;
+  if (userId) {
+    await failStaleMotionEffectJobsForUser(userId);
+  } else {
+    const staleBefore = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+    await db
+      .from("tool_video_render_jobs")
+      .update({
+        status: "failed",
+        progress: 100,
+        error_message: "任务长时间没有进展，已自动释放名额",
+        completed_at: new Date().toISOString(),
+      })
+      .eq("client_key_hash", clientKeyHash)
+      .in("status", ["awaiting_upload", "awaiting_payment", "queued", "processing"])
+      .lt("updated_at", staleBefore);
+  }
+  let activeQuery = db
     .from("tool_video_render_jobs")
     .select("id", { count: "exact", head: true })
-    .eq("user_id", userId)
-    .in("status", ["queued", "processing"])
+    .in("status", ["awaiting_upload", "awaiting_payment", "queued", "processing"])
     .gt("expires_at", new Date().toISOString());
+  activeQuery = userId
+    ? activeQuery.eq("user_id", userId)
+    : activeQuery.eq("client_key_hash", clientKeyHash).is("user_id", null);
+  const { count: activeCount } = await activeQuery;
   if ((activeCount || 0) >= 1) {
     return NextResponse.json<ApiData<null>>(
-      { success: false, message: "你已有一个特效视频正在生成，请稍后再试", data: null },
+      {
+        success: false,
+        message: "当前设备已有一个视频正在生成或等待付款，请先完成该任务",
+        data: null,
+      },
       { status: 409 },
     );
   }
 
-  const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-  const { count: dailyCount } = await db
-    .from("tool_video_render_jobs")
-    .select("id", { count: "exact", head: true })
-    .eq("user_id", userId)
-    .eq("effect_type", "finger_membrane")
-    .in("status", ["queued", "processing", "done"])
-    .gte("created_at", since);
-  if ((dailyCount || 0) >= limits.dailyLimit) {
-    return NextResponse.json<ApiData<null>>(
-      {
-        success: false,
-        message: `今天已经生成 ${limits.dailyLimit} 次了，明天再来`,
-        data: null,
-      },
-      { status: 429 },
-    );
+  if (!userId) {
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const { count: guestCreateCount } = await db
+      .from("tool_video_render_jobs")
+      .select("id", { count: "exact", head: true })
+      .eq("client_key_hash", clientKeyHash)
+      .is("user_id", null)
+      .gte("created_at", since);
+    if ((guestCreateCount || 0) >= 3) {
+      return NextResponse.json<ApiData<null>>(
+        {
+          success: false,
+          message: "当前设备今天创建的未注册任务过多，请登录后继续",
+          data: null,
+        },
+        { status: 429 },
+      );
+    }
   }
 
   const jobId = randomUUID();
-  const queue = getMotionEffectQueueConfig();
-  const inputPath = buildMotionEffectInputPath({ userId, jobId, filename: originalFilename });
-  const outputPath = buildMotionEffectOutputPath({ userId, jobId });
+  const exportQuality = normalizeExportQuality(body.exportQuality);
+  const queueTier = normalizeQueueTier(body.queueTier);
+  const bgmKey = body.bgmKey === "original" ? "original" : "original";
+  const queue = getMotionEffectQueueConfig(queueTier);
+  const storageOwner = userId || `guest-${clientKeyHash.slice(0, 18)}`;
+  const inputPath = buildMotionEffectInputPath({
+    userId: storageOwner,
+    jobId,
+    filename: originalFilename,
+  });
+  const outputPath = buildMotionEffectOutputPath({ userId: storageOwner, jobId });
   const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
   const { data: signed, error: signedError } = await db.storage
     .from(MOTION_EFFECTS_BUCKET)
@@ -144,6 +205,8 @@ export async function POST(req: Request) {
     .insert({
       id: jobId,
       user_id: userId,
+      owner_token_hash: ownerTokenHash,
+      client_key_hash: clientKeyHash,
       effect_type: "finger_membrane",
       effect_version: "v5",
       status: "awaiting_upload",
@@ -157,12 +220,27 @@ export async function POST(req: Request) {
       queue_driver: queue.driver,
       queue_topic: queue.topic,
       queue_consumer_group: queue.consumerGroup,
+      export_quality: exportQuality,
+      queue_tier: queueTier,
+      style_key: styleKey,
+      bgm_key: bgmKey,
+      payment_status: "unpaid",
+      price_cents: 0,
       metadata: {
         content_type: contentType,
         duration_seconds: durationSeconds > 0 ? durationSeconds : null,
         retention_hours: 24,
         watermark: "教链",
         topology: "same_finger_dynamic_closed_prism",
+        export_quality: exportQuality,
+        queue_tier: queueTier,
+        style_key: styleKey,
+        bgm_key: bgmKey,
+        motion_speed: motionSpeed,
+        glow_strength: glowStrength,
+        surface_density: surfaceDensity,
+        resource_notice:
+          "视频导出会占用服务器计算、临时存储和下载带宽；预览免费，下载按所选规格计费。",
       },
       expires_at: expiresAt,
     })
@@ -189,6 +267,10 @@ export async function POST(req: Request) {
         expiresAt,
       },
       limits,
+      ownerToken: ownerToken || undefined,
+      signedIn: Boolean(userId),
+      signupFreeAvailable: userId ? await hasSignupFreeExport(userId) : false,
+      prices: getMotionEffectPrices(),
     },
   });
 }

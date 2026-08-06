@@ -9,6 +9,13 @@ import { useToastContext } from "@/context/ToastContext";
 import knowledgeService from "@/app/service/knowledgeService";
 import { KnowledgeBookRow } from "@/types";
 import { KnowledgeBookCollection, getKnowledgeBookSource, groupKnowledgeBooks } from "@/lib/knowledgeBooks";
+import KnowledgeMindMap from "@/components/knowledge/KnowledgeMindMap";
+import BookDiscussion from "@/components/knowledge/BookDiscussion";
+import type {
+    KnowledgeBookCitation,
+    KnowledgeBookMindMap,
+    KnowledgeBookReadingGuide,
+} from "@/content/knowledgeBooks/schema";
 
 let DOMPurify: any;
 let MarkdownIt: any;
@@ -42,6 +49,11 @@ type StructuredBookContent = {
     markdown?: string;
     html?: string;
     imagePrompts?: BookImagePrompt[];
+    mindMap?: KnowledgeBookMindMap;
+    readingGuide?: KnowledgeBookReadingGuide;
+    keyTakeaways?: string[];
+    discussionPrompts?: string[];
+    citations?: KnowledgeBookCitation[];
     source?: {
         title?: string;
         authors?: string[];
@@ -52,6 +64,31 @@ type StructuredBookContent = {
         chapterOrder?: number;
         chapterTitle?: string;
     };
+};
+
+function normalizeStructuredExtras(structured: StructuredBookContent) {
+    const mindMap = structured.mindMap?.data?.length ? structured.mindMap : null;
+    return {
+        mindMap,
+        readingGuide: structured.readingGuide || null,
+        keyTakeaways: Array.isArray(structured.keyTakeaways)
+            ? structured.keyTakeaways.filter((item) => typeof item === "string" && item.trim())
+            : [],
+        discussionPrompts: Array.isArray(structured.discussionPrompts)
+            ? structured.discussionPrompts.filter((item) => typeof item === "string" && item.trim())
+            : [],
+        citations: Array.isArray(structured.citations)
+            ? structured.citations.filter((item) => item && item.title)
+            : [],
+    };
+}
+
+const EMPTY_STRUCTURED_EXTRAS = {
+    mindMap: null,
+    readingGuide: null,
+    keyTakeaways: [] as string[],
+    discussionPrompts: [] as string[],
+    citations: [] as KnowledgeBookCitation[],
 };
 
 function sanitizeHtml(html: string) {
@@ -73,7 +110,7 @@ function normalizeBookContent(content: KnowledgeBookRow["content"]) {
 
     if (typeof content === "string") {
         if (!content.trim()) {
-            return { html: fallbackHtml, prompts: [] as BookImagePrompt[], disclaimer: "", source: null as StructuredBookContent["source"] | null };
+            return { html: fallbackHtml, prompts: [] as BookImagePrompt[], disclaimer: "", source: null as StructuredBookContent["source"] | null, ...EMPTY_STRUCTURED_EXTRAS };
         }
 
         const rendered = markdownRenderer?.render(content) || `<p>${escapeHtml(content)}</p>`;
@@ -82,6 +119,7 @@ function normalizeBookContent(content: KnowledgeBookRow["content"]) {
             prompts: [] as BookImagePrompt[],
             disclaimer: "",
             source: null as StructuredBookContent["source"] | null,
+            ...EMPTY_STRUCTURED_EXTRAS,
         };
     }
 
@@ -92,6 +130,7 @@ function normalizeBookContent(content: KnowledgeBookRow["content"]) {
         const promptList = Array.isArray(structured.imagePrompts)
             ? structured.imagePrompts.filter((item) => item && (item.title || item.prompt))
             : [];
+        const extras = normalizeStructuredExtras(structured);
 
         if (markdown) {
             return {
@@ -99,6 +138,7 @@ function normalizeBookContent(content: KnowledgeBookRow["content"]) {
                 prompts: promptList,
                 disclaimer: structured.disclaimer || "",
                 source: structured.source || null,
+                ...extras,
             };
         }
 
@@ -108,6 +148,7 @@ function normalizeBookContent(content: KnowledgeBookRow["content"]) {
                 prompts: promptList,
                 disclaimer: structured.disclaimer || "",
                 source: structured.source || null,
+                ...extras,
             };
         }
 
@@ -116,10 +157,11 @@ function normalizeBookContent(content: KnowledgeBookRow["content"]) {
             prompts: promptList,
             disclaimer: structured.disclaimer || "",
             source: structured.source || null,
+            ...extras,
         };
     }
 
-    return { html: fallbackHtml, prompts: [] as BookImagePrompt[], disclaimer: "", source: null as StructuredBookContent["source"] | null };
+    return { html: fallbackHtml, prompts: [] as BookImagePrompt[], disclaimer: "", source: null as StructuredBookContent["source"] | null, ...EMPTY_STRUCTURED_EXTRAS };
 }
 
 const BookDetailPage = () => {
@@ -148,19 +190,11 @@ const BookDetailPage = () => {
                 setHasAccess(result.hasAccess);
                 const currentSource = getKnowledgeBookSource(result.book.content);
 
-                if (currentSource?.collectionSlug) {
-                    const listResult = await knowledgeService.listKnowledgeBooks({
-                        is_published: true,
-                    });
-
-                    if (listResult?.books?.length) {
-                        const collection = groupKnowledgeBooks(listResult.books).find(
-                            (candidate) => candidate.slug === currentSource.collectionSlug
-                        ) || null;
-                        setBookCollection(collection);
-                    } else {
-                        setBookCollection(null);
-                    }
+                if (currentSource?.collectionSlug && result.collectionBooks?.length) {
+                    const collection = groupKnowledgeBooks(result.collectionBooks).find(
+                        (candidate) => candidate.slug === currentSource.collectionSlug
+                    ) || null;
+                    setBookCollection(collection);
                 } else {
                     setBookCollection(null);
                 }
@@ -355,6 +389,79 @@ const BookDetailPage = () => {
                         </Card>
                     )}
 
+                    {normalizedContent.readingGuide && (
+                        <Card className="border-round-xl">
+                            <div className="flex flex-column gap-3">
+                                <div className="flex flex-wrap align-items-center gap-2">
+                                    <h2 className="m-0 text-xl font-semibold text-surface-900 dark:text-surface-0">
+                                        阅读导航
+                                    </h2>
+                                    {normalizedContent.readingGuide.estimatedMinutes && (
+                                        <span className="px-3 py-1 text-xs font-semibold rounded-full bg-surface-100 dark:bg-surface-700 text-surface-600 dark:text-surface-200">
+                                            约 {normalizedContent.readingGuide.estimatedMinutes} 分钟
+                                        </span>
+                                    )}
+                                </div>
+                                {normalizedContent.readingGuide.suitableFor?.length ? (
+                                    <div>
+                                        <h3 className="m-0 mb-2 text-sm font-semibold text-surface-700 dark:text-surface-200">适合谁读</h3>
+                                        <div className="flex flex-wrap gap-2">
+                                            {normalizedContent.readingGuide.suitableFor.map((item) => (
+                                                <span key={item} className="px-3 py-1 text-xs rounded-full bg-primary-50 dark:bg-primary-900/30 text-primary-700 dark:text-primary-200">
+                                                    {item}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ) : null}
+                                {normalizedContent.readingGuide.goals?.length ? (
+                                    <div>
+                                        <h3 className="m-0 mb-2 text-sm font-semibold text-surface-700 dark:text-surface-200">读完应带走什么</h3>
+                                        <ul className="m-0 pl-4 text-sm line-height-3 text-surface-600 dark:text-surface-300">
+                                            {normalizedContent.readingGuide.goals.map((item) => <li key={item}>{item}</li>)}
+                                        </ul>
+                                    </div>
+                                ) : null}
+                            </div>
+                        </Card>
+                    )}
+
+                    {normalizedContent.keyTakeaways.length > 0 && (
+                        <Card className="border-round-xl">
+                            <h2 className="text-xl font-semibold text-surface-900 dark:text-surface-0 mt-0 mb-3">
+                                本页要点
+                            </h2>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                {normalizedContent.keyTakeaways.map((item, index) => (
+                                    <div key={`${item}-${index}`} className="flex gap-3 p-3 border-1 border-surface-200 dark:border-surface-700 border-round-lg bg-surface-50 dark:bg-surface-800">
+                                        <span className="inline-flex align-items-center justify-content-center flex-shrink-0 w-2rem h-2rem border-round bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-200 font-semibold">
+                                            {index + 1}
+                                        </span>
+                                        <span className="text-sm line-height-3 text-surface-700 dark:text-surface-200">{item}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </Card>
+                    )}
+
+                    {normalizedContent.mindMap && (
+                        <Card className="border-round-xl">
+                            <h2 className="text-xl font-semibold text-surface-900 dark:text-surface-0 mt-0 mb-2">
+                                {normalizedContent.mindMap.title || "思维导图"}
+                            </h2>
+                            {normalizedContent.mindMap.description && (
+                                <p className="mt-0 mb-4 text-sm line-height-3 text-surface-600 dark:text-surface-300">
+                                    {normalizedContent.mindMap.description}
+                                </p>
+                            )}
+                            <KnowledgeMindMap
+                                data={normalizedContent.mindMap.data}
+                                readOnly
+                                height={520}
+                            />
+                        </Card>
+                    )}
+
                     <Card className="border-round-xl">
                     <h2 className="text-xl font-semibold text-surface-900 dark:text-surface-0 mb-4">
                         内容详情
@@ -411,40 +518,58 @@ const BookDetailPage = () => {
                         </Card>
                     )}
 
-                    {normalizedContent.prompts.length > 0 && (
+                    {normalizedContent.discussionPrompts.length > 0 && (
                         <Card className="border-round-xl">
                             <h2 className="text-xl font-semibold text-surface-900 dark:text-surface-0 mb-2">
-                                配图提示词
+                                带着问题讨论
                             </h2>
                             <p className="text-sm text-surface-600 dark:text-surface-300 mt-0 mb-4">
-                                以下提示词可直接交给 AI 画图工具，用来生成文章配图或信息图。
+                                可以先选一个问题写下自己的训练经历，再进入评论区和其他读者交流。
                             </p>
+                            <ol className="m-0 pl-4 flex flex-column gap-3">
+                                {normalizedContent.discussionPrompts.map((item, index) => (
+                                    <li key={`${item}-${index}`} className="pl-2 text-sm line-height-3 text-surface-700 dark:text-surface-200">
+                                        {item}
+                                    </li>
+                                ))}
+                            </ol>
+                        </Card>
+                    )}
+
+                    {normalizedContent.citations.length > 0 && (
+                        <Card className="border-round-xl">
+                            <h2 className="text-xl font-semibold text-surface-900 dark:text-surface-0 mb-3">
+                                来源与版本
+                            </h2>
                             <div className="flex flex-column gap-3">
-                                {normalizedContent.prompts.map((item, index) => (
+                                {normalizedContent.citations.map((item, index) => (
                                     <div
-                                        key={`${item.title || "prompt"}-${index}`}
+                                        key={`${item.title}-${index}`}
                                         className="p-3 border-1 border-surface-200 dark:border-surface-700 border-round-lg bg-surface-50 dark:bg-surface-800"
                                     >
-                                        <div className="flex flex-column gap-2">
-                                            <div>
-                                                <h3 className="m-0 text-base font-semibold text-surface-900 dark:text-surface-0">
-                                                    {item.title || `配图提示词 ${index + 1}`}
-                                                </h3>
-                                                {item.intent && (
-                                                    <p className="m-0 mt-1 text-xs text-surface-500 dark:text-surface-400">
-                                                        用途：{item.intent}
-                                                    </p>
-                                                )}
-                                            </div>
-                                            <div className="text-sm line-height-3 text-surface-700 dark:text-surface-200 whitespace-pre-wrap">
-                                                {item.prompt || "暂无提示词"}
-                                            </div>
-                                        </div>
+                                        <h3 className="m-0 text-sm font-semibold text-surface-900 dark:text-surface-0">
+                                            {item.url ? (
+                                                <a href={item.url} target="_blank" rel="noreferrer" className="text-primary-600 hover:underline">
+                                                    {item.title}
+                                                </a>
+                                            ) : item.title}
+                                        </h3>
+                                        {item.note && <p className="m-0 mt-2 text-sm text-surface-600 dark:text-surface-300">{item.note}</p>}
+                                        {(item.license || item.accessedAt) && (
+                                            <p className="m-0 mt-2 text-xs text-surface-500 dark:text-surface-400">
+                                                {[item.license, item.accessedAt ? `访问于 ${item.accessedAt}` : ""].filter(Boolean).join(" · ")}
+                                            </p>
+                                        )}
                                     </div>
                                 ))}
                             </div>
                         </Card>
                     )}
+
+                    <BookDiscussion
+                        bookId={book.id}
+                        prompts={normalizedContent.discussionPrompts}
+                    />
                 </div>
             ) : (
                 <Card className="border-round-xl text-center p-6">

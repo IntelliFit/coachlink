@@ -14,8 +14,8 @@ interface ArticleListItem {
   coachAvatarUrl: string | null
   title: string
   summary: string
-  canView: boolean
   free: boolean
+  featured: boolean
   publishedAt: string | null
 }
 
@@ -42,23 +42,20 @@ export default function ArticlesPage() {
   const loadArticles = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await knowledgeService.listCoachContents({ limit: 30, offset: 0 })
+      const res = await knowledgeService.listPublicArticles({ limit: 30, offset: 0 })
       const list = Array.isArray(res?.items) ? res.items : []
       const mapped: ArticleListItem[] = list
         .map((item: any) => {
-          const content = item?.content || {}
-          const rawText = typeof content.content === 'string' ? content.content : ''
-          const summary = stripHtml(rawText).slice(0, 96)
           return {
-            id: String(content.id || ''),
-            coachId: String(item?.coach?.id || ''),
-            coachName: String(item?.coach?.name || '教练'),
-            coachAvatarUrl: item?.coach?.avatar_url || null,
-            title: String(content.title || '未命名内容'),
-            summary: summary || '点击查看详情',
-            canView: !!item?.canView,
-            free: !content.price_cents && !content.required_tier,
-            publishedAt: content.created_at || ''
+            id: String(item?.id || ''),
+            coachId: String(item?.coachId || ''),
+            coachName: String(item?.coachName || '教练'),
+            coachAvatarUrl: item?.coachAvatarUrl || null,
+            title: String(item?.title || '未命名内容'),
+            summary: stripHtml(String(item?.summary || '')).slice(0, 96) || '点击查看详情',
+            free: !item?.priceCents && !item?.requiredTier,
+            featured: !!item?.featured,
+            publishedAt: item?.publishedAt || ''
           }
         })
         .filter((item) => !!item.id)
@@ -91,8 +88,8 @@ export default function ArticlesPage() {
   return (
     <View className={`articles-page theme-${effectiveTheme}`}>
       <View className='articles-header'>
-        <Text className='articles-page-title'>教练专栏</Text>
-        <Text className='articles-page-sub'>精选教练文章，持续输出训练认知</Text>
+        <Text className='articles-page-title'>精选好文</Text>
+        <Text className='articles-page-sub'>平台编辑与教练发布的训练内容</Text>
         <Text className='articles-total'>共 {articles.length} 篇</Text>
       </View>
 
@@ -135,10 +132,10 @@ export default function ArticlesPage() {
                   <Text className='article-coach-name'>{article.coachName}</Text>
                 </View>
                 <View className='article-card-top-right'>
-                  {!article.canView ? (
+                  {!article.free ? (
                     <View className='article-badge article-badge-locked'>
                       <Lock size={12} color='#99a2b3' style={{ marginRight: '4rpx' }} />
-                      <Text>需订阅</Text>
+                      <Text>订阅内容</Text>
                     </View>
                   ) : article.free ? (
                     <View className='article-badge article-badge-free'>

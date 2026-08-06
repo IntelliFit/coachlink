@@ -1,0 +1,498 @@
+{
+  "format": "book-note-v4-classic-deep-read",
+  "noteStyle": "interpretive-reading-note",
+  "disclaimer": "本页为 CoachLink 原创导读与知识地图，不复制原书正文、插图、表格或完整训练模板，也不替代购买和阅读正版原书。",
+  "source": {
+    "title": "核心发展训练：理论要点、动作练习与专项运动训练计划",
+    "authors": [
+      "NSCA",
+      "Jeffrey M. Willardson"
+    ],
+    "originalFilePath": "local-library://nsca-core-development",
+    "copyrightMode": "interpretive-notes-only",
+    "collectionSlug": "nsca-core-development",
+    "collectionTitle": "《核心发展训练：理论要点、动作练习与专项运动训练计划》原创深读笔记"
+  },
+  "notes": [
+    {
+      "slug": "overview",
+      "file": "notes/00-overview.md",
+      "noteType": "overview",
+      "chapterOrder": 0,
+      "chapterTitle": "深读入口",
+      "title": "《核心发展训练：理论要点、动作练习与专项运动训练计划》深读入口：先建立全书地图，再决定怎么用",
+      "summary": "从核心区域功能、稳定与传力、动作类别、负荷进阶和专项需求等层面重新理解核心训练，不把它简化为腹肌训练。",
+      "sortOrder": 3130,
+      "author": "NSCA、Jeffrey M. Willardson",
+      "isFree": true,
+      "isPublished": true,
+      "mindMap": {
+        "title": "《核心发展训练：理论要点、动作练习与专项运动训练计划》全书知识地图",
+        "description": "这是 CoachLink 根据书籍主题绘制的原创导航图，不复制原书插图或版式。",
+        "data": [
+          {
+            "id": "root",
+            "title": "核心发展训练：理论要点、动作练习与专项运动训练计划",
+            "node_type": "domain",
+            "children": [
+              {
+                "id": "question",
+                "title": "核心问题",
+                "description": "核心训练如何服务于姿势控制、力量传递和专项动作，而不是只追求局部疲劳或高难度表演？",
+                "node_type": "category"
+              },
+              {
+                "id": "framework-1",
+                "title": "核心区域的结构与功能",
+                "node_type": "category"
+              },
+              {
+                "id": "framework-2",
+                "title": "抗伸展、抗旋转与力量传递",
+                "node_type": "category"
+              },
+              {
+                "id": "framework-3",
+                "title": "动作选择和负荷进阶",
+                "node_type": "category"
+              },
+              {
+                "id": "framework-4",
+                "title": "专项整合与计划安排",
+                "node_type": "category"
+              },
+              {
+                "id": "boundary",
+                "title": "应用边界",
+                "description": "核心训练不能包治腰痛或替代完整力量训练；持续疼痛、麻木和功能下降需要医疗评估。",
+                "node_type": "category"
+              }
+            ]
+          }
+        ]
+      },
+      "readingGuide": {
+        "estimatedMinutes": 8,
+        "suitableFor": [
+          "关注核心训练的训练者",
+          "教练与知识库编辑",
+          "准备精读正版原书的读者"
+        ],
+        "goals": [
+          "掌握全书核心问题",
+          "看懂主题之间的关系",
+          "明确应用边界与复盘方法"
+        ],
+        "prerequisites": [
+          "本页不替代原书，也不提供原文件下载"
+        ]
+      },
+      "keyTakeaways": [
+        "核心区域的结构与功能",
+        "抗伸展、抗旋转与力量传递",
+        "动作选择和负荷进阶",
+        "专项整合与计划安排"
+      ],
+      "discussionPrompts": [
+        "这本书最可能改变你当前的哪一个训练决策？",
+        "哪一个观点高度依赖作者的目标人群或训练环境？",
+        "你会用什么训练数据判断它对自己是否有效？"
+      ],
+      "citations": [
+        {
+          "title": "书目：核心发展训练：理论要点、动作练习与专项运动训练计划",
+          "note": "基于本地书目盘点建立原创导读；原始电子文件仅供内部研究，不上传、不公开下载。正式引用前应继续核对正版书的作者、版次、出版社与页码。",
+          "license": "interpretive-notes-only"
+        }
+      ]
+    },
+    {
+      "slug": "topic-01",
+      "file": "notes/01-topic.md",
+      "noteType": "chapter",
+      "chapterOrder": 1,
+      "chapterTitle": "核心区域的结构与功能",
+      "title": "《核心发展训练：理论要点、动作练习与专项运动训练计划》主题深读 1：核心区域的结构与功能",
+      "summary": "核心并非单独的一块腹肌，而是躯干、骨盆与髋周结构共同调节姿势、呼吸和负荷传递的功能区域。其作用会随任务变化，有时需要保持刚度，有时需要产生或允许受控运动。 本页进一步给出教练决策、反馈记录、微实验和应用边界。",
+      "sortOrder": 3131,
+      "author": "NSCA、Jeffrey M. Willardson",
+      "isFree": true,
+      "isPublished": true,
+      "mindMap": {
+        "title": "《核心发展训练：理论要点、动作练习与专项运动训练计划》主题 1 · 核心区域的结构与功能",
+        "description": "CoachLink 原创主题知识地图：概念、决策、验证、误区和边界放在同一张图里。",
+        "data": [
+          {
+            "id": "root",
+            "title": "核心区域的结构与功能",
+            "node_type": "domain",
+            "children": [
+              {
+                "id": "concept",
+                "title": "核心概念",
+                "description": "核心并非单独的一块腹肌，而是躯干、骨盆与髋周结构共同调节姿势、呼吸和负荷传递的功能区域。其作用会随任务变化，有时需要保持刚度，有时需要产生或允许受控运动。",
+                "node_type": "category"
+              },
+              {
+                "id": "decision",
+                "title": "教练决策",
+                "description": "教练应先明确目标动作要求躯干稳定、旋转、屈伸还是力量传递，再决定训练形式。评估时应观察呼吸、骨盆与胸廓控制以及四肢动作对躯干的干扰，而非只看局部肌肉外观。",
+                "node_type": "category"
+              },
+              {
+                "id": "practice",
+                "title": "最小实践",
+                "description": "先按动作功能分类而不是按器械分类",
+                "node_type": "category"
+              },
+              {
+                "id": "feedback",
+                "title": "记录与复盘",
+                "description": "先留基线，一次只改一个关键变量，再用结果和恢复信号判断。",
+                "node_type": "category"
+              },
+              {
+                "id": "pitfall",
+                "title": "常见误用",
+                "description": "把核心能力等同于腹肌耐力或持续收紧，会忽略呼吸、髋部参与和动态任务中的协调需求。",
+                "node_type": "category"
+              },
+              {
+                "id": "boundary",
+                "title": "应用边界",
+                "description": "核心训练不能包治腰痛或替代完整力量训练；持续疼痛、麻木和功能下降需要医疗评估。",
+                "node_type": "category"
+              }
+            ]
+          }
+        ]
+      },
+      "readingGuide": {
+        "estimatedMinutes": 10,
+        "suitableFor": [
+          "正在学习核心训练的训练者",
+          "需要把理论转成计划的教练",
+          "愿意记录并复盘的读者"
+        ],
+        "goals": [
+          "说清核心概念",
+          "形成可执行决策",
+          "设计一次可验证的小实验"
+        ],
+        "prerequisites": [
+          "先阅读全书深读入口",
+          "本页不替代正版原书或专业诊疗"
+        ]
+      },
+      "keyTakeaways": [
+        "核心区域的结构与功能",
+        "先按动作功能分类而不是按器械分类",
+        "一次只改变少量关键变量，并提前定义反馈信号",
+        "把核心能力等同于腹肌耐力或持续收紧，会忽略呼吸、髋部参与和动态任务中的协调需求。"
+      ],
+      "discussionPrompts": [
+        "你当前最接近这个主题的真实问题是什么？",
+        "你会保留哪个变量不变，才看得出干预是否有效？",
+        "如果结果与书中框架不一致，你先检查数据、执行还是原始假设？"
+      ],
+      "citations": [
+        {
+          "title": "书目：核心发展训练：理论要点、动作练习与专项运动训练计划",
+          "note": "本页为 CoachLink 原创解释性笔记；不复制原书正文、插图、表格或完整处方。正式学术或专业引用请回到正版书核对作者、版次、出版社和页码。",
+          "license": "interpretive-notes-only"
+        }
+      ]
+    },
+    {
+      "slug": "topic-02",
+      "file": "notes/02-topic.md",
+      "noteType": "chapter",
+      "chapterOrder": 2,
+      "chapterTitle": "抗伸展、抗旋转与力量传递",
+      "title": "《核心发展训练：理论要点、动作练习与专项运动训练计划》主题深读 2：抗伸展、抗旋转与力量传递",
+      "summary": "抗伸展和抗旋转训练要求躯干在外力作用下维持可控位置，而力量传递强调上下肢通过躯干协同输出。真正目标不是让身体绝对不动，而是减少不必要运动并允许任务所需的动作发生。 本页进一步给出教练决策、反馈记录、微实验和应用边界。",
+      "sortOrder": 3132,
+      "author": "NSCA、Jeffrey M. Willardson",
+      "isFree": true,
+      "isPublished": true,
+      "mindMap": {
+        "title": "《核心发展训练：理论要点、动作练习与专项运动训练计划》主题 2 · 抗伸展、抗旋转与力量传递",
+        "description": "CoachLink 原创主题知识地图：概念、决策、验证、误区和边界放在同一张图里。",
+        "data": [
+          {
+            "id": "root",
+            "title": "抗伸展、抗旋转与力量传递",
+            "node_type": "domain",
+            "children": [
+              {
+                "id": "concept",
+                "title": "核心概念",
+                "description": "抗伸展和抗旋转训练要求躯干在外力作用下维持可控位置，而力量传递强调上下肢通过躯干协同输出。真正目标不是让身体绝对不动，而是减少不必要运动并允许任务所需的动作发生。",
+                "node_type": "category"
+              },
+              {
+                "id": "decision",
+                "title": "教练决策",
+                "description": "教练应根据运动中外力的方向与速度选择姿势，并从稳定支撑逐步过渡到单侧、移动和高速情境。若四肢力量增加后躯干位置立即丢失，应先降低杠杆或负荷，恢复高质量传递。",
+                "node_type": "category"
+              },
+              {
+                "id": "practice",
+                "title": "最小实践",
+                "description": "从稳定控制进阶到动态传力",
+                "node_type": "category"
+              },
+              {
+                "id": "feedback",
+                "title": "记录与复盘",
+                "description": "先留基线，一次只改一个关键变量，再用结果和恢复信号判断。",
+                "node_type": "category"
+              },
+              {
+                "id": "pitfall",
+                "title": "常见误用",
+                "description": "追求完全僵硬或无限增加不稳定性，可能削弱自然呼吸与专项动作需要的可调节刚度。",
+                "node_type": "category"
+              },
+              {
+                "id": "boundary",
+                "title": "应用边界",
+                "description": "核心训练不能包治腰痛或替代完整力量训练；持续疼痛、麻木和功能下降需要医疗评估。",
+                "node_type": "category"
+              }
+            ]
+          }
+        ]
+      },
+      "readingGuide": {
+        "estimatedMinutes": 10,
+        "suitableFor": [
+          "正在学习核心训练的训练者",
+          "需要把理论转成计划的教练",
+          "愿意记录并复盘的读者"
+        ],
+        "goals": [
+          "说清核心概念",
+          "形成可执行决策",
+          "设计一次可验证的小实验"
+        ],
+        "prerequisites": [
+          "先阅读全书深读入口",
+          "本页不替代正版原书或专业诊疗"
+        ]
+      },
+      "keyTakeaways": [
+        "抗伸展、抗旋转与力量传递",
+        "从稳定控制进阶到动态传力",
+        "一次只改变少量关键变量，并提前定义反馈信号",
+        "追求完全僵硬或无限增加不稳定性，可能削弱自然呼吸与专项动作需要的可调节刚度。"
+      ],
+      "discussionPrompts": [
+        "你当前最接近这个主题的真实问题是什么？",
+        "你会保留哪个变量不变，才看得出干预是否有效？",
+        "如果结果与书中框架不一致，你先检查数据、执行还是原始假设？"
+      ],
+      "citations": [
+        {
+          "title": "书目：核心发展训练：理论要点、动作练习与专项运动训练计划",
+          "note": "本页为 CoachLink 原创解释性笔记；不复制原书正文、插图、表格或完整处方。正式学术或专业引用请回到正版书核对作者、版次、出版社和页码。",
+          "license": "interpretive-notes-only"
+        }
+      ]
+    },
+    {
+      "slug": "topic-03",
+      "file": "notes/03-topic.md",
+      "noteType": "chapter",
+      "chapterOrder": 3,
+      "chapterTitle": "动作选择和负荷进阶",
+      "title": "《核心发展训练：理论要点、动作练习与专项运动训练计划》主题深读 3：动作选择和负荷进阶",
+      "summary": "核心动作可通过支撑面、杠杆长度、外力方向、负荷和运动速度调节难度。合理进阶应增加与目标相关的挑战，同时保持呼吸、脊柱控制和预定动作范围。 本页进一步给出教练决策、反馈记录、微实验和应用边界。",
+      "sortOrder": 3133,
+      "author": "NSCA、Jeffrey M. Willardson",
+      "isFree": true,
+      "isPublished": true,
+      "mindMap": {
+        "title": "《核心发展训练：理论要点、动作练习与专项运动训练计划》主题 3 · 动作选择和负荷进阶",
+        "description": "CoachLink 原创主题知识地图：概念、决策、验证、误区和边界放在同一张图里。",
+        "data": [
+          {
+            "id": "root",
+            "title": "动作选择和负荷进阶",
+            "node_type": "domain",
+            "children": [
+              {
+                "id": "concept",
+                "title": "核心概念",
+                "description": "核心动作可通过支撑面、杠杆长度、外力方向、负荷和运动速度调节难度。合理进阶应增加与目标相关的挑战，同时保持呼吸、脊柱控制和预定动作范围。",
+                "node_type": "category"
+              },
+              {
+                "id": "decision",
+                "title": "教练决策",
+                "description": "教练应从训练者能无痛控制的版本起步，每次主要改变一个难度因素，以便判断适应来源。进阶依据应是姿势稳定、呼吸连续和目标时间或重复质量，而不是动作看起来更炫。",
+                "node_type": "category"
+              },
+              {
+                "id": "practice",
+                "title": "最小实践",
+                "description": "把核心动作放回完整训练和专项任务中评价",
+                "node_type": "category"
+              },
+              {
+                "id": "feedback",
+                "title": "记录与复盘",
+                "description": "先留基线，一次只改一个关键变量，再用结果和恢复信号判断。",
+                "node_type": "category"
+              },
+              {
+                "id": "pitfall",
+                "title": "常见误用",
+                "description": "直接选择高难度悬吊或不稳定动作，可能让握力和全身挣扎成为限制因素，反而无法训练预定核心功能。",
+                "node_type": "category"
+              },
+              {
+                "id": "boundary",
+                "title": "应用边界",
+                "description": "核心训练不能包治腰痛或替代完整力量训练；持续疼痛、麻木和功能下降需要医疗评估。",
+                "node_type": "category"
+              }
+            ]
+          }
+        ]
+      },
+      "readingGuide": {
+        "estimatedMinutes": 10,
+        "suitableFor": [
+          "正在学习核心训练的训练者",
+          "需要把理论转成计划的教练",
+          "愿意记录并复盘的读者"
+        ],
+        "goals": [
+          "说清核心概念",
+          "形成可执行决策",
+          "设计一次可验证的小实验"
+        ],
+        "prerequisites": [
+          "先阅读全书深读入口",
+          "本页不替代正版原书或专业诊疗"
+        ]
+      },
+      "keyTakeaways": [
+        "动作选择和负荷进阶",
+        "把核心动作放回完整训练和专项任务中评价",
+        "一次只改变少量关键变量，并提前定义反馈信号",
+        "直接选择高难度悬吊或不稳定动作，可能让握力和全身挣扎成为限制因素，反而无法训练预定核心功能。"
+      ],
+      "discussionPrompts": [
+        "你当前最接近这个主题的真实问题是什么？",
+        "你会保留哪个变量不变，才看得出干预是否有效？",
+        "如果结果与书中框架不一致，你先检查数据、执行还是原始假设？"
+      ],
+      "citations": [
+        {
+          "title": "书目：核心发展训练：理论要点、动作练习与专项运动训练计划",
+          "note": "本页为 CoachLink 原创解释性笔记；不复制原书正文、插图、表格或完整处方。正式学术或专业引用请回到正版书核对作者、版次、出版社和页码。",
+          "license": "interpretive-notes-only"
+        }
+      ]
+    },
+    {
+      "slug": "topic-04",
+      "file": "notes/04-topic.md",
+      "noteType": "chapter",
+      "chapterOrder": 4,
+      "chapterTitle": "专项整合与计划安排",
+      "title": "《核心发展训练：理论要点、动作练习与专项运动训练计划》主题深读 4：专项整合与计划安排",
+      "summary": "核心训练的转化来自其对主项和专项任务的支持，而不是独立完成大量核心动作。一般控制能力可在基础练习中建立，随后应通过负重、移动和专项速度把能力整合回完整动作。 本页进一步给出教练决策、反馈记录、微实验和应用边界。",
+      "sortOrder": 3134,
+      "author": "NSCA、Jeffrey M. Willardson",
+      "isFree": true,
+      "isPublished": true,
+      "mindMap": {
+        "title": "《核心发展训练：理论要点、动作练习与专项运动训练计划》主题 4 · 专项整合与计划安排",
+        "description": "CoachLink 原创主题知识地图：概念、决策、验证、误区和边界放在同一张图里。",
+        "data": [
+          {
+            "id": "root",
+            "title": "专项整合与计划安排",
+            "node_type": "domain",
+            "children": [
+              {
+                "id": "concept",
+                "title": "核心概念",
+                "description": "核心训练的转化来自其对主项和专项任务的支持，而不是独立完成大量核心动作。一般控制能力可在基础练习中建立，随后应通过负重、移动和专项速度把能力整合回完整动作。",
+                "node_type": "category"
+              },
+              {
+                "id": "decision",
+                "title": "教练决策",
+                "description": "教练应把低疲劳激活动作用于准备阶段，把高负荷核心练习视为正式力量内容并计入恢复。成效应由主项稳定性、力量传递和专项耐受改善验证，而不只依据酸胀程度。",
+                "node_type": "category"
+              },
+              {
+                "id": "practice",
+                "title": "最小实践",
+                "description": "先按动作功能分类而不是按器械分类",
+                "node_type": "category"
+              },
+              {
+                "id": "feedback",
+                "title": "记录与复盘",
+                "description": "先留基线，一次只改一个关键变量，再用结果和恢复信号判断。",
+                "node_type": "category"
+              },
+              {
+                "id": "pitfall",
+                "title": "常见误用",
+                "description": "用核心训练替代下肢、上肢和全身力量训练，会夸大局部练习对完整运动表现的贡献。",
+                "node_type": "category"
+              },
+              {
+                "id": "boundary",
+                "title": "应用边界",
+                "description": "核心训练不能包治腰痛或替代完整力量训练；持续疼痛、麻木和功能下降需要医疗评估。",
+                "node_type": "category"
+              }
+            ]
+          }
+        ]
+      },
+      "readingGuide": {
+        "estimatedMinutes": 10,
+        "suitableFor": [
+          "正在学习核心训练的训练者",
+          "需要把理论转成计划的教练",
+          "愿意记录并复盘的读者"
+        ],
+        "goals": [
+          "说清核心概念",
+          "形成可执行决策",
+          "设计一次可验证的小实验"
+        ],
+        "prerequisites": [
+          "先阅读全书深读入口",
+          "本页不替代正版原书或专业诊疗"
+        ]
+      },
+      "keyTakeaways": [
+        "专项整合与计划安排",
+        "先按动作功能分类而不是按器械分类",
+        "一次只改变少量关键变量，并提前定义反馈信号",
+        "用核心训练替代下肢、上肢和全身力量训练，会夸大局部练习对完整运动表现的贡献。"
+      ],
+      "discussionPrompts": [
+        "你当前最接近这个主题的真实问题是什么？",
+        "你会保留哪个变量不变，才看得出干预是否有效？",
+        "如果结果与书中框架不一致，你先检查数据、执行还是原始假设？"
+      ],
+      "citations": [
+        {
+          "title": "书目：核心发展训练：理论要点、动作练习与专项运动训练计划",
+          "note": "本页为 CoachLink 原创解释性笔记；不复制原书正文、插图、表格或完整处方。正式学术或专业引用请回到正版书核对作者、版次、出版社和页码。",
+          "license": "interpretive-notes-only"
+        }
+      ]
+    }
+  ]
+}

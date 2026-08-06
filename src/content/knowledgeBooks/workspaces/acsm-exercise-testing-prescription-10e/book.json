@@ -1,0 +1,497 @@
+{
+  "format": "book-note-v4-classic-deep-read",
+  "noteStyle": "interpretive-reading-note",
+  "disclaimer": "本页为 CoachLink 原创导读与知识地图，不复制原书正文、插图、表格或完整训练模板，也不替代购买和阅读正版原书。",
+  "source": {
+    "title": "ACSM运动测试与运动处方指南（第10版）",
+    "authors": [
+      "ACSM"
+    ],
+    "originalFilePath": "local-library://acsm-exercise-testing-prescription-10e",
+    "copyrightMode": "interpretive-notes-only",
+    "collectionSlug": "acsm-exercise-testing-prescription-10e",
+    "collectionTitle": "《ACSM运动测试与运动处方指南（第10版）》原创深读笔记"
+  },
+  "notes": [
+    {
+      "slug": "overview",
+      "file": "notes/00-overview.md",
+      "noteType": "overview",
+      "chapterOrder": 0,
+      "chapterTitle": "深读入口",
+      "title": "《ACSM运动测试与运动处方指南（第10版）》深读入口：先建立全书地图，再决定怎么用",
+      "summary": "以健康筛查、风险识别、体适能测试和运动处方原则为主线，帮助训练从经验安排转向有边界的评估与剂量决策。",
+      "sortOrder": 3020,
+      "author": "ACSM",
+      "isFree": true,
+      "isPublished": true,
+      "mindMap": {
+        "title": "《ACSM运动测试与运动处方指南（第10版）》全书知识地图",
+        "description": "这是 CoachLink 根据书籍主题绘制的原创导航图，不复制原书插图或版式。",
+        "data": [
+          {
+            "id": "root",
+            "title": "ACSM运动测试与运动处方指南（第10版）",
+            "node_type": "domain",
+            "children": [
+              {
+                "id": "question",
+                "title": "核心问题",
+                "description": "在开始训练前应该筛查什么、测试什么，又如何把频率、强度、时间和类型组织成可调整的运动剂量？",
+                "node_type": "category"
+              },
+              {
+                "id": "framework-1",
+                "title": "健康筛查与风险分层",
+                "node_type": "category"
+              },
+              {
+                "id": "framework-2",
+                "title": "体适能测试与结果解释",
+                "node_type": "category"
+              },
+              {
+                "id": "framework-3",
+                "title": "FITT-VP运动剂量",
+                "node_type": "category"
+              },
+              {
+                "id": "framework-4",
+                "title": "特殊情况、监测与转介",
+                "node_type": "category"
+              },
+              {
+                "id": "boundary",
+                "title": "应用边界",
+                "description": "运动处方不等于医学诊疗；出现症状、复杂慢病或高风险情况时，应由合格医疗专业人员评估。",
+                "node_type": "category"
+              }
+            ]
+          }
+        ]
+      },
+      "readingGuide": {
+        "estimatedMinutes": 8,
+        "suitableFor": [
+          "关注运动测试与处方的训练者",
+          "教练与知识库编辑",
+          "准备精读正版原书的读者"
+        ],
+        "goals": [
+          "掌握全书核心问题",
+          "看懂主题之间的关系",
+          "明确应用边界与复盘方法"
+        ],
+        "prerequisites": [
+          "本页不替代原书，也不提供原文件下载"
+        ]
+      },
+      "keyTakeaways": [
+        "健康筛查与风险分层",
+        "体适能测试与结果解释",
+        "FITT-VP运动剂量",
+        "特殊情况、监测与转介"
+      ],
+      "discussionPrompts": [
+        "这本书最可能改变你当前的哪一个训练决策？",
+        "哪一个观点高度依赖作者的目标人群或训练环境？",
+        "你会用什么训练数据判断它对自己是否有效？"
+      ],
+      "citations": [
+        {
+          "title": "书目：ACSM运动测试与运动处方指南（第10版）",
+          "note": "基于本地书目盘点建立原创导读；原始电子文件仅供内部研究，不上传、不公开下载。正式引用前应继续核对正版书的作者、版次、出版社与页码。",
+          "license": "interpretive-notes-only"
+        }
+      ]
+    },
+    {
+      "slug": "topic-01",
+      "file": "notes/01-topic.md",
+      "noteType": "chapter",
+      "chapterOrder": 1,
+      "chapterTitle": "健康筛查与风险分层",
+      "title": "《ACSM运动测试与运动处方指南（第10版）》主题深读 1：健康筛查与风险分层",
+      "summary": "运动前筛查用于识别已知疾病、当前症状、既往活动水平与计划强度之间的风险关系。它的目的不是给健康贴标签，而是决定能否直接开始、是否需要降低起点或先获得医疗评估。 本页进一步给出教练决策、反馈记录、微实验和应用边界。",
+      "sortOrder": 3021,
+      "author": "ACSM",
+      "isFree": true,
+      "isPublished": true,
+      "mindMap": {
+        "title": "《ACSM运动测试与运动处方指南（第10版）》主题 1 · 健康筛查与风险分层",
+        "description": "CoachLink 原创主题知识地图：概念、决策、验证、误区和边界放在同一张图里。",
+        "data": [
+          {
+            "id": "root",
+            "title": "健康筛查与风险分层",
+            "node_type": "domain",
+            "children": [
+              {
+                "id": "concept",
+                "title": "核心概念",
+                "description": "运动前筛查用于识别已知疾病、当前症状、既往活动水平与计划强度之间的风险关系。它的目的不是给健康贴标签，而是决定能否直接开始、是否需要降低起点或先获得医疗评估。",
+                "node_type": "category"
+              },
+              {
+                "id": "decision",
+                "title": "教练决策",
+                "description": "教练应使用一致的问询流程记录警讯、用药和近期健康变化，并明确哪些答案触发暂停或转介。通过筛查者也应从与其现有能力相称的剂量开始，因为低风险并不等于没有风险。",
+                "node_type": "category"
+              },
+              {
+                "id": "practice",
+                "title": "最小实践",
+                "description": "把禁忌、警讯和转介条件写进教练流程",
+                "node_type": "category"
+              },
+              {
+                "id": "feedback",
+                "title": "记录与复盘",
+                "description": "先留基线，一次只改一个关键变量，再用结果和恢复信号判断。",
+                "node_type": "category"
+              },
+              {
+                "id": "pitfall",
+                "title": "常见误用",
+                "description": "把问卷通过当作永久许可，会漏掉训练过程中出现的新症状和健康状态变化。",
+                "node_type": "category"
+              },
+              {
+                "id": "boundary",
+                "title": "应用边界",
+                "description": "运动处方不等于医学诊疗；出现症状、复杂慢病或高风险情况时，应由合格医疗专业人员评估。",
+                "node_type": "category"
+              }
+            ]
+          }
+        ]
+      },
+      "readingGuide": {
+        "estimatedMinutes": 10,
+        "suitableFor": [
+          "正在学习运动测试与处方的训练者",
+          "需要把理论转成计划的教练",
+          "愿意记录并复盘的读者"
+        ],
+        "goals": [
+          "说清核心概念",
+          "形成可执行决策",
+          "设计一次可验证的小实验"
+        ],
+        "prerequisites": [
+          "先阅读全书深读入口",
+          "本页不替代正版原书或专业诊疗"
+        ]
+      },
+      "keyTakeaways": [
+        "健康筛查与风险分层",
+        "把禁忌、警讯和转介条件写进教练流程",
+        "一次只改变少量关键变量，并提前定义反馈信号",
+        "把问卷通过当作永久许可，会漏掉训练过程中出现的新症状和健康状态变化。"
+      ],
+      "discussionPrompts": [
+        "你当前最接近这个主题的真实问题是什么？",
+        "你会保留哪个变量不变，才看得出干预是否有效？",
+        "如果结果与书中框架不一致，你先检查数据、执行还是原始假设？"
+      ],
+      "citations": [
+        {
+          "title": "书目：ACSM运动测试与运动处方指南（第10版）",
+          "note": "本页为 CoachLink 原创解释性笔记；不复制原书正文、插图、表格或完整处方。正式学术或专业引用请回到正版书核对作者、版次、出版社和页码。",
+          "license": "interpretive-notes-only"
+        }
+      ]
+    },
+    {
+      "slug": "topic-02",
+      "file": "notes/02-topic.md",
+      "noteType": "chapter",
+      "chapterOrder": 2,
+      "chapterTitle": "体适能测试与结果解释",
+      "title": "《ACSM运动测试与运动处方指南（第10版）》主题深读 2：体适能测试与结果解释",
+      "summary": "体适能测试把心肺、力量、耐力、柔韧或身体组成等能力转成可追踪的基线。结果只有放在测量误差、参照范围和个人目标中解释，才具备处方价值。 本页进一步给出教练决策、反馈记录、微实验和应用边界。",
+      "sortOrder": 3022,
+      "author": "ACSM",
+      "isFree": true,
+      "isPublished": true,
+      "mindMap": {
+        "title": "《ACSM运动测试与运动处方指南（第10版）》主题 2 · 体适能测试与结果解释",
+        "description": "CoachLink 原创主题知识地图：概念、决策、验证、误区和边界放在同一张图里。",
+        "data": [
+          {
+            "id": "root",
+            "title": "体适能测试与结果解释",
+            "node_type": "domain",
+            "children": [
+              {
+                "id": "concept",
+                "title": "核心概念",
+                "description": "体适能测试把心肺、力量、耐力、柔韧或身体组成等能力转成可追踪的基线。结果只有放在测量误差、参照范围和个人目标中解释，才具备处方价值。",
+                "node_type": "category"
+              },
+              {
+                "id": "decision",
+                "title": "教练决策",
+                "description": "教练应选择对当前目标有用、受试者能够安全完成且便于复测的方法，并在测试前统一准备条件。解释时要同时看绝对结果、个人趋势和测试当天状态，避免因微小变化过早调整计划。",
+                "node_type": "category"
+              },
+              {
+                "id": "practice",
+                "title": "最小实践",
+                "description": "区分测试误差与真实能力变化",
+                "node_type": "category"
+              },
+              {
+                "id": "feedback",
+                "title": "记录与复盘",
+                "description": "先留基线，一次只改一个关键变量，再用结果和恢复信号判断。",
+                "node_type": "category"
+              },
+              {
+                "id": "pitfall",
+                "title": "常见误用",
+                "description": "群体常模只能提供背景，不能单独证明某个人需要何种训练，更不能替代临床判断。",
+                "node_type": "category"
+              },
+              {
+                "id": "boundary",
+                "title": "应用边界",
+                "description": "运动处方不等于医学诊疗；出现症状、复杂慢病或高风险情况时，应由合格医疗专业人员评估。",
+                "node_type": "category"
+              }
+            ]
+          }
+        ]
+      },
+      "readingGuide": {
+        "estimatedMinutes": 10,
+        "suitableFor": [
+          "正在学习运动测试与处方的训练者",
+          "需要把理论转成计划的教练",
+          "愿意记录并复盘的读者"
+        ],
+        "goals": [
+          "说清核心概念",
+          "形成可执行决策",
+          "设计一次可验证的小实验"
+        ],
+        "prerequisites": [
+          "先阅读全书深读入口",
+          "本页不替代正版原书或专业诊疗"
+        ]
+      },
+      "keyTakeaways": [
+        "体适能测试与结果解释",
+        "区分测试误差与真实能力变化",
+        "一次只改变少量关键变量，并提前定义反馈信号",
+        "群体常模只能提供背景，不能单独证明某个人需要何种训练，更不能替代临床判断。"
+      ],
+      "discussionPrompts": [
+        "你当前最接近这个主题的真实问题是什么？",
+        "你会保留哪个变量不变，才看得出干预是否有效？",
+        "如果结果与书中框架不一致，你先检查数据、执行还是原始假设？"
+      ],
+      "citations": [
+        {
+          "title": "书目：ACSM运动测试与运动处方指南（第10版）",
+          "note": "本页为 CoachLink 原创解释性笔记；不复制原书正文、插图、表格或完整处方。正式学术或专业引用请回到正版书核对作者、版次、出版社和页码。",
+          "license": "interpretive-notes-only"
+        }
+      ]
+    },
+    {
+      "slug": "topic-03",
+      "file": "notes/03-topic.md",
+      "noteType": "chapter",
+      "chapterOrder": 3,
+      "chapterTitle": "FITT-VP运动剂量",
+      "title": "《ACSM运动测试与运动处方指南（第10版）》主题深读 3：FITT-VP运动剂量",
+      "summary": "FITT-VP把频率、强度、时间、类型、总量和进展组织成一个可调整的运动剂量系统。各变量彼此制约，因此增加其中一项通常需要重新检查总体负荷与恢复，而不是独立加码。 本页进一步给出教练决策、反馈记录、微实验和应用边界。",
+      "sortOrder": 3023,
+      "author": "ACSM",
+      "isFree": true,
+      "isPublished": true,
+      "mindMap": {
+        "title": "《ACSM运动测试与运动处方指南（第10版）》主题 3 · FITT-VP运动剂量",
+        "description": "CoachLink 原创主题知识地图：概念、决策、验证、误区和边界放在同一张图里。",
+        "data": [
+          {
+            "id": "root",
+            "title": "FITT-VP运动剂量",
+            "node_type": "domain",
+            "children": [
+              {
+                "id": "concept",
+                "title": "核心概念",
+                "description": "FITT-VP把频率、强度、时间、类型、总量和进展组织成一个可调整的运动剂量系统。各变量彼此制约，因此增加其中一项通常需要重新检查总体负荷与恢复，而不是独立加码。",
+                "node_type": "category"
+              },
+              {
+                "id": "decision",
+                "title": "教练决策",
+                "description": "教练应先用最低可执行剂量建立规律，再根据耐受、目标和实际反应逐步调整一到两个变量。进展速度应由完成质量、恢复和连续性决定，并为忙碌、疲劳或症状波动准备降级方案。",
+                "node_type": "category"
+              },
+              {
+                "id": "practice",
+                "title": "最小实践",
+                "description": "先建立最低有效剂量，再按反应渐进",
+                "node_type": "category"
+              },
+              {
+                "id": "feedback",
+                "title": "记录与复盘",
+                "description": "先留基线，一次只改一个关键变量，再用结果和恢复信号判断。",
+                "node_type": "category"
+              },
+              {
+                "id": "pitfall",
+                "title": "常见误用",
+                "description": "把框架填成固定数字处方，会忽略不同活动形式、训练经历和健康状况导致的剂量差异。",
+                "node_type": "category"
+              },
+              {
+                "id": "boundary",
+                "title": "应用边界",
+                "description": "运动处方不等于医学诊疗；出现症状、复杂慢病或高风险情况时，应由合格医疗专业人员评估。",
+                "node_type": "category"
+              }
+            ]
+          }
+        ]
+      },
+      "readingGuide": {
+        "estimatedMinutes": 10,
+        "suitableFor": [
+          "正在学习运动测试与处方的训练者",
+          "需要把理论转成计划的教练",
+          "愿意记录并复盘的读者"
+        ],
+        "goals": [
+          "说清核心概念",
+          "形成可执行决策",
+          "设计一次可验证的小实验"
+        ],
+        "prerequisites": [
+          "先阅读全书深读入口",
+          "本页不替代正版原书或专业诊疗"
+        ]
+      },
+      "keyTakeaways": [
+        "FITT-VP运动剂量",
+        "先建立最低有效剂量，再按反应渐进",
+        "一次只改变少量关键变量，并提前定义反馈信号",
+        "把框架填成固定数字处方，会忽略不同活动形式、训练经历和健康状况导致的剂量差异。"
+      ],
+      "discussionPrompts": [
+        "你当前最接近这个主题的真实问题是什么？",
+        "你会保留哪个变量不变，才看得出干预是否有效？",
+        "如果结果与书中框架不一致，你先检查数据、执行还是原始假设？"
+      ],
+      "citations": [
+        {
+          "title": "书目：ACSM运动测试与运动处方指南（第10版）",
+          "note": "本页为 CoachLink 原创解释性笔记；不复制原书正文、插图、表格或完整处方。正式学术或专业引用请回到正版书核对作者、版次、出版社和页码。",
+          "license": "interpretive-notes-only"
+        }
+      ]
+    },
+    {
+      "slug": "topic-04",
+      "file": "notes/04-topic.md",
+      "noteType": "chapter",
+      "chapterOrder": 4,
+      "chapterTitle": "特殊情况、监测与转介",
+      "title": "《ACSM运动测试与运动处方指南（第10版）》主题深读 4：特殊情况、监测与转介",
+      "summary": "特殊情况意味着常规处方需要结合疾病、药物、妊娠、年龄或功能限制重新解释。监测用于发现运动反应是否超出预期，转介则界定教练教育与医疗诊疗之间的职责边界。 本页进一步给出教练决策、反馈记录、微实验和应用边界。",
+      "sortOrder": 3024,
+      "author": "ACSM",
+      "isFree": true,
+      "isPublished": true,
+      "mindMap": {
+        "title": "《ACSM运动测试与运动处方指南（第10版）》主题 4 · 特殊情况、监测与转介",
+        "description": "CoachLink 原创主题知识地图：概念、决策、验证、误区和边界放在同一张图里。",
+        "data": [
+          {
+            "id": "root",
+            "title": "特殊情况、监测与转介",
+            "node_type": "domain",
+            "children": [
+              {
+                "id": "concept",
+                "title": "核心概念",
+                "description": "特殊情况意味着常规处方需要结合疾病、药物、妊娠、年龄或功能限制重新解释。监测用于发现运动反应是否超出预期，转介则界定教练教育与医疗诊疗之间的职责边界。",
+                "node_type": "category"
+              },
+              {
+                "id": "decision",
+                "title": "教练决策",
+                "description": "教练应在开始前确认医疗建议、禁忌和可监测信号，并采用更保守且容易中止的训练设置。出现胸痛、晕厥、异常呼吸困难或进行性神经症状等警讯时，应停止训练并按预案寻求医疗帮助。",
+                "node_type": "category"
+              },
+              {
+                "id": "practice",
+                "title": "最小实践",
+                "description": "把禁忌、警讯和转介条件写进教练流程",
+                "node_type": "category"
+              },
+              {
+                "id": "feedback",
+                "title": "记录与复盘",
+                "description": "先留基线，一次只改一个关键变量，再用结果和恢复信号判断。",
+                "node_type": "category"
+              },
+              {
+                "id": "pitfall",
+                "title": "常见误用",
+                "description": "凭一般运动知识自行调整疾病治疗或用药相关问题，超出了普通教练的专业范围。",
+                "node_type": "category"
+              },
+              {
+                "id": "boundary",
+                "title": "应用边界",
+                "description": "运动处方不等于医学诊疗；出现症状、复杂慢病或高风险情况时，应由合格医疗专业人员评估。",
+                "node_type": "category"
+              }
+            ]
+          }
+        ]
+      },
+      "readingGuide": {
+        "estimatedMinutes": 10,
+        "suitableFor": [
+          "正在学习运动测试与处方的训练者",
+          "需要把理论转成计划的教练",
+          "愿意记录并复盘的读者"
+        ],
+        "goals": [
+          "说清核心概念",
+          "形成可执行决策",
+          "设计一次可验证的小实验"
+        ],
+        "prerequisites": [
+          "先阅读全书深读入口",
+          "本页不替代正版原书或专业诊疗"
+        ]
+      },
+      "keyTakeaways": [
+        "特殊情况、监测与转介",
+        "把禁忌、警讯和转介条件写进教练流程",
+        "一次只改变少量关键变量，并提前定义反馈信号",
+        "凭一般运动知识自行调整疾病治疗或用药相关问题，超出了普通教练的专业范围。"
+      ],
+      "discussionPrompts": [
+        "你当前最接近这个主题的真实问题是什么？",
+        "你会保留哪个变量不变，才看得出干预是否有效？",
+        "如果结果与书中框架不一致，你先检查数据、执行还是原始假设？"
+      ],
+      "citations": [
+        {
+          "title": "书目：ACSM运动测试与运动处方指南（第10版）",
+          "note": "本页为 CoachLink 原创解释性笔记；不复制原书正文、插图、表格或完整处方。正式学术或专业引用请回到正版书核对作者、版次、出版社和页码。",
+          "license": "interpretive-notes-only"
+        }
+      ]
+    }
+  ]
+}

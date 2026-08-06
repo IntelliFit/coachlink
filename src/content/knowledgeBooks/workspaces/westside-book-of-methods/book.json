@@ -1,0 +1,497 @@
+{
+  "format": "book-note-v4-classic-deep-read",
+  "noteStyle": "interpretive-reading-note",
+  "disclaimer": "本页为 CoachLink 原创导读与知识地图，不复制原书正文、插图、表格或完整训练模板，也不替代购买和阅读正版原书。",
+  "source": {
+    "title": "The Westside Barbell Book of Methods",
+    "authors": [
+      "Louie Simmons"
+    ],
+    "originalFilePath": "local-library://westside-book-of-methods",
+    "copyrightMode": "interpretive-notes-only",
+    "collectionSlug": "westside-book-of-methods",
+    "collectionTitle": "《The Westside Barbell Book of Methods》原创深读笔记"
+  },
+  "notes": [
+    {
+      "slug": "overview",
+      "file": "notes/00-overview.md",
+      "noteType": "overview",
+      "chapterOrder": 0,
+      "chapterTitle": "深读入口",
+      "title": "《The Westside Barbell Book of Methods》深读入口：先建立全书地图，再决定怎么用",
+      "summary": "围绕最大努力、动态努力、重复努力、特殊练习和弱点训练形成共轭式力量举体系，具有鲜明团队与器械背景。",
+      "sortOrder": 3100,
+      "author": "Louie Simmons",
+      "isFree": true,
+      "isPublished": true,
+      "mindMap": {
+        "title": "《The Westside Barbell Book of Methods》全书知识地图",
+        "description": "这是 CoachLink 根据书籍主题绘制的原创导航图，不复制原书插图或版式。",
+        "data": [
+          {
+            "id": "root",
+            "title": "The Westside Barbell Book of Methods",
+            "node_type": "domain",
+            "children": [
+              {
+                "id": "question",
+                "title": "核心问题",
+                "description": "怎样在不长期只练同一种强度的情况下，同时维护最大力量、速度力量、肌肉量和技术弱点？",
+                "node_type": "category"
+              },
+              {
+                "id": "framework-1",
+                "title": "最大努力、动态努力与重复努力",
+                "node_type": "category"
+              },
+              {
+                "id": "framework-2",
+                "title": "特殊练习与弱点选择",
+                "node_type": "category"
+              },
+              {
+                "id": "framework-3",
+                "title": "训练轮换与适应管理",
+                "node_type": "category"
+              },
+              {
+                "id": "framework-4",
+                "title": "力量举专项、器械与团队环境",
+                "node_type": "category"
+              },
+              {
+                "id": "boundary",
+                "title": "应用边界",
+                "description": "方法诞生于特定力量举文化与装备环境；自然训练者、初学者和不同赛制不能不加调整地照搬。",
+                "node_type": "category"
+              }
+            ]
+          }
+        ]
+      },
+      "readingGuide": {
+        "estimatedMinutes": 8,
+        "suitableFor": [
+          "关注力量举方法的训练者",
+          "教练与知识库编辑",
+          "准备精读正版原书的读者"
+        ],
+        "goals": [
+          "掌握全书核心问题",
+          "看懂主题之间的关系",
+          "明确应用边界与复盘方法"
+        ],
+        "prerequisites": [
+          "本页不替代原书，也不提供原文件下载"
+        ]
+      },
+      "keyTakeaways": [
+        "最大努力、动态努力与重复努力",
+        "特殊练习与弱点选择",
+        "训练轮换与适应管理",
+        "力量举专项、器械与团队环境"
+      ],
+      "discussionPrompts": [
+        "这本书最可能改变你当前的哪一个训练决策？",
+        "哪一个观点高度依赖作者的目标人群或训练环境？",
+        "你会用什么训练数据判断它对自己是否有效？"
+      ],
+      "citations": [
+        {
+          "title": "书目：The Westside Barbell Book of Methods",
+          "note": "基于本地书目盘点建立原创导读；原始电子文件仅供内部研究，不上传、不公开下载。正式引用前应继续核对正版书的作者、版次、出版社与页码。",
+          "license": "interpretive-notes-only"
+        }
+      ]
+    },
+    {
+      "slug": "topic-01",
+      "file": "notes/01-topic.md",
+      "noteType": "chapter",
+      "chapterOrder": 1,
+      "chapterTitle": "最大努力、动态努力与重复努力",
+      "title": "《The Westside Barbell Book of Methods》主题深读 1：最大努力、动态努力与重复努力",
+      "summary": "三类方法分别强调高强度力量表达、较轻负荷下的快速发力和较多重复带来的肌肉与技术刺激。它们并行存在的目的，是让多个力量品质得到训练，同时避免长期只依赖一种刺激。 本页进一步给出教练决策、反馈记录、微实验和应用边界。",
+      "sortOrder": 3101,
+      "author": "Louie Simmons",
+      "isFree": true,
+      "isPublished": true,
+      "mindMap": {
+        "title": "《The Westside Barbell Book of Methods》主题 1 · 最大努力、动态努力与重复努力",
+        "description": "CoachLink 原创主题知识地图：概念、决策、验证、误区和边界放在同一张图里。",
+        "data": [
+          {
+            "id": "root",
+            "title": "最大努力、动态努力与重复努力",
+            "node_type": "domain",
+            "children": [
+              {
+                "id": "concept",
+                "title": "核心概念",
+                "description": "三类方法分别强调高强度力量表达、较轻负荷下的快速发力和较多重复带来的肌肉与技术刺激。它们并行存在的目的，是让多个力量品质得到训练，同时避免长期只依赖一种刺激。",
+                "node_type": "category"
+              },
+              {
+                "id": "decision",
+                "title": "教练决策",
+                "description": "教练应依据训练者真正缺失的能力分配三类方法，而不是照抄固定日程。动态训练必须设定可观察的速度和技术标准，最大努力训练也应控制失败次数与后续疲劳。",
+                "node_type": "category"
+              },
+              {
+                "id": "practice",
+                "title": "最小实践",
+                "description": "先明确方法的原始人群和器械条件",
+                "node_type": "category"
+              },
+              {
+                "id": "feedback",
+                "title": "记录与复盘",
+                "description": "先留基线，一次只改一个关键变量，再用结果和恢复信号判断。",
+                "node_type": "category"
+              },
+              {
+                "id": "pitfall",
+                "title": "常见误用",
+                "description": "把动态努力理解为随意快速完成轻重量，或把最大努力变成每周多次失败测试，都偏离了各方法的训练目的。",
+                "node_type": "category"
+              },
+              {
+                "id": "boundary",
+                "title": "应用边界",
+                "description": "方法诞生于特定力量举文化与装备环境；自然训练者、初学者和不同赛制不能不加调整地照搬。",
+                "node_type": "category"
+              }
+            ]
+          }
+        ]
+      },
+      "readingGuide": {
+        "estimatedMinutes": 10,
+        "suitableFor": [
+          "正在学习力量举方法的训练者",
+          "需要把理论转成计划的教练",
+          "愿意记录并复盘的读者"
+        ],
+        "goals": [
+          "说清核心概念",
+          "形成可执行决策",
+          "设计一次可验证的小实验"
+        ],
+        "prerequisites": [
+          "先阅读全书深读入口",
+          "本页不替代正版原书或专业诊疗"
+        ]
+      },
+      "keyTakeaways": [
+        "最大努力、动态努力与重复努力",
+        "先明确方法的原始人群和器械条件",
+        "一次只改变少量关键变量，并提前定义反馈信号",
+        "把动态努力理解为随意快速完成轻重量，或把最大努力变成每周多次失败测试，都偏离了各方法的训练目的。"
+      ],
+      "discussionPrompts": [
+        "你当前最接近这个主题的真实问题是什么？",
+        "你会保留哪个变量不变，才看得出干预是否有效？",
+        "如果结果与书中框架不一致，你先检查数据、执行还是原始假设？"
+      ],
+      "citations": [
+        {
+          "title": "书目：The Westside Barbell Book of Methods",
+          "note": "本页为 CoachLink 原创解释性笔记；不复制原书正文、插图、表格或完整处方。正式学术或专业引用请回到正版书核对作者、版次、出版社和页码。",
+          "license": "interpretive-notes-only"
+        }
+      ]
+    },
+    {
+      "slug": "topic-02",
+      "file": "notes/02-topic.md",
+      "noteType": "chapter",
+      "chapterOrder": 2,
+      "chapterTitle": "特殊练习与弱点选择",
+      "title": "《The Westside Barbell Book of Methods》主题深读 2：特殊练习与弱点选择",
+      "summary": "特殊练习通过改变动作幅度、支撑条件、器械或发力重点，集中暴露并训练主项中的限制环节。有效变式与主项之间应存在可解释的能力联系，而不是仅因动作新颖就值得采用。 本页进一步给出教练决策、反馈记录、微实验和应用边界。",
+      "sortOrder": 3102,
+      "author": "Louie Simmons",
+      "isFree": true,
+      "isPublished": true,
+      "mindMap": {
+        "title": "《The Westside Barbell Book of Methods》主题 2 · 特殊练习与弱点选择",
+        "description": "CoachLink 原创主题知识地图：概念、决策、验证、误区和边界放在同一张图里。",
+        "data": [
+          {
+            "id": "root",
+            "title": "特殊练习与弱点选择",
+            "node_type": "domain",
+            "children": [
+              {
+                "id": "concept",
+                "title": "核心概念",
+                "description": "特殊练习通过改变动作幅度、支撑条件、器械或发力重点，集中暴露并训练主项中的限制环节。有效变式与主项之间应存在可解释的能力联系，而不是仅因动作新颖就值得采用。",
+                "node_type": "category"
+              },
+              {
+                "id": "decision",
+                "title": "教练决策",
+                "description": "教练应从失败位置、速度变化、技术录像和肌群承受能力中提出弱点假设，再选择能够检验该假设的变式。若变式进步却长期不转化到主项，应重新检查动作相似性、弱点判断或专项练习量。",
+                "node_type": "category"
+              },
+              {
+                "id": "practice",
+                "title": "最小实践",
+                "description": "用表现弱点而不是新鲜感选择变式",
+                "node_type": "category"
+              },
+              {
+                "id": "feedback",
+                "title": "记录与复盘",
+                "description": "先留基线，一次只改一个关键变量，再用结果和恢复信号判断。",
+                "node_type": "category"
+              },
+              {
+                "id": "pitfall",
+                "title": "常见误用",
+                "description": "仅凭主观酸胀或流行器械选择变式，容易训练到显眼但并不限制比赛动作的部分。",
+                "node_type": "category"
+              },
+              {
+                "id": "boundary",
+                "title": "应用边界",
+                "description": "方法诞生于特定力量举文化与装备环境；自然训练者、初学者和不同赛制不能不加调整地照搬。",
+                "node_type": "category"
+              }
+            ]
+          }
+        ]
+      },
+      "readingGuide": {
+        "estimatedMinutes": 10,
+        "suitableFor": [
+          "正在学习力量举方法的训练者",
+          "需要把理论转成计划的教练",
+          "愿意记录并复盘的读者"
+        ],
+        "goals": [
+          "说清核心概念",
+          "形成可执行决策",
+          "设计一次可验证的小实验"
+        ],
+        "prerequisites": [
+          "先阅读全书深读入口",
+          "本页不替代正版原书或专业诊疗"
+        ]
+      },
+      "keyTakeaways": [
+        "特殊练习与弱点选择",
+        "用表现弱点而不是新鲜感选择变式",
+        "一次只改变少量关键变量，并提前定义反馈信号",
+        "仅凭主观酸胀或流行器械选择变式，容易训练到显眼但并不限制比赛动作的部分。"
+      ],
+      "discussionPrompts": [
+        "你当前最接近这个主题的真实问题是什么？",
+        "你会保留哪个变量不变，才看得出干预是否有效？",
+        "如果结果与书中框架不一致，你先检查数据、执行还是原始假设？"
+      ],
+      "citations": [
+        {
+          "title": "书目：The Westside Barbell Book of Methods",
+          "note": "本页为 CoachLink 原创解释性笔记；不复制原书正文、插图、表格或完整处方。正式学术或专业引用请回到正版书核对作者、版次、出版社和页码。",
+          "license": "interpretive-notes-only"
+        }
+      ]
+    },
+    {
+      "slug": "topic-03",
+      "file": "notes/03-topic.md",
+      "noteType": "chapter",
+      "chapterOrder": 3,
+      "chapterTitle": "训练轮换与适应管理",
+      "title": "《The Westside Barbell Book of Methods》主题深读 3：训练轮换与适应管理",
+      "summary": "轮换练习可以改变刺激并减少对单一高压动作的适应停滞，但轮换本身并不自动产生进步。训练者仍需在可比较的变式中积累能力，并保留足够主项接触来维持专项技术。 本页进一步给出教练决策、反馈记录、微实验和应用边界。",
+      "sortOrder": 3103,
+      "author": "Louie Simmons",
+      "isFree": true,
+      "isPublished": true,
+      "mindMap": {
+        "title": "《The Westside Barbell Book of Methods》主题 3 · 训练轮换与适应管理",
+        "description": "CoachLink 原创主题知识地图：概念、决策、验证、误区和边界放在同一张图里。",
+        "data": [
+          {
+            "id": "root",
+            "title": "训练轮换与适应管理",
+            "node_type": "domain",
+            "children": [
+              {
+                "id": "concept",
+                "title": "核心概念",
+                "description": "轮换练习可以改变刺激并减少对单一高压动作的适应停滞，但轮换本身并不自动产生进步。训练者仍需在可比较的变式中积累能力，并保留足够主项接触来维持专项技术。",
+                "node_type": "category"
+              },
+              {
+                "id": "decision",
+                "title": "教练决策",
+                "description": "教练应建立有限的变式库，记录每个变式针对的弱点、历史表现和恢复成本，再按需要轮换。训练经验较少者应延长动作稳定期，经验较高者才更可能受益于较频繁的刺激变化。",
+                "node_type": "category"
+              },
+              {
+                "id": "practice",
+                "title": "最小实践",
+                "description": "动态努力要有速度标准而不是只看百分比",
+                "node_type": "category"
+              },
+              {
+                "id": "feedback",
+                "title": "记录与复盘",
+                "description": "先留基线，一次只改一个关键变量，再用结果和恢复信号判断。",
+                "node_type": "category"
+              },
+              {
+                "id": "pitfall",
+                "title": "常见误用",
+                "description": "为了避免适应而每周随机换动作，会失去技术学习、负荷比较和弱点验证所需的连续性。",
+                "node_type": "category"
+              },
+              {
+                "id": "boundary",
+                "title": "应用边界",
+                "description": "方法诞生于特定力量举文化与装备环境；自然训练者、初学者和不同赛制不能不加调整地照搬。",
+                "node_type": "category"
+              }
+            ]
+          }
+        ]
+      },
+      "readingGuide": {
+        "estimatedMinutes": 10,
+        "suitableFor": [
+          "正在学习力量举方法的训练者",
+          "需要把理论转成计划的教练",
+          "愿意记录并复盘的读者"
+        ],
+        "goals": [
+          "说清核心概念",
+          "形成可执行决策",
+          "设计一次可验证的小实验"
+        ],
+        "prerequisites": [
+          "先阅读全书深读入口",
+          "本页不替代正版原书或专业诊疗"
+        ]
+      },
+      "keyTakeaways": [
+        "训练轮换与适应管理",
+        "动态努力要有速度标准而不是只看百分比",
+        "一次只改变少量关键变量，并提前定义反馈信号",
+        "为了避免适应而每周随机换动作，会失去技术学习、负荷比较和弱点验证所需的连续性。"
+      ],
+      "discussionPrompts": [
+        "你当前最接近这个主题的真实问题是什么？",
+        "你会保留哪个变量不变，才看得出干预是否有效？",
+        "如果结果与书中框架不一致，你先检查数据、执行还是原始假设？"
+      ],
+      "citations": [
+        {
+          "title": "书目：The Westside Barbell Book of Methods",
+          "note": "本页为 CoachLink 原创解释性笔记；不复制原书正文、插图、表格或完整处方。正式学术或专业引用请回到正版书核对作者、版次、出版社和页码。",
+          "license": "interpretive-notes-only"
+        }
+      ]
+    },
+    {
+      "slug": "topic-04",
+      "file": "notes/04-topic.md",
+      "noteType": "chapter",
+      "chapterOrder": 4,
+      "chapterTitle": "力量举专项、器械与团队环境",
+      "title": "《The Westside Barbell Book of Methods》主题深读 4：力量举专项、器械与团队环境",
+      "summary": "该方法体系形成于高度专项化的力量举环境，训练伙伴、特殊器械、比赛规则和装备使用都会影响其训练逻辑。相同方法名在普通商业健身房、自然训练者或不同赛制中，可能对应完全不同的刺激和风险。 本页进一步给出教练决策、反馈记录、微实验和应用边界。",
+      "sortOrder": 3104,
+      "author": "Louie Simmons",
+      "isFree": true,
+      "isPublished": true,
+      "mindMap": {
+        "title": "《The Westside Barbell Book of Methods》主题 4 · 力量举专项、器械与团队环境",
+        "description": "CoachLink 原创主题知识地图：概念、决策、验证、误区和边界放在同一张图里。",
+        "data": [
+          {
+            "id": "root",
+            "title": "力量举专项、器械与团队环境",
+            "node_type": "domain",
+            "children": [
+              {
+                "id": "concept",
+                "title": "核心概念",
+                "description": "该方法体系形成于高度专项化的力量举环境，训练伙伴、特殊器械、比赛规则和装备使用都会影响其训练逻辑。相同方法名在普通商业健身房、自然训练者或不同赛制中，可能对应完全不同的刺激和风险。",
+                "node_type": "category"
+              },
+              {
+                "id": "decision",
+                "title": "教练决策",
+                "description": "教练应先盘点运动员的比赛类型、训练年限、器械条件和保护能力，再决定哪些原则可迁移。缺少专业保护与特殊器械时，应保留弱点训练和多品质并行的思想，同时简化动作和控制极限暴露。",
+                "node_type": "category"
+              },
+              {
+                "id": "practice",
+                "title": "最小实践",
+                "description": "先明确方法的原始人群和器械条件",
+                "node_type": "category"
+              },
+              {
+                "id": "feedback",
+                "title": "记录与复盘",
+                "description": "先留基线，一次只改一个关键变量，再用结果和恢复信号判断。",
+                "node_type": "category"
+              },
+              {
+                "id": "pitfall",
+                "title": "常见误用",
+                "description": "脱离原始人群与训练条件照搬安排，容易把特定团队的解决方案误当成所有力量训练者的通用方案。",
+                "node_type": "category"
+              },
+              {
+                "id": "boundary",
+                "title": "应用边界",
+                "description": "方法诞生于特定力量举文化与装备环境；自然训练者、初学者和不同赛制不能不加调整地照搬。",
+                "node_type": "category"
+              }
+            ]
+          }
+        ]
+      },
+      "readingGuide": {
+        "estimatedMinutes": 10,
+        "suitableFor": [
+          "正在学习力量举方法的训练者",
+          "需要把理论转成计划的教练",
+          "愿意记录并复盘的读者"
+        ],
+        "goals": [
+          "说清核心概念",
+          "形成可执行决策",
+          "设计一次可验证的小实验"
+        ],
+        "prerequisites": [
+          "先阅读全书深读入口",
+          "本页不替代正版原书或专业诊疗"
+        ]
+      },
+      "keyTakeaways": [
+        "力量举专项、器械与团队环境",
+        "先明确方法的原始人群和器械条件",
+        "一次只改变少量关键变量，并提前定义反馈信号",
+        "脱离原始人群与训练条件照搬安排，容易把特定团队的解决方案误当成所有力量训练者的通用方案。"
+      ],
+      "discussionPrompts": [
+        "你当前最接近这个主题的真实问题是什么？",
+        "你会保留哪个变量不变，才看得出干预是否有效？",
+        "如果结果与书中框架不一致，你先检查数据、执行还是原始假设？"
+      ],
+      "citations": [
+        {
+          "title": "书目：The Westside Barbell Book of Methods",
+          "note": "本页为 CoachLink 原创解释性笔记；不复制原书正文、插图、表格或完整处方。正式学术或专业引用请回到正版书核对作者、版次、出版社和页码。",
+          "license": "interpretive-notes-only"
+        }
+      ]
+    }
+  ]
+}

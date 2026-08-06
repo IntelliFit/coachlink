@@ -1,7 +1,9 @@
 import type { UserConfigExport } from "@tarojs/cli";
+const apiUrl = process.env.TARO_APP_API_URL || 'https://coachlink.fit';
+
 export default {
   defineConstants: {
-    TARO_APP_API_URL: JSON.stringify('https://coachlink.fit'),
+    TARO_APP_API_URL: JSON.stringify(apiUrl),
     __DEV_MODE__: JSON.stringify(false)
   },
   mini: {},

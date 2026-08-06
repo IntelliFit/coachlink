@@ -485,7 +485,8 @@ class ExecutionService {
     const res = await request({
       url: `${this.baseUrl}/share-info`,
       method: 'POST',
-      data: { id: executionId }
+      data: { id: executionId },
+      showErrorToast: false
     })
     if (res.success && res.data) return res.data
     return null

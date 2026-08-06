@@ -1,0 +1,498 @@
+{
+  "format": "book-note-v4-classic-deep-read",
+  "noteStyle": "interpretive-reading-note",
+  "disclaimer": "本页为 CoachLink 原创导读与知识地图，不复制原书正文、插图、表格或完整训练模板，也不替代购买和阅读正版原书。",
+  "source": {
+    "title": "拉伸运动系统训练（第2版）",
+    "authors": [
+      "Arnold G. Nelson",
+      "Jouko Kokkonen"
+    ],
+    "originalFilePath": "local-library://stretching-system-training",
+    "copyrightMode": "interpretive-notes-only",
+    "collectionSlug": "stretching-system-training",
+    "collectionTitle": "《拉伸运动系统训练（第2版）》原创深读笔记"
+  },
+  "notes": [
+    {
+      "slug": "overview",
+      "file": "notes/00-overview.md",
+      "noteType": "overview",
+      "chapterOrder": 0,
+      "chapterTitle": "深读入口",
+      "title": "《拉伸运动系统训练（第2版）》深读入口：先建立全书地图，再决定怎么用",
+      "summary": "按身体区域整理拉伸动作与难度进阶，适合建立动作选择、剂量、感受和风险控制的基础框架。",
+      "sortOrder": 3150,
+      "author": "Arnold G. Nelson、Jouko Kokkonen",
+      "isFree": true,
+      "isPublished": true,
+      "mindMap": {
+        "title": "《拉伸运动系统训练（第2版）》全书知识地图",
+        "description": "这是 CoachLink 根据书籍主题绘制的原创导航图，不复制原书插图或版式。",
+        "data": [
+          {
+            "id": "root",
+            "title": "拉伸运动系统训练（第2版）",
+            "node_type": "domain",
+            "children": [
+              {
+                "id": "question",
+                "title": "核心问题",
+                "description": "什么时候需要拉伸、该拉哪里、做到什么程度，又如何把短期活动度变化转成长期可用的运动能力？",
+                "node_type": "category"
+              },
+              {
+                "id": "framework-1",
+                "title": "柔韧性、活动度与伸展反应",
+                "node_type": "category"
+              },
+              {
+                "id": "framework-2",
+                "title": "身体区域与动作选择",
+                "node_type": "category"
+              },
+              {
+                "id": "framework-3",
+                "title": "强度、时长、频率和进阶",
+                "node_type": "category"
+              },
+              {
+                "id": "framework-4",
+                "title": "热身、恢复与力量控制的结合",
+                "node_type": "category"
+              },
+              {
+                "id": "boundary",
+                "title": "应用边界",
+                "description": "不公开复制原书解剖插图；急性损伤、神经症状或不明原因疼痛不应靠自行强拉处理。",
+                "node_type": "category"
+              }
+            ]
+          }
+        ]
+      },
+      "readingGuide": {
+        "estimatedMinutes": 8,
+        "suitableFor": [
+          "关注柔韧与活动度的训练者",
+          "教练与知识库编辑",
+          "准备精读正版原书的读者"
+        ],
+        "goals": [
+          "掌握全书核心问题",
+          "看懂主题之间的关系",
+          "明确应用边界与复盘方法"
+        ],
+        "prerequisites": [
+          "本页不替代原书，也不提供原文件下载"
+        ]
+      },
+      "keyTakeaways": [
+        "柔韧性、活动度与伸展反应",
+        "身体区域与动作选择",
+        "强度、时长、频率和进阶",
+        "热身、恢复与力量控制的结合"
+      ],
+      "discussionPrompts": [
+        "这本书最可能改变你当前的哪一个训练决策？",
+        "哪一个观点高度依赖作者的目标人群或训练环境？",
+        "你会用什么训练数据判断它对自己是否有效？"
+      ],
+      "citations": [
+        {
+          "title": "书目：拉伸运动系统训练（第2版）",
+          "note": "基于本地书目盘点建立原创导读；原始电子文件仅供内部研究，不上传、不公开下载。正式引用前应继续核对正版书的作者、版次、出版社与页码。",
+          "license": "interpretive-notes-only"
+        }
+      ]
+    },
+    {
+      "slug": "topic-01",
+      "file": "notes/01-topic.md",
+      "noteType": "chapter",
+      "chapterOrder": 1,
+      "chapterTitle": "柔韧性、活动度与伸展反应",
+      "title": "《拉伸运动系统训练（第2版）》主题深读 1：柔韧性、活动度与伸展反应",
+      "summary": "柔韧性更多描述组织能够达到的范围，活动度则包含个体主动控制和利用该范围的能力。拉伸后的即时增加可能来自伸展耐受变化，不一定代表组织结构已经产生长期改变。 本页进一步给出教练决策、反馈记录、微实验和应用边界。",
+      "sortOrder": 3151,
+      "author": "Arnold G. Nelson、Jouko Kokkonen",
+      "isFree": true,
+      "isPublished": true,
+      "mindMap": {
+        "title": "《拉伸运动系统训练（第2版）》主题 1 · 柔韧性、活动度与伸展反应",
+        "description": "CoachLink 原创主题知识地图：概念、决策、验证、误区和边界放在同一张图里。",
+        "data": [
+          {
+            "id": "root",
+            "title": "柔韧性、活动度与伸展反应",
+            "node_type": "domain",
+            "children": [
+              {
+                "id": "concept",
+                "title": "核心概念",
+                "description": "柔韧性更多描述组织能够达到的范围，活动度则包含个体主动控制和利用该范围的能力。拉伸后的即时增加可能来自伸展耐受变化，不一定代表组织结构已经产生长期改变。",
+                "node_type": "category"
+              },
+              {
+                "id": "decision",
+                "title": "教练决策",
+                "description": "教练应先判断目标动作受被动范围、主动控制、力量还是技术限制，再决定拉伸是否必要。评估应同时比较被动与主动范围，并观察新范围能否在目标动作中稳定使用。",
+                "node_type": "category"
+              },
+              {
+                "id": "practice",
+                "title": "最小实践",
+                "description": "先确认目标动作真正受何因素限制",
+                "node_type": "category"
+              },
+              {
+                "id": "feedback",
+                "title": "记录与复盘",
+                "description": "先留基线，一次只改一个关键变量，再用结果和恢复信号判断。",
+                "node_type": "category"
+              },
+              {
+                "id": "pitfall",
+                "title": "常见误用",
+                "description": "把一次拉伸后的范围增加当成永久改善，会忽视长期适应和主动控制仍需持续训练。",
+                "node_type": "category"
+              },
+              {
+                "id": "boundary",
+                "title": "应用边界",
+                "description": "不公开复制原书解剖插图；急性损伤、神经症状或不明原因疼痛不应靠自行强拉处理。",
+                "node_type": "category"
+              }
+            ]
+          }
+        ]
+      },
+      "readingGuide": {
+        "estimatedMinutes": 10,
+        "suitableFor": [
+          "正在学习柔韧与活动度的训练者",
+          "需要把理论转成计划的教练",
+          "愿意记录并复盘的读者"
+        ],
+        "goals": [
+          "说清核心概念",
+          "形成可执行决策",
+          "设计一次可验证的小实验"
+        ],
+        "prerequisites": [
+          "先阅读全书深读入口",
+          "本页不替代正版原书或专业诊疗"
+        ]
+      },
+      "keyTakeaways": [
+        "柔韧性、活动度与伸展反应",
+        "先确认目标动作真正受何因素限制",
+        "一次只改变少量关键变量，并提前定义反馈信号",
+        "把一次拉伸后的范围增加当成永久改善，会忽视长期适应和主动控制仍需持续训练。"
+      ],
+      "discussionPrompts": [
+        "你当前最接近这个主题的真实问题是什么？",
+        "你会保留哪个变量不变，才看得出干预是否有效？",
+        "如果结果与书中框架不一致，你先检查数据、执行还是原始假设？"
+      ],
+      "citations": [
+        {
+          "title": "书目：拉伸运动系统训练（第2版）",
+          "note": "本页为 CoachLink 原创解释性笔记；不复制原书正文、插图、表格或完整处方。正式学术或专业引用请回到正版书核对作者、版次、出版社和页码。",
+          "license": "interpretive-notes-only"
+        }
+      ]
+    },
+    {
+      "slug": "topic-02",
+      "file": "notes/02-topic.md",
+      "noteType": "chapter",
+      "chapterOrder": 2,
+      "chapterTitle": "身体区域与动作选择",
+      "title": "《拉伸运动系统训练（第2版）》主题深读 2：身体区域与动作选择",
+      "summary": "按身体区域选择拉伸便于组织训练，但一个动作受限常由多个关节、神经耐受和动作策略共同造成。真正有效的拉伸应把张力集中在目标区域，同时避免用邻近关节代偿。 本页进一步给出教练决策、反馈记录、微实验和应用边界。",
+      "sortOrder": 3152,
+      "author": "Arnold G. Nelson、Jouko Kokkonen",
+      "isFree": true,
+      "isPublished": true,
+      "mindMap": {
+        "title": "《拉伸运动系统训练（第2版）》主题 2 · 身体区域与动作选择",
+        "description": "CoachLink 原创主题知识地图：概念、决策、验证、误区和边界放在同一张图里。",
+        "data": [
+          {
+            "id": "root",
+            "title": "身体区域与动作选择",
+            "node_type": "domain",
+            "children": [
+              {
+                "id": "concept",
+                "title": "核心概念",
+                "description": "按身体区域选择拉伸便于组织训练，但一个动作受限常由多个关节、神经耐受和动作策略共同造成。真正有效的拉伸应把张力集中在目标区域，同时避免用邻近关节代偿。",
+                "node_type": "category"
+              },
+              {
+                "id": "decision",
+                "title": "教练决策",
+                "description": "教练应通过左右差异、目标动作和局部感觉确定优先区域，再选择容易控制且不引发异常症状的姿势。若改变骨盆、胸廓或足部位置后范围明显不同，应先处理动作设置而不是继续加大外力。",
+                "node_type": "category"
+              },
+              {
+                "id": "practice",
+                "title": "最小实践",
+                "description": "拉伸感应可控而非追求疼痛",
+                "node_type": "category"
+              },
+              {
+                "id": "feedback",
+                "title": "记录与复盘",
+                "description": "先留基线，一次只改一个关键变量，再用结果和恢复信号判断。",
+                "node_type": "category"
+              },
+              {
+                "id": "pitfall",
+                "title": "常见误用",
+                "description": "仅凭哪里紧就强拉哪里，可能把保护性紧张、神经敏感或邻近关节代偿误当成局部肌肉短缩。",
+                "node_type": "category"
+              },
+              {
+                "id": "boundary",
+                "title": "应用边界",
+                "description": "不公开复制原书解剖插图；急性损伤、神经症状或不明原因疼痛不应靠自行强拉处理。",
+                "node_type": "category"
+              }
+            ]
+          }
+        ]
+      },
+      "readingGuide": {
+        "estimatedMinutes": 10,
+        "suitableFor": [
+          "正在学习柔韧与活动度的训练者",
+          "需要把理论转成计划的教练",
+          "愿意记录并复盘的读者"
+        ],
+        "goals": [
+          "说清核心概念",
+          "形成可执行决策",
+          "设计一次可验证的小实验"
+        ],
+        "prerequisites": [
+          "先阅读全书深读入口",
+          "本页不替代正版原书或专业诊疗"
+        ]
+      },
+      "keyTakeaways": [
+        "身体区域与动作选择",
+        "拉伸感应可控而非追求疼痛",
+        "一次只改变少量关键变量，并提前定义反馈信号",
+        "仅凭哪里紧就强拉哪里，可能把保护性紧张、神经敏感或邻近关节代偿误当成局部肌肉短缩。"
+      ],
+      "discussionPrompts": [
+        "你当前最接近这个主题的真实问题是什么？",
+        "你会保留哪个变量不变，才看得出干预是否有效？",
+        "如果结果与书中框架不一致，你先检查数据、执行还是原始假设？"
+      ],
+      "citations": [
+        {
+          "title": "书目：拉伸运动系统训练（第2版）",
+          "note": "本页为 CoachLink 原创解释性笔记；不复制原书正文、插图、表格或完整处方。正式学术或专业引用请回到正版书核对作者、版次、出版社和页码。",
+          "license": "interpretive-notes-only"
+        }
+      ]
+    },
+    {
+      "slug": "topic-03",
+      "file": "notes/03-topic.md",
+      "noteType": "chapter",
+      "chapterOrder": 3,
+      "chapterTitle": "强度、时长、频率和进阶",
+      "title": "《拉伸运动系统训练（第2版）》主题深读 3：强度、时长、频率和进阶",
+      "summary": "拉伸剂量由感觉强度、保持时间、重复频率和恢复共同构成，适宜剂量应允许身体逐步适应而不造成持续刺激。进阶可以来自更稳定的姿势、更大的主动范围或更好的呼吸放松，不必以疼痛增加为标准。 本页进一步给出教练决策、反馈记录、微实验和应用边界。",
+      "sortOrder": 3153,
+      "author": "Arnold G. Nelson、Jouko Kokkonen",
+      "isFree": true,
+      "isPublished": true,
+      "mindMap": {
+        "title": "《拉伸运动系统训练（第2版）》主题 3 · 强度、时长、频率和进阶",
+        "description": "CoachLink 原创主题知识地图：概念、决策、验证、误区和边界放在同一张图里。",
+        "data": [
+          {
+            "id": "root",
+            "title": "强度、时长、频率和进阶",
+            "node_type": "domain",
+            "children": [
+              {
+                "id": "concept",
+                "title": "核心概念",
+                "description": "拉伸剂量由感觉强度、保持时间、重复频率和恢复共同构成，适宜剂量应允许身体逐步适应而不造成持续刺激。进阶可以来自更稳定的姿势、更大的主动范围或更好的呼吸放松，不必以疼痛增加为标准。",
+                "node_type": "category"
+              },
+              {
+                "id": "decision",
+                "title": "教练决策",
+                "description": "教练应从可控牵拉感开始，根据次日反应和目标动作变化调整剂量。若范围增加但控制不足，应暂停追求更大幅度，并加入该范围内的等长或动态力量练习。",
+                "node_type": "category"
+              },
+              {
+                "id": "practice",
+                "title": "最小实践",
+                "description": "新增活动范围要配合主动控制和力量训练",
+                "node_type": "category"
+              },
+              {
+                "id": "feedback",
+                "title": "记录与复盘",
+                "description": "先留基线，一次只改一个关键变量，再用结果和恢复信号判断。",
+                "node_type": "category"
+              },
+              {
+                "id": "pitfall",
+                "title": "常见误用",
+                "description": "把疼痛、麻木或强烈反弹感当成拉伸有效的证明，可能刺激神经或加重已有组织问题。",
+                "node_type": "category"
+              },
+              {
+                "id": "boundary",
+                "title": "应用边界",
+                "description": "不公开复制原书解剖插图；急性损伤、神经症状或不明原因疼痛不应靠自行强拉处理。",
+                "node_type": "category"
+              }
+            ]
+          }
+        ]
+      },
+      "readingGuide": {
+        "estimatedMinutes": 10,
+        "suitableFor": [
+          "正在学习柔韧与活动度的训练者",
+          "需要把理论转成计划的教练",
+          "愿意记录并复盘的读者"
+        ],
+        "goals": [
+          "说清核心概念",
+          "形成可执行决策",
+          "设计一次可验证的小实验"
+        ],
+        "prerequisites": [
+          "先阅读全书深读入口",
+          "本页不替代正版原书或专业诊疗"
+        ]
+      },
+      "keyTakeaways": [
+        "强度、时长、频率和进阶",
+        "新增活动范围要配合主动控制和力量训练",
+        "一次只改变少量关键变量，并提前定义反馈信号",
+        "把疼痛、麻木或强烈反弹感当成拉伸有效的证明，可能刺激神经或加重已有组织问题。"
+      ],
+      "discussionPrompts": [
+        "你当前最接近这个主题的真实问题是什么？",
+        "你会保留哪个变量不变，才看得出干预是否有效？",
+        "如果结果与书中框架不一致，你先检查数据、执行还是原始假设？"
+      ],
+      "citations": [
+        {
+          "title": "书目：拉伸运动系统训练（第2版）",
+          "note": "本页为 CoachLink 原创解释性笔记；不复制原书正文、插图、表格或完整处方。正式学术或专业引用请回到正版书核对作者、版次、出版社和页码。",
+          "license": "interpretive-notes-only"
+        }
+      ]
+    },
+    {
+      "slug": "topic-04",
+      "file": "notes/04-topic.md",
+      "noteType": "chapter",
+      "chapterOrder": 4,
+      "chapterTitle": "热身、恢复与力量控制的结合",
+      "title": "《拉伸运动系统训练（第2版）》主题深读 4：热身、恢复与力量控制的结合",
+      "summary": "热身需要提高温度、唤醒目标动作并为即将到来的速度和负荷做准备，拉伸只是其中一种工具。新增活动范围只有配合主动控制和负荷适应，才更可能成为可用于运动的稳定能力。 本页进一步给出教练决策、反馈记录、微实验和应用边界。",
+      "sortOrder": 3154,
+      "author": "Arnold G. Nelson、Jouko Kokkonen",
+      "isFree": true,
+      "isPublished": true,
+      "mindMap": {
+        "title": "《拉伸运动系统训练（第2版）》主题 4 · 热身、恢复与力量控制的结合",
+        "description": "CoachLink 原创主题知识地图：概念、决策、验证、误区和边界放在同一张图里。",
+        "data": [
+          {
+            "id": "root",
+            "title": "热身、恢复与力量控制的结合",
+            "node_type": "domain",
+            "children": [
+              {
+                "id": "concept",
+                "title": "核心概念",
+                "description": "热身需要提高温度、唤醒目标动作并为即将到来的速度和负荷做准备，拉伸只是其中一种工具。新增活动范围只有配合主动控制和负荷适应，才更可能成为可用于运动的稳定能力。",
+                "node_type": "category"
+              },
+              {
+                "id": "decision",
+                "title": "教练决策",
+                "description": "教练应在需要立即高水平力量或爆发输出前谨慎安排长时间高强度静态拉伸，并用动态练习重新建立输出。恢复阶段可根据个人偏好使用温和拉伸，但成效仍应由症状、睡眠和后续表现判断。",
+                "node_type": "category"
+              },
+              {
+                "id": "practice",
+                "title": "最小实践",
+                "description": "先确认目标动作真正受何因素限制",
+                "node_type": "category"
+              },
+              {
+                "id": "feedback",
+                "title": "记录与复盘",
+                "description": "先留基线，一次只改一个关键变量，再用结果和恢复信号判断。",
+                "node_type": "category"
+              },
+              {
+                "id": "pitfall",
+                "title": "常见误用",
+                "description": "把拉伸当成万能热身或恢复手段，会忽略专项升温、力量控制和整体训练负荷才是更大的影响因素。",
+                "node_type": "category"
+              },
+              {
+                "id": "boundary",
+                "title": "应用边界",
+                "description": "不公开复制原书解剖插图；急性损伤、神经症状或不明原因疼痛不应靠自行强拉处理。",
+                "node_type": "category"
+              }
+            ]
+          }
+        ]
+      },
+      "readingGuide": {
+        "estimatedMinutes": 10,
+        "suitableFor": [
+          "正在学习柔韧与活动度的训练者",
+          "需要把理论转成计划的教练",
+          "愿意记录并复盘的读者"
+        ],
+        "goals": [
+          "说清核心概念",
+          "形成可执行决策",
+          "设计一次可验证的小实验"
+        ],
+        "prerequisites": [
+          "先阅读全书深读入口",
+          "本页不替代正版原书或专业诊疗"
+        ]
+      },
+      "keyTakeaways": [
+        "热身、恢复与力量控制的结合",
+        "先确认目标动作真正受何因素限制",
+        "一次只改变少量关键变量，并提前定义反馈信号",
+        "把拉伸当成万能热身或恢复手段，会忽略专项升温、力量控制和整体训练负荷才是更大的影响因素。"
+      ],
+      "discussionPrompts": [
+        "你当前最接近这个主题的真实问题是什么？",
+        "你会保留哪个变量不变，才看得出干预是否有效？",
+        "如果结果与书中框架不一致，你先检查数据、执行还是原始假设？"
+      ],
+      "citations": [
+        {
+          "title": "书目：拉伸运动系统训练（第2版）",
+          "note": "本页为 CoachLink 原创解释性笔记；不复制原书正文、插图、表格或完整处方。正式学术或专业引用请回到正版书核对作者、版次、出版社和页码。",
+          "license": "interpretive-notes-only"
+        }
+      ]
+    }
+  ]
+}

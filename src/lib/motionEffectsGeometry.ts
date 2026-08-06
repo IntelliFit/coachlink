@@ -84,3 +84,30 @@ export function buildSideTriangles(
     [leftFirst, rightSecond, leftSecond],
   ];
 }
+
+export function buildTwoPairSurface(
+  leftFirst: MotionEffectPoint,
+  rightFirst: MotionEffectPoint,
+  leftSecond: MotionEffectPoint,
+  rightSecond: MotionEffectPoint,
+) {
+  const crosses = Boolean(
+    segmentIntersection(leftFirst, rightFirst, leftSecond, rightSecond),
+  );
+  const topRight = crosses ? rightSecond : rightFirst;
+  const bottomRight = crosses ? rightFirst : rightSecond;
+
+  return {
+    face: [leftFirst, topRight, bottomRight, leftSecond],
+    triangles: [
+      [leftFirst, topRight, bottomRight],
+      [leftFirst, bottomRight, leftSecond],
+    ],
+    boundary: [
+      [leftFirst, topRight],
+      [topRight, bottomRight],
+      [bottomRight, leftSecond],
+      [leftSecond, leftFirst],
+    ] as [MotionEffectPoint, MotionEffectPoint][],
+  };
+}

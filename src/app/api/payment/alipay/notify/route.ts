@@ -7,6 +7,7 @@ import {
 } from "@/app/api/payment/alipay/fulfillPaidOrder";
 import { fulfillContentPurchasePaid } from "../contentPurchaseFulfillment";
 import { fulfillStudentMembershipOrderOnPaid } from "@/app/api/payment/studentMembershipFulfillment";
+import { yuanToFen } from "@/lib/moneyUtils";
 
 export async function POST(req: Request) {
     const timestamp = new Date().toISOString();
@@ -69,6 +70,27 @@ export async function POST(req: Request) {
                 success: false,
                 message: "Missing out_trade_no",
             }, { status: 400 });
+        }
+
+        const { data: storedOrder, error: storedOrderError } =
+            await serviceRoleSupabase
+                .from("alipay_orders")
+                .select("id,total_amount")
+                .eq("id", out_trade_no)
+                .maybeSingle();
+        if (storedOrderError || !storedOrder) {
+            console.error("[Alipay Notify] 订单不存在:", storedOrderError);
+            return new Response("fail", { status: 404 });
+        }
+        const notifiedAmountFen = yuanToFen(Number(total_amount || 0));
+        const storedAmountFen = Math.round(Number(storedOrder.total_amount || 0));
+        if (notifiedAmountFen !== storedAmountFen) {
+            console.error("[Alipay Notify] 金额不匹配，拒绝履约", {
+                orderId: out_trade_no,
+                notifiedAmountFen,
+                storedAmountFen,
+            });
+            return new Response("fail", { status: 400 });
         }
 
         // Determine Status

@@ -14,6 +14,7 @@ import {
   type ArcadeFeedback,
   vibrateForArcadeFeedback
 } from '../games/arcadeFeedback'
+import { BodyPointTracker } from '../games/bodyPointTracker'
 import '../games/motionArcade.scss'
 import './index.scss'
 
@@ -41,20 +42,15 @@ type RecordedVideo = {
 type RepPhase = 'down' | 'idle' | 'up'
 
 const GAME_DURATION_MS = 30000
-const GAME_TICK_MS = 64
-const CAMERA_FRAME_COOLDOWN_MS = 72
-const MOTION_SAMPLE_STEP = 6
-const MOTION_THRESHOLD = 24
+const GAME_TICK_MS = 32
 const REPLAY_DURATION_SECONDS = 35
 const REPLAY_FPS = 12
+const REPLAY_FRAME_INTERVAL_MS = 1000 / REPLAY_FPS
 const PLAYER_X = 0.24
-const WALL_SPEED = 0.024
+const WALL_SPEED = 0.012
 const WALL_SPAWN_MS = 1100
 const DASH_DURATION_MS = 720
 const DASH_COLLISION_WINDOW_MS = 820
-const DOWN_THRESHOLD = 0.68
-const UP_THRESHOLD = 0.56
-const REP_ENERGY_THRESHOLD = 0.16
 const MAX_LIVES = 3
 
 function clamp(value: number, min: number, max: number) {
@@ -83,11 +79,13 @@ export default function PushupDashPage() {
   const cameraContextRef = useRef<any>(null)
   const replayRecorderRef = useRef<MotionArcadeReplayRecorder | null>(null)
   const frameListenerRef = useRef<any>(null)
-  const prevGrayFrameRef = useRef<Uint8Array | null>(null)
-  const lastCameraProcessRef = useRef(0)
+  const lastReplayCaptureAtRef = useRef(0)
   const motionRef = useRef<MotionSnapshot>({ energy: 0, x: 0.5, y: 0.7 })
   const repPhaseRef = useRef<RepPhase>('idle')
   const repStartedAtRef = useRef(0)
+  const repDownYRef = useRef(0)
+  const gameStatusRef = useRef<GameStatus>('idle')
+  const dashActiveRef = useRef(false)
   const dashUntilRef = useRef(0)
   const dashAvailableUntilRef = useRef(0)
   const wallsRef = useRef<DashWall[]>([])
@@ -167,6 +165,14 @@ export default function PushupDashPage() {
     replayMirroredRef.current = replayMirrored
   }, [replayMirrored])
 
+  useEffect(() => {
+    gameStatusRef.current = gameStatus
+  }, [gameStatus])
+
+  useEffect(() => {
+    dashActiveRef.current = dashActive
+  }, [dashActive])
+
   const beginDashFromRep = () => {
     const now = Date.now()
     dashUntilRef.current = now + DASH_DURATION_MS
@@ -184,6 +190,57 @@ export default function PushupDashPage() {
   useEffect(() => {
     const context = Taro.createCameraContext()
     cameraContextRef.current = context
+    const tracker = new BodyPointTracker({
+      onSnapshot: (snapshot) => {
+        motionRef.current = {
+          energy: snapshot.energy,
+          x: snapshot.x,
+          y: snapshot.y
+        }
+        setMotionEnergy(snapshot.energy)
+
+        if (gameStatusRef.current !== 'playing') return
+        const now = Date.now()
+        const directionThreshold = snapshot.source === 'pose' ? 0.008 : 0.016
+        const energyThreshold = snapshot.source === 'pose' ? 0.04 : 0.1
+        const travelThreshold = snapshot.source === 'pose' ? 0.026 : 0.04
+
+        if (
+          repPhaseRef.current === 'idle'
+          && snapshot.energy >= energyThreshold
+          && snapshot.velocityY >= directionThreshold
+        ) {
+          repPhaseRef.current = 'down'
+          repStartedAtRef.current = now
+          repDownYRef.current = snapshot.y
+          setPhaseLabel('已下压，准备撑起')
+          return
+        }
+
+        if (repPhaseRef.current === 'down') {
+          repDownYRef.current = Math.max(repDownYRef.current, snapshot.y)
+          if (
+            now - repStartedAtRef.current >= 120
+            && snapshot.velocityY <= -directionThreshold
+            && repDownYRef.current - snapshot.y >= travelThreshold
+          ) {
+            repPhaseRef.current = 'up'
+            repStartedAtRef.current = now
+            beginDashFromRep()
+            setPhaseLabel('完整俯卧撑，已推进')
+          } else if (now - repStartedAtRef.current > 1800) {
+            repPhaseRef.current = 'idle'
+            setPhaseLabel('动作幅度不足，请重新下压')
+          }
+          return
+        }
+
+        if (repPhaseRef.current === 'up' && now - repStartedAtRef.current >= 360) {
+          repPhaseRef.current = 'idle'
+          setPhaseLabel('等待下一次下压')
+        }
+      }
+    })
 
     let stopped = false
     const startFrameStream = () => {
@@ -191,80 +248,19 @@ export default function PushupDashPage() {
         const listener = context.onCameraFrame((frame: any) => {
           if (stopped) return
           const now = Date.now()
-          if (now - lastCameraProcessRef.current < CAMERA_FRAME_COOLDOWN_MS) return
-          lastCameraProcessRef.current = now
 
           const width = Number(frame?.width || 0)
           const height = Number(frame?.height || 0)
           const data = frame?.data
           if (!width || !height || !(data instanceof ArrayBuffer)) return
+          tracker.processFrame({ data, height, width }, now)
 
-          const prev = prevGrayFrameRef.current
-          const current = new Uint8Array(Math.ceil((width / MOTION_SAMPLE_STEP) * (height / MOTION_SAMPLE_STEP)))
-          let sampleIndex = 0
-          let weightedX = 0
-          let weightedY = 0
-          let weightSum = 0
-          const rgba = new Uint8Array(data)
-
-          for (let y = 0; y < height; y += MOTION_SAMPLE_STEP) {
-            for (let x = 0; x < width; x += MOTION_SAMPLE_STEP) {
-              const idx = (y * width + x) * 4
-              const gray = ((rgba[idx] || 0) * 3 + (rgba[idx + 1] || 0) * 4 + (rgba[idx + 2] || 0)) >> 3
-              current[sampleIndex] = gray
-              if (prev) {
-                const diff = Math.abs(gray - prev[sampleIndex])
-                if (diff > MOTION_THRESHOLD) {
-                  weightedX += x * diff
-                  weightedY += y * diff
-                  weightSum += diff
-                }
-              }
-              sampleIndex += 1
-            }
-          }
-
-          prevGrayFrameRef.current = current
-          if (!prev || weightSum <= 0) return
-
-          const rawX = weightedX / weightSum / width
-          const rawY = weightedY / weightSum / height
-          const nextEnergy = clamp(weightSum / 8500, 0, 1)
-          const currentMotion = motionRef.current
-          const nextX = currentMotion.x * 0.42 + clamp(rawX, 0.06, 0.94) * 0.58
-          const nextY = currentMotion.y * 0.42 + clamp(rawY, 0.12, 0.9) * 0.58
-
-          motionRef.current = {
-            energy: nextEnergy,
-            x: nextX,
-            y: nextY
-          }
-          setMotionEnergy(nextEnergy)
-
-          if (gameStatus === 'playing') {
-            if (
-              repPhaseRef.current === 'idle'
-              && nextEnergy >= REP_ENERGY_THRESHOLD
-              && nextY >= DOWN_THRESHOLD
-            ) {
-              repPhaseRef.current = 'down'
-              repStartedAtRef.current = now
-              setPhaseLabel('已下压，准备撑起')
-            } else if (
-              repPhaseRef.current === 'down'
-              && now - repStartedAtRef.current >= 120
-              && nextY <= UP_THRESHOLD
-            ) {
-              repPhaseRef.current = 'up'
-              beginDashFromRep()
-              setPhaseLabel('一次完整俯卧撑已触发推进')
-            } else if (repPhaseRef.current === 'up' && nextY >= 0.6) {
-              repPhaseRef.current = 'idle'
-              setPhaseLabel('等待下一次下压')
-            }
-          }
-
-          if (recordingModeRef.current === 'composite') {
+          if (
+            recordingModeRef.current === 'composite'
+            && now - lastReplayCaptureAtRef.current >= REPLAY_FRAME_INTERVAL_MS
+          ) {
+            lastReplayCaptureAtRef.current = now
+            const rgba = new Uint8Array(data)
             const replayItems: ArcadeReplayItem[] = wallsRef.current.map((wall) => ({
               height: wall.height,
               shape: 'rect',
@@ -282,7 +278,7 @@ export default function PushupDashPage() {
               items: replayItems,
               mirrored: replayMirroredRef.current,
               player: {
-                x: dashActive ? PLAYER_X + 0.08 : PLAYER_X,
+                x: dashActiveRef.current ? PLAYER_X + 0.08 : PLAYER_X,
                 y: 0.78
               },
               replayFooterLabel: '俯卧撑突围回放',
@@ -310,7 +306,7 @@ export default function PushupDashPage() {
         // ignore cleanup error
       }
       frameListenerRef.current = null
-      prevGrayFrameRef.current = null
+      tracker.destroy()
       void replayRecorderRef.current?.destroy()
       replayRecorderRef.current = null
       if (isRecordingRef.current) {
@@ -321,9 +317,10 @@ export default function PushupDashPage() {
         }
       }
     }
-  }, [dashActive, gameStatus])
+  }, [])
 
   const endRound = () => {
+    gameStatusRef.current = 'ended'
     setGameStatus('ended')
     if (isRecordingRef.current) {
       void stopRecording()
@@ -556,12 +553,15 @@ export default function PushupDashPage() {
     nextWallIdRef.current = 1
     setRepCount(0)
     setFeedback(null)
+    lastReplayCaptureAtRef.current = 0
     setLives(MAX_LIVES)
     livesRef.current = MAX_LIVES
     dashUntilRef.current = 0
     dashAvailableUntilRef.current = 0
     setDashActive(false)
+    dashActiveRef.current = false
     repPhaseRef.current = 'idle'
+    repDownYRef.current = 0
     setPhaseLabel('等待下压')
     motionRef.current = { energy: 0, x: 0.5, y: 0.7 }
     setMotionEnergy(0)
@@ -580,6 +580,7 @@ export default function PushupDashPage() {
     resetForNewGame()
     setRecordedVideo(null)
     setGameStatus('playing')
+    gameStatusRef.current = 'playing'
     gameStartedAtRef.current = Date.now()
     if (withRecording) {
       void beginRecording()
@@ -631,10 +632,7 @@ export default function PushupDashPage() {
           <View className='page-content'>
             <View className='intro-card'>
               <Text className='intro-kicker'>PUSHUP DRIVE</Text>
-              <Text className='intro-title'>不是左右躲障碍了，而是做完整一下俯卧撑才会触发一次推进</Text>
-              <Text className='intro-desc'>
-                这一版把规则改成“下压一次，再撑起一次”才算一次完整驱动。每完成一次，角色就会往前顶出去一段，把迎面来的墙撞开。
-              </Text>
+              <Text className='intro-title'>完成俯卧撑，撞开障碍</Text>
               <View className='intro-tags'>
                 <Text className='intro-tag'>下压 + 撑起</Text>
                 <Text className='intro-tag'>完整一次才推进</Text>
@@ -721,12 +719,6 @@ export default function PushupDashPage() {
                   </View>
                 ) : null}
 
-                <View className='stage-tip-card'>
-                  <Text className='stage-note-title'>玩法提示</Text>
-                  <Text className='stage-note-desc'>
-                    先做明显的下压动作，再快速撑起。只有完整走完这两个阶段，角色才会往前顶出去一次。
-                  </Text>
-                </View>
               </View>
             </View>
 
@@ -760,7 +752,7 @@ export default function PushupDashPage() {
 
               <View className='meter-wrap'>
                 <View className='meter-header'>
-                  <Text className='meter-label'>动作感应强度</Text>
+                  <Text className='meter-label'>动作幅度</Text>
                   <Text className='meter-value'>{formatPercent(motionEnergy)}%</Text>
                 </View>
                 <View className='meter-track'>
@@ -776,9 +768,6 @@ export default function PushupDashPage() {
 
             <View className='controls-card'>
               <Text className='section-kicker'>控制台</Text>
-              <Text className='intro-desc'>
-                这局不再是横向躲东西，而是完整做一下动作来换一次推进。录像会优先保存带墙体和冲刺动画的回放。
-              </Text>
 
               <View className='controls-grid'>
                 <View

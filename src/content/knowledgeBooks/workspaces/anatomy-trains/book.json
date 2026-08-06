@@ -1,0 +1,497 @@
+{
+  "format": "book-note-v4-classic-deep-read",
+  "noteStyle": "interpretive-reading-note",
+  "disclaimer": "本页为 CoachLink 原创导读与知识地图，不复制原书正文、插图、表格或完整训练模板，也不替代购买和阅读正版原书。",
+  "source": {
+    "title": "解剖列车",
+    "authors": [
+      "Thomas W. Myers"
+    ],
+    "originalFilePath": "local-library://anatomy-trains",
+    "copyrightMode": "interpretive-notes-only",
+    "collectionSlug": "anatomy-trains",
+    "collectionTitle": "《解剖列车》原创深读笔记"
+  },
+  "notes": [
+    {
+      "slug": "overview",
+      "file": "notes/00-overview.md",
+      "noteType": "overview",
+      "chapterOrder": 0,
+      "chapterTitle": "深读入口",
+      "title": "《解剖列车》深读入口：先建立全书地图，再决定怎么用",
+      "summary": "用肌筋膜经线描述跨区域张力与姿势关系，是影响广泛的整合视角；阅读时应区分启发性模型与已证实机制。",
+      "sortOrder": 3200,
+      "author": "Thomas W. Myers",
+      "isFree": true,
+      "isPublished": true,
+      "mindMap": {
+        "title": "《解剖列车》全书知识地图",
+        "description": "这是 CoachLink 根据书籍主题绘制的原创导航图，不复制原书插图或版式。",
+        "data": [
+          {
+            "id": "root",
+            "title": "解剖列车",
+            "node_type": "domain",
+            "children": [
+              {
+                "id": "question",
+                "title": "核心问题",
+                "description": "跨区域的组织连续性怎样帮助观察整体姿势和动作，又如何避免把一套形象模型写成唯一生物力学事实？",
+                "node_type": "category"
+              },
+              {
+                "id": "framework-1",
+                "title": "筋膜连续性与经线模型",
+                "node_type": "category"
+              },
+              {
+                "id": "framework-2",
+                "title": "姿势、张力和整体观察",
+                "node_type": "category"
+              },
+              {
+                "id": "framework-3",
+                "title": "动作与手法应用思路",
+                "node_type": "category"
+              },
+              {
+                "id": "framework-4",
+                "title": "模型证据、争议与替代解释",
+                "node_type": "category"
+              },
+              {
+                "id": "boundary",
+                "title": "应用边界",
+                "description": "属于特定理论视角，不应写成唯一医学共识；不复制原书解剖图与摄影内容。",
+                "node_type": "category"
+              }
+            ]
+          }
+        ]
+      },
+      "readingGuide": {
+        "estimatedMinutes": 8,
+        "suitableFor": [
+          "关注肌筋膜理论的训练者",
+          "教练与知识库编辑",
+          "准备精读正版原书的读者"
+        ],
+        "goals": [
+          "掌握全书核心问题",
+          "看懂主题之间的关系",
+          "明确应用边界与复盘方法"
+        ],
+        "prerequisites": [
+          "本页不替代原书，也不提供原文件下载"
+        ]
+      },
+      "keyTakeaways": [
+        "筋膜连续性与经线模型",
+        "姿势、张力和整体观察",
+        "动作与手法应用思路",
+        "模型证据、争议与替代解释"
+      ],
+      "discussionPrompts": [
+        "这本书最可能改变你当前的哪一个训练决策？",
+        "哪一个观点高度依赖作者的目标人群或训练环境？",
+        "你会用什么训练数据判断它对自己是否有效？"
+      ],
+      "citations": [
+        {
+          "title": "书目：解剖列车",
+          "note": "基于本地书目盘点建立原创导读；原始电子文件仅供内部研究，不上传、不公开下载。正式引用前应继续核对正版书的作者、版次、出版社与页码。",
+          "license": "interpretive-notes-only"
+        }
+      ]
+    },
+    {
+      "slug": "topic-01",
+      "file": "notes/01-topic.md",
+      "noteType": "chapter",
+      "chapterOrder": 1,
+      "chapterTitle": "筋膜连续性与经线模型",
+      "title": "《解剖列车》主题深读 1：筋膜连续性与经线模型",
+      "summary": "筋膜构成连续的结缔组织网络，局部受力可以通过邻近结构产生不同程度的传递。经线模型把若干组织联系组织成便于观察的地图，但这些线路不是体内彼此分离的实体缆绳。 本页进一步给出教练决策、反馈记录、微实验和应用边界。",
+      "sortOrder": 3201,
+      "author": "Thomas W. Myers",
+      "isFree": true,
+      "isPublished": true,
+      "mindMap": {
+        "title": "《解剖列车》主题 1 · 筋膜连续性与经线模型",
+        "description": "CoachLink 原创主题知识地图：概念、决策、验证、误区和边界放在同一张图里。",
+        "data": [
+          {
+            "id": "root",
+            "title": "筋膜连续性与经线模型",
+            "node_type": "domain",
+            "children": [
+              {
+                "id": "concept",
+                "title": "核心概念",
+                "description": "筋膜构成连续的结缔组织网络，局部受力可以通过邻近结构产生不同程度的传递。经线模型把若干组织联系组织成便于观察的地图，但这些线路不是体内彼此分离的实体缆绳。",
+                "node_type": "category"
+              },
+              {
+                "id": "decision",
+                "title": "教练决策",
+                "description": "教练可以借助线路提出远端部位是否参与某个动作问题的假设，再分别检查局部与整体任务。若处理线路上的某一区域后功能没有稳定变化，就应降低该假设的优先级并寻找其他解释。",
+                "node_type": "category"
+              },
+              {
+                "id": "practice",
+                "title": "最小实践",
+                "description": "把经线当作提出问题的地图",
+                "node_type": "category"
+              },
+              {
+                "id": "feedback",
+                "title": "记录与复盘",
+                "description": "先留基线，一次只改一个关键变量，再用结果和恢复信号判断。",
+                "node_type": "category"
+              },
+              {
+                "id": "pitfall",
+                "title": "常见误用",
+                "description": "存在解剖连续性不等于已经证明存在足以导致症状的远距离力传递。",
+                "node_type": "category"
+              },
+              {
+                "id": "boundary",
+                "title": "应用边界",
+                "description": "属于特定理论视角，不应写成唯一医学共识；不复制原书解剖图与摄影内容。",
+                "node_type": "category"
+              }
+            ]
+          }
+        ]
+      },
+      "readingGuide": {
+        "estimatedMinutes": 10,
+        "suitableFor": [
+          "正在学习肌筋膜理论的训练者",
+          "需要把理论转成计划的教练",
+          "愿意记录并复盘的读者"
+        ],
+        "goals": [
+          "说清核心概念",
+          "形成可执行决策",
+          "设计一次可验证的小实验"
+        ],
+        "prerequisites": [
+          "先阅读全书深读入口",
+          "本页不替代正版原书或专业诊疗"
+        ]
+      },
+      "keyTakeaways": [
+        "筋膜连续性与经线模型",
+        "把经线当作提出问题的地图",
+        "一次只改变少量关键变量，并提前定义反馈信号",
+        "存在解剖连续性不等于已经证明存在足以导致症状的远距离力传递。"
+      ],
+      "discussionPrompts": [
+        "你当前最接近这个主题的真实问题是什么？",
+        "你会保留哪个变量不变，才看得出干预是否有效？",
+        "如果结果与书中框架不一致，你先检查数据、执行还是原始假设？"
+      ],
+      "citations": [
+        {
+          "title": "书目：解剖列车",
+          "note": "本页为 CoachLink 原创解释性笔记；不复制原书正文、插图、表格或完整处方。正式学术或专业引用请回到正版书核对作者、版次、出版社和页码。",
+          "license": "interpretive-notes-only"
+        }
+      ]
+    },
+    {
+      "slug": "topic-02",
+      "file": "notes/02-topic.md",
+      "noteType": "chapter",
+      "chapterOrder": 2,
+      "chapterTitle": "姿势、张力和整体观察",
+      "title": "《解剖列车》主题深读 2：姿势、张力和整体观察",
+      "summary": "静态姿势只是特定时刻的组织排列，它受到结构、习惯、情绪和任务背景共同影响。整体观察更有价值的部分是发现负荷如何分布以及个体能否在不同姿势之间自由变化。 本页进一步给出教练决策、反馈记录、微实验和应用边界。",
+      "sortOrder": 3202,
+      "author": "Thomas W. Myers",
+      "isFree": true,
+      "isPublished": true,
+      "mindMap": {
+        "title": "《解剖列车》主题 2 · 姿势、张力和整体观察",
+        "description": "CoachLink 原创主题知识地图：概念、决策、验证、误区和边界放在同一张图里。",
+        "data": [
+          {
+            "id": "root",
+            "title": "姿势、张力和整体观察",
+            "node_type": "domain",
+            "children": [
+              {
+                "id": "concept",
+                "title": "核心概念",
+                "description": "静态姿势只是特定时刻的组织排列，它受到结构、习惯、情绪和任务背景共同影响。整体观察更有价值的部分是发现负荷如何分布以及个体能否在不同姿势之间自由变化。",
+                "node_type": "category"
+              },
+              {
+                "id": "decision",
+                "title": "教练决策",
+                "description": "应比较站立、行走和目标动作中的变化，而不是只依据一张正侧面照片下结论。干预目标要锁定与症状或表现稳定相关且可改变的限制，并保留个体自然差异。",
+                "node_type": "category"
+              },
+              {
+                "id": "practice",
+                "title": "最小实践",
+                "description": "用局部和整体测试验证假设",
+                "node_type": "category"
+              },
+              {
+                "id": "feedback",
+                "title": "记录与复盘",
+                "description": "先留基线，一次只改一个关键变量，再用结果和恢复信号判断。",
+                "node_type": "category"
+              },
+              {
+                "id": "pitfall",
+                "title": "常见误用",
+                "description": "把常见姿势差异命名为错位或直接预测疼痛，容易制造不必要的恐惧和过度矫正。",
+                "node_type": "category"
+              },
+              {
+                "id": "boundary",
+                "title": "应用边界",
+                "description": "属于特定理论视角，不应写成唯一医学共识；不复制原书解剖图与摄影内容。",
+                "node_type": "category"
+              }
+            ]
+          }
+        ]
+      },
+      "readingGuide": {
+        "estimatedMinutes": 10,
+        "suitableFor": [
+          "正在学习肌筋膜理论的训练者",
+          "需要把理论转成计划的教练",
+          "愿意记录并复盘的读者"
+        ],
+        "goals": [
+          "说清核心概念",
+          "形成可执行决策",
+          "设计一次可验证的小实验"
+        ],
+        "prerequisites": [
+          "先阅读全书深读入口",
+          "本页不替代正版原书或专业诊疗"
+        ]
+      },
+      "keyTakeaways": [
+        "姿势、张力和整体观察",
+        "用局部和整体测试验证假设",
+        "一次只改变少量关键变量，并提前定义反馈信号",
+        "把常见姿势差异命名为错位或直接预测疼痛，容易制造不必要的恐惧和过度矫正。"
+      ],
+      "discussionPrompts": [
+        "你当前最接近这个主题的真实问题是什么？",
+        "你会保留哪个变量不变，才看得出干预是否有效？",
+        "如果结果与书中框架不一致，你先检查数据、执行还是原始假设？"
+      ],
+      "citations": [
+        {
+          "title": "书目：解剖列车",
+          "note": "本页为 CoachLink 原创解释性笔记；不复制原书正文、插图、表格或完整处方。正式学术或专业引用请回到正版书核对作者、版次、出版社和页码。",
+          "license": "interpretive-notes-only"
+        }
+      ]
+    },
+    {
+      "slug": "topic-03",
+      "file": "notes/03-topic.md",
+      "noteType": "chapter",
+      "chapterOrder": 3,
+      "chapterTitle": "动作与手法应用思路",
+      "title": "《解剖列车》主题深读 3：动作与手法应用思路",
+      "summary": "手法可能通过感觉输入、舒适度和短期活动范围改变，为后续主动训练创造机会。动作训练则利用重复负荷和技能学习，把暂时变化转化为更可靠的控制与容量。 本页进一步给出教练决策、反馈记录、微实验和应用边界。",
+      "sortOrder": 3203,
+      "author": "Thomas W. Myers",
+      "isFree": true,
+      "isPublished": true,
+      "mindMap": {
+        "title": "《解剖列车》主题 3 · 动作与手法应用思路",
+        "description": "CoachLink 原创主题知识地图：概念、决策、验证、误区和边界放在同一张图里。",
+        "data": [
+          {
+            "id": "root",
+            "title": "动作与手法应用思路",
+            "node_type": "domain",
+            "children": [
+              {
+                "id": "concept",
+                "title": "核心概念",
+                "description": "手法可能通过感觉输入、舒适度和短期活动范围改变，为后续主动训练创造机会。动作训练则利用重复负荷和技能学习，把暂时变化转化为更可靠的控制与容量。",
+                "node_type": "category"
+              },
+              {
+                "id": "decision",
+                "title": "教练决策",
+                "description": "若使用手法或自我放松，应紧接着安排与目标任务相关的主动动作，并比较前后效果能否维持。动作选择可借用经线组织多关节方向，但训练剂量仍须依据个人反应与目标确定。",
+                "node_type": "category"
+              },
+              {
+                "id": "practice",
+                "title": "最小实践",
+                "description": "同时考虑神经、负荷、行为和个体差异",
+                "node_type": "category"
+              },
+              {
+                "id": "feedback",
+                "title": "记录与复盘",
+                "description": "先留基线，一次只改一个关键变量，再用结果和恢复信号判断。",
+                "node_type": "category"
+              },
+              {
+                "id": "pitfall",
+                "title": "常见误用",
+                "description": "远端活动范围短暂改善不能证明粘连已被释放或筋膜结构已被重新排列。",
+                "node_type": "category"
+              },
+              {
+                "id": "boundary",
+                "title": "应用边界",
+                "description": "属于特定理论视角，不应写成唯一医学共识；不复制原书解剖图与摄影内容。",
+                "node_type": "category"
+              }
+            ]
+          }
+        ]
+      },
+      "readingGuide": {
+        "estimatedMinutes": 10,
+        "suitableFor": [
+          "正在学习肌筋膜理论的训练者",
+          "需要把理论转成计划的教练",
+          "愿意记录并复盘的读者"
+        ],
+        "goals": [
+          "说清核心概念",
+          "形成可执行决策",
+          "设计一次可验证的小实验"
+        ],
+        "prerequisites": [
+          "先阅读全书深读入口",
+          "本页不替代正版原书或专业诊疗"
+        ]
+      },
+      "keyTakeaways": [
+        "动作与手法应用思路",
+        "同时考虑神经、负荷、行为和个体差异",
+        "一次只改变少量关键变量，并提前定义反馈信号",
+        "远端活动范围短暂改善不能证明粘连已被释放或筋膜结构已被重新排列。"
+      ],
+      "discussionPrompts": [
+        "你当前最接近这个主题的真实问题是什么？",
+        "你会保留哪个变量不变，才看得出干预是否有效？",
+        "如果结果与书中框架不一致，你先检查数据、执行还是原始假设？"
+      ],
+      "citations": [
+        {
+          "title": "书目：解剖列车",
+          "note": "本页为 CoachLink 原创解释性笔记；不复制原书正文、插图、表格或完整处方。正式学术或专业引用请回到正版书核对作者、版次、出版社和页码。",
+          "license": "interpretive-notes-only"
+        }
+      ]
+    },
+    {
+      "slug": "topic-04",
+      "file": "notes/04-topic.md",
+      "noteType": "chapter",
+      "chapterOrder": 4,
+      "chapterTitle": "模型证据、争议与替代解释",
+      "title": "《解剖列车》主题深读 4：模型证据、争议与替代解释",
+      "summary": "不同筋膜线路获得的解剖证据并不一致，而尸体连续性研究也不能直接证明临床干预效果。观察到的变化还可能来自神经调节、注意、期待、一般负荷适应或自然波动。 本页进一步给出教练决策、反馈记录、微实验和应用边界。",
+      "sortOrder": 3204,
+      "author": "Thomas W. Myers",
+      "isFree": true,
+      "isPublished": true,
+      "mindMap": {
+        "title": "《解剖列车》主题 4 · 模型证据、争议与替代解释",
+        "description": "CoachLink 原创主题知识地图：概念、决策、验证、误区和边界放在同一张图里。",
+        "data": [
+          {
+            "id": "root",
+            "title": "模型证据、争议与替代解释",
+            "node_type": "domain",
+            "children": [
+              {
+                "id": "concept",
+                "title": "核心概念",
+                "description": "不同筋膜线路获得的解剖证据并不一致，而尸体连续性研究也不能直接证明临床干预效果。观察到的变化还可能来自神经调节、注意、期待、一般负荷适应或自然波动。",
+                "node_type": "category"
+              },
+              {
+                "id": "decision",
+                "title": "教练决策",
+                "description": "表达结论时应区分模型、机制假设和已经验证的结果，并主动与常规生物力学及疼痛科学解释比较。经线模型若不能预测复测结果，就应被修正或暂时放弃，而不是继续补充故事。",
+                "node_type": "category"
+              },
+              {
+                "id": "practice",
+                "title": "最小实践",
+                "description": "把经线当作提出问题的地图",
+                "node_type": "category"
+              },
+              {
+                "id": "feedback",
+                "title": "记录与复盘",
+                "description": "先留基线，一次只改一个关键变量，再用结果和恢复信号判断。",
+                "node_type": "category"
+              },
+              {
+                "id": "pitfall",
+                "title": "常见误用",
+                "description": "一个形象且完整的身体地图不应被升级为排除其他机制的唯一诊断体系。",
+                "node_type": "category"
+              },
+              {
+                "id": "boundary",
+                "title": "应用边界",
+                "description": "属于特定理论视角，不应写成唯一医学共识；不复制原书解剖图与摄影内容。",
+                "node_type": "category"
+              }
+            ]
+          }
+        ]
+      },
+      "readingGuide": {
+        "estimatedMinutes": 10,
+        "suitableFor": [
+          "正在学习肌筋膜理论的训练者",
+          "需要把理论转成计划的教练",
+          "愿意记录并复盘的读者"
+        ],
+        "goals": [
+          "说清核心概念",
+          "形成可执行决策",
+          "设计一次可验证的小实验"
+        ],
+        "prerequisites": [
+          "先阅读全书深读入口",
+          "本页不替代正版原书或专业诊疗"
+        ]
+      },
+      "keyTakeaways": [
+        "模型证据、争议与替代解释",
+        "把经线当作提出问题的地图",
+        "一次只改变少量关键变量，并提前定义反馈信号",
+        "一个形象且完整的身体地图不应被升级为排除其他机制的唯一诊断体系。"
+      ],
+      "discussionPrompts": [
+        "你当前最接近这个主题的真实问题是什么？",
+        "你会保留哪个变量不变，才看得出干预是否有效？",
+        "如果结果与书中框架不一致，你先检查数据、执行还是原始假设？"
+      ],
+      "citations": [
+        {
+          "title": "书目：解剖列车",
+          "note": "本页为 CoachLink 原创解释性笔记；不复制原书正文、插图、表格或完整处方。正式学术或专业引用请回到正版书核对作者、版次、出版社和页码。",
+          "license": "interpretive-notes-only"
+        }
+      ]
+    }
+  ]
+}

@@ -16,17 +16,19 @@ import dagre from '@dagrejs/dagre';
 import 'reactflow/dist/style.css';
 import { useRouter } from 'next/navigation';
 
-type KnowledgeNode = {
+export type KnowledgeMindMapNode = {
   id: string;
   title: string;
   description?: string | null;
   node_type?: string;
-  children?: KnowledgeNode[];
+  children?: KnowledgeMindMapNode[];
 };
 
 type KnowledgeMindMapProps = {
-  data: KnowledgeNode[];
-  onNodeClick?: (node: KnowledgeNode) => void;
+  data: KnowledgeMindMapNode[];
+  onNodeClick?: (node: KnowledgeMindMapNode) => void;
+  readOnly?: boolean;
+  height?: number;
 };
 
 // Custom node component with proper handles
@@ -119,11 +121,11 @@ const getLayoutedElements = (nodes: Node[], edges: Edge[], direction = 'LR') => 
 };
 
 // Flatten tree structure to nodes and edges first
-function flattenTree(data: KnowledgeNode[]): { nodes: Node[]; edges: Edge[] } {
+function flattenTree(data: KnowledgeMindMapNode[]): { nodes: Node[]; edges: Edge[] } {
   const nodes: Node[] = [];
   const edges: Edge[] = [];
 
-  function processNode(item: KnowledgeNode, parentId: string | null) {
+  function processNode(item: KnowledgeMindMapNode, parentId: string | null) {
     const nodeId = item.id;
     const hasChildren = item.children && item.children.length > 0;
     
@@ -163,7 +165,12 @@ function flattenTree(data: KnowledgeNode[]): { nodes: Node[]; edges: Edge[] } {
   return { nodes, edges };
 }
 
-export default function KnowledgeMindMap({ data, onNodeClick }: KnowledgeMindMapProps) {
+export default function KnowledgeMindMap({
+  data,
+  onNodeClick,
+  readOnly = false,
+  height = 600,
+}: KnowledgeMindMapProps) {
   const router = useRouter();
   
   // 1. Flatten tree
@@ -188,7 +195,8 @@ export default function KnowledgeMindMap({ data, onNodeClick }: KnowledgeMindMap
   }, [data, setNodes, setEdges]);
 
   const handleNodeClick = useCallback((event: React.MouseEvent, node: Node) => {
-    const originalData = node.data.originalData as KnowledgeNode;
+    if (readOnly) return;
+    const originalData = node.data.originalData as KnowledgeMindMapNode;
     if (onNodeClick) {
       onNodeClick(originalData);
     } else {
@@ -202,7 +210,7 @@ export default function KnowledgeMindMap({ data, onNodeClick }: KnowledgeMindMap
         router.push(`/dashboard/knowledge/pillars/${originalData.id}`);
       }
     }
-  }, [onNodeClick, router]);
+  }, [onNodeClick, readOnly, router]);
 
   if (data.length === 0) {
     return (
@@ -213,7 +221,10 @@ export default function KnowledgeMindMap({ data, onNodeClick }: KnowledgeMindMap
   }
 
   return (
-    <div className="h-[600px] bg-surface-50 dark:bg-surface-900 rounded-2xl overflow-hidden border border-surface-200 dark:border-surface-700 relative">
+    <div
+      className="bg-surface-50 dark:bg-surface-900 rounded-2xl overflow-hidden border border-surface-200 dark:border-surface-700 relative"
+      style={{ height }}
+    >
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -262,7 +273,7 @@ export default function KnowledgeMindMap({ data, onNodeClick }: KnowledgeMindMap
       {/* Tips */}
       <div className="absolute top-4 right-4 bg-white/90 dark:bg-surface-800/90 backdrop-blur rounded-xl px-3 py-2 text-xs text-surface-500 shadow-sm border border-surface-100 dark:border-surface-700 z-10 flex items-center gap-2">
         <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-        <span>可拖拽画布与节点</span>
+          <span>{readOnly ? "可拖拽、缩放查看" : "可拖拽画布与节点"}</span>
       </div>
     </div>
   );

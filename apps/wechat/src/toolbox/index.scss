@@ -4,7 +4,7 @@
   padding-top: constant(safe-area-inset-top);
   padding-top: env(safe-area-inset-top);
   padding-bottom: 184rpx;
-  background: #f7f4ef;
+  background: #f7f5f3;
   color: #18231f;
 
   .page-scroll {
@@ -18,6 +18,31 @@
     padding: 96rpx 24rpx 64rpx;
   }
 
+  .toolbox-hero {
+    position: relative;
+    overflow: hidden;
+    padding: 40rpx 32rpx;
+    border-radius: 24rpx;
+    background: #18231f;
+    color: #ffffff;
+    box-shadow: 0 16rpx 40rpx rgba(24, 35, 31, 0.12);
+  }
+
+  .toolbox-hero::after {
+    position: absolute;
+    right: -96rpx;
+    bottom: -112rpx;
+    width: 256rpx;
+    height: 256rpx;
+    box-sizing: border-box;
+    border: 48rpx solid rgba(255, 255, 255, 0.05);
+    border-radius: 9999rpx;
+    content: '';
+  }
+
+  .hero-kicker,
+  .hero-title,
+  .hero-desc,
   .section-kicker,
   .section-title,
   .section-subtitle,
@@ -37,9 +62,43 @@
     letter-spacing: 2rpx;
   }
 
+  .hero-title {
+    max-width: 600rpx;
+    margin-top: 8rpx;
+    font-size: 48rpx;
+    font-weight: 900;
+    line-height: 1.25;
+  }
+
+  .hero-desc {
+    max-width: 560rpx;
+    margin-top: 16rpx;
+    color: #cbd5e1;
+    font-size: 24rpx;
+    line-height: 1.7;
+  }
+
+  .hero-stats {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8rpx;
+    margin-top: 24rpx;
+
+    Text {
+      padding: 12rpx 16rpx;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 9999rpx;
+      background: rgba(255, 255, 255, 0.05);
+      color: #e2e8f0;
+      font-size: 18rpx;
+      font-weight: 800;
+    }
+  }
   .section-block,
   .scene-section {
-    margin-top: 48rpx;
+    margin-top: 40rpx;
   }
 
   .section-header {
@@ -81,11 +140,17 @@
     gap: 16rpx;
   }
 
+  .toolbox-list {
+    display: flex;
+    flex-direction: column;
+    gap: 16rpx;
+  }
+
   .toolbox-card,
   .scene-card {
     box-sizing: border-box;
     overflow: hidden;
-    border: 1px solid #e2ddd6;
+    border: 1px solid #e5e7eb;
     border-radius: 24rpx;
     background: #ffffff;
     box-shadow: 0 16rpx 40rpx rgba(41, 31, 24, 0.05);
@@ -100,6 +165,59 @@
     flex-direction: column;
     min-height: 336rpx;
     padding: 24rpx;
+  }
+
+  .toolbox-card--compact {
+    min-height: 0;
+    padding: 24rpx;
+  }
+
+  .toolbox-card-main {
+    display: flex;
+    align-items: flex-start;
+    gap: 16rpx;
+  }
+
+  .toolbox-card-copy {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .toolbox-card--compact {
+    .toolbox-icon {
+      flex-shrink: 0;
+      width: 64rpx;
+      height: 64rpx;
+      border-radius: 16rpx;
+    }
+
+    .toolbox-badge {
+      margin-top: 0;
+    }
+
+    .toolbox-name {
+      margin-top: 8rpx;
+      font-size: 28rpx;
+    }
+
+    .toolbox-desc {
+      min-height: 0;
+      margin-top: 8rpx;
+      font-size: 20rpx;
+    }
+
+    .toolbox-arrow {
+      flex-shrink: 0;
+      align-self: center;
+      width: 40rpx;
+      text-align: center;
+    }
+
+    .toolbox-tags {
+      margin-top: 16rpx;
+      padding-top: 0;
+      padding-left: 80rpx;
+    }
   }
 
   .toolbox-card-top {
@@ -129,6 +247,10 @@
 
   .toolbox-card--strength-calculator .toolbox-icon {
     background: #b7793d;
+  }
+
+  .toolbox-card--one-arm-pull-up .toolbox-icon {
+    background: #8a6846;
   }
 
   .toolbox-card--bar-locations .toolbox-icon {
