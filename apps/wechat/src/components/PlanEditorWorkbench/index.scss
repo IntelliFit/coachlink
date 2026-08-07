@@ -628,7 +628,8 @@
     gap: 16rpx;
 
     &.with-nav {
-      bottom: 104rpx;
+      bottom: 120rpx;
+      padding-bottom: 16rpx;
     }
   }
 
@@ -662,14 +663,15 @@
 
   &__modal {
     width: 100%;
-    max-height: 88vh;
+    max-height: calc(100vh - 48rpx);
     background: #fff;
     border-radius: 24rpx;
     padding: 24rpx;
     box-sizing: border-box;
+    overflow-y: auto;
 
     &.large {
-      max-height: 92vh;
+      max-height: calc(100vh - 48rpx);
     }
   }
 

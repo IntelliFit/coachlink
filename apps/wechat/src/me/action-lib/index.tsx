@@ -165,7 +165,10 @@ function cacheAndOpenActionDetail(action: {
 export default function ActionLibPage() {
   const { effectiveTheme } = useTheme()
   const router = useRouter()
-  const [activeTab, setActiveTab] = useState<TabKey>('mine')
+  const isPlanSelectionMode = router.params?.mode === 'plan-select'
+  const requestedSelectionType = String(router.params?.itemType || '').toUpperCase() === 'CARDIO' ? 'CARDIO' : 'STRENGTH'
+  const [selectionLibraryType, setSelectionLibraryType] = useState<'STRENGTH' | 'CARDIO'>(requestedSelectionType)
+  const [activeTab, setActiveTab] = useState<TabKey>(router.params?.tab === 'public' || isPlanSelectionMode ? 'public' : 'mine')
   const [actions, setActions] = useState<Action[]>([])
   const [loading, setLoading] = useState(true)
   const [mySearchTerm, setMySearchTerm] = useState('')
@@ -193,10 +196,10 @@ export default function ActionLibPage() {
   const [submittingEdit, setSubmittingEdit] = useState(false)
 
   useEffect(() => {
-    if (router.params?.tab === 'public') {
+    if (router.params?.tab === 'public' || isPlanSelectionMode) {
       setActiveTab('public')
     }
-  }, [router.params?.tab])
+  }, [isPlanSelectionMode, router.params?.tab])
 
   const loadActions = useCallback(async (search = mySearchTerm) => {
     try {
@@ -222,6 +225,7 @@ export default function ActionLibPage() {
         page: 1,
         limit: 120,
         search: search || undefined,
+        type: isPlanSelectionMode ? selectionLibraryType : undefined,
         viewerActionType: 'student'
       })
       setPublicActions(res?.actions || [])
@@ -231,7 +235,7 @@ export default function ActionLibPage() {
     } finally {
       setPublicLoading(false)
     }
-  }, [publicSearchTerm])
+  }, [isPlanSelectionMode, publicSearchTerm, selectionLibraryType])
 
   useDidShow(() => {
     if (activeTab === 'public') {
@@ -273,11 +277,22 @@ export default function ActionLibPage() {
 
   const displayedPublicActions = useMemo(() => {
     return publicActions.filter(action =>
+      (!isPlanSelectionMode || String(action.type || 'STRENGTH').toUpperCase() === selectionLibraryType) &&
       (!publicOnlyWithDemo || !!action.url?.trim()) &&
       matchesFilter(action, activeMuscleFilter) &&
       matchesFilter(action, activeEquipmentFilter)
     )
-  }, [activeEquipmentFilter, activeMuscleFilter, publicActions, publicOnlyWithDemo])
+  }, [activeEquipmentFilter, activeMuscleFilter, isPlanSelectionMode, publicActions, publicOnlyWithDemo, selectionLibraryType])
+
+  const handleSelectSystemLibrary = (type: 'STRENGTH' | 'CARDIO') => {
+    if (selectionLibraryType === type) return
+    setSelectionLibraryType(type)
+    setPublicSearchTerm('')
+    setSelectedPublicPreset('all')
+    setPublicOnlyWithDemo(false)
+    setSelectedMuscle('all')
+    setSelectedEquipment('all')
+  }
 
   const handleCreate = () => {
     Taro.navigateTo({ url: '/me/action-lib/edit/index' })
@@ -394,6 +409,55 @@ export default function ActionLibPage() {
       loadActions()
     } catch (error: any) {
       Taro.showToast({ title: error?.message || '加入失败', icon: 'none' })
+    } finally {
+      setAddingPublicId(null)
+    }
+  }
+
+  const findMyActionForPublic = async (action: PublicActionItemDto) => {
+    const response = await studentActionLibService.listActions({
+      page: 1,
+      limit: 1000,
+      search: action.name || ''
+    })
+    const candidates = response?.actions || []
+    return candidates.find((item) => (
+      (action.canonical_action_id && item.canonical_action_id === action.canonical_action_id) ||
+      item.name.trim() === action.name.trim()
+    )) || null
+  }
+
+  const handleSelectPublicAction = async (action: PublicActionItemDto) => {
+    if (!isPlanSelectionMode || addingPublicId) return
+
+    try {
+      setAddingPublicId(action.id)
+      let selectedAction = action.isAdded ? await findMyActionForPublic(action) : null
+      if (!selectedAction) {
+        try {
+          selectedAction = await addPublicToMyLib(action.id)
+        } catch (error) {
+          selectedAction = await findMyActionForPublic(action)
+          if (!selectedAction) throw error
+        }
+      }
+
+      const eventChannel = (Taro.getCurrentInstance().page as any)?.getOpenerEventChannel?.()
+      if (!eventChannel) throw new Error('无法返回计划编辑页，请重新进入动作库')
+
+      eventChannel.emit('selectPlanAction', {
+        id: selectedAction.id,
+        name: selectedAction.name,
+        type: selectedAction.type || action.type || 'STRENGTH',
+        attrs: selectedAction.attrs || action.attrs || null,
+        enableAutoWeightCompute: selectedAction.enableAutoWeightCompute ?? action.enableAutoWeightCompute ?? null,
+        includesBodyWeight: selectedAction.includesBodyWeight ?? action.includesBodyWeight ?? null,
+        canonical_action_id: selectedAction.canonical_action_id || action.canonical_action_id || null
+      })
+      setPublicActions((current) => current.map((item) => item.id === action.id ? { ...item, isAdded: true } : item))
+      await Taro.navigateBack()
+    } catch (error: any) {
+      Taro.showToast({ title: error?.message || '选择动作失败', icon: 'none' })
     } finally {
       setAddingPublicId(null)
     }
@@ -588,7 +652,7 @@ export default function ActionLibPage() {
             <View key={action.id} className='public-card'>
               <View className='card-marker'><Text>{action.url ? '演示' : '要点'}</Text></View>
               <View className='card-count'><Text>{action.like_count || 0}赞</Text></View>
-              <View className='action-cover-wrap' onClick={() => cacheAndOpenActionDetail(action)}>
+              <View className='action-cover-wrap' onClick={() => isPlanSelectionMode ? void handleSelectPublicAction(action) : cacheAndOpenActionDetail(action)}>
                 {referenceImageUrl ? (
                   <Image className='action-cover' src={referenceImageUrl} mode='aspectFill' />
                 ) : (
@@ -597,7 +661,7 @@ export default function ActionLibPage() {
                   </View>
                 )}
               </View>
-              <Text className='card-title' onClick={() => cacheAndOpenActionDetail(action)}>{action.name || '未命名动作'}</Text>
+              <Text className='card-title' onClick={() => isPlanSelectionMode ? void handleSelectPublicAction(action) : cacheAndOpenActionDetail(action)}>{action.name || '未命名动作'}</Text>
               <Text className='card-subtitle'>{getPrimaryPosition(action)}</Text>
               <View className='tag-row compact'>
                 {meta.slice(0, 2).map((item, index) => <Text key={`${item}-${index}`} className='tag'>{item}</Text>)}
@@ -613,17 +677,30 @@ export default function ActionLibPage() {
                   {action.isLiked ? '已赞' : '点赞'}
                 </Text>
               </View>
-              <View className='card-actions bottom'>
-                <Text className='card-link subtle' onClick={() => openEditSuggestion(action)}>纠错</Text>
-                <Text
-                  className={`card-primary ${(action.isAdded || isAdding) ? 'disabled' : ''}`}
-                  onClick={() => {
-                    if (!action.isAdded && !isAdding) void handlePublicAdd(action.id)
-                  }}
-                >
-                  {action.isAdded ? '已加入' : isAdding ? '加入中' : '加入'}
-                </Text>
-              </View>
+              {isPlanSelectionMode ? (
+                <View className='card-actions bottom'>
+                  <Text
+                    className={`card-primary ${isAdding ? 'disabled' : ''}`}
+                    onClick={() => {
+                      if (!isAdding) void handleSelectPublicAction(action)
+                    }}
+                  >
+                    {isAdding ? '选择中' : '选择此动作'}
+                  </Text>
+                </View>
+              ) : (
+                <View className='card-actions bottom'>
+                  <Text className='card-link subtle' onClick={() => openEditSuggestion(action)}>纠错</Text>
+                  <Text
+                    className={`card-primary ${(action.isAdded || isAdding) ? 'disabled' : ''}`}
+                    onClick={() => {
+                      if (!action.isAdded && !isAdding) void handlePublicAdd(action.id)
+                    }}
+                  >
+                    {action.isAdded ? '已加入' : isAdding ? '加入中' : '加入'}
+                  </Text>
+                </View>
+              )}
             </View>
           )
         })}
@@ -655,24 +732,43 @@ export default function ActionLibPage() {
             <View className='clear-search' onClick={handleClearSearch}><Text>×</Text></View>
           ) : null}
         </View>
-        <View className='top-add' onClick={handleCreate}>
-          <Text>+</Text>
-        </View>
+        {!isPlanSelectionMode ? (
+          <View className='top-add' onClick={handleCreate}>
+            <Text>+</Text>
+          </View>
+        ) : null}
       </View>
 
-      <View className='mode-row'>
-        <View className={`mode-chip ${activeTab === 'mine' ? 'active' : ''}`} onClick={() => setActiveTab('mine')}>
-          <Text>我的动作</Text>
+      {isPlanSelectionMode ? (
+        <View className='mode-row'>
+          <View
+            className={`mode-chip ${selectionLibraryType === 'STRENGTH' ? 'active' : ''}`}
+            onClick={() => handleSelectSystemLibrary('STRENGTH')}
+          >
+            <Text>力量动作库</Text>
+          </View>
+          <View
+            className={`mode-chip ${selectionLibraryType === 'CARDIO' ? 'active' : ''}`}
+            onClick={() => handleSelectSystemLibrary('CARDIO')}
+          >
+            <Text>有氧动作库</Text>
+          </View>
         </View>
-        <View className={`mode-chip ${activeTab === 'public' ? 'active' : ''}`} onClick={() => setActiveTab('public')}>
-          <Text>公共动作</Text>
+      ) : (
+        <View className='mode-row'>
+          <View className={`mode-chip ${activeTab === 'mine' ? 'active' : ''}`} onClick={() => setActiveTab('mine')}>
+            <Text>我的动作</Text>
+          </View>
+          <View className={`mode-chip ${activeTab === 'public' ? 'active' : ''}`} onClick={() => setActiveTab('public')}>
+            <Text>公共动作</Text>
+          </View>
+          <View className='coach-link' onClick={handleOpenCoachLibrary}>
+            <Text>教练动作</Text>
+          </View>
         </View>
-        <View className='coach-link' onClick={handleOpenCoachLibrary}>
-          <Text>教练动作</Text>
-        </View>
-      </View>
+      )}
 
-      {activeTab === 'public' && (
+      {activeTab === 'public' && !isPlanSelectionMode && (
         <ScrollView scrollX className='preset-scroll' showScrollbar={false}>
           <View className='preset-list'>
             {PUBLIC_PRESETS.map(item => (
@@ -700,7 +796,9 @@ export default function ActionLibPage() {
         {renderFilterRail()}
         <ScrollView scrollY className='action-scroll'>
           <View className='section-heading'>
-            <Text className='section-title'>{activeMuscleFilter.label}</Text>
+            <Text className='section-title'>
+              {isPlanSelectionMode ? (selectionLibraryType === 'CARDIO' ? '有氧动作' : '力量动作') : activeMuscleFilter.label}
+            </Text>
             <Text className='section-count'>
               {activeTab === 'public' ? displayedPublicActions.length : displayedMineActions.length} 个动作
             </Text>
@@ -789,7 +887,7 @@ export default function ActionLibPage() {
         </View>
       )}
 
-      <BottomNav />
+      {!isPlanSelectionMode ? <BottomNav /> : null}
     </View>
   )
 }

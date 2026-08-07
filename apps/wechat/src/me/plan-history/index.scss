@@ -58,6 +58,10 @@
       font-weight: 600;
       color: #a6533a;
 
+      text {
+        color: #a6533a;
+      }
+
       &:active {
         opacity: 0.72;
       }
@@ -319,6 +323,10 @@
   .empty-action.secondary {
     border-color: #82513f;
     background: #2d2a27;
+    color: #e8b6a5;
+  }
+
+  .calendar-entry text {
     color: #e8b6a5;
   }
 

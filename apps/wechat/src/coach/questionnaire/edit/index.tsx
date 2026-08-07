@@ -276,7 +276,7 @@ function CoachQuestionnaireEdit() {
       title: '确认发布',
       content: '确定要发布这份问卷吗？发布后将替换当前生效版本。',
       confirmText: '发布',
-      confirmColor: '#10b981',
+      confirmColor: '#CF6D4E',
     })
 
     if (!res.confirm) return

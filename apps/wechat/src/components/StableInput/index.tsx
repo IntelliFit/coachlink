@@ -11,16 +11,39 @@ import { Input as TaroInput, type InputProps } from '@tarojs/components'
  */
 export function StableInput(props: InputProps) {
   const [nativeGeneration, setNativeGeneration] = React.useState(0)
+  const [isFocused, setIsFocused] = React.useState(false)
   const {
     type = 'text',
+    value,
     alwaysEmbed,
     adjustPosition,
+    onFocus,
+    onInput,
     onBlur,
     ...restProps
   } = props
   const isNumericInput = type === 'number' || type === 'digit'
+  const externalValue = value === undefined || value === null ? '' : String(value)
+  const [draftValue, setDraftValue] = React.useState(externalValue)
+
+  React.useEffect(() => {
+    if (!isFocused) setDraftValue(externalValue)
+  }, [externalValue, isFocused])
+
+  const handleFocus: NonNullable<InputProps['onFocus']> = (event) => {
+    setDraftValue(String(event.detail.value ?? externalValue))
+    setIsFocused(true)
+    onFocus?.(event)
+  }
+
+  const handleInput: NonNullable<InputProps['onInput']> = (event) => {
+    setDraftValue(String(event.detail.value ?? ''))
+    return onInput?.(event)
+  }
 
   const handleBlur: NonNullable<InputProps['onBlur']> = (event) => {
+    setDraftValue(String(event.detail.value ?? ''))
+    setIsFocused(false)
     onBlur?.(event)
     if (isNumericInput) {
       // 某些真机会在第二次聚焦时复用上一次残留的原生文字层。
@@ -34,8 +57,11 @@ export function StableInput(props: InputProps) {
       key={nativeGeneration}
       {...restProps}
       type={type}
+      value={isFocused ? draftValue : externalValue}
       alwaysEmbed={alwaysEmbed ?? (isNumericInput ? true : undefined)}
       adjustPosition={adjustPosition}
+      onFocus={handleFocus}
+      onInput={handleInput}
       onBlur={handleBlur}
     />
   )

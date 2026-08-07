@@ -5,15 +5,21 @@
   z-index: 1002;
   display: flex;
   align-items: flex-end;
+  padding: 24rpx;
+  box-sizing: border-box;
 }
 
 .lightweight-picker-panel {
   width: 100%;
+  height: 70vh;
   max-height: 70vh;
   background: #fff;
   border-radius: 16px 16px 0 0;
   padding: 14px;
   box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 
   .picker-title {
     display: block;
@@ -21,6 +27,7 @@
     font-weight: 700;
     margin-bottom: 10px;
     color: #111827;
+    flex-shrink: 0;
   }
 
   .picker-search-input {
@@ -32,10 +39,12 @@
     padding: 0 10px;
     margin-bottom: 10px;
     font-size: 13px;
+    flex-shrink: 0;
   }
 
   .picker-list {
-    max-height: 420px;
+    flex: 1;
+    min-height: 0;
   }
 
   .picker-item {
@@ -118,5 +127,6 @@
     color: #374151;
     font-size: 13px;
     font-weight: 600;
+    flex-shrink: 0;
   }
 }

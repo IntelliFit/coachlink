@@ -148,7 +148,7 @@ export default function PlanEditorWorkbench({
   title,
   subtitle,
   initialValue,
-  actions,
+  actions: providedActions,
   studentProfile = null,
   oneRMRecords = [],
   loading = false,
@@ -180,6 +180,14 @@ export default function PlanEditorWorkbench({
   const [batchWeekStart, setBatchWeekStart] = useState(1)
   const [batchWeekEnd, setBatchWeekEnd] = useState(1)
   const [batchWeekdays, setBatchWeekdays] = useState<number[]>([1, 2, 3, 4, 5, 6, 7])
+  const [pickedLibraryActions, setPickedLibraryActions] = useState<PlanActionOption[]>([])
+  const actions = useMemo(() => {
+    const actionMap = new Map<string, PlanActionOption>()
+    ;[...providedActions, ...pickedLibraryActions].forEach((action) => {
+      if (action?.id) actionMap.set(String(action.id), action)
+    })
+    return Array.from(actionMap.values())
+  }, [pickedLibraryActions, providedActions])
 
   useEffect(() => {
     const nextValue = createInitialValue(mode, initialValue)
@@ -394,10 +402,13 @@ export default function PlanEditorWorkbench({
     }))
   }
 
-  const updateDays = (updater: (days: PlanTrainingDay[]) => PlanTrainingDay[]) => {
+  const updateDays = (
+    updater: (days: PlanTrainingDay[]) => PlanTrainingDay[],
+    normalize = true
+  ) => {
     updateEditor((current) => ({
       ...current,
-      days: normalizePlanDays(updater(current.days))
+      days: normalize ? normalizePlanDays(updater(current.days)) : updater(current.days)
     }))
   }
 
@@ -410,7 +421,8 @@ export default function PlanEditorWorkbench({
           ...nextDay,
           actionSetsCount: Array.isArray(nextDay.actionSets) ? nextDay.actionSets.length : 0
         }
-      })
+      }),
+      false
     )
   }
 
@@ -666,6 +678,35 @@ export default function PlanEditorWorkbench({
     await onSave(payload)
   }
 
+  const handleOpenSystemActionLibrary = (dayIndex: number, setIndex: number, itemType: PlanItemType) => {
+    void Taro.navigateTo({
+      url: `/me/action-lib/index?tab=public&mode=plan-select&itemType=${encodeURIComponent(itemType)}`,
+      success: ({ eventChannel }) => {
+        eventChannel.on('selectPlanAction', (selectedAction: PlanActionOption) => {
+          if (!selectedAction?.id || !selectedAction?.name) return
+          setPickedLibraryActions((current) => {
+            const next = current.filter((action) => String(action.id) !== String(selectedAction.id))
+            return [...next, selectedAction]
+          })
+          updateActionSet(dayIndex, setIndex, (currentSet) => {
+            const currentItemType = normalizeItemType(currentSet.itemType)
+            const selectedItemType = normalizeItemType(selectedAction.type || currentItemType)
+            const typeChanged = currentItemType !== selectedItemType
+            const nextDefault = typeChanged ? createActionSet(selectedItemType) : null
+            return {
+              ...currentSet,
+              itemType: selectedItemType,
+              actionId: selectedAction.id,
+              actionName: selectedAction.name,
+              setName: typeChanged || !resolveEditableDisplayName(currentSet) ? '' : currentSet.setName,
+              params: nextDefault ? nextDefault.params : currentSet.params
+            }
+          })
+        })
+      }
+    })
+  }
+
   const getActionOptionsByType = (itemType: PlanItemType) => {
     const normalizedType = normalizeItemType(itemType)
     return actions.filter((action) => normalizeItemType(action.type) === normalizedType)
@@ -676,8 +717,12 @@ export default function PlanEditorWorkbench({
     const itemType = normalizeItemType(actionSet.itemType)
     const actionOptions = getActionOptionsByType(itemType)
     const selectedActionIndex = actionOptions.findIndex((action) => String(action.id) === String(actionSet.actionId || actionSet.action_id || ''))
-    const itemTypeOptions: PlanItemType[] = ['STRENGTH', 'CARDIO', 'DIET', 'HABIT']
-    const itemTypeLabels = ['力量', '有氧', '饮食', '习惯']
+    const itemTypeOptions: PlanItemType[] = mode === 'student-favorite'
+      ? ['STRENGTH', 'CARDIO']
+      : ['STRENGTH', 'CARDIO', 'DIET', 'HABIT']
+    const itemTypeLabels = mode === 'student-favorite'
+      ? ['力量', '有氧']
+      : ['力量', '有氧', '饮食', '习惯']
     const currentItemTypeIndex = itemTypeOptions.indexOf(itemType)
     const params = actionSet.params || {}
     const customData = params.custom_data || {}
@@ -802,7 +847,15 @@ export default function PlanEditorWorkbench({
         </View>
 
         <View className='plan-editor__field plan-editor__field--tight'>
-          {actionOptions.length > 0 ? (
+          {mode === 'student-favorite' ? (
+            <View
+              className='plan-editor__picker plan-editor__picker--accent'
+              onClick={() => handleOpenSystemActionLibrary(selectedDay.dayIndex, setIndex, itemType)}
+            >
+              <Text>{currentAction?.name || actionSet.actionName || actionSet.action_name || '请选择系统动作'}</Text>
+              <Text className='plan-editor__picker-arrow'>›</Text>
+            </View>
+          ) : actionOptions.length > 0 ? (
             <Picker
               mode='selector'
               range={actionOptions.map((action) => action.name)}
@@ -836,7 +889,7 @@ export default function PlanEditorWorkbench({
               <View className='plan-editor__field'>
                 <Text className='plan-editor__label'>组数</Text>
                 <Input
-                  className='plan-editor__input'
+                  className='plan-editor__input plan-editor__input--sets'
                   type='number'
                   value={strengthSetsValue === null ? '' : String(strengthSetsValue)}
                   onInput={(event) => {
@@ -854,7 +907,7 @@ export default function PlanEditorWorkbench({
               <View className='plan-editor__field'>
                 <Text className='plan-editor__label'>次数</Text>
                 <Input
-                  className='plan-editor__input'
+                  className='plan-editor__input plan-editor__input--reps'
                   type='number'
                   value={strengthRepsValue === null ? '' : String(strengthRepsValue)}
                   onInput={(event) => {
@@ -872,7 +925,7 @@ export default function PlanEditorWorkbench({
               <View className='plan-editor__field'>
                 <Text className='plan-editor__label'>休息(min)</Text>
                 <Input
-                  className='plan-editor__input'
+                  className='plan-editor__input plan-editor__input--rest'
                   type='digit'
                   value={strengthRestMinutesValue === null ? '' : String(strengthRestMinutesValue)}
                   onInput={(event) => {
@@ -1243,7 +1296,7 @@ export default function PlanEditorWorkbench({
 
   if (loading) {
     return (
-      <View className='plan-editor page-with-nav'>
+      <View className={`plan-editor ${withBottomNav ? 'page-with-float-nav with-nav' : ''}`}>
         <View className="plan-editor__loading"><LoadingSpinner size={48} /></View>
         {withBottomNav ? <BottomNav /> : null}
       </View>
@@ -1251,7 +1304,7 @@ export default function PlanEditorWorkbench({
   }
 
   return (
-    <View className={`plan-editor page-with-nav ${withBottomNav ? 'with-nav' : ''}`}>
+    <View className={`plan-editor ${withBottomNav ? 'page-with-float-nav with-nav' : ''}`}>
       <ScrollView className='plan-editor__scroll' scrollY>
         <View className='plan-editor__content'>
           <View className='plan-editor__hero'>
@@ -1533,12 +1586,17 @@ export default function PlanEditorWorkbench({
                   <View className='plan-editor__section-header compact'>
                     <Text className='plan-editor__section-title'>训练条目</Text>
                     <View className='plan-editor__toolbar wrap'>
-                      {[
-                        { label: '力量', type: 'STRENGTH' as PlanItemType },
-                        { label: '有氧', type: 'CARDIO' as PlanItemType },
-                        { label: '饮食', type: 'DIET' as PlanItemType },
-                        { label: '习惯', type: 'HABIT' as PlanItemType }
-                      ].map((option) => (
+                      {(mode === 'student-favorite'
+                        ? [
+                            { label: '力量', type: 'STRENGTH' as PlanItemType },
+                            { label: '有氧', type: 'CARDIO' as PlanItemType }
+                          ]
+                        : [
+                            { label: '力量', type: 'STRENGTH' as PlanItemType },
+                            { label: '有氧', type: 'CARDIO' as PlanItemType },
+                            { label: '饮食', type: 'DIET' as PlanItemType },
+                            { label: '习惯', type: 'HABIT' as PlanItemType }
+                          ]).map((option) => (
                         <View
                           key={option.type}
                           className='plan-editor__toolbar-btn'

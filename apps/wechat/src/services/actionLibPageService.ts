@@ -74,6 +74,7 @@ export async function listPublicActions(params: {
   page?: number
   limit?: number
   search?: string
+  type?: 'STRENGTH' | 'CARDIO' | 'DIET' | 'HABIT'
   viewerActionType?: 'student' | 'coach'
 }): Promise<ListPublicActionsRes | null> {
   const res = await request<ListPublicActionsRes>({

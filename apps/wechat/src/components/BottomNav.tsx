@@ -3,6 +3,7 @@ import { View, Text } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { authService } from '@/services/authService'
 import { useTheme } from '@/hooks/useTheme'
+import AiAppNavigator from '@/components/AiAppNavigator'
 import './BottomNav.scss'
 
 interface NavItem {
@@ -261,30 +262,33 @@ function BottomNav() {
   if (!isPrimaryNavigationPage) return null
 
   return (
-    <View className={`bottom-nav ${isDark ? 'bottom-nav--dark' : ''}`}>
-      {navItems.map((item) => {
-        const isActive = isCoachView
-          ? isCoachTabActive(item, currentNorm)
-          : isStudentTabActive(item, currentNorm)
-        // 通过底部导航切换时，先强制 inactive 一帧，再切到 active，触发 CSS transition
-        const showActive = playSwitchAnimation ? false : isActive
+    <>
+      <AiAppNavigator />
+      <View className={`bottom-nav ${isDark ? 'bottom-nav--dark' : ''}`}>
+        {navItems.map((item) => {
+          const isActive = isCoachView
+            ? isCoachTabActive(item, currentNorm)
+            : isStudentTabActive(item, currentNorm)
+          // 通过底部导航切换时，先强制 inactive 一帧，再切到 active，触发 CSS transition
+          const showActive = playSwitchAnimation ? false : isActive
 
-        return (
-          <View
-            key={item.key}
-            className={`nav-item ${showActive ? 'nav-active' : ''}`}
-            onClick={() => void handleNavClick(item)}
-          >
-            <View className='nav-icon-badge-wrap'>
-              <Text
-                className={`nav-icon iconfont ${item.iconClass} ${isActive ? 'nav-icon-active' : ''}`}
-              />
+          return (
+            <View
+              key={item.key}
+              className={`nav-item ${showActive ? 'nav-active' : ''}`}
+              onClick={() => void handleNavClick(item)}
+            >
+              <View className='nav-icon-badge-wrap'>
+                <Text
+                  className={`nav-icon iconfont ${item.iconClass} ${isActive ? 'nav-icon-active' : ''}`}
+                />
+              </View>
+              <Text className='nav-label'>{item.label}</Text>
             </View>
-            <Text className='nav-label'>{item.label}</Text>
-          </View>
-        )
-      })}
-    </View>
+          )
+        })}
+      </View>
+    </>
   )
 }
 

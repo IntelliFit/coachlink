@@ -1,0 +1,300 @@
+.ai-app-navigator {
+  position: relative;
+  z-index: 1120;
+}
+
+.ai-app-navigator__fab {
+  position: fixed;
+  right: 24rpx;
+  bottom: calc(env(safe-area-inset-bottom) + 176rpx);
+  z-index: 1120;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8rpx;
+  width: 112rpx;
+  height: 96rpx;
+  min-width: 112rpx;
+  min-height: 96rpx;
+  margin: 0;
+  padding: 0 16rpx;
+  color: #FFFFFF;
+  background: #CF6D4E;
+  border: 0;
+  border-radius: 48rpx;
+  box-shadow: 0 12rpx 32rpx rgba(94, 42, 26, 0.28);
+  font-size: 24rpx;
+  line-height: 1;
+  transition: opacity 180ms ease-out, box-shadow 180ms ease-out;
+}
+
+.ai-app-navigator__fab::after,
+.ai-app-navigator__close::after,
+.ai-app-navigator__submit::after {
+  border: 0;
+}
+
+.ai-app-navigator__fab--pressed {
+  opacity: 0.82;
+  box-shadow: 0 8rpx 24rpx rgba(94, 42, 26, 0.24);
+}
+
+.ai-app-navigator__fab-label {
+  color: #FFFFFF;
+  font-size: 24rpx;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.ai-app-navigator__backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1120;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 24rpx;
+  padding-bottom: calc(env(safe-area-inset-bottom) + 176rpx);
+  box-sizing: border-box;
+  background: rgba(17, 24, 39, 0.48);
+  animation: ai-navigator-fade-in 180ms ease-out both;
+}
+
+.ai-app-navigator__panel {
+  width: 100%;
+  max-width: 704rpx;
+  padding: 24rpx;
+  box-sizing: border-box;
+  color: var(--text-primary, #111827);
+  background: var(--bg-card, #FFFFFF);
+  border: 2rpx solid rgba(17, 24, 39, 0.08);
+  border-radius: 24rpx;
+  box-shadow: 0 24rpx 64rpx rgba(17, 24, 39, 0.24);
+  animation: ai-navigator-panel-in 220ms ease-out both;
+}
+
+.ai-app-navigator__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16rpx;
+  margin-bottom: 24rpx;
+}
+
+.ai-app-navigator__heading {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 16rpx;
+}
+
+.ai-app-navigator__mark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 64rpx;
+  height: 64rpx;
+  color: #CF6D4E;
+  background: rgba(207, 109, 78, 0.12);
+  border-radius: 16rpx;
+}
+
+.ai-app-navigator__title,
+.ai-app-navigator__subtitle,
+.ai-app-navigator__label,
+.ai-app-navigator__feedback,
+.ai-app-navigator__count {
+  display: block;
+}
+
+.ai-app-navigator__title {
+  color: var(--text-primary, #111827);
+  font-size: 32rpx;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.ai-app-navigator__subtitle {
+  margin-top: 8rpx;
+  color: var(--text-secondary, #6B7280);
+  font-size: 24rpx;
+  line-height: 1.5;
+}
+
+.ai-app-navigator__close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 88rpx;
+  height: 88rpx;
+  min-width: 88rpx;
+  min-height: 88rpx;
+  margin: -8rpx -8rpx 0 0;
+  padding: 0;
+  color: var(--text-secondary, #6B7280);
+  background: transparent;
+  border: 0;
+  border-radius: 48rpx;
+  line-height: 1;
+  transition: opacity 180ms ease-out, background-color 180ms ease-out;
+}
+
+.ai-app-navigator__close--pressed {
+  opacity: 0.72;
+  background: rgba(107, 114, 128, 0.12);
+}
+
+.ai-app-navigator__label {
+  margin-bottom: 8rpx;
+  color: var(--text-primary, #111827);
+  font-size: 26rpx;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.ai-app-navigator__input {
+  width: 100%;
+  min-height: 112rpx;
+  max-height: 240rpx;
+  padding: 24rpx;
+  box-sizing: border-box;
+  color: var(--text-primary, #111827);
+  background: rgba(107, 114, 128, 0.08);
+  border: 2rpx solid rgba(107, 114, 128, 0.18);
+  border-radius: 16rpx;
+  font-size: 28rpx;
+  line-height: 1.55;
+}
+
+.ai-app-navigator__input::placeholder {
+  color: var(--text-tertiary, #9CA3AF);
+}
+
+.ai-app-navigator__meta {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16rpx;
+  min-height: 64rpx;
+  padding: 16rpx 0;
+  box-sizing: border-box;
+}
+
+.ai-app-navigator__feedback {
+  flex: 1;
+  color: var(--text-secondary, #6B7280);
+  font-size: 24rpx;
+  line-height: 1.5;
+}
+
+.ai-app-navigator__feedback--error {
+  color: #B5472E;
+}
+
+.ai-app-navigator__count {
+  flex: 0 0 auto;
+  color: var(--text-tertiary, #9CA3AF);
+  font-size: 22rpx;
+  line-height: 1.5;
+}
+
+.ai-app-navigator__submit {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16rpx;
+  width: 100%;
+  height: 88rpx;
+  min-height: 88rpx;
+  margin: 0;
+  padding: 0 24rpx;
+  color: #FFFFFF;
+  background: #CF6D4E;
+  border: 0;
+  border-radius: 16rpx;
+  font-size: 28rpx;
+  font-weight: 700;
+  line-height: 1;
+  transition: opacity 180ms ease-out;
+}
+
+.ai-app-navigator__submit--pressed {
+  opacity: 0.82;
+}
+
+.ai-app-navigator__submit[disabled] {
+  color: rgba(255, 255, 255, 0.88);
+  background: #CF6D4E;
+  opacity: 0.48;
+}
+
+.ai-app-navigator__spinner {
+  animation: ai-navigator-spin 800ms linear infinite;
+}
+
+.theme-dark .ai-app-navigator__panel {
+  background: #242321;
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 24rpx 64rpx rgba(0, 0, 0, 0.48);
+}
+
+.theme-dark .ai-app-navigator__input {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.16);
+}
+
+.theme-dark .ai-app-navigator__feedback--error {
+  color: #F2A38A;
+}
+
+@keyframes ai-navigator-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes ai-navigator-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(24rpx);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes ai-navigator-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (orientation: landscape) {
+  .ai-app-navigator__fab {
+    bottom: calc(env(safe-area-inset-bottom) + 24rpx);
+  }
+
+  .ai-app-navigator__backdrop {
+    justify-content: flex-end;
+    padding-bottom: calc(env(safe-area-inset-bottom) + 24rpx);
+  }
+
+  .ai-app-navigator__panel {
+    max-width: 560rpx;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ai-app-navigator__fab,
+  .ai-app-navigator__backdrop,
+  .ai-app-navigator__panel,
+  .ai-app-navigator__close,
+  .ai-app-navigator__submit {
+    animation: none;
+    transition: none;
+  }
+
+  .ai-app-navigator__spinner {
+    animation-duration: 1600ms;
+  }
+}

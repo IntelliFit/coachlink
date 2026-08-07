@@ -1,3 +1,58 @@
+# 微信小程序计划训练条目力量/有氧双动作库 (`2026-08-07`)
+
+- Status: 已完成本地实现与微信开发者工具验证。
+- UI: 学员创建/编辑常用计划时，新增训练条目只保留“力量”“有氧”；系统动作选择页以并列“力量动作库”“有氧动作库”展示，并按类型加载动作。
+- Data: 复用现有公共动作库及 20 条已内置的 CARDIO 动作，无需新增数据库迁移；选中公共动作时仍先复用或写入 `student_actions`，再回传用户动作 ID。
+- Boundary: 教练计划编辑仍保留力量/有氧/饮食/习惯四类；既有学员计划中的饮食/习惯条目仍可读取，仅限制新建入口。
+- Verification: `git diff --check`、lint、typecheck、小程序 2866 modules 构建、Next 534/534 页面构建、42 files / 203 tests 均通过；开发者工具实际完成“新增有氧 → 选择系统动作”导航，力量/有氧两库均有动作卡，错误日志 0。
+- Delivery: 仅保留本地，未提交、未推送、未上传任何小程序版本。
+# 微信小程序工具箱常用工具两列宫格 (`2026-08-07`)
+
+- Status: 已完成本地实现与微信开发者工具验证。
+- UI: 五个常用工具改为与体感小游戏一致的两列封面宫格；第六张为“亟待开放”，点击仅提示“敬请期待”。
+- Boundary: 四张体感小游戏图片、顺序、路由和四宫格均未修改；有效工具总数仍显示 9。
+- Verification: lint 提示未配置；typecheck、小程序 2866 modules 构建、42 files / 203 tests 通过；开发者工具常用工具 6 张、小游戏 4 张，错误日志 0；正常工具路由可进入。
+- Delivery: 仅保留本地，未提交、未推送、未上传 `dev`、体验版或正式版。
+# 微信小程序绿色操作按钮全局清理 (`2026-08-07`)
+
+- Status: 已完成本地全局审查与修复。
+- UI: 问卷发布/保存/确认发布、学员计划编辑新增动作、教练视频查看点评统一为品牌橙 `#CF6D4E`；训练执行页全部完成类按钮源码与编译产物确认均为品牌橙。
+- Boundary: 完成/在线状态、成功进度、数据分类、游戏反馈与微信官方登录/分享绿色保留，绿色不再用作普通操作按钮背景。
+- Verification: `git diff --check`、lint、typecheck、小程序 2865 modules 构建、Next 534/534 页面构建、42 files / 203 tests 均通过；开发者工具错误日志 0。
+- DevTools: 当前认证守卫停在 `auth/student-onboarding`，无法进入需要登录和训练实例参数的目标页；已保存阻塞状态截图，编译 WXSS 已确认按钮色值。
+- Delivery: 仅保留本地，未提交、未推送、未上传任何小程序版本。
+
+# 微信小程序工具箱实用工具上移与封面更新 (`2026-08-07`)
+
+- Status: 已完成本地实现与微信开发者工具验证。
+- UI: `常用工具 · 5` 已移动到体感小游戏上方；五张卡改为左侧 4:3 封面、右侧图标/文案/标签/箭头的横向列表，并固定等高。
+- Assets: 新增 5 张 640×480 WebP；功率分析使用室内单车，避免与单手引体测算的引体场景重复。四张小游戏配图、四宫格和路由均未修改。
+- Verification: lint 提示未配置；typecheck 通过；微信小程序本地构建通过（2865 modules）；Vitest 42 files / 203 tests 全部通过；开发者工具错误日志 0；点击功率视频分析可进入目标页并返回。
+- Build note: `npx next build` 未启动，因为仓库已有 `next dev` 和另一个 `next build` 占用 `.next/lock`；未终止用户现有进程。
+- Delivery: 仅保留本地，未提交、未推送、未上传 `dev`、体验版或正式版。
+# 微信小程序 AI 应用导航器 (`2026-08-07`)
+
+- Status: 已完成本地实现、真实大模型链路与微信开发者工具验证。
+- Architecture: `packages/core/src/aiNavigator.ts` 是唯一 Tool Registry；Next `/api/miniapp/ai-navigator` 使用万界方舟 fast 模型做单轮意图分类，服务端按 tool name 回填固定 route，前端以 0.6 置信度和 Registry 二次白名单校验后调用 `Taro.navigateTo`。
+- UI: 一级页面右下角显示 112×96rpx 纯色 AI 悬浮按钮，展开轻量输入面板，不创建聊天页面；游客点击时明确引导登录，训练执行、相机游戏、支付 WebView 等沉浸页不显示。
+- Example: “帮我测试一下我的引体水平”真实跳转到 `/streetlifting/index/calculator`，开发者工具页面栈深度从 1 变为 2，错误日志 0。
+- Verification: lint（项目未配置 ESLint）、typecheck、core typecheck、42 files / 203 tests、Next 534/534 页面生产构建、微信小程序 2860 modules 构建全部通过。
+- Delivery: 仅保留在本地分支 `codex/wechat-ai-app-navigator`，未提交、未推送、未上传任何小程序版本。
+# D 盘重复项目副本审计与清理 (`2026-08-07`)
+
+- Status: CoachLink 旧副本已安全清理；FoodLink 旧副本因存在独有提交和文件而保留。
+- CoachLink: `D:\files\coachlink` 工作区干净、无 stash，全部 refs/reflog 已存在于 `D:\projects\coachlink`；旧 `main@46b0ecb2` 与项目副本 `main` 的提交和 tree 完全相同。4 个 Junction 均指向旧副本内部。旧目录已移入 Windows 回收站，项目副本 Git 状态复查无意外删除。
+- FoodLink: `D:\files\food_link` 的 `main@65b12843` 及 22 个其他 ref 对象尚未存在于 `D:\projects\food_link`；相对项目活动分支有 35 个仅旧副本存在的已跟踪文件和 55 个内容不同的文件，因此未删除。
+- Workspace: CoachLink 权威工作目录已统一为 `D:\projects\coachlink`。
+
+# 后端启动读取不到 `.env` (`2026-08-07`)
+
+- Status: 已解决并完成实际启动验证。
+- Root cause: 用户报错终端运行在旧副本 `D:\files\coachlink`，该目录当前没有 `.env`；已创建的 `.env` 位于活跃工作区 `D:\projects\coachlink`。配置脚本按严格单源规则只读取当前项目根目录，不会跨副本扫描。
+- Recovery: 结束了 `D:\projects\coachlink` 中自 2026-08-06 起卡住的旧 Next/worker 进程，并从正确目录重新执行 `npm run dev`。
+- Verification: 配置加载结果为 `source=apollo`、`loadedFiles=.env`；Next 16 开发服务已在 `http://localhost:3000` Ready，`GET /api/healthy` 返回 200，git commit 为 `593190c6`。
+- Code changes: 无；未复制 ENV 到旧副本，也未放宽运行时配置的严格单源规则。
+
 # 微信小程序工具箱第三版四宫格 (`2026-08-07`)
 
 - Status: 已完成本地实现与微信开发者工具验证。
@@ -9204,3 +9259,39 @@
 - Variants: 三案分别探索安全区下沉紧凑头部、开放编辑式标题区、游戏优先轻量首页；均保留四张玩法封面、暖色品牌和五项底部导航。
 - Assets: `apps/wechat/artifacts/toolbox-ui-concepts/2026-08-07/toolbox-ui-option-1.png` 至 `toolbox-ui-option-3.png`。
 - Boundary: 仅生成本地效果图，未修改、构建、上传或推送小程序。
+
+# 微信小程序创建计划周历展开去重 (`2026-08-07`)
+
+- Status: 已完成本地修复、构建与微信开发者工具验证。
+- Root cause: 共享 `PlanCompactWeekCalendar` 在展开态先渲染当前周卡片，再全量遍历 `weeks`，导致当前周重复出现。
+- Fix: 展开列表跳过 `safeWeekIndex` 对应的当前周；仅一周时不生成空的展开列表。顶部当前周导航、周切换、选中日及复制/删除操作保持不变。
+- Scope: 修复同时覆盖学员创建/编辑计划、教练计划编辑和分配计划等复用该共享组件的页面。
+- Verification: lint 提示未配置；typecheck、微信小程序本地构建（2865 modules）、Vitest 42 files / 203 tests、Next 534/534 页面生产构建均通过。微信开发者工具 9420 中在 `me/plan-lib/create/index` 新增到 3 周后展开，周卡片总数由 1 变为 3（旧实现会为 4），错误日志 0；截图 `apps/wechat/artifacts/ui-verification/plan-week-calendar-expanded-no-duplicate.png`。
+- Delivery: 仅保留本地修改，未提交、未推送、未上传任何小程序版本。
+# 微信小程序底部空白与动作弹层重叠修复 (`2026-08-07`)
+
+- Status: 已完成本地修复、全局同类代码审计、小程序构建与微信开发者工具验证。
+- Root causes: `PlanEditorWorkbench` 无条件挂载 `.page-with-nav`，触发全局 70px 固定伪元素遮盖无底导航页面底部；训练动作选择器外层仅限高、内部列表固定 `620rpx`，短屏时内容会顶入底部操作栏。
+- Fix: 仅在确有悬浮底导航时使用 `.page-with-float-nav`；智能导入等弹窗限制在实际视口内滚动；训练动作选择器改为纵向 flex，双列表占用剩余高度独立滚动，底部栏不收缩；同类轻任务动作选择器同步采用相同结构。
+- Verification: 小程序 2865 modules 构建、typecheck、Vitest 42 files / 203 tests、Next 534/534 页面构建均通过；lint 为仓库既有未配置提示。微信开发者工具 9420 已验证创建计划、智能导入、今日训练到训练执行、添加动作弹层，截图均无异常底部白块或列表/按钮重叠，错误日志 0。
+- Evidence: `apps/wechat/artifacts/ui-verification/layout-fix-plan-create.png`、`layout-fix-smart-import.png`、`layout-fix-action-picker.png`。
+- Tool note: 当前 MRC `swipe` 报 `mp.swipe is not a function`，因此滚动手势未自动化；已验证弹层打开、列表容器与底部栏同时存在且视觉分离。
+- Delivery: 仅保留本地修改，未提交、未推送、未上传任何小程序版本。
+# 微信小程序用户计划系统动作库选择 (`2026-08-07`)
+
+- Status: 已完成本地实现、构建与微信开发者工具导航验证。
+- Requirement: 学员创建/编辑常用计划时，动作选择不能局限于用户自己收藏的动作，必须进入系统内置动作库。
+- Implementation: `PlanEditorWorkbench` 的学员模式将动作 Picker 改为跳转 `/me/action-lib/index?tab=public&mode=plan-select&itemType=...`；系统库选择模式按当前力量/有氧/饮食/习惯类型筛选，隐藏普通管理入口，并为动作显示“选择此动作”。选中动作时先复用或自动加入用户动作库，再通过 EventChannel 回传用户动作 ID 和元数据，确保计划保存、执行与 1RM 关联仍使用有效的 `student_actions` 记录。
+- Compatibility: 普通动作库浏览模式及教练模板原有动作 Picker 保持不变；回传的新动作合并进编辑器本地候选集，可立即参与显示、1RM 和批量操作。
+- Verification: lint 提示未配置；typecheck、小程序本地构建（2866 modules）、Vitest 42 files / 203 tests、Next 534/534 页面生产构建通过。微信开发者工具 9420 实际从 `me/plan-lib/create/index` 新增力量条目并点击动作入口，页面栈跳到带 `mode=plan-select&itemType=STRENGTH` 的系统动作库，加载 80 个力量动作与 80 个“选择此动作”按钮，错误日志 0。为避免向真实用户动作库写入验证数据，未在自动化中点击最终动作；接口与 EventChannel 回传链路已通过类型和编译检查。
+- Evidence: `apps/wechat/artifacts/ui-verification/plan-system-action-library-from-create-loaded.png`。
+- Delivery: 仅保留本地修改，未提交、未推送、未上传任何小程序版本。
+# 微信小程序计划库品牌色与计划输入稳定性修复 (`2026-08-07`)
+
+- Status: 已完成本地修复、共享输入逻辑审计、小程序构建与微信开发者工具交互验证。
+- Root causes: 计划历史页按钮文本色仅依赖父级继承，旧编译/组件文字层可能回落为默认蓝色；共享 `StableInput` 没有在聚焦期保留原始输入字符串；计划工作台每次字段输入都会重新 `normalizePlanDays`，放大了微信原生输入层的光标与焦点抖动。
+- Fix: 计划历史“训练记录”按钮及其文字层显式使用品牌色；`StableInput` 在聚焦期维护本地 draft、失焦后同步外部值并继续重建数字原生层；普通字段更新不再重建/深拷贝整份训练日结构，结构操作和保存时仍执行规范化。组数、次数、休息增加独立选择器用于回归验证。
+- Scope: 公共输入修复覆盖计划工作台全部 Input（力量、有氧、饮食、习惯、基础信息和批量周数），四个学员/教练创建与编辑入口同步生效。
+- Verification: lint 为仓库既有未配置提示；typecheck、小程序本地构建（2866 modules）、Vitest 42 files / 203 tests、Next 534/534 页面构建均通过。微信开发者工具 9420 中按钮显示品牌棕橙色；连续输入组数 3、次数 12、休息 1.5，再回到组数改 4，最终读取为 4 / 12 / 1.5，错误日志 0。
+- Evidence: `screenshots/weapp/plan-history-brand-button.png`、`screenshots/weapp/plan-editor-numeric-inputs.png`。
+- Delivery: 仅保留本地修改，未提交、未推送、未上传任何小程序版本。

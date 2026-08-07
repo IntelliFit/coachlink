@@ -144,8 +144,27 @@
   }
 
   .toolbox-card--compact {
-    min-height: 0;
-    padding: 24rpx;
+    flex-direction: row;
+    align-items: stretch;
+    gap: 16rpx;
+    height: 232rpx;
+    padding: 16rpx;
+  }
+
+  .toolbox-practical-cover {
+    align-self: center;
+    flex-shrink: 0;
+    width: 184rpx;
+    height: 136rpx;
+    border-radius: 16rpx;
+    background: #eeeae4;
+  }
+
+  .toolbox-card-content {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-width: 0;
   }
 
   .toolbox-card-main {
@@ -177,9 +196,13 @@
     }
 
     .toolbox-desc {
+      display: -webkit-box;
+      overflow: hidden;
       min-height: 0;
       margin-top: 8rpx;
       font-size: 20rpx;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
     }
 
     .toolbox-arrow {
@@ -190,7 +213,7 @@
     }
 
     .toolbox-tags {
-      margin-top: 16rpx;
+      margin-top: 8rpx;
       padding-top: 0;
       padding-left: 80rpx;
     }

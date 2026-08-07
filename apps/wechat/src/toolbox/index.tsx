@@ -5,6 +5,12 @@ import motionBeanCover from '@/assets/images/toolbox-games/motion-bean-game-v2.w
 import motionEffectsCover from '@/assets/images/toolbox-games/motion-effects-game-v2.webp'
 import pullupRushCover from '@/assets/images/toolbox-games/pullup-rush-game-v2.webp'
 import pushupDashCover from '@/assets/images/toolbox-games/pushup-dash-game-v2.webp'
+import barLocationsCover from '@/assets/images/toolbox-practical/practical-bar-locations-v2.webp'
+import comingSoonCover from '@/assets/images/toolbox-practical/practical-coming-soon-v2.webp'
+import communityDataCover from '@/assets/images/toolbox-practical/practical-community-data-v2.webp'
+import oneArmPullUpCover from '@/assets/images/toolbox-practical/practical-one-arm-pull-up-v2.webp'
+import powerAnalysisCover from '@/assets/images/toolbox-practical/practical-power-analysis-v2.webp'
+import strengthCalculatorCover from '@/assets/images/toolbox-practical/practical-strength-calculator-v2.webp'
 import BottomNav from '@/components/BottomNav'
 import { PageThemeRoot } from '@/components/PageThemeRoot'
 import { useTheme } from '@/hooks/useTheme'
@@ -26,6 +32,7 @@ type ToolboxEntry = {
   label: string
   tags: string[]
   url: string
+  comingSoon?: boolean
 }
 
 const MINI_GAMES: ToolboxEntry[] = [
@@ -74,6 +81,7 @@ const MINI_GAMES: ToolboxEntry[] = [
 const PRACTICAL_TOOLS: ToolboxEntry[] = [
   {
     badge: '视频分析',
+    cover: powerAnalysisCover,
     description: '上传动作视频，估算功率、速度和轨迹。',
     iconClass: 'icon-video',
     key: 'power-analysis',
@@ -83,6 +91,7 @@ const PRACTICAL_TOOLS: ToolboxEntry[] = [
   },
   {
     badge: '力量测算',
+    cover: strengthCalculatorCover,
     description: '快速算 1RM、做组重量和训练系数。',
     iconClass: 'icon-calculator',
     key: 'strength-calculator',
@@ -92,6 +101,7 @@ const PRACTICAL_TOOLS: ToolboxEntry[] = [
   },
   {
     badge: '能力测算',
+    cover: oneArmPullUpCover,
     description: '根据体重和负重引体能力，看看离单手引体还有多远。',
     iconClass: 'icon-ranking',
     key: 'one-arm-pull-up',
@@ -101,6 +111,7 @@ const PRACTICAL_TOOLS: ToolboxEntry[] = [
   },
   {
     badge: '训练地图',
+    cover: barLocationsCover,
     description: '查找、分享单杠位置，记录训练地点。',
     iconClass: 'icon-location',
     key: 'bar-locations',
@@ -110,14 +121,28 @@ const PRACTICAL_TOOLS: ToolboxEntry[] = [
   },
   {
     badge: '街举社区',
+    cover: communityDataCover,
     description: '查看社区成绩，提交和认领自己的记录。',
     iconClass: 'icon-ranking',
     key: 'community-data',
     label: '社区数据',
     tags: ['成绩', '记录'],
     url: '/streetlifting/index/data'
+  },
+  {
+    badge: '即将开放',
+    cover: comingSoonCover,
+    comingSoon: true,
+    description: '更多训练工具正在准备中。',
+    iconClass: 'icon-star',
+    key: 'coming-soon',
+    label: '亟待开放',
+    tags: [],
+    url: ''
   }
 ]
+
+const AVAILABLE_PRACTICAL_TOOL_COUNT = PRACTICAL_TOOLS.filter((entry) => !entry.comingSoon).length
 
 function ToolboxCard({
   compact = false,
@@ -134,23 +159,28 @@ function ToolboxCard({
         className={`toolbox-card toolbox-card--compact toolbox-card--${entry.key}`}
         onClick={() => onClick(entry)}
       >
-        <View className='toolbox-card-main'>
-          <View className='toolbox-icon'>
-            <Text className={`iconfont ${entry.iconClass}`} />
+        {entry.cover ? (
+          <Image className='toolbox-practical-cover' src={entry.cover} mode='aspectFill' lazyLoad />
+        ) : null}
+        <View className='toolbox-card-content'>
+          <View className='toolbox-card-main'>
+            <View className='toolbox-icon'>
+              <Text className={`iconfont ${entry.iconClass}`} />
+            </View>
+            <View className='toolbox-card-copy'>
+              <Text className='toolbox-badge'>{entry.badge}</Text>
+              <Text className='toolbox-name'>{entry.label}</Text>
+              <Text className='toolbox-desc'>{entry.description}</Text>
+            </View>
+            <Text className='toolbox-arrow'>→</Text>
           </View>
-          <View className='toolbox-card-copy'>
-            <Text className='toolbox-badge'>{entry.badge}</Text>
-            <Text className='toolbox-name'>{entry.label}</Text>
-            <Text className='toolbox-desc'>{entry.description}</Text>
+          <View className='toolbox-tags'>
+            {entry.tags.map((tag) => (
+              <Text key={tag} className='toolbox-tag'>
+                {tag}
+              </Text>
+            ))}
           </View>
-          <Text className='toolbox-arrow'>→</Text>
-        </View>
-        <View className='toolbox-tags'>
-          {entry.tags.map((tag) => (
-            <Text key={tag} className='toolbox-tag'>
-              {tag}
-            </Text>
-          ))}
         </View>
       </View>
     )
@@ -203,6 +233,11 @@ export default function ToolboxPage() {
   }, [])
 
   const handleToolClick = (entry: ToolboxEntry) => {
+    if (entry.comingSoon) {
+      Taro.showToast({ title: '敬请期待', icon: 'none' })
+      return
+    }
+
     Taro.navigateTo({ url: entry.url })
   }
 
@@ -215,11 +250,24 @@ export default function ToolboxPage() {
               <Text className='hero-kicker'>训练辅助</Text>
               <Text className='hero-title'>工具箱</Text>
               <Text className='hero-meta'>
-                {MINI_GAMES.length + PRACTICAL_TOOLS.length} 个训练工具 · 随开随用
+                {MINI_GAMES.length + AVAILABLE_PRACTICAL_TOOL_COUNT} 个训练工具 · 随开随用
               </Text>
               <Text className='hero-desc'>测算、分析和互动，把训练里的小问题快速解决。</Text>
             </View>
-            <View className='section-block'>
+            <View className='section-block section-block--practical'>
+              <View className='section-header'>
+                <Text className='section-kicker'>常用工具 · {AVAILABLE_PRACTICAL_TOOL_COUNT}</Text>
+                <Text className='section-title'>算一算、看一看、找一找</Text>
+                <Text className='section-subtitle'>训练中常用的小工具，都放在这里。</Text>
+              </View>
+              <View className='toolbox-grid'>
+                {PRACTICAL_TOOLS.map((entry) => (
+                  <ToolboxCard key={entry.key} entry={entry} onClick={handleToolClick} />
+                ))}
+              </View>
+            </View>
+
+            <View className='section-block section-block--games'>
               <View className='section-header'>
                 <Text className='section-kicker'>体感小游戏 · {MINI_GAMES.length}</Text>
                 <Text className='section-title'>动一动，开一局</Text>
@@ -228,24 +276,6 @@ export default function ToolboxPage() {
               <View className='toolbox-grid'>
                 {MINI_GAMES.map((entry) => (
                   <ToolboxCard key={entry.key} entry={entry} onClick={handleToolClick} />
-                ))}
-              </View>
-            </View>
-
-            <View className='section-block'>
-              <View className='section-header'>
-                <Text className='section-kicker'>实用工具 · {PRACTICAL_TOOLS.length}</Text>
-                <Text className='section-title'>算一算、看一看、找一找</Text>
-                <Text className='section-subtitle'>训练中常用的小工具，都放在这里。</Text>
-              </View>
-              <View className='toolbox-list'>
-                {PRACTICAL_TOOLS.map((entry) => (
-                  <ToolboxCard
-                    key={entry.key}
-                    compact
-                    entry={entry}
-                    onClick={handleToolClick}
-                  />
                 ))}
               </View>
             </View>

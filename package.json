@@ -73,6 +73,7 @@
         "weapp:release:pages": "npm --workspace apps/wechat run release:pages"
     },
     "dependencies": {
+        "@coachlink/core": "0.0.0",
         "@dagrejs/dagre": "^1.1.8",
         "@google/generative-ai": "^0.24.1",
         "@mediapipe/tasks-vision": "^1.0.0",
