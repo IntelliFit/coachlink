@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { NativeStackScreenProps } from '@react-navigation/native-stack'
-import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
+import * as Clipboard from 'expo-clipboard'
+import { ActivityIndicator, Alert, Image, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { apiClient } from '../../api'
 import { IconFont } from '../../components/IconFont'
@@ -32,6 +33,32 @@ type Product = {
   name: string
   description?: string
   duration_options?: DurationOption[]
+}
+
+type PublicCoachReview = {
+  id: string
+  studentId: string
+  studentName: string
+  studentAvatarUrl: string | null
+  comment: string
+  rating: number | null
+  createdAt: string | null
+}
+
+const SOCIAL_LABELS: Record<string, string> = {
+  douyin: '抖音',
+  xiaohongshu: '小红书',
+  zhihu: '知乎',
+  bilibili: 'B站',
+  kuaishou: '快手',
+  other: '其他',
+}
+
+const MATERIAL_CATEGORY_LABELS: Record<string, string> = {
+  achievement: '成就奖项',
+  case: '代表案例',
+  credential: '资质证书',
+  media: '图片 / 视频',
 }
 
 const tabs: Array<{ key: TabKey; label: string }> = [
@@ -69,6 +96,38 @@ function profileArray(profile: any, key: string, fallback: any[] = []) {
   return Array.isArray(value) ? value : fallback
 }
 
+function formatReviewDate(value: string | null) {
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+  return `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, '0')}.${String(date.getDate()).padStart(2, '0')}`
+}
+
+async function copyValue(value: string, successMessage: string) {
+  const text = value.trim()
+  if (!text) return
+  try {
+    await Clipboard.setStringAsync(text)
+    Alert.alert(successMessage)
+  } catch {
+    Alert.alert('复制失败', '请稍后重试。')
+  }
+}
+
+async function openUrlOrCopy(url: string, fallbackMessage = '链接已复制') {
+  const target = url.trim()
+  if (!target) return
+  try {
+    if (await Linking.canOpenURL(target)) {
+      await Linking.openURL(target)
+      return
+    }
+  } catch {
+    // Fall through to clipboard so unsupported schemes remain usable.
+  }
+  await copyValue(target, fallbackMessage)
+}
+
 export function CoachProfileScreen({ navigation, route }: Props) {
   const safeNavigation = {
     navigate: navigation?.navigate ? navigation.navigate.bind(navigation) : () => {},
@@ -83,6 +142,10 @@ export function CoachProfileScreen({ navigation, route }: Props) {
   const [products, setProducts] = useState<Product[]>([])
   const [contents, setContents] = useState<any[]>([])
   const [contentsTotal, setContentsTotal] = useState(0)
+  const [reviews, setReviews] = useState<PublicCoachReview[]>([])
+  const [reviewsLoading, setReviewsLoading] = useState(false)
+  const [reviewsLoaded, setReviewsLoaded] = useState(false)
+  const [reviewsError, setReviewsError] = useState('')
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
@@ -152,10 +215,6 @@ export function CoachProfileScreen({ navigation, route }: Props) {
       Alert.alert('订阅处理中', '当前订阅正在处理中，请先查看订阅进度。')
       return
     }
-    if (showRenew) {
-      Alert.alert('续费提醒', 'APP 端续费支付桥接还在迁移中。当前可查看当前套餐与订阅状态。')
-      return
-    }
     if (!receivingAccountReady) {
       Alert.alert('暂时不能购买', '教练收款账户尚未开通，暂时不能通过平台购买或续费。')
       return
@@ -163,6 +222,23 @@ export function CoachProfileScreen({ navigation, route }: Props) {
 
     setSubmitting(true)
     try {
+      if (showRenew) {
+        if (!subscription?.id) throw new Error('缺少当前订阅信息，请刷新后重试')
+        if (subscription?.product_id && subscription.product_id !== product.id) {
+          throw new Error('续费只能延长当前套餐；如需切换套餐，请联系教练。')
+        }
+        const waitingParams = await createCoachPaymentWaitingParams({
+          coachId,
+          coachName: displayCoach?.name || '',
+          subscriptionId: subscription.id,
+          amount: duration.price,
+          renew: true,
+          renewAdditionalWeeks: duration.months * 4,
+        })
+        safeNavigation.navigate('PaymentWaiting', waitingParams)
+        return
+      }
+
       const questionnaires = await apiClient.request<any>('/api/coach/get-questionnaires', { method: 'POST', body: { coachId }, timeoutMs: 10000 })
         .then((payload) => pickArray(payload, ['questionnaires']))
         .catch(() => [])
@@ -214,9 +290,38 @@ export function CoachProfileScreen({ navigation, route }: Props) {
     }
   }
 
+  async function loadReviews() {
+    if (!coachId || reviewsLoading) return
+    setReviewsLoading(true)
+    setReviewsError('')
+    try {
+      const payload = await apiClient.request<any>('/api/coach/get-public-reviews', {
+        method: 'POST',
+        body: { coachId },
+        timeoutMs: 10000,
+      })
+      setReviews(pickArray(payload, ['reviews']) as PublicCoachReview[])
+      setReviewsLoaded(true)
+    } catch (err) {
+      setReviewsError(err instanceof Error ? err.message : '评价加载失败，请稍后重试')
+    } finally {
+      setReviewsLoading(false)
+    }
+  }
+
   useEffect(() => {
     void load()
   }, [coachId, isAuthenticated, user?.id])
+
+  useEffect(() => {
+    setReviews([])
+    setReviewsLoaded(false)
+    setReviewsError('')
+  }, [coachId])
+
+  useEffect(() => {
+    if (activeTab === 'reviews' && !reviewsLoaded && !reviewsLoading) void loadReviews()
+  }, [activeTab, coachId, reviewsLoaded, reviewsLoading])
 
   if (loading) {
     return (
@@ -327,7 +432,15 @@ export function CoachProfileScreen({ navigation, route }: Props) {
         {activeTab === 'about' ? <AboutTab coach={displayCoach} /> : null}
         {activeTab === 'pricing' ? <PricingTab products={products} subscription={subscription} receivingAccountReady={receivingAccountReady} submitting={submitting} onSelect={selectProduct} /> : null}
         {activeTab === 'content' ? <ContentTab contents={contents} total={contentsTotal} navigation={safeNavigation} /> : null}
-        {activeTab === 'reviews' ? <ReviewsTab count={reviewCount} /> : null}
+        {activeTab === 'reviews' ? (
+          <ReviewsTab
+            count={reviewCount}
+            reviews={reviews}
+            loading={reviewsLoading}
+            error={reviewsError}
+            onRetry={loadReviews}
+          />
+        ) : null}
       </ScrollView>
 
       <View style={styles.fixedCta}>
@@ -368,6 +481,8 @@ function AboutTab({ coach }: { coach: any }) {
   const credentials = profileArray(profile, 'credentials')
   const cases = profileArray(profile, 'caseStudies')
   const materials = profileArray(profile, 'applicationMaterials')
+  const socialLinks = profile?.socialLinks && typeof profile.socialLinks === 'object' ? profile.socialLinks as Record<string, string> : {}
+  const hasContact = Boolean(profile?.contactEmail || profile?.contactPhone)
   return (
     <>
       <SectionCard title="教学理念 / PHILOSOPHY" description={profile.teachingPhilosophy || '暂无教学理念'} />
@@ -385,21 +500,108 @@ function AboutTab({ coach }: { coach: any }) {
           {materials.map((item: any, index: number) => (
             <View key={String(item.id || index)} style={styles.materialCard}>
               <Text style={styles.materialTitle}>{item.title || '材料'}</Text>
+              <Text style={styles.materialCategory}>{MATERIAL_CATEGORY_LABELS[item.category] || '公开材料'}</Text>
               {item.summary ? <Text style={styles.materialText}>{item.summary}</Text> : null}
               {item.detail ? <Text style={styles.materialText}>{item.detail}</Text> : null}
+              {Array.isArray(item.media) && item.media.length > 0 ? (
+                <View style={styles.materialMediaGrid}>
+                  {item.media.map((media: any, mediaIndex: number) => {
+                    const mediaUrl = String(media?.url || '')
+                    const previewUrl = String(media?.thumbnailUrl || media?.thumbnail_url || (media?.type === 'image' ? mediaUrl : ''))
+                    return (
+                      <Pressable
+                        key={String(media?.id || `${item.id || index}-media-${mediaIndex}`)}
+                        accessibilityRole="link"
+                        accessibilityLabel={`查看${media?.type === 'video' ? '视频' : '图片'} ${media?.fileName || media?.file_name || mediaIndex + 1}`}
+                        onPress={() => void openUrlOrCopy(mediaUrl, '媒体链接已复制')}
+                        style={styles.materialMedia}
+                      >
+                        {previewUrl ? (
+                          <Image source={{ uri: previewUrl }} style={styles.materialMediaImage} />
+                        ) : (
+                          <View style={styles.materialMediaFallback}><IconFont name="icon-video" color={colors.brand} size={24} /></View>
+                        )}
+                        <View style={styles.materialMediaMeta}>
+                          <IconFont name={media?.type === 'video' ? 'icon-video' : 'icon-picture'} color={colors.brand} size={15} />
+                          <Text numberOfLines={1} style={styles.materialMediaText}>{media?.fileName || media?.file_name || (media?.type === 'video' ? '查看视频' : '查看图片')}</Text>
+                        </View>
+                      </Pressable>
+                    )
+                  })}
+                </View>
+              ) : null}
+              {Array.isArray(item.links) && item.links.length > 0 ? (
+                <View style={styles.materialLinkList}>
+                  {item.links.map((link: any, linkIndex: number) => (
+                    <Pressable
+                      key={String(link?.id || `${item.id || index}-link-${linkIndex}`)}
+                      accessibilityRole="link"
+                      onPress={() => void openUrlOrCopy(String(link?.url || ''))}
+                      onLongPress={() => void copyValue(String(link?.url || ''), '链接已复制')}
+                      style={styles.materialLink}
+                    >
+                      <Text style={styles.materialLinkText}>{link?.label || '打开相关链接'}</Text>
+                      <IconFont name="icon-right-arrow" color={colors.brand} size={14} />
+                    </Pressable>
+                  ))}
+                </View>
+              ) : null}
             </View>
           ))}
         </SectionCard>
       ) : null}
+      <SectionCard title="联系方式" description={hasContact ? '点击邮箱可写邮件，点击电话可直接拨号；长按可复制。' : undefined}>
+        {!hasContact ? <Text style={styles.emptyText}>暂无公开联系方式</Text> : null}
+        {profile?.contactEmail ? (
+          <Pressable
+            accessibilityRole="link"
+            onPress={() => void openUrlOrCopy(`mailto:${profile.contactEmail}`, '邮箱已复制')}
+            onLongPress={() => void copyValue(String(profile.contactEmail), '邮箱已复制')}
+            style={styles.contactItem}
+          >
+            <View style={styles.contactIcon}><IconFont name="icon-messages" color={colors.brand} size={18} /></View>
+            <View style={styles.contactMain}><Text style={styles.contactLabel}>邮箱</Text><Text selectable style={styles.contactValue}>{profile.contactEmail}</Text></View>
+            <IconFont name="icon-right-arrow" color={colors.textMuted} size={16} />
+          </Pressable>
+        ) : null}
+        {profile?.contactPhone ? (
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => void openUrlOrCopy(`tel:${profile.contactPhone}`, '电话号码已复制')}
+            onLongPress={() => void copyValue(String(profile.contactPhone), '电话号码已复制')}
+            style={styles.contactItem}
+          >
+            <View style={styles.contactIcon}><IconFont name="icon-user" color={colors.brand} size={18} /></View>
+            <View style={styles.contactMain}><Text style={styles.contactLabel}>电话</Text><Text selectable style={styles.contactValue}>{profile.contactPhone}</Text></View>
+            <IconFont name="icon-right-arrow" color={colors.textMuted} size={16} />
+          </Pressable>
+        ) : null}
+      </SectionCard>
+      <SectionCard title="社交平台" description={Object.keys(socialLinks).length > 0 ? '点击打开；长按复制账号或链接。' : undefined}>
+        {Object.keys(socialLinks).length === 0 ? <Text style={styles.emptyText}>暂无公开社交平台</Text> : null}
+        {Object.entries(socialLinks).map(([platform, url]) => (
+          <Pressable
+            key={platform}
+            accessibilityRole="link"
+            onPress={() => void openUrlOrCopy(String(url), `${SOCIAL_LABELS[platform] || platform}链接已复制`)}
+            onLongPress={() => void copyValue(String(url), `${SOCIAL_LABELS[platform] || platform}链接已复制`)}
+            style={styles.socialItem}
+          >
+            <Text style={styles.socialLabel}>{SOCIAL_LABELS[platform] || platform}</Text>
+            <Text numberOfLines={1} style={styles.socialValue}>{url}</Text>
+            <IconFont name="icon-right-arrow" color={colors.textMuted} size={16} />
+          </Pressable>
+        ))}
+      </SectionCard>
     </>
   )
 }
 
 function PricingTab({ products, subscription, receivingAccountReady, submitting, onSelect }: { products: Product[]; subscription: any; receivingAccountReady: boolean; submitting: boolean; onSelect: (product: Product, duration: DurationOption) => void }) {
-  const isActive = subscription?.status === 'active'
+  const isRenewal = ['active', 'expired', 'near_expiry'].includes(subscription?.status || '')
   return (
-    <SectionCard title="订阅价格" description="点击套餐后进入 APP 订阅承接流程；真实原生支付 SDK 接入后在支付页完成支付。">
-      {isActive ? <Text style={styles.noticeText}>您已订阅该教练。如需延长订阅，续费支付桥接会在后续补齐。</Text> : null}
+    <SectionCard title={isRenewal ? '选择续费时长' : '订阅价格'} description="点击时长后创建安全支付订单，并通过系统支付宝完成付款；返回 APP 后会自动同步结果。">
+      {isRenewal ? <Text style={styles.noticeText}>当前为续费模式：只能延长原套餐，训练计划和历史记录不会丢失。</Text> : null}
       {!receivingAccountReady ? <Text style={styles.warningText}>教练收款账户尚未开通，暂时不能通过平台购买或续费。</Text> : null}
       {products.length === 0 ? <Text style={styles.emptyText}>暂无套餐</Text> : null}
       {products.map((product) => (
@@ -437,13 +639,42 @@ function ContentTab({ contents, total, navigation }: { contents: any[]; total: n
   )
 }
 
-function ReviewsTab({ count }: { count: number }) {
+function ReviewsTab({ count, reviews, loading, error, onRetry }: { count: number; reviews: PublicCoachReview[]; loading: boolean; error: string; onRetry: () => void }) {
   return (
-    <SectionCard title="学员评价">
-      <View style={styles.reviewsEmpty}>
-        <IconFont name="icon-messages" color={colors.textMuted} size={36} />
-        <Text style={styles.emptyText}>{count > 0 ? '暂无评价数据' : '暂无学员评价'}</Text>
-      </View>
+    <SectionCard title="学员评价" description={count > 0 ? `共 ${count} 条真实学员评价` : undefined}>
+      {loading ? (
+        <View style={styles.reviewsEmpty}><ActivityIndicator color={colors.brand} /><Text style={styles.emptyText}>评价加载中…</Text></View>
+      ) : error ? (
+        <View style={styles.reviewsEmpty}>
+          <IconFont name="icon-messages" color={colors.textMuted} size={36} />
+          <Text style={styles.emptyText}>{error}</Text>
+          <Pressable onPress={onRetry} style={styles.inlineRetry}><Text style={styles.inlineRetryText}>重新加载</Text></Pressable>
+        </View>
+      ) : reviews.length === 0 ? (
+        <View style={styles.reviewsEmpty}><IconFont name="icon-messages" color={colors.textMuted} size={36} /><Text style={styles.emptyText}>暂无学员评价</Text></View>
+      ) : (
+        <View style={styles.reviewList}>
+          {reviews.map((review) => (
+            <View key={review.id} style={styles.reviewItem}>
+              <View style={styles.reviewHeader}>
+                {review.studentAvatarUrl ? (
+                  <Image source={{ uri: review.studentAvatarUrl }} style={styles.reviewAvatar} />
+                ) : (
+                  <View style={[styles.reviewAvatar, styles.reviewAvatarFallback]}><Text style={styles.reviewAvatarText}>{review.studentName.charAt(0) || '学'}</Text></View>
+                )}
+                <View style={styles.reviewMeta}>
+                  <Text style={styles.reviewName}>{review.studentName || '学员'}</Text>
+                  {formatReviewDate(review.createdAt) ? <Text style={styles.reviewDate}>{formatReviewDate(review.createdAt)}</Text> : null}
+                </View>
+                {review.rating !== null && Number.isFinite(Number(review.rating)) ? (
+                  <View style={styles.reviewRating}><IconFont name="icon-star" color={colors.brand} size={14} /><Text style={styles.reviewRatingText}>{Number(review.rating).toFixed(1)}</Text></View>
+                ) : null}
+              </View>
+              {review.comment ? <Text style={styles.reviewContent}>{review.comment}</Text> : <Text style={styles.reviewNoComment}>该学员只留下了评分</Text>}
+            </View>
+          ))}
+        </View>
+      )}
     </SectionCard>
   )
 }
@@ -512,7 +743,25 @@ const styles = StyleSheet.create({
   simpleRow: { color: colors.text, fontSize: 14, lineHeight: 22 },
   materialCard: { borderRadius: radius.md, padding: spacing.sm, marginBottom: spacing.xs, backgroundColor: colors.surfaceMuted },
   materialTitle: { color: colors.text, fontSize: 15, fontWeight: '900' },
+  materialCategory: { alignSelf: 'flex-start', overflow: 'hidden', marginTop: spacing.xs, borderRadius: radius.pill, paddingHorizontal: spacing.xs, paddingVertical: 4, color: colors.brand, backgroundColor: colors.brandSoft, fontSize: 11, fontWeight: '900' },
   materialText: { color: colors.textSecondary, fontSize: 13, lineHeight: 20, marginTop: 4 },
+  materialMediaGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginTop: spacing.xs },
+  materialMedia: { width: 144, overflow: 'hidden', borderRadius: radius.md, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
+  materialMediaImage: { width: 144, height: 96, backgroundColor: colors.surfaceMuted },
+  materialMediaFallback: { width: 144, height: 96, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.brandSoft },
+  materialMediaMeta: { minHeight: 40, flexDirection: 'row', alignItems: 'center', gap: spacing.xs, paddingHorizontal: spacing.xs },
+  materialMediaText: { flex: 1, color: colors.text, fontSize: 12, fontWeight: '800' },
+  materialLinkList: { gap: spacing.xs, marginTop: spacing.xs },
+  materialLink: { minHeight: 40, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.xs, borderRadius: radius.md, paddingHorizontal: spacing.sm, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
+  materialLinkText: { flex: 1, color: colors.brand, fontSize: 13, fontWeight: '900' },
+  contactItem: { minHeight: 56, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.xs, borderBottomWidth: 1, borderBottomColor: colors.surfaceMuted },
+  contactIcon: { width: 40, height: 40, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.brandSoft },
+  contactMain: { flex: 1, gap: 4 },
+  contactLabel: { color: colors.textMuted, fontSize: 12, fontWeight: '700' },
+  contactValue: { color: colors.text, fontSize: 14, fontWeight: '800' },
+  socialItem: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.xs, borderBottomWidth: 1, borderBottomColor: colors.surfaceMuted },
+  socialLabel: { minWidth: 64, color: colors.text, fontSize: 14, fontWeight: '900' },
+  socialValue: { flex: 1, color: colors.textSecondary, fontSize: 13 },
   contentItem: { minHeight: 80, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.surfaceMuted, paddingVertical: spacing.xs },
   contentThumb: { width: 64, height: 64, borderRadius: radius.md, backgroundColor: colors.surfaceMuted },
   contentThumbFallback: { width: 64, height: 64, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.brandSoft },
@@ -521,6 +770,21 @@ const styles = StyleSheet.create({
   contentTitle: { color: colors.text, fontSize: 15, fontWeight: '900' },
   contentMeta: { color: colors.textSecondary, fontSize: 12 },
   reviewsEmpty: { alignItems: 'center', gap: spacing.xs, paddingVertical: spacing.md },
+  inlineRetry: { minHeight: 40, alignItems: 'center', justifyContent: 'center', borderRadius: radius.pill, paddingHorizontal: spacing.md, backgroundColor: colors.brand },
+  inlineRetryText: { color: '#FFFFFF', fontSize: 13, fontWeight: '900' },
+  reviewList: { gap: spacing.sm },
+  reviewItem: { borderRadius: radius.md, padding: spacing.sm, backgroundColor: colors.surfaceMuted },
+  reviewHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+  reviewAvatar: { width: 40, height: 40, borderRadius: radius.pill, backgroundColor: colors.surface },
+  reviewAvatarFallback: { alignItems: 'center', justifyContent: 'center', backgroundColor: colors.brandSoft },
+  reviewAvatarText: { color: colors.brand, fontSize: 15, fontWeight: '900' },
+  reviewMeta: { flex: 1, gap: 4 },
+  reviewName: { color: colors.text, fontSize: 14, fontWeight: '900' },
+  reviewDate: { color: colors.textMuted, fontSize: 12 },
+  reviewRating: { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: radius.pill, paddingHorizontal: spacing.xs, paddingVertical: 4, backgroundColor: colors.brandSoft },
+  reviewRatingText: { color: colors.brand, fontSize: 12, fontWeight: '900' },
+  reviewContent: { marginTop: spacing.xs, color: colors.textSecondary, fontSize: 14, lineHeight: 22 },
+  reviewNoComment: { marginTop: spacing.xs, color: colors.textMuted, fontSize: 12 },
   fixedCta: { position: 'absolute', left: spacing.sm, right: spacing.sm, bottom: spacing.sm, borderRadius: radius.xl, padding: spacing.sm, gap: spacing.xs, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, ...shadow },
   aiPlanButton: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.xs, borderRadius: radius.pill, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: colors.border },
   aiPlanButtonText: { color: colors.brand, fontSize: 15, fontWeight: '900' },

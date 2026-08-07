@@ -113,7 +113,7 @@ function CoachPlans() {
     const config: Record<string, { label: string; color: string }> = {
       active: { label: '进行中', color: '#10b981' },
       draft: { label: '草稿', color: '#f59e0b' },
-      completed: { label: '已完成', color: '#3b82f6' },
+      completed: { label: '已完成', color: '#4f8a67' },
       paused: { label: '已暂停', color: '#6b7280' },
       archived: { label: '已归档', color: '#9ca3af' }
     }

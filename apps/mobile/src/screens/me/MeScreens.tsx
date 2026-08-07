@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
-import { Alert, Image, Linking, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
+import { resolveCoachLinkAppRole } from '@coachlink/core'
+import { Alert, Image, Linking, Modal, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import type { NativeStackScreenProps } from '@react-navigation/native-stack'
 import { useNavigation, useRoute } from '@react-navigation/native'
 import * as Clipboard from 'expo-clipboard'
@@ -1153,11 +1154,12 @@ function useRouteAny<T extends keyof RootStackParamList>() {
 
 export function ProfileScreen() {
   const navigation = useNavigationAny()
-  const { user, isAuthenticated, logout, refreshUser } = useAuth()
+  const { user, isAuthenticated, logout, refreshUser, switchRole } = useAuth()
   const { open } = useProtectedNavigation(navigation)
   const [stats, setStats] = useState({ actions: 0, plans: 0, trainingActions: 0 })
   const [membership, setMembership] = useState<any>(null)
   const [profileMissingCount, setProfileMissingCount] = useState(0)
+  const [roleSwitching, setRoleSwitching] = useState(false)
 
   async function loadStats() {
     if (!isAuthenticated) return
@@ -1193,6 +1195,25 @@ export function ProfileScreen() {
 
   const displayName = isAuthenticated ? asText(user?.nickname || user?.name || user?.phone, 'CoachLink 学员') : '未登录'
   const subtitle = isAuthenticated ? asText(user?.phone || user?.email, '训练、服务和消息会在这里持续沉淀') : '登录后同步训练记录、会员、订单和消息'
+
+  async function enterCoachMode() {
+    try {
+      setRoleSwitching(true)
+      await switchRole('coach')
+      navigation.getParent()?.reset({ index: 0, routes: [{ name: 'MainTabs' }] })
+    } catch (error) {
+      Alert.alert('切换失败', errorMessage(error))
+    } finally {
+      setRoleSwitching(false)
+    }
+  }
+
+  function confirmCoachMode() {
+    Alert.alert('进入教练端', '将切换到教练工作台。你的个人训练记录和学员身份会继续保留。', [
+      { text: '取消', style: 'cancel' },
+      { text: '确认切换', onPress: () => void enterCoachMode() },
+    ])
+  }
 
   const topMenus = [
     { label: '我的动作库', value: stats.actions, unit: '项', icon: 'icon-dumbbell' as IconFontName, route: 'ActionLibrary' as ListRoute },
@@ -1263,8 +1284,8 @@ export function ProfileScreen() {
           </>
         ) : (
           <>
-            {user?.is_coach || user?.primary_role === 'coach' ? (
-              <MenuRow label="教练工作台" desc="业务概览、教学资产和设置" icon="icon-dashboard" iconBg="#CF6D4E" onPress={() => open('CoachDashboard')} />
+            {user?.is_coach ? (
+              <MenuRow label="切换到教练端" desc="进入学员、计划、视频与经营工作台" icon="icon-dashboard" iconBg="#CF6D4E" badge={roleSwitching ? '切换中' : '教练身份'} onPress={roleSwitching ? undefined : confirmCoachMode} />
             ) : (
               <MenuRow label="申请成为教练" icon="icon-shenqingquanxian" iconBg="#FFD700" onPress={() => open('CoachApplication')} />
             )}
@@ -3177,19 +3198,153 @@ export function PurchaseHistoryScreen() {
 
 export function SettingsScreen() {
   const navigation = useNavigationAny()
-  const { logout } = useAuth()
+  const { user, logout, switchRole, clearLocalCache, deleteAccount } = useAuth()
+  const [switchingRole, setSwitchingRole] = useState<'student' | 'coach' | null>(null)
+  const [clearingCache, setClearingCache] = useState(false)
+  const [cacheFeedback, setCacheFeedback] = useState('')
+  const [deleteVisible, setDeleteVisible] = useState(false)
+  const [deleteConfirmation, setDeleteConfirmation] = useState('')
+  const [deleting, setDeleting] = useState(false)
+  const activeRole = resolveCoachLinkAppRole(user)
+  const targetRole = activeRole === 'coach' ? 'student' : 'coach'
+  const canSwitch = targetRole === 'student' || user?.is_coach === true
+
+  async function applyRoleSwitch() {
+    try {
+      setSwitchingRole(targetRole)
+      await switchRole(targetRole)
+      navigation.reset({ index: 0, routes: [{ name: 'MainTabs' }] })
+    } catch (error) {
+      Alert.alert('切换失败', errorMessage(error))
+    } finally {
+      setSwitchingRole(null)
+    }
+  }
+
+  function confirmRoleSwitch() {
+    const label = targetRole === 'coach' ? '教练端' : '学员端'
+    Alert.alert(`切换到${label}`, `切换后将返回${label}首页，账号资料和历史数据不会改变。`, [
+      { text: '取消', style: 'cancel' },
+      { text: '确认切换', onPress: () => void applyRoleSwitch() },
+    ])
+  }
+
+  async function clearCache() {
+    try {
+      setClearingCache(true)
+      setCacheFeedback('')
+      const removed = await clearLocalCache()
+      setCacheFeedback(removed > 0 ? `已清理 ${removed} 项本地缓存，登录状态保持不变。` : '本地缓存已经是干净的。')
+    } catch (error) {
+      Alert.alert('清理失败', errorMessage(error))
+    } finally {
+      setClearingCache(false)
+    }
+  }
+
+  function confirmClearCache() {
+    Alert.alert('清理本地缓存', '将删除今日训练快照、训练执行快照和计算器草稿。云端记录与登录状态不会受影响。', [
+      { text: '取消', style: 'cancel' },
+      { text: '确认清理', onPress: () => void clearCache() },
+    ])
+  }
+
+  function closeDeleteModal() {
+    if (deleting) return
+    setDeleteVisible(false)
+    setDeleteConfirmation('')
+  }
+
+  async function submitDeleteAccount() {
+    if (deleteConfirmation.trim() !== '注销账号') {
+      Alert.alert('确认文字不正确', '请输入“注销账号”后再继续。')
+      return
+    }
+    try {
+      setDeleting(true)
+      await deleteAccount(deleteConfirmation.trim())
+      setDeleteVisible(false)
+      setDeleteConfirmation('')
+    } catch (error) {
+      Alert.alert('注销失败', errorMessage(error))
+    } finally {
+      setDeleting(false)
+    }
+  }
+
   return (
     <ScreenShell title="账户设置" subtitle={`CoachLink APP ${APP_VERSION}`} onBack={navigation.goBack}>
       <Card>
+        <Text style={local.settingsSectionTitle}>使用身份</Text>
+        <View style={local.settingsSummary}>
+          <View style={local.settingsSummaryIcon}>
+            <IconFont name={activeRole === 'coach' ? 'icon-coachline_line' : 'icon-user'} size={24} color={colors.brand} />
+          </View>
+          <View style={local.settingsSummaryMain}>
+            <Text style={local.settingsSummaryTitle}>{activeRole === 'coach' ? '当前使用教练端' : '当前使用学员端'}</Text>
+            <Text style={local.settingsHelp}>{activeRole === 'coach' ? '管理学员、计划、视频和经营数据。' : '记录训练、发现教练并使用知识和工具。'}</Text>
+          </View>
+          <View style={local.settingsRoleBadge}>
+            <Text style={local.settingsRoleBadgeText}>{activeRole === 'coach' ? '教练' : '学员'}</Text>
+          </View>
+        </View>
+        {canSwitch ? (
+          <SolidButton
+            label={targetRole === 'coach' ? '切换到教练端' : '切换到学员端'}
+            variant="secondary"
+            loading={switchingRole === targetRole}
+            onPress={confirmRoleSwitch}
+          />
+        ) : (
+          <Text style={local.settingsHelp}>当前账号还没有教练资格，可在“我的”页面提交教练申请。</Text>
+        )}
+      </Card>
+
+      <Card>
+        <Text style={local.settingsSectionTitle}>存储与安全</Text>
+        <MenuRow label="重置登录密码" desc="通过手机号验证码设置新密码" icon="icon-setting" iconBg="#5C8DFF" onPress={() => navigation.navigate('ResetPassword')} />
+        <SolidButton label="清理本地缓存" variant="secondary" loading={clearingCache} onPress={confirmClearCache} />
+        {cacheFeedback ? <Text style={local.settingsFeedback}>{cacheFeedback}</Text> : null}
+      </Card>
+
+      <Card>
+        <Text style={local.settingsSectionTitle}>协议与帮助</Text>
         <MenuRow label="用户服务协议" icon="icon-jhk" iconBg="#5C8DFF" onPress={() => navigation.navigate('Terms')} />
         <MenuRow label="隐私政策" icon="icon-account-settings-variant" iconBg="#29C3A3" onPress={() => navigation.navigate('Privacy')} />
         <MenuRow label="免责声明" icon="icon-wenhao" iconBg="#FFA940" onPress={() => navigation.navigate('Disclaimer')} />
         <MenuRow label="法律文档目录" icon="icon-knowledge" iconBg="#8FD3FE" onPress={() => navigation.navigate('LegalDocs')} />
         <MenuRow label="反馈" icon="icon-pinglun" iconBg="#CF6D4E" onPress={() => navigation.navigate('Feedback')} />
       </Card>
-      <Card>
-        <SolidButton label="退出登录" variant="danger" onPress={() => confirm('退出登录', '确定要退出当前账号吗？', () => void logout())} />
+
+      <Card style={local.dangerZone}>
+        <Text style={local.dangerTitle}>账户操作</Text>
+        <Text style={local.dangerText}>退出登录可以重新登录；注销账号会停用登录凭据、清空个人公开资料并结束当前教练订阅关系。</Text>
+        <SolidButton label="退出登录" variant="danger" onPress={() => confirm('退出登录', '确定要退出当前账号吗？本地缓存也会一并清理。', () => void logout())} />
+        <SolidButton label="注销账号" variant="secondary" onPress={() => setDeleteVisible(true)} />
       </Card>
+
+      <Modal transparent animationType="slide" visible={deleteVisible} onRequestClose={closeDeleteModal}>
+        <View style={local.modalMask}>
+          <View style={local.modalCard}>
+            <Text style={local.modalTitle}>注销账号</Text>
+            <Text style={local.dangerText}>这是不可恢复操作。请输入下方确认文字后继续：</Text>
+            <Text style={local.dangerToken}>注销账号</Text>
+            <TextInput
+              value={deleteConfirmation}
+              editable={!deleting}
+              onChangeText={setDeleteConfirmation}
+              placeholder="请输入“注销账号”"
+              placeholderTextColor={colors.textMuted}
+              autoCapitalize="none"
+              autoCorrect={false}
+              accessibilityLabel="注销账号确认文字"
+              style={local.modalInput}
+            />
+            <SolidButton label="取消" variant="secondary" disabled={deleting} onPress={closeDeleteModal} />
+            <SolidButton label="确认注销" variant="danger" loading={deleting} disabled={deleteConfirmation.trim() !== '注销账号'} onPress={() => void submitDeleteAccount()} />
+          </View>
+        </View>
+      </Modal>
     </ScreenShell>
   )
 }
@@ -4382,15 +4537,104 @@ export function CoachApplicationScreen() {
   )
 }
 
+const FEEDBACK_CATEGORIES = [
+  { value: 'bug', label: '故障问题' },
+  { value: 'suggestion', label: '功能建议' },
+  { value: 'experience', label: '体验反馈' },
+  { value: 'other', label: '其他' },
+] as const
+
+const FEEDBACK_FAQS = [
+  '如何创建训练计划？',
+  '视频上传失败怎么办？',
+  '如何添加学员？',
+  '订阅功能如何使用？',
+  '视频播放卡顿',
+  '如何修改个人信息？',
+]
+
 export function FeedbackScreen() {
   const navigation = useNavigationAny()
   const [content, setContent] = useState('')
+  const [category, setCategory] = useState<'bug' | 'suggestion' | 'experience' | 'other'>('bug')
+  const [relatedQuestion, setRelatedQuestion] = useState('')
+  const [contact, setContact] = useState('')
+  const [imageUrls, setImageUrls] = useState<string[]>([])
+  const [uploading, setUploading] = useState(false)
   const [loading, setLoading] = useState(false)
+
+  async function chooseScreenshots() {
+    if (imageUrls.length >= 4) {
+      Alert.alert('截图已满', '每条反馈最多附加 4 张截图。')
+      return
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      quality: 0.82,
+      allowsMultipleSelection: true,
+      selectionLimit: 4 - imageUrls.length,
+    })
+    if (result.canceled) return
+    setUploading(true)
+    try {
+      const token = await getStoredToken()
+      for (const [index, asset] of result.assets.entries()) {
+        if (asset.fileSize && asset.fileSize > 8 * 1024 * 1024) throw new Error(`第 ${index + 1} 张截图超过 8MB`)
+        const type = asset.mimeType || 'image/jpeg'
+        const ext = type.split('/')[1]?.replace('jpeg', 'jpg') || 'jpg'
+        const formData = new FormData()
+        formData.append('file', { uri: asset.uri, name: asset.fileName || `feedback-${Date.now()}-${index}.${ext}`, type } as any)
+        const response = await fetch(`${API_BASE_URL}/api/feedback/upload-image`, {
+          method: 'POST',
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+          body: formData,
+        })
+        const payload = await response.json().catch(() => null)
+        if (!response.ok || !payload?.success || !payload?.data?.url) throw new Error(payload?.message || '截图上传失败')
+        setImageUrls((prev) => [...prev, String(payload.data.url)].slice(0, 4))
+      }
+    } catch (error) {
+      Alert.alert('截图上传失败', errorMessage(error))
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  function selectQuestion(question: string) {
+    setRelatedQuestion(question)
+    setContent((current) => current.trim() ? current : `${question}\n\n`)
+  }
+
   async function submit() {
+    const trimmed = content.trim()
+    if (!trimmed) {
+      Alert.alert('请填写反馈内容')
+      return
+    }
+    if (trimmed.length > 2000) {
+      Alert.alert('反馈内容过长', '请控制在 2000 字以内。')
+      return
+    }
     setLoading(true)
     try {
-      await safeRequest('/api/feedback/submit', { body: { content } })
-      Alert.alert('已提交', '感谢反馈')
+      await safeRequest('/api/feedback/submit', {
+        body: {
+          content: trimmed,
+          relatedQuestion: relatedQuestion || undefined,
+          category,
+          contact: contact.trim(),
+          pagePath: 'mobile://me/feedback',
+          appVersion: APP_VERSION,
+          clientInfo: {
+            client: 'coachlink-mobile',
+            platform: Platform.OS,
+            platformVersion: String(Platform.Version),
+          },
+          recentRequests: [],
+          imageUrls,
+        },
+      })
+      Alert.alert('已提交', '感谢反馈，我们已同时记录 App 版本和系统信息，便于排查。')
       navigation.goBack()
     } catch (error) {
       Alert.alert('提交失败', errorMessage(error))
@@ -4399,10 +4643,75 @@ export function FeedbackScreen() {
     }
   }
   return (
-    <ScreenShell title="反馈" subtitle="问题、建议和体验反馈。" onBack={navigation.goBack}>
+    <ScreenShell title="意见反馈" subtitle="描述越具体，问题通常越容易复现和解决。" onBack={navigation.goBack}>
       <Card>
-        <FormField label="反馈内容" value={content} onChangeText={setContent} multiline />
-        <SolidButton label="提交反馈" loading={loading} disabled={!content.trim()} onPress={submit} />
+        <Text style={local.feedbackSectionTitle}>反馈类型</Text>
+        <View style={local.feedbackChipGrid}>
+          {FEEDBACK_CATEGORIES.map((item) => (
+            <Pressable key={item.value} onPress={() => setCategory(item.value)} style={[local.feedbackChip, category === item.value && local.feedbackChipActive]}>
+              <Text style={[local.feedbackChipText, category === item.value && local.feedbackChipTextActive]}>{item.label}</Text>
+            </Pressable>
+          ))}
+        </View>
+      </Card>
+
+      <Card>
+        <Text style={local.feedbackSectionTitle}>常见问题</Text>
+        <View style={local.feedbackFaqList}>
+          {FEEDBACK_FAQS.map((question) => (
+            <Pressable key={question} onPress={() => selectQuestion(question)} style={[local.feedbackFaq, relatedQuestion === question && local.feedbackFaqActive]}>
+              <Text style={[local.feedbackFaqText, relatedQuestion === question && local.feedbackFaqTextActive]}>{question}</Text>
+              <IconFont name="icon-right-arrow" color={relatedQuestion === question ? colors.brand : colors.textMuted} size={14} />
+            </Pressable>
+          ))}
+        </View>
+      </Card>
+
+      <Card>
+        {relatedQuestion ? (
+          <View style={local.feedbackSelectedRow}>
+            <Text style={local.feedbackSelectedText}>已关联：{relatedQuestion}</Text>
+            <Pressable onPress={() => setRelatedQuestion('')}><Text style={local.feedbackClearText}>取消关联</Text></Pressable>
+          </View>
+        ) : null}
+        <Text style={local.feedbackSectionTitle}>反馈内容（必填）</Text>
+        <TextInput
+          value={content}
+          onChangeText={setContent}
+          placeholder="请写清楚发生了什么、你原本想完成什么，以及是否可以稳定复现…"
+          placeholderTextColor={colors.textMuted}
+          multiline
+          maxLength={2000}
+          textAlignVertical="top"
+          style={local.feedbackInput}
+        />
+        <Text style={local.feedbackCounter}>{content.length} / 2000</Text>
+        <TextInput value={contact} onChangeText={setContact} placeholder="联系方式（可选，手机号/邮箱/微信）" placeholderTextColor={colors.textMuted} maxLength={200} style={local.feedbackContactInput} />
+      </Card>
+
+      <Card>
+        <View style={local.feedbackAttachmentHeader}>
+          <View style={local.flexOne}><Text style={local.feedbackSectionTitle}>问题截图（可选）</Text><Text style={local.feedbackHelper}>最多 4 张，单张不超过 8MB；已上传的截图只用于处理本次反馈。</Text></View>
+          <Text style={local.feedbackAttachmentCount}>{imageUrls.length}/4</Text>
+        </View>
+        {imageUrls.length > 0 ? (
+          <View style={local.feedbackImageGrid}>
+            {imageUrls.map((url, index) => (
+              <View key={url} style={local.feedbackImageWrap}>
+                <Image source={{ uri: url }} style={local.feedbackImage} />
+                <Pressable accessibilityLabel={`删除第 ${index + 1} 张截图`} onPress={() => setImageUrls((prev) => prev.filter((_, itemIndex) => itemIndex !== index))} style={local.feedbackImageRemove}><Text style={local.feedbackImageRemoveText}>×</Text></Pressable>
+              </View>
+            ))}
+          </View>
+        ) : null}
+        <SolidButton label={uploading ? '截图上传中…' : '选择截图'} variant="secondary" loading={uploading} disabled={uploading || imageUrls.length >= 4} onPress={chooseScreenshots} />
+      </Card>
+
+      <Card>
+        <Text style={local.feedbackSectionTitle}>自动附带的诊断信息</Text>
+        <Text style={local.feedbackHelper}>CoachLink App {APP_VERSION} · {Platform.OS} {String(Platform.Version)}</Text>
+        <Text style={local.feedbackHelper}>不包含密码、验证码或训练视频；提交前可直接看到我们附带了什么。</Text>
+        <SolidButton label="提交反馈" loading={loading} disabled={!content.trim() || uploading} onPress={submit} />
       </Card>
     </ScreenShell>
   )
@@ -4899,6 +5208,84 @@ const local = StyleSheet.create({
     color: colors.textSecondary,
     fontSize: 14,
     lineHeight: 22,
+  },
+  settingsSectionTitle: {
+    color: colors.text,
+    fontSize: 16,
+    fontWeight: '900',
+  },
+  settingsSummary: {
+    minHeight: 72,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    borderRadius: radius.md,
+    padding: spacing.sm,
+    backgroundColor: colors.surfaceMuted,
+  },
+  settingsSummaryIcon: {
+    width: 48,
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radius.md,
+    backgroundColor: colors.brandSoft,
+  },
+  settingsSummaryMain: {
+    flex: 1,
+    minWidth: 0,
+    gap: 4,
+  },
+  settingsSummaryTitle: {
+    color: colors.text,
+    fontSize: 15,
+    fontWeight: '900',
+  },
+  settingsHelp: {
+    color: colors.textSecondary,
+    fontSize: 13,
+    lineHeight: 20,
+  },
+  settingsRoleBadge: {
+    minHeight: 32,
+    justifyContent: 'center',
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.sm,
+    backgroundColor: colors.brandSoft,
+  },
+  settingsRoleBadgeText: {
+    color: colors.brandDark,
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  settingsFeedback: {
+    color: colors.success,
+    fontSize: 13,
+    lineHeight: 20,
+  },
+  dangerZone: {
+    borderColor: '#F3C7C5',
+    backgroundColor: '#FFF8F7',
+  },
+  dangerTitle: {
+    color: colors.danger,
+    fontSize: 16,
+    fontWeight: '900',
+  },
+  dangerText: {
+    color: '#8C4744',
+    fontSize: 13,
+    lineHeight: 20,
+  },
+  dangerToken: {
+    alignSelf: 'flex-start',
+    borderRadius: radius.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    color: colors.danger,
+    backgroundColor: '#FDECEC',
+    fontSize: 15,
+    fontWeight: '900',
   },
   logoutRow: {
     minHeight: 56,
@@ -7445,5 +7832,160 @@ const local = StyleSheet.create({
   },
   socialEditor: {
     gap: spacing.sm,
+  },
+  feedbackSectionTitle: {
+    color: colors.text,
+    fontSize: 15,
+    fontWeight: '900',
+  },
+  feedbackChipGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
+  },
+  feedbackChip: {
+    minHeight: 40,
+    justifyContent: 'center',
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.sm,
+    backgroundColor: colors.surfaceMuted,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  feedbackChipActive: {
+    backgroundColor: colors.brand,
+    borderColor: colors.brand,
+  },
+  feedbackChipText: {
+    color: colors.textSecondary,
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  feedbackChipTextActive: {
+    color: '#FFFFFF',
+  },
+  feedbackFaqList: {
+    gap: spacing.xs,
+  },
+  feedbackFaq: {
+    minHeight: 48,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.xs,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.sm,
+    backgroundColor: colors.surfaceMuted,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  feedbackFaqActive: {
+    borderColor: colors.brand,
+    backgroundColor: colors.brandSoft,
+  },
+  feedbackFaqText: {
+    flex: 1,
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  feedbackFaqTextActive: {
+    color: colors.brandDark,
+  },
+  feedbackSelectedRow: {
+    minHeight: 40,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.sm,
+    backgroundColor: colors.brandSoft,
+  },
+  feedbackSelectedText: {
+    flex: 1,
+    color: colors.brandDark,
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  feedbackClearText: {
+    color: colors.brand,
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  feedbackInput: {
+    minHeight: 160,
+    borderRadius: radius.md,
+    padding: spacing.sm,
+    color: colors.text,
+    fontSize: 15,
+    lineHeight: 22,
+    backgroundColor: colors.surfaceMuted,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  feedbackCounter: {
+    alignSelf: 'flex-end',
+    color: colors.textMuted,
+    fontSize: 12,
+  },
+  feedbackContactInput: {
+    minHeight: 48,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.sm,
+    color: colors.text,
+    fontSize: 14,
+    backgroundColor: colors.surfaceMuted,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  feedbackAttachmentHeader: {
+    minHeight: 48,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+  },
+  feedbackAttachmentCount: {
+    color: colors.brand,
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  feedbackHelper: {
+    color: colors.textMuted,
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  feedbackImageGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
+  },
+  feedbackImageWrap: {
+    width: 72,
+    height: 72,
+  },
+  feedbackImage: {
+    width: 72,
+    height: 72,
+    borderRadius: radius.md,
+    backgroundColor: colors.surfaceMuted,
+  },
+  feedbackImageRemove: {
+    position: 'absolute',
+    right: -4,
+    top: -4,
+    width: 24,
+    height: 24,
+    borderRadius: radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.danger,
+  },
+  feedbackImageRemoveText: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    lineHeight: 20,
+    fontWeight: '900',
   },
 })

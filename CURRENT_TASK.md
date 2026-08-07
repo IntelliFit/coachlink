@@ -1,3 +1,68 @@
+# 微信小程序工具箱第三版四宫格 (`2026-08-07`)
+
+- Status: 已完成本地实现与微信开发者工具验证。
+- UI: 移除顶部深色大卡，改为开放式浅色标题区；按微信胶囊实际位置动态留出安全距离；四个体感游戏保持等尺寸 2×2 四宫格，不使用上方横向矩形卡。
+- Verification: lint 提示未配置；typecheck、微信小程序 2855 modules 本地构建、Next 533/533 页面生产构建通过；开发者工具错误日志 0，点击第一张游戏卡可进入 `toolbox/motion-effects/index` 并返回。
+- Test note: Vitest 199 项通过，唯一失败套件仍为既有 `tests/backend/api/feedback/submit.test.ts` 缺少 `@opentelemetry/api`，与本次 UI 改动无关，未修改测试。
+- Delivery: 仅保留本地，未提交、未推送、未上传 `dev`、体验版或正式版。
+## 微信开发者工具与小程序登录状态稳定性 (`2026-08-07`)
+
+- Status: 已完成本地修复并加载到当前微信开发者工具。
+- Root cause: 最近编译产物错误指向不可用的 `localhost:3000`，实际本地 API 在 3001；同时请求层把任意 HTTP 401 或 `Unauthorized` 立即视为 token 失效并删除本地登录态，今日训练页还会重复调用 `logout()`。
+- Request fix: 新增 `/api/miniapp/session` 权威 token 探针；业务接口未授权时先校验 token，校验服务暂不可用或 token 仍有效时不再清登录。
+- Recovery fix: 已绑定微信的同一用户在 token 确认失效时通过 `wx.login` 静默续签；校验返回用户 ID 必须与本地一致，并发恢复复用同一 Promise/新 token。
+- Page fix: 今日训练订阅请求不再绕过请求层直接登出，仅在请求层已确认并清除会话后切换游客态。
+- Runtime: 小程序已按当前健康 API `http://localhost:3001` 重建（2855 modules）；9420 当前只有一个自动化实例。
+- Verification: typecheck、两次小程序构建与 `git diff --check` 通过；无 token 会话探针返回 401；最终重新打开首页并等待 3 秒后仍在 `pages/index/index`，连续连接稳定，错误日志 0。
+- E2E: 首轮因默认 3000 与现有 3001 服务的 `.next` 锁冲突而全部连接失败；改指向 3001 后整套 E2E 超过 184 秒被命令超时终止，没有得到断言结果，未修改测试。
+- Delivery: 当前仅保留本地，未提交、未推送或发布。
+
+## 学员今日训练首页日历置顶 (`2026-08-07`)
+
+- Status: 已完成本地实现。登录且存在可展示训练计划时，页面顺序调整为「问候区 → 本周/训练月历 → 计划切换与训练卡片 → 今日安排」；日历数据、日期选择和展开/收起逻辑保持不变。
+- Scope: 仅移动 `renderScheduleCalendarCombined()` 的渲染位置，没有新增重复组件，没有修改业务、缓存、接口或样式。
+- Verification: `git diff --check`、`npm run lint`、`npm run typecheck` 与 `apps/wechat` 的 `npm run build:weapp` 通过；Vitest 199 项通过，唯一失败套件仍是反馈接口测试因现有 `@opentelemetry/api` 缺失而无法收集。
+- DevTools: 9420 自动化端口连接成功、错误日志 0；当前本机会话被认证守卫固定跳转到 `auth/student-onboarding`，无法进入已登录学员首页完成目标首屏与展开月历的截图验证。
+- Delivery: 当前仅保留本地，未提交、未推送、未更新 PR 或上传小程序。
+
+## 微信小程序全局品牌色统一 (`2026-08-06`)
+
+- Status: 已完成本地实现与验证。学员「我的计划库」「全部计划」已重做为暖米灰页面、白色卡片、品牌橙主操作与暖灰次操作，并补齐暗色主题和 88rpx 主要触控区。
+- Global scope: 对 `apps/wechat/src` 全量扫描旧蓝色按钮、选中态、链接、焦点、提示底色和蓝紫旧品牌色；首轮 268 处常见蓝色命中已迁移，非语义旧品牌蓝复扫清零。按钮实际背景审计中，主操作统一为 `#CF6D4E`，次操作保持白底描边。
+- Semantic exceptions: 跑步/骑行分类、功率速度曲线、会员档位、动效预设和游戏 HUD 等用于区分数据或功能的蓝色继续保留；成功绿、警告黄、错误红、微信官方绿不改写。
+- Button rule: 教练计划库、内容、问卷等迁移后出现的同色渐变按钮已改为纯色；计划创建/编辑与市场等旧橙主按钮也收口到 `#CF6D4E`。
+- Verification: `npm run lint`、`npm run typecheck` 通过；小程序本地构建通过（2855 modules）；`npx next build` 通过并生成 532/532 静态页面；`git diff --check` 通过。
+- DevTools: 清理编译缓存后以 9422 自动化端口验证 `/me/plan-lib/index` 与 `/me/plan-history/index`；标题、按钮、卡片和筛选选中态存在，点击「教练指派」成功，两页错误日志均为 0。截图见 `apps/wechat/artifacts/ui-verification/plan-lib-final-clean-cache.png` 与 `plan-history-filter-settled.png`。
+- Tests: 41 个测试文件、199 个测试通过；唯一失败套件仍是 `tests/backend/api/feedback/submit.test.ts` 因仓库现有 `@opentelemetry/api` 缺失在收集阶段失败（0 test），与本次 UI 改动无关，未修改测试或依赖。
+- Delivery: UI 代码已整理为独立提交 `875576a4`，分支 `codex/wechat-ui-color-unification` 已推送 GitHub，并创建目标为 `dev` 的 Draft PR #41：`https://github.com/IntelliFit/coachlink/pull/41`。PR 包含 1 个提交、98 个小程序源文件；未上传体验版或发布。
+## 本地同步最新 main 并启动小程序/后台 (`2026-08-06`)
+
+- Status: 已完成。远端 `origin/main` 与本地 `main` 更新到 `46b0ecb2`；当前 `dev` 已合入最新 main，`dev...origin/main` 为 `7/0`。
+- Local preservation: 同步前完整保存 tracked/untracked 改动；同步后已恢复为未暂存、未提交状态，`stash@{0}`（`codex-preserve-local-before-main-sync-2026-08-06`）继续保留作额外备份。未 push、未上传或发布小程序。
+- Conflict resolution: 合并了 `CURRENT_TASK.md`、`DECISIONS.md`、`memory/2026-08-01.md` 与工具箱首页冲突；保留最新 main 的工具箱头部/能力，同时继续隐藏身体恢复入口及其头部统计。`memory/2026-08-05.md` 已合并主分支同步记录和本地 UI 工作记录。
+- Runtime: `port-manager` 为 Web/API 分配 `3001`；`http://localhost:3001/api/healthy` 返回 200。后台浏览器打开 `/dashboard` 后按权限正常跳转 `/login`。
+- WeChat: 使用 `TARO_APP_API_URL=http://localhost:3001` 完成 2851 模块本地构建，微信开发者工具已打开 `apps/wechat/`，自动化端口 9420 当前页为 `pages/index/index`，错误日志 0 条。
+
+## 微信小程序主界面视觉优化（仅本地） (`2026-08-05`)
+
+- Status: 已完成学员「今日训练」主界面的视觉调整，并在微信开发者工具中加载本地 `apps/wechat/dist/` 验证；当前已登录的无长期计划状态可正常显示，自动化错误日志为 0。
+- Scope: 仅调整主界面视觉层级、色彩、留白、卡片与按钮样式；未修改首次打开页、业务功能、数据逻辑或路由。
+- Latest layout: 无长期计划状态下，绿色「自由训练」主卡片位于上方；「之后有教练计划时，这里会自动切换成今日训练。」移出主卡片，作为卡片下方的独立次要说明；「今天可以先练起来」教练提示卡继续排在该说明下方。有正式计划时仍保留教练/计划身份在训练主卡片上方。
+- Latest palette: 主训练卡采用轻量化方案 B：中明度暖炭灰 `#5B514B`（暗色主题 `#4F4843`）配品牌橙 `#CF6D4E`；降低卡片高度、投影强度、装饰环和次按钮对比，避免深色大卡过重。
+- Recovery visibility: 「身体恢复」功能、场景数据、瀑布流组件和详情路由继续保留，但展示开关暂时关闭；登录后的训练首页与工具箱首页均不显示身体恢复入口。
+- Verification: `npm run lint` 与 `npm run typecheck` 通过；Taro 本地构建完成（2841 modules），项目自带 WXML/组件路径修复脚本通过；开发者工具从「我的」底栏切换到「训练」并截图成功。
+- DevTools note: 卡片换位后再次完成 2841 modules 本地构建，类型与差异检查通过；刷新时开发者工具会话跳转到 `auth/login`，需用户重新登录后查看换位后的登录态截图。
+- Latest verification: lint、typecheck 与小程序 2841 modules 本地构建通过；开发者工具确认训练首页 `.training-recovery-section` 与工具箱首页 `.scene-section` 均不存在，最终返回 `pages/index/index`，错误日志 0。此前 Next 526 页生产构建通过；Vitest 为 40 files / 196 tests 通过，另有 1 个反馈 API 套件因仓库现有 `@opentelemetry/api` 缺失在收集阶段失败，与本次 UI 无关，未修改测试。
+- Delivery boundary: 用户明确要求今天的改动只保留本地。禁止提交、推送、上传体验版或同步到 `dev`，除非用户之后重新明确授权。
+
+## 微信小程序 UI 审查 (`2026-08-05`)
+
+- Status: 已完成只读源码与既有截图审查；未修改小程序业务 UI，也未启动微信开发者工具。
+- Skill: 从 GitHub 选用并安装 `nextlevelbuilder/ui-ux-pro-max-skill`（审查时 GitHub API 显示约 113,450 stars、12,140 forks），按其 Accessibility → Touch → Performance → Style → Layout → Typography/Color → Feedback → Navigation 顺序执行。
+- Evidence: `apps/wechat/src` 共 180 个 SCSS 文件；检出 148 处渐变，分布于 95 个文件；按仓库强制 8rpx 规则静态扫描得到约 395 处布局尺寸/间距偏差；TSX 中没有实际 `aria-label` / `accessibilityLabel` / `accessibilityRole`；固定层级出现 1000–1005、1200、1300、100001 等多组任意值。
+- Main findings: 品牌与组件语言分裂、核心页信息同权重且卡片密度过高、无障碍语义与触控热区不足、底部悬浮导航未显式叠加 safe-area、暗色主题被大量页面硬编码颜色削弱、加载/空/错误状态缺少统一组件。
+- Recommended sequence: P0 先建立 token/组件与 a11y/safe-area 基线；P1 重排今日训练与教练概览信息层级；P2 再统一暗色、动效、骨架屏与其他长尾页面。
+
 ## APP 与微信小程序功能对齐审计 (`2026-08-01`)
 
 - Status: 已完成源码级深度审计，详细报告见 `docs/audits/mobile-wechat-parity-audit-2026-08-01.md`；本轮只新增/更新文档，没有修改业务代码，也没有覆盖任务开始前的 APP 训练缓存等未提交改动。
@@ -9086,3 +9151,56 @@
 - Data boundary: 只有评论必须新增最小独立表 `knowledge_book_comments`；迁移为 `20260801120000_knowledge_book_comments.sql`。内容继续放在 `knowledge_books.content` JSONB，无额外内容字段迁移。API 会移除本机绝对路径，导入脚本 dry-run 不加载远端配置，apply 时才按 `.env -> local/Apollo` 单源配置连接。
 - Verification: 数据库只读回查为 167/167 匹配、157 已发布、10 未发布、167 带思维导图、缺失 0、重复 0。全量 dry-run 为 26 集合 / 37 公版，未发现本机绝对路径。`git diff --check`、`npm run lint`、根 TypeScript、36 文件 / 180 单测通过；Web 531 页生产构建和微信小程序 2851 模块完整构建通过。按用户长期偏好未运行浏览器或微信开发者工具人工 UI 验证。
 - Next: 提交并部署 Web / 小程序代码后，由用户抽查书籍列表、详情思维导图和评论回复；10 条《力量训练原理》内容保持未发布，待内容确认后再发布。
+
+## 微信小程序工具箱游戏卡片封面精简（仅本地） (2026-08-06)
+
+- Status: 已完成。工具箱顶部四张游戏卡片仅保留功能标题与统一风格封面，移除箭头、说明文案和标签；封面改为卡片内整宽展示，下方实用工具卡片不受影响。
+- Verification: npm run typecheck 与 npm --workspace apps/wechat run build:weapp 通过（2855 modules）；微信开发者工具已重新打开，自动化端口 9420 当前错误日志为 0。
+- Boundary: 改动仅保留本地，未提交、未推送、未上传小程序。
+## 微信小程序工具箱真实运动封面（仅本地） (2026-08-07)
+
+- Status: 已完成。工具箱顶部四张体感游戏卡片改为统一的真实运动摄影封面，分别对应手指互动、接豆体感、引体和俯卧撑。
+- UI: 卡片继续只展示标题与图片；标题叠在图片底部暗角上，不恢复图标、箭头、说明或标签。下方实用工具区域不变。
+- Assets: 四张封面均为 640×480 WebP，单张约 17–26KB；使用暖灰环境、品牌橙和克制的深青点缀统一视觉。
+- Verification: npm run typecheck、TARO_APP_API_URL=http://localhost:3001 的小程序 2855 模块构建及 git diff --check 通过；9420 错误日志为 0。当前认证守卫跳转 auth/student-onboarding，未更改登录状态获取工具箱截图。
+- Boundary: 仅保留本地，未提交、推送或上传小程序。
+## 工具箱游戏封面玩法表达三案 (2026-08-07)
+
+- Status: 已生成三套候选方案，每套包含手指光膜、接豆派对、引体冲刺、俯卧撑突围四张，共 12 张；尚未替换小程序当前封面，等待用户选择整套或混搭。
+- Requirement: 封面必须直接体现玩法映射。手指光膜展示双手操控和拉伸光膜；接豆派对展示身体侧移控制画面中央小圆点且不露脸；引体展示上拉驱动圆点向上穿越关卡；俯卧撑展示完整动作驱动圆点突破障碍。
+- Variants: A 为真实拍摄叠加克制游戏反馈；B 为匿名背影/局部身体与体感追踪；C 为明亮轻量的产品化游戏主视觉。
+- Assets: apps/wechat/artifacts/toolbox-game-cover-concepts/2026-08-07/，文件按 A1-A4、B1-B4、C1-C4 命名。
+- Next: 用户选择后，将对应图片裁切为 640×480 WebP，替换当前四张 photo 封面并重新构建小程序。
+## 工具箱游戏封面玩法表达 D/E 双手互动方案 (2026-08-07)
+
+- Status: 已生成 D、E 两套新候选，每套包含四张游戏封面；D1 已按反馈重做为真实使用场景中的双手互动，旧单手版不再作为候选。尚未替换小程序当前封面，等待用户选套或混搭。
+- D: 偏暗环境与更强的摄像头识别感；E: 明亮居家环境与更自然的日常使用感。
+- D1/E1: 人物从背后或侧后方入镜、不突出面部，两只手同时抬起互动；双手均显示视觉关键点追踪，橙色与深青色指尖光效、粒子和轨迹相互交织，不表现为手持或拉扯实体薄膜。
+- Assets: `apps/wechat/artifacts/toolbox-game-cover-concepts/2026-08-07/`，新增 D1-D4 与 E1-E4 八张 PNG。
+- Next: 用户选择 D、E 或混搭组合后，再裁切转换为程序使用的统一 WebP 并替换现有封面。
+## 四宫格封面轻量游戏反馈版本 (2026-08-07)
+
+- Status: 已基于用户提供的四宫格生成非破坏性候选图；仅为左下引体向上和右下俯卧撑增加轻量游戏反馈，人物与上方两格保持主体不被遮挡。
+- Effects: 引体使用侧边上升检查点、方向箭头和小型进度环；俯卧撑使用贴地路径节点与少量突破粒子。效果占比克制，不覆盖脸、躯干、四肢或动作关键部位。
+- Asset: `apps/wechat/artifacts/toolbox-game-cover-concepts/2026-08-07/four-game-collage-subtle-game-effects-v1.png`；尚未替换程序封面。
+## 四张游戏卡片切换为轻量游戏效果封面 (2026-08-07)
+
+- Status: 已将选定四宫格按卡片 4:3 槽位裁成四张独立 640×480 WebP，并把工具箱四张体感游戏卡片的封面引用切换到新素材。
+- Assets: `motion-effects-game-v2.webp`、`motion-bean-game-v2.webp`、`pullup-rush-game-v2.webp`、`pushup-dash-game-v2.webp`；原 photo 封面保留未覆盖。
+- UI: 卡片布局、标题叠层、点击路由及下方实用工具未修改；引体和俯卧撑的轻量游戏反馈随封面进入对应卡片。
+- Verification: 仅执行尺寸、引用和差异检查；按用户偏好未启动微信开发者工具或运行广泛构建/测试。
+- Boundary: 仅本地，未提交、推送或上传小程序。
+## 工具箱新游戏封面开发者工具展示 (2026-08-07)
+
+- Status: 已完成本地构建并在微信开发者工具 `/toolbox/index` 展示四张新封面；引体和俯卧撑的轻量游戏反馈可见，人物主体未被遮挡。
+- Runtime: `TARO_APP_API_URL=http://localhost:3001`，小程序构建通过（2855 modules）；9420 已再次切回 `toolbox/index`，错误日志 0。此前截图完成后现有认证守卫曾自动跳到 `auth/student-onboarding`，未修改登录状态绕过。
+- Cache handling: 首次重载仍显示旧封面，完整重开后曾出现图片空白；仅清理 compile cache、重置 fileutils 并重启自动化项目后正确显示。未清 storage/auth/session。
+- Evidence: `apps/wechat/artifacts/ui-verification/toolbox-game-covers-local-compile-cache-clean-2026-08-07.png` 与交付时重新打开页面的 `toolbox-game-covers-local-handoff-2026-08-07.png`。
+- Boundary: 全部改动仅本地，未提交、推送、上传 `dev` 或上传小程序。
+## 工具箱首页 UI 三版视觉方案 (2026-08-07)
+
+- Status: 已使用 `ui-ux-pro-max` 的移动端安全区与层级建议，并通过内置 Image Gen 生成三张独立完整页面效果图；尚未修改程序代码，等待用户选择 1/2/3。
+- Hard constraint: 顶部必须为微信右上角胶囊按钮预留独立安全区，任何深色卡片、标题、装饰或触控内容不得进入胶囊范围。
+- Variants: 三案分别探索安全区下沉紧凑头部、开放编辑式标题区、游戏优先轻量首页；均保留四张玩法封面、暖色品牌和五项底部导航。
+- Assets: `apps/wechat/artifacts/toolbox-ui-concepts/2026-08-07/toolbox-ui-option-1.png` 至 `toolbox-ui-option-3.png`。
+- Boundary: 仅生成本地效果图，未修改、构建、上传或推送小程序。

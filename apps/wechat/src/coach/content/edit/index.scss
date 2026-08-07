@@ -116,7 +116,7 @@
 
       .add-tag-btn {
         padding: 0 30px;
-        background: #007aff;
+        background: #cf6d4e;
         color: #fff;
         border-radius: 12px;
         font-size: 28px;
@@ -139,12 +139,12 @@
 
         .tag-text {
           font-size: 24px;
-          color: #1976d2;
+          color: #a6533a;
         }
 
         .tag-remove {
           font-size: 32px;
-          color: #1976d2;
+          color: #a6533a;
           line-height: 1;
           cursor: pointer;
         }
@@ -167,8 +167,8 @@
           justify-content: center;
 
           &.checked {
-            background: #007aff;
-            border-color: #007aff;
+            background: #cf6d4e;
+            border-color: #cf6d4e;
 
             .checkbox-icon {
               color: #fff;
@@ -211,7 +211,7 @@
     }
 
     .publish-btn {
-      background: #007aff;
+      background: #cf6d4e;
       color: #fff;
     }
   }

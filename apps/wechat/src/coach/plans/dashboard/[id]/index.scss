@@ -70,7 +70,7 @@
       justify-content: center;
       padding: 10px 18px;
       border-radius: 999px;
-      background: #111827;
+      background: #cf6d4e;
       color: #fff;
       font-size: 13px;
       font-weight: 600;
@@ -151,8 +151,8 @@
       width: 28px;
       height: 28px;
       border-radius: 14px;
-      background: #eef2ff;
-      color: #4338ca;
+      background: #fbf0ec;
+      color: #a6533a;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -182,8 +182,8 @@
       text-align: center;
 
       &.selected {
-        border-color: #3b82f6;
-        background: #eff6ff;
+        border-color: #cf6d4e;
+        background: #fbf0ec;
       }
 
       &.rest {
@@ -301,7 +301,7 @@
 
     .today-action {
       border-radius: 10px;
-      background: #3b82f6;
+      background: #cf6d4e;
       color: #fff;
       text-align: center;
       padding: 11px 12px;

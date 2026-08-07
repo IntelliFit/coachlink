@@ -232,7 +232,7 @@ export function CoachMarketScreen({ navigation }: Props) {
 
   const handleBuy = useCallback((item: MarketItem, option: DurationOption) => {
     if (!ensureLogin()) return
-    navigation.navigate('PaymentWebview', { coachId: item.coach.id, productId: item.product.id, months: option.months })
+    navigation.navigate('CoachProfile', { id: item.coach.id })
   }, [ensureLogin, navigation])
 
   const handleAddToCart = useCallback(async (item: MarketItem, option: DurationOption) => {

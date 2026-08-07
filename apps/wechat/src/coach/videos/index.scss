@@ -78,16 +78,16 @@
       justify-content: center;
       gap: 6px;
       padding: 10px 16px;
-      background: #3b82f6;
+      background: #cf6d4e;
       border-radius: 8px;
-      box-shadow: 0 2px 8px rgba(59, 130, 246, 0.25);
+      box-shadow: 0 2px 8px rgba(207, 109, 78, 0.25);
       transition: all 0.2s ease;
       cursor: pointer;
       user-select: none;
 
       &:active {
         transform: scale(0.98);
-        box-shadow: 0 1px 4px rgba(59, 130, 246, 0.3);
+        box-shadow: 0 1px 4px rgba(207, 109, 78, 0.3);
       }
 
       &.reviewed-btn {

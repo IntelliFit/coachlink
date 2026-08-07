@@ -45,6 +45,7 @@ export type RootStackParamList = {
   CoachDashboard: undefined
   CoachStudents: undefined
   CoachStudentDetail: { subscriptionId?: string; studentId?: string } | undefined
+  CoachAssignPlan: { subscriptionId: string; studentId?: string; studentName?: string }
   CoachActions: undefined
   CoachActionEdit: { id?: string } | undefined
   CoachPlanTemplates: undefined
@@ -61,12 +62,14 @@ export type RootStackParamList = {
   CoachRevenue: undefined
   CoachWallet: undefined
   CoachWalletMerchant: undefined
+  CoachInvitation: undefined
   CoachMarket: undefined
   GeneratePlan: { coachId?: string } | undefined
   GeneratePlanWaiting: { coachId?: string; domain?: string; taskId?: string } | undefined
   PaymentWaiting: {
     orderId?: string
     amount?: number
+    paymentUrl?: string
     coachId?: string
     provider?: 'wechat' | 'alipay'
     target?: 'coach' | 'membership'
@@ -114,6 +117,8 @@ export type RootStackParamList = {
   KnowledgePlanDetail: { id?: string } | undefined
   KnowledgeBookDetail: { id?: string } | undefined
   PowerAnalysis: undefined
+  MotionEffects: undefined
+  OneArmPullUp: undefined
   StreetliftingCalculator: undefined
   StreetliftingData: undefined
   StreetliftingLocations: undefined

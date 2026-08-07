@@ -12,3 +12,4 @@
 - Does not want full E2E run for every ordinary feature change or push. Run E2E only when explicitly requested or when the change directly affects an E2E-covered flow.
 - For small, targeted fixes, do not automatically run broad lint/typecheck/build/test suites after the relevant code or data is corrected; only run them when the user explicitly asks or when a release gate truly requires them.
 - To inspect a specific user's real frontend state, first obtain the user ID and use the Web quick-login input with that ID. Prefer this over switching mini-program login state; Web and mini-program share the underlying user/plan data, while UI-specific rendering should still be diagnosed in its owning client when necessary.
+- CoachLink 微信小程序是例外：每次修改都必须只在本地构建并在微信开发者工具中实际展示、截图确认；未经用户另行授权，不提交、不推送、不上传 `dev`、体验版或正式版。

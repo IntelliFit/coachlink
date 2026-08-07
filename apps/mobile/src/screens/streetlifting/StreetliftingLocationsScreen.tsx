@@ -1,10 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { NativeStackScreenProps } from '@react-navigation/native-stack'
-import { ActivityIndicator, Image, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
+import * as ImagePicker from 'expo-image-picker'
+import { ActivityIndicator, Alert, Image, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import { IconFont } from '../../components/IconFont'
 import { Page } from '../../components/Page'
 import { SectionCard } from '../../components/SectionCard'
-import { apiClient } from '../../api'
+import { apiClient, getStoredToken } from '../../api'
+import { API_BASE_URL } from '../../config'
+import { useAuth } from '../../providers/AuthProvider'
 import { colors, radius, shadow, spacing } from '../../theme'
 import type { RootStackParamList } from '../../navigation/types'
 
@@ -46,6 +49,8 @@ type ListRes = {
 }
 
 const PAGE_SIZE = 20
+const MAX_IMAGES = 4
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024
 
 function getLocationImages(location: StreetliftingLocation) {
   if (Array.isArray(location.image_urls) && location.image_urls.length) return location.image_urls
@@ -69,6 +74,7 @@ function formatDate(value?: string | null) {
 }
 
 export function StreetliftingLocationsScreen({ navigation }: Props) {
+  const { isAuthenticated } = useAuth()
   const [loading, setLoading] = useState(true)
   const [locations, setLocations] = useState<StreetliftingLocation[]>([])
   const [total, setTotal] = useState(0)
@@ -80,6 +86,8 @@ export function StreetliftingLocationsScreen({ navigation }: Props) {
   const [error, setError] = useState('')
   const [dialogOpen, setDialogOpen] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const [imageUrls, setImageUrls] = useState<string[]>([])
   const [form, setForm] = useState({
     name: '',
     description: '',
@@ -131,6 +139,80 @@ export function StreetliftingLocationsScreen({ navigation }: Props) {
 
   const applyFilter = () => loadLocations(1, false)
 
+  const openCreateDialog = () => {
+    if (!isAuthenticated) {
+      Alert.alert('请先登录', '登录后才能新增单杠点位和上传现场图片。', [
+        { text: '取消', style: 'cancel' },
+        { text: '去登录', onPress: () => navigation.navigate('Login') },
+      ])
+      return
+    }
+    setError('')
+    setImageUrls([])
+    setDialogOpen(true)
+  }
+
+  const uploadImageAssets = async (assets: ImagePicker.ImagePickerAsset[]) => {
+    const available = MAX_IMAGES - imageUrls.length
+    const selected = assets.slice(0, available)
+    if (!selected.length) return
+    setUploading(true)
+    try {
+      const token = await getStoredToken()
+      for (const [index, asset] of selected.entries()) {
+        if (asset.fileSize && asset.fileSize > MAX_IMAGE_BYTES) throw new Error(`第 ${index + 1} 张图片超过 5MB，请压缩后重试`)
+        const type = asset.mimeType || 'image/jpeg'
+        const ext = type.split('/')[1]?.replace('jpeg', 'jpg') || 'jpg'
+        const formData = new FormData()
+        formData.append('file', {
+          uri: asset.uri,
+          name: asset.fileName || `streetlifting-location-${Date.now()}-${index}.${ext}`,
+          type,
+        } as any)
+        const response = await fetch(`${API_BASE_URL}/api/streetlifting-index/upload-location-image`, {
+          method: 'POST',
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+          body: formData,
+        })
+        const payload = await response.json().catch(() => null)
+        if (!response.ok || !payload?.success || !payload?.data?.url) throw new Error(payload?.message || '图片上传失败')
+        setImageUrls((prev) => [...prev, String(payload.data.url)].slice(0, MAX_IMAGES))
+      }
+    } catch (err) {
+      Alert.alert('图片上传失败', err instanceof Error ? err.message : '请稍后重试')
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  const chooseImages = async () => {
+    if (imageUrls.length >= MAX_IMAGES) {
+      Alert.alert('图片已满', `每个点位最多上传 ${MAX_IMAGES} 张图片。`)
+      return
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      quality: 0.82,
+      allowsMultipleSelection: true,
+      selectionLimit: MAX_IMAGES - imageUrls.length,
+    })
+    if (!result.canceled) await uploadImageAssets(result.assets)
+  }
+
+  const takePhoto = async () => {
+    if (imageUrls.length >= MAX_IMAGES) {
+      Alert.alert('图片已满', `每个点位最多上传 ${MAX_IMAGES} 张图片。`)
+      return
+    }
+    const permission = await ImagePicker.requestCameraPermissionsAsync()
+    if (!permission.granted) {
+      Alert.alert('需要相机权限', '请在系统设置中允许 CoachLink 使用相机后重试。')
+      return
+    }
+    const result = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.82 })
+    if (!result.canceled) await uploadImageAssets(result.assets)
+  }
+
   const createLocation = async () => {
     setSubmitting(true)
     setError('')
@@ -144,7 +226,7 @@ export function StreetliftingLocationsScreen({ navigation }: Props) {
         county: form.county.trim() || null,
         latitude: form.latitude.trim() ? Number(form.latitude) : null,
         longitude: form.longitude.trim() ? Number(form.longitude) : null,
-        image_urls: [],
+        image_urls: imageUrls,
         user_contact: form.user_contact.trim() || null,
       }
       if (!payload.name) throw new Error('请填写地点名称')
@@ -159,6 +241,9 @@ export function StreetliftingLocationsScreen({ navigation }: Props) {
       setLocations((prev) => [res.location, ...prev])
       setTotal((prev) => prev + 1)
       setDialogOpen(false)
+      setImageUrls([])
+      setForm({ name: '', description: '', address: '', province: '', city: '', county: '', latitude: '', longitude: '', user_contact: '' })
+      void loadOverview()
     } catch (e) {
       setError((e as Error)?.message || '提交失败')
     } finally {
@@ -205,7 +290,7 @@ export function StreetliftingLocationsScreen({ navigation }: Props) {
         </View>
         <View style={styles.actions}>
           <Pressable onPress={applyFilter} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>应用筛选</Text></Pressable>
-          <Pressable onPress={() => setDialogOpen(true)} style={styles.primaryButton}><Text style={styles.primaryButtonText}>新增点位</Text></Pressable>
+          <Pressable onPress={openCreateDialog} style={styles.primaryButton}><Text style={styles.primaryButtonText}>新增点位</Text></Pressable>
         </View>
         <Pressable onPress={() => navigation.navigate('StreetliftingLocationsMap')} style={styles.mapButton}>
           <IconFont name="icon-location" color={colors.brand} size={18} />
@@ -260,7 +345,7 @@ export function StreetliftingLocationsScreen({ navigation }: Props) {
 
       <Modal visible={dialogOpen} animationType="slide" transparent onRequestClose={() => setDialogOpen(false)}>
         <View style={styles.modalBackdrop}>
-          <View style={styles.modalCard}>
+          <ScrollView style={styles.modalCard} contentContainerStyle={styles.modalContent} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
             <Text style={styles.modalTitle}>新增单杠点位</Text>
             <TextInput value={form.name} onChangeText={(name) => setForm((prev) => ({ ...prev, name }))} placeholder="地点名称" placeholderTextColor={colors.textMuted} style={styles.input} />
             <TextInput value={form.description} onChangeText={(description) => setForm((prev) => ({ ...prev, description }))} placeholder="描述" placeholderTextColor={colors.textMuted} style={styles.input} />
@@ -271,11 +356,30 @@ export function StreetliftingLocationsScreen({ navigation }: Props) {
             <TextInput value={form.latitude} onChangeText={(latitude) => setForm((prev) => ({ ...prev, latitude }))} keyboardType="decimal-pad" placeholder="纬度（可选）" placeholderTextColor={colors.textMuted} style={styles.input} />
             <TextInput value={form.longitude} onChangeText={(longitude) => setForm((prev) => ({ ...prev, longitude }))} keyboardType="decimal-pad" placeholder="经度（可选）" placeholderTextColor={colors.textMuted} style={styles.input} />
             <TextInput value={form.user_contact} onChangeText={(user_contact) => setForm((prev) => ({ ...prev, user_contact }))} placeholder="署名/联系方式（可选）" placeholderTextColor={colors.textMuted} style={styles.input} />
+            <View style={styles.photoHeader}>
+              <View><Text style={styles.photoTitle}>现场图片</Text><Text style={styles.photoHint}>最多 {MAX_IMAGES} 张，单张不超过 5MB</Text></View>
+              <Text style={styles.photoCount}>{imageUrls.length}/{MAX_IMAGES}</Text>
+            </View>
+            {imageUrls.length > 0 ? (
+              <View style={styles.photoGrid}>
+                {imageUrls.map((url, index) => (
+                  <View key={url} style={styles.photoPreviewWrap}>
+                    <Image source={{ uri: url }} style={styles.photoPreview} />
+                    <Pressable accessibilityLabel={`删除第 ${index + 1} 张图片`} onPress={() => setImageUrls((prev) => prev.filter((_, itemIndex) => itemIndex !== index))} style={styles.photoRemove}><Text style={styles.photoRemoveText}>×</Text></Pressable>
+                  </View>
+                ))}
+              </View>
+            ) : null}
+            <View style={styles.photoActions}>
+              <Pressable disabled={uploading || imageUrls.length >= MAX_IMAGES} onPress={() => void chooseImages()} style={[styles.photoButton, (uploading || imageUrls.length >= MAX_IMAGES) && styles.buttonDisabled]}><IconFont name="icon-picture" color={colors.brand} size={17} /><Text style={styles.photoButtonText}>相册选择</Text></Pressable>
+              <Pressable disabled={uploading || imageUrls.length >= MAX_IMAGES} onPress={() => void takePhoto()} style={[styles.photoButton, (uploading || imageUrls.length >= MAX_IMAGES) && styles.buttonDisabled]}><IconFont name="icon-kaiji" color={colors.brand} size={17} /><Text style={styles.photoButtonText}>现场拍照</Text></Pressable>
+            </View>
+            {uploading ? <View style={styles.uploadingRow}><ActivityIndicator color={colors.brand} size="small" /><Text style={styles.photoHint}>图片上传中，请稍候…</Text></View> : null}
             <View style={styles.actions}>
               <Pressable onPress={() => setDialogOpen(false)} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>取消</Text></Pressable>
-              <Pressable onPress={createLocation} disabled={submitting} style={[styles.primaryButton, submitting && styles.buttonDisabled]}><Text style={styles.primaryButtonText}>{submitting ? '提交中' : '提交'}</Text></Pressable>
+              <Pressable onPress={createLocation} disabled={submitting || uploading} style={[styles.primaryButton, (submitting || uploading) && styles.buttonDisabled]}><Text style={styles.primaryButtonText}>{submitting ? '提交中' : uploading ? '等待图片上传' : '提交'}</Text></Pressable>
             </View>
-          </View>
+          </ScrollView>
         </View>
       </Modal>
     </Page>
@@ -331,6 +435,20 @@ const styles = StyleSheet.create({
   loadMoreButton: { minHeight: 48, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   loadMoreText: { color: colors.text, fontSize: 14, fontWeight: '900' },
   modalBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.35)' },
-  modalCard: { maxHeight: '88%', borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl, padding: spacing.sm, gap: spacing.xs, backgroundColor: colors.surface },
+  modalCard: { maxHeight: '88%', borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl, backgroundColor: colors.surface },
+  modalContent: { padding: spacing.sm, paddingBottom: spacing.lg, gap: spacing.xs },
   modalTitle: { color: colors.text, fontSize: 20, fontWeight: '900' },
+  photoHeader: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: spacing.xs },
+  photoTitle: { color: colors.text, fontSize: 14, fontWeight: '900' },
+  photoHint: { color: colors.textMuted, fontSize: 12, lineHeight: 18 },
+  photoCount: { color: colors.brand, fontSize: 13, fontWeight: '900' },
+  photoGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
+  photoPreviewWrap: { width: 72, height: 72 },
+  photoPreview: { width: 72, height: 72, borderRadius: radius.md, backgroundColor: colors.surfaceMuted },
+  photoRemove: { position: 'absolute', right: -4, top: -4, width: 24, height: 24, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.danger },
+  photoRemoveText: { color: '#FFFFFF', fontSize: 18, lineHeight: 20, fontWeight: '900' },
+  photoActions: { flexDirection: 'row', gap: spacing.xs },
+  photoButton: { flex: 1, minHeight: 40, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.xs, borderRadius: radius.pill, backgroundColor: colors.brandSoft },
+  photoButtonText: { color: colors.brand, fontSize: 13, fontWeight: '900' },
+  uploadingRow: { minHeight: 32, flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
 })

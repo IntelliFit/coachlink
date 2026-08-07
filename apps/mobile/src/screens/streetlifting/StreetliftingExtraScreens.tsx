@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { NativeStackScreenProps } from '@react-navigation/native-stack'
-import { ActivityIndicator, Image, Linking, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
+import { ActivityIndicator, Alert, Image, Linking, Modal, Platform, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from 'react-native'
 import { IconFont } from '../../components/IconFont'
 import { Page } from '../../components/Page'
 import { SectionCard } from '../../components/SectionCard'
@@ -170,6 +170,28 @@ function locationImages(location?: Partial<StreetliftingLocation> | null) {
   if (Array.isArray(location?.image_urls) && location.image_urls.length) return location.image_urls
   if (location?.image_url) return [location.image_url]
   return []
+}
+
+function webMapUrl(latitude: number, longitude: number) {
+  return `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`
+}
+
+async function openSystemMap(latitude: number, longitude: number, name: string) {
+  const label = encodeURIComponent(name)
+  const nativeUrl = Platform.select({
+    ios: `http://maps.apple.com/?ll=${latitude},${longitude}&q=${label}`,
+    android: `geo:${latitude},${longitude}?q=${latitude},${longitude}(${label})`,
+    default: webMapUrl(latitude, longitude),
+  }) || webMapUrl(latitude, longitude)
+  try {
+    if (await Linking.canOpenURL(nativeUrl)) {
+      await Linking.openURL(nativeUrl)
+      return
+    }
+    await Linking.openURL(webMapUrl(latitude, longitude))
+  } catch {
+    Alert.alert('地图打开失败', '请确认设备已安装地图应用或稍后重试。')
+  }
 }
 
 function addedOneRm(bodyweight: number, addedWeight: number, reps: number, penaltyWeight: number) {
@@ -646,10 +668,20 @@ export function StreetliftingLocationDetailScreen({ navigation, route }: DetailP
   }, [locationId])
 
   const openMap = () => {
-    if (!location?.latitude || !location?.longitude) return
-    const label = encodeURIComponent(location.name)
-    const url = `https://maps.apple.com/?ll=${location.latitude},${location.longitude}&q=${label}`
-    Linking.openURL(url).catch(() => undefined)
+    if (location?.latitude == null || location?.longitude == null) return
+    void openSystemMap(location.latitude, location.longitude, location.name)
+  }
+
+  const shareLocation = async () => {
+    if (!location) return
+    const area = addressLine(location)
+    const mapUrl = location.latitude != null && location.longitude != null ? webMapUrl(location.latitude, location.longitude) : ''
+    const message = [`CoachLink 单杠点位：${location.name}`, area, location.description, mapUrl].filter(Boolean).join('\n')
+    try {
+      await Share.share({ title: location.name, message, url: mapUrl || undefined })
+    } catch {
+      Alert.alert('分享失败', '暂时无法调起系统分享，请稍后重试。')
+    }
   }
 
   const images = locationImages(location)
@@ -664,7 +696,15 @@ export function StreetliftingLocationDetailScreen({ navigation, route }: DetailP
       ) : location ? (
         <>
           <Hero title={location.name} subtitle={addressLine(location) || '单杠地图点位'} icon="icon-location" />
-          {images[0] ? <Image source={{ uri: images[0] }} style={styles.locationImage} /> : <View style={styles.locationImageFallback}><IconFont name="icon-location" color={colors.brand} size={30} /></View>}
+          {images.length > 0 ? (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.locationGallery}>
+              {images.map((url, index) => (
+                <Pressable key={url} accessibilityRole="imagebutton" accessibilityLabel={`查看点位图片 ${index + 1}`} onPress={() => void Linking.openURL(url)}>
+                  <Image source={{ uri: url }} style={styles.locationImage} />
+                </Pressable>
+              ))}
+            </ScrollView>
+          ) : <View style={styles.locationImageFallback}><IconFont name="icon-location" color={colors.brand} size={30} /></View>}
           <SectionCard title="点位信息">
             <Text style={styles.docTitle}>{areaLine(location)}</Text>
             <Text style={styles.paragraph}>{location.description || '这个点位暂时还没有更多介绍。'}</Text>
@@ -672,9 +712,10 @@ export function StreetliftingLocationDetailScreen({ navigation, route }: DetailP
             <Text style={styles.storyMeta}>贡献者：{location.contributor_name_snapshot || location.user_contact || '未署名'}</Text>
           </SectionCard>
           <View style={styles.actions}>
-            <Pressable onPress={openMap} disabled={!location.latitude || !location.longitude} style={[styles.primaryButton, (!location.latitude || !location.longitude) && styles.buttonDisabled]}><Text style={styles.primaryButtonText}>打开系统地图</Text></Pressable>
-            <Pressable onPress={() => navigation.navigate('StreetliftingLocations')} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>返回列表</Text></Pressable>
+            <Pressable onPress={openMap} disabled={location.latitude == null || location.longitude == null} style={[styles.primaryButton, (location.latitude == null || location.longitude == null) && styles.buttonDisabled]}><Text style={styles.primaryButtonText}>打开系统地图</Text></Pressable>
+            <Pressable onPress={() => void shareLocation()} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>分享点位</Text></Pressable>
           </View>
+          <Pressable onPress={() => navigation.navigate('StreetliftingLocations')} style={styles.fullSecondaryButton}><Text style={styles.secondaryButtonText}>返回点位列表</Text></Pressable>
         </>
       ) : null}
     </Page>
@@ -704,6 +745,7 @@ const styles = StyleSheet.create({
   secondaryButton: { flex: 1, minHeight: 48, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   secondaryButtonText: { color: colors.text, fontSize: 15, fontWeight: '900' },
   fullPrimaryButton: { minHeight: 56, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.brand },
+  fullSecondaryButton: { minHeight: 48, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   buttonDisabled: { opacity: 0.52 },
   errorText: { color: colors.danger, fontSize: 13, fontWeight: '800', lineHeight: 20 },
   noticeText: { color: colors.warning, fontSize: 13, fontWeight: '800', lineHeight: 20, borderRadius: radius.md, padding: spacing.sm, backgroundColor: '#FFF7E6' },
@@ -747,6 +789,7 @@ const styles = StyleSheet.create({
   pinTitle: { color: colors.text, fontSize: 16, fontWeight: '900' },
   pinMeta: { color: colors.brand, fontSize: 12, fontWeight: '900' },
   pinAddress: { color: colors.textMuted, fontSize: 12, lineHeight: 18 },
-  locationImage: { width: '100%', height: 192, borderRadius: radius.lg, backgroundColor: colors.surfaceMuted },
+  locationGallery: { gap: spacing.xs, paddingRight: spacing.sm },
+  locationImage: { width: 288, height: 192, borderRadius: radius.lg, backgroundColor: colors.surfaceMuted },
   locationImageFallback: { height: 176, borderRadius: radius.lg, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.brandSoft },
 })

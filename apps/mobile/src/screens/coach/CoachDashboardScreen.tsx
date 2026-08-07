@@ -217,7 +217,7 @@ export function CoachDashboardScreen() {
   const tools: ConfigItem[] = [
     { title: '学员管理', desc: '查看学员、订阅和计划状态', icon: 'icon-friends-o', tone: '#CF6D4E', route: 'CoachStudents' },
     { title: '自动化设置', desc: '计划发放、反馈调整、下一阶段', icon: 'icon-kaiji', tone: '#5C8DFF', route: 'CoachAutomation' },
-    { title: '邀请学员', desc: '分享邀请码和链接', icon: 'icon-share', tone: '#29C3A3' },
+    { title: '邀请学员', desc: '分享邀请码、链接和邀请海报', icon: 'icon-share', tone: '#29C3A3', route: 'CoachInvitation' },
     { title: '安全设置', desc: '账号安全与隐私设置', icon: 'icon-setting', tone: '#666666', route: 'Settings' },
   ]
 

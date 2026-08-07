@@ -1,12 +1,14 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from '@/app/api/auth/[...nextauth]/auth';
+import { getAuthUser } from '@/lib/auth';
 import supabase from '@/lib/supabaseClient';
 import type { ApiData } from '@/types/api';
-import type { SubmitFeedbackDto, SubmitFeedbackResponseDto } from './entity';
+import type { SubmitFeedbackResponseDto } from './entity';
+import { normalizeFeedbackSubmission } from '@/lib/feedbackSubmission';
+import { currentTraceContext } from '@/lib/observability/requestContext';
 
 export async function POST(req: Request) {
-    const session = await getServerSession();
-    if (!session?.user?.id) {
+    const auth = await getAuthUser(req);
+    if (!auth.isAuthenticated || !auth.userId) {
         return NextResponse.json<ApiData<SubmitFeedbackResponseDto>>({
             success: false,
             message: '用户未登录',
@@ -17,31 +19,22 @@ export async function POST(req: Request) {
         }, { status: 401 });
     }
 
-    const userId = session.user.id;
-    const { content, relatedQuestion } = await req.json() as SubmitFeedbackDto;
-
-    // 验证输入
-    if (!content || !content.trim()) {
+    const normalized = normalizeFeedbackSubmission(await req.json().catch(() => null));
+    if (!normalized.ok) {
         return NextResponse.json<ApiData<SubmitFeedbackResponseDto>>({
             success: false,
-            message: '反馈内容不能为空',
+            message: normalized.message,
             data: {
                 success: false,
-                message: '反馈内容不能为空'
+                message: normalized.message
             }
         }, { status: 400 });
     }
 
-    if (content.length > 2000) {
-        return NextResponse.json<ApiData<SubmitFeedbackResponseDto>>({
-            success: false,
-            message: '反馈内容不能超过2000字',
-            data: {
-                success: false,
-                message: '反馈内容不能超过2000字'
-            }
-        }, { status: 400 });
-    }
+    const userId = auth.userId;
+    const value = normalized.value;
+    const trace = currentTraceContext();
+    const requestHeaders = typeof req.headers?.get === 'function' ? req.headers : null;
 
     try {
         // 插入反馈记录
@@ -49,10 +42,20 @@ export async function POST(req: Request) {
             .from('feedbacks')
             .insert({
                 user_id: userId,
-                content: content.trim(),
-                related_question: relatedQuestion?.trim() || null,
-                status: 'pending'
-            })
+                content: value.content,
+                related_question: value.relatedQuestion || null,
+                status: 'open',
+                category: value.category,
+                contact: value.contact,
+                page_path: value.pagePath,
+                app_version: value.appVersion,
+                client_info: value.clientInfo,
+                recent_requests: value.recentRequests,
+                image_urls: value.imageUrls,
+                submit_trace_id: trace?.traceId || '',
+                submit_request_id: trace?.requestId || '',
+                submit_host_name: requestHeaders?.get('x-forwarded-host') || requestHeaders?.get('host') || '',
+            } as any)
             .select('id')
             .single();
 

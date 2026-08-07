@@ -7,7 +7,9 @@
     "icon": "./assets/icon.png",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "cn.coachlink.app"
@@ -20,6 +22,25 @@
         "backgroundColor": "#F8F5F3"
       }
     },
-    "plugins": ["expo-status-bar"]
+    "plugins": [
+      "expo-status-bar",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "允许 CoachLink 访问相册，以选择头像、训练素材和街健点位图片。",
+          "cameraPermission": "允许 CoachLink 使用相机，以拍摄头像、训练素材和街健点位图片。"
+        }
+      ],
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "允许 CoachLink 访问相册以选择训练视频。",
+          "savePhotosPermission": "允许 CoachLink 将功率分析结果视频保存到相册。",
+          "isAccessMediaLocationEnabled": false
+        }
+      ],
+      "expo-video",
+      "expo-audio"
+    ]
   }
 }

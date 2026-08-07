@@ -1,227 +1,274 @@
 .plan-lib-page {
   min-height: 100vh;
-  background-color: #f5f5f5;
+  background: #f7f3ef;
 
   .page-scroll {
     height: 100vh;
-    padding-bottom: 144rpx;
+    box-sizing: border-box;
   }
 
-  .page-content {
-    padding: 24rpx;
+  .page-content,
+  .loading-container {
+    padding: 24rpx 24rpx 184rpx;
+    box-sizing: border-box;
   }
 
   .page-header {
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    margin-bottom: 32rpx;
+    justify-content: space-between;
+    gap: 16rpx;
+    margin-bottom: 24rpx;
+    padding: 24rpx;
+    border: 1rpx solid #ebe3dd;
+    border-radius: 24rpx;
+    background: #ffffff;
+    box-shadow: 0 8rpx 24rpx rgba(76, 58, 49, 0.06);
 
     .header-left {
-      .page-title {
-        font-size: 40rpx;
-        font-weight: 700;
-        color: #333;
-        display: block;
-      }
+      flex: 1;
+      min-width: 0;
+    }
 
-      .page-subtitle {
-        font-size: 24rpx;
-        color: #999;
-        margin-top: 0rpx;
-        display: block;
-      }
+    .page-title {
+      display: block;
+      margin-bottom: 8rpx;
+      font-size: 36rpx;
+      font-weight: 700;
+      line-height: 1.3;
+      color: #2f2925;
+    }
+
+    .page-subtitle {
+      display: block;
+      font-size: 24rpx;
+      line-height: 1.5;
+      color: #7b7069;
     }
 
     .create-btn {
       display: flex;
       align-items: center;
+      justify-content: center;
       gap: 8rpx;
-      background: #1890ff;
-      padding: 16rpx 24rpx;
-      border-radius: 8rpx;
+      min-width: 144rpx;
+      min-height: 88rpx;
+      padding: 0 24rpx;
+      border-radius: 16rpx;
+      background: #cf6d4e;
+      box-sizing: border-box;
 
       .create-icon {
         font-size: 32rpx;
-        color: #fff;
-        font-weight: 300;
+        font-weight: 400;
+        color: #ffffff;
       }
 
       .create-text {
         font-size: 28rpx;
-        color: #fff;
-        font-weight: 500;
+        font-weight: 600;
+        color: #ffffff;
       }
 
       &:active {
-        opacity: 0.9;
+        opacity: 0.84;
       }
     }
   }
 
-  // 空状态
   .empty-state {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 120rpx 0;
+    min-height: 480rpx;
+    padding: 64rpx 32rpx;
+    border: 1rpx solid #ebe3dd;
+    border-radius: 24rpx;
+    background: #ffffff;
+    box-sizing: border-box;
+    text-align: center;
 
     .empty-icon {
-      font-size: 80rpx;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 96rpx;
+      height: 96rpx;
       margin-bottom: 24rpx;
+      border-radius: 24rpx;
+      background: #fbf0ec;
+      color: #cf6d4e;
     }
 
     .empty-title {
-      font-size: 32rpx;
-      font-weight: 600;
-      color: #333;
       margin-bottom: 8rpx;
+      font-size: 32rpx;
+      font-weight: 700;
+      color: #2f2925;
     }
 
     .empty-desc {
-      font-size: 26rpx;
-      color: #999;
       margin-bottom: 32rpx;
+      font-size: 26rpx;
+      line-height: 1.5;
+      color: #7b7069;
     }
 
     .empty-btn {
-      background: #1890ff;
-      padding: 16rpx 40rpx;
-      border-radius: 8rpx;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 88rpx;
+      padding: 0 32rpx;
+      border-radius: 16rpx;
+      background: #cf6d4e;
 
       Text {
         font-size: 28rpx;
-        color: #fff;
-        font-weight: 500;
+        font-weight: 600;
+        color: #ffffff;
       }
 
       &:active {
-        opacity: 0.9;
+        opacity: 0.84;
       }
     }
   }
 
-  // 计划列表
   .plans-list {
+    display: flex;
+    flex-direction: column;
+    gap: 16rpx;
+
     .plan-card {
-      background: #fff;
-      border-radius: 16rpx;
-      padding: 24rpx;
-      margin-bottom: 16rpx;
-      box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.04);
       display: flex;
-      justify-content: space-between;
-      align-items: center;
+      flex-direction: column;
+      padding: 24rpx;
+      border: 1rpx solid #ebe3dd;
+      border-radius: 24rpx;
+      background: #ffffff;
+      box-shadow: 0 8rpx 24rpx rgba(76, 58, 49, 0.05);
+
+      &:active {
+        opacity: 0.92;
+      }
 
       .plan-content {
-        flex: 1;
         min-width: 0;
+      }
 
-        .plan-name {
-          font-size: 32rpx;
-          font-weight: 600;
-          color: #333;
-          margin-bottom: 8rpx;
-          display: block;
-        }
+      .plan-name {
+        display: block;
+        margin-bottom: 8rpx;
+        font-size: 32rpx;
+        font-weight: 700;
+        line-height: 1.35;
+        color: #2f2925;
+      }
 
-        .plan-desc {
-          font-size: 26rpx;
-          color: #999;
-          margin-bottom: 16rpx;
-          display: block;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-        }
+      .plan-desc {
+        display: block;
+        margin-bottom: 16rpx;
+        overflow: hidden;
+        font-size: 26rpx;
+        line-height: 1.5;
+        color: #7b7069;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
 
-        .plan-meta {
+      .plan-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 16rpx;
+
+        .meta-item {
           display: flex;
-          gap: 16rpx;
+          align-items: center;
+          gap: 8rpx;
+          min-height: 48rpx;
+          padding: 0 16rpx;
+          border-radius: 9999rpx;
+          background: #f7f3ef;
 
-          .meta-item {
+          .meta-icon {
             display: flex;
             align-items: center;
-            gap: 8rpx;
+            color: #cf6d4e;
+          }
 
-            .meta-icon {
-              font-size: 24rpx;
-            }
-
-            .meta-text {
-              font-size: 24rpx;
-              color: #666;
-            }
+          .meta-text {
+            font-size: 24rpx;
+            color: #665c56;
           }
         }
       }
 
       .plan-actions {
         display: flex;
-        flex-direction: column;
-        gap: 8rpx;
-        margin-left: 16rpx;
+        gap: 16rpx;
+        margin-top: 24rpx;
 
         .action-btn {
-          padding: 8rpx 24rpx;
-          border-radius: 8rpx;
-          text-align: center;
-          min-width: 104rpx;
+          display: flex;
+          flex: 1;
+          align-items: center;
+          justify-content: center;
+          min-height: 88rpx;
+          padding: 0 24rpx;
+          border-radius: 16rpx;
+          box-sizing: border-box;
 
           Text {
-            font-size: 24rpx;
-            font-weight: 500;
+            font-size: 26rpx;
+            font-weight: 600;
           }
 
           &.apply {
-            background: #1890ff;
+            background: #cf6d4e;
 
             Text {
-              color: #fff;
+              color: #ffffff;
             }
 
             &.loading {
-              opacity: 0.7;
-            }
-
-            &:active {
-              opacity: 0.9;
+              opacity: 0.64;
             }
           }
 
           &.delete {
-            background: #f5f5f5;
-            border: 1rpx solid #e8e8e8;
+            border: 1rpx solid #e2d8d1;
+            background: #ffffff;
 
             Text {
-              color: #666;
+              color: #665c56;
             }
+          }
 
-            &:active {
-              background: #e8e8e8;
-            }
+          &:active {
+            opacity: 0.8;
           }
         }
       }
     }
   }
 
-  // 骨架屏
   .loading-container {
     .skeleton-card {
-      background: #fff;
-      border-radius: 16rpx;
-      padding: 24rpx;
       margin-bottom: 16rpx;
+      padding: 24rpx;
+      border: 1rpx solid #ebe3dd;
+      border-radius: 24rpx;
+      background: #ffffff;
 
       .skeleton-line {
         height: 32rpx;
-        background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+        margin-bottom: 16rpx;
+        border-radius: 8rpx;
+        background: linear-gradient(90deg, #eee7e2 25%, #e4d8d1 50%, #eee7e2 75%);
         background-size: 200% 100%;
         animation: shimmer 1.5s infinite;
-        border-radius: 0rpx;
-        margin-bottom: 16rpx;
 
         &:last-child {
           width: 60%;
@@ -231,14 +278,13 @@
     }
   }
 
-  // 1RM配置弹窗
   .onerm-dialog {
     position: fixed;
+    z-index: 1000;
     top: 0;
-    left: 0;
     right: 0;
     bottom: 0;
-    z-index: 1000;
+    left: 0;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -246,140 +292,202 @@
     .dialog-overlay {
       position: absolute;
       top: 0;
-      left: 0;
       right: 0;
       bottom: 0;
-      background: rgba(0, 0, 0, 0.5);
+      left: 0;
+      background: rgba(0, 0, 0, 0.52);
     }
 
     .dialog-content {
       position: relative;
-      width: 85%;
-      max-height: 80vh;
-      background: #fff;
-      border-radius: 24rpx;
       display: flex;
       flex-direction: column;
+      width: calc(100% - 64rpx);
+      max-width: 640rpx;
+      max-height: 80vh;
       overflow: hidden;
+      border: 1rpx solid #ebe3dd;
+      border-radius: 24rpx;
+      background: #ffffff;
+    }
 
-      .dialog-header {
+    .dialog-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16rpx 16rpx 16rpx 24rpx;
+      border-bottom: 1rpx solid #ebe3dd;
+
+      .dialog-title {
+        font-size: 32rpx;
+        font-weight: 700;
+        color: #2f2925;
+      }
+
+      .dialog-close {
         display: flex;
-        justify-content: space-between;
         align-items: center;
-        padding: 24rpx;
-        border-bottom: 1rpx solid #f0f0f0;
+        justify-content: center;
+        width: 88rpx;
+        height: 88rpx;
+        color: #7b7069;
+      }
+    }
 
-        .dialog-title {
-          font-size: 32rpx;
-          font-weight: 600;
-          color: #333;
-        }
+    .dialog-body {
+      flex: 1;
+      max-height: 50vh;
+      padding: 24rpx;
+      box-sizing: border-box;
 
-        .dialog-close {
-          font-size: 36rpx;
-          color: #999;
-          padding: 8rpx;
-        }
+      .dialog-desc {
+        display: block;
+        margin-bottom: 24rpx;
+        font-size: 26rpx;
+        line-height: 1.5;
+        color: #665c56;
       }
 
-      .dialog-body {
-        flex: 1;
-        padding: 24rpx;
-        max-height: 50vh;
-
-        .dialog-desc {
-          font-size: 26rpx;
-          color: #666;
-          margin-bottom: 24rpx;
-          display: block;
-          line-height: 1.5;
-        }
-
-        .onerm-list {
-          .onerm-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 16rpx;
-            background: #f8f8f8;
-            border-radius: 8rpx;
-            margin-bottom: 16rpx;
-
-            .onerm-name {
-              font-size: 28rpx;
-              color: #333;
-              flex: 1;
-              margin-right: 16rpx;
-            }
-
-            .onerm-input-wrapper {
-              display: flex;
-              align-items: center;
-              gap: 8rpx;
-
-              .onerm-input {
-                width: 144rpx;
-                height: 64rpx;
-                padding: 0 16rpx;
-                border: 1rpx solid #d9d9d9;
-                border-radius: 8rpx;
-                font-size: 28rpx;
-                text-align: center;
-                background: #fff;
-              }
-
-              .onerm-unit {
-                font-size: 26rpx;
-                color: #999;
-              }
-            }
-          }
-        }
-      }
-
-      .dialog-footer {
+      .onerm-item {
         display: flex;
+        align-items: center;
+        justify-content: space-between;
         gap: 16rpx;
-        padding: 24rpx;
-        border-top: 1rpx solid #f0f0f0;
+        margin-bottom: 16rpx;
+        padding: 16rpx;
+        border-radius: 16rpx;
+        background: #f7f3ef;
 
-        .btn-primary, .btn-secondary {
+        .onerm-name {
           flex: 1;
-          padding: 16rpx 0;
-          border-radius: 8rpx;
-          text-align: center;
+          margin-right: 16rpx;
+          font-size: 28rpx;
+          color: #2f2925;
+        }
 
-          Text {
+        .onerm-input-wrapper {
+          display: flex;
+          align-items: center;
+          gap: 8rpx;
+
+          .onerm-input {
+            width: 144rpx;
+            height: 64rpx;
+            padding: 0 16rpx;
+            border: 1rpx solid #d9ccc4;
+            border-radius: 8rpx;
+            background: #ffffff;
+            box-sizing: border-box;
             font-size: 28rpx;
-            font-weight: 500;
-          }
-        }
-
-        .btn-primary {
-          background: #1890ff;
-
-          Text {
-            color: #fff;
+            text-align: center;
           }
 
-          &:active {
-            opacity: 0.9;
-          }
-        }
-
-        .btn-secondary {
-          background: #f5f5f5;
-
-          Text {
-            color: #666;
-          }
-
-          &:active {
-            background: #e8e8e8;
+          .onerm-unit {
+            font-size: 26rpx;
+            color: #7b7069;
           }
         }
       }
     }
+
+    .dialog-footer {
+      display: flex;
+      gap: 16rpx;
+      padding: 24rpx;
+      border-top: 1rpx solid #ebe3dd;
+
+      .btn-primary,
+      .btn-secondary {
+        display: flex;
+        flex: 1;
+        align-items: center;
+        justify-content: center;
+        min-height: 88rpx;
+        border-radius: 16rpx;
+
+        Text {
+          font-size: 28rpx;
+          font-weight: 600;
+        }
+
+        &:active {
+          opacity: 0.8;
+        }
+      }
+
+      .btn-primary {
+        background: #cf6d4e;
+
+        Text {
+          color: #ffffff;
+        }
+      }
+
+      .btn-secondary {
+        border: 1rpx solid #e2d8d1;
+        background: #ffffff;
+
+        Text {
+          color: #665c56;
+        }
+      }
+    }
+  }
+}
+
+.plan-lib-page.theme-dark {
+  background: #181817;
+
+  .page-header,
+  .plan-card,
+  .empty-state,
+  .skeleton-card,
+  .onerm-dialog .dialog-content {
+    border-color: #3f3a36;
+    background: #242321;
+  }
+
+  .page-title,
+  .plan-name,
+  .empty-title,
+  .onerm-dialog .dialog-title,
+  .onerm-dialog .onerm-name {
+    color: #f5f2ef;
+  }
+
+  .page-subtitle,
+  .plan-desc,
+  .empty-desc,
+  .onerm-dialog .dialog-desc,
+  .onerm-dialog .onerm-unit {
+    color: #b8aea7;
+  }
+
+  .meta-item,
+  .onerm-dialog .onerm-item {
+    background: #302d2a !important;
+  }
+
+  .meta-text {
+    color: #d2cac4 !important;
+  }
+
+  .action-btn.delete,
+  .onerm-dialog .btn-secondary,
+  .onerm-dialog .onerm-input {
+    border-color: #4b4540 !important;
+    background: #2d2a27 !important;
+  }
+
+  .action-btn.delete Text,
+  .onerm-dialog .btn-secondary Text,
+  .onerm-dialog .onerm-input {
+    color: #e4ddd8 !important;
+  }
+
+  .onerm-dialog .dialog-header,
+  .onerm-dialog .dialog-footer {
+    border-color: #3f3a36;
   }
 }
 

@@ -15,33 +15,18 @@
   .page-content {
     box-sizing: border-box;
     width: 100%;
-    padding: 96rpx 24rpx 64rpx;
+    padding: 0 24rpx 64rpx;
   }
 
   .toolbox-hero {
-    position: relative;
-    overflow: hidden;
-    padding: 40rpx 32rpx;
-    border-radius: 24rpx;
-    background: #18231f;
-    color: #ffffff;
-    box-shadow: 0 16rpx 40rpx rgba(24, 35, 31, 0.12);
-  }
-
-  .toolbox-hero::after {
-    position: absolute;
-    right: -96rpx;
-    bottom: -112rpx;
-    width: 256rpx;
-    height: 256rpx;
     box-sizing: border-box;
-    border: 48rpx solid rgba(255, 255, 255, 0.05);
-    border-radius: 9999rpx;
-    content: '';
+    padding: 0 8rpx 32rpx;
+    border-bottom: 1px solid #e3ded8;
   }
 
   .hero-kicker,
   .hero-title,
+  .hero-meta,
   .hero-desc,
   .section-kicker,
   .section-title,
@@ -55,8 +40,9 @@
     display: block;
   }
 
+  .hero-kicker,
   .section-kicker {
-    color: #f0c5b7;
+    color: #cf6d4e;
     font-size: 20rpx;
     font-weight: 900;
     letter-spacing: 2rpx;
@@ -65,40 +51,30 @@
   .hero-title {
     max-width: 600rpx;
     margin-top: 8rpx;
-    font-size: 48rpx;
+    font-size: 56rpx;
     font-weight: 900;
-    line-height: 1.25;
+    line-height: 1.2;
+  }
+
+  .hero-meta {
+    margin-top: 8rpx;
+    color: #8b8179;
+    font-size: 20rpx;
+    font-weight: 700;
+    line-height: 1.5;
   }
 
   .hero-desc {
     max-width: 560rpx;
     margin-top: 16rpx;
-    color: #cbd5e1;
+    color: #5f5852;
     font-size: 24rpx;
-    line-height: 1.7;
+    line-height: 1.6;
   }
 
-  .hero-stats {
-    position: relative;
-    z-index: 1;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8rpx;
-    margin-top: 24rpx;
-
-    Text {
-      padding: 12rpx 16rpx;
-      border: 1px solid rgba(255, 255, 255, 0.14);
-      border-radius: 9999rpx;
-      background: rgba(255, 255, 255, 0.05);
-      color: #e2e8f0;
-      font-size: 18rpx;
-      font-weight: 800;
-    }
-  }
   .section-block,
   .scene-section {
-    margin-top: 40rpx;
+    margin-top: 32rpx;
   }
 
   .section-header {
@@ -163,7 +139,7 @@
   .toolbox-card {
     display: flex;
     flex-direction: column;
-    min-height: 336rpx;
+    min-height: 0;
     padding: 24rpx;
   }
 
@@ -220,11 +196,45 @@
     }
   }
 
-  .toolbox-card-top {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 16rpx;
+  .toolbox-card--game {
+    padding: 0;
+    background: #18231f;
+  }
+
+  .toolbox-cover-shell {
+    position: relative;
+    width: 100%;
+    height: 240rpx;
+    overflow: hidden;
+    border-radius: 24rpx;
+  }
+
+  .toolbox-cover {
+    display: block;
+    width: 100%;
+    height: 100%;
+    background: #18231f;
+  }
+
+  .toolbox-cover-scrim {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    background: linear-gradient(180deg, rgba(20, 18, 16, 0.02) 36%, rgba(20, 18, 16, 0.78) 100%);
+  }
+
+  .toolbox-cover-title {
+    position: absolute;
+    right: 16rpx;
+    bottom: 16rpx;
+    left: 16rpx;
+    color: #ffffff;
+    font-size: 28rpx;
+    font-weight: 700;
+    line-height: 1.35;
+    text-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.42);
   }
 
   .toolbox-icon {
@@ -372,9 +382,15 @@
     }
 
     .section-subtitle,
+    .hero-meta,
+    .hero-desc,
     .toolbox-desc,
     .scene-desc {
       color: #b6c0ba;
+    }
+
+    .toolbox-hero {
+      border-bottom-color: #344039;
     }
 
     .toolbox-card,

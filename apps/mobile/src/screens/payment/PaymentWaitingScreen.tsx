@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
+import * as Clipboard from 'expo-clipboard'
 import type { NativeStackScreenProps } from '@react-navigation/native-stack'
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native'
+import { ActivityIndicator, AppState, Linking, Pressable, StyleSheet, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { apiClient } from '../../api'
 import { IconFont } from '../../components/IconFont'
@@ -39,6 +40,8 @@ export function PaymentWaitingScreen({ navigation, route }: Props) {
   const [amount, setAmount] = useState(Number(params.amount || 0))
   const [loading, setLoading] = useState(Boolean(params.orderId && !params.initialStatus))
   const [message, setMessage] = useState(params.message || '')
+  const [openingPayment, setOpeningPayment] = useState(false)
+  const [paymentOpened, setPaymentOpened] = useState(false)
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   async function fetchStatus(isSilent = false) {
@@ -78,6 +81,30 @@ export function PaymentWaitingScreen({ navigation, route }: Props) {
     }
   }, [params.orderId, status])
 
+  useEffect(() => {
+    if (!params.orderId || !paymentOpened || status !== 'pending') return
+    const subscription = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'active') void fetchStatus(true)
+    })
+    return () => subscription.remove()
+  }, [params.orderId, paymentOpened, status])
+
+  async function openPayment() {
+    if (!params.paymentUrl || openingPayment) return
+    setOpeningPayment(true)
+    setMessage('')
+    try {
+      if (!(await Linking.canOpenURL(params.paymentUrl))) throw new Error('系统无法打开支付地址')
+      await Linking.openURL(params.paymentUrl)
+      setPaymentOpened(true)
+    } catch (err) {
+      await Clipboard.setStringAsync(params.paymentUrl).catch(() => undefined)
+      setMessage(`${err instanceof Error ? err.message : '打开支付宝失败'}；支付链接已复制，可粘贴到浏览器继续。`)
+    } finally {
+      setOpeningPayment(false)
+    }
+  }
+
   function continueNext() {
     if (params.target === 'membership') {
       navigation.navigate('Membership')
@@ -109,7 +136,9 @@ export function PaymentWaitingScreen({ navigation, route }: Props) {
     : status === 'pending'
       ? provider === 'wechat'
         ? '微信支付订单已创建。完成支付后保持在本页，系统会自动同步结果。'
-        : '请完成支付宝支付后返回本页，系统会自动同步结果。'
+        : params.paymentUrl
+          ? '点击下方按钮前往支付宝。付款后返回 APP，系统会自动同步结果。'
+          : (message || '支付宝订单已创建，但支付地址不可用，请返回套餐页重试。')
       : status === 'success'
         ? '系统已收到支付结果，服务状态会继续同步。'
         : '可以返回套餐页重新尝试。'
@@ -147,7 +176,8 @@ export function PaymentWaitingScreen({ navigation, route }: Props) {
         ) : null}
 
         <View style={styles.actions}>
-          {hasOrder && status === 'pending' ? <Pressable onPress={() => fetchStatus()} style={styles.primaryButton}><Text style={styles.primaryText}>我已完成支付</Text></Pressable> : null}
+          {hasOrder && status === 'pending' && params.paymentUrl ? <Pressable disabled={openingPayment} onPress={() => void openPayment()} style={[styles.primaryButton, openingPayment && styles.disabledButton]}>{openingPayment ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.primaryText}>{paymentOpened ? '再次打开支付宝' : '打开支付宝付款'}</Text>}</Pressable> : null}
+          {hasOrder && status === 'pending' ? <Pressable onPress={() => fetchStatus()} style={styles.secondaryButton}><Text style={styles.secondaryText}>我已完成支付</Text></Pressable> : null}
           {status === 'success' ? <Pressable onPress={continueNext} style={styles.primaryButton}><Text style={styles.primaryText}>继续</Text></Pressable> : null}
           {(status === 'failed' || status === 'cancelled' || !hasOrder) ? <Pressable onPress={retry} style={styles.warnButton}><Text style={styles.primaryText}>{status === 'cancelled' ? '重新订阅' : '重新尝试'}</Text></Pressable> : null}
           <Pressable onPress={() => navigation.goBack()} style={styles.backButton}><Text style={styles.backText}>返回</Text></Pressable>
@@ -184,4 +214,7 @@ const styles = StyleSheet.create({
   primaryText: { color: '#FFFFFF', fontSize: 16, fontWeight: '900' },
   backButton: { minHeight: 44, alignItems: 'center', justifyContent: 'center' },
   backText: { color: colors.textMuted, fontSize: 14, fontWeight: '800' },
+  secondaryButton: { minHeight: 52, alignItems: 'center', justifyContent: 'center', borderRadius: radius.lg, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: colors.border },
+  secondaryText: { color: colors.text, fontSize: 15, fontWeight: '900' },
+  disabledButton: { opacity: 0.52 },
 })

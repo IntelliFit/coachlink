@@ -17,6 +17,22 @@ export type CoachLinkUser = {
   is_admin?: boolean | null
 }
 
+export type CoachLinkAppRole = 'student' | 'coach'
+
+/**
+ * The selected product surface is driven by primary_role. Coach eligibility
+ * alone must never force a user out of the student experience.
+ */
+export function resolveCoachLinkAppRole(user?: CoachLinkUser | null): CoachLinkAppRole {
+  return user?.primary_role === 'coach' && user?.is_coach === true ? 'coach' : 'student'
+}
+
+export function canSwitchCoachLinkAppRole(user: CoachLinkUser | null | undefined, role: CoachLinkAppRole) {
+  if (!user?.id) return false
+  if (role === 'student') return true
+  return user.is_coach === true
+}
+
 export type AuthSession = {
   user: CoachLinkUser
   token: string

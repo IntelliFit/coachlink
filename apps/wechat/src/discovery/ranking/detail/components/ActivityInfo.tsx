@@ -39,8 +39,8 @@ export default function ActivityInfo({ description, rules }: ActivityInfoProps) 
 
       <View className="section">
         <View className="section-title">
-          <View className="section-title-icon" style={{ background: 'rgba(59,130,246,0.15)', color: '#3b82f6' }}>
-            <Icon component={Target} size={18} color="#3b82f6" />
+          <View className="section-title-icon" style={{ background: 'rgba(207,109,78,0.14)', color: '#CF6D4E' }}>
+            <Icon component={Target} size={18} color="#CF6D4E" />
           </View>
           <Text className="section-title-text">评判标准 / RULES</Text>
         </View>

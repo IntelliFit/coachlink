@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { NativeStackScreenProps } from '@react-navigation/native-stack'
-import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
-import { apiClient } from '../../api'
+import * as ImagePicker from 'expo-image-picker'
+import { ActivityIndicator, Alert, Linking, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
+import { apiClient, getStoredToken } from '../../api'
+import { API_BASE_URL } from '../../config'
 import { Page } from '../../components/Page'
 import { SectionCard } from '../../components/SectionCard'
 import { IconFont } from '../../components/IconFont'
@@ -9,14 +11,70 @@ import { colors, radius, spacing } from '../../theme'
 import type { RootStackParamList } from '../../navigation/types'
 import { useAuth } from '../../providers/AuthProvider'
 import { executionSnapshotKey, readExecutionSnapshot, syncTrainingExecutionToCache } from './trainingCache'
-import { displayLoad, normalizeExecution, parseNumberInput, pickData } from './trainingModel'
+import {
+  displayLoad,
+  normalizeExecution,
+  normalizeTrainingItemType,
+  parseNumberInput,
+  pickData,
+} from './trainingModel'
+import {
+  clearRestTimerDeadline,
+  persistRestTimerDeadline,
+  readRestTimerDeadline,
+} from './restTimerCache'
 
 type Props = NativeStackScreenProps<RootStackParamList, 'TrainingExecution'>
-type DraftValue = { weight: string; reps: string; rpe: string }
+type DraftValue = { weight: string; reps: string; rpe: string; notes: string; isPr: boolean; videoUrl: string; videoId?: string }
+type ItemDraftValue = { content: string; distance: string; duration: string; notes: string }
 type PickerAction = { id?: string; name: string; type?: string; source: 'mine' | 'public' }
 
 function draftKey(actionIndex: number, setIndex: number) {
   return `${actionIndex}:${setIndex}`
+}
+
+function buildPlanPreview(planData: any, dayIndex: number) {
+  const instance = planData?.instance
+  const actions = planData?.actions || {}
+  const day = (instance?.training_days || []).find(
+    (item: any) => Number(item?.dayIndex ?? item?.day_index) === Number(dayIndex),
+  )
+  const actionExecutions = (day?.actionSets || []).map((item: any, actionIndex: number) => {
+    const actionId = item?.action_id || item?.actionId
+    const action = actions[actionId] || {}
+    const params = item?.params || {}
+    const itemType = normalizeTrainingItemType(item?.itemType || action?.type)
+    const setCount = itemType === 'STRENGTH'
+      ? Math.max(1, Number(params['组数'] ?? item?.sets ?? 1) || 1)
+      : 1
+    return {
+      action_id: actionId,
+      action_name: action?.name || item?.set_name || `任务 ${actionIndex + 1}`,
+      item_type: itemType,
+      params,
+      custom_data: params.custom_data || {},
+      status: 'pending',
+      sets: Array.from({ length: setCount }, (_, setIndex) => ({
+        set_number: setIndex + 1,
+        status: 'pending',
+        planned_weight: params.load ?? null,
+        planned_reps: params['次数'] ?? item?.reps ?? null,
+        planned_rest_seconds: params['休息时间'] ?? params.rest_seconds ?? item?.rest_seconds ?? null,
+      })),
+    }
+  })
+  return normalizeExecution({
+    instance_id: instance?.id,
+    day_index: dayIndex,
+    status: 'preview',
+    action_executions: actionExecutions,
+    execution_notice: instance?.execution_notice || instance?.executionNotice,
+  })
+}
+
+function formatRestTime(seconds: number) {
+  const safe = Math.max(0, Math.ceil(seconds))
+  return `${String(Math.floor(safe / 60)).padStart(2, '0')}:${String(safe % 60).padStart(2, '0')}`
 }
 
 export function TrainingExecutionScreen({ route, navigation }: Props) {
@@ -24,15 +82,27 @@ export function TrainingExecutionScreen({ route, navigation }: Props) {
   const { user } = useAuth()
   const userId = user?.id ? String(user.id) : ''
   const isImpromptu = Boolean((params as any).impromptuId)
+  const readOnly = !isImpromptu && Boolean(params.readOnly)
   const [loading, setLoading] = useState(true)
   const [syncing, setSyncing] = useState(false)
   const [execution, setExecution] = useState<any | null>(null)
   const [drafts, setDrafts] = useState<Record<string, DraftValue>>({})
+  const [itemDrafts, setItemDrafts] = useState<Record<number, ItemDraftValue>>({})
+  const [planActions, setPlanActions] = useState<Record<string, any>>({})
+  const [feedbackContent, setFeedbackContent] = useState('')
+  const [feedbackDifficulty, setFeedbackDifficulty] = useState(3)
+  const [feedbackSubmitting, setFeedbackSubmitting] = useState(false)
+  const [feedbackSubmitted, setFeedbackSubmitted] = useState(false)
   const [elapsedSeconds, setElapsedSeconds] = useState(0)
+  const [restDeadlineAt, setRestDeadlineAt] = useState(0)
+  const [restRemaining, setRestRemaining] = useState(0)
+  const [restTimerMinimized, setRestTimerMinimized] = useState(false)
   const [pickerVisible, setPickerVisible] = useState(false)
   const [pickerQuery, setPickerQuery] = useState('')
   const [pickerLoading, setPickerLoading] = useState(false)
   const [pickerActions, setPickerActions] = useState<PickerAction[]>([])
+  const [expandedSetKey, setExpandedSetKey] = useState('')
+  const [uploadingVideoKey, setUploadingVideoKey] = useState('')
 
   const cacheKey = useMemo(() => {
     if ((params as any).impromptuId) return executionSnapshotKey({ mode: 'impromptu', id: (params as any).impromptuId })
@@ -62,11 +132,36 @@ export function TrainingExecutionScreen({ route, navigation }: Props) {
     }
     setSyncing(true)
     try {
-      const res = isImpromptu
-        ? await apiClient.request('/api/impromptu/get', { method: 'POST', body: { id: (params as any).impromptuId }, timeoutMs: 15000 })
-        : await apiClient.request('/api/execution/start', { method: 'POST', body: { instanceId: params.instanceId, dayIndex: params.dayIndex || 1 }, timeoutMs: 15000 })
-      const normalized = normalizeExecution(pickData(res))
-      await syncExecution(normalized)
+      if (isImpromptu) {
+        const res = await apiClient.request('/api/impromptu/get', {
+          method: 'POST',
+          body: { id: (params as any).impromptuId },
+          timeoutMs: 15000,
+        })
+        await syncExecution(normalizeExecution(pickData(res)))
+      } else {
+        const planRes = await apiClient.request('/api/plan-lib/get-instance', {
+          method: 'POST',
+          body: { id: params.instanceId },
+          timeoutMs: 15000,
+        })
+        const planData = pickData(planRes) || {}
+        setPlanActions(planData.actions || {})
+        if (readOnly) {
+          const dayIndex = Number(params.dayIndex || 1)
+          const existing = planData.executionsByDayIndex?.[dayIndex]
+          if (existing) await syncExecution(normalizeExecution(existing))
+          else setExecution(buildPlanPreview(planData, dayIndex))
+        } else {
+          const res = await apiClient.request('/api/execution/start', {
+            method: 'POST',
+            body: { instanceId: params.instanceId, dayIndex: params.dayIndex || 1 },
+            timeoutMs: 15000,
+          })
+          const normalized = normalizeExecution(pickData(res))
+          await syncExecution(normalized)
+        }
+      }
     } catch (error) {
       if (!execution) Alert.alert('加载失败', error instanceof Error ? error.message : '请稍后重试')
     } finally {
@@ -78,6 +173,7 @@ export function TrainingExecutionScreen({ route, navigation }: Props) {
   const progressText = execution ? `${execution.completed_sets || 0}/${execution.total_sets || 0}` : '-'
   const status = String(execution?.status || '').toLowerCase()
   const isCompleted = status === 'completed' || status === 'finished'
+  const operationDisabled = syncing || isCompleted || readOnly
 
   useEffect(() => {
     let alive = true
@@ -110,12 +206,72 @@ export function TrainingExecutionScreen({ route, navigation }: Props) {
     return () => clearInterval(timer)
   }, [execution?.started_at, execution?.created_at, isCompleted])
 
+  useEffect(() => {
+    const executionId = String(execution?.id || '')
+    if (!executionId || !userId || readOnly || isCompleted) return
+    let active = true
+    void readRestTimerDeadline(userId, executionId).then((deadlineAt) => {
+      if (!active || deadlineAt <= Date.now()) return
+      setRestDeadlineAt(deadlineAt)
+      setRestTimerMinimized(true)
+    })
+    return () => {
+      active = false
+    }
+  }, [execution?.id, isCompleted, readOnly, userId])
+
+  useEffect(() => {
+    if (!restDeadlineAt) {
+      setRestRemaining(0)
+      return
+    }
+    const tick = () => {
+      const remaining = Math.max(0, Math.ceil((restDeadlineAt - Date.now()) / 1000))
+      setRestRemaining(remaining)
+      if (remaining === 0) {
+        setRestDeadlineAt(0)
+        setRestTimerMinimized(false)
+        if (execution?.id) void clearRestTimerDeadline(userId, String(execution.id))
+      }
+    }
+    tick()
+    const timer = setInterval(tick, 500)
+    return () => clearInterval(timer)
+  }, [execution?.id, restDeadlineAt, userId])
+
   const elapsedText = `${String(Math.floor(elapsedSeconds / 60)).padStart(2, '0')}:${String(elapsedSeconds % 60).padStart(2, '0')}`
+
+  function startRestTimer(seconds: number) {
+    if (readOnly || !execution?.id) return
+    const safeSeconds = Number.isFinite(seconds) && seconds > 0 ? Math.round(seconds) : 90
+    const deadlineAt = Date.now() + safeSeconds * 1000
+    setRestDeadlineAt(deadlineAt)
+    setRestRemaining(safeSeconds)
+    setRestTimerMinimized(false)
+    void persistRestTimerDeadline(userId, String(execution.id), deadlineAt)
+  }
+
+  function adjustRestTimer(deltaSeconds: number) {
+    if (!execution?.id) return
+    const currentRemaining = Math.max(0, Math.ceil((restDeadlineAt - Date.now()) / 1000))
+    const nextRemaining = Math.max(1, currentRemaining + deltaSeconds)
+    const deadlineAt = Date.now() + nextRemaining * 1000
+    setRestDeadlineAt(deadlineAt)
+    setRestRemaining(nextRemaining)
+    void persistRestTimerDeadline(userId, String(execution.id), deadlineAt)
+  }
+
+  function skipRestTimer() {
+    setRestDeadlineAt(0)
+    setRestRemaining(0)
+    setRestTimerMinimized(false)
+    if (execution?.id) void clearRestTimerDeadline(userId, String(execution.id))
+  }
 
   function setDraft(actionIndex: number, setIndex: number, patch: Partial<DraftValue>) {
     const key = draftKey(actionIndex, setIndex)
     setDrafts((current) => {
-      const base: DraftValue = current[key] || { weight: '', reps: '', rpe: '' }
+      const base: DraftValue = current[key] || { weight: '', reps: '', rpe: '', notes: '', isPr: false, videoUrl: '' }
       return { ...current, [key]: { ...base, ...patch } }
     })
   }
@@ -127,22 +283,189 @@ export function TrainingExecutionScreen({ route, navigation }: Props) {
       weight: set.actualWeight != null ? String(set.actualWeight) : set.plannedWeight != null ? String(set.plannedWeight).replace(/[^\d.-]/g, '') : '',
       reps: set.actualReps != null ? String(set.actualReps) : set.plannedReps != null ? String(set.plannedReps).replace(/[^\d.-]/g, '') : '',
       rpe: set.rpe != null ? String(set.rpe) : '',
+      notes: String(set.notes || ''),
+      isPr: Boolean(set.isPr || set.isAutoPr),
+      videoUrl: String(set.videoUrl || ''),
     }
   }
 
-  async function completeSet(actionIndex: number, setIndex: number, set: any) {
-    if (!execution?.id || syncing) return
-    const draft = getDraft(actionIndex, setIndex, set)
+  async function uploadSetVideo(action: any, set: any) {
+    const key = draftKey(action.actionIndex, set.setIndex)
+    if (isImpromptu) {
+      Alert.alert('暂不支持上传', '即兴训练会自动计算 PR，但组视频目前只支持计划训练。')
+      return
+    }
+    if (!execution?.id || !action.actionId || uploadingVideoKey) return
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['videos'],
+      quality: 0.72,
+      videoMaxDuration: 90,
+    })
+    const asset = result.canceled ? null : result.assets[0]
+    if (!asset?.uri) return
+    if (asset.fileSize && asset.fileSize > 50 * 1024 * 1024) {
+      Alert.alert('视频过大', '单个训练视频请小于 50MB。')
+      return
+    }
+    setUploadingVideoKey(key)
+    try {
+      const token = await getStoredToken()
+      const type = asset.mimeType || 'video/mp4'
+      const ext = type.split('/')[1] || 'mp4'
+      const formData = new FormData()
+      formData.append('file', { uri: asset.uri, name: asset.fileName || `training-set-${Date.now()}.${ext}`, type } as any)
+      formData.append('executionId', String(execution.id))
+      formData.append('actionId', String(action.actionId))
+      formData.append('setNumber', String(set.setNumber))
+      const response = await fetch(`${API_BASE_URL}/api/execution/upload-set-video`, {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        body: formData,
+      })
+      const payload = await response.json().catch(() => null)
+      if (!response.ok || !payload?.success || !payload?.data?.video_url) throw new Error(payload?.message || '视频上传失败')
+      setDraft(action.actionIndex, set.setIndex, { videoUrl: String(payload.data.video_url), videoId: String(payload.data.id || '') })
+    } catch (error) {
+      Alert.alert('视频上传失败', error instanceof Error ? error.message : '请稍后重试')
+    } finally {
+      setUploadingVideoKey('')
+    }
+  }
+
+  async function ensureVideoLinkSaved(action: any, set: any, draft: DraftValue) {
+    const url = draft.videoUrl.trim()
+    if (!url || draft.videoId || isImpromptu) return
+    if (!/^https?:\/\//i.test(url)) throw new Error('视频链接需以 http:// 或 https:// 开头')
+    const payload = await apiClient.request<any>('/api/execution/add-set-video-link', {
+      method: 'POST',
+      body: {
+        executionId: execution.id,
+        actionId: action.actionId,
+        setNumber: set.setNumber,
+        videoUrl: url,
+      },
+      timeoutMs: 15000,
+    })
+    setDraft(action.actionIndex, set.setIndex, { videoId: String(payload?.id || '') })
+  }
+
+  function getActionItemType(action: any) {
+    return normalizeTrainingItemType(
+      action?.itemType || action?.item_type || planActions[action?.actionId]?.type,
+    )
+  }
+
+  function getItemDraft(action: any): ItemDraftValue {
+    const existing = itemDrafts[action.actionIndex]
+    if (existing) return existing
+    return {
+      content: String(action.actualContent || ''),
+      distance: action.actualDistance ? String(Number(action.actualDistance) / 1000) : '',
+      duration: action.actualDuration ? String(Number(action.actualDuration) / 60) : '',
+      notes: String(action.notes || ''),
+    }
+  }
+
+  function setItemDraft(actionIndex: number, patch: Partial<ItemDraftValue>) {
+    setItemDrafts((current) => ({
+      ...current,
+      [actionIndex]: {
+        ...(current[actionIndex] || { content: '', distance: '', duration: '', notes: '' }),
+        ...patch,
+      },
+    }))
+  }
+
+  async function completeItem(action: any) {
+    if (!execution?.id || operationDisabled || isImpromptu) return
+    const itemType = getActionItemType(action)
+    if (itemType === 'STRENGTH') return
+    const draft = getItemDraft(action)
+    const distance = parseNumberInput(draft.distance)
+    const duration = parseNumberInput(draft.duration)
+    if (itemType === 'CARDIO' && (!distance || distance <= 0) && (!duration || duration <= 0)) {
+      Alert.alert('请补充记录', '有氧任务至少填写距离或时长。')
+      return
+    }
+
     setSyncing(true)
     try {
+      const res = await apiClient.request('/api/execution/complete-item', {
+        method: 'POST',
+        body: {
+          executionId: execution.id,
+          actionIndex: action.actionIndex,
+          itemType,
+          completed: true,
+          actualContent: itemType === 'DIET' ? draft.content.trim() || undefined : undefined,
+          actualDistance: itemType === 'CARDIO' && distance ? distance * 1000 : undefined,
+          actualDuration: itemType === 'CARDIO' && duration ? duration * 60 : undefined,
+          notes: draft.notes.trim() || undefined,
+        },
+        timeoutMs: 15000,
+      })
+      const data = pickData(res) || {}
+      const nextActions = execution.action_executions.map((item: any) => {
+        if (item.actionIndex !== action.actionIndex) return item
+        return {
+          ...item,
+          status: 'completed',
+          completed: true,
+          actualContent: itemType === 'DIET' ? draft.content.trim() : item.actualContent,
+          actualDistance: itemType === 'CARDIO' && distance ? distance * 1000 : item.actualDistance,
+          actualDuration: itemType === 'CARDIO' && duration ? duration * 60 : item.actualDuration,
+          notes: draft.notes.trim(),
+          sets: item.sets.map((set: any, index: number) =>
+            index === 0 ? { ...set, status: 'completed', notes: draft.notes.trim() } : set,
+          ),
+        }
+      })
+      const next = {
+        ...execution,
+        action_executions: nextActions,
+        completed_sets: Number(data.completedItems ?? execution.completed_sets + 1),
+        total_sets: Number(data.totalItems ?? execution.total_sets),
+        status:
+          Number(data.totalItems || 0) > 0 && Number(data.completedItems || 0) >= Number(data.totalItems)
+            ? 'completed'
+            : execution.status,
+      }
+      await syncExecution(next)
+    } catch (error) {
+      Alert.alert('打卡失败', error instanceof Error ? error.message : '请稍后重试')
+    } finally {
+      setSyncing(false)
+    }
+  }
+
+  async function completeSet(action: any, set: any) {
+    const actionIndex = action.actionIndex
+    const setIndex = set.setIndex
+    if (!execution?.id || syncing || readOnly || (isCompleted && isImpromptu)) return
+    const draft = getDraft(actionIndex, setIndex, set)
+    const actualWeight = parseNumberInput(draft.weight)
+    const actualReps = parseNumberInput(draft.reps)
+    if (actualReps == null || actualReps <= 0) {
+      Alert.alert('请填写次数', '完成组前需要填写大于 0 的实际次数。')
+      return
+    }
+    setSyncing(true)
+    try {
+      await ensureVideoLinkSaved(action, set, draft)
       const body: any = {
         executionId: execution.id,
         actionIndex,
         setIndex,
-        actualWeight: parseNumberInput(draft.weight),
-        actualReps: parseNumberInput(draft.reps),
+        actionId: action.actionId,
+        actualWeight,
+        actualReps,
+        notes: draft.notes.trim() || undefined,
       }
-      if (!isImpromptu) body.rpe = parseNumberInput(draft.rpe)
+      if (!isImpromptu) {
+        body.rpe = parseNumberInput(draft.rpe)
+        body.is_pr = draft.isPr
+        body.has_video = Boolean(draft.videoUrl.trim())
+      }
       const res = await apiClient.request(isImpromptu ? '/api/impromptu/complete-set' : '/api/execution/complete-set', { method: 'POST', body, timeoutMs: 15000 })
       const data = pickData(res)
       const next = Array.isArray(data?.action_executions)
@@ -151,10 +474,19 @@ export function TrainingExecutionScreen({ route, navigation }: Props) {
           actualWeight: body.actualWeight,
           actualReps: body.actualReps,
           rpe: body.rpe,
+          notes: draft.notes.trim(),
+          isPr: draft.isPr,
+          isAutoPr: Boolean(data?.autoE1RM?.isPR),
+          e1rm: data?.autoE1RM?.e1rm,
+          videoUrl: draft.videoUrl.trim(),
           completedSets: data?.completedSets,
           totalSets: data?.totalSets,
         })
       await syncExecution(next)
+      if (data?.autoE1RM?.isPR) {
+        Alert.alert('刷新个人纪录', `本组估算 1RM 为 ${Number(data.autoE1RM.e1rm).toFixed(1)} kg。`)
+      }
+      if (set.status !== 'completed') startRestTimer(Number(set.plannedRestSeconds || 90))
     } catch (error) {
       Alert.alert('记录失败', error instanceof Error ? error.message : '请稍后重试')
     } finally {
@@ -162,11 +494,11 @@ export function TrainingExecutionScreen({ route, navigation }: Props) {
     }
   }
 
-  function patchCompletedSet(current: any, actionIndex: number, setIndex: number, values: { actualWeight: number | null; actualReps: number | null; rpe?: number | null; completedSets?: number; totalSets?: number }) {
+  function patchCompletedSet(current: any, actionIndex: number, setIndex: number, values: { actualWeight: number | null; actualReps: number | null; rpe?: number | null; notes?: string; isPr?: boolean; isAutoPr?: boolean; e1rm?: number | null; videoUrl?: string; completedSets?: number; totalSets?: number }) {
     const nextActions = current.action_executions.map((action: any) => {
       if (action.actionIndex !== actionIndex) return action
       const nextSets = action.sets.map((item: any) => item.setIndex === setIndex
-        ? { ...item, status: 'completed', actualWeight: values.actualWeight, actualReps: values.actualReps, rpe: values.rpe ?? item.rpe }
+        ? { ...item, status: 'completed', actualWeight: values.actualWeight, actualReps: values.actualReps, rpe: values.rpe ?? item.rpe, notes: values.notes ?? item.notes, isPr: values.isPr ?? item.isPr, isAutoPr: values.isAutoPr ?? item.isAutoPr, e1rm: values.e1rm ?? item.e1rm, hasVideo: Boolean(values.videoUrl || item.videoUrl), videoUrl: values.videoUrl || item.videoUrl }
         : item)
       return { ...action, sets: nextSets }
     })
@@ -179,7 +511,7 @@ export function TrainingExecutionScreen({ route, navigation }: Props) {
   }
 
   async function addSet(actionIndex: number, action: any) {
-    if (!execution?.id || syncing) return
+    if (!execution?.id || operationDisabled) return
     const last = action.sets[action.sets.length - 1]
     setSyncing(true)
     try {
@@ -202,7 +534,7 @@ export function TrainingExecutionScreen({ route, navigation }: Props) {
   }
 
   async function deleteSet(actionIndex: number, setIndex: number) {
-    if (!execution?.id || syncing) return
+    if (!execution?.id || operationDisabled) return
     Alert.alert('删除这一组', '只允许删除训练中额外添加的组。确定继续？', [
       { text: '取消', style: 'cancel' },
       {
@@ -230,7 +562,7 @@ export function TrainingExecutionScreen({ route, navigation }: Props) {
   }
 
   async function deleteExercise(actionIndex: number) {
-    if (!execution?.id || syncing) return
+    if (!execution?.id || operationDisabled) return
     Alert.alert('删除动作', '只允许删除训练中额外添加的动作。确定继续？', [
       { text: '取消', style: 'cancel' },
       {
@@ -274,6 +606,7 @@ export function TrainingExecutionScreen({ route, navigation }: Props) {
   }
 
   function openActionPicker() {
+    if (operationDisabled) return
     setPickerVisible(true)
     void loadPickerActions('')
   }
@@ -286,7 +619,11 @@ export function TrainingExecutionScreen({ route, navigation }: Props) {
       name: String(row.name || row.action_name || '').trim(),
       type: row.type || row.category || row.muscle_group,
       source,
-    })).filter((row) => row.name)
+    })).filter((row) => {
+      if (!row.name) return false
+      const type = String(row.type || '').toUpperCase()
+      return !['DIET', 'CARDIO', 'HABIT', 'REST'].includes(type)
+    })
   }
 
   async function ensureStudentAction(row: PickerAction): Promise<PickerAction> {
@@ -307,7 +644,7 @@ export function TrainingExecutionScreen({ route, navigation }: Props) {
   }
 
   async function addExercise(row: PickerAction) {
-    if (!execution?.id || syncing) return
+    if (!execution?.id || operationDisabled) return
     setSyncing(true)
     try {
       const action = await ensureStudentAction(row)
@@ -332,17 +669,51 @@ export function TrainingExecutionScreen({ route, navigation }: Props) {
   }
 
   async function finish() {
-    if (!execution?.id || syncing) return
+    if (!execution?.id || operationDisabled) return
     setSyncing(true)
     try {
       const res = await apiClient.request(isImpromptu ? '/api/impromptu/finish' : '/api/execution/finish', { method: 'POST', body: { executionId: execution.id }, timeoutMs: 15000 })
       const next = normalizeExecution(pickData(res) || { ...execution, status: 'completed' })
       await syncExecution(next)
+      skipRestTimer()
       Alert.alert('训练已完成', '本次训练记录已保存。')
     } catch (error) {
       Alert.alert('完成失败', error instanceof Error ? error.message : '请稍后重试')
     } finally {
       setSyncing(false)
+    }
+  }
+
+  async function submitTrainingFeedback() {
+    if (!execution?.id || isImpromptu || feedbackSubmitting || feedbackSubmitted) return
+    const content = feedbackContent.trim()
+    if (!content) {
+      Alert.alert('请填写反馈', '简单说说本次训练的感受，教练会据此调整后续计划。')
+      return
+    }
+    setFeedbackSubmitting(true)
+    try {
+      await apiClient.request('/api/execution/submit-feedback', {
+        method: 'POST',
+        body: {
+          executionId: execution.id,
+          content,
+          difficultyRating: feedbackDifficulty,
+        },
+        timeoutMs: 15000,
+      })
+      setFeedbackSubmitted(true)
+      await syncExecution({ ...execution, app_feedback_submitted: true })
+    } catch (feedbackError) {
+      const message = feedbackError instanceof Error ? feedbackError.message : '请稍后重试'
+      if (message.includes('已提交过反馈')) {
+        setFeedbackSubmitted(true)
+        await syncExecution({ ...execution, app_feedback_submitted: true })
+      } else {
+        Alert.alert('反馈提交失败', message)
+      }
+    } finally {
+      setFeedbackSubmitting(false)
     }
   }
 
@@ -369,7 +740,7 @@ export function TrainingExecutionScreen({ route, navigation }: Props) {
   }
 
   return (
-    <Page title={isImpromptu ? '即兴训练' : '训练执行'} subtitle={syncing ? '正在同步训练记录...' : isCompleted ? '本次训练已完成' : '记录当前组，云端返回后更新本地缓存'}>
+    <Page title={isImpromptu ? '即兴训练' : '训练执行'} subtitle={syncing ? '正在同步训练记录...' : readOnly ? '只读查看，不会创建或修改训练记录' : isCompleted ? '本次训练已完成' : '记录当前组，云端返回后更新本地缓存'}>
       <View style={styles.hero}>
         <View>
           <Text style={styles.heroLabel}>{isImpromptu ? '自由训练' : `计划第 ${params.dayIndex || execution.day_index || 1} 天`}</Text>
@@ -383,47 +754,229 @@ export function TrainingExecutionScreen({ route, navigation }: Props) {
         <SectionCard title="执行计划阅读须知" description={String(execution.execution_notice)} />
       ) : null}
 
-      {execution.action_executions.map((action: any) => (
-        <SectionCard key={`${action.actionIndex}-${action.actionName}`} title={action.actionName} description={`${action.sets.filter((set: any) => set.status === 'completed').length}/${action.sets.length} 组已完成`}>
-          {action.sets.map((set: any) => {
-            const draft = getDraft(action.actionIndex, set.setIndex, set)
-            const completed = set.status === 'completed'
-            return (
-              <View key={set.setIndex} style={[styles.setRow, completed && styles.setCompleted]}>
-                <View style={styles.setHead}>
-                  <Text style={styles.setTitle}>第 {set.setNumber} 组</Text>
-                  <Pressable disabled={syncing || isCompleted} onPress={() => deleteSet(action.actionIndex, set.setIndex)}>
-                    <Text style={styles.deleteText}>删除</Text>
-                  </Pressable>
-                </View>
-                <Text style={styles.setPlan}>计划 {displayLoad(set.plannedWeight, set.plannedReps)}</Text>
-                <View style={styles.inputs}>
-                  <TextInput value={draft.weight} editable={!completed} onChangeText={(value) => setDraft(action.actionIndex, set.setIndex, { weight: value })} keyboardType="decimal-pad" placeholder="重量" placeholderTextColor={colors.textMuted} style={styles.input} />
-                  <TextInput value={draft.reps} editable={!completed} onChangeText={(value) => setDraft(action.actionIndex, set.setIndex, { reps: value })} keyboardType="number-pad" placeholder="次数" placeholderTextColor={colors.textMuted} style={styles.input} />
-                  {!isImpromptu ? <TextInput value={draft.rpe} editable={!completed} onChangeText={(value) => setDraft(action.actionIndex, set.setIndex, { rpe: value })} keyboardType="decimal-pad" placeholder="RPE" placeholderTextColor={colors.textMuted} style={styles.input} /> : null}
-                  <Pressable disabled={completed || syncing} onPress={() => completeSet(action.actionIndex, set.setIndex, set)} style={[styles.doneButton, (completed || syncing) && styles.doneButtonDisabled]}>
-                    <Text style={styles.doneButtonText}>{completed ? '已完成' : '完成'}</Text>
-                  </Pressable>
-                </View>
-              </View>
-            )
-          })}
-          <Pressable disabled={syncing || isCompleted} onPress={() => addSet(action.actionIndex, action)} style={styles.addButton}>
-            <Text style={styles.addButtonText}>新增一组</Text>
-          </Pressable>
-          <Pressable disabled={syncing || isCompleted} onPress={() => deleteExercise(action.actionIndex)} style={styles.deleteButton}>
-            <Text style={styles.deleteButtonText}>删除额外动作</Text>
-          </Pressable>
-        </SectionCard>
-      ))}
+      {readOnly ? (
+        <View style={styles.readOnlyBanner}>
+          <IconFont name="icon-time" color={colors.brand} size={18} />
+          <View style={styles.readOnlyMain}>
+            <Text style={styles.readOnlyTitle}>只读查看</Text>
+            <Text style={styles.readOnlyText}>历史记录和未来安排不会启动训练，也不能改组、打卡或完成训练。</Text>
+          </View>
+        </View>
+      ) : null}
 
-      <Pressable disabled={syncing || isCompleted} onPress={openActionPicker} style={styles.addExerciseButton}>
+      {restRemaining > 0 && restTimerMinimized ? (
+        <Pressable onPress={() => setRestTimerMinimized(false)} style={styles.restBubble}>
+          <Text style={styles.restBubbleLabel}>组间休息</Text>
+          <Text style={styles.restBubbleValue}>{formatRestTime(restRemaining)}</Text>
+        </Pressable>
+      ) : null}
+
+      {execution.action_executions.map((action: any) => {
+        const itemType = getActionItemType(action)
+        const actionCompleted =
+          action.status === 'completed' ||
+          action.completed ||
+          action.sets.every((set: any) => set.status === 'completed')
+        if (itemType !== 'STRENGTH') {
+          const itemDraft = getItemDraft(action)
+          const typeLabel = itemType === 'DIET' ? '饮食任务' : itemType === 'CARDIO' ? '有氧任务' : '习惯打卡'
+          return (
+            <SectionCard key={`${action.actionIndex}-${action.actionName}`} title={action.actionName} description={`${typeLabel} · ${actionCompleted ? '已完成' : '待完成'}`}>
+              {itemType === 'DIET' ? (
+                <TextInput
+                  value={itemDraft.content}
+                  editable={!actionCompleted && !operationDisabled}
+                  onChangeText={(value) => setItemDraft(action.actionIndex, { content: value })}
+                  placeholder="记录实际饮食内容（可选）"
+                  placeholderTextColor={colors.textMuted}
+                  multiline
+                  style={styles.itemTextarea}
+                />
+              ) : null}
+              {itemType === 'CARDIO' ? (
+                <View style={styles.itemInputRow}>
+                  <TextInput
+                    value={itemDraft.distance}
+                    editable={!actionCompleted && !operationDisabled}
+                    onChangeText={(value) => setItemDraft(action.actionIndex, { distance: value })}
+                    keyboardType="decimal-pad"
+                    placeholder="距离 km"
+                    placeholderTextColor={colors.textMuted}
+                    style={styles.itemInput}
+                  />
+                  <TextInput
+                    value={itemDraft.duration}
+                    editable={!actionCompleted && !operationDisabled}
+                    onChangeText={(value) => setItemDraft(action.actionIndex, { duration: value })}
+                    keyboardType="decimal-pad"
+                    placeholder="时长 min"
+                    placeholderTextColor={colors.textMuted}
+                    style={styles.itemInput}
+                  />
+                </View>
+              ) : null}
+              <TextInput
+                value={itemDraft.notes}
+                editable={!actionCompleted && !operationDisabled}
+                onChangeText={(value) => setItemDraft(action.actionIndex, { notes: value })}
+                placeholder="备注（可选）"
+                placeholderTextColor={colors.textMuted}
+                style={styles.itemInput}
+              />
+              <Pressable
+                disabled={actionCompleted || operationDisabled}
+                onPress={() => completeItem(action)}
+                style={[styles.itemDoneButton, (actionCompleted || operationDisabled) && styles.doneButtonDisabled]}
+              >
+                <Text style={styles.doneButtonText}>{actionCompleted ? '已完成' : itemType === 'HABIT' ? '立即打卡' : '完成任务'}</Text>
+              </Pressable>
+            </SectionCard>
+          )
+        }
+
+        return (
+          <SectionCard key={`${action.actionIndex}-${action.actionName}`} title={action.actionName} description={`${action.sets.filter((set: any) => set.status === 'completed').length}/${action.sets.length} 组已完成`}>
+            {action.sets.map((set: any) => {
+              const draft = getDraft(action.actionIndex, set.setIndex, set)
+              const completed = set.status === 'completed'
+              const setKey = draftKey(action.actionIndex, set.setIndex)
+              const expanded = expandedSetKey === setKey
+              const uploadingVideo = uploadingVideoKey === setKey
+              const canEditSet = !syncing && !readOnly && (!isCompleted || !isImpromptu)
+              return (
+                <View key={set.setIndex} style={[styles.setRow, completed && styles.setCompleted]}>
+                  <View style={styles.setHead}>
+                    <View style={styles.setTitleRow}>
+                      <Text style={styles.setTitle}>第 {set.setNumber} 组</Text>
+                      {set.isPr || draft.isPr ? <Text style={styles.prTag}>PR</Text> : null}
+                      {set.isAutoPr ? <Text style={styles.autoPrTag}>自动纪录</Text> : null}
+                      {set.videoUrl || draft.videoUrl ? <Text style={styles.videoTag}>视频</Text> : null}
+                      {set.notes || draft.notes ? <Text style={styles.noteTag}>备注</Text> : null}
+                    </View>
+                    <Pressable disabled={operationDisabled} onPress={() => deleteSet(action.actionIndex, set.setIndex)}>
+                      <Text style={[styles.deleteText, operationDisabled && styles.disabledText]}>删除</Text>
+                    </Pressable>
+                  </View>
+                  <Text style={styles.setPlan}>计划 {displayLoad(set.plannedWeight, set.plannedReps)}{set.plannedRestSeconds ? ` · 休息 ${set.plannedRestSeconds} 秒` : ''}</Text>
+                  <View style={styles.inputs}>
+                    <TextInput value={draft.weight} editable={canEditSet} onChangeText={(value) => setDraft(action.actionIndex, set.setIndex, { weight: value })} keyboardType="decimal-pad" placeholder="重量" placeholderTextColor={colors.textMuted} style={styles.input} />
+                    <TextInput value={draft.reps} editable={canEditSet} onChangeText={(value) => setDraft(action.actionIndex, set.setIndex, { reps: value })} keyboardType="number-pad" placeholder="次数" placeholderTextColor={colors.textMuted} style={styles.input} />
+                    {!isImpromptu ? <TextInput value={draft.rpe} editable={canEditSet} onChangeText={(value) => setDraft(action.actionIndex, set.setIndex, { rpe: value })} keyboardType="decimal-pad" placeholder="RPE" placeholderTextColor={colors.textMuted} style={styles.input} /> : null}
+                    <Pressable disabled={!canEditSet || uploadingVideo} onPress={() => completeSet(action, set)} style={[styles.doneButton, (!canEditSet || uploadingVideo) && styles.doneButtonDisabled]}>
+                      <Text style={styles.doneButtonText}>{completed ? '保存' : '完成'}</Text>
+                    </Pressable>
+                  </View>
+                  <Pressable onPress={() => setExpandedSetKey(expanded ? '' : setKey)} style={styles.setMoreButton}>
+                    <Text style={styles.setMoreText}>{expanded ? '收起详细记录' : '备注、PR 与组视频'}</Text>
+                    <IconFont name={expanded ? 'icon-left' : 'icon-right-arrow'} color={colors.brand} size={14} />
+                  </Pressable>
+                  {expanded ? (
+                    <View style={styles.setMorePanel}>
+                      <TextInput
+                        value={draft.notes}
+                        editable={canEditSet}
+                        onChangeText={(value) => setDraft(action.actionIndex, set.setIndex, { notes: value })}
+                        placeholder="记录动作感受、疼痛或技术提示（可选）"
+                        placeholderTextColor={colors.textMuted}
+                        maxLength={500}
+                        multiline
+                        textAlignVertical="top"
+                        style={styles.setNotesInput}
+                      />
+                      <Text style={styles.setNotesCount}>{draft.notes.length}/500</Text>
+                      {!isImpromptu ? (
+                        <Pressable disabled={!canEditSet} onPress={() => setDraft(action.actionIndex, set.setIndex, { isPr: !draft.isPr })} style={[styles.prToggle, draft.isPr && styles.prToggleActive, !canEditSet && styles.doneButtonDisabled]}>
+                          <IconFont name="icon-star" color={draft.isPr ? '#FFFFFF' : colors.brand} size={16} />
+                          <View style={styles.prToggleMain}>
+                            <Text style={[styles.prToggleTitle, draft.isPr && styles.prToggleTitleActive]}>{draft.isPr ? '已标记进步组' : '标记为进步组'}</Text>
+                            <Text style={[styles.prToggleHint, draft.isPr && styles.prToggleHintActive]}>自动 PR 仍由系统按估算 1RM 独立判断</Text>
+                          </View>
+                        </Pressable>
+                      ) : <Text style={styles.setHelper}>即兴训练会自动计算估算 1RM 和 PR；组视频目前只支持计划训练。</Text>}
+                      {!isImpromptu ? (
+                        <>
+                          <View style={styles.videoActionRow}>
+                            <Pressable disabled={!canEditSet || uploadingVideo} onPress={() => void uploadSetVideo(action, set)} style={[styles.videoActionButton, (!canEditSet || uploadingVideo) && styles.doneButtonDisabled]}>
+                              {uploadingVideo ? <ActivityIndicator color={colors.brand} size="small" /> : <IconFont name="icon-video" color={colors.brand} size={17} />}
+                              <Text style={styles.videoActionText}>{uploadingVideo ? '上传中…' : draft.videoUrl ? '替换视频' : '选择视频'}</Text>
+                            </Pressable>
+                            {draft.videoUrl ? (
+                              <Pressable onPress={() => void Linking.openURL(draft.videoUrl)} style={styles.videoPreviewButton}><Text style={styles.videoPreviewText}>预览</Text></Pressable>
+                            ) : null}
+                          </View>
+                          <TextInput
+                            value={draft.videoUrl}
+                            editable={canEditSet && !uploadingVideo}
+                            onChangeText={(value) => setDraft(action.actionIndex, set.setIndex, { videoUrl: value, videoId: undefined })}
+                            autoCapitalize="none"
+                            autoCorrect={false}
+                            keyboardType="url"
+                            placeholder="也可以粘贴公开视频链接"
+                            placeholderTextColor={colors.textMuted}
+                            style={styles.videoUrlInput}
+                          />
+                          <Text style={styles.setHelper}>本地视频限 50MB；完成或保存本组时会确认关联到这组记录。</Text>
+                        </>
+                      ) : null}
+                      {completed && canEditSet ? <Text style={styles.editCompletedHint}>修改已完成组后，请点“保存”同步到云端。</Text> : null}
+                    </View>
+                  ) : null}
+                </View>
+              )
+            })}
+            <Pressable disabled={operationDisabled} onPress={() => addSet(action.actionIndex, action)} style={[styles.addButton, operationDisabled && styles.finishDisabled]}>
+              <Text style={styles.addButtonText}>新增一组</Text>
+            </Pressable>
+            <Pressable disabled={operationDisabled} onPress={() => deleteExercise(action.actionIndex)} style={[styles.deleteButton, operationDisabled && styles.finishDisabled]}>
+              <Text style={styles.deleteButtonText}>删除额外动作</Text>
+            </Pressable>
+          </SectionCard>
+        )
+      })}
+
+      <Pressable disabled={operationDisabled} onPress={openActionPicker} style={[styles.addExerciseButton, operationDisabled && styles.finishDisabled]}>
         <Text style={styles.addExerciseButtonText}>添加动作</Text>
       </Pressable>
 
-      <Pressable disabled={syncing || isCompleted} onPress={finish} style={[styles.finishButton, (syncing || isCompleted) && styles.finishDisabled]}>
-        <Text style={styles.finishButtonText}>{isCompleted ? '训练已完成' : '完成训练'}</Text>
+      <Pressable disabled={operationDisabled} onPress={finish} style={[styles.finishButton, operationDisabled && styles.finishDisabled]}>
+        <Text style={styles.finishButtonText}>{readOnly ? '只读查看' : isCompleted ? '训练已完成' : '完成训练'}</Text>
       </Pressable>
+
+      {isCompleted ? (
+        <SectionCard title="训练反馈" description="难度与文字反馈会同步给教练，并用于后续计划调整。">
+          {feedbackSubmitted || execution.app_feedback_submitted ? (
+            <View style={styles.feedbackSuccess}>
+              <IconFont name="icon-send" color="#087A63" size={18} />
+              <Text style={styles.feedbackSuccessText}>反馈已发送给教练</Text>
+            </View>
+          ) : (
+            <>
+              <Text style={styles.feedbackLabel}>本次训练难度</Text>
+              <View style={styles.difficultyRow}>
+                {[1, 2, 3, 4, 5].map((value) => (
+                  <Pressable key={value} onPress={() => setFeedbackDifficulty(value)} style={[styles.difficultyChip, feedbackDifficulty === value && styles.difficultyChipActive]}>
+                    <Text style={[styles.difficultyText, feedbackDifficulty === value && styles.difficultyTextActive]}>{value}</Text>
+                  </Pressable>
+                ))}
+              </View>
+              <Text style={styles.difficultyHint}>{['', '很轻松', '偏轻松', '刚刚好', '有挑战', '非常吃力'][feedbackDifficulty]}</Text>
+              <TextInput
+                value={feedbackContent}
+                onChangeText={setFeedbackContent}
+                maxLength={500}
+                multiline
+                placeholder="例如：深蹲最后两组比较吃力，左膝略有不适…"
+                placeholderTextColor={colors.textMuted}
+                style={styles.feedbackInput}
+              />
+              <Text style={styles.feedbackCount}>{feedbackContent.length}/500</Text>
+              <Pressable disabled={feedbackSubmitting || !feedbackContent.trim()} onPress={submitTrainingFeedback} style={[styles.feedbackButton, (feedbackSubmitting || !feedbackContent.trim()) && styles.finishDisabled]}>
+                {feedbackSubmitting ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.feedbackButtonText}>发送给教练</Text>}
+              </Pressable>
+            </>
+          )}
+        </SectionCard>
+      ) : null}
 
       {isCompleted ? (
         <SectionCard title="训练打卡图" description="生成本次训练的分享卡片，保留小程序分享页的训练容量、组数、PR 统计。">
@@ -460,6 +1013,22 @@ export function TrainingExecutionScreen({ route, navigation }: Props) {
           </View>
         </View>
       </Modal>
+
+      <Modal visible={restRemaining > 0 && !restTimerMinimized} transparent animationType="fade" onRequestClose={() => setRestTimerMinimized(true)}>
+        <Pressable style={styles.restBackdrop} onPress={() => setRestTimerMinimized(true)}>
+          <Pressable style={styles.restPanel} onPress={() => undefined}>
+            <Text style={styles.restEmoji}>休</Text>
+            <Text style={styles.restTime}>{formatRestTime(restRemaining)}</Text>
+            <Text style={styles.restLabel}>组间休息</Text>
+            <View style={styles.restActions}>
+              <Pressable onPress={() => adjustRestTimer(-10)} style={styles.restAction}><Text style={styles.restActionText}>-10 秒</Text></Pressable>
+              <Pressable onPress={() => adjustRestTimer(10)} style={styles.restAction}><Text style={styles.restActionText}>+10 秒</Text></Pressable>
+            </View>
+            <Pressable onPress={skipRestTimer} style={styles.restPrimary}><Text style={styles.restPrimaryText}>跳过休息</Text></Pressable>
+            <Pressable onPress={() => setRestTimerMinimized(true)} style={styles.restMinimize}><Text style={styles.restMinimizeText}>最小化</Text></Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </Page>
   )
 }
@@ -470,17 +1039,54 @@ const styles = StyleSheet.create({
   heroTitle: { marginTop: spacing.xs, color: '#FFFFFF', fontSize: 36, fontWeight: '900' },
   heroSub: { color: 'rgba(255,255,255,0.72)', fontSize: 13 },
   heroIcon: { width: 56, height: 56, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF' },
+  readOnlyBanner: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm, padding: spacing.sm, borderRadius: radius.lg, backgroundColor: colors.brandSoft, borderWidth: 1, borderColor: '#EBC0B3' },
+  readOnlyMain: { flex: 1, gap: 4 },
+  readOnlyTitle: { color: colors.brand, fontSize: 14, fontWeight: '900' },
+  readOnlyText: { color: colors.textSecondary, fontSize: 12, lineHeight: 18 },
+  restBubble: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 52, paddingHorizontal: spacing.sm, borderRadius: radius.lg, backgroundColor: '#1F1F1F' },
+  restBubbleLabel: { color: 'rgba(255,255,255,0.78)', fontSize: 13, fontWeight: '700' },
+  restBubbleValue: { color: '#FFFFFF', fontSize: 22, fontWeight: '900', fontVariant: ['tabular-nums'] },
   setRow: { gap: spacing.xs, paddingVertical: spacing.xs, borderBottomWidth: 1, borderBottomColor: colors.border },
-  setCompleted: { opacity: 0.72 },
+  setCompleted: { borderRadius: radius.md, paddingHorizontal: spacing.xs, backgroundColor: '#F8F8F8' },
   setHead: { flexDirection: 'row', justifyContent: 'space-between', gap: spacing.xs },
+  setTitleRow: { flex: 1, flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: spacing.xs },
   setTitle: { color: colors.text, fontSize: 15, fontWeight: '800' },
+  prTag: { overflow: 'hidden', borderRadius: radius.pill, paddingHorizontal: spacing.xs, paddingVertical: 3, color: '#9A3412', backgroundColor: '#FFEDD5', fontSize: 10, fontWeight: '900' },
+  autoPrTag: { overflow: 'hidden', borderRadius: radius.pill, paddingHorizontal: spacing.xs, paddingVertical: 3, color: '#087A63', backgroundColor: '#E9F8F3', fontSize: 10, fontWeight: '900' },
+  videoTag: { overflow: 'hidden', borderRadius: radius.pill, paddingHorizontal: spacing.xs, paddingVertical: 3, color: '#2563EB', backgroundColor: '#EFF6FF', fontSize: 10, fontWeight: '900' },
+  noteTag: { overflow: 'hidden', borderRadius: radius.pill, paddingHorizontal: spacing.xs, paddingVertical: 3, color: colors.textSecondary, backgroundColor: colors.surfaceMuted, fontSize: 10, fontWeight: '900' },
   setPlan: { color: colors.textSecondary, fontSize: 12 },
   deleteText: { color: colors.danger, fontSize: 12, fontWeight: '800' },
+  disabledText: { color: colors.textMuted },
   inputs: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
   input: { flex: 1, minHeight: 42, borderRadius: radius.md, paddingHorizontal: spacing.xs, color: colors.text, backgroundColor: colors.surfaceMuted, fontSize: 14 },
   doneButton: { minHeight: 42, alignItems: 'center', justifyContent: 'center', borderRadius: radius.md, paddingHorizontal: spacing.sm, backgroundColor: colors.brand },
   doneButtonDisabled: { backgroundColor: colors.textMuted },
   doneButtonText: { color: '#FFFFFF', fontWeight: '900' },
+  setMoreButton: { minHeight: 40, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderRadius: radius.md, paddingHorizontal: spacing.sm, backgroundColor: colors.brandSoft },
+  setMoreText: { color: colors.brand, fontSize: 12, fontWeight: '900' },
+  setMorePanel: { gap: spacing.xs, borderRadius: radius.md, padding: spacing.sm, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
+  setNotesInput: { minHeight: 80, borderRadius: radius.md, padding: spacing.sm, color: colors.text, backgroundColor: colors.surfaceMuted, fontSize: 13, lineHeight: 20 },
+  setNotesCount: { alignSelf: 'flex-end', color: colors.textMuted, fontSize: 11 },
+  prToggle: { minHeight: 56, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, borderRadius: radius.md, paddingHorizontal: spacing.sm, backgroundColor: colors.brandSoft, borderWidth: 1, borderColor: '#EBC0B3' },
+  prToggleActive: { backgroundColor: colors.brand, borderColor: colors.brand },
+  prToggleMain: { flex: 1, gap: 3 },
+  prToggleTitle: { color: colors.brand, fontSize: 13, fontWeight: '900' },
+  prToggleTitleActive: { color: '#FFFFFF' },
+  prToggleHint: { color: colors.textSecondary, fontSize: 11, lineHeight: 16 },
+  prToggleHintActive: { color: 'rgba(255,255,255,0.82)' },
+  videoActionRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+  videoActionButton: { flex: 1, minHeight: 40, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.xs, borderRadius: radius.pill, backgroundColor: colors.brandSoft },
+  videoActionText: { color: colors.brand, fontSize: 12, fontWeight: '900' },
+  videoPreviewButton: { minHeight: 40, justifyContent: 'center', borderRadius: radius.pill, paddingHorizontal: spacing.md, backgroundColor: colors.surfaceMuted },
+  videoPreviewText: { color: colors.text, fontSize: 12, fontWeight: '900' },
+  videoUrlInput: { minHeight: 44, borderRadius: radius.md, paddingHorizontal: spacing.sm, color: colors.text, backgroundColor: colors.surfaceMuted, fontSize: 12 },
+  setHelper: { color: colors.textMuted, fontSize: 11, lineHeight: 17 },
+  editCompletedHint: { borderRadius: radius.md, padding: spacing.xs, color: colors.brandDark, backgroundColor: colors.brandSoft, fontSize: 11, lineHeight: 17 },
+  itemInputRow: { flexDirection: 'row', gap: spacing.xs },
+  itemInput: { flex: 1, minHeight: 44, borderRadius: radius.md, paddingHorizontal: spacing.sm, color: colors.text, backgroundColor: colors.surfaceMuted, fontSize: 14 },
+  itemTextarea: { minHeight: 88, borderRadius: radius.md, padding: spacing.sm, color: colors.text, backgroundColor: colors.surfaceMuted, fontSize: 14, textAlignVertical: 'top' },
+  itemDoneButton: { minHeight: 48, alignItems: 'center', justifyContent: 'center', borderRadius: radius.lg, backgroundColor: colors.brand },
   addButton: { minHeight: 44, alignItems: 'center', justifyContent: 'center', borderRadius: radius.pill, borderWidth: 1, borderColor: colors.brand, backgroundColor: colors.surface },
   addButtonText: { color: colors.brand, fontWeight: '900' },
   deleteButton: { minHeight: 40, alignItems: 'center', justifyContent: 'center', borderRadius: radius.pill, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
@@ -490,6 +1096,19 @@ const styles = StyleSheet.create({
   finishButton: { minHeight: 56, alignItems: 'center', justifyContent: 'center', borderRadius: radius.pill, backgroundColor: colors.brand },
   finishDisabled: { opacity: 0.5 },
   finishButtonText: { color: '#FFFFFF', fontSize: 16, fontWeight: '900' },
+  feedbackSuccess: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.xs, borderRadius: radius.lg, backgroundColor: '#E9F8F3' },
+  feedbackSuccessText: { color: '#087A63', fontSize: 14, fontWeight: '900' },
+  feedbackLabel: { color: colors.text, fontSize: 14, fontWeight: '800' },
+  difficultyRow: { flexDirection: 'row', gap: spacing.xs },
+  difficultyChip: { flex: 1, minHeight: 44, alignItems: 'center', justifyContent: 'center', borderRadius: radius.lg, backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border },
+  difficultyChipActive: { backgroundColor: colors.brand, borderColor: colors.brand },
+  difficultyText: { color: colors.textSecondary, fontSize: 15, fontWeight: '900' },
+  difficultyTextActive: { color: '#FFFFFF' },
+  difficultyHint: { color: colors.brand, fontSize: 12, fontWeight: '800', textAlign: 'center' },
+  feedbackInput: { minHeight: 104, padding: spacing.sm, borderRadius: radius.lg, color: colors.text, backgroundColor: colors.surfaceMuted, fontSize: 14, lineHeight: 20, textAlignVertical: 'top' },
+  feedbackCount: { color: colors.textMuted, fontSize: 11, textAlign: 'right' },
+  feedbackButton: { minHeight: 48, alignItems: 'center', justifyContent: 'center', borderRadius: radius.lg, backgroundColor: colors.brand },
+  feedbackButtonText: { color: '#FFFFFF', fontSize: 14, fontWeight: '900' },
   shareButton: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.xs, borderRadius: radius.pill, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: colors.border },
   shareButtonText: { color: colors.brand, fontSize: 15, fontWeight: '900' },
   primaryButton: { minHeight: 48, alignItems: 'center', justifyContent: 'center', borderRadius: radius.pill, backgroundColor: colors.brand },
@@ -508,4 +1127,16 @@ const styles = StyleSheet.create({
   pickerRowMain: { flex: 1, gap: 4 },
   pickerName: { color: colors.text, fontSize: 16, fontWeight: '800' },
   pickerMeta: { color: colors.textSecondary, fontSize: 12 },
+  restBackdrop: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.md, backgroundColor: 'rgba(0,0,0,0.52)' },
+  restPanel: { width: '100%', maxWidth: 360, alignItems: 'center', gap: spacing.sm, padding: spacing.lg, borderRadius: radius.xl, backgroundColor: colors.surface },
+  restEmoji: { width: 56, height: 56, textAlign: 'center', textAlignVertical: 'center', borderRadius: radius.pill, color: colors.brand, backgroundColor: colors.brandSoft, fontSize: 24, fontWeight: '900', lineHeight: 56 },
+  restTime: { color: colors.text, fontSize: 52, fontWeight: '900', fontVariant: ['tabular-nums'] },
+  restLabel: { color: colors.textSecondary, fontSize: 14, fontWeight: '700' },
+  restActions: { flexDirection: 'row', gap: spacing.sm },
+  restAction: { minHeight: 40, justifyContent: 'center', paddingHorizontal: spacing.md, borderRadius: radius.lg, backgroundColor: colors.background, borderWidth: 1, borderColor: colors.border },
+  restActionText: { color: colors.text, fontSize: 13, fontWeight: '800' },
+  restPrimary: { width: '100%', minHeight: 48, alignItems: 'center', justifyContent: 'center', borderRadius: radius.lg, backgroundColor: colors.brand },
+  restPrimaryText: { color: '#FFFFFF', fontSize: 15, fontWeight: '900' },
+  restMinimize: { minHeight: 40, justifyContent: 'center', paddingHorizontal: spacing.md },
+  restMinimizeText: { color: colors.textSecondary, fontSize: 13, fontWeight: '700' },
 })

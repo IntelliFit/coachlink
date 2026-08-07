@@ -24,7 +24,14 @@ export function ToolboxScreen({ navigation }: Props) {
     <Page>
       <HeroPanel title="工具箱" subtitle="街健指数、功率分析和训练辅助工具。" icon="icon-toolbox" />
 
+      <SectionCard title="专项评估" description="快速评估当前阶段，并获得可执行的训练建议。">
+        <RowCard title="单手引体评估" subtitle="输入体重和负重引体 1RM，查看准备度与 8 周计划。" icon="icon-strength" onPress={() => rootNav?.navigate('OneArmPullUp')} />
+      </SectionCard>
+
       <ImageToolCard title="功率视频分析" subtitle="上传引体、双力臂、臂屈伸、俯卧撑或深蹲视频，估算功率与速度。" image={powerImage} onPress={() => rootNav?.navigate('PowerAnalysis')} />
+      <SectionCard title="视频创作" description="复用小程序同一套云端处理能力，任务退出页面后也可恢复。">
+        <RowCard title="手指光膜" subtitle="上传双手动作视频，生成随指尖变化的动态光膜并保存到相册。" icon="icon-video" onPress={() => rootNav?.navigate('MotionEffects')} />
+      </SectionCard>
       <ImageToolCard title="力量计算器" subtitle="可计算极限重量、做组重量和训练系数等。" image={calculatorImage} onPress={() => rootNav?.navigate('StreetliftingCalculator')} />
       <ImageToolCard title="单杠位置" subtitle="查找、分享单杠位置，支持上传图片。" image={locationsImage} onPress={() => rootNav?.navigate('StreetliftingLocations')} />
       <ImageToolCard title="社区数据" subtitle="查看与提交街健力量数据，支持认领。" image={dataImage} onPress={() => rootNav?.navigate('StreetliftingData')} />

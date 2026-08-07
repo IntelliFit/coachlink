@@ -20,7 +20,7 @@
       .step-indicator {
         font-size: 10px;
         font-weight: 700;
-        color: #F28631;
+        color: #cf6d4e;
         text-transform: uppercase;
         letter-spacing: 0.3em;
       }
@@ -40,7 +40,7 @@
 
       .progress-fill {
         height: 100%;
-        background: #F28631;
+        background: #cf6d4e;
         transition: width 0.3s ease;
       }
     }
@@ -103,7 +103,7 @@
           transition: all 0.3s;
 
           &.active {
-            border-color: #F28631;
+            border-color: #cf6d4e;
             background: rgba(242, 134, 49, 0.05);
             box-shadow: 0 0 0 4px rgba(242, 134, 49, 0.1);
           }
@@ -131,7 +131,7 @@
             width: 6px;
             height: 6px;
             border-radius: 50%;
-            background: #F28631;
+            background: #cf6d4e;
             animation: pulse 2s infinite;
           }
         }
@@ -260,7 +260,7 @@
       }
 
       &.primary {
-        background: #F28631;
+        background: #cf6d4e;
         color: #ffffff;
         box-shadow: 0 4px 12px rgba(242, 134, 49, 0.3);
       }

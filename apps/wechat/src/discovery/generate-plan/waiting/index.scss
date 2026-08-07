@@ -1,6 +1,6 @@
 .generate-plan-waiting-page {
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #cf6d4e 0%, #9e4932 100%);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -40,7 +40,7 @@
         }
 
         &.pending {
-          color: #1890ff;
+          color: #cf6d4e;
         }
       }
 
@@ -49,7 +49,7 @@
           width: 64rpx;
           height: 64rpx;
           border: 4rpx solid #f0f0f0;
-          border-top-color: #1890ff;
+          border-top-color: #cf6d4e;
           border-radius: 50%;
           animation: spin 1s linear infinite;
         }
@@ -85,7 +85,7 @@
 
         .progress-fill {
           height: 100%;
-          background: linear-gradient(90deg, #1890ff, #36cfc9);
+          background: linear-gradient(90deg, #cf6d4e, #36cfc9);
           border-radius: 8rpx;
           transition: width 0.3s ease;
         }
@@ -114,7 +114,7 @@
         }
 
         &.primary {
-          background: #1890ff;
+          background: #cf6d4e;
 
           Text {
             color: #fff;

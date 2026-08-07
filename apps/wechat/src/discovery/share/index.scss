@@ -1,6 +1,6 @@
 .share-page {
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #cf6d4e 0%, #9e4932 100%);
   padding: 48rpx 24rpx;
 
   .loading {
@@ -54,7 +54,7 @@
         .value {
           font-size: 80rpx;
           font-weight: 800;
-          color: #667eea;
+          color: #cf6d4e;
           margin-bottom: 8rpx;
           display: block;
         }
@@ -74,7 +74,7 @@
 
           &.highlight {
             .value {
-              color: #fa8c16;
+              color: #cf6d4e;
             }
           }
 
@@ -118,7 +118,7 @@
       Text {
         font-size: 32rpx;
         font-weight: 600;
-        color: #667eea;
+        color: #cf6d4e;
       }
 
       &.loading {

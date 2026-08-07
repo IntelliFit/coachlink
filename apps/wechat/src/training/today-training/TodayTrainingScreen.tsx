@@ -3,6 +3,8 @@ import { View, Text, Image, ScrollView, Textarea } from '@tarojs/components'
 import { StableInput as Input } from '@/components/StableInput'
 import Taro, { useDidShow, useShareAppMessage, useShareTimeline } from '@tarojs/taro'
 import BottomNav from '@/components/BottomNav'
+import { ScenarioNutIcon } from '@/components/ScenarioNutIcon'
+import { SCENARIO_QUICK_FIXES } from '@/constants/scenarioQuickFixes'
 import { authService } from '@/services/authService'
 import { trainingService, PlanInstance } from '@/services/trainingService'
 import { executionService } from '@/services/executionService'
@@ -85,6 +87,8 @@ const PREFERRED_COACH_SUB_STORAGE_KEY = 'today_training_preferred_coach_sub_id'
 /** 学员训练首页（主包 tab 页，与旧分包路径等价） */
 const TODAY_TRAINING_HOME_PATH = '/pages/index/index'
 const LEGACY_TODAY_TRAINING_PATH = '/training/today-training'
+/** 身体恢复能力暂时保留代码与详情页，但不在训练首页或工具箱展示入口。 */
+const SHOW_BODY_RECOVERY_ENTRY = false
 
 function isStudentTrainingHomeUrl(url: string) {
   const pathOnly = (url || '').split('?')[0]
@@ -759,9 +763,11 @@ function TodayTrainingScreen() {
 
       if (!subsResponse.success) {
         if (isAuthErrorMessage(subsResponse.message)) {
-          await authService.logout()
-          setIsGuestHome(true)
-          return
+          const currentSession = authService.getAuthSession({ normalize: true })
+          if (!currentSession.isAuthenticated) {
+            setIsGuestHome(true)
+            return
+          }
         }
 
         throw new Error(subsResponse.message || '订阅信息加载失败')
@@ -1499,7 +1505,10 @@ function TodayTrainingScreen() {
       <View className='dashboard-intro-left'>
         <View className='dashboard-greeting-row'>
           <Text className={`dashboard-greeting-icon iconfont ${greetingModel.iconClass}`} />
-          <Text className='dashboard-greeting'>{`${greetingModel.label}，${userDisplayName}`}</Text>
+          <View className='dashboard-greeting-copy'>
+            <Text className='dashboard-greeting'>{`${greetingModel.label}，${userDisplayName}`}</Text>
+            <Text className='dashboard-greeting-caption'>今天也一起完成一个小目标</Text>
+          </View>
         </View>
       </View>
       <View className='dashboard-more-hit' onClick={() => setMoreTrainingOpen(true)}>
@@ -1690,9 +1699,8 @@ function TodayTrainingScreen() {
       handleImpromptu()
     }
 
-    return (
-      <View className={`tt-daily-progress-card ${!hasPlanForCard ? 'tt-daily-progress-card--empty-state' : ''}`}>
-        <View className='tt-plan-identity'>
+    const renderPlanIdentity = () => (
+      <View className={`tt-plan-identity ${!hasPlanForCard ? 'tt-plan-identity--after-focus' : ''}`}>
           <View className='tt-plan-avatar'>
             {identityAvatarUrl ? (
               <Image className='tt-plan-avatar-image' src={identityAvatarUrl} mode='aspectFill' />
@@ -1734,7 +1742,12 @@ function TodayTrainingScreen() {
               </View>
             )}
           </View>
-        </View>
+      </View>
+    )
+
+    return (
+      <View className={`tt-daily-progress-card ${!hasPlanForCard ? 'tt-daily-progress-card--empty-state' : ''}`}>
+        {hasPlanForCard && renderPlanIdentity()}
         <View className='tt-focus-panel'>
           <View className='tt-focus-art'>
             <Checklist size={28} color='#CF6D4E' />
@@ -1778,18 +1791,19 @@ function TodayTrainingScreen() {
               <Text>查看计划库</Text>
             </View>
           )}
-          {!hasPlanForCard && (
-            <View className='tt-empty-state-hint'>
-              <Text>
-                {noPlanForCard
-                  ? '之后有教练计划时，这里会自动切换成今日训练。'
-                  : isExpiredGrace
-                    ? '原计划、日历和训练记录不会丢失，续费后继续。'
-                    : '教练发布计划后，日历和当天安排会出现在这里。'}
-              </Text>
-            </View>
-          )}
         </View>
+        {!hasPlanForCard && (
+          <View className='tt-empty-state-hint tt-empty-state-hint--below-focus'>
+            <Text>
+              {noPlanForCard
+                ? '之后有教练计划时，这里会自动切换成今日训练。'
+                : isExpiredGrace
+                  ? '原计划、日历和训练记录不会丢失，续费后继续。'
+                  : '教练发布计划后，日历和当天安排会出现在这里。'}
+            </Text>
+          </View>
+        )}
+        {!hasPlanForCard && renderPlanIdentity()}
         {hasPlanForCard && (
           <View className='tt-overall-progress'>
             <View className='tt-overall-progress-head'>
@@ -1817,6 +1831,61 @@ function TodayTrainingScreen() {
       ))}
     </View>
   )
+
+  const renderRecoveryWaterfall = () => {
+    const recoveryColumns = [
+      SCENARIO_QUICK_FIXES.filter((_, index) => index % 2 === 0),
+      SCENARIO_QUICK_FIXES.filter((_, index) => index % 2 === 1)
+    ]
+
+    return (
+      <View className='training-recovery-section'>
+        <View className='training-recovery-header'>
+          <View className='training-recovery-heading'>
+            <Text className='training-recovery-kicker'>身体恢复</Text>
+            <Text className='training-recovery-title'>练完，也要好好恢复</Text>
+            <Text className='training-recovery-subtitle'>按当下状态选一个，跟着步骤慢慢放松。</Text>
+          </View>
+          <View className='training-recovery-all' onClick={() => Taro.reLaunch({ url: '/toolbox/index' })}>
+            <Text>全部工具</Text>
+            <ArrowRight size={14} color='#81766D' />
+          </View>
+        </View>
+
+        <View className='training-recovery-waterfall'>
+          {recoveryColumns.map((column, columnIndex) => (
+            <View key={`recovery-column-${columnIndex}`} className='training-recovery-column'>
+              {column.map((scenario) => (
+                <View
+                  key={scenario.slug}
+                  className={`training-recovery-card training-recovery-card--${scenario.slug}`}
+                  onClick={() => Taro.navigateTo({ url: `/toolbox/scenario/index?slug=${scenario.slug}` })}
+                  hoverClass='training-recovery-card--pressed'
+                  hoverStayTime={70}
+                >
+                  <View className='training-recovery-cover-wrap'>
+                    <Image className='training-recovery-cover' src={scenario.coverImageUrl} mode='aspectFill' />
+                    <View className='training-recovery-icon'>
+                      <ScenarioNutIcon name={scenario.icon} size={18} />
+                    </View>
+                    <Text className='training-recovery-duration'>{scenario.durationMinutes} 分钟</Text>
+                  </View>
+                  <View className='training-recovery-body'>
+                    <Text className='training-recovery-name'>{scenario.title}</Text>
+                    <Text className='training-recovery-desc'>{scenario.description}</Text>
+                    <View className='training-recovery-meta'>
+                      <Text>{scenario.steps.length} 个步骤</Text>
+                      <ArrowRight size={14} color='#CF6D4E' />
+                    </View>
+                  </View>
+                </View>
+              ))}
+            </View>
+          ))}
+        </View>
+      </View>
+    )
+  }
 
   const renderMoreTrainingPopup = () => (
     <Popup visible={moreTrainingOpen} position='bottom' round onClose={() => setMoreTrainingOpen(false)}>
@@ -1855,7 +1924,7 @@ function TodayTrainingScreen() {
           hoverStayTime={70}
         >
           <View className='more-training-item-icon more-training-item-icon--plan'>
-            <Calendar size={22} color='#3B82F6' />
+            <Calendar size={22} color='#CF6D4E' />
           </View>
           <View className='more-training-item-copy'>
             <Text className='more-training-item-title'>AI 长期计划</Text>
@@ -1915,7 +1984,7 @@ function TodayTrainingScreen() {
               </View>
               <View className='guest-entry-card' onClick={handleGuestKnowledge}>
                 <View className='guest-entry-icon-wrap guest-entry-icon-wrap--muted'>
-                  <Notice size={22} color='#3B82F6' />
+                  <Notice size={22} color='#CF6D4E' />
                 </View>
                 <View className='guest-entry-copy'>
                   <Text className='guest-entry-title'>知识库</Text>
@@ -1935,7 +2004,7 @@ function TodayTrainingScreen() {
               </View>
               <View className='guest-entry-card' onClick={handleGuestPowerAnalysis}>
                 <View className='guest-entry-icon-wrap guest-entry-icon-wrap--muted'>
-                  <Power size={22} color='#3B82F6' />
+                  <Power size={22} color='#CF6D4E' />
                 </View>
                 <View className='guest-entry-copy'>
                   <Text className='guest-entry-title'>功率视频分析</Text>
@@ -1973,7 +2042,7 @@ function TodayTrainingScreen() {
   if (!hasAnyPlan) {
     return (
       <PageThemeRoot>
-        <View className={`today-training-page theme-${effectiveTheme}`}>
+        <View className={`today-training-page main-home-page theme-${effectiveTheme}`}>
           <ScrollView
             className='page-scroll'
             scrollY
@@ -1994,6 +2063,7 @@ function TodayTrainingScreen() {
                   </Text>
                 </View>
               )}
+              {SHOW_BODY_RECOVERY_ENTRY && renderRecoveryWaterfall()}
             </View>
           </ScrollView>
           {renderMoreTrainingPopup()}
@@ -2063,7 +2133,7 @@ function TodayTrainingScreen() {
 
   return (
     <PageThemeRoot>
-    <View className={`today-training-page theme-${effectiveTheme}`}>
+    <View className={`today-training-page main-home-page theme-${effectiveTheme}`}>
       <ScrollView
         className='page-scroll'
         scrollY
@@ -2073,6 +2143,7 @@ function TodayTrainingScreen() {
       >
         <View className='page-content'>
           {renderDashboardIntro()}
+          {renderScheduleCalendarCombined()}
           {hasBothPlans && (
             <View className='plan-switcher'>
               <View className={`switcher-btn ${planMode === 'coach' ? 'active' : ''}`} onClick={() => updatePlanMode('coach')}>
@@ -2086,7 +2157,6 @@ function TodayTrainingScreen() {
             </View>
           )}
           {renderDailyProgressCard()}
-          {renderScheduleCalendarCombined()}
 
           {waitingCoachPage ? (
             <>
@@ -2272,6 +2342,7 @@ function TodayTrainingScreen() {
               </View>
             </>
           )}
+          {SHOW_BODY_RECOVERY_ENTRY && renderRecoveryWaterfall()}
         </View>
       </ScrollView>
 

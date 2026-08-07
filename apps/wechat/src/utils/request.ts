@@ -35,6 +35,10 @@ function showErrorToast(message: string, showErrorToastOpt = true) {
 }
 
 let lastAuthInvalidToastAt = 0
+type AuthTokenStatus = 'valid' | 'invalid' | 'unknown'
+
+let authTokenValidationPromise: Promise<AuthTokenStatus> | null = null
+let wechatSessionRecoveryPromise: Promise<string | null> | null = null
 
 function clearInvalidAuthSession(message: string) {
   try {
@@ -51,6 +55,104 @@ function isAuthInvalidMessage(message?: string) {
     message.includes('\u7528\u6237\u672a\u767b\u5f55') ||
     message.toLowerCase().includes('unauthorized')
   ))
+}
+
+async function validateAuthToken(token: string): Promise<AuthTokenStatus> {
+  if (authTokenValidationPromise) return authTokenValidationPromise
+
+  authTokenValidationPromise = (async () => {
+    try {
+      const response = await Taro.request({
+        url: `${API_BASE_URL}/api/miniapp/session`,
+        method: 'GET',
+        header: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        timeout: 10000
+      })
+
+      if (response.statusCode === 200 && response.data?.success === true) return 'valid'
+      if (response.statusCode === 401) return 'invalid'
+      return 'unknown'
+    } catch (error) {
+      console.warn('[auth-session] token validation unavailable:', error)
+      return 'unknown'
+    }
+  })()
+
+  try {
+    return await authTokenValidationPromise
+  } finally {
+    authTokenValidationPromise = null
+  }
+}
+
+async function recoverWechatSession(rejectedToken: string): Promise<string | null> {
+  if (wechatSessionRecoveryPromise) return wechatSessionRecoveryPromise
+
+  wechatSessionRecoveryPromise = (async () => {
+    try {
+      const storedUser = Taro.getStorageSync('user')
+      const storedToken = String(Taro.getStorageSync('token') || '').trim()
+      const storedUserId = storedUser?.id ? String(storedUser.id) : ''
+
+      // Another concurrent request may already have refreshed this session.
+      if (storedToken && storedToken !== rejectedToken) return storedToken
+
+      // Password-only accounts cannot be silently mapped to a WeChat identity.
+      if (!storedUserId || !storedUser?.wechat_openid) return null
+
+      const loginResult = await Taro.login()
+      if (!loginResult.code) return null
+
+      const response = await Taro.request({
+        url: `${API_BASE_URL}/api/miniapp/wechat-login`,
+        method: 'POST',
+        data: { code: loginResult.code, phoneCode: null },
+        header: { 'Content-Type': 'application/json' },
+        timeout: 15000
+      })
+      const nextToken = String(response.data?.data?.token || '').trim()
+      const nextUser = response.data?.data?.user
+      const nextUserId = nextUser?.id ? String(nextUser.id) : ''
+
+      if (response.statusCode !== 200 || response.data?.success !== true || !nextToken || nextUserId !== storedUserId) {
+        console.warn('[auth-session] silent WeChat recovery rejected', {
+          statusCode: response.statusCode,
+          sameUser: !!nextUserId && nextUserId === storedUserId
+        })
+        return null
+      }
+
+      Taro.setStorageSync('token', nextToken)
+      Taro.setStorageSync('user', nextUser)
+      console.info('[auth-session] WeChat session silently recovered')
+      return nextToken
+    } catch (error) {
+      console.warn('[auth-session] silent WeChat recovery unavailable:', error)
+      return null
+    }
+  })()
+
+  try {
+    return await wechatSessionRecoveryPromise
+  } finally {
+    wechatSessionRecoveryPromise = null
+  }
+}
+
+function responseIndicatesInvalidAuth(response: any, hasToken: boolean) {
+  if (!hasToken) return false
+  if (response?.statusCode === 401) return true
+  const result = response?.data
+  return Boolean(
+    response?.statusCode === 200 &&
+    result &&
+    typeof result === 'object' &&
+    result.success === false &&
+    isAuthInvalidMessage(result.message)
+  )
 }
 
 /**
@@ -126,13 +228,33 @@ export async function request<T = any>(options: RequestOptions): Promise<ApiResp
   }
 
   try {
-    const response = await Taro.request({
+    const executeRequest = (authToken: string | null) => Taro.request({
       url: fullUrl,
       method,
       data,
-      header: requestHeaders,
+      header: {
+        ...requestHeaders,
+        ...(authToken ? { Authorization: `Bearer ${authToken}` } : {})
+      },
       timeout: 30000
     })
+
+    let activeToken = token
+    let authTokenStatus: AuthTokenStatus | null = null
+    let response = await executeRequest(activeToken)
+
+    if (activeToken && responseIndicatesInvalidAuth(response, true)) {
+      authTokenStatus = await validateAuthToken(activeToken)
+
+      if (authTokenStatus === 'invalid') {
+        const recoveredToken = await recoverWechatSession(activeToken)
+        if (recoveredToken) {
+          activeToken = recoveredToken
+          authTokenStatus = 'valid'
+          response = await executeRequest(activeToken)
+        }
+      }
+    }
 
     // 检查HTTP状态码
     if (response.statusCode !== 200) {
@@ -141,11 +263,13 @@ export async function request<T = any>(options: RequestOptions): Promise<ApiResp
         ? body.message
         : ''
       const isUnauthorized = response.statusCode === 401
-      const message = isUnauthorized && token
+      const message = isUnauthorized && activeToken && authTokenStatus === 'invalid'
         ? '\u767b\u5f55\u72b6\u6001\u5df2\u8fc7\u671f\uff0c\u8bf7\u91cd\u65b0\u767b\u5f55'
-        : (bodyMessage || `Request failed: ${response.statusCode}`)
+        : isUnauthorized && activeToken && authTokenStatus === 'unknown'
+          ? '\u767b\u5f55\u72b6\u6001\u6821\u9a8c\u5931\u8d25\uff0c\u8bf7\u7a0d\u540e\u91cd\u8bd5'
+          : (bodyMessage || `Request failed: ${response.statusCode}`)
       const errResult = { success: false, message }
-      if (isUnauthorized && token) {
+      if (isUnauthorized && activeToken && authTokenStatus === 'invalid') {
         clearInvalidAuthSession(message)
         const now = Date.now()
         if (now - lastAuthInvalidToastAt > 3000) {
@@ -162,7 +286,7 @@ export async function request<T = any>(options: RequestOptions): Promise<ApiResp
     // 当 API 返回 success:false 时自动显示错误提示
     if (result && typeof result === 'object' && 'success' in result && !result.success) {
       const resultMessage = result.message || '????'
-      if (token && isAuthInvalidMessage(resultMessage)) {
+      if (activeToken && isAuthInvalidMessage(resultMessage) && authTokenStatus === 'invalid') {
         clearInvalidAuthSession('\u767b\u5f55\u72b6\u6001\u5df2\u8fc7\u671f\uff0c\u8bf7\u91cd\u65b0\u767b\u5f55')
       }
       showErrorToast(resultMessage, showErrorToastOpt)

@@ -1,4 +1,5 @@
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native'
+import { resolveCoachLinkAppRole } from '@coachlink/core'
 import { NavigationContainer, DefaultTheme } from '@react-navigation/native'
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs'
 import { createNativeStackNavigator } from '@react-navigation/native-stack'
@@ -59,6 +60,7 @@ import { CoachProfileScreen } from '../screens/coach/CoachProfileScreen'
 import { CoachContentDetailScreen } from '../screens/coach/CoachContentDetailScreen'
 import { CoachActionEditScreen, CoachActionsScreen } from '../screens/coach/CoachActionsScreen'
 import { CoachAutomationScreen } from '../screens/coach/CoachAutomationScreen'
+import { CoachAccountScreen } from '../screens/coach/CoachAccountScreen'
 import { CoachContentEditScreen, CoachContentsScreen } from '../screens/coach/CoachContentsScreen'
 import { CoachDashboardScreen } from '../screens/coach/CoachDashboardScreen'
 import { CoachPlanTemplateEditScreen, CoachPlanTemplatesScreen } from '../screens/coach/CoachPlanTemplatesScreen'
@@ -66,7 +68,9 @@ import { CoachPricingEditScreen, CoachPricingScreen } from '../screens/coach/Coa
 import { CoachQuestionnaireEditScreen, CoachQuestionnairesScreen } from '../screens/coach/CoachQuestionnairesManageScreen'
 import { CoachRevenueScreen } from '../screens/coach/CoachRevenueScreen'
 import { CoachStudentDetailScreen, CoachStudentsScreen } from '../screens/coach/CoachStudentsScreen'
+import { CoachAssignPlanScreen } from '../screens/coach/CoachAssignPlanScreen'
 import { CoachWalletMerchantScreen } from '../screens/coach/CoachWalletMerchantScreen'
+import { CoachInvitationScreen } from '../screens/coach/CoachInvitationScreen'
 import { CoachWalletScreen } from '../screens/coach/CoachWalletScreen'
 import { CoachQuestionnaireScreen } from '../screens/coach/CoachQuestionnaireScreen'
 import { CoachMarketScreen } from '../screens/coach/CoachMarketScreen'
@@ -92,6 +96,8 @@ import { KnowledgeBookDetailScreen } from '../screens/knowledge/KnowledgeBookDet
 import { KnowledgePlanDetailScreen } from '../screens/knowledge/KnowledgePlanDetailScreen'
 import { KnowledgeSearchScreen } from '../screens/knowledge/KnowledgeSearchScreen'
 import { PowerAnalysisScreen } from '../screens/toolbox/PowerAnalysisScreen'
+import { MotionEffectsScreen } from '../screens/toolbox/MotionEffectsScreen'
+import { OneArmPullUpScreen } from '../screens/toolbox/OneArmPullUpScreen'
 import { ToolboxScenarioScreen } from '../screens/toolbox/ToolboxScenarioScreen'
 import type { MainTabParamList, RootStackParamList } from './types'
 
@@ -154,7 +160,7 @@ function MainTabs({ isCoachMode }: { isCoachMode: boolean }) {
           />
           <Tab.Screen
             name="CoachProfileTab"
-            component={CoachProfileScreen}
+            component={CoachAccountScreen}
             options={{
               title: '我的',
               tabBarIcon: ({ color, size }) => <IconFont name="icon-account-settings-variant" color={color} size={size} />,
@@ -211,7 +217,7 @@ function MainTabs({ isCoachMode }: { isCoachMode: boolean }) {
 
 export function RootNavigator() {
   const { isBootstrapping, isAuthenticated, isGuest, user } = useAuth()
-  const isCoachMode = isAuthenticated && (user?.is_coach === true || user?.primary_role === 'coach')
+  const isCoachMode = isAuthenticated && resolveCoachLinkAppRole(user) === 'coach'
 
   if (isBootstrapping) {
     return (
@@ -260,6 +266,7 @@ export function RootNavigator() {
             <Stack.Screen name="CoachDashboard" component={CoachDashboardScreen} />
             <Stack.Screen name="CoachStudents" component={CoachStudentsScreen} />
             <Stack.Screen name="CoachStudentDetail" component={CoachStudentDetailScreen} />
+            <Stack.Screen name="CoachAssignPlan" component={CoachAssignPlanScreen} />
             <Stack.Screen name="CoachActions" component={CoachActionsScreen} />
             <Stack.Screen name="CoachActionEdit" component={CoachActionEditScreen} />
             <Stack.Screen name="CoachPlanTemplates" component={CoachPlanTemplatesScreen} />
@@ -276,6 +283,7 @@ export function RootNavigator() {
             <Stack.Screen name="CoachRevenue" component={CoachRevenueScreen} />
             <Stack.Screen name="CoachWallet" component={CoachWalletScreen} />
             <Stack.Screen name="CoachWalletMerchant" component={CoachWalletMerchantScreen} />
+            <Stack.Screen name="CoachInvitation" component={CoachInvitationScreen} />
             <Stack.Screen name="CoachMarket" component={CoachMarketScreen} />
             <Stack.Screen name="GeneratePlan" component={GeneratePlanScreen} />
             <Stack.Screen name="GeneratePlanWaiting" component={GeneratePlanWaitingScreen} />
@@ -305,6 +313,8 @@ export function RootNavigator() {
             <Stack.Screen name="KnowledgePlanDetail" component={KnowledgePlanDetailScreen} />
             <Stack.Screen name="KnowledgeBookDetail" component={KnowledgeBookDetailScreen} />
             <Stack.Screen name="PowerAnalysis" component={PowerAnalysisScreen} />
+            <Stack.Screen name="MotionEffects" component={MotionEffectsScreen} />
+            <Stack.Screen name="OneArmPullUp" component={OneArmPullUpScreen} />
             <Stack.Screen name="StreetliftingCalculator" component={StreetliftingCalculatorScreen} />
             <Stack.Screen name="StreetliftingData" component={StreetliftingDataScreen} />
             <Stack.Screen name="StreetliftingLocations" component={StreetliftingLocationsScreen} />

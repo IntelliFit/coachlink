@@ -88,8 +88,8 @@ export default function SharePage() {
         
         // 绘制背景
         const gradient = ctx.createLinearGradient(0, 0, 750, 1000)
-        gradient.addColorStop(0, '#667eea')
-        gradient.addColorStop(1, '#764ba2')
+        gradient.addColorStop(0, '#cf6d4e')
+        gradient.addColorStop(1, '#9e4932')
         ctx.fillStyle = gradient
         ctx.fillRect(0, 0, 750, 1000)
         
