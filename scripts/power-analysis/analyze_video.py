@@ -873,6 +873,7 @@ def finalize_output_video(input_path: str, rendered_path: str, output_path: str,
         "audioPreserved": input_has_audio == output_has_audio,
         "codec": "h264",
         "crf": crf,
+        "quality": quality,
     }
 
 
@@ -884,7 +885,6 @@ def run(args: argparse.Namespace) -> Dict[str, Any]:
     preset = get_mode_preset(args.mode)
     effective_mass_kg = float(
         build_mass_metrics(args.weight_kg, external_load_kg, float(preset["bodyMassFactor"]))["effectiveMassKg"]
-        "quality": quality,
     )
     reps = detect_reps(y_track, fps, scale, effective_mass_kg, args.mode)
     metrics = build_metrics(args.mode, reps, args.weight_kg, external_load_kg)
