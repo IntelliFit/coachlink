@@ -19,6 +19,8 @@ interface ApiResponse<T = any> {
   success: boolean
   data?: T
   message?: string
+  code?: string
+  errorCode?: string | number
 }
 
 /**
@@ -144,7 +146,9 @@ export async function request<T = any>(options: RequestOptions): Promise<ApiResp
       const message = isUnauthorized && token
         ? '\u767b\u5f55\u72b6\u6001\u5df2\u8fc7\u671f\uff0c\u8bf7\u91cd\u65b0\u767b\u5f55'
         : (bodyMessage || `Request failed: ${response.statusCode}`)
-      const errResult = { success: false, message }
+      const errResult: ApiResponse<T> = body && typeof body === 'object'
+        ? { ...body, success: false, message }
+        : { success: false, message }
       if (isUnauthorized && token) {
         clearInvalidAuthSession(message)
         const now = Date.now()

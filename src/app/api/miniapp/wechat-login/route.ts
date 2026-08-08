@@ -205,9 +205,10 @@ export async function POST(req: NextRequest) {
             }, { status: 400 });
         }
 
-        const { openid, session_key, unionid } = result;
+        const { openid, unionid } = result;
 
-        // 获取手机号（如果提供了 phoneCode）。微信登录本身以 openid 为主，手机号只是可选绑定信息。
+        // 获取手机号（如果提供了 phoneCode）。带 phoneCode 的入口代表用户明确选择了跨端同步，
+        // 不能在手机号获取失败时静默降级成独立微信账号。
         let phoneNumber: string | null = null;
         if (phoneCode) {
             try {
@@ -225,7 +226,11 @@ export async function POST(req: NextRequest) {
                 }
             } catch (error: any) {
                 console.error('❌ 获取手机号失败:', error);
-                phoneNumber = null;
+                return NextResponse.json({
+                    success: false,
+                    code: 'PHONE_AUTHORIZATION_FAILED',
+                    message: '手机号授权失败，请重新授权或选择“仅微信登录”'
+                }, { status: 400 });
             }
         } else {
             console.log('ℹ️ 未提供 phoneCode，将继续使用 openid 登录');
@@ -257,9 +262,44 @@ export async function POST(req: NextRequest) {
         }
 
         let user;
+        let accountSyncStatus: 'synced' | 'wechat_only' = 'wechat_only';
         if (existingUser) {
-            // 用户已存在（通过 openid 匹配），仅在本次确实拿到手机号时补绑定手机号。
+            // 用户已存在（通过 openid 匹配）。带手机号时先检查该手机号是否属于另一个账号，
+            // 冲突时必须让用户明确选择，禁止吞掉唯一约束错误后继续假装同步成功。
+            if (phoneNumber && existingUser.phone && existingUser.phone !== 'null' && existingUser.phone !== phoneNumber) {
+                return NextResponse.json({
+                    success: false,
+                    code: 'ACCOUNT_LINK_REQUIRED',
+                    message: '当前微信已绑定其他手机号。为保护两边记录，系统不会自动覆盖账号。',
+                    data: { canContinueSeparately: true }
+                }, { status: 409 });
+            }
+
             if (phoneNumber && (!existingUser.phone || existingUser.phone === 'null')) {
+                const { data: phoneOwner, error: phoneOwnerError } = await serviceRoleSupabase
+                    .from('users')
+                    .select('id')
+                    .eq('phone', phoneNumber)
+                    .neq('id', existingUser.id)
+                    .maybeSingle();
+
+                if (phoneOwnerError) {
+                    console.error('❌ 检查手机号归属失败:', phoneOwnerError);
+                    return NextResponse.json({
+                        success: false,
+                        message: '检查账号同步状态失败，请稍后重试'
+                    }, { status: 500 });
+                }
+
+                if (phoneOwner?.id) {
+                    return NextResponse.json({
+                        success: false,
+                        code: 'ACCOUNT_LINK_REQUIRED',
+                        message: '该手机号已经属于另一个账号。为保护会员和训练记录，系统不会自动覆盖任一账号。',
+                        data: { canContinueSeparately: true }
+                    }, { status: 409 });
+                }
+
                 const { data: updatedUser, error: updateError } = await serviceRoleSupabase
                     .from('users')
                     .update({ phone: phoneNumber })
@@ -268,14 +308,21 @@ export async function POST(req: NextRequest) {
                     .single();
 
                 if (updateError) {
-                    console.error('⚠️ 更新手机号失败:', updateError);
-                    user = existingUser; // 更新失败，使用原用户信息
+                    console.error('❌ 更新手机号失败:', updateError);
+                    return NextResponse.json({
+                        success: false,
+                        message: '手机号绑定失败，请稍后重试'
+                    }, { status: 500 });
                 } else {
                     user = updatedUser;
+                    accountSyncStatus = 'synced';
                     console.log('✅ 已更新用户手机号');
                 }
             } else {
                 user = existingUser;
+                accountSyncStatus = existingUser.phone && existingUser.phone !== 'null'
+                    ? 'synced'
+                    : 'wechat_only';
             }
             console.log('✅ 用户已存在（通过 openid 匹配）');
         } else {
@@ -298,7 +345,16 @@ export async function POST(req: NextRequest) {
             }
 
             if (userByPhone) {
-                // 用户已存在（通过手机号匹配），绑定小程序 openid
+                if (userByPhone.wechat_openid && userByPhone.wechat_openid !== openid) {
+                    return NextResponse.json({
+                        success: false,
+                        code: 'ACCOUNT_LINK_REQUIRED',
+                        message: '该手机号账号已经绑定其他微信。为保护两边记录，系统不会自动替换。',
+                        data: { canContinueSeparately: false }
+                    }, { status: 409 });
+                }
+
+                // 用户已存在（通过手机号匹配），绑定小程序 openid。
                 const { data: updatedUser, error: updateError } = await serviceRoleSupabase
                     .from('users')
                     .update({ wechat_openid: openid })
@@ -307,10 +363,14 @@ export async function POST(req: NextRequest) {
                     .single();
 
                 if (updateError) {
-                    console.error('⚠️ 绑定 openid 失败:', updateError);
-                    user = userByPhone; // 更新失败，使用原用户信息
+                    console.error('❌ 绑定 openid 失败:', updateError);
+                    return NextResponse.json({
+                        success: false,
+                        message: '微信绑定失败，请稍后重试'
+                    }, { status: 500 });
                 } else {
                     user = updatedUser;
+                    accountSyncStatus = 'synced';
                     console.log('✅ 已为现有用户绑定小程序 openid');
                 }
             } else {
@@ -349,6 +409,7 @@ export async function POST(req: NextRequest) {
                 }
 
                 user = newUser;
+                accountSyncStatus = phoneNumber ? 'synced' : 'wechat_only';
                 console.log('✅ 已创建新用户');
             }
         }
@@ -371,6 +432,7 @@ export async function POST(req: NextRequest) {
             is_coach: isCoach,
             primary_role: user.primary_role ?? (isCoach ? "coach" : "student"),
             is_admin: user.is_admin ?? false,
+            account_sync_status: accountSyncStatus,
         };
 
         // 生成 JWT token 用于小程序鉴权
@@ -388,11 +450,12 @@ export async function POST(req: NextRequest) {
             data: {
                 token: token, // JWT token，用于后续API请求鉴权
                 openid: openid,
-                session_key: session_key,
                 unionid: unionid || null,
                 user: payload,
-                // 注意：session_key 是敏感信息，生产环境应该只在服务端使用
-                // 这里为了测试先返回，后续应该移除
+                accountSync: {
+                    status: accountSyncStatus,
+                    phone: user.phone || null,
+                },
             }
         });
 

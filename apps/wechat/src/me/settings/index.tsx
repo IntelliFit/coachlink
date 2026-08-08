@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { View, Text, ScrollView } from '@tarojs/components'
+import { View, Text, ScrollView, Button as TaroButton } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import BottomNav from '@/components/BottomNav'
 import { authService } from '@/services/authService'
@@ -10,6 +10,10 @@ import { useTheme } from '@/hooks/useTheme'
 
 const DELETE_ACCOUNT_CONFIRMATION_TEXT = '注销账号'
 
+function maskPhone(phone: string) {
+  return phone.replace(/^(\d{3})\d{4}(\d{4})$/, '$1****$2')
+}
+
 function SettingsPage() {
   const { effectiveTheme } = useTheme()
   const [passwordVisible, setPasswordVisible] = useState(false)
@@ -19,6 +23,55 @@ function SettingsPage() {
   const [oldPassword, setOldPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
+  const [accountUser, setAccountUser] = useState<any>(() => authService.getCurrentUser() || {})
+
+  const boundPhone = typeof accountUser?.phone === 'string' && accountUser.phone !== 'null'
+    ? accountUser.phone
+    : ''
+  const hasWechat = Boolean(accountUser?.wechat_openid)
+  const isCrossPlatformSynced = Boolean(boundPhone && hasWechat)
+
+  const handleAccountLinkRequired = () => {
+    Taro.showModal({
+      title: '发现两个已有账号',
+      content: '这个手机号和当前微信分别已有账号。为保护会员、训练计划和记录，系统不会自动覆盖。请先使用手机号登录原账号；后续合并需要再次验证两边身份。',
+      showCancel: false,
+      confirmText: '我知道了'
+    })
+  }
+
+  const handleSyncPhone = async (event: any) => {
+    const phoneCode = event?.detail?.code
+    if (!phoneCode) {
+      Taro.showToast({ title: '未授权手机号，账号仍保持独立', icon: 'none' })
+      return
+    }
+
+    try {
+      Taro.showLoading({ title: '同步中...' })
+      const result = await authService.loginWithWechat(phoneCode)
+      setAccountUser(result.user)
+      Taro.hideLoading()
+      Taro.showToast({ title: '跨端账号已同步', icon: 'success' })
+    } catch (error: any) {
+      Taro.hideLoading()
+      if (error?.code === 'ACCOUNT_LINK_REQUIRED') {
+        handleAccountLinkRequired()
+        return
+      }
+      Taro.showToast({ title: error?.message || '同步失败', icon: 'none' })
+    }
+  }
+
+  const handleSyncWechat = async () => {
+    const result = await authService.bindWechatOpenid()
+    if (!result.success) {
+      Taro.showToast({ title: result.message || '微信绑定失败', icon: 'none' })
+      return
+    }
+    setAccountUser(authService.getCurrentUser() || {})
+    Taro.showToast({ title: '跨端账号已同步', icon: 'success' })
+  }
 
   const handleChangePassword = async () => {
     if (!newPassword || !confirmPassword) {
@@ -116,11 +169,35 @@ function SettingsPage() {
                 <View className='item-left'>
                   <View className='item-icon'><Phone /></View>
                   <View>
-                    <Text className='item-title'>微信绑定</Text>
-                    <Text className='item-desc'>已绑定微信账号</Text>
+                    <Text className='item-title'>跨端账号同步</Text>
+                    <Text className='item-desc'>
+                      {isCrossPlatformSynced
+                        ? `已同步至 ${maskPhone(boundPhone)}，网页与小程序共用数据`
+                        : hasWechat
+                          ? '当前仅微信账号；网页手机号登录会是独立账号'
+                          : boundPhone
+                            ? '当前手机号账号尚未绑定微信'
+                            : '当前账号缺少手机号和微信绑定'}
+                    </Text>
                   </View>
                 </View>
-                <Text className='item-status'>已绑定</Text>
+                {isCrossPlatformSynced ? (
+                  <Text className='item-status'>已同步</Text>
+                ) : hasWechat ? (
+                  <TaroButton
+                    className='account-sync-action'
+                    openType='getPhoneNumber'
+                    onGetPhoneNumber={handleSyncPhone}
+                  >
+                    绑定手机号
+                  </TaroButton>
+                ) : boundPhone ? (
+                  <TaroButton className='account-sync-action' onClick={handleSyncWechat}>
+                    绑定微信
+                  </TaroButton>
+                ) : (
+                  <Text className='item-status item-status--pending'>未同步</Text>
+                )}
               </View>
             </View>
           </View>

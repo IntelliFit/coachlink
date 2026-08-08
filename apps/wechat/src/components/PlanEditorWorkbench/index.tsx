@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { View, Text, ScrollView, Textarea, Picker } from '@tarojs/components'
-import { StableInput as Input } from '@/components/StableInput'
+import { View, Text, ScrollView, Input, Textarea, Picker } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import BottomNav from '@/components/BottomNav'
 import PlanCompactWeekCalendar from '@/components/PlanCompactWeekCalendar'
@@ -394,10 +393,13 @@ export default function PlanEditorWorkbench({
     }))
   }
 
-  const updateDays = (updater: (days: PlanTrainingDay[]) => PlanTrainingDay[]) => {
+  const updateDays = (
+    updater: (days: PlanTrainingDay[]) => PlanTrainingDay[],
+    normalize = true
+  ) => {
     updateEditor((current) => ({
       ...current,
-      days: normalizePlanDays(updater(current.days))
+      days: normalize ? normalizePlanDays(updater(current.days)) : updater(current.days)
     }))
   }
 
@@ -410,7 +412,8 @@ export default function PlanEditorWorkbench({
           ...nextDay,
           actionSetsCount: Array.isArray(nextDay.actionSets) ? nextDay.actionSets.length : 0
         }
-      })
+      }),
+      false
     )
   }
 
@@ -836,7 +839,7 @@ export default function PlanEditorWorkbench({
               <View className='plan-editor__field'>
                 <Text className='plan-editor__label'>组数</Text>
                 <Input
-                  className='plan-editor__input'
+                  className='plan-editor__input plan-editor__input--sets'
                   type='number'
                   value={strengthSetsValue === null ? '' : String(strengthSetsValue)}
                   onInput={(event) => {
@@ -854,7 +857,7 @@ export default function PlanEditorWorkbench({
               <View className='plan-editor__field'>
                 <Text className='plan-editor__label'>次数</Text>
                 <Input
-                  className='plan-editor__input'
+                  className='plan-editor__input plan-editor__input--reps'
                   type='number'
                   value={strengthRepsValue === null ? '' : String(strengthRepsValue)}
                   onInput={(event) => {
@@ -872,7 +875,7 @@ export default function PlanEditorWorkbench({
               <View className='plan-editor__field'>
                 <Text className='plan-editor__label'>休息(min)</Text>
                 <Input
-                  className='plan-editor__input'
+                  className='plan-editor__input plan-editor__input--rest'
                   type='digit'
                   value={strengthRestMinutesValue === null ? '' : String(strengthRestMinutesValue)}
                   onInput={(event) => {
@@ -1252,7 +1255,7 @@ export default function PlanEditorWorkbench({
 
   return (
     <View className={`plan-editor page-with-nav ${withBottomNav ? 'with-nav' : ''}`}>
-      <ScrollView className='plan-editor__scroll' scrollY>
+      <View className='plan-editor__scroll'>
         <View className='plan-editor__content'>
           <View className='plan-editor__hero'>
             <Text className='plan-editor__title'>{title}</Text>
@@ -1564,7 +1567,7 @@ export default function PlanEditorWorkbench({
 
           <View className='plan-editor__spacer' />
         </View>
-      </ScrollView>
+      </View>
 
       <View className={`plan-editor__bottom-bar ${withBottomNav ? 'with-nav' : ''}`}>
         {onCancel ? (

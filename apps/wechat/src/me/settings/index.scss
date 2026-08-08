@@ -79,6 +79,35 @@
           color: #10b981;
           font-weight: 600;
         }
+
+        .item-status--pending {
+          color: #c2410c;
+        }
+
+        .account-sync-action {
+          min-width: 144rpx;
+          height: 64rpx;
+          margin: 0;
+          padding: 0 24rpx;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          line-height: 64rpx;
+          border: 2rpx solid #CF6D4E;
+          border-radius: 32rpx;
+          background: #FFFFFF;
+          color: #CF6D4E;
+          font-size: 24rpx;
+          font-weight: 600;
+
+          &:active {
+            opacity: 0.8;
+          }
+
+          &::after {
+            border: none;
+          }
+        }
       }
     }
   }

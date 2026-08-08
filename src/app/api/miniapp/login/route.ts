@@ -4,6 +4,7 @@ import { verifyPassword } from "../../auth/[...nextauth]/verify";
 import { signToken } from "@/lib/jwt";
 import redis from "@/lib/redisClient";
 import { toPublicApiMessage } from "@/lib/publicApiError";
+import { claimLegacyUserByVerifiedPhone } from "@/lib/legacyAccountIdentity";
 
 function isGeneratedNickname(value: any) {
     const nickname = String(value || "").trim();
@@ -222,6 +223,9 @@ export async function POST(req: NextRequest) {
             }
 
             let resolvedUser = existingUser;
+            if (!resolvedUser && isPhone) {
+                resolvedUser = await claimLegacyUserByVerifiedPhone(phoneOrEmail);
+            }
             if (!resolvedUser) {
                 const { data: createdUser, error: createUserError } = await serviceRoleSupabase
                     .from("users")

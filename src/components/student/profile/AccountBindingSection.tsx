@@ -112,7 +112,11 @@ export default function AccountBindingSection() {
             showToast({ severity: 'success', summary: '绑定成功' });
             setContactDialogOpen(false); resetContactDialog();
         } catch (e: any) {
-            showToast({ severity: 'error', summary: '绑定失败', detail: e?.message || '请稍后重试' });
+            showToast({
+                severity: 'error',
+                summary: e?.code === 'ACCOUNT_LINK_REQUIRED' ? '发现另一个账号' : '绑定失败',
+                detail: e?.message || '请稍后重试'
+            });
         } finally { setConfirming(false); }
     };
 
@@ -161,7 +165,7 @@ export default function AccountBindingSection() {
                     <ItemRow icon={<Mail size={18} className="text-surface-500" />} label="邮箱" value={boundEmail ? maskEmail(boundEmail) : ''} bound={!!boundEmail} onBind={() => openBindDialog('email')} onUnbind={() => handleUnbind('email')} bindText={boundEmail ? '换绑' : '绑定'} />
                     <ItemRow icon={<WechatIcon className="w-5 h-5" fill="#07C160" />} label="微信" value={boundWechat ? '已绑定' : ''} bound={!!boundWechat} onBind={startWechatBind} onUnbind={() => handleUnbind('wechat')} bindText={boundWechat ? '重新绑定' : '绑定'} />
                 </div>
-                <div className="mt-3 text-xs text-surface-500 leading-relaxed">绑定后可用于找回账号与更安全的登录方式。为避免无法登录，系统将要求至少保留一种绑定方式。</div>
+                <div className="mt-3 text-xs text-surface-500 leading-relaxed">同一账号同时绑定手机号和微信后，网页端与小程序会共用会员、训练计划和记录。未绑定时，两端可能是独立账号；系统不会自动用一边覆盖另一边。</div>
             </div>
 
             <Dialog visible={contactDialogOpen} onHide={() => { setContactDialogOpen(false); resetContactDialog(); }} showHeader={false} className="border-none shadow-2xl rounded-none sm:rounded-3xl overflow-hidden" style={{ width: '620px' }} contentClassName="p-0" pt={{ root: { className: 'shadow-none border-none bg-transparent min-h-screen flex items-center justify-center md:min-h-[fit-content] md:items-start md:justify-start' }, content: { className: 'rounded-none sm:rounded-[24px]' } }}>
@@ -170,7 +174,11 @@ export default function AccountBindingSection() {
                     <div className="mb-6">
                         <div className="text-[10px] font-black text-primary-500 uppercase tracking-[0.3em] mb-2">账号绑定</div>
                         <div className="text-2xl font-black text-surface-900">{contactType === 'phone' ? '绑定手机号' : '绑定邮箱'}</div>
-                        <div className="mt-2 text-sm text-surface-500">请输入新的{contactType === 'phone' ? '手机号' : '邮箱'}，并完成验证码校验。</div>
+                        <div className="mt-2 text-sm text-surface-500">
+                            {contactType === 'phone'
+                                ? '验证后可与绑定同一微信的小程序账号跨端同步；若手机号已有账号，系统会停止绑定并提示合并，不会覆盖数据。'
+                                : '请输入新的邮箱，并完成验证码校验。'}
+                        </div>
                     </div>
                     <div className="space-y-4">
                         <InputText value={contactValue} onChange={(e) => setContactValue(e.target.value)} placeholder={contactType === 'phone' ? '手机号（11位）' : '邮箱地址'} className="w-full h-12 rounded-2xl bg-surface-50 border border-surface-200 font-bold" />

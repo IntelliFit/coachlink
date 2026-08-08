@@ -41,7 +41,8 @@ const TEXT = {
   modeQuick: '手机号快捷登录',
   modePassword: '密码登录',
   modeVerifyCode: '验证码登录',
-  phoneOneTapLogin: '手机号一键登录',
+  phoneOneTapLogin: '手机号一键登录并同步',
+  wechatOnlyLogin: '仅微信登录（不同步）',
   phoneQuickLogin: '手机号快捷登录',
   loggingIn: '登录中...',
   sendCode: '获取验证码',
@@ -59,7 +60,8 @@ const TEXT = {
   backPrevious: '返回上一页',
   browseFirst: '先逛逛',
   browseWithoutLogin: '不登录，先逛逛',
-  loginOptionalDesc: '不登录也可以先浏览知识、找教练和公开工具；需要同步训练记录时再登录。',
+  loginOptionalDesc: '绑定手机号后，网页端和小程序使用同一账号，会员、训练计划与记录会同步。',
+  separateAccountDesc: '选择“仅微信登录”会保留独立账号，手机号登录网页端的数据不会自动合并。',
   forgotPassword: '忘记密码？',
   inputPhoneOrEmail: '请输入手机号或邮箱',
   inputPassword: '请输入登录密码',
@@ -243,6 +245,43 @@ function Login() {
     }, 500)
   }
 
+  const handleWechatLoginError = (error: any) => {
+    console.error('quick login failed:', error)
+    if (error?.code === 'ACCOUNT_LINK_REQUIRED') {
+      Taro.showModal({
+        title: '发现两个已有账号',
+        content: '这个手机号和当前微信分别已有账号。为保护两边的会员与训练记录，系统不会自动覆盖。你可以改用手机号登录原账号，或暂时保持两个账号独立。',
+        confirmText: '手机号登录',
+        cancelText: '暂不处理',
+        success: (result) => {
+          if (!result.confirm) return
+          setLoginMode('verifyCode')
+          setPassword('')
+          setVerificationCode('')
+        }
+      })
+      return
+    }
+    Toast.show(error?.message || TEXT.quickLoginFailed, {})
+  }
+
+  const handlePhoneWechatLogin = async (event: any) => {
+    const phoneCode = event?.detail?.code
+    if (!phoneCode) {
+      Toast.show('未授权手机号，可选择“仅微信登录”保持独立账号', {})
+      return
+    }
+
+    setLoading(true)
+    try {
+      await finishWechatLogin(phoneCode)
+    } catch (error: any) {
+      handleWechatLoginError(error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const handleWechatLogin = async () => {
     if (!agreed) {
       Toast.show(TEXT.readAndAgree, {})
@@ -253,8 +292,7 @@ function Login() {
     try {
       await finishWechatLogin(null)
     } catch (error: any) {
-      console.error('quick login failed:', error)
-      Toast.show(error.message || TEXT.quickLoginFailed, {})
+      handleWechatLoginError(error)
     } finally {
       setLoading(false)
     }
@@ -343,12 +381,21 @@ function Login() {
                 <View className='wechat-login-panel'>
                   <TaroButton
                     className={`wechat-primary-button ${loading || !agreed ? 'wechat-primary-button-disabled' : ''}`}
-                    onClick={handleWechatLogin}
+                    openType='getPhoneNumber'
+                    onGetPhoneNumber={handlePhoneWechatLogin}
                     disabled={loading || !agreed}
                   >
                     <Text className='wechat-primary-text'>{loading ? TEXT.loggingIn : TEXT.phoneOneTapLogin}</Text>
                   </TaroButton>
+                  <TaroButton
+                    className={`wechat-secondary-button ${loading || !agreed ? 'wechat-secondary-button-disabled' : ''}`}
+                    onClick={handleWechatLogin}
+                    disabled={loading || !agreed}
+                  >
+                    <Text className='wechat-secondary-text'>{TEXT.wechatOnlyLogin}</Text>
+                  </TaroButton>
                   <Text className='wechat-login-hint'>{TEXT.loginOptionalDesc}</Text>
+                  <Text className='wechat-separate-hint'>{TEXT.separateAccountDesc}</Text>
                 </View>
               )}
 

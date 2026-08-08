@@ -67,22 +67,6 @@ export async function POST(req: Request) {
     });
   }
 
-  // 先做唯一性校验：不允许同一个手机号/邮箱绑定到多个用户
-  const { data: existing } = await serviceRoleSupabase
-    .from("users")
-    .select("id")
-    .eq(type, value)
-    .neq("id", session.user.id)
-    .maybeSingle();
-
-  if (existing?.id) {
-    return NextResponse.json<ApiData<null>>({
-      success: false,
-      message: type === "phone" ? "该手机号已被其他账号绑定" : "该邮箱已被其他账号绑定",
-      data: null,
-    });
-  }
-
   // 校验验证码
   const isDev = process.env.NODE_ENV === "development";
   const allowMockCode = isDev && verifyCode === "123456";
@@ -118,6 +102,35 @@ export async function POST(req: Request) {
 
     // 防止重复使用
     await redis.del(verificationKey);
+  }
+
+  // 用户验证联系方式后再检查归属，避免泄露手机号/邮箱是否已注册。
+  const { data: existing, error: existingError } = await serviceRoleSupabase
+    .from("users")
+    .select("id")
+    .eq(type, value)
+    .neq("id", session.user.id)
+    .maybeSingle();
+
+  if (existingError) {
+    return NextResponse.json<ApiData<null>>(
+      { success: false, message: "检查账号绑定状态失败，请稍后重试", data: null },
+      { status: 500 },
+    );
+  }
+
+  if (existing?.id) {
+    return NextResponse.json<ApiData<null>>(
+      {
+        success: false,
+        code: type === "phone" ? "ACCOUNT_LINK_REQUIRED" : "IDENTITY_ALREADY_IN_USE",
+        message: type === "phone"
+          ? "该手机号已经属于另一个账号。为保护两边的会员和训练记录，系统不会自动覆盖，请先验证原账号后再合并。"
+          : "该邮箱已被其他账号绑定",
+        data: null,
+      },
+      { status: 409 },
+    );
   }
 
   const { error: updateError } = await serviceRoleSupabase

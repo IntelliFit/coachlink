@@ -5,6 +5,7 @@ import { verifyPassword } from "./verify";
 import redis from "@/lib/redisClient";
 import { getWhiteList } from "@/lib/devUsers";
 import { getAdminCredentialByLoginIdentifier } from "@/lib/adminCredentials";
+import { claimLegacyUserByVerifiedPhone } from "@/lib/legacyAccountIdentity";
 
 async function getUserProfile(userId: string) {
     const { data: profile } = await serviceRoleSupabase
@@ -205,7 +206,11 @@ async function authorizeVerifyCodeLogin(phoneOrEmail?: string, verifyCode?: stri
     const { user, isPhone } = await getUserByPhoneOrEmail(phoneOrEmail);
     await verifyLoginCode(phoneOrEmail, verifyCode, isPhone);
 
-    const resolvedUser = user || await createUserFromPhoneOrEmail(phoneOrEmail, isPhone);
+    let resolvedUser = user;
+    if (!resolvedUser && isPhone) {
+        resolvedUser = await claimLegacyUserByVerifiedPhone(phoneOrEmail);
+    }
+    resolvedUser = resolvedUser || await createUserFromPhoneOrEmail(phoneOrEmail, isPhone);
     const profile = await getUserProfile(resolvedUser.id);
 
     return {

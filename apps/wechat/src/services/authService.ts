@@ -40,6 +40,23 @@ interface AuthSessionState {
   isCoach: boolean
 }
 
+interface AccountSyncState {
+  status: 'synced' | 'wechat_only'
+  phone: string | null
+}
+
+class WechatLoginError extends Error {
+  code?: string
+  data?: unknown
+
+  constructor(message: string, code?: string, data?: unknown) {
+    super(message)
+    this.name = 'WechatLoginError'
+    this.code = code
+    this.data = data
+  }
+}
+
 class AuthService {
   private readonly postAuthHomeUrl = '/pages/index/index'
 
@@ -424,14 +441,14 @@ class AuthService {
       
       console.log('✅ 获取到 code:', loginRes.code.substring(0, 10) + '...')
       
-      // 第二步：将 code 和 phoneCode 发送到后端，换取 openid、session_key 和手机号
+      // 第二步：将 code 和 phoneCode 发送到后端，换取用户身份和手机号
       console.log('📤 发送 code 和 phoneCode 到后端换取用户信息...')
       const res = await request<{
         token: string // JWT token，用于后续API请求鉴权
         openid: string
-        session_key: string
         unionid?: string | null
         user: any
+        accountSync?: AccountSyncState
       }>({
         url: '/api/miniapp/wechat-login',
         method: 'POST',
@@ -452,17 +469,22 @@ class AuthService {
       // 检查是否成功
       if ('success' in res && !res.success) {
         console.error('❌ 微信登录失败:', res.message)
-        throw new Error(res.message || '微信登录失败')
+        throw new WechatLoginError(
+          res.message || '微信登录失败',
+          typeof res.code === 'string'
+            ? res.code
+            : (typeof res.errorCode === 'string' ? res.errorCode : undefined),
+          res.data
+        )
       }
       
       // 登录成功，获取用户信息
       if ('data' in res && res.data) {
-        const { token, openid, session_key, unionid, user } = res.data
+        const { token, openid, unionid, user } = res.data
         
         console.log('✅ 微信登录成功！')
         console.log('📋 用户登录信息:')
         console.log('  - openid:', openid)
-        console.log('  - session_key:', session_key ? session_key.substring(0, 10) + '...' : 'null')
         console.log('  - unionid:', unionid || 'null')
         console.log('  - user:', user)
         
