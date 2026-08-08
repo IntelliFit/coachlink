@@ -5,6 +5,7 @@ import { apiClient } from '../../api'
 import { IconFont } from '../../components/IconFont'
 import { Page } from '../../components/Page'
 import { SectionCard } from '../../components/SectionCard'
+import { NativeVideoPlayer } from '../../components/NativeMedia'
 import { colors, radius, spacing } from '../../theme'
 import { HeroPanel, RowCard } from '../AppHomeShared'
 import type { RootStackParamList } from '../../navigation/types'
@@ -107,7 +108,7 @@ export function KnowledgeSearchScreen({ navigation, route }: Props) {
             {Array.isArray(node.body_region) && node.body_region.length > 0 ? (
               <View style={styles.tags}>{node.body_region.map((tag: string) => <Text key={tag} style={styles.tag}>{tag}</Text>)}</View>
             ) : null}
-            {videoUrl ? <Text style={styles.videoHint}>视频地址：{videoUrl}</Text> : null}
+            {videoUrl ? <NativeVideoPlayer url={videoUrl} title={node.title || '知识视频'} /> : null}
             {contentText ? <Text style={styles.contentText}>{contentText}</Text> : !videoUrl ? <Text style={styles.empty}>暂无详细内容。</Text> : null}
           </SectionCard>
 
@@ -143,7 +144,6 @@ const styles = StyleSheet.create({
   freeBadge: { color: colors.success, backgroundColor: '#EAF6EE' },
   tags: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginBottom: spacing.xs },
   tag: { overflow: 'hidden', borderRadius: radius.pill, paddingHorizontal: spacing.xs, paddingVertical: 4, color: colors.textSecondary, backgroundColor: colors.surfaceMuted, fontSize: 12 },
-  videoHint: { color: colors.textSecondary, fontSize: 13, lineHeight: 20, marginBottom: spacing.xs },
   contentText: { color: colors.text, fontSize: 15, lineHeight: 24 },
   empty: { color: colors.textSecondary, fontSize: 14, lineHeight: 22 },
   footerActions: { flexDirection: 'row', gap: spacing.sm },

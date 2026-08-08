@@ -1,10 +1,18 @@
 import { useEffect, useMemo } from 'react'
 import { Image, ScrollView, Text, View } from '@tarojs/components'
 import Taro, { useShareAppMessage, useShareTimeline } from '@tarojs/taro'
+import motionBeanCover from '@/assets/images/toolbox-games/motion-bean-game-v2.webp'
+import motionEffectsCover from '@/assets/images/toolbox-games/motion-effects-game-v2.webp'
+import pullupRushCover from '@/assets/images/toolbox-games/pullup-rush-game-v2.webp'
+import pushupDashCover from '@/assets/images/toolbox-games/pushup-dash-game-v2.webp'
+import barLocationsCover from '@/assets/images/toolbox-practical/practical-bar-locations-v2.webp'
+import comingSoonCover from '@/assets/images/toolbox-practical/practical-coming-soon-v2.webp'
+import communityDataCover from '@/assets/images/toolbox-practical/practical-community-data-v2.webp'
+import oneArmPullUpCover from '@/assets/images/toolbox-practical/practical-one-arm-pull-up-v2.webp'
+import powerAnalysisCover from '@/assets/images/toolbox-practical/practical-power-analysis-v2.webp'
+import strengthCalculatorCover from '@/assets/images/toolbox-practical/practical-strength-calculator-v2.webp'
 import BottomNav from '@/components/BottomNav'
 import { PageThemeRoot } from '@/components/PageThemeRoot'
-import { ScenarioNutIcon } from '@/components/ScenarioNutIcon'
-import { SCENARIO_QUICK_FIXES } from '@/constants/scenarioQuickFixes'
 import { useTheme } from '@/hooks/useTheme'
 import {
   buildSharePath,
@@ -17,17 +25,20 @@ import './index.scss'
 
 type ToolboxEntry = {
   badge: string
+  cover?: string
   description: string
   iconClass: string
   key: string
   label: string
   tags: string[]
   url: string
+  comingSoon?: boolean
 }
 
 const MINI_GAMES: ToolboxEntry[] = [
   {
     badge: '手指互动',
+    cover: motionEffectsCover,
     description: '伸出几根手指，光膜就跟着变化，生成可分享的特效视频。',
     iconClass: 'icon-star',
     key: 'motion-effects',
@@ -37,6 +48,7 @@ const MINI_GAMES: ToolboxEntry[] = [
   },
   {
     badge: '体感休闲',
+    cover: motionBeanCover,
     description: '身体一动，小豆乱飞，保存带动画的回放视频。',
     iconClass: 'icon-star',
     key: 'motion-bean',
@@ -46,6 +58,7 @@ const MINI_GAMES: ToolboxEntry[] = [
   },
   {
     badge: '引体玩法',
+    cover: pullupRushCover,
     description: '每次上冲都靠你的上拉动作触发，穿过障碍。',
     iconClass: 'icon-ranking',
     key: 'pullup-rush',
@@ -55,6 +68,7 @@ const MINI_GAMES: ToolboxEntry[] = [
   },
   {
     badge: '俯卧撑玩法',
+    cover: pushupDashCover,
     description: '完整做一下下压再撑起，推动角色撞开墙壁。',
     iconClass: 'icon-star',
     key: 'pushup-dash',
@@ -67,6 +81,7 @@ const MINI_GAMES: ToolboxEntry[] = [
 const PRACTICAL_TOOLS: ToolboxEntry[] = [
   {
     badge: '视频分析',
+    cover: powerAnalysisCover,
     description: '上传动作视频，估算功率、速度和轨迹。',
     iconClass: 'icon-video',
     key: 'power-analysis',
@@ -76,6 +91,7 @@ const PRACTICAL_TOOLS: ToolboxEntry[] = [
   },
   {
     badge: '力量测算',
+    cover: strengthCalculatorCover,
     description: '快速算 1RM、做组重量和训练系数。',
     iconClass: 'icon-calculator',
     key: 'strength-calculator',
@@ -85,6 +101,7 @@ const PRACTICAL_TOOLS: ToolboxEntry[] = [
   },
   {
     badge: '能力测算',
+    cover: oneArmPullUpCover,
     description: '根据体重和负重引体能力，看看离单手引体还有多远。',
     iconClass: 'icon-ranking',
     key: 'one-arm-pull-up',
@@ -94,6 +111,7 @@ const PRACTICAL_TOOLS: ToolboxEntry[] = [
   },
   {
     badge: '训练地图',
+    cover: barLocationsCover,
     description: '查找、分享单杠位置，记录训练地点。',
     iconClass: 'icon-location',
     key: 'bar-locations',
@@ -103,14 +121,28 @@ const PRACTICAL_TOOLS: ToolboxEntry[] = [
   },
   {
     badge: '街举社区',
+    cover: communityDataCover,
     description: '查看社区成绩，提交和认领自己的记录。',
     iconClass: 'icon-ranking',
     key: 'community-data',
     label: '社区数据',
     tags: ['成绩', '记录'],
     url: '/streetlifting/index/data'
+  },
+  {
+    badge: '即将开放',
+    cover: comingSoonCover,
+    comingSoon: true,
+    description: '更多训练工具正在准备中。',
+    iconClass: 'icon-star',
+    key: 'coming-soon',
+    label: '亟待开放',
+    tags: [],
+    url: ''
   }
 ]
+
+const AVAILABLE_PRACTICAL_TOOL_COUNT = PRACTICAL_TOOLS.filter((entry) => !entry.comingSoon).length
 
 function ToolboxCard({
   compact = false,
@@ -127,45 +159,44 @@ function ToolboxCard({
         className={`toolbox-card toolbox-card--compact toolbox-card--${entry.key}`}
         onClick={() => onClick(entry)}
       >
-        <View className='toolbox-card-main'>
-          <View className='toolbox-icon'>
-            <Text className={`iconfont ${entry.iconClass}`} />
+        {entry.cover ? (
+          <Image className='toolbox-practical-cover' src={entry.cover} mode='aspectFill' lazyLoad />
+        ) : null}
+        <View className='toolbox-card-content'>
+          <View className='toolbox-card-main'>
+            <View className='toolbox-icon'>
+              <Text className={`iconfont ${entry.iconClass}`} />
+            </View>
+            <View className='toolbox-card-copy'>
+              <Text className='toolbox-badge'>{entry.badge}</Text>
+              <Text className='toolbox-name'>{entry.label}</Text>
+              <Text className='toolbox-desc'>{entry.description}</Text>
+            </View>
+            <Text className='toolbox-arrow'>→</Text>
           </View>
-          <View className='toolbox-card-copy'>
-            <Text className='toolbox-badge'>{entry.badge}</Text>
-            <Text className='toolbox-name'>{entry.label}</Text>
-            <Text className='toolbox-desc'>{entry.description}</Text>
+          <View className='toolbox-tags'>
+            {entry.tags.map((tag) => (
+              <Text key={tag} className='toolbox-tag'>
+                {tag}
+              </Text>
+            ))}
           </View>
-          <Text className='toolbox-arrow'>→</Text>
-        </View>
-        <View className='toolbox-tags'>
-          {entry.tags.map((tag) => (
-            <Text key={tag} className='toolbox-tag'>
-              {tag}
-            </Text>
-          ))}
         </View>
       </View>
     )
   }
 
   return (
-    <View className={`toolbox-card toolbox-card--${entry.key}`} onClick={() => onClick(entry)}>
-      <View className='toolbox-card-top'>
-        <View className='toolbox-icon'>
-          <Text className={`iconfont ${entry.iconClass}`} />
-        </View>
-        <Text className='toolbox-arrow'>→</Text>
-      </View>
-      <Text className='toolbox-badge'>{entry.badge}</Text>
-      <Text className='toolbox-name'>{entry.label}</Text>
-      <Text className='toolbox-desc'>{entry.description}</Text>
-      <View className='toolbox-tags'>
-        {entry.tags.map((tag) => (
-          <Text key={tag} className='toolbox-tag'>
-            {tag}
-          </Text>
-        ))}
+    <View
+      className={`toolbox-card toolbox-card--game toolbox-card--${entry.key}`}
+      onClick={() => onClick(entry)}
+    >
+      <View className='toolbox-cover-shell'>
+        {entry.cover ? (
+          <Image className='toolbox-cover' src={entry.cover} mode='aspectFill' lazyLoad />
+        ) : null}
+        <View className='toolbox-cover-scrim' />
+        <Text className='toolbox-cover-title'>{entry.label}</Text>
       </View>
     </View>
   )
@@ -173,6 +204,18 @@ function ToolboxCard({
 
 export default function ToolboxPage() {
   const { effectiveTheme } = useTheme()
+  const pageTopPadding = useMemo(() => {
+    try {
+      const menuButtonRect = Taro.getMenuButtonBoundingClientRect()
+      if (menuButtonRect?.bottom) {
+        return `${menuButtonRect.bottom + 8}px`
+      }
+    } catch {
+      // Fall back to a conservative custom-navigation safe area.
+    }
+
+    return '112rpx'
+  }, [])
   const sharePayload = useMemo(
     () =>
       createSharePayload({
@@ -190,29 +233,41 @@ export default function ToolboxPage() {
   }, [])
 
   const handleToolClick = (entry: ToolboxEntry) => {
-    Taro.navigateTo({ url: entry.url })
-  }
+    if (entry.comingSoon) {
+      Taro.showToast({ title: '敬请期待', icon: 'none' })
+      return
+    }
 
-  const handleScenarioClick = (slug: string) => {
-    Taro.navigateTo({ url: `/toolbox/scenario/index?slug=${slug}` })
+    Taro.navigateTo({ url: entry.url })
   }
 
   return (
     <PageThemeRoot>
       <View className={`toolbox-page theme-${effectiveTheme}`}>
         <ScrollView className='page-scroll' scrollY>
-          <View className='page-content'>
+          <View className='page-content' style={{ paddingTop: pageTopPadding }}>
             <View className='toolbox-hero'>
               <Text className='hero-kicker'>训练辅助</Text>
               <Text className='hero-title'>工具箱</Text>
-              <Text className='hero-desc'>测算、分析、互动和恢复，把训练里的小问题快速解决。</Text>
-              <View className='hero-stats'>
-                <Text>{MINI_GAMES.length + PRACTICAL_TOOLS.length} 个训练工具</Text>
-                <Text>{SCENARIO_QUICK_FIXES.length} 个恢复场景</Text>
-                <Text>随开随用</Text>
+              <Text className='hero-meta'>
+                {MINI_GAMES.length + AVAILABLE_PRACTICAL_TOOL_COUNT} 个训练工具 · 随开随用
+              </Text>
+              <Text className='hero-desc'>测算、分析和互动，把训练里的小问题快速解决。</Text>
+            </View>
+            <View className='section-block section-block--practical'>
+              <View className='section-header'>
+                <Text className='section-kicker'>常用工具 · {AVAILABLE_PRACTICAL_TOOL_COUNT}</Text>
+                <Text className='section-title'>算一算、看一看、找一找</Text>
+                <Text className='section-subtitle'>训练中常用的小工具，都放在这里。</Text>
+              </View>
+              <View className='toolbox-grid'>
+                {PRACTICAL_TOOLS.map((entry) => (
+                  <ToolboxCard key={entry.key} entry={entry} onClick={handleToolClick} />
+                ))}
               </View>
             </View>
-            <View className='section-block'>
+
+            <View className='section-block section-block--games'>
               <View className='section-header'>
                 <Text className='section-kicker'>体感小游戏 · {MINI_GAMES.length}</Text>
                 <Text className='section-title'>动一动，开一局</Text>
@@ -225,52 +280,6 @@ export default function ToolboxPage() {
               </View>
             </View>
 
-            <View className='section-block'>
-              <View className='section-header'>
-                <Text className='section-kicker'>实用工具 · {PRACTICAL_TOOLS.length}</Text>
-                <Text className='section-title'>算一算、看一看、找一找</Text>
-                <Text className='section-subtitle'>训练中常用的小工具，都放在这里。</Text>
-              </View>
-              <View className='toolbox-list'>
-                {PRACTICAL_TOOLS.map((entry) => (
-                  <ToolboxCard
-                    key={entry.key}
-                    compact
-                    entry={entry}
-                    onClick={handleToolClick}
-                  />
-                ))}
-              </View>
-            </View>
-
-            <View className='scene-section'>
-              <View className='section-header'>
-                <Text className='section-kicker'>身体恢复 · {SCENARIO_QUICK_FIXES.length}</Text>
-                <Text className='section-title'>不训练的时候，也可以照顾身体</Text>
-                <Text className='section-subtitle'>不需要器械，跟着步骤慢慢完成。</Text>
-              </View>
-              <View className='scene-grid'>
-                {SCENARIO_QUICK_FIXES.map((scenario) => (
-                  <View
-                    key={scenario.slug}
-                    className='scene-card'
-                    onClick={() => handleScenarioClick(scenario.slug)}
-                  >
-                    <View className='scene-cover-wrap'>
-                      <Image className='scene-cover' src={scenario.coverImageUrl} mode='aspectFit' />
-                      <View className='scene-icon-wrap'>
-                        <ScenarioNutIcon name={scenario.icon} size={18} />
-                      </View>
-                    </View>
-                    <View className='scene-body'>
-                      <Text className='scene-name'>{scenario.title}</Text>
-                      <Text className='scene-desc'>{scenario.description}</Text>
-                      <Text className='scene-meta'>约 {scenario.durationMinutes} 分钟</Text>
-                    </View>
-                  </View>
-                ))}
-              </View>
-            </View>
           </View>
         </ScrollView>
         <BottomNav />

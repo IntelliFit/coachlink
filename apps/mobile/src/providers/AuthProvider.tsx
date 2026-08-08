@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type PropsWithChildren } from 'react'
-import type { AuthSession, CoachLinkUser } from '@coachlink/core'
-import { apiClient, getStoredUser, hasStoredToken } from '../api'
+import { canSwitchCoachLinkAppRole, type AuthSession, type CoachLinkAppRole, type CoachLinkUser } from '@coachlink/core'
+import { apiClient, clearMobileAppCache, getStoredUser, hasStoredToken, persistStoredUser } from '../api'
 import { DEV_USERS, type DevUser } from '../../../../src/config/devUsers'
 
 type AuthContextValue = {
@@ -15,6 +15,9 @@ type AuthContextValue = {
   loginAsDevUser: (devUser?: DevUser) => Promise<void>
   refreshUser: () => Promise<void>
   setLocalUser: (user: CoachLinkUser | null) => void
+  switchRole: (role: CoachLinkAppRole) => Promise<CoachLinkUser>
+  clearLocalCache: () => Promise<number>
+  deleteAccount: (confirmationText: string) => Promise<void>
   logout: () => Promise<void>
 }
 
@@ -70,12 +73,46 @@ export function AuthProvider({ children }: PropsWithChildren) {
     await loginWithPassword(target.phone, target.password)
   }, [loginWithPassword])
 
-  const logout = useCallback(async () => {
-    await apiClient.clearSession()
+  const switchRole = useCallback(async (role: CoachLinkAppRole) => {
+    if (!user?.id) throw new Error('请先登录后再切换身份')
+    if (!canSwitchCoachLinkAppRole(user, role)) {
+      throw new Error('当前账号还没有教练权限，请先提交教练申请')
+    }
+
+    const result = await apiClient.request<{ primary_role: string }>('/api/user/switch-role', {
+      method: 'POST',
+      body: { role },
+      timeoutMs: 12000,
+    })
+    if (result?.primary_role !== role) throw new Error('服务端返回的身份状态异常，请重试')
+
+    const nextUser: CoachLinkUser = { ...user, primary_role: role }
+    await persistStoredUser(nextUser)
+    setUser(nextUser)
+    return nextUser
+  }, [user])
+
+  const clearLocalCache = useCallback(() => clearMobileAppCache(), [])
+
+  const clearLocalSession = useCallback(async () => {
+    await Promise.all([apiClient.clearSession(), clearMobileAppCache()])
     setIsAuthenticated(false)
     setIsGuest(false)
     setUser(null)
   }, [])
+
+  const deleteAccount = useCallback(async (confirmationText: string) => {
+    await apiClient.request('/api/user/delete-account', {
+      method: 'POST',
+      body: { confirmationText },
+      timeoutMs: 15000,
+    })
+    await clearLocalSession()
+  }, [clearLocalSession])
+
+  const logout = useCallback(async () => {
+    await clearLocalSession()
+  }, [clearLocalSession])
 
   const value = useMemo<AuthContextValue>(() => ({
     isBootstrapping,
@@ -89,8 +126,11 @@ export function AuthProvider({ children }: PropsWithChildren) {
     loginAsDevUser,
     refreshUser,
     setLocalUser: setUser,
+    switchRole,
+    clearLocalCache,
+    deleteAccount,
     logout,
-  }), [isBootstrapping, isAuthenticated, isGuest, user, loginWithPassword, loginWithCode, register, continueAsGuest, loginAsDevUser, refreshUser, logout])
+  }), [isBootstrapping, isAuthenticated, isGuest, user, loginWithPassword, loginWithCode, register, continueAsGuest, loginAsDevUser, refreshUser, switchRole, clearLocalCache, deleteAccount, logout])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

@@ -12,7 +12,7 @@
   .page-header {
     margin-bottom: 32rpx;
     padding: 40rpx 32rpx;
-    background: #f59e0b;
+    background: #cf6d4e;
     border-radius: 24rpx;
     box-shadow: 0 8rpx 24rpx rgba(245, 158, 11, 0.3);
     position: relative;
@@ -86,7 +86,7 @@
           content: '';
           width: 8rpx;
           height: 32rpx;
-          background: linear-gradient(180deg, #f59e0b 0%, #d97706 100%);
+          background: linear-gradient(180deg, #cf6d4e 0%, #a6533a 100%);
           border-radius: 0rpx;
         }
       }
@@ -111,7 +111,7 @@
         content: '';
         width: 8rpx;
         height: 32rpx;
-        background: linear-gradient(180deg, #f59e0b 0%, #d97706 100%);
+        background: linear-gradient(180deg, #cf6d4e 0%, #a6533a 100%);
         border-radius: 0rpx;
       }
     }
@@ -149,7 +149,7 @@
       transition: all 0.3s ease;
 
       &:focus {
-        border-color: #f59e0b;
+        border-color: #cf6d4e;
         background: #ffffff;
         box-shadow: 0 0 0 4rpx rgba(245, 158, 11, 0.1);
       }
@@ -167,7 +167,7 @@
       box-sizing: border-box;
 
       &:focus {
-        border-color: #f59e0b;
+        border-color: #cf6d4e;
         background: #ffffff;
         box-shadow: 0 0 0 4rpx rgba(245, 158, 11, 0.1);
       }
@@ -298,7 +298,7 @@
           transition: all 0.3s ease;
 
           &.selected {
-            border-color: #f59e0b;
+            border-color: #cf6d4e;
             background: #fffbeb;
             transform: translateY(-4rpx);
             box-shadow: 0 8rpx 16rpx rgba(245, 158, 11, 0.2);
@@ -335,7 +335,7 @@
             right: 8rpx;
             min-width: 32rpx;
             height: 32rpx;
-            background: #f59e0b;
+            background: #cf6d4e;
             color: #fff;
             font-size: 20rpx;
             border-radius: 16rpx;
@@ -408,7 +408,7 @@
         }
 
         &.active {
-          background: #f59e0b;
+          background: #cf6d4e;
           box-shadow: 0 4rpx 12rpx rgba(245, 158, 11, 0.3);
 
           Text {
@@ -465,7 +465,7 @@
             content: '';
             width: 8rpx;
             height: 32rpx;
-            background: linear-gradient(180deg, #f59e0b 0%, #d97706 100%);
+            background: linear-gradient(180deg, #cf6d4e 0%, #a6533a 100%);
             border-radius: 0rpx;
           }
         }
@@ -526,7 +526,7 @@
 
       Text {
         font-size: 30rpx;
-        color: #d97706;
+        color: #a6533a;
         font-weight: 600;
       }
 
@@ -582,7 +582,7 @@
     }
 
     .primary-btn {
-      background: #f59e0b;
+      background: #cf6d4e;
       box-shadow: 0 8rpx 24rpx rgba(245, 158, 11, 0.4);
 
       Text {
@@ -633,7 +633,7 @@
     width: 64rpx;
     height: 64rpx;
     border: 4rpx solid #e2e8f0;
-    border-top-color: #f59e0b;
+    border-top-color: #cf6d4e;
     border-radius: 50%;
     animation: spin 1s linear infinite;
   }

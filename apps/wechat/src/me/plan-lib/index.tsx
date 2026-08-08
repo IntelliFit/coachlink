@@ -238,6 +238,10 @@ export default function PlanLibPage() {
       <ScrollView className='page-scroll' scrollY>
         <View className='page-content'>
           <View className='page-header'>
+            <View className='header-left'>
+              <Text className='page-title'>训练计划</Text>
+              <Text className='page-subtitle'>管理常用计划，随时编辑或应用到今日训练</Text>
+            </View>
             <View className='create-btn' onClick={handleCreate}>
               <Text className='create-icon'>+</Text>
               <Text className='create-text'>新建</Text>

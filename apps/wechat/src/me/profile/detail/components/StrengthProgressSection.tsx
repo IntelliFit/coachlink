@@ -248,7 +248,7 @@ const StrengthProgressSection: React.FC<StrengthProgressSectionProps> = ({ user 
         ctx.lineTo(right, bottom)
         ctx.stroke()
 
-        ctx.strokeStyle = '#f97316'
+        ctx.strokeStyle = '#CF6D4E'
         ctx.lineWidth = 2
         ctx.beginPath()
         points.forEach((point, index) => {
@@ -266,7 +266,7 @@ const StrengthProgressSection: React.FC<StrengthProgressSectionProps> = ({ user 
           const x = getX(index)
           const y = getY(point.value)
           ctx.beginPath()
-          ctx.fillStyle = point.isPR ? '#dc2626' : '#f97316'
+          ctx.fillStyle = point.isPR ? '#dc2626' : '#CF6D4E'
           ctx.arc(x, y, point.isPR ? 4 : 3, 0, Math.PI * 2)
           ctx.fill()
         })

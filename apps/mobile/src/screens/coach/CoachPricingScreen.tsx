@@ -156,7 +156,7 @@ export function CoachPricingScreen() {
             {!receivingReady && receivingMessage ? <Text style={styles.receivingMsg}>{receivingMessage}</Text> : null}
           </View>
         </View>
-        {!receivingReady ? <SolidButton label="去绑定银行卡" variant="secondary" onPress={() => Alert.alert('钱包迁移中', '钱包/商户开户模块会在后续迁移到 APP。当前服务端仍会阻止未绑卡保存价格。')} /> : null}
+        {!receivingReady ? <SolidButton label="去绑定银行卡" variant="secondary" onPress={() => navigation.navigate('CoachWalletMerchant')} /> : null}
       </Card>
 
       <Card style={styles.hero}>

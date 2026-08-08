@@ -4,6 +4,7 @@ import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from 'rea
 import { apiClient } from '../../api'
 import { Page } from '../../components/Page'
 import { SectionCard } from '../../components/SectionCard'
+import { NativeAudioPlayer } from '../../components/NativeMedia'
 import { colors, radius, spacing } from '../../theme'
 import { HeroPanel, RowCard } from '../AppHomeShared'
 import type { RootStackParamList } from '../../navigation/types'
@@ -134,7 +135,11 @@ export function KnowledgeBookDetailScreen({ navigation, route }: Props) {
         {normalized.text ? <Text style={styles.contentText}>{normalized.text}</Text> : <Text style={styles.empty}>{book.summary || '暂无详细内容'}</Text>}
       </SectionCard>
 
-      {book.audio_url ? <SectionCard title="AI 讲解音频" description="APP 端音频播放器后续会补齐；当前保留音频地址供调试。" /> : null}
+      {book.audio_url ? (
+        <SectionCard title="AI 讲解音频" description="支持播放、暂停和前后 15 秒定位；离开页面后播放器会自动释放。">
+          <NativeAudioPlayer url={book.audio_url} title={book.title || '书籍讲解'} />
+        </SectionCard>
+      ) : null}
 
       {relatedBooks.length > 0 ? (
         <SectionCard title="同书专题">

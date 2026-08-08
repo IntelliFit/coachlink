@@ -6,6 +6,16 @@ import { API_BASE_URL } from './config'
 const ACCESS_TOKEN_KEY = 'coachlink_mobile_access_token'
 const USER_KEY = 'coachlink_mobile_user'
 const USER_ID_KEY = 'coachlink_mobile_user_id'
+const MOBILE_CACHE_KEYS = [
+  'today_training_page_cache_v1',
+  'training_execution_snapshots_v1',
+  'training_rest_timers_v1',
+  'one_arm_pull_up_assessment_v1',
+  'power-analysis-last-downloadable-job-v1',
+  'motion-effects-last-job-v1',
+  'sl_calc_form_data',
+  'sl_calc_last_run',
+] as const
 
 function timeoutSignal(timeoutMs?: number): { signal: AbortSignal; cancel: () => void } | undefined {
   if (!timeoutMs || typeof AbortController === 'undefined') return undefined
@@ -98,4 +108,18 @@ export async function persistSession(session: AuthSession): Promise<void> {
     [USER_KEY, JSON.stringify(session.user)],
     [USER_ID_KEY, session.user.id],
   ])
+}
+
+export async function persistStoredUser(user: AuthSession['user']): Promise<void> {
+  await AsyncStorage.multiSet([
+    [USER_KEY, JSON.stringify(user)],
+    [USER_ID_KEY, user.id],
+  ])
+}
+
+export async function clearMobileAppCache(): Promise<number> {
+  const existingKeys = new Set(await AsyncStorage.getAllKeys())
+  const keys = MOBILE_CACHE_KEYS.filter((key) => existingKeys.has(key))
+  if (keys.length > 0) await AsyncStorage.multiRemove([...keys])
+  return keys.length
 }

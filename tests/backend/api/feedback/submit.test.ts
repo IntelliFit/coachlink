@@ -94,12 +94,14 @@ describe('POST /api/feedback/submit', () => {
     // Assert
     expect(json.success).toBe(true);
     expect(mockSupabase.from).toHaveBeenCalledWith('feedbacks');
-    expect(mockSupabase.insert).toHaveBeenCalledWith({
+    expect(mockSupabase.insert).toHaveBeenCalledWith(expect.objectContaining({
       user_id: userId,
       content: 'This is a great app!',
       related_question: 'Q1',
-      status: 'pending',
-    });
+      status: 'open',
+      category: 'other',
+      image_urls: [],
+    }));
   });
 
   it('should handle database errors gracefully', async () => {

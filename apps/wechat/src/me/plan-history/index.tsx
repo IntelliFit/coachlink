@@ -94,9 +94,9 @@ function PlanHistoryPage() {
 
   const getStatusConfig = (status: string) => {
     const config: Record<string, { label: string; color: string }> = {
-      active: { label: '进行中', color: '#10b981' },
-      completed: { label: '已完成', color: '#3b82f6' },
-      archived: { label: '已归档', color: '#f59e0b' }
+      active: { label: '进行中', color: '#CF6D4E' },
+      completed: { label: '已完成', color: '#4F8A67' },
+      archived: { label: '已归档', color: '#8A7B72' }
     }
     return config[status] || { label: status, color: '#6b7280' }
   }
@@ -124,6 +124,10 @@ function PlanHistoryPage() {
       <ScrollView className='page-scroll' scrollY>
         <View className='page-content'>
           <View className='page-header'>
+            <View className='header-left'>
+              <Text className='page-title'>全部计划</Text>
+              <Text className='page-subtitle'>集中查看教练指派与个人训练计划</Text>
+            </View>
             <View className='calendar-entry' onClick={() => Taro.navigateTo({ url: '/me/training-history/index' })}>
               <Text>训练记录</Text>
             </View>

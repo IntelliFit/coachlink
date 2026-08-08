@@ -118,9 +118,9 @@ export default function PlanCompactWeekCalendar({
         ) : null}
       </View>
 
-      {expanded ? (
+      {expanded && weeks.length > 1 ? (
         <View className='plan-week-nav__list'>
-          {weeks.map((week, weekIndex) => (
+          {weeks.map((week, weekIndex) => weekIndex === safeWeekIndex ? null : (
             <View key={`full-week-${weekIndex}`} className='plan-week-nav'>
               <View className='plan-week-nav__header'>
                 <Text className='plan-week-nav__title'>第 {weekIndex + 1} 周</Text>

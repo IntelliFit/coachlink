@@ -117,7 +117,7 @@
   }
 
   .guest-entry-icon-wrap--muted {
-    background: #eff6ff;
+    background: #fbf0ec;
   }
 
   .guest-entry-icon-wrap--warm {
@@ -383,7 +383,7 @@
     }
 
     &.blue {
-      background: #eff6ff;
+      background: #fbf0ec;
     }
 
     &.yellow {
@@ -497,7 +497,7 @@
     }
 
     &.blue {
-      background: #eff6ff;
+      background: #fbf0ec;
     }
 
     &.mint {
@@ -1329,7 +1329,7 @@
           }
 
           &.in-progress {
-            background: #3b82f6;
+            background: #cf6d4e;
           }
 
           &.pending {
@@ -2100,7 +2100,7 @@
     }
 
     &--plan {
-      background: #eff6ff;
+      background: #fbf0ec;
     }
 
     &--coach {
@@ -2683,9 +2683,9 @@
   }
 
   .return-confirm-banner {
-    background: #eff6ff;
-    border: 1rpx solid #bfdbfe;
-    color: #1d4ed8;
+    background: #fbf0ec;
+    border: 1rpx solid #ebc5b8;
+    color: #a6533a;
   }
 
   .grace-warning-banner,
@@ -2696,9 +2696,9 @@
   }
 
   .in-progress-banner {
-    background: #eff6ff;
-    border: 1rpx solid #bfdbfe;
-    color: #1d4ed8;
+    background: #fbf0ec;
+    border: 1rpx solid #ebc5b8;
+    color: #a6533a;
   }
 
   .in-progress-banner--quiet {
@@ -3019,6 +3019,591 @@
       font-size: 24rpx;
       line-height: 1.6;
       color: #555;
+    }
+  }
+
+  /* 登录后的今日训练主界面：突出唯一主任务，降低辅助模块的视觉噪音。 */
+  &.main-home-page {
+    background: #f3f0eb;
+
+    .page-content {
+      padding: 152rpx 24rpx 24rpx;
+    }
+
+    .dashboard-intro-row {
+      align-items: center;
+      margin-bottom: 32rpx;
+    }
+
+    .dashboard-greeting-row {
+      gap: 16rpx;
+    }
+
+    .dashboard-greeting-icon {
+      width: 64rpx;
+      height: 64rpx;
+      border-radius: 24rpx;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #45413d;
+      color: #ffffff;
+      font-size: 32rpx;
+    }
+
+    .dashboard-greeting-copy {
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 8rpx;
+    }
+
+    .dashboard-greeting {
+      color: #24211f;
+      font-size: 38rpx;
+      font-weight: 800;
+    }
+
+    .dashboard-greeting-caption {
+      color: #81766d;
+      font-size: 22rpx;
+      line-height: 1.4;
+    }
+
+    .dashboard-more-hit {
+      width: 88rpx;
+      height: 88rpx;
+      margin-top: 0;
+      border: 1rpx solid rgba(69, 65, 61, 0.08);
+      background: #fffdf9;
+      color: #81766d;
+      box-shadow: 0 8rpx 24rpx rgba(69, 52, 42, 0.06);
+    }
+
+    .dashboard-more-dots {
+      color: #81766d;
+      font-size: 32rpx;
+    }
+
+    .plan-switcher {
+      min-height: 72rpx;
+      margin: 0 0 24rpx;
+      padding: 8rpx;
+      border: 1rpx solid rgba(69, 65, 61, 0.08);
+      border-radius: 24rpx;
+      background: #e9e4de;
+
+      .switcher-btn {
+        min-height: 56rpx;
+        border-radius: 16rpx;
+        color: #756b63;
+        font-size: 24rpx;
+
+        &.active {
+          background: #fffdf9;
+          color: #cf6d4e;
+          box-shadow: 0 4rpx 16rpx rgba(69, 52, 42, 0.08);
+
+          &::after {
+            display: none;
+          }
+        }
+      }
+    }
+
+    .tt-daily-progress-card {
+      margin-bottom: 24rpx;
+
+      .tt-plan-identity {
+        min-height: 80rpx;
+        margin-bottom: 16rpx;
+        padding: 0 8rpx;
+
+        &--after-focus {
+          margin-top: 24rpx;
+          margin-bottom: 0;
+        }
+      }
+
+      .tt-plan-avatar,
+      .tt-plan-avatar .tt-plan-avatar-image {
+        width: 64rpx;
+        height: 64rpx;
+      }
+
+      .tt-plan-avatar {
+        background: #cf6d4e;
+        box-shadow: 0 0 0 8rpx rgba(207, 109, 78, 0.1);
+      }
+
+      .tt-plan-identity-title {
+        color: #24211f;
+        font-size: 28rpx;
+      }
+
+      .tt-plan-identity-meta {
+        color: #81766d;
+        font-size: 22rpx;
+      }
+
+      .tt-plan-identity-actions {
+        gap: 16rpx;
+      }
+
+      .tt-plan-identity-action {
+        min-height: 64rpx;
+        padding: 0 16rpx;
+        border: 1rpx solid rgba(69, 65, 61, 0.1);
+        border-radius: 16rpx;
+        background: #fffdf9;
+        color: #45413d;
+        font-size: 22rpx;
+      }
+
+      .tt-focus-panel {
+        min-height: 344rpx;
+        padding: 32rpx;
+        border: 0;
+        border-radius: 32rpx;
+        background: #5b514b;
+        box-shadow: 0 8rpx 24rpx rgba(77, 61, 51, 0.12);
+
+        &::before,
+        &::after {
+          border-color: rgba(255, 255, 255, 0.06);
+        }
+
+        .tt-focus-art {
+          top: 56rpx;
+          right: 40rpx;
+          width: 88rpx;
+          height: 88rpx;
+          background: #fff7f2;
+        }
+
+        .tt-focus-copy {
+          padding-right: 136rpx;
+          margin-bottom: 32rpx;
+        }
+
+        .tt-focus-kicker {
+          margin-bottom: 8rpx;
+          color: #f4c2b3;
+          font-size: 24rpx;
+          letter-spacing: 2rpx;
+        }
+
+        .tt-focus-title {
+          margin-bottom: 8rpx;
+          color: #ffffff;
+          font-size: 48rpx;
+        }
+
+        .tt-focus-meta {
+          color: rgba(255, 255, 255, 0.76);
+          font-size: 24rpx;
+        }
+
+        .tt-focus-primary-btn {
+          height: 96rpx;
+          border-radius: 24rpx;
+          background: #cf6d4e;
+          box-shadow: 0 8rpx 16rpx rgba(87, 52, 40, 0.16);
+        }
+
+        .tt-focus-primary-btn--pressed {
+          opacity: 0.86;
+        }
+
+        .tt-focus-secondary-row {
+          margin-top: 16rpx;
+
+          .tt-focus-secondary-btn {
+            height: 80rpx;
+            border: 1rpx solid rgba(255, 255, 255, 0.16);
+            border-radius: 24rpx;
+            background: rgba(255, 255, 255, 0.07);
+            color: rgba(255, 255, 255, 0.82);
+            font-size: 24rpx;
+          }
+        }
+
+        .tt-focus-tertiary-link {
+          color: rgba(255, 255, 255, 0.72);
+        }
+
+        .tt-empty-state-hint {
+          border-color: rgba(255, 255, 255, 0.12);
+          background: rgba(255, 255, 255, 0.07);
+
+          text {
+            color: rgba(255, 255, 255, 0.68);
+          }
+        }
+      }
+
+      .tt-overall-progress {
+        margin-top: 16rpx;
+        padding: 24rpx;
+        border: 1rpx solid rgba(69, 65, 61, 0.08);
+        border-radius: 24rpx;
+        background: #fffdf9;
+        box-shadow: 0 8rpx 24rpx rgba(69, 52, 42, 0.05);
+      }
+
+      .tt-overall-progress-head {
+        margin-bottom: 8rpx;
+      }
+
+      .tt-overall-progress-label {
+        color: #45413d;
+        font-size: 24rpx;
+      }
+
+      .tt-overall-progress-value {
+        font-size: 32rpx;
+      }
+
+      .tt-overall-progress-track {
+        height: 8rpx;
+        background: #efe5df;
+      }
+
+      .tt-overall-progress-meta {
+        margin-top: 8rpx;
+        color: #81766d;
+      }
+    }
+
+    .tt-empty-state-hint--below-focus {
+      margin: 16rpx 8rpx 0;
+      padding: 0;
+      border: 0;
+      background: transparent;
+
+      text {
+        color: #81766d;
+        font-size: 22rpx;
+        line-height: 1.5;
+      }
+    }
+
+    .training-recovery-section {
+      margin-top: 48rpx;
+      padding-bottom: 144rpx;
+    }
+
+    .training-recovery-header {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 16rpx;
+      margin-bottom: 24rpx;
+      padding: 0 8rpx;
+    }
+
+    .training-recovery-heading {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .training-recovery-kicker,
+    .training-recovery-title,
+    .training-recovery-subtitle,
+    .training-recovery-name,
+    .training-recovery-desc,
+    .training-recovery-duration {
+      display: block;
+    }
+
+    .training-recovery-kicker {
+      color: #cf6d4e;
+      font-size: 20rpx;
+      font-weight: 900;
+      letter-spacing: 2rpx;
+    }
+
+    .training-recovery-title {
+      margin-top: 8rpx;
+      color: #24211f;
+      font-size: 34rpx;
+      font-weight: 900;
+      line-height: 1.35;
+    }
+
+    .training-recovery-subtitle {
+      margin-top: 8rpx;
+      color: #81766d;
+      font-size: 22rpx;
+      line-height: 1.5;
+    }
+
+    .training-recovery-all {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8rpx;
+      min-height: 64rpx;
+      padding: 0 8rpx;
+      color: #81766d;
+      font-size: 22rpx;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .training-recovery-waterfall {
+      display: flex;
+      align-items: flex-start;
+      gap: 16rpx;
+    }
+
+    .training-recovery-column {
+      display: flex;
+      flex: 1;
+      min-width: 0;
+      flex-direction: column;
+      gap: 16rpx;
+    }
+
+    .training-recovery-card {
+      box-sizing: border-box;
+      overflow: hidden;
+      width: 100%;
+      border: 1rpx solid rgba(80, 68, 59, 0.12);
+      border-radius: 24rpx;
+      background: #fffdf9;
+      box-shadow: 0 12rpx 32rpx rgba(45, 37, 31, 0.07);
+
+      &--pressed {
+        opacity: 0.76;
+      }
+
+      &--sitting-back .training-recovery-cover-wrap,
+      &--sitting-back .training-recovery-cover {
+        height: 216rpx;
+      }
+
+      &--post-run .training-recovery-cover-wrap,
+      &--post-run .training-recovery-cover {
+        height: 224rpx;
+      }
+
+      &--bedtime .training-recovery-cover-wrap,
+      &--bedtime .training-recovery-cover {
+        height: 176rpx;
+      }
+    }
+
+    .training-recovery-cover-wrap {
+      position: relative;
+      width: 100%;
+      height: 184rpx;
+      overflow: hidden;
+      background: #e7e1d9;
+    }
+
+    .training-recovery-cover {
+      display: block;
+      width: 100%;
+      height: 184rpx;
+    }
+
+    .training-recovery-icon {
+      position: absolute;
+      top: 16rpx;
+      left: 16rpx;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 56rpx;
+      height: 56rpx;
+      border-radius: 9999rpx;
+      background: rgba(255, 253, 249, 0.94);
+      box-shadow: 0 8rpx 24rpx rgba(41, 31, 24, 0.14);
+    }
+
+    .training-recovery-duration {
+      position: absolute;
+      right: 16rpx;
+      bottom: 16rpx;
+      padding: 8rpx 16rpx;
+      border-radius: 9999rpx;
+      background: rgba(45, 79, 68, 0.9);
+      color: #ffffff;
+      font-size: 18rpx;
+      font-weight: 800;
+    }
+
+    .training-recovery-body {
+      padding: 24rpx;
+    }
+
+    .training-recovery-name {
+      color: #24211f;
+      font-size: 26rpx;
+      font-weight: 900;
+      line-height: 1.4;
+    }
+
+    .training-recovery-desc {
+      display: -webkit-box;
+      overflow: hidden;
+      margin-top: 8rpx;
+      color: #81766d;
+      font-size: 20rpx;
+      line-height: 1.55;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 3;
+    }
+
+    .training-recovery-meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8rpx;
+      min-height: 48rpx;
+      margin-top: 16rpx;
+      color: #cf6d4e;
+      font-size: 20rpx;
+      font-weight: 800;
+    }
+
+    .schedule-calendar-anchor {
+      margin-bottom: 24rpx;
+      border: 1rpx solid rgba(69, 65, 61, 0.08);
+      border-radius: 24rpx;
+      background: #fffdf9;
+      box-shadow: 0 8rpx 24rpx rgba(69, 52, 42, 0.05);
+    }
+
+    .schedule-calendar-anchor__bar {
+      padding: 20rpx 24rpx 8rpx;
+    }
+
+    .schedule-calendar-anchor__label {
+      color: #45413d;
+      font-size: 26rpx;
+    }
+
+    .schedule-calendar-anchor__toggle {
+      min-height: 64rpx;
+      padding: 0 16rpx;
+      border-radius: 16rpx;
+      background: #f1ede8;
+    }
+
+    .tt-schedule-stack {
+      padding: 0;
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+      box-shadow: none;
+    }
+
+    .section-header--schedule {
+      padding: 0 8rpx;
+      margin-bottom: 16rpx;
+    }
+
+    .tt-schedule-stack .section-title {
+      color: #24211f;
+      font-size: 32rpx;
+    }
+
+    .tt-schedule-stack .section-subtitle {
+      color: #81766d;
+      font-size: 22rpx;
+    }
+
+    .today-completed-banner,
+    .return-confirm-banner,
+    .grace-warning-banner,
+    .in-progress-banner,
+    .grace-card {
+      min-height: 64rpx;
+      padding: 16rpx 24rpx;
+      border-radius: 16rpx;
+      font-size: 22rpx;
+    }
+
+    &.theme-dark {
+      background: #171614;
+
+      .dashboard-greeting-icon {
+        background: #e8e2d9;
+        color: #24211f;
+      }
+
+      .dashboard-greeting,
+      .tt-plan-identity-title,
+      .tt-schedule-stack .section-title {
+        color: #f6f1eb;
+      }
+
+      .dashboard-greeting-caption,
+      .tt-plan-identity-meta,
+      .tt-schedule-stack .section-subtitle {
+        color: #b9afa5;
+      }
+
+      .dashboard-more-hit,
+      .tt-plan-identity-action,
+      .tt-overall-progress,
+      .schedule-calendar-anchor {
+        border-color: rgba(255, 255, 255, 0.08);
+        background: #24221f;
+      }
+
+      .plan-switcher {
+        border-color: rgba(255, 255, 255, 0.08);
+        background: #211f1c;
+
+        .switcher-btn.active {
+          background: #34312d;
+        }
+      }
+
+      .tt-daily-progress-card {
+        background: transparent;
+        border: 0;
+
+        .tt-overall-progress-label {
+          color: #e8e2d9;
+        }
+
+        .tt-overall-progress-meta {
+          color: #b9afa5;
+        }
+
+        .tt-focus-panel {
+          background: #4f4843;
+        }
+      }
+
+      .training-recovery-title,
+      .training-recovery-name {
+        color: #f6f1eb;
+      }
+
+      .training-recovery-subtitle,
+      .training-recovery-desc,
+      .training-recovery-all {
+        color: #b9afa5;
+      }
+
+      .training-recovery-card {
+        border-color: rgba(255, 255, 255, 0.08);
+        background: #24221f;
+      }
+
+      .tt-empty-state-hint--below-focus {
+        border: 0;
+        background: transparent;
+
+        text {
+          color: #b9afa5;
+        }
+      }
     }
   }
 

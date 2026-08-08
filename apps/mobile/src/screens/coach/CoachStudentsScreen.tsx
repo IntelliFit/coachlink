@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
-import { useNavigation, useRoute } from '@react-navigation/native'
+import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native'
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import type { RouteProp } from '@react-navigation/native'
 import { IconFont } from '../../components/IconFont'
@@ -199,6 +199,11 @@ export function CoachStudentDetailScreen() {
   const navigation = useNavigation<Navigation>()
   const route = useRoute<RouteProp<RootStackParamList, 'CoachStudentDetail'>>()
   const [student, setStudent] = useState<any>(null)
+  const [planData, setPlanData] = useState<any>(null)
+  const [feedbacks, setFeedbacks] = useState<any[]>([])
+  const [studentActions, setStudentActions] = useState<any[]>([])
+  const [oneRmDrafts, setOneRmDrafts] = useState<Record<string, string>>({})
+  const [savingOneRm, setSavingOneRm] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -206,14 +211,44 @@ export function CoachStudentDetailScreen() {
     try {
       setLoading(true)
       setError(null)
-      const res = await safeRequest<any>('/api/coach/get-student', {
-        body: {
-          subscriptionId: route.params?.subscriptionId,
-          studentId: route.params?.studentId,
-          need1RM: true,
-        },
-      })
-      setStudent(res?.student || null)
+      const subscriptionId = String(route.params?.subscriptionId || '')
+      const [studentResult, planResult, actionsResult] = await Promise.allSettled([
+        safeRequest<any>('/api/coach/get-student', {
+          body: {
+            subscriptionId,
+            studentId: route.params?.studentId,
+            need1RM: true,
+          },
+        }),
+        safeRequest<any>('/api/plan-lib/get-instance', {
+          body: { subscriptionId },
+        }),
+        safeRequest<any>('/api/coach/get-student-actions', {
+          body: { subscriptionId },
+        }),
+      ])
+      if (studentResult.status === 'rejected') throw studentResult.reason
+      setStudent(studentResult.value?.student || null)
+      const nextPlanData = planResult.status === 'fulfilled' ? planResult.value : null
+      setPlanData(nextPlanData)
+      const nextActions = actionsResult.status === 'fulfilled' && Array.isArray(actionsResult.value?.actions)
+        ? actionsResult.value.actions
+        : []
+      setStudentActions(nextActions)
+      setOneRmDrafts(Object.fromEntries(nextActions.map((action: any) => [
+        String(action.id),
+        action.reference_1rm == null ? '' : String(action.reference_1rm),
+      ])))
+
+      const instanceId = nextPlanData?.instance?.id
+      if (instanceId) {
+        const feedbackResult = await safeRequest<any>('/api/coach/get-student-feedbacks', {
+          body: { instanceId, markRead: true },
+        }).catch(() => null)
+        setFeedbacks(Array.isArray(feedbackResult?.feedbacks) ? feedbackResult.feedbacks : [])
+      } else {
+        setFeedbacks([])
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : '学员档案加载失败')
     } finally {
@@ -221,20 +256,100 @@ export function CoachStudentDetailScreen() {
     }
   }, [route.params?.studentId, route.params?.subscriptionId])
 
-  useEffect(() => {
+  useFocusEffect(useCallback(() => {
     void load()
-  }, [load])
+  }, [load]))
+
+  const eligibleActions = useMemo(() => studentActions.filter((action: any) => {
+    const type = String(action?.type || 'STRENGTH').toUpperCase()
+    if (['DIET', 'CARDIO', 'HABIT', 'REST'].includes(type)) return false
+    return action?.enableAutoWeightCompute !== false && action?.enable_auto_weight_compute !== false
+  }).slice(0, 30), [studentActions])
+
+  async function saveOneRm() {
+    const subscriptionId = String(route.params?.subscriptionId || '')
+    const updates = eligibleActions.flatMap((action: any) => {
+      const raw = oneRmDrafts[String(action.id)]?.trim() || ''
+      const original = action.reference_1rm == null ? '' : String(action.reference_1rm)
+      if (raw === original) return []
+      const value = raw ? Number(raw) : null
+      if (value !== null && (!Number.isFinite(value) || value <= 0)) return []
+      return [{ actionId: String(action.id), reference_1rm: value }]
+    })
+    if (updates.length === 0) {
+      Alert.alert('无需保存', '没有检测到有效的 1RM 修改。')
+      return
+    }
+    setSavingOneRm(true)
+    try {
+      const result = await safeRequest<any>('/api/coach/batch-update-student-1rm', {
+        body: { subscriptionId, updates },
+      })
+      Alert.alert('保存成功', `已更新 ${Number(result?.updated || updates.length)} 个动作。`)
+      await load()
+    } catch (saveError) {
+      Alert.alert('保存失败', saveError instanceof Error ? saveError.message : '请稍后重试')
+    } finally {
+      setSavingOneRm(false)
+    }
+  }
 
   return (
     <ScreenShell title="学员档案" subtitle="订阅、问卷、训练资料与当前计划。" onBack={() => navigation.goBack()}>
       {loading ? <LoadingState title="正在加载学员档案" /> : null}
       {!loading && error ? <EmptyState title="加载失败" desc={error} /> : null}
-      {!loading && !error && student ? <StudentDetailBody student={student} /> : null}
+      {!loading && !error && student ? (
+        <StudentDetailBody
+          student={student}
+          planData={planData}
+          feedbacks={feedbacks}
+          eligibleActions={eligibleActions}
+          oneRmDrafts={oneRmDrafts}
+          savingOneRm={savingOneRm}
+          onOneRmChange={(actionId, value) => setOneRmDrafts((current) => ({ ...current, [actionId]: value }))}
+          onSaveOneRm={() => void saveOneRm()}
+          onAssignPlan={() => navigation.navigate('CoachAssignPlan', {
+            subscriptionId: String(route.params?.subscriptionId || student?.id || ''),
+            studentId: String(route.params?.studentId || student?.student_id || ''),
+            studentName: nameOf(student),
+          })}
+          onOpenDay={(dayIndex) => planData?.instance?.id && navigation.navigate('TrainingExecution', {
+            instanceId: String(planData.instance.id),
+            dayIndex,
+            readOnly: true,
+          })}
+          onOpenMessages={() => navigation.navigate('Messages')}
+        />
+      ) : null}
     </ScreenShell>
   )
 }
 
-function StudentDetailBody({ student }: { student: any }) {
+function StudentDetailBody({
+  student,
+  planData,
+  feedbacks,
+  eligibleActions,
+  oneRmDrafts,
+  savingOneRm,
+  onOneRmChange,
+  onSaveOneRm,
+  onAssignPlan,
+  onOpenDay,
+  onOpenMessages,
+}: {
+  student: any
+  planData: any
+  feedbacks: any[]
+  eligibleActions: any[]
+  oneRmDrafts: Record<string, string>
+  savingOneRm: boolean
+  onOneRmChange: (actionId: string, value: string) => void
+  onSaveOneRm: () => void
+  onAssignPlan: () => void
+  onOpenDay: (dayIndex: number) => void
+  onOpenMessages: () => void
+}) {
   const profile = student?.profile || {}
   const answers = Array.isArray(student?.subscribe_data)
     ? student.subscribe_data
@@ -253,6 +368,34 @@ function StudentDetailBody({ student }: { student: any }) {
             <StatusChip label={String(student?.status || 'active')} tone="muted" />
           </View>
         </View>
+      </Card>
+
+      <Card style={styles.infoCard}>
+        <View style={styles.cardTitleRow}>
+          <View style={styles.cardTitleMain}>
+            <Text style={styles.cardTitle}>当前训练计划</Text>
+            <Text style={styles.cardSubtitle}>{planData?.instance ? '查看执行进度，或从模板替换计划。' : '该学员尚未配置训练计划。'}</Text>
+          </View>
+          <SolidButton label={planData?.instance ? '替换计划' : '分配计划'} variant="secondary" onPress={onAssignPlan} />
+        </View>
+        {planData?.instance ? (
+          <>
+            <View style={styles.planDetailBox}>
+              <Text style={styles.planDetailName}>{planData.instance.name || '未命名计划'}</Text>
+              <Text style={styles.planDetailMeta}>当前第 {Number(planData.recommendedDayIndex || planData.nextDayIndex || 1)} 天 · {Number(planData.completedDays?.length || 0)}/{Number(planData.totalTrainingDays || planData.instance.training_days?.length || 0)} 天完成</Text>
+            </View>
+            {Object.entries(planData.executionsByDayIndex || {}).slice(-8).reverse().map(([dayIndex, execution]: [string, any]) => (
+              <Pressable key={dayIndex} onPress={() => onOpenDay(Number(dayIndex))} style={styles.executionRow}>
+                <View style={styles.executionDay}><Text style={styles.executionDayText}>D{dayIndex}</Text></View>
+                <View style={styles.executionMain}>
+                  <Text style={styles.executionTitle}>第 {dayIndex} 天训练</Text>
+                  <Text style={styles.executionMeta}>{execution?.status === 'completed' ? '已完成' : execution?.status === 'abandoned' ? '已跳过' : '进行中'} · {Number(execution?.completed_sets || 0)}/{Number(execution?.total_sets || 0)} 项</Text>
+                </View>
+                <IconFont name="icon-right-arrow" color={colors.textMuted} size={16} />
+              </Pressable>
+            ))}
+          </>
+        ) : <Text style={styles.emptyText}>分配后计划会同步到学员今日训练页。</Text>}
       </Card>
 
       <Card style={styles.infoCard}>
@@ -279,6 +422,49 @@ function StudentDetailBody({ student }: { student: any }) {
         {answers.length > 0 ? answers.slice(0, 8).map((item: any, index: number) => (
           <InfoRow key={`${item?.question || index}`} label={String(item?.question || `问题 ${index + 1}`)} value={String(item?.answer || item?.userSelection || item?.userSelections?.join?.('、') || '-')} />
         )) : <Text style={styles.emptyText}>暂无问卷答案</Text>}
+      </Card>
+
+      <Card style={styles.infoCard}>
+        <View style={styles.cardTitleRow}>
+          <View style={styles.cardTitleMain}>
+            <Text style={styles.cardTitle}>训练反馈</Text>
+            <Text style={styles.cardSubtitle}>最近反馈会按训练日倒序展示。</Text>
+          </View>
+          <SolidButton label="联系学员" variant="secondary" onPress={onOpenMessages} />
+        </View>
+        {feedbacks.length > 0 ? feedbacks.slice(0, 10).map((feedback: any, index: number) => (
+          <Pressable key={`${feedback.instance_id || ''}-${feedback.day_index}-${feedback.created_at || index}`} onPress={() => onOpenDay(Number(feedback.day_index || 1))} style={styles.feedbackRow}>
+            <View style={styles.feedbackHeader}>
+              <Text style={styles.feedbackDay}>第 {Number(feedback.day_index || 0)} 天</Text>
+              <Text style={styles.feedbackTime}>{String(feedback.created_at || '').replace('T', ' ').slice(0, 16)}</Text>
+            </View>
+            <Text style={styles.feedbackContent}>{feedback.content || '（无文字反馈）'}</Text>
+            {feedback.difficulty_rating ? <Text style={styles.feedbackRating}>训练难度 {Number(feedback.difficulty_rating)}/5</Text> : null}
+          </Pressable>
+        )) : <Text style={styles.emptyText}>暂无学员训练反馈</Text>}
+      </Card>
+
+      <Card style={styles.infoCard}>
+        <Text style={styles.cardTitle}>动作 1RM</Text>
+        <Text style={styles.cardSubtitle}>用于计划自动换算训练重量。清空输入可移除手动参考值。</Text>
+        {eligibleActions.length > 0 ? eligibleActions.map((action: any) => (
+          <View key={String(action.id)} style={styles.oneRmRow}>
+            <View style={styles.oneRmMain}>
+              <Text style={styles.oneRmName}>{action.name || '未命名动作'}</Text>
+              <Text style={styles.oneRmMeta}>{action.equipment || action.category || '力量动作'}</Text>
+            </View>
+            <TextInput
+              value={oneRmDrafts[String(action.id)] || ''}
+              onChangeText={(value) => onOneRmChange(String(action.id), value)}
+              keyboardType="decimal-pad"
+              placeholder="kg"
+              placeholderTextColor={colors.textMuted}
+              style={styles.oneRmInput}
+            />
+            <Text style={styles.oneRmUnit}>kg</Text>
+          </View>
+        )) : <Text style={styles.emptyText}>学员动作库暂无可维护的力量动作。</Text>}
+        {eligibleActions.length > 0 ? <SolidButton label={savingOneRm ? '保存中…' : '保存 1RM'} loading={savingOneRm} onPress={onSaveOneRm} /> : null}
       </Card>
     </>
   )
@@ -492,6 +678,141 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 17,
     fontWeight: '900',
+  },
+  cardTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+  },
+  cardTitleMain: {
+    flex: 1,
+    gap: 4,
+  },
+  cardSubtitle: {
+    color: colors.textSecondary,
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  planDetailBox: {
+    gap: spacing.xs,
+    padding: spacing.sm,
+    borderRadius: radius.md,
+    backgroundColor: colors.brandSoft,
+  },
+  planDetailName: {
+    color: colors.brand,
+    fontSize: 16,
+    fontWeight: '900',
+  },
+  planDetailMeta: {
+    color: colors.textSecondary,
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  executionRow: {
+    minHeight: 56,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.surfaceMuted,
+  },
+  executionDay: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radius.md,
+    backgroundColor: colors.brandSoft,
+  },
+  executionDayText: {
+    color: colors.brand,
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  executionMain: {
+    flex: 1,
+    gap: 4,
+  },
+  executionTitle: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  executionMeta: {
+    color: colors.textSecondary,
+    fontSize: 12,
+  },
+  feedbackRow: {
+    gap: spacing.xs,
+    padding: spacing.sm,
+    borderRadius: radius.md,
+    backgroundColor: colors.surfaceMuted,
+  },
+  feedbackHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+  },
+  feedbackDay: {
+    color: colors.brand,
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  feedbackTime: {
+    color: colors.textMuted,
+    fontSize: 11,
+  },
+  feedbackContent: {
+    color: colors.text,
+    fontSize: 13,
+    lineHeight: 19,
+  },
+  feedbackRating: {
+    color: colors.warning,
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  oneRmRow: {
+    minHeight: 56,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingVertical: spacing.xs,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.surfaceMuted,
+  },
+  oneRmMain: {
+    flex: 1,
+    gap: 4,
+  },
+  oneRmName: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  oneRmMeta: {
+    color: colors.textMuted,
+    fontSize: 11,
+  },
+  oneRmInput: {
+    width: 88,
+    minHeight: 40,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.md,
+    color: colors.text,
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.border,
+    fontSize: 14,
+    textAlign: 'right',
+  },
+  oneRmUnit: {
+    width: 24,
+    color: colors.textSecondary,
+    fontSize: 12,
   },
   infoRow: {
     flexDirection: 'row',

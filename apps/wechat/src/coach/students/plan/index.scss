@@ -68,7 +68,7 @@
     justify-content: space-between;
     align-items: center;
     padding: 24rpx 32rpx;
-    background: linear-gradient(135deg, #5856d6 0%, #3634a3 100%);
+    background: linear-gradient(135deg, #5b514b 0%, #3f3834 100%);
   }
 
   .card-title-wrapper {
@@ -196,7 +196,7 @@
 
     &.status-completed {
       background: rgba(0, 122, 255, 0.1);
-      color: #007aff;
+      color: #cf6d4e;
     }
 
     .status-text {
@@ -361,7 +361,7 @@
     margin-bottom: 16rpx;
 
     &.unread {
-      border-left: 4rpx solid #007aff;
+      border-left: 4rpx solid #cf6d4e;
     }
 
     .feedback-header {
@@ -412,7 +412,7 @@
 
       .reply-label {
         font-size: 24rpx;
-        color: #007aff;
+        color: #cf6d4e;
         font-weight: 500;
       }
 
@@ -450,7 +450,7 @@
         }
 
         &.primary .action-btn-text {
-          color: #007aff;
+          color: #cf6d4e;
           font-weight: 500;
         }
       }
@@ -518,7 +518,7 @@
 
       &.active {
         background: rgba(0, 122, 255, 0.1);
-        border-color: #007aff;
+        border-color: #cf6d4e;
       }
 
       .option-text {
@@ -527,7 +527,7 @@
       }
 
       &.active .option-text {
-        color: #007aff;
+        color: #cf6d4e;
       }
     }
   }
@@ -544,7 +544,7 @@
       }
 
       &.status-saving {
-        color: #007aff;
+        color: #cf6d4e;
       }
 
       &.status-saved {
@@ -593,7 +593,7 @@
 
   .action-search-clear {
     font-size: 24rpx;
-    color: #007aff;
+    color: #cf6d4e;
     padding: 8rpx 0;
     white-space: nowrap;
   }
@@ -614,7 +614,7 @@
 
   .search-result-text {
     font-size: 22rpx;
-    color: #007aff;
+    color: #cf6d4e;
     font-weight: 500;
   }
 
@@ -638,7 +638,7 @@
       white-space: nowrap;
 
       &.active {
-        background: #007aff;
+        background: #cf6d4e;
 
         .week-label {
           color: #fff;
@@ -668,7 +668,7 @@
       position: relative;
 
       &.selected {
-        background: #007aff;
+        background: #cf6d4e;
 
         .day-label, .day-index {
           color: #fff;
@@ -791,7 +791,7 @@
 
     .add-action-btn {
       padding: 8rpx 16rpx;
-      background: #34c759;
+      background: #cf6d4e;
       border-radius: 16rpx;
 
       .add-btn-text {
@@ -855,7 +855,7 @@
 
         &.cardio {
           background: #eaf8fd;
-          color: #0284c7;
+          color: #a6533a;
         }
 
         &.diet {
@@ -906,8 +906,8 @@
         color: #48627c;
         padding: 0rpx 8rpx;
         border-radius: 16rpx;
-        background: #eaf3ff;
-        border: 1rpx solid #cfe4fb;
+        background: #fbf0ec;
+        border: 1rpx solid #ebc5b8;
         max-width: 100%;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -933,9 +933,9 @@
           }
 
           &.cardio {
-            color: #0369a1;
-            background: #eff6ff;
-            border-color: #bfdbfe;
+            color: #a6533a;
+            background: #fbf0ec;
+            border-color: #ebc5b8;
           }
 
           &.diet {
@@ -972,14 +972,14 @@
 
       .strength-summary-card {
         background: #f8fbff;
-        border: 1rpx solid #dbeafe;
+        border: 1rpx solid #f6e2da;
         border-radius: 16rpx;
         padding: 16rpx 16rpx;
         margin-bottom: 8rpx;
 
         &.auto {
-          border-color: #bfdbfe;
-          background: #f0f7ff;
+          border-color: #ebc5b8;
+          background: #fbf0ec;
         }
 
         &.manual {
@@ -995,7 +995,7 @@
         .strength-summary-mode {
           display: block;
           font-size: 22rpx;
-          color: #1e3a8a;
+          color: #a6533a;
           font-weight: 600;
           margin-bottom: 8rpx;
         }
@@ -1123,7 +1123,7 @@
 
           &.active {
             background: #ffedd5;
-            border-color: #fb923c;
+            border-color: #d98266;
             color: #c2410c;
           }
         }
@@ -1252,7 +1252,7 @@
   .create-plan-btn {
     display: inline-block;
     padding: 16rpx 48rpx;
-    background: #007aff;
+    background: #cf6d4e;
     border-radius: 24rpx;
     margin: 0 8rpx;
 
@@ -1265,7 +1265,7 @@
 
   .contact-btn {
     margin-top: 16rpx;
-    background: #34c759;
+    background: #cf6d4e;
   }
 }
 
@@ -1375,7 +1375,7 @@
 
 .action-picker-arrow {
   font-size: 34rpx;
-  color: #2563eb;
+  color: #cf6d4e;
   margin-left: 16rpx;
 }
 
@@ -1400,7 +1400,7 @@
     justify-content: space-between;
     align-items: center;
     padding: 24rpx 32rpx;
-    background: #007aff;
+    background: #cf6d4e;
   }
 
   .panel-title-wrapper {
@@ -1498,7 +1498,7 @@
     overflow: hidden;
 
     &:focus-within {
-      border-color: #007aff;
+      border-color: #cf6d4e;
     }
   }
 
@@ -1523,7 +1523,7 @@
 
 // 保存按钮
 .save-btn {
-  background: #007aff;
+  background: #cf6d4e;
   border-radius: 8rpx;
   padding: 24rpx;
   text-align: center;
@@ -1656,8 +1656,8 @@
 .ai-generation-log-badge {
   padding: 4rpx 12rpx;
   border-radius: 9999rpx;
-  background: #eef2ff;
-  color: #4f46e5;
+  background: #fbf0ec;
+  color: #a6533a;
   font-size: 20rpx;
   font-weight: 700;
 }

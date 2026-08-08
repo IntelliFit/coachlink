@@ -4,6 +4,7 @@ import { ActivityIndicator, Alert, Image, Linking, Pressable, ScrollView, StyleS
 import * as Clipboard from 'expo-clipboard'
 import { apiClient } from '../../api'
 import { IconFont } from '../../components/IconFont'
+import { NativeVideoPlayer } from '../../components/NativeMedia'
 import { SectionCard } from '../../components/SectionCard'
 import { colors, radius, shadow, spacing } from '../../theme'
 import type { RootStackParamList } from '../../navigation/types'
@@ -144,10 +145,9 @@ export function CoachContentDetailScreen({ navigation, route }: Props) {
               <View key={`${url}-${index}`} style={styles.mediaItem}>
                 {isVideo ? (
                   <>
-                    <Text style={styles.videoHint}>APP 端暂以外部链接打开视频。</Text>
-                    <Text selectable style={styles.linkText}>{url}</Text>
+                    <NativeVideoPlayer url={url} title={`${content.title || '教学视频'}${urls.length > 1 ? ` ${index + 1}` : ''}`} />
                     <View style={styles.mediaActions}>
-                      <Pressable onPress={() => Linking.openURL(url)} style={styles.secondaryButton}><Text style={styles.secondaryText}>打开视频</Text></Pressable>
+                      <Pressable onPress={() => Linking.openURL(url)} style={styles.secondaryButton}><Text style={styles.secondaryText}>系统播放器</Text></Pressable>
                       <Pressable onPress={() => copyMediaUrl(url)} style={styles.secondaryButton}><Text style={styles.secondaryText}>复制链接</Text></Pressable>
                     </View>
                   </>
@@ -191,8 +191,6 @@ const styles = StyleSheet.create({
   meta: { color: colors.textMuted, fontSize: 12, fontWeight: '700' },
   mediaItem: { gap: spacing.xs },
   image: { width: '100%', height: 220, borderRadius: radius.md, backgroundColor: colors.surfaceMuted },
-  videoHint: { color: colors.textSecondary, fontSize: 13, lineHeight: 20 },
-  linkText: { color: colors.brand, fontSize: 13, lineHeight: 20 },
   mediaActions: { flexDirection: 'row', gap: spacing.sm },
   secondaryButton: { flex: 1, minHeight: 40, alignItems: 'center', justifyContent: 'center', borderRadius: radius.pill, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
   secondaryText: { color: colors.brand, fontSize: 13, fontWeight: '900' },

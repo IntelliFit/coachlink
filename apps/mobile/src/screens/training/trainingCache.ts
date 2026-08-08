@@ -4,7 +4,7 @@ import { patchExecutionInTodayTrainingCache } from './todayTrainingCache'
 const SNAPSHOT_KEY = 'training_execution_snapshots_v1'
 const RETENTION_MS = 60 * 24 * 60 * 60 * 1000
 
-type SnapshotEntry = {
+export type SnapshotEntry = {
   savedAt: number
   execution: unknown
   planInstance?: unknown
@@ -61,6 +61,31 @@ export function executionSnapshotKey(params: { mode: 'plan' | 'impromptu'; id?: 
 export async function readExecutionSnapshot(userId: string, key: string): Promise<unknown | null> {
   const entry = (await readStore(userId))?.entries[key]
   return entry && isFresh(entry) ? entry.execution : null
+}
+
+export async function readExecutionSnapshotEntry(
+  userId: string,
+  key: string,
+): Promise<SnapshotEntry | null> {
+  const entry = (await readStore(userId))?.entries[key]
+  return entry && isFresh(entry) ? entry : null
+}
+
+export async function findLatestInProgressImpromptuSnapshot(userId: string): Promise<{
+  key: string
+  execution: any
+  savedAt: number
+} | null> {
+  const entries = (await readStore(userId))?.entries || {}
+  const match = Object.entries(entries)
+    .filter(([key, entry]) => {
+      const execution = (entry.execution as any)?.execution || entry.execution
+      return key.startsWith('impromptu:') && String(execution?.status || '').toLowerCase() === 'in_progress'
+    })
+    .sort(([, left], [, right]) => right.savedAt - left.savedAt)[0]
+  if (!match) return null
+  const [key, entry] = match
+  return { key, execution: (entry.execution as any)?.execution || entry.execution, savedAt: entry.savedAt }
 }
 
 export async function persistExecutionSnapshot(

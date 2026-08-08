@@ -125,7 +125,7 @@ function RankingDetail() {
           <View className="empty-icon"><Star size={40} /></View>
           <Text className="empty-text">排行榜不存在</Text>
           <View style={{ marginTop: 16 }} onClick={handleBack}>
-            <Text style={{ fontSize: 14, fontWeight: 700, color: '#f97316' }}>返回</Text>
+            <Text style={{ fontSize: 14, fontWeight: 700, color: '#CF6D4E' }}>返回</Text>
           </View>
         </View>
       </View>

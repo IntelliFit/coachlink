@@ -8,7 +8,11 @@ import { SectionCard } from '../../components/SectionCard'
 import { colors, radius, spacing } from '../../theme'
 import type { RootStackParamList } from '../../navigation/types'
 import { useAuth } from '../../providers/AuthProvider'
-import { executionSnapshotKey, persistExecutionSnapshot } from './trainingCache'
+import {
+  executionSnapshotKey,
+  findLatestInProgressImpromptuSnapshot,
+  persistExecutionSnapshot,
+} from './trainingCache'
 import { pickArray, pickData } from './trainingModel'
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ImpromptuTraining'>
@@ -26,40 +30,86 @@ export function ImpromptuTrainingScreen({ navigation }: Props) {
   const [query, setQuery] = useState('')
   const [loading, setLoading] = useState(true)
   const [starting, setStarting] = useState(false)
+  const [error, setError] = useState('')
+  const [recovery, setRecovery] = useState<any | null>(null)
+  const [recoveryLoading, setRecoveryLoading] = useState(true)
   const [actions, setActions] = useState<ActionRow[]>([])
   const [selected, setSelected] = useState<Record<string, ActionRow>>({})
 
   async function load(search = query) {
     setLoading(true)
+    setError('')
     try {
       const [mineRes, publicRes] = await Promise.allSettled([
         apiClient.request('/api/student/action-lib/list-actions', { method: 'POST', body: { page: 1, limit: 50, search }, timeoutMs: 10000 }),
         apiClient.request('/api/public-action-lib/list-actions', { method: 'POST', body: { page: 1, limit: 50, search, status: 'published' }, timeoutMs: 10000 }),
       ])
+      if (mineRes.status === 'rejected' && publicRes.status === 'rejected') {
+        throw mineRes.reason || publicRes.reason
+      }
       const mine = mineRes.status === 'fulfilled' ? pickArray((mineRes.value as any).data, ['actions', 'items', 'data']) : []
       const pub = publicRes.status === 'fulfilled' ? pickArray((publicRes.value as any).data, ['actions', 'items', 'data']) : []
       const seen = new Set<string>()
       const merged: ActionRow[] = []
       mine.forEach((row: any) => {
         const name = String(row.name || row.action_name || '').trim()
-        if (!name) return
+        const type = String(row.type || '').toUpperCase()
+        if (!name || ['DIET', 'CARDIO', 'HABIT', 'REST'].includes(type)) return
         seen.add(name)
         merged.push({ id: row.id, name, type: row.type || row.category || row.muscle_group, source: 'mine' })
       })
       pub.forEach((row: any) => {
         const name = String(row.name || row.action_name || '').trim()
-        if (!name || seen.has(name)) return
+        const type = String(row.type || '').toUpperCase()
+        if (!name || seen.has(name) || ['DIET', 'CARDIO', 'HABIT', 'REST'].includes(type)) return
         merged.push({ id: row.id, name, type: row.type || row.category || row.muscle_group, source: 'public' })
       })
       setActions(merged)
+    } catch (loadError: any) {
+      setError(loadError?.message || '动作加载失败，请稍后重试。')
     } finally {
       setLoading(false)
     }
   }
 
+  async function loadRecovery() {
+    setRecoveryLoading(true)
+    const local = await findLatestInProgressImpromptuSnapshot(userId).catch((cacheError) => {
+      console.warn('[mobile-training] failed to read impromptu recovery cache', cacheError)
+      return null
+    })
+    if (local?.execution) setRecovery(local.execution)
+
+    try {
+      const res = await apiClient.request('/api/impromptu/current', {
+        method: 'GET',
+        timeoutMs: 12000,
+      })
+      const cloud = pickData(res)
+      if (cloud?.id && String(cloud.status || '').toLowerCase() === 'in_progress') {
+        setRecovery(cloud)
+        if (userId) {
+          await persistExecutionSnapshot(
+            userId,
+            executionSnapshotKey({ mode: 'impromptu', id: cloud.id }),
+            cloud,
+          )
+        }
+      } else {
+        // 云端为准；本地旧的“进行中”状态不继续误导用户。
+        setRecovery(null)
+      }
+    } catch (recoveryError) {
+      if (!local) console.warn('[mobile-training] failed to load current impromptu execution', recoveryError)
+    } finally {
+      setRecoveryLoading(false)
+    }
+  }
+
   useEffect(() => {
     void load('')
-  }, [])
+    void loadRecovery()
+  }, [userId])
 
   const selectedRows = useMemo(() => Object.values(selected), [selected])
 
@@ -74,7 +124,7 @@ export function ImpromptuTrainingScreen({ navigation }: Props) {
   }
 
   async function start() {
-    if (selectedRows.length === 0 || starting) return
+    if (selectedRows.length === 0 || starting || recovery) return
     setStarting(true)
     try {
       const payload = selectedRows.map((row) => ({
@@ -105,17 +155,50 @@ export function ImpromptuTrainingScreen({ navigation }: Props) {
     }
   }
 
+  function resumeRecovery() {
+    if (!recovery?.id) return
+    navigation.replace('TrainingExecution', { impromptuId: String(recovery.id) } as any)
+  }
+
   return (
     <Page title="即兴锻炼" subtitle="从个人动作库或公共动作库选择动作，马上开始记录。">
+      {recoveryLoading && !recovery ? (
+        <SectionCard title="检查未完成训练" description="正在同时检查本地快照与云端记录。">
+          <ActivityIndicator color={colors.brand} />
+        </SectionCard>
+      ) : null}
+
+      {recovery ? (
+        <View style={styles.recoveryCard}>
+          <View style={styles.recoveryIcon}><IconFont name="icon-time" color={colors.brand} size={22} /></View>
+          <View style={styles.recoveryMain}>
+            <Text style={styles.recoveryTitle}>有一场即兴训练尚未完成</Text>
+            <Text style={styles.recoveryText}>
+              已完成 {Number(recovery.completed_sets || 0)}/{Number(recovery.total_sets || 0)} 组。继续后会恢复最近一次记录。
+            </Text>
+          </View>
+          <Pressable onPress={resumeRecovery} style={styles.recoveryButton}>
+            <Text style={styles.recoveryButtonText}>继续</Text>
+          </Pressable>
+        </View>
+      ) : null}
+
+      {error ? (
+        <View style={styles.errorCard}>
+          <Text style={styles.errorText}>{error}</Text>
+          <Pressable onPress={() => load()}><Text style={styles.retryText}>重新加载</Text></Pressable>
+        </View>
+      ) : null}
+
       <View style={styles.searchBox}>
         <IconFont name="icon-search" color={colors.textMuted} size={18} />
         <TextInput value={query} onChangeText={setQuery} placeholder="搜索动作" placeholderTextColor={colors.textMuted} style={styles.searchInput} returnKeyType="search" onSubmitEditing={() => load()} />
         <Pressable onPress={() => load()} style={styles.searchButton}><Text style={styles.searchButtonText}>搜索</Text></Pressable>
       </View>
 
-      <SectionCard title={`已选择 ${selectedRows.length} 个动作`} description="即兴训练会为每个动作先放入一组，进入执行页后可以继续加组。">
-        <Pressable disabled={selectedRows.length === 0 || starting} onPress={start} style={[styles.primaryButton, (selectedRows.length === 0 || starting) && styles.disabled]}>
-          {starting ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.primaryButtonText}>开始训练</Text>}
+      <SectionCard title={`已选择 ${selectedRows.length} 个力量动作`} description={recovery ? '请先继续并完成当前即兴训练，再开始新的一场。' : '每个动作先放入一组，进入执行页后可以继续加组。'}>
+        <Pressable disabled={selectedRows.length === 0 || starting || Boolean(recovery)} onPress={start} style={[styles.primaryButton, (selectedRows.length === 0 || starting || Boolean(recovery)) && styles.disabled]}>
+          {starting ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.primaryButtonText}>{recovery ? '已有训练进行中' : '开始训练'}</Text>}
         </Pressable>
       </SectionCard>
 
@@ -141,6 +224,16 @@ export function ImpromptuTrainingScreen({ navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
+  recoveryCard: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, padding: spacing.sm, borderRadius: radius.xl, backgroundColor: '#1F1F1F' },
+  recoveryIcon: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', borderRadius: radius.pill, backgroundColor: '#FFFFFF' },
+  recoveryMain: { flex: 1, gap: 4 },
+  recoveryTitle: { color: '#FFFFFF', fontSize: 15, fontWeight: '900' },
+  recoveryText: { color: 'rgba(255,255,255,0.72)', fontSize: 12, lineHeight: 18 },
+  recoveryButton: { minHeight: 40, justifyContent: 'center', paddingHorizontal: spacing.sm, borderRadius: radius.lg, backgroundColor: colors.brand },
+  recoveryButtonText: { color: '#FFFFFF', fontSize: 13, fontWeight: '900' },
+  errorCard: { gap: spacing.xs, padding: spacing.sm, borderRadius: radius.lg, backgroundColor: '#FFF1EE', borderWidth: 1, borderColor: '#F2C7BC' },
+  errorText: { color: '#9A3F2B', fontSize: 13, lineHeight: 20 },
+  retryText: { color: colors.brand, fontSize: 13, fontWeight: '900' },
   searchBox: { minHeight: 56, flexDirection: 'row', alignItems: 'center', gap: spacing.xs, borderRadius: radius.lg, paddingHorizontal: spacing.sm, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   searchInput: { flex: 1, color: colors.text, fontSize: 15 },
   searchButton: { minHeight: 38, justifyContent: 'center', borderRadius: radius.pill, paddingHorizontal: spacing.sm, backgroundColor: colors.brand },

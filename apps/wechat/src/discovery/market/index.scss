@@ -65,8 +65,8 @@
 }
 
 .tier-tab-active {
-  background: #F28631;
-  border-color: #F28631;
+  background: #cf6d4e;
+  border-color: #cf6d4e;
   color: #fff;
   box-shadow: 0 4rpx 16rpx rgba(242, 134, 49, 0.22);
 }
@@ -91,7 +91,7 @@
 .result-cart-btn {
   padding: 8rpx 24rpx;
   border-radius: 9999rpx;
-  background: #F28631;
+  background: #cf6d4e;
   color: #fff;
   font-size: 24rpx;
   font-weight: 700;
@@ -201,9 +201,9 @@
 }
 
 .tier-basic {
-  color: #1d4ed8;
-  background: #dbeafe;
-  border: 1rpx solid #bfdbfe;
+  color: #a6533a;
+  background: #f6e2da;
+  border: 1rpx solid #ebc5b8;
 }
 
 .tier-standard {
@@ -268,7 +268,7 @@
   display: block;
   font-size: 32rpx;
   font-weight: 800;
-  color: #F28631;
+  color: #cf6d4e;
 }
 
 .included-tags {
@@ -320,12 +320,12 @@
 .duration-price {
   font-size: 28rpx;
   font-weight: 700;
-  color: #F28631;
+  color: #cf6d4e;
 }
 
 .duration-recommend {
   font-size: 20rpx;
-  color: #F28631;
+  color: #cf6d4e;
   font-weight: 600;
   margin-top: 0rpx;
 }
@@ -343,7 +343,7 @@
 }
 
 .duration-btn-primary {
-  background: #F28631;
+  background: #cf6d4e;
   color: #fff;
   box-shadow: 0 4rpx 16rpx rgba(242, 134, 49, 0.22);
 }
@@ -381,7 +381,7 @@
   border-radius: 9999rpx;
   font-size: 24rpx;
   font-weight: 600;
-  background: #F28631;
+  background: #cf6d4e;
   color: #fff;
 
   &.outline {
