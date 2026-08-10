@@ -299,7 +299,7 @@ export default function PowerAnalysisToolPage() {
         }),
       );
       const a = document.createElement("a");
-      a.href = data.signedUrl || data.proxyUrl || data.url;
+      a.href = data.proxyUrl || data.signedUrl || data.url;
       a.download = data.filename;
       document.body.appendChild(a);
       a.click();
