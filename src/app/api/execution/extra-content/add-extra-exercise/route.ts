@@ -76,6 +76,14 @@ export async function POST(request: NextRequest) {
             }, { status: accessDecision.status });
         }
 
+        if (String(execution.status || "").toLowerCase() !== "in_progress") {
+            return NextResponse.json<ApiData<AddExtraExerciseResponseDto>>({
+                success: false,
+                message: "训练已结束，不能继续修改动作或组",
+                data: null,
+            }, { status: 400 });
+        }
+
         // 5. 验证动作存在于学员动作库
         const { data: studentAction } = await supabase
             .from("student_actions")

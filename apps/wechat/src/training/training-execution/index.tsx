@@ -383,6 +383,7 @@ function TrainingExecution() {
   const [openSetMoreKey, setOpenSetMoreKey] = React.useState<string | null>(null)
   const [editingSetKey, setEditingSetKey] = React.useState<string | null>(null)
   const [completing, setCompleting] = React.useState(false)
+  const completionMutationRef = React.useRef(false)
   const [restTimer, setRestTimer] = React.useState(0)
   const [isResting, setIsResting] = React.useState(false)
   const [restTimerMinimized, setRestTimerMinimized] = React.useState(false)
@@ -484,7 +485,11 @@ function TrainingExecution() {
   // page cache must never turn an active workout into a read-only preview.
   const isPersistedInProgressExecution =
     !isImpromptuMode && !isPreviewExecution && String(execution?.status || '').toLowerCase() === 'in_progress'
-  const isReadOnly = routeRequestsReadOnly && !isPersistedInProgressExecution
+  const isCompletedExecution =
+    String(execution?.status || '').toLowerCase() === 'completed' || !!execution?.completed_at
+  const canCorrectCompletedSets = isCompletedExecution && !routeRequestsReadOnly
+  const isReadOnly =
+    isCompletedExecution || (routeRequestsReadOnly && !isPersistedInProgressExecution)
 
   React.useEffect(() => {
     executionRef.current = execution
@@ -1255,12 +1260,9 @@ function TrainingExecution() {
 
   // 完成一组
   const handleCompleteSet = async () => {
-    if (isReadOnly) {
-      Taro.showToast({ title: '只读模式不可修改', icon: 'none' })
-      return
-    }
     if (!execution) return
     if (blockUntilExecutionReady()) return
+    if (completionMutationRef.current) return
 
     const actionExecutions = execution.action_executions || []
     const currentAction = actionExecutions[expandedAction]
@@ -1271,6 +1273,12 @@ function TrainingExecution() {
     if (!currentSet) return
     const currentSetKey = setKeyOf(expandedAction, currentSetIndex)
     const isEditing = editingSetKey === currentSetKey
+    const mayCorrectCompletedSet =
+      canCorrectCompletedSets && currentSet.status === 'completed' && isEditing
+    if (isReadOnly && !mayCorrectCompletedSet) {
+      Taro.showToast({ title: '训练已结束，仅可修改已完成组', icon: 'none' })
+      return
+    }
 
     if (isWeightRequiredForSet(currentSet) && (weight === null || weight === undefined)) {
       Taro.showToast({ title: '请输入重量', icon: 'none' })
@@ -1278,6 +1286,7 @@ function TrainingExecution() {
     }
 
     try {
+      completionMutationRef.current = true
       setCompleting(true)
 
       const data = isImpromptuMode
@@ -1379,6 +1388,7 @@ function TrainingExecution() {
       console.error('完成组失败:', e)
       Taro.showToast({ title: e.message || '保存失败', icon: 'none' })
     } finally {
+      completionMutationRef.current = false
       setCompleting(false)
     }
   }
@@ -1636,6 +1646,7 @@ function TrainingExecution() {
     }
     if (!execution) return
     if (blockUntilExecutionReady()) return
+    if (completionMutationRef.current) return
     const actionExec = execution.action_executions[actionIndex]
     const action = actions[actionExec?.action_id]
     const itemType = (action?.type || 'STRENGTH') as 'DIET' | 'CARDIO' | 'HABIT'
@@ -1658,6 +1669,7 @@ function TrainingExecution() {
     }
 
     try {
+      completionMutationRef.current = true
       setCompleting(true)
       const res = await executionService.completeItem({
         executionId: execution.id,
@@ -1714,6 +1726,7 @@ function TrainingExecution() {
     } catch (e: any) {
       Taro.showToast({ title: e.message || '保存失败', icon: 'none' })
     } finally {
+      completionMutationRef.current = false
       setCompleting(false)
     }
   }
@@ -2280,7 +2293,7 @@ function TrainingExecution() {
   const heatmapFrontSvg = highlightSvgCategories(maleFrontSvgRaw, heatmapMuscles)
   const heatmapBackSvg = highlightSvgCategories(maleBackSvgRaw, heatmapMuscles)
   const workoutSummaryMaxScore = Math.max(1, ...workoutSummary.muscles.map((item) => item.score))
-  const isWorkoutCompleted = String(execution?.status || '').toLowerCase() === 'completed' || !!execution?.completed_at
+  const isWorkoutCompleted = isCompletedExecution
   const canOpenWorkoutSummary = isWorkoutCompleted && workoutSummary.completedSetTotal > 0
   const posterNickname = String(currentUser?.nickname || currentUser?.name || '训练者').trim() || '训练者'
   const posterAvatarUrl = String(
@@ -2636,7 +2649,10 @@ function TrainingExecution() {
                             const setKey = setKeyOf(actionIdx, setIdx)
                             const isExpandedSet = expandedSetKey === setKey
                             const isEditingThisSet = editingSetKey === setKey
-                            const showSetForm = isCurrentSet && !isReadOnly && (!isCompletedSet || isEditingThisSet)
+                            const showSetForm = isCurrentSet && (
+                              (!isReadOnly && (!isCompletedSet || isEditingThisSet)) ||
+                              (canCorrectCompletedSets && isCompletedSet && isEditingThisSet)
+                            )
                             const setDraft = setDrafts[setKey]
                             const plannedWeightText = String(set.planned_weight || '').trim()
                             const plannedRepsText = formatPlannedRepsText(set)
@@ -2892,7 +2908,7 @@ function TrainingExecution() {
                                       </View>
                                     )}
 
-                                    {!isReadOnly && (
+                                    {(!isReadOnly || canCorrectCompletedSets) && (
                                       <View className="detail-actions">
                                         <Button size="mini" className="ghost-tool-btn" onClick={() => handleEditCompletedSet(actionIdx, setIdx, set)}>
                                           编辑本组

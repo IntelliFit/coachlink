@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
         if (!session?.user?.id) {
             return NextResponse.json<ApiData<CompleteImpromptuItemResponseDto>>({
                 success: false,
-                message: "鏈櫥褰?",
+                message: "未登录",
                 data: null,
             }, { status: 401 });
         }
@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
         if (!executionId || actionIndex === undefined || !itemType) {
             return NextResponse.json<ApiData<CompleteImpromptuItemResponseDto>>({
                 success: false,
-                message: "缂哄皯蹇呭～鍙傛暟",
+                message: "缺少必填参数",
                 data: null,
             }, { status: 400 });
         }
@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
         if (fetchError || !execution) {
             return NextResponse.json<ApiData<CompleteImpromptuItemResponseDto>>({
                 success: false,
-                message: "鎵ц璁板綍涓嶅瓨鍦?",
+                message: "执行记录不存在",
                 data: null,
             }, { status: 404 });
         }
@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
         if (execution.student_id !== userId) {
             return NextResponse.json<ApiData<CompleteImpromptuItemResponseDto>>({
                 success: false,
-                message: "鏃犳潈璁块棶姝よ褰?",
+                message: "无权访问此记录",
                 data: null,
             }, { status: 403 });
         }
@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
         if (execution.status === "completed") {
             return NextResponse.json<ApiData<CompleteImpromptuItemResponseDto>>({
                 success: false,
-                message: "璁粌宸插畬鎴愶紝涓嶈兘缁х画淇敼",
+                message: "训练已完成，不能继续修改",
                 data: null,
             }, { status: 400 });
         }
@@ -78,7 +78,7 @@ export async function POST(request: NextRequest) {
         if (!actionExecutions[actionIndex]) {
             return NextResponse.json<ApiData<CompleteImpromptuItemResponseDto>>({
                 success: false,
-                message: "椤圭洰涓嶅瓨鍦?",
+                message: "项目不存在",
                 data: null,
             }, { status: 400 });
         }
@@ -138,14 +138,14 @@ export async function POST(request: NextRequest) {
         if (updateError || !updated) {
             return NextResponse.json<ApiData<CompleteImpromptuItemResponseDto>>({
                 success: false,
-                message: "鏇存柊澶辫触",
+                message: "更新失败",
                 data: null,
             }, { status: 500 });
         }
 
         return NextResponse.json<ApiData<CompleteImpromptuItemResponseDto>>({
             success: true,
-            message: "瀹屾垚椤圭洰鎴愬姛",
+            message: "完成项目成功",
             data: {
                 executionId,
                 completedItems: updated.completed_sets,
@@ -157,7 +157,7 @@ export async function POST(request: NextRequest) {
         console.error("complete impromptu item error:", error);
         return NextResponse.json<ApiData<CompleteImpromptuItemResponseDto>>({
             success: false,
-            message: "鏈嶅姟鍣ㄩ敊璇?",
+            message: "服务器错误",
             data: null,
         }, { status: 500 });
     }

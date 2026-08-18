@@ -49,6 +49,14 @@ export async function POST(request: NextRequest) {
             }, { status: 403 });
         }
 
+        if (String(execution.status || "").toLowerCase() !== "in_progress") {
+            return NextResponse.json<ApiData<DeleteImpromptuExtraExerciseResponseDto>>({
+                success: false,
+                message: "训练已结束，不能继续修改动作或组",
+                data: null,
+            }, { status: 400 });
+        }
+
         const actionExecutions = (execution.action_executions || []) as any[];
         const action = actionExecutions[actionIndex];
         if (!action) {
