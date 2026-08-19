@@ -50,6 +50,10 @@ RUN adduser --system --uid 1001 nextjs
 # 【关键点 1】从 builder 复制 standalone 目录内容
 COPY --from=builder /app/.next/standalone ./
 
+# bootstrap-env.mjs 在 Next server 之外执行，standalone 文件追踪不会自动
+# 收录其生产依赖。显式带入 undici，确保 Apollo 配置启动阶段可配置代理。
+COPY --from=builder /app/node_modules/undici ./node_modules/undici
+
 # 【关键点 2】必须手动复制 static 和 public 目录到对应的位置
 # Next.js standalone 运行时会在 .next/static 寻找静态资源
 COPY --from=builder /app/.next/static ./.next/static
