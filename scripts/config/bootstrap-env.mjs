@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { ProxyAgent, setGlobalDispatcher } from "undici";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(__dirname, "../..");
@@ -35,6 +36,7 @@ export async function bootstrapEnv(options = {}) {
     }
 
     if (source === "apollo") {
+        configureFetchProxy();
         const apolloEnv = await loadApolloEnv(bootstrap);
         applyEnv(apolloEnv, { override: true });
         markNextEnvProcessed();
@@ -52,6 +54,21 @@ export async function bootstrapEnv(options = {}) {
     }
 
     throw new Error(`CONFIG_SOURCE must be local or apollo, got ${JSON.stringify(source)}`);
+}
+
+/**
+ * Node's built-in fetch does not automatically use HTTP(S)_PROXY.  Apollo is
+ * loaded before Next starts, so configure Undici here rather than in a child
+ * process bootstrap.  This is intentionally a no-op for direct connections.
+ */
+function configureFetchProxy() {
+    const proxyUrl = [process.env.HTTPS_PROXY, process.env.HTTP_PROXY, process.env.ALL_PROXY]
+        .map((value) => String(value || "").trim())
+        .find(Boolean);
+
+    if (proxyUrl) {
+        setGlobalDispatcher(new ProxyAgent(proxyUrl));
+    }
 }
 
 export function nextEnvForChild(extra = {}) {

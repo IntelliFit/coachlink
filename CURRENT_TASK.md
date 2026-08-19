@@ -6,6 +6,125 @@
 - Other gaps: 工具箱缺单手引体评估、指尖光膜和 3 个体感游戏；功率分析缺权益/画质/字幕/曲线/保存相册；街健缺真实地图定位/图片/分享；知识缺原生音视频与富内容；设置缺账号注销，反馈和聊天媒体能力较薄。
 - Recommended next step: 先执行报告中的 `MOB-000`，在不丢当前未提交改动的前提下整合 dev/main/当前 APP 工作区并确定权威分支；随后按角色与支付、今日训练与执行、教练带训、内容与工具顺序推进。
 - Verification: 文档尾随空白检查与 `git diff --check` 通过；`npm run lint` 按项目配置正常提示改跑 typecheck；`npm run typecheck` 通过；`npm test` 为 35 files / 177 tests 全部通过；`npx next build` 编译成功并生成 522 个静态页面。
+## 发布请求：合并主分支、全后端重部署、小程序体验版与审核 (`2026-08-20`)
+
+- Status: 用户已授权将本地发布内容提交到 `dev`、合并到 `main`、重部署 Web / 功率分析 Worker / 动效 Worker，并上传新的小程序体验版后提交微信审核。开始前发现本地 `dev` 比 `origin/dev` 落后 21 个提交，必须先安全整合远端开发分支再合并主分支。
+- Scope review: 工作区另有 `tmp/` 下 33 个、约 23.5MB 的 PDF 审阅和视频分析截图。这些是临时/第三方原始审阅产物，不是可发布源码；依据知识库语料不入库的既有决策，不能随发布代码提交或部署。其余源码、文档和项目记忆文件将纳入发布提交。
+- Gate results: 远端整合暴露了 `PlanEditorWorkbench` 将主内容容器改为 `View` 后仍保留 `</ScrollView>` 的 JSX 闭合错误，已修正；Next 16 本地 E2E 的 `127.0.0.1` 资源请求也被跨源保护阻断，已按官方 `allowedDevOrigins` 方式修正。`npm run lint`、`npm run typecheck`、`npm test`（42 files / 203 tests）、`npx next build`（534 pages）、小程序 release 构建（2854 modules）和 4 项 E2E（登录会话、订阅状态、完成训练、API/DB 幂等）均通过。
+- Next: 将最终发布提交推送到 `dev`、快进合并 `main`，按现有脚本构建推送三种生产镜像、观察 Kubernetes 滚动更新，并从 `apps/wechat/dist-release` 上传体验版、提交审核。
+
+## 更新计划全链路收口 (`2026-08-20`)
+
+- Status: Web、小程序和后端的更新计划语义已统一并通过类型、单测、Web 构建和小程序构建；代码仍未提交、推送或部署。
+- Revision rule: 已有 execution 的计划内容发生变化时必须创建显式 revision，并传递 `revisionOfInstanceId`；后端校验旧实例属于同一订阅，按该实例的 completed/abandoned 记录计算下一未完成训练日。客户端选择的起始周/日不能跳过真实进度。
+- D1 rule: revision 的 `start_date` 由后端优先取 `coach_subscriptions.start_date`，否则继承旧实例日期；首次分配、草稿激活和 AI 新计划不再把分配/激活当天写成 D1，D1 只在第一次真实 execution 开始时建立。
+- Entitlement rule: revision 插入后会按明确的旧实例 ID 强制写回 `replaced_no_charge/no_charge`，覆盖数据库 single-current trigger 可能先写入的 `replaced_counted`，避免更新重量再次扣订阅权益。
+- Concurrency: 学员有 `in_progress` execution 时拒绝切换 revision；未训练计划仍可原地更新。小程序编辑页首次修改有历史的计划时自动切换到新 revision，并更新本地 instance ID，避免连续编辑反复从旧版本创建。
+- Verification: `npm run lint`、`npm run typecheck`、`npm test`（37 files / 183 tests）、`npx next build`（532 pages）、`npm --workspace apps/wechat run build:weapp` 与 `git diff --check` 通过。`npm run test:e2e` 中后端幂等 CRUD 和订阅训练完成链路通过；另外两项分别因登录请求 `Failed to fetch`、测试浏览器残留了另一用户 session 而失败，与本次 revision 逻辑无关。
+
+## 计划日历改为“首次实际训练 = D1” (`2026-08-20`)
+
+- Status: 已完成「热身研究员8254」生产数据校正、Web/小程序/后端本地代码修复、Web 实页验证和全量门禁；代码未提交、推送或部署，小程序未上传/发布。
+- Correct semantics: 教练订阅计划以学员第一次实际开始训练的北京日期为 D1，之后 Dn 按 D1 + (n-1) 个自然日映射计划日；不得用教练分配/创建计划的日期抢先覆盖真实 D1。
+- Root cause: 该学员计划实例曾以分配日 `2026-08-05` 为 D1，但第一条运动记录 D1 实际于北京时间 `2026-08-06 19:50` 开始。旧键点使 D10 baseline 错成 8/14，再将实际 8/15 的 D10 误标为顺延 1 天。
+- Data fix: 生产库旧/当前两个 revision 的 `start_date` 已从 `2026-08-05` 精确更正为 `2026-08-06`，未改写任何 execution 的 `started_at/completed_at`。
+- Code fix: Web 和小程序今日训练页在教练计划模式下优先用 `coach_subscriptions.start_date`作日历键点；`get-instance` 与 `execution/start` 的严格推进也优先使用订阅实际开始时间。首次 D1 开始时，服务端会用 execution 真实 `started_at` 设置订阅开始时间，并覆盖当前计划实例中预填的分配日。
+- Verification: Web 快速登录该学员并展开月历，确认 8/6=D1、8/15=D10、8/17=D12、8/20=D15，整页“顺延”为 0 处。`npm run lint`、`npm run typecheck`、`npm test`（37 files / 183 tests）、`npx next build`（532 pages）、`npm --workspace apps/wechat run build:weapp`（2852 modules）和 `git diff --check` 通过。
+
+## 热身研究员8254 D10 顺延 1 天诊断 (`2026-08-20`)
+
+- Status: 已完成生产数据与 Web 展开月历复核；这不是缓存或订阅残留，而是当前日历模型按执行键点日期动态算出的真实顺延。
+- Timeline: 新 revision 创建于北京时间 8 月 13 日，继承 `start_date=2026-08-05`、`start_execution_day=10`，因此 D10 原定日期是 8 月 14 日。D10 的 execution 实际于北京时间 8 月 15 日 10:32 开始、10:33 完成。
+- Calculation: `buildPlanScheduleModel` 用 completed execution 的 `completed_at` 作为日历键点；D10 完成日比 baseline 晚 1 天，因此在 8 月 14 日插入 `顺延 → D10`，D10 显示到 8 月 15 日，后续 D15 从原计划 8 月 19 日推到 8 月 20 日。修改计划动作本身没有写入“顺延”记录。
+- Boundary/next: 若要移除，不应伪造/改写 D10 的实际完成时间。需由用户确认是否将 8 月 14 日定性为“系统调整例外”，再实施不改原始训练记录的日历纠偏。
+
+## 热身研究员8254 订阅重复扣减实际修复 (`2026-08-20`)
+
+- Status: 已完成生产数据修复、本地代码根治和 Web 实页验证；相关代码尚未提交、推送或部署到正式 Web/小程序后端。
+- Data repair: 旧 revision `cbeff331-ce44-45e5-aa13-7494c3b0c9bd` 已精确更正为 `archive_reason=replaced_no_charge` / `entitlement_consumption_policy=no_charge`，保留全部训练记录与支付事实。重算后订阅为 `active/available`，总权益 12 次、已用 6 次、剩余 6 次，`canTrain=true`，预计完成日为 2026-09-02。
+- Code repair: 同起点且从中间进度接续的 replacement revision 会将旧实例标记为 `replaced_no_charge`；所有 carryover/订阅权益查询均显式读取 `entitlement_consumption_policy`，避免数据已标记但 API 忽略的二次问题。
+- Verification: 使用 Web 快速登录输入学员 ID 后打开 `http://localhost:3000/today-training`，“订阅已到期”和 `SUBSCRIPTION_EXPIRED` 均为 0 处，页面恢复训练计划且可见“开始训练”。浏览器 console 无 error/warn。`npm run lint`、`npm run typecheck`、`npm test`（37 files / 183 tests）、`npx next build`（532 pages）和订阅针对性 19 测试通过。
+- Boundary/next: 生产数据已修复，localhost 已走新代码；正式 Web/小程序 API 的预防性根治仍需从干净发布内容部署，不得将当前工作区的其他未提交改动一并发布。
+
+## 功率视频分析：计划执行者4215 选择视频失败（`2026-08-20`）
+
+- Status: 本地代码修复和小程序定向编译已完成；未提交、未上传体验版或发布生产。
+- Root cause: 小程序曾将产品权益的最长分析时长直接传给 `Taro.chooseVideo({ maxDuration })`。截图中的 120 秒超过微信原生 `chooseVideo` 的 60 秒上限，部分 Android/微信版本会在视频选择器尚未打开时直接返回失败；旧 catch 丢弃了原始 `errMsg`，所以 UI 只显示“选择视频失败”。
+- Account check: 生产环境唯一命中 `计划执行者4215`，当前无 `student_memberships` 和 `tool_power_analysis_jobs` 记录；故问题并非日额度、容量或 Worker 任务造成。截图所示 120 秒来自当时该小程序会话收到的权益配置，需在发布后持续核对其环境/权益来源。
+- Fix: `apps/wechat/src/toolbox/power-analysis/index.tsx` 已将原生选择器端的 `maxDuration` 限制为 60 秒，保留服务端的 120 秒分析校验（相册文件仍按权益选择），并在失败时展示微信返回的真实原因。
+- Product clarification: 保留 120 秒分析能力；60 秒仅为微信内置拍摄的接口限制。用户可用系统相机先录 120 秒视频，再在小程序相册中选择并上传。
+- Verification: `npm --workspace apps/wechat run build:weapp` 的定向编译完成，编译产物含该限制；`git diff --check` 通过。按用户偏好未启动开发者工具/模拟器做手动 UI 验证。
+- Next: 如需让用户立即获得修复，需提交改动并上传包含本修复的小程序体验版/正式版。
+
+## Fkj 训练中上传组视频报 FormData 解析失败 (`2026-08-20`)
+
+- Status: 已完成针对性修复，未改业务数据或线上配置；小程序训练视频现已不再使用一次性 multipart 上传。
+- User identification: 用户提供的会话截图中显示昵称为 `Fkj`（大写 F，其余小写）；未以截图外信息反查实名或账号。
+- Evidence: 用户截图的 9 秒训练视频上传后，客户端直接显示 `Failed to parse body as FormData.`。小程序训练执行页对不超过 8MB 的视频使用 `Taro.uploadFile`（multipart/form-data）请求 `/api/execution/upload-set-video`；该接口第一步调用 `req.formData()`。该错误说明服务端收到的请求体不具备可解析的 multipart FormData（通常是 Content-Type 的 multipart boundary 缺失/被代理改写，或小程序旧客户端一次性上传兼容问题），不是视频内容、训练记录、存储配额或 50MB 限额校验报错。
+- Historical context: 2026-07-18/19 已提交训练组视频分片上传修复（`3cfda755`、`a098892a`、`6479be00`、`a84b57a8`、`6e024db0`），用于让大视频走 `application/octet-stream` 分片、避开 multipart。截图日期为 8 月 14 日，且当前生产小程序曾有未手工发布的体验版，因此优先怀疑该用户仍在使用未包含修复的正式小程序包；即使当前源码仍保留 <=8MB 的 multipart 快路径，也需要以线上 API 访问日志中的 content-type 确认边界丢失位置。
+- Fix: `apps/wechat/src/services/executionService.ts` 已移除 <=8MB 时 `Taro.uploadFile` multipart 的快路径；所有训练组视频均走已有 768KB 的 `application/octet-stream` 分片接口及服务端合并/COS 上传链路，从根本上避开 `req.formData()`。
+- Next: 发布新正式小程序包后，用 Fkj 的真实账号上传 5–10 秒视频回归；上线前/后采集该请求的响应状态码及分片接口错误信息（勿记录 Authorization）。
+
+## 热身研究员8254 订阅被误判待续费 (`2026-08-17`)
+
+- Status: 已完成生产数据只读核对和本地权益模型复现；确认是计划 revision 后的订阅 credits 重复扣减 bug，未修改订单、订阅或业务代码。
+- User/subscription: 学员 `6d663f25-d827-4639-ad2c-2474ea246e35`，订阅 `e60ac61b-306a-4dfe-9826-bab49fd4f1a8`。订阅行仍为 `active`，`subscribed_weeks=4`；微信支付订单 `a9af4f67-e7b0-461d-a935-372bedfd33df` 仍为 `paid/S`，金额 30000 分，无取消、退款或真实续费记录。
+- Trigger: 当前 revision `c27bd87b-f565-4dcc-b752-75f14625dc73` 于北京时间 8 月 17 日 19:12 完成 D12。截图中宽限期截至 8/31，正好是该完成时间加 14 天。
+- Root cause: 历史计划 `cbeff331-ce44-45e5-aa13-7494c3b0c9bd` 的 D1/D3/D5/D8 使 carryover 先将 4 周权益扣成剩余 2 周；当前 revision 又因 `start_execution_day=10` 把 D10 之前的 D1/D3/D5/D8 重复计为已消耗。再加当前 D10/D12，模型误算 `totalCredits=6, usedCredits=6, remainingCredits=0`，返回 `entitlementStatus=grace / lifecycleStatus=expired_grace / canTrain=false`。
+- Stored/UI mismatch: 生产库当前 `coach_subscriptions.end_date=2026-08-27T11:24:38.17Z`且 raw lifecycle 为 active，但 `/coach-subscriptions` 的实时权益模型仍会重算为宽限期，因此单纯修改 `end_date` 无法根治。
+- Next: 需修正 revision carryover 与 `start_execution_day` 的重复消耗语义，然后用该订阅做针对性回归，再刷新线上权益快照。
+
+## BlessingLSH 配额扩容与「热身研究员8254」计划顺延修复 (`2026-08-14`)
+
+- Status: 已完成线上数据修复和 Web/微信两个教练计划入口的代码修复；未提交、未推送、未部署 Web，也未上传/发布小程序。
+- Storage: 生产库 `user_profiles.nickname=BlessingLSH` 唯一命中用户 `b5380575-a083-42d8-8db1-497fd81b1066`。`student_quotas.storage_total_mb` 已从 `1024` 增加 `2048` 至 `3072`，`storage_used_mb` 保持 `1016.12`；更新后再次读取验证通过。
+- Plan diagnosis: `热身研究员8254` 在 8 月 13 日覆盖已有执行历史的计划时，系统按历史保护规则归档旧实例 `cbeff331-ce44-45e5-aa13-7494c3b0c9bd`，建立从 D10 接续的新实例 `c27bd87b-f565-4dcc-b752-75f14625dc73`；旧版 D1/D3/D5/D8 的 completed execution 均完整保留。
+- Root cause: 首轮诊断只识别了 `toISOString()` 导致的 UTC 日期回退，但漏掉了更关键的 revision 语义错误：覆盖已有执行历史只是在原计划上改内容/重量，新实例必须继承被覆盖实例的 `start_date=2026-08-05`，不能按修改当天与 `start_execution_day` 重新回推起点。首轮把新实例改成 `2026-08-04` 后，D10 在 8 月 13 日当天不再延迟，但 8 月 14 日仍会滚动显示“13 日顺延”，因此首轮修复不完整。
+- Data fix: 已再次将当前实例 `c27bd87b-f565-4dcc-b752-75f14625dc73.start_date` 从 `2026-08-04` 校正为旧实例的原始起点 `2026-08-05`，`start_execution_day=10` 不变；生产库复读确认 D10 对应北京时间 `2026-08-14`、当日 delay=0，旧版 D1/D3/D5/D8 completed execution 均保留，当前 revision 尚无 execution。
+- Code fix: Web `src/app/dashboard/students/plan/[id]/page.tsx` 与微信 `apps/wechat/src/coach/students/assign-plan/index.tsx` 在“覆盖当前且有执行历史”时均优先继承旧实例 `start_date`；只有新阶段才重新计算日期。date-only 字段仍统一传 `YYYY-MM-DD`，避免 UTC 转换回退。
+- Verification: Chrome 中刷新用户 `热身研究员8254` 的 `http://localhost:3000/today-training` 并展开月历，确认显示 `8月5日 D1`、`8月13日 D9`、`8月14日 D10`，页面已无“顺延”标记；截图证据已取得。`npm run typecheck`、`npm run lint`（项目仅提示 ESLint 未配置）、`npm test`（37 files / 183 tests）、`npm run build`（532 pages）、`npm --workspace apps/wechat run build:weapp` 和 `git diff --check` 通过。
+- Boundary/next: 当前生产数据已生效；预防性代码修复仍需后续提交并部署 Web、重新上传/发布小程序后，线上所有入口才会永久避免同类问题。
+
+## 工具箱视频工具统一前摄、跟踪与光膜遮挡修复 (`2026-08-10`)
+
+- Status: 手指光膜、接豆派对、引体冲刺和俯卧撑突围的代码修复及构建门禁已完成，尚未提交、上传小程序或部署 Web/Worker。
+- Direction: 新增共享 `USER_FACING_CAMERA` 约定，四个工具固定使用前置摄像头、`medium` 帧与同一原始坐标；删除体感游戏镜像/原始方向开关、横坐标二次翻转和合成回放翻转。回放相机帧改用 aspect-fill 裁剪，与页面预览保持同一几何视角；手指光膜不再提供后摄切换，Web 与 Python Worker 的膜内纹理也不再水平反采样。
+- Body tracking: 复用既有端侧 MoveNet Lightning，不额外引入 MediaPipe/WASM。模型输入由强制拉伸改为保比例 letterbox 并正确反算坐标；主锚点从肩/全画面运动质心改为鼻眼耳头部中心，头部缺失时根据肩宽短时估算，推理节流从 58ms 降至 48ms并提高快速移动权重。接豆派对的角色坐标额外按 Camera aspect-fill 可见区域投影；引体/俯卧撑使用头部纵向速度和位移触发。
+- Hand/head tracking: 小程序 VisionKit 手检测间隔从 80ms 降至 48ms并降低平滑滞后；Web/Worker 双手按掌心距离保持轨迹身份，避免双手交叉或检测顺序变化时串轨。光膜实时预览同时以 72ms 节流运行头部姿态锚点并用 Canvas 前景挖空保护脸部；Worker 成片使用 MediaPipe Pose 恢复羽化后的头部前景，结果指标新增 `headOcclusionFrames`。
+- Verification: `npm run lint`、`npm run typecheck`、`npm test`（37 files / 183 tests）、`npx next build`（532 pages）、小程序 local/release 完整构建、Python 语法、双手轨迹合成检查和 `git diff --check` 通过。微信 DevTools 9420 可进入四个工具页面，确认前摄组件存在、旧方向切换入口不存在、错误日志 0；自动化截图仍因 `timeout waiting for automator response` 失败，模拟器也不能提供真实相机帧。
+- Blocker/next: 本机 Docker daemon 未运行，宿主系统 Python 的 MediaPipe DLL 也不可加载，故 Worker 真实成片必须在容器/部署环境验证；四个工具的镜像、头部/手部贴合和跟随延迟仍需真机短测。上线需要发布生产小程序包，并分别发布 Web 与 motion-effects Worker；当前未执行外部发布。
+
+## 功率分析器 V2 / 智能动作分析引擎方案 (`2026-08-09`)
+
+- Status: 已完成现有功率分析链路审计与技术可行性评估，当前仅形成产品/技术方案，尚未修改业务代码。
+- Direction: 保留现有功率分析器，新增“通用分析底座 + 分动作评估器”的智能动作分析能力；V1 自动识别现有 5 类动作并保留 `unknown / 待用户确认`，动作质量评估先聚焦引体向上与深蹲，不承诺任意动作均可可靠诊断。
+- Architecture: 视频质量门禁 → 人体/器械追踪 → 动作识别 → 次数与动作阶段切分 → 关节角度、对称性、节奏、轨迹等特征 → 版本化动作规则/模型 → 带时间戳证据的观察与建议。LLM 仅负责把结构化证据转成自然语言，不得自行推断伤病或生理原因。
+- Deployment: 建议单独建立 Motion Analysis Job、队列与 GPU/重模型 Worker，复用当前上传、鉴权、存储和任务状态能力，避免把 PyTorch/3D 姿态依赖塞进现有轻量功率 Worker。
+- Safety/Data: 身高、体重、负重以用户资料或手动确认为准，视觉识别仅给建议值；低画质、遮挡、角度不合适或置信度不足时必须拒绝判断并给出重拍提示。采集数据以“动作次数 + 阶段 + 机位 + 错误代码”为标注单元，并需教练复核与明确训练数据授权。
+- Multimodal update: 已将方案升级为“运动学通道 + 视频多模态大模型 + 动作知识量表 + 证据仲裁”。视频大模型进入主链路，负责开放动作识别、动作变式、器械/机位理解和未知问题候选；原帧率姿态算法继续负责角度、次数、阶段、速度和功率。任何正式建议必须绑定时间戳/帧或结构化测量证据。
+- Design: 正式设计已写入 `docs/work/motion-analysis-v2-multimodal-architecture.md`，包含 Gemini/Kimi/Qwen 可切换 Provider、两阶段模型调用、统一证据协议、冲突仲裁、隐私分级、unknown 实验模式与影子评测方案。
+- Next: 进入阶段 A 两周技术验证前，先建立小型金标集并完成 Gemini、Kimi 与现有视觉通道的同包影子评测；不得凭模型榜单直接选 Provider，也不应在未获得额外授权时把用户原视频发送给第三方模型。
+
+## 双力臂功率分析视频本地原画质批处理 (`2026-08-07`)
+
+- Status: 已完成。按修改时间选取微信目录 `D:\wxfiles\xwechat_files\wxid_uvyr5h7s96p312_32b1\msg\video\2026-08` 下最新 3 个 `_raw.mp4`，使用当前 `scripts/power-analysis/analyze_video.py` 本地批量生成双力臂中文版原画质分析视频。
+- Parameters: `mode=muscleup`、`language=zh`、`quality=original`、身高统一 `183cm`、体重统一 `70kg`。逐条抽取负重近景确认：`53c74d…` 无负重链/杠铃片，额外负重 `0kg`；`55d108…` 腰链下一片杠铃片，额外负重 `15kg`；`bb82c2…` 腰链下两片杠铃片，额外负重 `20kg`，对应有效质量 `70 / 85 / 90kg`。
+- Output: `C:\Users\29454\Desktop\2026年8月7号\双力臂功率分析视频`；根目录含 3 个分析成片，`原视频/` 含 3 个 SHA-256 与源文件一致的副本，`分析数据/` 含对应 JSON。
+- Verification: 3 个成片均为 H.264 `1080x1920 / 30fps / CRF 18`，时长与源片一致并保留 AAC 44.1kHz 音轨；抽取动作峰值帧确认中文功率面板、人体骨架和框选均正常。最终 JSON 复核 `bodyWeightKg / externalLoadKg / effectiveMassKg` 分别为 `70/0/70`、`70/15/85`、`70/20/90`；有效次数为 `3 / 2 / 6`，平均功率为 `799.09W / 829.69W / 848.38W`，最佳功率为 `851.62W / 830.85W / 892.17W`。
+- Branding update: 按用户要求从原片重新生成 3 个成片，将顶部 `CoachLink 双力臂功率测试` 改为纯中文 `教链 双力臂功率测试`，不显示英文品牌或微信小程序名称；抽帧确认三条均已生效。为本地成片临时调整的分析器标题已恢复，仓库源码无该项残留 diff。
+- Boundary: 本次只执行本地分析与文件交付，未上传云端，未修改业务代码，未运行代码门禁。
+
+## GitHub PR 核查与 `dev` 合并 (`2026-08-06`)
+
+- Status: 已完成核查，无可合并 PR。GitHub 仓库 `IntelliFit/coachlink` 当前开放 PR 为 0，且 `2026-07-01` 以来无新增或更新的 PR，因此未执行合并。
+- Verification: 已拉取 `origin/dev`；本地 `dev` 与 `origin/dev` ahead/behind 均为 0，远端最新提交为 `46b0ecb2a20fd77ac607bd85313a8c4f4757bc6f`（`docs: record main and dev synchronization`）。
+- Boundary: 保留本地已有的 `CURRENT_TASK.md` 修改、未跟踪的 `memory/2026-08-06.md` 与 `tmp/`，未提交、未推送。
+
+## 工具箱视频类工具镜像、追踪定位与定位速度问题 (`2026-08-06`)
+
+- Status: 等待用户逐项提供真实使用中的具体现象、涉及工具和复现素材；当前不先做代码改动。
+- Focus: 按镜像方向、追踪/关键点定位准确与稳定性、定位/跟手速度三类拆分，并区分实时预览、小程序录制/回放和服务端 Worker 成片链路。
+
 ## `dev` 合并 `main` 与双远端同步 (`2026-08-05`)
 
 - Status: 已完成。`main` 以 fast-forward 合并 `dev`，纳入 `4fde745d`、`1d0c659e`、`d4e6c2ee`、`c79edae5` 四个提交，内容覆盖手指光膜实时/成片拓扑修复、Dev 独立队列记录、双手稳定追踪及小程序原生微信支付。
@@ -9113,3 +9232,27 @@
 - Status: 已将本地身份绑定提交 `889bf050`、AI 导航/跨端更新合并 `bc15bd44`、小程序品牌色合并 `4306de01`、功率分析三个补丁 `01629987` / `bb0e84fe` / `a92b8cea`、OTel Node/Edge 运行时拆分 `9d1a4ac1` 整合进 `dev`；尚未推送远端。
 - Coverage: 已逐项核对本地与 `origin` 的全部分支。历史 `handover-before-sync` 为整合前快照、`gray` 无有效差异；两者均保留引用但不重复合并。其余可用功能补丁已纳入或已有等价实现。
 - Verification: `git diff --check`、`npm run typecheck`、`npm test`（42 files / 203 tests）通过；lint 脚本提示未配置 ESLint。`npx next build` 在执行环境 64 秒窗口内超时且未输出可用结果，需在不受该窗口限制的环境继续确认。
+## 本地 `npm run dev` Apollo 代理启动失败 (`2026-08-07`)
+
+- Status: 已修复并完成配置拉取验证。用户的 PowerShell 已设置 `HTTPS_PROXY` / `HTTP_PROXY` / `ALL_PROXY` 指向本地代理，但 Node 内置 `fetch` 默认不读取这些变量，导致 Apollo 域名直连 DNS 返回 `getaddrinfo ENOTFOUND`，开发服务器在拉取 `app-config` 前退出。
+- Fix: `scripts/config/bootstrap-env.mjs` 在 Apollo 配置请求前通过 Undici 全局 `ProxyAgent` 接入已有代理环境变量；未设置代理时保持直连。将 `undici` 声明为根直接依赖，避免安装依赖时偶然依赖消失。
+- Verification: `bootstrapEnv({ mode: 'development' })` 已成功从 Apollo 加载 `app-config`（81 项键）；`node --check`、`npm ci --dry-run --ignore-scripts` 和 `git diff --check` 通过。未启动浏览器验证，待用户重跑 `npm run dev`。
+## Web ClickFix / EtherHiding 恶意验证码排查与防护 (`2026-08-12`)
+
+- Status: 已完成取证、仓库侧防护与代码门禁；尚未部署生产。当前恶意弹窗确认是浏览器侧运行时注入，不存在于仓库源码、生产原始 HTML、生产公开 Next.js chunks 或正常 `/sw.js` 中。
+- Evidence: Chrome DOM 中存在额外的 `data:text/javascript;base64,...` 加载器；它通过 BNB Chain RPC 对合约 `0xDF132E2893824e26Ec8ae8014b4f4FACD54eD67b` 发起 `eth_call`，获取二阶段代码后 `eval(atob(...))`，最终插入 `.cjs-container` / `#verify-window` ClickFix UI，并加载 Yandex Metrika 计数器 `110784881`。该链路与公开的 ARC Stealer / EtherHiding ClickFix 样本一致。
+- Source boundary: 未登录 `curl` 获取的生产 HTML、页面引用的 25 个公开 JS chunk、工作区源码、生产 `/sw.js`（SHA-256 `FCDB46BF309470FB71C59570D500F6A86AD334B46ACF0FBEC9ACD05C89DE0BBD`）均未命中恶意特征。Chrome 本地 Cache/Local Storage 中的 Yandex 记录是页面运行后的痕迹，不证明 Service Worker 是源头。具体由哪个具备页面调试权限的本机组件触发，事后证据不足以唯一归属。
+- Browser compromise evidence: Chrome `Profile 1/Secure Preferences` 的启动页被改为 `http://56hm8e.fk6u1.com/y6dht` 与 `http://hao360.jfxaa.com/bks20`，且开发者模式开启；这属于独立且明确的浏览器配置劫持证据，但不能仅凭现有证据断言它就是 CoachLink DOM 注入的直接来源。Chrome 安全策略不允许代理自动修改 `chrome://settings`，需用户手工删除启动 URL 并清理站点数据/可疑扩展。
+- Code fix: `next.config.ts` 新增全站 CSP 与基础安全响应头。生产 `script-src` 只允许 `'self'`、必要的 `'unsafe-inline'` 和 `https://api.tianditu.gov.cn`，明确不允许 `data:`；同时加入 `worker-src 'self' blob:`、`object-src 'none'`、`base-uri 'self'`、`frame-ancestors 'self'`、Referrer-Policy、nosniff 与 SAMEORIGIN。
+- Verification: `npm run lint`、`npm run typecheck`、`npm test`（37 files / 183 tests）、`npx next build`（532 pages）和 `git diff --check -- next.config.ts` 通过。本地 production standalone 响应头实测 CSP 存在，`script-src` 不含 `data:`；测试服务已停止。常见 ARC Stealer 落地文件、Run/RunOnce、相关计划任务、进程及 Defender 检测记录未见命中，当前无证据表明诱导命令已被执行。
+- Next: 部署 Web 后复核生产 CSP 响应头与真实页面控制台。用户需在 Chrome“启动时”设置删除两个陌生 URL，并清除 `coachlink.fit` 站点数据；如任何人曾按弹窗执行 `Win+R / Ctrl+V / Enter`，必须按主机失陷处理，立即断网、从干净设备轮换凭据并做离线查杀/重装评估。
+# 内容驱动的学习与社区闭环方案（`2026-08-14`）
+
+- Task: 评估如何把马健文的系统健身教程、健身起点测试、CoachLink 知识库与高质量社区结合成一条产品闭环。
+- Status: product architecture draft completed; no application code or production data changed.
+- Findings:
+  - 现有 Web / 小程序已具备知识首页、教练专栏、文章、书籍、训练计划、人体地图、AI 问答及部分讨论能力；主要缺口不是内容容器，而是测评结果、学习顺序、课程进度、课后行动和通用讨论之间的连接层。
+  - 新用户 onboarding 已收集目标、水平、器械、每周频率、单次时长和关注部位，可作为10题起点测试的基础，避免重复采集。
+  - 第一版建议采用“外部内容 → 10题测试 → 个性化路径 → 每课最小行动 → 训练记录 → 结构化讨论 → 七天复测”的闭环；社区先挂在课程和知识节点下面，不先建设泛信息流广场。
+- Deliverable: `docs/work/roadmap/features/knowledge-base/内容驱动的学习与社区闭环-20260814.md`.
+- Next decision: 确认第一个课程系列与 MVP 1 范围后，再拆测试结果页、学习路径、课程讨论和行动按钮的 PRD / 数据库迁移 / 前端任务。

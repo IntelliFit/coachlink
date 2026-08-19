@@ -6,6 +6,7 @@ import { ApiData } from "@/types/api";
 import { getServerSession } from "@/app/api/auth/[...nextauth]/auth";
 import { syncCoachActionsToStudentLibrary } from "../sync-actions";
 import { validateTrainingDaysPresence } from "@/utils/template";
+import { toBeijingDateKey } from "@/lib/beijingTime";
 
 function stableJson(value: unknown): string {
     if (Array.isArray(value)) {
@@ -59,7 +60,7 @@ export async function POST(req: Request) {
     // 首先获取现有的计划实例以检查权限 & 用于校验 start_execution_day
     const { data: existingInstance, error: fetchError } = await supabase
         .from("coach_plan_instances")
-        .select("coach_id, student_id, coach_subscription_id, training_days")
+        .select("coach_id, student_id, coach_subscription_id, training_days, start_date, start_execution_day")
         .eq("id", id)
         .single();
 
@@ -106,7 +107,13 @@ export async function POST(req: Request) {
     // two different workouts and corrupt history displays.
     const trainingDaysChanged = trainingDays !== undefined &&
         stableJson(trainingDays) !== stableJson((existingInstance as any).training_days || []);
-    if (trainingDaysChanged) {
+    const startDateChanged = startDate !== undefined &&
+        (startDate ? toBeijingDateKey(startDate) : null) !==
+        (existingInstance.start_date ? String(existingInstance.start_date).slice(0, 10) : null);
+    const startExecutionDayChanged = startExecutionDay !== undefined &&
+        Number(startExecutionDay) !== Number(existingInstance.start_execution_day || 1);
+
+    if (trainingDaysChanged || startDateChanged || startExecutionDayChanged) {
         const { count: executionCount, error: executionCountError } = await serviceRoleSupabase
             .from("plan_instance_executions")
             .select("id", { count: "exact", head: true })
@@ -124,7 +131,7 @@ export async function POST(req: Request) {
             return NextResponse.json({
                 success: false,
                 code: "PLAN_REVISION_REQUIRED",
-                message: "当前计划已有训练记录，请保存为新版本；历史记录会独立保留",
+                message: "当前计划已有训练记录，训练内容、D1 和接续进度只能通过新版本更新",
             }, { status: 409 });
         }
     }
@@ -167,7 +174,9 @@ export async function POST(req: Request) {
             ...(studentId !== undefined && { student_id: studentId }),
             ...(templateId !== undefined &&
                 { coach_plan_template_id: templateId }),
-            ...(startDate !== undefined && { start_date: startDate }),
+            ...(startDate !== undefined && {
+                start_date: startDate ? toBeijingDateKey(startDate) : null,
+            }),
             ...(endDate !== undefined && { end_date: endDate }),
             ...(status !== undefined && { status }),
             ...(type !== undefined && { type }),

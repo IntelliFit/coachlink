@@ -5,10 +5,17 @@ declare const wx: any
 
 export type BodyTrackingSource = 'motion' | 'pose'
 
+export type BodyTrackingTarget = 'body' | 'head' | 'head-estimate' | 'motion'
+
 export type BodyTrackingSnapshot = {
   confidence: number
   energy: number
+  frameHeight: number
+  frameWidth: number
+  headRadiusX: number
+  headRadiusY: number
   source: BodyTrackingSource
+  target: BodyTrackingTarget
   velocityX: number
   velocityY: number
   x: number
@@ -24,6 +31,7 @@ type CameraFrame = {
 type TrackerOptions = {
   onSnapshot: (snapshot: BodyTrackingSnapshot) => void
   onSourceChange?: (source: BodyTrackingSource) => void
+  poseIntervalMs?: number
 }
 
 type PosePoint = {
@@ -35,7 +43,7 @@ type PosePoint = {
 const MODEL_FILE_NAME = 'coachlink-movenet-lightning-v4.onnx'
 const MODEL_FILE_SIZE = 9_466_715
 const MODEL_INPUT_SIZE = 192
-const POSE_INTERVAL_MS = 58
+const POSE_INTERVAL_MS = 48
 const MOTION_INTERVAL_MS = 42
 const MOTION_SAMPLE_STEP = 8
 const MOTION_THRESHOLD = 22
@@ -93,6 +101,54 @@ function averageVisible(points: PosePoint[], indices: number[]) {
   }
 }
 
+function buildHeadAnchor(points: PosePoint[], frameAspect: number) {
+  const visibleHead = [0, 1, 2, 3, 4]
+    .map((index) => points[index])
+    .filter((point) => point?.score >= POSE_SCORE_THRESHOLD)
+  const leftShoulder = points[5]
+  const rightShoulder = points[6]
+  const shoulderSpan = leftShoulder?.score >= POSE_SCORE_THRESHOLD
+    && rightShoulder?.score >= POSE_SCORE_THRESHOLD
+    ? Math.hypot(leftShoulder.x - rightShoulder.x, leftShoulder.y - rightShoulder.y)
+    : 0.16
+  const head = averageVisible(points, [0, 1, 2, 3, 4])
+  if (head) {
+    const headWidth = visibleHead.length >= 2
+      ? Math.max(...visibleHead.map((point) => point.x)) - Math.min(...visibleHead.map((point) => point.x))
+      : 0
+    const radiusX = clamp(Math.max(headWidth * 0.82, shoulderSpan * 0.28), 0.055, 0.14)
+    return {
+      ...head,
+      headRadiusX: radiusX,
+      headRadiusY: clamp(radiusX * frameAspect * 1.32, 0.06, 0.18),
+      target: 'head' as const
+    }
+  }
+
+  const shoulders = averageVisible(points, [5, 6])
+  if (shoulders) {
+    const radiusX = clamp(shoulderSpan * 0.3, 0.06, 0.14)
+    return {
+      headRadiusX: radiusX,
+      headRadiusY: clamp(radiusX * frameAspect * 1.32, 0.065, 0.18),
+      score: shoulders.score * 0.82,
+      target: 'head-estimate' as const,
+      x: shoulders.x,
+      y: clamp(shoulders.y - clamp(shoulderSpan * 0.72, 0.07, 0.2), 0.03, 0.97)
+    }
+  }
+
+  const hips = averageVisible(points, [11, 12])
+  return hips
+    ? {
+        ...hips,
+        headRadiusX: 0,
+        headRadiusY: 0,
+        target: 'body' as const
+      }
+    : null
+}
+
 export class BodyPointTracker {
   private destroyed = false
   private inferenceRunning = false
@@ -100,22 +156,30 @@ export class BodyPointTracker {
   private lastMotionAt = 0
   private lastPoseAt = 0
   private lastPoseSnapshotAt = 0
+  private lastPoseSnapshot: BodyTrackingSnapshot | null = null
   private lastSnapshot: BodyTrackingSnapshot = {
     confidence: 0,
     energy: 0,
+    frameHeight: 0,
+    frameWidth: 0,
+    headRadiusX: 0,
+    headRadiusY: 0,
     source: 'motion',
+    target: 'motion',
     velocityX: 0,
     velocityY: 0,
     x: 0.5,
     y: 0.55
   }
   private options: TrackerOptions
+  private poseIntervalMs: number
   private poseSession: any = null
   private previousGray: Uint8Array | null = null
   private source: BodyTrackingSource = 'motion'
 
   constructor(options: TrackerOptions) {
     this.options = options
+    this.poseIntervalMs = clamp(Number(options.poseIntervalMs || POSE_INTERVAL_MS), 40, 120)
     void this.preparePoseSession()
   }
 
@@ -124,11 +188,11 @@ export class BodyPointTracker {
 
     const rgba = new Uint8Array(frame.data)
     if (this.poseSession) {
-      if (!this.inferenceRunning && at - this.lastPoseAt >= POSE_INTERVAL_MS) {
+      if (!this.inferenceRunning && at - this.lastPoseAt >= this.poseIntervalMs) {
         this.lastPoseAt = at
         this.runPose(rgba, frame.width, frame.height, at)
       }
-      if (this.lastPoseSnapshotAt && at - this.lastPoseSnapshotAt < 420) return
+      if (this.lastPoseSnapshotAt && at - this.lastPoseSnapshotAt < 650) return
     }
 
     if (at - this.lastMotionAt < MOTION_INTERVAL_MS) return
@@ -184,16 +248,35 @@ export class BodyPointTracker {
     if (!this.poseSession) return
     this.inferenceRunning = true
     const input = new Int32Array(MODEL_INPUT_SIZE * MODEL_INPUT_SIZE * 3)
-    let outputIndex = 0
+    const scale = Math.min(MODEL_INPUT_SIZE / width, MODEL_INPUT_SIZE / height)
+    const scaledWidth = Math.max(1, Math.round(width * scale))
+    const scaledHeight = Math.max(1, Math.round(height * scale))
+    const offsetX = Math.floor((MODEL_INPUT_SIZE - scaledWidth) / 2)
+    const offsetY = Math.floor((MODEL_INPUT_SIZE - scaledHeight) / 2)
 
     for (let targetY = 0; targetY < MODEL_INPUT_SIZE; targetY += 1) {
-      const sourceY = Math.min(height - 1, Math.floor((targetY + 0.5) * height / MODEL_INPUT_SIZE))
       for (let targetX = 0; targetX < MODEL_INPUT_SIZE; targetX += 1) {
-        const sourceX = Math.min(width - 1, Math.floor((targetX + 0.5) * width / MODEL_INPUT_SIZE))
+        if (
+          targetX < offsetX
+          || targetX >= offsetX + scaledWidth
+          || targetY < offsetY
+          || targetY >= offsetY + scaledHeight
+        ) {
+          continue
+        }
+        const sourceX = Math.min(
+          width - 1,
+          Math.max(0, Math.floor((targetX - offsetX + 0.5) * width / scaledWidth))
+        )
+        const sourceY = Math.min(
+          height - 1,
+          Math.max(0, Math.floor((targetY - offsetY + 0.5) * height / scaledHeight))
+        )
         const sourceIndex = (sourceY * width + sourceX) * 4
-        input[outputIndex++] = rgba[sourceIndex] || 0
-        input[outputIndex++] = rgba[sourceIndex + 1] || 0
-        input[outputIndex++] = rgba[sourceIndex + 2] || 0
+        const outputIndex = (targetY * MODEL_INPUT_SIZE + targetX) * 3
+        input[outputIndex] = rgba[sourceIndex] || 0
+        input[outputIndex + 1] = rgba[sourceIndex + 1] || 0
+        input[outputIndex + 2] = rgba[sourceIndex + 2] || 0
       }
     }
 
@@ -220,42 +303,43 @@ export class BodyPointTracker {
 
         const points: PosePoint[] = []
         for (let index = 0; index < 17; index += 1) {
+          const modelY = values[index * 3] * MODEL_INPUT_SIZE
+          const modelX = values[index * 3 + 1] * MODEL_INPUT_SIZE
           points.push({
-            y: values[index * 3],
-            x: values[index * 3 + 1],
+            y: clamp((modelY - offsetY) / scaledHeight, 0, 1),
+            x: clamp((modelX - offsetX) / scaledWidth, 0, 1),
             score: values[index * 3 + 2]
           })
         }
 
-        const shoulders = averageVisible(points, [5, 6])
-        const hips = averageVisible(points, [11, 12])
-        const head = averageVisible(points, [0, 1, 2, 3, 4])
-        const anchor = shoulders || head || hips
+        const anchor = buildHeadAnchor(points, width / Math.max(1, height))
         if (!anchor || anchor.score < POSE_SCORE_THRESHOLD) return
 
-        const torsoCenter = shoulders && hips
-          ? {
-              score: (shoulders.score + hips.score) / 2,
-              x: shoulders.x * 0.68 + hips.x * 0.32,
-              y: shoulders.y * 0.76 + hips.y * 0.24
-            }
-          : anchor
-        const previous = this.lastSnapshot
-        const rawVelocityX = torsoCenter.x - previous.x
-        const rawVelocityY = torsoCenter.y - previous.y
+        const completedAt = Date.now()
+        const previous = this.lastPoseSnapshot || this.lastSnapshot
+        const elapsedScale = this.lastPoseSnapshotAt
+          ? clamp((completedAt - this.lastPoseSnapshotAt) / this.poseIntervalMs, 0.7, 3)
+          : 1
+        const rawVelocityX = (anchor.x - previous.x) / elapsedScale
+        const rawVelocityY = (anchor.y - previous.y) / elapsedScale
         const speed = Math.hypot(rawVelocityX, rawVelocityY)
-        const alpha = speed > 0.035 ? 0.86 : 0.68
-        const x = previous.x * (1 - alpha) + torsoCenter.x * alpha
-        const y = previous.y * (1 - alpha) + torsoCenter.y * alpha
+        const alpha = speed > 0.035 ? 0.94 : speed > 0.012 ? 0.88 : 0.78
+        const x = previous.x * (1 - alpha) + anchor.x * alpha
+        const y = previous.y * (1 - alpha) + anchor.y * alpha
 
-        this.lastPoseSnapshotAt = Date.now()
+        this.lastPoseSnapshotAt = completedAt
         this.inferenceFailures = 0
         this.emit({
-          confidence: torsoCenter.score,
+          confidence: anchor.score,
           energy: clamp(speed * 11, 0, 1),
+          frameHeight: height,
+          frameWidth: width,
+          headRadiusX: anchor.headRadiusX,
+          headRadiusY: anchor.headRadiusY,
           source: 'pose',
-          velocityX: x - previous.x,
-          velocityY: y - previous.y,
+          target: anchor.target,
+          velocityX: (x - previous.x) / elapsedScale,
+          velocityY: (y - previous.y) / elapsedScale,
           x: clamp(x, 0.04, 0.96),
           y: clamp(y, 0.06, 0.94)
         })
@@ -370,7 +454,12 @@ export class BodyPointTracker {
     return {
       confidence: clamp(best.weight / 5200, 0, 1),
       energy: clamp(best.weight / 7200, 0, 1),
+      frameHeight: height,
+      frameWidth: width,
+      headRadiusX: 0,
+      headRadiusY: 0,
       source: 'motion' as const,
+      target: 'motion' as const,
       velocityX: (x - previous.x) / elapsedScale,
       velocityY: (y - previous.y) / elapsedScale,
       x: clamp(x, 0.04, 0.96),
@@ -380,6 +469,7 @@ export class BodyPointTracker {
 
   private emit(snapshot: BodyTrackingSnapshot) {
     this.lastSnapshot = snapshot
+    if (snapshot.source === 'pose') this.lastPoseSnapshot = snapshot
     if (snapshot.source !== this.source) {
       this.source = snapshot.source
       this.options.onSourceChange?.(snapshot.source)

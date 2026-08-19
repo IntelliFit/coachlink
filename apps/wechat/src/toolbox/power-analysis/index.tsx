@@ -152,6 +152,10 @@ const TERMINAL_STATUSES: PowerAnalysisJobStatus[] = ['done', 'failed', 'expired'
 const SELECTED_VIDEO_ID = 'power-analysis-selected-video'
 const LAST_DOWNLOADABLE_JOB_STORAGE_KEY = 'power-analysis-last-downloadable-job-v1'
 const VIDEO_TRANSFER_TIMEOUT_MS = 15 * 60 * 1000
+// wx.chooseVideo only accepts 3–60 seconds for its recording option. This is
+// separate from the server-side duration entitlement used to validate files
+// selected from the album (which can be 120 seconds for premium users).
+const WECHAT_VIDEO_PICKER_MAX_DURATION_SECONDS = 60
 const DEFAULT_ENTITLEMENTS: PowerAnalysisEntitlements = {
   tier: 'free',
   canUseOriginalQuality: false,
@@ -687,7 +691,10 @@ export default function WechatPowerAnalysisPage() {
     try {
       const res = await Taro.chooseVideo({
         sourceType: ['album', 'camera'],
-        maxDuration: entitlements.maxDurationSeconds,
+        maxDuration: Math.min(
+          WECHAT_VIDEO_PICKER_MAX_DURATION_SECONDS,
+          entitlements.maxDurationSeconds
+        ),
         compressed: quality === 'compressed',
         camera: 'back'
       })
@@ -705,7 +712,15 @@ export default function WechatPowerAnalysisPage() {
     } catch (error: any) {
       const message = String(error?.errMsg || error?.message || '')
       if (message.includes('cancel')) return
-      Taro.showToast({ title: '选择视频失败', icon: 'none' })
+      const detail = message
+        .replace(/^chooseVideo:fail\s*/i, '')
+        .trim() || '微信未返回具体原因，请检查相册权限后重试'
+      Taro.showModal({
+        title: '选择视频失败',
+        content: detail,
+        showCancel: false,
+        confirmText: '知道了'
+      })
     }
   }
 

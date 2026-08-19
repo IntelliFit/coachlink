@@ -7,6 +7,7 @@ import { coachService } from '@/services/coach/coachService'
 import { planLibService } from '@/services/coach/planLibService'
 import { actionLibService } from '@/services/coach/actionLibService'
 import { isOneRMEligibleAction } from '@/utils/oneRmEligibility'
+import { formatDateYMD } from '@/utils/dateFormat'
 import './index.scss'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { useTheme } from '@/hooks/useTheme'
@@ -89,6 +90,7 @@ export default function AssignPlanPage() {
   const [showScheduleOverview, setShowScheduleOverview] = useState(false)
   const [importMode, setImportMode] = useState<'overwrite' | 'new_instance'>('overwrite')
   const [existingInstanceId, setExistingInstanceId] = useState<string | null>(null)
+  const [existingInstanceStartDate, setExistingInstanceStartDate] = useState<string | null>(null)
   const [existingExecutionsByDayIndex, setExistingExecutionsByDayIndex] = useState<Record<number, any>>({})
   const [startWeek, setStartWeek] = useState(1)
   const [startDay, setStartDay] = useState(1)
@@ -138,9 +140,11 @@ export default function AssignPlanPage() {
 
       if (instanceRes?.instance?.id) {
         setExistingInstanceId(instanceRes.instance.id)
+        setExistingInstanceStartDate(instanceRes.instance.start_date || null)
         setExistingExecutionsByDayIndex(instanceRes.executionsByDayIndex || {})
       } else {
         setExistingInstanceId(null)
+        setExistingInstanceStartDate(null)
         setExistingExecutionsByDayIndex({})
         setImportMode('new_instance')
       }
@@ -394,7 +398,16 @@ export default function AssignPlanPage() {
           name: selectedTemplate?.name || '训练计划',
           description: selectedTemplate?.description || null,
           trainingDays,
-          startDate: calculatedStartDate.toISOString(),
+          revisionOfInstanceId:
+            existingInstanceId && importMode === 'overwrite' && hasExecutionHistory
+              ? existingInstanceId
+              : undefined,
+          // 覆盖有执行历史的计划只建立内容 revision，必须继承旧实例的日历起点。
+          // 新阶段才根据选择的周/日重新计算 start_date。
+          startDate:
+            existingInstanceId && importMode === 'overwrite' && hasExecutionHistory && existingInstanceStartDate
+              ? existingInstanceStartDate.slice(0, 10)
+              : formatDateYMD(calculatedStartDate),
           startWeek: effectiveStartWeek,
           startDay: effectiveStartDay
         })

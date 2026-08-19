@@ -177,6 +177,7 @@ class PlanLibService extends BaseService {
     trainingDays?: any[]
     suitableFor?: string | null
     startDate?: string
+    revisionOfInstanceId?: string
     startWeek?: number
     startDay?: number
   }) {

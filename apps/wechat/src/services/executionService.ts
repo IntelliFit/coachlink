@@ -17,7 +17,6 @@ interface PRRecord {
   created_at: string
 }
 
-const UPLOAD_FILE_SAFE_LIMIT_BYTES = 8 * 1024 * 1024
 const SET_VIDEO_CHUNK_SIZE_BYTES = 768 * 1024
 
 interface UploadSetVideoOptions {
@@ -41,11 +40,6 @@ function parseApiPayload(raw: any): any {
     }
   }
   return raw
-}
-
-function getResponseErrorMessage(response: any, fallback: string) {
-  const payload = parseApiPayload(response?.data)
-  return payload?.message || fallback
 }
 
 function createUploadId() {
@@ -207,36 +201,6 @@ class ExecutionService {
         totalChunks
       }
     )
-  }
-
-  private async uploadSetVideoByUploadFile(
-    filePath: string,
-    executionId: string,
-    actionId: string,
-    setNumber: number
-  ): Promise<UploadSetVideoResult | null> {
-    return new Promise((resolve, reject) => {
-      Taro.uploadFile({
-        url: `${API_BASE_URL}${this.baseUrl}/upload-set-video`,
-        filePath,
-        name: 'file',
-        formData: {
-          executionId,
-          actionId,
-          setNumber: String(setNumber)
-        },
-        header: this.getAuthHeader(),
-        success: (uploadRes: any) => {
-          const payload = parseApiPayload(uploadRes.data)
-          if (uploadRes.statusCode !== 200 || !payload?.success) {
-            reject(new Error(getResponseErrorMessage(uploadRes, `上传失败: ${uploadRes.statusCode}`)))
-            return
-          }
-          resolve(payload.data || null)
-        },
-        fail: (err: any) => reject(new Error(err?.errMsg || '上传失败'))
-      })
-    })
   }
 
   /**
@@ -505,10 +469,9 @@ class ExecutionService {
   ): Promise<UploadSetVideoResult | null> {
     const providedFileSize = Number(options?.fileSize || 0)
     const fileSize = providedFileSize > 0 ? providedFileSize : await this.getFileSize(filePath)
-    if (fileSize > UPLOAD_FILE_SAFE_LIMIT_BYTES) {
-      return this.uploadSetVideoByChunks(filePath, fileSize, executionId, actionId, setNumber, options)
-    }
-    return this.uploadSetVideoByUploadFile(filePath, executionId, actionId, setNumber)
+    // 微信客户端的 multipart 请求在部分机型/网络链路会丢失 boundary，导致服务端
+    // 无法解析 FormData。训练视频统一分片上传，避免短视频回退到该不稳定路径。
+    return this.uploadSetVideoByChunks(filePath, fileSize, executionId, actionId, setNumber, options)
   }
 
   /**

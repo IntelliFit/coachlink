@@ -769,7 +769,8 @@ export async function POST(req: Request) {
             startExecutionDay,
             executionsByDayIndex,
             actionsMap,
-            explicitStartDate: (instance as any).start_date,
+            explicitStartDate:
+                subscriptionStartDateForProgress || (instance as any).start_date,
             today: todayStart,
         },
     );

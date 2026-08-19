@@ -154,10 +154,70 @@ def update_state(state: dict[str, Any], score: float) -> float:
     return float(state["weight"]) if state["weight"] > 0.08 else 0.0
 
 
-def smooth(previous: np.ndarray | None, current: np.ndarray, alpha: float = 0.58) -> np.ndarray:
+def smooth(previous: np.ndarray | None, current: np.ndarray) -> np.ndarray:
     if previous is None or previous.shape != current.shape:
         return current.copy()
+    movement = float(np.mean(np.linalg.norm(current[:, :2] - previous[:, :2], axis=1)))
+    alpha = clamp(0.7 + movement * 4.8, 0.7, 0.94)
     return previous * (1.0 - alpha) + current * alpha
+
+
+def hand_center(hand: np.ndarray) -> np.ndarray:
+    return np.mean(hand[[0, 5, 9, 13, 17], :2], axis=0)
+
+
+def assign_hand_candidates(
+    previous: list[np.ndarray | None],
+    candidates: list[np.ndarray],
+) -> list[np.ndarray | None]:
+    assigned: list[np.ndarray | None] = [None, None]
+    if not candidates:
+        return assigned
+
+    candidates = candidates[:2]
+    active_slots = [index for index, hand in enumerate(previous) if hand is not None]
+    if len(candidates) == 1:
+        if active_slots:
+            slot = min(
+                active_slots,
+                key=lambda index: float(
+                    np.linalg.norm(hand_center(previous[index]) - hand_center(candidates[0]))
+                ),
+            )
+        else:
+            slot = 0 if float(hand_center(candidates[0])[0]) <= 0.5 else 1
+        assigned[slot] = candidates[0]
+        return assigned
+
+    if len(active_slots) == 2:
+        direct = sum(
+            float(np.linalg.norm(hand_center(previous[index]) - hand_center(candidates[index])))
+            for index in range(2)
+        )
+        crossed = sum(
+            float(np.linalg.norm(hand_center(previous[index]) - hand_center(candidates[1 - index])))
+            for index in range(2)
+        )
+        if crossed < direct:
+            assigned[0], assigned[1] = candidates[1], candidates[0]
+        else:
+            assigned[0], assigned[1] = candidates[0], candidates[1]
+        return assigned
+
+    if len(active_slots) == 1:
+        tracked_slot = active_slots[0]
+        tracked_center = hand_center(previous[tracked_slot])
+        closest = min(
+            range(2),
+            key=lambda index: float(np.linalg.norm(tracked_center - hand_center(candidates[index]))),
+        )
+        assigned[tracked_slot] = candidates[closest]
+        assigned[1 - tracked_slot] = candidates[1 - closest]
+        return assigned
+
+    ordered = sorted(candidates, key=lambda hand: float(hand_center(hand)[0]))
+    assigned[0], assigned[1] = ordered[0], ordered[1]
+    return assigned
 
 
 def find_font(size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
@@ -377,7 +437,7 @@ def draw_effect(
 
     left_points = [pixel(left, index) for index in paired]
     right_points = [pixel(right, index) for index in paired]
-    texture = cv2.flip(frame, 1)
+    texture = frame
     output = frame.copy()
     triangles: list[tuple[list[tuple[int, int]], int, float, float]] = []
     segments: list[tuple[tuple[int, int], tuple[int, int], int, float]] = []
@@ -558,6 +618,74 @@ def draw_effect(
     return output, stable_pair_count
 
 
+def restore_head_foreground(
+    original: np.ndarray,
+    rendered: np.ndarray,
+    pose_landmarks: Any,
+) -> tuple[np.ndarray, bool]:
+    if pose_landmarks is None:
+        return rendered, False
+    landmarks = list(getattr(pose_landmarks, "landmark", []) or [])
+    if len(landmarks) < 13:
+        return rendered, False
+
+    visible_head = [
+        landmarks[index]
+        for index in range(0, 11)
+        if float(getattr(landmarks[index], "visibility", 1.0)) >= 0.35
+    ]
+    shoulders = [
+        landmarks[index]
+        for index in (11, 12)
+        if float(getattr(landmarks[index], "visibility", 1.0)) >= 0.35
+    ]
+    if not visible_head and not shoulders:
+        return rendered, False
+
+    height, width = original.shape[:2]
+    if visible_head:
+        weights = np.asarray(
+            [max(0.05, float(getattr(point, "visibility", 1.0))) for point in visible_head],
+            dtype=np.float32,
+        )
+        xs = np.asarray([float(point.x) for point in visible_head], dtype=np.float32)
+        ys = np.asarray([float(point.y) for point in visible_head], dtype=np.float32)
+        center_x = float(np.average(xs, weights=weights))
+        center_y = float(np.average(ys, weights=weights))
+        head_span = float(np.max(xs) - np.min(xs)) if len(xs) >= 2 else 0.0
+    else:
+        center_x = float(sum(float(point.x) for point in shoulders) / len(shoulders))
+        center_y = float(sum(float(point.y) for point in shoulders) / len(shoulders)) - 0.11
+        head_span = 0.0
+
+    shoulder_span = (
+        math.hypot(
+            float(shoulders[0].x) - float(shoulders[1].x),
+            float(shoulders[0].y) - float(shoulders[1].y),
+        )
+        if len(shoulders) == 2
+        else 0.16
+    )
+    radius_x_norm = clamp(max(head_span * 0.82, shoulder_span * 0.28), 0.055, 0.14)
+    radius_x = max(8, int(round(radius_x_norm * width)))
+    radius_y = max(10, int(round(radius_x * 1.3)))
+    center = (
+        int(round(clamp(center_x, 0.0, 1.0) * (width - 1))),
+        int(round(clamp(center_y, 0.0, 1.0) * (height - 1))),
+    )
+
+    mask = np.zeros((height, width), dtype=np.uint8)
+    cv2.ellipse(mask, center, (radius_x, radius_y), 0, 0, 360, 255, -1, cv2.LINE_AA)
+    feather = cv2.GaussianBlur(
+        mask,
+        (0, 0),
+        sigmaX=max(2.0, min(width, height) * 0.006),
+    ).astype(np.float32) / 255.0
+    alpha = feather[:, :, None]
+    restored = rendered.astype(np.float32) * (1.0 - alpha) + original.astype(np.float32) * alpha
+    return np.clip(restored, 0, 255).astype(np.uint8), True
+
+
 def probe(path: Path) -> dict[str, Any]:
     command = [
         "ffprobe", "-v", "error", "-show_streams", "-show_format",
@@ -648,17 +776,25 @@ def render(
         missing = [0, 0]
         analyzed_frames = 0
         hand_frames = 0
+        head_occlusion_frames = 0
         peak_pairs = 0
         pair_counts = [0, 0, 0, 0, 0, 0]
 
         hands_api = mp.solutions.hands
+        pose_api = mp.solutions.pose
         with hands_api.Hands(
             static_image_mode=False,
             max_num_hands=2,
             model_complexity=1,
             min_detection_confidence=0.5,
             min_tracking_confidence=0.5,
-        ) as detector:
+        ) as detector, pose_api.Pose(
+            static_image_mode=False,
+            model_complexity=1,
+            smooth_landmarks=True,
+            min_detection_confidence=0.5,
+            min_tracking_confidence=0.5,
+        ) as pose_detector:
             while True:
                 ok, frame = capture.read()
                 if not ok:
@@ -672,6 +808,7 @@ def render(
                 analyzed_frames += 1
                 rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 detected = detector.process(rgb)
+                detected_pose = pose_detector.process(rgb)
                 candidates: list[np.ndarray] = []
                 for hand_landmarks in detected.multi_hand_landmarks or []:
                     points = np.asarray(
@@ -679,27 +816,31 @@ def render(
                         dtype=np.float32,
                     )
                     candidates.append(points)
-                candidates.sort(key=lambda points: float(points[0, 0]))
-
-                hands: list[np.ndarray] = []
-                active: list[list[float]] = []
-                if len(candidates) >= 2:
-                    hand_frames += 1
-                    for slot, current in enumerate(candidates[:2]):
+                assigned = assign_hand_candidates(previous, candidates)
+                tracked_hands: list[np.ndarray | None] = [None, None]
+                tracked_active: list[list[float] | None] = [None, None]
+                for slot, current in enumerate(assigned):
+                    if current is not None:
                         smoothed = smooth(previous[slot], current)
                         previous[slot] = smoothed
                         missing[slot] = 0
-                        hands.append(smoothed)
-                        active.append([
+                        tracked_hands[slot] = smoothed
+                        tracked_active[slot] = [
                             update_state(states[slot][finger], extension_score(smoothed, finger))
                             for finger in range(5)
-                        ])
-                else:
-                    for slot in range(2):
+                        ]
+                    else:
                         missing[slot] += 1
                         if missing[slot] >= 3:
                             previous[slot] = None
                             states[slot] = fresh_states()
+
+                hands: list[np.ndarray] = []
+                active: list[list[float]] = []
+                if all(hand is not None for hand in tracked_hands):
+                    hand_frames += 1
+                    hands = [tracked_hands[0], tracked_hands[1]]  # type: ignore[list-item]
+                    active = [tracked_active[0], tracked_active[1]]  # type: ignore[list-item]
 
                 rendered, pair_count = draw_effect(
                     frame,
@@ -707,6 +848,13 @@ def render(
                     active,
                     analyzed_frames / fps,
                 )
+                rendered, restored_head = restore_head_foreground(
+                    frame,
+                    rendered,
+                    getattr(detected_pose, "pose_landmarks", None),
+                )
+                if restored_head:
+                    head_occlusion_frames += 1
                 peak_pairs = max(peak_pairs, pair_count)
                 pair_counts[pair_count] += 1
                 writer.write(draw_watermark(rendered))
@@ -725,6 +873,7 @@ def render(
         "effectVersion": "v5",
         "analyzedFrames": analyzed_frames,
         "handFrames": hand_frames,
+        "headOcclusionFrames": head_occlusion_frames,
         "peakPairs": peak_pairs,
         "pairFrameCounts": pair_counts,
         "durationSeconds": analyzed_frames / fps,

@@ -44,9 +44,41 @@ const nodeOnlyServerPackages = [
     '@opentelemetry/sdk-trace-base',
 ];
 
+const contentSecurityPolicy = [
+    // Next.js currently emits inline bootstrap scripts. Deliberately omit `data:` so
+    // injected data-URL loaders (including ClickFix/EtherHiding) cannot execute.
+    `script-src 'self' 'unsafe-inline'${process.env.NODE_ENV === 'development' ? " 'unsafe-eval'" : ''} https://api.tianditu.gov.cn`,
+    "worker-src 'self' blob:",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "frame-ancestors 'self'",
+].join('; ');
+
+const securityHeaders = [
+    {
+        key: 'Content-Security-Policy',
+        value: contentSecurityPolicy,
+    },
+    {
+        key: 'Referrer-Policy',
+        value: 'strict-origin-when-cross-origin',
+    },
+    {
+        key: 'X-Content-Type-Options',
+        value: 'nosniff',
+    },
+    {
+        key: 'X-Frame-Options',
+        value: 'SAMEORIGIN',
+    },
+];
+
 const nextConfig: NextConfig = {
     output: 'standalone',
     reactStrictMode: false,
+    // Playwright uses the IPv4 loopback host while the local dev server listens
+    // on all interfaces. Allow that same-origin development asset request.
+    allowedDevOrigins: ['127.0.0.1', 'localhost'],
     // Next 16 uses Turbopack by default. Declare it explicitly so production
     // builds can coexist with the Node-only webpack externals below.
     turbopack: {},
@@ -106,6 +138,10 @@ const nextConfig: NextConfig = {
     },
     async headers() {
         return [
+            {
+                source: '/:path*',
+                headers: securityHeaders,
+            },
             {
                 // API 路由：不缓存（API 响应通常是动态的）
                 source: '/api/:path*',

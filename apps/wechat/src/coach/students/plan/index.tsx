@@ -13,6 +13,7 @@ import { chatService } from '@/services/chatService'
 import { isOneRMEligibleAction } from '@/utils/oneRmEligibility'
 import { buildExecutionSummary } from '@/utils/planEditor'
 import { buildStrengthPreview } from '@/utils/planStrength'
+import { formatDateYMD } from '@/utils/dateFormat'
 import './index.scss'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
 import { useTheme } from '@/hooks/useTheme'
@@ -1024,16 +1025,61 @@ function CoachStudentPlan() {
     const timer = setTimeout(async () => {
       setAutoSaveStatus('saving')
       try {
-        await planLibService.updateInstance({
-          id: instanceId,
-          name: editName,
-          description: editDescription || null,
-          executionNotice: editExecutionNotice || null,
-          suitableFor: editSuitableFor || 'beginner',
-          trainingDays: normalizedTrainingDays
-        })
+        let savedInstance = instance
+        const savedTrainingDays = (() => {
+          try {
+            return JSON.parse(lastSavedSnapshot || '{}')?.trainingDays || []
+          } catch {
+            return []
+          }
+        })()
+        const trainingDaysChanged =
+          JSON.stringify(savedTrainingDays) !== JSON.stringify(normalizedTrainingDays)
+        const hasExecutionHistory = Object.values(executions).some(Boolean)
+
+        if (trainingDaysChanged && hasExecutionHistory && subscriptionId) {
+          const currentStartExecutionDay = Math.max(1, Number(instance?.start_execution_day || 1))
+          const revision = await planLibService.createInstance({
+            subscriptionId,
+            revisionOfInstanceId: instanceId,
+            templateId: instance?.coach_plan_template_id || undefined,
+            name: editName,
+            description: editDescription || null,
+            executionNotice: editExecutionNotice || null,
+            suitableFor: editSuitableFor || 'beginner',
+            trainingDays: normalizedTrainingDays,
+            startDate: instance?.start_date || undefined,
+            startWeek: Math.floor((currentStartExecutionDay - 1) / 7) + 1,
+            startDay: ((currentStartExecutionDay - 1) % 7) + 1
+          })
+          if (!revision?.instance) throw new Error('create revision failed')
+          savedInstance = revision.instance
+          setInstance(revision.instance)
+          setInstanceId(revision.instance.id)
+          // The new revision has no execution rows of its own. Previous rows
+          // remain available from plan history and must not trigger another
+          // revision on the next autosave.
+          setExecutions({})
+        } else {
+          const update = await planLibService.updateInstance({
+            id: instanceId,
+            name: editName,
+            description: editDescription || null,
+            executionNotice: editExecutionNotice || null,
+            suitableFor: editSuitableFor || 'beginner',
+            trainingDays: normalizedTrainingDays
+          })
+          if (!update?.instance) throw new Error('update instance failed')
+          savedInstance = update.instance
+        }
         setLastSavedSnapshot(currentSnapshot)
-        setInstance((prev) => (prev ? { ...prev, name: editName, description: editDescription, execution_notice: editExecutionNotice || null } : prev))
+        setInstance((prev) => prev ? {
+          ...prev,
+          ...savedInstance,
+          name: editName,
+          description: editDescription,
+          execution_notice: editExecutionNotice || null
+        } : savedInstance)
         setAutoSaveStatus('saved')
         setTimeout(() => setAutoSaveStatus('idle'), 1800)
       } catch (error) {
@@ -1049,12 +1095,15 @@ function CoachStudentPlan() {
     editName,
     editSuitableFor,
     autoSaveReady,
+    executions,
+    instance,
     instanceId,
     isReadonlyPlanView,
     lastSavedSnapshot,
     loading,
     normalizeTrainingDaysForSave,
     serializePlanSnapshot,
+    subscriptionId,
     trainingDays
   ])
 
@@ -1236,8 +1285,10 @@ function CoachStudentPlan() {
         })()
 
       let success = false
-      if (instanceId && templateImportMode === 'overwrite') {
-        const templateRes = await planLibService.getTemplate(templateId)
+      const templateRes = await planLibService.getTemplate(templateId)
+      const templateDays = templateRes?.days || []
+      const hasExecutionHistory = Object.values(executions).some(Boolean)
+      if (instanceId && templateImportMode === 'overwrite' && !hasExecutionHistory) {
         const updateRes = await planLibService.updateInstance({
           id: instanceId,
           templateId,
@@ -1246,7 +1297,7 @@ function CoachStudentPlan() {
           executionNotice: editExecutionNotice || templateRes?.template?.execution_notice || templateRes?.template?.executionNotice || null,
           suitableFor: editSuitableFor || templateRes?.template?.suitable_for || 'beginner',
           startExecutionDay,
-          trainingDays: templateRes?.days || []
+          trainingDays: templateDays
         })
         success = Boolean(updateRes)
       } else {
@@ -1257,7 +1308,15 @@ function CoachStudentPlan() {
           description: editDescription || null,
           executionNotice: editExecutionNotice || null,
           suitableFor: editSuitableFor || 'beginner',
-          startDate: calculatedStartDate,
+          trainingDays: templateDays,
+          revisionOfInstanceId:
+            instanceId && templateImportMode === 'overwrite' && hasExecutionHistory
+              ? instanceId
+              : undefined,
+          startDate:
+            instanceId && templateImportMode === 'overwrite' && hasExecutionHistory && instance?.start_date
+              ? String(instance.start_date).slice(0, 10)
+              : formatDateYMD(calculatedStartDate),
           startWeek: normalizedStartWeek,
           startDay: normalizedStartDay
         })

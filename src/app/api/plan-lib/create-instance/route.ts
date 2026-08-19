@@ -8,7 +8,11 @@ import { sendDirectMessage } from "@/lib/chat";
 import { syncCoachActionsToStudentLibrary } from "../sync-actions";
 import { validateTrainingDaysPresence } from "@/utils/template";
 import { getSubscriptionCarryoverSummary } from "@/lib/subscriptionCarryover";
-import { reconcileCurrentPlanInstancesForSubscription } from "@/lib/subscriptionEntitlement";
+import {
+    markPlanInstanceAsCarriedRevisionNoCharge,
+    reconcileCurrentPlanInstancesForSubscription,
+} from "@/lib/subscriptionEntitlement";
+import { toBeijingDateKey } from "@/lib/beijingTime";
 
 export async function POST(req: Request) {
     const {
@@ -24,6 +28,7 @@ export async function POST(req: Request) {
         suitableFor,
         tags,
         trainingDays,
+        revisionOfInstanceId,
         startWeek,
         startDay,
     } = await req.json() as CreateInstanceDto;
@@ -79,6 +84,68 @@ export async function POST(req: Request) {
         }, { status: 403 });
     }
 
+    let revisionSource: {
+        id: string;
+        start_date?: string | null;
+        start_execution_day?: number | null;
+    } | null = null;
+    let revisionResolvedDayIndexes = new Set<number>();
+
+    if (revisionOfInstanceId) {
+        const { data: source, error: sourceError } = await serviceRoleSupabase
+            .from("coach_plan_instances")
+            .select("id, coach_subscription_id, start_date, start_execution_day, status")
+            .eq("id", revisionOfInstanceId)
+            .maybeSingle();
+
+        if (
+            sourceError ||
+            !source ||
+            source.coach_subscription_id !== subscriptionId ||
+            !["active", "paused"].includes(String(source.status || ""))
+        ) {
+            return NextResponse.json({
+                success: false,
+                message: "要更新的当前计划不存在或已发生变化，请刷新后重试",
+            }, { status: 409 });
+        }
+
+        revisionSource = source;
+        const { data: resolvedExecutions, error: resolvedExecutionsError } =
+            await serviceRoleSupabase
+                .from("plan_instance_executions")
+                .select("day_index, status")
+                .eq("instance_id", revisionOfInstanceId);
+
+        if (resolvedExecutionsError) {
+            return NextResponse.json({
+                success: false,
+                message: "读取当前计划训练进度失败，请重试",
+            }, { status: 500 });
+        }
+
+        if ((resolvedExecutions || []).some((execution: any) =>
+            String(execution?.status || "").toLowerCase() === "in_progress"
+        )) {
+            return NextResponse.json({
+                success: false,
+                code: "PLAN_EXECUTION_IN_PROGRESS",
+                message: "学员正在执行当前计划，请在本次训练完成或放弃后再更新计划",
+            }, { status: 409 });
+        }
+
+        revisionResolvedDayIndexes = new Set(
+            (resolvedExecutions || [])
+                .filter((execution: any) =>
+                    ["completed", "abandoned"].includes(
+                        String(execution?.status || "").toLowerCase(),
+                    )
+                )
+                .map((execution: any) => Number(execution?.day_index || 0))
+                .filter((dayIndex: number) => dayIndex > 0),
+        );
+    }
+
     let normalizedExecutionNotice = executionNotice?.trim() || null;
     if (executionNotice === undefined && templateId) {
         const { data: template } = await supabase
@@ -107,7 +174,7 @@ export async function POST(req: Request) {
         ? (normalizedStartWeek - 1) * 7 + normalizedStartDay
         : 1;
 
-    if (!hasExplicitStartPosition && Array.isArray(trainingDays)) {
+    if (!revisionSource && !hasExplicitStartPosition && Array.isArray(trainingDays)) {
         const carryover = await getSubscriptionCarryoverSummary({
             subscriptionId,
             subscribedWeeks: Number((subscription as any)?.subscribed_weeks || 0),
@@ -124,6 +191,22 @@ export async function POST(req: Request) {
         startExecutionDay = 1;
     }
 
+    if (revisionSource && Array.isArray(trainingDays)) {
+        const firstUnresolvedTrainingDay = (trainingDays as any[])
+            .filter((day: any) => String(day?.type || "") === "training")
+            .map((day: any) => Number(day?.dayIndex ?? day?.day_index ?? 0))
+            .filter((dayIndex: number) =>
+                dayIndex >= Number(revisionSource.start_execution_day || 1) &&
+                !revisionResolvedDayIndexes.has(dayIndex)
+            )
+            .sort((left: number, right: number) => left - right)[0];
+        startExecutionDay = Math.max(
+            1,
+            Number(revisionSource.start_execution_day || 1),
+            firstUnresolvedTrainingDay || 1,
+        );
+    }
+
     if (hasStartPosition && Array.isArray(trainingDays)) {
         const totalDays = (trainingDays as any[]).length;
         if (startExecutionDay > totalDays) {
@@ -134,6 +217,22 @@ export async function POST(req: Request) {
             }, { status: 400 });
         }
     }
+
+    const subscriptionStartDate = subscription.start_date
+        ? toBeijingDateKey(subscription.start_date)
+        : null;
+    const requestedStartDate = startDate ? toBeijingDateKey(startDate) : null;
+    const revisionStartDate = revisionSource?.start_date
+        ? String(revisionSource.start_date).slice(0, 10)
+        : null;
+    // D1 is established by the first real execution. A fresh plan therefore
+    // has no fixed start_date. Only a carried revision/mid-cycle migration may
+    // preserve an already-known calendar anchor.
+    const resolvedStartDate = revisionSource
+        ? subscriptionStartDate || revisionStartDate || requestedStartDate
+        : startExecutionDay > 1
+            ? subscriptionStartDate || requestedStartDate
+            : null;
 
     // 创建计划实例
     const { data: instance, error } = await serviceRoleSupabase
@@ -146,11 +245,7 @@ export async function POST(req: Request) {
             coach_id: subscription.coach_id || null,
             student_id: subscription.student_id || null,
             coach_plan_template_id: templateId || null,
-            // Auto-fill start_date when creating as active and no explicit date provided
-            start_date: startDate ||
-                ((!status || status === "active")
-                    ? new Date().toISOString().split("T")[0]
-                    : null),
+            start_date: resolvedStartDate,
             end_date: endDate || null,
             tags: tags || null,
             type: type || null,
@@ -199,6 +294,29 @@ export async function POST(req: Request) {
         }, { status: 500 });
     }
 
+    if (revisionSource) {
+        try {
+            // The database single-current trigger may already have archived the
+            // source as replaced_counted before this insert returned. Correct
+            // that exact row explicitly; querying only current rows is too late.
+            await markPlanInstanceAsCarriedRevisionNoCharge({
+                supabase: serviceRoleSupabase,
+                instanceId: revisionSource.id,
+                subscriptionId,
+            });
+        } catch (revisionArchiveError: any) {
+            console.error(
+                "[create-instance] Failed to mark source revision as no-charge:",
+                revisionArchiveError,
+            );
+            return NextResponse.json({
+                success: false,
+                code: "PLAN_REVISION_ARCHIVE_FAILED",
+                message: "计划新版本已建立，但旧版本权益校正失败，请勿重复提交并联系管理员",
+            }, { status: 500 });
+        }
+    }
+
     // Converge by a deterministic newest-row rule. Every concurrent request
     // chooses the same winner, so requests cannot archive each other's row and
     // leave two current plans behind.
@@ -209,6 +327,7 @@ export async function POST(req: Request) {
             const reconciliation = await reconcileCurrentPlanInstancesForSubscription({
                 supabase: serviceRoleSupabase,
                 subscriptionId,
+                forceNoChargeInstanceIds: revisionSource ? [revisionSource.id] : [],
             });
             if (reconciliation.currentInstanceId && reconciliation.currentInstanceId !== instance.id) {
                 const { data: resolvedCurrent, error: resolvedCurrentError } = await serviceRoleSupabase

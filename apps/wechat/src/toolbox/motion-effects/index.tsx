@@ -16,8 +16,11 @@ import {
 import {
   drawLivePreview,
   smoothLiveHands,
-  type LiveHand
+  type LiveHand,
+  type LiveHeadOcclusion
 } from './livePreview'
+import { USER_FACING_CAMERA } from '../cameraTracking'
+import { BodyPointTracker } from '../games/bodyPointTracker'
 import './index.scss'
 
 type JobStatus =
@@ -34,7 +37,6 @@ type GlowStrength = 'soft' | 'balanced' | 'strong'
 type SurfaceDensity = 'transparent' | 'balanced' | 'rich'
 type PreviewState = 'idle' | 'downloading' | 'ready' | 'error'
 type CaptureMode = 'live' | 'upload'
-type CameraDevice = 'front' | 'back'
 type LiveStatus = 'idle' | 'starting' | 'ready' | 'unsupported' | 'error'
 
 interface StyleOption {
@@ -218,7 +220,7 @@ const MAX_DURATION_SECONDS = 30
 const TERMINAL: JobStatus[] = ['done', 'failed', 'expired']
 const TRANSFER_TIMEOUT = 15 * 60 * 1000
 const LIVE_CANVAS_ID = 'motionLiveCanvas'
-const LIVE_DETECT_INTERVAL_MS = 80
+const LIVE_DETECT_INTERVAL_MS = 48
 const LIVE_RECORDING_SECONDS = 30
 
 const LIVE_STYLE_STRENGTH = {
@@ -407,6 +409,7 @@ export default function FingerMotionEffectsPage() {
   const latestFrameSizeRef = useRef({ width: 0, height: 0 })
   const canvasSizeRef = useRef({ width: 0, height: 0 })
   const smoothedHandsRef = useRef<LiveHand[]>([])
+  const liveHeadOcclusionRef = useRef<(LiveHeadOcclusion & { updatedAt: number }) | null>(null)
   const liveMetricsRef = useRef({ handCount: 0, pairCount: 0 })
   const liveDrawSettingsRef = useRef({
     colors: STYLE_OPTIONS[0].colors,
@@ -429,7 +432,6 @@ export default function FingerMotionEffectsPage() {
   const [glowStrength, setGlowStrength] = useState<GlowStrength>('balanced')
   const [surfaceDensity, setSurfaceDensity] = useState<SurfaceDensity>('balanced')
   const [captureMode, setCaptureMode] = useState<CaptureMode>('live')
-  const [cameraDevice, setCameraDevice] = useState<CameraDevice>('front')
   const [cameraReady, setCameraReady] = useState(false)
   const [cameraError, setCameraError] = useState('')
   const [liveStatus, setLiveStatus] = useState<LiveStatus>('idle')
@@ -489,12 +491,10 @@ export default function FingerMotionEffectsPage() {
         canvasId: LIVE_CANVAS_ID,
         frame,
         hands: smoothedHandsRef.current,
-        // CameraFrame 的点位已经与前置相机预览同向，不能再次水平镜像。
-        mirrored: false,
         style: liveDrawSettingsRef.current
       })
     }
-  }, [cameraDevice, glowStrength, selectedStyle, surfaceDensity])
+  }, [glowStrength, selectedStyle, surfaceDensity])
 
   useEffect(() => {
     openCoachLinkShareMenu()
@@ -517,6 +517,7 @@ export default function FingerMotionEffectsPage() {
 
     let stopped = false
     let releaseDetectionTimer: ReturnType<typeof setTimeout> | null = null
+    let headTracker: BodyPointTracker | null = null
     const taroRuntime = Taro as any
     const updateLiveMetrics = (handCount: number, pairCount: number) => {
       const current = liveMetricsRef.current
@@ -562,16 +563,39 @@ export default function FingerMotionEffectsPage() {
         const canvas = canvasSizeRef.current
         const frame = latestFrameSizeRef.current
         if (!canvas.width || !frame.width) return
+        const trackedHead = liveHeadOcclusionRef.current
         const metrics = drawLivePreview({
           canvas,
           canvasId: LIVE_CANVAS_ID,
           frame,
           hands: smoothedHandsRef.current,
-          mirrored: false,
+          head: trackedHead && Date.now() - trackedHead.updatedAt <= 700 ? trackedHead : null,
           style: liveDrawSettingsRef.current
         })
         updateLiveMetrics(metrics.handCount, metrics.pairCount)
       }
+
+      headTracker = new BodyPointTracker({
+        poseIntervalMs: 72,
+        onSnapshot: (snapshot) => {
+          if (
+            stopped
+            || snapshot.source !== 'pose'
+            || (snapshot.target !== 'head' && snapshot.target !== 'head-estimate')
+            || snapshot.confidence < 0.28
+          ) {
+            return
+          }
+          liveHeadOcclusionRef.current = {
+            radiusX: snapshot.headRadiusX,
+            radiusY: snapshot.headRadiusY,
+            updatedAt: Date.now(),
+            x: snapshot.x,
+            y: snapshot.y
+          }
+          renderTrackedHands()
+        }
+      })
 
       const handleAnchors = (anchors: any[]) => {
         if (stopped) return
@@ -621,14 +645,15 @@ export default function FingerMotionEffectsPage() {
           const listener = context.onCameraFrame((frame: any) => {
             if (stopped) return
             const now = Date.now()
-            if (detectionBusyRef.current || now - lastDetectAtRef.current < LIVE_DETECT_INTERVAL_MS) {
-              return
-            }
             const width = Number(frame?.width || 0)
             const height = Number(frame?.height || 0)
             if (!width || !height || !(frame?.data instanceof ArrayBuffer)) return
-            lastDetectAtRef.current = now
             latestFrameSizeRef.current = { width, height }
+            headTracker?.processFrame({ data: frame.data, height, width }, now)
+            if (detectionBusyRef.current || now - lastDetectAtRef.current < LIVE_DETECT_INTERVAL_MS) {
+              return
+            }
+            lastDetectAtRef.current = now
             detectionBusyRef.current = true
             try {
               session.detectHand({
@@ -664,6 +689,8 @@ export default function FingerMotionEffectsPage() {
         frameListenerRef.current?.stop?.()
       } catch {}
       frameListenerRef.current = null
+      headTracker?.destroy()
+      headTracker = null
       try {
         visionSessionRef.current?.stop?.()
         visionSessionRef.current?.destroy?.()
@@ -671,9 +698,10 @@ export default function FingerMotionEffectsPage() {
       visionSessionRef.current = null
       detectionBusyRef.current = false
       smoothedHandsRef.current = []
+      liveHeadOcclusionRef.current = null
       liveMetricsRef.current = { handCount: 0, pairCount: 0 }
     }
-  }, [cameraDevice, cameraReady, captureMode])
+  }, [cameraReady, captureMode])
 
   const stopPolling = () => {
     if (pollRef.current) clearInterval(pollRef.current)
@@ -960,13 +988,6 @@ export default function FingerMotionEffectsPage() {
     setLiveHandCount(0)
     setLivePairCount(0)
     setLiveStatus('idle')
-  }
-
-  const switchCamera = () => {
-    if (recordingRef.current) return
-    setCameraReady(false)
-    setCameraError('')
-    setCameraDevice((current) => current === 'front' ? 'back' : 'front')
   }
 
   const enqueueUploadedJob = async (jobId: string) => {
@@ -1346,10 +1367,10 @@ export default function FingerMotionEffectsPage() {
             <View className='motion-live-stage'>
               <Camera
                 className='motion-live-camera'
-                devicePosition={cameraDevice}
+                devicePosition={USER_FACING_CAMERA.devicePosition}
                 flash='off'
-                frameSize='medium'
-                resolution='medium'
+                frameSize={USER_FACING_CAMERA.frameSize}
+                resolution={USER_FACING_CAMERA.resolution}
                 onInitDone={() => {
                   setCameraReady(true)
                   setCameraError('')
@@ -1406,12 +1427,6 @@ export default function FingerMotionEffectsPage() {
 
             <View className='motion-live-actions'>
               <View
-                className={`motion-live-switch ${recording ? 'motion-button-disabled' : ''}`}
-                onClick={switchCamera}
-              >
-                <Text>{cameraDevice === 'front' ? '切到后摄' : '切到前摄'}</Text>
-              </View>
-              <View
                 className={`motion-live-record ${!cameraReady ? 'motion-button-disabled' : ''}`}
                 onClick={recording ? handleStopRecording : handleStartRecording}
               >
@@ -1420,7 +1435,7 @@ export default function FingerMotionEffectsPage() {
               </View>
             </View>
             <Text className='motion-live-note'>
-              实时预览不会被直接录进原片；停止后自动上传，由服务器生成可保存的高清 MP4。
+              前置摄像头、手部关键点和服务端成片统一使用同一方向，不再额外翻转。实时预览不会被直接录进原片；停止后自动上传，由服务器生成可保存的高清 MP4。
             </Text>
           </>
         )}

@@ -1622,7 +1622,7 @@ export default function PlanEditorWorkbench({
 
           <View className='plan-editor__spacer' />
         </View>
-      </ScrollView>
+      </View>
 
       <View className={`plan-editor__bottom-bar ${withBottomNav ? 'with-nav' : ''}`}>
         {onCancel ? (

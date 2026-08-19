@@ -5,6 +5,7 @@ import { sendDirectMessage } from "@/lib/chat";
 import { randomInt } from "crypto";
 import { getSubscriptionCarryoverSummary } from "@/lib/subscriptionCarryover";
 import { archiveCurrentPlanInstancesForSubscription } from "@/lib/subscriptionEntitlement";
+import { toBeijingDateKey } from "@/lib/beijingTime";
 import { syncCoachActionsToStudentLibrary } from "../sync-actions";
 import {
     buildActionLibrary,
@@ -293,7 +294,11 @@ export async function createAiInstanceForSubscription(params: CreateAiInstancePa
             coach_id: subscription.coach_id || null,
             student_id: subscription.student_id || null,
             coach_plan_template_id: aiGenerationLog?.stageA?.source === "template" ? selectedTemplateId : null,
-            start_date: new Date().toISOString(),
+            // Fresh plans do not acquire D1 at assignment time. Mid-cycle AI
+            // plans may reuse an existing subscription's actual D1.
+            start_date: startExecutionDay > 1 && subscription.start_date
+                ? toBeijingDateKey(subscription.start_date)
+                : null,
             end_date: null,
             tags: selectedTemplateMeta?.tags || null,
             type: selectedTemplateMeta?.type || null,

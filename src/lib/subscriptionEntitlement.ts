@@ -92,11 +92,41 @@ export function buildArchiveEntitlementPatch(params: {
   };
 }
 
+export async function markPlanInstanceAsCarriedRevisionNoCharge(params: {
+  supabase: any;
+  instanceId: string;
+  subscriptionId: string;
+  nowIso?: string;
+}) {
+  const nowIso = params.nowIso || new Date().toISOString();
+  const patch = {
+    status: "archived",
+    ...buildArchiveEntitlementPatch({
+      hasCompletedExecution: true,
+      archiveReason: "replaced_no_charge",
+      entitlementPolicy: "no_charge",
+      entitlementNote: "Progress is carried by the replacement revision",
+    }),
+    updated_at: nowIso,
+  };
+
+  const result = await params.supabase
+    .from("coach_plan_instances")
+    .update(patch)
+    .eq("id", params.instanceId)
+    .eq("coach_subscription_id", params.subscriptionId);
+
+  if (result.error) {
+    throw new Error(`标记接续版本为不重复扣费失败: ${result.error.message}`);
+  }
+}
+
 export async function archiveCurrentPlanInstancesForSubscription(params: {
   supabase: any;
   subscriptionId?: string | null;
   studentId?: string | null;
   excludeInstanceId?: string | null;
+  forceNoChargeInstanceIds?: string[];
   nowIso?: string;
   statuses?: string[];
 }) {
@@ -154,13 +184,22 @@ export async function archiveCurrentPlanInstancesForSubscription(params: {
       .map((row: any) => String(row?.instance_id || "").trim())
       .filter(Boolean),
   );
+  const forcedNoChargeIds = new Set(
+    (params.forceNoChargeInstanceIds || [])
+      .map((id) => String(id || "").trim())
+      .filter(Boolean),
+  );
 
   const countedIds = previousInstanceIds.filter((id: string) =>
-    completedInstanceIds.has(id)
+    completedInstanceIds.has(id) && !forcedNoChargeIds.has(id)
   );
-  const noChargeIds = previousInstanceIds.filter((id: string) =>
-    !completedInstanceIds.has(id)
+  const replacementNoChargeIds = previousInstanceIds.filter((id: string) =>
+    forcedNoChargeIds.has(id)
   );
+  const discardedNoChargeIds = previousInstanceIds.filter((id: string) =>
+    !completedInstanceIds.has(id) && !forcedNoChargeIds.has(id)
+  );
+  const noChargeIds = [...replacementNoChargeIds, ...discardedNoChargeIds];
 
   const archiveIds = async (
     ids: string[],
@@ -207,9 +246,26 @@ export async function archiveCurrentPlanInstancesForSubscription(params: {
     );
   }
 
-  if (noChargeIds.length > 0) {
+  if (replacementNoChargeIds.length > 0) {
     await archiveIds(
-      noChargeIds,
+      replacementNoChargeIds,
+      {
+        status: "archived",
+        ...buildArchiveEntitlementPatch({
+          hasCompletedExecution: true,
+          archiveReason: "replaced_no_charge",
+          entitlementPolicy: "no_charge",
+          entitlementNote: "Progress is carried by the replacement revision",
+        }),
+        updated_at: nowIso,
+      },
+      "归档接续版本失败",
+    );
+  }
+
+  if (discardedNoChargeIds.length > 0) {
+    await archiveIds(
+      discardedNoChargeIds,
       {
         status: "archived",
         ...buildArchiveEntitlementPatch({
@@ -243,6 +299,7 @@ export async function archiveCurrentPlanInstancesForSubscription(params: {
 export async function reconcileCurrentPlanInstancesForSubscription(params: {
   supabase: any;
   subscriptionId: string;
+  forceNoChargeInstanceIds?: string[];
   maxAttempts?: number;
 }) {
   const maxAttempts = Math.max(1, Math.min(5, params.maxAttempts || 3));
@@ -250,7 +307,7 @@ export async function reconcileCurrentPlanInstancesForSubscription(params: {
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     const { data: currentRows, error: currentRowsError } = await params.supabase
       .from("coach_plan_instances")
-      .select("id, created_at, updated_at, status")
+      .select("id, created_at, updated_at, status, start_date, start_execution_day")
       .eq("coach_subscription_id", params.subscriptionId)
       .in("status", ["active", "paused"]);
 
@@ -273,10 +330,30 @@ export async function reconcileCurrentPlanInstancesForSubscription(params: {
       };
     }
 
+    const winnerStartDate = String(winner.start_date || "").slice(0, 10);
+    const winnerCarriesProgress =
+      Number(winner.start_execution_day || 1) > 1 && winnerStartDate.length === 10;
+    const inferredCarriedRevisionIds = winnerCarriesProgress
+      ? sortedRows
+        .slice(1)
+        .filter((row: any) =>
+          String(row?.start_date || "").slice(0, 10) === winnerStartDate
+        )
+        .map((row: any) => String(row?.id || "").trim())
+        .filter(Boolean)
+      : [];
+    const carriedRevisionIds = Array.from(new Set([
+      ...inferredCarriedRevisionIds,
+      ...(params.forceNoChargeInstanceIds || [])
+        .map((id) => String(id || "").trim())
+        .filter(Boolean),
+    ]));
+
     const archiveResult = await archiveCurrentPlanInstancesForSubscription({
       supabase: params.supabase,
       subscriptionId: params.subscriptionId,
       excludeInstanceId: winner.id,
+      forceNoChargeInstanceIds: carriedRevisionIds,
     });
 
     const { data: finalRows, error: finalRowsError } = await params.supabase

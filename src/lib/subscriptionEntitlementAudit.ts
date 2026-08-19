@@ -174,7 +174,7 @@ export async function auditSubscriptionEntitlements(params: {
     ? await params.supabase
       .from("coach_plan_instances")
       .select(
-        "id, coach_subscription_id, student_id, coach_id, name, status, start_date, end_date, start_execution_day, training_days, created_at, updated_at",
+        "id, coach_subscription_id, student_id, coach_id, name, status, start_date, end_date, start_execution_day, training_days, created_at, updated_at, entitlement_consumption_policy",
       )
       .in("coach_subscription_id", subscriptionIds)
       .in("status", CURRENT_INSTANCE_STATUSES)

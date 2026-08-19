@@ -12,6 +12,13 @@ export type LiveHand = {
   score?: number
 }
 
+export type LiveHeadOcclusion = {
+  radiusX: number
+  radiusY: number
+  x: number
+  y: number
+}
+
 export type LivePreviewStyle = {
   colors: string[]
   glowAlpha: number
@@ -81,14 +88,11 @@ function fingerExtensionScore(points: LivePoint[], fingerIndex: number) {
 function toCanvasPoint(
   point: LivePoint,
   frame: FrameSize,
-  canvas: CanvasSize,
-  mirrored: boolean
+  canvas: CanvasSize
 ) {
   const isNormalized = Math.abs(point.x) <= 2 && Math.abs(point.y) <= 2
   let normalizedX = isNormalized ? point.x : point.x / Math.max(1, frame.width)
   let normalizedY = isNormalized ? point.y : point.y / Math.max(1, frame.height)
-  if (mirrored) normalizedX = 1 - normalizedX
-
   const frameAspect = frame.width / Math.max(1, frame.height)
   const canvasAspect = canvas.width / Math.max(1, canvas.height)
   if (frameAspect > canvasAspect) {
@@ -229,12 +233,72 @@ function drawTwoPairSurface(
   })
 }
 
+function clearHeadOcclusion(
+  context: any,
+  head: LiveHeadOcclusion | null | undefined,
+  frame: FrameSize,
+  canvas: CanvasSize
+) {
+  if (!head || head.radiusX <= 0 || head.radiusY <= 0) return
+  const center = toCanvasPoint(head, frame, canvas)
+  const right = toCanvasPoint({ x: head.x + head.radiusX, y: head.y }, frame, canvas)
+  const bottom = toCanvasPoint({ x: head.x, y: head.y + head.radiusY }, frame, canvas)
+  const radiusX = Math.max(8, Math.abs(right.x - center.x))
+  const radiusY = Math.max(8, Math.abs(bottom.y - center.y))
+  const control = 0.5522848
+
+  context.save()
+  if (typeof context.setGlobalCompositeOperation === 'function') {
+    context.setGlobalCompositeOperation('destination-out')
+  } else {
+    context.globalCompositeOperation = 'destination-out'
+  }
+  context.beginPath()
+  context.moveTo(center.x + radiusX, center.y)
+  context.bezierCurveTo(
+    center.x + radiusX,
+    center.y + radiusY * control,
+    center.x + radiusX * control,
+    center.y + radiusY,
+    center.x,
+    center.y + radiusY
+  )
+  context.bezierCurveTo(
+    center.x - radiusX * control,
+    center.y + radiusY,
+    center.x - radiusX,
+    center.y + radiusY * control,
+    center.x - radiusX,
+    center.y
+  )
+  context.bezierCurveTo(
+    center.x - radiusX,
+    center.y - radiusY * control,
+    center.x - radiusX * control,
+    center.y - radiusY,
+    center.x,
+    center.y - radiusY
+  )
+  context.bezierCurveTo(
+    center.x + radiusX * control,
+    center.y - radiusY,
+    center.x + radiusX,
+    center.y - radiusY * control,
+    center.x + radiusX,
+    center.y
+  )
+  context.closePath()
+  context.setFillStyle('rgba(0, 0, 0, 1)')
+  context.fill()
+  context.restore()
+}
+
 export function drawLivePreview(options: {
   canvas: CanvasSize
   canvasId: string
   frame: FrameSize
   hands: LiveHand[]
-  mirrored: boolean
+  head?: LiveHeadOcclusion | null
   style: LivePreviewStyle
 }) {
   const context = Taro.createCanvasContext(options.canvasId)
@@ -246,7 +310,7 @@ export function drawLivePreview(options: {
     .map((hand) => ({
       ...hand,
       canvasPoints: hand.points.map((point) =>
-        toCanvasPoint(point, options.frame, options.canvas, options.mirrored)
+        toCanvasPoint(point, options.frame, options.canvas)
       )
     }))
     .sort((first, second) => first.canvasPoints[0].x - second.canvasPoints[0].x)
@@ -267,6 +331,7 @@ export function drawLivePreview(options: {
         drawNode(context, hand.canvasPoints[chain[3]], color, 0.68)
       })
     })
+    clearHeadOcclusion(context, options.head, options.frame, options.canvas)
     context.draw(false)
     return { handCount: hands.length, pairCount: 0 }
   }
@@ -329,6 +394,7 @@ export function drawLivePreview(options: {
     drawNode(context, pair.left, pair.color, options.style.glowAlpha)
     drawNode(context, pair.right, pair.color, options.style.glowAlpha)
   })
+  clearHeadOcclusion(context, options.head, options.frame, options.canvas)
   context.draw(false)
   return { handCount: hands.length, pairCount: pairs.length }
 }
@@ -365,7 +431,7 @@ export function smoothLiveHands(previous: LiveHand[], current: LiveHand[]) {
       const oldPoint = oldHand?.points?.[pointIndex]
       if (!oldPoint) return point
       const movement = distance(oldPoint, point)
-      const currentWeight = clamp(0.74 + movement * 4.5, 0.74, 0.92)
+      const currentWeight = clamp(0.82 + movement * 4.8, 0.82, 0.96)
       return {
         x: oldPoint.x * (1 - currentWeight) + point.x * currentWeight,
         y: oldPoint.y * (1 - currentWeight) + point.y * currentWeight

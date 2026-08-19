@@ -15,6 +15,7 @@ import {
   vibrateForArcadeFeedback
 } from '../games/arcadeFeedback'
 import { BodyPointTracker } from '../games/bodyPointTracker'
+import { projectCameraPointToStage, USER_FACING_CAMERA } from '../cameraTracking'
 import '../games/motionArcade.scss'
 import './index.scss'
 
@@ -92,8 +93,8 @@ export default function PushupDashPage() {
   const nextWallIdRef = useRef(1)
   const lastWallSpawnAtRef = useRef(0)
   const isRecordingRef = useRef(false)
-  const replayMirroredRef = useRef(true)
   const feedbackIdRef = useRef(0)
+  const cameraStageSizeRef = useRef({ width: 0, height: 0 })
   const recordingModeRef = useRef<'camera' | 'composite' | null>(null)
   const scoreRef = useRef(0)
   const timeLeftMsRef = useRef(GAME_DURATION_MS)
@@ -117,7 +118,6 @@ export default function PushupDashPage() {
   const [lives, setLives] = useState(MAX_LIVES)
   const [repCount, setRepCount] = useState(0)
   const [phaseLabel, setPhaseLabel] = useState('等待下压')
-  const [replayMirrored, setReplayMirrored] = useState(true)
   const [feedback, setFeedback] = useState<ArcadeFeedback | null>(null)
 
   const sharePayload = useMemo(
@@ -131,11 +131,6 @@ export default function PushupDashPage() {
 
   useShareAppMessage(() => sharePayload)
   useShareTimeline(() => createTimelinePayload(sharePayload))
-
-  const changeReplayDirection = (mirrored: boolean) => {
-    replayMirroredRef.current = mirrored
-    setReplayMirrored(mirrored)
-  }
 
   useEffect(() => {
     openCoachLinkShareMenu()
@@ -160,10 +155,6 @@ export default function PushupDashPage() {
   useEffect(() => {
     livesRef.current = lives
   }, [lives])
-
-  useEffect(() => {
-    replayMirroredRef.current = replayMirrored
-  }, [replayMirrored])
 
   useEffect(() => {
     gameStatusRef.current = gameStatus
@@ -192,10 +183,15 @@ export default function PushupDashPage() {
     cameraContextRef.current = context
     const tracker = new BodyPointTracker({
       onSnapshot: (snapshot) => {
+        const projected = projectCameraPointToStage(
+          snapshot,
+          { width: snapshot.frameWidth, height: snapshot.frameHeight },
+          cameraStageSizeRef.current
+        )
         motionRef.current = {
           energy: snapshot.energy,
-          x: snapshot.x,
-          y: snapshot.y
+          x: projected.x,
+          y: projected.y
         }
         setMotionEnergy(snapshot.energy)
 
@@ -276,7 +272,6 @@ export default function PushupDashPage() {
               frameHeight: height,
               frameWidth: width,
               items: replayItems,
-              mirrored: replayMirroredRef.current,
               player: {
                 x: dashActiveRef.current ? PLAYER_X + 0.08 : PLAYER_X,
                 y: 0.78
@@ -479,14 +474,6 @@ export default function PushupDashPage() {
       }
     }
 
-    if (replayMirroredRef.current) {
-      Taro.showToast({
-        title: '当前设备不支持镜像合成回放，可切到原始方向后录制',
-        icon: 'none'
-      })
-      return
-    }
-
     beginCameraFallbackRecording()
   }
 
@@ -644,13 +631,25 @@ export default function PushupDashPage() {
               <View className='camera-stage pushup-stage'>
                 <Camera
                   className='camera-preview'
-                  devicePosition='front'
+                  devicePosition={USER_FACING_CAMERA.devicePosition}
                   flash='off'
                   mode='normal'
-                  frameSize='small'
+                  frameSize={USER_FACING_CAMERA.frameSize}
+                  resolution={USER_FACING_CAMERA.resolution}
                   onInitDone={() => {
                     setCameraReady(true)
                     setCameraError('')
+                    Taro.nextTick(() => {
+                      Taro.createSelectorQuery()
+                        .select('.camera-stage')
+                        .boundingClientRect((rect: any) => {
+                          cameraStageSizeRef.current = {
+                            width: Number(rect?.width || 0),
+                            height: Number(rect?.height || 0)
+                          }
+                        })
+                        .exec()
+                    })
                   }}
                   onError={(event: any) => {
                     const message = event?.detail?.errMsg || '相机启动失败，请检查权限。'
@@ -810,21 +809,7 @@ export default function PushupDashPage() {
                   <Text className='btn-primary-text'>{videoSaving ? '正在保存' : '保存回放视频'}</Text>
                 </View>
               </View>
-              <View className='toggle-row'>
-                <View
-                  className={`toggle-chip ${replayMirrored ? 'active' : ''}`}
-                  onClick={() => changeReplayDirection(true)}
-                >
-                  <Text className='toggle-chip-text'>镜像同向（推荐）</Text>
-                </View>
-                <View
-                  className={`toggle-chip ${replayMirrored ? '' : 'active'}`}
-                  onClick={() => changeReplayDirection(false)}
-                >
-                  <Text className='toggle-chip-text'>原始方向</Text>
-                </View>
-              </View>
-              <Text className='direction-note'>该方向会同步写入回放；合成回放为 360 × 480、12 fps 的流畅压缩画质。</Text>
+              <Text className='direction-note'>前置摄像头、头部跟踪和最终回放始终使用同一方向；合成回放为 360 × 480、12 fps 的流畅压缩画质。</Text>
             </View>
           </View>
         </ScrollView>

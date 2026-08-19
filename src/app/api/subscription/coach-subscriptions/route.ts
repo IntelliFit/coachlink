@@ -389,7 +389,7 @@ export async function POST(req: Request) {
                 // Latest plan instance per subscription (for training_days cadence & start_execution_day)
                 const { data: instances } = await supabase
                     .from('coach_plan_instances')
-                    .select('id, coach_subscription_id, training_days, start_execution_day, created_at, status')
+                    .select('id, coach_subscription_id, training_days, start_execution_day, created_at, status, entitlement_consumption_policy')
                     .in('coach_subscription_id', subscriptionIds)
                     .in('status', ['active', 'paused', 'completed', 'scheduled', 'archived'])
                     .order('created_at', { ascending: false });

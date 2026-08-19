@@ -476,7 +476,11 @@ function TodayTrainingScreen() {
     [selectedModuleModel]
   )
 
-  const effectiveCalendarStartDate = instance?.start_date || activeSubscription?.start_date || null
+  // 教练订阅计划以学员第一次实际开始训练为 D1；
+  // plan instance 的分配日只作无订阅键点时的兼容回退。
+  const effectiveCalendarStartDate = planMode === 'coach'
+    ? activeSubscription?.start_date || instance?.start_date || null
+    : instance?.start_date || null
   const scheduleModel = useMemo(
     () =>
       buildPlanScheduleModel({

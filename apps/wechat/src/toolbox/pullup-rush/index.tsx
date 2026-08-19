@@ -15,6 +15,7 @@ import {
   vibrateForArcadeFeedback
 } from '../games/arcadeFeedback'
 import { BodyPointTracker } from '../games/bodyPointTracker'
+import { projectCameraPointToStage, USER_FACING_CAMERA } from '../cameraTracking'
 import '../games/motionArcade.scss'
 import './index.scss'
 
@@ -114,8 +115,8 @@ export default function PullupRushPage() {
   const nextPipeIdRef = useRef(1)
   const lastPipeSpawnAtRef = useRef(0)
   const isRecordingRef = useRef(false)
-  const flipXRef = useRef(true)
   const feedbackIdRef = useRef(0)
+  const cameraStageSizeRef = useRef({ width: 0, height: 0 })
   const recordingModeRef = useRef<'camera' | 'composite' | null>(null)
   const gameStartedAtRef = useRef(0)
   const scoreRef = useRef(0)
@@ -137,7 +138,6 @@ export default function PullupRushPage() {
   const [replayProcessing, setReplayProcessing] = useState(false)
   const [videoSaving, setVideoSaving] = useState(false)
   const [recordedVideo, setRecordedVideo] = useState<RecordedVideo | null>(null)
-  const [flipX, setFlipX] = useState(true)
   const [pipes, setPipes] = useState<PipePair[]>([])
   const [lives, setLives] = useState(MAX_LIVES)
   const [pullCount, setPullCount] = useState(0)
@@ -154,11 +154,6 @@ export default function PullupRushPage() {
 
   useShareAppMessage(() => sharePayload)
   useShareTimeline(() => createTimelinePayload(sharePayload))
-
-  const changeDirection = (mirrored: boolean) => {
-    flipXRef.current = mirrored
-    setFlipX(mirrored)
-  }
 
   useEffect(() => {
     openCoachLinkShareMenu()
@@ -193,18 +188,19 @@ export default function PullupRushPage() {
   }, [gameStatus])
 
   useEffect(() => {
-    flipXRef.current = flipX
-  }, [flipX])
-
-  useEffect(() => {
     const context = Taro.createCameraContext()
     cameraContextRef.current = context
     const tracker = new BodyPointTracker({
       onSnapshot: (snapshot) => {
+        const projected = projectCameraPointToStage(
+          snapshot,
+          { width: snapshot.frameWidth, height: snapshot.frameHeight },
+          cameraStageSizeRef.current
+        )
         motionRef.current = {
           energy: snapshot.energy,
-          x: snapshot.x,
-          y: snapshot.y
+          x: projected.x,
+          y: projected.y
         }
         setMotionEnergy(snapshot.energy)
 
@@ -274,7 +270,6 @@ export default function PullupRushPage() {
               frameHeight: height,
               frameWidth: width,
               items: replayItems,
-              mirrored: flipXRef.current,
               player: {
                 x: PLAYER_X,
                 y: playerYRef.current
@@ -497,14 +492,6 @@ export default function PullupRushPage() {
       }
     }
 
-    if (flipXRef.current) {
-      Taro.showToast({
-        title: '当前设备不支持镜像合成回放，可切到原始方向后录制',
-        icon: 'none'
-      })
-      return
-    }
-
     beginCameraFallbackRecording()
   }
 
@@ -660,13 +647,25 @@ export default function PullupRushPage() {
               <View className='camera-stage pullup-stage'>
                 <Camera
                   className='camera-preview'
-                  devicePosition='front'
+                  devicePosition={USER_FACING_CAMERA.devicePosition}
                   flash='off'
                   mode='normal'
-                  frameSize='small'
+                  frameSize={USER_FACING_CAMERA.frameSize}
+                  resolution={USER_FACING_CAMERA.resolution}
                   onInitDone={() => {
                     setCameraReady(true)
                     setCameraError('')
+                    Taro.nextTick(() => {
+                      Taro.createSelectorQuery()
+                        .select('.camera-stage')
+                        .boundingClientRect((rect: any) => {
+                          cameraStageSizeRef.current = {
+                            width: Number(rect?.width || 0),
+                            height: Number(rect?.height || 0)
+                          }
+                        })
+                        .exec()
+                    })
                   }}
                   onError={(event: any) => {
                     const message = event?.detail?.errMsg || '相机启动失败，请检查权限。'
@@ -837,15 +836,7 @@ export default function PullupRushPage() {
                 </View>
               </View>
 
-              <View className='toggle-row'>
-                <View className={`toggle-chip ${flipX ? 'active' : ''}`} onClick={() => changeDirection(true)}>
-                  <Text className='toggle-chip-text'>镜像同向（推荐）</Text>
-                </View>
-                <View className={`toggle-chip ${flipX ? '' : 'active'}`} onClick={() => changeDirection(false)}>
-                  <Text className='toggle-chip-text'>原始方向</Text>
-                </View>
-              </View>
-              <Text className='direction-note'>该方向会同步写入回放；合成回放为 360 × 480、12 fps 的流畅压缩画质。</Text>
+              <Text className='direction-note'>前置摄像头、头部跟踪和最终回放始终使用同一方向；合成回放为 360 × 480、12 fps 的流畅压缩画质。</Text>
             </View>
           </View>
         </ScrollView>

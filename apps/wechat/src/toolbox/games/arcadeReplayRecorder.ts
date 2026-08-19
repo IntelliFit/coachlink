@@ -16,7 +16,6 @@ export type ArcadeReplayCapture = {
   frameHeight: number
   frameWidth: number
   items: ArcadeReplayItem[]
-  mirrored: boolean
   player: {
     x: number
     y: number
@@ -59,6 +58,42 @@ function wait(ms: number) {
 
 function formatSeconds(ms: number) {
   return Math.max(0, Math.ceil(ms / 1000))
+}
+
+function drawAspectFill(
+  context: any,
+  source: any,
+  sourceWidth: number,
+  sourceHeight: number,
+  targetWidth: number,
+  targetHeight: number
+) {
+  const sourceAspect = sourceWidth / Math.max(1, sourceHeight)
+  const targetAspect = targetWidth / Math.max(1, targetHeight)
+  let cropX = 0
+  let cropY = 0
+  let cropWidth = sourceWidth
+  let cropHeight = sourceHeight
+
+  if (sourceAspect > targetAspect) {
+    cropWidth = sourceHeight * targetAspect
+    cropX = (sourceWidth - cropWidth) / 2
+  } else if (sourceAspect < targetAspect) {
+    cropHeight = sourceWidth / targetAspect
+    cropY = (sourceHeight - cropHeight) / 2
+  }
+
+  context.drawImage(
+    source,
+    cropX,
+    cropY,
+    cropWidth,
+    cropHeight,
+    0,
+    0,
+    targetWidth,
+    targetHeight
+  )
 }
 
 function drawRoundedRect(
@@ -428,13 +463,14 @@ export class MotionArcadeReplayRecorder {
     ctx.fillStyle = '#111827'
     ctx.fillRect(0, 0, width, height)
 
-    ctx.save()
-    if (capture.mirrored) {
-      ctx.translate(width, 0)
-      ctx.scale(-1, 1)
-    }
-    ctx.drawImage(this.cameraFrameCanvas, 0, 0, width, height)
-    ctx.restore()
+    drawAspectFill(
+      ctx,
+      this.cameraFrameCanvas,
+      capture.frameWidth,
+      capture.frameHeight,
+      width,
+      height
+    )
 
     ctx.fillStyle = 'rgba(15, 23, 42, 0.16)'
     ctx.fillRect(0, 0, width, height)

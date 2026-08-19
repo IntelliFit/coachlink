@@ -79,7 +79,7 @@ export async function POST(req: Request) {
     // Load latest plan instance per subscription (needed for credit scope)
     const { data: instances } = await supabase
         .from("coach_plan_instances")
-        .select("id, coach_subscription_id, training_days, start_execution_day, created_at, status")
+        .select("id, coach_subscription_id, training_days, start_execution_day, created_at, status, entitlement_consumption_policy")
         .in("coach_subscription_id", candidateIds)
         .in("status", ["active", "paused", "completed", "scheduled", "archived"])
         .order("created_at", { ascending: false });

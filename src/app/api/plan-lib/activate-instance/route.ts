@@ -88,11 +88,6 @@ export async function POST(req: Request) {
         .from("coach_plan_instances")
         .update({
             status: "active",
-            start_date:
-                targetInstance.status === "draft" ||
-                    targetInstance.status === "scheduled"
-                    ? new Date().toISOString().split("T")[0]
-                    : undefined,
             updated_at: new Date().toISOString(),
         })
         .eq("id", instanceId)

@@ -47,6 +47,7 @@ import StudentFeedbackPanel from './components/StudentFeedbackPanel';
 import { BatchOperationDialog } from '@/components/BatchOperationDialog';
 import { formatTemplateToPlanScript, parsePlanScript } from '@/lib/planScript';
 import type { OneRmAdjustmentPreview } from '@/app/api/plan-lib/batch-operation/entity';
+import { addBeijingDays, toBeijingDateKey } from '@/lib/beijingTime';
 
 const StudentPlanPage = () => {
     const router = useRouter();
@@ -884,13 +885,12 @@ const StudentPlanPage = () => {
                 ? Math.max(requestedStartDayIndex, firstUnresolvedTrainingDay || requestedStartDayIndex)
                 : requestedStartDayIndex;
             const revisionStartDate = shouldCreateRevision
-                ? (() => {
-                    const date = new Date();
-                    date.setHours(0, 0, 0, 0);
-                    date.setDate(date.getDate() - Math.max(0, revisionStartDayIndex - 1));
-                    return date;
-                })()
-                : customStartDate;
+                ? rawInstance?.start_date || toBeijingDateKey(
+                    addBeijingDays(new Date(), -Math.max(0, revisionStartDayIndex - 1)),
+                )
+                : customStartDate
+                    ? toBeijingDateKey(customStartDate)
+                    : undefined;
             const res = await planLibService.createInstance({
                 templateId: selectedTemplateId,
                 subscriptionId: params.id.toString(),
@@ -901,7 +901,10 @@ const StudentPlanPage = () => {
                 type: type || null,
                 suitableFor: suitableFor || null,
                 trainingDays: daysData,
-                startDate: revisionStartDate ? revisionStartDate.toISOString() : undefined,
+                revisionOfInstanceId: shouldCreateRevision ? instanceId : undefined,
+                // 覆盖有执行历史的计划只建立内容 revision，不重置日历节奏：
+                // 优先继承旧实例 start_date；新阶段才使用重新选择的日期。
+                startDate: revisionStartDate,
                 startWeek: Math.floor((revisionStartDayIndex - 1) / 7) + 1,
                 startDay: ((revisionStartDayIndex - 1) % 7) + 1,
             });
@@ -1034,13 +1037,10 @@ const StudentPlanPage = () => {
 
         // 1. 计算回推的开始日期
         // 如果选择从第W周第D天开始，说明前 (W-1)*7 + (D-1) 天已经过去了
-        const today = new Date();
         const daysToSubtract = (config.startWeek - 1) * 7 + (config.startDay - 1);
         
         if (daysToSubtract > 0) {
-            const startDate = new Date(today);
-            startDate.setDate(today.getDate() - daysToSubtract);
-            setCustomStartDate(startDate);
+            setCustomStartDate(addBeijingDays(new Date(), -daysToSubtract));
         } else {
             setCustomStartDate(null);
         }

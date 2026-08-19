@@ -143,17 +143,50 @@ function jointAngle(
 function smoothLandmarks(
   previous: NormalizedLandmark[] | undefined,
   current: NormalizedLandmark[],
-  alpha = 0.58,
 ) {
   if (!previous || previous.length !== current.length) {
     return current.map((item) => ({ ...item }));
   }
+  const movement = current.reduce(
+    (sum, item, index) => sum + Math.hypot(item.x - previous[index].x, item.y - previous[index].y),
+    0,
+  ) / Math.max(1, current.length);
+  const alpha = clamp(0.72 + movement * 5, 0.72, 0.94);
   return current.map((item, index) => ({
     ...item,
     x: previous[index].x * (1 - alpha) + item.x * alpha,
     y: previous[index].y * (1 - alpha) + item.y * alpha,
     z: previous[index].z * (1 - alpha) + item.z * alpha,
   }));
+}
+
+function palmCenter(landmarks: NormalizedLandmark[]) {
+  const indices = [0, 5, 9, 13, 17];
+  return indices.reduce(
+    (center, index) => ({
+      x: center.x + landmarks[index].x / indices.length,
+      y: center.y + landmarks[index].y / indices.length,
+    }),
+    { x: 0, y: 0 },
+  );
+}
+
+function orderTrackedHands(
+  previous: NormalizedLandmark[][],
+  current: NormalizedLandmark[][],
+) {
+  const candidates = current.slice(0, 2);
+  if (candidates.length !== 2 || previous.length !== 2) {
+    return candidates.sort((a, b) => palmCenter(a).x - palmCenter(b).x);
+  }
+  const distance = (first: NormalizedLandmark[], second: NormalizedLandmark[]) => {
+    const a = palmCenter(first);
+    const b = palmCenter(second);
+    return Math.hypot(a.x - b.x, a.y - b.y);
+  };
+  const direct = distance(previous[0], candidates[0]) + distance(previous[1], candidates[1]);
+  const crossed = distance(previous[0], candidates[1]) + distance(previous[1], candidates[0]);
+  return crossed < direct ? [candidates[1], candidates[0]] : candidates;
 }
 
 function fingerExtensionScore(landmarks: NormalizedLandmark[], fingerIndex: number) {
@@ -247,8 +280,6 @@ function drawTexturedTriangle(
   context.clip();
   context.globalAlpha = style.textureAlpha * alpha;
   context.filter = `brightness(0.58) saturate(${1 + style.saturation / 170}) contrast(1.08)`;
-  context.translate(video.videoWidth, 0);
-  context.scale(-1, 1);
   context.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
   context.restore();
 
@@ -753,8 +784,9 @@ export default function MotionEffectsPage() {
       if (!context) return 0;
       context.clearRect(0, 0, canvas.width, canvas.height);
 
-      const orderedHands = [...(handsResult?.landmarks || [])].sort(
-        (a, b) => a[0].x - b[0].x,
+      const orderedHands = orderTrackedHands(
+        smoothedHandsRef.current,
+        [...(handsResult?.landmarks || [])],
       );
       const hands = orderedHands.map((landmarks, index) =>
         smoothLandmarks(smoothedHandsRef.current[index], landmarks),

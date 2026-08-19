@@ -219,7 +219,7 @@ export async function getSubscriptionCarryoverSummary(params: {
 
   let query = supabase
     .from("coach_plan_instances")
-    .select("id, start_execution_day, created_at, status")
+    .select("id, start_execution_day, created_at, status, entitlement_consumption_policy")
     .eq("coach_subscription_id", params.subscriptionId)
     .in("status", Array.from(CARRYOVER_INSTANCE_STATUSES))
     .order("created_at", { ascending: true });

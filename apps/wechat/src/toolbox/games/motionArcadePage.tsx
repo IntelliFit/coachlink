@@ -16,6 +16,7 @@ import {
 import { MotionArcadeReplayRecorder, type ArcadeReplayItem } from './arcadeReplayRecorder'
 import type { MotionArcadeGameConfig } from './gameConfigs'
 import { BodyPointTracker } from './bodyPointTracker'
+import { projectCameraPointToStage, USER_FACING_CAMERA } from '../cameraTracking'
 
 type GameStatus = 'idle' | 'playing' | 'ended'
 
@@ -128,9 +129,9 @@ export function createMotionArcadePage(config: MotionArcadeGameConfig) {
     const gameStartedAtRef = useRef(0)
     const nextItemIdRef = useRef(1)
     const isRecordingRef = useRef(false)
-    const flipXRef = useRef(true)
     const feedbackIdRef = useRef(0)
     const motionRef = useRef<MotionSnapshot>({ x: 0.5, y: 0.7, energy: 0 })
+    const cameraStageSizeRef = useRef({ width: 0, height: 0 })
     const playerPositionRef = useRef({ x: 0.5, y: 0.78 })
     const recordingModeRef = useRef<'camera' | 'composite' | null>(null)
     const scoreRef = useRef(0)
@@ -145,7 +146,6 @@ export function createMotionArcadePage(config: MotionArcadeGameConfig) {
     const [playerPosition, setPlayerPosition] = useState({ x: 0.5, y: 0.78 })
     const [motionEnergy, setMotionEnergy] = useState(0)
     const [items, setItems] = useState<MotionItem[]>([])
-    const [flipX, setFlipX] = useState(true)
     const [recording, setRecording] = useState(false)
     const [replayProcessing, setReplayProcessing] = useState(false)
     const [videoSaving, setVideoSaving] = useState(false)
@@ -164,11 +164,6 @@ export function createMotionArcadePage(config: MotionArcadeGameConfig) {
     useShareAppMessage(() => sharePayload)
     useShareTimeline(() => createTimelinePayload(sharePayload))
 
-    const changeDirection = (mirrored: boolean) => {
-      flipXRef.current = mirrored
-      setFlipX(mirrored)
-    }
-
     useEffect(() => {
       openCoachLinkShareMenu()
     }, [])
@@ -186,10 +181,6 @@ export function createMotionArcadePage(config: MotionArcadeGameConfig) {
     }, [playerPosition])
 
     useEffect(() => {
-      flipXRef.current = flipX
-    }, [flipX])
-
-    useEffect(() => {
       scoreRef.current = score
     }, [score])
 
@@ -202,10 +193,15 @@ export function createMotionArcadePage(config: MotionArcadeGameConfig) {
       cameraContextRef.current = context
       const tracker = new BodyPointTracker({
         onSnapshot: (snapshot) => {
+          const projected = projectCameraPointToStage(
+            snapshot,
+            { width: snapshot.frameWidth, height: snapshot.frameHeight },
+            cameraStageSizeRef.current
+          )
           motionRef.current = {
             energy: snapshot.energy,
-            x: snapshot.x,
-            y: snapshot.y
+            x: projected.x,
+            y: projected.y
           }
           setMotionEnergy(snapshot.energy)
         }
@@ -243,7 +239,6 @@ export function createMotionArcadePage(config: MotionArcadeGameConfig) {
                 frameHeight: height,
                 frameWidth: width,
                 items: replayItems,
-                mirrored: flipXRef.current,
                 player: playerPositionRef.current,
                 replayFooterLabel: config.replayFooterLabel,
                 score: scoreRef.current,
@@ -290,7 +285,7 @@ export function createMotionArcadePage(config: MotionArcadeGameConfig) {
         const elapsed = Date.now() - gameStartedAtRef.current
         const nextTimeLeft = Math.max(0, GAME_DURATION_MS - elapsed)
         const motion = motionRef.current
-        const targetX = clamp(flipX ? 1 - motion.x : motion.x, 0.08, 0.92)
+        const targetX = clamp(motion.x, 0.08, 0.92)
         const targetY = clamp(0.16 + motion.y * 0.72, 0.18, 0.9)
         let nextPlayer = playerPositionRef.current
 
@@ -368,7 +363,7 @@ export function createMotionArcadePage(config: MotionArcadeGameConfig) {
       }, GAME_TICK_MS)
 
       return () => clearInterval(timer)
-    }, [flipX, gameStatus])
+    }, [gameStatus])
 
     const beginCameraFallbackRecording = () => {
       if (!cameraContextRef.current) {
@@ -442,14 +437,6 @@ export function createMotionArcadePage(config: MotionArcadeGameConfig) {
           replayRecorderRef.current = null
           console.warn('小游戏合成回放录制不可用:', error)
         }
-      }
-
-      if (flipXRef.current) {
-        Taro.showToast({
-          title: '当前设备不支持镜像合成回放，可切到原始方向后录制',
-          icon: 'none'
-        })
-        return
       }
 
       beginCameraFallbackRecording()
@@ -613,13 +600,25 @@ export function createMotionArcadePage(config: MotionArcadeGameConfig) {
                 <View className='camera-stage'>
                   <Camera
                     className='camera-preview'
-                    devicePosition='front'
+                    devicePosition={USER_FACING_CAMERA.devicePosition}
                     flash='off'
                     mode='normal'
-                    frameSize='small'
+                    frameSize={USER_FACING_CAMERA.frameSize}
+                    resolution={USER_FACING_CAMERA.resolution}
                     onInitDone={() => {
                       setCameraReady(true)
                       setCameraError('')
+                      Taro.nextTick(() => {
+                        Taro.createSelectorQuery()
+                          .select('.camera-stage')
+                          .boundingClientRect((rect: any) => {
+                            cameraStageSizeRef.current = {
+                              width: Number(rect?.width || 0),
+                              height: Number(rect?.height || 0)
+                            }
+                          })
+                          .exec()
+                      })
                     }}
                     onError={(event: any) => {
                       const message = event?.detail?.errMsg || '相机启动失败，请检查权限。'
@@ -772,21 +771,7 @@ export function createMotionArcadePage(config: MotionArcadeGameConfig) {
                   </View>
                 </View>
 
-                <View className='toggle-row'>
-                  <View
-                    className={`toggle-chip ${flipX ? 'active' : ''}`}
-                    onClick={() => changeDirection(true)}
-                  >
-                    <Text className='toggle-chip-text'>镜像同向（推荐）</Text>
-                  </View>
-                  <View
-                    className={`toggle-chip ${flipX ? '' : 'active'}`}
-                    onClick={() => changeDirection(false)}
-                  >
-                    <Text className='toggle-chip-text'>原始方向</Text>
-                  </View>
-                </View>
-                <Text className='direction-note'>该方向会同时用于实时操作和最终合成回放。</Text>
+                <Text className='direction-note'>前置摄像头、头部跟踪、实时操作和最终回放始终使用同一方向。</Text>
                 <Text className='direction-note'>合成回放为 360 × 480、12 fps 的流畅压缩画质，不是相机原画质。</Text>
               </View>
 

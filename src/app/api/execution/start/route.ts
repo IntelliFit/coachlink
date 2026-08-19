@@ -18,6 +18,7 @@ import {
     deriveEffectiveStartExecutionDay,
     deriveStrictSequentialProgressDay,
 } from "@/lib/planProgress";
+import { toBeijingDateKey } from "@/lib/beijingTime";
 
 function canManuallyAdvanceAcrossRestDays(params: {
     planDays: any[];
@@ -252,7 +253,8 @@ export async function POST(request: NextRequest) {
             planDays: trainingDays,
             startExecutionDay: effectiveStartExecutionDay,
             executionsByDayIndex,
-            explicitStartDate: (instance as any)?.start_date || null,
+            explicitStartDate:
+                subscriptionStartDate || (instance as any)?.start_date || null,
         });
 
         const existingStatus = String(existingExecution?.status || "").toLowerCase();
@@ -522,25 +524,27 @@ export async function POST(request: NextRequest) {
                     .maybeSingle();
 
                 if (subRow && subRow.status === "active" && !subRow.start_date) {
-                        const nowIso = new Date().toISOString();
+                        const firstStartedAt =
+                            (newExecution as any)?.started_at || new Date().toISOString();
                         await serviceRoleSupabase
                             .from("coach_subscriptions")
                             .update({
-                                start_date: nowIso,
-                                updated_at: nowIso,
+                                start_date: firstStartedAt,
+                                updated_at: firstStartedAt,
                             } as any)
                             .eq("id", subscriptionId);
 
-                        // Also set plan instance start_date (used by week unlock + date mapping in UI).
-                        // This prevents dayIndex/calendar mismatches across "今日训练" vs "当前计划" pages.
-                        await serviceRoleSupabase
-                            .from("coach_plan_instances" as any)
-                            .update({
-                                start_date: nowIso,
-                                updated_at: nowIso,
-                            } as any)
-                            .eq("id", instanceId)
-                            .is("start_date", null);
+                        // D1 必须以第一次实际训练日期为准，覆盖分配计划时
+                        // 预填的日期；后续 revision 再继承这个真实键点。
+                        if (Number(dayIndex) === 1) {
+                            await serviceRoleSupabase
+                                .from("coach_plan_instances" as any)
+                                .update({
+                                    start_date: toBeijingDateKey(firstStartedAt),
+                                    updated_at: firstStartedAt,
+                                } as any)
+                                .eq("id", instanceId);
+                        }
                 }
             }
         } catch (e) {

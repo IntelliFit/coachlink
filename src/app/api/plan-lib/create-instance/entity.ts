@@ -17,6 +17,13 @@ export interface CreateInstanceDto {
     status?: string | null;
 
     /**
+     * When present, this create is a content revision of the given current
+     * instance. The server preserves the original D1 and derives the next
+     * executable training day from that instance's real execution history.
+     */
+    revisionOfInstanceId?: string | null;
+
+    /**
      * Optional: if the student is migrating mid-cycle, specify where they should start.
      * startExecutionDay will be computed as (startWeek - 1) * 7 + startDay.
      */
